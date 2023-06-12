@@ -126,8 +126,8 @@ const std::vector<MMKernelTestShape> shapes = {
     {256, 40, 448},
     // all tail
     {256 + 9, 47, 449},
-    // gemv, K <= 64(32)*6, TODO: 160 will fail
-    {256, 1, 80},
+    // gemv, K <= 64(32)*6
+    {256, 1, 160},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_GemmKernel, GemmKernelTest,

@@ -180,6 +180,303 @@ namespace functional {
         _mm512_storeu_epi32(dst + 15*16, rf);
     }
 
+    inline void transpose_epi32_Mx16(void * _dst, const void * src, int stride, int valid_m) {
+        auto * dst = reinterpret_cast<uint32_t*>(_dst);
+        __m512i r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, ra, rb, rc, rd, re, rf;
+        auto * pA = reinterpret_cast<const uint8_t*>(src);
+        switch (valid_m) {
+            case 15:
+                r0 = _mm512_loadu_epi32(pA);
+                r1 = _mm512_loadu_epi32(pA + stride);
+                r2 = _mm512_loadu_epi32(pA + 2*stride);
+                r3 = _mm512_loadu_epi32(pA + 3*stride);
+                r4 = _mm512_loadu_epi32(pA + 4*stride);
+                r5 = _mm512_loadu_epi32(pA + 5*stride);
+                r6 = _mm512_loadu_epi32(pA + 6*stride);
+                r7 = _mm512_loadu_epi32(pA + 7*stride);
+                r8 = _mm512_loadu_epi32(pA + 8*stride);
+                r9 = _mm512_loadu_epi32(pA + 9*stride);
+                ra = _mm512_loadu_epi32(pA + 10*stride);
+                rb = _mm512_loadu_epi32(pA + 11*stride);
+                rc = _mm512_loadu_epi32(pA + 12*stride);
+                rd = _mm512_loadu_epi32(pA + 13*stride);
+                re = _mm512_loadu_epi32(pA + 14*stride);
+                rf = _mm512_setzero();
+                break;
+            case 14:
+                r0 = _mm512_loadu_epi32(pA);
+                r1 = _mm512_loadu_epi32(pA + stride);
+                r2 = _mm512_loadu_epi32(pA + 2*stride);
+                r3 = _mm512_loadu_epi32(pA + 3*stride);
+                r4 = _mm512_loadu_epi32(pA + 4*stride);
+                r5 = _mm512_loadu_epi32(pA + 5*stride);
+                r6 = _mm512_loadu_epi32(pA + 6*stride);
+                r7 = _mm512_loadu_epi32(pA + 7*stride);
+                r8 = _mm512_loadu_epi32(pA + 8*stride);
+                r9 = _mm512_loadu_epi32(pA + 9*stride);
+                ra = _mm512_loadu_epi32(pA + 10*stride);
+                rb = _mm512_loadu_epi32(pA + 11*stride);
+                rc = _mm512_loadu_epi32(pA + 12*stride);
+                rd = _mm512_loadu_epi32(pA + 13*stride);
+                re = _mm512_setzero();
+                rf = _mm512_setzero();
+                break;
+            case 13:
+                r0 = _mm512_loadu_epi32(pA);
+                r1 = _mm512_loadu_epi32(pA + stride);
+                r2 = _mm512_loadu_epi32(pA + 2*stride);
+                r3 = _mm512_loadu_epi32(pA + 3*stride);
+                r4 = _mm512_loadu_epi32(pA + 4*stride);
+                r5 = _mm512_loadu_epi32(pA + 5*stride);
+                r6 = _mm512_loadu_epi32(pA + 6*stride);
+                r7 = _mm512_loadu_epi32(pA + 7*stride);
+                r8 = _mm512_loadu_epi32(pA + 8*stride);
+                r9 = _mm512_loadu_epi32(pA + 9*stride);
+                ra = _mm512_loadu_epi32(pA + 10*stride);
+                rb = _mm512_loadu_epi32(pA + 11*stride);
+                rc = _mm512_loadu_epi32(pA + 12*stride);
+                rd = _mm512_setzero();
+                re = _mm512_setzero();
+                rf = _mm512_setzero();
+                break;
+            case 12:
+                r0 = _mm512_loadu_epi32(pA);
+                r1 = _mm512_loadu_epi32(pA + stride);
+                r2 = _mm512_loadu_epi32(pA + 2*stride);
+                r3 = _mm512_loadu_epi32(pA + 3*stride);
+                r4 = _mm512_loadu_epi32(pA + 4*stride);
+                r5 = _mm512_loadu_epi32(pA + 5*stride);
+                r6 = _mm512_loadu_epi32(pA + 6*stride);
+                r7 = _mm512_loadu_epi32(pA + 7*stride);
+                r8 = _mm512_loadu_epi32(pA + 8*stride);
+                r9 = _mm512_loadu_epi32(pA + 9*stride);
+                ra = _mm512_loadu_epi32(pA + 10*stride);
+                rb = _mm512_loadu_epi32(pA + 11*stride);
+                rc = _mm512_setzero();
+                rd = _mm512_setzero();
+                re = _mm512_setzero();
+                rf = _mm512_setzero();
+                break;
+            case 11:
+                r0 = _mm512_loadu_epi32(pA);
+                r1 = _mm512_loadu_epi32(pA + stride);
+                r2 = _mm512_loadu_epi32(pA + 2*stride);
+                r3 = _mm512_loadu_epi32(pA + 3*stride);
+                r4 = _mm512_loadu_epi32(pA + 4*stride);
+                r5 = _mm512_loadu_epi32(pA + 5*stride);
+                r6 = _mm512_loadu_epi32(pA + 6*stride);
+                r7 = _mm512_loadu_epi32(pA + 7*stride);
+                r8 = _mm512_loadu_epi32(pA + 8*stride);
+                r9 = _mm512_loadu_epi32(pA + 9*stride);
+                ra = _mm512_loadu_epi32(pA + 10*stride);
+                rb = _mm512_setzero();
+                rc = _mm512_setzero();
+                rd = _mm512_setzero();
+                re = _mm512_setzero();
+                rf = _mm512_setzero();
+                break;
+            case 10:
+                r0 = _mm512_loadu_epi32(pA);
+                r1 = _mm512_loadu_epi32(pA + stride);
+                r2 = _mm512_loadu_epi32(pA + 2*stride);
+                r3 = _mm512_loadu_epi32(pA + 3*stride);
+                r4 = _mm512_loadu_epi32(pA + 4*stride);
+                r5 = _mm512_loadu_epi32(pA + 5*stride);
+                r6 = _mm512_loadu_epi32(pA + 6*stride);
+                r7 = _mm512_loadu_epi32(pA + 7*stride);
+                r8 = _mm512_loadu_epi32(pA + 8*stride);
+                r9 = _mm512_loadu_epi32(pA + 9*stride);
+                ra = _mm512_setzero();
+                rb = _mm512_setzero();
+                rc = _mm512_setzero();
+                rd = _mm512_setzero();
+                re = _mm512_setzero();
+                rf = _mm512_setzero();
+                break;
+            case 9:
+                r0 = _mm512_loadu_epi32(pA);
+                r1 = _mm512_loadu_epi32(pA + stride);
+                r2 = _mm512_loadu_epi32(pA + 2*stride);
+                r3 = _mm512_loadu_epi32(pA + 3*stride);
+                r4 = _mm512_loadu_epi32(pA + 4*stride);
+                r5 = _mm512_loadu_epi32(pA + 5*stride);
+                r6 = _mm512_loadu_epi32(pA + 6*stride);
+                r7 = _mm512_loadu_epi32(pA + 7*stride);
+                r8 = _mm512_loadu_epi32(pA + 8*stride);
+                r9 = _mm512_setzero();
+                ra = _mm512_setzero();
+                rb = _mm512_setzero();
+                rc = _mm512_setzero();
+                rd = _mm512_setzero();
+                re = _mm512_setzero();
+                rf = _mm512_setzero();
+                break;
+            case 8:
+                r0 = _mm512_loadu_epi32(pA);
+                r1 = _mm512_loadu_epi32(pA + stride);
+                r2 = _mm512_loadu_epi32(pA + 2*stride);
+                r3 = _mm512_loadu_epi32(pA + 3*stride);
+                r4 = _mm512_loadu_epi32(pA + 4*stride);
+                r5 = _mm512_loadu_epi32(pA + 5*stride);
+                r6 = _mm512_loadu_epi32(pA + 6*stride);
+                r7 = _mm512_loadu_epi32(pA + 7*stride);
+                r8 = _mm512_setzero();
+                r9 = _mm512_setzero();
+                ra = _mm512_setzero();
+                rb = _mm512_setzero();
+                rc = _mm512_setzero();
+                rd = _mm512_setzero();
+                re = _mm512_setzero();
+                rf = _mm512_setzero();
+                break;
+            case 7:
+                r0 = _mm512_loadu_epi32(pA);
+                r1 = _mm512_loadu_epi32(pA + stride);
+                r2 = _mm512_loadu_epi32(pA + 2*stride);
+                r3 = _mm512_loadu_epi32(pA + 3*stride);
+                r4 = _mm512_loadu_epi32(pA + 4*stride);
+                r5 = _mm512_loadu_epi32(pA + 5*stride);
+                r6 = _mm512_loadu_epi32(pA + 6*stride);
+                r7 = _mm512_setzero();
+                r8 = _mm512_setzero();
+                r9 = _mm512_setzero();
+                ra = _mm512_setzero();
+                rb = _mm512_setzero();
+                rc = _mm512_setzero();
+                rd = _mm512_setzero();
+                re = _mm512_setzero();
+                rf = _mm512_setzero();
+                break;
+            case 6:
+                r0 = _mm512_loadu_epi32(pA);
+                r1 = _mm512_loadu_epi32(pA + stride);
+                r2 = _mm512_loadu_epi32(pA + 2*stride);
+                r3 = _mm512_loadu_epi32(pA + 3*stride);
+                r4 = _mm512_loadu_epi32(pA + 4*stride);
+                r5 = _mm512_loadu_epi32(pA + 5*stride);
+                r6 = _mm512_setzero();
+                r7 = _mm512_setzero();
+                r8 = _mm512_setzero();
+                r9 = _mm512_setzero();
+                ra = _mm512_setzero();
+                rb = _mm512_setzero();
+                rc = _mm512_setzero();
+                rd = _mm512_setzero();
+                re = _mm512_setzero();
+                rf = _mm512_setzero();
+                break;
+            case 5:
+                r0 = _mm512_loadu_epi32(pA);
+                r1 = _mm512_loadu_epi32(pA + stride);
+                r2 = _mm512_loadu_epi32(pA + 2*stride);
+                r3 = _mm512_loadu_epi32(pA + 3*stride);
+                r4 = _mm512_loadu_epi32(pA + 4*stride);
+                r5 = _mm512_setzero();
+                r6 = _mm512_setzero();
+                r7 = _mm512_setzero();
+                r8 = _mm512_setzero();
+                r9 = _mm512_setzero();
+                ra = _mm512_setzero();
+                rb = _mm512_setzero();
+                rc = _mm512_setzero();
+                rd = _mm512_setzero();
+                re = _mm512_setzero();
+                rf = _mm512_setzero();
+                break;
+            case 4:
+                r0 = _mm512_loadu_epi32(pA);
+                r1 = _mm512_loadu_epi32(pA + stride);
+                r2 = _mm512_loadu_epi32(pA + 2*stride);
+                r3 = _mm512_loadu_epi32(pA + 3*stride);
+                r4 = _mm512_setzero();
+                r5 = _mm512_setzero();
+                r6 = _mm512_setzero();
+                r7 = _mm512_setzero();
+                r8 = _mm512_setzero();
+                r9 = _mm512_setzero();
+                ra = _mm512_setzero();
+                rb = _mm512_setzero();
+                rc = _mm512_setzero();
+                rd = _mm512_setzero();
+                re = _mm512_setzero();
+                rf = _mm512_setzero();
+                break;
+            case 3:
+                r0 = _mm512_loadu_epi32(pA);
+                r1 = _mm512_loadu_epi32(pA + stride);
+                r2 = _mm512_loadu_epi32(pA + 2*stride);
+                r3 = _mm512_setzero();
+                r4 = _mm512_setzero();
+                r5 = _mm512_setzero();
+                r6 = _mm512_setzero();
+                r7 = _mm512_setzero();
+                r8 = _mm512_setzero();
+                r9 = _mm512_setzero();
+                ra = _mm512_setzero();
+                rb = _mm512_setzero();
+                rc = _mm512_setzero();
+                rd = _mm512_setzero();
+                re = _mm512_setzero();
+                rf = _mm512_setzero();
+                break;
+            case 2:
+                r0 = _mm512_loadu_epi32(pA);
+                r1 = _mm512_loadu_epi32(pA + stride);
+                r2 = _mm512_setzero();
+                r3 = _mm512_setzero();
+                r4 = _mm512_setzero();
+                r5 = _mm512_setzero();
+                r6 = _mm512_setzero();
+                r7 = _mm512_setzero();
+                r8 = _mm512_setzero();
+                r9 = _mm512_setzero();
+                ra = _mm512_setzero();
+                rb = _mm512_setzero();
+                rc = _mm512_setzero();
+                rd = _mm512_setzero();
+                re = _mm512_setzero();
+                rf = _mm512_setzero();
+                break;
+            case 1:
+                r0 = _mm512_loadu_epi32(pA);
+                r1 = _mm512_setzero();
+                r2 = _mm512_setzero();
+                r3 = _mm512_setzero();
+                r4 = _mm512_setzero();
+                r5 = _mm512_setzero();
+                r6 = _mm512_setzero();
+                r7 = _mm512_setzero();
+                r8 = _mm512_setzero();
+                r9 = _mm512_setzero();
+                ra = _mm512_setzero();
+                rb = _mm512_setzero();
+                rc = _mm512_setzero();
+                rd = _mm512_setzero();
+                re = _mm512_setzero();
+                rf = _mm512_setzero();
+                break;
+        }
+
+        transpose_m512i_16x16(r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, ra, rb, rc, rd, re, rf);
+
+        _mm512_storeu_epi32(dst, r0);
+        _mm512_storeu_epi32(dst + 16, r1);
+        _mm512_storeu_epi32(dst + 2*16, r2);
+        _mm512_storeu_epi32(dst + 3*16, r3);
+        _mm512_storeu_epi32(dst + 4*16, r4);
+        _mm512_storeu_epi32(dst + 5*16, r5);
+        _mm512_storeu_epi32(dst + 6*16, r6);
+        _mm512_storeu_epi32(dst + 7*16, r7);
+        _mm512_storeu_epi32(dst + 8*16, r8);
+        _mm512_storeu_epi32(dst + 9*16, r9);
+        _mm512_storeu_epi32(dst + 10*16, ra);
+        _mm512_storeu_epi32(dst + 11*16, rb);
+        _mm512_storeu_epi32(dst + 12*16, rc);
+        _mm512_storeu_epi32(dst + 13*16, rd);
+        _mm512_storeu_epi32(dst + 14*16, re);
+        _mm512_storeu_epi32(dst + 15*16, rf);
+    }
+
     // 16xN, N<=16, non-valid part is on the left, filled with zeros
     inline void transpose_epi32_16xN_right_align(void * _dst, const void * src, int stride, int valid_bytes) {
         auto * dst = reinterpret_cast<uint32_t*>(_dst);
@@ -204,6 +501,304 @@ namespace functional {
         rd = _mm512_maskz_loadu_epi8 (mask, pA + 13*stride);
         re = _mm512_maskz_loadu_epi8 (mask, pA + 14*stride);
         rf = _mm512_maskz_loadu_epi8 (mask, pA + 15*stride);
+        transpose_m512i_16x16(r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, ra, rb, rc, rd, re, rf);
+        _mm512_storeu_epi32(dst, r0);
+        _mm512_storeu_epi32(dst + 16, r1);
+        _mm512_storeu_epi32(dst + 2*16, r2);
+        _mm512_storeu_epi32(dst + 3*16, r3);
+        _mm512_storeu_epi32(dst + 4*16, r4);
+        _mm512_storeu_epi32(dst + 5*16, r5);
+        _mm512_storeu_epi32(dst + 6*16, r6);
+        _mm512_storeu_epi32(dst + 7*16, r7);
+        _mm512_storeu_epi32(dst + 8*16, r8);
+        _mm512_storeu_epi32(dst + 9*16, r9);
+        _mm512_storeu_epi32(dst + 10*16, ra);
+        _mm512_storeu_epi32(dst + 11*16, rb);
+        _mm512_storeu_epi32(dst + 12*16, rc);
+        _mm512_storeu_epi32(dst + 13*16, rd);
+        _mm512_storeu_epi32(dst + 14*16, re);
+        _mm512_storeu_epi32(dst + 15*16, rf);
+    }
+
+    inline void transpose_epi32_MxN_right_align(void * _dst, const void * src, int stride, int valid_bytes, int valid_m) {
+        auto * dst = reinterpret_cast<uint32_t*>(_dst);
+        __m512i r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, ra, rb, rc, rd, re, rf;
+        int invalid_bytes = 64 - valid_bytes;
+        auto * pA = reinterpret_cast<const uint8_t*>(src) - invalid_bytes;
+        uint64_t mask_value = 0xFFFFFFFFFFFFFFFFull << invalid_bytes;
+        __mmask64 mask = _cvtu64_mask64(mask_value);
+        switch (valid_m) {
+            case 15:
+                r0 = _mm512_maskz_loadu_epi8 (mask, pA);
+                r1 = _mm512_maskz_loadu_epi8 (mask, pA + stride);
+                r2 = _mm512_maskz_loadu_epi8 (mask, pA + 2*stride);
+                r3 = _mm512_maskz_loadu_epi8 (mask, pA + 3*stride);
+                r4 = _mm512_maskz_loadu_epi8 (mask, pA + 4*stride);
+                r5 = _mm512_maskz_loadu_epi8 (mask, pA + 5*stride);
+                r6 = _mm512_maskz_loadu_epi8 (mask, pA + 6*stride);
+                r7 = _mm512_maskz_loadu_epi8 (mask, pA + 7*stride);
+                r8 = _mm512_maskz_loadu_epi8 (mask, pA + 8*stride);
+                r9 = _mm512_maskz_loadu_epi8 (mask, pA + 9*stride);
+                ra = _mm512_maskz_loadu_epi8 (mask, pA + 10*stride);
+                rb = _mm512_maskz_loadu_epi8 (mask, pA + 11*stride);
+                rc = _mm512_maskz_loadu_epi8 (mask, pA + 12*stride);
+                rd = _mm512_maskz_loadu_epi8 (mask, pA + 13*stride);
+                re = _mm512_maskz_loadu_epi8 (mask, pA + 14*stride);
+                rf = _mm512_setzero();
+                break;
+            case 14:
+                r0 = _mm512_maskz_loadu_epi8 (mask, pA);
+                r1 = _mm512_maskz_loadu_epi8 (mask, pA + stride);
+                r2 = _mm512_maskz_loadu_epi8 (mask, pA + 2*stride);
+                r3 = _mm512_maskz_loadu_epi8 (mask, pA + 3*stride);
+                r4 = _mm512_maskz_loadu_epi8 (mask, pA + 4*stride);
+                r5 = _mm512_maskz_loadu_epi8 (mask, pA + 5*stride);
+                r6 = _mm512_maskz_loadu_epi8 (mask, pA + 6*stride);
+                r7 = _mm512_maskz_loadu_epi8 (mask, pA + 7*stride);
+                r8 = _mm512_maskz_loadu_epi8 (mask, pA + 8*stride);
+                r9 = _mm512_maskz_loadu_epi8 (mask, pA + 9*stride);
+                ra = _mm512_maskz_loadu_epi8 (mask, pA + 10*stride);
+                rb = _mm512_maskz_loadu_epi8 (mask, pA + 11*stride);
+                rc = _mm512_maskz_loadu_epi8 (mask, pA + 12*stride);
+                rd = _mm512_maskz_loadu_epi8 (mask, pA + 13*stride);
+                re = _mm512_setzero();
+                rf = _mm512_setzero();
+                break;
+            case 13:
+                r0 = _mm512_maskz_loadu_epi8 (mask, pA);
+                r1 = _mm512_maskz_loadu_epi8 (mask, pA + stride);
+                r2 = _mm512_maskz_loadu_epi8 (mask, pA + 2*stride);
+                r3 = _mm512_maskz_loadu_epi8 (mask, pA + 3*stride);
+                r4 = _mm512_maskz_loadu_epi8 (mask, pA + 4*stride);
+                r5 = _mm512_maskz_loadu_epi8 (mask, pA + 5*stride);
+                r6 = _mm512_maskz_loadu_epi8 (mask, pA + 6*stride);
+                r7 = _mm512_maskz_loadu_epi8 (mask, pA + 7*stride);
+                r8 = _mm512_maskz_loadu_epi8 (mask, pA + 8*stride);
+                r9 = _mm512_maskz_loadu_epi8 (mask, pA + 9*stride);
+                ra = _mm512_maskz_loadu_epi8 (mask, pA + 10*stride);
+                rb = _mm512_maskz_loadu_epi8 (mask, pA + 11*stride);
+                rc = _mm512_maskz_loadu_epi8 (mask, pA + 12*stride);
+                rd = _mm512_setzero();
+                re = _mm512_setzero();
+                rf = _mm512_setzero();
+                break;
+            case 12:
+                r0 = _mm512_maskz_loadu_epi8 (mask, pA);
+                r1 = _mm512_maskz_loadu_epi8 (mask, pA + stride);
+                r2 = _mm512_maskz_loadu_epi8 (mask, pA + 2*stride);
+                r3 = _mm512_maskz_loadu_epi8 (mask, pA + 3*stride);
+                r4 = _mm512_maskz_loadu_epi8 (mask, pA + 4*stride);
+                r5 = _mm512_maskz_loadu_epi8 (mask, pA + 5*stride);
+                r6 = _mm512_maskz_loadu_epi8 (mask, pA + 6*stride);
+                r7 = _mm512_maskz_loadu_epi8 (mask, pA + 7*stride);
+                r8 = _mm512_maskz_loadu_epi8 (mask, pA + 8*stride);
+                r9 = _mm512_maskz_loadu_epi8 (mask, pA + 9*stride);
+                ra = _mm512_maskz_loadu_epi8 (mask, pA + 10*stride);
+                rb = _mm512_maskz_loadu_epi8 (mask, pA + 11*stride);
+                rc = _mm512_setzero();
+                rd = _mm512_setzero();
+                re = _mm512_setzero();
+                rf = _mm512_setzero();
+                break;
+            case 11:
+                r0 = _mm512_maskz_loadu_epi8 (mask, pA);
+                r1 = _mm512_maskz_loadu_epi8 (mask, pA + stride);
+                r2 = _mm512_maskz_loadu_epi8 (mask, pA + 2*stride);
+                r3 = _mm512_maskz_loadu_epi8 (mask, pA + 3*stride);
+                r4 = _mm512_maskz_loadu_epi8 (mask, pA + 4*stride);
+                r5 = _mm512_maskz_loadu_epi8 (mask, pA + 5*stride);
+                r6 = _mm512_maskz_loadu_epi8 (mask, pA + 6*stride);
+                r7 = _mm512_maskz_loadu_epi8 (mask, pA + 7*stride);
+                r8 = _mm512_maskz_loadu_epi8 (mask, pA + 8*stride);
+                r9 = _mm512_maskz_loadu_epi8 (mask, pA + 9*stride);
+                ra = _mm512_maskz_loadu_epi8 (mask, pA + 10*stride);
+                rb = _mm512_setzero();
+                rc = _mm512_setzero();
+                rd = _mm512_setzero();
+                re = _mm512_setzero();
+                rf = _mm512_setzero();
+                break;
+            case 10:
+                r0 = _mm512_maskz_loadu_epi8 (mask, pA);
+                r1 = _mm512_maskz_loadu_epi8 (mask, pA + stride);
+                r2 = _mm512_maskz_loadu_epi8 (mask, pA + 2*stride);
+                r3 = _mm512_maskz_loadu_epi8 (mask, pA + 3*stride);
+                r4 = _mm512_maskz_loadu_epi8 (mask, pA + 4*stride);
+                r5 = _mm512_maskz_loadu_epi8 (mask, pA + 5*stride);
+                r6 = _mm512_maskz_loadu_epi8 (mask, pA + 6*stride);
+                r7 = _mm512_maskz_loadu_epi8 (mask, pA + 7*stride);
+                r8 = _mm512_maskz_loadu_epi8 (mask, pA + 8*stride);
+                r9 = _mm512_maskz_loadu_epi8 (mask, pA + 9*stride);
+                ra = _mm512_setzero();
+                rb = _mm512_setzero();
+                rc = _mm512_setzero();
+                rd = _mm512_setzero();
+                re = _mm512_setzero();
+                rf = _mm512_setzero();
+                break;
+            case 9:
+                r0 = _mm512_maskz_loadu_epi8 (mask, pA);
+                r1 = _mm512_maskz_loadu_epi8 (mask, pA + stride);
+                r2 = _mm512_maskz_loadu_epi8 (mask, pA + 2*stride);
+                r3 = _mm512_maskz_loadu_epi8 (mask, pA + 3*stride);
+                r4 = _mm512_maskz_loadu_epi8 (mask, pA + 4*stride);
+                r5 = _mm512_maskz_loadu_epi8 (mask, pA + 5*stride);
+                r6 = _mm512_maskz_loadu_epi8 (mask, pA + 6*stride);
+                r7 = _mm512_maskz_loadu_epi8 (mask, pA + 7*stride);
+                r8 = _mm512_maskz_loadu_epi8 (mask, pA + 8*stride);
+                r9 = _mm512_setzero();
+                ra = _mm512_setzero();
+                rb = _mm512_setzero();
+                rc = _mm512_setzero();
+                rd = _mm512_setzero();
+                re = _mm512_setzero();
+                rf = _mm512_setzero();
+                break;
+            case 8:
+                r0 = _mm512_maskz_loadu_epi8 (mask, pA);
+                r1 = _mm512_maskz_loadu_epi8 (mask, pA + stride);
+                r2 = _mm512_maskz_loadu_epi8 (mask, pA + 2*stride);
+                r3 = _mm512_maskz_loadu_epi8 (mask, pA + 3*stride);
+                r4 = _mm512_maskz_loadu_epi8 (mask, pA + 4*stride);
+                r5 = _mm512_maskz_loadu_epi8 (mask, pA + 5*stride);
+                r6 = _mm512_maskz_loadu_epi8 (mask, pA + 6*stride);
+                r7 = _mm512_maskz_loadu_epi8 (mask, pA + 7*stride);
+                r8 = _mm512_setzero();
+                r9 = _mm512_setzero();
+                ra = _mm512_setzero();
+                rb = _mm512_setzero();
+                rc = _mm512_setzero();
+                rd = _mm512_setzero();
+                re = _mm512_setzero();
+                rf = _mm512_setzero();
+                break;
+            case 7:
+                r0 = _mm512_maskz_loadu_epi8 (mask, pA);
+                r1 = _mm512_maskz_loadu_epi8 (mask, pA + stride);
+                r2 = _mm512_maskz_loadu_epi8 (mask, pA + 2*stride);
+                r3 = _mm512_maskz_loadu_epi8 (mask, pA + 3*stride);
+                r4 = _mm512_maskz_loadu_epi8 (mask, pA + 4*stride);
+                r5 = _mm512_maskz_loadu_epi8 (mask, pA + 5*stride);
+                r6 = _mm512_maskz_loadu_epi8 (mask, pA + 6*stride);
+                r7 = _mm512_setzero();
+                r8 = _mm512_setzero();
+                r9 = _mm512_setzero();
+                ra = _mm512_setzero();
+                rb = _mm512_setzero();
+                rc = _mm512_setzero();
+                rd = _mm512_setzero();
+                re = _mm512_setzero();
+                rf = _mm512_setzero();
+                break;
+            case 6:
+                r0 = _mm512_maskz_loadu_epi8 (mask, pA);
+                r1 = _mm512_maskz_loadu_epi8 (mask, pA + stride);
+                r2 = _mm512_maskz_loadu_epi8 (mask, pA + 2*stride);
+                r3 = _mm512_maskz_loadu_epi8 (mask, pA + 3*stride);
+                r4 = _mm512_maskz_loadu_epi8 (mask, pA + 4*stride);
+                r5 = _mm512_maskz_loadu_epi8 (mask, pA + 5*stride);
+                r6 = _mm512_setzero();
+                r7 = _mm512_setzero();
+                r8 = _mm512_setzero();
+                r9 = _mm512_setzero();
+                ra = _mm512_setzero();
+                rb = _mm512_setzero();
+                rc = _mm512_setzero();
+                rd = _mm512_setzero();
+                re = _mm512_setzero();
+                rf = _mm512_setzero();
+                break;
+            case 5:
+                r0 = _mm512_maskz_loadu_epi8 (mask, pA);
+                r1 = _mm512_maskz_loadu_epi8 (mask, pA + stride);
+                r2 = _mm512_maskz_loadu_epi8 (mask, pA + 2*stride);
+                r3 = _mm512_maskz_loadu_epi8 (mask, pA + 3*stride);
+                r4 = _mm512_maskz_loadu_epi8 (mask, pA + 4*stride);
+                r5 = _mm512_setzero();
+                r6 = _mm512_setzero();
+                r7 = _mm512_setzero();
+                r8 = _mm512_setzero();
+                r9 = _mm512_setzero();
+                ra = _mm512_setzero();
+                rb = _mm512_setzero();
+                rc = _mm512_setzero();
+                rd = _mm512_setzero();
+                re = _mm512_setzero();
+                rf = _mm512_setzero();
+                break;
+            case 4:
+                r0 = _mm512_maskz_loadu_epi8 (mask, pA);
+                r1 = _mm512_maskz_loadu_epi8 (mask, pA + stride);
+                r2 = _mm512_maskz_loadu_epi8 (mask, pA + 2*stride);
+                r3 = _mm512_maskz_loadu_epi8 (mask, pA + 3*stride);
+                r4 = _mm512_setzero();
+                r5 = _mm512_setzero();
+                r6 = _mm512_setzero();
+                r7 = _mm512_setzero();
+                r8 = _mm512_setzero();
+                r9 = _mm512_setzero();
+                ra = _mm512_setzero();
+                rb = _mm512_setzero();
+                rc = _mm512_setzero();
+                rd = _mm512_setzero();
+                re = _mm512_setzero();
+                rf = _mm512_setzero();
+                break;
+            case 3:
+                r0 = _mm512_maskz_loadu_epi8 (mask, pA);
+                r1 = _mm512_maskz_loadu_epi8 (mask, pA + stride);
+                r2 = _mm512_maskz_loadu_epi8 (mask, pA + 2*stride);
+                r3 = _mm512_setzero();
+                r4 = _mm512_setzero();
+                r5 = _mm512_setzero();
+                r6 = _mm512_setzero();
+                r7 = _mm512_setzero();
+                r8 = _mm512_setzero();
+                r9 = _mm512_setzero();
+                ra = _mm512_setzero();
+                rb = _mm512_setzero();
+                rc = _mm512_setzero();
+                rd = _mm512_setzero();
+                re = _mm512_setzero();
+                rf = _mm512_setzero();
+                break;
+            case 2:
+                r0 = _mm512_maskz_loadu_epi8 (mask, pA);
+                r1 = _mm512_maskz_loadu_epi8 (mask, pA + stride);
+                r2 = _mm512_setzero();
+                r3 = _mm512_setzero();
+                r4 = _mm512_setzero();
+                r5 = _mm512_setzero();
+                r6 = _mm512_setzero();
+                r7 = _mm512_setzero();
+                r8 = _mm512_setzero();
+                r9 = _mm512_setzero();
+                ra = _mm512_setzero();
+                rb = _mm512_setzero();
+                rc = _mm512_setzero();
+                rd = _mm512_setzero();
+                re = _mm512_setzero();
+                rf = _mm512_setzero();
+                break;
+            case 1:
+                r0 = _mm512_maskz_loadu_epi8 (mask, pA);
+                r1 = _mm512_setzero();
+                r2 = _mm512_setzero();
+                r3 = _mm512_setzero();
+                r4 = _mm512_setzero();
+                r5 = _mm512_setzero();
+                r6 = _mm512_setzero();
+                r7 = _mm512_setzero();
+                r8 = _mm512_setzero();
+                r9 = _mm512_setzero();
+                ra = _mm512_setzero();
+                rb = _mm512_setzero();
+                rc = _mm512_setzero();
+                rd = _mm512_setzero();
+                re = _mm512_setzero();
+                rf = _mm512_setzero();
+                break;
+        }
         transpose_m512i_16x16(r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, ra, rb, rc, rd, re, rf);
         _mm512_storeu_epi32(dst, r0);
         _mm512_storeu_epi32(dst + 16, r1);
@@ -424,6 +1019,171 @@ namespace functional {
             for (int i = 0; i < allnonzero_dst_rows; i++) {
                 a = _mm512_loadu_epi16(src);
                 b = _mm512_loadu_epi16(src + stride);
+                a = _mm512_permutexvar_epi64(midx, a);
+                b = _mm512_permutexvar_epi64(midx, b);
+                rowB0 = _mm512_unpacklo_epi16(a, b);
+                rowB1 = _mm512_unpackhi_epi16(a, b);
+                _mm512_storeu_epi16(dst0, rowB0);
+                _mm512_storeu_epi16(dst1, rowB1);
+                src += 2*stride;
+                dst0 += 64;
+                dst1 += 64;
+            }
+        }
+    }
+
+    inline void kpack_tile_B0B1_ntail(void * _dst0, void * _dst1, const int8_t * _src, int stride, int src_rows, int valid_n) {
+        #define FROM_B(i) ((1<<4)|(i))
+        static const uint32_t idx[16] = { 0,4,FROM_B(0),FROM_B(4),
+                                          1,5,FROM_B(1),FROM_B(5),
+                                          2,6,FROM_B(2),FROM_B(6),
+                                          3,7,FROM_B(3),FROM_B(7)};
+        auto midx = _mm512_loadu_epi64(idx);
+        __mmask16 mask = _cvtu32_mask16(0xFFFFu);
+        const auto * src = reinterpret_cast<const int8_t *>(_src);
+        auto * dst0 = reinterpret_cast<int8_t *>(_dst0);
+        auto * dst1 = reinterpret_cast<int8_t *>(_dst1);
+        __mmask32 mask_n = _cvtu32_mask32(0xFFFFFFFF >> (32 - valid_n));
+        if (src_rows == 64) {
+            for (int row = 0; row < 16; row++) {
+                                                                   // each element (a? or b?) is 32-bits, two lanes in each ymm register
+                auto a256 = _mm256_maskz_loadu_epi8(mask_n, src); src += stride; // [a0 a1 a2 a3 | a4 a5 a6 a7]  256-bits ymm0 B0: a0-a3 B1: a4:a7
+                auto b256 = _mm256_maskz_loadu_epi8(mask_n, src); src += stride; // [b0 b1 b2 b3 | b4 b5 b6 b7]  256-bits ymm1 B0: b0-b3 B1: b4:b7
+                auto c256 = _mm256_maskz_loadu_epi8(mask_n, src); src += stride; // [c0 c1 c2 c3 | c4 c5 c6 c7]  256-bits ymm2 B0: c0-c3 B1: c4:c7
+                auto d256 = _mm256_maskz_loadu_epi8(mask_n, src); src += stride; // [d0 d1 d2 d3 | d4 d5 d6 d7]  256-bits ymm3 B0: d0-d3 B1: d4:d7
+                auto a = _mm512_castsi256_si512(a256);
+                auto b = _mm512_castsi256_si512(b256);
+                auto c = _mm512_castsi256_si512(c256);
+                auto d = _mm512_castsi256_si512(d256);                       
+                auto ac = _mm512_mask_permutex2var_epi32(a, mask, midx, c); // [a0 a4 c0 c4 | a1 a5 c1 c5 | a2 a6 c2 c6 | a3 a7 c3 c7]
+                auto bd = _mm512_mask_permutex2var_epi32(b, mask, midx, d); // [b0 b4 d0 d4 | b1 b5 d1 d5 | b2 b6 d2 d6 | b3 b7 d3 d7] 
+                auto aib = _mm512_unpacklo_epi8(ac, bd);                    // [a0&b0 a4&b4 | a1&b1 a5&b5 | a2&b2 a6&b6 | a3&b3 a7&b7]
+                auto cid = _mm512_unpackhi_epi8(ac, bd);                    // [c0&d0 c4&d4 | c1&d1 c5&d5 | c2&d2 c6&d6 | c3&d3 c7&d7]
+                auto rowB0 = _mm512_unpacklo_epi16(aib, cid);               // [a0&b0&c0&d0 | a1&b1&c1&d1 | a2&b2&c2&d2 | a3&b3&c3&d3] 512-bit (64bytes) line in B0
+                auto rowB1 = _mm512_unpackhi_epi16(aib, cid);               // [a4&b4&c4&d4 | a5&b5&c5&d5 | a6&b6&c6&d6 | a7&b7&c7&d7] 512-bit (64bytes) line in B1
+                _mm512_storeu_epi16(dst0, rowB0);
+                _mm512_storeu_epi16(dst1, rowB1);
+                dst0 += 64;
+                dst1 += 64;
+            }
+        } else {
+            // less than 64 source lines, 
+            int allzero_dst_rows = (64-src_rows)/4;
+            int allnonzero_dst_rows = src_rows/4;
+            // padding zeros at the top
+            auto rowB0 = _mm512_setzero_si512();
+            auto rowB1 = _mm512_setzero_si512();
+            for(int i = 0; i < allzero_dst_rows ; i++) {
+                _mm512_storeu_epi16(dst0, rowB0);
+                _mm512_storeu_epi16(dst1, rowB1);
+                dst0 += 64;
+                dst1 += 64;
+            }
+            // mixed row
+            int tails_nz = (src_rows & 3);
+            if (tails_nz) {
+                __mmask32 kmask1 = _cvtu32_mask32(0xFFFFFFFF);
+                auto a256 = _mm256_setzero_si256(); // must be zero
+                auto b256 = _mm256_setzero_si256(); // when tails_nz > 2
+                auto c256 = _mm256_setzero_si256(); // when tails_nz > 1
+                auto d256 = _mm256_setzero_si256(); // when tails_nz > 0(always load)
+                if (tails_nz > 2) {
+                    b256 = _mm256_maskz_loadu_epi8(mask_n, src); src += stride;
+                }
+                if (tails_nz > 1) {
+                    c256 = _mm256_maskz_loadu_epi8(mask_n, src); src += stride;
+                }
+                d256 = _mm256_maskz_loadu_epi8(mask_n, src); src += stride;
+                auto a = _mm512_castsi256_si512(a256);
+                auto b = _mm512_castsi256_si512(b256);
+                auto c = _mm512_castsi256_si512(c256);
+                auto d = _mm512_castsi256_si512(d256);
+                auto ac = _mm512_mask_permutex2var_epi32(a, mask, midx, c); // [a0 a4 c0 c4 | a1 a5 c1 c5 | a2 a6 c2 c6 | a3 a7 c3 c7]
+                auto bd = _mm512_mask_permutex2var_epi32(b, mask, midx, d); // [b0 b4 d0 d4 | b1 b5 d1 d5 | b2 b6 d2 d6 | b3 b7 d3 d7] 
+                auto aib = _mm512_unpacklo_epi8(ac, bd);                    // [a0&b0 a4&b4 | a1&b1 a5&b5 | a2&b2 a6&b6 | a3&b3 a7&b7]
+                auto cid = _mm512_unpackhi_epi8(ac, bd);                    // [c0&d0 c4&d4 | c1&d1 c5&d5 | c2&d2 c6&d6 | c3&d3 c7&d7]
+                auto rowB0 = _mm512_unpacklo_epi16(aib, cid);               // [a0&b0&c0&d0 | a1&b1&c1&d1 | a2&b2&c2&d2 | a3&b3&c3&d3] 512-bit (64bytes) line in B0
+                auto rowB1 = _mm512_unpackhi_epi16(aib, cid);               // [a4&b4&c4&d4 | a5&b5&c5&d5 | a6&b6&c6&d6 | a7&b7&c7&d7] 512-bit (64bytes) line in B1
+                _mm512_storeu_epi16(dst0, rowB0);
+                _mm512_storeu_epi16(dst1, rowB1);
+                dst0 += 64;
+                dst1 += 64;
+            }
+            // all non zeros
+            for (int i = 0; i < allnonzero_dst_rows; i++) {
+                auto a256 = _mm256_maskz_loadu_epi8(mask_n, src); src += stride;
+                auto b256 = _mm256_maskz_loadu_epi8(mask_n, src); src += stride;
+                auto c256 = _mm256_maskz_loadu_epi8(mask_n, src); src += stride;
+                auto d256 = _mm256_maskz_loadu_epi8(mask_n, src); src += stride;
+                auto a = _mm512_castsi256_si512(a256);
+                auto b = _mm512_castsi256_si512(b256);
+                auto c = _mm512_castsi256_si512(c256);
+                auto d = _mm512_castsi256_si512(d256);
+                auto ac = _mm512_mask_permutex2var_epi32(a, mask, midx, c); // [a0 a4 c0 c4 | a1 a5 c1 c5 | a2 a6 c2 c6 | a3 a7 c3 c7]
+                auto bd = _mm512_mask_permutex2var_epi32(b, mask, midx, d); // [b0 b4 d0 d4 | b1 b5 d1 d5 | b2 b6 d2 d6 | b3 b7 d3 d7] 
+                auto aib = _mm512_unpacklo_epi8(ac, bd);                    // [a0&b0 a4&b4 | a1&b1 a5&b5 | a2&b2 a6&b6 | a3&b3 a7&b7]
+                auto cid = _mm512_unpackhi_epi8(ac, bd);                    // [c0&d0 c4&d4 | c1&d1 c5&d5 | c2&d2 c6&d6 | c3&d3 c7&d7]
+                auto rowB0 = _mm512_unpacklo_epi16(aib, cid);               // [a0&b0&c0&d0 | a1&b1&c1&d1 | a2&b2&c2&d2 | a3&b3&c3&d3] 512-bit (64bytes) line in B0
+                auto rowB1 = _mm512_unpackhi_epi16(aib, cid);               // [a4&b4&c4&d4 | a5&b5&c5&d5 | a6&b6&c6&d6 | a7&b7&c7&d7] 512-bit (64bytes) line in B1
+                _mm512_storeu_epi16(dst0, rowB0);
+                _mm512_storeu_epi16(dst1, rowB1);
+                dst0 += 64;
+                dst1 += 64;
+            }
+        }
+    }
+
+    inline void kpack_tile_B0B1_ntail(void * _dst0, void * _dst1, const ov::bfloat16 * _src, int stride, int src_rows, int valid_n) {
+        static const uint64_t idx[8] = {0,4,1,5,2,6,3,7};
+        auto midx = _mm512_loadu_epi64(idx);
+        const auto * src = reinterpret_cast<const int8_t *>(_src);
+        auto * dst0 = reinterpret_cast<int8_t *>(_dst0);
+        auto * dst1 = reinterpret_cast<int8_t *>(_dst1);
+        __mmask32 mask = _cvtu32_mask32(0xFFFFFFFF >> (32 - valid_n));
+        __m512i a,b,rowB0, rowB1;
+        if (src_rows == 32) {
+            for (int row = 0; row < 16; row++) {
+                a = _mm512_maskz_loadu_epi16(mask, src);            // [a1  a2  a3 a4 | a5  a6  a7 a8]   total 512-bits in 8 64bits unit
+                b = _mm512_maskz_loadu_epi16(mask, src + stride);   // [b1  b2  b3 b4 | b5  b6  b7 b8]   total 512-bits
+                a = _mm512_permutexvar_epi64(midx, a);  // [a1 a5 | a2 a6 | a3 a7 | a4 a8]
+                b = _mm512_permutexvar_epi64(midx, b);  // [b1 b5 | b2 b6 | b3 b7 | b4 b8]
+                rowB0 = _mm512_unpacklo_epi16(a, b);    // [ a1&b1  a2&b2   a3&b3   a4&b4] for each 128-bits lane, interleave word in low 64 bits
+                rowB1 = _mm512_unpackhi_epi16(a, b);    // [ a5&b5  a6&b6   a7&b7   a8&b8] for each 128-bits lane, interleave word in high 64 bits
+                _mm512_storeu_epi16(dst0, rowB0);
+                _mm512_storeu_epi16(dst1, rowB1);
+                src += 2*stride;
+                dst0 += 64;
+                dst1 += 64;
+            }
+        } else {
+            int allzero_dst_rows = (32-src_rows)/2;
+            int allnonzero_dst_rows = src_rows/2;
+            
+            rowB0 = _mm512_setzero_si512();
+            rowB1 = _mm512_setzero_si512();
+            for(int i = 0; i < allzero_dst_rows ; i++) {
+                _mm512_storeu_epi16(dst0, rowB0);
+                _mm512_storeu_epi16(dst1, rowB1);
+                dst0 += 64;
+                dst1 += 64;
+            }
+            // mixed row
+            if (src_rows & 1) {
+                a = _mm512_setzero_si512();
+                b = _mm512_maskz_loadu_epi16(mask, src); src += stride;
+                a = _mm512_permutexvar_epi64(midx, a);
+                b = _mm512_permutexvar_epi64(midx, b);
+                auto rowB0 = _mm512_unpacklo_epi16(a, b);
+                auto rowB1 = _mm512_unpackhi_epi16(a, b);
+                _mm512_storeu_epi16(dst0, rowB0);
+                _mm512_storeu_epi16(dst1, rowB1);
+                dst0 += 64;
+                dst1 += 64;
+            }
+            // all non-zero rows
+            for (int i = 0; i < allnonzero_dst_rows; i++) {
+                a = _mm512_maskz_loadu_epi16(mask, src);
+                b = _mm512_maskz_loadu_epi16(mask, src + stride);
                 a = _mm512_permutexvar_epi64(midx, a);
                 b = _mm512_permutexvar_epi64(midx, b);
                 rowB0 = _mm512_unpacklo_epi16(a, b);
@@ -756,55 +1516,113 @@ void loop2D_opt_Mtail(int M, int N, int mc, F f) {
 //
 template<class T>
 void repackB_1x2(const tensor2D<T> &Bi, bool transpose, tensor2D<T>& Bo, bool is_const) {
-    int K = Bi.dims[transpose?1:0];
-    int N = Bi.dims[transpose?0:1];
+    int K = Bi.dims[transpose ? 1 : 0];
+    int N = Bi.dims[transpose ? 0 : 1];
 
     // K_padded : round up to multiple of 32/64
     int kStep = 64 / sizeof(T);
-    int K_padded = (K + kStep - 1)/kStep * kStep;
+    int K_padded = (K + kStep - 1) / kStep * kStep;
     int Ktails = K % kStep;
     int Kbody = K - Ktails;
 
     // N_padded : round up to multiple of (2*16)
-    int N_unit = 2*16;
-    int N_padded = (N + N_unit - 1)/N_unit * N_unit;
+    int N_unit = 2 * 16;
+    int N_padded = (N + N_unit - 1) / N_unit * N_unit;
 
     // Bo(ni, 0) is a vector flattened from a slice of shape [K_padded x N_unit]
-    Bo.resize(N_padded/N_unit, K_padded * N_unit, false, is_const);
+    Bo.resize(N_padded / N_unit, K_padded * N_unit, false, is_const);
 
+    int n = 0;
+    int n_tail = N % N_unit;
     if (transpose) {
-        for(int n = 0; n < N; n += N_unit) {
+        for(; n < N - n_tail; n += N_unit) {
             // a K_padded x N_unit submatrix layouted in B0/B1... and put sequentially
-            auto * dst = reinterpret_cast<int8_t *>(&Bo(n/N_unit, 0));
-            auto * src0 = reinterpret_cast<const int8_t *>(&Bi(n, 0));
+            auto* dst = reinterpret_cast<int8_t*>(&Bo(n / N_unit, 0));
+            auto* src0 = reinterpret_cast<const int8_t*>(&Bi(n, 0));
             int k;
             for(k = 0; k < Kbody; k += kStep) {
                 // B0 (16x32) => transpose+repack as 32x16(16x16x2) or 64x16(16x16x4)
-                functional::transpose_epi32_16x16(dst, src0 + 0*16*Bi.stride + k*sizeof(T), Bi.stride);
+                functional::transpose_epi32_16x16(dst, src0 + 0 * 16 * Bi.stride + k * sizeof(T), Bi.stride);
                 dst += 1024;
-                functional::transpose_epi32_16x16(dst, src0 + 1*16*Bi.stride + k*sizeof(T), Bi.stride);
+                functional::transpose_epi32_16x16(dst, src0 + 1 * 16 * Bi.stride + k * sizeof(T), Bi.stride);
                 dst += 1024;
             }
             if (Ktails) {
                 // Ktails part is loaded into A tile right-aligned, so B tile must also load
                 // Ktails part to bottom-aligned, and fill upper padding with zero
-                functional::transpose_epi32_16xN_right_align(dst, src0 + 0*16*Bi.stride + k*sizeof(T), Bi.stride, (K-k)*sizeof(T));
+                functional::transpose_epi32_16xN_right_align(dst, src0 + 0 * 16 * Bi.stride + k * sizeof(T), Bi.stride, (K - k)*sizeof(T));
                 dst += 1024;
-                functional::transpose_epi32_16xN_right_align(dst, src0 + 1*16*Bi.stride + k*sizeof(T), Bi.stride, (K-k)*sizeof(T));
+                functional::transpose_epi32_16xN_right_align(dst, src0 + 1 * 16 * Bi.stride + k * sizeof(T), Bi.stride, (K - k)*sizeof(T));
                 dst += 1024;
+            }
+        }
+        // n_tail: [16, 32)
+        if (N - n >= 16) {
+            auto* dst = reinterpret_cast<int8_t*>(&Bo(n / N_unit, 0));
+            auto* src0 = reinterpret_cast<const int8_t*>(&Bi(n, 0));
+            int k;
+            for(k = 0; k < Kbody; k += kStep) {
+                // B0 (16x32) => transpose+repack as 32x16(16x16x2) or 64x16(16x16x4)
+                functional::transpose_epi32_16x16(dst, src0 + 0 * 16 * Bi.stride + k * sizeof(T), Bi.stride);
+                dst += 1024 * 2;
+            }
+            if (Ktails) {
+                // Ktails part is loaded into A tile right-aligned, so B tile must also load
+                // Ktails part to bottom-aligned, and fill upper padding with zero
+                functional::transpose_epi32_16xN_right_align(dst, src0 + 0 * 16 * Bi.stride + k * sizeof(T), Bi.stride, (K - k) * sizeof(T));
+            }
+            n += 16;
+        }
+        // n_tail: (0, 16)
+        if (N - n > 0) {
+            auto* dst = reinterpret_cast<int8_t*>(&Bo(n / N_unit, 0)) + (n_tail > 16 ? 1024 : 0);
+            auto* src0 = reinterpret_cast<const int8_t*>(&Bi(n, 0));
+            int k;
+            for(k = 0; k < Kbody; k += kStep) {
+                // B0 (16x32) => transpose+repack as 32x16(16x16x2) or 64x16(16x16x4)
+                functional::transpose_epi32_Mx16(dst, src0 + 0 * 16 * Bi.stride + k * sizeof(T), Bi.stride, N - n);
+                dst += 1024 * 2;
+            }
+            if (Ktails) {
+                // Ktails part is loaded into A tile right-aligned, so B tile must also load
+                // Ktails part to bottom-aligned, and fill upper padding with zero
+                functional::transpose_epi32_MxN_right_align(dst, src0 + 0 * 16 * Bi.stride + k * sizeof(T), Bi.stride, (K - k) * sizeof(T), N - n);
+            }
+            n = N;
+        }
+        // second B tile is untouched, need to set to zero 
+        if (n_tail > 0 && n_tail <= 16) {
+            auto* dst = reinterpret_cast<int8_t*>(&Bo(n / N_unit, 0));
+            for (int k = 0; k < K_padded; k += kStep) {
+                memset(dst + 1024, 0, 1024);
+                dst += 1024 * 2;
             }
         }
     } else {
         // pack & layout sequentially
-        for(int n = 0; n < N; n += N_unit) {
-            auto * dst = reinterpret_cast<int8_t *>(&Bo(n/N_unit, 0));
-            for(int k = 0; k < K; k+=kStep) {
+        int n = 0;
+        int n_tail = N % N_unit;
+        for(; n < N - n_tail; n += N_unit) {
+            auto * dst = reinterpret_cast<int8_t*>(&Bo(n / N_unit, 0));
+            for(int k = 0; k < K; k += kStep) {
                 // bf16: B0 B1 32x(16+16) => repack as two 16x16x2
                 // int8: B0 B1 64x(16+16) => repack as two 16x16x4
                 int src_rows = std::min(K - k, kStep);
-                functional::kpack_tile_B0B1(dst, dst + (1024), &Bi(k, n), Bi.stride, src_rows);
+                functional::kpack_tile_B0B1(dst, dst + 1024, &Bi(k, n), Bi.stride, src_rows);
                 dst += 2048;
             }
+        }
+        // n_tail: (0, 32)
+        if (N - n > 0) {
+            auto * dst = reinterpret_cast<int8_t*>(&Bo(n / N_unit, 0));
+            for(int k = 0; k < K; k += kStep) {
+                // bf16: B0 B1 32x(16+16) => repack as two 16x16x2
+                // int8: B0 B1 64x(16+16) => repack as two 16x16x4
+                int src_rows = std::min(K - k, kStep);
+                functional::kpack_tile_B0B1_ntail(dst, dst + 1024, &Bi(k, n), Bi.stride, src_rows, N - n);
+                dst += 2048;
+            }
+            n += 16;
         }
     }
 }
@@ -930,14 +1748,14 @@ struct MatmulVector {
                 _tile_loadd(1, pA0 + 128, strideA);  TILE_DP(0, 1, 4);
                 _tile_loadd(1, pA0 + KLastOffBytes, strideA); TILE_DP(0, 1, 5);
             }
-            if (tmmN == 6) {
+            if (tmmN == 5) {
                 _tile_loadd(1, pA0, strideA); TILE_DP(0, 1, 2);
                 _tile_loadd(1, pA0 + 64, strideA); TILE_DP(0, 1, 3);
                 _tile_loadd(1, pA0 + 128, strideA);  TILE_DP(0, 1, 4);
                 _tile_loadd(1, pA0 + 192, strideA); TILE_DP(0, 1, 5);
                 _tile_loadd(1, pA0 + KLastOffBytes, strideA); TILE_DP(0, 1, 6);
             }
-            if (tmmN == 7) {
+            if (tmmN == 6) {
                 _tile_loadd(1, pA0, strideA); TILE_DP(0, 1, 2);
                 _tile_loadd(1, pA0 + 64, strideA); TILE_DP(0, 1, 3);
                 _tile_loadd(1, pA0 + 128, strideA);  TILE_DP(0, 1, 4);
@@ -1095,7 +1913,7 @@ struct Matmul {
     if (is_u8u8) _tile_dpbuud(dst, a, b);
 
     template<int tmmN, typename PP>
-    void kernel_slimB(int M, int N, int K,
+    void kernel_slimB(int M, int N, int K, int n0,
                     tensor2D<TA> & A,
                     void * B,
                     tensor2D<TC> & buffC,
@@ -1155,7 +1973,7 @@ struct Matmul {
                 _tile_loadd(1, pA0 + KlastOffBytes, strideA); TILE_DP(0, 1, 7);
             }
             _tile_stored(0, pC0, buffC.stride);
-            (ppkernel)(buffC, m, 0, 16, N);
+            (ppkernel)(buffC, m, n0, 16, N);
             pA0 += 16*A.stride;
         }
     }
@@ -1196,12 +2014,12 @@ struct Matmul {
             auto * pB0 = reinterpret_cast<int8_t*>(&internalB[0]);
             tileconfig_t tfg(1, 0, 8, 16, 64);
             switch((K + kStep - 1)/kStep) {
-                case 1: kernel_slimB<1>(M, N, K, matA, pB0, buffC, ppkernel); break;
-                case 2: kernel_slimB<2>(M, N, K, matA, pB0, buffC, ppkernel); break;
-                case 3: kernel_slimB<3>(M, N, K, matA, pB0, buffC, ppkernel); break;
-                case 4: kernel_slimB<4>(M, N, K, matA, pB0, buffC, ppkernel); break;
-                case 5: kernel_slimB<5>(M, N, K, matA, pB0, buffC, ppkernel); break;
-                case 6: kernel_slimB<6>(M, N, K, matA, pB0, buffC, ppkernel); break;
+                case 1: kernel_slimB<1>(M, N, K, n0, matA, pB0, buffC, ppkernel); break;
+                case 2: kernel_slimB<2>(M, N, K, n0, matA, pB0, buffC, ppkernel); break;
+                case 3: kernel_slimB<3>(M, N, K, n0, matA, pB0, buffC, ppkernel); break;
+                case 4: kernel_slimB<4>(M, N, K, n0, matA, pB0, buffC, ppkernel); break;
+                case 5: kernel_slimB<5>(M, N, K, n0, matA, pB0, buffC, ppkernel); break;
+                case 6: kernel_slimB<6>(M, N, K, n0, matA, pB0, buffC, ppkernel); break;
                 default:
                     assert(false); // impossible since (K <= 6*kStep)
             }

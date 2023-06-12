@@ -119,6 +119,7 @@ private:
     StateLLMFc stateLLMFc = Not_Init;
     std::shared_ptr<float> dequant;
     std::shared_ptr<float> requant;
+    std::shared_ptr<float> biasRnd;
 #endif
 };
 

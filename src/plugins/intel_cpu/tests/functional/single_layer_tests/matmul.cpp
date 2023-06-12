@@ -247,14 +247,6 @@ std::vector<CPUSpecificParams> filterSpecificParams_BrgemmAmx() {
     return specificParams;
 }
 
-std::vector<CPUSpecificParams> filterSpecificParams_llmdnnAmx() {
-    std::vector<CPUSpecificParams> specificParams;
-    if (with_cpu_x86_avx512_core_amx()) {
-        specificParams.push_back(CPUSpecificParams{{}, {}, {"gemm_llmdnn"}, "gemm_llmdnn"});
-    }
-
-    return specificParams;
-}
 
 std::vector<CPUSpecificParams> filterSpecificParams_Brgconv1x1() {
     std::vector<CPUSpecificParams> specificParams;
@@ -345,12 +337,6 @@ std::vector<fusingSpecificParams> fusingParamsSet2D_Brgemm_smoke {
         fusingBias,
         fusingMultiplyPerChannel,
         fusingFakeQuantizePerTensorRelu,
-};
-
-std::vector<fusingSpecificParams> fusingParamsSet2D_llmdnn_smoke {
-        emptyFusingSpec,
-        fusingBias,
-        fusingGelu,
 };
 
 std::vector<fusingSpecificParams> fusingParamsSet2D_nightly {
@@ -762,6 +748,21 @@ const auto testParams2D_Brgemm_Amx_smoke = ::testing::Combine(fullyConnectedPara
 INSTANTIATE_TEST_SUITE_P(smoke_FC_2D_Brgemm_Amx, MatMulLayerCPUTest, testParams2D_Brgemm_Amx_smoke, MatMulLayerCPUTest::getTestCaseName);
 
 #ifdef OV_CPU_WITH_LLMDNN
+std::vector<CPUSpecificParams> filterSpecificParams_llmdnnAmx() {
+    std::vector<CPUSpecificParams> specificParams;
+    if (with_cpu_x86_avx512_core_amx()) {
+        specificParams.push_back(CPUSpecificParams{{}, {}, {"gemm_llmdnn"}, "gemm_llmdnn"});
+    }
+
+    return specificParams;
+}
+
+std::vector<fusingSpecificParams> fusingParamsSet2D_llmdnn_smoke {
+        emptyFusingSpec,
+        fusingBias,
+        fusingGelu,
+};
+
 const std::vector<ShapeRelatedParams> IS2D_llmdnn_Amx_smoke = {
     {static_shapes_to_test_representation({{59, 64}, {64, 120}}), {true, false}},
     {static_shapes_to_test_representation({{59, 64}, {64, 120}}), {true, true}},
@@ -772,7 +773,7 @@ const std::vector<ShapeRelatedParams> IS2D_llmdnn_Amx_smoke = {
     {
         {
             {{-1, -1}, {{12, 160}, {25, 160}, {12, 160}, {25, 160}}},
-            {{160, 32}, {{160, 32}, {160, 32}, {160, 32}, {160, 32}}}
+            {{160, 36}, {{160, 36}, {160, 36}, {160, 36}, {160, 36}}}
         },
         {false, false}
     },

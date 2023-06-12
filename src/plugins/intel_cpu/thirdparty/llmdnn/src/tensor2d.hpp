@@ -51,8 +51,8 @@ struct tensor2D {
         padded_dim1 = stride / sizeof(T);
     }
 
-    tensor2D<T> Tr() {
-        tensor2D<T> ret(dims[1], dims[0]);
+    tensor2D<T> Tr(bool _force_compact = false) {
+        tensor2D<T> ret(dims[1], dims[0], _force_compact);
         for(int c0=0; c0 < dims[0]; ++c0) {
             for(int c1=0; c1 < dims[1]; ++c1) {
                 ret(c1, c0) = (*this)(c0, c1);

@@ -975,6 +975,21 @@ bool FullyConnected::tryExtractParamForLLMFc(llmdnn::fc_create_param& param) {
         (data_type == Precision::I8 && K < 64))
         return false;
 
+    auto tryExtractBias = [&] () {
+        auto* bias = reinterpret_cast<float*>(getParentEdgeAt(BIAS_ID)->getMemoryPtr()->GetPtr());
+        auto bias_count = getParentEdgeAt(BIAS_ID)->getMemoryPtr()->GetShape().getElementsCount();
+        auto capacity = rnd_up(N * sizeof(float), 64);
+        biasRnd = std::shared_ptr<float>(
+                            reinterpret_cast<float*>(aligned_alloc(64, capacity)),
+                            [](void * p) { ::free(p); });
+        memset(biasRnd.get(), 0, capacity);
+
+        if (bias_count == 1) {
+            std::fill(biasRnd.get(), biasRnd.get() + N, bias[0]);
+        } else {
+            memcpy(biasRnd.get(), bias, N * sizeof(float));
+        }
+    };
     if (data_type == Precision::BF16) {
         if (one_of(outputDataType, memory::data_type::f32, memory::data_type::bf16) &&
             (fusedWith.empty() ||
@@ -984,8 +999,10 @@ bool FullyConnected::tryExtractParamForLLMFc(llmdnn::fc_create_param& param) {
             param.dt_c = static_cast<llmdnn::data_type_t>(outputDataType);
             param.b_is_trans = true;
             param.postops_type = llmdnn::NONE;
-            if (withBiases)
+            if (withBiases) {
                 param.postops_type = static_cast<llmdnn::postops_types>(param.postops_type | llmdnn::BIAS);
+                tryExtractBias();
+            }
             if (fusedWith.size() == 1 && fusedWith[0]->getAlgorithm() == Algorithm::EltwiseGeluErf)
                 param.postops_type = static_cast<llmdnn::postops_types>(param.postops_type | llmdnn::GELU);
 
@@ -999,13 +1016,15 @@ bool FullyConnected::tryExtractParamForLLMFc(llmdnn::fc_create_param& param) {
             param.b_is_trans = true;
             param.postops_type = llmdnn::NONE;
 
-            if (withBiases)
+            if (withBiases) {
                 param.postops_type = static_cast<llmdnn::postops_types>(param.postops_type | llmdnn::BIAS);
+                tryExtractBias();
+            }
             bool firstGelu = true;
             bool firstDQ = true;
             bool firstQ = true;
             bool valid = true;
-            for (int i = 0; i < fusedWith.size(); ++i) {
+            for (size_t i = 0; i < fusedWith.size(); ++i) {
                 auto& node = fusedWith[i];
                 bool isLastPostOp = (i == (fusedWith.size() - 1));
 
@@ -1078,7 +1097,7 @@ bool FullyConnected::tryUseLLMFc() {
     auto thread_num = parallel_get_max_threads();
     fcLLMs.resize(thread_num);
     bool ret = true;
-    for (size_t i = 0; i < thread_num; i++) {
+    for (int i = 0; i < thread_num; i++) {
         llmdnn::fc_kernel* fc;
         if (!fc_kernel_create(&fc, &param)) {
             ret = false;
@@ -1122,9 +1141,7 @@ bool FullyConnected::tryExecLLMFc() {
     auto work_amount = rnd_up(N, 32) / 32;
     float* bias = nullptr;
     if (withBiases) {
-        bias = reinterpret_cast<float*>(getParentEdgeAt(2)->getMemoryPtr()->GetPtr());
-        auto& bias_dims = getParentEdgeAt(2)->getMemoryPtr()->getStaticDims();
-        assert(bias_dims[0] == N);
+        bias = biasRnd.get();
     }
     auto thread_num = fcLLMs.size();
     size_t lda, ldb, ldc;
@@ -1134,8 +1151,8 @@ bool FullyConnected::tryExecLLMFc() {
     parallel_for(thread_num, [&](size_t tid) {
         size_t start {0}, end {0};
         dnnl::impl::balance211(work_amount, thread_num, tid, start, end);
-        int n0 = start * 32;
-        int n1 = std::min(end * 32, N);
+        size_t n0 = start * 32;
+        size_t n1 = std::min(end * 32, N);
         if (n0 >= N) return;
 
         llmdnn::fc_kernel_execute(fcLLMs[tid].get(), src, weight, dst, lda, ldb, ldc, M, N, K, n0, n1,
