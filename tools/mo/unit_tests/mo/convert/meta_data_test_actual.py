@@ -60,7 +60,7 @@ class MetaDataTestTF(unittest.TestCase):
             return {
                 'MO_version': get_version(),
                 'Runtime_version': get_rt_version(),
-                'legacy_frontend': "True",
+                'legacy_frontend': "False",
                 'conversion_parameters': {
                     'scale': "1.5",
                     'batch': "1"
