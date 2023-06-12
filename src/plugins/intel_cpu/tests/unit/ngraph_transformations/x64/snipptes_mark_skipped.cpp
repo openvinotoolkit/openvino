@@ -7,6 +7,7 @@
 #include <snippets_helpers.hpp>
 #include <transformations/snippets/x64/pass/snippets_mark_skipped.hpp>
 #include "snippets/pass/tokenization.hpp"
+#include "snippets/pass/collapse_subgraph.hpp"
 
 namespace ov {
 namespace test {
@@ -17,11 +18,11 @@ public:
     void run() {
         ASSERT_TRUE(function);
         manager.register_pass<ov::intel_cpu::SnippetsMarkSkipped>();
-        manager.register_pass<ngraph::snippets::pass::EnumerateNodes>();
-        manager.register_pass<ngraph::snippets::pass::TokenizeSnippets>();
+        manager.register_pass<ov::snippets::pass::EnumerateNodes>();
+        manager.register_pass<ov::snippets::pass::TokenizeSnippets>();
         //
         // todo: This is a temporary work-around. remove when MatMul tokenization is supported through general pipeline
-        manager.get_pass_config()->set_callback<ngraph::snippets::pass::TokenizeSnippets>(
+        manager.get_pass_config()->set_callback<ov::snippets::pass::TokenizeSnippets>(
                 [](const std::shared_ptr<const ov::Node>& n) -> bool {
                         return ov::is_type<const ov::op::v0::MatMul>(n);
                 });

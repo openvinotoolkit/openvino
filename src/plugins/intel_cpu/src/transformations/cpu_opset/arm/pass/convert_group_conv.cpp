@@ -19,11 +19,20 @@ ov::intel_cpu::ConvertGroupConvolution::ConvertGroupConvolution() {
         if (!gconv) {
             return false;
         }
-
-        auto data_shape = gconv->get_input_shape(Inputs::Data);
+        const unsigned int channel_axis = 1;
+        const auto& input0 = gconv->input_value(0);
+        const auto& output_shape = gconv->get_output_partial_shape(0);
+        const auto& data_shape = input0.get_partial_shape();
         // Weights layout GOIYX
-        size_t groups = gconv->get_input_shape(Inputs::Weights)[0];
-        if (groups == data_shape.at(1) && groups == gconv->get_output_shape(0)[1]) { // depthwise case
+        int64_t groups = gconv->get_input_shape(Inputs::Weights)[0];
+
+        if (data_shape[channel_axis].is_dynamic() ||
+            output_shape[channel_axis].is_dynamic()) {
+            return false;
+        }
+
+        if (groups == data_shape[channel_axis].get_length() &&
+            groups == output_shape[channel_axis].get_length()) { // depthwise case
             return false;
         }
 
@@ -33,12 +42,12 @@ ov::intel_cpu::ConvertGroupConvolution::ConvertGroupConvolution() {
                                                                  groups);
         replace_nodes.push_back(split_weights);
 
-        auto axis  = ov::opset8::Constant::create<int64_t>(ngraph::element::i64, ngraph::Shape{}, {1});
+        auto axis  = ov::opset8::Constant::create<int64_t>(ngraph::element::i64, ngraph::Shape{}, {channel_axis});
         auto split = std::make_shared<ov::opset1::Split>(gconv->input_value(Inputs::Data), axis, groups);
         replace_nodes.push_back(split);
 
         ngraph::NodeVector concat_inputs;
-        for (size_t g = 0; g < groups; g++) {
+        for (int64_t g = 0; g < groups; g++) {
             auto out = split->output(g);
             auto filter = std::make_shared<ov::opset1::Squeeze>(split_weights->output(g),
                                                                 ov::opset8::Constant::create<int64_t>(ngraph::element::i64, ngraph::Shape{}, {0}));
