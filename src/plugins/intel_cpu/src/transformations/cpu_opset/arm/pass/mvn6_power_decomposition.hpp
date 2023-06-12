@@ -8,10 +8,10 @@
 namespace ov {
 namespace intel_cpu {
 
-class ReplacePowerByMul: public ngraph::pass::MatcherPass {
+class MVN6PowerDecomposition: public ngraph::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ReplacePowerByMul");
-    ReplacePowerByMul();
+    MVN6PowerDecomposition();
 };
 }  // namespace intel_cpu
 }  // namespace ov
