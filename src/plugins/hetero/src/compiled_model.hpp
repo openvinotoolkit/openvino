@@ -15,8 +15,6 @@
 namespace ov {
 namespace hetero {
 
-class Plugin;
-
 /**
  * @class CompiledModel
  * @brief Implementation of compiled model

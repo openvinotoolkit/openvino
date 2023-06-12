@@ -11,6 +11,7 @@
 #include <utility>
 #include <vector>
 
+#include "compiled_model.hpp"
 #include "config.hpp"
 #include "openvino/runtime/iplugin.hpp"
 
