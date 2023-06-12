@@ -34,8 +34,8 @@ protected:
     GraphIteratorProto()
         : m_graph_def(std::make_shared<::tensorflow::GraphDef>()),
           m_func_def(nullptr),
-          m_library_map(),
-          m_checkpoint_v1_reader(nullptr) {}
+          m_checkpoint_v1_reader(nullptr),
+          m_library_map() {}
 
     void initialize_decoders_and_library() {
         FRONT_END_GENERAL_CHECK(m_graph_def, "GraphDef is not initialized.");
@@ -67,8 +67,8 @@ public:
                        const std::shared_ptr<CheckpointV1Reader> checkpoint_v1_reader)
         : m_graph_def(graph_def),
           m_func_def(func_def),
-          m_library_map(library_map),
-          m_checkpoint_v1_reader(checkpoint_v1_reader) {
+          m_checkpoint_v1_reader(checkpoint_v1_reader),
+          m_library_map(library_map) {
         auto nodes_size = m_func_def->node_def_size();
         auto input_size = m_func_def->signature().input_arg_size();
         auto output_size = m_func_def->signature().output_arg_size();

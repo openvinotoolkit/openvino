@@ -162,9 +162,9 @@ void CheckpointV1Reader::init_block(const std::shared_ptr<std::ifstream>& shard,
         "[TensorFlow Frontend] internal error or inconsistent checkpoint file: block size is out-of-range");
 
     // read a block and decompress if needed
-    auto buf = std::make_unique<char[]>(size + block_trailer_size);
+    std::vector<char> buf(size + block_trailer_size);
     shard->seekg(offset);
-    shard->read(buf.get(), n);
+    shard->read(buf.data(), n);
 #ifndef ENABLE_SNAPPY_COMPRESSION
     FRONT_END_GENERAL_CHECK(
         buf[size] == 0,
@@ -176,14 +176,14 @@ void CheckpointV1Reader::init_block(const std::shared_ptr<std::ifstream>& shard,
         "[TensorFlow Frontend] internal error: compression method for given block is not supported");
     if (buf[size] == 1) {
         size_t uncompressed_length = 0;
-        FRONT_END_GENERAL_CHECK(snappy::GetUncompressedLength(buf.get(), n, &uncompressed_length),
+        FRONT_END_GENERAL_CHECK(snappy::GetUncompressedLength(buf.data(), n, &uncompressed_length),
                                 "Cannot retrieve uncompressed block length");
         std::string uncompressed_string;
         block.clear();
         block.reserve(uncompressed_length);
-        snappy::Uncompress(buf.get(), n, &block);
+        snappy::Uncompress(buf.data(), n, &block);
     } else {
-        block = std::string(buf.get(), size);
+        block = std::string(buf.data(), size);
     }
 #endif
     const char* data = block.data();

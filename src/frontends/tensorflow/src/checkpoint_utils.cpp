@@ -2,10 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#pragma once
-
 #include "checkpoint_utils.hpp"
 
+#include <cstring>
 #include <vector>
 
 #include "openvino/frontend/exception.hpp"
@@ -189,7 +188,7 @@ std::string encode_tensor_name_slice(const std::string& name,
 
 uint32_t decode_fixed32(const char* ptr) {
     uint32_t result;
-    memcpy(&result, ptr, sizeof(result));  // gcc optimizes this to a plain load
+    std::memcpy(&result, ptr, sizeof(result));
     return result;
 }
 
