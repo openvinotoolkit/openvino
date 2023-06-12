@@ -34,11 +34,10 @@ set(COMMON_LIBRARIES
         ov_shape_inference
         inference_engine_s
         unitTestUtils
-        ngraphFunctions
-        snippetsNgraphFunctions)
+        ngraphFunctions)
 
 if(X86_64)
-    set(COMMON_LIBRARIES "${COMMON_LIBRARIES}" snippets_test_utils)
+    set(COMMON_LIBRARIES "${COMMON_LIBRARIES}" snippets_test_utils snippetsNgraphFunctions)
 endif()
 
 addIeTargetTest(
