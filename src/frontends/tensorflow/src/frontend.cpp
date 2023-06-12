@@ -105,7 +105,7 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
     size_t extra_variants_num = variants.size() > 0 && variants[variants.size() - 1].is<bool>() ? 1 : 0;
 
     // For TF1 models it can be a case of two input variants: input model and v1 checkpoints
-    if (variants.size() != 1 + extra_variants_num || variants.size() != 2 + extra_variants_num)
+    if (variants.size() != 1 + extra_variants_num)
         return false;
 
     // to figure out if the model with v1 checkpoints is supported,
