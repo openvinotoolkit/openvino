@@ -8,6 +8,7 @@
 #include <openvino/core/core.hpp>
 #include <openvino/core/node.hpp>
 
+#include "ov_optional.hpp"
 #include "shape_inference_status.hpp"
 #include "static_shape.hpp"
 #include "tensor_data_accessor.hpp"
@@ -39,6 +40,16 @@ public:
     using IShapeInferCommon::infer;
 
     virtual Result infer(const std::vector<StaticShape>& input_shapes, const ov::ITensorAccessor& tensor_accessor) = 0;
+
+    /**
+     * @brief Do shape inference.
+     *
+     * @param input_shapes     Input shapes vector of static shape reference adapter.
+     * @param tensor_accessor  Accessor to CPU constant data specific for operator.
+     * @return Optionally return vector of static shape adapters holding CPU dimensions.
+     */
+    virtual ov::optional<std::vector<StaticShapeCon>> infer(const std::vector<StaticShapeRef>& input_shapes,
+                                                            const ov::ITensorAccessor& tensor_accessor) = 0;
 
     /**
      * @brief Some shape inference implementation may require input data stored inside the input tensors. To define

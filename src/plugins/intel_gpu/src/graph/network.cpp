@@ -1078,6 +1078,7 @@ void network::build_insts_deps() {
     GPU_DEBUG_DEFINE_MEM_LOGGER("build_insts_deps");
     for (auto& inst : _primitives) {
         inst.second->build_deps();
+        inst.second->configure_shape_of_dependencies();
     }
 }
 
