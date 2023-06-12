@@ -9,8 +9,6 @@
 namespace SubgraphTestsDefinitions {
 std::vector<ngraph::helpers::MemoryTransformation> transformation{
     ngraph::helpers::MemoryTransformation::NONE,
-    ngraph::helpers::MemoryTransformation::LOW_LATENCY,
-    ngraph::helpers::MemoryTransformation::LOW_LATENCY_REGULAR_API,
     ngraph::helpers::MemoryTransformation::LOW_LATENCY_V2,
     ngraph::helpers::MemoryTransformation::LOW_LATENCY_V2_REGULAR_API};
 

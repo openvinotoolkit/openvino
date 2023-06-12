@@ -12,7 +12,7 @@ The software was validated on:
 - [CMake](https://cmake.org/download/) 3.13 or higher
 - GCC 7.5 or higher to build OpenVINO Runtime
 - Python 3.7 - 3.11 for OpenVINO Runtime Python API
-- (Optional) [Install Intel® Graphics Compute Runtime for OpenCL™ Driver package 19.41.14441](https://github.com/intel/compute-runtime/releases/tag/19.41.14441) to enable inference on Intel integrated GPUs.
+- (Optional) [Install Intel® Graphics Compute Runtime for OpenCL™ Driver package 23.13.26032.30](https://github.com/intel/compute-runtime/releases/tag/23.13.26032.30) to enable inference on Intel integrated GPUs.
 
 ## How to build
 
