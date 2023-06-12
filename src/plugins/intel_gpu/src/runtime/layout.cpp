@@ -213,10 +213,16 @@ std::string layout::to_short_string() const {
 
     s << data_type_traits::name(data_type) << ":" << format.to_string() << ":";
     dump_shape(s, size);
-    if (data_padding)
-        s << ":pad";
-    else
-        s << ":nopad";
+
+    if (data_padding.get_dynamic_pad_dims() != tensor(0)) {
+        s << ":dyn_pad_dims" << data_padding.get_dynamic_pad_dims().to_string();
+    } else {
+        if (data_padding)
+            s << ":pad";
+        else
+            s << ":nopad";
+    }
+
     return s.str();
 }
 
