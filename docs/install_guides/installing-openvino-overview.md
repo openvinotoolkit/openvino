@@ -62,7 +62,6 @@ The following methods are available to install OpenVINO Runtime:
 * Linux: You can install OpenVINO Runtime using APT, YUM, archive files or Docker. See :doc:`Install OpenVINO on Linux <openvino_docs_install_guides_installing_openvino_linux_header>`.
 * Windows: You can install OpenVINO Runtime using archive files or Docker. See :doc:`Install OpenVINO on Windows <openvino_docs_install_guides_installing_openvino_windows_header>`.
 * macOS: You can install OpenVINO Runtime using archive files or Docker. See :doc:`Install OpenVINO on macOS <openvino_docs_install_guides_installing_openvino_macos_header>`.
-* :doc:`Raspbian OS <openvino_docs_install_guides_installing_openvino_raspbian>`
 
 Option 3. Build OpenVINO from source
 ++++++++++++++++++++++++++++++++++++

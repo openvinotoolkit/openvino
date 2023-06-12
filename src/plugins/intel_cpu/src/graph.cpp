@@ -433,7 +433,7 @@ void Graph::InitDescriptors() {
 
 #ifdef CPU_DEBUG_CAPS
         const auto& SPDs = node->getSupportedPrimitiveDescriptors();
-        for (int i = 0; i < SPDs.size(); i++) {
+        for (size_t i = 0; i < SPDs.size(); i++) {
             DEBUG_LOG("#",
                       node->getExecIndex(),
                       " ",
@@ -1408,27 +1408,20 @@ void Graph::DropNode(const NodePtr &node) {
         auto parent = p_edge->getParent();
         if (!parent) continue;
 
-        for (size_t j = 0; j < children.size(); j++) {
-            if (!children[j].lock())
-                continue;
-            auto child = children[j].lock()->getChild();
-            if (!child)
-                continue;
+        const int inNum = p_edge->getInputNum();
+        p_edge->drop();
+        RemoveEdge(p_edge);
 
-            EdgePtr &remEdge = p_edge;
-            int inNum = 0;
-            if (remEdge) {
-                inNum = remEdge->getInputNum();
-                remEdge->drop();
-                RemoveEdge(remEdge);
-            }
-            remEdge = children[j].lock();
-            int outNum = 0;
-            if (remEdge) {
-                outNum = remEdge->getOutputNum();
-                remEdge->drop();
-                RemoveEdge(remEdge);
-            }
+        for (size_t j = 0; j < children.size(); j++) {
+            auto c_edge = children[j].lock();
+            if (!c_edge) continue;
+            auto child = c_edge->getChild();
+            if (!child) continue;
+
+            const int outNum = c_edge->getOutputNum();
+            c_edge->drop();
+            RemoveEdge(c_edge);
+
             EdgePtr newEdge(new Edge(parent, child, inNum, outNum));
             graphEdges.push_back(newEdge);
             parent->addEdge(newEdge);
@@ -1453,27 +1446,20 @@ void Graph::DropDWConvNode(const NodePtr &node) {
         auto parent = p_edge->getParent();
         if (!parent) continue;
 
-        for (size_t j = 0; j < children.size(); j++) {
-            if (!children[j].lock())
-                continue;
-            auto child = children[j].lock()->getChild();
-            if (!child)
-                continue;
+        const int inNum = p_edge->getInputNum();
+        p_edge->drop();
+        RemoveEdge(p_edge);
 
-            EdgePtr &remEdge = p_edge;
-            int inNum = 0;
-            if (remEdge) {
-                inNum = remEdge->getInputNum();
-                remEdge->drop();
-                RemoveEdge(remEdge);
-            }
-            remEdge = children[j].lock();
-            int outNum = 0;
-            if (remEdge) {
-                outNum = remEdge->getOutputNum();
-                remEdge->drop();
-                RemoveEdge(remEdge);
-            }
+        for (size_t j = 0; j < children.size(); j++) {
+            auto c_edge = children[j].lock();
+            if (!c_edge) continue;
+            auto child = c_edge->getChild();
+            if (!child) continue;
+
+            const int outNum = c_edge->getOutputNum();
+            c_edge->drop();
+            RemoveEdge(c_edge);
+
             EdgePtr newEdge(new Edge(parent, child, inNum, outNum));
             graphEdges.push_back(newEdge);
             parent->addEdge(newEdge);
@@ -1486,16 +1472,11 @@ void Graph::DropDWConvNode(const NodePtr &node) {
         auto parent = p_edge->getParent();
         if (!parent) continue;
 
-        EdgePtr &remEdge = p_edge;
-        int inNum = 0;
-        int portCandidate = 0;
-        if (remEdge) {
-            inNum = remEdge->getInputNum();
-            portCandidate = remEdge->getOutputNum();
-            remEdge->drop();
-            RemoveEdge(remEdge);
-        }
-        int outNum = parentConv->parentEdges.size();
+        const int inNum = p_edge->getInputNum();
+        const int portCandidate = p_edge->getOutputNum();
+        p_edge->drop();
+        RemoveEdge(p_edge);
+        const int outNum = parentConv->parentEdges.size();
 
         EdgePtr newEdge(new Edge(parent, parentConv, inNum, outNum));
         graphEdges.push_back(newEdge);

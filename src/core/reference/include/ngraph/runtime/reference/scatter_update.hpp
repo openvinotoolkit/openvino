@@ -23,10 +23,12 @@ static const CoordinateTransformBasic get_target_shape(const Shape& data_shape,
     AxisVector axis_order(m_n_axes);
     std::iota(axis_order.begin(), axis_order.end(), 0);
     const Strides strides(m_n_axes, 1);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     for (size_t axis = 0; axis < m_n_axes; axis++) {
         target_shape.push_back(
             ceil_div(end_corner[axis_order[axis]] - start_corner[axis_order[axis]], strides[axis_order[axis]]));
     }
+    OPENVINO_SUPPRESS_DEPRECATED_END
     return target_shape;
 }
 

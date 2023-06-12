@@ -59,24 +59,25 @@ Step 1: Install OpenVINO Core Components
 
       .. code-block:: sh
 
-         curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.0/macos/m_openvino_toolkit_macos_10_15_2023.0.0.9052.9752fafe8eb_x86_64.tgz --output openvino_2023.0.0.tgz
+         curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.0/macos/m_openvino_toolkit_macos_10_15_2023.0.0.10926.b4452d56304_x86_64.tgz --output openvino_2023.0.0.tgz
          tar -xf openvino_2023.0.0.tgz
-         sudo mv m_openvino_toolkit_macos_10_15_2023.0.0.9052.9752fafe8eb_x86_64 /opt/intel/openvino_2023.0.0
+         sudo mv m_openvino_toolkit_macos_10_15_2023.0.0.10926.b4452d56304_x86_64 /opt/intel/openvino_2023.0.0
 
    .. tab:: ARM, 64-bit
 
       .. code-block:: sh
 
-         curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.0/macos/m_openvino_toolkit_macos_11_0_2023.0.0.9052.9752fafe8eb_arm64.tgz --output openvino_2023.0.0.tgz
+         curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.0/macos/m_openvino_toolkit_macos_11_0_2023.0.0.10926.b4452d56304_arm64.tgz --output openvino_2023.0.0.tgz
          tar -xf openvino_2023.0.0.tgz
-         sudo mv m_openvino_toolkit_macos_11_0_2023.0.0.9052.9752fafe8eb_arm64 /opt/intel/openvino_2023.0.0
+         sudo mv m_openvino_toolkit_macos_11_0_2023.0.0.10926.b4452d56304_arm64 /opt/intel/openvino_2023.0.0
 
 
 5. For simplicity, it is useful to create a symbolic link as below:
 
    .. code-block:: sh
 
-      sudo ln -s openvino_2023.0.0 openvino_2023
+      sudo ln -s /opt/intel/openvino_2023.0.0 /opt/intel/openvino_2023 
+
 
    .. note::
 
