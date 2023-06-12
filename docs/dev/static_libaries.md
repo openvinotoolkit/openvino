@@ -19,7 +19,7 @@ It is possible because not all interface symbols of OpenVINO Runtime libraries a
 
 ## System requirements
 
-* CMake version 3.17 or higher must be used to build static OpenVINO libraries.
+* CMake version 3.18 or higher must be used to build static OpenVINO libraries.
 * Supported OSes:
     * Windows x64
     * Linux x64

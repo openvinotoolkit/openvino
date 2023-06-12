@@ -40,8 +40,8 @@ If your dataset is not annotated, you can use :doc:`Default Quantization <pot_de
 Can a model in any framework be quantized by the POT?
 +++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-The POT accepts models in the OpenVINO&trade; Intermediate Representation (IR) format only. For that, you need to convert your model to the IR format using
-:doc:`Model Optimizer <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`.
+The POT accepts models in the OpenVINO&trade; Intermediate Representation (IR) format only. For that you need to convert your model to the IR format using
+:doc:`model conversion API <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`.
 
 .. _noac-pot-faq:
 

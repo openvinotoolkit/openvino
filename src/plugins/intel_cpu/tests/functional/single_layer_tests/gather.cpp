@@ -124,7 +124,7 @@ protected:
         const size_t normAxis = axis < 0 ? axis + targetInputStaticShapes[0].size() : axis;
         const int32_t axisDim = targetInputStaticShapes[0][normAxis];
 
-        for (int i = 0; i < funcInputs.size(); ++i) {
+        for (size_t i = 0; i < funcInputs.size(); ++i) {
             const auto& funcInput = funcInputs[i];
             ov::runtime::Tensor tensor;
 

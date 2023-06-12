@@ -62,7 +62,7 @@ std::shared_ptr<Node> moveThroughElementwise(const std::shared_ptr<Node>& transp
             std::make_shared<opset1::Convert>(newElementwiseValues, elementwiseValuesConvert->get_destination_type()) });
 
     replace_node(transpose, newElementwise);
-    copy_runtime_info({ elementwise, transpose }, { newTranspose, newElementwise });
+    ov::copy_runtime_info({ elementwise, transpose }, { newTranspose, newElementwise });
 
     return newTranspose;
 }
@@ -71,7 +71,7 @@ std::shared_ptr<Node> moveThroughConvert(const std::shared_ptr<Node>& transpose,
     const auto newTranspose = transpose->clone_with_new_inputs({convert->input_value(0), transpose->input_value(1) });
     const auto newConvert = convert->clone_with_new_inputs({ newTranspose });
     replace_node(transpose, newConvert);
-    copy_runtime_info({ convert, transpose }, { newTranspose, newConvert });
+    ov::copy_runtime_info({ convert, transpose }, { newTranspose, newConvert });
 
     return newTranspose;
 }

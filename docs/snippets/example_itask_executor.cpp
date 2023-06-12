@@ -2,7 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#ifndef IN_OV_COMPONENT
+#    define IN_OV_COMPONENT
+#    define WAS_OV_LIBRARY_DEFINED
+#endif
 #include <threading/ie_cpu_streams_executor.hpp>
+
+#ifdef WAS_OV_LIBRARY_DEFINED
+#    undef IN_OV_COMPONENT
+#    undef WAS_OV_LIBRARY_DEFINED
+#endif
 
 #include <memory>
 #include <future>

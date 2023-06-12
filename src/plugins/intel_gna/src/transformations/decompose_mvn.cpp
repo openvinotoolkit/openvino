@@ -13,6 +13,7 @@
 #include "backend/gna_limitations.hpp"
 
 using namespace ngraph;
+using namespace ov::intel_gna::limitations;
 
 namespace ov {
 namespace intel_gna {
@@ -81,7 +82,7 @@ static bool GetVerifiedMVNData(const std::shared_ptr<opset8::MVN> mvn, MVNData& 
 
     // Check if average must be split
     mvn_data.num_parts = 1;
-    while (mvn_data.W / mvn_data.num_parts > limitations::convFilterMaxSize) {
+    while (mvn_data.W / mvn_data.num_parts > Limitations::kConvFilterMaxSize) {
         mvn_data.num_parts *= 2;
     }
 

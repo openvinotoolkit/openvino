@@ -83,7 +83,7 @@ Use the following command:
 
 .. code-block:: sh
 
-   pip install openvino
+   python -m pip install openvino
 
 
 Step 5. Verify that the Package Is Installed
@@ -93,10 +93,9 @@ Run the command below:
 
 .. code-block:: sh
 
-   python -c "from openvino.runtime import Core"
+   python -c "from openvino.runtime import Core; print(Core().available_devices)"
 
-
-If installation was successful, you will not see any error messages (no console output). Congratulations! You have finished installing OpenVINO Runtime.
+If installation was successful, you will see the list of available devices. Congratulations! You have finished installing OpenVINO Runtime.
 
 
 What's Next?
@@ -114,9 +113,9 @@ Get started with Python
 
 Visit the :doc:`Tutorials <tutorials>` page for more Jupyter Notebooks to get you started with OpenVINO, such as:
 
-* `OpenVINO Python API Tutorial <notebooks/002-openvino-api-with-output.html>`___
-* `Basic image classification program with Hello Image Classification <notebooks/001-hello-world-with-output.html>`___
-* `Convert a PyTorch model and use it for image background removal <notebooks/205-vision-background-removal-with-output.html>`___
+* `OpenVINO Python API Tutorial <notebooks/002-openvino-api-with-output.html>`__
+* `Basic image classification program with Hello Image Classification <notebooks/001-hello-world-with-output.html>`__
+* `Convert a PyTorch model and use it for image background removal <notebooks/205-vision-background-removal-with-output.html>`__
 
 Run OpenVINO on accelerated devices
 +++++++++++++++++++++++++++++++++++
