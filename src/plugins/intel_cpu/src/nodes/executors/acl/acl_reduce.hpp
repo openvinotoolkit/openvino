@@ -74,7 +74,7 @@ public:
             for (size_t i = 0; i < reduceAttrs.axes.size(); ++i) {
                 auto axe = axisCast(reduceAttrs.axes[i], srcDescs[0]->getShape().getRank());
                 if (axe > 3) {
-                    DEBUG_LOG("ACL supports 3 or less axis for Reduce op");
+                    DEBUG_LOG("ACL supports tensor rank up to 4 for ReduceMean operation. Tensor rank: ", axe);
                     return false;
                 }
             }
