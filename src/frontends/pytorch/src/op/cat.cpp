@@ -13,8 +13,6 @@ namespace frontend {
 namespace pytorch {
 namespace op {
 
-using namespace ov::op;
-
 OutputVector translate_cat_common(const NodeContext& context, const std::deque<ov::Output<ov::Node>>& list_elems, int64_t axis) {
     if (list_elems.empty()) {
         // couldn't get list elements
@@ -41,7 +39,6 @@ OutputVector translate_cat_fx(const NodeContext& context) {
     // This translator is only needed to get axis as constant from external scope
     num_inputs_check(context, 2, context.get_input_size());
     std::deque<Output<Node>> list_elems;
-
     for (size_t i=0; i<context.get_input_size()-1; i++) {
         list_elems.push_back(context.get_input(i));
     }
