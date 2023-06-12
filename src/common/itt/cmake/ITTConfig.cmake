@@ -47,12 +47,12 @@ find_package_handle_standard_args(ITT
 if(ITT_FOUND)
     set(INTEL_ITT_FOUND ${ITT_FOUND})
 
-    add_library(ittapi::ittapi STATIC IMPORTED GLOBAL)
-    set_target_properties(ittapi::ittapi PROPERTIES IMPORTED_LOCATION "${Located_ITT_LIBS}"
-                                                    INTERFACE_INCLUDE_DIRECTORIES ${Located_ITT_INCLUDE_DIRS}
-                                                    INTERFACE_COMPILE_DEFINITIONS ENABLE_PROFILING_ITT)
+    add_library(ittapi::ittnotify STATIC IMPORTED GLOBAL)
+    set_target_properties(ittapi::ittnotify PROPERTIES IMPORTED_LOCATION "${Located_ITT_LIBS}"
+                                                       INTERFACE_INCLUDE_DIRECTORIES ${Located_ITT_INCLUDE_DIRS}
+                                                       INTERFACE_COMPILE_DEFINITIONS ENABLE_PROFILING_ITT)
 
     if(UNIX)
-        set_target_properties(ittapi::ittapi PROPERTIES INTERFACE_LINK_LIBRARIES "${CMAKE_DL_LIBS};Threads::Threads")
+        set_target_properties(ittapi::ittnotify PROPERTIES INTERFACE_LINK_LIBRARIES "${CMAKE_DL_LIBS};Threads::Threads")
     endif()
 endif()

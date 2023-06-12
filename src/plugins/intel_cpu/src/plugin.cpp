@@ -386,6 +386,20 @@ StreamCfg Engine::GetNumStreams(InferenceEngine::IStreamsExecutor::ThreadBinding
     return stream_cfg;
 }
 
+static bool shouldEnableLPT(const ov::AnyMap& modelConfig, const Config& engineConfig) {
+    const auto& enableLPT = modelConfig.find(InferenceEngine::PluginConfigInternalParams::KEY_LP_TRANSFORMS_MODE);
+    if (enableLPT == modelConfig.end()) // model config has higher priority
+        return engineConfig.lpTransformsMode == Config::LPTransformsMode::On;
+
+    const auto& val = enableLPT->second.as<std::string>();
+    if (val == PluginConfigParams::YES)
+        return true;
+    else if (val == PluginConfigParams::NO)
+        return false;
+    else
+        IE_THROW() << "Wrong value for property key LP_TRANSFORMS_MODE. Expected values: YES/NO";
+}
+
 static bool shouldEnforceBF16(const ov::AnyMap& modelConfig, const Config& engineConfig) {
     // For BF16 execution, the machine should have AVX512 at least
     if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core))
@@ -453,12 +467,8 @@ Engine::compile_model(const std::shared_ptr<const ov::Model>& model, const ov::A
     }
 
     auto config = orig_config;
-
     const std::shared_ptr<ov::Model> cloned_model = model->clone();
-    const auto& lptProp = config.find(InferenceEngine::PluginConfigInternalParams::KEY_LP_TRANSFORMS_MODE);
-
-    const bool enableLPT = (lptProp != config.end() && lptProp->second.as<std::string>() == PluginConfigParams::YES) /* enabled in the orig_config*/
-            || Config::LPTransformsMode::On == engConfig.lpTransformsMode /* or already enabled for the plugin */;
+    const bool enableLPT = shouldEnableLPT(config, engConfig);
     const bool enableBF16 = shouldEnforceBF16(config, engConfig);
     const Config::SnippetsMode snippetsMode = getSnippetsMode(config, engConfig);
 
