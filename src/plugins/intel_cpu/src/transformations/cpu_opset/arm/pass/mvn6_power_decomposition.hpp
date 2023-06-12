@@ -10,7 +10,7 @@ namespace intel_cpu {
 
 class MVN6PowerDecomposition: public ngraph::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ReplacePowerByMul");
+    OPENVINO_RTTI("MVN6PowerDecomposition");
     MVN6PowerDecomposition();
 };
 }  // namespace intel_cpu
