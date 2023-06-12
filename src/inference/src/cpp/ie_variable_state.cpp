@@ -41,8 +41,6 @@ VariableState::VariableState(const IVariableStateInternal::Ptr& impl, const std:
         IE_THROW() << "VariableState was not initialized.";
 }
 
-IE_SUPPRESS_DEPRECATED_START
-
 void VariableState::Reset() {
     VARIABLE_CALL_STATEMENT(_impl->Reset());
 }

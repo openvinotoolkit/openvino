@@ -20,6 +20,7 @@
 #include "intel_gpu/graph/serialization/string_serializer.hpp"
 #include "intel_gpu/graph/serialization/layout_serializer.hpp"
 #include "intel_gpu/graph/serialization/vector_serializer.hpp"
+#include "intel_gpu/runtime/itt.hpp"
 #include "runtime/kernels_cache.hpp"
 
 // TODO: add generic interface for weights_reorder_params and get rid of this dependency
@@ -212,6 +213,8 @@ public:
 
     void build_deps();
     void do_runtime_in_place_concat();
+    void configure_shape_of_dependencies();
+
     memory::ptr fused_memory(size_t dep_id) const {
         return dep_memory_ptr(get_fused_mem_offset() + dep_id);
     }
@@ -279,6 +282,8 @@ protected:
     std::vector<std::pair<std::shared_ptr<primitive_inst>, int32_t>> _deps;
     std::vector<std::pair<cldnn::primitive_id, int32_t>> _dep_ids;
 
+    // List of depandant shape_of primitives for shape_of subgraphs
+    std::vector<std::shared_ptr<primitive_inst>> dependant_shape_of_insts;
     // this is a set of dependencies in terms of execution
     // execution of all primitives from this set should be enough to guarantee that all memory deps (see _deps)
     // will be valid when executing this primitive. Most of the time this set will be equal to the _deps minus all
