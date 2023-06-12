@@ -127,48 +127,6 @@ CPU::CPU() {
             _processors = valid_cpu_mapping_table.size();
             _cpu_mapping_table.swap(valid_cpu_mapping_table);
             update_valid_processor_linux(phy_core_list, _numa_nodes, _cores, _proc_type_table, _cpu_mapping_table);
-
-            std::cout << "*********test data*******************" << std::endl;
-
-            std::cout << "_sockets: " << _numa_nodes << std::endl;
-
-            std::cout << "\t{";
-            for (auto& row : _proc_type_table) {
-                std::cout << "{";
-                for (auto& i : row) {
-                    std::cout << i << ", ";
-                }
-                std::cout << "\b\b},";
-            }
-            std::cout << "\b}," << std::endl;
-
-            std::cout << "\t{" << std::endl;
-            for (auto& row : _cpu_mapping_table) {
-                std::cout << "\t\t{";
-                int cnt = 0;
-                for (auto& i : row) {
-                    cnt++;
-                    if (cnt != 4) {
-                        std::cout << i << ", ";
-                    } else {
-                        switch (i) {
-                        case MAIN_CORE_PROC:
-                            std::cout << "MAIN_CORE_PROC, ";
-                            break;
-                        case EFFICIENT_CORE_PROC:
-                            std::cout << "EFFICIENT_CORE_PROC, ";
-                            break;
-                        case HYPER_THREADING_PROC:
-                            std::cout << "HYPER_THREADING_PROC, ";
-                            break;
-                        }
-                    }
-                }
-                std::cout << "\b\b}," << std::endl;
-            }
-            std::cout << "\t}," << std::endl;
-            std::cout << "*********test data*******************" << std::endl;
-
             return 0;
         }
     };
