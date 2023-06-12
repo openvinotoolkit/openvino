@@ -326,7 +326,7 @@ std::shared_ptr<ov::op::util::FrameworkNode> cast_fw_node(std::shared_ptr<Node> 
         return nullptr;
     }
     const auto& attrs = fw_node->get_attrs();
-    if (attrs.find("PtTypeName") == attrs.end() || attrs.at("PtTypeName") != type) {
+    if (attrs.find(PtFrameworkNode::op_type_key) == attrs.end() || attrs.at(PtFrameworkNode::op_type_key) != type) {
         return nullptr;
     }
     return fw_node;
@@ -441,12 +441,12 @@ std::deque<Output<Node>> get_list_as_outputs(const Output<Node>& start) {
     while (const auto& input_fw_node =
                std::dynamic_pointer_cast<ov::op::util::FrameworkNode>(current_output.get_node_shared_ptr())) {
         const auto& attrs = input_fw_node->get_attrs();
-        if (attrs.find("PtTypeName") == attrs.end()) {
+        if (attrs.find(PtFrameworkNode::op_type_key) == attrs.end()) {
             break;
         }
-        if (attrs.at("PtTypeName") == "aten::append") {
+        if (attrs.at(PtFrameworkNode::op_type_key) == "aten::append") {
             res.push_front(input_fw_node->input(1).get_source_output());
-        } else if (attrs.at("PtTypeName") == "aten::add") {
+        } else if (attrs.at(PtFrameworkNode::op_type_key) == "aten::add") {
             const auto&& lhs_list = get_list_as_outputs(input_fw_node->input(1).get_source_output());
             res.insert(res.end(), lhs_list.begin(), lhs_list.end());
         } else {

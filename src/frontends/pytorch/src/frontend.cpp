@@ -43,14 +43,14 @@ std::map<std::string, std::string> get_unconverted_types_from_model(const std::s
     for (const auto& node : model->get_ordered_ops()) {
         if (const auto& fw_node = ov::as_type_ptr<PtFrameworkNode>(node)) {
             const auto& attrs = fw_node->get_attrs();
-            FRONT_END_GENERAL_CHECK(attrs.find("PtTypeName") != attrs.end(),
+            FRONT_END_GENERAL_CHECK(attrs.find(PtFrameworkNode::op_type_key) != attrs.end(),
                                     "FrameworkNode attributes do not contain operation type.");
             std::string exception_msg;
             if (attrs.find(PtFrameworkNode::failed_conversion_key) != attrs.end()) {
                 exception_msg = attrs.at(PtFrameworkNode::failed_conversion_key);
             }
-            if (!unconverted_ops_types.count(attrs.at("PtTypeName"))) {
-                unconverted_ops_types[attrs.at("PtTypeName")] = exception_msg;
+            if (!unconverted_ops_types.count(attrs.at(PtFrameworkNode::op_type_key))) {
+                unconverted_ops_types[attrs.at(PtFrameworkNode::op_type_key)] = exception_msg;
             }
         }
         if (const auto& fw_node = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(node)) {
@@ -75,7 +75,7 @@ std::shared_ptr<Model> FrontEnd::convert(const InputModel::Ptr& model) const {
     try {
         normalize(converted_model);
     } catch (const std::exception& e) {
-        norm_err = "-- normalize step failed with: " + std::string(e.what()) + '\n';
+        norm_err = "\n-- normalize step failed with: " + std::string(e.what());
     }
 
     const auto& unconverted_ops = get_unconverted_types_from_model(converted_model);
@@ -83,7 +83,7 @@ std::shared_ptr<Model> FrontEnd::convert(const InputModel::Ptr& model) const {
     std::stringstream failed_ops_msg;
     std::stringstream failed_ops_short;
     unconverted_ops_msg << "-- No conversion rule found for operations: ";
-    failed_ops_msg << " Failed operations detailed log:\n";
+    failed_ops_msg << " Failed operations detailed log:";
     failed_ops_short << "-- Conversion is failed for: ";
     bool at_least_one = false;
     bool at_least_one_except = false;
@@ -100,17 +100,17 @@ std::shared_ptr<Model> FrontEnd::convert(const InputModel::Ptr& model) const {
             if (at_least_one_except)
                 failed_ops_short << ", ";
             failed_ops_short << op.first;
-            failed_ops_msg << "-- " << op.first << " with a message:\n" << op.second;
+            failed_ops_msg << "\n-- " << op.first << " with a message:\n" << op.second;
             at_least_one_except = true;
         }
     }
     if (at_least_one_except)
         error_msg << failed_ops_msg.str();
-    error_msg << "\nSummary:\n" << norm_err;
+    error_msg << "\nSummary:" << norm_err;
     if (at_least_one)
-        error_msg << unconverted_ops_msg.str() << '\n';
+        error_msg << '\n' << unconverted_ops_msg.str();
     if (at_least_one_except)
-        error_msg << failed_ops_short.str();
+        error_msg << '\n' << failed_ops_short.str();
     bool is_conversion_successful = unconverted_ops.size() == 0;
     FRONT_END_GENERAL_CHECK(is_conversion_successful, error_msg.str());
     return converted_model;
