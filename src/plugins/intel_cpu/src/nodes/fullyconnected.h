@@ -106,7 +106,7 @@ private:
     bool useMlas = false;
 #ifdef OV_CPU_WITH_MLAS
     int64_t M, N, K;
-    std::unique_ptr<ngraph::runtime::AlignedBuffer> packedBPtr;
+    MemoryPtr mlasPackedPtr;
 #endif
 };
 
