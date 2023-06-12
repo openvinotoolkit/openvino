@@ -377,10 +377,10 @@ void PwlDesign(const DnnActivation& activation_type,
             double slope = (valnext - val) / (static_cast<double>(xbasenext - xbase) / scale_in);
             auto s = gna_slope(slope, scale_in, scale_out);
 
-            ptr_segment[i].slope = FloatToInt16(s.slope * s.slope_scale);
+            ptr_segment[i].slope = DoubleToInt16(s.slope * s.slope_scale);
             ptr_segment[i].xBase = ptr_segment[i].xBase | s.slope_scale_index;
 
-            ptr_segment[i].yBase = FloatToInt16(val * scale_out);
+            ptr_segment[i].yBase = DoubleToInt16(val * scale_out);
             log::debug() << (static_cast<int32_t>((ptr_segment[i].xBase & XBASEMASK)) / scale_out) << " "
                          << (static_cast<float>((ptr_segment[i].yBase)) / scale_out) << " " << (s.slope / scale_out)
                          << "\n";

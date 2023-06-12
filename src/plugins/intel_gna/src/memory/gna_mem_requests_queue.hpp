@@ -260,7 +260,7 @@ public:
 
             // setting offsets
             for (auto const& box : boxes) {
-                _mem_requests[box.id]._offset = memSolver.getOffset(box.id);
+                _mem_requests[box.id]._offset = memSolver.getOffset(static_cast<int>(box.id));
             }
             return _size;
         } else {

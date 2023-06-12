@@ -93,7 +93,7 @@ float ScaleFactorCalculator::selectBestOutputScaleFactors(float inScale,
         auto sd = 0.0f;
         for (size_t j = 0; j < slopes.size(); ++j) {
             auto s = gna_slope(slopes[j], inScale, outScale);
-            auto slope = FloatToInt16(s.slope * s.slope_scale);
+            auto slope = DoubleToInt16(s.slope * s.slope_scale);
             if (slope < std::numeric_limits<int16_t>::min() || slope > std::numeric_limits<int16_t>::max()) {
                 sd += std::numeric_limits<int8_t>::max();
                 continue;
@@ -284,7 +284,7 @@ bool ScaleFactorCalculator::requantizeInput(InferenceEngine::CNNLayerPtr input,
                 break;
             }
         }
-        auto prevLayer = InferenceEngine::CNNNetPrevLayer(layer, static_cast<int>(prevInputIdx));
+        auto prevLayer = InferenceEngine::CNNNetPrevLayer(layer, prevInputIdx);
         auto prevQuantData = InferenceEngine::getInjectedData<QuantizedLayerParams>(*prevLayer);
         newOutputScale *= prevQuantData->_dst_quant.GetScale() / quantDataForInputLayer->_dst_quant.GetScale();
     }
@@ -306,8 +306,8 @@ bool ScaleFactorCalculator::requantizeInput(InferenceEngine::CNNLayerPtr input,
         return false;
     }
 
-    auto prevLayer = InferenceEngine::CNNNetHasPrevLayer(layer.get(), static_cast<int>(prevInputIdx))
-                         ? InferenceEngine::CNNNetPrevLayer(layer, static_cast<int>(prevInputIdx))
+    auto prevLayer = InferenceEngine::CNNNetHasPrevLayer(layer.get(), prevInputIdx)
+                         ? InferenceEngine::CNNNetPrevLayer(layer, prevInputIdx)
                          : nullptr;
     return requantizeInput(prevLayer, newOutputScale, result, infiniteLoopCount);
 }
@@ -410,7 +410,7 @@ float ScaleFactorCalculator::getActivationScale(InferenceEngine::CNNLayer const*
 #endif
     } else if (layer.isRelu()) {
         // if activation is one from relu family, we need to apply heuristic to avoid activation output overflow
-        auto limit = static_cast<unsigned int>(
+        auto limit = static_cast<uint64_t>(
             (inputsSize == 1 ? std::numeric_limits<int8_t>::max() : std::numeric_limits<int32_t>::max()) - 1);
 
         if (static_cast<uint64_t>(result * quantizedParams->_src_quant.GetScale()) > limit) {
@@ -801,7 +801,7 @@ bool ScaleFactorCalculator::ScaleFactorPerLayerCNN(InferenceEngine::CNNLayer* cn
         }
         return true;
     } else if (layerInfo.isCropAffined()) {
-        auto weightsScaleFactor = 1.0f;
+        const auto weightsScaleFactor = 1.0f;
         quant->_weights_quant.SetScale(weightsScaleFactor);
         quant->_src_quant.SetScale(inputQuant->_dst_quant.GetScale());
         quant->_dst_quant.SetScale(quant->_weights_quant.GetScale() * quant->_src_quant.GetScale());
@@ -922,9 +922,9 @@ bool ScaleFactorCalculator::ScaleFactorPerLayerEltwise(InferenceEngine::EltwiseL
             return true;
         }
 
-        float weightsReducer = static_cast<float>(calculateWeightsReducerFromDstStats(quantData->_dst_quant));
+        auto weightsReducer = calculateWeightsReducerFromDstStats(quantData->_dst_quant);
         if (weightsReducer > initial_weights_reducer_val) {
-            float newOutputScale = quantParams1->_dst_quant.GetScale() / weightsReducer;
+            float newOutputScale = quantParams1->_dst_quant.GetScale() / static_cast<float>(weightsReducer);
             if (requantizeInput(in1, newOutputScale, result, infiniteLoopCount)) {
                 return true;
             }

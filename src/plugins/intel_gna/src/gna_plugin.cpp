@@ -1100,8 +1100,8 @@ void GNAPlugin::DumpXNNToFile() const {
     if (config.target->get_effective_compile_target() == target::DeviceVersion::GNA1_0) {
         auto dump = gnadevice->dumpXnn(modelId);
         dump.header.RwRegionSize = static_cast<uint32_t>(gnamem->getRegionBytes(REGION_SCRATCH));
-        dump.header.InputScalingFactor = static_cast<float>(inputsDesc.begin()->scale_factor);
-        dump.header.OutputScalingFactor = static_cast<float>(outputsDesc.begin()->scale_factor);
+        dump.header.InputScalingFactor = inputsDesc.begin()->scale_factor;
+        dump.header.OutputScalingFactor = outputsDesc.begin()->scale_factor;
         dumpStream.write(reinterpret_cast<char*>(&dump.header), sizeof(Gna2ModelSueCreekHeader));
         dumpStream.write(reinterpret_cast<char*>(dump.model.get()), dump.header.ModelSize);
     } else {
@@ -1212,16 +1212,15 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap& inputs, Infer
             buff_blob = make_blob_with_precision(buff_tensor_desc, inputs_ptr_->at(input_name).ptrs[index]);
         }
 
-        ImportFrames(
-            buff_blob->buffer(),
-            input.second->cbuffer().as<float*>(),
-            input.second->getTensorDesc().getPrecision(),
-            gnaFlags->sw_fp32 ? kScaleFactorDefault : static_cast<float>(inputs_ptr_->at(input_name).scale_factor),
-            inputOrientation,
-            importedFrames,
-            targetGroups,
-            importedElements,
-            importedElements);
+        ImportFrames(buff_blob->buffer(),
+                     input.second->cbuffer().as<float*>(),
+                     input.second->getTensorDesc().getPrecision(),
+                     gnaFlags->sw_fp32 ? kScaleFactorDefault : inputs_ptr_->at(input_name).scale_factor,
+                     inputOrientation,
+                     importedFrames,
+                     targetGroups,
+                     importedElements,
+                     importedElements);
 
         if (model) {
             Precision output_prc = buff_blob->getTensorDesc().getPrecision();
@@ -1388,7 +1387,7 @@ RequestStatus GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
                                output_blob->buffer().as<int32_t*>(),
                                elementsPerBatch,
                                batchSize,
-                               static_cast<float>(gna_output_desc.scale_factor));
+                               gna_output_desc.scale_factor);
                 break;
 
             case InferenceEngine::Precision::I32:
@@ -1396,7 +1395,7 @@ RequestStatus GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
                                output_blob->buffer().as<int32_t*>(),
                                elementsPerBatch,
                                batchSize,
-                               static_cast<float>(gna_output_desc.scale_factor));
+                               gna_output_desc.scale_factor);
                 break;
 
             default:

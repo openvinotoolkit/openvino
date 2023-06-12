@@ -444,7 +444,7 @@ void GNAModelSerial::Export(const GnaAllocations& allocations, std::ostream& os)
     auto convert_to_serial = [&allocationsOrdered](const GnaDesc& desc) {
         header_latest::RuntimeEndPoint ep;
         ep.elements_count = desc.num_elements;
-        ep.scaleFactor = static_cast<float>(desc.scale_factor);
+        ep.scaleFactor = desc.scale_factor;
         ep.element_size = static_cast<uint32_t>(desc.tensor_precision.size());
         ep.layout = desc.model_layout;
         ep.precision = desc.model_precision;

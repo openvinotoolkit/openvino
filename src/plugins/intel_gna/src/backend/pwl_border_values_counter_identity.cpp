@@ -41,13 +41,13 @@ BorderValues BorderValuesCounterIdentity::CreateBorderValues(const BorderValues&
     int16_t y_lower = default_values.y_lower;
     int16_t y_upper = default_values.y_upper;
     if (x_lower < y_lower * in_scale / out_scale)
-        x_lower = common::FloatToInt32(y_lower * in_scale / out_scale);
+        x_lower = common::DoubleToInt32(y_lower * in_scale / out_scale);
     if (x_upper > y_upper * in_scale / out_scale)
-        x_upper = common::FloatToInt32(y_upper * in_scale / out_scale);
+        x_upper = common::DoubleToInt32(y_upper * in_scale / out_scale);
     if (y_lower < x_lower * out_scale / in_scale)
-        y_lower = common::FloatToInt16(x_lower * out_scale / in_scale);
+        y_lower = common::DoubleToInt16(x_lower * out_scale / in_scale);
     if (y_upper > x_upper * out_scale / in_scale)
-        y_upper = common::FloatToInt16(x_upper * out_scale / in_scale);
+        y_upper = common::DoubleToInt16(x_upper * out_scale / in_scale);
     return {x_lower, x_upper, y_lower, y_upper, {default_values.y_lower, default_values.y_upper}};
 }
 

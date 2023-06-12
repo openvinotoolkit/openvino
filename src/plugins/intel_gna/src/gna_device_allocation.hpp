@@ -83,8 +83,8 @@ struct GnaAllocation {
         return v;
     }
 
-    uint32_t sizeForExport() const {
-        return ALIGN64(static_cast<uint32_t>(sizeRequested));
+    size_t sizeForExport() const {
+        return ALIGN64(sizeRequested);
     }
 
 private:
@@ -100,15 +100,15 @@ public:
     template <class T>
     explicit GnaAllocations(T b, T e) : allocations(b, e) {}
 
-    static uint32_t GetSizeForExport(const std::list<GnaAllocation>& allocations) {
-        uint32_t total = 0;
+    static size_t GetSizeForExport(const std::list<GnaAllocation>& allocations) {
+        size_t total = 0;
         for (auto& a : allocations) {
             total += a.sizeForExport();
         }
         return total;
     }
 
-    uint32_t GetSizeForExport() const {
+    size_t GetSizeForExport() const {
         return GetSizeForExport(allocations);
     }
 

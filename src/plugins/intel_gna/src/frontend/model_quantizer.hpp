@@ -57,7 +57,7 @@ public:
             auto input_layer = getCreatorLayer(inputData.second->getInputData()).lock();
             auto quant_data = InferenceEngine::getInjectedData<frontend::QuantizedLayerParams>(input_layer);
             IE_ASSERT(quant_data != nullptr);
-            quant_data->_src_quant.SetScale(static_cast<float>(inputs.at(input_layer->name).scale_factor));
+            quant_data->_src_quant.SetScale(inputs.at(input_layer->name).scale_factor);
         }
 
         // Propagate scale factor and quantize layers
@@ -91,8 +91,8 @@ private:
 
             // We are looking for infinite loop by using algorithm of compute prefix function, complexity O(N)
             // (a part of the Knuth–Morris–Pratt algorithm).
-            std::map<int, int> prefix_function;
-            size_t k = inf_loop_history.size();
+            std::map<int, size_t> prefix_function;
+            auto k = inf_loop_history.size();
             for (int32_t i = static_cast<int32_t>(inf_loop_history.size()) - 2; i >= 0; i--) {
                 while (k < inf_loop_history.size() && inf_loop_history[k - 1] != inf_loop_history[i]) {
                     auto iter = prefix_function.find(static_cast<int>(k));
@@ -127,7 +127,7 @@ private:
                         log::debug() << "\t " << s << '\n';
                     }
                     inf_loop_pattern.clear();
-                    size_t pattern_len = (inf_loop_history.size() - i) / 2;
+                    auto pattern_len = (inf_loop_history.size() - i) / 2;
                     log::debug() << "pattern_len: " << pattern_len << '\n';
                     for (size_t j = 0; j < pattern_len; j++) {
                         inf_loop_pattern.emplace_back(inf_loop_history[inf_loop_history.size() - pattern_len + j]);
@@ -141,7 +141,7 @@ private:
                     break;
                 }
 
-                prefix_function.emplace(i, static_cast<int>(k));
+                prefix_function.emplace(i, k);
             }
 
             if (inf_loop_history.empty()) {

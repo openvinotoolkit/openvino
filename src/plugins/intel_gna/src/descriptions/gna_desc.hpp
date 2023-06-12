@@ -31,7 +31,7 @@ struct GnaDesc {
     InferenceEngine::Precision tensor_precision = InferenceEngine::Precision::UNSPECIFIED;
 
     // gna specific properties
-    double scale_factor = kScaleFactorDefault;
+    float scale_factor = kScaleFactorDefault;
     intel_dnn_orientation_t orientation = kDnnUnknownOrientation;
     uint32_t num_elements = 0;
     uint32_t allocated_size = 0;
