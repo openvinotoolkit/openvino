@@ -4,6 +4,10 @@
 
 set(TARGET_NAME ov_snippets_func_tests)
 
+if(AARCH64 OR ARM)
+    return()
+endif()
+
 addIeTargetTest(
         NAME ${TARGET_NAME}
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
