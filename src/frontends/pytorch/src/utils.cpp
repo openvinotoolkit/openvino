@@ -233,7 +233,6 @@ OutputVector make_framework_node(const NodeContext& context, const std::string& 
         return outputs;
     }
 
-    std::string _exception(exception);
     // Pay attention to subgraphs that may appear in the node
     std::map<size_t, ParameterVector> inputs_map;
     std::map<size_t, ResultVector> extra_outputs_map;
@@ -279,7 +278,7 @@ OutputVector make_framework_node(const NodeContext& context, const std::string& 
     auto fw_node = create_fw_node_with_exception(context.get_decoder(),
                                                  context.inputs(),
                                                  context.get_output_size() - num_body_outs + num_skip_body_outputs,
-                                                 _exception);
+                                                 exception);
     fw_node->set_friendly_name(context.get_op_type());
     for (size_t i = 0; i < bodies.size(); ++i) {
         fw_node->set_function(static_cast<int>(i), bodies[i]);
