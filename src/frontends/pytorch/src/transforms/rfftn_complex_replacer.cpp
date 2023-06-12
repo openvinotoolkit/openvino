@@ -25,8 +25,6 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "utils.hpp"
 
-using namespace ov::pass::pattern;
-
 namespace ov {
 namespace frontend {
 namespace pytorch {
