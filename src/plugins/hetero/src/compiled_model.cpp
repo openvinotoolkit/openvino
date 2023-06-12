@@ -638,15 +638,10 @@ ov::Any ov::hetero::CompiledModel::get_property(const std::string& name) const {
     };
     const auto& default_ro_properties = []() {
         std::vector<ov::PropertyName> ro_properties{ov::model_name,
-                                                    ov::supported_properties,
+                                                    ov::optimal_number_of_infer_requests,
                                                     ov::execution_devices,
-                                                    ov::loaded_from_cache,
-                                                    ov::optimal_number_of_infer_requests};
+                                                    ov::loaded_from_cache};
         return ro_properties;
-    };
-    const auto& default_rw_properties = []() {
-        std::vector<ov::PropertyName> rw_properties{ov::device::id, ov::enable_profiling};
-        return rw_properties;
     };
     const auto& to_string_vector = [](const std::vector<ov::PropertyName>& properties) {
         std::vector<std::string> ret;
@@ -655,43 +650,59 @@ ov::Any ov::hetero::CompiledModel::get_property(const std::string& name) const {
         }
         return ret;
     };
-    // TODO: return more supported values for metrics
-    if (EXEC_NETWORK_METRIC_KEY(SUPPORTED_METRICS) == name) {
+    
+    if (ov::supported_properties == name) {
+        auto supported_properties = default_ro_properties();
+        add_ro_properties(ov::supported_properties.name(), supported_properties);
+        add_ro_properties(ov::device::properties.name(), supported_properties);
+        add_ro_properties(ov::device::priorities.name(), supported_properties);
+        return decltype(ov::supported_properties)::value_type(supported_properties);
+    } else if (EXEC_NETWORK_METRIC_KEY(SUPPORTED_METRICS) == name) {
         auto metrics = default_ro_properties();
         add_ro_properties(METRIC_KEY(SUPPORTED_METRICS), metrics);
         add_ro_properties(METRIC_KEY(SUPPORTED_CONFIG_KEYS), metrics);
         return to_string_vector(metrics);
     } else if (EXEC_NETWORK_METRIC_KEY(SUPPORTED_CONFIG_KEYS) == name) {
-        auto configs = default_rw_properties();
-        auto streamExecutorConfigKeys = ov::threading::IStreamsExecutor::Config{}
-                                            .get_property(ov::supported_properties.name())
-                                            .as<std::vector<std::string>>();
-        for (auto&& configKey : streamExecutorConfigKeys) {
-            configs.emplace_back(configKey);
+        return to_string_vector(m_cfg.GetSupported());
+    } else if (ov::device::properties == name) {
+        ov::AnyMap all_devices = {};
+        for (auto&& subnetwork : m_networks) {
+            ov::AnyMap device_properties = {};
+            if (all_devices.count(subnetwork._device) == 0) {
+                auto device_supported_metrics = subnetwork._network->get_property(METRIC_KEY(SUPPORTED_METRICS));
+                for (auto&& property_name : device_supported_metrics.as<std::vector<std::string>>()) {
+                    device_properties[property_name] = subnetwork._network->get_property(property_name);
+                }
+                auto device_supported_configs = subnetwork._network->get_property(METRIC_KEY(SUPPORTED_CONFIG_KEYS));
+                for (auto&& property_name : device_supported_configs.as<std::vector<std::string>>()) {
+                    device_properties[property_name] = subnetwork._network->get_property(property_name);
+                }
+                all_devices[subnetwork._device] = device_properties;
+            }
         }
-        return to_string_vector(configs);
+        return all_devices;
     } else if (ov::model_name == name) {
-        auto model_name = m_model->get_friendly_name();
-        return decltype(ov::model_name)::value_type(model_name);
+        return decltype(ov::model_name)::value_type(m_name);
     } else if (ov::loaded_from_cache == name) {
-        return m_loaded_from_cache;
-        // } else if (ov::execution_devices == name) {
-        //     return decltype(ov::execution_devices)::value_type{get_plugin()->get_device_name() + "." +
-        //                                                        std::to_string(m_cfg.device_id)};
-        // } else if (ov::optimal_number_of_infer_requests == name) {
-        //     unsigned int value = m_cfg.streams_executor_config._streams;
-        //     return decltype(ov::optimal_number_of_infer_requests)::value_type(value);
-    } else if (ov::supported_properties == name) {
-        auto ro_properties = default_ro_properties();
-        auto rw_properties = default_rw_properties();
-
-        std::vector<ov::PropertyName> supported_properties;
-        supported_properties.reserve(ro_properties.size() + rw_properties.size());
-        supported_properties.insert(supported_properties.end(), ro_properties.begin(), ro_properties.end());
-        supported_properties.insert(supported_properties.end(), rw_properties.begin(), rw_properties.end());
-        return decltype(ov::supported_properties)::value_type(supported_properties);
+        return decltype(ov::loaded_from_cache)::value_type{m_loaded_from_cache};
+    } else if (ov::optimal_number_of_infer_requests == name) {
+        unsigned int value = 0u;
+        for (auto&& desc : m_networks) {
+            value = std::max(value,
+                             desc._network->get_property(ov::optimal_number_of_infer_requests.name()).as<unsigned int>());
+        }
+        return decltype(ov::optimal_number_of_infer_requests)::value_type{value};
+    } else if (ov::execution_devices == name) {
+        std::vector<std::string> device_names;
+        std::set<std::string> s;
+        for (auto&& subnetwork : m_networks) {
+            if (s.count(subnetwork._device) != 0)
+                continue;
+            s.insert(subnetwork._device);
+            device_names.push_back(subnetwork._device);
+        }
+        return decltype(ov::execution_devices)::value_type{device_names};
     }
-
     return m_cfg.Get(name);
 }
 
