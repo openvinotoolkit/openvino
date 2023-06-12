@@ -483,6 +483,26 @@ def create_keras_layer_input_dict_one_inp():
     return LayerModel(), model_ref
 
 
+def single_param_function_reference(shape, const_value):
+    param1 = ov.opset8.parameter(shape, dtype=np.float32)
+    const = ov.opset8.constant(const_value, dtype=np.float32)
+    sigm = ov.opset8.sigmoid(param1)
+    mul = ov.opset8.multiply(sigm, const)
+    parameter_list = [param1]
+    return Model([mul], parameter_list, "test")
+
+
+def two_params_function_reference(shapes, const_value):
+    param1 = ov.opset8.parameter(shapes[0], dtype=np.float32)
+    param2 = ov.opset8.parameter(shapes[1], dtype=np.float32)
+    const = ov.opset8.constant(const_value, dtype=np.float32)
+    sigm = ov.opset8.sigmoid(param1)
+    add = ov.opset8.add(sigm, param2)
+    mul = ov.opset8.multiply(add, const)
+    parameter_list = [param1, param2]
+    return Model([mul], parameter_list, "test")
+
+
 def create_keras_layer_with_example_input_1(tmp_dir):
     model, model_ref = create_keras_layer_input_list()
     example_input = (np.random.rand(1,2,3).astype(np.float32), np.random.rand(1,2,3).astype(np.float32))
@@ -527,15 +547,7 @@ def create_keras_layer_with_tf_function_call(tmp_dir):
             sigm = tf.nn.sigmoid(input1) + input2
             return sigm * self.var1
     model = LayerModel()
-
-    param1 = ov.opset8.parameter([1, 2], dtype=np.float32)
-    param2 = ov.opset8.parameter([1, 2], dtype=np.float32)
-    const = ov.opset8.constant([[5.0]], dtype=np.float32)
-    sigm = ov.opset8.sigmoid(param1)
-    add = ov.opset8.add(sigm, param2)
-    mul = ov.opset8.multiply(add, const)
-    parameter_list = [param1, param2]
-    model_ref = Model([mul], parameter_list, "test")
+    model_ref = two_params_function_reference([[1, 2], [1, 2]], [[5.0]])
     return model, model_ref, {}
 
 
@@ -553,14 +565,7 @@ def create_keras_layer_with_tf_function_call_no_signature(tmp_dir):
     model = LayerModel()
     example_input = [np.random.rand(2, 3).astype(np.float32), np.random.rand(2, 3).astype(np.float32)]
 
-    param1 = ov.opset8.parameter([2, 3], dtype=np.float32)
-    param2 = ov.opset8.parameter([2, 3], dtype=np.float32)
-    const = ov.opset8.constant([[5.0]], dtype=np.float32)
-    sigm = ov.opset8.sigmoid(param1)
-    add = ov.opset8.add(sigm, param2)
-    mul = ov.opset8.multiply(add, const)
-    parameter_list = [param1, param2]
-    model_ref = Model([mul], parameter_list, "test")
+    model_ref = two_params_function_reference([[2, 3], [2, 3]], [[5.0]])
     return model, model_ref, {'example_input': example_input}
 
 
@@ -578,12 +583,7 @@ def create_keras_layer_with_tf_function_call_no_signature_single_input(tmp_dir):
     model = LayerModel()
     example_input = np.random.rand(2, 3).astype(np.float32)
 
-    param1 = ov.opset8.parameter([2, 3], dtype=np.float32)
-    const = ov.opset8.constant([[5.0]], dtype=np.float32)
-    sigm = ov.opset8.sigmoid(param1)
-    mul = ov.opset8.multiply(sigm, const)
-    parameter_list = [param1]
-    model_ref = Model([mul], parameter_list, "test")
+    model_ref = single_param_function_reference([2, 3], [[5.0]])
     return model, model_ref, {'example_input': example_input}
 
 
