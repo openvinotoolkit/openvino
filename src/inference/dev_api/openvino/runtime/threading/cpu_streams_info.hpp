@@ -3,16 +3,16 @@
 //
 
 /**
- * @file ie_cpu_streams_info.hpp
+ * @file cpu_streams_info.hpp
  * @brief A header file for Inference Engine CPU streams info table implementation.
  */
 
 #pragma once
 
-namespace InferenceEngine {
+namespace ov {
 
 /**
- * @enum       column_of_cpu_streams_info_table
+ * @enum       ColumnOfCpuStreamsInfoTable
  * @brief      This enum contains definition of each columns in cpu streams information table.
  *
  * The following are two example of processor type table.
@@ -35,6 +35,6 @@ typedef enum {
     PROC_TYPE = 1,              //!< Core type of current streams
     THREADS_PER_STREAM = 2,     //!< Number of threads per stream of current streams
     CPU_STREAMS_TABLE_SIZE = 3  //!< Size of streams info table
-} column_of_cpu_streams_info_table;
+} ColumnOfCpuStreamsInfoTable;
 
 }  // namespace InferenceEngine

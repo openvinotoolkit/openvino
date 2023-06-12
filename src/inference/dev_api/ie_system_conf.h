@@ -13,6 +13,7 @@
 #include <vector>
 
 #include "openvino/runtime/system_conf.hpp"
+#include "openvino/runtime/threading/cpu_streams_info.hpp"
 
 namespace InferenceEngine {
 

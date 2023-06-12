@@ -18,9 +18,6 @@
 #include "openvino/runtime/threading/executor_manager.hpp"
 #include "openvino/runtime/threading/istreams_executor.hpp"
 #include "openvino/runtime/threading/thread_local.hpp"
-#include "threading/ie_cpu_streams_info.hpp"
-
-using namespace InferenceEngine;
 
 namespace ov {
 namespace threading {
@@ -131,11 +128,11 @@ struct CPUStreamsExecutor::Impl {
         }
 
 #if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO
-        void create_stream(const int stream_id,
-                           const StreamCreateType stream_type,
-                           const int concurrency,
-                           const int core_type,
-                           const int numa_node_id) {
+        void create_tbb_task_arena(const int stream_id,
+                                   const StreamCreateType stream_type,
+                                   const int concurrency,
+                                   const int core_type,
+                                   const int numa_node_id) {
             if (stream_type == STREAM_WITHOUT_PARAM) {
                 _taskArena.reset(new custom::task_arena{concurrency});
             } else if (stream_type == STREAM_WITH_NUMA_ID) {
@@ -191,7 +188,7 @@ struct CPUStreamsExecutor::Impl {
             if (concurrency <= 0) {
                 return;
             }
-            create_stream(stream_id, stream_type, concurrency, cpu_core_type, numa_node_id);
+            create_tbb_task_arena(stream_id, stream_type, concurrency, cpu_core_type, numa_node_id);
         }
 
         void init_stream_legacy() {

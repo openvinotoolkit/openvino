@@ -12,12 +12,12 @@
 #include "cpu_map_scheduling.hpp"
 #include "graph.h"
 #include "ie_system_conf.h"
+#include "openvino/runtime/threading/cpu_streams_info.hpp"
 #include "openvino/runtime/threading/istreams_executor.hpp"
 #include "performance_heuristics.hpp"
-#include "threading/ie_cpu_streams_info.hpp"
 
-using namespace InferenceEngine;
 using namespace ov;
+using namespace threading;
 
 namespace ov {
 namespace intel_cpu {
@@ -206,7 +206,7 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
 int get_model_prefer_threads(const int num_streams,
                              const std::vector<std::vector<int>> proc_type_table,
                              const std::shared_ptr<ngraph::Function>& ngraphFunc,
-                             const InferenceEngine::IStreamsExecutor::Config streamExecutorConfig) {
+                             const ov::threading::IStreamsExecutor::Config streamExecutorConfig) {
     const int sockets = get_num_numa_nodes();
     auto model_prefer = 0;
     // latency
@@ -247,7 +247,7 @@ int get_model_prefer_threads(const int num_streams,
         const float L2_cache_size = dnnl::utils::get_cache_size(2 /*level*/, true /*per core */);
         ov::MemBandwidthPressure networkToleranceForLowCache =
             ov::MemBandwidthPressureTolerance(ngraphFunc, L2_cache_size, memThresholdAssumeLimitedForISA);
-        model_prefer = IStreamsExecutor::Config::StreamMode::DEFAULT;
+        model_prefer = ov::threading::IStreamsExecutor::Config::StreamMode::DEFAULT;
         if (networkToleranceForLowCache.max_mem_tolerance == ov::MemBandwidthPressure::UNKNOWN) {
             if ((networkToleranceForLowCache.ratio_compute_convs == ov::MemBandwidthPressure::ALL) ||
                 (networkToleranceForLowCache.ratio_compute_deconvs == ov::MemBandwidthPressure::ALL)) {

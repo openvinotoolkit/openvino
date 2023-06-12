@@ -16,9 +16,9 @@
 #include "dev/threading/parallel_custom_arena.hpp"
 #include "ie_common.h"
 #include "openvino/core/visibility.hpp"
+#include "openvino/runtime/threading/cpu_streams_info.hpp"
 #include "openvino/util/log.hpp"
 #include "streams_executor.hpp"
-#include "threading/ie_cpu_streams_info.hpp"
 
 #ifdef __APPLE__
 #    include <sys/sysctl.h>
@@ -30,8 +30,6 @@
 #    define XBYAK_UNDEF_JNL
 #    include <xbyak/xbyak_util.h>
 #endif
-
-using namespace InferenceEngine;
 
 namespace ov {
 

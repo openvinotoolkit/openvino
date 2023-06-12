@@ -57,7 +57,7 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
 int get_model_prefer_threads(const int num_streams,
                              const std::vector<std::vector<int>> proc_type_table,
                              const std::shared_ptr<ngraph::Function>& ngraphFunc,
-                             const InferenceEngine::IStreamsExecutor::Config streamExecutorConfig);
+                             const ov::threading::IStreamsExecutor::Config streamExecutorConfig);
 
 struct StreamCfg {
     int num_streams;               // Number of streams

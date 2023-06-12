@@ -6,9 +6,7 @@
 #include <vector>
 
 #include "openvino/runtime/threading/istreams_executor.hpp"
-#include "threading/ie_cpu_streams_info.hpp"
-
-using namespace InferenceEngine;
+#include "openvino/runtime/threading/cpu_streams_info.hpp"
 
 namespace ov {
 namespace threading {
