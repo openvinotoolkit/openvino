@@ -1,4 +1,8 @@
-cmake_minimum_required(VERSION 3.18)
+# Copyright (C) 2018-2023 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+#
+
+cmake_minimum_required(VERSION 3.13)
 
 project(root)
 
@@ -9,7 +13,7 @@ message(INFO "--------------------------------")
 message(STATUS "Build with tests: ${BUILD_TESTS}")
 message(INFO "--------------------------------")
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 11)
 if(MSVC)
   # TODO
   message(FATAL_ERROR "Not support yet. Use intel compiler 2023.0+.")

@@ -1,4 +1,8 @@
-cmake_minimum_required(VERSION 3.18)
+# Copyright (C) 2018-2023 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+#
+
+cmake_minimum_required(VERSION 3.13)
 project(llmdnn)
 
 file(GLOB_RECURSE SOURCE_FILES ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
