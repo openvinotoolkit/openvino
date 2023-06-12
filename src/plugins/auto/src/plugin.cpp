@@ -17,12 +17,13 @@
 #include "openvino/runtime/auto/properties.hpp"
 #include "openvino/runtime/device_id_parser.hpp"
 #include "plugin.hpp"
-//#include "bind_multi_schedule.hpp"
 #include "auto_schedule.hpp"
 #include "auto_executable.hpp"
 #include "cumulative_executable.hpp"
 #include "cumulative_schedule.hpp"
 #include "itt.hpp"
+#include "openvino/core/preprocess/pre_post_process.hpp"
+#include "ie_ngraph_utils.hpp"
 
 namespace {
     const std::string get_network_precision(const std::shared_ptr<const ov::Model> &model) {
@@ -81,6 +82,8 @@ std::shared_ptr<ov::IRemoteContext> Plugin::create_context(const ov::AnyMap& rem
 }
 
 std::shared_ptr<ov::IRemoteContext> Plugin::get_default_context(const ov::AnyMap& remote_properties) const {
+    if (m_hw_compiledmodel)
+        return m_hw_compiledmodel->get_context();
     OPENVINO_NOT_IMPLEMENTED;
 }
 
@@ -418,6 +421,43 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
     if (model_path.empty()) {
         support_devices = filter_device_by_network(support_devices_by_property, model);
         cloned_model = model->clone();
+        ov::preprocess::PrePostProcessor preproc(cloned_model);
+        // temp solution to reolve the prceision/layout mismatch between new/old api
+        if (!is_new_api()) {
+            for (size_t i = 0; i < cloned_model->inputs().size(); i++) {
+                ov::Output<const Node> input(cloned_model->input(i).get_node(), cloned_model->input(i).get_index());
+                auto& rt_info = input.get_rt_info();
+                auto it = rt_info.find("ie_legacy_td");
+                if (it != rt_info.end()) {
+                    auto td = it->second.as<InferenceEngine::TensorDesc>();
+                    auto element_type = InferenceEngine::details::convertPrecision(td.getPrecision());
+                    if (element_type != input.get_element_type()) {
+                        preproc.input(i).tensor().set_element_type(element_type);
+                    }
+                    if (td.getLayout() != InferenceEngine::Layout::BLOCKED &&
+                        td.getLayout() != InferenceEngine::Layout::SCALAR) {
+                        std::stringstream stream;
+                        stream << td.getLayout();
+                        preproc.input(i).tensor().set_layout(ov::Layout{stream.str()});
+                    }
+                    if (input.get_partial_shape().is_static() && input.get_shape().size() == 4)
+                        preproc.input(i).model().set_layout("NCHW");
+                }
+            }
+            for (size_t i = 0; i < cloned_model->outputs().size(); i++) {
+                ov::Output<const Node> output(cloned_model->output(i).get_node(), cloned_model->output(i).get_index());
+                auto& rt_info = output.get_rt_info();
+                auto it = rt_info.find("ie_legacy_td");
+                if (it != rt_info.end()) {
+                    auto td = it->second.as<InferenceEngine::TensorDesc>();
+                    auto element_type = InferenceEngine::details::convertPrecision(td.getPrecision());
+                    if (element_type != output.get_element_type()) {
+                        preproc.output(i).tensor().set_element_type(element_type);
+                    }
+                }
+            }
+            preproc.build();
+        }
     } else {
         // AUTO / MULTI don't support caching explicitly, but can redirect this functionality to actual HW plugin
         LOG_INFO_TAG("compile model with model path");
@@ -460,6 +500,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
     } else {
         impl = std::make_shared<AutoCompiledModel>(cloned_model, shared_from_this(), auto_s_context, std::make_shared<AutoSchedule>());
     }
+    m_hw_compiledmodel = auto_s_context->m_hw_compiled_model;
     return impl;
 }
 
