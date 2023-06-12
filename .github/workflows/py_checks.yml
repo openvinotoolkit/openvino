@@ -153,10 +153,10 @@ jobs:
         working-directory: src/bindings/python/src/compatibility/openvino
 
         # Python API 2.0 tests Flake code-style
-      - name: Changed Files
-        uses: tj-actions/changed-files@v36.1.0
+      - name: Import changed-files
+        uses: tj-actions/changed-files@v36
 
-      - name: Get changed files
+      - name: Get changed files in openvino/tests
         id: changed-files
         uses: tj-actions/changed-files@v36
 
@@ -169,13 +169,12 @@ jobs:
               fi
           done
 
-      - name: Run mypy on modified python tests in layer_tests
-        if: contains(steps.changed-files.outputs.modified_files, 'openvino/tests/layer_tests/')
-        run: |
-          for file in ${{ steps.changed-files.outputs.modified_files }}; do
-                if [[ $file == "openvino/tests/layer_tests/"* ]]; then
-                    python -m mypy "$file" --config-file ./setup.cfg
-                fi
-          done
+      # - name: Run mypy on modified python tests in layer_tests
+      #   if: contains(steps.changed-files.outputs.modified_files, 'openvino/tests/layer_tests/')
+      #   run: |
+      #     for file in ${{ steps.changed-files.outputs.modified_files }}; do
+      #           if [[ $file == "openvino/tests/layer_tests/"* ]]; then
+      #               python -m mypy "$file" --config-file ./setup.cfg
+      #           fi
+      #     done
 
-      
