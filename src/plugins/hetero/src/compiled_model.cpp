@@ -2,33 +2,29 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "itt.hpp"
-#include "plugin.hpp"
 #include "compiled_model.hpp"
 
 #include <memory>
 
-
-#include "infer_request.hpp"
 #include "async_infer_request.hpp"
+#include "infer_request.hpp"
+#include "itt.hpp"
+#include "plugin.hpp"
 
 // #include "perf_counter.hpp"
 // #include "graph_debug_dump.hpp"
 
-
+#include "converter_utils.hpp"
+#include "ie_algorithm.hpp"
+#include "ie_ngraph_utils.hpp"
+#include "ie_plugin_config.hpp"
+#include "openvino/op/util/op_types.hpp"
 #include "openvino/runtime/exec_model_info.hpp"
 #include "openvino/runtime/properties.hpp"
-#include "openvino/op/util/op_types.hpp"
 #include "openvino/util/common_util.hpp"
 #include "transformations/rt_info/fused_names_attribute.hpp"
 #include "transformations/utils/utils.hpp"
 #include "xml_parse_utils.h"
-
-#include "ie_ngraph_utils.hpp"
-#include "ie_plugin_config.hpp"
-#include "ie_algorithm.hpp"
-
-#include "converter_utils.hpp"
 
 template <typename T>
 using NodeMap = std::unordered_map<ngraph::Node*, T>;
@@ -86,17 +82,17 @@ ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model
                 devices.emplace(itAffinity->second);
             } else if (allEmpty) {
                 IE_THROW() << "Hetero device used default fallback policy, but some layers eg: \n(Name:"
-                        << node->get_friendly_name() << ", Type: " << node->get_type_name()
-                        << ") were not able to be assigned on any pointed device.\n"
-                        << "It happened because these layers are not supported in plugins by default.\n"
-                        << "You need to implement custom layers to support them.";
+                           << node->get_friendly_name() << ", Type: " << node->get_type_name()
+                           << ") were not able to be assigned on any pointed device.\n"
+                           << "It happened because these layers are not supported in plugins by default.\n"
+                           << "You need to implement custom layers to support them.";
             } else {
                 IE_THROW() << "Network passed to LoadNetwork has affinity assigned, but some layers eg: \n(Name:"
-                        << node->get_friendly_name() << ", Type: " << node->get_type_name()
-                        << ") were not assigned to any device.\n"
-                        << "It might happen if you assigned layers manually and missed some layers or\n"
-                        << "if you used some automatic assigning mode which decided that these layers are not\n"
-                        << "supported by any plugin";
+                           << node->get_friendly_name() << ", Type: " << node->get_type_name()
+                           << ") were not assigned to any device.\n"
+                           << "It might happen if you assigned layers manually and missed some layers or\n"
+                           << "if you used some automatic assigning mode which decided that these layers are not\n"
+                           << "supported by any plugin";
             }
         }
 
@@ -135,7 +131,8 @@ ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model
                 auto allNodeInputs = node->inputs();
                 std::vector<Input> inputs;
                 for (auto&& input : allNodeInputs) {
-                    if (!InferenceEngine::details::contains(subgraphInputs, input)) { // TODO vurusovs REPLACE with ov::util::contains
+                    if (!InferenceEngine::details::contains(subgraphInputs,
+                                                            input)) {  // TODO vurusovs REPLACE with ov::util::contains
                         inputs.emplace_back(std::move(input));
                     }
                 }
@@ -164,7 +161,7 @@ ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model
 
         // Split cyclic dependencies.
         for (std::size_t prevSubgraphs = 0, cyclicSplitStep = 0; prevSubgraphs != subgraphInputs.size();
-            ++cyclicSplitStep) {
+             ++cyclicSplitStep) {
             OPENVINO_ASSERT(cyclicSplitStep < orderedOps.size());
             prevSubgraphs = subgraphInputs.size();
             auto subgraphIds = CollectSubgraphs();
@@ -174,7 +171,8 @@ ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model
             std::unordered_map<ov::Node*, InputSet> nodeSubgraphCyclicInputDependencies;
             for (auto&& node : orderedOps) {
                 auto& nodeSubgraphInputDependency = nodeSubgraphInputDependencies[node.get()];
-                auto allNodeSubgraphInputs = InferenceEngine::details::Intersection(nodeInputDependencies[node.get()], subgraphInputs);
+                auto allNodeSubgraphInputs =
+                    InferenceEngine::details::Intersection(nodeInputDependencies[node.get()], subgraphInputs);
                 for (auto&& subgraphInput : allNodeSubgraphInputs) {
                     if (subgraphIds[node.get()] == subgraphIds[subgraphInput.get_node()]) {
                         nodeSubgraphInputDependency.emplace(subgraphInput);
@@ -188,233 +186,242 @@ ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model
                         nodeSubgraphCyclicInputDependency.emplace(subgraphInput);
                     }
                 }
-        }
-    
-        for (auto&& node : orderedOps) {
-            auto& nodeSubgraphCyclicInputDependency = nodeSubgraphCyclicInputDependencies[node.get()];
-            if (!nodeSubgraphCyclicInputDependency.empty()) {
-                // Collect all subgraph inputs that cyclic subgraph output depends on
-                InputSet cyclicInputsDependencies;
-                for (auto&& cyclicInput : nodeSubgraphCyclicInputDependency) {
-                    for (auto&& input : nodeSubgraphInputDependencies[InputNode(cyclicInput)]) {
-                        cyclicInputsDependencies.emplace(input);
+            }
+
+            for (auto&& node : orderedOps) {
+                auto& nodeSubgraphCyclicInputDependency = nodeSubgraphCyclicInputDependencies[node.get()];
+                if (!nodeSubgraphCyclicInputDependency.empty()) {
+                    // Collect all subgraph inputs that cyclic subgraph output depends on
+                    InputSet cyclicInputsDependencies;
+                    for (auto&& cyclicInput : nodeSubgraphCyclicInputDependency) {
+                        for (auto&& input : nodeSubgraphInputDependencies[InputNode(cyclicInput)]) {
+                            cyclicInputsDependencies.emplace(input);
+                        }
+                    }
+                    for (auto&& input : node->inputs()) {
+                        auto& inputNodeSubgraphCyclicInputDependency =
+                            nodeSubgraphCyclicInputDependencies[InputNode(input)];
+                        auto& inputNodeSubgraphInputDependency = nodeSubgraphInputDependencies[InputNode(input)];
+                        if (!InferenceEngine::details::Intersects(nodeSubgraphCyclicInputDependency,
+                                                                  inputNodeSubgraphCyclicInputDependency) &&
+                            InferenceEngine::details::Intersects(cyclicInputsDependencies,
+                                                                 inputNodeSubgraphInputDependency)) {
+                            subgraphInputs.insert(input);
+                        }
                     }
                 }
-                for (auto&& input : node->inputs()) {
-                    auto& inputNodeSubgraphCyclicInputDependency =
-                        nodeSubgraphCyclicInputDependencies[InputNode(input)];
-                    auto& inputNodeSubgraphInputDependency = nodeSubgraphInputDependencies[InputNode(input)];
-                    if (!InferenceEngine::details::Intersects(nodeSubgraphCyclicInputDependency, inputNodeSubgraphCyclicInputDependency) &&
-                        InferenceEngine::details::Intersects(cyclicInputsDependencies, inputNodeSubgraphInputDependency)) {
-                        subgraphInputs.insert(input);
+            }
+        }
+
+        auto subgraphIds = CollectSubgraphs();
+
+        // if (dumpDotFile) {
+        //     std::map<std::string, int> map_id;
+        //     for (auto&& v : subgraphIds) {
+        //         map_id.emplace(v.first->get_friendly_name(), v.second);
+        //     }
+        //     ov::hetero::debug::dump_subgraphs(std::const_pointer_cast<ov::Model>(function),
+        //                                       queryNetworkResult.supportedLayersMap,
+        //                                       map_id);
+        // }
+
+        // Break graph using insertion of result parameter split
+        NodeMap<ngraph::Node*> subgraphParameterToPrevResult;
+        std::vector<std::shared_ptr<ngraph::op::Result>> results;
+        {
+            std::set<ngraph::Output<ngraph::Node>> subgraphOutputs;
+            for (auto&& input : subgraphInputs) {
+                if (!ov::op::util::is_parameter(input.get_node()) && !ov::op::util::is_constant(input.get_node())) {
+                    subgraphOutputs.insert(input.get_source_output());
+                }
+            }
+            for (auto&& output : subgraphOutputs) {
+                auto output_subgraph_id = subgraphIds.at(output.get_node());
+                auto inputs = output.get_target_inputs();
+                // Collect input subsets from other subgraphs. Each subset of inputs belongs to the same subgraph
+                std::map<int, std::set<ngraph::Input<ngraph::Node>>> input_subsets;
+                for (auto&& input : inputs) {
+                    auto input_subgraph_id = subgraphIds.at(input.get_node());
+                    if (output_subgraph_id != input_subgraph_id) {
+                        input_subsets[input_subgraph_id].emplace(input);
+                    }
+                }
+                // for each subset of inputs create separate Result operation if subset belongs to other
+                for (auto&& input_subset : input_subsets) {
+                    auto result = std::make_shared<ngraph::op::Result>(output);
+                    result->set_friendly_name(output.get_node()->get_friendly_name() + "_" +
+                                              std::to_string(output.get_index()) + "_" +
+                                              std::to_string(input_subset.first) + "_result");
+                    ov::copy_runtime_info(output.get_node_shared_ptr(), result);
+                    subgraphIds.emplace(result.get(), output_subgraph_id);
+                    results.push_back(result);
+                    for (auto&& input : input_subset.second) {
+                        output.remove_target_input(input);
+                        auto parameter = std::make_shared<ngraph::op::Parameter>(output.get_element_type(),
+                                                                                 output.get_partial_shape());
+                        parameter->set_friendly_name(input.get_node()->get_friendly_name() + "_" +
+                                                     std::to_string(input.get_index()) + "_parameter");
+                        ov::copy_runtime_info(input.get_node()->shared_from_this(), parameter);
+                        input.replace_source_output(parameter->output(0));
+                        subgraphIds.emplace(parameter.get(), input_subset.first);
+                        subgraphParameterToPrevResult.emplace(parameter.get(), result.get());
+                        _blobNameMap.emplace(
+                            parameter->get_friendly_name(),
+                            output.get_node()->get_friendly_name() + ((output.get_node()->get_output_size() != 1)
+                                                                          ? ("." + std::to_string(output.get_index()))
+                                                                          : std::string{}));
                     }
                 }
             }
         }
-    }
 
-    auto subgraphIds = CollectSubgraphs();
-
-    // if (dumpDotFile) {
-    //     std::map<std::string, int> map_id;
-    //     for (auto&& v : subgraphIds) {
-    //         map_id.emplace(v.first->get_friendly_name(), v.second);
-    //     }
-    //     ov::hetero::debug::dump_subgraphs(std::const_pointer_cast<ov::Model>(function),
-    //                                       queryNetworkResult.supportedLayersMap,
-    //                                       map_id);
-    // }
-
-    // Break graph using insertion of result parameter split
-    NodeMap<ngraph::Node*> subgraphParameterToPrevResult;
-    std::vector<std::shared_ptr<ngraph::op::Result>> results;
-    {
-        std::set<ngraph::Output<ngraph::Node>> subgraphOutputs;
-        for (auto&& input : subgraphInputs) {
-            if (!ov::op::util::is_parameter(input.get_node()) && !ov::op::util::is_constant(input.get_node())) {
-                subgraphOutputs.insert(input.get_source_output());
-            }
-        }
-        for (auto&& output : subgraphOutputs) {
-            auto output_subgraph_id = subgraphIds.at(output.get_node());
-            auto inputs = output.get_target_inputs();
-            // Collect input subsets from other subgraphs. Each subset of inputs belongs to the same subgraph
-            std::map<int, std::set<ngraph::Input<ngraph::Node>>> input_subsets;
-            for (auto&& input : inputs) {
-                auto input_subgraph_id = subgraphIds.at(input.get_node());
-                if (output_subgraph_id != input_subgraph_id) {
-                    input_subsets[input_subgraph_id].emplace(input);
-                }
-            }
-            // for each subset of inputs create separate Result operation if subset belongs to other
-            for (auto&& input_subset : input_subsets) {
-                auto result = std::make_shared<ngraph::op::Result>(output);
-                result->set_friendly_name(output.get_node()->get_friendly_name() + "_" +
-                                          std::to_string(output.get_index()) + "_" +
-                                          std::to_string(input_subset.first) + "_result");
-                ov::copy_runtime_info(output.get_node_shared_ptr(), result);
-                subgraphIds.emplace(result.get(), output_subgraph_id);
-                results.push_back(result);
-                for (auto&& input : input_subset.second) {
-                    output.remove_target_input(input);
-                    auto parameter =
-                        std::make_shared<ngraph::op::Parameter>(output.get_element_type(), output.get_partial_shape());
-                    parameter->set_friendly_name(input.get_node()->get_friendly_name() + "_" +
-                                                 std::to_string(input.get_index()) + "_parameter");
-                    ov::copy_runtime_info(input.get_node()->shared_from_this(), parameter);
-                    input.replace_source_output(parameter->output(0));
-                    subgraphIds.emplace(parameter.get(), input_subset.first);
-                    subgraphParameterToPrevResult.emplace(parameter.get(), result.get());
-                    _blobNameMap.emplace(
-                        parameter->get_friendly_name(),
-                        output.get_node()->get_friendly_name() + ((output.get_node()->get_output_size() != 1)
-                                                                      ? ("." + std::to_string(output.get_index()))
-                                                                      : std::string{}));
-                }
-            }
-        }
-    }
-
-    struct Subgraph {
-        ngraph::ResultVector _results;
-        ngraph::ParameterVector _parameters;
-        ngraph::SinkVector _sinks;
-        std::string _affinity;
-    };
-    std::unordered_map<int, Subgraph> subgraphs;
-    // Extracts subgraph parameters, results and affinities
-    for (auto&& subgraphIdPtrValue : subgraphIds) {
-        auto node = subgraphIdPtrValue.first;
-        auto& subgraph = subgraphs[subgraphIdPtrValue.second];
-        if (ov::op::util::is_output(node)) {
-            subgraph._results.emplace_back(std::dynamic_pointer_cast<ngraph::op::v0::Result>(node->shared_from_this()));
-        } else if (ov::op::util::is_parameter(node)) {
-            subgraph._parameters.emplace_back(
-                std::dynamic_pointer_cast<ngraph::op::v0::Parameter>(node->shared_from_this()));
-        } else if (ov::op::util::is_sink(node)) {
-            subgraph._sinks.emplace_back(std::dynamic_pointer_cast<ngraph::op::Sink>(node->shared_from_this()));
-        }
-        auto itAffinity = affinities.find(node);
-        if (itAffinity != affinities.end()) {
-            subgraph._affinity = itAffinity->second;
-        }
-    }
-    results = {};
-
-    // Subgraph topological sort
-    std::vector<Subgraph> allSubgraphs;
-    for (auto&& subgraph : subgraphs) {
-        allSubgraphs.emplace_back(std::move(subgraph.second));
-    }
-
-    std::vector<Subgraph> orderedSubgraphs;
-    NodeSet prevResults;
-    size_t subgraphTopoSortsStep = 0;
-    do {
-        OPENVINO_ASSERT(subgraphTopoSortsStep < subgraphs.size());
-        ++subgraphTopoSortsStep;
-        std::vector<Subgraph> newOrderedSubgraphs;
-        auto IsOrderedSubGraph = [&](const Subgraph& subgraph) {
-            auto& parameters = subgraph._parameters;
-            return std::all_of(parameters.begin(),
-                               parameters.end(),
-                               [&](const ngraph::ParameterVector::value_type& parameter) {
-                                   return InferenceEngine::details::contains(graphInputNodes, parameter.get()) ||
-                                          InferenceEngine::details::contains(prevResults, subgraphParameterToPrevResult[parameter.get()]);
-                               });
+        struct Subgraph {
+            ngraph::ResultVector _results;
+            ngraph::ParameterVector _parameters;
+            ngraph::SinkVector _sinks;
+            std::string _affinity;
         };
-        std::remove_copy_if(std::begin(allSubgraphs),
-                            std::end(allSubgraphs),
-                            std::back_inserter(newOrderedSubgraphs),
-                            [&](const Subgraph& subgraph) {
-                                return !IsOrderedSubGraph(subgraph);
-                            });
-        allSubgraphs.erase(std::remove_if(std::begin(allSubgraphs), std::end(allSubgraphs), IsOrderedSubGraph),
-                           std::end(allSubgraphs));
-        for (auto&& subgraph : newOrderedSubgraphs) {
-            for (auto&& result : subgraph._results) {
-                prevResults.insert(result.get());
+        std::unordered_map<int, Subgraph> subgraphs;
+        // Extracts subgraph parameters, results and affinities
+        for (auto&& subgraphIdPtrValue : subgraphIds) {
+            auto node = subgraphIdPtrValue.first;
+            auto& subgraph = subgraphs[subgraphIdPtrValue.second];
+            if (ov::op::util::is_output(node)) {
+                subgraph._results.emplace_back(
+                    std::dynamic_pointer_cast<ngraph::op::v0::Result>(node->shared_from_this()));
+            } else if (ov::op::util::is_parameter(node)) {
+                subgraph._parameters.emplace_back(
+                    std::dynamic_pointer_cast<ngraph::op::v0::Parameter>(node->shared_from_this()));
+            } else if (ov::op::util::is_sink(node)) {
+                subgraph._sinks.emplace_back(std::dynamic_pointer_cast<ngraph::op::Sink>(node->shared_from_this()));
+            }
+            auto itAffinity = affinities.find(node);
+            if (itAffinity != affinities.end()) {
+                subgraph._affinity = itAffinity->second;
             }
         }
-        std::move(std::begin(newOrderedSubgraphs), std::end(newOrderedSubgraphs), std::back_inserter(orderedSubgraphs));
-    } while (!allSubgraphs.empty());
+        results = {};
 
-    ov::ParameterVector externalInputsData = model->get_parameters();
-    ov::ResultVector externalOutputsData = model->get_results();
+        // Subgraph topological sort
+        std::vector<Subgraph> allSubgraphs;
+        for (auto&& subgraph : subgraphs) {
+            allSubgraphs.emplace_back(std::move(subgraph.second));
+        }
 
-    m_networks.resize(orderedSubgraphs.size());
-    std::vector<std::shared_ptr<ov::Model>> subFunctions(orderedSubgraphs.size());
-    int id = 0;
-    for (auto&& subgraph : orderedSubgraphs) {
-        m_networks[id]._device = subgraph._affinity;
-        subFunctions[id] = std::make_shared<ov::Model>(subgraph._results,
-                                                       subgraph._sinks,
-                                                       subgraph._parameters,
-                                                       m_name + '_' + std::to_string(id));
-        m_networks[id]._clonedNetwork = subFunctions[id]->clone(); // TODO vurusovs IS CLONE REQUIRED? 
-        
-        // update of pre-processing info
-        // auto clonedInputs = _networks[id]._clonedNetwork.getInputsInfo();
-        // for (auto&& externalInput : externalInputsData) {
-        //     auto itClonedInput = clonedInputs.find(externalInput.first);
-        //     if (itClonedInput != clonedInputs.end() && nullptr != itClonedInput->second) {
-        //         itClonedInput->second->getPreProcess() = externalInput.second->getPreProcess();
-        //         itClonedInput->second->setPrecision(externalInput.second->getPrecision());
-        //         itClonedInput->second->setLayout(externalInput.second->getLayout());
-        //     }
-        // }
-        // // update output info
-        // auto clonedOutputs = _networks[id]._clonedNetwork.getOutputsInfo();
-        // for (auto&& externalOutput : externalOutputsData) {
-        //     auto itClonedOutput = clonedOutputs.find(externalOutput.first);
-        //     if (itClonedOutput != clonedOutputs.end() && nullptr != itClonedOutput->second) {
-        //         itClonedOutput->second->setPrecision(externalOutput.second->getPrecision());
-        //         itClonedOutput->second->setLayout(externalOutput.second->getLayout());
-        //     }
-        // }
+        std::vector<Subgraph> orderedSubgraphs;
+        NodeSet prevResults;
+        size_t subgraphTopoSortsStep = 0;
+        do {
+            OPENVINO_ASSERT(subgraphTopoSortsStep < subgraphs.size());
+            ++subgraphTopoSortsStep;
+            std::vector<Subgraph> newOrderedSubgraphs;
+            auto IsOrderedSubGraph = [&](const Subgraph& subgraph) {
+                auto& parameters = subgraph._parameters;
+                return std::all_of(parameters.begin(),
+                                   parameters.end(),
+                                   [&](const ngraph::ParameterVector::value_type& parameter) {
+                                       return InferenceEngine::details::contains(graphInputNodes, parameter.get()) ||
+                                              InferenceEngine::details::contains(
+                                                  prevResults,
+                                                  subgraphParameterToPrevResult[parameter.get()]);
+                                   });
+            };
+            std::remove_copy_if(std::begin(allSubgraphs),
+                                std::end(allSubgraphs),
+                                std::back_inserter(newOrderedSubgraphs),
+                                [&](const Subgraph& subgraph) {
+                                    return !IsOrderedSubGraph(subgraph);
+                                });
+            allSubgraphs.erase(std::remove_if(std::begin(allSubgraphs), std::end(allSubgraphs), IsOrderedSubGraph),
+                               std::end(allSubgraphs));
+            for (auto&& subgraph : newOrderedSubgraphs) {
+                for (auto&& result : subgraph._results) {
+                    prevResults.insert(result.get());
+                }
+            }
+            std::move(std::begin(newOrderedSubgraphs),
+                      std::end(newOrderedSubgraphs),
+                      std::back_inserter(orderedSubgraphs));
+        } while (!allSubgraphs.empty());
 
-        // auto toLegacyType = [](const ngraph::element::Type& ngraph_type) {
-        //     return (ngraph_type == ngraph::element::f16 || ngraph_type == ngraph::element::bf16) ? ngraph::element::f32
-        //                                                                                          : ngraph_type;
-        // };
+        ov::ParameterVector externalInputsData = model->get_parameters();
+        ov::ResultVector externalOutputsData = model->get_results();
 
-        // CNNNetwork converts input and output types to preserve legacy behaviour
-        // Here io types are reverted to ngraph types with some common plugin behaviour assumption
-        // defined in `toLegacyType()`
-        // for (auto&& input : clonedInputs) {
-        //     if (!InferenceEngine::details::contains(externalInputsData, input.first)) {
-        //         for (auto&& parameter : subgraph._parameters) {
-        //             auto name = parameter->get_friendly_name();
-        //             if (parameter->get_friendly_name() == input.first) {
-        //                 input.second->setPrecision(
-        //                     InferenceEngine::details::convertPrecision(toLegacyType(parameter->get_element_type())));
-        //             }
-        //         }
-        //     }
-        // }
-        // for (auto&& output : clonedOutputs) {
-        //     if (!InferenceEngine::details::contains(externalOutputsData, output.first)) {
-        //         for (auto&& result : subgraph._results) {
-        //             auto source_output = result->input_value(0);
-        //             auto output_name = ov::op::util::create_ie_output_name(source_output);
-        //             if (output_name == output.first) {
-        //                 output.second->setPrecision(
-        //                     InferenceEngine::details::convertPrecision(toLegacyType(source_output.get_element_type())));
-        //             }
-        //         }
-        //     }
-        // }
-        ++id;
-    }
-    for (auto&& network : m_networks) {
-        auto metaDevices = get_hetero_plugin()->get_properties_per_device(network._device, m_cfg.GetDeviceConfig());
+        m_networks.resize(orderedSubgraphs.size());
+        std::vector<std::shared_ptr<ov::Model>> subFunctions(orderedSubgraphs.size());
+        int id = 0;
+        for (auto&& subgraph : orderedSubgraphs) {
+            m_networks[id]._device = subgraph._affinity;
+            subFunctions[id] = std::make_shared<ov::Model>(subgraph._results,
+                                                           subgraph._sinks,
+                                                           subgraph._parameters,
+                                                           m_name + '_' + std::to_string(id));
+            m_networks[id]._clonedNetwork = subFunctions[id]->clone();  // TODO vurusovs IS CLONE REQUIRED?
 
-        // disable caching for subgraphs, because the whole HETERO model is cached
-        auto device_config = metaDevices[network._device];
-        device_config[ov::cache_dir.name()] = "";
+            // update of pre-processing info
+            // auto clonedInputs = _networks[id]._clonedNetwork.getInputsInfo();
+            // for (auto&& externalInput : externalInputsData) {
+            //     auto itClonedInput = clonedInputs.find(externalInput.first);
+            //     if (itClonedInput != clonedInputs.end() && nullptr != itClonedInput->second) {
+            //         itClonedInput->second->getPreProcess() = externalInput.second->getPreProcess();
+            //         itClonedInput->second->setPrecision(externalInput.second->getPrecision());
+            //         itClonedInput->second->setLayout(externalInput.second->getLayout());
+            //     }
+            // }
+            // // update output info
+            // auto clonedOutputs = _networks[id]._clonedNetwork.getOutputsInfo();
+            // for (auto&& externalOutput : externalOutputsData) {
+            //     auto itClonedOutput = clonedOutputs.find(externalOutput.first);
+            //     if (itClonedOutput != clonedOutputs.end() && nullptr != itClonedOutput->second) {
+            //         itClonedOutput->second->setPrecision(externalOutput.second->getPrecision());
+            //         itClonedOutput->second->setLayout(externalOutput.second->getLayout());
+            //     }
+            // }
 
-        network._network = plugin->get_core()->compile_model(network._clonedNetwork, network._device, device_config);
-    }
+            // auto toLegacyType = [](const ngraph::element::Type& ngraph_type) {
+            //     return (ngraph_type == ngraph::element::f16 || ngraph_type == ngraph::element::bf16) ?
+            //     ngraph::element::f32
+            //                                                                                          : ngraph_type;
+            // };
+
+            // CNNNetwork converts input and output types to preserve legacy behaviour
+            // Here io types are reverted to ngraph types with some common plugin behaviour assumption
+            // defined in `toLegacyType()`
+            // for (auto&& input : clonedInputs) {
+            //     if (!InferenceEngine::details::contains(externalInputsData, input.first)) {
+            //         for (auto&& parameter : subgraph._parameters) {
+            //             auto name = parameter->get_friendly_name();
+            //             if (parameter->get_friendly_name() == input.first) {
+            //                 input.second->setPrecision(
+            //                     InferenceEngine::details::convertPrecision(toLegacyType(parameter->get_element_type())));
+            //             }
+            //         }
+            //     }
+            // }
+            // for (auto&& output : clonedOutputs) {
+            //     if (!InferenceEngine::details::contains(externalOutputsData, output.first)) {
+            //         for (auto&& result : subgraph._results) {
+            //             auto source_output = result->input_value(0);
+            //             auto output_name = ov::op::util::create_ie_output_name(source_output);
+            //             if (output_name == output.first) {
+            //                 output.second->setPrecision(
+            //                     InferenceEngine::details::convertPrecision(toLegacyType(source_output.get_element_type())));
+            //             }
+            //         }
+            //     }
+            // }
+            ++id;
+        }
+        for (auto&& network : m_networks) {
+            auto metaDevices = get_hetero_plugin()->get_properties_per_device(network._device, m_cfg.GetDeviceConfig());
+
+            // disable caching for subgraphs, because the whole HETERO model is cached
+            auto device_config = metaDevices[network._device];
+            device_config[ov::cache_dir.name()] = "";
+
+            network._network =
+                plugin->get_core()->compile_model(network._clonedNetwork, network._device, device_config);
+        }
 
     } catch (const InferenceEngine::Exception& e) {
         // Some transformations can throw legacy exception
@@ -432,7 +439,6 @@ ov::hetero::CompiledModel::CompiledModel(std::istream& model,
                                          bool loaded_from_cache)
     : ov::ICompiledModel(nullptr, plugin),
       m_loaded_from_cache(loaded_from_cache) {
-    
     std::string heteroXmlStr;
     std::getline(model, heteroXmlStr);
 
@@ -538,20 +544,20 @@ ov::hetero::CompiledModel::CompiledModel(std::istream& model,
     (void)parseNode;
 
     pugi::xml_node parametersNode = heteroNode.child("parameters");
-    FOREACH_CHILD (parameterNode, parametersNode, "parameter") { m_inputs.emplace_back(parseNode(parameterNode, true));
- }
+    FOREACH_CHILD (parameterNode, parametersNode, "parameter") {
+        m_inputs.emplace_back(parseNode(parameterNode, true));
+    }
 
     pugi::xml_node resultsNode = heteroNode.child("results");
     FOREACH_CHILD (resultNode, resultsNode, "result") { m_outputs.emplace_back(parseNode(resultNode, false)); }
 }
-
 
 std::shared_ptr<ov::ISyncInferRequest> ov::hetero::CompiledModel::create_sync_infer_request() const {
     OPENVINO_NOT_IMPLEMENTED;
 }
 
 std::shared_ptr<ov::IAsyncInferRequest> ov::hetero::CompiledModel::create_infer_request() const {
-    auto convert = [](const std::vector<ov::Output<const ov::Node>>& vec){
+    auto convert = [](const std::vector<ov::Output<const ov::Node>>& vec) {
         std::vector<std::shared_ptr<const ov::Node>> new_vec;
         for (const auto& node : vec) {
             new_vec.emplace_back(node.get_node_shared_ptr());
@@ -571,14 +577,15 @@ std::shared_ptr<ov::IAsyncInferRequest> ov::hetero::CompiledModel::create_infer_
         desc._profilingTask = openvino::itt::handle("Infer" + std::to_string(index++));
         inferRequests.push_back(desc);
     }
-    auto legacy_sync_infer_req = std::make_shared<HeteroPlugin::HeteroInferRequest>(net_inputs, net_outputs, inferRequests, _blobNameMap);
-    auto exe_ptr = ov::legacy_convert::convert_compiled_model(std::const_pointer_cast<ov::ICompiledModel>(shared_from_this()));
+    auto legacy_sync_infer_req =
+        std::make_shared<HeteroPlugin::HeteroInferRequest>(net_inputs, net_outputs, inferRequests, _blobNameMap);
+    auto exe_ptr =
+        ov::legacy_convert::convert_compiled_model(std::const_pointer_cast<ov::ICompiledModel>(shared_from_this()));
     legacy_sync_infer_req->setPointerToExecutableNetworkInternal(exe_ptr);
     auto legacy_async_infer_req = std::make_shared<HeteroPlugin::HeteroAsyncInferRequest>(
         legacy_sync_infer_req,
         std::dynamic_pointer_cast<InferenceEngine::ITaskExecutor>(get_task_executor()),
-        std::dynamic_pointer_cast<InferenceEngine::ITaskExecutor>(get_callback_executor())
-    );
+        std::dynamic_pointer_cast<InferenceEngine::ITaskExecutor>(get_callback_executor()));
     auto req = ov::legacy_convert::convert_infer_request(legacy_async_infer_req);
     return req;
 }
@@ -668,12 +675,12 @@ ov::Any ov::hetero::CompiledModel::get_property(const std::string& name) const {
         return decltype(ov::model_name)::value_type(model_name);
     } else if (ov::loaded_from_cache == name) {
         return m_loaded_from_cache;
-    // } else if (ov::execution_devices == name) {
-    //     return decltype(ov::execution_devices)::value_type{get_plugin()->get_device_name() + "." +
-    //                                                        std::to_string(m_cfg.device_id)};
-    // } else if (ov::optimal_number_of_infer_requests == name) {
-    //     unsigned int value = m_cfg.streams_executor_config._streams;
-    //     return decltype(ov::optimal_number_of_infer_requests)::value_type(value);
+        // } else if (ov::execution_devices == name) {
+        //     return decltype(ov::execution_devices)::value_type{get_plugin()->get_device_name() + "." +
+        //                                                        std::to_string(m_cfg.device_id)};
+        // } else if (ov::optimal_number_of_infer_requests == name) {
+        //     unsigned int value = m_cfg.streams_executor_config._streams;
+        //     return decltype(ov::optimal_number_of_infer_requests)::value_type(value);
     } else if (ov::supported_properties == name) {
         auto ro_properties = default_ro_properties();
         auto rw_properties = default_rw_properties();

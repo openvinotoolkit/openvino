@@ -14,7 +14,6 @@
 #include "config.hpp"
 #include "openvino/runtime/iplugin.hpp"
 
-
 namespace ov {
 namespace hetero {
 

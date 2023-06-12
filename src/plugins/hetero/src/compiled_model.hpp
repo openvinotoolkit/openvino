@@ -5,11 +5,11 @@
 #pragma once
 
 #include "config.hpp"
-#include "plugin.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
+#include "plugin.hpp"
 // #include "openvino/runtime/iinfer_request.hpp"
-#include "openvino/runtime/so_ptr.hpp"
 #include "openvino/runtime/isync_infer_request.hpp"
+#include "openvino/runtime/so_ptr.hpp"
 #include "openvino/runtime/tensor.hpp"
 
 namespace ov {
@@ -67,8 +67,6 @@ private:
 
     std::vector<NetworkDesc> m_networks;
     std::string m_name;
-
-    
 };
 }  // namespace hetero
 }  // namespace ov
