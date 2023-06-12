@@ -455,22 +455,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
     auto_s_context->m_runtime_fallback = load_config.get_property(ov::intel_auto::enable_runtime_fallback);
     auto_s_context->m_bind_buffer = load_config.get_property(ov::intel_auto::device_bind_buffer);
     std::shared_ptr<ov::ICompiledModel> impl;
-    std::shared_ptr<Schedule> scheduler;
-    if (is_cumulative)
-        scheduler = std::make_shared<CumuSchedule>();
-    else
-        scheduler = std::make_shared<AutoSchedule>();
-    // scheduler start to compile
-    scheduler->launch(auto_s_context);
-    if (!cloned_model) {
-        // fake a model for compile model inputs/outputs in caching case
-        OPENVINO_ASSERT(auto_s_context->m_hw_compiled_model);
-        cloned_model = std::const_pointer_cast<ov::Model>(auto_s_context->m_hw_compiled_model->get_runtime_model());
-    }
     if (is_cumulative) {
-        impl = std::make_shared<AutoCumuCompiledModel>(cloned_model, shared_from_this(), auto_s_context, scheduler);
+        impl = std::make_shared<AutoCumuCompiledModel>(cloned_model, shared_from_this(), auto_s_context, std::make_shared<CumuSchedule>());
     } else {
-        impl = std::make_shared<AutoCompiledModel>(cloned_model, shared_from_this(), auto_s_context, scheduler);
+        impl = std::make_shared<AutoCompiledModel>(cloned_model, shared_from_this(), auto_s_context, std::make_shared<AutoSchedule>());
     }
     return impl;
 }

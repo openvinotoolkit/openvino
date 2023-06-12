@@ -22,7 +22,7 @@ std::shared_ptr<ov::Model> ov::mock_auto_plugin::tests::AutoTest::create_model()
 ov::mock_auto_plugin::tests::AutoTest::AutoTest() {
     set_log_level("LOG_NONE");
     // prepare mockicore and cnnNetwork for loading
-    core = std::make_shared<NiceMock<ov::MockICore>>();
+    core = std::make_shared<NiceMock<MockICore>>();
     NiceMock<MockAutoPlugin>* mock_multi = new NiceMock<MockAutoPlugin>();
     plugin.reset(mock_multi);
     // replace core with mock Icore

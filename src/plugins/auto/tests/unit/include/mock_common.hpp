@@ -31,24 +31,6 @@ namespace internal {
             });
 
 namespace ov {
-class MockICore : public ICore {
-public:
-    MOCK_METHOD(std::shared_ptr<ov::Model>, read_model, (const std::string&, const Tensor&, bool frontend_mode), (const, override));
-    MOCK_METHOD(std::shared_ptr<ov::Model>, read_model, (const std::string&, const std::string&), (const, override));
-    MOCK_METHOD(SoPtr<ov::ICompiledModel>, compile_model, (const std::shared_ptr<const Model>&, const std::string&, const AnyMap&), (const, override));
-    MOCK_METHOD(SoPtr<ov::ICompiledModel>, compile_model, (const std::shared_ptr<const Model>&, const RemoteContext&, const AnyMap&), (const, override));
-    MOCK_METHOD(SoPtr<ov::ICompiledModel>, compile_model, (const std::string&, const std::string&, const AnyMap&), (const, override));
-    MOCK_METHOD(SoPtr<ov::ICompiledModel>, compile_model, (const std::string&, const Tensor&, const std::string&, const AnyMap&), (const, override));
-    MOCK_METHOD(SoPtr<ov::ICompiledModel>, import_model, (std::istream&, const std::string&, const AnyMap&), (const, override));
-    MOCK_METHOD(SupportedOpsMap, query_model, (const std::shared_ptr<const Model>&, const std::string&, const AnyMap&), (const, override));
-    MOCK_METHOD(std::vector<std::string>, get_available_devices, (), (const, override));
-    MOCK_METHOD(RemoteContext, create_context, (const std::string&, const AnyMap&), (const, override));
-    MOCK_METHOD(bool, is_new_api, (), (const, override));
-    MOCK_METHOD(RemoteContext, get_default_context, (const std::string&), (const, override));
-    MOCK_METHOD(Any, get_property, (const std::string&, const std::string&, const AnyMap&), (const, override));
-    MOCK_METHOD(AnyMap, get_supported_property, (const std::string&, const AnyMap&), (const, override));
-};
-
 class MockCompiledModel : public ICompiledModel {
 public:
     MockCompiledModel(const std::shared_ptr<const ov::Model>& model, const std::shared_ptr<const ov::IPlugin>& plugin)

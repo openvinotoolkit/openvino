@@ -23,6 +23,20 @@ ov::auto_plugin::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& 
     : ov::ICompiledModel(model, plugin),
       m_context(context),
       m_scheduler(scheduler) {
+    scheduler->launch(context);
+    m_inputs_outputs_from_hardware = (model == nullptr);
+}
+
+const std::vector<ov::Output<const ov::Node>>& ov::auto_plugin::CompiledModel::outputs() const {
+    if (m_inputs_outputs_from_hardware && m_context->m_hw_compiled_model)
+        return m_context->m_hw_compiled_model->outputs();
+    return ov::ICompiledModel::outputs();
+}
+
+const std::vector<ov::Output<const ov::Node>>& ov::auto_plugin::CompiledModel::inputs() const {
+    if (m_inputs_outputs_from_hardware && m_context->m_hw_compiled_model)
+        return m_context->m_hw_compiled_model->inputs();
+    return ov::ICompiledModel::inputs();
 }
 
 ov::auto_plugin::ISyncInferPtr ov::auto_plugin::CompiledModel::create_sync_infer_request() const {

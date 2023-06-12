@@ -54,10 +54,10 @@ ov::auto_plugin::InferRequest::InferRequest(const std::shared_ptr<const ov::auto
         }
     } else {
         for (const auto& input : get_inputs()) {
-            ov::ISyncInferRequest::set_tensor(input, m_shared_request->get_tensor(input));
+            ov::ISyncInferRequest::set_tensor(input, ov::Tensor(m_shared_request->get_tensor(input), m_shared_request._so));
         }
         for (const auto& output : get_outputs()) {
-            ov::ISyncInferRequest::set_tensor(output, m_shared_request->get_tensor(output));
+            ov::ISyncInferRequest::set_tensor(output, ov::Tensor(m_shared_request->get_tensor(output), m_shared_request._so));
         }
     }
 }

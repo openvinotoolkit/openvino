@@ -11,6 +11,7 @@
 #include "gmock_plugin.hpp"
 #include "mock_common.hpp"
 #include <common_test_utils/test_constants.hpp>
+#include "unit_test_utils/mocks/cpp_interfaces/interface/mock_icore.hpp"
 
 using ::testing::MatcherCast;
 using ::testing::AllOf;
@@ -36,7 +37,7 @@ namespace tests {
 class AutoTest {
 public:
     std::shared_ptr<ov::Model>                      model;
-    std::shared_ptr<NiceMock<ov::MockICore>>        core;
+    std::shared_ptr<NiceMock<MockICore >>           core;
     std::shared_ptr<NiceMock<MockAutoPlugin>>       plugin;
 
     //mock exeNetwork helper
