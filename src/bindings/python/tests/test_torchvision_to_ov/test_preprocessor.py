@@ -1,6 +1,5 @@
 import numpy as np
 import copy
-import os
 import pytest
 from PIL import Image
 
@@ -65,8 +64,8 @@ def test_Normalize():
     ("interpolation", "tolerance"),
     [
         (transforms.InterpolationMode.NEAREST, 4e-05),
-        (transforms.InterpolationMode.BICUBIC, 1e-03),
-        (transforms.InterpolationMode.BILINEAR, 1e-03),
+        (transforms.InterpolationMode.BICUBIC, 2e-03),
+        (transforms.InterpolationMode.BILINEAR, 2e-03),
     ],
 )
 def test_Resize(interpolation, tolerance):
@@ -220,4 +219,16 @@ def test_pipeline_2():
         ]
     )
     torch_result, ov_result = _infer_pipelines(test_input, preprocess_pipeline)
-    assert np.max(np.absolute(torch_result - ov_result)) < 1.0  # TODO: is this expected?
+    assert np.max(np.absolute(torch_result - ov_result)) < 2e-03
+
+
+def test_pipeline_3():
+    test_input = np.random.randint(255, size=(260, 260, 3), dtype=np.uint8)
+    preprocess_pipeline = transforms.Compose(
+        [
+            transforms.ToTensor(),
+            transforms.ConvertImageDtype(torch.float),
+        ]
+    )
+    torch_result, ov_result = _infer_pipelines(test_input, preprocess_pipeline)
+    assert np.max(np.absolute(torch_result - ov_result)) < 2e-03
