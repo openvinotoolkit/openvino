@@ -41,6 +41,7 @@ public:
     size_t decode_tensor_name(const Output<Node>& tensor_desc);
 
     size_t m_friendly_name_counter = 0;
+    std::unordered_set<std::string> m_unique_friendly_name_set;
 
 private:
     OutputVector convert_node(const NodeContext& context);

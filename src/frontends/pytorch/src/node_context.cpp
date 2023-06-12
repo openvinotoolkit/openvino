@@ -39,7 +39,12 @@ OutputVector NodeContext::as_constant() const {
 
 std::shared_ptr<Node> NodeContext::mark_node(std::shared_ptr<Node> ov_node) const {
     ov_node = m_decoder->mark_node(ov_node);
-    ov_node->set_friendly_name(ov_node->get_friendly_name() + '_' + std::to_string(m_translate_session->m_friendly_name_counter++));
+    if (m_translate_session->m_unique_friendly_name_set.count(ov_node->get_friendly_name())) {
+        ov_node->set_friendly_name(ov_node->get_friendly_name() + '_' +
+                                   std::to_string(m_translate_session->m_friendly_name_counter++));
+    } else {
+        m_translate_session->m_unique_friendly_name_set.insert(ov_node->get_friendly_name());
+    }
     return ov_node;
 }
 
