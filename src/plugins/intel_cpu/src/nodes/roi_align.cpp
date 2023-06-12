@@ -526,7 +526,7 @@ private:
 
             uni_vmovups(xmm_weights, ptr[reg_weights]);
             if (jcp_.alg == Algorithm::ROIAlignAvg) {
-                // as vex instruction will zero upper bit for xmm version, store result in seperate xmm_dst_tail
+                // as vex instruction will zero upper bit for xmm version, store result in separate xmm_dst_tail
                 uni_vfmadd231ps(xmm_dst_tail, xmm_src, xmm_weights);
             } else {
                 uni_vmulps(xmm_src, xmm_src, xmm_weights);

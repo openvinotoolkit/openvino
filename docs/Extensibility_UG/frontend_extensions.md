@@ -181,7 +181,7 @@ input name at position ``i`` maps to OpenVINO operation input at position ``i`` 
 
 Let's see the following example. Like previously, we'd like to map ``CustomOperation`` in the original model, 
 to OpenVINO ``CustomOperation`` as is (so their name and attributes names match). This time, that framework operation 
-inputs and outputs are not stricly ordered and can be identified  by their names ``A``, ``B``, ``C`` for inputs 
+inputs and outputs are not strictly ordered and can be identified  by their names ``A``, ``B``, ``C`` for inputs 
 and ``X``, ``Y`` for outputs. Those inputs and outputs can be mapped to OpenVINO operation, such that inputs 
 ``A``, ``B``, ``C`` map to OpenVINO ``CustomOperation`` first, second and third input and ``X`` and ``Y`` 
 outputs map to OpenVINO ``CustomOperation`` first and second output respectively. 
