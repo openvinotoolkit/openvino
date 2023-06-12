@@ -118,7 +118,7 @@ Step 2: Configure the Environment
 
 You must update several environment variables before you can compile and run OpenVINO™ applications. Open the Command Prompt, and run the ``setupvars.bat`` batch file to temporarily set your environment variables. If your ``<INSTALL_DIR>`` is not ``C:\Program Files (x86)\Intel\openvino_2023``, use the correct directory instead.
 
-.. code-block: sh
+.. code-block:: sh
 
    "C:\Program Files (x86)\Intel\openvino_2023\setupvars.bat"
 
@@ -179,9 +179,9 @@ Now that you've installed OpenVINO Runtime, you're ready to run your own machine
 
    Visit the :ref:`Tutorials <notebook tutorials>` page for more Jupyter Notebooks to get you started with OpenVINO, such as:
 
-   * `OpenVINO Python API Tutorial <notebooks/002-openvino-api-with-output.html>`___
-   * `Basic image classification program with Hello Image Classification <notebooks/001-hello-world-with-output.html>`___
-   * `Convert a PyTorch model and use it for image background removal <notebooks/205-vision-background-removal-with-output.html>`___
+   * `OpenVINO Python API Tutorial <notebooks/002-openvino-api-with-output.html>`__ 
+   * `Basic image classification program with Hello Image Classification <notebooks/001-hello-world-with-output.html>`__
+   * `Convert a PyTorch model and use it for image background removal <notebooks/205-vision-background-removal-with-output.html>`__
 
 .. tab:: Get started with C++
 

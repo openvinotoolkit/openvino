@@ -126,9 +126,13 @@ elseif(gflags_required)
     endif()
 
     if(NOT gflags_FOUND)
+        set(GFLAGS_TARGET gflags_nothreads_static)
         if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/gflags")
             add_subdirectory(thirdparty/gflags EXCLUDE_FROM_ALL)
-            set(GFLAGS_TARGET gflags_nothreads_static)
+        elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/gflags")
+            # Allow running samples CMakeLists.txt as stand alone from openvino sources
+            add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/gflags"
+                             "${CMAKE_CURRENT_BINARY_DIR}/thirdparty/gflags" EXCLUDE_FROM_ALL)
         else()
             message(FATAL_ERROR "Failed to find 'gflags' library using '${gflags_component}' component")
         endif()

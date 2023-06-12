@@ -79,6 +79,7 @@ OP_CONVERTER(translate_linalg_vector_norm);
 OP_CONVERTER(translate_linear);
 OP_CONVERTER(translate_list_construct);
 OP_CONVERTER(translate_log);
+OP_CONVERTER(translate_log_softmax);
 OP_CONVERTER(translate_log2);
 OP_CONVERTER(translate_loop);
 OP_CONVERTER(translate_masked_fill);
@@ -88,6 +89,7 @@ OP_CONVERTER(translate_mean);
 OP_CONVERTER(translate_meshgrid);
 OP_CONVERTER(translate_min);
 OP_CONVERTER(translate_narrow);
+OP_CONVERTER(translate_native_multi_head_attention);
 OP_CONVERTER(translate_neg);
 OP_CONVERTER(translate_new_full);
 OP_CONVERTER(translate_new_ones);
@@ -118,6 +120,7 @@ OP_CONVERTER(translate_scaled_dot_product_attention);
 OP_CONVERTER(translate_select);
 OP_CONVERTER(translate_set_item);
 OP_CONVERTER(translate_selu);
+OP_CONVERTER(translate_shape_as_tensor);
 OP_CONVERTER(translate_sign);
 OP_CONVERTER(translate_size);
 OP_CONVERTER(translate_slice);
@@ -159,7 +162,9 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::__range_length", op::translate_range_length},
         {"aten::_convolution", op::translate_convolution},
         {"aten::_convolution_mode", op::translate_convolution_mode},
+        {"aten::_native_multi_head_attention", op::translate_native_multi_head_attention},
         {"aten::_set_item", op::translate_set_item},
+        {"aten::_shape_as_tensor", op::translate_shape_as_tensor},
         {"aten::abs", op::translate_1to1_match_1_inputs<opset10::Abs>},
         {"aten::acos", op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Acos>},
         {"aten::acos_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Acos>>},
@@ -273,6 +278,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::linear", op::translate_linear},
         {"aten::log", op::translate_log},
         {"aten::log_", op::inplace_op<op::translate_log>},
+        {"aten::log_softmax", op::translate_log_softmax},
         {"aten::log2", op::translate_log2},
         {"aten::log2_", op::inplace_op<op::translate_log2>},
         {"aten::lt", op::translate_1to1_match_2_inputs_align_types<opset10::Less>},
