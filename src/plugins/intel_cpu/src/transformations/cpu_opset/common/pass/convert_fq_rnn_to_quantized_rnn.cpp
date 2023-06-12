@@ -104,7 +104,7 @@ ov::intel_cpu::ConvertFqRnnToQuantizedRnn::ConvertFqRnnToQuantizedRnn() {
             const auto& cell_state = pattern_map.at(cell_state_m);
             const auto& sequence_length = pattern_map.at(sequence_length_m);
 
-            // @todo prototype removal of unnecessary fq between two consequtive rnn nodes
+            // @todo prototype removal of unnecessary fq between two consecutive rnn nodes
             auto rnn_quantized_tr = std::make_shared<op::TypeRelaxed<ngraph::opset9::LSTMSequence>>(
                 element::TypeVector{ element::f32, element::f32, element::f32, element::f32, element::f32, element::f32, element::f32 },
                 element::TypeVector{ element::f32, element::f32, element::f32 },

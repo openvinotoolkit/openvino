@@ -10,7 +10,7 @@
  *     ConvertConv1DBase detects 1D Convolution / GroupConvolution and replaces
  *     it with the sequence Unsqueeze - 2D Convolution / GroupConvolution - Squeeze.
  *     Unsqueeze adds the additional dimension to Convolution inputs and Squeeze 
- *     removes the additional dimention from the Convolution output.
+ *     removes the additional dimension from the Convolution output.
  *
  * Before:
  * 
