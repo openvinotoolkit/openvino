@@ -4,6 +4,7 @@
 #include "transformations/insert_identity_layer.hpp"
 
 #include <legacy/ngraph_ops/eltwise.hpp>
+#include <memory>
 #include <ngraph/opsets/opset9.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
 #include <ngraph/pattern/op/or.hpp>
@@ -20,17 +21,21 @@ using namespace ov::intel_gna;
 using namespace ov::intel_gna::pass;
 using namespace ov::intel_gna::rt_info;
 using namespace ov::intel_gna::graph_utils;
+using namespace ov::pass::pattern;
+using namespace ov::op::util;
+
+using namespace std;
 
 namespace {
-void mark_for_identity_insertion(std::shared_ptr<ngraph::Node> node, size_t input_index) {
+void mark_for_identity_insertion(shared_ptr<ov::Node> node, size_t input_index) {
     log::debug() << "Mark input as candidate for identity insertion " << input_index << ":" << node->get_friendly_name()
-                 << std::endl;
+                 << endl;
     auto input = node->input(input_index);
     add_precision_change_flag(input, ov::element::i32, ov::element::i16);
 }
 
-std::shared_ptr<ov::intel_gna::op::Identity> create_indentity(std::shared_ptr<ngraph::Node>& input_op) {
-    auto identity_op = std::make_shared<ov::intel_gna::op::Identity>(input_op);
+shared_ptr<ov::intel_gna::op::Identity> create_indentity(shared_ptr<ov::Node>& input_op) {
+    auto identity_op = make_shared<ov::intel_gna::op::Identity>(input_op);
     // Keep name of previous operation
     identity_op->set_friendly_name(input_op->get_friendly_name());
     input_op->set_friendly_name(input_op->get_friendly_name() + "/previous");
@@ -38,11 +43,11 @@ std::shared_ptr<ov::intel_gna::op::Identity> create_indentity(std::shared_ptr<ng
     return identity_op;
 }
 
-void insert_identity_layer_after(std::shared_ptr<ngraph::Node>& input_op, size_t index) {
+void insert_identity_layer_after(shared_ptr<ov::Node>& input_op, size_t index) {
     NGRAPH_CHECK(input_op);
 
     log::debug() << "Insert identity layer after " << input_op->get_friendly_name() << " (" << input_op->get_type_name()
-                 << "):" << index << std::endl;
+                 << "):" << index << endl;
 
     auto consumers = input_op->output(index).get_target_inputs();
     auto identity_op = create_indentity(input_op);
@@ -51,34 +56,30 @@ void insert_identity_layer_after(std::shared_ptr<ngraph::Node>& input_op, size_t
     }
 }
 
-void insert_identity_layer_between(std::shared_ptr<ngraph::Node>& input_op,
-                                   std::shared_ptr<ngraph::Node>& output_op,
-                                   size_t index) {
+void insert_identity_layer_between(shared_ptr<ov::Node>& input_op, shared_ptr<ov::Node>& output_op, size_t index) {
     NGRAPH_CHECK(input_op);
     NGRAPH_CHECK(output_op);
 
     log::debug() << "Insert identity layer after " << input_op->get_friendly_name() << " (" << input_op->get_type_name()
                  << ") and before " << index << ":" << output_op->get_friendly_name() << " ("
-                 << output_op->get_type_name() << ")" << std::endl;
+                 << output_op->get_type_name() << ")" << endl;
 
     auto identity_op = create_indentity(input_op);
     output_op->input(index).replace_source_output(identity_op);
 }
 
 // forward declaration
-bool walk_through_the_outputs(std::shared_ptr<ov::Node>& prev_node,
+bool walk_through_the_outputs(shared_ptr<ov::Node>& prev_node,
                               size_t& prev_node_output_index,
-                              const std::shared_ptr<ov::Node>& node,
+                              const shared_ptr<ov::Node>& node,
                               bool first_iteration = false);
 
-bool process_next_node(std::shared_ptr<ov::Node>& prev_node,
+bool process_next_node(shared_ptr<ov::Node>& prev_node,
                        size_t& prev_node_output_index,
-                       const std::shared_ptr<ov::Node>& node,
+                       const shared_ptr<ov::Node>& node,
                        const size_t input_index) {
     // Check whether node is going to be skipped
-    bool to_be_skipped =
-        (is_gna_precision_agnostic(node) && !std::dynamic_pointer_cast<ngraph::opset9::Concat>(node)) ||
-        is_pooling(node);
+    bool to_be_skipped = (is_gna_precision_agnostic(node) && !is_concat(node)) || is_pooling(node);
     if (to_be_skipped) {
         // if it is pooling, update previous node, since activation
         // should be inserted after the pooling
@@ -103,9 +104,9 @@ bool process_next_node(std::shared_ptr<ov::Node>& prev_node,
     return false;
 }
 
-bool walk_through_the_outputs(std::shared_ptr<ov::Node>& prev_node,
+bool walk_through_the_outputs(shared_ptr<ov::Node>& prev_node,
                               size_t& prev_node_output_index,
-                              const std::shared_ptr<ov::Node>& node,
+                              const shared_ptr<ov::Node>& node,
                               bool first_iteration) {
     bool is_identity_inserted = false;
     // walk over all outputs
@@ -132,10 +133,10 @@ bool walk_through_the_outputs(std::shared_ptr<ov::Node>& prev_node,
 }
 }  // namespace
 
-bool MarkIdentityCandidates::run_on_model(const std::shared_ptr<ov::Model>& m) {
+bool MarkIdentityCandidates::run_on_model(const shared_ptr<ov::Model>& m) {
     RUN_ON_FUNCTION_SCOPE(MarkIdentityCandidates);
     for (auto& node : m->get_ordered_ops()) {
-        auto check_previos_node_and_mark = [&node]() {
+        auto check_previous_node_and_mark = [&node]() {
             for (size_t i = 0; i < node->get_input_size(); i++) {
                 auto prev_node = node->get_input_node_shared_ptr(i);
                 prev_node = get_prev_node_skipping_certain(prev_node, is_gna_precision_agnostic);
@@ -144,7 +145,7 @@ bool MarkIdentityCandidates::run_on_model(const std::shared_ptr<ov::Model>& m) {
                 }
             }
         };
-        if (std::dynamic_pointer_cast<ngraph::op::Eltwise>(node)) {
+        if (dynamic_pointer_cast<ngraph::op::Eltwise>(node)) {
             auto input0_node = node->get_input_node_shared_ptr(0);
             auto input1_node = node->get_input_node_shared_ptr(1);
             auto func_input0_node = get_prev_node_skipping_certain(input0_node, is_gna_precision_agnostic);
@@ -166,14 +167,14 @@ bool MarkIdentityCandidates::run_on_model(const std::shared_ptr<ov::Model>& m) {
                     mark_for_identity_insertion(node, 1);
                 }
             }
-        } else if (std::dynamic_pointer_cast<ngraph::opset9::Concat>(node) != nullptr) {
-            check_previos_node_and_mark();
+        } else if (is_concat(node)) {
+            check_previous_node_and_mark();
         } else {
             if (is_gna_precision_agnostic(node) || has_32bit_input(node) || ngraph::op::is_parameter(node) ||
                 ngraph::op::is_constant(node) || ngraph::op::is_output(node) || ngraph::op::is_sink(node)) {
                 continue;
             }
-            check_previos_node_and_mark();
+            check_previous_node_and_mark();
         }
     }
     return false;
@@ -184,7 +185,7 @@ BreakFusingOfOutputLayers::BreakFusingOfOutputLayers() {
 
     auto result_op = ngraph::pattern::wrap_type<ngraph::opset9::Result>({ngraph::pattern::any_input()});
 
-    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+    ngraph::matcher_pass_callback callback = [=](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto result_node = pattern_map.at(result_op).get_node_shared_ptr();
         auto input_node = result_node->get_input_node_shared_ptr(0);
@@ -201,11 +202,11 @@ BreakFusingOfOutputLayers::BreakFusingOfOutputLayers() {
         return false;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(result_op, matcher_name);
+    auto m = make_shared<Matcher>(result_op, matcher_name);
     this->register_matcher(m, callback);
 }
 
-bool InsertIdentity::run_on_model(const std::shared_ptr<ov::Model>& m) {
+bool InsertIdentity::run_on_model(const shared_ptr<ov::Model>& m) {
     RUN_ON_FUNCTION_SCOPE(InsertIdentity);
     bool is_graph_modifed = false;
 
@@ -215,14 +216,14 @@ bool InsertIdentity::run_on_model(const std::shared_ptr<ov::Model>& m) {
             continue;
 
         // walk through the all outputs
-        std::shared_ptr<ov::Node> prev_node = node;
+        shared_ptr<ov::Node> prev_node = node;
         size_t prev_node_output_index = 0;
         is_graph_modifed |= walk_through_the_outputs(prev_node, prev_node_output_index, node, true);
     }
     return is_graph_modifed;
 }
 
-bool IdentityCandidatesCleanup::run_on_model(const std::shared_ptr<ov::Model>& f) {
+bool IdentityCandidatesCleanup::run_on_model(const shared_ptr<ov::Model>& f) {
     RUN_ON_FUNCTION_SCOPE(IdentityCandidatesCleanup);
     for (auto& node : f->get_ordered_ops()) {
         for (auto& input : node->inputs()) {
@@ -230,4 +231,99 @@ bool IdentityCandidatesCleanup::run_on_model(const std::shared_ptr<ov::Model>& f
         }
     }
     return false;
+}
+
+bool InsertIdentityForPrecAgnosticConcatInput::all_inputs_point_the_same_node(const shared_ptr<ov::Node>& node) {
+    const auto& inputs = node->inputs();
+    const auto& input0 = inputs[0].get_tensor_ptr();
+    return all_of(inputs.begin(), inputs.end(), [&](const ov::Input<ov::Node>& in) {
+        return in.get_tensor_ptr() == input0;
+    });
+}
+
+size_t InsertIdentityForPrecAgnosticConcatInput::find_prev_layer_output_index(shared_ptr<ov::Node> prev,
+                                                                              shared_ptr<ov::Node> next) {
+    for (const auto& output : prev->outputs()) {
+        for (const auto& input : output.get_target_inputs()) {
+            if (input.get_node() == next.get()) {
+                return output.get_index();
+            }
+        }
+    }
+    return 0;
+}
+
+bool InsertIdentityForPrecAgnosticConcatInput::insert_identity_after_nodes(const vector<shared_ptr<ov::Node>>& nodes,
+                                                                           const shared_ptr<ov::Node>& next) {
+    bool is_graph_modified = false;
+    for (auto node : nodes) {
+        size_t index = find_prev_layer_output_index(node, next);
+        insert_identity_layer_after(node, index);
+        is_graph_modified = true;
+    }
+    return is_graph_modified;
+}
+
+bool InsertIdentityForPrecAgnosticConcatInput::has_fq_on_any_input(const shared_ptr<ov::Node> concat_node) {
+    auto is_not_fq = [](shared_ptr<ov::Node> node) -> bool {
+        return !is_parameter(node) && !is_constant(node) && !is_fake_quantize(node);
+    };
+    for (size_t i = 0; i < concat_node->get_input_size(); i++) {
+        auto concat_input_node = concat_node->get_input_node_shared_ptr(i);
+        auto prev_node = get_prev_node_skipping_certain(concat_input_node, is_not_fq);
+        if (!is_parameter(prev_node) && !is_constant(prev_node)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+vector<shared_ptr<ov::Node>> InsertIdentityForPrecAgnosticConcatInput::get_nodes_for_identity_insertion(
+    const shared_ptr<ov::Node>& concat_node) {
+    auto not_able_to_hold_sf = [](shared_ptr<ov::Node> node) -> bool {
+        return is_gna_precision_agnostic(node) || is_fake_quantize(node) || is_read_value(node);
+    };
+
+    vector<shared_ptr<ov::Node>> nodes;
+    for (size_t i = 0; i < concat_node->get_input_size(); i++) {
+        auto concat_input_node = concat_node->get_input_node_shared_ptr(i);
+        auto prev_node = get_prev_node_skipping_certain(concat_input_node, not_able_to_hold_sf);
+        if ((is_parameter(prev_node) || is_constant(prev_node)) && (!is_parameter(concat_input_node))) {
+            nodes.emplace_back(concat_input_node);
+        }
+    }
+    return nodes;
+}
+
+bool InsertIdentityForPrecAgnosticConcatInput::insert_identity_for_prec_agnostic_concat_inputs(
+    const shared_ptr<ov::Node>& concat_node) {
+    if (all_inputs_point_the_same_node(concat_node)) {
+        return false;
+    }
+
+    if (!has_fq_on_any_input(concat_node)) {
+        return false;
+    }
+
+    const auto& nodes = get_nodes_for_identity_insertion(concat_node);
+
+    // Skip adding Identity if none of inputs can hold scale factors
+    bool no_input_can_hold_sf = concat_node->get_input_size() == nodes.size();
+    if (no_input_can_hold_sf) {
+        return false;
+    }
+
+    return insert_identity_after_nodes(nodes, concat_node);
+}
+
+bool InsertIdentityForPrecAgnosticConcatInput::run_on_model(const shared_ptr<ov::Model>& m) {
+    RUN_ON_FUNCTION_SCOPE(InsertIdentityForPrecAgnosticConcatInput);
+    bool is_graph_modified = false;
+    for (auto& node : m->get_ordered_ops()) {
+        if (is_concat(node)) {
+            is_graph_modified |= insert_identity_for_prec_agnostic_concat_inputs(node);
+            continue;
+        }
+    }
+    return is_graph_modified;
 }
