@@ -162,6 +162,23 @@ void remove_single_input_node(std::shared_ptr<ov::Node> node) {
     ov::replace_output_update_name(node->output(0), node_parent->output(0));
 }
 
+void swap_output_names(ov::Output<ov::Node> output1, ov::Output<ov::Node> output2) {
+    const auto node2_output_names = output2.get_names();
+    output2.set_names(output1.get_names());
+    output1.set_names(node2_output_names);
+}
+
+void swap_friendly_names(std::shared_ptr<ov::Node> node1, std::shared_ptr<ov::Node> node2) {
+    const std::string node2_name = node2->get_friendly_name();
+    node2->set_friendly_name(node1->get_friendly_name());
+    node1->set_friendly_name(node2_name);
+}
+
+void swap_names(std::shared_ptr<ov::Node> node1, std::shared_ptr<ov::Node> node2) {
+    swap_friendly_names(node1, node2);
+    swap_output_names(node1->output(0), node2->output(0));
+}
+
 }  // namespace helper
 }  // namespace pass
 }  // namespace intel_gna

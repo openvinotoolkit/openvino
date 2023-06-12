@@ -12,8 +12,9 @@ namespace ov {
 namespace intel_gna {
 namespace pass {
 
-/** @brief Moves Gather through Split layer in a backward step propagation.
- * This transformation is called called from GatherSinkingGeneral.
+/** @brief
+ * Moves Gather through Split layer in a backward step propagation.
+ * This transformation is called from GatherSinkingGeneral.
  *
  * Converts subgraph
  *                Any #1

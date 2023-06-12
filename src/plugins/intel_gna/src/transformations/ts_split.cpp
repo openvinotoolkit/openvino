@@ -4,7 +4,7 @@
 
 #include "transformations/ts_split.hpp"
 
-#include <openvino/cc/ngraph/itt.hpp>
+#include "openvino/cc/ngraph/itt.hpp"
 
 #include "backend/gna_limitations.hpp"
 #include "common/graph_utils.hpp"

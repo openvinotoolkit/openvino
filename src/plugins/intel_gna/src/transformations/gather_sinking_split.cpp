@@ -4,9 +4,8 @@
 
 #include "transformations/gather_sinking_split.hpp"
 
-#include <openvino/cc/ngraph/itt.hpp>
-#include <openvino/opsets/opset9.hpp>
-#include <openvino/pass/pattern/op/or.hpp>
+#include "openvino/cc/ngraph/itt.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
 #include <transformations/utils/utils.hpp>
 #include <utility>
 
@@ -121,7 +120,6 @@ GatherSinkingSplitBackward::GatherSinkingSplitBackward() {
                                      output_gather.gather->input(0).get_partial_shape().rank().get_length());
 
         const auto gather_indices = normalize_gather_indices(output_gather.gather_indices->cast_vector<int64_t>());
-        //
         std::vector<int64_t> new_indices(split->get_input_shape(0)[gather_axis]);
         std::iota(new_indices.begin(), new_indices.end(), 0);
 

@@ -4,12 +4,12 @@
 
 #include "transformations/gather_sinking.hpp"
 
-#include <openvino/cc/pass/itt.hpp>
-#include <openvino/core/rt_info.hpp>
-#include <openvino/pass/constant_folding.hpp>
-#include <openvino/pass/graph_rewrite.hpp>
-#include <openvino/pass/manager.hpp>
-#include <openvino/pass/pattern/op/wrap_type.hpp>
+#include "openvino/cc/pass/itt.hpp"
+#include "openvino/core/rt_info.hpp"
+#include "openvino/pass/constant_folding.hpp"
+#include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/manager.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 #include "transformations/gather_sinking_binary.hpp"
 #include "transformations/gather_sinking_fuse.hpp"

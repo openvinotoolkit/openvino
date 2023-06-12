@@ -13,7 +13,8 @@ namespace intel_gna {
 namespace pass {
 
 /**
- * @brief Moves Gather layer forward from the start to the end of the graph
+ * @brief
+ * Moves Gather layer forward from the start to the end of the graph
  * through the BinaryElementwiseArithmetic operations (it is called from GatherSinkingGeneral transformation).
  * Gather layer is moved from the Binary input to the Binary output. Reversed Gather layer is moved
  * to another Binary input.
@@ -60,7 +61,8 @@ public:
 };
 
 /**
- * @brief Moves Gather layer backward from the end to the start of the graph
+ * @brief
+ * Moves Gather layer backward from the end to the start of the graph
  *
  *    Any1  Any2     Any1   Any2
  *     |     |        |     |
@@ -82,7 +84,7 @@ public:
  * - Gather is not marked as non-sinkable
  * - all Binary consumers are Gather layers
  * - all that Gather layers equal each other
- * - Gather has only 1D indices
+ * - all Gather layers have only 1D indices
  * - all nodes have static ranks
  *
  * This transformation is called called from GatherSinkingGeneral.

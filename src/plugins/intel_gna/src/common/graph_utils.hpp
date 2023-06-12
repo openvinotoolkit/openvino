@@ -375,13 +375,13 @@ inline std::vector<size_t> make_gather_indices_from_transpose_axes(const Shape& 
     return gather_order;
 }
 
-inline size_t get_first_valuable_dim_id(const ov::Shape& shape) {
+inline int64_t get_first_valuable_dim_id(const ov::Shape& shape) {
     for (size_t i = 0; i < shape.size(); ++i) {
         if (shape[i] != 1) {
             return i;
         }
     }
-    return 0;
+    return -1;
 }
 
 /**
@@ -402,9 +402,12 @@ inline int64_t get_normalized_negative_gather_axis(const std::shared_ptr<ov::ops
 }
 
 /**
- * @brief Gets Gather axis if it stored in a constant
+ * @brief Gets Gather axis if it's stored in a constant
  */
-inline bool get_gather_axis(const std::shared_ptr<ov::opset10::Gather>& gather, int64_t& axis) {
+inline bool get_gather_axis(const std::shared_ptr<ov::Node>& gather, int64_t& axis) {
+    auto gather_node = as_type_ptr<ov::opset10::Gather>(gather);
+    if (!gather_node)
+        return false;
     auto output_gather_axis_node = as_type_ptr<ov::opset10::Constant>(gather->input_value(2).get_node_shared_ptr());
     if (!output_gather_axis_node)
         return false;
@@ -414,24 +417,13 @@ inline bool get_gather_axis(const std::shared_ptr<ov::opset10::Gather>& gather, 
 }
 
 /**
- * @brief Gets Gather axis if it stored in a constant
- */
-inline bool get_gather_axis(const std::shared_ptr<ov::Node>& gather, int64_t& axis) {
-    auto gather_node = as_type_ptr<ov::opset10::Gather>(gather);
-    if (!gather_node)
-        return false;
-    if (!get_gather_axis(gather_node, axis))
-        return false;
-    return true;
-}
-
-/**
  * @brief Converts Gather indexes into positive form
  */
-inline std::vector<int64_t> normalize_gather_indices(const std::vector<int64_t>& indices) {
-    std::vector<int64_t> normalized(indices.size());
-    for (int i = 0; i < indices.size(); ++i) {
-        int64_t index = indices[i];
+template <typename T>
+std::vector<T> normalize_gather_indices(const std::vector<T>& indices) {
+    std::vector<T> normalized(indices.size());
+    for (size_t i = 0; i < indices.size(); ++i) {
+        T index = indices[i];
         if (index < 0)
             index += indices.size();
         normalized[i] = index;
@@ -475,11 +467,13 @@ inline Rank::value_type get_max_input_rank(const std::shared_ptr<ov::Node>& node
 }
 
 /**
- * @brief Gets dimension value by axis
+ * @brief Gets dimension value by axis (works if axis could be < 0)
  */
-inline size_t get_dim_by_axis(const Shape& shape, int64_t axis) {
+inline Shape::value_type get_dim_by_axis(const Shape& shape, int64_t axis) {
     if (axis < 0)
         axis += shape.size();
+    if (axis < 0 || axis >= shape.size())
+        throw std::runtime_error("get_dim_by_axis invalid axis");
     return shape[axis];
 }
 
@@ -511,8 +505,8 @@ inline int64_t convert_axis_to_positive(int64_t axis, ov::Rank::value_type rank)
 }
 
 /**
- * @brief Reverts gather indices in a such way that reverted and initial gather will do nothing if
- *   stays after another.Works only with positive form (no negative indices).
+ * @brief Reverts gather indices in such a way that reverted and initial gather will do nothing if
+ *   they stay one after another. Works only with positive form (no negative indices).
  */
 inline std::vector<int64_t> reverse_gather_indexes(const std::vector<int64_t>& indexes) {
     std::vector<int64_t> out(indexes.size());
@@ -564,6 +558,8 @@ inline bool get_split_axis(const std::shared_ptr<ov::opset10::Constant>& split_a
         if (rank.is_static()) {
             const auto rank_val = rank.get_length();
             axis += rank_val;
+            if (axis < 0 || axis >= rank.get_length())
+                throw std::runtime_error("get_split_axis invalid axis");
         } else {
             return false;
         }

@@ -11,7 +11,8 @@ namespace ov {
 namespace intel_gna {
 namespace pass {
 
-/** @brief Moves Gather through Reshape node in a backward sinking propagation
+/** @brief
+ *  Moves Gather through Reshape node in a backward sinking propagation
  *  (from the end to the start of the graph).
  *
  *        Any #1        Any #1
@@ -22,10 +23,10 @@ namespace pass {
  *          |              |
  *        Any #2         Any #2
  *
- * - Reshape is unflatten (one last dimension is unflatted into multiple)
- * - Gather is availiable for sinking (no NoGatherSinkingAttr is set)
+ * - Reshape is an unflatten type operation (it should unsquash last dimension into multiple ones.)
+ * - Gather is available for sinking (NoGatherSinkingAttr is not set)
  *
- * This transformation is called called from GatherSinkingGeneral.
+ * This transformation is called from GatherSinkingGeneral.
  */
 
 class GatherSinkingReshapeBackward : public ov::pass::MatcherPass {

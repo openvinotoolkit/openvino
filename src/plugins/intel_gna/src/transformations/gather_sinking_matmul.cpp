@@ -4,7 +4,7 @@
 
 #include "transformations/gather_sinking_matmul.hpp"
 
-#include <openvino/cc/ngraph/itt.hpp>
+#include "openvino/cc/ngraph/itt.hpp"
 #include <transformations/utils/utils.hpp>
 #include <utility>
 
@@ -13,6 +13,7 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/rt_info/gather_sinking_attr.hpp"
 #include "transformations/utils/gather_sinking_utils.hpp"
+#include "transformations/utils/transformation_helper.hpp"
 
 using namespace ov;
 using namespace ov::opset10;
@@ -22,6 +23,7 @@ using namespace gather_sinking;
 using namespace ov::intel_gna::graph_utils;
 using namespace ov::intel_gna::pass;
 using namespace ov::intel_gna::rt_info;
+using namespace ov::intel_gna::pass::helper;
 
 namespace {
 bool has_2d_inputs(const Output<Node>& output) {

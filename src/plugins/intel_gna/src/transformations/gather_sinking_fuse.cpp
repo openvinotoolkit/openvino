@@ -4,7 +4,7 @@
 
 #include "transformations/gather_sinking_fuse.hpp"
 
-#include <openvino/cc/ngraph/itt.hpp>
+#include "openvino/cc/ngraph/itt.hpp"
 #include <transformations/utils/utils.hpp>
 #include <utility>
 

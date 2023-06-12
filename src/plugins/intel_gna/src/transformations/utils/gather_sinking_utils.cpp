@@ -16,12 +16,14 @@
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/log.hpp"
 #include "transformations/rt_info/gather_sinking_attr.hpp"
+#include "transformations/utils/transformation_helper.hpp"
 
 using namespace ov;
 using namespace ov::intel_gna::graph_utils;
 using namespace ov::intel_gna::rt_info;
 using namespace ov::opset10;
 using namespace ov::pass::pattern;
+using namespace ov::intel_gna::pass::helper;
 
 namespace gather_sinking {
 using NodePtr = std::shared_ptr<Node>;
@@ -51,32 +53,10 @@ GatherInputsInfo get_first_gather_input(NodePtr node) {
     return GatherInputsInfo();
 }
 
-void swap_output_names(Output<Node> output1, Output<Node> output2) {
-    const auto node2_output_names = output2.get_names();
-    output2.set_names(output1.get_names());
-    output1.set_names(node2_output_names);
-}
-
-void swap_friendly_names(NodePtr node1, NodePtr node2) {
-    const std::string node2_name = node2->get_friendly_name();
-    node2->set_friendly_name(node1->get_friendly_name());
-    node1->set_friendly_name(node2_name);
-}
-
-void swap_names(NodePtr node1, NodePtr node2) {
-    swap_friendly_names(node1, node2);
-    swap_output_names(node1->output(0), node2->output(0));
-}
-
 namespace sink_forward {
 /** @brief
  * Inserts inverted Gather layer on all @main_node inputs except input from GatherInputsInfo argument
  * Works only with 1D indices.
- * It's simpler to work with negative gather axis since it doesn't depend on shape broadcasting.
- * Converts gather axis to a negative form
- * Doesn't add Gather layer if input_node_shape[axis] == 1 since it is useless and causes an invalid result.
- * Input nodes can have different shapes. That shapes can have smaller or larger ranks. To manage it we need
- * to find max input shape rank and broadcast all input shapes to it.
  */
 void update_input_gather(NodePtr main_node,
                          const GatherInputsInfo& gather_input_info,
@@ -84,6 +64,9 @@ void update_input_gather(NodePtr main_node,
     if (gather_input_info.isEmpty() || has_dynamic_rank_input(main_node))
         return;
 
+    /* It's simpler to work with negative gather axis since it doesn't depend on shape broadcasting.
+     * Converts gather axis to a negative form
+     */
     int64_t gather_negative_axis = {};
     if (a_gather_negative_axis)
         gather_negative_axis = *a_gather_negative_axis;
@@ -108,6 +91,10 @@ void update_input_gather(NodePtr main_node,
             auto gather_parent = input_node.get_node()->input_value(0);
             main_node->input(i).replace_source_output(gather_parent);
         } else {
+            /* Doesn't add Gather layer if input_node_shape[axis] == 1 since it is useless and causes an invalid result.
+             * Input nodes can have different shapes. That shapes can have smaller or larger ranks. To manage it we need
+             * to find max input shape rank and broadcast all input shapes to it.
+             */
             const Shape broadcasted_input_shape = broadcast_shape(input_node.get_shape(), max_input_rank);
             if (get_dim_by_axis(broadcasted_input_shape, gather_negative_axis) == 1)
                 continue;

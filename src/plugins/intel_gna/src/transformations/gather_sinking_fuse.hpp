@@ -12,8 +12,9 @@ namespace intel_gna {
 namespace pass {
 
 /**
- * @brief Fuses (merges) 2 consecutive Gather nodes into one. If resulting Gather node
- * does nothing with input (it is not actually permute items), just removes Gather nodes.
+ * @brief
+ * Fuses (merges) 2 consecutive Gather nodes into one. If resulting Gather node
+ * does nothing with input (it does not actually permute items), just removes Gather nodes.
  *
  *   Any #1                  Any #1
  *     |                        |

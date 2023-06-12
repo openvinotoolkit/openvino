@@ -11,8 +11,9 @@ namespace ov {
 namespace intel_gna {
 namespace pass {
 
-/** @brief Gather node through the MatMul operation within forward sinking step
- * in a direction from start to end of the graph.
+/** @brief
+ * Moves Gather node from one input to another. It is used as a forward Gather sinking
+ * step.
  *
  *      Any #1 Any #2           Any #1 Any #2
  *       |       |                  |    |
@@ -32,7 +33,7 @@ namespace pass {
  *          |                             |
  *        Any #3                       Any #3
  *
- * This transformation is called called from GatherSinkingGeneral.
+ * This transformation is called from GatherSinkingGeneral.
  */
 
 class GatherSinkingMatmulForward : public ov::pass::MatcherPass {
@@ -41,7 +42,8 @@ public:
     GatherSinkingMatmulForward();
 };
 
-/** @brief Gather node through the MatMul operation within backward sinking step
+/** @brief
+ * Moves Gather layer through the MatMul operation within backward sinking step
  * in a direction from end to start of the graph.
  *
  *      Any #1 Any #2           Any #1    Any #2

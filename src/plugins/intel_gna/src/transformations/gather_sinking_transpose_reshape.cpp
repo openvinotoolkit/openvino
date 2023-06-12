@@ -4,7 +4,7 @@
 
 #include "transformations/gather_sinking_transpose_reshape.hpp"
 
-#include <openvino/cc/ngraph/itt.hpp>
+#include "openvino/cc/ngraph/itt.hpp"
 
 #include "backend/gna_limitations.hpp"
 #include "common/graph_utils.hpp"
@@ -32,7 +32,9 @@ NodePair sink_transpose_forward(NodePtr transpose, std::shared_ptr<Constant> tra
     const auto gather_indices_value =
         make_gather_indices_from_transpose_axes(transpose->get_input_shape(0),
                                                 transpose_constant->get_axis_vector_val());
-    const int64_t gather_axis_value = graph_utils::get_first_valuable_dim_id(reshape->get_output_shape(0));
+    int64_t gather_axis_value = graph_utils::get_first_valuable_dim_id(reshape->get_output_shape(0));
+    if (gather_axis_value < 0)
+        gather_axis_value = 0;
 
     auto reshape_new = reshape->clone_with_new_inputs({transpose->input_value(0), reshape->input_value(1)});
 
@@ -50,7 +52,9 @@ NodePair sink_transpose_forward(NodePtr transpose, std::shared_ptr<Constant> tra
 }
 
 NodePair sink_transpose_backward(NodePtr transpose, std::shared_ptr<Constant> transpose_constant, NodePtr reshape) {
-    const int64_t gather_axis_value = graph_utils::get_first_valuable_dim_id(reshape->get_input_shape(0));
+    int64_t gather_axis_value = graph_utils::get_first_valuable_dim_id(reshape->get_input_shape(0));
+    if (gather_axis_value < 0)
+        gather_axis_value = 0;
     const auto gather_indices_value =
         make_gather_indices_from_transpose_axes(transpose->get_input_shape(0),
                                                 transpose_constant->get_axis_vector_val());

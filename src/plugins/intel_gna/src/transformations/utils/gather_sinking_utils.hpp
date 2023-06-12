@@ -38,28 +38,13 @@ GatherInputsInfo get_first_gather_input(std::shared_ptr<ov::Node>);
  * @brief Checks if @arg has any input node that is a Gather operation
  */
 template <typename GatherInfoPredicate>
-bool IfNodeHasGatherInputs(const ov::Output<ov::Node>& output, GatherInfoPredicate gather_info_predicate) {
+bool if_node_has_gather_inputs(const ov::Output<ov::Node>& output, GatherInfoPredicate gather_info_predicate) {
     GatherInputsInfo inputs_info = get_first_gather_input(output.get_node_shared_ptr());
     if (inputs_info.isEmpty())
         return false;
 
     return gather_info_predicate(inputs_info);
 }
-
-/**
- * @brief Swaps @args output tensor names
- */
-void swap_output_names(ov::Output<ov::Node>, ov::Output<ov::Node>);
-
-/**
- * @brief Swaps @args friendly names
- */
-void swap_friendly_names(std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>);
-
-/**
- * @brief Swaps @args output tensor names and friendly names
- */
-void swap_names(std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>);
 
 namespace sink_forward {
 /**
@@ -69,11 +54,6 @@ namespace sink_forward {
 void update_input_gather(std::shared_ptr<ov::Node> main_node,
                          const GatherInputsInfo&,
                          const int64_t* a_gather_negative_axis = nullptr);
-
-/**
- * @brief Removes @arg input node
- */
-void RemoveInputNode(std::shared_ptr<ov::Node>, size_t input_idx);
 
 /**
  * @brief Inserts Gather on each main_node output with the order specified in @arg GatherInputsInfo
