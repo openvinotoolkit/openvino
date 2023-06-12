@@ -94,7 +94,9 @@ TEST(type_prop, lstm_cell_invalid_input) {
         const auto lstm_cell = make_shared<opset4::LSTMCell>(X, H_t, C_t, W, R, B, hidden_size);
         FAIL() << "LSTMCell node was created with invalid data.";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("Parameter hidden_size not matched for W, R, B"));
+        EXPECT_HAS_SUBSTRING(
+            error.what(),
+            std::string("First dimension of B input shape is required to be compatible with 12. Got shape: 24."));
     }
 }
 

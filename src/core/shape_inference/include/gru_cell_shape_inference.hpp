@@ -20,9 +20,7 @@ std::vector<TShape> shape_infer(const GRUCell* op, const std::vector<TShape>& in
 }
 
 template <class TShape>
-void shape_infer(const GRUCell* op,
-                 const std::vector<TShape>& input_shapes,
-                 std::vector<TShape>& output_shapes) {
+void shape_infer(const GRUCell* op, const std::vector<TShape>& input_shapes, std::vector<TShape>& output_shapes) {
     output_shapes = shape_infer(op, input_shapes);
 }
 }  // namespace v3

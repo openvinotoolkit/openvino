@@ -9,6 +9,26 @@
 using namespace ov;
 using namespace ov::intel_cpu;
 
+TEST(StaticShapeInferenceTest, LSTMCellV4Test_default_ctor) {
+    const size_t batch_size = 2;
+    const size_t input_size = 3;
+    const size_t hidden_size = 3;
+    const size_t gates_count = 4;
+
+    const auto lstm_cell = std::make_shared<op::v4::LSTMCell>();
+
+    std::vector<StaticShape> static_input_shapes = {StaticShape{batch_size, input_size},
+                                                    StaticShape{batch_size, hidden_size},
+                                                    StaticShape{batch_size, hidden_size},
+                                                    StaticShape{gates_count * hidden_size, input_size},
+                                                    StaticShape{gates_count * hidden_size, hidden_size},
+                                                    StaticShape{gates_count * hidden_size}},
+                             static_output_shapes = {StaticShape{}, StaticShape{}};
+    shape_inference(lstm_cell.get(), static_input_shapes, static_output_shapes);
+    EXPECT_EQ(static_output_shapes[0], StaticShape({batch_size, hidden_size}));
+    EXPECT_EQ(static_output_shapes[1], StaticShape({batch_size, hidden_size}));
+}
+
 TEST(StaticShapeInferenceTest, LSTMCellV4Test) {
     const size_t batch_size = 2;
     const size_t input_size = 3;

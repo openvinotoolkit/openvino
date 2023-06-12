@@ -40,7 +40,9 @@ TEST(type_prop, rnn_cell_invalid_input) {
         const auto rnn_cell = make_shared<opset4::RNNCell>(X, H_t, W, R, hidden_size);
         FAIL() << "RNNCell node was created with invalid data.";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("Parameter hidden_size mistmatched in W input."));
+        EXPECT_HAS_SUBSTRING(
+            error.what(),
+            std::string("First dimension of W input shape is required to be compatible with 3. Got shape: 6."));
     }
 
     // Invalid R tensor shape.
@@ -50,8 +52,7 @@ TEST(type_prop, rnn_cell_invalid_input) {
         const auto rnn_cell = make_shared<opset4::RNNCell>(X, H_t, W, R, hidden_size);
         FAIL() << "RNNCell node was created with invalid data.";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             std::string("Parameter hidden_size not matched for R and initial_hidden_state inputs."));
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("Dimension `hidden_size` is not matched between inputs"));
     }
 
     // Invalid H_t tensor shape.
@@ -61,8 +62,7 @@ TEST(type_prop, rnn_cell_invalid_input) {
         const auto rnn_cell = make_shared<opset4::RNNCell>(X, H_t, W, R, hidden_size);
         FAIL() << "RNNCell node was created with invalid data.";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             std::string("Parameter batch_size not matched for X and initial_hidden_state inputs."));
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("Dimension `batch_size` is not matched between inputs"));
     }
 
     // Invalid B tensor shape.
@@ -72,7 +72,9 @@ TEST(type_prop, rnn_cell_invalid_input) {
         const auto rnn_cell = make_shared<opset4::RNNCell>(X, H_t, W, R, B, hidden_size);
         FAIL() << "RNNCell node was created with invalid data.";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("Parameter hidden_size mistmatched in B input."));
+        EXPECT_HAS_SUBSTRING(
+            error.what(),
+            std::string("First dimension of B input shape is required to be compatible with 3. Got shape: 6."));
     }
 }
 
@@ -166,7 +168,7 @@ TEST(type_prop, rnn_cell_invalid_input_rank0) {
         << "RNNCell node was created with invalid data.";
 }
 
-TEST(type_prop, rnn_cell_invalid_input_dynamic_rank) {
+TEST(type_prop, rnn_cell_input_dynamic_rank) {
     const size_t batch_size = 2;
     const size_t input_size = 3;
     const size_t hidden_size = 3;
@@ -176,7 +178,7 @@ TEST(type_prop, rnn_cell_invalid_input_dynamic_rank) {
     auto H_t = make_shared<opset4::Parameter>(element::f32, Shape{batch_size, hidden_size});
 
     auto check_dynamic_rnn = [](const shared_ptr<opset4::RNNCell>& rnn) -> bool {
-        return rnn->output(0).get_partial_shape() == PartialShape::dynamic() &&
+        return rnn->output(0).get_partial_shape() == PartialShape{batch_size, hidden_size} &&
                rnn->output(0).get_element_type() == rnn->input(0).get_element_type();
     };
     // Invalid dynamic rank for W tensor.

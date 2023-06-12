@@ -36,7 +36,12 @@ std::vector<TShape> shape_infer(const LSTMCell* op, const std::vector<TShape>& i
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 6);
     constexpr auto num_gates = 4;
     constexpr auto num_state_nodes = 2;
-    return rnn::rnn_cell_base_shape_infer(op, input_shapes, num_gates, num_state_nodes);
+    auto output_shapes = rnn::rnn_cell_base_shape_infer(op, input_shapes, num_gates, num_state_nodes);
+    if (output_shapes[0][1].is_dynamic()) {  // set hidden_size based on attribute
+        output_shapes[0][1] = op->get_hidden_size();
+        output_shapes[1][1] = op->get_hidden_size();
+    }
+    return output_shapes;
 }
 
 template <class T>

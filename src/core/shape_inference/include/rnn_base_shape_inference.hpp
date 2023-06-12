@@ -30,10 +30,10 @@ void validate_inputs_rank(const TOp* op,
 // output_shapes[0...num_state_nodes]: [batch_size, hidden_size] // Rank always 2
 template <class TOp, class TShape>
 std::vector<TShape> rnn_cell_base_shape_infer(const TOp* op,
-                                             const std::vector<TShape>& input_shapes,
-                                             size_t num_gates,
-                                             size_t num_state_nodes,
-                                             bool linear_before_reset = false) {
+                                              const std::vector<TShape>& input_shapes,
+                                              size_t num_gates,
+                                              size_t num_state_nodes,
+                                              bool linear_before_reset = false) {
     const auto num_inputs = 4 + num_state_nodes;
     NODE_VALIDATION_CHECK(op, input_shapes.size() >= num_inputs, "Incorrect number of shapes has been provided.");
 
@@ -47,11 +47,12 @@ std::vector<TShape> rnn_cell_base_shape_infer(const TOp* op,
 
     rnn::validate_inputs_rank(op, input_shapes, expected_in_ranks);
 
-    const auto& x_pshape = input_shapes[0];   // [batch_size, input_size]
-    const auto& ht_pshape = input_shapes[1];  // [batch_size, hidden_size]
-    const auto& w_pshape = input_shapes[1 + num_state_nodes];   // [3 * hidden_size, input_size]
-    const auto& r_pshape = input_shapes[2 + num_state_nodes];   // [3 * hidden_size, hidden_size]
-    const auto& b_pshape = input_shapes[3 + num_state_nodes];   // if linear_before_reset [4 * hidden_size], otherwise [3 * hidden_size]
+    const auto& x_pshape = input_shapes[0];                    // [batch_size, input_size]
+    const auto& ht_pshape = input_shapes[1];                   // [batch_size, hidden_size]
+    const auto& w_pshape = input_shapes[1 + num_state_nodes];  // [3 * hidden_size, input_size]
+    const auto& r_pshape = input_shapes[2 + num_state_nodes];  // [3 * hidden_size, hidden_size]
+    const auto& b_pshape =
+        input_shapes[3 + num_state_nodes];  // if linear_before_reset [4 * hidden_size], otherwise [3 * hidden_size]
 
     using DimType = typename TShape::value_type;
 
@@ -112,6 +113,16 @@ std::vector<TShape> rnn_cell_base_shape_infer(const TOp* op,
                                   ". Got shape: ",
                                   b_pshape[0],
                                   ".");
+        }
+    } else {
+        const size_t w_idx = 1 + num_state_nodes;
+        for (size_t i = w_idx; i < w_idx + 2; ++i) {
+            if (input_shapes[i].rank().is_static() && input_shapes[i][0].is_static()) {
+                NODE_VALIDATION_CHECK(
+                    op,
+                    DimType::merge(merged_hidden_size, merged_hidden_size, input_shapes[i][0] / num_gates),
+                    "Dimension `hidden_size` is not matched between inputs.");
+            }
         }
     }
 
@@ -239,6 +250,16 @@ std::vector<TShape> rnn_seq_base_shape_infer(const TOp* op,
                                   ". Got shape: ",
                                   b_pshape[1],
                                   ".");
+        }
+    } else {
+        const size_t w_idx = 2 + num_state_nodes;
+        for (size_t i = w_idx; i < w_idx + 2; ++i) {
+            if (input_shapes[i].rank().is_static() && input_shapes[i][0].is_static()) {
+                NODE_VALIDATION_CHECK(
+                    op,
+                    DimType::merge(merged_hidden_size, merged_hidden_size, input_shapes[i][1] / num_gates),
+                    "Dimension `hidden_size` is not matched between inputs.");
+            }
         }
     }
 

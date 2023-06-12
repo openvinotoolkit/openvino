@@ -74,7 +74,6 @@ void op::v0::RNNCell::validate_and_infer_types() {
                               element::Type::merge(result_et, result_et, get_input_element_type(4)),
                           "Element types for X, initial_hidden_state, W, R and B inputs do not match.");
 
-
     // Mark inputs which are relevant to output parameters
     for (size_t i = 0; i <= 4; ++i)
         set_input_is_relevant_to_shape(i);
