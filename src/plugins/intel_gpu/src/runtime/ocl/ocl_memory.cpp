@@ -366,6 +366,7 @@ void* gpu_usm::lock(const stream& stream, mem_lock_type type) {
     std::lock_guard<std::mutex> locker(_mutex);
     if (0 == _lock_count) {
         auto& cl_stream = downcast<const ocl_stream>(stream);
+        cl_stream.finish();
         if (get_allocation_type() == allocation_type::usm_device) {
             if (type != mem_lock_type::read) {
                 throw std::runtime_error("Unable to lock allocation_type::usm_device with write lock_type.");
