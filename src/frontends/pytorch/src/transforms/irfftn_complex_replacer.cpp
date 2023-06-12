@@ -66,8 +66,8 @@ IRFFTNComplexReplacer::IRFFTNComplexReplacer() {
         auto input_rank = std::make_shared<v3::ShapeOf>(complex_input_shape, element::i32);
         auto input_rank_scalar = std::make_shared<v0::Squeeze>(input_rank);
 
-        bool dim_use_default = is_none_constant(irfftn_op->input_value(2).get_node_shared_ptr());
-        bool s_use_default = is_none_constant(irfftn_op->input_value(1).get_node_shared_ptr());
+        bool dim_use_default = is_none_node(irfftn_op->input_value(2).get_node_shared_ptr());
+        bool s_use_default = is_none_node(irfftn_op->input_value(1).get_node_shared_ptr());
         // Can be None constant, when used check s_use_default.
         auto raw_s_input_maybe = concat_list_construct(irfftn_op->input_value(1)).get_node_shared_ptr();
 
@@ -102,14 +102,16 @@ IRFFTNComplexReplacer::IRFFTNComplexReplacer() {
         }
 
         std::string norm;
-        if (const auto& fw_node_mode =
-                cast_fw_node(irfftn_op->input_value(3).get_node_shared_ptr(), "prim::Constant")) {
+        if (const auto& fw_node_mode = std::dynamic_pointer_cast<ov::op::util::FrameworkNode>(
+                irfftn_op->input_value(3).get_node_shared_ptr())) {
             const auto& attrs = fw_node_mode->get_attrs();
             if (attrs.find("string_value") != attrs.end()) {
                 norm = attrs.at("string_value");
             } else {
                 norm = "backward";
             }
+        } else {
+            return false;
         }
 
         auto irdft = std::make_shared<v9::IRDFT>(input, dim, s);

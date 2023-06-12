@@ -55,8 +55,8 @@ RFFTNComplexReplacer::RFFTNComplexReplacer() {
 
         auto node_s_input = concat_list_construct(rfftn_op->input_value(1)).get_node_shared_ptr();
 
-        bool dim_use_default = is_none_constant(rfftn_op->input_value(2).get_node_shared_ptr());
-        bool s_use_default = is_none_constant(rfftn_op->input_value(1).get_node_shared_ptr());
+        bool dim_use_default = is_none_node(rfftn_op->input_value(2).get_node_shared_ptr());
+        bool s_use_default = is_none_node(rfftn_op->input_value(1).get_node_shared_ptr());
 
         std::shared_ptr<ov::Node> dim;
         if (!dim_use_default) {
@@ -80,13 +80,16 @@ RFFTNComplexReplacer::RFFTNComplexReplacer() {
         }
 
         std::string norm;
-        if (const auto& fw_node_mode = cast_fw_node(rfftn_op->input_value(3).get_node_shared_ptr(), "prim::Constant")) {
+        if (const auto& fw_node_mode = std::dynamic_pointer_cast<ov::op::util::FrameworkNode>(
+                rfftn_op->input_value(3).get_node_shared_ptr())) {
             const auto& attrs = fw_node_mode->get_attrs();
             if (attrs.find("string_value") != attrs.end()) {
                 norm = attrs.at("string_value");
             } else {
                 norm = "backward";
             }
+        } else {
+            return false;
         }
 
         auto rdft = std::make_shared<v9::RDFT>(input, dim, s);
