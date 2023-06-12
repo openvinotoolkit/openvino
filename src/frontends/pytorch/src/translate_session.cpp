@@ -257,6 +257,14 @@ size_t TranslateSession::decode_tensor_name(const Output<Node>& output) {
     return static_cast<size_t>(std::stoll(name));
 }
 
+void TranslateSession::unique_name(const std::shared_ptr<Node>& node) {
+    if (m_unique_friendly_name_set.count(node->get_friendly_name())) {
+        node->set_friendly_name(node->get_friendly_name() + '_' + std::to_string(m_friendly_name_counter++));
+    } else {
+        m_unique_friendly_name_set.insert(node->get_friendly_name());
+    }
+}
+
 }  // namespace pytorch
 }  // namespace frontend
 }  // namespace ov
