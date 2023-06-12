@@ -229,7 +229,6 @@ std::vector<std::string> LegacyAPIHelper::get_supported_configs() {
         CONFIG_KEY(PERFORMANCE_HINT),
         CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS),
         CONFIG_KEY(PERF_COUNT),
-        CONFIG_KEY(DYN_BATCH_ENABLED),
         CONFIG_KEY(CONFIG_FILE),
         CONFIG_KEY(DEVICE_ID),
         CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS),

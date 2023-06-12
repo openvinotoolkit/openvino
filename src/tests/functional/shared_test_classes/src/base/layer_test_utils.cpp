@@ -406,11 +406,6 @@ void LayerTestsCommon::ConfigureInferRequest() {
         auto blob = inputs[i];
         inferRequest.SetBlob(info->name(), blob);
     }
-    if (configuration.count(InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_ENABLED) &&
-        configuration.count(InferenceEngine::PluginConfigParams::YES)) {
-        auto batchSize = executableNetwork.GetInputsInfo().begin()->second->getTensorDesc().getDims()[0] / 2;
-        inferRequest.SetBatch(batchSize);
-    }
 }
 
 void LayerTestsCommon::Infer() {

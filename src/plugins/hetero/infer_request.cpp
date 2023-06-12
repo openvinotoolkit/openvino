@@ -102,14 +102,6 @@ InferenceEngine::Blob::Ptr HeteroInferRequest::GetBlob(const std::string& name) 
     return itRequest->second->GetBlob(name);
 }
 
-void HeteroInferRequest::SetBlob(const std::string& name, const Blob::Ptr& blob, const PreProcessInfo& info) {
-    auto itRequest = _subRequestFromBlobName.find(name);
-    if (itRequest == _subRequestFromBlobName.end()) {
-        IE_THROW() << "There is no infer requests binded to blob with name: " << name;
-    }
-    itRequest->second->SetBlob(name, blob, info);
-}
-
 const InferenceEngine::PreProcessInfo& HeteroInferRequest::GetPreProcess(const std::string& name) const {
     auto itRequest = _subRequestFromBlobName.find(name);
     if (itRequest == _subRequestFromBlobName.end()) {
