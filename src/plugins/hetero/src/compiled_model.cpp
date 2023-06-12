@@ -12,9 +12,8 @@
 #include "plugin.hpp"
 
 // #include "perf_counter.hpp"
-// #include "graph_debug_dump.hpp"
-
 #include "converter_utils.hpp"
+#include "graph_debug_dump.hpp"
 #include "ie_algorithm.hpp"
 #include "ie_ngraph_utils.hpp"
 #include "ie_plugin_config.hpp"
@@ -96,9 +95,9 @@ ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model
             }
         }
 
-        // if (dumpDotFile) {
-        //     ov::hetero::debug::dump_affinities(model, queryNetworkResult, devices);
-        // }
+        if (dumpDotFile) {
+            ov::hetero::debug::dump_affinities(model, queryNetworkResult, devices);
+        }
 
         NodeMap<InputSet> nodeInputDependencies;
         NodeSet graphInputNodes;
@@ -215,15 +214,13 @@ ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model
 
         auto subgraphIds = CollectSubgraphs();
 
-        // if (dumpDotFile) {
-        //     std::map<std::string, int> map_id;
-        //     for (auto&& v : subgraphIds) {
-        //         map_id.emplace(v.first->get_friendly_name(), v.second);
-        //     }
-        //     ov::hetero::debug::dump_subgraphs(std::const_pointer_cast<ov::Model>(function),
-        //                                       queryNetworkResult.supportedLayersMap,
-        //                                       map_id);
-        // }
+        if (dumpDotFile) {
+            std::map<std::string, int> map_id;
+            for (auto&& v : subgraphIds) {
+                map_id.emplace(v.first->get_friendly_name(), v.second);
+            }
+            ov::hetero::debug::dump_subgraphs(model, queryNetworkResult, map_id);
+        }
 
         // Break graph using insertion of result parameter split
         NodeMap<ngraph::Node*> subgraphParameterToPrevResult;
