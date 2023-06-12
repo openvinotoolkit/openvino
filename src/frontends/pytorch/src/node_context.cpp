@@ -23,6 +23,8 @@ OutputVector NodeContext::as_constant() const {
         auto fw_node = std::make_shared<PtFrameworkNode>(m_decoder, OutputVector{});
         auto attrs = fw_node->get_attrs();
         attrs["string_value"] = str;
+        attrs[PtFrameworkNode::failed_conversion_key] =
+            "String constant cannot be converted to OpenVINO opset and should be removed by consuming operation.";
         fw_node->set_attrs(attrs);
         return {fw_node};
     } else if (dtype.is<type::PyNone>()) {
@@ -30,6 +32,8 @@ OutputVector NodeContext::as_constant() const {
         auto fw_node = std::make_shared<PtFrameworkNode>(m_decoder, OutputVector{});
         auto attrs = fw_node->get_attrs();
         attrs["none_value"] = "";
+        attrs[PtFrameworkNode::failed_conversion_key] =
+            "None constant cannot be converted to OpenVINO opset and should be removed by consuming operation.";
         fw_node->set_attrs(attrs);
         return {fw_node};
     } else {

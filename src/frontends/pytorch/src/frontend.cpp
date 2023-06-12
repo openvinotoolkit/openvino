@@ -45,7 +45,7 @@ std::map<std::string, std::string> get_unconverted_types_from_model(const std::s
             const auto& attrs = fw_node->get_attrs();
             FRONT_END_GENERAL_CHECK(attrs.find("PtTypeName") != attrs.end(),
                                     "FrameworkNode attributes do not contain operation type.");
-            std::string exception_msg = "No exception";
+            std::string exception_msg;
             if (attrs.find(PtFrameworkNode::failed_conversion_key) != attrs.end()) {
                 exception_msg = attrs.at(PtFrameworkNode::failed_conversion_key);
             }
@@ -68,36 +68,49 @@ FrontEnd::FrontEnd() : m_op_translators(get_supported_ops()) {}
 
 std::shared_ptr<Model> FrontEnd::convert(const InputModel::Ptr& model) const {
     auto converted_model = convert_partially(model);
-    std::stringstream error_msg;
+    std::stringstream error_msg("Model wasn't fully converted.");
+    error_msg << "Model wasn't fully converted.";
+
+    std::string norm_err;
     try {
         normalize(converted_model);
     } catch (const std::exception& e) {
-        error_msg << "Normalization step failed with: " << e.what() << '\n';
+        norm_err = "-- normalize step failed with: " + std::string(e.what()) + '\n';
     }
+
     const auto& unconverted_ops = get_unconverted_types_from_model(converted_model);
-    error_msg << "Model wasn't fully converted.";
     std::stringstream unconverted_ops_msg;
-    unconverted_ops_msg << " No conversion rule found for operations: ";
+    std::stringstream failed_ops_msg;
+    std::stringstream failed_ops_short;
+    unconverted_ops_msg << "-- No conversion rule found for operations: ";
+    failed_ops_msg << " Failed operations detailed log:\n";
+    failed_ops_short << "-- Conversion is failed for: ";
     bool at_least_one = false;
+    bool at_least_one_except = false;
     for (auto&& op : unconverted_ops) {
         if (m_telemetry) {
             m_telemetry->send_event("error_cause", "pytorch_" + op.first);
         }
-        // First report operations with no errors, which means they have no translators
         if (op.second.empty()) {
             if (at_least_one)
                 unconverted_ops_msg << ", ";
             unconverted_ops_msg << op.first;
             at_least_one = true;
+        } else {
+            if (at_least_one_except)
+                failed_ops_short << ", ";
+            failed_ops_short << op.first;
+            failed_ops_msg << "-- " << op.first << " with a message:\n" << op.second;
+            at_least_one_except = true;
         }
     }
+    if (at_least_one_except)
+        error_msg << failed_ops_msg.str();
+    error_msg << "\nSummary:\n" << norm_err;
     if (at_least_one)
-        error_msg << unconverted_ops_msg.str() << ".\n";
-    for (auto&& op : unconverted_ops) {
-        if (!op.second.empty()) {
-            error_msg << "\nConversion is failed for " << op.first << " operation with a message:\n" << op.second;
-        }
-    }
+        error_msg << unconverted_ops_msg.str() << '\n';
+    if (at_least_one_except)
+        error_msg << failed_ops_short.str();
     bool is_conversion_successful = unconverted_ops.size() == 0;
     FRONT_END_GENERAL_CHECK(is_conversion_successful, error_msg.str());
     return converted_model;

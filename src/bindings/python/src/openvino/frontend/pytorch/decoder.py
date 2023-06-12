@@ -66,7 +66,7 @@ def get_value_from_getattr(getattr_node, self_module):
     while len(stack) > 0:
         node = stack.pop()
         attr_name = node.s("name")
-        assert hasattr(module, attr_name), f"No attribute with name {attr_name} found in module."
+        assert hasattr(module, attr_name), f"No attribute with name \"{attr_name}\" found in module."
         module = getattr(module, attr_name)
     return module
 
