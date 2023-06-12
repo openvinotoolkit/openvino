@@ -23,9 +23,7 @@ ISyncInferPtr Schedule::create_sync_infer_request() {
             m_context->m_compiled_model.lock());
     SoAsyncInferRequest request_to_share_blobs_with;
     auto request_id = m_request_id.fetch_add(1);
-    if (m_passthrough_exenet) {
-        request_to_share_blobs_with = {m_passthrough_exenet->create_infer_request(), m_passthrough_exenet._so};
-    } else if (m_context->m_bind_buffer) {
+    if (m_context->m_bind_buffer) {
         size_t sum = 0;
         for (const auto& device : m_context->m_device_priorities_initial) {
             auto& dev_requests = m_workerrequests[device.device_name];
@@ -38,6 +36,8 @@ ISyncInferPtr Schedule::create_sync_infer_request() {
         if (!request_to_share_blobs_with) {
             OPENVINO_THROW("binder mode does not allow oversubsciption of infer requests, please use optimal infer request");
         }
+    } else if (m_passthrough_exenet) {
+        request_to_share_blobs_with = {m_passthrough_exenet->create_infer_request(), m_passthrough_exenet._so};
     }
     return std::make_shared<InferRequest>(
         std::static_pointer_cast<const CompiledModel>(compiled_model), request_to_share_blobs_with);

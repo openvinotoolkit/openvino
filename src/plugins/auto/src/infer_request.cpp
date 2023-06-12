@@ -76,14 +76,16 @@ void ov::auto_plugin::InferRequest::set_tensors_to_another_request(const SoAsync
         // this request is already in BUSY state, so using the internal functions safely
         auto tensor = get_tensor(it);
         auto type = tensor.get_element_type();
-        if (req->get_tensor(it).data(type) != tensor.data(type))
+        bool is_remote  = tensor.is<ov::RemoteTensor>() || req->get_tensor(it).is<ov::RemoteTensor>();
+        if (is_remote || req->get_tensor(it).data(type) != tensor.data(type))
             req->set_tensor(it, tensor);
     }
     for (const auto &it : get_outputs()) {
         // this request is already in BUSY state, so using the internal functions safely
         auto tensor = get_tensor(it);
         auto type = tensor.get_element_type();
-        if (req->get_tensor(it).data(type) != tensor.data(type))
+        bool is_remote  = tensor.is<ov::RemoteTensor>() || req->get_tensor(it).is<ov::RemoteTensor>();
+        if (is_remote || req->get_tensor(it).data(type) != tensor.data(type))
             req->set_tensor(it, tensor);
     }
 }
