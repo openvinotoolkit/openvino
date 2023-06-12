@@ -59,6 +59,7 @@ void VariableState::SetState(Blob::Ptr state) {
 
 }  // namespace InferenceEngine
 
+IE_SUPPRESS_DEPRECATED_END
 namespace ov {
 
 VariableState::~VariableState() {
