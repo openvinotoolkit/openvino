@@ -58,6 +58,8 @@ private:
 
     ov::Any caching_device_properties(const std::string& device_priorities) const;
 
+    bool device_supports_model_caching(const std::string& device_name) const;
+
     DeviceProperties get_properties_per_device(const std::string& device_priorities,
                                                const ov::AnyMap& properties) const;
 

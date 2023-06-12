@@ -211,6 +211,20 @@ ov::Any ov::hetero::Plugin::caching_device_properties(const std::string& device_
     return ov::Any(result);
 }
 
+bool ov::hetero::Plugin::device_supports_model_caching(const std::string& device_name) const {
+    auto supportedMetricKeys = get_core()->get_property(device_name, METRIC_KEY(SUPPORTED_METRICS), {}).as<std::vector<std::string>>();
+    auto supported = ov::util::contains(supportedMetricKeys, METRIC_KEY(IMPORT_EXPORT_SUPPORT)) &&
+                     get_core()->get_property(device_name, METRIC_KEY(IMPORT_EXPORT_SUPPORT), {}).as<bool>();
+    if (!supported) {
+        supported =
+            ov::util::contains(get_core()->get_property(device_name, ov::supported_properties), ov::device::capabilities) &&
+            ov::util::contains(get_core()->get_property(device_name, ov::device::capabilities), ov::device::capability::EXPORT_IMPORT);
+    }
+    if (supported) {
+        supported = ov::util::contains(get_core()->get_property(device_name, ov::supported_properties), ov::caching_properties);
+    }
+    return supported;
+}
 
 std::shared_ptr<ov::IRemoteContext> ov::hetero::Plugin::create_context(const ov::AnyMap& remote_properties) const {
     OPENVINO_NOT_IMPLEMENTED;
