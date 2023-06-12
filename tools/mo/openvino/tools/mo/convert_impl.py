@@ -964,6 +964,6 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args, python_api_us
 
         send_conversion_result('fail')
         if python_api_used:
-            raise e#.with_traceback(None)
+            raise e.with_traceback(None)
         else:
             return None, argv
