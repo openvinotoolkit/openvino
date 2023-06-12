@@ -75,7 +75,7 @@ Select quantization parameters
 
 Default Quantization algorithm has mandatory and optional parameters which are defined as a dictionary:
 
-.. code-block: python
+.. code-block:: python
 
    {
        "name": "DefaultQuantization",
