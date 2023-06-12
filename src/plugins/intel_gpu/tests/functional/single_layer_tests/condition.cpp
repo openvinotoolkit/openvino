@@ -36,14 +36,14 @@ public:
     virtual std::shared_ptr<ngraph::opset9::Parameter> get_input() { return _param; }
     virtual std::shared_ptr<ngraph::opset1::Result> get_result() { return _result; }
 
-    virtual void create_body(ngraph::Shape input_shape) {
-        _func = generate(input_shape);
+    virtual void create_body(ngraph::Shape input_shape, ngraph::element::Type prc) {
+        _func = generate(input_shape, prc);
         _param = (_func->get_parameters().size() > 0)? _func->get_parameters().front() : nullptr;
         _result = _func->get_results().front();
     }
 
 protected:
-    virtual std::shared_ptr<ngraph::Function> generate(ngraph::Shape input_shape) = 0;
+    virtual std::shared_ptr<ngraph::Function> generate(ngraph::Shape input_shape, ngraph::element::Type prc) = 0;
 
     std::shared_ptr<ngraph::Function> _func;
     std::shared_ptr<ngraph::opset9::Parameter> _param;
@@ -53,8 +53,8 @@ protected:
 
 class InnerBodyType01 : public InnerBodyGenerator {
 protected:
-    std::shared_ptr<ngraph::Function> generate(ngraph::Shape input_shape) override {
-        auto constant    = std::make_shared<ngraph::opset9::Constant>(ngraph::element::f32, input_shape, 2.0f);
+    std::shared_ptr<ngraph::Function> generate(ngraph::Shape input_shape, ngraph::element::Type prc) override {
+        auto constant    = std::make_shared<ngraph::opset9::Constant>(prc, input_shape, 2.0f);
         constant->set_friendly_name("body1_constant");
         auto result = std::make_shared<ngraph::opset1::Result>(constant);
         result->set_friendly_name("body1_result");
@@ -68,10 +68,10 @@ protected:
 
 class InnerBodyType02 : public InnerBodyGenerator {
 protected:
-    std::shared_ptr<ngraph::Function> generate(ngraph::Shape input_shape) override {
-        auto constant   = std::make_shared<ngraph::opset9::Constant>(ngraph::element::f32, ngraph::Shape{}, 10.0f);
+    std::shared_ptr<ngraph::Function> generate(ngraph::Shape input_shape, ngraph::element::Type prc) override {
+        auto constant   = std::make_shared<ngraph::opset9::Constant>(prc, ngraph::Shape{}, 10.0f);
         constant->set_friendly_name("body2_const");
-        auto data     = std::make_shared<ngraph::opset9::Parameter>(ngraph::element::f32, input_shape);
+        auto data     = std::make_shared<ngraph::opset9::Parameter>(prc, input_shape);
         data->set_friendly_name("body2_data");
         auto sum      = std::make_shared<ngraph::opset9::Multiply>(data, constant);
         sum->set_friendly_name("body2_sum");
@@ -87,10 +87,10 @@ protected:
 
 class InnerBodyType03 : public InnerBodyGenerator {
 protected:
-    std::shared_ptr<ngraph::Function> generate(ngraph::Shape input_shape) override {
-        auto constant    = std::make_shared<ngraph::opset9::Constant>(ngraph::element::f32, ngraph::Shape{}, 2.0f);
+    std::shared_ptr<ngraph::Function> generate(ngraph::Shape input_shape, ngraph::element::Type prc) override {
+        auto constant    = std::make_shared<ngraph::opset9::Constant>(prc, ngraph::Shape{}, 2.0f);
         constant->set_friendly_name("body3_constant");
-        auto data     = std::make_shared<ngraph::opset9::Parameter>(ngraph::element::f32, input_shape);
+        auto data     = std::make_shared<ngraph::opset9::Parameter>(prc, input_shape);
         data->set_friendly_name("body3_data");
         auto add      = std::make_shared<ngraph::opset9::Add>(data, constant);
         add->set_friendly_name("body3_add");
@@ -106,10 +106,10 @@ protected:
 
 class InnerBodyType04 : public InnerBodyGenerator {
 protected:
-    std::shared_ptr<ngraph::Function> generate(ngraph::Shape input_shape) override {
-        auto scale    = std::make_shared<ngraph::opset9::Constant>(ngraph::element::f32, ngraph::Shape{}, 2.0f);
+    std::shared_ptr<ngraph::Function> generate(ngraph::Shape input_shape, ngraph::element::Type prc) override {
+        auto scale    = std::make_shared<ngraph::opset9::Constant>(prc, ngraph::Shape{}, 2.0f);
         scale->set_friendly_name("body4_scale");
-        auto data     = std::make_shared<ngraph::opset9::Parameter>(ngraph::element::f32, input_shape);
+        auto data     = std::make_shared<ngraph::opset9::Parameter>(prc, input_shape);
         data->set_friendly_name("body4_data");
         auto mul      = std::make_shared<ngraph::opset9::Multiply>(data, scale);
         mul->set_friendly_name("body4_mul");
@@ -167,15 +167,16 @@ public:
     TestModelGenerator(InnerBodyGenerator::InnerBodyType then_body_type,
                         InnerBodyGenerator::InnerBodyType else_body_type,
                         CondTypes cond_type,
+                        ngraph::element::Type prc,
                         ngraph::Shape input_shape) {
                             body_then_generator = get_inner_body_generator(then_body_type);
                             body_else_generator = get_inner_body_generator(else_body_type);
-                            body_then_generator->create_body(input_shape);
-                            body_else_generator->create_body(input_shape);
+                            body_then_generator->create_body(input_shape, prc);
+                            body_else_generator->create_body(input_shape, prc);
 
                             ngraph::ParameterVector params{};
                             auto exec_cond = create_cond_execution(cond_type, params, ngraph::element::boolean);
-                            auto data = create_condition_input(params, ngraph::element::f32, input_shape);
+                            auto data = create_condition_input(params, prc, input_shape);
                             auto cond = std::make_shared<ngraph::opset9::If>(exec_cond);
                             cond->set_else_body(body_else_generator->get_function());
                             cond->set_then_body(body_then_generator->get_function());
@@ -238,25 +239,70 @@ private:
     InnerBodyGenerator::ptr body_else_generator;
 };
 
+static std::ostream& operator<<(std::ostream& os, const TestModelGenerator::CondTypes type) {
+    switch (type) {
+        case TestModelGenerator::CondTypes::CONSTANT:
+        {
+            os << "CONSTANT";
+            break;
+        }
+        case TestModelGenerator::CondTypes::PARAM:
+        {
+            os << "PARAM";
+            break;
+        }
+        case TestModelGenerator::CondTypes::NODE:
+        {
+            os << "NODE";
+            break;
+        }
+        default:
+        {
+            os << "NONE";
+            break;
+        }
+    }
+    return os;
+}
+
 using ConditionParams = typename std::tuple<
-        InferenceEngine::SizeVector,
-        InferenceEngine::Precision,
-        std::string>;
+        InferenceEngine::SizeVector,    // Shape
+        InferenceEngine::Precision,     // Precision
+        TestModelGenerator::CondTypes,  // if condition type
+        LayerTestsUtils::TargetDevice   // Device name
+>;
 
 class ConditionLayerGPUTest : public testing::WithParamInterface<ConditionParams>,
                         virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ConditionParams>& obj) {
-        return "SimplConditionGPUTest";
+        InferenceEngine::SizeVector data_shape;
+        InferenceEngine::Precision data_prc;
+        TestModelGenerator::CondTypes if_cond;
+        std::string targetDevice;
+
+        std::tie(data_shape, data_prc, if_cond, targetDevice) = obj.param;
+        std::ostringstream result;
+        result << "IS=" << CommonTestUtils::vec2str(data_shape) << "_";
+        result << "netPRC=" << std::to_string(data_prc) << "_";
+        result << "ifCond=" << if_cond << "_";
+        result << "targetDevice=" << targetDevice << "_";
+        auto res_str = result.str();
+        std::replace(res_str.begin(), res_str.end(), '-', '_');
+        return res_str;
     }
 
 protected:
     void SetUp() override {
         targetDevice = CommonTestUtils::DEVICE_GPU;
-        const auto ngShape = ngraph::Shape{3, 2};
+        TestModelGenerator::CondTypes if_cond;
+        std::tie(data_shape, data_prc, if_cond, targetDevice) = GetParam();
+        const auto ngShape = ngraph::Shape{data_shape};
+        const auto prc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(data_prc);
         TestModelGenerator model_generator(InnerBodyGenerator::InnerBodyType::Type02,
                                             InnerBodyGenerator::InnerBodyType::Type03,
                                             TestModelGenerator::CondTypes::PARAM,
+                                            prc,
                                             ngShape);
         function = model_generator.get_function();
     }
@@ -282,6 +328,9 @@ protected:
         }
         return blob;
     }
+
+    InferenceEngine::SizeVector data_shape;
+    InferenceEngine::Precision data_prc;
 };
 
 TEST_P(ConditionLayerGPUTest, CompareWithRefs) {
@@ -289,18 +338,31 @@ TEST_P(ConditionLayerGPUTest, CompareWithRefs) {
     Run();
 }
 
+// TODO: support fp16 case
+// TODO: support int8 case
 std::vector<InferenceEngine::Precision> netPrecisions = {
-    InferenceEngine::Precision::FP32
+    InferenceEngine::Precision::FP32,
+    // InferenceEngine::Precision::FP16
 };
 
-std::vector<InferenceEngine::SizeVector> inputs_1 = {
-    {2, 1, 4, 6}
+std::vector<InferenceEngine::SizeVector> inputs_shape = {
+    {3, 6}
+};
+
+std::vector<LayerTestsDefinitions::TestModelGenerator::CondTypes> if_cond_types = {
+    LayerTestsDefinitions::TestModelGenerator::CondTypes::CONSTANT,
+    LayerTestsDefinitions::TestModelGenerator::CondTypes::PARAM
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_ConditionGPUTest, ConditionLayerGPUTest,
                 testing::Combine(
-                    testing::ValuesIn(inputs_1),
+                    testing::ValuesIn(inputs_shape),
                     testing::ValuesIn(netPrecisions),
+                    testing::ValuesIn(if_cond_types),
                     testing::Values<std::string>(CommonTestUtils::DEVICE_GPU)),
                 ConditionLayerGPUTest::getTestCaseName);
+
+
+/// Dynamic shape test
+
 }   // namespace LayerTestsDefinitions
