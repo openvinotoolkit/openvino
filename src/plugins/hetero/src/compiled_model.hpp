@@ -57,6 +57,7 @@ private:
 
     Configuration m_cfg;
     std::shared_ptr<ov::Model> m_model;
+    std::string m_name;
     const bool m_loaded_from_cache;
 
     struct NetworkDesc {
@@ -66,7 +67,6 @@ private:
     };
 
     std::vector<NetworkDesc> m_networks;
-    std::string m_name;
 };
 }  // namespace hetero
 }  // namespace ov

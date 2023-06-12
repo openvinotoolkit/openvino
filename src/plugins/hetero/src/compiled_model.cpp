@@ -438,6 +438,7 @@ ov::hetero::CompiledModel::CompiledModel(std::istream& model,
                                          const Configuration& cfg,
                                          bool loaded_from_cache)
     : ov::ICompiledModel(nullptr, plugin),
+      m_name(),
       m_loaded_from_cache(loaded_from_cache) {
     std::string heteroXmlStr;
     std::getline(model, heteroXmlStr);
