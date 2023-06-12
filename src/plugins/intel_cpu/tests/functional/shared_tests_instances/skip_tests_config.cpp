@@ -184,7 +184,10 @@ std::vector<std::string> disabledTestPatterns() {
         // Issue: 111418
         R"(.*smoke_Snippets_ConvertStub/ConvertStub\.CompareWithRefImpl/IS=.*_OT=\(bf16\)_#N=2_#S=2_targetDevice=CPU.*)",
         // Issue: 111944
-        R"(.*smoke_DefConvLayoutTest6.*)"
+        R"(.*smoke_DefConvLayoutTest6.*)",
+        // New plugin API doesn't support changes of pre-processing
+        R"(.*(Auto|Multi).*InferRequestPreprocessTest.*SetPreProcessToInputInfo.*)",
+        R"(.*(Auto|Multi).*InferRequestPreprocessTest.*SetPreProcessToInferRequest.*)",
     };
 
 #if defined(OPENVINO_ARCH_X86)

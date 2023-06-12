@@ -126,5 +126,8 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*smoke_GroupDeconv_2D_Dynamic_.*FP32/GroupDeconvolutionLayerGPUTest.CompareWithRefs.*)",
             // Issue: 111440
             R"(.*smoke_set1/GatherElementsGPUTest.CompareWithRefs.*)",
+            // New plugin API doesn't support changes of pre-processing
+            R"(.*(Auto|Multi).*InferRequestPreprocessTest.*SetPreProcessToInputInfo.*)",
+            R"(.*(Auto|Multi).*InferRequestPreprocessTest.*SetPreProcessToInferRequest.*)",
     };
 }
