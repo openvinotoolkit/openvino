@@ -163,3 +163,40 @@ TEST(TensorTest, smoke_canSetScalarTensor) {
     request.set_tensor("scalar1", input_data);
     ASSERT_NO_THROW(request.infer());
 }
+
+TEST(TensorTest, smoke_canSetTensorForDynamicInput) {
+    auto ie = ov::Core();
+    using namespace ov::preprocess;
+    auto p = PrePostProcessor(ngraph::builder::subgraph::makeSplitMultiConvConcat());
+    p.input().tensor().set_element_type(ov::element::i8);
+    p.input().preprocess().convert_element_type(ov::element::f32);
+
+    auto function = p.build();
+    std::map<size_t, ov::PartialShape> shapes = { {0, ov::PartialShape{-1, -1, -1, -1}} };
+    function->reshape(shapes);
+    auto exec_net = ie.compile_model(function, CommonTestUtils::DEVICE_GPU);
+    auto inf_req = exec_net.create_infer_request();
+
+    ov::Tensor t1(ov::element::i8, {1, 4, 20, 20});
+    ov::Tensor t2(ov::element::i8, {1, 4, 30, 30});
+    ov::Tensor t3(ov::element::i8, {1, 4, 40, 40});
+
+    // Check set_shape call for pre-allocated input/output tensors
+    ASSERT_NO_THROW(inf_req.set_input_tensor(t1));
+    ASSERT_NO_THROW(inf_req.infer());
+
+    ASSERT_NO_THROW(inf_req.set_input_tensor(t2));
+    ASSERT_NO_THROW(inf_req.infer());
+
+    ASSERT_NO_THROW(inf_req.set_input_tensor(t3));
+    ASSERT_NO_THROW(inf_req.infer());
+
+    ASSERT_NO_THROW(inf_req.set_input_tensor(t3));
+    ASSERT_NO_THROW(inf_req.infer());
+
+    ASSERT_NO_THROW(inf_req.set_input_tensor(t1));
+    ASSERT_NO_THROW(inf_req.infer());
+
+    ASSERT_NO_THROW(inf_req.set_input_tensor(t2));
+    ASSERT_NO_THROW(inf_req.infer());
+}

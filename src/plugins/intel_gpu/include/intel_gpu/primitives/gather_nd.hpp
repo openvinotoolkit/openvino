@@ -12,6 +12,10 @@ namespace cldnn {
 struct gather_nd : public primitive_base<gather_nd> {
     CLDNN_DECLARE_PRIMITIVE(gather_nd)
 
+    gather_nd() : primitive_base("", {}) {}
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     /// @brief Constructs gather_nd primitive.
     ///
     /// @param id                   This primitive id.
@@ -68,6 +72,22 @@ struct gather_nd : public primitive_base<gather_nd> {
                indices_rank == rhs_casted.indices_rank &&
                batch_dims == rhs_casted.batch_dims &&
                batch_merged_output == rhs_casted.batch_merged_output;
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<gather_nd>::save(ob);
+        ob << input_rank;
+        ob << indices_rank;
+        ob << batch_dims;
+        ob << batch_merged_output;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<gather_nd>::load(ib);
+        ib >> input_rank;
+        ib >> indices_rank;
+        ib >> batch_dims;
+        ib >> batch_merged_output;
     }
 };
 }  // namespace cldnn

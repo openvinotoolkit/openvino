@@ -12,6 +12,7 @@
 #include "ngraph/runtime/aligned_buffer.hpp"
 
 using namespace ngraph;
+NGRAPH_SUPPRESS_DEPRECATED_START
 
 void runtime::reference::strided_slice(const char* arg,
                                        char* out,

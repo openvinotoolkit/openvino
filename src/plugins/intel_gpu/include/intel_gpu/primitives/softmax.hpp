@@ -18,6 +18,10 @@ namespace cldnn {
 struct softmax : public primitive_base<softmax> {
     CLDNN_DECLARE_PRIMITIVE(softmax)
 
+    softmax() : primitive_base("", {}) {}
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     /// @brief Constructs softmax primitive.
     /// @param id This primitive id.
     /// @param input Input primitive id.
@@ -52,6 +56,16 @@ struct softmax : public primitive_base<softmax> {
         auto rhs_casted = downcast<const softmax>(rhs);
 
         return dimension == rhs_casted.dimension;
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<softmax>::save(ob);
+        ob << dimension;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<softmax>::load(ib);
+        ib >> dimension;
     }
 };
 }  // namespace cldnn
