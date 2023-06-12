@@ -169,12 +169,3 @@ jobs:
               fi
           done
 
-      # - name: Run mypy on modified python tests in layer_tests
-      #   if: contains(steps.changed-files.outputs.modified_files, 'openvino/tests/layer_tests/')
-      #   run: |
-      #     for file in ${{ steps.changed-files.outputs.modified_files }}; do
-      #           if [[ $file == "openvino/tests/layer_tests/"* ]]; then
-      #               python -m mypy "$file" --config-file ./setup.cfg
-      #           fi
-      #     done
-
