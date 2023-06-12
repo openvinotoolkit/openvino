@@ -46,6 +46,23 @@ protected:
 };
 
 namespace Pooling {
+const std::vector<ElementType>& inpOutPrecision();
 
+const std::vector<LayerTestsDefinitions::poolSpecificParams>& paramsMax3D();
+const std::vector<LayerTestsDefinitions::poolSpecificParams>& paramsAvg3D();
+const std::vector<LayerTestsDefinitions::poolSpecificParams>& paramsMax4D();
+
+const std::vector<LayerTestsDefinitions::maxPoolV8SpecificParams>& paramsMaxV84D();
+const std::vector<LayerTestsDefinitions::maxPoolV8SpecificParams>& paramsMaxV85D() ;
+
+const std::vector<InputShape>& inputShapes3D();
+const std::vector<InputShape>& inputShapes4D();
+const std::vector<InputShape>& inputShapes4D_Large();
+const std::vector<InputShape>& inputShapes5D();
+
+const std::vector<LayerTestsDefinitions::poolSpecificParams>& paramsAvg4D();
+const std::vector<LayerTestsDefinitions::poolSpecificParams>& paramsAvg4D_Large();
+const std::vector<LayerTestsDefinitions::poolSpecificParams>& paramsAvg5D();
+const std::vector<LayerTestsDefinitions::poolSpecificParams>& paramsMax5D();
 } // namespace Pooling
 } // namespace CPULayerTestsDefinitions
