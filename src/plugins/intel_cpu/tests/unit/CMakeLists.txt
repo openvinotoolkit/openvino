@@ -24,6 +24,23 @@ else()
       ${CMAKE_CURRENT_SOURCE_DIR}/nodes/eltwise_node_test.cpp)
 endif()
 
+set(COMMON_LIBRARIES
+        gtest
+        gtest_main
+        gmock
+        dnnl
+        inference_engine_transformations
+        inference_engine_lp_transformations
+        ov_shape_inference
+        inference_engine_s
+        unitTestUtils
+        ngraphFunctions
+        snippetsNgraphFunctions)
+
+if(X86_64)
+    set(COMMON_LIBRARIES "${COMMON_LIBRARIES}" snippets_test_utils)
+endif()
+
 addIeTargetTest(
         NAME ${TARGET_NAME}
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
@@ -41,18 +58,7 @@ addIeTargetTest(
         OBJECT_FILES
             ${OBJ_LIB}
         LINK_LIBRARIES
-            gtest
-            gtest_main
-            gmock
-            dnnl
-            inference_engine_transformations
-            inference_engine_lp_transformations
-            ov_shape_inference
-            inference_engine_s
-            unitTestUtils
-            ngraphFunctions
-            snippetsNgraphFunctions
-            snippets_test_utils
+            ${COMMON_LIBRARIES}
         ADD_CPPLINT
         LABELS
             CPU
