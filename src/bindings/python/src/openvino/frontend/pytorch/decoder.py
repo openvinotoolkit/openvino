@@ -316,6 +316,11 @@ class TorchScriptPythonDecoder (Decoder):
         return self.outputs()[index]
 
     def mark_node(self, node):
+        name = self.graph_element.kind() + "/" + node.get_type_name()
+        if self.graph_element.scopeName():
+            node.set_friendly_name(self.graph_element.scopeName().split("/")[-1] + "/" + name)
+        else:
+            node.set_friendly_name(name)
         return node
 
     def try_decode_get_attr(self):
