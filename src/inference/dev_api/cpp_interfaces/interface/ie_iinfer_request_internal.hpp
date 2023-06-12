@@ -28,7 +28,8 @@ class IVariableStateInternal;
  * which is used in InferRequestBase forwarding mechanism
  * @ingroup ie_dev_api_infer_request_api
  */
-class INFERENCE_ENGINE_API_CLASS(IInferRequestInternal) : public std::enable_shared_from_this<IInferRequestInternal> {
+class INFERENCE_ENGINE_1_0_DEPRECATED INFERENCE_ENGINE_API_CLASS(IInferRequestInternal)
+    : public std::enable_shared_from_this<IInferRequestInternal> {
 public:
     /**
      * @brief A shared pointer to a IInferRequestInternal interface
