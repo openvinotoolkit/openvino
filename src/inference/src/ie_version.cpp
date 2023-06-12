@@ -4,6 +4,7 @@
 
 #include "ie_version.hpp"
 
+IE_SUPPRESS_DEPRECATED_START
 namespace InferenceEngine {
 
 const Version* GetInferenceEngineVersion() noexcept {

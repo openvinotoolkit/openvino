@@ -14,6 +14,7 @@
 
 namespace InferenceEngine {
 
+IE_SUPPRESS_DEPRECATED_START
 /**
  * @brief This class stores pre-process information for exact input
  */

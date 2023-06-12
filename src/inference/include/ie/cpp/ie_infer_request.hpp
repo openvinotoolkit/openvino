@@ -29,6 +29,8 @@
 
 namespace InferenceEngine {
 
+IE_SUPPRESS_DEPRECATED_START
+
 class IInferRequestInternal;
 
 namespace details {
@@ -271,7 +273,6 @@ public:
     bool operator==(const InferRequest&) const noexcept;
 };
 
-IE_SUPPRESS_DEPRECATED_START
 /**
  * @private
  */

@@ -16,6 +16,7 @@
 #include "ie_common.h"
 
 namespace InferenceEngine {
+IE_SUPPRESS_DEPRECATED_START
 
 /**
  * @brief      A description buffer wrapping StatusCode and ResponseDesc
@@ -119,4 +120,5 @@ private:
         }
     }
 };
+IE_SUPPRESS_DEPRECATED_END
 }  // namespace InferenceEngine
