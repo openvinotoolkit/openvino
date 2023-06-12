@@ -9,6 +9,8 @@ import torch.nn.functional as F
 import torchvision.transforms as transforms
 
 from openvino.runtime import Core
+from openvino.runtime import Tensor
+import openvino.tools.mo as mo
 
 from openvino.preprocess.torchvision_to_ov import PreprocessConverter
 
@@ -27,11 +29,8 @@ class Convnet(torch.nn.Module):
 
 def _infer_pipelines(test_input, preprocess_pipeline, input_channels=3):
     torch_model = Convnet(input_channels)
-
-    torch.onnx.export(torch_model, torch.randn(1, input_channels, 224, 224), "test_convnet.onnx", verbose=False, input_names=["input"], output_names=["output"])
+    ov_model = mo.convert_model(torch_model, example_input=Tensor(test_input))
     core = Core()
-    ov_model = core.read_model(model="test_convnet.onnx")
-    os.remove("test_convnet.onnx")
 
     ov_model = PreprocessConverter.from_torchvision(
         model=ov_model, transform=preprocess_pipeline, input_example=Image.fromarray(test_input.astype("uint8"), "RGB")
@@ -83,7 +82,7 @@ def test_Resize(interpolation, tolerance):
 
 
 def test_ConvertImageDtype():
-    test_input = np.random.randint(255, size=(224, 224, 3), dtype=np.uint16)
+    test_input = np.random.randint(255, size=(224, 224, 3), dtype=np.uint8)
     preprocess_pipeline = transforms.Compose(
         [
             transforms.ToTensor(),
@@ -169,7 +168,7 @@ def test_Pad(test_input, preprocess_pipeline):
 
 
 def test_CenterCrop():
-    test_input = np.random.randint(255, size=(260, 260, 3), dtype=np.uint16)
+    test_input = np.random.randint(255, size=(260, 260, 3), dtype=np.uint8)
     preprocess_pipeline = transforms.Compose(
         [
             transforms.CenterCrop((224)),
@@ -181,21 +180,21 @@ def test_CenterCrop():
 
 
 def test_Grayscale():
-    test_input = np.random.randint(255, size=(224, 224, 3), dtype=np.uint16)
+    test_input = np.random.randint(255, size=(224, 224, 3), dtype=np.uint8)
     preprocess_pipeline = transforms.Compose([transforms.ToTensor(), transforms.Grayscale()])
     torch_result, ov_result = _infer_pipelines(test_input, preprocess_pipeline, input_channels=1)
     assert np.max(np.absolute(torch_result - ov_result)) < 1e-04
 
 
 def test_Grayscale_num_output_channels():
-    test_input = np.random.randint(255, size=(224, 224, 3), dtype=np.uint16)
+    test_input = np.random.randint(255, size=(224, 224, 3), dtype=np.uint8)
     preprocess_pipeline = transforms.Compose([transforms.ToTensor(), transforms.Grayscale(3)])
     torch_result, ov_result = _infer_pipelines(test_input, preprocess_pipeline)
     assert np.max(np.absolute(torch_result - ov_result)) < 1e-04
 
 
 def test_pipeline_1():
-    test_input = np.random.randint(255, size=(260, 260, 3), dtype=np.uint16)
+    test_input = np.random.randint(255, size=(260, 260, 3), dtype=np.uint8)
     preprocess_pipeline = transforms.Compose(
         [
             transforms.Resize(256, interpolation=transforms.InterpolationMode.NEAREST),
@@ -211,7 +210,7 @@ def test_pipeline_1():
 
 
 def test_pipeline_2():
-    test_input = np.random.randint(255, size=(260, 260, 3), dtype=np.uint16)
+    test_input = np.random.randint(255, size=(260, 260, 3), dtype=np.uint8)
     preprocess_pipeline = transforms.Compose(
         [
             transforms.Resize(250, interpolation=transforms.InterpolationMode.BICUBIC),
