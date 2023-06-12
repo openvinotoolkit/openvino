@@ -195,7 +195,7 @@ struct reorder : public primitive_base<reorder> {
 
     /// @brief Requested memory format.
     format output_format;
-    /// @brief Primitive id to get mean subtract values. Ignored if subtract_per_featrue is set.
+    /// @brief Primitive id to get mean subtract values. Ignored if subtract_per_feature is set.
     primitive_id mean;
     /// @brief Array of mean subtract values.
     std::vector<float> subtract_per_feature;

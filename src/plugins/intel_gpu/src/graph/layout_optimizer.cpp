@@ -158,6 +158,8 @@ std::pair<std::shared_ptr<reorder>, bool> reorder_factory::get_reorder(primitive
 
 std::pair<std::shared_ptr<primitive>, bool> reorder_factory::get_weights_reorder(primitive_id input_id,
                                                                                  std::shared_ptr<WeightsReorderParams> reorder_params) {
+    OPENVINO_ASSERT(reorder_params != nullptr, "[GPU] WeightsReorderParams is not initialized.");
+
     cache_key ckey{ input_id, reorder_params->get_output_layout(), false };
     auto itr = _cached_reorders.find(ckey);
     if (itr != _cached_reorders.end()) {

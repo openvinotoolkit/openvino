@@ -114,19 +114,10 @@ public:
     static std::unique_ptr<primitive_impl> create(const reorder_node& arg, const kernel_impl_params& impl_param) {
         bool is_reorder_weights = format::is_weights_format(impl_param.get_input_layout().format) ||
                                   format::is_weights_format(impl_param.get_output_layout().format);
-        if (!is_reorder_weights) {
-            if (arg.can_be_optimized()) {
-                return make_unique<reorder_impl>(kernel_selector::kernel_data{});
-            }
-            auto kernel_params = reorder_impl::get_kernel_params(reorder_impl::static_canonicalize_shapes(impl_param));
-            kernel_params.first.is_shape_agnostic = impl_param.is_dynamic();
-            kernel_params.first.set_dynamic_shape_offsets();
-            auto& kernel_selector = reorder_impl::kernel_selector_t::Instance();
-            auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
-
-            return make_unique<reorder_impl>(best_kernel);
-        } else {
+        if (is_reorder_weights) {
             return create_reorder_weigths(impl_param);
+        } else {
+            return typed_primitive_impl_ocl<reorder>::create<reorder_impl>(arg, impl_param);
         }
     }
 

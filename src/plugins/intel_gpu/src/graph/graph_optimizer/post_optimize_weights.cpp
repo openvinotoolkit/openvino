@@ -60,12 +60,16 @@ void post_optimize_weights::optimize_weights(T& node, program& p) {
     auto output_layout = node.get_output_layout();
     auto weights_reorder_params = impl->get_weights_reorder_params();
     for (auto i = offsets.weights_offset; i < offsets.bias_offset; i++) {
-        auto& prev_node = node.get_dependency(i);
+        program_node& prev_node = node.get_dependency(i);
 
         if (weights_reorder_params != nullptr) {
-            if (prev_node.type() == reorder::type_id() &&
-                prev_node.get_users().size() == 1 &&
-                prev_node.get_dependencies().size() == 1) {
+            bool can_be_fused = prev_node.is_type<reorder>() &&
+                                prev_node.get_users().size() == 1 &&
+                                prev_node.get_dependencies().size() == 1 &&
+                                !prev_node.has_fused_primitives() &&
+                                !prev_node.as<reorder>().has_mean() &&
+                                prev_node.as<reorder>().get_primitive()->subtract_per_feature.empty();
+            if (can_be_fused) {
                 data_types input_dtype = prev_node.get_input_layouts()[0].data_type;
                 auto updated_input_layout = weights_reorder_params->get_input_layout();
                 updated_input_layout.data_type = input_dtype;
@@ -100,18 +104,17 @@ void post_optimize_weights::optimize_weights(T& node, program& p) {
 
 void post_optimize_weights::run(program& p) {
     for (auto& node : p.get_processing_order()) {
-        if (node->type() == convolution::type_id()) {
+        if (node->is_type<convolution>()) {
             optimize_weights(node->as<convolution>(), p);
-        }
-        if (node->type() == binary_convolution::type_id()) {
+        } else if (node->is_type<binary_convolution>()) {
             optimize_weights(node->as<binary_convolution>(), p);
-        } else if (node->type() == deconvolution::type_id()) {
+        } else if (node->is_type<deconvolution>()) {
             optimize_weights(node->as<deconvolution>(), p);
-        } else if (node->type() == deformable_conv::type_id()) {
+        } else if (node->is_type<deformable_conv>()) {
             optimize_weights(node->as<deformable_conv>(), p);
-        } else if (node->type() == fully_connected::type_id()) {
+        } else if (node->is_type<fully_connected>()) {
             optimize_weights(node->as<fully_connected>(), p);
-        } else if (node->type() == lstm_dynamic_input::type_id()) {
+        } else if (node->is_type<lstm_dynamic_input>()) {
             optimize_weights(node->as<lstm_dynamic_input>(), p);
         }
     }
