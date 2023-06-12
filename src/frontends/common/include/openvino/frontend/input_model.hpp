@@ -10,7 +10,6 @@
 
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/type/element_type.hpp"
-#include "openvino/frontend/graph_iterator.hpp"
 #include "openvino/frontend/place.hpp"
 #include "openvino/frontend/visibility.hpp"
 
