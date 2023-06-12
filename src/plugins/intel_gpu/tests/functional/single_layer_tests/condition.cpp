@@ -23,9 +23,22 @@ public:
     using ptr = std::shared_ptr<InnerBodyGenerator>;
 
 enum InnerBodyType {
+    /**
+     * Simple inner body with single constant value
+    */
     Type01 = 1,
+    /**
+     * Inner body with eltwise sum
+    */
     Type02 = 2,
+    /**
+     * Inner body with eltwise multiply
+    */
     Type03 = 3,
+    /**
+     * Inner body with eltwise sum and pooling
+     * output shape is different with type02 and type03 for same input shape
+    */
     Type04 = 4
 };
 
@@ -272,7 +285,7 @@ using ConditionParams = typename std::tuple<
         LayerTestsUtils::TargetDevice   // Device name
 >;
 
-class ConditionLayerGPUTest : public testing::WithParamInterface<ConditionParams>,
+class StaticConditionLayerGPUTest : public testing::WithParamInterface<ConditionParams>,
                         virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ConditionParams>& obj) {
@@ -333,7 +346,7 @@ protected:
     InferenceEngine::Precision data_prc;
 };
 
-TEST_P(ConditionLayerGPUTest, CompareWithRefs) {
+TEST_P(StaticConditionLayerGPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     Run();
 }
@@ -354,15 +367,151 @@ std::vector<LayerTestsDefinitions::TestModelGenerator::CondTypes> if_cond_types 
     LayerTestsDefinitions::TestModelGenerator::CondTypes::PARAM
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_ConditionGPUTest, ConditionLayerGPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_ConditionGPUTest, StaticConditionLayerGPUTest,
                 testing::Combine(
                     testing::ValuesIn(inputs_shape),
                     testing::ValuesIn(netPrecisions),
                     testing::ValuesIn(if_cond_types),
                     testing::Values<std::string>(CommonTestUtils::DEVICE_GPU)),
-                ConditionLayerGPUTest::getTestCaseName);
+                StaticConditionLayerGPUTest::getTestCaseName);
 
 
 /// Dynamic shape test
 
 }   // namespace LayerTestsDefinitions
+
+
+namespace GPULayerTestsDefinitions {
+
+using namespace LayerTestsDefinitions;
+
+struct CondShapeParams {
+    InputShape inputShapes;
+    InputShape condShapes;
+};
+
+struct InnerBodyTypeParams {
+    InnerBodyGenerator::InnerBodyType then_body_type;
+    InnerBodyGenerator::InnerBodyType else_body_type;
+};
+
+using ConditionGPUParams = typename std::tuple<
+        CondShapeParams,                // Input Shapes
+        InnerBodyTypeParams,            // Inner body type
+        InferenceEngine::Precision,     // Precision
+        TestModelGenerator::CondTypes,  // if condition type
+        bool,                           // cond execution value
+        LayerTestsUtils::TargetDevice   // Device name
+>;
+
+class ConditionLayerGPUTest : public testing::WithParamInterface<ConditionGPUParams>,
+                                virtual public SubgraphBaseTest {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<ConditionGPUParams>& obj) {
+        CondShapeParams shapes;
+        InnerBodyTypeParams bodyParams;
+        InferenceEngine::Precision dataPrc;
+        TestModelGenerator::CondTypes condType;
+        bool condExecutionValue;
+        std::string targetDevice;
+
+        std::tie(shapes, bodyParams, dataPrc, condType, condExecutionValue, targetDevice) = obj.param;
+        std::ostringstream result;
+        result << "IS=(";
+        result << CommonTestUtils::partialShape2str({shapes.inputShapes.first}) << "_";
+        for (size_t i = 0lu; i < shapes.inputShapes.second.size(); i++) {
+            result << "{";
+            result << CommonTestUtils::vec2str(shapes.inputShapes.second[i]) << "_";
+            result << "}_";
+        }
+        result << "TS=(";
+        result << CommonTestUtils::partialShape2str({shapes.condShapes.first}) << "_";
+        for (size_t i = 0lu; i < shapes.condShapes.second.size(); i++) {
+            result << "{";
+            result << CommonTestUtils::vec2str(shapes.condShapes.second[i]) << "_";
+            result << "}_";
+        }
+        result << "netPRC=" << std::to_string(dataPrc) << "_";
+        result << "ifCond=" << condType << "_";
+        result << "targetDevice=" << targetDevice << "_";
+        auto res_str = result.str();
+        std::replace(res_str.begin(), res_str.end(), '-', '_');
+        return res_str;
+    }
+
+protected:
+    void SetUp() override {
+        CondShapeParams shapes;
+        InnerBodyTypeParams bodyParams;
+        InferenceEngine::Precision dataPrc;
+        TestModelGenerator::CondTypes condType;
+        bool condExecutionValue;
+        std::tie(shapes, bodyParams, dataPrc, condType, condExecutionValue, targetDevice) = GetParam();
+
+
+        // const auto ngShape = ngraph::Shape{shapes.inputShapes.first};
+        // const auto prc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(data_prc);
+        // TestModelGenerator model_generator(InnerBodyGenerator::InnerBodyType::Type02,
+        //                                     InnerBodyGenerator::InnerBodyType::Type03,
+        //                                     TestModelGenerator::CondTypes::PARAM,
+        //                                     prc,
+        //                                     ngShape);
+        // function = model_generator.get_function();
+    }
+
+    // InferenceEngine::SizeVector data_shape;
+    // InferenceEngine::Precision data_prc;
+};
+
+TEST_P(ConditionLayerGPUTest, CompareWithRefs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    run();
+}
+
+using namespace LayerTestsDefinitions;
+
+const std::vector<InferenceEngine::Precision> netPrecisions = {
+    InferenceEngine::Precision::FP32,
+    InferenceEngine::Precision::FP16,
+    // ov::element::f16,
+    // ov::element::i8
+};
+
+const std::vector<CondShapeParams> dynamicInputShapes = {
+    {
+        ov::test::InputShape(ov::PartialShape({-1, -1}), {{8, 4}, {24, 16}}),
+        ov::test::InputShape(ov::PartialShape({1}), {{1}, {1}})
+    }
+};
+
+const std::vector<InnerBodyTypeParams> innerBodyTypes = {
+    {
+        InnerBodyGenerator::InnerBodyType::Type02,
+        InnerBodyGenerator::InnerBodyType::Type03,
+    },
+    {
+        InnerBodyGenerator::InnerBodyType::Type03,
+        InnerBodyGenerator::InnerBodyType::Type04,
+    }
+};
+
+const std::vector<TestModelGenerator::CondTypes> condTypes = {
+    TestModelGenerator::CondTypes::CONSTANT,
+    TestModelGenerator::CondTypes::PARAM,
+    TestModelGenerator::CondTypes::NODE
+};
+
+const std::vector<bool> condExecutionValues = {
+    true, false
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_DynamicConditionGPUTest, ConditionLayerGPUTest,
+                testing::Combine(
+                    testing::ValuesIn(dynamicInputShapes),     // input shapes
+                    testing::ValuesIn(innerBodyTypes),         // is const indices
+                    testing::ValuesIn(netPrecisions),          // network precision
+                    testing::ValuesIn(condTypes),              // is const indices
+                    testing::ValuesIn(condExecutionValues),
+                    testing::Values<std::string>(CommonTestUtils::DEVICE_GPU)),   // is const indices
+                ConditionLayerGPUTest::getTestCaseName);
+} // namespace GPULayerTestsDefinitions
