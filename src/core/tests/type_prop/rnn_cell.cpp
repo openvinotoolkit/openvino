@@ -25,6 +25,22 @@ TEST(type_prop, rnn_cell) {
     EXPECT_EQ(rnn_cell->get_output_shape(0), (Shape{batch_size, hidden_size}));
 }
 
+TEST(type_prop, rnn_cell_with_bias) {
+    const size_t batch_size = 2;
+    const size_t input_size = 3;
+    const size_t hidden_size = 3;
+
+    const auto X = make_shared<opset4::Parameter>(element::f32, Shape{batch_size, input_size});
+    const auto H_t = make_shared<opset4::Parameter>(element::f32, Shape{batch_size, hidden_size});
+    const auto W = make_shared<opset4::Parameter>(element::f32, Shape{hidden_size, input_size});
+    const auto R = make_shared<opset4::Parameter>(element::f32, Shape{hidden_size, hidden_size});
+    const auto B = make_shared<opset4::Parameter>(element::f32, Shape{hidden_size});
+
+    const auto rnn_cell = make_shared<opset4::RNNCell>(X, H_t, W, R, B, hidden_size);
+    EXPECT_EQ(rnn_cell->get_output_element_type(0), element::f32);
+    EXPECT_EQ(rnn_cell->get_output_shape(0), (Shape{batch_size, hidden_size}));
+}
+
 TEST(type_prop, rnn_cell_invalid_input) {
     const size_t batch_size = 2;
     const size_t input_size = 3;

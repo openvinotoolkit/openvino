@@ -17,6 +17,10 @@ void shape_infer(const LSTMCell* op, const std::vector<T>& input_shapes, std::ve
     constexpr auto num_state_nodes = 2;
     output_shapes = rnn::rnn_cell_base_shape_infer(op, input_shapes, op->s_gates_count, num_state_nodes);
     const auto& hidden_size = output_shapes[0][1];
+    if (hidden_size.is_dynamic()) {  // set hidden_size based on attribute
+        output_shapes[0][1] = op->get_hidden_size();
+        output_shapes[1][1] = op->get_hidden_size();
+    }
     const auto& p_pshape = input_shapes[6];
     if (p_pshape[0].is_static() && hidden_size.is_static()) {
         NODE_VALIDATION_CHECK(op,
