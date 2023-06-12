@@ -67,8 +67,13 @@ void NodeContext::mutate_input(size_t index, Output<Node> ov_output) const {
         Output<Node> node_converted_output;
         std::tie(in_tensor, node, node_converted_output) = m_translate_session->m_may_be_alias.at(back_input_id);
         auto backprop_node = m_translate_session->get_backprop_op(node, node_converted_output, back_node_input);
+        if (m_tensor_map->count(in_tensor)) {
+            // Tensor is not found in the scope of this body, need to get it from internal context and mark mutated
+            OPENVINO_DEBUG << "Couldn't find in the current body the initial aliased tensor: " << in_tensor
+                           << " for operation: " << node->get_op_type() << " creating new body input.";
+            get_tensor_from_model_or_create_input(in_tensor);
+        }
         m_translate_session->encode_tensor_name(backprop_node, in_tensor);
-        FRONT_END_GENERAL_CHECK(m_tensor_map->count(in_tensor), "Couldn't find initial aliased tensor.");
         (*m_tensor_map)[in_tensor] = backprop_node;
         m_mutated_tensors->insert(in_tensor);
         OPENVINO_DEBUG << "Propagated back data from tensor: " << back_input_id << " to tensor: " << in_tensor << ".\n";
