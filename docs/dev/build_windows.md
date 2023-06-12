@@ -75,7 +75,10 @@ Supported configurations:
      -DPYTHON_LIBRARY="C:\Program Files\Python11\libs\python11.lib" ^
      -DPYTHON_INCLUDE_DIR="C:\Program Files\Python11\include"
      ```
-  3. To build a wheel package (.whl), enable the `-DENABLE_WHEEL=ON` option in the CMake step above (Step 4):
+  3. To build a wheel package (.whl), enable the `-DENABLE_WHEEL=ON` option in the CMake step above (Step 4), and install requirements:
+     ```sh
+     pip install -r <openvino source tree>\src\bindings\python\wheel\requirements-dev.txt
+     ```
   4. After the build process finishes, export the newly built Python libraries to the user environment variables:
      ```
      set PYTHONPATH=<openvino_repo>/bin/<arch>/Release/python_api/python3.11;%PYTHONPATH%
