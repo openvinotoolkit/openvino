@@ -59,7 +59,7 @@ TEST_F(SqueezeCustomStaticShapeInferenceTest, wrong_pattern) {
 
     OV_EXPECT_THROW(unit_test::cpu_test_shape_infer(op.get(), input_shapes, output_shapes, constant_data),
                     InferenceEngine::Unexpected,
-                    HasSubstr("[cpu]squeeze: the shape of input data conflict with the squeeze pattern"));
+                    HasSubstr("[cpu]squeeze: the shape of input data [5,6] conflicts with the squeeze pattern [2]"));
 }
 
 using TestParams = std::tuple<ShapeVector,           // Input shapes

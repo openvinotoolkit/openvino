@@ -3,6 +3,7 @@
 //
 
 #include <gtest/gtest.h>
+#include <ostream>
 
 #include "common_test_utils/test_assertions.hpp"
 #include "utils.hpp"
@@ -108,10 +109,29 @@ TEST_P(ReshapeCustomtaticShapeInferenceThrowExceptionTest, shape_inference_with_
     const auto axes_const = std::make_shared<op::v0::Constant>(element::i64, ov::Shape{axes.size()}, axes);
     const auto axes_tensor = std::make_shared<ngraph::runtime::HostTensor>(axes_const);
     const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {{1, axes_tensor}};
+    std::ostringstream os;
+    os << "[cpu]reshape: the shape of input data ";
+    os << "[";
+    for (size_t i = 0; i < input_shapes[0].size(); i++) {
+        os << input_shapes[0][i];
+        if (i < input_shapes[0].size() - 1) {
+            os << ",";
+        }
+    }
+    os << "]";
+    os << " conflicts with the reshape pattern ";
+    os << "[";
+    for (size_t i = 0; i < axes.size(); i++) {
+        os << axes[i];
+        if (i < axes.size() - 1) {
+            os << ",";
+        }
+    }
+    os << "]";
 
     OV_EXPECT_THROW(unit_test::cpu_test_shape_infer(op.get(), input_shapes, output_shapes, constant_data),
                     InferenceEngine::Unexpected,
-                    HasSubstr("[cpu]reshape: the shape of input data conflicts with the reshape pattern"));
+                    HasSubstr(os.str()));
 }
 
 INSTANTIATE_TEST_SUITE_P(

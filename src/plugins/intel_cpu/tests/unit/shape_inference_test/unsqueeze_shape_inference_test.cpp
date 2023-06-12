@@ -68,7 +68,7 @@ TEST_F(UnsqueezeCustomStaticShapeInferenceAssertTest, wrong_pattern) {
 
     OV_EXPECT_THROW(unit_test::cpu_test_shape_infer(op.get(), input_shapes, output_shapes, constant_data),
                     InferenceEngine::Unexpected,
-                    HasSubstr("[cpu]unsqueeze: the shape of input data conflicts with the unsqueeze pattern"));
+                    HasSubstr("[cpu]unsqueeze: the shape of input data [5,6] conflicts with the unsqueeze pattern [3]"));
 }
 
 
