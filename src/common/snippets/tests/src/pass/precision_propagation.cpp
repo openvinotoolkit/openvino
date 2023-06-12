@@ -97,9 +97,12 @@ TEST_P(PrecisionPropagationTest, CompareFunctions) {
         test_values.actual.op1_supported_precisions,
         test_values.actual.op2_supported_precisions);
 
+    manager.register_pass<ngraph::pass::VisualizeTree>("svg/test.original.svg");
     manager.register_pass<ov::snippets::pass::PropagatePrecision>(target_machine);
+    manager.register_pass<ngraph::pass::VisualizeTree>("svg/test.transformed.svg");
 
     function_ref = function_stub.getReference();
+    ngraph::pass::VisualizeTree("svg/test.reference.svg").run_on_model(function_ref);
 }
 
 namespace PrecisionPropagationTestInstantiation {
@@ -169,6 +172,22 @@ std::vector<PrecisionPropagationParamsValues> test_cases {
             {element::i8},
             {element::i32, element::i32},
             {element::i8}
+        }
+    },
+    {
+        {element::i32, element::i32, element::i32},
+        {
+            {},
+            {},
+            {},
+            {{element::i32, element::i32}},
+            {{element::i32, element::i32}}
+        },
+        {
+            {},
+            {element::i32},
+            {element::i32, element::i32},
+            {element::i32}
         }
     },
     {
