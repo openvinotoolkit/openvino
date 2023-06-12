@@ -8,7 +8,6 @@
 #include "openvino/frontend/decoder.hpp"
 #include "openvino/frontend/visibility.hpp"
 
-
 namespace ov {
 namespace frontend {
 namespace tensorflow {

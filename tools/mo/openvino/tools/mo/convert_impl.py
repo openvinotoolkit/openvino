@@ -60,7 +60,7 @@ from openvino.runtime import Type, PartialShape
 try:
     from openvino.frontend.tensorflow.utils import type_supported_by_tf_fe, create_tf_graph_iterator, extract_model_graph  # pylint: disable=no-name-in-module,import-error
     tf_frontend_with_python_bindings_installed = True
-except ModuleNotFoundError:
+except (ModuleNotFoundError, ImportError):
     tf_frontend_with_python_bindings_installed = False
 
 
@@ -964,6 +964,6 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args, python_api_us
 
         send_conversion_result('fail')
         if python_api_used:
-            raise e.with_traceback(None)
+            raise e#.with_traceback(None)
         else:
             return None, argv

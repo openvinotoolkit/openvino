@@ -114,10 +114,13 @@ def trace_tf_model(model, input_shapes, input_types, example_input):
 
 def type_supported_by_tf_fe(input_model):
     import tensorflow as tf
-    if isinstance(input_model, tf.Graph):
+    # Types that require tracing
+    if isinstance(input_model, (tf.keras.layers.Layer, tf.Module, tf.keras.Model, tf.types.experimental.GenericFunction)):
         return True
-    elif isinstance(input_model, tf.types.experimental.ConcreteFunction):
+    # Types that do not require tracing
+    if isinstance(input_model, (tf.Graph, tf.types.experimental.ConcreteFunction)):
         return True
+    # GraphIterator
     elif model_is_graph_iterator(input_model):
         return True
     return False
