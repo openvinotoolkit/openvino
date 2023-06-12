@@ -125,8 +125,8 @@ if(OpenVINO_SOURCE_DIR OR OpenVINODeveloperPackage_FOUND)
 
     install(FILES ${OpenVINOPython_SOURCE_DIR}/requirements.txt
             DESTINATION ${OV_CPACK_PYTHONDIR}
-            COMPONENT ${OV_CPACK_COMP_PYTHON_OPENVINO}_${pyversion}
-            ${OV_CPACK_COMP_PYTHON_OPENVINO_EXCLUDE_ALL})
+            COMPONENT ${OV_CPACK_COMP_OPENVINO_DEV_REQ_FILES}
+            ${OV_CPACK_COMP_OPENVINO_DEV_REQ_FILES_EXCLUDE_ALL})
 
     install(DIRECTORY ${OpenVINOPython_SOURCE_DIR}/tests
             DESTINATION tests/${PROJECT_NAME}
