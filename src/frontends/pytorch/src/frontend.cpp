@@ -38,16 +38,24 @@ namespace frontend {
 namespace pytorch {
 
 namespace {
-std::set<std::string> get_unconverted_types_from_model(const std::shared_ptr<Model>& model) {
-    std::set<std::string> unconverted_ops_types;
+std::unordered_map<std::string, std::string> get_unconverted_types_from_model(const std::shared_ptr<Model>& model) {
+    std::unordered_map<std::string, std::string> unconverted_ops_types;
     for (const auto& node : model->get_ordered_ops()) {
         if (const auto& fw_node = ov::as_type_ptr<PtFrameworkNode>(node)) {
-            auto op_type = fw_node->get_decoder()->get_op_type();
-            unconverted_ops_types.insert(op_type);
+            const auto& attrs = fw_node->get_attrs();
+            FRONT_END_GENERAL_CHECK(attrs.find("PtTypeName") != attrs.end(),
+                                    "FrameworkNode attributes do not contain operation type.");
+            std::string exception_msg = "No exception";
+            if (attrs.find(PtFrameworkNode::failed_conversion_key) != attrs.end()) {
+                exception_msg = attrs.at(PtFrameworkNode::failed_conversion_key);
+            }
+            if (!unconverted_ops_types.count(attrs.at("PtTypeName"))) {
+                unconverted_ops_types[attrs.at("PtTypeName")] = exception_msg;
+            }
         }
         if (const auto& fw_node = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(node)) {
             for (size_t i = 0; i < fw_node->get_internal_subgraphs_size(); i++) {
-                auto internal_types = get_unconverted_types_from_model(fw_node->get_function(i));
+                const auto& internal_types = get_unconverted_types_from_model(fw_node->get_function(i));
                 unconverted_ops_types.insert(internal_types.begin(), internal_types.end());
             }
         }
@@ -60,17 +68,38 @@ FrontEnd::FrontEnd() : m_op_translators(get_supported_ops()) {}
 
 std::shared_ptr<Model> FrontEnd::convert(const InputModel::Ptr& model) const {
     auto converted_model = convert_partially(model);
-    normalize(converted_model);
-    std::set<std::string> unconverted_ops_types = get_unconverted_types_from_model(converted_model);
-    std::stringstream ops_str;
-    for (auto&& op_type : unconverted_ops_types) {
-        if (m_telemetry) {
-            m_telemetry->send_event("error_cause", "pytorch_" + op_type);
-        }
-        ops_str << op_type << '\n';
+    std::stringstream error_msg;
+    try {
+        normalize(converted_model);
+    } catch (const std::exception& e) {
+        error_msg << "Normalization step failed with: " << e.what() << '\n';
     }
-    FRONT_END_OP_CONVERSION_CHECK(unconverted_ops_types.size() == 0,
-                                  "Model wasn't fully converted. Unconverted operation types:\n" + ops_str.str());
+    const auto& unconverted_ops = get_unconverted_types_from_model(converted_model);
+    error_msg << "Model wasn't fully converted.";
+    std::stringstream unconverted_ops_msg;
+    unconverted_ops_msg << " No conversion rule found for operations: ";
+    bool at_least_one = false;
+    for (auto&& op : unconverted_ops) {
+        if (m_telemetry) {
+            m_telemetry->send_event("error_cause", "pytorch_" + op.first);
+        }
+        // First report operations with no errors, which means they have no translators
+        if (op.second.empty()) {
+            if (at_least_one)
+                unconverted_ops_msg << ", ";
+            unconverted_ops_msg << op.first;
+            at_least_one = true;
+        }
+    }
+    if (at_least_one)
+        error_msg << unconverted_ops_msg.str() << ".\n";
+    for (auto&& op : unconverted_ops) {
+        if (!op.second.empty()) {
+            error_msg << "\nConversion is failed for " << op.first << " operation with a message:\n" << op.second;
+        }
+    }
+    bool is_conversion_successful = unconverted_ops.size() == 0;
+    FRONT_END_GENERAL_CHECK(is_conversion_successful, error_msg.str());
     return converted_model;
 }
 

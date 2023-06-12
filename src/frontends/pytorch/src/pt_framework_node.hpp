@@ -13,6 +13,7 @@ namespace pytorch {
 class PtFrameworkNode : public ov::op::util::FrameworkNode {
 public:
     OPENVINO_OP("PtFrameworkNode", "util", ::ov::op::util::FrameworkNode);
+    static constexpr const char* failed_conversion_key = "PtException";
 
     PtFrameworkNode(const std::shared_ptr<TorchDecoder>& decoder, const OutputVector& inputs, size_t output_size)
         : ov::op::util::FrameworkNode(inputs, output_size, decoder->get_subgraph_size()),

@@ -188,14 +188,38 @@ Output<Node> concat_list_construct(const Output<Node>& input) {
     return input;
 }
 
-OutputVector make_framework_node(const NodeContext& context) {
+namespace {
+std::shared_ptr<PtFrameworkNode> create_fw_node_with_exception(const std::shared_ptr<TorchDecoder>& decoder,
+                                                               const ov::OutputVector& inputs,
+                                                               size_t num_outputs,
+                                                               const std::string& exception_message) {
+    auto fw_node = std::make_shared<PtFrameworkNode>(decoder, inputs, num_outputs);
+    auto attrs = fw_node->get_attrs();
+    attrs[PtFrameworkNode::failed_conversion_key] = exception_message;
+    fw_node->set_attrs(attrs);
+    return fw_node;
+}
+}  // namespace
+
+OutputVector make_framework_node_ignore_bodies(const NodeContext& context, const std::string& exception) {
+    auto fw_node = create_fw_node_with_exception(context.get_decoder(),
+                                         context.inputs(),
+                                         context.get_output_size() + 1,
+                                         exception);
+    context.mark_node(fw_node);
+    return fw_node->outputs();
+}
+
+OutputVector make_framework_node(const NodeContext& context, const std::string& exception) {
     auto schema = context.get_schema();
     // TODO: properly process schema to get the actual position of mutable input
     // Hack. Can indicate mutable inputs, but can it be reliable?
     if (schema.find('!') != std::string::npos) {
         // We create additional output for such nodes. It contains new tensor that represents input that was changed.
-        auto fw_node =
-            std::make_shared<PtFrameworkNode>(context.get_decoder(), context.inputs(), context.get_output_size() + 1);
+        auto fw_node = create_fw_node_with_exception(context.get_decoder(),
+                                                     context.inputs(),
+                                                     context.get_output_size() + 1,
+                                                     exception);
         fw_node->set_friendly_name(context.get_op_type());
         auto outputs = fw_node->outputs();
         // Usually mutated input index is 0, because it is usually "self" input, so we need to replace this tensor with
@@ -209,6 +233,7 @@ OutputVector make_framework_node(const NodeContext& context) {
         return outputs;
     }
 
+    std::string _exception(exception);
     // Pay attention to subgraphs that may appear in the node
     std::map<size_t, ParameterVector> inputs_map;
     std::map<size_t, ResultVector> extra_outputs_map;
@@ -251,9 +276,10 @@ OutputVector make_framework_node(const NodeContext& context) {
         num_body_outs > context.get_output_size() ? num_body_outs - context.get_output_size() : 0;
 
     // We need to reduce number of outputs, because some outputs are outputs from body
-    auto fw_node = std::make_shared<PtFrameworkNode>(context.get_decoder(),
-                                                     context.inputs(),
-                                                     context.get_output_size() - num_body_outs + num_skip_body_outputs);
+    auto fw_node = create_fw_node_with_exception(context.get_decoder(),
+                                                 context.inputs(),
+                                                 context.get_output_size() - num_body_outs + num_skip_body_outputs,
+                                                 _exception);
     fw_node->set_friendly_name(context.get_op_type());
     for (size_t i = 0; i < bodies.size(); ++i) {
         fw_node->set_function(static_cast<int>(i), bodies[i]);

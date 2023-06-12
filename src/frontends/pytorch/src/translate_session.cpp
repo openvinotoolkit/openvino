@@ -207,21 +207,28 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
 }
 
 OutputVector TranslateSession::convert_node(const NodeContext& context) {
+    std::string exception;
     try {
         auto it = m_translator_map.find(context.get_op_type());
         if (it != m_translator_map.end()) {
             return it->second(context);
         }
-
     } catch (std::exception& e) {
         OPENVINO_DEBUG << "Exception happened during conversion of op: " << context.get_op_type()
                        << " with schema: " << context.get_schema() << ": " << e.what() << '\n';
+        exception = e.what();
     } catch (...) {
         OPENVINO_DEBUG << "Some exception happened during conversion of node of type: " << context.get_op_type()
                        << '\n';
+        exception = "Unknown exception type.";
     }
-    // Create PtFrameworkNode for everything that wasn't able to be converted normally
-    return make_framework_node(context);
+    try {
+        // Create PtFrameworkNode for everything that wasn't able to be converted normally
+        return make_framework_node(context, exception);
+    } catch (std::exception& e) {
+        exception += " Failed to create FrameworkNode with subgraphs with exception: " + std::string(e.what());
+        return make_framework_node_ignore_bodies(context, exception);
+    }
 }
 
 void TranslateSession::encode_tensor_name(Output<Node> output,
