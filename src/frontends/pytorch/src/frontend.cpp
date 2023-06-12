@@ -38,8 +38,8 @@ namespace frontend {
 namespace pytorch {
 
 namespace {
-std::unordered_map<std::string, std::string> get_unconverted_types_from_model(const std::shared_ptr<Model>& model) {
-    std::unordered_map<std::string, std::string> unconverted_ops_types;
+std::map<std::string, std::string> get_unconverted_types_from_model(const std::shared_ptr<Model>& model) {
+    std::map<std::string, std::string> unconverted_ops_types;
     for (const auto& node : model->get_ordered_ops()) {
         if (const auto& fw_node = ov::as_type_ptr<PtFrameworkNode>(node)) {
             const auto& attrs = fw_node->get_attrs();
