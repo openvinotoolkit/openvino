@@ -522,16 +522,23 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& _port, const
     auto precision_changed = check_precision_changed(_port);
     if (precision_changed) {
         auto _orig_port = _orig_ports_map[name];
-        if (_orig_port.get_element_type() != _tensor.get_element_type()) {
+        port = get_internal_port(_port);
+        if ((_orig_port.get_element_type() != _tensor.get_element_type()) &&
+            (port.get_element_type() != _tensor.get_element_type())) {
             IE_THROW(ParameterMismatch) << "Failed to set input tensor with precision: " << _tensor.get_element_type()
                                         << ", if model input tensor precision is: " << _port.get_element_type();
         }
-        port = get_internal_port(_port);
         tensor = create_internal_tensor(_tensor, port);
     } else {
         if (_port.get_element_type() != _tensor.get_element_type()) {
-            IE_THROW(ParameterMismatch) << "Failed to set input tensor with precision: " << _tensor.get_element_type()
-                                        << ", if model input tensor precision is: " << _port.get_element_type();
+            // Import model cannot get original port info if it is chained in meta plugin, need convert tensor here
+            if (is_imported_model) {
+                tensor = create_internal_tensor(_tensor, _port);
+            } else {
+                IE_THROW(ParameterMismatch)
+                    << "Failed to set input tensor with precision: " << _tensor.get_element_type()
+                    << ", if model input tensor precision is: " << _port.get_element_type();
+            }
         }
     }
 #else
