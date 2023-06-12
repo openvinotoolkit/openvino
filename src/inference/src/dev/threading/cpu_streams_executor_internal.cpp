@@ -5,8 +5,8 @@
 #include <algorithm>
 #include <vector>
 
-#include "openvino/runtime/threading/istreams_executor.hpp"
 #include "openvino/runtime/threading/cpu_streams_info.hpp"
+#include "openvino/runtime/threading/istreams_executor.hpp"
 
 namespace ov {
 namespace threading {

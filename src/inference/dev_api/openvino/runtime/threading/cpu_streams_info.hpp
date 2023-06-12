@@ -37,4 +37,4 @@ typedef enum {
     CPU_STREAMS_TABLE_SIZE = 3  //!< Size of streams info table
 } ColumnOfCpuStreamsInfoTable;
 
-}  // namespace InferenceEngine
+}  // namespace ov
