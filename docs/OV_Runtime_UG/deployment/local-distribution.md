@@ -37,7 +37,7 @@ For each inference device, OpenVINO Runtime has its own plugin library:
 - ``openvino_intel_cpu_plugin`` for :doc:`Intel® CPU devices <openvino_docs_OV_UG_supported_plugins_CPU>`.
 - ``openvino_intel_gpu_plugin`` for :doc:`Intel® GPU devices <openvino_docs_OV_UG_supported_plugins_GPU>`.
 - ``openvino_intel_gna_plugin`` for :doc:`Intel® GNA devices <openvino_docs_OV_UG_supported_plugins_GNA>`.
-- ``openvino_arm_cpu_plugin`` for :doc:`ARM CPU devices <openvino_docs_OV_UG_supported_plugins_ARM_CPU>`.
+- ``openvino_arm_cpu_plugin`` for :doc:`ARM CPU devices <openvino_docs_OV_UG_supported_plugins_CPU>`.
 
 Depending on what devices are used in the app, the appropriate libraries need to be put to the distribution package.
 
@@ -120,7 +120,7 @@ Depending on the model format types that are used in the application in `ov::Cor
 
 .. note::
 
-   To optimize the size of final distribution package, you are recommended to convert models to OpenVINO IR by using :doc:`Model Optimizer <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`. This way you don't have to keep TensorFlow, TensorFlow Lite, ONNX, PaddlePaddle, and other frontend libraries in the distribution package.
+   To optimize the size of final distribution package, you are recommended to convert models to OpenVINO IR by using :doc:`model conversion API <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`. This way you don't have to keep TensorFlow, TensorFlow Lite, ONNX, PaddlePaddle, and other frontend libraries in the distribution package.
 
 (Legacy) Preprocessing via G-API
 ++++++++++++++++++++++++++++++++
