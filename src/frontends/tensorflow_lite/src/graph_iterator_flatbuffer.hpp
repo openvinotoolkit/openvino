@@ -6,6 +6,7 @@
 
 #include <fstream>
 
+#include "openvino/core/any.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/util/file_util.hpp"
 #include "schema_generated.h"
@@ -16,7 +17,6 @@ namespace tensorflow_lite {
 class DecoderFlatBuffer;
 
 struct TensorInfo {
-    int64_t input_idx, output_idx;
     const tflite::Tensor* tensor;
     const tflite::Buffer* buffer;
 };
@@ -24,10 +24,13 @@ struct TensorInfo {
 class GraphIteratorFlatBuffer {
     size_t node_index = 0;
     std::vector<uint8_t> m_data;
-    std::vector<const tflite::Operator*> m_nodes;
-    const tflite::Model* m_model;
+    std::vector<ov::Any> m_nodes;
+    const tflite::Model* m_model{};
+    std::vector<const tflite::SubGraph*> m_subgraphs;
+    const tflite::SubGraph* m_graph{};
 
 public:
+    GraphIteratorFlatBuffer() = default;
     explicit GraphIteratorFlatBuffer(const std::string& path);
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
@@ -58,6 +61,14 @@ public:
 
     /// Return Decoder for the current node that iterator points to
     std::shared_ptr<ov::frontend::tensorflow_lite::DecoderFlatBuffer> get_decoder() const;
+
+    /// \brief Returns the number of sub-graphs that can be enumerated with get_subgraph
+    size_t get_subgraph_size() const;
+
+    /// \brief Returns iterator for a subgraph created on demand
+    /// If there is no query for specific sub-graph iterator shouldn't be created
+    /// idx should be in range 0..get_subgraph_size()-1
+    std::shared_ptr<GraphIteratorFlatBuffer> get_subgraph(const size_t& idx) const;
 };
 
 }  // namespace tensorflow_lite
