@@ -110,7 +110,7 @@ void Schedule::generate_workers(const std::string& device, const SoCompiledModel
                         // select other device
                         try {
                             select_other_device_flag = select_other_device(device);
-                        } catch (const ov::Exception& iie) {
+                        } catch (const ov::Exception&) {
                             select_other_device_flag = false;
                         }
                         if (select_other_device_flag) {

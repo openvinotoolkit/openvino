@@ -166,11 +166,11 @@ std::vector<DeviceInformation> Plugin::parse_meta_devices(const std::string& pri
         try {
             auto device_id = get_core()->get_property(device_name, ov::device::id);
             return device_id;
-        } catch (const InferenceEngine::Exception& e) {
+        } catch (const InferenceEngine::Exception&) {
             // some may throw IE exceptions
             LOG_DEBUG_TAG("get default device id failed for ", device_name.c_str());
             return "";
-        } catch (ov::Exception& err) {
+        } catch (ov::Exception&) {
             LOG_DEBUG_TAG("get default device id failed for ", device_name.c_str());
             return "";
         }
@@ -244,7 +244,7 @@ std::vector<DeviceInformation> Plugin::parse_meta_devices(const std::string& pri
             if (new_parsed.get_device_name() == "GPU") {
                 try {
                     full_device_name = get_core()->get_property(device_name_with_id, ov::device::full_name);
-                } catch (ov::Exception& err) {
+                } catch (ov::Exception&) {
                     LOG_DEBUG_TAG("get full device name failed for ", device_name_with_id.c_str());
                 }
             }
