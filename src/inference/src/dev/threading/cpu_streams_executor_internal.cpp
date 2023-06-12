@@ -34,28 +34,8 @@ void get_cur_stream_info(const int stream_id,
     }
     concurrency = streams_info_table[stream_info_id][THREADS_PER_STREAM];
     core_type = streams_info_table[stream_info_id][PROC_TYPE];
-    numa_node_id = stream_numa_node_ids[stream_id];
+    numa_node_id = stream_numa_node_ids.size() > 0 ? stream_numa_node_ids[stream_id] : 0;
 
-    stream_type = STREAM_WITHOUT_PARAM;
-    if (proc_type_table[0][EFFICIENT_CORE_PROC] > 0) {
-        if (cpu_reservation) {
-#if defined(_WIN32) || defined(__APPLE__)
-            stream_type = STREAM_WITH_CORE_TYPE;
-#else
-            stream_type = STREAM_WITH_OBSERVE;
-#endif
-        } else {
-            if (core_type == ALL_PROC) {
-                stream_type = STREAM_WITHOUT_PARAM;
-            } else {
-                stream_type = STREAM_WITH_CORE_TYPE;
-            }
-        }
-    } else if (proc_type_table.size() > 1 && !cpu_reservation && numa_node_id >= 0) {
-        stream_type = STREAM_WITH_NUMA_ID;
-    } else {
-        stream_type = STREAM_WITHOUT_PARAM;
-    }
     if (cpu_reservation) {
         stream_type = STREAM_WITH_OBSERVE;
         if (proc_type_table[0][EFFICIENT_CORE_PROC] > 0) {
