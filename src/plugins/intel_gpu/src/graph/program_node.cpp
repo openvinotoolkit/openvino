@@ -6,6 +6,7 @@
 #include "program_helpers.h"
 #include "primitive_inst.h"
 #include "loop_inst.h"
+#include "shape_of_inst.h"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #include "convolution_inst.h"
@@ -202,6 +203,13 @@ std::unique_ptr<json_composite> program_node::desc_to_json() const {
 #endif
     }
     node_info->add("implementation", impls);
+
+    std::vector<std::string> dependant_shape_of_nodes_ids;
+    for (auto shape_of : dependant_shape_of_nodes) {
+        dependant_shape_of_nodes_ids.push_back(shape_of->id());
+    }
+    node_info->add("dependant_shape_of_nodes_ids", dependant_shape_of_nodes_ids);
+    node_info->add("in_shape_of_subgraph", in_shape_of_subgraph);
     return node_info;
 }
 
@@ -493,6 +501,11 @@ void program_node::set_preferred_output_fmt(size_t idx, format::type type) {
         preferred_output_fmts.resize(idx+1, format::any);
 
     preferred_output_fmts.at(idx) = type;
+}
+
+void program_node::add_dependant_shape_of_node(const program_node* node) {
+    OPENVINO_ASSERT(node->is_type<shape_of>(), "[GPU] Expected node type is shape_of");
+    dependant_shape_of_nodes.insert(node);
 }
 
     /* ----------------------------------------- */

@@ -82,6 +82,9 @@ private:
     static void init_default(std::vector<PortDescriptorPtr>& in_descs, std::vector<PortDescriptorPtr>& out_descs, const std::shared_ptr<ov::Node>& node);
 };
 
+// PortDescriptorVectorAttribute is not copyable attribute!
+// It's needed to avoid incorrect copies of rt info between different nodes in call copy_runtime_info() (for example, in transformations)
+// The attribute must be manually copied if needed
 class PortDescriptorVectorAttribute : public ov::RuntimeAttribute {
 public:
     OPENVINO_RTTI("PortDescriptorVectorAttribute", "", ov::RuntimeAttribute);
@@ -89,6 +92,8 @@ public:
     PortDescriptorVectorAttribute() = default;
     explicit PortDescriptorVectorAttribute(std::vector<PortDescriptorPtr> in_descs = {}, std::vector<PortDescriptorPtr> out_descs = {})
             : inputs(std::move(in_descs)), outputs(std::move(out_descs)) {}
+
+    bool is_copyable() const override { return false; }
 
     std::vector<PortDescriptorPtr> inputs{};
     std::vector<PortDescriptorPtr> outputs{};
