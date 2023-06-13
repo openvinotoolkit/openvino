@@ -31,12 +31,10 @@ std::vector<ElementType> outPrc = {
 };
 
 std::vector<CPUSpecificParams> cpuParams_4D = {
-        CPUSpecificParams({nhwc}, {nhwc}, {}, {}),
         CPUSpecificParams({nChw16c}, {nChw16c}, {}, {})
 };
 
 std::vector<CPUSpecificParams> cpuParams_5D = {
-        CPUSpecificParams({ndhwc}, {ndhwc}, {}, {}),
         CPUSpecificParams({nCdhw16c}, {nCdhw16c}, {}, {})
 };
 

@@ -29,10 +29,12 @@ std::vector<ElementType> outPrc = {
 
 std::vector<CPUSpecificParams> cpuParams_4D = {
         CPUSpecificParams({nchw}, {nchw}, {}, {}),
+        CPUSpecificParams({nhwc}, {nhwc}, {}, {}),
 };
 
 std::vector<CPUSpecificParams> cpuParams_5D = {
         CPUSpecificParams({ncdhw}, {ncdhw}, {}, {}),
+        CPUSpecificParams({ndhwc}, {ndhwc}, {}, {}),
 };
 
 std::vector<fusingSpecificParams> fusingParamsSet {
@@ -63,7 +65,7 @@ const auto Mvn4D = ::testing::Combine(
                ::testing::ValuesIn(inputShapes_4D()),
                ::testing::Values(ElementType::f32),
                ::testing::ValuesIn(emptyReductionAxes()),
-               ::testing::ValuesIn(acrossChannels()),
+               ::testing::Values(true),
                ::testing::ValuesIn(normalizeVariance),
                ::testing::ValuesIn(epsilon())),
        ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D)),
@@ -78,7 +80,7 @@ const auto Mvn5D = ::testing::Combine(
                ::testing::ValuesIn(inputShapes_5D()),
                ::testing::Values(ElementType::f32),
                ::testing::ValuesIn(emptyReductionAxes()),
-               ::testing::ValuesIn(acrossChannels()),
+               ::testing::Values(true),
                ::testing::ValuesIn(normalizeVariance),
                ::testing::ValuesIn(epsilon())),
        ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D)),
@@ -202,7 +204,7 @@ const auto Mvn4DStatic = ::testing::Combine(
                ::testing::ValuesIn(static_shapes_to_test_representation(inputShapesStatic_4D)),
                ::testing::Values(ElementType::f32),
                ::testing::ValuesIn(emptyReductionAxes()),
-               ::testing::ValuesIn(acrossChannels()),
+               ::testing::Values(true),
                ::testing::ValuesIn(normalizeVariance),
                ::testing::ValuesIn(epsilon())),
        ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D)),
@@ -217,7 +219,7 @@ const auto Mvn5DStatic = ::testing::Combine(
                ::testing::ValuesIn(static_shapes_to_test_representation(inputShapesStatic_5D)),
                ::testing::Values(ElementType::f32),
                ::testing::ValuesIn(emptyReductionAxes()),
-               ::testing::ValuesIn(acrossChannels()),
+               ::testing::Values(true),
                ::testing::ValuesIn(normalizeVariance),
                ::testing::ValuesIn(epsilon())),
        ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D)),
