@@ -273,6 +273,7 @@ public:
     constexpr StaticShapeAdapter() : m_dims{} {}
     constexpr StaticShapeAdapter(const TDims& dims) : m_dims{&dims} {}
     constexpr StaticShapeAdapter(const StaticShapeAdapter<const TDims>& other) : m_dims{other.m_dims} {}
+    // constexpr StaticShapeAdapter(const StaticShapeAdapter<const TDims>&& other) : m_dims{other.m_dims} {}
 
     StaticShapeAdapter(const ov::PartialShape&);
 
@@ -287,6 +288,16 @@ public:
     const value_type& operator[](size_t i) const {
         return reinterpret_cast<const value_type&>((*m_dims)[i]);
     }
+
+    // StaticShapeAdapter<const TDims>& operator=(const StaticShapeAdapter<const TDims>& v) {
+    // m_dims = v.m_dims;
+    // return *this;
+    // }
+
+    // StaticShapeAdapter& operator=(StaticShapeAdapter<const TDims>&& v) noexcept {
+    //     m_dims{other.m_dims};
+    //     return *this;
+    // }
 
     //-- Shape functions
     static constexpr bool is_static() {
