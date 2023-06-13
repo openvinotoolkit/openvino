@@ -7,7 +7,7 @@
    :hidden:
 
    ote_documentation
-   ovtf_integration
+   datumaro_documentation
    ovsa_get_started
    openvino_inference_engine_tools_compile_tool_README
    openvino_docs_tuning_utilities
@@ -36,6 +36,16 @@ More resources:
 * [GitHub](https://github.com/openvinotoolkit/training_extensions)
 * [Documentation](https://openvinotoolkit.github.io/training_extensions/stable/guide/get_started/introduction.html)
 
+### Dataset Management Framework (Datumaro)
+A framework and CLI tool to build, transform, and analyze datasets.
+
+More resources:
+ 
+* [Overview](@ref datumaro_documentation) 
+* [PyPI](https://pypi.org/project/datumaro/) 
+* [GitHub](https://github.com/openvinotoolkit/datumaro)
+* [Documentation](https://openvinotoolkit.github.io/datumaro/stable/docs/get-started/introduction.html)
+
 ### OpenVINO™ Security Add-on	 
 A solution for Model Developers and Independent Software Vendors to use secure packaging and secure model execution.	 
 
@@ -46,6 +56,8 @@ More resources:
 
 ### OpenVINO™ integration with TensorFlow (OVTF)
 A solution empowering TensorFlow developers with OpenVINO's optimization capabilities. With just two lines of code in your application, you can offload inference to OpenVINO, while keeping the TensorFlow API.
+
+OpenVINO™ Integration with TensorFlow will no longer be supported as of OpenVINO release 2023.0. As part of the 2023.0 release, OpenVINO will feature a significantly enhanced TensorFlow user experience within native OpenVINO without needing offline model conversions.
 
 More resources:
 * [documentation](https://github.com/openvinotoolkit/openvino_tensorflow)	 
@@ -76,12 +88,4 @@ More resources:
 * [web application](https://cvat.org/) 
 * [Docker Hub](https://hub.docker.com/r/openvino/cvat_server) 
 * [GitHub](https://github.com/openvinotoolkit/cvat)
-
-### Dataset Management Framework (Datumaro)
-A framework and CLI tool to build, transform, and analyze datasets.
-
-More resources:
-* [documentation on GitHub](https://openvinotoolkit.github.io/datumaro/docs/)
-* [PyPI](https://pypi.org/project/datumaro/)
-* [GitHub](https://github.com/openvinotoolkit/datumaro)
 
