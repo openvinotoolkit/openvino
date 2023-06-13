@@ -416,7 +416,7 @@ MemoryDescPtr Node::getBaseMemDescAtOutputPort(size_t portNum) const {
     IE_THROW() << "Can't get output memory desc, primitive descriptor is not selected";
 }
 
-std::string Node::getPrimitiveDescriptorType() {
+std::string Node::getPrimitiveDescriptorType() const {
     auto selectedPrimitiveDesc = getSelectedPrimitiveDescriptor();
 
     impl_desc_type type = impl_desc_type::undef;

@@ -21,6 +21,8 @@ namespace ov {
 
 class OPENVINO_RUNTIME_API IRemoteContext : public std::enable_shared_from_this<IRemoteContext> {
 public:
+    virtual ~IRemoteContext() = default;
+
     /**
      * @brief Returns name of a device on which underlying object is allocated.
      * Abstract method.
