@@ -57,7 +57,7 @@ More resources:
 ### OpenVINO™ integration with TensorFlow (OVTF)
 A solution empowering TensorFlow developers with OpenVINO's optimization capabilities. With just two lines of code in your application, you can offload inference to OpenVINO, while keeping the TensorFlow API.
 
-OpenVINO™ Integration with TensorFlow will no longer be supported as of OpenVINO release 2023.0. As part of the 2023.0 release, OpenVINO will feature a significantly enhanced TensorFlow user experience within native OpenVINO without needing offline model conversions. Learn more.
+OpenVINO™ Integration with TensorFlow will no longer be supported as of OpenVINO release 2023.0. As part of the 2023.0 release, OpenVINO will feature a significantly enhanced TensorFlow user experience within native OpenVINO without needing offline model conversions.
 
 More resources:
 * [documentation](https://github.com/openvinotoolkit/openvino_tensorflow)	 
