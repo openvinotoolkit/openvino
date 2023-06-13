@@ -89,8 +89,8 @@ private:
             throw std::runtime_error("Can not open file " + path + " for mapping. Ensure that file exists and has appropriate permissions");
         }
         m_handle = HandleHolder(h);
-        SYSTEM_INFO SystemInfo;
-        GetSystemInfo(&SystemInfo);
+        SYSTEM_INFO sys_info;
+        GetSystemInfo(&sys_info);
 
         DWORD map_mode = FILE_MAP_READ;
         DWORD access = PAGE_READONLY;
@@ -101,21 +101,31 @@ private:
         }
 
         m_size = data_size > 0 ? data_size : static_cast<uint64_t>(file_size_large.QuadPart) - offset;
+
+        // the offset must be a multiple of the allocation granularity
+        const size_t alloc_gran = sys_info.dwAllocationGranularity;
+        const size_t map_view_start = (offset / alloc_gran) * alloc_gran;
+        const size_t map_view_size = (offset%alloc_gran) + m_size;
+        const size_t file_map_size = offset + m_size;
+        const size_t view_delta = offset - map_view_start;
+
         if (m_size > 0) {
             m_mapping =
-                HandleHolder(::CreateFileMapping(m_handle.get(), 0, access, m_size >> 32, m_size & 0xffffffff, 0));
+                HandleHolder(::CreateFileMapping(m_handle.get(), 0, access, file_map_size >> 32, file_map_size & 0xffffffff, 0));
             if(m_mapping.get() == INVALID_HANDLE_VALUE) {
                 throw std::runtime_error("Can not create file mapping for " + path);
             }
 
             m_data = ::MapViewOfFile(m_mapping.get(),
                                      map_mode,
-                                     offset >> 32,  // offset_align >> 32,
-                                     offset & 0xffffffff,  // offset_align & 0xffffffff,
-                                     m_size);
+                                     map_view_start >> 32,  // offset_align >> 32,
+                                     map_view_start & 0xffffffff,  // offset_align & 0xffffffff,
+                                     map_view_size);
             if(!m_data) {
                 throw std::runtime_error("Can not create map view for " + path);
             }
+            // move pointer to the expected data (after alignment with allocation granularity)
+            m_data = reinterpret_cast<char*>(m_data) + view_delta;
         } else {
             m_data = nullptr;
         }
