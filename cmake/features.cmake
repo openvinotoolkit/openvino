@@ -152,6 +152,15 @@ else()
     set(ENABLE_SYSTEM_PUGIXML_DEFAULT OFF)
 endif()
 
+if(ANDROID)
+    # when protobuf from /usr/include is used, then Android toolchain ignores include paths
+    # but if we build for Android using vcpkg / conan / etc where flatbuffers is not located in
+    # the /usr/include folders, we can still use 'system' flatbuffers
+    set(ENABLE_SYSTEM_FLATBUFFERS_DEFAULT OFF)
+else()
+    set(ENABLE_SYSTEM_FLATBUFFERS_DEFAULT ON)
+endif()
+
 # users wants to use his own TBB version, specific either via env vars or cmake options
 if(DEFINED ENV{TBBROOT} OR DEFINED ENV{TBB_DIR} OR DEFINED TBB_DIR OR DEFINED TBBROOT)
     set(ENABLE_SYSTEM_TBB_DEFAULT OFF)
@@ -163,8 +172,8 @@ ie_dependent_option (ENABLE_SYSTEM_TBB  "Enables use of system TBB" ${ENABLE_SYS
 # available out of box on all systems (like RHEL, UBI)
 ie_option (ENABLE_SYSTEM_PUGIXML "Enables use of system PugiXML" ${ENABLE_SYSTEM_PUGIXML_DEFAULT})
 # the option is on by default, because we use only flatc compiler and don't use any libraries
-ie_dependent_option(ENABLE_SYSTEM_FLATBUFFERS "Enables use of system flatbuffers" ON
-    "ENABLE_OV_TF_LITE_FRONTEND;NOT ANDROID" OFF)
+ie_dependent_option(ENABLE_SYSTEM_FLATBUFFERS "Enables use of system flatbuffers" ${ENABLE_SYSTEM_FLATBUFFERS_DEFAULT}
+    "ENABLE_OV_TF_LITE_FRONTEND" OFF)
 ie_dependent_option (ENABLE_SYSTEM_OPENCL "Enables use of system OpenCL" ${ENABLE_SYSTEM_LIBS_DEFAULT}
     "ENABLE_INTEL_GPU" OFF)
 # the option is turned off by default, because we compile our own static version of protobuf
