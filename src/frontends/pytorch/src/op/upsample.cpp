@@ -4,6 +4,7 @@
 
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/interpolate.hpp"
 #include "openvino/op/multiply.hpp"
 #include "utils.hpp"
@@ -50,7 +51,10 @@ OutputVector base_translate_upsample(const NodeContext& context,
     if (context.input_is_none(1)) {
         FRONT_END_OP_CONVERSION_CHECK(!context.input_is_none(scale_id), "Scale or Output size should be provided");
         auto spatial_scales = context.get_input(scale_id);
-
+        if (context.get_input_type(1).is<type::List>()) {
+            spatial_scales = concat_list_construct(spatial_scales);
+        }
+        spatial_scales = context.mark_node(std::make_shared<v0::Convert>(spatial_scales, element::f32));
         size_mode = v11::Interpolate::ShapeCalcMode::SCALES;
         scales_sizes = context.mark_node(std::make_shared<v1::Multiply>(spatial_scales, scales));
     } else {
@@ -58,6 +62,7 @@ OutputVector base_translate_upsample(const NodeContext& context,
         if (context.get_input_type(1).is<type::List>()) {
             out_sizes = concat_list_construct(out_sizes);
         }
+        out_sizes = context.mark_node(std::make_shared<v0::Convert>(out_sizes, element::i32));
         scales_sizes = context.mark_node(std::make_shared<v1::Multiply>(out_sizes, output_sizes));
     }
     auto attrs = v11::Interpolate::InterpolateAttrs(interpolate_mode, size_mode, pad, pad);
