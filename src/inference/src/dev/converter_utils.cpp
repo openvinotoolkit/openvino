@@ -546,33 +546,11 @@ public:
         return std::make_shared<InferenceEngine::BatchedBlob>(blobs);
     }
 
-    void SetBlob(const std::string& name,
-                 const InferenceEngine::Blob::Ptr& data,
-                 const InferenceEngine::PreProcessInfo& info) override {
-#ifndef NO_PROXY_PLUGIN
-        if (auto proxy_request = std::dynamic_pointer_cast<ov::proxy::InferRequest>(m_request)) {
-            return ov::legacy_convert::convert_infer_request(proxy_request->get_hardware_request()._ptr)
-                ->SetBlob(name, data, info);
-        }
-#endif
-        OPENVINO_NOT_IMPLEMENTED;
-    }
-
     const InferenceEngine::PreProcessInfo& GetPreProcess(const std::string& name) const override {
 #ifndef NO_PROXY_PLUGIN
         if (auto proxy_request = std::dynamic_pointer_cast<ov::proxy::InferRequest>(m_request)) {
             return ov::legacy_convert::convert_infer_request(proxy_request->get_hardware_request()._ptr)
                 ->GetPreProcess(name);
-        }
-#endif
-        OPENVINO_NOT_IMPLEMENTED;
-    }
-
-    void SetBatch(int batch) override {
-#ifndef NO_PROXY_PLUGIN
-        if (auto proxy_request = std::dynamic_pointer_cast<ov::proxy::InferRequest>(m_request)) {
-            return ov::legacy_convert::convert_infer_request(proxy_request->get_hardware_request()._ptr)
-                ->SetBatch(batch);
         }
 #endif
         OPENVINO_NOT_IMPLEMENTED;
