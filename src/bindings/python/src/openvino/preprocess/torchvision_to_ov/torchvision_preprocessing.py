@@ -2,6 +2,8 @@
 # Copyright (C) 2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+# mypy: disable-error-code="no-redef"
+
 import numbers
 import logging
 import copy
@@ -43,9 +45,9 @@ TORCHTYPE_TO_OVTYPE = {
 }
 
 
-def _setup_size(size, error_msg):
+def _setup_size(size: Any, error_msg: str) -> Tuple[int, int]:
     if isinstance(size, numbers.Number):
-        return int(size), int(size)
+        return int(size), int(size)  # type: ignore
     if isinstance(size, Sequence) and len(size) == 1:
         return size[0], size[0]
     if len(size) != 2:
@@ -53,7 +55,7 @@ def _setup_size(size, error_msg):
     return size
 
 
-def _NHWC_to_NCHW(input_shape):  # noqa N802
+def _NHWC_to_NCHW(input_shape: List) -> List:  # noqa N802
     new_shape = copy.deepcopy(input_shape)
     new_shape[1] = input_shape[3]
     new_shape[2] = input_shape[1]
@@ -61,7 +63,7 @@ def _NHWC_to_NCHW(input_shape):  # noqa N802
     return new_shape
 
 
-def _to_list(transform) -> List:
+def _to_list(transform: Callable) -> List:
     if isinstance(transform, torch.nn.Sequential):
         return list(transform)
     elif isinstance(transform, transforms.Compose):
@@ -91,31 +93,31 @@ def _get_shape_layout_from_data(input_example: Union[torch.Tensor, np.ndarray, I
 
 class TransformConverterBase(metaclass=ABCMeta):
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:  # noqa B027
         pass
 
     @abstractmethod
-    def convert(self, input_idx: int, ppp: PrePostProcessor, transform):
+    def convert(self, input_idx: int, ppp: PrePostProcessor, transform: Callable, meta: Dict) -> None:
         pass
 
 
 class TransformConverterFactory:
 
-    registry = {}
+    registry: Dict[str, Callable] = {}
 
     @classmethod
-    def register(cls, target_type=None) -> Callable:
+    def register(cls: Callable, target_type: Union[Callable, None] = None) -> Callable:
         def inner_wrapper(wrapped_class: TransformConverterBase) -> Callable:
             registered_name = wrapped_class.__name__ if target_type is None else target_type.__name__
             if registered_name in cls.registry:
                 logging.warning(f"Executor {registered_name} already exists. {wrapped_class.__name__} will replace it.")
             cls.registry[registered_name] = wrapped_class
-            return wrapped_class
+            return wrapped_class  # type: ignore
 
         return inner_wrapper
 
     @classmethod
-    def convert(cls, converter_type, *args, **kwargs):
+    def convert(cls: Callable, converter_type: Callable, *args: Any, **kwargs: Any) -> Callable:
         transform_name = converter_type.__name__
         if transform_name not in cls.registry:
             raise ValueError(f"{transform_name} is not supported.")
@@ -126,7 +128,7 @@ class TransformConverterFactory:
 
 @TransformConverterFactory.register(transforms.Normalize)
 class _(TransformConverterBase):
-    def convert(self, input_idx: int, ppp: PrePostProcessor, transform, meta: Dict):
+    def convert(self, input_idx: int, ppp: PrePostProcessor, transform: Callable, meta: Dict) -> None:
         if transform.inplace:
             raise ValueError("Inplace Normaliziation is not supported.")
         ppp.input(input_idx).preprocess().mean(transform.mean).scale(transform.std)
@@ -134,13 +136,13 @@ class _(TransformConverterBase):
 
 @TransformConverterFactory.register(transforms.ConvertImageDtype)
 class _(TransformConverterBase):
-    def convert(self, input_idx: int, ppp: PrePostProcessor, transform, meta: Dict):
+    def convert(self, input_idx: int, ppp: PrePostProcessor, transform: Callable, meta: Dict) -> None:
         ppp.input(input_idx).preprocess().convert_element_type(TORCHTYPE_TO_OVTYPE[transform.dtype])
 
 
 @TransformConverterFactory.register(transforms.Grayscale)
 class _(TransformConverterBase):
-    def convert(self, input_idx: int, ppp: PrePostProcessor, transform, meta: Dict):
+    def convert(self, input_idx: int, ppp: PrePostProcessor, transform: Callable, meta: Dict) -> None:
         input_shape = meta["input_shape"]
         layout = meta["layout"]
 
@@ -151,7 +153,7 @@ class _(TransformConverterBase):
             input_shape[layout.get_index_by_name("C")] = transform.num_output_channels
 
             @custom_preprocess_function
-            def broadcast_node(output: ov.Output):
+            def broadcast_node(output: ov.Output) -> Callable:
                 return ops.broadcast(
                     data=output,
                     target_shape=input_shape,
@@ -163,7 +165,7 @@ class _(TransformConverterBase):
 
 @TransformConverterFactory.register(transforms.Pad)
 class _(TransformConverterBase):
-    def convert(self, input_idx: int, ppp: PrePostProcessor, transform, meta: Dict):
+    def convert(self, input_idx: int, ppp: PrePostProcessor, transform: Callable, meta: Dict) -> None:
         image_dimensions = list(meta["image_dimensions"])
         layout = meta["layout"]
         torch_padding = transform.padding
@@ -207,7 +209,7 @@ class _(TransformConverterBase):
             pads_end[layout.get_index_by_name("W")] = torch_padding[2]
 
         @custom_preprocess_function
-        def pad_node(output: ov.Output):
+        def pad_node(output: ov.Output) -> Callable:
             return ops.pad(
                 output,
                 pad_mode=pad_mode,
@@ -222,7 +224,7 @@ class _(TransformConverterBase):
 
 @TransformConverterFactory.register(transforms.ToTensor)
 class _(TransformConverterBase):
-    def convert(self, input_idx: int, ppp: PrePostProcessor, transform, meta: Dict):
+    def convert(self, input_idx: int, ppp: PrePostProcessor, transform: Callable, meta: Dict) -> None:
         input_shape = meta["input_shape"]
         layout = meta["layout"]
 
@@ -241,7 +243,7 @@ class _(TransformConverterBase):
 
 @TransformConverterFactory.register(transforms.CenterCrop)
 class _(TransformConverterBase):
-    def convert(self, input_idx: int, ppp: PrePostProcessor, transform, meta: Dict):
+    def convert(self, input_idx: int, ppp: PrePostProcessor, transform: Callable, meta: Dict) -> None:
         input_shape = meta["input_shape"]
         source_size = meta["image_dimensions"]
         target_size = _setup_size(transform.size, "Incorrect size type for CenterCrop operation")
@@ -266,7 +268,7 @@ class _(TransformConverterBase):
 
 @TransformConverterFactory.register(transforms.Resize)
 class _(TransformConverterBase):
-    def convert(self, input_idx: int, ppp: PrePostProcessor, transform, meta: Dict):
+    def convert(self, input_idx: int, ppp: PrePostProcessor, transform: Callable, meta: Dict) -> None:
         resize_mode_map = {
             InterpolationMode.BILINEAR: ResizeAlgorithm.RESIZE_BILINEAR_PILLOW,
             InterpolationMode.BICUBIC: ResizeAlgorithm.RESIZE_BICUBIC_PILLOW,
@@ -290,7 +292,7 @@ class _(TransformConverterBase):
         meta["image_dimensions"] = (h, w)
 
 
-def _from_torchvision(model: ov.Model, transform: Callable, input_example: Any, input_name: str = None) -> ov.Model:
+def _from_torchvision(model: ov.Model, transform: Callable, input_example: Any, input_name: Union[str, None] = None) -> ov.Model:
 
     if input_name is not None:
         input_idx = next((i for i, p in enumerate(model.get_parameters()) if p.get_friendly_name() == input_name), None)

@@ -2,7 +2,7 @@
 # Copyright (C) 2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from typing import Callable, Any
+from typing import Callable, Any, Union
 import logging
 
 import openvino.runtime as ov
@@ -14,7 +14,7 @@ class PreprocessConverter():
 
     @staticmethod
     def from_torchvision(model: ov.Model, transform: Callable, input_example: Any,
-                         input_name: str = None) -> ov.Model:
+                         input_name: Union[str, None] = None) -> ov.Model:
         """Embed torchvision preprocessing in an OpenVINO model.
 
         Arguments:
