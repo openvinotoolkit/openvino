@@ -142,38 +142,9 @@ const auto Mvn2DTrans = ::testing::Combine(
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Mvn2DTrans, MvnLayerCPUTest, Mvn2DTrans, MvnLayerCPUTest::getTestCaseName);
 
-// Static shape test for some specific fusing parameters in fusingParamsSetStaticShape
-const std::vector<ov::Shape> inputShapesStatic_2D = {
-        {1},
-        {16},
-        {4}
-};
-
-const std::vector<ov::Shape> inputShapesStatic_3D = {
-        {2, 16, 6},
-        {4, 16, 2},
-        {1, 16, 4}
-};
-
-const std::vector<ov::Shape> inputShapesStatic_4D = {
-        {1, 7, 3, 5},
-        {1, 15, 9, 5},
-        {4, 41, 6, 9},
-        // cover channel case 4*16*2+16+3=147
-        {1, 147, 2, 2}
-};
-
-const std::vector<ov::Shape> inputShapesStatic_5D = {
-        {1, 32, 8, 1, 6},
-        {1, 9, 1, 15, 9},
-        {6, 64, 6, 1, 18},
-        // cover channel case 4*16*2+16+9=153
-        {6, 153, 2, 2, 2}
-};
-
 const auto Mvn2DStatic = ::testing::Combine(
        ::testing::Combine(
-               ::testing::ValuesIn(inputShapesStatic_2D),
+               ::testing::ValuesIn(inputShapesStatic_2D()),
                ::testing::Values(ElementType::f32),
                ::testing::ValuesIn(emptyReductionAxes()),
                ::testing::Values(false),
@@ -186,7 +157,7 @@ const auto Mvn2DStatic = ::testing::Combine(
 
 const auto Mvn3DStatic = ::testing::Combine(
        ::testing::Combine(
-           ::testing::ValuesIn(static_shapes_to_test_representation(inputShapesStatic_3D)),
+           ::testing::ValuesIn(static_shapes_to_test_representation(inputShapesStatic_3D())),
            ::testing::Values(ElementType::f32),
            ::testing::ValuesIn(emptyReductionAxes()),
            ::testing::ValuesIn(acrossChannels()),
@@ -201,7 +172,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Mvn3D_Static, MvnLayerCPUTest, Mv
 
 const auto Mvn4DStatic = ::testing::Combine(
        ::testing::Combine(
-               ::testing::ValuesIn(static_shapes_to_test_representation(inputShapesStatic_4D)),
+               ::testing::ValuesIn(static_shapes_to_test_representation(inputShapesStatic_4D())),
                ::testing::Values(ElementType::f32),
                ::testing::ValuesIn(emptyReductionAxes()),
                ::testing::Values(true),
@@ -216,7 +187,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Mvn4D_Static, MvnLayerCPUTest, Mv
 
 const auto Mvn5DStatic = ::testing::Combine(
        ::testing::Combine(
-               ::testing::ValuesIn(static_shapes_to_test_representation(inputShapesStatic_5D)),
+               ::testing::ValuesIn(static_shapes_to_test_representation(inputShapesStatic_5D())),
                ::testing::Values(ElementType::f32),
                ::testing::ValuesIn(emptyReductionAxes()),
                ::testing::Values(true),

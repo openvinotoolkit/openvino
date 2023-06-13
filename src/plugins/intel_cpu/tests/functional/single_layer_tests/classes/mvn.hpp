@@ -48,6 +48,12 @@ namespace MVN {
    const std::vector<InputShape>& inputShapes_3D();
    const std::vector<InputShape>& inputShapes_4D();
    const std::vector<InputShape>& inputShapes_5D();
+
+   const std::vector<ov::Shape>& inputShapesStatic_2D();
+   const std::vector<ov::Shape>& inputShapesStatic_3D();
+   const std::vector<ov::Shape>& inputShapesStatic_4D();
+   const std::vector<ov::Shape>& inputShapesStatic_5D();
+
    const std::vector<ngraph::AxisSet>& emptyReductionAxes();
    const std::vector<bool>& acrossChannels();
    const std::vector<double>& epsilon();

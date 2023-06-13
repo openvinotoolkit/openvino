@@ -258,6 +258,46 @@ const std::vector<InputShape>& inputShapes_5D() {
     return inputShapes_5D;
 }
 
+const std::vector<ov::Shape>& inputShapesStatic_2D() {
+    static const std::vector<ov::Shape> inputShapesStatic_2D = {
+        {1},
+        {16},
+        {4}
+    };
+    return inputShapesStatic_2D;
+}
+
+const std::vector<ov::Shape>& inputShapesStatic_3D() {
+    static const std::vector<ov::Shape> inputShapesStatic_3D = {
+        {2, 16, 6},
+        {4, 16, 2},
+        {1, 16, 4}
+    };
+    return inputShapesStatic_3D;
+}
+
+const std::vector<ov::Shape>& inputShapesStatic_4D() {
+    static const std::vector<ov::Shape> inputShapesStatic_4D = {
+        {1, 7, 3, 5},
+        {1, 15, 9, 5},
+        {4, 41, 6, 9},
+        // cover channel case 4*16*2+16+3=147
+        {1, 147, 2, 2}
+    };
+    return inputShapesStatic_4D;
+}
+
+const std::vector<ov::Shape>& inputShapesStatic_5D() {
+    static const std::vector<ov::Shape> inputShapesStatic_5D = {
+        {1, 32, 8, 1, 6},
+        {1, 9, 1, 15, 9},
+        {6, 64, 6, 1, 18},
+        // cover channel case 4*16*2+16+9=153
+        {6, 153, 2, 2, 2}
+    };
+    return inputShapesStatic_5D;
+}
+
 const std::vector<ngraph::AxisSet>& emptyReductionAxes() {
     static const std::vector<ngraph::AxisSet> emptyReductionAxes = {{}};
     return emptyReductionAxes;
