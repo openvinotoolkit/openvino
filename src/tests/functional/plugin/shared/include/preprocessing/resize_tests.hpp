@@ -22,7 +22,7 @@ protected:
     void SetUp() override;
     void run() override;
     void run_with_algorithm(const ResizeAlgorithm algo, const std::vector<float>& expected_output);
-    std::vector<ov::Tensor> calculate_refs() override;
+    ov::TensorVector calculate_refs() override;
     ov::Tensor expected_output_tensor;
 };
 
