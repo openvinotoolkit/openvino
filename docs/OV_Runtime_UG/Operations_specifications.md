@@ -173,6 +173,7 @@
    ROIPooling-1 <openvino_docs_ops_detection_ROIPooling_1>
    Roll-7 <openvino_docs_ops_movement_Roll_7>
    Round-5 <openvino_docs_ops_arithmetic_Round_5>
+   ScatterElementsUpdate-3 <openvino_docs_ops_movement_ScatterElementsUpdate_3>
    ScatterElementsUpdate-12 <openvino_docs_ops_movement_ScatterElementsUpdate_12>
    ScatterNDUpdate-3 <openvino_docs_ops_movement_ScatterNDUpdate_3>
    ScatterUpdate-3 <openvino_docs_ops_movement_ScatterUpdate_3>
