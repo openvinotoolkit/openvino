@@ -26,7 +26,7 @@ To generate a FaceNet OpenVINO model, feed a TensorFlow FaceNet model to model c
 The batch joining pattern transforms to a placeholder with the model default shape if ``--input_shape`` or ``--batch``/``-b`` are not provided. Otherwise, the placeholder shape has custom parameters.
 
 * ``freeze_placeholder_with_value "phase_train->False"`` to switch graph to inference mode
-* ``batch`*/*`-b`` is applicable to override original network batch
+* ``batch``/``-b`` is applicable to override original network batch
 * ``input_shape`` is applicable with or without ``input``
 * other options are applicable
 

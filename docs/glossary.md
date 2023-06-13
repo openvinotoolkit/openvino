@@ -84,7 +84,7 @@ Glossary of terms used in OpenVINO™
 
 | *OpenVINO™ API* 
 |   The basic default API for all supported devices, which allows you to load a model from Intermediate Representation or convert from ONNX, PaddlePaddle, TensorFlow, TensorFlow Lite file formats, set input and output formats and execute the model on various devices.
-S
+
 | *OpenVINO™ Runtime* 
 |   A C++ library with a set of classes that you can use in your application to infer input tensors and get the results.
 
