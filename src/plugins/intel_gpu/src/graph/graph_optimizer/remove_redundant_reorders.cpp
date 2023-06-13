@@ -11,11 +11,13 @@
 #include "reshape_inst.h"
 #include "convert_color_inst.h"
 #include "one_hot_inst.h"
+#include "shape_of_inst.h"
 #include "permute_inst.h"
 #include "depth_to_space_inst.h"
 #include "concatenation_inst.h"
 #include "region_yolo_inst.h"
 #include "fully_connected_inst.h"
+#include "mvn_inst.h"
 
 #include <vector>
 #include <list>
@@ -349,6 +351,9 @@ void remove_redundant_reorders::run(program& p) {
         if (node->get_dependencies().size() != 1)
             continue;
 
+        if (node->has_fused_primitives())
+            continue;
+
         auto& dep = node->get_dependency(0);
 
         for (auto& user : dep.get_users()) {
@@ -409,7 +414,7 @@ void remove_redundant_reorders::run(program& p) {
                 continue;
 
             bool same_data_type = input.get_output_layout().data_type == output_layout.data_type;
-            bool allowed_dt_conversion_fuse = (input.is_type<one_hot>() || input.is_type<permute>() ||
+            bool allowed_dt_conversion_fuse = (input.is_type<one_hot>() || input.is_type<permute>() || input.is_type<mvn>() || input.is_type<concatenation>() ||
                                                input.is_type<depth_to_space>() || input.is_type<region_yolo>() || input.is_type<detection_output>());
             if (!same_data_type && !allowed_dt_conversion_fuse)
                 continue;
@@ -420,6 +425,16 @@ void remove_redundant_reorders::run(program& p) {
             auto old_output_layout_of_input = input.get_output_layout();
             input.set_output_layout(output_layout, false);
             if (input.type()->does_possible_implementation_exist(input)) {
+                // Add fused_primitive_desc of reorder to the previous node which propagates original output layout during shape inference
+                if (input.is_type<mvn>() || input.is_type<concatenation>()) {
+                    fused_primitive_desc local_desc(node.get_primitive());
+                    local_desc.f_param = node.get_fuse_params();
+                    local_desc.total_num_deps = node.get_dependencies().size();
+                    local_desc.input_layout = old_output_layout_of_input;
+                    local_desc.output_layout = output_layout;
+                    input.add_fused_primitive(local_desc);
+                }
+
                 node.can_be_optimized(true);
                 p.add_optimized_primitive_info(node.id());
 
@@ -655,6 +670,24 @@ void remove_redundant_reorders::run(program& p) {
             p.add_optimized_primitive_info(reshape_node.id());
             p.extract_and_remove(reshape_node);
         }
+    }
+
+    // Remove reorders before shape_of primitive
+    itr = p.get_processing_order().begin();
+    while (itr != p.get_processing_order().end()) {
+        auto& node = *itr++;
+        if (!node->is_type<reorder>() || node->has_fused_primitives() ||
+            !node->is_in_data_flow() || node->get_users().size() != 1 ||
+            !node->get_users().front()->is_type<shape_of>())
+            continue;
+
+        auto& dep = node->get_dependency(0);
+
+        LOG_NODE_REMOVAL(node->id());
+        p.replace_all_usages(*node, dep);
+        p.add_optimized_primitive_info(node->id());
+        p.remove_all_connections(*node);
+        p.remove_if_dangling(*node);
     }
 
     for (auto n : p.get_processing_order()) {

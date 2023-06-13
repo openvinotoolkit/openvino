@@ -905,10 +905,10 @@ BinaryConvolution::BinaryConvolution(const std::shared_ptr<ngraph::Node>& op, co
         const auto binConv = std::dynamic_pointer_cast<const ngraph::opset1::BinaryConvolution>(op);
 
         pad_value = binConv->get_pad_value();
-        for (int i = 0; i < binConv->get_strides().size(); i++) {
+        for (size_t i = 0; i < binConv->get_strides().size(); i++) {
             stride.push_back(static_cast<ptrdiff_t>(binConv->get_strides()[i]));
         }
-        for (int i = 0; i < binConv->get_dilations().size(); i++) {
+        for (size_t i = 0; i < binConv->get_dilations().size(); i++) {
             dilation.push_back(static_cast<ptrdiff_t>(binConv->get_dilations()[i]) - 1);
         }
         paddingL = binConv->get_pads_begin();
@@ -929,13 +929,10 @@ BinaryConvolution::BinaryConvolution(const std::shared_ptr<ngraph::Node>& op, co
 }
 
 void BinaryConvolution::getSupportedDescriptors() {
-    if (!descs.empty())
-        return;
-
     withBinarization = isFusedWith(Type::FakeQuantize);
     withSum = false;
-    int expectedInputEdgesNum = 2;
-    for (int i = 0; i < fusedWith.size(); i++) {
+    size_t expectedInputEdgesNum = 2;
+    for (size_t i = 0; i < fusedWith.size(); i++) {
         auto *eltwiseNode = dynamic_cast<Eltwise *>(fusedWith[i].get());
         if (eltwiseNode && eltwiseNode->isSpecialConvolutionAddFusing()) {
             withSum = true;
@@ -1153,7 +1150,7 @@ void BinaryConvolution::setPostOps(dnnl::primitive_attr &attr) {
 }
 
 void BinaryConvolution::executeOptimized(const uint8_t* src, const uint8_t* weights, uint8_t* dst,
-                                                   const std::vector<size_t>& s_str, const std::vector<size_t>& w_str, const std::vector<size_t>& d_str) {
+                                         const std::vector<size_t>& s_str, const std::vector<size_t>& w_str, const std::vector<size_t>& d_str) {
     auto dst_f32 = reinterpret_cast<float *>(dst);
 
     const int MB = jcp.mb;
@@ -1308,19 +1305,19 @@ void BinaryConvolution::execute(dnnl::stream strm) {
 
     auto srcDesc = getParentEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>();
     std::vector<size_t> srcStride(srcDesc->getStrides().size());
-    for (int i = 0; i < srcStride.size(); i++) {
+    for (size_t i = 0; i < srcStride.size(); i++) {
         srcStride[srcDesc->getOrder()[i]] = srcDesc->getStrides()[i];
     }
 
     auto weiDesc = getParentEdgeAt(1)->getMemory().GetDescWithType<BlockedMemoryDesc>();
     std::vector<size_t> weightsStride(weiDesc->getShape().getRank());
-    for (int i = 0; i < weightsStride.size(); i++) {
+    for (size_t i = 0; i < weightsStride.size(); i++) {
         weightsStride[weiDesc->getOrder()[i]] = weiDesc->getStrides()[i];
     }
 
     auto dstDesc = getChildEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>();
     std::vector<size_t> dstStride(dstDesc->getStrides().size());
-    for (int i = 0; i < dstStride.size(); i++) {
+    for (size_t i = 0; i < dstStride.size(); i++) {
         dstStride[dstDesc->getOrder()[i]] = dstDesc->getStrides()[i];
     }
 

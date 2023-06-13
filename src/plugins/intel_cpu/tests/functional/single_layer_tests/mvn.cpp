@@ -54,7 +54,7 @@ public:
        }
        result << "Precision=" << netPrecision << "_";
        if (!axes.empty()) {
-           result << "ReductionAccess=" << CommonTestUtils::vec2str(axes.to_vector()) << "_";
+           result << "ReductionAxes=" << CommonTestUtils::vec2str(axes.to_vector()) << "_";
        } else {
            result << "AcrossChannels=" << (acrossChanels ? "TRUE" : "FALSE") << "_";
        }

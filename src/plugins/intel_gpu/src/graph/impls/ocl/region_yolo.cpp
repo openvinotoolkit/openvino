@@ -58,3 +58,4 @@ attach_region_yolo_impl::attach_region_yolo_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::region_yolo_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::region_yolo)

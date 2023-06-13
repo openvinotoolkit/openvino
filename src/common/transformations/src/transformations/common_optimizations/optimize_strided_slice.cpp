@@ -43,6 +43,7 @@ bool ov::pass::UselessStridedSliceEraser::run_on_model(const std::shared_ptr<ngr
     return rewritten;
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace {
 
 ngraph::SlicePlan get_slice_plan(std::shared_ptr<opset1::StridedSlice> slice) {
@@ -127,7 +128,10 @@ bool ov::pass::SharedStridedSliceEraser::run_on_model(const std::shared_ptr<ngra
 bool ov::pass::GroupedStridedSliceOptimizer::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     RUN_ON_FUNCTION_SCOPE(GroupedStridedSliceOptimizer);
     bool graph_rewritten = false;
-    using planned_slice = std::pair<std::shared_ptr<opset1::StridedSlice>, ngraph::SlicePlan>;
+    struct planned_slice {
+        std::shared_ptr<opset1::StridedSlice> ptr;
+        ngraph::SlicePlan plan;
+    };
 
     std::map<ngraph::Output<Node>, std::vector<planned_slice>> source_to_ss_with_plan;
     for (const auto& node : f->get_ordered_ops()) {
@@ -151,12 +155,12 @@ bool ov::pass::GroupedStridedSliceOptimizer::run_on_model(const std::shared_ptr<
 
         bool valid_for_replacement = true;
 
-        auto root_plan = pair.second[0].second;
+        auto root_plan = pair.second[0].plan;
         for (const auto& ss_plan : pair.second) {
-            valid_for_replacement &= (ss_plan.second.begins.size() == root_plan.begins.size());
+            valid_for_replacement &= (ss_plan.plan.begins.size() == root_plan.begins.size());
             valid_for_replacement &=
-                (ss_plan.first->get_ellipsis_mask().empty() && ss_plan.first->get_new_axis_mask().empty() &&
-                 ss_plan.first->get_shrink_axis_mask().empty());
+                (ss_plan.ptr->get_ellipsis_mask().empty() && ss_plan.ptr->get_new_axis_mask().empty() &&
+                 ss_plan.ptr->get_shrink_axis_mask().empty());
         }
 
         if (!valid_for_replacement)
@@ -165,7 +169,7 @@ bool ov::pass::GroupedStridedSliceOptimizer::run_on_model(const std::shared_ptr<
         auto input_shape = pair.first.get_shape();
         auto axis = -1;
 
-        using OutputToPatrition = struct {
+        struct OutputToPatrition {
             Output<Node> output;
             int64_t begin;
             int64_t end;
@@ -174,22 +178,22 @@ bool ov::pass::GroupedStridedSliceOptimizer::run_on_model(const std::shared_ptr<
         std::vector<OutputToPatrition> output_to_partition;
         for (size_t i = 0; i < input_shape.size(); ++i) {
             for (const auto& ss_plan : pair.second) {
-                if (ss_plan.second.begins[i] != 0 || ss_plan.second.ends[i] != static_cast<int64_t>(input_shape[i])) {
+                if (ss_plan.plan.begins[i] != 0 || ss_plan.plan.ends[i] != static_cast<int64_t>(input_shape[i])) {
                     if (axis == -1 || axis == static_cast<int>(i))
                         axis = static_cast<int>(i);
                     else
                         valid_for_replacement = false;
-                    if (ss_plan.second.strides[i] != 1)
+                    if (ss_plan.plan.strides[i] != 1)
                         valid_for_replacement = false;
 
-                    for (auto& target_input : ss_plan.first->output(0).get_target_inputs()) {
+                    for (auto& target_input : ss_plan.ptr->output(0).get_target_inputs()) {
                         if (is_type<opset1::Result>(target_input.get_node())) {
                             valid_for_replacement = false;
                             break;
                         }
                     }
                     output_to_partition.push_back(
-                        {ss_plan.first->output(0), ss_plan.second.begins[i], ss_plan.second.ends[i]});
+                        {ss_plan.ptr->output(0), ss_plan.plan.begins[i], ss_plan.plan.ends[i]});
                 }
                 if (!valid_for_replacement)
                     break;
