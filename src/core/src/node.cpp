@@ -26,6 +26,8 @@
 
 using namespace std;
 
+NGRAPH_SUPPRESS_DEPRECATED_START
+
 namespace {
 static const char node_idx_out_of_range_txt[] = "node index is out of range";
 static const char idx_txt[] = "index '";
