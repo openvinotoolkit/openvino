@@ -439,10 +439,12 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
                         td.getLayout() != InferenceEngine::Layout::SCALAR) {
                         std::stringstream stream;
                         stream << td.getLayout();
-                        preproc.input(i).tensor().set_layout(ov::Layout{stream.str()});
+                        if (td.getLayout() == InferenceEngine::Layout::NHWC) {
+                            preproc.input(i).tensor().set_layout(ov::Layout{stream.str()});
+                            if (input.get_partial_shape().is_static() && input.get_shape().size() == 4)
+                                preproc.input(i).model().set_layout("NCHW");
+                        }
                     }
-                    if (input.get_partial_shape().is_static() && input.get_shape().size() == 4)
-                        preproc.input(i).model().set_layout("NCHW");
                 }
             }
             for (size_t i = 0; i < ppp_model->outputs().size(); i++) {
@@ -459,7 +461,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
                         td.getLayout() != InferenceEngine::Layout::SCALAR) {
                         std::stringstream stream;
                         stream << td.getLayout();
-                        if (stream.str() != "NCHW") {
+                        if (stream.str() == "NHWC") {
                             if (output.get_partial_shape().is_static() && output.get_shape().size() == 4)
                                 preproc.output(i).model().set_layout("NCHW");
                             preproc.output(i).postprocess().convert_layout(ov::Layout{stream.str()});
