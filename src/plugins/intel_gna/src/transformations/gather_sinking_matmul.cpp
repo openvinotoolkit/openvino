@@ -40,12 +40,6 @@ int64_t swap_2d_negative_axis(int64_t axis) {
     return -1;
 }
 
-size_t get_another_matmul_index(size_t input_idx) {
-    if (!input_idx)
-        return 1;
-    return 0;
-}
-
 }  // namespace
 
 GatherSinkingMatmulForward::GatherSinkingMatmulForward() {
@@ -62,7 +56,8 @@ GatherSinkingMatmulForward::GatherSinkingMatmulForward() {
             gather_input_info.axis_const,
             gather_input_info.gather->get_input_partial_shape(0).rank().get_length());
         gather_negative_axis = swap_2d_negative_axis(gather_negative_axis);
-        if (is_matmul_input_transposed(matmul, get_another_matmul_index(gather_input_info.input_idx)))
+        const auto another_input_idx = gather_input_info.input_idx ? 0 : 1;
+        if (is_matmul_input_transposed(matmul, another_input_idx))
             gather_negative_axis = swap_2d_negative_axis(gather_negative_axis);
 
         sink_forward::update_input_gather(matmul, gather_input_info, &gather_negative_axis);

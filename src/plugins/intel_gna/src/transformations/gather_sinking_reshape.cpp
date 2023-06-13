@@ -32,7 +32,7 @@ int find_first_index(InputIt begin, InputIt end, Predicate predicate) {
     const auto it = std::find_if(begin, end, predicate);
     if (it == end)
         return -1;
-    return std::distance(begin, it);
+    return static_cast<int>(std::distance(begin, it));
 }
 
 int get_left_shift(const Shape& shape1, const Shape& shape2) {

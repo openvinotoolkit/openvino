@@ -530,19 +530,6 @@ inline bool get_split_axis(const std::shared_ptr<ov::opset12::Constant>& split_a
 }
 
 /**
- * @brief Count first dimensions which equals to 1
- */
-inline size_t get_num_first_one_dims(const ov::Shape& shape) {
-    size_t count = 0;
-    for (size_t i = 0; i < shape.size(); ++i) {
-        if (shape[i] != 1)
-            break;
-        ++count;
-    }
-    return count;
-}
-
-/**
  * @brief Checks if has 2D input shape inputs
  */
 inline bool has_2d_inputs(const ov::Output<ov::Node>& output) {

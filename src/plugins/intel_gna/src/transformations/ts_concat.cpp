@@ -28,7 +28,7 @@ bool is_concat_sinked(const Output<Node>& output) {
 
     const Shape concat_output_shape = concat_node->get_output_shape(0);
     const int64_t axis = concat_node->get_concatenation_axis();
-    if (get_num_first_one_dims(concat_output_shape) != axis)
+    if (get_first_valuable_dim_id(concat_output_shape) != axis)
         return false;
 
     for (size_t i = 0; i < concat_node->get_input_size(); ++i) {
