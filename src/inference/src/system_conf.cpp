@@ -14,7 +14,7 @@
 #include <vector>
 
 #include "dev/threading/parallel_custom_arena.hpp"
-#include "ie_common.h"
+#include "openvino/core/except.hpp"
 #include "openvino/core/visibility.hpp"
 #include "openvino/runtime/threading/cpu_streams_info.hpp"
 #include "openvino/util/log.hpp"
@@ -30,8 +30,6 @@
 #    define XBYAK_UNDEF_JNL
 #    include <xbyak/xbyak_util.h>
 #endif
-
-using namespace InferenceEngine;
 
 namespace ov {
 
@@ -243,7 +241,7 @@ int get_number_of_cpu_cores(bool bigCoresOnly) {
     CPU& cpu = cpu_info();
     unsigned numberOfProcessors = cpu._processors;
     unsigned totalNumberOfCpuCores = cpu._cores;
-    IE_ASSERT(totalNumberOfCpuCores != 0);
+    OPENVINO_ASSERT(totalNumberOfCpuCores != 0, "Total number of cpu cores can not be 0.");
     cpu_set_t usedCoreSet, currentCoreSet, currentCpuSet;
     CPU_ZERO(&currentCpuSet);
     CPU_ZERO(&usedCoreSet);
