@@ -187,7 +187,7 @@ class CompareBlobsMode(Mode):
         commitLogger = getCommitLogger(cfg, rightCommit)
         commitLogger.info(
             "Commit {status} from {c}".format(
-                status=("differs" if isDiff else "doesn't differ"),
+                status=("differs" if isDiff else "don't differ"),
                 c=list[i2])
         )
         if isDiff:
