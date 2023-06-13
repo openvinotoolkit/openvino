@@ -3,13 +3,14 @@
 //
 #pragma once
 #include "openvino/core/validation_util.hpp"
+#include "openvino/op/util/rnn_cell_base.hpp"
 #include "utils.hpp"
 
 namespace ov {
 namespace op {
 namespace rnn {
-template <class TOp, class TShape>
-void validate_inputs_rank(const TOp* op,
+template <class TShape>
+void validate_inputs_rank(const op::util::RNNCellBase* op,
                           const std::vector<TShape>& input_shapes,
                           const std::vector<Rank>& expected_ranks) {
     NODE_VALIDATION_CHECK(op, input_shapes.size() >= expected_ranks.size(), "Can't validate inputs rank.");
@@ -28,8 +29,8 @@ void validate_inputs_rank(const TOp* op,
 
 // Output shape layout:
 // output_shapes[0...num_state_nodes]: [batch_size, hidden_size] // Rank always 2
-template <class TOp, class TShape>
-std::vector<TShape> rnn_cell_base_shape_infer(const TOp* op,
+template <class TShape>
+std::vector<TShape> rnn_cell_base_shape_infer(const op::util::RNNCellBase* op,
                                               const std::vector<TShape>& input_shapes,
                                               size_t num_gates,
                                               size_t num_state_nodes,
@@ -135,11 +136,12 @@ std::vector<TShape> rnn_cell_base_shape_infer(const TOp* op,
 // Output shapes layout:
 // output_shapes[0]: [batch_size, num_directions, seq_length, hidden_size] // Rank always 4
 // output_shapes[1... num_state_nodes]: [batch_size, num_directions, hidden_size] // Rank always 3
-template <class TOp, class TShape>
-std::vector<TShape> rnn_seq_base_shape_infer(const TOp* op,
+template <class TShape>
+std::vector<TShape> rnn_seq_base_shape_infer(const op::util::RNNCellBase* op,
                                              const std::vector<TShape>& input_shapes,
                                              size_t num_gates,
                                              size_t num_state_nodes,
+                                             op::RecurrentSequenceDirection direction,
                                              bool linear_before_reset = false) {
     const auto num_inputs = 5 + num_state_nodes;
     NODE_VALIDATION_CHECK(op, input_shapes.size() >= num_inputs, "Incorrect number of shapes has been provided.");
@@ -191,7 +193,7 @@ std::vector<TShape> rnn_seq_base_shape_infer(const TOp* op,
 
     // Validate num_directions dimension across all inputs
     size_t valid_num_directions;
-    const auto m_direction = op->get_direction();
+    const auto m_direction = direction;
     if (m_direction == op::RecurrentSequenceDirection::FORWARD ||
         m_direction == op::RecurrentSequenceDirection::REVERSE) {
         valid_num_directions = 1;

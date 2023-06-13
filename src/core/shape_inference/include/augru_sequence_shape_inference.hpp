@@ -26,8 +26,12 @@ void shape_infer(const ov::op::internal::AUGRUSequence* op,
 
     constexpr auto num_gates = 3;
     constexpr auto num_state_nodes = 1;
-    output_shapes =
-        rnn::rnn_seq_base_shape_infer(op, input_shapes, num_gates, num_state_nodes, op->get_linear_before_reset());
+    output_shapes = rnn::rnn_seq_base_shape_infer(op,
+                                                  input_shapes,
+                                                  num_gates,
+                                                  num_state_nodes,
+                                                  op->get_direction(),
+                                                  op->get_linear_before_reset());
 
     // A input shape validation // [batch_size, seq_length, 1]
     const auto& a_shape = input_shapes.back();

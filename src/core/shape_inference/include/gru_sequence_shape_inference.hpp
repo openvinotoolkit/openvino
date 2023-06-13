@@ -26,8 +26,12 @@ void shape_infer(const ov::op::v5::GRUSequence* op,
 
     constexpr auto num_gates = 3;
     constexpr auto num_state_nodes = 1;
-    output_shapes =
-        rnn::rnn_seq_base_shape_infer(op, input_shapes, num_gates, num_state_nodes, op->get_linear_before_reset());
+    output_shapes = rnn::rnn_seq_base_shape_infer(op,
+                                                  input_shapes,
+                                                  num_gates,
+                                                  num_state_nodes,
+                                                  op->get_direction(),
+                                                  op->get_linear_before_reset());
 }
 }  // namespace v5
 }  // namespace op

@@ -12,7 +12,7 @@ template <class TShape>
 std::vector<TShape> shape_infer(const LSTMSequence* op, const std::vector<TShape>& input_shapes) {
     constexpr auto num_gates = 4;
     constexpr auto num_state_nodes = 2;
-    return rnn::rnn_seq_base_shape_infer(op, input_shapes, num_gates, num_state_nodes);
+    return rnn::rnn_seq_base_shape_infer(op, input_shapes, num_gates, num_state_nodes, op->get_direction());
 }
 }  // namespace v5
 }  // namespace op
