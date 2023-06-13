@@ -23,7 +23,7 @@ OutputVector translate_layer_norm(const NodeContext& context) {
     FRONT_END_OP_CONVERSION_CHECK(normalized_shape.size() == 1,
                                   "Translation for aten::layer_norm supports only single normalized_shape value, "
                                   "which means normalizing over the last dimension.");
-    // TODO: support any dimention
+    // TODO: support any dimension
     auto axes = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {-1}));
     auto out_node =
         context.mark_node(std::make_shared<v6::MVN>(context.get_input(0), axes, true, eps, MVNEpsMode::INSIDE_SQRT));

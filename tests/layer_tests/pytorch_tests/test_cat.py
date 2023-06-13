@@ -54,6 +54,7 @@ class TestCat(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.xfail(reason="Transformation RemoveMultiSubGraphOpDanglingParamsResults doesn't support removing unused merged inputs, ticket 112833.")
     def test_loop_append_cat(self, ie_device, precision, ir_version):
         self._test(aten_loop_append_cat(), None, ["aten::cat", "aten::append", "prim::ListConstruct", "prim::Loop"],
                    ie_device, precision, ir_version, freeze_model=False)

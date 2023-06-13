@@ -145,6 +145,8 @@ jobs:
 
   - script: |
       $(VCPKG_ROOT)/bootstrap-vcpkg.sh --disableMetrics
+      # patch vcpkg default (community) toolchain to build only Release configuration
+      echo "set(VCPKG_BUILD_TYPE release)" >> $(VCPKG_ROOT)/triplets/community/arm64-android.cmake
     displayName: 'Build vcpkg'
 
   - task: CMake@1
@@ -153,8 +155,8 @@ jobs:
         -G Ninja
         -DCMAKE_VERBOSE_MAKEFILE=ON
         -DCMAKE_BUILD_TYPE=$(BUILD_TYPE)
-        -DVCPKG_BUILD_TYPE=$(BUILD_TYPE) \
         -DVCPKG_TARGET_TRIPLET=arm64-android
+        -DVCPKG_HOST_TRIPLET=x64-linux-release
         -DCMAKE_TOOLCHAIN_FILE=$(VCPKG_ROOT)/scripts/buildsystems/vcpkg.cmake
         -DVCPKG_CHAINLOAD_TOOLCHAIN_FILE=$(ANDROID_NDK_HOME)/build/cmake/android.toolchain.cmake
         -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
