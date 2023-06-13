@@ -8,12 +8,12 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#include <cstring>
 #include <iostream>
 #include <sstream>
 
-#include "mmap_object.hpp"
-#include "ngraph/runtime/shared_buffer.hpp"
 #include "openvino/util/file_util.hpp"
+#include "openvino/util/mmap_object.hpp"
 
 namespace ov {
 
@@ -55,7 +55,7 @@ public:
     }
 };
 
-class MapHolder {
+class MapHolder : public MappedMemory {
     void* m_data = MAP_FAILED;
     size_t m_size = 0;
     HandleHolder m_handle;
@@ -63,21 +63,27 @@ class MapHolder {
 public:
     MapHolder() = default;
 
-    void set(const std::string& path) {
+    void set(const std::string& path, const size_t data_size = 0, const size_t offset = 0) {
         int prot = PROT_READ;
         int mode = O_RDONLY;
         struct stat sb = {};
         m_handle = HandleHolder(open(path.c_str(), mode));
-        OPENVINO_ASSERT(m_handle.get() != -1,
-                        "Can not open file ",
-                        path,
-                        " for mapping. Ensure that file exists and has appropriate permissions");
-        OPENVINO_ASSERT(fstat(m_handle.get(), &sb) != -1, "Can not get file size for ", path);
-        m_size = sb.st_size;
+        if (m_handle.get() == -1) {
+            throw std::runtime_error("Can not open file " + path +
+                                     " for mapping. Ensure that file exists and has appropriate permissions");
+        }
+        if (fstat(m_handle.get(), &sb) == -1) {
+            throw std::runtime_error("Can not get file size for " + path);
+        }
+        m_size = data_size > 0 ? data_size : sb.st_size - offset;
+        // std::cout << "m_size: " << m_size << std::endl;
         if (m_size > 0) {
-            m_data = mmap(nullptr, m_size, prot, MAP_PRIVATE, m_handle.get(), 0);
-            OPENVINO_ASSERT(m_data != MAP_FAILED, "Can not create file mapping for ", path, ", err=", strerror(errno));
+            m_data = mmap(nullptr, m_size, prot, MAP_PRIVATE, m_handle.get(), offset);
+            if (m_data == MAP_FAILED) {
+                throw std::runtime_error("Can not create file mapping for " + path + ", err=" + std::strerror(errno));
+            }
         } else {
+            m_size = 0;
             m_data = MAP_FAILED;
         }
     }
@@ -88,21 +94,21 @@ public:
         }
     }
 
-    char* data() noexcept {
+    char* data() noexcept override {
         return static_cast<char*>(m_data);
     }
 
-    size_t size() const noexcept {
+    size_t size() const noexcept override {
         return m_size;
     }
 };
 
-std::shared_ptr<ngraph::runtime::AlignedBuffer> load_mmap_object(const std::string& path) {
+std::shared_ptr<ov::MappedMemory> load_mmap_object(const std::string& path,
+                                                   const size_t data_size,
+                                                   const size_t offset) {
     auto holder = std::make_shared<MapHolder>();
-    holder->set(path);
-    return std::make_shared<ngraph::runtime::SharedBuffer<std::shared_ptr<MapHolder>>>(holder->data(),
-                                                                                       holder->size(),
-                                                                                       holder);
+    holder->set(path, data_size, offset);
+    return holder;
 }
 
 }  // namespace ov

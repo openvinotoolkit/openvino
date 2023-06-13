@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "mmap_object.hpp"
-#include "ngraph/runtime/shared_buffer.hpp"
+#include "openvino/util/mmap_object.hpp"
 #include "openvino/util/file_util.hpp"
 
+#include <stdexcept>
 // clang-format-off
 #ifndef NOMINMAX
 #    define NOMINMAX
@@ -50,7 +50,7 @@ public:
     }
 };
 
-class MapHolder {
+class MapHolder : public ov::MappedMemory {
 public:
     MapHolder() = default;
 
@@ -60,35 +60,34 @@ public:
         }
     }
 
-    void set(const std::string& path) {
+    void set(const std::string& path, const size_t data_size=0, const size_t offset=0) {
         // Note that file can't be changed (renamed/deleted) until it's unmapped. FILE_SHARE_DELETE flag allow 
         // rename/deletion, but it doesn't work with FAT32 filesystem (works on NTFS)
         auto h = ::CreateFileA(path.c_str(), GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
-        map(path, h);
+        map(path, h, data_size, offset);
     }
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-    void set(const std::wstring& path) {
+    void set(const std::wstring& path, const size_t data_size=0, const size_t offset=0) {
         // Note that file can't be changed (renamed/deleted) until it's unmapped. FILE_SHARE_DELETE flag allow 
         // rename/deletion, but it doesn't work with FAT32 filesystem (works on NTFS)
         auto h = ::CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
-        map(ov::util::wstring_to_string(path), h);
+        map(ov::util::wstring_to_string(path), h, data_size, offset);
     }
 #endif
 
-    char* data() noexcept {
+    char* data() noexcept override {
         return static_cast<char*>(m_data);
     }
-    size_t size() const noexcept {
+    size_t size() const noexcept override {
         return m_size;
     }
 
 private:
-    void map(const std::string& path, HANDLE h) {
-        OPENVINO_ASSERT(h != INVALID_HANDLE_VALUE,
-                        "Can not open file ",
-                        path,
-                        " for mapping. Ensure that file exists and has appropriate permissions");
+    void map(const std::string& path, HANDLE h, const size_t data_size=0, const size_t offset=0) {
+        if(h == INVALID_HANDLE_VALUE) {
+            throw std::runtime_error("Can not open file " + path + " for mapping. Ensure that file exists and has appropriate permissions");
+        }
         m_handle = HandleHolder(h);
         SYSTEM_INFO SystemInfo;
         GetSystemInfo(&SystemInfo);
@@ -97,20 +96,26 @@ private:
         DWORD access = PAGE_READONLY;
 
         LARGE_INTEGER file_size_large;
-        OPENVINO_ASSERT(::GetFileSizeEx(m_handle.get(), &file_size_large) != 0, "Can not get file size for ", path);
+        if(::GetFileSizeEx(m_handle.get(), &file_size_large) == 0) {
+            throw std::runtime_error("Can not get file size for " + path);
+        }
 
-        m_size = static_cast<uint64_t>(file_size_large.QuadPart);
+        m_size = data_size > 0 ? data_size : static_cast<uint64_t>(file_size_large.QuadPart) - offset;
         if (m_size > 0) {
             m_mapping =
                 HandleHolder(::CreateFileMapping(m_handle.get(), 0, access, m_size >> 32, m_size & 0xffffffff, 0));
-            OPENVINO_ASSERT(m_mapping.get() != INVALID_HANDLE_VALUE, "Can not create file mapping for ", path);
+            if(m_mapping.get() == INVALID_HANDLE_VALUE) {
+                throw std::runtime_error("Can not create file mapping for " + path);
+            }
 
             m_data = ::MapViewOfFile(m_mapping.get(),
                                      map_mode,
-                                     0,  // offset_align >> 32,
-                                     0,  // offset_align & 0xffffffff,
+                                     offset >> 32,  // offset_align >> 32,
+                                     offset & 0xffffffff,  // offset_align & 0xffffffff,
                                      m_size);
-            OPENVINO_ASSERT(m_data, "Can not create map view for ", path);
+            if(!m_data) {
+                throw std::runtime_error("Can not create map view for " + path);
+            }
         } else {
             m_data = nullptr;
         }
@@ -123,22 +128,18 @@ private:
     HandleHolder m_mapping;
 };
 
-std::shared_ptr<ngraph::runtime::AlignedBuffer> load_mmap_object(const std::string& path) {
+std::shared_ptr<ov::MappedMemory> load_mmap_object(const std::string& path, const size_t data_size, const size_t offset) {
     auto holder = std::make_shared<MapHolder>();
-    holder->set(path);
-    return std::make_shared<ngraph::runtime::SharedBuffer<std::shared_ptr<MapHolder>>>(holder->data(),
-                                                                                       holder->size(),
-                                                                                       holder);
+    holder->set(path, data_size, offset);
+    return holder;
 }
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
-std::shared_ptr<ngraph::runtime::AlignedBuffer> load_mmap_object(const std::wstring& path) {
+std::shared_ptr<ov::MappedMemory> load_mmap_object(const std::wstring& path, const size_t data_size, const size_t offset) {
     auto holder = std::make_shared<MapHolder>();
-    holder->set(path);
-    return std::make_shared<ngraph::runtime::SharedBuffer<std::shared_ptr<MapHolder>>>(holder->data(),
-                                                                                       holder->size(),
-                                                                                       holder);
+    holder->set(path, data_size, offset);
+    return holder;
 }
 
 #endif

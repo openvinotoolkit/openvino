@@ -112,17 +112,6 @@ macro(ov_add_frontend)
     endif()
 
     file(GLOB_RECURSE LIBRARY_SRC ${frontend_root_dir}/src/*.cpp)
-    if (WIN32)
-        # Remove linux specific files
-        file(GLOB_RECURSE LIN_FILES ${frontend_root_dir}/src/os/lin/*.cpp
-                                    ${frontend_root_dir}/src/os/lin/*.hpp)
-        list(REMOVE_ITEM LIBRARY_SRC "${LIN_FILES}")
-    else()
-        # Remove windows specific files
-        file(GLOB_RECURSE WIN_FILES ${frontend_root_dir}/src/os/win/*.cpp
-                                    ${frontend_root_dir}/src/os/win/*.hpp)
-        list(REMOVE_ITEM LIBRARY_SRC "${WIN_FILES}")
-    endif()
     file(GLOB_RECURSE LIBRARY_HEADERS ${frontend_root_dir}/src/*.hpp)
     file(GLOB_RECURSE LIBRARY_PUBLIC_HEADERS ${frontend_root_dir}/include/*.hpp)
 

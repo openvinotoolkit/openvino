@@ -8,11 +8,11 @@
 #include <vector>
 
 #include "input_model.hpp"
-#include "mmap_object.hpp"
 #include "ngraph/runtime/aligned_buffer.hpp"
 #include "ngraph/runtime/shared_buffer.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/util/file_util.hpp"
+#include "openvino/util/mmap_object.hpp"
 #include "so_extension.hpp"
 #include "xml_parse_utils.h"
 
@@ -201,9 +201,13 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
         }
     }
     if (!weights_path.empty()) {
-        if (enable_mmap)
-            weights = ov::load_mmap_object(weights_path);
-        else {
+        if (enable_mmap) {
+            auto mapped_memory = ov::load_mmap_object(weights_path);
+            weights =
+                std::make_shared<ngraph::runtime::SharedBuffer<std::shared_ptr<MappedMemory>>>(mapped_memory->data(),
+                                                                                               mapped_memory->size(),
+                                                                                               mapped_memory);
+        } else {
             std::ifstream bin_stream;
             bin_stream.open(weights_path.c_str(), std::ios::binary);
             if (!bin_stream.is_open())

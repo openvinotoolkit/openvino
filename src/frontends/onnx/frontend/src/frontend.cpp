@@ -46,29 +46,32 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
     if (variants.empty()) {
         return nullptr;
     }
+    const bool enable_mmap =
+        variants[variants.size() - 1].is<bool>() ? variants[variants.size() - 1].as<bool>() : false;
+
     if (variants[0].is<std::string>()) {
         const auto path = variants[0].as<std::string>();
-        return std::make_shared<InputModel>(path, m_extensions);
+        return std::make_shared<InputModel>(path, enable_mmap, m_extensions);
     }
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     if (variants[0].is<std::wstring>()) {
         const auto path = variants[0].as<std::wstring>();
-        return std::make_shared<InputModel>(path, m_extensions);
+        return std::make_shared<InputModel>(path, enable_mmap, m_extensions);
     }
 #endif
     if (variants[0].is<std::istream*>()) {
         const auto stream = variants[0].as<std::istream*>();
         if (variants.size() > 1 && variants[1].is<std::string>()) {
             const auto path = variants[1].as<std::string>();
-            return std::make_shared<InputModel>(*stream, path, m_extensions);
+            return std::make_shared<InputModel>(*stream, path, enable_mmap, m_extensions);
         }
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
         if (variants.size() > 1 && variants[1].is<std::wstring>()) {
             const auto path = variants[1].as<std::wstring>();
-            return std::make_shared<InputModel>(*stream, path, m_extensions);
+            return std::make_shared<InputModel>(*stream, path, enable_mmap, m_extensions);
         }
 #endif
-        return std::make_shared<InputModel>(*stream, m_extensions);
+        return std::make_shared<InputModel>(*stream, enable_mmap, m_extensions);
     }
     return nullptr;
 }

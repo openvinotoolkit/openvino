@@ -45,14 +45,17 @@ bool is_operator_supported(const std::string& op_name, std::int64_t version, con
 /// \note       If stream parsing fails or the ONNX model contains unsupported ops,
 ///             the function throws an ngraph_error exception.
 ///
-/// \param[in]  stream     The input stream (e.g. file stream, memory stream, etc).
-/// \param[in]  model_path The path to the imported onnx model.
-///                        It is required if the imported model uses data saved in external
-///                        files.
+/// \param[in]  stream      The input stream (e.g. file stream, memory stream, etc).
+/// \param[in]  model_path  The path to the imported onnx model.
+///                         It is required if the imported model uses data saved in external
+///                         files.
+/// \param[in]  enable_mmap Enable mapping files with external weights instead of reading.
 ///
 /// \return     An nGraph function that represents a single output from the created graph.
 ONNX_IMPORTER_API
-std::shared_ptr<Function> import_onnx_model(std::istream& stream, const std::string& model_path = "");
+std::shared_ptr<Function> import_onnx_model(std::istream& stream,
+                                            const std::string& model_path = "",
+                                            bool enable_mmap = false);
 
 /// \brief     Imports and converts an ONNX model from the input file
 ///            to an nGraph Function representation.
@@ -62,10 +65,11 @@ std::shared_ptr<Function> import_onnx_model(std::istream& stream, const std::str
 ///
 /// \param[in] file_path  The path to a file containing the ONNX model
 ///                       (relative or absolute).
+/// \param[in]  enable_mmap Enable mapping files with external weights instead of reading.
 ///
 /// \return    An nGraph function that represents a single output from the created graph.
 ONNX_IMPORTER_API
-std::shared_ptr<Function> import_onnx_model(const std::string& file_path);
+std::shared_ptr<Function> import_onnx_model(const std::string& file_path, bool enable_mmap = false);
 }  // namespace onnx_import
 
 }  // namespace ngraph
