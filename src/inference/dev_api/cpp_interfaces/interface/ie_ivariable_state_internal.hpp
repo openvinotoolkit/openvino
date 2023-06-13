@@ -77,6 +77,7 @@ using SoIVariableStateInternal = ov::SoPtr<IVariableStateInternal>;
  * @brief For compatibility reasons.
  */
 using MemoryStateInternal = IVariableStateInternal;
+
 IE_SUPPRESS_DEPRECATED_END
 
 }  // namespace InferenceEngine
