@@ -201,31 +201,31 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
         }
     }
     if (!weights_path.empty()) {
-        if (enable_mmap)
-            weights = ov::load_mmap_object(weights_path);
-        else {
-            std::ifstream bin_stream;
-            bin_stream.open(weights_path.c_str(), std::ios::binary);
-            if (!bin_stream.is_open())
+        // if (enable_mmap)
+        //     weights = ov::load_mmap_object(weights_path);
+        // else {
+        std::ifstream bin_stream;
+        bin_stream.open(weights_path.c_str(), std::ios::binary);
+        if (!bin_stream.is_open())
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-                OPENVINO_THROW("Weights file ", ov::util::wstring_to_string(weights_path), " cannot be opened!");
+            OPENVINO_THROW("Weights file ", ov::util::wstring_to_string(weights_path), " cannot be opened!");
 #else
-                OPENVINO_THROW("Weights file ", weights_path, " cannot be opened!");
+            OPENVINO_THROW("Weights file ", weights_path, " cannot be opened!");
 #endif
 
-            bin_stream.seekg(0, std::ios::end);
-            size_t file_size = bin_stream.tellg();
-            bin_stream.seekg(0, std::ios::beg);
+        bin_stream.seekg(0, std::ios::end);
+        size_t file_size = bin_stream.tellg();
+        bin_stream.seekg(0, std::ios::beg);
 
-            auto aligned_weights_buffer = std::make_shared<ngraph::runtime::AlignedBuffer>(file_size);
-            bin_stream.read(aligned_weights_buffer->get_ptr<char>(), aligned_weights_buffer->size());
-            bin_stream.close();
+        auto aligned_weights_buffer = std::make_shared<ngraph::runtime::AlignedBuffer>(file_size);
+        bin_stream.read(aligned_weights_buffer->get_ptr<char>(), aligned_weights_buffer->size());
+        bin_stream.close();
 
-            weights = std::make_shared<ngraph::runtime::SharedBuffer<std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(
-                aligned_weights_buffer->get_ptr<char>(),
-                aligned_weights_buffer->size(),
-                aligned_weights_buffer);
-        }
+        weights = std::make_shared<ngraph::runtime::SharedBuffer<std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(
+            aligned_weights_buffer->get_ptr<char>(),
+            aligned_weights_buffer->size(),
+            aligned_weights_buffer);
+        // }
     }
 
     return create_input_model();
