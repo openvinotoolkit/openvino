@@ -16,11 +16,8 @@ ov::intel_cpu::FullyConnectedNode::FullyConnectedNode(const ngraph::Output<Node>
 std::shared_ptr<ngraph::Node> ov::intel_cpu::FullyConnectedNode::clone_with_new_inputs(const ngraph::OutputVector& new_args) const {
     INTERNAL_OP_SCOPE(FullyConnectedNode_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    if (new_args.size() == 2) {
-        return std::make_shared<ov::intel_cpu::FullyConnectedNode>(new_args.at(0), new_args.at(1), m_output_rank, m_output_type);
-    }
 
-    OPENVINO_THROW("Unsupported number of arguments for FullyConnected operation");
+    return std::make_shared<ov::intel_cpu::FullyConnectedNode>(new_args.at(0), new_args.at(1), m_output_rank, m_output_type);
 }
 
 void ov::intel_cpu::FullyConnectedNode::validate_and_infer_types() {

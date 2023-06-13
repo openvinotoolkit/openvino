@@ -59,14 +59,11 @@ ov::intel_cpu::ReshapeFullyConnectedFusion::ReshapeFullyConnectedFusion() {
             new_ops.push_back(weightInput.get_node_shared_ptr());
         }
 
-        std::shared_ptr<ngraph::Node> new_fc;
-        if (fc->get_input_size() == 2)
-            new_fc = std::make_shared<ov::intel_cpu::FullyConnectedNode>(reshape->input_value(0),
+        std::shared_ptr<ngraph::Node> new_fc = std::make_shared<ov::intel_cpu::FullyConnectedNode>(
+                                                                        reshape->input_value(0),
                                                                         weightInput,
                                                                         ngraph::Rank(outShape.size()),
                                                                         fc->output(0).get_element_type());
-        else
-            return false;
         new_ops.push_back(new_fc);
         new_fc->set_friendly_name(fc->get_friendly_name());
         ngraph::copy_runtime_info({reshape, fc}, new_ops);

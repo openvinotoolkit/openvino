@@ -173,7 +173,7 @@ FullyConnected::FullyConnected(const std::shared_ptr<ngraph::Node>& op, const Gr
     if (context->getConfig().fcSparseWeiDecompressionRate < 1.0f)
         minSparseRate = context->getConfig().fcSparseWeiDecompressionRate;
 
-    expectedBiasDims = {getOutputShapeAtPort(0).getDims()[getFusingAxis()]};
+    expectedBiasDims = {getInputShapeAtPort(WEIGHTS_ID).getStaticDims()[0]};
 }
 
 std::vector<memory::format_tag> FullyConnected::getAvailableFormatsForDims(const Shape &dims) const {
@@ -755,9 +755,6 @@ FullyConnected::createDescriptorInternalForConv(DnnlMemoryDescCPtr inputDescPtr,
     const dnnl::memory::desc &inputDesc  = inputDescPtr->getDnnlDesc();
     const dnnl::memory::desc &outputDesc = outputDescPtr->getDnnlDesc();
     const dnnl::memory::desc &weightDesc = weightDescPtr->getDnnlDesc();
-
-    const auto& outDims = outputDesc.get_dims();
-
     // make a fake shape: N, IC, W
     auto inDims = inputDesc.get_dims();
     dnnl::memory::dims normalizedInDims;
@@ -769,6 +766,7 @@ FullyConnected::createDescriptorInternalForConv(DnnlMemoryDescCPtr inputDescPtr,
     auto convInDesc = dnnl::memory::desc(normalizedInDims, inputDesc.get_data_type(), memory::format_tag::nwc);
 
     // make a fake shape: N, OC, W
+    const auto& outDims = outputDesc.get_dims();
     dnnl::memory::dims normalizedOutDims;
     if (outDims.size() == 3) {
         normalizedOutDims = { outDims[0], outDims[2], outDims[1]};

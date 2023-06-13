@@ -157,17 +157,13 @@ bool Deconvolution::isSupportedOperation(const std::shared_ptr<const ngraph::Nod
 Deconvolution::Deconvolution(const std::shared_ptr<ngraph::Node>& op,
                              const GraphContext::CPtr context) : Node(op, context, DeconfolutionShapeInferFactory(op)) {
     std::string errorMessage;
-
+    errorPrefix = "Deconvolution node with name '" + getName() + "' ";
     if (!isSupportedOperation(op, errorMessage))
-        IE_THROW(NotImplemented) << errorMessage;
+        IE_THROW(NotImplemented) << errorPrefix + errorMessage;
 
-    errorPrefix = "Deconvolution node with name '" + getName() + "'";
-
-    auto convBackprop = std::dynamic_pointer_cast<const ngraph::opset1::ConvolutionBackpropData>(op);
-    auto groupConvBackprop = std::dynamic_pointer_cast<const ngraph::opset1::GroupConvolutionBackpropData>(op);
     const auto& weightDims = getWeightDims();
 
-    if (convBackprop) {
+    if (auto convBackprop = std::dynamic_pointer_cast<const ngraph::opset1::ConvolutionBackpropData>(op)) {
         algorithm = Algorithm::DeconvolutionCommon;
 
         IC = weightDims[0];
@@ -189,7 +185,7 @@ Deconvolution::Deconvolution(const std::shared_ptr<ngraph::Node>& op,
         outputPadding = convBackprop->get_output_padding();
 
         autoPad = one_of(convBackprop->get_auto_pad(), ov::op::PadType::SAME_LOWER, ov::op::PadType::SAME_UPPER);
-    } else if (groupConvBackprop) {
+    } else if (auto groupConvBackprop = std::dynamic_pointer_cast<const ngraph::opset1::GroupConvolutionBackpropData>(op)) {
         algorithm = Algorithm::DeconvolutionGrouped;
 
         groupNum = weightDims[0];
@@ -225,7 +221,7 @@ Deconvolution::Deconvolution(const std::shared_ptr<ngraph::Node>& op,
         }
         const auto spDimsNum = getInputShapeAtPort(0).getRank() - 2;
         if (getInputShapeAtPort(2).getStaticDims()[0] != spDimsNum || (isConstOutShape && lastOutputSpatialDims.size() != spDimsNum)) {
-            IE_THROW() << "'output_shape' input has incorrect number of elements. Expected = " << spDimsNum;
+            IE_THROW() << errorPrefix << "'output_shape' input has incorrect number of elements. Expected = " << spDimsNum;
         }
     }
     attr = std::make_shared<dnnl::primitive_attr>();
@@ -505,18 +501,18 @@ void Deconvolution::setPostOps(dnnl::primitive_attr& attr, const VectorDims& dim
     //  [N, OC, OH, OW] = [N, IC, IH, IW]* [OC, IC, KH, KW]
     // ONEDNN define the convolution data backward as:
     //  [N, IC, OH, OW] = [N, OC, IH, IW]* [OC, IC, KH, KW]
-    // So for the convolution backward and forward, the weight dimension definition in ONEDNN is same.
+    // So for the backward and forward convolutions, the weights dimensions definition in ONEDNN is the same.
     // OC is the conv forward output channel, IC is conv forward input channel.
 
-    // But for deconvolution, Deconv_OC, Deconv_IC is the deconv output channel, input channel
-    // ONEDNN define the deconv OP as:
+    // But for the deconvolution, Deconv_OC and Deconv_IC are the deconv output and input channels respectively
+    // ONEDNN defines the deconv OP as:
     // [N, Deconv_OC, OH, OW] = [N, Deconv_IC, IH, IW] * [Deconv_OC, Deconv_IC, KH, KW]
     // For deconv OP,  Deconv_OC = IC, Deconv_IC = OC.
     // Openvino per-channel weight scales are applied on IC/Deconv_OC dimension.
     // So for deconvolution,
-    // Weight dims in NON-Group deconv: [Deconv_OC, Deconv_IC, KH, KW], perchannel weight scale applied on Deconv_OC DIM
+    // Weight dims in NON-Group deconv: [Deconv_OC, Deconv_IC, KH, KW], perchannel weight scale is applied on Deconv_OC DIM
     //                                  weiScaleMaskPerChannel =  1 << 0
-    // Weight dims in Group deconv:     [Group, Deconv_OC, Deconv_IC, KH, KW], perchannel weight scale applied on GROUP and Deconv_OC,
+    // Weight dims in Group deconv:     [Group, Deconv_OC, Deconv_IC, KH, KW], perchannel weight scale is applied on GROUP and Deconv_OC,
     //                                   weiScaleMaskPerChannel = ( 1 << 0 | 1 << 1) = 0x03
     DnnlPostOpsComposer dnnlpoc(getEngine(), attr, ops, postOpsArgs, dims, 1, isInt8, withGroups ? 3 : 1 << 0,  getDQScales(), withBiases);
 
