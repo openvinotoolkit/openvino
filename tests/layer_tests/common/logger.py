@@ -13,7 +13,7 @@ class TagFilter(log.Filter):
         log.Filter.__init__(self)
         self.regex = regex
 
-    def filter(self, record):
+    def filter(self, record):  # noqa: A003
         """Filter the log record based on the provided regex."""
         if record.__dict__['funcName'] == 'load_grammar':  # for nx not to log into our logs
             return False
