@@ -91,7 +91,7 @@ pt_to_ov_type_map = {
 
 
 class TorchScriptPythonDecoder (Decoder):
-    def __init__(self, pt_module, graph_element=None, example_input=None, freeze=True):
+    def __init__(self, pt_module, graph_element=None, example_input=None, freeze=True, alias_db=None):
         Decoder.__init__(self)
         # We store every decoder created by this decoder so that all them are not deleted until the first decoder is deleted
         self.m_decoders = []
@@ -113,8 +113,10 @@ class TorchScriptPythonDecoder (Decoder):
                     " yourself, please refer to PyTorch documentation: "
                     "https://pytorch.org/tutorials/beginner/Intro_to_TorchScript_tutorial.html.")
             self.graph_element = pt_module.inlined_graph
+            self.alias_db = self.graph_element.alias_db()
         else:
             self.graph_element = graph_element
+            self.alias_db = alias_db
         self.pt_module = pt_module
         self.raw_inputs = list(self.graph_element.inputs())
         self.raw_outputs = list(self.graph_element.outputs())
@@ -273,7 +275,7 @@ class TorchScriptPythonDecoder (Decoder):
     def visit_subgraph(self, node_visitor) -> None:
         # make sure topological order is satisfied
         for node in self.graph_element.nodes():
-            decoder = TorchScriptPythonDecoder(self.pt_module, node)
+            decoder = TorchScriptPythonDecoder(self.pt_module, node, alias_db=self.alias_db)
             self.m_decoders.append(decoder)
             node_visitor(decoder)
 
@@ -289,7 +291,7 @@ class TorchScriptPythonDecoder (Decoder):
         return list(self.graph_element.blocks())
 
     def get_subgraph_decoder(self, index: int):
-        decoder = TorchScriptPythonDecoder(self.pt_module, self.get_subgraphs()[index])
+        decoder = TorchScriptPythonDecoder(self.pt_module, self.get_subgraphs()[index], alias_db=self.alias_db)
         self.m_decoders.append(decoder)
         return decoder
 
@@ -388,6 +390,16 @@ class TorchScriptPythonDecoder (Decoder):
                     pt_value = get_value_from_getattr(in_node, self.pt_module)
                     return pt_value is None
         return False
+
+    def may_produce_alias(self, in_index: int, out_index: int) -> bool:
+        if self.get_op_type() in ["aten::conv1d", "aten::conv2d", "aten::conv3d"]:
+            # AliasDB::may_contain_alias sometimes return True for tensors produced by convnd, we have to workaround that
+            return False
+        try:
+            return self.alias_db.may_contain_alias(self._raw_input(in_index), self._raw_output(out_index))
+        except:
+            # Sometimes pytorch fails to get result with IndexError exception while these indexes exist in node
+            return False
 
     @staticmethod
     def _transform_tensor_list_constants_to_listconstruct(graph: torch.Graph):

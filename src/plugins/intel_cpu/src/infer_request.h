@@ -84,7 +84,6 @@ public:
 private:
     void PushInputData() override;
     void initBlobs() override;
-    void SetBatch(int batch = -1) override;
     void changeDefaultPtr() override;
 };
 

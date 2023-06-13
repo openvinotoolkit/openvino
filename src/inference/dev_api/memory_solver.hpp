@@ -42,6 +42,7 @@
  *  Exec order is predefined.
  */
 
+IE_SUPPRESS_DEPRECATED_START
 class MemorySolver {
 public:
     /** @brief Representation of edge (size and live time)*/
@@ -224,3 +225,4 @@ private:
         }
     }
 };
+IE_SUPPRESS_DEPRECATED_END
