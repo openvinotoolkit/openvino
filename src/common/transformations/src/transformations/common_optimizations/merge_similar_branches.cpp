@@ -151,7 +151,7 @@ bool MergeSimilarBranches::run_on_model(const std::shared_ptr<ov::Model>& model)
                             OutputVector matmuls_inputs1;
                             for (const auto& m : mergeable_matmuls)
                                 matmuls_inputs1.push_back(m.get_node()->input_value(1));
-                            const int64_t axis = -1;  // TODO evaluate axis
+                            const int64_t axis = -1;
                             const auto concat = make_shared<opset11::Concat>(matmuls_inputs1, axis);
                             const auto matmul = make_shared<opset11::MatMul>(output, concat);
                             const auto split =
@@ -173,46 +173,48 @@ bool MergeSimilarBranches::run_on_model(const std::shared_ptr<ov::Model>& model)
                         nodes_for_check.push(matmul_consumers.begin()->get_node());
                 }
 
-                // gather mergeable consumer nodes
-                set<Input<Node>> mergeable_consumers, remaining_consumers;
-                partition_copy(begin(consumers),
-                               end(consumers),
-                               inserter(mergeable_consumers, mergeable_consumers.end()),
-                               inserter(remaining_consumers, remaining_consumers.end()),
-                               [&](const Input<Node>& i) {
-                                   return compare_consumers(*consumers.begin(), i);
-                               });
-                set<Node*> nodes_for_merge;
-                for (const auto& c : mergeable_consumers)
-                    nodes_for_merge.insert(c.get_node());
-
-                // remove nodes for merge from further evaluation
-                set<Input<Node>> new_remaining_consumers;
-                remove_copy_if(begin(remaining_consumers),
-                               end(remaining_consumers),
-                               inserter(new_remaining_consumers, new_remaining_consumers.end()),
-                               [&](const Input<Node>& i) {
-                                   return any_of(begin(nodes_for_merge), end(nodes_for_merge), [&](Node* n) {
-                                       return i.get_node() == n;
+                if (consumers.size() > 0) {
+                    // gather mergeable consumer nodes
+                    set<Input<Node>> mergeable_consumers, remaining_consumers;
+                    partition_copy(begin(consumers),
+                                   end(consumers),
+                                   inserter(mergeable_consumers, mergeable_consumers.end()),
+                                   inserter(remaining_consumers, remaining_consumers.end()),
+                                   [&](const Input<Node>& i) {
+                                       return compare_consumers(*consumers.begin(), i);
                                    });
-                               });
-                remaining_consumers.swap(new_remaining_consumers);
+                    set<Node*> nodes_for_merge;
+                    for (const auto& c : mergeable_consumers)
+                        nodes_for_merge.insert(c.get_node());
 
-                // merge equal nodes
-                const auto first_node = *nodes_for_merge.begin();
-                nodes_for_merge.erase(first_node);
-                if (!nodes_for_merge.empty()) {
-                    const auto replacement_node = first_node->shared_from_this();
-                    for (const auto& n : nodes_for_merge) {
-                        const auto merge_target_node = n->shared_from_this();
-                        copy_runtime_info(merge_target_node, replacement_node);
-                        replace_node(merge_target_node, replacement_node);
+                    // remove nodes for merge from further evaluation
+                    set<Input<Node>> new_remaining_consumers;
+                    remove_copy_if(begin(remaining_consumers),
+                                   end(remaining_consumers),
+                                   inserter(new_remaining_consumers, new_remaining_consumers.end()),
+                                   [&](const Input<Node>& i) {
+                                       return any_of(begin(nodes_for_merge), end(nodes_for_merge), [&](Node* n) {
+                                           return i.get_node() == n;
+                                       });
+                                   });
+                    remaining_consumers.swap(new_remaining_consumers);
+
+                    // merge equal nodes
+                    const auto first_node = *nodes_for_merge.begin();
+                    nodes_for_merge.erase(first_node);
+                    if (!nodes_for_merge.empty()) {
+                        const auto replacement_node = first_node->shared_from_this();
+                        for (const auto& n : nodes_for_merge) {
+                            const auto merge_target_node = n->shared_from_this();
+                            copy_runtime_info(merge_target_node, replacement_node);
+                            replace_node(merge_target_node, replacement_node);
+                        }
+                        rewritten = true;
                     }
-                    rewritten = true;
-                }
 
-                nodes_for_check.push(first_node);
-                consumers.swap(remaining_consumers);
+                    nodes_for_check.push(first_node);
+                    consumers.swap(remaining_consumers);
+                }
             }
             if (consumers.size() == 1)
                 nodes_for_check.push(consumers.begin()->get_node());
