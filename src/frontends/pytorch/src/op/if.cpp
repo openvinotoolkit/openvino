@@ -23,10 +23,19 @@ void align_result_types(const NodeContext& context,
     auto r2_tensor = r2->input_value(0);
     auto r1_type = r1_tensor.get_element_type();
     auto r2_type = r2_tensor.get_element_type();
-    if (r1_type.is_dynamic() || r2_type.is_dynamic())
+    if (r1_type == r2_type)
         return;
     element::Type merged_type;
-    if (!element::Type::merge(merged_type, r1_type, r2_type)) {
+    if (element::Type::merge(merged_type, r1_type, r2_type)) {
+        if (r1_type != merged_type) {
+            auto convert1 = std::make_shared<opset10::Convert>(r1_tensor, merged_type);
+            r1->set_argument(0, convert1);
+        }
+        if (r2_type != merged_type) {
+            auto convert2 = std::make_shared<opset10::Convert>(r2_tensor, merged_type);
+            r2->set_argument(0, convert2);
+        }
+    } else {
         if (r1_type.bitwidth() >= r2_type.bitwidth()) {
             auto convert = std::make_shared<opset10::Convert>(r2_tensor, r1_type);
             r2->set_argument(0, convert);
@@ -131,7 +140,7 @@ OutputVector translate_if(const NodeContext& context) {
             then_body->add_parameters({new_parameter});
             then_body->add_results({new_result});
             then_body->validate_nodes_and_infer_types();
-            FRONT_END_OP_CONVERSION_CHECK(inputs_map.count(output_idx), "Input must exist in else body");
+            FRONT_END_OP_CONVERSION_CHECK(inputs_map.count(output_idx), "Input must exist in else body: ", output_idx);
             inputs_map[output_idx][0] = new_parameter;
             extra_then_body_results[output_idx] = new_result;
             OPENVINO_DEBUG << "Modified then body: " << if_node << '\n';
@@ -143,7 +152,7 @@ OutputVector translate_if(const NodeContext& context) {
             else_body->add_parameters({new_parameter});
             else_body->add_results({new_result});
             else_body->validate_nodes_and_infer_types();
-            FRONT_END_OP_CONVERSION_CHECK(inputs_map.count(output_idx), "Input must exist in then body");
+            FRONT_END_OP_CONVERSION_CHECK(inputs_map.count(output_idx), "Input must exist in then body: ", output_idx);
             inputs_map[output_idx][1] = new_parameter;
             extra_else_body_results[output_idx] = new_result;
             OPENVINO_DEBUG << "Modified else body: " << if_node << '\n';

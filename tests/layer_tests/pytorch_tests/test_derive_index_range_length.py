@@ -40,7 +40,7 @@ class TestDeriveIndexRangeLength(PytorchLayerTest):
                 step = int(x[2])
                 accumulator = 0
                 for idx in range(start, stop, step):
-                    accumulator = idx
+                    accumulator += idx
                 return accumulator
 
         ref_net = None
