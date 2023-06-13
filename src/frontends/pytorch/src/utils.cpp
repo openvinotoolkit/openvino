@@ -307,8 +307,8 @@ std::shared_ptr<ov::op::util::FrameworkNode> cast_fw_node(std::shared_ptr<Node> 
     return fw_node;
 }
 
-bool is_none_node(std::shared_ptr<Node> node) {
-    if (const auto& fw_node_inp = std::dynamic_pointer_cast<ov::op::util::FrameworkNode>(node)) {
+bool is_none_node(const Output<Node>& node) {
+    if (const auto& fw_node_inp = std::dynamic_pointer_cast<ov::op::util::FrameworkNode>(node.get_node_shared_ptr())) {
         const auto& attrs = fw_node_inp->get_attrs();
         if (attrs.find("none_value") != attrs.end()) {
             return true;

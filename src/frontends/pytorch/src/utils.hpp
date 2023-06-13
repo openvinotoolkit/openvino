@@ -56,7 +56,7 @@ OutputVector make_framework_node(const NodeContext& context);
 
 std::shared_ptr<op::util::FrameworkNode> cast_fw_node(std::shared_ptr<Node> node, const std::string& type);
 
-bool is_none_node(std::shared_ptr<Node> node);
+bool is_none_node(const Output<Node>& node);
 
 // TODO: Eliminate the need of this function by implementing more accurate custom data type handling
 Any simplified_type_interpret(Any type);
