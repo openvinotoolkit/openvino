@@ -149,7 +149,7 @@ public:
 
     std::shared_ptr<cldnn::topology> GetTopology() const { return m_topology; }
 
-    using variables_state_info_map = std::map<std::string, std::set<cldnn::layout>>;
+    using variables_state_info_map = std::map<std::string, std::vector<cldnn::layout>>;
 
     void AddVariableStateInfo(const std::string& variable_id, const cldnn::layout& layout);
 
