@@ -66,7 +66,7 @@ void Rethrow() {
     } catch (const InferenceEngine::InferCancelled& e) {
         throw e;
     } catch (const ov::Cancelled& e) {
-        throw e;
+        IE_THROW(InferCancelled);
     } catch (const std::exception& e) {
         IE_THROW() << e.what();
     } catch (...) {
