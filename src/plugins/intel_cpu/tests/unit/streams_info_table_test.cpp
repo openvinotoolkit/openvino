@@ -1460,24 +1460,33 @@ public:
 TEST_P(StreamGenerationTests, StreamsGeneration) {}
 
 StreamGenerateionTestCase generation_latency_1sockets_14cores_1 = {
-    1,
-    0,
-    0,
-    0,
-    ov::hint::SchedulingCoreType::ANY_CORE,
-    true,
-    true,
-    true,
-    true,
-    ov::hint::PerformanceMode::LATENCY,
-    ov::threading::IStreamsExecutor::ThreadBindingType::HYBRID_AWARE,
-    {{20, 6, 8, 6}},
-    ov::hint::SchedulingCoreType::ANY_CORE,
-    true,
-    true,
-    ov::hint::PerformanceMode::LATENCY,
-    {{20, 6, 8, 6}},
-    {{1, ALL_PROC, 20}, {0, MAIN_CORE_PROC, 6}, {0, EFFICIENT_CORE_PROC, 8}, {0, HYPER_THREADING_PROC, 6}},
+    1,                                       // param[in]: simulated settting for streams number
+    0,                                       // param[in]: simulated setting for threads number
+    0,                                       // param[in]: simulated setting for inference request number
+    0,                                       // param[in]: simulated setting for model prefer threads number
+    ov::hint::SchedulingCoreType::ANY_CORE,  // param[in]: simulated setting for scheduling core type
+                                             // (PCORE_ONLY/ECORE_ONLY/ANY_CORE)
+    true,                                    // param[in]: simulated setting for enableHyperThreading
+    true,                                    // param[in]: simulated settting for changedHyperThreading
+    true,                                    // param[in]: simulated setting for enableCpuPinning
+    true,                                    // param[in]: simulated setting for changedCpuPinning
+    ov::hint::PerformanceMode::LATENCY,      // param[in]: simulated setting for performance mode (throughput/latency)
+    ov::threading::IStreamsExecutor::ThreadBindingType::HYBRID_AWARE,  // param[in]: simulated setting for
+                                                                       // threadBindingType
+    {{20, 6, 8, 6}},  // param[in]: simulated proc_type_table for platform which has one socket, 6 Pcores, 8 Ecores and
+                      // hyper threading enabled
+    ov::hint::SchedulingCoreType::ANY_CORE,  // param[expected out]: scheduling core type needs to be the same as input
+    true,                                    // param[expected out]: enableHyperThreading needs to be the same as input
+    true,                                    // param[expected out]: enableCpuPinning needs to be the same as input
+    ov::hint::PerformanceMode::LATENCY,      // param[expected out]: performance mode needs to be the same as input
+    {{20, 6, 8, 6}},  // param[expected out]: since hyper threading is enabled and all core type is used,
+                      // proc_type_table needs to be the same as input
+    {{1, ALL_PROC, 20},
+     {0, MAIN_CORE_PROC, 6},
+     {0, EFFICIENT_CORE_PROC, 8},
+     {0,
+      HYPER_THREADING_PROC,
+      6}},  // param[expected out]: since performance mode is latency and all cores is used, the final streams is 1
 };
 
 StreamGenerateionTestCase generation_latency_1sockets_14cores_2 = {

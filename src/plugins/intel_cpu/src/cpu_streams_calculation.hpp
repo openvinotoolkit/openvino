@@ -64,12 +64,12 @@ int get_model_prefer_threads(const int num_streams,
  * @param[in]  streams number of streams
  * @param[in]  ngraphFunc graph handle
  * @param[in]  config intel cpu configuration
- * @param[in]  model_perfer_init is initial preferred number of threads per stream
+ * @param[in]  preferred_nthreads_per_stream is initial preferred number of threads per stream
  */
 void generate_stream_info(const int streams,
                           const std::shared_ptr<ngraph::Function>& ngraphFunc,
                           Config& config,
-                          int model_perfer_init = -1);
+                          int preferred_nthreads_per_stream = -1);
 
 struct StreamCfg {
     int num_streams;               // Number of streams

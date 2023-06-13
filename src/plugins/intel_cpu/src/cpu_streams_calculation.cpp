@@ -272,8 +272,8 @@ int get_model_prefer_threads(const int num_streams,
 void generate_stream_info(const int streams,
                           const std::shared_ptr<ngraph::Function>& ngraphFunc,
                           Config& config,
-                          int model_prefer_init) {
-    int model_prefer = model_prefer_init;
+                          int preferred_nthreads_per_stream) {
+    int model_prefer_threads = preferred_nthreads_per_stream;
     InferenceEngine::IStreamsExecutor::Config& executor_config = config.streamExecutorConfig;
     auto& orig_proc_type_table = executor_config._orig_proc_type_table;
     std::vector<std::vector<int>> proc_type_table =
@@ -288,14 +288,14 @@ void generate_stream_info(const int streams,
                                                    streams,
                                                    executor_config._threadBindingType,
                                                    proc_type_table);
-    if (-1 == model_prefer_init) {
-        model_prefer = get_model_prefer_threads(streams, proc_type_table, ngraphFunc, executor_config);
+    if (-1 == preferred_nthreads_per_stream) {
+        model_prefer_threads = get_model_prefer_threads(streams, proc_type_table, ngraphFunc, executor_config);
     }
 
     executor_config._streams_info_table = get_streams_info_table(streams,
                                                                  executor_config._threads,
                                                                  config.perfHintsConfig.ovPerfHintNumRequests,
-                                                                 model_prefer,
+                                                                 model_prefer_threads,
                                                                  proc_type_table);
 }
 
