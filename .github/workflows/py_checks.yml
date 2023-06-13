@@ -153,19 +153,14 @@ jobs:
         working-directory: src/bindings/python/src/compatibility/openvino
 
         # Python API 2.0 tests Flake code-style
-      - name: Import changed-files
-        uses: tj-actions/changed-files@v36
-
-      - name: Get changed files in openvino/tests
-        id: changed-files
-        uses: tj-actions/changed-files@v36
-
-      - name: Run flake8 on modified python tests in layer_tests
-        if: contains(steps.changed-files.outputs.modified_files, 'openvino/tests/layer_tests/')
+      - name: Run flake8 on python tests
         run: |
-          for file in ${{ steps.changed-files.outputs.modified_files }}; do
-              if [[ $file == "openvino/tests/layer_tests/"* ]]; then
-                  python -m flake8 "$file" --config=setup.cfg
+          modified_files=$(git diff --name-only)
+          for file in $modified_files; do
+            if [[ $file == "tests/layer_tests/"* ]]; then
+              if [[ -f "$file" ]]; then
+                python -m flake8 "$file" --config= ./setup.cfg
               fi
-          done
+            fi
+          done            
 
