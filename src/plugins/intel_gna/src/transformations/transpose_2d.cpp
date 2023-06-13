@@ -13,13 +13,27 @@ using namespace ov::opset11;
 using namespace ov::pass;
 using namespace ov::intel_gna::pass;
 
+namespace {
+
+inline std::vector<size_t> fix_indexes(const std::vector<size_t>& ids) {
+    std::vector<size_t> ids_fixed(ids.size());
+    std::iota(ids_fixed.begin(), ids_fixed.end(), 0);
+    stable_sort(ids_fixed.begin(), ids_fixed.end(), [&ids](size_t a, size_t b) {
+        return ids[a] < ids[b];
+    });
+    return ids_fixed;
+}
+
+}  // namespace
+
 Transpose2D::Transpose2D() {
     MATCHER_SCOPE(Transpose2D);
 
     auto transpose_const = pattern::wrap_type<Constant>();
     auto transpose =
         pattern::wrap_type<Transpose>({pattern::any_input(), transpose_const}, [](const ov::Output<ov::Node>& node) {
-            return (graph_utils::trim_shape(node.get_shape()).size() > 2);
+            const uint8_t supported_size = 2;
+            return (graph_utils::trim_shape(node.get_shape()).size() > supported_size);
         });
 
     ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
@@ -31,30 +45,26 @@ Transpose2D::Transpose2D() {
         ov::AxisVector axis = transpose_order->get_axis_vector_val();
         ov::AxisVector axis_fused = {};
         ov::Shape shape_fused_out = {};
-        for (const size_t& axis : axises) {
-            if (axises_fused.empty() || (axis - axises_fused.back()) != 1) {
-                axises_fused.push_back(axis);
+        for (const size_t& axis : axis) {
+            if (axis_fused.empty() || (axis - axis_fused.back()) != 1) {
+                axis_fused.push_back(axis);
                 shape_fused_out.push_back(shape[axis]);
             } else {
                 shape_fused_out.back() *= shape[axis];
             }
         }
         // check that fusing is required
-        if (axises.size() == axises_fused.size()) {
+        if (axis.size() == axis_fused.size()) {
             return false;
         }
-        size_t fused_sz = axis_fused.size();
-        // Fix fused indexes, for example: (0, 2, 3) -> (0, 1, 2)
-        for (size_t& axis : axises_fused) {
-            size_t max = fused_sz - 1;
-            if (axis > max) {
-                axis = max--;
-            }
-        }
+
+        // correct fused indexes, e.g. (2, 0, 3) -> (1, 0, 2)
+        ov::AxisVector axis_fused_fixed = fix_indexes(axis_fused);
+        size_t fused_sz = axis_fused_fixed.size();
         // Restore input shape
         ov::Shape shape_fused_in(fused_sz);
         for (size_t i = 0; i < fused_sz; ++i) {
-            shape_fused_in[i] = shape_fused_out[axises_fused[i]];
+            shape_fused_in[i] = shape_fused_out[axis_fused_fixed[i]];
         }
         // Reshape in
         auto reshape_in_const =
@@ -62,7 +72,7 @@ Transpose2D::Transpose2D() {
         auto reshape_in = std::make_shared<Reshape>(transpose_node->input_value(0), reshape_in_const, false);
         // Transpose
         auto transpose_const =
-            std::make_shared<Constant>(ov::element::i8, ov::Shape{axises_fused.size()}, axises_fused);
+            std::make_shared<Constant>(ov::element::i8, ov::Shape{axis_fused_fixed.size()}, axis_fused_fixed);
         auto transpose = std::make_shared<Transpose>(reshape_in, transpose_const);
         // Reshape out
         auto reshape_out_const = std::make_shared<Constant>(ov::element::i32, ov::Shape{shape_out.size()}, shape_out);
