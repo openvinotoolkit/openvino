@@ -48,7 +48,7 @@ public:
     virtual ~IDecoder() = default;
 };
 
-class FRONTEND_API DecoderBase {
+class FRONTEND_API DecoderBase : public IDecoder {
 public:
     using OpTypeByName = std::unordered_map<std::string, std::string>;
     /// \brief Get attribute value by name

@@ -6,6 +6,7 @@ import logging as log
 import os
 import re
 from distutils.version import LooseVersion
+from pathlib import Path
 
 from openvino.tools.mo.graph.graph import Node
 from openvino.tools.mo.utils.error import Error, FrameworkError
@@ -327,6 +328,8 @@ def load_tf_graph_def(graph_file_name: str = "", is_binary: bool = True, checkpo
 
 def convert_to_pb(argv: argparse.Namespace):
     from openvino.tools.mo.utils.cli_parser import get_model_name
+    if argv.input_model is not None and not isinstance(argv.input_model, (str, Path)):
+        return None
     env_setup = get_environment_setup("tf")
     if "tensorflow" in env_setup and env_setup["tensorflow"] >= LooseVersion("2.0.0"):
         tf.keras.backend.clear_session()

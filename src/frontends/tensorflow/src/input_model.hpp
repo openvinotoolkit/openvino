@@ -5,8 +5,8 @@
 #pragma once
 
 #include "openvino/frontend/extension/telemetry.hpp"
+#include "openvino/frontend/graph_iterator.hpp"
 #include "openvino/frontend/input_model.hpp"
-#include "openvino/frontend/tensorflow/graph_iterator.hpp"
 #include "place.hpp"
 #include "translate_session.hpp"
 

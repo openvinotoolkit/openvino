@@ -11,8 +11,8 @@
 #include "decoder_proto.hpp"
 #include "graph.pb.h"
 #include "openvino/frontend/exception.hpp"
+#include "openvino/frontend/graph_iterator.hpp"
 #include "openvino/frontend/tensorflow/decoder.hpp"
-#include "openvino/frontend/tensorflow/graph_iterator.hpp"
 
 namespace ov {
 namespace frontend {
