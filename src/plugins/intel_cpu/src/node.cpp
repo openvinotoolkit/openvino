@@ -1630,7 +1630,7 @@ void Node::addSupportedPrimDesc(const std::vector<PortConfigurator>& inPortConfi
     supportedPrimitiveDescriptors.push_back({config, implType});
 }
 
-void Node::setDQScales(const float* scaleData, const size_t scaleSize) {
+void Node::fuseDQScales(const float* scaleData, const size_t scaleSize) {
     bool scalePerTensor = true;
     if (DQScales.empty())
         DQScales.resize(scaleSize, 1.0);

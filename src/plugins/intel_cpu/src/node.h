@@ -539,7 +539,7 @@ public:
     */
     std::pair<std::vector<float>, std::vector<float>> getScalesAndShifts(const Node *parentNode) const;
 
-    void setDQScales(const float* scaleData, const size_t scaleSize);
+    void fuseDQScales(const float* scaleData, const size_t scaleSize);
     const std::vector<float>& getDQScales() const {
         return DQScales;
     }
