@@ -141,7 +141,7 @@ void CheckpointV1Reader::seek_block(const std::string& target_key,
             break;
         }
     }
-    FRONT_END_GENERAL_CHECK(is_found, "[TensorFlow Frontend] incorrect input model: checkpoint files can be inocrrect");
+    FRONT_END_GENERAL_CHECK(is_found, "[TensorFlow Frontend] incorrect input model: checkpoint files can be incorrect");
 }
 
 void CheckpointV1Reader::init_block(const std::shared_ptr<std::ifstream>& shard,
