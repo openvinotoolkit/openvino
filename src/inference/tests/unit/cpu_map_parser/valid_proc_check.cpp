@@ -27,7 +27,7 @@ struct LinuxNumactlTestCase {
 };
 
 class LinuxCpuMapNumactlTests : public CommonTestUtils::TestsCommon,
-                               public testing::WithParamInterface<std::tuple<LinuxNumactlTestCase>> {
+                                public testing::WithParamInterface<std::tuple<LinuxNumactlTestCase>> {
 public:
     void SetUp() override {
         const auto& test_data = std::get<0>(GetParam());
