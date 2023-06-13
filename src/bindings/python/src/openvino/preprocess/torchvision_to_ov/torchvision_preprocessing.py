@@ -91,7 +91,6 @@ def _get_shape_layout_from_data(input_example: Union[torch.Tensor, np.ndarray, I
 
 class TransformConverterBase(metaclass=ABCMeta):
 
-    @abstractmethod
     def __init__(self, **kwargs):
         pass
 
