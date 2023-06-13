@@ -16,6 +16,31 @@
 using namespace ngraph;
 using namespace std;
 
+namespace {
+void validate_scatter_element_types(const ov::Node* op) {
+    const element::Type& data_et = op->get_input_element_type(0);
+    const element::Type& indices_et = op->get_input_element_type(1);
+    const element::Type& updates_et = op->get_input_element_type(2);
+    const element::Type& axis_et = op->get_input_element_type(3);
+
+    NODE_VALIDATION_CHECK(op,
+                          indices_et.is_integral(),
+                          "Indices element type must be integral_number, but is: ",
+                          indices_et);
+
+    NODE_VALIDATION_CHECK(op, axis_et.is_integral(), "Axis element type must be integral_number, but is: ", axis_et);
+
+    element::Type merged_type;
+    NODE_VALIDATION_CHECK(op,
+                          element::Type::merge(merged_type, data_et, updates_et),
+                          "Data type and updates type are required to be the same. ",
+                          "Got: ",
+                          data_et,
+                          " and: ",
+                          updates_et);
+}
+}  // namespace
+
 op::v3::ScatterElementsUpdate::ScatterElementsUpdate(const Output<Node>& data,
                                                      const Output<Node>& indices,
                                                      const Output<Node>& updates,
@@ -31,33 +56,15 @@ bool op::v3::ScatterElementsUpdate::visit_attributes(AttributeVisitor& visitor) 
 
 void op::v3::ScatterElementsUpdate::validate_and_infer_types() {
     OV_OP_SCOPE(v3_ScatterElementsUpdate_validate_and_infer_types);
-    element::Type data_et = get_input_element_type(0);
-    element::Type indices_et = get_input_element_type(1);
-    element::Type updates_et = get_input_element_type(2);
-    element::Type axis_et = get_input_element_type(3);
-
-    NODE_VALIDATION_CHECK(this,
-                          indices_et.is_integral(),
-                          "Indices element type must be integral_number, but is: ",
-                          indices_et);
-
-    NODE_VALIDATION_CHECK(this, axis_et.is_integral(), "Axis element type must be integral_number, but is: ", axis_et);
-
-    element::Type merged_type;
-    NODE_VALIDATION_CHECK(this,
-                          element::Type::merge(merged_type, data_et, updates_et),
-                          "Data type and updates type are required to be the same. ",
-                          "Got: ",
-                          data_et,
-                          " and: ",
-                          updates_et);
+    validate_scatter_element_types(this);
 
     OPENVINO_SUPPRESS_DEPRECATED_START
     const auto output_shape = shape_infer(this, get_node_input_partial_shapes(*this)).front();
     OPENVINO_SUPPRESS_DEPRECATED_END
-    set_output_type(0, data_et, output_shape);
-    if (output_shape.is_dynamic())
+    set_output_type(0, get_input_element_type(0), output_shape);
+    if (output_shape.is_dynamic()) {
         set_input_is_relevant_to_shape(0);
+    }
 }
 
 shared_ptr<Node> op::v3::ScatterElementsUpdate::clone_with_new_inputs(const OutputVector& inputs) const {
@@ -272,4 +279,33 @@ bool op::v3::ScatterElementsUpdate::evaluate_label(TensorLabelVector& output_lab
     OPENVINO_SUPPRESS_DEPRECATED_START
     return ov::default_label_evaluator(this, {0, 2}, output_labels);
     OPENVINO_SUPPRESS_DEPRECATED_END
+}
+
+op::v12::ScatterElementsUpdate::ScatterElementsUpdate(const Output<Node>& data,
+                                                      const Output<Node>& indices,
+                                                      const Output<Node>& updates,
+                                                      const Output<Node>& axis,
+                                                      bool use_init_val)
+    : Op({data, indices, updates, axis}),
+      m_use_init_val{use_init_val} {
+    constructor_validate_and_infer_types();
+}
+
+bool op::v12::ScatterElementsUpdate::visit_attributes(AttributeVisitor& visitor) {
+    OV_OP_SCOPE(v12_ScatterElementsUpdate_visit_attributes);
+    visitor.on_attribute("use_init_val", m_use_init_val);
+    return true;
+}
+
+void op::v12::ScatterElementsUpdate::validate_and_infer_types() {
+    OV_OP_SCOPE(v12_ScatterElementsUpdate_validate_and_infer_types);
+    validate_scatter_element_types(this);
+
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    const auto output_shape = shape_infer(this, get_node_input_partial_shapes(*this)).front();
+    OPENVINO_SUPPRESS_DEPRECATED_END
+    set_output_type(0, get_input_element_type(0), output_shape);
+    if (output_shape.is_dynamic()) {
+        set_input_is_relevant_to_shape(0);
+    }
 }

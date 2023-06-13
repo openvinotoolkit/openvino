@@ -44,5 +44,33 @@ private:
     bool evaluate_scatter_element_update(const HostTensorVector& outputs, const HostTensorVector& inputs) const;
 };
 }  // namespace v3
+namespace v12 {
+class OPENVINO_API ScatterElementsUpdate : public Op {
+public:
+    OPENVINO_OP("ScatterElementsUpdate", "opset12", op::Op);
+
+    enum class Reduction {NONE, SUM, PROD, MIN, MAX, MEAN};
+
+    ScatterElementsUpdate() = default;
+    /// \brief Constructs a ScatterElementsUpdate node
+
+    /// \param data            Input data
+    /// \param indices         Data entry index that will be updated
+    /// \param updates         Update values
+    /// \param axis            Axis to scatter on
+    ScatterElementsUpdate(const Output<Node>& data,
+                          const Output<Node>& indices,
+                          const Output<Node>& updates,
+                          const Output<Node>& axis,
+                          bool use_init_val = true);
+
+    void validate_and_infer_types() override;
+
+    bool visit_attributes(AttributeVisitor& visitor) override;
+
+private:
+    bool m_use_init_val = true;
+};
+}  // namespace v12
 }  // namespace op
 }  // namespace ov

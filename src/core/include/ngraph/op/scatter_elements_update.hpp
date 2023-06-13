@@ -26,6 +26,9 @@ namespace op {
 namespace v3 {
 using ov::op::v3::ScatterElementsUpdate;
 }  // namespace v3
+namespace v12 {
+using ov::op::v12::ScatterElementsUpdate;
+}  // namespace v3
 using v3::ScatterElementsUpdate;
 }  // namespace op
 }  // namespace ngraph
