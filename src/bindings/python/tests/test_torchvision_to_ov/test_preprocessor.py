@@ -15,7 +15,7 @@ from openvino.runtime import Core
 from openvino.runtime import Tensor
 import openvino.tools.mo as mo
 
-from openvino.preprocess.torchvision_to_ov import PreprocessConverter
+from openvino.preprocess.torchvision import PreprocessConverter
 
 
 class Convnet(torch.nn.Module):
