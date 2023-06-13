@@ -107,7 +107,7 @@ All subclasses should override the following methods:
 
   - `sampler` - `Sampler` instance that provides a way to iterate over the dataset. (See details below).
   - `metric_per_sample` - if `Metric` is specified and this parameter is set to True, then the metric value should be 
-  calculated for each data sample, otherwise for the whole dataset.
+    calculated for each data sample, otherwise for the whole dataset.
   - `print_progress` - print inference progress.
 
   *Returns*

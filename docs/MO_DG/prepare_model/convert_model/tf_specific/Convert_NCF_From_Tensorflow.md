@@ -27,8 +27,7 @@ This tutorial explains how to convert Neural Collaborative Filtering (NCF) model
 
    where ``rating/BiasAdd`` is an output node.
 
-3. Convert the model to the OpenVINO format. If you look at your frozen model, you can see that
-it has one input that is split into four ``ResourceGather`` layers. (Click image to zoom in.)
+3. Convert the model to the OpenVINO format. If you look at your frozen model, you can see that it has one input that is split into four ``ResourceGather`` layers. (Click image to zoom in.)
 
    .. image::  ./_static/images/NCF_start.svg
 

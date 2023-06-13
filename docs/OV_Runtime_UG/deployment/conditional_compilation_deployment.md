@@ -161,41 +161,41 @@ Considering that JIT kernels can be affected by L1/L2/L3 cache size and the numb
 
 - L2/L3 cache emulation
 
-  Hack the function of get cache size:
+  Hack the function of get cache size
 
     ``unsigned int dnnl::impl::cpu::platform::get_per_core_cache_size(int level)``
 
   to make it return emulated cache size in analyzed stage, the simplest way is to leverage environment variable to pass the emulated cache size, for example:
 
-    .. code-block:: cpp
+  .. code-block:: cpp
 
-        #if defined(SELECTIVE_BUILD_ANALYZER)
-            if (level == 2) {
-                const char* L2_cache_size = std::getenv("OV_CC_L2_CACHE_SIZE");
-                if (L2_cache_size) {
-                    int size = std::atoi(L2_cache_size);
-                    if (size > 0) {
-                        return size;
-                    }
-                }
-            } else if (level == 3) {
-                const char* L3_cache_size = std::getenv("OV_CC_L3_CACHE_SIZE");
-                if (L3_cache_size) {
-                    int size = std::atoi(L3_cache_size);
-                    if (size > 0) {
-                        return size;
-                    }
-                }
-            } else if (level == 1) {
-                const char* L1_cache_size = std::getenv("OV_CC_L1_CACHE_SIZE");
-                if (L1_cache_size) {
-                    int size = std::atoi(L1_cache_size);
-                    if (size > 0) {
-                        return size;
-                    }
-                }
-            }
-        #endif
+     #if defined(SELECTIVE_BUILD_ANALYZER)
+         if (level == 2) {
+             const char* L2_cache_size = std::getenv("OV_CC_L2_CACHE_SIZE");
+             if (L2_cache_size) {
+                 int size = std::atoi(L2_cache_size);
+                 if (size > 0) {
+                     return size;
+                 }
+             }
+         } else if (level == 3) {
+             const char* L3_cache_size = std::getenv("OV_CC_L3_CACHE_SIZE");
+             if (L3_cache_size) {
+                 int size = std::atoi(L3_cache_size);
+                 if (size > 0) {
+                     return size;
+                 }
+             }
+         } else if (level == 1) {
+             const char* L1_cache_size = std::getenv("OV_CC_L1_CACHE_SIZE");
+             if (L1_cache_size) {
+                 int size = std::atoi(L1_cache_size);
+                 if (size > 0) {
+                     return size;
+                 }
+             }
+         }
+     #endif
 
 - CPU core number emulation
 

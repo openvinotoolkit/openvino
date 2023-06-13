@@ -21,25 +21,25 @@ This article provides the instructions and examples on how to convert `GluonCV S
 
 2. Run model conversion API, specifying the ``enable_ssd_gluoncv`` option. Make sure the ``input_shape`` parameter is set to the input shape layout of your model (NHWC or NCHW). The examples below illustrate running model conversion for the SSD and YOLO-v3 models trained with the NHWC layout and located in the ``<model_directory>``:
 
-* **For GluonCV SSD topologies:**
+   * **For GluonCV SSD topologies:**
 
-  .. code-block:: sh
+     .. code-block:: sh
 
-     mo --input_model <model_directory>/ssd_512_mobilenet1.0.params --enable_ssd_gluoncv --input_shape [1,512,512,3] --input data --output_dir <OUTPUT_MODEL_DIR>
+        mo --input_model <model_directory>/ssd_512_mobilenet1.0.params --enable_ssd_gluoncv --input_shape [1,512,512,3] --input data --output_dir <OUTPUT_MODEL_DIR>
 
-* **For YOLO-v3 topology:**
+   * **For YOLO-v3 topology:**
 
-  * To convert the model:
+     * To convert the model:
 
-    .. code-block:: sh
+       .. code-block:: sh
 
-       mo --input_model <model_directory>/yolo3_mobilenet1.0_voc-0000.params  --input_shape [1,255,255,3] --output_dir <OUTPUT_MODEL_DIR>
+          mo --input_model <model_directory>/yolo3_mobilenet1.0_voc-0000.params  --input_shape [1,255,255,3] --output_dir <OUTPUT_MODEL_DIR>
 
-  * To convert the model with replacing the subgraph with RegionYolo layers:
+     * To convert the model with replacing the subgraph with RegionYolo layers:
 
-    .. code-block:: sh
+       .. code-block:: sh
 
-       mo --input_model <model_directory>/models/yolo3_mobilenet1.0_voc-0000.params  --input_shape [1,255,255,3] --transformations_config "front/mxnet/yolo_v3_mobilenet1_voc.  json" --output_dir <OUTPUT_MODEL_DIR>
+          mo --input_model <model_directory>/models/yolo3_mobilenet1.0_voc-0000.params  --input_shape [1,255,255,3] --transformations_config "front/mxnet/   yolo_v3_mobilenet1_voc.  json" --output_dir <OUTPUT_MODEL_DIR>
 
 
 @endsphinxdirective
