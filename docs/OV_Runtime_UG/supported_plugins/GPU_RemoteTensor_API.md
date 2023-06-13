@@ -428,12 +428,12 @@ on waiting for the completion of inference. The pseudo-code may look as follows:
 Limitations
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
- - Some primitives in the GPU plugin may block the host thread on waiting for the previous primitives before adding its kernels
-   to the command queue. In such cases, the ``ov::InferRequest::start_async()`` call takes much more time to return control to the calling thread
-   as internally it waits for a partial or full network completion.
-   Examples of operations: Loop, TensorIterator, DetectionOutput, NonMaxSuppression
- - Synchronization of pre/post processing jobs and inference pipeline inside a shared queue is user's responsibility.
- - Throughput mode is not available when queue sharing is used, i.e., only a single stream can be used for each compiled model.
+- Some primitives in the GPU plugin may block the host thread on waiting for the previous primitives before adding its kernels
+  to the command queue. In such cases, the ``ov::InferRequest::start_async()`` call takes much more time to return control to the calling thread
+  as internally it waits for a partial or full network completion.
+  Examples of operations: Loop, TensorIterator, DetectionOutput, NonMaxSuppression
+- Synchronization of pre/post processing jobs and inference pipeline inside a shared queue is user's responsibility.
+- Throughput mode is not available when queue sharing is used, i.e., only a single stream can be used for each compiled model.
 
 Low-Level Methods for RemoteContext and RemoteTensor Creation
 #####################################################################
@@ -490,7 +490,7 @@ To see pseudo-code of usage examples, refer to the sections below.
 See Also
 #######################################
 
-* ov::Core
-* ov::RemoteTensor
+* ``:ref:`ov::Core <doxid-classov-1-1-core>```
+* ``:ref:`ov::RemoteTensor <doxid-classov-1-1-remote-tensor>```
 
 @endsphinxdirective
