@@ -31,6 +31,8 @@
 #    include <xbyak/xbyak_util.h>
 #endif
 
+using namespace InferenceEngine;
+
 namespace ov {
 
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
