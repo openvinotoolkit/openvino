@@ -229,19 +229,19 @@ OPENVINO_RUNTIME_API void set_cpu_used(const std::vector<int>& cpu_ids, const in
  *  1. Four processors of two Pcore
  *  2. Four processors of four Ecores shared L2 cache
  *
- *  PROCESSOR_ID | NODE_ID | SOCKET_ID | CORE_ID | CORE_TYPE | GROUP_ID | Used
- *       0            0          0          0          3          0        0
- *       1            0          0          0          1          0        0
- *       2            0          0          1          3          1        0
- *       3            0          0          1          1          1        0
- *       4            0          0          2          2          2        0
- *       5            0          0          3          2          2        0
- *       6            0          0          4          2          2        0
- *       7            0          0          5          2          2        0
+ *  PROCESSOR_ID | NUMA_NODE_ID | SOCKET_ID | CORE_ID | CORE_TYPE | GROUP_ID | Used
+ *       0               0            0          0          3          0        0
+ *       1               0            0          0          1          0        0
+ *       2               0            0          1          3          1        0
+ *       3               0            0          1          1          1        0
+ *       4               0            0          2          2          2        0
+ *       5               0            0          3          2          2        0
+ *       6               0            0          4          2          2        0
+ *       7               0            0          5          2          2        0
  */
 enum ColumnOfCPUMappingTable {
     CPU_MAP_PROCESSOR_ID = 0,  //!< column for processor id of the processor
-    CPU_MAP_NODE_ID = 1,       //!< column for node id of the processor
+    CPU_MAP_NUMA_NODE_ID = 1,  //!< column for node id of the processor
     CPU_MAP_SOCKET_ID = 2,     //!< column for socket id of the processor
     CPU_MAP_CORE_ID = 3,       //!< column for hardware core id of the processor
     CPU_MAP_CORE_TYPE = 4,     //!< column for CPU core type corresponding to the processor

@@ -341,11 +341,11 @@ void set_cpu_used(const std::vector<int>& cpu_ids, const int used) {
             all_table.resize(PROC_TYPE_TABLE_SIZE, 0);
             for (int i = 0; i < cpu._processors; i++) {
                 if (cpu._cpu_mapping_table[i][CPU_MAP_USED_FLAG] < PLUGIN_USED_START &&
-                    cpu._cpu_mapping_table[i][CPU_MAP_NODE_ID] >= 0 &&
+                    cpu._cpu_mapping_table[i][CPU_MAP_NUMA_NODE_ID] >= 0 &&
                     cpu._cpu_mapping_table[i][CPU_MAP_CORE_TYPE] >= ALL_PROC) {
-                    cpu._proc_type_table[cpu._cpu_mapping_table[i][CPU_MAP_NODE_ID] + start]
+                    cpu._proc_type_table[cpu._cpu_mapping_table[i][CPU_MAP_NUMA_NODE_ID] + start]
                                         [cpu._cpu_mapping_table[i][CPU_MAP_CORE_TYPE]]++;
-                    cpu._proc_type_table[cpu._cpu_mapping_table[i][CPU_MAP_NODE_ID] + start][ALL_PROC]++;
+                    cpu._proc_type_table[cpu._cpu_mapping_table[i][CPU_MAP_NUMA_NODE_ID] + start][ALL_PROC]++;
                     all_table[cpu._cpu_mapping_table[i][CPU_MAP_CORE_TYPE]]++;
                     all_table[ALL_PROC]++;
                 }
