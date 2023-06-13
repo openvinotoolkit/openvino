@@ -17,7 +17,6 @@
 using namespace ngraph;
 using namespace std;
 
-
 op::v0::LSTMSequence::LSTMSequence(const Output<Node>& X,
                                    const Output<Node>& initial_hidden_state,
                                    const Output<Node>& initial_cell_state,

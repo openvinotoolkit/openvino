@@ -47,7 +47,6 @@ public:
         m_direction = direction;
     }
 
-
 protected:
     op::RecurrentSequenceDirection m_direction;
     bool m_linear_before_reset;

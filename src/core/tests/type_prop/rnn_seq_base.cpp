@@ -99,7 +99,8 @@ static std::shared_ptr<T> make_rnn_seq_based_op(RNNSeqParams& p, bool use_defaul
         op->set_hidden_size(p.hidden_size.get_max_length());
         auto inputs = OutputVector{X, H_t, C_t, sequence_lengths, W, R, B};
         if (ov::is_type<v0::LSTMSequence>(op)) {
-            const auto P = make_shared<v0::Parameter>(p.et, PartialShape{p.num_directions, p.hidden_size * (p.gates_count - 1)});
+            const auto P =
+                make_shared<v0::Parameter>(p.et, PartialShape{p.num_directions, p.hidden_size * (p.gates_count - 1)});
             inputs.push_back(P);
         }
         op->set_arguments(inputs);
