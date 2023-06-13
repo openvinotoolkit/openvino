@@ -9,7 +9,7 @@
 #include <utility>
 
 #include "openvino/op/util/op_types.hpp"
-#include "openvino/opsets/opset10.hpp"
+#include "openvino/opsets/opset12.hpp"
 #include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/common_util.hpp"
@@ -18,9 +18,9 @@
 namespace gather_sinking {
 
 struct GatherInputsInfo {
-    std::shared_ptr<ov::opset10::Gather> gather;
-    std::shared_ptr<ov::opset10::Constant> indices_const;
-    std::shared_ptr<ov::opset10::Constant> axis_const;
+    std::shared_ptr<ov::opset12::Gather> gather;
+    std::shared_ptr<ov::opset12::Constant> indices_const;
+    std::shared_ptr<ov::opset12::Constant> axis_const;
     size_t input_idx;
 
     bool isEmpty() const {
@@ -66,9 +66,9 @@ namespace sink_backward {
  * @brief Inserts Gather layers on each input of @arg main_node with cloned indices and axes constants
  */
 ov::NodeVector insert_gather_before_node(std::shared_ptr<ov::Node> main_node,
-                                         const std::shared_ptr<ov::opset10::Constant>& indices_const,
-                                         const std::shared_ptr<ov::opset10::Constant>& axes_const,
-                                         const std::shared_ptr<ov::opset10::Gather>& gather_node,
+                                         const std::shared_ptr<ov::opset12::Constant>& indices_const,
+                                         const std::shared_ptr<ov::opset12::Constant>& axes_const,
+                                         const std::shared_ptr<ov::opset12::Gather>& gather_node,
                                          std::vector<int> input_indexes = {});
 }  // namespace sink_backward
 
@@ -94,5 +94,21 @@ bool is_gather_sinking_enabled(const ov::Output<ov::Node>& output);
  * @brief Finds Split first input Gather node and it could be sinked
 */
 bool is_split_sinked(const ov::Output<ov::Node>& output);
+
+/**
+ * @brief Converts Gather indices to negative form
+ */
+int64_t normalize_negative_gather_axis(int64_t axis, ov::Rank::value_type gather_input_rank);
+
+/**
+ * @brief Gets Gather indices from Constant converted into negative form
+ */
+int64_t get_normalized_negative_gather_axis(const std::shared_ptr<ov::opset12::Constant>& axis,
+                                                   ov::Rank::value_type gather_input_rank);
+
+/**
+ * @brief Gets Gather axis if it's stored in a constant
+ */
+bool get_gather_axis(const std::shared_ptr<ov::Node>& gather, int64_t& axis);
 
 }  // namespace gather_sinking

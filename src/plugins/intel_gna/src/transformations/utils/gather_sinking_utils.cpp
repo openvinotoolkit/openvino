@@ -341,4 +341,27 @@ bool is_split_sinked(const Output<Node>& output) {
     return find_first_input_node<Split>(output.get_node_shared_ptr()) && is_gather_sinking_node(output);
 }
 
+int64_t normalize_negative_gather_axis(int64_t axis, ov::Rank::value_type gather_input_rank) {
+    if (axis < 0)
+        return axis;
+    return axis - gather_input_rank;
+}
+
+int64_t get_normalized_negative_gather_axis(const std::shared_ptr<Constant>& axis,
+                                                   ov::Rank::value_type gather_input_rank) {
+    return normalize_negative_gather_axis(axis->cast_vector<int64_t>()[0], gather_input_rank);
+}
+
+bool get_gather_axis(const std::shared_ptr<ov::Node>& gather, int64_t& axis) {
+    auto gather_node = as_type_ptr<Gather>(gather);
+    if (!gather_node)
+        return false;
+    auto output_gather_axis_node = as_type_ptr<Constant>(gather->input_value(2).get_node_shared_ptr());
+    if (!output_gather_axis_node)
+        return false;
+    axis = get_normalized_negative_gather_axis(output_gather_axis_node,
+                                               gather->get_input_partial_shape(0).rank().get_length());
+    return true;
+}
+
 }  // namespace gather_sinking

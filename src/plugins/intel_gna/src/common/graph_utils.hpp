@@ -385,37 +385,7 @@ inline int64_t get_first_valuable_dim_id(const ov::Shape& shape) {
     return -1;
 }
 
-/**
- * @brief Converts Gather indices to negative form
- */
-inline int64_t normalize_negative_gather_axis(int64_t axis, ov::Rank::value_type gather_input_rank) {
-    if (axis < 0)
-        return axis;
-    return axis - gather_input_rank;
-}
 
-/**
- * @brief Gets Gather indices from Constant converted into negative form
- */
-inline int64_t get_normalized_negative_gather_axis(const std::shared_ptr<ov::opset12::Constant>& axis,
-                                                   ov::Rank::value_type gather_input_rank) {
-    return normalize_negative_gather_axis(axis->cast_vector<int64_t>()[0], gather_input_rank);
-}
-
-/**
- * @brief Gets Gather axis if it's stored in a constant
- */
-inline bool get_gather_axis(const std::shared_ptr<ov::Node>& gather, int64_t& axis) {
-    auto gather_node = as_type_ptr<ov::opset12::Gather>(gather);
-    if (!gather_node)
-        return false;
-    auto output_gather_axis_node = as_type_ptr<ov::opset12::Constant>(gather->input_value(2).get_node_shared_ptr());
-    if (!output_gather_axis_node)
-        return false;
-    axis = get_normalized_negative_gather_axis(output_gather_axis_node,
-                                               gather->get_input_partial_shape(0).rank().get_length());
-    return true;
-}
 
 /**
  * @brief Converts Gather indexes into positive form
