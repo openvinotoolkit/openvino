@@ -118,7 +118,7 @@ template void Graph::CreateGraph(const std::shared_ptr<const ngraph::Function>&,
 template void Graph::CreateGraph(const CNNNetwork&, const GraphContext::CPtr);
 
 void Graph::Replicate(const std::shared_ptr<const ov::Model> &subgraph) {
-    this->_name = subgraph->get_name();
+    this->_name = subgraph->get_friendly_name();
     this->reuse_io_tensors = false;
 
     // Map data object onto producer node
