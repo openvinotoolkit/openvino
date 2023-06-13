@@ -521,7 +521,7 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream& heteroModel,
         CNNNetwork cnnnetwork;
         bool loaded = false;
 
-        if (plugin->device_supports_model_caching(deviceName)) {
+        if (plugin->get_core()->device_supports_model_caching(deviceName)) {
             auto compiled_model = plugin->get_core()->import_model(heteroModel, deviceName, loadConfig);
             executableNetwork = {ov::legacy_convert::convert_compiled_model(compiled_model._ptr), compiled_model._so};
         } else {
@@ -730,7 +730,7 @@ void HeteroExecutableNetwork::Export(std::ostream& heteroModel) {
     heteroModel << std::endl;
 
     for (auto&& subnetwork : _networks) {
-        if (_plugin->device_supports_model_caching(subnetwork._device)) {
+        if (_plugin->get_core()->device_supports_model_caching(subnetwork._device)) {
             subnetwork._network->Export(heteroModel);
         } else {
             auto subnet = subnetwork._clonedNetwork;
