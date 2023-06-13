@@ -62,15 +62,6 @@ def read_network(path_to_xml : str, path_to_bin : str):
     net.impl = C.read_network(path_to_xml.encode(), path_to_bin.encode())
     return net
 
-def deprecation_message():
-    return warnings.warn(
-    message="OpenVINO Inference Engine Python API is deprecated and will be removed in 2024.0 release."
-            "For instructions on transitioning to the new API, please refer to "
-            "https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html",
-    category=FutureWarning,
-    stacklevel=2,
-    )
-
 
 cdef class VariableState:
     """
@@ -79,7 +70,7 @@ cdef class VariableState:
 
     This class manages data for reset operations
     """
-    deprecation_message()
+
     def reset(self):
         """
         Reset internal variable state for relevant infer request
@@ -117,7 +108,6 @@ cdef class TensorDesc:
 
     This class defines Tensor description
     """
-    deprecation_message()
 
     def __eq__(self, other : TensorDesc):
         return self.layout == other.layout and self.precision == other.precision and self.dims == other.dims
@@ -190,7 +180,6 @@ cdef class Blob:
 
     This class represents Blob
     """
-    deprecation_message()
 
     def __cinit__(self, TensorDesc tensor_desc = None, array : np.ndarray = None):
         """Class constructor
@@ -338,7 +327,6 @@ cdef class IECore:
 
     This class represents an Inference Engine entity and allows you to manipulate with plugins using unified interfaces.
     """
-    deprecation_message()
 
     def __cinit__(self, xml_config_file: str = ""):
         """Class constructor
@@ -690,7 +678,6 @@ cdef class PreProcessChannel:
 
     This structure stores info about pre-processing of network inputs (scale, mean image, ...)
     """
-    deprecation_message()
 
     property mean_value:
         def __get__(self):
@@ -721,7 +708,6 @@ cdef class PreProcessInfo:
 
     This class stores pre-process information for the input
     """
-    deprecation_message()
 
     def __cinit__(self):
         self._ptr = new CPreProcessInfo()
@@ -852,7 +838,6 @@ cdef class InputInfoPtr:
 
     This class contains information about each input of the network
     """
-    deprecation_message()
 
     @property
     def name(self):
@@ -942,7 +927,6 @@ cdef class InputInfoCPtr:
     This class contains const information about each input of the network.
     Provides same interface as InputInfoPtr object except properties setters
     """
-    deprecation_message()
 
     @property
     def name(self):
@@ -990,7 +974,6 @@ cdef class DataPtr:
 
     This class is the layer data representation.
     """
-    deprecation_message()
 
     def __init__(self):
         """
@@ -1054,7 +1037,6 @@ cdef class CDataPtr:
 
     This class is the layer constant data representation. Provides same interface as DataPtr object except properties setters
     """
-    deprecation_message()
 
     @property
     def name(self):
@@ -1099,7 +1081,6 @@ cdef class ExecutableNetwork:
 
     This class represents a network instance loaded to plugin and ready for inference.
     """
-    deprecation_message()
 
     def __init__(self):
         """
@@ -1355,7 +1336,6 @@ cdef class InferRequest:
     This class provides an interface to infer requests of :class:`ExecutableNetwork` and serves
     to handle infer requests execution and to set and get output data.
     """
-    deprecation_message()
 
     def __init__(self):
         """
@@ -1617,7 +1597,6 @@ cdef class IENetwork:
     OpenVINO Inference Engine Python API is deprecated and will be removed in the 2024.0 release. For instructions on
     transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html
     """
-    deprecation_message()
     ## Class constructor
     #
     #  @param model: A PyCapsule containing smart pointer to nGraph function.
@@ -1798,7 +1777,6 @@ cdef class BlobBuffer:
 
     Copy-less accessor for Inference Engine Blob
     """
-    deprecation_message()
 
     cdef reset(self, CBlob.Ptr & ptr, vector[size_t] representation_shape = []):
         self.ptr = ptr
