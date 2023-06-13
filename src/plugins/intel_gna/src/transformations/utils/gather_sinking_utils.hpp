@@ -98,4 +98,14 @@ std::function<bool(ov::Output<ov::Node>)> rank_not_more_than(const ov::Rank::val
  */
 bool is_constant_1d(const ov::Output<ov::Node>& output);
 
+/**
+ * @brief Checks if Output is Gather node and it could be sinked
+*/
+bool is_gather_sinking_enabled(const ov::Output<ov::Node>& output);
+
+/**
+ * @brief Finds Split first input Gather node and it could be sinked
+*/
+bool is_split_sinked(const ov::Output<ov::Node>& output);
+
 }  // namespace gather_sinking

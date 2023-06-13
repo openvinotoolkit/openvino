@@ -47,17 +47,6 @@ int get_left_shift(const Shape& shape1, const Shape& shape2) {
     return index_1 - index_2;
 }
 
-bool is_gather_sinking_enabled(const Output<Node>& output) {
-    return is_gather_sinking_node(output.get_node_shared_ptr());
-}
-
-bool is_reshape_unsqueeze(const Output<Node>& output) {
-    NodePtr reshape = output.get_node_shared_ptr();
-    const Shape input_shape = trim_shape(reshape->get_input_shape(0));
-    const Shape output_shape = trim_shape(reshape->get_output_shape(0));
-    return std::equal(input_shape.begin(), input_shape.end(), output_shape.begin());
-}
-
 }  // namespace
 
 GatherSinkingReshapeBackward::GatherSinkingReshapeBackward() {

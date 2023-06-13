@@ -10,67 +10,12 @@
 #include "gtest/gtest.h"
 #include "openvino/core/model.hpp"
 #include "transformations/ts_split.hpp"
+#include "gather_sinking_test_utils.hpp"
 
 using namespace ov;
 using namespace ov::opset12;
 
 namespace {
-void ShiftLeft(std::vector<size_t>& vec, size_t k) {
-    if (k > vec.size())
-        return;
-    std::vector<size_t> buffer(k);
-    std::copy(vec.begin(), vec.begin() + k, buffer.begin());
-
-    for (int i = k; i < vec.size(); ++i) {
-        vec[i - k] = vec[i];
-    }
-
-    std::copy(buffer.begin(), buffer.end(), vec.end() - k);
-}
-
-void ShiftRight(std::vector<size_t>& vec, size_t k) {
-    if (k > vec.size())
-        return;
-    std::vector<size_t> buffer(k);
-    std::copy(vec.end() - k, vec.end(), buffer.begin());
-
-    for (int i = vec.size() - 1 - k; i >= 0; --i) {
-        vec[i + k] = vec[i];
-    }
-
-    std::copy(buffer.begin(), buffer.end(), vec.begin());
-}
-
-std::vector<size_t> GatherForward(size_t size, size_t initial_value) {
-    std::vector<size_t> vec(size);
-    std::iota(vec.begin(), vec.end(), initial_value);
-    ShiftLeft(vec, 2);
-    return vec;
-}
-
-std::vector<size_t> GatherBackward(size_t size, size_t initial_value) {
-    std::vector<size_t> vec(size);
-    std::iota(vec.begin(), vec.end(), initial_value);  // Not the same as in binary tests
-    ShiftRight(vec, 2);
-    return vec;
-}
-
-using NodePtr = std::shared_ptr<ov::Node>;
-using ModelPtr = std::shared_ptr<Model>;
-using Output = ov::Output<ov::Node>;
-
-template <typename CreateIndicesF>
-std::shared_ptr<Gather> MakeGather(NodePtr input_node, CreateIndicesF create_indices_func, size_t axis) {
-    const ov::Shape& input_shape = input_node->get_output_shape(0);
-    const std::vector<size_t> indexes = create_indices_func(input_shape[axis], 0);
-
-    auto gather_indexes_node = Constant::create(element::i64, ov::Shape{indexes.size()}, indexes);
-
-    auto gather_axis_node = Constant::create(element::i64, Shape{}, {axis});
-
-    return std::make_shared<Gather>(input_node->output(0), gather_indexes_node, gather_axis_node);
-}
-
 std::vector<size_t> TSSplit_Backward_indexes(size_t size, size_t initial_value) {
     return std::vector<size_t>{0, 2, 4, 6, 1, 3, 5, 7};
 }

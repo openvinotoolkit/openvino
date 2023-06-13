@@ -24,7 +24,7 @@ using namespace ov::intel_gna::limitations;
 using namespace ov::intel_gna::graph_utils;
 
 namespace {
-bool is_sinked(const Output<Node>& output) {
+bool is_split_sinked(const Output<Node>& output) {
     auto split_node = output.get_node_shared_ptr();
     for (size_t output_idx = 0; output_idx < split_node->get_output_size(); ++output_idx) {
         for (auto& input : split_node->get_output_target_inputs(output_idx)) {
@@ -40,7 +40,7 @@ bool is_sinked(const Output<Node>& output) {
 TSSplitBackward::TSSplitBackward() {
     MATCHER_SCOPE(TSSplitBackward);
 
-    auto split_node_label = wrap_type<Split>(is_sinked);
+    auto split_node_label = wrap_type<Split>(is_split_sinked);
 
     matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();

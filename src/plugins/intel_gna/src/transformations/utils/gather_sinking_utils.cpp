@@ -76,7 +76,7 @@ void update_input_gather(NodePtr main_node,
             gather_input_info.gather->get_input_partial_shape(0).rank().get_length());
 
     const std::vector<int64_t> gather_indices = get_normalized_gather_indices(gather_input_info.indices_const);
-    const std::vector<int64_t> reversed_gather_indices = reverse_gather_indexes(gather_indices);
+    const std::vector<int64_t> reversed_gather_indices = reverse_gather_indices(gather_indices);
 
     const auto indices_element_type = gather_input_info.indices_const->get_element_type();
     const auto axis_element_type = gather_input_info.axis_const->get_element_type();
@@ -163,13 +163,13 @@ NodeVector insert_gather_before_node(NodePtr main_node,
                                      const std::shared_ptr<Constant>& indices_const,
                                      const std::shared_ptr<Constant>& axis_const,
                                      const std::shared_ptr<Gather>& gather_node,
-                                     std::vector<int> input_indexes) {
+                                     std::vector<int> input_indices) {
     if (has_dynamic_rank_input(main_node))
         return {};
 
-    if (input_indexes.empty()) {
-        input_indexes.resize(main_node->get_input_size());
-        std::iota(input_indexes.begin(), input_indexes.end(), 0);
+    if (input_indices.empty()) {
+        input_indices.resize(main_node->get_input_size());
+        std::iota(input_indices.begin(), input_indices.end(), 0);
     }
 
     const int64_t gather_negative_axis =
@@ -181,7 +181,7 @@ NodeVector insert_gather_before_node(NodePtr main_node,
         return {};
 
     NodeVector new_nodes;
-    for (const auto& i : input_indexes) {
+    for (const auto& i : input_indices) {
         auto input_node = main_node->input_value(i);
 
         const Shape broadcasted_input_shape = broadcast_shape(input_node.get_shape(), max_input_rank);
@@ -344,6 +344,17 @@ bool constant_has_rank_not_more_than(const std::shared_ptr<Constant>& node, cons
 
 bool is_constant_1d(const Output<Node>& output) {
     return rank_equals(0)(output) || rank_equals(1)(output);
+}
+
+bool is_gather_sinking_enabled(const Output<Node>& output) {
+    auto node = ov::as_type_ptr<Gather>(output.get_node_shared_ptr());
+    if (!node)
+        return false;
+    return is_gather_sinking_node(output.get_node_shared_ptr());
+}
+
+bool is_split_sinked(const Output<Node>& output) {
+    return find_first_input_node<Split>(output.get_node_shared_ptr()) && is_gather_sinking_node(output);
 }
 
 }  // namespace gather_sinking

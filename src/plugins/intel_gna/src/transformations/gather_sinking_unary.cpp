@@ -126,12 +126,6 @@ GatherSinkingUnaryForward::GatherSinkingUnaryForward() {
     register_matcher(m, matcher_pass_callback);
 }
 
-namespace {
-bool is_gather_sinking_enabled(const Output<Node>& output) {
-    return is_gather_sinking_node(output.get_node_shared_ptr());
-}
-}  // namespace
-
 GatherSinkingUnaryBackwardSingleConsumer::GatherSinkingUnaryBackwardSingleConsumer() {
     MATCHER_SCOPE(GatherSinkingUnaryBackwardSingleConsumer);
     auto unary_label =

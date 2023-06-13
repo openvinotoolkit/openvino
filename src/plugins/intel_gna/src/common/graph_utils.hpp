@@ -21,6 +21,7 @@
 #include "ngraph/opsets/opset8.hpp"
 #include "ngraph/opsets/opset9.hpp"
 #include "openvino/opsets/opset10.hpp"
+#include "openvino/opsets/opset12.hpp"
 #include "ops/copy.hpp"
 #include "ops/identity.hpp"
 #include "ops/pwl.hpp"
@@ -396,7 +397,7 @@ inline int64_t normalize_negative_gather_axis(int64_t axis, ov::Rank::value_type
 /**
  * @brief Gets Gather indices from Constant converted into negative form
  */
-inline int64_t get_normalized_negative_gather_axis(const std::shared_ptr<ov::opset10::Constant>& axis,
+inline int64_t get_normalized_negative_gather_axis(const std::shared_ptr<ov::opset12::Constant>& axis,
                                                    ov::Rank::value_type gather_input_rank) {
     return normalize_negative_gather_axis(axis->cast_vector<int64_t>()[0], gather_input_rank);
 }
@@ -405,10 +406,10 @@ inline int64_t get_normalized_negative_gather_axis(const std::shared_ptr<ov::ops
  * @brief Gets Gather axis if it's stored in a constant
  */
 inline bool get_gather_axis(const std::shared_ptr<ov::Node>& gather, int64_t& axis) {
-    auto gather_node = as_type_ptr<ov::opset10::Gather>(gather);
+    auto gather_node = as_type_ptr<ov::opset12::Gather>(gather);
     if (!gather_node)
         return false;
-    auto output_gather_axis_node = as_type_ptr<ov::opset10::Constant>(gather->input_value(2).get_node_shared_ptr());
+    auto output_gather_axis_node = as_type_ptr<ov::opset12::Constant>(gather->input_value(2).get_node_shared_ptr());
     if (!output_gather_axis_node)
         return false;
     axis = get_normalized_negative_gather_axis(output_gather_axis_node,
@@ -434,7 +435,7 @@ std::vector<T> normalize_gather_indices(const std::vector<T>& indices) {
 /**
  * @brief Gets Gather indexes from Constant and converts them into positive form
  */
-inline std::vector<int64_t> get_normalized_gather_indices(const std::shared_ptr<ov::opset10::Constant>& indices) {
+inline std::vector<int64_t> get_normalized_gather_indices(const std::shared_ptr<ov::opset12::Constant>& indices) {
     return normalize_gather_indices(indices->cast_vector<int64_t>());
 }
 
@@ -508,7 +509,7 @@ inline int64_t convert_axis_to_positive(int64_t axis, ov::Rank::value_type rank)
  * @brief Reverts gather indices in such a way that reverted and initial gather will do nothing if
  *   they stay one after another. Works only with positive form (no negative indices).
  */
-inline std::vector<int64_t> reverse_gather_indexes(const std::vector<int64_t>& indexes) {
+inline std::vector<int64_t> reverse_gather_indices(const std::vector<int64_t>& indexes) {
     std::vector<int64_t> out(indexes.size());
     for (size_t i = 0; i < indexes.size(); i++) {
         out.at(indexes[i]) = i;
@@ -546,7 +547,7 @@ std::shared_ptr<NodeT> find_first_input_node(const std::shared_ptr<ov::Node>& no
 /**
  * @brief Gets split axis from Constant converting it to positive form
  */
-inline bool get_split_axis(const std::shared_ptr<ov::opset10::Constant>& split_axis,
+inline bool get_split_axis(const std::shared_ptr<ov::opset12::Constant>& split_axis,
                            const ov::Rank& rank,
                            int64_t& axis) {
     auto split_axis_val = split_axis->cast_vector<int64_t>();
@@ -578,6 +579,48 @@ inline size_t get_num_first_one_dims(const ov::Shape& shape) {
         ++count;
     }
     return count;
+}
+
+
+/**
+ * @brief Checks if has 2D input shape inputs
+*/
+inline bool has_2d_inputs(const ov::Output<ov::Node>& output) {
+    auto node = output.get_node_shared_ptr();
+    auto input_left_rank = node->get_input_partial_shape(0).rank();
+    auto input_right_rank = node->get_input_partial_shape(0).rank();
+    return (input_left_rank.is_static() && input_right_rank.is_static() && input_left_rank.get_length() == 2 &&
+            input_right_rank.get_length() == 2);
+}
+
+/**
+ * @brief Checks if the permutation does nothing
+*/
+inline bool is_pointless_permutation(const std::vector<int64_t>& indices) {
+    for (size_t i = 0; i < indices.size(); ++i) {
+        if (indices[i] != i)
+            return false;
+    }
+    return true;
+}
+
+/**
+ * @brief Checks if MatMul input with @arg input_idx input is transposed
+*/
+inline bool is_matmul_input_transposed(const std::shared_ptr<ov::opset12::MatMul>& matmul, size_t input_idx) {
+    if (!input_idx)
+        return matmul->get_transpose_a();
+    return matmul->get_transpose_b();
+}
+
+/**
+ * @brief Checks if Reshape node is Unsqueeze
+*/
+inline bool is_reshape_unsqueeze(const ov::Output<ov::Node>& output) {
+    auto reshape = output.get_node_shared_ptr();
+    const ov::Shape input_shape = trim_shape(reshape->get_input_shape(0));
+    const ov::Shape output_shape = trim_shape(reshape->get_output_shape(0));
+    return std::equal(input_shape.begin(), input_shape.end(), output_shape.begin());
 }
 
 }  // namespace graph_utils

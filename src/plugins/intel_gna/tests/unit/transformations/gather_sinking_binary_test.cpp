@@ -12,6 +12,8 @@
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "gtest/gtest.h"
 
+#include "gather_sinking_test_utils.hpp"
+
 using namespace ov;
 using namespace ov::opset12;
 
@@ -33,70 +35,6 @@ std::string to_string(const Shape& shape) {
     }
     result << "}";
     return result.str();
-}
-
-void ShiftLeft(std::vector<size_t>& vec, size_t k) {
-    if (k > vec.size())
-        return;
-    std::vector<size_t> buffer(k);
-    std::copy(vec.begin(), vec.begin() + k, buffer.begin());
-
-    for (int i = k; i < vec.size(); ++i) {
-        vec[i - k] = vec[i];
-    }
-
-    std::copy(buffer.begin(), buffer.end(), vec.end() - k);
-}
-
-void ShiftRight(std::vector<size_t>& vec, size_t k) {
-    if (k > vec.size())
-        return;
-    std::vector<size_t> buffer(k);
-    std::copy(vec.end() - k, vec.end(), buffer.begin());
-
-    for (int i = vec.size() - 1 - k; i >= 0; --i) {
-        vec[i + k] = vec[i];
-    }
-
-    std::copy(buffer.begin(), buffer.end(), vec.begin());
-}
-
-std::vector<size_t> GatherForward(size_t size, size_t initial_value) {
-    std::vector<size_t> vec(size);
-    std::iota(vec.begin(), vec.end(), initial_value);
-    ShiftLeft(vec, 2);
-    return vec;
-}
-
-std::vector<size_t> GatherBackward(size_t size, size_t initial_value) {
-    std::vector<size_t> vec(size);
-    std::iota(vec.rbegin(), vec.rend(), initial_value);
-    ShiftRight(vec, 2);
-    return vec;
-}
-
-template <typename CreateIndicesF>
-std::shared_ptr<Gather> MakeGather(NodePtr input_node, CreateIndicesF create_indices_func, size_t axis) {
-    const ov::Shape& input_shape = input_node->get_output_shape(0);
-    const std::vector<size_t> indexes = create_indices_func(input_shape[axis], 0);
-    auto gather_indexes_node = Constant::create(element::i64, ov::Shape{indexes.size()}, indexes);
-
-    auto gather_axis_node = Constant::create(element::i64, Shape{}, {axis});
-
-    return std::make_shared<Gather>(input_node, gather_indexes_node, gather_axis_node);
-}
-
-template <typename CreateIndicesF>
-std::shared_ptr<Gather> MakeGather(NodePtr input_node,
-                                   CreateIndicesF create_indices_func,
-                                   size_t axis,
-                                   size_t indices_size) {
-    const std::vector<size_t> indexes = create_indices_func(indices_size, 0);
-    auto gather_indexes_node = Constant::create(element::i64, ov::Shape{indexes.size()}, indexes);
-
-    auto gather_axis_node = Constant::create(element::i64, Shape{}, {axis});
-
-    return std::make_shared<Gather>(input_node, gather_indexes_node, gather_axis_node);
 }
 
 // ----------------------------------------------------------------------------

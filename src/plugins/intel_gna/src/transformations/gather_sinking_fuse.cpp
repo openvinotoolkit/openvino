@@ -55,14 +55,6 @@ std::vector<int64_t> combine_gather_permutations(const std::vector<int64_t>& inp
     return result;
 }
 
-bool is_pointless_permutation(const std::vector<int64_t>& indices) {
-    for (size_t i = 0; i < indices.size(); ++i) {
-        if (indices[i] != i)
-            return false;
-    }
-    return true;
-}
-
 std::shared_ptr<Gather> fuse_gather_nodes(TransformationInfo& info) {
     const std::vector<int64_t> input_gather_indices = get_normalized_gather_indices(info.input_indices_const);
     const std::vector<int64_t> output_gather_indices = get_normalized_gather_indices(info.output_indices_const);

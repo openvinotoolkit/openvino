@@ -24,7 +24,7 @@ using namespace ov::intel_gna::limitations;
 
 namespace {
 
-bool is_sinked(const Output<Node>& output) {
+bool is_concat_sinked(const Output<Node>& output) {
     auto concat_node = ov::as_type_ptr<Concat>(output.get_node_shared_ptr());
 
     const Shape concat_output_shape = concat_node->get_output_shape(0);
@@ -47,7 +47,7 @@ bool is_sinked(const Output<Node>& output) {
 TSConcatForward::TSConcatForward() {
     MATCHER_SCOPE(TSConcatForward);
 
-    auto concat_node_label = wrap_type<Concat>(is_sinked);
+    auto concat_node_label = wrap_type<Concat>(is_concat_sinked);
 
     matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();

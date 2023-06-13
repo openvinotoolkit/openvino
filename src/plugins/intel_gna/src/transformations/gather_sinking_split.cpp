@@ -32,10 +32,6 @@ namespace {
 
 using NodePtr = std::shared_ptr<Node>;
 
-bool is_split_sinked(const Output<Node>& output) {
-    return find_first_input_node<Split>(output.get_node_shared_ptr()) && is_gather_sinking_node(output);
-}
-
 struct OutputGather {
     OutputGather() = default;
     Gather* gather = {};

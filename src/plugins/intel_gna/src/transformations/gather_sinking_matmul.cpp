@@ -26,19 +26,11 @@ using namespace ov::intel_gna::rt_info;
 using namespace ov::intel_gna::pass::helper;
 
 namespace {
-bool has_2d_inputs(const Output<Node>& output) {
-    auto node = output.get_node_shared_ptr();
-    auto input_left_rank = node->get_input_partial_shape(0).rank();
-    auto input_right_rank = node->get_input_partial_shape(0).rank();
-    return (input_left_rank.is_static() && input_right_rank.is_static() && input_left_rank.get_length() == 2 &&
-            input_right_rank.get_length() == 2);
-}
-
 bool has_gather_inputs(const Output<Node>& output) {
     return !get_first_gather_input(output.get_node_shared_ptr()).isEmpty();
 }
 
-bool is_sinked(const Output<Node>& output) {
+bool is_matmul_sinked(const Output<Node>& output) {
     return has_2d_inputs(output) && has_gather_inputs(output);
 }
 
@@ -54,18 +46,12 @@ size_t get_another_matmul_index(size_t input_idx) {
     return 0;
 }
 
-bool is_matmul_input_transposed(const std::shared_ptr<MatMul>& matmul, size_t input_idx) {
-    if (!input_idx)
-        return matmul->get_transpose_a();
-    return matmul->get_transpose_b();
-}
-
 }  // namespace
 
 GatherSinkingMatmulForward::GatherSinkingMatmulForward() {
     MATCHER_SCOPE(GatherSinkingMatmulForward);
 
-    auto matmul_label = wrap_type<MatMul>({any_input(), any_input()}, is_sinked);
+    auto matmul_label = wrap_type<MatMul>({any_input(), any_input()}, is_matmul_sinked);
 
     ov::matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
