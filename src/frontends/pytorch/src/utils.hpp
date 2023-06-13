@@ -60,6 +60,8 @@ std::shared_ptr<op::util::FrameworkNode> cast_fw_node(std::shared_ptr<Node> node
 // TODO: Eliminate the need of this function by implementing more accurate custom data type handling
 Any simplified_type_interpret(Any type);
 
+void add_exception_to_fw_node(std::shared_ptr<Node> node, const std::string& msg);
+
 void align_eltwise_input_types(const NodeContext& context,
                                Output<Node>& lhs,
                                Output<Node>& rhs,

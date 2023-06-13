@@ -62,35 +62,20 @@ std::map<std::string, std::string> get_unconverted_types_from_model(const std::s
     }
     return unconverted_ops_types;
 }
-}  // namespace
 
-FrontEnd::FrontEnd() : m_op_translators(get_supported_ops()) {}
-
-std::shared_ptr<Model> FrontEnd::convert(const InputModel::Ptr& model) const {
-    auto converted_model = convert_partially(model);
-    std::stringstream error_msg("Model wasn't fully converted.");
-    error_msg << "Model wasn't fully converted.";
-
-    std::string norm_err;
-    try {
-        normalize(converted_model);
-    } catch (const std::exception& e) {
-        norm_err = "\n-- normalize step failed with: " + std::string(e.what());
-    }
-
-    const auto& unconverted_ops = get_unconverted_types_from_model(converted_model);
+std::string pack_detailed_failure_report(const std::map<std::string, std::string>& unconverted_ops,
+                                         const std::string& additional_error = "") {
+    std::stringstream error_msg;
     std::stringstream unconverted_ops_msg;
     std::stringstream failed_ops_msg;
     std::stringstream failed_ops_short;
+    error_msg << "Model wasn't fully converted.";
     unconverted_ops_msg << "-- No conversion rule found for operations: ";
     failed_ops_msg << " Failed operations detailed log:";
     failed_ops_short << "-- Conversion is failed for: ";
     bool at_least_one = false;
     bool at_least_one_except = false;
     for (auto&& op : unconverted_ops) {
-        if (m_telemetry) {
-            m_telemetry->send_event("error_cause", "pytorch_" + op.first);
-        }
         if (op.second.empty()) {
             if (at_least_one)
                 unconverted_ops_msg << ", ";
@@ -106,13 +91,35 @@ std::shared_ptr<Model> FrontEnd::convert(const InputModel::Ptr& model) const {
     }
     if (at_least_one_except)
         error_msg << failed_ops_msg.str();
-    error_msg << "\nSummary:" << norm_err;
+    error_msg << "\nSummary:" << additional_error;
     if (at_least_one)
         error_msg << '\n' << unconverted_ops_msg.str();
     if (at_least_one_except)
         error_msg << '\n' << failed_ops_short.str();
-    bool is_conversion_successful = unconverted_ops.size() == 0;
-    FRONT_END_GENERAL_CHECK(is_conversion_successful, error_msg.str());
+    return error_msg.str();
+}
+}  // namespace
+
+FrontEnd::FrontEnd() : m_op_translators(get_supported_ops()) {}
+
+std::shared_ptr<Model> FrontEnd::convert(const InputModel::Ptr& model) const {
+    auto converted_model = convert_partially(model);
+
+    std::string norm_err;
+    try {
+        normalize(converted_model);
+    } catch (const std::exception& e) {
+        norm_err = "\n-- normalize step failed with: " + std::string(e.what());
+    }
+
+    const auto& unconverted_ops = get_unconverted_types_from_model(converted_model);
+    for (auto&& op : unconverted_ops) {
+        if (m_telemetry) {
+            m_telemetry->send_event("error_cause", "pytorch_" + op.first);
+        }
+    }
+    bool is_conversion_successful = unconverted_ops.size() == 0 && norm_err.empty();
+    FRONT_END_GENERAL_CHECK(is_conversion_successful, pack_detailed_failure_report(unconverted_ops, norm_err));
     return converted_model;
 }
 
