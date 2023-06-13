@@ -17,16 +17,6 @@
 using namespace ngraph;
 using namespace std;
 
-op::v0::LSTMSequence::LSTMSequence()
-    : Op(),
-      m_activations_alpha(),
-      m_activations_beta(),
-      m_activations(),
-      m_clip_threshold(),
-      m_direction(),
-      m_hidden_size(),
-      m_input_forget(),
-      m_weights_format() {}
 
 op::v0::LSTMSequence::LSTMSequence(const Output<Node>& X,
                                    const Output<Node>& initial_hidden_state,
@@ -44,13 +34,13 @@ op::v0::LSTMSequence::LSTMSequence(const Output<Node>& X,
                                    const std::vector<std::string> activations,
                                    const float clip_threshold,
                                    const bool input_forget)
-    : Op({X, initial_hidden_state, initial_cell_state, sequence_lengths, W, R, B, P}),
-      m_activations_alpha(activations_alpha),
-      m_activations_beta(activations_beta),
-      m_activations(activations),
-      m_clip_threshold(clip_threshold),
+    : RNNCellBase({X, initial_hidden_state, initial_cell_state, sequence_lengths, W, R, B, P},
+                  hidden_size,
+                  clip_threshold,
+                  activations,
+                  activations_alpha,
+                  activations_beta),
       m_direction(lstm_direction),
-      m_hidden_size(hidden_size),
       m_input_forget(input_forget),
       m_weights_format(weights_format) {
     constructor_validate_and_infer_types();
@@ -98,7 +88,7 @@ bool op::v0::LSTMSequence::visit_attributes(AttributeVisitor& visitor) {
     visitor.on_attribute("activations", m_activations);
     visitor.on_attribute("activations_alpha", m_activations_alpha);
     visitor.on_attribute("activations_beta", m_activations_beta);
-    visitor.on_attribute("clip", m_clip_threshold);
+    visitor.on_attribute("clip", m_clip);
     visitor.on_attribute("direction", m_direction);
 
     visitor.on_attribute("input_forget", m_input_forget);
@@ -124,7 +114,7 @@ shared_ptr<Node> op::v0::LSTMSequence::clone_with_new_inputs(const OutputVector&
                                                  m_activations_alpha,
                                                  m_activations_beta,
                                                  m_activations,
-                                                 m_clip_threshold,
+                                                 m_clip,
                                                  m_input_forget);
     } else if (new_args.size() == 7) {
         return make_shared<op::v0::LSTMSequence>(new_args.at(0),  // X
@@ -140,7 +130,7 @@ shared_ptr<Node> op::v0::LSTMSequence::clone_with_new_inputs(const OutputVector&
                                                  m_activations_alpha,
                                                  m_activations_beta,
                                                  m_activations,
-                                                 m_clip_threshold,
+                                                 m_clip,
                                                  m_input_forget);
     } else {
         OPENVINO_THROW("Incorrect number of new arguments");
