@@ -280,6 +280,9 @@ class AsyncInferQueue(AsyncInferQueueBase):
     def __iter__(self) -> Iterable[InferRequest]:
         """Allows to iterate over AsyncInferQueue.
 
+        Resulting objects are valid read-only.
+        Any mutable methods will put the parent AsyncInferQueue object in an invalid state.
+
         :return: a generator that yields InferRequests.
         :rtype: Iterable[openvino.runtime.InferRequest]
         """
