@@ -13,7 +13,7 @@
 #include "llm_fc.hpp"
 #include "tensor2d.hpp"
 #include "tensor2d_helper.hpp"
-#include "test_common.h"
+#include "test_common.hpp"
 
 using namespace std;
 using namespace llmdnn;

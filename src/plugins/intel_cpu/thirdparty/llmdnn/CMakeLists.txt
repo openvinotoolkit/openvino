@@ -8,6 +8,7 @@ project(root)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 option(BUILD_TESTS "Build with tests" ON)
+option(BUILD_PYTHON_TESTS "Build with tests need python extension" OFF)
 
 message(INFO "--------------------------------")
 message(STATUS "Build with tests: ${BUILD_TESTS}")

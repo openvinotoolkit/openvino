@@ -9,7 +9,9 @@
 #include <memory>
 #include <chrono>
 #include <iostream>
-#include "test_common.h"
+#include <omp.h>
+#include "test_common.hpp"
+#include "simple_parallel.hpp"
 
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE         /* See feature_test_macros(7) */
@@ -58,4 +60,21 @@ bool initXTILE() {
 
     // XFEATURE_XTILEDATA set successfully, TMUL usage is allowed
     return true;
+}
+
+namespace ov {
+namespace cpu {
+
+size_t getTotalThreads() {
+    return omp_get_max_threads();
+}
+
+void TrySimpleParallelFor(const std::ptrdiff_t total, const std::function<void(std::ptrdiff_t)>& fn) {
+    #pragma omp parallel for
+    for(std::ptrdiff_t i = 0; i < total; i++) {
+        fn(i);
+    }
+}
+
+}
 }

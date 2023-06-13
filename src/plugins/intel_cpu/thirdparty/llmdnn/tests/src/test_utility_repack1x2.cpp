@@ -14,7 +14,7 @@
 #include "tensor2d.hpp"
 #include "tensor2d_helper.hpp"
 #include "mm_kernel_amx.hpp"
-#include "test_common.h"
+#include "test_common.hpp"
 
 using namespace std;
 using namespace llmdnn;
@@ -30,7 +30,6 @@ class RepackTest : public TestWithParam<RepackTestParamSet> {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<RepackTestParamSet>& obj) {
         data_type_t types;
-        int K, N;
         std::tie(types) = obj.param;
 
         std::ostringstream result;

@@ -91,4 +91,24 @@ inline void cvt_i32_f32(float* dst, int32_t* src, size_t ele_num) {
     }
 }
 
+inline void mul_add_f32(float* dst, float* src, float mul, float* add, int ele_num) {
+    auto mul_f = _mm512_set1_ps(mul);
+    int i;
+    auto tail = ele_num % 16;
+    __mmask16 msk = _cvtu32_mask16(0xFFFFu >> (16 - tail));
+    for (i = 0; i < ele_num - tail; i += 16) {
+        auto a_f = _mm512_loadu_ps(src);
+        auto add_f = _mm512_loadu_ps(add);
+        _mm512_storeu_ps(dst, _mm512_fmadd_ps(a_f, mul_f, add_f));
+        src += 16;
+        dst += 16;
+        add += 16;
+    }
+    if (tail) {
+        auto a_f = _mm512_maskz_loadu_ps(msk, src);
+        auto add_f = _mm512_maskz_loadu_ps(msk, add);
+        _mm512_mask_storeu_ps(dst, msk, _mm512_fmadd_ps(a_f, mul_f, add_f));
+    }
+}
+
 }
