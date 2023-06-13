@@ -56,7 +56,7 @@ void TransformationTestsF::TearDown() {
     OPENVINO_ASSERT(function != nullptr, "Test Model is not initialized.");
 
     std::shared_ptr<ov::Model> cloned_function;
-    auto acc_enabled = comparator.should_compare(FunctionsComparator::ACCURACY);
+    const auto acc_enabled = comparator.should_compare(FunctionsComparator::ACCURACY);
     if (!function_ref) {
         cloned_function = ngraph::clone_function(*function);
         function_ref = cloned_function;
@@ -70,15 +70,17 @@ void TransformationTestsF::TearDown() {
     ASSERT_NO_THROW(check_rt_info(function));
     }
 
+    auto res = FunctionsComparator::Result::ok();
     if (acc_enabled) {
         OPENVINO_ASSERT(cloned_function != nullptr, "Accuracy cannot be checked. Cloned Model is not initialized.");
         auto acc_comparator = FunctionsComparator::no_default();
         acc_comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
-        auto res = acc_comparator.compare(function, cloned_function);
+        res = acc_comparator.compare(function, cloned_function);
         ASSERT_TRUE(res.valid) << res.message;
         comparator.disable(FunctionsComparator::CmpValues::ACCURACY);
     }
-    auto res = comparator.compare(function, function_ref);
+    if (comparator.should_compare(FunctionsComparator::NODES))
+        res = comparator.compare(function, function_ref);
     ASSERT_TRUE(res.valid) << res.message;
 }
 

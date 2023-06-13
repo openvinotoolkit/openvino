@@ -6,6 +6,8 @@
 
 #include <gtest/gtest.h>
 
+#include <random>
+
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "openvino/opsets/opset11.hpp"
 #include "openvino/pass/constant_folding.hpp"
@@ -18,9 +20,11 @@ using namespace ov;
 using namespace ov::element;
 using namespace ov::pass;
 
-class MergeSimilarBranchesTest : public TransformationTestsF {
+using MergeSimilarBranchesTest = TransformationTests;
+
+class MergeSimilarBranchesTestF : public TransformationTestsF {
 public:
-    MergeSimilarBranchesTest() {
+    MergeSimilarBranchesTestF() {
         comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
         comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
         comparator.enable(FunctionsComparator::CmpValues::CONSUMERS_COUNT);
@@ -29,9 +33,9 @@ public:
     }
 };
 
-class DISABLED_MergeSimilarBranchesTest : public MergeSimilarBranchesTest {};
+class DISABLED_MergeSimilarBranchesTestF : public MergeSimilarBranchesTestF {};
 
-TEST_F(MergeSimilarBranchesTest, unary_nodes) {
+TEST_F(MergeSimilarBranchesTestF, unary_nodes) {
     using namespace ov::opset11;
     {
         const auto input = make_shared<Parameter>(f32, PartialShape{1});
@@ -55,7 +59,7 @@ TEST_F(MergeSimilarBranchesTest, unary_nodes) {
     }
 }
 
-TEST_F(MergeSimilarBranchesTest, binary_nodes_equal_constants) {
+TEST_F(MergeSimilarBranchesTestF, binary_nodes_equal_constants) {
     using namespace ov::opset11;
     {
         const auto input = make_shared<Parameter>(f32, PartialShape{});
@@ -75,7 +79,7 @@ TEST_F(MergeSimilarBranchesTest, binary_nodes_equal_constants) {
     }
 }
 
-TEST_F(MergeSimilarBranchesTest, binary_nodes_same_op_node) {
+TEST_F(MergeSimilarBranchesTestF, binary_nodes_same_op_node) {
     using namespace ov::opset11;
     {
         const auto input1 = make_shared<Parameter>(f32, PartialShape{2, 3});
@@ -98,7 +102,7 @@ TEST_F(MergeSimilarBranchesTest, binary_nodes_same_op_node) {
     }
 }
 
-TEST_F(MergeSimilarBranchesTest, binary_nodes_single_source) {
+TEST_F(MergeSimilarBranchesTestF, binary_nodes_single_source) {
     using namespace ov::opset11;
     {
         const auto input = make_shared<Parameter>(u32, PartialShape{7, 3});
@@ -115,7 +119,7 @@ TEST_F(MergeSimilarBranchesTest, binary_nodes_single_source) {
     }
 }
 
-TEST_F(MergeSimilarBranchesTest, keep_result_producers) {
+TEST_F(MergeSimilarBranchesTestF, keep_result_producers) {
     using namespace ov::opset11;
     {
         const auto input = make_shared<Parameter>(f32, PartialShape{});
@@ -134,7 +138,7 @@ TEST_F(MergeSimilarBranchesTest, keep_result_producers) {
     }
 }
 
-TEST_F(MergeSimilarBranchesTest, multiple_consumers) {
+TEST_F(MergeSimilarBranchesTestF, multiple_consumers) {
     using namespace ov::opset11;
     {
         const auto input = make_shared<Parameter>(f32, PartialShape{1});
@@ -156,7 +160,7 @@ TEST_F(MergeSimilarBranchesTest, multiple_consumers) {
     }
 }
 
-TEST_F(MergeSimilarBranchesTest, different_branches) {
+TEST_F(MergeSimilarBranchesTestF, different_branches) {
     using namespace ov::opset11;
     {
         const auto input1 = make_shared<Parameter>(f32, PartialShape{7});
@@ -185,7 +189,7 @@ TEST_F(MergeSimilarBranchesTest, different_branches) {
     }
 }
 
-TEST_F(MergeSimilarBranchesTest, different_op_versions) {
+TEST_F(MergeSimilarBranchesTestF, different_op_versions) {
     using namespace ov::op;
     const auto input = make_shared<v0::Parameter>(f32, PartialShape{8, 128});
     const auto indices = v0::Constant::create(i64, {2}, {4, 4});
@@ -198,7 +202,7 @@ TEST_F(MergeSimilarBranchesTest, different_op_versions) {
     model = make_shared<Model>(NodeVector{add}, ParameterVector{input});
 }
 
-TEST_F(MergeSimilarBranchesTest, different_input_nodes) {
+TEST_F(MergeSimilarBranchesTestF, different_input_nodes) {
     using namespace ov::opset11;
     const auto input1 = make_shared<Parameter>(f32, PartialShape{7});
     const auto input2 = make_shared<Parameter>(f32, PartialShape{7});
@@ -210,7 +214,7 @@ TEST_F(MergeSimilarBranchesTest, different_input_nodes) {
     model = make_shared<Model>(NodeVector{concat}, ParameterVector{input1, input2});
 }
 
-TEST_F(DISABLED_MergeSimilarBranchesTest, mixed_input_order) {
+TEST_F(DISABLED_MergeSimilarBranchesTestF, mixed_input_order) {
     using namespace ov::opset11;
     {
         const auto input = make_shared<Parameter>(i16, PartialShape{13, 27});
@@ -230,4 +234,39 @@ TEST_F(DISABLED_MergeSimilarBranchesTest, mixed_input_order) {
         const auto concat = make_shared<Concat>(OutputVector{l_and, l_and}, 0);
         model_ref = make_shared<Model>(NodeVector{concat}, ParameterVector{input});
     }
+}
+
+TEST(MergeSimilarBranchesTest, matmuls_fusion) {
+    using namespace ov::opset11;
+
+    const auto matmuls_input0_shape = Shape{9, 7};
+    const auto matmuls_input1_shape = Shape{7, 11};
+    vector<uint32_t> matmulA_input1_data(shape_size(matmuls_input1_shape));
+    vector<uint32_t> matmulB_input1_data(shape_size(matmuls_input1_shape));
+    vector<uint32_t> matmulC_input1_data(shape_size(matmuls_input1_shape));
+    seed_seq{1, 2, 3}.generate(matmulA_input1_data.begin(), matmulA_input1_data.end());
+    seed_seq{4, 5, 6}.generate(matmulB_input1_data.begin(), matmulB_input1_data.end());
+    seed_seq{7, 8, 9}.generate(matmulC_input1_data.begin(), matmulC_input1_data.end());
+
+    const auto input = make_shared<Parameter>(u32, matmuls_input0_shape);
+    const auto constA = Constant::create(u32, matmuls_input1_shape, matmulA_input1_data);
+    const auto constB = Constant::create(u32, matmuls_input1_shape, matmulB_input1_data);
+    const auto constC = Constant::create(u32, matmuls_input1_shape, matmulC_input1_data);
+    const auto matmulA = make_shared<MatMul>(input, constA);
+    const auto matmulB = make_shared<MatMul>(input, constB);
+    const auto matmulC = make_shared<MatMul>(input, constC);
+    const auto concat = make_shared<Concat>(OutputVector{matmulA, matmulB, matmulC}, 0);
+
+    const auto model = make_shared<Model>(NodeVector{concat}, ParameterVector{input});
+    const auto cloned_model = model->clone();
+
+    Manager manager;
+    manager.register_pass<MergeSimilarBranches>();
+    manager.run_passes(model);
+    ASSERT_EQ(count_ops_of_type<op::v0::MatMul>(model), 1);
+
+    auto acc_comparator = FunctionsComparator::no_default();
+    acc_comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
+    const auto res = acc_comparator.compare(model, cloned_model);
+    ASSERT_TRUE(res.valid) << res.message;
 }
