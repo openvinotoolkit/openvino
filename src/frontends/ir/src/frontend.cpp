@@ -183,7 +183,7 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
             weights = variant.as<std::shared_ptr<ngraph::runtime::AlignedBuffer>>();
         }
     }
-    bool enable_mmap = variants[variants.size() - 1].is<bool>() ? variants[variants.size() - 1].as<bool>() : false;
+    // bool enable_mmap = variants[variants.size() - 1].is<bool>() ? variants[variants.size() - 1].as<bool>() : false;
 
     // Find weights if only path to xml was provided
     if (weights_path.empty()) {

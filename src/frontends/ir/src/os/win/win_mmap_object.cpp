@@ -61,7 +61,7 @@ public:
     }
 
     void set(const std::string& path) {
-        // Note that file can't be changed (renamed/deleted) until it's unmapped. FILE_SHARE_DELETE flag allow 
+        // Note that file can't be changed (renamed/deleted) until it's unmapped. FILE_SHARE_DELETE flag allow
         // rename/deletion, but it doesn't work with FAT32 filesystem (works on NTFS)
         auto h = ::CreateFileA(path.c_str(), GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
         map(path, h);
@@ -69,7 +69,7 @@ public:
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
     void set(const std::wstring& path) {
-        // Note that file can't be changed (renamed/deleted) until it's unmapped. FILE_SHARE_DELETE flag allow 
+        // Note that file can't be changed (renamed/deleted) until it's unmapped. FILE_SHARE_DELETE flag allow
         // rename/deletion, but it doesn't work with FAT32 filesystem (works on NTFS)
         auto h = ::CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
         map(ov::util::wstring_to_string(path), h);
@@ -124,6 +124,7 @@ private:
 };
 
 std::shared_ptr<ngraph::runtime::AlignedBuffer> load_mmap_object(const std::string& path) {
+    OPENVINO_NOT_IMPLEMENTED;
     auto holder = std::make_shared<MapHolder>();
     holder->set(path);
     return std::make_shared<ngraph::runtime::SharedBuffer<std::shared_ptr<MapHolder>>>(holder->data(),
@@ -134,6 +135,7 @@ std::shared_ptr<ngraph::runtime::AlignedBuffer> load_mmap_object(const std::stri
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
 std::shared_ptr<ngraph::runtime::AlignedBuffer> load_mmap_object(const std::wstring& path) {
+    OPENVINO_NOT_IMPLEMENTED;
     auto holder = std::make_shared<MapHolder>();
     holder->set(path);
     return std::make_shared<ngraph::runtime::SharedBuffer<std::shared_ptr<MapHolder>>>(holder->data(),

@@ -13,6 +13,7 @@
 
 #include "mmap_object.hpp"
 #include "ngraph/runtime/shared_buffer.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/util/file_util.hpp"
 
 namespace ov {
@@ -98,6 +99,7 @@ public:
 };
 
 std::shared_ptr<ngraph::runtime::AlignedBuffer> load_mmap_object(const std::string& path) {
+    OPENVINO_NOT_IMPLEMENTED;
     auto holder = std::make_shared<MapHolder>();
     holder->set(path);
     return std::make_shared<ngraph::runtime::SharedBuffer<std::shared_ptr<MapHolder>>>(holder->data(),
