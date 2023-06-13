@@ -1356,24 +1356,28 @@ void HorizonMaxEmitter::emit_isa(const std::vector<size_t> &in, const std::vecto
             Xmm, isa == dnnl::impl::cpu::x64::avx2, Ymm, Zmm>::type;
 
     Vmm src_vmm = Vmm(in[0]);
-    Xmm dst_xmm = Xmm(out[0]);
-    Xmm aux_xmm = Xmm(aux_vec_idxs[0]);
+    Vmm dst_vmm = Vmm(out[0]);
+    Vmm aux_vmm = Vmm(aux_vec_idxs[0]);
 
-    Reg64 aux_reg = Reg64(aux_gpr_idxs[0]);
-
-    const size_t vlen = dnnl::impl::cpu::x64::cpu_isa_traits<isa>::vlen;
-    const size_t vec_size = vlen / sizeof(float);
-    h->sub(h->rsp, vlen);
-    h->uni_vmovups(h->ptr[h->rsp], src_vmm);
-    // Let the first value be the max
-    h->mov(aux_reg, h->ptr[h->rsp]);
-    h->vmovq(dst_xmm, aux_reg);
-    for (size_t i = 1; i < vec_size; i++) {
-        h->mov(aux_reg, h->ptr[h->rsp + i * sizeof(float)]);
-        h->vmovq(aux_xmm, aux_reg);
-        h->uni_vmaxps(dst_xmm, dst_xmm, aux_xmm);
+    if (in[0] != out[0])
+        h->uni_vmovups(dst_vmm, src_vmm);
+    if (isa == dnnl::impl::cpu::x64::avx512_core) {
+        Zmm dst_zmm = Zmm(out[0]);
+        Zmm aux_zmm = Zmm(aux_vec_idxs[0]);
+        h->vshuff32x4(aux_zmm, dst_zmm, dst_zmm, 0x4E);
+        h->uni_vmaxps(dst_zmm, dst_zmm, aux_zmm);
+        h->vshuff32x4(aux_zmm, dst_zmm, dst_zmm, 0xB1);
+        h->uni_vmaxps(dst_zmm, dst_zmm, aux_zmm);
+    } else if (isa == dnnl::impl::cpu::x64::avx2) {
+        Ymm dst_ymm = Ymm(out[0]);
+        Ymm aux_ymm = Ymm(aux_vec_idxs[0]);
+        h->vperm2i128(aux_ymm, dst_ymm, dst_ymm, 0x01);
+        h->uni_vmaxps(dst_ymm, dst_ymm, aux_ymm);
     }
-    h->add(h->rsp, vlen);
+    h->vshufps(aux_vmm, dst_vmm, dst_vmm, 0x4E);
+    h->uni_vmaxps(dst_vmm, dst_vmm, aux_vmm);
+    h->vshufps(aux_vmm, dst_vmm, dst_vmm, 0xB1);
+    h->uni_vmaxps(dst_vmm, dst_vmm, aux_vmm);
 }
 
 HorizonSumEmitter::HorizonSumEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n) :
@@ -1398,22 +1402,28 @@ void HorizonSumEmitter::emit_isa(const std::vector<size_t> &in, const std::vecto
             Xmm, isa == dnnl::impl::cpu::x64::avx2, Ymm, Zmm>::type;
 
     Vmm src_vmm = Vmm(in[0]);
-    Xmm dst_xmm = Xmm(out[0]);
-    Xmm aux_xmm = Xmm(aux_vec_idxs[0]);
+    Vmm dst_vmm = Vmm(out[0]);
+    Vmm aux_vmm = Vmm(aux_vec_idxs[0]);
 
-    Reg64 aux_reg = Reg64(aux_gpr_idxs[0]);
-
-    const size_t vlen = dnnl::impl::cpu::x64::cpu_isa_traits<isa>::vlen;
-    const size_t vec_size = vlen / sizeof(float);
-    h->sub(h->rsp, vlen);
-    h->uni_vmovups(h->ptr[h->rsp], src_vmm);
-    h->uni_vpxor(dst_xmm, dst_xmm, dst_xmm);
-    for (size_t i = 0; i < vec_size; i++) {
-        h->mov(aux_reg, h->ptr[h->rsp + i * sizeof(float)]);
-        h->vmovq(aux_xmm, aux_reg);
-        h->uni_vaddps(dst_xmm, dst_xmm, aux_xmm);
+    if (in[0] != out[0])
+        h->uni_vmovups(dst_vmm, src_vmm);
+    if (isa == dnnl::impl::cpu::x64::avx512_core) {
+        Zmm dst_zmm = Zmm(out[0]);
+        Zmm aux_zmm = Zmm(aux_vec_idxs[0]);
+        h->vshuff32x4(aux_zmm, dst_zmm, dst_zmm, 0x4E);
+        h->uni_vaddps(dst_zmm, dst_zmm, aux_zmm);
+        h->vshuff32x4(aux_zmm, dst_zmm, dst_zmm, 0xB1);
+        h->uni_vaddps(dst_zmm, dst_zmm, aux_zmm);
+    } else if (isa == dnnl::impl::cpu::x64::avx2) {
+        Ymm dst_ymm = Ymm(out[0]);
+        Ymm aux_ymm = Ymm(aux_vec_idxs[0]);
+        h->vperm2i128(aux_ymm, dst_ymm, dst_ymm, 0x01);
+        h->uni_vaddps(dst_ymm, dst_ymm, aux_ymm);
     }
-    h->add(h->rsp, vlen);
+    h->vshufps(aux_vmm, dst_vmm, dst_vmm, 0x4E);
+    h->uni_vaddps(dst_vmm, dst_vmm, aux_vmm);
+    h->vshufps(aux_vmm, dst_vmm, dst_vmm, 0xB1);
+    h->uni_vaddps(dst_vmm, dst_vmm, aux_vmm);
 }
 
 VectorBufferEmitter::VectorBufferEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n) :
