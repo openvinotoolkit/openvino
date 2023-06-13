@@ -115,12 +115,12 @@ The value can be in range ``[-r, r - 1]`` where ``r`` is the rank of ``data``. *
 
 .. code-block:: cpp
 
-    <layer ... use_init_val=True reduction="sum" type="ScatterElementsUpdate">
+    <layer ... use_init_val="true" reduction="sum" type="ScatterElementsUpdate">
         <input>
             <port id="0">>  < !-- data -->
                 <dim>4</dim>  < !-- values: [2, 3, 4, 6] -->
             </port>
-            <port id="1">  < !-- indices (neative values allowed) -->
+            <port id="1">  < !-- indices (negative values allowed) -->
                 <dim>6</dim>  < !-- values: [1, 0, 0, -2, -1, 2] -->
             </port>
             <port id="2">>  < !-- updaates -->
@@ -142,7 +142,7 @@ The value can be in range ``[-r, r - 1]`` where ``r`` is the rank of ``data``. *
 
 .. code-block:: cpp
 
-    <layer ... use_init_val=False reduction="sum" type="ScatterElementsUpdate">
+    <layer ... use_init_val="false" reduction="sum" type="ScatterElementsUpdate">
         <input>
             <port id="0">>  < !-- data -->
                 <dim>4</dim>  < !-- values: [2, 3, 4, 6] -->
