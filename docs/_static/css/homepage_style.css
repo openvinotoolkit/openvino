@@ -48,8 +48,13 @@ h1 {
     margin-bottom: 0;
 }
 .openvino-diagram {
-    
+    width: 65%;
     margin-bottom: 3rem;
+}
+@media (max-width: 720px) {
+    .openvino-diagram {
+        width: 90%;
+    }
 }
 .ov-homepage-higlight-grid {
     padding: 0;
@@ -68,6 +73,13 @@ h1 {
     box-shadow: 0 0 20px 5px #f3f3f3!important;
     transition: 0.5s;
     overflow: hidden;
+}
+.ov-homepage-higlight-grid .sd-card-hover:hover {
+    border-color: var(--sd-color-card-border)!important;
+    transform: scale(1.00)!important;
+}
+.ov-homepage-higlight-grid .sd-shadow-sm:hover {
+    box-shadow: 0 0 10px 2px rgba(108,36,240,0.3) !important;
 }
 .ov-homepage-higlight-grid .sd-card-title {
     height: 52.781px;

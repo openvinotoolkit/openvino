@@ -110,6 +110,10 @@ class PyDecoder : public ov::frontend::pytorch::TorchDecoder {
         PYBIND11_OVERRIDE_PURE(std::shared_ptr<TorchDecoder>, TorchDecoder, get_subgraph_decoder, index);
     }
 
+    bool may_produce_alias(size_t in_index, size_t out_index) const override {
+        PYBIND11_OVERRIDE_PURE(bool, TorchDecoder, may_produce_alias, in_index, out_index);
+    }
+
     ov::OutputVector inlined_inputs(size_t start_index) const override {
         PYBIND11_OVERRIDE_PURE(ov::OutputVector, TorchDecoder, inlined_inputs, start_index); }
 };

@@ -53,9 +53,7 @@ protected:
             case FuncTestUtils::BlobType::Memory:
                 return true;
             case FuncTestUtils::BlobType::Compound:
-            case FuncTestUtils::BlobType::I420:
             case FuncTestUtils::BlobType::Remote:
-            case FuncTestUtils::BlobType::NV12:
                 return false;
             case FuncTestUtils::BlobType::Batched: {
                 auto supported_metrics = ie->GetMetric(target_device, METRIC_KEY(SUPPORTED_METRICS)).as<std::vector<std::string>>();

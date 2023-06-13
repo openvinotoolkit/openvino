@@ -1219,7 +1219,7 @@ void MVN::initSupportedPrimitiveDescriptors() {
             }
 
             auto factory = std::make_shared<MVNExecutorFactory>(mvnAttrs, srcMemoryDescs, dstMemoryDescs,
-                                                                        std::make_shared<ExecutorContext>(context, getPrimitivesPriority()));
+                                                                        std::make_shared<ExecutorContext>(context, getImplPriority()));
             if (!factory->isEmpty()) {
                 supportedPrimitiveDescriptors.push_back({config, impl_type, factory});
             }
