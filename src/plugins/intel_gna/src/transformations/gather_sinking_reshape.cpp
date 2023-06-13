@@ -27,20 +27,9 @@ namespace {
 
 using NodePtr = std::shared_ptr<ov::Node>;
 
-template <typename InputIt, typename Predicate>
-int find_first_index(InputIt begin, InputIt end, Predicate predicate) {
-    const auto it = std::find_if(begin, end, predicate);
-    if (it == end)
-        return -1;
-    return static_cast<int>(std::distance(begin, it));
-}
-
-int get_left_shift(const Shape& shape1, const Shape& shape2) {
-    auto if_not_eq_1 = [](const Shape::value_type& value) {
-        return value != 1;
-    };
-    const int index_1 = find_first_index(shape1.begin(), shape1.end(), if_not_eq_1);
-    const int index_2 = find_first_index(shape2.begin(), shape2.end(), if_not_eq_1);
+int get_shapes_squeeze_shift(const Shape& shape1, const Shape& shape2) {
+    const int index_1 = get_first_valuable_dim_id(shape1);
+    const int index_2 = get_first_valuable_dim_id(shape2);
 
     if (index_1 < 0 || index_2 < 0)
         return 0;
@@ -66,7 +55,7 @@ GatherSinkingReshapeBackward::GatherSinkingReshapeBackward() {
         auto reshape_const = as_type_ptr<Constant>(pattern_to_output.at(reshape_const_label).get_node_shared_ptr());
         auto reshape = as_type_ptr<Reshape>(pattern_to_output.at(reshape_label).get_node_shared_ptr());
 
-        const int left_shift = get_left_shift(reshape->get_input_shape(0), reshape->get_output_shape(0));
+        const int left_shift = get_shapes_squeeze_shift(reshape->get_input_shape(0), reshape->get_output_shape(0));
         size_t gather_axis_value_current =
             convert_axis_to_positive(gather_axis->cast_vector<int64_t>()[0], gather->get_input_shape(0).size());
         size_t gather_axis_value_new = gather_axis_value_current - left_shift;
