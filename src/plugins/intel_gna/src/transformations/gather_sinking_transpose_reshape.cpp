@@ -4,11 +4,10 @@
 
 #include "transformations/gather_sinking_transpose_reshape.hpp"
 
-#include "openvino/cc/ngraph/itt.hpp"
-
 #include "backend/gna_limitations.hpp"
 #include "common/graph_utils.hpp"
 #include "log/debug.hpp"
+#include "openvino/cc/ngraph/itt.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/opsets/opset12.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"

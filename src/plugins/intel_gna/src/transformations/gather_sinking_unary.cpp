@@ -4,10 +4,10 @@
 
 #include "transformations/gather_sinking_unary.hpp"
 
-#include "openvino/cc/ngraph/itt.hpp"
 #include <transformations/utils/utils.hpp>
 #include <utility>
 
+#include "openvino/cc/ngraph/itt.hpp"
 #include "openvino/opsets/opset12.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"

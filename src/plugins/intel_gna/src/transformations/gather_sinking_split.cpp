@@ -4,15 +4,15 @@
 
 #include "transformations/gather_sinking_split.hpp"
 
-#include "openvino/cc/ngraph/itt.hpp"
-#include "openvino/pass/pattern/op/or.hpp"
 #include <transformations/utils/utils.hpp>
 #include <utility>
 
 #include "common/graph_utils.hpp"
+#include "openvino/cc/ngraph/itt.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/opsets/opset12.hpp"
 #include "openvino/pass/pattern/op/label.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/log.hpp"

@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/opsets/opset12.hpp"
 #include "gather_sinking_test_utils.hpp"
+
+#include "openvino/opsets/opset12.hpp"
 
 using namespace ov;
 using namespace ov::opset12;

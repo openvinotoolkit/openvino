@@ -87,12 +87,12 @@ void remove_single_output_consumers(std::shared_ptr<ov::Node>);
 
 /**
  * @brief Checks if Output is Gather node and it could be sinked
-*/
+ */
 bool is_gather_sinking_enabled(const ov::Output<ov::Node>& output);
 
 /**
  * @brief Finds Split first input Gather node and it could be sinked
-*/
+ */
 bool is_split_sinked(const ov::Output<ov::Node>& output);
 
 /**
@@ -104,7 +104,7 @@ int64_t normalize_negative_gather_axis(int64_t axis, ov::Rank::value_type gather
  * @brief Gets Gather indices from Constant converted into negative form
  */
 int64_t get_normalized_negative_gather_axis(const std::shared_ptr<ov::opset12::Constant>& axis,
-                                                   ov::Rank::value_type gather_input_rank);
+                                            ov::Rank::value_type gather_input_rank);
 
 /**
  * @brief Gets Gather axis if it's stored in a constant

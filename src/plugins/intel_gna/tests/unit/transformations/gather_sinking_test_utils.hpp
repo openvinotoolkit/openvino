@@ -4,9 +4,9 @@
 
 #pragma once
 
-#include "openvino/opsets/opset12.hpp"
-
 #include <vector>
+
+#include "openvino/opsets/opset12.hpp"
 
 void ShiftLeft(std::vector<size_t>& vec, size_t k);
 
@@ -17,7 +17,9 @@ std::vector<size_t> GatherForward(size_t size, size_t initial_value);
 std::vector<size_t> GatherBackward(size_t size, size_t initial_value);
 
 template <typename CreateIndicesF>
-std::shared_ptr<ov::opset12::Gather> MakeGather(std::shared_ptr<ov::Node> input_node, CreateIndicesF create_indices_func, size_t axis) {
+std::shared_ptr<ov::opset12::Gather> MakeGather(std::shared_ptr<ov::Node> input_node,
+                                                CreateIndicesF create_indices_func,
+                                                size_t axis) {
     const ov::Shape& input_shape = input_node->get_output_shape(0);
     const std::vector<size_t> indexes = create_indices_func(input_shape[axis], 0);
 

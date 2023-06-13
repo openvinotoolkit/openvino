@@ -385,8 +385,6 @@ inline int64_t get_first_valuable_dim_id(const ov::Shape& shape) {
     return -1;
 }
 
-
-
 /**
  * @brief Converts Gather indexes into positive form
  */
@@ -544,10 +542,9 @@ inline size_t get_num_first_one_dims(const ov::Shape& shape) {
     return count;
 }
 
-
 /**
  * @brief Checks if has 2D input shape inputs
-*/
+ */
 inline bool has_2d_inputs(const ov::Output<ov::Node>& output) {
     auto node = output.get_node_shared_ptr();
     auto input_left_rank = node->get_input_partial_shape(0).rank();
@@ -558,7 +555,7 @@ inline bool has_2d_inputs(const ov::Output<ov::Node>& output) {
 
 /**
  * @brief Checks if the permutation does nothing
-*/
+ */
 inline bool is_pointless_permutation(const std::vector<int64_t>& indices) {
     for (size_t i = 0; i < indices.size(); ++i) {
         if (indices[i] != i)
@@ -569,7 +566,7 @@ inline bool is_pointless_permutation(const std::vector<int64_t>& indices) {
 
 /**
  * @brief Checks if MatMul input with @arg input_idx input is transposed
-*/
+ */
 inline bool is_matmul_input_transposed(const std::shared_ptr<ov::opset12::MatMul>& matmul, size_t input_idx) {
     if (!input_idx)
         return matmul->get_transpose_a();
@@ -578,7 +575,7 @@ inline bool is_matmul_input_transposed(const std::shared_ptr<ov::opset12::MatMul
 
 /**
  * @brief Checks if Reshape node is Unsqueeze
-*/
+ */
 inline bool is_reshape_unsqueeze(const ov::Output<ov::Node>& output) {
     auto reshape = output.get_node_shared_ptr();
     const ov::Shape input_shape = trim_shape(reshape->get_input_shape(0));
@@ -599,7 +596,8 @@ inline std::function<bool(Output<Node>)> rank_not_more_than(const ov::Rank::valu
 /**
  * @brief Checks if output has rank not more than expected
  */
-inline bool constant_has_rank_not_more_than(const std::shared_ptr<ov::opset12::Constant>& node, const ov::Rank::value_type expected_rank) {
+inline bool constant_has_rank_not_more_than(const std::shared_ptr<ov::opset12::Constant>& node,
+                                            const ov::Rank::value_type expected_rank) {
     const ov::Rank rank = node->get_output_partial_shape(0).rank();
     return (rank.is_static() && (rank.get_length() <= expected_rank));
 }

@@ -10,7 +10,6 @@
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-
 #include "transformations/gather_sinking_binary.hpp"
 #include "transformations/gather_sinking_fuse.hpp"
 #include "transformations/gather_sinking_transpose_reshape.hpp"

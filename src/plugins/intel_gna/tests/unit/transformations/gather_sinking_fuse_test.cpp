@@ -4,13 +4,12 @@
 
 #include "transformations/gather_sinking_fuse.hpp"
 
+#include "common_test_utils/ngraph_test_utils.hpp"
+#include "gtest/gtest.h"
 #include "openvino/frontend/manager.hpp"
 #include "openvino/opsets/opset12.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/init_node_info.hpp"
-
-#include "common_test_utils/ngraph_test_utils.hpp"
-#include "gtest/gtest.h"
 
 using namespace ov;
 using namespace ov::opset12;

@@ -4,22 +4,22 @@
 
 #include "transformations/gather_sinking_binary.hpp"
 
-#include "openvino/cc/ngraph/itt.hpp"
-#include "openvino/opsets/opset12.hpp"
-#include "openvino/pass/pattern/op/or.hpp"
 #include <transformations/utils/utils.hpp>
 #include <utility>
 
+#include "common/graph_utils.hpp"
+#include "openvino/cc/ngraph/itt.hpp"
 #include "openvino/op/util/op_types.hpp"
+#include "openvino/opsets/opset12.hpp"
 #include "openvino/opsets/opset9.hpp"
 #include "openvino/pass/pattern/op/label.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/log.hpp"
 #include "transformations/rt_info/gather_sinking_attr.hpp"
 #include "transformations/utils/gather_sinking_utils.hpp"
 #include "transformations/utils/transformation_helper.hpp"
-#include "common/graph_utils.hpp"
 
 using namespace ov;
 using namespace ov::opset12;

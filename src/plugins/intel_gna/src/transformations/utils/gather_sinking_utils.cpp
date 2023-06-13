@@ -348,7 +348,7 @@ int64_t normalize_negative_gather_axis(int64_t axis, ov::Rank::value_type gather
 }
 
 int64_t get_normalized_negative_gather_axis(const std::shared_ptr<Constant>& axis,
-                                                   ov::Rank::value_type gather_input_rank) {
+                                            ov::Rank::value_type gather_input_rank) {
     return normalize_negative_gather_axis(axis->cast_vector<int64_t>()[0], gather_input_rank);
 }
 
