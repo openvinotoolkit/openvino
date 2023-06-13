@@ -233,7 +233,7 @@ void CheckpointV1Reader::read_variable(const std::string& variable_name, ov::Any
                                 variable_name);
     const auto& var_info = m_variables_info_map[variable_name];
     auto shard_id = m_variables_info_map[variable_name].shard_id;
-    FRONT_END_GENERAL_CHECK(shard_id < m_shards.size(),
+    FRONT_END_GENERAL_CHECK(shard_id < static_cast<int32_t>(m_shards.size()),
                             "[TensorFlow Frontend] internal error: use of incorrect checkpoint file");
     auto shard_ptr = m_shards[shard_id];
     auto encoded_name = encode_tensor_name_slice(variable_name, var_info.starts, var_info.lenghts);

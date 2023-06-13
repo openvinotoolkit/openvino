@@ -179,7 +179,7 @@ std::string encode_tensor_name_slice(const std::string& name,
     FRONT_END_GENERAL_CHECK(
         starts.size() == lengths.size(),
         "[TensorFlow Frontend] internal error or inconsistent model: check consistency of checkpoint files");
-    for (int d = 0; d < starts.size(); ++d) {
+    for (size_t d = 0; d < starts.size(); ++d) {
         write_signed_num_increasing(buffer, starts[d]);
         write_signed_num_increasing(buffer, lengths[d]);
     }
