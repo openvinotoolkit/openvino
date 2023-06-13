@@ -92,6 +92,9 @@ public:
     direction get_direction() const {
         return m_direction;
     }
+    void set_direction(const direction& dir) {
+        m_direction = dir;
+    }
     std::int64_t get_hidden_size() const {
         return m_hidden_size;
     }
@@ -165,6 +168,9 @@ public:
 
     direction get_direction() const {
         return m_direction;
+    }
+    void set_direction(const direction& dir) {
+        m_direction = dir;
     }
 
 private:
