@@ -417,15 +417,16 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
     bool is_cumulative =
         (auto_s_context->m_performance_hint == ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT) ? true : false;
     std::list<DeviceInformation> devices_with_priority(support_devices.begin(), support_devices.end());
-    std::shared_ptr<ov::Model> cloned_model;
+    std::shared_ptr<ov::Model> cloned_model, ppp_model;
     if (model_path.empty()) {
         support_devices = filter_device_by_network(support_devices_by_property, model);
         cloned_model = model->clone();
-        ov::preprocess::PrePostProcessor preproc(cloned_model);
+        ppp_model = cloned_model->clone();
+        ov::preprocess::PrePostProcessor preproc(ppp_model);
         // temp solution to reolve the prceision/layout mismatch between new/old api
         if (!is_new_api()) {
-            for (size_t i = 0; i < cloned_model->inputs().size(); i++) {
-                ov::Output<const Node> input(cloned_model->input(i).get_node(), cloned_model->input(i).get_index());
+            for (size_t i = 0; i < ppp_model->inputs().size(); i++) {
+                ov::Output<const Node> input(ppp_model->input(i).get_node(), ppp_model->input(i).get_index());
                 auto& rt_info = input.get_rt_info();
                 auto it = rt_info.find("ie_legacy_td");
                 if (it != rt_info.end()) {
@@ -444,8 +445,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
                         preproc.input(i).model().set_layout("NCHW");
                 }
             }
-            for (size_t i = 0; i < cloned_model->outputs().size(); i++) {
-                ov::Output<const Node> output(cloned_model->output(i).get_node(), cloned_model->output(i).get_index());
+            for (size_t i = 0; i < ppp_model->outputs().size(); i++) {
+                ov::Output<Node> output(ppp_model->output(i).get_node(), ppp_model->output(i).get_index());
                 auto& rt_info = output.get_rt_info();
                 auto it = rt_info.find("ie_legacy_td");
                 if (it != rt_info.end()) {
@@ -453,6 +454,16 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
                     auto element_type = InferenceEngine::details::convertPrecision(td.getPrecision());
                     if (element_type != output.get_element_type()) {
                         preproc.output(i).tensor().set_element_type(element_type);
+                    }
+                    if (td.getLayout() != InferenceEngine::Layout::BLOCKED &&
+                        td.getLayout() != InferenceEngine::Layout::SCALAR) {
+                        std::stringstream stream;
+                        stream << td.getLayout();
+                        if (stream.str() != "NCHW") {
+                            if (output.get_partial_shape().is_static() && output.get_shape().size() == 4)
+                                preproc.output(i).model().set_layout("NCHW");
+                            preproc.output(i).postprocess().convert_layout(ov::Layout{stream.str()});
+                        }
                     }
                 }
             }
@@ -496,9 +507,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
     auto_s_context->m_bind_buffer = load_config.get_property(ov::intel_auto::device_bind_buffer);
     std::shared_ptr<ov::ICompiledModel> impl;
     if (is_cumulative) {
-        impl = std::make_shared<AutoCumuCompiledModel>(cloned_model, shared_from_this(), auto_s_context, std::make_shared<CumuSchedule>());
+        impl = std::make_shared<AutoCumuCompiledModel>(ppp_model, shared_from_this(), auto_s_context, std::make_shared<CumuSchedule>());
     } else {
-        impl = std::make_shared<AutoCompiledModel>(cloned_model, shared_from_this(), auto_s_context, std::make_shared<AutoSchedule>());
+        impl = std::make_shared<AutoCompiledModel>(ppp_model, shared_from_this(), auto_s_context, std::make_shared<AutoSchedule>());
     }
     m_hw_compiledmodel = auto_s_context->m_hw_compiled_model;
     return impl;
