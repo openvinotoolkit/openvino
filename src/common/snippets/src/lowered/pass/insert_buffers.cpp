@@ -225,12 +225,26 @@ void InsertBuffers::insertion(LinearIR& linear_ir, const LinearIR::LoopManagerPt
                 }
             }
 
+            // potential_consumers is unsorted by linear IR set.
+            // We have to find first expr in Linear IR from the set to insert Buffer before *all* consumers
+            OPENVINO_ASSERT(!potential_consumers.empty(), "Buffer should have one consumer at least");
+            auto consumer_expr = potential_consumers.begin()->get_expr();
+            if (potential_consumers.size() > 1) {
+                std::set<ExpressionPtr> consumers;
+                for (const auto& port : potential_consumers)
+                    consumers.insert(port.get_expr());
+                const auto it = std::find_if(linear_ir.cbegin(), linear_ir.cend(),
+                                             [&consumers](const ExpressionPtr& expr) { return consumers.count(expr) > 0; });
+                OPENVINO_ASSERT(it != linear_ir.cend(), "Consumer of Buffer has not been found in Linear IR");
+                consumer_expr = *it;
+            }
+
             // We should insert Buffer between first different Loops.
             // Example: Current expr Loop identifies: 3, 2, 1
             //          Target consumers Loop identifies:  3, 4, 6
             //          Need to insert after 2nd Loops
             // Note: All potential consumers must have the same count of first equal Loop identifies and the same count of different last identifies
-            const auto pos = insertion_position(linear_ir, loop_manager, expr, (*potential_consumers.begin()).get_expr());
+            const auto pos = insertion_position(linear_ir, loop_manager, expr, consumer_expr);
 
             const auto allocation_shape = compute_allocation_shape(loop_manager,
                                                                    buffer_loop_ids,
