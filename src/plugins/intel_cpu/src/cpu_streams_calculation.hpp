@@ -59,6 +59,18 @@ int get_model_prefer_threads(const int num_streams,
                              const std::shared_ptr<ngraph::Function>& ngraphFunc,
                              const InferenceEngine::IStreamsExecutor::Config streamExecutorConfig);
 
+/**
+ * @brief      Generate streams information according to processors type table
+ * @param[in]  streams number of streams
+ * @param[in]  ngraphFunc graph handle
+ * @param[in]  config intel cpu configuration
+ * @param[in]  preferred_nthreads_per_stream is initial preferred number of threads per stream
+ */
+void generate_stream_info(const int streams,
+                          const std::shared_ptr<ngraph::Function>& ngraphFunc,
+                          Config& config,
+                          int preferred_nthreads_per_stream = -1);
+
 struct StreamCfg {
     int num_streams;               // Number of streams
     int num_threads;               // Number of threads
