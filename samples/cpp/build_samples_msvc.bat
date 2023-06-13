@@ -49,7 +49,7 @@ if "%PROCESSOR_ARCHITECTURE%" == "AMD64" (
 
 if exist "%SAMPLE_BUILD_DIR%\CMakeCache.txt" del "%SAMPLE_BUILD_DIR%\CMakeCache.txt"
 
-cd /d "%ROOT_DIR%" && cmake -E make_directory "%SAMPLE_BUILD_DIR%" && cd /d "%SAMPLE_BUILD_DIR%" && cmake -A %PLATFORM% "%ROOT_DIR%"
+cd /d "%ROOT_DIR%" && cmake -E make_directory "%SAMPLE_BUILD_DIR%" && cd /d "%SAMPLE_BUILD_DIR%" && cmake "%ROOT_DIR%"
 if ERRORLEVEL 1 GOTO errorHandling
 
 echo.
