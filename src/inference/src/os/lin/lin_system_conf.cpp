@@ -627,7 +627,8 @@ void parse_freq_info_linux(const std::vector<std::vector<std::string>> system_in
 
     if (node_info_table.size() == 0) {
         if ((_sockets > 1) && (ecore_enabled)) {
-            _sockets = 1;
+            _sockets = 1;  // This is the WA of the developing platform without CPU cache and numa node information.
+                           // Wrong socket information creates each socket ID per CPU core.
         }
         if (_sockets > 1) {
             _proc_type_table.resize(_sockets + 1, std::vector<int>(PROC_TYPE_TABLE_SIZE, 0));
