@@ -331,6 +331,7 @@ TEST(prepare_buffer_fusing, in_place_concat_dynamic_onednn) {
         ASSERT_EQ(ref_output[x], output_ptr[x]);
     }
 }
+
 TEST(prepare_buffer_fusing, in_place_concat_dynamic__static_dim_dyn_pad) {
     auto& engine = get_test_engine();
     auto in_layout1_0 = layout{ ov::PartialShape{-1, 2, -1, -1}, data_types::f32, format::bfyx }; // => {-1, -1, -1, 2}
