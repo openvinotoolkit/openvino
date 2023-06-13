@@ -141,6 +141,8 @@ It is possible to build applications without the CMake interface by using: MSVC 
 
 **With OpenVINO Runtime 2022.1 (API 2.0)**:
 
+.. tab-set::
+
    .. tab-item:: Include dirs
       :sync: include
 

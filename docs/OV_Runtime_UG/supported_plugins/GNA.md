@@ -78,39 +78,29 @@ Starting with the 2021.4.1 release of OpenVINO™ and the 03.00.00.1363 version 
 In this mode, the GNA driver automatically falls back on CPU for a particular infer request if the HW queue is not empty. 
 Therefore, there is no need for explicitly switching between GNA and CPU.
 
-
-
-
-
-
-
-
-   .. tab-set::
+.. tab-set::
    
-      .. tab-item:: C++
-         :sync: cpp
+   .. tab-item:: C++
+      :sync: cpp
    
-         .. doxygensnippet:: docs/snippets/gna/configure.cpp
-            :language: cpp
-            :fragment: [include]
+      .. doxygensnippet:: docs/snippets/gna/configure.cpp
+         :language: cpp
+         :fragment: [include]
    
-         .. doxygensnippet:: docs/snippets/gna/configure.cpp
-            :language: cpp
-            :fragment: [ov_gna_exec_mode_hw_with_sw_fback]
+      .. doxygensnippet:: docs/snippets/gna/configure.cpp
+         :language: cpp
+         :fragment: [ov_gna_exec_mode_hw_with_sw_fback]
    
-      .. tab-item:: Python
-         :sync: py
+   .. tab-item:: Python
+      :sync: py
    
-         .. doxygensnippet:: docs/snippets/gna/configure.py
-            :language: py
-            :fragment: [import]
+      .. doxygensnippet:: docs/snippets/gna/configure.py
+         :language: py
+         :fragment: [import]
    
-         .. doxygensnippet:: docs/snippets/gna/configure.py
-            :language: py
-            :fragment: [ov_gna_exec_mode_hw_with_sw_fback]
-
-
-
+      .. doxygensnippet:: docs/snippets/gna/configure.py
+         :language: py
+         :fragment: [ov_gna_exec_mode_hw_with_sw_fback]
 
 
 .. note:: 
