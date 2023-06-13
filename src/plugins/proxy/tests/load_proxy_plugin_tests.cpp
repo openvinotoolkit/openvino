@@ -51,7 +51,9 @@ TEST_F(ProxyTests, fallback_to_alias_name) {
     // ABC doesn't support subtract operation
     std::unordered_map<std::string, std::string> mock_reference_dev = {{"CBD.0", "CBD_ov_internal"},
                                                                        {"CBD.1", "DEK CBD_ov_internal"},
-                                                                       {"CBD.2", "CBD_ov_internal"}};
+                                                                       {"CBD.2", "CBD_ov_internal"},
+                                                                       {"CBD.3", "DEK"},
+                                                                       {"CBD.4", "DEK"}};
     for (const auto& it : mock_reference_dev) {
         EXPECT_EQ(core.get_property(it.first, ov::device::priorities), it.second);
     }
