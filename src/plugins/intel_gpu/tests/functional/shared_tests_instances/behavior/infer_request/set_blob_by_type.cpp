@@ -12,9 +12,6 @@ const std::vector<FuncTestUtils::BlobType> BlobTypes = {
     FuncTestUtils::BlobType::Compound,
     FuncTestUtils::BlobType::Batched,
     FuncTestUtils::BlobType::Memory,
-//    FuncTestUtils::BlobType::Remote,
-    FuncTestUtils::BlobType::I420,
-    FuncTestUtils::BlobType::NV12
 };
 
 auto gpuConfig = []() {
