@@ -44,10 +44,6 @@ public:
 
     InferenceEngine::Blob::Ptr GetBlob(const std::string& name) override;
 
-    void SetBlob(const std::string& name,
-                 const InferenceEngine::Blob::Ptr& blob,
-                 const InferenceEngine::PreProcessInfo& info) override;
-
     const InferenceEngine::PreProcessInfo& GetPreProcess(const std::string& name) const override;
 
     std::vector<std::shared_ptr<InferenceEngine::IVariableStateInternal>> QueryState() override;
