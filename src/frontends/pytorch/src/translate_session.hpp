@@ -35,13 +35,25 @@ public:
         const TensorMap& external_tensor_map = {},
         const std::unordered_map<size_t, PlaceDesc>& external_descriptors = {});
 
+    /// \brief Returns backprop operations for direct operation
+    Output<Node> get_backprop_op(const std::shared_ptr<TorchDecoder>& node,
+                                 const Output<Node>& direct_op_output,
+                                 const Output<Node>& value);
+
+    /// \brief Writes pytorch tensor index into openvino tensor
     void encode_tensor_name(Output<Node> tensor_desc,
                             size_t tensor_idx,
                             std::vector<std::string> additional_names = {});
+
+    /// \brief Gets pytorch tensor index from openvino tensor
     size_t decode_tensor_name(const Output<Node>& tensor_desc);
 
     /// \brief Make sure Node has unique name
     void unique_name(const std::shared_ptr<Node>& node);
+
+    // Maps tensor index to initial tensor index which it is alias to, and to decoder of the node produced this alias
+    // and to the output produced during conversion of this node
+    std::map<size_t, std::tuple<size_t, std::shared_ptr<TorchDecoder>, Output<Node>>> m_may_be_alias;
 
 private:
     OutputVector convert_node(const NodeContext& context);
