@@ -8,7 +8,54 @@
 namespace ov {
 namespace intel_cpu {
 
-// Power convert ot Multiply for p=2
+/*
+ * Description:
+ *      For MVN decomposition transformation power operation
+ *     replace to multiply operation
+ *
+ * Before:
+ *
+ *      ┌──────────────┐   ┌──────────────┐
+ *      │              │   │              │
+ *      │   Parameter  │   │ Constant = 2 │
+ *      │              │   │              │
+ *      └────────────┬─┘   └──┬───────────┘
+ *                   │        │
+ *                   │        │
+ *                 ┌─▼────────▼─┐
+ *                 │            │
+ *                 │   Power    │
+ *                 │            │
+ *                 └─────┬──────┘
+ *                       │
+ *                       │
+ *                 ┌─────▼──────┐
+ *                 │            │
+ *                 │   Result   │
+ *                 │            │
+ *                 └────────────┘
+ *
+ * After:
+ *
+ *                 ┌─────────────┐
+ *                 │             │
+ *         ┌───────┤  Parameter  ├────────┐
+ *         │       │             │        │
+ *         │       └─────────────┘        │
+ *         │                              │
+ *         │        ┌────────────┐        │
+ *         │        │            │        │
+ *         └───────►│  Multiply  │◄───────┘
+ *                  │            │
+ *                  └─────┬──────┘
+ *                        │
+ *                  ┌─────▼──────┐
+ *                  │            │
+ *                  │   Result   │
+ *                  │            │
+ *                  └────────────┘
+ */
+
 class MVN6PowerDecomposition: public ngraph::pass::MatcherPass {
 public:
     OPENVINO_RTTI("MVN6PowerDecomposition");
