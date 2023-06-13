@@ -22,14 +22,15 @@ struct CheckLocInfo {
 /// Base error for ov runtime errors.
 class OPENVINO_API Exception : public std::runtime_error {
 public:
+    OPENVINO_DEPRECATED("This constructor is deprecated and will be removed, please use OPENVINO_THROW instead")
+    explicit Exception(const std::string& what_arg);
+
     [[noreturn]] static void create(const CheckLocInfo& check_loc_info, const std::string& explanation);
     virtual ~Exception();
 
     static const std::string default_msg;
 
 protected:
-    explicit Exception(const std::string& what_arg);
-
     static std::string make_what(const CheckLocInfo& check_loc_info,
                                  const std::string& context_info,
                                  const std::string& explanation);

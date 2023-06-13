@@ -7,7 +7,9 @@
 ov::Exception::Exception(const std::string& what_arg) : std::runtime_error(what_arg) {}
 
 void ov::Exception::create(const CheckLocInfo& check_loc_info, const std::string& explanation) {
+    OPENVINO_SUPPRESS_DEPRECATED_START
     throw ov::Exception(make_what(check_loc_info, default_msg, explanation));
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 std::string ov::Exception::make_what(const CheckLocInfo& check_loc_info,
