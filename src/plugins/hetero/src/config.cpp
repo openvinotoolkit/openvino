@@ -52,11 +52,12 @@ std::vector<ov::PropertyName> Configuration::GetSupported() const {
 }
 
 ov::AnyMap Configuration::GetHeteroConfig() const {
-    return {
+    static const ov::AnyMap conf = {
         {HETERO_CONFIG_KEY(DUMP_GRAPH_DOT), dump_graph},
         {"TARGET_FALLBACK", device_priorities},
         {ov::device::priorities.name(), device_priorities},
     };
+    return conf;
 }
 
 ov::AnyMap Configuration::GetDeviceConfig() const {

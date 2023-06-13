@@ -6,7 +6,7 @@
 #include "ie_metric_helpers.hpp"
 #include "executable_network.hpp"
 #include "async_infer_request.hpp"
-#include "src/itt.hpp"
+#include "itt.hpp"
 #include "ie_precision.hpp"
 #include "openvino/core/dimension.hpp"
 #include "openvino/core/except.hpp"

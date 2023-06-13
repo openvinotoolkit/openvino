@@ -13,7 +13,7 @@
 #include <map>
 #include <string>
 
-#include "src/itt.hpp"
+#include "itt.hpp"
 
 using namespace HeteroPlugin;
 using namespace InferenceEngine;
