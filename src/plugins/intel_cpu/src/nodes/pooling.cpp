@@ -611,7 +611,7 @@ void Pooling::initSupportedPrimitiveDescriptors() {
                 poolingAttrs,
                 srcMemoryDescs,
                 dstMemoryDescs,
-                std::make_shared<ExecutorContext>(context, getPrimitivesPriority()));
+                std::make_shared<ExecutorContext>(context, getImplPriority()));
             supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::undef, factory);
         };
 
@@ -632,7 +632,7 @@ void Pooling::initSupportedPrimitiveDescriptors() {
         for (size_t i = 0; i < descOutputNumbers(); i++) {
             auto desc = getDstMemDesc(prim_desc, i);
             // PortConfig in{desc, inPlaceOutPort};
-            outConfs.emplace_back(desc, BlockedMemoryDesc::BLOCKED_DESC_FULL_MASK, inPlaceOutPort);
+            outConfs.emplace_back(desc, BlockedMemoryDesc::FULL_MASK, inPlaceOutPort);
         }
 
         // CPU plugin doesn't support second output of MaxPool-8, but anyway we should have out config for second port as stub
@@ -657,7 +657,7 @@ void Pooling::initSupportedPrimitiveDescriptors() {
         DnnlExtensionUtils::for_each_implementation(desc,
                                                     first_match,
                                                     [&](impl_desc_type implType) {
-                                                        return contains(getPrimitivesPriority(), implType);
+                                                        return contains(getImplPriority(), implType);
                                                     },
                                                     [&](dnnl::primitive_desc& desc) {
                                                         addSupportedPrimitiveDescriptor(desc);

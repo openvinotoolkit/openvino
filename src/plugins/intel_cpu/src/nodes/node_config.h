@@ -78,7 +78,7 @@ public:
 
 private:
     BlockedMemoryDescPtr _memDesc;
-    CmpMask _cmpMask = BlockedMemoryDesc::BLOCKED_DESC_FULL_MASK;
+    CmpMask _cmpMask = BlockedMemoryDesc::FULL_MASK;
 };
 
 class PortConfig {
@@ -86,7 +86,7 @@ public:
     PortConfig() = default;
 
     PortConfig(MemoryDescPtr desc,
-               BlockedMemoryDesc::CmpMask cmpMask = BlockedMemoryDesc::BLOCKED_DESC_FULL_MASK,
+               BlockedMemoryDesc::CmpMask cmpMask = BlockedMemoryDesc::FULL_MASK,
                int inPlacePort = -1,
                bool isConstant = false)
         : _desc(createPortDesc(desc, cmpMask)),
@@ -131,7 +131,7 @@ public:
     }
 
     void setMemDesc(MemoryDescPtr desc) {
-        _desc = createPortDesc(desc, BlockedMemoryDesc::BLOCKED_DESC_FULL_MASK);
+        _desc = createPortDesc(desc, BlockedMemoryDesc::FULL_MASK);
     }
 
     void setMemDesc(BlockedMemoryDescPtr desc, BlockedMemoryDesc::CmpMask cmpMask) {

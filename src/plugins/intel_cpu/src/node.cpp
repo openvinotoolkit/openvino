@@ -139,7 +139,7 @@ Node::Node(const std::shared_ptr<ngraph::Node>& op,
         addOriginalLayer(name);
     }
 
-    auto primitivesPriority = getPrimitivesPriorityValue(op);
+    auto primitivesPriority = getImplPriorityValue(op);
     if (!primitivesPriority.empty()) {
         std::istringstream stream(primitivesPriority);
         std::string str;
@@ -152,7 +152,7 @@ Node::Node(const std::shared_ptr<ngraph::Node>& op,
                 IE_THROW() << "Unsupported CPU implementation " << str << " for node " << getName();
         }
         // add default primitive priorities as a fallback for the custom ones
-        const auto& defaultImplPriorities = getDefaultPrimitivesPriority();
+        const auto& defaultImplPriorities = getDefaultImplPriority();
         customImplPriorities.insert(customImplPriorities.end(), defaultImplPriorities.begin(), defaultImplPriorities.end());
     }
 
@@ -265,7 +265,7 @@ void Node::createPrimitive() {
 }
 
 void Node::selectOptimalPrimitiveDescriptor() {
-    selectPreferPrimitiveDescriptor(getPrimitivesPriority(), false);
+    selectPreferPrimitiveDescriptor(getImplPriority(), false);
 }
 
 void Node::selectPreferPrimitiveDescriptor(const std::vector<impl_desc_type>& priority, bool ignoreConstInputs) {
@@ -631,13 +631,13 @@ void Node::initSupportedPrimitiveDescriptors() {
         for (size_t i = 0; i < descInputNumbers(); i++) {
             auto desc = getSrcMemDesc(prim_desc, i);
 
-            inConfs.emplace_back(desc, BlockedMemoryDesc::BLOCKED_DESC_EMPTY_MASK);
+            inConfs.emplace_back(desc, BlockedMemoryDesc::EMPTY_MASK);
         }
 
         for (size_t i = 0; i < descOutputNumbers(); i++) {
             auto desc = getDstMemDesc(prim_desc, i);
 
-            outConfs.emplace_back(desc, BlockedMemoryDesc::BLOCKED_DESC_EMPTY_MASK, inPlaceOutPort);
+            outConfs.emplace_back(desc, BlockedMemoryDesc::EMPTY_MASK, inPlaceOutPort);
         }
 
         const NodeConfig config(inConfs, outConfs);
@@ -646,17 +646,20 @@ void Node::initSupportedPrimitiveDescriptors() {
         supportedPrimitiveDescriptors.emplace_back(config, impl_type);
     };
 
+    /* When custom implementation priorities are NOT defined it is enough to
+     * just use the first implementation from the priority list.
+     * When custom implementation priorities are defined, all the implementations should be considered,
+     * since custom implementations can be not available at all, so a fallback to the default ones must happen
+     * To achive the fallback, it is necessary to create a supported primitive descriptor for each implementation
+     * since oneDNN primitive is mutating while iterating */
+
     for (auto& desc : descs) {
         auto first_desc = dnnl::primitive_desc(DnnlExtensionUtils::clone_primitive_desc(desc.get()));
-        /* When custom implementation priorities are NOT defined it is enough to
-         * just use the first implementation from priority list.
-         * When custom implementation priorities are defined, all the implementations should be considered,
-         * since custom implementation priorities can be not available at all, so fallback to the default ones must happen */
         const bool first_match = customImplPriorities.empty();
         DnnlExtensionUtils::for_each_implementation(desc,
                                                     first_match,
                                                     [&](impl_desc_type implType) {
-                                                        return contains(getPrimitivesPriority(), implType);
+                                                        return contains(getImplPriority(), implType);
                                                     },
                                                     [&](dnnl::primitive_desc& desc) {
                                                         addSupportedPrimitiveDescriptor(desc);
@@ -978,7 +981,7 @@ void Node::cleanup() {
     }
 }
 
-const std::vector<impl_desc_type>& Node::getDefaultPrimitivesPriority() {
+const std::vector<impl_desc_type>& Node::getDefaultImplPriority() {
     static const std::vector<impl_desc_type> priorities {
         impl_desc_type::unknown,
         // Undef impl type is used to express use-cases there real type is unkown during compilation
@@ -1022,12 +1025,12 @@ const std::vector<impl_desc_type>& Node::getDefaultPrimitivesPriority() {
     return priorities;
 }
 
-const std::vector<impl_desc_type>& Node::getPrimitivesPriority() {
+const std::vector<impl_desc_type>& Node::getImplPriority() {
     if (!customImplPriorities.empty())
         return customImplPriorities;
 
 
-    return getDefaultPrimitivesPriority();
+    return getDefaultImplPriority();
 }
 
 PortDescBasePtr Node::getConsistentInputDesc(const NodeConfig &config, size_t idx) const {
@@ -1138,7 +1141,7 @@ void Node::initOptimalPrimitiveDescriptor() {
             // it is assumed that the nodes will define dense tensors on output edges
             // if it is not the case the implementation must redefine this behaviour
             if (outMemDesc->getType() & Blocked) {
-                config.outConfs[i].setMemDesc(std::dynamic_pointer_cast<BlockedMemoryDesc>(outMemDesc), BlockedMemoryDesc::BLOCKED_DESC_FULL_MASK);
+                config.outConfs[i].setMemDesc(std::dynamic_pointer_cast<BlockedMemoryDesc>(outMemDesc), BlockedMemoryDesc::FULL_MASK);
             }
         }
     }

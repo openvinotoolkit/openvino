@@ -33,7 +33,7 @@ public:
         return getOutputShapeAtPort(0).getRank() == 3 ? 2 : 1;
     }
 
-    const std::vector<impl_desc_type>& getDefaultPrimitivesPriority() override;
+    const std::vector<impl_desc_type>& getDefaultImplPriority() override;
     void createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
                           const std::vector<MemoryDescPtr>& outputDesc) override;
 

@@ -55,7 +55,6 @@ public:
     static std::shared_ptr<DnnlMemoryDesc> query_md(const const_dnnl_primitive_desc_t& pd, const dnnl::query& what, int idx = 0);
     static std::string query_impl_info_str(const const_dnnl_primitive_desc_t& pd);
 
-    // must be written in header file
     template<typename T>
     static bool find_implementation(dnnl::primitive_desc& desc, T&& comparator) {
         dnnl::primitive_desc_iterator& itpd = desc;

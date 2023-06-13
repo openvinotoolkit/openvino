@@ -506,7 +506,7 @@ bool FullyConnected::created() const {
     return getType() == Type::FullyConnected;
 }
 
-const std::vector<impl_desc_type>& FullyConnected::getDefaultPrimitivesPriority() {
+const std::vector<impl_desc_type>& FullyConnected::getDefaultImplPriority() {
     static const std::vector<impl_desc_type> priorities = {
         impl_desc_type::unknown,
         impl_desc_type::acl,
@@ -648,13 +648,13 @@ void FullyConnected::initSupportedPrimitiveDescriptors() {
         for (size_t i = 0; i < descInputNumbers(); i++) {
             auto desc = getSrcMemDesc(prim_desc, i);
             const auto inputBlockedMask = (supportsUndefStridesAndOffset() && !(i == WEIGHTS_ID && useSparseWeights)) ?
-                BlockedMemoryDesc::BLOCKED_DESC_EMPTY_MASK :
-                BlockedMemoryDesc::BLOCKED_DESC_FULL_MASK;
+                BlockedMemoryDesc::EMPTY_MASK :
+                BlockedMemoryDesc::FULL_MASK;
 
             inConfs.emplace_back(desc, inputBlockedMask);
         }
 
-        const auto outputBlockedMask = supportsUndefStridesAndOffset() ? BlockedMemoryDesc::BLOCKED_DESC_EMPTY_MASK : BlockedMemoryDesc::BLOCKED_DESC_FULL_MASK;
+        const auto outputBlockedMask = supportsUndefStridesAndOffset() ? BlockedMemoryDesc::EMPTY_MASK : BlockedMemoryDesc::FULL_MASK;
 
         for (size_t i = 0; i < descOutputNumbers(); i++) {
             auto desc = getDstMemDesc(prim_desc, i);
@@ -675,7 +675,7 @@ void FullyConnected::initSupportedPrimitiveDescriptors() {
         DnnlExtensionUtils::for_each_implementation(desc,
                                                     first_match,
                                                     [&](impl_desc_type implType) {
-                                                        return contains(getPrimitivesPriority(), implType);
+                                                        return contains(getImplPriority(), implType);
                                                     },
                                                     [&](dnnl::primitive_desc& desc) {
                                                         addSupportedPrimitiveDescriptor(desc);

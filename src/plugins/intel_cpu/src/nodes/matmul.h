@@ -42,7 +42,7 @@ public:
     void executeDynamicImpl(dnnl::stream strm) override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
-    const std::vector<impl_desc_type>& getDefaultPrimitivesPriority() override;
+    const std::vector<impl_desc_type>& getDefaultImplPriority() override;
 
 protected:
     AttrPtr initPrimitiveAttr() override;

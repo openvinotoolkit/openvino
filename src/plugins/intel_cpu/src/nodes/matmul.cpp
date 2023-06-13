@@ -519,7 +519,7 @@ void MatMul::initSupportedPrimitiveDescriptors() {
         for (size_t i = 0; i < descOutputNumbers(); i++) {
             auto desc = getDstMemDesc(prim_desc, i);
 
-            outConfs.emplace_back(desc, BlockedMemoryDesc::BLOCKED_DESC_FULL_MASK, inPlaceOutPort);
+            outConfs.emplace_back(desc, BlockedMemoryDesc::FULL_MASK, inPlaceOutPort);
         }
 
         const NodeConfig config(inConfs, outConfs);
@@ -535,7 +535,7 @@ void MatMul::initSupportedPrimitiveDescriptors() {
         DnnlExtensionUtils::for_each_implementation(desc,
                                                     first_match,
                                                     [&](impl_desc_type implType) {
-                                                        return contains(getPrimitivesPriority(), implType);
+                                                        return contains(getImplPriority(), implType);
                                                     },
                                                     [&](dnnl::primitive_desc& desc) {
                                                         addSupportedPrimitiveDescriptor(desc);
@@ -690,7 +690,7 @@ void MatMul::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
-const std::vector<impl_desc_type>& MatMul::getDefaultPrimitivesPriority() {
+const std::vector<impl_desc_type>& MatMul::getDefaultImplPriority() {
     static const std::vector<impl_desc_type> priorities = {
         impl_desc_type::unknown,
         impl_desc_type::brgemm_avx512_amx,

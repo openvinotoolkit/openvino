@@ -178,7 +178,7 @@ void Split::initSupportedPrimitiveDescriptors() {
             SizeVector strides(numOfDim);
             strides.back() = 1lu;
             size_t offset = Shape::UNDEFINED_DIM;
-            BlockedMemoryDesc::CmpMask mask = BlockedMemoryDesc::BLOCKED_DESC_SKIP_OFFSET_MASK; // accepts any offset
+            BlockedMemoryDesc::CmpMask mask = BlockedMemoryDesc::SKIP_OFFSET_MASK; // accepts any offset
 
             for (size_t i = 2; i <= numOfDim; i++) {
                 if (numOfDim - i < axis) {
@@ -372,7 +372,7 @@ void Split::initOptimalPrimitiveDescriptor() {
                                               firstInBlockingDesc->getOffsetPaddingToData(),
                                               (shape.hasZeroDims() ? VectorDims(blkDims.size(), 0) :
                                                firstInBlockingDesc->getStrides())),
-                                          BlockedMemoryDesc::BLOCKED_DESC_FULL_MASK);
+                                          BlockedMemoryDesc::FULL_MASK);
 
             size_t axisSize = 1;
             for (size_t j = axis; j < outBlockingDesc->getBlockDims().size(); j++) {

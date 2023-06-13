@@ -253,7 +253,7 @@ void Reorder::createReorderPrimitive(const dnnl::memory::desc& srcDesc,
 #endif
 }
 
-const std::vector<impl_desc_type>& Reorder::getDefaultPrimitivesPriority() {
+const std::vector<impl_desc_type>& Reorder::getDefaultImplPriority() {
     static const std::vector<impl_desc_type> priorities = {impl_desc_type::reorder};
 
     return priorities;

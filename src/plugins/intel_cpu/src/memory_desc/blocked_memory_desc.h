@@ -18,10 +18,10 @@ public:
 public:
     BlockedMemoryDesc() = default;
 
-    static constexpr CmpMask BLOCKED_DESC_FULL_MASK{0xffffffff};
-    static constexpr CmpMask BLOCKED_DESC_EMPTY_MASK{0x0};
-    static constexpr CmpMask BLOCKED_DESC_SKIP_OFFSET_MASK{0x7fffffff};
-    static constexpr size_t  BLOCKED_DESC_OFFSET_MASK_POS{31};
+    static constexpr CmpMask FULL_MASK{0xffffffff};
+    static constexpr CmpMask EMPTY_MASK{0x0};
+    static constexpr CmpMask SKIP_OFFSET_MASK{0x7fffffff};
+    static constexpr size_t  OFFSET_MASK_POS{31};
 
     /**
      * @brief Returns the blocked dimensions
@@ -88,7 +88,7 @@ protected:
      * Doesn't perform descs specific attributes check
      * @return true if compatible, otherwise false
      */
-    bool isCompatibleInternal(const BlockedMemoryDesc &rhs, CmpMask cmpMask = BLOCKED_DESC_FULL_MASK) const;
+    bool isCompatibleInternal(const BlockedMemoryDesc &rhs, CmpMask cmpMask = FULL_MASK) const;
 
     mutable VectorDims blockedDims;
     mutable VectorDims strides;

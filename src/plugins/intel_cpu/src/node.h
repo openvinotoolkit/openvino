@@ -615,8 +615,11 @@ protected:
     bool isConfigDefined(const NodeConfig &config) const;
     virtual bool canBeInPlace() const;
 
-    virtual const std::vector<impl_desc_type>& getDefaultPrimitivesPriority();
-    const std::vector<impl_desc_type>& getPrimitivesPriority();
+    /* returns default implementaion prioirity */
+    virtual const std::vector<impl_desc_type>& getDefaultImplPriority();
+    /* returns custom implementation priority + default implementation priority appended as a fallback
+     * if custom implementaiton priority is not specified, returns default implementation priority */
+    const std::vector<impl_desc_type>& getImplPriority();
 
     virtual std::vector<dnnl::memory::format_tag> getAvailableFormatsForDims(const Shape& dims) const;
 

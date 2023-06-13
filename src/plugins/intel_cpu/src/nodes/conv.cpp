@@ -324,7 +324,7 @@ InferenceEngine::Precision Convolution::fusedEltwisePrecision(const NodePtr& fus
     return eltwisePrecision;
 }
 
-const std::vector<impl_desc_type>& Convolution::getDefaultPrimitivesPriority() {
+const std::vector<impl_desc_type>& Convolution::getDefaultImplPriority() {
     static const std::vector<impl_desc_type> priorities = {
         impl_desc_type::unknown,
         impl_desc_type::dw_acl,
@@ -705,7 +705,7 @@ void Convolution::setPostOps(dnnl::primitive_attr& attr,
 }
 
 void Convolution::selectOptimalPrimitiveDescriptor() {
-    selectPreferPrimitiveDescriptor(getPrimitivesPriority(), true);
+    selectPreferPrimitiveDescriptor(getImplPriority(), true);
 }
 
 void Convolution::initSupportedPrimitiveDescriptors() {
@@ -714,8 +714,8 @@ void Convolution::initSupportedPrimitiveDescriptors() {
 
     auto getBlockedMask = [](const std::shared_ptr<MemoryDesc>& memDesc, const bool isGrouped) {
         if (memDesc->getType() & MemoryDescType::Blocked && !isGrouped)
-            return BlockedMemoryDesc::BLOCKED_DESC_EMPTY_MASK;
-        return BlockedMemoryDesc::BLOCKED_DESC_FULL_MASK;
+            return BlockedMemoryDesc::EMPTY_MASK;
+        return BlockedMemoryDesc::FULL_MASK;
     };
 
     auto addSupportedPrimitiveDescriptor = [&](const dnnl::primitive_desc& prim_desc) {
@@ -767,7 +767,7 @@ void Convolution::initSupportedPrimitiveDescriptors() {
         DnnlExtensionUtils::for_each_implementation(desc,
                                                     first_match,
                                                     [&](impl_desc_type implType) {
-                                                        return contains(getPrimitivesPriority(), implType);
+                                                        return contains(getImplPriority(), implType);
                                                     },
                                                     [&](dnnl::primitive_desc& desc) {
                                                         addSupportedPrimitiveDescriptor(desc);
