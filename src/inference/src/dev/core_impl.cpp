@@ -331,7 +331,9 @@ void ov::CoreImpl::register_plugin_in_registry_unsafe(const std::string& device_
     const auto& fill_config = [](ov::AnyMap& defaultConfig, const ov::AnyMap& config, const std::string& dev_name) {
         // Configure aliases for proxy plugin
         auto it = config.find(ov::proxy::configuration::alias.name());
+        std::string alias;
         if (it != config.end()) {
+            alias = it->second.as<std::string>();
             if (defaultConfig.find(ov::proxy::alias_for.name()) == defaultConfig.end()) {
                 defaultConfig[ov::proxy::alias_for.name()] = std::vector<std::string>();
             }
@@ -355,6 +357,9 @@ void ov::CoreImpl::register_plugin_in_registry_unsafe(const std::string& device_
         it = config.find(ov::proxy::configuration::fallback.name());
         if (it != config.end()) {
             auto fallback = it->second.as<std::string>();
+            // Change fallback name if fallback is configured to the HW plugin under the proxy with the same name
+            if (alias == fallback)
+                fallback += "_ov_internal";
             if (defaultConfig.find(ov::device::priorities.name()) == defaultConfig.end()) {
                 defaultConfig[ov::device::priorities.name()] = std::vector<std::string>{dev_name, fallback};
             } else {
