@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/opsets/opset10.hpp"
+#include "openvino/opsets/opset12.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/init_node_info.hpp"
 
@@ -12,7 +12,7 @@
 #include "transformations/ts_split.hpp"
 
 using namespace ov;
-using namespace ov::opset10;
+using namespace ov::opset12;
 
 namespace {
 void ShiftLeft(std::vector<size_t>& vec, size_t k) {

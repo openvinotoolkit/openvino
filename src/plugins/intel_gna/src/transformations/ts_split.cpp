@@ -10,13 +10,13 @@
 #include "common/graph_utils.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/util/op_types.hpp"
-#include "openvino/opsets/opset10.hpp"
+#include "openvino/opsets/opset12.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/rt_info/transpose_sinking_attr.hpp"
 #include "transformations/utils/transformation_helper.hpp"
 
 using namespace ov;
-using namespace ov::opset10;
+using namespace ov::opset12;
 using namespace ov::pass::pattern;
 using namespace ov::intel_gna::pass;
 using namespace ov::intel_gna::pass::helper;

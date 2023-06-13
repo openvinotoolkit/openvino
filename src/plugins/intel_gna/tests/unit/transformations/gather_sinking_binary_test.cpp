@@ -4,7 +4,7 @@
 
 #include <functional>
 #include "openvino/frontend/manager.hpp"
-#include "openvino/opsets/opset10.hpp"
+#include "openvino/opsets/opset12.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/gather_sinking_binary.hpp"
 #include "transformations/init_node_info.hpp"
@@ -13,7 +13,7 @@
 #include "gtest/gtest.h"
 
 using namespace ov;
-using namespace ov::opset10;
+using namespace ov::opset12;
 
 namespace gather_sinking_binary_eltwise {
 

@@ -5,7 +5,7 @@
 #include "transformations/gather_sinking_binary.hpp"
 
 #include "openvino/cc/ngraph/itt.hpp"
-#include "openvino/opsets/opset10.hpp"
+#include "openvino/opsets/opset12.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include <transformations/utils/utils.hpp>
 #include <utility>
@@ -21,7 +21,7 @@
 #include "transformations/utils/transformation_helper.hpp"
 
 using namespace ov;
-using namespace ov::opset10;
+using namespace ov::opset12;
 using namespace ov::pass::pattern;
 using namespace ov::op::util;
 using namespace gather_sinking;

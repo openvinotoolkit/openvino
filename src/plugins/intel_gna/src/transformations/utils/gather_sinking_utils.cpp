@@ -10,7 +10,7 @@
 
 #include "common/graph_utils.hpp"
 #include "openvino/op/util/op_types.hpp"
-#include "openvino/opsets/opset10.hpp"
+#include "openvino/opsets/opset12.hpp"
 #include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/common_util.hpp"
@@ -21,7 +21,7 @@
 using namespace ov;
 using namespace ov::intel_gna::graph_utils;
 using namespace ov::intel_gna::rt_info;
-using namespace ov::opset10;
+using namespace ov::opset12;
 using namespace ov::pass::pattern;
 using namespace ov::intel_gna::pass::helper;
 

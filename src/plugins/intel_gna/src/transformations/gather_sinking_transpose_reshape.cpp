@@ -10,7 +10,7 @@
 #include "common/graph_utils.hpp"
 #include "log/debug.hpp"
 #include "openvino/core/rt_info.hpp"
-#include "openvino/opsets/opset10.hpp"
+#include "openvino/opsets/opset12.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/rt_info/transpose_sinking_attr.hpp"
 #include "transformations/utils/gather_sinking_utils.hpp"
@@ -20,7 +20,7 @@ using namespace ov::intel_gna;
 using namespace ov::intel_gna::graph_utils;
 using namespace ov::intel_gna::limitations;
 using namespace ov::intel_gna::pass;
-using namespace ov::opset10;
+using namespace ov::opset12;
 using namespace ov::pass::pattern;
 using namespace gather_sinking;
 

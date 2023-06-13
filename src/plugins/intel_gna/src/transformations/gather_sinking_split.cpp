@@ -11,7 +11,7 @@
 
 #include "common/graph_utils.hpp"
 #include "openvino/op/util/op_types.hpp"
-#include "openvino/opsets/opset10.hpp"
+#include "openvino/opsets/opset12.hpp"
 #include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/common_util.hpp"
@@ -20,7 +20,7 @@
 #include "transformations/utils/gather_sinking_utils.hpp"
 
 using namespace ov;
-using namespace ov::opset10;
+using namespace ov::opset12;
 using namespace ov::pass::pattern;
 using namespace ov::op::util;
 using namespace gather_sinking;

@@ -9,13 +9,13 @@
 #include <utility>
 
 #include "common/graph_utils.hpp"
-#include "openvino/opsets/opset10.hpp"
+#include "openvino/opsets/opset12.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/rt_info/gather_sinking_attr.hpp"
 #include "transformations/utils/gather_sinking_utils.hpp"
 
 using namespace ov;
-using namespace ov::opset10;
+using namespace ov::opset12;
 using namespace ov::pass::pattern;
 using namespace ov::op::util;
 using namespace gather_sinking;
