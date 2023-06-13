@@ -6,6 +6,7 @@
 
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
 
 namespace ov {
 
@@ -67,6 +68,8 @@ void align_eltwise_input_types(const NodeContext& context,
                                Output<Node>& rhs,
                                bool align_scalars = false);
 
+void align_output_types(const NodeContext& context, OutputVector& outputs);
+
 std::deque<Output<Node>> get_list_as_outputs(const Output<Node>& start);
 
 namespace op {
@@ -82,7 +85,15 @@ OutputVector inplace_op(const NodeContext& context) {
 template <typename T>
 OutputVector translate_1to1_match_1_inputs(const NodeContext& context) {
     FRONT_END_OP_CONVERSION_CHECK(!context.input_is_none(0), "Input should not be None.");
-    return {context.mark_node(std::make_shared<T>(context.get_input(0)))};
+    auto res = context.mark_node(std::make_shared<T>(context.get_input(0)));
+    auto out_type = context.get_output_type(0);
+    if (out_type.is<element::Type>()) {
+        auto dtype = out_type.as<element::Type>();
+        if (dtype.is_static() && dtype != res->output(0).get_element_type()) {
+            res = context.mark_node(std::make_shared<ov::op::v0::Convert>(res, dtype));
+        }
+    }
+    return {res};
 }
 
 template <typename T>
@@ -109,7 +120,9 @@ OutputVector translate_1to1_match_2_inputs_align_types(const NodeContext& contex
     auto lhs = context.get_input(0);
     auto rhs = context.get_input(1);
     align_eltwise_input_types(context, lhs, rhs, true);
-    return {context.mark_node(std::make_shared<T>(lhs, rhs))};
+    OutputVector res = {context.mark_node(std::make_shared<T>(lhs, rhs))};
+    align_output_types(context, res);
+    return res;
 }
 
 inline OutputVector return_false_scalar(const NodeContext& context) {
