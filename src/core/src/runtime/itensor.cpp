@@ -8,7 +8,6 @@
 #include "openvino/core/except.hpp"
 #include "openvino/runtime/allocator.hpp"
 #include "openvino/runtime/properties.hpp"
-#include "openvino/runtime/tensor.hpp"
 
 namespace ov {
 

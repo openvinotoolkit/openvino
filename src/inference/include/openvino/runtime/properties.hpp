@@ -922,6 +922,7 @@ constexpr static const auto WINOGRAD = "WINOGRAD";            //!< Device suppor
 constexpr static const auto EXPORT_IMPORT = "EXPORT_IMPORT";  //!< Device supports compiled model export and import
 /** @}*/
 }  // namespace capability
+
 }  // namespace device
 
 /**
