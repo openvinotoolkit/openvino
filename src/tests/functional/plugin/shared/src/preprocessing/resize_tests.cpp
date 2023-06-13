@@ -93,7 +93,7 @@ void PreprocessingResizeTests::run_with_algorithm(const ResizeAlgorithm algo,
     run();
 }
 
-std::vector<ov::Tensor> PreprocessingResizeTests::calculate_refs() {
+ov::TensorVector PreprocessingResizeTests::calculate_refs() {
     return {expected_output_tensor};
 }
 
