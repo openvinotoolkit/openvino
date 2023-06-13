@@ -43,51 +43,51 @@ Depending on what devices are used in the app, the appropriate libraries need to
 
 As it is shown on the picture above, some plugin libraries may have OS-specific dependencies which are either backend libraries or additional supports files with firmware, etc. Refer to the table below for details:
 
-.. dropdown:: Windows OS:
+.. tab-set::
 
-   .. list-table::
-      :header-rows: 1
+   .. tab-item:: Windows OS
 
-      * - Device
-        - Dependency
-      * - CPU
-        - ``-``
-      * - GPU
-        - ``OpenCL.dll``, ``cache.json``
-      * - GNA
-        - ``gna.dll``
-      * - Arm® CPU
-        - ``-``
+      .. list-table::
+         :header-rows: 1
 
+         * - Device
+           - Dependency
+         * - CPU
+           - ``-``
+         * - GPU
+           - ``OpenCL.dll``, ``cache.json``
+         * - GNA
+           - ``gna.dll``
+         * - Arm® CPU
+           - ``-``
 
-.. dropdown:: Linux OS:
+   .. tab-item:: Linux OS
 
-   .. list-table::
-      :header-rows: 1
+      .. list-table::
+         :header-rows: 1
 
-      * - Device
-        - Dependency
-      * - CPU
-        - ``-``
-      * - GPU
-        - ``libOpenCL.so``, ``cache.json``
-      * - GNA
-        - ``gna.dll``
-      * - Arm® CPU
-        - ``-``
+         * - Device
+           - Dependency
+         * - CPU
+           - ``-``
+         * - GPU
+           - ``libOpenCL.so``, ``cache.json``
+         * - GNA
+           - ``gna.dll``
+         * - Arm® CPU
+           - ``-``
 
+   .. tab-item:: MacOS
 
-.. dropdown:: MacOS:
+      .. list-table::
+         :header-rows: 1
 
-   .. list-table::
-      :header-rows: 1
-
-      * - Device
-        - Dependency
-      * - CPU
-        - ``-``
-      * - Arm® CPU
-        - ``-``
+         * - Device
+           - Dependency
+         * - CPU
+           - ``-``
+         * - Arm® CPU
+           - ``-``
 
 
 Libraries for Execution Modes
