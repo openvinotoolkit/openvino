@@ -163,7 +163,7 @@ void Concat::initSupportedPrimitiveDescriptors() {
             if (isDynamicNode()) {
                 config.inConfs[i].setMemDesc(desc);
             } else {
-                config.inConfs[i].setMemDesc(desc, BLOCKED_DESC_EMPTY_MASK);
+                config.inConfs[i].setMemDesc(desc, BlockedMemoryDesc::EMPTY_MASK);
             }
         }
         supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref);
@@ -197,7 +197,7 @@ void Concat::initSupportedPrimitiveDescriptors() {
         SizeVector strides(numOfDim);
         strides.back() = 1lu;
         size_t offset = Shape::UNDEFINED_DIM;
-        BlockedMemoryDesc::CmpMask mask = BLOCKED_DESC_SKIP_OFFSET_MASK; // any offset
+        BlockedMemoryDesc::CmpMask mask = BlockedMemoryDesc::SKIP_OFFSET_MASK; // any offset
 
         for (size_t i = 2; i <= numOfDim; i++) {
             if (numOfDim - i < axis) {
@@ -509,7 +509,7 @@ void Concat::initOptimalPrimitiveDescriptor() {
                     firstOutBlockingDesc->getOffsetPadding() + offset,
                     firstOutBlockingDesc->getOffsetPaddingToData(),
                     firstOutBlockingDesc->getStrides()),
-                BLOCKED_DESC_FULL_MASK);
+                BlockedMemoryDesc::FULL_MASK);
             size_t axisSize = 1;
 
             auto firstInpBlockingDesc = config.inConfs[0].getMemDesc()->as<BlockedMemoryDesc>();

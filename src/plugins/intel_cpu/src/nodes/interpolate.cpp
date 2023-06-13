@@ -2096,7 +2096,7 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
             }
 
             auto factory = std::make_shared<InterpolateExecutorFactory>(interpAttrs, srcMemoryDescs, dstMemoryDescs,
-                                                                    std::make_shared<ExecutorContext>(context, getPrimitivesPriority()));
+                                                                    std::make_shared<ExecutorContext>(context, getImplPriority()));
             if (!factory->isEmpty()) {
                 supportedPrimitiveDescriptors.push_back({config, implDetail, factory});
             }

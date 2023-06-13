@@ -1771,9 +1771,6 @@ Reduce::Reduce(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr
 }
 
 void Reduce::getSupportedDescriptors() {
-    if (!descs.empty())
-        return;
-
     if (getParentEdges().size() != 2)
         IE_THROW() << errorPrefix << " gets incorrect number of input edges!";
     if (getChildEdges().empty())
@@ -1858,7 +1855,7 @@ void Reduce::initSupportedPrimitiveDescriptors() {
             }
 
             auto factory = std::make_shared<ReduceExecutorFactory>(reduceAttrs, srcMemoryDescs, dstMemoryDescs,
-                                                                   std::make_shared<ExecutorContext>(context, getPrimitivesPriority()));
+                                                                   std::make_shared<ExecutorContext>(context, getImplPriority()));
             if (!factory->isEmpty()) {
                 supportedPrimitiveDescriptors.push_back({config, impl_type, factory});
             }

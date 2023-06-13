@@ -279,7 +279,7 @@ bool DnnlBlockedMemoryDesc::isCompatible(const DnnlBlockedMemoryDesc& rhs, CmpMa
         return false;
 
     const uint64_t stride_mask = (0xffffffffffffffff << cmpMask.size()) | cmpMask.to_ullong();
-    const bool checkOffset = cmpMask.test(BLOCKED_DESC_OFFSET_MASK_POS);
+    const bool checkOffset = cmpMask.test(OFFSET_MASK_POS);
 
     const auto thisExtra = wrappedThis.extra();
     const auto rhsExtra = wrappedRhs.extra();

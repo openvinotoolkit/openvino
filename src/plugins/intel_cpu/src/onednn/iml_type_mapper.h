@@ -5,6 +5,7 @@
 #pragma once
 
 #include <string>
+#include <vector>
 
 namespace ov {
 namespace intel_cpu {
@@ -101,6 +102,7 @@ enum impl_desc_type {
 
 const char * impl_type_to_string(impl_desc_type type);
 impl_desc_type parse_impl_name(std::string impl_desc_name);
+bool contains(const std::vector<impl_desc_type>& priorities, const impl_desc_type impl_type_str);
 
 }   // namespace intel_cpu
 }   // namespace ov

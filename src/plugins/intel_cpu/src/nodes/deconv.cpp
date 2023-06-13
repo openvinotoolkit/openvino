@@ -1077,7 +1077,7 @@ void Deconvolution::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc
     }
 }
 
-std::shared_ptr<MemoryDesc> Deconvolution::getSrcMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx) {
+std::shared_ptr<MemoryDesc> Deconvolution::getSrcMemDesc(const dnnl::primitive_desc &prim_desc, size_t idx) const {
     if (idx == 2 && !withBiases) {
         return std::make_shared<CpuBlockedMemoryDesc>(InferenceEngine::Precision::I32, Shape(getInputShapeAtPort(2).getStaticDims()));
     } else if (idx > 0 && isInt8) {
@@ -1086,15 +1086,15 @@ std::shared_ptr<MemoryDesc> Deconvolution::getSrcMemDesc(dnnl::primitive_desc_it
         return std::make_shared<CpuBlockedMemoryDesc>(getOriginalInputPrecisionAtPort(idx), Shape(getInputShapeAtPort(idx).getStaticDims()));
     }
 
-    auto desc = idx > 0 ? primitive_desc_it.weights_desc(idx - 1) : isInt8 ? primitive_desc_it.src_desc(idx) : primitive_desc_it.diff_dst_desc(idx);
+    auto desc = idx > 0 ? prim_desc.weights_desc(idx - 1) : isInt8 ? prim_desc.src_desc(idx) : prim_desc.diff_dst_desc(idx);
     if (getInputShapeAtPort(idx).isDynamic()) {
         return DnnlExtensionUtils::makeUndefinedDesc(desc, getInputShapeAtPort(idx));
     }
     return DnnlExtensionUtils::makeDescriptor(desc);
 }
 
-std::shared_ptr<MemoryDesc> Deconvolution::getDstMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx) {
-    auto desc =  isInt8 ? primitive_desc_it.dst_desc(idx) : primitive_desc_it.diff_src_desc(idx);
+std::shared_ptr<MemoryDesc> Deconvolution::getDstMemDesc(const dnnl::primitive_desc &prim_desc, size_t idx) const {
+    auto desc =  isInt8 ? prim_desc.dst_desc(idx) : prim_desc.diff_src_desc(idx);
     if (getOutputShapeAtPort(idx).isDynamic()) {
         return DnnlExtensionUtils::makeUndefinedDesc(desc, getOutputShapeAtPort(idx));
     }

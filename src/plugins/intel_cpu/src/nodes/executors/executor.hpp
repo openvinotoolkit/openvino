@@ -48,12 +48,11 @@ public:
     typedef std::shared_ptr<ExecutorContext> Ptr;
     typedef std::shared_ptr<const ExecutorContext> CPtr;
 
-    ExecutorContext(const GraphContext::CPtr graphContext, const std::vector<impl_desc_type>& implPriorities) {
-        this->runtimeCache = graphContext->getParamsCache();
-        this->scratchPad = graphContext->getScratchPad();
-        this->engine = graphContext->getEngine();
-        this->implPriorities = implPriorities;
-    }
+    ExecutorContext(const GraphContext::CPtr graphContext, const std::vector<impl_desc_type>& implPriorities)
+        : runtimeCache(graphContext->getParamsCache()),
+          scratchPad(graphContext->getScratchPad()),
+          engine(graphContext->getEngine()),
+          implPriorities(implPriorities) {}
 
     MultiCacheWeakPtr getRuntimeCache() const {
         return runtimeCache;
@@ -75,9 +74,9 @@ private:
     // weak_ptr is required to avoid cycle dependencies with MultiCache
     // since ExecutorContext is stored in Executor itself
     MultiCacheWeakPtr runtimeCache;
-    DnnlScratchPadPtr scratchPad = nullptr;
+    DnnlScratchPadPtr scratchPad;
     dnnl::engine engine;
-    std::vector<impl_desc_type> implPriorities = {};
+    std::vector<impl_desc_type> implPriorities;
 };
 
 class ExecutorFactory {

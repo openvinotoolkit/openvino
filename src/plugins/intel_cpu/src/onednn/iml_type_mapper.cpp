@@ -3,6 +3,7 @@
 //
 
 #include "iml_type_mapper.h"
+#include <algorithm>
 
 namespace ov {
 namespace intel_cpu {
@@ -120,6 +121,10 @@ const char* impl_type_to_string(impl_desc_type type) {
 
 #undef CASE
     return "unknown";
+}
+
+bool contains(const std::vector<impl_desc_type>& priorities, const impl_desc_type impl_type_str) {
+    return std::find(priorities.begin(), priorities.end(), impl_type_str) != priorities.end();
 }
 
 }   // namespace intel_cpu

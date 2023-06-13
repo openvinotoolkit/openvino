@@ -191,7 +191,7 @@ void Snippet::initSupportedPrimitiveDescriptors() {
             const auto equalPrecisions = getOriginalOutputPrecisions().size() == 1 &&
                     precision == getOriginalOutputPrecisionAtPort(0);
 
-            BlockedMemoryDesc::CmpMask inputMask = BLOCKED_DESC_SKIP_OFFSET_MASK;
+            BlockedMemoryDesc::CmpMask inputMask = BlockedMemoryDesc::SKIP_OFFSET_MASK;
             PortConfig portConfig;
             portConfig.inPlace((!i && canBeInPlace() && equalPrecisions) ? 0 : -1);
             portConfig.constant(false);
@@ -207,7 +207,7 @@ void Snippet::initSupportedPrimitiveDescriptors() {
             if (supportedPrecisions.count(precision) == 0)
                 IE_THROW() << "Subgraph node with name `" << getName() << "` doesn't support " << precision << " precision.";
 
-            BlockedMemoryDesc::CmpMask outputMask = BLOCKED_DESC_SKIP_OFFSET_MASK;
+            BlockedMemoryDesc::CmpMask outputMask = BlockedMemoryDesc::SKIP_OFFSET_MASK;
             PortConfig portConfig;
             portConfig.inPlace(-1);
             portConfig.constant(false);
@@ -235,7 +235,7 @@ void Snippet::initSupportedPrimitiveDescriptors() {
 }
 
 void Snippet::selectOptimalPrimitiveDescriptor() {
-    selectPreferPrimitiveDescriptor(getPrimitivesPriority(), true);
+    selectPreferPrimitiveDescriptor(getImplPriority(), true);
 }
 InferenceEngine::Precision Snippet::getRuntimePrecision() const {
     std::vector<InferenceEngine::Precision> inputPrecisions;

@@ -24,7 +24,7 @@ public:
     void initSupportedPrimitiveDescriptors() override;
     void execute(dnnl::stream strm) override;
     bool created() const override;
-    const std::vector<impl_desc_type>& getPrimitivesPriority() override;
+    const std::vector<impl_desc_type>& getDefaultImplPriority() override;
 
     bool isExecutable() const override;
 

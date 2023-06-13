@@ -54,7 +54,47 @@ public:
 
     static std::shared_ptr<DnnlMemoryDesc> query_md(const const_dnnl_primitive_desc_t& pd, const dnnl::query& what, int idx = 0);
     static std::string query_impl_info_str(const const_dnnl_primitive_desc_t& pd);
+
+    template<typename T>
+    static bool find_implementation(dnnl::primitive_desc& desc, T&& comparator) {
+        dnnl::primitive_desc_iterator& itpd = desc;
+
+        while (itpd) {
+            const impl_desc_type descImplType = parse_impl_name(itpd.impl_info_str());
+
+            if (comparator(descImplType)) {
+                return true;
+            }
+
+            if (!itpd.next_impl())
+                break;
+        }
+
+        return false;
+    }
+
+    template<typename T, typename L>
+    static void for_each_implementation(dnnl::primitive_desc& desc, bool first_match, T&& comparator, L&& func) {
+        dnnl::primitive_desc_iterator& itpd = desc;
+
+        while (itpd) {
+            const impl_desc_type descImplType = parse_impl_name(itpd.impl_info_str());
+
+            if (comparator(descImplType)) {
+                func(itpd);
+                if (first_match)
+                    break;
+            }
+
+            if (!itpd.next_impl())
+                break;
+        }
+
+        return;
+    }
+
     static bool find_implementation(dnnl::primitive_desc& desc, impl_desc_type implType);
+    static dnnl_primitive_desc_t clone_primitive_desc(const_dnnl_primitive_desc_t cprim_desc);
     static dnnl_memory_desc_t clone_desc(const_dnnl_memory_desc_t cdesc);
     static const char* query_pd_info(const_dnnl_primitive_desc_t pd);
     static dnnl::algorithm convertToDnnlAlgorithm(Algorithm alg);

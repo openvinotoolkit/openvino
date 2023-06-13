@@ -956,7 +956,7 @@ void RNN::fillDescs() {
         wDescs,
         *attr);
 
-    descs.push_back(desc);
+    descs.emplace_back(desc);
 }
 
 void RNN::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc,
@@ -1109,11 +1109,13 @@ void RNN::prepareParams() {
     primArgs[DNNL_ARG_SCRATCHPAD] = scratchpadMem->GetPrimitive();
 }
 
-std::shared_ptr<MemoryDesc> RNN::getSrcMemDesc(dnnl::primitive_desc_iterator& primitive_desc_it, size_t idx) {
+std::shared_ptr<MemoryDesc> RNN::getSrcMemDesc(const dnnl::primitive_desc& prim_desc, size_t idx) const {
+    (void) prim_desc;
     return supportedPrimitiveDescriptors[0].getConfig().inConfs[idx].getMemDesc();
 }
 
-std::shared_ptr<MemoryDesc> RNN::getDstMemDesc(dnnl::primitive_desc_iterator& primitive_desc_it, size_t idx) {
+std::shared_ptr<MemoryDesc> RNN::getDstMemDesc(const dnnl::primitive_desc& prim_desc, size_t idx) const {
+    (void) prim_desc;
     return supportedPrimitiveDescriptors[0].getConfig().outConfs[idx].getMemDesc();
 }
 

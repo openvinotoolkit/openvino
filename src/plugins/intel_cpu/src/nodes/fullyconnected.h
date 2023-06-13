@@ -33,7 +33,7 @@ public:
         return getOutputShapeAtPort(0).getRank() == 3 ? 2 : 1;
     }
 
-    const std::vector<impl_desc_type>& getPrimitivesPriority() override;
+    const std::vector<impl_desc_type>& getDefaultImplPriority() override;
     void createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
                           const std::vector<MemoryDescPtr>& outputDesc) override;
 
@@ -44,8 +44,8 @@ public:
     void initSupportedPrimitiveDescriptors() override;
     void initOptimalPrimitiveDescriptor() override;
     void createPrimitive() override;
-    std::shared_ptr<MemoryDesc> getSrcMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
-    std::shared_ptr<MemoryDesc> getDstMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
+    std::shared_ptr<MemoryDesc> getSrcMemDesc(const dnnl::primitive_desc &prim_desc, size_t idx) const override;
+    std::shared_ptr<MemoryDesc> getDstMemDesc(const dnnl::primitive_desc &prim_desc, size_t idx) const override;
 
     InferenceEngine::Precision getRuntimePrecision() const override;
 

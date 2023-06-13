@@ -124,7 +124,7 @@ void SoftMax::initOptimalPrimitiveDescriptor() {
     auto config = selected_pd->getConfig();
     if (isDynamicNode()) {
         auto outMemDesc = config.outConfs[0].getMemDesc();
-        config.outConfs[0].setMemDesc(std::dynamic_pointer_cast<BlockedMemoryDesc>(outMemDesc), BLOCKED_DESC_FULL_MASK);
+        config.outConfs[0].setMemDesc(std::dynamic_pointer_cast<BlockedMemoryDesc>(outMemDesc), BlockedMemoryDesc::FULL_MASK);
     } else {
         if (config.inConfs.size() != 1 || config.outConfs.size() != 1 ||
             (config.inConfs[0].getMemDesc()->isDefined() &&
@@ -155,7 +155,8 @@ void SoftMax::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc,
         *attr,
         true);
 
-    descs.push_back(desc);
+    if (desc)
+        descs.emplace_back(desc);
 }
 
 void SoftMax::prepareParams() {
