@@ -499,10 +499,13 @@ inline Shape unsqeeze_shape(const Shape& shape, ov::Rank::value_type rank) {
 /**
  * @brief Converts axis to positive form
  */
-inline int64_t convert_axis_to_positive(int64_t axis, ov::Rank::value_type rank) {
-    if (axis >= 0)
-        return axis;
-    return axis + rank;
+inline int64_t convert_axis_to_positive(int64_t axis, ov::Rank rank) {
+    const auto rank_val = rank.get_length();
+    if (axis < 0)
+        axis += rank_val;
+    if (axis < 0 || axis >= rank_val)
+        throw std::runtime_error("convert_axis_to_positive invalid axis");
+    return axis;
 }
 
 /**
@@ -554,17 +557,7 @@ inline bool get_split_axis(const std::shared_ptr<ov::opset12::Constant>& split_a
     if (split_axis_val.empty()) {
         return false;
     }
-    axis = split_axis_val[0];
-    if (axis < 0) {
-        if (rank.is_static()) {
-            const auto rank_val = rank.get_length();
-            axis += rank_val;
-            if (axis < 0 || axis >= rank.get_length())
-                throw std::runtime_error("get_split_axis invalid axis");
-        } else {
-            return false;
-        }
-    }
+    axis = convert_axis_to_positive(split_axis_val[0], rank);
     return true;
 }
 
@@ -621,6 +614,31 @@ inline bool is_reshape_unsqueeze(const ov::Output<ov::Node>& output) {
     const ov::Shape input_shape = trim_shape(reshape->get_input_shape(0));
     const ov::Shape output_shape = trim_shape(reshape->get_output_shape(0));
     return std::equal(input_shape.begin(), input_shape.end(), output_shape.begin());
+}
+
+/**
+ * @brief Checks if output has rank not more than expected
+ */
+inline std::function<bool(Output<Node>)> rank_not_more_than(const ov::Rank::value_type expected_rank) {
+    return [=](Output<Node> output) -> bool {
+        const Rank rank = output.get_partial_shape().rank();
+        return (rank.is_static() && (rank.get_length() <= expected_rank));
+    };
+}
+
+/**
+ * @brief Checks if output has rank not more than expected
+ */
+inline bool constant_has_rank_not_more_than(const std::shared_ptr<ov::opset12::Constant>& node, const ov::Rank::value_type expected_rank) {
+    const ov::Rank rank = node->get_output_partial_shape(0).rank();
+    return (rank.is_static() && (rank.get_length() <= expected_rank));
+}
+
+/**
+ * @brief Checks if output is Constant with rank 1
+ */
+inline bool is_constant_1d(const Output<Node>& output) {
+    return ov::pass::pattern::rank_equals(0)(output) || ov::pass::pattern::rank_equals(1)(output);
 }
 
 }  // namespace graph_utils

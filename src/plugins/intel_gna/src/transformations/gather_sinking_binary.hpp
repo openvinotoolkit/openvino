@@ -18,8 +18,7 @@ namespace pass {
  * through the BinaryElementwiseArithmetic operations (it is called from GatherSinkingGeneral transformation).
  * Gather layer is moved from the Binary input to the Binary output. Reversed Gather layer is moved
  * to another Binary input.
- * Reversed Gather is the layer that together one after another with the original Gather
- * layer gives a subgraph that does nothing.
+ * Reversed Gather is a layer which, when put after the original gather, results in a subgraph that has no effect
  * Reversed Gather layer is expected to be pushed by backward GatherSinking to another
  * Model input or a constant. After all sinking operations we hope to find all Gather
  * layers on Model inputs and execute them on CPU or before constants and fold them.

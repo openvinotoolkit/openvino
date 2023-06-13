@@ -111,7 +111,7 @@ TSSplitBackward::TSSplitBackward() {
         for (size_t output_idx = 0; output_idx < split_node->get_output_size(); ++output_idx) {
             for (auto& input : split_node->get_output_target_inputs(output_idx)) {
                 auto transpose = ov::as_type_ptr<Transpose>(input.get_node()->shared_from_this());
-                if (transpose && !Limitations::is_transpose_supported(transpose)) {
+                if (transpose) {
                     auto reshape_output_const_new =
                         std::make_shared<Constant>(ov::element::i64,
                                                    ov::Shape{transpose->get_output_shape(0).size()},

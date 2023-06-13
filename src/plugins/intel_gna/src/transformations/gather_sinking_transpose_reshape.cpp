@@ -116,7 +116,7 @@ bool is_transpose_unsupported(const ov::Output<ov::Node>& output) {
     return !Limitations::is_transpose_supported(output.get_node_shared_ptr());
 }
 
-bool is_backward_sinking_enables(const ov::Output<ov::Node>& output) {
+bool is_backward_sinking_enabled(const ov::Output<ov::Node>& output) {
     return is_transpose_unsupported(output) && ov::is_sinking_node(output.get_node_shared_ptr());
 }
 
@@ -163,7 +163,7 @@ GatherSinkingTransposeReshapeBackward::GatherSinkingTransposeReshapeBackward() {
 
     auto reshape_label = wrap_type<Reshape>({any_input(), any_input()}, is_tail_unflatten);
     auto transpose_const_label = wrap_type<Constant>();
-    auto transpose_label = wrap_type<Transpose>({reshape_label, transpose_const_label}, is_backward_sinking_enables);
+    auto transpose_label = wrap_type<Transpose>({reshape_label, transpose_const_label}, is_backward_sinking_enabled);
 
     ov::matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();

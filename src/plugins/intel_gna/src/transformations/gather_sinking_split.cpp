@@ -72,7 +72,7 @@ OutputGather FindFirstOutputGather(NodePtr node) {
 /*
  * We follow Gather operations rather than Split. We cannot create matcher pattern
  * for Split with Transpose outputs since Split can have different number of outputs.
- * We just can:
+ * We can just:
  * - specify Split as searched node and check if it has gather outputs
  * - specify Gather as searched node and check if it has Split input
  * Transformations are called on each found node in sorted order from the start to end

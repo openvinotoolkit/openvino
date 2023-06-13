@@ -85,19 +85,6 @@ bool has_same_output_gather_nodes(const ov::Output<ov::Node>&);
  */
 void remove_single_output_consumers(std::shared_ptr<ov::Node>);
 
-bool constant_has_rank_not_more_than(const std::shared_ptr<ov::opset10::Constant>&,
-                                     const ov::Rank::value_type expected_rank);
-
-/**
- * Checks if output has rank not more than expected
- */
-std::function<bool(ov::Output<ov::Node>)> rank_not_more_than(const ov::Rank::value_type expected_rank);
-
-/**
- * Checks if output is Constant with rank 1
- */
-bool is_constant_1d(const ov::Output<ov::Node>& output);
-
 /**
  * @brief Checks if Output is Gather node and it could be sinked
 */

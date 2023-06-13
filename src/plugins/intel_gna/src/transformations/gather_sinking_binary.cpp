@@ -19,6 +19,7 @@
 #include "transformations/rt_info/gather_sinking_attr.hpp"
 #include "transformations/utils/gather_sinking_utils.hpp"
 #include "transformations/utils/transformation_helper.hpp"
+#include "common/graph_utils.hpp"
 
 using namespace ov;
 using namespace ov::opset12;
@@ -28,6 +29,7 @@ using namespace gather_sinking;
 using namespace ov::intel_gna::pass;
 using namespace ov::intel_gna::rt_info;
 using namespace ov::intel_gna::pass::helper;
+using namespace ov::intel_gna::graph_utils;
 
 GatherSinkingBinaryForward::GatherSinkingBinaryForward() {
     MATCHER_SCOPE(GatherSinkingBinaryForward);
@@ -37,7 +39,7 @@ GatherSinkingBinaryForward::GatherSinkingBinaryForward() {
                constant_has_rank_not_more_than(inputs_info.indices_const, 1);
     };
 
-    auto main_node_label = wrap_type<op::util::BinaryElementwiseArithmetic>(
+    auto main_node_label = wrap_type<ov::op::util::BinaryElementwiseArithmetic>(
         [if_gather_has_constants_rank_not_more_than_one](const Output<Node>& output) -> bool {
             return if_node_has_gather_inputs(output, if_gather_has_constants_rank_not_more_than_one);
         });
@@ -65,7 +67,7 @@ GatherSinkingBinaryForward::GatherSinkingBinaryForward() {
 
 GatherSinkingBinaryBackward::GatherSinkingBinaryBackward() {
     MATCHER_SCOPE(GatherSinkingBinaryBackward);
-    auto main_node_label = wrap_type<op::util::BinaryElementwiseArithmetic>([](const Output<Node>& output) -> bool {
+    auto main_node_label = wrap_type<ov::op::util::BinaryElementwiseArithmetic>([](const Output<Node>& output) -> bool {
         return has_static_rank()(output) && has_same_output_gather_nodes(output);
     });
 

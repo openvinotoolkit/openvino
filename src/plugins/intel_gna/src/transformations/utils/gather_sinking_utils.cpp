@@ -330,22 +330,6 @@ void remove_single_output_consumers(NodePtr node) {
     }
 }
 
-std::function<bool(Output<Node>)> rank_not_more_than(const ov::Rank::value_type expected_rank) {
-    return [=](Output<Node> output) -> bool {
-        const Rank rank = output.get_partial_shape().rank();
-        return (rank.is_static() && (rank.get_length() <= expected_rank));
-    };
-}
-
-bool constant_has_rank_not_more_than(const std::shared_ptr<Constant>& node, const ov::Rank::value_type expected_rank) {
-    const Rank rank = node->get_output_partial_shape(0).rank();
-    return (rank.is_static() && (rank.get_length() <= expected_rank));
-}
-
-bool is_constant_1d(const Output<Node>& output) {
-    return rank_equals(0)(output) || rank_equals(1)(output);
-}
-
 bool is_gather_sinking_enabled(const Output<Node>& output) {
     auto node = ov::as_type_ptr<Gather>(output.get_node_shared_ptr());
     if (!node)
