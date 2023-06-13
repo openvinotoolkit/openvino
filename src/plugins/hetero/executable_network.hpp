@@ -27,7 +27,7 @@
 namespace ov {
 namespace hetero {
 class Plugin;
-}
+}  // namespace hetero
 }  // namespace ov
 
 namespace HeteroPlugin {
