@@ -1,3 +1,7 @@
+# -*- coding: utf-8 -*-
+# Copyright (C) 2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 from typing import Callable, Any
 import logging
 
@@ -11,8 +15,8 @@ class PreprocessConverter():
     @staticmethod
     def from_torchvision(model: ov.Model, transform: Callable, input_example: Any,
                          input_name: str = None) -> ov.Model:
-        """
-        Embed torchvision preprocessing in an OpenVINO model
+        """Embed torchvision preprocessing in an OpenVINO model.
+
         Arguments:
             model (ov.Model):
                 Result name
@@ -24,6 +28,7 @@ class PreprocessConverter():
             input_name (str, optional):
                 Name of the current model's input node to connect with preprocessing.
                 Not needed if the model has one input.
+
         Returns:
             ov.Mode: OpenVINO Model object with embedded preprocessing
         Example:

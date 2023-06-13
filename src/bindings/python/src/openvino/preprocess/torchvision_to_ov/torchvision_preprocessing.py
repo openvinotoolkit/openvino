@@ -1,3 +1,7 @@
+# -*- coding: utf-8 -*-
+# Copyright (C) 2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 import numbers
 import logging
 import copy
@@ -49,7 +53,7 @@ def _setup_size(size, error_msg):
     return size
 
 
-def _NHWC_to_NCHW(input_shape):
+def _NHWC_to_NCHW(input_shape):  # noqa N802
     new_shape = copy.deepcopy(input_shape)
     new_shape[1] = input_shape[3]
     new_shape[2] = input_shape[1]
@@ -59,7 +63,7 @@ def _NHWC_to_NCHW(input_shape):
 
 def _to_list(transform) -> List:
     if isinstance(transform, torch.nn.Sequential):
-        return [t for t in transform]
+        return list(transform)
     elif isinstance(transform, transforms.Compose):
         return transform.transforms
     else:
@@ -67,9 +71,6 @@ def _to_list(transform) -> List:
 
 
 def _get_shape_layout_from_data(input_example: Union[torch.Tensor, np.ndarray, Image.Image]) -> Tuple[List, Layout]:
-    """
-    Disregards rank of shape and return
-    """
     if isinstance(input_example, torch.Tensor):  # PyTorch
         shape = list(input_example.shape)
         layout = Layout("NCHW")
@@ -89,23 +90,19 @@ def _get_shape_layout_from_data(input_example: Union[torch.Tensor, np.ndarray, I
 
 
 class TransformConverterBase(metaclass=ABCMeta):
-    """Base class for an executor"""
 
+    @abstractmethod
     def __init__(self, **kwargs):
-        """Constructor"""
         pass
 
     @abstractmethod
     def convert(self, input_idx: int, ppp: PrePostProcessor, transform):
-        """Abstract method to run a command"""
         pass
 
 
 class TransformConverterFactory:
-    """The factory class for creating executors"""
 
     registry = {}
-    """ Internal registry for available executors """
 
     @classmethod
     def register(cls, target_type=None) -> Callable:
@@ -230,7 +227,7 @@ class _(TransformConverterBase):
         input_shape = meta["input_shape"]
         layout = meta["layout"]
 
-        ppp.input(input_idx).tensor().set_element_type(Type.u8).set_layout(Layout("NHWC")).set_color_format(ColorFormat.RGB)
+        ppp.input(input_idx).tensor().set_element_type(Type.u8).set_layout(Layout("NHWC")).set_color_format(ColorFormat.RGB)  # noqa ECE001
 
         if layout == Layout("NHWC"):
             input_shape = _NHWC_to_NCHW(input_shape)
@@ -261,7 +258,7 @@ class _(TransformConverterBase):
         top_right.append(min(bottom_left[0] + target_size[0], source_size[0] - 1))
         top_right.append(min(bottom_left[1] + target_size[1], source_size[1] - 1))
 
-        bottom_left = [0] * len(input_shape[:-2]) + bottom_left if meta["layout"] == Layout("NCHW") else [0] + bottom_left + [0]
+        bottom_left = [0] * len(input_shape[:-2]) + bottom_left if meta["layout"] == Layout("NCHW") else [0] + bottom_left + [0]  # noqa ECE001
         top_right = input_shape[:-2] + top_right if meta["layout"] == Layout("NCHW") else input_shape[:1] + top_right + input_shape[-1:]
 
         ppp.input(input_idx).preprocess().crop(bottom_left, top_right)
@@ -271,10 +268,10 @@ class _(TransformConverterBase):
 @TransformConverterFactory.register(transforms.Resize)
 class _(TransformConverterBase):
     def convert(self, input_idx: int, ppp: PrePostProcessor, transform, meta: Dict):
-        RESIZE_MODE_MAP = {
+        resize_mode_map = {
             InterpolationMode.BILINEAR: ResizeAlgorithm.RESIZE_BILINEAR_PILLOW,
             InterpolationMode.BICUBIC: ResizeAlgorithm.RESIZE_BICUBIC_PILLOW,
-            InterpolationMode.NEAREST: ResizeAlgorithm.RESIZE_NEAREST
+            InterpolationMode.NEAREST: ResizeAlgorithm.RESIZE_NEAREST,
         }
         if transform.max_size:
             raise ValueError("Resize with max_size if not supported")
@@ -289,7 +286,7 @@ class _(TransformConverterBase):
         input_shape[meta["layout"].get_index_by_name("W")] = -1
 
         ppp.input(input_idx).tensor().set_shape(input_shape)
-        ppp.input(input_idx).preprocess().resize(RESIZE_MODE_MAP[transform.interpolation], h, w)
+        ppp.input(input_idx).preprocess().resize(resize_mode_map[transform.interpolation], h, w)
         meta["input_shape"] = input_shape
         meta["image_dimensions"] = (h, w)
 
@@ -320,8 +317,8 @@ def _from_torchvision(model: ov.Model, transform: Callable, input_example: Any, 
         "layout": layout,
     }
 
-    for t in _to_list(transform):
-        TransformConverterFactory.convert(type(t), input_idx, ppp, t, global_meta)
+    for tm in _to_list(transform):
+        TransformConverterFactory.convert(type(tm), input_idx, ppp, tm, global_meta)
 
     updated_model = ppp.build()
     return updated_model
