@@ -96,6 +96,7 @@ void ov::auto_plugin::InferRequest::set_tensor(const ov::Output<const ov::Node>&
     ov::ISyncInferRequest::set_tensor(port, tensor);
 }
 
+
 void ov::auto_plugin::InferRequest::infer() {
     OPENVINO_NOT_IMPLEMENTED;
 }
