@@ -328,20 +328,20 @@ std::shared_ptr<ov::Model> EdgeReplaceFunction::initOriginal() const {
     auto mul_rhs = split->output(1);
 
     // first parent subgraph in tokenization stage
-    const auto data0 = std::make_shared<ov::opset8::Constant>(ov::element::Type_t::f32, ov::Shape({1, 1, 1, 3, 2}),
+    const auto data0 = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::f32, ov::Shape({1, 1, 1, 3, 2}),
         std::vector<float>{0.0, 0.2, 0.4, 0.6, 0.8, 1.0});
-    const auto const_a4 = std::make_shared<ov::opset8::Constant>(ov::element::Type_t::f32, ov::Shape({2}), std::vector<float>{0.2, 0.1});
+    const auto const_a4 = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::f32, ov::Shape({2}), std::vector<float>{0.2, 0.1});
     auto mul_a4 = std::make_shared<op::v1::Multiply>(mul_rhs, const_a4);
     auto add_a1 = std::make_shared<op::v1::Add>(mul_a4, data0);
     auto mul_a5 = std::make_shared<op::v1::Multiply>(add_a1, mul_lhs);
 
     // second parent subgraph in tokenization stage
-    const auto data1 = std::make_shared<ov::opset8::Constant>(ov::element::Type_t::f32, ov::Shape({1, 1, 1, 3, 2}),
+    const auto data1 = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::f32, ov::Shape({1, 1, 1, 3, 2}),
         std::vector<float>{0.1, 0.3, 0.5, 0.7, 0.9, 1.0});
     auto mul_a1 = std::make_shared<op::v1::Multiply>(data1, mul_lhs);
-    const auto const_a2 = std::make_shared<ov::opset8::Constant>(ov::element::Type_t::f32, ov::Shape({2}), std::vector<float>{0.2, 0.4});
+    const auto const_a2 = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::f32, ov::Shape({2}), std::vector<float>{0.2, 0.4});
     auto mul_a2 = std::make_shared<op::v1::Multiply>(mul_a1, const_a2);
-    const auto const_a3 = std::make_shared<ov::opset8::Constant>(ov::element::Type_t::f32, ov::Shape({2}), std::vector<float>{0.3, 0.1});
+    const auto const_a3 = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::f32, ov::Shape({2}), std::vector<float>{0.3, 0.1});
     auto mul_a3 = std::make_shared<op::v1::Multiply>(mul_a2, const_a3);
 
     auto add_a3 = std::make_shared<op::v1::Add>(mul_a5, mul_a3);

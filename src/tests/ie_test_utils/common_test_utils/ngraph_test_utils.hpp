@@ -8,16 +8,13 @@
 #include <memory>
 #include <queue>
 
+#include "graph_comparator.hpp"
 #include "openvino/core/dimension.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/pass/pass.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/init_node_info.hpp"
-#include "ngraph/opsets/opset1.hpp"
-#include "ngraph/opsets/opset6.hpp"
 #include "test_common.hpp"
-
-#include "graph_comparator.hpp"
 
 #define DYN ov::Dimension::dynamic()
 
@@ -51,9 +48,9 @@ private:
     bool m_result_friendly_names_check{true};
 };
 
-void init_unique_names(std::shared_ptr<ov::Model> f, const std::shared_ptr<ov::pass::UniqueNamesHolder>& unh);
+void init_unique_names(const std::shared_ptr<ov::Model>& f, const std::shared_ptr<ov::pass::UniqueNamesHolder>& unh);
 
-void check_unique_names(std::shared_ptr<ov::Model> f, const std::shared_ptr<ov::pass::UniqueNamesHolder>& unh);
+void check_unique_names(const std::shared_ptr<ov::Model>& f, const std::shared_ptr<ov::pass::UniqueNamesHolder>& unh);
 
 template <typename T>
 size_t count_ops_of_type(const std::shared_ptr<ov::Model>& f) {
@@ -68,9 +65,9 @@ size_t count_ops_of_type(const std::shared_ptr<ov::Model>& f) {
 }
 
 template<class T>
-std::shared_ptr<ov::opset8::Constant> create_constant(const std::vector<T>& data, const ov::element::Type_t et = ov::element::i64, bool scalar = false) {
+std::shared_ptr<ov::op::v0::Constant> create_constant(const std::vector<T>& data, const ov::element::Type_t et = ov::element::i64, bool scalar = false) {
     ov::Shape shape = scalar ? ov::Shape{} : ov::Shape{data.size()};
-    return ov::opset8::Constant::create(et, shape, data);
+    return ov::op::v0::Constant::create(et, shape, data);
 }
 
-std::shared_ptr<ov::opset8::Constant> create_zero_constant(const ov::element::Type_t& et, const ov::Shape& shape);
+std::shared_ptr<ov::op::v0::Constant> create_zero_constant(const ov::element::Type_t& et, const ov::Shape& shape);

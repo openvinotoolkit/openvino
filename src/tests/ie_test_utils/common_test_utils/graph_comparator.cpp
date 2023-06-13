@@ -26,6 +26,10 @@
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 
+#include "openvino/op/constant.hpp"
+#include "openvino/op/result.hpp"
+#include "openvino/op/loop.hpp"
+#include "openvino/op/tensor_iterator.hpp"
 
 namespace {
 inline namespace tools {
@@ -154,7 +158,7 @@ public:
     using SubGraphOp = ov::op::util::SubGraphOp;
     using InputDescripton = SubGraphOp::InputDescription;
     using InputNode = ov::Input<ov::Node>;
-    using Parameter = ov::opset8::Parameter;
+    using Parameter = ov::op::v0::Parameter;
 
     explicit NodeAndInputDescription(const InputNode& input,
                                      const Parameter* parameter,
@@ -249,7 +253,7 @@ public:
     using SubGraphOp = ov::op::util::SubGraphOp;
     using OutputDescription = SubGraphOp::OutputDescription;
     using OutputNode = ov::Output<ov::Node>;
-    using Result = ov::opset8::Result;
+    using Result = ov::op::v0::Result;
 
     explicit NodeAndOutputDescription(const OutputNode& output,
                                       const Result* result,
@@ -336,8 +340,8 @@ private:
 
 class BackEdge {
 public:
-    using Parameter = ov::opset8::Parameter;
-    using Result = ov::opset8::Result;
+    using Parameter = ov::op::v0::Parameter;
+    using Result = ov::op::v0::Result;
     using Id = uint64_t;
 
     explicit BackEdge(const Parameter* parameter, const Result* result)
@@ -443,7 +447,7 @@ bool not_valid_back_edge(const BackEdge& be) {
     return !be.result_and_parameter_match();
 }
 
-bool equal_body_ports(ov::opset8::Loop* lhs, ov::opset8::Loop* rhs) {
+bool equal_body_ports(ov::op::v5::Loop* lhs, ov::op::v5::Loop* rhs) {
     if (!lhs || !rhs) {
         return false;
     }
@@ -561,8 +565,8 @@ private:
             !std::is_permutation(begin(lhs_back_edges), end(lhs_back_edges), begin(rhs_back_edges))) {
             return Result::error("different SubGraph BackEdges");
         }
-        if (auto loop_lhs = ov::as_type<ov::opset8::Loop>(sub_lhs)) {
-            auto loop_rhs = ov::as_type<ov::opset8::Loop>(sub_rhs);
+        if (auto loop_lhs = ov::as_type<ov::op::v5::Loop>(sub_lhs)) {
+            auto loop_rhs = ov::as_type<ov::op::v5::Loop>(sub_rhs);
             if (!equal_body_ports(loop_lhs, loop_rhs)) {
                 return Result::error("different Special Body Ports");
             }
@@ -571,11 +575,10 @@ private:
     }
 
     static int64_t get_num_iterations(ov::op::util::SubGraphOp* sub) {
-        using namespace ov::opset8;
-        if (const auto ti = dynamic_cast<const TensorIterator*>(sub)) {
+        if (const auto ti = dynamic_cast<const ov::op::v0::TensorIterator*>(sub)) {
             return ti->get_num_iterations();
         }
-        if (const auto l = dynamic_cast<const Loop*>(sub)) {
+        if (const auto l = dynamic_cast<const ov::op::v5::Loop*>(sub)) {
             return l->get_num_iterations();
         }
 
@@ -766,7 +769,7 @@ Comparator::Result Comparator::compare(ov::Node* node1, ov::Node* node2, std::os
 void Comparator::compare_inputs(ov::Node* node1, ov::Node* node2, std::ostream& err_log) {
     for (size_t i = 0; i < node1->inputs().size(); ++i) {
         if (should_compare(CmpValues::CONST_VALUES)) {
-            using Constant = ov::opset8::Constant;
+            using Constant = ov::op::v0::Constant;
             const auto equal_value = ::attributes::detail::equal::Equal<std::shared_ptr<Constant>>::equal_value;
 
             auto const1 = ov::as_type_ptr<Constant>(node1->get_input_node_shared_ptr(i));

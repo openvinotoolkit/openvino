@@ -11,9 +11,9 @@
 #include "openvino/core/dimension.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/model.hpp"
+#include "openvino/op/loop.hpp"
 #include "openvino/op/util/framework_node.hpp"
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/op/util/sub_graph_base.hpp"
 
 class FunctionsComparator {
 public:
@@ -196,7 +196,7 @@ public:
             }
             unique_friendly_names.insert(node->get_friendly_name());
 
-            if (as_type_ptr<ov::opset1::Result>(node))
+            if (as_type_ptr<ov::op::v0::Result>(node))
                 continue;
             for (auto output : node->outputs()) {
                 const auto& tensor_names = output.get_names();
@@ -380,7 +380,7 @@ using SubGraphOpInputDescription = std::vector<std::shared_ptr<ov::op::util::Sub
 
 using SubGraphOpOutputDescription = std::vector<std::shared_ptr<ov::op::util::SubGraphOp::OutputDescription>>;
 
-using SpecialBodyPorts = ov::opset8::Loop::SpecialBodyPorts;
+using SpecialBodyPorts = ov::op::v5::Loop::SpecialBodyPorts;
 
 namespace storage {
 
@@ -718,7 +718,7 @@ struct Equal<uint8_t*> {
     }
 };
 
-using Constant = ov::opset8::Constant;
+using Constant = ov::op::v0::Constant;
 template <>
 struct Equal<std::shared_ptr<Constant>> {
     static bool equal_value(const std::shared_ptr<Constant>& lhs, const std::shared_ptr<Constant>& rhs) {

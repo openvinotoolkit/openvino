@@ -13,6 +13,7 @@
 #include "common_test_utils/test_common.hpp"
 #include "dev/preprocessing/preprocessing.hpp"
 #include "openvino/runtime/common.hpp"
+#include "openvino/op/add.hpp"
 
 using namespace testing;
 
