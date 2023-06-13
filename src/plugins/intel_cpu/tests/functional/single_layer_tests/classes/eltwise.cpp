@@ -189,9 +189,7 @@ const std::vector<ngraph::helpers::EltwiseTypes>& eltwiseOpTypesBinInp() {
 
 const std::vector<ngraph::helpers::EltwiseTypes>& eltwiseOpTypesDiffInp() {
         static const std::vector<ngraph::helpers::EltwiseTypes> eltwiseOpTypesDiffInp = { // Different number of input nodes depending on optimizations
-        #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
-                ngraph::helpers::EltwiseTypes::POWER,                   //TODO: Fix CVS-111880
-        #endif
+                ngraph::helpers::EltwiseTypes::POWER,
                 // ngraph::helpers::EltwiseTypes::MOD // Does not execute because of transformations
         };
         return eltwiseOpTypesDiffInp;
