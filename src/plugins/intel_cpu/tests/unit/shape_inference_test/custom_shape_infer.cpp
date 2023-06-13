@@ -45,102 +45,20 @@ public:
 class CustomShapeInferFF : public openvino::cc::Factory<Type, ShapeInferFactory*(const std::shared_ptr<ov::Node>& op)> {
 public:
     CustomShapeInferFF():Factory("CpuCustomShapeInferTestFactory") {
-    // INTEL_CPU_CUSTOM_SHAPE_INFER(Generic, Type::Generic);
-    // INTEL_CPU_CUSTOM_SHAPE_INFER(CumSum, Type::CumSum);
-    // INTEL_CPU_CUSTOM_SHAPE_INFER(Convolution, Type::Convolution);
-    // INTEL_CPU_CUSTOM_SHAPE_INFER(BinaryConvolution, Type::BinaryConvolution);
-    // INTEL_CPU_CUSTOM_SHAPE_INFER(SpaceToBatch, Type::SpaceToBatch);
-    // INTEL_CPU_CUSTOM_SHAPE_INFER(Lrn, Type::Lrn);
-    // INTEL_CPU_CUSTOM_SHAPE_INFER(BatchToSpace, Type::BatchToSpace);
-    // INTEL_CPU_CUSTOM_SHAPE_INFER(DepthToSpace, Type::DepthToSpace);
-    // INTEL_CPU_CUSTOM_SHAPE_INFER(SpaceToDepth, Type::SpaceToDepth);
-    // INTEL_CPU_CUSTOM_SHAPE_INFER(If, Type::If);
-    // INTEL_CPU_CUSTOM_SHAPE_INFER(Broadcast, Type::Broadcast);
-    // INTEL_CPU_CUSTOM_SHAPE_INFER(ExperimentalDetectronTopKROIs, Type::ExperimentalDetectronTopKROIs);
-    // INTEL_CPU_CUSTOM_SHAPE_INFER(Reorder, Type::Reorder);
-    // INTEL_CPU_CUSTOM_SHAPE_INFER(MatrixNms, Type::MatrixNms);
     INTEL_CPU_CUSTOM_SHAPE_INFER(node::AdaptivePoolingShapeInferFactory, Type::AdaptivePooling);
-    // INTEL_CPU_CUSTOM_SHAPE_INFER(Pooling, Type::Pooling);
     INTEL_CPU_CUSTOM_SHAPE_INFER(EltwiseShapeInferTestFactory, Type::Eltwise);
-    // INTEL_CPU_CUSTOM_SHAPE_INFER(SoftMax, Type::Softmax);
-    // INTEL_CPU_CUSTOM_SHAPE_INFER(EmbeddingBagPackedSum, Type::EmbeddingBagPackedSum);
-    // INTEL_CPU_CUSTOM_SHAPE_INFER(Input, Type::Input);
-    // INTEL_CPU_CUSTOM_SHAPE_INFER(Input, Type::Output);
-    // INTEL_CPU_CUSTOM_SHAPE_INFER(MemoryInput, Type::MemoryInput);
-    // INTEL_CPU_CUSTOM_SHAPE_INFER(MemoryOutput, Type::MemoryOutput);
-    // INTEL_CPU_CUSTOM_SHAPE_INFER(Tile, Type::Tile);
-    // INTEL_CPU_CUSTOM_SHAPE_INFER(GatherTree, Type::GatherTree);
     INTEL_CPU_CUSTOM_SHAPE_INFER(node::FCShapeInferFactory, Type::FullyConnected);
-    // INTEL_CPU_CUSTOM_SHAPE_INFER(CTCGreedyDecoder, Type::CTCGreedyDecoder);
     INTEL_CPU_CUSTOM_SHAPE_INFER(node::TransposeShapeInferFactory, Type::Transpose);
-    // INTEL_CPU_CUSTOM_SHAPE_INFER(ReorgYolo, Type::ReorgYolo);
-    // INTEL_CPU_CUSTOM_SHAPE_INFER(EmbeddingSegmentsSum, Type::EmbeddingSegmentsSum);
     INTEL_CPU_CUSTOM_SHAPE_INFER(ShapeOfShapeInferTestFactory, Type::ShapeOf);
-    // INTEL_CPU_CUSTOM_SHAPE_INFER(ExperimentalDetectronGenerateProposalsSingleImage, Type::ExperimentalDetectronGenerateProposalsSingleImage);
-    // INTEL_CPU_CUSTOM_SHAPE_INFER(GenerateProposals, Type::GenerateProposals);
-    // INTEL_CPU_CUSTOM_SHAPE_INFER(ReverseSequence, Type::ReverseSequence);
-    // INTEL_CPU_CUSTOM_SHAPE_INFER(ExperimentalDetectronPriorGridGenerator, Type::ExperimentalDetectronPriorGridGenerator);
-    // INTEL_CPU_CUSTOM_SHAPE_INFER(GatherND, Type::GatherND);
-    // INTEL_CPU_CUSTOM_SHAPE_INFER(LogSoftmax, Type::LogSoftmax);
-    // INTEL_CPU_CUSTOM_SHAPE_INFER(PSROIPooling, Type::PSROIPooling);
-    // INTEL_CPU_CUSTOM_SHAPE_INFER(RNN, Type::RNNCell);
-    // INTEL_CPU_CUSTOM_SHAPE_INFER(RNN, Type::RNNSeq);
-    // INTEL_CPU_CUSTOM_SHAPE_INFER(CTCLoss, Type::CTCLoss);
-    // INTEL_CPU_CUSTOM_SHAPE_INFER(Split, Type::Split);
-    // INTEL_CPU_CUSTOM_SHAPE_INFER(DetectionOutput, Type::DetectionOutput);
-    // INTEL_CPU_CUSTOM_SHAPE_INFER(GatherElements, Type::GatherElements);
-    // INTEL_CPU_CUSTOM_SHAPE_INFER(CTCGreedyDecoderSeqLen, Type::CTCGreedyDecoderSeqLen);
-    // INTEL_CPU_CUSTOM_SHAPE_INFER(Bucketize, Type::Bucketize);
-    // INTEL_CPU_CUSTOM_SHAPE_INFER(ExperimentalDetectronROIFeatureExtractor, Type::ExperimentalDetectronROIFeatureExtractor);
-    // INTEL_CPU_CUSTOM_SHAPE_INFER(Math, Type::Math);
-    // INTEL_CPU_CUSTOM_SHAPE_INFER(MultiClassNms, Type::MulticlassNms);
-    // INTEL_CPU_CUSTOM_SHAPE_INFER(Convert, Type::Convert);
     INTEL_CPU_CUSTOM_SHAPE_INFER(node::ColorConvertShapeInferFactory, Type::ColorConvert);
-    // INTEL_CPU_CUSTOM_SHAPE_INFER(EmbeddingBagOffsetSum, Type::EmbeddingBagOffsetsSum);
-    // INTEL_CPU_CUSTOM_SHAPE_INFER(Roll, Type::Roll);
-    // INTEL_CPU_CUSTOM_SHAPE_INFER(Pad, Type::Pad);
     INTEL_CPU_CUSTOM_SHAPE_INFER(node::ReshapeShapeInferFactory, Type::Reshape);
-    // INTEL_CPU_CUSTOM_SHAPE_INFER(MVN, Type::MVN);
     INTEL_CPU_CUSTOM_SHAPE_INFER(node::MMShapeInferFactory, Type::MatMul);
-    // INTEL_CPU_CUSTOM_SHAPE_INFER(ScatterUpdate, Type::ScatterUpdate);
-    // INTEL_CPU_CUSTOM_SHAPE_INFER(ScatterUpdate, Type::ScatterElementsUpdate);
-    // INTEL_CPU_CUSTOM_SHAPE_INFER(ScatterUpdate, Type::ScatterNDUpdate);
-    // INTEL_CPU_CUSTOM_SHAPE_INFER(ShuffleChannels, Type::ShuffleChannels);
-    // INTEL_CPU_CUSTOM_SHAPE_INFER(TensorIterator, Type::TensorIterator);
-    // INTEL_CPU_CUSTOM_SHAPE_INFER(Concat, Type::Concatenation);
     INTEL_CPU_CUSTOM_SHAPE_INFER(node::OneHotShapeInferFactory, Type::OneHot);
-    // INTEL_CPU_CUSTOM_SHAPE_INFER(ExperimentalDetectronDetectionOutput, Type::ExperimentalDetectronDetectionOutput);
-    // INTEL_CPU_CUSTOM_SHAPE_INFER(node::DeconvolutionShapeInferFactory, Type::Deconvolution);
-    // INTEL_CPU_CUSTOM_SHAPE_INFER(DeformableConvolution, Type::DeformableConvolution);
-    // INTEL_CPU_CUSTOM_SHAPE_INFER(Range, Type::Range);
     INTEL_CPU_CUSTOM_SHAPE_INFER(node::StridedSliceShapeInferFactory, Type::StridedSlice);
-    // INTEL_CPU_CUSTOM_SHAPE_INFER(GRN, Type::GRN);
-    // INTEL_CPU_CUSTOM_SHAPE_INFER(NonZero, Type::NonZero);
-    // INTEL_CPU_CUSTOM_SHAPE_INFER(NormalizeL2, Type::NormalizeL2);
     INTEL_CPU_CUSTOM_SHAPE_INFER(node::PriorBoxShapeInferFactory, Type::PriorBox);
     INTEL_CPU_CUSTOM_SHAPE_INFER(node::PriorBoxClusteredShapeInferFactory, Type::PriorBoxClustered);
-    // INTEL_CPU_CUSTOM_SHAPE_INFER(Eye, Type::Eye);
-    // INTEL_CPU_CUSTOM_SHAPE_INFER(Unique, Type::Unique);
     INTEL_CPU_CUSTOM_SHAPE_INFER(node::NgramShapeInferFactory, Type::Ngram);
-    // INTEL_CPU_CUSTOM_SHAPE_INFER(Interpolate, Type::Interpolate);
-    // INTEL_CPU_CUSTOM_SHAPE_INFER(Reduce, Type::Reduce);
     INTEL_CPU_CUSTOM_SHAPE_INFER(node::GatherShapeInferFactory, Type::Gather);
-    // INTEL_CPU_CUSTOM_SHAPE_INFER(NonMaxSuppression, Type::NonMaxSuppression);
-    // INTEL_CPU_CUSTOM_SHAPE_INFER(ROIPooling, Type::ROIPooling);
-    // INTEL_CPU_CUSTOM_SHAPE_INFER(ROIAlign, Type::ROIAlign);
-    // INTEL_CPU_CUSTOM_SHAPE_INFER(TopK, Type::TopK);
-    // INTEL_CPU_CUSTOM_SHAPE_INFER(Proposal, Type::Proposal);
-    // INTEL_CPU_CUSTOM_SHAPE_INFER(RegionYolo, Type::RegionYolo);
-    // INTEL_CPU_CUSTOM_SHAPE_INFER(DFT, Type::DFT);
-    // INTEL_CPU_CUSTOM_SHAPE_INFER(RDFT, Type::RDFT);
-    // INTEL_CPU_CUSTOM_SHAPE_INFER(ExtractImagePatches, Type::ExtractImagePatches);
-#if defined(OPENVINO_ARCH_X86_64)
-    // INTEL_CPU_CUSTOM_SHAPE_INFER(FakeQuantize, Type::FakeQuantize);
-    // INTEL_CPU_CUSTOM_SHAPE_INFER(GridSample, Type::GridSample);
-    // INTEL_CPU_CUSTOM_SHAPE_INFER(Interaction, Type::Interaction);
-    // INTEL_CPU_CUSTOM_SHAPE_INFER(MHA, Type::MHA);
-    // INTEL_CPU_CUSTOM_SHAPE_INFER(node::SnippetShapeInferFactory, Type::Subgraph);
-#endif
 #undef INTEL_CPU_CUSTOM_SHAPE_INFER
     }
 
@@ -157,7 +75,7 @@ public:
 } //namespace
 
 
-static void compare_result(std::vector<StaticShape>& ref, std::vector<VectorDims>& cus) {
+static void compare_result(const std::vector<StaticShape>& ref, const std::vector<VectorDims>& cus) {
     ASSERT_TRUE(ref.size() == cus.size());
     for (size_t i = 0; i < ref.size(); i++) {
         ASSERT_TRUE(ref[i].size() == cus[i].size());
