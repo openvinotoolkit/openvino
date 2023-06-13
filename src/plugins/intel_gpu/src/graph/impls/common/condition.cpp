@@ -65,7 +65,20 @@ struct condition_impl : typed_primitive_impl<condition> {
 
         auto compare_data = get_compare_data(instance.compare_memory_ptr(), instance.get_network().get_stream());
         network::ptr executed_net = instance.get_inner_networks(compare_data);
+
         executed_net->execute({});
+        std::string compare_data_str = compare_data ? "body_true" : "body_false";
+        std::cout << " Run ... " << executed_net->get_id() << "_" << compare_data_str << std::endl;
+
+        if (instance.is_dynamic()) {
+            auto branch = instance.get_branch(compare_data);
+            for (auto out_mem_map : branch.output_map) {
+                auto out_mem_idx = out_mem_map.first;
+                auto inner_out_id = out_mem_map.second;
+                auto mem_ptr = executed_net->get_output_memory(inner_out_id);
+                instance.set_output_memory(mem_ptr, false, out_mem_idx);
+            }
+        }
 
         ev->set();
         return ev;
@@ -84,6 +97,11 @@ private:
 namespace detail {
 
 attach_condition_common::attach_condition_common() {
+    implementation_map<condition>::add(impl_types::common,
+                                    shape_types::dynamic_shape,
+                                    condition_impl::create,
+                                    {},
+                                    {});
     implementation_map<condition>::add(impl_types::common, condition_impl::create, {});
 }
 

@@ -13,6 +13,7 @@
 #include "reshape_inst.h"
 #include "arg_max_min_inst.h"
 #include "shape_of_inst.h"
+#include "condition_inst.h"
 #include <sstream>
 
 #include "gemm_inst.h"
@@ -1366,6 +1367,8 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
 
     if (!_forcing_map.empty() && _forcing_map.count(node.id()) != 0) {
         preferred_impl = _forcing_map.at(node.id()).second;
+    } else if (node.is_type<condition>()) {
+        preferred_impl = impl_types::common;
     } else if (node.is_type<detection_output>()) {
         const auto& program = node.get_program();
         const auto& device_info = program.get_engine().get_device_info();

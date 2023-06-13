@@ -175,14 +175,24 @@ network::ptr condition_inst::get_inner_networks(bool is_net_true) {
         }
     }
 
-    for (auto out_mem_map : branch.output_map) {
-        auto idx = out_mem_map.first;
-        auto out_internal_id = out_mem_map.second;
-        auto mem_ptr = output_memory_ptr(idx);
-        net->set_output_memory(out_internal_id, mem_ptr);
+    // Only set output memory when node is static shape
+    // Because the output layout is not calculated yet until inner body complete to execute.
+    // After inner body execution is completed, condition_inst will update shape
+    if (!is_dynamic()) {
+        for (auto out_mem_map : branch.output_map) {
+            auto idx = out_mem_map.first;
+            auto out_internal_id = out_mem_map.second;
+            auto mem_ptr = output_memory_ptr(idx);
+            net->set_output_memory(out_internal_id, mem_ptr);
+        }
     }
 
     return net;
+}
+
+condition::branch condition_inst::get_branch(const bool is_net_true) const {
+    const auto& branch = is_net_true? node->get_branch_true() : node->get_branch_false();
+    return branch;
 }
 
 }  // namespace cldnn

@@ -77,6 +77,7 @@ public:
     network::ptr get_net_true() const { return _net_true; }
     network::ptr get_net_false() const { return _net_false; }
     network::ptr get_inner_networks(bool is_net_true);
+    condition::branch get_branch(const bool is_net_true) const;
 
 private:
     network::ptr _net_true;
