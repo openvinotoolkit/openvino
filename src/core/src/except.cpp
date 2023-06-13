@@ -6,18 +6,8 @@
 
 ov::Exception::Exception(const std::string& what_arg) : std::runtime_error(what_arg) {}
 
-ov::Exception::Exception(const std::stringstream& what_arg) : std::runtime_error(what_arg.str()) {}
-
-void ov::Exception::create(const CheckLocInfo& check_loc_info,
-                           const std::string& context_info,
-                           const std::string& explanation) {
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    CheckLocInfo loc_info;
-    loc_info.file = check_loc_info.file;
-    loc_info.line = check_loc_info.line;
-    loc_info.check_string = nullptr;
-    throw ov::Exception(make_what(loc_info, context_info, explanation));
-    OPENVINO_SUPPRESS_DEPRECATED_END
+void ov::Exception::create(const CheckLocInfo& check_loc_info, const std::string& explanation) {
+    throw ov::Exception(make_what(check_loc_info, default_msg, explanation));
 }
 
 std::string ov::Exception::make_what(const CheckLocInfo& check_loc_info,
@@ -52,6 +42,8 @@ std::string ov::Exception::make_what(const CheckLocInfo& check_loc_info,
 
 ov::Exception::~Exception() = default;
 
+const std::string ov::Exception::default_msg{};
+
 void ov::AssertFailure::create(const CheckLocInfo& check_loc_info,
                                const std::string& context_info,
                                const std::string& explanation) {
@@ -65,3 +57,5 @@ void ov::NotImplemented::create(const CheckLocInfo& check_loc_info,
     throw ov::NotImplemented(make_what(check_loc_info, context_info, explanation));
 }
 ov::NotImplemented::~NotImplemented() = default;
+
+const std::string ov::NotImplemented::default_msg{"Not Implemented"};
