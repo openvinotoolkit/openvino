@@ -188,6 +188,13 @@ std::vector<std::string> disabledTestPatterns() {
         // Issue: 111453
         R"(.*smoke_BehaviorTests/OVCompiledGraphImportExportTest.*/targetDevice=CPU_elementType=(i16|i64|u16|u32|u64|f16).*)",
         R"(.*smoke_Hetero_BehaviorTests/OVCompiledGraphImportExportTest.ovImportExportedFunction/targetDevice=HETERO_elementType=(i16|i64|u16|u32|u64|f16).*)",
+        // New plugin work with tensors, so it means that blob in old API can have different pointers
+        R"(.*InferRequestIOBBlobTest.*secondCallGetInputDoNotReAllocateData.*)",
+        R"(.*InferRequestIOBBlobTest.*secondCallGetOutputDoNotReAllocateData.*)",
+        R"(.*InferRequestIOBBlobTest.*secondCallGetInputAfterInferSync.*)",
+        R"(.*InferRequestIOBBlobTest.*secondCallGetOutputAfterInferSync.*)",
+        // Old API cannot deallocate tensor
+        R"(.*InferRequestIOBBlobTest.*canProcessDeallocatedOutputBlobAfterGetAndSetBlob.*)",
     };
 
 #if defined(OPENVINO_ARCH_X86)
