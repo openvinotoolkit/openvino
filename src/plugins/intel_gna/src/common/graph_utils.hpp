@@ -481,7 +481,7 @@ inline Shape::value_type get_dim_by_axis(const Shape& shape, int64_t axis) {
 /**
  * @brief broadcasts shape to rank
  */
-inline Shape broadcast_shape(const Shape& shape, ov::Rank::value_type rank) {
+inline Shape unsqeeze_shape(const Shape& shape, ov::Rank::value_type rank) {
     const int rank_delta = rank - shape.size();
 
     if (rank_delta <= 0)

@@ -64,7 +64,7 @@ void update_input_gather(NodePtr main_node,
     if (gather_input_info.isEmpty() || has_dynamic_rank_input(main_node))
         return;
 
-    /* It's simpler to work with negative gather axis since it doesn't depend on shape broadcasting.
+    /* It's simpler to work with negative gather axis since it doesn't depend on shape unsqueezeing.
      * Converts gather axis to a negative form
      */
     int64_t gather_negative_axis = {};
@@ -93,10 +93,10 @@ void update_input_gather(NodePtr main_node,
         } else {
             /* Doesn't add Gather layer if input_node_shape[axis] == 1 since it is useless and causes an invalid result.
              * Input nodes can have different shapes. That shapes can have smaller or larger ranks. To manage it we need
-             * to find max input shape rank and broadcast all input shapes to it.
+             * to find max input shape rank and unsqeeze all input shapes to it.
              */
-            const Shape broadcasted_input_shape = broadcast_shape(input_node.get_shape(), max_input_rank);
-            if (get_dim_by_axis(broadcasted_input_shape, gather_negative_axis) == 1)
+            const Shape unsqueezed_input_shape = unsqeeze_shape(input_node.get_shape(), max_input_rank);
+            if (get_dim_by_axis(unsqueezed_input_shape, gather_negative_axis) == 1)
                 continue;
 
             auto new_indices_const = std::make_shared<Constant>(indices_element_type,
@@ -184,8 +184,8 @@ NodeVector insert_gather_before_node(NodePtr main_node,
     for (const auto& i : input_indices) {
         auto input_node = main_node->input_value(i);
 
-        const Shape broadcasted_input_shape = broadcast_shape(input_node.get_shape(), max_input_rank);
-        if (get_dim_by_axis(broadcasted_input_shape, gather_negative_axis) == 1)
+        const Shape unsqueezed_input_shape = unsqeeze_shape(input_node.get_shape(), max_input_rank);
+        if (get_dim_by_axis(unsqueezed_input_shape, gather_negative_axis) == 1)
             continue;
 
         auto new_indices_const = indices_const->clone_with_new_inputs({});
