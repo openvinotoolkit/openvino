@@ -44,8 +44,8 @@ elif machine == "aarch64" or machine == "arm64" or machine == "ARM64":
 SCRIPT_DIR = Path(__file__).resolve().parents[0]
 WORKING_DIR = Path.cwd()
 OPENVINO_SOURCE_DIR = SCRIPT_DIR.parents[3]
-OPENVINO_BUILD_DIR = os.getenv("OPENVINO_BUILD_DIR")
-OPENVINO_PYTHON_BUILD_DIR = os.getenv("OPENVINO_PYTHON_BUILD_DIR", OPENVINO_BUILD_DIR)
+OPENVINO_BINARY_DIR = os.getenv("OPENVINO_BINARY_DIR")
+OPENVINO_PYTHON_BINARY_DIR = os.getenv("OPENVINO_PYTHON_BINARY_DIR", OPENVINO_BINARY_DIR)
 OV_RUNTIME_LIBS_DIR = os.getenv("OV_RUNTIME_LIBS_DIR", f"runtime/{LIBS_DIR}/{ARCH}/{CONFIG}")
 TBB_LIBS_DIR = os.getenv("TBB_LIBS_DIR", f"runtime/3rdparty/tbb/{LIBS_DIR}")
 PUGIXML_LIBS_DIR = os.getenv("PUGIXML_LIBS_DIR", f"runtime/3rdparty/pugixml/{LIBS_DIR}")
@@ -58,97 +58,97 @@ LIB_INSTALL_CFG = {
         "prefix": f"{WORKING_DIR}/build/libs.core",
         "install_dir": OV_RUNTIME_LIBS_DIR,
         "rpath": LIBS_RPATH,
-        "binary_dir": OPENVINO_BUILD_DIR,
+        "binary_dir": OPENVINO_BINARY_DIR,
     },
     "hetero_plugin": {
         "name": "hetero",
         "prefix": f"{WORKING_DIR}/build/libs.hetero",
         "install_dir": OV_RUNTIME_LIBS_DIR,
         "rpath": LIBS_RPATH,
-        "binary_dir": OPENVINO_BUILD_DIR,
+        "binary_dir": OPENVINO_BINARY_DIR,
     },
     "gpu_plugin": {
         "name": "gpu",
         "prefix": f"{WORKING_DIR}/build/libs.gpu",
         "install_dir": OV_RUNTIME_LIBS_DIR,
         "rpath": LIBS_RPATH,
-        "binary_dir": OPENVINO_BUILD_DIR,
+        "binary_dir": OPENVINO_BINARY_DIR,
     },
     "cpu_plugin": {
         "name": "cpu",
         "prefix": f"{WORKING_DIR}/build/libs.cpu",
         "install_dir": OV_RUNTIME_LIBS_DIR,
         "rpath": LIBS_RPATH,
-        "binary_dir": OPENVINO_BUILD_DIR,
+        "binary_dir": OPENVINO_BINARY_DIR,
     },
     "multi_plugin": {
         "name": "multi",
         "prefix": f"{WORKING_DIR}/build/libs.multi",
         "install_dir": OV_RUNTIME_LIBS_DIR,
         "rpath": LIBS_RPATH,
-        "binary_dir": OPENVINO_BUILD_DIR,
+        "binary_dir": OPENVINO_BINARY_DIR,
     },
     "batch_plugin": {
         "name": "batch",
         "prefix": f"{WORKING_DIR}/build/libs.batch",
         "install_dir": OV_RUNTIME_LIBS_DIR,
         "rpath": LIBS_RPATH,
-        "binary_dir": OPENVINO_BUILD_DIR,
+        "binary_dir": OPENVINO_BINARY_DIR,
     },
     "tbb_libs": {
         "name": "tbb",
         "prefix": f"{WORKING_DIR}/build/libs.tbb",
         "install_dir": TBB_LIBS_DIR,
         "rpath": LIBS_RPATH,
-        "binary_dir": OPENVINO_BUILD_DIR,
+        "binary_dir": OPENVINO_BINARY_DIR,
     },
     "pugixml_libs": {
         "name": "pugixml",
         "prefix": f"{WORKING_DIR}/build/libs.pugixml",
         "install_dir": PUGIXML_LIBS_DIR,
-        "binary_dir": OPENVINO_BUILD_DIR,
+        "binary_dir": OPENVINO_BINARY_DIR,
     },
     "ir_libs": {
         "name": "ir",
         "prefix": f"{WORKING_DIR}/build/libs.ir",
         "install_dir": OV_RUNTIME_LIBS_DIR,
         "rpath": LIBS_RPATH,
-        "binary_dir": OPENVINO_BUILD_DIR,
+        "binary_dir": OPENVINO_BINARY_DIR,
     },
     "paddle_libs": {
         "name": "paddle",
         "prefix": f"{WORKING_DIR}/build/libs.paddle",
         "install_dir": OV_RUNTIME_LIBS_DIR,
         "rpath": LIBS_RPATH,
-        "binary_dir": OPENVINO_BUILD_DIR,
+        "binary_dir": OPENVINO_BINARY_DIR,
     },
     "pytorch_libs": {
         "name": "pytorch",
         "prefix": f"{WORKING_DIR}/build/libs.pytorch",
         "install_dir": OV_RUNTIME_LIBS_DIR,
         "rpath": LIBS_RPATH,
-        "binary_dir": OPENVINO_BUILD_DIR,
+        "binary_dir": OPENVINO_BINARY_DIR,
     },
     "onnx_libs": {
         "name": "onnx",
         "prefix": f"{WORKING_DIR}/build/libs.onnx",
         "install_dir": OV_RUNTIME_LIBS_DIR,
         "rpath": LIBS_RPATH,
-        "binary_dir": OPENVINO_BUILD_DIR,
+        "binary_dir": OPENVINO_BINARY_DIR,
     },
     "tensorflow_libs": {
         "name": "tensorflow",
         "prefix": f"{WORKING_DIR}/build/libs.tensorflow",
         "install_dir": OV_RUNTIME_LIBS_DIR,
         "rpath": LIBS_RPATH,
-        "binary_dir": OPENVINO_BUILD_DIR,
+        "binary_dir": OPENVINO_BINARY_DIR,
     },
     "tensorflow_lite_libs": {
         "name": "tensorflow_lite",
         "prefix": f"{WORKING_DIR}/build/libs.tensorflow_lite",
         "install_dir": OV_RUNTIME_LIBS_DIR,
         "rpath": LIBS_RPATH,
-        "binary_dir": OPENVINO_BUILD_DIR,
+        "binary_dir": OPENVINO_BINARY_DIR,
     },
 }
 
@@ -157,19 +157,19 @@ PY_INSTALL_CFG = {
         "name": f"pyie_{PYTHON_VERSION}",
         "prefix": f"{WORKING_DIR}/build/site-packages",
         "install_dir": PY_PACKAGES_DIR,
-        "binary_dir": OPENVINO_PYTHON_BUILD_DIR,
+        "binary_dir": OPENVINO_PYTHON_BINARY_DIR,
     },
     "pyngraph": {
         "name": f"pyngraph_{PYTHON_VERSION}",
         "prefix": f"{WORKING_DIR}/build/site-packages",
         "install_dir": PY_PACKAGES_DIR,
-        "binary_dir": OPENVINO_PYTHON_BUILD_DIR,
+        "binary_dir": OPENVINO_PYTHON_BINARY_DIR,
     },
     "pyopenvino": {
         "name": f"pyopenvino_{PYTHON_VERSION}",
         "prefix": f"{WORKING_DIR}/build/site-packages",
         "install_dir": PY_PACKAGES_DIR,
-        "binary_dir": OPENVINO_PYTHON_BUILD_DIR,
+        "binary_dir": OPENVINO_PYTHON_BINARY_DIR,
     },
 }
 
@@ -197,7 +197,7 @@ class CustomBuild(build):
     def initialize_options(self):
         """Set default values for all the options that this command supports."""
         super().initialize_options()
-        self.build_base = "build"
+        self.build_base = f"{WORKING_DIR}/build"
         self.config = None
         self.jobs = None
         self.cmake_args = None
@@ -227,14 +227,14 @@ class CustomBuild(build):
         self.jobs = multiprocessing.cpu_count() if self.jobs is None else int(self.jobs)
 
     def run(self):
-        global OPENVINO_BUILD_DIR
+        global OPENVINO_BINARY_DIR
         self.jobs = multiprocessing.cpu_count()
         plat_specifier = ".{0}-{1}.{2}".format(self.plat_name, *sys.version_info[:2])
         self.build_temp = os.path.join(self.build_base, "temp" + plat_specifier, self.config)
         self.announce(f"Create build directory: {self.build_temp}", level=3)
 
         # if setup.py is directly called use CMake to build product
-        if OPENVINO_BUILD_DIR == ".":
+        if OPENVINO_BINARY_DIR == ".":
             # set path to the root of OpenVINO CMakeList file
             self.announce(f"Configuring cmake project: {OPENVINO_SOURCE_DIR}", level=3)
             self.spawn(["cmake", "-S" + str(OPENVINO_SOURCE_DIR),
@@ -254,7 +254,7 @@ class CustomBuild(build):
             self.spawn(["cmake", "--build", self.build_temp,
                                  "--config", self.config,
                                  "--parallel", str(self.jobs)])
-            OPENVINO_BUILD_DIR = self.build_temp
+            OPENVINO_BINARY_DIR = self.build_temp
         # perform installation
         self.run_command("build_clib")
 
@@ -275,12 +275,12 @@ class PrepareLibs(build_clib):
     """Install prebuilt libraries."""
 
     def run(self):
-        self.configure(LIB_INSTALL_CFG)
-        self.configure(PY_INSTALL_CFG)
+        self.install(LIB_INSTALL_CFG)
+        self.install(PY_INSTALL_CFG)
         self.copy_package_data(get_install_dirs_list(LIB_INSTALL_CFG))
 
-    def configure(self, install_cfg):
-        """Collect prebuilt libraries. Install them to the temp directories, set rpath."""
+    def install(self, install_cfg):
+        """Install prebuilt libraries to the temp directories, set rpath."""
         for comp, comp_data in install_cfg.items():
             install_prefix = comp_data.get("prefix")
             install_dir = comp_data.get("install_dir")
@@ -296,6 +296,10 @@ class PrepareLibs(build_clib):
                                      "--component", comp_data.get("name")])
                 install_dir = os.path.join(install_prefix, install_dir)
 
+            # we need to resolve symlinks before setting rpath to avoid doing it multiple times
+            install_dir_path = Path(install_dir)
+            self.resolve_symlinks(install_dir_path)
+
             # set rpath if applicable
             if sys.platform != "win32" and comp_data.get("rpath"):
                 # after tbb libraries on mac arm64 are signed, setting rpath for them will report error:
@@ -305,7 +309,7 @@ class PrepareLibs(build_clib):
 
                 for path in filter(
                     lambda x: any(item in ([".so"] if sys.platform == "linux" else [".dylib", ".so"])
-                                  for item in x.suffixes), Path(install_dir).glob("*"),
+                                  for item in x.suffixes), install_dir_path.glob("*"),
                 ):
                     set_rpath(comp_data["rpath"], os.path.realpath(path))
 
@@ -366,9 +370,6 @@ class PrepareLibs(build_clib):
         os.makedirs(package_clibs_dir, exist_ok=True)
 
         for src_dir in src_dirs:
-            local_base_dir = Path(src_dir)
-            self.resolve_symlinks(local_base_dir)
-
             # additional blacklist filter, just to fix cmake install issues
             blacklist_patterns = [  # static libraries and PBD files
                                     "^.*\\.a$", "^.*\\.lib$", "^.*\\.pdb$",
@@ -378,7 +379,7 @@ class PrepareLibs(build_clib):
                                     "^.*\\.la$"]
 
             # copy so / dylib files to WHEEL_LIBS_INSTALL_DIR (clibs) inside python package
-            for file_path in local_base_dir.rglob("*"):
+            for file_path in Path(src_dir).rglob("*"):
                 file_name = os.path.basename(file_path)
                 if file_path.is_symlink():
                     # sanity check for self.resolve_symlinks
@@ -464,52 +465,52 @@ def is_tool(name):
 
 
 def remove_rpath(file_path):
-    """Remove rpath from binaries.
+    """Remove rpath from macOS binaries.
 
     :param file_path: binary path
     :type file_path: pathlib.Path
     """
-    if sys.platform == "darwin":
-        cmd = (
-            f"otool -l {file_path} "  # noqa: P103
-            f"| grep LC_RPATH -A3 "
-            f"| grep -o 'path.*' "
-            f"| cut -d ' ' -f2 "
-            f"| xargs -I{{}} install_name_tool -delete_rpath {{}} {file_path}"
-        )
-        if os.WEXITSTATUS(os.system(cmd)) != 0:  # nosec
-            sys.exit(f"Could not remove rpath for {file_path}")
-    else:
+    if not sys.platform == "darwin":
         sys.exit(f"Unsupported platform: {sys.platform}")
 
+    cmd = (
+        f"otool -l {file_path} "  # noqa: P103
+        f"| grep LC_RPATH -A3 "
+        f"| grep -o 'path.*' "
+        f"| cut -d ' ' -f2 "
+        f"| xargs -I{{}} install_name_tool -delete_rpath {{}} {file_path}"
+    )
+    if os.WEXITSTATUS(os.system(cmd)) != 0:  # nosec
+        sys.exit(f"Could not remove rpath for {file_path}")
 
-def set_rpath(rpath, executable):
-    """Setting rpath for linux and macOS libraries."""
-    print(f"Setting rpath {rpath} for {executable}")  # noqa: T001, T201
+
+def set_rpath(rpath, binary):
+    """Setting rpath for Linux and macOS binaries."""
+    print(f"Setting rpath {rpath} for {binary}")  # noqa: T001, T201
     cmd = []
     rpath_tool = ""
 
     if sys.platform == "linux":
-        with open(os.path.realpath(executable), "rb") as file:
+        with open(os.path.realpath(binary), "rb") as file:
             if file.read(1) != b"\x7f":
-                log.warn(f"WARNING: {executable}: missed ELF header")
+                log.warn(f"WARNING: {binary}: missed ELF header")
                 return
         rpath_tool = "patchelf"
-        cmd = [rpath_tool, "--set-rpath", rpath, executable]
+        cmd = [rpath_tool, "--set-rpath", rpath, binary]
     elif sys.platform == "darwin":
         rpath_tool = "install_name_tool"
-        cmd = [rpath_tool, "-add_rpath", rpath, executable]
+        cmd = [rpath_tool, "-add_rpath", rpath, binary]
     else:
         sys.exit(f"Unsupported platform: {sys.platform}")
 
-    if is_tool(rpath_tool):
-        if sys.platform == "darwin":
-            remove_rpath(executable)
-        ret_info = subprocess.run(cmd, check=True, shell=False)  # nosec
-        if ret_info.returncode != 0:
-            sys.exit(f"Could not set rpath: {rpath} for {executable}")
-    else:
+    if not is_tool(rpath_tool):
         sys.exit(f"Could not found {rpath_tool} on the system, " f"please make sure that this tool is installed")
+
+    if sys.platform == "darwin":
+        remove_rpath(binary)
+    ret_info = subprocess.run(cmd, check=True, shell=False)  # nosec
+    if ret_info.returncode != 0:
+        sys.exit(f"Could not set rpath: {rpath} for {binary}")
 
 
 def find_prebuilt_extensions(search_dirs):

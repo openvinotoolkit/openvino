@@ -139,32 +139,31 @@ set(openvino_wheel_path "${openvino_wheels_output_dir}/${openvino_wheel_name}")
 #
 
 set(wheel_env ${CMAKE_COMMAND} -E env
+    # for cross-compilation
     SETUPTOOLS_EXT_SUFFIX=${PYTHON_MODULE_EXTENSION}
+    # versions
     WHEEL_VERSION=${WHEEL_VERSION}
     WHEEL_BUILD=${WHEEL_BUILD}
-    OPENVINO_BUILD_DIR=${OpenVINO_BINARY_DIR}
-    OPENVINO_PYTHON_BUILD_DIR=${OpenVINOPython_BINARY_DIR}
+    # build locations
+    OPENVINO_BINARY_DIR=${OpenVINO_BINARY_DIR}
+    OPENVINO_PYTHON_BINARY_DIR=${OpenVINOPython_BINARY_DIR}
+    # variables to reflect cpack locations
     OV_RUNTIME_LIBS_DIR=${OV_WHEEL_RUNTIMEDIR}
     TBB_LIBS_DIR=${TBB_LIBS_DIR}
     PUGIXML_LIBS_DIR=${PUGIXML_LIBS_DIR}
     PY_PACKAGES_DIR=${PY_PACKAGES_DIR})
 
 add_custom_command(OUTPUT ${openvino_wheel_path}
-    COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_BINARY_DIR}"
-    COMMAND ${CMAKE_COMMAND} -E copy_directory "${OpenVINO_SOURCE_DIR}/licensing" "${CMAKE_BINARY_DIR}/licensing"
     COMMAND ${wheel_env}
-        ${PYTHON_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/setup.py"
-            --quiet
-            --no-user-cfg
-            bdist_wheel
-            --dist-dir ${openvino_wheels_output_dir}
-            --build-number=${WHEEL_BUILD}
-            --plat-name=${PLATFORM_TAG}
-    COMMAND ${CMAKE_COMMAND} -E remove_directory "${CMAKE_CURRENT_BINARY_DIR}/site-packages"
-    COMMAND ${wheel_env}
-        ${PYTHON_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/setup.py" clean
+        ${PYTHON_EXECUTABLE} -m pip wheel
+            --no-deps
+            --wheel-dir "${openvino_wheels_output_dir}"
+            --verbose
+            --build-option --build-number=${WHEEL_BUILD}
+            --build-option --plat-name=${PLATFORM_TAG}
+            "${CMAKE_CURRENT_SOURCE_DIR}"
+    COMMAND ${CMAKE_COMMAND} -E remove_directory "${CMAKE_CURRENT_SOURCE_DIR}/build"
     DEPENDS ${openvino_wheel_deps}
-    WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
     COMMENT "Building Python wheel ${openvino_wheel_name}"
     VERBATIM)
 
