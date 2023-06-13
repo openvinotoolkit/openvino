@@ -541,17 +541,7 @@ public:
         return std::make_shared<InferenceEngine::BatchedBlob>(blobs);
     }
 
-    void SetBlob(const std::string& name,
-                 const InferenceEngine::Blob::Ptr& data,
-                 const InferenceEngine::PreProcessInfo& info) override {
-        OPENVINO_NOT_IMPLEMENTED;
-    }
-
     const InferenceEngine::PreProcessInfo& GetPreProcess(const std::string& name) const override {
-        OPENVINO_NOT_IMPLEMENTED;
-    }
-
-    void SetBatch(int batch) override {
         OPENVINO_NOT_IMPLEMENTED;
     }
 
