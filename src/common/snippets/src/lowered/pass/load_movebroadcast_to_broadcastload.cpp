@@ -56,7 +56,9 @@ bool LoadMoveBroadcastToBroadcastLoad::run(LinearIR& linear_ir) {
             const auto mv_expr_it = expr_it;
             const auto insertion_pos = std::next(expr_it);
             expr_it = linear_ir.insert(insertion_pos, broadcastload_expr);
-            linear_ir.erase(std::find(linear_ir.begin(), mv_expr_it, parent_expr));
+            const auto load_it = std::find(linear_ir.begin(), mv_expr_it, parent_expr);
+            OPENVINO_ASSERT(load_it != mv_expr_it, "Failed fuse Load and MoveBroadcast: Load should be before MoveBroadcast in Linear IR");
+            linear_ir.erase(load_it);
             linear_ir.erase(mv_expr_it);
             linear_ir.replace_input(move_consumers, broadcastload_expr->get_output_port_connector(0));
             modified |= true;

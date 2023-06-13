@@ -221,7 +221,9 @@ void InsertBuffers::insertion(LinearIR& linear_ir, const LinearIR::LoopManagerPt
                     const auto buffer_consumers_inputs = buffer_out->get_consumers();
                     linear_ir.replace_input(buffer_consumers_inputs, output_connector);
                     potential_consumers.insert(buffer_consumers_inputs.begin(), buffer_consumers_inputs.end());
-                    linear_ir.erase(std::find(linear_ir.begin(), linear_ir.end(), buffer));
+                    const auto buffer_pos = std::find(linear_ir.cbegin(), linear_ir.cend(), buffer);
+                    OPENVINO_ASSERT(buffer_pos != linear_ir.cend(), "Buffer has not been found in Linear IR");
+                    linear_ir.erase(buffer_pos);
                 }
             }
 

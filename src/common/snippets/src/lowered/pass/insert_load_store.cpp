@@ -49,7 +49,9 @@ bool InsertLoadStore::insert_load(LinearIR& linear_ir, const LinearIR::constExpr
         const auto load = std::make_shared<op::Load>(data_node->output(0), get_count(data_expr->get_output_port_descriptor(0)));
         PortDescriptorUtils::set_port_descriptor_ptr(load->output(0), consumer_input.get_descriptor_ptr()->clone());
         const auto load_expr = linear_ir.create_expression(load, {output_connector});
-        linear_ir.insert(std::find(data_expr_it, linear_ir.cend(), consumer_expr), load_expr);
+        const auto insertion_pos = std::find(data_expr_it, linear_ir.cend(), consumer_expr);
+        OPENVINO_ASSERT(insertion_pos != linear_ir.cend(), "Consumer should be after data producer in Linear IR");
+        linear_ir.insert(insertion_pos, load_expr);
         linear_ir.replace_input(consumer_input, load_expr->get_output_port_connector(0));
         // Copy Loop identifies
         load_expr->set_loop_ids(loop_ids);
@@ -81,6 +83,7 @@ bool InsertLoadStore::insert_store(LinearIR& linear_ir, const LinearIR::constExp
     PortDescriptorUtils::set_port_descriptor_ptr(store->output(0), parent_output.get_descriptor_ptr()->clone());
     const auto store_expr = linear_ir.create_expression(store, {input_connector});
     const auto& reverse_insertion_pos = std::find(std::reverse_iterator<LinearIR::constExprIt>(data_expr_it), linear_ir.crend(), parent_expr);
+    OPENVINO_ASSERT(reverse_insertion_pos != linear_ir.crend(), "Consumer should be after data producer in Linear IR");
     const auto& insertion_pos = reverse_insertion_pos.base();
     linear_ir.insert(insertion_pos, store_expr);
     linear_ir.replace_input(data_expr->get_input_port(0), store_expr->get_output_port_connector(0));
