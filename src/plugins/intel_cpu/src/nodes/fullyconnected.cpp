@@ -352,12 +352,19 @@ void FullyConnected::prepareParams() {
             }
             return ptr;
         };
-        auto& dims0 = getParentEdgeAt(0)->getMemoryPtr()->getStaticDims();
-        auto& dims1 = getParentEdgeAt(1)->getMemoryPtr()->getStaticDims();
+        auto& wgtDims = getParentEdgeAt(WEIGHTS_ID)->getMemoryPtr()->getStaticDims();
+        auto& outDims = getChildEdgeAt(0)->getMemoryPtr()->getStaticDims();
         // Weight is transpoed by MatMulConstTransposesExtraction
-        K = dims0[dims0.size() - 1];
-        N = dims1[dims1.size() - 2];
-        M = std::accumulate(dims0.begin(), dims0.end() - 1, 1, std::multiplies<int64_t>());
+        // K is the IC of weight
+        K = wgtDims[1];
+        // M, N should be normalized
+        if (outDims.size() == 3) {
+            M = outDims[0] * outDims[1];
+            N = outDims[2];
+        } else {
+            M = outDims[0];
+            N = outDims[1];
+        }
         if (mlasPackedPtr == nullptr) {
             prepareMLASWeight(N, K);
         }
@@ -505,12 +512,12 @@ void FullyConnected::execute(dnnl::stream strm) {
                               N,
                               K,
                               1.0f,
-                              reinterpret_cast<float*>(src0MemPtr->GetData()),
+                              reinterpret_cast<float*>(src0MemPtr->GetPtr()),
                               lda,
-                              reinterpret_cast<float*>(mlasPackedPtr->GetData()),
+                              reinterpret_cast<float*>(mlasPackedPtr->GetPtr()),
                               ldb,
                               0.0f,
-                              reinterpret_cast<float*>(dstMemPtr->GetData()),
+                              reinterpret_cast<float*>(dstMemPtr->GetPtr()),
                               ldc,
                               withBiases ? reinterpret_cast<float*>(biasMemPtr->GetData()) : nullptr);
         return;
