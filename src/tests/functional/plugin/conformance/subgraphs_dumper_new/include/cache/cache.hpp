@@ -8,7 +8,8 @@
 
 #include "openvino/openvino.hpp"
 
-#include "utils/meta.hpp"
+#include "cache/meta.hpp"
+#include "single_op_matchers/manager.hpp"
 
 
 namespace ov {
@@ -26,7 +27,6 @@ public:
 protected:
     // todo: iefode: to set from extra sourses?
     static size_t m_serialization_timeout;
-    // SubgraphsDumper::MatchersManager m_manager = SubgraphsDumper::MatchersManager();
     std::string m_serialization_dir = ".";
 
     ICache() = default;

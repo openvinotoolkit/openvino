@@ -14,6 +14,7 @@
 #include <ostream>
 #include <set>
 #include <sstream>
+#include <fstream>
 #include <string>
 #include <vector>
 
@@ -93,6 +94,16 @@ inline std::string vec2str(const std::vector<std::vector<std::vector<vecElementT
         result << vec2str<vecElementType>(v);
     }
     return result.str();
+}
+
+template <typename ElementType>
+inline void vec2File(const std::vector<ElementType>& vec, const std::string& output_file_path) {
+    std::ofstream output_file;
+    output_file.open(output_file_path, std::ios::out | std::ios::trunc);
+    for (const auto& element : vec) {
+        output_file << element << std::endl;
+    }
+    output_file.close();
 }
 
 template <typename vecElementType>

@@ -6,6 +6,10 @@
 
 #include "cache/cache.hpp"
 
+#include"single_op_matchers/manager.hpp"
+#include"single_op_matchers/base.hpp"
+#include"single_op_matchers/convolutions.hpp"
+
 namespace ov {
 namespace tools {
 namespace subgraph_dumper {
@@ -26,13 +30,14 @@ public:
 protected:
     std::map<std::shared_ptr<ov::Node>, MetaInfo> m_ops_cache;
     static std::shared_ptr<OpCache> m_cache_instance;
+    MatchersManager m_manager = MatchersManager();
 
     OpCache() {
-        // SubgraphsDumper::MatchersManager::MatchersMap matchers = {
-        //         { "generic_single_op", std::make_shared<SubgraphsDumper::SingleOpMatcher>() },
-        //         { "convolutions", std::make_shared<SubgraphsDumper::ConvolutionsMatcher>() },
-        //     };
-        // m_manager.set_matchers(matchers);
+        MatchersManager::MatchersMap matchers = {
+            { "generic_single_op", BaseMatcher::Ptr(new BaseMatcher) },
+            { "convolutions", ConvolutionsMatcher::Ptr(new ConvolutionsMatcher) },
+        };
+        m_manager.set_matchers(matchers);
     }
 
     void update_cache(const std::shared_ptr<ov::Node>& node, const std::string& model_path);

@@ -6,7 +6,7 @@
 
 #include "common_test_utils/file_utils.hpp"
 
-#include "utils/meta.hpp"
+#include "cache/meta.hpp"
 
 namespace ov {
 namespace tools {

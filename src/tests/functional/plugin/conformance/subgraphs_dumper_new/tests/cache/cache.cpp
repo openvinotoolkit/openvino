@@ -14,7 +14,7 @@
 #include "common_test_utils/graph_comparator.hpp"
 
 #include "cache/cache.hpp"
-#include "utils/meta.hpp"
+#include "cache/meta.hpp"
 
 namespace {
 
