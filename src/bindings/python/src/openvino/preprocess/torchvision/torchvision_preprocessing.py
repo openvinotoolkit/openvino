@@ -73,20 +73,17 @@ def _to_list(transform: Callable) -> List:
 
 
 def _get_shape_layout_from_data(input_example: Union[torch.Tensor, np.ndarray, Image.Image]) -> Tuple[List, Layout]:
-    if isinstance(input_example, torch.Tensor):  # PyTorch
-        shape = list(input_example.shape)
-        layout = Layout("NCHW")
-    elif isinstance(input_example, np.ndarray):  # OpenCV, numpy
-        shape = list(input_example.shape)
-        layout = Layout("NHWC")
-    elif isinstance(input_example, Image.Image):  # PILLOW
-        shape = list(np.array(input_example).shape)
-        layout = Layout("NHWC")
+    if isinstance(input_example, (torch.Tensor, np.ndarray, Image.Image)):  # PyTorch, OpenCV, numpy, PILLOW
+        shape = list(np.array(input_example, copy=False).shape)
+        layout = Layout("NCHW") if isinstance(input_example, torch.Tensor) else Layout("NHWC")
     else:
         raise TypeError(f"Unsupported input type: {type(input_example)}")
 
     if len(shape) == 3:
         shape = [1] + shape
+        raise Warning("Input dimensions extended with batch equal to 1")
+    elif len(shape) != 4:
+        raise ValueError(f"Unsupported number of input dimensions: {len(shape)}")
 
     return shape, layout
 
