@@ -355,7 +355,7 @@ public:
 
     void add_extension(const std::vector<ov::Extension::Ptr>& extensions);
 
-    bool device_supports_model_caching(const std::string& deviceName) const;
+    bool device_supports_model_caching(const std::string& deviceName) const override;
 
     // ov::ICore
     std::shared_ptr<ov::Model> read_model(const std::string& model,

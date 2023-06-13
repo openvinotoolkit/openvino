@@ -223,6 +223,8 @@ public:
      */
     virtual AnyMap get_supported_property(const std::string& full_device_name, const AnyMap& properties) const = 0;
 
+    virtual bool device_supports_model_caching(const std::string& deviceName) const = 0;
+
     /**
      * @brief Default virtual destructor
      */
