@@ -12,9 +12,7 @@
 
 Model optimization is an optional offline step of improving the final model performance and reducing the model size by applying special optimization methods, such as 8-bit quantization, pruning, etc. OpenVINO offers two optimization paths implemented in `Neural Network Compression Framework (NNCF) <https://github.com/openvinotoolkit/nncf>`__:
 
-- :doc:`Model conversion API <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>` implements most of the optimization parameters to a model by default. Yet, you are free to configure mean/scale values, batch size, RGB vs BGR input channels, and other parameters to speed up preprocess of a model (:doc:`Embedding Preprocessing Computation <openvino_docs_MO_DG_Additional_Optimization_Use_Cases>`).
-
-- :doc:`Post-training Quantization <ptq_introduction>` is designed to optimize the inference of deep learning models by applying the post-training 8-bit integer quantization that does not require model retraining or fine-tuning. 
+- :doc:`Post-training Quantization <ptq_introduction>` is designed to optimize the inference of deep learning models by applying the post-training 8-bit integer quantization that does not require model retraining or fine-tuning.
 
 - :doc:`Training-time Optimization <tmo_introduction>`, a suite of advanced methods for training-time model optimization within the DL framework, such as PyTorch and TensorFlow 2.x. It supports methods like Quantization-aware Training, Structured and Unstructured Pruning, etc. 
 
