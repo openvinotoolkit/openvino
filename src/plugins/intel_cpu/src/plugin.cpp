@@ -417,14 +417,6 @@ static bool shouldEnforceBF16(const ov::AnyMap& modelConfig, const Config& engin
 }
 
 static Config::SnippetsMode getSnippetsMode(const ov::AnyMap& modelConfig, const Config& engineConfig) {
-    const auto& dynamicBatchProp = modelConfig.find(InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_ENABLED);
-    const bool enableDynamicBatch = (dynamicBatchProp != modelConfig.end() &&
-                                     dynamicBatchProp->second.as<std::string>() == PluginConfigParams::YES) ||
-                                    engineConfig.enableDynamicBatch;
-
-    if (enableDynamicBatch)  // dynamic batch is not supported
-        return Config::SnippetsMode::Disable;
-
     const auto& snippetsMode = modelConfig.find(InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE);
     if (snippetsMode == modelConfig.end())    // not set explicitly
         return Config::SnippetsMode::Enable;  // enable by default
@@ -499,10 +491,6 @@ Engine::compile_model(const std::shared_ptr<const ov::Model>& model, const ov::A
     Config conf = engConfig;
 
     conf.readProperties(config);
-    if (conf.enableDynamicBatch) {
-        conf.batchLimit = ov::get_batch(cloned_model).get_length();
-    }
-
     if (is_cpu_map_available()) {
         GetPerformanceStreams(conf, cloned_model);
     }
@@ -736,14 +724,6 @@ ov::SupportedOpsMap Engine::query_model(const std::shared_ptr<const ov::Model>& 
     Config conf = engConfig;
     conf.readProperties(config);
 
-    if (model == nullptr) {
-        IE_THROW() << "Input model is empty!";
-    }
-
-    if (conf.enableDynamicBatch) {
-        conf.batchLimit = ov::get_batch(model).get_length();
-    }
-
     const auto& lptProp = config.find(InferenceEngine::PluginConfigInternalParams::KEY_LP_TRANSFORMS_MODE);
     const bool enableLPT = (lptProp != config.end() && lptProp->second.as<std::string>() ==
                                                            PluginConfigParams::YES) /* enabled in the orig_config*/
@@ -807,10 +787,6 @@ std::shared_ptr<ov::ICompiledModel> Engine::import_model(std::istream& networkMo
                 IE_THROW() << "Cache file doesn't contain precalculated number of streams for mode " << mode_name;
             }
         }
-    }
-
-    if (conf.enableDynamicBatch) {
-        conf.batchLimit = ov::get_batch(model).get_length();
     }
     if (is_cpu_map_available()) {
         get_num_streams(conf.streamExecutorConfig._streams, function, conf);

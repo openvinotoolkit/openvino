@@ -41,11 +41,9 @@ struct Config {
 
     bool collectPerfCounters = false;
     bool exclusiveAsyncRequests = false;
-    bool enableDynamicBatch = false;
     SnippetsMode snippetsMode = SnippetsMode::Enable;
     std::string dumpToDot = {};
     std::string device_id = {};
-    int batchLimit = 0;
     float fcSparseWeiDecompressionRate = 1.0f;
 #if defined(OPENVINO_ARCH_X86_64)
     size_t rtCacheCapacity = 5000ul;

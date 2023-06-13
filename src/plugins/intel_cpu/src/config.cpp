@@ -120,18 +120,6 @@ void Config::readProperties(const ov::AnyMap& prop) {
                 IE_THROW() << "Wrong value " << val << "for property key " << ov::hint::enable_hyper_threading.name()
                            << ". Expected only true/false." << std::endl;
             }
-        } else if (key == InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_LIMIT) {
-            int val_i = -1;
-            try {
-                val_i = std::stoi(val);
-            } catch (const std::exception&) {
-                IE_THROW() << "Wrong value for property key "
-                           << InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_LIMIT
-                           << ". Expected only integer numbers";
-            }
-            // zero and any negative value will be treated
-            // as default batch size
-            batchLimit = std::max(val_i, 0);
         } else if (key == ov::intel_cpu::sparse_weights_decompression_rate.name()) {
             float val_f = 0.0f;
             try {
@@ -161,15 +149,7 @@ void Config::readProperties(const ov::AnyMap& prop) {
                 exclusiveAsyncRequests = false;
             else
                 IE_THROW() << "Wrong value for property key " << ov::exclusive_async_requests.name()
-                           << ". Expected only YES/NO";
-        } else if (key.compare(InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_ENABLED) == 0) {
-            if (val.compare(InferenceEngine::PluginConfigParams::YES) == 0)
-                enableDynamicBatch = true;
-            else if (val.compare(InferenceEngine::PluginConfigParams::NO) == 0)
-                enableDynamicBatch = false;
-            else
-                IE_THROW() << "Wrong value for property key "
-                           << InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_ENABLED << ". Expected only YES/NO";
+                                   << ". Expected only YES/NO";
             IE_SUPPRESS_DEPRECATED_START
         } else if (key.compare(InferenceEngine::PluginConfigParams::KEY_DUMP_EXEC_GRAPH_AS_DOT) == 0) {
             IE_SUPPRESS_DEPRECATED_END
@@ -318,14 +298,6 @@ void Config::updateProperties() {
         _config.insert({ PluginConfigParams::KEY_EXCLUSIVE_ASYNC_REQUESTS, PluginConfigParams::YES });
     else
         _config.insert({ PluginConfigParams::KEY_EXCLUSIVE_ASYNC_REQUESTS, PluginConfigParams::NO });
-    IE_SUPPRESS_DEPRECATED_START
-    if (enableDynamicBatch == true)
-        _config.insert({ PluginConfigParams::KEY_DYN_BATCH_ENABLED, PluginConfigParams::YES });
-    else
-        _config.insert({ PluginConfigParams::KEY_DYN_BATCH_ENABLED, PluginConfigParams::NO });
-
-    _config.insert({ PluginConfigParams::KEY_DYN_BATCH_LIMIT, std::to_string(batchLimit) });
-    IE_SUPPRESS_DEPRECATED_END
 
     _config.insert({ PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS, std::to_string(streamExecutorConfig._streams) });
 

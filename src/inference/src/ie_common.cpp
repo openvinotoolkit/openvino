@@ -18,6 +18,7 @@
 #include "ie_parameter.hpp"
 #include "ngraph/opsets/opset.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/runtime/exception.hpp"
 
 namespace InferenceEngine {
 IE_SUPPRESS_DEPRECATED_START
@@ -63,6 +64,8 @@ void Rethrow() {
     } catch (const InferenceEngine::NetworkNotRead& e) {
         throw e;
     } catch (const InferenceEngine::InferCancelled& e) {
+        throw e;
+    } catch (const ov::Cancelled& e) {
         throw e;
     } catch (const std::exception& e) {
         IE_THROW() << e.what();

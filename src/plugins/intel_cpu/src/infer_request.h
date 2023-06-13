@@ -90,7 +90,6 @@ private:
 
     mutable std::unordered_map<std::string, ov::Output<const ov::Node>> _input_ports_map;
     mutable std::unordered_map<std::string, ov::Output<const ov::Node>> _output_ports_map;
-
     std::unordered_map<std::string, ov::Tensor> _outputs;
 
 protected:

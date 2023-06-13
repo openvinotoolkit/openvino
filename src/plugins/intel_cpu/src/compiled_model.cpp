@@ -67,13 +67,6 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     _cfg.isNewApi = !isLegacyAPI();
     _mutex = std::make_shared<std::mutex>();
 
-    if (_cfg.batchLimit > 1) {
-        // check topology for applicability
-        if (!CanProcessDynBatch(_model)) {
-            IE_THROW() << "Graph::CreateGraph: such topology cannot be compiled for dynamic batch!";
-        }
-    }
-
     if (cfg.exclusiveAsyncRequests) {
         // special case when all InferRequests are muxed into a single queue
         _taskExecutor = _plugin->get_executor_manager()->get_executor("CPU");
@@ -371,40 +364,6 @@ ov::Any CompiledModel::GetMetric(const std::string& name) const {
     /* Internally legacy parameters are used with new API as part of migration procedure.
      * This fallback can be removed as soon as migration completed */
     return GetMetricLegacy(name, graph);
-}
-
-bool CompiledModel::CanProcessDynBatch(const std::shared_ptr<ov::Model>& model) const {
-    auto inputs = model->inputs();
-
-    if (inputs.empty())
-        return false;
-
-    auto ops = model->get_ordered_ops();
-    for (const auto& op : ops) {
-        auto type = TypeFromName(op->get_type_name());
-        if (type == Type::Tile) {
-            const auto repeatsNode =
-                std::dynamic_pointer_cast<const ngraph::opset1::Constant>(op->get_input_node_shared_ptr(1));
-            if (!repeatsNode)
-                return false;
-            const auto tile = std::dynamic_pointer_cast<const ngraph::opset1::Tile>(op);
-            if (tile && repeatsNode->cast_vector<int64_t>()[0] == 1)
-                continue;
-        }
-
-        if (type == Type::Reshape) {
-            if (op->get_input_shape(0)[0] == op->get_output_shape(0)[0])
-                continue;
-        }
-
-        if (type != Type::Input && type != Type::Output && type != Type::Convolution && type != Type::Deconvolution &&
-            type != Type::Lrn && type != Type::Pooling && type != Type::FullyConnected && type != Type::MatMul &&
-            type != Type::Softmax && type != Type::Split && type != Type::Concatenation && type != Type::Eltwise) {
-            return false;
-        }
-    }
-
-    return true;
 }
 
 void CompiledModel::export_model(std::ostream& modelStream) const {

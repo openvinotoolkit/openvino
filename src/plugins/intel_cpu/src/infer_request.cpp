@@ -422,7 +422,6 @@ bool SyncInferRequest::check_precision_changed(const ov::Output<const ov::Node>&
             _orig_ports_map.find(name) == _orig_ports_map.end()) {
             OPENVINO_THROW("cpu plugin checking input port's precision failed: cannot find this port!");
         }
-
         return _input_ports_map[name].get_element_type() != _orig_ports_map[name].get_element_type();
     } else {
         if (_output_ports_map.find(name) == _output_ports_map.end() ||
@@ -437,7 +436,6 @@ bool SyncInferRequest::check_precision_changed(const ov::Output<const ov::Node>&
 
 const ov::Output<const ov::Node>& SyncInferRequest::get_internal_port(const ov::Output<const ov::Node>& port) const {
     auto name = get_port_name(port);
-
     bool is_input = ov::op::util::is_parameter(port.get_node());
     if (is_input) {
         return _input_ports_map[name];
@@ -584,8 +582,7 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
                                                           : tensor_desc.getDims());
         }
         if (actualDesc->isCompatible(MemoryDescUtils::convertToCpuBlockedMemoryDesc(tensor_desc)) &&
-            graph->_normalizePreprocMap.find(name) == graph->_normalizePreprocMap.end() &&
-            !graph->getConfig().batchLimit) {
+            graph->_normalizePreprocMap.find(name) == graph->_normalizePreprocMap.end()) {
             _external_ptr[name] = tensor.data();
         } else if (_external_ptr.find(name) != _external_ptr.end()) {
             _external_ptr.erase(name);
@@ -612,7 +609,7 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
         }
 
         const auto& desc = graph->getOutputNodeByName(name)->getParentEdgesAtPort(0)[0]->getMemory().getDesc();
-        if (!isDynamic && tensor_desc == MemoryDescUtils::convertToTensorDesc(desc) && !graph->getConfig().batchLimit) {
+        if (!isDynamic && tensor_desc == MemoryDescUtils::convertToTensorDesc(desc)) {
             _external_ptr[name] = tensor.data();
         } else if (_external_ptr.find(name) != _external_ptr.end()) {
             _external_ptr.erase(name);
@@ -668,8 +665,7 @@ void SyncInferRequest::init_tensor(const std::string& name) {
                 if (!isDynamic &&
                     desc == MemoryDescUtils::convertToTensorDesc(
                                 graph->getInputNodeByName(name)->getChildEdgesAtPort(0)[0]->getMemory().getDesc()) &&
-                    graph->_normalizePreprocMap.find(name) == graph->_normalizePreprocMap.end() &&
-                    !graph->getConfig().batchLimit) {
+                    graph->_normalizePreprocMap.find(name) == graph->_normalizePreprocMap.end()) {
                     _external_ptr[name] = tensor.data();
                 }
             }
@@ -728,8 +724,7 @@ void SyncInferRequest::init_tensor(const std::string& name) {
                                              InferenceEngine::TensorDesc::getLayoutByRank(tensor.get_shape().size()));
             if (!isDynamic && !_external_ptr.count(name) &&
                 desc == MemoryDescUtils::convertToTensorDesc(
-                            output->second->getParentEdgesAtPort(0)[0]->getMemory().getDesc()) &&
-                !graph->getConfig().batchLimit) {
+                            output->second->getParentEdgesAtPort(0)[0]->getMemory().getDesc())) {
                 _external_ptr[name] = tensor.data();
             }
         } else {
