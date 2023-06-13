@@ -13,7 +13,7 @@ TEST(ResolveNameCollisionsTest, FixGeneratedNames) {
     const auto gen_friendly_name = arg0->get_friendly_name();
 
     std::string name = "Parameter_";
-    EXPECT_NE(std::string::npos, gen_friendly_name.find("Parameter_"));
+    EXPECT_NE(std::string::npos, gen_friendly_name.find("OV_Parameter_"));
     unsigned long long index = std::stoull(gen_friendly_name.substr(name.length()));
     name += std::to_string(++index);
 
