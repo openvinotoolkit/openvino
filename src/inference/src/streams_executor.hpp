@@ -37,7 +37,7 @@ CPU& cpu_info();
 /**
  * @brief      Parse CPU cache infomation on Linux
  * @param[in]  _system_info_table system information for this platform.
- * @param[out]  _processors total number for processors in system.
+ * @param[out] _processors total number for processors in system.
  * @param[out] _sockets total number for sockets in system
  * @param[out] _cores total number for physical CPU cores in system
  * @param[out] _proc_type_table summary table of number of processors per type
@@ -54,7 +54,7 @@ void parse_cache_info_linux(const std::vector<std::vector<std::string>> _system_
 /**
  * @brief      Parse CPU frequency infomation on Linux
  * @param[in]  _system_info_table system information for this platform.
- * @param[out]  _processors total number for processors in system.
+ * @param[out] _processors total number for processors in system.
  * @param[out] _sockets total number for sockets in system
  * @param[out] _cores total number for physical CPU cores in system
  * @param[out] _proc_type_table summary table of number of processors per type
@@ -69,10 +69,25 @@ void parse_freq_info_linux(const std::vector<std::vector<std::string>> _system_i
                            std::vector<std::vector<int>>& _cpu_mapping_table);
 
 /**
+ * @brief      update proc_type_table and cpu_mapping_table for vaild processors.
+ * @param[in]  phy_core_list CPU cores id list for physical core of Intel Performance-cores.
+ * @param[out] _sockets total number for sockets in system
+ * @param[out] _cores total number for physical CPU cores in system
+ * @param[out] _proc_type_table summary table of number of processors per type
+ * @param[out] _cpu_mapping_table CPU mapping table for each processor
+ * @return
+ */
+void update_valid_processor_linux(const std::vector<int> phy_core_list,
+                                  int& _sockets,
+                                  int& _cores,
+                                  std::vector<std::vector<int>>& _proc_type_table,
+                                  std::vector<std::vector<int>>& _cpu_mapping_table);
+
+/**
  * @brief      Get cpu_mapping_table from the number of processors, cores and numa nodes
  * @param[in]  _processors total number for processors in system.
- * @param[in] _numa_nodes total number for numa nodes in system
- * @param[in] _cores total number for physical CPU cores in system
+ * @param[in]  _numa_nodes total number for numa nodes in system
+ * @param[in]  _cores total number for physical CPU cores in system
  * @param[out] _proc_type_table summary table of number of processors per type
  * @param[out] _cpu_mapping_table CPU mapping table for each processor
  * @return
