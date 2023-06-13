@@ -50,9 +50,14 @@ public:
 };
 
 LinuxCpuReserveTestCase _2sockets_72cores_hyper_36streams = {
-    72,
-    2,
-    {{72, 36, 0, 36}, {36, 18, 0, 18}, {36, 18, 0, 18}},
+    72,  // param[in]: the number of processors
+    2,   // param[in]: the number of numa nodes
+    // param[in]: proc_type_table, {total processors, number of physical processors, number of Efficient processors,
+    // number of hyper threading processors}
+    {{72, 36, 0, 36},   // total number of processors: 72, the number of physical/hyper threading processors is 36
+     {36, 18, 0, 18},   // the number of MAIN_CORE_PROC/HYPER_THREADING_PROC cores on each numa node 0 is 18.
+     {36, 18, 0, 18}},  // the number of MAIN_CORE_PROC/HYPER_THREADING_PROC cores on each numa node 1 is 18.
+    // param[in]: cpu_mapping_table, {PROCESSOR_ID, SOCKET_ID, CORE_ID, CORE_TYPE, GROUP_ID, Used}
     {
         {0, 0, 0, HYPER_THREADING_PROC, 0, -1},    {1, 0, 1, HYPER_THREADING_PROC, 1, -1},
         {2, 0, 2, HYPER_THREADING_PROC, 2, -1},    {3, 0, 3, HYPER_THREADING_PROC, 3, -1},
@@ -91,12 +96,16 @@ LinuxCpuReserveTestCase _2sockets_72cores_hyper_36streams = {
         {68, 1, 68, MAIN_CORE_PROC, 68, -1},       {69, 1, 69, MAIN_CORE_PROC, 69, -1},
         {70, 1, 70, MAIN_CORE_PROC, 70, -1},       {71, 1, 71, MAIN_CORE_PROC, 71, -1},
     },
-    {{36, MAIN_CORE_PROC, 1}},
+    // param[in]: streams_info_table, {NUMBER_OF_STREAMS, PROC_TYPE, THREADS_PER_STREAM}
+    {{36, MAIN_CORE_PROC, 1}},  // 36 streams on physical processors, the number of threads per stream is 1.
+    // param[out]: stream_processors, the list of processor ids on each stream.
     {
         {36}, {37}, {38}, {39}, {40}, {41}, {42}, {43}, {44}, {45}, {46}, {47}, {48}, {49}, {50}, {51}, {52}, {53},
         {54}, {55}, {56}, {57}, {58}, {59}, {60}, {61}, {62}, {63}, {64}, {65}, {66}, {67}, {68}, {69}, {70}, {71},
     },
+    // param[out]: stream_numa_node_ids, the numa node id on each stream.
     {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+    // param[in]: cpu_status, CPU does not change CPU status
     NOT_USED,
 };
 LinuxCpuReserveTestCase _2sockets_72cores_hyper_2streams = {
@@ -203,7 +212,7 @@ LinuxCpuReserveTestCase _2sockets_72cores_hyper_7streams = {
         {64, 65, 66, 67, 68},
         {69, 70, 71, 51, 52},
     },
-    {0, 0, 0, 1, 1, 1, -1},
+    {0, 0, 0, 1, 1, 1, NUMA_ALL},
     NOT_USED,
 };
 LinuxCpuReserveTestCase _2sockets_72cores_hyper_8streams = {
@@ -316,7 +325,7 @@ LinuxCpuReserveTestCase _2sockets_72cores_hyper_9streams = {
         {66, 67, 68, 69},
         {70, 71, 52, 53},
     },
-    {0, 0, 0, 0, 1, 1, 1, 1, -1},
+    {0, 0, 0, 0, 1, 1, 1, 1, NUMA_ALL},
     NOT_USED,
 };
 LinuxCpuReserveTestCase _2sockets_72cores_hyper_3streams = {
@@ -449,8 +458,8 @@ LinuxCpuReserveTestCase _2sockets_72cores_hyper_3streams_plugin_reserve = {
         {30, 1, 30, HYPER_THREADING_PROC, 30, -1}, {31, 1, 31, HYPER_THREADING_PROC, 31, -1},
         {32, 1, 32, HYPER_THREADING_PROC, 32, -1}, {33, 1, 33, HYPER_THREADING_PROC, 33, -1},
         {34, 1, 34, HYPER_THREADING_PROC, 34, -1}, {35, 1, 35, HYPER_THREADING_PROC, 35, -1},
-        {36, 0, 36, MAIN_CORE_PROC, 36, 1},        {37, 0, 37, MAIN_CORE_PROC, 37, 1},
-        {38, 0, 38, MAIN_CORE_PROC, 38, 1},        {39, 0, 39, MAIN_CORE_PROC, 39, 1},
+        {36, 0, 36, MAIN_CORE_PROC, 36, CPU_USED}, {37, 0, 37, MAIN_CORE_PROC, 37, CPU_USED},
+        {38, 0, 38, MAIN_CORE_PROC, 38, CPU_USED}, {39, 0, 39, MAIN_CORE_PROC, 39, CPU_USED},
         {40, 0, 40, MAIN_CORE_PROC, 40, -1},       {41, 0, 41, MAIN_CORE_PROC, 41, -1},
         {42, 0, 42, MAIN_CORE_PROC, 42, -1},       {43, 0, 43, MAIN_CORE_PROC, 43, -1},
         {44, 0, 44, MAIN_CORE_PROC, 44, -1},       {45, 0, 45, MAIN_CORE_PROC, 45, -1},

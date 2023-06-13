@@ -84,8 +84,9 @@ public:
 };
 
 LinuxCpuStreamTypeCase _2sockets_72cores_nobinding_36streams = {
-    false,
-    2,
+    false,  // param[in]: cpu_reservation
+    2,      // param[in]: number of numa nodes
+    // param[in]: cpu_mapping_table, {PROCESSOR_ID, SOCKET_ID, CORE_ID, CORE_TYPE, GROUP_ID, Used}
     {
         {0, 0, 0, HYPER_THREADING_PROC, 0, -1},    {1, 0, 1, HYPER_THREADING_PROC, 1, -1},
         {2, 0, 2, HYPER_THREADING_PROC, 2, -1},    {3, 0, 3, HYPER_THREADING_PROC, 3, -1},
@@ -124,8 +125,11 @@ LinuxCpuStreamTypeCase _2sockets_72cores_nobinding_36streams = {
         {68, 1, 68, MAIN_CORE_PROC, 68, -1},       {69, 1, 69, MAIN_CORE_PROC, 69, -1},
         {70, 1, 70, MAIN_CORE_PROC, 70, -1},       {71, 1, 71, MAIN_CORE_PROC, 71, -1},
     },
+    // param[in]: proc_type_table,
     {{72, 36, 0, 36}, {36, 18, 0, 18}, {36, 18, 0, 18}},
+    // param[in]: streams_info_table, {NUMBER_OF_STREAMS, PROC_TYPE, THREADS_PER_STREAM}
     {{36, MAIN_CORE_PROC, 1}},
+    // param[out]: stream_type per stream used in new task_arena
     {
         STREAM_WITH_NUMA_ID, STREAM_WITH_NUMA_ID, STREAM_WITH_NUMA_ID, STREAM_WITH_NUMA_ID, STREAM_WITH_NUMA_ID,
         STREAM_WITH_NUMA_ID, STREAM_WITH_NUMA_ID, STREAM_WITH_NUMA_ID, STREAM_WITH_NUMA_ID, STREAM_WITH_NUMA_ID,
@@ -136,7 +140,9 @@ LinuxCpuStreamTypeCase _2sockets_72cores_nobinding_36streams = {
         STREAM_WITH_NUMA_ID, STREAM_WITH_NUMA_ID, STREAM_WITH_NUMA_ID, STREAM_WITH_NUMA_ID, STREAM_WITH_NUMA_ID,
         STREAM_WITH_NUMA_ID,
     },
+    // param[out]: concurrency per stream used in new task_arena
     {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+    // param[out]: core_type per stream used in new task_arena
     {
         MAIN_CORE_PROC, MAIN_CORE_PROC, MAIN_CORE_PROC, MAIN_CORE_PROC, MAIN_CORE_PROC, MAIN_CORE_PROC,
         MAIN_CORE_PROC, MAIN_CORE_PROC, MAIN_CORE_PROC, MAIN_CORE_PROC, MAIN_CORE_PROC, MAIN_CORE_PROC,
@@ -145,6 +151,7 @@ LinuxCpuStreamTypeCase _2sockets_72cores_nobinding_36streams = {
         MAIN_CORE_PROC, MAIN_CORE_PROC, MAIN_CORE_PROC, MAIN_CORE_PROC, MAIN_CORE_PROC, MAIN_CORE_PROC,
         MAIN_CORE_PROC, MAIN_CORE_PROC, MAIN_CORE_PROC, MAIN_CORE_PROC, MAIN_CORE_PROC, MAIN_CORE_PROC,
     },
+    // param[out]: numa_node_id per stream used in new task_arena
     {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
 };
 LinuxCpuStreamTypeCase _2sockets_72cores_nobinding_9streams = {
