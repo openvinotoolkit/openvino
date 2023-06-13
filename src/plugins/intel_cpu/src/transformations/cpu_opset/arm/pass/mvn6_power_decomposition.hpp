@@ -20,7 +20,7 @@ namespace intel_cpu {
  *      │   Parameter  │   │ Constant = 2 │
  *      │              │   │              │
  *      └────────────┬─┘   └──┬───────────┘
- *                   │        │
+ *   Negative value  │        │
  *                   │        │
  *                 ┌─▼────────▼─┐
  *                 │            │
