@@ -93,6 +93,7 @@ You must update several environment variables before you can compile and run Ope
 
 .. code-block:: sh
 
+   cd /opt/intel/openvino_2023 
    source /opt/intel/openvino_2023/setupvars.sh
 
 
