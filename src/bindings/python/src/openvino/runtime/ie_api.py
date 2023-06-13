@@ -7,11 +7,10 @@ from pathlib import Path
 
 import numpy as np
 
-from openvino._pyopenvino import Model
+from openvino._pyopenvino import Model as ModelBase
 from openvino._pyopenvino import Core as CoreBase
 from openvino._pyopenvino import CompiledModel as CompiledModelBase
 from openvino._pyopenvino import AsyncInferQueue as AsyncInferQueueBase
-from openvino._pyopenvino import ConstOutput
 from openvino._pyopenvino import Tensor
 
 from openvino.runtime.utils.data_helpers import (
@@ -21,6 +20,10 @@ from openvino.runtime.utils.data_helpers import (
     tensor_from_file,
 )
 
+
+class Model(ModelBase):
+    def __init__(self, other: ModelBase) -> None:
+        super().__init__(other)
 
 class InferRequest(_InferRequestWrapper):
     """InferRequest class represents infer request which can be run in asynchronous or synchronous manners."""
@@ -360,6 +363,8 @@ class Core(CoreBase):
     between several Core instances. The recommended way is to have a single
     Core instance per application.
     """
+    def read_model(self, model, weights = "") -> Model:
+        return Model(super().read_model(model, weights))
 
     def compile_model(
         self,
