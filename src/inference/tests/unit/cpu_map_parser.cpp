@@ -1334,25 +1334,29 @@ public:
 };
 
 LinuxNumactlTestCase numactl_2sockets_20cores_hyperthreading_1 = {
-    {},  // The logical processors selected in this simulation case does not include the physical core of Pcore
-    {{40, 20, 0, 20}, {20, 10, 0, 10}, {20, 10, 0, 10}},  // The simulated platform is 2 sockets, 20 Pcores and 40
-                                                          // logical processos with hyper-threading enabled.
+    {},  // param[in]: The logical processors selected in this simulation case does not include the physical core of
+         // Pcore
+    {{40, 20, 0, 20},
+     {20, 10, 0, 10},
+     {20, 10, 0, 10}},  // param[in]: The proc_type_table of simulated platform which is 2 sockets, 20 Pcores
+                        // and 40 logical processors with hyper-threading enabled.
     {
         {0, 0, 0, HYPER_THREADING_PROC, 0, -1},
         {2, 0, 2, HYPER_THREADING_PROC, 2, -1},
         {4, 0, 4, HYPER_THREADING_PROC, 4, -1},
         {6, 0, 6, HYPER_THREADING_PROC, 6, -1},
-    },  // This simulation case select logcial processor 0, 2, 4 and 6 which is marked as logcial core of Pcore in
-        // original cpu_mapping_table.
-    1,               // Since all selected logical processors are in one socket, the number of sockets changes to 1.
-    4,               // Since only 4 logical processors are slected, the number of cores changes to 4.
-    {{4, 4, 0, 0}},  // The proc_type_table changes to 4 Pcores only
+    },  // param[in]: This simulation case select logcial processor 0, 2, 4 and 6 which is marked as logcial core of
+        // Pcore in original cpu_mapping_table.
+    1,  // param[expected out]: Since all selected logical processors are in one socket, the number of sockets changes
+        // to 1.
+    4,  // param[expected out]: Since only 4 logical processors are selected, the number of cores changes to 4.
+    {{4, 4, 0, 0}},  // param[expected out]: The proc_type_table changes to 4 Pcores only
     {
         {0, 0, 0, MAIN_CORE_PROC, 0, -1},
         {2, 0, 2, MAIN_CORE_PROC, 2, -1},
         {4, 0, 4, MAIN_CORE_PROC, 4, -1},
         {6, 0, 6, MAIN_CORE_PROC, 6, -1},
-    },  // cpu_mapping_table changes to physical core of Pcore.
+    },  // param[expected out]: cpu_mapping_table changes to physical core of Pcore.
 };
 LinuxNumactlTestCase numactl_2sockets_20cores_hyperthreading_2 = {
     {1, 3, 5, 7},
