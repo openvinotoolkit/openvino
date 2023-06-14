@@ -371,53 +371,6 @@ InferenceEngine::Parameter ExecNetwork::GetMetric(const std::string &name) const
     return GetMetricLegacy(name, graph);
 }
 
-bool ExecNetwork::CanProcessDynBatch(const InferenceEngine::CNNNetwork &network) const {
-    InputsDataMap inputs = network.getInputsInfo();
-
-    if (inputs.empty())
-        return false;
-
-    auto function = network.getFunction();
-    if (function == nullptr) {
-        IE_THROW() << "CPU plug-in doesn't support not ngraph-based model!";
-    }
-
-    auto ops = function->get_ordered_ops();
-    for (const auto& op : ops) {
-        auto type = TypeFromName(op->get_type_name());
-        if (type == Type::Tile) {
-            const auto repeatsNode = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(op->get_input_node_shared_ptr(1));
-            if (!repeatsNode)
-                return false;
-            const auto tile = std::dynamic_pointer_cast<const ngraph::opset1::Tile>(op);
-            if (tile && repeatsNode->cast_vector<int64_t>()[0] == 1)
-                continue;
-        }
-
-        if (type == Type::Reshape) {
-            if (op->get_input_shape(0)[0] == op->get_output_shape(0)[0])
-                continue;
-        }
-
-        if (type != Type::Input &&
-            type != Type::Output &&
-            type != Type::Convolution &&
-            type != Type::Deconvolution &&
-            type != Type::Lrn &&
-            type != Type::Pooling &&
-            type != Type::FullyConnected &&
-            type != Type::MatMul &&
-            type != Type::Softmax &&
-            type != Type::Split &&
-            type != Type::Concatenation &&
-                type != Type::Eltwise) {
-            return false;
-        }
-    }
-
-    return true;
-}
-
 void ExecNetwork::Export(std::ostream& modelStream) {
     CNNNetworkSerializer serializer(modelStream, extensionManager);
     serializer <<_network;

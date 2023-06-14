@@ -228,29 +228,6 @@ TEST_F(DX11RemoteCtx_Test, smoke_make_shared_context) {
     }
 }
 
-
-TEST_F(DX11CachedTexture_Test, smoke_make_shared_nv12_blob_cached) {
-#if defined(ANDROID)
-    GTEST_SKIP();
-#endif
-    using namespace InferenceEngine;
-    using namespace InferenceEngine::gpu;
-    auto ie = InferenceEngine::Core();
-    auto remote_context = make_shared_context(ie, CommonTestUtils::DEVICE_GPU,
-                                                  device_ptr);
-    ASSERT_TRUE(remote_context);
-    const size_t total_run_number = 4;
-    for (size_t i = 0; i < total_run_number; i++) {
-        for (const auto& t : dx11_textures) {
-            auto blob = make_shared_blob_nv12(texture_description.Height,
-                                              texture_description.Width,
-                                              remote_context, t);
-            ASSERT_TRUE(blob);
-            ASSERT_NO_THROW(blob->allocate());
-        }
-    }
-}
-
 TEST_F(DX11CachedTexture_Test, smoke_make_shared_nv12_tensor_cached) {
 #if defined(ANDROID)
     GTEST_SKIP();
