@@ -6,7 +6,6 @@
 #include "ocl_event.hpp"
 #include "ocl_user_event.hpp"
 #include "ocl_command_queues_builder.hpp"
-#include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "ocl_kernel.hpp"
 #include "ocl_common.hpp"
@@ -307,10 +306,6 @@ event::ptr ocl_stream::enqueue_kernel(kernel& kernel,
     try {
         _command_queue.enqueueNDRangeKernel(kern, cl::NullRange, global, local, dep_events_ptr, set_output_event ? &ret_ev : nullptr);
     } catch (cl::Error const& err) {
-        /// WA: Force exit. Any opencl api call can be hang after CL_OUT_OF_RESOURCES.
-        if (err.err() == CL_OUT_OF_RESOURCES) {
-            ov::intel_gpu::ForceExit();
-        }
         throw ocl_error(err);
     }
 

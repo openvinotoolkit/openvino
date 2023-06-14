@@ -8,7 +8,6 @@
 
 #include "primitive_inst.h"
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
-#include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/runtime/memory.hpp"
 #include "to_string_utils.h"
 #include "register.hpp"
@@ -483,10 +482,6 @@ protected:
             try {
                 _prim.execute(stream.get_onednn_stream(), _args[net_id]);
             } catch (dnnl::error& err) {
-                /// WA: Force exit. Any opencl api call can be hang after CL_OUT_OF_RESOURCES.
-                if (err.status == dnnl_status_t::dnnl_out_of_memory) {
-                    ov::intel_gpu::ForceExit();
-                }
                 throw;    // rethrowing dnnl::error if not out_of_memory
             }
 
