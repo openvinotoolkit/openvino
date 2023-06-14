@@ -361,6 +361,12 @@ class Core(CoreBase):
     Core instance per application.
     """
 
+    def __init__(self):
+        import traceback
+        traceback.print_stack()
+        print("PYTHONAPI CORE CREATED")
+        super().__init__()
+
     def compile_model(
         self,
         model: Union[Model, str, Path],
