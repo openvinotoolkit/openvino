@@ -153,7 +153,7 @@ jobs:
         working-directory: src/bindings/python/src/compatibility/openvino
 
         # Python API 2.0 tests Flake code-style
-      - name: Run flake8 on python tests in 
+      - name: Run flake8 on python tests in openvino/tests/layer_tests
         run: |
           modified_files=$(git diff --name-only)
           for file in $modified_files; do
