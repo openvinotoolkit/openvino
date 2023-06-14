@@ -25,6 +25,7 @@
 
 using namespace cldnn;
 
+
 namespace cldnn {
 bool concat_noop_optimization::match(concatenation_node& node) {
     if (node.is_output())
