@@ -417,12 +417,12 @@ void kernels_cache::build_all() {
     // build_batch crashes randomly when threaded while running from a Microsoft Store app
     // it seems to be a bug in Intel's graphics driver, disabling threading is a work around
     auto use_threads{true};
-    #if defined(WIN32) && defined(NTDDI_WIN10_RS5)
+#if defined(WIN32) && defined(NTDDI_WIN10_RS5)
     UINT32 length{0};
-    auto error_code{GetCurrentPackageFullName( &length, nullptr )};
+    auto error_code{GetCurrentPackageFullName(&length, nullptr)};
     // If we get this error, it means we're a regular desktop application, and we can use threads
     use_threads = error_code == APPMODEL_ERROR_NO_PACKAGE;
-    #endif
+#endif
 
     if (_task_executor && use_threads) {
         std::exception_ptr exception;
@@ -432,7 +432,7 @@ void kernels_cache::build_all() {
             tasks.push_back([this, &_build_engine, &batch, &exception] {
                 try {
                     build_batch(_build_engine, batch, _kernels);
-                } catch(...) {
+                } catch (...) {
                     exception = std::current_exception();
                 }
             });
