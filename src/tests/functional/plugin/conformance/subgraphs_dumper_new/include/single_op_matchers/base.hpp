@@ -36,7 +36,7 @@ protected:
     virtual bool match_attrs(const std::shared_ptr<ov::Node> &node,
                              const std::shared_ptr<ov::Node> &ref) const;
 
-    iMatcherConfig::Ptr get_config(const std::shared_ptr<ov::Node> &node) const {};
+    iMatcherConfig::Ptr get_config(const std::shared_ptr<ov::Node> &node) const;
     std::vector<iMatcherConfig::Ptr> default_configs;
 };
 

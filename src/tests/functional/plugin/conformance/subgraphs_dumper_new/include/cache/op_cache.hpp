@@ -27,6 +27,11 @@ public:
         return std::shared_ptr<OpCache>(m_cache_instance);
     }
 
+    static void reset() {
+        m_cache_instance.reset();
+        m_cache_instance = nullptr;
+    }
+
 protected:
     std::map<std::shared_ptr<ov::Node>, MetaInfo> m_ops_cache;
     static std::shared_ptr<OpCache> m_cache_instance;
@@ -40,10 +45,9 @@ protected:
         m_manager.set_matchers(matchers);
     }
 
-    void update_cache(const std::shared_ptr<ov::Node>& node, const std::string& model_path);
+    void update_cache(const std::shared_ptr<ov::Node>& node, const std::string& model_path, size_t model_op_cnt = 1);
     bool serialize_op(const std::pair<std::shared_ptr<ov::Node>, MetaInfo>& op_info);
     std::string get_rel_serilization_dir(const std::shared_ptr<ov::Node>& node);
-    std::shared_ptr<ov::Model> generate_graph_by_node(const std::shared_ptr<ov::Node>& node);
 };
 
 }  // namespace subgraph_dumper

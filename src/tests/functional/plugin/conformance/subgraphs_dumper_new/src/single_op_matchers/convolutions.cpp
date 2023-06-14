@@ -19,7 +19,7 @@ ConvolutionsMatcher::ConvolutionsMatcher() {
 }
 
 bool ConvolutionsMatcher::match(const std::shared_ptr<ov::Node> &node,
-                            const std::shared_ptr<ov::Node> &ref) const {
+                                const std::shared_ptr<ov::Node> &ref) const {
     const auto &cfg = get_config(node);
     if (match_only_configured_ops() && cfg->is_fallback_config) {
         return false;
@@ -45,7 +45,7 @@ bool ConvolutionsMatcher::match(const std::shared_ptr<ov::Node> &node,
 
 bool ConvolutionsMatcher::match_inputs(const std::shared_ptr<ov::Node> &node,
                                        const std::shared_ptr<ov::Node> &ref) const {
-    if (!match_inputs(node, ref)) {
+    if (!BaseMatcher::match_inputs(node, ref)) {
         return false;
     }
     bool has_groups = std::dynamic_pointer_cast<ov::op::v1::GroupConvolution>(node) ||

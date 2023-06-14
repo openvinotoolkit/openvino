@@ -12,19 +12,27 @@ namespace ov {
 namespace tools {
 namespace subgraph_dumper {
 
-MetaInfo::MetaInfo(const std::string& _model_path, const std::map<std::string, InputInfo>& _input_info) {
+MetaInfo::MetaInfo(const std::string& _model_path, const std::map<std::string, InputInfo>& _input_info, size_t _total_op_cnt) {
     if (_model_path != "") {
-        std::string model_name = get_model_name_by_path(_model_path);
-        model_path = {{ model_name, { _model_path } }};
-        occurence_cnt = {{ model_name, 1 }};
+        model_info.insert({ get_model_name_by_path(_model_path), ModelInfo(_model_path, _total_op_cnt) });
     }
     if (!_input_info.empty()) {
         input_info = _input_info;
     }
 }
 
+unsigned long MetaInfo::get_abs_graph_priority() {
+    unsigned long res = 0;
+    for (const auto& model : model_info) {
+        res += model.second.total_op_cnt * model.second.this_op_cnt * model.second.model_priority;
+    }
+    return res;
+}
+
 double MetaInfo::get_graph_priority() {
-    return 0;
+    auto delta = MAX_MODEL_PRIORITY - MIN_MODEL_PRIORITY == 0 ? 1 : MAX_MODEL_PRIORITY - MIN_MODEL_PRIORITY;
+    // return normilized graph priority from [0, 1]
+    return (get_abs_graph_priority() - MIN_MODEL_PRIORITY) / delta;
 }
 
 void MetaInfo::serialize(const std::string& serialization_path) {
@@ -32,12 +40,13 @@ void MetaInfo::serialize(const std::string& serialization_path) {
         pugi::xml_node root = doc.append_child("meta_info");
         pugi::xml_node models = root.append_child("models");
         // todo: iefode: update to prioritize_latest opset
-        for (const auto& model_name : model_path) {
+        for (const auto& model : model_info) {
             pugi::xml_node model_node = models.append_child("model");
-            model_node.append_attribute("name").set_value(model_name.first.c_str());
-            model_node.append_attribute("count").set_value(occurence_cnt[model_name.first]);
-            for (const auto& model : model_name.second) {
-                model_node.append_child("path").append_attribute("model").set_value(model.c_str());
+            model_node.append_attribute("name").set_value(model.first.c_str());
+            model_node.append_attribute("this_op_count").set_value(model.second.this_op_cnt);
+            model_node.append_attribute("total_op_count").set_value(model.second.total_op_cnt);
+            for (const auto& model_path : model.second.model_paths) {
+                model_node.append_child("path").append_child(model_path.c_str());
             }
         }
         double graph_priority = get_graph_priority();
@@ -61,17 +70,19 @@ void MetaInfo::serialize(const std::string& serialization_path) {
         doc.save_file(serialization_path.c_str());
 }
 
-void MetaInfo::update(const std::string& _model_path, const std::map<std::string, InputInfo>& _input_info) {
+void MetaInfo::update(const std::string& _model_path,
+                      const std::map<std::string, InputInfo>& _input_info,
+                      size_t _total_op_cnt) {
     if (input_info.size() != _input_info.size()) {
         throw std::runtime_error("Uncompatible input info!");
     }
     std::string model_name = get_model_name_by_path(_model_path);
-    if (model_path.find(model_name) != model_path.end()) {
-        model_path[model_name].push_back(_model_path);
-        occurence_cnt[model_name]++;
+    if (model_info.find(model_name) != model_info.end()) {
+        model_info.at(model_name).model_paths.push_back(_model_path);
+        model_info.at(model_name).this_op_cnt++;
+        model_info.at(model_name).total_op_cnt += _total_op_cnt;
     } else {
-        model_path.insert({ model_name, { _model_path } });
-        occurence_cnt.insert({ model_name, 1 });
+        model_info.insert({ model_name, ModelInfo(_model_path, _total_op_cnt) });\
     }
     for (const auto& in : _input_info) {
         if (input_info.find(in.first) == input_info.end()) {
@@ -82,18 +93,19 @@ void MetaInfo::update(const std::string& _model_path, const std::map<std::string
             input_info[in.first] = in.second;
         }
     }
+    auto abs_graph_priority = get_abs_graph_priority();
+    if (abs_graph_priority > MAX_MODEL_PRIORITY)
+        MAX_MODEL_PRIORITY = abs_graph_priority;
+    if (abs_graph_priority < MIN_MODEL_PRIORITY)
+        MIN_MODEL_PRIORITY = abs_graph_priority;
 }
 
 std::map<std::string, InputInfo> MetaInfo::get_input_info() {
     return input_info;
 }
 
-std::map<std::string, std::vector<std::string>> MetaInfo::get_model_path() {
-    return model_path;
-}
-
-std::map<std::string, size_t> MetaInfo::get_occurence_cnt() {
-    return occurence_cnt;
+std::map<std::string, ModelInfo> MetaInfo::get_model_info() {
+    return model_info;
 }
 
 std::string MetaInfo::get_model_name_by_path(const std::string& model_path) {

@@ -13,6 +13,9 @@ namespace subgraph_dumper {
 constexpr double DEFAULT_MIN_VALUE = std::numeric_limits<double>::min();
 constexpr double DEFAULT_MAX_VALUE = std::numeric_limits<double>::max();
 
+static unsigned long MIN_MODEL_PRIORITY = std::numeric_limits<unsigned long>::max();
+static unsigned long MAX_MODEL_PRIORITY = std::numeric_limits<unsigned long>::min();
+
 struct InputInfo {
     struct Range {
         double min, max;
@@ -40,25 +43,34 @@ struct InputInfo {
               ranges(Range(in_min, in_max)) {}
 };
 
+struct ModelInfo {
+    ModelInfo(const std::string& model_path = "", size_t total_ops_in_model = 1, size_t _model_priority = 1) :
+        total_op_cnt(total_ops_in_model), model_paths({model_path}),
+        this_op_cnt(1), model_priority(_model_priority) {
+        MIN_MODEL_PRIORITY = MAX_MODEL_PRIORITY = total_op_cnt * this_op_cnt * model_priority;
+    };
+
+    std::vector<std::string> model_paths;
+    size_t this_op_cnt, total_op_cnt, model_priority;
+};
+
 class MetaInfo {
 public:
-    MetaInfo(const std::string& model_path = "", const std::map<std::string, InputInfo>& _input_info = {});
+    MetaInfo(const std::string& model_path = "", const std::map<std::string, InputInfo>& _input_info = {}, size_t total_op_cnt = 1);
     void serialize(const std::string& serialization_path);
-    void update(const std::string& model_path, const std::map<std::string, InputInfo>& _input_info);
+    void update(const std::string& model_path, const std::map<std::string, InputInfo>& _input_info, size_t _total_op_cnt = 1);
     std::map<std::string, InputInfo> get_input_info();
-    std::map<std::string, std::vector<std::string>> get_model_path();
-    std::map<std::string, size_t> get_occurence_cnt();
+    std::map<std::string, ModelInfo> get_model_info();
 
 protected:
     // { input_node_name: input_info }
     std::map<std::string, InputInfo> input_info;
-    // { model_name: [ model_paths ] }
-    std::map<std::string, std::vector<std::string>> model_path;
-    // { model_name: op/graph_occurence_in_model }
-    std::map<std::string, size_t> occurence_cnt;
-
-    std::string get_model_name_by_path(const std::string& model_path);
+    // { model_name: model_paths, this_op/graph_cnt, total_op_cnt, model_priority}
+    std::map<std::string, ModelInfo> model_info;
+    
     double get_graph_priority();
+    unsigned long get_abs_graph_priority();
+    std::string get_model_name_by_path(const std::string& model_path);
 };
 
 }  // namespace subgraph_dumper

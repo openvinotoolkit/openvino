@@ -12,6 +12,20 @@
 
 using namespace ov::tools::subgraph_dumper;
 
+iMatcherConfig::Ptr BaseMatcher::get_config(const std::shared_ptr<ov::Node> &node) const {
+    for (const auto &cfg : default_configs) {
+        if (cfg->op_in_config(node)) {
+            return cfg;
+        }
+    }
+    for (const auto &cfg : default_configs) {
+        if (cfg->is_fallback_config) {
+            return cfg;
+        }
+    }
+    return std::make_shared<MatcherConfig<>>();
+}
+
 bool BaseMatcher::match_inputs(const std::shared_ptr<ov::Node> &node,
                                const std::shared_ptr<ov::Node> &ref) const {
     if (node->get_input_size() != ref->get_input_size()) {
@@ -20,7 +34,7 @@ bool BaseMatcher::match_inputs(const std::shared_ptr<ov::Node> &node,
     const std::vector<size_t> &ignored_ports = get_config(node)->ignored_ports;
 
     for (size_t port_id = 0; port_id < node->get_input_size(); ++port_id) {
-        if (std::any_of(begin(ignored_ports), end(ignored_ports), [=](size_t p) { return p == port_id; })) {
+        if (std::find(ignored_ports.begin(), ignored_ports.end(), port_id) != ignored_ports.end()) {
             continue;
         }
         const auto &cur_node_input_type = node->input_value(port_id).get_node_shared_ptr()->get_type_info();
@@ -31,10 +45,10 @@ bool BaseMatcher::match_inputs(const std::shared_ptr<ov::Node> &node,
         if (node->get_input_tensor(port_id).get_partial_shape().rank() != ref->get_input_tensor(port_id).get_partial_shape().rank()) {
             return false;
         }
-        if (node->get_input_tensor(port_id).get_element_type() == ref->get_input_tensor(port_id).get_element_type()) {
+        if (node->get_input_tensor(port_id).get_element_type() != ref->get_input_tensor(port_id).get_element_type()) {
             return false;
         }
-        if (node->get_input_partial_shape(port_id).is_dynamic() == ref->get_input_partial_shape(port_id).is_dynamic()) {
+        if (node->get_input_partial_shape(port_id).is_dynamic() != ref->get_input_partial_shape(port_id).is_dynamic()) {
             return false;
         }
     }

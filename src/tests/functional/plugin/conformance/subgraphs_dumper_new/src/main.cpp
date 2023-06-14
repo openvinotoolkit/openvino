@@ -4,7 +4,7 @@
 
 #include "gflag_config.hpp"
 #include "cache/op_cache.hpp"
-#include "utils/model_utils.hpp"
+#include "utils/model.hpp"
 
 // todo:: iefode: remove using
 using namespace ov::tools::subgraph_dumper;

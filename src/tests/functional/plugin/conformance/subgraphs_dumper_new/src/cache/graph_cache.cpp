@@ -8,6 +8,8 @@ namespace ov {
 namespace tools {
 namespace subgraph_dumper {
 
+std::shared_ptr<GraphCache> GraphCache::m_cache_instance = nullptr;
+
 void GraphCache::update_cache(const std::shared_ptr<ov::Model>& model, const std::string& model_meta_data, bool extract_body) {}
 void GraphCache::serialize_cache() {}
 

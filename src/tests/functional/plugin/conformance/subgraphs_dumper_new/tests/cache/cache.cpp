@@ -28,8 +28,8 @@ protected:
 
     void SetUp() override {
         model_name = "test_model";
-        test_model_path = ov::util::path_join({ test_artifacts_dir, model_name + ".xml" });
         test_artifacts_dir = ov::util::path_join({CommonTestUtils::getCurrentWorkingDir(), "test_artifacts"});
+        test_model_path = ov::util::path_join({ test_artifacts_dir, model_name + ".xml" });
         ov::util::create_directory_recursive(test_artifacts_dir);
         {
             auto params = ov::ParameterVector {
@@ -88,7 +88,7 @@ TEST_F(ICacheUnitTest, serialize_model) {
         CommonTestUtils::removeFile(xml_path);
         CommonTestUtils::removeFile(bin_path);
         CommonTestUtils::removeFile(meta_path);
-        std::cout << e.what() << std::endl;
+        GTEST_FAIL() << e.what() << std::endl;
     }
 }
 

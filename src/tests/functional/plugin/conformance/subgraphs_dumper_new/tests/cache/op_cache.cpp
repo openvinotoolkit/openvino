@@ -13,6 +13,7 @@
 #include "common_test_utils/graph_comparator.hpp"
 
 #include "cache/op_cache.hpp"
+#include "utils/node.hpp"
 
 namespace {
 
@@ -28,7 +29,7 @@ protected:
     void SetUp() override {
         test_model_name = "test_model_name";
         test_artifacts_dir = ov::util::path_join({CommonTestUtils::getCurrentWorkingDir(), "test_artifacts"});
-        test_model_path = ov::util::path_join({test_artifacts_dir, test_model_path + ".xml"});
+        test_model_path = ov::util::path_join({test_artifacts_dir, test_model_name + ".xml"});
         ov::util::create_directory_recursive(test_artifacts_dir);
         {
             auto params = ov::ParameterVector {
@@ -44,6 +45,7 @@ protected:
 
     void TearDown() override {
         CommonTestUtils::removeDir(test_artifacts_dir);
+        OpCache::reset();
     }
 };
 
@@ -95,10 +97,10 @@ TEST_F(OpCacheUnitTest, update_cache_by_op) {
 }
 
 TEST_F(OpCacheUnitTest, update_cache_by_model) {
-    this->update_cache(convert_node, test_model_path);
+    this->update_cache(convert_node, test_model_path, 1);
     ASSERT_EQ(m_ops_cache.size(), 1);
     std::shared_ptr<ov::Model> test_model_1;
-    std::string test_model_path_1 = ov::util::path_join({test_artifacts_dir, test_model_path + ".xml"});;
+    std::string test_model_path_1 = ov::util::path_join({test_artifacts_dir, test_model_path});
     {
         auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::Type_t::f32, ov::PartialShape{1, 1, 1, 1});
         param->set_friendly_name("in_0");
@@ -118,36 +120,34 @@ TEST_F(OpCacheUnitTest, update_cache_by_model) {
         auto meta = cached_node.second;
         if (std::dynamic_pointer_cast<ov::op::v0::Convert>(cached_node.first)) {
             // check model_path
-            ASSERT_EQ(meta.get_model_path().size(), 1);
-            ASSERT_EQ(meta.get_model_path().begin()->first, test_model_name);
-            ASSERT_EQ(meta.get_model_path().begin()->second.size(), 2);
-            ASSERT_EQ(meta.get_model_path().begin()->second.front(), test_model_path);
-            ASSERT_EQ(meta.get_model_path().begin()->second.back(), test_model_path_1);
+            ASSERT_EQ(meta.get_model_info().size(), 1);
+            ASSERT_EQ(meta.get_model_info().begin()->first, test_model_name);
+            ASSERT_EQ(meta.get_model_info().begin()->second.model_paths.size(), 2);
+            ASSERT_EQ(meta.get_model_info().begin()->second.model_paths.front(), test_model_path);
+            ASSERT_EQ(meta.get_model_info().begin()->second.model_paths.back(), test_model_path_1);
             // check occurence
-            ASSERT_EQ(meta.get_occurence_cnt().size(), 1);
-            ASSERT_EQ(meta.get_occurence_cnt().begin()->first, test_model_name);
-            ASSERT_EQ(meta.get_occurence_cnt().begin()->second, 2);
+            ASSERT_EQ(meta.get_model_info().begin()->second.this_op_cnt, 2);
+            ASSERT_EQ(meta.get_model_info().begin()->second.total_op_cnt, 3);
             // check input_info
             ASSERT_EQ(meta.get_input_info().size(), 1);
-            ASSERT_EQ(meta.get_input_info().begin()->first, "in_0");
+            ASSERT_EQ(meta.get_input_info().begin()->first, "convert_0_0");
             ASSERT_EQ(meta.get_input_info().begin()->second.ranges.max, DEFAULT_MAX_VALUE);
-            ASSERT_EQ(meta.get_input_info().begin()->second.ranges.max, DEFAULT_MIN_VALUE);
+            ASSERT_EQ(meta.get_input_info().begin()->second.ranges.min, DEFAULT_MIN_VALUE);
             ASSERT_EQ(meta.get_input_info().begin()->second.is_const, false);
         } else {
             // check model_path
-            ASSERT_EQ(meta.get_model_path().size(), 1);
-            ASSERT_EQ(meta.get_model_path().begin()->first, test_model_name);
-            ASSERT_EQ(meta.get_model_path().begin()->second.size(), 1);
-            ASSERT_EQ(meta.get_model_path().begin()->second.front(), test_model_path_1);
+            ASSERT_EQ(meta.get_model_info().size(), 1);
+            ASSERT_EQ(meta.get_model_info().begin()->first, test_model_name);
+            ASSERT_EQ(meta.get_model_info().begin()->second.model_paths.size(), 1);
+            ASSERT_EQ(meta.get_model_info().begin()->second.model_paths.front(), test_model_path_1);
             // check occurence
-            ASSERT_EQ(meta.get_occurence_cnt().size(), 1);
-            ASSERT_EQ(meta.get_occurence_cnt().begin()->first, test_model_name);
-            ASSERT_EQ(meta.get_occurence_cnt().begin()->second, 1);
+            ASSERT_EQ(meta.get_model_info().begin()->second.this_op_cnt, 1);
+            ASSERT_EQ(meta.get_model_info().begin()->second.total_op_cnt, 2);
             // check input_info
             ASSERT_EQ(meta.get_input_info().size(), 1);
-            ASSERT_EQ(meta.get_input_info().begin()->first, "in_0");
+            ASSERT_EQ(meta.get_input_info().begin()->first, "erf_0_0");
             ASSERT_EQ(meta.get_input_info().begin()->second.ranges.max, DEFAULT_MAX_VALUE);
-            ASSERT_EQ(meta.get_input_info().begin()->second.ranges.max, DEFAULT_MIN_VALUE);
+            ASSERT_EQ(meta.get_input_info().begin()->second.ranges.min, DEFAULT_MIN_VALUE);
             ASSERT_EQ(meta.get_input_info().begin()->second.is_const, false);
         }
     }
@@ -172,7 +172,7 @@ TEST_F(OpCacheUnitTest, get_rel_serilization_dir) {
 }
 
 TEST_F(OpCacheUnitTest, generate_graph_by_node) {
-    auto generated_graph = this->generate_graph_by_node(convert_node);
+    auto generated_graph = generate_graph_by_node(convert_node);
     auto res = compare_functions(test_model, generated_graph, true, false, true, true, true, false);
     ASSERT_TRUE(res.first);
 }

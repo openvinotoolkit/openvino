@@ -17,12 +17,20 @@ public:
     void serialize_cache() override;
 
     static std::shared_ptr<GraphCache>& get() {
-        static std::shared_ptr<GraphCache> cache_instance;
-        return cache_instance;
+        if (m_cache_instance == nullptr) {
+            m_cache_instance = std::shared_ptr<GraphCache>(new GraphCache);
+        }
+        return m_cache_instance;
+    }
+
+    static void reset() {
+        m_cache_instance.reset();
+        m_cache_instance = nullptr;
     }
 
 private:
     std::map<std::shared_ptr<ov::Model>, MetaInfo> m_graph_cache;
+    static std::shared_ptr<GraphCache> m_cache_instance;
     GraphCache() = default;
 };
 
