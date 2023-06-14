@@ -11,7 +11,6 @@
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
 #include "openvino/runtime/tensor.hpp"
-#include <ie_plugin_config.hpp>
 
 namespace ov {
 namespace test {
@@ -23,7 +22,6 @@ public:
     static std::string getTestCaseName(testing::TestParamInfo<InferRequestParams> obj) {
         std::string targetDevice;
         ov::AnyMap configuration;
-        std::string pluginName;
         std::tie(targetDevice, configuration) = obj.param;
         std::replace(targetDevice.begin(), targetDevice.end(), ':', '.');
 
