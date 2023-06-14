@@ -168,24 +168,28 @@ OPENVINO_RUNTIME_API std::vector<std::vector<int>> get_proc_type_table();
  * extend to support other CPU core type like ARM.
  *
  * The following are two example of processor type table.
- *  1. Processor table of two socket CPUs XEON server
+ *  1. Processor table of 4 numa nodes and 2 socket server
  *
- *  ALL_PROC | MAIN_CORE_PROC | EFFICIENT_CORE_PROC | HYPER_THREADING_PROC
- *     96            48                 0                       48          // Total number of two sockets
- *     48            24                 0                       24          // Number of socket one
- *     48            24                 0                       24          // Number of socket two
+ *  ALL_PROC | MAIN_CORE_PROC | EFFICIENT_CORE_PROC | HYPER_THREADING_PROC | PROC_NUMA_NODE_ID | PROC_SOCKET_ID
+ *     96            48                 0                       48                  -1                 -1
+ *     24            12                 0                       12                   0                  0
+ *     24            12                 0                       12                   1                  0
+ *     24            12                 0                       12                   2                  1
+ *     24            12                 0                       12                   3                  1
  *
- * 2. Processor table of one socket CPU desktop
+ * 2. Processor table of 1 numa node desktop
  *
- *  ALL_PROC | MAIN_CORE_PROC | EFFICIENT_CORE_PROC | HYPER_THREADING_PROC
- *     32            8                 16                       8           // Total number of one socket
+ *  ALL_PROC | MAIN_CORE_PROC | EFFICIENT_CORE_PROC | HYPER_THREADING_PROC | PROC_NUMA_NODE_ID | PROC_SOCKET_ID
+ *     32            8                 16                       8                   -1                 -1
  */
 enum ColumnOfProcessorTypeTable {
     ALL_PROC = 0,              //!< All processors, regardless of backend cpu
     MAIN_CORE_PROC = 1,        //!< Processor based on physical core of Intel Performance-cores
     EFFICIENT_CORE_PROC = 2,   //!< Processor based on Intel Efficient-cores
     HYPER_THREADING_PROC = 3,  //!< Processor based on logical core of Intel Performance-cores
-    PROC_TYPE_TABLE_SIZE = 4   //!< Size of processor type table
+    PROC_NUMA_NODE_ID = 4,     //!< Numa node id of processors in this row
+    PROC_SOCKET_ID = 5,        //!< Socket id of processors in this row
+    PROC_TYPE_TABLE_SIZE = 6   //!< Size of processor type table
 };
 
 /**
