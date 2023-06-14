@@ -15,16 +15,9 @@ but this guide assumes that OpenVINO Runtime is built dynamically. For `Static O
 Library Requirements for C++ and C Languages
 ############################################
 
-Regardless of the language used to write an application, the ``openvino`` library must always be included in the final distribution since it is a core library which orchestrates with all the inference and frontend plugins. ``openvino`` depends on the TBB libraries which are used by OpenVINO Runtime to optimally saturate the devices with computations, so it must be put to the distribution package.
+Regardless of the programming language of an application, the ``openvino`` library must always be included in its final distribution. This core library manages all inference and frontend plugins. The ``openvino`` library depends on the TBB libraries which are used by OpenVINO Runtime to optimally saturate devices with computations.
 
-
-This core library facilitates inference and frontend plugins, while the TBB libraries optimize device computations. By including these components, the application can fully leverage OpenVINO's capabilities and enhance computational performance.
-
-This library serves as the core component that manages the inference and frontend plugins within the application. Additionally, the "openvino" library relies on the TBB (Threading Building Blocks) libraries, which are utilized by the OpenVINO Runtime to effectively utilize the available computational resources. Therefore, including the TBB libraries in the distribution package is crucial. By including both the "openvino" library and its dependencies, the application can fully leverage the capabilities provided by OpenVINO and optimize the performance of computations on supported devices.
-
-Regardless of the programming language of an application, the ``openvino`` library should always be included in its final distribution. This core library 
-
-If your application is written with C language, you need to put the ``openvino_c`` library additionally.
+If your application is in C language, you need to additionally include the ``openvino_c`` library.
 
 The ``plugins.xml`` file with information about inference devices must also be taken as a support file for ``openvino``.
 
@@ -46,11 +39,9 @@ For each inference device, OpenVINO Runtime has its own plugin library:
 - ``openvino_intel_gna_plugin`` for :doc:`Intel® GNA devices <openvino_docs_OV_UG_supported_plugins_GNA>`.
 - ``openvino_arm_cpu_plugin`` for :doc:`ARM CPU devices <openvino_docs_OV_UG_supported_plugins_CPU>`.
 
-Depending on what devices are used in the app, the appropriate libraries need to be put to the distribution package.
+Depending on which devices are used in the app, the corresponding libraries should be included in the distribution package.
 
-As it is shown on the picture above, some plugin libraries may have OS-specific dependencies which are either backend libraries or additional supports files with firmware, etc. Refer to the table below for details:
-
-openvino_env\Lib\site-packages\openvino\libs\cache.json" cache.json
+As shown in the picture above, some plugin libraries may have OS-specific dependencies which are either backend libraries or additional supports files with firmware, etc. Refer to the table below for details:
 
 .. tab-set::
 
@@ -102,17 +93,17 @@ openvino_env\Lib\site-packages\openvino\libs\cache.json" cache.json
 Libraries for Execution Modes
 +++++++++++++++++++++++++++++
 
-The ``HETERO``, ``MULTI``, ``BATCH`` and ``AUTO`` execution modes can also be used explicitly or implicitly by the application. Use the following recommendation scheme to decide whether to put the appropriate libraries to the distribution package:
+The ``HETERO``, ``MULTI``, ``BATCH`` and ``AUTO`` execution modes can also be used by the application explicitly or implicitly. Use the following recommendation scheme to decide whether to add the appropriate libraries to the distribution package:
 
 - If :doc:`AUTO <openvino_docs_OV_UG_supported_plugins_AUTO>` is used explicitly in the application or `ov::Core::compile_model <classov_1_1Core.html#doxid-classov-1-1-core-1a46555f0803e8c29524626be08e7f5c5a>`__ is used without specifying a device, put ``openvino_auto_plugin`` to the distribution.
 
   .. note::
 
-     Automatic Device Selection relies on :doc:`inference device plugins <openvino_docs_OV_UG_Working_with_devices>`. If you are not sure about what inference devices are available on target system, put all the inference plugin libraries to the distribution. If `ov::device::priorities <groupov_runtime_cpp_prop_api.html#doxid-group-ov-runtime-cpp-prop-api-1gae88af90a18871677f39739cb0ef0101e>`__ is used for `AUTO` to specify a limited device list, grab the corresponding device plugins only.
+     Automatic Device Selection relies on :doc:`inference device plugins <openvino_docs_OV_UG_Working_with_devices>`. If you are not sure which inference devices are available on the target system, put all inference plugin libraries in the distribution. If `ov::device::priorities <groupov_runtime_cpp_prop_api.html#doxid-group-ov-runtime-cpp-prop-api-1gae88af90a18871677f39739cb0ef0101e>`__ is used for `AUTO` to specify a limited device list, grab the corresponding device plugins only.
 
-- If :doc:`MULTI <openvino_docs_OV_UG_Running_on_multiple_devices>` is used explicitly, put ``openvino_auto_plugin`` to the distribution.
-- If :doc:`HETERO <openvino_docs_OV_UG_Hetero_execution>` is either used explicitly or `ov::hint::performance_mode <groupov_runtime_cpp_prop_api.html#doxid-group-ov-runtime-cpp-prop-api-1ga2691fe27acc8aa1d1700ad40b6da3ba2>`__ is used with GPU, put ``openvino_hetero_plugin`` to the distribution.
-- If :doc:`BATCH <openvino_docs_OV_UG_Automatic_Batching>` is either used explicitly or ``ov::hint::performance_mode`` is used with GPU, put ``openvino_batch_plugin`` to the distribution.
+- If :doc:`MULTI <openvino_docs_OV_UG_Running_on_multiple_devices>` is used explicitly, put ``openvino_auto_plugin`` in the distribution.
+- If :doc:`HETERO <openvino_docs_OV_UG_Hetero_execution>` is either used explicitly or `ov::hint::performance_mode <groupov_runtime_cpp_prop_api.html#doxid-group-ov-runtime-cpp-prop-api-1ga2691fe27acc8aa1d1700ad40b6da3ba2>`__ is used with GPU, put ``openvino_hetero_plugin`` in the distribution.
+- If :doc:`BATCH <openvino_docs_OV_UG_Automatic_Batching>` is either used explicitly or ``ov::hint::performance_mode`` is used with GPU, put ``openvino_batch_plugin`` in the distribution.
 
 Frontend Libraries for Reading Models
 +++++++++++++++++++++++++++++++++++++
@@ -120,16 +111,16 @@ Frontend Libraries for Reading Models
 OpenVINO Runtime uses frontend libraries dynamically to read models in different formats:
 
 - ``openvino_ir_frontend`` is used to read OpenVINO IR.
-- ``openvino_tensorflow_frontend`` is used to read TensorFlow file format.
-- ``openvino_tensorflow_lite_frontend`` is used to read TensorFlow Lite file format.
-- ``openvino_onnx_frontend`` is used to read ONNX file format.
-- ``openvino_paddle_frontend`` is used to read Paddle file format.
+- ``openvino_tensorflow_frontend`` is used to read the TensorFlow file format.
+- ``openvino_tensorflow_lite_frontend`` is used to read the TensorFlow Lite file format.
+- ``openvino_onnx_frontend`` is used to read the ONNX file format.
+- ``openvino_paddle_frontend`` is used to read the Paddle file format.
 
-Depending on the model format types that are used in the application in `ov::Core::read_model <classov_1_1Core.html#doxid-classov-1-1-core-1ae0576a95f841c3a6f5e46e4802716981>`__, pick up the appropriate libraries.
+Depending on the model format types that are used in the application in `ov::Core::read_model <classov_1_1Core.html#doxid-classov-1-1-core-1ae0576a95f841c3a6f5e46e4802716981>`__, select the appropriate libraries.
 
 .. note::
 
-   To optimize the size of final distribution package, you are recommended to convert models to OpenVINO IR by using :doc:`model conversion API <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`. This way you don't have to keep TensorFlow, TensorFlow Lite, ONNX, PaddlePaddle, and other frontend libraries in the distribution package.
+   To optimize the size of the final distribution package, it is recommended to convert models to OpenVINO IR by using :doc:`model conversion API <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`. This way you do not have to keep TensorFlow, TensorFlow Lite, ONNX, PaddlePaddle, and other frontend libraries in the distribution package.
 
 (Legacy) Preprocessing via G-API
 ++++++++++++++++++++++++++++++++
@@ -145,11 +136,11 @@ Examples
 
 **CPU + OpenVINO IR in C application**
 
-In this example, the application is written in C language, performs inference on CPU, and reads models stored as the OpenVINO IR format. 
+In this example, the application is written in C, performs inference on CPU, and reads models stored in the OpenVINO IR format. 
 
 The following libraries are used: ``openvino_c``, ``openvino``, ``openvino_intel_cpu_plugin``, and ``openvino_ir_frontend``.
 
-- The ``openvino_c`` library is a main dependency of the application. It links against this library.
+- The ``openvino_c`` library is a main dependency of the application. The app links against this library.
 - The ``openvino`` library is used as a private dependency for ``openvino_c`` and is also used in the deployment.
 - ``openvino_intel_cpu_plugin`` is used for inference.
 - ``openvino_ir_frontend`` is used to read source models.
@@ -160,10 +151,10 @@ In this example, the application is written in C++, performs inference :doc:`sim
 
 The following libraries are used: ``openvino``, ``openvino_intel_gpu_plugin``, ``openvino_intel_cpu_plugin``, ``openvino_auto_plugin``, ``openvino_auto_batch_plugin``, and ``openvino_onnx_frontend``. 
 
-- The ``openvino`` library is a main dependency of the application. It links against this library.
+- The ``openvino`` library is a main dependency of the application. The app links against this library.
 - ``openvino_intel_gpu_plugin`` and ``openvino_intel_cpu_plugin`` are used for inference.
 - ``openvino_auto_plugin`` is used for Multi-Device Execution.
-- ``openvino_auto_batch_plugin`` can be also put to the distribution to improve the saturation of :doc:`Intel® GPU <openvino_docs_OV_UG_supported_plugins_GPU>` device. If there is no such plugin, :doc:`Automatic Batching <openvino_docs_OV_UG_Automatic_Batching>` is turned off.
+- ``openvino_auto_batch_plugin`` can be also put in the distribution to improve the saturation of :doc:`Intel® GPU <openvino_docs_OV_UG_supported_plugins_GPU>` device. If there is no such plugin, :doc:`Automatic Batching <openvino_docs_OV_UG_Automatic_Batching>` is turned off.
 - ``openvino_onnx_frontend`` is used to read source models.
 
 **Auto-Device Selection between GPU and CPU**
@@ -172,7 +163,7 @@ In this example, the application is written in C++, performs inference with the 
 
 The following libraries are used: ``openvino``, ``openvino_auto_plugin``, ``openvino_intel_gpu_plugin``, and ``openvino_intel_cpu_plugin``. 
 
-- The ``openvino`` library is a main dependency of the application. It links against this library.
+- The ``openvino`` library is a main dependency of the application. The app links against this library.
 - ``openvino_auto_plugin`` is used to enable Automatic Device Selection.
 - ``openvino_intel_gpu_plugin`` and ``openvino_intel_cpu_plugin`` are used for inference. AUTO selects between CPU and GPU devices according to their physical existence on the deployed machine.
 - No frontend library is needed because ``ov::Model`` is created in code.
