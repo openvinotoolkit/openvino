@@ -76,7 +76,7 @@ protected:
      */
     GraphGuard::Lock GetGraph() const;
 
-    bool CanProcessDynBatch(const InferenceEngine::CNNNetwork &network) const;
+    bool isLegacyAPI() const;
 
     InferenceEngine::Parameter GetConfigLegacy(const std::string &name) const;
 
