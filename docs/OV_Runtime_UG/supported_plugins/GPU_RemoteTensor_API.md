@@ -45,7 +45,7 @@ To create the ``ov::RemoteContext`` object for user context, explicitly provide 
 of ``ov::RemoteContext`` derived classes.
 
 
-.. tab-item:: Linux/C++
+.. tab-set:: Linux/C++
 
    .. tab-item:: Create from cl_context
  
@@ -85,7 +85,7 @@ of ``ov::RemoteContext`` derived classes.
          :language: cpp
          :fragment: [context_from_d3d_device]
 
-.. tab-item:: Linux/C
+.. tab-set:: Linux/C
 
    .. tab-item:: Create from cl_context
 
@@ -105,7 +105,7 @@ of ``ov::RemoteContext`` derived classes.
          :language: c
          :fragment: [context_from_va_display]
 
-.. tab-item:: Windows/C
+.. tab-set:: Windows/C
 
    .. tab-item:: Create from cl_context
 
@@ -135,7 +135,7 @@ Once the plugin options have been changed, the internal context is replaced by t
 
 To request the current default context of the plugin, use one of the following methods:
 
-.. tab-item:: C++
+.. tab-set:: C++
 
    .. tab-item:: Get context from Core
 
@@ -149,7 +149,7 @@ To request the current default context of the plugin, use one of the following m
          :language: cpp
          :fragment: [default_context_from_model]
 
-.. tab-item:: C
+.. tab-set:: C
 
    .. tab-item:: Get context from Core
 

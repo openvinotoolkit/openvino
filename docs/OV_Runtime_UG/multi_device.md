@@ -97,7 +97,7 @@ using the :doc:`configure devices <openvino_docs_OV_UG_query_api>` property:
 
 .. tab-set::
 
-   .. tab:: C++
+   .. tab-item:: C++
       :sync: cpp
       
       .. doxygensnippet:: docs/snippets/MULTI5.cpp
