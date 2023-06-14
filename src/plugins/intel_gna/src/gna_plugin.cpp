@@ -1109,9 +1109,7 @@ RequestStatus GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
                           elementsPerBatch,
                           gna_output_desc.tensor_precision,
                           Precision::I32,
-                          1.0f,   // scale factor
-                          false,  // don't perform scaling; this is necessary because division by 1.0f causes
-                                  // discrepancy on 6th decimal place in InferenceEngineUnitTests
+                          1.0f,
                           isAvx2Supported);
         } else {
             export_scores(gna_output_blob->buffer(),
@@ -1125,7 +1123,6 @@ RequestStatus GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
                           gna_output_desc.tensor_precision,
                           gna_output_desc.model_precision,
                           gna_output_desc.scale_factor,
-                          true,  // perform scaling
                           isAvx2Supported);
 
 #ifdef PLOT

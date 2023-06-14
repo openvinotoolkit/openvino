@@ -14,12 +14,12 @@ namespace intel_gna {
 namespace pre_post_processing {
 
 #ifdef HAVE_AVX2
-void ConvertMatrixFp32ToInt16(int16_t* ptr_dst,
-                              const float* ptr_src,
-                              const uint32_t num_rows,
-                              const uint32_t num_columns,
-                              const float scale_factor,
-                              bool transpose) {
+void convert_matrix_fp32_to_int16_avx(int16_t* ptr_dst,
+                                      const float* ptr_src,
+                                      const uint32_t num_rows,
+                                      const uint32_t num_columns,
+                                      const float scale_factor,
+                                      bool transpose) {
     const uint32_t num_elements = num_rows * num_columns;
     uint32_t moves = num_elements / 8;
     uint32_t mod = num_elements % 8;
@@ -77,12 +77,12 @@ void ConvertMatrixFp32ToInt16(int16_t* ptr_dst,
     }
 }
 
-void ConvertMatrixFp32ToInt8(int8_t* ptr_dst,
-                             const float* ptr_src,
-                             const uint32_t num_rows,
-                             const uint32_t num_columns,
-                             const float scale_factor,
-                             bool transpose) {
+void convert_matrix_fp32_to_int8_avx(int8_t* ptr_dst,
+                                     const float* ptr_src,
+                                     const uint32_t num_rows,
+                                     const uint32_t num_columns,
+                                     const float scale_factor,
+                                     bool transpose) {
     const uint32_t num_elements = num_rows * num_columns;
     uint32_t moves = num_elements / 8;
     uint32_t mod = num_elements % 8;
@@ -141,13 +141,12 @@ void ConvertMatrixFp32ToInt8(int8_t* ptr_dst,
     }
 }
 
-void ConvertMatrixInt32ToFp32Avx(float* ptr_dst,
-                                 const int32_t* ptr_src,
-                                 uint32_t num_rows,
-                                 uint32_t num_columns,
-                                 float scale_factor,
-                                 bool scale,
-                                 bool transpose) {
+void convert_matrix_int32_to_fp32_avx(float* ptr_dst,
+                                      const int32_t* ptr_src,
+                                      uint32_t num_rows,
+                                      uint32_t num_columns,
+                                      float scale_factor,
+                                      bool transpose) {
     const uint32_t num_elements = num_rows * num_columns;
     uint32_t moves = num_elements / 8;
     uint32_t mod = num_elements % 8;
@@ -160,11 +159,7 @@ void ConvertMatrixInt32ToFp32Avx(float* ptr_dst,
         v = _mm256_cvtepi32_ps(*reinterpret_cast<const __m256i*>(&ptr_src[i * 8]));
 
         // values = v * 1/scaleFactors
-        if (scale) {
-            values = _mm256_div_ps(v, scaleFactors);
-        } else {
-            values = v;
-        }
+        values = _mm256_div_ps(v, scaleFactors);
         if (transpose) {
             for (j = 0; j < 8; j++, index++) {
                 uint32_t targetColumn = index / num_columns;
@@ -183,28 +178,19 @@ void ConvertMatrixInt32ToFp32Avx(float* ptr_dst,
             uint32_t targetRow = index % num_columns;
             // target number of rows == source number of columns
             uint32_t targetIndex = targetRow * num_rows + targetColumn;
-            if (scale) {
-                ptr_dst[targetIndex] = static_cast<float>(ptr_src[moves * 8 + i] / scale_factor);
-            } else {
-                ptr_dst[targetIndex] = static_cast<float>(ptr_src[moves * 8 + i]);
-            }
+            ptr_dst[targetIndex] = static_cast<float>(ptr_src[moves * 8 + i] / scale_factor);
         } else {
-            if (scale) {
-                ptr_dst[moves * 8 + i] = static_cast<float>(ptr_src[moves * 8 + i] / scale_factor);
-            } else {
-                ptr_dst[moves * 8 + i] = static_cast<float>(ptr_src[moves * 8 + i]);
-            }
+            ptr_dst[moves * 8 + i] = static_cast<float>(ptr_src[moves * 8 + i] / scale_factor);
         }
     }
 }
 
-void ConvertMatrixInt16ToFp32Avx(float* ptr_dst,
-                                 const int16_t* ptr_src,
-                                 uint32_t num_rows,
-                                 uint32_t num_columns,
-                                 float scale_factor,
-                                 bool scale,
-                                 bool transpose) {
+void convert_matrix_int16_to_fp32_avx(float* ptr_dst,
+                                      const int16_t* ptr_src,
+                                      uint32_t num_rows,
+                                      uint32_t num_columns,
+                                      float scale_factor,
+                                      bool transpose) {
     const uint32_t num_elements = num_rows * num_columns;
     uint32_t moves = num_elements / 8;
     uint32_t mod = num_elements % 8;
@@ -218,11 +204,7 @@ void ConvertMatrixInt16ToFp32Avx(float* ptr_dst,
         v = _mm256_cvtepi32_ps(int32Values);
 
         // values = v * 1/scaleFactors
-        if (scale) {
-            values = _mm256_div_ps(v, scaleFactors);
-        } else {
-            values = v;
-        }
+        values = _mm256_div_ps(v, scaleFactors);
         if (transpose) {
             for (j = 0; j < 8; j++, index++) {
                 uint32_t targetColumn = index / num_columns;
@@ -241,28 +223,19 @@ void ConvertMatrixInt16ToFp32Avx(float* ptr_dst,
             uint32_t targetRow = index % num_columns;
             // target number of rows == source number of columns
             uint32_t targetIndex = targetRow * num_rows + targetColumn;
-            if (scale) {
-                ptr_dst[targetIndex] = static_cast<float>(ptr_src[moves * 8 + i] / scale_factor);
-            } else {
-                ptr_dst[targetIndex] = static_cast<float>(ptr_src[moves * 8 + i]);
-            }
+            ptr_dst[targetIndex] = static_cast<float>(ptr_src[moves * 8 + i] / scale_factor);
         } else {
-            if (scale) {
-                ptr_dst[moves * 8 + i] = static_cast<float>(ptr_src[moves * 8 + i] / scale_factor);
-            } else {
-                ptr_dst[moves * 8 + i] = static_cast<float>(ptr_src[moves * 8 + i]);
-            }
+            ptr_dst[moves * 8 + i] = static_cast<float>(ptr_src[moves * 8 + i] / scale_factor);
         }
     }
 }
 
-void ConvertMatrixInt8ToFp32Avx(float* ptr_dst,
-                                const int8_t* ptr_src,
-                                uint32_t num_rows,
-                                uint32_t num_columns,
-                                float scale_factor,
-                                bool scale,
-                                bool transpose) {
+void convert_matrix_int8_to_fp32_avx(float* ptr_dst,
+                                     const int8_t* ptr_src,
+                                     uint32_t num_rows,
+                                     uint32_t num_columns,
+                                     float scale_factor,
+                                     bool transpose) {
     const uint32_t num_elements = num_rows * num_columns;
     uint32_t moves = num_elements / 8;
     uint32_t mod = num_elements % 8;
@@ -276,11 +249,7 @@ void ConvertMatrixInt8ToFp32Avx(float* ptr_dst,
         v = _mm256_cvtepi32_ps(int32Values);
 
         // values = v * 1/scaleFactors
-        if (scale) {
-            values = _mm256_div_ps(v, scaleFactors);
-        } else {
-            values = v;
-        }
+        values = _mm256_div_ps(v, scaleFactors);
         if (transpose) {
             for (j = 0; j < 8; j++, index++) {
                 uint32_t targetColumn = index / num_columns;
@@ -299,59 +268,48 @@ void ConvertMatrixInt8ToFp32Avx(float* ptr_dst,
             uint32_t targetRow = index % num_columns;
             // target number of rows == source number of columns
             uint32_t targetIndex = targetRow * num_rows + targetColumn;
-            if (scale) {
-                ptr_dst[targetIndex] = static_cast<float>(ptr_src[moves * 8 + i] / scale_factor);
-            } else {
-                ptr_dst[targetIndex] = static_cast<float>(ptr_src[moves * 8 + i]);
-            }
+            ptr_dst[targetIndex] = static_cast<float>(ptr_src[moves * 8 + i] / scale_factor);
         } else {
-            if (scale) {
-                ptr_dst[moves * 8 + i] = static_cast<float>(ptr_src[moves * 8 + i] / scale_factor);
-            } else {
-                ptr_dst[moves * 8 + i] = static_cast<float>(ptr_src[moves * 8 + i]);
-            }
+            ptr_dst[moves * 8 + i] = static_cast<float>(ptr_src[moves * 8 + i] / scale_factor);
         }
     }
 }
 #else
 
-void ConvertMatrixFp32ToInt16(int16_t* /*ptr_dst*/,
-                              const float* /*ptr_src*/,
-                              const uint32_t /*num_rows*/,
-                              const uint32_t /*num_columns*/,
-                              const float /*scale_factor*/,
-                              bool /*transpose*/) {}
+void convert_matrix_fp32_to_int16_avx(int16_t* /*ptr_dst*/,
+                                      const float* /*ptr_src*/,
+                                      const uint32_t /*num_rows*/,
+                                      const uint32_t /*num_columns*/,
+                                      const float /*scale_factor*/,
+                                      bool /*transpose*/) {}
 
-void ConvertMatrixFp32ToInt8(int8_t* /*ptr_dst*/,
-                             const float* /*ptr_src*/,
-                             const uint32_t /*num_rows*/,
-                             const uint32_t /*num_columns*/,
-                             const float /*scale_factor*/,
-                             bool /*transpose*/) {}
+void convert_matrix_fp32_to_int8_avx(int8_t* /*ptr_dst*/,
+                                     const float* /*ptr_src*/,
+                                     const uint32_t /*num_rows*/,
+                                     const uint32_t /*num_columns*/,
+                                     const float /*scale_factor*/,
+                                     bool /*transpose*/) {}
 
-void ConvertMatrixInt32ToFp32Avx(float* /*ptr_dst*/,
-                                 const int32_t* /*ptr_src*/,
-                                 uint32_t /*num_rows*/,
-                                 uint32_t /*num_columns*/,
-                                 float /*scale_factor*/,
-                                 bool scale, /*scale the result or not*/
-                                 bool /*transpose*/) {}
+void convert_matrix_int32_to_fp32_avx(float* /*ptr_dst*/,
+                                      const int32_t* /*ptr_src*/,
+                                      uint32_t /*num_rows*/,
+                                      uint32_t /*num_columns*/,
+                                      float /*scale_factor*/,
+                                      bool /*transpose*/) {}
 
-void ConvertMatrixInt16ToFp32Avx(float* /*ptr_dst*/,
-                                 const int16_t* /*ptr_src*/,
-                                 uint32_t /*num_rows*/,
-                                 uint32_t /*num_columns*/,
-                                 float /*scale_factor*/,
-                                 bool scale, /*scale the result or not*/
-                                 bool /*transpose*/) {}
+void convert_matrix_int16_to_fp32_avx(float* /*ptr_dst*/,
+                                      const int16_t* /*ptr_src*/,
+                                      uint32_t /*num_rows*/,
+                                      uint32_t /*num_columns*/,
+                                      float /*scale_factor*/,
+                                      bool /*transpose*/) {}
 
-void ConvertMatrixInt8ToFp32Avx(float* /*ptr_dst*/,
-                                const int8_t* /*ptr_src*/,
-                                uint32_t /*num_rows*/,
-                                uint32_t /*num_columns*/,
-                                float /*scale_factor*/,
-                                bool scale, /*scale the result or not*/
-                                bool /*transpose*/) {}
+void convert_matrix_int8_to_fp32_avx(float* /*ptr_dst*/,
+                                     const int8_t* /*ptr_src*/,
+                                     uint32_t /*num_rows*/,
+                                     uint32_t /*num_columns*/,
+                                     float /*scale_factor*/,
+                                     bool /*transpose*/) {}
 #endif  // HAVE_AVX2
 
 }  // namespace pre_post_processing

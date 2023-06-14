@@ -56,7 +56,6 @@ void export_scores(void* ptr_dst,
                    const InferenceEngine::Precision& precision_in,
                    const InferenceEngine::Precision& precision_out,
                    const float scale_factor,
-                   bool scale,
                    bool isAvx2Supported) {
     if (ptr_src == nullptr || ptr_dst == nullptr) {
         THROW_GNA_EXCEPTION << "Received null pointer arguments";
@@ -75,13 +74,12 @@ void export_scores(void* ptr_dst,
         switch (precision_in) {
         case Precision::I8:
             if (isAvx2Supported && !needsZeroPadding) {
-                ConvertMatrixInt8ToFp32Avx(reinterpret_cast<float*>(ptr_dst),
-                                           reinterpret_cast<const int8_t*>(ptr_src),
-                                           num_vector_stride,
-                                           num_frames,
-                                           scale_factor,
-                                           scale,
-                                           transpose);
+                convert_matrix_int8_to_fp32_avx(reinterpret_cast<float*>(ptr_dst),
+                                                reinterpret_cast<const int8_t*>(ptr_src),
+                                                num_vector_stride,
+                                                num_frames,
+                                                scale_factor,
+                                                transpose);
                 break;
             }
             unscale_transpose_and_cast(reinterpret_cast<float*>(ptr_dst),
@@ -92,18 +90,16 @@ void export_scores(void* ptr_dst,
                                        num_vector_elements,
                                        num_active_elements,
                                        num_vector_stride,
-                                       scale_factor,
-                                       scale);
+                                       scale_factor);
             break;
         case Precision::I16:
             if (isAvx2Supported && !needsZeroPadding) {
-                ConvertMatrixInt16ToFp32Avx(reinterpret_cast<float*>(ptr_dst),
-                                            reinterpret_cast<const int16_t*>(ptr_src),
-                                            num_vector_stride,
-                                            num_frames,
-                                            scale_factor,
-                                            scale,
-                                            transpose);
+                convert_matrix_int16_to_fp32_avx(reinterpret_cast<float*>(ptr_dst),
+                                                 reinterpret_cast<const int16_t*>(ptr_src),
+                                                 num_vector_stride,
+                                                 num_frames,
+                                                 scale_factor,
+                                                 transpose);
                 break;
             }
             unscale_transpose_and_cast(reinterpret_cast<float*>(ptr_dst),
@@ -114,18 +110,16 @@ void export_scores(void* ptr_dst,
                                        num_vector_elements,
                                        num_active_elements,
                                        num_vector_stride,
-                                       scale_factor,
-                                       scale);
+                                       scale_factor);
             break;
         case Precision::I32:
             if (isAvx2Supported && !needsZeroPadding) {
-                ConvertMatrixInt32ToFp32Avx(reinterpret_cast<float*>(ptr_dst),
-                                            reinterpret_cast<const int32_t*>(ptr_src),
-                                            num_vector_stride,
-                                            num_frames,
-                                            scale_factor,
-                                            scale,
-                                            transpose);
+                convert_matrix_int32_to_fp32_avx(reinterpret_cast<float*>(ptr_dst),
+                                                 reinterpret_cast<const int32_t*>(ptr_src),
+                                                 num_vector_stride,
+                                                 num_frames,
+                                                 scale_factor,
+                                                 transpose);
                 break;
             }
             unscale_transpose_and_cast(reinterpret_cast<float*>(ptr_dst),
@@ -136,8 +130,7 @@ void export_scores(void* ptr_dst,
                                        num_vector_elements,
                                        num_active_elements,
                                        num_vector_stride,
-                                       scale_factor,
-                                       scale);
+                                       scale_factor);
             break;
         default:
             THROW_GNA_EXCEPTION << "Unsupported data type";
@@ -154,8 +147,7 @@ void export_scores(void* ptr_dst,
                                        num_vector_elements,
                                        num_active_elements,
                                        num_vector_stride,
-                                       scale_factor,
-                                       scale);
+                                       scale_factor);
             break;
         case Precision::I16:
             unscale_transpose_and_cast(reinterpret_cast<int32_t*>(ptr_dst),
@@ -166,8 +158,7 @@ void export_scores(void* ptr_dst,
                                        num_vector_elements,
                                        num_active_elements,
                                        num_vector_stride,
-                                       scale_factor,
-                                       scale);
+                                       scale_factor);
             break;
         case Precision::I32:
             unscale_transpose_and_cast(reinterpret_cast<int32_t*>(ptr_dst),
@@ -178,8 +169,7 @@ void export_scores(void* ptr_dst,
                                        num_vector_elements,
                                        num_active_elements,
                                        num_vector_stride,
-                                       scale_factor,
-                                       scale);
+                                       scale_factor);
             break;
         default:
             THROW_GNA_EXCEPTION << "Unsupported data type";
@@ -282,7 +272,7 @@ void import_frames(void* ptr_dst,
                 auto dst = reinterpret_cast<int16_t*>(ptr_dst);
 
                 if (isAvx2Supported && !needsZeroPadding) {
-                    ConvertMatrixFp32ToInt16(dst, src, num_group, num_vector_stride, scaleFactor, transpose);
+                    convert_matrix_fp32_to_int16_avx(dst, src, num_group, num_vector_stride, scaleFactor, transpose);
                     break;
                 }
 
@@ -299,7 +289,7 @@ void import_frames(void* ptr_dst,
                 auto dst = reinterpret_cast<int8_t*>(ptr_dst);
 
                 if (isAvx2Supported && !needsZeroPadding) {
-                    ConvertMatrixFp32ToInt8(dst, src, num_group, num_vector_stride, scaleFactor, transpose);
+                    convert_matrix_fp32_to_int8_avx(dst, src, num_group, num_vector_stride, scaleFactor, transpose);
                     break;
                 }
 

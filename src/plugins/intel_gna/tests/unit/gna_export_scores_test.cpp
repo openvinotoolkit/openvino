@@ -86,7 +86,6 @@ public:
                                            precisionIn,
                                            precisionOut,
                                            sf,
-                                           true,
                                            plugin->isAvx2Support());
         if (orientation == kDnnInterleavedOrientation) {
             for (int i = 0; i < shape[0]; ++i) {

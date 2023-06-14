@@ -31,17 +31,13 @@ inline void unscale_transpose_and_cast(T* ptr_dst,
                                        uint32_t num_vector_elements,
                                        uint32_t num_active_elements,
                                        uint32_t num_vector_stride,
-                                       const float scale_factor,
-                                       bool scale) {
+                                       const float scale_factor) {
     // source scores are possibly padded to multiple of 8 and possibly interleaved
     // rotate if necessary and only copy actual scores (not padding)
     if (orientation == kDnnInterleavedOrientation) {
         for (uint32_t i = 0; i < num_frames; i++) {
             for (uint32_t j = 0; j < num_active_elements; j++) {
-                if (scale)
-                    ptr_dst[i * num_vector_elements + j] = static_cast<T>(ptr_src[j * num_group + i] / scale_factor);
-                else
-                    ptr_dst[i * num_vector_elements + j] = static_cast<T>(ptr_src[j * num_group + i]);
+                ptr_dst[i * num_vector_elements + j] = static_cast<T>(ptr_src[j * num_group + i] / scale_factor);
             }
             for (uint32_t j = num_active_elements; j < num_vector_elements; j++) {
                 ptr_dst[i * num_vector_elements + j] = 0;
@@ -50,12 +46,8 @@ inline void unscale_transpose_and_cast(T* ptr_dst,
     } else {
         for (uint32_t i = 0; i < num_frames; i++) {
             for (uint32_t j = 0; j < num_vector_elements; j++) {
-                if (scale) {
-                    ptr_dst[i * num_vector_elements + j] =
-                        static_cast<T>(ptr_src[i * num_vector_stride + j] / scale_factor);
-                } else {
-                    ptr_dst[i * num_vector_elements + j] = static_cast<T>(ptr_src[i * num_vector_stride + j]);
-                }
+                ptr_dst[i * num_vector_elements + j] =
+                    static_cast<T>(ptr_src[i * num_vector_stride + j] / scale_factor);
             }
         }
     }
@@ -154,7 +146,6 @@ void export_scores(void* ptr_dst,
                    const InferenceEngine::Precision& precision_in,
                    const InferenceEngine::Precision& precision_out,
                    const float scale_factor,
-                   bool scale,
                    bool isAvx2Supported);
 }  // namespace pre_post_processing
 }  // namespace intel_gna
