@@ -252,7 +252,6 @@ Schedule::~Schedule() {
             req_all_start_times.sort(std::less<Time>());
             req_all_end_times.sort(std::less<Time>());
             {
-                LOG_INFO_TAG("%s:infer:%ld", worker_request.first.c_str(), count);
                 auto n = req_all_start_times.size();
                 Time time;
                 while (!req_all_start_times.empty()) {
@@ -265,6 +264,7 @@ Schedule::~Schedule() {
                     }
                 }
                 if (n >= 1) {
+                    LOG_INFO_TAG("%s:infer:%ld", worker_request.first.c_str(), count);
                     std::chrono::duration<double, std::milli> durtation =
                         req_all_end_times.back() - time;
                     LOG_INFO_TAG("%s:fps:%lf", worker_request.first.c_str(),
