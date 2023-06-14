@@ -318,7 +318,9 @@ class TorchScriptPythonDecoder (Decoder):
         return self.outputs()[index]
 
     def mark_node(self, node):
-        name = self.graph_element.kind() + "/" + node.get_type_name()
+        name = self.graph_element.kind()
+        if "FrameworkNode" not in node.get_type_name():
+            name += "/" + node.get_type_name()
         if self.graph_element.scopeName():
             node.set_friendly_name(self.graph_element.scopeName().split("/")[-1] + "/" + name)
         else:
