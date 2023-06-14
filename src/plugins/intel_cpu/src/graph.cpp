@@ -983,14 +983,6 @@ void Graph::PullOutputData(BlobMap &out) {
             outBloMem.SetData(intr_blob, false);
         } else {
             size_t size_to_copy = intr_blob.GetDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
-            // used only for backward compatibility with the legacy API
-            if (getConfig().batchLimit && dynBatch > 0) {
-                if (node->isDynamicNode() && getConfig().isLegacyApi) {
-                    IE_THROW(NotImplemented) << "[DS] not implemented dynamic batch for node with dynamic shape";
-                }
-
-                size_to_copy = std::accumulate(outDims.begin() + 1, outDims.end(), (size_t)1, std::multiplies<size_t>()) * static_cast<size_t>(dynBatch);
-            }
 
             cpu_convert(intr_blob_ptr, ext_blob_ptr, srcPrec, dstPrec, size_to_copy);
         }
