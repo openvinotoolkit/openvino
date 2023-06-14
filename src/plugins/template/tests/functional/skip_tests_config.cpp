@@ -118,10 +118,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*ReferenceInterpolate_v11.*data_type=f16.*)",
         R"(.*LSTMSequence_With_Hardcoded_Refs.*ReferenceLSTMSequenceTest.*iType=f16.*)",
         // CVS-111443
-        R"(.*eltwiseOpType=Mod_secondaryInputType=PARAMETER_opType=VECTOR_NetType=(f16|f32).*)",
-        // CVS-94156 AUTO and MULTI does not support
-        R"(.*smoke_Multi_BehaviorTests/OVCompiledModelBaseTest.canCompileModelwithBrace/targetDevice=MULTI.*)",
-        R"(.*smoke_Auto_BehaviorTests/OVCompiledModelBaseTest.canCompileModelwithBrace/targetDevice=AUTO.*)"
+        R"(.*eltwiseOpType=Mod_secondaryInputType=PARAMETER_opType=VECTOR_NetType=(f16|f32).*)"
     };
 
 #ifdef _WIN32
