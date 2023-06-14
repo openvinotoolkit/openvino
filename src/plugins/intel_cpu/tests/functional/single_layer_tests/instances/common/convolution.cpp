@@ -1454,6 +1454,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_Conv_Large_Filter, ConvolutionLayerCPUTest,
                                  ::testing::Values(cpuEmptyPluginConfig)),
                          ConvolutionLayerCPUTest::getTestCaseName);
 
-}
+} // namespace
 } // namespace Convolution
 } // namespace CPULayerTestsDefinitions
