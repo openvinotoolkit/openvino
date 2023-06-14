@@ -1472,7 +1472,7 @@ StreamGenerateionTestCase generation_latency_1sockets_14cores_1 = {
                                              // (PCORE_ONLY/ECORE_ONLY/ANY_CORE)
     true,                                    // param[in]: simulated setting for enableHyperThreading
     true,                                    // param[in]: simulated settting for changedHyperThreading
-    true,                                    // param[in]: simulated setting for enableCpuPinning
+    false,                                   // param[in]: simulated setting for enableCpuPinning
     true,                                    // param[in]: simulated setting for changedCpuPinning
     ov::hint::PerformanceMode::LATENCY,      // param[in]: simulated setting for performance mode (throughput/latency)
     ov::threading::IStreamsExecutor::ThreadBindingType::HYBRID_AWARE,  // param[in]: simulated setting for
@@ -1481,7 +1481,7 @@ StreamGenerateionTestCase generation_latency_1sockets_14cores_1 = {
                       // hyper threading enabled
     ov::hint::SchedulingCoreType::ANY_CORE,  // param[expected out]: scheduling core type needs to be the same as input
     true,                                    // param[expected out]: enableHyperThreading needs to be the same as input
-    true,                                    // param[expected out]: enableCpuPinning needs to be the same as input
+    false,                                   // param[expected out]: enableCpuPinning needs to be the same as input
     ov::hint::PerformanceMode::LATENCY,      // param[expected out]: performance mode needs to be the same as input
     {{20, 6, 8, 6}},  // param[expected out]: since hyper threading is enabled and all core type is used,
                       // proc_type_table needs to be the same as input
@@ -1501,14 +1501,14 @@ StreamGenerateionTestCase generation_latency_1sockets_14cores_2 = {
     ov::hint::SchedulingCoreType::ANY_CORE,
     true,
     true,
-    true,
+    false,
     true,
     ov::hint::PerformanceMode::LATENCY,
     ov::threading::IStreamsExecutor::ThreadBindingType::HYBRID_AWARE,
     {{14, 6, 8, 0}},
     ov::hint::SchedulingCoreType::ANY_CORE,
     false,
-    true,
+    false,
     ov::hint::PerformanceMode::LATENCY,
     {{14, 6, 8, 0}},
     {{1, ALL_PROC, 14}, {0, MAIN_CORE_PROC, 6}, {0, EFFICIENT_CORE_PROC, 8}},
@@ -1627,14 +1627,14 @@ StreamGenerateionTestCase generation_tput_1sockets_14cores_1 = {
     ov::hint::SchedulingCoreType::ANY_CORE,
     true,
     true,
-    true,
+    false,
     true,
     ov::hint::PerformanceMode::THROUGHPUT,
     ov::threading::IStreamsExecutor::ThreadBindingType::HYBRID_AWARE,
     {{20, 6, 8, 6}},
     ov::hint::SchedulingCoreType::ANY_CORE,
     true,
-    true,
+    false,
     ov::hint::PerformanceMode::THROUGHPUT,
     {{20, 6, 8, 6}},
     {{2, MAIN_CORE_PROC, 3}, {2, EFFICIENT_CORE_PROC, 3}, {2, HYPER_THREADING_PROC, 3}},
