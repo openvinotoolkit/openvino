@@ -132,7 +132,8 @@ protected:
         if (group && !is_output)
             return stream.group_events(events);
 
-        return stream.enqueue_marker(events, is_output);
+        return events.empty() ? stream.create_user_event(true)
+                              : stream.enqueue_marker(events, is_output);
     }
 
     void init_kernels(const kernels_cache& kernels_cache, const kernel_impl_params& params) override {
@@ -259,14 +260,9 @@ protected:
             if (_kernel_data.kernels[kd_idx].skip_execution)
                 continue;
             std::vector<event::ptr> new_events;
-            // is any user of the prim's users is an detecion output, set prim as a output event (event won't be nullptr)
-            bool is_output_event;
-            if (instance.node != nullptr) {
-                auto users = instance.node->get_users();
-                is_output_event = is_any_user_cpu(users) || instance.node->is_output();
-            } else {
-                is_output_event = instance.is_output_event();
-            }
+
+            // If any user of the prim's users is CPU implementation or network's output, set prim as a output event (event won't be nullptr)
+            bool needs_completion_event = instance.needs_completion_event();
 
             auto& params = _kernel_data.kernels[kd_idx].params;
             auto args = get_arguments(instance);
@@ -280,9 +276,10 @@ protected:
             const auto& lws = params.workGroups.local;
 
             GPU_DEBUG_TRACE_DETAIL << "Enqueue kernel " << kd_idx << ": gws=[" << gws[0] << ", " << gws[1] << ", " << gws[2] << "] "
-                                   << "lws=[" << lws[0] << ", " << lws[1] << ", " << lws[2] << "]" << std::endl;
+                                   << "lws=[" << lws[0] << ", " << lws[1] << ", " << lws[2] << "]"
+                                   << (needs_completion_event ? " has_completion_event=true" : "") << std::endl;
 
-            auto ev = stream.enqueue_kernel(*_kernels[kd_idx], params, args, tmp_events, is_output_event);
+            auto ev = stream.enqueue_kernel(*_kernels[kd_idx], params, args, tmp_events, needs_completion_event);
             new_events.push_back(ev);
             all_events.push_back(ev);
 

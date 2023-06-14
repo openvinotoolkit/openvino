@@ -9293,12 +9293,13 @@ TEST_P(convolution_gpu_onednn, conv_onednn_cases) {
 
     network.set_input_data("input", input_mem);
     auto outputs = network.execute();
-    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.size(), size_t(2));
+    ASSERT_TRUE(outputs.find("conv_fsv") != outputs.end());
 
     for (auto& p : network.get_primitives_info())
         std::cerr << p.original_id << " " << p.kernel_id << std::endl;
 
-    auto out_ptr = get_output_values_to_float<FLOAT16>(network, outputs.begin()->second);
+    auto out_ptr = get_output_values_to_float<FLOAT16>(network, outputs.find("conv_fsv")->second);
     auto out_lay = network.get_node_output_layout("conv_fsv");
     ASSERT_EQ(out_lay.batch(), expected_result.size());
     ASSERT_EQ(out_lay.feature(), expected_result[0].size());
@@ -9655,6 +9656,65 @@ TEST(convolution_gpu_onednn, quantized_onednn_convolution_u8s8f32_asymmetric_act
                 " x="<< x << " y=" << y << " f=" << f;
             }
         }
+}
+
+TEST(convolution_gpu_onednn, has_proper_synchronization) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        return;
+
+    layout in_layout{{1, 16, 2, 4}, data_types::f32, format::bfyx};
+    auto input_mem = engine.allocate_memory(in_layout);
+    auto weights_mem = engine.allocate_memory({{16, 16, 1, 1}, data_types::f32, format::bfyx});
+
+    auto in_data = generate_random_4d<float>(1, 16, 2, 4, -1, 1);
+    auto weights_data = generate_random_4d<float>(16, 16, 1, 1, -1, 1);
+
+    set_values(input_mem, flatten_4d(format::bfyx, in_data));
+    set_values(weights_mem, flatten_4d(format::bfyx, weights_data));
+
+    auto create_topology =[&]() {
+        topology topology;
+        topology.add(input_layout("input", in_layout));
+        topology.add(data("weights", weights_mem));
+        topology.add(convolution("conv", input_info("input"), "weights", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
+        topology.add(activation("activation", input_info("conv"), activation_func::relu));
+        topology.add(reorder("reorder", input_info("conv"), in_layout));
+        return topology;
+    };
+
+    auto topology_ref = create_topology();
+    auto topology_test = create_topology();
+
+    auto impl_desc_cpu = ov::intel_gpu::ImplementationDesc{format::bfyx, "", impl_types::cpu};
+    auto impl_desc_onednn = ov::intel_gpu::ImplementationDesc{format::bfyx, "", impl_types::onednn};
+    auto impl_forcing_map = ov::intel_gpu::ImplForcingMap{{"conv", impl_desc_onednn}, {"activation", impl_desc_cpu}};
+
+    auto config_ref = get_test_default_config(engine);
+    config_ref.set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
+    config_ref.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    auto config_test = config_ref;
+    config_test.set_property(ov::intel_gpu::force_implementations(impl_forcing_map));
+
+    network net_test(engine, topology_test, config_test);
+    net_test.set_input_data("input", input_mem);
+    auto outputs_test = net_test.execute();
+    auto res_test = outputs_test.at("activation").get_memory();
+
+    network net_ref(engine, topology_ref, config_ref);
+    net_ref.set_input_data("input", input_mem);
+    auto outputs_ref = net_ref.execute();
+    auto res_ref = outputs_ref.at("activation").get_memory();
+
+    ASSERT_EQ(res_test->get_layout().get_linear_size(), res_ref->get_layout().get_linear_size());
+
+    cldnn::mem_lock<float> test_mem(res_test, get_test_stream());
+    cldnn::mem_lock<float> ref_mem(res_ref, get_test_stream());
+
+    for (size_t i = 0; i < res_ref->get_layout().get_linear_size(); ++i) {
+        ASSERT_EQ(test_mem[i], ref_mem[i]);
+    }
 }
 
 #endif   // ENABLE_ONEDNN_FOR_GPU
