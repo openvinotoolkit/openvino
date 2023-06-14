@@ -87,6 +87,7 @@
 #include "low_precision/convolution_backprop_data.hpp"
 #include "low_precision/group_convolution.hpp"
 #include "low_precision/multiply_to_group_convolution.hpp"
+#include "low_precision/recurrent_cell.hpp"
 #include "low_precision/network_helper.hpp"
 #include "low_precision/rt_info/bias_attribute.hpp"
 #include "transformations/low_precision/mark_dequantization_subgraph.hpp"
@@ -504,10 +505,10 @@ void Transformations::Lpt(const bool hasINT16orINT32Levels, const std::vector<ov
                     {{1}, {ov::element::i8}}
                 }),
             PrecisionsRestriction::create<ov::opset5::LSTMSequence>({
-                    {{0, 1}, {ov::element::u8, ov::element::i8}},
+                    {{0, 1}, {ov::element::u8}}
                 }),
             PrecisionsRestriction::create<ov::opset6::GRUSequence>({
-                    {{0, 1}, {ov::element::u8, ov::element::i8}},
+                    {{0, 1}, {ov::element::u8}}
                 }),
         });
 
@@ -548,6 +549,7 @@ void Transformations::Lpt(const bool hasINT16orINT32Levels, const std::vector<ov
             return ov::marked_as_bias(node);
         });
 
+    CPU_DISABLE_PASS_ARM(lptManager, ngraph::pass::low_precision::RecurrentCellTransformation);
     CPU_DISABLE_PASS_COMMON(lptManager, ngraph::pass::low_precision::MultiplyToGroupConvolutionTransformation);
 
     lptManager.run_passes(model);
@@ -609,7 +611,7 @@ void Transformations::PostLpt() {
     }
 
     // Execute before snippets. Otherwise FQ will be converted to Subgraph
-    CPU_REGISTER_PASS_COMMON(postLPTPassManager, ConvertFqRnnToQuantizedRnn);
+    CPU_REGISTER_PASS_X64(postLPTPassManager, ConvertFqRnnToQuantizedRnn);
     postLPTPassManager.run_passes(model);
 }
 

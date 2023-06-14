@@ -1396,8 +1396,11 @@ void network::execute_primitive(const std::shared_ptr<primitive_inst>& primitive
                                 const std::vector<event::ptr>& events) {
     event::ptr ev = primitive->execute(events);
 
-    // Collect events only for OOO queue and Profiling mode
-    if (get_stream().get_queue_type() == QueueTypes::out_of_order || _enable_profiling) {
+    // Collect events under any of the following conditions:
+    // 1) OOO queue execution
+    // 2) Profiling mode is enabled
+    // 3) Primitive has CPU user or primitive is output
+    if (get_stream().get_queue_type() == QueueTypes::out_of_order || _enable_profiling || primitive->needs_completion_event()) {
         auto id = primitive->id();
         _events.insert({id, ev});
     }
