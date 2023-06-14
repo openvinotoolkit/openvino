@@ -277,7 +277,7 @@ void ngraph::parse_version_string(std::string version, size_t& major, size_t& mi
         error = true;
     }
     if (error) {
-        throw runtime_error("Error parsing version string '" + version + "'");
+        OPENVINO_THROW("Error parsing version string '", version, "'");
     }
 }
 

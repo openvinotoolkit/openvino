@@ -130,9 +130,9 @@ ov::op::v0::Constant::Constant(const element::Type& type,
             fill_data<Type_t::u64>(ngraph::parse_string<uint64_t>(values[0]));
             break;
         case Type_t::undefined:
-            throw std::runtime_error("deserialize unsupported type undefined");
+            OPENVINO_THROW("deserialize unsupported type undefined");
         case Type_t::dynamic:
-            throw std::runtime_error("deserialize unsupported type dynamic");
+            OPENVINO_THROW("deserialize unsupported type dynamic");
         }
         update_identical_flags(true, true);
     } else {
@@ -186,9 +186,9 @@ ov::op::v0::Constant::Constant(const element::Type& type,
             write_buffer<Type_t::u64>(ngraph::parse_string<uint64_t>(values));
             break;
         case Type_t::undefined:
-            throw std::runtime_error("deserialize unsupported type undefined");
+            OPENVINO_THROW("deserialize unsupported type undefined");
         case Type_t::dynamic:
-            throw std::runtime_error("deserialize unsupported type dynamic");
+            OPENVINO_THROW("deserialize unsupported type dynamic");
         }
         update_identical_flags(false, false);
     }
@@ -296,9 +296,8 @@ string ov::op::v0::Constant::convert_value_to_string(size_t index) const {
         rc = to_string(get_element_value<Type_t::u64>(index));
         break;
     case Type_t::undefined:
-        throw runtime_error("unsupported type");
     case Type_t::dynamic:
-        throw runtime_error("unsupported type");
+        OPENVINO_THROW("unsupported type");
     }
 #if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8)
 #    pragma GCC diagnostic pop
@@ -393,7 +392,7 @@ vector<string> ov::op::v0::Constant::get_value_strings() const {
         break;
     case element::Type_t::undefined:
     case element::Type_t::dynamic:
-        throw runtime_error("unsupported type");
+        OPENVINO_THROW("unsupported type");
     }
 #if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8)
 #    pragma GCC diagnostic pop
