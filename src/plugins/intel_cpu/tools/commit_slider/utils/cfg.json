@@ -42,7 +42,7 @@
     },
     "dlbConfig" : {
         "launchedAsJob" : false,
-        "toolName" : "{e2e|mo} - specified outside tool, supposed to be downloaded by job",
+        "toolName" : "{e2e|ac} - specified outside tool, supposed to be downloaded by job",
         "appPath" : "path, substituted by job"
     }
 }

@@ -415,10 +415,10 @@ void Engine::GetPerformanceStreams(Config& config, const std::shared_ptr<ngraph:
     config._config[CONFIG_KEY(CPU_THROUGHPUT_STREAMS)] = std::to_string(config.streamExecutorConfig._streams);
 }
 
-Config Engine::ReadConfigAndGetPerformanceStreams(const InferenceEngine::CNNNetwork& cnnnetwork,
-                                                  const std::map<std::string, std::string>& config,
+Config Engine::ReadConfigAndGetPerformanceStreams(const std::map<std::string, std::string>& config,
                                                   const std::shared_ptr<ngraph::Function>& function,
                                                   bool imported) {
+    // TODO: Clarify the behavior of SetConfig method. Skip eng_config or not?
     Config conf = engConfig;
 
     // import config props from caching model
@@ -429,7 +429,7 @@ Config Engine::ReadConfigAndGetPerformanceStreams(const InferenceEngine::CNNNetw
     conf.readProperties(config);
 
     // import config props from caching model
-    if (!is_cpu_map_available()) {
+    if (imported && !is_cpu_map_available()) {
         if (function->has_rt_info("intel_cpu_hints_config") && !conf.perfHintsConfig.ovPerfHint.empty()) {
             const auto mode_name = conf.perfHintsConfig.ovPerfHint;
             if (mode_name == CONFIG_VALUE(LATENCY) || mode_name == CONFIG_VALUE(THROUGHPUT)) {
@@ -445,9 +445,6 @@ Config Engine::ReadConfigAndGetPerformanceStreams(const InferenceEngine::CNNNetw
         }
     }
 
-    if (conf.enableDynamicBatch) {
-        conf.batchLimit = static_cast<int>(cnnnetwork.getBatchSize());
-    }
     if (is_cpu_map_available()) {
         if (!imported) {
             SaveMultiThreadingConfig(conf, function);
@@ -540,6 +537,20 @@ StreamCfg Engine::GetNumStreams(InferenceEngine::IStreamsExecutor::ThreadBinding
     return stream_cfg;
 }
 
+static bool shouldEnableLPT(const std::map<std::string, std::string>& modelConfig, const Config& engineConfig) {
+    const auto& enableLPT = modelConfig.find(InferenceEngine::PluginConfigInternalParams::KEY_LP_TRANSFORMS_MODE);
+    if (enableLPT == modelConfig.end()) // model config has higher priority
+        return engineConfig.lpTransformsMode == Config::LPTransformsMode::On;
+
+    const auto& val = enableLPT->second;
+    if (val == PluginConfigParams::YES)
+        return true;
+    else if (val == PluginConfigParams::NO)
+        return false;
+    else
+        IE_THROW() << "Wrong value for property key LP_TRANSFORMS_MODE. Expected values: YES/NO";
+}
+
 static bool shouldEnforceBF16(const std::map<std::string, std::string>& modelConfig, const Config& engineConfig) {
     // For BF16 execution, the machine should have AVX512 at least
     if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core))
@@ -557,13 +568,6 @@ static bool shouldEnforceBF16(const std::map<std::string, std::string>& modelCon
 }
 
 static Config::SnippetsMode getSnippetsMode(const std::map<std::string, std::string>& modelConfig, const Config& engineConfig) {
-    const auto& dynamicBatchProp = modelConfig.find(InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_ENABLED);
-    const bool enableDynamicBatch = (dynamicBatchProp != modelConfig.end() && dynamicBatchProp->second == PluginConfigParams::YES)
-            || engineConfig.enableDynamicBatch;
-
-    if (enableDynamicBatch) // dynamic batch is not supported
-        return Config::SnippetsMode::Disable;
-
     const auto& snippetsMode = modelConfig.find(InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE);
     if (snippetsMode == modelConfig.end()) // not set explicitly
         return Config::SnippetsMode::Enable; // enable by default
@@ -607,9 +611,7 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
     auto config = orig_config;
 
     CNNNetwork clonedNetwork = InferenceEngine::details::cloneNetwork(network);
-    const auto& lptProp = config.find(InferenceEngine::PluginConfigInternalParams::KEY_LP_TRANSFORMS_MODE);
-    const bool enableLPT = (lptProp != config.end() && lptProp->second == PluginConfigParams::YES) /* enabled in the orig_config*/
-            || Config::LPTransformsMode::On == engConfig.lpTransformsMode /* or already enabled for the plugin */;
+    const bool enableLPT = shouldEnableLPT(config, engConfig);
     const bool enableBF16 = shouldEnforceBF16(config, engConfig);
     const Config::SnippetsMode snippetsMode = getSnippetsMode(config, engConfig);
 
@@ -638,7 +640,7 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
     DEBUG_LOG(PrintableModel(*nGraphFunc, "cpu_"));
 
     // update the props after the perf mode translated to configs
-    Config conf = ReadConfigAndGetPerformanceStreams(network, config, nGraphFunc);
+    Config conf = ReadConfigAndGetPerformanceStreams(config, nGraphFunc);
 
     // SSE runtime check is needed for some ATOM machine, which is x86-64 but w/o SSE
     static Xbyak::util::Cpu cpu;
@@ -875,10 +877,6 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
     Config conf = engConfig;
     conf.readProperties(config);
 
-    if (conf.enableDynamicBatch) {
-        conf.batchLimit = static_cast<int>(network.getBatchSize());
-    }
-
     const auto& lptProp = config.find(InferenceEngine::PluginConfigInternalParams::KEY_LP_TRANSFORMS_MODE);
     const bool enableLPT = (lptProp != config.end() && lptProp->second == PluginConfigParams::YES) /* enabled in the orig_config*/
                         || Config::LPTransformsMode::On == engConfig.lpTransformsMode /* or already enabled */;
@@ -930,7 +928,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(std::istr
 
     auto function = cnnnetwork.getFunction();
 
-    Config conf = ReadConfigAndGetPerformanceStreams(cnnnetwork, config, function, true);
+    Config conf = ReadConfigAndGetPerformanceStreams(config, function, true);
 
     auto execNetwork = std::make_shared<ExecNetwork>(cnnnetwork, conf, extensionManager, shared_from_this());
 

@@ -49,8 +49,7 @@ private:
 
     void GetPerformanceStreams(Config &config, const std::shared_ptr<ngraph::Function>& ngraphFunc);
 
-    Config ReadConfigAndGetPerformanceStreams(const InferenceEngine::CNNNetwork& cnnnetwork,
-                                              const std::map<std::string, std::string>& config,
+    Config ReadConfigAndGetPerformanceStreams(const std::map<std::string, std::string>& config,
                                               const std::shared_ptr<ngraph::Function>& ngraphFunc,
                                               bool imported = false);
 
