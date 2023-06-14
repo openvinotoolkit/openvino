@@ -25,7 +25,7 @@ pre {
 
 .sd-tab-set>input:checked+label {
     border-color: var(--sd-color-tabs-underline-inactive);
-    color: var(--sd-color-info-text);
+    color: var(--sd-color-info-text)!important;
     background-color: rgb(0 104 181)!important;
 }
 .sd-tab-set>input:checked+label:hover {
