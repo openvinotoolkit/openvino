@@ -14,15 +14,7 @@ To use the Deployment Manager tool, the following requirements need to be met:
    * **For VPU**, see [Configurations for Intel® Vision Accelerator Design with Intel® Movidius™ VPUs](../../install_guides/configurations-for-ivad-vpu.md).
    * **For GNA**, see [Intel® Gaussian & Neural Accelerator (GNA)](../../install_guides/configurations-for-intel-gna.md)
 
-@sphinxdirective
 
-.. warning::
-
-   OpenVINO 2022.3, temporarily, does not support the VPU devices.
-   The feature will be re-implemented with the next update. Until then, 
-   continue using a previous release of OpenVINO, if you work with VPUs.
-
-@endsphinxdirective
 
 
 > **IMPORTANT**: The operating system on the target system must be the same as the development system on which you are creating the package. For example, if the target system is Ubuntu 18.04, the deployment package must be created from the OpenVINO™ toolkit installed on Ubuntu 18.04.
