@@ -10,6 +10,7 @@
 #include "openvino/frontend/onnx/extension/op.hpp"
 #include "openvino/frontend/onnx/frontend.hpp"
 #include "openvino/op/relu.hpp"
+#include "openvino/runtime/core.hpp"
 #include "so_extension.hpp"
 
 using namespace ov::frontend;
@@ -169,4 +170,21 @@ TEST(ONNXOpExtensionViaCommonConstructor, onnx_op_extension_via_ov_type_name_wit
 
     std::shared_ptr<ov::Model> model;
     EXPECT_NO_THROW(fe->convert(input_model));
+}
+
+TEST(ONNXOpExtensionViaCommonConstructor, onnx_op_extension_via_template_arg_with_custom_domain_core) {
+    const auto ext = std::make_shared<onnx::OpExtension<ov::op::v0::Relu>>("CustomRelu", "my_custom_domain");
+    ov::Core core;
+    core.add_extension(ext);
+    core.read_model(CommonTestUtils::getModelFromTestModelZoo(
+        ov::util::path_join({TEST_ONNX_MODELS_DIRNAME, "relu_custom_domain.onnx"})));
+}
+
+TEST(ONNXOpExtensionViaCommonConstructor, onnx_op_extension_via_ov_type_name_with_custom_domain_core) {
+    const auto ext = std::make_shared<onnx::OpExtension<>>("opset1::Relu", "CustomRelu", "my_custom_domain");
+
+    ov::Core core;
+    core.add_extension(ext);
+    core.read_model(CommonTestUtils::getModelFromTestModelZoo(
+        ov::util::path_join({TEST_ONNX_MODELS_DIRNAME, "relu_custom_domain.onnx"})));
 }

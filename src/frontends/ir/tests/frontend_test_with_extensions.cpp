@@ -68,6 +68,7 @@ TEST_F(IRFrontendExtensionTests, custom_ops_test_with_framework_node_extension) 
     std::shared_ptr<ov::Model> model;
     auto extension = std::make_shared<ov::OpExtension<ov::op::util::FrameworkNode>>();
 
+    core.get_available_devices();
     core.add_extension(extension);
 
     ASSERT_NO_THROW(model = core.read_model(customOpsModel, ov::Tensor()));

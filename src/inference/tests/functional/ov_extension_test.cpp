@@ -292,6 +292,7 @@ public:
 
 #if defined(ENABLE_OV_IR_FRONTEND)
 TEST_F(OVExtensionTests, ReshapeIRWithOldExtension) {
+    core.get_available_devices();
     OPENVINO_SUPPRESS_DEPRECATED_START
     core.add_extension(std::make_shared<TestTileOldExtension>());
     OPENVINO_SUPPRESS_DEPRECATED_END
@@ -299,70 +300,86 @@ TEST_F(OVExtensionTests, ReshapeIRWithOldExtension) {
 }
 
 TEST_F(OVExtensionTests, ReshapeIRWithNewExtensionsLib) {
+    core.get_available_devices();
     core.add_extension(getOVExtensionPath());
     test();
 }
 
 TEST_F(OVExtensionTests, ReshapeIRWithNewExtensionPtr) {
+    core.get_available_devices();
     core.add_extension(std::make_shared<ov::OpExtension<CustomNewIdentity>>());
     test();
 }
 
 TEST_F(OVExtensionTests, ReshapeIRWithNewExtension) {
+    core.get_available_devices();
     core.add_extension(ov::OpExtension<CustomNewIdentity>());
     test();
 }
 
 TEST_F(OVExtensionTests, ReshapeIRWithNewOp) {
+    core.get_available_devices();
     core.add_extension<CustomNewIdentity>();
     test();
 }
 
 TEST_F(OVExtensionTests, IncorrectReshapeIRWithNewExtensionPtr) {
+    core.get_available_devices();
     core.add_extension(std::make_shared<ov::OpExtension<CustomNewIdentity>>());
     EXPECT_ANY_THROW(test_two_op());
 }
 
 TEST_F(OVExtensionTests, IncorrectReshapeIRWithNewExtension) {
+    core.get_available_devices();
     core.add_extension(ov::OpExtension<CustomNewIdentity>());
     EXPECT_ANY_THROW(test_two_op());
 }
 
 TEST_F(OVExtensionTests, IncorrectReshapeIRWithNewOp) {
+    core.get_available_devices();
     core.add_extension<CustomNewIdentity>();
     EXPECT_ANY_THROW(test_two_op());
 }
 
 TEST_F(OVExtensionTests, ReshapeIRWithSeveralNewExtensionPtrs) {
+    core.get_available_devices();
     core.add_extension(
         {std::make_shared<ov::OpExtension<CustomNewIdentity>>(), std::make_shared<ov::OpExtension<CustomReLU>>()});
     test_two_op();
 }
 
 TEST_F(OVExtensionTests, ReshapeIRWithSeveralNewExtensions) {
+    core.get_available_devices();
     core.add_extension(ov::OpExtension<CustomNewIdentity>(), ov::OpExtension<CustomReLU>());
     test_two_op();
 }
 
 TEST_F(OVExtensionTests, ReshapeIRWithSeveralNewOps) {
+    core.get_available_devices();
     core.add_extension<CustomNewIdentity, CustomReLU>();
     test_two_op();
 }
 
 TEST_F(OVExtensionTests, load_new_extension) {
+    core.get_available_devices();
     EXPECT_NO_THROW(core.add_extension(getOVExtensionPath()));
+    test();
 }
 
 TEST_F(OVExtensionTests, load_old_extension) {
+    core.get_available_devices();
     EXPECT_NO_THROW(core.add_extension(getOldExtensionPath()));
 }
 
 TEST_F(OVExtensionTests, load_incorrect_extension) {
+    core.get_available_devices();
     EXPECT_THROW(core.add_extension(getIncorrectExtensionPath()), ov::Exception);
 }
 
 TEST_F(OVExtensionTests, load_relative) {
+    core.get_available_devices();
     EXPECT_NO_THROW(core.add_extension(getRelativeOVExtensionPath()));
+    test();
 }
 
 #endif  // defined(ENABLE_OV_IR_FRONTEND)
