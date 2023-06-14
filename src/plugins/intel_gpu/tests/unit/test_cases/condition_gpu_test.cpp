@@ -22,17 +22,6 @@ template <class T>
 bool is_output_equal(const cldnn::memory::ptr mem, const std::vector<T>& ref)
 {
     cldnn::mem_lock<T> ptr(mem, get_test_stream());
-    // TODO: remove debug code
-    // std::cout << "test data = {";
-    // for (size_t i = 0; i < mem->get_layout().count(); i++) {
-    //     std::cout << static_cast<float>(ptr[i]) << ",";
-    // }
-    // std::cout << "}" << std::endl;
-    // std::cout << "ref  data = {";
-    // for (size_t i = 0; i < ref.size(); i++) {
-    //     std::cout << static_cast<float>(ref[i]) << ",";
-    // }
-    // std::cout << "}" << std::endl;
     for (size_t i = 0; i < mem->get_layout().count(); i++) {
         if (!are_equal(ptr[i], ref[i])) return false;
     }

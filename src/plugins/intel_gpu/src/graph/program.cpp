@@ -496,13 +496,6 @@ void program::init_graph() {
 
 void program::run_graph_compilation() { apply_opt_pass<compile_graph>(); }
 
-// TODO: Remove debug function
-void program::show_outputs() {
-    for (auto o_node : get_outputs()) {
-        std::cout << " **** o_node: " << o_node->id() << " " << o_node->get_primitive()->type_string() << std::endl;
-    }
-}
-
 void program::pre_optimize_graph(bool is_internal) {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "Program::pre_optimize_graph");
 

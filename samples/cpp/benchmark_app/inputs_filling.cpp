@@ -568,15 +568,10 @@ ov::Tensor get_random_tensor(const std::pair<std::string, benchmark_app::InputIn
         return create_tensor_random<int32_t, int32_t>(inputInfo.second);
     } else if (type == ov::element::i64) {
         return create_tensor_random<int64_t, int64_t>(inputInfo.second);
-    } else if (type == ov::element::u8) {
+    } else if ((type == ov::element::u8) || (type == ov::element::boolean)) {
         // uniform_int_distribution<uint8_t> is not allowed in the C++17
         // standard and vs2017/19
         return create_tensor_random<uint8_t, uint32_t>(inputInfo.second);
-    // TODO: Rollback after implementation
-    } else if (type == ov::element::boolean) {
-        // uniform_int_distribution<uint8_t> is not allowed in the C++17
-        // standard and vs2017/19
-        return create_tensor_random<bool, uint32_t>(inputInfo.second);
     } else if (type == ov::element::i8) {
         // uniform_int_distribution<int8_t> is not allowed in the C++17 standard
         // and vs2017/19
