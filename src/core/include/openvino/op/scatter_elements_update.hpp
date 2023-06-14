@@ -69,6 +69,24 @@ public:
 
     bool visit_attributes(AttributeVisitor& visitor) override;
 
+    Reduction get_reduction() const {
+        return m_reduction;
+    }
+
+    void set_reduction(const Reduction reduction) {
+        m_reduction = reduction;
+    }
+
+    bool get_use_init_val() const {
+        return m_use_init_val;
+    }
+
+    void set_use_init_val(const bool use_init_val) {
+        m_use_init_val = use_init_val;
+    }
+
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
+
 private:
     Reduction m_reduction = Reduction::NONE;
     bool m_use_init_val = true;

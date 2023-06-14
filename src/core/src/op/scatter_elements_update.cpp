@@ -313,6 +313,23 @@ void op::v12::ScatterElementsUpdate::validate_and_infer_types() {
     }
 }
 
+shared_ptr<Node> op::v12::ScatterElementsUpdate::clone_with_new_inputs(const OutputVector& inputs) const {
+    OV_OP_SCOPE(v12_ScatterElementsUpdate_clone_with_new_inputs);
+    NODE_VALIDATION_CHECK(this,
+                          inputs.size() == get_input_size(),
+                          "clone_with_new_inputs() required inputs size: ",
+                          get_input_size(),
+                          "Got: ",
+                          inputs.size());
+
+    return make_shared<v12::ScatterElementsUpdate>(inputs.at(0),
+                                                   inputs.at(1),
+                                                   inputs.at(2),
+                                                   inputs.at(3),
+                                                   m_reduction,
+                                                   m_use_init_val);
+}
+
 namespace ov {
 template <>
 OPENVINO_API EnumNames<op::v12::ScatterElementsUpdate::Reduction>&
@@ -331,5 +348,5 @@ namespace op {
 std::ostream& operator<<(std::ostream& s, const v12::ScatterElementsUpdate::Reduction& reduction) {
     return s << as_string(reduction);
 }
-}
+}  // namespace op
 }  // namespace ov
