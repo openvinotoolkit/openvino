@@ -40,7 +40,7 @@ struct OutputGather {
     int output_idx = {};
 };
 
-OutputGather FindFirstOutputGather(NodePtr node) {
+OutputGather find_first_output_gather(NodePtr node) {
     for (size_t output_idx = 0; output_idx < node->get_output_size(); ++output_idx) {
         for (auto& input : node->get_output_target_inputs(output_idx)) {
             auto gather_node = dynamic_cast<Gather*>(input.get_node());
@@ -110,7 +110,7 @@ GatherSinkingSplitBackward::GatherSinkingSplitBackward() {
             return false;
         }
 
-        OutputGather output_gather = FindFirstOutputGather(split);
+        OutputGather output_gather = find_first_output_gather(split);
         const int64_t gather_axis =
             convert_axis_to_positive(output_gather.gather_axis->cast_vector<int64_t>()[0],
                                      output_gather.gather->input(0).get_partial_shape().rank().get_length());
