@@ -1,98 +1,19 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "single_layer_tests/classes/concat.hpp"
+#include "shared_test_classes/single_layer/concat.hpp"
 #include "test_utils/cpu_test_utils.hpp"
+#include "test_utils/fusing_test_utils.hpp"
 
-using namespace ov::test;
+using namespace InferenceEngine;
 using namespace CPUTestUtils;
+using namespace ngraph::helpers;
+using namespace ov::test;
 
 namespace CPULayerTestsDefinitions {
-
-typedef std::tuple<
-        size_t,                   // Concat axis
-        std::vector<InputShape>,  // Input shapes
-        ElementType,              // Network precision
-        CPUSpecificParams
-> concatCPUTestParams;
-
-class ConcatLayerCPUTest : public testing::WithParamInterface<concatCPUTestParams>,
-                           virtual public SubgraphBaseTest, public CPUTestsBase {
-public:
-    static std::string getTestCaseName(testing::TestParamInfo<concatCPUTestParams> obj) {
-        int axis;
-        std::vector<InputShape> inputShapes;
-        ElementType netPrecision;
-        CPUSpecificParams cpuParams;
-        std::tie(axis, inputShapes, netPrecision, cpuParams) = obj.param;
-
-        std::ostringstream result;
-        result << "IS=";
-        for (const auto& shape : inputShapes) {
-            result << CommonTestUtils::partialShape2str({shape.first}) << "_";
-        }
-        result << "TS=";
-        for (const auto& shape : inputShapes) {
-            result << "(";
-            if (!shape.second.empty()) {
-                for (const auto& itr : shape.second) {
-                    result << CommonTestUtils::vec2str(itr);
-                }
-            }
-            result << ")_";
-        }
-        result << "axis=" << axis << "_";
-        result << "netPRC=" << netPrecision << "_";
-        result << CPUTestsBase::getTestCaseName(cpuParams);
-        return result.str();
-    }
-
-    void compare(const std::vector<ov::Tensor> &expected, const std::vector<ov::Tensor> &actual) override {
-        if (actual.front().get_size() == 0) {
-            ASSERT_EQ(0, expected.front().get_size());
-            for (const auto& shape : targetStaticShapes[inferNum]) {
-                ASSERT_EQ(shape_size(shape), 0);
-            }
-        } else {
-            SubgraphBaseTest::compare(expected, actual);
-        }
-        inferNum++;
-    }
-
-protected:
-    size_t inferNum = 0;
-
-    void SetUp() override {
-        targetDevice = CommonTestUtils::DEVICE_CPU;
-
-        int axis;
-        std::vector<InputShape> inputShape;
-        ElementType netPrecision;
-        CPUSpecificParams cpuParams;
-        std::tie(axis, inputShape, netPrecision, cpuParams) = this->GetParam();
-
-        std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
-        selectedType += std::string("_") + InferenceEngine::details::convertPrecision(netPrecision).name();
-
-        init_input_shapes(inputShape);
-
-        auto params = ngraph::builder::makeDynamicParams(netPrecision, inputDynamicShapes);
-        auto paramOuts = ngraph::helpers::convert2OutputVector(
-                ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
-        auto concat = std::make_shared<ngraph::opset1::Concat>(paramOuts, axis);
-
-        function = makeNgraphFunction(netPrecision, params, concat, "ConcatCPU");
-    }
-};
-
-TEST_P(ConcatLayerCPUTest, CompareWithRefs) {
-    run();
-    CheckPluginRelatedResults(compiledModel, "Concatenation");
-}
-
-namespace {
+namespace Concat {
 const auto planar_4D_ref = CPUSpecificParams{{nchw}, {nchw}, {"ref"}, "ref"};
 const auto planar_5D_ref = CPUSpecificParams{{ncdhw}, {ncdhw}, {"ref"}, "ref"};
 
@@ -670,7 +591,5 @@ INSTANTIATE_TEST_SUITE_P(smoke_Concat_inPlace, ConcatLayerCPUTest,
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(CPUSpecificParams{{}, {}, {}, "unknown"})),
                         ConcatLayerCPUTest::getTestCaseName);
-
-} // namespace
-
+} // namespace Concat
 } // namespace CPULayerTestsDefinitions
