@@ -142,7 +142,7 @@ void Transpose::initSupportedPrimitiveDescriptors() {
             Precision::I32, getInputShapeAtPort(INPUT_ORDER_IDX)));
     config.outConfs[0].inPlace(-1);
     config.outConfs[0].constant(false);
-    transpose_context = std::make_shared<ExecutorContext>(context, getPrimitivesPriority());
+    transpose_context = std::make_shared<ExecutorContext>(context, getImplPriority());
 
     auto supportedPrimitiveDescriptorsBuilder = [this](NodeConfig config, TransposeParams transposeParams) {
         std::vector<MemoryDescPtr> srcMemoryDescs;
