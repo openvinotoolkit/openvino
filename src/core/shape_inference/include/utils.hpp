@@ -432,6 +432,30 @@ std::unique_ptr<TResult> get_input_bounds(const ov::Node* op,
 }
 
 }  // namespace op
+
+/**
+ * @brief Get correct return type of input shape when call `shape_infer`.
+ *
+ * The input shapes are vector like std::vector<TShape>, where `TShape` can be `std::vector<const size_t>`
+ * This will provide correct return especially for static shape which can work as reference to dimension or hold them.
+ *
+ * @tparam TShape Type of input shape.
+ */
+template <class TShape>
+struct result_shape {
+    using type = typename TShape::ShapeContainer;
+};
+
+/**
+ * @brief Get correct result shape for PartialShape which is same type.
+ */
+template <>
+struct result_shape<PartialShape> {
+    using type = PartialShape;
+};
+
+template <class TShape>
+using result_shape_t = typename result_shape<TShape>::type;
 }  // namespace ov
 
 // Helper to reduce duplicates of code for get_data_as_... specific type functions.

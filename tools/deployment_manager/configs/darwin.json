@@ -10,7 +10,7 @@
     "openvino_license": {
       "mandatory" : "yes",
       "files": [
-        "docs/licensing"
+        "licenses"
       ]
     },
     "ie_core": {
@@ -54,44 +54,12 @@
         "runtime/lib/intel64/Release/libopenvino_intel_cpu_plugin.so"
       ]
     },
-    "python3.7": {
-      "ui_name": "OpenVINO Python API for Python 3.7",
+    "python": {
+      "ui_name": "OpenVINO Python API",
       "group": ["python"],
       "dependencies" : ["ie_core"],
       "files": [
-        "python/python3.7"
-      ]
-    },
-    "python3.8": {
-      "ui_name": "OpenVINO Python API for Python 3.8",
-      "group": ["python"],
-      "dependencies" : ["ie_core"],
-      "files": [
-        "python/python3.8"
-      ]
-    },
-    "python3.9": {
-      "ui_name": "OpenVINO Python API for Python 3.9",
-      "group": ["python"],
-      "dependencies" : ["ie_core"],
-      "files": [
-        "python/python3.9"
-      ]
-    },
-    "python3.10": {
-      "ui_name": "OpenVINO Python API for Python 3.10",
-      "group": ["python"],
-      "dependencies" : ["ie_core"],
-      "files": [
-        "python/python3.10"
-      ]
-    },
-    "python3.11": {
-      "ui_name": "OpenVINO Python API for Python 3.11",
-      "group": ["python"],
-      "dependencies" : ["ie_core"],
-      "files": [
-        "python/python3.11"
+        "python"
       ]
     }
   }

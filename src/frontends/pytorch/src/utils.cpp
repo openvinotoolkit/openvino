@@ -116,6 +116,17 @@ std::shared_ptr<Node> get_axes_range(const NodeContext& context, int input_id) {
     return context.mark_node(std::make_shared<opset10::Range>(start, reduced_rank, step, element::i32));
 };
 
+std::shared_ptr<Node> normalize_axis(const NodeContext& context,
+                                     const Output<Node>& axis,
+                                     const Output<Node>& input_node) {
+    Output<Node> rank;
+    std::tie(std::ignore, rank) = get_shape_rank(context, input_node);
+    auto axis_rank = context.mark_node(std::make_shared<opset10::Add>(axis, rank));
+    auto is_less = context.mark_node(std::make_shared<opset10::Less>(axis_rank, rank));
+    auto new_axis = context.mark_node(std::make_shared<opset10::Select>(is_less, axis_rank, axis));
+    return new_axis;
+}
+
 std::shared_ptr<Node> numel(const NodeContext& context, const Output<Node>& x) {
     auto input_shape = context.mark_node(std::make_shared<opset10::ShapeOf>(x, element::i32));
     auto axes = context.mark_node(opset10::Constant::create(element::i32, Shape({1}), {0}));
@@ -328,6 +339,19 @@ std::unordered_map<size_t, element::Type> bit_to_int{
 void align_eltwise_input_types(const NodeContext& context, Output<Node>& lhs, Output<Node>& rhs, bool align_scalars) {
     const auto& lhs_type = lhs.get_element_type();
     const auto& rhs_type = rhs.get_element_type();
+    auto out_type = context.get_output_type(0);
+    if (out_type.is<element::Type>()) {
+        auto otype = out_type.as<element::Type>();
+        if (otype.is_real()) {
+            if (otype != lhs_type) {
+                lhs = context.mark_node(std::make_shared<ov::op::v0::Convert>(lhs, otype));
+            }
+            if (otype != lhs_type) {
+                rhs = context.mark_node(std::make_shared<ov::op::v0::Convert>(rhs, otype));
+            }
+            return;
+        }
+    }
     if (lhs_type.is_dynamic() || rhs_type.is_dynamic()) {
         // if any of types is not known, align to lhs type.
         // TODO: can be fixed with special operation?
@@ -396,6 +420,18 @@ void align_eltwise_input_types(const NodeContext& context, Output<Node>& lhs, Ou
     }
     if (rhs_dst_type != rhs_type) {
         rhs = context.mark_node(std::make_shared<opset10::Convert>(rhs, rhs_dst_type));
+    }
+}
+
+void align_output_types(const NodeContext& context, OutputVector& outputs) {
+    for (size_t i = 0; i < outputs.size(); i++) {
+        auto dtype_any = context.get_output_type(i);
+        if (dtype_any.is<element::Type>()) {
+            auto dtype = dtype_any.as<element::Type>();
+            if (dtype.is_static() && dtype != outputs[i].get_element_type()) {
+                outputs[i] = std::make_shared<opset10::Convert>(outputs[i], dtype);
+            }
+        }
     }
 }
 

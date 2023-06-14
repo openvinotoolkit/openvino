@@ -32,6 +32,11 @@ Tensor::~Tensor() {
     _impl = {};
 }
 
+Tensor::Tensor(const Tensor& tensor, const std::shared_ptr<void>& so) : _impl{tensor._impl}, _so{tensor._so} {
+    OPENVINO_ASSERT(_impl != nullptr, "Tensor was not initialized.");
+    _so.emplace_back(so);
+}
+
 Tensor::Tensor(const std::shared_ptr<ITensor>& impl, const std::vector<std::shared_ptr<void>>& so)
     : _impl{impl},
       _so{so} {

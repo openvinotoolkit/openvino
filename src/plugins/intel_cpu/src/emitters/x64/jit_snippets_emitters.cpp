@@ -172,7 +172,7 @@ KernelEmitter::KernelEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl:
             general_exprs.emplace_back(expr);
         }
     }
-    num_unique_buffer = unique_buffers.size();
+    num_unique_buffers = unique_buffers.size();
 
     // Note that we can't use reg_indexes_idx or reg_const_params_idx to store data pointers because these two
     // regs are used to calculate offsets for the data pointers
@@ -198,15 +198,16 @@ void KernelEmitter::validate_arguments(const std::vector<size_t> &in,
         IE_THROW() << "KernelEmitter got invalid number of inputs. Expected 0, got " << in.size();
     if (!out.empty())
         IE_THROW() << "KernelEmitter got invalid number of outputs. Expected 0, got " << out.size();
-    const auto num_params = num_inputs + num_outputs + num_unique_buffer;
+    const auto num_params = num_inputs + num_outputs + num_unique_buffers;
     // The number of used gpr may be >= num_params since LoopBegin+LoopEnd could also use gpr to store work_amount
     if (data_ptr_regs_idx.size() != num_params)
-        IE_THROW() << "KernelEmitter: number of inputs and outputs is inconsisnent with the number of allocated registers"
+        IE_THROW() << "KernelEmitter: number of inputs and outputs is inconsistent with the number of allocated registers "
         << num_params << " data_ptr_regs_idx.size() = " << data_ptr_regs_idx.size();
 }
 
-void KernelEmitter::init_data_pointers(size_t num_inputs, size_t num_params, size_t num_buffer,
-                                       const Reg64& reg_indexes, const Reg64& reg_const_params, const std::vector<Reg64>& data_ptr_regs) const {
+void KernelEmitter::init_data_pointers(const Xbyak::Reg64& reg_indexes, const Xbyak::Reg64& reg_const_params,
+                                       const std::vector<Xbyak::Reg64>& data_ptr_regs) const {
+    const auto num_params = num_inputs + num_outputs;
     // Note that we don't need offset for the last dim, since it's handled directly by Tile emitter
     const size_t offset_rank = jcp.master_shape.size() - 1;
     std::vector<std::vector<size_t>> data_offsets(num_params, std::vector<size_t>{});
@@ -229,7 +230,7 @@ void KernelEmitter::init_data_pointers(size_t num_inputs, size_t num_params, siz
         // Note: this is an extra copy, but let's keep it for clarity
         if (!layout.empty()) {
             std::vector<size_t> reordered_strides(strides.size());
-            for (auto i = 0; i < layout.size(); i++)
+            for (size_t i = 0; i < layout.size(); i++)
                 reordered_strides[i] = strides[layout[i]];
             strides = std::move(reordered_strides);
         }
@@ -250,7 +251,7 @@ void KernelEmitter::init_data_pointers(size_t num_inputs, size_t num_params, siz
     // master_shape size must be valid in both static and dynamic cases
     std::function<void(Reg64, const std::vector<size_t>&, Reg64)> init_ptr_with_offset;
     init_ptr_with_offset = [&](Reg64 pointer, const std::vector<size_t>& offsets, Reg64 reg_tmp) {
-        for (int j = 0; j < offset_rank; j++) {
+        for (size_t j = 0; j < offset_rank; j++) {
             if (jcp.master_shape[j] != 1 && offsets[j] != 0) {
                 h->mov(reg_tmp, offsets[j]);
                 h->imul(reg_tmp, h->ptr[reg_indexes + j * sizeof(size_t)]);
@@ -267,7 +268,9 @@ void KernelEmitter::init_data_pointers(size_t num_inputs, size_t num_params, siz
     // Vector "data_ptr_regs" is sorted by abstract regs.
     // It means that the vector contains the physical registers in order [src, .., src, dst, .., dst, buffer]
     // So we can initialize buffer register firstly as last value of vector "data_ptr_regs"
-    for (size_t i = 0; i < num_buffer; ++i) {
+    // NOTE: Snippets Buffer Scratchpad has the common data pointer for all Buffers (even with different ID).
+    //       The accessing memory is covered by correct offsets in each Buffer and the corresponding MemoryAccess ops
+    for (size_t i = 0; i < num_unique_buffers; ++i) {
         h->mov(data_ptr_regs[num_params + i], h->ptr[reg_const_params + GET_OFF(buffer_scratchpad_ptr)]);
     }
     size_t i = 0;
@@ -299,7 +302,7 @@ void KernelEmitter::emit_impl(const std::vector<size_t>& in,
     std::vector<Reg64> data_ptr_regs;
     transform_idxs_to_regs(data_ptr_regs_idx, data_ptr_regs);
 
-    init_data_pointers(num_inputs, num_inputs + num_outputs, num_unique_buffer, reg_indexes, reg_const_params, data_ptr_regs);
+    init_data_pointers(reg_indexes, reg_const_params, data_ptr_regs);
     for (const auto& expression : body) {
         const auto& emitter = expression->get_emitter();
         std::vector<size_t> in_regs, out_regs;
@@ -407,7 +410,7 @@ void LoopEndEmitter::emit_impl(const std::vector<size_t>& in,
     transform_idxs_to_regs(data_ptr_reg_idxs, data_ptr_regs);
     Reg64 reg_work_amount = Reg64(in.back());
     if (!evaluate_once) {
-        for (int idx = 0; idx < data_ptr_regs.size(); idx++) {
+        for (size_t idx = 0; idx < data_ptr_regs.size(); idx++) {
             if (ptr_increments[idx] != 0)
                 h->add(data_ptr_regs[idx], ptr_increments[idx] * wa_increment * io_data_size[idx]);
         }
@@ -416,7 +419,7 @@ void LoopEndEmitter::emit_impl(const std::vector<size_t>& in,
         h->jge(loop_begin->begin_address);
     }
 
-    for (int idx = 0; idx < data_ptr_regs.size(); idx++) {
+    for (size_t idx = 0; idx < data_ptr_regs.size(); idx++) {
         if (finalization_offsets[idx] != 0)
             h->add(data_ptr_regs[idx], finalization_offsets[idx] * io_data_size[idx]);
     }
@@ -759,7 +762,6 @@ BrgemmEmitter::BrgemmEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl:
     m_K = A_shape[get_ordered_idx(A_layout, A_layout.size() - 1)];
     m_M_blk = matmulOptimalM;
     m_M_tail = m_M % m_M_blk;
-    // B_shape[B_layout[3]]
     m_N = C_shape[get_ordered_idx(C_layout, C_layout.size() - 1)];
 
     auto brg0Prc = InferenceEngine::details::convertPrecision(brgemm_node->get_input_element_type(0));
@@ -778,7 +780,7 @@ BrgemmEmitter::BrgemmEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl:
                          : m_K;
     m_K_tail = m_K % m_K_blk;
 
-    size_t brg0BaseIdx = -1;
+    size_t brg0BaseIdx = std::numeric_limits<size_t>::max();
     for (size_t m = 0; m < 2; m++) {
         for (size_t k = 0; k < 2; k++) {
             for (size_t n = 0; n < 2; n++) {
@@ -802,7 +804,7 @@ BrgemmEmitter::BrgemmEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl:
 
                 // don't create brgemm kernels for empty tiles
                 if (M_ != 0 && K_ != 0 && N_ != 0) {
-                    if (brg0BaseIdx == -1)
+                    if (brg0BaseIdx == std::numeric_limits<size_t>::max())
                         brg0BaseIdx = getBrgIdx(m, k, n);
                     initBrgemm(brgemmCtx, m_brgKernels0[getBrgIdx(m, k, n)], brgWithAMX);
                 }
