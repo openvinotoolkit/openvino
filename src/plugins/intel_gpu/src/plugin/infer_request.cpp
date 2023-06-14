@@ -1053,7 +1053,7 @@ std::vector<std::shared_ptr<InferenceEngine::IVariableStateInternal>> InferReque
     std::vector<std::shared_ptr<InferenceEngine::IVariableStateInternal>> ret{};
     ret.reserve(variables_states_.size());
     for (const auto& pair : variables_states_)
-        ret.push_back(std::make_shared<VariableState>(pair.first, pair.second, m_graph->get_engine(), m_curBatch));
+        ret.push_back(std::make_shared<VariableState>(pair.first, pair.second, m_graph->get_engine(), -1));
     return ret;
 }
 

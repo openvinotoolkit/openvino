@@ -265,6 +265,7 @@ LinuxCpuStreamTypeCase _2sockets_72cores_binding_9streams = {
     },
     {{72, 36, 0, 36}, {36, 18, 0, 18}, {36, 18, 0, 18}},
     {{9, MAIN_CORE_PROC, 4}},
+#    if defined(__linux__)
     {
         STREAM_WITH_OBSERVE,
         STREAM_WITH_OBSERVE,
@@ -276,6 +277,19 @@ LinuxCpuStreamTypeCase _2sockets_72cores_binding_9streams = {
         STREAM_WITH_OBSERVE,
         STREAM_WITH_OBSERVE,
     },
+#    else
+    {
+        STREAM_WITH_NUMA_ID,
+        STREAM_WITH_NUMA_ID,
+        STREAM_WITH_NUMA_ID,
+        STREAM_WITH_NUMA_ID,
+        STREAM_WITH_NUMA_ID,
+        STREAM_WITH_NUMA_ID,
+        STREAM_WITH_NUMA_ID,
+        STREAM_WITH_NUMA_ID,
+        STREAM_WITHOUT_PARAM,
+    },
+#    endif
     {4, 4, 4, 4, 4, 4, 4, 4, 4},
     {
         MAIN_CORE_PROC,
@@ -325,12 +339,21 @@ LinuxCpuStreamTypeCase _1sockets_4cores_binding = {
     },
     {{8, 4, 0, 4}},
     {{4, MAIN_CORE_PROC, 1}},
+#    if defined(__linux__)
     {
         STREAM_WITH_OBSERVE,
         STREAM_WITH_OBSERVE,
         STREAM_WITH_OBSERVE,
         STREAM_WITH_OBSERVE,
     },
+#    else
+    {
+        STREAM_WITHOUT_PARAM,
+        STREAM_WITHOUT_PARAM,
+        STREAM_WITHOUT_PARAM,
+        STREAM_WITHOUT_PARAM,
+    },
+#    endif
     {1, 1, 1, 1},
     {
         MAIN_CORE_PROC,

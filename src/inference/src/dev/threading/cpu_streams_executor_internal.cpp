@@ -22,6 +22,7 @@ void get_cur_stream_info(const int stream_id,
                          int& numa_node_id) {
     int stream_total = 0;
     size_t stream_info_id = 0;
+    bool cpu_reserve = cpu_reservation;
     for (size_t i = 0; i < streams_info_table.size(); i++) {
         stream_total =
             i > 0 ? stream_total + streams_info_table[i][NUMBER_OF_STREAMS] : streams_info_table[i][NUMBER_OF_STREAMS];
@@ -34,13 +35,11 @@ void get_cur_stream_info(const int stream_id,
     core_type = streams_info_table[stream_info_id][PROC_TYPE];
     numa_node_id = stream_numa_node_ids.size() > 0 ? stream_numa_node_ids[stream_id] : 0;
 
-    if (cpu_reservation) {
-        stream_type = STREAM_WITH_OBSERVE;
-        if (proc_type_table[0][EFFICIENT_CORE_PROC] > 0) {
 #if defined(_WIN32) || defined(__APPLE__)
-            stream_type = STREAM_WITH_CORE_TYPE;
+    cpu_reserve = false;
 #endif
-        }
+    if (cpu_reserve) {
+        stream_type = STREAM_WITH_OBSERVE;
     } else {
         stream_type = STREAM_WITHOUT_PARAM;
         if (proc_type_table[0][EFFICIENT_CORE_PROC] > 0 && core_type != ALL_PROC) {
