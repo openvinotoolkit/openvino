@@ -12,8 +12,9 @@ namespace snippets {
 
 typedef std::tuple<
         std::vector<ov::PartialShape>,     // Input shapes
-        bool,                              // With Multiply
+        std::vector<ov::element::Type>,    // Input Element types
         ov::element::Type,                 // Inference precision
+        bool,                              // With Multiply
         size_t,                            // Expected num nodes
         size_t,                            // Expected num subgraphs
         std::string,                       // Target Device
@@ -32,6 +33,7 @@ protected:
     virtual void init_subgraph();
 
     bool m_with_mul = false;
+    std::vector<ov::element::Type> m_input_types;
 };
 
 class MHASelect : public MHA {
@@ -46,8 +48,29 @@ protected:
 };
 
 class MHAWOTranspose : public MHA {
+protected:
     void init_subgraph() override;
 };
+
+class MHAINT8MatMul : public MHA {
+protected:
+    void init_subgraph() override;
+};
+
+class MHAFQAfterMatMul : public MHA {
+protected:
+    void init_subgraph() override;
+};
+
+class MHAFQ : public MHA {
+protected:
+    void init_subgraph() override;
+};
+
+class MHAMulAdd : public MHA {
+    void init_subgraph() override;
+};
+
 
 } // namespace snippets
 } // namespace test

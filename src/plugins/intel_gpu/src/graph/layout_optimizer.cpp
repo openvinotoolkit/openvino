@@ -414,6 +414,13 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
 }
 
 bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, reorder_node& node, format fmt_prev, format fmt_next) {
+    // Because mvn and concatenation kernel can work cross-layout, if reorder only performs type conversion,
+    // fusing reorder to the previous node can be done even if it is a dynamic shape case
+    if ((prev.is_type<mvn>() || prev.is_type<concatenation>()) &&
+        (format::is_simple_data_format(fmt_prev) && format::is_simple_data_format(fmt_next)) &&
+        node.is_type_conversion_only())
+        return true;
+
     if (prev.is_dynamic() || (!node.get_users().empty() && node.get_users().front()->is_dynamic()))
         return false;
 
@@ -1363,6 +1370,9 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
     auto forced_impl = get_forced_impl_type_by_config(node);
     if (forced_impl != impl_types::any)
         return forced_impl;
+
+    if (node.is_in_shape_of_subgraph() && !node.is_type<reshape>())
+        return impl_types::cpu;
 
     if (!_forcing_map.empty() && _forcing_map.count(node.id()) != 0) {
         preferred_impl = _forcing_map.at(node.id()).second;

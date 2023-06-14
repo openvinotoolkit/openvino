@@ -116,14 +116,14 @@ void Verbose::printInfo() {
         shift(written);
     };
 
-    for (int i = 0; i < node->getParentEdges().size(); i++) {
+    for (size_t i = 0; i < node->getParentEdges().size(); i++) {
         std::string prefix("src:" + std::to_string(i) + ':');
         formatMemDesc(MemoryDescUtils::convertToDnnlMemoryDesc(
                           node->getParentEdgeAt(i)->getMemory().getDesc().clone())->getDnnlDesc().get(),
                       prefix);
     }
 
-    for (int i = 0; i < node->getChildEdges().size(); i++) {
+    for (size_t i = 0; i < node->getChildEdges().size(); i++) {
         std::string prefix("dst:" + std::to_string(i) + ':');
         formatMemDesc(MemoryDescUtils::convertToDnnlMemoryDesc(
                           node->getChildEdgeAt(i)->getMemory().getDesc().clone())->getDnnlDesc().get(),
