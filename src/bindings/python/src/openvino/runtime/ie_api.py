@@ -175,6 +175,9 @@ class CompiledModel(CompiledModelBase):
         self._infer_request: Optional[InferRequest] = None
         super().__init__(other)
 
+    def get_runtime_model(self) -> Model:
+        return Model(super().get_runtime_model())
+
     def create_infer_request(self) -> InferRequest:
         """Creates an inference request object used to infer the compiled model.
 
