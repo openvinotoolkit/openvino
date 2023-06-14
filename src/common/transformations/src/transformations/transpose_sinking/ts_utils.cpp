@@ -66,14 +66,22 @@ Output<Node> ChangeAxes(const Output<Node>& indices,
     return ChangeAxes(indices, data, axis);
 }
 
-TransposeInputsInfo GetFirstTransposeInput(const NodePtr& node) {
-    for (size_t input_idx = 0; input_idx < node->get_input_size(); ++input_idx) {
+TransposeInputsInfo GetFirstTransposeInput(const NodePtr& node,
+                                           bool const_transpose_order,
+                                           const std::vector<size_t>& indices) {
+    auto indices_to_check = indices;
+    if (indices.empty()) {
+        indices_to_check.resize(node->get_input_size());
+        std::iota(indices_to_check.begin(), indices_to_check.end(), 0);
+    }
+
+    for (const auto& input_idx : indices_to_check) {
         NodePtr input_node = node->get_input_node_shared_ptr(input_idx);
         auto transpose_node = as_type_ptr<ov::op::v1::Transpose>(input_node);
         if (!transpose_node)
             continue;
         auto constant_node = as_type_ptr<ov::op::v0::Constant>(transpose_node->input_value(1).get_node_shared_ptr());
-        if (!constant_node)
+        if (const_transpose_order && !constant_node)
             continue;
         {
             TransposeInputsInfo input_info;
@@ -85,11 +93,6 @@ TransposeInputsInfo GetFirstTransposeInput(const NodePtr& node) {
     }
 
     return {};
-}
-
-bool IfNodeHasTransposeInputs(const Output<Node>& output) {
-    TransposeInputsInfo inputs_info = GetFirstTransposeInput(output.get_node_shared_ptr());
-    return !inputs_info.isEmpty();
 }
 
 AxisVector ReverseTransposeOrder(const AxisVector& axis_order) {
@@ -368,8 +371,13 @@ bool CanPropagateForward(const NodePtr& node) {
 }  // namespace
 
 void UpdateForwardSinkingAbility(const NodePtr& node) {
+    std::cout << "UpdateForwardSinkingAbility " << node->get_friendly_name() << std::endl;
+#if 0
     if (!CanPropagateForward(node))
         mark_as_no_sinking_node(node);
+#else
+    mark_as_no_sinking_node(node);
+#endif
 }
 
 namespace {
@@ -421,6 +429,7 @@ bool CheckTransposeConsumers(const NodePtr& main_node) {
                             transpose_axis_order.end(),
                             first_transpose_axis_order.begin()))
                 return false;
+            std::cout << "CheckTransposeConsumers is_sinking_node " << input.get_node()->get_friendly_name() << " " << is_sinking_node(input.get_node()) << std::endl;
             if (!is_sinking_node(input.get_node())) {
                 return false;
             }

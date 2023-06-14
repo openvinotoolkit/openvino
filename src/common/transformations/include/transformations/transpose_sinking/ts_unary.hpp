@@ -5,6 +5,7 @@
 #pragma once
 
 #include "openvino/pass/graph_rewrite.hpp"
+#include "transformations/transpose_sinking/ts_base.hpp"
 #include "transformations_visibility.hpp"
 
 namespace ov {
@@ -23,7 +24,7 @@ class TRANSFORMATIONS_API TSUnaryBackward;
  * @brief TSUnaryForward transformation sinks Transpose through UnaryElementwiseArithmetic, Clamp, Elu,
  * SoftPlus, LogicalNot, Convert, IsInf, IsNaN, IsFinite operations in the forward direction.
  */
-class ov::pass::transpose_sinking::TSUnaryForward : public ov::pass::MatcherPass {
+class ov::pass::transpose_sinking::TSUnaryForward : public ov::pass::transpose_sinking::TSForwardBase {
 public:
     OPENVINO_RTTI("TSUnaryForward", "0");
     TSUnaryForward();
