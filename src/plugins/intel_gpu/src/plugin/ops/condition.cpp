@@ -27,21 +27,17 @@ namespace intel_gpu {
 const size_t idx_true = 0;
 const size_t idx_false = 1;
 
-static cldnn::program::ptr gen_program(Program& p, const std::shared_ptr<ngraph::Function> net) {
-    InferenceEngine::CNNNetwork body_network(net);
-    auto config = p.get_config();
-    config.set_property(ov::intel_gpu::enable_dynamic_batch(false));
-    config.set_property(ov::intel_gpu::max_dynamic_batch(1));
-    // TODO: Set dynamic input when If has dynamic input params
-    Program body_program(body_network, p.get_engine(), config);
-    return body_program.GetCompiledProgram();
-}
-
 static cldnn::condition::branch gen_branch(Program& p, const std::shared_ptr<ngraph::op::v8::If>& op, size_t idx) {
     cldnn::condition::branch branch;
     const auto& internal_body = (idx == idx_true)? op->get_then_body() : op->get_else_body();
 
-    branch.inner_program = gen_program(p, internal_body);
+    InferenceEngine::CNNNetwork body_network(internal_body);
+    auto config = p.get_config();
+    config.set_property(ov::intel_gpu::enable_dynamic_batch(false));
+    config.set_property(ov::intel_gpu::max_dynamic_batch(1));
+
+    Program body_program(body_network, p.get_engine(), config);
+    branch.inner_program = body_program.GetCompiledProgram();
 
     auto& input_map = branch.input_map;
     auto external_inputs = p.GetInputInfo(op);
@@ -55,7 +51,6 @@ static cldnn::condition::branch gen_branch(Program& p, const std::shared_ptr<ngr
 
     auto& output_map = branch.output_map;
     auto internal_outputs = internal_body->get_results();
-    // std::cout << "inner body outputs: " << internal_outputs.size() << std::endl;
     auto output_desc_vec = op->get_output_descriptions(idx);
     for (auto& out_desc : output_desc_vec) {
         const auto& internal_id = layer_type_name_ID(internal_outputs.at(out_desc->m_body_value_index));

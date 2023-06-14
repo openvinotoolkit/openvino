@@ -13,13 +13,12 @@ namespace cldnn {
 /// @brief Adds primitive, which works like "if".
 ///
 /// @details
-/// @n   Applies comparision between 2 inputs.
-/// @n   Compare data - sizes of that input specifes the range of the comparison.
-/// @n   Offset - offset in memory, when comparing values.
+/// @n   Applies comparision using pred primitive which has 1D tensor or scalar value
 struct condition : public primitive_base<condition> {
     CLDNN_DECLARE_PRIMITIVE(condition)
 
-    /// @brief
+    /// @brief branch has compiled program, input_map and output_map
+    ///
     struct branch {
         std::map<primitive_id, primitive_id> input_map;
         std::map<size_t, primitive_id> output_map;
@@ -47,15 +46,11 @@ struct condition : public primitive_base<condition> {
     /// @brief Constructs condition primitive / layer.
     ///
     /// @param id                 An identifier of new primitive.
-    /// @param input              An identifier of primitive which is an input for newly created
-    ///                           condition primitive.
-    /// @param branch_true        Topology containg primitives, which will be executed when comparsion results is true
-    ///                           true.
-    /// @param branch_false       Topology containg primitives, which will be executed when comparsion results
-    ///                           false..
-    /// @param compare_Data       An identifier of primitive which contains compare values
-    /// @param func               Used function during comparison.
-    /// @param offset             Offset for compare data.
+    /// @param inputs             A list of Input primitive ids (pred, inputs(optional)).
+    ///                           pred is condition's predicate primitive which has scalar value determining whether to execute branch_true or branch_false.
+    ///                           sometimes, if
+    /// @param branch_true        Branch containg primitives, which will be executed when pred is true. then body in ngraph
+    /// @param branch_false       Branch containg primitives, which will be executed when pred is false. else body in ngraph
     /// @param output_padding     Optional padding for output from primitive.
     condition(const primitive_id& id,
             const std::vector<input_info>& inputs,
@@ -65,13 +60,6 @@ struct condition : public primitive_base<condition> {
         : primitive_base(id, inputs, {output_padding}),
         branch_true(branch_true),
         branch_false(branch_false) {}
-
-    /// @brief An identifier of topology, which will be executed when comparison returns true.
-    topology topology_true;
-    /// @brief An identifier of topology, which will be executed when comparison returns false.
-    topology topology_false;
-    /// @brief An identifier of primitive which contains compare values.
-    primitive_id compare_data;
 
     branch branch_true;
     branch branch_false;
