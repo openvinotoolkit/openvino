@@ -843,8 +843,7 @@ void GNAGraphCompiler::finalizeConvolution2DPrimitive(InferenceEngine::CNNLayerP
     const auto single_kernel_size = in_channels * kernelHW * convolution_precision;
 
     const auto effective_kernel_h_w = convolution._kernel_y * effective_kernel_width;
-    const auto effective_single_kernel_size =
-        in_channels / convolution._group * effective_kernel_h_w * convolution_precision;
+    const auto effective_single_kernel_size = in_channels * effective_kernel_h_w * convolution_precision;
 
     std::vector<uint8_t> transposed_weights;
 
