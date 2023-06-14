@@ -130,6 +130,7 @@ OP_CONVERTER(translate_square);
 OP_CONVERTER(translate_squeeze);
 OP_CONVERTER(translate_sub);
 OP_CONVERTER(translate_sum);
+OP_CONVERTER(translate_t);
 OP_CONVERTER(translate_to);
 OP_CONVERTER(translate_topk);
 OP_CONVERTER(translate_transpose);
@@ -348,6 +349,8 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::squeeze", op::translate_squeeze},
         {"aten::sub", op::translate_sub},
         {"aten::sum", op::translate_sum},
+        {"aten::t", op::translate_t},
+        {"aten::t_", op::inplace_op<op::translate_t>},
         {"aten::tan", op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Tan>},
         {"aten::tan_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Tan>>},
         {"aten::tanh", op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Tanh>},
@@ -357,7 +360,9 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::topk", op::translate_topk},
         {"aten::transpose", op::translate_transpose},
         {"aten::tril", op::translate_tril},
+        {"aten::tril_", op::inplace_op<op::translate_tril>},
         {"aten::triu", op::translate_triu},
+        {"aten::triu_", op::inplace_op<op::translate_triu>},
         {"aten::type_as",
          op::translate_1to1_match_2_inputs<opset10::ConvertLike>},  // TODO: overflow semantics is different
         {"aten::unflatten", op::translate_unflatten},

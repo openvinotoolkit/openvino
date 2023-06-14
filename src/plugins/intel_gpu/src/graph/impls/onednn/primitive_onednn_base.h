@@ -460,16 +460,6 @@ protected:
 
     void init_kernels(const kernels_cache&, const kernel_impl_params&) override { }
 
-    event::ptr aggregate_events(const std::vector<event::ptr>& events, stream& stream, bool group = false, bool is_output = false) const {
-        if (events.size() == 1 && !is_output)
-            return events[0];
-
-        if (group && !is_output)
-            return stream.group_events(events);
-
-        return stream.enqueue_marker(events, is_output);
-    }
-
     void set_arguments_impl(typed_primitive_inst<PType>& instance) override {
         if (instance.can_be_optimized())
             return;
@@ -499,6 +489,12 @@ protected:
                 }
                 throw;    // rethrowing dnnl::error if not out_of_memory
             }
+
+            // If oneDNN primitive is the output primitive or it's user is CPU implementation, then enqueue marker
+            // with empty events wait list (which will trigger wait for all previously enqueued tasks) and
+            // return it as oneDNN primitive's event as it is a single option for proper synchronization
+            if (instance.needs_completion_event())
+                event = stream.enqueue_marker({});
         }
 
         if (_enable_profiling) {

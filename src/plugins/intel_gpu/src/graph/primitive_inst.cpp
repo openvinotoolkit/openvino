@@ -684,7 +684,9 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
         dependencies = events;
     } else {
         auto queue_type = get_network().get_stream().get_queue_type();
-        if (queue_type == QueueTypes::out_of_order) {
+        // Prepare dependencies events in case of OOO queue, CPU implementation,
+        // or optimized_out impl which has CPU users (needs_completion_event() && !is_output() condition)
+        if (queue_type == QueueTypes::out_of_order || _impl->is_cpu() || (can_be_optimized() && needs_completion_event() && !is_output())) {
             dependencies.reserve(dependencies.size() + _exec_deps.size());
             for (auto& input : _exec_deps) {
                 auto id = input->id();
@@ -803,7 +805,8 @@ primitive_inst::primitive_inst(network& network, program_node const& node, bool 
     , _fused_mem_offset((_fused_mem_count > 0 && node.has_fused_dep()) ? node.get_first_fused_dep_idx() : 0)
     , _can_be_optimized(node.can_be_optimized())
     , _can_share_buffer(node.can_share_buffer())
-    , _is_constant(node.is_constant()) {
+    , _is_constant(node.is_constant())
+    , _needs_completion_event(is_any_user_cpu(node.get_users()) || node.is_output()) {
     if (allocate_memory) {
         // In case when output is mutable_data primitive, and other users dependencies are only used for
         // suychronization, The output memory of such primitive will be fused with mutable_data
@@ -1392,9 +1395,7 @@ void primitive_inst::save(cldnn::BinaryOutputBuffer& ob) const {
     ob << can_be_optimized();
     ob << can_share_buffer();
     ob << is_constant();
-    auto users = get_node().get_users();
-    bool is_output_event = is_any_user_cpu(users) || get_node().is_output();
-    ob << is_output_event;
+    ob << needs_completion_event();
 
     if (type() == cldnn::data::type_id()) {
         return;
@@ -1485,7 +1486,7 @@ void primitive_inst::load(cldnn::BinaryInputBuffer& ib) {
     ib >> _can_be_optimized;
     ib >> _can_share_buffer;
     ib >> _is_constant;
-    ib >> _is_output_event;
+    ib >> _needs_completion_event;
 
     if (type() == cldnn::data::type_id()) {
         return;
