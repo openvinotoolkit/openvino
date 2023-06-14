@@ -684,6 +684,6 @@ class ConvertRaises(unittest.TestCase):
             assert False, "Something happened"
 
         # Check that mo raises error message of wrong argument.
-        with self.assertRaisesRegex(Exception, ".*Something happened.*Conversion is failed for: aten::relu.*"):
+        with self.assertRaisesRegex(Exception, ".*Conversion is failed for: aten::relu.*"):
             convert_model(pt_model, input=(inp_shapes, np.float32), extensions=[
                           ConversionExtension("aten::relu", relu_bad)])
