@@ -380,6 +380,27 @@ def test_get_perf_counts(device):
     del net
 
 
+def test_blob_setter(device):
+    ie_core = ie.IECore()
+    net = ie_core.read_network(test_net_xml, test_net_bin)
+    exec_net_1 = ie_core.load_network(network=net, device_name=device, num_requests=1)
+
+    net.input_info['data'].layout = "NHWC"
+    exec_net_2 = ie_core.load_network(network=net, device_name=device, num_requests=1)
+
+    img = generate_image()
+    res_1 = np.sort(exec_net_1.infer({"data": img})['fc_out'])
+
+    img = np.transpose(img, axes=(0, 2, 3, 1)).astype(np.float32)
+    tensor_desc = ie.TensorDesc("FP32", [1, 3, 32, 32], "NHWC")
+    img_blob = ie.Blob(tensor_desc, img)
+    request = exec_net_2.requests[0]
+    request.set_blob('data', img_blob)
+    request.infer()
+    res_2 = np.sort(request.output_blobs['fc_out'].buffer)
+    assert np.allclose(res_1, res_2, atol=1e-2, rtol=1e-2)
+
+
 def test_getting_preprocess(device):
     ie_core = ie.IECore()
     net = ie_core.read_network(test_net_xml, test_net_bin)
