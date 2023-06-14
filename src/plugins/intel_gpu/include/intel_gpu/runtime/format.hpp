@@ -46,7 +46,7 @@ struct format_traits {
     /// @brief Characters representing feature map/channel dimensions in an order.
     static const char* feature_chars() { return "fic"; }
     /// @brief Characters representing spatial dimensions in an order.
-    static const char* spatial_chars() { return "xyzhsw"; }
+    static const char* spatial_chars() { return "xyzwuvhs"; }
     /// @brief Characters representing group dimensions in an order.
     static const char* group_chars() { return "g"; }
     /// @brief Checks if @p c represents batch dimension.
