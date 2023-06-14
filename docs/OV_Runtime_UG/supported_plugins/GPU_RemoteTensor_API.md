@@ -65,7 +65,7 @@ of ``ov::RemoteContext`` derived classes.
          :language: cpp
          :fragment: [context_from_va_display]
 
-.. tab-item:: Windows/C++
+.. tab-set:: Windows/C++
 
    .. tab-item:: Create from cl_context
 
