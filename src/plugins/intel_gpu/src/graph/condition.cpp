@@ -12,18 +12,17 @@
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(condition)
 
-
 static layout get_output_layout_from_inner_program(kernel_impl_params const& impl_param, size_t branch_idx) {
     std::string branch_name = (branch_idx == 0) ? "true" : "false";
     auto& outputs  = impl_param.inner_progs[branch_idx]->get_outputs();
     auto& io_output_map  = impl_param.io_output_maps[branch_idx];
 
     CLDNN_ERROR_NOT_EQUAL(impl_param.desc->id,
-                        "Count of branch " + branch_name + " outputs",
+                        "Count of branch_" + branch_name + " outputs",
                         io_output_map.size(),
                         "expected outputs size",
                         1,
-                        "Branch " + branch_name + " should have one output.");
+                        "Branch_" + branch_name + " should have one output.");
 
     auto inner_prim_id = io_output_map.at(0);
     for (size_t idx = 0; idx < outputs.size(); idx++) {
@@ -40,11 +39,11 @@ static layout get_output_layout_from_inner_network(kernel_impl_params const& imp
     auto& io_output_map  = impl_param.io_output_maps[branch_idx];
 
     CLDNN_ERROR_NOT_EQUAL(impl_param.desc->id,
-                        "Count of branch " + branch_name + " outputs",
+                        "Count of branch_" + branch_name + " outputs",
                         io_output_map.size(),
                         "expected outputs size",
                         1,
-                        "Branch " + branch_name + " should have one output.");
+                        "Branch_" + branch_name + " should have one output.");
 
     auto inner_prim_id = io_output_map.at(0);
     for (size_t idx = 0; idx < outputs.size(); idx++) {
@@ -84,37 +83,34 @@ layout condition_inst::calc_output_layout(condition_node const& /* node */, kern
 }
 
 template <class T>
-bool compare_data(memory::ptr mem, stream& stream) {
-    mem_lock<T, mem_lock_type::read> lock_compare_data{mem, stream};
-    return (static_cast<float>(*lock_compare_data.data()) != 0.f);
+static bool convert_data(memory::ptr mem, stream& stream) {
+    mem_lock<T, mem_lock_type::read> lock_data{mem, stream};
+    return (static_cast<float>(*lock_data.data()) != 0.f);
 }
 
-static bool get_compare_data(memory::ptr mem, stream& stream) {
+bool condition_inst::get_pred_frem_memory(memory::ptr mem, stream& stream) {
     auto mem_dt = mem->get_layout().data_type;
     switch (mem_dt) {
         case cldnn::data_types::f32:
-            return compare_data<float>(mem, stream);
+            return convert_data<float>(mem, stream);
         case cldnn::data_types::f16:
-            return compare_data<half_t>(mem, stream);
+            return convert_data<half_t>(mem, stream);
         case cldnn::data_types::i64:
-            return compare_data<int64_t>(mem, stream);
+            return convert_data<int64_t>(mem, stream);
         case cldnn::data_types::i32:
-            return compare_data<int32_t>(mem, stream);
+            return convert_data<int32_t>(mem, stream);
         case cldnn::data_types::i8:
-            return compare_data<int8_t>(mem, stream);
+            return convert_data<int8_t>(mem, stream);
         case cldnn::data_types::u8:
-            return compare_data<uint8_t>(mem, stream);
+            return convert_data<uint8_t>(mem, stream);
         case cldnn::data_types::bin:
         default:
-            return compare_data<uint32_t>(mem, stream);
+            return convert_data<uint32_t>(mem, stream);
     }
 }
 
 template<typename ShapeType>
 std::vector<layout> condition_inst::calc_output_layouts(condition_node const& node, kernel_impl_params const& impl_param) {
-    // TODO : Add the case for cond is constant
-
-    // In the case of parameter / equal
     if (impl_param.inner_nets.empty()) {
         OPENVINO_ASSERT(impl_param.inner_progs.empty() == false, "The count of inner programs should not be zero");
         auto layout_true  = get_output_layout_from_inner_program(impl_param, 0);
@@ -128,8 +124,8 @@ std::vector<layout> condition_inst::calc_output_layouts(condition_node const& no
         auto& memory_deps = impl_param.memory_deps;
         OPENVINO_ASSERT(memory_deps.count(0) > 0, "");
         auto mem_ptr = memory_deps.at(0);
-        auto compare_data = get_compare_data(mem_ptr, impl_param.get_stream());
-        if (compare_data) {
+        auto pred = condition_inst::get_pred_frem_memory(mem_ptr, impl_param.get_stream());
+        if (pred) {
             return {layout_true};
         } else {
             return {layout_false};
@@ -161,9 +157,9 @@ condition_inst::typed_primitive_inst(network& network, condition_node const& nod
     this->set_inner_networks({_net_true, _net_false});
 }
 
-network::ptr condition_inst::get_inner_networks(bool is_net_true) {
-    auto net = is_net_true? _net_true : _net_false;
-    const auto& branch = is_net_true? node->get_branch_true() : node->get_branch_false();
+network::ptr condition_inst::get_inner_networks(bool pred) {
+    auto net = pred? _net_true : _net_false;
+    const auto& branch = pred? node->get_branch_true() : node->get_branch_false();
 
     for (size_t mem_idx = 0; mem_idx < inputs_memory_count(); mem_idx++) {
         const primitive_id& input_external_id = dependencies().at(mem_idx).first->id();
@@ -190,8 +186,8 @@ network::ptr condition_inst::get_inner_networks(bool is_net_true) {
     return net;
 }
 
-condition::branch condition_inst::get_branch(const bool is_net_true) const {
-    const auto& branch = is_net_true? node->get_branch_true() : node->get_branch_false();
+condition::branch condition_inst::get_branch(const bool pred) const {
+    const auto& branch = pred? node->get_branch_true() : node->get_branch_false();
     return branch;
 }
 

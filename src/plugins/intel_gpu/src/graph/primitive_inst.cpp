@@ -598,8 +598,6 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
             if (is_dynamic()) {
                 OPENVINO_ASSERT(_node != nullptr, "[GPU] Invalid primitive_inst object for dynamic shapes case: program_node can't be null");
                 update_shape();
-                auto out_layout = get_output_layout();
-                std::cout << "out layout: " << out_layout.to_short_string() << std::endl;
                 reset_shape_change();
             }
         }

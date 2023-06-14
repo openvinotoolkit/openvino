@@ -85,11 +85,11 @@ public:
         ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::optimize_data(true));
         auto input = engine.allocate_memory({ dat_dt, format::bfyx,{ 1, 1, 4, 1 } });
-        auto compare = engine.allocate_memory({ data_types::u8, format::bfyx,{ 1, 1, 1, 1 } });
+        auto predicate = engine.allocate_memory({ data_types::u8, format::bfyx,{ 1, 1, 1, 1 } });
         auto scale_mem = engine.allocate_memory({ dat_dt, format::bfyx,{ 1, 1, 1, 1 } });
 
         primitive_id input_id           = "input";
-        primitive_id compare_id         = "compare";
+        primitive_id pred_id            = "predicate";
         primitive_id branch_input_id    = "branch_input";
         primitive_id cond_id            = "condi";
         primitive_id scale_data_id      = "scale_data";
@@ -115,13 +115,13 @@ public:
             input_layout(input_id, input->get_layout())
         );
         topology.add(
-            input_layout(compare_id, compare->get_layout())
+            input_layout(pred_id, predicate->get_layout())
         );
         topology.add(
             input_layout(scale_data_id, scale_mem->get_layout())
         );
         topology.add(
-            condition(cond_id, {input_info(compare_id), input_info(input_id)}, branch_true, branch_false)
+            condition(cond_id, {input_info(pred_id), input_info(input_id)}, branch_true, branch_false)
         );
         topology.add(
             eltwise(output_id, { input_info(cond_id), input_info(scale_data_id) }, eltwise_mode::prod)
@@ -136,15 +136,15 @@ public:
         decltype(net.execute()) out;
 
         //WHEN TRUE
-        set_values(compare, { 1 });
-        net.set_input_data(compare_id, compare);
+        set_values(predicate, { 1 });
+        net.set_input_data(pred_id, predicate);
         out = net.execute();
         auto out_data_true = out.at(output_id).get_memory();
         ASSERT_TRUE(is_output_equal(out_data_true, convert_data({ 20, 40 })));
 
         //WHEN FALSE
-        set_values(compare, { 0 });
-        net.set_input_data(compare_id, compare);
+        set_values(predicate, { 0 });
+        net.set_input_data(pred_id, predicate);
         out = net.execute();
         auto out_data_false = out.at(output_id).get_memory();
         ASSERT_TRUE(is_output_equal(out_data_false, convert_data({ 15, 35 })));
@@ -167,7 +167,7 @@ TEST(condition_gpu, basic_range_equal_comp) {
     auto input0 = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 2, 1 } });
     auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 2, 1 } });
 
-    auto compare = engine.allocate_memory({ data_types::u8, format::bfyx,{ 1, 1, 1, 1 } });
+    auto predicate = engine.allocate_memory({ data_types::u8, format::bfyx,{ 1, 1, 1, 1 } });
 
     primitive_id condi_id = "condi";
     primitive_id branch_input_id = "branch_input";
@@ -181,7 +181,7 @@ TEST(condition_gpu, basic_range_equal_comp) {
         input_layout("input1", input1->get_layout())
     );
     topology.add(
-        input_layout("compare", compare->get_layout())
+        input_layout("predicate", predicate->get_layout())
     );
     topology.add(
         concatenation("concat", { input_info("input0"), input_info("input1") }, 3)
@@ -203,7 +203,7 @@ TEST(condition_gpu, basic_range_equal_comp) {
     }
 
     topology.add(
-        condition("condi", {input_info("compare"), input_info("concat")}, branch_true, branch_false)
+        condition("condi", {input_info("predicate"), input_info("concat")}, branch_true, branch_false)
     );
 
     std::vector<float> input0_data = {
@@ -212,13 +212,13 @@ TEST(condition_gpu, basic_range_equal_comp) {
     std::vector<float> input1_data = {
         3, 4
     };
-    std::vector<uint8_t> compare_data_true = {
+    std::vector<uint8_t> predicate_data_true = {
         1
     };
     std::vector<float> pooling_when_true_data = {
         2, 4
     };
-    std::vector<uint8_t> compare_data_false = {
+    std::vector<uint8_t> predicate_data_false = {
         0
     };
     std::vector<float> pooling_when_false_data = {
@@ -234,16 +234,16 @@ TEST(condition_gpu, basic_range_equal_comp) {
     decltype(net.execute()) outputs;
 
     //CHECK TRUE
-    set_values(compare, compare_data_true);
-    net.set_input_data("compare", compare);
+    set_values(predicate, predicate_data_true);
+    net.set_input_data("predicate", predicate);
     outputs = net.execute();
 
     auto out_data_true = outputs.at("condi").get_memory();
     ASSERT_TRUE(is_output_equal(out_data_true, pooling_when_true_data));
 
     //CHECK FALSE
-    set_values(compare, compare_data_false);
-    net.set_input_data("compare", compare);
+    set_values(predicate, predicate_data_false);
+    net.set_input_data("predicate", predicate);
     outputs = net.execute();
 
     auto out_data_false = outputs.at("condi").get_memory();
@@ -266,12 +266,12 @@ TEST(condition_gpu, basic_stacked_ifs) {
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
     auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 4, 1 } });
-    auto compare = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
-    auto compare2 = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
+    auto predicate = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
+    auto predicate2 = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
 
     primitive_id input_id           = "input";
-    primitive_id compare_id         = "compare";
-    primitive_id compare2_id        = "compare2";
+    primitive_id pred_id         = "predicate";
+    primitive_id predicate2_id        = "predicate2";
     primitive_id branch_input_id    = "branch_input";
     primitive_id cond_id            = "condi";
     primitive_id cond2_id           = "condi2";
@@ -316,35 +316,35 @@ TEST(condition_gpu, basic_stacked_ifs) {
         input_layout(input_id, input->get_layout())
     );
     topology.add(
-        input_layout(compare_id, compare->get_layout())
+        input_layout(pred_id, predicate->get_layout())
     );
     topology.add(
-        condition(cond_id, { input_info(compare_id), input_info(input_id) }, branch_condi_1_true, branch_condi_1_false)
+        condition(cond_id, { input_info(pred_id), input_info(input_id) }, branch_condi_1_true, branch_condi_1_false)
     );
     topology.add(
-        input_layout(compare2_id, compare2->get_layout())
+        input_layout(predicate2_id, predicate2->get_layout())
     );
     topology.add(
-        condition(cond2_id, { input_info(compare2_id), input_info(cond_id) }, branch_condi_2_true, branch_condi_2_false)
+        condition(cond2_id, { input_info(predicate2_id), input_info(cond_id) }, branch_condi_2_true, branch_condi_2_false)
     );
 
     std::vector<float> input_data = {
         1, 2, 3, 4
     };
-    std::vector<uint8_t> compare_data = {
+    std::vector<uint8_t> predicate_data = {
         1
     };
-    std::vector<uint8_t> compare_2_data = {
+    std::vector<uint8_t> predicate_2_data = {
         0
     };
     set_values(input, input_data);
-    set_values(compare, compare_data);
-    set_values(compare2, compare_2_data);
+    set_values(predicate, predicate_data);
+    set_values(predicate2, predicate_2_data);
 
     network net(engine, topology, config);
     net.set_input_data(input_id, input);
-    net.set_input_data(compare_id, compare);
-    net.set_input_data(compare2_id, compare2);
+    net.set_input_data(pred_id, predicate);
+    net.set_input_data(predicate2_id, predicate2);
     auto outputs = net.execute();
 
     std::vector<float> ref_data = {
@@ -370,8 +370,8 @@ TEST(condition_gpu, basic_nested_ifs) {
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
     auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 4, 1 } });
-    auto compare = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
-    auto compare2 = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
+    auto predicate = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
+    auto predicate2 = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
     auto scale_5_mem = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
     set_values(scale_5_mem, { 5.0f });
     auto scale_10_mem = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
@@ -408,8 +408,8 @@ TEST(condition_gpu, basic_nested_ifs) {
         branch_true_topology.add(
             input_layout("branch_input3", { data_types::f32, format::bfyx,{ 1, 1, 4, 1 } }),
             pooling("pooling_when_true", input_info("branch_input3"), cldnn::pooling_mode::max, { 1, 2 }, { 1, 2 }),
-            input_layout("compare2", compare2->get_layout()),
-            condition( "condi_nested", {input_info("compare2"), input_info("pooling_when_true")}, nested_true, nested_false)
+            input_layout("predicate2", predicate2->get_layout()),
+            condition( "condi_nested", {input_info("predicate2"), input_info("pooling_when_true")}, nested_true, nested_false)
         );
         branch_true.inner_program = program::build_program(engine, branch_true_topology, config, true);
         branch_true.input_map.insert({"input", "branch_input3"});
@@ -434,45 +434,45 @@ TEST(condition_gpu, basic_nested_ifs) {
     );
 
     topology.add(
-        input_layout("compare", compare->get_layout())
+        input_layout("predicate", predicate->get_layout())
     );
 
     topology.add(
-        condition("condi", {input_info("compare"), input_info("input")}, branch_true, branch_false)
+        condition("condi", {input_info("predicate"), input_info("input")}, branch_true, branch_false)
     );
 
     std::vector<float> input_data = {
         1.0f, 2.0f, 3.0f, 4.0f
     };
-    std::vector<float> compare_data = {
+    std::vector<float> predicate_data = {
         1.0f
     };
-    std::vector<float> compare_2_data = {
+    std::vector<float> predicate_2_data = {
         2.0f, 4.0f
     };
     set_values(input, input_data);
-    set_values(compare, compare_data);
-    set_values(compare2, compare_2_data);
+    set_values(predicate, predicate_data);
+    set_values(predicate2, predicate_2_data);
 
     network net(engine, topology, config);
     net.set_input_data("input", input);
-    net.set_input_data("compare", compare);
-    net.set_input_data("compare2", compare2);
+    net.set_input_data("predicate", predicate);
+    net.set_input_data("predicate2", predicate2);
     auto outputs = net.execute();
 
     auto out_data = outputs.at("condi").get_memory();
     ASSERT_TRUE(is_output_equal(out_data, std::vector<float>({ 10.0f, 20.0f })));
 }
 
-TEST(condition_gpu, negative_compare_wrong_layout) {
+TEST(condition_gpu, negative_predicate_wrong_layout) {
     auto& engine = get_test_engine();
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
     auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 4, 1 } });
-    auto compare = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 5, 1 } });
+    auto predicate = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 5, 1 } });
 
     primitive_id input_id           = "input";
-    primitive_id compare_id         = "compare";
+    primitive_id pred_id         = "predicate";
     primitive_id branch_input_id    = "branch_input";
     primitive_id cond_id            = "condi";
 
@@ -496,10 +496,10 @@ TEST(condition_gpu, negative_compare_wrong_layout) {
         input_layout(input_id, input->get_layout())
     );
     topology.add(
-        input_layout(compare_id, compare->get_layout())
+        input_layout(pred_id, predicate->get_layout())
     );
     topology.add(
-        condition(cond_id, {input_info(compare_id), input_info(input_id)}, branch_true, branch_false)
+        condition(cond_id, {input_info(pred_id), input_info(input_id)}, branch_true, branch_false)
     );
 
     EXPECT_ANY_THROW(network net(engine, topology, config););
@@ -510,10 +510,10 @@ TEST(condition_gpu, negative_not_same_layouts) {
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
     auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 4, 1 } });
-    auto compare = engine.allocate_memory({ data_types::u8, format::bfyx,{ 1, 1, 1, 1 } });
+    auto predicate = engine.allocate_memory({ data_types::u8, format::bfyx,{ 1, 1, 1, 1 } });
 
     primitive_id input_id           = "input";
-    primitive_id compare_id         = "compare";
+    primitive_id pred_id         = "predicate";
     primitive_id branch_input_id    = "branch_input";
     primitive_id cond_id            = "condi";
 
@@ -549,10 +549,10 @@ TEST(condition_gpu, negative_not_same_layouts) {
         input_layout(input_id, input->get_layout())
     );
     topology.add(
-        input_layout(compare_id, compare->get_layout())
+        input_layout(pred_id, predicate->get_layout())
     );
     topology.add(
-        condition(cond_id, {input_info(compare_id), input_info(input_id)}, branch_true, branch_false)
+        condition(cond_id, {input_info(pred_id), input_info(input_id)}, branch_true, branch_false)
     );
 
     EXPECT_ANY_THROW(network net(engine, topology, config););
@@ -563,10 +563,10 @@ TEST(condition_gpu, negative_same_names_within_different_networks) {
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
     auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 4, 1 } });
-    auto compare = engine.allocate_memory({ data_types::u8, format::bfyx,{ 1, 1, 1, 1 } });
+    auto predicate = engine.allocate_memory({ data_types::u8, format::bfyx,{ 1, 1, 1, 1 } });
 
     primitive_id input_id           = "input";
-    primitive_id compare_id         = "compare";
+    primitive_id pred_id         = "predicate";
     primitive_id branch_input_id    = "branch_input";
     primitive_id cond_id            = "condi";
     primitive_id duplicated_id      = "pooling_check_name";
@@ -600,10 +600,10 @@ TEST(condition_gpu, negative_same_names_within_different_networks) {
         input_layout(input_id, input->get_layout())
     );
     topology.add(
-        input_layout(compare_id, compare->get_layout())
+        input_layout(pred_id, predicate->get_layout())
     );
     topology.add(
-        condition(cond_id, {input_info(compare_id), input_info(input_id)}, branch_true, branch_false)
+        condition(cond_id, {input_info(pred_id), input_info(input_id)}, branch_true, branch_false)
     );
     topology.add(
         pooling(duplicated_id, input_info(cond_id), cldnn::pooling_mode::max, { 2, 1 }, { 2, 1 })

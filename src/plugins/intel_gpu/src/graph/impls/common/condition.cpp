@@ -29,33 +29,6 @@ struct condition_impl : typed_primitive_impl<condition> {
         _node_id = node.id();
     }
 
-    template <class T>
-    bool compare_data(memory::ptr mem, stream& stream) {
-        mem_lock<T, mem_lock_type::read> lock_compare_data{mem, stream};
-        return (static_cast<float>(*lock_compare_data.data()) != 0.f);
-    }
-
-    bool get_compare_data(memory::ptr mem, stream& stream) {
-        auto mem_dt = mem->get_layout().data_type;
-        switch (mem_dt) {
-            case cldnn::data_types::f32:
-                return compare_data<float>(mem, stream);
-            case cldnn::data_types::f16:
-                return compare_data<half_t>(mem, stream);
-            case cldnn::data_types::i64:
-                return compare_data<int64_t>(mem, stream);
-            case cldnn::data_types::i32:
-                return compare_data<int32_t>(mem, stream);
-            case cldnn::data_types::i8:
-                return compare_data<int8_t>(mem, stream);
-            case cldnn::data_types::u8:
-                return compare_data<uint8_t>(mem, stream);
-            case cldnn::data_types::bin:
-            default:
-                return compare_data<uint32_t>(mem, stream);
-        }
-    }
-
     event::ptr execute_impl(const std::vector<event::ptr>& events, condition_inst& instance) override {
         for (auto& a : events) {
             a->wait();
@@ -63,15 +36,16 @@ struct condition_impl : typed_primitive_impl<condition> {
         auto ev = instance.get_network().get_stream().create_user_event(false);
         set_node_params(instance.get_node());
 
-        auto compare_data = get_compare_data(instance.compare_memory_ptr(), instance.get_network().get_stream());
-        network::ptr executed_net = instance.get_inner_networks(compare_data);
+        auto pred = condition_inst::get_pred_frem_memory(instance.pred_memory_ptr(), instance.get_network().get_stream());
+        network::ptr executed_net = instance.get_inner_networks(pred);
 
         executed_net->execute({});
-        std::string compare_data_str = compare_data ? "body_true" : "body_false";
-        std::cout << " Run ... " << executed_net->get_id() << "_" << compare_data_str << std::endl;
 
+        // When current inst has dynamic shape
+        // It only has exact output shape after inner network is executed
+        // thus, set output memory using output memory of inner network after its execution.
         if (instance.is_dynamic()) {
-            auto branch = instance.get_branch(compare_data);
+            auto branch = instance.get_branch(pred);
             for (auto out_mem_map : branch.output_map) {
                 auto out_mem_idx = out_mem_map.first;
                 auto inner_out_id = out_mem_map.second;
