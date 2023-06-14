@@ -183,6 +183,14 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
             weights = variant.as<std::shared_ptr<ngraph::runtime::AlignedBuffer>>();
         }
     }
+
+    if (variants[variants.size() - 1].is<bool>()) {
+        auto val = variants[variants.size() - 1].as<bool>();
+        if (val)
+            std::cout << std::endl<< std::endl << "IR FE ENABLE_MMAP = TRUE" << std::endl<< std::endl;
+        else
+            std::cout << std::endl<< std::endl << "IR FE ENABLE_MMAP = FALSE" << std::endl<< std::endl;
+    }
     bool enable_mmap = variants[variants.size() - 1].is<bool>() ? variants[variants.size() - 1].as<bool>() : false;
 
     // Find weights if only path to xml was provided
@@ -201,9 +209,10 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
         }
     }
     if (!weights_path.empty()) {
-        if (enable_mmap)
+        if (enable_mmap) {
+            std::cout << std::endl<< std::endl << "ALARM!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! MMAP IS USED" << std::endl<< std::endl;
             weights = ov::load_mmap_object(weights_path);
-        else {
+        } else {
             std::ifstream bin_stream;
             bin_stream.open(weights_path.c_str(), std::ios::binary);
             if (!bin_stream.is_open())

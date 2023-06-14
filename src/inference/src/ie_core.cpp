@@ -86,6 +86,10 @@ public:
 
 Core::Core(const std::string& xmlConfigFile) {
     _impl = std::make_shared<Impl>();
+    if (_impl->get_property("", ov::enable_mmap.name(), {}).as<bool>())
+        std::cout << std::endl<< std::endl << "IE LEGACY CORE ID="<<_impl->ID<<" CTOR ENABLE_MMAP = TRUE" << std::endl<< std::endl;
+    else
+        std::cout << std::endl<< std::endl << "IE LEGACY CORE ID="<<_impl->ID<<" CTOR ENABLE_MMAP = FALSE" << std::endl<< std::endl;
 
     std::string xmlConfigFile_ = ov::findPluginXML(xmlConfigFile);
     if (!xmlConfigFile_.empty())

@@ -297,7 +297,17 @@ ov::Parsed ov::parseDeviceNameIntoConfig(const std::string& deviceName, const An
     return {updated_device_name, updated_config};
 }
 
+namespace{
+int GENERATE_ID() {
+    static std::atomic_int id(0);
+    int a = id++; 
+    return a;
+    //do something with local_id;
+}
+}
+
 ov::CoreImpl::CoreImpl(bool _newAPI) : m_new_api(_newAPI) {
+    ID = ::GENERATE_ID();
     add_mutex("");  // Register global mutex
     m_executor_manager = ov::threading::executor_manager();
     for (const auto& it : ov::get_available_opsets()) {
@@ -1029,6 +1039,7 @@ void ov::CoreImpl::set_property_for_device(const ov::AnyMap& configMap, const st
         // CoreConfg::set_and_update will drop CACHE_DIR from config map
         // and updates core config with new ov::cache_dir
         if (deviceName.empty()) {
+            std::cout << std::endl<< std::endl << "COREImpl ID="<<ID;
             coreConfig.set_and_update(config);
         } else {
             OPENVINO_SUPPRESS_DEPRECATED_START
@@ -1310,6 +1321,10 @@ void ov::CoreImpl::CoreConfig::set_and_update(ov::AnyMap& config) {
     it = config.find(ov::enable_mmap.name());
     if (it != config.end()) {
         auto flag = it->second.as<bool>();
+        if (flag)
+            std::cout << " set_property(ENABLE_MMAP) = TRUE" << std::endl<< std::endl;
+        else
+            std::cout << " set_property(ENABLE_MMAP) = FALSE" << std::endl<< std::endl;
         _flag_enable_mmap = flag;
         config.erase(it);
     }

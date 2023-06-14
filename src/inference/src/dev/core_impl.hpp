@@ -206,6 +206,7 @@ private:
         const InferenceEngine::RemoteContext::Ptr& context);
 
 public:
+    int ID;
     CoreImpl(bool _newAPI);
 
     ~CoreImpl() override = default;
