@@ -43,17 +43,6 @@ You've completed all required configuration steps to perform inference on Intel�
 
 ## macOS
 
-@sphinxdirective
-
-.. warning::
-
-   OpenVINO 2022.3, temporarily, does not support the VPU devices.
-   The feature will be re-implemented with the next update. Until then, 
-   continue using a previous release of OpenVINO, if you work with VPUs.
-
-@endsphinxdirective
-
-
 These steps are required only if you want to perform inference on Intel® Neural Compute Stick 2 powered by the Intel® Movidius™ Myriad™ X VPU.
 
 To perform inference on Intel® Neural Compute Stick 2, the `libusb` library is required. You can build it from the [source code](https://github.com/libusb/libusb) or install using the macOS package manager you prefer: [Homebrew](https://brew.sh/), [MacPorts](https://www.macports.org/) or other.
