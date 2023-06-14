@@ -58,6 +58,7 @@ protected:
     template <typename T>
     void initialize_v1_checkpoints(const std::basic_string<T>& checkpoint_directory) {
         m_checkpoint_v1_reader = std::make_shared<CheckpointV1Reader>(checkpoint_directory);
+        m_checkpoint_v1_reader->initialize();
     }
 
 public:

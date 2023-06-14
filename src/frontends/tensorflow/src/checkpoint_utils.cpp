@@ -54,7 +54,7 @@ inline const char* find_special_byte(const char* start, const char* limit) {
     // If these constants were ever changed, this routine needs to change
     const char* current = start;
     while (current < limit && !byte_is_0_or_255(*current)) {
-        current++;
+        ++current;
     }
     return current;
 }
@@ -89,7 +89,7 @@ inline static void encode_string_piece(std::string& dest, const std::string& sou
 
 // reverse bytes of 64-bit number
 static void convert_to_big_endian64(char* dst, uint64_t v) {
-    for (int i = 0; i < 8; i++) {
+    for (int i = 0; i < 8; ++i) {
         dst[i] = (v >> (56 - 8 * i)) & 0xff;
     }
 }
@@ -157,12 +157,12 @@ void write_num_increasing(std::string& dest, uint64_t val) {
     unsigned char buf[9];  // 8 bytes for value plus one byte for length
     int len = 0;
     while (val > 0) {
-        len++;
+        ++len;
         buf[9 - len] = (val & 0xff);
         val >>= 8;
     }
     buf[9 - len - 1] = len;
-    len++;
+    ++len;
     dest.append(unsigned_char_ptr_to_char_ptr(&buf[0]) + 9 - len, len);
 }
 
@@ -203,7 +203,7 @@ const char* get_varint32_ptr(const char* p, const char* limit, uint32_t& value) 
     uint32_t result = 0;
     for (uint32_t shift = 0; shift <= 28 && p < limit; shift += 7) {
         uint32_t byte = *(char_ptr_to_unsigned_char_ptr(p));
-        p++;
+        ++p;
         if (byte & 128) {
             // More bytes are present
             result |= ((byte & 127) << shift);
@@ -220,7 +220,7 @@ const char* get_varint64_ptr(const char* p, const char* limit, uint64_t* value) 
     uint64_t result = 0;
     for (uint32_t shift = 0; shift <= 63 && p < limit; shift += 7) {
         uint64_t byte = *(char_ptr_to_unsigned_char_ptr(p));
-        p++;
+        ++p;
         if (byte & 128) {
             // More bytes are present
             result |= ((byte & 127) << shift);

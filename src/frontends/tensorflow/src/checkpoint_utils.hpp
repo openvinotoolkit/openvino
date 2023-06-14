@@ -15,10 +15,14 @@ namespace ov {
 namespace frontend {
 namespace tensorflow {
 
+#define VARIABLES_INDEX_FOOTER_SIZE 48
+#define BLOCK_TRAILER_SIZE          5
+#define SAVED_TENSOR_SLICES_KEY     ""
+
 template <typename T>
 static T smUnpack(char*& ptr, const char* ptr_end) {
     T result = 0;
-    for (uint8_t i = 0; i < sizeof(T) * 7 && ptr < ptr_end; i += 7) {
+    for (uint8_t i = 0; i <= sizeof(T) * 7 && ptr < ptr_end; i += 7) {
         T byte = *(ptr++);
         if (byte & 0x80) {
             result |= ((byte & 0x7F) << i);
@@ -41,8 +45,6 @@ struct VIBlock {
         m_size = smUnpack<uint64_t>(ptr, ptr_end);
     }
 };
-
-#define VARIABLES_INDEX_FOOTER_SIZE 48
 
 /// \brief Structure is for storing information about Variables Index footer information.
 /// It contains description of two blocks and a magic number for a file verification.
@@ -79,9 +81,6 @@ struct VIFooter {
         m_index.read(ptr, ptr + sizeof(footerData));
     }
 };
-
-static const int block_trailer_size = 5;
-static const char saved_tensor_slices_key[] = "";
 
 uint32_t decode_fixed32(const char* ptr);
 

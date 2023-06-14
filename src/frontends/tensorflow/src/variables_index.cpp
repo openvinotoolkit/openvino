@@ -28,7 +28,7 @@ void VariablesIndex::read_variables_index_block(std::ifstream& fs,
                                                 uint32_t& offset_end) {
     size_t block_size = index.m_size;
     data.clear();
-    data.resize(block_size + block_trailer_size);
+    data.resize(block_size + BLOCK_TRAILER_SIZE);
     FRONT_END_GENERAL_CHECK(index.m_offset <= m_variables_index_size,
                             "Block offset is bigger than variables index size");
     FRONT_END_GENERAL_CHECK(index.m_offset + data.size() <= m_variables_index_size,
