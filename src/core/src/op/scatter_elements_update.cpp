@@ -281,6 +281,7 @@ bool op::v3::ScatterElementsUpdate::evaluate_label(TensorLabelVector& output_lab
     OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
+namespace ov {
 op::v12::ScatterElementsUpdate::ScatterElementsUpdate(const Output<Node>& data,
                                                       const Output<Node>& indices,
                                                       const Output<Node>& updates,
@@ -330,7 +331,6 @@ shared_ptr<Node> op::v12::ScatterElementsUpdate::clone_with_new_inputs(const Out
                                                    m_use_init_val);
 }
 
-namespace ov {
 template <>
 OPENVINO_API EnumNames<op::v12::ScatterElementsUpdate::Reduction>&
 EnumNames<op::v12::ScatterElementsUpdate::Reduction>::get() {
