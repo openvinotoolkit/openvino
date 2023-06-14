@@ -12,6 +12,7 @@ from openvino._pyopenvino import Core as CoreBase
 from openvino._pyopenvino import CompiledModel as CompiledModelBase
 from openvino._pyopenvino import AsyncInferQueue as AsyncInferQueueBase
 from openvino._pyopenvino import Tensor
+from openvino._pyopenvino import Node
 
 from openvino.runtime.utils.data_helpers import (
     OVDict,
@@ -22,8 +23,19 @@ from openvino.runtime.utils.data_helpers import (
 
 
 class Model(ModelBase):
-    def __init__(self, other: ModelBase) -> None:
-        super().__init__(other)
+    def __init__(self, *args, **kwargs) -> None:
+        if args and not kwargs:
+            if isinstance(args[0], ModelBase):
+                super().__init__(args[0])
+            elif isinstance(args[0], Node):
+                super().__init__(*args)
+            else:
+                super().__init__(*args)
+        if args and kwargs:
+            super().__init__(*args, **kwargs)
+        if kwargs and not args:
+            super().__init__(**kwargs)
+
 
 class InferRequest(_InferRequestWrapper):
     """InferRequest class represents infer request which can be run in asynchronous or synchronous manners."""
