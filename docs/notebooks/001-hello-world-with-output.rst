@@ -47,7 +47,7 @@ Load an Image
     
     # Reshape to model input shape.
     input_image = np.expand_dims(input_image, 0)
-    plt.imshow(image);
+    plt.imshow(image)
 
 
 
