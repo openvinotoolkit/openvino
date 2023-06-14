@@ -296,7 +296,8 @@ Program::Program(InferenceEngine::CNNNetwork& network, cldnn::engine& engine, co
 
 Program::Program(cldnn::engine& engine, const ExecutionConfig& config,
                  InferenceEngine::InputsDataMap* inputs, InferenceEngine::OutputsDataMap* outputs)
-        : m_curBatch(-1)
+        : m_max_batch(1)
+        , m_curBatch(-1)
         , m_config(config)
         , m_engine(engine)
         , queryMode(false) {
@@ -304,6 +305,25 @@ Program::Program(cldnn::engine& engine, const ExecutionConfig& config,
         m_networkInputs = *inputs;
     if (outputs != nullptr)
         m_networkOutputs = *outputs;
+}
+
+int Program::GetMaxBatchSizeForSingleProgram() {
+    auto max_dynamic_batch = m_config.get_property(ov::intel_gpu::max_dynamic_batch);
+    if (max_dynamic_batch > 1) {
+        // calculate number of networks necessary based on binary log
+        unsigned int tmp = static_cast<unsigned int>(max_dynamic_batch);
+        unsigned int mask = 1U << 31;
+        unsigned int ldigit = 31;
+
+        while (!(tmp & mask)) {
+            mask >>= 1;
+            ldigit--;
+        }
+
+        return ldigit + 1;
+    }
+
+    return 0;
 }
 
 std::shared_ptr<cldnn::program> Program::GetCompiledProgram(int program_id) {

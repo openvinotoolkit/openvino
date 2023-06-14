@@ -174,7 +174,15 @@ Blob::Ptr InferRequestLegacy::GetBlob(const std::string& name) {
             checkInputBlob(data, name, foundInput);
     } else {
         data = _outputs[name];
-        checkOutputBlob(data, name, foundOutput);
+        if (isDynamic) {
+            if (m_graph->GetMaxDynamicBatchSize() > 1) {
+                SizeVector outDims = data->getTensorDesc().getDims();
+                outDims[m_graph->GetOutputDynBatchDims()[name]] = m_curBatch;
+                data->getTensorDesc().setDims(outDims);
+            }
+        } else {
+            checkOutputBlob(data, name, foundOutput);
+        }
     }
     return data;
 }
@@ -424,9 +432,88 @@ void InferRequestLegacy::SetGraph(std::shared_ptr<Graph> graph) {
         IE_THROW(NetworkNotLoaded);
     }
 
-    allocate_inputs();
-    allocate_outputs();
+    if (m_graph->GetMaxDynamicBatchSize() > 1) {
+        SetBatch(static_cast<int>(m_graph->GetMaxDynamicBatchSize()));
+        allocate_inputs_dynamic();
+        allocate_outputs_dynamic();
+    } else {
+        allocate_inputs();
+        allocate_outputs();
+        variables_states_ = m_graph->AllocateVariablesMemories();
+    }
+}
+
+void InferRequestLegacy::SetBatch(int new_batch) {
+    OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "InferRequestLegacy::SetBatch");
+
+    OPENVINO_ASSERT(new_batch > 0 && static_cast<size_t>(new_batch) <= m_graph->GetMaxDynamicBatchSize(),
+                    "[GPU] Invalid dynamic batch size ", new_batch, " for this request. ",
+                    "Got: ", new_batch, ". ",
+                    "Expected value in range [1;",  m_graph->GetMaxDynamicBatchSize(), "]");
+
+    if (new_batch == m_curBatch)
+        return;
+
+    batchInputs.clear();
+    batchOutputs.clear();
+
+    // tune expected inputs
+    for (auto& input : m_graph->GetNetworkInputs()) {
+        auto sz = input.second->getTensorDesc().getDims();
+        const auto batch_idx = m_graph->GetInputDynBatchDims()[input.first].first;
+        if (batch_idx >= 0)
+            sz[batch_idx] = 1;
+
+        size_t single_batch = std::accumulate(std::begin(sz), std::end(sz), (size_t)1, std::multiplies<size_t>());
+        std::vector<buf_info> in_buf;
+
+        size_t offset = 0;
+        size_t bsz = single_batch;
+
+        // calculate metadata for input buffers
+        for (unsigned nb = 0; nb < m_graph->GetNetworksCount(); nb++) {
+            unsigned int mask = 1 << nb;
+
+            buf_info ib = { offset, bsz };
+            in_buf.push_back(ib);
+
+            if (new_batch & mask)
+                offset += bsz;
+            bsz <<= 1;
+        }
+
+        batchInputs[input.first] = in_buf;
+    }
+
+    // tune expected outputs
+    for (auto& no : m_graph->GetNetworkOutputs()) {
+        auto sz = no.second->getTensorDesc().getDims();
+        const auto batch_idx = m_graph->GetInputDynBatchDims()[no.first].first;
+        if (batch_idx >= 0)
+            sz[batch_idx] = 1;
+        size_t single_batch = std::accumulate(std::begin(sz), std::end(sz), (size_t)1, std::multiplies<size_t>());
+        std::vector<buf_info> out_buf;
+
+        size_t offset = 0;
+        size_t bsz = single_batch;
+        // calculate metadata for output buffers
+        for (uint32_t nb = 0; nb < m_graph->GetNetworksCount(); nb++) {
+            uint32_t mask = 1 << nb;
+
+            buf_info ob = { offset, bsz };
+            out_buf.push_back(ob);
+
+            if (new_batch & mask)
+                offset += bsz;
+
+            bsz <<= 1;
+        }
+
+        batchOutputs[no.first] = out_buf;
+    }
     variables_states_ = m_graph->AllocateVariablesMemories();
+
+    m_curBatch = new_batch;
 }
 
 InferRequestLegacy::InferRequestLegacy(InputsDataMap networkInputs, OutputsDataMap networkOutputs,
@@ -458,7 +545,11 @@ void InferRequestLegacy::preprocess_notify() {
 }
 
 void InferRequestLegacy::preprocess() {
-    execDataPreprocessing(_inputs, true);  // "true" stands for serial preprocessing in case of OpenMP
+    if (m_graph->GetMaxDynamicBatchSize() > 1) {
+        preprocess_dynamic();
+    } else {
+        execDataPreprocessing(_inputs, true);  // "true" stands for serial preprocessing in case of OpenMP
+    }
 }
 
 void InferRequestLegacy::enqueue_notify() {
@@ -467,6 +558,10 @@ void InferRequestLegacy::enqueue_notify() {
 }
 
 void InferRequestLegacy::enqueue() {
+    if (m_graph->GetMaxDynamicBatchSize() > 1) {
+        enqueue_dynamic();
+        return;
+    }
     // set input and output memory from request blob maps
     // into the network object primitives
     std::vector<cldnn::event::ptr> dependencies;
@@ -564,6 +659,11 @@ void InferRequestLegacy::wait_notify() {
 }
 
 void InferRequestLegacy::wait() {
+    if (m_graph->GetMaxDynamicBatchSize() > 1) {
+        wait_dynamic();
+        return;
+    }
+
     if (internal_outputs.empty()) {
         IE_THROW() << "Inference was not started!\n";
     }
@@ -667,6 +767,21 @@ void InferRequestLegacy::setup_stream_graph() {
         streamID = streamID % numGraphs;
     }
     m_graph = streamGraphs[streamID];
+    // in case of dynamic batch, check all input blobs and set new batch
+    if (m_graph->GetMaxDynamicBatchSize() > 1) {
+        for (auto& input : _networkInputs) {
+            auto node = findInputByNodeName(input.first);
+            bool is_dynamic = (node && node->get_output_partial_shape(0).is_dynamic());
+            if (!is_dynamic)
+                continue;
+            // extract new batch size from blob
+            const auto batch_idx = m_graph->GetInputDynBatchDims()[input.first].first;
+            if (batch_idx >= 0) {
+                SetBatch(static_cast<int>(_inputs[input.first]->getTensorDesc().getDims()[batch_idx]));
+                break;
+            }
+        }
+    }
 }
 
 Blob::Ptr InferRequestLegacy::create_host_blob(const TensorDesc& desc, std::shared_ptr<InferenceEngine::IAllocator> alloc) {
