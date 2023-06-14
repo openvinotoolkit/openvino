@@ -24,6 +24,7 @@ void min(const T* arg, T* out, const Shape& in_shape, const AxisSet& reduction_a
         std::numeric_limits<T>::has_infinity ? std::numeric_limits<T>::infinity() : std::numeric_limits<T>::max();
 
     constexpr bool dont_keep_dims_in_output = false;
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto out_shape = reduce(in_shape, reduction_axes, dont_keep_dims_in_output);
     std::fill(out, out + shape_size(out_shape), minval);
 
@@ -45,6 +46,7 @@ void min(const T* arg, T* out, const Shape& in_shape, const AxisSet& reduction_a
             out[out_idx] = x;
         }
     }
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 }  // namespace reference
 }  // namespace runtime

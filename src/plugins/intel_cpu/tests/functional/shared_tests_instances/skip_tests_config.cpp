@@ -175,8 +175,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*StaticAdaPoolAvg3DLayoutTest.*OS=\(1\).*_inFmts=(nwc|nCw16c|nCw8c).*)",
         // Issue: 111404
         R"(.*smoke_set1/GatherElementsCPUTest.*)",
-        // Issue: 111405
-        R"(.*smoke_(static|dynamic)/GridSampleLayerTestCPU.CompareWithRefs.*_padMode=ZEROS.*)",
         // Issue: 111406
         R"(.*smoke_InterpolateLinearOnnx_Layout_Test/InterpolateLayerCPUTest.*)",
         R"(.*smoke_InterpolateLinear_Layout_Test/InterpolateLayerCPUTest.*)",
@@ -185,6 +183,8 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*smoke_Proposal_(Static|Dynamic)_Test_Case1/ProposalLayerCPUTest.*)",
         // Issue: 111418
         R"(.*smoke_Snippets_ConvertStub/ConvertStub\.CompareWithRefImpl/IS=.*_OT=\(bf16\)_#N=2_#S=2_targetDevice=CPU.*)",
+        // Issue: 111944
+        R"(.*smoke_DefConvLayoutTest6.*)"
     };
 
 #if defined(OPENVINO_ARCH_X86)
@@ -246,6 +246,9 @@ std::vector<std::string> disabledTestPatterns() {
     if (!InferenceEngine::with_cpu_x86_avx512_core_vnni() && !InferenceEngine::with_cpu_x86_avx512_core_amx_int8()) {
         // MatMul in Snippets uses BRGEMM that supports i8 only on platforms with VNNI or AMX instructions
         retVector.emplace_back(R"(.*Snippets.*MatMulFQ.*)");
+        retVector.emplace_back(R"(.*Snippets.*MatMul.*Quantized.*)");
+        retVector.emplace_back(R"(.*Snippets.*MHAFQ.*)");
+        retVector.emplace_back(R"(.*Snippets.*MHAINT8.*)");
     }
     if (!InferenceEngine::with_cpu_x86_avx512_core_amx_int8())
         //TODO: Issue 92895
@@ -254,6 +257,7 @@ std::vector<std::string> disabledTestPatterns() {
     if (!InferenceEngine::with_cpu_x86_avx512_core_amx_bf16() && !InferenceEngine::with_cpu_x86_bfloat16()) {
         // ignored for not supported bf16 platforms
         retVector.emplace_back(R"(.*smoke_Snippets_EnforcePrecision_bf16.*)");
+        retVector.emplace_back(R"(.*smoke_Snippets_MHAWOTransposeEnforceBF16.*)");
     }
 
     return retVector;

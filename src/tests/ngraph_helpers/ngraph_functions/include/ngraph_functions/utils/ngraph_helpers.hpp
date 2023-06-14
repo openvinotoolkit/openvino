@@ -226,8 +226,6 @@ enum class SequenceTestsMode {
 
 enum class MemoryTransformation {
     NONE,
-    LOW_LATENCY,
-    LOW_LATENCY_REGULAR_API,
     LOW_LATENCY_V2,
     LOW_LATENCY_V2_REGULAR_API,
     LOW_LATENCY_V2_ORIGINAL_INIT

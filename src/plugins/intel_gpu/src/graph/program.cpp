@@ -177,14 +177,18 @@ void program::init_program() {
 }
 
 void program::init_primitives() {
+    // Register implementations in order of their selection priority: common, OCL, oneDNN, CPU
+    // We register OCL implementation before oneDNN, because oneDNN is not always preferable (in case of iGPU)
+    // This order will only apply to primitives with preferrable implementation type equal to impl_types::any
+
     static bool is_initialized = false;
     if (!is_initialized) {
         common::register_implementations();
-        cpu::register_implementations();
         ocl::register_implementations();
 #ifdef ENABLE_ONEDNN_FOR_GPU
         onednn::register_implementations();
 #endif
+        cpu::register_implementations();
         is_initialized = true;
     }
 }
@@ -489,6 +493,9 @@ void program::init_graph() {
     apply_opt_pass<graph_initializations>();
 
     apply_opt_pass<mark_nodes>();
+
+    // Perform initial shape_of subgraphs markup
+    apply_opt_pass<mark_shape_of_subgraphs>();
 }
 
 void program::run_graph_compilation() { apply_opt_pass<compile_graph>(); }
@@ -557,6 +564,10 @@ void program::pre_optimize_graph(bool is_internal) {
 
     // add optimization attributes for onednn primitives
     apply_opt_pass<add_onednn_optimization_attributes>();
+
+    // Call shape_of subgraphs markup second time to update newely added nodes after graph
+    // optimization passes
+    apply_opt_pass<mark_shape_of_subgraphs>(true);
 }
 
 void program::post_optimize_graph(bool is_internal) {
@@ -1044,6 +1055,10 @@ void program::fuse_nodes(program_node &fused_node,
     local_desc.total_num_deps = peer_node.get_dependencies().size();
     local_desc.input_layout = peer_node.get_dependency(0).get_output_layout();
     local_desc.output_layout = peer_layout;
+
+    if (fused_node.in_shape_of_subgraph && !peer_node.in_shape_of_subgraph) {
+        fused_node.in_shape_of_subgraph = false;
+    }
 
     int32_t orig_fused_node_num_deps = static_cast<int32_t>(fused_node.get_dependencies().size());
     auto fusedPadding = fused_node.get_output_layout().data_padding;
@@ -1598,7 +1613,15 @@ std::pair<int64_t, int64_t> program::get_estimated_device_mem_usage() {
         } else if (node->is_type<mutable_data>() && node->get_dependencies().empty()) {
             continue;
         } else {
-            allocated_mem_ptrs.insert(primitive_inst::allocate_output(engine, pool, *node, *node->get_kernel_impl_params(), 0, false));
+            allocated_mem_ptrs.insert(primitive_inst::allocate_output(engine,
+                                                                      pool,
+                                                                      *node,
+                                                                      *node->get_kernel_impl_params(),
+                                                                      0,
+                                                                      false,
+                                                                      0,
+                                                                      false,
+                                                                      node->is_output()));
         }
     }
 
