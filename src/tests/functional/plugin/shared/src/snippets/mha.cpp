@@ -51,7 +51,8 @@ void MHA::SetUp() {
     std::tie(inputShapes, m_input_types, prc, m_with_mul, ref_num_nodes, ref_num_subgraphs, targetDevice, additionalConfig) = this->GetParam();
     init_input_shapes(static_partial_shapes_to_test_representation(inputShapes));
 
-    init_subgraph();
+    const auto subgraph_model = get_subgraph();
+    function = subgraph_model->getOriginal();
 
     configuration.insert(additionalConfig.begin(), additionalConfig.end());
     if (!configuration.count(InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE)) {
@@ -76,9 +77,8 @@ void MHA::generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticSha
     }
 }
 
-void MHA::init_subgraph() {
-    auto f = ov::test::snippets::MHAFunction(inputDynamicShapes, m_input_types, m_with_mul);
-    function = f.getOriginal();
+std::shared_ptr<SnippetsFunctionBase> MHA::get_subgraph() {
+    return std::make_shared<ov::test::snippets::MHAFunction>(inputDynamicShapes, m_input_types, m_with_mul);
 }
 
 void MHASelect::generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) {
@@ -99,39 +99,36 @@ void MHASelect::generate_inputs(const std::vector<ngraph::Shape>& targetInputSta
     }
 }
 
-void MHASelect::init_subgraph() {
-    auto f = ov::test::snippets::MHASelectFunction(inputDynamicShapes, m_input_types);
-    function = f.getOriginal();
+std::shared_ptr<SnippetsFunctionBase> MHASelect::get_subgraph() {
+    return std::make_shared<ov::test::snippets::MHASelectFunction>(inputDynamicShapes, m_input_types);
 }
 
-void MHAWOTransposeOnInputs::init_subgraph() {
-    auto f = ov::test::snippets::MHAWOTransposeOnInputsFunction(inputDynamicShapes);
-    function = f.getOriginal();
+std::shared_ptr<SnippetsFunctionBase> MHAWOTransposeOnInputs::get_subgraph() {
+    return std::make_shared<ov::test::snippets::MHAWOTransposeOnInputsFunction>(inputDynamicShapes);
 }
 
-void MHAWOTranspose::init_subgraph() {
-    auto f = ov::test::snippets::MHAWOTransposeFunction(inputDynamicShapes, m_input_types);
-    function = f.getOriginal();
+std::shared_ptr<SnippetsFunctionBase> MHAWOTranspose::get_subgraph() {
+    return std::make_shared<ov::test::snippets::MHAWOTransposeFunction>(inputDynamicShapes, m_input_types);
 }
 
-void MHAINT8MatMul::init_subgraph() {
-    auto f = ov::test::snippets::MHAINT8MatMulFunction(inputDynamicShapes);
-    function = f.getOriginal();
+std::shared_ptr<SnippetsFunctionBase> MHAINT8MatMul::get_subgraph() {
+    return std::make_shared<ov::test::snippets::MHAINT8MatMulFunction>(inputDynamicShapes);
 }
 
-void MHAFQAfterMatMul::init_subgraph() {
-    auto f = ov::test::snippets::MHAFQAfterMatMulFunction(inputDynamicShapes);
-    function = f.getOriginal();
+std::shared_ptr<SnippetsFunctionBase> MHAFQAfterMatMul::get_subgraph() {
+    return std::make_shared<ov::test::snippets::MHAFQAfterMatMulFunction>(inputDynamicShapes);
 }
 
-void MHAFQ::init_subgraph() {
-    auto f = ov::test::snippets::MHAFQFunction(inputDynamicShapes);
-    function = f.getOriginal();
+std::shared_ptr<SnippetsFunctionBase> MHAFQ::get_subgraph() {
+    return std::make_shared<ov::test::snippets::MHAFQFunction>(inputDynamicShapes);
 }
 
-void MHAMulAdd::init_subgraph() {
-    auto f = ov::test::snippets::MHAMulAddFunction(inputDynamicShapes);
-    function = f.getOriginal();
+std::shared_ptr<SnippetsFunctionBase> MHAMulAdd::get_subgraph() {
+    return std::make_shared<ov::test::snippets::MHAMulAddFunction>(inputDynamicShapes);
+}
+
+std::shared_ptr<SnippetsFunctionBase> MHATransposedB::get_subgraph() {
+    return std::make_shared<ov::test::snippets::MHATransposedInputFunction>(inputDynamicShapes, true);
 }
 
 TEST_P(MHA, CompareWithRefImpl) {
@@ -153,26 +150,37 @@ TEST_P(MHAWOTransposeOnInputs, CompareWithRefImpl) {
 }
 
 TEST_P(MHAWOTranspose, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
     validateNumSubgraphs();
 }
 
 TEST_P(MHAMulAdd, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    run();
+    validateNumSubgraphs();
+}
+
+TEST_P(MHATransposedB, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
     validateNumSubgraphs();
 }
 
 TEST_P(MHAINT8MatMul, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
     validateNumSubgraphs();
 }
 
 TEST_P(MHAFQAfterMatMul, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
     validateNumSubgraphs();
 }
 
 TEST_P(MHAFQ, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
     validateNumSubgraphs();
 }
