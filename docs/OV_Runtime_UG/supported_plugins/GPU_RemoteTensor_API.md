@@ -44,99 +44,86 @@ Creation of RemoteContext from Native Handle
 To create the ``ov::RemoteContext`` object for user context, explicitly provide the context to the plugin using constructor for one
 of ``ov::RemoteContext`` derived classes.
 
-.. tab-set::
 
-   .. tab-item:: Linux/C++
-      :sync: cpp
+.. tab-item:: Linux/C++
 
-      .. tab-set::
+   .. tab-item:: Create from cl_context
+ 
+      .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation.cpp
+         :language: cpp
+         :fragment: [context_from_cl_context]
 
-         .. tab-item:: Create from cl_context
+   .. tab-item:: Create from cl_queue
+
+      .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation.cpp
+         :language: cpp
+         :fragment: [context_from_cl_queue]
+
+   .. tab-item:: Create from VADisplay
+
+      .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation.cpp
+         :language: cpp
+         :fragment: [context_from_va_display]
+
+.. tab-item:: Windows/C++
+
+   .. tab-item:: Create from cl_context
+
+      .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation.cpp
+         :language: cpp
+         :fragment: [context_from_cl_context]
+
+   .. tab-item:: Create from cl_queue
+
+      .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation.cpp
+         :language: cpp
+         :fragment: [context_from_cl_queue]
+
+   .. tab-item:: Create from ID3D11Device
    
-            .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation.cpp
-               :language: cpp
-               :fragment: [context_from_cl_context]
+      .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation.cpp
+         :language: cpp
+         :fragment: [context_from_d3d_device]
 
-         .. tab-item:: Create from cl_queue
+.. tab-item:: Linux/C
 
-            .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation.cpp
-               :language: cpp
-               :fragment: [context_from_cl_queue]
+   .. tab-item:: Create from cl_context
 
-         .. tab-item:: Create from VADisplay
+      .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation_c.cpp
+         :language: c
+         :fragment: [context_from_cl_context]
 
-            .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation.cpp
-               :language: cpp
-               :fragment: [context_from_va_display]
+   .. tab-item:: Create from cl_queue
 
-   .. tab-item:: Windows/C++
-      :sync: cpp
+      .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation_c.cpp
+         :language: c
+         :fragment: [context_from_cl_queue]
 
-      .. tab-set::
+   .. tab-item:: Create from VADisplay
 
-         .. tab-item:: Create from cl_context
+      .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation_c.cpp
+         :language: c
+         :fragment: [context_from_va_display]
 
-            .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation.cpp
-               :language: cpp
-               :fragment: [context_from_cl_context]
+.. tab-item:: Windows/C
 
-         .. tab-item:: Create from cl_queue
+   .. tab-item:: Create from cl_context
 
-            .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation.cpp
-               :language: cpp
-               :fragment: [context_from_cl_queue]
+      .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation_c.cpp
+         :language: c
+         :fragment: [context_from_cl_context]
 
-         .. tab-item:: Create from ID3D11Device
-      
-            .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation.cpp
-               :language: cpp
-               :fragment: [context_from_d3d_device]
+   .. tab-item:: Create from cl_queue
 
-   .. tab-item:: Linux/C
-      :sync: c
+      .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation_c.cpp
+         :language: c
+         :fragment: [context_from_cl_queue]
 
-      .. tab-set::
+   .. tab-item:: Create from ID3D11Device
 
-         .. tab-item:: Create from cl_context
-
-            .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation_c.cpp
-               :language: c
-               :fragment: [context_from_cl_context]
-
-         .. tab-item:: Create from cl_queue
-
-            .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation_c.cpp
-               :language: c
-               :fragment: [context_from_cl_queue]
-
-         .. tab-item:: Create from VADisplay
-
-            .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation_c.cpp
-               :language: c
-               :fragment: [context_from_va_display]
-
-   .. tab-item:: Windows/C
-      :sync: c
-
-      .. tab-set::
-
-         .. tab-item:: Create from cl_context
-
-            .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation_c.cpp
-               :language: c
-               :fragment: [context_from_cl_context]
-
-         .. tab-item:: Create from cl_queue
-
-            .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation_c.cpp
-               :language: c
-               :fragment: [context_from_cl_queue]
-
-         .. tab-item:: Create from ID3D11Device
-
-            .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation_c.cpp
-               :language: c
-               :fragment: [context_from_d3d_device]
+      .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation_c.cpp
+         :language: c
+         :fragment: [context_from_d3d_device]
 
 Getting RemoteContext from the Plugin
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -148,41 +135,33 @@ Once the plugin options have been changed, the internal context is replaced by t
 
 To request the current default context of the plugin, use one of the following methods:
 
-.. tab-set::
+.. tab-item:: C++
 
-   .. tab-item:: C++
-      :sync: cpp
+   .. tab-item:: Get context from Core
 
-      .. tab-set::
+      .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation.cpp
+         :language: cpp
+         :fragment: [default_context_from_core]
 
-         .. tab-item:: Get context from Core
+   .. tab-item:: Get context from compiled model
 
-            .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation.cpp
-               :language: cpp
-               :fragment: [default_context_from_core]
+      .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation.cpp
+         :language: cpp
+         :fragment: [default_context_from_model]
 
-         .. tab-item:: Get context from compiled model
+.. tab-item:: C
 
-            .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation.cpp
-               :language: cpp
-               :fragment: [default_context_from_model]
+   .. tab-item:: Get context from Core
 
-   .. tab-item:: C
-      :sync: c
+      .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation_c.cpp
+         :language: c
+         :fragment: [default_context_from_core]
 
-      .. tab-set::
+   .. tab-item:: Get context from compiled model
 
-         .. tab-item:: Get context from Core
-
-            .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation_c.cpp
-               :language: c
-               :fragment: [default_context_from_core]
-
-         .. tab-item:: Get context from compiled model
-
-            .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation_c.cpp
-               :language: c
-               :fragment: [default_context_from_model]
+      .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation_c.cpp
+         :language: c
+         :fragment: [default_context_from_model]
 
 Memory Sharing Between Application and GPU Plugin
 ###########################################################
@@ -347,33 +326,28 @@ should be added before model compilation:
 .. tab-set::
 
    .. tab-item:: two-plane
-      :sync: twoplane
 
       .. tab-set::
 
          .. tab-item:: C++
-            :sync: cpp
 
             .. doxygensnippet:: docs/snippets/gpu/preprocessing_nv12_two_planes.cpp
                :language: cpp
                :fragment: [init_preproc]
 
          .. tab-item:: C
-            :sync: c
 
             .. doxygensnippet:: docs/snippets/gpu/preprocessing_nv12_two_planes_c.cpp
                :language: c
                :fragment: [init_preproc]
 
    .. tab-item:: single-plane
-      :sync: singleplane
-      
+
       .. doxygensnippet:: docs/snippets/gpu/preprocessing_nv12_single_plane.cpp
          :language: cpp
          :fragment: [init_preproc]
 
    .. tab-item:: NV12 to Grey
-      :sync: nv12
 
       .. doxygensnippet:: docs/snippets/gpu/preprocessing_nv12_to_gray.cpp
          :language: cpp
@@ -391,58 +365,50 @@ inputs need to be set via the ``ov::InferRequest::set_tensors`` method with vect
       .. tab-set::
 
          .. tab-item:: two-plane
-            :sync: twoplane
 
-         .. tab-set::
+            .. tab-set::
 
-            .. tab-item:: C++
-               :sync: cpp
+               .. tab-item:: C++
 
-               .. doxygensnippet:: docs/snippets/gpu/preprocessing_nv12_two_planes.cpp
-                  :language: cpp
-                  :fragment: [single_batch]
+                  .. doxygensnippet:: docs/snippets/gpu/preprocessing_nv12_two_planes.cpp
+                     :language: cpp
+                     :fragment: [single_batch]
 
-            .. tab-item:: C
-               :sync: c
+               .. tab-item:: C
 
-               .. doxygensnippet:: docs/snippets/gpu/preprocessing_nv12_two_planes_c.cpp
-                  :language: c
-                  :fragment: [single_batch]
+                  .. doxygensnippet:: docs/snippets/gpu/preprocessing_nv12_two_planes_c.cpp
+                     :language: c
+                     :fragment: [single_batch]
 
-      .. tab-item:: single-plane
-         :sync: singleplane
+         .. tab-item:: single-plane
+         
+            .. doxygensnippet:: docs/snippets/gpu/preprocessing_nv12_single_plane.cpp
+               :language: cpp
+               :fragment: [single_batch]
 
-         .. doxygensnippet:: docs/snippets/gpu/preprocessing_nv12_single_plane.cpp
-            :language: cpp
-            :fragment: [single_batch]
+         .. tab-item:: NV12 to Grey
 
-      .. tab-item:: NV12 to Grey
-         :sync: nv12
-
-         .. doxygensnippet:: docs/snippets/gpu/preprocessing_nv12_to_gray.cpp
-            :language: cpp
-            :fragment: [single_batch]
+            .. doxygensnippet:: docs/snippets/gpu/preprocessing_nv12_to_gray.cpp
+               :language: cpp
+               :fragment: [single_batch]
 
    .. tab-item:: Multiple Batches
 
       .. tab-set::
 
          .. tab-item:: two-plane
-            :sync: twoplane
 
             .. doxygensnippet:: docs/snippets/gpu/preprocessing_nv12_two_planes.cpp
                :language: cpp
                :fragment: [batched_case]
 
          .. tab-item:: single-plane
-            :sync: singleplane        
-
+                                                
             .. doxygensnippet:: docs/snippets/gpu/preprocessing_nv12_single_plane.cpp
                :language: cpp
                :fragment: [batched_case]
 
          .. tab-item:: NV12 to Grey
-            :sync: nv12
 
             .. doxygensnippet:: docs/snippets/gpu/preprocessing_nv12_to_gray.cpp
                :language: cpp
@@ -473,9 +439,9 @@ on waiting for the completion of inference. The pseudo-code may look as follows:
 Limitations
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-- Some primitives in the GPU plugin may block the host thread on waiting for the previous primitives before adding its kernels to the command queue. In such cases, the ``ov::InferRequest::start_async()`` call takes much more time to return control to the calling thread as internally it waits for a partial or full network completion. Examples of operations: Loop, TensorIterator, DetectionOutput, NonMaxSuppression
-- Synchronization of pre/post processing jobs and inference pipeline inside a shared queue is user's responsibility.
-- Throughput mode is not available when queue sharing is used, i.e., only a single stream can be used for each compiled model.
+* Some primitives in the GPU plugin may block the host thread on waiting for the previous primitives before adding its kernels to the command queue. In such cases, the ``ov::InferRequest::start_async()`` call takes much more time to return control to the calling thread as internally it waits for a partial or full network completion. Examples of operations: Loop, TensorIterator, DetectionOutput, NonMaxSuppression
+* Synchronization of pre/post processing jobs and inference pipeline inside a shared queue is user's responsibility.
+* Throughput mode is not available when queue sharing is used, i.e., only a single stream can be used for each compiled model.
 
 Low-Level Methods for RemoteContext and RemoteTensor Creation
 #####################################################################
@@ -496,7 +462,7 @@ Examples
 To see pseudo-code of usage examples, refer to the sections below.
 
 
-.. note::
+.. NOTE::
    
    For low-level parameter usage examples, see the source code of user-side wrappers from the include files mentioned above.
 
@@ -516,22 +482,18 @@ To see pseudo-code of usage examples, refer to the sections below.
       :fragment: [context_sharing_user_handle]
 
 .. dropdown:: Direct Consuming of the NV12 VAAPI Video Decoder Surface on Linux
-   
-   .. tab-set::
 
-      .. tab-item:: C++
-         :sync: cpp  
+   .. tab-item:: C++
 
-         .. doxygensnippet:: docs/snippets/gpu/context_sharing_va.cpp
-            :language: cpp
-            :fragment: [context_sharing_va]
+      .. doxygensnippet:: docs/snippets/gpu/context_sharing_va.cpp
+         :language: cpp
+         :fragment: [context_sharing_va]
 
-      .. tab-item:: C
-         :sync: c
+   .. tab-item:: C
 
-         .. doxygensnippet:: docs/snippets/gpu/context_sharing_va_c.cpp
-            :language: c
-            :fragment: [context_sharing_va]
+      .. doxygensnippet:: docs/snippets/gpu/context_sharing_va_c.cpp
+         :language: c
+         :fragment: [context_sharing_va]
 
 See Also
 #######################################
