@@ -64,7 +64,7 @@ public:
 };
 
 template <typename BinaryT>
-BinaryFactoryPtr CreateBinaryFactory(const std::string& type_name) {
+BinaryFactoryPtr create_binary_factory(const std::string& type_name) {
     return std::make_shared<BinaryFactory<BinaryT>>(type_name);
 }
 
@@ -97,7 +97,7 @@ public:
 #define CREATE_PASS_FACTORY(pass_name) std::make_shared<PassFactory<ov::intel_gna::pass::pass_name>>(#pass_name)
 
 #undef CREATE_BINARY_FACTORY
-#define CREATE_BINARY_FACTORY(type_name) CreateBinaryFactory<type_name>(#type_name)
+#define CREATE_BINARY_FACTORY(type_name) create_binary_factory<type_name>(#type_name)
 
 std::vector<BinaryFactoryPtr> binary_elementwise_factories = {CREATE_BINARY_FACTORY(Add),
                                                               CREATE_BINARY_FACTORY(Divide),
