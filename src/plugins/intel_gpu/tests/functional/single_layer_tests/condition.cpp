@@ -543,13 +543,23 @@ const std::vector<InnerBodyTypeParams> innerBodyTypes = {
         InnerBodyGenerator::InnerBodyType::Type03
     },
     {
-        InnerBodyGenerator::InnerBodyType::Type03,
-        InnerBodyGenerator::InnerBodyType::Type04
+        InnerBodyGenerator::InnerBodyType::Type04,
+        InnerBodyGenerator::InnerBodyType::Type03
+    }
+};
+
+const std::vector<InnerBodyTypeParams> innerBodyTypes_for_constant = {
+    {
+        InnerBodyGenerator::InnerBodyType::Type02,
+        InnerBodyGenerator::InnerBodyType::Type03
+    },
+    {
+        InnerBodyGenerator::InnerBodyType::Type04,
+        InnerBodyGenerator::InnerBodyType::Type03
     }
 };
 
 const std::vector<TestModelGenerator::CondTypes> condTypes = {
-    TestModelGenerator::CondTypes::CONSTANT,
     TestModelGenerator::CondTypes::PARAM,
     TestModelGenerator::CondTypes::NODE
 };
@@ -558,13 +568,24 @@ const std::vector<bool> condExecutionValues = {
     true, false
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_DynamicConditionGPUTest, ConditionLayerGPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_DynamicConditionGPUTest_01, ConditionLayerGPUTest,
                 testing::Combine(
-                    testing::ValuesIn(dynamicInputShapes),     // input shapes
-                    testing::ValuesIn(innerBodyTypes),         // is const indices
-                    testing::ValuesIn(netPrecisions),          // network precision
-                    testing::ValuesIn(condTypes),              // is const indices
-                    testing::ValuesIn(condExecutionValues),
-                    testing::Values<std::string>(CommonTestUtils::DEVICE_GPU)),   // is const indices
+                    testing::ValuesIn(dynamicInputShapes),                          // input shapes
+                    testing::ValuesIn(innerBodyTypes),                              // inner body type
+                    testing::ValuesIn(netPrecisions),                               // network precision
+                    testing::ValuesIn(condTypes),                                   // cond type
+                    testing::ValuesIn(condExecutionValues),                         // cond execution value
+                    testing::Values<std::string>(CommonTestUtils::DEVICE_GPU)),     // device type
+                ConditionLayerGPUTest::getTestCaseName);
+
+
+INSTANTIATE_TEST_SUITE_P(smoke_DynamicConditionGPUTest_02, ConditionLayerGPUTest,
+                testing::Combine(
+                    testing::ValuesIn(dynamicInputShapes),                          // input shapes
+                    testing::ValuesIn(innerBodyTypes_for_constant),                 // inner body type
+                    testing::ValuesIn(netPrecisions),                               // network precision
+                    testing::ValuesIn({TestModelGenerator::CondTypes::CONSTANT}),   // cond type
+                    testing::ValuesIn(condExecutionValues),                         // cond execution value
+                    testing::Values<std::string>(CommonTestUtils::DEVICE_GPU)),     // device type
                 ConditionLayerGPUTest::getTestCaseName);
 } // namespace GPULayerTestsDefinitions
