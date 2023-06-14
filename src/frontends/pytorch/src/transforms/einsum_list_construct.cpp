@@ -50,7 +50,7 @@ AtenEinsumListConstructReplacer::AtenEinsumListConstructReplacer() {
             }
 
             auto einsum = std::make_shared<v7::Einsum>(node_vector, equation);
-            copy_runtime_info({einsum_op, equation_input, tensor_list}, einsum);
+            copy_runtime_info_and_name(einsum_op, {einsum}, {equation_input, tensor_list});
             replace_node(einsum_op, einsum);
             return true;
         }

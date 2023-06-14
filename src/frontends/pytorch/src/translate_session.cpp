@@ -397,7 +397,7 @@ Output<Node> TranslateSession::get_backprop_op(const std::shared_ptr<TorchDecode
     // Create PtFrameworkNode representing unconverted backprop operation
     return std::make_shared<PtFrameworkNode>(node, OutputVector{value}, 1, true);
 }
-  
+
 void TranslateSession::unique_name(const std::shared_ptr<Node>& node) {
     if (m_unique_friendly_name_set.count(node->get_friendly_name())) {
         node->set_friendly_name(node->get_friendly_name() + '_' + std::to_string(m_friendly_name_counter++));

@@ -79,6 +79,7 @@ ListConstructReplacer::ListConstructReplacer() {
         // Concatenation is possible because all elements in list should be scalar or 1D tensors,
         // result should be 1D tensor.
         OutputVector inputs;
+        ov::pass::NodeRegistry rg;
         auto neg_1 = v0::Constant::create(element::i32, Shape{1}, {-1});
         const auto& start_output = list_node->output(0);
         for (const auto& input : get_list_as_outputs(start_output)) {
@@ -93,13 +94,12 @@ ListConstructReplacer::ListConstructReplacer() {
                 return false;
             }
             // reshape all elements to 1D
-            auto reshape = std::make_shared<v1::Reshape>(input, neg_1, false);
+            auto reshape = rg.make<v1::Reshape>(input, neg_1, false);
             inputs.push_back(reshape);
         }
-        auto concat = std::make_shared<v0::Concat>(inputs, 0);
-        copy_runtime_info({list_node}, concat);
+        auto concat = rg.make<v0::Concat>(inputs, 0);
+        copy_runtime_info_and_name(list_node, rg.get());
         replace_node(list_node, concat);
-        concat->set_friendly_name(list_node->get_friendly_name());
         return true;
     };
     auto m = std::make_shared<pattern::Matcher>(lc_pattern, "ov::frontend::pytorch::pass::ListConstructReplacer");

@@ -5,6 +5,7 @@
 #include "utils.hpp"
 
 #include "op_table.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/frontend/pytorch/decoder.hpp"
 #include "openvino/opsets/opset10.hpp"
 #include "openvino/util/log.hpp"
@@ -196,7 +197,6 @@ OutputVector make_framework_node(const NodeContext& context) {
         // We create additional output for such nodes. It contains new tensor that represents input that was changed.
         auto fw_node =
             std::make_shared<PtFrameworkNode>(context.get_decoder(), context.inputs(), context.get_output_size() + 1);
-        fw_node->set_friendly_name(context.get_op_type());
         auto outputs = fw_node->outputs();
         // Usually mutated input index is 0, because it is usually "self" input, so we need to replace this tensor with
         // output we created.
@@ -464,6 +464,30 @@ std::deque<Output<Node>> get_list_as_outputs(const Output<Node>& start) {
         res.push_front(current_output);
     }
     return res;
+}
+
+void copy_runtime_info_and_name(const std::shared_ptr<Node>& from,
+                                ov::NodeVector to,
+                                const ov::NodeVector& additional_rt_info_src) {
+    if (to.size() == 1) {
+        // We do 1 to 1 matching, no need to process names, just inherit initial name
+        to[0]->set_friendly_name(from->get_friendly_name());
+    } else {
+        std::unordered_set<std::string> unique_names;
+        size_t idx = 0;
+        for (auto& op : to) {
+            auto new_name = from->get_friendly_name() + '/' + op->get_type_name();
+            if (unique_names.count(new_name)) {
+                new_name += '_' + std::to_string(idx++);
+            } else {
+                unique_names.insert(new_name);
+            }
+            op->set_friendly_name(new_name);
+        }
+    }
+    copy_runtime_info(from, to);
+    if (!additional_rt_info_src.empty())
+        copy_runtime_info(additional_rt_info_src, to);
 }
 
 }  // namespace pytorch
