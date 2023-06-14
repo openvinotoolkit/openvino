@@ -553,7 +553,7 @@ inline void PrintTupleTo(const std::tuple<std::shared_ptr<test_params>, std::sha
         auto convolution = std::static_pointer_cast<cldnn::convolution>(primitive);
         str << "Stride x: " << convolution->stride[1] << " Stride y: " << convolution->stride[0]
             << " Dilation x: " << convolution->dilation[1] << " Dilation y: " << convolution->dilation[0]
-            << " Pad x: " << convolution->pad[1] << " Pad y: " << convolution->pad[0];
+            << " Pad x: " << convolution->padding_begin[1] << " Pad y: " << convolution->padding_begin[0];
     } else if (primitive->type == cldnn::activation::type_id()) {
         auto activation = std::static_pointer_cast<cldnn::activation>(primitive);
         str << "Negative slope: " << activation->additional_params.a << " Negative slope input id: " << activation->additional_params_input;
@@ -579,13 +579,9 @@ T div_up(const T a, const U b) {
 }
 
 template <class T>
-std::vector<float> get_output_values_to_float(cldnn::network& net, const cldnn::primitive_id& output_id, size_t max_cnt = std::numeric_limits<size_t>::max()) {
+std::vector<float> get_output_values_to_float(cldnn::network& net, const cldnn::network_output& output, size_t max_cnt = std::numeric_limits<size_t>::max()) {
     std::vector<float> ret;
-    auto ptr = net.get_output_memory(output_id);
-    auto out_ids = net.get_output_ids();
-    if (find(out_ids.begin(), out_ids.end(), output_id) == out_ids.end())
-        IE_THROW() << "Non output node's memory may have been reused. "
-                      "Make target node to output by using ov::intel_gpu::custom_outputs in ExecutionConfig.";
+    auto ptr = output.get_memory();
     cldnn::mem_lock<T, cldnn::mem_lock_type::read> mem(ptr, net.get_stream());
     if (ptr->get_layout().data_type != cldnn::type_to_data_type<T>::value)
         IE_THROW() << "target type " << cldnn::data_type_traits::name(cldnn::type_to_data_type<T>::value)
@@ -595,20 +591,20 @@ std::vector<float> get_output_values_to_float(cldnn::network& net, const cldnn::
     return ret;
 }
 
-inline std::vector<float> get_output_values_to_float(cldnn::network& net, const cldnn::primitive_id& output_id, size_t max_cnt = std::numeric_limits<size_t>::max()) {
-    switch(net.get_output_layout(output_id).data_type){
+inline std::vector<float> get_output_values_to_float(cldnn::network& net, const cldnn::network_output& output, size_t max_cnt = std::numeric_limits<size_t>::max()) {
+    switch(output.get_layout().data_type){
         case cldnn::data_types::f16:
-            return get_output_values_to_float<FLOAT16>(net, output_id, max_cnt);
+            return get_output_values_to_float<FLOAT16>(net, output, max_cnt);
         case cldnn::data_types::f32:
-            return get_output_values_to_float<float>(net, output_id, max_cnt);
+            return get_output_values_to_float<float>(net, output, max_cnt);
         case cldnn::data_types::i8:
-            return get_output_values_to_float<int8_t>(net, output_id, max_cnt);
+            return get_output_values_to_float<int8_t>(net, output, max_cnt);
         case cldnn::data_types::u8:
-            return get_output_values_to_float<uint8_t>(net, output_id, max_cnt);
+            return get_output_values_to_float<uint8_t>(net, output, max_cnt);
         case cldnn::data_types::i32:
-            return get_output_values_to_float<int32_t>(net, output_id, max_cnt);
+            return get_output_values_to_float<int32_t>(net, output, max_cnt);
         case cldnn::data_types::i64:
-            return get_output_values_to_float<int64_t>(net, output_id, max_cnt);
+            return get_output_values_to_float<int64_t>(net, output, max_cnt);
         default:
             IE_THROW() << "Unknown output data_type";
     }

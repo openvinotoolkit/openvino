@@ -133,6 +133,7 @@ bool UpdateWeightsParams(weight_bias_params& newParams,
 
             weightsReorderParams.engine = WeightsReorderParams::Engine::GPU;
             weightsReorderParams.clKernel = std::make_shared<clKernelData>(kernels_data[0].kernels[0]);
+            weightsReorderParams.src = r_params.input;
             weightsReorderParams.dest = r_params.output;
 
             newParams.weights = newParams.weights.TransformIgnorePadding(reqLayout, dtype, groups);
@@ -299,6 +300,12 @@ std::vector<size_t> GetOptimalLocalWorkGroupSizes(std::vector<size_t> gws, const
                     break;
                 case DataLayout::byxf:
                     layout_order = { f, x, y, b, z, w, u, v };
+                    break;
+                case DataLayout::byfx:
+                    layout_order = { x, f, y, b, z, w, u, v };
+                    break;
+                case DataLayout::bxfy:
+                    layout_order = { y, f, x, b, z, w, u, v };
                     break;
                 case DataLayout::fyxb:
                     layout_order = { b, x, y, f, z, w, u, v };

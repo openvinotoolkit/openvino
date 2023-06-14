@@ -6,12 +6,15 @@
 @sphinxdirective
 
 
-The CPU plugin is a part of the Intel® Distribution of OpenVINO™ toolkit. It is developed to achieve high performance inference of neural networks on Intel® x86-64 CPUs.
+The CPU plugin is a part of the Intel® Distribution of OpenVINO™ toolkit. It is developed to achieve high performance inference of neural networks on Intel® x86-64 and Arm® CPUs. The newer 11th generation and later Intel® CPUs provide even further performance boost, especially with INT8 models.
 For an in-depth description of CPU plugin, see:
 
-- `CPU plugin developers documentation <https://github.com/openvinotoolkit/openvino/blob/master/docs/dev/cmake_options_for_custom_comiplation.md>`__.
+- `CPU plugin developers documentation <https://github.com/openvinotoolkit/openvino/blob/master/docs/dev/cmake_options_for_custom_compilation.md>`__.
 - `OpenVINO Runtime CPU plugin source files <https://github.com/openvinotoolkit/openvino/tree/master/src/plugins/intel_cpu/>`__.
 
+.. note::
+   The scope of the CPU plugin features and optimizations on Arm® may differ from Intel® x86-64. If the limitation is not mentioned explicitly, the feature is supported for all CPU architectures.
+   
 
 Device Name
 ###########################################################
@@ -44,14 +47,14 @@ Supported Inference Data Types
 CPU plugin supports the following data types as inference precision of internal primitives:
 
 | - Floating-point data types:
-|   - f32
-|   - bf16
+|   - f32 (Intel® x86-64, Arm®)
+|   - bf16 (Intel® x86-64)
 | - Integer data types:
-|   - i32
+|   - i32 (Intel® x86-64, Arm®)
 | - Quantized data types:
-|   - u8
-|   - i8
-|   - u1
+|   - u8 (Intel® x86-64)
+|   - i8 (Intel® x86-64)
+|   - u1 (Intel® x86-64)
 
 :doc:`Hello Query Device C++ Sample <openvino_inference_engine_samples_hello_query_device_README>` can be used to print out supported data types for all detected devices.
 
@@ -69,19 +72,29 @@ For more details on how to get a quantized model see the :doc:`low-precision opt
    Platforms that do not support Intel® AVX512-VNNI have a known "saturation issue" that may lead to reduced computational accuracy for ``u8/i8`` precision calculations.
    To get more information on how to detect such issues and possible workarounds, see the :doc:`saturation (overflow) issue section <pot_saturation_issue>`.
 
+.. note:: 
+   
+   Arm® platforms execute quantized models in simulation mode: the whole model (including quantization operations) is executed in floating-point precision.
+
 
 Floating Point Data Types Specifics
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
+CPU plugin supports the following floating-point data types as inference precision of internal primitives:
+
+- f32 (Intel® x86-64, Arm®)
+- bf16 (Intel® x86-64)
+
 The default floating-point precision of a CPU primitive is ``f32``. To support the ``f16`` OpenVINO IR the plugin internally converts 
 all the ``f16`` values to ``f32`` and all the calculations are performed using the native precision of ``f32``.
-On platforms that natively support ``bfloat16`` calculations (have the ``AVX512_BF16`` extension), the ``bf16`` type is automatically used instead 
-of ``f32`` to achieve better performance. Thus, no special steps are required to run a ``bf16`` model. For more details about the ``bfloat16`` format, see 
+On platforms that natively support ``bfloat16`` calculations (have the ``AVX512_BF16`` or ``AMX`` extension), the ``bf16`` type is automatically used instead
+of ``f32`` to achieve better performance (see the `Execution Mode Hint <#execution-mode-hint>`__).
+Thus, no special steps are required to run a ``bf16`` model. For more details about the ``bfloat16`` format, see 
 the `BFLOAT16 – Hardware Numerics Definition white paper <https://software.intel.com/content/dam/develop/external/us/en/documents/bf16-hardware-numerics-definition-white-paper.pdf>`__.
 
 Using the ``bf16`` precision provides the following performance benefits:
 
-- Faster multiplication of two ``bfloat16`` numbers because of shorter mantissa of the ``bfloat16`` data.
+- ``bfloat16`` data type allows using Intel® Advanced Matrix Extension (AMX), which provides dramatically faster computations on corresponding hardware in comparison with AVX512 or AVX2 instructions in many DL operation implementations.
 - Reduced memory consumption since ``bfloat16`` data half the size of 32-bit float.
 
 To check if the CPU device can support the ``bfloat16`` data type, use the :doc:`query device properties interface <openvino_docs_OV_UG_query_api>` 
@@ -104,6 +117,9 @@ to query ``ov::device::capabilities`` property, which should contain ``BF16`` in
          :language: py
          :fragment: [part0]
 
+
+Inference Precision Hint
+-----------------------------------------------------------
 
 If the model has been converted to ``bf16``, the ``ov::hint::inference_precision`` is set to ``ov::element::bf16`` and can be checked via 
 the ``ov::CompiledModel::get_property`` call. The code below demonstrates how to get the element type:
@@ -144,7 +160,18 @@ To enable the simulation, the ``ov::hint::inference_precision`` has to be explic
    
    Due to the reduced mantissa size of the ``bfloat16`` data type, the resulting ``bf16`` inference accuracy may differ from the ``f32`` inference, 
    especially for models that were not trained using the ``bfloat16`` data type. If the ``bf16`` inference accuracy is not acceptable, 
-   it is recommended to switch to the ``f32`` precision.
+   it is recommended to switch to the ``f32`` precision. Also, the performance/accuracy balance can be managed using the ``ov::hint::execution_mode`` hint,
+   see the `Execution Mode Hint <#execution-mode-hint>`__.
+
+Execution Mode Hint
+-----------------------------------------------------------
+In case ``ov::hint::inference_precision`` is not explicitly set, one can use ``ov::hint::execution_mode`` hint to direct the run-time optimizations toward either better accuracy or better performance.
+If ``ov::hint::execution_mode`` is set to ``ov::hint::ExecutionMode::PERFORMANCE`` (default behavior) and the platform natively supports ``bfloat16``
+calculations (has the ``AVX512_BF16`` or ``AMX`` extension) then ``bf16`` type is automatically used instead of ``f32`` to achieve better performance.
+If the accuracy in this mode is not good enough, then set ``ov::hint::execution_mode`` to ``ov::hint::ExecutionMode::ACCURACY`` to enforce the plugin to
+use the ``f32`` precision in floating point calculations.
+
+For more details and code examples, see the :doc:`Precision Control <openvino_docs_OV_UG_Precision_Control>`.
 
 Supported Features
 ###########################################################
@@ -190,6 +217,10 @@ For more details, see the :doc:`optimization guide <openvino_docs_deployment_opt
    on data transfer between NUMA nodes. In that case it is better to use the ``ov::hint::PerformanceMode::LATENCY`` performance hint. 
    For more details see the :doc:`performance hints <openvino_docs_OV_UG_Performance_Hints>` overview.
 
+.. note:: 
+
+   Multi-stream execution is not supported on Arm® platforms. Latency and throughput hints have identical behavior and use only one stream for inference.
+   
 
 Dynamic Shapes
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -264,15 +295,10 @@ For more details, see the :doc:`model caching <openvino_docs_OV_UG_Model_caching
 Extensibility
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-CPU plugin supports fallback on ``ov::Op`` reference implementation if the plugin do not have its own implementation for such operation.
+CPU plugin supports fallback on ``ov::Op`` reference implementation if the plugin does not have its own implementation for such operation.
 That means that :doc:`OpenVINO™ Extensibility Mechanism <openvino_docs_Extensibility_UG_Intro>` can be used for the plugin extension as well.
 Enabling fallback on a custom operation implementation is possible by overriding the ``ov::Op::evaluate`` method in the derived operation 
 class (see :doc:`custom OpenVINO™ operations <openvino_docs_Extensibility_UG_add_openvino_ops>` for details).
-
-.. note:: 
-   
-   At the moment, custom operations with internal dynamism (when the output tensor shape can only be determined 
-   as a result of performing the operation) are not supported by the plugin.
 
 Stateful Models
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -294,7 +320,11 @@ All parameters must be set before calling ``ov::Core::compile_model()`` in order
 - ``ov::enable_profiling``
 - ``ov::hint::inference_precision``
 - ``ov::hint::performance_mode``
+- ``ov::hint::execution_mode``
 - ``ov::hint::num_request``
+- ``ov::hint::scheduling_core_type``
+- ``ov::hint::enable_hyper_threading``
+- ``ov::hint::enable_cpu_pinning``
 - ``ov::num_streams``
 - ``ov::affinity``
 - ``ov::inference_num_threads``
@@ -314,32 +344,64 @@ Read-only properties
 
 External Dependencies
 ###########################################################
-For some performance-critical DL operations, the CPU plugin uses optimized implementations from the oneAPI Deep Neural Network Library 
-(`oneDNN <https://github.com/oneapi-src/oneDNN>`__).
-
-.. dropdown:: The following operations are implemented using primitives from the OneDNN library:
-
-   * AvgPool
-   * Concat
-   * Convolution
-   * ConvolutionBackpropData
-   * GroupConvolution
-   * GroupConvolutionBackpropData
-   * GRUCell
-   * GRUSequence
-   * LRN
-   * LSTMCell
-   * LSTMSequence
-   * MatMul
-   * MaxPool
-   * RNNCell
-   * RNNSequence
-   * SoftMax
+For some performance-critical DL operations, the CPU plugin uses third-party libraries:
+- `oneDNN <https://github.com/oneapi-src/oneDNN>`__ (Intel® x86-64, Arm®)
+- `Compute Library <https://github.com/ARM-software/ComputeLibrary>`__ (Arm®)
 
 
 Optimization guide
 ###########################################################
 
+Multi-Threading Optimization
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+CPU inference will infer an input or multiple inputs in parallel on multiple logical processors. 
+
+User can use the following properties to limit available CPU resource for model inference. If the platform or operating system can support this behavior, OpenVINO Runtime will perform multi-threading scheduling based on limited available CPU resources.
+
+- ``ov::inference_num_threads`` limits number of logical processors used for CPU inference. 
+  If the number set by the user is greater than the number of logical processors on the platform, multi-threading scheduler only uses the platform number for CPU inference.
+- ``ov::hint::scheduling_core_type`` limits the type of CPU cores for CPU inference when user runs inference on a hybird platform that includes both Performance-cores (P-cores) with Efficient-cores (E-cores). 
+  If user platform only has one type of CPU cores, this property has no effect, and CPU inference always uses this unique core type.
+- ``ov::hint::enable_hyper_threading`` limits the use of one or two logical processors per CPU core when platform has CPU hyperthreading enabled.
+  If there is only one logical processor per CPU core, such as Efficient-cores, this property has no effect, and CPU inference uses all logical processors.
+
+.. tab:: C++
+
+   .. doxygensnippet:: docs/snippets/cpu/multi_threading.cpp
+      :language: cpp
+      :fragment: [ov:intel_cpu:multi_threading:part0]
+
+.. tab:: Python
+
+   .. doxygensnippet:: docs/snippets/cpu/multi_threading.py
+      :language: python
+      :fragment: [ov:intel_cpu:multi_threading:part0]
+
+.. note:: 
+   
+   ``ov::hint::scheduling_core_type`` and ``ov::hint::enable_hyper_threading`` only support Intel® x86-64 CPU on Linux and Windows in current release.
+   
+By default, OpenVINO Runtime will enable CPU threads pinning for better performance. User also can use property ``ov::hint::enable_cpu_pinning`` to switch it off. Disable threads pinning might be beneficial in complex applications with several workloads executed in parallel.
+
+.. tab:: C++
+
+   .. doxygensnippet:: docs/snippets/cpu/multi_threading.cpp
+      :language: cpp
+      :fragment: [ov:intel_cpu:multi_threading:part1]
+
+.. tab:: Python
+
+   .. doxygensnippet:: docs/snippets/cpu/multi_threading.py
+      :language: python
+      :fragment: [ov:intel_cpu:multi_threading:part1]
+
+user can check the :doc:`optimization guide <openvino_docs_deployment_optimization_guide_tput_advanced>` for details on multi-stream execution
+
+.. note:: 
+   
+   ``ov::hint::enable_cpu_pinning`` only support Linux in current release.
+   
 Denormals Optimization
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -382,7 +444,7 @@ To enable denormals optimization in the application, the ``denormals_optimizatio
       :fragment: [ov:intel_cpu:denormals_optimization:part0]
 
 
-Sparse weights decompression
+Sparse weights decompression (Intel® x86-64)
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 ``Sparse weights`` are weights where most of the elements are zero. The ratio of the number of zero elements 
@@ -398,7 +460,7 @@ weights are loaded from DDR/L3 cache in the packed format this significantly dec
 and as a consequence improve inference performance.
 
 To use this feature, the user is provided with property ``sparse_weights_decompression_rate``, which can take 
-values from the interval \[0, 1\]. ``sparse_weights_decompression_rate`` defines sparse rate threashold: only operations 
+values from the interval \[0, 1\]. ``sparse_weights_decompression_rate`` defines sparse rate threshold: only operations 
 with higher sparse rate will be executed using ``sparse weights decompression feature``. The default value is ``1``, 
 which means the option is disabled.
 
@@ -433,7 +495,6 @@ from perf counters log. The "exec type" field will contain the implementation ty
 .. code-block:: sh
 
    MatMul_1800         EXECUTED         layerType: FullyConnected         execType: brgemm_avx512_amx_sparse_I8 realTime (ms): 0.050000  cpuTime (ms): 0.050000
-
 
 Limitations
 -----------------------------------------------------------

@@ -8,6 +8,7 @@
 #include "input.h"
 #include "fake_quantize.h"
 #include "input.h"
+#include "memory_desc/blocked_memory_desc.h"
 #include "reorder.h"
 #include "transformations/cpu_opset/common/op/fully_connected.hpp"
 #include "ngraph/opsets/opset1.hpp"
@@ -315,83 +316,57 @@ void FullyConnected::prepareParams() {
     auto& engine = getEngine();
 
     auto builder = [&engine](const FCKey& key) -> executorPtr {
-        executorPtr execPtr = nullptr;
+        // use conv1x1 primitive for computation
         if (key.useConv1x1) {
-            auto desc = createDescriptorInternalForConv(key.inp0, key.inp1, key.bias, key.out, key.attr, engine);
-            primitive_desc_iterator itpd = desc;
-            convolution_forward::primitive_desc prim_desc;
+            auto prim_desc = createDescriptorInternalForConv(key.inp0, key.inp1, key.bias, key.out, key.attr, engine);
+            const bool found = DnnlExtensionUtils::find_implementation(prim_desc, brgconv_avx512_1x1);
 
-            while (static_cast<bool>(itpd))  {
-                impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
-
-                if (impl_type == brgconv_avx512_1x1) {
-                    prim_desc = itpd.get();
-                    break;
-                }
-                if (!itpd.next_impl()) {
-                    break;
-                }
-            }
-
-            if (prim_desc) {
-                execPtr = std::make_shared<DnnlExecutor>(prim_desc);
-            }
+            if (found)
+                return std::make_shared<DnnlExecutor>(prim_desc);
         }
-        // fallback
-        if (!execPtr) {
-            auto inDesc = key.inp0->getDnnlDesc();
-            const auto& inDims = inDesc.get_dims(); // @TODO query + copy might be slow
-            if (inDims.size() == 3) {
-                auto normalizedInDims = {inDims[0] * inDims[1], inDims[2]};
-                inDesc = inDesc.reshape(normalizedInDims);
-            }
 
-            auto outDesc = key.out->getDnnlDesc();
-            const auto& outDims = outDesc.get_dims(); // @TODO query + copy might be slow
-
-            if (outDims.size() == 3) {
-                auto normalizedOutDims = { outDims[0] * outDims[1], outDims[2] };
-                outDesc = outDesc.reshape(normalizedOutDims);
-            }
-
-            std::shared_ptr<dnnl::inner_product_forward::primitive_desc> fcDsc;
-            if (key.bias) {
-                fcDsc = std::make_shared<dnnl::inner_product_forward::primitive_desc>(
-                    engine,
-                    dnnl::prop_kind::forward_inference,
-                    inDesc,
-                    key.inp1->getDnnlDesc(),
-                    key.bias->getDnnlDesc(),
-                    outDesc,
-                    key.attr);
-            } else {
-                fcDsc = std::make_shared<dnnl::inner_product_forward::primitive_desc>(
-                    engine,
-                    dnnl::prop_kind::forward_inference,
-                    inDesc,
-                    key.inp1->getDnnlDesc(),
-                    outDesc,
-                    key.attr);
-            }
-
-            primitive_desc_iterator itpd = *fcDsc;
-            inner_product_forward::primitive_desc prim_desc;
-
-            while (itpd) {
-                impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
-
-                if (impl_type == key.implType) {
-                    prim_desc = itpd.get();
-                    break;
-                }
-                if (!itpd.next_impl()) {
-                    return nullptr;
-                }
-            }
-
-            execPtr = std::make_shared<DnnlExecutor>(prim_desc);
+        // fallback to normal convolution primitive
+        auto inDesc = key.inp0->getDnnlDesc();
+        const auto& inDims = inDesc.get_dims(); // @TODO query + copy might be slow
+        if (inDims.size() == 3) {
+            auto normalizedInDims = {inDims[0] * inDims[1], inDims[2]};
+            inDesc = inDesc.reshape(normalizedInDims);
         }
-        return execPtr;
+
+        auto outDesc = key.out->getDnnlDesc();
+        const auto& outDims = outDesc.get_dims(); // @TODO query + copy might be slow
+
+        if (outDims.size() == 3) {
+            auto normalizedOutDims = { outDims[0] * outDims[1], outDims[2] };
+            outDesc = outDesc.reshape(normalizedOutDims);
+        }
+
+        dnnl::inner_product_forward::primitive_desc prim_desc;
+        if (key.bias) {
+            prim_desc = dnnl::inner_product_forward::primitive_desc(
+                engine,
+                dnnl::prop_kind::forward_inference,
+                inDesc,
+                key.inp1->getDnnlDesc(),
+                key.bias->getDnnlDesc(),
+                outDesc,
+                key.attr);
+        } else {
+            prim_desc = dnnl::inner_product_forward::primitive_desc(
+                engine,
+                dnnl::prop_kind::forward_inference,
+                inDesc,
+                key.inp1->getDnnlDesc(),
+                outDesc,
+                key.attr);
+        }
+
+        const bool found = DnnlExtensionUtils::find_implementation(prim_desc, key.implType);
+
+        if (!found)
+            return nullptr;
+
+        return std::make_shared<DnnlExecutor>(prim_desc);;
     };
 
     auto cache = context->getParamsCache();
@@ -506,7 +481,7 @@ void FullyConnected::setPostOps(dnnl::primitive_attr& attr, const VectorDims& di
 
     DnnlPostOpsComposer dnnlpoc(getEngine(), attr, ops, postOpsArgs, dims, dims.size() - 1, isINT8, 1 << 0,  getDQScales(), withBiases);
 
-    for (int i = 0; i < fusedWith.size(); ++i) {
+    for (size_t i = 0; i < fusedWith.size(); ++i) {
         auto& node = fusedWith[i];
         bool isLastPostOp = (i == (fusedWith.size() - 1));
 
@@ -531,43 +506,40 @@ bool FullyConnected::created() const {
     return getType() == Type::FullyConnected;
 }
 
-const std::vector<impl_desc_type>& FullyConnected::getPrimitivesPriority() {
-    std::vector<impl_desc_type> priorities = {
-            impl_desc_type::unknown,
-            impl_desc_type::brgemm_sparse_avx512_amx,
-            impl_desc_type::brgemm_avx512_amx,
-            impl_desc_type::brgemm_avx512,
-            impl_desc_type::gemm_blas,
-            impl_desc_type::gemm_avx512,
-            impl_desc_type::gemm_avx2,
-            impl_desc_type::gemm_avx,
-            impl_desc_type::gemm_sse42,
-            impl_desc_type::gemm_any,
-            impl_desc_type::gemm,
-            impl_desc_type::jit_gemm,
-            impl_desc_type::jit_uni_dw,
-            impl_desc_type::jit_uni_1x1,
-            impl_desc_type::jit_uni,
-            impl_desc_type::jit_avx512_dw,
-            impl_desc_type::jit_avx512_1x1,
-            impl_desc_type::jit_avx512,
-            impl_desc_type::jit_avx2_dw,
-            impl_desc_type::jit_avx2_1x1,
-            impl_desc_type::jit_avx2,
-            impl_desc_type::jit_avx_dw,
-            impl_desc_type::jit_avx_1x1,
-            impl_desc_type::jit_avx,
-            impl_desc_type::jit_sse42_dw,
-            impl_desc_type::jit_sse42_1x1,
-            impl_desc_type::jit_sse42,
-            impl_desc_type::ref,
+const std::vector<impl_desc_type>& FullyConnected::getDefaultImplPriority() {
+    static const std::vector<impl_desc_type> priorities = {
+        impl_desc_type::unknown,
+        impl_desc_type::acl,
+        impl_desc_type::brgemm_sparse_avx512_amx,
+        impl_desc_type::brgemm_avx512_amx,
+        impl_desc_type::brgemm_avx512,
+        impl_desc_type::gemm_blas,
+        impl_desc_type::gemm_avx512,
+        impl_desc_type::gemm_avx2,
+        impl_desc_type::gemm_avx,
+        impl_desc_type::gemm_sse42,
+        impl_desc_type::gemm_any,
+        impl_desc_type::gemm,
+        impl_desc_type::jit_gemm,
+        impl_desc_type::jit_uni_dw,
+        impl_desc_type::jit_uni_1x1,
+        impl_desc_type::jit_uni,
+        impl_desc_type::jit_avx512_dw,
+        impl_desc_type::jit_avx512_1x1,
+        impl_desc_type::jit_avx512,
+        impl_desc_type::jit_avx2_dw,
+        impl_desc_type::jit_avx2_1x1,
+        impl_desc_type::jit_avx2,
+        impl_desc_type::jit_avx_dw,
+        impl_desc_type::jit_avx_1x1,
+        impl_desc_type::jit_avx,
+        impl_desc_type::jit_sse42_dw,
+        impl_desc_type::jit_sse42_1x1,
+        impl_desc_type::jit_sse42,
+        impl_desc_type::ref,
     };
 
-    for (const auto& impl : priorities) {
-        if (std::find(implPriorities.begin(), implPriorities.end(), impl) == implPriorities.end())
-            implPriorities.push_back(impl);
-    }
-    return implPriorities;
+    return priorities;
 }
 
 // WA: creation DnnlMemoryDesc with format == any is prohibited
@@ -664,53 +636,60 @@ void FullyConnected::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    for (auto& desc : descs) {
-        primitive_desc_iterator itpd = desc;
-        while (static_cast<bool>(itpd)) {
-            // 3D FC requires implicit reshape so strides should be defined
-            auto supportsUndefStridesAndOffset = [&]() {
-                return getOutputShapeAtPort(0).getRank() == 2;
-            };
+    // 3D FC requires implicit reshape so strides should be defined
+    auto supportsUndefStridesAndOffset = [&]() {
+        return getOutputShapeAtPort(0).getRank() == 2;
+    };
 
-            NodeConfig config;
-            for (size_t i = 0; i < descInputNumbers(); i++) {
-                PortConfig portConfig;
-                portConfig.inPlace(-1);
-                portConfig.constant(false);
-                auto desc = getSrcMemDesc(itpd, i);
-                if (supportsUndefStridesAndOffset() && !(i == WEIGHTS_ID && useSparseWeights)) {
-                    portConfig.setMemDesc(std::dynamic_pointer_cast<BlockedMemoryDesc>(desc), BLOCKED_DESC_EMPTY_MASK);
-                } else {
-                    portConfig.setMemDesc(desc);
-                }
-                config.inConfs.push_back(portConfig);
-            }
+    auto addSupportedPrimitiveDescriptor = [&](const dnnl::primitive_desc& prim_desc) {
+        std::vector<PortConfig> inConfs, outConfs;
+        const int inPlaceOutPort = canBeInPlace() ? 0 : -1;
 
-            for (size_t i = 0; i < descOutputNumbers(); i++) {
-                PortConfig portConfig;
-                portConfig.inPlace(canBeInPlace() ? 0 : -1);
-                portConfig.constant(false);
-                auto desc = getDstMemDesc(itpd, i);
-                if (supportsUndefStridesAndOffset()) {
-                    portConfig.setMemDesc(std::dynamic_pointer_cast<BlockedMemoryDesc>(desc), BLOCKED_DESC_EMPTY_MASK);
-                } else {
-                    portConfig.setMemDesc(desc);
-                }
-                config.outConfs.push_back(portConfig);
-            }
+        for (size_t i = 0; i < descInputNumbers(); i++) {
+            auto desc = getSrcMemDesc(prim_desc, i);
+            const auto inputBlockedMask = (supportsUndefStridesAndOffset() && !(i == WEIGHTS_ID && useSparseWeights)) ?
+                BlockedMemoryDesc::EMPTY_MASK :
+                BlockedMemoryDesc::FULL_MASK;
 
-            impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
-
-            supportedPrimitiveDescriptors.emplace_back(config, impl_type);
-
-            if (!itpd.next_impl())
-                break;
+            inConfs.emplace_back(desc, inputBlockedMask);
         }
+
+        const auto outputBlockedMask = supportsUndefStridesAndOffset() ? BlockedMemoryDesc::EMPTY_MASK : BlockedMemoryDesc::FULL_MASK;
+
+        for (size_t i = 0; i < descOutputNumbers(); i++) {
+            auto desc = getDstMemDesc(prim_desc, i);
+
+            outConfs.emplace_back(desc, outputBlockedMask, inPlaceOutPort);
+        }
+
+        const NodeConfig config(inConfs, outConfs);
+        const impl_desc_type impl_type = parse_impl_name(prim_desc.impl_info_str());
+
+        supportedPrimitiveDescriptors.emplace_back(config, impl_type);
+    };
+
+    for (auto& desc : descs) {
+        auto first_desc = dnnl::primitive_desc(DnnlExtensionUtils::clone_primitive_desc(desc.get()));
+
+        const bool first_match = customImplPriorities.empty();
+        DnnlExtensionUtils::for_each_implementation(desc,
+                                                    first_match,
+                                                    [&](impl_desc_type implType) {
+                                                        return contains(getImplPriority(), implType);
+                                                    },
+                                                    [&](dnnl::primitive_desc& desc) {
+                                                        addSupportedPrimitiveDescriptor(desc);
+                                                    });
+
+        // fallback. if none of the primitive types is present in the priority list just add first implementation
+        // @todo this fallback is not necessary if primitive priority list is filled correctly
+        if (supportedPrimitiveDescriptors.empty())
+            addSupportedPrimitiveDescriptor(first_desc);
     }
 }
 
-std::shared_ptr<MemoryDesc> FullyConnected::getSrcMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx) {
-    auto desc = idx > 0 ? primitive_desc_it.weights_desc(idx - 1) : primitive_desc_it.src_desc(idx);
+std::shared_ptr<MemoryDesc> FullyConnected::getSrcMemDesc(const dnnl::primitive_desc &prim_desc, size_t idx) const {
+    auto desc = idx > 0 ? prim_desc.weights_desc(idx - 1) : prim_desc.src_desc(idx);
 
     if (getInputShapeAtPort(idx).getRank() == 3) {
         return std::make_shared<CpuBlockedMemoryDesc>(
@@ -724,8 +703,8 @@ std::shared_ptr<MemoryDesc> FullyConnected::getSrcMemDesc(dnnl::primitive_desc_i
     return DnnlExtensionUtils::makeDescriptor(desc);
 }
 
-std::shared_ptr<MemoryDesc> FullyConnected::getDstMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx) {
-    auto desc = primitive_desc_it.dst_desc(idx);
+std::shared_ptr<MemoryDesc> FullyConnected::getDstMemDesc(const dnnl::primitive_desc &prim_desc, size_t idx) const {
+    auto desc = prim_desc.dst_desc(idx);
 
     if (getOutputShapeAtPort(idx).getRank() == 3) {
         return std::make_shared<CpuBlockedMemoryDesc>(
@@ -841,7 +820,7 @@ bool FullyConnected::canBeExecutedInConv1x1() const {
     //   problems with the above.
     if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) &&
         getOriginalInputPrecisionAtPort(DATA_ID) == InferenceEngine::Precision::FP32 &&
-        one_of(inRank, 2, 3) && weightRank == 2) {
+        one_of(inRank, 2u, 3u) && weightRank == 2) {
         auto dstMemPtr = getChildEdgesAtPort(0)[0]->getMemoryPtr();
         DnnlMemoryDescCPtr outDesc = dstMemPtr->GetDescWithType<DnnlMemoryDesc>();
         // brg convolution does not support stride
@@ -911,7 +890,7 @@ bool FullyConnected::useSparseWeightsDecompression() {
     auto weightsData = reinterpret_cast<const int8_t*>(blb->GetPtr());
     auto elementsCount = blb->GetDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
     size_t zerosCounts = 0;
-    for (int i = 0; i < elementsCount; i++) {
+    for (size_t i = 0; i < elementsCount; i++) {
         if (weightsData[i] == 0) {
             zerosCounts++;
         }

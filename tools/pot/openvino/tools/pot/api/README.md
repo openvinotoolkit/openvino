@@ -17,7 +17,7 @@ The base class for all DataLoaders.
 ``DataLoader`` loads data from a dataset and applies pre-processing to them providing access to the pre-processed data 
 by index. 
 
-All subclasses should override ``__len__()`` function, which should return the size of the dataset, and ``__getitem__()``, 
+All subclasses should override the ``__len__()`` function, which should return the size of the dataset, and ``__getitem__()``, 
 which supports integer indexing in the range of 0 to ``len(self)``. ``__getitem__()`` method can return data in one of the possible formats:
 
 .. code-block:: sh
@@ -32,7 +32,7 @@ or
    (data, annotation, metadata)
 
 
-``data`` is the input that is passed to the model at inference so that it should be properly preprocessed. ``data`` can be either ``numpy.array`` object or dictionary where the key is the name of the model input and value is ``numpy.array`` which corresponds to this input. The format of ``annotation`` should correspond to the expectations of the ``Metric`` class. ``metadata`` is an optional field that can be used to store additional information required for post-processing.
+``data`` is the input that is passed to the model at inference so that it should be properly preprocessed. ``data`` can be either ``numpy.array`` object or dictionary where the key is the name of the model input and the value is ``numpy.array`` which corresponds to this input. The format of ``annotation`` should correspond to the expectations of the ``Metric`` class. ``metadata`` is an optional field that can be used to store additional information required for post-processing.
 
 Metric
 ++++++++++++++++++++
@@ -63,7 +63,7 @@ and methods:
 
   Required attributes:
 
-  - ``direction`` - (``higher-better`` or ``higher-worse``) a string parameter defining whether metric value should be increased in accuracy-aware algorithms.
+  - ``direction`` - (``higher-better`` or ``higher-worse``) a string parameter defining whether the metric value should be increased in accuracy-aware algorithms.
   - ``type`` - a string representation of metric type. For example, 'accuracy' or 'mean_iou'.
 
 Engine
@@ -107,7 +107,7 @@ All subclasses should override the following methods:
 
   - `sampler` - `Sampler` instance that provides a way to iterate over the dataset. (See details below).
   - `metric_per_sample` - if `Metric` is specified and this parameter is set to True, then the metric value should be 
-  calculated for each data sample, otherwise for the whole dataset.
+    calculated for each data sample, otherwise for the whole dataset.
   - `print_progress` - print inference progress.
 
   *Returns*
@@ -202,8 +202,8 @@ The POT Python* API provides the utility function to create and configure the pi
 Helpers and Internal Model Representation
 #########################################
 
-In order to simplify implementation of optimization pipelines we provide a set of ready-to-use helpers. Here we also 
-describe internal representation of the DL model and how to work with it.
+To simplify the implementation of optimization pipelines we provide a set of ready-to-use helpers. Here we also 
+describe an internal representation of the DL model and how to work with it.
 
 IEEngine
 ++++++++++++++++++++
@@ -276,12 +276,12 @@ represented as an instance of this class. The cascaded model is stored as a list
 *Properties*
 
 - ``models`` - list of models of the cascaded model.
-- ``is_cascade`` - returns True if the loaded model is cascaded model.
+- ``is_cascade`` - returns True if the loaded model is a cascaded model.
 
 Read model from OpenVINO IR
 ++++++++++++++++++++++++++++++
 
-The Python POT API provides the utility function to load model from the OpenVINO&trade; Intermediate Representation (IR):
+The Python POT API provides the utility function to load the model from the OpenVINO&trade; Intermediate Representation (IR):
 
 .. code-block:: sh
 
@@ -334,10 +334,10 @@ The Python POT API provides the utility function to load model from the OpenVINO
 
 - ``CompressedModel`` instance
 
-Save model to IR
-----------------
+Save a model to IR
+----------------------
 
-The Python POT API provides the utility function to save model in the OpenVINO&trade; Intermediate Representation (IR):
+The Python POT API provides the utility function to save a model in the OpenVINO&trade; Intermediate Representation (IR):
 
 .. code-block:: sh
 
@@ -349,7 +349,7 @@ The Python POT API provides the utility function to save model in the OpenVINO&t
 - ``model`` - ``CompressedModel`` instance.
 - ``save_path`` - path to save the model.
 - ``model_name`` - name under which the model will be saved.
-- ``for_stat_collection`` - whether model is saved to be used for statistic collection or for normal inference (affects only cascaded models). If set to False, removes model prefixes from node names.
+- ``for_stat_collection`` - whether the model is saved to be used for statistic collection or for inference (affects only cascaded models). If set to False, removes model prefixes from node names.
 
 *Returns*
 
@@ -378,7 +378,7 @@ Base class for all Samplers.
 
 Sampler provides a way to iterate over the dataset.
 
-All subclasses overwrite ``__iter__()`` method, providing a way to iterate over the dataset, and a ``__len__()`` method 
+All subclasses the ``__iter__()`` method, providing a way to iterate over the dataset, and a ``__len__()`` method 
 that returns the length of the returned iterators.
 
 *Parameters*
@@ -395,7 +395,7 @@ BatchSampler
    class openvino.tools.pot.samplers.batch_sampler.BatchSampler(data_loader, batch_size=1, subset_indices=None):
 
 Sampler provides an iterable over the dataset subset if ``subset_indices`` is specified 
-or over the whole dataset with given ``batch_size``. Returns a list of data items.
+or over the whole dataset with a given ``batch_size``. Returns a list of data items.
 
 @endsphinxdirective
 

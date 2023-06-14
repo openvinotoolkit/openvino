@@ -9,11 +9,11 @@ The following Python API is used in the application:
 +---------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+----------------------------------------+
 | Feature                               | API                                                                                                                                                                                        | Description                            |
 +=======================================+============================================================================================================================================================================================+========================================+
-| Basic                                 | `openvino.runtime.Core <https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.runtime.Core.html>`__                                                                      | Common API                             |
+| Basic                                 | `openvino.runtime.Core <https://docs.openvino.ai/2023.0/api/ie_python_api/_autosummary/openvino.runtime.Core.html>`__                                                                      | Common API                             |
 +---------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+----------------------------------------+
-| Query Device                          | `openvino.runtime.Core.available_devices <https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.runtime.Core.html#openvino.runtime.Core.available_devices>`__ ,          | Get device properties                  |
-|                                       | `openvino.runtime.Core.get_metric <https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.inference_engine.IECore.html#openvino.inference_engine.IECore.get_metric>`__ ,  |                                        |
-|                                       | `openvino.runtime.Core.get_config <https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.inference_engine.IECore.html#openvino.inference_engine.IECore.get_config>`__    |                                        |
+| Query Device                          | `openvino.runtime.Core.available_devices <https://docs.openvino.ai/2023.0/api/ie_python_api/_autosummary/openvino.runtime.Core.html#openvino.runtime.Core.available_devices>`__ ,          | Get device properties                  |
+|                                       | `openvino.runtime.Core.get_metric <https://docs.openvino.ai/2023.0/api/ie_python_api/_autosummary/openvino.inference_engine.IECore.html#openvino.inference_engine.IECore.get_metric>`__ ,  |                                        |
+|                                       | `openvino.runtime.Core.get_config <https://docs.openvino.ai/2023.0/api/ie_python_api/_autosummary/openvino.inference_engine.IECore.html#openvino.inference_engine.IECore.get_config>`__    |                                        |
 +---------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+----------------------------------------+
 
 +-------------------------------------------------------+--------------------------------------------------------------------------+
@@ -62,8 +62,6 @@ For example:
    [ INFO ]                CPU_THREADS_NUM: 0
    [ INFO ]                CPU_THROUGHPUT_STREAMS: 1
    [ INFO ]                DUMP_EXEC_GRAPH_AS_DOT:
-   [ INFO ]                DYN_BATCH_ENABLED: NO
-   [ INFO ]                DYN_BATCH_LIMIT: 0
    [ INFO ]                ENFORCE_BF16: NO
    [ INFO ]                EXCLUSIVE_ASYNC_REQUESTS: NO
    [ INFO ]                PERFORMANCE_HINT:

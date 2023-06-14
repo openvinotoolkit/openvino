@@ -45,7 +45,8 @@ ov::intel_cpu::NonQuantizedFullyConnectedBiasFusion::NonQuantizedFullyConnectedB
             return false;
         }
 
-        if (bias_shape.empty() || bias_shape.back() != output_shape[rank - 1].get_length() || bias_shape.back() != bias_size) {
+        if (bias_shape.empty() || static_cast<int64_t>(bias_shape.back()) != output_shape[rank - 1].get_length() ||
+            bias_shape.back() != bias_size) {
             return false;
         }
 
@@ -75,9 +76,9 @@ ov::intel_cpu::NonQuantizedFullyConnectedBiasFusion::NonQuantizedFullyConnectedB
     this->register_matcher(m, callback);
 }
 
-//CPU plugin would config LPT  not to propogate dequantization scale over bias to follow ONEDNN 3.x scheme.
+//CPU plugin would config LPT  not to propagate dequantization scale over bias to follow ONEDNN 3.x scheme.
 //It is a little tricky now to first fuse bias not DQ for pattern "FC + DQ + BIAS".
-//todo: Will move the FullyConnnect fusing into CPU and fuse the DQ and BIAS in topology order.
+//todo: Will move the FullyConnect fusing into CPU and fuse the DQ and BIAS in topology order.
 ov::intel_cpu::QuantizedFullyConnectedBiasFusion::QuantizedFullyConnectedBiasFusion() {
     MATCHER_SCOPE(FullyConnectedBiasFusion);
     auto input = ngraph::pattern::any_input();
@@ -119,7 +120,8 @@ ov::intel_cpu::QuantizedFullyConnectedBiasFusion::QuantizedFullyConnectedBiasFus
         if (ov::shape_size(bias_shape) != 1 && !per_channel)
             return false;
 
-        if (bias_shape.empty() || bias_shape.back() != output_shape[rank - 1].get_length() || bias_shape.back() != bias_size) {
+        if (bias_shape.empty() || static_cast<int64_t>(bias_shape.back()) != output_shape[rank - 1].get_length() ||
+            bias_shape.back() != bias_size) {
             return false;
         }
 

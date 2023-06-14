@@ -6,7 +6,6 @@
 #include "register.hpp"
 #include "mutable_data_inst.h"
 #include "input_layout_inst.h"
-#include "intel_gpu/graph/serialization/loop_serializer.hpp"
 #include "intel_gpu/runtime/error_handler.hpp"
 #include <vector>
 #include <algorithm>
@@ -56,7 +55,7 @@ struct loop_impl : typed_primitive_impl<loop> {
             instance.preprocess_input_memory();
             instance.preprocess_backedge_memory();
 
-            // set input data for current_iteration primitive if current_it`eration is used
+            // set input data for current_iteration primitive if current_iteration is used
             if (!primitive->current_iteration_id.empty()) {
                 auto current_iteration_prim = body_network->get_primitive(primitive->current_iteration_id);
                 auto input_layout_prim = std::dynamic_pointer_cast<input_layout_inst>(current_iteration_prim);
@@ -92,6 +91,14 @@ struct loop_impl : typed_primitive_impl<loop> {
         const auto& concatenated_input_mem_mappings = instance.concatenated_input_mem_mappings;
         const auto& concatenated_output_mem_mappings = instance.concatenated_output_mem_mappings;
 
+        // If there are concatenated_output_mem_mappings or backedge_memory_mappings we need to wait for
+        // previous tasks before accessing memory in get_sliced_mem() and setup_iteration() functions
+        if (!concatenated_input_mem_mappings.empty() || !instance.backedge_memory_mappings.empty()) {
+            for (auto e : events) {
+                e->wait();
+            }
+        }
+
         // Set sliced input data
         for (size_t i = 0; i < concatenated_input_mem_mappings.size(); ++i) {
             const auto& concatenated_input = concatenated_input_mem_mappings.at(i);
@@ -103,6 +110,7 @@ struct loop_impl : typed_primitive_impl<loop> {
             }
         }
 
+        std::vector<event::ptr> all_events;
         std::vector<event::ptr> loop_carried_dep(events.begin(), events.end());
         int64_t current_iteration_idx = 0;
         while (current_iteration_idx < trip_count && execution_condition) {
@@ -124,7 +132,7 @@ struct loop_impl : typed_primitive_impl<loop> {
 
             // Set sliced output memory
             for (const auto& concat_output_mem_mapping : concatenated_output_mem_mappings) {
-                concat_output_mem_mapping.setup_concatenated_output_memory(current_iteration_idx);
+                concat_output_mem_mapping.setup_sliced_output_memory(current_iteration_idx);
             }
 
             // execute body network
@@ -136,6 +144,15 @@ struct loop_impl : typed_primitive_impl<loop> {
                 if (body_network->has_event(backedge.from))
                     body_event = body_network->get_primitive_event(backedge.from);
                 loop_carried_dep.emplace_back(body_event);
+            }
+
+            // Collect output events for waiting for all iterations finishing
+            for (auto& out : body_network->get_outputs()) {
+                auto output_id = out->id();
+                if (body_network->has_event(output_id)) {
+                    auto output_event = body_network->get_primitive_event(output_id);
+                    all_events.push_back(output_event);
+                }
             }
 
             //TODO: execution_condition is prepared as they are presented in the
@@ -150,7 +167,9 @@ struct loop_impl : typed_primitive_impl<loop> {
             ++current_iteration_idx;
         }
 
-        body_network->reset_execution();
+        // Reset network and wait for all collected events
+        body_network->reset_execution(false);
+        stream.wait_for_events(all_events);
 
         // Concatenate sliced output to the outer network
         for (size_t i = 0; i < concatenated_output_mem_mappings.size(); ++i) {

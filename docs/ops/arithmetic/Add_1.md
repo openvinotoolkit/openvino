@@ -6,7 +6,7 @@
 
 **Category**: *Arithmetic binary*
 
-**Short description**: *Add* performs element-wise addition operation with two given tensors applying broadcasting rule specified in the *auto_broacast* attribute.
+**Short description**: *Add* performs element-wise addition operation with two given tensors applying broadcasting rule specified in the *auto_broadcast* attribute.
 
 **Detailed description**
 Before performing arithmetic operation, input tensors *a* and *b* are broadcasted if their shapes are different and ``auto_broadcast`` attribute is not ``none``. Broadcasting is performed according to ``auto_broadcast`` value.
@@ -49,7 +49,7 @@ After broadcasting *Add* performs addition operation for the input tensors *a* a
 
 *Example 1*
 
-.. code-block:: console
+.. code-block:: cpp
    
    <layer ... type="Add">
        <data auto_broadcast="none"/>

@@ -89,7 +89,8 @@ TEST(concat_gpu, mixed_input_types) {
     }
 }
 
-TEST(concat_gpu, dynamic_4d_f) {
+void start_concat_test_dynamic(impl_types impl_type = impl_types::any);
+void start_concat_test_dynamic(impl_types impl_type) {
     auto& engine = get_test_engine();
 
     layout layout0_dyn = {{1, -1, -1, -1}, data_types::f32, format::bfyx};
@@ -109,7 +110,13 @@ TEST(concat_gpu, dynamic_4d_f) {
                           padding{ { 0,0,0,0 }, 0 })
     );
 
-    ExecutionConfig config{ov::intel_gpu::allow_new_shape_infer(true)};
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    if (impl_type != impl_types::any) {
+        auto force_impl = ov::intel_gpu::ImplementationDesc{ format::bfyx, "", impl_type };
+        config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {primitive_id("concat"), force_impl} }));
+    }
 
     auto network = cldnn::network::build_network(engine, topology, config);
 
@@ -184,6 +191,14 @@ TEST(concat_gpu, dynamic_4d_f) {
                   {{1, 5, 3, 4}, data_types::f32, format::bfyx},
                   {{1, 3, 3, 4}, data_types::f32, format::bfyx},
                   {{1, 2, 3, 4}, data_types::f32, format::bfyx});
+}
+
+TEST(concat_gpu, dynamic_4d_f) {
+    start_concat_test_dynamic();
+}
+
+TEST(concat_cpu_impl, dynamic_4d_f) {
+    start_concat_test_dynamic(impl_types::cpu);
 }
 
 TEST(concat_gpu, dynamic_6d_f) {
@@ -499,7 +514,7 @@ TEST(concat_gpu, i8_optimization_with_conv) {
                                     data_types::i8,
                                     padding{{0, 0, 0, 0}, 0}),
                       data("weights", weights),
-                      convolution("conv", input_info("concat"), { "weights" }, { 2, 1 }),
+                      convolution("conv", input_info("concat"), "weights", "", 1, { 2, 1 }, {1, 1}, {0, 0}, {0, 0}, false),
                       reorder("output", input_info("conv"), reorder_layout));
     ov::intel_gpu::ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
@@ -600,7 +615,7 @@ TEST(concat_gpu, i8_optimization_with_pool_conv) {
                                     data_types::i8,
                                     padding{{0, 0, 0, 0}, 0}),
                       data("weights", weights),
-                      convolution("conv", input_info("concat"), {"weights"}, {1, 1}, {0, 1}),
+                      convolution("conv", input_info("concat"), "weights", "", 1, {1, 1}, {1, 1}, {0, 1}, {0, 1}, false),
                       reorder("output", input_info("conv"), reorder_layout) );
     ov::intel_gpu::ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
@@ -1023,7 +1038,7 @@ public:
             }
         }
         topology.add(data("weights", weights_mem));
-        topology.add(convolution("conv", input_info("concat"), { "weights" }));
+        topology.add(convolution("conv", input_info("concat"), "weights", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
 
         ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::optimize_data(true));
@@ -1163,7 +1178,7 @@ public:
             }
         }
         topology.add(data("weights" , weights_mem));
-        topology.add(convolution("conv", input_info("concat"), { "weights" }));
+        topology.add(convolution("conv", input_info("concat"), "weights", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
         topology.add(pooling("pool_final", input_info("conv"), pooling_mode::max, {1, 1}, {1, 1}));
         topology.add(reorder("reorder", input_info("pool_final"), layout(data_type, format::bfyx, {(int32_t)batch_num, (int32_t)output_f, (int32_t)input_y, (int32_t)input_x})));
 
@@ -1385,7 +1400,7 @@ public:
             }
         }
         topology.add(data("weights" , weights_mem));
-        topology.add(convolution("conv", input_info("concat"), { "weights" }));
+        topology.add(convolution("conv", input_info("concat"), "weights", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
         topology.add(pooling("pool_final", input_info("conv"), pooling_mode::max, {1, 1}, {1, 1}));
         topology.add(reorder("reorder", input_info("pool_final"), layout(data_type, format::bfyx, {(int32_t)batch_num, (int32_t)output_f, (int32_t)input_y, (int32_t)input_x})));
 
@@ -1548,7 +1563,7 @@ public:
             }
         }
         topology.add(data("weights" , weights_mem));
-        topology.add(convolution("conv", input_info("eltwise2"), { "weights" }));
+        topology.add(convolution("conv", input_info("eltwise2"), "weights", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
         topology.add(concatenation("concat", {input_info("eltwise1"), input_info("eltwise2")}, 1));
         topology.add(reorder("reorder", input_info("concat"), layout(data_types::f32, format::bfyx, {(int32_t)batch_num, (int32_t)(output_f * 2), (int32_t)input_y, (int32_t)input_x})));
 

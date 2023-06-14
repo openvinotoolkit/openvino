@@ -24,7 +24,7 @@ sys.path.insert(0, os.path.abspath('doxyrest-sphinx'))
 # -- Project information -----------------------------------------------------
 
 project = 'OpenVINO™'
-copyright = '2022, Intel®'
+copyright = '2023, Intel®'
 author = 'Intel®'
 
 language = 'en'
@@ -46,7 +46,7 @@ extensions = [
     'sphinx_sitemap'
 ]
 
-html_baseurl = 'https://docs.openvino.ai/latest/'
+html_baseurl = 'https://docs.openvino.ai/canonical/'
 
 sitemap_url_scheme = "{link}"
 

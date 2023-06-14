@@ -1761,7 +1761,9 @@ Reduce::Reduce(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr
                 IE_THROW() << errorPrefix << " second tensor is not constant!";
             raw_axes = reduceConst->cast_vector<int>();
         }
+        set_use_aux_kernel = false;
         vec_reduceDH_prc.clear();
+        vec_reduceCDW_prc.clear();
         setJITBeyond5D();
     } else {
         IE_THROW(NotImplemented) << errorMessage;
@@ -1769,9 +1771,6 @@ Reduce::Reduce(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr
 }
 
 void Reduce::getSupportedDescriptors() {
-    if (!descs.empty())
-        return;
-
     if (getParentEdges().size() != 2)
         IE_THROW() << errorPrefix << " gets incorrect number of input edges!";
     if (getChildEdges().empty())
@@ -1819,9 +1818,9 @@ void Reduce::initSupportedPrimitiveDescriptors() {
         }
     }
 
+    precision_change = input_prec != output_prec;
     support_split = algorithm != Algorithm::ReduceL2 && algorithm != Algorithm::ReduceLogSumExp &&
                     algorithm != Algorithm::ReduceSumSquare;
-    precision_change = input_prec == Precision::BF16 && output_prec == Precision::FP32;
 
     src_data_size = input_prec.size();
     dst_data_size = output_prec.size();
@@ -1847,16 +1846,16 @@ void Reduce::initSupportedPrimitiveDescriptors() {
 
         if (useAclExecutor) {
             std::vector<MemoryDescPtr> srcMemoryDescs;
-            for (int i = 0; i < config.inConfs.size(); i++) {
+            for (size_t i = 0; i < config.inConfs.size(); i++) {
                 srcMemoryDescs.push_back(config.inConfs[i].getMemDesc());
             }
             std::vector<MemoryDescPtr> dstMemoryDescs;
-            for (int i = 0; i < config.outConfs.size(); i++) {
+            for (size_t i = 0; i < config.outConfs.size(); i++) {
                 dstMemoryDescs.push_back(config.outConfs[i].getMemDesc());
             }
 
             auto factory = std::make_shared<ReduceExecutorFactory>(reduceAttrs, srcMemoryDescs, dstMemoryDescs,
-                                                                   std::make_shared<ExecutorContext>(context, getPrimitivesPriority()));
+                                                                   std::make_shared<ExecutorContext>(context, getImplPriority()));
             if (!factory->isEmpty()) {
                 supportedPrimitiveDescriptors.push_back({config, impl_type, factory});
             }
@@ -1922,7 +1921,7 @@ bool Reduce::isExecutable() const {
 void Reduce::prepareParams() {
     if (canUseAclExecutor) {
         std::vector<MemoryDescPtr> srcMemoryDescs;
-        for (int i = 0; i < getParentEdges().size(); i++) {
+        for (size_t i = 0; i < getParentEdges().size(); i++) {
             srcMemoryDescs.push_back(getParentEdgeAt(i)->getMemoryPtr()->getDescPtr());
         }
         std::vector<MemoryDescPtr> dstMemoryDescs;
@@ -2043,6 +2042,14 @@ void Reduce::createPrimitive() {
 
     create_reduce_kernel(reduce_kernel, jcp);
 
+    // set_use_aux_kernel being false means this is a dynamic case, and prepareParams() hasn't been invoked yet.
+    // So set use_aux_kernel true if precision changes, in case ReduceDH_opt, ReduceCDW_opt or ReduceAll_opt
+    // should be true when invoking prepareParams(), then aux kernel will be needed.
+    if (!set_use_aux_kernel) {
+        use_aux_kernel = precision_change;
+        set_use_aux_kernel = true;
+    }
+
     // For scenarios(e.g. when ReduceDH_opt or ReduceAll_opt is true) that apply two stages of kernel invocation
     // to improve parallelism, if the precision is asymmetrical, we apply the aux kernel on the second stage. For
     // example, if the original kernel is bf16-in-fp32-out, then this original kernel will be applied on first
@@ -2089,7 +2096,7 @@ void Reduce::execute(dnnl::stream strm) {
         reduce_type(src_data, dst_data, dst_size);
     } else if (aclExecPtr) {
         std::vector<MemoryCPtr> srcMemory;
-        for (int i = 0; i < getParentEdges().size(); i++) {
+        for (size_t i = 0; i < getParentEdges().size(); i++) {
             srcMemory.push_back(getParentEdgeAt(i)->getMemoryPtr());
         }
         std::vector<MemoryPtr> dstMemory;
@@ -2196,14 +2203,38 @@ void Reduce::reduce_PLN(const uint8_t *in_ptr, uint8_t *out_ptr) {
                     }
                 }
             } else if (!ReduceH && ReduceW) {
-                for (size_t ic = 0; ic < IC; ic++) {
-                    size_t oc = ReduceC ? 0 : ic; GET_PTR_NC_PLN;
-                    for (size_t id = 0; id < ID; id++) {
-                        size_t od = ReduceD ? 0 : id; GET_PTR_NCD_PLN;
-                        parallel_for(IH, [&](size_t ih){
-                            size_t oh = ih; GET_PTR_NCDH_PLN;
-                            reduce_kernel_process(in_ptr_ncdh, out_ptr_ncdh, IW, 1);
-                        });
+                if (ReduceCDW_opt) {
+                    // reduce parallelly in HW dimensions
+                    // step1: ReduceC && ReduceD && !ReduceH && !ReduceW
+                    uint8_t *prc_ptr_n = &vec_reduceCDW_prc[0];
+                    init_dst_data(prc_ptr_n, prc_size);
+                    size_t IS = IH * IW;
+                    reduce_stride = IS;
+                    parallel_for(IS / blk_size, [&](size_t ibs){
+                        size_t pbs = ibs;
+                        reduce_kernel_process(in_ptr_n + ibs * blk_size * src_data_size, prc_ptr_n + pbs * blk_size * prc_data_size,
+                                              blk_size, 0, IC * ID);
+                    });
+                    size_t tail_start = IS / blk_size * blk_size;
+                    reduce_kernel_process(in_ptr_n + tail_start * src_data_size, prc_ptr_n + tail_start * prc_data_size,
+                                          IS - tail_start, 0, IC * ID);
+                    // step2: ReduceW
+                    reduce_kernel_reassign();
+                    parallel_for(PH, [&](size_t ph){
+                        size_t oh = ph;
+                        reduce_kernel_process(prc_ptr_n + ph * PW * prc_data_size, out_ptr_n + oh * OW * dst_data_size, IW, 1);
+                    });
+                    reduce_kernel_restore();
+                } else {
+                    for (size_t ic = 0; ic < IC; ic++) {
+                        size_t oc = ReduceC ? 0 : ic; GET_PTR_NC_PLN;
+                        for (size_t id = 0; id < ID; id++) {
+                            size_t od = ReduceD ? 0 : id; GET_PTR_NCD_PLN;
+                            parallel_for(IH, [&](size_t ih){
+                                size_t oh = ih; GET_PTR_NCDH_PLN;
+                                reduce_kernel_process(in_ptr_ncdh, out_ptr_ncdh, IW, 1);
+                            });
+                        }
                     }
                 }
             } else if (ReduceW) {
@@ -2244,18 +2275,13 @@ void Reduce::reduce_PLN(const uint8_t *in_ptr, uint8_t *out_ptr) {
                         });
                         // step2: ReduceD
                         reduce_stride = PW;
-                        if (use_aux_kernel) {
-                            reduce_tmp_kernel = reduce_kernel;
-                            reduce_kernel = reduce_aux_kernel;
-                        }
+                        reduce_kernel_reassign();
                         parallel_for(IWB, [&](size_t iwb){
                             size_t pwb = iwb, owb = iwb;
                             reduce_kernel_process(prc_ptr_n + pwb * blk_size * prc_data_size,
                                                 out_ptr_n + owb * blk_size * dst_data_size, blk_size, 0, ID);
                         });
-                        if (use_aux_kernel) {
-                            reduce_kernel = reduce_tmp_kernel;
-                        }
+                        reduce_kernel_restore();
                     }
                     // reduce tail
                     reduce_stride = IW;
@@ -2352,14 +2378,9 @@ void Reduce::reduce_BLK(const uint8_t *in_ptr, uint8_t *out_ptr) {
                     reduce_kernel_process(in_ptr_nc, out_ptr_nc, ID * IH * IW * blk_size);
                 });
                 // step2: ReduceC
-                if (use_aux_kernel) {
-                    reduce_tmp_kernel = reduce_kernel;
-                    reduce_kernel = reduce_aux_kernel;
-                }
+                reduce_kernel_reassign();
                 reduce_kernel_process(out_ptr_n, out_ptr_n_cp, ICB * blk_size);
-                if (use_aux_kernel) {
-                    reduce_kernel = reduce_tmp_kernel;
-                }
+                reduce_kernel_restore();
             }
         } else if (ReduceW) {
             for (size_t icb = 0; icb < ICB; icb++) {
@@ -2502,14 +2523,31 @@ inline void Reduce::reduce_kernel_process(const uint8_t *in_p, uint8_t *out_p, s
 inline void Reduce::reduce_kernel_post_process(uint8_t *out_ptr) {
     const size_t integerDivisor = IB * IC * ID * IH * IW / (OB * OC * OD * OH * OW);
     const float divisor = static_cast<float>(integerDivisor);
-    if (layout == ReduceLayoutType::reduce_ncsp || layout == ReduceLayoutType::reduce_nspc) {
+    if (layout == ReduceLayoutType::reduce_ncsp) {
         parallel_for2d(OB, OC, [&](size_t ob, size_t oc) {
             uint8_t *out_p = out_ptr + (ob * OC + oc) * OD * OH * OW * dst_data_size;
             auto arg = jit_reduce_post_call_args();
             arg.dst = static_cast<void *>(out_p);
-            arg.oc_off = layout == ReduceLayoutType::reduce_nspc ? 0 : oc * sizeof(float);
-            arg.channel_size = layout == ReduceLayoutType::reduce_nspc ? OW : OC; // OW is related to nspc-ncsp dimension reinterpret
+            arg.oc_off = oc * sizeof(float);
+            arg.channel_size = OC;
             arg.work_amount = OD * OH * OW;
+            arg.divisor = &divisor;
+            arg.post_op_data = static_cast<const void **>(postOpsDataPtrs.data());
+            (*reduce_post_kernel)(&arg);
+        });
+    } else if (layout == ReduceLayoutType::reduce_nspc) {
+        size_t num_threads = static_cast<size_t>(parallel_get_max_threads());
+        size_t OP = OB * OC >= num_threads ? OB * OC : OB * OC * OD;
+        if (OP < num_threads && OW > blk_size)
+            OP *= OH;
+        size_t work_amount = OB * OC * OD * OH * OW / OP;
+        parallel_for(OP, [&](size_t op) {
+            uint8_t *out_p = out_ptr + op * work_amount * dst_data_size;
+            auto arg = jit_reduce_post_call_args();
+            arg.dst = static_cast<void *>(out_p);
+            arg.oc_off = 0;
+            arg.channel_size = OW; // OW is related to nspc-ncsp dimension reinterpret
+            arg.work_amount = work_amount;
             arg.divisor = &divisor;
             arg.post_op_data = static_cast<const void **>(postOpsDataPtrs.data());
             (*reduce_post_kernel)(&arg);
@@ -2527,6 +2565,18 @@ inline void Reduce::reduce_kernel_post_process(uint8_t *out_ptr) {
             arg.post_op_data = static_cast<const void **>(postOpsDataPtrs.data());
             (*reduce_post_kernel)(&arg);
         });
+    }
+}
+
+inline void Reduce::reduce_kernel_reassign() {
+    if (use_aux_kernel) {
+        reduce_tmp_kernel = reduce_kernel;
+        reduce_kernel = reduce_aux_kernel;
+    }
+}
+inline void Reduce::reduce_kernel_restore() {
+    if (use_aux_kernel) {
+        reduce_kernel = reduce_tmp_kernel;
     }
 }
 
@@ -2733,7 +2783,7 @@ inline void Reduce::init_dst_data(uint8_t *out_ptr, size_t dst_size) {
     }
 }
 
-inline void Reduce::create_working_memory() {
+inline void Reduce::create_hybrid_working_memory() {
     auto rank = getInputShapeAtPort(REDUCE_DATA).getRank();
     memory::format_tag format = (layout == ReduceLayoutType::reduce_nspc) ? (rank == 4 ? memory::format_tag::nhwc : memory::format_tag::ndhwc)
                                         : (rank == 4 ? (mayiuse(cpu::x64::avx512_core) ? memory::format_tag::nChw16c : memory::format_tag::nChw8c)
@@ -2744,16 +2794,29 @@ inline void Reduce::create_working_memory() {
     dst_size = desc.get_size();
 }
 
-inline void Reduce::create_DH_working_memory() {
-    ReduceDH_opt = layout == ReduceLayoutType::reduce_nspc && !isDynamicNode() && support_split &&
+inline void Reduce::create_opt_working_memory() {
+    ReduceDH_opt = layout == ReduceLayoutType::reduce_nspc && support_split &&
                    !ReduceC && ReduceD && ReduceH && !ReduceW && IC == 1 && ID > 1;
     if (ReduceDH_opt) {
         PD = ID;
         PW = IW / blk_size * blk_size;
         prc_data_size = dst_data_size;
-        prc_size = PD * PW * dst_data_size;
+        prc_size = PD * PW * prc_data_size;
         if (prc_size > vec_reduceDH_prc.size()) {
             vec_reduceDH_prc.resize(prc_size);
+        }
+        return;
+    }
+
+    ReduceCDW_opt = layout == ReduceLayoutType::reduce_ncsp && support_split &&
+                    ReduceC && ReduceD && !ReduceH && ReduceW;
+    if (ReduceCDW_opt) {
+        PH = IH;
+        PW = IW;
+        prc_data_size = dst_data_size;
+        prc_size = PH * PW * prc_data_size;
+        if (prc_size > vec_reduceCDW_prc.size()) {
+            vec_reduceCDW_prc.resize(prc_size);
         }
     }
 }
@@ -2820,7 +2883,7 @@ inline void Reduce::set_reduce_dim_flags() {
 
     // must be done before the following dimension change
     if (is_hybrid_layout) {
-        create_working_memory();
+        create_hybrid_working_memory();
     }
 
     // Reducing a dimesion in nspc layout can be treated as reducing another dimension in ncsp layout,
@@ -2841,19 +2904,22 @@ inline void Reduce::set_reduce_dim_flags() {
     ReduceH = IH != OH && OH == 1;
     ReduceW = IW != OW && OW == 1;
 
-    // must be done after the above dimension change
-    create_DH_working_memory();
-
-    ReduceAll_opt = layout == ReduceLayoutType::reduce_blocked && !isDynamicNode() && support_split &&
-                    ReduceC && ReduceD && ReduceH && ReduceW;
-    use_aux_kernel = (ReduceDH_opt || ReduceAll_opt) && precision_change;
-
     // suit for parallel
     if (ReduceH && IW == 1) {
         ReduceW = true;
     }
     if (ReduceC && ReduceH && ID == 1) {
         ReduceD = true;
+    }
+
+    // must be done after the above dimension change
+    create_opt_working_memory();
+
+    ReduceAll_opt = layout == ReduceLayoutType::reduce_blocked && support_split &&
+                    ReduceC && ReduceD && ReduceH && ReduceW;
+    if (!set_use_aux_kernel) {
+        use_aux_kernel = (ReduceDH_opt || ReduceCDW_opt || ReduceAll_opt) && precision_change;
+        set_use_aux_kernel = true;
     }
 }
 

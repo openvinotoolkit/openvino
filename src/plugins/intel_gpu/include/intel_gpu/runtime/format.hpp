@@ -46,7 +46,7 @@ struct format_traits {
     /// @brief Characters representing feature map/channel dimensions in an order.
     static const char* feature_chars() { return "fic"; }
     /// @brief Characters representing spatial dimensions in an order.
-    static const char* spatial_chars() { return "xyzhsw"; }
+    static const char* spatial_chars() { return "xyzwuvhs"; }
     /// @brief Characters representing group dimensions in an order.
     static const char* group_chars() { return "g"; }
     /// @brief Checks if @p c represents batch dimension.
@@ -82,6 +82,8 @@ struct format {
         byxf,                                   ///< used in bitmaps, input from user i.e b images of RGB format
         fyxb,                                   ///< format not used inside clDNN, but supported in reorder as extension
         bzyxf,
+        byfx,                                   ///< To be used when onednn gemm allows permute fusing in transformer network. Not for normal use from cldnn.
+        bxfy,                                   ///< To be used when onednn gemm allows permute fusing in transformer network. Not for normal use from cldnn.
                                                 ///< for user provided formats.
         b_fs_yx_fsv2,
         b_fs_zyx_fsv2,
@@ -129,9 +131,12 @@ struct format {
         iozyx,                                        ///< 3D weights format for deconvolutions
         iyxo,
         oyxi,
+        oyix,
+        oxiy,
         os_iyx_osv16,                                 ///< format used only for convolution weights
         o_is_yx_isv16,                                ///< format used only for convolution weights
         os_yxi_osv16,                                 ///< format used only for convolution weights
+        os_is_yx_osv16_isv2,                          ///< format used only for convolution weights
         os_is_yx_osv16_isv16,                         ///< format used for convolution i8 weights
         os_is_zyx_osv32_isv16,
         os_is_zyx_osv64_isv16,
@@ -330,6 +335,7 @@ struct format {
     /// @brief Checks if @p format is simple data format
     static bool is_simple_data_format(type fmt) {
         return (fmt == yxfb || fmt == byxf ||
+                fmt == byfx || fmt == bxfy ||
                 fmt == bfyx || fmt == fyxb ||
                 fmt == bfzyx || fmt == bfwzyx ||
                 fmt == bfuwzyx || fmt == bfvuwzyx);

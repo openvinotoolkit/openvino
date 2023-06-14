@@ -124,11 +124,9 @@ GetSupportedNodes(const std::shared_ptr<const ov::Model>& model,
  * @brief An API of plugin to be implemented by a plugin
  * @ingroup ie_dev_api_plugin_api
  */
-class INFERENCE_ENGINE_API_CLASS(IInferencePlugin) : public std::enable_shared_from_this<IInferencePlugin> {
+class INFERENCE_ENGINE_1_0_DEPRECATED INFERENCE_ENGINE_API_CLASS(IInferencePlugin)
+    : public std::enable_shared_from_this<IInferencePlugin> {
     class VersionStore : public Version {
-        std::string _dsc;
-        std::string _buildNumber;
-
         void copyFrom(const Version& v);
 
     public:

@@ -34,6 +34,7 @@
 
 #include <utils/shape_inference/shape_inference_cpu.hpp>
 #include "utils/debug_capabilities.h"
+#include "utils/bit_util.hpp"
 
 #include "dnnl_postops_composer.h"
 #include "graph_context.h"
@@ -75,15 +76,11 @@ private:
 
 class NodeDesc {
 public:
-    NodeDesc(const NodeConfig& conf, impl_desc_type type): config(conf) {
-        implementationType = type;
-        executorFactory = nullptr;
-    }
+    NodeDesc(NodeConfig conf, impl_desc_type type):
+        config(std::move(conf)), implementationType(type), executorFactory(nullptr) {}
 
-    NodeDesc(const NodeConfig& conf, impl_desc_type type, ExecutorFactoryPtr factory): config(conf) {
-        implementationType = type;
-        executorFactory = factory;
-    }
+    NodeDesc(NodeConfig conf, impl_desc_type type, ExecutorFactoryPtr factory):
+        config(std::move(conf)), implementationType(type), executorFactory(factory) {}
 
     const NodeConfig& getConfig() const {
         return config;
@@ -353,7 +350,7 @@ public:
         inplace = InPlaceType::Unknown;
     }
 
-    std::string getPrimitiveDescriptorType();
+    std::string getPrimitiveDescriptorType() const;
 
     PerfCount &PerfCounter() { return perfCounter; }
 
@@ -559,8 +556,8 @@ protected:
 
     virtual PortDescBasePtr getConsistentInputDesc(const NodeConfig &config, size_t idx) const;
     virtual PortDescBasePtr getConsistentOutputDesc(const NodeConfig &config, size_t idx) const;
-    virtual MemoryDescPtr getSrcMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx);
-    virtual MemoryDescPtr getDstMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx);
+    virtual MemoryDescPtr getSrcMemDesc(const dnnl::primitive_desc &prim_desc, size_t idx) const;
+    virtual MemoryDescPtr getDstMemDesc(const dnnl::primitive_desc &prim_desc, size_t idx) const;
 
     virtual AttrPtr initPrimitiveAttr() { return nullptr; }
 
@@ -573,7 +570,7 @@ protected:
 
     std::vector <NodePtr> fusedWith;
     std::vector <NodePtr> mergedWith;
-    std::vector <impl_desc_type> implPriorities;
+    std::vector <impl_desc_type> customImplPriorities;
     std::vector <dnnl::memory::format_tag> inputMemoryFormatsFilter;
     std::vector <dnnl::memory::format_tag> outputMemoryFormatsFilter;
     bool enforceBF16evenForGraphTail = false;
@@ -618,7 +615,11 @@ protected:
     bool isConfigDefined(const NodeConfig &config) const;
     virtual bool canBeInPlace() const;
 
-    virtual const std::vector<impl_desc_type>& getPrimitivesPriority();
+    /* returns default implementaion prioirity */
+    virtual const std::vector<impl_desc_type>& getDefaultImplPriority();
+    /* returns custom implementation priority + default implementation priority appended as a fallback
+     * if custom implementaiton priority is not specified, returns default implementation priority */
+    const std::vector<impl_desc_type>& getImplPriority();
 
     virtual std::vector<dnnl::memory::format_tag> getAvailableFormatsForDims(const Shape& dims) const;
 
@@ -723,18 +724,12 @@ private:
     // copies of same content with different layouts.
     std::unordered_map<std::string, MemoryPtr> privateWeightCache;
 
-#ifdef CPU_DEBUG_CAPS
-    friend class Verbose;
-#endif
+    CPU_DEBUG_CAP_ENABLE(friend class Verbose);
 };
 
-constexpr uint64_t PortMask(int n) {
-    return static_cast<uint64_t>(1) << n;
-}
-
 template <class... T>
-constexpr uint64_t PortMask(int n, T... rest) {
-    return PortMask(rest...) | (1 << n);
+constexpr uint64_t PortMask(T... rest) {
+    return util::bit::mask(rest...);
 }
 
 class Node::NodesFactory : public openvino::cc::Factory<Type,

@@ -85,6 +85,7 @@ inline bool strDoesnotContain(const std::string & str, const std::string & subst
         FAIL() << "Unknown exception";                                    \
     }
 
+IE_SUPPRESS_DEPRECATED_START
 inline void compare_blob(InferenceEngine::Blob::Ptr lhs, InferenceEngine::Blob::Ptr rhs) {
     ASSERT_EQ(lhs.get(), rhs.get());
     //TODO: add blob specific comparison for general case
@@ -140,6 +141,7 @@ inline void compare_inputs_info(const InferenceEngine::InputsDataMap & lhs, cons
         ASSERT_DATA_EQ(*i->second->getInputData().get(), *j->second->getInputData().get());
     }
 }
+IE_SUPPRESS_DEPRECATED_END
 
 inline void compare_cpp_strings(const std::string & lhs, const std::string &rhs) {
     ASSERT_STREQ(lhs.c_str(), rhs.c_str());

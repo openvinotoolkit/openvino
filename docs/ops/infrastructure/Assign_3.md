@@ -18,7 +18,7 @@ declared in ``variable_id`` and returns an error otherwise.
 
 * *variable_id*
 
-  * **Description**: identificator of the variable to be updated
+  * **Description**: identifier of the variable to be updated
   * **Range of values**: any non-empty string
   * **Type**: string
   * **Required**: *yes*
@@ -33,7 +33,7 @@ declared in ``variable_id`` and returns an error otherwise.
 
 **Example**
 
-.. code-block:: console
+.. code-block:: cpp
    
    <layer ... type="Assign" ...>
        <data variable_id="lstm_state_1"/>

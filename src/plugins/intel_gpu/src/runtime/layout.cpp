@@ -142,6 +142,10 @@ static format to_weights_format(format f, bool is_grouped) {
             return format::iyxo;
         case format::byxf:
             return format::oyxi;
+        case format::byfx:
+            return format::oyix;
+        case format::bxfy:
+            return format::oxiy;
         case format::yxfb:
             return format::yxio;
         case format::bfzyx:
@@ -188,6 +192,7 @@ std::string layout::to_string() const {
       << "\tshape=" << size << ";\n"
       << "\tpad_l=" << data_padding.lower_size().to_string() << ";\n"
       << "\tpad_u=" << data_padding.upper_size().to_string() << ";\n"
+      << "\tdyn_pad_dims" << data_padding.get_dynamic_pad_dims().to_string() << ";\n"
       << "}";
     return s.str();
 }
@@ -208,10 +213,16 @@ std::string layout::to_short_string() const {
 
     s << data_type_traits::name(data_type) << ":" << format.to_string() << ":";
     dump_shape(s, size);
-    if (data_padding)
-        s << ":pad";
-    else
-        s << ":nopad";
+
+    if (data_padding.get_dynamic_pad_dims() != tensor(0)) {
+        s << ":dyn_pad_dims" << data_padding.get_dynamic_pad_dims().to_string();
+    } else {
+        if (data_padding)
+            s << ":pad";
+        else
+            s << ":nopad";
+    }
+
     return s.str();
 }
 

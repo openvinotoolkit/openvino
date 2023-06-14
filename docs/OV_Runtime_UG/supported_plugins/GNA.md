@@ -78,39 +78,29 @@ Starting with the 2021.4.1 release of OpenVINO™ and the 03.00.00.1363 version 
 In this mode, the GNA driver automatically falls back on CPU for a particular infer request if the HW queue is not empty. 
 Therefore, there is no need for explicitly switching between GNA and CPU.
 
+.. tab-set::
 
+   .. tab-item:: C++
+      :sync: cpp
 
+      .. doxygensnippet:: docs/snippets/gna/configure.cpp
+         :language: cpp
+         :fragment: [include]
 
+      .. doxygensnippet:: docs/snippets/gna/configure.cpp
+         :language: cpp
+         :fragment: [ov_gna_exec_mode_hw_with_sw_fback]
 
+   .. tab-item:: Python
+      :sync: py
 
+      .. doxygensnippet:: docs/snippets/gna/configure.py
+         :language: py
+         :fragment: [import]
 
-
-   .. tab-set::
-   
-      .. tab-item:: C++
-         :sync: cpp
-   
-         .. doxygensnippet:: docs/snippets/gna/configure.cpp
-            :language: cpp
-            :fragment: [include]
-   
-         .. doxygensnippet:: docs/snippets/gna/configure.cpp
-            :language: cpp
-            :fragment: [ov_gna_exec_mode_hw_with_sw_fback]
-   
-      .. tab-item:: Python
-         :sync: py
-   
-         .. doxygensnippet:: docs/snippets/gna/configure.py
-            :language: py
-            :fragment: [import]
-   
-         .. doxygensnippet:: docs/snippets/gna/configure.py
-            :language: py
-            :fragment: [ov_gna_exec_mode_hw_with_sw_fback]
-
-
-
+      .. doxygensnippet:: docs/snippets/gna/configure.py
+         :language: py
+         :fragment: [ov_gna_exec_mode_hw_with_sw_fback]
 
 
 .. note:: 
@@ -203,7 +193,7 @@ Import model:
          :fragment: [ov_gna_import]
 
 
-To compile a model, use either :doc:`compile Tool <openvino_inference_engine_tools_compile_tool_README>` or 
+To compile a model, use either :ref:`compile Tool <openvino_ecosystem>` or 
 :doc:`Speech C++ Sample <openvino_inference_engine_samples_speech_sample_README>`.
 
 Stateful Models
@@ -214,7 +204,7 @@ GNA plugin natively supports stateful models. For more details on such models, r
 .. note:: 
 
    The GNA is typically used in streaming scenarios when minimizing latency is important. Taking into account that POT does not 
-   support the ``TensorIterator`` operation, the recommendation is to use the ``--transform`` option of the Model Optimizer 
+   support the ``TensorIterator`` operation, the recommendation is to use the ``transform`` option of model conversion API 
    to apply ``LowLatency2`` transformation when converting an original model.
 
 Profiling

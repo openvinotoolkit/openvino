@@ -9,6 +9,16 @@
  */
 #pragma once
 
+#if !defined(IN_OV_COMPONENT) && !defined(IE_LEGACY_HEADER_INCLUDED)
+#    define IE_LEGACY_HEADER_INCLUDED
+#    ifdef _MSC_VER
+#        pragma message( \
+            "The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    else
+#        warning("The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    endif
+#endif
+
 #include <map>
 #include <memory>
 #include <string>
@@ -18,6 +28,8 @@
 #include "ie_iinfer_request.hpp"
 
 namespace InferenceEngine {
+
+IE_SUPPRESS_DEPRECATED_START
 
 class IInferRequestInternal;
 
@@ -31,7 +43,7 @@ class ICompletionCallbackWrapper;
  * Wraps IInferRequest
  * It can throw exceptions safely for the application, where it is properly handled.
  */
-class INFERENCE_ENGINE_API_CLASS(InferRequest) {
+class INFERENCE_ENGINE_1_0_DEPRECATED INFERENCE_ENGINE_API_CLASS(InferRequest) {
     std::shared_ptr<IInferRequestInternal> _impl;
     std::shared_ptr<void> _so;
 
@@ -49,7 +61,7 @@ public:
      * @enum WaitMode
      * @brief Enumeration to hold wait mode for IInferRequest
      */
-    enum WaitMode : int64_t {
+    enum INFERENCE_ENGINE_1_0_DEPRECATED WaitMode : int64_t {
         /** Wait until inference result becomes available */
         RESULT_READY = -1,
         /** IInferRequest doesn't block or interrupt current thread and immediately returns inference status */
@@ -107,17 +119,6 @@ public:
     Blob::Ptr GetBlob(const std::string& name);
 
     /**
-     * @deprecated This method will be removed in 2023.1 release
-     * @brief Sets blob with a pre-process information
-     * @note Returns an error in case if data blob is output
-     * @param name Name of input blob.
-     * @param data A reference to input. The type of Blob must correspond to the network input precision and size.
-     * @param info Preprocess info for blob.
-     */
-    INFERENCE_ENGINE_DEPRECATED("This method is deprecated and will be removed in 2023.1 release")
-    void SetBlob(const std::string& name, const Blob::Ptr& data, const PreProcessInfo& info);
-
-    /**
      * @brief Gets pre-process for input data
      * @param name Name of input blob.
      * @return pointer to pre-process info of blob with name
@@ -162,15 +163,6 @@ public:
      *        The type of Blob must correspond to the network output precision and size.
      */
     void SetOutput(const BlobMap& results);
-
-    /**
-     * @brief Sets new batch size when dynamic batching is enabled in executable network that created this request.
-     * @deprecated
-     *
-     * @param batch new batch size to be used by all the following inference calls for this request.
-     */
-    INFERENCE_ENGINE_DEPRECATED("This method is deprecated and will be removed in 2023.1 release")
-    void SetBatch(const int batch);
 
     /**
      * @brief Start inference of specified input(s) in asynchronous mode
@@ -219,6 +211,7 @@ public:
         SetCallback<F>{*this}(std::move(callbackToSet));
     }
 
+    IE_SUPPRESS_DEPRECATED_START
     /**
      * @brief Gets state control interface for given infer request.
      *
@@ -227,7 +220,6 @@ public:
      */
     std::vector<VariableState> QueryState();
 
-    IE_SUPPRESS_DEPRECATED_START
     /**
      * @brief  IInferRequest pointer to be used directly in CreateInferRequest functions
      * @return A shared pointer to IInferRequest interface
@@ -271,8 +263,6 @@ struct InferRequest::SetCallback<std::function<void(InferRequest, StatusCode)>> 
     }
     InferRequest& _this;
 };
-
-IE_SUPPRESS_DEPRECATED_START
 
 /**
  * @private

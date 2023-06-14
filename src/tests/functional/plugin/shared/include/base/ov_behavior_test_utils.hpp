@@ -37,6 +37,11 @@ inline std::shared_ptr<ngraph::Function> getDefaultNGraphFunctionForTheDevice(st
     return ngraph::builder::subgraph::makeSplitConcat(inputShape, ngPrc);
 }
 
+inline bool sw_plugin_in_target_device(std::string targetDevice) {
+    return (targetDevice.find("MULTI") != std::string::npos || targetDevice.find("BATCH") != std::string::npos ||
+            targetDevice.find("HETERO") != std::string::npos || targetDevice.find("AUTO") != std::string::npos);
+}
+
 class APIBaseTest : public CommonTestUtils::TestsCommon {
 private:
     // in case of crash jump will be made and work will be continued
@@ -44,7 +49,7 @@ private:
                                                                         new CommonTestUtils::CrashHandler(CommonTestUtils::CONFORMANCE_TYPE::api));
 
 protected:
-    size_t k = 1;
+    double k = 1.0;
     std::string target_device = "";
     ov::test::utils::ov_entity api_entity = ov::test::utils::ov_entity::undefined;
     ov::test::utils::ApiSummary& api_summary = ov::test::utils::ApiSummary::getInstance();
@@ -57,7 +62,7 @@ public:
     void SetUp() override {
         set_api_entity();
         auto test_name = this->GetFullTestName();
-        k = test_name.find("_mandatory") != std::string::npos || test_name.find("mandatory_") != std::string::npos ? 1 : 0;
+        k = test_name.find("_mandatory") != std::string::npos || test_name.find("mandatory_") != std::string::npos ? 1.0 : 0.0;
         std::cout << "[ CONFORMANCE ] Influence coefficient: " << k << std::endl;
         api_summary.updateStat(api_entity, target_device, ov::test::utils::PassRate::Statuses::CRASHED, k);
         crashHandler->StartTimer();
@@ -222,28 +227,6 @@ public:
         OVClassNetworkTest::SetUp();
     }
 };
-
-using PriorityParams = std::tuple<
-        std::string,            // Device name
-        ov::AnyMap              // device priority Configuration key
->;
-class OVClassExecutableNetworkGetMetricTest_Priority : public ::testing::WithParamInterface<PriorityParams>,
-                                                       public OVCompiledNetworkTestBase {
-protected:
-    ov::AnyMap configuration;
-    std::shared_ptr<ngraph::Function> simpleNetwork;
-
-public:
-    static std::string getTestCaseName(testing::TestParamInfo<PriorityParams> obj);
-    void SetUp() override {
-        std::tie(target_device, configuration) = GetParam();
-        SKIP_IF_CURRENT_TEST_IS_DISABLED();
-        APIBaseTest::SetUp();
-        simpleNetwork = ngraph::builder::subgraph::makeSingleConv();
-    }
-};
-using OVClassExecutableNetworkGetMetricTest_DEVICE_PRIORITY = OVClassExecutableNetworkGetMetricTest_Priority;
-using OVClassExecutableNetworkGetMetricTest_MODEL_PRIORITY = OVClassExecutableNetworkGetMetricTest_Priority;
 
 class OVClassSetDevicePriorityConfigPropsTest : public OVPluginTestBase,
                                                 public ::testing::WithParamInterface<std::tuple<std::string, AnyMap>> {

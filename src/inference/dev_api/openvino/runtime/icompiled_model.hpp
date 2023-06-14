@@ -83,14 +83,14 @@ public:
      *
      * @return model outputs
      */
-    const std::vector<ov::Output<const ov::Node>>& outputs() const;
+    virtual const std::vector<ov::Output<const ov::Node>>& outputs() const;
 
     /**
      * @brief Gets all inputs from compiled model
      *
      * @return model inputs
      */
-    const std::vector<ov::Output<const ov::Node>>& inputs() const;
+    virtual const std::vector<ov::Output<const ov::Node>>& inputs() const;
 
     /**
      * @brief Create infer request
@@ -135,6 +135,8 @@ public:
      * @return OpenVINO RemoteContext
      */
     std::shared_ptr<ov::IRemoteContext> get_context() const;
+
+    virtual ~ICompiledModel() = default;
 
 private:
     std::shared_ptr<const ov::IPlugin> m_plugin;
@@ -183,6 +185,8 @@ protected:
     const std::shared_ptr<const ov::IPlugin>& get_plugin() const;
     const std::shared_ptr<ov::threading::ITaskExecutor> get_task_executor() const;
     const std::shared_ptr<ov::threading::ITaskExecutor> get_callback_executor() const;
+    void set_task_executor(const std::shared_ptr<ov::threading::ITaskExecutor> task_executor);
+    void set_callback_executor(const std::shared_ptr<ov::threading::ITaskExecutor> callback_executor);
 };
 
 }  // namespace ov

@@ -1,4 +1,4 @@
-# Quantizing Models with Accuracy Control{#pot_accuracyaware_usage}
+# Quantizing Models with Accuracy Control {#pot_accuracyaware_usage}
 
 @sphinxdirective
 
@@ -9,20 +9,20 @@
    AccuracyAwareQuantization Method <accuracy_aware_README>
 
 
-The Accuracy-aware Quantization algorithm allows to perform quantization while maintaining accuracy within a pre-defined range. Note that it should be used only if  the :doc:`Default Quantization <pot_default_quantization_usage>` introduces a significant accuracy degradation. The reason for it not being the primary choice is its potential for performance degradation, due to some layers getting reverted to the original precision.
+The Accuracy-aware Quantization algorithm allows performing quantization while maintaining accuracy within a pre-defined range. Note that it should be used only if the :doc:`Default Quantization <pot_default_quantization_usage>` introduces a significant accuracy degradation. The reason for it not being the primary choice is its potential for performance degradation, due to some layers getting reverted to the original precision.
 
 To proceed with this article, make sure you have read how to use :doc:`Default Quantization <pot_default_quantization_usage>`.
 
 .. note::
    
-   The Accuracy-aware Quantization algorithm's behavior is different for the GNA ``target_device``. In this case it searches for the best configuration and selects between INT8 and INT16 precisions for weights of each layer. The algorithm works for the ``performance`` preset only. It is not useful for the ``accuracy`` preset, since the whole model is already in INT16 precision.
+   The Accuracy-aware Quantization algorithm's behavior is different for the GNA ``target_device``. In this case, it searches for the best configuration and selects between INT8 and INT16 precisions for the weights of each layer. The algorithm works for the ``performance`` preset only. It is not useful for the ``accuracy`` preset, since the whole model is already in INT16 precision.
 
 A script for Accuracy-aware Quantization includes four steps:
 
 1. Prepare data and dataset interface.
 2. Define accuracy metric.
 3. Select quantization parameters.
-4. Define and run quantization process.
+4. Define and run the quantization process.
 
 Prepare data and dataset interface
 ##################################
@@ -52,7 +52,7 @@ To control accuracy during optimization, the ``openvino.tools.pot.Metric`` inter
   
   Required attributes: 
   
-  - ``direction`` - (``higher-better`` or ``higher-worse``) a string parameter defining whether metric value should be increased in accuracy-aware algorithms.
+  - ``direction`` - (``higher-better`` or ``higher-worse``) a string parameter defining whether the metric value should be increased in accuracy-aware algorithms.
   - ``type`` - a string representation of a metric type. For example, "accuracy" or "mean_iou".
 
 @endsphinxdirective
@@ -177,7 +177,7 @@ The example code below shows a basic quantization workflow with accuracy control
    compressed_model = pipeline.run(model=model)
    
    # Step 6 (Optional): Compress model weights to quantized precision
-   #                    in order to reduce the size of the final .bin file.
+   #                    to reduce the size of the final .bin file.
    compress_model_weights(compressed_model)
    
    # Step 7: Save the compressed model to the desired path.
