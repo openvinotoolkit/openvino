@@ -43,9 +43,10 @@ elif machine == "aarch64" or machine == "arm64" or machine == "ARM64":
 # The following variables can be defined in environment or .env file
 SCRIPT_DIR = Path(__file__).resolve().parents[0]
 WORKING_DIR = Path.cwd()
+BUILD_BASE = f"{WORKING_DIR}/build_{PYTHON_VERSION}"
 OPENVINO_SOURCE_DIR = SCRIPT_DIR.parents[3]
 OPENVINO_BINARY_DIR = os.getenv("OPENVINO_BINARY_DIR")
-OPENVINO_PYTHON_BINARY_DIR = os.getenv("OPENVINO_PYTHON_BINARY_DIR", OPENVINO_BINARY_DIR)
+OPENVINO_PYTHON_BINARY_DIR = os.getenv("OPENVINO_PYTHON_BINARY_DIR", "python_build")
 OV_RUNTIME_LIBS_DIR = os.getenv("OV_RUNTIME_LIBS_DIR", f"runtime/{LIBS_DIR}/{ARCH}/{CONFIG}")
 TBB_LIBS_DIR = os.getenv("TBB_LIBS_DIR", f"runtime/3rdparty/tbb/{LIBS_DIR}")
 PUGIXML_LIBS_DIR = os.getenv("PUGIXML_LIBS_DIR", f"runtime/3rdparty/pugixml/{LIBS_DIR}")
@@ -55,97 +56,97 @@ LIBS_RPATH = "$ORIGIN" if sys.platform == "linux" else "@loader_path"
 LIB_INSTALL_CFG = {
     "ie_libs": {
         "name": "core",
-        "prefix": f"{WORKING_DIR}/build/libs.core",
+        "prefix": f"{BUILD_BASE}/libs.core",
         "install_dir": OV_RUNTIME_LIBS_DIR,
         "rpath": LIBS_RPATH,
         "binary_dir": OPENVINO_BINARY_DIR,
     },
     "hetero_plugin": {
         "name": "hetero",
-        "prefix": f"{WORKING_DIR}/build/libs.hetero",
+        "prefix": f"{BUILD_BASE}/libs.hetero",
         "install_dir": OV_RUNTIME_LIBS_DIR,
         "rpath": LIBS_RPATH,
         "binary_dir": OPENVINO_BINARY_DIR,
     },
     "gpu_plugin": {
         "name": "gpu",
-        "prefix": f"{WORKING_DIR}/build/libs.gpu",
+        "prefix": f"{BUILD_BASE}/libs.gpu",
         "install_dir": OV_RUNTIME_LIBS_DIR,
         "rpath": LIBS_RPATH,
         "binary_dir": OPENVINO_BINARY_DIR,
     },
     "cpu_plugin": {
         "name": "cpu",
-        "prefix": f"{WORKING_DIR}/build/libs.cpu",
+        "prefix": f"{BUILD_BASE}/libs.cpu",
         "install_dir": OV_RUNTIME_LIBS_DIR,
         "rpath": LIBS_RPATH,
         "binary_dir": OPENVINO_BINARY_DIR,
     },
     "multi_plugin": {
         "name": "multi",
-        "prefix": f"{WORKING_DIR}/build/libs.multi",
+        "prefix": f"{BUILD_BASE}/libs.multi",
         "install_dir": OV_RUNTIME_LIBS_DIR,
         "rpath": LIBS_RPATH,
         "binary_dir": OPENVINO_BINARY_DIR,
     },
     "batch_plugin": {
         "name": "batch",
-        "prefix": f"{WORKING_DIR}/build/libs.batch",
+        "prefix": f"{BUILD_BASE}/libs.batch",
         "install_dir": OV_RUNTIME_LIBS_DIR,
         "rpath": LIBS_RPATH,
         "binary_dir": OPENVINO_BINARY_DIR,
     },
     "tbb_libs": {
         "name": "tbb",
-        "prefix": f"{WORKING_DIR}/build/libs.tbb",
+        "prefix": f"{BUILD_BASE}/libs.tbb",
         "install_dir": TBB_LIBS_DIR,
         "rpath": LIBS_RPATH,
         "binary_dir": OPENVINO_BINARY_DIR,
     },
     "pugixml_libs": {
         "name": "pugixml",
-        "prefix": f"{WORKING_DIR}/build/libs.pugixml",
+        "prefix": f"{BUILD_BASE}/libs.pugixml",
         "install_dir": PUGIXML_LIBS_DIR,
         "binary_dir": OPENVINO_BINARY_DIR,
     },
     "ir_libs": {
         "name": "ir",
-        "prefix": f"{WORKING_DIR}/build/libs.ir",
+        "prefix": f"{BUILD_BASE}/libs.ir",
         "install_dir": OV_RUNTIME_LIBS_DIR,
         "rpath": LIBS_RPATH,
         "binary_dir": OPENVINO_BINARY_DIR,
     },
     "paddle_libs": {
         "name": "paddle",
-        "prefix": f"{WORKING_DIR}/build/libs.paddle",
+        "prefix": f"{BUILD_BASE}/libs.paddle",
         "install_dir": OV_RUNTIME_LIBS_DIR,
         "rpath": LIBS_RPATH,
         "binary_dir": OPENVINO_BINARY_DIR,
     },
     "pytorch_libs": {
         "name": "pytorch",
-        "prefix": f"{WORKING_DIR}/build/libs.pytorch",
+        "prefix": f"{BUILD_BASE}/libs.pytorch",
         "install_dir": OV_RUNTIME_LIBS_DIR,
         "rpath": LIBS_RPATH,
         "binary_dir": OPENVINO_BINARY_DIR,
     },
     "onnx_libs": {
         "name": "onnx",
-        "prefix": f"{WORKING_DIR}/build/libs.onnx",
+        "prefix": f"{BUILD_BASE}/libs.onnx",
         "install_dir": OV_RUNTIME_LIBS_DIR,
         "rpath": LIBS_RPATH,
         "binary_dir": OPENVINO_BINARY_DIR,
     },
     "tensorflow_libs": {
         "name": "tensorflow",
-        "prefix": f"{WORKING_DIR}/build/libs.tensorflow",
+        "prefix": f"{BUILD_BASE}/libs.tensorflow",
         "install_dir": OV_RUNTIME_LIBS_DIR,
         "rpath": LIBS_RPATH,
         "binary_dir": OPENVINO_BINARY_DIR,
     },
     "tensorflow_lite_libs": {
         "name": "tensorflow_lite",
-        "prefix": f"{WORKING_DIR}/build/libs.tensorflow_lite",
+        "prefix": f"{BUILD_BASE}/libs.tensorflow_lite",
         "install_dir": OV_RUNTIME_LIBS_DIR,
         "rpath": LIBS_RPATH,
         "binary_dir": OPENVINO_BINARY_DIR,
@@ -155,22 +156,49 @@ LIB_INSTALL_CFG = {
 PY_INSTALL_CFG = {
     "pyie": {
         "name": f"pyie_{PYTHON_VERSION}",
-        "prefix": f"{WORKING_DIR}/build/site-packages",
+        "prefix": f"{BUILD_BASE}/site-packages",
+        "source_dir": f"{OPENVINO_SOURCE_DIR}/src/bindings/python",
         "install_dir": PY_PACKAGES_DIR,
         "binary_dir": OPENVINO_PYTHON_BINARY_DIR,
     },
     "pyngraph": {
         "name": f"pyngraph_{PYTHON_VERSION}",
-        "prefix": f"{WORKING_DIR}/build/site-packages",
+        "prefix": f"{BUILD_BASE}/site-packages",
+        "source_dir": f"{OPENVINO_SOURCE_DIR}/src/bindings/python",
         "install_dir": PY_PACKAGES_DIR,
         "binary_dir": OPENVINO_PYTHON_BINARY_DIR,
     },
     "pyopenvino": {
         "name": f"pyopenvino_{PYTHON_VERSION}",
-        "prefix": f"{WORKING_DIR}/build/site-packages",
+        "prefix": f"{BUILD_BASE}/site-packages",
+        "source_dir": f"{OPENVINO_SOURCE_DIR}/src/bindings/python",
         "install_dir": PY_PACKAGES_DIR,
         "binary_dir": OPENVINO_PYTHON_BINARY_DIR,
     },
+    "benchmark_app": {
+        "entry_point": {
+            "console_scripts": [
+                "benchmark_app = openvino.tools.benchmark.main:main",
+            ],
+        },
+        "name": f"pyopenvino_{PYTHON_VERSION}",
+        "prefix": f"{BUILD_BASE}/site-packages",
+        "source_dir": f"{OPENVINO_SOURCE_DIR}/tools/benchmark_tool",
+        "install_dir": PY_PACKAGES_DIR,
+        "binary_dir": "benchmark_app",
+    },
+    # "model_optimizer": {                                  # noqa: E731
+    #     "entry_point": {                                  # noqa: E731
+    #         "console_scripts": [                          # noqa: E731
+    #             "mo = openvino.tools.mo.main:main",       # noqa: E731
+    #         ],                                            # noqa: E731
+    #     },                                                # noqa: E731
+    #     "name": f"pyopenvino_{PYTHON_VERSION}",           # noqa: E731
+    #     "prefix": f"{BUILD_BASE}/site-packages",          # noqa: E731
+    #     "source_dir": f"{OPENVINO_SOURCE_DIR}/tools/mo",  # noqa: E731
+    #     "install_dir": PY_PACKAGES_DIR,                   # noqa: E731
+    #     "binary_dir": "model_optimizer",                  # noqa: E731
+    # },                                                    # noqa: E731
 }
 
 
@@ -187,80 +215,93 @@ class PrebuiltExtension(Extension):
 class CustomBuild(build):
     """Custom implementation of build_clib."""
 
-    cmake_build_types = ["Release", "Debug", "RelWithDebInfo", "MinSizeRel"]
-    user_options = [
-        ("config=", None, "Build configuration [{types}].".format(types="|".join(cmake_build_types))),
+    user_options = build.user_options + [
         ("jobs=", None, "Specifies the number of jobs to use with make."),
         ("cmake-args=", None, "Additional options to be passed to CMake."),
+        ("python-extensions-only=", None, "Install Python extensions without C++ libraries."),
     ]
 
     def initialize_options(self):
         """Set default values for all the options that this command supports."""
         super().initialize_options()
-        self.build_base = f"{WORKING_DIR}/build"
-        self.config = None
+        self.build_base = BUILD_BASE
         self.jobs = None
         self.cmake_args = None
+        self.python_extensions_only = None
 
     def finalize_options(self):
         """Set final values for all the options that this command supports."""
         super().finalize_options()
 
-        if not self.config:
-            if self.debug:
-                self.config = "Debug"
-            else:
-                self.announce("Set default value for CMAKE_BUILD_TYPE = Release.", level=4)
-                self.config = "Release"
-        else:
-            build_types = [item.lower() for item in self.cmake_build_types]
-            try:
-                i = build_types.index(str(self.config).lower())
-                self.config = self.cmake_build_types[i]
-                self.debug = True if "Debug" == self.config else False
-            except ValueError:
-                self.announce("Unsupported CMAKE_BUILD_TYPE value: " + self.config, level=4)
-                self.announce("Supported values: {types}".format(types=", ".join(self.cmake_build_types)), level=4)
-                sys.exit(1)
+        if self.python_extensions_only is None:
+            self.python_extensions_only = False
+
         if self.jobs is None and os.getenv("MAX_JOBS") is not None:
             self.jobs = os.getenv("MAX_JOBS")
         self.jobs = multiprocessing.cpu_count() if self.jobs is None else int(self.jobs)
 
-    def run(self):
-        global OPENVINO_BINARY_DIR
-        self.jobs = multiprocessing.cpu_count()
+        if self.cmake_args is None:
+            self.cmake_args = ""
+
+        cmd_obj = self.distribution.get_command_obj("build_clib")
+        cmd_obj.install_clib = not self.python_extensions_only
+
+        cmd_obj = self.distribution.get_command_obj("build_ext")
+        cmd_obj.set_rpath = not self.python_extensions_only
+
+    def cmake_build_and_install(self, install_cfg):
+        """Runs cmake (configure, build and install) if artfiacts are not already built / installed."""
         plat_specifier = ".{0}-{1}.{2}".format(self.plat_name, *sys.version_info[:2])
-        self.build_temp = os.path.join(self.build_base, "temp" + plat_specifier, self.config)
+        self.build_temp = os.path.join(self.build_base, "temp" + plat_specifier)
         self.announce(f"Create build directory: {self.build_temp}", level=3)
 
-        # if setup.py is directly called use CMake to build product
-        if OPENVINO_BINARY_DIR == ".":
-            # set path to the root of OpenVINO CMakeList file
-            self.announce(f"Configuring cmake project: {OPENVINO_SOURCE_DIR}", level=3)
-            self.spawn(["cmake", "-S" + str(OPENVINO_SOURCE_DIR),
-                                 "-B" + self.build_temp,
-                                 self.cmake_args,
-                                 "-DCMAKE_BUILD_TYPE={type}".format(type=self.config),
-                                 "-DENABLE_PYTHON=ON",
-                                 "-DBUILD_SHARED_LIBS=ON"
-                                 "-DENABLE_WHEEL=OFF",
-                                 "-DENABLE_NCC_STYLE=OFF",
-                                 "-DENABLE_CPPLINT=OFF",
-                                 "-DENABLE_TEMPLATE=OFF",
-                                 "-DENABLE_COMPILE_TOOL=OFF"
-                                 "-DENABLE_SAMPLES=OFF"])
+        # build some components which have not been built yet
+        for comp, comp_data in install_cfg.items():
+            cpack_comp_name = comp_data.get("name")
+            source_dir = comp_data.get("source_dir")
+            binary_dir = comp_data.get("binary_dir")
+            install_dir = comp_data.get("install_dir")
+            prefix = comp_data.get("prefix")
 
-            self.announce("Building binaries", level=3)
-            self.spawn(["cmake", "--build", self.build_temp,
-                                 "--config", self.config,
-                                 "--parallel", str(self.jobs)])
-            OPENVINO_BINARY_DIR = self.build_temp
-        # perform installation
+            # perform installation steps if we are not given a full path
+            if not os.path.isabs(install_dir):
+                # install_dir is just a sub-dir after install prefix, let's make a full path
+                comp_data["install_dir"] = os.path.join(prefix, install_dir)
+
+                # even perform a build in case of binary directory does not exist
+                binary_dir = binary_dir if os.path.isabs(binary_dir) else os.path.join(self.build_temp, binary_dir)
+                if not os.path.exists(binary_dir):
+                    binary_dir = os.path.join(self.build_temp, binary_dir)
+                    self.announce(f"Configuring {comp} cmake project", level=3)
+                    self.spawn(["cmake", f"-DOpenVINODeveloperPackage_DIR={OPENVINO_BINARY_DIR}",
+                                         "-DCMAKE_BUILD_TYPE=Release",
+                                         "-DENABLE_WHEEL=OFF",
+                                         self.cmake_args,
+                                         "-S", source_dir,
+                                         "-B", binary_dir])
+
+                    self.announce(f"Building {comp} project", level=3)
+                    self.spawn(["cmake", "--build", binary_dir,
+                                         "--config", "Release",
+                                         "--parallel", str(self.jobs)])
+
+                self.announce(f"Installing {comp}", level=3)
+                self.spawn(["cmake", "--install", binary_dir,
+                                     "--prefix", prefix,
+                                     "--config", "Release",
+                                     "--strip",
+                                     "--component", cpack_comp_name])
+
+    def run(self):
+        if not self.python_extensions_only:
+            self.cmake_build_and_install(LIB_INSTALL_CFG)
+        self.cmake_build_and_install(PY_INSTALL_CFG)
+
         self.run_command("build_clib")
 
         build.run(self)
 
-        # Copy extra package_data content filtered by 'copy_package_data'
+        # Copy extra package_data content filtered by 'find_packages'
         exclude = ignore_patterns("*ez_setup*", "*__pycache__*", "*.egg-info*")
         src, dst = Path(PACKAGE_DIR), Path(self.build_lib)
         for path in src.glob("**/*"):
@@ -274,27 +315,34 @@ class CustomBuild(build):
 class PrepareLibs(build_clib):
     """Install prebuilt libraries."""
 
-    def run(self):
-        self.install(LIB_INSTALL_CFG)
-        self.install(PY_INSTALL_CFG)
-        self.copy_package_data(get_install_dirs_list(LIB_INSTALL_CFG))
+    user_options = build_clib.user_options + [
+        ("install_clib=", None, "Install Python extensions without C++ libraries."),
+    ]
 
-    def install(self, install_cfg):
+    def initialize_options(self):
+        """Set default values for all the options that this command supports."""
+        super().initialize_options()
+
+        self.install_clib = None
+
+    def finalize_options(self):
+        """Set final values for all the options that this command supports."""
+        super().finalize_options()
+
+        if not self.install_clib:
+            self.install_clib = True
+
+    def run(self):
+        """Run build_clib command."""
+        self.post_install(PY_INSTALL_CFG)
+        if self.install_clib:
+            self.post_install(LIB_INSTALL_CFG)
+            self.copy_package_data(get_install_dirs_list(LIB_INSTALL_CFG))
+
+    def post_install(self, install_cfg):
         """Install prebuilt libraries to the temp directories, set rpath."""
         for comp, comp_data in install_cfg.items():
-            install_prefix = comp_data.get("prefix")
             install_dir = comp_data.get("install_dir")
-            binary_dir = comp_data.get("binary_dir")
-
-            # perform installation steps if we are not given a full path
-            if not os.path.isabs(install_dir):
-                self.announce(f"Installing {comp}", level=3)
-                self.spawn(["cmake", "--install", binary_dir,
-                                     "--prefix", install_prefix,
-                                     "--config", "Release",
-                                     "--strip",
-                                     "--component", comp_data.get("name")])
-                install_dir = os.path.join(install_prefix, install_dir)
 
             # we need to resolve symlinks before setting rpath to avoid doing it multiple times
             install_dir_path = Path(install_dir)
@@ -314,6 +362,7 @@ class PrepareLibs(build_clib):
                     set_rpath(comp_data["rpath"], os.path.realpath(path))
 
     def get_reallink(self, link_file):
+        """Get the real file path of a soft link."""
         real_name = link_file
         while True:
             real_name = os.readlink(real_name)
@@ -403,6 +452,23 @@ class PrepareLibs(build_clib):
 class CopyExt(build_ext):
     """Copy extension files to the build directory."""
 
+    user_options = build_ext.user_options + [
+        ("set_rpath=", None, "Sets RPATH for Python extensions and C++ libraries."),
+    ]
+
+    def initialize_options(self):
+        """Set default values for all the options that this command supports."""
+        super().initialize_options()
+
+        self.set_rpath = None
+
+    def finalize_options(self):
+        """Set final values for all the options that this command supports."""
+        super().finalize_options()
+
+        if not self.set_rpath:
+            self.set_rpath = True
+
     def run(self):
         if len(self.extensions) == 1:
             # when python3 setup.py build_ext is called, while build_clib is not called before
@@ -416,7 +482,7 @@ class CopyExt(build_ext):
             dst = self.get_ext_fullpath(extension.name)
             os.makedirs(os.path.dirname(dst), exist_ok=True)
             # setting relative RPATH to found dlls
-            if sys.platform != "win32":
+            if sys.platform != "win32" and self.set_rpath:
                 rpath = os.path.relpath(get_package_dir(PY_INSTALL_CFG), os.path.dirname(src))
                 rpath = os.path.join(LIBS_RPATH, rpath, WHEEL_LIBS_INSTALL_DIR)
                 set_rpath(rpath, os.path.realpath(src))
@@ -576,6 +642,18 @@ def get_package_dir(install_cfg):
     return py_package_path
 
 
+def find_entry_points(install_cfg):
+    """Creates a list of entry points for OpenVINO runtime package."""
+    entry_points = {
+        "console_scripts": [],
+    }
+    for comp_info in install_cfg.values():
+        empty_point = comp_info.get("entry_point")
+        if empty_point is not None:
+            entry_points["console_scripts"].append(empty_point["console_scripts"])
+    return entry_points
+
+
 def concat_files(input_files, output_file):
     """Concatenates multuple input files to a single output file."""
     with open(output_file, "w", encoding="utf-8") as outfile:
@@ -591,6 +669,7 @@ PACKAGE_DIR = get_package_dir(PY_INSTALL_CFG)
 packages = find_namespace_packages(PACKAGE_DIR)
 package_data: typing.Dict[str, list] = {}
 ext_modules = find_prebuilt_extensions(get_install_dirs_list(PY_INSTALL_CFG))
+entry_points = find_entry_points(PY_INSTALL_CFG)
 
 long_description_md = OPENVINO_SOURCE_DIR / "docs" / "install_guides" / "pypi-openvino-rt.md"
 md_files = [long_description_md, OPENVINO_SOURCE_DIR / "docs" / "install_guides" / "pre-release-note.md"]
@@ -616,6 +695,7 @@ setup(
     long_description_content_type="text/markdown",
     download_url="https://github.com/openvinotoolkit/openvino/releases",
     url=docs_url,
+    entry_points=entry_points,
     cmdclass={
         "build": CustomBuild,
         "install": CustomInstall,

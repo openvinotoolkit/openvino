@@ -36,6 +36,13 @@ add_subdirectory(mo)
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/pot/openvino/tools/pot/version.txt.in"
                "${CMAKE_CURRENT_SOURCE_DIR}/pot/openvino/tools/pot/version.txt" @ONLY)
 
+# Benchmark Tool
+
+# TODO: do we need to add ENABLE_PYTHON_TOOLS ?
+if(ENABLE_PYTHON)
+    add_subdirectory(benchmark_tool)
+endif()
+
 # wheel openvino-dev
 
 add_subdirectory(openvino_dev)

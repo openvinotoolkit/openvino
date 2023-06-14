@@ -290,7 +290,8 @@ macro(ov_cpack_settings)
     #
 
     set(CPACK_COMPONENT_CORE_DEV_DESCRIPTION "Intel(R) Distribution of OpenVINO(TM) Toolkit C / C++ Development files")
-    set(CPACK_COMPONENT_CORE_DEV_DEPENDS "${OV_CPACK_COMP_CORE};${frontends}")
+    set(CPACK_COMPONENT_CORE_DEV_DEPENDS "${OV_CPACK_COMP_CORE}")
+    list(APPEND CPACK_COMPONENT_CORE_DEV_DEPENDS ${frontends})
     set(CPACK_DEBIAN_CORE_DEV_PACKAGE_NAME "libopenvino-dev-${cpack_name_ver}")
     ov_debian_generate_conflicts("${OV_CPACK_COMP_CORE_DEV}" ${conflicting_versions})
     set(${OV_CPACK_COMP_CORE_DEV}_copyright "generic")

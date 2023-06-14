@@ -138,12 +138,40 @@ set(openvino_wheel_path "${openvino_wheels_output_dir}/${openvino_wheel_name}")
 # create target for openvino.wheel
 #
 
+execute_process(COMMAND ${PYTHON_EXECUTABLE} -m pip --version
+                OUTPUT_VARIABLE pip_version OUTPUT_STRIP_TRAILING_WHITESPACE)
+
+string(REGEX MATCH "pip[ ]+([\\.0-9]*)" pip_version "${pip_version}")
+set(pip_version ${CMAKE_MATCH_1})
+
+if(pip_version VERSION_GREATER_EQUAL 22.0)
+    set(wheel_build_command
+        ${PYTHON_EXECUTABLE} -m pip wheel
+            --no-deps
+            --wheel-dir ${openvino_wheels_output_dir}
+            # --verbose
+            --build-option --build-number=${WHEEL_BUILD}
+            --build-option --plat-name=${PLATFORM_TAG}
+            "${CMAKE_CURRENT_SOURCE_DIR}")
+else()
+    set(wheel_build_command
+        ${PYTHON_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/setup.py"
+            --quiet
+            --no-user-cfg
+            bdist_wheel
+            --dist-dir ${openvino_wheels_output_dir}
+            --build-number=${WHEEL_BUILD}
+            --plat-name=${PLATFORM_TAG})
+endif()
+
+# PYTHON_VERSION_MAJOR and PYTHON_VERSION_MINOR are defined inside pybind11
+set(pyversion python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR})
+
 set(wheel_env ${CMAKE_COMMAND} -E env
     # for cross-compilation
     SETUPTOOLS_EXT_SUFFIX=${PYTHON_MODULE_EXTENSION}
     # versions
     WHEEL_VERSION=${WHEEL_VERSION}
-    WHEEL_BUILD=${WHEEL_BUILD}
     # build locations
     OPENVINO_BINARY_DIR=${OpenVINO_BINARY_DIR}
     OPENVINO_PYTHON_BINARY_DIR=${OpenVINOPython_BINARY_DIR}
@@ -155,15 +183,10 @@ set(wheel_env ${CMAKE_COMMAND} -E env
 
 add_custom_command(OUTPUT ${openvino_wheel_path}
     COMMAND ${wheel_env}
-        ${PYTHON_EXECUTABLE} -m pip wheel
-            --no-deps
-            --wheel-dir "${openvino_wheels_output_dir}"
-            --verbose
-            --build-option --build-number=${WHEEL_BUILD}
-            --build-option --plat-name=${PLATFORM_TAG}
-            "${CMAKE_CURRENT_SOURCE_DIR}"
-    COMMAND ${CMAKE_COMMAND} -E remove_directory "${CMAKE_CURRENT_SOURCE_DIR}/build"
+        ${wheel_build_command}
+    COMMAND ${CMAKE_COMMAND} -E remove_directory "${CMAKE_CURRENT_SOURCE_DIR}/build_${pyversion}"
     DEPENDS ${openvino_wheel_deps}
+    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
     COMMENT "Building Python wheel ${openvino_wheel_name}"
     VERBATIM)
 
@@ -175,6 +198,7 @@ add_custom_command(OUTPUT "${fdupes_report}"
         -D WHEEL_VERSION=${WHEEL_VERSION}
         -D PACKAGE_FILE=${openvino_wheel_path}
         -D REPORT_FILE=${fdupes_report}
+        -D CMAKE_SHARED_LIBRARY_SUFFIX=${CMAKE_SHARED_LIBRARY_SUFFIX}
         -P "${CMAKE_CURRENT_SOURCE_DIR}/fdupes_check.cmake"
     DEPENDS "${openvino_wheel_path}"
     WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
@@ -191,3 +215,10 @@ install(FILES ${openvino_wheel_path}
         DESTINATION ${OV_CPACK_WHEELSDIR}
         COMPONENT ${OV_CPACK_COMP_PYTHON_WHEELS}
         ${OV_CPACK_COMP_PYTHON_WHEELS_EXCLUDE_ALL})
+
+# # install Python API via setup.py invocation because it will create .egg-info directory
+# install(DIRECTORY "/mnt/data3_1878/ilya/Documents/Programming/build/openvino-release/test/"
+#         DESTINATION ${CMAKE_INSTALL_PREFIX}
+#         COMPONENT ${OV_CPACK_COMP_PYTHON_NGRAPH}_${pyversion}
+#         ${OV_CPACK_COMP_PYTHON_NGRAPH_EXCLUDE_ALL}
+#         USE_SOURCE_PERMISSIONS)

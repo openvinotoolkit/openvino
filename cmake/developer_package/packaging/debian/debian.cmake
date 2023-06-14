@@ -320,7 +320,7 @@ macro(ov_debian_add_latest_component comp)
     set(upper_case "${ucomp}_LATEST")
 
     set(CPACK_COMPONENT_${upper_case}_DESCRIPTION "${CPACK_COMPONENT_${ucomp}_DESCRIPTION}")
-    set(CPACK_COMPONENT_${upper_case}_ARCHITECTURE "all")
+    set(CPACK_DEBIAN_${upper_case}_PACKAGE_ARCHITECTURE "all")
     set(CPACK_COMPONENT_${upper_case}_DEPENDS "${comp}")
     set(${comp_name}_copyright "generic")
 
