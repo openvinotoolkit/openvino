@@ -22,8 +22,6 @@ namespace ov {
 namespace frontend {
 namespace tensorflow {
 
-ov::element::Type get_ov_type(const ::tensorflow::DataType& type);
-
 void parse_producer_name(const std::string& producer_port_name,
                          std::string& producer_name,
                          std::string& producer_output_port_name,
