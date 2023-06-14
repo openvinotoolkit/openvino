@@ -26,7 +26,7 @@ def refer_to_faq_msg(question_num: int):
         pass
 
     return '\n For more information please refer to Model Optimizer FAQ, question #{0}. ' \
-           '(https://docs.openvino.ai/latest/openvino_docs_MO_DG_prepare_model_Model_Optimizer_FAQ.html' \
+           '(https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_prepare_model_Model_Optimizer_FAQ.html' \
            '?question={0}#question-{0})'.format(question_num)
 
 
@@ -145,3 +145,14 @@ def unique_by(xs: list, predicate: Callable) -> list:
     """
     groups = group_by_with_binary_predicate(xs, predicate)
     return [group[0] for group in groups]
+
+
+def check_values_equal(val1, val2):
+    # This method is needed to check equality of values where some values can be None
+    if val1 is None and val2 is None:
+        return True
+    if val1 is None:
+        return False
+    if val2 is None:
+        return False
+    return val1 == val2

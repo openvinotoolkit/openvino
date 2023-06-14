@@ -170,7 +170,7 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &subgraph) {
                 ngraph::op::v0::Result::get_type_info_static(),
                 ngraph::op::v3::Assign::get_type_info_static(),
                 ngraph::op::v6::Assign::get_type_info_static())) {
-            for (int oi = 0; oi < op->get_output_size(); oi++) {
+            for (size_t oi = 0; oi < op->get_output_size(); oi++) {
                 if (op->get_output_target_inputs(oi).empty()) {
                     unusedOutputs.push_back(op->output(oi));
                 }
@@ -269,7 +269,7 @@ void Graph::Replicate(const CNNNetwork &network) {
                 ngraph::op::v0::Result::get_type_info_static(),
                 ngraph::op::v3::Assign::get_type_info_static(),
                 ngraph::op::v6::Assign::get_type_info_static())) {
-            for (int oi = 0; oi < op->get_output_size(); oi++) {
+            for (size_t oi = 0; oi < op->get_output_size(); oi++) {
                 if (op->get_output_target_inputs(oi).empty()) {
                     unusedOutputs.push_back(op->output(oi));
                 }
@@ -433,7 +433,7 @@ void Graph::InitDescriptors() {
 
 #ifdef CPU_DEBUG_CAPS
         const auto& SPDs = node->getSupportedPrimitiveDescriptors();
-        for (int i = 0; i < SPDs.size(); i++) {
+        for (size_t i = 0; i < SPDs.size(); i++) {
             DEBUG_LOG("#",
                       node->getExecIndex(),
                       " ",
@@ -560,7 +560,7 @@ static bool isReorderAvailable(const MemoryDescPtr& parentDesc, const MemoryDesc
 void Graph::InitEdges() {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "Graph::InitEdges");
 
-    size_t numberOfEdges = graphEdges.size();
+    ptrdiff_t numberOfEdges = static_cast<ptrdiff_t>(graphEdges.size());
 
     std::unordered_set<std::string> uniqueLayerNames;
     for (auto node : graphNodes) {
@@ -583,13 +583,13 @@ void Graph::InitEdges() {
         InsertReorder(edge, layerName, edge->getInputDesc(), edge->getOutputDesc(), isOptimized);
     };
 
-    auto updateEdge = [&](int& i) {
+    auto updateEdge = [&](ptrdiff_t& i) {
         graphEdges.erase(graphEdges.begin() + i);
         i--;
         numberOfEdges--;
     };
 
-    for (auto i = 0; i < numberOfEdges; i++) {
+    for (ptrdiff_t i = 0; i < numberOfEdges; i++) {
         auto edge = graphEdges[i];
         auto reorderStatus = graphEdges[i]->needReorder();
         DEBUG_LOG(graphEdges[i]->name(), " reorderStatus = ", reorderStatus);
@@ -712,8 +712,8 @@ void Graph::AllocateWithReuse() {
 
     std::vector<MemorySolver::Box> definedBoxes;
     std::vector<MemorySolver::Box> undefinedBoxes;
-    for (int i = 0; i < edge_clusters.size(); i++) {
-        MemorySolver::Box box = { std::numeric_limits<int>::max(), 0, 0, i };
+    for (size_t i = 0; i < edge_clusters.size(); i++) {
+        MemorySolver::Box box = {std::numeric_limits<int>::max(), 0, 0, static_cast<int64_t>(i)};
         int64_t boxSize = 0;
         for (auto &edge : edge_clusters[i]) {
             int e_start = edge->getParent()->execIndex;
@@ -983,14 +983,6 @@ void Graph::PullOutputData(BlobMap &out) {
             outBloMem.SetData(intr_blob, false);
         } else {
             size_t size_to_copy = intr_blob.GetDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
-            // used only for backward compatibility with the legacy API
-            if (getConfig().batchLimit && dynBatch > 0) {
-                if (node->isDynamicNode() && !getConfig().isNewApi) {
-                    IE_THROW(NotImplemented) << "[DS] not implemented dynamic batch for node with dynamic shape";
-                }
-
-                size_to_copy = std::accumulate(outDims.begin() + 1, outDims.end(), (size_t)1, std::multiplies<size_t>()) * static_cast<size_t>(dynBatch);
-            }
 
             cpu_convert(intr_blob_ptr, ext_blob_ptr, srcPrec, dstPrec, size_to_copy);
         }
@@ -1296,7 +1288,7 @@ void Graph::SortTopologically() {
     std::vector<NodePtr> unsorted;
     std::vector<NodePtr> sorted;
 
-    for (int i = 0; i < graphNodes.size(); i++) {
+    for (size_t i = 0; i < graphNodes.size(); i++) {
         NodePtr node = graphNodes[i];
 
         node->permanent = false;
@@ -1312,7 +1304,8 @@ void Graph::SortTopologically() {
         VisitNode(node, sorted);
     }
 
-    for (int i = 0; i < sorted.size(); i++) sorted[i]->execIndex = i;
+    for (size_t i = 0; i < sorted.size(); i++)
+        sorted[i]->execIndex = static_cast<int>(i);
 
     graphNodes.erase(graphNodes.begin(), graphNodes.end());
     graphNodes.assign(sorted.begin(), sorted.end());
@@ -1328,7 +1321,7 @@ void Graph::SortTopologically() {
             int port_num = node->inputShapes.size();
             std::vector<EdgePtr> res(port_num);
 
-            for (int i = 0; i < node->parentEdges.size(); i++) {
+            for (size_t i = 0; i < node->parentEdges.size(); i++) {
                 auto edge = node->getParentEdgeAt(i);
                 int port = edge->getOutputNum();
                 if (port < port_num && !res[port])
@@ -1342,7 +1335,7 @@ void Graph::SortTopologically() {
             int port_num = node->outputShapes.size();
             std::vector<EdgePtr> res(port_num);
 
-            for (int i = 0; i < node->childEdges.size(); i++) {
+            for (size_t i = 0; i < node->childEdges.size(); i++) {
                 auto edge = node->getChildEdgeAt(i);
                 int port = edge->getInputNum();
                 if (port < port_num && !res[port])
@@ -1380,7 +1373,7 @@ void Graph::GetPerfData(std::map<std::string, InferenceEngine::InferenceEnginePr
         }
     };
 
-    for (int i = 0; i < graphNodes.size(); i++) {
+    for (size_t i = 0; i < graphNodes.size(); i++) {
         if (graphNodes[i]->isConstant())
             continue;
         getPerfMapFor(perfMap, graphNodes[i]);
@@ -1407,27 +1400,20 @@ void Graph::DropNode(const NodePtr &node) {
         auto parent = p_edge->getParent();
         if (!parent) continue;
 
-        for (size_t j = 0; j < children.size(); j++) {
-            if (!children[j].lock())
-                continue;
-            auto child = children[j].lock()->getChild();
-            if (!child)
-                continue;
+        const int inNum = p_edge->getInputNum();
+        p_edge->drop();
+        RemoveEdge(p_edge);
 
-            EdgePtr &remEdge = p_edge;
-            int inNum = 0;
-            if (remEdge) {
-                inNum = remEdge->getInputNum();
-                remEdge->drop();
-                RemoveEdge(remEdge);
-            }
-            remEdge = children[j].lock();
-            int outNum = 0;
-            if (remEdge) {
-                outNum = remEdge->getOutputNum();
-                remEdge->drop();
-                RemoveEdge(remEdge);
-            }
+        for (size_t j = 0; j < children.size(); j++) {
+            auto c_edge = children[j].lock();
+            if (!c_edge) continue;
+            auto child = c_edge->getChild();
+            if (!child) continue;
+
+            const int outNum = c_edge->getOutputNum();
+            c_edge->drop();
+            RemoveEdge(c_edge);
+
             EdgePtr newEdge(new Edge(parent, child, inNum, outNum));
             graphEdges.push_back(newEdge);
             parent->addEdge(newEdge);
@@ -1452,27 +1438,20 @@ void Graph::DropDWConvNode(const NodePtr &node) {
         auto parent = p_edge->getParent();
         if (!parent) continue;
 
-        for (size_t j = 0; j < children.size(); j++) {
-            if (!children[j].lock())
-                continue;
-            auto child = children[j].lock()->getChild();
-            if (!child)
-                continue;
+        const int inNum = p_edge->getInputNum();
+        p_edge->drop();
+        RemoveEdge(p_edge);
 
-            EdgePtr &remEdge = p_edge;
-            int inNum = 0;
-            if (remEdge) {
-                inNum = remEdge->getInputNum();
-                remEdge->drop();
-                RemoveEdge(remEdge);
-            }
-            remEdge = children[j].lock();
-            int outNum = 0;
-            if (remEdge) {
-                outNum = remEdge->getOutputNum();
-                remEdge->drop();
-                RemoveEdge(remEdge);
-            }
+        for (size_t j = 0; j < children.size(); j++) {
+            auto c_edge = children[j].lock();
+            if (!c_edge) continue;
+            auto child = c_edge->getChild();
+            if (!child) continue;
+
+            const int outNum = c_edge->getOutputNum();
+            c_edge->drop();
+            RemoveEdge(c_edge);
+
             EdgePtr newEdge(new Edge(parent, child, inNum, outNum));
             graphEdges.push_back(newEdge);
             parent->addEdge(newEdge);
@@ -1485,16 +1464,11 @@ void Graph::DropDWConvNode(const NodePtr &node) {
         auto parent = p_edge->getParent();
         if (!parent) continue;
 
-        EdgePtr &remEdge = p_edge;
-        int inNum = 0;
-        int portCandidate = 0;
-        if (remEdge) {
-            inNum = remEdge->getInputNum();
-            portCandidate = remEdge->getOutputNum();
-            remEdge->drop();
-            RemoveEdge(remEdge);
-        }
-        int outNum = parentConv->parentEdges.size();
+        const int inNum = p_edge->getInputNum();
+        const int portCandidate = p_edge->getOutputNum();
+        p_edge->drop();
+        RemoveEdge(p_edge);
+        const int outNum = parentConv->parentEdges.size();
 
         EdgePtr newEdge(new Edge(parent, parentConv, inNum, outNum));
         graphEdges.push_back(newEdge);
