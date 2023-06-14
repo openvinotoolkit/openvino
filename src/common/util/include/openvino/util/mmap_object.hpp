@@ -17,6 +17,7 @@ namespace ov {
 struct MappedMemory {
     virtual char* data() noexcept = 0;
     virtual size_t size() const noexcept = 0;
+    virtual ~MappedMemory() = default;
 };
 
 std::shared_ptr<ov::MappedMemory> load_mmap_object(const std::string& path,
