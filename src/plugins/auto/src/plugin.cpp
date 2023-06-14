@@ -576,15 +576,16 @@ std::list<DeviceInformation> Plugin::get_valid_device(
             continue;
         }
         if (item.device_name.find("GPU") == 0) {
-            ov::Any device_type;
+            std::string device_type;
             try {
-                device_type = get_core()->get_property(item.device_name, ov::device::type);
+                // can optimize to typed function when gpu swith to 2.0 api
+                device_type = get_core()->get_property(item.device_name, ov::device::type.name(), {}).as<std::string>();
             } catch (const ov::Exception&) {
                 LOG_DEBUG_TAG("GetMetric:%s for %s failed ", "DEVICE_TYPE", item.device_name.c_str());
             }
-            if (device_type == ov::device::Type::INTEGRATED) {
+            if (device_type == "integrated") {
                 iGPU.push_back(item);
-            } else if (device_type == ov::device::Type::DISCRETE) {
+            } else if (device_type == "discrete") {
                 dGPU.push_back(item);
             } else {
                 LOG_DEBUG_TAG("Unknown device type for %s", item.device_name.c_str());

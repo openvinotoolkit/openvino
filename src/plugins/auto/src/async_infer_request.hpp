@@ -7,7 +7,6 @@
 
 #include "schedule.hpp"
 #include "infer_request.hpp"
-#include "openvino/runtime/iasync_infer_request.hpp"
 
 namespace ov {
 namespace auto_plugin {

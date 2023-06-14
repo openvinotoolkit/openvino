@@ -12,7 +12,6 @@
 #include "openvino/runtime/exec_model_info.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "plugin.hpp"
-#include <ie_performance_hints.hpp>
 
 namespace ov {
 namespace auto_plugin {
@@ -154,13 +153,11 @@ ov::Any AutoCompiledModel::get_property(const std::string& name) const {
                     // go with auto-batching
                     try {
                         // check if app have set preferred value
-                        auto res =
+                        requests =
                             m_context->m_ov_core->get_property(device_info.device_name, ov::hint::num_requests);
-                        requests = InferenceEngine::PerfHintsConfig::CheckPerformanceHintRequestValue(std::to_string(res));
                         const auto& reqs = device_info.config.find(ov::hint::num_requests.name());
                         if (reqs != device_info.config.end()) {
-                            requests = static_cast<unsigned int>
-                                (InferenceEngine::PerfHintsConfig::CheckPerformanceHintRequestValue((reqs->second).as<std::string>()));
+                            requests = reqs->second.as<unsigned int>();
                         }
                         LOG_DEBUG_TAG("BATCHING:%s:%ld", "user requested size", requests);
                         if (!requests) { // no limitations from user

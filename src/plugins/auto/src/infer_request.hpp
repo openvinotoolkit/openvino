@@ -14,8 +14,6 @@
 #include <utility>
 #include <memory>
 #include <string>
-#include <cpp_interfaces/interface/ie_iinfer_request_internal.hpp>
-#include "ie_remote_context.hpp"
 #include "plugin.hpp"
 
 namespace ov {
