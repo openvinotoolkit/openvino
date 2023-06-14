@@ -157,7 +157,7 @@ Table of Contents
 * :doc:`Roll <openvino_docs_ops_movement_Roll_7>`
 * :doc:`Round <openvino_docs_ops_arithmetic_Round_5>`
 * :doc:`ScatterElementsUpdate <openvino_docs_ops_movement_ScatterElementsUpdate_3>`
-* :doc:`ScatterNDUpdate <openvino_docs_ops_movement_ScatterNDUpdate_3>`
+* :doc:`ScatterNDUpdate <openvino_docs_ops_movement_ScatterNDUpdate_12>`
 * :doc:`ScatterUpdate <openvino_docs_ops_movement_ScatterUpdate_3>`
 * :doc:`Select <openvino_docs_ops_condition_Select_1>`
 * :doc:`Selu <openvino_docs_ops_activation_Selu_1>`

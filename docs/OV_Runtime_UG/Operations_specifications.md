@@ -175,6 +175,7 @@
    Round-5 <openvino_docs_ops_arithmetic_Round_5>
    ScatterElementsUpdate-3 <openvino_docs_ops_movement_ScatterElementsUpdate_3>
    ScatterNDUpdate-3 <openvino_docs_ops_movement_ScatterNDUpdate_3>
+   ScatterNDUpdate-12 <openvino_docs_ops_movement_ScatterNDUpdate_12>
    ScatterUpdate-3 <openvino_docs_ops_movement_ScatterUpdate_3>
    Select-1 <openvino_docs_ops_condition_Select_1>
    Selu-1 <openvino_docs_ops_activation_Selu_1>
