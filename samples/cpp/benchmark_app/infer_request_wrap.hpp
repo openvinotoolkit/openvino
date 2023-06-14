@@ -168,7 +168,12 @@ public:
         std::unique_lock<std::mutex> lock(_mutex);
         _cv.wait(lock, [this] {
             if (inferenceException) {
-                std::rethrow_exception(inferenceException);
+                try {
+                    std::rethrow_exception(inferenceException);
+                } catch (const std::exception& ex) {
+                    /// copy an exception to avoid the thread race issue.
+                    throw std::runtime_error(ex.what());
+                }
             }
             return _idleIds.size() > 0;
         });
@@ -182,7 +187,12 @@ public:
         std::unique_lock<std::mutex> lock(_mutex);
         _cv.wait(lock, [this] {
             if (inferenceException) {
-                std::rethrow_exception(inferenceException);
+                try {
+                    std::rethrow_exception(inferenceException);
+                } catch (const std::exception& ex) {
+                    /// copy an exception to avoid the thread race issue.
+                    throw std::runtime_error(ex.what());
+                }
             }
             return _idleIds.size() == requests.size();
         });
