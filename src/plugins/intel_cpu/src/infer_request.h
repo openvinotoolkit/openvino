@@ -73,6 +73,7 @@ private:
     void check_port(const ov::Output<const ov::Node>& port) const;
     void update_external_inputs();
     bool check_precision_changed(const ov::Output<const ov::Node>& port) const;
+    InferenceEngine::TensorDesc create_tensor_desc(const ov::Tensor& tensor);
 
 #ifdef WA_PREC_CHANGE_ISSUE
     const ov::Output<const ov::Node>& get_internal_port(const ov::Output<const ov::Node>& port) const;

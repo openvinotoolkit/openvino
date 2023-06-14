@@ -188,8 +188,10 @@ void SyncInferRequest::update_external_inputs() {
                            input_name);
         }
 
-        auto tensor = get_tensor(input);
-        _external_ptr[input_name] = tensor.data();
+        if (_external_ptr.find(input_name) != _external_ptr.end()) {
+            auto tensor = get_tensor(input);
+            _external_ptr[input_name] = tensor.data();
+        }
     }
 }
 
@@ -400,6 +402,35 @@ void SyncInferRequest::check_port(const ov::Output<const ov::Node>& port) const 
     }
 }
 
+InferenceEngine::TensorDesc SyncInferRequest::create_tensor_desc(const ov::Tensor& tensor) {
+    auto element_type = tensor.get_element_type();
+    auto shape = tensor.get_shape();
+    std::vector<size_t> blk_order(shape.size());
+    std::iota(blk_order.begin(), blk_order.end(), 0);
+    std::vector<size_t> dim_offset(shape.size(), 0);
+    std::vector<size_t> blk_strides;
+    auto byte_strides = element_type.bitwidth() >= 8 ? tensor.get_strides() : Strides{};
+    if (byte_strides.empty()) {
+        blk_strides = ov::row_major_strides(shape);
+    } else {
+        blk_strides.resize(byte_strides.size());
+        std::transform(byte_strides.begin(),
+                       byte_strides.end(),
+                       blk_strides.begin(),
+                       [&element_type](size_t byte_stride) {
+                           OPENVINO_ASSERT(byte_stride % element_type.size() == 0,
+                                           "Limitation: Stride in bytes ",
+                                           byte_stride,
+                                           " should be divisible by size of element ",
+                                           element_type.size());
+                           return byte_stride / element_type.size();
+                       });
+    }
+    return ie::TensorDesc{ie::details::convertPrecision(element_type),
+                          shape,
+                          ie::BlockingDesc{shape, blk_order, 0, dim_offset, blk_strides}};
+}
+
 #ifdef WA_PREC_CHANGE_ISSUE
 ov::Tensor SyncInferRequest::get_tensor(const ov::Output<const ov::Node>& _port) const {
     check_port(_port);
@@ -548,9 +579,7 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
     auto name = get_port_name(port);
 #endif
 
-    InferenceEngine::TensorDesc tensor_desc(InferenceEngine::details::convertPrecision(tensor.get_element_type()),
-                                            tensor.get_shape(),
-                                            InferenceEngine::TensorDesc::getLayoutByRank(tensor.get_shape().size()));
+    auto tensor_desc = create_tensor_desc(tensor);
     bool is_input = ov::op::util::is_parameter(port.get_node());
     if (is_input) {
         const auto netInPrc = port.get_element_type();
@@ -656,12 +685,11 @@ void SyncInferRequest::init_tensor(const std::string& name) {
                 } else {
                     tensor_shape = shape.to_shape();
                 }
-                InferenceEngine::TensorDesc desc(InferenceEngine::details::convertPrecision(port.get_element_type()),
-                                                 tensor_shape,
-                                                 InferenceEngine::TensorDesc::getLayoutByRank(tensor_shape.size()));
+
                 tensor = ov::Tensor(port.get_element_type(), tensor_shape);
                 ov::ISyncInferRequest::set_tensor(port, tensor);
 
+                auto desc = create_tensor_desc(tensor);
                 if (!isDynamic &&
                     desc == MemoryDescUtils::convertToTensorDesc(
                                 graph->getInputNodeByName(name)->getChildEdgesAtPort(0)[0]->getMemory().getDesc()) &&
@@ -719,9 +747,7 @@ void SyncInferRequest::init_tensor(const std::string& name) {
                 }
             }
             _outputs[name] = tensor;
-            InferenceEngine::TensorDesc desc(InferenceEngine::details::convertPrecision(tensor.get_element_type()),
-                                             tensor.get_shape(),
-                                             InferenceEngine::TensorDesc::getLayoutByRank(tensor.get_shape().size()));
+            auto desc = create_tensor_desc(tensor);
             if (!isDynamic && !_external_ptr.count(name) &&
                 desc == MemoryDescUtils::convertToTensorDesc(
                             output->second->getParentEdgesAtPort(0)[0]->getMemory().getDesc())) {

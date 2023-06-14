@@ -197,6 +197,62 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &subgraph) {
 
     if (getConfig().enforceBF16)
         EnforceBF16();
+
+    auto hasSubgraphConsumers = [](const NodePtr& node) -> bool {
+        const auto& childEdges = node->getChildEdges();
+        return std::any_of(childEdges.begin(), childEdges.end(), [](const EdgeWeakPtr& edge) -> bool {
+            auto edgePtr = edge.lock();
+            if (!edgePtr)
+                return false;
+            return edgePtr->getChild()->getType() == Type::Subgraph;
+        });
+    };
+
+    auto input_ports = subgraph->inputs();
+    auto find_input_port_prec = [&input_ports](const std::string& name) -> ov::element::Type_t {
+        for (auto& it : input_ports) {
+            auto port_name = ov::op::util::get_ie_output_name(it);
+            if (port_name == name)
+                return it.get_element_type();
+        }
+        OPENVINO_THROW("Cannot find input port with name: ", name);
+    };
+    // change precision for input/output nodes to avoid extra data conversion when set input/output blobs
+    // also we need to change input/output precisions for consumers/producers to avoid inserting reorder
+    for (auto& input : inputNodesMap) {
+        auto prec = InferenceEngine::details::convertPrecision(find_input_port_prec(input.first));
+        const auto precToSet = normalizeToSupportedPrecision(prec);
+        input.second->setOriginalOutputPrecisionAtPort(0, precToSet);
+        const auto childEdges = input.second->getChildEdgesAtPort(0);
+        for (size_t i = 0; i < childEdges.size(); i++) {
+            const auto child = childEdges[i]->getChild();
+            if (child->getOriginalInputPrecisionAtPort(childEdges[i]->getOutputNum()) != Precision::BF16 &&
+                // remove this WA when #78939 is resolved
+                !hasSubgraphConsumers(child))
+                child->setOriginalInputPrecisionAtPort(childEdges[i]->getOutputNum(), precToSet);
+        }
+    }
+
+    auto output_ports = subgraph->outputs();
+    auto find_output_port_prec = [&output_ports](const std::string& name) -> ov::element::Type_t {
+        for (auto& it : output_ports) {
+            const auto node = it.get_node_shared_ptr();
+            auto port_name = ov::op::util::get_ie_output_name(node->input_value(0));
+            if (port_name == name)
+                return it.get_element_type();
+        }
+        OPENVINO_THROW("Cannot find output port with name: ", name);
+    };
+    for (auto& output : outputNodesMap) {
+        auto prec = InferenceEngine::details::convertPrecision(find_output_port_prec(output.first));
+        const auto precToSet = normalizeToSupportedPrecision(prec);
+        output.second->setOriginalInputPrecisionAtPort(0, precToSet);
+        const auto parentEdges = output.second->getParentEdgesAtPort(0);
+        for (size_t i = 0; i < parentEdges.size(); i++) {
+            const auto parent = parentEdges[i]->getParent();
+            parent->setOriginalOutputPrecisionAtPort(parentEdges[i]->getInputNum(), precToSet);
+        }
+    }
 }
 
 void Graph::Replicate(const CNNNetwork &network) {
@@ -883,9 +939,35 @@ void Graph::PushInputData(const std::string& name, const ov::Tensor &in) {
 
     auto input = inputNodesMap.find(name);
     if (input != inputNodesMap.end()) {
-        InferenceEngine::TensorDesc inTensorDesc(InferenceEngine::details::convertPrecision(in.get_element_type()),
-                                                 in.get_shape(),
-                                                 InferenceEngine::TensorDesc::getLayoutByRank(in.get_shape().size()));
+        auto create_tensor_desc = [&](const ov::Tensor& tensor) -> InferenceEngine::TensorDesc {
+            auto element_type = tensor.get_element_type();
+            auto shape = tensor.get_shape();
+            std::vector<size_t> blk_order(shape.size());
+            std::iota(blk_order.begin(), blk_order.end(), 0);
+            std::vector<size_t> dim_offset(shape.size(), 0);
+            std::vector<size_t> blk_strides;
+            auto byte_strides = element_type.bitwidth() >= 8 ? tensor.get_strides() : Strides{};
+            if (byte_strides.empty()) {
+                blk_strides = ov::row_major_strides(shape);
+            } else {
+                blk_strides.resize(byte_strides.size());
+                std::transform(byte_strides.begin(),
+                               byte_strides.end(),
+                               blk_strides.begin(),
+                               [&element_type](size_t byte_stride) {
+                                   OPENVINO_ASSERT(byte_stride % element_type.size() == 0,
+                                                   "Limitation: Stride in bytes ",
+                                                   byte_stride,
+                                                   " should be divisible by size of element ",
+                                                   element_type.size());
+                                   return byte_stride / element_type.size();
+                               });
+            }
+            return ie::TensorDesc{ie::details::convertPrecision(element_type),
+                                  shape,
+                                  ie::BlockingDesc{shape, blk_order, 0, dim_offset, blk_strides}};
+        };
+        auto inTensorDesc = create_tensor_desc(in);
         auto node = input->second;
         auto childEdge = node->getChildEdgeAt(0);
         const auto& outDims = node->getOutputShapeAtPort(0);

@@ -119,6 +119,7 @@ Node::Node(const std::shared_ptr<ngraph::Node>& op,
 
             bool isScalar = shape.rank().get_length() == 0;
             outputShapes.emplace_back(isScalar ? ngraph::PartialShape{1} : shape);
+            std::cout << typeStr << " : " << op->get_output_element_type(i) << std::endl;
             originalOutputPrecisions.emplace_back(details::convertPrecision(op->get_output_element_type(i)));
         }
     }
