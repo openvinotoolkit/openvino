@@ -132,7 +132,6 @@ cv::String colorFormatToString(InferenceEngine::ColorFormat f) {
         case ColorFormat::BGR: return "BGR";
         case ColorFormat::RGBX: return "RGBX";
         case ColorFormat::BGRX: return "BGRX";
-        case ColorFormat::NV12: return "NV12";
         default: IE_THROW() << "Unrecognized color format";
     }
 }
@@ -177,8 +176,6 @@ cv::ColorConversionCodes toCvtColorCode(InferenceEngine::ColorFormat in,
         {{ColorFormat::BGR, ColorFormat::RGBX}, cv::COLOR_BGR2RGBA},
         {{ColorFormat::BGR, ColorFormat::BGRX}, cv::COLOR_BGR2BGRA},
         {{ColorFormat::BGR, ColorFormat::RGB}, cv::COLOR_BGR2RGB},
-        {{ColorFormat::NV12, ColorFormat::BGR}, cv::COLOR_YUV2BGR_NV12},
-        {{ColorFormat::NV12, ColorFormat::RGB}, cv::COLOR_YUV2RGB_NV12}
     };
     IE_SUPPRESS_DEPRECATED_END
     return types.at(std::make_pair(in, out));
@@ -965,92 +962,6 @@ TEST_P(ColorConvertTestIE, AccuracyTest)
     }
 }
 
-TEST_P(ColorConvertYUV420TestIE, AccuracyTest)
-{
-    using namespace InferenceEngine;
-    const int depth = CV_8U;
-    auto in_fmt = ColorFormat::NV12;
-    const auto out_fmt = ColorFormat::BGR;  // for now, always BGR
-    auto out_layout = Layout::ANY;
-    cv::Size size;
-    double tolerance = 0.0;
-    std::tie(in_fmt, out_layout, size, tolerance) = GetParam();
-
-    cv::Mat in_mat_y(size, CV_MAKE_TYPE(depth, 1));
-    cv::Mat in_mat_uv(cv::Size(size.width / 2, size.height / 2), CV_MAKE_TYPE(depth, 2));
-    cv::Scalar mean = cv::Scalar::all(127);
-    cv::Scalar stddev = cv::Scalar::all(40.f);
-
-    cv::randn(in_mat_y, mean, stddev);
-    cv::randn(in_mat_uv, mean / 2, stddev / 2);
-
-    int out_type = CV_MAKE_TYPE(depth, numChannels(out_fmt));
-    cv::Mat out_mat(size, out_type);
-    cv::Mat out_mat_ocv(size, out_type);
-
-    // Inference Engine code ///////////////////////////////////////////////////
-
-    size_t out_channels = out_mat.channels();
-    CV_Assert(3 == out_channels || 4 == out_channels);
-
-    ASSERT_TRUE(in_mat_y.isContinuous() && out_mat.isContinuous());
-
-    auto make_nv12_blob = [&](){
-        auto y_blob = img2Blob<Precision::U8>(in_mat_y, Layout::NHWC);
-        auto uv_blob = img2Blob<Precision::U8>(in_mat_uv, Layout::NHWC);
-        return make_shared_blob<NV12Blob>(y_blob, uv_blob);
-
-    };
-    auto make_I420_blob = [&](){
-        cv::Mat in_mat_u(cv::Size(size.width / 2, size.height / 2), CV_MAKE_TYPE(depth, 1));
-        cv::Mat in_mat_v(cv::Size(size.width / 2, size.height / 2), CV_MAKE_TYPE(depth, 1));
-
-        std::array<cv::Mat, 2> in_uv = {in_mat_u, in_mat_v};
-        cv::split(in_mat_uv, in_uv);
-
-        auto y_blob = img2Blob<Precision::U8>(in_mat_y, Layout::NHWC);
-        auto u_blob = img2Blob<Precision::U8>(in_mat_u, Layout::NHWC);
-        auto v_blob = img2Blob<Precision::U8>(in_mat_v, Layout::NHWC);
-        return make_shared_blob<I420Blob>(y_blob, u_blob, v_blob);
-    };
-
-    Blob::Ptr in_blob = (in_fmt == ColorFormat::NV12) ?  Blob::Ptr{make_nv12_blob()} :  Blob::Ptr {make_I420_blob()};
-    auto out_blob = img2Blob<Precision::U8>(out_mat, out_layout);
-
-    PreProcessDataPtr preprocess = CreatePreprocDataHelper();
-    preprocess->setRoiBlob(in_blob);
-
-    PreProcessInfo info;
-    info.setColorFormat(in_fmt);
-
-    // test once to warm-up cache
-    preprocess->execute(out_blob, info, false);
-
-    Blob2Img<Precision::U8>(out_blob, out_mat, out_layout);
-
-#if PERF_TEST
-    const auto in_layout = Layout::NCHW;
-    // iterate testing, and print performance
-    test_ms([&](){ preprocess->execute(out_blob, info, false); },
-            100, "Color Convert IE %s %s %s %dx%d %s->%s",
-            depthToString(depth).c_str(),
-            layoutToString(in_layout).c_str(), layoutToString(out_layout).c_str(),
-            size.width, size.height,
-            colorFormatToString(in_fmt).c_str(), colorFormatToString(out_fmt).c_str());
-#endif
-
-    // OpenCV code /////////////////////////////////////////////////////////////
-    {
-        //for both I420 and NV12 use NV12 as I420 is not supported by OCV
-        cv::cvtColorTwoPlane(in_mat_y, in_mat_uv, out_mat_ocv, toCvtColorCode(ColorFormat::NV12, out_fmt));
-    }
-
-    // Comparison //////////////////////////////////////////////////////////////
-    {
-        EXPECT_LE(cv::norm(out_mat_ocv, out_mat, cv::NORM_INF), tolerance);
-    }
-}
-
 TEST_P(SplitTestIE, AccuracyTest)
 {
     const auto params = GetParam();
@@ -1197,151 +1108,6 @@ TEST_P(MergeTestIE, AccuracyTest)
     // Comparison //////////////////////////////////////////////////////////////
 
     EXPECT_LE(cv::norm(out_mat_ocv, out_mat, cv::NORM_INF), tolerance);
-}
-
-TEST_P(PreprocTest, Performance)
-{
-    using namespace InferenceEngine;
-    std::pair<Precision, Precision> precisions;
-    ResizeAlgorithm interp;
-    Layout in_layout, out_layout;
-    std::pair<int, int> ocv_channels{-1, -1};
-    std::pair<cv::Size, cv::Size> sizes;
-    ColorFormat in_fmt = ColorFormat::RAW;
-    ColorFormat out_fmt = ColorFormat::BGR;
-    std::tie(precisions, interp, in_fmt, in_layout, out_layout, ocv_channels, sizes) = GetParam();
-
-    Precision in_prec, out_prec;
-    std::tie(in_prec, out_prec) = precisions;
-    cv::Size in_size, out_size;
-    std::tie(in_size, out_size) = sizes;
-    int in_ocv_chan = -1, out_ocv_chan = -1;
-    std::tie(in_ocv_chan, out_ocv_chan) = ocv_channels;
-#if defined(__arm__) || defined(__aarch64__)
-    double tolerance = in_prec == Precision::U8 || in_prec == Precision::U16 || out_prec == Precision::U8 ? 4 : 0.015;
-#else
-    double tolerance = in_prec == Precision::U8 || in_prec == Precision::U16 || out_prec == Precision::U8 ? 1 : 0.015;
-#endif
-
-    auto precision_to_depth = [](Precision::ePrecision prec) -> int{
-        switch (prec)
-        {
-            case Precision::U8:   return CV_8U;
-            case Precision::U16:  return CV_16U;
-            case Precision::FP32: return CV_32F;
-            default:
-                throw std::logic_error("Unsupported configuration");
-        }
-        return -1;
-    };
-
-    const int in_ocv_type  = CV_MAKETYPE(precision_to_depth(in_prec), in_ocv_chan);
-    const int out_ocv_type = CV_MAKETYPE(precision_to_depth(out_prec), out_ocv_chan);
-    initMatrixRandU(in_ocv_type, in_size, out_ocv_type, false);
-
-    cv::Mat out_mat(out_size, out_ocv_type);
-
-    // convert input mat to correct color format if required. note that NV12 being a planar case is
-    // handled separately
-    if (in_fmt != ColorFormat::RAW && in_fmt != ColorFormat::BGR && in_fmt != ColorFormat::NV12) {
-        cv::cvtColor(in_mat1, in_mat1, toCvtColorCode(in_fmt));
-    }
-    // create additional cv::Mat in NV12 case
-    if (in_fmt == ColorFormat::NV12) {
-        in_mat2 = cv::Mat(cv::Size(in_mat1.cols / 2, in_mat1.rows / 2), CV_8UC2);
-        cv::randu(in_mat2, cv::Scalar::all(0), cv::Scalar::all(255));
-    }
-
-
-    auto create_blob = [](Precision::ePrecision prec, ColorFormat fmt, Layout layout, cv::Mat& m1, cv::util::optional<cv::Mat> m2 = {}){
-        Blob::Ptr blob;
-        switch (prec)
-        {
-        case Precision::U8:
-            if (fmt == ColorFormat::NV12) {
-                auto y_blob = img2Blob<Precision::U8>(m1, Layout::NHWC);
-                auto uv_blob = img2Blob<Precision::U8>(m2.value(), Layout::NHWC);
-                blob = make_shared_blob<NV12Blob>(y_blob, uv_blob);
-            } else {
-                blob = img2Blob<Precision::U8>(m1, layout);
-            }
-            break;
-
-        case Precision::U16:
-            blob = img2Blob<Precision::U16>(m1, layout);
-            break;
-
-        case Precision::FP32:
-            blob = img2Blob<Precision::FP32>(m1, layout);
-            break;
-
-        default:
-            throw std::logic_error("Unsupported configuration");
-        }
-        return blob;
-    };
-
-    auto in_blob  = create_blob(in_prec, in_fmt, in_layout, in_mat1, cv::util::make_optional(in_mat2));
-    auto out_blob = create_blob(out_prec, out_fmt, out_layout, out_mat);
-
-    PreProcessDataPtr preprocess = CreatePreprocDataHelper();
-    preprocess->setRoiBlob(in_blob);
-
-    PreProcessInfo info;
-    info.setResizeAlgorithm(interp);
-    info.setColorFormat(in_fmt);
-
-    // test once to warm-up cache
-    preprocess->execute(out_blob, info, false);
-
-    switch (out_prec)
-    {
-    case Precision::U8:   Blob2Img<Precision::U8>  (out_blob, out_mat, out_layout); break;
-    case Precision::FP32: Blob2Img<Precision::FP32>(out_blob, out_mat, out_layout); break;
-    case Precision::U16:  Blob2Img<Precision::U16>(out_blob, out_mat, out_layout); break;
-    default: FAIL() << "Unsupported configuration";
-    }
-
-    cv::Mat ocv_out_mat(in_mat1);
-
-    if (in_fmt != ColorFormat::RAW && in_fmt != out_fmt && in_fmt != ColorFormat::NV12) {
-        cv::cvtColor(ocv_out_mat, ocv_out_mat, toCvtColorCode(in_fmt, out_fmt));
-    } else if (in_fmt == ColorFormat::NV12) {
-        cv::cvtColorTwoPlane(ocv_out_mat, in_mat2, ocv_out_mat, toCvtColorCode(in_fmt, out_fmt));
-    }
-
-    auto cv_interp = interp == RESIZE_AREA ? cv::INTER_AREA : cv::INTER_LINEAR;
-    cv::resize(ocv_out_mat, ocv_out_mat, out_size, 0, 0, cv_interp);
-
-    if (in_prec != out_prec) {
-        cv::Mat ocv_converted;
-        ocv_out_mat.convertTo(ocv_converted, out_ocv_type);
-        ocv_out_mat = ocv_converted;
-    }
-
-    EXPECT_LE(cv::norm(ocv_out_mat, out_mat, cv::NORM_INF), tolerance);
-
-#if PERF_TEST
-    // iterate testing, and print performance
-    const auto in_type_str  = depthToString(precision_to_depth(in_prec));
-    const auto out_type_str = depthToString(precision_to_depth(out_prec));
-    const auto interp_str = interp == RESIZE_AREA ? "AREA"
-        : interp == RESIZE_BILINEAR ? "BILINEAR" : "?";
-    const auto in_layout_str = layoutToString(in_layout);
-    const auto out_layout_str = layoutToString(out_layout);
-
-    test_ms([&]() { preprocess->execute(out_blob, info, false); },
-            300,
-            "Preproc %s %s %s %d %s %dx%d %d %s %dx%d %s->%s",
-            in_type_str.c_str(),
-            out_type_str.c_str(),
-            interp_str,
-            in_ocv_chan,
-            in_layout_str.c_str(), in_size.width, in_size.height,
-            out_ocv_chan,
-            out_layout_str.c_str(), out_size.width, out_size.height,
-            colorFormatToString(in_fmt).c_str(), colorFormatToString(out_fmt).c_str());
-#endif // PERF_TEST
 }
 
 TEST_P(MeanValueGAPI, AccuracyTest)

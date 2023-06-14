@@ -269,16 +269,13 @@ int get_model_prefer_threads(const int num_streams,
     return model_prefer;
 }
 
-void get_num_streams(const int streams,
-                     const std::shared_ptr<ngraph::Function>& ngraphFunc,
-                     Config& config) {
+void generate_stream_info(const int streams,
+                          const std::shared_ptr<ngraph::Function>& ngraphFunc,
+                          Config& config,
+                          int preferred_nthreads_per_stream) {
+    int model_prefer_threads = preferred_nthreads_per_stream;
     InferenceEngine::IStreamsExecutor::Config& executor_config = config.streamExecutorConfig;
-    std::vector<int> stream_ids;
-    std::string log = "[ streams info ]";
-    std::vector<std::string> core_type_str = {" Any core: ", " PCore: ", " ECore: ", " Logical core: "};
-
-    std::vector<std::vector<int>> orig_proc_type_table = get_proc_type_table();
-    executor_config._orig_proc_type_table = orig_proc_type_table;
+    auto& orig_proc_type_table = executor_config._orig_proc_type_table;
     std::vector<std::vector<int>> proc_type_table =
         apply_scheduling_core_type(config.schedulingCoreType, orig_proc_type_table);
     proc_type_table = apply_hyper_threading(config.enableHyperThreading,
@@ -291,12 +288,30 @@ void get_num_streams(const int streams,
                                                    streams,
                                                    executor_config._threadBindingType,
                                                    proc_type_table);
-    const int model_prefer = get_model_prefer_threads(streams, proc_type_table, ngraphFunc, executor_config);
+    if (-1 == preferred_nthreads_per_stream) {
+        model_prefer_threads = get_model_prefer_threads(streams, proc_type_table, ngraphFunc, executor_config);
+    }
+
     executor_config._streams_info_table = get_streams_info_table(streams,
                                                                  executor_config._threads,
                                                                  config.perfHintsConfig.ovPerfHintNumRequests,
-                                                                 model_prefer,
+                                                                 model_prefer_threads,
                                                                  proc_type_table);
+}
+
+void get_num_streams(const int streams,
+                     const std::shared_ptr<ngraph::Function>& ngraphFunc,
+                     Config& config) {
+    InferenceEngine::IStreamsExecutor::Config& executor_config = config.streamExecutorConfig;
+    std::vector<int> stream_ids;
+    std::string log = "[ streams info ]";
+    std::vector<std::string> core_type_str = {" Any core: ", " PCore: ", " ECore: ", " Logical core: "};
+
+    std::vector<std::vector<int>> orig_proc_type_table = get_proc_type_table();
+
+    executor_config._orig_proc_type_table = orig_proc_type_table;
+    generate_stream_info(streams, ngraphFunc, config);
+
     executor_config._stream_core_ids = reserve_available_cpus(executor_config._streams_info_table);
     executor_config._threadsPerStream = executor_config._streams_info_table[0][THREADS_PER_STREAM];
     executor_config._streams = 0;
