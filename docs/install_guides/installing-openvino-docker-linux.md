@@ -75,7 +75,7 @@ Configuring the Image for Different Devices
 +++++++++++++++++++++++++++++++++++++++++++
 
 If you want to run inference on a CPU no extra configuration is needed. 
-Go to `Run the image on different devices <running-the-docker-image-on-different-devices>`__ for the next step.
+Go to `Run the image on different devices <#running-the-docker-image-on-different-devices>`__ for the next step.
 
 If you want to run inference on a GPU, follow the instructions provided in the guide on 
 :doc:`Configuration for Intel GPU <openvino_docs_install_guides_configurations_for_intel_gpu>`
