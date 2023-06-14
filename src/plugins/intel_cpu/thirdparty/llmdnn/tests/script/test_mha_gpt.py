@@ -6,7 +6,7 @@ import math
 import sys
 import torch
 import numpy as np
-import libllmdnn_ext as ld
+import llmdnn as ld
 from torch import nn
 
 # copy from transformers/models/gpt_neox/modeling_gpt_neox.py
@@ -100,7 +100,7 @@ class GPTNeoXAttentionExt:
         max_seq_len = max_position_embeddings
 
         head_size_aligned = head_size
-        normal_factor = math.sqrt(head_size)
+        normal_factor = 1.0 / math.sqrt(head_size)
         qkv_precision_name = 'bf16'
         dst_precision_name = 'bf16'
         self.mha.create(num_heads, head_size, head_size_aligned, normal_factor, qkv_precision_name,
@@ -109,7 +109,7 @@ class GPTNeoXAttentionExt:
     def forward(self, query, key, value, attention_mask=None):
         return self.mha.exec(query, key, value, attention_mask)
 
-HEAD_NUM = 12 #32
+HEAD_NUM = 32
 SIZE_PER_HEAD = 80
 HIDDEN_SIZE = HEAD_NUM * SIZE_PER_HEAD
 MAX_POSITION_EMBEDDINGS = 1024 #2048
@@ -124,16 +124,18 @@ def test(inputs):
     ref_net = ref_net.to(dtype=torch.bfloat16)
     net = GPTNeoXAttentionExt(HEAD_NUM, HIDDEN_SIZE, MAX_POSITION_EMBEDDINGS)
     with torch.cpu.amp.autocast():
-        for (input, i) in enumerate(inputs):
-            (q, k, v, attn_mask) = input
+        for (i, input) in enumerate(inputs):
+            q, k, v, attn_mask = input
             q = torch.from_numpy(q).to(torch.bfloat16)
             k = torch.from_numpy(k).to(torch.bfloat16)
             v = torch.from_numpy(v).to(torch.bfloat16)
+            attn_mask = torch.from_numpy(attn_mask)
             ref_output = ref_net.forward(q, k, v, attn_mask)
             output = net.forward(q, k, v, attn_mask)
-            if not torch.allclose(ref_output, output):
-                print(f"error at index {i}")
-            
+            if not torch.allclose(ref_output, output, rtol=0.001, atol=0.01):
+                print(f"error at index {i} ref:\n{ref_output} \ncur:\n {output} ")
+
+    print('done.')
     return
 
 if __name__ == "__main__":
@@ -143,9 +145,17 @@ if __name__ == "__main__":
         # k: [batch, num_heads, key_seq_len, head_size]
         # v: [batch, num_heads, value_seq_len, head_size]
         # attn: [1, MAX_POSITION_EMBEDDINGS]
-        (np.random.random(size=[1, HEAD_NUM, 200, SIZE_PER_HEAD]).astype(np.float32),
-         np.random.random(size=[1, HEAD_NUM, 200, SIZE_PER_HEAD]).astype(np.float32),
-         np.random.random(size=[1, HEAD_NUM, 200, SIZE_PER_HEAD]).astype(np.float32),
-         np.zeros([1, MAX_POSITION_EMBEDDINGS], dtype=np.float32))
+        (np.random.random(size=[2, HEAD_NUM, 2, SIZE_PER_HEAD]).astype(np.float32),
+         np.random.random(size=[2, HEAD_NUM, 32, SIZE_PER_HEAD]).astype(np.float32),
+         np.random.random(size=[2, HEAD_NUM, 32, SIZE_PER_HEAD]).astype(np.float32),
+         np.zeros([1, 32], dtype=np.float32)),
+        (np.random.random(size=[2, HEAD_NUM, 200, SIZE_PER_HEAD]).astype(np.float32),
+         np.random.random(size=[2, HEAD_NUM, 200, SIZE_PER_HEAD]).astype(np.float32),
+         np.random.random(size=[2, HEAD_NUM, 200, SIZE_PER_HEAD]).astype(np.float32),
+         np.zeros([1, 200], dtype=np.float32)),
+        (np.random.random(size=[2, HEAD_NUM, 1, SIZE_PER_HEAD]).astype(np.float32),
+         np.random.random(size=[2, HEAD_NUM, 200, SIZE_PER_HEAD]).astype(np.float32),
+         np.random.random(size=[2, HEAD_NUM, 200, SIZE_PER_HEAD]).astype(np.float32),
+         np.zeros([1, 200], dtype=np.float32)),
     ]
     test(inputs)

@@ -12,21 +12,25 @@ source ~/intel/oneapi/setvars.sh
 export CXX=icx
 export CC=icx
 '''
+debug = True
+extra_args = ['-fopenmp',
+              '-march=native']
+llmdnn_lib_dir = '../../../../../../../../bin/intel64/Release'
+if debug:
+  llmdnn_lib_dir = '../../../../../../../../bin/intel64/Debug'
+  extra_args += ['-g', '-O0']
 setup(name='llmdnn',
       ext_modules=[
         cpp_extension.CppExtension(
           'llmdnn',
           ['module.cpp', 'mha_gpt.cpp', '../../src/test_common.cpp'],
-          extra_compile_args=[ '-fopenmp',
-                              '-march=native',
-                              #'-g'
-                              ],
+          extra_compile_args=extra_args,
           #extra_link_args=['-lgomp'],
           include_dirs=['../../src',
                         '../../../include',
                         '../../../src'],
           library_dirs=[f'{sys.prefix}/lib',
-                        '../../../../../../../../bin/intel64/Debug'],
+                        llmdnn_lib_dir],
           #runtime_library_dirs=[ f'{sys.prefix}/lib', ],
           libraries=['llmdnn',
                      'stdc++']),

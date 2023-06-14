@@ -10,7 +10,7 @@ pip3 install -r requirements.txt
 
 compile extension
 ```
-cmake . -DBUILD_PYTHON_TESTS=ON
+./build.sh
 ```
 
 run test

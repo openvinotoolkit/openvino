@@ -106,6 +106,7 @@ void mha_gpt::Impl::mha_bf16(const exec_param &param) {
     size_t batch_stride_in_q = head_stride_in_q * _create_param.num_heads;
     size_t head_stride_in_attn = _create_param.head_size;
     size_t batch_stride_in_attn = _create_param.head_size * _create_param.num_heads * param.query_seq_len;
+    size_t causal_mask_offset_start = param.key_seq_len - param.query_seq_len;
 
     if (is_vector) {
         parallel_for2d(param.batch, _create_param.num_heads, [&](size_t threadNum, size_t i0, size_t i1) {
@@ -135,7 +136,7 @@ void mha_gpt::Impl::mha_bf16(const exec_param &param) {
             amx_kernel::PP::BiasGeluStore<float, amx_kernel::PP::Steps::NONE> pp(matQKV);
             (*qKVGemm_ops[threadNum])(matQK, matV, 0, _create_param.head_size, pp);
             memcpy2d_stride<ov::bfloat16>(reinterpret_cast<ov::bfloat16*>(pOut_aux), reinterpret_cast<float*>(bufferMatMul1Out_local), param.query_seq_len,
-                _create_param.head_size, _create_param.head_size_aligned, _create_param.num_heads * _create_param.head_size, nullptr);
+                _create_param.head_size, _create_param.head_size_aligned * sizeof(float), _create_param.num_heads * _create_param.head_size * sizeof(ov::bfloat16), nullptr);
         });
     } else {
         auto numThreads = getTotalThreads();
@@ -147,6 +148,7 @@ void mha_gpt::Impl::mha_bf16(const exec_param &param) {
             int seq;
             int start {0}, end {0};
             splitter(work_amount, static_cast<int>(numThreads), threadNum, start, end);
+            if (start >= work_amount) return;
 
             parallel_it_init(start, i0, param.batch, i1, _create_param.num_heads, seq, seq_cout_all);
             uint8_t* prev_k = nullptr;
@@ -176,7 +178,7 @@ void mha_gpt::Impl::mha_bf16(const exec_param &param) {
 
                 auto pMatMul0Out = bufferMatMul0Out_local;
                 // loop along K dimension
-                size_t valid_softmax_items = seq_start + 1;
+                size_t valid_softmax_items = causal_mask_offset_start + seq_start + 1;
                 for (size_t m = 0; m < seq_cout; m++) {
                     float* src = reinterpret_cast<float*>(pMatMul0Out + m * rndup(param.key_seq_len * sizeof(float), 64));
                     ov::bfloat16* dst = reinterpret_cast<ov::bfloat16*>(pMatMul0Out + m * rndup(param.key_seq_len * sizeof(ov::bfloat16), 64));
@@ -198,7 +200,7 @@ void mha_gpt::Impl::mha_bf16(const exec_param &param) {
                 (*qKVGemm_ops[threadNum])(matQKBF16, matV, 0, _create_param.head_size, pp2, prev_v == pVIn0_aux);
                 prev_v = pVIn0_aux;
                 memcpy2d_stride<ov::bfloat16>(reinterpret_cast<ov::bfloat16*>(pOut_aux), reinterpret_cast<float*>(bufferMatMul1Out_local), seq_cout,
-                    _create_param.head_size, _create_param.head_size_aligned, _create_param.num_heads * _create_param.head_size, nullptr);
+                    _create_param.head_size, _create_param.head_size_aligned * sizeof(float), _create_param.num_heads * _create_param.head_size * sizeof(ov::bfloat16), nullptr);
                 parallel_it_step(i0, param.batch, i1, _create_param.num_heads, seq, seq_cout_all);
             }
         });
@@ -229,6 +231,7 @@ void mha_gpt::Impl::mha_i8(const exec_param &param) {
     size_t batch_stride_in_q = head_stride_in_q * _create_param.num_heads;
     size_t head_stride_in_attn = _create_param.head_size;
     size_t batch_stride_in_attn = _create_param.head_size * _create_param.num_heads * param.query_seq_len;
+    size_t causal_mask_offset_start = param.key_seq_len - param.query_seq_len;
 
     if (is_vector) {
         parallel_for2d(param.batch, _create_param.num_heads, [&](size_t threadNum, size_t i0, size_t i1) {
@@ -259,7 +262,7 @@ void mha_gpt::Impl::mha_i8(const exec_param &param) {
             amx_kernel::PP::BiasGeluStore<float, amx_kernel::PP::Steps::NONE> pp(matQKV);
             (*qKVGemm_ops[threadNum])(matQK, matV, 0, _create_param.head_size, pp);
             memcpy2d_stride<int8_t>(reinterpret_cast<int8_t*>(pOut_aux), reinterpret_cast<float*>(bufferMatMul1Out_local), param.query_seq_len,
-                _create_param.head_size, _create_param.head_size_aligned, _create_param.num_heads * _create_param.head_size, qkv_quant.data());
+                _create_param.head_size, _create_param.head_size_aligned * sizeof(float), _create_param.num_heads * _create_param.head_size, qkv_quant.data());
         });
     } else {
         auto numThreads = getTotalThreads();
@@ -271,6 +274,7 @@ void mha_gpt::Impl::mha_i8(const exec_param &param) {
             int seq;
             int start {0}, end {0};
             splitter(work_amount, static_cast<int>(numThreads), threadNum, start, end);
+            if (start >= work_amount) return;
 
             parallel_it_init(start, i0, param.batch, i1, _create_param.num_heads, seq, seq_cout_all);
             uint8_t* prev_k = nullptr;
@@ -300,7 +304,7 @@ void mha_gpt::Impl::mha_i8(const exec_param &param) {
 
                 auto pMatMul0Out = bufferMatMul0Out_local;
                 // loop along K dimension
-                size_t valid_softmax_items = seq_start + 1;
+                size_t valid_softmax_items = causal_mask_offset_start + seq_start + 1;
                 for (size_t m = 0; m < seq_cout; m++) {
                     float* src = reinterpret_cast<float*>(pMatMul0Out + m * rndup(param.key_seq_len * sizeof(float), 64));
                     uint8_t* dst = reinterpret_cast<uint8_t*>(pMatMul0Out + m * rndup(param.key_seq_len * sizeof(uint8_t), 64));
@@ -324,7 +328,7 @@ void mha_gpt::Impl::mha_i8(const exec_param &param) {
                 // matmul1: [batch, num_heads, query_seq_len, head_size]
                 // attn_output: [batch, query_seq_len, num_heads * head_size]
                 memcpy2d_stride<int8_t>(reinterpret_cast<int8_t*>(pOut_aux), reinterpret_cast<float*>(bufferMatMul1Out_local), seq_cout,
-                    _create_param.head_size, _create_param.head_size_aligned, _create_param.num_heads * _create_param.head_size, qkv_quant.data());
+                    _create_param.head_size, _create_param.head_size_aligned * sizeof(float), _create_param.num_heads * _create_param.head_size, qkv_quant.data());
                 parallel_it_step(i0, param.batch, i1, _create_param.num_heads, seq, seq_cout_all);
             }
         });

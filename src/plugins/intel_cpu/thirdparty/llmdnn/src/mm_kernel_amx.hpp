@@ -201,7 +201,7 @@ namespace functional {
                 rc = _mm512_loadu_epi32(pA + 12*stride);
                 rd = _mm512_loadu_epi32(pA + 13*stride);
                 re = _mm512_loadu_epi32(pA + 14*stride);
-                rf = _mm512_setzero();
+                rf = _mm512_setzero_epi32();
                 break;
             case 14:
                 r0 = _mm512_loadu_epi32(pA);
@@ -218,8 +218,8 @@ namespace functional {
                 rb = _mm512_loadu_epi32(pA + 11*stride);
                 rc = _mm512_loadu_epi32(pA + 12*stride);
                 rd = _mm512_loadu_epi32(pA + 13*stride);
-                re = _mm512_setzero();
-                rf = _mm512_setzero();
+                re = _mm512_setzero_epi32();
+                rf = _mm512_setzero_epi32();
                 break;
             case 13:
                 r0 = _mm512_loadu_epi32(pA);
@@ -235,9 +235,9 @@ namespace functional {
                 ra = _mm512_loadu_epi32(pA + 10*stride);
                 rb = _mm512_loadu_epi32(pA + 11*stride);
                 rc = _mm512_loadu_epi32(pA + 12*stride);
-                rd = _mm512_setzero();
-                re = _mm512_setzero();
-                rf = _mm512_setzero();
+                rd = _mm512_setzero_epi32();
+                re = _mm512_setzero_epi32();
+                rf = _mm512_setzero_epi32();
                 break;
             case 12:
                 r0 = _mm512_loadu_epi32(pA);
@@ -252,10 +252,10 @@ namespace functional {
                 r9 = _mm512_loadu_epi32(pA + 9*stride);
                 ra = _mm512_loadu_epi32(pA + 10*stride);
                 rb = _mm512_loadu_epi32(pA + 11*stride);
-                rc = _mm512_setzero();
-                rd = _mm512_setzero();
-                re = _mm512_setzero();
-                rf = _mm512_setzero();
+                rc = _mm512_setzero_epi32();
+                rd = _mm512_setzero_epi32();
+                re = _mm512_setzero_epi32();
+                rf = _mm512_setzero_epi32();
                 break;
             case 11:
                 r0 = _mm512_loadu_epi32(pA);
@@ -269,11 +269,11 @@ namespace functional {
                 r8 = _mm512_loadu_epi32(pA + 8*stride);
                 r9 = _mm512_loadu_epi32(pA + 9*stride);
                 ra = _mm512_loadu_epi32(pA + 10*stride);
-                rb = _mm512_setzero();
-                rc = _mm512_setzero();
-                rd = _mm512_setzero();
-                re = _mm512_setzero();
-                rf = _mm512_setzero();
+                rb = _mm512_setzero_epi32();
+                rc = _mm512_setzero_epi32();
+                rd = _mm512_setzero_epi32();
+                re = _mm512_setzero_epi32();
+                rf = _mm512_setzero_epi32();
                 break;
             case 10:
                 r0 = _mm512_loadu_epi32(pA);
@@ -286,12 +286,12 @@ namespace functional {
                 r7 = _mm512_loadu_epi32(pA + 7*stride);
                 r8 = _mm512_loadu_epi32(pA + 8*stride);
                 r9 = _mm512_loadu_epi32(pA + 9*stride);
-                ra = _mm512_setzero();
-                rb = _mm512_setzero();
-                rc = _mm512_setzero();
-                rd = _mm512_setzero();
-                re = _mm512_setzero();
-                rf = _mm512_setzero();
+                ra = _mm512_setzero_epi32();
+                rb = _mm512_setzero_epi32();
+                rc = _mm512_setzero_epi32();
+                rd = _mm512_setzero_epi32();
+                re = _mm512_setzero_epi32();
+                rf = _mm512_setzero_epi32();
                 break;
             case 9:
                 r0 = _mm512_loadu_epi32(pA);
@@ -303,13 +303,13 @@ namespace functional {
                 r6 = _mm512_loadu_epi32(pA + 6*stride);
                 r7 = _mm512_loadu_epi32(pA + 7*stride);
                 r8 = _mm512_loadu_epi32(pA + 8*stride);
-                r9 = _mm512_setzero();
-                ra = _mm512_setzero();
-                rb = _mm512_setzero();
-                rc = _mm512_setzero();
-                rd = _mm512_setzero();
-                re = _mm512_setzero();
-                rf = _mm512_setzero();
+                r9 = _mm512_setzero_epi32();
+                ra = _mm512_setzero_epi32();
+                rb = _mm512_setzero_epi32();
+                rc = _mm512_setzero_epi32();
+                rd = _mm512_setzero_epi32();
+                re = _mm512_setzero_epi32();
+                rf = _mm512_setzero_epi32();
                 break;
             case 8:
                 r0 = _mm512_loadu_epi32(pA);
@@ -320,14 +320,14 @@ namespace functional {
                 r5 = _mm512_loadu_epi32(pA + 5*stride);
                 r6 = _mm512_loadu_epi32(pA + 6*stride);
                 r7 = _mm512_loadu_epi32(pA + 7*stride);
-                r8 = _mm512_setzero();
-                r9 = _mm512_setzero();
-                ra = _mm512_setzero();
-                rb = _mm512_setzero();
-                rc = _mm512_setzero();
-                rd = _mm512_setzero();
-                re = _mm512_setzero();
-                rf = _mm512_setzero();
+                r8 = _mm512_setzero_epi32();
+                r9 = _mm512_setzero_epi32();
+                ra = _mm512_setzero_epi32();
+                rb = _mm512_setzero_epi32();
+                rc = _mm512_setzero_epi32();
+                rd = _mm512_setzero_epi32();
+                re = _mm512_setzero_epi32();
+                rf = _mm512_setzero_epi32();
                 break;
             case 7:
                 r0 = _mm512_loadu_epi32(pA);
@@ -337,15 +337,15 @@ namespace functional {
                 r4 = _mm512_loadu_epi32(pA + 4*stride);
                 r5 = _mm512_loadu_epi32(pA + 5*stride);
                 r6 = _mm512_loadu_epi32(pA + 6*stride);
-                r7 = _mm512_setzero();
-                r8 = _mm512_setzero();
-                r9 = _mm512_setzero();
-                ra = _mm512_setzero();
-                rb = _mm512_setzero();
-                rc = _mm512_setzero();
-                rd = _mm512_setzero();
-                re = _mm512_setzero();
-                rf = _mm512_setzero();
+                r7 = _mm512_setzero_epi32();
+                r8 = _mm512_setzero_epi32();
+                r9 = _mm512_setzero_epi32();
+                ra = _mm512_setzero_epi32();
+                rb = _mm512_setzero_epi32();
+                rc = _mm512_setzero_epi32();
+                rd = _mm512_setzero_epi32();
+                re = _mm512_setzero_epi32();
+                rf = _mm512_setzero_epi32();
                 break;
             case 6:
                 r0 = _mm512_loadu_epi32(pA);
@@ -354,16 +354,16 @@ namespace functional {
                 r3 = _mm512_loadu_epi32(pA + 3*stride);
                 r4 = _mm512_loadu_epi32(pA + 4*stride);
                 r5 = _mm512_loadu_epi32(pA + 5*stride);
-                r6 = _mm512_setzero();
-                r7 = _mm512_setzero();
-                r8 = _mm512_setzero();
-                r9 = _mm512_setzero();
-                ra = _mm512_setzero();
-                rb = _mm512_setzero();
-                rc = _mm512_setzero();
-                rd = _mm512_setzero();
-                re = _mm512_setzero();
-                rf = _mm512_setzero();
+                r6 = _mm512_setzero_epi32();
+                r7 = _mm512_setzero_epi32();
+                r8 = _mm512_setzero_epi32();
+                r9 = _mm512_setzero_epi32();
+                ra = _mm512_setzero_epi32();
+                rb = _mm512_setzero_epi32();
+                rc = _mm512_setzero_epi32();
+                rd = _mm512_setzero_epi32();
+                re = _mm512_setzero_epi32();
+                rf = _mm512_setzero_epi32();
                 break;
             case 5:
                 r0 = _mm512_loadu_epi32(pA);
@@ -371,89 +371,89 @@ namespace functional {
                 r2 = _mm512_loadu_epi32(pA + 2*stride);
                 r3 = _mm512_loadu_epi32(pA + 3*stride);
                 r4 = _mm512_loadu_epi32(pA + 4*stride);
-                r5 = _mm512_setzero();
-                r6 = _mm512_setzero();
-                r7 = _mm512_setzero();
-                r8 = _mm512_setzero();
-                r9 = _mm512_setzero();
-                ra = _mm512_setzero();
-                rb = _mm512_setzero();
-                rc = _mm512_setzero();
-                rd = _mm512_setzero();
-                re = _mm512_setzero();
-                rf = _mm512_setzero();
+                r5 = _mm512_setzero_epi32();
+                r6 = _mm512_setzero_epi32();
+                r7 = _mm512_setzero_epi32();
+                r8 = _mm512_setzero_epi32();
+                r9 = _mm512_setzero_epi32();
+                ra = _mm512_setzero_epi32();
+                rb = _mm512_setzero_epi32();
+                rc = _mm512_setzero_epi32();
+                rd = _mm512_setzero_epi32();
+                re = _mm512_setzero_epi32();
+                rf = _mm512_setzero_epi32();
                 break;
             case 4:
                 r0 = _mm512_loadu_epi32(pA);
                 r1 = _mm512_loadu_epi32(pA + stride);
                 r2 = _mm512_loadu_epi32(pA + 2*stride);
                 r3 = _mm512_loadu_epi32(pA + 3*stride);
-                r4 = _mm512_setzero();
-                r5 = _mm512_setzero();
-                r6 = _mm512_setzero();
-                r7 = _mm512_setzero();
-                r8 = _mm512_setzero();
-                r9 = _mm512_setzero();
-                ra = _mm512_setzero();
-                rb = _mm512_setzero();
-                rc = _mm512_setzero();
-                rd = _mm512_setzero();
-                re = _mm512_setzero();
-                rf = _mm512_setzero();
+                r4 = _mm512_setzero_epi32();
+                r5 = _mm512_setzero_epi32();
+                r6 = _mm512_setzero_epi32();
+                r7 = _mm512_setzero_epi32();
+                r8 = _mm512_setzero_epi32();
+                r9 = _mm512_setzero_epi32();
+                ra = _mm512_setzero_epi32();
+                rb = _mm512_setzero_epi32();
+                rc = _mm512_setzero_epi32();
+                rd = _mm512_setzero_epi32();
+                re = _mm512_setzero_epi32();
+                rf = _mm512_setzero_epi32();
                 break;
             case 3:
                 r0 = _mm512_loadu_epi32(pA);
                 r1 = _mm512_loadu_epi32(pA + stride);
                 r2 = _mm512_loadu_epi32(pA + 2*stride);
-                r3 = _mm512_setzero();
-                r4 = _mm512_setzero();
-                r5 = _mm512_setzero();
-                r6 = _mm512_setzero();
-                r7 = _mm512_setzero();
-                r8 = _mm512_setzero();
-                r9 = _mm512_setzero();
-                ra = _mm512_setzero();
-                rb = _mm512_setzero();
-                rc = _mm512_setzero();
-                rd = _mm512_setzero();
-                re = _mm512_setzero();
-                rf = _mm512_setzero();
+                r3 = _mm512_setzero_epi32();
+                r4 = _mm512_setzero_epi32();
+                r5 = _mm512_setzero_epi32();
+                r6 = _mm512_setzero_epi32();
+                r7 = _mm512_setzero_epi32();
+                r8 = _mm512_setzero_epi32();
+                r9 = _mm512_setzero_epi32();
+                ra = _mm512_setzero_epi32();
+                rb = _mm512_setzero_epi32();
+                rc = _mm512_setzero_epi32();
+                rd = _mm512_setzero_epi32();
+                re = _mm512_setzero_epi32();
+                rf = _mm512_setzero_epi32();
                 break;
             case 2:
                 r0 = _mm512_loadu_epi32(pA);
                 r1 = _mm512_loadu_epi32(pA + stride);
-                r2 = _mm512_setzero();
-                r3 = _mm512_setzero();
-                r4 = _mm512_setzero();
-                r5 = _mm512_setzero();
-                r6 = _mm512_setzero();
-                r7 = _mm512_setzero();
-                r8 = _mm512_setzero();
-                r9 = _mm512_setzero();
-                ra = _mm512_setzero();
-                rb = _mm512_setzero();
-                rc = _mm512_setzero();
-                rd = _mm512_setzero();
-                re = _mm512_setzero();
-                rf = _mm512_setzero();
+                r2 = _mm512_setzero_epi32();
+                r3 = _mm512_setzero_epi32();
+                r4 = _mm512_setzero_epi32();
+                r5 = _mm512_setzero_epi32();
+                r6 = _mm512_setzero_epi32();
+                r7 = _mm512_setzero_epi32();
+                r8 = _mm512_setzero_epi32();
+                r9 = _mm512_setzero_epi32();
+                ra = _mm512_setzero_epi32();
+                rb = _mm512_setzero_epi32();
+                rc = _mm512_setzero_epi32();
+                rd = _mm512_setzero_epi32();
+                re = _mm512_setzero_epi32();
+                rf = _mm512_setzero_epi32();
                 break;
             case 1:
                 r0 = _mm512_loadu_epi32(pA);
-                r1 = _mm512_setzero();
-                r2 = _mm512_setzero();
-                r3 = _mm512_setzero();
-                r4 = _mm512_setzero();
-                r5 = _mm512_setzero();
-                r6 = _mm512_setzero();
-                r7 = _mm512_setzero();
-                r8 = _mm512_setzero();
-                r9 = _mm512_setzero();
-                ra = _mm512_setzero();
-                rb = _mm512_setzero();
-                rc = _mm512_setzero();
-                rd = _mm512_setzero();
-                re = _mm512_setzero();
-                rf = _mm512_setzero();
+                r1 = _mm512_setzero_epi32();
+                r2 = _mm512_setzero_epi32();
+                r3 = _mm512_setzero_epi32();
+                r4 = _mm512_setzero_epi32();
+                r5 = _mm512_setzero_epi32();
+                r6 = _mm512_setzero_epi32();
+                r7 = _mm512_setzero_epi32();
+                r8 = _mm512_setzero_epi32();
+                r9 = _mm512_setzero_epi32();
+                ra = _mm512_setzero_epi32();
+                rb = _mm512_setzero_epi32();
+                rc = _mm512_setzero_epi32();
+                rd = _mm512_setzero_epi32();
+                re = _mm512_setzero_epi32();
+                rf = _mm512_setzero_epi32();
                 break;
         }
 
@@ -544,7 +544,7 @@ namespace functional {
                 rc = _mm512_maskz_loadu_epi8 (mask, pA + 12*stride);
                 rd = _mm512_maskz_loadu_epi8 (mask, pA + 13*stride);
                 re = _mm512_maskz_loadu_epi8 (mask, pA + 14*stride);
-                rf = _mm512_setzero();
+                rf = _mm512_setzero_epi32();
                 break;
             case 14:
                 r0 = _mm512_maskz_loadu_epi8 (mask, pA);
@@ -561,8 +561,8 @@ namespace functional {
                 rb = _mm512_maskz_loadu_epi8 (mask, pA + 11*stride);
                 rc = _mm512_maskz_loadu_epi8 (mask, pA + 12*stride);
                 rd = _mm512_maskz_loadu_epi8 (mask, pA + 13*stride);
-                re = _mm512_setzero();
-                rf = _mm512_setzero();
+                re = _mm512_setzero_epi32();
+                rf = _mm512_setzero_epi32();
                 break;
             case 13:
                 r0 = _mm512_maskz_loadu_epi8 (mask, pA);
@@ -578,9 +578,9 @@ namespace functional {
                 ra = _mm512_maskz_loadu_epi8 (mask, pA + 10*stride);
                 rb = _mm512_maskz_loadu_epi8 (mask, pA + 11*stride);
                 rc = _mm512_maskz_loadu_epi8 (mask, pA + 12*stride);
-                rd = _mm512_setzero();
-                re = _mm512_setzero();
-                rf = _mm512_setzero();
+                rd = _mm512_setzero_epi32();
+                re = _mm512_setzero_epi32();
+                rf = _mm512_setzero_epi32();
                 break;
             case 12:
                 r0 = _mm512_maskz_loadu_epi8 (mask, pA);
@@ -595,10 +595,10 @@ namespace functional {
                 r9 = _mm512_maskz_loadu_epi8 (mask, pA + 9*stride);
                 ra = _mm512_maskz_loadu_epi8 (mask, pA + 10*stride);
                 rb = _mm512_maskz_loadu_epi8 (mask, pA + 11*stride);
-                rc = _mm512_setzero();
-                rd = _mm512_setzero();
-                re = _mm512_setzero();
-                rf = _mm512_setzero();
+                rc = _mm512_setzero_epi32();
+                rd = _mm512_setzero_epi32();
+                re = _mm512_setzero_epi32();
+                rf = _mm512_setzero_epi32();
                 break;
             case 11:
                 r0 = _mm512_maskz_loadu_epi8 (mask, pA);
@@ -612,11 +612,11 @@ namespace functional {
                 r8 = _mm512_maskz_loadu_epi8 (mask, pA + 8*stride);
                 r9 = _mm512_maskz_loadu_epi8 (mask, pA + 9*stride);
                 ra = _mm512_maskz_loadu_epi8 (mask, pA + 10*stride);
-                rb = _mm512_setzero();
-                rc = _mm512_setzero();
-                rd = _mm512_setzero();
-                re = _mm512_setzero();
-                rf = _mm512_setzero();
+                rb = _mm512_setzero_epi32();
+                rc = _mm512_setzero_epi32();
+                rd = _mm512_setzero_epi32();
+                re = _mm512_setzero_epi32();
+                rf = _mm512_setzero_epi32();
                 break;
             case 10:
                 r0 = _mm512_maskz_loadu_epi8 (mask, pA);
@@ -629,12 +629,12 @@ namespace functional {
                 r7 = _mm512_maskz_loadu_epi8 (mask, pA + 7*stride);
                 r8 = _mm512_maskz_loadu_epi8 (mask, pA + 8*stride);
                 r9 = _mm512_maskz_loadu_epi8 (mask, pA + 9*stride);
-                ra = _mm512_setzero();
-                rb = _mm512_setzero();
-                rc = _mm512_setzero();
-                rd = _mm512_setzero();
-                re = _mm512_setzero();
-                rf = _mm512_setzero();
+                ra = _mm512_setzero_epi32();
+                rb = _mm512_setzero_epi32();
+                rc = _mm512_setzero_epi32();
+                rd = _mm512_setzero_epi32();
+                re = _mm512_setzero_epi32();
+                rf = _mm512_setzero_epi32();
                 break;
             case 9:
                 r0 = _mm512_maskz_loadu_epi8 (mask, pA);
@@ -646,13 +646,13 @@ namespace functional {
                 r6 = _mm512_maskz_loadu_epi8 (mask, pA + 6*stride);
                 r7 = _mm512_maskz_loadu_epi8 (mask, pA + 7*stride);
                 r8 = _mm512_maskz_loadu_epi8 (mask, pA + 8*stride);
-                r9 = _mm512_setzero();
-                ra = _mm512_setzero();
-                rb = _mm512_setzero();
-                rc = _mm512_setzero();
-                rd = _mm512_setzero();
-                re = _mm512_setzero();
-                rf = _mm512_setzero();
+                r9 = _mm512_setzero_epi32();
+                ra = _mm512_setzero_epi32();
+                rb = _mm512_setzero_epi32();
+                rc = _mm512_setzero_epi32();
+                rd = _mm512_setzero_epi32();
+                re = _mm512_setzero_epi32();
+                rf = _mm512_setzero_epi32();
                 break;
             case 8:
                 r0 = _mm512_maskz_loadu_epi8 (mask, pA);
@@ -663,14 +663,14 @@ namespace functional {
                 r5 = _mm512_maskz_loadu_epi8 (mask, pA + 5*stride);
                 r6 = _mm512_maskz_loadu_epi8 (mask, pA + 6*stride);
                 r7 = _mm512_maskz_loadu_epi8 (mask, pA + 7*stride);
-                r8 = _mm512_setzero();
-                r9 = _mm512_setzero();
-                ra = _mm512_setzero();
-                rb = _mm512_setzero();
-                rc = _mm512_setzero();
-                rd = _mm512_setzero();
-                re = _mm512_setzero();
-                rf = _mm512_setzero();
+                r8 = _mm512_setzero_epi32();
+                r9 = _mm512_setzero_epi32();
+                ra = _mm512_setzero_epi32();
+                rb = _mm512_setzero_epi32();
+                rc = _mm512_setzero_epi32();
+                rd = _mm512_setzero_epi32();
+                re = _mm512_setzero_epi32();
+                rf = _mm512_setzero_epi32();
                 break;
             case 7:
                 r0 = _mm512_maskz_loadu_epi8 (mask, pA);
@@ -680,15 +680,15 @@ namespace functional {
                 r4 = _mm512_maskz_loadu_epi8 (mask, pA + 4*stride);
                 r5 = _mm512_maskz_loadu_epi8 (mask, pA + 5*stride);
                 r6 = _mm512_maskz_loadu_epi8 (mask, pA + 6*stride);
-                r7 = _mm512_setzero();
-                r8 = _mm512_setzero();
-                r9 = _mm512_setzero();
-                ra = _mm512_setzero();
-                rb = _mm512_setzero();
-                rc = _mm512_setzero();
-                rd = _mm512_setzero();
-                re = _mm512_setzero();
-                rf = _mm512_setzero();
+                r7 = _mm512_setzero_epi32();
+                r8 = _mm512_setzero_epi32();
+                r9 = _mm512_setzero_epi32();
+                ra = _mm512_setzero_epi32();
+                rb = _mm512_setzero_epi32();
+                rc = _mm512_setzero_epi32();
+                rd = _mm512_setzero_epi32();
+                re = _mm512_setzero_epi32();
+                rf = _mm512_setzero_epi32();
                 break;
             case 6:
                 r0 = _mm512_maskz_loadu_epi8 (mask, pA);
@@ -697,16 +697,16 @@ namespace functional {
                 r3 = _mm512_maskz_loadu_epi8 (mask, pA + 3*stride);
                 r4 = _mm512_maskz_loadu_epi8 (mask, pA + 4*stride);
                 r5 = _mm512_maskz_loadu_epi8 (mask, pA + 5*stride);
-                r6 = _mm512_setzero();
-                r7 = _mm512_setzero();
-                r8 = _mm512_setzero();
-                r9 = _mm512_setzero();
-                ra = _mm512_setzero();
-                rb = _mm512_setzero();
-                rc = _mm512_setzero();
-                rd = _mm512_setzero();
-                re = _mm512_setzero();
-                rf = _mm512_setzero();
+                r6 = _mm512_setzero_epi32();
+                r7 = _mm512_setzero_epi32();
+                r8 = _mm512_setzero_epi32();
+                r9 = _mm512_setzero_epi32();
+                ra = _mm512_setzero_epi32();
+                rb = _mm512_setzero_epi32();
+                rc = _mm512_setzero_epi32();
+                rd = _mm512_setzero_epi32();
+                re = _mm512_setzero_epi32();
+                rf = _mm512_setzero_epi32();
                 break;
             case 5:
                 r0 = _mm512_maskz_loadu_epi8 (mask, pA);
@@ -714,89 +714,89 @@ namespace functional {
                 r2 = _mm512_maskz_loadu_epi8 (mask, pA + 2*stride);
                 r3 = _mm512_maskz_loadu_epi8 (mask, pA + 3*stride);
                 r4 = _mm512_maskz_loadu_epi8 (mask, pA + 4*stride);
-                r5 = _mm512_setzero();
-                r6 = _mm512_setzero();
-                r7 = _mm512_setzero();
-                r8 = _mm512_setzero();
-                r9 = _mm512_setzero();
-                ra = _mm512_setzero();
-                rb = _mm512_setzero();
-                rc = _mm512_setzero();
-                rd = _mm512_setzero();
-                re = _mm512_setzero();
-                rf = _mm512_setzero();
+                r5 = _mm512_setzero_epi32();
+                r6 = _mm512_setzero_epi32();
+                r7 = _mm512_setzero_epi32();
+                r8 = _mm512_setzero_epi32();
+                r9 = _mm512_setzero_epi32();
+                ra = _mm512_setzero_epi32();
+                rb = _mm512_setzero_epi32();
+                rc = _mm512_setzero_epi32();
+                rd = _mm512_setzero_epi32();
+                re = _mm512_setzero_epi32();
+                rf = _mm512_setzero_epi32();
                 break;
             case 4:
                 r0 = _mm512_maskz_loadu_epi8 (mask, pA);
                 r1 = _mm512_maskz_loadu_epi8 (mask, pA + stride);
                 r2 = _mm512_maskz_loadu_epi8 (mask, pA + 2*stride);
                 r3 = _mm512_maskz_loadu_epi8 (mask, pA + 3*stride);
-                r4 = _mm512_setzero();
-                r5 = _mm512_setzero();
-                r6 = _mm512_setzero();
-                r7 = _mm512_setzero();
-                r8 = _mm512_setzero();
-                r9 = _mm512_setzero();
-                ra = _mm512_setzero();
-                rb = _mm512_setzero();
-                rc = _mm512_setzero();
-                rd = _mm512_setzero();
-                re = _mm512_setzero();
-                rf = _mm512_setzero();
+                r4 = _mm512_setzero_epi32();
+                r5 = _mm512_setzero_epi32();
+                r6 = _mm512_setzero_epi32();
+                r7 = _mm512_setzero_epi32();
+                r8 = _mm512_setzero_epi32();
+                r9 = _mm512_setzero_epi32();
+                ra = _mm512_setzero_epi32();
+                rb = _mm512_setzero_epi32();
+                rc = _mm512_setzero_epi32();
+                rd = _mm512_setzero_epi32();
+                re = _mm512_setzero_epi32();
+                rf = _mm512_setzero_epi32();
                 break;
             case 3:
                 r0 = _mm512_maskz_loadu_epi8 (mask, pA);
                 r1 = _mm512_maskz_loadu_epi8 (mask, pA + stride);
                 r2 = _mm512_maskz_loadu_epi8 (mask, pA + 2*stride);
-                r3 = _mm512_setzero();
-                r4 = _mm512_setzero();
-                r5 = _mm512_setzero();
-                r6 = _mm512_setzero();
-                r7 = _mm512_setzero();
-                r8 = _mm512_setzero();
-                r9 = _mm512_setzero();
-                ra = _mm512_setzero();
-                rb = _mm512_setzero();
-                rc = _mm512_setzero();
-                rd = _mm512_setzero();
-                re = _mm512_setzero();
-                rf = _mm512_setzero();
+                r3 = _mm512_setzero_epi32();
+                r4 = _mm512_setzero_epi32();
+                r5 = _mm512_setzero_epi32();
+                r6 = _mm512_setzero_epi32();
+                r7 = _mm512_setzero_epi32();
+                r8 = _mm512_setzero_epi32();
+                r9 = _mm512_setzero_epi32();
+                ra = _mm512_setzero_epi32();
+                rb = _mm512_setzero_epi32();
+                rc = _mm512_setzero_epi32();
+                rd = _mm512_setzero_epi32();
+                re = _mm512_setzero_epi32();
+                rf = _mm512_setzero_epi32();
                 break;
             case 2:
                 r0 = _mm512_maskz_loadu_epi8 (mask, pA);
                 r1 = _mm512_maskz_loadu_epi8 (mask, pA + stride);
-                r2 = _mm512_setzero();
-                r3 = _mm512_setzero();
-                r4 = _mm512_setzero();
-                r5 = _mm512_setzero();
-                r6 = _mm512_setzero();
-                r7 = _mm512_setzero();
-                r8 = _mm512_setzero();
-                r9 = _mm512_setzero();
-                ra = _mm512_setzero();
-                rb = _mm512_setzero();
-                rc = _mm512_setzero();
-                rd = _mm512_setzero();
-                re = _mm512_setzero();
-                rf = _mm512_setzero();
+                r2 = _mm512_setzero_epi32();
+                r3 = _mm512_setzero_epi32();
+                r4 = _mm512_setzero_epi32();
+                r5 = _mm512_setzero_epi32();
+                r6 = _mm512_setzero_epi32();
+                r7 = _mm512_setzero_epi32();
+                r8 = _mm512_setzero_epi32();
+                r9 = _mm512_setzero_epi32();
+                ra = _mm512_setzero_epi32();
+                rb = _mm512_setzero_epi32();
+                rc = _mm512_setzero_epi32();
+                rd = _mm512_setzero_epi32();
+                re = _mm512_setzero_epi32();
+                rf = _mm512_setzero_epi32();
                 break;
             case 1:
                 r0 = _mm512_maskz_loadu_epi8 (mask, pA);
-                r1 = _mm512_setzero();
-                r2 = _mm512_setzero();
-                r3 = _mm512_setzero();
-                r4 = _mm512_setzero();
-                r5 = _mm512_setzero();
-                r6 = _mm512_setzero();
-                r7 = _mm512_setzero();
-                r8 = _mm512_setzero();
-                r9 = _mm512_setzero();
-                ra = _mm512_setzero();
-                rb = _mm512_setzero();
-                rc = _mm512_setzero();
-                rd = _mm512_setzero();
-                re = _mm512_setzero();
-                rf = _mm512_setzero();
+                r1 = _mm512_setzero_epi32();
+                r2 = _mm512_setzero_epi32();
+                r3 = _mm512_setzero_epi32();
+                r4 = _mm512_setzero_epi32();
+                r5 = _mm512_setzero_epi32();
+                r6 = _mm512_setzero_epi32();
+                r7 = _mm512_setzero_epi32();
+                r8 = _mm512_setzero_epi32();
+                r9 = _mm512_setzero_epi32();
+                ra = _mm512_setzero_epi32();
+                rb = _mm512_setzero_epi32();
+                rc = _mm512_setzero_epi32();
+                rd = _mm512_setzero_epi32();
+                re = _mm512_setzero_epi32();
+                rf = _mm512_setzero_epi32();
                 break;
         }
         transpose_m512i_16x16(r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, ra, rb, rc, rd, re, rf);
@@ -1416,7 +1416,7 @@ namespace PP {
                 }
                 if (std::is_same<D, ov::bfloat16>::value) {
                     auto c = _mm512_cvtne2ps_pbh(r1, r0);   // convert to bf16
-                    _mm512_mask_storeu_epi16(pdst, kall, c);   // store bf16
+                    _mm512_mask_storeu_epi16(pdst, kall, (__m512i)c);   // store bf16
                 }
                 if (std::is_same<D, int8_t>::value) {
                     auto d0 = _mm512_cvtps_epi32(r0);       // convert to dword(i32)
@@ -1444,8 +1444,6 @@ void prefetch_bytes(void *src)
     for (int i = 0; i < bytes; i+=64)
         _mm_prefetch(p + i + advance, sel);
 }
-template <int... tmm>
-void zero_tiles() { int dummy[sizeof...(tmm)] = {(_tile_zero(tmm), 0)...}; }
 
 // matmul (FC)
 //
@@ -1729,7 +1727,7 @@ struct MatmulVector {
         }
         //asm("int3");
         for(int m = 0; m < M; m+=16) {
-            zero_tiles<0>();
+            _tile_zero(0);
             if (tmmN == 1) {
                 _tile_loadd(1, pA0, strideA); TILE_DP(0, 1, 2);
             }
@@ -1938,7 +1936,7 @@ struct Matmul {
                 pA0 -= (16 - (M - m0))*A.stride;
                 m = M - 16;
             }
-            zero_tiles<0>();
+            _tile_zero(0);
             if (tmmN  == 1) {
                 _tile_loadd(1, pA0, strideA); TILE_DP(0, 1, 2);
             }
@@ -2037,7 +2035,8 @@ struct Matmul {
             int k;
             const auto strideA = matA.stride;
             loop2D_no_bM<32>(M, N, [&](int m, int n, int valid_m, int valid_n) {
-                zero_tiles<0, 1>();
+                _tile_zero(0);
+                _tile_zero(1);
                 int8_t * pA0 = reinterpret_cast<int8_t*>(&matA[0]);
                 for(k=0; k<Kbody; k+=kStep) {
                     _tile_loadd(2, pA0, strideA); pA0 += 64;  // tile A Mx32/Mx64, cols is always 64
@@ -2070,7 +2069,10 @@ struct Matmul {
             auto * pA1 = reinterpret_cast<int8_t*>(&matA(m + 16, 0));
             auto strideA = matA.stride;
             auto * pB = reinterpret_cast<int8_t*>(&internalB(n>>5, 0));
-            zero_tiles<0, 1, 2, 3>();
+            _tile_zero(0);
+            _tile_zero(1);
+            _tile_zero(2);
+            _tile_zero(3);
             // 2x2
             for (int k = 0; k < Kbody; k += kStep) {
                 _tile_loadd(4, pA0, strideA); pA0 += 64;
@@ -2209,7 +2211,8 @@ struct Matmul<ov::bfloat16, int8_t, float> {
             const auto strideA = matA.stride;
             loop2D_no_bM<32>(M, N, [&](int m, int n, int valid_m, int valid_n) {
                 // C:Mx32 = A:Mx32 x B:32x32
-                zero_tiles<0, 1>();
+                _tile_zero(0);
+                _tile_zero(1);
                 auto * pA0 = &matA[0];
                 for(int k=0; k<Kbody; k+=kStep) {
                     // 1x2
@@ -2265,7 +2268,10 @@ struct Matmul<ov::bfloat16, int8_t, float> {
             auto * pBint = reinterpret_cast<int8_t*>(&internalBI8(n>>5, 0));
             functional::i8_to_bf16_Kx32<32>(pBint, pBb);
 
-            zero_tiles<0, 1, 2, 3>();
+            _tile_zero(0);
+            _tile_zero(1);
+            _tile_zero(2);
+            _tile_zero(3);
             int k;
             for (k = 0; k < Kbody; k += kStep) {
                 functional::i8_to_bf16_Kx32<16>(pBint, pBa);
@@ -2406,22 +2412,22 @@ struct GemAvB {
                 functional::transpose_m512i_16x16(r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, ra, rb, rc, rd, re, rf);
 
                 // vdpbf16ps
-                regC0 = _mm512_dpbf16_ps(regC0, r0, _mm512_set1_epi32(pBi32[0]));
-                regC1 = _mm512_dpbf16_ps(regC1, r1, _mm512_set1_epi32(pBi32[1]));
-                regC0 = _mm512_dpbf16_ps(regC0, r2, _mm512_set1_epi32(pBi32[2]));
-                regC1 = _mm512_dpbf16_ps(regC1, r3, _mm512_set1_epi32(pBi32[3]));
-                regC0 = _mm512_dpbf16_ps(regC0, r4, _mm512_set1_epi32(pBi32[4]));
-                regC1 = _mm512_dpbf16_ps(regC1, r5, _mm512_set1_epi32(pBi32[5]));
-                regC0 = _mm512_dpbf16_ps(regC0, r6, _mm512_set1_epi32(pBi32[6]));
-                regC1 = _mm512_dpbf16_ps(regC1, r7, _mm512_set1_epi32(pBi32[7]));
-                regC0 = _mm512_dpbf16_ps(regC0, r8, _mm512_set1_epi32(pBi32[8]));
-                regC1 = _mm512_dpbf16_ps(regC1, r9, _mm512_set1_epi32(pBi32[9]));
-                regC0 = _mm512_dpbf16_ps(regC0, ra, _mm512_set1_epi32(pBi32[10]));
-                regC1 = _mm512_dpbf16_ps(regC1, rb, _mm512_set1_epi32(pBi32[11]));
-                regC0 = _mm512_dpbf16_ps(regC0, rc, _mm512_set1_epi32(pBi32[12]));
-                regC1 = _mm512_dpbf16_ps(regC1, rd, _mm512_set1_epi32(pBi32[13]));
-                regC0 = _mm512_dpbf16_ps(regC0, re, _mm512_set1_epi32(pBi32[14]));
-                regC1 = _mm512_dpbf16_ps(regC1, rf, _mm512_set1_epi32(pBi32[15]));
+                regC0 = _mm512_dpbf16_ps(regC0, (__m512bh)(r0), (__m512bh)(_mm512_set1_epi32(pBi32[0])));
+                regC1 = _mm512_dpbf16_ps(regC1, (__m512bh)(r1), (__m512bh)(_mm512_set1_epi32(pBi32[1])));
+                regC0 = _mm512_dpbf16_ps(regC0, (__m512bh)(r2), (__m512bh)(_mm512_set1_epi32(pBi32[2])));
+                regC1 = _mm512_dpbf16_ps(regC1, (__m512bh)(r3), (__m512bh)(_mm512_set1_epi32(pBi32[3])));
+                regC0 = _mm512_dpbf16_ps(regC0, (__m512bh)(r4), (__m512bh)(_mm512_set1_epi32(pBi32[4])));
+                regC1 = _mm512_dpbf16_ps(regC1, (__m512bh)(r5), (__m512bh)(_mm512_set1_epi32(pBi32[5])));
+                regC0 = _mm512_dpbf16_ps(regC0, (__m512bh)(r6), (__m512bh)(_mm512_set1_epi32(pBi32[6])));
+                regC1 = _mm512_dpbf16_ps(regC1, (__m512bh)(r7), (__m512bh)(_mm512_set1_epi32(pBi32[7])));
+                regC0 = _mm512_dpbf16_ps(regC0, (__m512bh)(r8), (__m512bh)(_mm512_set1_epi32(pBi32[8])));
+                regC1 = _mm512_dpbf16_ps(regC1, (__m512bh)(r9), (__m512bh)(_mm512_set1_epi32(pBi32[9])));
+                regC0 = _mm512_dpbf16_ps(regC0, (__m512bh)(ra), (__m512bh)(_mm512_set1_epi32(pBi32[10])));
+                regC1 = _mm512_dpbf16_ps(regC1, (__m512bh)(rb), (__m512bh)(_mm512_set1_epi32(pBi32[11])));
+                regC0 = _mm512_dpbf16_ps(regC0, (__m512bh)(rc), (__m512bh)(_mm512_set1_epi32(pBi32[12])));
+                regC1 = _mm512_dpbf16_ps(regC1, (__m512bh)(rd), (__m512bh)(_mm512_set1_epi32(pBi32[13])));
+                regC0 = _mm512_dpbf16_ps(regC0, (__m512bh)(re), (__m512bh)(_mm512_set1_epi32(pBi32[14])));
+                regC1 = _mm512_dpbf16_ps(regC1, (__m512bh)(rf), (__m512bh)(_mm512_set1_epi32(pBi32[15])));
             }
             regC0 = _mm512_add_ps(regC0, regC1);
             _mm512_mask_storeu_ps (vecC + m, kmask, regC0);

@@ -134,11 +134,6 @@ endfunction()
 ov_add_onednn()
 
 if(ENABLE_LLMDNN)
-    # llmdnn needs intel compiler to be compiled
-    find_program(ICX_RESULT icx)
-    if(NOT ICX_RESULT)
-        message(FATAL_ERROR "intel compiler 2023.0+ is needed!")
-    endif()
     include(ExternalProject)
     ExternalProject_Add(llmdnnlib
         SOURCE_DIR ${CMAKE_CURRENT_LIST_DIR}/llmdnn
@@ -147,11 +142,8 @@ if(ENABLE_LLMDNN)
         BUILD_ALWAYS TRUE
         CMAKE_ARGS ${EXTERNAL_CMAKE_ARGS}
             -G${CMAKE_GENERATOR}
-            -DCMAKE_C_COMPILER=icx
-            -DCMAKE_CXX_COMPILER=icpx
             -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
             -DBUILD_TESTS:BOOL=${ENABLE_TESTS}
-            -DBUILD_PYTHON_TESTS:BOOL=${BUILD_PYTHON_TESTS}
             -DCMAKE_RUNTIME_OUTPUT_DIRECTORY=${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
             -DCMAKE_INSTALL_PREFIX=install
         INSTALL_COMMAND "")

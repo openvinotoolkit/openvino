@@ -91,8 +91,7 @@ if(ENABLE_LLMDNN)
     add_library(llmdnn STATIC IMPORTED)
     set_target_properties(llmdnn PROPERTIES
         IMPORTED_LOCATION ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/libllmdnn.a
-        INCLUDE_DIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/llmdnn/include
-        IMPORTED_LINK_INTERFACE_LIBRARIES libirc.a)
+        INCLUDE_DIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/llmdnn/include)
     add_dependencies(${TARGET_NAME} llmdnnlib)
 endif()
 

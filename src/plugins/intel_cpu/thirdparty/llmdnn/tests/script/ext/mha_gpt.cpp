@@ -62,8 +62,8 @@ void regclass_mha_gpt(pybind11::module m) {
             auto head_size = q.size(3);
             auto key_seq_len = k.size(2);
             auto attn_len = attn_mask.size(1);
-            AT_ASSERT(key_seq_len == v.size(2) &&
-                    batch == k.size(0) && batch == v.size(0) && batch == attn_mask.size(0) &&
+            AT_ASSERT(key_seq_len == v.size(2) && key_seq_len == attn_len &&
+                    batch == k.size(0) && batch == v.size(0) && 1 == attn_mask.size(0) &&
                     num_heads == k.size(1) && num_heads == v.size(1) &&
                     head_size == k.size(3) && head_size == v.size(3));
 
@@ -72,16 +72,16 @@ void regclass_mha_gpt(pybind11::module m) {
             param.batch = batch;
             param.query_seq_len = query_seq_len;
             param.key_seq_len = key_seq_len;
-            param.q = q.data_ptr<uint8_t>();
-            param.attn_output = out.data_ptr<uint8_t>();
+            param.q = reinterpret_cast<uint8_t*>(q.data_ptr());
+            param.attn_output = reinterpret_cast<uint8_t*>(out.data_ptr());
             param.head_stride_in_kv = key_seq_len * head_size;
             param.k = reinterpret_cast<uint8_t**>(alloca(batch * sizeof(uint8_t*)));
             param.v = reinterpret_cast<uint8_t**>(alloca(batch * sizeof(uint8_t*)));
             param.attention_mask = reinterpret_cast<float**>(alloca(batch * sizeof(float*)));
-            for (size_t i = 0; i < batch; i++) {
-                param.k[i] = k.data_ptr<uint8_t>() + i * num_heads * key_seq_len * head_size;
-                param.v[i] = v.data_ptr<uint8_t>() + i * num_heads * key_seq_len * head_size;
-                param.attention_mask[i] = attn_mask.data_ptr<float>() + i * attn_len;
+            for (int i = 0; i < batch; i++) {
+                param.k[i] = reinterpret_cast<uint8_t*>(k.data_ptr()) + i * num_heads * key_seq_len * head_size * sizeof(ov::bfloat16);
+                param.v[i] = reinterpret_cast<uint8_t*>(v.data_ptr()) + i * num_heads * key_seq_len * head_size * sizeof(ov::bfloat16);
+                param.attention_mask[i] = attn_mask.data_ptr<float>();
             }
 
             self.exec(param);

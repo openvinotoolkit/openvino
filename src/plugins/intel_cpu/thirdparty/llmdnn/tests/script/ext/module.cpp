@@ -9,7 +9,7 @@
 #include "mha_gpt.hpp"
 #include "test_common.hpp"
 
-PYBIND11_MODULE(libllmdnn_ext, m) {
+PYBIND11_MODULE(llmdnn, m) {
     static bool initAMX = initXTILE();
     if (!initAMX) {
         std::cout << "init amx failed.\n";
