@@ -285,14 +285,17 @@ op::v12::ScatterElementsUpdate::ScatterElementsUpdate(const Output<Node>& data,
                                                       const Output<Node>& indices,
                                                       const Output<Node>& updates,
                                                       const Output<Node>& axis,
-                                                      bool use_init_val)
+                                                      const Reduction reduction,
+                                                      const bool use_init_val)
     : Op({data, indices, updates, axis}),
+      m_reduction{reduction},
       m_use_init_val{use_init_val} {
     constructor_validate_and_infer_types();
 }
 
 bool op::v12::ScatterElementsUpdate::visit_attributes(AttributeVisitor& visitor) {
     OV_OP_SCOPE(v12_ScatterElementsUpdate_visit_attributes);
+    visitor.on_attribute("reduction", m_reduction);
     visitor.on_attribute("use_init_val", m_use_init_val);
     return true;
 }
@@ -309,3 +312,24 @@ void op::v12::ScatterElementsUpdate::validate_and_infer_types() {
         set_input_is_relevant_to_shape(0);
     }
 }
+
+namespace ov {
+template <>
+OPENVINO_API EnumNames<op::v12::ScatterElementsUpdate::Reduction>&
+EnumNames<op::v12::ScatterElementsUpdate::Reduction>::get() {
+    static auto enum_names = EnumNames<op::v12::ScatterElementsUpdate::Reduction>(
+        "op::v12::ScatterElementsUpdate::Reduction",
+        {{"none", op::v12::ScatterElementsUpdate::Reduction::NONE},
+         {"sum", op::v12::ScatterElementsUpdate::Reduction::SUM},
+         {"prod", op::v12::ScatterElementsUpdate::Reduction::PROD},
+         {"min", op::v12::ScatterElementsUpdate::Reduction::MIN},
+         {"max", op::v12::ScatterElementsUpdate::Reduction::MAX},
+         {"mean", op::v12::ScatterElementsUpdate::Reduction::MEAN}});
+    return enum_names;
+}
+namespace op {
+std::ostream& operator<<(std::ostream& s, const v12::ScatterElementsUpdate::Reduction& reduction) {
+    return s << as_string(reduction);
+}
+}
+}  // namespace ov

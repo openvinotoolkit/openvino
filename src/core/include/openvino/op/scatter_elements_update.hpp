@@ -49,7 +49,7 @@ class OPENVINO_API ScatterElementsUpdate : public Op {
 public:
     OPENVINO_OP("ScatterElementsUpdate", "opset12", op::Op);
 
-    enum class Reduction {NONE, SUM, PROD, MIN, MAX, MEAN};
+    enum class Reduction { NONE, SUM, PROD, MIN, MAX, MEAN };
 
     ScatterElementsUpdate() = default;
     /// \brief Constructs a ScatterElementsUpdate node
@@ -62,15 +62,29 @@ public:
                           const Output<Node>& indices,
                           const Output<Node>& updates,
                           const Output<Node>& axis,
-                          bool use_init_val = true);
+                          const Reduction reduction = Reduction::NONE,
+                          const bool use_init_val = true);
 
     void validate_and_infer_types() override;
 
     bool visit_attributes(AttributeVisitor& visitor) override;
 
 private:
+    Reduction m_reduction = Reduction::NONE;
     bool m_use_init_val = true;
 };
 }  // namespace v12
+OPENVINO_API
+std::ostream& operator<<(std::ostream& s, const v12::ScatterElementsUpdate::Reduction& reduction);
+
 }  // namespace op
+template <>
+class OPENVINO_API AttributeAdapter<op::v12::ScatterElementsUpdate::Reduction>
+    : public EnumAttributeAdapterBase<op::v12::ScatterElementsUpdate::Reduction> {
+public:
+    AttributeAdapter(op::v12::ScatterElementsUpdate::Reduction& value)
+        : EnumAttributeAdapterBase<op::v12::ScatterElementsUpdate::Reduction>(value) {}
+
+    OPENVINO_RTTI("AttributeAdapter<v12::ScatterElementsUpdate::Reduction>");
+};
 }  // namespace ov
