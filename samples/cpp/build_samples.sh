@@ -96,20 +96,9 @@ if [ -e "$build_dir/CMakeCache.txt" ]; then
   rm -rf "$build_dir/CMakeCache.txt"
 fi
 
-CUR_DIR=$(pwd)
-echo "Current DIR is: $CUR_DIR"
-
 mkdir -p "$build_dir"
 $CMAKE_EXEC -DCMAKE_BUILD_TYPE=Release -S "$SAMPLES_PATH" -B "$build_dir"
 $CMAKE_EXEC --build "$build_dir" --config Release --parallel $NUM_THREADS
-
-CUR_DIR=$(pwd)
-echo "(should be in build_dir) Current DIR is: $CUR_DIR"
-
-echo "SAMPLES_PATH is $SAMPLES_PATH"
-
-$CMAKE_EXEC -DCMAKE_BUILD_TYPE=Release "$SAMPLES_PATH"
-make $NUM_THREADS
 
 if [ "$sample_install_dir" != "" ]; then
     $CMAKE_EXEC -DCMAKE_INSTALL_PREFIX="$sample_install_dir" -DCOMPONENT=samples_bin -P "$build_dir/cmake_install.cmake"
