@@ -66,6 +66,7 @@
 #include "loop_inst.h"
 #include "reverse_inst.h"
 #include "unique_inst.hpp"
+#include "condition_inst.h"
 #include "to_string_utils.h"
 
 // TODO: Remove once we have interface for kernels cache
@@ -1007,12 +1008,18 @@ bool program::extract(program_node& node) {
         if (user->is_type<loop>()) {
             loop_node& loop = *user;
             loop.update_primitive_map(node.id(), input.id());
+        } else if (user->is_type<condition>()) {
+            condition_node& cond = *user;
+            cond.update_primitive_map(node.id(), input.id());
         }
 
         for (auto& dep : node.dependencies) {
             if (dep.first->is_type<loop>()) {
                 loop_node& loop = *dep.first;
                 loop.update_primitive_map(node.id(), user->id());
+            } else if (dep.first->is_type<condition>()) {
+                condition_node& cond = *dep.first;
+                cond.update_primitive_map(node.id(), user->id());
             }
         }
     }
@@ -1290,6 +1297,10 @@ program::primitives_info program::get_current_stage_info() const {
     }
 
     return info;
+}
+
+std::string program::get_output_layout_str()  {
+    return outputs.at(0)->get_output_layout().to_short_string();
 }
 
 void program::save_pass_info(std::string pass_name) {

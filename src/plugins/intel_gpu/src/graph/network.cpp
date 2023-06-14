@@ -60,6 +60,45 @@
 namespace cldnn {
 
 namespace {
+#if 0
+template <class T>
+std::string convert_number(T num) { return std::to_string(num); }
+
+template <>
+std::string convert_number(half_t num) { return std::to_string(half_to_float(num)); }
+
+template <class T>
+static void show(memory::ptr mem, stream& stream, std::string layerName) {
+    mem_lock<T, mem_lock_type::read> lock(mem, stream);
+    auto mem_ptr = lock.data();
+
+    std::cout << "data[" << layerName << "] = {";
+    const size_t size = mem->count();
+    for (size_t i = 0; i < size; i++) {
+        std::cout << convert_number(mem_ptr[i]) << ",";
+    }
+
+    std::cout << "}" << std::endl;
+}
+
+static void check_mem(memory::ptr mem, stream& stream, std::string layerName) {
+    auto mem_dt = mem->get_layout().data_type;
+    if (mem_dt == cldnn::data_types::f32)
+        show<float>(mem, stream, layerName);
+    else if (mem_dt == cldnn::data_types::f16)
+        show<half_t>(mem, stream, layerName);
+    else if (mem_dt == cldnn::data_types::bin)
+        show<uint32_t>(mem, stream, layerName);
+    else if (mem_dt == cldnn::data_types::i64)
+        show<int64_t>(mem, stream, layerName);
+    else if (mem_dt == cldnn::data_types::i32)
+        show<int32_t>(mem, stream, layerName);
+    else if (mem_dt == cldnn::data_types::i8)
+        show<int8_t>(mem, stream, layerName);
+    else if (mem_dt == cldnn::data_types::u8)
+        show<uint8_t>(mem, stream, layerName);
+}
+#endif
 
 #ifdef GPU_DEBUG_CONFIG
 void dump_perf_data_raw(std::string dump_path, const std::list<std::shared_ptr<primitive_inst>>& exec_order) {
@@ -1222,6 +1261,15 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
         }
 
         execute_primitive(inst, events);
+        // {
+        //     get_stream().finish();
+        //     const std::string layer_name = inst->id();
+        //     for (size_t i = 0; i < get_primitive(inst->id())->outputs_memory_count(); i++) {
+        //         check_mem(get_primitive(inst->id())->output_memory_ptr(i),
+        //             get_stream(),
+        //             layer_name + "__" + inst->get_node().get_primitive()->type_string() +"__out"+std::to_string(i));
+        //     }
+        // }
 
         GPU_DEBUG_IF(debug_config->dump_layers_path.length() > 0) {
             get_stream().finish();

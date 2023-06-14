@@ -257,6 +257,9 @@ public:
     void set_output_layout(const layout& new_out_lay, size_t idx = 0) {
         _impl_params->output_layouts[idx] = new_out_lay;
     }
+    void set_inner_networks(const std::vector<network::ptr> inner_nets) {
+        _impl_params->inner_nets = inner_nets;
+    }
 #ifdef ENABLE_ONEDNN_FOR_GPU
     std::vector<cldnn::fused_primitive_desc_onednn>& get_fused_primitives_onednn() const { return _impl_params->fused_desc_onednn; }
 #endif // ENABLE_ONEDNN_FOR_GPU
@@ -264,6 +267,8 @@ public:
     std::shared_ptr<const PType> get_typed_desc() const { return _impl_params->typed_desc<PType>(); }
 
     virtual void update_output_memory() {}
+
+    bool has_inner_body();
 
 protected:
     primitive_inst(network& network, program_node const& node, bool allocate_memory);

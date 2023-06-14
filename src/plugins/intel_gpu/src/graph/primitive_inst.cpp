@@ -21,6 +21,7 @@
 #include "gemm_inst.h"
 #include "assign_inst.h"
 #include "read_value_inst.h"
+#include "condition_inst.h"
 #include "experimental_detectron_roi_feature_extractor_inst.hpp"
 #include "compilation_context.hpp"
 #include "implementation_map.hpp"
@@ -624,71 +625,73 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
     OPENVINO_ASSERT(_has_valid_input, primitive_id, " has invalid/unset input");
     GPU_DEBUG_GET_INSTANCE(debug_config);
 
-    bool need_args_update = false;
     std::vector<event::ptr> dependencies;
-    if (is_dynamic()) {
-        do_runtime_in_place_concat();
-        OPENVINO_ASSERT(_node != nullptr, "[GPU] Invalid primitive_inst object for dynamic shapes case: program_node can't be null");
-        update_shape();
-        if (_impl_params->output_layouts[0].count() == 0) {
-            GPU_DEBUG_TRACE_DETAIL << id() << " : Skipping becuase output data is empty " << std::endl;
-            auto ev = get_network().get_stream().create_user_event(true);
-            update_shape_done_by_other = false; // reset
-            return ev;
-        }
+    if (!has_inner_body()) {
+        bool need_args_update = false;
+        if (is_dynamic()) {
+            do_runtime_in_place_concat();
+            OPENVINO_ASSERT(_node != nullptr, "[GPU] Invalid primitive_inst object for dynamic shapes case: program_node can't be null");
+            update_shape();
+            if (_impl_params->output_layouts[0].count() == 0) {
+                GPU_DEBUG_TRACE_DETAIL << id() << " : Skipping becuase output data is empty " << std::endl;
+                auto ev = get_network().get_stream().create_user_event(true);
+                update_shape_done_by_other = false; // reset
+                return ev;
+            }
 
-        if (!is_valid_fusion()) {
-            auto subgraph = get_unfused_subgraph();
+                if (!is_valid_fusion()) {
+                    auto subgraph = get_unfused_subgraph();
 
-            for (auto& d : _deps) {
-                if (!d.first->get_node().is_type<data>()) {
-                    auto allocated_mem = d.first->output_memory_ptr();
-                    auto actual_input_layout = d.first->get_output_layout();
-                    auto& engine = _network.get_engine();
-                    // Need to use actual layout, not the fake aligned memory layout
-                    auto actual_mem = engine.reinterpret_buffer(*allocated_mem, actual_input_layout);
-                    subgraph->set_input_data(d.first->id(), actual_mem);
+                    for (auto& d : _deps) {
+                        if (!d.first->get_node().is_type<data>()) {
+                            auto allocated_mem = d.first->output_memory_ptr();
+                            auto actual_input_layout = d.first->get_output_layout();
+                            auto& engine = _network.get_engine();
+                            // Need to use actual layout, not the fake aligned memory layout
+                            auto actual_mem = engine.reinterpret_buffer(*allocated_mem, actual_input_layout);
+                            subgraph->set_input_data(d.first->id(), actual_mem);
+                        }
+                    }
+                    GPU_DEBUG_TRACE_DETAIL << "[Start] Executing unfused subgraph of " << id() << std::endl;
+                    auto outputs = subgraph->execute(events);
+                    GPU_DEBUG_TRACE_DETAIL << "[End] Finished executing unfused subgraph of " << id() << std::endl;
+
+                    auto last_fd = _impl_params->fused_desc.back();
+                    auto last_prim_id = last_fd.desc->id;
+
+                    OPENVINO_ASSERT(outputs.find(last_prim_id) != outputs.end(), "[GPU] Can't find output primitive ", last_prim_id, " for unfused subgraph");
+
+                    _outputs[0] = outputs.at(last_prim_id).get_memory();
+
+                    _impl_params->output_layouts[0] = subgraph->get_output_layout(last_prim_id);
+                    return outputs.at(last_prim_id).get_event();
+                }
+
+            // Try update impl if current impl is dynamic because opt kernel may be added to impl cache through async compilation.
+            // Only try update weight and realloc when impl is updated.
+            if (shape_changed() || !_impl || (!shape_changed() && _impl->is_dynamic())) {
+                need_args_update = true;
+
+                if (update_impl()) {
+                    auto ev = update_weights();
+                    if (ev)
+                        dependencies.push_back(ev);
+                    auto ev_reset = realloc_if_needed();
+                    if (ev_reset)
+                        dependencies.push_back(ev_reset);
                 }
             }
-            GPU_DEBUG_TRACE_DETAIL << "[Start] Executing unfused subgraph of " << id() << std::endl;
-            auto outputs = subgraph->execute(events);
-            GPU_DEBUG_TRACE_DETAIL << "[End] Finished executing unfused subgraph of " << id() << std::endl;
-
-            auto last_fd = _impl_params->fused_desc.back();
-            auto last_prim_id = last_fd.desc->id;
-
-            OPENVINO_ASSERT(outputs.find(last_prim_id) != outputs.end(), "[GPU] Can't find output primitive ", last_prim_id, " for unfused subgraph");
-
-            _outputs[0] = outputs.at(last_prim_id).get_memory();
-
-            _impl_params->output_layouts[0] = subgraph->get_output_layout(last_prim_id);
-            return outputs.at(last_prim_id).get_event();
         }
+        update_shape_done_by_other = false; // reset
+        OPENVINO_ASSERT(_impl_params->get_output_layout().is_static(),
+                        "[GPU] Can't execute ", primitive_id, " primitive as output layout is dynamic in runtime");
 
-        // Try update impl if current impl is dynamic because opt kernel may be added to impl cache through async compilation.
-        // Only try update weight and realloc when impl is updated.
-        if (shape_changed() || !_impl || (!shape_changed() && _impl->is_dynamic())) {
-            need_args_update = true;
+            OPENVINO_ASSERT(_impl != nullptr, "[GPU] Implementation is nullptr for ", primitive_id,  " primitive");
 
-            if (update_impl()) {
-                auto ev = update_weights();
-                if (ev)
-                    dependencies.push_back(ev);
-                auto ev_reset = realloc_if_needed();
-                if (ev_reset)
-                    dependencies.push_back(ev_reset);
-            }
+        // Output buffer may be changed under the following conditions, so we need to set args to kernel on each iteration
+        if ((is_dynamic() && need_args_update) || has_mutable_input() || is_output()) {
+            set_arguments();
         }
-    }
-    update_shape_done_by_other = false; // reset
-    OPENVINO_ASSERT(_impl_params->get_output_layout().is_static(),
-                    "[GPU] Can't execute ", primitive_id, " primitive as output layout is dynamic in runtime");
-
-    OPENVINO_ASSERT(_impl != nullptr, "[GPU] Implementation is nullptr for ", primitive_id,  " primitive");
-
-    // Output buffer may be changed under the following conditions, so we need to set args to kernel on each iteration
-    if ((is_dynamic() && need_args_update) || has_mutable_input() || is_output()) {
-        set_arguments();
     }
     on_execute();
     GPU_DEBUG_TRACE << id() << ": execute " << _impl->get_kernel_name() << std::endl;
@@ -729,6 +732,13 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
                         GPU_DEBUG_CODE(stage_prof.set_custom_stage_duration(interval.value->value()));
                     }
                 }
+            }
+        }
+
+        if (has_inner_body()) {
+            if (is_dynamic()) {
+                update_shape();
+                reset_shape_change();
             }
         }
 
@@ -869,6 +879,10 @@ primitive_inst::primitive_inst(network& network, program_node const& node, bool 
     _impl_params->strm = _network.get_stream_ptr();
     if (_outputs[0])
         max_output_layout_size = _outputs[0]->get_layout().get_tensor().count();
+}
+
+bool primitive_inst::has_inner_body() {
+    return (_impl_params->inner_progs.size() > 0 || _impl_params->inner_nets.size() > 0);
 }
 
 memory::ptr primitive_inst::allocate_internal_buffer(size_t idx) {
