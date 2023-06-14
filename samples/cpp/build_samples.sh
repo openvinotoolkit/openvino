@@ -85,11 +85,11 @@ else
 fi
 
 OS_PATH=$(uname -m)
-NUM_THREADS="-j2"
+NUM_THREADS=2
 
 if [ "$OS_PATH" == "x86_64" ]; then
   OS_PATH="intel64"
-  NUM_THREADS="-j8"
+  NUM_THREADS=8
 fi
 
 if [ -e "$build_dir/CMakeCache.txt" ]; then
@@ -100,7 +100,8 @@ CUR_DIR=$(pwd)
 echo "Current DIR is: $CUR_DIR"
 
 mkdir -p "$build_dir"
-cd "$build_dir" || exit
+$CMAKE_EXEC -DCMAKE_BUILD_TYPE=Release -S "$SAMPLES_PATH" -B "$build_dir"
+$CMAKE_EXEC --build "$build_dir" --config Release --parallel $NUM_THREADS
 
 CUR_DIR=$(pwd)
 echo "(should be in build_dir) Current DIR is: $CUR_DIR"
@@ -111,7 +112,7 @@ $CMAKE_EXEC -DCMAKE_BUILD_TYPE=Release "$SAMPLES_PATH"
 make $NUM_THREADS
 
 if [ "$sample_install_dir" != "" ]; then
-    $CMAKE_EXEC -DCMAKE_INSTALL_PREFIX="$sample_install_dir" -DCOMPONENT=samples_bin -P cmake_install.cmake
+    $CMAKE_EXEC -DCMAKE_INSTALL_PREFIX="$sample_install_dir" -DCOMPONENT=samples_bin -P "$build_dir/cmake_install.cmake"
     printf "\nBuild completed, you can find binaries for all samples in the %s/samples_bin subfolder.\n\n" "$sample_install_dir"
 else
     printf "\nBuild completed, you can find binaries for all samples in the $build_dir/%s/Release subfolder.\n\n" "$OS_PATH"
