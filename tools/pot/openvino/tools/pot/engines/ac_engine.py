@@ -34,6 +34,7 @@ class ACEngine(Engine):
         self._evaluation_dataset_tag = 'evaluation' if isinstance(dataset_config, dict) else ''
         self._optimization_dataset_tag = 'optimization' if isinstance(dataset_config, dict) else ''
         self._model_evaluator = create_model_evaluator(config)
+        self._model_evaluator.launcher.ie_core.set_property({"ENABLE_MMAP": "NO"})
         self.select_dataset(self._evaluation_dataset_tag)
         self._model = None
         self._nx_model = None

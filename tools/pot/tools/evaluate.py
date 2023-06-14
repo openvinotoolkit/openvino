@@ -54,6 +54,7 @@ def evaluate(config, subset, paths=None):
 
     # evaluate
     model_evaluator = create_model_evaluator(config.engine)
+    model_evaluator.launcher.ie_core.set_property({"ENABLE_MMAP": "NO"})
     if paths is None:
         paths = config.get_model_paths()
     model_evaluator.load_network_from_ir(paths)
