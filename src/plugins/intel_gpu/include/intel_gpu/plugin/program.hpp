@@ -105,6 +105,7 @@ public:
     std::map<BlobCacheKey, cldnn::primitive_id> blobMemCache;
     CustomLayerMap m_custom_layers;
 
+    int m_max_batch;
     int m_curBatch;
     std::map<std::string, std::pair<int64_t, int64_t>> m_input_batch_dim;
     std::map<std::string, int64_t> m_output_batch_dim;
@@ -115,6 +116,7 @@ public:
     InferenceEngine::OutputsDataMap GetNetworkOutputs() const { return m_networkOutputs; }
     cldnn::engine& get_engine() const { return m_engine; }
     const ExecutionConfig& get_config() const { return m_config; }
+    int GetMaxBatchSizeForSingleProgram();
 
     bool IsOpSupported(const InferenceEngine::CNNNetwork& network, const std::shared_ptr<ngraph::Node>& op);
     bool IsDynBatchModel(const std::shared_ptr<ov::Model>& model,
