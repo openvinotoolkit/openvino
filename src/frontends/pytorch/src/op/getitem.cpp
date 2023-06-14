@@ -35,8 +35,6 @@ OutputVector translate_getitem(const NodeContext& context) {
                                       list_elems.size());
         return {list_elems.at(getitem_idx)};
     }
-    FRONT_END_OP_CONVERSION_CHECK(!ov::as_type_ptr<v0::Parameter>(input.get_node_shared_ptr()),
-                                  "aten::__getitem__ inside the body is not supported.");
     auto getitem_idx = context.get_input(1);
     auto zero = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
     return {context.mark_node(std::make_shared<v8::Gather>(input, getitem_idx, zero))};

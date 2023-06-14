@@ -664,7 +664,7 @@ def create_pt_model_with_custom_op():
     return MyModel()
 
 
-class ConvertRaisesExampleInputs(unittest.TestCase):
+class ConvertRaises(unittest.TestCase):
     def test_example_inputs(self):
         from openvino.tools.mo import convert_model
         pytorch_model = create_pt_model_with_custom_op()
@@ -672,3 +672,18 @@ class ConvertRaisesExampleInputs(unittest.TestCase):
         # Check that mo raises error message of wrong argument.
         with self.assertRaisesRegex(AssertionError, ".*argument is not recognized.*"):
             convert_model(pytorch_model, example_inputs=(torch.tensor(1),))
+
+    def test_failed_extension(self):
+        from openvino.tools.mo import convert_model
+        from openvino.frontend.pytorch import ConversionExtension
+
+        inp_shapes = [1, 3, 20, 20]
+        pt_model = make_pt_model_one_input()
+
+        def relu_bad(n):
+            assert False, "Something happened"
+
+        # Check that mo raises error message of wrong argument.
+        with self.assertRaisesRegex(Exception, ".*Something happened.*Conversion is failed for: aten::relu.*"):
+            convert_model(pt_model, input=(inp_shapes, np.float32), extensions=[
+                          ConversionExtension("aten::relu", relu_bad)])

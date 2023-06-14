@@ -199,7 +199,7 @@ std::shared_ptr<PtFrameworkNode> create_fw_node_with_exception(const NodeContext
     std::string message(exception_message);
     if (!message.empty()) {
         message = "Exception happened during conversion of operation " + fw_node->get_friendly_name() +
-                  " with schema " + context.get_schema() + message;
+                  " with schema " + context.get_schema() + '\n' + message;
     }
     attrs[PtFrameworkNode::failed_conversion_key] = message;
     fw_node->set_attrs(attrs);
