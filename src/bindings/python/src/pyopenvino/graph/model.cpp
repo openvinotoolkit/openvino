@@ -54,9 +54,9 @@ void regclass_graph_Model(py::module m) {
     model.doc() = "openvino.runtime.Model wraps ov::Model";
 
     model.def(py::init([](std::shared_ptr<ov::Model>& other) {
-            return other->clone();
-        }),
-        py::arg("other"));
+                  return other->clone();
+              }),
+              py::arg("other"));
 
     model.def(py::init([](const ov::ResultVector& res,
                           const std::vector<std::shared_ptr<ov::Node>>& nodes,

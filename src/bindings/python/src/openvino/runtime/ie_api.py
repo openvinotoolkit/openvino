@@ -375,8 +375,11 @@ class Core(CoreBase):
     between several Core instances. The recommended way is to have a single
     Core instance per application.
     """
-    def read_model(self, model, weights = "") -> Model:
-        return Model(super().read_model(model, weights))
+    def read_model(self, model, weights=None) -> Model:
+        if weights is not None:
+            return Model(super().read_model(model, weights))
+        else:
+            return Model(super().read_model(model))
 
     def compile_model(
         self,
