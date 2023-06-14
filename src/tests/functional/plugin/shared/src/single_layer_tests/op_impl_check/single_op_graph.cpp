@@ -971,6 +971,16 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v3::ScatterEle
     return std::make_shared<ov::Model>(results, params, "ScatterElementsUpdateGraph");
 }
 
+std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v12::ScatterElementsUpdate> &node) {
+    const auto params = ngraph::builder::makeDynamicParams(ov::element::f32, {{2, 2}, {2, 2}});
+    const auto indices = ngraph::builder::makeConstant<int64_t>(ov::element::i64, {2, 2}, {1, 1, 0, 0});
+    const auto axis = ngraph::builder::makeConstant<int64_t>(ov::element::i64, {1}, {0});
+    auto Node = std::make_shared<ov::op::v12::ScatterElementsUpdate>(
+        params.at(0), indices, params.at(1), axis, ov::op::v12::ScatterElementsUpdate::Reduction::SUM);
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(Node)};
+    return std::make_shared<ov::Model>(results, params, "ScatterElementsUpdateGraph");
+}
+
 std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v1::Select> &node) {
     const auto params = ngraph::builder::makeDynamicParams({ov::element::boolean, ov::element::f32, ov::element::f32},
                                                            {{2, 2, 2}, {2, 2, 2}, {2, 2, 2}});
