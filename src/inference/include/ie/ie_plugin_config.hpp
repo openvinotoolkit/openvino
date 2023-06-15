@@ -406,30 +406,6 @@ INFERENCE_ENGINE_1_0_DEPRECATED
 DECLARE_CONFIG_KEY(PERF_COUNT);
 
 /**
- * @brief The key defines dynamic limit of batch processing.
- * @deprecated
- *
- * Specified value is applied to all following Infer() calls. Inference Engine processes
- * min(batch_limit, original_batch_size) first pictures from input blob. For example, if input
- * blob has sizes 32x3x224x224 after applying plugin.SetConfig({KEY_DYN_BATCH_LIMIT, 10})
- * Inference Engine primitives processes only beginner subblobs with size 10x3x224x224.
- * This value can be changed before any Infer() call to specify a new batch limit.
- *
- * The paired parameter value should be convertible to integer number. Acceptable values:
- * -1 - Do not limit batch processing
- * >0 - Direct value of limit. Batch size to process is min(new batch_limit, original_batch)
- */
-INFERENCE_ENGINE_DEPRECATED("This config is deprecated and will be removed in 2023.1 release")
-DECLARE_CONFIG_KEY(DYN_BATCH_LIMIT);
-
-/**
- * @brief The key checks whether dynamic batch is enabled.
- * @deprecated
- */
-INFERENCE_ENGINE_DEPRECATED("This config is deprecated and will be removed in 2023.1 release")
-DECLARE_CONFIG_KEY(DYN_BATCH_ENABLED);
-
-/**
  * @brief This key directs the plugin to load a configuration file.
  *
  * The value should be a file name with the plugin specific configuration

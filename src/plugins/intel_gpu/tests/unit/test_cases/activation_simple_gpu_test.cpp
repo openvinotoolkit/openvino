@@ -8,6 +8,8 @@
 #include <intel_gpu/primitives/activation.hpp>
 #include <intel_gpu/primitives/data.hpp>
 #include <intel_gpu/primitives/reorder.hpp>
+#include <intel_gpu/primitives/reshape.hpp>
+#include <intel_gpu/primitives/concatenation.hpp>
 #include "activation_inst.h"
 
 #include <cmath>
@@ -1999,3 +2001,59 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(padding{}),
                        ::testing::Values(impl_types::cpu),
                        ::testing::Values(true)));
+
+TEST(activation_gpu, has_proper_synchronization) {
+    auto& engine = get_test_engine();
+    auto in_layout = layout({1, 2, 2, 4}, data_types::f32, format::bfyx);
+    auto input_mem = engine.allocate_memory(in_layout);
+    auto const_mem = engine.allocate_memory({{1, 2, 2, 4}, data_types::f32, format::bfyx});
+
+    auto in_data = generate_random_4d<float>(1, 2, 2, 4, -1, 1);
+    auto const_data = generate_random_4d<float>(1, 2, 2, 4, -1, 1);
+
+    set_values(input_mem, flatten_4d(format::bfyx, in_data));
+    set_values(const_mem, flatten_4d(format::bfyx, const_data));
+
+    auto create_topology =[&]() {
+        topology topology;
+        topology.add(input_layout("input1", in_layout));
+        topology.add(data("input2", const_mem));
+        topology.add(concatenation("concat", { input_info("input1"), input_info("input2") }, 1));
+        topology.add(reshape("reshape", input_info("concat"), false, {1, 2, 4, 4}, {1, 2, 4, 4}));
+        topology.add(reorder("reorder", input_info("reshape"), in_layout));
+        topology.add(activation("activation", input_info("reshape"), activation_func::relu));
+        return topology;
+    };
+
+    auto topology_ref = create_topology();
+    auto topology_test = create_topology();
+
+    auto impl_desc = ov::intel_gpu::ImplementationDesc{format::bfyx, "", impl_types::cpu};
+    auto impl_forcing_map = ov::intel_gpu::ImplForcingMap{{"activation", impl_desc}};
+
+    auto config_ref = get_test_default_config(engine);
+    config_ref.set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
+    config_ref.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    auto config_test = config_ref;
+    config_test.set_property(ov::intel_gpu::force_implementations(impl_forcing_map));
+
+    network net_test(engine, topology_test, config_test);
+    net_test.set_input_data("input1", input_mem);
+    auto outputs_test = net_test.execute();
+    auto res_test = outputs_test.at("activation").get_memory();
+
+    network net_ref(engine, topology_ref, config_ref);
+    net_ref.set_input_data("input1", input_mem);
+    auto outputs_ref = net_ref.execute();
+    auto res_ref = outputs_ref.at("activation").get_memory();
+
+    ASSERT_EQ(res_test->get_layout().get_linear_size(), res_ref->get_layout().get_linear_size());
+
+    cldnn::mem_lock<float> test_mem(res_test, get_test_stream());
+    cldnn::mem_lock<float> ref_mem(res_ref, get_test_stream());
+
+    for (size_t i = 0; i < res_ref->get_layout().get_linear_size(); ++i) {
+        ASSERT_EQ(test_mem[i], ref_mem[i]);
+    }
+}
