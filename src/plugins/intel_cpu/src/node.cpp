@@ -87,13 +87,13 @@ Node::Node(const std::shared_ptr<ngraph::Node>& op,
       temporary(false),
       constant(ConstantType::Unknown),
       context(ctx),
+      algorithm(Algorithm::Default),
+      fusingPort(-1),
       engine(ctx->getEngine()),
       name(op->get_friendly_name()),
       typeStr(op->get_type_name()),
       type(TypeFromName(op->get_type_name())),
       profiling(op->get_friendly_name()) {
-    algorithm = Algorithm::Default;
-    fusingPort = -1;
     const std::string errorPrefix = "Ngraph operation " + std::string(op->get_type_name()) + " with name " + op->get_friendly_name();
 
     for (size_t i = 0; i < op->get_input_size(); i++) {
@@ -139,18 +139,21 @@ Node::Node(const std::shared_ptr<ngraph::Node>& op,
         addOriginalLayer(name);
     }
 
-    auto primitivesPriority = getPrimitivesPriorityValue(op);
+    auto primitivesPriority = getImplPriorityValue(op);
     if (!primitivesPriority.empty()) {
         std::istringstream stream(primitivesPriority);
         std::string str;
         while (getline(stream, str, ',')) {
             if (str.substr(0, 4) != "cpu:")
                 continue;
-            implPriorities.push_back(parse_impl_name(str));
-            if (implPriorities[implPriorities.size() - 1] == impl_desc_type::unknown &&
+            customImplPriorities.push_back(parse_impl_name(str));
+            if (customImplPriorities.back() == impl_desc_type::unknown &&
                 str != "cpu:unknown")
                 IE_THROW() << "Unsupported CPU implementation " << str << " for node " << getName();
         }
+        // add default primitive priorities as a fallback for the custom ones
+        const auto& defaultImplPriorities = getDefaultImplPriority();
+        customImplPriorities.insert(customImplPriorities.end(), defaultImplPriorities.begin(), defaultImplPriorities.end());
     }
 
     std::string inputMemoryFormats = getInputMemoryFormats(op);
@@ -262,7 +265,7 @@ void Node::createPrimitive() {
 }
 
 void Node::selectOptimalPrimitiveDescriptor() {
-    selectPreferPrimitiveDescriptor(getPrimitivesPriority(), false);
+    selectPreferPrimitiveDescriptor(getImplPriority(), false);
 }
 
 void Node::selectPreferPrimitiveDescriptor(const std::vector<impl_desc_type>& priority, bool ignoreConstInputs) {
@@ -621,44 +624,51 @@ void Node::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    auto attr = initPrimitiveAttr();
+    auto addSupportedPrimitiveDescriptor = [&](const dnnl::primitive_desc& prim_desc) {
+        std::vector<PortConfig> inConfs, outConfs;
+        const int inPlaceOutPort = canBeInPlace() ? 0 : -1;
+
+        for (size_t i = 0; i < descInputNumbers(); i++) {
+            auto desc = getSrcMemDesc(prim_desc, i);
+
+            inConfs.emplace_back(desc, BlockedMemoryDesc::EMPTY_MASK);
+        }
+
+        for (size_t i = 0; i < descOutputNumbers(); i++) {
+            auto desc = getDstMemDesc(prim_desc, i);
+
+            outConfs.emplace_back(desc, BlockedMemoryDesc::EMPTY_MASK, inPlaceOutPort);
+        }
+
+        const NodeConfig config(inConfs, outConfs);
+        const impl_desc_type impl_type = parse_impl_name(prim_desc.impl_info_str());
+
+        supportedPrimitiveDescriptors.emplace_back(config, impl_type);
+    };
+
+    /* When custom implementation priorities are NOT defined it is enough to
+     * just use the first implementation from the priority list.
+     * When custom implementation priorities are defined, all the implementations should be considered,
+     * since custom implementations can be not available at all, so a fallback to the default ones must happen
+     * To achive the fallback, it is necessary to create a supported primitive descriptor for each implementation
+     * since oneDNN primitive is mutating while iterating */
 
     for (auto& desc : descs) {
-        primitive_desc_iterator itpd = desc;
+        auto first_desc = dnnl::primitive_desc(DnnlExtensionUtils::clone_primitive_desc(desc.get()));
+        const bool first_match = customImplPriorities.empty();
+        DnnlExtensionUtils::for_each_implementation(desc,
+                                                    first_match,
+                                                    [&](impl_desc_type implType) {
+                                                        return contains(getImplPriority(), implType);
+                                                    },
+                                                    [&](dnnl::primitive_desc& desc) {
+                                                        addSupportedPrimitiveDescriptor(desc);
+                                                    });
 
-        while (static_cast<bool>(itpd)) {
-            NodeConfig config;
-            for (size_t i = 0; i < descInputNumbers(); i++) {
-                PortConfig portConfig;
-                portConfig.inPlace(-1);
-                portConfig.constant(false);
-                auto desc = getSrcMemDesc(itpd, i);
-                if (desc->getType() & MemoryDescType::Blocked) {
-                    portConfig.setMemDesc(std::dynamic_pointer_cast<BlockedMemoryDesc>(desc), BLOCKED_DESC_EMPTY_MASK);
-                } else {
-                    portConfig.setMemDesc(std::move(desc));
-                }
-                config.inConfs.push_back(portConfig);
-            }
-
-            for (size_t i = 0; i < descOutputNumbers(); i++) {
-                PortConfig portConfig;
-                portConfig.inPlace(canBeInPlace() ? 0 : -1);
-                portConfig.constant(false);
-                auto desc = getDstMemDesc(itpd, i);
-                if (desc->getType() & MemoryDescType::Blocked) {
-                    portConfig.setMemDesc(std::dynamic_pointer_cast<BlockedMemoryDesc>(desc), BLOCKED_DESC_EMPTY_MASK);
-                } else {
-                    portConfig.setMemDesc(std::move(desc));
-                }
-                config.outConfs.push_back(portConfig);
-            }
-            impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
-
-            supportedPrimitiveDescriptors.emplace_back(config, impl_type);
-            if (!itpd.next_impl())
-                break;
-        }
+        // fallback. if none of the primitive types is present in the priority list just add first implementation
+        // @todo this fallback is not necessary if primitive priority list is filled correctly
+        if (supportedPrimitiveDescriptors.empty())
+            addSupportedPrimitiveDescriptor(first_desc);
     }
 }
 
@@ -971,51 +981,56 @@ void Node::cleanup() {
     }
 }
 
-const std::vector<impl_desc_type>& Node::getPrimitivesPriority() {
-    std::vector<impl_desc_type> priorities = {
-            impl_desc_type::unknown,
-            // Undef impl type is used to express use-cases there real type is unkown during compilation
-            // Undef has higher priority than defined types in order to force primitive selection logic to make decision based on other properties
-            impl_desc_type::undef,
-            impl_desc_type::brgconv_avx512_amx_1x1,
-            impl_desc_type::brgconv_avx512_amx,
-            impl_desc_type::jit_avx512_amx_dw,
-            impl_desc_type::jit_avx512_amx_1x1,
-            impl_desc_type::jit_avx512_amx,
-            // Brgconv kernels disabled in order to prevent perf degradations on non AMX HW
-            // impl_desc_type::brgconv_avx512_1x1,
-            // impl_desc_type::brgconv_avx512,
-            impl_desc_type::jit_uni_dw,
-            impl_desc_type::jit_uni_1x1,
-            impl_desc_type::jit_uni,
-            impl_desc_type::jit_avx512_dw,
-            impl_desc_type::jit_avx512_1x1,
-            impl_desc_type::jit_avx512,
-            impl_desc_type::jit_avx2_dw,
-            impl_desc_type::jit_avx2_1x1,
-            impl_desc_type::jit_avx2,
-            impl_desc_type::jit_avx_dw,
-            impl_desc_type::jit_avx_1x1,
-            impl_desc_type::jit_avx,
-            impl_desc_type::jit_sse42_dw,
-            impl_desc_type::jit_sse42_1x1,
-            impl_desc_type::jit_sse42,
-            impl_desc_type::gemm_any,
-            impl_desc_type::gemm_blas,
-            impl_desc_type::gemm_avx512,
-            impl_desc_type::gemm_avx2,
-            impl_desc_type::gemm_avx,
-            impl_desc_type::gemm_sse42,
-            impl_desc_type::acl,
-            impl_desc_type::jit_gemm,
-            impl_desc_type::ref_any,
-            impl_desc_type::ref,
+const std::vector<impl_desc_type>& Node::getDefaultImplPriority() {
+    static const std::vector<impl_desc_type> priorities {
+        impl_desc_type::unknown,
+        // Undef impl type is used to express use-cases there real type is unkown during compilation
+        // Undef has higher priority than defined types in order to force primitive selection logic to make decision based on other properties
+        impl_desc_type::undef,
+        impl_desc_type::brgconv_avx512_amx_1x1,
+        impl_desc_type::brgconv_avx512_amx,
+        impl_desc_type::jit_avx512_amx_dw,
+        impl_desc_type::jit_avx512_amx_1x1,
+        impl_desc_type::jit_avx512_amx,
+        // Brgconv kernels disabled in order to prevent perf degradations on non AMX HW
+        // impl_desc_type::brgconv_avx512_1x1,
+        // impl_desc_type::brgconv_avx512,
+        impl_desc_type::jit_uni_dw,
+        impl_desc_type::jit_uni_1x1,
+        impl_desc_type::jit_uni,
+        impl_desc_type::jit_avx512_dw,
+        impl_desc_type::jit_avx512_1x1,
+        impl_desc_type::jit_avx512,
+        impl_desc_type::jit_avx2_dw,
+        impl_desc_type::jit_avx2_1x1,
+        impl_desc_type::jit_avx2,
+        impl_desc_type::jit_avx_dw,
+        impl_desc_type::jit_avx_1x1,
+        impl_desc_type::jit_avx,
+        impl_desc_type::jit_sse42_dw,
+        impl_desc_type::jit_sse42_1x1,
+        impl_desc_type::jit_sse42,
+        impl_desc_type::gemm_any,
+        impl_desc_type::gemm_blas,
+        impl_desc_type::gemm_avx512,
+        impl_desc_type::gemm_avx2,
+        impl_desc_type::gemm_avx,
+        impl_desc_type::gemm_sse42,
+        impl_desc_type::acl,
+        impl_desc_type::jit_gemm,
+        impl_desc_type::ref_any,
+        impl_desc_type::ref,
     };
-    for (const auto& impl : priorities) {
-        if (std::find(implPriorities.begin(), implPriorities.end(), impl) == implPriorities.end())
-            implPriorities.push_back(impl);
-    }
-    return implPriorities;
+
+    return priorities;
+}
+
+const std::vector<impl_desc_type>& Node::getImplPriority() {
+    if (!customImplPriorities.empty())
+        return customImplPriorities;
+
+
+    return getDefaultImplPriority();
 }
 
 PortDescBasePtr Node::getConsistentInputDesc(const NodeConfig &config, size_t idx) const {
@@ -1126,7 +1141,7 @@ void Node::initOptimalPrimitiveDescriptor() {
             // it is assumed that the nodes will define dense tensors on output edges
             // if it is not the case the implementation must redefine this behaviour
             if (outMemDesc->getType() & Blocked) {
-                config.outConfs[i].setMemDesc(std::dynamic_pointer_cast<BlockedMemoryDesc>(outMemDesc), BLOCKED_DESC_FULL_MASK);
+                config.outConfs[i].setMemDesc(std::dynamic_pointer_cast<BlockedMemoryDesc>(outMemDesc), BlockedMemoryDesc::FULL_MASK);
             }
         }
     }
@@ -1144,18 +1159,18 @@ bool Node::isConfigDefined(const NodeConfig &config) const {
     return true;
 }
 
-MemoryDescPtr Node::getSrcMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx) {
+MemoryDescPtr Node::getSrcMemDesc(const dnnl::primitive_desc &prim_desc, size_t idx) const {
     if (getInputShapeAtPort(idx).isDynamic()) {
-        return DnnlExtensionUtils::makeUndefinedDesc(primitive_desc_it.src_desc(idx), getInputShapeAtPort(idx));
+        return DnnlExtensionUtils::makeUndefinedDesc(prim_desc.src_desc(idx), getInputShapeAtPort(idx));
     }
-    return DnnlExtensionUtils::makeDescriptor(primitive_desc_it.src_desc(idx));
+    return DnnlExtensionUtils::makeDescriptor(prim_desc.src_desc(idx));
 }
 
-MemoryDescPtr Node::getDstMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx) {
+MemoryDescPtr Node::getDstMemDesc(const dnnl::primitive_desc &prim_desc, size_t idx) const {
     if (getOutputShapeAtPort(idx).isDynamic()) {
-        return DnnlExtensionUtils::makeUndefinedDesc(primitive_desc_it.dst_desc(idx), getOutputShapeAtPort(idx));
+        return DnnlExtensionUtils::makeUndefinedDesc(prim_desc.dst_desc(idx), getOutputShapeAtPort(idx));
     }
-    return DnnlExtensionUtils::makeDescriptor(primitive_desc_it.dst_desc(idx));
+    return DnnlExtensionUtils::makeDescriptor(prim_desc.dst_desc(idx));
 }
 
 void Node::appendPostOpArgs(const dnnl::primitive_attr& attr,
@@ -1627,15 +1642,16 @@ void Node::addSupportedPrimDesc(const std::vector<PortConfigurator>& inPortConfi
         if (!fill_port(outPortConfigs[i], dims, prc, config.outConfs))
             return;
     }
-    supportedPrimitiveDescriptors.push_back({config, implType});
+
+    supportedPrimitiveDescriptors.emplace_back(config, implType);
 }
 
 void Node::initializeDQScales(const float* scaleData, const size_t scaleSize) {
-    bool scalePerTensor;
     if (!DQScales.empty() || !scaleSize)
         IE_THROW() << "DQ scales is preset or scale size is 0, ##" << getName();
     DQScales.reserve(scaleSize);
-    scalePerTensor = true;
+
+    bool scalePerTensor = true;
     for (size_t i = 0; i < scaleSize; i++) {
         DQScales.push_back(scaleData[i]);
         if (scaleData[i] != scaleData[0])
