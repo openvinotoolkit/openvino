@@ -14,8 +14,8 @@
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/pass.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "transformations/utils/transformation_helper.hpp"
 #include "transformations/rt_info/transpose_sinking_attr.hpp"
+#include "transformations/utils/transformation_helper.hpp"
 
 using namespace ov::opset12;
 using namespace ov::intel_gna::pass;
@@ -24,7 +24,7 @@ namespace {
 inline bool is_skip_operation(const std::shared_ptr<ov::Node>& node) {
     return std::dynamic_pointer_cast<Reshape>(node) != nullptr;
 }
-} // namespace
+}  // namespace
 
 bool MarkOutputSinking::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_MODEL_SCOPE(MarkOutputSinking);
@@ -34,8 +34,10 @@ bool MarkOutputSinking::run_on_model(const std::shared_ptr<ov::Model>& model) {
             auto r_input_node =
                 graph_utils::get_prev_node_skipping_certain(r_input.get_node_shared_ptr(), is_skip_operation);
             // Transpose -> Result, Gather -> Result
-            if (!std::dynamic_pointer_cast<ov::opset1::Gather>(r_input_node) && !std::dynamic_pointer_cast<ov::opset7::Gather>(r_input_node) ||
-                !std::dynamic_pointer_cast<ov::opset8::Gather>(r_input_node) && !std::dynamic_pointer_cast<ov::opset1::Transpose>(r_input_node)) {
+            if (!std::dynamic_pointer_cast<ov::opset1::Gather>(r_input_node) &&
+                !std::dynamic_pointer_cast<ov::opset7::Gather>(r_input_node) &&
+                !std::dynamic_pointer_cast<ov::opset8::Gather>(r_input_node) &&
+                !std::dynamic_pointer_cast<ov::opset1::Transpose>(r_input_node)) {
                 continue;
             }
             result = true;

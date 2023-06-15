@@ -42,6 +42,7 @@
 #include "transformations/insert_identity_layer.hpp"
 #include "transformations/insert_reshape_around_matmul.hpp"
 #include "transformations/insert_transpose_after_convolution_or_pooling.hpp"
+#include "transformations/mark_output_sinking.hpp"
 #include "transformations/markup_fusable_transpose.hpp"
 #include "transformations/op_conversions/convert_mvn1_to_mvn6.hpp"
 #include "transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp"
@@ -72,7 +73,6 @@
 #include "transformations/ts_split.hpp"
 #include "transformations/unfuse_reshape_and_transpose.hpp"
 #include "transformations/utils/utils.hpp"
-#include "transformations/mark_output_sinking.hpp"
 
 using namespace ov;
 using namespace ov::opset8;
