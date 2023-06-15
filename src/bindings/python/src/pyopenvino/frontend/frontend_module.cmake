@@ -41,5 +41,6 @@ function(frontend_module TARGET FRAMEWORK INSTALL_COMPONENT)
 
     install(TARGETS ${TARGET_NAME}
             DESTINATION ${OV_CPACK_PYTHONDIR}/openvino/frontend/${FRAMEWORK}
-            COMPONENT ${INSTALL_COMPONENT})
+            COMPONENT ${INSTALL_COMPONENT}
+            ${OV_CPACK_COMP_PYTHON_OPENVINO_EXCLUDE_ALL})
 endfunction()

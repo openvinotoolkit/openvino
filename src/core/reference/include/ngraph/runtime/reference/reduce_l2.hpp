@@ -16,6 +16,7 @@ namespace reference {
 template <typename T>
 void reduce_l2(const T* arg, T* out, const Shape& in_shape, const AxisSet& reduction_axes) {
     constexpr bool dont_keep_dims_in_output = false;
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto out_shape = reduce(in_shape, reduction_axes, dont_keep_dims_in_output);
     std::fill(out, out + shape_size(out_shape), T(0));
 
@@ -36,6 +37,7 @@ void reduce_l2(const T* arg, T* out, const Shape& in_shape, const AxisSet& reduc
     std::transform(out, out + shape_size(out_shape), out, [](T elem) {
         return sqrt(elem);
     });
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 }  // namespace reference
 }  // namespace runtime

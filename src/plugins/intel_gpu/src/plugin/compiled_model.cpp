@@ -68,7 +68,11 @@ CompiledModel::CompiledModel(InferenceEngine::CNNNetwork &network,
     }
 }
 
-CompiledModel::CompiledModel(cldnn::BinaryInputBuffer& ib, InferenceEngine::RemoteContext::Ptr context, const ExecutionConfig& config) :
+CompiledModel::CompiledModel(cldnn::BinaryInputBuffer& ib,
+                             InferenceEngine::RemoteContext::Ptr context,
+                             const ExecutionConfig& config,
+                             InferenceEngine::InputsDataMap* inputs,
+                             InferenceEngine::OutputsDataMap* outputs) :
     InferenceEngine::ExecutableNetworkThreadSafeDefault{[&]() -> InferenceEngine::ITaskExecutor::Ptr {
         if (config.get_property(ov::intel_gpu::exclusive_async_requests)) {
             //exclusiveAsyncRequests essentially disables the streams (and hence should be checked first) => aligned with the CPU behavior
@@ -90,7 +94,7 @@ CompiledModel::CompiledModel(cldnn::BinaryInputBuffer& ib, InferenceEngine::Remo
     auto pos = ib.tellg();
     for (uint16_t n = 0; n < m_config.get_property(ov::num_streams); n++) {
         ib.seekg(pos);
-        auto graph = std::make_shared<Graph>(ib, context_impl, m_config, n);
+        auto graph = std::make_shared<Graph>(ib, context_impl, m_config, n, inputs, outputs);
         m_graphs.push_back(graph);
     }
 }
@@ -342,7 +346,6 @@ InferenceEngine::Parameter CompiledModel::GetMetric(const std::string &name) con
             CONFIG_KEY(PERFORMANCE_HINT),
             CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS),
             CONFIG_KEY(PERF_COUNT),
-            CONFIG_KEY(DYN_BATCH_ENABLED),
             CONFIG_KEY(CONFIG_FILE),
             CONFIG_KEY(DEVICE_ID),
             CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS),

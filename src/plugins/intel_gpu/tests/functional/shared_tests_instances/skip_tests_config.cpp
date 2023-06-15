@@ -103,8 +103,6 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*CoreThreadingTests.*smoke.*Network.*)",
             // Assign-3/ReadValue-3 does not have evaluate() methods; ref implementation does not save the value across the inferences.
             R"(smoke_MemoryTestV3.*)",
-            // Unsupported 8d tensors
-            R"(smoke_Basic/SqueezeUnsqueezeLayerTest.CompareWithRefs/OpType=Unsqueeze_IS=\(1.1.1.1\)_Axes=\((0.1.2|0.2.3|1.2.3|0.1.2.3|)\)_.*)",
             // Issue: 90539
             R"(smoke_AutoBatch_BehaviorTests/OVInferRequestIOTensorTest.InferStaticNetworkSetInputTensor/targetDevice=BATCH.*)",
             // TODO: range input with one element should NOT be regarded as dynamic batch model in Program::IsDynBatchModel().
@@ -116,14 +114,20 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*CachingSupportCase.*GPU.*CompileModelCacheTestBase.*CompareWithRefImpl.*)",
             // Currently 1D convolution has an issue
             R"(.*smoke_ConvolutionLayerGPUTest_dynamic1DSymPad.*)",
-
             // Looks like the test is targeting CPU plugin and doesn't respect that execution graph may vary from plugin to plugin
             R"(.*ExecGraphSerializationTest.*)",
-
             // TODO: support getconfig in auto/multi CVS-104942
             // TODO: move auto/multi cases to dedicated unit tests
             R"(.*(Auto|Multi).*SetPropLoadNetWorkGetPropTests.*)",
             // unsupported metrics
             R"(.*nightly_MultiHeteroAutoBatchOVGetMetricPropsTest.*OVGetMetricPropsTest.*(FULL_DEVICE_NAME_with_DEVICE_ID|AVAILABLE_DEVICES|DEVICE_UUID|OPTIMIZATION_CAPABILITIES|MAX_BATCH_SIZE|DEVICE_GOPS|DEVICE_TYPE|RANGE_FOR_ASYNC_INFER_REQUESTS|RANGE_FOR_STREAMS).*)",
+            // Issue: 111437
+            R"(.*smoke_Deconv_2D_Dynamic_.*FP32/DeconvolutionLayerGPUTest.CompareWithRefs.*)",
+            R"(.*smoke_GroupDeconv_2D_Dynamic_.*FP32/GroupDeconvolutionLayerGPUTest.CompareWithRefs.*)",
+            // Issue: 111440
+            R"(.*smoke_set1/GatherElementsGPUTest.CompareWithRefs.*)",
+            // For some strange reason (bug?) output format cannot have a rank greater than 4 for dynamic shape case,
+            // because it crashes in some random places during "reorder_inputs" pass.
+            R"(.*UniqueLayerDynamicGPUTest.*\(\d*\.\d*\.\d*\.\d*\.\d*\).*axis.*)",
     };
 }

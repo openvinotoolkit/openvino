@@ -7,9 +7,19 @@
 #include <cmath>
 #include <cstring>
 
+#ifndef IN_OV_COMPONENT
+#    define IN_OV_COMPONENT
+#    define WAS_OV_LIBRARY_DEFINED_CONSTANT
+#endif
+
 #include "ngraph/runtime/aligned_buffer.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/shared_buffer.hpp"
+
+#ifdef WAS_OV_LIBRARY_DEFINED_CONSTANT
+#    undef IN_OV_COMPONENT
+#    undef WAS_OV_LIBRARY_DEFINED_CONSTANT
+#endif
 #include "openvino/core/coordinate_diff.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/type/element_type.hpp"
@@ -133,7 +143,7 @@ public:
             break;
         case Type_t::undefined:
         case Type_t::dynamic:
-            throw std::runtime_error("unsupported type");
+            OPENVINO_THROW("unsupported type");
         }
 #if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8)
 #    pragma GCC diagnostic pop
@@ -271,8 +281,9 @@ public:
     template <typename T>
     std::vector<T> get_vector() const {
         const T* p = get_data_ptr<T>();
-        if (p == nullptr)
-            throw std::runtime_error("Cannot create vector! Buffer is not allocated.");
+        if (p == nullptr) {
+            OPENVINO_THROW("Cannot create vector! Buffer is not allocated.");
+        }
         return std::vector<T>(p, p + shape_size(m_shape));
     }
 
@@ -339,7 +350,7 @@ public:
             cast_vector<Type_t::u64>(rc);
             break;
         default:
-            throw std::runtime_error("unsupported type");
+            OPENVINO_THROW("unsupported type");
         }
 #if defined(_MSC_VER)
 #    pragma warning(pop)
@@ -634,7 +645,7 @@ private:
         const auto& target_type = m_element_type;
         size_t target_element_count = shape_size(m_shape);
         if (source.size() != target_element_count) {
-            throw std::runtime_error("Constant initializer does not match shape");
+            OPENVINO_THROW("Constant initializer does not match shape");
         }
         using Type_t = element::Type_t;
 #if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8)
@@ -693,7 +704,7 @@ private:
             break;
         case element::Type_t::undefined:
         case element::Type_t::dynamic:
-            throw std::runtime_error("unsupported type");
+            OPENVINO_THROW("unsupported type");
         }
 #if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8)
 #    pragma GCC diagnostic pop

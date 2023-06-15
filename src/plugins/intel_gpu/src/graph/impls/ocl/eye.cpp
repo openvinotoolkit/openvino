@@ -68,3 +68,4 @@ attach_eye_impl::attach_eye_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::eye_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::eye)

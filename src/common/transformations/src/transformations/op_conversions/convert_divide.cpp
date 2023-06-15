@@ -16,6 +16,7 @@
 #include "openvino/op/divide.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/power.hpp"
+#include "openvino/util/log.hpp"
 #include "transformations/rt_info/nonconvertible_divide.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -34,12 +35,12 @@ bool convert_divide(std::shared_ptr<ngraph::Node> node) {
     if (std::dynamic_pointer_cast<ngraph::op::Constant>(div->get_input_node_shared_ptr(1))) {
         OPENVINO_SUPPRESS_DEPRECATED_START
         if (auto const_pow = ngraph::get_constant_from_source(pow)) {
-            OPENVINO_SUPPRESS_DEPRECATED_END
             pow = const_pow;
         } else {
-            NGRAPH_DEBUG << "ConvertDivide has failed due to unsupported evaluate type in " << pow.get();
+            OPENVINO_DEBUG << "ConvertDivide has failed due to unsupported evaluate type in " << pow.get();
             return false;
         }
+        OPENVINO_SUPPRESS_DEPRECATED_END
     } else {
         ngraph::copy_runtime_info(div, pow);
     }

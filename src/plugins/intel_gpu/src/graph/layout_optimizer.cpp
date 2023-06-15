@@ -300,12 +300,6 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
     if (next.is_type<eltwise>() && prev_simple && next_simple)
         return true;
 
-    if (next.is_type<permute>() && (fmt_prev == format::b_fs_zyx_fsv16 &&
-        next_output_layout.batch() > 1 &&
-        next_output_layout.feature() % 16 != 0)) {
-        return true;
-    }
-
     if (next.is_type<fully_connected>() &&
         (fmt_prev == format::bfyx || fmt_prev == format::yxfb ||
          fmt_prev == format::b_fs_yx_fsv16 || fmt_prev == format::fs_b_yx_fsv32 ||
@@ -420,6 +414,13 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
 }
 
 bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, reorder_node& node, format fmt_prev, format fmt_next) {
+    // Because mvn and concatenation kernel can work cross-layout, if reorder only performs type conversion,
+    // fusing reorder to the previous node can be done even if it is a dynamic shape case
+    if ((prev.is_type<mvn>() || prev.is_type<concatenation>()) &&
+        (format::is_simple_data_format(fmt_prev) && format::is_simple_data_format(fmt_next)) &&
+        node.is_type_conversion_only())
+        return true;
+
     if (prev.is_dynamic() || (!node.get_users().empty() && node.get_users().front()->is_dynamic()))
         return false;
 
@@ -1370,6 +1371,9 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
     if (forced_impl != impl_types::any)
         return forced_impl;
 
+    if (node.is_in_shape_of_subgraph() && !node.is_type<reshape>())
+        return impl_types::cpu;
+
     if (!_forcing_map.empty() && _forcing_map.count(node.id()) != 0) {
         preferred_impl = _forcing_map.at(node.id()).second;
     } else if (node.is_type<detection_output>()) {
@@ -1879,9 +1883,70 @@ void layout_optimizer::select_preferred_formats_for_onednn(program_node& node, d
             GPU_DEBUG_LOG << "select_preferred_formats:" << node.id() << ": " << fmt_to_str(target_format) << " --> " << fmt_to_str(target_format)
                           << " For index : " << idx << std::endl;
         }
+        // Optimized out permute from permute-gemm pattern. i.e. permute -> gemm
+        if (node.is_type<gemm>()) {
+            // Only the formats below support permute opt out in gemm and permute pattern. For other formats, need to check the gemm performance.
+            std::vector<format> gemm_in_foramt_white_list = {
+                format::bfyx,
+                format::fyxb,
+                format::byfx,
+                format::bxfy,
+            };
+            for (size_t idx = 0 ; idx < node.get_dependencies().size() ; idx++) {
+                if (node.get_dependency(idx).is_type<permute>()) {
+                    auto& pnode = node.get_dependency(idx);
+                    if (pnode.has_fused_primitives()) {
+                        continue;
+                    }
+                    auto input_lay = pnode.get_dependency(0).get_output_layout();
+                    auto output_lay = pnode.get_output_layout();
+                    if (input_lay.compatible(output_lay)) {
+                        for (auto candidate : gemm_in_foramt_white_list) {
+                            auto impl_param = pnode.get_kernel_impl_params();
+                            auto desc = impl_param->typed_desc<permute>();
+                            auto permute_order = desc->permute_order;
+                            std::vector<size_t> l_permute_order(std::begin(permute_order), std::end(permute_order));
+                            if (format::traits(static_cast<format::type>(candidate))._order == l_permute_order) {
+                                pnode.init_preferred_fmt(1, 1);
+                                pnode.set_preferred_output_fmt(0, format(static_cast<format::type>(candidate)));
+                                pnode.can_be_optimized(true);
+                                node.set_preferred_input_fmt(idx, format(static_cast<format::type>(candidate)));
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+            // gemm -> permute
+            if (node.get_users().size() == 1 && node.get_users().front()->is_type<permute>() && !node.has_fused_primitives()) {
+                std::vector<format> gemm_out_format_white_list = {
+                    format::bfyx,
+                    format::fyxb,
+                    format::byfx,
+                };
+                auto& pnode = node.get_users().front()->as<permute>();
+                if (!pnode.has_fused_primitives()) {
+                    auto input_lay = pnode.get_dependency(0).get_output_layout();
+                    auto output_lay = pnode.get_output_layout();
+                    if (input_lay.compatible(output_lay)) {
+                        for (auto candidate : gemm_out_format_white_list) {
+                            auto impl_param = pnode.get_kernel_impl_params();
+                            auto desc = impl_param->typed_desc<permute>();
+                            auto permute_order = desc->permute_order;
+                            std::vector<size_t> l_permute_order(std::begin(permute_order), std::end(permute_order));
+                            if (format::traits(static_cast<format::type>(candidate))._order == l_permute_order) {
+                                node.set_preferred_output_fmt(0, format(static_cast<format::type>(candidate)));
+                                pnode.init_preferred_fmt(1, 1);
+                                pnode.set_preferred_input_fmt(0, format(static_cast<format::type>(candidate)));
+                                pnode.can_be_optimized(true);
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
-
-    return;
 }
 #endif  // ENABLE_ONEDNN_FOR_GPU
 

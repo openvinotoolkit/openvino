@@ -4,7 +4,7 @@
 
 @sphinxdirective
 
-With the OpenVINO™ 2022.3 release, you can install OpenVINO Runtime on Linux using the APT repository. 
+With the OpenVINO™ 2023.0 release, you can install OpenVINO Runtime on Linux using the APT repository. 
 OpenVINO™ Development Tools can be installed via PyPI only.
 See `Installing Additional Components <step-3-optional-install-additional-components>`__ for more information. 
 
@@ -40,7 +40,7 @@ Prerequisites
 .. tab:: Software Requirements
 
   * `CMake 3.13 or higher, 64-bit <https://cmake.org/download/>`__
-  * GCC 7.5.0 (for Ubuntu 18.04) or GCC 9.3.0 (for Ubuntu 20.04)
+  * GCC 7.5.0 (for Ubuntu 18.04), GCC 9.3.0 (for Ubuntu 20.04) or GCC 11.3.0 (for Ubuntu 22.04)
   * `Python 3.7 - 3.11, 64-bit <https://www.python.org/downloads/>`__
 
 
@@ -78,17 +78,23 @@ Step 1: Set Up the OpenVINO Toolkit APT Repository
 
 2. Add the repository via the following command:
 
-   .. tab:: Ubuntu 18
+   .. tab:: Ubuntu 22
 
       .. code-block:: sh
 
-         echo "deb https://apt.repos.intel.com/openvino/2022 bionic main" | sudo tee /etc/apt/sources.list.d/intel-openvino-2022.list
+         echo "deb https://apt.repos.intel.com/openvino/2023 ubuntu22 main" | sudo tee /etc/apt/sources.list.d/intel-openvino-2023.list
 
    .. tab:: Ubuntu 20
 
       .. code-block:: sh
 
-         echo "deb https://apt.repos.intel.com/openvino/2022 focal main" | sudo tee /etc/apt/sources.list.d/intel-openvino-2022.list
+         echo "deb https://apt.repos.intel.com/openvino/2023 ubuntu20 main" | sudo tee /etc/apt/sources.list.d/intel-openvino-2023.list
+
+   .. tab:: Ubuntu 18
+
+      .. code-block:: sh
+
+         echo "deb https://apt.repos.intel.com/openvino/2023 ubuntu18 main" | sudo tee /etc/apt/sources.list.d/intel-openvino-2023.list
 
 
 3. Update the list of packages via the update command:
@@ -139,7 +145,7 @@ Install OpenVINO Runtime
 
       .. code-block:: sh
 
-         sudo apt install openvino-2022.3.0
+         sudo apt install openvino-2023.0.0
 
 .. note::
 
@@ -216,7 +222,7 @@ To uninstall OpenVINO Runtime via APT, run the following command based on your n
 
    .. code-block:: sh
 
-      sudo apt autoremove openvino-2022.3.0
+      sudo apt autoremove openvino-2023.0.0
 
 
 What's Next?
