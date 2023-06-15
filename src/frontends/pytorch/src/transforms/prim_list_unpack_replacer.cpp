@@ -31,6 +31,7 @@ PrimListUnpackReplacer::PrimListUnpackReplacer() {
         if (auto torch_split = cast_fw_node(input_node, "aten::split")) {
             auto rank = torch_split->input(1).get_partial_shape().rank();
             if (rank.is_dynamic()) {
+                add_exception_to_fw_node(torch_split, "aten::split: dynamic rank is not supported.");
                 return false;
             }
             std::shared_ptr<Node> split;
@@ -171,6 +172,7 @@ PrimListUnpackReplacer::PrimListUnpackReplacer() {
             auto meshgrid_input_node =
                 cast_fw_node(meshgrid->input_value(0).get_node_shared_ptr(), "prim::ListConstruct");
             if (!meshgrid_input_node) {
+                add_exception_to_fw_node(input_node, "aten::meshgrid: only prim::ListConstruct supported as input.");
                 return false;
             }
             NodeVector rt_copy_from{list_unpack, input_node, meshgrid_input_node};
@@ -182,11 +184,13 @@ PrimListUnpackReplacer::PrimListUnpackReplacer() {
             auto meshgrid_attrs = meshgrid->get_attrs();
             if (meshgrid_attrs.find("indexing") == meshgrid_attrs.end()) {
                 // Check if "indexing" key is available in meshgrid attributes set in translation.
+                add_exception_to_fw_node(input_node, "aten::meshgrid: couldn't find indexing attribute.");
                 return false;
             }
             std::string indexing = meshgrid_attrs.at("indexing");
             if (indexing != "ij" && indexing != "xy") {
                 // Check if indexing attribute has correct values.
+                add_exception_to_fw_node(input_node, "aten::meshgrid: unsupported indexing mode.");
                 return false;
             }
 
@@ -266,6 +270,9 @@ PrimListUnpackReplacer::PrimListUnpackReplacer() {
             return true;
         }
 
+        std::stringstream msg;
+        msg << "prim::ListUnpack: unsupported input node: " << input_node;
+        add_exception_to_fw_node(list_unpack, msg.str());
         return false;
     };
 

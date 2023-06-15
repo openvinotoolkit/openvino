@@ -197,19 +197,20 @@ INSTANTIATE_TEST_SUITE_P(smoke_OVClassSetDevicePriorityConfigPropsTest,
                                             ::testing::ValuesIn(multiConfigs)));
 
 const std::vector<ov::AnyMap> configsDeviceProperties = {
-    {ov::device::properties("CPU", ov::num_streams(3))},
-    {ov::device::properties(ov::AnyMap{{"CPU", ov::AnyMap{ov::num_streams(3)}}})}};
+    {ov::device::properties("CPU", ov::num_streams(2))},
+    {ov::device::properties(ov::AnyMap{{"CPU", ov::AnyMap{ov::num_streams(2)}}})}};
 
 const std::vector<ov::AnyMap> configsDevicePropertiesDouble = {
-    {ov::device::properties("CPU", ov::num_streams(3)), ov::num_streams(5)},
-    {ov::device::properties("CPU", ov::num_streams(3)),
+    {ov::device::properties("CPU", ov::num_streams(2)), ov::num_streams(5)},
+    {ov::device::properties("CPU", ov::num_streams(2)),
      ov::device::properties(ov::AnyMap{{"CPU", ov::AnyMap{ov::num_streams(7)}}}),
      ov::num_streams(5)},
-    {ov::device::properties("CPU", ov::num_streams(3)), ov::device::properties("CPU", ov::num_streams(5))},
-    {ov::device::properties("CPU", ov::num_streams(3)),
+    {ov::device::properties("CPU", ov::num_streams(2)), ov::device::properties("CPU", ov::num_streams(5))},
+    {ov::device::properties("CPU", ov::num_streams(1)),
      ov::device::properties(ov::AnyMap{{"CPU", ov::AnyMap{ov::num_streams(5)}}})},
-    {ov::device::properties(ov::AnyMap{{"CPU", ov::AnyMap{ov::num_streams(3)}}}),
+    {ov::device::properties(ov::AnyMap{{"CPU", ov::AnyMap{ov::num_streams(1)}}}),
      ov::device::properties(ov::AnyMap{{"CPU", ov::AnyMap{ov::num_streams(5)}}})}};
+
 
 // IE Class load and check network with ov::device::properties
 INSTANTIATE_TEST_SUITE_P(smoke_CPU_OVClassCompileModelAndCheckSecondaryPropertiesTest,

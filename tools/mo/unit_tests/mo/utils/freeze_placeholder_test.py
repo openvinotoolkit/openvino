@@ -28,6 +28,7 @@ def base_args_config(use_legacy_fe: bool = None, use_new_fe: bool = None):
     args.framework = "onnx"
     args.model_name = None
     args.input_model = None
+    args.input_checkpoint = None
     args.silent = True
     args.transform = []
     args.scale = None
