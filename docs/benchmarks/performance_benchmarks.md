@@ -43,42 +43,46 @@ Click the buttons below to see the chosen benchmark data.
 
 For a successful deep learning inference application, the following four key metrics need to be considered: 
 
+.. tab-set::
 
+   .. tab-item:: :material-regular:`keyboard_double_arrow_right;1.4em` Throughput
+      :sync: throughput
 
-.. tab:: :material-regular:`keyboard_double_arrow_right;1.4em` Throughput
+      Measures the number of inferences delivered within a latency threshold 
+      (for example, number of Frames Per Second - FPS). When deploying a system with 
+      deep learning inference, select the throughput that delivers the best trade-off 
+      between latency and power for the price and performance that meets your requirements.
 
-   Measures the number of inferences delivered within a latency threshold 
-   (for example, number of Frames Per Second - FPS). When deploying a system with 
-   deep learning inference, select the throughput that delivers the best trade-off 
-   between latency and power for the price and performance that meets your requirements.
+   .. tab-item:: :material-regular:`attach_money;1.4em` Value
+      :sync: value
 
-.. tab:: :material-regular:`attach_money;1.4em` Value
+      While throughput is important, what is more critical in edge AI deployments is 
+      the performance efficiency or performance-per-cost. Application performance in 
+      throughput per dollar of system cost is the best measure of value. The value KPI is 
+      calculated as “Throughput measured as inferences per second / price of inference engine”. 
+      This means for a 2 socket system 2x the price of a CPU is used. Prices are as per 
+      date of benchmarking and sources can be found as links in the Hardware Platforms (PDF) description below.
 
-   While throughput is important, what is more critical in edge AI deployments is 
-   the performance efficiency or performance-per-cost. Application performance in 
-   throughput per dollar of system cost is the best measure of value. The value KPI is 
-   calculated as “Throughput measured as inferences per second / price of inference engine”. 
-   This means for a 2 socket system 2x the price of a CPU is used. Prices are as per 
-   date of benchmarking and sources can be found as links in the Hardware Platforms (PDF) description below.
+   .. tab-item:: :material-regular:`flash_on;1.4em` Efficiency
+      :sync: efficiency
 
-.. tab:: :material-regular:`flash_on;1.4em` Efficiency
+      System power is a key consideration from the edge to the data center. When selecting 
+      deep learning solutions, power efficiency (throughput/watt) is a critical factor to consider. 
+      Intel designs provide excellent power efficiency for running deep learning workloads. 
+      The efficiency KPI is calculated as “Throughput measured as inferences per second / TDP of 
+      inference engine”. This means for a 2 socket system 2x the power dissipation (TDP) of a CPU is used. 
+      TDP-values are as per date of benchmarking and sources can be found as links in the Hardware Platforms (PDF) description below.
 
-   System power is a key consideration from the edge to the data center. When selecting 
-   deep learning solutions, power efficiency (throughput/watt) is a critical factor to consider. 
-   Intel designs provide excellent power efficiency for running deep learning workloads. 
-   The efficiency KPI is calculated as “Throughput measured as inferences per second / TDP of 
-   inference engine”. This means for a 2 socket system 2x the power dissipation (TDP) of a CPU is used. 
-   TDP-values are as per date of benchmarking and sources can be found as links in the Hardware Platforms (PDF) description below.
+   .. tab-item:: :material-regular:`hourglass_empty;1.4em` Latency
+      :sync: latency
 
-.. tab:: :material-regular:`hourglass_empty;1.4em` Latency
-
-   This measures the synchronous execution of inference requests and is reported in milliseconds. 
-   Each inference request (for example: preprocess, infer, postprocess) is allowed to complete before 
-   the next is started. This performance metric is relevant in usage scenarios where a single image 
-   input needs to be acted upon as soon as possible. An example would be the healthcare sector where 
-   medical personnel only request analysis of a single ultra sound scanning image or in real-time or 
-   near real-time applications for example an industrial robot's response to actions in its environment 
-   or obstacle avoidance for autonomous vehicles.
+      This measures the synchronous execution of inference requests and is reported in milliseconds. 
+      Each inference request (for example: preprocess, infer, postprocess) is allowed to complete before 
+      the next is started. This performance metric is relevant in usage scenarios where a single image 
+      input needs to be acted upon as soon as possible. An example would be the healthcare sector where 
+      medical personnel only request analysis of a single ultra sound scanning image or in real-time or 
+      near real-time applications for example an industrial robot's response to actions in its environment 
+      or obstacle avoidance for autonomous vehicles.
 
 
 Platforms, Configurations, Methodology
