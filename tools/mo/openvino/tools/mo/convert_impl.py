@@ -852,9 +852,7 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args, python_api_us
                 elif 'example_inputs' in args:
                     raise AssertionError("'example_inputs' argument is not recognized, maybe you meant to provide 'example_input'?")
 
-                decoder = get_pytorch_decoder(args['input_model'], parse_input_shapes(args), example_inputs, args.get("input"))
-                args['input_model'] = decoder
-                args['framework'] = model_framework
+                decoder =  get_pytorch_decoder(args['input_model'], parse_input_shapes(args), example_inputs, args)
             if model_framework == "paddle":
                 example_inputs = None
                 if 'example_input' in args and args['example_input'] is not None:
