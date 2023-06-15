@@ -65,7 +65,9 @@ You can use the following additional build options:
    cmake -DCMAKE_TOOLCHAIN_FILE=<openvino_repo>/cmake/toolchains/ia32.linux.toolchain.cmake ..
    ```
 
-- If you don't want to use the GPU plugin, use the `-DENABLE_INTEL_GPU=OFF` CMake build option and skip the installation of the Intel® Graphics Compute Runtime for OpenCL™ Driver.
+- OpenVINO offers several options that can help you speedup the compilation. These options allow you to skip compilation of other devices and frontends by disabling/enabling them:
+
+  - If you don't want to use the GPU plugin, use the `-DENABLE_INTEL_GPU=OFF` CMake build option and skip the installation of the Intel® Graphics Compute Runtime for OpenCL™ Driver.
 
 - To build the OpenVINO Runtime Python API:
   1. Install all additional packages (e.g., cython and opencv) listed in the `/src/bindings/python/src/compatibility/openvino/requirements-dev.txt` file:
