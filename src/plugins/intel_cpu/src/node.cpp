@@ -383,7 +383,12 @@ void Node::resolveInPlaceEdges(Edge::LOOK look) {
             auto parentEdge = getParentEdgeAt(i);
             IE_ASSERT(parentEdge->getStatus() == Edge::Status::NotAllocated) << " Unexpected inplace resolve call to an allocated edge: " << parentEdge->name();
 
-            auto baseMemMngr = getChildEdgesAtPort(inplaceOutIndx)[0]->getMemory().getMemoryMngr();
+            //search for already allocated edge
+            const auto& childEdges = getChildEdgesAtPort(inplaceOutIndx);
+            auto itr = std::find_if(childEdges.begin(), childEdges.end(), [](const EdgePtr& edge) { return edge->getStatus() == Edge::Status::Allocated; });
+            IE_ASSERT(itr != childEdges.end()) << " Could not find an allocated edge to resolve in-place for node: " << getName();
+
+            auto baseMemMngr = (*itr)->getMemory().getMemoryMngr();
             auto memMngr = std::make_shared<PartitionedMemoryMngr>(baseMemMngr);
             auto newMem = std::make_shared<Memory>(getEngine(), selected_pd->getConfig().inConfs[i].getMemDesc(), memMngr);
             parentEdge->reuse(newMem);
