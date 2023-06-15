@@ -19,9 +19,9 @@ namespace ov {
 namespace autobatch_plugin {
 
 struct DeviceInformation {
-    std::string deviceName;
-    ov::AnyMap config;
-    uint32_t batchForDevice;
+    std::string device_name;
+    ov::AnyMap device_config;
+    uint32_t device_batch_size;
 };
 
 class Plugin : public ov::IPlugin {
@@ -56,15 +56,11 @@ public:
 
 private:
     ov::AnyMap m_plugin_config;
-    std::vector<std::string> supported_configKeys = {CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG),
-                                                     ov::device::priorities.name(),
-                                                     ov::auto_batch_timeout.name(),
-                                                     ov::cache_dir.name()};
 
 protected:
-    static DeviceInformation parse_batch_device(const std::string& deviceWithBatch);
+    static DeviceInformation parse_batch_device(const std::string& device_with_Batch);
 
-    DeviceInformation parse_meta_device(const std::string& devicesBatchCfg, const ov::AnyMap& config) const;
+    DeviceInformation parse_meta_device(const std::string& devices_batch_config, const ov::AnyMap& user_config) const;
 };
 
 }  // namespace autobatch_plugin

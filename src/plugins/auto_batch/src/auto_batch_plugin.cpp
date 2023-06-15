@@ -23,6 +23,11 @@
 #include "transformations/init_node_info.hpp"
 #include "transformations/utils/utils.hpp"
 
+std::vector<std::string> supported_configKeys = {CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG),
+                                                 ov::device::priorities.name(),
+                                                 ov::auto_batch_timeout.name(),
+                                                 ov::cache_dir.name()};
+
 inline ov::AnyMap merge_properties(ov::AnyMap config, const ov::AnyMap& user_config) {
     for (auto&& kvp : user_config) {
         config[kvp.first] = kvp.second;
@@ -68,7 +73,9 @@ ov::Any ov::autobatch_plugin::Plugin::get_property(const std::string& name, cons
             return {it->second};
         }
     } else if (name == METRIC_KEY(SUPPORTED_METRICS)) {
-        return std::vector<std::string>{METRIC_KEY(SUPPORTED_METRICS),ov::device::full_name.name(), METRIC_KEY(SUPPORTED_CONFIG_KEYS)};
+        return std::vector<std::string>{METRIC_KEY(SUPPORTED_METRICS),
+                                        ov::device::full_name.name(),
+                                        METRIC_KEY(SUPPORTED_CONFIG_KEYS)};
     } else if (name == ov::supported_properties.name()) {
         return std::vector<ov::PropertyName>{
             ov::PropertyName{ov::supported_properties.name(), ov::PropertyMutability::RO},
@@ -109,8 +116,8 @@ std::shared_ptr<ov::ICompiledModel> ov::autobatch_plugin::Plugin::compile_model(
 
     auto meta_device = parse_meta_device(device_batch->second.as<std::string>(), properties);
 
-    const auto& device_name = meta_device.deviceName;
-    const auto& device_config = meta_device.config;
+    const auto& device_name = meta_device.device_name;
+    const auto& device_config = meta_device.device_config;
     auto device_config_no_auto_batch = device_config;
     // avoid recursive auto-batching
     device_config_no_auto_batch[ov::hint::allow_auto_batching.name()] = false;
@@ -180,10 +187,10 @@ std::shared_ptr<ov::ICompiledModel> ov::autobatch_plugin::Plugin::compile_model(
         if (!batched_inputs.size() || !batched_outputs.size())
             OPENVINO_THROW("Auto-batching supports only networks with inputs/outputs featuring batched dim!");
     } catch (const ov::Exception&) {
-        meta_device.batchForDevice = 1;
+        meta_device.device_batch_size = 1;
     }
 
-    if (!meta_device.batchForDevice) {
+    if (!meta_device.device_batch_size) {
         // batch size is not set explicitly via device name e.g. BATCH:GPU(4)
         // let's query the optimal batch size
         ov::AnyMap options;
@@ -198,9 +205,9 @@ std::shared_ptr<ov::ICompiledModel> ov::autobatch_plugin::Plugin::compile_model(
             opt_batch_size = std::max(1u, std::min(requests, opt_batch_size));
         if (opt_batch_size >
             2)  // batching is usually in-efficient for batch<4 (as batch1 kernels are heavily optimized)
-            meta_device.batchForDevice = opt_batch_size;
+            meta_device.device_batch_size = opt_batch_size;
         else
-            meta_device.batchForDevice = 1;
+            meta_device.device_batch_size = 1;
     }
 
     auto report_footprint = [](std::shared_ptr<ICore> pCore, std::string device) -> size_t {
@@ -215,9 +222,9 @@ std::shared_ptr<ov::ICompiledModel> ov::autobatch_plugin::Plugin::compile_model(
     size_t batch1_footprint = 0;
     if (device_name.find("GPU") != std::string::npos)
         batch1_footprint = report_footprint(core, device_name);
-    auto executableNetworkWithoutBatch = !context.is_empty()
-                                             ? core->compile_model(model, context, device_config_no_auto_batch)
-                                             : core->compile_model(model, device_name, device_config_no_auto_batch);
+    auto compiledmodel_without_batch = !context.is_empty()
+                                           ? core->compile_model(model, context, device_config_no_auto_batch)
+                                           : core->compile_model(model, device_name, device_config_no_auto_batch);
     if (device_name.find("GPU") != std::string::npos) {
         batch1_footprint = report_footprint(core, device_name) - batch1_footprint;
         if (batch1_footprint) {
@@ -225,26 +232,26 @@ std::shared_ptr<ov::ICompiledModel> ov::autobatch_plugin::Plugin::compile_model(
             const int estimated_batch = static_cast<int>((total_mem - batch1_footprint) / batch1_footprint);
             int closest = static_cast<int>(pow(2, floor(std::log(estimated_batch) / std::log(2))));
             closest = std::max(1, closest);
-            meta_device.batchForDevice = std::min(static_cast<int>(meta_device.batchForDevice), closest);
+            meta_device.device_batch_size = std::min(static_cast<int>(meta_device.device_batch_size), closest);
         }
     }
 
     // auto-batch settings
-    ov::AnyMap networkConfig;
+    ov::AnyMap compiledmodel_config;
     for (const auto& c : full_properties) {
         if (supported_configKeys.end() != std::find(supported_configKeys.begin(), supported_configKeys.end(), c.first))
-            networkConfig.insert(c);
+            compiledmodel_config.insert(c);
     }
-    ov::SoPtr<ov::ICompiledModel> executableNetworkWithBatch;
+    ov::SoPtr<ov::ICompiledModel> compiledmodel_with_batch;
     auto reshaped = model->clone();
-    if (meta_device.batchForDevice > 1 && batched_inputs.size()) {
+    if (meta_device.device_batch_size > 1 && batched_inputs.size()) {
         try {
             auto inputs = reshaped->inputs();
             std::map<ov::Output<ov::Node>, ov::PartialShape> partial_shapes;
             for (auto& input : inputs) {
                 auto input_shape = input.get_shape();
                 if (batched_inputs.find(ov::op::util::get_ie_output_name(input)) != batched_inputs.end()) {
-                    input_shape[0] = meta_device.batchForDevice;
+                    input_shape[0] = meta_device.device_batch_size;
                 }
                 partial_shapes.insert({input, ov::PartialShape(input_shape)});
             }
@@ -255,21 +262,21 @@ std::shared_ptr<ov::ICompiledModel> ov::autobatch_plugin::Plugin::compile_model(
                     auto new_input_shape = input.get_shape();
                 }
             }
-            executableNetworkWithBatch = !context.is_empty()
-                                             ? core->compile_model(reshaped, context, device_config_no_auto_batch)
-                                             : core->compile_model(reshaped, device_name, device_config_no_auto_batch);
+            compiledmodel_with_batch = !context.is_empty()
+                                           ? core->compile_model(reshaped, context, device_config_no_auto_batch)
+                                           : core->compile_model(reshaped, device_name, device_config_no_auto_batch);
         } catch (const ov::Exception&) {
-            meta_device.batchForDevice = 1;
+            meta_device.device_batch_size = 1;
         }
     }
     return std::make_shared<ov::autobatch_plugin::CompiledModel>(model->clone(),
                                                                  shared_from_this(),
-                                                                 networkConfig,
+                                                                 compiledmodel_config,
                                                                  meta_device,
                                                                  batched_inputs,
                                                                  batched_outputs,
-                                                                 executableNetworkWithBatch,
-                                                                 executableNetworkWithoutBatch);
+                                                                 compiledmodel_with_batch,
+                                                                 compiledmodel_without_batch);
 
     // Todo create auto batch executable network
 }
@@ -284,7 +291,7 @@ ov::SupportedOpsMap ov::autobatch_plugin::Plugin::query_model(const std::shared_
             auto val = c.second;
             cfg.erase(c.first);
             auto metaDevice = parse_meta_device(val.as<std::string>(), cfg);
-            return get_core()->query_model(model, metaDevice.deviceName, cfg);
+            return get_core()->query_model(model, metaDevice.device_name, cfg);
         }
     }
     OPENVINO_THROW("Value for KEY_AUTO_BATCH_DEVICE_CONFIG is not set");
@@ -312,8 +319,8 @@ std::shared_ptr<ov::ICompiledModel> ov::autobatch_plugin::Plugin::import_model(s
 }
 
 ov::autobatch_plugin::DeviceInformation ov::autobatch_plugin::Plugin::parse_batch_device(
-    const std::string& deviceWithBatch) {
-    auto&& d = deviceWithBatch;
+    const std::string& device_with_Batch) {
+    auto&& d = device_with_Batch;
     auto openingBracket = d.find_first_of('(');
     auto closingBracket = d.find_first_of(')', openingBracket);
     auto deviceName = d.substr(0, openingBracket);
@@ -330,14 +337,14 @@ ov::autobatch_plugin::DeviceInformation ov::autobatch_plugin::Plugin::parse_batc
 }
 
 ov::autobatch_plugin::DeviceInformation ov::autobatch_plugin::Plugin::parse_meta_device(
-    const std::string& devicesBatchCfg,
+    const std::string& devices_batch_config,
     const ov::AnyMap& user_config) const {
-    auto meta_device = parse_batch_device(devicesBatchCfg);
-    meta_device.config = get_core()->get_supported_property(meta_device.deviceName, user_config);
+    auto meta_device = parse_batch_device(devices_batch_config);
+    meta_device.device_config = get_core()->get_supported_property(meta_device.device_name, user_config);
     // check that no irrelevant config-keys left
     for (const auto& k : user_config) {
         const auto& name = k.first;
-        if (meta_device.config.find(name) == meta_device.config.end() &&
+        if (meta_device.device_config.find(name) == meta_device.device_config.end() &&
             !ov::util::contains(supported_configKeys, name)) {
             OPENVINO_THROW("Unsupported config key: ", name);
         }

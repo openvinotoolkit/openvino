@@ -7,9 +7,9 @@
 #include <thread>
 
 #include "auto_batch_plugin.hpp"
+#include "openvino/runtime/iasync_infer_request.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
 #include "threading/ie_thread_safe_containers.hpp"
-#include "openvino/runtime/iasync_infer_request.hpp"
 
 namespace ov {
 namespace autobatch_plugin {
@@ -39,34 +39,41 @@ public:
     CompiledModel(const std::shared_ptr<ov::Model>& model,
                   const std::shared_ptr<const ov::IPlugin>& plugin,
                   const ov::AnyMap& config,
-                  const DeviceInformation& deviceInfo,
-                  const std::set<std::string>& batchedInputs,
-                  const std::set<std::string>& batchedOutputs,
-                  const ov::SoPtr<ov::ICompiledModel>& compiledModelWithBatch,
-                  const ov::SoPtr<ov::ICompiledModel>& compiledModelWithoutBatch);
+                  const DeviceInformation& device_info,
+                  const std::set<std::string>& batched_inputs,
+                  const std::set<std::string>& batched_outputs,
+                  const ov::SoPtr<ov::ICompiledModel>& compiled_Model_with_batch,
+                  const ov::SoPtr<ov::ICompiledModel>& compiled_Model_Without_batch);
+
     void set_property(const ov::AnyMap& properties) override;
+
     ov::Any get_property(const std::string& name) const override;
+
     std::shared_ptr<ov::IRemoteContext> get_context() const;
+
     std::shared_ptr<const ov::Model> get_runtime_model() const override;
+
     void export_model(std::ostream& model) const override;
+
     std::shared_ptr<ov::IAsyncInferRequest> create_infer_request() const override;
+
     virtual ~CompiledModel();
 
 protected:
     std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override;
     ov::AnyMap m_config;
-    DeviceInformation m_deviceInfo;
-    const std::set<std::string> m_batchedInputs;
-    const std::set<std::string> m_batchedOutputs;
-    ov::SoPtr<ov::ICompiledModel> m_compiledModelWithBatch;
-    ov::SoPtr<ov::ICompiledModel> m_compiledModelWithoutBatch;
+    DeviceInformation m_device_info;
+    const std::set<std::string> m_batched_inputs;
+    const std::set<std::string> m_batched_outputs;
+    ov::SoPtr<ov::ICompiledModel> m_compiled_model_with_batch;
+    ov::SoPtr<ov::ICompiledModel> m_compiled_model_without_batch;
     std::atomic_uint32_t m_timeOut = {0};  // in ms
-    std::pair<std::shared_ptr<ov::autobatch_plugin::CompiledModel::WorkerInferRequest>, int> GetWorkerInferRequest() const;
-    mutable std::vector<std::shared_ptr<WorkerInferRequest>> _workerRequests;
-    mutable std::mutex _workerRequestsMutex;
-    bool _needPerfCounters = false;
-    mutable std::atomic_size_t _numRequestsCreated = {0};
-    std::atomic_bool _terminate = {false};
+    std::pair<std::shared_ptr<ov::autobatch_plugin::CompiledModel::WorkerInferRequest>, int> GetWorkerInferRequest()
+        const;
+    mutable std::vector<std::shared_ptr<WorkerInferRequest>> m_worker_requests;
+    mutable std::mutex m_worker_requests_mutex;
+    mutable std::atomic_size_t m_num_requests_created = {0};
+    std::atomic_bool m_terminate = {false};
 };
 
 }  // namespace autobatch_plugin

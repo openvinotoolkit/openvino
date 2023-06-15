@@ -10,19 +10,19 @@
 ov::autobatch_plugin::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                                                    const std::shared_ptr<const ov::IPlugin>& plugin,
                                                    const ov::AnyMap& config,
-                                                   const DeviceInformation& deviceInfo,
-                                                   const std::set<std::string>& batchedInputs,
-                                                   const std::set<std::string>& batchedOutputs,
-                                                   const ov::SoPtr<ov::ICompiledModel>& compiledModelWithBatch,
-                                                   const ov::SoPtr<ov::ICompiledModel>& compiledModelWithoutBatch)
+                                                   const DeviceInformation& device_info,
+                                                   const std::set<std::string>& batched_inputs,
+                                                   const std::set<std::string>& batched_outputs,
+                                                   const ov::SoPtr<ov::ICompiledModel>& compiled_Model_with_batch,
+                                                   const ov::SoPtr<ov::ICompiledModel>& compiled_Model_Without_batch)
     : ov::ICompiledModel(model, plugin),
       m_config(config),
-      m_batchedInputs(batchedInputs),
-      m_batchedOutputs(batchedOutputs),
-      m_compiledModelWithBatch(compiledModelWithBatch),
-      m_compiledModelWithoutBatch(compiledModelWithoutBatch) {
+      m_batched_inputs(batched_inputs),
+      m_batched_outputs(batched_outputs),
+      m_compiled_model_with_batch(compiled_Model_with_batch),
+      m_compiled_model_without_batch(compiled_Model_Without_batch) {
     // WA for gcc 4.8 ( fails compilation with member init-list)
-    m_deviceInfo = deviceInfo;
+    m_device_info = device_info;
     auto time_out = config.find(ov::auto_batch_timeout.name());
     OPENVINO_ASSERT(time_out != config.end());
     m_timeOut = time_out->second.as<std::uint32_t>();
@@ -44,28 +44,30 @@ ov::Any ov::autobatch_plugin::CompiledModel::get_property(const std::string& nam
         return it->second;
     } else {
         // find config key among networks config keys
-        auto modelSupportedProperties = m_compiledModelWithoutBatch->get_property(ov::supported_properties.name());
+        auto modelSupportedProperties = m_compiled_model_without_batch->get_property(ov::supported_properties.name());
         for (auto&& property : modelSupportedProperties.as<std::vector<ov::PropertyName>>()) {
             if (property == name) {
-                return m_compiledModelWithoutBatch->get_property(property);
+                return m_compiled_model_without_batch->get_property(property);
             }
         }
         if (name == ov::optimal_number_of_infer_requests.name()) {
             uint32_t numRequest = 0;
             try {
                 numRequest =
-                    m_compiledModelWithoutBatch->get_property(ov::hint::num_requests.name()).as<std::uint32_t>();
+                    m_compiled_model_without_batch->get_property(ov::hint::num_requests.name()).as<std::uint32_t>();
                 if (numRequest == 0)  // no limitations from user, let's deduce the full blown #requests
                     // (multiplied by the devices capabilities to run multiple <batched> requests for further perf)
-                    numRequest = m_deviceInfo.batchForDevice *
-                                 m_compiledModelWithoutBatch->get_property(ov::optimal_number_of_infer_requests.name())
-                                     .as<uint32_t>();
-            } catch (const InferenceEngine::Exception&) {
+                    numRequest =
+                        m_device_info.device_batch_size *
+                        m_compiled_model_without_batch->get_property(ov::optimal_number_of_infer_requests.name())
+                            .as<uint32_t>();
+            } catch (const ov::Exception&) {
             }
-            numRequest = std::max(numRequest, m_deviceInfo.batchForDevice);  // round up to the possible  user's value
+            numRequest =
+                std::max(numRequest, m_device_info.device_batch_size);  // round up to the possible  user's value
             return ov::Any(numRequest);
         } else if (name == ov::model_name.name()) {
-            return m_compiledModelWithoutBatch->get_property(name);
+            return m_compiled_model_without_batch->get_property(name);
         } else if (name == METRIC_KEY(SUPPORTED_METRICS)) {
             return std::vector<std::string>{ov::optimal_number_of_infer_requests.name(),
                                             METRIC_KEY(SUPPORTED_METRICS),
@@ -75,7 +77,7 @@ ov::Any ov::autobatch_plugin::CompiledModel::get_property(const std::string& nam
         } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
             return std::vector<std::string>{ov::auto_batch_timeout.name()};
         } else if (name == ov::execution_devices) {
-            return m_compiledModelWithoutBatch->get_property(name);
+            return m_compiled_model_without_batch->get_property(name);
         } else {
             OPENVINO_THROW("Unsupported Compiled Model Property: ", name);
         }
@@ -83,13 +85,13 @@ ov::Any ov::autobatch_plugin::CompiledModel::get_property(const std::string& nam
 }
 
 std::shared_ptr<ov::IRemoteContext> ov::autobatch_plugin::CompiledModel::get_context() const {
-    return m_compiledModelWithoutBatch->get_context();
+    return m_compiled_model_without_batch->get_context();
 }
 
 std::shared_ptr<const ov::Model> ov::autobatch_plugin::CompiledModel::get_runtime_model() const {
-    return m_compiledModelWithBatch && m_compiledModelWithBatch->get_runtime_model()
-               ? m_compiledModelWithBatch->get_runtime_model()
-               : m_compiledModelWithoutBatch->get_runtime_model();
+    return m_compiled_model_with_batch && m_compiled_model_with_batch->get_runtime_model()
+               ? m_compiled_model_with_batch->get_runtime_model()
+               : m_compiled_model_without_batch->get_runtime_model();
 }
 
 void ov::autobatch_plugin::CompiledModel::export_model(std::ostream& model) const {
@@ -97,14 +99,14 @@ void ov::autobatch_plugin::CompiledModel::export_model(std::ostream& model) cons
 }
 
 std::shared_ptr<ov::IAsyncInferRequest> ov::autobatch_plugin::CompiledModel::create_infer_request() const {
-    if (!m_compiledModelWithBatch) {
-        return m_compiledModelWithoutBatch->create_infer_request();
+    if (!m_compiled_model_with_batch) {
+        return m_compiled_model_without_batch->create_infer_request();
     }
 
     auto sync_res = create_sync_infer_request();
     return std::make_shared<ov::autobatch_plugin::AsyncInferRequest>(
         std::static_pointer_cast<ov::autobatch_plugin::SyncInferRequest>(sync_res),
-        m_compiledModelWithoutBatch->create_infer_request(),
+        m_compiled_model_without_batch->create_infer_request(),
         get_callback_executor());
 }
 
@@ -116,30 +118,31 @@ std::shared_ptr<ov::ISyncInferRequest> ov::autobatch_plugin::CompiledModel::crea
         std::static_pointer_cast<const ov::autobatch_plugin::CompiledModel>(shared_from_this()),
         workerRequestPtrAndId.first,
         workerRequestPtrAndId.second,
-        m_deviceInfo.batchForDevice,
-        m_batchedInputs,
-        m_batchedOutputs);
+        m_device_info.device_batch_size,
+        m_batched_inputs,
+        m_batched_outputs);
     return async_infer_request;
 }
 
 ov::autobatch_plugin::CompiledModel::~CompiledModel() {
-    _terminate = true;
-    for (const auto& w : _workerRequests) {
+    m_terminate = true;
+    for (const auto& w : m_worker_requests) {
         w->_thread.join();
     }
-    _workerRequests.clear();
+    m_worker_requests.clear();
 }
 
 std::pair<std::shared_ptr<ov::autobatch_plugin::CompiledModel::WorkerInferRequest>, int>
 ov::autobatch_plugin::CompiledModel::GetWorkerInferRequest() const {
-    auto num = _numRequestsCreated++;
-    std::lock_guard<std::mutex> lock(_workerRequestsMutex);
-    auto batch_id = num % m_deviceInfo.batchForDevice;
+    auto num = m_num_requests_created++;
+    std::lock_guard<std::mutex> lock(m_worker_requests_mutex);
+    auto batch_id = num % m_device_info.device_batch_size;
     if (!batch_id) {  // need new request
-        _workerRequests.push_back(std::make_shared<WorkerInferRequest>());
-        auto workerRequestPtr = _workerRequests.back().get();
-        workerRequestPtr->_inferRequestBatched = {m_compiledModelWithBatch->create_infer_request(), m_compiledModelWithBatch._so};
-        workerRequestPtr->_batchSize = m_deviceInfo.batchForDevice;
+        m_worker_requests.push_back(std::make_shared<WorkerInferRequest>());
+        auto workerRequestPtr = m_worker_requests.back().get();
+        workerRequestPtr->_inferRequestBatched = {m_compiled_model_with_batch->create_infer_request(),
+                                                  m_compiled_model_with_batch._so};
+        workerRequestPtr->_batchSize = m_device_info.device_batch_size;
         workerRequestPtr->_completionTasks.resize(workerRequestPtr->_batchSize);
         workerRequestPtr->_inferRequestBatched->set_callback(
             [workerRequestPtr](std::exception_ptr exceptionPtr) mutable {
@@ -161,7 +164,7 @@ ov::autobatch_plugin::CompiledModel::GetWorkerInferRequest() const {
                     std::unique_lock<std::mutex> lock(workerRequestPtr->_mutex);
                     status = workerRequestPtr->_cond.wait_for(lock, std::chrono::milliseconds(m_timeOut));
                 }
-                if (_terminate) {
+                if (m_terminate) {
                     break;
                 } else {
                     // as we pop the tasks from the queue only here
@@ -172,8 +175,8 @@ ov::autobatch_plugin::CompiledModel::GetWorkerInferRequest() const {
                         for (int n = 0; n < sz; n++) {
                             IE_ASSERT(workerRequestPtr->_tasks.try_pop(t));
                             workerRequestPtr->_completionTasks[n] = std::move(t.second);
-                            t.first->m_sync_request->CopyInputsIfNeeded();
-                            t.first->m_sync_request->_wasBatchedRequestUsed =
+                            t.first->m_sync_request->copy_inputs_if_needed();
+                            t.first->m_sync_request->m_batched_req_used =
                                 ov::autobatch_plugin::SyncInferRequest::eExecutionFlavor::BATCH_EXECUTED;
                         }
                         workerRequestPtr->_inferRequestBatched->start_async();
@@ -186,19 +189,19 @@ ov::autobatch_plugin::CompiledModel::GetWorkerInferRequest() const {
                         auto all_completed_future = all_completed.get_future();
                         for (int n = 0; n < sz; n++) {
                             IE_ASSERT(workerRequestPtr->_tasks.try_pop(t));
-                            t.first->m_inferRequestWithoutBatch->set_callback(
+                            t.first->m_request_without_batch->set_callback(
                                 [t, sz, &arrived, &all_completed](std::exception_ptr p) {
                                     if (p)
-                                        t.first->m_sync_request->_exceptionPtr = p;
+                                        t.first->m_sync_request->m_exception_ptr = p;
                                     t.second();
                                     if (sz == ++arrived) {
                                         all_completed.set_value();
                                     }
                                 });
-                            t.first->m_sync_request->_wasBatchedRequestUsed =
+                            t.first->m_sync_request->m_batched_req_used =
                                 ov::autobatch_plugin::SyncInferRequest::eExecutionFlavor::TIMEOUT_EXECUTED;
-                            t.first->m_sync_request->SetBlobsToAnotherRequest(t.first->m_inferRequestWithoutBatch);
-                            t.first->m_inferRequestWithoutBatch->start_async();
+                            t.first->m_sync_request->set_tensors_to_another_request(t.first->m_request_without_batch);
+                            t.first->m_request_without_batch->start_async();
                         }
                         all_completed_future.get();
                         // now when all the tasks for this batch are completed, start waiting for the timeout again
@@ -207,5 +210,5 @@ ov::autobatch_plugin::CompiledModel::GetWorkerInferRequest() const {
             }
         });
     }
-    return {_workerRequests.back(), static_cast<int>(batch_id)};
+    return {m_worker_requests.back(), static_cast<int>(batch_id)};
 }
