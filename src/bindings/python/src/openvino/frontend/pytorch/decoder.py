@@ -133,7 +133,6 @@ class TorchScriptPythonDecoder (Decoder):
         import inspect
 
         def prepare_example_inputs(inputs, input_signature):
-            trace_args = {}
             if inputs is not None:
                 if isinstance(inputs, dict):
                     if input_signature is not None:
@@ -157,14 +156,14 @@ class TorchScriptPythonDecoder (Decoder):
             if example_inputs is None:
                 scripted = torch.jit.script(pt_module)
             else:
-                input_paremeters, input_signature = prepare_example_inputs(example_inputs, input_signature)
+                input_parameters, input_signature = prepare_example_inputs(example_inputs, input_signature)
                 try:
-                    scripted = torch.jit.trace(pt_module, **input_paremeters)
+                    scripted = torch.jit.trace(pt_module, **input_parameters)
                 except Exception:
                     try:
                         scripted = torch.jit.script(pt_module)
                     except Exception:
-                        scripted = torch.jit.trace(pt_module, **input_paremeters, strict=False)
+                        scripted = torch.jit.trace(pt_module, **input_parameters, strict=False)
             skip_freeze = False
             for n in scripted.inlined_graph.nodes():
                 # TODO: switch off freezing for all traced models
