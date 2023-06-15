@@ -1584,7 +1584,7 @@ public:
     EltwiseRefExecutor(Eltwise::EltwiseData opData,
                        const VectorDims& outBlkDims,
                        std::vector<VectorDims> inpDims)
-    : _opData(std::move(opData)) {
+    : _opData(std::move(opData)), _inpDims(inpDims) {
         if (inpDims.empty()) {
             IE_THROW() << "Can not make Eltwise executor from empty input dims array";
         } else if (inpDims.front().empty()) {
@@ -1633,6 +1633,50 @@ public:
                 dst_ptr_f[i] = logf(src_ptr_f[i]);
             });
             return;
+        }
+        if (_opData.algo == Algorithm::EltwisePowerDynamic) {
+            const float* src_ptr_f = reinterpret_cast<const float*>(args_ptrs.src_ptr[0]);
+            const float* src_ptr_f_pow = reinterpret_cast<const float*>(args_ptrs.src_ptr[1]);
+            float* dst_ptr_f = reinterpret_cast<float*>(args_ptrs.dst_ptr);
+
+            uint32_t count_of_power_values = 1;
+            for (unsigned long i : _inpDims[1]) {
+                count_of_power_values *= i;
+            }
+
+            if (count_of_power_values == 1) {
+                if (src_ptr_f_pow[0] != 2) {
+                    parallel_for(_fullWorkAmount, [&](size_t i) {
+                        dst_ptr_f[i] = powf(src_ptr_f[i], src_ptr_f_pow[0]);
+                    });
+                } else {
+                    parallel_for(_fullWorkAmount, [&](size_t i) {
+                        dst_ptr_f[i] = src_ptr_f[i] * src_ptr_f[i];
+                    });
+                }
+                return;
+            } else {
+                if (_fullWorkAmount == count_of_power_values) {
+                    bool is_pow_neq_2 = false;
+                    for (int i = 0; i < _fullWorkAmount; i++) {
+                        if (src_ptr_f_pow[i] != 2) {
+                            is_pow_neq_2 = true;
+                            break;
+                        }
+                    }
+
+                    if (is_pow_neq_2) {
+                        parallel_for(_fullWorkAmount, [&](size_t i) {
+                            dst_ptr_f[i] = powf(src_ptr_f[i], src_ptr_f_pow[i]);
+                        });
+                    } else {
+                        parallel_for(_fullWorkAmount, [&](size_t i) {
+                            dst_ptr_f[i] = src_ptr_f[i] * src_ptr_f[i];
+                        });
+                    }
+                    return;
+                }
+            }
         }
 
         std::shared_ptr<ref_eltwise_scalar_fwd_t> ref_eltwise_injector = nullptr;
@@ -1749,6 +1793,7 @@ private:
     size_t _fullWorkAmount = 0;
     size_t _inputNum = 0;
     size_t _batchDimIdx = 0;
+    std::vector<VectorDims> _inpDims;
 };
 
 } // namespace
