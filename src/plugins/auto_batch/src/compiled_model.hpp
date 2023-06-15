@@ -6,7 +6,7 @@
 #include <condition_variable>
 #include <thread>
 
-#include "auto_batch_plugin.hpp"
+#include "plugin.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
 #include "threading/ie_thread_safe_containers.hpp"

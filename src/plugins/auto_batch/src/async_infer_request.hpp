@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "auto_batch_sync_infer_request.hpp"
+#include "sync_infer_request.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
 
 namespace ov {

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "auto_batch_sync_infer_request.hpp"
+#include "sync_infer_request.hpp"
 
 #include "openvino/core/type/element_type_traits.hpp"
 #include "transformations/utils/utils.hpp"
@@ -114,7 +114,6 @@ void ov::autobatch_plugin::SyncInferRequest::share_tensors_with_batched_req(
     const std::set<std::string>& batchedInputs,
     const std::set<std::string>& batchedOutputs) {
     for (const auto& it : get_inputs()) {
-        auto blob = m_batched_request_wrapper->_inferRequestBatched->get_tensor(it);
         ov::Tensor res;
         switch (it.get_tensor_ptr()->get_element_type()) {
         case ov::element::f32:
@@ -228,7 +227,6 @@ void ov::autobatch_plugin::SyncInferRequest::share_tensors_with_batched_req(
     }
 
     for (const auto& it : get_outputs()) {
-        auto blob = m_batched_request_wrapper->_inferRequestBatched->get_tensor(it);
         auto name = ov::op::util::get_ie_output_name(it.get_node_shared_ptr()->input_value(0));
         ov::Tensor res;
         switch (it.get_tensor_ptr()->get_element_type()) {

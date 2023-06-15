@@ -3,9 +3,9 @@
 //
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#include "auto_batch_compiled_model.hpp"
+#include "compiled_model.hpp"
 
-#include "auto_batch_async_infer_request.hpp"
+#include "async_infer_request.hpp"
 
 ov::autobatch_plugin::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                                                    const std::shared_ptr<const ov::IPlugin>& plugin,

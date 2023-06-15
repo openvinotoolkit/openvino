@@ -3,7 +3,7 @@
 //
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#include "auto_batch_plugin.hpp"
+#include "plugin.hpp"
 
 #include <cmath>
 #include <iostream>
@@ -14,7 +14,7 @@
 #include <utility>
 #include <vector>
 
-#include "auto_batch_compiled_model.hpp"
+#include "compiled_model.hpp"
 #include "dimension_tracker.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"

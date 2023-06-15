@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "auto_batch_async_infer_request.hpp"
+#include "async_infer_request.hpp"
 
 ov::autobatch_plugin::AsyncInferRequest::AsyncInferRequest(
     const std::shared_ptr<ov::autobatch_plugin::SyncInferRequest>& request,
