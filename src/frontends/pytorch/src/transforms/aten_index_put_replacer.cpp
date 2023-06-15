@@ -59,6 +59,7 @@ AtenIndexPutReplacer::AtenIndexPutReplacer() {
         auto acc_const =
             std::dynamic_pointer_cast<ov::op::v0::Constant>(index_op->input_value(3).get_node_shared_ptr());
         if (!acc_const) {
+            add_exception_to_fw_node(index_op, "aten::index_put_: non constant accumulate input is not supported.");
             return false;
         }
         bool accumulate = acc_const->cast_vector<bool>()[0];
@@ -73,11 +74,14 @@ AtenIndexPutReplacer::AtenIndexPutReplacer() {
             auto indices_partial_shape = indices.get_partial_shape();
             if (!indices_partial_shape.rank().is_static()) {
                 // "We support only indices with static rank."
+                add_exception_to_fw_node(index_op, "aten::index_put_: dynamic rank for indices is not supported.");
                 return false;
             }
             auto indices_first_dim = indices_partial_shape[0];
             if (!indices_first_dim.is_static()) {
                 // We support only lists of tensors with static number of elements.
+                add_exception_to_fw_node(index_op,
+                                         "aten::index_put_: dynamic dynamic number of indices is not supported.");
                 return false;
             }
             indices_list_len = indices_first_dim.get_length();

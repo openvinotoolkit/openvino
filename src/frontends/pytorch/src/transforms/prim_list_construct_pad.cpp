@@ -99,10 +99,10 @@ PrimListConstructPadReplacer::PrimListConstructPadReplacer() {
             }
             pad_value = std::make_shared<v1::ConvertLike>(pad_value, input_node);
         }
-        FRONT_END_OP_CONVERSION_CHECK(PAD_MODES.find(mode) != PAD_MODES.end(),
-                                      "Unsupported mode: ",
-                                      mode,
-                                      "for aten::pad");
+        if (PAD_MODES.find(mode) == PAD_MODES.end()) {
+            add_exception_to_fw_node(pad_op, "Unsupported mode: " + mode + "for aten::pad");
+            return false;
+        }
         auto pad_mode = PAD_MODES.at(mode);
         auto pad = std::make_shared<v1::Pad>(input_node, pad_begins_full, pad_ends_full, pad_value, pad_mode);
         replace_node(pad_op, pad);
