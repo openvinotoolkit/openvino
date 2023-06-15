@@ -126,7 +126,7 @@ IndexLoopGetitemReplacer::IndexLoopGetitemReplacer() {
         auto stop = rg.make<v1::Add>(start, chunks_size_body);
         auto curr_chunk = rg.make<v8::Slice>(chunk_param, start, stop, one_1d, dim_body);
         replace_node(getitem, curr_chunk);
-        copy_runtime_info({chunk_op, getitem}, rg.get());
+        copy_runtime_info_and_name(chunk_op, rg.get(), {getitem});
         curr_chunk->set_friendly_name(getitem->get_friendly_name());
         return true;
     };
