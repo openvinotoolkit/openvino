@@ -325,16 +325,15 @@ void FullyConnected::prepareParams() {
             std::string format = "gemm_mlas_" + std::to_string(N) + "_" + std::to_string(K);
             if (!edgeMem)
                 IE_THROW() << "Cannot get const weights edgeMem for node " << getName() << ".";
-            auto packedBsize = ov_sgemm_pack_get_size("B", M, N, K);
+            auto packedBsize = ov_sgemm_pack_get_size(N, K);
             MemoryPtr ptr;
             auto create = [&] () {
                 float* weightPtr = reinterpret_cast<float*>(getParentEdgeAt(1)->getMemoryPtr()->GetPtr());
-                size_t lda = M;
                 size_t ldb = K;
                 MemoryPtr _ptr = std::make_shared<Memory>(getEngine());
                 _ptr->Create(intel_cpu::DnnlBlockedMemoryDesc(Precision::FP32, intel_cpu::Shape{1, packedBsize / sizeof(float)}));
                 float* prepackedDst = reinterpret_cast<float*>(_ptr->GetPtr());
-                ov_sgemm_pack("B", "N", "T", -1, N, K, lda, ldb, weightPtr, prepackedDst);
+                ov_sgemm_pack("T", N, K, ldb, weightPtr, prepackedDst);
                 return _ptr;
             };
             if (mlasPackedPtr != nullptr) {

@@ -183,25 +183,27 @@ TEST_P(MatMulLayerCPUTest, CompareWithRefs) {
         }
     }
     run();
-    auto execGraph = compiledModel.get_runtime_model();
-    bool useMlas = false;
-    for (const auto &node : execGraph->get_ops()) {
-        const auto & rtInfo = node->get_rt_info();
-        auto getExecValue = [&rtInfo](const std::string & paramName) -> std::string {
-            auto it = rtInfo.find(paramName);
-            IE_ASSERT(rtInfo.end() != it);
-            return it->second.as<std::string>();
-        };
+    if (compiledModel) {
+        auto execGraph = compiledModel.get_runtime_model();
+        bool useMlas = false;
+        for (const auto &node : execGraph->get_ops()) {
+            const auto & rtInfo = node->get_rt_info();
+            auto getExecValue = [&rtInfo](const std::string & paramName) -> std::string {
+                auto it = rtInfo.find(paramName);
+                IE_ASSERT(rtInfo.end() != it);
+                return it->second.as<std::string>();
+            };
 
-        if (getExecValue(ExecGraphInfoSerialization::LAYER_TYPE) == "FullyConnected") {
-            auto primType = getExecValue(ExecGraphInfoSerialization::IMPL_TYPE);
-            if (primType.find("gemm_mlas") != std::string::npos) {
-                useMlas = true;
+            if (getExecValue(ExecGraphInfoSerialization::LAYER_TYPE) == "FullyConnected") {
+                auto primType = getExecValue(ExecGraphInfoSerialization::IMPL_TYPE);
+                if (primType.find("gemm_mlas") != std::string::npos) {
+                    useMlas = true;
+                }
             }
         }
-    }
-    if (!useMlas) {
-        CheckPluginRelatedResults(compiledModel, cpuNodeType);
+        if (!useMlas) {
+            CheckPluginRelatedResults(compiledModel, cpuNodeType);
+        }
     }
 }
 
@@ -347,9 +349,9 @@ std::vector<fusingSpecificParams> filterFusingParams(const std::vector<fusingSpe
 #ifndef OV_CPU_WITH_MLAS
     return orig;
 #else
-    return {emptyFusingSpec};
+    return {emptyFusingSpec, fusingBias};
 #endif
-}
+};
 
 std::vector<fusingSpecificParams> fusingParamsSet2D_smoke {
         emptyFusingSpec,
