@@ -13,6 +13,8 @@ namespace frontend {
 namespace pytorch {
 namespace op {
 
+using namespace ov::op;
+
 OutputVector translate_cat(const NodeContext& context) {
     // This translator is only needed to get axis as constant from external scope
     num_inputs_check(context, 2, 2);
@@ -25,15 +27,14 @@ OutputVector translate_cat(const NodeContext& context) {
         // If this fails it means axis is dynamic and aten::cat will be converted to fw node in regular pipeline
         attrs["axis"] = std::to_string(axis);
         fw_node->set_attrs(attrs);
-        return {context.mark_node(std::dynamic_pointer_cast<Node>(fw_node))};
+        return {context.mark_node(fw_node)};
     } else {
         auto first_elem = list_elems.front().get_node_shared_ptr();
-        FRONT_END_OP_CONVERSION_CHECK(
-            list_elems.size() > 1 || !std::dynamic_pointer_cast<ov::op::v0::Parameter>(first_elem),
-            "aten::cat is located inside body while inputs are located outside of the body. "
-            "This case is not supported.");
+        FRONT_END_OP_CONVERSION_CHECK(list_elems.size() > 1 || !ov::as_type_ptr<v0::Parameter>(first_elem),
+                                      "aten::cat is located inside body while inputs are located outside of the body. "
+                                      "This case is not supported.");
     }
-    auto concat = std::make_shared<ov::op::v0::Concat>(OutputVector(list_elems.begin(), list_elems.end()), axis);
+    auto concat = std::make_shared<v0::Concat>(OutputVector(list_elems.begin(), list_elems.end()), axis);
     return {context.mark_node(concat)};
 };
 
