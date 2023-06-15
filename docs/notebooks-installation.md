@@ -78,7 +78,7 @@ operating system or environment.
 
          .. note::  
       
-         Python software available in the Microsoft Store is not recommended. It may require additional packages.
+            Python software available in the Microsoft Store is not recommended. It may require additional packages.
       
       2. **Install GIT**
 
