@@ -37,7 +37,8 @@
                 <span class="red border">50%</span><span>General or relative passrate less 80%</span>
             </div>
             <div>
-                <span><b>Passrates are based on relative weights each subgraphs! You can check absolute value in `General passrate` row!</b></span>
+                <span style="margin-right: 5px;"><b>Scope:</b></span>
+                <span id="scope_legend" class="scope_stable">Mandatory - includes information about tests from mandatory scope. For mandatory scope only passed and failed statuses are applicable.</span>
             </div>
             <div>
                 <span><b>Status:</b></span>
@@ -59,11 +60,21 @@
             </div>
             <div class="form-group col-5" style="padding-left:0">
                 <label for="devices"><b>Devices</b></label>
-                <select id="devices" class="form-control" multiple onchange="change_device(this)">
+                <select style="width: 100% !important;" id="devices" multiple onchange="change_device(this)">
                     {% for device in devices %}
                         <option id="{{device}}">{{ device }}</option>
                     {% endfor %}
                 </select>
+            </div>
+            <div class="form-group">
+                <div style="margin-bottom: 0.5rem; font-weight: bold;">Scope</div>
+                <label for="scopeType" class="switch ">
+                    <span class="mandatory">Mandatory</span>
+                    <span class="toggle_arrow">&#8596;</span>
+                    <span class="optional">Optional</span>
+                    <input type="checkbox" id="scopeType" onchange="update_data()">
+                    <span class="slider" id="scope_toggle" style="font-weight: bold; text-align: center;">Mandatory</span>
+                </label>
             </div>
         </form>
     </div>
@@ -72,15 +83,15 @@
         <table class="table table-hover table-bordered" id="report">
             <thead>
                 <tr>
-                    <th class="table-dark" style="width: 20%;">Test type</th>
-                    <th class="table-dark">SW Plugins</th>
+                    <th class="table-dark entity">Entity</th>
+                    <th class="diagonal"><span class="th-devices">Devices</span><span class="th-sw-plugin">Plugins</span></th>
                     {% for device in devices %}
                         <td class="table-dark device" style="text-align: center;" data-device="{{device}}">{{ device }}</td>
                     {% endfor %}
                 </tr>
             </thead>
             <tbody id="statistic">
-                <td class="table-primary" style="font-weight: bold;" rowspan="{{ sw_plugins|length + 1 }}">General passrate (=passed_tests/all_tests):</td>
+                <td class="table-primary" style="font-weight: bold; vertical-align: middle !important;" rowspan="{{ sw_plugins|length + 1 }}">Passrate</td>
                 {% for sw_plugin in sw_plugins %}
                     <tr>
                         <td>{{sw_plugin}}</td>
@@ -89,23 +100,8 @@
                                 style="text-align: center;"
                                 data-device="{{device}}"
                                 data-sw_plugin="{{sw_plugin}}"
-                                id="{{device}}_{{sw_plugin}}_general"
+                                id="{{device}}_{{sw_plugin}}_statistic"
                                 >
-                                &#8634;
-                            </td>
-                        {% endfor %}
-                    </tr>
-                {% endfor %}
-
-                <td class="table-primary" style="font-weight: bold;" rowspan="{{ sw_plugins|length + 1 }}">Relative passrate (=sum_rel_pass_rates/rel_all_tests):</td>
-                {% for sw_plugin in sw_plugins %}
-                    <tr>
-                        <td>{{sw_plugin}}</td>
-                        {% for device in devices %}
-                            <td
-                                id="{{device}}_{{sw_plugin}}_rel"
-                                data-device="{{device}}"
-                                style="text-align: center;">
                                 &#8634;
                             </td>
                         {% endfor %}
@@ -114,7 +110,7 @@
             </tbody>
             <tbody id="data">
                 {% for test_type in api_info %}
-                    <td data-test-type="{{test_type}}" class="table-primary" rowspan="{{ api_info[test_type].keys()|length + 1 }}">{{ test_type }}</td>
+                    <td data-test-type="{{test_type}}" class="table-primary" rowspan="{{ api_info[test_type].keys()|length + 1 }}" style="vertical-align: middle !important;">{{ test_type }}</td>
                     {% for sw_plugin in sw_plugins %}
                         <tr>
                             <td data-test-type="{{test_type}}">{{sw_plugin}}</td>
@@ -128,29 +124,27 @@
                                         data-all_tests="{{api_info[test_type][sw_plugin][device]['test_amout']}}"
                                         data-rel_passed_tests="{{api_info[test_type][sw_plugin][device]['relative_passed']}}"
                                         data-rel_all_tests="{{api_info[test_type][sw_plugin][device]['relative_all']}}"
+                                        data-relative_passrate="{{api_info[test_type][sw_plugin][device]['relative_passrate']}}"
+
+                                        data-passrate="{{api_info[test_type][sw_plugin][device]['passrate']}}"
+                                        data-failed="{{api_info[test_type][sw_plugin][device]['failed']}}"
+                                        data-skipped="{{api_info[test_type][sw_plugin][device]['skipped']}}"
+                                        data-crashed="{{api_info[test_type][sw_plugin][device]['crashed']}}"
+                                        data-hanged="{{api_info[test_type][sw_plugin][device]['hanged']}}"
+
                                         >
-                                        <span>Rel:</span>
-                                            {% if api_info[test_type][sw_plugin][device]['relative_all'] == 0 %}
-                                                <span title="0 test was run">-%</span>
-                                            {% else %}
-                                                {{ api_info[test_type][sw_plugin][device]['relative_passrate'] }}%
-                                            {% endif %}
-                                        <span>Total:</span>
-                                            {% if api_info[test_type][sw_plugin][device]['test_amout'] == 0 %}
-                                                <span title="0 test was run">-%</span>
-                                            {% else %}
-                                                {{ api_info[test_type][sw_plugin][device]['passrate'] }}%
-                                            {% endif %}
-                                        <div>
-                                            <span class="green" title="Passed">P:{{ api_info[test_type][sw_plugin][device]['passed'] }}</span>
-                                            <span class="red" title="Failed">F:{{ api_info[test_type][sw_plugin][device]['failed'] }}</span>
-                                            <span class="grey" title="Skipped">S:{{ api_info[test_type][sw_plugin][device]['skipped'] }}</span>
-                                            <span class="dark" title="Crashed">C:{{ api_info[test_type][sw_plugin][device]['crashed'] }}</span>
-                                            <span class="grey-red" title="Hanged">H:{{ api_info[test_type][sw_plugin][device]['hanged'] }}</span>
+                                        <span>{{api_info[test_type][sw_plugin][device]['passrate']}} %</span>
+                                        <div style="width: 150px; margin: auto;">
+                                            <span class="green" title="Passed">P:{{api_info[test_type][sw_plugin][device]['passed']}}</span>
+                                            <span class="red" title="Failed">F:{{api_info[test_type][sw_plugin][device]['failed']}}</span>
+                                            <span class="grey" title="Skipped">S:{{api_info[test_type][sw_plugin][device]['skipped']}}</span>
+                                            <span class="dark" title="Crashed">C:{{api_info[test_type][sw_plugin][device]['crashed']}}</span>
+                                            <span class="grey-red" title="Hanged">H:{{api_info[test_type][sw_plugin][device]['hanged']}}</span>
                                         </div>
                                     </td>
                                 {% else %}
-                                    <td data-test-type="{{test_type}}" data-device="{{device}}" data-sw_plugin="{{sw_plugin}}" style="text-align: center;">NOT RUN</td>
+                                    <td data-test-type="{{test_type}}" data-device="{{device}}" data-sw_plugin="{{sw_plugin}}" style="text-align: center;">
+                                        <span>NOT RUN</span></td>
                                 {% endif %}
                             {% endfor %}
                         </tr>
