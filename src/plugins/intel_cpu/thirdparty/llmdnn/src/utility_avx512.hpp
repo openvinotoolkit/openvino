@@ -5,7 +5,7 @@
 #pragma once
 
 #include <stdint.h>
-#include "bf16.hpp"
+#include "common/bf16.hpp"
 #ifdef _WIN32
 #include <intrin.h>
 #else
@@ -53,7 +53,7 @@ inline void store_n(__m128i mm, unsigned int n, void* storage)
     _mm_maskmoveu_si128(mm, reinterpret_cast< const __m128i& >(masks[n]), static_cast< char* >(storage));
 }
 
-inline void quant_i8(void* dst, void* src, size_t ele_num, float scale) {
+inline void quant_i8_avx512(void* dst, void* src, size_t ele_num, float scale) {
     size_t i = 0;
     auto* a = reinterpret_cast<ov::bfloat16*>(src);
     int8_t* d = reinterpret_cast<int8_t*>(dst);
@@ -81,7 +81,7 @@ inline void quant_i8(void* dst, void* src, size_t ele_num, float scale) {
 }
 
 // NOTE: did not handle tail because there should be enough room
-inline void cvt_i32_f32(float* dst, int32_t* src, size_t ele_num) {
+inline void cvt_i32_f32_avx512(float* dst, int32_t* src, size_t ele_num) {
     for (int i = 0; i < (ele_num + 15) / 16 * 16; i += 16) {
         auto a0 = _mm512_load_epi32(src);
         auto a_f = _mm512_cvtepi32_ps(a0);
@@ -91,7 +91,7 @@ inline void cvt_i32_f32(float* dst, int32_t* src, size_t ele_num) {
     }
 }
 
-inline void mul_add_f32(float* dst, float* src, float mul, float* add, int ele_num) {
+inline void mul_add_f32_avx512(float* dst, float* src, float mul, float* add, int ele_num) {
     auto mul_f = _mm512_set1_ps(mul);
     int i;
     auto tail = ele_num % 16;

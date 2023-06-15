@@ -11,19 +11,19 @@
 #include <x86intrin.h>
 #include <immintrin.h>
 #endif
-#include "bf16.hpp"
+#include "common/bf16.hpp"
 #include "llm_types.hpp"
 #include "utility_avx512.hpp"
 
 namespace llmdnn {
     template<typename S, typename D>
-    void memcpy2d_stride(D* dst, S* src, size_t height, size_t width, size_t src_stride, size_t dst_stride, float* quant=nullptr);
+    void memcpy2d_stride_avx512(D* dst, S* src, size_t height, size_t width, size_t src_stride, size_t dst_stride, float* quant=nullptr);
 
     template<typename D>
-    void memcpy2d_stride(D* dst, float* src, size_t height, size_t width, size_t src_stride, size_t dst_stride, float* quant=nullptr) {
+    void memcpy2d_stride_avx512(D* dst, float* src, size_t height, size_t width, size_t src_stride, size_t dst_stride, float* quant=nullptr) {
         static_assert(std::is_same<D, ov::bfloat16>::value || std::is_same<D, float>::value ||
                       std::is_same<D, int8_t>::value || std::is_same<D, uint8_t>::value,
-                      "softmax only support output data types ov::bfloat16/uint8_t/int8_t/float");
+                      "memcpy2d_stride_avx512 only support output data types ov::bfloat16/uint8_t/int8_t/float");
 
         auto tail = width % 16;
         __mmask16 x_mask = _cvtu32_mask16(0xFFFFu >> (16 - tail));

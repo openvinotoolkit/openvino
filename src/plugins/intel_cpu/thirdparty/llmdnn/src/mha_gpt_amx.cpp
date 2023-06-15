@@ -5,26 +5,26 @@
 #include <string>
 #include <vector>
 
-#include "simple_parallel.hpp"
-#include "utility.hpp"
+#include "common/simple_parallel.hpp"
+#include "common/utility.hpp"
 #include "utility_avx512.hpp"
-#include "mm_kernel_amx.hpp"
+#include "mm_kernel_common_amx.hpp"
 #include "softmax_kernel_avx512.hpp"
 #include "transpose_kernel_avx512.hpp"
-#include "mha_gpt.hpp"
+#include "llm_mha_gpt.hpp"
 
 using namespace ov::cpu;
 
 namespace llmdnn {
 
-struct mha_gpt::Impl {
-    void create(const create_param& param);
-    void exec(const exec_param& param);
+struct mha_gpt_impl_amx : public mha_gpt::impl {
+    void create(const mha_gpt::create_param& param) override;
+    void exec(const mha_gpt::exec_param& param) override;
 
-    create_param _create_param;
+    mha_gpt::create_param _create_param;
 
-    void mha_bf16(const exec_param &param);
-    void mha_i8(const exec_param &param);
+    void mha_bf16(const mha_gpt::exec_param &param);
+    void mha_i8(const mha_gpt::exec_param &param);
 
     size_t bufferMatMul0OutSize;
     size_t bufferMatMul1OutSize;
@@ -41,7 +41,7 @@ struct mha_gpt::Impl {
     std::vector<std::shared_ptr<amx_kernel::MatmulVector<int8_t, int8_t>>> gemAvB_i8xi8;
 };
 
-void mha_gpt::Impl::create(const create_param& param) {
+void mha_gpt_impl_amx::create(const mha_gpt::create_param& param) {
     _create_param = param;
 
     // q: [batch, num_heads, query_seq_len, head_size]
@@ -90,7 +90,7 @@ void mha_gpt::Impl::create(const create_param& param) {
                             [](void * p) { ::free(p); });
 }
 
-void mha_gpt::Impl::mha_bf16(const exec_param &param) {
+void mha_gpt_impl_amx::mha_bf16(const mha_gpt::exec_param &param) {
     uint8_t* pQIn0 = param.q;
     auto& pKIn0 = param.k;
     auto& attn_masks = param.attention_mask;
@@ -127,15 +127,15 @@ void mha_gpt::Impl::mha_bf16(const exec_param &param) {
             (*gemAvB_ops[threadNum])(matK, reinterpret_cast<ov::bfloat16*>(pQIn0_aux), reinterpret_cast<float*>(bufferMatMul0Out_local));
 
             float* pMatMul0Out = reinterpret_cast<float*>(bufferMatMul0Out_local);
-            mul_add_f32(pMatMul0Out, pMatMul0Out, _create_param.normal_factor, pAddIn1_aux, param.key_seq_len);
-            softmax<ov::bfloat16>(reinterpret_cast<ov::bfloat16*>(pMatMul0Out), pMatMul0Out, param.key_seq_len, nullptr, nullptr, nullptr);
+            mul_add_f32_avx512(pMatMul0Out, pMatMul0Out, _create_param.normal_factor, pAddIn1_aux, param.key_seq_len);
+            softmax_avx512<ov::bfloat16>(reinterpret_cast<ov::bfloat16*>(pMatMul0Out), pMatMul0Out, param.key_seq_len, nullptr, nullptr, nullptr);
             auto pOut_aux = pout + (i0 * batch_stride_in_attn + i1 * head_stride_in_attn) * outPrcSize;
             tensor2D<ov::bfloat16> matQK(param.query_seq_len, param.key_seq_len, reinterpret_cast<ov::bfloat16*>(bufferMatMul0Out_local), rndup(param.key_seq_len * sizeof(ov::bfloat16), 64));
             tensor2D<ov::bfloat16> matV(param.key_seq_len, _create_param.head_size, reinterpret_cast<ov::bfloat16*>(pVIn0_aux), _create_param.head_size_aligned * sizeof(ov::bfloat16));
             tensor2D<float> matQKV(param.query_seq_len, _create_param.head_size, reinterpret_cast<float*>(bufferMatMul1Out_local), _create_param.head_size_aligned * sizeof(float));
             amx_kernel::PP::BiasGeluStore<float, amx_kernel::PP::Steps::NONE> pp(matQKV);
             (*qKVGemm_ops[threadNum])(matQK, matV, 0, _create_param.head_size, pp);
-            memcpy2d_stride<ov::bfloat16>(reinterpret_cast<ov::bfloat16*>(pOut_aux), reinterpret_cast<float*>(bufferMatMul1Out_local), param.query_seq_len,
+            memcpy2d_stride_avx512<ov::bfloat16>(reinterpret_cast<ov::bfloat16*>(pOut_aux), reinterpret_cast<float*>(bufferMatMul1Out_local), param.query_seq_len,
                 _create_param.head_size, _create_param.head_size_aligned * sizeof(float), _create_param.num_heads * _create_param.head_size * sizeof(ov::bfloat16), nullptr);
         });
     } else {
@@ -182,8 +182,8 @@ void mha_gpt::Impl::mha_bf16(const exec_param &param) {
                 for (size_t m = 0; m < seq_cout; m++) {
                     float* src = reinterpret_cast<float*>(pMatMul0Out + m * rndup(param.key_seq_len * sizeof(float), 64));
                     ov::bfloat16* dst = reinterpret_cast<ov::bfloat16*>(pMatMul0Out + m * rndup(param.key_seq_len * sizeof(ov::bfloat16), 64));
-                    mul_add_f32(src, src, _create_param.normal_factor, pAddIn1_aux, valid_softmax_items);
-                    softmax<ov::bfloat16>(dst, src, valid_softmax_items, nullptr, nullptr, nullptr);
+                    mul_add_f32_avx512(src, src, _create_param.normal_factor, pAddIn1_aux, valid_softmax_items);
+                    softmax_avx512<ov::bfloat16>(dst, src, valid_softmax_items, nullptr, nullptr, nullptr);
                     // attn_scores = torch.where(causal_mask, attn_scores, mask_value)
                     if (param.key_seq_len > valid_softmax_items) {
                         auto *invalidPtr = dst + valid_softmax_items;
@@ -199,7 +199,7 @@ void mha_gpt::Impl::mha_bf16(const exec_param &param) {
                 amx_kernel::PP::BiasGeluStore<float, amx_kernel::PP::Steps::NONE> pp2(matQKV);
                 (*qKVGemm_ops[threadNum])(matQKBF16, matV, 0, _create_param.head_size, pp2, prev_v == pVIn0_aux);
                 prev_v = pVIn0_aux;
-                memcpy2d_stride<ov::bfloat16>(reinterpret_cast<ov::bfloat16*>(pOut_aux), reinterpret_cast<float*>(bufferMatMul1Out_local), seq_cout,
+                memcpy2d_stride_avx512<ov::bfloat16>(reinterpret_cast<ov::bfloat16*>(pOut_aux), reinterpret_cast<float*>(bufferMatMul1Out_local), seq_cout,
                     _create_param.head_size, _create_param.head_size_aligned * sizeof(float), _create_param.num_heads * _create_param.head_size * sizeof(ov::bfloat16), nullptr);
                 parallel_it_step(i0, param.batch, i1, _create_param.num_heads, seq, seq_cout_all);
             }
@@ -207,7 +207,7 @@ void mha_gpt::Impl::mha_bf16(const exec_param &param) {
     }
 }
 
-void mha_gpt::Impl::mha_i8(const exec_param &param) {
+void mha_gpt_impl_amx::mha_i8(const mha_gpt::exec_param &param) {
     uint8_t* pQIn0 = param.q;
     auto& pKIn0 = param.k;
     auto& attn_masks = param.attention_mask;
@@ -250,18 +250,18 @@ void mha_gpt::Impl::mha_i8(const exec_param &param) {
             //     k[N, K] * transpose(q[1, K])    ==>
             //     k[N, K] * q[K, 1]
             (*gemAvB_ops[threadNum])(matK, reinterpret_cast<int8_t*>(pQIn0_aux), reinterpret_cast<int32_t*>(bufferMatMul0Out_local));
-            cvt_i32_f32(reinterpret_cast<float*>(bufferMatMul0Out_local), reinterpret_cast<int32_t*>(bufferMatMul0Out_local), param.key_seq_len);
+            cvt_i32_f32_avx512(reinterpret_cast<float*>(bufferMatMul0Out_local), reinterpret_cast<int32_t*>(bufferMatMul0Out_local), param.key_seq_len);
 
             float* pMatMul0Out = reinterpret_cast<float*>(bufferMatMul0Out_local);
-            mul_add_f32(pMatMul0Out, pMatMul0Out, mul_scales, pAddIn1_aux, param.key_seq_len);
-            softmax<uint8_t>(reinterpret_cast<uint8_t*>(pMatMul0Out), pMatMul0Out, param.key_seq_len, nullptr, nullptr, qk_quant_vec.data());
+            mul_add_f32_avx512(pMatMul0Out, pMatMul0Out, mul_scales, pAddIn1_aux, param.key_seq_len);
+            softmax_avx512<uint8_t>(reinterpret_cast<uint8_t*>(pMatMul0Out), pMatMul0Out, param.key_seq_len, nullptr, nullptr, qk_quant_vec.data());
             auto pOut_aux = pout + (i0 * batch_stride_in_attn + i1 * head_stride_in_attn) * outPrcSize;
             tensor2D<uint8_t> matQK(param.query_seq_len, param.key_seq_len, reinterpret_cast<uint8_t*>(bufferMatMul0Out_local), rndup(param.key_seq_len * sizeof(uint8_t), 64));
             tensor2D<int8_t> matV(param.key_seq_len, _create_param.head_size, reinterpret_cast<int8_t*>(pVIn0_aux), _create_param.head_size_aligned * sizeof(int8_t));
             tensor2D<float> matQKV(param.query_seq_len, _create_param.head_size, reinterpret_cast<float*>(bufferMatMul1Out_local), _create_param.head_size_aligned * sizeof(float));
             amx_kernel::PP::BiasGeluStore<float, amx_kernel::PP::Steps::NONE> pp(matQKV);
             (*qKVGemm_ops[threadNum])(matQK, matV, 0, _create_param.head_size, pp);
-            memcpy2d_stride<int8_t>(reinterpret_cast<int8_t*>(pOut_aux), reinterpret_cast<float*>(bufferMatMul1Out_local), param.query_seq_len,
+            memcpy2d_stride_avx512<int8_t>(reinterpret_cast<int8_t*>(pOut_aux), reinterpret_cast<float*>(bufferMatMul1Out_local), param.query_seq_len,
                 _create_param.head_size, _create_param.head_size_aligned * sizeof(float), _create_param.num_heads * _create_param.head_size, qkv_quant.data());
         });
     } else {
@@ -308,8 +308,8 @@ void mha_gpt::Impl::mha_i8(const exec_param &param) {
                 for (size_t m = 0; m < seq_cout; m++) {
                     float* src = reinterpret_cast<float*>(pMatMul0Out + m * rndup(param.key_seq_len * sizeof(float), 64));
                     uint8_t* dst = reinterpret_cast<uint8_t*>(pMatMul0Out + m * rndup(param.key_seq_len * sizeof(uint8_t), 64));
-                    mul_add_f32(src, src, mul_scales, pAddIn1_aux, valid_softmax_items);
-                    softmax<uint8_t>(dst, src, valid_softmax_items, nullptr, nullptr, qk_quant_vec.data());
+                    mul_add_f32_avx512(src, src, mul_scales, pAddIn1_aux, valid_softmax_items);
+                    softmax_avx512<uint8_t>(dst, src, valid_softmax_items, nullptr, nullptr, qk_quant_vec.data());
                     // attn_scores = torch.where(causal_mask, attn_scores, mask_value)
                     if (param.key_seq_len > valid_softmax_items) {
                         auto *invalidPtr = dst + valid_softmax_items;
@@ -327,7 +327,7 @@ void mha_gpt::Impl::mha_i8(const exec_param &param) {
                 prev_v = pVIn0_aux;
                 // matmul1: [batch, num_heads, query_seq_len, head_size]
                 // attn_output: [batch, query_seq_len, num_heads * head_size]
-                memcpy2d_stride<int8_t>(reinterpret_cast<int8_t*>(pOut_aux), reinterpret_cast<float*>(bufferMatMul1Out_local), seq_cout,
+                memcpy2d_stride_avx512<int8_t>(reinterpret_cast<int8_t*>(pOut_aux), reinterpret_cast<float*>(bufferMatMul1Out_local), seq_cout,
                     _create_param.head_size, _create_param.head_size_aligned * sizeof(float), _create_param.num_heads * _create_param.head_size, qkv_quant.data());
                 parallel_it_step(i0, param.batch, i1, _create_param.num_heads, seq, seq_cout_all);
             }
@@ -335,7 +335,7 @@ void mha_gpt::Impl::mha_i8(const exec_param &param) {
     }
 }
 
-void mha_gpt::Impl::exec(const exec_param& param) {
+void mha_gpt_impl_amx::exec(const mha_gpt::exec_param& param) {
     if (_create_param.qkv_precision == dnnl_f32) {
         assert(false);
     } else if (_create_param.qkv_precision == dnnl_bf16) {
@@ -347,16 +347,8 @@ void mha_gpt::Impl::exec(const exec_param& param) {
     }
 }
 
-// interface
-mha_gpt::mha_gpt(): _impl(std::make_shared<Impl>()) {
-}
-
-void mha_gpt::create(const create_param& param) {
-    _impl->create(param);
-}
-
-void mha_gpt::exec(const exec_param& param) {
-    _impl->exec(param);
+std::shared_ptr<mha_gpt::impl> new_impl_amx() {
+    return std::make_shared<mha_gpt_impl_amx>();
 }
 
 }

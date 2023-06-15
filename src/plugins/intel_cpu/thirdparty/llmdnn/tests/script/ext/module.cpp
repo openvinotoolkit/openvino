@@ -6,7 +6,7 @@
 #include <memory>
 #include "module.hpp"
 #include "utility_amx.hpp"
-#include "mha_gpt.hpp"
+#include "llm_mha_gpt.hpp"
 #include "test_common.hpp"
 
 PYBIND11_MODULE(llmdnn, m) {

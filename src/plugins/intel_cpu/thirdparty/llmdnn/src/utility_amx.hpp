@@ -62,6 +62,7 @@ struct tileconfig_t {
         }
         load();
     }
+
     tileconfig_t(int palette, int _startRow, int numTiles, int _rows, int columnsBytes) {
         palette_id = palette;
         startRow = _startRow;
@@ -83,14 +84,15 @@ struct tileconfig_t {
     ~tileconfig_t() {
         _tile_release();
     }
+
     void __attribute__((noinline)) load() {
-        //std::cout << "\ttile load config ... " << std::flush;
         _tile_loadconfig(this);
-        //std::cout << *this << std::flush << std::endl;
     }
+
     void store() {
         _tile_storeconfig(this);
     }
+
     friend std::ostream& operator<<(std::ostream& out, const tileconfig_t& cfg) {
         out << " palette_id=" << static_cast<int>(cfg.palette_id);
         out << " startRow=" << static_cast<int>(cfg.startRow);

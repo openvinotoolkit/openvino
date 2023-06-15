@@ -10,8 +10,8 @@
 #include <iostream>
 #include "gtest/gtest.h"
 #include "llm_mm.hpp"
-#include "tensor2d.hpp"
-#include "tensor2d_helper.hpp"
+#include "common/tensor2d.hpp"
+#include "common/tensor2d_helper.hpp"
 #include "utility_avx512.hpp"
 #include "test_common.hpp"
 
@@ -29,7 +29,7 @@ TEST(smoke_Utility, muladd) {
             bias[i] = -100.0f + i;
             ref[i] = x[i] * normal_factor + bias[i];
         }
-        mul_add_f32(x_out.data(), x.data(), normal_factor, bias.data(), len);
+        mul_add_f32_avx512(x_out.data(), x.data(), normal_factor, bias.data(), len);
         for (size_t i = 0; i < x.size(); i++) {
             ASSERT_TRUE(std::abs(x_out[i] - ref[i]) < 0.0001f) << " length: " << len << " pos: " << i << " cur: " << x[i] << " ref: " << ref[i];
         }

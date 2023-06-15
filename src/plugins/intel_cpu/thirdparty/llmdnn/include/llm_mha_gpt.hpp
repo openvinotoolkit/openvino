@@ -77,9 +77,12 @@ public:
     void create(const create_param& param);
     void exec(const exec_param& param);
 
-private:
-    struct Impl;
-    std::shared_ptr<Impl> _impl;
+    struct impl {
+        virtual void create(const create_param& param) = 0;
+        virtual void exec(const exec_param& param) = 0;
+    };
+protected:
+    std::shared_ptr<impl> _impl;
 };
 
 }

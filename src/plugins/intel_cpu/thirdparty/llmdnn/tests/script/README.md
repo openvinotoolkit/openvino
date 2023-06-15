@@ -12,8 +12,12 @@ compile extension
 ```
 ./build.sh
 ```
+debug version extension(llmdnn needs to config debug version also)
+```
+DEBUG_EXT=1 ./build.sh
+```
 
 run test
 ```
-python test_mha_gpt.py
+pytest
 ```

@@ -5,6 +5,7 @@
 from setuptools import setup, Extension
 from torch.utils import cpp_extension
 import sys
+import os
 
 '''
 using intel compiler:
@@ -12,28 +13,32 @@ source ~/intel/oneapi/setvars.sh
 export CXX=icx
 export CC=icx
 '''
-debug = True
+debug = False
+if 'DEBUG_EXT' in os.environ:
+  debug = True if os.environ['DEBUG_EXT'] == '1' else False
 extra_args = ['-fopenmp',
               '-march=native']
-llmdnn_lib_dir = '../../../../../../../../bin/intel64/Release'
+llmdnn_lib_dir = f'{os.getcwd()}/../../../../../../../../bin/intel64/Release'
 if debug:
-  llmdnn_lib_dir = '../../../../../../../../bin/intel64/Debug'
+  llmdnn_lib_dir = f'{os.getcwd()}/../../../../../../../../bin/intel64/Debug'
   extra_args += ['-g', '-O0']
+  print('install debug version')
+else:
+  print('install release version')
+
 setup(name='llmdnn',
       ext_modules=[
         cpp_extension.CppExtension(
           'llmdnn',
-          ['module.cpp', 'mha_gpt.cpp', '../../src/test_common.cpp'],
+          ['module.cpp', 'mha_gpt.cpp', f'../../src/test_common.cpp'],
           extra_compile_args=extra_args,
-          #extra_link_args=['-lgomp'],
-          include_dirs=['../../src',
-                        '../../../include',
-                        '../../../src'],
+          include_dirs=[f'{os.getcwd()}/../../src',
+                        f'{os.getcwd()}/../../../include',
+                        f'{os.getcwd()}/../../../src'],
           library_dirs=[f'{sys.prefix}/lib',
                         llmdnn_lib_dir],
-          #runtime_library_dirs=[ f'{sys.prefix}/lib', ],
           libraries=['llmdnn',
                      'stdc++']),
       ],
-      cmdclass={'build_ext': cpp_extension.BuildExtension.with_options(use_ninja=False)}
+      cmdclass={'build_ext': cpp_extension.BuildExtension}
       )

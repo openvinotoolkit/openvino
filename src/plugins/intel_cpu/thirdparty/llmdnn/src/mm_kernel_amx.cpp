@@ -15,8 +15,9 @@
 #include <thread>
 
 #include "llm_mm.hpp"
-#include "mm_kernel_amx.hpp"
+#include "mm_kernel_common_amx.hpp"
 #include "utility_avx512.hpp"
+#include "mm_kernel_amx.hpp"
 
 namespace llmdnn {
 
@@ -35,7 +36,7 @@ struct mm_kernel {
 };
 
 // interface
-bool mm_kernel_create(mm_kernel** mm, const mm_create_param* param) {
+bool mm_kernel_create_amx(mm_kernel** mm, const mm_create_param* param) {
     mm_kernel* m = nullptr;
     if (param == nullptr || mm == nullptr) {
         std::cout << "mm_kernel_create: invalid input parameter.\n";
@@ -75,13 +76,13 @@ ERR:
     return false;
 }
 
-void mm_kernel_destroy(const mm_kernel* mm) {
+void mm_kernel_destroy_amx(const mm_kernel* mm) {
     if (mm) {
         delete mm;
     }
 }
 
-void mm_kernel_execute(const mm_kernel* mm, void* ptr_a, void* ptr_b, void* ptr_c, size_t lda, size_t ldb, size_t ldc,
+void mm_kernel_execute_amx(const mm_kernel* mm, void* ptr_a, void* ptr_b, void* ptr_c, size_t lda, size_t ldb, size_t ldc,
         size_t M, size_t N, size_t K) {
     size_t b_d0 = K, b_d1 = N;
     if (mm->b_is_transpose) {
@@ -91,7 +92,7 @@ void mm_kernel_execute(const mm_kernel* mm, void* ptr_a, void* ptr_b, void* ptr_
     if (mm->i8xi8_gemv) {
         tensor2D<int8_t> a(M, K, reinterpret_cast<int8_t*>(ptr_a), lda);
         (*mm->i8xi8_gemv)(a, reinterpret_cast<int8_t*>(ptr_b), reinterpret_cast<int32_t*>(ptr_c));
-        cvt_i32_f32(reinterpret_cast<float*>(ptr_c), reinterpret_cast<int32_t*>(ptr_c), M);
+        cvt_i32_f32_avx512(reinterpret_cast<float*>(ptr_c), reinterpret_cast<int32_t*>(ptr_c), M);
     } else if (mm->i8xi8) {
         tensor2D<int8_t> a(M, K, reinterpret_cast<int8_t*>(ptr_a), lda);
         tensor2D<int8_t> b(b_d0, b_d1, reinterpret_cast<int8_t*>(ptr_b), ldb);

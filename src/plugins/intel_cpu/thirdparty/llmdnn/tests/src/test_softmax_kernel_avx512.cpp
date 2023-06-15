@@ -11,8 +11,8 @@
 #include <iostream>
 #include "gtest/gtest.h"
 #include "llm_mm.hpp"
-#include "tensor2d.hpp"
-#include "tensor2d_helper.hpp"
+#include "common/tensor2d.hpp"
+#include "common/tensor2d_helper.hpp"
 #include "softmax_kernel_avx512.hpp"
 #include "test_common.hpp"
 
@@ -94,7 +94,7 @@ protected:
             }
             quant = 128.f;
             gen_ref(A, out_ref, quant);
-            llmdnn::softmax<T>(out.data, A.data, n, nullptr, nullptr, quant.data);
+            llmdnn::softmax_avx512<T>(out.data, A.data, n, nullptr, nullptr, quant.data);
             for (int i = 0; i < n; i++) {
                 float a = out[i];
                 float b = out_ref[i];

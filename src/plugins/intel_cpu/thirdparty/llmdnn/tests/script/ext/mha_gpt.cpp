@@ -6,9 +6,9 @@
 #include <memory>
 #include "alloca.h"
 #include "module.hpp"
-#include "utility.hpp"
+#include "common/utility.hpp"
 #include "utility_amx.hpp"
-#include "mha_gpt.hpp"
+#include "llm_mha_gpt.hpp"
 #include "test_common.hpp"
 
 void regclass_mha_gpt(pybind11::module m) {

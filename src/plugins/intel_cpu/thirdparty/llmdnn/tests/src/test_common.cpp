@@ -10,8 +10,8 @@
 #include <chrono>
 #include <iostream>
 #include <omp.h>
+#include "common/simple_parallel.hpp"
 #include "test_common.hpp"
-#include "simple_parallel.hpp"
 
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE         /* See feature_test_macros(7) */

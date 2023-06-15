@@ -11,8 +11,8 @@
 #include <iostream>
 #include "gtest/gtest.h"
 #include "llm_mm.hpp"
-#include "tensor2d.hpp"
-#include "tensor2d_helper.hpp"
+#include "common/tensor2d.hpp"
+#include "common/tensor2d_helper.hpp"
 #include "transpose_kernel_avx512.hpp"
 #include "test_common.hpp"
 
@@ -90,7 +90,7 @@ protected:
             auto* dst_p_ref = dst_ref.data;
             for (int i = 0; i < num_heads; i++) {
                 auto* src_p = &src(i, 0);
-                llmdnn::memcpy2d_stride(dst_p, src_p, query_seq_len, head_size,
+                llmdnn::memcpy2d_stride_avx512(dst_p, src_p, query_seq_len, head_size,
                     head_size * sizeof(float), num_heads * head_size * sizeof(T), quant.data);
                 gen_ref(dst_p_ref, src_p, query_seq_len, head_size,
                     head_size * sizeof(float), num_heads * head_size * sizeof(T), quant.data);                    

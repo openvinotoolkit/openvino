@@ -12,8 +12,8 @@
 #include <algorithm>
 #include "llm_types.hpp"
 #include "llm_fc.hpp"
-#include "tensor2d.hpp"
-#include "bf16.hpp"
+#include "common/tensor2d.hpp"
+#include "common/bf16.hpp"
 #ifdef _WIN32
 #include <intrin.h>
 #else

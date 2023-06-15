@@ -11,12 +11,12 @@
 #include <x86intrin.h>
 #include <immintrin.h>
 #endif
-#include "bf16.hpp"
+#include "common/bf16.hpp"
 #include "llm_types.hpp"
 #include "utility_avx512.hpp"
 
 namespace llmdnn {
-    inline void exp_ps(__m512 & src) {
+    inline void exp_ps_avx512(__m512 & src) {
         static __m512 exp_ln_flt_min_f = _mm512_castsi512_ps(_mm512_set1_epi32(0xc2aeac50));    // log(FLT_MIN)
         static __m512 exp_ln_flt_max_f = _mm512_castsi512_ps(_mm512_set1_epi32(0x42b17218));    // log(FLT_MAX)
         static __m512 exp_log2ef = _mm512_castsi512_ps(_mm512_set1_epi32(0x3fb8aa3b));          // log2(e)
@@ -85,10 +85,10 @@ namespace llmdnn {
     }
 
     template<typename D>
-    void softmax(D* dst, float* src, int N, float* s_max=nullptr, float* s_sum=nullptr, float* quant=nullptr) {
+    void softmax_avx512(D* dst, float* src, int N, float* s_max=nullptr, float* s_sum=nullptr, float* quant=nullptr) {
         static_assert(std::is_same<D, ov::bfloat16>::value || std::is_same<D, float>::value ||
                       std::is_same<D, int8_t>::value || std::is_same<D, uint8_t>::value,
-                      "softmax only support output data types ov::bfloat16/uint8_t/int8_t/float");
+                      "softmax_avx512 only support output data types ov::bfloat16/uint8_t/int8_t/float");
 
         static __m512 one = _mm512_castsi512_ps(_mm512_set1_epi32(0x3f800000));                 // 1.0f
         auto tail = N % 16;
@@ -115,7 +115,7 @@ namespace llmdnn {
         for(i = 0; i < N - tail; i += 16) {
             auto x = _mm512_loadu_ps(src + i);
             x = _mm512_sub_ps(x, x_max);
-            exp_ps(x);                             // exp(x-x_max)
+            exp_ps_avx512(x);                             // exp(x-x_max)
             sum_exp = _mm512_add_ps(sum_exp, x);   // sum(exp(x-x_max))
             _mm512_storeu_ps(src + i, x);          // save exp(x-x_max)
         }
@@ -124,7 +124,7 @@ namespace llmdnn {
         if (tail) {
             auto x = _mm512_maskz_loadu_ps(x_mask, src + i);
             x = _mm512_sub_ps(x, x_max);
-            exp_ps(x);
+            exp_ps_avx512(x);
             x = _mm512_mask_blend_ps(x_mask, _mm512_setzero_ps(), x);
             sum_exp = _mm512_add_ps(sum_exp, x);
             _mm512_mask_storeu_ps(src + i, x_mask, x);

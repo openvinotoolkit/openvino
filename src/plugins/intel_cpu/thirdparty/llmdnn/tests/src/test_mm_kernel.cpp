@@ -11,8 +11,8 @@
 #include <iostream>
 #include "gtest/gtest.h"
 #include "llm_mm.hpp"
-#include "tensor2d.hpp"
-#include "tensor2d_helper.hpp"
+#include "common/tensor2d.hpp"
+#include "common/tensor2d_helper.hpp"
 #include "test_common.hpp"
 
 using namespace std;

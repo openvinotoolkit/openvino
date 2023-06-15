@@ -113,7 +113,26 @@ HEAD_NUM = 32
 SIZE_PER_HEAD = 80
 HIDDEN_SIZE = HEAD_NUM * SIZE_PER_HEAD
 MAX_POSITION_EMBEDDINGS = 1024 #2048
-def test(inputs):
+def test_gpt_neox():
+    inputs = [
+        # q, k, v, attn_mask
+        # q: [batch, num_heads, query_seq_len, head_size]
+        # k: [batch, num_heads, key_seq_len, head_size]
+        # v: [batch, num_heads, value_seq_len, head_size]
+        # attn: [1, MAX_POSITION_EMBEDDINGS]
+        (np.random.random(size=[2, HEAD_NUM, 2, SIZE_PER_HEAD]).astype(np.float32),
+         np.random.random(size=[2, HEAD_NUM, 32, SIZE_PER_HEAD]).astype(np.float32),
+         np.random.random(size=[2, HEAD_NUM, 32, SIZE_PER_HEAD]).astype(np.float32),
+         np.zeros([1, 32], dtype=np.float32)),
+        (np.random.random(size=[2, HEAD_NUM, 200, SIZE_PER_HEAD]).astype(np.float32),
+         np.random.random(size=[2, HEAD_NUM, 200, SIZE_PER_HEAD]).astype(np.float32),
+         np.random.random(size=[2, HEAD_NUM, 200, SIZE_PER_HEAD]).astype(np.float32),
+         np.zeros([1, 200], dtype=np.float32)),
+        (np.random.random(size=[2, HEAD_NUM, 1, SIZE_PER_HEAD]).astype(np.float32),
+         np.random.random(size=[2, HEAD_NUM, 200, SIZE_PER_HEAD]).astype(np.float32),
+         np.random.random(size=[2, HEAD_NUM, 200, SIZE_PER_HEAD]).astype(np.float32),
+         np.zeros([1, 200], dtype=np.float32)),
+    ]
     class FakeConfig:
         def __init__(self):
             self.num_attention_heads = HEAD_NUM
@@ -134,28 +153,10 @@ def test(inputs):
             output = net.forward(q, k, v, attn_mask)
             if not torch.allclose(ref_output, output, rtol=0.001, atol=0.01):
                 print(f"error at index {i} ref:\n{ref_output} \ncur:\n {output} ")
+                assert(False)
 
     print('done.')
     return
 
 if __name__ == "__main__":
-    inputs = [
-        # q, k, v, attn_mask
-        # q: [batch, num_heads, query_seq_len, head_size]
-        # k: [batch, num_heads, key_seq_len, head_size]
-        # v: [batch, num_heads, value_seq_len, head_size]
-        # attn: [1, MAX_POSITION_EMBEDDINGS]
-        (np.random.random(size=[2, HEAD_NUM, 2, SIZE_PER_HEAD]).astype(np.float32),
-         np.random.random(size=[2, HEAD_NUM, 32, SIZE_PER_HEAD]).astype(np.float32),
-         np.random.random(size=[2, HEAD_NUM, 32, SIZE_PER_HEAD]).astype(np.float32),
-         np.zeros([1, 32], dtype=np.float32)),
-        (np.random.random(size=[2, HEAD_NUM, 200, SIZE_PER_HEAD]).astype(np.float32),
-         np.random.random(size=[2, HEAD_NUM, 200, SIZE_PER_HEAD]).astype(np.float32),
-         np.random.random(size=[2, HEAD_NUM, 200, SIZE_PER_HEAD]).astype(np.float32),
-         np.zeros([1, 200], dtype=np.float32)),
-        (np.random.random(size=[2, HEAD_NUM, 1, SIZE_PER_HEAD]).astype(np.float32),
-         np.random.random(size=[2, HEAD_NUM, 200, SIZE_PER_HEAD]).astype(np.float32),
-         np.random.random(size=[2, HEAD_NUM, 200, SIZE_PER_HEAD]).astype(np.float32),
-         np.zeros([1, 200], dtype=np.float32)),
-    ]
-    test(inputs)
+    test_gpt_neox()
