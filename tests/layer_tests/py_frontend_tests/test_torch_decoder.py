@@ -606,7 +606,7 @@ def f(x, y):
 
 @pytest.mark.precommit
 def test_pytorch_decoder_can_convert_scripted_function():
-    from openvino.tools.mo import convert_model
+    from openvino.runtime import convert_model
     scripted = torch.jit.script(f)
     model = convert_model(scripted)
     assert model is not None

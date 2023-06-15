@@ -26,7 +26,7 @@ def create_tf_model(out_dir):
 
 
 def run_main():
-    from openvino.tools.mo import convert_model
+    from openvino.runtime import convert_model
 
     log.basicConfig(format="[ %(levelname)s ] %(message)s", level=log.INFO, stream=sys.stdout)
     test_directory = os.path.dirname(os.path.realpath(__file__))

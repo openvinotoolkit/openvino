@@ -7,10 +7,8 @@ from pathlib import Path
 
 from generator import generator
 from openvino.runtime import get_version as get_rt_version
-from openvino.runtime import serialize
+from openvino.runtime import serialize, convert_model
 
-from openvino.tools.mo import convert_model
-from openvino.tools.mo.utils import import_extensions
 from openvino.tools.mo.utils.version import get_version
 from unit_tests.mo.unit_test_with_mocked_telemetry import UnitTestWithMockedTelemetry
 from utils import save_to_onnx
@@ -62,7 +60,6 @@ class MetaDataTest(UnitTestWithMockedTelemetry):
 
         def ref_meta_data():
             return {
-                'MO_version': get_version(),
                 'Runtime_version': get_rt_version(),
                 'legacy_frontend': "False",
                 'conversion_parameters': {

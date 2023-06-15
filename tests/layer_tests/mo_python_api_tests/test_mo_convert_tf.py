@@ -666,7 +666,7 @@ class TFConvertTest(unittest.TestCase):
     @pytest.mark.precommit
     def test_tf_function_no_signature(self):
         import tensorflow as tf
-        from openvino.tools.mo import convert_model
+        from openvino.runtime import convert_model
 
         @tf.function()
         def function(x1, x2):

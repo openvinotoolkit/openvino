@@ -139,7 +139,7 @@ class PytorchLayerTest:
 
     def convert_via_mo(self, model, example_input, trace_model, dynamic_shapes, ov_inputs):
         import torch
-        from openvino.tools.mo import convert_model
+        from openvino.runtime import convert_model
         kwargs = {"example_input": example_input if len(
             example_input) > 1 else example_input[0], "compress_to_fp16": False}
         with torch.no_grad():
