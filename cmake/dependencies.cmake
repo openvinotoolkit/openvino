@@ -337,7 +337,7 @@ if(ENABLE_INTEL_GNA)
             LIST(APPEND FILES_TO_EXTRACT_LIST gna_${GNA_VERSION}/linux)
         endif()
 
-        set(IE_PATH_TO_DEPS "gna_temp")
+        set(IE_PATH_TO_DEPS "http://10-211-120-125.iotg.sclab.intel.com/dl_score_engine")
         RESOLVE_DEPENDENCY(GNA_EXT_DIR
                 ARCHIVE_UNIFIED "GNA/gna_${GNA_VERSION}.zip"
                 TARGET_PATH "${TEMP}/gna_${GNA_VERSION}"
