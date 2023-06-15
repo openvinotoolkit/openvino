@@ -5,6 +5,7 @@
 #include "utils.hpp"
 
 #include "op_table.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/frontend/pytorch/decoder.hpp"
 #include "openvino/opsets/opset10.hpp"
 #include "openvino/util/log.hpp"
@@ -495,6 +496,30 @@ void add_exception_to_fw_node(std::shared_ptr<Node> node, const std::string& msg
         attrs[PtFrameworkNode::failed_conversion_key] = msg;
         fw_node->set_attrs(attrs);
     }
+}
+
+void copy_runtime_info_and_name(const std::shared_ptr<Node>& from,
+                                ov::NodeVector to,
+                                const ov::NodeVector& additional_rt_info_src) {
+    if (to.size() == 1) {
+        // We do 1 to 1 matching, no need to process names, just inherit initial name
+        to[0]->set_friendly_name(from->get_friendly_name());
+    } else {
+        std::unordered_set<std::string> unique_names;
+        size_t idx = 0;
+        for (auto& op : to) {
+            auto new_name = from->get_friendly_name() + '/' + op->get_type_name();
+            if (unique_names.count(new_name)) {
+                new_name += '_' + std::to_string(idx++);
+            } else {
+                unique_names.insert(new_name);
+            }
+            op->set_friendly_name(new_name);
+        }
+    }
+    copy_runtime_info(from, to);
+    if (!additional_rt_info_src.empty())
+        copy_runtime_info(additional_rt_info_src, to);
 }
 
 }  // namespace pytorch

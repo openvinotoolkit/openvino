@@ -40,23 +40,24 @@ OutputVector NodeContext::as_constant() const {
         fw_node->set_attrs(attrs);
         return {fw_node};
     } else {
-        return m_decoder->as_constant();
+        auto c_outs = m_decoder->as_constant();
+        FRONT_END_OP_CONVERSION_CHECK(c_outs.size() == 1, "Constant must have exactly one output.");
+        c_outs[0].get_node_shared_ptr()->set_friendly_name(m_decoder->get_output_debug_name(0));
+        return c_outs;
     }
 }
 
 std::shared_ptr<Node> NodeContext::mark_node(std::shared_ptr<Node> ov_node) const {
-    ov_node->set_friendly_name(get_op_type() + '_' + std::to_string(m_translate_session->m_friendly_name_counter++));
-    return m_decoder->mark_node(ov_node);
+    ov_node = m_decoder->mark_node(ov_node);
+    m_translate_session->unique_name(ov_node);
+    return ov_node;
 }
 
 void NodeContext::mutate_input(size_t index, Output<Node> ov_output) const {
     FRONT_END_GENERAL_CHECK(!m_decoder->input_is_none(index), "Input is none with index: ", index);
     auto input_id = m_decoder_inputs.at(index);
     FRONT_END_GENERAL_CHECK(m_tensor_map->count(input_id), "No tensor corresponding input: ", input_id, " exist.");
-    m_translate_session->encode_tensor_name(
-        ov_output,
-        input_id,
-        {m_decoder->get_input_debug_name(index), m_decoder->get_input_signature_name(index)});
+    m_translate_session->encode_tensor_name(ov_output, input_id, {m_decoder->get_input_debug_name(index)});
     (*m_tensor_map)[input_id] = ov_output;
     m_mutated_tensors->insert(input_id);
 
