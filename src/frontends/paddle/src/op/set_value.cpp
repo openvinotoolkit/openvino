@@ -5,8 +5,6 @@
 #include "default_opset.hpp"
 #include "openvino/frontend/paddle/node_context.hpp"
 
-#define INT_MAX 2147483647
-
 namespace ov {
 namespace frontend {
 namespace paddle {

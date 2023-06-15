@@ -9,7 +9,10 @@
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/equal.hpp"
+#include "openvino/op/interpolate.hpp"
+#include "openvino/op/multiply.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/roll.hpp"
 #include "openvino/op/select.hpp"
@@ -52,6 +55,11 @@ ListConstructReplacer::ListConstructReplacer() {
     auto transpose_op = pattern::wrap_type<v1::Transpose>({pattern::any_input(), list});
     // aten::split_with_sizes case
     auto vsplit_op = pattern::wrap_type<v1::VariadicSplit>({pattern::any_input(), pattern::any_input(), list});
+    // aten::upsample... case inside the body when body was removed
+    auto interpolate_convert_op = pattern::wrap_type<v0::Convert>({list});
+    auto interpolate_mul_op = pattern::wrap_type<v1::Multiply>({interpolate_convert_op, pattern::any_input()});
+    auto interpolate_op =
+        pattern::wrap_type<v11::Interpolate>({pattern::any_input(), interpolate_mul_op, pattern::any_input()});
     auto lc_pattern = std::make_shared<pattern::op::Or>(OutputVector{reshape_op,
                                                                      roll_op,
                                                                      broadcast_op,
@@ -61,7 +69,8 @@ ListConstructReplacer::ListConstructReplacer() {
                                                                      select_op,
                                                                      tile_op,
                                                                      transpose_op,
-                                                                     vsplit_op});
+                                                                     vsplit_op,
+                                                                     interpolate_op});
 
     ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto& pattern_map = m.get_pattern_value_map();
@@ -81,6 +90,7 @@ ListConstructReplacer::ListConstructReplacer() {
             auto rank = input.get_partial_shape().rank();
             if (rank.is_static() && rank.get_length() > 1) {
                 // if list elements of rank higher then 1D we cannot resolve it
+                add_exception_to_fw_node(list, "unsupported list: all inputs must be 1D.");
                 return false;
             }
             // reshape all elements to 1D

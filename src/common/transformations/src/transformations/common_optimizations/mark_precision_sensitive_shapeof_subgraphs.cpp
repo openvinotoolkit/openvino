@@ -14,6 +14,7 @@
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/rt_info/disable_fp16_compression.hpp"
+#include "transformations/rt_info/is_shape_subgraph.hpp"
 #include "transformations/rt_info/nonconvertible_divide.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -88,4 +89,10 @@ bool ov::pass::MarkPrecisionSensitiveShapeOfSubgraphs::run_on_model(const shared
         }
     }
     return true;
+}
+
+ov::pass::MarkShapeOfSubgraphs::MarkShapeOfSubgraphs() {
+    m_markup_func = [](Node* node) {
+        mark_shape_subgraph(node->shared_from_this());
+    };
 }

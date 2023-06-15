@@ -37,7 +37,7 @@ TEST(node_input_output, input_create) {
     EXPECT_TRUE(add_in_1.get_partial_shape().same_scheme(PartialShape{1, 2, 3, 4}));
     EXPECT_EQ(add_in_1.get_source_output(), Output<Node>(y, 0));
 
-    EXPECT_THROW(add->input(2), std::out_of_range);
+    EXPECT_THROW(add->input(2), ov::Exception);
 }
 
 TEST(node_input_output, input_create_const) {
@@ -62,7 +62,7 @@ TEST(node_input_output, input_create_const) {
     EXPECT_TRUE(add_in_1.get_partial_shape().same_scheme(PartialShape{1, 2, 3, 4}));
     EXPECT_EQ(add_in_1.get_source_output(), Output<Node>(y, 0));
 
-    EXPECT_THROW(add->input(2), std::out_of_range);
+    EXPECT_THROW(add->input(2), ov::Exception);
 }
 
 TEST(node_input_output, output_create) {
@@ -84,7 +84,7 @@ TEST(node_input_output, output_create) {
     EXPECT_EQ(add_out_0.get_shape(), (Shape{1, 2, 3, 4}));
     EXPECT_TRUE(add_out_0.get_partial_shape().same_scheme(PartialShape{1, 2, 3, 4}));
 
-    EXPECT_THROW(add->output(1), std::out_of_range);
+    EXPECT_THROW(add->output(1), ov::Exception);
 }
 
 TEST(node_input_output, output_create_const) {
@@ -101,7 +101,7 @@ TEST(node_input_output, output_create_const) {
     EXPECT_EQ(add_out_0.get_shape(), (Shape{1, 2, 3, 4}));
     EXPECT_TRUE(add_out_0.get_partial_shape().same_scheme(PartialShape{1, 2, 3, 4}));
 
-    EXPECT_THROW(add->output(1), std::out_of_range);
+    EXPECT_THROW(add->output(1), ov::Exception);
 }
 
 TEST(node_input_output, output_rt_info) {

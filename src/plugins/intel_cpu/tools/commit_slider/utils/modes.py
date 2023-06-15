@@ -49,7 +49,7 @@ class CheckOutputMode(Mode):
                 commit=commit)
             )
             handleCommit(commit, cfg)
-            checkOut = fetchAppOutput(cfg)
+            checkOut = fetchAppOutput(cfg, commit)
             commitLogger.info(checkOut)
             self.setCommitCash(commit, checkOut)
         stopPattern = cfg["runConfig"]["stopPattern"]
@@ -83,7 +83,7 @@ class BenchmarkAppPerformanceMode(Mode):
             foundThroughput = cashedThroughput
         else:
             runCommandList(sampleCommit, cfg, enforceClean=True)
-            output = fetchAppOutput(cfg)
+            output = fetchAppOutput(cfg, sampleCommit)
             commitLogger.info(output)
             foundThroughput = re.search(
                 self.outPattern, output, flags=re.MULTILINE
@@ -129,12 +129,12 @@ class BenchmarkAppPerformanceMode(Mode):
                 commit=commit)
             )
             handleCommit(commit, cfg)
-            output = fetchAppOutput(cfg)
+            output = fetchAppOutput(cfg, commit)
+            commitLogger.info(output)
             foundThroughput = re.search(
                 self.outPattern, output, flags=re.MULTILINE
             ).group(1)
             curThroughput = float(foundThroughput)
-            commitLogger.info(output)
             self.setCommitCash(commit, curThroughput)
         return curThroughput
 
@@ -170,7 +170,7 @@ class CompareBlobsMode(Mode):
                 commit=commit)
             )
             runCommandList(commit, cfg, enforceClean=True)
-            output = fetchAppOutput(cfg)
+            output = fetchAppOutput(cfg, commit)
             commitLogger.info(output)
             filename = self.setCommitCash(commit, None)
         return filename
@@ -187,7 +187,7 @@ class CompareBlobsMode(Mode):
         commitLogger = getCommitLogger(cfg, rightCommit)
         commitLogger.info(
             "Commit {status} from {c}".format(
-                status=("differs" if isDiff else "doesn't differ"),
+                status=("differs" if isDiff else "don't differ"),
                 c=list[i2])
         )
         if isDiff:
