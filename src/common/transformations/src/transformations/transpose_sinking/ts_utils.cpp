@@ -371,7 +371,7 @@ bool CanPropagateForward(const NodePtr& node) {
 }  // namespace
 
 void UpdateForwardSinkingAbility(const NodePtr& node) {
-    std::cout << "UpdateForwardSinkingAbility " << node->get_friendly_name() << std::endl;
+    //std::cout << "UpdateForwardSinkingAbility " << node->get_friendly_name() << std::endl;
 #if 0
     if (!CanPropagateForward(node))
         mark_as_no_sinking_node(node);
@@ -429,7 +429,7 @@ bool CheckTransposeConsumers(const NodePtr& main_node) {
                             transpose_axis_order.end(),
                             first_transpose_axis_order.begin()))
                 return false;
-            std::cout << "CheckTransposeConsumers is_sinking_node " << input.get_node()->get_friendly_name() << " " << is_sinking_node(input.get_node()) << std::endl;
+            //std::cout << "CheckTransposeConsumers is_sinking_node " << input.get_node()->get_friendly_name() << " " << is_sinking_node(input.get_node()) << std::endl;
             if (!is_sinking_node(input.get_node())) {
                 return false;
             }

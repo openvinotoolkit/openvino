@@ -53,7 +53,7 @@ TSUnaryBackward::TSUnaryBackward() {
     MATCHER_SCOPE(TSUnaryBackwardMultiConsumers);
 
     auto unary_restrictions = [](const Output<Node>& output) -> bool {
-        std::cout << "TSUnaryBackward unary_restrictions " << output.get_node_shared_ptr()->get_friendly_name() << " " << CheckTransposeConsumers(output) << std::endl;
+        //std::cout << "TSUnaryBackward unary_restrictions " << output.get_node_shared_ptr()->get_friendly_name() << " " << CheckTransposeConsumers(output) << std::endl;
         return CheckTransposeConsumers(output);
     };
 
