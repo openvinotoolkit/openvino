@@ -128,7 +128,9 @@ bool ov::pass::Manager::run_passes(shared_ptr<ov::Model> func) {
             const size_t num_digits_in_pass_index = 3;
             std::string index_str = std::to_string(index);
             index_str = std::string(num_digits_in_pass_index - index_str.length(), '0') + index_str;
-            auto base_filename = func->get_name() + std::string("_") + index_str + std::string("_") + pass->get_name();
+            static size_t idx = 0;
+            auto base_filename = func->get_name() + std::string("_") + std::to_string(idx++) + std::string("_") +
+                                 index_str + std::string("_") + pass->get_name();
 
             if (m_visualize) {
                 auto file_ext = "svg";

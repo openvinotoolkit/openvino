@@ -181,6 +181,9 @@ void SyncInferRequest::redefineMemoryForInputNodes() {
 
 void SyncInferRequest::update_external_inputs() {
     // Update it due to batched_tensors case will update input tensor
+    if (m_batched_tensors.size() == 0)
+        return;
+    // for (auto input : _compiled_model->get_orig_model()->inputs()) {
     for (auto input : get_inputs()) {
         std::string input_name = get_port_name(input);
         if (input_name.empty()) {
@@ -398,7 +401,7 @@ void SyncInferRequest::check_port(const ov::Output<const ov::Node>& port) const 
 
     if (name.empty() || (_input_ports_map.find(name) == _input_ports_map.end() &&
                          _output_ports_map.find(name) == _output_ports_map.end())) {
-        OPENVINO_THROW("cpu plugin checking port failed: cannot find this port!");
+        OPENVINO_THROW("cpu plugin checking port failed: cannot find this port with name ", name);
     }
 }
 
