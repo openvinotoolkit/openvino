@@ -9,6 +9,7 @@
 #include <set>
 
 #include "bound_evaluate.hpp"
+#include "element_visitor.hpp"
 #include "itt.hpp"
 #include "ngraph/runtime/reference/copy.hpp"
 #include "unsqueeze_shape_inference.hpp"
@@ -46,13 +47,20 @@ shared_ptr<Node> op::v0::Unsqueeze::clone_with_new_inputs(const OutputVector& ne
     return make_shared<Unsqueeze>(new_args.at(0), new_args.at(1));
 }
 
+namespace ov {
+namespace op {
 namespace unsqueeze {
-namespace {
-template <element::Type_t ET>
-bool evaluate(const HostTensorPtr& arg0, const HostTensorPtr& out) {
-    runtime::reference::copy(arg0->get_data_ptr<ET>(), out->get_data_ptr<ET>(), shape_size(out->get_shape()));
-    return true;
-}
+struct evaluate : element::NoAction<bool> {
+    using element::NoAction<bool>::operator();
+
+    template <element::Type_t ET>
+    result_type operator()(const HostTensorPtr& arg0, const HostTensorPtr& out) {
+        ngraph::runtime::reference::copy(arg0->get_data_ptr<ET>(),
+                                         out->get_data_ptr<ET>(),
+                                         shape_size(out->get_shape()));
+        return true;
+    }
+};
 
 // The evaluate cannot use shape_infer for output shape calculation as shape inference accepts
 // repeated axis and evaluate not. When shape inference will changed to be compatible with `numpy` then
@@ -86,24 +94,12 @@ bool evaluate_unsqueeze(const Node* node,
     }
     out->set_shape(out_shape);
 
-    bool rc = true;
-    switch (element_type) {
-        NGRAPH_TYPE_CASE(evaluate_unsqueeze, i32, arg0, out);
-        NGRAPH_TYPE_CASE(evaluate_unsqueeze, i64, arg0, out);
-        NGRAPH_TYPE_CASE(evaluate_unsqueeze, u32, arg0, out);
-        NGRAPH_TYPE_CASE(evaluate_unsqueeze, u64, arg0, out);
-        NGRAPH_TYPE_CASE(evaluate_unsqueeze, f16, arg0, out);
-        NGRAPH_TYPE_CASE(evaluate_unsqueeze, f32, arg0, out);
-        NGRAPH_TYPE_CASE(evaluate_unsqueeze, f64, arg0, out);
-        NGRAPH_TYPE_CASE(evaluate_unsqueeze, bf16, arg0, out);
-    default:
-        rc = false;
-        break;
-    }
-    return rc;
+    using namespace ov::element;
+    return Supported<i32, i64, u32, u64, f16, f32, f64, bf16>::apply(element_type, evaluate(), arg0, out);
 }
-}  // namespace
 }  // namespace unsqueeze
+}  // namespace op
+}  // namespace ov
 
 bool op::v0::Unsqueeze::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v0_Unsqueeze_evaluate);
