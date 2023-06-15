@@ -21,10 +21,12 @@
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
 #include "ov_ops/type_relaxed.hpp"
-#include "transformations/common_optimizations/align_mixed_fp32_fp16_types.hpp"
-#include "transformations/common_optimizations/mark_subgraphs_to_keep_in_mixed_precision.hpp"
-#include "transformations/enable_decompression_convert_constant_folding.hpp"
+#include "transformations/fp16_compression/align_mixed_fp32_fp16_types.hpp"
+#include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
+#include "transformations/fp16_compression/mark_subgraphs_to_keep_in_mixed_precision.hpp"
+#include "transformations/rt_info/decompression.hpp"
 #include "transformations/rt_info/disable_fp16_compression.hpp"
+#include "transformations/rt_info/keep_fp16_const.hpp"
 
 using namespace ov;
 
@@ -1028,6 +1030,10 @@ std::shared_ptr<Node> convert_low_precisions_int(std::shared_ptr<opset4::Constan
 bool fuse_type_to_constant(const std::shared_ptr<ngraph::Node>& node,
                            const precisions_map& precisions,
                            const std::vector<Input<Node>>& consumers) {
+    // Consts marked with disable_constant_folding should be kept in f16 until they reach the plugin
+    if (is_keep_fp16_const(node))
+        return false;
+
     auto from = node->get_element_type();
     auto it = precisions.find(from);
     if (it == precisions.end())

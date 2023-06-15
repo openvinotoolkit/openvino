@@ -4,8 +4,8 @@
 
 #include <openvino/opsets/opset10.hpp>
 #include <openvino/pass/constant_folding.hpp>
-#include <transformations/disable_decompression_convert_constant_folding.hpp>
 #include <transformations/low_precision/mark_dequantization_subgraph.hpp>
+#include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
 #include <transformations/rt_info/decompression.hpp>
 #include <transformations/rt_info/dequantization_node.hpp>
 
