@@ -26,6 +26,8 @@ bool DictResolver::run_on_model(const std::shared_ptr<Model>& model) {
             const auto inputs = dict_construct_node->input_values();
             if (inputs.size() % 2) {
                 // inputs must be divisible by 2
+                add_exception_to_fw_node(dict_construct_node,
+                                         "prim::DictConstruct: inputs number is not divisible by 2.");
                 return false;
             }
             ResultVector new_outputs;
@@ -34,12 +36,15 @@ bool DictResolver::run_on_model(const std::shared_ptr<Model>& model) {
                 const auto name_node = inputs.at(i);
                 auto fw_node = std::dynamic_pointer_cast<ov::op::util::FrameworkNode>(name_node.get_node_shared_ptr());
                 if (!fw_node) {
-                    // odd inputs must contain constant strings encoded as fw nodes
+                    add_exception_to_fw_node(
+                        dict_construct_node,
+                        "prim::DictConstruct: odd inputs must contain constant strings encoded as fw nodes.");
                     return false;
                 }
                 const auto attrs = fw_node->get_attrs();
                 if (attrs.find("string_value") == attrs.end()) {
                     // fw node must contain string value
+                    add_exception_to_fw_node(dict_construct_node, "prim::DictConstruct: unexpected dict key format.");
                     return false;
                 }
                 auto name = attrs.at("string_value");
