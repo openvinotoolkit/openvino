@@ -120,6 +120,10 @@ The ``start_async`` function call is not required to be synchronized - it waits 
    :language: python
    :fragment: [asyncinferqueue]
 
+.. warning:: 
+
+   ``InferRequest`` objects that can be acquired by iterating over a ``AsyncInferQueue`` object or by ``[id]`` guaranteed to work with read-only methods like getting tensors.
+   Any mutating methods (e.g. start_async, set_callback) of a single request will put the parent AsyncInferQueue object in an invalid state.
 
 Acquiring Results from Requests
 -------------------------------
