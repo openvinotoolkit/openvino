@@ -13,11 +13,6 @@ static const char local_cache_message[] = "Optional. Comma separated paths to th
 static const char output_folder_message[] = "Required. Path to the output folders where to serialize IRs";
 static const char path_regex_message[] = "Optional. regular expression to be applied in input "
                                          "folders recursive discovery";
-static const char constants_size_threshold_message[] = "Optional. Maximum size of constant in megabytes"
-                                                       " to be serialized.\n"
-                                                       "If constant size exceeds specified number it will be replaced"
-                                                       "with parameter and meta information about original data range "
-                                                       "will be saved";
 static const char extract_body_message[] = "Optional. Allow to extract operation bodies to operation cache.";
 
 DEFINE_bool(h, false, help_message);
@@ -25,7 +20,6 @@ DEFINE_string(input_folders, "", local_cache_message);
 DEFINE_string(local_cache, "", input_folders_message);
 DEFINE_string(output_folder, "output", output_folder_message);
 DEFINE_string(path_regex, ".*", output_folder_message);
-DEFINE_double(constants_size_threshold, 1., constants_size_threshold_message);
 DEFINE_bool(extract_body, true, extract_body_message);
 
 /**
@@ -41,7 +35,6 @@ static void showUsage() {
     std::cout << "    --local_cache \"<path>\"               " << input_folders_message << "\n";
     std::cout << "    --output_folder \"<path>\"             " << output_folder_message << "\n";
     std::cout << "    --path_regex \"<path>\"                " << path_regex_message << "\n";
-    std::cout << "    --constants_size_threshold \"<value>\" " << constants_size_threshold_message << "\n";
     std::cout << "    --extract_body \"<value>\"             " << extract_body_message << "\n";
     std::cout << std::flush;
 }

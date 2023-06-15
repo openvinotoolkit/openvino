@@ -25,8 +25,7 @@ public:
 
 protected:
     virtual void configure(const pugi::xml_document &cfg) {};
-    // todo: iefode: remove?
-    virtual bool match_only_configured_ops() const { return false; }; // TODO: Add setter for external configuration purposes.
+    virtual bool match_only_configured_ops() const { return false; };
     virtual bool match_inputs(const std::shared_ptr<ov::Node> &node,
                               const std::shared_ptr<ov::Node> &ref) const;
     virtual bool same_op_type(const std::shared_ptr<ov::Node> &node,
@@ -37,6 +36,7 @@ protected:
                              const std::shared_ptr<ov::Node> &ref) const;
 
     iMatcherConfig::Ptr get_config(const std::shared_ptr<ov::Node> &node) const;
+
     std::vector<iMatcherConfig::Ptr> default_configs;
 };
 

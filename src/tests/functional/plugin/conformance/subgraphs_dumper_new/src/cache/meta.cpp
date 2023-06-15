@@ -93,11 +93,16 @@ void MetaInfo::update(const std::string& _model_path,
             input_info[in.first] = in.second;
         }
     }
-    auto abs_graph_priority = get_abs_graph_priority();
-    if (abs_graph_priority > MAX_MODEL_PRIORITY)
-        MAX_MODEL_PRIORITY = abs_graph_priority;
-    if (abs_graph_priority < MIN_MODEL_PRIORITY)
-        MIN_MODEL_PRIORITY = abs_graph_priority;
+    // update max and mib abs priority to normilize priorities when serialize
+    {
+        auto abs_graph_priority = get_abs_graph_priority();
+        if (abs_graph_priority > MAX_MODEL_PRIORITY) {
+            MAX_MODEL_PRIORITY = abs_graph_priority;
+        }
+        if (abs_graph_priority < MIN_MODEL_PRIORITY) {
+            MIN_MODEL_PRIORITY = abs_graph_priority;
+        }
+    }
 }
 
 std::map<std::string, InputInfo> MetaInfo::get_input_info() {

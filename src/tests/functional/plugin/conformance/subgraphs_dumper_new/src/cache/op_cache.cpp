@@ -53,7 +53,6 @@ void OpCache::update_cache(const std::shared_ptr<ov::Model>& model,
     }
 }
 
-// todo: iefode: check the function
 void OpCache::update_cache(const std::shared_ptr<ov::Node>& node,
                            const std::string& model_path,
                            size_t model_op_cnt) {

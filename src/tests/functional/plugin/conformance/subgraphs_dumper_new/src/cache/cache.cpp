@@ -14,7 +14,6 @@
 namespace ov {
 namespace tools {
 namespace subgraph_dumper {
-size_t ICache::m_serialization_timeout = 60;
 
 bool ICache::serialize_model(const std::pair<std::shared_ptr<ov::Model>, MetaInfo>& graph_info,
                              const std::string& rel_serialization_dir) {
@@ -43,7 +42,6 @@ bool ICache::serialize_model(const std::pair<std::shared_ptr<ov::Model>, MetaInf
                         << ". Exception: " << e.what() << std::endl;
             CommonTestUtils::removeIRFiles(xml_path, bin_path);
             CommonTestUtils::removeFile(meta_path);
-            // todo: iefode: check
             if (std::string(e.what()).find("Can't open") == std::string::npos) {
                 return false;
             }

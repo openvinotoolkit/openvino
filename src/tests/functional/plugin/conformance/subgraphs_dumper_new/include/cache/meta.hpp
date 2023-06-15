@@ -41,17 +41,34 @@ struct InputInfo {
               bool in_is_const = false) :
               is_const(in_is_const),
               ranges(Range(in_min, in_max)) {}
+
+    bool operator==(const InputInfo& input_info_ref) const {
+        return this->is_const == input_info_ref.is_const && this->ranges.max == input_info_ref.ranges.max && this->ranges.min == input_info_ref.ranges.min;
+    }
 };
 
 struct ModelInfo {
+    std::vector<std::string> model_paths;
+    size_t this_op_cnt, total_op_cnt, model_priority;
+
     ModelInfo(const std::string& model_path = "", size_t total_ops_in_model = 1, size_t _model_priority = 1) :
         total_op_cnt(total_ops_in_model), model_paths({model_path}),
         this_op_cnt(1), model_priority(_model_priority) {
         MIN_MODEL_PRIORITY = MAX_MODEL_PRIORITY = total_op_cnt * this_op_cnt * model_priority;
     };
 
-    std::vector<std::string> model_paths;
-    size_t this_op_cnt, total_op_cnt, model_priority;
+    bool operator==(const ModelInfo& model_info_ref) const {
+        if (this->model_priority != model_info_ref.model_priority || this->this_op_cnt != model_info_ref.this_op_cnt ||
+            this->total_op_cnt != model_info_ref.total_op_cnt || this->model_paths.size() != model_info_ref.model_paths.size()) {
+            return false;
+        }
+        for (const auto& model_path : this->model_paths) {
+            if (std::find(model_info_ref.model_paths.begin(), model_info_ref.model_paths.end(), model_path) == model_info_ref.model_paths.end()) {
+                return false;
+            }
+        }
+        return true;
+    }
 };
 
 class MetaInfo {

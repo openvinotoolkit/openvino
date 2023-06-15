@@ -25,8 +25,7 @@ public:
     void set_serialization_dir(const std::string& serialization_dir) { m_serialization_dir = serialization_dir; }
 
 protected:
-    // todo: iefode: to set from extra sourses?
-    static size_t m_serialization_timeout;
+    size_t m_serialization_timeout = 60;
     std::string m_serialization_dir = ".";
 
     ICache() = default;

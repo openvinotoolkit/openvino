@@ -91,13 +91,13 @@ TEST_F(MetaInfoFuncTest, constructor) {
 TEST_F(MetaInfoFuncTest, get_input_info) {
     auto test_meta = MetaInfo(test_model_name, test_in_info);
     ASSERT_NO_THROW(test_meta.get_input_info());
-    // ASSERT_EQ(test_meta.get_input_info(), test_in_info);
+    ASSERT_EQ(test_meta.get_input_info(), test_in_info);
 }
 
 TEST_F(MetaInfoFuncTest, get_model_info) {
-    auto test_meta = MetaInfo(test_model_name, test_in_info, 5);
+    auto test_meta = MetaInfo(test_model_path, test_in_info, 5);
     ASSERT_NO_THROW(test_meta.get_model_info());
-    // ASSERT_EQ(test_meta.get_model_info(), test_model_info);
+    ASSERT_EQ(test_meta.get_model_info(), test_model_info);
 }
 
 TEST_F(MetaInfoFuncTest, update) {

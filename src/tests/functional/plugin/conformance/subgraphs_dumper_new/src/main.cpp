@@ -6,7 +6,6 @@
 #include "cache/op_cache.hpp"
 #include "utils/model.hpp"
 
-// todo:: iefode: remove using
 using namespace ov::tools::subgraph_dumper;
 
 int main(int argc, char *argv[]) {

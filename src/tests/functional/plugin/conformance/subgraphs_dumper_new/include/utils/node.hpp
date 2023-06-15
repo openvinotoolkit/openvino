@@ -29,11 +29,12 @@ inline std::map<std::string, InputInfo> get_input_info_by_node(const std::shared
     return input_info;
 }
 
-// todo: iefode: to check for const & parameters
+// all inputs are defined as parameters and contains detailed info in meta
 inline std::shared_ptr<ov::Model> generate_graph_by_node(const std::shared_ptr<ov::Node>& node) {
     ov::ParameterVector params;
     for (size_t i = 0; i < node->get_input_size(); ++i) {
-        if (ov::op::util::is_parameter(node->get_input_node_ptr(i))) {
+        if (ov::op::util::is_parameter(node->get_input_node_ptr(i)) ||
+            ov::op::util::is_constant(node->get_input_node_ptr(i))) {
             auto param = std::dynamic_pointer_cast<ov::op::v0::Parameter>(
                     node->get_input_node_shared_ptr(i));
             params.push_back(param);
@@ -59,12 +60,6 @@ inline std::string get_node_type(const std::shared_ptr<ov::Node>& node) {
     }
     return "static";
 }
-
-inline std::shared_ptr<ov::Node> get_minimal_node_by_size(const std::shared_ptr<ov::Node>& node_0,
-                                                          const std::shared_ptr<ov::Node>& node_1) {
-    
-}
-
 
 }  // namespace subgraph_dumper
 }  // namespace tools
