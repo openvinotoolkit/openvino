@@ -60,18 +60,45 @@ PrimListConstructPadReplacer::PrimListConstructPadReplacer() {
     // transformation for case aten::pad + prim::ListConstruct as paddings
     auto pad_op = ov::pass::pattern::wrap_type<ov::op::util::FrameworkNode>();
     ov::matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {
-        auto pad_op = cast_fw_node(m.get_match_root(), "aten::pad");
-        if (!pad_op) {
+        Output<Node> input_node;
+        Output<Node> padding;
+        // Output<Node> value_idx;
+        Output<Node> pad_value;
+        std::string mode;
+        NodeVector rt_info = {};
+        std::shared_ptr<ov::op::util::FrameworkNode> pad_op;
+        if (pad_op = cast_fw_node(m.get_match_root(), "aten::pad")) {
+            mode = "constant";
+            input_node = pad_op->input_value(0);
+            padding = pad_op->input_value(1);
+            auto mode_node = pad_op->input_value(2).get_node_shared_ptr();
+            pad_value = pad_op->input_value(3);
+            rt_info = {pad_op,
+                       input_node.get_node_shared_ptr(),
+                       padding.get_node_shared_ptr(),
+                       mode_node,
+                       pad_value.get_node_shared_ptr()};
+            if (const auto& fw_node_mode = cast_fw_node(mode_node, "prim::Constant")) {
+                const auto& attrs = fw_node_mode->get_attrs();
+                if (attrs.find("string_value") != attrs.end()) {
+                    mode = attrs.at("string_value");
+                }
+            }
+        } else if (pad_op = cast_fw_node(m.get_match_root(), "aten::reflection_pad2d")) {
+            mode = "reflect";
+            input_node = pad_op->input_value(0);
+            padding = pad_op->input_value(1);
+            // Pad value is used only for constant pad, fill with 0 as placeholder.
+            pad_value = v0::Constant::create(element::f32, Shape{}, {0});
+            rt_info = {pad_op, input_node.get_node_shared_ptr(), padding.get_node_shared_ptr()};
+        } else {
             return false;
         }
         auto minus_two = v0::Constant::create(element::i32, Shape{}, {-2});
         auto minus_one = v0::Constant::create(element::i32, Shape{}, {-1});
         auto zero = v0::Constant::create(element::i32, Shape{}, {0});
-        auto input_node = pad_op->input_value(0);
-        auto padding = pad_op->input_value(1);
         // for case. when padding is list of scalars, concatenate them into one tensor
         auto pad_values = concat_list_construct(padding);
-        std::string mode = "constant";
         auto zero_f = v0::Constant::create(element::f32, Shape{}, {0});
         auto input_shape = std::make_shared<v3::ShapeOf>(input_node, element::i32);
         auto input_rank = std::make_shared<v3::ShapeOf>(input_shape, element::i32);
@@ -82,14 +109,6 @@ PrimListConstructPadReplacer::PrimListConstructPadReplacer() {
         auto start_pad_ends = std::make_shared<v1::Add>(pad_size, minus_one);
         auto pad_begins_full = create_padding(input_rank, pad_values, start_pad_begins, minus_one);
         auto pad_ends_full = create_padding(input_rank, pad_values, start_pad_ends, zero);
-        auto mode_const = pad_op->input_value(2).get_node_shared_ptr();
-        auto pad_value = pad_op->input_value(3);
-        if (const auto& fw_node_mode = cast_fw_node(mode_const, "prim::Constant")) {
-            const auto& attrs = fw_node_mode->get_attrs();
-            if (attrs.find("string_value") != attrs.end()) {
-                mode = attrs.at("string_value");
-            }
-        }
         if (mode == "constant") {
             if (const auto& fw_node_value = cast_fw_node(pad_value.get_node_shared_ptr(), "prim::Constant")) {
                 const auto& attrs = fw_node_value->get_attrs();
@@ -106,7 +125,7 @@ PrimListConstructPadReplacer::PrimListConstructPadReplacer() {
         auto pad_mode = PAD_MODES.at(mode);
         auto pad = std::make_shared<v1::Pad>(input_node, pad_begins_full, pad_ends_full, pad_value, pad_mode);
         replace_node(pad_op, pad);
-        copy_runtime_info({pad_op, padding.get_node_shared_ptr(), mode_const, pad_value.get_node_shared_ptr()}, pad);
+        copy_runtime_info(rt_info, pad);
         pad->set_friendly_name(pad_op->get_friendly_name());
         return true;
     };
