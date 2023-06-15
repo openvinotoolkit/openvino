@@ -29,6 +29,6 @@ addIeTargetTest(
         LABELS
             Auto_Batch
 )
-ov_add_version_defines(${OpenVINO_SOURCE_DIR}/src/plugins/auto_batch/src/auto_batch.cpp ${TARGET_NAME})
+ov_add_version_defines(${OpenVINO_SOURCE_DIR}/src/plugins/auto_batch/src/auto_batch_plugin.cpp ${TARGET_NAME})
 
 set_ie_threading_interface_for(${TARGET_NAME})
