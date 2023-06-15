@@ -64,11 +64,14 @@ public:
     struct VariableState {
         using Ptr = std::shared_ptr<VariableState>;
 
-        cldnn::memory_ptr memory;
-        bool is_set;
         VariableState(cldnn::memory_ptr mem = nullptr) :
             memory { mem }, is_set { false } {
         }
+        void set_memory(cldnn::memory_ptr new_mem) {
+            memory = new_mem;
+        }
+        cldnn::memory_ptr memory;
+        bool is_set;
     };
     using variables_states_map = std::map<std::string, VariableState::Ptr>;
 
@@ -219,11 +222,18 @@ public:
         return *_memory_pool;
     }
 
+    void allocate_variables_memories();
+    void assign_variables_memories();
     /// Assigns memory state locations
     void assign_variables_memories(variables_states_map &&variables_memories);
+    void update_variable_memory(const std::string& variable_id, const cldnn::layout& layout);
 
     /// Returns memory state @p variable_id of stateful network
     VariableState& get_variable_memory(const std::string &variable_id);
+    const variables_states_map& get_variable_memories() const { return _variables_states; }
+
+    using variables_state_info_map = std::map<std::string, cldnn::layout>;
+    void set_variables_state_info(const std::string& variable_id, const cldnn::layout& layout);
 
     const ExecutionConfig& get_config() const { return _config; }
 
@@ -249,6 +259,7 @@ private:
     std::list<std::shared_ptr<primitive_inst>> _data_outputs;
     variables_states_map _variables_states;
     std::vector<std::shared_ptr<primitive_inst>> _variable_state_primitives;
+    variables_state_info_map _variables_state_info;
     program::primitives_info _prims_info;
     std::map<primitive_id, primitive_id> _ext_id_mapping;
     size_t _weights_cache_capacity = 1;
