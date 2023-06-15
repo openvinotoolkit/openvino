@@ -51,24 +51,17 @@ protected:
         return arg.get_onednn_primitive_attributes();
     }
 
-    static kernel_selector::WeightsReorderParams get_weights_reorder(const kernel_impl_params& impl_params, const dnnl::primitive_desc& pd) {
-        kernel_selector::WeightsReorderParams weights_reorder_params;
-
+    static std::shared_ptr<WeightsReorderParams> get_weights_reorder(const kernel_impl_params& impl_params, const dnnl::primitive_desc& pd) {
         auto cldnn_prim = impl_params.typed_desc<deconvolution>();
-        auto weights_layout = impl_params.get_input_layout(1);
-        auto grouped_weights = format::is_grouped(weights_layout.format) || cldnn_prim->grouped_weights_shape;
-        cldnn::format out_fmt = onednn::find_format(pd.weights_desc(0), grouped_weights);
-        kernel_selector::WeightsLayout reqLayout = to_weights_layout(out_fmt, cldnn_prim->grouped_weights_shape);
 
-        weights_reorder_params.src = convert_weights_tensor(weights_layout, cldnn_prim->grouped_weights_shape);
-        weights_reorder_params.dest = weights_reorder_params.src.TransformIgnorePadding(reqLayout,
-                                                                                        weights_reorder_params.src.GetDType(),
-                                                                                        cldnn_prim->groups,
-                                                                                        false);
-        weights_reorder_params.rotate = false;
-        weights_reorder_params.is_initialized = true;
+        auto input_weights_layout = impl_params.get_input_layout(1);
+        auto grouped_weights = format::is_grouped(input_weights_layout.format) || cldnn_prim->grouped_weights_shape;
+        format out_fmt = onednn::find_format(pd.weights_desc(0), grouped_weights);
 
-        return weights_reorder_params;
+        auto output_weights_layout = input_weights_layout;
+        output_weights_layout.format = out_fmt;
+
+        return std::make_shared<WeightsReorderParams>(input_weights_layout, output_weights_layout, false);
     }
 
 public:

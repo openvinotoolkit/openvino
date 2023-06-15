@@ -115,13 +115,13 @@ public:
         bool is_reorder_weights = format::is_weights_format(impl_param.get_input_layout().format) ||
                                   format::is_weights_format(impl_param.get_output_layout().format);
         if (is_reorder_weights) {
-            return create_reorder_weigths(impl_param);
+            return create_reorder_weights(impl_param);
         } else {
             return typed_primitive_impl_ocl<reorder>::create<reorder_impl>(arg, impl_param);
         }
     }
 
-    static std::unique_ptr<primitive_impl> create_reorder_weigths(const kernel_impl_params& impl_param) {
+    static std::unique_ptr<primitive_impl> create_reorder_weights(const kernel_impl_params& impl_param) {
         const auto& prim = impl_param.typed_desc<reorder>();
         const auto& weights_params = prim->weights_reorder_params;
         auto& kernel_selector = kernel_selector::ReorderWeightsKernelSelector::Instance();
@@ -166,7 +166,7 @@ attach_reorder_impl::attach_reorder_impl() {
     };
     implementation_map<reorder>::add(impl_types::ocl, shape_types::dynamic_shape, reorder_impl::create, types, formats);
 
-    WeightsReordersFactory::add(cldnn::impl_types::ocl, shape_types::static_shape, reorder_impl::create_reorder_weigths);
+    WeightsReordersFactory::add(cldnn::impl_types::ocl, shape_types::static_shape, reorder_impl::create_reorder_weights);
 }
 
 }  // namespace detail

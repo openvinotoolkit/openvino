@@ -25,13 +25,13 @@ struct WeightsReorderParams {
           _out_layout(out_layout),
           _transposed(transposed) {}
 
-    virtual size_t hash() const {
+    size_t hash() const {
         size_t seed = hash_combine(_in_layout.hash(), _out_layout.hash());
         seed = hash_combine(seed, _transposed);
         return seed;
     }
 
-    virtual bool operator==(const WeightsReorderParams& rhs) const {
+    bool operator==(const WeightsReorderParams& rhs) const {
         if (typeid(*this) != typeid(rhs))
             return false;
 
@@ -45,8 +45,6 @@ struct WeightsReorderParams {
     bool should_be_transposed() const { return _transposed; }
 
     void set_input_layout(const layout& layout) { _in_layout = layout; }
-
-    virtual ~WeightsReorderParams() = default;
 
 protected:
     layout _in_layout;

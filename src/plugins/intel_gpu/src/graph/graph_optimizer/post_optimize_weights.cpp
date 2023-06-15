@@ -70,6 +70,7 @@ void post_optimize_weights::optimize_weights(T& node, program& p) {
                                 !prev_node.as<reorder>().has_mean() &&
                                 prev_node.as<reorder>().get_primitive()->subtract_per_feature.empty();
             if (can_be_fused) {
+                // Need to update input data_type for correct merging format reorder with precision reorder
                 data_types input_dtype = prev_node.get_input_layouts()[0].data_type;
                 auto updated_input_layout = weights_reorder_params->get_input_layout();
                 updated_input_layout.data_type = input_dtype;

@@ -98,7 +98,6 @@ struct primitive_impl {
 
     bool need_weights_reorder() const { return _weights_reorder_params != nullptr; }
     std::shared_ptr<WeightsReorderParams> get_weights_reorder_params() const { return _weights_reorder_params; }
-    void reset_weights_reorder_params() { _weights_reorder_params = nullptr; }
 
     std::shared_ptr<kernel_impl_params> get_weights_reorder_kernel_params() const;
 

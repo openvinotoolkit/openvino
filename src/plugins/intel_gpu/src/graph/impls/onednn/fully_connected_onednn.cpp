@@ -51,7 +51,7 @@ protected:
         return args;
     }
 
-    static kernel_selector::WeightsReorderParams get_weights_reorder(const kernel_impl_params& impl_params, const dnnl::primitive_desc& pd) {
+    static std::shared_ptr<WeightsReorderParams> get_weights_reorder(const kernel_impl_params& impl_params, const dnnl::primitive_desc& pd) {
         auto input_layout = impl_params.get_input_layout(0);
         auto weights_layout = impl_params.get_input_layout(1);
         auto cldnn_prim = impl_params.typed_desc<fully_connected>();
@@ -66,20 +66,12 @@ protected:
             weights_layout.set_partial_shape(reshape_to_2d(weights_pshape, feature));
         }
 
-        kernel_selector::WeightsReorderParams weights_reorder_params;
+        format out_fmt = onednn::find_format(pd.weights_desc(0));
 
-        cldnn::format out_fmt = onednn::find_format(pd.weights_desc(0));
-        kernel_selector::WeightsLayout req_layout = to_weights_layout(out_fmt, false);
+        auto output_weights_layout = weights_layout;
+        output_weights_layout.format = out_fmt;
 
-        weights_reorder_params.src =  convert_weights_tensor(weights_layout, false);
-        weights_reorder_params.dest = weights_reorder_params.src.TransformIgnorePadding(req_layout,
-                                                                                        weights_reorder_params.src.GetDType(),
-                                                                                        1,
-                                                                                        false);
-        weights_reorder_params.rotate = false;
-        weights_reorder_params.is_initialized = true;
-
-        return weights_reorder_params;
+        return std::make_shared<WeightsReorderParams>(weights_layout, output_weights_layout, false);
     }
 
     static std::shared_ptr<dnnl::inner_product_forward::primitive_desc> get_fully_connected_primitive_descriptor(const kernel_impl_params& impl_params,
