@@ -188,21 +188,43 @@ Output<Node> concat_list_construct(const Output<Node>& input) {
     return input;
 }
 
-OutputVector make_framework_node(const NodeContext& context) {
+namespace {
+std::shared_ptr<PtFrameworkNode> create_fw_node_with_exception(const NodeContext& context,
+                                                               const ov::OutputVector& inputs,
+                                                               size_t num_outputs,
+                                                               const std::string& exception_message) {
+    auto fw_node = std::make_shared<PtFrameworkNode>(context.get_decoder(), inputs, num_outputs);
+    context.mark_node(fw_node);
+    auto attrs = fw_node->get_attrs();
+    std::string message(exception_message);
+    if (!message.empty()) {
+        message = "Exception happened during conversion of operation " + fw_node->get_friendly_name() +
+                  " with schema " + context.get_schema() + '\n' + message;
+    }
+    attrs[PtFrameworkNode::failed_conversion_key] = message;
+    fw_node->set_attrs(attrs);
+    return fw_node;
+}
+}  // namespace
+
+OutputVector make_framework_node_ignore_bodies(const NodeContext& context, const std::string& exception) {
+    auto fw_node = create_fw_node_with_exception(context, context.inputs(), context.get_output_size() + 1, exception);
+    return fw_node->outputs();
+}
+
+OutputVector make_framework_node(const NodeContext& context, const std::string& exception) {
     auto schema = context.get_schema();
     // TODO: properly process schema to get the actual position of mutable input
     // Hack. Can indicate mutable inputs, but can it be reliable?
     if (schema.find('!') != std::string::npos) {
         // We create additional output for such nodes. It contains new tensor that represents input that was changed.
         auto fw_node =
-            std::make_shared<PtFrameworkNode>(context.get_decoder(), context.inputs(), context.get_output_size() + 1);
-        fw_node->set_friendly_name(context.get_op_type());
+            create_fw_node_with_exception(context, context.inputs(), context.get_output_size() + 1, exception);
         auto outputs = fw_node->outputs();
         // Usually mutated input index is 0, because it is usually "self" input, so we need to replace this tensor with
         // output we created.
         context.mutate_input(0, outputs.back());
         OPENVINO_DEBUG << "Created node with mutated 0 input. Schema: " << schema << '\n';
-        context.mark_node(fw_node);
         // For simplification we do not expect such operations to have extra bodies
         FRONT_END_OP_CONVERSION_CHECK(context.get_decoder()->get_subgraph_size() == 0,
                                       "Mutable operation has subgraphs.");
@@ -251,9 +273,10 @@ OutputVector make_framework_node(const NodeContext& context) {
         num_body_outs > context.get_output_size() ? num_body_outs - context.get_output_size() : 0;
 
     // We need to reduce number of outputs, because some outputs are outputs from body
-    auto fw_node = std::make_shared<PtFrameworkNode>(context.get_decoder(),
-                                                     context.inputs(),
-                                                     context.get_output_size() - num_body_outs + num_skip_body_outputs);
+    auto fw_node = create_fw_node_with_exception(context,
+                                                 context.inputs(),
+                                                 context.get_output_size() - num_body_outs + num_skip_body_outputs,
+                                                 exception);
     fw_node->set_friendly_name(context.get_op_type());
     for (size_t i = 0; i < bodies.size(); ++i) {
         fw_node->set_function(static_cast<int>(i), bodies[i]);
@@ -301,7 +324,7 @@ std::shared_ptr<ov::op::util::FrameworkNode> cast_fw_node(std::shared_ptr<Node> 
         return nullptr;
     }
     const auto& attrs = fw_node->get_attrs();
-    if (attrs.find("PtTypeName") == attrs.end() || attrs.at("PtTypeName") != type) {
+    if (attrs.find(PtFrameworkNode::op_type_key) == attrs.end() || attrs.at(PtFrameworkNode::op_type_key) != type) {
         return nullptr;
     }
     return fw_node;
@@ -441,12 +464,12 @@ std::deque<Output<Node>> get_list_as_outputs(const Output<Node>& start) {
     while (const auto& input_fw_node =
                std::dynamic_pointer_cast<ov::op::util::FrameworkNode>(current_output.get_node_shared_ptr())) {
         const auto& attrs = input_fw_node->get_attrs();
-        if (attrs.find("PtTypeName") == attrs.end()) {
+        if (attrs.find(PtFrameworkNode::op_type_key) == attrs.end()) {
             break;
         }
-        if (attrs.at("PtTypeName") == "aten::append") {
+        if (attrs.at(PtFrameworkNode::op_type_key) == "aten::append") {
             res.push_front(input_fw_node->input(1).get_source_output());
-        } else if (attrs.at("PtTypeName") == "aten::add") {
+        } else if (attrs.at(PtFrameworkNode::op_type_key) == "aten::add") {
             const auto&& lhs_list = get_list_as_outputs(input_fw_node->input(1).get_source_output());
             res.insert(res.end(), lhs_list.begin(), lhs_list.end());
         } else {
@@ -464,6 +487,14 @@ std::deque<Output<Node>> get_list_as_outputs(const Output<Node>& start) {
         res.push_front(current_output);
     }
     return res;
+}
+
+void add_exception_to_fw_node(std::shared_ptr<Node> node, const std::string& msg) {
+    if (auto fw_node = ov::as_type_ptr<PtFrameworkNode>(node)) {
+        auto attrs = fw_node->get_attrs();
+        attrs[PtFrameworkNode::failed_conversion_key] = msg;
+        fw_node->set_attrs(attrs);
+    }
 }
 
 }  // namespace pytorch

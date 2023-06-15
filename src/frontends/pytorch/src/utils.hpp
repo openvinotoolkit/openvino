@@ -53,12 +53,15 @@ op::PadType convert_pad(const std::string& pt_pad);
 
 Output<Node> concat_list_construct(const Output<Node>& input);
 
-OutputVector make_framework_node(const NodeContext& context);
+OutputVector make_framework_node_ignore_bodies(const NodeContext& context, const std::string& exception);
+OutputVector make_framework_node(const NodeContext& context, const std::string& exception);
 
 std::shared_ptr<op::util::FrameworkNode> cast_fw_node(std::shared_ptr<Node> node, const std::string& type);
 
 // TODO: Eliminate the need of this function by implementing more accurate custom data type handling
 Any simplified_type_interpret(Any type);
+
+void add_exception_to_fw_node(std::shared_ptr<Node> node, const std::string& msg);
 
 void align_eltwise_input_types(const NodeContext& context,
                                Output<Node>& lhs,

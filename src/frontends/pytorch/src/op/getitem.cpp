@@ -13,6 +13,8 @@ namespace frontend {
 namespace pytorch {
 namespace op {
 
+using namespace ov::op;
+
 OutputVector translate_getitem(const NodeContext& context) {
     num_inputs_check(context, 2, 2);
     auto input = context.get_input(0);
@@ -34,8 +36,8 @@ OutputVector translate_getitem(const NodeContext& context) {
         return {list_elems.at(getitem_idx)};
     }
     auto getitem_idx = context.get_input(1);
-    auto zero = context.mark_node(ov::op::v0::Constant::create(element::i32, Shape{}, {0}));
-    return {context.mark_node(std::make_shared<ov::op::v8::Gather>(input, getitem_idx, zero))};
+    auto zero = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
+    return {context.mark_node(std::make_shared<v8::Gather>(input, getitem_idx, zero))};
 };
 
 }  // namespace op

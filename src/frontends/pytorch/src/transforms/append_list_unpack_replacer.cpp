@@ -63,6 +63,7 @@ AppendListUnpackReplacer::AppendListUnpackReplacer() {
             auto getitem_index_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(getitem_index_ptr);
             auto index_val = getitem_index_const->cast_vector<int64_t>();
             if (index_val.size() != 1) {
+                add_exception_to_fw_node(list_unpack, "prim::ListUnpack: index of aten::__getitem__ is not scalar.");
                 return false;
             }
             auto index = index_val[0];

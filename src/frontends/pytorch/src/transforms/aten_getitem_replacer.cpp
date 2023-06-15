@@ -45,6 +45,7 @@ AtenGetItemReplacer::AtenGetItemReplacer() {
         if (auto torch_split = cast_fw_node(input_node, "aten::split")) {
             auto rank = torch_split->input(1).get_partial_shape().rank();
             if (rank.is_dynamic()) {
+                add_exception_to_fw_node(getitem, "aten::__getitem__: dynamic aten::split rank is not supported.");
                 return false;
             }
             if (rank.get_length() == 0) {
@@ -99,6 +100,7 @@ AtenGetItemReplacer::AtenGetItemReplacer() {
                                                                          torch_split->get_input_source_output(1));
                 auto index_val = getitem_index_const->cast_vector<int64_t>();
                 if (index_val.size() != 1) {
+                    add_exception_to_fw_node(getitem, "aten::__getitem__ index is not scalar.");
                     return false;
                 }
                 auto index = index_val[0];
