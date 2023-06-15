@@ -72,6 +72,10 @@ void align_output_types(const NodeContext& context, OutputVector& outputs);
 
 std::deque<Output<Node>> get_list_as_outputs(const Output<Node>& start);
 
+void copy_runtime_info_and_name(const std::shared_ptr<Node>& from,
+                                ov::NodeVector to,
+                                const ov::NodeVector& additional_rt_info_src = {});
+
 namespace op {
 template <OutputVector (*T)(const NodeContext&), size_t idx = 0>
 OutputVector inplace_op(const NodeContext& context) {
