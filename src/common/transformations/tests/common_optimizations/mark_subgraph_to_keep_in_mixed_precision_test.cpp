@@ -8,7 +8,7 @@
 #include "openvino/opsets/opset10.hpp"
 #include "openvino/opsets/opset2.hpp"
 #include "openvino/pass/manager.hpp"
-#include "transformations/common_optimizations/mark_subgraphs_to_keep_in_mixed_precision.hpp"
+#include "transformations/fp16_compression/mark_subgraphs_to_keep_in_mixed_precision.hpp"
 #include "transformations/rt_info/disable_fp16_compression.hpp"
 
 using namespace testing;

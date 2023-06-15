@@ -27,6 +27,7 @@ def base_args_config():
     args.framework = 'onnx'
     args.model_name = None
     args.input_model = None
+    args.input_checkpoint = None
     args.silent = True
     args.transform=[]
     args.scale = None

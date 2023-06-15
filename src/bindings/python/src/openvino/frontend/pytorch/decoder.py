@@ -65,8 +65,9 @@ def get_value_from_getattr(getattr_node, self_module):
     module = self_module
     while len(stack) > 0:
         node = stack.pop()
-        assert (hasattr(module, node.s("name")))
-        module = getattr(module, node.s("name"))
+        attr_name = node.s("name")
+        assert hasattr(module, attr_name), f"No attribute with name \"{attr_name}\" found in module."
+        module = getattr(module, attr_name)
     return module
 
 
@@ -318,6 +319,13 @@ class TorchScriptPythonDecoder (Decoder):
         return self.outputs()[index]
 
     def mark_node(self, node):
+        name = self.graph_element.kind()
+        if "FrameworkNode" not in node.get_type_name():
+            name += "/" + node.get_type_name()
+        if self.graph_element.scopeName():
+            node.set_friendly_name(self.graph_element.scopeName().split("/")[-1] + "/" + name)
+        else:
+            node.set_friendly_name(name)
         return node
 
     def try_decode_get_attr(self):
