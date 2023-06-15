@@ -15,11 +15,13 @@
 #include <vector>
 
 #include "cpp_interfaces/interface/ie_iinfer_request_internal.hpp"
+#include "ie_api.h"
 #include "threading/ie_immediate_executor.hpp"
 #include "threading/ie_istreams_executor.hpp"
 #include "threading/ie_itask_executor.hpp"
 
 namespace InferenceEngine {
+IE_SUPPRESS_DEPRECATED_START
 
 /**
  * @ingroup ie_dev_api_async_infer_request_api
@@ -35,9 +37,8 @@ namespace InferenceEngine {
  *        Here is an example of asynchronous inference request implementation for some accelerator device.
  *        It uses 5 different executors to run different stages of a synchronous inference request.
  *
- * @snippet example_async_infer_request.cpp async_infer_request:define_pipeline
  */
-class AsyncInferRequestThreadSafeDefault : public IInferRequestInternal {
+class INFERENCE_ENGINE_1_0_DEPRECATED AsyncInferRequestThreadSafeDefault : public IInferRequestInternal {
     enum InferState { Idle, Busy, Cancelled, Stop };
     using Futures = std::vector<std::shared_future<void>>;
     using Promise = std::shared_ptr<std::promise<void>>;
@@ -239,11 +240,6 @@ public:
         _syncRequest->SetBlob(name, data);
     }
 
-    void SetBlob(const std::string& name, const Blob::Ptr& data, const PreProcessInfo& info) override {
-        CheckState();
-        _syncRequest->SetBlob(name, data, info);
-    }
-
     void SetBlobs(const std::string& name, const std::vector<Blob::Ptr>& blobs) override {
         CheckState();
         _syncRequest->SetBlobs(name, blobs);
@@ -262,13 +258,6 @@ public:
     const PreProcessInfo& GetPreProcess(const std::string& name) const override {
         return _syncRequest->GetPreProcess(name);
     }
-
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    void SetBatch(int batch) override {
-        CheckState();
-        _syncRequest->SetBatch(batch);
-    };
-    OPENVINO_SUPPRESS_DEPRECATED_END
 
     void SetCallback(Callback callback) override {
         CheckState();
@@ -459,4 +448,5 @@ private:
     Futures _futures;
     InferState _state = InferState::Idle;
 };
+IE_SUPPRESS_DEPRECATED_END
 }  // namespace InferenceEngine

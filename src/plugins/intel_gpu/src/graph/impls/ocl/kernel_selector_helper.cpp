@@ -207,6 +207,10 @@ kernel_selector::data_layout to_data_layout(format f) {
             return kernel_selector::data_layout::yxfb;
         case format::byxf:
             return kernel_selector::data_layout::byxf;
+        case format::byfx:
+            return kernel_selector::data_layout::byfx;
+        case format::bxfy:
+            return kernel_selector::data_layout::bxfy;
         case format::fyxb:
             return kernel_selector::data_layout::fyxb;
         case format::b_fs_yx_fsv2:
@@ -302,6 +306,10 @@ cldnn::format from_data_layout(kernel_selector::data_layout l) {
             return cldnn::format::yxfb;
         case kernel_selector::data_layout::byxf:
             return cldnn::format::byxf;
+        case kernel_selector::data_layout::byfx:
+            return cldnn::format::byfx;
+        case kernel_selector::data_layout::bxfy:
+            return cldnn::format::bxfy;
         case kernel_selector::data_layout::fyxb:
             return cldnn::format::fyxb;
         case kernel_selector::data_layout::b_fs_yx_fsv2:
@@ -381,6 +389,10 @@ kernel_selector::weights_layout to_weights_layout(format f, bool is_grouped) {
             return kernel_selector::weights_layout::iyxo;
         case format::byxf:
             return kernel_selector::weights_layout::oyxi;
+        case format::byfx:
+            return kernel_selector::weights_layout::oyix;
+        case format::bxfy:
+            return kernel_selector::weights_layout::oxiy;
         case format::yxfb:
         case format::yxio:
             return kernel_selector::weights_layout::yxio;
@@ -648,6 +660,10 @@ cldnn::format::type from_weights_layout(kernel_selector::weights_layout l) {
             return cldnn::format::oiyx;
         case kernel_selector::weights_layout::oyxi:
             return cldnn::format::oyxi;
+        case kernel_selector::weights_layout::oyix:
+            return cldnn::format::oyix;
+        case kernel_selector::weights_layout::oxiy:
+            return cldnn::format::oxiy;
         case kernel_selector::weights_layout::io:
         case kernel_selector::weights_layout::iyxo:
             return cldnn::format::iyxo;
@@ -1123,7 +1139,7 @@ std::shared_ptr<kernel_selector::fuse_params> convert_fuse_params(std::shared_pt
     } else if (p->type() == eltwise::type_id()) {
         auto casted = std::dynamic_pointer_cast<EltwiseFuseParams>(p);
         kernel_selector::eltwise_mode mode = convert_to_eltwise_mode(casted->_desc->mode);
-        return std::make_shared<kernel_selector::eltwise_fuse_params>(mode);
+        return std::make_shared<kernel_selector::eltwise_fuse_params>(mode, casted->_desc->m_pythondiv);
     } else if (p->type() == quantize::type_id()) {
         auto casted = std::dynamic_pointer_cast<QuantizeFuseParams>(p);
         return std::make_shared<kernel_selector::quantize_fuse_params>(casted->_scale_shift_opt,

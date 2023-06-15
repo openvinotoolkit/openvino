@@ -46,8 +46,6 @@ NonZero::NonZero(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CP
 }
 
 void NonZero::getSupportedDescriptors() {
-    if (!descs.empty())
-        return;
     if (getParentEdges().size() != 1)
         IE_THROW() << errorPrefix << "has incorrect number of input edges: " << getParentEdges().size();
     if (!getChildEdges().size())
@@ -84,7 +82,7 @@ std::vector<size_t> NonZero::getNonZeroElementsCount(const T* src, const Shape& 
     }
     default: {
         threadsCount = parallel_get_num_threads();
-        if (inSize < blockSize * threadsCount)
+        if (inSize < static_cast<size_t>(blockSize * threadsCount))
             threadsCount = 1;
 
         counts.resize(threadsCount);

@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,6 +7,7 @@
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset8.hpp>
 #include <ngraph/pass/manager.hpp>
+#include <openvino/pass/constant_folding.hpp>
 #include <transformations/common_optimizations/matmul_const_transposes_extraction.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
@@ -21,6 +22,7 @@ TEST_F(TransformationTestsF, MatMulConstTransposesExtractionConstantWeights) {
         function = std::make_shared<Function>(matmul, ParameterVector{data});
 
         manager.register_pass<ov::pass::MatMulConstTransposesExtraction>();
+        manager.register_pass<ov::pass::ConstantFolding>();
     }
 
     {
@@ -44,6 +46,7 @@ TEST_F(TransformationTestsF, MatMulConstTransposesExtractionFQOnWeights) {
         function = std::make_shared<Function>(matmul, ParameterVector{data});
 
         manager.register_pass<ov::pass::MatMulConstTransposesExtraction>();
+        manager.register_pass<ov::pass::ConstantFolding>();
     }
 
     {
