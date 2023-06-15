@@ -44,7 +44,6 @@ void TSForwardBase::transpose_sinking(const std::string& pass_name,
                 default_outputs_update(main_node, transpose_input_info);
             }
         }
-        std::cout << "TSForwardBase::transpose_sinking main_node " << main_node->get_friendly_name() << " res " << res << std::endl;
         if (!res) {
             utils::UpdateForwardSinkingAbility(transpose_input_info.transpose);
         }

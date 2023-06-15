@@ -72,8 +72,7 @@
 #include "transformations/ts_split.hpp"
 #include "transformations/unfuse_reshape_and_transpose.hpp"
 #include "transformations/utils/utils.hpp"
-
-#include "debug_new_pass.hpp"
+#include "transformations/mark_output_sinking.hpp"
 
 using namespace ov;
 using namespace ov::opset8;
@@ -172,7 +171,6 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
     // In OV API 2.0(IRv10) default convertion to fp32 (inputs, outputs and weights) is disabled
     // and we need to run the ConvertPrecision transformation to support old networks.
     manager.register_pass<ov::pass::ConvertPrecision>(precisions_map{{ngraph::element::f16, ngraph::element::f32}});
-    EMUTEX_DEBUG_VISUALIZE("start");
     manager.register_pass<ov::pass::ConvertMVN1ToMVN6>();
     manager.register_pass<ov::intel_gna::pass::DecomposeMVN>();
     manager.register_pass<ov::pass::CommonOptimizations>();
@@ -214,11 +212,10 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
     manager.register_pass<ov::intel_gna::pass::InsertCopyBeforeLayerToBeEliminated>();
     // TODO enable this transformation for networks without convolutions
     if (has_convolution || has_maxpool || has_mvn || has_matmul) {
-        EMUTEX_DEBUG_VISUALIZE("InsertCopyBeforeLayerToBeEliminated");
         manager.register_pass<ov::intel_gna::pass::TransposeNCHW>();
-        EMUTEX_DEBUG_VISUALIZE("TransposeNCHW");
-        manager.register_pass<ov::pass::TransposeSinkingGeneral>();
-        EMUTEX_DEBUG_VISUALIZE("TransposeSinkingGeneral");
+        manager.register_pass<ov::pass::transpose_sinking::TSGeneral>();
+        manager.register_pass<ov::intel_gna::pass::MarkOutputSinking>();
+        manager.register_pass<ov::pass::transpose_sinking::TSGeneralBackward>();
         manager.register_pass<ov::intel_gna::pass::GatherSinkingGeneral>();
         manager.register_pass<ov::pass::ReshapeSequenceFusion>();
         manager.register_pass<ov::pass::TransposeToReshape>();

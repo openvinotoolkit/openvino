@@ -314,6 +314,7 @@ NodeVector InsertTransposeBeforeNode(const NodePtr& main_node,
 }
 }  // namespace sink_backward
 
+#if 0
 #define CHECK_TRANSPOSE_SINKING_SUPPORTED(TYPE, node) \
     if (dynamic_cast<TYPE*>(node)) {                  \
         return true;                                  \
@@ -369,9 +370,9 @@ bool CanPropagateForward(const NodePtr& node) {
 }
 
 }  // namespace
+#endif
 
 void UpdateForwardSinkingAbility(const NodePtr& node) {
-    //std::cout << "UpdateForwardSinkingAbility " << node->get_friendly_name() << std::endl;
 #if 0
     if (!CanPropagateForward(node))
         mark_as_no_sinking_node(node);

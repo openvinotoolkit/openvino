@@ -25,8 +25,6 @@
 #include "transformations/transpose_sinking/ts_unsqueeze.hpp"
 #include "transformations/utils/utils.hpp"
 
-#include "openvino/pass/serialize.hpp" // DEBUG
-
 using namespace ov::pass::transpose_sinking;
 
 TSGeneralForward::TSGeneralForward() {
@@ -68,7 +66,6 @@ bool TSGeneral::run_on_model(const std::shared_ptr<ov::Model>& f) {
         manager.register_pass<DisableShapeOfConstantFolding>();
         manager.register_pass<TSGeneralForward>();
         manager.register_pass<ConstantFolding>();
-        manager.register_pass<ov::pass::Serialize>("after_ts_forward.xml", "after_ts_forward.bin"); // DEBUG
         manager.run_passes(f);
     }
 
@@ -78,7 +75,6 @@ bool TSGeneral::run_on_model(const std::shared_ptr<ov::Model>& f) {
         manager.register_pass<TSGeneralBackward>();
         manager.register_pass<ConstantFolding>();
         manager.register_pass<TSResetNoSinkingAttribute>();
-        manager.register_pass<ov::pass::Serialize>("after_ts_backward.xml", "after_ts_backward.bin"); // DEBUG
         manager.run_passes(f);
     }
 
