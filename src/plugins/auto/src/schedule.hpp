@@ -46,6 +46,8 @@ protected:
     std::string                                                          m_log_tag;
     Time                                                                 m_cpuhelp_release_time;
     mutable std::atomic<std::size_t>                                     m_request_id = {0};
+    std::mutex                                                           m_dev_infer_mutex;
+    std::unordered_map<IASyncInferPtr, WorkerInferRequest*>              m_dev_infer;
 };
 
 }  // namespace auto_plugin

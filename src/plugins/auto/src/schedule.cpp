@@ -29,6 +29,10 @@ ISyncInferPtr Schedule::create_sync_infer_request() {
             auto& dev_requests = m_workerrequests[device.device_name];
             if ((request_id - sum) <  dev_requests.size()) {
                 request_to_share_blobs_with = dev_requests.at(request_id - sum).m_inferrequest;
+                INFO_RUN([&]() {
+                    std::lock_guard<std::mutex> lock(m_dev_infer_mutex);
+                    m_dev_infer.insert(std::make_pair(request_to_share_blobs_with._ptr, &dev_requests.at(request_id - sum)));
+                });
                 break;
             }
             sum += dev_requests.size();
@@ -145,34 +149,57 @@ Pipeline Schedule::get_async_pipeline(const ISyncInferPtr& infer_request, Worker
     Pipeline pipeline;
     if (m_passthrough_exenet || std::static_pointer_cast<InferRequest>(infer_request)->get_shared_request()) {
         struct RequestExecutor : ov::threading::ITaskExecutor {
-            explicit RequestExecutor(const SoAsyncInferRequest& infer_request) : m_inferrequest(infer_request) {
+            explicit RequestExecutor(const SoAsyncInferRequest& infer_request,
+                                     WorkerInferRequest* worker)
+                : m_inferrequest(infer_request),
+                  m_worker(worker) {
                 m_inferrequest->set_callback([this](std::exception_ptr exceptionPtr) mutable {
                     m_exceptionptr = exceptionPtr;
                     auto capturedTask = std::move(m_task);
                     capturedTask();
+                    INFO_RUN([&]() {
+                        if (m_worker) {
+                            m_worker->m_end_times.push_back(std::chrono::steady_clock::now());
+                        }
+                    });
                 });
             }
             void run(ov::threading::Task task) override {
                 m_task = std::move(task);
+                INFO_RUN([&]() {
+                if (m_worker) {
+                    m_worker->m_start_times.push_back(std::chrono::steady_clock::now());
+                }
+            });
                 m_inferrequest->start_async();
             };
             const SoAsyncInferRequest& m_inferrequest;
             std::exception_ptr m_exceptionptr;
             ov::threading::Task m_task;
+            WorkerInferRequest* m_worker;
         };
+        auto& shared_request = std::static_pointer_cast<InferRequest>(infer_request)->get_shared_request();
+        WorkerInferRequest* worker = nullptr;
+        INFO_RUN([&]() {
+            std::lock_guard<std::mutex> lock(m_dev_infer_mutex);
+            auto iter = m_dev_infer.find(shared_request._ptr);
+            if (iter != m_dev_infer.end()) {
+                worker = iter->second;
+            }
+        });
         auto requestExecutor =
-            std::make_shared<RequestExecutor>(std::static_pointer_cast<InferRequest>(infer_request)->get_shared_request());
+            std::make_shared<RequestExecutor>(shared_request, worker);
         pipeline.emplace_back(requestExecutor, [requestExecutor] {
             if (nullptr != requestExecutor->m_exceptionptr) {
                 std::rethrow_exception(requestExecutor->m_exceptionptr);
             }
         });
     } else {
-        AutoImmediateExecutor::Ptr _firstExecutor = std::make_shared<AutoImmediateExecutor>();
+        AutoImmediateExecutor::Ptr first_executor = std::make_shared<AutoImmediateExecutor>();
         pipeline = {
             // if the request is coming with device-specific remote blobs make sure it is scheduled to the specific device only:
             Stage {
-                /*TaskExecutor*/ _firstExecutor, /*task*/ [this, &infer_request]() {
+                /*TaskExecutor*/ first_executor, /*task*/ [this, &infer_request]() {
                     // by default, no preferred device:
                     m_this_preferred_devicename = "";
                     auto exec_network = m_context->m_compiled_model.lock();
@@ -214,7 +241,7 @@ Pipeline Schedule::get_async_pipeline(const ISyncInferPtr& infer_request, Worker
                 }},
             // final task in the pipeline:
             Stage {
-                /*TaskExecutor*/std::make_shared<ThisRequestExecutor>(worker_inferrequest, _firstExecutor), /*task*/
+                /*TaskExecutor*/std::make_shared<ThisRequestExecutor>(worker_inferrequest, first_executor), /*task*/
                 [this, &infer_request, worker_inferrequest]() {
                     INFO_RUN([worker_inferrequest]() {
                         (*worker_inferrequest)->m_end_times.push_back(std::chrono::steady_clock::now());
