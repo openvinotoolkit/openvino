@@ -98,7 +98,7 @@ void Convert::initSupportedPrimitiveDescriptors() {
     auto supportedPrimitiveDescriptorsBuilder = [this](NodeConfig config) {
         std::vector<MemoryDescPtr> srcMemoryDescs = {config.inConfs[0].getMemDesc()}, dstMemoryDescs = {config.outConfs[0].getMemDesc()};
         auto factory = std::make_shared<ConvertExecutorFactory>(convertParams, srcMemoryDescs, dstMemoryDescs,
-                                                                std::make_shared<ExecutorContext>(context, getPrimitivesPriority()));
+                                                                std::make_shared<ExecutorContext>(context, getImplPriority()));
         supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown, factory);
     };
 
