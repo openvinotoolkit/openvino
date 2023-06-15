@@ -10,7 +10,6 @@ import sys
 import traceback
 from collections import OrderedDict
 from copy import deepcopy
-from distutils.version import LooseVersion
 from pathlib import Path
 
 try:
@@ -19,10 +18,10 @@ except ImportError:
     import openvino.tools.mo.utils.telemetry_stub as tm
 
 from openvino.tools.mo.back.SpecialNodesFinalization import RemoveConstOps, CreateConstNodesReplacement, NormalizeTI
-from openvino.tools.mo.moc_frontend.check_config import legacy_transformations_config_used, \
+from openvino.runtime.utils.moc_frontend.check_config import legacy_transformations_config_used, \
     tensorflow_custom_operations_config_update_used, new_extensions_used
-from openvino.tools.mo.moc_frontend.pipeline import moc_pipeline
-from openvino.tools.mo.moc_frontend.serialize import moc_emit_ir
+from openvino.runtime.utils.moc_frontend.pipeline import moc_pipeline
+from openvino.runtime.utils.moc_frontend.moc_emit_ir import moc_emit_ir
 from openvino.tools.mo.graph.graph import Graph
 from openvino.tools.mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively
 from openvino.tools.mo.middle.passes.convert_data_type import destination_type_to_np_data_type
@@ -47,10 +46,10 @@ from openvino.tools.mo.utils.logger import init_logger, progress_printer
 from openvino.tools.mo.utils.utils import refer_to_faq_msg, check_values_equal
 from openvino.tools.mo.utils.telemetry_utils import send_params_info, send_framework_info, send_conversion_result, \
     get_tid
-from openvino.tools.mo.moc_frontend.check_config import legacy_extensions_used
-from openvino.tools.mo.moc_frontend.pytorch_frontend_utils import get_pytorch_decoder
-from openvino.tools.mo.moc_frontend.paddle_frontend_utils import paddle_frontend_converter
-from openvino.tools.mo.moc_frontend.shape_utils import parse_input_shapes
+from openvino.runtime.utils.moc_frontend.check_config import legacy_extensions_used
+from openvino.runtime.utils.moc_frontend.pytorch_frontend_utils import get_pytorch_decoder
+from openvino.runtime.utils.moc_frontend.paddle_frontend_utils import paddle_frontend_converter
+from openvino.runtime.utils.moc_frontend.shape_utils import parse_input_shapes
 
 # pylint: disable=no-name-in-module,import-error
 from openvino.frontend import FrontEndManager, OpConversionFailure, ProgressReporterExtension, TelemetryExtension

@@ -4,12 +4,12 @@
 from argparse import Namespace
 
 import numpy as np
-from openvino.tools.mo.utils.error import Error
+from openvino.runtime.utils.error import Error
 from unit_tests.mo.unit_test_with_mocked_telemetry import UnitTestWithMockedTelemetry
 
 try:
     # pylint: disable=no-name-in-module,import-error
-    from openvino.tools.mo.back.preprocessing import apply_preprocessing
+    from openvino.runtime.utils.moc_frontend.preprocessing import apply_preprocessing
 
     # pylint: disable=no-name-in-module,import-error
     import openvino.runtime.opset8 as ops

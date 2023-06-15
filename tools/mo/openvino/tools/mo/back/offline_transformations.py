@@ -54,7 +54,7 @@ def apply_fused_names_cleanup(func: object):
 
 
 def apply_offline_transformations(func: Model, argv: argparse.Namespace):
-    from openvino.tools.mo.back.preprocessing import apply_preprocessing  # pylint: disable=no-name-in-module,import-error
+    from openvino.runtime.utils.moc_frontend.preprocessing import apply_preprocessing  # pylint: disable=no-name-in-module,import-error
 
     # Apply preprocessing (mean/scale/reverse_channels/convert_layout/etc)
     apply_preprocessing(ov_function=func, argv=argv)
