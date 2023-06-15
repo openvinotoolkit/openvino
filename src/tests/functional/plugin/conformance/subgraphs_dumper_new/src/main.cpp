@@ -4,6 +4,7 @@
 
 #include "gflag_config.hpp"
 #include "cache/op_cache.hpp"
+#include "cache/graph_cache.hpp"
 #include "utils/model.hpp"
 
 using namespace ov::tools::subgraph_dumper;
@@ -33,19 +34,23 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    std::shared_ptr<OpCache> cache = OpCache::get();
-    cache->set_serialization_dir(FLAGS_output_folder);
+    std::vector<std::shared_ptr<ICache>> caches;
+    if (FLAGS_cache_type == "OP" || FLAGS_cache_type.empty()) {
+        caches.push_back(OpCache::get());
+    } else if (FLAGS_cache_type == "GRAPH" || FLAGS_cache_type.empty()) {
+        caches.push_back(GraphCache::get());
+    }
     std::map<ModelCacheStatus, std::vector<std::string>> cache_model_status;
     // Upload previously cached graphs to cache
     if (!FLAGS_local_cache.empty()) {
         auto cachedOps = find_models(local_cache_dirs);
-        cache_model_status = cache_models(cache, cachedOps, FLAGS_extract_body);
+        cache_model_status = cache_models(caches, cachedOps, FLAGS_extract_body);
     }
     {
-        auto tmp_cache_model_status = cache_models(cache, models, FLAGS_extract_body);
+        auto tmp_cache_model_status = cache_models(caches, models, FLAGS_extract_body);
         cache_model_status.insert(tmp_cache_model_status.begin(), tmp_cache_model_status.end());
     }
-    cache->serialize_cache();
+    serialize_cache(caches, FLAGS_output_folder);
     save_model_status_to_file(cache_model_status, FLAGS_output_folder);
     return cache_model_status[ModelCacheStatus::NOT_FULLY_CACHED].empty() && cache_model_status[ModelCacheStatus::NOT_READ].empty();
 }

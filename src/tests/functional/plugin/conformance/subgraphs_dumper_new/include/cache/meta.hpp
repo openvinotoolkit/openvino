@@ -86,8 +86,11 @@ protected:
     std::map<std::string, ModelInfo> model_info;
     
     double get_graph_priority();
-    unsigned long get_abs_graph_priority();
     std::string get_model_name_by_path(const std::string& model_path);
+
+private:
+    // get abs priority graph before normalization
+    unsigned long get_abs_graph_priority();
 };
 
 }  // namespace subgraph_dumper

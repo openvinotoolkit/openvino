@@ -85,7 +85,7 @@ inline std::vector<std::string> find_models(const std::vector<std::string> &dirs
 
 // model_cache_status: model_list
 inline std::map<ModelCacheStatus, std::vector<std::string>> cache_models(
-    const std::shared_ptr<ICache>& cache,
+    std::vector<std::shared_ptr<ICache>>& caches,
     const std::vector<std::string>& models,
     bool extract_body) {
     std::map<ModelCacheStatus, std::vector<std::string>> cache_status = {
@@ -102,7 +102,9 @@ inline std::map<ModelCacheStatus, std::vector<std::string>> cache_models(
             try {
                 std::shared_ptr<ov::Model> function = core->read_model(model);
                 try {
-                    cache->update_cache(function, model, extract_body);
+                    for (auto& cache : caches) {
+                        cache->update_cache(function, model, extract_body);
+                    }
                 } catch (std::exception &e) {
                     std::cout << "Model processing failed with exception:" << std::endl << e.what() << std::endl;
                     model_status = ModelCacheStatus::NOT_FULLY_CACHED;
@@ -125,6 +127,13 @@ inline void save_model_status_to_file(const std::map<ModelCacheStatus, std::vect
     for (const auto& status_info : caching_status) {
         std::string output_file_path = ov::util::path_join({ cache_status_path, model_cache_status_to_str[status_info.first] + CommonTestUtils::LST_EXTENSION});
         CommonTestUtils::vec2File(status_info.second, output_file_path);
+    }
+}
+
+inline void serialize_cache(const std::vector<std::shared_ptr<ICache>>& caches, const std::string& serilization_dir) {
+    for (auto& cache : caches) {
+        cache->set_serialization_dir(serilization_dir);
+        cache->serialize_cache();
     }
 }
 
