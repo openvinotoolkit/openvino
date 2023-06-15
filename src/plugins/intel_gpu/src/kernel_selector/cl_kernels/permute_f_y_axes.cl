@@ -137,24 +137,28 @@ KERNEL (permute_f_y_axes)(
     const int f_begin = get_local_size(2) * get_group_id(2);
 
 #if INPUT0_SIMPLE == 1
-    __attribute__((opencl_unroll_hint(TILE_SIZE)))
-    for (int j = 0; j < TILE_SIZE; ++j) {
-        const int y_idx = y_begin + j;
-        INPUT0_TYPE res = input[INPUT0_GET_INDEX(b_idx, f_idx, y_idx, x_idx)];
+    __attribute__((opencl_unroll_hint(J_TIMES)))
+    for (int j = 0; j < J_TIMES; ++j) {
+        const int j_vec = j * VEC_SIZE;
+        const int y_idx = y_begin + j_vec;
+        IN_VEC_TYPE res = READ_VEC(0, &input[INPUT0_GET_INDEX(b_idx, f_idx, y_idx, x_idx)]);
 #if HAS_FUSED_OPS
         FUSED_OPS;
         transpose_buf[j][bf_local] = FUSED_OPS_RESULT;
 #else
-        transpose_buf[j][bf_local] = ACTIVATION(res, ACTIVATION_PARAMS);
+        for (int k = 0; k < VEC_SIZE; ++k) {
+            transpose_buf[j_vec + k][bf_local] = ACTIVATION(res[k], ACTIVATION_PARAMS);
+        }
 #endif
     }
 
-    __attribute__((opencl_unroll_hint(TILE_SIZE)))
-    for (int j = 0; j < TILE_SIZE; ++j) {
-        const int f = f_begin + j;
+    __attribute__((opencl_unroll_hint(J_TIMES)))
+    for (int j = 0; j < J_TIMES; ++j) {
+        const int j_vec = j * VEC_SIZE;
+        const int f = f_begin + j_vec;
         const int y_idx = y_begin + bf_local;
         const int output_idx = OUTPUT_GET_INDEX(b_idx, y_idx, f, x_idx);
-        output[output_idx] = transpose_buf[bf_local][j];
+        WRITE_VEC(READ_VEC(0, &transpose_buf[bf_local][j_vec]), 0, &output[output_idx]);
     }
 
 
