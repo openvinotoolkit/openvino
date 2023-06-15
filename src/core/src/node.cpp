@@ -28,6 +28,12 @@ using namespace std;
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 
+namespace {
+static const char node_idx_out_of_range_txt[] = "node index is out of range";
+static const char idx_txt[] = "index '";
+static const char out_of_range_txt[] = "' out of range";
+}  // namespace
+
 void ov::NodeValidationFailure::create(const CheckLocInfo& check_loc_info,
                                        const Node* node,
                                        const std::string& explanation) {
@@ -231,7 +237,7 @@ void ov::Node::constructor_validate_and_infer_types() {
 }
 
 void ov::Node::set_output_size(size_t n) {
-    NGRAPH_CHECK(n >= m_outputs.size(), "shrinking ", m_outputs.size(), " to ", n);
+    OPENVINO_ASSERT(n >= m_outputs.size(), "shrinking ", m_outputs.size(), " to ", n);
     for (size_t i = m_outputs.size(); i < n; ++i) {
         // create the descriptors
         get_output_descriptor(i);
@@ -246,18 +252,12 @@ void ov::Node::invalidate_values() {
 void ov::Node::validate_and_infer_types() {}
 
 void ov::Node::set_input_is_relevant_to_shape(size_t i, bool relevant) {
-    NGRAPH_CHECK(i < m_inputs.size(),
-                 "index '",
-                 i,
-                 "' out of range in set_input_is_relevant_to_shape(size_t index, bool relevant)");
+    OPENVINO_ASSERT(i < m_inputs.size(), idx_txt, i, out_of_range_txt);
     m_inputs[i].m_is_relevant_to_shape = relevant;
 }
 
 void ov::Node::set_input_is_relevant_to_value(size_t i, bool relevant) {
-    NGRAPH_CHECK(i < m_inputs.size(),
-                 "index '",
-                 i,
-                 "' out of range in set_input_is_relevant_to_value(size_t index, bool relevant)");
+    OPENVINO_ASSERT(i < m_inputs.size(), idx_txt, i, out_of_range_txt);
     m_inputs[i].m_is_relevant_to_value = relevant;
 }
 
@@ -290,12 +290,12 @@ void ov::Node::set_friendly_name(const string& name) {
 }
 
 ov::Node* ov::Node::get_input_node_ptr(size_t index) const {
-    NGRAPH_CHECK(index < m_inputs.size(), "index '", index, "' out of range in get_argument(size_t index)");
+    OPENVINO_ASSERT(index < m_inputs.size(), idx_txt, index, out_of_range_txt);
     return m_inputs[index].get_output().get_node().get();
 }
 
 std::shared_ptr<ov::Node> ov::Node::get_input_node_shared_ptr(size_t index) const {
-    NGRAPH_CHECK(index < m_inputs.size(), "index '", index, "' out of range in get_argument(size_t index)");
+    OPENVINO_ASSERT(index < m_inputs.size(), idx_txt, index, out_of_range_txt);
     return m_inputs[index].get_output().get_node();
 }
 
@@ -419,7 +419,7 @@ size_t ov::Node::get_output_size() const {
 }
 
 const ov::element::Type& ov::Node::get_output_element_type(size_t i) const {
-    NGRAPH_CHECK(i < m_outputs.size(), "index '", i, "' out of range in get_output_element_type(size_t i)");
+    OPENVINO_ASSERT(i < m_outputs.size(), idx_txt, i, out_of_range_txt);
     return m_outputs[i].get_element_type();
 }
 
@@ -431,12 +431,12 @@ const ov::element::Type& ov::Node::get_element_type() const {
 }
 
 const ov::Shape& ov::Node::get_output_shape(size_t i) const {
-    NGRAPH_CHECK(i < m_outputs.size(), "index '", i, "' out of range in get_output_shape(size_t i)");
+    OPENVINO_ASSERT(i < m_outputs.size(), idx_txt, i, out_of_range_txt);
     return m_outputs[i].get_shape();
 }
 
 const ov::PartialShape& ov::Node::get_output_partial_shape(size_t i) const {
-    NGRAPH_CHECK(i < m_outputs.size(), "index '", i, "' out of range in get_output_partial_shape(size_t i)");
+    OPENVINO_ASSERT(i < m_outputs.size(), idx_txt, i, out_of_range_txt);
     return m_outputs[i].get_partial_shape();
 }
 
@@ -456,12 +456,12 @@ std::set<ov::Input<ov::Node>> ov::Node::get_output_target_inputs(size_t i) const
 }
 
 ov::descriptor::Tensor& ov::Node::get_output_tensor(size_t i) const {
-    NGRAPH_CHECK(i < m_outputs.size(), "index '", i, "' out of range in get_output_tensor(size_t i) for node ", *this);
+    OPENVINO_ASSERT(i < m_outputs.size(), idx_txt, i, out_of_range_txt);
     return m_outputs[i].get_tensor();
 }
 
 ov::descriptor::Tensor& ov::Node::get_input_tensor(size_t i) const {
-    NGRAPH_CHECK(i < m_inputs.size(), "index '", i, "' out of range in get_input_tensor(size_t i)");
+    OPENVINO_ASSERT(i < m_inputs.size(), idx_txt, i, out_of_range_txt);
     descriptor::Input input = m_inputs[i];
     return input.get_tensor();
 }
@@ -471,17 +471,17 @@ size_t ov::Node::get_input_size() const {
 }
 
 const ov::element::Type& ov::Node::get_input_element_type(size_t i) const {
-    NGRAPH_CHECK(i < m_inputs.size(), "index '", i, "' out of range in get_input_element_type(size_t i)");
+    OPENVINO_ASSERT(i < m_inputs.size(), idx_txt, i, out_of_range_txt);
     return m_inputs[i].get_element_type();
 }
 
 const ov::Shape& ov::Node::get_input_shape(size_t i) const {
-    NGRAPH_CHECK(i < m_inputs.size(), "index '", i, "' out of range in get_input_shape(size_t i)");
+    OPENVINO_ASSERT(i < m_inputs.size(), idx_txt, i, out_of_range_txt);
     return m_inputs[i].get_shape();
 }
 
 const ov::PartialShape& ov::Node::get_input_partial_shape(size_t i) const {
-    NGRAPH_CHECK(i < m_inputs.size(), "index '", i, "' out of range in get_input_partial_shape(size_t i)");
+    OPENVINO_ASSERT(i < m_inputs.size(), idx_txt, i, out_of_range_txt);
     return m_inputs[i].get_partial_shape();
 }
 
@@ -520,7 +520,7 @@ std::string ov::node_validation_failure_loc_string(const Node* node) {
 }
 
 const std::shared_ptr<ov::Node>& ngraph::check_single_output_arg(const std::shared_ptr<Node>& node, size_t i) {
-    NGRAPH_CHECK(node->get_output_size() == 1, "Argument ", i, node, " must produce exactly one value.");
+    OPENVINO_ASSERT(node->get_output_size() == 1, "Argument ", i, node, " must produce exactly one value.");
     return node;
 }
 
@@ -575,7 +575,7 @@ bool ov::Node::is_dynamic() const {
 
 ov::Input<ov::Node> ov::Node::input(size_t input_index) {
     if (input_index >= m_inputs.size()) {
-        throw out_of_range("node input index is out of range");
+        OPENVINO_THROW(node_idx_out_of_range_txt);
     }
 
     return {this, input_index};
@@ -587,7 +587,7 @@ ov::Output<ov::Node> ov::Node::input_value(size_t input_index) const {
 
 ov::Input<const ov::Node> ov::Node::input(size_t input_index) const {
     if (input_index >= m_inputs.size()) {
-        throw out_of_range("node input index is out of range");
+        OPENVINO_THROW(node_idx_out_of_range_txt);
     }
 
     return {this, input_index};
@@ -596,7 +596,7 @@ ov::Input<const ov::Node> ov::Node::input(size_t input_index) const {
 ov::Output<ov::Node> ov::Node::output(size_t output_index) {
     // All nodes will have at least 1 output
     if (output_index > 0 && output_index >= m_outputs.size()) {
-        throw out_of_range("node output index is out of range");
+        OPENVINO_THROW(node_idx_out_of_range_txt);
     }
 
     return Output<Node>(this, output_index);
@@ -605,7 +605,7 @@ ov::Output<ov::Node> ov::Node::output(size_t output_index) {
 ov::Output<const ov::Node> ov::Node::output(size_t output_index) const {
     // All nodes will have at least 1 output
     if (output_index > 0 && output_index >= m_outputs.size()) {
-        throw out_of_range("node output index is out of range");
+        OPENVINO_THROW(node_idx_out_of_range_txt);
     }
 
     return Output<const Node>(this, output_index);

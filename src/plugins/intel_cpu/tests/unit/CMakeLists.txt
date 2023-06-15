@@ -12,14 +12,16 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     ie_add_compiler_flags(/wd5051)
 endif()
 
-if (NOT OPENVINO_ARCH_X86_64)
-    set(EXCLUDED_SOURCE_PATHS_FOR_NON_X64 ${CMAKE_CURRENT_SOURCE_DIR}/jit_kernel_test.cpp
-                                          ${CMAKE_CURRENT_SOURCE_DIR}/registers_pool.cpp
-                                          ${CMAKE_CURRENT_SOURCE_DIR}/ngraph_transformations/convert_to_interaction.cpp
-                                          ${CMAKE_CURRENT_SOURCE_DIR}/ngraph_transformations/snipptes_mark_skipped.cpp
-                                          ${CMAKE_CURRENT_SOURCE_DIR}/ngraph_transformations/mul_add_to_fma.cpp
-                                          ${CMAKE_CURRENT_SOURCE_DIR}/snippets_transformations
-                                          ${CMAKE_CURRENT_SOURCE_DIR}/nodes/eltwise_node_test.cpp)
+if (X86_64)
+    set(EXCLUDED_SOURCE_PATHS_FOR_UNIT_TEST
+      ${CMAKE_CURRENT_SOURCE_DIR}/ngraph_transformations/arm)
+else()
+    set(EXCLUDED_SOURCE_PATHS_FOR_UNIT_TEST
+      ${CMAKE_CURRENT_SOURCE_DIR}/jit_kernel_test.cpp
+      ${CMAKE_CURRENT_SOURCE_DIR}/registers_pool.cpp
+      ${CMAKE_CURRENT_SOURCE_DIR}/ngraph_transformations/x64
+      ${CMAKE_CURRENT_SOURCE_DIR}/snippets_transformations
+      ${CMAKE_CURRENT_SOURCE_DIR}/nodes/eltwise_node_test.cpp)
 endif()
 
 if (NOT ENABLE_MLAS)
@@ -42,7 +44,7 @@ addIeTargetTest(
             PRIVATE
                 $<TARGET_PROPERTY:inference_engine_snippets,SOURCE_DIR>/include
         EXCLUDED_SOURCE_PATHS
-            ${EXCLUDED_SOURCE_PATHS_FOR_NON_X64}
+            ${EXCLUDED_SOURCE_PATHS_FOR_UNIT_TEST}
             ${EXCLUDED_SOURCE_PATHS_FOR_NON_MLAS}
         OBJECT_FILES
             ${OBJ_LIB}
