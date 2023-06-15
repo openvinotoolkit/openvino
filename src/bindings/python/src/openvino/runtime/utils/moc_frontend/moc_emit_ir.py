@@ -1,12 +1,14 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+# flake8: noqa
+# mypy: ignore-errors
+
 import argparse
 
 from openvino.runtime import Model  # pylint: disable=no-name-in-module,import-error
-
-from openvino.runtime.utils.moc_frontend.preprocessing import apply_preprocessing
 from openvino.runtime.utils.cli_parser import parse_transform
+from openvino.runtime.utils.moc_frontend.preprocessing import apply_preprocessing
 
 
 def moc_emit_ir(ngraph_function: Model, argv: argparse.Namespace):

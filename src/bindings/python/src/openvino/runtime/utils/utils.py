@@ -1,15 +1,18 @@
-import numpy as np
-from typing import Iterable, List, Union
+# Copyright (C) 2018-2023 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
-from openvino.runtime.utils.error import Error
+# flake8: noqa
+# mypy: ignore-errors
 
 import functools
 import os
 import re
 import warnings
 from typing import Callable
+from typing import Iterable, Union
 
 import numpy as np
+from openvino.runtime.utils.error import Error
 
 try:
     import openvino_telemetry as tm

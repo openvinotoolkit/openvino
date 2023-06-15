@@ -1,7 +1,9 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import os
+# flake8: noqa
+# mypy: ignore-errors
+
 import re
 
 from openvino.runtime import get_version as get_ie_version

@@ -1,9 +1,13 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+# flake8: noqa
+# mypy: ignore-errors
+
 import os
 import sys
 import tempfile
+
 
 class paddle_frontend_converter:
     def __init__(self, model, inputs=None, outputs=None):
