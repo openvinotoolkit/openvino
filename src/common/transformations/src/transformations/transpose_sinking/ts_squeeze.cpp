@@ -118,7 +118,6 @@ TSSqueezeForward::TSSqueezeForward() {
             if (as_type_ptr<ov::op::v1::Reshape>(main_node)) {
                 auto success = shape_to_squeeze_axes(main_node, squeeze_axes, non_negative_axes);
                 if (!success) {
-                    //mark_as_no_sinking_node(transpose);
                     return false;
                 }
             } else {
