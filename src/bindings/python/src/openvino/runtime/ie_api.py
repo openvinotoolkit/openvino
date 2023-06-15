@@ -23,7 +23,7 @@ from openvino.runtime.utils.data_helpers import (
 
 
 class Model(ModelBase):
-    def __init__(self, *args, **kwargs) -> None:
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         if args and not kwargs:
             if isinstance(args[0], ModelBase):
                 super().__init__(args[0])
@@ -378,7 +378,7 @@ class Core(CoreBase):
     between several Core instances. The recommended way is to have a single
     Core instance per application.
     """
-    def read_model(self, model, weights=None) -> Model:
+    def read_model(self, model: Union[str, bytes, object], weights: Union[object, str, bytes, Tensor] = None) -> Model:
         if weights is not None:
             return Model(super().read_model(model, weights))
         else:

@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
@@ -18,25 +19,25 @@ class FrontEnd(FrontEndBase):
         if isinstance(model, InputModel):
             return Model(converted_model)
         return converted_model
-    
+
     def convert_partially(self, model: InputModel) -> Model:
         return Model(super().convert_partially(model))
 
     def decode(self, model: InputModel) -> Model:
         return Model(super().decode(model))
-    
+
     def normalize(self, model: Model) -> Model:
         return Model(super().normalize(model))
 
 
 class FrontEndManager(FrontEndManagerBase):
-    def load_by_framework(self, framework: str) -> FrontEnd:
+    def load_by_framework(self, framework: str) -> Union[FrontEnd, None]:
         fe = super().load_by_framework(framework)
         if fe is not None:
             return FrontEnd(fe)
         return fe
 
-    def load_by_model(self, model_path: str) -> FrontEnd:
+    def load_by_model(self, model_path: str) -> Union[FrontEnd, None]:
         fe = super().load_by_model(model_path)
         if fe is not None:
             return FrontEnd(fe)
