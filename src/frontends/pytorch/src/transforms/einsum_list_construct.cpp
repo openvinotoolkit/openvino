@@ -31,13 +31,13 @@ AtenEinsumListConstructReplacer::AtenEinsumListConstructReplacer() {
         auto equation_input = einsum_op->input_value(0).get_node_shared_ptr();
         auto tensor_list = einsum_op->input_value(1).get_node_shared_ptr();
         std::string equation;
-        // equation should be string constant
         if (const auto& fw_node_mode = cast_fw_node(equation_input, "prim::Constant")) {
             const auto& attrs = fw_node_mode->get_attrs();
             if (attrs.find("string_value") != attrs.end()) {
                 equation = attrs.at("string_value");
             }
         } else {
+            add_exception_to_fw_node(einsum_op, "aten::einsum: equation should be string constant.");
             return false;
         }
         // Check if ListConstruct is an input
@@ -54,6 +54,7 @@ AtenEinsumListConstructReplacer::AtenEinsumListConstructReplacer() {
             replace_node(einsum_op, einsum);
             return true;
         }
+        add_exception_to_fw_node(einsum_op, "aten::einsum: unsupported case.");
         return false;
     };
 

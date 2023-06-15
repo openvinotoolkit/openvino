@@ -44,16 +44,22 @@ AtenCatToConcat::AtenCatToConcat() {
         if (cat->get_input_size() > 1) {
             auto axis_node = cat->get_input_node_shared_ptr(1);
             auto axis_const = std::dynamic_pointer_cast<v0::Constant>(axis_node);
-            if (!axis_const)
+            if (!axis_const) {
+                add_exception_to_fw_node(cat, "aten::cat unsupported case: axis is not a constant.");
                 return false;
+            }
             auto _axis = axis_const->cast_vector<int64_t>();
-            if (_axis.size() != 1)
+            if (_axis.size() != 1) {
+                add_exception_to_fw_node(cat, "aten::cat unsupported case: axis is not a scalar.");
                 return false;
+            }
             axis = _axis[0];
         } else {
             const auto& attrs = cat->get_attrs();
-            if (attrs.find("axis") == attrs.end())
+            if (attrs.find("axis") == attrs.end()) {
+                add_exception_to_fw_node(cat, "aten::cat unsupported case: axis not found in attributes.");
                 return false;
+            }
             axis = std::stoll(attrs.at("axis"));
         }
 
@@ -72,11 +78,19 @@ AtenCatToConcat::AtenCatToConcat() {
             FRONT_END_GENERAL_CHECK(body_result_index >= 0, "Couldn't find descriptor for output.");
             auto body_result = body->get_results()[body_result_index];
             auto append = cast_fw_node(body_result->get_input_node_shared_ptr(0), "aten::append");
-            if (!append)
+            if (!append) {
+                add_exception_to_fw_node(
+                    cat,
+                    "aten::cat unsupported case: aten::append wasn't found inside prim::Loop body.");
                 return false;
+            }
             auto param = std::dynamic_pointer_cast<v0::Parameter>(append->get_input_node_shared_ptr(0));
-            if (!param)
+            if (!param) {
+                add_exception_to_fw_node(cat,
+                                         "aten::cat unsupported case: input of aten::append inside prim::Loop "
+                                         "body is not a body input.");
                 return false;
+            }
             auto body_param_index = body->get_parameter_index(param);
             FRONT_END_GENERAL_CHECK(body_param_index >= 0, "Couldn't find parameter in body parameters.");
             int64_t input_index = -1;
@@ -88,8 +102,12 @@ AtenCatToConcat::AtenCatToConcat() {
             }
             FRONT_END_GENERAL_CHECK(input_index >= 0, "Couldn't find descriptor for input.");
             auto list_construct = cast_fw_node(loop->get_input_node_shared_ptr(input_index), "prim::ListConstruct");
-            if (!list_construct || list_construct->get_input_size() > 0)
+            if (!list_construct || list_construct->get_input_size() > 0) {
+                add_exception_to_fw_node(cat,
+                                         "aten::cat unsupported case: aten::append input outside of prim::Loop "
+                                         "body is not a prim::ListConstruct.");
                 return false;
+            }
             auto new_result = std::make_shared<v0::Result>(append->input_value(1));
             body->add_results({new_result});
             auto new_output = loop->get_concatenated_slices(new_result, 0, 1, 1, -1, axis);

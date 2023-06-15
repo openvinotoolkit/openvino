@@ -56,6 +56,7 @@ AtenStackListConstructReplacer::AtenStackListConstructReplacer() {
             replace_node(stack, concat);
             return true;
         }
+        add_exception_to_fw_node(stack, "Unsupported case of aten::stack.");
         return false;
     };
 

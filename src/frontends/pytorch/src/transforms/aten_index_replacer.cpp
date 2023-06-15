@@ -149,6 +149,7 @@ AtenIndexToSelect::AtenIndexToSelect() {
             auto rank = input_node.get_partial_shape().rank();
             // index transformation supports only tensors with static rank
             if (rank.is_dynamic()) {
+                add_exception_to_fw_node(index_op, "aten::index: dynamic rank for aten::index input is not supported.");
                 return false;
             }
             auto input_shape = rg.make<v3::ShapeOf>(input_node, element::i32);
@@ -260,6 +261,7 @@ AtenIndexToSelect::AtenIndexToSelect() {
             replace_node(index_op, gather);
             return true;
         }
+        add_exception_to_fw_node(index_op, "Unsupported case of aten::index.");
         return false;
     };
 
