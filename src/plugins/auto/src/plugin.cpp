@@ -544,7 +544,7 @@ std::list<DeviceInformation> MultiDeviceInferencePlugin::GetValidDevice(
             MYRIAD.push_back(item);
             continue;
         }
-        if (item.deviceName.find("VPUX") == 0) {
+        if (item.deviceName.find("VPU") == 0) {
             VPUX.push_back(item);
             continue;
         }
