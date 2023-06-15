@@ -6,7 +6,7 @@
 
 #include "common/bf16.hpp"
 #include "common/tensor2d.hpp"
-#include "utility_amx.hpp"
+#include "utility_kernel_amx.hpp"
 
 #ifdef _WIN32
 #include <intrin.h>
@@ -918,7 +918,6 @@ namespace functional {
             // mixed row
             int tails_nz = (src_rows & 3);
             if (tails_nz) {
-                __mmask32 kmask1 = _cvtu32_mask32(0xFFFFFFFF);
                 auto a256 = _mm256_setzero_si256(); // must be zero
                 auto b256 = _mm256_setzero_si256(); // when tails_nz > 2
                 auto c256 = _mm256_setzero_si256(); // when tails_nz > 1
@@ -1082,7 +1081,6 @@ namespace functional {
             // mixed row
             int tails_nz = (src_rows & 3);
             if (tails_nz) {
-                __mmask32 kmask1 = _cvtu32_mask32(0xFFFFFFFF);
                 auto a256 = _mm256_setzero_si256(); // must be zero
                 auto b256 = _mm256_setzero_si256(); // when tails_nz > 2
                 auto c256 = _mm256_setzero_si256(); // when tails_nz > 1
@@ -1487,7 +1485,6 @@ void loop2D(int M, int N, int mc, F f) {
 // but it works only when (M >= bM)
 template<int bM, int bN, class F>
 void loop2D_opt_Mtail(int M, int N, int mc, F f) {
-    int tailM = (M % (mc*bM)) % bM;
     assert(M > bM);
     for(int m0=0; m0<M; m0 += mc*bM) {
         for(int n=0; n<N; n += bN) {
@@ -1922,12 +1919,24 @@ struct Matmul {
         int strideA = A.stride;
         int KlastOffBytes = (K - kStep)* sizeof(TA);
         // load B tiles outside of loop
-        if (tmmN > 0) _tile_loadd(2, pB0, 64); pB0 += 1024*2;
-        if (tmmN > 1) _tile_loadd(3, pB0, 64); pB0 += 1024*2;
-        if (tmmN > 2) _tile_loadd(4, pB0, 64); pB0 += 1024*2;
-        if (tmmN > 3) _tile_loadd(5, pB0, 64); pB0 += 1024*2;
-        if (tmmN > 4) _tile_loadd(6, pB0, 64); pB0 += 1024*2;
-        if (tmmN > 5) _tile_loadd(7, pB0, 64); pB0 += 1024*2;
+        if (tmmN > 0) {
+            _tile_loadd(2, pB0, 64); pB0 += 1024*2;
+        }
+        if (tmmN > 1) {
+            _tile_loadd(3, pB0, 64); pB0 += 1024*2;
+        }
+        if (tmmN > 2) {
+            _tile_loadd(4, pB0, 64); pB0 += 1024*2;
+        }
+        if (tmmN > 3) {
+            _tile_loadd(5, pB0, 64); pB0 += 1024*2;
+        }
+        if (tmmN > 4) {
+            _tile_loadd(6, pB0, 64); pB0 += 1024*2;
+        }
+        if (tmmN > 5) {
+            _tile_loadd(7, pB0, 64); pB0 += 1024*2;
+        }
         //asm("int3");
         for(int m0 = 0; m0 < M; m0+=16) {
             int m = m0;
@@ -2258,7 +2267,6 @@ struct Matmul<ov::bfloat16, int8_t, float> {
         }
 
         // 4 tiles buffC is reused as decompressed bf16 weights 
-        constexpr int prefetch_ahead = 16*1024;
         ov::bfloat16 * pBa = reinterpret_cast<ov::bfloat16*>(&buffC(0,0));
         ov::bfloat16 * pBb = pBa + (16*32)*2;
         auto kernel_2x2 = [&](int m, int n, int valid_m, int valid_n) {
@@ -2357,18 +2365,13 @@ struct GemAvB {
         int M = matA.dims[0];
         int K = matA.dims[1];
 
-        constexpr int kStep = 32;
-
         assert(K >= 32);
-        int Ktails = K % kStep;
-        int Kbody = K - Ktails;
-        int Kbackoff = (kStep - Ktails);
 
         if (K % 32) {
             if (K > Bpadded.dims[1])
                 Bpadded.resize(1, rndup(K, 32));
             auto newB = &Bpadded(0, 0);
-            memset(newB, 0, Bpadded.stride);
+            memset(static_cast<void*>(newB), 0, Bpadded.stride);
             memcpy(newB, vecB, K * sizeof(ov::bfloat16));
             vecB = newB;
         }

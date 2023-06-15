@@ -7,11 +7,12 @@
 
 #include "common/simple_parallel.hpp"
 #include "common/utility.hpp"
-#include "utility_avx512.hpp"
+#include "utility_kernel_avx512.hpp"
 #include "mm_kernel_common_amx.hpp"
 #include "softmax_kernel_avx512.hpp"
 #include "transpose_kernel_avx512.hpp"
 #include "llm_mha_gpt.hpp"
+#include "mha_gpt_amx.hpp"
 
 using namespace ov::cpu;
 
@@ -179,7 +180,7 @@ void mha_gpt_impl_amx::mha_bf16(const mha_gpt::exec_param &param) {
                 auto pMatMul0Out = bufferMatMul0Out_local;
                 // loop along K dimension
                 size_t valid_softmax_items = causal_mask_offset_start + seq_start + 1;
-                for (size_t m = 0; m < seq_cout; m++) {
+                for (int m = 0; m < seq_cout; m++) {
                     float* src = reinterpret_cast<float*>(pMatMul0Out + m * rndup(param.key_seq_len * sizeof(float), 64));
                     ov::bfloat16* dst = reinterpret_cast<ov::bfloat16*>(pMatMul0Out + m * rndup(param.key_seq_len * sizeof(ov::bfloat16), 64));
                     mul_add_f32_avx512(src, src, _create_param.normal_factor, pAddIn1_aux, valid_softmax_items);
@@ -187,7 +188,7 @@ void mha_gpt_impl_amx::mha_bf16(const mha_gpt::exec_param &param) {
                     // attn_scores = torch.where(causal_mask, attn_scores, mask_value)
                     if (param.key_seq_len > valid_softmax_items) {
                         auto *invalidPtr = dst + valid_softmax_items;
-                        memset(invalidPtr, 0, (param.key_seq_len - valid_softmax_items) * get_precision_size(_create_param.qkv_precision));
+                        memset(static_cast<void*>(invalidPtr), 0, (param.key_seq_len - valid_softmax_items) * get_precision_size(_create_param.qkv_precision));
                         valid_softmax_items = std::min(valid_softmax_items + 1, param.key_seq_len);
                     }
                 }
@@ -305,7 +306,7 @@ void mha_gpt_impl_amx::mha_i8(const mha_gpt::exec_param &param) {
                 auto pMatMul0Out = bufferMatMul0Out_local;
                 // loop along K dimension
                 size_t valid_softmax_items = causal_mask_offset_start + seq_start + 1;
-                for (size_t m = 0; m < seq_cout; m++) {
+                for (int m = 0; m < seq_cout; m++) {
                     float* src = reinterpret_cast<float*>(pMatMul0Out + m * rndup(param.key_seq_len * sizeof(float), 64));
                     uint8_t* dst = reinterpret_cast<uint8_t*>(pMatMul0Out + m * rndup(param.key_seq_len * sizeof(uint8_t), 64));
                     mul_add_f32_avx512(src, src, mul_scales, pAddIn1_aux, valid_softmax_items);

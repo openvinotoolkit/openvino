@@ -46,7 +46,7 @@ public:
     }
 
 protected:
-    virtual void SetUp() {
+    virtual void SetUp() override {
         initXTILE();
 
         MMKernelTestShape shape;

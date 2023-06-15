@@ -13,7 +13,7 @@
 #endif
 #include "common/bf16.hpp"
 #include "llm_types.hpp"
-#include "utility_avx512.hpp"
+#include "utility_kernel_avx512.hpp"
 
 namespace llmdnn {
     template<typename S, typename D>
@@ -29,7 +29,7 @@ namespace llmdnn {
         __mmask16 x_mask = _cvtu32_mask16(0xFFFFu >> (16 - tail));
 
         for (size_t j = 0; j < height; j++) {
-            int i;
+            size_t i;
             if (std::is_same<D, float>::value) {
                 for(i = 0; i < width - tail; i += 16) {
                     auto x = _mm512_loadu_ps(src + i);

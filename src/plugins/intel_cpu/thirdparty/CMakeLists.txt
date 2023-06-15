@@ -134,17 +134,6 @@ endfunction()
 ov_add_onednn()
 
 if(ENABLE_LLMDNN)
-    include(ExternalProject)
-    ExternalProject_Add(llmdnnlib
-        SOURCE_DIR ${CMAKE_CURRENT_LIST_DIR}/llmdnn
-        BINARY_DIR llmdnn
-        INSTALL_DIR llmdnn/install
-        BUILD_ALWAYS TRUE
-        CMAKE_ARGS ${EXTERNAL_CMAKE_ARGS}
-            -G${CMAKE_GENERATOR}
-            -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
-            -DBUILD_TESTS:BOOL=${ENABLE_TESTS}
-            -DCMAKE_RUNTIME_OUTPUT_DIRECTORY=${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
-            -DCMAKE_INSTALL_PREFIX=install
-        INSTALL_COMMAND "")
+    set(LLMDNN_BUILD_TESTS ${ENABLE_TESTS} CACHE BOOL "" FORCE)
+    add_subdirectory(llmdnn)
 endif()

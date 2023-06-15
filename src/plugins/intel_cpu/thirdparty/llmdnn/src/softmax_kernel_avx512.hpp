@@ -13,7 +13,7 @@
 #endif
 #include "common/bf16.hpp"
 #include "llm_types.hpp"
-#include "utility_avx512.hpp"
+#include "utility_kernel_avx512.hpp"
 
 namespace llmdnn {
     inline void exp_ps_avx512(__m512 & src) {

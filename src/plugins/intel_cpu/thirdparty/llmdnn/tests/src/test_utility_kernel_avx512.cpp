@@ -12,7 +12,7 @@
 #include "llm_mm.hpp"
 #include "common/tensor2d.hpp"
 #include "common/tensor2d_helper.hpp"
-#include "utility_avx512.hpp"
+#include "utility_kernel_avx512.hpp"
 #include "test_common.hpp"
 
 using namespace std;

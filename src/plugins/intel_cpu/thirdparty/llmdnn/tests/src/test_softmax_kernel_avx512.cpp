@@ -38,7 +38,7 @@ public:
     }
 
 protected:
-    virtual void SetUp() {
+    virtual void SetUp() override {
         std::tie(_types) = GetParam();
     };
 
@@ -59,7 +59,7 @@ protected:
         }
         out.resize(x.dims[0], x.dims[1], true);
         if (std::is_same<T, float>::value) {
-            memcpy(out.data, y.data, x.dims[0] * x.dims[1] * sizeof(float));
+            memcpy(static_cast<void*>(out.data), y.data, x.dims[0] * x.dims[1] * sizeof(float));
         }
         if (std::is_same<T, ov::bfloat16>::value) {
             for(int i = 0; i < x.dims[1]; i++) {

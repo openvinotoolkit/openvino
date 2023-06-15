@@ -50,7 +50,7 @@ public:
     }
 
 protected:
-    virtual void SetUp() {
+    virtual void SetUp() override {
         initXTILE();
 
         FCKernelTestShape shape;

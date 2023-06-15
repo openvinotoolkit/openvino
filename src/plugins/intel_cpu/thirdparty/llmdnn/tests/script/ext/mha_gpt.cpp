@@ -7,7 +7,7 @@
 #include "alloca.h"
 #include "module.hpp"
 #include "common/utility.hpp"
-#include "utility_amx.hpp"
+#include "utility_kernel_amx.hpp"
 #include "llm_mha_gpt.hpp"
 #include "test_common.hpp"
 

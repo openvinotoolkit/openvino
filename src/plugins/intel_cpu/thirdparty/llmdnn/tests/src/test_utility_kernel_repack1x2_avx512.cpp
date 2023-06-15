@@ -38,7 +38,7 @@ public:
     }
 
 protected:
-    virtual void SetUp() {
+    virtual void SetUp() override {
         std::tie(_types) = GetParam();
     };
 
@@ -49,7 +49,6 @@ protected:
         int kStep = 64 / sizeof(T);
         int K_padded = (K + kStep - 1) / kStep * kStep;
         int Ktails = K % kStep;
-        int Kbody = K - Ktails;
 
         // N_padded : round up to multiple of (2*16)
         int N_unit = 2 * 16;

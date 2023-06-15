@@ -108,7 +108,7 @@ struct tensor2D {
                 data = reinterpret_cast<T*>(aligned_alloc(64, capacity));
             }
             if (is_const)
-                memset(data, 0, need_capacity);
+                memset(static_cast<void*>(data), 0, need_capacity);
             if (reinterpret_cast<uintptr_t>(data) % 64)
                 std::cout << "WARNING: resize(), data is not cache-line aligned!" << std::endl;
         }

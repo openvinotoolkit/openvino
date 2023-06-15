@@ -38,31 +38,31 @@ public:
     }
 
 protected:
-    virtual void SetUp() {
+    virtual void SetUp() override {
         std::tie(_types) = GetParam();
     };
 
     template<typename T>
     static void gen_ref(T* dst, float* src, size_t height, size_t width, size_t src_stride, size_t dst_stride, float* quant) {
-        for (int j = 0; j < height; j++) {
+        for (size_t j = 0; j < height; j++) {
             if (std::is_same<T, float>::value) {
-                memcpy(dst, src, width * sizeof(float));
+                memcpy(static_cast<void*>(dst), src, width * sizeof(float));
             }
             if (std::is_same<T, ov::bfloat16>::value) {
-                for(int i = 0; i < width; i++) {
+                for(size_t i = 0; i < width; i++) {
                     dst[i] = src[i];
                 }
             }
     #define CLIP(x, low, high) \
             (x < low ? low : (x > high ? high : x))
             if (std::is_same<T, int8_t>::value) {
-                for(int i = 0; i < width; i++) {
+                for(size_t i = 0; i < width; i++) {
                     auto tmp = src[i] * quant[i];
                     dst[i] = static_cast<int8_t>(CLIP(tmp, -128, 127));
                 }
             }
             if (std::is_same<T, uint8_t>::value) {
-                for(int i = 0; i < width; i++) {
+                for(size_t i = 0; i < width; i++) {
                     auto tmp = src[i] * quant[i];
                     dst[i] = static_cast<uint8_t>(CLIP(tmp, 0, 255));
                 }
@@ -76,7 +76,7 @@ protected:
     template<typename T>
     void test(float thresh) {
         // [num_heads, query_seq_len, head_size] => [query_seq_len, num_heads * head_size]
-        int num_heads = 2, query_seq_len = 10, head_size;
+        int num_heads = 2, query_seq_len = 10;
         for (int head_size = 1; head_size < 129; head_size++) {
             tensor2D<float> src(num_heads, head_size * query_seq_len, true);
             tensor2D<float> quant(1, head_size, true);

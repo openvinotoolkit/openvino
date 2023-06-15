@@ -17,7 +17,7 @@
 #include "llm_fc.hpp"
 #include "fc_kernel_amx.hpp"
 #include "mm_kernel_common_amx.hpp"
-#include "utility_avx512.hpp"
+#include "utility_kernel_avx512.hpp"
 
 namespace llmdnn {
 
