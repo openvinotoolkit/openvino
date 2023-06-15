@@ -102,7 +102,7 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
         int numa_node_cnt = 0;
         std::vector<int> proc_per_socket;
         proc_per_socket.resize(proc_type_table.size(), 0);
-        for (int i = 1; i < proc_type_table.size(); i++) {
+        for (long unsigned int i = 1; i < proc_type_table.size(); i++) {
             if (max_per_numa_node < proc_type_table[i][ALL_PROC]) {
                 max_per_numa_node = proc_type_table[i][ALL_PROC];
                 numa_node_cnt = 1;
@@ -117,7 +117,7 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
         } else {
             int max_per_socket = 0;
             int socket_cnt = 0;
-            for (int i = 0; i < proc_per_socket.size(); i++) {
+            for (long unsigned int i = 0; i < proc_per_socket.size(); i++) {
                 if (max_per_socket < proc_per_socket[i]) {
                     max_per_socket = proc_per_socket[i];
                     socket_cnt = 1;
