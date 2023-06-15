@@ -23,9 +23,12 @@ namespace ov {
 namespace intel_cpu {
 
 std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
+                                                     const bool input_streams_changed,
                                                      const int input_threads,
                                                      const int input_infer_requests,
                                                      const int model_prefer_threads,
+                                                     const std::string input_perf_hint,
+                                                     const LatencyCandidateScope scopeOflatencyCandidate,
                                                      const std::vector<std::vector<int>> proc_type_table) {
     std::vector<int> stream_info(CPU_STREAMS_TABLE_SIZE);
     std::vector<std::vector<int>> streams_info_table;
@@ -49,7 +52,9 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
         }
     };
 
-    if (1 == input_streams) {
+    if (((input_streams_changed == false) && (input_perf_hint == CONFIG_VALUE(LATENCY)) &&
+         ((scopeOflatencyCandidate == LatencyCandidateScope::PER_PLATFORM) || (proc_type_table.size() == 1))) ||
+        ((input_streams_changed == true) && (input_streams == 1))) {
         stream_info[NUMBER_OF_STREAMS] = 1;
         if (input_threads > 0) {
             stream_info[THREADS_PER_STREAM] = std::min(proc_type_table[0][ALL_PROC], input_threads);
@@ -91,6 +96,40 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
             }
         }
         return streams_info_table;
+    } else if ((input_streams_changed == false) && (input_perf_hint == CONFIG_VALUE(LATENCY))) {
+        stream_info[PROC_TYPE] = MAIN_CORE_PROC;
+        int max_per_numa_node = 0;
+        int numa_node_cnt = 0;
+        std::vector<int> proc_per_socket;
+        proc_per_socket.resize(proc_type_table.size(), 0);
+        for (int i = 1; i < proc_type_table.size(); i++) {
+            if (max_per_numa_node < proc_type_table[i][ALL_PROC]) {
+                max_per_numa_node = proc_type_table[i][ALL_PROC];
+                numa_node_cnt = 1;
+            } else if (max_per_numa_node == proc_type_table[i][ALL_PROC]) {
+                numa_node_cnt++;
+            }
+            proc_per_socket[proc_type_table[i][PROC_SOCKET_ID]] += proc_type_table[i][ALL_PROC];
+        }
+        if (scopeOflatencyCandidate == LatencyCandidateScope::PER_NUMA_NODE) {
+            stream_info[NUMBER_OF_STREAMS] = numa_node_cnt;
+            stream_info[THREADS_PER_STREAM] = max_per_numa_node;
+        } else {
+            int max_per_socket = 0;
+            int socket_cnt = 0;
+            for (int i = 0; i < proc_per_socket.size(); i++) {
+                if (max_per_socket < proc_per_socket[i]) {
+                    max_per_socket = proc_per_socket[i];
+                    socket_cnt = 1;
+                } else if (max_per_socket == proc_per_socket[i]) {
+                    socket_cnt++;
+                }
+            }
+            stream_info[NUMBER_OF_STREAMS] = socket_cnt;
+            stream_info[THREADS_PER_STREAM] = max_per_socket;
+        }
+        streams_info_table.push_back(stream_info);
+        return streams_info_table;
     } else {
         int n_streams = 0;
         int n_threads = 0;
@@ -100,7 +139,7 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
         n_threads =
             (0 == input_threads) ? proc_type_table[0][ALL_PROC] : std::min(proc_type_table[0][ALL_PROC], input_threads);
 
-        if (0 != input_streams) {
+        if ((input_streams_changed == true) && (input_streams > 0)) {
             base_type = (proc_type_table[0][MAIN_CORE_PROC] == 0) ? EFFICIENT_CORE_PROC : MAIN_CORE_PROC;
             n_streams = (input_infer_requests > 0) ? std::min(input_streams, input_infer_requests) : input_streams;
             if (n_streams >= n_threads) {
@@ -292,10 +331,13 @@ void generate_stream_info(const int streams,
         model_prefer_threads = get_model_prefer_threads(streams, proc_type_table, ngraphFunc, executor_config);
     }
 
-    executor_config._streams_info_table = get_streams_info_table(streams,
+    executor_config._streams_info_table = get_streams_info_table(executor_config._streams,
+                                                                 executor_config._streams_changed,
                                                                  executor_config._threads,
                                                                  config.perfHintsConfig.ovPerfHintNumRequests,
                                                                  model_prefer_threads,
+                                                                 config.perfHintsConfig.ovPerfHint,
+                                                                 config.scopeOflatencyCandidate,
                                                                  proc_type_table);
 }
 
