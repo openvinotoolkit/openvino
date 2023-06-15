@@ -162,7 +162,7 @@ namespace llmdnn {
                 auto x = _mm512_loadu_ps(src + i);
                 x = _mm512_mul_ps(x, reciprocal_sum_exp);
                 auto out = _mm512_cvtne2ps_pbh(x, x);
-                _mm256_storeu_si256(reinterpret_cast<__m256i *>(dst + i), _mm512_extracti64x4_epi64(out, 0));
+                _mm256_storeu_si256(reinterpret_cast<__m256i *>(dst + i), _mm512_extracti64x4_epi64((__m512i)out, 0));
                 i += 16;
             }
             // handle tails
@@ -170,7 +170,7 @@ namespace llmdnn {
                 auto x = _mm512_maskz_loadu_ps(x_mask, src + i);
                 x = _mm512_mul_ps(x, reciprocal_sum_exp);
                 auto out = _mm512_cvtne2ps_pbh(x, x);
-                _mm256_mask_storeu_epi16(dst + i, x_mask, _mm512_extracti64x4_epi64(out, 0));
+                _mm256_mask_storeu_epi16(dst + i, x_mask, _mm512_extracti64x4_epi64((__m512i)out, 0));
             }
         }
         if (std::is_same<D, int8_t>::value) {

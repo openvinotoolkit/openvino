@@ -1435,12 +1435,11 @@ namespace PP {
     };
 }
 
-template <int bytes, int sel=_MM_HINT_T0, int advance = 4096>
-void prefetch_bytes(void *src)
-{
-    int8_t *p = reinterpret_cast<int8_t *>(src);
-    for (int i = 0; i < bytes; i+=64)
-        _mm_prefetch(p + i + advance, sel);
+// WA: clang could not find _mm_hint definition
+#define prefetch_bytes(bytes, sel, advance, src) {  \
+    int8_t *p = reinterpret_cast<int8_t *>(src);    \
+    for (int i = 0; i < bytes; i+=64)               \
+        _mm_prefetch(p + i + advance, sel);         \
 }
 
 // matmul (FC)
@@ -2049,18 +2048,18 @@ struct Matmul {
                 int8_t * pA0 = reinterpret_cast<int8_t*>(&matA[0]);
                 for(k=0; k<Kbody; k+=kStep) {
                     _tile_loadd(2, pA0, strideA); pA0 += 64;  // tile A Mx32/Mx64, cols is always 64
-                    // prefetch_bytes<1024, _MM_HINT_T1, 4096*48>(pB0);
+                    // prefetch_bytes(1024, _MM_HINT_T1, 4096*48, pB0);
                     _tile_loadd(3, pB0, 64); pB0 += 1024;     // tile B0 32x16(16x16x2)/64x16(16x16x4) is always 1KB
-                    // prefetch_bytes<1024, _MM_HINT_T1, 4096*48>(pB0);
+                    // prefetch_bytes(1024, _MM_HINT_T1, 4096*48, pB0);
                     _tile_loadd(4, pB0, 64); pB0 += 1024;     // tile B1 32x16(16x16x2)/64x16(16x16x4) is always 1KB
                     TILE_DP(0, 2, 3); // C0 += A*B0
                     TILE_DP(1, 2, 4); // C1 += A*B1
                 }
                 if (Ktails) {
                     _tile_loadd(2, pA0 - KbackoffBytes, strideA);
-                    // prefetch_bytes<1024, _MM_HINT_T1, 4096*48>(pB0);
+                    // prefetch_bytes(1024, _MM_HINT_T1, 4096*48, pB0);
                     _tile_loadd(3, pB0, 64); pB0 += 1024;
-                    // prefetch_bytes<1024, _MM_HINT_T1, 4096*48>(pB0);
+                    // prefetch_bytes(1024, _MM_HINT_T1, 4096*48, pB0);
                     _tile_loadd(4, pB0, 64); pB0 += 1024;
                     TILE_DP(0, 2, 3); // C0 += A*B0
                     TILE_DP(1, 2, 4); // C1 += A*B1
@@ -2086,13 +2085,13 @@ struct Matmul {
             for (int k = 0; k < Kbody; k += kStep) {
                 _tile_loadd(4, pA0, strideA); pA0 += 64;
                 _tile_loadd(6, pB, 64); pB += 1024;
-                // prefetch_bytes<1024>(pB);
+                // prefetch_bytes(1024, _MM_HINT_T0, 4096, pB);
                 TILE_DP(0, 4, 6);
 
                 _tile_loadd(5, pA1, strideA); pA1 += 64;
                 TILE_DP(2, 5, 6);
                 _tile_loadd(7, pB, 64); pB += 1024;
-                // prefetch_bytes<1024>(pB);
+                // prefetch_bytes(1024, _MM_HINT_T0, 4096, pB);
                 TILE_DP(1, 4, 7);
 
                 TILE_DP(3, 5, 7);
@@ -2100,13 +2099,13 @@ struct Matmul {
             if (Ktails) {
                 _tile_loadd(4, pA0 - KbackoffBytes, strideA);
                 _tile_loadd(6, pB, 64); pB += 1024;
-                // prefetch_bytes<1024>(pB);
+                // prefetch_bytes(1024, _MM_HINT_T0, 4096, pB);
                 TILE_DP(0, 4, 6);
 
                 _tile_loadd(5, pA1 - KbackoffBytes, strideA);
                 TILE_DP(2, 5, 6);
                 _tile_loadd(7, pB, 64); pB += 1024;
-                // prefetch_bytes<1024>(pB);
+                // prefetch_bytes(1024, _MM_HINT_T0, 4096, pB);
                 TILE_DP(1, 4, 7);
 
                 TILE_DP(3, 5, 7);
@@ -2226,14 +2225,14 @@ struct Matmul<ov::bfloat16, int8_t, float> {
                 for(int k=0; k<Kbody; k+=kStep) {
                     // 1x2
                     _tile_loadd(2, pA0, strideA); pA0 += 32;   // tile A Mx32
-                    prefetch_bytes<512, _MM_HINT_T1, prefetch_ahead>(pBint);
+                    prefetch_bytes(512, _MM_HINT_T1, prefetch_ahead, pBint);
 
                     functional::i8_to_bf16_Kx32<8>(pBint, pBdst);
                     _tile_loadd(3, pBsrc, 64);
                     functional::i8_to_bf16_Kx32<8>(pBint, pBdst + 8*32);
                     _tile_dpbf16ps(0, 2, 3); // C0 += A*B0
 
-                    prefetch_bytes<512, _MM_HINT_T1, prefetch_ahead>(pBint);
+                    prefetch_bytes(512, _MM_HINT_T1, prefetch_ahead, pBint);
                     functional::i8_to_bf16_Kx32<8>(pBint, pBdst + 16*32);
                     _tile_loadd(4, pBsrc + 16*32, 64);
                     functional::i8_to_bf16_Kx32<8>(pBint, pBdst + 24*32);
@@ -2242,24 +2241,24 @@ struct Matmul<ov::bfloat16, int8_t, float> {
                 }
                 if (Ktails) {
                     _tile_loadd(2, pA0 - Kbackoff, strideA);    // backoff to prevent access beyond the end of A
-                    prefetch_bytes<512, _MM_HINT_T1, prefetch_ahead>(pBint);
+                    prefetch_bytes(512, _MM_HINT_T1, prefetch_ahead, pBint);
 
                     functional::i8_to_bf16_Kx32<8>(pBint, pBdst);
                     _tile_loadd(3, pBsrc, 64);
                     functional::i8_to_bf16_Kx32<8>(pBint, pBdst + 8*32);
                     _tile_dpbf16ps(0, 2, 3); // C0 += A*B0
 
-                    prefetch_bytes<512, _MM_HINT_T1, prefetch_ahead>(pBint);
+                    prefetch_bytes(512, _MM_HINT_T1, prefetch_ahead, pBint);
                     functional::i8_to_bf16_Kx32<8>(pBint, pBdst + 16*32);
                     _tile_loadd(4, pBsrc + 16*32, 64);
                     functional::i8_to_bf16_Kx32<8>(pBint, pBdst + 24*32);
                     _tile_dpbf16ps(1, 2, 4); // C1 += A*B1
                     std::swap(pBsrc, pBdst);
                 }
-                //prefetch_bytes<2048, _MM_HINT_T1, prefetch_ahead>(pBint);
+                //prefetch_bytes(2048, _MM_HINT_T1, prefetch_ahead, pBint);
                 _tile_stored(0, pC0, buffC.stride);
                 _tile_stored(1, pC0 + 16, buffC.stride);
-                //prefetch_bytes<2048, _MM_HINT_T1, prefetch_ahead>(pBint + 2048);
+                //prefetch_bytes(2048, _MM_HINT_T1, prefetch_ahead, pBint + 2048);
                 //int valid_n = std::min(N - n, 32);
                 (ppkernel)(buffC, 0, n + n0, M, valid_n);
             });

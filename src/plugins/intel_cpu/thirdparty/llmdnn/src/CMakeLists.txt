@@ -9,7 +9,4 @@ file(GLOB_RECURSE SOURCE_FILES ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
 
 add_library(llmdnn STATIC ${SOURCE_FILES})
 target_include_directories(llmdnn PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}
-                                  INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/../include)
-set_target_properties(llmdnn PROPERTIES
-    POSITION_INDEPENDENT_CODE ON
-    ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
+                                  PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../include>)
