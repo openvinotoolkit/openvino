@@ -5,13 +5,10 @@ import pathlib
 from collections import namedtuple
 from typing import Any
 
-from openvino.runtime import PartialShape, Shape, Layout, Model
+from openvino.runtime import PartialShape, Shape, Layout, Model, InputCutInfo, LayoutMap
 from openvino.tools.mo.convert_impl import _convert
 from openvino.tools.mo.utils.cli_parser import get_all_cli_parser
 from openvino.tools.mo.utils.logger import get_logger_state, restore_logger_state
-
-InputCutInfo = namedtuple("InputInfo", ["name", "shape", "type", "value"], defaults=[None, None, None, None])
-LayoutMap = namedtuple("LayoutMap", ["source_layout", "target_layout"], defaults=[None, None])
 
 
 def convert_model(

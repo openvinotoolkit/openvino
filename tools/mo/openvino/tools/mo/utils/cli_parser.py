@@ -16,7 +16,7 @@ import numbers
 import inspect
 
 import numpy as np
-from openvino.runtime import Layout, PartialShape, Dimension, Shape, Type
+from openvino.runtime import Layout, PartialShape, Dimension, Shape, Type, InputCutInfo, LayoutMap
 
 import openvino
 from openvino.tools.mo.front.extractor import split_node_in_port
@@ -148,16 +148,16 @@ def single_input_to_input_cut_info(input: [str, tuple, list, PartialShape, Type,
     if isinstance(input, str):
         # Parse params from string
         node_name, shape, value, data_type = parse_input_value(input)
-        return openvino.tools.mo.InputCutInfo(node_name,
-                                              PartialShape(shape) if shape is not None else None,
-                                              data_type,
-                                              value)
-    if isinstance(input, openvino.tools.mo.InputCutInfo):
+        return InputCutInfo(node_name,
+                            PartialShape(shape) if shape is not None else None,
+                            data_type,
+                            value)
+    if isinstance(input, InputCutInfo):
         # Wrap input.shape to PartialShape if possible and wrap to InputCutInfo
-        return openvino.tools.mo.InputCutInfo(input.name,
-                                              PartialShape(input.shape) if input.shape is not None else None,
-                                              input.type,
-                                              input.value)
+        return InputCutInfo(input.name,
+                            PartialShape(input.shape) if input.shape is not None else None,
+                            input.type,
+                            input.value)
     if isinstance(input, (tuple, list, PartialShape)):
         # If input represents list with shape, wrap it to list. Single PartialShape also goes to this condition.
         # Check of all dimensions will be in is_shape_type(val) method below
@@ -184,18 +184,17 @@ def single_input_to_input_cut_info(input: [str, tuple, list, PartialShape, Type,
             else:
                 raise Exception("Incorrect input parameters provided. Expected tuple with input name, "
                                 "input type or input shape. Got unknown object: {}".format(val))
-        return openvino.tools.mo.InputCutInfo(name,
-                                              PartialShape(shape) if shape is not None else None,
-                                              inp_type,
-                                              None)
+        return InputCutInfo(name, PartialShape(shape) if shape is not None else None,
+                            inp_type,
+                            None)
     # Case when only type is set
     if isinstance(input, (type, Type)):
-        return openvino.tools.mo.InputCutInfo(None, None, input, None)
+        return InputCutInfo(None, None, input, None)
 
     # We don't expect here single unnamed value. If list of int is set it is considered as shape.
     # Setting of value is expected only using InputCutInfo or string analog.
 
-    raise Exception("Unexpected object provided for input. Expected openvino.tools.mo.InputCutInfo "
+    raise Exception("Unexpected object provided for input. Expected openvino.runtime.InputCutInfo "
                     "or tuple or str. Got {}".format(type(input)))
 
 
@@ -214,12 +213,12 @@ def input_to_input_cut_info(input: [str, tuple, list]):
 
             # Parse string with parameters for single input
             node_name, shape, value, data_type = parse_input_value(input_value)
-            inputs.append(openvino.tools.mo.InputCutInfo(node_name,
-                                                         PartialShape(shape) if shape is not None else None,
-                                                         data_type,
-                                                         value))
+            inputs.append(InputCutInfo(node_name,
+                                       PartialShape(shape) if shape is not None else None,
+                                       data_type,
+                                       value))
         return inputs
-    if isinstance(input, openvino.tools.mo.InputCutInfo):
+    if isinstance(input, InputCutInfo):
         # Wrap to list and return
         return [input]
     if isinstance(input, tuple):
@@ -270,11 +269,11 @@ def input_shape_to_input_cut_info(input_shape: [str, Shape, PartialShape, list, 
                 shape = PartialShape(shape)
                 assert inputs[idx].shape is None, "Shape was set in both --input and in --input_shape parameter." \
                                                   "Please use either --input or --input_shape for shape setting."
-                inputs[idx] = openvino.tools.mo.InputCutInfo(inputs[idx].name, shape, inputs[idx].type, inputs[idx].value)
+                inputs[idx] = InputCutInfo(inputs[idx].name, shape, inputs[idx].type, inputs[idx].value)
 
         else:
             for shape in input_shape:
-                inputs.append(openvino.tools.mo.InputCutInfo(None, PartialShape(shape), None, None))
+                inputs.append(InputCutInfo(None, PartialShape(shape), None, None))
         return
 
     raise Exception("Unexpected object provided for input_shape. Expected PartialShape, Shape, tuple, list or str. "
@@ -376,7 +375,7 @@ def source_target_layout_to_str(value):
 def layoutmap_to_str(value):
     if isinstance(value, str):
         return value
-    if isinstance(value, openvino.tools.mo.LayoutMap):
+    if isinstance(value, LayoutMap):
         assert value.source_layout is not None, "Incorrect layout map. 'source_layout' should be set."
         source_layout = layout_to_str(value.source_layout)
         if value.target_layout is not None:
@@ -401,7 +400,7 @@ def layout_param_to_str(value):
                 raise Exception("Incorrect operation name type. Expected string, got {}".format(type(op_name)))
             values_str.append(op_name + "(" + layoutmap_to_str(layout) + ")")
         return ",".join(values_str)
-    if isinstance(value, openvino.tools.mo.LayoutMap):
+    if isinstance(value, LayoutMap):
         return layoutmap_to_str(value)
     if isinstance(value, list) or isinstance(value, tuple):
         values_str = []

@@ -18,10 +18,9 @@ from openvino.tools.mo.utils.cli_parser import get_placeholder_shapes, get_tuple
     readable_file, get_freeze_placeholder_values, parse_transform, check_available_transforms, get_layout_values, get_all_cli_parser, \
     get_mo_convert_params
 from openvino.tools.mo.convert_impl import pack_params_to_args_namespace
-from openvino.tools.mo.convert import InputCutInfo, LayoutMap
 from openvino.tools.mo.utils.error import Error
 from unit_tests.mo.unit_test_with_mocked_telemetry import UnitTestWithMockedTelemetry
-from openvino.runtime import PartialShape, Dimension, Layout
+from openvino.runtime import PartialShape, Dimension, Layout, InputCutInfo, LayoutMap
 
 
 class TestingMeanScaleGetter(UnitTestWithMockedTelemetry):
