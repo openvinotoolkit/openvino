@@ -77,7 +77,7 @@ Step 1: Download and Install OpenVINO Core Components
    .. code-block:: sh
 
       cd <user_home>/Downloads
-      curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.0/windows/w_openvino_toolkit_windows_2023.0.0.9052.9752fafe8eb_x86_64.zip --output openvino_2023.0.0.zip
+      curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.0/windows/w_openvino_toolkit_windows_2023.0.0.10926.b4452d56304_x86_64.zip --output openvino_2023.0.0.zip
 
 
    .. note::
@@ -92,7 +92,7 @@ Step 1: Download and Install OpenVINO Core Components
    .. code-block:: sh
 
       tar -xf openvino_2023.0.0.zip
-      ren w_openvino_toolkit_windows_2023.0.0.9052.9752fafe8eb_x86_64 openvino_2023.0.0
+      ren w_openvino_toolkit_windows_2023.0.0.10926.b4452d56304_x86_64 openvino_2023.0.0
       move openvino_2023.0.0 "C:\Program Files (x86)\Intel"
 
 
@@ -118,7 +118,7 @@ Step 2: Configure the Environment
 
 You must update several environment variables before you can compile and run OpenVINO™ applications. Open the Command Prompt, and run the ``setupvars.bat`` batch file to temporarily set your environment variables. If your ``<INSTALL_DIR>`` is not ``C:\Program Files (x86)\Intel\openvino_2023``, use the correct directory instead.
 
-.. code-block: sh
+.. code-block:: sh
 
    "C:\Program Files (x86)\Intel\openvino_2023\setupvars.bat"
 
@@ -179,9 +179,9 @@ Now that you've installed OpenVINO Runtime, you're ready to run your own machine
 
    Visit the :ref:`Tutorials <notebook tutorials>` page for more Jupyter Notebooks to get you started with OpenVINO, such as:
 
-   * `OpenVINO Python API Tutorial <https://docs.openvino.ai/2022.3/notebooks/002-openvino-api-with-output.html>`___
-   * `Basic image classification program with Hello Image Classification <https://docs.openvino.ai/2022.3/notebooks/001-hello-world-with-output.html>`___
-   * `Convert a PyTorch model and use it for image background removal <https://docs.openvino.ai/2022.3/notebooks/205-vision-background-removal-with-output.html>`___
+   * `OpenVINO Python API Tutorial <notebooks/002-openvino-api-with-output.html>`__ 
+   * `Basic image classification program with Hello Image Classification <notebooks/001-hello-world-with-output.html>`__
+   * `Convert a PyTorch model and use it for image background removal <notebooks/205-vision-background-removal-with-output.html>`__
 
 .. tab:: Get started with C++
 

@@ -11,7 +11,7 @@ page for instructions on how to install OpenVINO Runtime for Python using PyPI.
 .. note::
 
    The following development tools can be installed via `pypi.org <https://pypi.org/project/openvino-dev/>`__ only: 
-   Model Optimizer, Post-Training Optimization Tool, Model Downloader and other Open Model Zoo tools, 
+   model conversion API, Post-Training Optimization Tool, Model Downloader and other Open Model Zoo tools, 
    Accuracy Checker, and Annotation Converter.
 
 See the `Release Notes <https://software.intel.com/en-us/articles/OpenVINO-RelNotes>`__ for more information on updates in the latest release.
@@ -49,19 +49,20 @@ See the `Release Notes <https://software.intel.com/en-us/articles/OpenVINO-RelNo
 
     * GCC 8.3.1
     Use the following instructions to install it:
+
     Install GCC 8.3.1 via devtoolset-8
 
-    .. code-block:: sh
-
-      sudo yum update -y && sudo yum install -y centos-release-scl epel-release
-      sudo yum install -y devtoolset-8
+      .. code-block:: sh
+   
+        sudo yum update -y && sudo yum install -y centos-release-scl epel-release
+        sudo yum install -y devtoolset-8
 
     Enable devtoolset-8 and check current gcc version
 
-    .. code-block:: sh
-
-      source /opt/rh/devtoolset-8/enable
-      gcc -v
+       .. code-block:: sh
+   
+         source /opt/rh/devtoolset-8/enable
+         gcc -v
 
 
 
@@ -90,52 +91,72 @@ Step 1: Download and Install the OpenVINO Core Components
     
 4. Download the `OpenVINO Runtime archive file for your system <https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.0/linux/>`_, extract the files, rename the extracted folder and move it to the desired path:
 
-   .. tab:: Ubuntu 22.04
 
+   .. tab:: x86_64
+   
+      .. tab:: Ubuntu 22.04
+   
+         .. code-block:: sh
+      
+            curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.0/linux/l_openvino_toolkit_ubuntu22_2023.0.0.10926.b4452d56304_x86_64.tgz --output openvino_2023.0.0.tgz
+            tar -xf openvino_2023.0.0.tgz
+            sudo mv l_openvino_toolkit_ubuntu22_2023.0.0.10926.b4452d56304_x86_64 /opt/intel/openvino_2023.0.0
+   
+      .. tab:: Ubuntu 20.04
+   
+         .. code-block:: sh
+      
+            curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.0/linux/l_openvino_toolkit_ubuntu20_2023.0.0.10926.b4452d56304_x86_64.tgz --output openvino_2023.0.0.tgz
+            tar -xf openvino_2023.0.0.tgz
+            sudo mv l_openvino_toolkit_ubuntu20_2023.0.0.10926.b4452d56304_x86_64 /opt/intel/openvino_2023.0.0
+   
+      .. tab:: Ubuntu 18.04
+   
+         .. code-block:: sh
+      
+            curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.0/linux/l_openvino_toolkit_ubuntu18_2023.0.0.10926.b4452d56304_x86_64.tgz --output openvino_2023.0.0.tgz
+            tar -xf openvino_2023.0.0.tgz
+            sudo mv l_openvino_toolkit_ubuntu18_2023.0.0.10926.b4452d56304_x86_64 /opt/intel/openvino_2023.0.0
+   
+      .. tab:: RHEL 8
+   
+         .. code-block:: sh
+      
+            curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.0/linux/l_openvino_toolkit_rhel8_2023.0.0.10926.b4452d56304_x86_64.tgz --output openvino_2023.0.0.tgz
+            tar -xf openvino_2023.0.0.tgz
+            sudo mv l_openvino_toolkit_rhel8_2023.0.0.10926.b4452d56304_x86_64 /opt/intel/openvino_2023.0.0
+   
+      .. tab:: CentOS 7
+   
+         .. code-block:: sh
+      
+            curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.0/linux/l_openvino_toolkit_centos7_2023.0.0.10926.b4452d56304_x86_64.tgz --output openvino_2023.0.0.tgz
+            tar -xf openvino_2023.0.0.tgz
+            sudo mv l_openvino_toolkit_centos7_2023.0.0.10926.b4452d56304_x86_64 /opt/intel/openvino_2023.0.0
+   
+   .. tab:: ARM 64-bit
+   
       .. code-block:: sh
    
-         curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.0/linux/l_openvino_toolkit_ubuntu22_2023.0.0.9052.9752fafe8eb_x86_64.tgz --output openvino_2023.0.0.tgz
+         curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.0/linux/l_openvino_toolkit_debian9_2023.0.0.10926.b4452d56304_arm64.tgz -O openvino_2023.0.0.tgz
          tar -xf openvino_2023.0.0.tgz
-         sudo mv l_openvino_toolkit_ubuntu22_2023.0.0.9052.9752fafe8eb_x86_64 /opt/intel/openvino_2023.0.0
-
-   .. tab:: Ubuntu 20.04
-
+         sudo mv l_openvino_toolkit_debian9_2023.0.0.10926.b4452d56304_arm64 /opt/intel/openvino_2023.0.0
+   
+   .. tab:: ARM 32-bit
+   
       .. code-block:: sh
    
-         curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.0/linux/l_openvino_toolkit_ubuntu20_2023.0.0.9052.9752fafe8eb_x86_64.tgz --output openvino_2023.0.0.tgz
+         curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.0/linux/l_openvino_toolkit_debian9_2023.0.0.10926.b4452d56304_armhf.tgz -O openvino_2023.0.0.tgz
          tar -xf openvino_2023.0.0.tgz
-         sudo mv l_openvino_toolkit_ubuntu20_2023.0.0.9052.9752fafe8eb_x86_64 /opt/intel/openvino_2023.0.0
+         sudo mv l_openvino_toolkit_debian9_2023.0.0.10926.b4452d56304_armhf /opt/intel/openvino_2023.0.0
 
-   .. tab:: Ubuntu 18.04
-
-      .. code-block:: sh
-   
-         curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.0/linux/l_openvino_toolkit_ubuntu18_2023.0.0.9052.9752fafe8eb_x86_64.tgz --output openvino_2023.0.0.tgz
-         tar -xf openvino_2023.0.0.tgz
-         sudo mv l_openvino_toolkit_ubuntu18_2023.0.0.9052.9752fafe8eb_x86_64 /opt/intel/openvino_2023.0.0
-
-   .. tab:: RHEL 8
-
-      .. code-block:: sh
-   
-         curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.0/linux/l_openvino_toolkit_rhel8_2023.0.0.9052.9752fafe8eb_x86_64.tgz --output openvino_2023.0.0.tgz
-         tar -xf openvino_2023.0.0.tgz
-         sudo mv l_openvino_toolkit_rhel8_2023.0.0.9052.9752fafe8eb_x86_64 /opt/intel/openvino_2023.0.0
-
-   .. tab:: CentOS 7
-
-      .. code-block:: sh
-   
-         curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.0/linux/l_openvino_toolkit_centos7_2023.0.0.9052.9752fafe8eb_x86_64.tgz --output openvino_2023.0.0.tgz
-         tar -xf openvino_2023.0.0.tgz
-         sudo mv l_openvino_toolkit_centos7_2023.0.0.9052.9752fafe8eb_x86_64 /opt/intel/openvino_2023.0.0
 
 5. Install required system dependencies on Linux. To do this, OpenVINO provides a script in the extracted installation directory. Run the following command:
    
    .. code-block:: sh
-   
+
       cd /opt/intel/openvino_2023.0.0
-      sudo -E ./install_dependencies/install_openvino_dependencies.sh 
+      sudo -E ./install_dependencies/install_openvino_dependencies.sh
 
 6. For simplicity, it is useful to create a symbolic link as below:
    
@@ -183,7 +204,7 @@ Step 3 (Optional): Install Additional Components
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 OpenVINO Development Tools is a set of utilities for working with OpenVINO and OpenVINO models. 
-It provides tools like Model Optimizer, Benchmark Tool, Post-Training Optimization Tool, and Open Model Zoo Downloader. 
+It provides tools like model conversion API, Benchmark Tool, Post-Training Optimization Tool, and Open Model Zoo Downloader. 
 If you install OpenVINO Runtime using archive files, OpenVINO Development Tools must be installed separately.
 
 See the :doc:`Install OpenVINO Development Tools <openvino_docs_install_guides_install_dev_tools>` 
@@ -257,7 +278,7 @@ Additional Resources
 ###########################################################
 
 * :doc:`Troubleshooting Guide for OpenVINO Installation & Configuration <openvino_docs_get_started_guide_troubleshooting>`
-* Converting models for use with OpenVINO™: :doc:`Model Optimizer User Guide <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`
+* Converting models for use with OpenVINO™: :doc:`Convert a Model <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`
 * Writing your own OpenVINO™ applications: :doc:`OpenVINO™ Runtime User Guide <openvino_docs_OV_UG_OV_Runtime_User_Guide>`
 * Sample applications: :doc:`OpenVINO™ Toolkit Samples Overview <openvino_docs_OV_UG_Samples_Overview>`
 * Pre-trained deep learning models: :doc:`Overview of OpenVINO™ Toolkit Pre-Trained Models <model_zoo>`

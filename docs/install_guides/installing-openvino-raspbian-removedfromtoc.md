@@ -1,4 +1,4 @@
-# Install OpenVINO™ Runtime for Raspbian OS {#openvino_docs_install_guides_installing_openvino_raspbian}
+# Install OpenVINO™ Runtime for Raspbian OS
 
 @sphinxdirective
 
@@ -27,8 +27,9 @@ Development and Target Systems
 Step 1: Download and Install OpenVINO Runtime
 #############################################
 
-#. Open the Terminal or your preferred console application.
-#. Create an installation folder for OpenVINO. If the folder already exists, skip this step.
+
+1. Open the Terminal or your preferred console application.
+2. Create an installation folder for OpenVINO. If the folder already exists, skip this step.
 
    .. code-block:: sh
 
@@ -38,45 +39,46 @@ Step 1: Download and Install OpenVINO Runtime
 
       The ``/opt/intel`` path is the recommended folder path for administrators or root users. If you prefer to install OpenVINO in regular userspace, the recommended path is ``/home/<USER>/intel``. You may use a different path if desired.
 
-#. Go to your ``~/Downloads`` directory and download OpenVINO Runtime archive file for Debian from `OpenVINO package repository <https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.0/linux/>`_.
+3. Go to your ``~/Downloads`` directory and download OpenVINO Runtime archive file for Debian from `OpenVINO package repository <https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.0/linux/>`_.
 
    .. tab:: ARM 64-bit
 
       .. code-block:: sh
 
          cd ~/Downloads/
-         sudo wget https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.0/linux/l_openvino_toolkit_debian9_2023.0.0.9052.9752fafe8eb_arm64.tgz -O openvino_2023.0.0.tgz
+         sudo wget https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.0/linux/l_openvino_toolkit_debian9_2023.0.0.10926.b4452d56304_arm64.tgz -O openvino_2023.0.0.tgz
 
    .. tab:: ARM 32-bit
 
       .. code-block:: sh
 
          cd ~/Downloads/
-         sudo wget https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.0/linux/l_openvino_toolkit_debian9_2023.0.0.9052.9752fafe8eb_armhf.tgz -O openvino_2023.0.0.tgz
+         sudo wget https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.0/linux/l_openvino_toolkit_debian9_2023.0.0.10926.b4452d56304_armhf.tgz -O openvino_2023.0.0.tgz
 
-#. Extract the archive file and move it to the installation folder:
+4. Extract the archive file and move it to the installation folder:
 
    .. tab:: ARM 64-bit
 
       .. code-block:: sh
 
          sudo tar -xf openvino_2023.0.0.tgz
-         sudo mv l_openvino_toolkit_debian9_2023.0.0.9052.9752fafe8eb_arm64 /opt/intel/openvino_2023.0.0
+         sudo mv l_openvino_toolkit_debian9_2023.0.0.10926.b4452d56304_arm64 /opt/intel/openvino_2023.0.0
 
    .. tab:: ARM 32-bit
 
       .. code-block:: sh
 
          sudo tar -xf openvino_2023.0.0.tgz
-         sudo mv l_openvino_toolkit_debian9_2023.0.0.9052.9752fafe8eb_armhf /opt/intel/openvino_2023.0.0
+         sudo mv l_openvino_toolkit_debian9_2023.0.0.10926.b4452d56304_armhf /opt/intel/openvino_2023.0.0
 
-#. Install required system dependencies on Linux. To do this, OpenVINO provides a script in the extracted installation directory. Run the following command:
+
+5. Install required system dependencies on Linux. To do this, OpenVINO provides a script in the extracted installation directory. Run the following command:
 
    .. code-block:: sh
 
       sudo -E ./install_dependencies/install_openvino_dependencies.sh
 
-#. For simplicity, it is useful to create a symbolic link as below:
+6. For simplicity, it is useful to create a symbolic link as below:
 
    .. code-block:: sh
 
@@ -134,9 +136,9 @@ If you want to use your model for inference, the model must be converted to the 
 
   * OpenCV is necessary to run demos from Open Model Zoo (OMZ). Some OpenVINO samples can also extend their capabilities when compiled with OpenCV as a dependency. To install OpenCV for OpenVINO, see the `instructions on Github <https://github.com/opencv/opencv/wiki/BuildOpenCV4OpenVINO)>`_.
 
-* Convert the models using the Model Optimizer. Model Optimizer is provided with OpenVINO Development Tools.
+* Convert the models using the model conversion API, which is included in OpenVINO Development Tools.
 
-  * OpenVINO Development Tools is a set of utilities for working with OpenVINO and OpenVINO models. It provides tools like Model Optimizer, Benchmark Tool, Post-Training Optimization Tool, and Open Model Zoo Downloader. See the :doc:`Install OpenVINO Development Tools <openvino_docs_install_guides_install_dev_tools>` page for step-by-step installation instructions.
+  * OpenVINO Development Tools is a set of utilities for working with OpenVINO and OpenVINO models. It provides tools like model conversion API, Benchmark Tool, Post-Training Optimization Tool, and Open Model Zoo Downloader. See the :doc:`Install OpenVINO Development Tools <openvino_docs_install_guides_install_dev_tools>` page for step-by-step installation instructions.
 
 What's Next?
 ####################

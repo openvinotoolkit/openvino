@@ -52,6 +52,26 @@ Installing OpenVINO Runtime with Anaconda Package Manager
 
    Congratulations! You have finished installing OpenVINO Runtime.
 
+Compiling with OpenVINO Runtime from Conda-Forge on Linux
+###########################################################
+
+When linking OpenVINO libraries from Conda on Linux, ensure that you have the necessary Conda compilers installed. 
+To do so, run the following command in your Conda environment:
+
+.. code-block:: sh
+
+    conda install cmake c-compiler cxx-compiler make
+
+It is crucial to reactivate your Conda environment after installing the compilers. 
+This step ensures that all the environment variables are set correctly for successful linkage.
+
+To reactivate your Conda environment, execute the following command:
+
+.. code-block:: sh
+
+    conda activate py310
+
+Once you have reactivated your Conda environment, make sure that all the necessary environment variables are properly set and proceed with linking the OpenVINO libraries.
 
 Uninstalling OpenVINO™ Runtime
 ###########################################################

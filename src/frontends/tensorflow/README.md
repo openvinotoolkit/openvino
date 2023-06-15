@@ -2,7 +2,7 @@
 
 The TensorFlow Frontend (TF FE) is a C++ based OpenVINO Frontend component that is responsible for reading and converting a TensorFlow model to an `ov::Model` object
 that further can be serialized into the Intermediate Representation (IR) format.
-This is an internal API for OpenVINO that is used to implement user-facing API such as MO tool, MO Python API, and OpenVINO Runtime `read_model` function
+This is an internal API for OpenVINO that is used to implement user-facing API such as MO tool, Model Conversion API, and OpenVINO Runtime `read_model` function
 for reading TensorFlow models of the original format in run-time. Also, OpenVINO Model Server uses the frontend for serving models.
 Regular users should not use the frontend directly.
 
@@ -30,7 +30,7 @@ flowchart BT
     click ovms "https://github.com/openvinotoolkit/model_server"
 ```
 
-The MO tool and MO Python API now use the TensorFlow Frontend as the default path for conversion to IR.
+The MO tool and model conversion API now use the TensorFlow Frontend as the default path for conversion to IR.
 Known limitations of TF FE are described [here](https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_TensorFlow_Frontend.html).
 
 ## Key contacts

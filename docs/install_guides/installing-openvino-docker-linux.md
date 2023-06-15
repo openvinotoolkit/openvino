@@ -75,7 +75,7 @@ Configuring the Image for Different Devices
 +++++++++++++++++++++++++++++++++++++++++++
 
 If you want to run inference on a CPU no extra configuration is needed. 
-Go to `Run the image on different devices <running-the-docker-image-on-different-devices>`__ for the next step.
+Go to `Run the image on different devices <#running-the-docker-image-on-different-devices>`__ for the next step.
 
 If you want to run inference on a GPU, follow the instructions provided in the guide on 
 :doc:`Configuration for Intel GPU <openvino_docs_install_guides_configurations_for_intel_gpu>`
@@ -148,19 +148,22 @@ Running Samples in Docker Image
 
 To run the ``Hello Classification Sample`` on a specific inference device, run the following commands:
 
-**CPU**:
 
-.. code-block:: sh
+.. tab-set::
 
-   docker run -it --rm <image_name>
-   /bin/bash -c "cd ~ && omz_downloader --name googlenet-v1 --precisions FP16 && omz_converter --name googlenet-v1 --precision FP16 && curl -O https://storage.openvinotoolkit.org/data/test_data/images/car_1.bmp && python3 /opt/intel/openvino/samples/python/hello_classification/hello_classification.py public/googlenet-v1/FP16/googlenet-v1.xml car_1.bmp CPU"
+   .. tab-item:: CPU
 
-**GPU**:
+      .. code-block:: sh
 
-.. code-block:: sh
+         docker run -it --rm <image_name> 
+         /bin/bash -c "cd ~ && omz_downloader --name googlenet-v1 --precisions FP16 && omz_converter --name googlenet-v1 --precision FP16 && curl -O https://storage.openvinotoolkit.org/data/test_data/images/car_1.bmp && python3 /opt/intel/openvino/samples/python/hello_classification/hello_classification.py public/googlenet-v1/FP16/googlenet-v1.xml car_1.bmp CPU"
 
-   docker run -itu root:root  --rm --device /dev/dri:/dev/dri <image_name>
-   /bin/bash -c "omz_downloader --name googlenet-v1 --precisions FP16 && omz_converter --name googlenet-v1 --precision FP16 && curl -O https://storage.openvinotoolkit.org/data/test_data/images/car_1.bmp && python3 samples/python/hello_classification/hello_classification.py public/googlenet-v1/FP16/googlenet-v1.xml car_1.bmp GPU"
+   .. tab-item:: GPU
+
+      .. code-block:: sh
+
+         docker run -itu root:root  --rm --device /dev/dri:/dev/dri <image_name>
+         /bin/bash -c "omz_downloader --name googlenet-v1 --precisions FP16 && omz_converter --name googlenet-v1 --precision FP16 && curl -O https://storage.openvinotoolkit.org/data/test_data/images/car_1.bmp && python3 samples/python/hello_classification/hello_classification.py public/googlenet-v1/FP16/googlenet-v1.xml car_1.bmp GPU"
 
 
 Additional Resources
