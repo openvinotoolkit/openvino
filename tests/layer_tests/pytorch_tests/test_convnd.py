@@ -181,7 +181,7 @@ class TestConv2DInSubgraph(PytorchLayerTest):
                 model = torch.jit.script(model)
             model = torch.jit.freeze(model)
         print(model.inlined_graph)
-        decoder = TorchScriptPythonDecoder(model, freeze=freeze_model)
+        decoder = TorchScriptPythonDecoder(model)
         im = fe.load(decoder)
         om = fe.convert(im)
         self._resolve_input_shape_dtype(om, ov_inputs, dynamic_shapes)

@@ -121,7 +121,7 @@ std::shared_ptr<Model> FrontEnd::convert(const InputModel::Ptr& model) const {
         }
     }
     bool is_conversion_successful = unconverted_ops.size() == 0 && norm_err.empty();
-    FRONT_END_GENERAL_CHECK(is_conversion_successful, pack_detailed_failure_report(unconverted_ops, norm_err));
+    FRONT_END_OP_CONVERSION_CHECK(is_conversion_successful, pack_detailed_failure_report(unconverted_ops, norm_err));
     return converted_model;
 }
 
