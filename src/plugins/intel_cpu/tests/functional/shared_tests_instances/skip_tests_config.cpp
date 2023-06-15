@@ -195,6 +195,8 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*InferRequestIOBBlobTest.*secondCallGetOutputAfterInferSync.*)",
         // Old API cannot deallocate tensor
         R"(.*InferRequestIOBBlobTest.*canProcessDeallocatedOutputBlobAfterGetAndSetBlob.*)",
+        // Plugin version was changed to ov::Version
+        R"(.*VersionTest.*pluginCurrentVersionIsCorrect.*)",
     };
 
 #if defined(OPENVINO_ARCH_X86)
