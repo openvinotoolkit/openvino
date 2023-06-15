@@ -85,68 +85,97 @@ private:
         bool res = m_saved_model->ParseFromIstream(&sm_stream);
         FRONT_END_GENERAL_CHECK(res && m_saved_model->meta_graphs_size(), "Saved Model cannot be parsed");
 
+        const ::tensorflow::MetaGraphDef* meta_graph_with_no_tags = nullptr;
+
         for (const auto& meta_graph : m_saved_model->meta_graphs()) {
+            if (meta_graph.meta_info_def().tags_size() == 0) {
+                meta_graph_with_no_tags = &meta_graph;
+            }
+
             if (!meta_graph.has_graph_def()) {
                 continue;
             }
 
-            if (m_saved_model->meta_graphs_size() > 1) {
-                bool tag_found = false;
-                for (const auto& tag : meta_graph.meta_info_def().tags()) {
-                    if (tags.find(tag) != std::string::npos) {
-                        tag_found = true;
-                        break;
-                    }
+            bool tag_found = false;
+            for (const auto& tag : meta_graph.meta_info_def().tags()) {
+                if (tags.find(tag) != std::string::npos) {
+                    tag_found = true;
+                    break;
                 }
-                if (!tag_found) {
+            }
+            if (tag_found) {
+                return load_meta_graph(meta_graph);
+            }
+        }
+
+        // Alternate behavior for working with "default tag" to support additional cases for read_model
+        if (tags == "serve") {
+            // If we have only one MetaGraph - try to use it
+            if (m_saved_model->meta_graphs_size() == 1 && m_saved_model->meta_graphs(0).has_graph_def()) {
+                return load_meta_graph(m_saved_model->meta_graphs(0));
+            }
+
+            // If MetaGraph with tag == "serve" already found - we shouldn't reach this place.
+            // Otherwise we try to find a MetaGraph with no tags as an alternative
+            for (const auto& meta_graph : m_saved_model->meta_graphs()) {
+                if (!meta_graph.has_graph_def()) {
                     continue;
                 }
-            }
 
-            std::map<std::string, const ::tensorflow::SignatureDef*> validSignatures = {};
-            for (const auto& sit : meta_graph.signature_def()) {
-                const std::string& key = sit.first;
-                const ::tensorflow::SignatureDef& val = sit.second;
-                if (is_valid_signature(val)) {
-                    validSignatures[key] = &val;
+                if (meta_graph.meta_info_def().tags_size() == 0) {
+                    return load_meta_graph(meta_graph);
                 }
             }
 
-            // MetaGraph may have a list of signatures, but at this moment we need information only about
-            // "serving_default" signature which contains information about inputs/outputs names for the
-            // model. Situation when it is missing in a file also could be.
-            auto serving_default = validSignatures.find("serving_default");
-
-            if (serving_default != validSignatures.end()) {
-                m_inputs_map = std::make_shared<std::map<std::string, std::string>>();
-                m_outputs_map = std::make_shared<std::map<std::string, std::string>>();
-                for (const auto& input : serving_default->second->inputs()) {
-                    (*m_inputs_map)[input.second.name()] = input.first;
-                }
-                for (const auto& output : serving_default->second->outputs()) {
-                    (*m_outputs_map)[output.second.name()] = output.first;
-                }
-            }
-
-            m_graph_def = std::make_shared<::tensorflow::GraphDef>(meta_graph.graph_def());
-
-            // Update variables map using information by resolving AssignVariableOp graph nodes
-            std::map<std::string, std::string> var_map;
-            VariablesIndex::map_assignvariable(m_graph_def, var_map);
-            if (var_map.size() > 0 && m_variables_index.get() != nullptr) {
-                for (auto var : var_map) {
-                    m_variables_index->map_variable(var.first, var.second);
-                }
-            }
-
-            initialize_decoders_and_library();
-
-            return true;
+            FRONT_END_GENERAL_CHECK(false, "Saved Model doesn't contain any applicable MetaGraph");
         }
 
         FRONT_END_GENERAL_CHECK(false, "Saved Model doesn't contain MetaGraph with requested tag");
 
         return false;
+    }
+
+    /// \brief Does a loading of exact meta-graph
+    bool load_meta_graph(const ::tensorflow::MetaGraphDef& meta_graph) {
+        std::map<std::string, const ::tensorflow::SignatureDef*> validSignatures = {};
+        for (const auto& sit : meta_graph.signature_def()) {
+            const std::string& key = sit.first;
+            const ::tensorflow::SignatureDef& val = sit.second;
+            if (is_valid_signature(val)) {
+                validSignatures[key] = &val;
+            }
+        }
+
+        // MetaGraph may have a list of signatures, but at this moment we need information only about
+        // "serving_default" signature which contains information about inputs/outputs names for the
+        // model. Situation when it is missing in a file also could be.
+        auto serving_default = validSignatures.find("serving_default");
+
+        if (serving_default != validSignatures.end()) {
+            m_inputs_map = std::make_shared<std::map<std::string, std::string>>();
+            m_outputs_map = std::make_shared<std::map<std::string, std::string>>();
+            for (const auto& input : serving_default->second->inputs()) {
+                (*m_inputs_map)[input.second.name()] = input.first;
+            }
+            for (const auto& output : serving_default->second->outputs()) {
+                (*m_outputs_map)[output.second.name()] = output.first;
+            }
+        }
+
+        m_graph_def = std::make_shared<::tensorflow::GraphDef>(meta_graph.graph_def());
+
+        // Update variables map using information by resolving AssignVariableOp graph nodes
+        std::map<std::string, std::string> var_map;
+        VariablesIndex::map_assignvariable(m_graph_def, var_map);
+        if (var_map.size() > 0 && m_variables_index.get() != nullptr) {
+            for (auto var : var_map) {
+                m_variables_index->map_variable(var.first, var.second);
+            }
+        }
+
+        initialize_decoders_and_library();
+
+        return true;
     }
 };  // GraphIteratorSavedModel
 
