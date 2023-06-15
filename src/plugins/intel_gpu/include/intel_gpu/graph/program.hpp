@@ -146,7 +146,6 @@ public:
     std::vector<program_node*>& get_outputs() {
         return outputs;
     }  // ToDo: redesign reorder-inputs pass to make it const as_well as get_engine and get options
-    std::string get_output_layout_str();
     bool is_loop_body() const { return is_body_program; }
     const nodes_ordering& get_processing_order() const;
     nodes_ordering& get_processing_order();

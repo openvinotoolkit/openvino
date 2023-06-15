@@ -190,7 +190,7 @@ public:
 
     memory::ptr shape_info_memory_ptr() const { return _shape_info_memory; }
 
-    event::ptr execute(const std::vector<event::ptr>& events);
+    virtual event::ptr execute(const std::vector<event::ptr>& events);
     void init_kernels(const kernels_cache& kernels_cache) {
         _impl->init_kernels(kernels_cache, *_impl_params);
     }
@@ -267,8 +267,6 @@ public:
     std::shared_ptr<const PType> get_typed_desc() const { return _impl_params->typed_desc<PType>(); }
 
     virtual void update_output_memory() {}
-
-    bool has_inner_body();
 
 protected:
     primitive_inst(network& network, program_node const& node, bool allocate_memory);

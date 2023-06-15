@@ -598,8 +598,8 @@ void program::post_optimize_graph(bool is_internal) {
     if (_config.get_property(ov::intel_gpu::optimize_data))
         apply_opt_pass<remove_redundant_reorders>(lo, false, true, true); // pass to remove output reorders while all others graph optimizations were done
 
-    // update loop input/output primitive mappings
-    apply_opt_pass<update_loop_primitive_map>();
+    // update inner program input/output primitive mappings
+    apply_opt_pass<update_inner_program_io_map>();
 
     // Recalculate processing order after all graph transformation to keep optimal primitives ordering
     // for OOO queue
@@ -1297,10 +1297,6 @@ program::primitives_info program::get_current_stage_info() const {
     }
 
     return info;
-}
-
-std::string program::get_output_layout_str()  {
-    return outputs.at(0)->get_output_layout().to_short_string();
 }
 
 void program::save_pass_info(std::string pass_name) {

@@ -36,22 +36,29 @@ struct condition_impl : typed_primitive_impl<condition> {
         auto ev = instance.get_network().get_stream().create_user_event(false);
         set_node_params(instance.get_node());
 
-        auto pred = condition_inst::get_pred_frem_memory(instance.pred_memory_ptr(), instance.get_network().get_stream());
-        network::ptr executed_net = instance.get_inner_networks(pred);
+        auto pred = condition_inst::get_pred_from_memory(instance.pred_memory_ptr(), instance.get_network().get_stream());
+        network::ptr executed_net = pred? instance.get_net_true() : instance.get_net_false();
+        auto branch = pred? instance.get_branch_true() : instance.get_branch_false();
+
+        // Set input memory of inner network before its execution
+        for (size_t mem_idx = 0; mem_idx < instance.inputs_memory_count(); mem_idx++) {
+            const primitive_id& input_external_id = instance.dependencies().at(mem_idx).first->id();
+            auto iter = branch.input_map.find(input_external_id);
+            if (iter != branch.input_map.end()) {
+                const primitive_id& input_internal_id = iter->second;
+                auto mem_ptr = instance.input_memory_ptr(mem_idx);
+                executed_net->set_input_data(input_internal_id, mem_ptr);
+            }
+        }
 
         executed_net->execute({});
 
-        // When current inst has dynamic shape
-        // It only has exact output shape after inner network is executed
-        // thus, set output memory using output memory of inner network after its execution.
-        if (instance.is_dynamic()) {
-            auto branch = instance.get_branch(pred);
-            for (auto out_mem_map : branch.output_map) {
-                auto out_mem_idx = out_mem_map.first;
-                auto inner_out_id = out_mem_map.second;
-                auto mem_ptr = executed_net->get_output_memory(inner_out_id);
-                instance.set_output_memory(mem_ptr, false, out_mem_idx);
-            }
+        // Set output memory of condition_inst after inner network execution
+        for (auto out_mem_map : branch.output_map) {
+            auto out_mem_idx = out_mem_map.first;
+            auto inner_out_id = out_mem_map.second;
+            auto mem_ptr = executed_net->get_output(inner_out_id).get_memory();
+            instance.set_output_memory(mem_ptr, false, out_mem_idx);
         }
 
         ev->set();

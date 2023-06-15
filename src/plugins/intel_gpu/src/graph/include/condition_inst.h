@@ -69,16 +69,16 @@ public:
     static std::vector<layout> calc_output_layouts(condition_node const& node, kernel_impl_params const& impl_param);
     static layout calc_output_layout(condition_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(condition_node const& node);
+    static bool get_pred_from_memory(memory::ptr mem, stream& stream);
     typed_primitive_inst(network& network, condition_node const& node);
 
     memory::ptr pred_memory_ptr() const { return dep_memory_ptr(0); }
     network::ptr get_net_true() const { return _net_true; }
     network::ptr get_net_false() const { return _net_false; }
-    network::ptr get_inner_networks(bool is_net_true);
-    condition::branch get_branch(const bool is_net_true) const;
+    condition::branch get_branch_true() const { return node->get_branch_true(); }
+    condition::branch get_branch_false() const { return node->get_branch_false(); }
 
-
-    static bool get_pred_frem_memory(memory::ptr mem, stream& stream);
+    event::ptr execute(const std::vector<event::ptr>& events) override;
 
 private:
     network::ptr _net_true;

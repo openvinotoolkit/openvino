@@ -3,7 +3,7 @@
 //
 
 #include "condition_inst.h"
-
+#include "program_node.h"
 #include "intel_gpu/runtime/error_handler.hpp"
 #include "json_object.h"
 #include "primitive_type_base.h"
@@ -12,46 +12,37 @@
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(condition)
 
-static layout get_output_layout_from_inner_program(kernel_impl_params const& impl_param, size_t branch_idx) {
-    std::string branch_name = (branch_idx == 0) ? "true" : "false";
-    auto& outputs  = impl_param.inner_progs[branch_idx]->get_outputs();
-    auto& io_output_map  = impl_param.io_output_maps[branch_idx];
+const size_t idx_branch_true    = 0;
+const size_t idx_branch_false   = 1;
 
-    CLDNN_ERROR_NOT_EQUAL(impl_param.desc->id,
-                        "Count of branch_" + branch_name + " outputs",
-                        io_output_map.size(),
-                        "expected outputs size",
-                        1,
-                        "Branch_" + branch_name + " should have one output.");
-
-    auto inner_prim_id = io_output_map.at(0);
-    for (size_t idx = 0; idx < outputs.size(); idx++) {
-        if (outputs[idx]->id() == inner_prim_id) {
-            return outputs.at(idx)->get_output_layout();
-        }
+static std::map<primitive_id, layout> get_out_layout_map(cldnn::program::ptr prog) {
+    std::map<primitive_id, layout> out_layout_map;
+    for (auto& o : prog->get_outputs()) {
+        out_layout_map.insert({o->id(), o->get_output_layout()});
     }
-    OPENVINO_THROW("Not found output with prim_id: ", inner_prim_id);
+    return out_layout_map;
 }
 
-static layout get_output_layout_from_inner_network(kernel_impl_params const& impl_param, size_t branch_idx) {
-    std::string branch_name = (branch_idx == 0) ? "true" : "false";
-    auto& outputs  = impl_param.inner_nets[branch_idx]->get_outputs();
-    auto& io_output_map  = impl_param.io_output_maps[branch_idx];
+static std::map<primitive_id, layout> get_out_layout_map(cldnn::network::ptr net) {
+    std::map<primitive_id, layout> out_layout_map;
+    for (auto& o : net->get_outputs()) {
+        out_layout_map.insert({o->id(), o->get_output_layout()});
+    }
+    return out_layout_map;
+}
 
-    CLDNN_ERROR_NOT_EQUAL(impl_param.desc->id,
-                        "Count of branch_" + branch_name + " outputs",
-                        io_output_map.size(),
-                        "expected outputs size",
-                        1,
-                        "Branch_" + branch_name + " should have one output.");
-
-    auto inner_prim_id = io_output_map.at(0);
-    for (size_t idx = 0; idx < outputs.size(); idx++) {
-        if (outputs[idx]->id() == inner_prim_id) {
-            return outputs.at(idx)->get_output_layout();
+static std::vector<layout> get_output_layouts(std::map<primitive_id, layout>&& outputs, const std::map<size_t, cldnn::primitive_id> &io_output_map) {
+    std::vector<layout> out_layouts;
+    for (auto out : outputs) {
+        for (auto& io_output : io_output_map) {
+            auto inner_prim_id = io_output.second;
+            if (out.first == inner_prim_id) {
+                out_layouts.push_back(out.second);
+            }
         }
     }
-    OPENVINO_THROW("Not found output with prim_id: ", inner_prim_id);
+    OPENVINO_ASSERT(out_layouts.size() > 0, "Not found any matched output");
+    return out_layouts;
 }
 
 /*
@@ -69,17 +60,17 @@ layout condition_inst::calc_output_layout(condition_node const& /* node */, kern
     OPENVINO_ASSERT(impl_param.inner_progs.size() == 2, "If(Condition) contains incorrect number of inner programs ", impl_param.inner_progs.size());
     OPENVINO_ASSERT(impl_param.io_output_maps.size() == 2, "If(Condition) contains incorrect number of io output maps ", impl_param.io_output_maps.size());
 
-    auto layout_true  = get_output_layout_from_inner_program(impl_param, 0);
-    auto layout_false = get_output_layout_from_inner_program(impl_param, 1);
+    auto layouts_true  = get_output_layouts(get_out_layout_map(impl_param.inner_progs[idx_branch_true]),  impl_param.io_output_maps[idx_branch_true]);
+    auto layouts_false = get_output_layouts(get_out_layout_map(impl_param.inner_progs[idx_branch_false]), impl_param.io_output_maps[idx_branch_false]);
 
     CLDNN_ERROR_LAYOUT_MISMATCH(impl_param.desc->id,
                                 "Branch true output layout",
-                                layout_true,
+                                layouts_true[0],
                                 "branch false output layout",
-                                layout_false,
+                                layouts_false[0],
                                 "Layout of the branches should be the same.");
 
-    return layout_true;
+    return layouts_true[0];
 }
 
 template <class T>
@@ -88,7 +79,7 @@ static bool convert_data(memory::ptr mem, stream& stream) {
     return (static_cast<float>(*lock_data.data()) != 0.f);
 }
 
-bool condition_inst::get_pred_frem_memory(memory::ptr mem, stream& stream) {
+bool condition_inst::get_pred_from_memory(memory::ptr mem, stream& stream) {
     auto mem_dt = mem->get_layout().data_type;
     switch (mem_dt) {
         case cldnn::data_types::f32:
@@ -113,22 +104,26 @@ template<typename ShapeType>
 std::vector<layout> condition_inst::calc_output_layouts(condition_node const& node, kernel_impl_params const& impl_param) {
     if (impl_param.inner_nets.empty()) {
         OPENVINO_ASSERT(impl_param.inner_progs.empty() == false, "The count of inner programs should not be zero");
-        auto layout_true  = get_output_layout_from_inner_program(impl_param, 0);
-        auto layout_false = get_output_layout_from_inner_program(impl_param, 1);
-        OPENVINO_ASSERT(layout_true.get_rank() == layout_false.get_rank(), "dynamic rank is not supported");
-        return {layout{ov::PartialShape::dynamic(layout_true.get_rank()), layout_true.data_type, layout_true.format }};
-    } else {
-        auto layout_true = get_output_layout_from_inner_network(impl_param, 0);
-        auto layout_false = get_output_layout_from_inner_network(impl_param, 1);
+        auto layouts_true  = get_output_layouts(get_out_layout_map(impl_param.inner_progs[idx_branch_true]),  impl_param.io_output_maps[idx_branch_true]);
+        auto layouts_false = get_output_layouts(get_out_layout_map(impl_param.inner_progs[idx_branch_false]), impl_param.io_output_maps[idx_branch_false]);
 
+        if (layouts_true[0].is_static() && layouts_true[0] == layouts_false[0]) {
+            return {layouts_true[0]};
+        } else {
+            OPENVINO_ASSERT(layouts_true[0].get_rank() == layouts_false[0].get_rank(), "dynamic rank is not supported");
+            return {layout{ov::PartialShape::dynamic(layouts_true[0].get_rank()), layouts_true[0].data_type, layouts_true[0].format }};
+        }
+    } else {
         auto& memory_deps = impl_param.memory_deps;
         OPENVINO_ASSERT(memory_deps.count(0) > 0, "");
         auto mem_ptr = memory_deps.at(0);
-        auto pred = condition_inst::get_pred_frem_memory(mem_ptr, impl_param.get_stream());
+        auto pred = condition_inst::get_pred_from_memory(mem_ptr, impl_param.get_stream());
         if (pred) {
-            return {layout_true};
+            auto layouts_true  = get_output_layouts(get_out_layout_map(impl_param.inner_nets[idx_branch_true]),  impl_param.io_output_maps[idx_branch_true]);
+            return {layouts_true[0]};
         } else {
-            return {layout_false};
+            auto layouts_false = get_output_layouts(get_out_layout_map(impl_param.inner_nets[idx_branch_false]), impl_param.io_output_maps[idx_branch_false]);
+            return {layouts_false[0]};
         }
     }
 }
@@ -157,38 +152,62 @@ condition_inst::typed_primitive_inst(network& network, condition_node const& nod
     this->set_inner_networks({_net_true, _net_false});
 }
 
-network::ptr condition_inst::get_inner_networks(bool pred) {
-    auto net = pred? _net_true : _net_false;
-    const auto& branch = pred? node->get_branch_true() : node->get_branch_false();
+event::ptr condition_inst::execute(const std::vector<event::ptr>& events) {
+    const auto primitive_id = id();
+    OPENVINO_ASSERT(_has_valid_input, primitive_id, " has invalid/unset input");
+    GPU_DEBUG_GET_INSTANCE(debug_config);
 
-    for (size_t mem_idx = 0; mem_idx < inputs_memory_count(); mem_idx++) {
-        const primitive_id& input_external_id = dependencies().at(mem_idx).first->id();
-        auto iter = branch.input_map.find(input_external_id);
-        if (iter != branch.input_map.end()) {
-            const primitive_id& input_internal_id = iter->second;
-            auto mem_ptr = input_memory_ptr(mem_idx);
-            net->set_input_data(input_internal_id, mem_ptr);
+    std::vector<event::ptr> dependencies;
+
+    on_execute();
+
+    GPU_DEBUG_TRACE << id() << ": execute " << _impl->get_kernel_name() << std::endl;
+
+    if (_exec_deps.empty() && dependencies.empty()) {
+        dependencies = events;
+    } else {
+        auto queue_type = get_network().get_stream().get_queue_type();
+        // Prepare dependencies events in case of OOO queue, CPU implementation,
+        // or optimized_out impl which has CPU users (needs_completion_event() && !is_output() condition)
+        if (queue_type == QueueTypes::out_of_order || _impl->is_cpu() || (can_be_optimized() && needs_completion_event() && !is_output())) {
+            dependencies.reserve(dependencies.size() + _exec_deps.size());
+            for (auto& input : _exec_deps) {
+                auto id = input->id();
+                try {
+                    // if the requested event does not exists it means that it has not been executed, so the processing_order is
+                    // wrong or synchronization failed.
+                    auto ev = get_network().get_primitive_event(id);
+                    dependencies.emplace_back(ev);
+                } catch (const std::out_of_range& oor) {
+                    OPENVINO_ASSERT(false, "[GPU] execution order corrupted: ", oor.what());
+                }
+            }
         }
     }
 
-    // Only set output memory when node is static shape
-    // Because the output layout is not calculated yet until inner body complete to execute.
-    // After inner body execution is completed, condition_inst will update shape
-    if (!is_dynamic()) {
-        for (auto out_mem_map : branch.output_map) {
-            auto idx = out_mem_map.first;
-            auto out_internal_id = out_mem_map.second;
-            auto mem_ptr = output_memory_ptr(idx);
-            net->set_output_memory(out_internal_id, mem_ptr);
+    {
+        GPU_DEBUG_PROFILED_STAGE(instrumentation::pipeline_stage::inference);
+        auto ev = _impl->execute(dependencies, *this);
+
+        GPU_DEBUG_IF(!debug_config->dump_profiling_data.empty()) {
+            get_network().get_stream().wait_for_events({ev});
+
+            if (ev != nullptr) {
+                auto profiling_info = ev->get_profiling_info();
+                for (const auto &interval : profiling_info) {
+                    if (interval.stage == cldnn::instrumentation::profiling_stage::executing) {
+                        GPU_DEBUG_CODE(stage_prof.set_custom_stage_duration(interval.value->value()));
+                    }
+                }
+            }
         }
+
+        if (is_dynamic()) {
+            update_shape();
+            reset_shape_change();
+        }
+
+        return ev;
     }
-
-    return net;
 }
-
-condition::branch condition_inst::get_branch(const bool pred) const {
-    const auto& branch = pred? node->get_branch_true() : node->get_branch_false();
-    return branch;
-}
-
 }  // namespace cldnn
