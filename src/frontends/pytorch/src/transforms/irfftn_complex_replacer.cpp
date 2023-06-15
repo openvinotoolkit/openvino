@@ -124,6 +124,7 @@ IRFFTNComplexReplacer::IRFFTNComplexReplacer() {
                 norm = "backward";
             }
         } else {
+            add_exception_to_fw_node(irfftn_op, "aten::fft_irfftn: could not retrive value for norm attribute.");
             return false;
         }
 
@@ -141,6 +142,9 @@ IRFFTNComplexReplacer::IRFFTNComplexReplacer() {
             auto sqrt_n = std::make_shared<v0::Sqrt>(n);
             normalized_irfftn = std::make_shared<v1::Multiply>(irdft, sqrt_n);
         } else {
+            add_exception_to_fw_node(
+                irfftn_op,
+                "aten::fft_irfftn: unrecognized normalization mode. Only forward, backward and ortho are supported.");
             return false;
         }
 

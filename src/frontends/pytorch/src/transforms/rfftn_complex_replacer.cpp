@@ -98,6 +98,7 @@ RFFTNComplexReplacer::RFFTNComplexReplacer() {
                 norm = "backward";
             }
         } else {
+            add_exception_to_fw_node(rfftn_op, "aten::fft_rfftn: could not retrive value for norm attribute.");
             return false;
         }
 
@@ -118,6 +119,9 @@ RFFTNComplexReplacer::RFFTNComplexReplacer() {
             auto sqrt_n = std::make_shared<v0::Sqrt>(n);
             normalized_rfftn = std::make_shared<v1::Divide>(rdft, sqrt_n);
         } else {
+            add_exception_to_fw_node(
+                rfftn_op,
+                "aten::fft_rfftn: unrecognized normalization mode. Only forward, backward and ortho are supported.");
             return false;
         }
 
@@ -142,6 +146,9 @@ RFFTNComplexReplacer::RFFTNComplexReplacer() {
                 rval = true;
             }
         }
+        add_exception_to_fw_node(
+            rfftn_op,
+            "aten::fft_rfftn: Unsupported output node. Only aten::real and aten::imag are supported.");
         return rval;
     };
 

@@ -400,7 +400,7 @@ TEST(type_prop, idft_dynamic_types) {
     auto axes_input = std::make_shared<op::Parameter>(element::dynamic, axes_shape);
     auto signal_size_input = std::make_shared<op::Parameter>(element::dynamic, signal_size_shape);
     auto idft = std::make_shared<op::v7::IDFT>(data, axes_input, signal_size_input);
- 
+
     EXPECT_EQ(idft->get_element_type(), element::dynamic);
     ASSERT_TRUE(idft->get_output_partial_shape(0).same_scheme(ref_output_shape));
 }
