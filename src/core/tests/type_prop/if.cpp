@@ -44,12 +44,12 @@ TEST(type_prop, if_simple_test) {
     Shape out0_shape{32, 40, 10};
     auto sh = result0->get_output_shape(0);
     EXPECT_EQ(sh, out0_shape);
-    // Check that If validation validates both bodies
+    // Check that If validation when condition is constant validates single body
     convert_then_op->set_convert_element_type(ov::element::f16);
     convert_else_op->set_convert_element_type(ov::element::f16);
     if_op->validate_and_infer_types();
-    EXPECT_EQ(else_op_res->get_element_type(), ov::element::f16);
     EXPECT_EQ(then_op_res->get_element_type(), ov::element::f16);
+    EXPECT_EQ(else_op_res->get_element_type(), ov::element::f32);
 }
 
 TEST(type_prop, if_non_const_condition_test) {
@@ -340,7 +340,7 @@ TEST(type_prop, if_element_type_dynamic) {
     // That which we iterate over
     auto X = make_shared<op::Parameter>(element::f16, Shape{32, 40, 10});
     auto Y = make_shared<op::Parameter>(element::f16, Shape{32, 40, 10});
-    auto cond = std::make_shared<ngraph::opset5::Constant>(ngraph::element::boolean, ngraph::Shape{1}, true);
+    auto cond = std::make_shared<ngraph::opset5::Constant>(ngraph::element::boolean, ngraph::Shape{1}, false);
 
     // Set up the cell body, a function from (Xi, Yi) -> (Zo)
     // Body parameters
@@ -367,8 +367,8 @@ TEST(type_prop, if_element_type_dynamic) {
     Shape out0_shape{32, 40, 10};
     auto sh = result0->get_output_shape(0);
     EXPECT_EQ(sh, out0_shape);
-    // Check that If validation validates both bodies
+    // Check that If validation when condition is constant validates single body
     if_op->validate_and_infer_types();
+    EXPECT_EQ(then_op_res->get_element_type(), ov::element::dynamic);
     EXPECT_EQ(else_op_res->get_element_type(), ov::element::f16);
-    EXPECT_EQ(then_op_res->get_element_type(), ov::element::f16);
 }
