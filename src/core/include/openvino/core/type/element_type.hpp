@@ -178,7 +178,7 @@ constexpr Type u64(Type_t::u64);
 
 template <typename T>
 Type from() {
-    throw std::invalid_argument("Unknown type");
+    OPENVINO_THROW("Unknown type");
 }
 template <>
 OPENVINO_API Type from<char>();

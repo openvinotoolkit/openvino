@@ -190,17 +190,6 @@ public:
         return graphHasDynamicInput;
     }
 
-    /**
-     * @brief This call updates the dynamic batch value
-     * 
-     * @note It is used for backward compatibility with legacy API only.
-     * @param newDynBatch
-     * new dynamic batch value
-     */
-    void setDynBatch(int newDynBatch) {
-        dynBatch = newDynBatch;
-    }
-
 protected:
     void VisitNode(NodePtr node, std::vector<NodePtr>& sortedNodes);
 
@@ -265,10 +254,6 @@ private:
     std::unordered_map<Node*, size_t> syncNodesInds;
 
     GraphContext::CPtr context;
-
-    // this field stores the dynamic batch value to provide backward compatibility
-    // with the legacy API dyn batch behaviour
-    int dynBatch = -1;
 
     void EnforceBF16();
 };

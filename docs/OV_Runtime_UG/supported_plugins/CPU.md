@@ -386,7 +386,7 @@ User can use the following properties to limit available CPU resource for model 
    
    ``ov::hint::scheduling_core_type`` and ``ov::hint::enable_hyper_threading`` only support Intel® x86-64 CPU on Linux and Windows in current release.
    
-By default, OpenVINO Runtime will enable CPU threads pinning for better performance. User also can use property ``ov::hint::enable_cpu_pinning`` to switch it off. Disable threads pinning might be benefitial in complex applications with several workloads executed in parallel.
+By default, OpenVINO Runtime will enable CPU threads pinning for better performance. User also can use property ``ov::hint::enable_cpu_pinning`` to switch it off. Disable threads pinning might be beneficial in complex applications with several workloads executed in parallel.
 
 .. tab-set::
 

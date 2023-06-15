@@ -443,6 +443,7 @@ Limitations
 * Synchronization of pre/post processing jobs and inference pipeline inside a shared queue is user's responsibility.
 * Throughput mode is not available when queue sharing is used, i.e., only a single stream can be used for each compiled model.
 
+
 Low-Level Methods for RemoteContext and RemoteTensor Creation
 #####################################################################
 
@@ -498,7 +499,7 @@ To see pseudo-code of usage examples, refer to the sections below.
 See Also
 #######################################
 
-* ov::Core
-* ov::RemoteTensor
+* ``:ref:`ov::Core <doxid-classov-1-1-core>```
+* ``:ref:`ov::RemoteTensor <doxid-classov-1-1-remote-tensor>```
 
 @endsphinxdirective
