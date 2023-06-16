@@ -1335,7 +1335,13 @@ void BrgemmCopyBEmitter::execute(matmul::jit_brgemm_matmul_copy_b_t *kernel, con
 }
 
 HorizonEmitter::HorizonEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n) :
-    jit_emitter(h, isa, n, Precision::FP32, emitter_in_out_map::vec_to_vec) {}
+    jit_emitter(h, isa, n, Precision::FP32, emitter_in_out_map::vec_to_vec) {
+    if (ov::as_type_ptr<const snippets::op::HorizonMax>(n)) {
+        m_op_type = OpType::max;
+    } else if (ov::as_type_ptr<const snippets::op::HorizonSum>(n)) {
+        m_op_type = OpType::sum;
+    }
+}
 
 void HorizonEmitter::emit_impl(const std::vector<size_t>& in,
                                     const std::vector<size_t>& out) const {
@@ -1365,49 +1371,33 @@ void HorizonEmitter::emit_isa(const std::vector<size_t> &in, const std::vector<s
         Zmm dst_zmm = Zmm(out[0]);
         Zmm aux_zmm = Zmm(aux_vec_idxs[0]);
         h->vshuff32x4(aux_zmm, dst_zmm, dst_zmm, 0x4E);
-        perform_op(dst_zmm, aux_zmm);
+        perform_op<Zmm>(dst_zmm, dst_zmm, aux_zmm);
         h->vshuff32x4(aux_zmm, dst_zmm, dst_zmm, 0xB1);
-        perform_op(dst_zmm, aux_zmm);
+        perform_op<Zmm>(dst_zmm, dst_zmm, aux_zmm);
     } else if (isa == dnnl::impl::cpu::x64::avx2) {
         Ymm dst_ymm = Ymm(out[0]);
         Ymm aux_ymm = Ymm(aux_vec_idxs[0]);
         h->vperm2i128(aux_ymm, dst_ymm, dst_ymm, 0x01);
-        perform_op(dst_ymm, aux_ymm);
+        perform_op<Ymm>(dst_ymm, dst_ymm, aux_ymm);
     }
     h->uni_vshufps(aux_vmm, dst_vmm, dst_vmm, 0x4E);
-    perform_op(dst_vmm, aux_vmm);
+    perform_op<Xmm>(dst_vmm, dst_vmm, aux_vmm);
     h->uni_vshufps(aux_vmm, dst_vmm, dst_vmm, 0xB1);
-    perform_op(dst_vmm, aux_vmm);
+    perform_op<Xmm>(dst_vmm, dst_vmm, aux_vmm);
 }
 
-void HorizonEmitter::perform_op(const Xbyak::Xmm &dst_xmm, const Xbyak::Xmm &src_xmm) const {
-    assert(!"Horizontal operation is not implemented.");
-}
-
-void HorizonEmitter::perform_op(const Xbyak::Ymm &dst_xmm, const Xbyak::Ymm &src_xmm) const {
-    assert(!"Horizontal operation is not implemented.");
-}
-
-HorizonMaxEmitter::HorizonMaxEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n) :
-    HorizonEmitter(h, isa, n) {}
-
-void HorizonMaxEmitter::perform_op(const Xbyak::Xmm &dst_xmm, const Xbyak::Xmm &src_xmm) const {
-    h->uni_vmaxps(dst_xmm, dst_xmm, src_xmm);
-}
-
-void HorizonMaxEmitter::perform_op(const Xbyak::Ymm &dst_ymm, const Xbyak::Ymm &src_ymm) const {
-    h->uni_vmaxps(dst_ymm, dst_ymm, src_ymm);
-}
-
-HorizonSumEmitter::HorizonSumEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n) :
-    HorizonEmitter(h, isa, n) {}
-
-void HorizonSumEmitter::perform_op(const Xbyak::Xmm &dst_xmm, const Xbyak::Xmm &src_xmm) const {
-    h->uni_vaddps(dst_xmm, dst_xmm, src_xmm);
-}
-
-void HorizonSumEmitter::perform_op(const Xbyak::Ymm &dst_ymm, const Xbyak::Ymm &src_ymm) const {
-    h->uni_vaddps(dst_ymm, dst_ymm, src_ymm);
+template<typename Vmm>
+void HorizonEmitter::perform_op(const Vmm &vmm1, const Vmm &vmm2, const Vmm &vmm3) const {
+    switch (m_op_type) {
+        case OpType::max:
+            h->uni_vmaxps(vmm1, vmm2, vmm3);
+            break;
+        case OpType::sum:
+            h->uni_vaddps(vmm1, vmm2, vmm3);
+            break;
+        default:
+            assert(!"Unsupported horizontal operation.");
+    }
 }
 
 VectorBufferEmitter::VectorBufferEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n) :

@@ -427,7 +427,6 @@ public:
     }
 
 protected:
-    size_t aux_gprs_count() const override {return 1;}
     size_t aux_vecs_count() const override {return 1;}
 
 private:
@@ -437,26 +436,11 @@ private:
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
     void emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const;
 
-    virtual void perform_op(const Xbyak::Xmm &dst_xmm, const Xbyak::Xmm &src_xmm) const;
-    virtual void perform_op(const Xbyak::Ymm &dst_ymm, const Xbyak::Ymm &src_ymm) const;
-};
+    template<typename Vmm>
+    void perform_op(const Vmm &vmm1, const Vmm &vmm2, const Vmm &vmm3) const;
 
-class HorizonMaxEmitter : public HorizonEmitter {
-public:
-    HorizonMaxEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n);
-
-private:
-    void perform_op(const Xbyak::Xmm &dst_xmm, const Xbyak::Xmm &src_xmm) const override;
-    void perform_op(const Xbyak::Ymm &dst_ymm, const Xbyak::Ymm &src_ymm) const override;
-};
-
-class HorizonSumEmitter : public HorizonEmitter {
-public:
-    HorizonSumEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n);
-
-private:
-    void perform_op(const Xbyak::Xmm &dst_xmm, const Xbyak::Xmm &src_xmm) const override;
-    void perform_op(const Xbyak::Ymm &dst_ymm, const Xbyak::Ymm &src_ymm) const override;
+    enum class OpType { max, sum };
+    OpType m_op_type = OpType::max;
 };
 
 class VectorBufferEmitter : public jit_emitter {
