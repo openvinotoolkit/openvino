@@ -13,6 +13,7 @@
 #include <ngraph/type/bfloat16.hpp>
 #include <ngraph/type/float16.hpp>
 #include <ngraph/type/element_type_traits.hpp>
+#include "common_test_utils/common_utils.hpp"
 
 #include <ie_blob.h>
 #include <random>
@@ -53,6 +54,7 @@ inline std::vector<float> generate_float_numbers(std::size_t vec_len, float min,
  * @param values src tensor which should be broadcast
  */
 void fill_data_with_broadcast(InferenceEngine::Blob::Ptr &blob, InferenceEngine::Blob::Ptr &values);
+void fill_data_with_broadcast(ov::Tensor& tensor, ov::Tensor& values);
 
 /**
  * Wrapper on top of fill_data_with_broadcast with simplified signature
@@ -62,17 +64,19 @@ void fill_data_with_broadcast(InferenceEngine::Blob::Ptr &blob, InferenceEngine:
  * @param values data to broadcast
  */
 void fill_data_with_broadcast(InferenceEngine::Blob::Ptr &blob, size_t axis, std::vector<float> values);
-
+void fill_data_with_broadcast(ov::Tensor& tensor, size_t axis, std::vector<float> values);
 /**
  * Make a view blob with new shape. It will reinterpret original tensor data as a tensor with new shape.
  *
  * NB! Limitation: the nwe one blob will no have ownership of data buffer. The original blob should be alive
  *     while view is in use.
  *
- * @param blob original source tensor
+ * @param tensor original source tensor
  * @param new_shape new one shape for view blob
  * @return new one blob view
  */
+ov::Tensor make_reshape_view(const ov::Tensor &tensor, std::vector<size_t> new_shape);
+
 InferenceEngine::Blob::Ptr
 make_reshape_view(const InferenceEngine::Blob::Ptr &blob, InferenceEngine::SizeVector new_shape);
 
@@ -85,7 +89,7 @@ make_reshape_view(const InferenceEngine::Blob::Ptr &blob, InferenceEngine::SizeV
  * @param blob tensor to fill in
  * @param val value to set into each element
  */
-void fill_data_const(InferenceEngine::Blob::Ptr &blob, float val);
+void fill_data_const(const ov::Tensor& tensor, float val);
 
 
 /**

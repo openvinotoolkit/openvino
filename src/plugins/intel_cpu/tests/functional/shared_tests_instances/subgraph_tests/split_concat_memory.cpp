@@ -10,13 +10,13 @@ using namespace SubgraphTestsDefinitions;
 
 namespace {
 
-const std::vector<InferenceEngine::Precision> netPrecisions = {
-        InferenceEngine::Precision::FP32,
-        InferenceEngine::Precision::I32,
-        InferenceEngine::Precision::FP16,
-        InferenceEngine::Precision::I16,
-        InferenceEngine::Precision::U8,
-        InferenceEngine::Precision::I8,
+const std::vector<ov::element::Type_t> netPrecisions = {
+        ov::element::Type_t::f32,
+        ov::element::Type_t::i32,
+        ov::element::Type_t::f16,
+        ov::element::Type_t::i16,
+        ov::element::Type_t::u8,
+        ov::element::Type_t::i8,
 };
 
 const std::vector<InferenceEngine::SizeVector> shapes = {

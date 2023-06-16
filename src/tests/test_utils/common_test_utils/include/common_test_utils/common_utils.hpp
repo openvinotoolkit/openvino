@@ -19,6 +19,8 @@
 
 namespace CommonTestUtils {
 
+using SizeVector = std::vector<size_t>;
+
 enum class OpType { SCALAR, VECTOR };
 
 std::ostream& operator<<(std::ostream& os, OpType type);
