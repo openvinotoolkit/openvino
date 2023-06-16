@@ -30,7 +30,7 @@ public:
             if (x < 0) {
                 THROW_GNA_EXCEPTION << "invalid order: element " << x << " should be >= 0";
             }
-            if (x >= counter.size()) {
+            if (static_cast<size_t>(x) >= counter.size()) {
                 THROW_GNA_EXCEPTION << "invalid order: element " << x << " should be < " << counter.size();
             }
             if (counter[x]) {
@@ -70,7 +70,7 @@ public:
         }
 
         for (auto&& cycle : permuteCycles) {
-            for (int i = 0; i + 1 < cycle.size(); i++) {
+            for (size_t i = 0; i + 1 < cycle.size(); i++) {
                 permutes.push_back(cycle[i]);
             }
         }

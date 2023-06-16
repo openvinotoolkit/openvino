@@ -644,7 +644,7 @@ void GNAGraphCompiler::finalizeConvolution1DPrimitive(InferenceEngine::CNNLayerP
             std::size_t offset = 0;
             std::vector<uint8_t> padding_zeros(num_conv_kernel_padding * cpSize, 0);
             uint8_t* dstPtr = reinterpret_cast<uint8_t*>(data);
-            for (int i = 0; i < num_filters; i++) {
+            for (uint32_t i = 0; i < num_filters; i++) {
                 ie_memcpy(dstPtr + offset,
                           size - offset,
                           transposedWeights.data() + single_conv_kernel_size * i * cpSize,
@@ -1898,7 +1898,7 @@ void GNAGraphCompiler::ConcatAlignFilterPrimitive(InferenceEngine::CNNLayerPtr l
             ->push_initializer(layer, ptr_weights, paddedWeightsSize, [=](void* data, size_t size) {
                 size_t roffset = weights_offset;
                 size_t woffset = 0;
-                for (int i = 0; i < num_rows_out && size >= woffset; i++) {
+                for (uint32_t i = 0; i < num_rows_out && size >= woffset; i++) {
                     ie_memcpy(reinterpret_cast<uint8_t*>(data) + woffset,
                               size - woffset,
                               filterLayer->_weights->cbuffer().as<const uint8_t*>() + roffset,

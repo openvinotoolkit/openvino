@@ -78,7 +78,7 @@ double pivot_search(const details::Function<T>& activation_function,
     j = 0;
     Delta = 1.0;
 
-    for (int i = 0; i < N; i++) {
+    for (uint32_t i = 0; i < N; i++) {
         t[i].push_back(alpha_0 + (static_cast<double>((i + 1)) / static_cast<double>((N + 1))) * (alpha_N - alpha_0));
     }
 
@@ -86,7 +86,7 @@ double pivot_search(const details::Function<T>& activation_function,
         // Figure 4:  Box #2
         alpha[0].resize(j + 1);
         alpha[0][j] = alpha_0;
-        for (int i = 1; i < N; i++) {
+        for (uint32_t i = 1; i < N; i++) {
             alpha[i].resize(j + 1);
             alpha[i][j] =
                 (activation_function.get_value(t[i - 1][j]) - activation_function.get_value(t[i][j]) +
@@ -98,7 +98,7 @@ double pivot_search(const details::Function<T>& activation_function,
         alpha[N][j] = alpha_N;
 
         // Figure 4:  Box #3
-        for (int i = 0; i < N; i++) {
+        for (uint32_t i = 0; i < N; i++) {
             epsilon[i].resize(j + 1);
             epsilon[i][j] = sgn * (activation_function.first_derivative(t[i][j]) * (alpha[i][j] - t[i][j]) +
                                    activation_function.get_value(t[i][j]) - activation_function.get_value(alpha[i][j]));
@@ -117,7 +117,7 @@ double pivot_search(const details::Function<T>& activation_function,
         max_epsilon_prev = max_epsilon;
         max_epsilon = std::fabs(epsilon[0][j]);
         min_epsilon = std::fabs(epsilon[0][j]);
-        for (int i = 1; i < N + 1; i++) {
+        for (uint32_t i = 1; i < N + 1; i++) {
             if (std::fabs(epsilon[i][j]) > max_epsilon)
                 max_epsilon = std::fabs(epsilon[i][j]);
             if (std::fabs(epsilon[i][j]) < min_epsilon)
@@ -127,7 +127,7 @@ double pivot_search(const details::Function<T>& activation_function,
             details::Pwl value;
             result.resize(0);
             epsilon_final = (max_epsilon + min_epsilon) / 4.0;  // Andrzej's modification
-            for (int i = 0; i < N; i++) {
+            for (uint32_t i = 0; i < N; i++) {
                 value.alpha = alpha[i][j];
                 value.beta = sgn * activation_function.first_derivative(t[i][j]) * (value.alpha - t[i][j]) +
                              sgn * activation_function.get_value(t[i][j]) - epsilon_final;
@@ -164,14 +164,14 @@ double pivot_search(const details::Function<T>& activation_function,
         }
 
         // Figure 4:  Box #4
-        for (int i = 0; i < N; i++) {
+        for (uint32_t i = 0; i < N; i++) {
             d[i].resize(j + 1);
             d[i][j] = Delta * (epsilon[i + 1][j] - epsilon[i][j]) /
                       ((epsilon[i + 1][j] / (alpha[i + 1][j] - t[i][j])) + (epsilon[i][j] / (t[i][j] - alpha[i][j])));
         }
 
         // Figure 4:  Box #5
-        for (int i = 0; i < N; i++) {
+        for (uint32_t i = 0; i < N; i++) {
             t[i].resize(j + 2);
             t[i][j + 1] = t[i][j] + d[i][j];
         }
