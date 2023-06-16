@@ -20,8 +20,8 @@ class TRANSFORMATIONS_API TSResetNoSinkingAttribute;
 
 /**
  * @ingroup ie_transformation_common_api
- * @brief TSGatherForward transformation sinks Transpose through Gather operations
- * in the forward direction.
+ * @brief TSResetNoSinkingAttribute transformation resets all NoSinkingAttribute runtime attributes
+ * in Transpose operations.
  */
 class ov::pass::transpose_sinking::TSResetNoSinkingAttribute : public ov::pass::MatcherPass {
 public:

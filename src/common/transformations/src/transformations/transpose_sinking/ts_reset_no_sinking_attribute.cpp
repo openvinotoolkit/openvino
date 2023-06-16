@@ -18,7 +18,7 @@ TSResetNoSinkingAttribute::TSResetNoSinkingAttribute() {
     MATCHER_SCOPE(TSResetNoSinkingAttribute);
 
     auto transpose_label = wrap_type<ov::op::v1::Transpose>([](const Output<Node>& output) -> bool {
-        const auto& rt_info = output.get_rt_info();
+        const auto& rt_info = output.get_node()->get_rt_info();
         return rt_info.find(NoTransposeSinkingAttr::get_type_info_static()) != rt_info.end();
     });
     ov::matcher_pass_callback matcher_pass_callback = [=](pattern::Matcher& m) {

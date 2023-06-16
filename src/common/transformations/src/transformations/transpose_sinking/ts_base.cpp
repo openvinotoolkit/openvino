@@ -29,7 +29,7 @@ void TSForwardBase::transpose_sinking(const std::string& pass_name,
             utils::GetFirstTransposeInput(main_node, m_const_transpose_input, m_tranpose_indices);
 
         if (transformation_callback(main_node)) {
-            utils::UpdateForwardSinkingAbility(transpose_input_info.transpose);
+            mark_as_no_sinking_node(transpose_input_info.transpose);
             return false;
         }
 
@@ -45,7 +45,7 @@ void TSForwardBase::transpose_sinking(const std::string& pass_name,
             }
         }
         if (!res) {
-            utils::UpdateForwardSinkingAbility(transpose_input_info.transpose);
+            mark_as_no_sinking_node(transpose_input_info.transpose);
         }
         return res;
     };
@@ -64,7 +64,7 @@ void TSForwardBase::default_outputs_update(const std::shared_ptr<Node>& main_nod
     main_node->validate_and_infer_types();
     for (auto& new_node : utils::sink_forward::InsertOutputTransposes(main_node, transpose_info)) {
         register_new_node(new_node);
-        utils::UpdateForwardSinkingAbility(new_node);
+        mark_as_no_sinking_node(new_node);
     }
 }
 

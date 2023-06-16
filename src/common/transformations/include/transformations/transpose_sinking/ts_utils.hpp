@@ -88,8 +88,6 @@ ov::NodeVector InsertTransposeBeforeNode(const std::shared_ptr<ov::Node>& main_n
                                          std::vector<size_t> input_indexes = {});
 }  // namespace sink_backward
 
-void UpdateForwardSinkingAbility(const std::shared_ptr<ov::Node>&);
-
 /**
  *  @brief Checks if @arg has consumers that are all the same Transpose operation
  *  and that sinking is enabled for all these Transpose ops. Otherwise returns false.

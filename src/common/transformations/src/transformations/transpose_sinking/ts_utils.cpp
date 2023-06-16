@@ -313,67 +313,6 @@ NodeVector InsertTransposeBeforeNode(const NodePtr& main_node,
 }
 }  // namespace sink_backward
 
-#define CHECK_TRANSPOSE_SINKING_SUPPORTED(TYPE, node) \
-    if (dynamic_cast<TYPE*>(node)) {                  \
-        return true;                                  \
-    }
-
-namespace {
-
-bool CanPropagateForwardThrough(Node* node) {
-    // todo: collect this info automatically
-    CHECK_TRANSPOSE_SINKING_SUPPORTED(op::util::UnaryElementwiseArithmetic, node)
-    CHECK_TRANSPOSE_SINKING_SUPPORTED(ov::op::v0::Clamp, node)
-    CHECK_TRANSPOSE_SINKING_SUPPORTED(ov::op::v0::Elu, node)
-    CHECK_TRANSPOSE_SINKING_SUPPORTED(ov::op::v4::SoftPlus, node)
-    CHECK_TRANSPOSE_SINKING_SUPPORTED(ov::op::v1::LogicalNot, node)
-    CHECK_TRANSPOSE_SINKING_SUPPORTED(ov::op::v0::Convert, node)
-    CHECK_TRANSPOSE_SINKING_SUPPORTED(ov::op::v10::IsInf, node)
-    CHECK_TRANSPOSE_SINKING_SUPPORTED(ov::op::v10::IsNaN, node)
-    CHECK_TRANSPOSE_SINKING_SUPPORTED(ov::op::v10::IsFinite, node)
-    CHECK_TRANSPOSE_SINKING_SUPPORTED(op::util::BinaryElementwiseArithmetic, node)
-    CHECK_TRANSPOSE_SINKING_SUPPORTED(op::util::BinaryElementwiseComparison, node)
-    CHECK_TRANSPOSE_SINKING_SUPPORTED(op::util::BinaryElementwiseLogical, node)
-    CHECK_TRANSPOSE_SINKING_SUPPORTED(ov::op::v0::PRelu, node)
-    CHECK_TRANSPOSE_SINKING_SUPPORTED(ov::op::v1::Pad, node)
-    CHECK_TRANSPOSE_SINKING_SUPPORTED(ov::op::v1::BatchToSpace, node)
-    CHECK_TRANSPOSE_SINKING_SUPPORTED(ov::op::v1::SpaceToBatch, node)
-    CHECK_TRANSPOSE_SINKING_SUPPORTED(ov::op::v0::ReverseSequence, node)
-    CHECK_TRANSPOSE_SINKING_SUPPORTED(ov::op::v8::Gather, node)
-    CHECK_TRANSPOSE_SINKING_SUPPORTED(ov::op::v4::Interpolate, node)
-    CHECK_TRANSPOSE_SINKING_SUPPORTED(op::util::ArithmeticReductionKeepDims, node)
-    CHECK_TRANSPOSE_SINKING_SUPPORTED(op::util::LogicalReductionKeepDims, node)
-    CHECK_TRANSPOSE_SINKING_SUPPORTED(ov::op::v8::Slice, node)
-    CHECK_TRANSPOSE_SINKING_SUPPORTED(ov::op::v1::Split, node)
-    CHECK_TRANSPOSE_SINKING_SUPPORTED(ov::op::v1::VariadicSplit, node)
-    CHECK_TRANSPOSE_SINKING_SUPPORTED(ov::op::v0::Squeeze, node)
-    CHECK_TRANSPOSE_SINKING_SUPPORTED(ov::op::v1::Reshape, node)
-    CHECK_TRANSPOSE_SINKING_SUPPORTED(ov::op::v0::Unsqueeze, node)
-    CHECK_TRANSPOSE_SINKING_SUPPORTED(ov::op::v1::Transpose, node)
-    CHECK_TRANSPOSE_SINKING_SUPPORTED(ov::op::v0::FakeQuantize, node)
-    CHECK_TRANSPOSE_SINKING_SUPPORTED(ov::op::v0::Concat, node)
-
-    return false;
-}
-
-bool CanPropagateForward(const NodePtr& node) {
-    for (size_t i = 0; i < node->get_output_size(); ++i) {
-        for (auto& consumer_input : node->output(i).get_target_inputs()) {
-            if (!CanPropagateForwardThrough(consumer_input.get_node()))
-                return false;
-        }
-    }
-
-    return true;
-}
-
-}  // namespace
-
-void UpdateForwardSinkingAbility(const NodePtr& node) {
-    if (!CanPropagateForward(node))
-        mark_as_no_sinking_node(node);
-}
-
 namespace {
 
 std::shared_ptr<ov::op::v0::Constant> GetTransposeConstant(Node* node) {
