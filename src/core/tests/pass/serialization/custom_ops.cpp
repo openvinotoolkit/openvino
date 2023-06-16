@@ -50,7 +50,7 @@ public:
 
 TEST_F(CustomOpsSerializationTest, CustomOpNoExtensions) {
     const std::string model = R"V0G0N(
-<net name="Network" version="10">
+<net name="Network" version="11">
     <layers>
         <layer name="in1" type="Parameter" id="0" version="opset1">
             <data element_type="f32" shape="2,2,2,1"/>
@@ -104,7 +104,7 @@ TEST_F(CustomOpsSerializationTest, CustomOpNoExtensions) {
     core.add_extension(extension);
     auto expected = core.read_model(model, ov::Tensor());
     ov::pass::Manager manager;
-    manager.register_pass<ov::pass::Serialize>(m_out_xml_path, m_out_bin_path, ov::pass::Serialize::Version::IR_V10);
+    manager.register_pass<ov::pass::Serialize>(m_out_xml_path, m_out_bin_path, ov::pass::Serialize::Version::IR_V11);
     manager.run_passes(expected);
     auto result = core.read_model(m_out_xml_path, m_out_bin_path);
 
