@@ -176,6 +176,8 @@ class TorchScriptPythonDecoder (Decoder):
                     break
             if not skip_freeze:
                 f_model = torch.jit.freeze(scripted)
+            else:
+                f_model = scripted
         else:
             f_model = pt_module
         
