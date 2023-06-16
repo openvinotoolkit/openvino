@@ -216,7 +216,7 @@ std::string gemm_inst::to_string(gemm_node const& node) {
     std::stringstream primitive_description;
 
     json_composite gemm_info;
-    for (size_t i = 0; i < node.inputs_count(); i++) {
+    for (size_t i = 0; i < node.get_inputs_count(); i++) {
         gemm_info.add("input_" + std::to_string(i), node.input(i).id());
     }
     gemm_info.add("alpha", alpha);

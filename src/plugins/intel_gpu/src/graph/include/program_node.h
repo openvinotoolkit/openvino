@@ -166,12 +166,31 @@ public:
     program_node& get_dependency(size_t idx) const { return *dependencies.at(idx).first; }
     std::pair<program_node*, int32_t> get_dependency_with_port(size_t idx) const { return dependencies.at(idx); }
 
+    // Count of original primitive inputs, i.e. it doesn't include fused dependencies
+    size_t get_inputs_count() const { return desc->input_size(); }
+    // Count of original primitive outputs
+    size_t get_outputs_count() const { return desc->output_size(); }
+
     std::vector<layout> const get_input_layouts() const {
         std::vector<layout> layouts;
         for (const auto& i : dependencies) {
             layouts.push_back(i.first->get_output_layout(true, i.second));
         }
         return layouts;
+    }
+
+    layout get_input_layout(size_t idx = 0) const {
+       return get_dependency(idx).get_output_layout(false);
+    }
+
+    ov::PartialShape get_input_pshape(size_t idx = 0) const {
+       return get_input_layout(idx).get_partial_shape();
+    }
+
+    ov::PartialShape get_output_pshape(size_t idx = 0) const {
+        if (!is_valid_output_layout(idx))
+            return calc_output_layouts()[idx].get_partial_shape();
+       return get_output_layout(idx).get_partial_shape();
     }
 
     // replaces idx-th dependency of 'this' with 'new_dep', calls program::remove_if_dangling(old_dep)
@@ -185,8 +204,8 @@ public:
     void remove_dependency(size_t idx);
     void remove_dependency(program_node& node);
 
-    size_t get_dependency_index(program_node& node) const;
-    size_t get_user_index(program_node& node) const;
+    size_t get_dependency_index(const program_node& node) const;
+    size_t get_user_index(const program_node& node) const;
 
     std::set<primitive_id> get_memory_dependencies() const;
     void add_memory_dependency(primitive_id);
@@ -241,8 +260,6 @@ public:
     // invalidate_users_if_changed is set to true returns whether output layout has changed
     bool set_output_layout(layout& new_layout, bool invalidate_users_if_changed = true, size_t idx = 0);
     bool set_output_layouts(std::vector<layout>& new_layout, bool invalidate_users_if_changed = true);
-
-    size_t get_outputs_count() const { return num_outputs; }
 
     // forces recalculation of cached output layout, invalidates users if new layout is different than previous one and
     // @p invalidate_users_if_changed is set to true returns whether output layout has changed
