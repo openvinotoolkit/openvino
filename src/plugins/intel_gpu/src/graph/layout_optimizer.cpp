@@ -1725,7 +1725,8 @@ format layout_optimizer::get_preferred_format(program_node& node) {
     } else if (node.is_type<resample>()) {
         // if the resample is in the last part of the network and there are no users using blocked format,
         // it is better to reorder to bfyx before resample is done.
-        if (all_users_simple_format_until_output(node, node, 0, 10)) {
+        // Skip all user format check when node is dynamic. It could cause endless recursive call in get_preferred_foramt()
+        if (!node.is_dynamic() && all_users_simple_format_until_output(node, node, 0, 10)) {
             const auto& dim = format::dimension(node.get_output_layout().format);
             expected = format::get_default_format(dim, false, false);
         } else {
