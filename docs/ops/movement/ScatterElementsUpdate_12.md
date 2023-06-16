@@ -17,59 +17,70 @@ by default the elements of ``data`` tensor are simply overwritten by the values 
 
 Additionally, *use_init_val* attribute can be used to control whether the elements from the ``data`` input tensor are used as initial value (enabled by default).
 
-For instance, in a 3D tensor case, the update of the element corresponding to the ``[i][j][k]`` is performed as below:
-
-- reduction == "copy"
+General logic of output values calculations is presented below for 1D tensor case, the element corresponding to the ``[i]`` is performed as:
 
 .. code-block:: cpp
 
-    output[indices[i][j][k]][j][k] = updates[i][j][k] if axis = 0,
-    output[i][indices[i][j][k]][k] = updates[i][j][k] if axis = 1,
-    output[i][j][indices[i][j][k]] = updates[i][j][k] if axis = 2
+    output[indices[i]] = reduction(updates[i], output[indices[i]]), axis = 0
 
-
-- reduction == "sum"
+- Overwrite without additional operation, reduction = "none"
 
 .. code-block:: cpp
 
-    output[indices[i][j][k]][j][k] += updates[i][j][k] if axis = 0,
-    output[i][indices[i][j][k]][k] += updates[i][j][k] if axis = 1,
-    output[i][j][indices[i][j][k]] += updates[i][j][k] if axis = 2
+    output[indices[i]] = updates[i], axis = 0
 
-
-- reduction == "prod"
+- Update by adding corresponding elements, reduction = "sum"
 
 .. code-block:: cpp
 
-    output[indices[i][j][k]][j][k] *= updates[i][j][k] if axis = 0,
-    output[i][indices[i][j][k]][k] *= updates[i][j][k] if axis = 1,
-    output[i][j][indices[i][j][k]] *= updates[i][j][k] if axis = 2
+    output[indices[i]] += updates[i], axis = 0
 
-
-- reduction == "min"
+- Update by multiplication of the corresponding elements, reduction = "prod"
 
 .. code-block:: cpp
 
-    output[indices[i][j][k]][j][k] = min(updates[i][j][k], output[indices[i][j][k]][j][k]) if axis = 0,
-    output[i][indices[i][j][k]][k] = min(updates[i][j][k], output[i][indices[i][j][k]][k]) if axis = 1,
-    output[i][j][indices[i][j][k]] = min(updates[i][j][k], output[i][j][indices[i][j][k]]) if axis = 2
+    output[indices[i]] *= updates[i], axis = 0
 
-
-- reduction == "max"
+- Update with minimum value of the corresponding elements, reduction = "min"
 
 .. code-block:: cpp
 
-    output[indices[i][j][k]][j][k] = max(updates[i][j][k], output[indices[i][j][k]][j][k]) if axis = 0,
-    output[i][indices[i][j][k]][k] = max(updates[i][j][k], output[i][indices[i][j][k]][k]) if axis = 1,
-    output[i][j][indices[i][j][k]] = max(updates[i][j][k], output[i][j][indices[i][j][k]]) if axis = 2
+    output[indices[i]] = min(updates[i], output[indices[i]]) axis = 0
 
+- Update with maximum value of the corresponding elements, reduction = "max"
+
+.. code-block:: cpp
+
+    output[indices[i]] = max(updates[i], output[indices[i]]) axis = 0
+
+- Update with mean value of the corresponding elements, reduction = "mean"
+
+.. code-block:: cpp
+
+    output[indices[i]] = mean(updates[i], output[indices[i]]) axis = 0
+
+
+For 2D tensor case, the update of the element corresponding to the ``[i][j]`` is performed as:
+
+.. code-block:: cpp
+
+    output[indices[i][j]][j] = reduction(updates[i][j], output[indices[i][j]][j]) if axis = 0
+    output[i][indices[i][j]] = reduction(updates[i][j], output[indices[i][j]][j]) if axis = 1
+
+Accordingly for 3D tensor case, the update of the element corresponding to the ``[i][j][k]`` is performed as:
+
+.. code-block:: cpp
+
+    output[indices[i][j][k]][j][k] = reduction(updates[i][j][k], output[indices[i][j][k]][j][k]) if axis = 0
+    output[i][indices[i][j][k]][k] = reduction(updates[i][j][k], output[i][indices[i][j][k]][k]) if axis = 1
+    output[i][j][indices[i][j][k]] = reduction(updates[i][j][k], output[i][j][indices[i][j][k]]) if axis = 2
 
 **Attributes**:
 
 * *reduction*
 
   * **Description**: The type of operation to perform on the inputs.
-  * **Range of values**: one of ``copy``, ``sum``, ``prod``, ``min``, ``max``
+  * **Range of values**: one of ``copy``, ``sum``, ``prod``, ``min``, ``max``, ``mean``
   * **Type**: `string`
   * **Default value**: ``copy``
   * **Required**: *no*
