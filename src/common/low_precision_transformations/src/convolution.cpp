@@ -93,7 +93,8 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
     auto fqOnWeightsWasDecomposed = std::get<0>(res_tuple);
     auto newFQ = std::get<1>(res_tuple);
     auto dequantize = std::get<2>(res_tuple);
-    updateOutput(context, dequantize, newFQ);
+    if (newFQ != nullptr && dequantize != nullptr)
+        updateOutput(context, dequantize, newFQ);
 
     if (updatePrecisions && !fqOnWeightsWasDecomposed) {
         return false;
