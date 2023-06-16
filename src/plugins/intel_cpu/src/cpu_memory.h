@@ -116,6 +116,21 @@ private:
     std::unique_ptr<IMemoryMngr> _pMemMngr;
 };
 
+class LockBasedMemoryMngr : public IMemoryMngrObserver {
+public:
+    explicit LockBasedMemoryMngr(std::unique_ptr<IMemoryMngrObserver> mngr) : m_pMemMngr(std::move(mngr)) {}
+    void* getRawPtr() const noexcept override;
+    void setExtBuff(void* ptr, size_t size) override;
+    bool resize(size_t size) override;
+    bool hasExtBuffer() const noexcept override;
+    void registerMemory(Memory* memPtr) override;
+    void unregisterMemory(Memory* memPtr) override;
+
+private:
+    std::unique_ptr<IMemoryMngrObserver> m_pMemMngr;
+    mutable std::mutex m_lock;
+};
+
 using MemoryMngrPtr = std::shared_ptr<IMemoryMngrObserver>;
 using MemoryMngrCPtr = std::shared_ptr<const IMemoryMngrObserver>;
 

@@ -914,13 +914,8 @@ void Graph::AllocateWithReuse() {
                         } else {
                             auto sharedEdge = edge->getSharedEdge();
                             auto sharedEdgeParent = sharedEdge->getParent();
-                            if (sharedEdgeParent->isConstant()) {
-                                edge->allocate(sharedEdge->getMemoryPtr()->GetData());
-                                DEBUG_LOG(*edge, " const sharedEdge with ", *sharedEdge);
-                            } else {
-                                edge->allocate(sharedEdge->getMemoryPtr()->getMemoryMngr());
-                                DEBUG_LOG(*edge, " sharedEdge with ", *sharedEdge);
-                            }
+                            edge->allocate(sharedEdge->getMemoryPtr()->getMemoryMngr());
+                            DEBUG_LOG(*edge, " sharedEdge with ", *sharedEdge);
                         }
                     }
                 });

@@ -303,7 +303,9 @@ void Edge::externalAllocate(WeightsSharing::Ptr weightsCache) {
 
     if (weightsCache) {
         auto alloc = [this] () {
-            allocate();
+            auto threadSafeMngr =
+                std::make_shared<LockBasedMemoryMngr>(make_unique<DnnlMemoryMngr>(make_unique<MemoryMngrWithReuse>()));
+            allocate(threadSafeMngr);
             return memoryPtr;
         };
 

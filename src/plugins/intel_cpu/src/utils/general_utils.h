@@ -44,6 +44,11 @@ constexpr inline bool implication(bool cause, bool cond) {
     return !cause || !!cond;
 }
 
+template <class T, class... Args>
+inline std::unique_ptr<T> make_unique(Args&&... args) {
+    return std::unique_ptr<T>(new T(std::forward<Args>(args)...));
+}
+
 template<typename T>
 std::string vec2str(const std::vector<T> &vec) {
     if (!vec.empty()) {

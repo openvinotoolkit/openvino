@@ -279,7 +279,9 @@ void Input::cloneBlobIfRequired() {
             memcpy(memory->GetData(), constOp->get_data_ptr(), constOp->get_byte_size());
         }
 
-        MemoryPtr ptr = std::make_shared<Memory>(getEngine(), memDesc);
+        auto threadSafeMngr =
+            std::make_shared<LockBasedMemoryMngr>(make_unique<DnnlMemoryMngr>(make_unique<MemoryMngrWithReuse>()));
+        MemoryPtr ptr = std::make_shared<Memory>(getEngine(), memDesc, threadSafeMngr);
         ptr->SetData(*memory.get(), needFlushDenormalsToZero);
 
         return ptr;
@@ -369,8 +371,7 @@ void Input::cloneBlobIfRequired() {
     // IRs already have all subnormals flushed to zero, but in
     // read_model scenario with directly loaded original model still can have subnormals
     } else if (isBlobAligned() && (!needFlushDenormalsToZero || !hasSubnormals()) && !isWA()) {
-        auto ptr = new Memory(getEngine(), memDesc, constOp->get_data_ptr());
-        memoryPtr = MemoryCPtr(ptr);
+        memoryPtr = std::make_shared<Memory>(getEngine(), memDesc, constOp->get_data_ptr());
     } else {
         memoryPtr = std::const_pointer_cast<const IMemory>(cloneBlob());
     }

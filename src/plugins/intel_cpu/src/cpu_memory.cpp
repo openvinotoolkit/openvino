@@ -275,5 +275,30 @@ void DnnlMemoryMngr::notifyUpdate() {
         }
     }
 }
+
+void* LockBasedMemoryMngr::getRawPtr() const noexcept {
+    std::lock_guard<std::mutex> guard(m_lock);
+    return m_pMemMngr->getRawPtr();
+}
+void LockBasedMemoryMngr::setExtBuff(void* ptr, size_t size) {
+    std::lock_guard<std::mutex> guard(m_lock);
+    m_pMemMngr->setExtBuff(ptr, size);
+}
+bool LockBasedMemoryMngr::resize(size_t size) {
+    std::lock_guard<std::mutex> guard(m_lock);
+    m_pMemMngr->resize(size);
+}
+bool LockBasedMemoryMngr::hasExtBuffer() const noexcept {
+    std::lock_guard<std::mutex> guard(m_lock);
+    return m_pMemMngr->hasExtBuffer();
+}
+void LockBasedMemoryMngr::registerMemory(Memory* memPtr) {
+    std::lock_guard<std::mutex> guard(m_lock);
+    m_pMemMngr->registerMemory(memPtr);
+}
+void LockBasedMemoryMngr::unregisterMemory(Memory* memPtr) {
+    std::lock_guard<std::mutex> guard(m_lock);
+    m_pMemMngr->unregisterMemory(memPtr);
+}
 }   // namespace intel_cpu
 }   // namespace ov
