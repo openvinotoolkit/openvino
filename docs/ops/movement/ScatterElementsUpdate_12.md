@@ -80,9 +80,9 @@ Accordingly for 3D tensor case, the update of the element corresponding to the `
 * *reduction*
 
   * **Description**: The type of operation to perform on the inputs.
-  * **Range of values**: one of ``copy``, ``sum``, ``prod``, ``min``, ``max``, ``mean``
+  * **Range of values**: one of ``none``, ``sum``, ``prod``, ``min``, ``max``, ``mean``
   * **Type**: `string`
-  * **Default value**: ``copy``
+  * **Default value**: ``none``
   * **Required**: *no*
 
 
@@ -95,7 +95,7 @@ Accordingly for 3D tensor case, the update of the element corresponding to the `
   * **Type**: boolean
   * **Default value**: true
   * **Required**: *no*
-  * **Note**: The attribute has no effect for *reduction* == "copy"
+  * **Note**: The attribute has no effect for *reduction* == "none"
 
 
 **Inputs**:
