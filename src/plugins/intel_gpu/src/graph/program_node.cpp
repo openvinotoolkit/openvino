@@ -219,7 +219,7 @@ void program_node::remove_dependency(program_node& node) {
             remove_dependency(i);
 }
 
-size_t program_node::get_user_index(program_node& node) const {
+size_t program_node::get_user_index(const program_node& node) const {
     size_t idx = 0;
     for (auto& user : users) {
         if (user == &node)
@@ -231,7 +231,7 @@ size_t program_node::get_user_index(program_node& node) const {
     OPENVINO_ASSERT(false, "Search invalid user node" + node.id() + " node");
 }
 
-size_t program_node::get_dependency_index(program_node& node) const {
+size_t program_node::get_dependency_index(const program_node& node) const {
     for (size_t i = 0; i < dependencies.size(); ++i)
         if (dependencies[i].first == &node)
             return i;
@@ -1268,4 +1268,3 @@ void program_node::init_onednn_primitive_attributes() {
 
 
 #endif // ENABLE_ONEDNN_FOR_GPU
-

@@ -36,7 +36,7 @@ private:
         program::ptr _program = nullptr;
 
         void add_or_change_input_layout(const program_node& node) {
-            auto layout = node.get_dependency(0).get_output_layout();
+            auto layout = node.get_input_layout(0);
             auto input_id = node.as<condition>().result_id();
             if (_topology.get_primitives().count(input_id) == 0) {
                 _topology.add_primitive(std::make_shared<input_layout>(input_id, layout));

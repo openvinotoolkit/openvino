@@ -1054,7 +1054,7 @@ void program::fuse_nodes(program_node &fused_node,
     fused_primitive_desc local_desc(peer_node.get_primitive());
     local_desc.f_param = get_node_ptr(peer_node.id())->get_fuse_params();
     local_desc.total_num_deps = peer_node.get_dependencies().size();
-    local_desc.input_layout = peer_node.get_dependency(0).get_output_layout();
+    local_desc.input_layout = peer_node.get_input_layout(0);
     local_desc.output_layout = peer_layout;
 
     if (fused_node.in_shape_of_subgraph && !peer_node.in_shape_of_subgraph) {
@@ -1350,7 +1350,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
 
             if (!conv.is_dynamic()) {
                 // In dynamic shape, conv is fixed as a predefined format b_fs_yx_fsv16
-                auto input_size = node->get_dependency(0).get_output_layout().get_tensor();
+                auto input_size = node->get_input_layout(0).get_tensor();
                 auto ifm = static_cast<uint32_t>(input_size.feature[0]);
                 if (conv.get_primitive()->groups == ifm && conv.get_primitive()->groups >= 16)
                     total_dw_conv_layers++;

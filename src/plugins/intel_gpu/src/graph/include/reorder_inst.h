@@ -29,7 +29,6 @@ public:
         support_padding_all(true);
     }
 
-    size_t inputs_count() const { return get_primitive()->input.size(); }
     program_node& mean_nv12() const { return get_dependency(2); }
     program_node& input(size_t idx = 0) const { return get_dependency(idx); }
     program_node& mean() const { return get_dependency(1); }

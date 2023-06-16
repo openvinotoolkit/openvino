@@ -342,7 +342,7 @@ void prepare_buffer_fusing::run(program& p) {
     auto can_optimize = [](const program_node* node) {
         bool is_dynamic = node->is_dynamic();
         bool is_planar = format::is_default_format(node->get_output_layout().format);
-        bool no_pad = !node->get_output_layout().data_padding && !node->get_input_layouts().empty() && !node->get_input_layouts()[0].data_padding;
+        bool no_pad = !node->get_output_layout().data_padding && !node->get_input_layouts().empty() && !node->get_input_layout(0).data_padding;
         if (node->is_type<reshape>() && is_dynamic && is_planar && no_pad && !node->is_output() && !node->has_fused_primitives()) {
             return true;
         }
@@ -398,7 +398,7 @@ void prepare_buffer_fusing::run(program& p) {
                 const auto& crop_layout = node.get_output_layout();
                 auto format = crop_layout.format;
                 auto crop_prim = node.get_primitive();
-                auto input_layout = node.get_dependency(0).get_output_layout();
+                auto input_layout = node.get_input_layout(0);
                 const auto& crop_size = crop_layout.get_tensor();
                 const auto& out_padd = crop_layout.data_padding;
                 auto opt_lower_pad = crop_prim->offsets.feature[0];

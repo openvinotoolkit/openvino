@@ -30,7 +30,6 @@ public:
     }
 
     program_node& input(size_t idx = 0) const { return get_dependency(idx); }
-    size_t inputs_count() const { return get_primitive()->input.size(); }
 
     std::shared_ptr<NodeFuseParams> get_fuse_params() const override {
         return std::make_shared<EltwiseFuseParams>(typed_desc());
