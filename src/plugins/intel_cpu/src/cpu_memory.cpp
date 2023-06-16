@@ -37,7 +37,7 @@ namespace {
 Memory::Memory(const dnnl::engine& eng, MemoryDescPtr desc, const void* data, bool pads_zeroing) :
     m_pMemDesc(desc),
     m_eng(eng),
-    m_mgrHandle(std::make_shared<DnnlMemoryMngr>(std::unique_ptr<MemoryMngrWithReuse>(new MemoryMngrWithReuse())), this),
+    m_mgrHandle(std::make_shared<DnnlMemoryMngr>(make_unique<MemoryMngrWithReuse>()), this),
     dnnlMemHandle(this) {
         create(m_pMemDesc, data, pads_zeroing);
     }

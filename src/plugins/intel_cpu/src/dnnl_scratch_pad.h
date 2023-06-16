@@ -19,7 +19,7 @@ class DnnlScratchPad {
 
 public:
     DnnlScratchPad(dnnl::engine eng) : eng(eng) {
-        mgrPtr = std::make_shared<DnnlMemoryMngr>(std::unique_ptr<MemoryMngrWithReuse>(new MemoryMngrWithReuse()));
+        mgrPtr = std::make_shared<DnnlMemoryMngr>(make_unique<MemoryMngrWithReuse>());
     }
 
     MemoryPtr createScratchPadMem(const MemoryDescPtr& md) {

@@ -883,7 +883,7 @@ void Graph::AllocateWithReuse() {
         }
         for (auto& group : groups) {
             auto grpMemMngr =
-                std::make_shared<DnnlMemoryMngr>(std::unique_ptr<MemoryMngrWithReuse>(new MemoryMngrWithReuse()));
+                std::make_shared<DnnlMemoryMngr>(make_unique<MemoryMngrWithReuse>());
             for (auto& box : group) {
                 for (auto& edge : edge_clusters[box.id]) {
                     if (edge->getStatus() == Edge::Status::NeedAllocation) {
