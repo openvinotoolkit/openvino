@@ -250,7 +250,7 @@ ov::Tensor create_tensor_random(const benchmark_app::InputInfo& inputInfo,
     size_t tensor_size =
         std::accumulate(inputInfo.dataShape.begin(), inputInfo.dataShape.end(), 1, std::multiplies<size_t>());
     auto tensor = ov::Tensor(inputInfo.type, inputInfo.dataShape);
-    auto data = tensor.data<T>();
+    auto data = inputInfo.type == ov::element::boolean ? static_cast<T*>(tensor.data()) : tensor.data<T>();
 
     std::mt19937 gen(0);
     uniformDistribution<T2> distribution(rand_min, rand_max);
