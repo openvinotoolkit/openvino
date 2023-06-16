@@ -115,7 +115,7 @@ std::vector<layout> condition_inst::calc_output_layouts(condition_node const& no
         }
     } else {
         auto& memory_deps = impl_param.memory_deps;
-        OPENVINO_ASSERT(memory_deps.count(0) > 0, "");
+        OPENVINO_ASSERT(memory_deps.count(0) > 0, "The count of memory deps should not be zero");
         auto mem_ptr = memory_deps.at(0);
         auto pred = condition_inst::get_pred_from_memory(mem_ptr, impl_param.get_stream());
         if (pred) {

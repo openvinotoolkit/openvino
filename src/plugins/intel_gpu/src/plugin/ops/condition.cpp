@@ -32,9 +32,28 @@ static cldnn::condition::branch gen_branch(Program& p, const std::shared_ptr<ngr
     const auto& internal_body = (idx == idx_true)? op->get_then_body() : op->get_else_body();
 
     InferenceEngine::CNNNetwork body_network(internal_body);
+    {
+        // CNNNetwork change the input/output data type to fp32 when input/output data type is fp16
+        // To run internal body, rollback input/output data to original one.
+        size_t tidx = 0;
+        auto& model_inputs = internal_body->get_parameters();
+        for (auto& in : body_network.getInputsInfo()) {
+            auto input_data_type = InferenceEngine::details::convertPrecision(model_inputs[tidx++]->get_output_tensor(0).get_element_type());
+            if (in.second->getPrecision() != input_data_type)
+                in.second->setPrecision(input_data_type);
+        }
+
+        tidx = 0;
+        for (auto& out : body_network.getOutputsInfo()) {
+            const auto& model_output = internal_body->get_output_op(tidx++);
+            auto output_data_type = InferenceEngine::details::convertPrecision(model_output->get_output_tensor(0).get_element_type());
+            if (out.second->getPrecision() != output_data_type)
+                out.second->setPrecision(output_data_type);
+        }
+    }
+
     auto config = p.get_config();
     config.set_property(ov::intel_gpu::max_dynamic_batch(1));
-
     Program body_program(body_network, p.get_engine(), config);
     branch.inner_program = body_program.GetCompiledProgram();
 
