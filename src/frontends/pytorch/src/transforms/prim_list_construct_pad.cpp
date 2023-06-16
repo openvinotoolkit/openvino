@@ -109,8 +109,8 @@ PrimListConstructPadReplacer::PrimListConstructPadReplacer() {
         // get pad_begins and pad_ends indexes starting for end of paddings
         auto start_pad_begins = std::make_shared<v1::Add>(pad_size, minus_two);
         auto start_pad_ends = std::make_shared<v1::Add>(pad_size, minus_one);
-        auto pad_begins_full = create_padding(input_rank, pad_values, start_pad_begins, minus_one);
-        auto pad_ends_full = create_padding(input_rank, pad_values, start_pad_ends, zero);
+        auto pad_begins_full = create_padding(rg, input_rank, pad_values, start_pad_begins, minus_one);
+        auto pad_ends_full = create_padding(rg, input_rank, pad_values, start_pad_ends, zero);
         if (mode == "constant") {
             if (const auto& fw_node_value = cast_fw_node(pad_value.get_node_shared_ptr(), "prim::Constant")) {
                 const auto& attrs = fw_node_value->get_attrs();
