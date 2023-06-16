@@ -496,7 +496,7 @@ void Program::init_profile_info(const cldnn::primitive& prim) {
 void Program::AddVariableStateInfo(const std::string& variable_id, const cldnn::layout& layout) {
     auto it = m_variablesStateInfo.find(variable_id);
     if (it != m_variablesStateInfo.end())
-        it->second.push_back(layout);
+        it->second.insert(layout);
     else
         m_variablesStateInfo.insert({variable_id, { layout }});
 }

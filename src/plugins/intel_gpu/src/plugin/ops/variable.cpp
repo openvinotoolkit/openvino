@@ -26,7 +26,8 @@ void CreateVariableAccessPrimitive(Program &p, const std::shared_ptr<ngraph::op:
     const auto variable_layout = cldnn::layout{ output_pshape, output_dtype, output_format };
 
     auto inputs = p.GetInputInfo(op);
-    p.AddVariableStateInfo(variable_id, variable_layout);
+    if (!p.use_new_shape_infer())
+        p.AddVariableStateInfo(variable_id, variable_layout);
     const auto prim = T_PRIMITIVE{layer_type_name_ID(op),
                                   inputs,
                                   variable_id,
