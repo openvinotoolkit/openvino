@@ -11,16 +11,16 @@
 #include "graph_comparator.hpp"
 #include "openvino/core/dimension.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/pass/pass.hpp"
 #include "openvino/pass/manager.hpp"
-#include "transformations/init_node_info.hpp"
+#include "openvino/pass/pass.hpp"
 #include "test_common.hpp"
+#include "transformations/init_node_info.hpp"
 
 #define DYN ov::Dimension::dynamic()
 
 using TransformationTests = CommonTestUtils::TestsCommon;
 
-class TransformationTestsF : public  CommonTestUtils::TestsCommon {
+class TransformationTestsF : public CommonTestUtils::TestsCommon {
 public:
     TransformationTestsF();
 
@@ -64,8 +64,10 @@ size_t count_ops_of_type(const std::shared_ptr<ov::Model>& f) {
     return count;
 }
 
-template<class T>
-std::shared_ptr<ov::op::v0::Constant> create_constant(const std::vector<T>& data, const ov::element::Type_t et = ov::element::i64, bool scalar = false) {
+template <class T>
+std::shared_ptr<ov::op::v0::Constant> create_constant(const std::vector<T>& data,
+                                                      const ov::element::Type_t et = ov::element::i64,
+                                                      bool scalar = false) {
     ov::Shape shape = scalar ? ov::Shape{} : ov::Shape{data.size()};
     return ov::op::v0::Constant::create(et, shape, data);
 }

@@ -30,12 +30,12 @@ TEST_F(TransformationTestsF, ConvertPreviousNMSToNMSIEInternal) {
         auto iou_threshold = ov::op::v0::Constant::create(element::f32, Shape{}, {0.75});
         auto score_threshold = ov::op::v0::Constant::create(element::f32, Shape{}, {0.7});
         auto nms = std::make_shared<ov::op::v1::NonMaxSuppression>(boxes,
-                                                               scores,
-                                                               max_output_boxes_per_class,
-                                                               iou_threshold,
-                                                               score_threshold,
-                                                               op::v1::NonMaxSuppression::BoxEncodingType::CORNER,
-                                                               true);
+                                                                   scores,
+                                                                   max_output_boxes_per_class,
+                                                                   iou_threshold,
+                                                                   score_threshold,
+                                                                   op::v1::NonMaxSuppression::BoxEncodingType::CORNER,
+                                                                   true);
 
         function = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
 

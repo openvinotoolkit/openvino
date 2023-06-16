@@ -13,12 +13,12 @@
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "openvino/op/add.hpp"
-#include "openvino/op/multiply.hpp"
 #include "openvino/op/if.hpp"
-#include "openvino/op/split.hpp"
-#include "openvino/op/variadic_split.hpp"
-#include "openvino/op/subtract.hpp"
 #include "openvino/op/logical_not.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/split.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/op/variadic_split.hpp"
 
 using namespace testing;
 

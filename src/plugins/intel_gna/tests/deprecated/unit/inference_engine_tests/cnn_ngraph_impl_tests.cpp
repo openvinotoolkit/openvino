@@ -35,11 +35,11 @@
 #include <string>
 
 #include "cnn_network_ngraph_impl.hpp"
+#include "cnnlayer_utils.hpp"
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "ie_precision.hpp"
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
-#include "cnnlayer_utils.hpp"
 
 using namespace testing;
 using namespace InferenceEngine;
@@ -847,8 +847,7 @@ TEST(CNNNGraphImplTests, ReadMeanValueFromCNNNetReader) {
     std::shared_ptr<ngraph::Function> f_ref;
     {
         auto data = std::make_shared<ov::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 22, 22});
-        auto mean_image =
-            ov::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{3, 1, 1}, {1.1, 2.2, 3.3});
+        auto mean_image = ov::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{3, 1, 1}, {1.1, 2.2, 3.3});
         auto sub = std::make_shared<ov::op::v1::Subtract>(data, mean_image);
         auto relu = std::make_shared<ov::op::v0::Relu>(sub);
         f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{relu}, ngraph::ParameterVector{data});

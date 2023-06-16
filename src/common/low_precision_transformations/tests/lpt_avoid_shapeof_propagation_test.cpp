@@ -77,7 +77,8 @@ TEST(LPT, AvoidDequantizationToShapeOfPropagationAvgPoolTransformation) {
     auto convert = std::make_shared<ov::op::v0::Convert>(input, element::f32);
     auto mul = std::make_shared<ov::op::v1::Multiply>(convert, ov::op::v0::Constant::create(element::f32, {}, {2.f}));
 
-    auto avgPool = std::make_shared<ov::op::v1::AvgPool>(mul, Strides{1, 1}, Shape{1, 1}, Shape{0, 0}, Shape{2, 2}, true);
+    auto avgPool =
+        std::make_shared<ov::op::v1::AvgPool>(mul, Strides{1, 1}, Shape{1, 1}, Shape{0, 0}, Shape{2, 2}, true);
     auto shapeOf = std::make_shared<ov::op::v0::ShapeOf>(avgPool);
 
     auto result1 = std::make_shared<ov::op::v0::Result>(avgPool);
@@ -148,11 +149,11 @@ TEST(LPT, AvoidDequantizationToShapeOfPropagationConvolutionTransformation) {
         std::make_shared<ov::op::v1::Multiply>(convertOnWeights, ov::op::v0::Constant::create(element::f32, {}, {4.f}));
 
     auto convolution = std::make_shared<ov::op::v1::Convolution>(mul,
-                                                             mulOnWeights,
-                                                             ngraph::Strides{1, 1},
-                                                             ngraph::CoordinateDiff{0, 0},
-                                                             ngraph::CoordinateDiff{0, 0},
-                                                             ngraph::Strides{1, 1});
+                                                                 mulOnWeights,
+                                                                 ngraph::Strides{1, 1},
+                                                                 ngraph::CoordinateDiff{0, 0},
+                                                                 ngraph::CoordinateDiff{0, 0},
+                                                                 ngraph::Strides{1, 1});
 
     auto shapeOf = std::make_shared<ov::op::v0::ShapeOf>(convolution);
 
@@ -178,11 +179,11 @@ TEST(LPT, AvoidDequantizationToShapeOfPropagationConvolutionBackpropDataTransfor
         std::make_shared<ov::op::v1::Multiply>(convertOnWeights, ov::op::v0::Constant::create(element::f32, {}, {4.f}));
 
     auto convolutionBackpropData = std::make_shared<ov::op::v1::ConvolutionBackpropData>(mul,
-                                                                                     mulOnWeights,
-                                                                                     ngraph::Strides{1, 1},
-                                                                                     ngraph::CoordinateDiff{0, 0},
-                                                                                     ngraph::CoordinateDiff{0, 0},
-                                                                                     ngraph::Strides{1, 1});
+                                                                                         mulOnWeights,
+                                                                                         ngraph::Strides{1, 1},
+                                                                                         ngraph::CoordinateDiff{0, 0},
+                                                                                         ngraph::CoordinateDiff{0, 0},
+                                                                                         ngraph::Strides{1, 1});
 
     auto shapeOf = std::make_shared<ov::op::v0::ShapeOf>(convolutionBackpropData);
 
@@ -253,11 +254,11 @@ TEST(LPT, AvoidDequantizationToShapeOfPropagationGroupConvolutionTransformation)
     auto reshapeOnWeights = std::make_shared<ov::op::v1::Reshape>(mulOnWeights, reshapeConst, true);
 
     auto groupConvolution = std::make_shared<ov::op::v1::GroupConvolution>(mul,
-                                                                       reshapeOnWeights,
-                                                                       ngraph::Strides{1, 1},
-                                                                       ngraph::CoordinateDiff{0, 0},
-                                                                       ngraph::CoordinateDiff{0, 0},
-                                                                       ngraph::Strides{1, 1});
+                                                                           reshapeOnWeights,
+                                                                           ngraph::Strides{1, 1},
+                                                                           ngraph::CoordinateDiff{0, 0},
+                                                                           ngraph::CoordinateDiff{0, 0},
+                                                                           ngraph::Strides{1, 1});
     auto shapeOf = std::make_shared<ov::op::v0::ShapeOf>(groupConvolution);
 
     auto result1 = std::make_shared<ov::op::v0::Result>(groupConvolution);
@@ -649,11 +650,11 @@ TEST(LPT, AvoidDequantizationToShapeOfPropagationStridedSliceTransformation) {
     auto endParam = ngraph::op::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {1, 2, 1, 1});
     auto stridesParam = ngraph::op::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {1, 1, 1, 1});
     auto stridedSlice = std::make_shared<ov::op::v1::StridedSlice>(mul,
-                                                                       beginParam,
-                                                                       endParam,
-                                                                       stridesParam,
-                                                                       std::vector<std::int64_t>{1, 0, 1, 1},
-                                                                       std::vector<std::int64_t>{1, 0, 1, 1});
+                                                                   beginParam,
+                                                                   endParam,
+                                                                   stridesParam,
+                                                                   std::vector<std::int64_t>{1, 0, 1, 1},
+                                                                   std::vector<std::int64_t>{1, 0, 1, 1});
     auto shapeOf = std::make_shared<ov::op::v0::ShapeOf>(stridedSlice);
 
     auto result1 = std::make_shared<ov::op::v0::Result>(stridedSlice);

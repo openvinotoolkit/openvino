@@ -23,13 +23,14 @@ public:
         }
         return false;
     }
+
 private:
     // we store a reference to shared_ptr because it will be initialized later in the test body
     const std::shared_ptr<ov::Model>& m_ref_model;
 };
 
-} // namespace pass
-} // namespace ov
+}  // namespace pass
+}  // namespace ov
 
 TransformationTestsF::TransformationTestsF()
     : model(function),
@@ -67,7 +68,7 @@ void TransformationTestsF::TearDown() {
     manager.run_passes(function);
 
     if (!m_disable_rt_info_check) {
-    ASSERT_NO_THROW(check_rt_info(function));
+        ASSERT_NO_THROW(check_rt_info(function));
     }
 
     if (acc_enabled) {

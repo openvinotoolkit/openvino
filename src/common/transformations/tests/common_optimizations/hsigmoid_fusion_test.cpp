@@ -146,8 +146,7 @@ TEST_F(TransformationTestsF, HSigmoidFusionWithClampMul) {
 
 TEST_F(TransformationTestsF, HSigmoidFusionWithClampDiv) {
     {
-        auto input =
-            std::make_shared<ov::op::v0::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(1));
+        auto input = std::make_shared<ov::op::v0::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(1));
         auto add_constant = ov::op::v0::Constant::create(ngraph::element::f16, ngraph::Shape{}, {3.0});
         auto add = std::make_shared<ov::op::v1::Add>(input, add_constant);
         auto clamp = std::make_shared<ov::op::v0::Clamp>(add, 0.0f, 6.0f);

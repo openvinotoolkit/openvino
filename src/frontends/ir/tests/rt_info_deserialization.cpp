@@ -12,16 +12,16 @@
 #include "ie/ie_core.hpp"
 #include "openvino/core/preprocess/input_tensor_info.hpp"
 #include "openvino/frontend/manager.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
+#include "openvino/op/round.hpp"
+#include "openvino/op/transpose.hpp"
 #include "openvino/runtime/core.hpp"
 #include "transformations/rt_info/fused_names_attribute.hpp"
 #include "transformations/rt_info/old_api_map_element_type_attribute.hpp"
 #include "transformations/rt_info/old_api_map_order_attribute.hpp"
-#include "openvino/op/parameter.hpp"
-#include "openvino/op/convert.hpp"
-#include "openvino/op/round.hpp"
-#include "openvino/op/result.hpp"
-#include "openvino/op/add.hpp"
-#include "openvino/op/transpose.hpp"
 
 class RTInfoDeserialization : public testing::Test {
 protected:

@@ -139,10 +139,10 @@ public:
                 {{{0}, testValues.params.precisionsOnActivations}})});
 
         auto quantizationRestrictions =
-            testValues.multiChannels ? std::vector<ngraph::pass::low_precision::QuantizationGranularityRestriction>()
-                                     : std::vector<ngraph::pass::low_precision::QuantizationGranularityRestriction>(
-                                           {ngraph::pass::low_precision::QuantizationGranularityRestriction::create<
-                                               ov::op::v1::AvgPool>()});
+            testValues.multiChannels
+                ? std::vector<ngraph::pass::low_precision::QuantizationGranularityRestriction>()
+                : std::vector<ngraph::pass::low_precision::QuantizationGranularityRestriction>(
+                      {ngraph::pass::low_precision::QuantizationGranularityRestriction::create<ov::op::v1::AvgPool>()});
 
         const auto params = TestTransformationParams::toParams(testValues.params);
         ov::pass::Manager manager;

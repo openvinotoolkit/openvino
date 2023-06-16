@@ -78,8 +78,8 @@ public:
             dataSource = parameter;
         } else {
             dataSource = std::make_shared<ov::op::v0::Constant>(testValues.actual.constPrecision,
-                                                                    testValues.constShape,
-                                                                    testValues.actual.constValues);
+                                                                testValues.constShape,
+                                                                testValues.actual.constValues);
         }
 
         std::shared_ptr<Node> fq =

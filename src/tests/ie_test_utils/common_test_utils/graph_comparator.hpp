@@ -70,8 +70,7 @@ public:
     }
     Result compare(const std::shared_ptr<ov::Model>& f, const std::shared_ptr<ov::Model>& f_ref) const;
 
-    Result operator()(const std::shared_ptr<ov::Model>& f,
-                      const std::shared_ptr<ov::Model>& f_ref) const {
+    Result operator()(const std::shared_ptr<ov::Model>& f, const std::shared_ptr<ov::Model>& f_ref) const {
         return compare(f, f_ref);
     }
 
@@ -201,8 +200,8 @@ public:
             for (auto output : node->outputs()) {
                 const auto& tensor_names = output.get_names();
                 if (std::any_of(tensor_names.begin(), tensor_names.end(), [&](const std::string& name) {
-                    return unique_tensor_names.count(name);
-                })) {
+                        return unique_tensor_names.count(name);
+                    })) {
                     std::stringstream ss;
                     ss << "Node: " << node->get_type_info() << " with name " << node->get_friendly_name() << " ";
                     ss << "has non unique tensor name.";
@@ -229,8 +228,8 @@ public:
             if (m_result_friendly_names_check) {
                 // Check that result input node names are preserved
                 bool is_multi_output = m_result_node_names.at(r.get()).second;
-                const auto &ref_node_name = m_result_node_names.at(r.get()).first;
-                const auto &cur_node_name = r->input_value(0).get_node()->get_friendly_name();
+                const auto& ref_node_name = m_result_node_names.at(r.get()).first;
+                const auto& cur_node_name = r->input_value(0).get_node()->get_friendly_name();
                 if (is_multi_output || m_soft_names_comparison) {
                     if (cur_node_name.find(ref_node_name) == std::string::npos) {
                         std::stringstream ss;
@@ -271,7 +270,10 @@ class CheckUniqueNames : public ov::pass::ModelPass {
     UniqueNamesHolder::Ptr m_unh;
 
 public:
-    CheckUniqueNames(UniqueNamesHolder::Ptr unh, bool soft_names_comparison = false, bool result_friendly_names_check = true) : m_unh(unh) {
+    CheckUniqueNames(UniqueNamesHolder::Ptr unh,
+                     bool soft_names_comparison = false,
+                     bool result_friendly_names_check = true)
+        : m_unh(unh) {
         if (soft_names_comparison)
             m_unh->enable_soft_names_comparison();
         if (!result_friendly_names_check)
@@ -498,10 +500,10 @@ class ReadAndStoreAttributes : public ov::AttributeVisitor, protected storage::S
 public:
     void on_adapter(const std::string& name, ov::ValueAccessor<void>& adapter) override;
 
-#define ON_ADAPTER(TYPE)                                                                      \
-void on_adapter(const std::string& name, ov::ValueAccessor<TYPE>& adapter) override { \
-insert(name, adapter.get());                                                          \
-}
+#define ON_ADAPTER(TYPE)                                                                  \
+    void on_adapter(const std::string& name, ov::ValueAccessor<TYPE>& adapter) override { \
+        insert(name, adapter.get());                                                      \
+    }
 
     ON_ADAPTER(bool)
     ON_ADAPTER(std::string)
@@ -729,37 +731,37 @@ struct Equal<std::shared_ptr<Constant>> {
         }
 
         switch (lhs_t) {
-            case ov::element::Type_t::u1: {
-                const auto lhs_v = static_cast<const uint8_t*>(lhs->get_data_ptr());
-                const auto rhs_v = static_cast<const uint8_t*>(rhs->get_data_ptr());
-                const auto lhs_bit_size = shape_size(lhs->get_shape());
-                const auto rhs_bit_size = shape_size(rhs->get_shape());
-                return Equal<uint8_t*>::equal_value(lhs_v, rhs_v, lhs_bit_size, rhs_bit_size);
-            }
-            case ov::element::Type_t::bf16: {
-                auto lhs_v = lhs->cast_vector<ov::bfloat16>();
-                auto rhs_v = rhs->cast_vector<ov::bfloat16>();
-                return Equal<std::vector<ov::bfloat16>>::equal_value(lhs_v, rhs_v);
-                break;
-            }
-            case ov::element::Type_t::f16: {
-                const auto& lhs_v = lhs->cast_vector<ov::float16>();
-                const auto& rhs_v = rhs->cast_vector<ov::float16>();
-                return Equal<std::vector<ov::float16>>::equal_value(lhs_v, rhs_v);
-                break;
-            }
-            case ov::element::Type_t::f32: {
-                const auto& lhs_v = lhs->cast_vector<float>();
-                const auto& rhs_v = rhs->cast_vector<float>();
-                return Equal<std::vector<float>>::equal_value(lhs_v, rhs_v);
-                break;
-            }
-            default: {
-                const auto& lhs_v = lhs->cast_vector<double>();
-                const auto& rhs_v = rhs->cast_vector<double>();
-                return Equal<std::vector<double>>::equal_value(lhs_v, rhs_v);
-                break;
-            }
+        case ov::element::Type_t::u1: {
+            const auto lhs_v = static_cast<const uint8_t*>(lhs->get_data_ptr());
+            const auto rhs_v = static_cast<const uint8_t*>(rhs->get_data_ptr());
+            const auto lhs_bit_size = shape_size(lhs->get_shape());
+            const auto rhs_bit_size = shape_size(rhs->get_shape());
+            return Equal<uint8_t*>::equal_value(lhs_v, rhs_v, lhs_bit_size, rhs_bit_size);
+        }
+        case ov::element::Type_t::bf16: {
+            auto lhs_v = lhs->cast_vector<ov::bfloat16>();
+            auto rhs_v = rhs->cast_vector<ov::bfloat16>();
+            return Equal<std::vector<ov::bfloat16>>::equal_value(lhs_v, rhs_v);
+            break;
+        }
+        case ov::element::Type_t::f16: {
+            const auto& lhs_v = lhs->cast_vector<ov::float16>();
+            const auto& rhs_v = rhs->cast_vector<ov::float16>();
+            return Equal<std::vector<ov::float16>>::equal_value(lhs_v, rhs_v);
+            break;
+        }
+        case ov::element::Type_t::f32: {
+            const auto& lhs_v = lhs->cast_vector<float>();
+            const auto& rhs_v = rhs->cast_vector<float>();
+            return Equal<std::vector<float>>::equal_value(lhs_v, rhs_v);
+            break;
+        }
+        default: {
+            const auto& lhs_v = lhs->cast_vector<double>();
+            const auto& rhs_v = rhs->cast_vector<double>();
+            return Equal<std::vector<double>>::equal_value(lhs_v, rhs_v);
+            break;
+        }
         }
         return false;
     }
@@ -880,18 +882,18 @@ struct Get<std::shared_ptr<ov::op::util::Variable>, void> {
 class ReadAndCompareAttributes : public ov::AttributeVisitor {
 public:
     ReadAndCompareAttributes(const ReadAndStoreAttributes& ref, Comparator::CmpValues check_flags)
-            : m_attr_ref(ref),
-              m_cmp_result{ref.read_result()},
-              m_check_flags(check_flags) {}
+        : m_attr_ref(ref),
+          m_cmp_result{ref.read_result()},
+          m_check_flags(check_flags) {}
 
     void on_adapter(const std::string& name, ov::ValueAccessor<void>& adapter) override {
         verify_others(name, adapter);
     }
 
-#define ON_ADAPTER(TYPE)                                                                      \
-void on_adapter(const std::string& name, ov::ValueAccessor<TYPE>& adapter) override { \
-verify(name, adapter.get());                                                          \
-}
+#define ON_ADAPTER(TYPE)                                                                  \
+    void on_adapter(const std::string& name, ov::ValueAccessor<TYPE>& adapter) override { \
+        verify(name, adapter.get());                                                      \
+    }
 
     ON_ADAPTER(bool)
     ON_ADAPTER(std::string)
@@ -919,8 +921,7 @@ verify(name, adapter.get());                                                    
 
 #undef ON_ADAPTER
 
-    void on_adapter(const std::string& name,
-                    ov::ValueAccessor<std::shared_ptr<ov::Model>>& adapter) override {
+    void on_adapter(const std::string& name, ov::ValueAccessor<std::shared_ptr<ov::Model>>& adapter) override {
         verify_function(name, adapter);
     }
 

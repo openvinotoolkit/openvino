@@ -88,9 +88,8 @@ public:
                 {{{0}, params.precisionsOnActivations}})});
 
         SimpleLowPrecisionTransformer transform(supportedPrecisions, {}, {ngraph::element::f32, defaultPrecisions});
-        transform
-            .add<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation, ov::op::v0::FakeQuantize>(
-                params);
+        transform.add<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation, ov::op::v0::FakeQuantize>(
+            params);
         transform.add<ngraph::pass::low_precision::AvgPoolTransformation, ov::op::v1::AvgPool>(params);
         transform.transform(actualFunction);
 
