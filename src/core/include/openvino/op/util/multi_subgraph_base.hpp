@@ -198,6 +198,13 @@ public:
     virtual const std::shared_ptr<Model>& get_function(size_t index) const {
         return m_bodies[index];
     };
+
+    /// \brief  Gets internal sub-graphs
+    /// \return a vector of pointers to sub-graph Models
+    virtual const std::vector<std::shared_ptr<Model>>& get_functions() const {
+        return m_bodies;
+    };
+
     /// \brief     Adds sub-graph to MultiSubGraphOp
     ///
     /// \param index   index of new sub-graph
