@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/round.hpp"
-
+#include "element_visitor.hpp"
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
+#include "ngraph/op/round.hpp"
 #include "ngraph/op/util/eval_copy.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/copy.hpp"
@@ -15,50 +15,47 @@ using namespace std;
 using namespace ngraph;
 
 namespace roundop {
+
+struct ev_visitor : ov::element::NoAction<bool> {
+    template <element::Type_t ET>
+    static constexpr bool is_floating() {
+        return (ET == element::f16) || (ET == element::f32) || (ET == element::bf16);
+    }
+    using ov::element::NoAction<bool>::operator();
+
+    template <element::Type_t ET>
+    typename std::enable_if<!is_floating<ET>(), result_type>::type operator()(const HostTensorPtr& arg0,
+                                                                              const HostTensorPtr& out,
+                                                                              const size_t count,
+                                                                              const op::v5::Round::RoundMode) {
+        memcpy(out->get_data_ptr(), arg0->get_data_ptr(), out->get_size_in_bytes());
+        return true;
+    }
+
+    template <ov::element::Type_t ET>
+    typename std::enable_if<is_floating<ET>(), result_type>::type operator()(const HostTensorPtr& arg0,
+                                                                             const HostTensorPtr& out,
+                                                                             const size_t count,
+                                                                             const op::v5::Round::RoundMode mode) {
+        ngraph::runtime::reference::round(arg0->get_data_ptr<ET>(), out->get_data_ptr<ET>(), count, mode);
+        return true;
+    }
+};
+
 namespace {
-// function used by TYPE_CASE
-template <element::Type_t ET>
-inline bool evaluate(const HostTensorPtr& arg0,
-                     const HostTensorPtr& out,
-                     const size_t count,
-                     const op::v5::Round::RoundMode mode) {
-    using T = typename element_type_traits<ET>::value_type;
-    runtime::reference::round<T>(arg0->get_data_ptr<ET>(), out->get_data_ptr<ET>(), count, mode);
-    return true;
-}
-
-// function used by COPY_TENSOR
-template <element::Type_t ET>
-inline bool copy_tensor(const HostTensorPtr& arg0, const HostTensorPtr& out, const size_t count) {
-    runtime::reference::copy(arg0->get_data_ptr<ET>(), out->get_data_ptr<ET>(), count);
-    return true;
-}
-
 bool evaluate_round(const HostTensorPtr& arg0,
                     const HostTensorPtr& out,
                     const size_t count,
                     const op::v5::Round::RoundMode mode) {
-    bool rc = true;
     out->set_unary(arg0);
 
-    switch (arg0->get_element_type()) {
-        NGRAPH_COPY_TENSOR(evaluate_round, boolean, arg0, out, count);
-        NGRAPH_COPY_TENSOR(evaluate_round, i8, arg0, out, count);
-        NGRAPH_COPY_TENSOR(evaluate_round, i16, arg0, out, count);
-        NGRAPH_COPY_TENSOR(evaluate_round, i32, arg0, out, count);
-        NGRAPH_COPY_TENSOR(evaluate_round, i64, arg0, out, count);
-        NGRAPH_COPY_TENSOR(evaluate_round, u8, arg0, out, count);
-        NGRAPH_COPY_TENSOR(evaluate_round, u16, arg0, out, count);
-        NGRAPH_COPY_TENSOR(evaluate_round, u32, arg0, out, count);
-        NGRAPH_COPY_TENSOR(evaluate_round, u64, arg0, out, count);
-        NGRAPH_TYPE_CASE(evaluate_round, f16, arg0, out, count, mode);
-        NGRAPH_TYPE_CASE(evaluate_round, f32, arg0, out, count, mode);
-        NGRAPH_TYPE_CASE(evaluate_round, bf16, arg0, out, count, mode);
-    default:
-        rc = false;
-        break;
-    }
-    return rc;
+    using namespace ov::element;
+    return Supported<boolean, i8, i16, i32, i64, u8, u16, u32, u64, f16, f32, bf16>::apply(arg0->get_element_type(),
+                                                                                           ev_visitor(),
+                                                                                           arg0,
+                                                                                           out,
+                                                                                           count,
+                                                                                           mode);
 }
 }  // namespace
 }  // namespace roundop

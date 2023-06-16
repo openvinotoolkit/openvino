@@ -65,6 +65,7 @@ struct evaluate : element::NoAction<bool> {
 // The evaluate cannot use shape_infer for output shape calculation as shape inference accepts
 // repeated axis and evaluate not. When shape inference will changed to be compatible with `numpy` then
 // evaluate and inference can use same function to calculate output shape. TODO for next version for this operator.
+namespace {
 bool evaluate_unsqueeze(const Node* node,
                         const HostTensorPtr& arg0,
                         const HostTensorPtr& arg1,
@@ -97,6 +98,7 @@ bool evaluate_unsqueeze(const Node* node,
     using namespace ov::element;
     return Supported<i32, i64, u32, u64, f16, f32, f64, bf16>::apply(element_type, evaluate(), arg0, out);
 }
+}  // namespace
 }  // namespace unsqueeze
 }  // namespace op
 }  // namespace ov
