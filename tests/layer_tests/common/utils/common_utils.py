@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import logging
+import os
 import shutil
 import subprocess
 import sys
@@ -45,6 +46,20 @@ def generate_ir(coverage=False, **kwargs):
     logger.error(stderr)
     return exit_code, stderr
 
+
+def generate_ir_python_api(coverage=False, **kwargs):
+    from openvino.runtime import convert_model, serialize
+    from openvino.tools.mo import convert_model as legacy_convert_model
+
+    if "use_legacy_frontend" in kwargs and kwargs['use_legacy_frontend']:
+        ov_model = legacy_convert_model(**kwargs)
+    else:
+        ov_model = convert_model(**kwargs)
+
+    out_dir = kwargs['output_dir'] + os.sep + kwargs['model_name'] + ".xml"
+    serialize(ov_model, out_dir)
+
+    return 0, ""
 
 def shell(cmd, env=None, cwd=None, out_format="plain"):
     """
