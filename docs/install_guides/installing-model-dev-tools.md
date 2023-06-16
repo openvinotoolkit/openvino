@@ -87,17 +87,21 @@ Step 2. Activate Virtual Environment
 
 Activate the newly created Python virtual environment by issuing this command:
 
-.. tab:: Linux and macOS
+.. tab-set::
 
-   .. code-block:: sh
+   .. tab-item:: Linux and macOS
+      :sync: linmac
 
-      source openvino_env/bin/activate
+      .. code-block:: sh
+   
+         source openvino_env/bin/activate
 
-.. tab:: Windows
-
-   .. code-block:: sh
-
-      openvino_env\Scripts\activate
+   .. tab-item::  Windows
+      :sync: windows
+   
+      .. code-block:: sh
+   
+         openvino_env\Scripts\activate
 
 .. important::
 
