@@ -10,12 +10,12 @@
 
 **Detailed description**: Creates copy of the first input tensor, and applies the elements of ``updates`` according to the logic specified by *reduction* attribute. For each element of ``updates``, at the same index there is corresponding value of ``indices``, which is an index along dimension specified by ``axis``. The index for dimension pointed by ``axis`` is provided by values of ``indices`` input, otherwise, the index is the same as the index of the entry itself.
 
-The dimensions of ``update`` tensor are allowed to be less or equal to the corresponding dimensions of ``data`` tensor, but the dimension pointed by ``axis`` can be also greater (especially if the ``indices`` input contains duplicated values).
+The dimensions of ``updates`` tensor are allowed to be less or equal to the corresponding dimensions of ``data`` tensor, but the dimension pointed by ``axis`` can be also greater (especially if the ``indices`` input contains duplicated values).
 
 The operation to perform between the corresponding elements is specified by *reduction* attribute,
 by default the elements of ``data`` tensor are simply overwritten by the values from ``updates`` input.
 
-Additionally *use_init_val* attribute can be used to control whether the elements from the ``data`` input tensor are used as initial value (enabled by default).
+Additionally, *use_init_val* attribute can be used to control whether the elements from the ``data`` input tensor are used as initial value (enabled by default).
 
 For instance, in a 3D tensor case, the update of the element corresponding to the ``[i][j][k]`` is performed as below:
 
