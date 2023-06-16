@@ -298,21 +298,7 @@ static std::string pretty_partial_shape(const PartialShape& shape) {
     if (shape.rank().is_dynamic()) {
         ss << "?";
     } else {
-        bool first = true;
-
-        ss << "[";
-        for (int64_t i = 0; i < shape.rank().get_length(); i++) {
-            if (!first) {
-                ss << ",";
-            }
-            if (shape[i].is_dynamic()) {
-                ss << shape[i];
-            } else {
-                ss << shape[i].get_length();
-            }
-            first = false;
-        }
-        ss << "]";
+        ss << shape;
     }
 
     return ss.str();

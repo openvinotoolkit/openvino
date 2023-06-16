@@ -289,3 +289,103 @@ bool ov::pass::FindBatch::run_on_model(const std::shared_ptr<ov::Model>& m) {
     m->validate_nodes_and_infer_types();
     return true;
 }
+
+// count all the non-constant dimensions (what we need to validate and infer)
+// + count how many nodes we need to validate and infer to collect all the necessary shape information the old way
+//
+// collect all constant dimensions from Parameter (if there are any) and Constant shapes (label them)
+// perform validate_and_infer runs for all the nodes including body-graphs
+// count all the unknown dimension that will be needed for calculation (no duplicates allowed)
+// count the number of Operation that would be needed to be shape-inference-ed to get all the dimensions
+//
+
+void shape_work(ov::DimensionTracker& dt,
+                ov::PartialShape& shape,
+                std::unordered_map<size_t, size_t>& label_to_static,
+                std::unordered_map<size_t, size_t>& static_to_label,
+                std::unordered_map<size_t, ov::Dimension>& label_to_dynamic,
+                size_t& curr_label) {
+
+    if (shape.rank().is_dynamic())
+        return;
+
+    for (auto& d : shape) {
+        auto label = ov::DimensionTracker::get_label(d);
+        if (d.is_static()) {
+            auto static_dim = static_cast<size_t>(d.get_length());
+            if (static_to_label.count(static_dim)) {
+                ov::DimensionTracker::set_label(d, static_to_label[static_dim]);
+                OPENVINO_ASSERT(ov::DimensionTracker::get_label(d) == static_to_label[static_dim],
+                                "Label for static dim doesn't match table");
+            } else {
+                static_to_label[static_dim] = curr_label;
+                label_to_static[curr_label] = static_dim;
+                curr_label++;
+            }
+        } else {
+            if (label == 0) {  // no label propagated
+                dt.set_up_for_tracking(d, curr_label);
+                curr_label++;
+            } else {
+//                OPENVINO_ASSERT(!label_to_static.count(label), "Dynamic dim has static label, but isn't static itself");
+                label_to_dynamic[label] = d; // ? why do I need it in the first place?
+            }
+        }
+    }
+}
+
+bool ov::pass::SymbolicPOC::run_on_model(const std::shared_ptr<ov::Model> &m) {
+    auto te = std::make_shared<ov::TableOfEquivalence>();
+    ov::DimensionTracker dt(te);
+
+    size_t num_ops_to_shape_infer = 0;
+
+    // label_to_dimension = size_t to ov::Dimension (could be dynamic / could be anything)
+    // static_dimension_to_label
+
+    std::unordered_map<size_t, size_t> label_to_static, static_to_label;
+    std::unordered_map<size_t, ov::Dimension> label_to_dynamic;
+    size_t curr_label = 1; // must be a field in this class to pass to the body
+    for (const auto& op : m->get_ordered_ops()) {
+        bool shape_infer_op = false;
+        op->revalidate_and_infer_types(); // should I use (re)validate?
+        for (auto& output : op->outputs()) {
+            auto shape = output.get_partial_shape();
+            shape_work(dt, shape, label_to_static, static_to_label, label_to_dynamic, curr_label);
+            OPENVINO_SUPPRESS_DEPRECATED_START
+            output.get_tensor().set_tensor_type(output.get_element_type(), shape);
+            OPENVINO_SUPPRESS_DEPRECATED_END
+            if (shape.is_dynamic()) {
+                shape_infer_op = true;
+            }
+        }
+        num_ops_to_shape_infer += size_t(shape_infer_op);
+    }
+    std::cout << "Overall num ops: " << m->get_ordered_ops().size() << std::endl;
+    std::cout << "num_ops_to_shape_infer = " << num_ops_to_shape_infer << std::endl;
+
+    std::unordered_set<size_t> known_labels;
+    size_t new_num_ops_to_shape_infer = 0;
+    for (const auto& op : m->get_ordered_ops()) {
+        bool shape_infer_op = false;
+        for (const auto& output : op->outputs()) {
+            for (const auto& dim : output.get_partial_shape()) {
+                if (dim.is_static())
+                    continue;
+                auto label = ov::DimensionTracker::get_label(dim);
+                if (!known_labels.count(label)) {
+                    if (!label_to_static.count(label)) {
+                    // incorporate table of equivalence knowledge? maybe not
+                        known_labels.insert(label);
+                        if (!ov::is_type<ov::op::v0::Parameter>(op) && !ov::is_type<ov::op::v0::Constant>(op))
+                            shape_infer_op = true;
+                    }
+                }
+            }
+        }
+        new_num_ops_to_shape_infer += size_t(shape_infer_op);
+    }
+    std::cout << "new_num_ops_to_shape_infer = " << new_num_ops_to_shape_infer << std::endl;
+    std::cout << "Percent: " << size_t(float(new_num_ops_to_shape_infer) / float(num_ops_to_shape_infer) * 100) << "%" << std::endl;
+    return false;
+}

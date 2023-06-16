@@ -81,8 +81,10 @@
 #include <transformations/op_conversions/convert_ti_to_sequences.hpp>
 #include <transformations/smart_reshape/lstm_states_broadcast.hpp>
 #include <transformations/smart_reshape/reshape_sinking.hpp>
+#include <transformations/common_optimizations/dimension_tracking.hpp>
 
 #include "itt.hpp"
+#include "openvino/pass/visualize_tree.hpp"
 
 bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     RUN_ON_FUNCTION_SCOPE(MOCTransformations);
@@ -157,6 +159,8 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph::Fu
     // GRUCellFusion and SequenceFusion should be before NopElimination
     REGISTER_PASS(manager, GRUCellFusion)
     REGISTER_PASS(manager, SequenceFusion)
+    REGISTER_PASS(manager, SymbolicPOC)
+    REGISTER_PASS(manager, VisualizeTree, "model.svg")
 
     auto transpose_sinking = manager.register_pass<ov::pass::GraphRewrite>();
     ADD_MATCHER(transpose_sinking, TransposeSinking)

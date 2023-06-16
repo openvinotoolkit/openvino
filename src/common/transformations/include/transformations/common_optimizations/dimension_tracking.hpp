@@ -15,6 +15,7 @@ namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API FindBatch;
+class TRANSFORMATIONS_API SymbolicPOC;
 
 }  // namespace pass
 }  // namespace ov
@@ -29,6 +30,12 @@ public:
 
 protected:
     bool track = true, detach_do = false;
+};
+
+class ov::pass::SymbolicPOC : public ov::pass::ModelPass {
+public:
+    OPENVINO_RTTI("SymbolicPOC");
+    bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };
 
 namespace ov {
