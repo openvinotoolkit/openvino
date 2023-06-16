@@ -9,7 +9,6 @@
 #include "pugixml.hpp"
 
 #include "single_op_matchers/config.hpp"
-#include "cache/meta.hpp"
 
 namespace ov {
 namespace tools {

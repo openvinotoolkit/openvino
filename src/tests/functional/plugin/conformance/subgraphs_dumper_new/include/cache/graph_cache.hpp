@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "cache.hpp"
+#include "cache/cache.hpp"
 
 namespace ov {
 namespace tools {

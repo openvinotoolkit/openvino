@@ -6,13 +6,19 @@
 
 #include "common_test_utils/file_utils.hpp"
 
-#include "cache/meta.hpp"
+#include "cache/meta/meta_info.hpp"
 
 namespace ov {
 namespace tools {
 namespace subgraph_dumper {
 
-MetaInfo::MetaInfo(const std::string& _model_path, const std::map<std::string, InputInfo>& _input_info, size_t _total_op_cnt) {
+unsigned long MetaInfo::MIN_MODEL_PRIORITY = DEFAULT_MAX_VALUE;
+unsigned long MetaInfo::MAX_MODEL_PRIORITY = DEFAULT_MIN_VALUE;
+
+MetaInfo::MetaInfo(const std::string& _model_path, const std::map<std::string, InputInfo>& _input_info, size_t _total_op_cnt, size_t model_priority) {
+    unsigned long tmp_graph_priority = _total_op_cnt * model_priority;
+    if (tmp_graph_priority < MIN_MODEL_PRIORITY) MIN_MODEL_PRIORITY = tmp_graph_priority;
+    if (tmp_graph_priority > MAX_MODEL_PRIORITY) MAX_MODEL_PRIORITY = tmp_graph_priority;
     if (_model_path != "") {
         model_info.insert({ get_model_name_by_path(_model_path), ModelInfo(_model_path, _total_op_cnt) });
     }
@@ -32,7 +38,8 @@ unsigned long MetaInfo::get_abs_graph_priority() {
 double MetaInfo::get_graph_priority() {
     auto delta = MAX_MODEL_PRIORITY - MIN_MODEL_PRIORITY == 0 ? 1 : MAX_MODEL_PRIORITY - MIN_MODEL_PRIORITY;
     // return normilized graph priority from [0, 1]
-    return (get_abs_graph_priority() - MIN_MODEL_PRIORITY) / delta;
+    double diff = get_abs_graph_priority() - MIN_MODEL_PRIORITY;
+    return diff / delta;
 }
 
 void MetaInfo::serialize(const std::string& serialization_path) {
@@ -78,9 +85,11 @@ void MetaInfo::update(const std::string& _model_path,
     }
     std::string model_name = get_model_name_by_path(_model_path);
     if (model_info.find(model_name) != model_info.end()) {
-        model_info.at(model_name).model_paths.push_back(_model_path);
+        if (model_info.at(model_name).model_paths.find(_model_path) == model_info.at(model_name).model_paths.end()) {
+            model_info.at(model_name).model_paths.insert(_model_path);
+            model_info.at(model_name).total_op_cnt += _total_op_cnt;
+        }
         model_info.at(model_name).this_op_cnt++;
-        model_info.at(model_name).total_op_cnt += _total_op_cnt;
     } else {
         model_info.insert({ model_name, ModelInfo(_model_path, _total_op_cnt) });\
     }
@@ -88,7 +97,7 @@ void MetaInfo::update(const std::string& _model_path,
         if (input_info.find(in.first) == input_info.end()) {
             throw std::runtime_error("Incorrect Input Info!");
         } else if (input_info[in.first].is_const != in.second.is_const) {
-            throw std::runtime_error("Try to cast psrameter ro constant!");
+            throw std::runtime_error("Try to cast parameter ro constant!");
         } else {
             input_info[in.first] = in.second;
         }
@@ -96,12 +105,8 @@ void MetaInfo::update(const std::string& _model_path,
     // update max and mib abs priority to normilize priorities when serialize
     {
         auto abs_graph_priority = get_abs_graph_priority();
-        if (abs_graph_priority > MAX_MODEL_PRIORITY) {
-            MAX_MODEL_PRIORITY = abs_graph_priority;
-        }
-        if (abs_graph_priority < MIN_MODEL_PRIORITY) {
-            MIN_MODEL_PRIORITY = abs_graph_priority;
-        }
+        if (abs_graph_priority > MAX_MODEL_PRIORITY) MAX_MODEL_PRIORITY = abs_graph_priority;
+        if (abs_graph_priority < MIN_MODEL_PRIORITY) MIN_MODEL_PRIORITY = abs_graph_priority;
     }
 }
 

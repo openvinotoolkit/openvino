@@ -13,7 +13,7 @@
 
 #include "common_test_utils/file_utils.hpp"
 
-#include "cache/meta.hpp"
+#include "cache/meta/meta_info.hpp"
 
 namespace {
 
@@ -178,11 +178,15 @@ TEST_F(MetaInfoUnitTest, update) {
     std::string test_model_path_1 = ov::util::path_join({ "path", "to",  test_model_1 + ".xml"});
     this->update(test_model_path_1, test_meta_1);
     ASSERT_NE(this->model_info.find(test_model_1), this->model_info.end());
-    ASSERT_EQ(this->model_info[test_model_1].model_paths.front(), test_model_path_1);
+    ASSERT_EQ(*this->model_info[test_model_1].model_paths.begin(), test_model_path_1);
     ASSERT_EQ(this->model_info[test_model_1].this_op_cnt, 1);
     this->update(test_model_path_1, test_meta_1);
-    ASSERT_EQ(this->model_info[test_model_1].model_paths.size(), 2);
+    ASSERT_EQ(this->model_info[test_model_1].model_paths.size(), 1);
     ASSERT_EQ(this->model_info[test_model_1].this_op_cnt, 2);
+    test_model_path_1 = ov::util::path_join({ "path", "to", "test", test_model_1 + ".xml"});
+    this->update(test_model_path_1, test_meta_1);
+    ASSERT_EQ(this->model_info[test_model_1].model_paths.size(), 2);
+    ASSERT_EQ(this->model_info[test_model_1].this_op_cnt, 3);
 }
 
 TEST_F(MetaInfoUnitTest, get_model_name_by_path) {
@@ -193,13 +197,7 @@ TEST_F(MetaInfoUnitTest, get_model_name_by_path) {
 
 TEST_F(MetaInfoUnitTest, get_graph_priority) {
     ASSERT_NO_THROW(this->get_graph_priority());
-    ASSERT_EQ(0, this->get_graph_priority());
-
-    std::map<std::string, InputInfo> test_meta_1 = {{ "test_in_0", InputInfo(0, 1, true) }};
-    std::string test_model_1 = "test_model_1";
-    std::string test_model_path_1 = ov::util::path_join({ "path", "to",  test_model_1 + ".xml"});
-    this->update(test_model_path_1, test_meta_1, 10);
-    ASSERT_EQ(1, this->get_graph_priority());
+    ASSERT_EQ(this->get_abs_graph_priority(), 5);
 }
 
 }  // namespace

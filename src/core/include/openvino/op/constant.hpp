@@ -364,7 +364,6 @@ public:
     template <typename T>
     const T* get_data_ptr() const {
         OPENVINO_ASSERT(sizeof(T) <= m_element_type.size() || shape_size(m_shape) <= 0, "Buffer over-read");
-
         return static_cast<const T*>(get_data_ptr());
     }
 

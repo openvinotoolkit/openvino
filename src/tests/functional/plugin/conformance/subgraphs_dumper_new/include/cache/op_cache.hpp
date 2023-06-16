@@ -6,9 +6,9 @@
 
 #include "cache/cache.hpp"
 
-#include"single_op_matchers/manager.hpp"
-#include"single_op_matchers/base.hpp"
-#include"single_op_matchers/convolutions.hpp"
+#include "single_op_matchers/manager.hpp"
+#include "single_op_matchers/base.hpp"
+#include "single_op_matchers/convolutions.hpp"
 
 namespace ov {
 namespace tools {

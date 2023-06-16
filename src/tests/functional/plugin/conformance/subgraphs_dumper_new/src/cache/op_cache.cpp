@@ -5,7 +5,6 @@
 #include <memory>
 #include <utility>
 
-// #include "op_cloner.hpp"
 #include "openvino/core/core.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/util/file_util.hpp"
@@ -57,22 +56,33 @@ void OpCache::update_cache(const std::shared_ptr<ov::Node>& node,
                            const std::string& model_path,
                            size_t model_op_cnt) {
     std::shared_ptr<ov::Node> find_op_in_cache = nullptr;
+    // Clone node to get node with Parameter/Constants input only
+    auto cloned_node = clone_node(node, true);
+    if (cloned_node == nullptr)
+        return;
+    cloned_node->set_friendly_name(ov::test::functional::get_node_version(cloned_node));
     for (auto &&it : m_ops_cache) {
-        if (m_manager.match_any(it.first, node)) {
-            it.second.update(model_path, get_input_info_by_node(node), model_op_cnt);
+        if (m_manager.match_any(it.first, cloned_node)) {
+            std::cout << "Match " << cloned_node->get_type_info().name <<  " " << cloned_node->get_friendly_name() <<
+                    " with " << it.first->get_friendly_name() << std::endl;
             find_op_in_cache = it.first;
             break;
         }
     }
 
-    auto meta = MetaInfo(model_path, get_input_info_by_node(node), model_op_cnt);
-    if (find_op_in_cache > node) {
+    auto meta = MetaInfo(model_path, get_input_info_by_node(cloned_node), model_op_cnt);
+    if (find_op_in_cache != nullptr) {
+        m_ops_cache[find_op_in_cache].update(model_path, get_input_info_by_node(cloned_node), model_op_cnt);
+    }
+    if (find_op_in_cache > cloned_node) {
+        std::cout << "Update cache node: " << cloned_node->get_type_info().name <<  " " << find_op_in_cache->get_friendly_name() << std::endl;
         meta = m_ops_cache[find_op_in_cache];
         m_ops_cache.erase(find_op_in_cache);
         find_op_in_cache = nullptr;
     }
     if (find_op_in_cache == nullptr) {
-        m_ops_cache.insert({ node, meta });
+        std::cout << "Insert node: " << cloned_node->get_type_info().name <<  " " << cloned_node->get_friendly_name() << " to Cache" << std::endl;
+        m_ops_cache.insert({ cloned_node, meta });
     }
 }
 
@@ -84,20 +94,13 @@ void OpCache::serialize_cache() {
 
 bool OpCache::serialize_op(const std::pair<std::shared_ptr<ov::Node>, MetaInfo> &op_info) {
     std::string serialization_dir = get_rel_serilization_dir(op_info.first);
-    std::shared_ptr<ov::Model> model = generate_graph_by_node(op_info.first);
-    model->set_friendly_name(op_info.first->get_friendly_name());
+    std::shared_ptr<ov::Model> model = generate_model_by_node(op_info.first);
     return serialize_model(make_pair(model, op_info.second), serialization_dir);
 }
 
 std::string OpCache::get_rel_serilization_dir(const std::shared_ptr<ov::Node>& node) {
-    std::string op_folder_name = node->get_type_info().name;
-    std::string opset_version = node->get_type_info().get_version();
-    std::string opset_name = "opset";
-    auto pos = opset_version.find(opset_name);
-    if (pos != std::string::npos) {
-        op_folder_name += "-" + opset_version.substr(pos + opset_name.size());
-    }
-    auto op_el_type = node->get_element_type().get_type_name();
+    std::string op_folder_name = ov::test::functional::get_node_version(node);
+    auto op_el_type = node->get_output_element_type(0).get_type_name();
 
     return ov::util::path_join({"operation", get_node_type(node), op_folder_name, op_el_type});
 }
