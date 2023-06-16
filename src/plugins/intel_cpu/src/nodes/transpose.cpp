@@ -163,7 +163,7 @@ void Transpose::initSupportedPrimitiveDescriptors() {
         config.inConfs[0].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(prec, inputDataShape));
         config.outConfs[0].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(prec, outputDataShape));
         supportedPrimitiveDescriptorsBuilder(config, transposeParams);
-
+#if defined(OPENVINO_ARCH_X86_64)
         const auto& srcDims = inputDataShape.getDims();
         if (srcDims[1] != Shape::UNDEFINED_DIM && srcDims[1] % 8 == 0) {
             config.inConfs[0].setMemDesc(creatorsMap.at(LayoutType::nCsp8c)->createSharedDesc(prec, inputDataShape));
@@ -174,7 +174,7 @@ void Transpose::initSupportedPrimitiveDescriptors() {
             config.inConfs[0].setMemDesc(creatorsMap.at(LayoutType::nCsp16c)->createSharedDesc(prec, inputDataShape));
             supportedPrimitiveDescriptorsBuilder(config, transposeParams);
         }
-
+#endif // OPENVINO_ARCH_X86_64
         if (prec == Precision::FP32 || prec == Precision::I8 || prec == Precision::U8) {
             config.inConfs[0].setMemDesc(creatorsMap.at(LayoutType::nspc)->createSharedDesc(prec, inputDataShape));
             config.outConfs[0].setMemDesc(creatorsMap.at(LayoutType::nspc)->createSharedDesc(prec, outputDataShape));

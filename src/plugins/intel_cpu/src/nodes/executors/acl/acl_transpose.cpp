@@ -28,11 +28,21 @@ bool ov::intel_cpu::ACLTransposeExecutor::init(const ov::intel_cpu::TransposePar
     for (size_t i = 0; i < inputOrder.size(); ++i) {
         order.set(i, axisCast(inputOrder[axisCast(i, inputOrder.size())], inputOrder.size()));
     }
+
+    //ACL does not handle NHWC layout properly, so NCHW layout always used
+    //WA: If real layout if NHWC then transpose order should be changed
+    if (getAclDataLayoutByMemoryDesc(srcDescs[0]) == arm_compute::DataLayout::NHWC) {
+        uint32_t tmp = order[3];
+        order[3] = order[2];
+        order[2] = order[1];
+        order[1] = tmp;
+    }
+
     auto srcDims = srcDescs[0]->getShape().getStaticDims();
     auto dstDims = dstDescs[0]->getShape().getStaticDims();
     auto srcTensorInfo = arm_compute::TensorInfo(shapeCast(srcDims), 1,
                                                  precisionToAclDataType(srcDescs[0]->getPrecision()),
-                                                 getAclDataLayoutByMemoryDesc(srcDescs[0]));
+                                                 arm_compute::DataLayout::NCHW);
     auto dstTensorInfo = arm_compute::TensorInfo(shapeCast(dstDims), 1,
                                                  precisionToAclDataType(dstDescs[0]->getPrecision()),
                                                  getAclDataLayoutByMemoryDesc(dstDescs[0]));

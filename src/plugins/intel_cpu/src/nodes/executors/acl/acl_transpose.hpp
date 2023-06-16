@@ -29,14 +29,11 @@ public:
     bool isSupported(const TransposeParams& transposeParams,
                      const std::vector<MemoryDescPtr>& srcDescs,
                      const std::vector<MemoryDescPtr>& dstDescs) const override {
-        for (const auto &srcD : srcDescs) {
-            for (const auto &dstD : dstDescs) {
-                if (!(srcD->hasLayoutType(LayoutType::ncsp) &&
-                      dstD->hasLayoutType(LayoutType::ncsp)) &&
-                    !(srcD->hasLayoutType(LayoutType::nspc) &&
-                      dstD->hasLayoutType(LayoutType::nspc)))
-                    return false;
-            }
+        if (!(srcDescs[0]->hasLayoutType(LayoutType::ncsp) &&
+              dstDescs[0]->hasLayoutType(LayoutType::ncsp)) &&
+            !(srcDescs[0]->hasLayoutType(LayoutType::nspc) &&
+              dstDescs[0]->hasLayoutType(LayoutType::nspc))) {
+            return false;
         }
         return true;
     }
