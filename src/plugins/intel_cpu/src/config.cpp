@@ -39,7 +39,7 @@ Config::Config() {
 #if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
 #    if defined(__APPLE__) || defined(_WIN32)
     // 'CORES' is not implemented for Win/MacOS; so the 'NONE' or 'NUMA' is default
-    auto numaNodes = getAvailableNUMANodes();
+    auto numaNodes = get_available_numa_nodes();
     if (numaNodes.size() > 1) {
         streamExecutorConfig._threadBindingType = IStreamsExecutor::NUMA;
     } else {

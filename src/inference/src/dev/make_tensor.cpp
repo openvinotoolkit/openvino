@@ -507,6 +507,18 @@ public:
                        auto shape = tensor_->get_shape();
                        ie::SizeVector blk_order(shape.size());
                        std::iota(blk_order.begin(), blk_order.end(), 0);
+                       // Tensor to Blob will lack of layout info, default is NCHW, but it will lead to failure
+                       // let's guess something for NHWC
+                       auto dims = shape;
+                       if (shape.size() == 4) {
+                           // NHWC
+                           if (shape[1] == shape[2]) {
+                               blk_order = {0, 2, 3, 1};
+                               dims[1] = shape[3];
+                               dims[2] = shape[1];
+                               dims[3] = shape[2];
+                            }
+                       }
                        ie::SizeVector dim_offset(shape.size(), 0);
                        ie::SizeVector blk_strides;
                        auto byte_strides = element_type.bitwidth() >= 8 ? tensor_->get_strides() : Strides{};
@@ -527,7 +539,7 @@ public:
                                           });
                        }
                        return ie::TensorDesc{ie::details::convertPrecision(element_type),
-                                             shape,
+                                             dims,
                                              ie::BlockingDesc{shape, blk_order, 0, dim_offset, blk_strides}};
                    }(),
                    static_cast<T*>(tensor_->data()),
