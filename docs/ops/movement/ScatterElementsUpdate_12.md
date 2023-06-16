@@ -6,9 +6,9 @@
 
 **Category**: *Data movement*
 
-**Short description**: Creates a copy of the first input tensor with elements updated according to the logic specified by *reduction* attribute and the following inputs: ``indices``, ``updates``, ``axis``.
+**Short description**: Creates a copy of the first input tensor with elements from ``updates`` input applied according to the logic specified by *reduction* attribute and ``indices`` along the ``axis``.
 
-**Detailed description**: For each element of ``updates`` input, the value of ``indices`` at the same index points the element to update on the ``axis`` of ``data``. The index for dimension pointed by ``axis`` is provided by values of ``indices`` input, otherwise the index is the same as the index of the entry itself.
+**Detailed description**: Creates copy of the first input tensor, and applies the elements of ``updates`` according to the logic specified by *reduction* attribute. For each element of ``updates``, at the same index there is corresponding value of ``indices``, which is an index along dimension specified by ``axis``. The index for dimension pointed by ``axis`` is provided by values of ``indices`` input, otherwise, the index is the same as the index of the entry itself.
 
 The dimensions of ``update`` tensor are allowed to be less or equal to the corresponding dimensions of ``data`` tensor, but the dimension pointed by ``axis`` can be also greater (especially if the ``indices`` input contains duplicated values).
 
