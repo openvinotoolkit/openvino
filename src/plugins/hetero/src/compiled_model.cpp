@@ -262,6 +262,10 @@ ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model
                         input.replace_source_output(parameter->output(0));
                         subgraphIds.emplace(parameter.get(), input_subset.first);
                         subgraphParameterToPrevResult.emplace(parameter.get(), result.get());
+                        _mapOutputToInput.emplace(  // TODO: reuse subgraphParameterToPrevResult
+                            result,
+                            parameter
+                        );
                         _blobNameMap.emplace(
                             parameter->get_friendly_name(),
                             output.get_node()->get_friendly_name() + ((output.get_node()->get_output_size() != 1)
@@ -341,6 +345,54 @@ ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model
                       std::back_inserter(orderedSubgraphs));
         } while (!allSubgraphs.empty());
 
+        // Prepare mapping between original inputs/outputs and compiled
+        // submodels inputs/outputs. Example:
+        // original input 0 -> submodel 0 input 0,
+        // original input 1 -> submodel 1 input 0,
+        // original output 0 -> submodel 1 output 0.
+        //
+        // Mapping is required only because before compilation
+        // submodel may be preprocessed (if legacy API used),
+        // so original inputs/outputs != submodels inputs/outputs
+        m_inputs_to_submodel_inputs.resize(m_inputs.size());
+        m_outputs_to_submodel_outputs.resize(m_outputs.size());
+        for (size_t id = 0; id < orderedSubgraphs.size(); id++) {
+            for (size_t i = 0; i < orderedSubgraphs[id]._parameters.size(); i++) {
+                const auto& input_node = std::dynamic_pointer_cast<ov::Node>(orderedSubgraphs[id]._parameters[i]);
+                for (size_t j = 0; j < m_inputs.size(); j++)
+                    if (input_node == m_inputs[j].get_node_shared_ptr())
+                        m_inputs_to_submodel_inputs[j] = {id, i};
+            }
+            for (size_t i = 0; i < orderedSubgraphs[id]._results.size(); i++) {
+                const auto& input_node = std::dynamic_pointer_cast<ov::Node>(orderedSubgraphs[id]._results[i]);
+                for (size_t j = 0; j < m_outputs.size(); j++)
+                    if (input_node == m_outputs[j].get_node_shared_ptr())
+                        m_outputs_to_submodel_outputs[j] = {id, i};
+            }
+        }
+
+        // Prepare mapping between manually splitted inputs/outputs
+        // to connect tensors between compiled submodels
+        for (const auto& kvp: _mapOutputToInput) {
+            const auto& intermed_output = kvp.first;
+            const auto& intermed_input = kvp.second;
+            for (size_t id = 0; id < orderedSubgraphs.size(); id++) {
+                const auto& out_it = std::find(orderedSubgraphs[id]._results.begin(), orderedSubgraphs[id]._results.end(), intermed_output);
+                if (out_it != orderedSubgraphs[id]._results.end()) {
+                    for (size_t id2 = 0; id2 < orderedSubgraphs.size(); id2++) {
+                        if (id2 == id)
+                            continue;
+                        const auto& in_it = std::find(orderedSubgraphs[id2]._parameters.begin(), orderedSubgraphs[id2]._parameters.end(), intermed_input);
+                        if (in_it != orderedSubgraphs[id2]._parameters.end()) {
+                            auto out_idx = std::distance(orderedSubgraphs[id]._results.begin(), out_it);
+                            auto in_idx = std::distance(orderedSubgraphs[id2]._parameters.begin(), in_it);
+                            m_submodels_output_to_input[{id, out_idx}] = {id2, in_idx};
+                        }
+                    }
+                }
+            }
+        }
+
         ov::ParameterVector externalInputsData = model->get_parameters();
         ov::ResultVector externalOutputsData = model->get_results();
 
@@ -353,7 +405,7 @@ ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model
                                                            subgraph._sinks,
                                                            subgraph._parameters,
                                                            m_name + '_' + std::to_string(id));
-            m_networks[id]._clonedNetwork = subFunctions[id]->clone();  // TODO vurusovs IS CLONE REQUIRED?
+            m_networks[id]._clonedNetwork = subFunctions[id];
 
             // update of pre-processing info
             // auto clonedInputs = _networks[id]._clonedNetwork.getInputsInfo();

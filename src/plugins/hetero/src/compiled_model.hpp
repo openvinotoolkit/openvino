@@ -42,6 +42,9 @@ public:
 
     std::shared_ptr<ov::IAsyncInferRequest> create_infer_request() const override;
 
+    std::vector<std::pair<size_t /*submodel_idx*/, size_t /*tensor_idx*/>> m_inputs_to_submodel_inputs, m_outputs_to_submodel_outputs;
+    std::map<std::pair<size_t /*submodel_idx*/, size_t /*tensor_idx*/>, std::pair<size_t /*submodel_idx*/, size_t /*tensor_idx*/>> m_submodels_output_to_input;
+    std::unordered_map<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> _mapOutputToInput;
     // TODO (vurusovs) to be changed with more robust solution with InferRequest implementation
     std::unordered_map<std::string, std::string> _blobNameMap;
 
