@@ -63,7 +63,6 @@ PrimListConstructPadReplacer::PrimListConstructPadReplacer() {
     ov::matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {
         Output<Node> input_node;
         Output<Node> padding;
-        // Output<Node> value_idx;
         Output<Node> pad_value;
         std::string mode;
         NodeVector rt_info = {};
@@ -107,8 +106,8 @@ PrimListConstructPadReplacer::PrimListConstructPadReplacer() {
         auto pad_size_1d = rg.make<v3::ShapeOf>(pad_values, element::i32);
         auto pad_size = rg.make<v0::Squeeze>(pad_size_1d, zero);
         // get pad_begins and pad_ends indexes starting for end of paddings
-        auto start_pad_begins = std::make_shared<v1::Add>(pad_size, minus_two);
-        auto start_pad_ends = std::make_shared<v1::Add>(pad_size, minus_one);
+        auto start_pad_begins = rg.make<v1::Add>(pad_size, minus_two);
+        auto start_pad_ends = rg.make<v1::Add>(pad_size, minus_one);
         auto pad_begins_full = create_padding(rg, input_rank, pad_values, start_pad_begins, minus_one);
         auto pad_ends_full = create_padding(rg, input_rank, pad_values, start_pad_ends, zero);
         if (mode == "constant") {
