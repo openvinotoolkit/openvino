@@ -8,7 +8,6 @@
 
 
 TEST(GemmTests, getPackedSize) {
-    int M = 128;
     int N = 51864;
     int K = 384;
     ASSERT_NO_THROW(ov_sgemm_pack_get_size(N, K));

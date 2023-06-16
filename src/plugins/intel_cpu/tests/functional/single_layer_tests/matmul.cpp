@@ -351,7 +351,7 @@ std::vector<fusingSpecificParams> filterFusingParams(const std::vector<fusingSpe
 #else
     return {emptyFusingSpec, fusingBias};
 #endif
-};
+}
 
 std::vector<fusingSpecificParams> fusingParamsSet2D_smoke {
         emptyFusingSpec,
