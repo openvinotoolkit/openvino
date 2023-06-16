@@ -142,6 +142,9 @@ endif()
 
 add_subdirectory(tests)
 
+# TODO remove if build pass
+set(ENABLE_GNA_SAMPLES ON)
+
 if(ENABLE_GNA_SAMPLES)
 
 add_subdirectory(samples)
