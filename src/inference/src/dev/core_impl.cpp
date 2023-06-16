@@ -662,9 +662,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& mod
             return compile_model_and_cache(cnnNetwork, plugin, parsed._config, ov::RemoteContext{}, cacheContent);
         });
     } else {
-        std::cout << "1 -------------" << std::endl;
         auto model = read_model(model_str, weights);
-        std::cout << "2 -------------" << std::endl;
         compiled_model = compile_model_with_preprocess(plugin, model, ov::RemoteContext{}, parsed._config);
     }
     return compiled_model;

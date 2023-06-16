@@ -48,8 +48,7 @@ ov::autobatch_plugin::AsyncInferRequest::AsyncInferRequest(
 
 std::vector<ov::ProfilingInfo> ov::autobatch_plugin::AsyncInferRequest::get_profiling_info() const {
     check_state();
-    if (ov::autobatch_plugin::SyncInferRequest::eExecutionFlavor::BATCH_EXECUTED ==
-        m_sync_request->m_batched_req_used)
+    if (ov::autobatch_plugin::SyncInferRequest::eExecutionFlavor::BATCH_EXECUTED == m_sync_request->m_batched_req_used)
         return m_sync_request->m_batched_request_wrapper->_inferRequestBatched->get_profiling_info();
     else
         return m_request_without_batch->get_profiling_info();
