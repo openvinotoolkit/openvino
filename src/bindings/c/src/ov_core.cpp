@@ -13,7 +13,7 @@
 char* str_to_char_array(const std::string& str) {
     std::unique_ptr<char> _char_array(new char[str.length() + 1]);
     char* char_array = _char_array.release();
-    std::copy_n(str.begin(), str.length() + 1, char_array);
+    std::copy_n(str.c_str(), str.length() + 1, char_array);
     return char_array;
 }
 
