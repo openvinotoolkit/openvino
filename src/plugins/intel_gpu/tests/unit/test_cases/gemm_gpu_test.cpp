@@ -3,6 +3,7 @@
 //
 
 #include "test_utils.h"
+#include "random_generator.hpp"
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/gemm.hpp>
@@ -166,21 +167,18 @@ class GemmGPUTestRandom : public GemmGPUTest {
     ov::Shape input1_shape;
     ov::Shape output_shape;
 
-    float generate_random_value() {
-        static std::default_random_engine generator(random_seed);
-        std::uniform_int_distribution<int> distribution(-10, 10);
-        float val = distribution(generator);
-        return val;
+    tests::random_generator rg;
+
+    void SetUp() override {
+        std::string suite_name = std::string(::testing::UnitTest::GetInstance()->current_test_info()->test_suite_name()) +
+                                 std::string(::testing::UnitTest::GetInstance()->current_test_info()->name());
+        rg.set_seed(suite_name);
     }
 
     void generated_inputs() {
         for (size_t i = 0; i < shapes.size(); ++i) {
             size_t size = ngraph::shape_size(shapes[i]);
-            auto &v = input_data[i];
-            v.resize(size);
-            for(size_t i = 0; i < size; ++i) {
-                v[i] = generate_random_value() / 20.f;
-            }
+            input_data[i] = rg.generate_random<float>(size, -1, 1, 10);
         }
     }
 
