@@ -7,22 +7,27 @@
    Installing OpenVINO Runtime from Conda Forge is recommended for C++ developers, as it provides only the C++ Runtime API.
    If you work with Python, consider :doc:`installing OpenVINO from PyPI <openvino_docs_install_guides_installing_openvino_pip>`
 
-.. tab:: System Requirements
+.. tab-set::
 
-   | Full requirement listing is available in:
-   | `System Requirements Page <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html>`__
+   .. tab-item:: System Requirements
+      :sync: sysreq
 
-   .. comment to publish in the future, when gpu support comes back:
+      | Full requirement listing is available in:
+      | `System Requirements Page <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html>`__
    
-      .. tab:: Processor Notes
+      .. comment to publish in the future, when gpu support comes back:
       
-           | Not all Intel CPUs include integrated graphics processors.  
-           | See `Product Specifications <https://ark.intel.com/>`__ for information about your hardware.
+      .. tab-item::  Processor Notes
+         :sync: processornotes
+      
+         | Not all Intel CPUs include integrated graphics processors.  
+         | See `Product Specifications <https://ark.intel.com/>`__ for information about your hardware.
+   
+   .. tab-item:: Software
+      :sync: software
 
-.. tab:: Software
-
-   There are many ways to work with Conda. Before you proceed, learn more about it on the
-   `Anaconda distribution page <https://www.anaconda.com/products/individual/>`__
+      There are many ways to work with Conda. Before you proceed, learn more about it on the
+      `Anaconda distribution page <https://www.anaconda.com/products/individual/>`__
 
 
 Installing OpenVINO Runtime with Anaconda Package Manager
