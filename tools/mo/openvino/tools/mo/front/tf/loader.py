@@ -327,7 +327,7 @@ def load_tf_graph_def(graph_file_name: str = "", is_binary: bool = True, checkpo
 
 
 def convert_to_pb(argv: argparse.Namespace):
-    from openvino.tools.mo.utils.cli_parser import get_model_name
+    from openvino.runtime.utils.cli_parser import get_model_name
     if argv.input_model is not None and not isinstance(argv.input_model, (str, Path)):
         return None
     env_setup = get_environment_setup("tf")

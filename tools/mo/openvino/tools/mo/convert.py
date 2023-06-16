@@ -2,12 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 import os
 import pathlib
-from collections import namedtuple
 from typing import Any
 
 from openvino.runtime import PartialShape, Shape, Layout, Model, InputCutInfo, LayoutMap
 from openvino.tools.mo.convert_impl import _convert
-from openvino.tools.mo.utils.cli_parser import get_all_cli_parser
+from openvino.runtime.utils.cli_parser import get_all_cli_parser
 from openvino.tools.mo.utils.logger import get_logger_state, restore_logger_state
 
 

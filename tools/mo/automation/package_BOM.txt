@@ -1018,7 +1018,6 @@ openvino/tools/mo/utils/broadcasting.py
 openvino/tools/mo/utils/check_ie_bindings.py
 openvino/tools/mo/utils/check_mo_import.py
 openvino/tools/mo/utils/class_registration.py
-openvino/tools/mo/utils/cli_parser.py
 openvino/tools/mo/utils/custom_replacement_config.py
 openvino/tools/mo/utils/dsu.py
 openvino/tools/mo/utils/error.py
@@ -1087,7 +1086,6 @@ openvino/tools/mo/utils/shape.py
 openvino/tools/mo/utils/simple_proto_parser.py
 openvino/tools/mo/utils/str_to.py
 openvino/tools/mo/utils/summarize_graph.py
-openvino/tools/mo/utils/telemetry_params.py
 openvino/tools/mo/utils/telemetry_stub.py
 openvino/tools/mo/utils/telemetry_utils.py
 openvino/tools/mo/utils/tensorboard_util.py

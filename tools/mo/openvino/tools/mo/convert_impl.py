@@ -28,7 +28,7 @@ from openvino.tools.mo.middle.passes.convert_data_type import destination_type_t
 from openvino.tools.mo.pipeline.common import prepare_emit_ir
 from openvino.tools.mo.pipeline.unified import unified_pipeline
 from openvino.tools.mo.utils import import_extensions
-from openvino.tools.mo.utils.cli_parser import check_available_transforms, \
+from openvino.runtime.utils.cli_parser import check_available_transforms, \
     get_advanced_cli_options, get_available_front_ends, get_caffe_cli_options, \
     get_common_cli_options, get_freeze_placeholder_values, get_kaldi_cli_options, get_layout_values, \
     get_mean_scale_dictionary, get_mxnet_cli_options, get_onnx_cli_options, \
@@ -504,7 +504,7 @@ def emit_ir(graph: Graph, argv: argparse.Namespace, non_default_params: dict):
     return_code = "not executed"
     if not (argv.framework == 'tf' and argv.tensorflow_custom_operations_config_update):
         try:
-            from openvino.tools.mo.back.offline_transformations import apply_offline_transformations
+            from openvino.runtime.utils.moc_frontend.offline_transformations import apply_offline_transformations
             func = apply_offline_transformations(func, argv)
             if "compress_to_fp16" in argv and argv.compress_to_fp16:
                 # restore data_type cmd parameter
@@ -963,6 +963,6 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args, python_api_us
 
         send_conversion_result('fail')
         if python_api_used:
-            raise e.with_traceback(None)
+            raise e#.with_traceback(None)
         else:
             return None, argv

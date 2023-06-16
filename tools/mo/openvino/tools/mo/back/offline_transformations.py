@@ -5,7 +5,7 @@ import argparse
 from typing import List
 
 from openvino.tools.mo.front.extractor import create_params_with_custom_types
-from openvino.tools.mo.utils.cli_parser import parse_transform
+from openvino.runtime.utils.cli_parser import parse_transform
 from openvino.tools.mo.utils.error import Error
 from openvino.runtime import Model
 
