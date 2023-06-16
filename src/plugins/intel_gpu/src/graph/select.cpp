@@ -64,7 +64,7 @@ std::string select_inst::to_string(select_node const& node) {
     std::stringstream primitive_description;
 
     json_composite select_info;
-    for (size_t i = 0; i < node.inputs_count(); i++) {
+    for (size_t i = 0; i < node.get_inputs_count(); i++) {
         select_info.add("input_" + std::to_string(i), node.input(i).id());
     }
 
