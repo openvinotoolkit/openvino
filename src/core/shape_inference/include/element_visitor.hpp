@@ -113,9 +113,8 @@ struct NotSupported {
     using result_type = R;
 
     template <class... Args>
-    R operator()(Args&&...) {
+    [[noreturn]] R operator()(Args&&...) {
         throw_not_supported();
-        return static_cast<R>(NULL);
     }
 
 private:
@@ -123,5 +122,8 @@ private:
         OPENVINO_THROW("Element not supported");
     }
 };
+
+template <Type_t... ETs>
+using IfTypeOf = Supported<ETs...>;
 }  // namespace element
 }  // namespace ov
