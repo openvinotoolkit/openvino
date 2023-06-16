@@ -34,7 +34,6 @@
 #include "transformations/decompose_mvn.hpp"
 #include "transformations/fp16_compression/convert_compression_only_to_legacy.hpp"
 #include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
-#include "transformations/disable_decompression_convert_constant_folding.hpp"
 #include "transformations/fuse_conv_biasadd_activation.hpp"
 #include "transformations/gather_sinking.hpp"
 #include "transformations/handle_transposes_around_matmul.hpp"
