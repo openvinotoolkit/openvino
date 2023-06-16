@@ -30,19 +30,21 @@ void ov::op::util::FFTBase::validate_types() {
 
     element::Type input_et = get_input_element_type(0);
     NODE_VALIDATION_CHECK(this,
-                          input_et == element::f32 || input_et == element::f16 || input_et == element::bf16,
+                          input_et == element::f32 || input_et == element::f16 || input_et == element::bf16 ||
+                              input_et == element::dynamic,
                           "FFT op input element type must be f32, f16, or bf16");
 
     element::Type axes_et = get_input_element_type(1);
     NODE_VALIDATION_CHECK(this,
-                          axes_et == element::i64 || axes_et == element::i32,
+                          axes_et == element::i64 || axes_et == element::i32 || axes_et == element::dynamic,
                           "FFT op axes element type must be i32 or i64");
 
     if (num_of_inputs == 3) {
         element::Type signal_size_et = get_input_element_type(2);
-        NODE_VALIDATION_CHECK(this,
-                              signal_size_et == element::i64 || signal_size_et == element::i32,
-                              "FFT op signal_size element type must be i32 or i64");
+        NODE_VALIDATION_CHECK(
+            this,
+            signal_size_et == element::i64 || signal_size_et == element::i32 || signal_size_et == element::dynamic,
+            "FFT op signal_size element type must be i32 or i64");
     }
 }
 
