@@ -166,7 +166,8 @@ void Split::initSupportedPrimitiveDescriptors() {
     // in place only makes sense when we split by dense blocks since strided tensors are not supported by most nodes.
     const auto& parentdDims = inputShapes[0].getDims();
     if (parentdDims[axis] != Shape::UNDEFINED_DIM &&
-        std::all_of(parentdDims.begin(), parentdDims.begin() + axis, [](size_t dim) { return  dim == 1; })) {
+        std::all_of(parentdDims.begin(), parentdDims.begin() + axis, [](size_t dim) { return  dim == 1; }) &&
+        std::all_of(outputShapes.begin(), outputShapes.end(), [=](const Shape& shape){ return shape.getDims()[axis] != Shape::UNDEFINED_DIM; })) {
         for (auto refPdIndex : pdIndexesToReuse) {
             auto config = supportedPrimitiveDescriptors[refPdIndex].getConfig();
 
@@ -531,16 +532,16 @@ void Split::resolveInPlaceEdges(Edge::LOOK look) {
         size_t numberOfOutputs = config.outConfs.size();
         size_t inplaceInpIndx = selected_pd->getConfig().outConfs[0].inPlace();
         auto baseDim = inputShapes.front().getDims()[axis];
-        IE_ASSERT(baseDim != Shape::UNDEFINED_DIM) << "Split node: " << getName() << " can not use inPlace memory with splitting on dynamic dimension";
+        IE_ASSERT(baseDim != Shape::UNDEFINED_DIM) << " Split node: " << getName() << " can not use inPlace memory with splitting on dynamic dimension";
         auto baseMemMngr = getParentEdgesAtPort(inplaceInpIndx).front()->getMemory().getMemoryMngr();
         ptrdiff_t offset = 0;
         for (size_t i = 0; i < numberOfOutputs; ++i) {
             auto partDim = outputShapes[i].getDims()[axis];
-            IE_ASSERT(partDim != Shape::UNDEFINED_DIM) << "Split node: " << getName() << " can not use inPlace memory with splitting on dynamic dimension";
+            IE_ASSERT(partDim != Shape::UNDEFINED_DIM) << " Split node: " << getName() << " can not use inPlace memory with splitting on dynamic dimension";
             const auto& childEdges = getChildEdgesAtPort(i);
             for (auto& childEdge : childEdges) {
-                // IE_ASSERT(parentEdge->getStatus() == Edge::Status::NotAllocated) << "Unexpected edge status in node: " <<
-                //     getName() << " with type " << getTypeStr();
+                IE_ASSERT(childEdge->getStatus() == Edge::Status::NotAllocated) << " Unexpected edge status in node: " <<
+                    getName() << " with type " << getTypeStr();
 
                 auto memMngr = std::make_shared<PartitionedMemoryMngr>(baseMemMngr, baseDim, offset, partDim);
                 auto newMem = std::make_shared<Memory>(getEngine(), selected_pd->getConfig().outConfs[i].getMemDesc(), memMngr);
