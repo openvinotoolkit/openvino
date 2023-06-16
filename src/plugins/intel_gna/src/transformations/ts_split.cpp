@@ -10,13 +10,13 @@
 #include "common/graph_utils.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/util/op_types.hpp"
-#include "openvino/opsets/opset10.hpp"
+#include "openvino/opsets/opset12.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/rt_info/transpose_sinking_attr.hpp"
 #include "transformations/utils/transformation_helper.hpp"
 
 using namespace ov;
-using namespace ov::opset10;
+using namespace ov::opset12;
 using namespace ov::pass::pattern;
 using namespace ov::intel_gna::pass;
 using namespace ov::intel_gna::pass::helper;
@@ -24,7 +24,7 @@ using namespace ov::intel_gna::limitations;
 using namespace ov::intel_gna::graph_utils;
 
 namespace {
-bool is_sinked(const Output<Node>& output) {
+bool is_split_sinked(const Output<Node>& output) {
     auto split_node = output.get_node_shared_ptr();
     for (size_t output_idx = 0; output_idx < split_node->get_output_size(); ++output_idx) {
         for (auto& input : split_node->get_output_target_inputs(output_idx)) {
@@ -36,7 +36,7 @@ bool is_sinked(const Output<Node>& output) {
     return false;
 }
 
-std::vector<size_t> CreateGatherIndices(const ov::Shape& input_shape, const ov::Shape& order) {
+std::vector<size_t> create_gather_indices(const ov::Shape& input_shape, const ov::Shape& order) {
     if (input_shape.size() < 2 || input_shape.size() > 4) {
         THROW_GNA_EXCEPTION << "Usupported shape size: " << input_shape.size();
     }
@@ -77,7 +77,7 @@ std::vector<size_t> CreateGatherIndices(const ov::Shape& input_shape, const ov::
 TSSplitBackward::TSSplitBackward() {
     MATCHER_SCOPE(TSSplitBackward);
 
-    auto split_node_label = wrap_type<Split>(is_sinked);
+    auto split_node_label = wrap_type<Split>(is_split_sinked);
 
     matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
@@ -95,7 +95,7 @@ TSSplitBackward::TSSplitBackward() {
                     if (!transpose_const)
                         return false;
                     auto gather_indices_value =
-                        CreateGatherIndices(transpose->get_input_shape(0), transpose_const->get_axis_vector_val());
+                        create_gather_indices(transpose->get_input_shape(0), transpose_const->get_axis_vector_val());
                     gather_indices_vecs.push_back(gather_indices_value);
                 } else {
                     const Shape& input_shape = input.get_shape();

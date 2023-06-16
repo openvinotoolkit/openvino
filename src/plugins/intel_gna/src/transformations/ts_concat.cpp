@@ -6,17 +6,16 @@
 
 #include <openvino/cc/ngraph/itt.hpp>
 
-#include "../debug_new_pass.hpp"
 #include "backend/gna_limitations.hpp"
 #include "common/graph_utils.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/util/op_types.hpp"
-#include "openvino/opsets/opset10.hpp"
+#include "openvino/opsets/opset12.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/transformation_helper.hpp"
 
 using namespace ov;
-using namespace ov::opset10;
+using namespace ov::opset12;
 using namespace ov::pass::pattern;
 using namespace ov::intel_gna;
 using namespace ov::intel_gna::pass;
@@ -25,7 +24,7 @@ using namespace ov::intel_gna::limitations;
 
 namespace {
 
-bool is_sinked(const Output<Node>& output) {
+bool is_concat_sinked(const Output<Node>& output) {
     auto concat_node = ov::as_type_ptr<Concat>(output.get_node_shared_ptr());
 
     const Shape concat_output_shape = concat_node->get_output_shape(0);
@@ -48,7 +47,7 @@ bool is_sinked(const Output<Node>& output) {
 TSConcatForward::TSConcatForward() {
     MATCHER_SCOPE(TSConcatForward);
 
-    auto concat_node_label = wrap_type<Concat>(is_sinked);
+    auto concat_node_label = wrap_type<Concat>(is_concat_sinked);
 
     matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
