@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,28 +18,28 @@ namespace op {
 //
 // Infers the output batch shape and element type for batched pooling fprop.
 //
-ov::PartialShape infer_batched_pooling_forward(const ngraph::Node* node,
+ov::PartialShape infer_batched_pooling_forward(const ov::Node* node,
                                                const ov::PartialShape& data_batch_shape,
                                                const ov::CoordinateDiff& data_padding_below,
                                                const ov::CoordinateDiff& data_padding_above,
                                                const ov::PartialShape& window_shape,
-                                               const ngraph::Strides& window_strides,
+                                               const ov::Strides& window_strides,
                                                bool is_window_all_in_padding_allowed,
                                                bool ceil_mode,
-                                               const ngraph::Strides& window_dilation);
+                                               const ov::Strides& window_dilation);
 
 //
 // Infers the output batch shape and element type for batched pooling fprop.
 //
-ov::PartialShape infer_batched_pooling_forward(const ngraph::Node* node,
+ov::PartialShape infer_batched_pooling_forward(const ov::Node* node,
                                                const ov::PartialShape& data_batch_shape,
                                                const ov::CoordinateDiff& data_padding_below,
                                                const ov::CoordinateDiff& data_padding_above,
                                                const ov::PartialShape& window_shape,
-                                               const ngraph::Strides& window_strides,
+                                               const ov::Strides& window_strides,
                                                bool is_window_all_in_padding_allowed,
                                                bool ceil_mode,
-                                               const ngraph::Strides& window_dilation) {
+                                               const ov::Strides& window_dilation) {
     NODE_VALIDATION_CHECK(node,
                           data_batch_shape.rank().is_dynamic() ||
                               (data_batch_shape.rank().get_length() >= 3 && data_batch_shape.rank().get_length() <= 5),
@@ -92,12 +92,12 @@ ov::PartialShape infer_batched_pooling_forward(const ngraph::Node* node,
                               "Channel count is zero.");
 
         // For pooling ops we don't need dilation, so we fill in the identity value (all 1).
-        ngraph::Strides data_dilation(data_spatial_shape.rank().get_length(), 1);
-        ngraph::Strides dilations = window_dilation;
+        ov::Strides data_dilation(data_spatial_shape.rank().get_length(), 1);
+        ov::Strides dilations = window_dilation;
         // if the window_dilation was not specified, generate the default value (no dilations)
         if (window_dilation.empty()) {
             // dilations equal to 1 for each spatial axis mean that the window is not dilated
-            dilations = ngraph::Strides(data_spatial_shape.rank().get_length(), 1);
+            dilations = ov::Strides(data_spatial_shape.rank().get_length(), 1);
         }
 
         data_output_spatial_shape = ngraph::infer_windowed_reduction_output_shape(node,
@@ -126,8 +126,8 @@ ov::PartialShape infer_batched_pooling_forward(const ngraph::Node* node,
     return data_batch_output_shape;
 }
 
-GNAMaxPool::GNAMaxPool(const ngraph::Output<ngraph::Node>& arg,
-                       const ngraph::Strides& strides,
+GNAMaxPool::GNAMaxPool(const ov::Output<ov::Node>& arg,
+                       const ov::Strides& strides,
                        const ov::Shape& pads_begin,
                        const ov::Shape& pads_end,
                        const ov::Shape& kernel,
@@ -155,7 +155,7 @@ bool GNAMaxPool::visit_attributes(ov::AttributeVisitor& visitor) {
 
 void GNAMaxPool::validate_and_infer_types() {
     if (0 == m_strides.size()) {
-        m_strides = ngraph::Strides(m_kernel.size(), 1);
+        m_strides = ov::Strides(m_kernel.size(), 1);
     }
 
     if (0 == m_pads_begin.size()) {
@@ -194,18 +194,18 @@ void GNAMaxPool::validate_and_infer_types() {
                               m_strides.size());
     }
 
-    const ov::PartialShape output_shape = infer_output_shape(ngraph::Strides{});  // no dilations of the filter window
+    const ov::PartialShape output_shape = infer_output_shape(ov::Strides{});  // no dilations of the filter window
 
     set_output_type(0, get_input_element_type(0), output_shape);
 }
 
-ov::PartialShape GNAMaxPool::infer_output_shape(const ngraph::Strides& dilations) {
+ov::PartialShape GNAMaxPool::infer_output_shape(const ov::Strides& dilations) {
     const auto& arg_shape = get_input_partial_shape(0);
 
     bool update_auto_padding_succeed = true;
 
     if (m_auto_pad == ov::op::PadType::SAME_UPPER || m_auto_pad == ov::op::PadType::SAME_LOWER) {
-        const auto filter_dilations = dilations.empty() ? ngraph::Strides(m_kernel.size(), 1) : dilations;
+        const auto filter_dilations = dilations.empty() ? ov::Strides(m_kernel.size(), 1) : dilations;
         update_auto_padding_succeed = update_auto_padding(arg_shape, filter_dilations, m_pads_end, m_pads_begin);
     }
     if (m_auto_pad == ov::op::PadType::VALID) {
@@ -242,7 +242,7 @@ ov::PartialShape GNAMaxPool::infer_output_shape(const ngraph::Strides& dilations
 }
 
 bool GNAMaxPool::update_auto_padding(const ov::PartialShape& in_shape,
-                                     const ngraph::Strides& filter_dilations,
+                                     const ov::Strides& filter_dilations,
                                      ov::Shape& new_pads_end,
                                      ov::Shape& new_pads_begin) const {
     bool update_auto_padding_succeed = true;
@@ -261,7 +261,7 @@ bool GNAMaxPool::update_auto_padding(const ov::PartialShape& in_shape,
     return update_auto_padding_succeed;
 }
 
-std::shared_ptr<ngraph::Node> GNAMaxPool::clone_with_new_inputs(const ov::OutputVector& new_args) const {
+std::shared_ptr<ov::Node> GNAMaxPool::clone_with_new_inputs(const ov::OutputVector& new_args) const {
     check_new_args_count(this, new_args);
     return std::make_shared<GNAMaxPool>(new_args.at(0),
                                         m_strides,

@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,7 +11,13 @@ namespace intel_gna {
 namespace pass {
 
 /**
- * @brief TODO
+ * @brief Substutites ngraph::Convolution (NCHW) -> GNAConvolution (NHWC)
+ * 
+ *                              Transpose (NCHW -> NHWC)
+ *                                       |
+ * Convolution (NCHW) ->         GNAConvolution (NHWC)
+ *                                       |
+ *                              Transpose (NHWC -> NCHW)
  */
 class SubstituteGNAConvolution : public ngraph::pass::MatcherPass {
 public:
@@ -19,12 +25,24 @@ public:
     SubstituteGNAConvolution();
 };
 
+/**
+ * @brief Substutites ngraph::MaxPool (NCHW) -> GNAMaxPool (NHWC)
+ * 
+ *                              Transpose (NCHW -> NHWC)
+ *                                       |
+ * MaxPool (NCHW) ->               GNAMaxPool (NHWC)
+ *                                       |
+ *                              Transpose (NHWC -> NCHW)
+ */
 class SubstituteGNAMaxPool : public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     SubstituteGNAMaxPool();
 };
 
+/**
+ * @brief calls SubstituteGNAConvolution and SubstituteGNAMaxPool together
+*/
 class TransposeNCHW : public ngraph::pass::FunctionPass {
 public:
     NGRAPH_RTTI_DECLARATION;

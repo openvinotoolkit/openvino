@@ -599,6 +599,32 @@ inline bool is_constant_1d(const Output<Node>& output) {
     return ov::pass::pattern::rank_equals(0)(output) || ov::pass::pattern::rank_equals(1)(output);
 }
 
+/**
+ * @brief Checks if node has parent node with type T
+ */
+template <typename T>
+bool has_parent_node(std::shared_ptr<ov::Node> node) {
+    for (const auto& parent : node->input_values()) {
+        if (dynamic_cast<const T*>(parent.get_node()))
+            return true;
+    }
+    return false;
+}
+
+/**
+ * @brief Checks if node has child node with type T
+ */
+template <typename T>
+bool has_child_node(std::shared_ptr<ov::Node> node) {
+    for (size_t output_idx = 0; output_idx < node->get_output_size(); ++output_idx) {
+        for (auto& input : node->get_output_target_inputs(output_idx)) {
+            if (dynamic_cast<const T*>(input.get_node()))
+                return true;
+        }
+    }
+    return false;
+}
+
 }  // namespace graph_utils
 }  // namespace intel_gna
 }  // namespace ov

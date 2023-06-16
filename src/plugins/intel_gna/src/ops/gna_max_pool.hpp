@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,7 +18,6 @@ namespace op {
 class GNAMaxPool : public ov::op::Op {
 public:
     OPENVINO_OP("GNAMaxPool", "intel_gna", ov::op::Op);
-    ;
 
     /// \brief Constructs a batched max pooling operation.
     GNAMaxPool() = default;
@@ -33,11 +32,11 @@ public:
     /// \param rounding_type Whether to use ceiling or floor rounding type while
     /// computing output shape.
     /// \param auto_pad The pad type for automatically computing padding sizes.
-    GNAMaxPool(const ngraph::Output<ngraph::Node>& arg,
-               const ngraph::Strides& strides,
-               const ngraph::Shape& pads_begin,
-               const ngraph::Shape& pads_end,
-               const ngraph::Shape& kernel,
+    GNAMaxPool(const ov::Output<ov::Node>& arg,
+               const ov::Strides& strides,
+               const ov::Shape& pads_begin,
+               const ov::Shape& pads_end,
+               const ov::Shape& kernel,
                const ov::op::RoundingType rounding_type = ov::op::RoundingType::FLOOR,
                const ov::op::PadType auto_pad = ov::op::PadType::EXPLICIT);
 
@@ -45,31 +44,31 @@ public:
     bool visit_attributes(ov::AttributeVisitor& visitor) override;
 
     /// \return The kernel shape.
-    const ngraph::Shape& get_kernel() const {
+    const ov::Shape& get_kernel() const {
         return m_kernel;
     }
-    void set_kernel(const ngraph::Shape& kernel) {
+    void set_kernel(const ov::Shape& kernel) {
         m_kernel = kernel;
     }
     /// \return The strides.
-    const ngraph::Strides& get_strides() const {
+    const ov::Strides& get_strides() const {
         return m_strides;
     }
-    void set_strides(const ngraph::Strides& strides) {
+    void set_strides(const ov::Strides& strides) {
         m_strides = strides;
     }
     /// \return The beginning of padding shape.
-    const ngraph::Shape& get_pads_begin() const {
+    const ov::Shape& get_pads_begin() const {
         return m_pads_begin;
     }
-    void set_pads_begin(const ngraph::Shape& pads_begin) {
+    void set_pads_begin(const ov::Shape& pads_begin) {
         m_pads_begin = pads_begin;
     }
     /// \return The end of padding shape.
-    const ngraph::Shape& get_pads_end() const {
+    const ov::Shape& get_pads_end() const {
         return m_pads_end;
     }
-    void set_adding_above(const ngraph::Shape& pads_end) {
+    void set_adding_above(const ov::Shape& pads_end) {
         m_pads_end = pads_end;
     }
     /// \return The pad type for pooling.
@@ -87,20 +86,20 @@ public:
         m_rounding_type = rounding_type;
     }
 
-    std::shared_ptr<ngraph::Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
+    std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
 
 protected:
     bool update_auto_padding(const ov::PartialShape& in_shape,
-                             const ngraph::Strides& filter_dilations,
-                             ngraph::Shape& new_pads_end,
-                             ngraph::Shape& new_pads_begin) const;
+                             const ov::Strides& filter_dilations,
+                             ov::Shape& new_pads_end,
+                             ov::Shape& new_pads_begin) const;
 
-    ov::PartialShape infer_output_shape(const ngraph::Strides& dilations);
+    ov::PartialShape infer_output_shape(const ov::Strides& dilations);
 
-    ngraph::Shape m_kernel;
-    ngraph::Strides m_strides;
-    ngraph::Shape m_pads_begin;
-    ngraph::Shape m_pads_end;
+    ov::Shape m_kernel;
+    ov::Strides m_strides;
+    ov::Shape m_pads_begin;
+    ov::Shape m_pads_end;
     ov::op::PadType m_auto_pad;
     ov::op::RoundingType m_rounding_type;
 };
