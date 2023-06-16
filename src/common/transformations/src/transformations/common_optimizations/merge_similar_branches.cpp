@@ -29,32 +29,74 @@ bool is_op_input_order_agnostic(Node* n) {
                                                       v1::Minimum::get_type_info_static().hash(),
                                                       v1::Multiply::get_type_info_static().hash(),
                                                       v1::NotEqual::get_type_info_static().hash()};
-    return input_order_agnostic_ops.find(n->get_type_info().hash()) != input_order_agnostic_ops.end();
+    return input_order_agnostic_ops.find(n->get_type_info().hash()) != end(input_order_agnostic_ops);
 }
 
 bool compare_matmuls(const Input<Node>& l, const Input<Node>& r) {
+    if (l == r)
+        return true;
     const auto l_node = l.get_node();
     const auto r_node = r.get_node();
-    assert(is_type<op::v0::MatMul>(l_node));
-    assert(is_type<op::v0::MatMul>(r_node));
-    if (l_node == r_node)
-        return true;
+
+    if (!is_type<op::v0::MatMul>(l_node) || !is_type<op::v0::MatMul>(r_node) ||
+        l_node->get_input_node_ptr(0) != r_node->get_input_node_ptr(0))
+        return false;
 
     if (l_node->get_output_element_type(0) == r_node->get_output_element_type(0) &&
         l_node->get_output_partial_shape(0) == r_node->get_output_partial_shape(0)) {
         const auto l_input1 = l_node->input_value(1);
         const auto r_input1 = r_node->input_value(1);
-        return l_input1.get_element_type() == r_input1.get_element_type() &&
-               l_input1.get_partial_shape() == r_input1.get_partial_shape();
+        return /* op::util::is_constant(l_input1.get_node()) && op::util::is_constant(r_input1.get_node()) && */
+            l_input1.get_element_type() == r_input1.get_element_type() &&
+            l_input1.get_partial_shape() == r_input1.get_partial_shape();
+    }
+    return false;
+}
+
+bool compare_matmuls_and_adds(const Input<Node>& l, const Input<Node>& r) {
+    if (l == r)
+        return true;
+    const auto l_node = l.get_node();
+    const auto r_node = r.get_node();
+
+    if (!is_type<op::v0::MatMul>(l_node) || !is_type<op::v0::MatMul>(r_node) ||
+        l_node->get_input_node_ptr(0) != r_node->get_input_node_ptr(0))
+        return false;
+
+    if (l_node->get_output_element_type(0) == r_node->get_output_element_type(0) &&
+        l_node->get_output_partial_shape(0) == r_node->get_output_partial_shape(0)) {
+        const auto l_input1 = l_node->input_value(1);
+        const auto r_input1 = r_node->input_value(1);
+        if (l_input1.get_element_type() != r_input1.get_element_type() ||
+            l_input1.get_partial_shape() != r_input1.get_partial_shape())
+            return false;
+
+        const auto l_target_inputs = l_node->get_output_target_inputs(0);
+        const auto r_target_inputs = r_node->get_output_target_inputs(0);
+        if (l_target_inputs.size() > 1 || r_target_inputs.size() > 1)
+            return false;
+        const auto l_target = begin(l_target_inputs)->get_node();
+        const auto r_target = begin(r_target_inputs)->get_node();
+        if (is_type<op::v1::Add>(l_target) && is_type<op::v1::Add>(r_target) &&
+            l_target->input_value(0).get_node() == l_node && r_target->input_value(0).get_node() == r_node) {
+            const auto l_target_input1_node = l_target->input_value(1).get_node();
+            const auto r_target_input1_node = r_target->input_value(1).get_node();
+            if (/* op::util::is_constant(l_target_input1_node) && op::util::is_constant(r_target_input1_node) && */
+                l_target_input1_node->get_output_element_type(0) == r_target_input1_node->get_output_element_type(0) &&
+                l_target_input1_node->get_output_shape(0) == r_target_input1_node->get_output_shape(0)) {
+                return true;
+            }
+        }
     }
     return false;
 }
 
 bool compare_consumers(const Input<Node>& l, const Input<Node>& r) {
+    if (l == r)
+        return true;
+
     const auto l_node = l.get_node();
     const auto r_node = r.get_node();
-    if (l_node == r_node)
-        return true;
 
     if (l_node->get_type_info() != r_node->get_type_info())
         return false;
@@ -66,8 +108,8 @@ bool compare_consumers(const Input<Node>& l, const Input<Node>& r) {
     if (is_op_input_order_agnostic(l_node)) {
         vector<Output<Node>> l_isos, r_isos;
         for (size_t i = 0; i < l_node->get_input_size(); ++i) {
-            l_isos.push_back(l_node->get_input_source_output(i));
-            r_isos.push_back(r_node->get_input_source_output(i));
+            l_isos.push_back(l_node->input_value(i));
+            r_isos.push_back(r_node->input_value(i));
         }
         if (!is_permutation(begin(l_isos), end(l_isos), begin(r_isos), equal_outputs))
             return false;
@@ -76,8 +118,8 @@ bool compare_consumers(const Input<Node>& l, const Input<Node>& r) {
             return false;
 
         for (size_t i = 0; i < l_node->get_input_size(); ++i) {
-            const auto l_iso = l_node->get_input_source_output(i);
-            const auto r_iso = r_node->get_input_source_output(i);
+            const auto l_iso = l_node->input_value(i);
+            const auto r_iso = r_node->input_value(i);
             if (!equal_outputs(l_iso, r_iso))
                 return false;
         }
@@ -85,141 +127,180 @@ bool compare_consumers(const Input<Node>& l, const Input<Node>& r) {
 
     return true;
 }
-
 }  // namespace
+
+struct MergeScanner {
+    function<set<Input<Node>>(const set<Input<Node>>&)> pull_candidates;
+    function<bool(const Input<Node>&, const Input<Node>&)> compare_targets;
+    function<bool(set<Node*>)> merge;
+    function<void(Node*)> append_for_check;
+    bool run(Output<Node> output) {
+        bool rewritten = false;
+        auto candidates = pull_candidates(output.get_target_inputs());
+
+        while (candidates.size() > 1) {
+            set<Input<Node>> similar, others;
+            partition_copy(begin(candidates),
+                           end(candidates),
+                           inserter(similar, end(similar)),
+                           inserter(others, end(others)),
+                           [&](const Input<Node>& i) {
+                               return compare_targets(*begin(candidates), i);
+                           });
+
+            set<Node*> similar_nodes;
+            for (const auto& c : similar)
+                similar_nodes.insert(c.get_node());
+
+            candidates.clear();
+            remove_copy_if(begin(others),
+                           end(others),
+                           inserter(candidates, end(candidates)),
+                           [&](const Input<Node>& i) {
+                               return any_of(begin(similar_nodes), end(similar_nodes), [&](Node* n) {
+                                   return i.get_node() == n;
+                               });
+                           });
+
+            if (similar_nodes.size() == 1)
+                append_for_check(*begin(similar_nodes));
+            else
+                rewritten |= merge(similar_nodes);
+        }
+        if (candidates.size() == 1)
+            append_for_check(begin(candidates)->get_node());
+
+        return rewritten;
+    }
+};
 
 bool MergeSimilarBranches::run_on_model(const std::shared_ptr<ov::Model>& model) {
     bool rewritten = false;
 
     stack<Node*> nodes_for_check;
-    for (const auto& p : model->get_parameters())
-        nodes_for_check.push(p.get());
+    set<Node*> nodes_checked;
+
+    const auto append_for_check = [&](Node* n) {
+        nodes_for_check.push(n);
+    };
 
     set<Node*> result_procuder_nodes;
     for (const auto& r : model->get_results())
         result_procuder_nodes.insert(r->input(0).get_source_output().get_node());
 
-    set<Node*> nodes_checked;
+    const auto remove_result_producers = [&](const set<Input<Node>>& inputs) {
+        set<Input<Node>> new_inputs;
+        copy_if(begin(inputs),  // std::remove_if doesn't work with Input<Node>
+                end(inputs),
+                inserter(new_inputs, end(new_inputs)),
+                [&](const Input<Node>& i) {
+                    return result_procuder_nodes.find(i.get_node()) == end(result_procuder_nodes);
+                });
+        return new_inputs;
+    };
+
+    MergeScanner identical_ms;
+    {
+        identical_ms.pull_candidates = remove_result_producers;
+        identical_ms.compare_targets = compare_consumers;
+        identical_ms.append_for_check = append_for_check;
+        identical_ms.merge = [&append_for_check](set<Node*> nodes_to_merge) {
+            if (nodes_to_merge.size() > 1) {
+                const auto first_node = *begin(nodes_to_merge);
+                nodes_to_merge.erase(first_node);
+                append_for_check(first_node);
+                const auto replacement_node = first_node->shared_from_this();
+                for (const auto& n : nodes_to_merge) {
+                    const auto merge_target_node = n->shared_from_this();
+                    copy_runtime_info(merge_target_node, replacement_node);
+                    replace_node(merge_target_node, replacement_node);
+                }
+                return true;
+            }
+            return false;
+        };
+    }
+    MergeScanner matmuls_ms;
+    {
+        matmuls_ms.pull_candidates = remove_result_producers;
+        matmuls_ms.compare_targets = compare_matmuls;
+        matmuls_ms.append_for_check = append_for_check;
+        matmuls_ms.merge = [&append_for_check](set<Node*> matmuls_to_merge) {
+            if (matmuls_to_merge.size() > 1) {
+                const auto output = (*begin(matmuls_to_merge))->input_value(0);
+                OutputVector matmuls_inputs1;
+                for (const auto& m : matmuls_to_merge)
+                    matmuls_inputs1.push_back(m->input_value(1));
+                const int64_t axis = -1;
+                const auto concat = make_shared<opset11::Concat>(matmuls_inputs1, axis);
+                const auto matmul = make_shared<opset11::MatMul>(output, concat);
+                const auto split = make_shared<opset11::Split>(matmul,
+                                                               opset11::Constant::create(element::i64, {}, {axis}),
+                                                               matmuls_to_merge.size());
+                size_t idx = 0;
+                for (const auto& m : matmuls_to_merge) {
+                    m->output(0).replace(split->output(idx++));
+                }
+                append_for_check(split.get());
+                return true;
+            }
+            return false;
+        };
+    }
+    MergeScanner matmuls_adds_ms;
+    {
+        matmuls_adds_ms.pull_candidates = matmuls_ms.pull_candidates;
+        matmuls_adds_ms.compare_targets = compare_matmuls_and_adds;
+        matmuls_adds_ms.append_for_check = append_for_check;
+        matmuls_adds_ms.merge = [&append_for_check](set<Node*> matmuls_to_merge) {
+            if (matmuls_to_merge.size() > 1) {
+                const auto output = (*begin(matmuls_to_merge))->input_value(0);
+                OutputVector matmuls_inputs1;
+                OutputVector adds_inputs1;
+                OutputVector adds_outputs;
+                for (const auto& m : matmuls_to_merge) {
+                    matmuls_inputs1.push_back(m->input_value(1));
+                    const auto a = m->get_output_target_inputs(0).begin()->get_node();
+                    adds_inputs1.push_back(a->input_value(1));
+                    adds_outputs.push_back(a->output(0));
+                }
+                const int64_t axis = -1;
+                const auto mm_concat = make_shared<opset11::Concat>(matmuls_inputs1, axis);
+                const auto matmul = make_shared<opset11::MatMul>(output, mm_concat);
+                const auto add_concat = make_shared<opset11::Concat>(adds_inputs1, axis);
+                const auto add = make_shared<opset11::Add>(matmul, add_concat);
+                const auto split = make_shared<opset11::Split>(add,
+                                                               opset11::Constant::create(element::i64, {}, {axis}),
+                                                               matmuls_to_merge.size());
+                size_t idx = 0;
+                for (auto& m : adds_outputs) {
+                    m.replace(split->output(idx++));
+                }
+                append_for_check(split.get());
+                return true;
+            }
+            return false;
+        };
+    }
+
+    for (const auto& p : model->get_parameters())
+        append_for_check(p.get());
+
     while (!nodes_for_check.empty()) {
         const auto node = nodes_for_check.top();
         nodes_for_check.pop();
 
-        if (nodes_checked.find(node) != nodes_checked.end() ||
-            result_procuder_nodes.find(node) != result_procuder_nodes.end())
+        if (nodes_checked.find(node) != end(nodes_checked) ||
+            result_procuder_nodes.find(node) != end(result_procuder_nodes))
             continue;
         nodes_checked.insert(node);
 
-        for (const auto& output : node->outputs()) {
-            auto consumers = output.get_target_inputs();
-
-            // erase Result producers from consumers
-            set<Input<Node>> new_consumers;
-            copy_if(begin(consumers),  // std::remove_if deosn't work with Input<Node>
-                    end(consumers),
-                    inserter(new_consumers, new_consumers.end()),
-                    [&](const Input<Node>& i) {
-                        return result_procuder_nodes.find(i.get_node()) == result_procuder_nodes.end();
-                    });
-            consumers.swap(new_consumers);
-
-            while (consumers.size() > 1) {
-                {
-                    // extract special treatment branches ..
-                    set<Input<Node>> matmul_consumers, remaining_consumers;
-                    partition_copy(begin(consumers),
-                                   end(consumers),
-                                   inserter(matmul_consumers, matmul_consumers.end()),
-                                   inserter(remaining_consumers, remaining_consumers.end()),
-                                   [&](const Input<Node>& i) {
-                                       const auto n = i.get_node();
-                                       return is_type<op::v0::MatMul>(n) && i.get_index() == 0 &&
-                                              op::util::is_constant(n->get_input_node_ptr(1));
-                                   });
-                    consumers.swap(remaining_consumers);
-
-                    while (matmul_consumers.size() > 1) {
-                        set<Input<Node>> mergeable_matmuls, remaining_matmuls;
-                        partition_copy(begin(matmul_consumers),
-                                       end(matmul_consumers),
-                                       inserter(mergeable_matmuls, mergeable_matmuls.end()),
-                                       inserter(remaining_matmuls, remaining_matmuls.end()),
-                                       [&](const Input<Node>& i) {
-                                           return compare_matmuls(*matmul_consumers.begin(), i);
-                                       });
-
-                        if (mergeable_matmuls.size() > 1) {
-                            OutputVector matmuls_inputs1;
-                            for (const auto& m : mergeable_matmuls)
-                                matmuls_inputs1.push_back(m.get_node()->input_value(1));
-                            const int64_t axis = -1;
-                            const auto concat = make_shared<opset11::Concat>(matmuls_inputs1, axis);
-                            const auto matmul = make_shared<opset11::MatMul>(output, concat);
-                            const auto split =
-                                make_shared<opset11::Split>(matmul,
-                                                            opset11::Constant::create(element::i64, {}, {axis}),
-                                                            mergeable_matmuls.size());
-                            size_t idx = 0;
-                            for (const auto& m : mergeable_matmuls) {
-                                m.get_node()->output(0).replace(split->output(idx++));
-                            }
-
-                        } else if (mergeable_matmuls.size() == 1) {
-                            nodes_for_check.push(mergeable_matmuls.begin()->get_node());
-                        }
-
-                        matmul_consumers.swap(remaining_matmuls);
-                    }
-                    if (matmul_consumers.size() == 1)
-                        nodes_for_check.push(matmul_consumers.begin()->get_node());
-                }
-
-                if (consumers.size() > 0) {
-                    // gather mergeable consumer nodes
-                    set<Input<Node>> mergeable_consumers, remaining_consumers;
-                    partition_copy(begin(consumers),
-                                   end(consumers),
-                                   inserter(mergeable_consumers, mergeable_consumers.end()),
-                                   inserter(remaining_consumers, remaining_consumers.end()),
-                                   [&](const Input<Node>& i) {
-                                       return compare_consumers(*consumers.begin(), i);
-                                   });
-                    set<Node*> nodes_for_merge;
-                    for (const auto& c : mergeable_consumers)
-                        nodes_for_merge.insert(c.get_node());
-
-                    // remove nodes for merge from further evaluation
-                    set<Input<Node>> new_remaining_consumers;
-                    remove_copy_if(begin(remaining_consumers),
-                                   end(remaining_consumers),
-                                   inserter(new_remaining_consumers, new_remaining_consumers.end()),
-                                   [&](const Input<Node>& i) {
-                                       return any_of(begin(nodes_for_merge), end(nodes_for_merge), [&](Node* n) {
-                                           return i.get_node() == n;
-                                       });
-                                   });
-                    remaining_consumers.swap(new_remaining_consumers);
-
-                    // merge equal nodes
-                    const auto first_node = *nodes_for_merge.begin();
-                    nodes_for_merge.erase(first_node);
-                    if (!nodes_for_merge.empty()) {
-                        const auto replacement_node = first_node->shared_from_this();
-                        for (const auto& n : nodes_for_merge) {
-                            const auto merge_target_node = n->shared_from_this();
-                            copy_runtime_info(merge_target_node, replacement_node);
-                            replace_node(merge_target_node, replacement_node);
-                        }
-                        rewritten = true;
-                    }
-
-                    nodes_for_check.push(first_node);
-                    consumers.swap(remaining_consumers);
-                }
-            }
-            if (consumers.size() == 1)
-                nodes_for_check.push(consumers.begin()->get_node());
-        }
+        for (const auto& output : node->outputs())
+            rewritten |= identical_ms.run(output);
+        for (const auto& output : node->outputs())
+            rewritten |= matmuls_adds_ms.run(output);
+        for (const auto& output : node->outputs())
+            rewritten |= matmuls_ms.run(output);
     }
-
     return rewritten;
 }
