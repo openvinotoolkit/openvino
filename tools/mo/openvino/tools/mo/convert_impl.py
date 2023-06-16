@@ -37,12 +37,13 @@ from openvino.runtime.utils.cli_parser import check_available_transforms, \
     input_shape_to_input_cut_info, freeze_placeholder_to_input_cut_info
 
 from openvino.tools.mo.utils.error import Error, FrameworkError
-from openvino.tools.mo.utils.get_ov_update_message import get_ov_update_message, get_ov_api20_message, \
-    get_tf_fe_message, get_try_legacy_fe_message, get_compression_message
+from openvino.runtime.utils.get_ov_update_message import get_ov_update_message, get_ov_api20_message, \
+    get_tf_fe_message, get_compression_message
+from openvino.tools.mo.utils.get_ov_update_message import get_try_legacy_fe_message
 from openvino.tools.mo.utils.model_analysis import AnalysisResults
 from openvino.tools.mo.utils.version import VersionChecker
 from openvino.tools.mo.utils.guess_framework import deduce_legacy_frontend_by_namespace
-from openvino.tools.mo.utils.logger import init_logger, progress_printer
+from openvino.runtime.utils.logger import init_logger, progress_printer
 from openvino.tools.mo.utils.utils import refer_to_faq_msg, check_values_equal
 from openvino.tools.mo.utils.telemetry_utils import send_params_info, send_framework_info, send_conversion_result, \
     get_tid

@@ -114,7 +114,7 @@ class ConvertToPBTests(unittest.TestCase):
         except ImportError:
             import tensorflow as tf_v1
 
-        from openvino.tools.mo.utils.versions_checker import get_environment_setup
+        from openvino.runtime.utils.environment_setup_utils import get_environment_setup
         from distutils.version import LooseVersion
 
         env_setup = get_environment_setup("tf")

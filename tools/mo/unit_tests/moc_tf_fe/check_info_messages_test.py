@@ -9,8 +9,8 @@ from contextlib import redirect_stdout
 from unittest.mock import patch
 
 from openvino.tools.mo.main import main
-from openvino.tools.mo.utils.get_ov_update_message import get_tf_fe_message, get_compression_message, \
-    get_try_legacy_fe_message
+from openvino.runtime.utils.get_ov_update_message import get_tf_fe_message, get_compression_message
+from openvino.tools.mo.utils.get_ov_update_message import get_try_legacy_fe_message
 
 
 def arg_parse_helper(input_model,
