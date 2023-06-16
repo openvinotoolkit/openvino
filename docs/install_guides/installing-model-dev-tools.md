@@ -64,17 +64,21 @@ Step 1. Set Up Python Virtual Environment
 
 Create a virtual Python environment to avoid dependency conflicts. To create a virtual environment, use the following command:
 
-.. tab:: Linux and macOS
+.. tab-set::
 
-   .. code-block:: sh
+   .. tab-item:: Linux and macOS
+      :sync: linmac
    
-      python3 -m venv openvino_env
+      .. code-block:: sh
+      
+         python3 -m venv openvino_env
+      
+   .. tab-item:: Windows
+      :sync: windows
    
-.. tab:: Windows
-
-   .. code-block:: sh
-   
-      python -m venv openvino_env
+      .. code-block:: sh
+      
+         python -m venv openvino_env
      
      
 
