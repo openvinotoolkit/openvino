@@ -31,8 +31,6 @@ elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     ie_add_compiler_flags(/wd4200)
     # C4661: no suitable definition provided for explicit template instantiation request
     ie_add_compiler_flags(/wd4661)
-    # C4297: function assumed not to throw an exception but does
-    ie_add_compiler_flags(/wd4297)
 endif()
 
 file(GLOB_RECURSE SOURCES
