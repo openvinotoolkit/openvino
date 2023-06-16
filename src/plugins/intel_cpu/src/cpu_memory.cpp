@@ -286,7 +286,7 @@ void LockBasedMemoryMngr::setExtBuff(void* ptr, size_t size) {
 }
 bool LockBasedMemoryMngr::resize(size_t size) {
     std::lock_guard<std::mutex> guard(m_lock);
-    m_pMemMngr->resize(size);
+    return m_pMemMngr->resize(size);
 }
 bool LockBasedMemoryMngr::hasExtBuffer() const noexcept {
     std::lock_guard<std::mutex> guard(m_lock);
