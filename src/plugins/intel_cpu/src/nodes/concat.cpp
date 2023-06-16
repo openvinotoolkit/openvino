@@ -322,13 +322,13 @@ void Concat::prepareParams() {
     const auto& dstMemPtr = getChildEdgesAtPort(0)[0]->getMemoryPtr();
     if (!dstMemPtr || !dstMemPtr->isAllocated())
         IE_THROW() << "Destination memory didn't allocate.";
-    auto dstMemDesc = dstMemPtr->GetDescWithType<BlockedMemoryDesc>();
+    auto dstMemDesc = dstMemPtr->getDescWithType<BlockedMemoryDesc>();
     if (getSelectedPrimitiveDescriptor() == nullptr)
         IE_THROW() << "Preferable primitive descriptor is not set.";
 
     const auto& outputStrides = dstMemDesc->getStrides();
     size_t curConcatOffset = 0;
-    const size_t elemSize = DnnlExtensionUtils::sizeOfDataType(dstMemPtr->GetDataType());
+    const size_t elemSize = DnnlExtensionUtils::sizeOfDataType(dstMemPtr->getDataType());
     const auto& src0BlkMemDesc = getParentEdgesAtPort(0)[0]->getMemoryPtr()->getDescPtr()->as<BlockedMemoryDesc>();
     const auto& outputOrder = src0BlkMemDesc->getOrder();
     for (size_t i = 0; i < outputOrder.size(); i++) {
@@ -368,10 +368,10 @@ void Concat::prepareParams() {
             dstOffset[i] = outputStrides[reorderedAxis] * curConcatOffset * elemSize;
             curConcatOffset += inputShape[reorderedAxis];
         } else {
-            if (srcMemPtr->GetShape().hasZeroDims()) {
+            if (srcMemPtr->getShape().hasZeroDims()) {
                 continue;
             }
-            auto desc = srcMemPtr->GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
+            auto desc = srcMemPtr->getDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
 
             const auto& dims = srcMemPtr->getStaticDims();
             for (size_t j = 0; j < dims.size(); j++) {
@@ -382,7 +382,7 @@ void Concat::prepareParams() {
     }
 
     if (!canExecRef) {
-        auto desc = dstMemPtr->GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
+        auto desc = dstMemPtr->getDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
 
         const auto& dims = dstMemPtr->getStaticDims();
         for (size_t i = 0; i < dims.size(); i++) {
@@ -463,14 +463,14 @@ void Concat::execute(dnnl::stream strm) {
     } else {
         const auto& dst_memory = getChildEdgeAt(0)->getMemory();
         const size_t num_src = getParentEdges().size();
-        std::unordered_map<int, memory> mem_ags {{DNNL_ARG_DST, dst_memory.GetPrimitive()}};
+        std::unordered_map<int, memory> mem_ags {{DNNL_ARG_DST, dst_memory.getPrimitive()}};
         size_t nonZeroInShapes = 0;
         for (size_t i = 0; i < num_src; i++) {
             const auto& srcMem = getParentEdgesAtPort(i)[0]->getMemory();
-            if (srcMem.GetShape().hasZeroDims()) {
+            if (srcMem.getShape().hasZeroDims()) {
                 continue;
             }
-            mem_ags[DNNL_ARG_MULTIPLE_SRC + nonZeroInShapes] = srcMem.GetPrimitive();
+            mem_ags[DNNL_ARG_MULTIPLE_SRC + nonZeroInShapes] = srcMem.getPrimitive();
             nonZeroInShapes++;
         }
         prim.execute(strm, mem_ags);
@@ -484,8 +484,8 @@ InferenceEngine::Precision Concat::getRuntimePrecision() const {
 void Concat::execNspcSpecCase() {
     const auto& dst_memory = getChildEdgeAt(0)->getMemory();
     const size_t num_src = getParentEdges().size();
-    uint8_t* dst_ptr = reinterpret_cast<uint8_t*>(dst_memory.GetData());
-    const size_t dataSize = DnnlExtensionUtils::sizeOfDataType(dst_memory.GetDataType());
+    uint8_t* dst_ptr = reinterpret_cast<uint8_t*>(dst_memory.getData());
+    const size_t dataSize = DnnlExtensionUtils::sizeOfDataType(dst_memory.getDataType());
 
     std::vector<size_t> channelsDataSize;
     size_t channels_size = 0;
@@ -496,13 +496,13 @@ void Concat::execNspcSpecCase() {
     int firstNonZeroEdge = -1;
     for (size_t i = 0; i < num_src; i++) {
         const auto& src_mem = getParentEdgesAtPort(i)[0]->getMemory();
-        if (src_mem.GetShape().hasZeroDims()) {
+        if (src_mem.getShape().hasZeroDims()) {
             continue;
         }
         const size_t num_channels = src_mem.getStaticDims()[channelAxis];
 
         channelsDataSize.push_back(num_channels * dataSize);
-        src_ptrs.push_back(reinterpret_cast<const uint8_t*>(src_mem.GetData()));
+        src_ptrs.push_back(reinterpret_cast<const uint8_t*>(src_mem.getData()));
         dst_ptrs.push_back(dst_ptr + channels_size);
         channels_size += num_channels * dataSize;
 
@@ -513,7 +513,7 @@ void Concat::execNspcSpecCase() {
         nonZeroInShapes++;
     }
 
-    const size_t iter_count = getParentEdgeAt(firstNonZeroEdge)->getMemory().GetSize() / channelsDataSize[0];
+    const size_t iter_count = getParentEdgeAt(firstNonZeroEdge)->getMemory().getSize() / channelsDataSize[0];
 
     parallel_for(iter_count, [&](int i) {
         const size_t dst_off = i * channels_size;
@@ -526,13 +526,13 @@ void Concat::execNspcSpecCase() {
 void Concat::execRef() {
     const size_t numSrc = getParentEdges().size();
     const auto& dstMemory = getChildEdgeAt(0)->getMemory();
-    const size_t elemSize = DnnlExtensionUtils::sizeOfDataType(dstMemory.GetDataType());
+    const size_t elemSize = DnnlExtensionUtils::sizeOfDataType(dstMemory.getDataType());
     const auto dstMemBlkDesc = dstMemory.getDescPtr()->as<BlockedMemoryDesc>();
     const auto& outputShape = dstMemBlkDesc->getBlockDims();
-    uint8_t* dstPtr = reinterpret_cast<uint8_t*>(dstMemory.GetData());
+    uint8_t* dstPtr = reinterpret_cast<uint8_t*>(dstMemory.getData());
     for (size_t i = 0; i < numSrc; i++) {
         const auto& srcMem = getParentEdgesAtPort(i)[0]->getMemory();
-        srcPtrs[i] = reinterpret_cast<const uint8_t*>(srcMem.GetData());
+        srcPtrs[i] = reinterpret_cast<const uint8_t*>(srcMem.getData());
     }
 
     size_t outputStrides[MAX_RANK_REF] = {0};

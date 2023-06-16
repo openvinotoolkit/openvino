@@ -95,7 +95,7 @@ InferenceEngine::Blob::Ptr MemoryDescUtils::interpretAsBlob(const IMemory &mem) 
     InferenceEngine::TensorDesc desc = convertToTensorDesc(memDesc);
 
     desc = InferenceEngine::TensorDesc(desc.getPrecision(), memDesc.getShape().getStaticDims(), desc.getBlockingDesc());
-    return make_blob_with_precision(desc, mem.GetData());
+    return make_blob_with_precision(desc, mem.getData());
 }
 
 InferenceEngine::TensorDesc MemoryDescUtils::interpretAsBlobDesc(const IMemory &mem) {

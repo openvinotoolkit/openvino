@@ -109,9 +109,9 @@ void CumSum::execute(dnnl::stream strm) {
 
 template <typename dataType>
 void CumSum::exec() {
-    const auto *input = reinterpret_cast<const dataType *>(getParentEdgeAt(CUM_SUM_DATA)->getMemoryPtr()->GetData());
-    auto *output = reinterpret_cast<dataType *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetData());
-    const VectorDims strides = getParentEdgeAt(CUM_SUM_DATA)->getMemory().GetDescWithType<BlockedMemoryDesc>()->getStrides();
+    const auto *input = reinterpret_cast<const dataType *>(getParentEdgeAt(CUM_SUM_DATA)->getMemoryPtr()->getData());
+    auto *output = reinterpret_cast<dataType *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->getData());
+    const VectorDims strides = getParentEdgeAt(CUM_SUM_DATA)->getMemory().getDescWithType<BlockedMemoryDesc>()->getStrides();
 
     if (reverse) {
         if (exclusive) {
@@ -228,16 +228,16 @@ inline size_t CumSum::getStartOffset(const std::vector<size_t> &forStartOffset, 
 
 size_t CumSum::getAxis(const IMemory& _axis, const IMemory& _data) const {
     const auto& axisPrecision = _axis.getDesc().getPrecision();
-    const int64_t dataShapeSize = static_cast<int64_t>(_data.GetShape().getRank());
+    const int64_t dataShapeSize = static_cast<int64_t>(_data.getShape().getRank());
     int64_t axisValueFromBlob = 0;
     switch (axisPrecision) {
         case Precision::I32 : {
-            const auto *axisPtr = reinterpret_cast<const int32_t *>(_axis.GetData());
+            const auto *axisPtr = reinterpret_cast<const int32_t *>(_axis.getData());
             axisValueFromBlob = static_cast<int64_t>(axisPtr[0]);
             break;
         }
         case Precision::I64 : {
-            const auto *axisPtr = reinterpret_cast<const int64_t *>(_axis.GetData());
+            const auto *axisPtr = reinterpret_cast<const int64_t *>(_axis.getData());
             axisValueFromBlob = axisPtr[0];
             break;
         }

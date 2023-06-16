@@ -154,7 +154,7 @@ void ShuffleChannels::prepareParams() {
         return std::make_shared<ShuffleChannelsExecutor>(key);
     };
     attrs.srcDims = srcMemPtr->getStaticDims();
-    attrs.srcBlockedDims = srcMemPtr->GetDescWithType<BlockedMemoryDesc>()->getBlockDims();
+    attrs.srcBlockedDims = srcMemPtr->getDescWithType<BlockedMemoryDesc>()->getBlockDims();
 
     auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(attrs, builder);
@@ -294,8 +294,8 @@ void ShuffleChannels::execute(dnnl::stream strm) {
 
     int MB = (attrs.axis != 0) ? getParentEdgeAt(0)->getMemoryPtr()->getStaticDims()[0] : -1;
 
-    const uint8_t* srcData = reinterpret_cast<const uint8_t*>(getParentEdgeAt(0)->getMemoryPtr()->GetData());
-    uint8_t* dstData = reinterpret_cast<uint8_t*>(getChildEdgeAt(0)->getMemoryPtr()->GetData());
+    const uint8_t* srcData = reinterpret_cast<const uint8_t*>(getParentEdgeAt(0)->getMemoryPtr()->getData());
+    uint8_t* dstData = reinterpret_cast<uint8_t*>(getChildEdgeAt(0)->getMemoryPtr()->getData());
     execPtr->exec(srcData, dstData, MB);
 }
 

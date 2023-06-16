@@ -74,16 +74,16 @@ public:
  */
 class MemoryMngrWithReuse : public IMemoryMngr {
 public:
-    MemoryMngrWithReuse() : _data(nullptr, release) {}
+    MemoryMngrWithReuse() : m_data(nullptr, release) {}
     void* getRawPtr() const noexcept override;
     void setExtBuff(void* ptr, size_t size) override;
     bool resize(size_t size) override;
     bool hasExtBuffer() const noexcept override;
 
 private:
-    bool _useExternalStorage = false;
-    size_t _memUpperBound = 0ul;
-    std::unique_ptr<void, void (*)(void *)> _data;
+    bool m_useExternalStorage = false;
+    size_t m_memUpperBound = 0ul;
+    std::unique_ptr<void, void (*)(void *)> m_data;
 
     static void release(void *ptr);
     static void destroy(void *ptr);
@@ -100,7 +100,7 @@ public:
  */
 class DnnlMemoryMngr : public IMemoryMngrObserver {
 public:
-    explicit DnnlMemoryMngr(std::unique_ptr<IMemoryMngr> mngr) : _pMemMngr(std::move(mngr)) {}
+    explicit DnnlMemoryMngr(std::unique_ptr<IMemoryMngr> mngr) : m_pMemMngr(std::move(mngr)) {}
     void* getRawPtr() const noexcept override;
     void setExtBuff(void* ptr, size_t size) override;
     bool resize(size_t size) override;
@@ -112,8 +112,8 @@ private:
     void notifyUpdate();
 
 private:
-    std::unordered_set<Memory*> _setMemPtrs;
-    std::unique_ptr<IMemoryMngr> _pMemMngr;
+    std::unordered_set<Memory*> m_setMemPtrs;
+    std::unique_ptr<IMemoryMngr> m_pMemMngr;
 };
 
 class LockBasedMemoryMngr : public IMemoryMngrObserver {
@@ -136,9 +136,9 @@ using MemoryMngrCPtr = std::shared_ptr<const IMemoryMngrObserver>;
 
 class DnnlMemMngrHandle {
 public:
-    DnnlMemMngrHandle(MemoryMngrPtr pMgr, Memory* pMem) : _pMgr(pMgr), _pMem(pMem) {
-        if (_pMgr) {
-            _pMgr->registerMemory(_pMem);
+    DnnlMemMngrHandle(MemoryMngrPtr pMgr, Memory* pMem) : m_pMgr(pMgr), m_pMem(pMem) {
+        if (m_pMgr) {
+            m_pMgr->registerMemory(m_pMem);
         }
     }
 
@@ -146,32 +146,32 @@ public:
     DnnlMemMngrHandle& operator= (const DnnlMemMngrHandle&) = delete;
 
     DnnlMemMngrHandle(DnnlMemMngrHandle&& source) {
-        std::swap(_pMgr, source._pMgr);
-        std::swap(_pMem, source._pMem);
+        std::swap(m_pMgr, source.m_pMgr);
+        std::swap(m_pMem, source.m_pMem);
     }
     DnnlMemMngrHandle& operator= (DnnlMemMngrHandle&& rhs) {
-        std::swap(_pMgr, rhs._pMgr);
-        std::swap(_pMem, rhs._pMem);
+        std::swap(m_pMgr, rhs.m_pMgr);
+        std::swap(m_pMem, rhs.m_pMem);
         return *this;
     }
 
     ~DnnlMemMngrHandle() {
-        if (_pMgr) {
-            _pMgr->unregisterMemory(_pMem);
+        if (m_pMgr) {
+            m_pMgr->unregisterMemory(m_pMem);
         }
     }
 
     MemoryMngrPtr get() const {
-        return _pMgr;
+        return m_pMgr;
     }
 
     MemoryMngrPtr::element_type* operator->() const noexcept {
-        return _pMgr.get();
+        return m_pMgr.get();
     }
 
 private:
-    MemoryMngrPtr _pMgr = nullptr;
-    Memory* _pMem = nullptr;
+    MemoryMngrPtr m_pMgr = nullptr;
+    Memory* m_pMem = nullptr;
 };
 
 class IMemory {
@@ -183,10 +183,10 @@ public:
     virtual const MemoryDesc& getDesc() const = 0;
     virtual MemoryDescPtr getDescPtr() const = 0;
 
-    virtual void* GetData() const = 0; // pointer to the actual memory
+    virtual void* getData() const = 0; // pointer to the actual memory
 
-    virtual size_t GetSize() const = 0; // in bytes
-    virtual const Shape& GetShape() const = 0;
+    virtual size_t getSize() const = 0; // in bytes
+    virtual const Shape& getShape() const = 0;
     virtual const VectorDims& getStaticDims() const = 0;
 
     // Redefines descriptor. The memory descriptor will be replaced with the new one.
@@ -194,20 +194,20 @@ public:
     // Caution!!! This action invalidates the previous data layout. The old data may become unreachable.
     virtual void redefineDesc(MemoryDescPtr desc) = 0;
 
-    virtual void SetData(const IMemory& memory, bool ftz = true) const = 0;
+    virtual void load(const IMemory& memory, bool ftz = true) const = 0;
 
     virtual MemoryMngrPtr getMemoryMngr() const = 0;
 
     //oneDNN specifics for backward compatibility
-    virtual dnnl::memory GetPrimitive() const = 0;
-    virtual dnnl::memory::data_type GetDataType() const = 0;
+    virtual dnnl::memory getPrimitive() const = 0;
+    virtual dnnl::memory::data_type getDataType() const = 0;
 
-    virtual void FillZero() = 0;
+    virtual void nullify() = 0;
 
     template <typename T,
             typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
             typename std::enable_if<std::is_base_of<MemoryDesc, T>::value, int>::type = 0>
-    std::shared_ptr<T> GetDescWithType() const;
+    std::shared_ptr<T> getDescWithType() const;
 };
 
 class Memory : public IMemory {
@@ -223,27 +223,27 @@ public:
     Memory(Memory&&) = delete;
     Memory& operator= (Memory&&) = delete;
 
-    dnnl::memory GetPrimitive() const override;
+    dnnl::memory getPrimitive() const override;
 
     bool isAllocated() const noexcept override;
 
     const MemoryDesc& getDesc() const override {
-        return *pMemDesc;
+        return *m_pMemDesc;
     }
 
     MemoryDescPtr getDescPtr() const override {
-        return pMemDesc;
+        return m_pMemDesc;
     }
 
-    void* GetData() const override;
+    void* getData() const override;
 
-    dnnl::memory::data_type GetDataType() const override {
+    dnnl::memory::data_type getDataType() const override {
         return DnnlExtensionUtils::IEPrecisionToDataType(getDesc().getPrecision());
     }
 
-    size_t GetSize() const override;
+    size_t getSize() const override;
 
-    const Shape& GetShape() const override {
+    const Shape& getShape() const override {
         return getDesc().getShape();
     }
 
@@ -256,15 +256,15 @@ public:
     // Caution!!! This action invalidates the previous data layout. The old data may become unreachable.
     void redefineDesc(MemoryDescPtr desc) override;
 
-    void SetData(const IMemory& memory, bool ftz = true) const override;
-    void FillZero() override;
+    void load(const IMemory& memory, bool ftz = true) const override;
+    void nullify() override;
 
     dnnl::engine getEngine() const {
-        return eng;
+        return m_eng;
     }
 
     MemoryMngrPtr getMemoryMngr() const override {
-        return mgrHandle.get();
+        return m_mgrHandle.get();
     }
 
 private:
@@ -273,14 +273,14 @@ private:
 private:
     void update();
 
-    void Create(const MemoryDesc& desc, const void* data = nullptr, bool pads_zeroing = true);
-    void Create(MemoryDescPtr desc, const void* data = nullptr, bool pads_zeroing = true);
+    void create(const MemoryDesc& desc, const void* data = nullptr, bool pads_zeroing = true);
+    void create(MemoryDescPtr desc, const void* data = nullptr, bool pads_zeroing = true);
 
 private:
-    MemoryDescPtr pMemDesc;
-    dnnl::engine eng;
-    DnnlMemMngrHandle mgrHandle;
-    bool padsZeroing = true;
+    MemoryDescPtr m_pMemDesc;
+    dnnl::engine m_eng;
+    DnnlMemMngrHandle m_mgrHandle;
+    bool m_padsZeroing = true;
     class DnnlMemPrimHandle {
     public:
         explicit DnnlMemPrimHandle(const Memory* memObjPtr): m_memObjPtr(memObjPtr) {}
@@ -297,7 +297,7 @@ private:
     } dnnlMemHandle;
 
     void* getDataNoThrow() const noexcept {
-        return mgrHandle->getRawPtr();
+        return m_mgrHandle->getRawPtr();
     }
 };
 

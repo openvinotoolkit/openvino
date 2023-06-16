@@ -276,13 +276,13 @@ void Input::cloneBlobIfRequired() {
             memory = std::make_shared<Memory>(getEngine(), memDesc, constOp->get_data_ptr());
         } else {
             memory = std::make_shared<Memory>(getEngine(), memDesc);
-            memcpy(memory->GetData(), constOp->get_data_ptr(), constOp->get_byte_size());
+            memcpy(memory->getData(), constOp->get_data_ptr(), constOp->get_byte_size());
         }
 
         auto threadSafeMngr =
             std::make_shared<LockBasedMemoryMngr>(make_unique<DnnlMemoryMngr>(make_unique<MemoryMngrWithReuse>()));
         MemoryPtr ptr = std::make_shared<Memory>(getEngine(), memDesc, threadSafeMngr);
-        ptr->SetData(*memory.get(), needFlushDenormalsToZero);
+        ptr->load(*memory.get(), needFlushDenormalsToZero);
 
         return ptr;
     };

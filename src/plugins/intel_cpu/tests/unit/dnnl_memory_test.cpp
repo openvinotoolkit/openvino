@@ -32,19 +32,19 @@ TEST(MemoryTest, ConcurrentGetPrimitive) {
 
     std::thread worker1([&](){
         while (lock.load()) {}
-        dnnl_mem1 = cpu_mem1.GetPrimitive();
+        dnnl_mem1 = cpu_mem1.getPrimitive();
     });
 
     std::thread worker2([&](){
         while (lock.load()) {}
-        dnnl_mem2 = cpu_mem1.GetPrimitive();
+        dnnl_mem2 = cpu_mem1.getPrimitive();
     });
 
     lock.store(false);
 
     worker1.join();
     worker2.join();
-    ASSERT_EQ(dnnl_mem1.get_data_handle(), cpu_mem1.GetData());
+    ASSERT_EQ(dnnl_mem1.get_data_handle(), cpu_mem1.getData());
     ASSERT_EQ(dnnl_mem1, dnnl_mem2);
 }
 
@@ -62,7 +62,7 @@ TEST(MemoryTest, ConcurrentResizeGetPrimitive) {
 
         std::thread worker1([&](){
             while (lock.load()) {}
-            dnnl_mem = cpu_mem1.GetPrimitive();
+            dnnl_mem = cpu_mem1.getPrimitive();
         });
 
         std::thread worker2([&](){
@@ -74,6 +74,6 @@ TEST(MemoryTest, ConcurrentResizeGetPrimitive) {
 
         worker1.join();
         worker2.join();
-        ASSERT_EQ(dnnl_mem.get_data_handle(), cpu_mem2.GetData());
+        ASSERT_EQ(dnnl_mem.get_data_handle(), cpu_mem2.getData());
     }
 }

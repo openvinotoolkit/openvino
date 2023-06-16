@@ -872,13 +872,13 @@ MemoryPtr Node::prepareWeightMemory(DnnlMemoryDescPtr weightDesc) {
     if (!edgeMem)
         IE_THROW() << "Cannot get const weights edgeMem for node " << getName() << ".";
 
-    auto constDnnlMemOutDesc = edgeMem->GetDescWithType<DnnlMemoryDesc>();
+    auto constDnnlMemOutDesc = edgeMem->getDescWithType<DnnlMemoryDesc>();
     auto weightSrcDesc = constDnnlMemOutDesc->getDnnlDesc();
     weightSrcDesc = weightSrcDesc.reshape(weightDesc->getDnnlDesc().get_dims());
     auto create = [&] () {
         auto newSrcDesc = DnnlExtensionUtils::makeDescriptor(weightSrcDesc);
 
-        Memory srcMemory{ getEngine(), newSrcDesc, edgeMem->GetData() };
+        Memory srcMemory{ getEngine(), newSrcDesc, edgeMem->getData() };
         MemoryPtr _ptr = std::make_shared<Memory>(getEngine(), weightDesc);
         node::Reorder::reorderData(srcMemory, *_ptr, context->getParamsCache());
 
@@ -894,8 +894,8 @@ MemoryPtr Node::prepareWeightMemory(DnnlMemoryDescPtr weightDesc) {
         auto weightCache = context->getWeightsCache();
         if (weightCache != nullptr) {
             const std::string string_hash = getName() + "_" + format
-                                            + "_" + std::to_string(edgeMem->GetSize())
-                                            + "_" + std::to_string(reinterpret_cast<uint64_t>(edgeMem->GetData()));
+                                            + "_" + std::to_string(edgeMem->getSize())
+                                            + "_" + std::to_string(reinterpret_cast<uint64_t>(edgeMem->getData()));
 
             ptr = *weightCache->findOrCreate(string_hash, create);
         } else {
@@ -1193,7 +1193,7 @@ void Node::appendPostOpArgs(const dnnl::primitive_attr& attr,
                             std::unordered_map<int, dnnl::memory>& primArgs,
                             const std::unordered_map<int, MemoryPtr>& postOpsArgs) {
     for (auto & entry : postOpsArgs) {
-        primArgs[entry.first] = entry.second->GetPrimitive();
+        primArgs[entry.first] = entry.second->getPrimitive();
     }
 }
 
@@ -1240,7 +1240,7 @@ std::vector<InferenceEngine::Precision> Node::getInputPrecisions() const {
     for (size_t i = 0; i < getParentEdges().size(); i++) {
         auto parentEdge = getParentEdgeAt(i);
         if (parentEdge && parentEdge->getStatus() == Edge::Status::Validated) {
-            inputPrecisions.emplace_back(DnnlExtensionUtils::DataTypeToIEPrecision((parentEdge->getMemoryPtr()->GetDataType())));
+            inputPrecisions.emplace_back(DnnlExtensionUtils::DataTypeToIEPrecision((parentEdge->getMemoryPtr()->getDataType())));
         }
     }
     return inputPrecisions;
@@ -1251,7 +1251,7 @@ std::vector<InferenceEngine::Precision> Node::getOutputPrecisions() const {
     for (size_t i = 0; i < getChildEdges().size(); i++) {
         auto childEdge = getChildEdgeAt(i);
         if (childEdge && childEdge->getStatus() == Edge::Status::Validated) {
-            outputPrecisions.emplace_back(DnnlExtensionUtils::DataTypeToIEPrecision((childEdge->getMemoryPtr()->GetDataType())));
+            outputPrecisions.emplace_back(DnnlExtensionUtils::DataTypeToIEPrecision((childEdge->getMemoryPtr()->getDataType())));
         }
     }
     return outputPrecisions;
@@ -1412,11 +1412,11 @@ std::pair<std::vector<float>, std::vector<float>> Node::getScalesAndShifts(const
             IE_THROW() << "Cannot cast " << constInput->getName() << " to Input";
         }
         auto constBlob = constInputNode->getMemoryPtr();
-        const auto elementsCount = constBlob->GetDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
+        const auto elementsCount = constBlob->getDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
         buffer.resize(elementsCount);
-        cpu_convert(constBlob->GetData(),
+        cpu_convert(constBlob->getData(),
                     &buffer[0],
-                    DnnlExtensionUtils::DataTypeToIEPrecision(constBlob->GetDataType()),
+                    DnnlExtensionUtils::DataTypeToIEPrecision(constBlob->getDataType()),
                     Precision::FP32,
                     elementsCount);
     };
@@ -1476,7 +1476,7 @@ bool Node::isInputTensorAtPortEmpty(size_t port) const {
     } else {
         auto& mem = getParentEdgesAtPort(port)[0]->getMemory();
         if (mem.isAllocated()) {
-            return mem.GetShape().hasZeroDims();
+            return mem.getShape().hasZeroDims();
         }
     }
     return false;
@@ -1491,7 +1491,7 @@ bool Node::isOutputTensorAtPortEmpty(size_t port) const {
     } else {
         auto& mem = getChildEdgesAtPort(port)[0]->getMemory();
         if (mem.isAllocated()) {
-            return mem.GetShape().hasZeroDims();
+            return mem.getShape().hasZeroDims();
         }
     }
     return false;

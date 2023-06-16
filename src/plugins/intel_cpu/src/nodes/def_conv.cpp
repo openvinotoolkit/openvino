@@ -1190,15 +1190,15 @@ void DeformableConvolution::prepareParams() {
     updatePadding();
 
     std::vector<std::shared_ptr<BlockedMemoryDesc>> descVector {
-        getParentEdgeAt(DATA_ID)->getMemory().GetDescWithType<BlockedMemoryDesc>(),
-        getParentEdgeAt(OFF_ID)->getMemory().GetDescWithType<BlockedMemoryDesc>(),
-        getParentEdgeAt(WEI_ID)->getMemory().GetDescWithType<BlockedMemoryDesc>()
+        getParentEdgeAt(DATA_ID)->getMemory().getDescWithType<BlockedMemoryDesc>(),
+        getParentEdgeAt(OFF_ID)->getMemory().getDescWithType<BlockedMemoryDesc>(),
+        getParentEdgeAt(WEI_ID)->getMemory().getDescWithType<BlockedMemoryDesc>()
     };
 
     if (withModulation) {
-        descVector.push_back(getParentEdgeAt(MOD_ID)->getMemory().GetDescWithType<BlockedMemoryDesc>());
+        descVector.push_back(getParentEdgeAt(MOD_ID)->getMemory().getDescWithType<BlockedMemoryDesc>());
     }
-    descVector.push_back(getChildEdgesAtPort(0)[0]->getMemory().GetDescWithType<BlockedMemoryDesc>());
+    descVector.push_back(getChildEdgesAtPort(0)[0]->getMemory().getDescWithType<BlockedMemoryDesc>());
 
     DefConvKey key = {
         descVector,
@@ -1278,15 +1278,15 @@ void DeformableConvolution::execute(dnnl::stream strm) {
     auto &srcMemory2 = getParentEdgeAt(2)->getMemory();
     auto &dstMemory = getChildEdgeAt(0)->getMemory();
 
-    const auto *src = reinterpret_cast<const float *>(srcMemory0.GetData());
-    const auto *offsets = reinterpret_cast<const float *>(srcMemory1.GetData());
-    const auto *weights = reinterpret_cast<const float *>(srcMemory2.GetData());
+    const auto *src = reinterpret_cast<const float *>(srcMemory0.getData());
+    const auto *offsets = reinterpret_cast<const float *>(srcMemory1.getData());
+    const auto *weights = reinterpret_cast<const float *>(srcMemory2.getData());
     float* modulation = nullptr;
     if (inputsNumber > 3) {
-        modulation = reinterpret_cast<float *>(getParentEdgeAt(3)->getMemory().GetData());
+        modulation = reinterpret_cast<float *>(getParentEdgeAt(3)->getMemory().getData());
     }
 
-    float *dst = reinterpret_cast<float *>(dstMemory.GetData());
+    float *dst = reinterpret_cast<float *>(dstMemory.getData());
 
     auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
     if (!selectedPrimitiveDescriptor)

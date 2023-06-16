@@ -97,8 +97,8 @@ void GatherND::prepareParams() {
         THROW_ERROR << " has unidentified preferable primitive descriptor.";
 
     attrs.srcDims = srcMemPtr->getStaticDims();
-    attrs.srcStrides = srcMemPtr->GetDescWithType<BlockedMemoryDesc>()->getStrides();
-    attrs.dstElementCount = dstMemPtr->GetShape().getElementsCount();
+    attrs.srcStrides = srcMemPtr->getDescWithType<BlockedMemoryDesc>()->getStrides();
+    attrs.dstElementCount = dstMemPtr->getShape().getElementsCount();
     attrs.sliceRank =  idxMemPtr->getStaticDims().back();
     execPtr = std::make_shared<GatherNDExecutor>(attrs);
 }
@@ -150,9 +150,9 @@ void GatherND::GatherNDExecutor::exec(const MemoryPtr& srcMemPtr, const MemoryPt
 }
 
 void GatherND::GatherNDExecutor::gatherBlocks(const MemoryPtr& srcMemPtr, const MemoryPtr& idxMemPtr, const MemoryPtr& dstMemPtr) {
-    const uint8_t* srcData = reinterpret_cast<const uint8_t*>(srcMemPtr->GetData());
-    const int32_t* indices = reinterpret_cast<const int32_t*>(idxMemPtr->GetData());
-    uint8_t* dstData = reinterpret_cast<uint8_t*>(dstMemPtr->GetData());
+    const uint8_t* srcData = reinterpret_cast<const uint8_t*>(srcMemPtr->getData());
+    const int32_t* indices = reinterpret_cast<const int32_t*>(idxMemPtr->getData());
+    uint8_t* dstData = reinterpret_cast<uint8_t*>(dstMemPtr->getData());
 
     parallel_nt(0, [&](const int ithr, const int nthr) {
         size_t start(0lu), end(0lu);
@@ -187,9 +187,9 @@ void GatherND::GatherNDExecutor::gatherBlocks(const MemoryPtr& srcMemPtr, const 
 
 template <typename dataType>
 void GatherND::GatherNDExecutor::gatherElementwise(const MemoryPtr& srcMemPtr, const MemoryPtr& idxMemPtr, const MemoryPtr& dstMemPtr) {
-    const dataType* srcData = reinterpret_cast<const dataType*>(srcMemPtr->GetData());
-    const int32_t* indices = reinterpret_cast<const int32_t*>(idxMemPtr->GetData());
-    dataType* dstData = reinterpret_cast<dataType*>(dstMemPtr->GetData());
+    const dataType* srcData = reinterpret_cast<const dataType*>(srcMemPtr->getData());
+    const int32_t* indices = reinterpret_cast<const int32_t*>(idxMemPtr->getData());
+    dataType* dstData = reinterpret_cast<dataType*>(dstMemPtr->getData());
 
     parallel_nt(0, [&](const int ithr, const int nthr) {
         size_t start(0lu), end(0lu);

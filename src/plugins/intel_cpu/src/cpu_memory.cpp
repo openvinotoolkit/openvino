@@ -35,27 +35,27 @@ namespace {
 }   // namespace
 
 Memory::Memory(const dnnl::engine& eng, MemoryDescPtr desc, const void* data, bool pads_zeroing) :
-    pMemDesc(desc),
-    eng(eng),
-    mgrHandle(std::make_shared<DnnlMemoryMngr>(std::unique_ptr<MemoryMngrWithReuse>(new MemoryMngrWithReuse())), this),
+    m_pMemDesc(desc),
+    m_eng(eng),
+    m_mgrHandle(std::make_shared<DnnlMemoryMngr>(std::unique_ptr<MemoryMngrWithReuse>(new MemoryMngrWithReuse())), this),
     dnnlMemHandle(this) {
-        Create(pMemDesc, data, pads_zeroing);
+        create(m_pMemDesc, data, pads_zeroing);
     }
 
 Memory::Memory(const dnnl::engine& eng, const MemoryDesc& desc, const void* data, bool pads_zeroing) :
     Memory::Memory(eng, desc.clone(), data, pads_zeroing) {}
 
 Memory::Memory(const dnnl::engine& eng, MemoryDescPtr desc, MemoryMngrPtr mngr) :
-    pMemDesc(desc), eng(eng), mgrHandle(mngr, this), dnnlMemHandle(this) {
-        bool memAllocated = mgrHandle->getRawPtr();
+    m_pMemDesc(desc), m_eng(eng), m_mgrHandle(mngr, this), dnnlMemHandle(this) {
+        bool memAllocated = m_mgrHandle->getRawPtr();
 
-        Create(desc, nullptr, !memAllocated);
+        create(desc, nullptr, !memAllocated);
     }
 
 Memory::Memory(const dnnl::engine& eng, const MemoryDesc& desc, MemoryMngrPtr mngr) :
     Memory::Memory(eng, desc.clone(), mngr) {}
 
-size_t Memory::GetSize() const {
+size_t Memory::getSize() const {
     auto size = getDesc().getCurrentMemSize();
     if (size  == MemoryDesc::UNDEFINED_SIZE) {
         IE_THROW() << "Can't get memory size for undefined shape";
@@ -63,49 +63,49 @@ size_t Memory::GetSize() const {
     return size;
 }
 
-void Memory::Create(const MemoryDesc &desc, const void *data, bool pads_zeroing) {
-    Create(desc.clone(), data, pads_zeroing);
+void Memory::create(const MemoryDesc &desc, const void *data, bool pads_zeroing) {
+    create(desc.clone(), data, pads_zeroing);
 }
 
-void Memory::Create(MemoryDescPtr desc, const void* data, bool pads_zeroing) {
-    pMemDesc = desc;
-    padsZeroing = pads_zeroing;
+void Memory::create(MemoryDescPtr desc, const void* data, bool pads_zeroing) {
+    m_pMemDesc = desc;
+    m_padsZeroing = pads_zeroing;
     dnnlMemHandle.resetDnnlPrim();
 
     size_t memSize = 0;
-    if (pMemDesc->isDefined()) {
-        memSize = pMemDesc->getCurrentMemSize();
+    if (m_pMemDesc->isDefined()) {
+        memSize = m_pMemDesc->getCurrentMemSize();
     }
 
     if (nullptr != data) {
-        mgrHandle->setExtBuff(const_cast<void*>(data), memSize);
+        m_mgrHandle->setExtBuff(const_cast<void*>(data), memSize);
     } else {
-        mgrHandle->resize(memSize);
+        m_mgrHandle->resize(memSize);
     }
 }
 
-void Memory::SetData(const IMemory& src, bool ftz) const {
+void Memory::load(const IMemory& src, bool ftz) const {
     node::Reorder::reorderData(src, *this);
 
-    auto localPrim = GetPrimitive();
+    auto localPrim = getPrimitive();
     auto desc = localPrim.get_desc();
     dnnl::impl::memory_desc_wrapper wrapper(desc.get());
 
     if (ftz
-        && src.GetDataType() == memory::data_type::f32
+        && src.getDataType() == memory::data_type::f32
         && !wrapper.is_wino_desc()
         // WA: to avoid zero filling auxiliary information
         && !wrapper.is_rnn_packed_desc()
-        && GetDataType() != memory::data_type::bf16) {
+        && getDataType() != memory::data_type::bf16) {
         // Internal blobs haven't strides yet.
-        auto *memData = static_cast<float *>(GetData());
+        auto *memData = static_cast<float *>(getData());
         memData += wrapper.offset0();
-        setSubnormalsToZero(memData, GetSize() / sizeof(float));
+        setSubnormalsToZero(memData, getSize() / sizeof(float));
     }
 }
 
-void Memory::FillZero() {
-    void* dataPtr = GetData();
+void Memory::nullify() {
+    void* dataPtr = getData();
     if (dataPtr != nullptr)
         memset(dataPtr, 0, getDesc().getCurrentMemSize());
 }
@@ -115,27 +115,27 @@ void Memory::redefineDesc(MemoryDescPtr desc) {
         IE_THROW() << "Can not reset descriptor, memory upper bound is unknown.";
     }
 
-    this->Create(desc, nullptr, false);
+    this->create(desc, nullptr, false);
 }
 
 template<>
-DnnlMemoryDescPtr IMemory::GetDescWithType<DnnlMemoryDesc, 0, 0>() const {
+DnnlMemoryDescPtr IMemory::getDescWithType<DnnlMemoryDesc, 0, 0>() const {
     return MemoryDescUtils::convertToDnnlMemoryDesc(getDescPtr());
 }
 
 template<>
-BlockedMemoryDescPtr IMemory::GetDescWithType<BlockedMemoryDesc, 0, 0>() const {
+BlockedMemoryDescPtr IMemory::getDescWithType<BlockedMemoryDesc, 0, 0>() const {
     return MemoryDescUtils::convertToBlockedMemoryDesc(getDescPtr());
 }
 
 void Memory::update() {
     if (dnnlMemHandle.isInit()) {
         auto prim = dnnlMemHandle.getPrim();
-        prim.set_data_handle_no_pads_proc(mgrHandle->getRawPtr());
+        prim.set_data_handle_no_pads_proc(m_mgrHandle->getRawPtr());
     }
 }
 
-dnnl::memory Memory::GetPrimitive() const {
+dnnl::memory Memory::getPrimitive() const {
     return dnnlMemHandle.getPrim();
 }
 
@@ -163,7 +163,7 @@ dnnl::memory Memory::DnnlMemPrimHandle::getPrim() const {
         //
         // ========================
         auto data = m_memObjPtr->getDataNoThrow();
-        auto pads_zeroing = m_memObjPtr->padsZeroing;
+        auto pads_zeroing = m_memObjPtr->m_padsZeroing;
         if (data != nullptr) {
             if (pads_zeroing)
                 m_prim.set_data_handle(data);
@@ -175,58 +175,58 @@ dnnl::memory Memory::DnnlMemPrimHandle::getPrim() const {
 }
 
 bool Memory::isAllocated() const noexcept {
-    if (mgrHandle->getRawPtr()) {
+    if (m_mgrHandle->getRawPtr()) {
         return true;
     }
-    if (!pMemDesc) {
+    if (!m_pMemDesc) {
         return false;
     }
-    if (!(pMemDesc->isDefined())) {
+    if (!(m_pMemDesc->isDefined())) {
         return true;
     }
-    if (pMemDesc->getCurrentMemSize() == 0) {
+    if (m_pMemDesc->getCurrentMemSize() == 0) {
         return true;
     }
     return false;
 }
 
-void* Memory::GetData() const {
+void* Memory::getData() const {
     void* data = getDataNoThrow();
     if (data == nullptr &&
-        pMemDesc->getShape().isStatic() &&
-        pMemDesc->getShape().getElementsCount() != 0)
+        m_pMemDesc->getShape().isStatic() &&
+        m_pMemDesc->getShape().getElementsCount() != 0)
         IE_THROW() << "Memory has not been allocated";
     return data;
 }
 
 void* MemoryMngrWithReuse::getRawPtr() const noexcept {
-    return _data.get();
+    return m_data.get();
 }
 
 void MemoryMngrWithReuse::setExtBuff(void *ptr, size_t size) {
-    _useExternalStorage = true;
-    _memUpperBound = size;
-    _data = decltype(_data)(ptr, release);
+    m_useExternalStorage = true;
+    m_memUpperBound = size;
+    m_data = decltype(m_data)(ptr, release);
 }
 
 bool MemoryMngrWithReuse::resize(size_t size) {
     constexpr int cacheLineSize = 64;
     bool sizeChanged = false;
-    if (size > _memUpperBound) {
+    if (size > m_memUpperBound) {
         void *ptr = dnnl::impl::malloc(size, cacheLineSize);
         if (!ptr) {
             IE_THROW() << "Failed to allocate " << size << " bytes of memory";
         }
-        _memUpperBound = size;
-        _useExternalStorage = false;
-        _data = decltype(_data)(ptr, destroy);
+        m_memUpperBound = size;
+        m_useExternalStorage = false;
+        m_data = decltype(m_data)(ptr, destroy);
         sizeChanged = true;
     }
     return sizeChanged;
 }
 
 bool MemoryMngrWithReuse::hasExtBuffer() const noexcept {
-    return _useExternalStorage;
+    return m_useExternalStorage;
 }
 
 void MemoryMngrWithReuse::release(void *ptr) {}
@@ -236,16 +236,16 @@ void MemoryMngrWithReuse::destroy(void *ptr) {
 }
 
 void* DnnlMemoryMngr::getRawPtr() const noexcept {
-    return _pMemMngr->getRawPtr();
+    return m_pMemMngr->getRawPtr();
 }
 
 void DnnlMemoryMngr::setExtBuff(void *ptr, size_t size) {
-    _pMemMngr->setExtBuff(ptr, size);
+    m_pMemMngr->setExtBuff(ptr, size);
     notifyUpdate();
 }
 
 bool DnnlMemoryMngr::resize(size_t size) {
-    bool sizeChanged = _pMemMngr->resize(size);
+    bool sizeChanged = m_pMemMngr->resize(size);
     if (sizeChanged) {
         notifyUpdate();
     }
@@ -253,23 +253,23 @@ bool DnnlMemoryMngr::resize(size_t size) {
 }
 
 bool DnnlMemoryMngr::hasExtBuffer() const noexcept {
-    return _pMemMngr->hasExtBuffer();
+    return m_pMemMngr->hasExtBuffer();
 }
 
 void DnnlMemoryMngr::registerMemory(Memory* memPtr) {
     if (memPtr) {
-        _setMemPtrs.insert(memPtr);
+        m_setMemPtrs.insert(memPtr);
     }
 }
 
 void DnnlMemoryMngr::unregisterMemory(Memory* memPtr) {
     if (memPtr) {
-        _setMemPtrs.erase(memPtr);
+        m_setMemPtrs.erase(memPtr);
     }
 }
 
 void DnnlMemoryMngr::notifyUpdate() {
-    for (auto& item : _setMemPtrs) {
+    for (auto& item : m_setMemPtrs) {
         if (item) {
             item->update();
         }

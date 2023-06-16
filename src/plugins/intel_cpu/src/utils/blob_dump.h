@@ -46,7 +46,7 @@ public:
     void dumpAsTxt(std::ostream &stream) const;
 
     void *getDataPtr() const {
-        return memory->GetData();
+        return memory->getData();
     }
 };
 

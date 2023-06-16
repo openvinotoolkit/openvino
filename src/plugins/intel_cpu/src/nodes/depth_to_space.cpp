@@ -185,7 +185,7 @@ void DepthToSpace::createPrimitive() {
 }
 
 void DepthToSpace::prepareParams() {
-    attrs.srcBlockedDims = getParentEdgeAt(0)->getMemoryPtr()->GetDescWithType<BlockedMemoryDesc>()->getBlockDims();
+    attrs.srcBlockedDims = getParentEdgeAt(0)->getMemoryPtr()->getDescWithType<BlockedMemoryDesc>()->getBlockDims();
     auto builder = [](const DepthToSpaceAttrs& key) -> std::shared_ptr<DepthToSpaceExecutor> {
         return std::make_shared<DepthToSpaceExecutor>(key);
     };
@@ -292,8 +292,8 @@ void DepthToSpace::DepthToSpaceExecutor::exec(const MemoryPtr& srcMemPtr, const 
     if (!permuteKernel)
         IE_THROW() << "Could not execute. Kernel for Transpose node was not compiled.";
 
-    const uint8_t* srcData = reinterpret_cast<const uint8_t*>(srcMemPtr->GetData());
-    uint8_t* dstData = reinterpret_cast<uint8_t*>(dstMemPtr->GetData());
+    const uint8_t* srcData = reinterpret_cast<const uint8_t*>(srcMemPtr->getData());
+    uint8_t* dstData = reinterpret_cast<uint8_t*>(dstMemPtr->getData());
 
     permuteKernel->execute(srcData, dstData, MB);
 }

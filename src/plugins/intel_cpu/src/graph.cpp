@@ -806,7 +806,7 @@ void Graph::AllocateWithReuse() {
     if (edge_clusters.empty())
         return;
 
-    auto* workspace_ptr = static_cast<int8_t*>(memWorkspace->GetData());
+    auto* workspace_ptr = static_cast<int8_t*>(memWorkspace->getData());
 
     for (auto& box : definedBoxes) {
         int count = 0;
@@ -821,7 +821,7 @@ void Graph::AllocateWithReuse() {
                 //       shapes {0}. And it is implisitly converted into {1} tensor.
                 //       Zeroing of input data allow pass tests.
                 if (edge->getParent()->type == Type::Input && edge->hasDefinedMaxSize())
-                    edge->getMemoryPtr()->FillZero();
+                    edge->getMemoryPtr()->nullify();
 
                 count++;
             }
@@ -953,14 +953,14 @@ void Graph::PushInputData(const std::string& name, const InferenceEngine::Blob::
         const auto& outDims = node->getOutputShapeAtPort(0);
 
         const void *ext_data_ptr = in->cbuffer();
-        void *inter_data_ptr = childEdge->getMemory().GetData();
+        void *inter_data_ptr = childEdge->getMemory().getData();
 
         if (ext_data_ptr != inter_data_ptr) {
             auto ext_tdesc = MemoryDescUtils::convertToDnnlBlockedMemoryDesc(in->getTensorDesc());
 
             Memory ext_mem(getEngine(), ext_tdesc, ext_data_ptr, false);
 
-            childEdge->getMemory().SetData(ext_mem, false);
+            childEdge->getMemory().load(ext_mem, false);
         }
 
         // todo: make sure 'name' exists in this map...
@@ -1027,12 +1027,12 @@ void Graph::PullOutputData(BlobMap &out) {
         auto srcPrec = actualDesc.getPrecision();
         auto dstPrec = expectedDesc.getPrecision();
 
-        if (!getConfig().isLegacyApi && srcPrec == dstPrec && ext_blob->byteSize() != intr_blob.GetSize())
+        if (!getConfig().isLegacyApi && srcPrec == dstPrec && ext_blob->byteSize() != intr_blob.getSize())
             IE_THROW() << "Output blob byte size is not equal network output byte size (" << ext_blob->byteSize()
-                       << "!=" << intr_blob.GetSize() << ").";
+                       << "!=" << intr_blob.getSize() << ").";
 
         void *ext_blob_ptr = ext_blob->buffer();
-        void *intr_blob_ptr = intr_blob.GetData();
+        void *intr_blob_ptr = intr_blob.getData();
 
         // That is the same memory. No need to copy
         if (ext_blob_ptr == intr_blob_ptr) continue;
@@ -1044,9 +1044,9 @@ void Graph::PullOutputData(BlobMap &out) {
                                 ? DnnlBlockedMemoryDesc(expectedDesc.getPrecision(), Shape(expectedDesc.getDims()))
                                 : MemoryDescUtils::convertToDnnlBlockedMemoryDesc(expectedDesc);
             Memory outBloMem(getEngine(), outBlobDesc, ext_blob_ptr, false);
-            outBloMem.SetData(intr_blob, false);
+            outBloMem.load(intr_blob, false);
         } else {
-            size_t size_to_copy = intr_blob.GetDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
+            size_t size_to_copy = intr_blob.getDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
 
             cpu_convert(intr_blob_ptr, ext_blob_ptr, srcPrec, dstPrec, size_to_copy);
         }

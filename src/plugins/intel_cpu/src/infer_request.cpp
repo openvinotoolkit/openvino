@@ -105,7 +105,7 @@ void InferRequestBase::PushStates() {
                     auto cur_state_mem = cur_node->getStore();
                     auto data_ptr = state->GetState()->cbuffer().as<void*>();
                     auto data_size = state->GetState()->byteSize();
-                    auto cur_state_mem_buf = static_cast<uint8_t*>(cur_state_mem->GetData());
+                    auto cur_state_mem_buf = static_cast<uint8_t*>(cur_state_mem->getData());
 
                     cpu_memcpy(cur_state_mem_buf, data_ptr, data_size);
                 }
@@ -127,7 +127,7 @@ void InferRequestBase::PullStates() {
                     auto cur_state_mem = cur_node->getStore();
                     auto data_ptr = state->GetState()->cbuffer().as<void*>();
                     auto data_size = state->GetState()->byteSize();
-                    auto cur_state_mem_buf = static_cast<uint8_t*>(cur_state_mem->GetData());
+                    auto cur_state_mem_buf = static_cast<uint8_t*>(cur_state_mem->getData());
 
                     cpu_memcpy(data_ptr, cur_state_mem_buf, data_size);
                 }
@@ -207,7 +207,7 @@ void InferRequestBase::changeDefaultPtr() {
         auto input = inputNodesMap.find(it.first);
         if (input != inputNodesMap.end()) {
             NodePtr inputNodePtr = input->second;
-            if (inputNodePtr->getChildEdgeAt(0)->getMemory().GetData() == static_cast<void*>(it.second->buffer()))
+            if (inputNodePtr->getChildEdgeAt(0)->getMemory().getData() == static_cast<void*>(it.second->buffer()))
                 continue;
             auto& childEdges = inputNodePtr->getChildEdges();
             // Perform checks that the user's memory will not be modified
@@ -257,11 +257,11 @@ void InferRequestBase::changeDefaultPtr() {
         auto output = outputNodesMap.find(it.first);
         if (output != outputNodesMap.end()) {
             auto parentEdge = output->second->getParentEdgeAt(0);
-            if (parentEdge->getMemory().GetData() == static_cast<void*>(it.second->buffer()))
+            if (parentEdge->getMemory().getData() == static_cast<void*>(it.second->buffer()))
                 continue;
 
             bool canBeInPlace = true;
-            void* defaultPtr = parentEdge->getMemory().GetData();
+            void* defaultPtr = parentEdge->getMemory().getData();
             // Cannot be in-place after concat because concat is using different ptrs without offsets
             auto parent = parentEdge->getParent();
             NodePtr previousParent;
@@ -278,7 +278,7 @@ void InferRequestBase::changeDefaultPtr() {
                     if (!e)
                         IE_THROW() << "Node " << parent->getName() << " contains empty parent edge";
 
-                    if (e->getMemory().GetData() == defaultPtr) {
+                    if (e->getMemory().getData() == defaultPtr) {
                         parent = e->getParent();
                         break;
                     }

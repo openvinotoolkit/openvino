@@ -25,10 +25,10 @@ namespace ReorderCPUTest {
 inline void checkReorder(const ov::intel_cpu::IMemory& inputMemory,
                          const ov::intel_cpu::IMemory& outputMemory,
                          const InferenceEngine::Precision& prescision) {
-    auto srcData = inputMemory.GetData();
-    auto dstData = outputMemory.GetData();
-    auto mdInput = inputMemory.GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
-    auto mdOutput = outputMemory.GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
+    auto srcData = inputMemory.getData();
+    auto dstData = outputMemory.getData();
+    auto mdInput = inputMemory.getDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
+    auto mdOutput = outputMemory.getDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
 
     const dnnl::impl::memory_desc_wrapper mdwInput(mdInput.get());
     const dnnl::impl::memory_desc_wrapper mdwOutput(mdOutput.get());
@@ -69,10 +69,10 @@ inline std::string layoutName(const LayoutType& layout) {
 }
 
 inline void fillData(const ov::intel_cpu::IMemory& inputMemory, const InferenceEngine::Precision& prec) {
-    ov::intel_cpu::DnnlMemoryDescPtr dnnlMdInput = inputMemory.GetDescWithType<DnnlMemoryDesc>();
+    ov::intel_cpu::DnnlMemoryDescPtr dnnlMdInput = inputMemory.getDescWithType<DnnlMemoryDesc>();
     const dnnl::impl::memory_desc_wrapper mdInput{dnnlMdInput->getDnnlDesc().get()};
     auto elemNum = mdInput.nelems();
-    auto inputReorderData = inputMemory.GetData();
+    auto inputReorderData = inputMemory.getData();
     switch (prec) {
     case InferenceEngine::Precision::FP32:
         for (int64_t i = 0; i < elemNum; ++i)
@@ -272,7 +272,7 @@ protected:
     // Fill dstData with zeros
     void generateInput() {
         fillData(parentEdge->getMemory(), prec);
-        memset(childEdge->getMemory().GetData(), 0, childEdge->getMemory().GetSize());
+        memset(childEdge->getMemory().getData(), 0, childEdge->getMemory().getSize());
     }
 
     size_t getNumElems(const std::vector<size_t>& dims) {

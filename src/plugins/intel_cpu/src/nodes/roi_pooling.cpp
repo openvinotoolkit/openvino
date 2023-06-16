@@ -554,12 +554,12 @@ public:
         if (!roi_pooling_kernel)
             IE_THROW() << "Could not execute. Kernel for RoiPooling node was not compiled.";
 
-        auto src_strides = srcData.GetDescWithType<BlockedMemoryDesc>()->getStrides();
-        auto src_roi_step = srcRoi.GetDescWithType<BlockedMemoryDesc>()->getStrides()[0];
-        auto dst_strides = dst.GetDescWithType<BlockedMemoryDesc>()->getStrides();
-        const auto* src_ptr = reinterpret_cast<const T*>(srcData.GetData());
-        const auto* roi_ptr = reinterpret_cast<const T*>(srcRoi.GetData());
-        auto* dst_ptr = reinterpret_cast<T*>(dst.GetData());
+        auto src_strides = srcData.getDescWithType<BlockedMemoryDesc>()->getStrides();
+        auto src_roi_step = srcRoi.getDescWithType<BlockedMemoryDesc>()->getStrides()[0];
+        auto dst_strides = dst.getDescWithType<BlockedMemoryDesc>()->getStrides();
+        const auto* src_ptr = reinterpret_cast<const T*>(srcData.getData());
+        const auto* roi_ptr = reinterpret_cast<const T*>(srcRoi.getData());
+        auto* dst_ptr = reinterpret_cast<T*>(dst.getData());
         executeOptimizedGeneric(src_ptr, roi_ptr, dst_ptr, src_strides, dst_strides, src_roi_step);
     }
 
@@ -674,12 +674,12 @@ public:
         const IMemory& srcData,
         const IMemory& srcRoi,
         const IMemory& dst) override {
-        auto src_strides = srcData.GetDescWithType<BlockedMemoryDesc>()->getStrides();
-        auto src_roi_step = srcRoi.GetDescWithType<BlockedMemoryDesc>()->getStrides()[0];
-        auto dst_strides = dst.GetDescWithType<BlockedMemoryDesc>()->getStrides();
-        const auto* src_ptr = reinterpret_cast<const T*>(srcData.GetData());
-        const auto* roi_ptr = reinterpret_cast<const T*>(srcRoi.GetData());
-        auto* dst_ptr = reinterpret_cast<T*>(dst.GetData());
+        auto src_strides = srcData.getDescWithType<BlockedMemoryDesc>()->getStrides();
+        auto src_roi_step = srcRoi.getDescWithType<BlockedMemoryDesc>()->getStrides()[0];
+        auto dst_strides = dst.getDescWithType<BlockedMemoryDesc>()->getStrides();
+        const auto* src_ptr = reinterpret_cast<const T*>(srcData.getData());
+        const auto* roi_ptr = reinterpret_cast<const T*>(srcRoi.getData());
+        auto* dst_ptr = reinterpret_cast<T*>(dst.getData());
         executeReference(src_ptr, roi_ptr, dst_ptr, src_strides, dst_strides, src_roi_step);
     }
 

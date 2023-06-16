@@ -119,7 +119,7 @@ bool Edge::enforceReorder() {
         Type::Input == parentNode->getType() &&
         parentNode->isConstant()) {
         if (auto pInputNode = std::dynamic_pointer_cast<node::Input>(parentNode)) {
-            auto rawMemPtr = pInputNode->getMemoryPtr()->GetData();
+            auto rawMemPtr = pInputNode->getMemoryPtr()->getData();
             bool isAligned = (reinterpret_cast<uintptr_t>(rawMemPtr) & 15) == 0;
             if (!isAligned) {
                 return true;

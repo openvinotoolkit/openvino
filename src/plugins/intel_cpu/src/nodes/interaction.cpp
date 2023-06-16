@@ -238,21 +238,21 @@ static inline void flat_triangle(const uint8_t* in, uint8_t* out, size_t size, s
 
 void Interaction::execRef(dnnl::stream strm) {
     using namespace dnnl;
-    uint8_t* outFeaturesPtr = reinterpret_cast<uint8_t*>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetData());
+    uint8_t* outFeaturesPtr = reinterpret_cast<uint8_t*>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->getData());
     std::vector<const uint8_t*> inputPtrs(inputSizes);
     for (uint32_t n = 0; n < inputSizes; n++) {
-        auto inPtr = reinterpret_cast<const uint8_t*>(getParentEdgeAt(n)->getMemoryPtr()->GetData());
+        auto inPtr = reinterpret_cast<const uint8_t*>(getParentEdgeAt(n)->getMemoryPtr()->getData());
         inputPtrs[n] = inPtr;
     }
-    std::unordered_map<int, memory> mem_ags{{DNNL_ARG_SRC, inputMemPtr->GetPrimitive()},
-                                            {DNNL_ARG_WEIGHTS, inputMemPtr->GetPrimitive()},
-                                            {DNNL_ARG_DST, outputMemPtr->GetPrimitive()}};
+    std::unordered_map<int, memory> mem_ags{{DNNL_ARG_SRC, inputMemPtr->getPrimitive()},
+                                            {DNNL_ARG_WEIGHTS, inputMemPtr->getPrimitive()},
+                                            {DNNL_ARG_DST, outputMemPtr->getPrimitive()}};
     float* scales = fqScales.empty() ? nullptr : fqScales.data();
     for (int64_t start = 0; start < static_cast<int64_t>(batchSize); start++) {
-        cat(reinterpret_cast<uint8_t*>(inputMemPtr->GetData()), inputPtrs, featureSizes, start, dataPrecision.size());
+        cat(reinterpret_cast<uint8_t*>(inputMemPtr->getData()), inputPtrs, featureSizes, start, dataPrecision.size());
         prim.execute(strm, mem_ags);
-        flat_triangle(reinterpret_cast<const uint8_t*>(outputMemPtr->GetData()),
-                      reinterpret_cast<uint8_t*>(flatMemPtr->GetData()),
+        flat_triangle(reinterpret_cast<const uint8_t*>(outputMemPtr->getData()),
+                      reinterpret_cast<uint8_t*>(flatMemPtr->getData()),
                       inputSizes,
                       dataPrecision.size());
         // in1 dense feature
@@ -266,7 +266,7 @@ void Interaction::execRef(dnnl::stream strm) {
         }
         if (moveInteractKernel) {
             jit_move_scale_call_args interArgs;
-            interArgs.p_in = flatMemPtr->GetData();
+            interArgs.p_in = flatMemPtr->getData();
             interArgs.p_out = outFeaturesPtr + (start * outputFeaturesLen + featureSize) * outputDataType.size();
             interArgs.p_scales = scales;
             (*moveInteractKernel)(&interArgs);

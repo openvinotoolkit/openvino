@@ -129,9 +129,9 @@ ReverseSequence::ReverseSequenceExecutor::ReverseSequenceExecutor(const VectorDi
 template<typename T>
 void ReverseSequence::ReverseSequenceExecutor::exec(const MemoryPtr& dataMemPtr, const MemoryPtr& seqLengthsMemPtr, const MemoryPtr& dstMemPtr) {
     const VectorDims& srcDims = dataMemPtr->getStaticDims();
-    const auto *srcData = reinterpret_cast<const float *>(dataMemPtr->GetData());
-    auto *dstData = reinterpret_cast<float *>(dstMemPtr->GetData());
-    auto *seqLengthsData = reinterpret_cast<T *>(seqLengthsMemPtr->GetData());
+    const auto *srcData = reinterpret_cast<const float *>(dataMemPtr->getData());
+    auto *dstData = reinterpret_cast<float *>(dstMemPtr->getData());
+    auto *seqLengthsData = reinterpret_cast<T *>(seqLengthsMemPtr->getData());
 
     for (size_t i = 0; i < srcDims[batchAxis]; ++i) {
         if (static_cast<int32_t>(seqLengthsData[i]) > static_cast<int>(srcDims[seqAxis])) {

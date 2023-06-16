@@ -106,7 +106,7 @@ void Unique::prepareParams() {
 
     size_t srcLen = 1;
     if (flattened) {
-        srcLen = getParentEdgeAt(IN_DATA)->getMemoryPtr()->GetSize() / dataTypeSize;
+        srcLen = getParentEdgeAt(IN_DATA)->getMemoryPtr()->getSize() / dataTypeSize;
     } else {
         auto dstDataShape = getParentEdgeAt(IN_DATA)->getMemoryPtr()->getStaticDims();
         srcLen = dstDataShape[axis];
@@ -164,8 +164,8 @@ void Unique::executeDynamicImpl(dnnl::stream strm) {
 
 template <typename T>
 void Unique::flattenTensorExec() {
-    const T* srcDataPtr = reinterpret_cast<const T*>(getParentEdgeAt(IN_DATA)->getMemoryPtr()->GetData());
-    const size_t inputLen = getParentEdgeAt(IN_DATA)->getMemoryPtr()->GetSize() / sizeof(T);
+    const T* srcDataPtr = reinterpret_cast<const T*>(getParentEdgeAt(IN_DATA)->getMemoryPtr()->getData());
+    const size_t inputLen = getParentEdgeAt(IN_DATA)->getMemoryPtr()->getSize() / sizeof(T);
     std::vector<T> uniDataTmp(inputLen);
     auto uniDataTmpPtr = uniDataTmp.data();
     int *firstTmpPtr = nullptr, *inToOutTmpPtr = nullptr, *occurTmpPtr = nullptr;
@@ -263,18 +263,18 @@ void Unique::flattenTensorExec() {
 
     redefineOutputMemory({ {uniqueLen}, {uniqueLen}, {inputLen}, {uniqueLen}});
 
-    T* uniDataPtr = reinterpret_cast<T*>(getChildEdgesAtPort(UNIQUE_DATA)[0]->getMemoryPtr()->GetData());
+    T* uniDataPtr = reinterpret_cast<T*>(getChildEdgesAtPort(UNIQUE_DATA)[0]->getMemoryPtr()->getData());
     cpu_parallel_memcpy(uniDataPtr, uniDataTmpPtr, uniqueLen * sizeof(T));
     if (definedOutputs[FIRST_UNIQUE_IDX]) {
-        int *firstPtr = reinterpret_cast<int*>(getChildEdgesAtPort(FIRST_UNIQUE_IDX)[0]->getMemoryPtr()->GetData());
+        int *firstPtr = reinterpret_cast<int*>(getChildEdgesAtPort(FIRST_UNIQUE_IDX)[0]->getMemoryPtr()->getData());
         cpu_parallel_memcpy(firstPtr, firstUniTmp.data(), uniqueLen * sizeof(int));
     }
     if (definedOutputs[INPUT_TO_UNIQ_IDX]) {
-        auto inToOutPtr = reinterpret_cast<int*>(getChildEdgesAtPort(INPUT_TO_UNIQ_IDX)[0]->getMemoryPtr()->GetData());
+        auto inToOutPtr = reinterpret_cast<int*>(getChildEdgesAtPort(INPUT_TO_UNIQ_IDX)[0]->getMemoryPtr()->getData());
         cpu_parallel_memcpy(inToOutPtr, inToOutTmp.data(), inputLen * sizeof(int));
     }
     if (definedOutputs[OCCURRENCES_NUM]) {
-        auto occurPtr = reinterpret_cast<int*>(getChildEdgesAtPort(OCCURRENCES_NUM)[0]->getMemoryPtr()->GetData());
+        auto occurPtr = reinterpret_cast<int*>(getChildEdgesAtPort(OCCURRENCES_NUM)[0]->getMemoryPtr()->getData());
         cpu_parallel_memcpy(occurPtr, occurTmp.data(), uniqueLen * sizeof(int));
     }
 }
@@ -282,7 +282,7 @@ void Unique::flattenTensorExec() {
 template <typename T>
 void Unique::slicedTensorExec() {
     auto inDataMemPtr = getParentEdgeAt(IN_DATA)->getMemoryPtr();
-    auto srcDataPtr = reinterpret_cast<const T*>(inDataMemPtr->GetData());
+    auto srcDataPtr = reinterpret_cast<const T*>(inDataMemPtr->getData());
     int *firstTmpPtr = nullptr, *inToOutTmpPtr = nullptr, *occurTmpPtr = nullptr;
     if (definedOutputs[FIRST_UNIQUE_IDX]) {
         firstTmpPtr = firstUniTmp.data();
