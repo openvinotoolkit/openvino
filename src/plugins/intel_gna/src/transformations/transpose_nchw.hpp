@@ -12,7 +12,7 @@ namespace pass {
 
 /**
  * @brief Substutites ngraph::Convolution (NCHW) -> GNAConvolution (NHWC)
- * 
+ *
  *                              Transpose (NCHW -> NHWC)
  *                                       |
  * Convolution (NCHW) ->         GNAConvolution (NHWC)
@@ -27,7 +27,7 @@ public:
 
 /**
  * @brief Substutites ngraph::MaxPool (NCHW) -> GNAMaxPool (NHWC)
- * 
+ *
  *                              Transpose (NCHW -> NHWC)
  *                                       |
  * MaxPool (NCHW) ->               GNAMaxPool (NHWC)
@@ -42,7 +42,7 @@ public:
 
 /**
  * @brief calls SubstituteGNAConvolution and SubstituteGNAMaxPool together
-*/
+ */
 class TransposeNCHW : public ngraph::pass::FunctionPass {
 public:
     NGRAPH_RTTI_DECLARATION;

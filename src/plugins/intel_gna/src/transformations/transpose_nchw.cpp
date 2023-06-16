@@ -4,18 +4,17 @@
 
 #include "transformations/transpose_nchw.hpp"
 
-#include "openvino/pass/manager.hpp"
-#include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "openvino/cc/ngraph/itt.hpp"
-#include "openvino/opsets/opset12.hpp"
-#include "ops/gna_convolution.hpp"
-#include "ops/gna_max_pool.hpp"
-#include "transformations/utils/utils.hpp"
-#include "common/graph_utils.hpp"
-
 #include <vector>
 
+#include "common/graph_utils.hpp"
+#include "openvino/cc/ngraph/itt.hpp"
+#include "openvino/opsets/opset12.hpp"
+#include "openvino/pass/manager.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "ops/gna_convolution.hpp"
+#include "ops/gna_max_pool.hpp"
 #include "transformations/utils/transformation_helper.hpp"
+#include "transformations/utils/utils.hpp"
 
 using namespace ov;
 using namespace ov::opset12;
