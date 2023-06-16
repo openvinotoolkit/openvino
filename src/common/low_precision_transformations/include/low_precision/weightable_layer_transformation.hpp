@@ -36,7 +36,9 @@ public:
         const std::vector<ngraph::element::Type>& defaultPrecisions = precision_set::int8_support);
 
 protected:
-    bool decomposeFakeQuantizeForWeightsPath(const std::shared_ptr<Node>& weightableLayer, size_t outChannelsShapeIndex = 0ul) const;
+    std::tuple<bool, std::shared_ptr<Node>, std::shared_ptr<Node>> decomposeFakeQuantizeForWeightsPath(
+            const std::shared_ptr<Node>& weightableLayer,
+            size_t outChannelsShapeIndex = 0ul) const;
     static bool isGroup(const std::shared_ptr<Node>& node);
     static bool isDepthwise(const std::shared_ptr<Node>& node);
     virtual size_t getInputChannels(const std::shared_ptr<ngraph::Node> conv) const = 0;

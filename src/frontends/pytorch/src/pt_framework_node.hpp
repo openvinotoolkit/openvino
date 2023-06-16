@@ -13,6 +13,9 @@ namespace pytorch {
 class PtFrameworkNode : public ov::op::util::FrameworkNode {
 public:
     OPENVINO_OP("PtFrameworkNode", "util", ::ov::op::util::FrameworkNode);
+    static constexpr const char* op_type_key = "PtTypeName";
+    static constexpr const char* schema_key = "PtSchema";
+    static constexpr const char* failed_conversion_key = "PtException";
 
     PtFrameworkNode(const std::shared_ptr<TorchDecoder>& decoder,
                     const OutputVector& inputs,
@@ -23,11 +26,11 @@ public:
         ov::op::util::FrameworkNodeAttrs attrs;
         attrs.set_type_name("PTFrameworkNode");
         if (is_backprop) {
-            attrs["PtTypeName"] = m_decoder->get_op_type() + "_backprop";
-            attrs["PtSchema"] = "None";
+            attrs[op_type_key] = m_decoder->get_op_type() + "_backprop";
+            attrs[schema_key] = "None";
         } else {
-            attrs["PtTypeName"] = m_decoder->get_op_type();
-            attrs["PtSchema"] = m_decoder->get_schema();
+            attrs[op_type_key] = m_decoder->get_op_type();
+            attrs[schema_key] = m_decoder->get_schema();
         }
         set_attrs(attrs);
 
