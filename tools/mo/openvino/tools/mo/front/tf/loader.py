@@ -6,6 +6,7 @@ import logging as log
 import os
 import re
 from distutils.version import LooseVersion
+from pathlib import Path
 
 from openvino.tools.mo.graph.graph import Node
 from openvino.tools.mo.utils.error import Error, FrameworkError
@@ -327,18 +328,15 @@ def load_tf_graph_def(graph_file_name: str = "", is_binary: bool = True, checkpo
 
 def convert_to_pb(argv: argparse.Namespace):
     from openvino.tools.mo.utils.cli_parser import get_model_name
+    if argv.input_model is not None and not isinstance(argv.input_model, (str, Path)):
+        return None
     env_setup = get_environment_setup("tf")
     if "tensorflow" in env_setup and env_setup["tensorflow"] >= LooseVersion("2.0.0"):
         tf.keras.backend.clear_session()
 
-    # if this is already binary or text frozen format .pb or .pbtxt,
-    # there is no need to create auxiliary binary frozen protobuf
-    if argv.input_model and not argv.input_checkpoint and \
-            isinstance(argv.input_model, str):
-        return None
-
-    # Saved Model format and MetaGraph format is supported without freezing
-    if argv.saved_model_dir or argv.input_meta_graph:
+    # any model format on disk is accepted by TensorFlow Frontend
+    # only model from memory requires temporal saving on a disk
+    if (argv.input_model and isinstance(argv.input_model, str)) or argv.saved_model_dir or argv.input_meta_graph:
         return None
 
     user_output_node_names_list = argv.output if argv.output else None
