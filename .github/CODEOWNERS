@@ -27,6 +27,7 @@
 /.gitmodules @openvinotoolkit/openvino-ie-maintainers
 
 /src/bindings/python/ @openvinotoolkit/openvino-ie-python-api-maintainers
+/src/bindings/python/src/openvino/runtime @openvinotoolkit/openvino-mo-maintainers
 /src/bindings/c/ @openvinotoolkit/openvino-c-api-maintainers
 /src/common/*transformations/  @openvinotoolkit/openvino-ie-transformations-maintainers
 /src/core/  @openvinotoolkit/openvino-ngraph-maintainers
