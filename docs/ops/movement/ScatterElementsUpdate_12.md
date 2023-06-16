@@ -106,8 +106,7 @@ Accordingly for 3D tensor case, the update of the element corresponding to the `
 
 *   **3**: ``updates`` tensor of shape equal to the shape of ``indices`` tensor and of type *T*. **Required.**
 
-*   **4**: ``axis`` tensor with scalar or 1D tensor with one element of type *T_AXIS* specifying axis for scatter.
-Negative ``axis`` means reverse indexing and will be normalized to value ``axis = data.rank + axis``. The value can be in range ``[-r, r - 1]`` where ``r`` is the rank of ``data``. **Required.**
+*   **4**: ``axis`` tensor with scalar or 1D tensor with one element of type *T_AXIS* specifying axis for scatter. Negative ``axis`` means reverse indexing and will be normalized to value ``axis = data.rank + axis``. The value can be in range ``[-r, r - 1]`` where ``r`` is the rank of ``data``. **Required.**
 
 **Outputs**:
 
@@ -135,7 +134,7 @@ Negative ``axis`` means reverse indexing and will be normalized to value ``axis 
             <port id="1">  < !-- indices (negative values allowed) -->
                 <dim>6</dim>  < !-- values: [1, 0, 0, -2, -1, 2] -->
             </port>
-            <port id="2">>  < !-- updaates -->
+            <port id="2">>  < !-- updates -->
                 <dim>6</dim>  < !-- values: [10, 20, 30, 40, 70, 60] -->
             </port>
             <port id="3">     < !-- values: [0] -->
@@ -162,7 +161,7 @@ Negative ``axis`` means reverse indexing and will be normalized to value ``axis 
             <port id="1">  < !-- indices -->
                 <dim>6</dim>  < !-- values: [1, 0, 0, 2, 3, 2] -->
             </port>
-            <port id="2">>  < !-- updaates -->
+            <port id="2">>  < !-- updates -->
                 <dim>6</dim>  < !-- values: [10, 20, 30, 40, 70, 60] -->
             </port>
             <port id="3">     < !-- values: [0] -->
@@ -178,6 +177,117 @@ Negative ``axis`` means reverse indexing and will be normalized to value ``axis 
 
 
 *Example 3*
+
+.. code-block:: cpp
+
+    <layer ... use_init_val="true" reduction="none" type="ScatterElementsUpdate">
+        <input>
+            <port id="0">>  < !-- data -->
+                <dim>3</dim>
+                <dim>4</dim>  < !-- values: [[0, 0, 0, 0],
+                                             [0, 0, 0, 0],
+                                             [0, 0, 0, 0]] -->
+            </port>
+            <port id="1">  < !-- indices -->
+                <dim>2</dim>
+                <dim>2</dim>  < !-- values: [[1, 2],
+                                             [0, 3]] -->
+            </port>
+            <port id="2">>  < !-- updates -->
+                <dim>2</dim>
+                <dim>2</dim>  < !-- values: [[11, 12],
+                                             [13, 14]]) -->
+            </port>
+            <port id="3">     < !-- values: [1] -->
+                <dim>1</dim>
+            </port>
+        </input>
+        <output>
+            <port id="4" precision="I32">
+                <dim>3</dim>
+                <dim>4</dim>  < !-- values:  [[ 0, 11, 12,  0],
+                                              [13,  0,  0, 14],
+                                              [ 0,  0,  0,  0]] -->
+            </port>
+        </output>
+    </layer>
+
+
+*Example 4*
+
+.. code-block:: cpp
+
+    <layer ... use_init_val="true" reduction="sum" type="ScatterElementsUpdate">
+        <input>
+            <port id="0">>  < !-- data -->
+                <dim>3</dim>
+                <dim>4</dim>  < !-- values: [[1, 1, 1, 1],
+                                             [1, 1, 1, 1],
+                                             [1, 1, 1, 1]] -->
+            </port>
+            <port id="1">  < !-- indices -->
+                <dim>2</dim>
+                <dim>2</dim>  < !-- values: [[1, 1],
+                                             [0, 3]] -->
+            </port>
+            <port id="2">>  < !-- updates -->
+                <dim>2</dim>
+                <dim>2</dim>  < !-- values: [[11, 12],
+                                             [13, 14]]) -->
+            </port>
+            <port id="3">     < !-- values: [1] -->
+                <dim>1</dim>
+            </port>
+        </input>
+        <output>
+            <port id="4" precision="I32">
+                <dim>3</dim>
+                <dim>4</dim>  < !-- values: [[ 1, 24,  1,  1],
+                                             [14,  1,  1, 15],
+                                             [ 1,  1,  1,  1]] -->
+            </port>
+        </output>
+    </layer>
+
+
+*Example 5*
+
+.. code-block:: cpp
+
+    <layer ... use_init_val="true" reduction="prod" type="ScatterElementsUpdate">
+        <input>
+            <port id="0">>  < !-- data -->
+                <dim>3</dim>
+                <dim>4</dim>  < !-- values: [[2, 2, 2, 2],
+                                             [2, 2, 2, 2],
+                                             [2, 2, 2, 2]] -->
+            </port>
+            <port id="1">  < !-- indices -->
+                <dim>2</dim>
+                <dim>2</dim>  < !-- values: [[1, 1],
+                                             [0, 3]] -->
+            </port>
+            <port id="2">>  < !-- updates -->
+                <dim>2</dim>
+                <dim>2</dim>  < !-- values: [[11, 12],
+                                             [13, 14]]) -->
+            </port>
+            <port id="3">     < !-- values: [1] -->
+                <dim>1</dim>
+            </port>
+        </input>
+        <output>
+            <port id="4" precision="I32">
+                <dim>3</dim>
+                <dim>4</dim>  < !-- values: [[  2, 264,   2,   2],
+                                             [ 26,   2,   2,  28],
+                                             [  2,   2,   2,   2]] -->
+            </port>
+        </output>
+    </layer>
+
+
+*Example 6*
 
 .. code-block:: cpp
 
