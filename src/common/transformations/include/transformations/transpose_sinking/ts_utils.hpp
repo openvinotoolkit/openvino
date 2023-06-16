@@ -30,12 +30,14 @@ struct TransposeInputsInfo {
  * @brief Finds node first input that is a transpose operation and returns filled TransposeInputsInfo
  * for it
  */
-TransposeInputsInfo GetFirstTransposeInput(const std::shared_ptr<ov::Node>&);
+TransposeInputsInfo GetFirstTransposeInput(const std::shared_ptr<ov::Node>&,
+                                           bool const_transpose_order,
+                                           const std::vector<size_t>& indices = {});
 
 /**
  * @brief Checks if @arg has any input node that is a transpose operation
  */
-bool IfNodeHasTransposeInputs(const ov::Output<ov::Node>&);
+bool IfNodeHasTransposeInputs(const ov::Output<ov::Node>&, const std::vector<size_t>& indices = {});
 
 /**
  * @brief Reverses order of transpose operation. Do it in a such way that if we had couple following one after
@@ -85,8 +87,6 @@ ov::NodeVector InsertTransposeBeforeNode(const std::shared_ptr<ov::Node>& main_n
                                          const std::shared_ptr<ov::opset10::Constant>& transpose_const,
                                          std::vector<size_t> input_indexes = {});
 }  // namespace sink_backward
-
-void UpdateForwardSinkingAbility(const std::shared_ptr<ov::Node>&);
 
 /**
  *  @brief Checks if @arg has consumers that are all the same Transpose operation
