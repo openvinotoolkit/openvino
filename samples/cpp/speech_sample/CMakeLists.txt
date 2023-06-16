@@ -12,13 +12,15 @@ if(NOT ANDROID)
     find_package(PkgConfig QUIET)
 endif()
 
-if(NOT TARGET zlib::zlib)
+find_package(ZLIB QUIET)
+
+if(NOT TARGET ZLIB::ZLIB)
     if(PkgConfig_FOUND)
         pkg_search_module(zlib QUIET
                           IMPORTED_TARGET GLOBAL
                           zlib)
         if(zlib_FOUND)
-            add_library(zlib::zlib ALIAS PkgConfig::zlib)
+            add_library(ZLIB::ZLIB ALIAS PkgConfig::zlib)
         endif()
     endif()
 
@@ -28,7 +30,7 @@ if(NOT TARGET zlib::zlib)
         # OpenVINO package puts thirdparty to samples dir
         add_subdirectory("${Samples_SOURCE_DIR}/thirdparty/zlib"
                          "${Samples_BINARY_DIR}/thirdparty/zlib" EXCLUDE_FROM_ALL)
-    elseif(EXISTS "${Samples_SOURCE_DIR}/thirdparty/zlib")
+    elseif(EXISTS "${Samples_SOURCE_DIR}/../../thirdparty/zlib")
         # Allow running samples CMakeLists.txt as stand alone from openvino sources
         add_subdirectory("${Samples_SOURCE_DIR}/../../thirdparty/zlib"
                          "${Samples_BINARY_DIR}/thirdparty/zlib" EXCLUDE_FROM_ALL)

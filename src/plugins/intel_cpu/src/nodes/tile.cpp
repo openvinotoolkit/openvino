@@ -126,7 +126,7 @@ bool Tile::needShapeInfer() const {
             return true;
         const int32_t* repeatsData = reinterpret_cast<const int32_t *>(getParentEdgesAtPort(TILE_REPEATS)[0]->getMemory().GetPtr());
         for (size_t i = 0lu; i < originRepeats.size(); i++) {
-            if (originRepeats[i] != repeatsData[i])
+            if (originRepeats[i] != static_cast<size_t>(repeatsData[i]))
                 return true;
         }
     }
@@ -161,15 +161,10 @@ void Tile::plainExecute(dnnl::stream strm) {
     auto inDims = srcMemory.getStaticDims();
     for (int i = 0; i < axis; i++ )
         m_outer_dim *= inDims[i];
-    for (int i = axis; i < inDims.size(); i++ )
+    for (size_t i = axis; i < inDims.size(); i++ )
         m_inner_dim *= inDims[i];
 
-    int MB = 0;
-    if (isDynamicNode()) {
-        MB = srcMemory.getStaticDims()[0];
-    } else {
-        MB = batchToProcess();
-    }
+    int MB = srcMemory.getStaticDims()[0];
     if (axis > 0) {
         m_outer_dim /= inDims[0];
         m_outer_dim *= MB;

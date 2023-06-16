@@ -6,12 +6,14 @@
 #include "tile_shape_inference.hpp"
 
 #include "primitive_type_base.h"
+#include "memory_accessor.hpp"
 #include "intel_gpu/runtime/memory.hpp"
 #include "intel_gpu/runtime/format.hpp"
 #include "json_object.h"
 #include <string>
 
 namespace cldnn {
+
 GPU_DEFINE_PRIMITIVE_TYPE_ID(tile)
 
 layout tile_inst::calc_output_layout(tile_node const& node, kernel_impl_params const& impl_param) {
@@ -44,36 +46,25 @@ std::vector<layout> tile_inst::calc_output_layouts(tile_node const& /*node*/, co
     ShapeType repeats_shape = impl_param.input_layouts.size() == 2 ? impl_param.get_input_layout(1).get<ShapeType>()
                                                                    : ov::Shape{ desc->repeats.size() };
     ov::op::v0::Tile op;
-    std::vector<ShapeType> output_shapes;
     std::vector<ShapeType> input_shapes = {
         input0_layout.get<ShapeType>(),
         repeats_shape
     };
 
-    auto& constant_mem = impl_param.memory_deps;
-    if (desc->input_size() == 2) {
-        if (constant_mem.count(1)) {
-            auto repeats_mem = constant_mem.at(1);
-            cldnn::mem_lock<uint8_t, mem_lock_type::read> repeats_lock(repeats_mem, impl_param.prog->get_stream());
-            const auto& layout = repeats_mem->get_layout();
-            const auto repeats_tensor =
-                ov::Tensor(data_type_to_element_type(layout.data_type), layout.get_shape(), repeats_lock.data());
-            output_shapes = ov::op::v0::shape_infer(&op, input_shapes, {{1, repeats_tensor}});
-        } else if (repeats_shape.size() > 0 && repeats_shape[0].is_static()) {
-            output_shapes = { ov::PartialShape::dynamic(std::max<size_t>(input_shapes[0].size(), repeats_shape[0].get_length())) };
-        } else {
-            output_shapes = { ov::PartialShape::dynamic() };
-        }
-    } else {
-        auto repeats_data = desc->repeats;
-        const auto repeats_tensor =
-            ov::Tensor(data_type_to_element_type(data_types::i64), repeats_shape.to_shape(), repeats_data.data());
-        output_shapes = ov::op::v0::shape_infer(&op, input_shapes, {{1, repeats_tensor}});
-    }
+    auto repeats = desc->repeats;
+    const auto data_accessor =
+        MemoryAccessor(&impl_param.memory_deps, impl_param.prog->get_stream(), [&repeats, &repeats_shape](size_t port) {
+            return (port == 1 && repeats.data()) ? ov::Tensor(data_type_to_element_type(data_types::i64),
+                                                              repeats_shape.to_shape(),
+                                                              repeats.data())
+                                                 : ov::Tensor();
+        });
+
+    std::vector<ShapeType> output_shapes = ov::op::v0::shape_infer(&op, input_shapes, data_accessor);
 
     format output_format = format::adjust_to_rank(input0_layout.format, output_shapes[0].size());
 
-    return { layout{output_shapes[0], output_type, output_format} };
+    return {layout{output_shapes[0], output_type, output_format}};
 }
 
 template std::vector<layout> tile_inst::calc_output_layouts<ov::PartialShape>(tile_node const& node, const kernel_impl_params& impl_param);

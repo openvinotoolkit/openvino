@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,10 +33,6 @@ ov::pass::MatMulConstTransposesExtraction::MatMulConstTransposesExtraction() {
         std::shared_ptr<Node> transpose = std::make_shared<opset8::Transpose>(
             weights,
             opset8::Constant::create(element::i32, {transpose_order.size()}, transpose_order));
-        if (ov::is_type<opset8::Constant>(weights.get_node())) {
-            if (auto constant = get_constant_from_source(transpose))
-                transpose = constant;
-        }
         auto new_matmul = std::make_shared<opset8::MatMul>(pattern_value_map.at(data_pattern),
                                                            transpose,
                                                            matmul->get_transpose_a(),

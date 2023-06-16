@@ -65,8 +65,9 @@ def get_value_from_getattr(getattr_node, self_module):
     module = self_module
     while len(stack) > 0:
         node = stack.pop()
-        assert (hasattr(module, node.s("name")))
-        module = getattr(module, node.s("name"))
+        attr_name = node.s("name")
+        assert hasattr(module, attr_name), f"No attribute with name \"{attr_name}\" found in module."
+        module = getattr(module, attr_name)
     return module
 
 
@@ -91,25 +92,43 @@ pt_to_ov_type_map = {
 
 
 class TorchScriptPythonDecoder (Decoder):
-    def __init__(self, pt_module, graph_element=None, example_input=None, freeze=True):
+    def __init__(self, pt_module, graph_element=None, example_input=None, alias_db=None):
         Decoder.__init__(self)
         # We store every decoder created by this decoder so that all them are not deleted until the first decoder is deleted
         self.m_decoders = []
         self._input_signature = None
-        converted_model = False
         if graph_element is None:
-            converted_model = True
-            pt_module = self._get_scripted_model(pt_module, example_input, freeze)
+            try:
+                pt_module = self._get_scripted_model(pt_module, example_input)
+            except Exception as e:
+                if example_input is not None:
+                    msg = "tracing or scripting"
+                    help_msg = ""
+                else:
+                    msg = "scripting"
+                    help_msg = "Tracing sometimes provide better results, "
+                    "please provide valid 'example_input' argument. "
+                raise RuntimeError(
+                    f"Couldn't get TorchScript module by {msg}. {help_msg}"
+                    "You can also provide TorchScript module that you obtained"
+                    " yourself, please refer to PyTorch documentation: "
+                    "https://pytorch.org/tutorials/beginner/Intro_to_TorchScript_tutorial.html.")
             self.graph_element = pt_module.inlined_graph
+            self.alias_db = self.graph_element.alias_db()
         else:
             self.graph_element = graph_element
+            self.alias_db = alias_db
         self.pt_module = pt_module
         self.raw_inputs = list(self.graph_element.inputs())
         self.raw_outputs = list(self.graph_element.outputs())
-        if self._input_signature is not None and self.raw_inputs[0].debugName() == "self":
+        if self._input_signature is not None and "self" in self.raw_inputs[0].debugName():
             self._input_signature.insert(0, "self")
 
-    def _get_scripted_model(self, pt_module, example_inputs=None, freeze=True):
+        if isinstance(self.graph_element, torch.Graph):
+            self._transform_tensor_list_constants_to_listconstruct(self.graph_element)
+            self._transform_optional_constants(self.graph_element)
+
+    def _get_scripted_model(self, pt_module, example_inputs=None):
         import torch
         import inspect
 
@@ -133,31 +152,33 @@ class TorchScriptPythonDecoder (Decoder):
                     inputs = [inputs]
             return inputs, input_signature
 
-        pt_module.eval()
+        if isinstance(pt_module, torch.nn.Module):
+            pt_module.eval()
         input_signature = None
         if isinstance(pt_module, torch.nn.Module) and not isinstance(pt_module, (torch.jit._trace.TopLevelTracedModule, torch.jit._script.RecursiveScriptModule)):
             input_signature = list(inspect.signature(pt_module.forward).parameters.keys())
-            try:
+            if example_inputs is None:
                 scripted = torch.jit.script(pt_module)
-            except Exception as scripting_err:
-                if example_inputs is not None:
-                    inputs, input_signature = prepare_example_inputs(example_inputs, input_signature)
+            else:
+                inputs, input_signature = prepare_example_inputs(example_inputs, input_signature)
+                try:
+                    scripted = torch.jit.trace(pt_module, inputs)
+                except Exception:
                     try:
-                        scripted = torch.jit.trace(pt_module, inputs)
-                    except Exception as tracing_e:
-                        raise tracing_e
-                else:
-                    raise scripting_err
-        else:
-            scripted = pt_module
-        if freeze:
-            try:
+                        scripted = torch.jit.script(pt_module)
+                    except Exception:
+                        scripted = torch.jit.trace(pt_module, inputs, strict=False)
+            skip_freeze = False
+            for n in scripted.inlined_graph.nodes():
+                # TODO: switch off freezing for all traced models
+                if "quantize" in n.kind():
+                    skip_freeze = True
+                    break
+            if not skip_freeze:
                 f_model = torch.jit.freeze(scripted)
-            except Exception:
-                # usually freezing failed when model already frozen for inference
-                f_model = scripted
         else:
-            f_model = scripted
+            f_model = pt_module
+        
         self._input_signature = input_signature
         return f_model
 
@@ -249,14 +270,14 @@ class TorchScriptPythonDecoder (Decoder):
 
     def get_subgraph_size(self) -> int:
         if isinstance(self.graph_element, torch.Node):
-            return len(self.get_subgraphs()) 
+            return len(self.get_subgraphs())
         else:
             return 1
 
     def visit_subgraph(self, node_visitor) -> None:
         # make sure topological order is satisfied
         for node in self.graph_element.nodes():
-            decoder = TorchScriptPythonDecoder(self.pt_module, node)
+            decoder = TorchScriptPythonDecoder(self.pt_module, node, alias_db=self.alias_db)
             self.m_decoders.append(decoder)
             node_visitor(decoder)
 
@@ -272,11 +293,12 @@ class TorchScriptPythonDecoder (Decoder):
         return list(self.graph_element.blocks())
 
     def get_subgraph_decoder(self, index: int):
-        decoder = TorchScriptPythonDecoder(self.pt_module, self.get_subgraphs()[index])
+        decoder = TorchScriptPythonDecoder(self.pt_module, self.get_subgraphs()[index], alias_db=self.alias_db)
         self.m_decoders.append(decoder)
         return decoder
 
     def get_op_type(self) -> str:
+        assert isinstance(self.graph_element, torch.Node), "Function can be called only when self.graph_element is of type torch.Node"
         return self.graph_element.kind()
 
     def get_schema(self) -> str:
@@ -298,6 +320,13 @@ class TorchScriptPythonDecoder (Decoder):
         return self.outputs()[index]
 
     def mark_node(self, node):
+        name = self.graph_element.kind()
+        if "FrameworkNode" not in node.get_type_name():
+            name += "/" + node.get_type_name()
+        if self.graph_element.scopeName():
+            node.set_friendly_name(self.graph_element.scopeName().split("/")[-1] + "/" + name)
+        else:
+            node.set_friendly_name(name)
         return node
 
     def try_decode_get_attr(self):
@@ -309,10 +338,11 @@ class TorchScriptPythonDecoder (Decoder):
             return []
 
     def as_constant(self):
+        if not isinstance(self.graph_element, torch.Node):
+            return None
         if not self.get_op_type() == "prim::Constant":
             return None
         pt_value = self._raw_output(0)
-
         pt_type = pt_value.type()
         if isinstance(pt_type, torch.TensorType):
             return ivalue_to_constant(pt_value.toIValue())
@@ -369,3 +399,58 @@ class TorchScriptPythonDecoder (Decoder):
                     pt_value = get_value_from_getattr(in_node, self.pt_module)
                     return pt_value is None
         return False
+
+    def may_produce_alias(self, in_index: int, out_index: int) -> bool:
+        if self.get_op_type() in ["aten::conv1d", "aten::conv2d", "aten::conv3d"]:
+            # AliasDB::may_contain_alias sometimes return True for tensors produced by convnd, we have to workaround that
+            return False
+        try:
+            return self.alias_db.may_contain_alias(self._raw_input(in_index), self._raw_output(out_index))
+        except:
+            # Sometimes pytorch fails to get result with IndexError exception while these indexes exist in node
+            return False
+
+    @staticmethod
+    def _transform_tensor_list_constants_to_listconstruct(graph: torch.Graph):
+        # Function replaces prim::Constant containing List of Tensors with
+        # prim::ListConstruct containing prim::Constant Tensors.
+        assert isinstance(graph, torch.Graph), "Function can be called only with parameters of type torch.Graph."
+        for node in graph.nodes():
+            if node.kind() != "prim::Constant":
+                continue
+            output_type = node.output().type()
+            allowed_types = [
+                output_type.isSubtypeOf(torch.ListType.ofTensors()),
+                output_type.isSubtypeOf(torch.ListType(torch.OptionalType.ofTensor())),
+            ]
+            if not any(allowed_types):
+                continue
+            const_inputs = []
+            for val in node.output().toIValue():
+                const_input = graph.insertConstant(val)
+                const_input.node().moveBefore(node)
+                const_input.node().copyMetadata(node)
+                const_inputs.append(const_input)
+
+            replacement = graph.create("prim::ListConstruct", const_inputs)
+            replacement.insertBefore(node)
+            replacement.output().setType(torch.ListType.ofTensors())
+            replacement.copyMetadata(node)
+            node.output().replaceAllUsesWith(replacement.output())
+
+    @staticmethod
+    def _transform_optional_constants(graph: torch.Graph):
+        # Function replaces prim::Constant containing torch.OptionalType with
+        # prim::Constant containing torch.NoneType or type of IValue.
+        assert isinstance(graph, torch.Graph), "Function can be called only with parameters of type torch.Graph."
+        for node in graph.nodes():
+            if node.kind() != "prim::Constant":
+                continue
+            output_type = node.output().type()
+            if not isinstance(output_type, torch.OptionalType):
+                continue
+            value = node.output().toIValue()
+            const_input = graph.insertConstant(value)
+            const_input.node().moveBefore(node)
+            const_input.node().copyMetadata(node)
+            node.output().replaceAllUsesWith(const_input)

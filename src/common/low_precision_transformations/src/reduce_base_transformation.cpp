@@ -36,7 +36,7 @@ bool ReduceBaseTransformation::canBeTransformed(const TransformationContext& con
         return false;
     }
 
-    const auto axesConstant = ov::as_type_ptr<ngraph::opset1::Constant>(reduce->get_input_node_shared_ptr(1));
+    const auto axesConstant = ov::as_type_ptr<ov::opset1::Constant>(reduce->get_input_node_shared_ptr(1));
     if (axesConstant == nullptr) {
         return false;
     }
@@ -48,7 +48,9 @@ bool ReduceBaseTransformation::canBeTransformed(const TransformationContext& con
         return false;
     }
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const std::vector<size_t> axes = ngraph::normalize_axes(reduce->get_friendly_name(), constData, inputRank);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     const auto deqByReducedConst = [&](const std::shared_ptr<Node>& eltwise) {
         const auto constShape = eltwise->get_shape();

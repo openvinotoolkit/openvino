@@ -76,7 +76,6 @@ public:
     void update_dispatch_data(const kernel_impl_params& impl_param) override {
         auto kernel_params = get_kernel_params(impl_param, true);
         (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
-        update_kernels_list_to_skip();
     }
 };
 
@@ -183,3 +182,4 @@ attach_concatenation_impl::attach_concatenation_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::concatenation_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::concatenation)

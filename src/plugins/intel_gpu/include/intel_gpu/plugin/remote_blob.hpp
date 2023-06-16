@@ -50,11 +50,18 @@ public:
     const std::shared_ptr<InferenceEngine::IAllocator> &getAllocator() const noexcept;
     void *getHandle() const noexcept { return _handle; }
 
-    void reinterpret(cldnn::layout new_layout);
+    void reinterpret(const cldnn::layout& new_layout);
 
     bool is_allocated() const noexcept;
     bool is_locked() const noexcept;
-    cldnn::memory::ptr get_memory() { return m_memory_object; }
+    cldnn::memory::ptr get_memory() {
+        auto engine = m_memory_object->get_engine();
+        return engine->reinterpret_buffer(*m_memory_object, m_layout);
+    }
+    cldnn::memory::ptr get_original_memory() {
+        return m_memory_object;
+    }
+    void setShape(const InferenceEngine::SizeVector& dims);
 
 protected:
     std::shared_ptr<InferenceEngine::IAllocator> m_allocator;
@@ -80,6 +87,7 @@ protected:
     void lock() const;
     void unlock() const;
 
+    bool is_shared() const;
     bool supports_caching() const;
 };
 
@@ -115,6 +123,7 @@ public:
     InferenceEngine::LockedMemory<const void> rmap() const noexcept override { return _impl.rmap(); }
     InferenceEngine::LockedMemory<void> wmap()noexcept override { return _impl.wmap(); }
     RemoteBlobImpl* getImpl() { return &_impl; }
+    void setShape(const InferenceEngine::SizeVector& dims) override { _impl.setShape(dims); }
 
 protected:
     const std::shared_ptr<InferenceEngine::IAllocator> &getAllocator() const noexcept override { return _impl.getAllocator(); }

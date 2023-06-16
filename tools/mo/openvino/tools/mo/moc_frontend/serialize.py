@@ -32,7 +32,7 @@ def moc_emit_ir(ngraph_function: Model, argv: argparse.Namespace):
 
     apply_user_transformations(ngraph_function, parse_transform(argv.transform))
 
-    if argv.compress_fp16:
+    if argv.compress_to_fp16:
         from openvino.tools.mo.back.offline_transformations import compress_model
         compress_model(ngraph_function)
 

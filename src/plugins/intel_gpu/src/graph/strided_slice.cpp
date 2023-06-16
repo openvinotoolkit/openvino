@@ -83,9 +83,9 @@ std::vector<layout> strided_slice_inst::calc_output_layouts(strided_slice_node c
         auto end_mem = constant_mem.at(2);
         auto strides_mem = constant_mem.at(3);
 
-        cldnn::mem_lock<uint8_t, mem_lock_type::read> lock1(begin_mem, impl_param.prog->get_stream());
-        cldnn::mem_lock<uint8_t, mem_lock_type::read> lock2(end_mem, impl_param.prog->get_stream());
-        cldnn::mem_lock<uint8_t, mem_lock_type::read> lock3(strides_mem, impl_param.prog->get_stream());
+        cldnn::mem_lock<uint8_t, mem_lock_type::read> lock1(begin_mem, impl_param.get_stream());
+        cldnn::mem_lock<uint8_t, mem_lock_type::read> lock2(end_mem, impl_param.get_stream());
+        cldnn::mem_lock<uint8_t, mem_lock_type::read> lock3(strides_mem, impl_param.get_stream());
 
         auto begin_tensor = make_host_tensor(begin_mem->get_layout(), lock1.data());
         auto end_tensor = make_host_tensor(end_mem->get_layout(), lock2.data());
@@ -114,9 +114,10 @@ std::string strided_slice_inst::to_string(strided_slice_node const& node) {
 
     json_composite strided_slice_info;
     strided_slice_info.add("input id", input.id());
-    strided_slice_info.add("begin_param id", node.get_dependency(1).id());
-    strided_slice_info.add("end_param id", node.get_dependency(2).id());
-    strided_slice_info.add("stride_param id", node.get_dependency(3).id());
+    std::vector<std::string> dependencies_info = {"begin_param id", "end_param id", "stride_param id"};
+    for (size_t i = 0; i < node.get_dependencies().size(); ++i) {
+        strided_slice_info.add(dependencies_info[i], node.get_dependency(i).id());
+    }
     strided_slice_info.add("begin", node.get_primitive()->begin);
     strided_slice_info.add("end", node.get_primitive()->end);
     strided_slice_info.add("strides", node.get_primitive()->strides);

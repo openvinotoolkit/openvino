@@ -13,6 +13,7 @@
 #include <common_test_utils/ov_tensor_utils.hpp>
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "test_utils/cpu_test_utils.hpp"
+#include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 
 using namespace CPUTestUtils;
 using namespace ov::test;
@@ -171,7 +172,7 @@ public:
                 results << CommonTestUtils::vec2str(item) << "_";
             }
         }
-        for (int i = 0; i < inputPrecisions.size(); i++) {
+        for (size_t i = 0; i < inputPrecisions.size(); i++) {
             results << "InPRC" << std::to_string(i) << "=" << inputPrecisions[i] << "_";
         }
         results << "patternType=" << patternType;
@@ -184,7 +185,7 @@ public:
     void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) override {
         inputs.clear();
         const auto& funcInputs = function->inputs();
-        for (int i = 0; i < funcInputs.size(); ++i) {
+        for (size_t i = 0; i < funcInputs.size(); ++i) {
             const auto& funcInput = funcInputs[i];
             ov::Tensor tensor;
             // TODO: after snippets fixed should remove 2nd condition, ticket: 105339
@@ -223,6 +224,13 @@ protected:
             rel_threshold = 10.f;
 
             configuration.insert({{ InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::YES }});
+        }
+
+        // Snippets MHA tokenization has limitations to avoid performance degradations. These limitations depend on target machine.
+        // Just for testing, we disable these limitations to allow Snippets to tokenize pattern on all machines for validation.
+        if (!configuration.count(InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE)) {
+            configuration.insert({InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE,
+                                  InferenceEngine::PluginConfigInternalParams::IGNORE_CALLBACK});
         }
     }
 };
@@ -369,8 +377,10 @@ static std::shared_ptr<ov::Model> initMHAQuantSubgraph0(std::vector<ov::PartialS
     return std::make_shared<ngraph::Function>(results, ngraphParam, "mha");
 }
 
-static std::shared_ptr<ov::Model> initMHAQuantSubgraph1(std::vector<ov::PartialShape>& inputDynamicShapes, std::vector<ElementType>& inputPrecisions,
-                                                        std::vector<ElementType>& matMulIn0Precisions) {
+static std::shared_ptr<ov::Model> initMHAQuantSubgraph1(const std::vector<ov::PartialShape>& inputDynamicShapes,
+                                                        const std::vector<ElementType>& inputPrecisions,
+                                                        const std::vector<ElementType>& matMulIn0Precisions,
+                                                        const bool fakeQuantize3Exists) {
     ngraph::ParameterVector ngraphParam;
 
     auto transpose0Param = std::make_shared<ngraph::opset1::Parameter>(inputPrecisions[0], inputDynamicShapes[0]);
@@ -425,8 +435,11 @@ static std::shared_ptr<ov::Model> initMHAQuantSubgraph1(std::vector<ov::PartialS
     const auto softMax = std::make_shared<ngraph::opset1::Softmax>(add, 3);
     const auto transpose2 = std::make_shared<ov::op::v1::Transpose>(transpose2Param, transpose2Const);
     const auto matMul1 = std::make_shared<ngraph::opset3::MatMul>(softMax, transpose2, transA, transB);
-    const auto fakeQuantize2 = ngraph::builder::makeFakeQuantize(matMul1, inputPrecisions[0], 256, {}, {0.0f}, {2.55f}, {0.0f}, {2.55f});
-    const auto transpose3 = std::make_shared<ov::op::v1::Transpose>(fakeQuantize2, transpose3Const);
+    const auto transpose3 = std::make_shared<ov::op::v1::Transpose>(
+        fakeQuantize3Exists ?
+            ngraph::builder::makeFakeQuantize(matMul1, inputPrecisions[0], 256, {}, { 0.0f }, { 2.55f }, { 0.0f }, { 2.55f }) :
+            matMul1,
+        transpose3Const);
 
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(transpose3)};
     return std::make_shared<ngraph::Function>(results, ngraphParam, "mha");
@@ -455,10 +468,10 @@ public:
                 results << CommonTestUtils::vec2str(item) << "_";
             }
         }
-        for (int i = 0; i < inputPrecisions.size(); i++) {
+        for (size_t i = 0; i < inputPrecisions.size(); i++) {
             results << "InPRC" << std::to_string(i) << "=" << inputPrecisions[i] << "_";
         }
-        for (int i = 0; i < matMulIn0Precisions.size(); i++) {
+        for (size_t i = 0; i < matMulIn0Precisions.size(); i++) {
             results << "MatMulIn0PRC" << std::to_string(i) << "=" << matMulIn0Precisions[i] << "_";
         }
         results << "patternType=" << patternType;
@@ -471,7 +484,7 @@ public:
     void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) override {
         inputs.clear();
         const auto& funcInputs = function->inputs();
-        for (int i = 0; i < funcInputs.size(); ++i) {
+        for (size_t i = 0; i < funcInputs.size(); ++i) {
             const auto& funcInput = funcInputs[i];
             ov::Tensor tensor;
             if (funcInput.get_element_type().is_real())
@@ -500,9 +513,18 @@ protected:
         if (patternType == 0) {
             function = initMHAQuantSubgraph0(inputDynamicShapes, inputPrecisions, matMulIn0Precisions);
         } else if (patternType == 1) {
-            function = initMHAQuantSubgraph1(inputDynamicShapes, inputPrecisions, matMulIn0Precisions);
+            function = initMHAQuantSubgraph1(inputDynamicShapes, inputPrecisions, matMulIn0Precisions, true);
+        } else if (patternType == 2) {
+            function = initMHAQuantSubgraph1(inputDynamicShapes, inputPrecisions, matMulIn0Precisions, false);
         } else {
             FAIL() << "Unsupported MHA pattern type";
+        }
+
+        // Snippets MHA tokenization has limitations to avoid performance degradations. These limitations depend on target machine.
+        // Just for testing, we disable these limitations to allow Snippets to tokenize pattern on all machines for validation.
+        if (!configuration.count(InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE)) {
+            configuration.insert({InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE,
+                                  InferenceEngine::PluginConfigInternalParams::IGNORE_CALLBACK});
         }
     }
 };
@@ -549,7 +571,7 @@ std::vector<std::vector<ElementType>> matMulIn0PrecisionsQuant = {
 };
 
 std::vector<size_t> patternTypesQuant = {
-    0, 1
+    0, 1, 2
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_MHAQuant, MHAQuantTest,
@@ -558,7 +580,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MHAQuant, MHAQuantTest,
                                 ::testing::ValuesIn(inputPrecisionsQuant),
                                 ::testing::ValuesIn(matMulIn0PrecisionsQuant),
                                 ::testing::ValuesIn(patternTypesQuant),
-                                ::testing::Values("MHA"),  // Snippets don't support Quantized MHA pattern yet
+                                ::testing::Values("MHA"),
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                         MHAQuantTest::getTestCaseName);
 

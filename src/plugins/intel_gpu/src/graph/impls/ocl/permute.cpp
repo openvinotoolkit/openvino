@@ -65,7 +65,6 @@ struct permute_impl : typed_primitive_impl_ocl<permute> {
     void update_dispatch_data(const kernel_impl_params& impl_param) override {
         auto kernel_params = get_kernel_params(impl_param, true);
         (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
-        update_kernels_list_to_skip();
     }
 };
 
@@ -85,7 +84,9 @@ attach_permute_impl::attach_permute_impl() {
     auto dyn_formats = {
         format::bfyx,
         format::bfzyx,
-        format::bfwzyx
+        format::bfwzyx,
+        format::bfuwzyx,
+        format::bfvuwzyx,
     };
 
     implementation_map<permute>::add(impl_types::ocl,
@@ -100,3 +101,4 @@ attach_permute_impl::attach_permute_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::permute_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::permute)

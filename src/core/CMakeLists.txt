@@ -76,12 +76,15 @@ ie_faster_build(ngraph_obj
     UNITY
     PCH PRIVATE "src/precomp.hpp")
 
-addVersionDefines(src/version.cpp CI_BUILD_NUMBER)
+ov_add_version_defines(src/version.cpp ngraph_obj)
 
 target_link_libraries(ngraph_obj PRIVATE ngraph::builder ngraph::reference openvino::util
                                          openvino::pugixml ov_shape_inference openvino::core::dev)
 
 ie_mark_target_as_cc(ngraph_obj)
+
+# ngraph is public API => need to mark this library as important for ABI free
+ov_abi_free_target(ngraph_obj)
 
 ov_ncc_naming_style(FOR_TARGET ngraph_obj
                     SOURCE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/include")

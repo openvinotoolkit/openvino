@@ -39,7 +39,9 @@ void ov::op::util::GatherBase::validate_and_infer_types() {
 }
 
 int64_t ov::op::util::GatherBase::get_axis() const {
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto& const_op = get_constant_from_source(input_value(2));
+    OPENVINO_SUPPRESS_DEPRECATED_END
     OPENVINO_ASSERT(const_op, "axis value is not set");
 
     int64_t axis = const_op->cast_vector<int64_t>()[0];
@@ -192,9 +194,10 @@ bool cf_gather_with_subgraph(ov::OutputVector& output_values,
 
 bool ov::op::util::GatherBase::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(util_GatherBase_evaluate);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     NGRAPH_CHECK(ngraph::validate_host_tensor_vector(inputs, 3));
     NGRAPH_CHECK(ngraph::validate_host_tensor_vector(outputs, 1));
-
+    OPENVINO_SUPPRESS_DEPRECATED_END
     int64_t axis = 0;
     switch (inputs[2]->get_element_type()) {
     case element::Type_t::i32:
@@ -226,16 +229,15 @@ bool ov::op::util::GatherBase::evaluate(const HostTensorVector& outputs, const H
     }
 
     if (axis < 0) {
-        const auto& input_rank = get_input_partial_shape(0).rank();
-        if (input_rank.is_static()) {
-            axis += input_rank.get_length();
-        }
+        const auto input_rank = inputs[0]->get_shape().size();
+        axis += input_rank;
     }
 
     int64_t batch_dims = m_batch_dims;
-    const auto& indices_rank = get_input_partial_shape(1).rank();
-    if (batch_dims < 0 && indices_rank.is_static())
-        batch_dims += indices_rank.get_length();
+    if (batch_dims < 0) {
+        const auto indices_rank = inputs[1]->get_shape().size();
+        batch_dims += indices_rank;
+    }
 
     return gather::evaluate_gather(inputs[0], inputs[1], outputs[0], axis, batch_dims);
 }
@@ -255,7 +257,9 @@ bool ov::op::util::GatherBase::evaluate_upper(ov::TensorVector& output_values) c
 bool ov::op::util::GatherBase::evaluate_label(TensorLabelVector& output_labels) const {
     if (!get_input_tensor(1).has_and_set_bound() || !get_input_tensor(2).has_and_set_bound())
         return false;
+    OPENVINO_SUPPRESS_DEPRECATED_START
     return default_label_evaluator(this, output_labels);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 bool ov::op::util::GatherBase::constant_fold(OutputVector& output_values, const OutputVector& input_values) {

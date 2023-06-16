@@ -16,7 +16,7 @@ std::vector<TShape> shape_infer(const TFrowardConv* op,
                                 TContainer& pads_begin,
                                 TContainer& pads_end,
                                 const std::map<size_t, HostTensorPtr>& constant_data = {}) {
-    NODE_VALIDATION_CHECK(op, input_shapes.size() == 2);
+    NODE_VALIDATION_CHECK(op, input_shapes.size() >= 2);
     using namespace ov::util;
 
     const auto num_spatial = convolution::calculate_num_spatial(op, input_shapes);

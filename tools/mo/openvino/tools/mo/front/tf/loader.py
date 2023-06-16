@@ -6,6 +6,7 @@ import logging as log
 import os
 import re
 from distutils.version import LooseVersion
+from pathlib import Path
 
 from openvino.tools.mo.graph.graph import Node
 from openvino.tools.mo.utils.error import Error, FrameworkError
@@ -200,14 +201,13 @@ def freeze_tf2_concrete_function(model, concrete_func, env_setup):
 
 
 def prepare_graph_def(model):
-    from tensorflow.python.training.tracking.base import Trackable  # pylint: disable=no-name-in-module,import-error
+    env_setup = get_environment_setup("tf")
     if isinstance(model, tf_v1.GraphDef):
         nodes_to_clear_device = model.node
         for node in nodes_to_clear_device:
             node.device = ""
         return model, {}, "tf", None
     if isinstance(model, tf.keras.Model):
-        env_setup = get_environment_setup("tf")
 
         assert hasattr(model, "inputs") and model.inputs is not None, "Model inputs specification is required."
 
@@ -226,9 +226,13 @@ def prepare_graph_def(model):
 
         conc_func = tf_function.get_concrete_function(model_inputs)
         return freeze_tf2_concrete_function(model, conc_func, env_setup)
-    if isinstance(model, Trackable):
-        env_setup = get_environment_setup("tf")
-        return saved_model_load(model, env_setup)
+    if env_setup["tensorflow"] >= LooseVersion("2.6.0") and isinstance(model, tf.types.experimental.GenericFunction):
+
+        assert hasattr(model, "input_signature") and model.input_signature is not None, \
+            "'input_signature' needs to be set for model conversion."
+
+        conc_func = model.get_concrete_function(*tuple(model.input_signature))
+        return freeze_tf2_concrete_function(model, conc_func, env_setup)
     raise Exception("Unknown model type {}.".format(type(model)))
 
 
@@ -324,15 +328,15 @@ def load_tf_graph_def(graph_file_name: str = "", is_binary: bool = True, checkpo
 
 def convert_to_pb(argv: argparse.Namespace):
     from openvino.tools.mo.utils.cli_parser import get_model_name
+    if argv.input_model is not None and not isinstance(argv.input_model, (str, Path)):
+        return None
     env_setup = get_environment_setup("tf")
     if "tensorflow" in env_setup and env_setup["tensorflow"] >= LooseVersion("2.0.0"):
         tf.keras.backend.clear_session()
 
-    # if this is already binary frozen format .pb, there is no need to create auxiliary binary frozen protobuf
-    # the main thing is to differentiate this format from text frozen format and checkpoint
-    # that can utilize input_model option
-    if argv.input_model and not argv.input_model_is_text and not argv.input_checkpoint and \
-            isinstance(argv.input_model, str):
+    # any model format on disk is accepted by TensorFlow Frontend
+    # only model from memory requires temporal saving on a disk
+    if (argv.input_model and isinstance(argv.input_model, str)) or argv.saved_model_dir or argv.input_meta_graph:
         return None
 
     user_output_node_names_list = argv.output if argv.output else None

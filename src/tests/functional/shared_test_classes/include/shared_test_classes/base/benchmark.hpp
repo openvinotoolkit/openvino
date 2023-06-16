@@ -45,7 +45,7 @@ public:
             timeAttribute = testCaseNode.append_attribute(timeAttributeName);
         }
 
-        timeAttribute.set_value(time);
+        timeAttribute.set_value(static_cast<unsigned long long>(time));
     }
 
     uint64_t get_time(const std::string& nodeTypeName, const std::string& testCaseName) {
@@ -278,7 +278,7 @@ class BenchmarkLayerTest : public BaseLayerTest {
         }
 
         // Benchmark
-        for (size_t i = 0; i < num_attempts_; ++i) {
+        for (int i = 0; i < num_attempts_; ++i) {
             this->inferRequest.infer();
             const auto& profiling_info = this->inferRequest.get_profiling_info();
             for (auto& res : results_us) {

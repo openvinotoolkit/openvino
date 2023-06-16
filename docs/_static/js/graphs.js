@@ -1,14 +1,18 @@
-// general output config
+// =================== GENERAL OUTPUT CONFIG =========================
+
 const chartDisclaimers = {
-    Value: 'Value: Performance/(No_of_sockets * Price_of_CPU_dGPU), where prices are in USD as of December 2022.',
-    Efficiency: 'Efficiency: Performance/(No_of_sockets * TDP_of_CPU_dGPU), where total power dissipation (TDP) is in Watt as of December 2022.'
+    Value: 'Value: Performance/(No_of_sockets * Price_of_CPU_dGPU), where prices are in USD as of May 2023.',
+    Efficiency: 'Efficiency: Performance/(No_of_sockets * TDP_of_CPU_dGPU), where total power dissipation (TDP) is in Watt as of May 2023.'
 }
 
-const defaultSelections = {
+const OVdefaultSelections = {
+    platformTypes: {name: 'ietype', data: ['core']},
     platforms: {name: 'platform',
         data: [
             'Intel® Core™  i9-12900K CPU-only',
+            'Intel® Core™  i9-13900K CPU-only',
             'Intel® Core™  i5-10500TE CPU-only',
+            'Intel® Core™  i5-13600K CPU-only',
             'Intel® Core™  i5-8500 CPU-only',
             'Intel® Core™  i7-8700T CPU-only',
             'Intel® Core™  i9-10900TE CPU-only',
@@ -27,6 +31,30 @@ const defaultSelections = {
     parameters: {name: 'kpi', data: ['Throughput']},
     pracision: {name: 'precision', data: ['INT8', 'FP32']}
 }
+
+const OVMSdefaultSelections = {
+    platforms: {name: 'platform',
+        data: [
+            'Intel® Core™  i3-10100 CPU-only',
+            'Intel® Core™  i5-8500 CPU-only',
+            'Intel® Core™  i7-8700T CPU-only',
+            'Intel® Core™  i9-10920X CPU-only',
+        ]
+    },
+    models: {name: 'networkmodel',
+        data: [
+            'bert-small-uncased-whole-word-masking-squad-0002',
+            'mobilenet-ssd ',
+            'resnet-50',
+            'yolo_v3_tiny'
+        ]
+    },
+    parameters: {name: 'kpi', data: ['Throughput']},
+    pracision: {name: 'precision', data: ['OV-INT8 (reference)', 'INT8']}
+}
+
+// ====================================================
+
 
 class Filter {
 
@@ -67,9 +95,11 @@ class Filter {
         });
     }
 }
+
+
 class ExcelDataTransformer {
 
-    static transform(csvdata) {
+    static transform(csvdata, version) {
         const entries = csvdata.filter((entry) => {
             return !entry.includes('begin_rec') && !entry.includes('end_rec');
         });
@@ -77,17 +107,20 @@ class ExcelDataTransformer {
 
         // else generate
         return entries.map((entry) => {
+            if (version == 'ovms')
+                return new GraphData(new OVMSExcelData(entry));
             return new GraphData(new ExcelData(entry));
         });
     }
 }
+
 
 class ExcelData {
     constructor(csvdataline) {
         if (!csvdataline) {
             return;
         }
-        this.networkModel = csvdataline[0];
+        this.networkModel = csvdataline[0].toLowerCase();
         this.release = csvdataline[1];
         this.ieType = csvdataline[2];
         this.platformName = csvdataline[3];
@@ -103,21 +136,17 @@ class ExcelData {
         this.tdpPerSocket = csvdataline[13];
         this.latency = csvdataline[14];
     }
-    networkModel = '';
-    release = '';
-    ieType = '';
-    platformName = '';
-    throughputInt8 = '';
-    throughputFP16 = '';
-    throughputFP32 = '';
-    value = '';
-    efficiency = '';
-    price = '';
-    tdp = '';
-    sockets = '';
-    pricePerSocket = '';
-    tdpPerSocket = '';
-    latency = '';
+}
+
+
+class OVMSExcelData extends ExcelData {
+    constructor(csvdataline) {
+        super(csvdataline);
+        this.throughputOVMSInt8 = csvdataline[5];
+        this.throughputInt8 = csvdataline[4];
+        this.throughputOVMSFP32 = csvdataline[7];
+        this.throughputFP32 = csvdataline[6];
+    }
 }
 
 
@@ -131,7 +160,13 @@ class GraphData {
         this.ieType = excelData.ieType;
         this.platformName = excelData.platformName;
         this.kpi = new KPI(
-            new Precision(excelData.throughputInt8, excelData.throughputFP16, excelData.throughputFP32),
+            {
+                'ovmsint8': excelData.throughputOVMSInt8,
+                'ovmsfp32': excelData.throughputOVMSFP32,
+                'int8': excelData.throughputInt8,
+                'fp16': excelData.throughputFP16,
+                'fp32': excelData.throughputFP32
+            },
             excelData.value,
             excelData.efficiency,
             excelData.latency);
@@ -142,17 +177,8 @@ class GraphData {
         this.tdpPerSocket = excelData.tdpPerSocket;
         this.latency = excelData.latency;
     }
-    networkModel = '';
-    platformName = '';
-    release = '';
-    ieType = '';
-    kpi = new KPI();
-    price = '';
-    tdp = '';
-    sockets = '';
-    pricePerSocket = '';
-    tdpPerSocket = '';
 }
+
 
 class KPI {
     constructor(precisions, value, efficiency, latency) {
@@ -161,22 +187,8 @@ class KPI {
         this.efficiency = efficiency;
         this.latency = latency;
     }
-    throughput = new Precision();
-    value = '';
-    efficiency = '';
-    latency = '';
 }
 
-class Precision {
-    constructor(int8, fp16, fp32) {
-        this.int8 = int8;
-        this.fp16 = fp16;
-        this.fp32 = fp32;
-    }
-    int8 = '';
-    fp16 = '';
-    fp32 = '';
-}
 
 class Modal {
     static getIeTypeLabel(ietype) {
@@ -196,10 +208,14 @@ class Modal {
     static getCoreTypesLabels() {
         return ['CPU', 'iGPU', 'CPU+iGPU'];
     }
-    static getKpisLabels() {
+    static getKpisLabels(version) {
+        if (version == 'ovms')
+            return ['Throughput'];
         return ['Throughput', 'Value', 'Efficiency', 'Latency'];
     }
-    static getPrecisionsLabels() {
+    static getPrecisionsLabels(version) {
+        if (version == 'ovms')
+            return ['OV-INT8 (reference)', 'INT8', 'OV-FP32 (reference)', 'FP32'];
         return ['INT8', 'FP16', 'FP32'];
     }
     static getCoreTypes(labels) {
@@ -219,6 +235,10 @@ class Modal {
     static getPrecisions(labels) {
         return labels.map((label) => {
             switch (label) {
+                case 'OV-INT8 (reference)':
+                    return 'ovmsint8';
+                case 'OV-FP32 (reference)':
+                    return 'ovmsfp32';
                 case 'INT8':
                     return 'int8';
                 case 'FP16':
@@ -231,6 +251,7 @@ class Modal {
         });
     }
 }
+
 
 class Graph {
     constructor(data) {
@@ -311,6 +332,10 @@ class Graph {
 
     static getPrecisionConfig(precision) {
         switch (precision) {
+            case 'ovmsint8':
+                return { data: null, color: '#FF8F51', label: 'FPS (OV Ref. INT8)' };
+            case 'ovmsfp32':
+                return { data: null, color: '#B24501', label: 'FPS (OV Ref. FP32)' };
             case 'int8':
                 return { data: null, color: '#00C7FD', label: 'FPS (INT8)' };
             case 'fp16':
@@ -338,6 +363,7 @@ class Graph {
     }
 }
 
+
 class ChartDisplay {
     constructor(mode, numberOfCharts) {
         this.mode = mode;
@@ -345,9 +371,11 @@ class ChartDisplay {
     }
 }
 
+
 $(document).ready(function () {
 
-    $('.ov-toolkit-benchmark-results').on('click', showModal);
+    $('.ov-toolkit-benchmark-results').on('click', () => showModal('ov'));
+    $('.ovms-toolkit-benchmark-results').on('click', () => showModal('ovms'));
 
     function clickBuildGraphs(graph, networkModels, ietype, platforms, kpis, precisions) {
         renderData(graph, networkModels, ietype, platforms, kpis, precisions);
@@ -378,21 +406,19 @@ $(document).ready(function () {
     }
 
     function hideModal() {
-        $('#graphModal').hide();
+        $('#graphModal').remove();
         $('body').css('overflow', 'auto');
     }
     
-    function showModal() {
+    function showModal(version) {
         $('body').css('overflow', 'hidden');
-        if ($('#graphModal').length) {
-            $('#graphModal').show();
-            return;
-        }
 
-        const dataPath = '_static/benchmarks_files/benchmark-data.csv';
+        let dataPath = '_static/benchmarks_files/OV-benchmark-data.csv';
+        if (version == 'ovms')
+            dataPath = '_static/benchmarks_files/OVMS-benchmark-data.csv';
         Papa.parse(dataPath, {
             download: true,
-            complete: renderModal
+            complete: (result) => renderModal(result, version)
         });
     }
 
@@ -446,10 +472,10 @@ $(document).ready(function () {
         $('#build-graphs-btn').prop('disabled', true);
     }
 
-    function renderModal(result) {
+    function renderModal(result, version) {
         // remove header from csv line
         result.data.shift();
-        var graph = new Graph(ExcelDataTransformer.transform(result.data));
+        var graph = new Graph(ExcelDataTransformer.transform(result.data, version));
 
         var networkModels = Graph.getNetworkModels(graph.data);
         var ieTypes = Graph.getIeTypes(graph.data);
@@ -471,7 +497,7 @@ $(document).ready(function () {
             modal.find('.models-column-one').append(selectAllModelsButton).append(models.slice(0, models.length / 2));
             modal.find('.models-column-two').append(models.slice(models.length / 2));
 
-            const precisions = Modal.getPrecisionsLabels().map((precision) => createCheckMark(precision, 'precision'));
+            const precisions = Modal.getPrecisionsLabels(version).map((precision) => createCheckMark(precision, 'precision'));
             modal.find('.precisions-column').append(precisions);
             selectAllCheckboxes(precisions);
             disableAllCheckboxes(precisions);
@@ -494,13 +520,13 @@ $(document).ready(function () {
             modal.find('.ietype-column').append(types);
             modal.find('.ietype-column input').first().prop('checked', true);
 
-            const kpiLabels = Modal.getKpisLabels().map((kpi) => createCheckMark(kpi, 'kpi'));
+            const kpiLabels = Modal.getKpisLabels(version).map((kpi) => createCheckMark(kpi, 'kpi'));
             modal.find('.kpi-column').append(kpiLabels);
 
             $('body').prepend(modal);
 
-            renderClientPlatforms(graph.data, modal, true);
-            preselectDefaultSettings(graph.data, modal);
+            renderClientPlatforms(graph.data, modal, version, true);
+            preselectDefaultSettings(graph.data, modal, version);
 
             $('.clear-all-btn').on('click', clearAll);
             $('#build-graphs-btn').on('click', () => {
@@ -514,7 +540,7 @@ $(document).ready(function () {
                     selectAllCheckboxes(models);
                 else deSelectAllCheckboxes(models);
             });
-            modal.find('.ietype-column input').on('click', () => renderClientPlatforms(graph.data, modal, true));
+            modal.find('.ietype-column input').on('click', () => renderClientPlatforms(graph.data, modal, version, true));
             modal.find('.kpi-column input').on('click', validateThroughputSelection);
             modal.find('input').on('click', validateSelections);
         });
@@ -538,14 +564,20 @@ $(document).ready(function () {
         validateSelections();
     }
 
-    function preselectDefaultSettings(data, modal) {
+    function preselectDefaultSettings(data, modal, version) {
+        const defaultSelections = (version == 'ov') ? OVdefaultSelections : OVMSdefaultSelections;
+        if (defaultSelections.platformTypes) {
+            const type = defaultSelections.platformTypes.data[0]
+            $(`input[data-ietype="${type}"]`).prop('checked', true);
+            renderClientPlatforms(data, modal, version);
+        }
         if (defaultSelections.platformFilters) {
             const filters = modal.find('.selectable-box-container').children('.selectable-box');
             filters.removeClass('selected');
             defaultSelections.platformFilters.data.forEach(selection => {
                 filters.filter(`[data-${defaultSelections.platformFilters.name}="${selection}"]`).addClass('selected');
             });
-            renderClientPlatforms(data, modal);
+            renderClientPlatforms(data, modal, version);
         }
         clearAll();
         for (setting in defaultSelections) {
@@ -600,9 +632,11 @@ $(document).ready(function () {
         return Array.from(optionMap.values());
     }
 
-    function renderClientPlatforms(data, modal, preselectEveryItem) {
+    function renderClientPlatforms(data, modal, version, preselectEveryItem) {
         if (getSelectedIeType() === 'core') {
             showCoreSelectorTypes(Modal.getCoreTypesLabels(), data, modal);
+            if (version === 'ovms')
+                hideCoreSelectorTypes();
         }
         else {
             hideCoreSelectorTypes();

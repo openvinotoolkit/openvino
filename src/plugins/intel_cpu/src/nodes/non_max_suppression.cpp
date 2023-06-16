@@ -16,7 +16,7 @@
 #include "utils/general_utils.h"
 
 #include "cpu/x64/jit_generator.hpp"
-#include "emitters/jit_load_store_emitters.hpp"
+#include "emitters/x64/jit_load_store_emitters.hpp"
 #include <cpu/x64/injectors/jit_uni_eltwise_injector.hpp>
 #include <utils/shape_inference/shape_inference_internal_dyn.hpp>
 
@@ -33,6 +33,7 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
+#if defined(OPENVINO_ARCH_X86_64)
 template <cpu_isa_t isa>
 struct jit_uni_nms_kernel_f32 : public jit_uni_nms_kernel, public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_nms_kernel_f32)
@@ -551,6 +552,7 @@ private:
         dw(0x0001);
     }
 };
+#endif
 
 bool NonMaxSuppression::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -648,14 +650,14 @@ void NonMaxSuppression::initSupportedPrimitiveDescriptors() {
 
     std::vector<PortConfigurator> inDataConf;
     inDataConf.reserve(inputShapes.size());
-    for (int i = 0; i < inputShapes.size(); ++i) {
+    for (size_t i = 0; i < inputShapes.size(); ++i) {
         Precision inPrecision = i == NMS_MAXOUTPUTBOXESPERCLASS ? Precision::I32 : Precision::FP32;
         inDataConf.emplace_back(LayoutType::ncsp, inPrecision);
     }
 
     std::vector<PortConfigurator> outDataConf;
     outDataConf.reserve(outputShapes.size());
-    for (int i = 0; i < outputShapes.size(); ++i) {
+    for (size_t i = 0; i < outputShapes.size(); ++i) {
         Precision outPrecision = i == NMS_SELECTEDSCORES ? Precision::FP32 : Precision::I32;
         outDataConf.emplace_back(LayoutType::ncsp, outPrecision);
     }
@@ -701,6 +703,7 @@ bool NonMaxSuppression::isExecutable() const {
 }
 
 void NonMaxSuppression::createJitKernel() {
+#if defined(OPENVINO_ARCH_X86_64)
     auto jcp = jit_nms_config_params();
     jcp.box_encode_type = boxEncodingType;
     jcp.is_soft_suppressed_by_iou = isSoftSuppressedByIOU;
@@ -715,6 +718,7 @@ void NonMaxSuppression::createJitKernel() {
 
     if (nms_kernel)
         nms_kernel->create_ker();
+#endif
 }
 
 void NonMaxSuppression::executeDynamicImpl(dnnl::stream strm) {
@@ -887,7 +891,7 @@ void NonMaxSuppression::nmsWithSoftSigma(const float *boxes, const float *scores
         const float *scoresPtr = scores + batch_idx * scoresStrides[0] + class_idx * scoresStrides[1];
 
         std::priority_queue<boxInfo, std::vector<boxInfo>, decltype(less)> sorted_boxes(less);  // score, box_id, suppress_begin_index
-        for (int box_idx = 0; box_idx < numBoxes; box_idx++) {
+        for (int box_idx = 0; box_idx < static_cast<int>(numBoxes); box_idx++) {
             if (scoresPtr[box_idx] > scoreThreshold)
                 sorted_boxes.emplace(boxInfo({scoresPtr[box_idx], box_idx, 0}));
         }
@@ -996,7 +1000,7 @@ void NonMaxSuppression::nmsWithoutSoftSigma(const float *boxes, const float *sco
         const float *scoresPtr = scores + batch_idx * scoresStrides[0] + class_idx * scoresStrides[1];
 
         std::vector<std::pair<float, int>> sorted_boxes;  // score, box_idx
-        for (int box_idx = 0; box_idx < numBoxes; box_idx++) {
+        for (size_t box_idx = 0; box_idx < numBoxes; box_idx++) {
             if (scoresPtr[box_idx] > scoreThreshold)
                 sorted_boxes.emplace_back(std::make_pair(scoresPtr[box_idx], box_idx));
         }

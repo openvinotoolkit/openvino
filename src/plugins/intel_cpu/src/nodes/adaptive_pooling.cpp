@@ -116,9 +116,6 @@ AdaptivePooling::AdaptivePooling(const std::shared_ptr<ngraph::Node>& op, const 
 }
 
 void AdaptivePooling::getSupportedDescriptors() {
-    if (!descs.empty())
-        return;
-
     if (getParentEdges().size() != 2)
         IE_THROW() << errorPrefix << "has incorrect number of input edges: " << getParentEdges().size();
     if (getChildEdges().size() < (algorithm == Algorithm::AdaptivePoolingMax ? 2 : 1))
@@ -140,8 +137,8 @@ void AdaptivePooling::getSupportedDescriptors() {
 
 bool AdaptivePooling::needShapeInfer() const {
     const auto newSpatialDimsPtr = reinterpret_cast<int32_t *>(getParentEdgesAtPort(1)[0]->getMemoryPtr()->GetPtr());
-    for (size_t i = 0; i < spatialDimsCount; i++) {
-        if (spatialDimsValue[i] != newSpatialDimsPtr[i]) {
+    for (int i = 0; i < spatialDimsCount; i++) {
+        if (static_cast<int32_t>(spatialDimsValue[i]) != newSpatialDimsPtr[i]) {
             for (size_t j = 0; j < spatialDimsValue.size(); j++) {
                 spatialDimsValue[j] = newSpatialDimsPtr[j];
             }
@@ -159,7 +156,6 @@ void AdaptivePooling::initSupportedPrimitiveDescriptors() {
     precision = Precision::FP32;
 
     InferenceEngine::LayerConfig config;
-    config.dynBatchSupport = false;
     config.inConfs.resize(2);
     config.outConfs.resize((algorithm == Algorithm::AdaptivePoolingAvg ? 1 : 2));
 
@@ -212,7 +208,7 @@ void AdaptivePooling::execute(dnnl::stream strm) {
     const auto *srcPooledSpatialShapes = reinterpret_cast<const int *>(getParentEdgeAt(1)->getMemoryPtr()->GetPtr());
     auto *dst = reinterpret_cast<float *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
 
-    if (srcMemory1.GetShape().getElementsCount() != spatialDimsCount)
+    if (static_cast<int>(srcMemory1.GetShape().getElementsCount()) != spatialDimsCount)
         IE_THROW() << errorPrefix << "has input spatial dimension (" << srcMemory1.GetShape().getElementsCount()
                    << ") inconsistent with pooling vector size (" << spatialDimsCount << ")";
 

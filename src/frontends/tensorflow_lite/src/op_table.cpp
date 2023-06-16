@@ -6,6 +6,7 @@
 
 #include "decoder_map.hpp"
 #include "openvino/opsets/opset10.hpp"
+#include "openvino/opsets/opset8.hpp"
 #include "utils.hpp"
 
 using namespace std;
@@ -27,7 +28,7 @@ using namespace ov::frontend::tensorflow::op;
         auto inputs = node.get_inputs();                                                                           \
         ov::frontend::tensorflow_lite::dequantize_inputs(inputs);                                                  \
         auto context = frontend::tensorflow_lite::NodeContext(decoder, inputs);                                    \
-        return func(context);                                                                                      \
+        return get_indexed_outputs(func(context));                                                                 \
     }
 
 namespace ov {
@@ -155,7 +156,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
         {"ROUND", DEQUANTIZE_INPUTS(translate_round_op)},
         {"RSQRT", DEQUANTIZE_INPUTS(translate_rsqrt_op)},
         {"SCATTER_ND", DEQUANTIZE_INPUTS(translate_scatter_nd_op)},
-        {"SEGMENT_SUM", DEQUANTIZE_INPUTS(translate_segment_sum_op)},
+        {"SEGMENT_SUM", OP_CONVERT_TYPE_RENAME(translate_segment_sum_op, "SegmentSum")},
         {"SELECT", OP_CONVERT_TYPE_RENAME(translate_select_op, "Select")},
         {"SELECT_V2", OP_CONVERT_TYPE_RENAME(translate_select_v2_op, "SelectV2")},
         {"SHAPE", shape},
@@ -192,7 +193,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
         // UNSORTED_SEGMENT_SUM
         // VAR_HANDLE
         {"WHERE", OP_CONVERT_TYPE_RENAME(translate_where_op, "Where")},
-        // WHILE
+        {"WHILE", while_op},
         {"ZEROS_LIKE", DEQUANTIZE_INPUTS(translate_zeros_like_op)},
     };
 }

@@ -51,7 +51,6 @@ static NodeConfig make_plain_config(const std::shared_ptr<ov::Node>& op) {
         config.outConfs.push_back(data_conf);
     }
 
-    config.dynBatchSupport = true;
     return config;
 }
 
@@ -231,7 +230,7 @@ DynamicBuffer::DynamicBuffer(const MemoryPtr &from_, const std::vector<MemoryPtr
 }
 
 void DynamicBuffer::execute(const dnnl::engine& eng, const int iter) {
-    if (from->getStaticDims()[map_rule.axis] != std::abs(map_rule.stride))
+    if (from->getStaticDims()[map_rule.axis] != static_cast<size_t>(std::abs(map_rule.stride)))
         IE_THROW() << "TensorIterator (Loop) has incorrect output shape[axis] after iteration for concatenation. " << std::abs(map_rule.stride) <<
         " is expected, but actual: " << from->getStaticDims()[map_rule.axis];
 
@@ -524,7 +523,7 @@ bool TensorIterator::needPrepareParams() const {
     if (getAlgorithm() == Algorithm::TensorIteratorLoop) {
         const auto tripCountPtr = reinterpret_cast<const uint32_t*>(getParentEdgesAtPort(loopTripCountIdx).front()->getMemoryPtr()->GetPtr());
         const auto condPtr = reinterpret_cast<const uint8_t*>(getParentEdgesAtPort(loopExecutionConditionIdx).front()->getMemoryPtr()->GetPtr());
-        if (tripCountPtr[0] != lastUsedTripCount || static_cast<bool>(condPtr[0]) != lastUsedCond)
+        if (tripCountPtr[0] != static_cast<size_t>(lastUsedTripCount) || static_cast<bool>(condPtr[0]) != lastUsedCond)
             return true;
     }
 

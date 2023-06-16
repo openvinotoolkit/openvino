@@ -54,23 +54,18 @@ set (CMAKE_COMPILE_PDB_OUTPUT_DIRECTORY ${IE_MAIN_SAMPLES_DIR}/${BIN_FOLDER})
 set (CMAKE_PDB_OUTPUT_DIRECTORY ${IE_MAIN_SAMPLES_DIR}/${BIN_FOLDER})
 set (CMAKE_RUNTIME_OUTPUT_DIRECTORY ${IE_MAIN_SAMPLES_DIR}/${BIN_FOLDER})
 
-if (WIN32)
-    set_property (DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS _CRT_SECURE_NO_WARNINGS)
-    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_SCL_SECURE_NO_WARNINGS")
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_SCL_SECURE_NO_WARNINGS -D_CRT_SECURE_NO_WARNINGS")
     set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /EHsc") # no asynchronous structured exception handling
     set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /LARGEADDRESSAWARE")
 
-    if (CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
-        set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Qdiag-disable:177")
-    endif()
-
     # disable some noisy warnings
-    if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-        set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4251 /wd4275 /wd4267 /wd4819")
-    endif()
-else()
-    if (CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
-        set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -diag-disable:177")
+    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4251 /wd4275 /wd4267 /wd4819")
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
+    if(WIN32)
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Qdiag-disable:177")
+    else()
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -diag-disable:177")
     endif()
 endif()
 
@@ -120,6 +115,9 @@ elseif(gflags_required)
         elseif(TARGET gflags-shared)
             # gflags shared case for CentOS / RHEL / Fedora
             set(GFLAGS_TARGET gflags-shared)
+        elseif(TARGET gflags::gflags)
+            # gflags case for Conan
+            set(GFLAGS_TARGET gflags::gflags)
         else()
             message(FATAL_ERROR "Internal error: failed to find imported target 'gflags' using '${gflags_component}' component")
         endif()
@@ -128,9 +126,13 @@ elseif(gflags_required)
     endif()
 
     if(NOT gflags_FOUND)
+        set(GFLAGS_TARGET gflags_nothreads_static)
         if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/gflags")
             add_subdirectory(thirdparty/gflags EXCLUDE_FROM_ALL)
-            set(GFLAGS_TARGET gflags_nothreads_static)
+        elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/gflags")
+            # Allow running samples CMakeLists.txt as stand alone from openvino sources
+            add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/gflags"
+                             "${CMAKE_CURRENT_BINARY_DIR}/thirdparty/gflags" EXCLUDE_FROM_ALL)
         else()
             message(FATAL_ERROR "Failed to find 'gflags' library using '${gflags_component}' component")
         endif()

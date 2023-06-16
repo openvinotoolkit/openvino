@@ -13,7 +13,19 @@ namespace cldnn {
 struct roi_pooling : public primitive_base<roi_pooling> {
     CLDNN_DECLARE_PRIMITIVE(roi_pooling)
 
-    roi_pooling() : primitive_base("", {}) {}
+    roi_pooling() : primitive_base("", {}),
+                    mode(pooling_mode::max),
+                    position_sensitive(false),
+                    pooled_width(0),
+                    pooled_height(0),
+                    spatial_scale(0.0f),
+                    trans_std(0.0f),
+                    no_trans(false),
+                    output_dim(0),
+                    part_size(0),
+                    group_size(0),
+                    spatial_bins_x(1),
+                    spatial_bins_y(1) {}
 
     DECLARE_OBJECT_TYPE_SERIALIZATION
 
@@ -124,6 +136,7 @@ struct roi_pooling : public primitive_base<roi_pooling> {
     }
 
     void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<roi_pooling>::save(ob);
         ob << make_data(&mode, sizeof(pooling_mode));
         ob << position_sensitive;
         ob << pooled_width;
@@ -139,6 +152,7 @@ struct roi_pooling : public primitive_base<roi_pooling> {
     }
 
     void load(BinaryInputBuffer& ib) override {
+        primitive_base<roi_pooling>::load(ib);
         ib >> make_data(&mode, sizeof(pooling_mode));
         ib >> position_sensitive;
         ib >> pooled_width;

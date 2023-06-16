@@ -24,7 +24,7 @@ ie_shellcheck_process(DIRECTORY "${OpenVINO_SOURCE_DIR}"
 
 # install setupvars
 
-ie_cpack_add_component(${OV_CPACK_COMP_SETUPVARS} HIDDEN)
+ov_cpack_add_component(${OV_CPACK_COMP_SETUPVARS} HIDDEN)
 
 if(UNIX)
     set(_setupvars_file_full_path "${CMAKE_CURRENT_SOURCE_DIR}/setupvars/setupvars.sh")
@@ -45,14 +45,16 @@ endif()
 
 install(PROGRAMS "${_setupvars_file_full_path}"
         DESTINATION .
-        COMPONENT ${OV_CPACK_COMP_SETUPVARS})
+        COMPONENT ${OV_CPACK_COMP_SETUPVARS}
+        ${OV_CPACK_COMP_SETUPVARS_EXCLUDE_ALL})
 
 # install install_dependencies
 
 if(LINUX)
-    ie_cpack_add_component(${OV_CPACK_COMP_INSTALL_DEPENDENCIES} HIDDEN)
+    ov_cpack_add_component(${OV_CPACK_COMP_INSTALL_DEPENDENCIES} HIDDEN)
 
     install(PROGRAMS "${CMAKE_CURRENT_SOURCE_DIR}/install_dependencies/install_openvino_dependencies.sh"
             DESTINATION install_dependencies/
-            COMPONENT ${OV_CPACK_COMP_INSTALL_DEPENDENCIES})
+            COMPONENT ${OV_CPACK_COMP_INSTALL_DEPENDENCIES}
+            ${OV_CPACK_COMP_INSTALL_DEPENDENCIES_EXCLUDE_ALL})
 endif()

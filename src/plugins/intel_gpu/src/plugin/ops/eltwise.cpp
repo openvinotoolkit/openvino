@@ -36,7 +36,8 @@ namespace intel_gpu {
 void CreateElementwiseOp(Program& p,
                          const std::shared_ptr<ngraph::Node>& op,
                          cldnn::eltwise_mode mode,
-                         std::vector<float> coefficients) {
+                         std::vector<float> coefficients,
+                         bool pythondiv) {
     auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
 
@@ -57,9 +58,7 @@ void CreateElementwiseOp(Program& p,
                     auto reorderPrim = cldnn::reorder(reorderName,
                                                     inputs[i],
                                                     targetFormat,
-                                                    targetDatatype,
-                                                    std::vector<float>(),
-                                                    cldnn::reorder_mean_mode::subtract);
+                                                    targetDatatype);
 
                     p.add_primitive(*op, reorderPrim);
                     inputs[i] = cldnn::input_info(reorderName);
@@ -86,7 +85,8 @@ void CreateElementwiseOp(Program& p,
                                       mode,
                                       std::move(coefficients),
                                       out_dt,
-                                      op->get_autob());
+                                      op->get_autob(),
+                                      pythondiv);
 
     p.add_primitive(*op, eltwisePrim);
 }
@@ -112,7 +112,7 @@ static void CreateSubtractOp(Program& p, const std::shared_ptr<ngraph::op::v1::S
 }
 
 static void CreateDivideOp(Program& p, const std::shared_ptr<ngraph::op::v1::Divide>& op) {
-    CreateElementwiseOp(p, op, cldnn::eltwise_mode::div);
+    CreateElementwiseOp(p, op, cldnn::eltwise_mode::div, {}, op->is_pythondiv());
 }
 
 static void CreateSquaredDifferenceOp(Program& p, const std::shared_ptr<ngraph::op::v0::SquaredDifference>& op) {

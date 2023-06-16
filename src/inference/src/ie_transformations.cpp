@@ -9,15 +9,6 @@
 
 using namespace InferenceEngine;
 
-void InferenceEngine::LowLatency(InferenceEngine::CNNNetwork& network) {
-    auto function = network.getFunction();
-    ngraph::pass::Manager manager;
-    NGRAPH_SUPPRESS_DEPRECATED_START
-    manager.register_pass<ngraph::pass::LowLatency>();
-    NGRAPH_SUPPRESS_DEPRECATED_END
-    manager.run_passes(function);
-}
-
 void InferenceEngine::lowLatency2(InferenceEngine::CNNNetwork& network, bool use_const_initializer) {
     auto function = network.getFunction();
     ngraph::pass::Manager manager;

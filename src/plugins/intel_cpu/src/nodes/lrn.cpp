@@ -151,14 +151,14 @@ void Lrn::getSupportedDescriptors() {
     }
 }
 
-std::shared_ptr<MemoryDesc> Lrn::getSrcMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx) {
+std::shared_ptr<MemoryDesc> Lrn::getSrcMemDesc(const dnnl::primitive_desc &prim_desc, size_t idx) const {
     if (idx > 0) {
         return std::make_shared<CpuBlockedMemoryDesc>(getOriginalInputPrecisionAtPort(idx), getInputShapeAtPort(idx));
     } else {
         if (getInputShapeAtPort(idx).isDynamic()) {
-            return DnnlExtensionUtils::makeUndefinedDesc(primitive_desc_it.src_desc(idx), getInputShapeAtPort(idx));
+            return DnnlExtensionUtils::makeUndefinedDesc(prim_desc.src_desc(idx), getInputShapeAtPort(idx));
         }
-        return DnnlExtensionUtils::makeDescriptor(primitive_desc_it.src_desc(idx));
+        return DnnlExtensionUtils::makeDescriptor(prim_desc.src_desc(idx));
     }
 }
 
@@ -183,7 +183,7 @@ void Lrn::prepareParams() {
     auto engine = getEngine();
 
     auto builder = [&engine](const LrnKey& key) -> executorPtr {
-        auto desc = std::make_shared<dnnl::lrn_forward::primitive_desc>(
+        auto prim_desc = dnnl::lrn_forward::primitive_desc(
             engine,
             dnnl::prop_kind::forward_inference,
             key.alg,
@@ -195,18 +195,10 @@ void Lrn::prepareParams() {
             key.k,
             key.attr);
 
-        dnnl::lrn_forward::primitive_desc prim_desc;
-        dnnl::primitive_desc_iterator itpd = *desc;
+        const bool found = DnnlExtensionUtils::find_implementation(prim_desc, key.implType);
 
-        while (itpd) {
-            impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
-            if (impl_type == key.implType) {
-                prim_desc = itpd.get();
-                break;
-            }
-            if (!itpd.next_impl())
-                return nullptr;
-        }
+        if (!found)
+            return nullptr;
 
         return std::make_shared<DnnlExecutor>(prim_desc);
     };

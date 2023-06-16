@@ -3,7 +3,7 @@
 //
 
 #include <gtest/gtest.h>
-#include <utils/jit_kernel.hpp>
+#include <kernels/x64/jit_kernel.hpp>
 #include <random>
 
 using namespace ov::intel_cpu;

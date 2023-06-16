@@ -285,15 +285,13 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
                     input_subsets[input_subgraph_id].emplace(input);
                 }
             }
-            // for each subset of inputs create separate Result operation if subset belongs to other
+            auto result = std::make_shared<ngraph::op::Result>(output);
+            result->set_friendly_name(output.get_node()->get_friendly_name() + "_" +
+                                      std::to_string(output.get_index()) + "_result");
+            ngraph::copy_runtime_info(output.get_node_shared_ptr(), result);
+            subgraphIds.emplace(result.get(), output_subgraph_id);
+            results.push_back(result);
             for (auto&& input_subset : input_subsets) {
-                auto result = std::make_shared<ngraph::op::Result>(output);
-                result->set_friendly_name(output.get_node()->get_friendly_name() + "_" +
-                                          std::to_string(output.get_index()) + "_" +
-                                          std::to_string(input_subset.first) + "_result");
-                ngraph::copy_runtime_info(output.get_node_shared_ptr(), result);
-                subgraphIds.emplace(result.get(), output_subgraph_id);
-                results.push_back(result);
                 for (auto&& input : input_subset.second) {
                     output.remove_target_input(input);
                     auto parameter =
@@ -457,10 +455,12 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
 
 HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream& heteroModel,
                                                  const Configs& user_config,
-                                                 Engine* heteroPlugin)
+                                                 Engine* heteroPlugin,
+                                                 bool fromCache)
     : _heteroPlugin(heteroPlugin),
       _hetero_config{},
-      _device_config{} {
+      _device_config{},
+      _loadedFromCache(fromCache) {
     std::string heteroXmlStr;
     std::getline(heteroModel, heteroXmlStr);
 
@@ -592,9 +592,10 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream& heteroModel,
         }
 
         std::shared_ptr<ov::Node> node = std::make_shared<ov::op::v0::Parameter>(elementType, partialShape);
+        // For result operation_name is name of previous operation
+        node->set_friendly_name(operation_name);
         if (!is_param)
             node = std::make_shared<ov::op::v0::Result>(node);
-        node->set_friendly_name(operation_name);
         node->output(0).get_tensor().add_names(tensorNames);
 
         return node;
@@ -808,12 +809,14 @@ InferenceEngine::Parameter HeteroExecutableNetwork::GetMetric(const std::string&
             ov::PropertyName{ov::model_name.name(), ov::PropertyMutability::RO},
             ov::PropertyName{ov::optimal_number_of_infer_requests.name(), ov::PropertyMutability::RO},
             ov::PropertyName{ov::execution_devices.name(), ov::PropertyMutability::RO},
+            ov::PropertyName{ov::loaded_from_cache.name(), ov::PropertyMutability::RO},
             ov::PropertyName{ov::device::properties.name(), ov::PropertyMutability::RO},
             ov::PropertyName{ov::device::priorities.name(), ov::PropertyMutability::RO}};
     } else if (EXEC_NETWORK_METRIC_KEY(SUPPORTED_METRICS) == name) {
         std::vector<std::string> heteroMetrics = {ov::model_name.name(),
                                                   METRIC_KEY(SUPPORTED_METRICS),
                                                   METRIC_KEY(SUPPORTED_CONFIG_KEYS),
+                                                  ov::loaded_from_cache.name(),
                                                   ov::optimal_number_of_infer_requests.name(),
                                                   ov::execution_devices.name()};
         IE_SET_METRIC_RETURN(SUPPORTED_METRICS, heteroMetrics);
@@ -842,6 +845,8 @@ InferenceEngine::Parameter HeteroExecutableNetwork::GetMetric(const std::string&
         return all_devices;
     } else if (ov::model_name == name) {
         return decltype(ov::model_name)::value_type{_name};
+    } else if (ov::loaded_from_cache == name) {
+        return decltype(ov::loaded_from_cache)::value_type{_loadedFromCache};
     } else if (ov::optimal_number_of_infer_requests == name) {
         unsigned int value = 0u;
         for (auto&& desc : _networks) {

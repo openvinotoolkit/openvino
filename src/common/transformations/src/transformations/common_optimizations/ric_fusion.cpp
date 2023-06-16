@@ -18,6 +18,7 @@
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/util/log.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace ov {
@@ -69,18 +70,18 @@ public:
         const auto& input_pshape = input.get_partial_shape();
         const auto input_rank = input_pshape.rank();
         if (input_rank.is_dynamic()) {
-            NGRAPH_DEBUG << "Axis calculated to materialize RIC on input: input rank is dynamic";
+            OPENVINO_DEBUG << "Axis calculated to materialize RIC on input: input rank is dynamic";
             return;
         }
         const auto axis = get_axis();
         // Despite of m_axis is signed integer this transformartion does not handle negative axes values
         if (axis < 0 || axis >= static_cast<int64_t>(input_pshape.size())) {
-            NGRAPH_DEBUG << "Axis calculated to materialize RIC on input: " << input << " is out of range";
+            OPENVINO_DEBUG << "Axis calculated to materialize RIC on input: " << input << " is out of range";
             return;
         }
         const auto& axis_dim = input_pshape[axis];
         if (axis_dim.is_dynamic()) {
-            NGRAPH_DEBUG << "Axis calculated to materialize RIC on input: " << input << " is dynamic";
+            OPENVINO_DEBUG << "Axis calculated to materialize RIC on input: " << input << " is dynamic";
             return;
         }
         auto output = input.get_source_output();
@@ -186,7 +187,7 @@ Attribute get(const T& port) {
     if (res != attrs.end()) {
         return res->second.template as<Attribute>();
     }
-    throw Exception("reverse_input_channel_index is missing in given port");
+    OPENVINO_THROW("reverse_input_channel_index is missing in given port");
 }
 
 template <typename T, typename = is_port<T>>
@@ -279,7 +280,9 @@ public:
             const auto& pattern_map = m.get_pattern_value_map();
             const auto& output = pattern_map.at(pattern_root);
 
+            OPENVINO_SUPPRESS_DEPRECATED_START
             auto axis = ov::get_constant_from_source(pattern_map.at(axis_p));
+            OPENVINO_SUPPRESS_DEPRECATED_END
             if (!axis)
                 return false;
 
@@ -291,7 +294,9 @@ public:
                 return true;
             }
 
+            OPENVINO_SUPPRESS_DEPRECATED_START
             auto order = ov::get_constant_from_source(pattern_map.at(indices_p));
+            OPENVINO_SUPPRESS_DEPRECATED_END
             if (!order)
                 return false;
 
@@ -568,7 +573,7 @@ public:
                         continue;
                     }
                     ric.set_can_be_fused(false);
-                    NGRAPH_DEBUG << "Node is unsupported by RIC Fusion: " << *m.get_match_root() << std::endl;
+                    OPENVINO_DEBUG << "Node is unsupported by RIC Fusion: " << *m.get_match_root() << std::endl;
                 }
             }
             return true;

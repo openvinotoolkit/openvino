@@ -42,6 +42,9 @@ namespace ov {
  * @defgroup ov_dev_api_compiled_model_api Compiled Model base classes
  * @brief A set of base and helper classes to implement an compiled model class
  *
+ * @defgroup ov_dev_api_infer_request_api Inference Request common classes
+ * @brief A set of base and helper classes to implement a common inference request functionality.
+ *
  * @defgroup ov_dev_api_sync_infer_request_api Inference Request base classes
  * @brief A set of base and helper classes to implement a syncrhonous inference request class.
  *
@@ -196,6 +199,7 @@ public:
     virtual ov::SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>& model,
                                             const ov::AnyMap& properties) const = 0;
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     /**
      * @deprecated This method allows to load legacy Inference Engine Extensions and will be removed in 2024.0 release
      * @brief Registers legacy extension within plugin
@@ -204,6 +208,7 @@ public:
     OPENVINO_DEPRECATED(
         "This method allows to load legacy Inference Engine Extensions and will be removed in 2024.0 release")
     virtual void add_extension(const std::shared_ptr<InferenceEngine::IExtension>& extension);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     /**
      * @brief Sets pointer to ICore interface
@@ -229,7 +234,7 @@ public:
      */
     const std::shared_ptr<ov::threading::ExecutorManager>& get_executor_manager() const;
 
-    ~IPlugin() = default;
+    virtual ~IPlugin() = default;
 
 protected:
     IPlugin();
@@ -289,8 +294,6 @@ constexpr static const auto create_plugin_function = OV_PP_TOSTRING(OV_CREATE_PL
         try {                                                                                            \
             plugin = ::std::make_shared<PluginType>(__VA_ARGS__);                                        \
             plugin->set_version(version);                                                                \
-        } catch (const InferenceEngine::Exception& ex) {                                                 \
-            OPENVINO_THROW(ex.what());                                                                   \
         } catch (const std::exception& ex) {                                                             \
             OPENVINO_THROW(ex.what());                                                                   \
         }                                                                                                \

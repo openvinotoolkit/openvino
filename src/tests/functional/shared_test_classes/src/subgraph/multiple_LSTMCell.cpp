@@ -425,18 +425,7 @@ void MultipleLSTMCellTest::InitMemory() {
 void MultipleLSTMCellTest::ApplyLowLatency() {
     // Calculate values after LowLatency transformation
     CreatePureTensorIteratorModel();
-    if (transformation == ngraph::helpers::MemoryTransformation::LOW_LATENCY) {
-        function->validate_nodes_and_infer_types();
-        // Apply LowLatency (insert Assigns/ReadValues) and UnrollTensorIterator
-        pass::Manager manager;
-        NGRAPH_SUPPRESS_DEPRECATED_START
-        manager.register_pass<ngraph::pass::LowLatency>();
-        NGRAPH_SUPPRESS_DEPRECATED_END // LowLatency enables UnrollTI
-        manager.run_passes(function);
-        bool ti_found = helpers::is_tensor_iterator_exist(function);
-        EXPECT_EQ(ti_found, true);
-        LoadNetwork();
-    } else if (transformation == ngraph::helpers::MemoryTransformation::LOW_LATENCY_V2) {
+    if (transformation == ngraph::helpers::MemoryTransformation::LOW_LATENCY_V2) {
         function->validate_nodes_and_infer_types();
         // Apply LowLatency (insert Assigns/ReadValues) and UnrollTensorIterator
 
@@ -446,18 +435,6 @@ void MultipleLSTMCellTest::ApplyLowLatency() {
         bool ti_found = helpers::is_tensor_iterator_exist(function);
         EXPECT_EQ(ti_found, false);
         LoadNetwork();
-    } else if (transformation == ngraph::helpers::MemoryTransformation::LOW_LATENCY_REGULAR_API) {
-        cnnNetwork = InferenceEngine::CNNNetwork{function};
-        IE_SUPPRESS_DEPRECATED_START
-        InferenceEngine::LowLatency(cnnNetwork);
-        IE_SUPPRESS_DEPRECATED_END
-
-        bool ti_found = helpers::is_tensor_iterator_exist(cnnNetwork.getFunction());
-        EXPECT_EQ(ti_found, true);
-
-        ConfigureNetwork();
-        executableNetwork = core->LoadNetwork(cnnNetwork, targetDevice, configuration);
-        inferRequest = executableNetwork.CreateInferRequest();
     } else if (transformation == ngraph::helpers::MemoryTransformation::LOW_LATENCY_V2_REGULAR_API) {
         cnnNetwork = InferenceEngine::CNNNetwork{function};
         InferenceEngine::lowLatency2(cnnNetwork);
@@ -469,6 +446,11 @@ void MultipleLSTMCellTest::ApplyLowLatency() {
         executableNetwork = core->LoadNetwork(cnnNetwork, targetDevice, configuration);
         inferRequest = executableNetwork.CreateInferRequest();
     }
+}
+
+void MultipleLSTMCellTest::LoadNetwork() {
+    LayerTestsUtils::LayerTestsCommon::LoadNetwork();
+    inferRequest = executableNetwork.CreateInferRequest();
 }
 
 void MultipleLSTMCellTest::Run() {

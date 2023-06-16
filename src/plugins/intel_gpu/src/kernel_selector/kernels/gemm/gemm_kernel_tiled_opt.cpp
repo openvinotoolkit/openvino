@@ -3,6 +3,7 @@
 //
 
 #include "gemm_kernel_tiled_opt.h"
+#include "kernel_selector_utils.h"
 #include <iostream>
 
 namespace kernel_selector {
@@ -25,6 +26,13 @@ ParamsKey GemmKernelTiledOpt::GetSupportedKey() const {
     k.EnableBatching();
     k.EnableDifferentTypes();
     k.EnableDynamicShapesSupport();
+
+    return k;
+}
+
+DeviceFeaturesKey GemmKernelTiledOpt::get_required_device_features_key(const Params& params, const optional_params& options) const {
+    auto k = get_common_subgroups_device_features_key(params, options);
+    k.requires_subgroup_shuffle();
 
     return k;
 }
@@ -101,9 +109,13 @@ JitConstants GemmKernelTiledOpt::GetJitConstants(const gemm_params& params) cons
 
     jit.Merge(MakeTypeJitConstants(params.inputs[0].GetDType(), "ACCUMULATOR"));
     if (params.has_dynamic_tensors()) {
-        auto m_size = params.transpose_input0 ? toCodeString(params.inputs[0].X(), 5) : toCodeString(params.inputs[0].Y(), 4);
-        auto n_size = params.transpose_input1 ? toCodeString(params.inputs[1].Y(), 10) : toCodeString(params.inputs[1].X(), 11);
-        auto k_size = params.transpose_input0 ? toCodeString(params.inputs[0].Y(), 4) : toCodeString(params.inputs[0].X(), 5);
+        DimensionAccessHelper dims0(params.inputs[0]);
+        DimensionAccessHelper dims1(params.inputs[1]);
+        // Note: Actually currently this kernel is not being selected if it is shape agnostic impl && transposed inputs
+        // Because we cannot get the original rank
+        auto m_size = params.transpose_input0 ? dims0.x() : dims0.y();
+        auto n_size = params.transpose_input1 ? dims1.y() : dims1.x();
+        auto k_size = params.transpose_input0 ? dims0.y() : dims0.x();
         const std::string leftover_m = "(" + m_size + "%" + std::to_string(tuning_data.tile_m_size) + ")";
         const std::string leftover_n = "(" + n_size + "%" + std::to_string(tuning_data.tile_n_size) + ")";
         const std::string leftover_k = "(" + k_size + "%" + std::to_string(tuning_data.tile_k_size) + ")";

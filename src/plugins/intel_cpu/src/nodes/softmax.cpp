@@ -124,7 +124,7 @@ void SoftMax::initOptimalPrimitiveDescriptor() {
     auto config = selected_pd->getConfig();
     if (isDynamicNode()) {
         auto outMemDesc = config.outConfs[0].getMemDesc();
-        config.outConfs[0].setMemDesc(std::dynamic_pointer_cast<BlockedMemoryDesc>(outMemDesc), BLOCKED_DESC_FULL_MASK);
+        config.outConfs[0].setMemDesc(std::dynamic_pointer_cast<BlockedMemoryDesc>(outMemDesc), BlockedMemoryDesc::FULL_MASK);
     } else {
         if (config.inConfs.size() != 1 || config.outConfs.size() != 1 ||
             (config.inConfs[0].getMemDesc()->isDefined() &&
@@ -155,7 +155,8 @@ void SoftMax::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc,
         *attr,
         true);
 
-    descs.push_back(desc);
+    if (desc)
+        descs.emplace_back(desc);
 }
 
 void SoftMax::prepareParams() {
@@ -171,8 +172,7 @@ void SoftMax::prepareParams() {
     auto engine = getEngine();
 
     auto builder = [&engine](const SoftmaxKey& key) -> executorPtr {
-        softmax_forward::primitive_desc prim_desc;
-        auto desc = std::make_shared<softmax_forward::primitive_desc>(
+        auto prim_desc = softmax_forward::primitive_desc(
             engine,
             prop_kind::forward_inference,
             algorithm::softmax_accurate,
@@ -182,8 +182,9 @@ void SoftMax::prepareParams() {
             key.attr,
             true);
 
-        primitive_desc_iterator itpd = *desc;
+        primitive_desc_iterator itpd = prim_desc;
 
+        auto itpd_first = itpd;
         while (itpd) {
             impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
             if (impl_type == key.implType ||
@@ -195,8 +196,10 @@ void SoftMax::prepareParams() {
                 prim_desc = itpd.get();
                 break;
             }
-            if (!itpd.next_impl())
-                return nullptr;
+            if (!itpd.next_impl()) {
+                prim_desc = itpd_first.get();
+                break;
+            }
         }
         return std::make_shared<DnnlExecutor>(prim_desc);
     };

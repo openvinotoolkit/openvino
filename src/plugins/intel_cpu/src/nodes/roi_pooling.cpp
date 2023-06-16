@@ -12,7 +12,7 @@
 
 #include "ie_parallel.hpp"
 #include "utils/bfloat16.hpp"
-#include "emitters/jit_load_store_emitters.hpp"
+#include "emitters/x64/jit_load_store_emitters.hpp"
 
 #include <cpu/x64/jit_generator.hpp>
 #include <common/primitive_hashing_utils.hpp>
@@ -36,6 +36,7 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
+#if defined(OPENVINO_ARCH_X86_64)
 template <cpu_isa_t isa>
 struct jit_uni_roi_pooling_kernel_f32 : public jit_uni_roi_pooling_kernel, public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_roi_pooling_kernel_f32);
@@ -308,6 +309,7 @@ private:
         L(exit_label);
     }
 };
+#endif
 
 namespace {
 struct RoiPoolingKey {
@@ -405,9 +407,6 @@ ROIPooling::ROIPooling(const std::shared_ptr<ngraph::Node>& op, const GraphConte
 }
 
 void ROIPooling::getSupportedDescriptors() {
-    if (!descs.empty())
-        return;
-
     if (getParentEdges().size() != 2)
         IE_THROW() << errorPrefix << "has incorrect number of input edges: " << getParentEdges().size();
     if (getChildEdges().empty())
@@ -532,6 +531,7 @@ template <typename T>
 class ROIPooling::ROIPoolingJitExecutor : public ROIPooling::ROIPoolingExecutor {
 public:
     ROIPoolingJitExecutor(const jit_roi_pooling_params &jpp) {
+#if defined(OPENVINO_ARCH_X86_64)
         if (mayiuse(cpu::x64::avx512_core)) {
             roi_pooling_kernel.reset(new jit_uni_roi_pooling_kernel_f32<cpu::x64::avx512_core>(jpp));
         } else if (mayiuse(cpu::x64::avx2)) {
@@ -544,6 +544,7 @@ public:
 
         if (roi_pooling_kernel)
             roi_pooling_kernel->create_ker();
+#endif
     }
 
     void exec(
@@ -891,10 +892,12 @@ std::pair<float, float> ROIPooling::ROIPoolingExecutor::getXYForBilinearMode(
 template <typename T>
 std::shared_ptr<ROIPooling::ROIPoolingExecutor> ROIPooling::ROIPoolingExecutor::makeExecutor(
     const jit_roi_pooling_params& jpp) {
+#if defined(OPENVINO_ARCH_X86_64)
     if (mayiuse(cpu::x64::sse41))
         return std::make_shared<ROIPoolingJitExecutor<T>>(jpp);
-    else
-        return std::make_shared<ROIPoolingRefExecutor<T>>(jpp);
+#endif
+
+    return std::make_shared<ROIPoolingRefExecutor<T>>(jpp);
 }
 
 bool ROIPooling::created() const {

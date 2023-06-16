@@ -84,7 +84,6 @@ public:
 private:
     void PushInputData() override;
     void initBlobs() override;
-    void SetBatch(int batch = -1) override;
     void changeDefaultPtr() override;
 };
 
@@ -101,7 +100,6 @@ public:
 private:
     void PushInputData() override;
     void initBlobs() override;
-    void SetBatch(int batch = -1) override;
 
     std::unordered_map<std::string, std::shared_ptr<const ov::Node>> modelInputsMap;
     std::unordered_map<std::string, std::shared_ptr<const ov::Node>> modelOutputsMap;

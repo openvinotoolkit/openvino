@@ -11,7 +11,7 @@
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset5.hpp>
 #include <ngraph/opsets/opset8.hpp>
-#include <ngraph_transformations/rnn_sequences_optimization.hpp>
+#include <transformations/cpu_opset/common/pass/rnn_sequences_optimization.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
 #include <ov_ops/type_relaxed.hpp>

@@ -54,6 +54,7 @@ If not specified, throughput is used as the default. To set the hint explicitly,
 .. note::
 
    It is up to the user to ensure the environment on which the benchmark is running is optimized for maximum performance. Otherwise, different results may occur when using the application in different environment settings (such as power optimization settings, processor overclocking, thermal throttling).
+   Stating flags that take only single option like `-m` multiple times, for example `./benchmark_app -m model.xml -m model2.xml`, results in only the first value being used.
 
 Latency
 --------------------
@@ -124,7 +125,7 @@ Advanced Usage
 
 .. note::
 
-   By default, OpenVINO samples, tools and demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channel order in the sample or demo application or reconvert your model using the Model Optimizer tool with --reverse_input_channels argument specified. For more information about the argument, refer to When to Reverse Input Channels section of Converting a Model to Intermediate Representation (IR).
+   By default, OpenVINO samples, tools and demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channel order in the sample or demo application or reconvert your model using ``mo`` with ``reverse_input_channels`` argument specified. For more information about the argument, refer to When to Reverse Input Channels section of Converting a Model to Intermediate Representation (IR).
 
 Per-layer performance and logging
 +++++++++++++++++++++++++++++++++
@@ -166,7 +167,7 @@ Running the application with the ``-h`` or ``--help`` option yields the followin
                                      'throughput' or 'tput': device performance mode will be set to THROUGHPUT.
                                      'cumulative_throughput' or 'ctput': device performance mode will be set to CUMULATIVE_THROUGHPUT.
                                      'latency': device performance mode will be set to LATENCY.
-                                     'none': device performance mode will be set to UNDEFINED.
+                                     'none': no device performance mode will be set.
                                     Using explicit 'nstreams' or other device-specific options, please set hint to 'none'
           -niter  <integer>             Optional. Number of iterations. If not specified, the number of iterations is calculated depending on a device.
           -t                            Optional. Time in seconds to execute topology.
@@ -192,7 +193,7 @@ Running the application with the ``-h`` or ``--help`` option yields the followin
           -ip   <value>           Optional. Specifies precision for all input layers of the model.
           -op   <value>           Optional. Specifies precision for all output layers of the model.
           -iop  <value>           Optional. Specifies precision for input and output layers by name.
-                                                   Example: -iop "input:FP16, output:FP16".
+                                                   Example: -iop "input:f16, output:f16".
                                                    Notice that quotes are required.
                                                    Overwrites precision from ip and op options for specified layers.
           -mean_values   [R,G,B]  Optional. Mean values to be used for the input image per channel. Values to be provided in the [R,G,B] format. Can be defined for desired input of the    model, for example: "--mean_values data[255,255,255],info[255,255,255]". The exact meaning and order of channels depend on how the original model was trained. Applying the    values affects performance and may cause type conversion
@@ -217,27 +218,18 @@ Running the application with the ``-h`` or ``--help`` option yields the followin
           -exec_graph_path        Optional. Path to a file where to store executable graph information serialized.
           -dump_config            Optional. Path to JSON file to dump IE parameters, which were set by application.
           -load_config            Optional. Path to JSON file to load custom IE parameters. Please note, command line parameters have higher priority then parameters from configuration    file.
-                                    Example 1: a simple JSON file for HW device with primary properties.
-                                             {
-                                                  "CPU": {"NUM_STREAMS": "3", "PERF_COUNT": "NO"}
-                                             }
-                                    Example 2: a simple JSON file for meta device(AUTO/MULTI) with HW device properties.
-                                             {
-                                                     "AUTO": {
-                                                             "PERFORMANCE_HINT": "",
-                                                             "PERF_COUNT": "NO",
-                                                             "DEVICE_PROPERTIES": {
-                                                             "CPU": {
-                                                                 "INFERENCE_PRECISION_HINT": "f32",
-                                                                 "NUM_STREAMS": "3"
-                                                             },
-                                                             "GPU": {
-                                                                 "INFERENCE_PRECISION_HINT": "f32",
-                                                                 "NUM_STREAMS": "5"
-                                                             }
-                                                         }
-                                                     }
-                                             }
+                              Example 1: a simple JSON file for HW device with primary properties.
+                                       {
+                                            "CPU": {"NUM_STREAMS": "3", "PERF_COUNT": "NO"}
+                                       }
+                              Example 2: a simple JSON file for meta device(AUTO/MULTI) with HW device properties.
+                                       {
+                                               "AUTO": {
+                                                       "PERFORMANCE_HINT": "THROUGHPUT",
+                                                       "PERF_COUNT": "NO",
+                                                       "DEVICE_PROPERTIES": "{CPU:{INFERENCE_PRECISION_HINT:f32,NUM_STREAMS:3},GPU:{INFERENCE_PRECISION_HINT:f32,NUM_STREAMS:5}}"
+                                               }
+                                       }
 
 
 Running the application with the empty list of options yields the usage message given above and an error message.
@@ -413,7 +405,7 @@ See Also
 ####################
 
 * :doc:`Using OpenVINO Samples <openvino_docs_OV_UG_Samples_Overview>`
-* :doc:`Model Optimizer <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`
+* :doc:`Convert a Model <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`
 * :doc:`Model Downloader <omz_tools_downloader>`
 
 @endsphinxdirective

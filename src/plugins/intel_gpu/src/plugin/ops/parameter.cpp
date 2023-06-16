@@ -28,16 +28,24 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
     auto inputInfo = networkInputs.at(op->get_friendly_name());
     // first create and add the input layout
     const auto inputDesc = inputInfo->getTensorDesc();
-    auto input_pshape = op->get_partial_shape();
     InferenceEngine::Layout l = inputDesc.getLayout();
     InferenceEngine::Precision ip = inputDesc.getPrecision();
 
-    cldnn::format inputFormat = cldnn::format::bfyx;
-    if (input_pshape.is_dynamic()) {
-        inputFormat = cldnn::format::get_default_format(input_pshape.size());
-    } else if (InferenceEngine::Layout::BLOCKED == l && 6 == input_pshape.size()) {
-        inputFormat = cldnn::format::bfwzyx;
-    } else {
+    auto input_pshape = op->get_partial_shape();
+    if (!p.use_new_shape_infer()) {
+        if (input_pshape.size() < 4) {
+            input_pshape.insert(input_pshape.end(), 4 - input_pshape.size(), ov::Dimension(1));
+        }
+        if (p.m_max_batch > 1) {
+            input_pshape[0] = ov::Dimension(p.m_curBatch);
+        }
+    }
+
+    cldnn::format inputFormat = cldnn::format::get_default_format(input_pshape.size());
+    std::vector<size_t> default_order(input_pshape.size());
+    std::iota(default_order.begin(), default_order.end(), 0);
+    // For legacy API we need to handle NHWC as well, so check non default order
+    if (inputDesc.getBlockingDesc().getOrder() != default_order) {
         inputFormat = FormatFromLayout(l);
     }
 
@@ -197,95 +205,33 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
         p.inputLayouts.insert({ inputInfo->name(), networkInputLayout });
         p.add_primitive(*op, cldnn::input_layout(inputName, networkInputLayout));
     } else {
-        if (ColorFormat::NV12 == preProcess.getColorFormat() && p.get_config().get_property(ov::intel_gpu::nv12_two_inputs)) {
-            // for NV12, create two input layouts with reorder instead of one,
-            // and then would expect compound blob in inferRequest
-            if (InferenceEngine::Layout::NCHW != l &&
-               (InferenceEngine::Precision::I8 != ip || InferenceEngine::Precision::U8 != ip)) {
-                IE_THROW() << "Unsupported layout (" << l << ") or precision "
-                                   << ip.name() << ") for NV12 input " + inputInfo->name();
-            }
-            int height = input_pshape[2].get_length();
-            int width = input_pshape[3].get_length();
-            size_t batch = input_pshape[0].get_length();
-            std::vector<cldnn::input_info> reorders;
+        auto preprocessPrimID = "reorder:" + inputName + Program::m_preProcessTag;
+        cldnn::layout inputLayout(networkInputLayout);
+        inputLayout.data_type = DataTypeFromPrecision(ip);
+        p.inputLayouts.insert({ inputInfo->name(), inputLayout });
 
-            for (size_t i = 0; i < batch; i++) {
-                auto preprocessPrimID = "reorder:" + inputName + std::to_string(i) + Program::m_preProcessTag;
-                std::string y_name = inputName + "_Y" + std::to_string(i);
-                std::string uv_name = inputName + "_UV" + std::to_string(i);
+        p.add_primitive(*op, cldnn::input_layout(inputName, inputLayout));
 
-                cldnn::layout y_layout(DataTypeFromPrecision(ip),
-                                       cldnn::format::nv12, { 1, 1, width, height });
-                cldnn::layout uv_layout(DataTypeFromPrecision(ip),
-                                        cldnn::format::nv12, { 1, 2, width / 2, height / 2 });
-                auto inputY = cldnn::input_layout(y_name, y_layout);
-                auto inputUV = cldnn::input_layout(uv_name, uv_layout);
-
-                p.add_primitive(*op, inputY);
-                p.inputLayouts.insert({ inputInfo->name() + "_Y" + std::to_string(i), y_layout });
-                p.add_primitive(*op, inputUV);
-                p.inputLayouts.insert({ inputInfo->name() + "_UV" + std::to_string(i), uv_layout });
-                switch (preProcess.getMeanVariant()) {
-                case NONE:
-                case MEAN_VALUE: {
-                    p.add_primitive(*op, cldnn::reorder(preprocessPrimID,
-                                                        cldnn::input_info(y_name),
-                                                        cldnn::input_info(uv_name),
-                                                        networkInputLayout,
-                                                        meanValues,
-                                                        cldnn::reorder_mean_mode::subtract), {inputName});
-                    break;
-                }
-                case MEAN_IMAGE: {
-                    p.add_primitive(*op, cldnn::reorder(preprocessPrimID,
-                                                        cldnn::input_info(y_name),
-                                                        cldnn::input_info(uv_name),
-                                                        networkInputLayout,
-                                                        meanBlobID,
-                                                        cldnn::reorder_mean_mode::subtract), {inputName});
-                    break;
-                }
-                default: IE_THROW(Unexpected) << "Invalid mean variant in input " + inputName;
-                    break;
-                }
-
-                reorders.push_back(cldnn::input_info(preprocessPrimID));
-            }
-
-            if (input_pshape[0].get_length() > 1) {
-                auto concatPrimID = "concat:" + inputName + Program::m_preProcessTag;
-                p.add_primitive(*op, cldnn::concatenation(concatPrimID, reorders, 0));
-            }
-        } else {
-            auto preprocessPrimID = "reorder:" + inputName + Program::m_preProcessTag;
-            cldnn::layout inputLayout(networkInputLayout);
-            inputLayout.data_type = DataTypeFromPrecision(ip);
-            p.inputLayouts.insert({ inputInfo->name(), inputLayout });
-
-            p.add_primitive(*op, cldnn::input_layout(inputName, inputLayout));
-
-            switch (preProcess.getMeanVariant()) {
-            case NONE:
-            case MEAN_VALUE: {
-                p.add_primitive(*op, cldnn::reorder(preprocessPrimID,
-                                                    cldnn::input_info(inputName),
-                                                    networkInputLayout,
-                                                    meanValues,
-                                                    cldnn::reorder_mean_mode::subtract), {inputName});
-                break;
-            }
-            case MEAN_IMAGE: {
-                p.add_primitive(*op, cldnn::reorder(preprocessPrimID,
-                                                    cldnn::input_info(inputName),
-                                                    networkInputLayout,
-                                                    meanBlobID,
-                                                    cldnn::reorder_mean_mode::subtract), {inputName});
-                break;
-            }
-            default: IE_THROW() << "Invalid mean variant in input " << inputName;
-                break;
-            }
+        switch (preProcess.getMeanVariant()) {
+        case NONE:
+        case MEAN_VALUE: {
+            p.add_primitive(*op, cldnn::reorder(preprocessPrimID,
+                                                cldnn::input_info(inputName),
+                                                networkInputLayout,
+                                                meanValues,
+                                                cldnn::reorder_mean_mode::subtract), {inputName});
+            break;
+        }
+        case MEAN_IMAGE: {
+            p.add_primitive(*op, cldnn::reorder(preprocessPrimID,
+                                                cldnn::input_info(inputName),
+                                                networkInputLayout,
+                                                meanBlobID,
+                                                cldnn::reorder_mean_mode::subtract), {inputName});
+            break;
+        }
+        default: IE_THROW() << "Invalid mean variant in input " << inputName;
+            break;
         }
     }
 }

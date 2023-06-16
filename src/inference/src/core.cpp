@@ -176,8 +176,11 @@ void Core::add_extension(const std::string& library_path) {
             OPENVINO_SUPPRESS_DEPRECATED_START
             add_extension(extension_ptr);
             OPENVINO_SUPPRESS_DEPRECATED_END
-        } catch (const std::runtime_error&) {
-            OPENVINO_THROW("Cannot add extension. Cannot find entry point to the extension library");
+        } catch (const std::runtime_error& e) {
+            OPENVINO_THROW(
+                std::string(
+                    "Cannot add extension. Cannot find entry point to the extension library. This error happened: ") +
+                e.what());
         }
     }
 }
@@ -218,9 +221,8 @@ CompiledModel Core::import_model(std::istream& modelStream, const std::string& d
 CompiledModel Core::import_model(std::istream& modelStream, const RemoteContext& context, const AnyMap& config) {
     OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Core::import_model");
 
-    auto parsed = parseDeviceNameIntoConfig(context.get_device_name(), config);
     OV_CORE_CALL_STATEMENT({
-        auto exec = _impl->get_plugin(parsed._deviceName).import_model(modelStream, context, parsed._config);
+        auto exec = _impl->import_model(modelStream, context, config);
         return {exec._ptr, exec._so};
     });
 }

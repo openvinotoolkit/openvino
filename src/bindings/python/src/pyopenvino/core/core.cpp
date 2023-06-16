@@ -360,7 +360,7 @@ void regclass_Core(py::module m) {
             }
 
             std::stringstream str;
-            str << "Provided python object type " << model_path.get_type().str()
+            str << "Provided python object type " << py::str(model_path.get_type())
                 << " isn't supported as 'model' argument.";
             OPENVINO_THROW(str.str());
         },
@@ -612,4 +612,9 @@ void regclass_Core(py::module m) {
                                         compile_model, query_model, set_property and so on.
                                     :rtype: list
                                 )");
+
+    cls.def("__repr__", [](const ov::Core& self) {
+        auto devices = Common::docs::container_to_string(self.get_available_devices(), ", ");
+        return "<" + Common::get_class_name(self) + ": available plugins[" + devices + "]>";
+    });
 }

@@ -10,7 +10,7 @@
 #include <ngraph/opsets/opset1.hpp>
 #include "common/cpu_memcpy.h"
 #include <utils/general_utils.h>
-#include "kernels/gather_uni_kernel.hpp"
+#include "kernels/x64/gather_uni_kernel.hpp"
 #include "utils/shape_inference/shape_inference_cpu.hpp"
 
 using namespace InferenceEngine;
@@ -200,11 +200,11 @@ void Gather::initSupportedPrimitiveDescriptors() {
                           {LayoutType::ncsp, Precision::I32},
                           {LayoutType::ncsp, Precision::I32, isAxisInputConst}},
                          {{LayoutType::ncsp, dataPrecision}},
-                         ref_any,
-                         isDynamicNode());
+                         ref_any);
 }
 
 void Gather::createPrimitive() {
+#if defined(OPENVINO_ARCH_X86_64)
     uint64_t idxElPerVec = 1;
     if (!isDynamicNode()) {
         idxElPerVec = x64::mayiuse(x64::avx512_core) ? x64::cpu_isa_traits<x64::avx512_core>::vlen / idxTypeSize :
@@ -269,7 +269,7 @@ void Gather::createPrimitive() {
             }
         }
     }
-
+#endif
     Node::createPrimitive();
 }
 
@@ -323,6 +323,7 @@ void Gather::prepareParams() {
         totalWork = beforeBatchSize * betweenBatchAndAxisSize * specIndicesSize * afterAxisSize;
     }
 
+#if defined(OPENVINO_ARCH_X86_64)
     const auto& selectedPD = getSelectedPrimitiveDescriptor();
     if (jitKernel && jitKernel->isSupportedConfiguration(afterAxisSize)) {
         if (x64::mayiuse(x64::avx512_core)) {
@@ -330,12 +331,12 @@ void Gather::prepareParams() {
         } else if (x64::mayiuse(x64::avx2)) {
             selectedPD->setImplementationType(jit_avx2);
         }
-    } else {
-        selectedPD->setImplementationType(ref_any);
     }
+#endif
 }
 
 void Gather::execute(dnnl::stream strm) {
+#if defined(OPENVINO_ARCH_X86_64)
     if (jitKernel && jitKernel->isSupportedConfiguration(afterAxisSize)) {
         const void* srcIndices = getParentEdgeAt(GATHER_INDICES)->getMemoryPtr()->GetPtr();
         const void* srcData = getParentEdgeAt(GATHER_DATA)->getMemoryPtr()->GetPtr();
@@ -383,12 +384,15 @@ void Gather::execute(dnnl::stream strm) {
         };
 
         parallel_nt(0, threadBody);
-    } else {
-        execReference();
+
+        return;
     }
+#endif
+    execReference();
 }
 
 void Gather::executeDynamicImpl(dnnl::stream strm) {
+#if defined(OPENVINO_ARCH_X86_64)
     if (jitKernel && jitKernel->isSupportedConfiguration(afterAxisSize)) {
         const void* srcIndices = getParentEdgeAt(GATHER_INDICES)->getMemoryPtr()->GetPtr();
         const void* srcData = getParentEdgeAt(GATHER_DATA)->getMemoryPtr()->GetPtr();
@@ -423,12 +427,12 @@ void Gather::executeDynamicImpl(dnnl::stream strm) {
                 permIdxMask[0] = idxElPerVec - specIndicesSize;
                 int div = idxElPerVec / specIndicesSize;
                 int remainder = idxElPerVec % specIndicesSize;
-                for (int i = 1; i < idxElPerVec; i++) {
+                for (uint64_t i = 1; i < idxElPerVec; i++) {
                     permIdxMask[i] = permIdxMask[i - 1] + 1;
-                    if (permIdxMask[i] == idxElPerVec)
+                    if (static_cast<uint64_t>(permIdxMask[i]) == idxElPerVec)
                         permIdxMask[i] = idxElPerVec - specIndicesSize;
                 }
-                for (int i = 0; i < idxElPerVec; i++) {
+                for (uint64_t i = 0; i < idxElPerVec; i++) {
                     if (((start + i) % specIndicesSize) < (specIndicesSize - remainder))
                         beforeAxisDiff[i] = axisDim * div;
                     else
@@ -442,9 +446,11 @@ void Gather::executeDynamicImpl(dnnl::stream strm) {
         };
 
         parallel_nt(0, threadBody);
-    } else {
-        execReference();
+
+        return;
     }
+#endif
+    execReference();
 }
 
 void Gather::initShortParams(threadExecParams& p, const uint64_t start) {
@@ -460,9 +466,9 @@ void Gather::initShortParams(threadExecParams& p, const uint64_t start) {
         p.srcBeforeAxisDiff.resize(idxElPerVec);
 
         p.permIdxMask[0] = idxElPerVec - specIndicesSize;
-        for (int i = 1; i < idxElPerVec; i++) {
+        for (uint64_t i = 1; i < idxElPerVec; i++) {
             p.permIdxMask[i] = p.permIdxMask[i - 1] + 1;
-            if (p.permIdxMask[i] == idxElPerVec)
+            if (static_cast<uint64_t>(p.permIdxMask[i]) == idxElPerVec)
                 p.permIdxMask[i] = idxElPerVec - specIndicesSize;
         }
 
@@ -486,7 +492,7 @@ void Gather::initShortParams(threadExecParams& p, const uint64_t start) {
         p.srcBeforeAxisDiff.resize(idxElPerVec);
 
         int secondStart = start + idxElPerVec;
-        for (int i = 0; i < idxElPerVec; i++) {
+        for (uint64_t i = 0; i < idxElPerVec; i++) {
             p.afterAxIdxInBytes[i] = (start + i) % afterAxisSize;
             p.specIdxDiff[i] = (((secondStart + i) / afterAxisSize) % specIndicesSize) * idxTypeSize - p.specIdxInBytes[i];
             if (p.specIdxDiff[i] < 0)
@@ -497,15 +503,15 @@ void Gather::initShortParams(threadExecParams& p, const uint64_t start) {
             p.afterAxIdxInBytes[i] *= dataTypeSize;
             p.afterAxPermMask[i] = idxElPerVec - afterAxisSize + i;
             for (size_t j = 0lu; j < 6lu; j++) {
-                if (p.afterAxPermMask[i] >= idxElPerVec)
+                if (static_cast<uint64_t>(p.afterAxPermMask[i]) >= idxElPerVec)
                     p.afterAxPermMask[i] -= afterAxisSize;
             }
         }
         if (specIndicesSize * afterAxisSize < idxElPerVec) {
             p.beforeAxPermMask[0] = idxElPerVec - specIndicesSize * afterAxisSize;
-            for (int i = 1; i < idxElPerVec; i++) {
+            for (uint64_t i = 1; i < idxElPerVec; i++) {
                 p.beforeAxPermMask[i] = p.beforeAxPermMask[i - 1] + 1;
-                if (p.beforeAxPermMask[i] == idxElPerVec)
+                if (static_cast<uint64_t>(p.beforeAxPermMask[i]) == idxElPerVec)
                     p.beforeAxPermMask[i] = idxElPerVec - specIndicesSize * afterAxisSize;
             }
         }
@@ -530,7 +536,7 @@ void Gather::execReference() {
         }
         const size_t idx = ii;
         const size_t c2 = dstAfterBatchSize * b + afterAxisSizeInBytes * j;
-        if (idx < axisDim) {
+        if (idx < static_cast<size_t>(axisDim)) {
             size_t c1 = srcAfterBatchSizeInBytes * b + afterAxisSizeInBytes * idx;
             for (size_t i = 0; i < betweenBatchAndAxisSize; i++) {
                 size_t srcIdx = c1 + axisAndAfterAxisSizeInBytes * i;

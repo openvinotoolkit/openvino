@@ -14,7 +14,7 @@ bool LegacyAPIHelper::is_new_api_property(const std::pair<std::string, ov::Any>&
     static const std::vector<std::string> new_properties_list = {
         ov::intel_gpu::hint::queue_priority.name(),
         ov::intel_gpu::hint::queue_throttle.name(),
-        ov::inference_precision.name(),
+        ov::hint::inference_precision.name(),
         ov::compilation_num_threads.name(),
         ov::num_streams.name(),
     };
@@ -223,12 +223,12 @@ std::pair<std::string, ov::Any> LegacyAPIHelper::convert_to_legacy_property(cons
 }
 
 std::vector<std::string> LegacyAPIHelper::get_supported_configs() {
+    OPENVINO_SUPPRESS_DEPRECATED_START
     static const std::vector<std::string> supported_config = {
         CONFIG_KEY(MODEL_PRIORITY),
         CONFIG_KEY(PERFORMANCE_HINT),
         CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS),
         CONFIG_KEY(PERF_COUNT),
-        CONFIG_KEY(DYN_BATCH_ENABLED),
         CONFIG_KEY(CONFIG_FILE),
         CONFIG_KEY(DEVICE_ID),
         CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS),
@@ -241,6 +241,7 @@ std::vector<std::string> LegacyAPIHelper::get_supported_configs() {
         GPU_CONFIG_KEY(MAX_NUM_THREADS),
         GPU_CONFIG_KEY(ENABLE_LOOP_UNROLLING),
     };
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     return supported_config;
 }

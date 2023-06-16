@@ -16,7 +16,7 @@ namespace SubgraphTestsDefinitions {
 
 class SubgraphSnippetSerializationTest : public ::testing::Test, public CPUTestsBase {};
 
-TEST_F(SubgraphSnippetSerializationTest, SerializeSubgraph) {
+TEST_F(SubgraphSnippetSerializationTest, smoke_SerializeSubgraph) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     auto model = ([] () -> std::shared_ptr<ov::Model> {
@@ -27,7 +27,7 @@ TEST_F(SubgraphSnippetSerializationTest, SerializeSubgraph) {
         auto ininput1 = std::make_shared<Parameter>(ov::element::f32, shape);
         auto add = std::make_shared<Add>(ininput0, ininput1);
         auto subgraph_body = std::make_shared<ov::Model>(ov::NodeVector{add}, ov::ParameterVector{ininput0, ininput1});
-        auto subgraph = std::make_shared<ngraph::snippets::op::Subgraph>(ov::NodeVector{input0, input1}, subgraph_body.get()->clone());
+        auto subgraph = std::make_shared<ov::snippets::op::Subgraph>(ov::NodeVector{input0, input1}, subgraph_body.get()->clone());
         return std::make_shared<ov::Model>(ov::NodeVector{subgraph}, ov::ParameterVector{input0, input1});
     })();
     ov::Core core;
@@ -64,7 +64,7 @@ TEST_F(SubgraphSnippetSerializationTest, SerializeSubgraph) {
     ASSERT_TRUE(results.valid) << results.message;
 }
 
-TEST_F(SubgraphSnippetSerializationTest, SerializeSubgraphWithScalarConst) {
+TEST_F(SubgraphSnippetSerializationTest, smoke_SerializeSubgraphWithScalarConst) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     auto model = ([] () -> std::shared_ptr<ov::Model> {
         auto shape = ov::Shape({1});
@@ -75,7 +75,7 @@ TEST_F(SubgraphSnippetSerializationTest, SerializeSubgraphWithScalarConst) {
         auto add = std::make_shared<Add>(input, constant);
         auto internal_add = std::make_shared<Add>(internal_input, internal_constant);
         auto subgraph_body = std::make_shared<ov::Model>(ov::NodeVector{internal_add}, ov::ParameterVector{internal_input});
-        auto subgraph = std::make_shared<ngraph::snippets::op::Subgraph>(ov::NodeVector{add}, subgraph_body.get()->clone());
+        auto subgraph = std::make_shared<ov::snippets::op::Subgraph>(ov::NodeVector{add}, subgraph_body.get()->clone());
         return std::make_shared<ov::Model>(ov::NodeVector{subgraph}, ov::ParameterVector{input});
     })();
     ov::Core core;
@@ -109,7 +109,7 @@ TEST_F(SubgraphSnippetSerializationTest, SerializeSubgraphWithScalarConst) {
     ASSERT_TRUE(results.valid) << results.message;
 }
 
-TEST_F(SubgraphSnippetSerializationTest, SerializeSubgraphWithResultAs1stOutput) {
+TEST_F(SubgraphSnippetSerializationTest, smoke_SerializeSubgraphWithResultAs1stOutput) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     auto precision = ov::element::f32;
     auto shape = ov::Shape{1, 3, 16, 16};

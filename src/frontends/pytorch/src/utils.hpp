@@ -6,6 +6,7 @@
 
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
 
 namespace ov {
 
@@ -38,6 +39,10 @@ Output<Node> reshape_kernel_for_group(const NodeContext& context, const Output<N
 
 std::shared_ptr<Node> get_axes_range(const NodeContext& context, int input_id);
 
+std::shared_ptr<Node> normalize_axis(const NodeContext& context,
+                                     const Output<Node>& axis,
+                                     const Output<Node>& input_node);
+
 std::shared_ptr<Node> numel(const NodeContext& context, const Output<Node>& x);
 
 element::Type convert_dtype(int64_t dtype_value);
@@ -46,21 +51,30 @@ Output<Node> apply_dtype(const NodeContext& context, size_t dtype_port, const Ou
 
 op::PadType convert_pad(const std::string& pt_pad);
 
-std::shared_ptr<Node> concat_list_construct(std::shared_ptr<Node> input);
+Output<Node> concat_list_construct(const Output<Node>& input);
 
-OutputVector make_framework_node(const NodeContext& context);
+OutputVector make_framework_node_ignore_bodies(const NodeContext& context, const std::string& exception);
+OutputVector make_framework_node(const NodeContext& context, const std::string& exception);
 
 std::shared_ptr<op::util::FrameworkNode> cast_fw_node(std::shared_ptr<Node> node, const std::string& type);
 
 // TODO: Eliminate the need of this function by implementing more accurate custom data type handling
 Any simplified_type_interpret(Any type);
 
+void add_exception_to_fw_node(std::shared_ptr<Node> node, const std::string& msg);
+
 void align_eltwise_input_types(const NodeContext& context,
                                Output<Node>& lhs,
                                Output<Node>& rhs,
                                bool align_scalars = false);
 
+void align_output_types(const NodeContext& context, OutputVector& outputs);
+
 std::deque<Output<Node>> get_list_as_outputs(const Output<Node>& start);
+
+void copy_runtime_info_and_name(const std::shared_ptr<Node>& from,
+                                ov::NodeVector to,
+                                const ov::NodeVector& additional_rt_info_src = {});
 
 namespace op {
 template <OutputVector (*T)(const NodeContext&), size_t idx = 0>
@@ -74,9 +88,26 @@ OutputVector inplace_op(const NodeContext& context) {
 
 template <typename T>
 OutputVector translate_1to1_match_1_inputs(const NodeContext& context) {
-    num_inputs_check(context, 1, 1);
     FRONT_END_OP_CONVERSION_CHECK(!context.input_is_none(0), "Input should not be None.");
-    return {context.mark_node(std::make_shared<T>(context.get_input(0)))};
+    auto res = context.mark_node(std::make_shared<T>(context.get_input(0)));
+    auto out_type = context.get_output_type(0);
+    if (out_type.is<element::Type>()) {
+        auto dtype = out_type.as<element::Type>();
+        if (dtype.is_static() && dtype != res->output(0).get_element_type()) {
+            res = context.mark_node(std::make_shared<ov::op::v0::Convert>(res, dtype));
+        }
+    }
+    return {res};
+}
+
+template <typename T>
+OutputVector translate_1to1_match_1_inputs_with_fp32_type_alignment(const NodeContext& context) {
+    FRONT_END_OP_CONVERSION_CHECK(!context.input_is_none(0), "Input should not be None.");
+    auto x = context.get_input(0);
+    // This const only needed for type alignment
+    auto dummy_const = context.mark_node(ov::op::v0::Constant::create(element::f32, Shape({}), {0.5}))->output(0);
+    align_eltwise_input_types(context, x, dummy_const);
+    return {context.mark_node(std::make_shared<T>(x))};
 }
 
 template <typename T>
@@ -93,7 +124,9 @@ OutputVector translate_1to1_match_2_inputs_align_types(const NodeContext& contex
     auto lhs = context.get_input(0);
     auto rhs = context.get_input(1);
     align_eltwise_input_types(context, lhs, rhs, true);
-    return {context.mark_node(std::make_shared<T>(lhs, rhs))};
+    OutputVector res = {context.mark_node(std::make_shared<T>(lhs, rhs))};
+    align_output_types(context, res);
+    return res;
 }
 
 inline OutputVector return_false_scalar(const NodeContext& context) {

@@ -149,7 +149,7 @@ protected:
     void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) override {
         inputs.clear();
         const auto& funcInputs = function->inputs();
-        for (int i = 0; i < funcInputs.size(); ++i) {
+        for (size_t i = 0; i < funcInputs.size(); ++i) {
             const auto& funcInput = funcInputs[i];
             ov::Tensor tensor;
             if (reductionType == ngraph::helpers::ReductionType::Prod) {
@@ -215,6 +215,7 @@ const std::vector<std::vector<int>> axesND = {
 const std::vector<std::vector<int>> axes5D = {
         {2, 4},
         {0, 2, 4},
+        {1, 2, 4},
         {0, 1, 2, 3, 4},
 };
 
@@ -303,16 +304,25 @@ std::vector<std::vector<ov::test::InputShape>> inputShapes_SmallChannel = {
     {{{{1, 5}, 3, {1, 5}, {1, 10}}, {{2, 3, 2, 2}, {2, 3, 2, 9}}}},
 };
 
+std::vector<std::vector<ov::test::InputShape>> inputShapes_SingleBatch = {
+    {{{}, {{1, 19, 2, 9}}}},
+    {{{{1, 5}, 19, {1, 5}, {1, 10}}, {{1, 19, 2, 2}, {1, 19, 2, 9}}}},
+};
+
 std::vector<CPUSpecificParams> cpuParams_4D = {
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
         CPUSpecificParams({nChw16c}, {nChw16c}, {}, {}),
+        CPUSpecificParams({nhwc}, {nhwc}, {}, {}),
+#endif
         CPUSpecificParams({nchw}, {nchw}, {}, {}),
-        CPUSpecificParams({nhwc}, {nhwc}, {}, {})
 };
 
 std::vector<CPUSpecificParams> cpuParams_5D = {
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
         CPUSpecificParams({nCdhw16c}, {nCdhw16c}, {}, {}),
+        CPUSpecificParams({ndhwc}, {ndhwc}, {}, {}),
+#endif
         CPUSpecificParams({ncdhw}, {ncdhw}, {}, {}),
-        CPUSpecificParams({ndhwc}, {ndhwc}, {}, {})
 };
 
 std::vector<CPUSpecificParams> cpuParams_HybridLayout_4D = {
@@ -392,6 +402,7 @@ const auto params_MultiAxis_5D = testing::Combine(
         testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D)),
         testing::Values(emptyFusingSpec));
 
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 const auto params_MultiAxis_4D_Hybrid = testing::Combine(
         testing::Combine(
             testing::ValuesIn(axesND),
@@ -417,6 +428,7 @@ const auto params_MultiAxis_5D_Hybrid = testing::Combine(
             testing::ValuesIn(inputShapes_5D)),
         testing::ValuesIn(filterCPUSpecificParams(cpuParams_HybridLayout_5D)),
         testing::Values(emptyFusingSpec));
+#endif
 
 const auto params_MultiAxis_6D = testing::Combine(
         testing::Combine(
@@ -457,6 +469,19 @@ const auto params_NHWC_SmallChannel = testing::Combine(
         testing::ValuesIn(filterCPUSpecificParams(cpuParams_NHWC_4D)),
         testing::Values(emptyFusingSpec));
 
+const auto params_SingleBatch = testing::Combine(
+        testing::Combine(
+                testing::ValuesIn(axes),
+                testing::Values(CommonTestUtils::OpType::VECTOR),
+                testing::Values(true),
+                testing::ValuesIn(reductionTypes),
+                testing::ValuesIn(inpOutPrc),
+                testing::Values(ElementType::undefined),
+                testing::Values(ElementType::undefined),
+                testing::ValuesIn(inputShapes_SingleBatch)),
+        testing::ValuesIn(filterCPUSpecificParams(cpuParams_NHWC_4D)),
+        testing::Values(emptyFusingSpec));
+
 INSTANTIATE_TEST_SUITE_P(
         smoke_Reduce_OneAxis_CPU,
         ReduceCPULayerTest,
@@ -478,6 +503,7 @@ INSTANTIATE_TEST_SUITE_P(
         ReduceCPULayerTest::getTestCaseName
 );
 
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 INSTANTIATE_TEST_SUITE_P(
         smoke_Reduce_MultiAxis_4D_Hybrid_CPU,
         ReduceCPULayerTest,
@@ -491,6 +517,7 @@ INSTANTIATE_TEST_SUITE_P(
         params_MultiAxis_5D_Hybrid,
         ReduceCPULayerTest::getTestCaseName
 );
+#endif
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_Reduce_MultiAxis_6D_CPU,
@@ -507,9 +534,16 @@ INSTANTIATE_TEST_SUITE_P(
 );
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_Reducea_NHWC_SmallChannel_CPU,
+        smoke_Reduce_NHWC_SmallChannel_CPU,
         ReduceCPULayerTest,
         params_NHWC_SmallChannel,
+        ReduceCPULayerTest::getTestCaseName
+);
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_Reduce_SingleBatch_CPU,
+        ReduceCPULayerTest,
+        params_SingleBatch,
         ReduceCPULayerTest::getTestCaseName
 );
 
@@ -553,6 +587,7 @@ const auto params_MultiAxis_5D_Logical = testing::Combine(
         testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D)),
         testing::Values(emptyFusingSpec));
 
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 const auto params_MultiAxis_4D_Hybrid_Logical = testing::Combine(
         testing::Combine(
             testing::ValuesIn(axesND),
@@ -578,6 +613,7 @@ const auto params_MultiAxis_5D_Hybrid_Logical = testing::Combine(
             testing::ValuesIn(inputShapes_5D)),
         testing::ValuesIn(filterCPUSpecificParams(cpuParams_HybridLayout_5D)),
         testing::Values(emptyFusingSpec));
+#endif
 
 const auto params_MultiAxis_6D_Logical = testing::Combine(
         testing::Combine(
@@ -613,6 +649,7 @@ INSTANTIATE_TEST_SUITE_P(
         ReduceCPULayerTest::getTestCaseName
 );
 
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 INSTANTIATE_TEST_SUITE_P(
         smoke_Reduce_MultiAxis_4D_Hybrid_Logical_CPU,
         ReduceCPULayerTest,
@@ -626,6 +663,7 @@ INSTANTIATE_TEST_SUITE_P(
         params_MultiAxis_5D_Hybrid_Logical,
         ReduceCPULayerTest::getTestCaseName
 );
+#endif
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_Reduce_MultiAxis_6D_Logical_CPU,
@@ -635,6 +673,7 @@ INSTANTIATE_TEST_SUITE_P(
 );
 
 /* ================================ 2.1 Fusion - KeepDims ================================ */
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 const auto params_OneAxis_fusing = testing::Combine(
         testing::Combine(
             testing::ValuesIn(axes),
@@ -755,6 +794,8 @@ INSTANTIATE_TEST_SUITE_P(
         params_MultiAxis_5D_Hybrid_fusing_KeepNoDims,
         ReduceCPULayerTest::getTestCaseName
 );
+#endif
+
 } // namespace
 } // namespace CPULayerTestsDefinitions
 

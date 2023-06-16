@@ -251,7 +251,9 @@ bool ov::pass::ReverseShapeAndTypeInfer::run_on_model(const std::shared_ptr<ov::
             is_changed |= inherit_output_shape(op, {0});
             is_changed |= inherit_output_type(op, {1});
         } else if (std::dynamic_pointer_cast<Transpose>(op)) {
+            OPENVINO_SUPPRESS_DEPRECATED_START
             auto transpose_order = get_constant_from_source(op->input_value(1));
+            OPENVINO_SUPPRESS_DEPRECATED_END
             if (output_shape.rank().is_static()) {
                 if (transpose_order) {
                     // set more precise dimensions during reverse infer

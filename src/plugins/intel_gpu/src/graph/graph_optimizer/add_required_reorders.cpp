@@ -2,13 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <algorithm>
 
 #include "pass_manager.h"
 #include "program_node.h"
 #include "mutable_data_inst.h"
 #include "convert_color_inst.h"
+#include "fully_connected_inst.h"
+#include "assign_inst.h"
 #include "tensor_type.h"
+
+#include <algorithm>
 #include <memory>
 #include <vector>
 #include <stdexcept>
@@ -57,6 +60,21 @@ void add_required_reorders::run(program& p) {
         if (usr->is_type<data>())
             continue;
 
+        // If usr is assign and input and output data types are different
+        // add reorder with usr's output data type between dep and usr
+        if (usr->is_type<assign>()) {
+            auto& dep = usr->get_dependency(0);
+            auto dep_layout = dep.get_output_layout();
+            auto out_layout = usr->get_output_layout();
+            bool required_reorder = out_layout.data_type != dep_layout.data_type;
+            if (required_reorder) {
+                auto new_reorder = std::make_shared<reorder>(dep.id() + "_reorder_" + usr->id(), dep.id(), out_layout.format, out_layout.data_type);
+                auto& new_reorder_node = p.get_or_create(new_reorder);
+                p.add_intermediate(new_reorder_node, *usr, dep);
+                new_reorder_node.recalc_output_layout(false);
+            }
+        }
+
         if (optimize_data) {
             auto fused_ops = usr->get_fused_primitives();
             auto out_layout = usr->get_output_layout();
@@ -73,10 +91,9 @@ void add_required_reorders::run(program& p) {
                 if (!fused_op.is_type<eltwise>() && !(fused_op.is_type<activation>() && fused_op.total_num_deps == 2))
                     continue;
 
-                auto dep_id = fused_op.dep_start_idx;
-                if (dep_id >= usr->get_dependencies().size())
+                if (!fused_op.has_outer_dep())
                     continue;
-
+                auto dep_id = fused_op.outer_dep_start_idx;
                 auto& dep = usr->get_dependency(dep_id);
                 if (!dep.is_type<data>())
                     continue;
@@ -199,14 +216,13 @@ void add_required_reorders::run(program& p) {
                     }
                 }
 
-                if (!correct_layout_selected) {
-                    throw std::runtime_error("Internal Error: no layout format available for " + usr->id() +
-                                                " (format: " + std::to_string(original_layout.format.value) +
-                                                ", data_type: " + data_type_traits::name(original_layout.data_type) + ") "
-                                                "compatible with " + node.first->id() +
-                                                " (format: " + std::to_string(node.first->get_output_layout().format.value) +
-                                                ", data_type: " + data_type_traits::name(node.first->get_output_layout().data_type) + ")");
-                }
+                OPENVINO_ASSERT(correct_layout_selected,
+                                "[GPU] No layout format available for ", usr->id(),  ", impl_type: ", usr->get_preferred_impl_type(),
+                                " (format: ", original_layout.format.to_string(),
+                                ", data_type: ", data_type_traits::name(original_layout.data_type), ") ",
+                                "compatible with ", node.first->id(),
+                                " (format: ", node.first->get_output_layout().format.to_string(),
+                                ", data_type: ", data_type_traits::name(node.first->get_output_layout().data_type), ")");
             }
         }
 
@@ -219,17 +235,12 @@ void add_required_reorders::run(program& p) {
                 max_in_dims = std::max(cldnn::format::dimension(node.first->get_output_layout().format), max_in_dims);
             }
             // This list of preferred layouts has been selected arbitrary due to developers' experience
+            preferred_layout_formats = { cldnn::format::get_default_format(max_in_dims) };
             if (max_in_dims == 5) {
-                preferred_layout_formats = {
-                    cldnn::format::bfzyx,
-                    cldnn::format::bzyxf,
-                };
+                preferred_layout_formats.push_back(cldnn::format::bzyxf);
             } else if (max_in_dims == 4) {
-                preferred_layout_formats = {
-                    cldnn::format::bfyx,
-                    cldnn::format::yxfb,
-                    cldnn::format::byxf,
-                };
+                preferred_layout_formats.push_back(cldnn::format::yxfb);
+                preferred_layout_formats.push_back(cldnn::format::byxf);
             }
 
             if (original_layout.is_dynamic() && usr->type()->does_dynamic_implementation_exist(*usr)) {

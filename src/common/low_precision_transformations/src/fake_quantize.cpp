@@ -10,6 +10,7 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 
 #include "low_precision/network_helper.hpp"
+#include "low_precision/rt_info/bias_attribute.hpp"
 #include "itt.hpp"
 
 namespace ngraph {
@@ -20,7 +21,7 @@ FakeQuantizeTransformation::FakeQuantizeTransformation(const Params& params) : L
     MATCHER_SCOPE(FakeQuantizeTransformation);
     auto matcher = pattern::wrap_type<opset1::FakeQuantize>();
 
-    ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+    ov::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
         if (transformation_callback(op)) {
             return false;
@@ -191,17 +192,8 @@ std::shared_ptr<opset1::FakeQuantize> FakeQuantizeTransformation::fuseElementwis
 
         inputLowConst_f32 = fq::updateShape(fold<opset1::Add>(inputLowConst_f32, value), fakeQuantize->get_output_partial_shape(0));
         inputHighConst_f32 = fq::updateShape(fold<opset1::Add>(inputHighConst_f32, value), fakeQuantize->get_output_partial_shape(0));
-    } else if (ov::is_type<opset1::Add>(eltwise) && checkElementwise(eltwise)) {
-        if (ov::is_type<opset1::Convolution>(fq::getDataNode(eltwise)) ||
-            ov::is_type<opset1::GroupConvolution>(fq::getDataNode(eltwise)) ||
-            ov::is_type<opset1::ConvolutionBackpropData>(fq::getDataNode(eltwise)) ||
-            ov::is_type<opset1::MatMul>(fq::getDataNode(eltwise)) ||
-            ov::is_type<opset1::GroupConvolutionBackpropData>(fq::getDataNode(eltwise))) {
-            return nullptr;
-        }
-
+    } else if (ov::is_type<opset1::Add>(eltwise) && checkElementwise(eltwise) && !ov::marked_as_bias(eltwise)) {
         const auto value = foldConvert(constant, element::f32);
-
         inputLowConst_f32 = fq::updateShape(fold<opset1::Subtract>(inputLowConst_f32, value), fakeQuantize->get_output_partial_shape(0));
         inputHighConst_f32 = fq::updateShape(fold<opset1::Subtract>(inputHighConst_f32, value), fakeQuantize->get_output_partial_shape(0));
     } else if (ov::is_type<opset1::Convert>(eltwise)) {
@@ -228,7 +220,7 @@ std::shared_ptr<opset1::FakeQuantize> FakeQuantizeTransformation::fuseElementwis
     matcherPass->register_new_node(newFakeQuantize);
 
     replace_node(fakeQuantize, newFakeQuantize);
-    ngraph::copy_runtime_info({ fakeQuantize, eltwise }, newFakeQuantize);
+    ov::copy_runtime_info({ fakeQuantize, eltwise }, newFakeQuantize);
     newFakeQuantize->set_friendly_name(fakeQuantize->get_friendly_name());
     return newFakeQuantize;
 }

@@ -15,6 +15,7 @@
 #include "meta_data.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/frontend/decoder.hpp"
+#include "openvino/frontend/graph_iterator.hpp"
 
 using Version = ov::pass::Serialize::Version;
 
@@ -215,7 +216,7 @@ std::string convert_path_to_string(const py::object& path) {
     py::object Path = py::module_::import("pathlib").attr("Path");
     // check if model path is either a string or pathlib.Path
     if (py::isinstance(path, Path) || py::isinstance<py::str>(path)) {
-        return path.str();
+        return py::str(path);
     }
     // Convert bytes to string
     if (py::isinstance<py::bytes>(path)) {
@@ -240,7 +241,10 @@ Version convert_to_version(const std::string& version) {
                    "'! The supported versions are: 'UNSPECIFIED'(default), 'IR_V10', 'IR_V11'.");
 }
 
-void deprecation_warning(const std::string& function_name, const std::string& version, const std::string& message) {
+void deprecation_warning(const std::string& function_name,
+                         const std::string& version,
+                         const std::string& message,
+                         int stacklevel) {
     std::stringstream ss;
     ss << function_name << " is deprecated";
     if (!version.empty()) {
@@ -249,7 +253,7 @@ void deprecation_warning(const std::string& function_name, const std::string& ve
     if (!message.empty()) {
         ss << ". " << message;
     }
-    PyErr_WarnEx(PyExc_DeprecationWarning, ss.str().data(), 2);
+    PyErr_WarnEx(PyExc_DeprecationWarning, ss.str().data(), stacklevel);
 }
 
 bool py_object_is_any_map(const py::object& py_obj) {
@@ -281,17 +285,22 @@ ov::AnyMap py_object_to_any_map(const py::object& py_obj) {
 
 ov::Any py_object_to_any(const py::object& py_obj) {
     // Python types
+    py::object float_32_type = py::module_::import("numpy").attr("float32");
     if (py::isinstance<py::str>(py_obj)) {
         return py_obj.cast<std::string>();
     } else if (py::isinstance<py::bool_>(py_obj)) {
         return py_obj.cast<bool>();
     } else if (py::isinstance<py::float_>(py_obj)) {
         return py_obj.cast<double>();
+    } else if (py::isinstance(py_obj, float_32_type)) {
+        return py_obj.cast<float>();
     } else if (py::isinstance<py::int_>(py_obj)) {
         return py_obj.cast<int64_t>();
+    } else if (py::isinstance<py::none>(py_obj)) {
+        return {};
     } else if (py::isinstance<py::list>(py_obj)) {
         auto _list = py_obj.cast<py::list>();
-        enum class PY_TYPE : int { UNKNOWN = 0, STR, INT, FLOAT, BOOL };
+        enum class PY_TYPE : int { UNKNOWN = 0, STR, INT, FLOAT, BOOL, PARTIAL_SHAPE };
         PY_TYPE detected_type = PY_TYPE::UNKNOWN;
         for (const auto& it : _list) {
             auto check_type = [&](PY_TYPE type) {
@@ -309,6 +318,8 @@ ov::Any py_object_to_any(const py::object& py_obj) {
                 check_type(PY_TYPE::FLOAT);
             } else if (py::isinstance<py::bool_>(it)) {
                 check_type(PY_TYPE::BOOL);
+            } else if (py::isinstance<ov::PartialShape>(it)) {
+                check_type(PY_TYPE::PARTIAL_SHAPE);
             }
         }
 
@@ -324,6 +335,8 @@ ov::Any py_object_to_any(const py::object& py_obj) {
             return _list.cast<std::vector<int64_t>>();
         case PY_TYPE::BOOL:
             return _list.cast<std::vector<bool>>();
+        case PY_TYPE::PARTIAL_SHAPE:
+            return _list.cast<std::vector<ov::PartialShape>>();
         default:
             OPENVINO_ASSERT(false, "Unsupported attribute type.");
         }
@@ -334,6 +347,8 @@ ov::Any py_object_to_any(const py::object& py_obj) {
         return py::cast<ov::Any>(py_obj);
     } else if (py::isinstance<ov::element::Type>(py_obj)) {
         return py::cast<ov::element::Type>(py_obj);
+    } else if (py::isinstance<ov::PartialShape>(py_obj)) {
+        return py::cast<ov::PartialShape>(py_obj);
     } else if (py::isinstance<ov::hint::Priority>(py_obj)) {
         return py::cast<ov::hint::Priority>(py_obj);
     } else if (py::isinstance<ov::hint::PerformanceMode>(py_obj)) {
@@ -348,9 +363,14 @@ ov::Any py_object_to_any(const py::object& py_obj) {
         return py::cast<ov::streams::Num>(py_obj);
     } else if (py::isinstance<ov::Affinity>(py_obj)) {
         return py::cast<ov::Affinity>(py_obj);
+    } else if (py::isinstance<ov::Tensor>(py_obj)) {
+        return py::cast<ov::Tensor>(py_obj);
         // FrontEnd Decoder
     } else if (py::isinstance<ov::frontend::IDecoder>(py_obj)) {
         return py::cast<std::shared_ptr<ov::frontend::IDecoder>>(py_obj);
+        // TF FrontEnd GraphIterator
+    } else if (py::isinstance<ov::frontend::tensorflow::GraphIterator>(py_obj)) {
+        return py::cast<std::shared_ptr<ov::frontend::tensorflow::GraphIterator>>(py_obj);
         // Custom FrontEnd Types
     } else if (py::isinstance<ov::frontend::type::Tensor>(py_obj)) {
         return py::cast<ov::frontend::type::Tensor>(py_obj);

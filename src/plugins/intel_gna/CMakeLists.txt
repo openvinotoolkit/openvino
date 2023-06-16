@@ -35,7 +35,6 @@ elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     ie_add_compiler_flags(/wd4297)
 endif()
 
-
 file(GLOB_RECURSE SOURCES
         ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
 
@@ -43,19 +42,20 @@ file(GLOB_RECURSE HEADERS
         ${CMAKE_CURRENT_SOURCE_DIR}/src/*.h
         ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp)
 
-addVersionDefines(src/gna_plugin_entry_points.cpp CI_BUILD_NUMBER)
-
 find_package(libGNA REQUIRED
+             CONFIG
              PATHS "${CMAKE_CURRENT_SOURCE_DIR}/cmake"
-             NO_DEFAULT_PATH)
+             NO_DEFAULT_PATH
+             NO_CMAKE_FIND_ROOT_PATH)
 
 #
 # Shared plugin library
 #
 
-ie_add_plugin(NAME ${TARGET_NAME}
+ov_add_plugin(NAME ${TARGET_NAME}
               DEVICE_NAME "GNA"
               SOURCES ${SOURCES} ${HEADERS}
+              VERSION_DEFINES_FOR src/gna_plugin_entry_points.cpp
               ADD_CLANG_FORMAT)
 
 # Enable support of CC for the plugin
@@ -78,6 +78,8 @@ ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 #
 
 add_library(${TARGET_NAME}_test_static STATIC EXCLUDE_FROM_ALL ${SOURCES} ${HEADERS})
+
+ov_add_version_defines(src/gna_plugin_entry_points.cpp ${TARGET_NAME}_test_static)
 
 target_compile_definitions(${TARGET_NAME}_test_static
         PRIVATE

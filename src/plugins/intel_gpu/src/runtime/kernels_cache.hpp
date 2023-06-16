@@ -56,7 +56,7 @@ public:
         source_code source;
         std::string options;
         bool dump_custom_program;
-        std::map<std::string, kernel_impl_params> entry_point_to_id;
+        std::map<std::string, std::pair<kernel_impl_params, size_t>> entry_point_to_id;
 
         explicit batch_program(int32_t _bucket_id, int32_t _batch_id, std::string _options, const std::vector<std::string>& batch_header_str)
             : bucket_id(_bucket_id),
@@ -70,7 +70,7 @@ public:
         }
     };
 
-    using compiled_kernels = std::unordered_map<kernel_impl_params, std::vector<kernel::ptr>, impl_hasher>;
+    using compiled_kernels = std::unordered_map<kernel_impl_params, std::vector<std::pair<kernel::ptr, size_t>>, impl_hasher>;
 
 private:
     static std::mutex _mutex;
@@ -84,7 +84,7 @@ private:
     std::map<std::vector<unsigned char>, uint32_t> _cached_binaries;
     std::unordered_map<std::string, kernel::ptr> _cached_kernels;
     std::vector<std::string> batch_header_str;
-
+    std::unordered_map<kernel_impl_params, size_t, impl_hasher> _kernel_batch_hash;
     void get_program_source(const kernels_code& kernels_source_code, std::vector<batch_program>*) const;
     void build_batch(const engine& build_engine, const batch_program& batch, compiled_kernels& compiled_kernels);
 
@@ -120,6 +120,12 @@ public:
     std::string get_cached_kernel_id(kernel::ptr kernel) const;
     std::vector<std::string> get_cached_kernel_ids(const std::vector<kernel::ptr>& kernels) const;
     void add_to_cached_kernels(const std::vector<kernel::ptr>& kernels);
+
+    size_t get_kernel_batch_hash(const kernel_impl_params params) const {
+        if (_kernel_batch_hash.find(params) != _kernel_batch_hash.end())
+            return _kernel_batch_hash.at(params);
+        return 0;
+    }
 
     void save(BinaryOutputBuffer& ob) const;
     void load(BinaryInputBuffer& ib);

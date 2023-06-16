@@ -50,9 +50,9 @@ foreach(PYX_FILE IN LISTS PYX_SOURCES)
     set_target_properties(${PYX_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 endforeach()
 
-if(COMMAND ie_add_vs_version_file)
+if(COMMAND ov_add_vs_version_file)
     foreach(target IN LISTS INSTALLED_TARGETS)
-        ie_add_vs_version_file(NAME ${target}
+        ov_add_vs_version_file(NAME ${target}
                                FILEDESCRIPTION "Inference Engine Python library")
     endforeach()
 endif()
@@ -78,20 +78,20 @@ endif()
 add_custom_command(TARGET ${TARGET_NAME}
     POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/__init__.py ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/__init__.py
-    COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/../__init__.py ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/../__init__.py
 )
 
 # install
 
 install(TARGETS ${INSTALLED_TARGETS}
         RUNTIME DESTINATION ${OV_CPACK_PYTHONDIR}/openvino/inference_engine
-        COMPONENT ${PYTHON_COMPONENT}
+        COMPONENT ${PYTHON_COMPONENT} ${OV_CPACK_COMP_PYTHON_IE_API_EXCLUDE_ALL}
         LIBRARY DESTINATION ${OV_CPACK_PYTHONDIR}/openvino/inference_engine
-        COMPONENT ${PYTHON_COMPONENT})
+        COMPONENT ${PYTHON_COMPONENT} ${OV_CPACK_COMP_PYTHON_IE_API_EXCLUDE_ALL})
 
 install(PROGRAMS __init__.py
         DESTINATION ${OV_CPACK_PYTHONDIR}/openvino/inference_engine
-        COMPONENT ${PYTHON_COMPONENT})
+        COMPONENT ${PYTHON_COMPONENT}
+        ${OV_CPACK_COMP_PYTHON_IE_API_EXCLUDE_ALL})
 
 add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME}
                         EXCLUDE_PATTERNS ".*\\.cxx;.*\\.pxd;.*\\.pyx")

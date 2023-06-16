@@ -1,13 +1,13 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <ngraph/pass/graph_rewrite.hpp>
-#include <ngraph/pattern/matcher.hpp>
+#include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace snippets {
 namespace pass {
 
@@ -17,11 +17,11 @@ namespace pass {
  *        Only single-value (0D) constants are currently supported.
  * @ingroup snippets
  */
-class ConvertConstantsToScalars: public ngraph::pass::MatcherPass {
+class ConvertConstantsToScalars: public ov::pass::MatcherPass {
 public:
     ConvertConstantsToScalars();
 };
 
 } // namespace pass
 } // namespace snippets
-} // namespace ngraph
+} // namespace ov

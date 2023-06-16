@@ -347,7 +347,7 @@ void regclass_graph_Model(py::module m) {
                 } else if (py::isinstance<ov::Output<ov::Node>>(item.first)) {
                     new_shape.first = item.first.cast<ov::Output<ov::Node>>();
                 } else {
-                    throw py::type_error("Incorrect key type " + std::string(item.first.get_type().str()) +
+                    throw py::type_error("Incorrect key type " + std::string(py::str(item.first.get_type())) +
                                          " to reshape a model, expected keys as openvino.runtime.Output, int or str.");
                 }
                 // check values
@@ -359,7 +359,7 @@ void regclass_graph_Model(py::module m) {
                     new_shape.second = ov::PartialShape(item.second.cast<std::string>());
                 } else {
                     throw py::type_error(
-                        "Incorrect value type " + std::string(item.second.get_type().str()) +
+                        "Incorrect value type " + std::string(py::str(item.second.get_type())) +
                         " to reshape a model, expected values as openvino.runtime.PartialShape, str, list or tuple.");
                 }
                 new_shapes.insert(new_shape);
@@ -730,7 +730,7 @@ void regclass_graph_Model(py::module m) {
         )");
 
     model.def("__repr__", [](const ov::Model& self) {
-        std::string class_name = py::cast(self).get_type().attr("__name__").cast<std::string>();
+        std::string class_name = Common::get_class_name(self);
 
         auto inputs_str = Common::docs::container_to_string(self.inputs(), ",\n");
         auto outputs_str = Common::docs::container_to_string(self.outputs(), ",\n");

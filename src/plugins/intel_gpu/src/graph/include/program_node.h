@@ -5,7 +5,6 @@
 #pragma once
 
 #include "intel_gpu/primitives/primitive.hpp"
-#include "intel_gpu/primitives/activation.hpp"
 #include "intel_gpu/primitives/implementation_desc.hpp"
 #include "intel_gpu/graph/program.hpp"
 
@@ -94,7 +93,7 @@ public:
                 if (u->is_fused_dep(dep_idx)) {
                     continue;
                 }
-                if (u->get_dependency(dep_idx).get_unique_id() == unique_id) {
+                if (u->get_dependencies().at(dep_idx).first == this) {
                     return true;
                 }
             }
@@ -104,6 +103,24 @@ public:
 
     bool is_fused_dep(size_t dep_idx) const;
 
+    bool has_fused_dep() const {
+        for (auto fused : get_fused_primitives()) {
+            if (fused.has_outer_dep())
+                return true;
+        }
+        return false;
+    }
+
+    int32_t get_first_fused_dep_idx() const {
+        if (!has_fused_dep())
+            return -1;
+        for (auto fused : get_fused_primitives()) {
+            if (fused.has_outer_dep())
+                return fused.outer_dep_start_idx;
+        }
+        return -1;
+    }
+
     std::map<size_t, memory::ptr> get_const_memory_deps() const;
 
     virtual std::unique_ptr<kernel_impl_params> get_kernel_impl_params() const {
@@ -111,10 +128,10 @@ public:
     }
 
     virtual std::unique_ptr<kernel_impl_params> get_kernel_impl_params(const std::vector<layout>& in_layouts, const std::vector<layout>& out_layouts) const {
-        auto params = std::unique_ptr<kernel_impl_params>(new kernel_impl_params(get_program(), get_primitive(), get_unique_id(), in_layouts, out_layouts,
-                                                                                 get_fused_primitives()));
+        auto params = std::unique_ptr<kernel_impl_params>(new kernel_impl_params(get_program(), get_program().get_stream_ptr(), get_primitive(),
+                                                                                 get_unique_id(), in_layouts, out_layouts, get_fused_primitives()));
         params->memory_deps = get_const_memory_deps();
-
+        params->_can_be_optimized = this->optimized;
         auto deps = get_dependencies();
         for (size_t i = 0; i < deps.size(); i++) {
             if (!deps[i].first->is_constant()) {
@@ -265,6 +282,9 @@ public:
     void unmark() { user_mark = 0; }
     bool is_marked() const { return user_mark != 0; }
 
+    void set_in_shape_of_subgraph(bool val = true) { in_shape_of_subgraph = val; }
+    bool is_in_shape_of_subgraph() const { return in_shape_of_subgraph; }
+
     // check/set if the node can be optimized out (removed from the network)
     bool can_be_optimized() const { return optimized; }
     void can_be_optimized(bool opt) { optimized = opt; }
@@ -316,6 +336,12 @@ public:
     template <class To>
     operator typed_program_node<To> const&() const {
         return as<To>();
+    }
+
+    void add_dependant_shape_of_node(const program_node* node);
+
+    const std::set<const program_node*>& get_dependant_shape_of_nodes() const {
+        return dependant_shape_of_nodes;
     }
 
     void set_reused_memory_color(uint32_t color) const {
@@ -415,6 +441,9 @@ protected:
     impl_types impl_type = impl_types::any;
     bool constant = false;
     bool data_flow = false;
+    bool in_shape_of_subgraph = false;
+
+    std::set<const program_node*> dependant_shape_of_nodes;
 
     bool output = false;
     uint8_t user_mark = 0;

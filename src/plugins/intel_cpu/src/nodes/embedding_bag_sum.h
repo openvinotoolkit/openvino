@@ -31,7 +31,7 @@ public:
 protected:
     virtual void initFromInputs() = 0;
     virtual void getIndices(
-            int embIndex,
+            size_t embIndex,
             const int*& indicesRef,
             size_t& size,
             int& weightsIdx,

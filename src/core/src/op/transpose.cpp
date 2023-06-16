@@ -64,7 +64,9 @@ bool op::v1::Transpose::evaluate(const HostTensorVector& output_values, const Ho
                     "Transpose axis element type has to be integral data type.");
 
     const auto& arg = input_values[ARG];
+    OPENVINO_SUPPRESS_DEPRECATED_START
     std::vector<int64_t> axes_order = host_tensor_2_vector<int64_t>(order);
+    OPENVINO_SUPPRESS_DEPRECATED_END
     auto out_shape = calc_output_shape(this, arg->get_shape(), axes_order);
 
     auto& out = output_values[ARG_T];
@@ -93,5 +95,7 @@ bool op::v1::Transpose::evaluate_upper(ov::TensorVector& output_values) const {
 }
 
 bool op::v1::Transpose::evaluate_label(TensorLabelVector& output_labels) const {
+    OPENVINO_SUPPRESS_DEPRECATED_START
     return get_input_tensor(ORDER).has_and_set_bound() && default_label_evaluator(this, output_labels);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }

@@ -146,9 +146,7 @@ void CreateCustomOp(Program& p, const std::shared_ptr<ngraph::Node>& op, CustomL
                         reorderPrimName,
                         inputs[param.portIndex],
                         param.format,
-                        cldnn::element_type_to_data_type(op->get_input_element_type(param.portIndex)),
-                        std::vector<float>(),
-                        cldnn::reorder_mean_mode::subtract);
+                        cldnn::element_type_to_data_type(op->get_input_element_type(param.portIndex)));
 
                     p.add_primitive(*op, preprocessPrim);
                     reordered_inputs[param.portIndex] = cldnn::input_info(reorderPrimName);
@@ -190,12 +188,12 @@ void CreateCustomOp(Program& p, const std::shared_ptr<ngraph::Node>& op, CustomL
     int featureDim = outputTensor.feature[0];
     int yDim = outputTensor.spatial[1];
     int xDim = outputTensor.spatial[0];
-    size_t iidx = customLayer->InputDimSourceIndex();
+    int iidx = customLayer->InputDimSourceIndex();
 
     std::string genericLayerName = layer_type_name_ID(op);
     // if input index is greater than -1, take dimension from input
     if (iidx >= 0) {
-        if (iidx >= op->get_input_size())
+        if (static_cast<size_t>(iidx) >= op->get_input_size())
             IE_THROW() << "Invalid input tensor for index: " << iidx;
         auto inputDims = op->get_input_shape(iidx);
 
@@ -210,13 +208,13 @@ void CreateCustomOp(Program& p, const std::shared_ptr<ngraph::Node>& op, CustomL
         { 'y', yDim },       { 'Y', yDim },
         { 'x', xDim },       { 'X', xDim },
     };
-    for (auto rule : customLayer->GlobalSizeRules()) {
+    for (const auto& rule : customLayer->GlobalSizeRules()) {
         SimpleMathExpression expr;
         expr.SetVariables(vars);
         expr.SetExpression(rule);
         gws.push_back(expr.Evaluate());
     }
-    for (auto rule : customLayer->LocalSizeRules()) {
+    for (const auto& rule : customLayer->LocalSizeRules()) {
         SimpleMathExpression expr;
         expr.SetVariables(vars);
         expr.SetExpression(rule);
@@ -240,9 +238,7 @@ void CreateCustomOp(Program& p, const std::shared_ptr<ngraph::Node>& op, CustomL
         p.add_primitive(*op, cldnn::reorder(reorderPrimName,
                                             cldnn::input_info(genericLayerName),
                                             cldnn::format::get_default_format(op->get_output_shape(0).size()),
-                                            customPrim.output_layout.data_type,
-                                            std::vector<float>(),
-                                            cldnn::reorder_mean_mode::subtract));
+                                            customPrim.output_layout.data_type));
         prevLayerName = reorderPrimName;
     }
     p.add_primitive(*op, customPrim);

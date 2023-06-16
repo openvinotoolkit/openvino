@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include "generic_layer.hpp"
 #include "intel_gpu/primitives/activation.hpp"
 #include "intel_gpu/primitives/arg_max_min.hpp"
 #include "intel_gpu/primitives/batch_to_space.hpp"
@@ -29,6 +28,7 @@
 #include "intel_gpu/primitives/experimental_detectron_topk_rois.hpp"
 #include "intel_gpu/primitives/eye.hpp"
 #include "intel_gpu/primitives/fully_connected.hpp"
+#include "intel_gpu/primitives/generic_layer.hpp"
 #include "intel_gpu/primitives/gather.hpp"
 #include "intel_gpu/primitives/gather_elements.hpp"
 #include "intel_gpu/primitives/gather_nd.hpp"
@@ -75,6 +75,7 @@
 #include "intel_gpu/primitives/tile.hpp"
 #include "intel_gpu/primitives/non_zero.hpp"
 #include "intel_gpu/primitives/eye.hpp"
+#include "intel_gpu/primitives/unique.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -174,6 +175,8 @@ REGISTER_OCL(convert_color);
 REGISTER_OCL(count_nonzero);
 REGISTER_OCL(gather_nonzero);
 REGISTER_OCL(eye);
+REGISTER_OCL(unique_count);
+REGISTER_OCL(unique_gather);
 
 #undef REGISTER_OCL
 

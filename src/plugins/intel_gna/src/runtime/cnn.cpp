@@ -17,6 +17,7 @@
 #include "log/debug.hpp"
 
 using namespace ov::intel_gna::gna_convolution_layer;
+using namespace ov::intel_gna::limitations;
 
 void CNNFilter32(intel_dnn_component_t* component) {
     auto filters = reinterpret_cast<float*>(component->op.conv1D.ptr_filters);
@@ -306,7 +307,7 @@ void CNN2DFilter32(intel_dnn_component_t* component) {
             }
         }
         // kernel padded to 16B = 4 * sizeof(float)
-        kernelIndex += ALIGN(kh * kw * kc, ov::intel_gna::limitations::convEachKernelByteAlignment / sizeof(float));
+        kernelIndex += ALIGN(kh * kw * kc, Limitations::kConvEachKernelByteAlignment / sizeof(float));
     }
 }
 
@@ -317,8 +318,12 @@ bool is2D(T&& vec) {
 }
 }  // namespace
 
-void CNNMaxPool(intel_dnn_component_t* component, intel_dnn_number_type_t number_type, const bool sumPoolingOverRide) {
-    if (is2D(component->op.maxpool.poolingStrideXY) || is2D(component->op.maxpool.poolingWindowXY)) {
+void CNNMaxPool(intel_dnn_component_t* component,
+                intel_dnn_number_type_t number_type,
+                const bool fused_with_convolution_2d,
+                const bool sumPoolingOverRide) {
+    if (fused_with_convolution_2d || is2D(component->op.maxpool.poolingStrideXY) ||
+        is2D(component->op.maxpool.poolingWindowXY)) {
         if (!sumPoolingOverRide) {
             CNNMaxPool2DFloat(component);
         } else {

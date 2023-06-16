@@ -7,16 +7,6 @@ import subprocess # nosec
 import sys
 
 
-def check_python_version():
-    """
-    Checks python version to be greater or equal than 3.4
-    :return: exit code (1 - error, None - successful)
-    """
-    if sys.version_info < (3, 4):
-        print('Python version should be of version 3.4 or newer')
-        return 1
-
-
 def log_ie_not_found():
     log.error("Could not find the Inference Engine or nGraph Python API.\n"
               "Consider building the Inference Engine and nGraph Python APIs"
@@ -29,10 +19,6 @@ def log_mo_root_dir_not_found():
 
 
 def setup_env():
-    ret_code = check_python_version()
-    if ret_code:
-        sys.exit(ret_code)
-
     mo_root_path = os.path.join(os.path.dirname(__file__), os.pardir, os.pardir, os.pardir)
 
     # Check that MO root directory already set to the PYTHONPATH

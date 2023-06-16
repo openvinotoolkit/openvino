@@ -70,15 +70,8 @@ def _update(cls, registered_list: list, registered_dict: dict, key: str, enabled
     # print('Registering new subclasses for', cls)
 
     for c in cls.__subclasses__():
-        # skip importing loaders of other frameworks
-        if cls.__name__ == 'Loader':
-            need_exclude = False
-            for framework in exclude_modules:
-                if framework in c.__module__:
-                    need_exclude = True
-                    break
-            if need_exclude:
-                continue
+        if need_exclude_class(c, exclude_modules):
+            continue
         # Force enabling operations
         if hasattr(c, 'id') and c.id in enabled_transforms or \
                 ".".join([c.__module__, c.__name__]) in enabled_transforms:
@@ -97,8 +90,8 @@ def _update(cls, registered_list: list, registered_dict: dict, key: str, enabled
             if hasattr(c, key) and getattr(c, key) is not None:
                 k = getattr(c, key)
                 if k.lower() in new_keys_lower:
-                    log.warning('Attempt to register of custom name {} for the second time as class {}. '
-                                'Note that custom names are case-insensitive. ' + refer_to_faq_msg(55), k, c)
+                    # log.warning('Attempt to register of custom name {} for the second time as class {}. '
+                    #             'Note that custom names are case-insensitive. ' + refer_to_faq_msg(55), k, c)
                     continue
                 else:
                     new_keys_lower[k.lower()] = k
@@ -223,6 +216,13 @@ class DependencyGraph(Graph):
         return order
 
 
+def need_exclude_class(class_type, excluded_frameworks):
+    for framework in excluded_frameworks:
+        if "." + framework + "." in str(class_type):
+            return True
+    return False
+
+
 def get_replacers_order(transform_types: list):
     """
     Gets all transforms that do not have 'op'.
@@ -245,9 +245,11 @@ def get_replacers_order(transform_types: list):
 
     for i, replacer_cls in enumerate(replacers):
         for cls_after in replacer_cls().run_before():
-            dependency_graph.add_edge(replacer_cls, cls_after)
+            if cls_after in replacers:
+                dependency_graph.add_edge(replacer_cls, cls_after)
         for cls_before in replacer_cls().run_after():
-            dependency_graph.add_edge(cls_before, replacer_cls)
+            if cls_before in replacers:
+                dependency_graph.add_edge(cls_before, replacer_cls)
 
     replacers_order = dependency_graph.determined_sort()
 

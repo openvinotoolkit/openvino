@@ -14,7 +14,6 @@
 #include "transformations/common_optimizations/add_fake_quantize_fusion.hpp"
 #include "transformations/common_optimizations/common_optimizations.hpp"
 #include "transformations/common_optimizations/concat_reduce_fusion.hpp"
-#include "transformations/common_optimizations/convert_compression_only_to_legacy.hpp"
 #include "transformations/common_optimizations/fq_mul_fusion.hpp"
 #include "transformations/common_optimizations/fq_reshape_fusion.hpp"
 #include "transformations/common_optimizations/pull_transpose_through_fq.hpp"
@@ -27,7 +26,8 @@
 #include "transformations/convert_precision.hpp"
 #include "transformations/decompose_2d_convolution.hpp"
 #include "transformations/decompose_mvn.hpp"
-#include "transformations/disable_decompression_convert_constant_folding.hpp"
+#include "transformations/fp16_compression/convert_compression_only_to_legacy.hpp"
+#include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
 #include "transformations/handle_transposes_around_matmul.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/insert_copy_layer.hpp"
@@ -45,6 +45,7 @@
 #include "transformations/pwl_approximation.hpp"
 #include "transformations/remove_converts.hpp"
 #include "transformations/remove_extra_reshapes.hpp"
+#include "transformations/remove_in_out_processing.hpp"
 #include "transformations/remove_single_input_concat.hpp"
 #include "transformations/reorder_activation_and_pooling.hpp"
 #include "transformations/split_convolution_with_large_buffer_size.hpp"
@@ -58,11 +59,14 @@ namespace ov {
 namespace intel_gna {
 
 void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
-                                    ov::intel_gna::PrePostProcessModels* subgraph_cpu_map) {
+                                    ov::intel_gna::PrePostProcessModels* input_output_subgraphs) {
     OV_ITT_SCOPED_TASK(itt::domains::GNAPlugin, "TransformationsPipeline::apply");
 
     fake_quantized = ov::op::util::has_op_with_type<ngraph::op::FakeQuantize>(model);
-
+    const bool has_convolution = ov::op::util::has_op_with_type<ngraph::opset7::Convolution>(model);
+    const bool has_matmul = ov::op::util::has_op_with_type<ngraph::opset7::MatMul>(model);
+    const bool has_mvn = ov::op::util::has_op_with_type<ngraph::opset7::MVN>(model) ||
+                         ov::op::util::has_op_with_type<ov::op::v0::MVN>(model);
     ov::pass::Manager manager;
     manager.register_pass<ov::pass::InitNodeInfo>();
 
@@ -79,13 +83,10 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
     manager.register_pass<ov::pass::LSTMCellDecomposition>();
     manager.register_pass<ov::intel_gna::pass::ConvertDWSCToScaleShifts>();
     manager.register_pass<ov::intel_gna::pass::ConvertPaddedToValidConv>();
-    manager.register_pass<ov::intel_gna::pass::Decompose2DConvTransposedWithBiasAF>(effective_compile_target,
-                                                                                    config.gnaPrecision);
-    manager.register_pass<ov::intel_gna::pass::Decompose2DConvTransposedWithBias>(effective_compile_target,
-                                                                                  config.gnaPrecision);
-    manager.register_pass<ov::intel_gna::pass::Decompose2DConv>(effective_compile_target, config.gnaPrecision);
-    // TODO enable this transformation for networks with convolutions
-    if (!ov::op::util::has_op_with_type<ngraph::opset7::Convolution>(model)) {
+    manager.register_pass<ov::intel_gna::pass::Decompose2DConvTransposedWithBiasAF>(config.gnaPrecision);
+    manager.register_pass<ov::intel_gna::pass::Decompose2DConvTransposedWithBias>(config.gnaPrecision);
+    manager.register_pass<ov::intel_gna::pass::Decompose2DConv>(config.gnaPrecision);
+    if (!has_convolution) {
         manager.register_pass<ov::intel_gna::pass::ConvertMatmulWithFqToPointWiseConvolution>();
         manager.register_pass<ov::intel_gna::pass::ConvertMatmulWithBiasToPointWiseConvolution>();
         manager.register_pass<ov::intel_gna::pass::ConvertMatmulToPointWiseConvolution>();
@@ -111,6 +112,11 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
     manager.register_pass<ov::intel_gna::pass::RemoveSingleInputConcat>();
     manager.register_pass<ov::intel_gna::pass::SubstituteSoftsign>();
     manager.register_pass<ov::intel_gna::pass::InsertCopyBeforeLayerToBeEliminated>();
+    if (!has_convolution && !has_matmul && !has_mvn) {
+        // TODO: Remove this condition when the legacy layout transformation (NCHW->NHWC) is disabled
+        manager.register_pass<ov::intel_gna::pass::RemoveInputsProcessing>(input_output_subgraphs);
+        manager.register_pass<ov::intel_gna::pass::RemoveOutputsProcessing>(input_output_subgraphs);
+    }
     manager.register_pass<ov::pass::ConvertOpSet3ToOpSet2>();
     manager.register_pass<ov::pass::ConvertOpSet2ToOpSet1>();
     manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();

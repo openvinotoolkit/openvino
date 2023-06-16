@@ -227,27 +227,12 @@ void InferRequest::set_input(const std::string& name, const Blob::Ptr& data) {
     auto remote_ptr = data->as<gpu::ClBlob>();
     bool is_remote = remote_ptr != nullptr;
 
-    auto node = findInputByNodeName(name);
-    bool isDynamic = node && node->get_output_partial_shape(0).is_dynamic();
-
     if (is_remote) {
         _deviceInputs[name] = data;
         _inputs[name] = data;
     } else {
-        if (data->buffer() == nullptr)
-            IE_THROW(NotAllocated) << str_input_not_allocated << " Input name: \'" << name << "\'";
+        OPENVINO_ASSERT(data->buffer().as<void*>() != nullptr, str_input_not_allocated, " Input name: \'", name, "\'");
         _inputs[name] = data;
-        if (isDynamic) {
-            // We must create new input data if it has never been allocated or previously allocated
-            // device blob is smaller than currently assigned user blob
-            bool needs_realloc = _deviceInputs.find(name) == _deviceInputs.end() || _deviceInputs.at(name)->byteSize() < data->byteSize();
-            if (needs_realloc) {
-                _deviceInputs[name] = create_device_blob(data->getTensorDesc());
-            } else {
-                if (_deviceInputs.at(name)->getTensorDesc() != data->getTensorDesc())
-                    _deviceInputs[name] = reinterpret_device_blob(_deviceInputs[name], data->getTensorDesc());
-            }
-        }
     }
 }
 
@@ -497,7 +482,7 @@ void InferRequest::enqueue() {
 
     // If dump layers path is set, only runs first inference.
     GPU_DEBUG_GET_INSTANCE(debug_config);
-    GPU_DEBUG_IF(debug_config->dump_layers_path.length() > 0) {
+    GPU_DEBUG_IF(debug_config->dump_layers_path.length() > 0 && debug_config->dump_iteration.empty()) {
         GPU_DEBUG_INFO << "Only run first inference to dump layers." << std::endl;
         exit(0);
     }
@@ -524,7 +509,8 @@ void InferRequest::wait() {
 
         bool need_output_update = false;
 
-        if (outputLayout.bytes_count() == 0 || _outputs.find(no.first) == _outputs.end() || _outputs.at(no.first)->byteSize() != outputMemory->size()) {
+        if (outputLayout.bytes_count() == 0 || _outputs.find(no.first) == _outputs.end() ||
+            (outputMemory && _outputs.at(no.first)->byteSize() != outputMemory->size())) {
             need_output_update = true;
         }
 
@@ -544,13 +530,10 @@ void InferRequest::wait() {
             }
             auto layout_by_rank = [](size_t rank) {
                 switch (rank) {
-                    case 6: return InferenceEngine::Layout::BLOCKED;
                     case 5: return InferenceEngine::Layout::NCDHW;
                     case 4: return InferenceEngine::Layout::NCHW;
-                    case 3: return InferenceEngine::Layout::BLOCKED;
                     case 2: return InferenceEngine::Layout::NC;
-                    case 1: return InferenceEngine::Layout::BLOCKED;
-                    default: IE_THROW() << "[GPU] Unsupported out rank";
+                    default: return InferenceEngine::Layout::BLOCKED;
                 }
             };
             auto layout = layout_by_rank(out_rank);
@@ -924,8 +907,9 @@ void InferRequest::prepare_input(const cldnn::primitive_id& inputName, Blob::Ptr
         bool has_device_blob = _deviceInputs.find(inputName) != _deviceInputs.end();
         bool should_allocate_device_blob = !has_device_blob;
         if (has_device_blob) {
-            auto device_blob = _deviceInputs.at(inputName);
-            if (device_blob->byteSize() < inputBlob->byteSize()) {
+            auto device_blob = _deviceInputs.at(inputName)->as<gpu::ClBlob>();
+            auto blob = getBlobImpl(device_blob);
+            if (blob->get_original_memory()->size() < inputBlob->byteSize()) {
                 should_allocate_device_blob = true;
             }
         }
@@ -1069,7 +1053,7 @@ std::vector<std::shared_ptr<InferenceEngine::IVariableStateInternal>> InferReque
     std::vector<std::shared_ptr<InferenceEngine::IVariableStateInternal>> ret{};
     ret.reserve(variables_states_.size());
     for (const auto& pair : variables_states_)
-        ret.push_back(std::make_shared<VariableState>(pair.first, pair.second, m_graph->get_engine(), m_curBatch));
+        ret.push_back(std::make_shared<VariableState>(pair.first, pair.second, m_graph->get_engine(), -1));
     return ret;
 }
 

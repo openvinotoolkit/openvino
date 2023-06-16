@@ -27,13 +27,6 @@ list(APPEND UNIT_TESTS_DEPENDENCIES openvino_template_extension)
 list(APPEND UNIT_TESTS_DEPENDENCIES template_extension)
 
 list(APPEND EXCLUDE_TESTS ${CMAKE_CURRENT_SOURCE_DIR}/dnnl.cpp)
-if (ENABLE_TEMPLATE)
-    list(APPEND UNIT_TESTS_DEPENDENCIES openvino_template_plugin)
-else()
-    list(APPEND EXCLUDE_TESTS
-        # It should be a part of template plugin
-        ${CMAKE_CURRENT_SOURCE_DIR}/op_eval/memory.cpp)
-endif()
 
 ov_add_test_target(
     NAME ${TARGET_NAME}

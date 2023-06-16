@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <cstdint>
 #include <fstream>
 #include <functional>
 #include <string>
@@ -36,7 +37,11 @@ struct FileTraits<char> {
     }
     static std::string library_prefix() {
 #ifdef _WIN32
+#    if defined(__MINGW32__) || defined(__MINGW64__)
+        return {"lib"};
+#    else
         return {""};
+#    endif
 #else
         return {"lib"};
 #endif
@@ -61,7 +66,11 @@ struct FileTraits<wchar_t> {
     }
     static std::wstring library_prefix() {
 #ifdef _WIN32
+#    if defined(__MINGW32__) || defined(__MINGW64__)
+        return {L"lib"};
+#    else
         return {L""};
+#    endif
 #else
         return {L"lib"};
 #endif

@@ -34,7 +34,7 @@ public:
         return false;
     }
     InferenceEngine::Precision getRuntimePrecision() const override;
-    std::shared_ptr<MemoryDesc> getSrcMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
+    std::shared_ptr<MemoryDesc> getSrcMemDesc(const dnnl::primitive_desc &prim_desc, size_t idx) const override;
 
     dnnl::memory getWeights() const;
     dnnl::memory getBias() const;
@@ -69,13 +69,11 @@ public:
 
     bool isWinograd() const { return isWino; }
 
-    void setDynamicBatchLim(int lim) override;
-
 protected:
     InferenceEngine::Precision fusedEltwisePrecision(const NodePtr& fusingNode) const;
     void redefineOutputMemory(const std::vector<VectorDims> &newOutputShapes) override;
     void addFusedNode(const NodePtr &fusingNode) override;
-    const std::vector<impl_desc_type>& getPrimitivesPriority() override;
+    const std::vector<impl_desc_type>& getDefaultImplPriority() override;
 
 private:
     enum class zpType {
@@ -83,6 +81,7 @@ private:
         PerTensor,
         PerChannel
     };
+
     class FusedSubgraph;
     using FusedSubgraphPtr = std::shared_ptr<FusedSubgraph>;
     using executorPtr = std::shared_ptr<DnnlExecutor>;
@@ -90,11 +89,12 @@ private:
 
     class ConvolutionExecutor : public DnnlExecutor {
         public:
-            ConvolutionExecutor(const dnnl::convolution_forward::primitive_desc& pd,
+            ConvolutionExecutor(const dnnl::primitive_desc& pd,
                                 const dnnl::memory::desc& inMemDesc,
                                 const dnnl::memory::desc& weightMemDesc,
                                 const dnnl::memory::desc& outMemDesc,
-                                const dnnl::engine& engine);
+                                const dnnl::engine& engine,
+                                bool constWeight);
     };
 
     void prepareParams() override;
@@ -105,18 +105,16 @@ private:
     void setPostOps(dnnl::primitive_attr &attr, const VectorDims &dims, bool useLegacyPostOps, bool initWeights = false);
     void SetPostOpsAndZeroPoints(std::vector<dnnl::primitive_attr> &attrs);
     void filterSupportedDescriptors();
-    bool isPossibleToSkipInitConfig(const dnnl::primitive_desc &desc) const;
     bool isNspcAvailable() const;
     InferenceEngine::Blob::Ptr createInternalBlob(InferenceEngine::SizeVector dims, size_t edgeNum, bool isGrouped = false);
 
     void updatePadding();
-    MemoryDescPtr getSumMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it);
+    MemoryDescPtr getSumMemDesc(const dnnl::primitive_desc &primitive_desc_it);
     MemoryPtr getOutputMemory() const;
     VectorDims makeInputDummyShape(const Shape& inpShape) const;
     VectorDims outputStaticShape() const;
     void appendLegacyZeroPointsArgs();
     void appendZeroPointsArgs();
-    void initTryBrgconvFlag();
 
     bool withBiases;
     bool withSum;
@@ -156,7 +154,7 @@ private:
     const size_t Y_AXIS = 1;
 
     bool isWino = false;
-    bool shouldTryBrgconv = false;
+    static const bool isBrgConvAvailable;
     std::vector<dnnl::primitive_attr> attrs;
     AttrPtr pAttr;
     bool autoPadding = false;
@@ -167,8 +165,15 @@ private:
     MemoryPtr legacyWeightsZeroPointsMemPtr;
     MemoryPtr legacyOutputCompensationMemPtr;
     MemoryPtr stockInputZeroPointsMemPtr;
-    dnnl::memory::data_type outputDataType;
+    dnnl::memory::data_type outputDataType = dnnl::memory::data_type::undef;
     InferenceEngine::Precision sumPrc = InferenceEngine::Precision::UNSPECIFIED;
+
+    // TODO: migrate on convolution_auto algorithm for x64
+#if defined(OPENVINO_ARCH_X86_64)
+    const dnnl::algorithm baseConvAlgorithm = dnnl::algorithm::convolution_direct;
+#else
+    const dnnl::algorithm baseConvAlgorithm = dnnl::algorithm::convolution_auto;
+#endif
 };
 
 }   // namespace node

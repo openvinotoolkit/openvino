@@ -7,7 +7,6 @@
 #include "primitive_type_base.h"
 #include "intel_gpu/primitives/data.hpp"
 #include "intel_gpu/primitives/mutable_data.hpp"
-#include "intel_gpu/graph/serialization/loop_serializer.hpp"
 #include "intel_gpu/runtime/error_handler.hpp"
 #include <string>
 #include <exception>
@@ -232,7 +231,7 @@ void loop_inst::update_mapped_memory() {
             body_network->get_primitive(internal_id)->set_output_memory(to_mem);
         } else {
             for (auto& mem_mapping : concatenated_output_mem_mappings) {
-                if (mem_mapping.concat_data_prim->id() == internal_id) {
+                if (mem_mapping.sliced_data_prim->id() == internal_id) {
                     mem_mapping.concatenated_mem = to_mem;
                     break;
                 }
@@ -339,7 +338,7 @@ void loop_inst::preprocess_output_memory() {
             const int64_t max_iteration = _max_iteration;
             std::vector<memory::ptr> sliced_mems;
             sliced_mems.reserve(max_iteration);
-            for (int j=0; j < max_iteration; ++j) {
+            for (int32_t j = 0; j < max_iteration; ++j) {
                 memory::ptr sliced_mem = engine.allocate_memory(sliced_layout, 0);
                 sliced_mems.push_back(sliced_mem);
             }
@@ -351,7 +350,8 @@ void loop_inst::preprocess_output_memory() {
             concatenated_memory_mapping memory_mapping_info(
                 output_mapping.axis, to_mem, sliced_mems, _network.get_stream(),
                 num_elements_iteration, output_mapping.stride, start);
-            memory_mapping_info.concat_data_prim = body_network->get_primitive(internal_id);
+            memory_mapping_info.sliced_data_prim = body_network->get_primitive(internal_id);
+            memory_mapping_info.concat_data_prim = get_network().get_primitive(external_id);
             concatenated_output_mem_mappings.push_back(memory_mapping_info);
         }
     }
@@ -467,7 +467,7 @@ std::vector<memory::ptr> loop_inst::get_sliced_mem(const primitive_id& internal_
         }
     }
     for (const auto& mem_mapping : concatenated_output_mem_mappings) {
-        if (mem_mapping.concat_data_prim->id() == internal_id) {
+        if (mem_mapping.sliced_data_prim->id() == internal_id) {
             return mem_mapping.sliced_mems;
         }
     }
@@ -529,7 +529,7 @@ void loop_inst::load(BinaryInputBuffer& ib) {
     ib >> _condition_id;
     ib >> _num_iteration_id;
     ib >> _max_iteration;
-    body_network = std::make_shared<cldnn::network>(ib, get_network().get_stream_ptr(), get_network().get_engine());
+    body_network = std::make_shared<cldnn::network>(ib, get_network().get_stream_ptr(), get_network().get_engine(), get_network().is_primary_stream());
 }
 
 }  // namespace cldnn

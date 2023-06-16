@@ -455,6 +455,9 @@ void RNN::configurePortDataTypes() {
 
     if (one_of(memory::data_type::bf16, inDataTypes[xIdx], inDataTypes[hIdx]))
         inDataTypes[xIdx] = outDataTypes[yIdx] = outDataTypes[hoIdx] = inDataTypes[hIdx] = memory::data_type::bf16; // required by oneDNN.
+
+    if (outDataTypes[yIdx] == memory::data_type::bf16 && one_of(inDataTypes[xIdx], memory::data_type::s8, memory::data_type::u8))
+        outDataTypes[yIdx] = memory::data_type::f32; // oneDNN does not support bf16 output precision for quantized rnn primitive yet
 }
 
 void RNN::getSupportedDescriptors() {
@@ -479,26 +482,30 @@ void RNN::initCell() {
     else
         DC = getInputShapeAtPort(2).getDims()[1];
 
-    // Expected shapes.
-    const Shape shapeD{{N.minVal, DC}, {N.maxVal, DC}}, shapeS{{N.minVal, SC}, {N.maxVal, SC}};
+    if (N.isStatic()) {
+        // Expected shapes.
+        const auto B = N.minVal;
+        const Shape shapeD{B, DC}, shapeS{B, SC};
 
-    if ((getInputShapeAtPort(0).isStatic() && getInputShapeAtPort(0) != shapeD) ||
-            (getInputShapeAtPort(1).isStatic() && getInputShapeAtPort(1) != shapeS) ||
-            (getOutputShapeAtPort(0) != shapeS)) {
-        THROW_ERROR << "has incorrect input/output shapes. Data shape: " << getInputShapeAtPort(0).toString() <<
-                "; Hidden state input: " << getInputShapeAtPort(1).toString() << "; Hidden state output: " << getOutputShapeAtPort(0).toString();
-    }
+        if ((getInputShapeAtPort(0).isStatic() && getInputShapeAtPort(0) != shapeD) ||
+                (getInputShapeAtPort(1).isStatic() && getInputShapeAtPort(1) != shapeS) ||
+                (getOutputShapeAtPort(0).isStatic() && getOutputShapeAtPort(0) != shapeS)) {
+            THROW_ERROR << "has incorrect input/output shapes. Data shape: " << getInputShapeAtPort(0).toString() <<
+                    "; Hidden state input: " << getInputShapeAtPort(1).toString() << "; Hidden state output: " << getOutputShapeAtPort(0).toString();
+        }
 
-    if (S == 2) {
-        if ((getInputShapeAtPort(2).isStatic() && getInputShapeAtPort(2) != shapeS) || (getOutputShapeAtPort(1) != shapeS))
-            THROW_ERROR << "has incorrect input/output shapes. Cell state input: " << getInputShapeAtPort(2).toString() <<
-                    "; Cell state output: " << getOutputShapeAtPort(1).toString();
-    }
+        if (S == 2) {
+            if ((getInputShapeAtPort(2).isStatic() && getInputShapeAtPort(2) != shapeS) ||
+                (getOutputShapeAtPort(1).isStatic() && getOutputShapeAtPort(1) != shapeS))
+                THROW_ERROR << "has incorrect input/output shapes. Cell state input: " << getInputShapeAtPort(2).toString() <<
+                        "; Cell state output: " << getOutputShapeAtPort(1).toString();
+        }
 
-    if (is_augru) {
-        const Shape shapeA{{N.minVal, 1}, {N.maxVal, 1}};
-        if (getInputShapeAtPort(5).isStatic() && getInputShapeAtPort(5) != shapeA) {
-            THROW_ERROR << "has incorrect input shapes. Attention shape: " << getInputShapeAtPort(5).toString();
+        if (is_augru) {
+            const Shape shapeA{B, 1};
+            if (getInputShapeAtPort(5).isStatic() && getInputShapeAtPort(5) != shapeA) {
+                THROW_ERROR << "has incorrect input shapes. Attention shape: " << getInputShapeAtPort(5).toString();
+            }
         }
     }
 }
@@ -713,10 +720,10 @@ void RNN::fillWeights(const int *gate_map, const size_t wIdx, const size_t rIdx)
 
     const int step = SC * G;
 
-    for (int g = 0; g < G; g++) {
-        for (int out_i = 0; out_i < SC; out_i++) {
+    for (size_t g = 0; g < G; g++) {
+        for (size_t out_i = 0; out_i < SC; out_i++) {
             Prec *l_w_ptr = w_ptr + gate_map[g] * SC + out_i;
-            for (int in_i = 0; in_i < DC; in_i++) {
+            for (size_t in_i = 0; in_i < DC; in_i++) {
                 *l_w_ptr = *ie_w_ptr;
                 ie_w_ptr++;
                 l_w_ptr += step;
@@ -762,7 +769,7 @@ void RNN::fillBiases(const int *gate_map) {
                 Prec,
                 elementsCount);
 
-    for (int g = 0; g < Gb; g++) {
+    for (size_t g = 0; g < Gb; g++) {
         dataType *l_b_ptr = b_ptr + gate_map[g] * SC;
         const dataType *l_ie_b_ptr = &ie_b_vec[g * SC];
         cpu_memcpy(l_b_ptr, l_ie_b_ptr, SC * sizeof(typename PrecisionTrait<Prec>::value_type));
@@ -866,7 +873,8 @@ dnnl::primitive_desc createPrimitiveDescriptor(const dnnl::engine        engine,
             wDescs[1],                                                 // Weights state
             wDescs[2],                                                 // Bias
             outDataDescs[RNN::InOutKind::Layer]->getDnnlDesc(),        // Out Data
-            outDataDescs[RNN::InOutKind::HiddenState]->getDnnlDesc()); // Out State
+            outDataDescs[RNN::InOutKind::HiddenState]->getDnnlDesc(),  // Out State
+            attr);
     case dnnl::algorithm::vanilla_gru:
         return dnnl::gru_forward::primitive_desc(
             engine,
@@ -878,7 +886,8 @@ dnnl::primitive_desc createPrimitiveDescriptor(const dnnl::engine        engine,
             wDescs[1],                                                 // Weights state
             wDescs[2],                                                 // Bias
             outDataDescs[RNN::InOutKind::Layer]->getDnnlDesc(),        // Out Data
-            outDataDescs[RNN::InOutKind::HiddenState]->getDnnlDesc()); // Out State
+            outDataDescs[RNN::InOutKind::HiddenState]->getDnnlDesc(),  // Out State
+            attr);
     case dnnl::algorithm::lbr_gru:
         return dnnl::lbr_gru_forward::primitive_desc(
             engine,
@@ -890,7 +899,8 @@ dnnl::primitive_desc createPrimitiveDescriptor(const dnnl::engine        engine,
             wDescs[1],                                                 // Weights state
             wDescs[2],                                                 // Bias
             outDataDescs[RNN::InOutKind::Layer]->getDnnlDesc(),        // Out Data
-            outDataDescs[RNN::InOutKind::HiddenState]->getDnnlDesc()); // Out State
+            outDataDescs[RNN::InOutKind::HiddenState]->getDnnlDesc(),  // Out State
+            attr);
     case dnnl::algorithm::vanilla_lstm:
         return dnnl::lstm_forward::primitive_desc(
             engine,
@@ -904,7 +914,8 @@ dnnl::primitive_desc createPrimitiveDescriptor(const dnnl::engine        engine,
             wDescs[2],                                                 // Bias
             outDataDescs[RNN::InOutKind::Layer]->getDnnlDesc(),        // Out Data
             outDataDescs[RNN::InOutKind::HiddenState]->getDnnlDesc(),  // Out State
-            outDataDescs[RNN::InOutKind::CellState]->getDnnlDesc());   // Out State C
+            outDataDescs[RNN::InOutKind::CellState]->getDnnlDesc(),    // Out State C
+            attr);
     case dnnl::algorithm::vanilla_augru:
         return dnnl::augru_forward::primitive_desc(
             engine,
@@ -917,7 +928,8 @@ dnnl::primitive_desc createPrimitiveDescriptor(const dnnl::engine        engine,
             wDescs[1],                                                 // Weights state
             wDescs[2],                                                 // Bias
             outDataDescs[RNN::InOutKind::Layer]->getDnnlDesc(),        // Out Data
-            outDataDescs[RNN::InOutKind::HiddenState]->getDnnlDesc()); // Out State
+            outDataDescs[RNN::InOutKind::HiddenState]->getDnnlDesc(),  // Out State
+            attr);
     case dnnl::algorithm::lbr_augru:
         return dnnl::lbr_augru_forward::primitive_desc(
             engine,
@@ -930,7 +942,8 @@ dnnl::primitive_desc createPrimitiveDescriptor(const dnnl::engine        engine,
             wDescs[1],                                                 // Weights state
             wDescs[2],                                                 // Bias
             outDataDescs[RNN::InOutKind::Layer]->getDnnlDesc(),        // Out Data
-            outDataDescs[RNN::InOutKind::HiddenState]->getDnnlDesc()); // Out State
+            outDataDescs[RNN::InOutKind::HiddenState]->getDnnlDesc(),  // Out State
+            attr);
     default:
         IE_THROW() << "RNN. Unknown cell type";
     }
@@ -952,7 +965,7 @@ void RNN::fillDescs() {
         wDescs,
         *attr);
 
-    descs.push_back(desc);
+    descs.emplace_back(desc);
 }
 
 void RNN::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc,
@@ -975,20 +988,19 @@ void RNN::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc,
 
     // Fill supported config
     NodeConfig config;
-    config.dynBatchSupport = false;
-    for (size_t i = 0; i < inputDesc.size(); i++) {
+    for (const auto &desc : inputDesc) {
         PortConfig dataConfig;
         dataConfig.inPlace(-1);
         dataConfig.constant(false);
-        dataConfig.setMemDesc(inputDesc[i]);
+        dataConfig.setMemDesc(desc);
         config.inConfs.push_back(dataConfig);
     }
 
-    for (size_t i = 0; i < outputDesc.size(); i++) {
+    for (const auto &desc : outputDesc) {
         PortConfig dataConfig;
         dataConfig.inPlace(-1);
         dataConfig.constant(false);
-        dataConfig.setMemDesc(outputDesc[i]);
+        dataConfig.setMemDesc(desc);
         config.outConfs.push_back(dataConfig);
     }
 
@@ -1000,7 +1012,12 @@ Node::AttrPtr RNN::initPrimitiveAttr() {
     attr->set_scratchpad_mode(dnnl::scratchpad_mode::user);
 
     if (one_of(inDataTypes[xIdx], memory::data_type::u8, memory::data_type::s8)) {
-        const int weightsScaleMask = 0;
+        const int weightsScaleMask = 0
+            + (1 << 3) // bit, indicating the unique scales for `g` dim in `ldigo`
+            + (1 << 4); // bit, indicating the unique scales for `o` dim in `ldigo`
+
+        DEBUG_LOG(getName(), ": inputScale: ", inputScale, ", inputShift: ", inputShift,
+                  ", weightsScaleMask: ", weightsScaleMask, ", weightsScales[0]: ", weightsScales[0]);
 
         attr->set_rnn_weights_qparams(weightsScaleMask, weightsScales);
         attr->set_rnn_data_qparams(inputScale, inputShift);
@@ -1072,47 +1089,47 @@ void RNN::prepareParams() {
                                                        key.wDescs,
                                                        key.attr);
 
-        return std::make_shared<DnnlExecutor>(descPtr);
+        return descPtr ? std::make_shared<RnnDnnlExecutor>(descPtr) : nullptr;
     };
 
     auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(key, builder);
-
+    auto prevExecPtr = execPtr;
     execPtr = result.first;
 
     if (!execPtr) {
         IE_THROW() << "Primitive descriptor was not found for node " << getName() << ".";
     }
 
-    scratchpadMem = getScratchPadMem(execPtr->getScratchPadDesc());
-
-    if (!wasMemoryPrepared || wFormatWasChanged) {
-        auto pd = execPtr->getPrimitiveDesc();
-        auto query_weights_md = [&](int idx = 0) -> dnnl::memory::desc {
-            auto what = dnnl::convert_to_c(dnnl::query::weights_md);
-            const_dnnl_memory_desc_t cdesc = dnnl_primitive_desc_query_md(pd, what, idx);
-            if (!cdesc)
-                IE_THROW() << "query_weights_md failed for node " << getName() << " idx " << idx << ".";
-            dnnl_memory_desc_t cloned_md = nullptr;
-            dnnl_memory_desc_clone(&cloned_md, cdesc);
-
-            return dnnl::memory::desc(cloned_md);
-        };
-        std::vector<DnnlMemoryDescPtr> intDescs {
-            DnnlExtensionUtils::makeDescriptor(query_weights_md(0)),
-            DnnlExtensionUtils::makeDescriptor(query_weights_md(1)),
-            DnnlExtensionUtils::makeDescriptor(query_weights_md(2))
-        };
-        prepareMemory(intDescs);
-        wasMemoryPrepared = true;
+    if (!primArgs.count(DNNL_ARG_WEIGHTS_LAYER) || !prevExecPtr ||
+        !execPtr->getWeightDesc()->isCompatible(*(prevExecPtr->getWeightDesc()))) {
+        prepareMemory(execPtr->getWeightDesc(), 0);
+        primArgs[DNNL_ARG_WEIGHTS_LAYER] = internalBlobMemory[0]->GetPrimitive();
     }
+
+    if (!primArgs.count(DNNL_ARG_WEIGHTS_ITER) || !prevExecPtr ||
+        !execPtr->getWeightIterDesc()->isCompatible(*(prevExecPtr->getWeightIterDesc()))) {
+        prepareMemory(execPtr->getWeightIterDesc(), 1);
+        primArgs[DNNL_ARG_WEIGHTS_ITER] = internalBlobMemory[1]->GetPrimitive();
+    }
+
+    if (!primArgs.count(DNNL_ARG_BIAS) || !prevExecPtr ||
+        !execPtr->getBiasDesc()->isCompatible(*(prevExecPtr->getBiasDesc()))) {
+        prepareMemory(execPtr->getBiasDesc(), 2);
+        primArgs[DNNL_ARG_BIAS] = internalBlobMemory[2]->GetPrimitive();
+    }
+
+    auto scratchpadMem = getScratchPadMem(execPtr->getScratchPadDesc());
+    primArgs[DNNL_ARG_SCRATCHPAD] = scratchpadMem->GetPrimitive();
 }
 
-std::shared_ptr<MemoryDesc> RNN::getSrcMemDesc(dnnl::primitive_desc_iterator& primitive_desc_it, size_t idx) {
+std::shared_ptr<MemoryDesc> RNN::getSrcMemDesc(const dnnl::primitive_desc& prim_desc, size_t idx) const {
+    (void) prim_desc;
     return supportedPrimitiveDescriptors[0].getConfig().inConfs[idx].getMemDesc();
 }
 
-std::shared_ptr<MemoryDesc> RNN::getDstMemDesc(dnnl::primitive_desc_iterator& primitive_desc_it, size_t idx) {
+std::shared_ptr<MemoryDesc> RNN::getDstMemDesc(const dnnl::primitive_desc& prim_desc, size_t idx) const {
+    (void) prim_desc;
     return supportedPrimitiveDescriptors[0].getConfig().outConfs[idx].getMemDesc();
 }
 
@@ -1123,18 +1140,10 @@ void RNN::execute(dnnl::stream strm) {
     const auto src_data_mem = getParentEdgeAt(0)->getMemoryPtr();
     const auto dst_data_mem = getChildEdgeAt(0)->getMemoryPtr();
 
-    const auto &wgh_data_mem = internalBlobMemory[0];
-    const auto &wgh_stat_mem = internalBlobMemory[1];
-    const auto &wgh_bias_mem = internalBlobMemory[2];
+    auto args = primArgs;
 
-    std::unordered_map<int, memory> args {
-        {DNNL_ARG_SRC_LAYER,     src_data_mem->GetPrimitive()},
-        {DNNL_ARG_WEIGHTS_LAYER, wgh_data_mem->GetPrimitive()},
-        {DNNL_ARG_WEIGHTS_ITER,  wgh_stat_mem->GetPrimitive()},
-        {DNNL_ARG_BIAS,          wgh_bias_mem->GetPrimitive()},
-        {DNNL_ARG_DST_LAYER,     dst_data_mem->GetPrimitive()},
-        {DNNL_ARG_SCRATCHPAD,    scratchpadMem->GetPrimitive()}
-    };
+    args[DNNL_ARG_SRC_LAYER] = src_data_mem->GetPrimitive();
+    args[DNNL_ARG_DST_LAYER] = dst_data_mem->GetPrimitive();
 
     int state_i_tags[] {DNNL_ARG_SRC_ITER, DNNL_ARG_SRC_ITER_C};
     int state_o_tags[] {DNNL_ARG_DST_ITER, DNNL_ARG_DST_ITER_C};
@@ -1178,6 +1187,11 @@ void RNN::cleanup() {
     for (auto it : mergedWith) {
         it->cleanup();
     }
+}
+
+RNN::RnnDnnlExecutor::RnnDnnlExecutor(const dnnl::primitive_desc& pd) : DnnlExecutor(pd) {
+    wghts_iter_md = DnnlExtensionUtils::makeDescriptor(pd.weights_desc(1));
+    bias_md = DnnlExtensionUtils::makeDescriptor(pd.weights_desc(2));
 }
 
 }   // namespace node

@@ -142,7 +142,7 @@ shared_ptr<Node> op::v0::LSTMSequence::clone_with_new_inputs(const OutputVector&
                                                  m_clip_threshold,
                                                  m_input_forget);
     } else {
-        throw ngraph_error("Incorrect number of new arguments");
+        OPENVINO_THROW("Incorrect number of new arguments");
     }
 }
 
@@ -184,7 +184,9 @@ void op::v0::LSTMSequence::validate_and_infer_types() {
     const auto& b_pshape = get_input_partial_shape(6);
     const auto& p_pshape = get_input_partial_shape(7);
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     ngraph::op::util::validate_seq_input_rank_dimension(input_param);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     // Validate rank and dimension for initial_cell_state input
     NODE_VALIDATION_CHECK(this,
@@ -341,7 +343,7 @@ shared_ptr<Node> op::v5::LSTMSequence::clone_with_new_inputs(const OutputVector&
                                                  m_activations,
                                                  m_clip);
     } else {
-        throw ngraph_error("Incorrect number of new arguments");
+        OPENVINO_THROW("Incorrect number of new arguments");
     }
 }
 
@@ -380,7 +382,9 @@ void op::v5::LSTMSequence::validate_and_infer_types() {
     const auto& r_pshape = get_input_partial_shape(5);
     const auto& b_pshape = get_input_partial_shape(6);
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     ngraph::op::util::validate_seq_input_rank_dimension(input_param);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     // Validate rank and dimension for initial_cell_state input
     NODE_VALIDATION_CHECK(this,

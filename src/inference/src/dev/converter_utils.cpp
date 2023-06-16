@@ -227,6 +227,9 @@ public:
         _isNewAPI = plugin->is_new_api();
         _executorManager = InferenceEngine::create_old_manager(plugin->get_executor_manager());
     }
+
+    virtual ~IInferencePluginWrapper() = default;
+
     std::string GetName() const noexcept override {
         return m_plugin->get_device_name();
     }
@@ -538,17 +541,7 @@ public:
         return std::make_shared<InferenceEngine::BatchedBlob>(blobs);
     }
 
-    void SetBlob(const std::string& name,
-                 const InferenceEngine::Blob::Ptr& data,
-                 const InferenceEngine::PreProcessInfo& info) override {
-        OPENVINO_NOT_IMPLEMENTED;
-    }
-
     const InferenceEngine::PreProcessInfo& GetPreProcess(const std::string& name) const override {
-        OPENVINO_NOT_IMPLEMENTED;
-    }
-
-    void SetBatch(int batch) override {
         OPENVINO_NOT_IMPLEMENTED;
     }
 
@@ -644,7 +637,7 @@ public:
         } catch (const ov::Cancelled&) {
             throw;
         } catch (const InferenceEngine::InferCancelled& e) {
-            throw ov::Cancelled{e.what()};
+            ov::Cancelled::create(e.what());
         } catch (const std::exception& ex) {
             OPENVINO_THROW(ex.what());
         } catch (...) {
@@ -655,7 +648,7 @@ public:
         try {
             return m_request->Wait(timeout.count()) == InferenceEngine::OK;
         } catch (const InferenceEngine::InferCancelled& e) {
-            throw ov::Cancelled{e.what()};
+            ov::Cancelled::create(e.what());
         } catch (const std::exception& ex) {
             OPENVINO_THROW(ex.what());
         } catch (...) {
@@ -840,6 +833,7 @@ private:
 
 public:
     IRemoteContextWrapper(const std::shared_ptr<InferenceEngine::RemoteContext>& context) : m_context(context) {}
+    virtual ~IRemoteContextWrapper() = default;
     const std::shared_ptr<InferenceEngine::RemoteContext>& get_context() {
         return m_context;
     }

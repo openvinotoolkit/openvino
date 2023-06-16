@@ -12,129 +12,15 @@
 #include <vector>
 
 #include "ngraph/check.hpp"
+#include "ngraph/coordinate_transform.hpp"
 #include "ngraph/op/util/attr_types.hpp"
 #include "ngraph/shape.hpp"
+#include "ngraph/shape_util.hpp"
 
 namespace ngraph {
 namespace runtime {
 namespace reference {
 namespace fake_quantize_details {
-inline std::vector<size_t> calc_broadcast_index_offset(const std::vector<size_t>& memory_offsets,
-                                                       const std::vector<size_t>& broadcast_shape) {
-    std::vector<size_t> broadcast_offsets(broadcast_shape.size(), 0);
-    for (int i = static_cast<int>(broadcast_shape.size()) - 2; i >= 0; --i) {
-        if (broadcast_shape[i] == 1) {
-            broadcast_offsets[i] = memory_offsets[i];
-        }
-    }
-    const auto not_one = [](size_t i) {
-        return i != 1;
-    };
-    if (std::any_of(broadcast_shape.begin(), broadcast_shape.end(), not_one) && broadcast_shape.back() == 1) {
-        broadcast_offsets[broadcast_offsets.size() - 1] = 1;
-    }
-    if (broadcast_shape.back() == 1) {
-        for (int i = static_cast<int>(broadcast_shape.size()) - 1; i >= 0; --i) {
-            if (broadcast_shape[i] != 1) {
-                broadcast_offsets[i] = memory_offsets[i] - 1;
-                break;
-            }
-        }
-    }
-    return broadcast_offsets;
-}
-
-inline size_t calc_full_broadcast_offset(const std::vector<size_t>& current_dims, const std::vector<size_t>& offsets) {
-    return std::inner_product(begin(current_dims), end(current_dims), begin(offsets), uint64_t(0));
-}
-
-inline Shape align_shape_sizes(const Shape& shape, const Shape& target_shape, const op::AutoBroadcastSpec& broadcast) {
-    Shape s;
-    switch (broadcast.m_type) {
-    case op::AutoBroadcastType::NONE: {
-        s = shape;
-        break;
-    }
-    case op::AutoBroadcastType::NUMPY: {
-        s = Shape(target_shape.size(), 1);
-        std::copy(begin(shape), end(shape), prev(end(s), shape.size()));
-        break;
-    }
-    case op::AutoBroadcastType::PDPD: {
-        const size_t axis =
-            broadcast.m_axis == -1 ? target_shape.size() - shape.size() : static_cast<size_t>(broadcast.m_axis);
-
-        s = Shape(target_shape.size(), 1);
-        const auto axis_to_copy = target_shape.size() - axis;
-        const auto b = begin(shape);
-        const auto e = b + axis_to_copy;  // from e to end(shape) should be only ones
-        std::copy(b, e, next(begin(s), axis));
-        break;
-    }
-    }
-    return s;
-}
-
-inline void increment_current_dim(std::vector<size_t>& current_dims, const std::vector<size_t>& shape) {
-    size_t incremented_dim_number = current_dims.size();
-    while (incremented_dim_number-- > 0) {
-        current_dims[incremented_dim_number] += 1;
-        if (current_dims[incremented_dim_number] < shape[incremented_dim_number]) {
-            break;
-        }
-        current_dims[incremented_dim_number] = 0;
-    }
-}
-
-template <typename T>
-class QuantizationBound {
-public:
-    enum class Bound {
-        trivial,
-        aligned,
-        broadcast,
-    };
-    QuantizationBound(const T* const bound_data,
-                      const Shape& bound_shape,
-                      const Shape& arg_shape,
-                      const op::AutoBroadcastSpec& broadcast_spec)
-        : bounds(bound_data) {
-        if (shape_size(bound_shape) == 1) {
-            bound = Bound::trivial;
-        } else if (bound_shape == arg_shape) {
-            bound = Bound::aligned;
-        } else {
-            bound = Bound::broadcast;
-            const auto arg_memory_offsets = row_major_strides(arg_shape);
-            const auto unsqueezed_bound_shape = align_shape_sizes(bound_shape, arg_shape, broadcast_spec);
-            row_strides = calc_broadcast_index_offset(arg_memory_offsets, unsqueezed_bound_shape);
-        }
-    }
-    T get_value(const std::vector<size_t>& current_dim, size_t idx) const {
-        T val{};
-        switch (bound) {
-        case Bound::trivial:
-            val = *bounds;
-            break;
-        case Bound::aligned:
-            val = bounds[idx];
-            break;
-        case Bound::broadcast: {
-            const size_t index_offset = calc_full_broadcast_offset(current_dim, row_strides);
-            NGRAPH_CHECK(0 <= index_offset && index_offset <= idx, "Incorrect index offset value!");
-            val = bounds[idx - index_offset];
-            break;
-        }
-        }
-        return val;
-    }
-
-private:
-    Bound bound;
-    std::vector<size_t> row_strides;
-    const T* const bounds;
-};
-
 template <typename T>
 inline T quantize(const T& arg,
                   const T& in_low,
@@ -186,21 +72,117 @@ void fake_quantize(const T* const arg,
                      "equal to data tensor rank equal to ",
                      arg_shape.size());
 
-        const QuantizationBound<T> in_low_bound(in_low, in_low_shape, arg_shape, broadcast);
-        const QuantizationBound<T> in_high_bound(in_high, in_high_shape, arg_shape, broadcast);
-        const QuantizationBound<T> out_low_bound(out_low, out_low_shape, arg_shape, broadcast);
-        const QuantizationBound<T> out_high_bound(out_high, out_high_shape, arg_shape, broadcast);
+        Shape arg0_padded_shape = arg_shape;
+        Shape arg1_padded_shape = in_low_shape;
+        Shape arg2_padded_shape = in_high_shape;
+        Shape arg3_padded_shape = out_low_shape;
+        Shape arg4_padded_shape = out_high_shape;
 
-        std::vector<size_t> current_dim(arg_shape.size(), 0);
-        const auto arg_shape_size = shape_size(arg_shape);
-        for (size_t index = 0; index < arg_shape_size; ++index) {
-            const T in_low_val = in_low_bound.get_value(current_dim, index);
-            const T in_high_val = in_high_bound.get_value(current_dim, index);
-            const T out_low_val = out_low_bound.get_value(current_dim, index);
-            const T out_high_val = out_high_bound.get_value(current_dim, index);
+        size_t max_shape_size = arg_shape.size();
 
-            out[index] = quantize(arg[index], in_low_val, in_high_val, out_low_val, out_high_val, levels);
-            increment_current_dim(current_dim, arg_shape);
+        while (arg0_padded_shape.size() < max_shape_size) {
+            arg0_padded_shape.insert(arg0_padded_shape.begin(), 1);
+        }
+
+        while (arg1_padded_shape.size() < max_shape_size) {
+            arg1_padded_shape.insert(arg1_padded_shape.begin(), 1);
+        }
+
+        while (arg2_padded_shape.size() < max_shape_size) {
+            arg2_padded_shape.insert(arg2_padded_shape.begin(), 1);
+        }
+
+        while (arg3_padded_shape.size() < max_shape_size) {
+            arg3_padded_shape.insert(arg3_padded_shape.begin(), 1);
+        }
+
+        while (arg4_padded_shape.size() < max_shape_size) {
+            arg4_padded_shape.insert(arg4_padded_shape.begin(), 1);
+        }
+
+        Shape arg0_squeezed_shape, arg1_squeezed_shape, arg2_squeezed_shape, arg3_squeezed_shape, arg4_squeezed_shape;
+        AxisSet arg0_squeezed_axes, arg1_squeezed_axes, arg2_squeezed_axes, arg3_squeezed_axes, arg4_squeezed_axes;
+        Shape output_shape;
+
+        for (size_t i = 0; i < max_shape_size; i++) {
+            if (arg1_padded_shape[i] == 1) {
+                arg1_squeezed_axes.insert(i);
+            } else {
+                arg1_squeezed_shape.push_back(arg1_padded_shape[i]);
+            }
+
+            if (arg2_padded_shape[i] == 1) {
+                arg2_squeezed_axes.insert(i);
+            } else {
+                arg2_squeezed_shape.push_back(arg2_padded_shape[i]);
+            }
+
+            if (arg0_padded_shape[i] == 1) {
+                arg0_squeezed_axes.insert(i);
+            } else {
+                arg0_squeezed_shape.push_back(arg0_padded_shape[i]);
+            }
+
+            if (arg3_padded_shape[i] == 1) {
+                arg3_squeezed_axes.insert(i);
+            } else {
+                arg3_squeezed_shape.push_back(arg3_padded_shape[i]);
+            }
+
+            if (arg4_padded_shape[i] == 1) {
+                arg4_squeezed_axes.insert(i);
+            } else {
+                arg4_squeezed_shape.push_back(arg4_padded_shape[i]);
+            }
+
+            output_shape.push_back(std::max({arg0_padded_shape[i],
+                                             arg2_padded_shape[i],
+                                             arg1_padded_shape[i],
+                                             arg3_padded_shape[i],
+                                             arg4_padded_shape[i]}));
+        }
+
+        CoordinateTransformBasic arg0_transform(arg0_squeezed_shape);
+        CoordinateTransformBasic arg1_transform(arg1_squeezed_shape);
+        CoordinateTransformBasic arg2_transform(arg2_squeezed_shape);
+        CoordinateTransformBasic arg3_transform(arg3_squeezed_shape);
+        CoordinateTransformBasic arg4_transform(arg4_squeezed_shape);
+        CoordinateTransformBasic output_transform(output_shape);
+
+        const auto arg0_strides = row_major_strides(arg0_squeezed_shape);
+        const auto arg1_strides = row_major_strides(arg1_squeezed_shape);
+        const auto arg2_strides = row_major_strides(arg2_squeezed_shape);
+        const auto arg3_strides = row_major_strides(arg3_squeezed_shape);
+        const auto arg4_strides = row_major_strides(arg4_squeezed_shape);
+        const auto output_strides = row_major_strides(output_shape);
+
+        for (const Coordinate& output_coord : output_transform) {
+            OPENVINO_SUPPRESS_DEPRECATED_START
+            const Coordinate arg0_coord = reduce(output_coord, arg0_squeezed_axes, false);
+            const Coordinate arg1_coord = reduce(output_coord, arg1_squeezed_axes, false);
+            const Coordinate arg2_coord = reduce(output_coord, arg2_squeezed_axes, false);
+            const Coordinate arg3_coord = reduce(output_coord, arg3_squeezed_axes, false);
+            const Coordinate arg4_coord = reduce(output_coord, arg4_squeezed_axes, false);
+            OPENVINO_SUPPRESS_DEPRECATED_END
+
+            const size_t arg0_idx =
+                std::inner_product(arg0_coord.begin(), arg0_coord.end(), arg0_strides.begin(), uint64_t(0));
+            const size_t arg1_idx =
+                std::inner_product(arg1_coord.begin(), arg1_coord.end(), arg1_strides.begin(), uint64_t(0));
+            const size_t arg2_idx =
+                std::inner_product(arg2_coord.begin(), arg2_coord.end(), arg2_strides.begin(), uint64_t(0));
+            const size_t arg3_idx =
+                std::inner_product(arg3_coord.begin(), arg3_coord.end(), arg3_strides.begin(), uint64_t(0));
+            const size_t arg4_idx =
+                std::inner_product(arg4_coord.begin(), arg4_coord.end(), arg4_strides.begin(), uint64_t(0));
+            const size_t output_idx =
+                std::inner_product(output_coord.begin(), output_coord.end(), output_strides.begin(), uint64_t(0));
+            out[output_idx] = quantize(arg[arg0_idx],
+                                       in_low[arg1_idx],
+                                       in_high[arg2_idx],
+                                       out_low[arg3_idx],
+                                       out_high[arg4_idx],
+                                       levels);
         }
     }
 }

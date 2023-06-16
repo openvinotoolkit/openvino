@@ -1,10 +1,10 @@
-# Operations Specifications {#openvino_docs_operations_specifications}
+# Operation Specifications {#openvino_docs_operations_specifications}
 
 @sphinxdirective
 
 .. toctree::
    :maxdepth: 1
-   
+
    Abs-1 <openvino_docs_ops_arithmetic_Abs_1>
    Acos-1 <openvino_docs_ops_arithmetic_Acos_1>
    Acosh-3 <openvino_docs_ops_arithmetic_Acosh_3>
@@ -43,7 +43,7 @@
    DeformablePSROIPooling-1 <openvino_docs_ops_detection_DeformablePSROIPooling_1>
    DepthToSpace-1 <openvino_docs_ops_movement_DepthToSpace_1>
    DetectionOutput-1 <openvino_docs_ops_detection_DetectionOutput_1>
-   DetectionOutput-1 <openvino_docs_ops_detection_DetectionOutput_8>
+   DetectionOutput-8 <openvino_docs_ops_detection_DetectionOutput_8>
    DFT-7 <openvino_docs_ops_signals_DFT_7>
    Divide-1 <openvino_docs_ops_arithmetic_Divide_1>
    Einsum-7 <openvino_docs_ops_matrix_Einsum_7>
@@ -82,6 +82,7 @@
    Greater-1 <openvino_docs_ops_comparison_Greater_1>
    GroupConvolutionBackpropData-1 <openvino_docs_ops_convolution_GroupConvolutionBackpropData_1>
    GroupConvolution-1 <openvino_docs_ops_convolution_GroupConvolution_1>
+   GroupNormalization-12 <openvino_docs_ops_normalization_GroupNormalization_12>
    HardSigmoid-1 <openvino_docs_ops_activation_HardSigmoid_1>
    HSigmoid-5 <openvino_docs_ops_activation_HSigmoid_5>
    HSwish-4 <openvino_docs_ops_activation_HSwish_4>
@@ -136,6 +137,7 @@
    PReLU-1 <openvino_docs_ops_activation_PReLU_1>
    PSROIPooling-1 <openvino_docs_ops_detection_PSROIPooling_1>
    Pad-1 <openvino_docs_ops_movement_Pad_1>
+   Pad-12 <openvino_docs_ops_movement_Pad_12>
    Parameter-1 <openvino_docs_ops_infrastructure_Parameter_1>
    Power-1 <openvino_docs_ops_arithmetic_Power_1>
    PriorBoxClustered-1 <openvino_docs_ops_detection_PriorBoxClustered_1>

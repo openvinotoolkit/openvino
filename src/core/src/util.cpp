@@ -22,6 +22,7 @@
 #include "ngraph/partial_shape.hpp"
 #include "ngraph/shape.hpp"
 #include "openvino/util/common_util.hpp"
+#include "openvino/util/log.hpp"
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 using namespace std;
@@ -84,7 +85,7 @@ size_t ngraph::hash_combine(const std::vector<size_t>& list) {
 void* ngraph::ngraph_malloc(size_t size) {
     auto ptr = malloc(size);
     if (size != 0 && !ptr) {
-        NGRAPH_ERR << "malloc failed to allocate memory of size " << size;
+        OPENVINO_ERR << "malloc failed to allocate memory of size " << size;
         throw std::bad_alloc();
     }
     return ptr;
@@ -276,7 +277,7 @@ void ngraph::parse_version_string(std::string version, size_t& major, size_t& mi
         error = true;
     }
     if (error) {
-        throw runtime_error("Error parsing version string '" + version + "'");
+        OPENVINO_THROW("Error parsing version string '", version, "'");
     }
 }
 
@@ -350,7 +351,7 @@ vector<float> read_float_vector(shared_ptr<runtime::Tensor> tv) {
             float_vec.push_back(static_cast<float>(value));
         }
     } else {
-        throw ngraph_error("Unsupported OpenVINO element type.");
+        OPENVINO_THROW("Unsupported OpenVINO element type.");
     }
 
     return float_vec;
@@ -426,7 +427,7 @@ vector<int64_t> read_index_vector(shared_ptr<runtime::Tensor> tv) {
             index_vec.push_back(static_cast<int64_t>(value));
         }
     } else {
-        throw ngraph_error("Unsupported OpenVINO element type.");
+        OPENVINO_THROW("Unsupported OpenVINO element type.");
     }
 
     return index_vec;
