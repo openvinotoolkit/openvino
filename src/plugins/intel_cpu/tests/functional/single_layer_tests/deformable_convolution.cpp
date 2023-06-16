@@ -342,6 +342,12 @@ const std::vector<std::vector<size_t>> spatParamsDilationUneven = {
     {1, 1}, // off. spat. shape
     {2, 2} // ker. spat. shape
 };
+const std::vector<std::vector<size_t>> spatParams5_onnx2d = {
+    {1},    // batch
+    {4, 4}, // in. spat. shape
+    {3, 3}, // off. spat. shape
+    {2, 2}  // ker. spat. shape
+};
 const std::vector<std::vector<size_t>> channelParamsSingleGr = {
     {1}, // gr. 2,4
     {1, 2}, // def. gr. 1,2
@@ -360,7 +366,12 @@ const std::vector<std::vector<size_t>> channelParamsMulGr = {
     {3, 7}, // in. ch. per gr.
     {3, 7} // out. ch. per gr.
 };
-
+const std::vector<std::vector<size_t>> channelParams_onnx2d = {
+    {1},    // gr. 2,4
+    {1},    // def. gr. 1,2
+    {1},    // in. ch. per gr.
+    {1}     // out. ch. per gr.
+};
 const std::vector<std::vector<InputShape>> dynShapeChainRef = {
         {
             // gr == 2, dg == 1, in_ch_per_gr == 3, out_ch_per_gr == 3
@@ -599,6 +610,14 @@ const auto params10 = ::testing::Combine(
                              ::testing::ValuesIn(netPrecisions),
                              ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                          ::testing::ValuesIn(filterCPUInfoForDevice(false)));
+const auto params11 = ::testing::Combine(
+                         ::testing::Combine(
+                            addSpParams,
+                            ::testing::ValuesIn(static_shapes_to_test_representation(buildStaticParams(spatParams5_onnx2d, channelParams_onnx2d))),
+                            defConvSpecificParams,
+                             ::testing::ValuesIn(netPrecisions),
+                             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                         ::testing::ValuesIn(filterCPUInfoForDevice()));
 
 INSTANTIATE_TEST_SUITE_P(DefConvLayoutTest1, DefConvLayerCPUTest, params1, DefConvLayerCPUTest::getTestCaseName);
 INSTANTIATE_TEST_SUITE_P(DefConvLayoutTest2, DefConvLayerCPUTest, params2, DefConvLayerCPUTest::getTestCaseName);
@@ -610,5 +629,6 @@ INSTANTIATE_TEST_SUITE_P(DefConvLayoutTest7, DefConvLayerCPUTest, params7, DefCo
 INSTANTIATE_TEST_SUITE_P(DefConvLayoutTest8, DefConvLayerCPUTest, params8, DefConvLayerCPUTest::getTestCaseName);
 INSTANTIATE_TEST_SUITE_P(DefConvLayoutTest9, DefConvLayerCPUTest, params9, DefConvLayerCPUTest::getTestCaseName);
 INSTANTIATE_TEST_SUITE_P(DefConvLayoutTest10, DefConvLayerCPUTest, params10, DefConvLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(DefConvLayoutTest11, DefConvLayerCPUTest, params11, DefConvLayerCPUTest::getTestCaseName);
 } // namespace
 } // namespace CPULayerTestsDefinitions
