@@ -552,6 +552,35 @@ def get_mo_convert_params():
     return mo_convert_params
 
 
+class DeprecatedStoreTrue(argparse.Action):
+    def __init__(self, nargs=0, **kw):
+        super().__init__(nargs=nargs, **kw)
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        dep_msg = "Use of deprecated cli option {} detected. Option use in the following releases will be fatal. ".format(option_string)
+        if 'fusing' in option_string:
+            dep_msg += 'Please use --finegrain_fusing cli option instead'
+        log.error(dep_msg, extra={'is_warning': True})
+        setattr(namespace, self.dest, True)
+
+
+class DeprecatedOptionCommon(argparse.Action):
+    def __call__(self, parser, args, values, option_string):
+        dep_msg = "Use of deprecated cli option {} detected. Option use in the following releases will be fatal. ".format(option_string)
+        log.error(dep_msg, extra={'is_warning': True})
+        setattr(args, self.dest, values)
+
+
+class IgnoredAction(argparse.Action):
+    def __init__(self, nargs=0, **kw):
+        super().__init__(nargs=nargs, **kw)
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        dep_msg = "Use of removed cli option '{}' detected. The option is ignored. ".format(option_string)
+        log.error(dep_msg, extra={'is_warning': True})
+        setattr(namespace, self.dest, True)
+
+
 def canonicalize_and_check_paths(values: Union[str, List[str]], param_name,
                                  try_mo_root=False, check_existence=True) -> List[str]:
     if values is not None:

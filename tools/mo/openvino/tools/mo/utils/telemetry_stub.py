@@ -1,4 +1,4 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from openvino.runtime.utils.telemetry_stub import *
+from openvino.runtime.utils.telemetry_stub import Telemetry

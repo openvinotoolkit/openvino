@@ -1,6 +1,8 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+# flake8: noqa
+# mypy: ignore-errors
 
 def get_convert_model_help_specifics():
     from openvino.runtime.utils.cli_parser import CanonicalizeTransformationPathCheckExistenceAction, \

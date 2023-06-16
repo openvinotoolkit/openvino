@@ -1311,7 +1311,7 @@ class TransformChecker(unittest.TestCase):
     def test_single_pass_with_args_neg6(self):
         self.assertRaises(Error, parse_transform, "LowLatency2[key=value")
 
-    @patch("openvino.tools.mo.back.offline_transformations.get_available_transformations")
+    @patch("openvino.runtime.utils.moc_frontend.offline_transformations.get_available_transformations")
     def test_check_low_latency_is_available(self, available_transformations):
         available_transformations.return_value = {"LowLatency2": None}
         try:
@@ -1319,7 +1319,7 @@ class TransformChecker(unittest.TestCase):
         except Error as e:
             self.assertTrue(False, "Exception \"{}\" is unexpected".format(e))
 
-    @patch("openvino.tools.mo.back.offline_transformations.get_available_transformations")
+    @patch("openvino.runtime.utils.moc_frontend.offline_transformations.get_available_transformations")
     def test_check_dummy_pass_is_available(self, available_transformations):
         available_transformations.return_value = {"LowLatency2": None}
         self.assertRaises(Error, check_available_transforms, [("DummyPass", "")])

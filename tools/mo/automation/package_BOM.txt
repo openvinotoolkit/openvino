@@ -41,7 +41,6 @@ openvino/tools/mo/back/MatMulNormalizer.py
 openvino/tools/mo/back/MaxPool.py
 openvino/tools/mo/back/names_uniqueness_check.py
 openvino/tools/mo/back/NormalizeToNormalizeL2.py
-openvino/tools/mo/back/offline_transformations.py
 openvino/tools/mo/back/op_versioning.py
 openvino/tools/mo/back/OptimizeTransposeReshapeSequence.py
 openvino/tools/mo/back/PackBinaryWeights.py
