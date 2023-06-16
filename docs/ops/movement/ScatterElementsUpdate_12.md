@@ -96,7 +96,7 @@ For instance, in a 3D tensor case, the update of the element corresponding to th
 *   **3**: ``updates`` tensor of shape equal to the shape of ``indices`` tensor and of type *T*. **Required.**
 
 *   **4**: ``axis`` tensor with scalar or 1D tensor with one element of type *T_AXIS* specifying axis for scatter.
-The value can be in range ``[-r, r - 1]`` where ``r`` is the rank of ``data``. **Required.**
+Negative ``axis`` means reverse indexing and will be normalized to value ``axis = data.rank + axis``. The value can be in range ``[-r, r - 1]`` where ``r`` is the rank of ``data``. **Required.**
 
 **Outputs**:
 
