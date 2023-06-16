@@ -12,9 +12,6 @@
 #include "openvino/runtime/iinfer_request.hpp"
 #include "openvino/runtime/isync_infer_request.hpp"
 
-// CVS_111453: transformation shouldn't change model's input/output's precision
-#define WA_PREC_CHANGE_ISSUE
-
 namespace ov {
 namespace intel_cpu {
 
@@ -36,10 +33,8 @@ public:
 
     void set_tensors_impl(const ov::Output<const ov::Node> port, const std::vector<ov::Tensor>& tensors) override;
 
-#ifdef WA_PREC_CHANGE_ISSUE
     ov::Tensor get_tensor(const ov::Output<const ov::Node>& port) const override;
     std::vector<ov::Tensor> get_tensors(const ov::Output<const ov::Node>& _port) const override;
-#endif
 
     /**
      * @brief      Sets the pointer to asynchronous inference request that holds this request
@@ -70,19 +65,23 @@ private:
     void redefineMemoryForInputNodes();
 
     std::string get_port_name(const ov::Output<const ov::Node>& port) const;
+    std::string query_port_name(const ov::Output<const ov::Node>& port) const;
     void check_port(const ov::Output<const ov::Node>& port) const;
     void update_external_inputs();
     bool check_precision_changed(const ov::Output<const ov::Node>& port) const;
     InferenceEngine::TensorDesc create_tensor_desc(const ov::Tensor& tensor);
 
-#ifdef WA_PREC_CHANGE_ISSUE
-    const ov::Output<const ov::Node>& get_internal_port(const ov::Output<const ov::Node>& port) const;
-    ov::Tensor create_internal_tensor(const ov::Tensor& tensor, const ov::Output<const ov::Node>& port);
 
+    // Transformation shouldn't change model's input/output's precision, but actually it does.
+    // Some additional methods will handle it.
+    const ov::Output<const ov::Node>& get_internal_port(const ov::Output<const ov::Node>& port) const;
+    ov::Tensor create_internal_tensor(const ov::Tensor& tensor,
+                                      const ov::Output<const ov::Node>& port,
+                                      const std::string& name);
     mutable std::unordered_map<std::string, ov::Output<const ov::Node>> _orig_ports_map;
     // Store internal tensor due to precision changes
     std::unordered_map<std::string, ov::Tensor> _internal_tensors;
-#endif
+    bool _port_name_change = false;
 
     std::shared_ptr<const CompiledModel> _compiled_model;
     openvino::itt::handle_t _profiling_task;

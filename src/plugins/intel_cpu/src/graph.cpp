@@ -214,6 +214,9 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &subgraph) {
             auto port_name = ov::op::util::get_ie_output_name(it);
             if (port_name == name)
                 return it.get_element_type();
+            port_name = it.get_node_shared_ptr()->get_friendly_name();
+            if (port_name == name)
+                return it.get_element_type();
         }
         OPENVINO_THROW("Cannot find input port with name: ", name);
     };

@@ -32,7 +32,6 @@
 
 namespace ov {
 namespace intel_cpu {
-
 SyncInferRequest::SyncInferRequest(std::shared_ptr<const CompiledModel> compiled_model)
     : ov::ISyncInferRequest(compiled_model),
       _compiled_model(compiled_model) {
@@ -40,23 +39,41 @@ SyncInferRequest::SyncInferRequest(std::shared_ptr<const CompiledModel> compiled
         auto port_name = get_port_name(in);
         _input_ports_map[port_name] = in;
     }
-
     for (const auto& out : get_outputs()) {
         auto port_name = get_port_name(out);
         _output_ports_map[port_name] = out;
     }
 
-#ifdef WA_PREC_CHANGE_ISSUE
+    // Sometimes tansfromation will change input/output name, such as SimpleIf test, need handle it.
     auto orig_model = _compiled_model->get_orig_model();
     for (const auto& in : orig_model->inputs()) {
         auto port_name = get_port_name(in);
         _orig_ports_map[port_name] = in;
+        if (_input_ports_map.find(port_name) == _input_ports_map.end()) {
+            for (auto& it : _input_ports_map) {
+                auto& p = it.second;
+                auto _name = p.get_node_shared_ptr()->get_friendly_name();
+                if (port_name == _name) {
+                    _input_ports_map[port_name] = p;
+                    _port_name_change = true;
+                }
+            }
+        }
     }
     for (const auto& out : orig_model->outputs()) {
         auto port_name = get_port_name(out);
         _orig_ports_map[port_name] = out;
+        if (_output_ports_map.find(port_name) == _output_ports_map.end()) {
+            for (auto& it : _output_ports_map) {
+                auto& p = it.second;
+                auto _name = p.get_node_shared_ptr()->get_friendly_name();
+                if (port_name == _name) {
+                    _output_ports_map[port_name] = p;
+                    _port_name_change = true;
+                }
+            }
+        }
     }
-#endif
     create_infer_request();
 }
 
@@ -163,9 +180,8 @@ void SyncInferRequest::PullStates() {
 
 void SyncInferRequest::redefineMemoryForInputNodes() {
     const auto cpuInputNodes = graph->GetInputNodesMap();
-
     for (const auto& port : get_inputs()) {
-        std::string name = get_port_name(port);
+        std::string name = query_port_name(port);
         if (name.empty()) {
             OPENVINO_THROW("compiled model doesn't contain this input port.");
         }
@@ -183,14 +199,12 @@ void SyncInferRequest::update_external_inputs() {
     // Update it due to batched_tensors case will update input tensor
     if (m_batched_tensors.size() == 0)
         return;
-    // for (auto input : _compiled_model->get_orig_model()->inputs()) {
     for (auto input : get_inputs()) {
-        std::string input_name = get_port_name(input);
+        std::string input_name = query_port_name(input);
         if (input_name.empty()) {
             OPENVINO_THROW("Input tensor map contains not registered during IPlugin::compile_model tensor with name ",
                            input_name);
         }
-
         if (_external_ptr.find(input_name) != _external_ptr.end()) {
             auto tensor = get_tensor(input);
             _external_ptr[input_name] = tensor.data();
@@ -396,12 +410,43 @@ std::string SyncInferRequest::get_port_name(const ov::Output<const ov::Node>& po
     return {};
 }
 
+std::string SyncInferRequest::query_port_name(const ov::Output<const ov::Node>& port) const {
+    auto name = get_port_name(port);
+    if (!_port_name_change)
+        return name;
+
+    // In some case, input name has been changed after transformation, but user maybe pass
+    // orignal model's port, it need be aligned here.
+    bool is_input = ov::op::util::is_parameter(port.get_node());
+    if (is_input) {
+        const auto& inMap = graph->inputNodesMap;
+        if (inMap.find(name) == inMap.end()) {
+            name = port.get_node_shared_ptr()->get_friendly_name();
+        }
+    } else {
+        const auto& outMap = graph->outputNodesMap;
+        if (outMap.find(name) == outMap.end()) {
+            name = port.get_node_shared_ptr()->get_friendly_name();
+        }
+    }
+    return name;
+}
+
 void SyncInferRequest::check_port(const ov::Output<const ov::Node>& port) const {
     auto name = get_port_name(port);
+    if (name.empty()) {
+        OPENVINO_THROW("cpu plugin checking port failed: cannot find this port with empty name.");
+    }
 
-    if (name.empty() || (_input_ports_map.find(name) == _input_ports_map.end() &&
-                         _output_ports_map.find(name) == _output_ports_map.end())) {
-        OPENVINO_THROW("cpu plugin checking port failed: cannot find this port with name ", name);
+    bool is_input = ov::op::util::is_parameter(port.get_node());
+    if (is_input) {
+        if (_input_ports_map.find(name) == _input_ports_map.end()) {
+            OPENVINO_THROW("cpu plugin checking input port failed: cannot find this port with name ", name);
+        }
+    } else {
+        if (_output_ports_map.find(name) == _output_ports_map.end()) {
+            OPENVINO_THROW("cpu plugin checking output port failed: cannot find this port with name ", name);
+        }
     }
 }
 
@@ -434,7 +479,6 @@ InferenceEngine::TensorDesc SyncInferRequest::create_tensor_desc(const ov::Tenso
                           ie::BlockingDesc{shape, blk_order, 0, dim_offset, blk_strides}};
 }
 
-#ifdef WA_PREC_CHANGE_ISSUE
 ov::Tensor SyncInferRequest::get_tensor(const ov::Output<const ov::Node>& _port) const {
     check_port(_port);
     auto port = get_internal_port(_port);
@@ -469,7 +513,7 @@ bool SyncInferRequest::check_precision_changed(const ov::Output<const ov::Node>&
 }
 
 const ov::Output<const ov::Node>& SyncInferRequest::get_internal_port(const ov::Output<const ov::Node>& port) const {
-    auto name = get_port_name(port);
+    auto name = query_port_name(port);
     bool is_input = ov::op::util::is_parameter(port.get_node());
     if (is_input) {
         return _input_ports_map[name];
@@ -478,7 +522,9 @@ const ov::Output<const ov::Node>& SyncInferRequest::get_internal_port(const ov::
     }
 }
 
-ov::Tensor SyncInferRequest::create_internal_tensor(const ov::Tensor& tensor, const ov::Output<const ov::Node>& port) {
+ov::Tensor SyncInferRequest::create_internal_tensor(const ov::Tensor& tensor,
+                                                    const ov::Output<const ov::Node>& port,
+                                                    const std::string& name) {
     auto tensor_prec = InferenceEngine::details::convertPrecision(tensor.get_element_type());
     InferenceEngine::Precision inPrec = InferenceEngine::details::convertPrecision(port.get_element_type());
     bool needConvert = inPrec != tensor_prec;
@@ -489,7 +535,6 @@ ov::Tensor SyncInferRequest::create_internal_tensor(const ov::Tensor& tensor, co
     }
 
     if (needConvert) {
-        auto name = get_port_name(port);
         auto it = _internal_tensors.find(name);
         ov::Tensor new_tensor;
         if (it == _internal_tensors.end()) {
@@ -560,12 +605,12 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& _port, const
             IE_THROW(ParameterMismatch) << "Failed to set input tensor with precision: " << _tensor.get_element_type()
                                         << ", if model input tensor precision is: " << _port.get_element_type();
         }
-        tensor = create_internal_tensor(_tensor, port);
+        tensor = create_internal_tensor(_tensor, port, name);
     } else {
         if (_port.get_element_type() != _tensor.get_element_type()) {
             // Import model cannot get original port info if it is chained in meta plugin, need convert tensor here
             if (is_imported_model) {
-                tensor = create_internal_tensor(_tensor, _port);
+                tensor = create_internal_tensor(_tensor, _port, name);
             } else {
                 IE_THROW(ParameterMismatch)
                     << "Failed to set input tensor with precision: " << _tensor.get_element_type()
@@ -573,14 +618,6 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& _port, const
             }
         }
     }
-#else
-void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const ov::Tensor& tensor) {
-    OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, "set_tensor");
-    if (!tensor)
-        OPENVINO_THROW("Failed to set empty tensor for port!");
-    check_port(port);
-    auto name = get_port_name(port);
-#endif
 
     auto tensor_desc = create_tensor_desc(tensor);
     bool is_input = ov::op::util::is_parameter(port.get_node());
@@ -769,7 +806,7 @@ void SyncInferRequest::init_tensor(const std::string& name) {
 
 void SyncInferRequest::PushInputData() {
     for (auto input : get_inputs()) {
-        std::string input_name = get_port_name(input);
+        std::string input_name = query_port_name(input);
         if (input_name.empty()) {
             IE_THROW() << "Input tensor map contains not registered during IPlugin::compile_model tensor with name "
                        << input_name;

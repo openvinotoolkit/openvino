@@ -193,10 +193,16 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*InferRequestIOBBlobTest.*secondCallGetOutputDoNotReAllocateData.*)",
         R"(.*InferRequestIOBBlobTest.*secondCallGetInputAfterInferSync.*)",
         R"(.*InferRequestIOBBlobTest.*secondCallGetOutputAfterInferSync.*)",
+        // New plugin API doesn't support changes of pre-processing
+        R"(.*InferRequestPreprocessTest.*SetPreProcessToInputInfo.*)",
+        R"(.*InferRequestPreprocessTest.*SetPreProcessToInferRequest.*)",
         // Old API cannot deallocate tensor
         R"(.*InferRequestIOBBlobTest.*canProcessDeallocatedOutputBlobAfterGetAndSetBlob.*)",
         // Plugin version was changed to ov::Version
         R"(.*VersionTest.*pluginCurrentVersionIsCorrect.*)",
+        // New plugin api + legacy ov api will put preprocess into transformation, which will add additional Convert node to graph, it cause below tests failure
+        R"(.*smoke_Basic/FuseTransposeAndReorderTest.CompareWithRefs.*)",
+        R"(.*smoke_IsOp/ComparisonLayerTest.*)",
     };
 
 #if defined(OPENVINO_ARCH_X86)
