@@ -108,6 +108,8 @@ Negative ``axis`` means reverse indexing and will be normalized to value ``axis 
 * *T_IND*: any integer numeric type.
 * *T_AXIS*: any integer numeric type.
 
+* For ``boolean`` type of ``data`` input, *reduction* ``sum``, ``prod`` behaves like logical ``OR``, ``AND`` accordingly, but there is no implementation for ``mean``.
+
 **Example**
 
 *Example 1*
