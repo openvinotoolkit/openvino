@@ -34,7 +34,8 @@ void regclass_mha_gpt(pybind11::module m) {
                 throw pybind11::type_error("Incorrect qkv type " + qkv_precision_name);
             if (param.dst_precision == llmdnn::dnnl_data_type_undef)
                 throw pybind11::type_error("Incorrect dst type " + dst_precision_name);
-            self.create(param);
+            if (!self.create(param))
+                throw pybind11::type_error("Incorrect param");
         },
         py::arg("num_heads"),
         py::arg("head_size"),
@@ -49,7 +50,7 @@ void regclass_mha_gpt(pybind11::module m) {
             :param num_heads: heads number.
             :type num_heads: int
         )");
-    cls.def("exec", [] (llmdnn::mha_gpt& self, torch::Tensor q, torch::Tensor k, torch::Tensor v, torch::Tensor attn_mask) {
+    cls.def("exec", [] (llmdnn::mha_gpt& self, const torch::Tensor& q, const torch::Tensor& k, const torch::Tensor& v, const torch::Tensor& attn_mask) {
             // q: [batch, num_heads, query_seq_len, head_size]
             // k: [batch, num_heads, key_seq_len, head_size]
             // v: [batch, num_heads, value_seq_len, head_size]
@@ -93,6 +94,65 @@ void regclass_mha_gpt(pybind11::module m) {
         py::arg("attn_mask"),
         R"(
             exec mha
+
+            :param num_heads: heads number.
+            :type num_heads: int
+        )");
+    cls.def("exec_quant", [] (llmdnn::mha_gpt& self, const torch::Tensor& q, const torch::Tensor& k, const torch::Tensor& v, const torch::Tensor& attn_mask,
+        float q_dequant, float k_dequant, float v_dequant, float qk_quant, const std::vector<float>& qkv_quant) {
+            // q: [batch, num_heads, query_seq_len, head_size]
+            // k: [batch, num_heads, key_seq_len, head_size]
+            // v: [batch, num_heads, value_seq_len, head_size]
+            // attn_mask: [batch, MAX_POSITION_EMBEDDINGS]
+            // out: [batch, query_seq_len, num_heads * head_size]
+            AT_ASSERT(q.dim() == 4 && k.dim() == 4 && v.dim() == 4 && attn_mask.dim() == 2);
+            auto batch = q.size(0);
+            auto num_heads = q.size(1);
+            auto query_seq_len = q.size(2);
+            auto head_size = q.size(3);
+            auto key_seq_len = k.size(2);
+            auto attn_len = attn_mask.size(1);
+            AT_ASSERT(key_seq_len == v.size(2) && key_seq_len == attn_len &&
+                    batch == k.size(0) && batch == v.size(0) && 1 == attn_mask.size(0) &&
+                    num_heads == k.size(1) && num_heads == v.size(1) &&
+                    head_size == k.size(3) && head_size == v.size(3));
+
+            auto out = q.new_empty({batch, query_seq_len, num_heads * head_size}, torch::TensorOptions(torch::kInt8));
+            llmdnn::mha_gpt::exec_param param;
+            param.batch = batch;
+            param.query_seq_len = query_seq_len;
+            param.key_seq_len = key_seq_len;
+            param.q = reinterpret_cast<uint8_t*>(q.data_ptr());
+            param.attn_output = reinterpret_cast<uint8_t*>(out.data_ptr());
+            param.head_stride_in_kv = key_seq_len * head_size;
+            param.k = reinterpret_cast<uint8_t**>(alloca(batch * sizeof(uint8_t*)));
+            param.v = reinterpret_cast<uint8_t**>(alloca(batch * sizeof(uint8_t*)));
+            param.attention_mask = reinterpret_cast<float**>(alloca(batch * sizeof(float*)));
+            param.q_dequant = q_dequant;
+            param.k_dequant = k_dequant;
+            param.v_dequant = v_dequant;
+            param.qk_quant = qk_quant;
+            param.qkv_quant = qkv_quant;
+            for (int i = 0; i < batch; i++) {
+                param.k[i] = reinterpret_cast<uint8_t*>(k.data_ptr()) + i * num_heads * key_seq_len * head_size;
+                param.v[i] = reinterpret_cast<uint8_t*>(v.data_ptr()) + i * num_heads * key_seq_len * head_size;
+                param.attention_mask[i] = attn_mask.data_ptr<float>();
+            }
+
+            self.exec(param);
+            return out;
+        },
+        py::arg("q"),
+        py::arg("k"),
+        py::arg("v"),
+        py::arg("attn_mask"),
+        py::arg("q_dequant"),
+        py::arg("k_dequant"),
+        py::arg("v_dequant"),
+        py::arg("qk_quant"),
+        py::arg("qkv_quant"),
+        R"(
+            exec mha quant
 
             :param num_heads: heads number.
             :type num_heads: int

@@ -13,8 +13,8 @@ namespace llmdnn {
 mha_gpt::mha_gpt(): _impl(new_impl_amx()) {
 }
 
-void mha_gpt::create(const create_param& param) {
-    _impl->create(param);
+bool mha_gpt::create(const create_param& param) {
+    return _impl->create(param);
 }
 
 void mha_gpt::exec(const exec_param& param) {

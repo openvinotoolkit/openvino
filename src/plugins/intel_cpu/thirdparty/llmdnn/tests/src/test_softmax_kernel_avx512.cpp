@@ -86,15 +86,16 @@ protected:
     template<typename T>
     void test(float thresh) {
         for (int n = 1; n < 129; n++) {
-            tensor2D<float> A(1, n, true);
+            tensor2D<float> A(1, n, true), A_scalar(1, n, true);
             tensor2D<float> quant(1, n, true);
-            tensor2D<T> out(1, n, true), out_ref;
+            tensor2D<T> out(1, n, true), out_ref, out_scalar(1, n, true);
             for (int i = 0; i < n; i++) {
                 A[i] = static_cast<float>(i) - n / 2;
+                A_scalar[i] = A[i];
             }
             quant = 128.f;
             gen_ref(A, out_ref, quant);
-            llmdnn::softmax_avx512<T>(out.data, A.data, n, nullptr, nullptr, quant.data);
+            llmdnn::softmax_avx512<T>(out.data, A.data, n, quant.data);
             for (int i = 0; i < n; i++) {
                 float a = out[i];
                 float b = out_ref[i];
@@ -102,6 +103,9 @@ protected:
                     FAIL() << " N: " << n << " pos: " << i << " opt: " << a << " ref: " << b;
                 }
             }
+            // input is scalar
+            llmdnn::softmax_avx512<T>(out_scalar.data, A_scalar.data, n, quant.data[0]);
+            ASSERT_TRUE(out == out_scalar);
         }
     }
 

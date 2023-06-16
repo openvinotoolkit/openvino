@@ -13,7 +13,7 @@ message(INFO "--------------------------------")
 message(STATUS "Build with tests: ${LLMDNN_BUILD_TESTS}")
 message(INFO "--------------------------------")
 
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 17)
 if(MSVC)
   # TODO: validate
   if(MSVC_VERSION VERSION_LESS 1928)

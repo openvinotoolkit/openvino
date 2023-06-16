@@ -84,8 +84,8 @@ namespace llmdnn {
         src = _mm512_mul_ps(src, two);
     }
 
-    template<typename D>
-    void softmax_avx512(D* dst, float* src, int N, float* s_max=nullptr, float* s_sum=nullptr, float* quant=nullptr) {
+    template<typename D, typename QD>
+    void softmax_avx512(D* dst, float* src, int N, QD quant) {
         static_assert(std::is_same<D, ov::bfloat16>::value || std::is_same<D, float>::value ||
                       std::is_same<D, int8_t>::value || std::is_same<D, uint8_t>::value,
                       "softmax_avx512 only support output data types ov::bfloat16/uint8_t/int8_t/float");
@@ -107,7 +107,6 @@ namespace llmdnn {
             x_max = _mm512_mask_max_ps(x_max, x_mask, x_max, x);
         }
         auto max = _mm512_reduce_max_ps(x_max);
-        if (s_max) *s_max = max;
         x_max = _mm512_set1_ps(max);
 
         // softmax
@@ -131,7 +130,6 @@ namespace llmdnn {
         }
 
         auto sum = _mm512_reduce_add_ps(sum_exp);
-        if (s_sum) *s_sum = sum;
         sum_exp = _mm512_set1_ps(sum);
         auto reciprocal_sum_exp = _mm512_div_ps(one, sum_exp);     // 1/sum_exp
 
@@ -174,8 +172,12 @@ namespace llmdnn {
             }
         }
         if (std::is_same<D, int8_t>::value) {
+            __m512 q;
+            if constexpr (std::is_same<QD, float>::value)
+                q = _mm512_set1_ps(quant);
             for(i = 0; i < N - tail; i += 16) {
-                auto q = _mm512_loadu_ps(quant + i);
+                if constexpr (std::is_same<QD, float*>::value)
+                    q = _mm512_loadu_ps(quant + i);
                 auto x = _mm512_loadu_ps(src + i);
                 x = _mm512_mul_ps(x, reciprocal_sum_exp);
                 x = _mm512_mul_ps(x, q);
@@ -185,7 +187,8 @@ namespace llmdnn {
             // handle tails
             if (tail) {
                 auto x = _mm512_maskz_loadu_ps(x_mask, src + i);
-                auto q = _mm512_maskz_loadu_ps(x_mask, quant + i);
+                if constexpr (std::is_same<QD, float*>::value)
+                    q = _mm512_maskz_loadu_ps(x_mask, quant + i);
                 x = _mm512_mul_ps(x, reciprocal_sum_exp);
                 x = _mm512_mul_ps(x, q);
                 auto x_i = _mm512_cvtps_epi32(x);
@@ -194,8 +197,12 @@ namespace llmdnn {
         }
         if (std::is_same<D, uint8_t>::value) {
             auto zero = _mm512_setzero_epi32();
+            __m512 q;
+            if constexpr (std::is_same<QD, float>::value)
+                q = _mm512_set1_ps(quant);
             for(i = 0; i < N - tail; i += 16) {
-                auto q = _mm512_loadu_ps(quant + i);
+                if constexpr (std::is_same<QD, float*>::value)
+                    q = _mm512_loadu_ps(quant + i);
                 auto x = _mm512_loadu_ps(src + i);
                 x = _mm512_mul_ps(x, reciprocal_sum_exp);
                 x = _mm512_mul_ps(x, q);
@@ -206,7 +213,8 @@ namespace llmdnn {
             // handle tails
             if (tail) {
                 auto x = _mm512_maskz_loadu_ps(x_mask, src + i);
-                auto q = _mm512_maskz_loadu_ps(x_mask, quant + i);
+                if constexpr (std::is_same<QD, float*>::value)
+                    q = _mm512_maskz_loadu_ps(x_mask, quant + i);
                 x = _mm512_mul_ps(x, reciprocal_sum_exp);
                 x = _mm512_mul_ps(x, q);
                 auto x_i = _mm512_cvtps_epi32(x);

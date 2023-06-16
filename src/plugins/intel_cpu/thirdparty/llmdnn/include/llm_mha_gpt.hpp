@@ -47,6 +47,7 @@ public:
         size_t head_size_aligned;       // better to aligned to 64 bytes for best performance, apply for qkv
         size_t max_seq_len;             // max seq length for computing the size of matmul tmp result
         float normal_factor;
+        // supported (qkv, dst): (bf16, bf16), (s8, s8)
         data_type_t qkv_precision;
         data_type_t dst_precision;
     };
@@ -63,22 +64,21 @@ public:
                                             //      attention_mask[0] shape: [1, max_seq_len]
         uint8_t* attn_output;               // output, compact, shape: [batch, query_seq_len, num_heads * head_size]
         size_t head_stride_in_kv;           // kv stride for next head; kv may be preallocated a big buffer
+        // expected quant schema:
+        //   q,k,v use per tensor quant, attn_output may use per tensor/channel quant
         float q_dequant;
         float k_dequant;
         float v_dequant;
         float qk_quant;
-        std::vector<float> qkv_quant;       // per channel
-        // float* qk_normal_dq;                // per channel, each item = normal_factor * q_dequant * k_dequant, used for softmax input
-        // float* qk_quant;                    // per channel, used for softmax output
-        // float* qkv_dq_q;                    // per channel, each item = 1 / qk_quant * v_dequant * qkv_quant, used for matmul2 output
+        std::vector<float> qkv_quant;       // size==1 per tensor, size==head_size per channel
     };
 
     mha_gpt();
-    void create(const create_param& param);
+    bool create(const create_param& param);
     void exec(const exec_param& param);
 
     struct impl {
-        virtual void create(const create_param& param) = 0;
+        virtual bool create(const create_param& param) = 0;
         virtual void exec(const exec_param& param) = 0;
     };
 protected:
