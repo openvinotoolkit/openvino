@@ -65,7 +65,7 @@ You can use the following additional build options:
    cmake -DCMAKE_TOOLCHAIN_FILE=<openvino_repo>/cmake/toolchains/ia32.linux.toolchain.cmake ..
    ```
 
-- OpenVINO offers several CMake options that can be used to build a custom OpenVINO runtime, which can help speed up compilation. These options allow you to skip compilation of other devices and frontends by disabling/enabling them. You can find a list of available options `here <https://github.com/openvinotoolkit/openvino/blob/master/docs/dev/cmake_options_for_custom_compilation.md>`__
+- OpenVINO offers several CMake options that can be used to build a custom OpenVINO runtime, which can help speed up compilation. These options allow you to skip compilation of other devices and frontends by disabling/enabling them. You can find a list of available options [here](https://github.com/openvinotoolkit/openvino/blob/master/docs/dev/cmake_options_for_custom_compilation.md)
 
 - To build the OpenVINO Runtime Python API:
   1. Install all additional packages (e.g., cython and opencv) listed in the `/src/bindings/python/src/compatibility/openvino/requirements-dev.txt` file:
