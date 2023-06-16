@@ -543,8 +543,15 @@ void Split::resolveInPlaceEdges(Edge::LOOK look) {
                 IE_ASSERT(childEdge->getStatus() == Edge::Status::NotAllocated) << " Unexpected edge status in node: " <<
                     getName() << " with type " << getTypeStr();
 
-                auto memMngr = std::make_shared<PartitionedMemoryMngr>(baseMemMngr, baseDim, offset, partDim);
-                auto newMem = std::make_shared<Memory>(getEngine(), selected_pd->getConfig().outConfs[i].getMemDesc(), memMngr);
+                auto memDesc = selected_pd->getConfig().outConfs[i].getMemDesc();
+                MemoryPtr newMem;
+                if (partDim != 0) {
+                    auto memMngr = std::make_shared<PartitionedMemoryMngr>(baseMemMngr, baseDim, offset, partDim);
+                    newMem = std::make_shared<Memory>(getEngine(), memDesc, memMngr);
+                } else {
+                    // empty tensor, no need to reference a part, default memory is enough
+                    newMem = std::make_shared<Memory>(getEngine(), memDesc);
+                }
 
                 childEdge->reuse(newMem);
             }

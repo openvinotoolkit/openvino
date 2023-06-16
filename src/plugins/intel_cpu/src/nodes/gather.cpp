@@ -603,8 +603,8 @@ void Gather::resolveInPlaceEdges(Edge::LOOK look) {
         ptrdiff_t offset = index < 0 ? baseDim + index : index;
         const auto& childEdges = getChildEdgesAtPort(outputPort);
         for (auto& childEdge : childEdges) {
-            // IE_ASSERT(parentEdge->getStatus() == Edge::Status::NotAllocated) << "Unexpected edge status in node: " <<
-            //     getName() << " with type " << getTypeStr();
+            IE_ASSERT(childEdge->getStatus() == Edge::Status::NotAllocated) << " Unexpected edge status in node: " <<
+                getName() << " with type " << getTypeStr();
 
             auto memMngr = std::make_shared<PartitionedMemoryMngr>(baseMemMngr, baseDim, offset);
             auto newMem = std::make_shared<Memory>(getEngine(), config.outConfs[outputPort].getMemDesc(), memMngr);

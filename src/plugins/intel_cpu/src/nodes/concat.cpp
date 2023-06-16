@@ -634,19 +634,26 @@ void Concat::resolveInPlaceEdges(Edge::LOOK look) {
         size_t numberOfInputs = config.inConfs.size();
         size_t inplaceOutIndx = selected_pd->getConfig().inConfs[0].inPlace();
         auto baseDim = outputShapes.front().getDims()[axis];
-        IE_ASSERT(baseDim != Shape::UNDEFINED_DIM) << "Concat node: " << getName() << " can't use inPlace memory with concatenation on dynamic dimension";
+        IE_ASSERT(baseDim != Shape::UNDEFINED_DIM) << " Concat node: " << getName() << " can't use inPlace memory with concatenation on dynamic dimension";
         auto baseMemMngr = getChildEdgesAtPort(inplaceOutIndx).front()->getMemory().getMemoryMngr();
         ptrdiff_t offset = 0;
         for (size_t i = 0; i < numberOfInputs; ++i) {
             auto partDim = inputShapes[i].getDims()[axis];
-            IE_ASSERT(partDim != Shape::UNDEFINED_DIM) << "Concat node: " << getName() << " can't use inPlace memory with concatenation on dynamic dimension";
+            IE_ASSERT(partDim != Shape::UNDEFINED_DIM) << " Concat node: " << getName() << " can't use inPlace memory with concatenation on dynamic dimension";
 
             auto parentEdge = getParentEdgeAt(i);
 
-            IE_ASSERT(parentEdge->getStatus() == Edge::Status::NotAllocated) << "Unexpected inplace resolve call to an allocated edge: " << parentEdge->name();
+            IE_ASSERT(parentEdge->getStatus() == Edge::Status::NotAllocated) << " Unexpected inplace resolve call to an allocated edge: " << parentEdge->name();
 
-            auto memMngr = std::make_shared<PartitionedMemoryMngr>(baseMemMngr, baseDim, offset, partDim);
-            auto newMem = std::make_shared<Memory>(getEngine(), selected_pd->getConfig().inConfs[i].getMemDesc(), memMngr);
+            auto memDesc = selected_pd->getConfig().inConfs[i].getMemDesc();
+            MemoryPtr newMem;
+            if (partDim != 0) {
+                auto memMngr = std::make_shared<PartitionedMemoryMngr>(baseMemMngr, baseDim, offset, partDim);
+                auto newMem = std::make_shared<Memory>(getEngine(), memDesc, memMngr);
+            } else {
+                // empty tensor, no need to reference a part, default memory is enough
+                newMem = std::make_shared<Memory>(getEngine(), memDesc);
+            }
 
             parentEdge->reuse(newMem);
             offset += partDim;
