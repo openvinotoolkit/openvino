@@ -16,6 +16,7 @@
 #include "transformations/common_optimizations/remove_multi_subgraph_op_dangling_params.hpp"
 #include "transformations/common_optimizations/reverse_shape_and_type_infer.hpp"
 #include "transformations/control_flow/unroll_if.hpp"
+#include "transformations/low_precision/mark_dequantization_subgraph.hpp"
 #include "transformations/op_conversions/convert_convertlike.hpp"
 #include "transforms.hpp"
 #include "transforms/append_list_unpack_replacer.hpp"
@@ -149,6 +150,10 @@ std::shared_ptr<Model> FrontEnd::decode(const InputModel::Ptr& model) const {
 
 void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     ov::pass::Manager manager;
+
+    // Protect quantization subgraph from ConstantFolding
+    manager.register_pass<ov::pass::MarkDequantizationSubgraph>(
+        element::TypeVector{element::i8, element::u8, element::i4, element::u4});
 
     // the following 2 transformations are needed for keypoint detectron2 models to work.
     // AtenIndexToSelect will be called twice
