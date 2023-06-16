@@ -352,9 +352,9 @@ inline void CNNNetBFS(const InferenceEngine::CNNLayerPtr& layer, const T& visit)
  * @param idx - index in previous layer collection
  * @param layer
  */
-inline bool CNNNetHasPrevLayer(const InferenceEngine::CNNLayer* layer, size_t idx = 0) {
+inline bool CNNNetHasPrevLayer(const InferenceEngine::CNNLayer* layer, int idx = 0) {
     IE_ASSERT(layer != nullptr);
-    if (layer->insData.empty() || layer->insData.size() <= idx) {
+    if (layer->insData.empty() || static_cast<int>(layer->insData.size()) <= idx) {
         return false;
     }
     auto prevData = layer->insData[idx].lock();

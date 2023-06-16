@@ -21,7 +21,7 @@ SimpleCrop get_crop_params(const std::vector<int32_t>& axis_in,
 
     auto crop_axis_detected = false;
     auto cropped_dim_size = total_size_to_crop;
-    for (size_t n = 0; n < axis_in.size(); n++) {
+    for (int n = 0; n < axis_in.size(); n++) {
         const auto axis = axis_in[n];
         if (axis < 0 || axis >= input_dims.size()) {
             log::warning() << "Crop axis outside of input shape size detected.\n";

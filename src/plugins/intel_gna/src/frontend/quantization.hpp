@@ -57,8 +57,8 @@ extern void QuantizeBiases(const QuantizationData& data, float* ptr_float_biases
 #    endif
 #endif
 
-template <class T, class U>
-inline T SaturationCast(U value, uint32_t* saturation_counter = nullptr) {
+template <class T>
+inline T SaturationCast(float value, uint32_t* saturation_counter = nullptr) {
     if (value > std::numeric_limits<T>::max()) {
         if (saturation_counter) {
             (*saturation_counter)++;
@@ -81,7 +81,7 @@ inline T SaturationCast(U value, uint32_t* saturation_counter = nullptr) {
 /**
  * @brief Apply FQ levels onto a value
  */
-float ApplyFQ(float value, float input_low, float input_high, float output_low, float output_high, size_t levels);
+float ApplyFQ(float value, float input_low, float input_high, float output_low, float output_high, uint32_t levels);
 
 }  // namespace frontend
 }  // namespace intel_gna

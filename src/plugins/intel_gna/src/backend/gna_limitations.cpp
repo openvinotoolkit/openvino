@@ -53,11 +53,11 @@ const std::set<ov::element::Type> SupportedElementTypes::supported_parameter_typ
 
 namespace cnn2d {
 
-bool IsEqualToLimit::IsValid(const size_t val) const {
+bool IsEqualToLimit::IsValid(const uint32_t val) const {
     return val == compared_value;
 }
 
-std::string IsEqualToLimit::GetErrorOrEmpty(const size_t val) const {
+std::string IsEqualToLimit::GetErrorOrEmpty(const uint32_t val) const {
     std::ostringstream out;
     if (!IsValid(val)) {
         out << "Unsupported " << what << ", actual value: " << val << ", but should be equal to " << compared_value
@@ -66,11 +66,11 @@ std::string IsEqualToLimit::GetErrorOrEmpty(const size_t val) const {
     return out.str();
 }
 
-bool IsLessThanLimit::IsValid(const size_t val) const {
+bool IsLessThanLimit::IsValid(const uint32_t val) const {
     return val < compared_value;
 }
 
-std::string IsLessThanLimit::GetErrorOrEmpty(const size_t val) const {
+std::string IsLessThanLimit::GetErrorOrEmpty(const uint32_t val) const {
     std::ostringstream out;
     if (!IsValid(val)) {
         out << "Unsupported " << what << ", actual value: " << val << ", but should be less than " << compared_value
@@ -79,11 +79,11 @@ std::string IsLessThanLimit::GetErrorOrEmpty(const size_t val) const {
     return out.str();
 }
 
-bool RangeLimit::IsValid(const size_t val) const {
+bool RangeLimit::IsValid(const uint32_t val) const {
     return val >= min && val <= max;
 }
 
-std::string RangeLimit::GetErrorOrEmpty(const size_t val) const {
+std::string RangeLimit::GetErrorOrEmpty(const uint32_t val) const {
     std::ostringstream out;
     if (!IsValid(val)) {
         out << "Unsupported " << what << ", actual value: " << val << ", valid range [" << min << ", " << max << "]\n";
@@ -91,23 +91,23 @@ std::string RangeLimit::GetErrorOrEmpty(const size_t val) const {
     return out.str();
 }
 
-bool RangeLimit2D::IsValid(const size_t h, const size_t w) const {
+bool RangeLimit2D::IsValid(const uint32_t h, const uint32_t w) const {
     return hLimit.IsValid(h) && wLimit.IsValid(w);
 }
 
-std::string RangeLimit2D::GetErrorOrEmpty(const size_t h, const size_t w) const {
+std::string RangeLimit2D::GetErrorOrEmpty(const uint32_t h, const uint32_t w) const {
     return hLimit.GetErrorOrEmpty(h) + wLimit.GetErrorOrEmpty(w);
 }
 
-RangeMultipleLimit::RangeMultipleLimit(RangeLimit rlIn, size_t multiplierIn)
+RangeMultipleLimit::RangeMultipleLimit(RangeLimit rlIn, uint32_t multiplierIn)
     : RangeLimit(rlIn),
       multiplier(multiplierIn) {}
 
-bool RangeMultipleLimit::IsValid(const size_t val) const {
+bool RangeMultipleLimit::IsValid(const uint32_t val) const {
     return RangeLimit::IsValid(val) && (val % multiplier == 0);
 }
 
-std::string RangeMultipleLimit::GetErrorOrEmpty(const size_t val) const {
+std::string RangeMultipleLimit::GetErrorOrEmpty(const uint32_t val) const {
     auto e = RangeLimit::GetErrorOrEmpty(val);
     std::ostringstream out;
     if (val % multiplier != 0) {
@@ -116,7 +116,7 @@ std::string RangeMultipleLimit::GetErrorOrEmpty(const size_t val) const {
     return e + out.str();
 }
 
-bool VectorOrSquareLimit::IsValid(const size_t h, const size_t w) const {
+bool VectorOrSquareLimit::IsValid(const uint32_t h, const uint32_t w) const {
     if (w == 1 && h >= 1 && h <= maxVectorHeight)
         return true;
     if (h == 1 && w >= 1 && w <= maxVectorWidth)
@@ -126,7 +126,7 @@ bool VectorOrSquareLimit::IsValid(const size_t h, const size_t w) const {
     return false;
 }
 
-std::string VectorOrSquareLimit::GetErrorOrEmpty(const size_t h, const size_t w, std::string what) const {
+std::string VectorOrSquareLimit::GetErrorOrEmpty(const uint32_t h, const uint32_t w, std::string what) const {
     std::ostringstream out;
     if (!IsValid(h, w)) {
         out << "Unsupported " << what << " shape, actual HxW: " << h << "x" << w << ", only vertical vector up to "
@@ -136,13 +136,13 @@ std::string VectorOrSquareLimit::GetErrorOrEmpty(const size_t h, const size_t w,
     return out.str();
 }
 
-bool RectLimit::IsValid(const size_t h, const size_t w) const {
+bool RectLimit::IsValid(const uint32_t h, const uint32_t w) const {
     if (h >= 1 && h <= maxVectorHeight && w >= 1 && w <= maxVectorWidth)
         return true;
     return false;
 }
 
-std::string RectLimit::GetErrorOrEmpty(const size_t h, const size_t w, std::string what) const {
+std::string RectLimit::GetErrorOrEmpty(const uint32_t h, const uint32_t w, std::string what) const {
     std::ostringstream out;
     if (!IsValid(h, w)) {
         out << "Unsupported " << what << " shape, actual HxW: " << h << "x" << w << ", only rectangular shapes up to "
@@ -151,7 +151,7 @@ std::string RectLimit::GetErrorOrEmpty(const size_t h, const size_t w, std::stri
     return out.str();
 }
 
-RectLimit RectLimitByChannels::GetByChannels(const size_t channels) const {
+RectLimit RectLimitByChannels::GetByChannels(const uint32_t channels) const {
     for (auto&& limit : limitPerChannel) {
         if (limit.first >= channels) {
             return limit.second;
@@ -160,13 +160,13 @@ RectLimit RectLimitByChannels::GetByChannels(const size_t channels) const {
     return RectLimit{0, 0};
 }
 
-bool RectLimitByChannels::IsValid(const size_t h, const size_t w, const size_t channels) const {
+bool RectLimitByChannels::IsValid(const uint32_t h, const uint32_t w, const uint32_t channels) const {
     return GetByChannels(channels).IsValid(h, w);
 }
 
-std::string RectLimitByChannels::GetErrorOrEmpty(const size_t h,
-                                                 const size_t w,
-                                                 const size_t channels,
+std::string RectLimitByChannels::GetErrorOrEmpty(const uint32_t h,
+                                                 const uint32_t w,
+                                                 const uint32_t channels,
                                                  std::string what) const {
     return GetByChannels(channels).GetErrorOrEmpty(h, w, what);
 }
@@ -175,17 +175,17 @@ RectLimitByChannels RectLimitByChannelsAndPrecision::GetByPrecision(const OvGnaT
     return precision == OvGnaTypeInt8 ? limit_for_int8 : limit_for_int16;
 }
 
-bool RectLimitByChannelsAndPrecision::IsValid(const size_t h,
-                                              const size_t w,
+bool RectLimitByChannelsAndPrecision::IsValid(const uint32_t h,
+                                              const uint32_t w,
                                               const OvGnaType precision,
-                                              const size_t channels) const {
+                                              const uint32_t channels) const {
     return GetByPrecision(precision).IsValid(h, w, channels);
 }
 
-std::string RectLimitByChannelsAndPrecision::GetErrorOrEmpty(const size_t h,
-                                                             const size_t w,
+std::string RectLimitByChannelsAndPrecision::GetErrorOrEmpty(const uint32_t h,
+                                                             const uint32_t w,
                                                              const OvGnaType precision,
-                                                             const size_t channels,
+                                                             const uint32_t channels,
                                                              std::string what) const {
     return GetByPrecision(precision).GetErrorOrEmpty(h, w, channels, what);
 }
@@ -204,48 +204,48 @@ public:
     Validator_30() = default;
 
     bool ValidateCnn2D(const std::string& name,
-                       const size_t inHeight,
-                       const size_t inWidth,
-                       const size_t inChannels,
-                       const size_t kH,
-                       const size_t kW,
-                       const size_t kN,
-                       const size_t strideH,
-                       const size_t strideW,
-                       const size_t dilationH,
-                       const size_t dilationW,
+                       const uint32_t inHeight,
+                       const uint32_t inWidth,
+                       const uint32_t inChannels,
+                       const uint32_t kH,
+                       const uint32_t kW,
+                       const uint32_t kN,
+                       const uint32_t strideH,
+                       const uint32_t strideW,
+                       const uint32_t dilationH,
+                       const uint32_t dilationW,
                        OvGnaType inPrecision,
                        bool exception = true) const override;
 
     bool ValidatePooling2D(const std::string& name,
-                           const size_t windowH,
-                           const size_t windowW,
-                           const size_t strideH,
-                           const size_t strideW,
+                           const uint32_t windowH,
+                           const uint32_t windowW,
+                           const uint32_t strideH,
+                           const uint32_t strideW,
                            bool exception = true) const override;
 
     bool ValidateInputPadding(const std::string& name,
-                              const size_t pad_h_begin,
-                              const size_t pad_h_end,
-                              const size_t pad_w_begin,
-                              const size_t pad_w_end,
-                              const size_t kernel_h,
-                              const size_t kernel_w,
+                              const uint32_t pad_h_begin,
+                              const uint32_t pad_h_end,
+                              const uint32_t pad_w_begin,
+                              const uint32_t pad_w_end,
+                              const uint32_t kernel_h,
+                              const uint32_t kernel_w,
                               const bool throwOnError = true) const override;
 
     bool ShouldUseOnlyConv2DGnaIface() const override;
 
     bool ValidateCnn1D(const std::string& name,
-                       const size_t inHeight,
-                       const size_t inWidth,
-                       const size_t inChannels,
-                       const size_t kH,
-                       const size_t kW,
-                       const size_t kN,
-                       const size_t strideH,
-                       const size_t strideW,
-                       const size_t dilationH,
-                       const size_t dilationW,
+                       const uint32_t inHeight,
+                       const uint32_t inWidth,
+                       const uint32_t inChannels,
+                       const uint32_t kH,
+                       const uint32_t kW,
+                       const uint32_t kN,
+                       const uint32_t strideH,
+                       const uint32_t strideW,
+                       const uint32_t dilationH,
+                       const uint32_t dilationW,
                        OvGnaType inPrecision,
                        bool exception = true) const override;
 };
@@ -264,16 +264,16 @@ const RangeLimit2D Validator_30::kDilationLimit{
     {Limitations::kConvDilationWidth, Limitations::kConvDilationWidth, "dilation width"}};
 
 bool Validator_30::ValidateCnn2D(const std::string& name,
-                                 const size_t inHeight,
-                                 const size_t inWidth,
-                                 const size_t inChannels,
-                                 const size_t kernelH,
-                                 const size_t kernelW,
-                                 const size_t kernelN,
-                                 const size_t strideH,
-                                 const size_t strideW,
-                                 const size_t dilationH,
-                                 const size_t dilationW,
+                                 const uint32_t inHeight,
+                                 const uint32_t inWidth,
+                                 const uint32_t inChannels,
+                                 const uint32_t kernelH,
+                                 const uint32_t kernelW,
+                                 const uint32_t kernelN,
+                                 const uint32_t strideH,
+                                 const uint32_t strideW,
+                                 const uint32_t dilationH,
+                                 const uint32_t dilationW,
                                  const OvGnaType inPrecision,
                                  const bool throwOnError) const {
     const auto& kStrideLimit = kKernelLimit;
@@ -296,16 +296,16 @@ bool Validator_30::ValidateCnn2D(const std::string& name,
 }
 
 bool Validator_30::ValidateCnn1D(const std::string& name,
-                                 const size_t inHeight,
-                                 const size_t inWidth,
-                                 const size_t inChannels,
-                                 const size_t kH,
-                                 const size_t kW,
-                                 const size_t kN,
-                                 const size_t strideH,
-                                 const size_t strideW,
-                                 const size_t dilationH,
-                                 const size_t dilationW,
+                                 const uint32_t inHeight,
+                                 const uint32_t inWidth,
+                                 const uint32_t inChannels,
+                                 const uint32_t kH,
+                                 const uint32_t kW,
+                                 const uint32_t kN,
+                                 const uint32_t strideH,
+                                 const uint32_t strideW,
+                                 const uint32_t dilationH,
+                                 const uint32_t dilationW,
                                  OvGnaType inPrecision,
                                  bool exception) const {
     return false;
@@ -314,10 +314,10 @@ bool Validator_30::ValidateCnn1D(const std::string& name,
 const VectorOrSquareLimit Validator_30::kPoolingWindowLimit{3, 1, 1};
 
 bool Validator_30::ValidatePooling2D(const std::string& name,
-                                     const size_t windowH,
-                                     const size_t windowW,
-                                     const size_t strideH,
-                                     const size_t strideW,
+                                     const uint32_t windowH,
+                                     const uint32_t windowW,
+                                     const uint32_t strideH,
+                                     const uint32_t strideW,
                                      const bool throwOnError) const {
     auto error = kPoolingWindowLimit.GetErrorOrEmpty(windowH, windowW, "pooling window");
     const RangeLimit poolingStrideHLimit{1, windowH, "pooling stride height (must be up to pooling window height)"};
@@ -330,12 +330,12 @@ bool Validator_30::ValidatePooling2D(const std::string& name,
 }
 
 bool Validator_30::ValidateInputPadding(const std::string& name,
-                                        const size_t pad_h_begin,
-                                        const size_t pad_h_end,
-                                        const size_t pad_w_begin,
-                                        const size_t pad_w_end,
-                                        const size_t,
-                                        const size_t,
+                                        const uint32_t pad_h_begin,
+                                        const uint32_t pad_h_end,
+                                        const uint32_t pad_w_begin,
+                                        const uint32_t pad_w_end,
+                                        const uint32_t,
+                                        const uint32_t,
                                         const bool throwOnError) const {
     const IsEqualToLimit padding_zero{0, "convolution input padding size (must equal zero)"};
     auto error = padding_zero.GetErrorOrEmpty(pad_h_begin);
@@ -369,71 +369,71 @@ class Validator_35 : public AbstractValidator {
 
     std::string ValidateCnn(const CnnLimits& limits,
                             const std::string& name,
-                            const size_t inHeight,
-                            const size_t inWidth,
-                            const size_t inChannels,
-                            const size_t kH,
-                            const size_t kW,
-                            const size_t kN,
-                            const size_t strideH,
-                            const size_t strideW,
-                            const size_t dilationH,
-                            const size_t dilationW,
+                            const uint32_t inHeight,
+                            const uint32_t inWidth,
+                            const uint32_t inChannels,
+                            const uint32_t kH,
+                            const uint32_t kW,
+                            const uint32_t kN,
+                            const uint32_t strideH,
+                            const uint32_t strideW,
+                            const uint32_t dilationH,
+                            const uint32_t dilationW,
                             OvGnaType inPrecision) const;
 
     std::string ValidatePooling(const CnnLimits& limits,
                                 const std::string& name,
-                                const size_t windowH,
-                                const size_t windowW,
-                                const size_t strideH,
-                                const size_t strideW) const;
+                                const uint32_t windowH,
+                                const uint32_t windowW,
+                                const uint32_t strideH,
+                                const uint32_t strideW) const;
 
 public:
     Validator_35() = default;
 
     bool ValidateCnn2D(const std::string& name,
-                       const size_t inHeight,
-                       const size_t inWidth,
-                       const size_t inChannels,
-                       const size_t kH,
-                       const size_t kW,
-                       const size_t kN,
-                       const size_t strideH,
-                       const size_t strideW,
-                       const size_t dilationH,
-                       const size_t dilationW,
+                       const uint32_t inHeight,
+                       const uint32_t inWidth,
+                       const uint32_t inChannels,
+                       const uint32_t kH,
+                       const uint32_t kW,
+                       const uint32_t kN,
+                       const uint32_t strideH,
+                       const uint32_t strideW,
+                       const uint32_t dilationH,
+                       const uint32_t dilationW,
                        OvGnaType inPrecision,
                        bool exception = true) const override;
 
     bool ValidatePooling2D(const std::string& name,
-                           const size_t windowH,
-                           const size_t windowW,
-                           const size_t strideH,
-                           const size_t strideW,
+                           const uint32_t windowH,
+                           const uint32_t windowW,
+                           const uint32_t strideH,
+                           const uint32_t strideW,
                            bool exception = true) const override;
 
     bool ValidateInputPadding(const std::string& name,
-                              const size_t pad_h_begin,
-                              const size_t pad_h_end,
-                              const size_t pad_w_begin,
-                              const size_t pad_w_end,
-                              const size_t kernel_h,
-                              const size_t kernel_w,
+                              const uint32_t pad_h_begin,
+                              const uint32_t pad_h_end,
+                              const uint32_t pad_w_begin,
+                              const uint32_t pad_w_end,
+                              const uint32_t kernel_h,
+                              const uint32_t kernel_w,
                               const bool throwOnError = true) const override;
 
     bool ShouldUseOnlyConv2DGnaIface() const override;
 
     bool ValidateCnn1D(const std::string& name,
-                       const size_t inHeight,
-                       const size_t inWidth,
-                       const size_t inChannels,
-                       const size_t kH,
-                       const size_t kW,
-                       const size_t kN,
-                       const size_t strideH,
-                       const size_t strideW,
-                       const size_t dilationH,
-                       const size_t dilationW,
+                       const uint32_t inHeight,
+                       const uint32_t inWidth,
+                       const uint32_t inChannels,
+                       const uint32_t kH,
+                       const uint32_t kW,
+                       const uint32_t kN,
+                       const uint32_t strideH,
+                       const uint32_t strideW,
+                       const uint32_t dilationH,
+                       const uint32_t dilationW,
                        OvGnaType inPrecision,
                        bool exception = true) const override;
 };
@@ -470,16 +470,16 @@ const Validator_35::CnnLimits Validator_35::kCnn1DLimits{
 
 std::string Validator_35::ValidateCnn(const Validator_35::CnnLimits& limits,
                                       const std::string& name,
-                                      const size_t inHeight,
-                                      const size_t inWidth,
-                                      const size_t inChannels,
-                                      const size_t kernelH,
-                                      const size_t kernelW,
-                                      const size_t kernelN,
-                                      const size_t strideH,
-                                      const size_t strideW,
-                                      const size_t dilationH,
-                                      const size_t dilationW,
+                                      const uint32_t inHeight,
+                                      const uint32_t inWidth,
+                                      const uint32_t inChannels,
+                                      const uint32_t kernelH,
+                                      const uint32_t kernelW,
+                                      const uint32_t kernelN,
+                                      const uint32_t strideH,
+                                      const uint32_t strideW,
+                                      const uint32_t dilationH,
+                                      const uint32_t dilationW,
                                       const OvGnaType inPrecision) const {
     auto error = limits.kInputHWLimit.GetErrorOrEmpty(inHeight, inWidth);
     error += limits.kKernelNumberLimit.GetErrorOrEmpty(kernelN);
@@ -502,16 +502,16 @@ std::string Validator_35::ValidateCnn(const Validator_35::CnnLimits& limits,
 }
 
 bool Validator_35::ValidateCnn2D(const std::string& name,
-                                 const size_t inHeight,
-                                 const size_t inWidth,
-                                 const size_t inChannels,
-                                 const size_t kernelH,
-                                 const size_t kernelW,
-                                 const size_t kernelN,
-                                 const size_t strideH,
-                                 const size_t strideW,
-                                 const size_t dilationH,
-                                 const size_t dilationW,
+                                 const uint32_t inHeight,
+                                 const uint32_t inWidth,
+                                 const uint32_t inChannels,
+                                 const uint32_t kernelH,
+                                 const uint32_t kernelW,
+                                 const uint32_t kernelN,
+                                 const uint32_t strideH,
+                                 const uint32_t strideW,
+                                 const uint32_t dilationH,
+                                 const uint32_t dilationW,
                                  const OvGnaType inPrecision,
                                  const bool throwOnError) const {
     auto error = ValidateCnn(kCnn2DLimits,
@@ -531,16 +531,16 @@ bool Validator_35::ValidateCnn2D(const std::string& name,
 }
 
 bool Validator_35::ValidateCnn1D(const std::string& name,
-                                 const size_t inHeight,
-                                 const size_t inWidth,
-                                 const size_t inChannels,
-                                 const size_t kernelH,
-                                 const size_t kernelW,
-                                 const size_t kernelN,
-                                 const size_t strideH,
-                                 const size_t strideW,
-                                 const size_t dilationH,
-                                 const size_t dilationW,
+                                 const uint32_t inHeight,
+                                 const uint32_t inWidth,
+                                 const uint32_t inChannels,
+                                 const uint32_t kernelH,
+                                 const uint32_t kernelW,
+                                 const uint32_t kernelN,
+                                 const uint32_t strideH,
+                                 const uint32_t strideW,
+                                 const uint32_t dilationH,
+                                 const uint32_t dilationW,
                                  const OvGnaType inPrecision,
                                  const bool throwOnError) const {
     auto error = ValidateCnn(kCnn1DLimits,
@@ -561,10 +561,10 @@ bool Validator_35::ValidateCnn1D(const std::string& name,
 
 std::string Validator_35::ValidatePooling(const CnnLimits& limits,
                                           const std::string& name,
-                                          const size_t windowH,
-                                          const size_t windowW,
-                                          const size_t strideH,
-                                          const size_t strideW) const {
+                                          const uint32_t windowH,
+                                          const uint32_t windowW,
+                                          const uint32_t strideH,
+                                          const uint32_t strideW) const {
     auto error = limits.kPoolingWindowHWLimit.GetErrorOrEmpty(windowH, windowW);
     error += limits.kPoolingStrideHWLimit.GetErrorOrEmpty(strideH, strideW);
 
@@ -578,22 +578,22 @@ std::string Validator_35::ValidatePooling(const CnnLimits& limits,
 }
 
 bool Validator_35::ValidatePooling2D(const std::string& name,
-                                     const size_t windowH,
-                                     const size_t windowW,
-                                     const size_t strideH,
-                                     const size_t strideW,
+                                     const uint32_t windowH,
+                                     const uint32_t windowW,
+                                     const uint32_t strideH,
+                                     const uint32_t strideW,
                                      const bool throwOnError) const {
     auto error = ValidatePooling(kCnn2DLimits, name, windowH, windowW, strideH, strideW);
     return ValidationSuccesful(throwOnError, error, name, "Pooling2D");
 }
 
 bool Validator_35::ValidateInputPadding(const std::string& name,
-                                        const size_t pad_h_begin,
-                                        const size_t pad_h_end,
-                                        const size_t pad_w_begin,
-                                        const size_t pad_w_end,
-                                        const size_t kernel_h,
-                                        const size_t kernel_w,
+                                        const uint32_t pad_h_begin,
+                                        const uint32_t pad_h_end,
+                                        const uint32_t pad_w_begin,
+                                        const uint32_t pad_w_end,
+                                        const uint32_t kernel_h,
+                                        const uint32_t kernel_w,
                                         const bool throwOnError) const {
     const IsEqualToLimit padding_h_symetric{pad_h_end,
                                             "convolution input padding along height axis (must be symmetric)"};
@@ -944,7 +944,7 @@ bool Limitations::validate_concat_axis(const InferenceEngine::CNNLayerPtr layer,
                        ptr->GetParamAsInts("order") == std::vector<int32_t>{0, 2, 1} /* NCW to NWC */))));
         };
 
-        for (size_t input_idx = 0; input_idx != concat_layer->insData.size(); input_idx++) {
+        for (auto input_idx = 0; input_idx != concat_layer->insData.size(); input_idx++) {
             prev_layer = InferenceEngine::CNNNetPrevLayerSkipCertain(layer, input_idx, isFusableWithConv);
             if (prev_layer && LayerInfo(prev_layer).isConvolution())
                 return true;
@@ -975,7 +975,7 @@ bool Limitations::validate_concat_axis(const InferenceEngine::CNNLayerPtr layer,
         } else {
             concat_all_const_or_inputs = true;
 
-            for (size_t input_idx = 0; input_idx != concat_layer->insData.size(); input_idx++) {
+            for (auto input_idx = 0; input_idx != concat_layer->insData.size(); input_idx++) {
                 if (concat_layer->insData[input_idx].lock()->getDims()[0] != 1) {
                     // First we're checking concat input layers
                     prev_layer = InferenceEngine::CNNNetPrevLayerSkipCertain(
@@ -1076,7 +1076,7 @@ bool Limitations::validate_conv_concat_axis(const InferenceEngine::ConcatLayer* 
         auto concat_axis = concat_layer->_axis;
         auto concat_layout = concat_layer->input()->getLayout();
 
-        for (size_t input_idx = 0; input_idx != concat_layer->insData.size(); input_idx++) {
+        for (auto input_idx = 0; input_idx != concat_layer->insData.size(); input_idx++) {
             // Supported cases for concatenation of a convolution
             prev_layer = InferenceEngine::CNNNetPrevLayerSkipCertain(concat_layer, input_idx, isFusableWithConv);
             if (prev_layer && LayerInfo(prev_layer).isConvolution()) {

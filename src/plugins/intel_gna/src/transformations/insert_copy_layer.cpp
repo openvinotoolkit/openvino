@@ -243,14 +243,14 @@ bool HandleMultiConnectedLayerToConcatAndMemory::run_on_model(const std::shared_
 
     using FuncChildrenInfo = std::tuple<std::shared_ptr<ngraph::Node>,  // parent node
                                         std::shared_ptr<ngraph::Node>,  // child node
-                                        size_t                          // input index
+                                        int32_t                         // input index
                                         >;
 
     // recursively searches for children functional layers skipping non-functional ones
-    std::function<std::vector<FuncChildrenInfo>(std::shared_ptr<ngraph::Node>, std::shared_ptr<ngraph::Node>, size_t)>
+    std::function<std::vector<FuncChildrenInfo>(std::shared_ptr<ngraph::Node>, std::shared_ptr<ngraph::Node>, int32_t)>
         find_func_layers = [&find_func_layers](std::shared_ptr<ngraph::Node> current_node,
                                                std::shared_ptr<ngraph::Node> parent_node,
-                                               size_t input_idx) {
+                                               int32_t input_idx) {
             if (!is_gna_non_functional_node(current_node) || current_node->get_output_size() == 0 ||
                 current_node->output(0).get_target_inputs().size() == 0) {
                 return std::vector<FuncChildrenInfo>{std::make_tuple(parent_node, current_node, input_idx)};

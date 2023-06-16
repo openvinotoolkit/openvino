@@ -49,14 +49,14 @@ inline bool areEqualDatas(DataPtr source, DataPtr target) {
 }
 
 /// @brief utility to locate input data idx from given outdata and given layer
-inline std::vector<size_t> CNNLayerFindInsDataIdxes(DataPtr sourceData, CNNLayerPtr layer) {
-    std::vector<size_t> dataIdxes;
+inline std::vector<int> CNNLayerFindInsDataIdxes(DataPtr sourceData, CNNLayerPtr layer) {
+    std::vector<int> dataIdxes;
     auto outLayers = getInputTo(sourceData);
     for (auto& outLayer : outLayers) {
         if (outLayer.second.get() != layer.get()) {
             continue;
         }
-        for (size_t j = 0; j < layer->insData.size(); j++) {
+        for (int j = 0; j < layer->insData.size(); j++) {
             if (areEqualDatas(layer->insData[j].lock(), sourceData)) {
                 dataIdxes.push_back(j);
             }
@@ -71,7 +71,7 @@ inline std::vector<size_t> CNNLayerFindInsDataIdxes(DataPtr sourceData, CNNLayer
  * @param idx - index in previous layer collection
  * @param layer
  */
-inline InferenceEngine::CNNLayerPtr CNNNetPrevLayer(const InferenceEngine::CNNLayerPtr& layer, size_t idx = 0) {
+inline InferenceEngine::CNNLayerPtr CNNNetPrevLayer(const InferenceEngine::CNNLayerPtr& layer, int idx = 0) {
     if (CNNNetHasPrevLayer(layer.get(), idx)) {
         auto prevData = layer->insData[idx].lock();
         IE_ASSERT(prevData != nullptr);
@@ -86,7 +86,7 @@ inline InferenceEngine::CNNLayerPtr CNNNetPrevLayer(const InferenceEngine::CNNLa
  * @param idx - index in previous layer collection
  * @param layer
  */
-inline InferenceEngine::CNNLayerPtr CNNNetPrevLayer(const InferenceEngine::CNNLayer* layer, size_t idx = 0) {
+inline InferenceEngine::CNNLayerPtr CNNNetPrevLayer(const InferenceEngine::CNNLayer* layer, int idx = 0) {
     IE_ASSERT(layer != nullptr);
     if (CNNNetHasPrevLayer(layer, idx)) {
         auto prevData = layer->insData[idx].lock();
@@ -134,7 +134,7 @@ inline typename ExtractRawPtr<T>::raw_ptr_type raw_ptr(T obj) {
  */
 template <class Layer>
 inline InferenceEngine::CNNLayerPtr CNNNetPrevLayerSkipCertain(Layer layer,
-                                                               size_t idx,
+                                                               int idx,
                                                                const std::function<bool(CNNLayerPtr)>& shouldSkip) {
     IE_ASSERT(layer != nullptr);
     if (!CNNNetHasPrevLayer(raw_ptr(layer), idx)) {
@@ -167,10 +167,10 @@ inline InferenceEngine::CNNLayerPtr CNNNetPrevLayerSkipCertain(Layer layer,
  */
 
 template <class Layer>
-inline std::pair<InferenceEngine::CNNLayerPtr, std::vector<size_t>> CNNNetCheckNextLayerSkipCertain(
+inline std::pair<InferenceEngine::CNNLayerPtr, std::vector<int>> CNNNetCheckNextLayerSkipCertain(
     Layer layer,
-    size_t oidx,
-    size_t iidx,
+    int oidx,
+    int iidx,
     bool bOnlyCheck,
     const std::function<bool(CNNLayerPtr)>& shouldSkip) {
     if (oidx >= layer->outData.size()) {
@@ -188,8 +188,8 @@ inline std::pair<InferenceEngine::CNNLayerPtr, std::vector<size_t>> CNNNetCheckN
     auto outLayer = getInputTo(layer->outData[oidx]).begin();
     std::advance(outLayer, iidx);
 
-    size_t new_oidx = shouldSkip(outLayer->second) ? 0 : oidx;
-    size_t new_iidx = shouldSkip(outLayer->second) ? 0 : iidx;
+    int new_oidx = shouldSkip(outLayer->second) ? 0 : oidx;
+    int new_iidx = shouldSkip(outLayer->second) ? 0 : iidx;
 
     while (shouldSkip(outLayer->second)) {
         if (outLayer->second->outData.size() <= new_oidx) {
@@ -229,7 +229,7 @@ inline std::vector<CNNLayerPtr> CNNNetGetAllNextLayersSkipCertain(Layer layer,
 
     std::vector<std::map<std::string, CNNLayerPtr>> start;
     if (oDataIdx == -1) {
-        for (size_t i = 0; i != layer->outData.size(); i++) {
+        for (int i = 0; i != layer->outData.size(); i++) {
             start.push_back(getInputTo(layer->outData[i]));
         }
     } else {
@@ -249,7 +249,7 @@ inline std::vector<CNNLayerPtr> CNNNetGetAllNextLayersSkipCertain(Layer layer,
     int startIdx, endIdx;
     if (oDataIdx == -1) {
         startIdx = 0;
-        endIdx = static_cast<int>(layer->outData.size());
+        endIdx = layer->outData.size();
     } else {
         startIdx = oDataIdx;
         endIdx = oDataIdx + 1;
@@ -276,36 +276,33 @@ inline std::vector<CNNLayerPtr> CNNNetGetAllNextLayersSkipCertain(Layer layer,
 
 /// @brief alias for strict checkNextLayer (false)
 template <class Layer>
-inline std::pair<InferenceEngine::CNNLayerPtr, std::vector<size_t>> CNNNetGetNextLayerSkipCertain(
-    Layer layer,
-    size_t oidx,
-    size_t iidx,
-    const std::function<bool(CNNLayerPtr)>& shouldSkip) {
+inline std::pair<InferenceEngine::CNNLayerPtr, std::vector<int>>
+CNNNetGetNextLayerSkipCertain(Layer layer, int oidx, int iidx, const std::function<bool(CNNLayerPtr)>& shouldSkip) {
     return CNNNetCheckNextLayerSkipCertain(layer, oidx, iidx, false, shouldSkip);
 }
 
 /// @brief alias for non-strict checkNextLayer (false)
 template <class Layer>
 inline bool CNNNetHasNextLayerSkipCertain(Layer layer,
-                                          size_t oidx,
-                                          size_t iidx,
+                                          int oidx,
+                                          int iidx,
                                           const std::function<bool(CNNLayerPtr)>& shouldSkip) {
     auto l = CNNNetCheckNextLayerSkipCertain(layer, oidx, iidx, true, shouldSkip);
     return l.first.get() != nullptr;
 }
 
 /// @brief utility to locate output data idx from given insData index and given layer
-inline size_t CNNLayerFindOutDataIdx(CNNLayerPtr layer, size_t insDataIdx) {
+inline int CNNLayerFindOutDataIdx(CNNLayerPtr layer, int insDataIdx) {
     auto prevLayer = CNNNetPrevLayer(layer, insDataIdx);
     auto outDataToSearch = layer->insData[insDataIdx].lock();
     auto outDataIt = std::find(prevLayer->outData.begin(), prevLayer->outData.end(), outDataToSearch);
-    return static_cast<size_t>(std::distance(prevLayer->outData.begin(), outDataIt));
+    return static_cast<int>(std::distance(prevLayer->outData.begin(), outDataIt));
 }
 
 /// @brief utility to locate output data from given insData index and given layer
 /// also it returns iterator that represent link to this layer in inputToMap
 inline std::pair<DataPtr, std::map<std::string, CNNLayerPtr>::iterator> CNNLayerFindOutData(CNNLayerPtr layer,
-                                                                                            size_t insDataIdx) {
+                                                                                            int insDataIdx) {
     auto oDataIdx = CNNLayerFindOutDataIdx(layer, insDataIdx);
     auto prevLayer = CNNNetPrevLayer(layer, insDataIdx);
     auto oData = prevLayer->outData[oDataIdx];
@@ -503,14 +500,14 @@ inline DataPtr CNNReplaceDataWithChangedTensorDescription(DataPtr old_data, Tens
     getInputTo(new_dataPtr) = getInputTo(old_data);
     auto creatorLayer = getCreatorLayer(old_data).lock();
     getCreatorLayer(new_dataPtr) = creatorLayer;
-    size_t idx = invalid_data_idx;
+    size_t idx = -1;
     for (size_t i = 0; i < creatorLayer->outData.size(); i++) {
         if (areEqualDatas(old_data, creatorLayer->outData[i])) {
             idx = i;
             break;
         }
     }
-    if (idx == invalid_data_idx)
+    if (idx == -1)
         THROW_GNA_EXCEPTION << "No idx for data was found";
 
     creatorLayer->outData[idx] = new_dataPtr;
@@ -574,7 +571,8 @@ inline void CNNNetworkInsertLayer(CNNLayerPtr after,
 
                 // located data
                 for (auto input_port_idx : CNNLayerFindInsDataIdxes(data, input)) {
-                    if ((inDataIndex == input_port_idx) || inDataIndex == invalid_data_idx)
+                    if (((size_t)inDataIndex != invalid_data_idx && (size_t)inDataIndex == input_port_idx) ||
+                        (size_t)inDataIndex == invalid_data_idx)
                         input->insData[input_port_idx] = layerToInsert->outData.front();
                     number_of_connections_between_after_n_before++;
                 }
@@ -633,7 +631,7 @@ inline void CNNNetworkInsertLayer(CNNLayerPtr after,
         if (!bLocated) {
             if (before != nullptr) {
                 IE_ASSERT(before->insData.size() == 1 ||
-                          (inDataIndex != invalid_data_idx && inDataIndex < before->insData.size()));
+                          inDataIndex != invalid_data_idx && inDataIndex < before->insData.size());
                 auto prevLayer = after;
                 for (auto idx = prevLayer->outData.begin(); idx != prevLayer->outData.end(); idx++) {
                     auto& outputports = getInputTo(*idx);
@@ -681,10 +679,10 @@ inline void CNNNetworkInsertLayer(CNNLayerPtr after,
  * @param idx
  */
 template <class T>
-std::vector<std::pair<CNNLayerPtr, size_t>> CNNNetGetPrevLayersSkip(CNNLayerPtr origin,
-                                                                    const T& acceptanceCriteria,
-                                                                    int idx = -1) {
-    std::vector<std::pair<CNNLayerPtr, size_t>> prevLayers;
+std::vector<std::pair<CNNLayerPtr, int>> CNNNetGetPrevLayersSkip(CNNLayerPtr origin,
+                                                                 const T& acceptanceCriteria,
+                                                                 int idx = -1) {
+    std::vector<std::pair<CNNLayerPtr, int>> prevLayers;
     for (int i = idx == -1 ? 0 : idx; CNNNetHasPrevLayer(origin.get(), i) && (idx == -1 || i == idx); i++) {
         auto prevLayer = CNNNetPrevLayer(origin, i);
         if (acceptanceCriteria(prevLayer)) {
@@ -777,7 +775,7 @@ inline void CNNNetworkRemoveLayer(CNNLayerPtr layer, bool checkDims = true) {
 
     // remove osp->layer connection
     for (auto&& outData : getInputTo(osp)) {
-        for (size_t i = 0; i < outData.second->insData.size(); i++) {
+        for (int i = 0; i < outData.second->insData.size(); i++) {
             auto insData = outData.second->insData[i].lock();
             if (!insData) {
                 IE_THROW() << "Cannot remove layer : " << layer->name << ", its output layer(" << outData.first
@@ -871,11 +869,11 @@ inline void CNNNetworkReconnectLayer(CNNLayerPtr old_prev_layer,
     }
 }
 
-inline size_t GetDimFromFront(const InferenceEngine::SizeVector& dims, size_t dim) {
+inline uint32_t GetDimFromFront(const InferenceEngine::SizeVector& dims, uint32_t dim) {
     if (dim >= dims.size()) {
         return 1;
     }
-    return dims[dim];
+    return static_cast<uint32_t>(dims[dim]);
 }
 
 /**
@@ -884,7 +882,7 @@ inline size_t GetDimFromFront(const InferenceEngine::SizeVector& dims, size_t di
  * @param backOffset back dimension offset
  */
 
-inline size_t GetDimFromBack(const InferenceEngine::SizeVector& dims, const size_t backOffset) {
+inline uint32_t GetDimFromBack(const InferenceEngine::SizeVector& dims, const uint32_t backOffset) {
     if (backOffset > dims.size()) {
         return 1;
     }
@@ -899,26 +897,26 @@ enum class DataDimName { N, C, H, W };
  * @param data a pointer to the data
  * @param dimName dimension name
  */
-inline size_t GetDataDimByName(InferenceEngine::DataPtr data, DataDimName dimName) {
-    size_t dimIxInNCHW = static_cast<size_t>(dimName);
+inline uint32_t GetDataDimByName(InferenceEngine::DataPtr data, DataDimName dimName) {
+    uint32_t dimIxInNCHW = static_cast<uint32_t>(dimName);
     IE_ASSERT(dimIxInNCHW <= 3);
 
-    std::vector<size_t> backOffsets;
+    std::vector<uint32_t> backOffsets;
     switch (data->getLayout()) {
     case Layout::C:
     case Layout::NC:
         // 1 will be returned for offsets > 2
-        backOffsets = std::vector<size_t>{2, 1, 3, 4};
+        backOffsets = std::vector<uint32_t>{2, 1, 3, 4};
         break;
     case Layout::HWC:
         // 1 will be returned for offset 4
     case Layout::NHWC:
-        backOffsets = std::vector<size_t>{4, 1, 3, 2};
+        backOffsets = std::vector<uint32_t>{4, 1, 3, 2};
         break;
     case Layout::CHW:
         // 1 will be returned for offset 4
     case Layout::NCHW:
-        backOffsets = std::vector<size_t>{4, 3, 2, 1};
+        backOffsets = std::vector<uint32_t>{4, 3, 2, 1};
         break;
     default:
         THROW_GNA_EXCEPTION << data->getName() << " Unexpected layout " << data->getLayout();

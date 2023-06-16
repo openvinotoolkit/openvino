@@ -76,7 +76,7 @@ class ScaleFactorCalculator {
                             QuantizedLayerParams* quantizedParams) const;
     float getActivationScale(InferenceEngine::CNNLayer const* cnnLayer,
                              LayerInfo const& layer,
-                             size_t inputsSize,
+                             int inputsSize,
                              const bool fakeQuantize) const;
     bool ScaleFactorPerLayerCNN(InferenceEngine::CNNLayer* cnnLayer,
                                 ScaleFactorUpdateResult& result,

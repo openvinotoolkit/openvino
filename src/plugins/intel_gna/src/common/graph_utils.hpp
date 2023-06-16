@@ -35,9 +35,7 @@ template <typename T>
 inline bool get_constant_value(const std::shared_ptr<ngraph::opset8::Constant>& constant, std::vector<double>& values) {
     using A = typename ov::element_type_traits<T::value>::value_type;
     const auto& v = constant->get_vector<A>();
-    std::transform(v.begin(), v.end(), std::back_inserter(values), [](A value) {
-        return static_cast<double>(value);
-    });
+    std::copy(v.begin(), v.end(), std::back_inserter(values));
     return true;
 }
 

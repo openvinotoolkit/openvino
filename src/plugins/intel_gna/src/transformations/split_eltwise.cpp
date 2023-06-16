@@ -26,14 +26,13 @@ inline bool is_eltwise_has_to_be_splitted(const ngraph::Output<ngraph::Node>& no
     if (!eltwise)
         return false;
     auto o_dims = eltwise->get_output_shape(0);
-    size_t total_elem_size =
-        std::accumulate(std::begin(o_dims), std::end(o_dims), std::size_t{1}, std::multiplies<size_t>());
+    auto total_elem_size = std::accumulate(std::begin(o_dims), std::end(o_dims), 1, std::multiplies<size_t>());
     return (total_elem_size > Limitations::kBufferMaxSize);
 }
 
 static std::shared_ptr<ngraph::opset9::VariadicSplit> split_input(
     const std::shared_ptr<ov::Node>& node,
-    const std::pair<int64_t, std::vector<size_t>>& split_sizes_per_axis) {
+    const std::pair<int64_t, std::vector<uint32_t>>& split_sizes_per_axis) {
     auto split = std::make_shared<ngraph::opset9::VariadicSplit>(
         node,
         ngraph::opset9::Constant::create(ngraph::element::i64,

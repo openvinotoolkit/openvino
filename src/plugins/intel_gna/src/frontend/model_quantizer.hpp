@@ -95,7 +95,7 @@ private:
             auto k = inf_loop_history.size();
             for (int32_t i = static_cast<int32_t>(inf_loop_history.size()) - 2; i >= 0; i--) {
                 while (k < inf_loop_history.size() && inf_loop_history[k - 1] != inf_loop_history[i]) {
-                    auto iter = prefix_function.find(static_cast<int>(k));
+                    auto iter = prefix_function.find(k);
                     k = iter == prefix_function.end() ? inf_loop_history.size() : iter->second;
                 }
 
@@ -129,7 +129,7 @@ private:
                     inf_loop_pattern.clear();
                     auto pattern_len = (inf_loop_history.size() - i) / 2;
                     log::debug() << "pattern_len: " << pattern_len << '\n';
-                    for (size_t j = 0; j < pattern_len; j++) {
+                    for (int j = 0; j < pattern_len; j++) {
                         inf_loop_pattern.emplace_back(inf_loop_history[inf_loop_history.size() - pattern_len + j]);
                     }
                     log::debug() << "inf_loop_history:\n";
@@ -154,9 +154,9 @@ private:
                     int32_t pattern_shift = 0;
 
                     if (inf_loop_history.size() > inf_loop_pattern.size()) {
-                        history_shift = static_cast<int32_t>(inf_loop_history.size() - inf_loop_pattern.size());
+                        history_shift = inf_loop_history.size() - inf_loop_pattern.size();
                     } else {
-                        pattern_shift = static_cast<int32_t>(inf_loop_pattern.size() - inf_loop_history.size());
+                        pattern_shift = inf_loop_pattern.size() - inf_loop_history.size();
                     }
 
                     if (!std::equal(inf_loop_history.begin() + history_shift,

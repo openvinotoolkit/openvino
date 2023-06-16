@@ -12,32 +12,32 @@ namespace ov {
 namespace intel_gna {
 namespace gna_convolution_layer {
 
-bool should_transpose_h_w(const size_t in_height,
-                          const size_t kernel_height,
-                          const size_t in_channels,
-                          const size_t stride_height);
+bool should_transpose_h_w(const uint32_t in_height,
+                          const uint32_t kernel_height,
+                          const uint32_t in_channels,
+                          const uint32_t stride_height);
 
-bool isMappableFrom2DTo1D(const size_t inHeight,
-                          const size_t inWidth,
-                          const size_t inChannels,
-                          const size_t kernelHeight,
-                          const size_t kernelWidth,
-                          const size_t strideHeight,
-                          const size_t strideWidth);
+bool isMappableFrom2DTo1D(const uint32_t inHeight,
+                          const uint32_t inWidth,
+                          const uint32_t inChannels,
+                          const uint32_t kernelHeight,
+                          const uint32_t kernelWidth,
+                          const uint32_t strideHeight,
+                          const uint32_t strideWidth);
 
-bool is3DInputOr2DKernel(const size_t inHeight,
-                         const size_t inWidth,
-                         const size_t inDepth,
-                         const size_t kernelHeight,
-                         const size_t kernelWidth);
+bool is3DInputOr2DKernel(const uint32_t inHeight,
+                         const uint32_t inWidth,
+                         const uint32_t inDepth,
+                         const uint32_t kernelHeight,
+                         const uint32_t kernelWidth);
 
 double getWeightsReducer(InferenceEngine::ConvolutionLayer& conv);
 
-size_t outputFromConv(const size_t in, const size_t flt, const size_t stride);
+uint32_t outputFromConv(const uint32_t in, const uint32_t flt, const uint32_t stride);
 
-size_t outputFromPooling(const size_t in, const size_t window, const size_t stride, bool legacy = false);
+uint32_t outputFromPooling(const uint32_t in, const uint32_t window, const uint32_t stride, bool legacy = false);
 
-size_t outputFromPoolingLegacy(const size_t in, const size_t stride);
+uint32_t outputFromPoolingLegacy(const uint32_t in, const uint32_t stride);
 
 }  // namespace gna_convolution_layer
 }  // namespace intel_gna

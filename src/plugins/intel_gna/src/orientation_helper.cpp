@@ -40,8 +40,7 @@ void updateModelInputOrientationWithoutConvolution(const InferenceEngine::CNNLay
         return;
     }
 
-    auto columnProduct =
-        std::accumulate(std::next(std::begin(dims)), std::end(dims), size_t{1}, std::multiplies<size_t>());
+    auto columnProduct = std::accumulate(std::next(std::begin(dims)), std::end(dims), 1, std::multiplies<int>());
 
     // does not make sense to check if further if any of sizes is equal to 1
     // intput will be set to kDnnNonInterleavedOrientation

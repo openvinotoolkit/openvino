@@ -19,20 +19,20 @@ namespace ov {
 namespace intel_gna {
 namespace gna_convolution_layer {
 
-bool should_transpose_h_w(const size_t in_height,
-                          const size_t kernel_height,
-                          const size_t in_channels,
-                          const size_t stride_height) {
+bool should_transpose_h_w(const uint32_t in_height,
+                          const uint32_t kernel_height,
+                          const uint32_t in_channels,
+                          const uint32_t stride_height) {
     return in_height == kernel_height && in_channels == 1 && stride_height == 1;
 }
 
-bool isMappableFrom2DTo1D(const size_t inHeight,
-                          const size_t inWidth,
-                          const size_t in_channels,
-                          const size_t kernelHeight,
-                          const size_t kernelWidth,
-                          const size_t strideHeight,
-                          const size_t strideWidth) {
+bool isMappableFrom2DTo1D(const uint32_t inHeight,
+                          const uint32_t inWidth,
+                          const uint32_t in_channels,
+                          const uint32_t kernelHeight,
+                          const uint32_t kernelWidth,
+                          const uint32_t strideHeight,
+                          const uint32_t strideWidth) {
     if (inHeight <= 1 || inWidth <= 1) {
         // Mapping not needed since input is already 1D
         return false;
@@ -41,11 +41,11 @@ bool isMappableFrom2DTo1D(const size_t inHeight,
            should_transpose_h_w(inHeight, kernelHeight, in_channels, strideHeight);
 }
 
-bool is3DInputOr2DKernel(const size_t inHeight,
-                         const size_t inWidth,
-                         const size_t inDepth,
-                         const size_t kernelHeight,
-                         const size_t kernelWidth) {
+bool is3DInputOr2DKernel(const uint32_t inHeight,
+                         const uint32_t inWidth,
+                         const uint32_t inDepth,
+                         const uint32_t kernelHeight,
+                         const uint32_t kernelWidth) {
     return (kernelHeight > 1 && kernelWidth > 1) || (inHeight > 1 && inWidth > 1 && inDepth > 1);
 }
 
@@ -83,7 +83,7 @@ double getWeightsReducer(InferenceEngine::ConvolutionLayer& conv) {
     return reducer;
 }
 
-size_t outputFromConv(const size_t in, const size_t flt, const size_t stride) {
+uint32_t outputFromConv(const uint32_t in, const uint32_t flt, const uint32_t stride) {
     // floor[(in - flt)/stride] + 1, GNA Spec 1.24
     if (flt > in || flt == 0 || stride == 0) {
         THROW_GNA_EXCEPTION << "Invalid (input, filter, stride) = (" << in << "," << flt << "," << stride << ")";
@@ -91,7 +91,7 @@ size_t outputFromConv(const size_t in, const size_t flt, const size_t stride) {
     return (in - flt) / stride + 1;
 }
 
-size_t outputFromPooling(const size_t in, const size_t window, const size_t stride, const bool legacy) {
+uint32_t outputFromPooling(const uint32_t in, const uint32_t window, const uint32_t stride, const bool legacy) {
     if (legacy) {
         return outputFromPoolingLegacy(in, stride);
     }
@@ -105,7 +105,7 @@ size_t outputFromPooling(const size_t in, const size_t window, const size_t stri
     return (in - window - 1) / stride + 2;
 }
 
-size_t outputFromPoolingLegacy(const size_t in, const size_t stride) {
+uint32_t outputFromPoolingLegacy(const uint32_t in, const uint32_t stride) {
     // floor[(in - 1)/stride] + 1, GNA 1.0/2.0 HW Spec
     // See issue 50386 for details
     if (in == 0 || stride == 0) {

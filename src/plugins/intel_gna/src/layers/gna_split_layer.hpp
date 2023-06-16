@@ -33,14 +33,14 @@ public:
      */
     struct SplitConnectedLayerInfo {
         SplitConnectedLayerInfo() = default;
-        SplitConnectedLayerInfo(InferenceEngine::CNNLayerPtr connectedTo, size_t insDataIdx, size_t o, size_t p)
+        SplitConnectedLayerInfo(InferenceEngine::CNNLayerPtr connectedTo, int insDataIdx, size_t o, size_t p)
             : connectedTo(connectedTo),
               insDataIdx(insDataIdx),
               offset(o),
               pure_size(p) {}
 
         InferenceEngine::CNNLayerPtr connectedTo;
-        size_t insDataIdx = 0;
+        int insDataIdx = 0;
         size_t offset = 0;  // in number of elements of input layer
         size_t pure_size = 0;
     };
@@ -54,7 +54,7 @@ inline std::vector<uint32_t> GetAlignedSplitSizes(uint32_t totalSize, uint32_t s
     uint32_t maxAlignedSplitSize = std::max(splitSize - splitSize % alignment, alignment);
     uint32_t usedSize = 0;
     while (usedSize < totalSize) {
-        size_t partSize = std::min(totalSize - usedSize, maxAlignedSplitSize);
+        uint32_t partSize = std::min(totalSize - usedSize, maxAlignedSplitSize);
         splitSizes.push_back(partSize);
         usedSize += partSize;
     }
@@ -63,8 +63,8 @@ inline std::vector<uint32_t> GetAlignedSplitSizes(uint32_t totalSize, uint32_t s
 
 // @brief Returns pair of axis and sizes of split outputs to split the input tensor to aligned parts, taking into
 // account GNA HW limitations
-inline std::pair<int64_t, std::vector<size_t>> AlignedSplitSizesPerAxis(InferenceEngine::SizeVector dims) {
-    std::vector<size_t> splitSizes = {};
+inline std::pair<int64_t, std::vector<uint32_t>> AlignedSplitSizesPerAxis(InferenceEngine::SizeVector dims) {
+    std::vector<uint32_t> splitSizes = {};
     auto totalElementsSize = InferenceEngine::details::product(std::begin(dims), std::end(dims));
     auto firstValuableDim = std::find_if(std::begin(dims), std::end(dims), [](size_t val) {
         return val > 1;

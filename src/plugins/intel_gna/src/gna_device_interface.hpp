@@ -11,7 +11,7 @@
 #include "request_status.hpp"
 
 enum Gna2AccelerationMode;
-struct Gna2Model;
+class Gna2Model;
 
 namespace ov {
 namespace intel_gna {

@@ -17,7 +17,7 @@ namespace ov {
 namespace intel_gna {
 namespace frontend {
 
-float ApplyFQ(float value, float input_low, float input_high, float output_low, float output_high, size_t levels) {
+float ApplyFQ(float value, float input_low, float input_high, float output_low, float output_high, uint32_t levels) {
     if (value <= std::min(input_low, input_high)) {
         return output_low;
     } else if (value > std::max(input_low, input_high)) {
@@ -115,8 +115,7 @@ void QuantizeWeights<int8_t>(const QuantizationData& data,
                 output_low = data.weights_quant_params.GetMinValues(false).at(idx);
                 output_high = data.weights_quant_params.GetMaxValues(false).at(idx);
                 levels = data.weights_quant_params.GetLevels();
-                channel_multiplier =
-                    static_cast<uint32_t>(((input_high - input_low) * data.scale_factor) / (levels - 1));
+                channel_multiplier = ((input_high - input_low) * data.scale_factor) / (levels - 1);
             } else {
                 float scaled_row_max = 0;
                 for (size_t col = 0; col < data.num_columns; col++) {
@@ -126,8 +125,8 @@ void QuantizeWeights<int8_t>(const QuantizationData& data,
                         scaled_row_max = fabs(value);
                     }
                 }
-                channel_multiplier =
-                    static_cast<uint32_t>((scaled_row_max / static_cast<float>(MAX_VAL_1B_WEIGHT) + 0.5f));
+
+                channel_multiplier = (scaled_row_max / static_cast<float>(MAX_VAL_1B_WEIGHT) + 0.5f);
             }
 
             if (channel_multiplier > MAX_OUT_MULTIPLIER) {

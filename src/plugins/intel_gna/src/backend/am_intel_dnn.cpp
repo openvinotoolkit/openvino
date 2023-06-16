@@ -265,7 +265,7 @@ void AMIntelDNN::updateNumberOfOutputsIfPoolingEnabled(Gna2Model& gnaModel, bool
                                                          poolStride.Dimensions[0],
                                                          useLegacyFormula || isOperationCnnLegacySpecific(gnaOp));
             auto& outputTensor = *gnaOp.Operands[OutOpIdx];
-            const_cast<uint32_t&>(outputTensor.Shape.Dimensions[1]) = static_cast<uint32_t>(numberOfOutputs);
+            const_cast<uint32_t&>(outputTensor.Shape.Dimensions[1]) = numberOfOutputs;
         }
     }
 }
@@ -509,7 +509,7 @@ void AMIntelDNN::WriteGraphWizModel(const char* filename) {
     std::map<void*, InputEndPoint> outputs;
     std::set<std::string> layersNames;
 
-    auto generate_layer_name = [&](size_t k) {
+    auto generate_layer_name = [&](int k) {
         std::string l;
         if (components[k].operation == kDnnPiecewiselinearOp) {
             l += intel_dnn_activation_name[components[k].op.pwl.func_id];
@@ -574,7 +574,7 @@ void AMIntelDNN::WriteGraphWizModel(const char* filename) {
         return l;
     };
 
-    for (size_t k = 0; k < components.size(); ++k) {
+    for (int k = 0; k < components.size(); ++k) {
         std::string l = generate_layer_name(k);
         layersNames.insert(l);
         int lidx = static_cast<int>(std::distance(layersNames.begin(), layersNames.find(l)));
@@ -602,7 +602,7 @@ void AMIntelDNN::WriteGraphWizModel(const char* filename) {
 
         bool inputConnected = false;
 
-        for (size_t k2 = 0; k2 < components.size(); ++k2) {
+        for (int k2 = 0; k2 < components.size(); ++k2) {
             if (k2 == k)
                 continue;
 
@@ -658,7 +658,7 @@ void AMIntelDNN::WriteGraphWizModel(const char* filename) {
         }
         if (!inputConnected) {
             // searching for TMP connection
-            size_t tidx = std::numeric_limits<size_t>::max();
+            size_t tidx = -1;
             for (auto&& en : outputs) {
                 if (intersected(en.first, en.second.size, INPUTS(k))) {
                     tidx = en.second.idx;
@@ -671,7 +671,7 @@ void AMIntelDNN::WriteGraphWizModel(const char* filename) {
                 }
             }
 
-            if (tidx == std::numeric_limits<size_t>::max()) {
+            if (tidx == -1) {
                 outputs[components[k].ptr_inputs] = InputEndPoint(static_cast<int>(outputs.size()),
                                                                   sizeofTensor(INPUTS(k)),
                                                                   components[k].num_bytes_per_input);
@@ -681,7 +681,7 @@ void AMIntelDNN::WriteGraphWizModel(const char* filename) {
         }
     }
 
-    for (size_t k = 0; k < components.size(); ++k) {
+    for (int k = 0; k < components.size(); ++k) {
         std::string l = generate_layer_name(k);
 
         int tidx = 0;
@@ -1386,7 +1386,7 @@ void AMIntelDNN::InitGNAStruct(Gna2Model* gnaModel) {
         THROW_GNA_EXCEPTION << "out of memory in AMIntelDNN::InitGNAStruct()";
     memset(gnaModel->Operations, 0, gnaModel->NumberOfOperations * sizeof(Gna2Operation));
     gnaOperation = gnaModel->Operations;
-    for (size_t i = 0; i < component.size(); i++) {
+    for (int i = 0; i < component.size(); i++) {
         log::debug() << "Component + " << i << "=GNA_" << std::distance(gnaModel->Operations, gnaOperation) << "\n";
 
         auto& comp = component[i];
@@ -1565,9 +1565,9 @@ void AMIntelDNN::InitGNAStruct(Gna2Model* gnaModel) {
                             const auto fltStride = fltStrideShape->Dimensions[beginOfHInHW + dimHW];
                             const auto outFromConv = outputFromConv(inputPadded, nFltSize, fltStride);
                             outputTensor.Shape.Dimensions[beginOfHInNHWC + dimHW] =
-                                static_cast<uint32_t>(outputFromPooling(outFromConv,
-                                                                        poolWindow->Dimensions[beginOfHInHW + dimHW],
-                                                                        poolStride->Dimensions[beginOfHInHW + dimHW]));
+                                outputFromPooling(outFromConv,
+                                                  poolWindow->Dimensions[beginOfHInHW + dimHW],
+                                                  poolStride->Dimensions[beginOfHInHW + dimHW]);
                         }
                     }
                     AdvanceOperationIfAllApplied(component, i, gnaOperation);

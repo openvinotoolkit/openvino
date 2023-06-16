@@ -32,13 +32,13 @@ int8_t ConvertFloatToInt8(float src) {
 
 void ConvertToInt16(int16_t* ptr_dst,
                     const float* ptr_src,
-                    const size_t num_rows,
-                    const size_t num_columns,
+                    const uint32_t num_rows,
+                    const uint32_t num_columns,
                     const float scale_factor) {
     if (!ptr_dst || !ptr_src) {
         return;
     }
-    for (size_t i = 0; i < num_rows * num_columns; i++) {
+    for (uint32_t i = 0; i < num_rows * num_columns; i++) {
         ptr_dst[i] = ConvertFloatToInt16(ptr_src[i] * scale_factor);
     }
 }

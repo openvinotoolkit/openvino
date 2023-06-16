@@ -56,18 +56,14 @@ BorderValues BorderValuesCounterIdentity::CreateBorderValuesWithFakeQuantize(
     const FakeQuantizeParams& fake_quantize_params,
     double in_scale,
     double out_scale) {
-    int32_t x_lower =
-        static_cast<int32_t>(std::max(static_cast<const int64_t>(*fake_quantize_params.input_low * in_scale),
-                                      static_cast<int64_t>(default_values.x_lower)));
-    int32_t x_upper =
-        static_cast<int32_t>(std::min(static_cast<const int64_t>(*fake_quantize_params.input_high * in_scale),
-                                      static_cast<int64_t>(default_values.x_upper)));
-    int16_t y_lower =
-        static_cast<int16_t>(std::max(static_cast<const int32_t>(*fake_quantize_params.input_low * out_scale),
-                                      static_cast<int32_t>(default_values.y_lower)));
-    int16_t y_upper =
-        static_cast<int16_t>(std::min(static_cast<const int32_t>(*fake_quantize_params.input_high * out_scale),
-                                      static_cast<int32_t>(default_values.y_upper)));
+    int32_t x_lower = std::max(static_cast<const int64_t>(*fake_quantize_params.input_low * in_scale),
+                               static_cast<int64_t>(default_values.x_lower));
+    int32_t x_upper = std::min(static_cast<const int64_t>(*fake_quantize_params.input_high * in_scale),
+                               static_cast<int64_t>(default_values.x_upper));
+    int16_t y_lower = std::max(static_cast<const int32_t>(*fake_quantize_params.input_low * out_scale),
+                               static_cast<int32_t>(default_values.y_lower));
+    int16_t y_upper = std::min(static_cast<const int32_t>(*fake_quantize_params.input_high * out_scale),
+                               static_cast<int32_t>(default_values.y_upper));
 
     return {x_lower, x_upper, y_lower, y_upper, {default_values.y_lower, default_values.y_upper}};
 }

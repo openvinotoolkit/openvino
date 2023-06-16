@@ -89,58 +89,57 @@ using namespace ov::intel_gna::pre_post_processing;
 template <typename T, typename U>
 void GNAPlugin::copyInputData(T* dst,
                               const U* src,
-                              size_t num_frames,
-                              size_t num_group,
-                              size_t num_vector_elements,
-                              size_t num_vector_stride,
+                              uint32_t num_frames,
+                              uint32_t num_group,
+                              uint32_t num_vector_elements,
+                              uint32_t num_vector_stride,
                               intel_dnn_orientation_t orientation,
                               float scaleFactor) {
     if (!dst || !src) {
         return;
     }
     if (orientation == kDnnInterleavedOrientation) {
-        for (size_t i = 0; i < num_frames; i++) {
-            for (size_t j = 0; j < num_vector_elements; j++) {
+        for (uint32_t i = 0; i < num_frames; i++) {
+            for (uint32_t j = 0; j < num_vector_elements; j++) {
                 if (!std::is_same<T, U>::value) {
                     if (!gnaFlags->input_low_precision) {
-                        dst[j * num_group + i] =
-                            static_cast<T>(ConvertFloatToInt16(src[i * num_vector_elements + j] * scaleFactor));
+                        dst[j * num_group + i] = ConvertFloatToInt16(src[i * num_vector_elements + j] * scaleFactor);
                     } else {
                         dst[j * num_group + i] = ConvertFloatToInt8(src[i * num_vector_elements + j] * scaleFactor);
                     }
                 } else {
-                    dst[j * num_group + i] = static_cast<T>(src[i * num_vector_elements + j]);
+                    dst[j * num_group + i] = src[i * num_vector_elements + j];
                 }
             }
             // pad to meet weight matrix row length requirement
-            for (size_t j = num_vector_elements; j < num_vector_stride; j++) {
+            for (uint32_t j = num_vector_elements; j < num_vector_stride; j++) {
                 dst[j * num_group + i] = 0;
             }
         }
         // pad partial group
-        for (size_t i = num_frames; i < num_group; i++) {
-            for (size_t j = 0; j < num_vector_stride; j++) {
+        for (uint32_t i = num_frames; i < num_group; i++) {
+            for (uint32_t j = 0; j < num_vector_stride; j++) {
                 dst[j * num_group + i] = 0;
             }
         }
     } else {
         if (!std::is_same<T, U>::value) {
-            for (size_t i = 0; i < num_frames; i++) {
+            for (uint32_t i = 0; i < num_frames; i++) {
                 T* ptr_dst_vec = reinterpret_cast<T*>(dst) + i * num_vector_stride;
                 const U* ptr_src_vec = reinterpret_cast<const U*>(src) + i * num_vector_elements;
                 std::memset(ptr_dst_vec, 0, num_vector_stride * sizeof(T));
                 if (!gnaFlags->input_low_precision) {
-                    for (size_t j = 0; j < num_vector_elements; j++) {
-                        ptr_dst_vec[j] = static_cast<T>(ConvertFloatToInt16(ptr_src_vec[j] * scaleFactor));
+                    for (uint32_t j = 0; j < num_vector_elements; j++) {
+                        ptr_dst_vec[j] = ConvertFloatToInt16(ptr_src_vec[j] * scaleFactor);
                     }
                 } else {
-                    for (size_t j = 0; j < num_vector_elements; j++) {
+                    for (uint32_t j = 0; j < num_vector_elements; j++) {
                         ptr_dst_vec[j] = ConvertFloatToInt8(ptr_src_vec[j] * scaleFactor);
                     }
                 }
             }
         } else {
-            for (size_t i = 0; i < num_frames; i++) {
+            for (uint32_t i = 0; i < num_frames; i++) {
                 void* ptr_dst_vec = reinterpret_cast<uint8_t*>(dst) + i * num_vector_stride * sizeof(T);
                 const void* ptr_src_vec = reinterpret_cast<const uint8_t*>(src) + i * num_vector_elements * sizeof(U);
                 std::memset(ptr_dst_vec, 0, num_vector_stride * sizeof(T));
@@ -148,7 +147,7 @@ void GNAPlugin::copyInputData(T* dst,
             }
         }
 
-        for (size_t i = num_frames; i < num_group; i++) {
+        for (uint32_t i = num_frames; i < num_group; i++) {
             void* ptr_dst_vec = reinterpret_cast<uint8_t*>(dst) + i * num_vector_stride * sizeof(T);
             std::memset(ptr_dst_vec, 0, num_vector_stride * sizeof(T));
         }
@@ -158,11 +157,11 @@ void GNAPlugin::copyInputData(T* dst,
 void GNAPlugin::ExportScores(void* ptr_dst,
                              const void* ptr_src,
                              intel_dnn_orientation_t orientation,
-                             size_t num_frames,
-                             size_t num_group,
-                             size_t num_vector_elements,
-                             size_t num_active_elements,
-                             size_t num_vector_stride,
+                             uint32_t num_frames,
+                             uint32_t num_group,
+                             uint32_t num_vector_elements,
+                             uint32_t num_active_elements,
+                             uint32_t num_vector_stride,
                              Precision precision_in,
                              Precision precision_out) {
     if (ptr_src == nullptr || ptr_dst == nullptr) {
@@ -198,7 +197,7 @@ void GNAPlugin::ExportScores(void* ptr_dst,
                     THROW_GNA_EXCEPTION << "Unsupported output layer precision: " << precision_in.name();
                 }
             }
-            for (size_t j = num_active_elements; j < num_vector_elements; j++) {
+            for (uint32_t j = num_active_elements; j < num_vector_elements; j++) {
                 dst[i * num_vector_elements + j] = 0;
             }
         }
@@ -240,10 +239,10 @@ void GNAPlugin::ImportFrames(void* ptr_dst,
                              Precision input_precision,
                              float scaleFactor,
                              intel_dnn_orientation_t orientation,
-                             size_t num_frames,
-                             size_t num_group,
-                             size_t num_vector_elements,
-                             size_t num_vector_stride) {
+                             uint32_t num_frames,
+                             uint32_t num_group,
+                             uint32_t num_vector_elements,
+                             uint32_t num_vector_stride) {
     switch (input_precision) {
     case Precision::U8:
     case Precision::I8: {
@@ -562,7 +561,7 @@ bool GNAPlugin::TryToInitOutput(const std::string& portName, InferenceEngine::CN
         outputs_.at(portName).set_precision(numBytesPerElem);
         outputs_.at(portName).scale_factor =
             quantized != nullptr ? quantized->_dst_quant.GetScale() : kScaleFactorDefault;
-        outputs_.at(portName).num_elements = static_cast<uint32_t>(numElem);
+        outputs_.at(portName).num_elements = numElem;
 
         // binding ptr for first infer request - then others will be setup during relocation
         gnamem->getQueue(REGION_AUTO)->bind_ptr(layer, &outputs_.at(portName).ptrs.front(), outputPtr);
@@ -964,7 +963,7 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
         auto model = worker->model();
 
         // relocating all operations data pointers
-        for (uint32_t j = 0; j != model->NumberOfOperations; j++) {
+        for (int j = 0; j != model->NumberOfOperations; j++) {
             auto& gnaOperation = model->Operations[j];
             relocate(const_cast<Gna2Tensor*>(gnaOperation.Operands[0])->Data, gnaOperation.Operands[0]->Data);
             relocate(const_cast<Gna2Tensor*>(gnaOperation.Operands[1])->Data, gnaOperation.Operands[1]->Data);
@@ -1523,7 +1522,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr GNAPlugin::ImportNetwork(std::i
 
     gnamem->commit();
 
-    auto model = createModelWrapperForImportNetwork(static_cast<uint32_t>(header.layersCount));
+    auto model = createModelWrapperForImportNetwork(header.layersCount);
     GNAModelSerial::MemoryType mt;
     auto serial = GNAModelSerial(&model->object(), mt);
 

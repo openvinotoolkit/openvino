@@ -178,7 +178,7 @@ static void insertDiagonalLayerBetween(InferenceEngine::CNNLayerPtr prevLayer,
  */
 static CNNLayerPtr InsertCopyLayer(CNNLayerPtr prevLayer,
                                    CNNLayerPtr nextLayer,
-                                   size_t beforeIdx,
+                                   int beforeIdx,
                                    std::shared_ptr<IPassManager> passmanager,
                                    std::string copyLayerType) {
     OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "InsertCopyLayer");
@@ -486,21 +486,19 @@ void ReorderMaxPoolPass::run() {
 
 void SubstituteSoftSignPass::run() {
     OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "SubstituteSoftSignPass");
-    /*
-       detecting following pattern
-       irv7 model:          irv10 model:
-       a layer                  a layer
-       |  \                     |  \
-       abs  \                   abs  \
-       |     |                  |     |
-       |     |                  add   |
-       |     |                  |     |
-       power |                  power |
-        \   /                    \   /
-         mul                      mul
-    */
+    // detecting following pattern
+    // irv7 model:          irv10 model:
+    // a layer                  a layer
+    // |  \                     |  \
+    // abs  \                   abs  \
+    // |     |                  |     |
+    // |     |                  add   |
+    // |     |                  |     |
+    // power |                  power |
+    //  \   /                    \   /
+    //    mul                      mul
 
-    auto hasNChildren = [](CNNLayerPtr l, size_t N) {
+    auto hasNChildren = [](CNNLayerPtr l, int N) {
         if (l->outData.size() != 1)
             return false;
         if (getInputTo(l->outData.front()).size() != N)
@@ -777,7 +775,7 @@ void RemovePermutationsNHWCToNCHWPass::run() {
                              ? permute::GetPermuteOrder(InferenceEngine::Layout::NCHW, InferenceEngine::Layout::NHWC)
                              : std::vector<int32_t>{0, 2, 1};
             InferenceEngine::SizeVector new_dims;
-            for (size_t i = 0; i < dims.size(); ++i) {
+            for (int i = 0; i < dims.size(); ++i) {
                 new_dims.push_back(dims[order[i]]);
             }
             data->setDims(new_dims);
@@ -970,11 +968,11 @@ void InsertCopyLayerPass::run() {
     OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "InsertCopyLayerPass");
     using FuncChildrenInfo = std::tuple<CNNLayerPtr,  // parent layer
                                         CNNLayerPtr,  // child layer
-                                        size_t        // input index
+                                        int32_t       // input index
                                         >;
     // recursively searches for children functional layers skipping non-functional ones
-    std::function<std::vector<FuncChildrenInfo>(CNNLayerPtr, CNNLayerPtr, size_t)> find_func_layers =
-        [&find_func_layers](CNNLayerPtr currentLayer, CNNLayerPtr parentLayer, size_t input_idx) {
+    std::function<std::vector<FuncChildrenInfo>(CNNLayerPtr, CNNLayerPtr, int32_t)> find_func_layers =
+        [&find_func_layers](CNNLayerPtr currentLayer, CNNLayerPtr parentLayer, int32_t input_idx) {
             if (!LayerInfo(currentLayer).isNonFunctional() || currentLayer->outData.size() == 0 ||
                 getInputTo(currentLayer->outData[0]).size() == 0) {
                 return std::vector<FuncChildrenInfo>{std::make_tuple(parentLayer, currentLayer, input_idx)};
@@ -1031,7 +1029,7 @@ void InsertCopyLayerPass::run() {
             for (const auto& output : l->outData) {
                 auto& inputTo = getInputTo(output);
                 for (auto& childLayer : inputTo) {
-                    auto connections = CNNLayerFindInsDataIdxes(output, childLayer.second);
+                    std::vector<int> connections = CNNLayerFindInsDataIdxes(output, childLayer.second);
                     for (auto input_idx : connections) {
                         auto children_info = find_func_layers(childLayer.second, l, input_idx);
                         for (const auto& child_info : children_info) {
@@ -1162,7 +1160,7 @@ void FlattenTrivialConcatPass::run() {
     // ngraph. See as well code for detection of unsupported concat
     auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(pLayers->front());
 
-    auto getLayerByIndex = [](size_t idx, ConcatLayer* concatLayer) {
+    auto getLayerByIndex = [](int idx, ConcatLayer* concatLayer) {
         auto input = concatLayer->insData[idx];
         auto lockedInput = input.lock();
         if (!lockedInput) {
@@ -1217,7 +1215,7 @@ void FlattenTrivialConcatPass::run() {
         }
 
         // Reshape concat outputs back to the original size
-        for (size_t output_idx = 0; output_idx != concatLayer->outData.size(); output_idx++) {
+        for (auto output_idx = 0; output_idx != concatLayer->outData.size(); output_idx++) {
             auto output = concatLayer->outData[output_idx];
             auto output_tensor_copy = TensorDesc(output->getTensorDesc());
 
@@ -1260,8 +1258,8 @@ void InsertConcatAligningFilterPass::run() {
         auto concatLayer = info.as<ConcatLayer*>();
         IE_ASSERT(concatLayer != nullptr);
 
-        for (size_t input_idx = 0; input_idx != concatLayer->insData.size(); input_idx++) {
-            auto getLayerByIndex = [&concatLayer](size_t idx) {
+        for (auto input_idx = 0; input_idx != concatLayer->insData.size(); input_idx++) {
+            auto getLayerByIndex = [&concatLayer](int idx) {
                 auto input = concatLayer->insData[idx];
                 auto lockedInput = input.lock();
                 if (!lockedInput) {
@@ -1274,7 +1272,7 @@ void InsertConcatAligningFilterPass::run() {
             auto dims = concatInput->getDims();
             auto outputSize = details::product(++dims.begin(), dims.end()) * Limitations::kBytesPerConcatElement;
 
-            auto useAlignFilterIf = [&concatLayer, &getLayerByIndex](size_t concat_input_idx) {
+            auto useAlignFilterIf = [&concatLayer, &getLayerByIndex](int concat_input_idx) {
                 if (concatLayer->insData.size() <= concat_input_idx)
                     return false;
 
@@ -1332,7 +1330,7 @@ void InsertConcatAligningFilterPass::run() {
                 std::vector<float> filterWeights(num_rows_out * num_rows_in, 0.f);
 
                 auto identityIdx = num_rows_padded * num_rows_in;
-                for (size_t i = 0; i != num_rows_in; i++) {
+                for (int i = 0; i != num_rows_in; i++) {
                     filterWeights[identityIdx] = 1.0f;
                     identityIdx += num_rows_in + 1;
                 }
@@ -1395,7 +1393,7 @@ void ReorderConcatInputsPass::run() {
         }
 
         auto concatLayer = info.as<ConcatLayer*>();
-        auto getLayerByIndex = [&concatLayer](size_t idx) {
+        auto getLayerByIndex = [&concatLayer](int idx) {
             auto input = concatLayer->insData[idx];
             auto lockedInput = input.lock();
             if (!lockedInput) {
@@ -1404,7 +1402,7 @@ void ReorderConcatInputsPass::run() {
             return lockedInput;
         };
 
-        for (size_t input_idx = 1; input_idx != concatLayer->insData.size(); input_idx++) {
+        for (auto input_idx = 1; input_idx != concatLayer->insData.size(); input_idx++) {
             auto concatInput = getLayerByIndex(input_idx);
             auto currConcatLayer = getCreatorLayer(concatInput).lock();
 
@@ -1418,7 +1416,7 @@ void ReorderConcatInputsPass::run() {
                 [](CNNLayerPtr origin) {
                     return !LayerInfo(origin).isNonFunctional() && !LayerInfo(origin).isSplit();
                 },
-                static_cast<int>(input_idx) - 1);
+                input_idx - 1);
 
             if (inputsToConcatPrev.empty()) {
                 THROW_GNA_EXCEPTION << "cannot locate first input into concat layer: " << currConcatLayer;
@@ -1572,7 +1570,7 @@ void InsertSplitAligningFilterPass::run() {
                     filterLayer->_out_depth = numberOfFilters;
                     filterLayer->_stride_x = numberOfFilters;
                     filterLayer->_stride_y = 1;
-                    filterLayer->_kernel_x = static_cast<unsigned int>(filterSize);
+                    filterLayer->_kernel_x = filterSize;
                     filterLayer->_kernel_y = 1;
                     filterLayer->_padding_x = 0;
                     filterLayer->_padding_y = 0;
@@ -1622,7 +1620,7 @@ static InferenceEngine::Blob::Ptr tileBlob(Blob::Ptr& blob, size_t TileTo) {
     auto tiledBlob = make_plain_blob(blob->getTensorDesc().getPrecision(), {TileTo});
     tiledBlob->allocate();
 
-    for (size_t i = 0; i < (TileTo / weightsElements); ++i) {
+    for (int i = 0; i < (TileTo / weightsElements); ++i) {
         ie_memcpy(tiledBlob->buffer().as<uint8_t*>() + i * weightsBytes, weightsBytes, blob->cbuffer(), weightsBytes);
     }
     return tiledBlob;
@@ -1866,7 +1864,7 @@ void BreakFusingOfOutputLayersPass::run() {
          */
         if (LayerInfo(layer).isPooling())
             continue;
-        for (size_t output_idx = 0; output_idx < layer->outData.size(); output_idx++) {
+        for (int output_idx = 0; output_idx < layer->outData.size(); output_idx++) {
             auto& output = layer->outData[output_idx];
             auto& input_to = getInputTo(output);
 
@@ -1954,7 +1952,7 @@ void RemoveSingleInputConcatPass::run() {
                 auto out = concat->outData[0];
 
                 for (auto& out_layer : getInputTo(out)) {
-                    for (size_t i = 0; i < out_layer.second->insData.size(); i++) {
+                    for (int i = 0; i < out_layer.second->insData.size(); i++) {
                         if (out_layer.second->insData[i].lock() == out) {
                             out_layer.second->insData[i] = in;
                             getInputTo(in.lock())[out_layer.second->name] = out_layer.second;
@@ -1994,7 +1992,7 @@ void FuseMultipleIdentitiesPass::run() {
         if (!prevLayersReached.empty()) {
             prevLayersReached.erase(std::remove_if(prevLayersReached.begin(),
                                                    prevLayersReached.end(),
-                                                   [](const std::pair<CNNLayerPtr, size_t>& candidate) {
+                                                   [](const std::pair<CNNLayerPtr, int>& candidate) {
                                                        return LayerInfo(candidate.first).isLink();
                                                    }),
                                     prevLayersReached.end());
@@ -2021,8 +2019,7 @@ void FuseMultipleIdentitiesPass::run() {
         if (!LayerInfo(prevLayer).has32BOutput())
             continue;
 
-        std::vector<CNNLayerPtr> resultSet =
-            CNNNetGetAllNextLayersSkipCertain(prevLayer, static_cast<int>(outDataIdx), isNonFunctional);
+        std::vector<CNNLayerPtr> resultSet = CNNNetGetAllNextLayersSkipCertain(prevLayer, outDataIdx, isNonFunctional);
 
         // now result set should have all needed layers
         // checking that result set consist of already identity
@@ -2092,7 +2089,7 @@ void FuseFQIntoWeightsPass::run() {
             inputTo = getInputTo(layerBeforeWeightable->outData[0]);
             layers_connected_to_fq_count = inputTo.size();
         }
-        for (size_t index = 0; index < layers_connected_to_fq_count; index++) {
+        for (int index = 0; index < layers_connected_to_fq_count; index++) {
             auto weightableLayer =
                 CNNNetCheckNextLayerSkipCertain(layerBeforeWeightable, 0, index, true, isNonFunctional).first;
             if (!weightableLayer || !LayerInfo(weightableLayer).isWeightable()) {
@@ -2190,8 +2187,8 @@ void FuseFQIntoWeightsPass::run() {
 
             size_t depth = 1;
             intel_dnn_component_t component;
-            component.num_columns_in = static_cast<uint32_t>(weightDims[1]);
-            component.num_rows_in = static_cast<uint32_t>(weightDims[0]);
+            component.num_columns_in = weightDims[1];
+            component.num_rows_in = weightDims[0];
 
             if (LayerInfo(weightableLayer).isConvolution()) {
                 depth = (weightDims.size() == 4) ? weightDims[2] * weightDims[3] : 1;
@@ -2401,7 +2398,7 @@ void MoveFakeQuantizeLayerIntoQuantParamsPass ::run() {
                     THROW_GNA_LAYER_EXCEPTION(fqLayer)
                         << " fake quantize connection to layer: " << LAYER_NAME(nextLayers[i]) << " is not correct";
                 }
-                for (auto insDataIdx : insDatas) {
+                for (int insDataIdx : insDatas) {
                     nextLayers[i]->insData[insDataIdx] = prevData;
                 }
                 getInputTo(prevData)[nextLayers[i]->name] = nextLayers[i];

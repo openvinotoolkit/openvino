@@ -49,7 +49,7 @@ uint32_t GnaEndpoint::GetTotalByteSize(const T& container) {
 template <class T>
 GnaEndpoint GnaEndpoint::CreateFromDescriptor(const T& descriptor) {
     GnaEndpoint e;
-    e.scaleFactor = static_cast<float>(descriptor.scale_factor);
+    e.scaleFactor = descriptor.scale_factor;
     e.byteSize = descriptor.get_required_size();
     e.name = descriptor.name;
     e.numberOfBytesPerElement = static_cast<uint32_t>(descriptor.tensor_precision.size());

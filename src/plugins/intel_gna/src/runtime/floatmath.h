@@ -30,6 +30,10 @@ typedef CBLAS_LAYOUT CBLAS_ORDER; /* this for backward compatibility with CBLAS_
 #    endif  // #ifndef _MKL_H_
 #endif      // #ifdef _NO_MKL_
 
+#ifdef __cplusplus
+extern "C" {  // API uses C linkage so that it can be used by C and C++ applications
+#endif
+
 #ifdef _NO_MKL_
 void cblas_sgemm1(const CBLAS_LAYOUT Layout,
                   const CBLAS_TRANSPOSE TransA,
@@ -82,3 +86,7 @@ void sgemv_split(const uint32_t N,
                  const float* X,
                  const float* B,
                  float* C);
+
+#ifdef __cplusplus
+}
+#endif

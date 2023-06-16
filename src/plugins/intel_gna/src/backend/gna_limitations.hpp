@@ -28,72 +28,72 @@ namespace limitations {
 namespace cnn2d {
 
 struct IsEqualToLimit {
-    size_t compared_value;
+    uint32_t compared_value;
     std::string what;
-    bool IsValid(const size_t val) const;
-    std::string GetErrorOrEmpty(const size_t val) const;
+    bool IsValid(const uint32_t val) const;
+    std::string GetErrorOrEmpty(const uint32_t val) const;
 };
 
 struct IsLessThanLimit {
-    size_t compared_value;
+    uint32_t compared_value;
     std::string what;
-    bool IsValid(const size_t val) const;
-    std::string GetErrorOrEmpty(const size_t val) const;
+    bool IsValid(const uint32_t val) const;
+    std::string GetErrorOrEmpty(const uint32_t val) const;
 };
 
 struct RangeLimit {
-    size_t min;
-    size_t max;
+    uint32_t min;
+    uint32_t max;
     std::string what;
-    bool IsValid(const size_t val) const;
-    std::string GetErrorOrEmpty(const size_t val) const;
+    bool IsValid(const uint32_t val) const;
+    std::string GetErrorOrEmpty(const uint32_t val) const;
 };
 
 struct RangeLimit2D {
     RangeLimit hLimit;
     RangeLimit wLimit;
-    bool IsValid(const size_t h, const size_t w) const;
-    std::string GetErrorOrEmpty(const size_t h, const size_t w) const;
+    bool IsValid(const uint32_t h, const uint32_t w) const;
+    std::string GetErrorOrEmpty(const uint32_t h, const uint32_t w) const;
 };
 
 struct RangeMultipleLimit : public RangeLimit {
-    size_t multiplier;
-    RangeMultipleLimit(RangeLimit rlIn, size_t multiplierIn);
-    bool IsValid(const size_t val) const;
-    std::string GetErrorOrEmpty(const size_t val) const;
+    uint32_t multiplier;
+    RangeMultipleLimit(RangeLimit rlIn, uint32_t multiplierIn);
+    bool IsValid(const uint32_t val) const;
+    std::string GetErrorOrEmpty(const uint32_t val) const;
 };
 
 struct RectLimit {
-    size_t maxVectorHeight;
-    size_t maxVectorWidth;
-    bool IsValid(const size_t h, const size_t w) const;
-    std::string GetErrorOrEmpty(const size_t h, const size_t w, std::string what) const;
+    uint32_t maxVectorHeight;
+    uint32_t maxVectorWidth;
+    bool IsValid(const uint32_t h, const uint32_t w) const;
+    std::string GetErrorOrEmpty(const uint32_t h, const uint32_t w, std::string what) const;
 };
 
 struct VectorOrSquareLimit {
-    size_t maxSquare;
-    size_t maxVectorHeight;
-    size_t maxVectorWidth;
-    bool IsValid(const size_t h, const size_t w) const;
-    std::string GetErrorOrEmpty(const size_t h, const size_t w, std::string what) const;
+    uint32_t maxSquare;
+    uint32_t maxVectorHeight;
+    uint32_t maxVectorWidth;
+    bool IsValid(const uint32_t h, const uint32_t w) const;
+    std::string GetErrorOrEmpty(const uint32_t h, const uint32_t w, std::string what) const;
 };
 
 struct RectLimitByChannels {
-    std::vector<std::pair<size_t, RectLimit>> limitPerChannel;
-    RectLimit GetByChannels(const size_t channels) const;
-    bool IsValid(const size_t h, const size_t w, const size_t channels) const;
-    std::string GetErrorOrEmpty(const size_t h, const size_t w, const size_t channels, std::string what) const;
+    std::vector<std::pair<uint32_t, RectLimit>> limitPerChannel;
+    RectLimit GetByChannels(const uint32_t channels) const;
+    bool IsValid(const uint32_t h, const uint32_t w, const uint32_t channels) const;
+    std::string GetErrorOrEmpty(const uint32_t h, const uint32_t w, const uint32_t channels, std::string what) const;
 };
 
 struct RectLimitByChannelsAndPrecision {
     RectLimitByChannels limit_for_int8;
     RectLimitByChannels limit_for_int16;
     RectLimitByChannels GetByPrecision(const OvGnaType precision) const;
-    bool IsValid(const size_t h, const size_t w, const OvGnaType precision, const size_t channels) const;
-    std::string GetErrorOrEmpty(const size_t h,
-                                const size_t w,
+    bool IsValid(const uint32_t h, const uint32_t w, const OvGnaType precision, const uint32_t channels) const;
+    std::string GetErrorOrEmpty(const uint32_t h,
+                                const uint32_t w,
                                 const OvGnaType precision,
-                                const size_t channels,
+                                const uint32_t channels,
                                 std::string what) const;
 };
 
@@ -109,48 +109,48 @@ public:
 
     virtual ~AbstractValidator() = default;
     virtual bool ValidateCnn2D(const std::string& name,
-                               const size_t inHeight,
-                               const size_t inWidth,
-                               const size_t inChannels,
-                               const size_t kH,
-                               const size_t kW,
-                               const size_t kN,
-                               const size_t strideH,
-                               const size_t strideW,
-                               const size_t dilationH,
-                               const size_t dilationW,
+                               const uint32_t inHeight,
+                               const uint32_t inWidth,
+                               const uint32_t inChannels,
+                               const uint32_t kH,
+                               const uint32_t kW,
+                               const uint32_t kN,
+                               const uint32_t strideH,
+                               const uint32_t strideW,
+                               const uint32_t dilationH,
+                               const uint32_t dilationW,
                                OvGnaType inPrecision,
                                bool exception = true) const = 0;
 
     virtual bool ValidatePooling2D(const std::string& name,
-                                   const size_t windowH,
-                                   const size_t windowW,
-                                   const size_t strideH,
-                                   const size_t strideW,
+                                   const uint32_t windowH,
+                                   const uint32_t windowW,
+                                   const uint32_t strideH,
+                                   const uint32_t strideW,
                                    bool exception = true) const = 0;
 
     virtual bool ValidateInputPadding(const std::string& name,
-                                      const size_t pad_h_begin,
-                                      const size_t pad_h_end,
-                                      const size_t pad_w_begin,
-                                      const size_t pad_w_end,
-                                      const size_t kernel_h,
-                                      const size_t kernel_w,
+                                      const uint32_t pad_h_begin,
+                                      const uint32_t pad_h_end,
+                                      const uint32_t pad_w_begin,
+                                      const uint32_t pad_w_end,
+                                      const uint32_t kernel_h,
+                                      const uint32_t kernel_w,
                                       const bool throwOnError = true) const = 0;
 
     virtual bool ShouldUseOnlyConv2DGnaIface() const = 0;
 
     virtual bool ValidateCnn1D(const std::string& name,
-                               const size_t inHeight,
-                               const size_t inWidth,
-                               const size_t inChannels,
-                               const size_t kH,
-                               const size_t kW,
-                               const size_t kN,
-                               const size_t strideH,
-                               const size_t strideW,
-                               const size_t dilationH,
-                               const size_t dilationW,
+                               const uint32_t inHeight,
+                               const uint32_t inWidth,
+                               const uint32_t inChannels,
+                               const uint32_t kH,
+                               const uint32_t kW,
+                               const uint32_t kN,
+                               const uint32_t strideH,
+                               const uint32_t strideW,
+                               const uint32_t dilationH,
+                               const uint32_t dilationW,
                                OvGnaType inPrecision,
                                bool exception = true) const = 0;
 

@@ -42,7 +42,7 @@ public:
     virtual GNAMemRequestsQueue* getQueue(rRegion region) = 0;
     virtual GNAMemRequestsQueue* getQueue(void* ptr) = 0;
     virtual void commit(bool isCompact = false) = 0;
-    virtual std::pair<bool, size_t> getOffsetForMerged(void* ptr) = 0;
+    virtual std::pair<bool, uint32_t> getOffsetForMerged(void* ptr) = 0;
     virtual size_t getRegionBytes(rRegion region) = 0;
     virtual size_t getDataMemAlignment() const = 0;
     virtual ~GNAMemoryInterface() = default;
@@ -144,8 +144,8 @@ public:
         return nullptr;
     }
 
-    std::pair<bool, size_t> getOffsetForMerged(void* ptr) override {
-        size_t curOffset = 0;
+    std::pair<bool, uint32_t> getOffsetForMerged(void* ptr) override {
+        uint32_t curOffset = 0;
         for (auto& queuePair : _mem_queues) {
             const auto offset = queuePair.second->getOffset(ptr);
             if (offset.first) {
@@ -276,7 +276,7 @@ protected:
                     ie_memcpy(cptr, cptr_avail_size, re._ptr_in, sz);
                 } else {
                     size_t of = 0;
-                    for (size_t i = 0; i < re._num_elements; i++, of += re._element_size) {
+                    for (int i = 0; i < re._num_elements; i++, of += re._element_size) {
                         std::copy(std::begin(re._data), std::end(re._data), cptr + of);
                     }
                 }
