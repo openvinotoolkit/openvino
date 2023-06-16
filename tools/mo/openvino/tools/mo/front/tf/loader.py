@@ -334,14 +334,9 @@ def convert_to_pb(argv: argparse.Namespace):
     if "tensorflow" in env_setup and env_setup["tensorflow"] >= LooseVersion("2.0.0"):
         tf.keras.backend.clear_session()
 
-    # if this is already binary or text frozen format .pb or .pbtxt,
-    # there is no need to create auxiliary binary frozen protobuf
-    if argv.input_model and not argv.input_checkpoint and \
-            isinstance(argv.input_model, str):
-        return None
-
-    # Saved Model format and MetaGraph format is supported without freezing
-    if argv.saved_model_dir or argv.input_meta_graph:
+    # any model format on disk is accepted by TensorFlow Frontend
+    # only model from memory requires temporal saving on a disk
+    if (argv.input_model and isinstance(argv.input_model, str)) or argv.saved_model_dir or argv.input_meta_graph:
         return None
 
     user_output_node_names_list = argv.output if argv.output else None
