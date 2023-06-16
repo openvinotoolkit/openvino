@@ -32,6 +32,11 @@ def to_torch_tensor(tensor):
         return torch.tensor(tensor.data)
     if isinstance(tensor, (float, int, bool)):
         return tensor
+    if isinstance(tensor, tuple):
+        # TODO: Function to_torch_tensor should be renamed as it handles not only a tensor
+        return tuple(to_torch_tensor(x) for x in tensor)
+    if isinstance(tensor, list):
+        return [to_torch_tensor(x) for x in tensor]
     else:
         raise Error("Unexpected type of example_input. Supported types torch.Tensor, np.array or ov.Tensor. "
                     "Got {}".format(type(tensor)))
