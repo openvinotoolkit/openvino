@@ -248,6 +248,7 @@ public:
 
     bool use_only_16bit_convolution_weights() const;
     bool is_crop_affined_offset(size_t numberOfElements) const;
+    bool is_aligned(size_t addr) const;
     size_t get_memory_alignment() const;
     std::shared_ptr<cnn2d::AbstractValidator> get_cnn_validator() const;
 
@@ -260,7 +261,6 @@ public:
     constexpr static uint32_t kConvFilterSizeDivider = 8;
     constexpr static uint32_t kConvFilterMaxSize = 768;
     constexpr static uint32_t kConvEachKernelByteAlignment = 16;
-    constexpr static uint32_t kInputByteAlignment = 64;
     constexpr static uint32_t kNoOfInputsDivisor = 8;
     constexpr static uint32_t kNoOfInputsLowPrecDivisor = 16;
     constexpr static uint32_t kAffineMaxBatchSize = 8;
@@ -274,10 +274,12 @@ public:
     // Currently split layer only supports 2 bytes in int16 and int8 mode.
     // In fp32 mode this is not necessary but is useful for testing
     constexpr static uint32_t kBytesPerSplitElement = 2;
-
     // Currently crop layer only supports 2 bytes in int16 and int8 mode.
     // In fp32 mode this is not necessary but is useful for testing
     constexpr static uint32_t kBytesPerCropElement = 2;
+    // currently concat layer only supports 2 bytes in int16 and int8 mode. In fp32 mode this no necessary but usefull
+    // for testing
+    constexpr static uint32_t kBytesPerConcatElement = 2;
     constexpr static uint32_t kMemoryPageSize = 4096;
 
 private:
@@ -306,7 +308,11 @@ inline std::shared_ptr<Limitations> Limitations::get_instance() {
 
 inline bool Limitations::is_crop_affined_offset(size_t numberOfElements) const {
     const auto cropOffset = numberOfElements * kBytesPerCropElement;
-    return (ALIGN64(cropOffset) != cropOffset);
+    return !is_aligned(cropOffset);
+}
+
+inline bool Limitations::is_aligned(size_t addr) const {
+    return (addr == ALIGN(addr, get_memory_alignment()));
 }
 
 inline size_t Limitations::get_memory_alignment() const {

@@ -64,7 +64,9 @@ static bool Convert(std::shared_ptr<ngraph::Node> conv,
     auto& input = conv->get_input_shape(0);
     uint32_t width = input.back();
     uint32_t in_channels = input.at(1);
-    auto split_sizes = GetAlignedSplitSizes(width, Limitations::kBufferMaxSize / in_channels);
+    auto split_sizes = GetAlignedSplitSizes(width,
+                                            Limitations::kBufferMaxSize / in_channels,
+                                            Limitations::get_instance()->get_memory_alignment());
     IE_ASSERT(split_sizes.size() > 1);
     std::vector<int64_t> split_sizes_casted(split_sizes.size());
     std::transform(std::begin(split_sizes), std::end(split_sizes), std::begin(split_sizes_casted), [](uint32_t size) {

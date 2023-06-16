@@ -152,7 +152,7 @@ DECL_PASS(InsertSplitAligningFilter);
 DECL_PASS(FlattenTrivialConcat);
 
 /**
- * @brief concat-aligning filter layer insertion required in cases when concat inputs size are not 64-aligned
+ * @brief concat-aligning filter layer insertion required in cases when concat inputs size are not aligned
  */
 DECL_PASS(InsertConcatAligningFilter);
 
