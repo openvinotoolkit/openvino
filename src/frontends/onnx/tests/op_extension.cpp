@@ -5,11 +5,15 @@
 #include "op_extension.hpp"
 
 #include "common_test_utils/file_utils.hpp"
+#include "ie_extension.h"
+#include "onnx_import/onnx_utils.hpp"
 #include "onnx_utils.hpp"
 #include "openvino/frontend/extension/op.hpp"
 #include "openvino/frontend/onnx/extension/op.hpp"
 #include "openvino/frontend/onnx/frontend.hpp"
 #include "openvino/op/relu.hpp"
+#include "openvino/op/util/framework_node.hpp"
+#include "openvino/runtime/core.hpp"
 #include "so_extension.hpp"
 
 using namespace ov::frontend;
@@ -169,4 +173,33 @@ TEST(ONNXOpExtensionViaCommonConstructor, onnx_op_extension_via_ov_type_name_wit
 
     std::shared_ptr<ov::Model> model;
     EXPECT_NO_THROW(fe->convert(input_model));
+}
+
+namespace {
+class OldApiNode : public InferenceEngine::IExtension {
+    void GetVersion(const InferenceEngine::Version*& versionInfo) const noexcept override {
+        static InferenceEngine::Version ext_desc = {{1, 0}, "1.0", "old_api_node"};
+        versionInfo = &ext_desc;
+    }
+    std::map<std::string, ngraph::OpSet> getOpSets() override {
+        static std::map<std::string, ngraph::OpSet> opsets;
+        if (opsets.empty()) {
+            ngraph::OpSet opset;
+            opset.insert<ov::op::util::FrameworkNode>();
+            opsets["util"] = opset;
+        }
+        return opsets;
+    }
+    void Unload() noexcept override{};
+};
+}  // namespace
+
+TEST(ONNXOpExtensionViaCommonConstructor, onnx_op_extension_mixed_legacy_and_new_api) {
+    const auto input_model_path = CommonTestUtils::getModelFromTestModelZoo(
+        ov::util::path_join({TEST_ONNX_MODELS_DIRNAME, "relu_custom_domain.onnx"}));
+    ov::Core core;
+    core.add_extension(std::make_shared<OldApiNode>());
+    const auto new_api_ext = std::make_shared<onnx::OpExtension<ov::op::v0::Relu>>("CustomRelu", "my_custom_domain");
+    core.add_extension(new_api_ext);
+    EXPECT_NO_THROW(core.read_model(input_model_path));
 }
