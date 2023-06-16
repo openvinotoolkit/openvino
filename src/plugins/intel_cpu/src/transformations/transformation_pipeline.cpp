@@ -17,9 +17,10 @@
 #include <ov_ops/augru_sequence.hpp>
 
 // Common transformations
+#include "transformations/common_optimizations/mark_precision_sensitive_shapeof_subgraphs.hpp"
 #include "transformations/common_optimizations/add_fake_quantize_fusion.hpp"
 #include "transformations/common_optimizations/broadcast_transition.hpp"
-#include "transformations/common_optimizations/convert_compression_only_to_legacy.hpp"
+#include "transformations/fp16_compression/convert_compression_only_to_legacy.hpp"
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
 #include "transformations/common_optimizations/fq_mul_fusion.hpp"
 #include "transformations/common_optimizations/mul_fake_quantize_fusion.hpp"
@@ -31,7 +32,7 @@
 #include "transformations/common_optimizations/wrap_interpolate_into_transposes.hpp"
 #include "transformations/common_optimizations/dimension_tracking.hpp"
 #include "transformations/control_flow/unroll_tensor_iterator.hpp"
-#include "transformations/disable_decompression_convert_constant_folding.hpp"
+#include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
 #include "transformations/op_conversions/convert_batch_to_space.hpp"
 #include "transformations/op_conversions/convert_broadcast_to_tiles.hpp"
 #include "transformations/op_conversions/convert_depth_to_space.hpp"
@@ -88,6 +89,7 @@
 #include "low_precision/convolution_backprop_data.hpp"
 #include "low_precision/group_convolution.hpp"
 #include "low_precision/multiply_to_group_convolution.hpp"
+#include "low_precision/recurrent_cell.hpp"
 #include "low_precision/network_helper.hpp"
 #include "low_precision/rt_info/bias_attribute.hpp"
 #include "transformations/low_precision/mark_dequantization_subgraph.hpp"
@@ -118,7 +120,6 @@
 #include "nodes/normalize.h"
 #include "nodes/fake_quantize.h"
 #include "nodes/mha.h"
-
 #include "dnnl.hpp"
 #include <cpu/x64/cpu_isa_traits.hpp>
 
@@ -204,6 +205,9 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     ov::pass::Manager manager;
     manager.set_per_pass_validation(false);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::InitNodeInfo);
+    CPU_REGISTER_PASS_COMMON(manager, ov::pass::MarkShapeOfSubgraphs);
+    // todo: uncomment KeepConstAndDecompression when xxx-105060 is ready
+    // CPU_REGISTER_PASS_COMMON(manager, ov::pass::KeepConstAndDecompression);
 
     const bool useLpt = !defaultPrecisions.empty();
     if (useLpt) {
@@ -262,7 +266,9 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     }
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::Validate);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::RefConvertI64ToI32);
+
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertPrecision, precisions, type_to_fuse);
+
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::EliminateConvert);
     CPU_REGISTER_PASS_COMMON(manager, SwapConvertTranspose);
     CPU_REGISTER_PASS_X64(manager, ConvertToInteraction);
@@ -509,10 +515,10 @@ void Transformations::Lpt(const bool hasINT16orINT32Levels, const std::vector<ov
                     {{1}, {ov::element::i8}}
                 }),
             PrecisionsRestriction::create<ov::opset5::LSTMSequence>({
-                    {{0, 1}, {ov::element::u8, ov::element::i8}},
+                    {{0, 1}, {ov::element::u8}}
                 }),
             PrecisionsRestriction::create<ov::opset6::GRUSequence>({
-                    {{0, 1}, {ov::element::u8, ov::element::i8}},
+                    {{0, 1}, {ov::element::u8}}
                 }),
         });
 
@@ -553,6 +559,7 @@ void Transformations::Lpt(const bool hasINT16orINT32Levels, const std::vector<ov
             return ov::marked_as_bias(node);
         });
 
+    CPU_DISABLE_PASS_ARM(lptManager, ngraph::pass::low_precision::RecurrentCellTransformation);
     CPU_DISABLE_PASS_COMMON(lptManager, ngraph::pass::low_precision::MultiplyToGroupConvolutionTransformation);
 
     lptManager.run_passes(model);
@@ -614,7 +621,7 @@ void Transformations::PostLpt() {
     }
 
     // Execute before snippets. Otherwise FQ will be converted to Subgraph
-    CPU_REGISTER_PASS_COMMON(postLPTPassManager, ConvertFqRnnToQuantizedRnn);
+    CPU_REGISTER_PASS_X64(postLPTPassManager, ConvertFqRnnToQuantizedRnn);
     postLPTPassManager.run_passes(model);
 }
 

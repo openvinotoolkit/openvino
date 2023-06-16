@@ -39,14 +39,14 @@ ov::pass::AlignEltwiseInputRanks::AlignEltwiseInputRanks() {
                 return false;
         }
 
-        const auto rank = node->get_output_partial_shape(0).size();
+        const auto rank = static_cast<int64_t>(node->get_output_partial_shape(0).size());
 
         for (size_t i = 0; i < node->get_input_size(); i++) {
             auto const_node = as_type<opset8::Constant>(node->get_input_node_ptr(i));
             if (const_node == nullptr)
                 continue;
             const auto& const_shape = const_node->get_shape();
-            auto diff = rank - const_shape.size();
+            auto diff = rank - static_cast<int64_t>(const_shape.size());
             if (diff > 0) {
                 Shape new_shape = const_shape;
                 new_shape.insert(new_shape.begin(), diff, 1);

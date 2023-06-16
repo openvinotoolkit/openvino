@@ -361,7 +361,6 @@ std::shared_ptr<ov::Model> MHAWOTransposeFunction::initOriginal() const {
     return std::make_shared<ov::Model>(results, ngraphParam, "mha");
 }
 
-
 std::shared_ptr<ov::Model> MHAFQAfterMatMulFunction::initOriginal() const {
     auto transpose0Param = std::make_shared<ngraph::opset1::Parameter>(precision, input_shapes[0]);
     auto transpose1Param = std::make_shared<ngraph::opset1::Parameter>(precision, input_shapes[1]);
@@ -655,6 +654,101 @@ std::shared_ptr<ov::Model> MHAINT8MatMulTypeRelaxedFunction::initReference() con
     auto transpose3 = std::make_shared<ov::op::v1::Transpose>(subgraph, transpose3Const);
 
     return std::make_shared<ov::Model>(NodeVector{transpose3}, ngraphParams);
+}
+
+std::shared_ptr<ov::Model> MHAMulAddFunction::initOriginal() const {
+    auto transpose0Param = std::make_shared<ngraph::opset1::Parameter>(precision, input_shapes[0]);
+    auto transpose1Param = std::make_shared<ngraph::opset1::Parameter>(precision, input_shapes[1]);
+    auto transpose2Param = std::make_shared<ngraph::opset1::Parameter>(precision, input_shapes[2]);
+    ngraph::ParameterVector ngraphParam = {transpose0Param, transpose1Param, transpose2Param};
+
+    auto transpose0Const = ngraph::builder::makeConstant(ngraph::element::i64, ov::Shape{input_shapes[0].size()}, std::vector<int64_t>{0, 2, 1, 3});
+    auto transpose1Const = ngraph::builder::makeConstant(ngraph::element::i64, ov::Shape{input_shapes[1].size()}, std::vector<int64_t>{0, 2, 3, 1});
+    auto transpose2Const = ngraph::builder::makeConstant(ngraph::element::i64, ov::Shape{input_shapes[2].size()}, std::vector<int64_t>{0, 2, 1, 3});
+    auto transpose3Const = ngraph::builder::makeConstant(ngraph::element::i64, ov::Shape{input_shapes[2].size()}, std::vector<int64_t>{0, 2, 1, 3});
+
+    float transA = false;
+    float transB = false;
+    const auto transpose0 = std::make_shared<ov::op::v1::Transpose>(transpose0Param, transpose0Const);
+    const auto transpose1 = std::make_shared<ov::op::v1::Transpose>(transpose1Param, transpose1Const);
+    const auto matMul0 = std::make_shared<ngraph::opset3::MatMul>(transpose0, transpose1, transA, transB);
+    auto mulConst = ngraph::builder::makeConstant(ngraph::element::f32, matMul0->get_shape(), std::vector<float>{}, true);
+    auto addConst = ngraph::builder::makeConstant(ngraph::element::f32, matMul0->get_shape(), std::vector<float>{}, true);
+    const auto mul = std::make_shared<ngraph::opset3::Multiply>(matMul0, mulConst);
+    const auto add = std::make_shared<ngraph::opset3::Add>(mul, addConst);
+    const auto softMax = std::make_shared<ov::op::v8::Softmax>(add, -1);
+    const auto transpose2 = std::make_shared<ov::op::v1::Transpose>(transpose2Param, transpose2Const);
+    const auto matMul1 = std::make_shared<ngraph::opset3::MatMul>(softMax, transpose2, transA, transB);
+    const auto transpose3 = std::make_shared<ov::op::v1::Transpose>(matMul1, transpose3Const);
+
+    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(transpose3)};
+    return std::make_shared<ov::Model>(results, ngraphParam, "mha");
+}
+
+std::shared_ptr<ov::Model> MHATransposedInputFunction::initOriginal() const {
+    const auto param0 = std::make_shared<ngraph::opset1::Parameter>(precision, input_shapes[0]);
+    const auto param1 = std::make_shared<ngraph::opset1::Parameter>(precision, input_shapes[1]);
+    const auto param2 = std::make_shared<ngraph::opset1::Parameter>(precision, input_shapes[2]);
+    ngraph::ParameterVector ngraphParam = {param0, param1, param2};
+
+    std::shared_ptr<ov::Node> matmul0_in1 = param1;
+    if (!m_order.empty()) {
+        const auto transposeConst = ngraph::builder::makeConstant(ngraph::element::i64, ov::Shape{m_order.size()}, m_order);
+        matmul0_in1 = std::make_shared<ov::op::v1::Transpose>(param1, transposeConst);
+    }
+
+    const auto matMul0 = std::make_shared<ngraph::opset3::MatMul>(param0, matmul0_in1, false, m_transposed_b);
+    const auto softmax = std::make_shared<ngraph::opset8::Softmax>(matMul0, -1);
+    const auto matMul1 = std::make_shared<ngraph::opset3::MatMul>(softmax, param2);
+
+    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(matMul1)};
+    return std::make_shared<ov::Model>(results, ngraphParam, "mha");
+}
+
+std::shared_ptr<ov::Model> MHATransposedInputFunction::initReference() const {
+    const auto data0 = std::make_shared<ngraph::opset1::Parameter>(precision, input_shapes[0]);
+    const auto data1 = std::make_shared<ngraph::opset1::Parameter>(precision, input_shapes[1]);
+    const auto data2 = std::make_shared<ngraph::opset1::Parameter>(precision, input_shapes[2]);
+    ngraph::ParameterVector ngraphParam = {data0, data1, data2};
+
+    bool is_supported = ((m_transposed_b && m_order == std::vector<int64_t>{0, 2, 1, 3}) ||
+                         (!m_transposed_b && m_order == std::vector<int64_t>{0, 2, 3, 1}));
+
+    std::shared_ptr<ov::Node> in1 = data1;
+    if (!m_order.empty() && !is_supported) {
+        const auto transposeConst = ngraph::builder::makeConstant(ngraph::element::i64, ov::Shape{m_order.size()}, m_order);
+        in1 = std::make_shared<ov::op::v1::Transpose>(in1, transposeConst);
+    }
+    if (m_transposed_b) {
+        if (m_order != std::vector<int64_t>{0, 2, 1, 3}) {
+            const auto rank = input_shapes[1].size();
+            std::vector<int32_t> transpose_order(rank, 0);
+            std::iota(transpose_order.begin(), transpose_order.end(), 0);
+            std::swap(transpose_order[rank - 1], transpose_order[rank - 2]);
+            const auto transposeConst = ngraph::builder::makeConstant(ngraph::element::i32, ov::Shape{transpose_order.size()}, transpose_order);
+            in1 = std::make_shared<ov::op::v1::Transpose>(in1, transposeConst);
+        }
+    }
+
+    const auto param0 = std::make_shared<ngraph::opset1::Parameter>(precision, data0->get_shape());
+    const auto param1 = std::make_shared<ngraph::opset1::Parameter>(precision, in1->get_shape());
+    const auto param2 = std::make_shared<ngraph::opset1::Parameter>(precision, data2->get_shape());
+
+    std::shared_ptr<ov::Node> matmul0_in1 = param1;
+    if (!m_order.empty() && is_supported) {
+        const auto transposeConst = ngraph::builder::makeConstant(ngraph::element::i32, ov::Shape{m_order.size()}, m_order);
+        matmul0_in1 = std::make_shared<ov::op::v1::Transpose>(param1, transposeConst);
+    }
+
+    const auto matMul0 = std::make_shared<ngraph::opset3::MatMul>(param0, matmul0_in1);
+    const auto softmax = std::make_shared<ngraph::opset8::Softmax>(matMul0, -1);
+    const auto matMul1 = std::make_shared<ngraph::opset3::MatMul>(softmax, param2);
+
+    auto subgraph = std::make_shared<ov::snippets::op::Subgraph>(ov::NodeVector{data0, in1, data2},
+                                                                 std::make_shared<ov::Model>(NodeVector{matMul1}, ov::ParameterVector{param0, param1, param2}));
+
+    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(subgraph)};
+    return std::make_shared<ov::Model>(results, ngraphParam, "mha");
 }
 
 }  // namespace snippets

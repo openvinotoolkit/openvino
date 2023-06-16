@@ -268,6 +268,52 @@ protected:
     std::shared_ptr<ov::Model> initReference() const override;
 };
 
+/* Graph:
+ * Transpose0[0,2,1,3] Transpose1[0,2,3,1]
+ *              \     /
+ *              MatMul0
+ *                 \
+ *                Multiply
+ *                  Add
+ *                Softmax   Transpose2[0,2,1,3]
+ *                    \      /
+ *                     MatMul1
+ *                   Transpose3[0,2,1,3]
+ */
+class MHAMulAddFunction : public SnippetsFunctionBase {
+public:
+    explicit MHAMulAddFunction(const std::vector<PartialShape>& inputShapes) : SnippetsFunctionBase(inputShapes) {
+        NGRAPH_CHECK(input_shapes.size() == 3, "Got invalid number of input shapes");
+    }
+protected:
+    std::shared_ptr<ov::Model> initOriginal() const override;
+};
+
+/* Graph:
+ *       Transpose/Parameter
+ *    \     /
+ *    MatMul0 [transposed_b = true/false]
+ *       |
+ *    Softmax
+ *        \      /
+ *         MatMul1
+ *           |
+ */
+class MHATransposedInputFunction : public SnippetsFunctionBase {
+public:
+    explicit MHATransposedInputFunction(const std::vector<PartialShape>& inputShapes, bool transposed_b = false,
+                                        std::vector<int64_t> order = {})
+        : SnippetsFunctionBase(inputShapes), m_transposed_b(transposed_b), m_order(order) {
+        NGRAPH_CHECK(input_shapes.size() == 3, "Got invalid number of input shapes");
+    }
+protected:
+    std::shared_ptr<ov::Model> initOriginal() const override;
+    std::shared_ptr<ov::Model> initReference() const override;
+
+    bool m_transposed_b = false;
+    std::vector<int64_t> m_order = {};
+};
+
 }  // namespace snippets
 }  // namespace test
 }  // namespace ov

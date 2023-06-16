@@ -44,19 +44,24 @@ from openvino.tools.mo.utils.model_analysis import AnalysisResults
 from openvino.tools.mo.utils.version import VersionChecker
 from openvino.tools.mo.utils.guess_framework import deduce_legacy_frontend_by_namespace
 from openvino.tools.mo.utils.logger import init_logger, progress_printer
-from openvino.tools.mo.utils.utils import refer_to_faq_msg
+from openvino.tools.mo.utils.utils import refer_to_faq_msg, check_values_equal
 from openvino.tools.mo.utils.telemetry_utils import send_params_info, send_framework_info, send_conversion_result, \
     get_tid
-from openvino.tools.mo.utils.versions_checker import get_environment_setup  # pylint: disable=no-name-in-module
 from openvino.tools.mo.moc_frontend.check_config import legacy_extensions_used
 from openvino.tools.mo.moc_frontend.pytorch_frontend_utils import get_pytorch_decoder
 from openvino.tools.mo.moc_frontend.paddle_frontend_utils import paddle_frontend_converter
-from openvino.tools.mo.moc_frontend.shape_utils import parse_input_shapes, get_static_shape
+from openvino.tools.mo.moc_frontend.shape_utils import parse_input_shapes
 
 # pylint: disable=no-name-in-module,import-error
 from openvino.frontend import FrontEndManager, OpConversionFailure, ProgressReporterExtension, TelemetryExtension
 from openvino.runtime import get_version as get_rt_version
 from openvino.runtime import Type, PartialShape
+
+try:
+    from openvino.frontend.tensorflow.utils import type_supported_by_tf_fe, create_tf_graph_iterator, extract_model_graph  # pylint: disable=no-name-in-module,import-error
+    tf_frontend_with_python_bindings_installed = True
+except (ModuleNotFoundError, ImportError):
+    tf_frontend_with_python_bindings_installed = False
 
 
 def load_extensions(argv: argparse.Namespace, is_tf: bool, is_caffe: bool, is_mxnet: bool, is_kaldi: bool,
@@ -377,6 +382,7 @@ def prepare_ir(argv: argparse.Namespace):
     is_tf, _, _, _, _ = deduce_legacy_frontend_by_namespace(argv)
     argv = arguments_post_parsing(argv)
     t = tm.Telemetry()
+
     graph = None
     ngraph_function = None
     fallback_reasons = []
@@ -387,8 +393,15 @@ def prepare_ir(argv: argparse.Namespace):
             path_to_aux_pb = None
             orig_argv_values = {"input_model": argv.input_model, "model_name": argv.model_name}
             if not argv.use_legacy_frontend and is_tf:
-                from openvino.tools.mo.front.tf.loader import convert_to_pb
-                path_to_aux_pb = convert_to_pb(argv)
+                if tf_frontend_with_python_bindings_installed and 'tf' in available_moc_front_ends and \
+                        type_supported_by_tf_fe(argv.input_model):
+                    argv.input_model = create_tf_graph_iterator(argv.input_model,
+                                                                argv.placeholder_shapes,
+                                                                argv.placeholder_data_types,
+                                                                getattr(argv, "example_input", None))
+                else:
+                    from openvino.tools.mo.front.tf.loader import convert_to_pb
+                    path_to_aux_pb = convert_to_pb(argv)
             try:
                 t.send_event("mo", "conversion_method", moc_front_end.get_name() + "_frontend")
                 moc_front_end.add_extension(TelemetryExtension("mo", t.send_event, t.send_error, t.send_stack_trace))
@@ -417,7 +430,7 @@ def prepare_ir(argv: argparse.Namespace):
                 if is_tf and path_to_aux_pb is not None:
                     argv.input_model = orig_argv_values["input_model"]
                     argv.model_name = orig_argv_values["model_name"]
-                    if os.path.exists(path_to_aux_pb):
+                    if path_to_aux_pb is not None and os.path.exists(path_to_aux_pb):
                         os.remove(path_to_aux_pb)
 
     if len(fallback_reasons) > 0:
@@ -520,47 +533,7 @@ def emit_ir(graph: Graph, argv: argparse.Namespace, non_default_params: dict):
 def check_model_object(argv):
     model = argv['input_model']
     if 'tensorflow' in sys.modules:
-        import tensorflow as tf
-        env_setup = get_environment_setup("tf")
-
-        if isinstance(model, tf.compat.v1.GraphDef):
-            return "tf"
-        if isinstance(model, tf.compat.v1.Graph):
-            argv['input_model'] = model.as_graph_def()
-            return "tf"
-        if isinstance(model, tf.compat.v1.Session):
-            argv['input_model'] = model.graph_def
-            return "tf"
-        if env_setup["tensorflow"] >= LooseVersion("2.6.0") and isinstance(model, tf.types.experimental.ConcreteFunction):
-            argv['input_model'] = model.graph.as_graph_def()
-            return "tf"
-        if env_setup["tensorflow"] >= LooseVersion("2.6.0") and isinstance(model, tf.types.experimental.GenericFunction):
-            argv['input_model'] = model
-            return "tf"
-        if isinstance(model, tf.keras.Model):
-            return "tf"
-        if isinstance(model, tf.train.Checkpoint):
-            if isinstance(model.root, tf.keras.Model):
-                argv['input_model'] = model.root
-                return "tf"
-            else:
-                raise Error("Unknown checkpoint format.")
-
-        if isinstance(model, tf.keras.layers.Layer) or isinstance(model, tf.Module):
-            assert 'input_shape' in argv and argv['input_shape'] is not None, \
-                "Converting of {} requires providing of input_shape.".format(type(model))
-            assert len(argv['input_shape']) > 0, "Please provide non-empty input shape."
-            inputs = []
-            for shape_idx, shape in enumerate(parse_input_shapes(argv)):
-                inp_shape = get_static_shape(shape)
-                batch_size = None
-                if len(inp_shape) > 1:
-                    batch_size = inp_shape[0]
-                    inp_shape = inp_shape[1:]
-                inputs.append(tf.keras.Input(shape=inp_shape, batch_size=batch_size))
-            outputs = model(*inputs)
-            argv['input_model'] = tf.keras.Model(inputs, outputs)
-            argv['input_shape'] = None
+        if tf_frontend_with_python_bindings_installed and extract_model_graph(argv):
             return "tf"
     if 'torch' in sys.modules:
         import torch
@@ -630,9 +603,9 @@ def args_dict_to_list(cli_parser, **kwargs):
     for key, value in kwargs.items():
         if value is None:
             continue
-        if key in signature.parameters and signature.parameters[key].default == value:
+        if key in signature.parameters and check_values_equal(signature.parameters[key].default, value):
             continue
-        if cli_parser.get_default(key) == value:
+        if check_values_equal(cli_parser.get_default(key), value):
             continue
         # skip parser checking for non str objects
         if not isinstance(value, (str, bool)):
@@ -653,9 +626,9 @@ def get_non_default_params(argv, cli_parser):
     # make dictionary with parameters which have non-default values to be serialized in IR in rt_info
     non_default_params = {}
     for arg, arg_value in vars(argv).items():
-        if arg in signature.parameters and arg_value == signature.parameters[arg].default:
+        if arg in signature.parameters and check_values_equal(arg_value, signature.parameters[arg].default):
             continue
-        if arg_value == cli_parser.get_default(arg):
+        if check_values_equal(arg_value, cli_parser.get_default(arg)):
             continue
         value = depersonalize(arg_value, arg)
         # Skip complex classes in params to prevent
@@ -819,7 +792,7 @@ def pack_params_to_args_namespace(args: dict, cli_parser: argparse.ArgumentParse
 
             # Non string params like input_model or extensions are ignored by parse_args()
             # so we need to set them in argv separately
-            if value is not None and getattr(argv, key, None) != value:
+            if value is not None and not check_values_equal(getattr(argv, key, None), value):
                 setattr(argv, key, value)
     else:
         argv = cli_parser.parse_args()
