@@ -437,11 +437,37 @@ inline void DumpCharArray(std::ostream& dumpFile, const char* carray, size_t cou
     dumpFile << "\n";
 }
 
+class Gna2Stats {
+public:
+    void Add(const std::string memory_tag, const std::string operation_type, const uint32_t size) {
+        if (size == 0)
+            return;
+        const std::string key = memory_tag + " " + operation_type;
+        if (stats_.count(key) == 0) {
+            stats_[key] = size;
+        } else {
+            stats_[key] += size;
+        }
+    }
+    std::string GetFormattedStats() {
+        std::stringstream output;
+        output << "Aggregate statistics: " << std::endl;
+        for (auto pair : stats_) {
+            output << "\t" << pair.first << ": " << pair.second << " bytes." << std::endl;
+        }
+        return output.str();
+    }
+private:
+    //uint32_t allows for a little above 4 Gb of size without overflow so it's more than sufficient.
+    std::map<std::string, uint32_t> stats_;
+};
+
 void DumpGna2Model(const Gna2Model& gnaModel,
                    const std::string& dumpFolderNameGNA,
                    bool dumpData,
                    const GnaAllocations& allAllocations,
                    const std::string& modeOfOperation) {
+    Gna2Stats gnaStats;
     std::stringstream dumpFileName;
     uint32_t opsNo = gnaModel.NumberOfOperations;
     std::time_t currTime = std::time(nullptr);
@@ -487,13 +513,14 @@ void DumpGna2Model(const Gna2Model& gnaModel,
                 foundName = found->GetTagName();
                 offset = found->getOffset(operand.Data).second;
             }
+            const uint32_t size = Gna2RoundUpTo64(GetGnaShapeSize(operand.Shape, GetTypeByteSize(operand.Type)));
             dumpFile << "\tOperand " << j << " (" << GetOperandName(operation.Type, j) << ")"
                      << " type: " << GetOperandType(operand.Type) << " shape: " << GetSimpleString(operand.Shape)
-                     << " tag: " << foundName << " offset: " << offset << " size: "
-                     << Gna2RoundUp(GetGnaShapeSize(operand.Shape, GetTypeByteSize(operand.Type)),
-                                    Limitations::get_instance()->get_memory_alignment())
+                     << " tag: " << foundName << " offset: " << offset << " size: " << size
                      << " data: " << operand.Data << " baseAlloc: " << foundPtr << " layout: ";
-
+            gnaStats.Add(foundName,
+                         GetOperandName(operation.Type, j),
+                         size);
             DumpCharArray(dumpFile, operand.Layout, GNA2_SHAPE_MAXIMUM_NUMBER_OF_DIMENSIONS);
 
             if (operand.Type == Gna2DataTypePwlSegment) {
@@ -534,6 +561,8 @@ void DumpGna2Model(const Gna2Model& gnaModel,
             }
         }
     }
+    dumpFile << "------------------------------------------------------------------------\n\n";
+    dumpFile << gnaStats.GetFormattedStats() << std::endl;
 }
 
 }  // namespace dump
