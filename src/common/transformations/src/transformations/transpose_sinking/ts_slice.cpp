@@ -23,34 +23,19 @@ using namespace ov::pass::transpose_sinking::utils;
 
 TSSliceForward::TSSliceForward() {
     MATCHER_SCOPE(TSSliceForward);
-    auto const_label = wrap_type<ov::op::v0::Constant>();
-    auto transpose_label = wrap_type<ov::op::v1::Transpose>({any_input(), const_label});
-    auto main_node_label =
-        wrap_type<ov::op::v8::Slice>({transpose_label, any_input(), any_input(), any_input(), any_input()});
+    create_pattern<ov::op::v8::Slice>(true, {0});
 
-    matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
-        const auto& pattern_to_node = m.get_pattern_map();
-
-        auto& main_node = pattern_to_node.at(main_node_label);
-        if (transformation_callback(main_node)) {
-            return false;
-        }
-
-        auto transpose = std::dynamic_pointer_cast<ov::op::v1::Transpose>(pattern_to_node.at(transpose_label));
-        if (!transpose || main_node->get_input_size() < 5) {
-            return false;
-        }
-
-        auto transpose_const = as_type_ptr<ov::op::v0::Constant>(pattern_to_node.at(const_label));
-        if (!transpose_const) {
+    auto sinking_transformation = [=](const std::shared_ptr<Node>& main_node,
+                                      const TransposeInputsInfo& transpose_info) -> bool {
+        if (main_node->get_input_size() < 5) {
             return false;
         }
 
         // remove Transpose on 1st input:
-        auto transpose_parent = transpose->input_value(0);
+        auto transpose_parent = transpose_info.transpose->input_value(0);
         main_node->input(0).replace_source_output(transpose_parent);
 
-        const auto transpose_axis_order = transpose_const->get_axis_vector_val();
+        const auto transpose_axis_order = transpose_info.transpose_const->get_axis_vector_val();
         auto axis = std::make_shared<ov::op::v0::Constant>(element::i32, Shape{}, std::vector<int32_t>{0});
 
         auto data = std::make_shared<ov::op::v0::Constant>(element::i32,
@@ -61,17 +46,11 @@ TSSliceForward::TSSliceForward() {
 
         main_node->input(4).replace_source_output(new_axis);
 
-        main_node->validate_and_infer_types();
-        TransposeInputsInfo transpose_input_info = {transpose, transpose_const, 0};
-        for (auto& new_node : sink_forward::InsertOutputTransposes(main_node, transpose_input_info)) {
-            register_new_node(new_node);
-            UpdateForwardSinkingAbility(new_node);
-        }
+        default_outputs_update(main_node, transpose_info);
         return true;
     };
 
-    auto m = std::make_shared<Matcher>(main_node_label, matcher_name);
-    register_matcher(m, matcher_pass_callback);
+    transpose_sinking(matcher_name, sinking_transformation);
 }
 
 TSSliceBackward::TSSliceBackward() {
