@@ -131,7 +131,7 @@ TEST_F(FrontEndConversionWithReferenceTestsF, SavedModelMultiGraph) {
     { model = convert_model("saved_model_multi-graph"); }
     {
         // create a reference graph
-        auto x = make_shared<Constant>(element::f32, Shape{2,3}, vector<float>{1,2,3,3,2,1});
+        auto x = make_shared<Constant>(element::f32, Shape{2, 3}, vector<float>{1, 2, 3, 3, 2, 1});
         auto y = make_shared<Parameter>(element::f32, Shape{1});
         auto add = make_shared<Add>(x, y);
 

@@ -70,52 +70,53 @@ private:
     bool read_saved_model(const std::basic_string<T>& path, const std::string& tags) {
         std::basic_string<T> save_model_path = path + get_saved_model_name<T>();
         std::ifstream sm_stream{save_model_path.c_str(), std::ifstream::in | std::ifstream::binary};
-        FRONT_END_GENERAL_CHECK(sm_stream && sm_stream.is_open(), "Model file does not exist");
+        FRONT_END_GENERAL_CHECK(sm_stream && sm_stream.is_open(), "[TensorFlow Frontend] Model file does not exist");
 
         std::basic_string<T> varIndexPath = path + get_variables_index_name<T>();
         if (ov::util::file_exists(varIndexPath)) {
             m_variables_index = std::make_shared<VariablesIndex>();
             std::ifstream vi_stream{varIndexPath.c_str(), std::ifstream::in | std::ifstream::binary};
             FRONT_END_GENERAL_CHECK(vi_stream && vi_stream.is_open(),
-                                    "Saved Model's variable index file does not exist");
+                                    "[TensorFlow Frontend] Saved Model's variable index file does not exist");
             FRONT_END_GENERAL_CHECK(m_variables_index->read_variables(vi_stream, path),
-                                    "Saved Model's variable index file cannot be parsed");
+                                    "[TensorFlow Frontend] Saved Model's variable index file cannot be parsed");
         }
 
         bool res = m_saved_model->ParseFromIstream(&sm_stream);
-        FRONT_END_GENERAL_CHECK(res && m_saved_model->meta_graphs_size(), "Saved Model cannot be parsed");
+        FRONT_END_GENERAL_CHECK(res && m_saved_model->meta_graphs_size(),
+                                "[TensorFlow Frontend] Saved Model cannot be parsed");
 
-        const ::tensorflow::MetaGraphDef* meta_graph_with_no_tags = nullptr;
+        auto tag_list = split_tags(tags);
 
+        // SavedModel can contain several MetaGraph with different tags. Look for MetaGraph with the required tag
         for (const auto& meta_graph : m_saved_model->meta_graphs()) {
-            if (meta_graph.meta_info_def().tags_size() == 0) {
-                meta_graph_with_no_tags = &meta_graph;
-            }
-
             if (!meta_graph.has_graph_def()) {
                 continue;
             }
 
             bool tag_found = false;
-            for (const auto& tag : meta_graph.meta_info_def().tags()) {
-                if (tags.find(tag) != std::string::npos) {
-                    tag_found = true;
-                    break;
-                }
+
+            if (meta_graph.meta_info_def().tags_size() > 0) {
+                tag_found = std::all_of(meta_graph.meta_info_def().tags().begin(),
+                                        meta_graph.meta_info_def().tags().end(),
+                                        [&tag_list](const std::string& tag) {
+                                            return std::find(tag_list.begin(), tag_list.end(), tag) != tag_list.end();
+                                        });
             }
+
             if (tag_found) {
                 return load_meta_graph(meta_graph);
             }
         }
 
         // Alternate behavior for working with "default tag" to support additional cases for read_model
-        if (tags == "serve") {
+        if (tags == META_GRAPH_DEFAULT_TAG) {
             // If we have only one MetaGraph - try to use it
             if (m_saved_model->meta_graphs_size() == 1 && m_saved_model->meta_graphs(0).has_graph_def()) {
                 return load_meta_graph(m_saved_model->meta_graphs(0));
             }
 
-            // If MetaGraph with tag == "serve" already found - we shouldn't reach this place.
+            // If MetaGraph with tag == META_GRAPH_DEFAULT_TAG already found - we shouldn't reach this place.
             // Otherwise we try to find a MetaGraph with no tags as an alternative
             for (const auto& meta_graph : m_saved_model->meta_graphs()) {
                 if (!meta_graph.has_graph_def()) {
@@ -127,10 +128,12 @@ private:
                 }
             }
 
-            FRONT_END_GENERAL_CHECK(false, "Saved Model doesn't contain any applicable MetaGraph");
+            FRONT_END_GENERAL_CHECK(false,
+                                    "[TensorFlow Frontend] Saved Model doesn't contain any applicable MetaGraph");
         }
 
-        FRONT_END_GENERAL_CHECK(false, "Saved Model doesn't contain MetaGraph with requested tag");
+        FRONT_END_GENERAL_CHECK(false,
+                                "[TensorFlow Frontend] Saved Model doesn't contain MetaGraph with requested tag");
 
         return false;
     }
@@ -177,6 +180,12 @@ private:
 
         return true;
     }
+
+    /// \brief Splitting tags by using "," delimeter
+    /// \param[in] tags String with tags separated by ","
+    /// \return Returns vector with splitted tags, no trimming is used. When you pass "tag1, tag2"
+    /// you will have a vector ["tag1", " tag2"]. Because TensorFlow saves tags without trimming
+    std::vector<std::string> split_tags(const std::string tags) const;
 };  // GraphIteratorSavedModel
 
 }  // namespace tensorflow

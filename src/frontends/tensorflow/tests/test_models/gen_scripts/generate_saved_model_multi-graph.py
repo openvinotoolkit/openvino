@@ -43,6 +43,6 @@ with tf.compat.v1.Session(graph=tf.Graph()) as sess:
     sess.run(tf.compat.v1.global_variables_initializer())
 
     saver = tf.compat.v1.train.Saver(var_list=None, defer_build=True)
-    builder.add_meta_graph(["test"], saver=saver)
+    builder.add_meta_graph(["test","test2"], saver=saver)
 
 builder.save()

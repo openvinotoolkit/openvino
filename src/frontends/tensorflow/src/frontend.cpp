@@ -272,7 +272,7 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
             return std::make_shared<InputModel>(std::make_shared<GraphIteratorProto>(model_path), m_telemetry);
         } else if (GraphIteratorSavedModel::is_supported(model_path)) {
             std::shared_ptr<GraphIteratorSavedModel> graph_iterator;
-            graph_iterator = std::make_shared<GraphIteratorSavedModel>(model_path, std::string("serve"));
+            graph_iterator = std::make_shared<GraphIteratorSavedModel>(model_path, std::string(META_GRAPH_DEFAULT_TAG));
             return std::make_shared<InputModel>(graph_iterator,
                                                 m_telemetry,
                                                 graph_iterator->get_variables_index(),
