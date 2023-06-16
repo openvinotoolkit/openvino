@@ -337,7 +337,7 @@ class TorchScriptPythonDecoder (Decoder):
         # need to represent as Constant(u8) -> Convert(f32) -> Subtract(zero_point) -> Multiply (scale)
         qscheme = qtensor.qscheme()  # torch.per_channel_affine (per_tensor)
         if qscheme == torch.per_channel_affine:
-            int8_tensor = torch.int_repr(qtensor)
+            int8_tensor = qtensor.int_repr()
             scale = qtensor.q_per_channel_scales().numpy().astype(np.float32)  # (weight.q_scale() for per_tensor)
             zero_point = qtensor.q_per_channel_zero_points().numpy().astype(np.float32)  # (weight.q_zero_point() for per_tensor)
             axis = np.int32(qtensor.q_per_channel_axis())
@@ -352,7 +352,7 @@ class TorchScriptPythonDecoder (Decoder):
             sub = ops.subtract(convert, zero_point_bc)
             return ops.multiply(sub, scale_bc).outputs()
         elif qscheme == torch.per_tensor_affine:
-            int8_tensor = torch.int_repr(qtensor)
+            int8_tensor = qtensor.int_repr()
             scale = np.float32(qtensor.q_scale())
             zero_point = np.float32(qtensor.q_zero_point())
 

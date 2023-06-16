@@ -3,7 +3,6 @@
 //
 
 #include "openvino/frontend/pytorch/node_context.hpp"
-#include "openvino/op/convert.hpp"
 #include "pt_framework_node.hpp"
 #include "utils.hpp"
 
