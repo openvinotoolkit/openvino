@@ -59,7 +59,7 @@ void compile_graph::run(program& p) {
 
         // TODO: need to come up with better handling of unsupported shape agnostic cases
         // e.g. process exceptions from choose_impl() and ignore those for dynamic parameters
-        if (node->is_type<fully_connected>() && node->is_dynamic() && node->get_output_layout().get_partial_shape().size() > 3)
+        if (node->is_type<fully_connected>() && node->is_dynamic() && node->get_output_pshape().size() > 3)
             can_select_impl = false;
 
         // TODO: Remove this WA once we have shape agnostic arg_max_min_axis kernel with non-const k input

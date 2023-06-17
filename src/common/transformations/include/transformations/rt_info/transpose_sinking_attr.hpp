@@ -11,6 +11,7 @@
 namespace ov {
 
 TRANSFORMATIONS_API void mark_as_no_sinking_node(const std::shared_ptr<Node>& node);
+TRANSFORMATIONS_API void reset_no_sinking_attribute(const std::shared_ptr<Node>& node);
 
 TRANSFORMATIONS_API bool is_sinking_node(const std::shared_ptr<Node>& node);
 TRANSFORMATIONS_API bool is_sinking_node(const Node* node);
