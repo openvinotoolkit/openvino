@@ -512,12 +512,12 @@ public:
                        auto dims = shape;
                        if (shape.size() == 4) {
                            // NHWC
-                           if (shape[1] == shape[2]) {
+                           if ((shape[1] == shape[2]) && (shape[1] != shape[3])) {
                                blk_order = {0, 2, 3, 1};
                                dims[1] = shape[3];
                                dims[2] = shape[1];
                                dims[3] = shape[2];
-                            }
+                           }
                        }
                        ie::SizeVector dim_offset(shape.size(), 0);
                        ie::SizeVector blk_strides;
