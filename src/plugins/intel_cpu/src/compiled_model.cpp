@@ -65,10 +65,10 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     bool isFloatModel = !ov::op::util::has_op_with_type<ngraph::op::FakeQuantize>(_model);
 
     _mutex = std::make_shared<std::mutex>();
-    const auto& core = _plugin->GetCore();
+    const auto& core = _plugin->get_core();
     if (!core)
         IE_THROW() << "Unable to get API version. Core is unavailable";
-    _cfg.isLegacyApi = !core->isNewAPI();
+    _cfg.isLegacyApi = !core->is_new_api();
 
 
     if (cfg.exclusiveAsyncRequests) {
