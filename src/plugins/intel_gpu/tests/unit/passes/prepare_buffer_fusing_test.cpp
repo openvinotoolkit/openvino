@@ -165,7 +165,7 @@ TEST(prepare_buffer_fusing, in_place_concat_static) {
     topology.add(concatenation("concat", { input_info("permute1"), input_info("permute2") }, 2));
     topology.add(permute("output", input_info("concat"), {0, 2, 3, 1}));
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
     auto prog = program::build_program(engine, topology, config, false, false);
     ASSERT_NE(prog, nullptr);
@@ -218,7 +218,7 @@ TEST(prepare_buffer_fusing, in_place_concat_dynamic) {
     topology.add(concatenation("concat", { input_info("permute1"), input_info("permute2") }, 2));
     topology.add(permute("output", input_info("concat"), {0, 2, 3, 1}));
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     auto prog = program::build_program(engine, topology, config, false, false);
@@ -273,7 +273,7 @@ TEST(prepare_buffer_fusing, in_place_concat_dynamic__static_dim_dyn_pad) {
     topology.add(concatenation("concat", { input_info("permute1"), input_info("permute2") }, 2));
     topology.add(permute("output", input_info("concat"), {0, 2, 3, 1}));
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     auto prog = program::build_program(engine, topology, config, false, false);

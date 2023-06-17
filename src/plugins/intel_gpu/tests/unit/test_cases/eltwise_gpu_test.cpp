@@ -1382,7 +1382,7 @@ TEST(eltwise_gpu_f32, dynamic_kernel_broadcast_mixed_ranks_3d_2d) {
 
     set_values(input2, { 0.5f, -0.5f, 1.0f, -1.0f, 2.f });
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     network network(engine, topology, config);
     network.set_input_data("input1", input1);
@@ -1441,7 +1441,7 @@ TEST(eltwise_gpu_f32, dynamic_kernel_broadcast_mixed_ranks_5d_2d) {
 
     set_values(input2, { 0.5f, -0.5f, 1.0f, -1.0f, 2.f });
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     network network(engine, topology, config);
     network.set_input_data("input1", input1);
@@ -1500,7 +1500,7 @@ TEST(eltwise_cpu_impl_f32, dynamic_kernel_broadcast_mixed_ranks_5d_2d) {
 
     set_values(input2, { 0.5f, -0.5f, 1.0f, -1.0f, 2.f });
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"eltwise", {format::bfzyx, "", impl_types::cpu}}}));
 
