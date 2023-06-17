@@ -88,7 +88,14 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
 
     convolution = NetworkHelper::separateInStandaloneBranch(convolution, defaultPrecisions);
 
-    const bool fqOnWeightsWasDecomposed = decomposeFakeQuantizeForWeightsPath(convolution);
+    const auto& res_tuple = decomposeFakeQuantizeForWeightsPath(convolution);
+
+    auto fqOnWeightsWasDecomposed = std::get<0>(res_tuple);
+    auto newFQ = std::get<1>(res_tuple);
+    auto dequantize = std::get<2>(res_tuple);
+    if (newFQ != nullptr && dequantize != nullptr)
+        updateOutput(context, dequantize, newFQ);
+
     if (updatePrecisions && !fqOnWeightsWasDecomposed) {
         return false;
     }
