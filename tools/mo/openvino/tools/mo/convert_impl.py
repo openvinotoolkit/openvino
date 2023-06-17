@@ -390,18 +390,12 @@ def prepare_ir(argv: argparse.Namespace):
     if moc_front_end:
         fallback_reasons = check_fallback(argv)
         if len(fallback_reasons) == 0:
-            path_to_aux_pb = None
-            orig_argv_values = {"input_model": argv.input_model, "model_name": argv.model_name}
-            if not argv.use_legacy_frontend and is_tf:
-                if tf_frontend_with_python_bindings_installed and 'tf' in available_moc_front_ends and \
-                        type_supported_by_tf_fe(argv.input_model):
-                    argv.input_model = create_tf_graph_iterator(argv.input_model,
-                                                                argv.placeholder_shapes,
-                                                                argv.placeholder_data_types,
-                                                                getattr(argv, "example_input", None))
-                else:
-                    from openvino.tools.mo.front.tf.loader import convert_to_pb
-                    path_to_aux_pb = convert_to_pb(argv)
+            if is_tf and tf_frontend_with_python_bindings_installed and \
+                    type_supported_by_tf_fe(argv.input_model):
+                argv.input_model = create_tf_graph_iterator(argv.input_model,
+                                                            argv.placeholder_shapes,
+                                                            argv.placeholder_data_types,
+                                                            getattr(argv, "example_input", None))
             try:
                 t.send_event("mo", "conversion_method", moc_front_end.get_name() + "_frontend")
                 moc_front_end.add_extension(TelemetryExtension("mo", t.send_event, t.send_error, t.send_stack_trace))
@@ -424,14 +418,6 @@ def prepare_ir(argv: argparse.Namespace):
                     # re-throw exception for all frontends except TensorFlow FE
                     # and in case unexpected conversion failures
                     raise
-            finally:
-                # TODO: remove this workaround once new TensorFlow frontend supports non-frozen formats: checkpoint, MetaGraph, and SavedModel
-                # Now it converts all TensorFlow formats to the frozen .pb format in case new TensorFlow frontend
-                if is_tf and path_to_aux_pb is not None:
-                    argv.input_model = orig_argv_values["input_model"]
-                    argv.model_name = orig_argv_values["model_name"]
-                    if path_to_aux_pb is not None and os.path.exists(path_to_aux_pb):
-                        os.remove(path_to_aux_pb)
 
     if len(fallback_reasons) > 0:
         reasons_message = ", ".join(fallback_reasons)
