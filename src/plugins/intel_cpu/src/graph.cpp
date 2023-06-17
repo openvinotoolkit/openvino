@@ -1058,10 +1058,9 @@ void Graph::PullOutputData(std::unordered_map<std::string, ov::Tensor> &out) {
 
         auto srcPrec = actualDesc.getPrecision();
         auto dstPrec = expectedDesc.getPrecision();
-
-        if (getConfig().isNewApi && srcPrec == dstPrec && ext_blob.get_byte_size() != intr_blob.GetSize())
-                IE_THROW() << "Output blob byte size is not equal network output byte size ("
-                                   << ext_blob.get_byte_size() << "!=" << intr_blob.GetSize() << ").";
+        if (!getConfig().isLegacyApi && srcPrec == dstPrec && ext_blob.get_byte_size() != intr_blob.GetSize())
+            IE_THROW() << "Output blob byte size is not equal network output byte size (" << ext_blob.get_byte_size()
+                       << "!=" << intr_blob.GetSize() << ").";
 
         void *ext_blob_ptr = ext_blob.data();
         void *intr_blob_ptr = intr_blob.GetData();

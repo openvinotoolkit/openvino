@@ -64,8 +64,12 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
       _loaded_from_cache(loaded_from_cache) {
     bool isFloatModel = !ov::op::util::has_op_with_type<ngraph::op::FakeQuantize>(_model);
 
-    _cfg.isNewApi = !isLegacyAPI();
     _mutex = std::make_shared<std::mutex>();
+    const auto& core = _plugin->GetCore();
+    if (!core)
+        IE_THROW() << "Unable to get API version. Core is unavailable";
+    _cfg.isLegacyApi = !core->isNewAPI();
+
 
     if (cfg.exclusiveAsyncRequests) {
         // special case when all InferRequests are muxed into a single queue
@@ -210,14 +214,6 @@ std::shared_ptr<const ov::Model> CompiledModel::get_runtime_model() const {
     return GetGraph()._graph.dump();
 }
 
-bool CompiledModel::isLegacyAPI() const {
-    const auto& core = _plugin->get_core();
-    if (!core)
-        IE_THROW() << "Unable to get API version. Core is unavailable";
-
-    return !core->is_new_api();
-}
-
 ov::Any CompiledModel::get_property(const std::string& name) const {
     if (_graphs.empty())
         IE_THROW() << "No graph was found";
@@ -270,7 +266,7 @@ ov::Any CompiledModel::GetMetric(const std::string& name) const {
     const auto& graph = graphLock._graph;
     const auto& config = graph.getConfig();
 
-    if (isLegacyAPI()) {
+    if (_cfg.isLegacyApi) {
         return GetMetricLegacy(name, graph);
     }
 

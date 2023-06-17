@@ -94,8 +94,6 @@ protected:
 
     bool CanProcessDynBatch(const std::shared_ptr<ov::Model> &model) const;
 
-    bool isLegacyAPI() const;
-
     ov::Any GetConfigLegacy(const std::string& name) const;
     ov::Any GetMetric(const std::string& name) const;
     ov::Any GetMetricLegacy(const std::string& name, const GraphGuard& graph) const;
