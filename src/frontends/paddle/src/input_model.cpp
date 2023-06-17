@@ -331,7 +331,7 @@ void InputModel::InputModelImpl::load_consts(std::istream* weight_stream) {
             continue;
 
         FRONT_END_GENERAL_CHECK(var_desc.type().type() == ::paddle::framework::proto::VarType::LOD_TENSOR);
-        FRONT_END_GENERAL_CHECK(weight_stream->peek() != EOF,
+        FRONT_END_GENERAL_CHECK(weight_stream != nullptr && weight_stream->peek() != EOF,
                                 "PaddlePaddle *.pdiparams format weight file doesn't exist!");
         /*
             reference:
