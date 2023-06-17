@@ -248,13 +248,6 @@ def saved_model_load(imported, env_setup):
 def load_tf_graph_def(graph_file_name: str = "", is_binary: bool = True, checkpoint: str = "",
                       model_dir: str = "", saved_model_tags: list = [], meta_graph_file: str = "",
                       user_output_node_names_list: list = []):
-    print("tf version", tf.__version__)
-    print("==== load_tf_graph_def, graph_file_name = ", graph_file_name)
-    print("==== load_tf_graph_def, checkpoint = ", checkpoint)
-    print("==== load_tf_graph_def, model_dir = ", model_dir)
-    print("==== load_tf_graph_def, meta_graph_file = ", meta_graph_file)
-    print("==== load_tf_graph_def, is_binary = ", is_binary)
-
     if not isinstance(graph_file_name, str) and graph_file_name is not None:
         return prepare_graph_def(graph_file_name)
     # As a provisional solution, use a native TF methods to load a model protobuf
@@ -289,15 +282,8 @@ def load_tf_graph_def(graph_file_name: str = "", is_binary: bool = True, checkpo
             # we are sure that checkpoint is existing file or directory due to cli_parser configuration
             return graph_def, variables_values, 'tf', None
         if not graph_file_name and meta_graph_file:
-            print("==== load_tf_graph_def, graph_file_name = ", graph_file_name)
-            print("==== load_tf_graph_def, checkpoint = ", checkpoint)
-            print("==== load_tf_graph_def, model_dir = ", model_dir)
-            print("==== load_tf_graph_def, meta_graph_file = ", meta_graph_file)
-            print("==========TRACE1============")
             meta_graph_file = deducing_metagraph_path(meta_graph_file)
-            print("==========TRACE2============")
             input_meta_graph_def = read_file_to_graph_def(tf_v1.MetaGraphDef(), meta_graph_file, is_binary)
-            print("==========TRACE3============")
             # Since version 2.2 TF can fail with internal error while loading graph from .meta file.
             # It happens because some operation may has an _output_shapes attribute inconsistent with the GraphDef
             # calculated value. To avoid this problem we must delete `_output_shapes` attributes from operations
@@ -307,16 +293,11 @@ def load_tf_graph_def(graph_file_name: str = "", is_binary: bool = True, checkpo
             tf_v1.reset_default_graph()
             # pylint: disable=no-member
             with tf_v1.Session() as sess:
-                print("==========TRACE4============")
                 restorer = tf_v1.train.import_meta_graph(input_meta_graph_def)
-                print("==========TRACE5============")
                 restorer.restore(sess, re.sub(r'\.meta$', '', meta_graph_file))
-                print("==========TRACE6============")
                 outputs = get_output_node_names_list(input_meta_graph_def.graph_def, user_output_node_names_list)
-                print("==========TRACE7============")
                 graph_def = tf_v1.graph_util.convert_variables_to_constants(sess, input_meta_graph_def.graph_def,
                                                                             outputs)
-                print("==========TRACE8============")
                 return graph_def, variables_values, 'tf', None
         if model_dir:
             # saved model directory
