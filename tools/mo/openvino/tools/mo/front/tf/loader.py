@@ -304,6 +304,7 @@ def load_tf_graph_def(graph_file_name: str = "", is_binary: bool = True, checkpo
             for node in input_meta_graph_def.graph_def.node:
                 if '_output_shapes' in node.attr:
                     del node.attr['_output_shapes']
+            tf_v1.reset_default_graph()
             # pylint: disable=no-member
             with tf_v1.Session() as sess:
                 print("==========TRACE4============")
