@@ -1336,10 +1336,12 @@ void BrgemmCopyBEmitter::execute(matmul::jit_brgemm_matmul_copy_b_t *kernel, con
 
 HorizonEmitter::HorizonEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n) :
     jit_emitter(h, isa, n, Precision::FP32, emitter_in_out_map::vec_to_vec) {
-    if (ov::as_type_ptr<const snippets::op::HorizonMax>(n)) {
+    if (ov::is_type<const snippets::op::HorizonMax>(n)) {
         m_op_type = OpType::max;
-    } else if (ov::as_type_ptr<const snippets::op::HorizonSum>(n)) {
+    } else if (ov::is_type<const snippets::op::HorizonSum>(n)) {
         m_op_type = OpType::sum;
+    } else {
+        OPENVINO_THROW("HorizonEmitter exprects HorizonMax or HorizonSum ops");
     }
 }
 
