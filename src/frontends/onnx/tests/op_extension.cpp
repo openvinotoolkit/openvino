@@ -150,7 +150,8 @@ INSTANTIATE_TEST_SUITE_P(ONNXOpExtensionViaCommonConstructor,
                          FrontEndOpExtensionTest::getTestCaseName);
 
 TEST(ONNXOpExtensionViaCommonConstructor, onnx_op_extension_via_template_arg_with_custom_domain) {
-    const auto ext = std::make_shared<ov::frontend::onnx::OpExtension<ov::op::v0::Relu>>("CustomRelu", "my_custom_domain");
+    const auto ext =
+        std::make_shared<ov::frontend::onnx::OpExtension<ov::op::v0::Relu>>("CustomRelu", "my_custom_domain");
 
     auto fe = std::make_shared<ov::frontend::onnx::FrontEnd>();
     fe->add_extension(ext);
@@ -163,7 +164,8 @@ TEST(ONNXOpExtensionViaCommonConstructor, onnx_op_extension_via_template_arg_wit
 }
 
 TEST(ONNXOpExtensionViaCommonConstructor, onnx_op_extension_via_ov_type_name_with_custom_domain) {
-    const auto ext = std::make_shared<ov::frontend::onnx::OpExtension<>>("opset1::Relu", "CustomRelu", "my_custom_domain");
+    const auto ext =
+        std::make_shared<ov::frontend::onnx::OpExtension<>>("opset1::Relu", "CustomRelu", "my_custom_domain");
 
     auto fe = std::make_shared<ov::frontend::onnx::FrontEnd>();
     fe->add_extension(ext);
@@ -199,7 +201,8 @@ TEST(ONNXOpExtensionViaCommonConstructor, onnx_op_extension_mixed_legacy_and_new
         ov::util::path_join({TEST_ONNX_MODELS_DIRNAME, "relu_custom_domain.onnx"}));
     ov::Core core;
     core.add_extension(std::make_shared<OldApiNode>());
-    const auto new_api_ext = std::make_shared<ov::frontend::onnx::OpExtension<ov::op::v0::Relu>>("CustomRelu", "my_custom_domain");
+    const auto new_api_ext =
+        std::make_shared<ov::frontend::onnx::OpExtension<ov::op::v0::Relu>>("CustomRelu", "my_custom_domain");
     core.add_extension(new_api_ext);
     EXPECT_NO_THROW(core.read_model(input_model_path));
 }
