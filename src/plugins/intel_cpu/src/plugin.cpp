@@ -208,7 +208,8 @@ void Engine::ApplyPerformanceHints(ov::AnyMap& config, const std::shared_ptr<ov:
                                          engConfig.streamExecutorConfig._enable_hyper_thread);
             streams_info.num_streams = std::max(default_streams.num_streams, streams_info.num_streams);
         }
-        auto num_requests = config.find(CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS));
+
+        auto num_requests = config.find(ov::hint::num_requests.name());
         if (num_requests != config.end()) {  // arrived with config to the LoadNetwork (and thus higher pri)
             auto val = PerfHintsConfig::CheckPerformanceHintRequestValue(num_requests->second.as<std::string>());
             // auto val = num_requests->second.as<int>();
@@ -228,7 +229,7 @@ void Engine::ApplyPerformanceHints(ov::AnyMap& config, const std::shared_ptr<ov:
         if (streamsExplicitlySetForModel || streamsExplicitlySetForEngine)
             return std::string();
 
-        const auto& perf_hint = config.find(CONFIG_KEY(PERFORMANCE_HINT));
+        const auto& perf_hint = config.find(ov::hint::performance_mode.name());
         // the perf_hint may have just arrived to the LoadNetwork, or was set with the plugin's SetConfig
         if (perf_hint == config.end() && engConfig.perfHintsConfig.ovPerfHint.empty())
             return std::string();

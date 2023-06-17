@@ -82,10 +82,10 @@ void SyncInferRequest::create_infer_request() {
     _profiling_task = openvino::itt::handle("INTEL_CPU_INFER_" + _compiled_model->_name + "_" + std::to_string(id));
 
     if (_compiled_model->_graphs.size() == 0)
-        IE_THROW() << "No graph was found";
+        OPENVINO_THROW("No graph was found");
     graph = &(_compiled_model->GetGraph()._graph);
 
-    // alocate memory for each tensor
+    // alocate memory for each tensor if static shape
     for (const auto& it : _input_ports_map) {
         init_tensor(it.first);
     }
@@ -100,7 +100,7 @@ void SyncInferRequest::create_infer_request() {
         if (node->getType() == Type::MemoryInput) {
             auto memoryNode = dynamic_cast<node::MemoryInput*>(node.get());
             if (!memoryNode) {
-                IE_THROW() << "Cannot cast " << node->getName() << " to MemoryInput";
+                OPENVINO_THROW("Cannot cast ", node->getName(), " to MemoryInput");
             }
             auto state_store = memoryNode->getStore();
             auto state_name = memoryNode->getId();
@@ -273,7 +273,7 @@ void SyncInferRequest::changeDefaultPtr() {
             for (auto& childEdge : childEdges) {
                 auto ce = childEdge.lock();
                 if (!ce)
-                    IE_THROW() << "Node " << inputNodePtr->getName() << " contains empty child edge";
+                    OPENVINO_THROW("Node ", inputNodePtr->getName(), " contains empty child edge");
 
                 auto& child = ce->getChild();
 
@@ -305,7 +305,7 @@ void SyncInferRequest::changeDefaultPtr() {
                 for (auto& edge : edges) {
                     auto e = edge.lock();
                     if (!e)
-                        IE_THROW() << "Node " << child->getName() << " contains empty child edge";
+                        OPENVINO_THROW("Node ", child->getName(), " contains empty child edge");
 
                     if (e->getMemory().GetData() == ce->getMemory().GetData()) {
                         canBeInPlace = false;
@@ -320,7 +320,7 @@ void SyncInferRequest::changeDefaultPtr() {
                 for (auto& edge : childEdges) {
                     auto e = edge.lock();
                     if (!e)
-                        IE_THROW() << "Node " << inputNodePtr->getName() << " contains empty child edge";
+                        OPENVINO_THROW("Node ", inputNodePtr->getName(), " contains empty child edge");
 
                     changeEdgePtr(e, it.second);
                 }
@@ -352,7 +352,7 @@ void SyncInferRequest::changeDefaultPtr() {
                 for (auto& edge : parentEdges) {
                     auto e = edge.lock();
                     if (!e)
-                        IE_THROW() << "Node " << parent->getName() << " contains empty parent edge";
+                        OPENVINO_THROW("Node ", parent->getName(), " contains empty parent edge");
 
                     if (e->getMemory().GetData() == defaultPtr) {
                         parent = e->getParent();
@@ -364,7 +364,7 @@ void SyncInferRequest::changeDefaultPtr() {
                 changeEdgePtr(parentEdge, it.second);
             continue;
         }
-        IE_THROW() << "Cannot find input/output blob: " << it.first;
+        OPENVINO_THROW("Cannot find input/output blob: ", it.first);
     }
 }
 
@@ -393,7 +393,7 @@ InferenceEngine::Precision SyncInferRequest::normToInputSupportedPrec(
     }
 
     if (inPrec == InferenceEngine::Precision::UNSPECIFIED) {
-        IE_THROW() << "Unsupported input precision " << input.second.get_element_type();
+        OPENVINO_THROW("Unsupported input precision ", input.second.get_element_type());
     }
 
     return inPrec;
@@ -631,14 +631,23 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& _port, const
         const auto shape = port.get_partial_shape();
         const bool isDynamic = shape.is_dynamic();
         if (!shape.compatible(ov::PartialShape(tensor.get_shape()))) {
-            IE_THROW() << "Can't set input tensor with name: " << name << ", because model input (shape=" << shape
-                       << ") and tensor (shape=" << vec2str(tensor.get_shape()) << ") are incompatible";
+            OPENVINO_THROW("Can't set input tensor with name: ",
+                           name,
+                           ", because model input (shape=",
+                           shape,
+                           ") and tensor (shape=",
+                           vec2str(tensor.get_shape()),
+                           ") are incompatible");
         }
 
         if (!isDynamic && ngraph::shape_size(shape.to_shape()) != tensor.get_size()) {
-            IE_THROW() << "Can't set input tensor with name: " << name
-                       << ", because model input size = " << ngraph::shape_size(shape.to_shape())
-                       << " and tensor size = " << tensor.get_size() << " are different.";
+            OPENVINO_THROW("Can't set input tensor with name: ",
+                           name,
+                           ", because model input size = ",
+                           ngraph::shape_size(shape.to_shape()),
+                           " and tensor size = ",
+                           tensor.get_size(),
+                           " are different.");
         }
 
         MemoryDescPtr actualDesc = graph->getInputNodeByName(name)->getBaseMemDescAtOutputPort(0);
@@ -667,14 +676,23 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& _port, const
         const bool isDynamic = shape.is_dynamic();
 
         if (!shape.compatible(ov::PartialShape(tensor.get_shape()))) {
-            IE_THROW() << "Can't set output tensor with name: " << name << ", because model output (shape=" << shape
-                       << ") and blob (shape=" << vec2str(tensor.get_shape()) << ") are incompatible";
+            OPENVINO_THROW("Can't set output tensor with name: ",
+                           name,
+                           ", because model output (shape=",
+                           shape,
+                           ") and blob (shape=",
+                           vec2str(tensor.get_shape()),
+                           ") are incompatible");
         }
 
         if (!isDynamic && ngraph::shape_size(shape.to_shape()) != tensor.get_size()) {
-            IE_THROW() << "Can't set output tensor with name: " << name
-                       << ", because model output size = " << ngraph::shape_size(shape.to_shape())
-                       << " and blob size = " << tensor.get_size() << " are different.";
+            OPENVINO_THROW("Can't set output tensor with name: ",
+                           name,
+                           ", because model output size = ",
+                           ngraph::shape_size(shape.to_shape()),
+                           " and blob size = ",
+                           tensor.get_size(),
+                           " are different.");
         }
 
         const auto& desc = graph->getOutputNodeByName(name)->getParentEdgesAtPort(0)[0]->getMemory().getDesc();
@@ -702,10 +720,10 @@ void SyncInferRequest::init_tensor(const std::string& name) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, "init_tensor");
 
     if (!graph || !graph->IsReady())
-        IE_THROW() << "Graph is not ready!";
+        OPENVINO_THROW("Graph is not ready!");
 
     if (name.empty())
-        IE_THROW() << "Can't preapre tensor for empty name! ";
+        OPENVINO_THROW("Can't preapre tensor for empty name! ");
 
     ov::Tensor tensor;
     const auto& inMap = graph->inputNodesMap;
@@ -738,7 +756,7 @@ void SyncInferRequest::init_tensor(const std::string& name) {
                 }
             }
         } else {
-            IE_THROW() << "Tensor with name: " << name << " exists in CPU plugin graph, but absents in network inputs";
+            OPENVINO_THROW("Tensor with name: ", name, " exists in CPU plugin graph, but absents in network inputs");
         }
     }
 
@@ -794,12 +812,12 @@ void SyncInferRequest::init_tensor(const std::string& name) {
                 _external_ptr[name] = tensor.data();
             }
         } else {
-            IE_THROW() << "Tensor with name: " << name << " exists in CPU plugin graph, but absents in network outputs";
+            OPENVINO_THROW("Tensor with name: ", name, " exists in CPU plugin graph, but absents in network outputs");
         }
     }
 
     if (!tensor) {
-        IE_THROW() << "Cannot find tensor with name: " << name;
+        OPENVINO_THROW("Cannot find tensor with name: ", name);
     }
     return;
 }
@@ -808,8 +826,8 @@ void SyncInferRequest::PushInputData() {
     for (auto input : get_inputs()) {
         std::string input_name = query_port_name(input);
         if (input_name.empty()) {
-            IE_THROW() << "Input tensor map contains not registered during IPlugin::compile_model tensor with name "
-                       << input_name;
+            OPENVINO_THROW("Input tensor map contains not registered during IPlugin::compile_model tensor with name ",
+                           input_name);
         }
 
         auto tensor = get_tensor(input);

@@ -32,7 +32,5 @@ private:
     model_builder _model_builder;
 };
 
-// const std::string& model, const Blob::CPtr& weights
-
 }   // namespace intel_cpu
 }   // namespace ov
