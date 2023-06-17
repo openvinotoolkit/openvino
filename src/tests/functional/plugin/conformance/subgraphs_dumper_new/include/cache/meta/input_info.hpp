@@ -12,6 +12,7 @@ namespace subgraph_dumper {
 
 constexpr double DEFAULT_MIN_VALUE = std::numeric_limits<double>::min();
 constexpr double DEFAULT_MAX_VALUE = std::numeric_limits<double>::max();
+constexpr double DEFAULT_EPSILON = std::numeric_limits<float>::epsilon();
 
 struct InputInfo {
     struct Range {
@@ -28,6 +29,12 @@ struct InputInfo {
             }
             return *this;
         }
+
+        bool operator==(const Range& ranges) const {
+            double max_delta = (this->max - ranges.max) > 0 ? this->max - ranges.max : ranges.max - this->max;
+            double min_delta = (this->min - ranges.min) > 0 ? this->min - ranges.min : ranges.min - this->min;
+            return max_delta <= DEFAULT_EPSILON && min_delta <= DEFAULT_EPSILON;
+        }
     };
 
     Range ranges;
@@ -40,7 +47,7 @@ struct InputInfo {
               ranges(Range(in_min, in_max)) {}
 
     bool operator==(const InputInfo& input_info_ref) const {
-        return this->is_const == input_info_ref.is_const && this->ranges.max == input_info_ref.ranges.max && this->ranges.min == input_info_ref.ranges.min;
+        return this->is_const == input_info_ref.is_const && this->ranges == input_info_ref.ranges;
     }
 };
 

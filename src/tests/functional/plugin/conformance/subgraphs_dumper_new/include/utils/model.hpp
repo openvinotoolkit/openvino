@@ -130,13 +130,6 @@ inline void save_model_status_to_file(const std::map<ModelCacheStatus, std::vect
     }
 }
 
-inline void serialize_cache(const std::vector<std::shared_ptr<ICache>>& caches, const std::string& serilization_dir) {
-    for (auto& cache : caches) {
-        cache->set_serialization_dir(serilization_dir);
-        cache->serialize_cache();
-    }
-}
-
 }  // namespace subgraph_dumper
 }  // namespace tools
 }  // namespace ov

@@ -12,6 +12,7 @@
 namespace ov {
 namespace tools {
 namespace subgraph_dumper {
+
 template <typename dType>
 inline InputInfo::Range get_const_ranges(const std::shared_ptr<ov::op::v0::Constant>& node) {
     size_t elements_count = ov::shape_size(node->get_shape());
@@ -100,7 +101,10 @@ inline std::map<std::string, InputInfo> get_input_info_by_node(const std::shared
 
 // replace all input node by parameters and constants instead of non input mode types
 // if `!is_save_const` replace only by parameters
-inline std::shared_ptr<ov::Node> clone_node(std::shared_ptr<ov::Node> node, bool is_save_const = false) {
+// if `!is_copy_const_node` do not create new node with constants only as inputs 
+inline std::shared_ptr<ov::Node> clone_node(std::shared_ptr<ov::Node> node,
+                                            bool is_save_const = false,
+                                            bool is_copy_const_node = false) {
     bool has_parameters = false;
     ov::OutputVector inputs;
     inputs.resize(node->get_input_size());
@@ -127,7 +131,7 @@ inline std::shared_ptr<ov::Node> clone_node(std::shared_ptr<ov::Node> node, bool
         param->set_friendly_name(node_name);
         inputs[i] = param;
     }
-    if (!has_parameters) {
+    if (!has_parameters && !is_copy_const_node) {
         std::cout << "The operation: " + node->get_friendly_name() + " does not have parameters!" << std::endl;
         return nullptr;
     }

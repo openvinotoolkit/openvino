@@ -116,13 +116,6 @@ BaseMatcher::BaseMatcher() {
             // std::make_shared<MatcherConfig<>>(std::vector<std::string>{}, std::vector<size_t>{0}),
             // std::make_shared<MatcherConfig<ov::opset8::FakeQuantize>>(std::vector<std::string>{},
             //                                                           std::vector<size_t>{0, 1, 2, 3, 4}),
-            // std::make_shared<MatcherConfig<
-            //         ov::op::v0::MatMul,
-            //         ov::op::v1::Add,
-            //         ov::op::v1::Multiply,
-            //         ov::op::v1::Subtract,
-            //         ov::op::v1::Power>>(std::vector<std::string>{}, std::vector<size_t>{0, 1}),
-
             std::make_shared<MatcherConfig<
                     ov::op::v1::Convolution,
                     ov::op::v1::ConvolutionBackpropData,

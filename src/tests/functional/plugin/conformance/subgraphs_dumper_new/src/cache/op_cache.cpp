@@ -70,9 +70,20 @@ void OpCache::update_cache(const std::shared_ptr<ov::Node>& node,
         }
     }
 
+    // to identify ignored inputs
+    std::vector<std::string> ignored_input_names = {};
+    {
+        auto matching_config = m_manager.get_config(find_op_in_cache);
+        if (matching_config) {
+            for (const auto& ignored_port : matching_config->ignored_ports) {
+                ignored_input_names.push_back(find_op_in_cache->get_friendly_name() + "_" + std::to_string(ignored_port));
+            }
+        }
+    }
+
     auto meta = MetaInfo(model_path, get_input_info_by_node(cloned_node), model_op_cnt);
     if (find_op_in_cache != nullptr) {
-        m_ops_cache[find_op_in_cache].update(model_path, get_input_info_by_node(cloned_node), model_op_cnt);
+        m_ops_cache[find_op_in_cache].update(model_path, get_input_info_by_node(cloned_node), model_op_cnt, ignored_input_names);
     }
     if (find_op_in_cache > cloned_node) {
         std::cout << "Update cache node: " << cloned_node->get_type_info().name <<  " " << find_op_in_cache->get_friendly_name() << std::endl;

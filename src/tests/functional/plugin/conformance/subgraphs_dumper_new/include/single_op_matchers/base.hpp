@@ -22,6 +22,8 @@ public:
     virtual bool match(const std::shared_ptr<ov::Node> &node,
                        const std::shared_ptr<ov::Node> &ref) const;
 
+    iMatcherConfig::Ptr get_config(const std::shared_ptr<ov::Node> &node) const;
+
 protected:
     virtual void configure(const pugi::xml_document &cfg) {};
     virtual bool match_only_configured_ops() const { return false; };
@@ -33,8 +35,6 @@ protected:
                                const std::shared_ptr<ov::Node> &ref) const;
     virtual bool match_attrs(const std::shared_ptr<ov::Node> &node,
                              const std::shared_ptr<ov::Node> &ref) const;
-
-    iMatcherConfig::Ptr get_config(const std::shared_ptr<ov::Node> &node) const;
 
     std::vector<iMatcherConfig::Ptr> default_configs;
 };

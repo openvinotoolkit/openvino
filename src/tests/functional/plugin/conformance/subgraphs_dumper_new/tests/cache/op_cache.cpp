@@ -35,7 +35,6 @@ protected:
             auto params = ov::ParameterVector {
                 std::make_shared<ov::op::v0::Parameter>(ov::element::Type_t::f32, ov::PartialShape{1, 1, 1, 1}),
             };
-            // params->begin()->set_friendly_name("in_0");
             auto convert = std::make_shared<ov::op::v0::Convert>(params.front(), ov::element::f16);
             convert->set_friendly_name("convert_0");
             test_model = std::make_shared<ov::Model>(convert, params);

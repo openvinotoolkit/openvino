@@ -20,10 +20,13 @@ public:
                               const std::string& source_model, bool extract_body = true) {};
     virtual void serialize_cache() {};
 
-    void set_serialization_dir(const std::string& serialization_dir) { m_serialization_dir = serialization_dir; }
+    void set_serialization_dir(const std::string& serialization_dir) {
+        m_serialization_dir = serialization_dir;
+    }
 
 protected:
     size_t m_serialization_timeout = 60;
+    // NOLINT Static/global string variables are not permitted
     std::string m_serialization_dir = ".";
 
     ICache() = default;

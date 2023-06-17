@@ -15,7 +15,8 @@ class MetaInfo {
 public:
     MetaInfo(const std::string& model_path = "", const std::map<std::string, InputInfo>& _input_info = {}, size_t total_op_cnt = 1, size_t model_priority = 1);
     void serialize(const std::string& serialization_path);
-    void update(const std::string& model_path, const std::map<std::string, InputInfo>& _input_info, size_t _total_op_cnt = 1);
+    void update(const std::string& model_path, const std::map<std::string, InputInfo>& _input_info,
+                size_t _total_op_cnt = 1, const std::vector<std::string>& ignored_inputs = {});
     std::map<std::string, InputInfo> get_input_info();
     std::map<std::string, ModelInfo> get_model_info();
 

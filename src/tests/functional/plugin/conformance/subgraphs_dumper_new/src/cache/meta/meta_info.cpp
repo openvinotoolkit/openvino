@@ -79,7 +79,8 @@ void MetaInfo::serialize(const std::string& serialization_path) {
 
 void MetaInfo::update(const std::string& _model_path,
                       const std::map<std::string, InputInfo>& _input_info,
-                      size_t _total_op_cnt) {
+                      size_t _total_op_cnt,
+                      const std::vector<std::string>& ignored_inputs) {
     if (input_info.size() != _input_info.size()) {
         throw std::runtime_error("Uncompatible input info!");
     }
@@ -94,6 +95,9 @@ void MetaInfo::update(const std::string& _model_path,
         model_info.insert({ model_name, ModelInfo(_model_path, _total_op_cnt) });\
     }
     for (const auto& in : _input_info) {
+        if (std::find(ignored_inputs.begin(), ignored_inputs.end(), in.first) != ignored_inputs.begin()) {
+            continue;
+        }
         if (input_info.find(in.first) == input_info.end()) {
             throw std::runtime_error("Incorrect Input Info!");
         } else if (input_info[in.first].is_const != in.second.is_const) {

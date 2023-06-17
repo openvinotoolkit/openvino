@@ -28,6 +28,7 @@ public:
     bool match_any(const std::shared_ptr<ov::Node> &node,
                    const std::shared_ptr<ov::Node> &ref);
     void set_matchers(const MatchersMap& matchers = {}) { m_matchers = matchers; }
+    iMatcherConfig::Ptr get_config(const std::shared_ptr<ov::Node> &node) const;
 
 private:
     std::vector<bool> run_matchers(const std::shared_ptr<ov::Node> &node,

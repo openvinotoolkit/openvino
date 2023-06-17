@@ -197,6 +197,8 @@ TEST_F(MetaInfoUnitTest, get_model_name_by_path) {
 
 TEST_F(MetaInfoUnitTest, get_graph_priority) {
     ASSERT_NO_THROW(this->get_graph_priority());
+    ASSERT_TRUE(this->get_graph_priority() >= 0 && this->get_graph_priority() <= 1);
+    ASSERT_NO_THROW(this->get_abs_graph_priority());
     ASSERT_EQ(this->get_abs_graph_priority(), 5);
 }
 
