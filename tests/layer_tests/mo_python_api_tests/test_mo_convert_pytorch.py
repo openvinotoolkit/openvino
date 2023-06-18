@@ -204,7 +204,7 @@ def create_pytorch_nn_module_case6(tmp_dir):
 def create_pytorch_nn_module_case7(tmp_dir):
     pt_model = make_pt_model_one_input()
 
-    sample_input = torch.zeros(1, 3, 10, 10)
+    sample_input = torch.zeros(1, 3, 10, 10, dtype=torch.int32)
 
     ref_model = make_ref_pt_model_one_input(PartialShape([1, 3, 20, 20]), dtype=np.int32)
 

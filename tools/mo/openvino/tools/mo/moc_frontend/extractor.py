@@ -399,7 +399,7 @@ def convert_params_lists_to_dicts(input_model,
 
         # this cycle adds each unnamed type to dictionary using name from model_inputs
         for idx, node_type in enumerate(input_user_data_types):
-            assert isinstance(node_type, (type, Type)), "Got incorrect format of input types. " \
+            assert isinstance(node_type, (type, np.dtype, Type)), "Got incorrect format of input types. " \
                                                         "Expected numpy type or openvino.runtime.Type, " \
                                                         "got {}.".format(type(node_type))
 

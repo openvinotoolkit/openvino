@@ -20,28 +20,56 @@ def get_pytorch_decoder(model, input_shape, example_inputs, args):
     decoder = TorchScriptPythonDecoder(model, example_input=inputs)
     args['input_model'] = decoder
     args["framework"] = "pytorch"
-    if inputs is not None:
-        extract_input_info_from_example(inputs, args)
+    args["example_input"] = inputs
 
     return args
 
 
-def extract_input_info_from_example(example_inputs, args):
-    from openvino.tools.mo import InputCutInfo
+def update_list_or_dict(container, name, idx, value):
+    if isinstance(container, dict):
+        if name is None:
+            name = list(container)[idx]
+        container[name] = value
+        return
+    if idx == len(container):
+        container.append(value)
+    elif idx > len(container):
+        raise Error(f"Wrong {idx}")
+    else:
+        container[idx] = value
+    return
+
+    
+def get_value_from_list_or_dict(container, name, idx):
+    if isinstance(container, dict):
+        if name is None:
+            if idx < len(container):
+                name = list(container)[idx]
+            return None
+        return container.get(name)
+    if idx < len(container):
+        return container[idx]
+    return None
+
+
+def extract_input_info_from_example(args, inputs):
     try:
         from openvino.frontend.pytorch.decoder import pt_to_ov_type_map
     except Exception as e:
         log.error("PyTorch frontend loading failed")
         raise e
-    inputs = input_to_input_cut_info(args.get("input", []))
-    input_shapes = args.get("input_shape")
-    input_shape_to_input_cut_info(input_shapes, inputs)
+    example_inputs = args.example_input
+    data_types = args.placeholder_data_types or {}
+    input_shapes = args.placeholder_shapes or {}
     is_dict_input = isinstance(example_inputs, dict)
     list_inputs = list(example_inputs.values()) if is_dict_input else example_inputs
     input_names = None if not is_dict_input else list(example_inputs)
     if not isinstance(list_inputs, (list, tuple)):
         list_inputs = [list_inputs]
-    updated_input_info = []
+    if not data_types and input_names is None:
+        data_types = []
+    if not input_shapes and input_names is None:
+        input_shapes = []
     if inputs:
         for input_id, input_info in enumerate(inputs):
             input_name = input_info.name
@@ -52,13 +80,21 @@ def extract_input_info_from_example(example_inputs, args):
                 if is_dict_input and input_name is None:
                     input_name = input_names[input_id]
             dtype = getattr(example_input, "dtype", type(example_input))
-            ov_dtype = pt_to_ov_type_map.get(str(dtype)) if not input_info.type else input_info.type
+            example_dtype = pt_to_ov_type_map.get(str(dtype))
+            user_dtype = get_value_from_list_or_dict(data_types, input_name, input_id)
+            if user_dtype is not None and example_dtype.to_dtype() != user_dtype:
+                raise Error(f"Defined input type {user_dtype} is not equal to provided example_input type {example_dtype.to_dtype()}") 
+     
             data_rank = getattr(example_input, "ndim", 0)
-            input_shape = input_info.shape if input_info.shape is not None else PartialShape([-1] * data_rank)
+            user_input_shape = get_value_from_list_or_dict(input_shapes, input_name, input_id)
+            if user_input_shape.rank.get_length() != data_rank:
+                raise Error(
+                    f"Requested input shape {user_input_shape.rank.get_length()} rank"
+                    f" is not equal to provided example_input rank {data_rank}")
 
-            updated_input_info.append(
-                InputCutInfo(input_info.name, input_shape, ov_dtype, input_info.value)
-            )
+            input_shape = user_input_shape if user_input_shape is not None else PartialShape([-1] * data_rank)
+            update_list_or_dict(data_types, input_name, input_id, example_dtype.to_dtype())
+            update_list_or_dict(input_shapes, input_name, input_id, input_shape)
     else:
         for input_id, example_input in enumerate(list_inputs):
             dtype = getattr(example_input, "dtype", type(example_input))
@@ -66,11 +102,15 @@ def extract_input_info_from_example(example_inputs, args):
             data_rank = getattr(example_input, "ndim", 0)
             input_shape =  PartialShape([-1] * data_rank)
             input_name = input_names[input_id] if input_names else None
-            updated_input_info.append(
-                InputCutInfo(input_name, input_shape, ov_dtype, None)
-            )
-    args.pop("input_shape")
-    args["input"] = updated_input_info
+            update_list_or_dict(input_shapes, input_name, input_id, input_shape)
+            update_list_or_dict(data_types, input_name, input_id, ov_dtype.to_dtype())
+    
+    args.placeholder_data_types = data_types
+    args.placeholder_shapes = input_shapes
+    if not args.input and input_names:
+        args.input_list = input_names
+        args.input = ",".join(input_names)
+
 
 def to_torch_tensor(tensor):
     import torch
