@@ -1437,9 +1437,11 @@ private:
         mov(addr_vector_num, rax);
         mov(addr_tail_num, rdx);
 
+        // should before tail jmp
         Xbyak::Reg64 reg_src_aux = rcx;
         Xbyak::Reg64 reg_dst_aux = rdi;
-        mov(addr_work_amount_bk, reg_work_amount);  // should before tail jmp
+        mov(addr_work_amount_bk, reg_work_amount);
+        mov(addr_oc_off_bk, reg_oc_off);
 
         Xbyak::Label tail_label;
         cmp(addr_vector_num, 0);
@@ -2287,6 +2289,25 @@ MVN::MVN(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr conte
 
 void MVN::getSupportedDescriptors() {}
 
+bool isUnaryEltwise(const NodePtr& node) {
+    return one_of(node->getAlgorithm(), Algorithm::EltwiseRelu,
+                                        Algorithm::EltwiseGeluErf,
+                                        Algorithm::EltwiseGeluTanh,
+                                        Algorithm::EltwiseElu,
+                                        Algorithm::EltwiseSigmoid,
+                                        Algorithm::EltwiseClamp,
+                                        Algorithm::EltwiseTanh,
+                                        Algorithm::EltwiseSwish,
+                                        Algorithm::EltwiseHswish,
+                                        Algorithm::EltwiseMish,
+                                        Algorithm::EltwiseHsigmoid,
+                                        Algorithm::EltwiseRoundHalfToEven,
+                                        Algorithm::EltwiseRoundHalfAwayFromZero,
+                                        Algorithm::EltwiseAbs,
+                                        Algorithm::EltwiseSqrt,
+                                        Algorithm::EltwiseSoftRelu);
+}
+
 void MVN::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
@@ -2300,6 +2321,15 @@ void MVN::initSupportedPrimitiveDescriptors() {
 
     if (!fusedWith.empty()) {
         outputPrecision = fusedWith[fusedWith.size() - 1]->getOriginalOutputPrecisionAtPort(0);
+        onlyUnaryPostOps = true;
+        for (auto &node : fusedWith) {
+            if (isUnaryEltwise(node)) {
+                continue;
+            } else {
+                onlyUnaryPostOps = false;
+                break;
+            }
+        }
     }
 
     // ref with float planar and no fusion
@@ -2445,7 +2475,7 @@ MVN::MVNJitExecutor::MVNJitExecutor(const MVNAttrs& mvnAttrs,
         mvn_variance_kernel->create_ker();
 }
 
-void MVN::MVNJitExecutor::exec(const uint8_t *src_data, uint8_t *dst_data, const void *post_ops_data_, const std::vector<size_t>& shape5d) {
+void MVN::MVNJitExecutor::exec(const uint8_t *src_data, uint8_t *dst_data, const void *post_ops_data_, const VectorDims& shape5d) {
     if (!mvn_mean_kernel || (mvnAttrs.normalizeVariance_ && !mvn_variance_kernel) || !mvn_kernel) {
         IE_THROW() << "MVN layer doesn't create kernel to execute on sse41 above platform.";
     }
@@ -2460,16 +2490,8 @@ void MVN::MVNJitExecutor::exec(const uint8_t *src_data, uint8_t *dst_data, const
 
 MVN::MVNRefExecutor::MVNRefExecutor(const MVNAttrs& mvnAttrs):MVNExecutorBase(mvnAttrs) {}
 
-void MVN::MVNRefExecutor::exec(const uint8_t *src_data, uint8_t *dst_data, const void *post_ops_data_, const std::vector<size_t>& shape5d) {
+void MVN::MVNRefExecutor::exec(const uint8_t *src_data, uint8_t *dst_data, const void *post_ops_data_, const VectorDims& shape5d) {
     mvn_ref(src_data, dst_data, shape5d);
-}
-
-bool MVN::needPrepareParams() const {
-#if defined(OPENVINO_ARCH_X86_64)
-    return execPtr == nullptr;
-#else
-    node::needPrepareParams();
-#endif
 }
 
 void MVN::prepareParams() {
@@ -2482,8 +2504,19 @@ void MVN::prepareParams() {
     if (getSelectedPrimitiveDescriptor() == nullptr)
         IE_THROW() << "Preferable primitive descriptor is not set.";
 
-    const SizeVector in_dims = srcMemPtr->getStaticDims();
-    auto shape = transformTo5DCase(in_dims, true);
+    const VectorDims in_dims = srcMemPtr->getStaticDims();
+    transformTo5DCase(in_dims);
+
+#if defined(OPENVINO_ARCH_X86_64)
+    // New shape5D always need prepare via transformTo5DCase(), which is need in exec().
+    // MVN itself and unary post ops is totally shape agnostic, execPtr can be reused directly w/o recompilation and setPostOps when shape is changed.
+    // As key have not shape, if shape changes and new post ops attr is also the same, execPtr can still hit.
+    // If new shape(channel changes) impact post ops attr, such as entry.quantization.offset, entry.depthwise.offset, entry.quantization.per_channel,
+    // which is participate in compilation, even postOpsData is passed in runtime, still need recompilation.
+    if (execPtr != nullptr && (fusedWith.empty() || onlyUnaryPostOps)) {
+        return;
+    }
+#endif
 
     auto selectedPD = getSelectedPrimitiveDescriptor();
     mvnAttrs.src_prc = selectedPD->getConfig().inConfs[0].getMemDesc()->getPrecision();
@@ -2529,46 +2562,38 @@ void MVN::prepareParams() {
     execPtr = result.first;
 }
 
-std::vector<size_t> MVN::transformTo5DCase(const SizeVector& shape, bool acrossChannelsAlignOnly) {
-    std::vector<size_t> result;
+void MVN::transformTo5DCase(const VectorDims& shape) {
     size_t rank = shape.size();
     // for 1 and 2 rank, if initAcrossChannels_ is true, adjust shape to fully vectorize under unified 5d procedure.
     // otherwise there are not enough data in spatial dimension to process in one kernel.
-    if (acrossChannelsAlignOnly) {
-        if (mvnAttrs.initAcrossChannels_ && (rank == 1 || rank == 2))
-            mvnAttrs.execAcrossChannels_ = false;
-    } else {
-        switch (rank) {
-            case 1 :  // C
-                if (mvnAttrs.initAcrossChannels_) {
-                    result = {1, 1, 1, 1, shape[0]};
-                    break;
-                } else {
-                    result = {1, shape[0], 1, 1, 1};
-                    break;
-                }
-            case 2 :  // NC
-                if (mvnAttrs.initAcrossChannels_) {
-                    result = {1, shape[0], 1, shape[1], 1};
-                    break;
-                } else {
-                    result = {shape[0], shape[1], 1, 1, 1};
-                    break;
-                }
-            case 3 : { result = {shape[0], shape[1], 1, shape[2], 1}; break; }
-            case 4 : { result = {shape[0], shape[1], 1, shape[2], shape[3]}; break; }
-            case 5 : { result = {shape[0], shape[1], shape[2], shape[3], shape[4]}; break; }
-            default : { IE_THROW() << "MVN layer with name '" << getName() << "' doesn't support planar layout with rank: " << shape.size(); }
-        }
+    switch (rank) {
+        case 1 :  // C
+            if (mvnAttrs.initAcrossChannels_) {
+                shape5D = {1, 1, 1, 1, shape[0]};
+                mvnAttrs.execAcrossChannels_ = false;
+                break;
+            } else {
+                shape5D = {1, shape[0], 1, 1, 1};
+                break;
+            }
+        case 2 :  // NC
+            if (mvnAttrs.initAcrossChannels_) {
+                shape5D = {1, shape[0], 1, shape[1], 1};
+                mvnAttrs.execAcrossChannels_ = false;
+                break;
+            } else {
+                shape5D = {shape[0], shape[1], 1, 1, 1};
+                break;
+            }
+        case 3 : { shape5D = {shape[0], shape[1], 1, shape[2], 1}; break; }
+        case 4 : { shape5D = {shape[0], shape[1], 1, shape[2], shape[3]}; break; }
+        case 5 : { shape5D = {shape[0], shape[1], shape[2], shape[3], shape[4]}; break; }
+        default : { IE_THROW() << "MVN layer with name '" << getName() << "' doesn't support planar layout with rank: " << shape.size(); }
     }
-    return result;
 }
 
 void MVN::setPostOps(dnnl::primitive_attr &attr, bool initWeights) {
     dnnl::post_ops ops;
-    VectorDims postOpDims(5);
-    std::tie(postOpDims[0], postOpDims[1], postOpDims[2], postOpDims[3], postOpDims[4]) = mvnAttrs.shape5D;
-
     postOpsDataPtrs.clear();
     for (auto &node : fusedWith) {
         auto* fakeQuantizeNode = dynamic_cast<FakeQuantize *>(node.get());
@@ -2579,7 +2604,7 @@ void MVN::setPostOps(dnnl::primitive_attr &attr, bool initWeights) {
 
         auto* eltwiseNode = dynamic_cast<Eltwise *>(node.get());
         if (eltwiseNode) {
-            eltwiseNode->appendPostOps(ops, postOpDims, postOpsDataPtrs);
+            eltwiseNode->appendPostOps(ops, shape5D, postOpsDataPtrs);
             continue;
         }
         IE_THROW() << "Fusing of " << NameFromType(node->getType()) << " operation to " << NameFromType(this->getType()) << " node is not implemented";
@@ -2596,11 +2621,9 @@ void MVN::execute(dnnl::stream strm) {
     auto srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
 
     if (execPtr) {
-        const SizeVector in_dims = srcMemPtr->getStaticDims();
-        auto shape_5d = transformTo5DCase(in_dims, false);
         uint8_t *dst_data = reinterpret_cast<uint8_t*>(dstMemPtr->getData());
         uint8_t *src_data = reinterpret_cast<uint8_t*>(srcMemPtr->getData());
-        execPtr->exec(src_data, dst_data, postOpsDataPtrs.data(), shape_5d);
+        execPtr->exec(src_data, dst_data, postOpsDataPtrs.data(), shape5D);
     } else if (aclExecPtr) {
         aclExecPtr->exec({srcMemPtr}, {dstMemPtr}, postOpsDataPtrs.data());
     } else {
@@ -2608,7 +2631,7 @@ void MVN::execute(dnnl::stream strm) {
     }
 }
 
-void MVN::MVNJitExecutor::mvn_pln(const uint8_t* src_data, uint8_t* dst_data, const void *post_ops_data_, const std::vector<size_t>& shape5d) {
+void MVN::MVNJitExecutor::mvn_pln(const uint8_t* src_data, uint8_t* dst_data, const void *post_ops_data_, const VectorDims& shape5d) {
     size_t blk_size = 1;  // blk size in vmm
     if (mayiuse(cpu::x64::avx512_core)) {
         blk_size = 16;
@@ -2748,7 +2771,7 @@ void MVN::MVNJitExecutor::mvn_pln(const uint8_t* src_data, uint8_t* dst_data, co
     }
 }
 
-void MVN::MVNRefExecutor::mvn_ref(const uint8_t* src_data, uint8_t* dst_data, const std::vector<size_t>& shape5d) {
+void MVN::MVNRefExecutor::mvn_ref(const uint8_t* src_data, uint8_t* dst_data, const VectorDims& shape5d) {
     const float *src_data_ptr = reinterpret_cast<const float *>(src_data);
     float *dst_data_ptr = reinterpret_cast<float *>(dst_data);
     const size_t N = shape5d[0];
@@ -2849,7 +2872,7 @@ void MVN::MVNRefExecutor::mvn_ref(const uint8_t* src_data, uint8_t* dst_data, co
     });
 }
 
-void MVN::MVNJitExecutor::mvn_nspc(const uint8_t* src_data, uint8_t* dst_data, const void *post_ops_data_, const std::vector<size_t>& shape5d) {
+void MVN::MVNJitExecutor::mvn_nspc(const uint8_t* src_data, uint8_t* dst_data, const void *post_ops_data_, const VectorDims& shape5d) {
     size_t blk_size = 1;  // channel blk for memory layout
     if (mayiuse(cpu::x64::avx512_core)) {
         blk_size = 16;
@@ -2963,7 +2986,7 @@ void MVN::MVNJitExecutor::mvn_nspc(const uint8_t* src_data, uint8_t* dst_data, c
     });
 }
 
-void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data, uint8_t* dst_data, const void *post_ops_data_, const std::vector<size_t>& shape5d) {
+void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data, uint8_t* dst_data, const void *post_ops_data_, const VectorDims& shape5d) {
     size_t blk_size = 1;  // channel blk for memory layout
     if (mayiuse(cpu::x64::avx512_core)) {
         blk_size = 16;
@@ -3202,22 +3225,7 @@ bool MVN::canFuse(const NodePtr& node) const {
     // limit post ops to unary when shape transformed on channel
     // 1D only fused with unary
     int inputRank = getInputShapeAtPort(0).getRank();
-    bool unaryEltwise = one_of(node->getAlgorithm(), Algorithm::EltwiseRelu,
-                                                     Algorithm::EltwiseGeluErf,
-                                                     Algorithm::EltwiseGeluTanh,
-                                                     Algorithm::EltwiseElu,
-                                                     Algorithm::EltwiseSigmoid,
-                                                     Algorithm::EltwiseClamp,
-                                                     Algorithm::EltwiseTanh,
-                                                     Algorithm::EltwiseSwish,
-                                                     Algorithm::EltwiseHswish,
-                                                     Algorithm::EltwiseMish,
-                                                     Algorithm::EltwiseHsigmoid,
-                                                     Algorithm::EltwiseRoundHalfToEven,
-                                                     Algorithm::EltwiseRoundHalfAwayFromZero,
-                                                     Algorithm::EltwiseAbs,
-                                                     Algorithm::EltwiseSqrt,
-                                                     Algorithm::EltwiseSoftRelu);
+    bool unaryEltwise = isUnaryEltwise(node);
     if ((inputRank == 1 && !unaryEltwise) ||
         (inputRank == 2 && !unaryEltwise && mvnAttrs.initAcrossChannels_)) {
         return false;
