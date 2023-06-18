@@ -66,21 +66,20 @@ private:
 
     std::string get_port_name(const ov::Output<const ov::Node>& port) const;
     std::string query_port_name(const ov::Output<const ov::Node>& port) const;
-    void check_port(const ov::Output<const ov::Node>& port) const;
+    // Check port is original port or compiled port, return true for compiled port
+    bool check_compiled_port(const ov::Output<const ov::Node>& port) const;
     void update_external_inputs();
-    bool check_precision_changed(const ov::Output<const ov::Node>& port) const;
+    // bool check_precision_changed(const ov::Output<const ov::Node>& port) const;
     InferenceEngine::TensorDesc create_tensor_desc(const ov::Tensor& tensor);
-
 
     // Transformation shouldn't change model's input/output's precision, but actually it does.
     // Some additional methods will handle it.
-    const ov::Output<const ov::Node>& get_internal_port(const ov::Output<const ov::Node>& port) const;
-    ov::Tensor create_internal_tensor(const ov::Tensor& tensor,
-                                      const ov::Output<const ov::Node>& port,
-                                      const std::string& name);
+    const ov::Output<const ov::Node>& get_compiled_port(const ov::Output<const ov::Node>& port) const;
+    ov::Tensor get_compiled_tensor(const ov::Output<const ov::Node>& _port) const;
     mutable std::unordered_map<std::string, ov::Output<const ov::Node>> _orig_ports_map;
-    // Store internal tensor due to precision changes
-    std::unordered_map<std::string, ov::Tensor> _internal_tensors;
+    // Store external tensor due to precision changes
+    mutable std::unordered_map<std::string, ov::Tensor> _aux_tensors;
+    mutable std::unordered_map<std::string, bool> _port_precision_changed;
     bool _port_name_change = false;
 
     std::shared_ptr<const CompiledModel> _compiled_model;

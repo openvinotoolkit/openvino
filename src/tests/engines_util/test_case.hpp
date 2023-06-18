@@ -63,7 +63,8 @@ public:
             std::copy(values.begin(), values.end(), tensor.data<T>());
             m_request.set_input_tensor(m_input_index, tensor);
         } else {
-            auto tensor = m_request.get_input_tensor(m_input_index);
+            // auto tensor = m_request.get_input_tensor(m_input_index);
+            auto tensor = m_request.get_tensor(params.at(m_input_index));
             NGRAPH_CHECK(tensor.get_size() >= values.size(),
                          "Tensor and values have different sizes. Tensor (",
                          tensor.get_shape(),
