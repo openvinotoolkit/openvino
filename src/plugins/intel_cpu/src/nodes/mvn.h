@@ -149,7 +149,7 @@ private:
             void exec(const uint8_t *in_ptr_, uint8_t *out_ptr_, const void *post_ops_data_, const VectorDims& shape5d) override;
 
         private:
-            void mvn_ref(const uint8_t *in_ptr_, uint8_t *out_ptr_, const std::vector<size_t>& shape5d);
+            void mvn_ref(const uint8_t *in_ptr_, uint8_t *out_ptr_, const VectorDims& shape5d);
     };
 };
 

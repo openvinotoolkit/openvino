@@ -2289,7 +2289,7 @@ MVN::MVN(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr conte
 
 void MVN::getSupportedDescriptors() {}
 
-bool isUnaryEltwise(const NodePtr& node) {
+static inline bool isUnaryEltwise(const NodePtr& node) {
     return one_of(node->getAlgorithm(), Algorithm::EltwiseRelu,
                                         Algorithm::EltwiseGeluErf,
                                         Algorithm::EltwiseGeluTanh,
