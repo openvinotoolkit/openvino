@@ -701,6 +701,11 @@ pass::EliminateTranspose::EliminateTranspose() {
         }
 
         const auto& order_values = order_const->cast_vector<int64_t>();
+        // Don't eliminate Transpose when 0 size of order_value, which will make single TransPose ops to be eliminated
+        // when preprocess is applied by default in case of legacy ov api + plugin api 2.0. In which Convert ops will be
+        // added by preprocess but Transpose will be removed.
+        if (order_values.size() == 0)
+            return false;
         vector<int64_t> ref_values(order_values.size());
         iota(ref_values.begin(), ref_values.end(), 0);
         if (order_values != ref_values) {
