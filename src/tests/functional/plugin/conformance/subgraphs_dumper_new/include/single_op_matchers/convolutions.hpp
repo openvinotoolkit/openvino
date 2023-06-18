@@ -10,7 +10,7 @@ namespace ov {
 namespace tools {
 namespace subgraph_dumper {
 
-class ConvolutionsMatcher : public virtual BaseMatcher {
+class ConvolutionsMatcher : public BaseMatcher {
 public:
     ConvolutionsMatcher();
 
