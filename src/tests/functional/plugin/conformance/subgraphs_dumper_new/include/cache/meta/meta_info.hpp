@@ -30,7 +30,7 @@ protected:
     // to store model priority ranges to normilize graph_priority
     static unsigned long MAX_MODEL_PRIORITY;
     static unsigned long MIN_MODEL_PRIORITY;
-    
+
     double get_graph_priority();
     std::string get_model_name_by_path(const std::string& model_path);
 

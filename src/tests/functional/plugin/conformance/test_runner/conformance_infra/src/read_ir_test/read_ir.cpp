@@ -12,15 +12,19 @@
 #include "ngraph_functions/builders.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/data_utils.hpp"
+#include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/crash_handler.hpp"
 #include "functional_test_utils/summary/op_info.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 
+#include "input_info.hpp"
 #include "conformance.hpp"
 #include "read_ir_test/read_ir.hpp"
 
 #include <setjmp.h>
+
+#include "openvino/pass/manager.hpp"
 
 namespace ov {
 namespace test {
@@ -148,68 +152,45 @@ void ReadIRTest::SetUp() {
     if (CommonTestUtils::fileExists(metaFile)) {
         pugi::xml_document doc;
         doc.load_file(metaFile.c_str());
-        auto models = doc.child("meta_info").child("models");
-        size_t model_len = 0, occurance = 0;
-        for (const auto &model : models.children("model")) {
-            ocurance_in_models.push_back({model.attribute("name").as_string(), model.attribute("count").as_uint()});
-            model_len++;
-            occurance += model.attribute("count").as_uint();
-        }
         rel_influence_coef = doc.child("meta_info").child("graph_priority").attribute("value").as_double();
         // TODO: remove after cache update w/a
         if (rel_influence_coef == 0) {
             rel_influence_coef = 1.f;
         }
-        auto portsInfo = doc.child("meta_info").child("ports_info");
-        auto getPortInfo = [&](size_t id) {
-            LayerTestsUtils::PortInfo info;
-            for (const auto &p : portsInfo.children()) {
-                if (p.attribute("id").as_uint() == id) {
-                    info.convert_to_const = p.attribute("convert_to_const").as_bool();
-                    if (std::strcmp(p.attribute("min").as_string(), "undefined") != 0) {
-                        info.min = p.attribute("min").as_double();
-                    } else {
-                        info.min = -10;
-                    }
-                    if (std::strcmp(p.attribute("max").as_string(), "undefined") != 0) {
-                        info.max = p.attribute("max").as_double();
-                    } else {
-                        info.max = 10;
-                    }
-                    break;
-                }
+        auto input_info_xml = doc.child("meta_info").child("input_info");
+        std::map<std::string, ov::tools::subgraph_dumper::InputInfo> input_info;
+        for (const auto &input : input_info_xml.children()) {
+            auto in_name = std::string(input.attribute("id").value());
+            ov::tools::subgraph_dumper::InputInfo in_info;
+            in_info.is_const = input.attribute("convert_to_const").as_bool();
+            if (std::string(input.attribute("min").value()) != "undefined") {
+                in_info.ranges.min = input.attribute("min").as_double();
             }
-            return info;
-        };
+            if (std::string(input.attribute("max").value()) != "undefined") {
+                in_info.ranges.max = input.attribute("max").as_double();
+            }
+            input_info.insert({in_name, in_info});
+        }
 
-        auto params = function->get_parameters();
-        for (const auto &param : params) {
-            auto idx = -1;
-            for (size_t i = 0; i < param->get_output_size(); i++) {
-                for (const auto &node : param->get_output_target_inputs(i)) {
-                    const auto nodePtr = node.get_node()->shared_from_this();
-                    for (size_t port = 0; port < nodePtr->get_input_size(); ++port) {
-                        if (nodePtr->get_input_node_ptr(port)->shared_from_this() == param->shared_from_this()) {
-                            idx = port;
-                            break;
-                        }
-                    }
-                }
+        for (const auto &param : function->get_parameters()) {
+            auto in_info = input_info.find(param->get_friendly_name())->second;
+            if (!in_info.is_const) {
+                continue;
             }
-            EXPECT_GE(idx, 0);
+            auto tensor =
+                ov::test::utils::create_and_fill_tensor(param->get_element_type(),
+                                                        param->get_shape(),
+                                                        in_info.ranges.max,
+                                                        in_info.ranges.min);
+            auto const_node = std::make_shared<ov::op::v0::Constant>(tensor);
+            ov::replace_node(param, const_node);
+            function->remove_parameter(param);
+            std::string out_xml_path = "test.xml";
+            std::string out_bin_path = "test.bin";
 
-            auto info = getPortInfo(idx);
-            if (info.convert_to_const) {
-                const auto constant = ngraph::builder::makeConstant(param->get_element_type(),
-                                                                    param->get_shape(),
-                                                                    std::vector<double>{},
-                                                                    true,
-                                                                    info.max,
-                                                                    info.min,
-                                                                    1);
-                ov::replace_node(param, constant);
-                function->remove_parameter(param);
-            }
+            ov::pass::Manager manager;
+            manager.register_pass<ov::pass::Serialize>(out_xml_path, out_bin_path);
+            manager.run_passes(function);
         }
     }
 
