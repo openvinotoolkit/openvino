@@ -6,6 +6,7 @@
 
 #include "backend/gna_types.hpp"
 #include "common/gna_target.hpp"
+#include "debug_new_pass.hpp"  // DEBUG
 #include "gna_graph_tools.hpp"
 #include "weights_converter.hpp"
 
@@ -90,7 +91,11 @@ size_t LayerQuantizer::GetBiasSizeForLayer(InferenceEngine::WeightableLayer& wl)
         return wl._biases->size();
     } else if (LayerInfo(wl).isConvolution()) {
         // Calculating biases len using outdata dims: biases number should be equal to output channels number
+#ifndef DEBUG_USE_NEW_PASS
+        return InferenceEngine::GetDataDimByName(wl.outData.front(), InferenceEngine::DataDimName::C);
+#else
         return InferenceEngine::GetDataDimSizeNHWC(wl.outData.front(), InferenceEngine::DataDimName::C);
+#endif
     } else {
         // Calculating biases size using outData dimensions
         return wl.outData.front()->getDims().back();

@@ -6,6 +6,7 @@
 
 #include <openvino/cc/ngraph/itt.hpp>
 
+#include "../debug_new_pass.hpp"
 #include "backend/gna_limitations.hpp"
 #include "common/graph_utils.hpp"
 #include "openvino/core/rt_info.hpp"
