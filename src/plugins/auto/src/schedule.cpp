@@ -202,9 +202,9 @@ Pipeline Schedule::get_async_pipeline(const ISyncInferPtr& infer_request, Worker
                 /*TaskExecutor*/ first_executor, /*task*/ [this, &infer_request]() {
                     // by default, no preferred device:
                     m_this_preferred_device_name = "";
-                    auto exec_network = m_context->m_compiled_model.lock();
+                    auto compiled_model = m_context->m_compiled_model.lock();
                     // if any input is remote (e.g. was set with set_tensor), let' use the corresponding device
-                    for (const auto& it : exec_network->inputs()) {
+                    for (const auto& it : compiled_model->inputs()) {
                         auto tensor = infer_request->get_tensor(it);
                         if (tensor.is<ov::RemoteTensor>()) {
                             const auto name = tensor.as<ov::RemoteTensor>().get_device_name();

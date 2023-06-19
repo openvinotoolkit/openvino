@@ -76,21 +76,21 @@ void CumuSchedule::init() {
             if (context_ptr->m_worker_name.empty()) {
                 context_ptr->m_worker_name = context_ptr->m_device_info.device_name;
             }
-            generate_workers(context_ptr->m_worker_name, context_ptr->m_exe_network);
+            generate_workers(context_ptr->m_worker_name, context_ptr->m_compiled_model);
             context_ptr->m_is_already = true;
             // reloadsuccess flag only for m_compile_context[FALLBACKDEVICE]
             context_ptr->m_is_reload_success = true;
             auto& device_name = context_ptr->m_device_info.device_name;
-            LOG_INFO_TAG("device:%s loading Network finished", device_name.c_str());
+            LOG_INFO_TAG("device:%s compiling model finished", device_name.c_str());
             DEBUG_RUN([this, &context_ptr, &device_name] {
-                auto supported_config_keys = context_ptr->m_exe_network->get_property(ov::supported_properties.name()).as<std::vector<ov::PropertyName>>();
+                auto supported_config_keys = context_ptr->m_compiled_model->get_property(ov::supported_properties.name()).as<std::vector<ov::PropertyName>>();
                 std::lock_guard<std::mutex> lock(m_context->m_mutex);
                 for (const auto& cfg : supported_config_keys) {
                     try {
                         LOG_DEBUG_TAG("device:%s, GetConfig:%s=%s",
                                       device_name.c_str(),
                                       cfg.c_str(),
-                                      context_ptr->m_exe_network->get_property(cfg).as<std::string>().c_str());
+                                      context_ptr->m_compiled_model->get_property(cfg).as<std::string>().c_str());
                     } catch (const ov::Exception&) {
                     }
                 }
@@ -134,16 +134,16 @@ void CumuSchedule::init() {
     }
     // load devices other than CPU first
     if (other_devices_loads.size() > 0) {
-        // Wait for the devices other than CPU to load the network
+        // Wait for the devices other than CPU to compile the model
         m_executor->run_and_wait(other_devices_loads);
     }
     // Finally load the CPU
     if (cpu_loads.size() > 0) {
-        // Wait for CPU to load the network
+        // Wait for CPU to compile the model
         m_executor->run_and_wait(cpu_loads);
     }
     if (m_n_ctput_devicenums == 1 && m_p_ctput_loadcontext[0].m_is_already) {
-        m_passthrough_compiled_model = m_p_ctput_loadcontext[0].m_exe_network;
+        m_passthrough_compiled_model = m_p_ctput_loadcontext[0].m_compiled_model;
         m_context->m_hw_compiled_model = m_passthrough_compiled_model;
     }
     m_context->m_hw_compiled_model = wait_first_compiled_model_ready();
@@ -177,9 +177,9 @@ void CumuSchedule::try_to_compile_model(AutoCompileContext& context, const std::
     }
     try {
         if (!(m_context->m_model_path.empty())) {
-            context.m_exe_network = m_context->m_ov_core->compile_model(m_context->m_model_path, device, device_config);
+            context.m_compiled_model = m_context->m_ov_core->compile_model(m_context->m_model_path, device, device_config);
         } else {
-            context.m_exe_network = m_context->m_ov_core->compile_model(model, device, device_config);
+            context.m_compiled_model = m_context->m_ov_core->compile_model(model, device, device_config);
         }
         context.m_is_load_success = true;
     } catch (const ov::Exception& e) {
@@ -196,7 +196,7 @@ SoCompiledModel CumuSchedule::wait_first_compiled_model_ready() {
     for (size_t i = 0; i < m_n_ctput_devicenums; i++) {
         // check if device loaded successfully
         if (m_p_ctput_loadcontext[i].m_is_already) {
-            return m_p_ctput_loadcontext[i].m_exe_network;
+            return m_p_ctput_loadcontext[i].m_compiled_model;
         } else {
             result << m_p_ctput_loadcontext[i].m_err_message.c_str();
             result << "; ";

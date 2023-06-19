@@ -101,28 +101,28 @@ void AutoSchedule::init() {
             if (context_ptr->m_worker_name.empty()) {
                 context_ptr->m_worker_name = context_ptr->m_device_info.device_name;
             }
-            generate_workers(context_ptr->m_worker_name, context_ptr->m_exe_network);
+            generate_workers(context_ptr->m_worker_name, context_ptr->m_compiled_model);
             context_ptr->m_is_already = true;
             // reloadsuccess flag only for m_compile_context[FALLBACKDEVICE]
             context_ptr->m_is_reload_success = true;
             auto& device_name = context_ptr->m_device_info.device_name;
-            LOG_INFO_TAG("device:%s loading Network finished", device_name.c_str());
+            LOG_INFO_TAG("device:%s compiling model finished", device_name.c_str());
             DEBUG_RUN([this, &context_ptr, &device_name] {
-                auto supported_config_keys = context_ptr->m_exe_network->get_property(ov::supported_properties.name()).as<std::vector<ov::PropertyName>>();
+                auto supported_config_keys = context_ptr->m_compiled_model->get_property(ov::supported_properties.name()).as<std::vector<ov::PropertyName>>();
                 std::lock_guard<std::mutex> lock(m_context->m_mutex);
                 for (const auto& cfg : supported_config_keys) {
                     try {
                         LOG_DEBUG_TAG("device:%s, GetConfig:%s=%s",
                                       device_name.c_str(),
                                       cfg.c_str(),
-                                      context_ptr->m_exe_network->get_property(cfg).as<std::string>().c_str());
+                                      context_ptr->m_compiled_model->get_property(cfg).as<std::string>().c_str());
                     } catch (const ov::Exception&) {
                     }
                 }
             });
         }
         context_ptr->m_promise.set_value();
-        // the first load network process finished
+        // the first compile model process finished
         std::call_once(m_firstload_oc, [this]() {
             m_firstload_promise.set_value();
         });
@@ -160,7 +160,7 @@ void AutoSchedule::init() {
     OV_ITT_SCOPED_TASK(itt::domains::AutoPlugin, openvino::itt::handle(profilingTask));
     if (m_compile_context[CPU].m_is_enabled) {
         m_firstload_future = m_firstload_promise.get_future();
-        // will not wait for loading accelerator network,
+        // will not wait for compiling accelerator model,
         // so the executor can't be destroyed before finished the task,
         // so use executor as a member of AutoSchedule.
         m_executor = m_plugin->get_executor_manager()->get_idle_cpu_streams_executor(
@@ -229,8 +229,8 @@ void AutoSchedule::init() {
                     });
                     LOG_INFO_TAG("release all work requests of CPU_HELP");
                     m_worker_requests["CPU_HELP"].clear();
-                    m_compile_context[CPU].m_exe_network._ptr.reset();
-                    m_compile_context[CPU].m_exe_network._so.reset();
+                    m_compile_context[CPU].m_compiled_model._ptr.reset();
+                    m_compile_context[CPU].m_compiled_model._so.reset();
                     LOG_INFO_TAG("helper released!!");
                     break;
                 }
@@ -247,9 +247,9 @@ void AutoSchedule::init() {
         }
         m_compile_context[ACTUALDEVICE].m_task();
     } else {
-        // only one device need to load network, do not need to load it async
+        // only one device need to compile model, do not need to load it async
         m_compile_context[ACTUALDEVICE].m_task();
-        m_passthrough_compiled_model = m_compile_context[ACTUALDEVICE].m_exe_network;
+        m_passthrough_compiled_model = m_compile_context[ACTUALDEVICE].m_compiled_model;
     }
     m_context->m_hw_compiled_model = wait_first_compiled_model_ready();
 }
@@ -284,9 +284,9 @@ void AutoSchedule::try_to_compile_model(AutoCompileContext& context, const std::
     }
     try {
         if (!(m_context->m_model_path.empty())) {
-            context.m_exe_network = m_context->m_ov_core->compile_model(m_context->m_model_path, device, device_config);
+            context.m_compiled_model = m_context->m_ov_core->compile_model(m_context->m_model_path, device, device_config);
         } else {
-            context.m_exe_network = m_context->m_ov_core->compile_model(model, device, device_config);
+            context.m_compiled_model = m_context->m_ov_core->compile_model(model, device, device_config);
         }
         context.m_is_load_success = true;
     } catch (const ov::Exception& e) {
@@ -299,11 +299,11 @@ void AutoSchedule::try_to_compile_model(AutoCompileContext& context, const std::
     if (context.m_is_load_success || cur_dev_is_cpu) {
         return;
     }
-    // need to reload network, unregister it's priority
+    // need to reload model, unregister it's priority
     // there maybe potential issue.
-    // for example they are dGPU, VPUX, iGPU, customer want to LoadNetwork with
+    // for example they are dGPU, VPUX, iGPU, customer want to compile model with
     // configure 0 dGPU, 1 VPUX, if dGPU load failed,
-    // the result will be not sure, maybe two network are loaded into VPUX,
+    // the result will be not sure, maybe two models are loaded into VPUX,
     // maybe 0 is loaded to VPUX, 1 is loaded to iGPU
     m_plugin->unregister_priority(m_context->m_model_priority, context.m_device_info.unique_name);
     // remove the current device from device_list
@@ -355,19 +355,19 @@ SoCompiledModel AutoSchedule::wait_first_compiled_model_ready() {
         // wait for the first loading finished
         m_firstload_future.wait();
     }
-    // check if there is any device that have loaded network successfully
+    // check if there is any device that have compiled model successfully
     for (int i = CONTEXTNUM - 2; i >= 0; i--) {
         if (m_compile_context[i].m_is_enabled && m_compile_context[i].m_is_already) {
-            return m_compile_context[i].m_exe_network;
+            return m_compile_context[i].m_compiled_model;
         }
     }
-    // the first loading is failed, wait for another loading
+    // the first compiling is failed, wait for another compiling
     for (int i = CONTEXTNUM - 2; i >= 0; i--) {
         if (m_compile_context[i].m_is_enabled) {
             m_compile_context[i].m_future.wait();
             // check if loading is successful
             if (m_compile_context[i].m_is_already) {
-                return m_compile_context[i].m_exe_network;
+                return m_compile_context[i].m_compiled_model;
             }
         }
     }
@@ -448,7 +448,7 @@ AutoSchedule::~AutoSchedule() {
         m_exitflag = true;
         m_compile_context[CPU].m_future.wait();
         wait_actual_compiled_model_ready();
-        // it's necessary to wait the loading network threads to stop here.
+        // it's necessary to wait the compile model threads to stop here.
         m_plugin->get_executor_manager()->clear("AutoDeviceAsyncLoad");
         m_executor.reset();
     }

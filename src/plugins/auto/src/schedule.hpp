@@ -29,7 +29,7 @@ protected:
     virtual void init() = 0;
     static bool run_pipeline_task(ov::threading::Task& pipeline_task, NotBusyPriorityWorkerRequests& idle_worker_request,
                                   const DeviceName& preferred_device);
-    virtual void generate_workers(const std::string& device, const SoCompiledModel& compiled_network);
+    virtual void generate_workers(const std::string& device, const SoCompiledModel& compiled_model);
     virtual void try_to_compile_model(AutoCompileContext& context, const std::shared_ptr<ov::Model>& model) = 0;
     virtual bool schedule_to_worker_infer_request(ov::threading::Task, DeviceName preferred_device = "") = 0;
     virtual bool select_other_device(const std::string& cur_dev_name) = 0;

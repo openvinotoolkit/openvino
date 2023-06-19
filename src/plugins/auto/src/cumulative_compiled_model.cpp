@@ -103,7 +103,7 @@ ov::Any AutoCumuCompiledModel::get_property(const std::string& name) const {
             try {
                 if (m_scheduler->m_p_ctput_loadcontext[i].m_is_already) {
                     res += (m_scheduler->m_p_ctput_loadcontext[i])
-                                .m_exe_network->get_property(ov::optimal_number_of_infer_requests.name())
+                                .m_compiled_model->get_property(ov::optimal_number_of_infer_requests.name())
                                 .as<unsigned int>();
                 }
             } catch (const ov::Exception& err) {
@@ -123,26 +123,26 @@ ov::Any AutoCumuCompiledModel::get_property(const std::string& name) const {
         std::lock_guard<std::mutex> lock(m_context->m_fallback_mutex);
         for (size_t i = 0; i < m_scheduler->m_n_ctput_devicenums; i++) {
             if (m_scheduler->m_p_ctput_loadcontext[i].m_is_already) {
-                return m_scheduler->m_p_ctput_loadcontext[i].m_exe_network->get_property(name);
+                return m_scheduler->m_p_ctput_loadcontext[i].m_compiled_model->get_property(name);
             }
         }
         OPENVINO_THROW("No valid compiled model found to get", name);
     OPENVINO_SUPPRESS_DEPRECATED_START
     } else if (name == METRIC_KEY(SUPPORTED_METRICS)) {
-        auto metrics = default_ro_properties();
-        add_ro_properties(METRIC_KEY(SUPPORTED_METRICS), metrics);
-        add_ro_properties(METRIC_KEY(SUPPORTED_CONFIG_KEYS), metrics);
-        return to_string_vector(metrics);
+        auto ro_properties = default_ro_properties();
+        add_ro_properties(METRIC_KEY(SUPPORTED_METRICS), ro_properties);
+        add_ro_properties(METRIC_KEY(SUPPORTED_CONFIG_KEYS), ro_properties);
+        return to_string_vector(ro_properties);
     } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
-        auto configs = default_rw_properties();
-        return to_string_vector(configs);
+        auto rw_properties = default_rw_properties();
+        return to_string_vector(rw_properties);
     OPENVINO_SUPPRESS_DEPRECATED_END
     } else if (name == ov::loaded_from_cache) {
         bool loaded_from_cache = true;
         std::lock_guard<std::mutex> lock(m_context->m_fallback_mutex);
         for (size_t i = 0; i < m_scheduler->m_n_ctput_devicenums; i++) {
             if (m_scheduler->m_p_ctput_loadcontext[i].m_is_already) {
-                loaded_from_cache &= (m_scheduler->m_p_ctput_loadcontext[i].m_exe_network->get_property(name).as<bool>());
+                loaded_from_cache &= (m_scheduler->m_p_ctput_loadcontext[i].m_compiled_model->get_property(name).as<bool>());
             }
         }
         return loaded_from_cache;

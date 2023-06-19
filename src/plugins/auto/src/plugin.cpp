@@ -428,7 +428,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
         support_devices = filter_device_by_model(support_devices_by_property, model);
         cloned_model = model->clone();
         ppp_model = cloned_model->clone();
+
         ov::preprocess::PrePostProcessor preproc(ppp_model);
+        OPENVINO_SUPPRESS_DEPRECATED_START
         // temp solution to resolve the precision/layout mismatch between new/old api
         if (!is_new_api()) {
             for (size_t i = 0; i < ppp_model->inputs().size(); i++) {
@@ -477,6 +479,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
             }
             preproc.build();
         }
+        OPENVINO_SUPPRESS_DEPRECATED_END
     } else {
         // AUTO / MULTI don't support caching explicitly, but can redirect this functionality to actual HW plugin
         LOG_INFO_TAG("compile model with model path");
@@ -587,7 +590,7 @@ std::list<DeviceInformation> Plugin::get_valid_device(
                 // can optimize to typed function when gpu swith to 2.0 api
                 device_type = get_core()->get_property(item.device_name, ov::device::type.name(), {}).as<std::string>();
             } catch (const ov::Exception&) {
-                LOG_DEBUG_TAG("GetMetric:%s for %s failed ", "DEVICE_TYPE", item.device_name.c_str());
+                LOG_DEBUG_TAG("get property :%s for %s failed ", "DEVICE_TYPE", item.device_name.c_str());
             }
             if (device_type == "integrated") {
                 iGPU.push_back(item);
@@ -712,7 +715,7 @@ void Plugin::register_priority(const unsigned int& priority,
 }
 
 std::string Plugin::get_device_list(const ov::AnyMap& properties) const {
-    std::string allDevices;
+    std::string all_devices;
     std::string device_architecture;
     auto device_list = get_core()->get_available_devices();
     auto device_list_config = properties.find(ov::device::priorities.name());
@@ -721,7 +724,7 @@ std::string Plugin::get_device_list(const ov::AnyMap& properties) const {
             auto architectureInfo = get_core()->get_property(name, ov::device::architecture);
             return architectureInfo;
         } catch (const ov::Exception&) {
-            LOG_DEBUG_TAG("GetMetric:%s for %s failed ", "DEVICE_ARCHITECTURE", name.c_str());
+            LOG_DEBUG_TAG("get property:%s for %s failed ", "DEVICE_ARCHITECTURE", name.c_str());
         }
         return "";
     };
@@ -732,7 +735,7 @@ std::string Plugin::get_device_list(const ov::AnyMap& properties) const {
         }
         if (!m_plugin_config.is_supported_device(device, device_architecture))
             continue;
-        allDevices += device + ",";
+        all_devices += device + ",";
     }
     std::vector<std::string> devices_merged;
     if (device_list_config != properties.end() && !device_list_config->second.empty()) {
@@ -815,19 +818,19 @@ std::string Plugin::get_device_list(const ov::AnyMap& properties) const {
                 }
             }
         }
-        allDevices.clear();
-        std::for_each(devices_merged.begin(), devices_merged.end(), [&allDevices](const std::string& device) {
-            allDevices += device + ",";
+        all_devices.clear();
+        std::for_each(devices_merged.begin(), devices_merged.end(), [&all_devices](const std::string& device) {
+            all_devices += device + ",";
         });
     }
-    if (allDevices.empty()) {
+    if (all_devices.empty()) {
         OPENVINO_THROW("Please, check environment due to no supported devices can be used");
     }
     // remove the last ',' if exist
-    if (allDevices.back() == ',')
-        allDevices.pop_back();
+    if (all_devices.back() == ',')
+        all_devices.pop_back();
 
-    return allDevices;
+    return all_devices;
 }
 
 std::vector<DeviceInformation> Plugin::filter_device(const std::vector<DeviceInformation>& meta_devices,

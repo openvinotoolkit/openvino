@@ -231,7 +231,7 @@ struct AutoCompileContext {
     std::atomic<bool> m_is_reload_success = {false};
     std::future<void> m_future;
     std::promise<void> m_promise;
-    SoCompiledModel m_exe_network;
+    SoCompiledModel m_compiled_model;
     DeviceInformation  m_device_info;
     std::vector<DeviceInformation> m_meta_devices;
     std::string m_model_precision;

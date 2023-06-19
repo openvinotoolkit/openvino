@@ -172,17 +172,17 @@ public:
     }
 
     std::vector<std::string> supported_ro_properties(const std::string& plugin_name = "AUTO") const {
-        std::vector<std::string> supported_metrics;
+        std::vector<std::string> supported_ro_properties;
         for (const auto& iter : property_mutabilities) {
             if (iter.second.as<ov::PropertyMutability>() == ov::PropertyMutability::RO)
-                supported_metrics.push_back(iter.first);
+                supported_ro_properties.push_back(iter.first);
         }
         OPENVINO_SUPPRESS_DEPRECATED_START
-        supported_metrics.push_back(METRIC_KEY(SUPPORTED_METRICS));
-        supported_metrics.push_back(METRIC_KEY(SUPPORTED_CONFIG_KEYS));
+        supported_ro_properties.push_back(METRIC_KEY(SUPPORTED_METRICS));
+        supported_ro_properties.push_back(METRIC_KEY(SUPPORTED_CONFIG_KEYS));
         OPENVINO_SUPPRESS_DEPRECATED_END
-        auto multi_supported_metrics = supported_metrics;
-        return plugin_name == "AUTO" ? supported_metrics : multi_supported_metrics;
+        auto multi_supported_ro_properties = supported_ro_properties;
+        return plugin_name == "AUTO" ? supported_ro_properties : multi_supported_ro_properties;
     }
 
     bool is_supported_device(const std::string& device_name, const std::string& option) const {
@@ -229,7 +229,7 @@ private:
     ov::AnyMap internal_properties;   // internal supported properties for auto/multi
     ov::AnyMap user_properties;       // user set properties, including secondary properties
     ov::AnyMap full_properties;       // combined with user set properties, including secondary properties
-    ov::AnyMap property_mutabilities; // mutability for supported configs/metrics installation
+    ov::AnyMap property_mutabilities; // mutability for supported properties installation
     std::map<std::string, BaseValidator::Ptr> property_validators;
     static const std::set<std::string> device_block_list;
 };
