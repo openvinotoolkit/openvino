@@ -16,55 +16,65 @@ page for instructions on how to install OpenVINO Runtime for Python using PyPI.
 
 See the `Release Notes <https://software.intel.com/en-us/articles/OpenVINO-RelNotes>`__ for more information on updates in the latest release.
 
+.. tab-set::
 
-.. tab:: System Requirements
-
-  | Full requirement listing is available in:
-  | `System Requirements Page <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html>`__
-
-.. tab:: Processor Notes
-
-  | Processor graphics are not included in all processors. 
-  | See `Product Specifications <https://ark.intel.com/>`__ for information about your processor.
-
-.. tab:: Software
-
-  * `CMake 3.13 or higher, 64-bit <https://cmake.org/download/>`__
-  * `Python 3.7 - 3.11, 64-bit <https://www.python.org/downloads/>`__
-  * GCC:
-
-  .. tab:: Ubuntu 18.04
-
-    * GCC 7.5.0
-
-  .. tab:: Ubuntu 20.04
-
-    * GCC 9.3.0
-
-  .. tab:: RHEL 8
-
-    * GCC 8.4.1
-
-  .. tab:: CentOS 7
-
-    * GCC 8.3.1
-    Use the following instructions to install it:
-
-    Install GCC 8.3.1 via devtoolset-8
-
-      .. code-block:: sh
+   .. tab-item:: System Requirements
+      :sync: sysreq
    
-        sudo yum update -y && sudo yum install -y centos-release-scl epel-release
-        sudo yum install -y devtoolset-8
-
-    Enable devtoolset-8 and check current gcc version
-
-       .. code-block:: sh
+      | Full requirement listing is available in:
+      | `System Requirements Page <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html>`__
    
-         source /opt/rh/devtoolset-8/enable
-         gcc -v
+   .. tab-item:: Processor Notes
+      :sync: processor_notes
+   
+      | Processor graphics are not included in all processors. 
+      | See `Product Specifications <https://ark.intel.com/>`__ for information about your processor.
+   
+   .. tab-item:: Software
+      :sync: soft
+   
+      * `CMake 3.13 or higher, 64-bit <https://cmake.org/download/>`__
+      * `Python 3.7 - 3.11, 64-bit <https://www.python.org/downloads/>`__
+      * GCC:
+      
+      .. tab-set::
 
-
+         .. tab-item:: Ubuntu 18.04
+            :sync: ubuntu18
+       
+            * GCC 7.5.0
+       
+         .. tab-item:: Ubuntu 20.04
+            :sync: ubuntu20
+       
+            * GCC 9.3.0
+       
+         .. tab-item:: RHEL 8
+            :sync: rhel8
+       
+            * GCC 8.4.1
+       
+         .. tab-item:: CentOS 7
+            :sync: centos7
+       
+            * GCC 8.3.1
+            Use the following instructions to install it:
+        
+            Install GCC 8.3.1 via devtoolset-8
+        
+              .. code-block:: sh
+           
+                sudo yum update -y && sudo yum install -y centos-release-scl epel-release
+                sudo yum install -y devtoolset-8
+        
+            Enable devtoolset-8 and check current gcc version
+        
+               .. code-block:: sh
+           
+                 source /opt/rh/devtoolset-8/enable
+                 gcc -v
+        
+       
 
 Installing OpenVINO Runtime
 ############################################################
@@ -91,66 +101,77 @@ Step 1: Download and Install the OpenVINO Core Components
     
 4. Download the `OpenVINO Runtime archive file for your system <https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.0/linux/>`_, extract the files, rename the extracted folder and move it to the desired path:
 
+   .. tab-set::
 
-   .. tab:: x86_64
-   
-      .. tab:: Ubuntu 22.04
-   
+      .. tab-item:: x86_64
+         :sync: x86_64
+
+         .. tab-set::
+
+            .. tab-item:: Ubuntu 22.04
+               :sync: ubuntu22
+         
+               .. code-block:: sh
+            
+                  curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.0/linux/l_openvino_toolkit_ubuntu22_2023.0.0.10926.b4452d56304_x86_64.tgz --output openvino_2023.0.0.tgz
+                  tar -xf openvino_2023.0.0.tgz
+                  sudo mv l_openvino_toolkit_ubuntu22_2023.0.0.10926.b4452d56304_x86_64 /opt/intel/openvino_2023.0.0
+         
+            .. tab-item:: Ubuntu 20.04
+               :sync: ubuntu20
+         
+               .. code-block:: sh
+            
+                  curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.0/linux/l_openvino_toolkit_ubuntu20_2023.0.0.10926.b4452d56304_x86_64.tgz --output openvino_2023.0.0.tgz
+                  tar -xf openvino_2023.0.0.tgz
+                  sudo mv l_openvino_toolkit_ubuntu20_2023.0.0.10926.b4452d56304_x86_64 /opt/intel/openvino_2023.0.0
+         
+            .. tab-item:: Ubuntu 18.04
+               :sync: ubuntu18
+         
+               .. code-block:: sh
+            
+                  curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.0/linux/l_openvino_toolkit_ubuntu18_2023.0.0.10926.b4452d56304_x86_64.tgz --output openvino_2023.0.0.tgz
+                  tar -xf openvino_2023.0.0.tgz
+                  sudo mv l_openvino_toolkit_ubuntu18_2023.0.0.10926.b4452d56304_x86_64 /opt/intel/openvino_2023.0.0
+         
+            .. tab-item:: RHEL 8
+               :sync: rhel8
+         
+               .. code-block:: sh
+            
+                  curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.0/linux/l_openvino_toolkit_rhel8_2023.0.0.10926.b4452d56304_x86_64.tgz --output openvino_2023.0.0.tgz
+                  tar -xf openvino_2023.0.0.tgz
+                  sudo mv l_openvino_toolkit_rhel8_2023.0.0.10926.b4452d56304_x86_64 /opt/intel/openvino_2023.0.0
+         
+         .. tab-item:: CentOS 7
+            :sync: centos7
+      
+            .. code-block:: sh
+         
+               curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.0/linux/l_openvino_toolkit_centos7_2023.0.0.10926.b4452d56304_x86_64.tgz --output openvino_2023.0.0.tgz
+               tar -xf openvino_2023.0.0.tgz
+               sudo mv l_openvino_toolkit_centos7_2023.0.0.10926.b4452d56304_x86_64 /opt/intel/openvino_2023.0.0
+      
+      .. tab-item:: ARM 64-bit
+         :sync: arm_64
+      
          .. code-block:: sh
       
-            curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.0/linux/l_openvino_toolkit_ubuntu22_2023.0.0.10926.b4452d56304_x86_64.tgz --output openvino_2023.0.0.tgz
+            curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.0/linux/l_openvino_toolkit_debian9_2023.0.0.10926.b4452d56304_arm64.tgz -O openvino_2023.0.0.tgz
             tar -xf openvino_2023.0.0.tgz
-            sudo mv l_openvino_toolkit_ubuntu22_2023.0.0.10926.b4452d56304_x86_64 /opt/intel/openvino_2023.0.0
-   
-      .. tab:: Ubuntu 20.04
-   
+            sudo mv l_openvino_toolkit_debian9_2023.0.0.10926.b4452d56304_arm64 /opt/intel/openvino_2023.0.0
+      
+      .. tab-item:: ARM 32-bit
+         :sync: arm_32
+      
          .. code-block:: sh
       
-            curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.0/linux/l_openvino_toolkit_ubuntu20_2023.0.0.10926.b4452d56304_x86_64.tgz --output openvino_2023.0.0.tgz
+            curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.0/linux/l_openvino_toolkit_debian9_2023.0.0.10926.b4452d56304_armhf.tgz -O openvino_2023.0.0.tgz
             tar -xf openvino_2023.0.0.tgz
-            sudo mv l_openvino_toolkit_ubuntu20_2023.0.0.10926.b4452d56304_x86_64 /opt/intel/openvino_2023.0.0
-   
-      .. tab:: Ubuntu 18.04
-   
-         .. code-block:: sh
+            sudo mv l_openvino_toolkit_debian9_2023.0.0.10926.b4452d56304_armhf /opt/intel/openvino_2023.0.0
       
-            curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.0/linux/l_openvino_toolkit_ubuntu18_2023.0.0.10926.b4452d56304_x86_64.tgz --output openvino_2023.0.0.tgz
-            tar -xf openvino_2023.0.0.tgz
-            sudo mv l_openvino_toolkit_ubuntu18_2023.0.0.10926.b4452d56304_x86_64 /opt/intel/openvino_2023.0.0
-   
-      .. tab:: RHEL 8
-   
-         .. code-block:: sh
       
-            curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.0/linux/l_openvino_toolkit_rhel8_2023.0.0.10926.b4452d56304_x86_64.tgz --output openvino_2023.0.0.tgz
-            tar -xf openvino_2023.0.0.tgz
-            sudo mv l_openvino_toolkit_rhel8_2023.0.0.10926.b4452d56304_x86_64 /opt/intel/openvino_2023.0.0
-   
-      .. tab:: CentOS 7
-   
-         .. code-block:: sh
-      
-            curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.0/linux/l_openvino_toolkit_centos7_2023.0.0.10926.b4452d56304_x86_64.tgz --output openvino_2023.0.0.tgz
-            tar -xf openvino_2023.0.0.tgz
-            sudo mv l_openvino_toolkit_centos7_2023.0.0.10926.b4452d56304_x86_64 /opt/intel/openvino_2023.0.0
-   
-   .. tab:: ARM 64-bit
-   
-      .. code-block:: sh
-   
-         curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.0/linux/l_openvino_toolkit_debian9_2023.0.0.10926.b4452d56304_arm64.tgz -O openvino_2023.0.0.tgz
-         tar -xf openvino_2023.0.0.tgz
-         sudo mv l_openvino_toolkit_debian9_2023.0.0.10926.b4452d56304_arm64 /opt/intel/openvino_2023.0.0
-   
-   .. tab:: ARM 32-bit
-   
-      .. code-block:: sh
-   
-         curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.0/linux/l_openvino_toolkit_debian9_2023.0.0.10926.b4452d56304_armhf.tgz -O openvino_2023.0.0.tgz
-         tar -xf openvino_2023.0.0.tgz
-         sudo mv l_openvino_toolkit_debian9_2023.0.0.10926.b4452d56304_armhf /opt/intel/openvino_2023.0.0
-   
-   
 5. Install required system dependencies on Linux. To do this, OpenVINO provides a script in the extracted installation directory. Run the following command:
    
    .. code-block:: sh
@@ -221,14 +242,18 @@ OpenVINO Runtime has a plugin architecture that enables you to run inference on 
 without rewriting your code. Supported devices include integrated GPUs, discrete GPUs and GNAs. 
 See the instructions below to set up OpenVINO on these devices.
 
-.. tab:: GPU
+.. tab-set::
 
-   To enable the toolkit components to use processor graphics (GPU) on your system, follow the steps in :ref:`GPU Setup Guide <gpu guide>`.
-
-.. tab:: GNA
-
-   To enable the toolkit components to use Intel® Gaussian & Neural Accelerator (GNA) on your system, follow the steps in :ref:`GNA Setup Guide <gna guide>`.
+   .. tab-item:: GPU
+      :sync: gpu
    
+      To enable the toolkit components to use processor graphics (GPU) on your system, follow the steps in :ref:`GPU Setup Guide <gpu guide>`.
+   
+   .. tab-item:: GNA
+      :sync: gna
+   
+      To enable the toolkit components to use Intel® Gaussian & Neural Accelerator (GNA) on your system, follow the steps in :ref:`GNA Setup Guide <gna guide>`.
+      
 
 
 What's Next?
@@ -237,37 +262,40 @@ What's Next?
 Now that you've installed OpenVINO Runtime, you're ready to run your own machine learning applications! 
 Learn more about how to integrate a model in OpenVINO applications by trying out the following tutorials.
 
+.. tab-set::
 
-.. tab:: Get started with Python
+   .. tab-item:: Get started with Python
+      :sync: get_started_python
+      
+      Try the `Python Quick Start Example <notebooks/201-vision-monodepth-with-output.html>`_
+      to estimate depth in a scene using an OpenVINO monodepth model in a Jupyter Notebook inside your web browser.
+      
+      .. image:: https://user-images.githubusercontent.com/15709723/127752390-f6aa371f-31b5-4846-84b9-18dd4f662406.gif
+         :width: 400
+      
+      Visit the :doc:`Tutorials <tutorials>` page for more Jupyter Notebooks to get you started with OpenVINO, such as:
+      
+      * `OpenVINO Python API Tutorial <notebooks/002-openvino-api-with-output.html>`__
+      * `Basic image classification program with Hello Image Classification <notebooks/001-hello-world-with-output.html>`__
+      * `Convert a PyTorch model and use it for image background removal <notebooks/205-vision-background-removal-with-output.html>`__
    
-   Try the `Python Quick Start Example <notebooks/201-vision-monodepth-with-output.html>`_
-   to estimate depth in a scene using an OpenVINO monodepth model in a Jupyter Notebook inside your web browser.
    
-   .. image:: https://user-images.githubusercontent.com/15709723/127752390-f6aa371f-31b5-4846-84b9-18dd4f662406.gif
-      :width: 400
+   .. tab-item:: Get started with C++
+      :sync: get_started_cpp
    
-   Visit the :doc:`Tutorials <tutorials>` page for more Jupyter Notebooks to get you started with OpenVINO, such as:
+      Try the :doc:`C++ Quick Start Example <openvino_docs_get_started_get_started_demos>` for step-by-step instructions 
+      on building and running a basic image classification C++ application.
+      
+      .. image:: https://user-images.githubusercontent.com/36741649/127170593-86976dc3-e5e4-40be-b0a6-206379cd7df5.jpg
+         :width: 400
    
-   * `OpenVINO Python API Tutorial <notebooks/002-openvino-api-with-output.html>`__
-   * `Basic image classification program with Hello Image Classification <notebooks/001-hello-world-with-output.html>`__
-   * `Convert a PyTorch model and use it for image background removal <notebooks/205-vision-background-removal-with-output.html>`__
-
-
-.. tab:: Get started with C++
-
-   Try the :doc:`C++ Quick Start Example <openvino_docs_get_started_get_started_demos>` for step-by-step instructions 
-   on building and running a basic image classification C++ application.
+      Visit the :doc:`Samples <openvino_docs_OV_UG_Samples_Overview>` page for other C++ example applications to get you started with OpenVINO, such as:
+      
+      * `Basic object detection with the Hello Reshape SSD C++ sample <openvino_inference_engine_samples_hello_reshape_ssd_README.html>`__
+      * `Automatic speech recognition C++ sample <openvino_inference_engine_samples_speech_sample_README.html>`__
    
-   .. image:: https://user-images.githubusercontent.com/36741649/127170593-86976dc3-e5e4-40be-b0a6-206379cd7df5.jpg
-      :width: 400
-
-   Visit the :doc:`Samples <openvino_docs_OV_UG_Samples_Overview>` page for other C++ example applications to get you started with OpenVINO, such as:
    
-   * `Basic object detection with the Hello Reshape SSD C++ sample <openvino_inference_engine_samples_hello_reshape_ssd_README.html>`__
-   * `Automatic speech recognition C++ sample <openvino_inference_engine_samples_speech_sample_README.html>`__
-
-
-
+   
 Uninstalling the Intel® Distribution of OpenVINO™ Toolkit
 ###########################################################
 
