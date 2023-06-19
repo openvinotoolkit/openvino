@@ -263,14 +263,14 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
 
         if (!isManualStart) {
             // Creates temporary record
-            sstr << "INSERT INTO test_results_temp (tr_id, session_id, suite_id, run_id, test_id, test_result) "
+            sstr << "INSERT INTO test_results_temp (tr_id, session_id, suite_id, run_id, app_id, test_id, test_result) "
                  << "VALUES (DEFAULT, " << this->sessionId << ", " << this->testSuiteId << ", " << this->testRunId
-                 << ", " << this->testNameId << ", 0::smallint) RETURNING tr_id";
+                 << ", " << this->appId << ", " << this->testNameId << ", 0::smallint) RETURNING tr_id";
         } else {
             // Creates record
-            sstr << "INSERT INTO test_results (tr_id, session_id, suite_id, run_id, test_id, test_result) "
+            sstr << "INSERT INTO test_results (tr_id, session_id, suite_id, run_id, app_id, test_id, test_result) "
                  << "VALUES (DEFAULT, " << this->sessionId << ", " << this->testSuiteId << ", " << this->testRunId
-                 << ", " << this->testNameId << ", 0::smallint) RETURNING tr_id";
+                 << ", " << this->appId << ", " << this->testNameId << ", 0::smallint) RETURNING tr_id";
         }
 
         if (!request_test_id(sstr.str()))
@@ -490,9 +490,9 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
             std::stringstream sstr;
             uint64_t testTempId = this->testId;
             if (!isManualStart) {
-                sstr << "INSERT INTO test_results (session_id, suite_id, run_id, test_id, started_at, finished_at, "
-                        "duration, test_result) "
-                     << "(SELECT session_id, suite_id, run_id, test_id, started_at, NOW(), "
+                sstr << "INSERT INTO test_results (session_id, suite_id, run_id, app_id, test_id, started_at, "
+                        "finished_at, duration, test_result) "
+                     << "(SELECT session_id, suite_id, run_id, app_id, test_id, started_at, NOW(), "
                      << test_info.result()->elapsed_time() << ", " << testResult << "::smallint FROM test_results_temp "
                      << "WHERE tr_id=" << this->testId << ") RETURNING tr_id";
                 if (!request_test_id(sstr.str())) {
