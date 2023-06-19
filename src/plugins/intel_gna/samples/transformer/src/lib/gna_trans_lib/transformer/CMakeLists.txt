@@ -2,8 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-add_subdirectory(passes)
-
 set(TARGET gna_trans_lib_transformer)
 
 set(SOURCES

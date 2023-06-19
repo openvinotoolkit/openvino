@@ -37,7 +37,6 @@ TransformerConfiguration TransformerConfigurationLoaderImpl::parse_configuration
 
         TransformerConfiguration config;
 
-        // TODO retrieve methods could be writen per object in more elegant way in the futuer.
         config.gna_configuration = retrieve_gna_configuration(parsed_json);
         config.transformations_names = retrieve_transformations_names(parsed_json);
         return config;

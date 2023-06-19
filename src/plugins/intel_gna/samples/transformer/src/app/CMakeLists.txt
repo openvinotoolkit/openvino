@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+add_subdirectory(passes)
+
 set(TARGET gna_transformer_app)
 
 set(SOURCES
@@ -11,6 +13,7 @@ set(SOURCES
 
 add_executable(${TARGET} ${SOURCES})
 
-target_link_libraries(${TARGET} PRIVATE gflags gna_trans_lib_transformer openvino::runtime)
+target_link_libraries(${TARGET}
+    PRIVATE gflags gna_trans_lib_transformer gna_transformer_app_passes openvino::runtime)
 
 add_clang_format_target(${TARGET}_clang FOR_TARGETS ${TARGET})

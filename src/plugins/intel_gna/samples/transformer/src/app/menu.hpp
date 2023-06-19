@@ -41,5 +41,7 @@ private:
 
     void export_model_to_file(std::shared_ptr<ov::Model> model, const std::string& file_path);
 
+    void print_app_defined_transformations();
+
     std::function<void(void)> m_action;
 };

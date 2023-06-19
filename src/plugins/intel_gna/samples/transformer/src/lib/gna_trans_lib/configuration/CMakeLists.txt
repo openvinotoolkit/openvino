@@ -13,7 +13,7 @@ set(SOURCES
 add_library(${TARGET} STATIC ${SOURCES})
 
 target_link_libraries(${TARGET} 
-    PRIVATE openvino::runtime
+    PRIVATE openvino::core
     PUBLIC nlohmann_json::nlohmann_json)
 
 add_clang_format_target(${TARGET}_clang FOR_TARGETS ${TARGET})
