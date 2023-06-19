@@ -28,7 +28,7 @@ protected:
 
     void SetUp() override {
         model_name = "test_model";
-        test_artifacts_dir = ov::util::path_join({CommonTestUtils::getCurrentWorkingDir(), "test_artifacts"});
+        test_artifacts_dir = "test_artifacts";
         test_model_path = ov::util::path_join({ test_artifacts_dir, model_name + ".xml" });
         ov::util::create_directory_recursive(test_artifacts_dir);
         {
