@@ -50,8 +50,8 @@ void MetaInfo::serialize(const std::string& serialization_path) {
         for (const auto& model : model_info) {
             pugi::xml_node model_node = models.append_child("model");
             model_node.append_attribute("name").set_value(model.first.c_str());
-            model_node.append_attribute("this_op_count").set_value(static_cast<unsigned long>(model.second.this_op_cnt));
-            model_node.append_attribute("total_op_count").set_value(static_cast<unsigned long>(model.second.total_op_cnt));
+            model_node.append_attribute("this_op_count").set_value(static_cast<unsigned long long>(model.second.this_op_cnt));
+            model_node.append_attribute("total_op_count").set_value(static_cast<unsigned long long>(model.second.total_op_cnt));
             for (const auto& model_path : model.second.model_paths) {
                 model_node.append_child("path").append_child("model").append_attribute("path").set_value(model_path.c_str());
             }
