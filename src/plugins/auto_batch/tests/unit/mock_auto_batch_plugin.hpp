@@ -7,8 +7,11 @@
 
 #include <iostream>
 
-#include "auto_batch.hpp"
+#include "async_infer_request.hpp"
+#include "compiled_model.hpp"
 #include "ie_icore.hpp"
+#include "plugin.hpp"
+#include "sync_infer_request.hpp"
 
 using namespace MockAutoBatchPlugin;
 namespace MockAutoBatchDevice {
