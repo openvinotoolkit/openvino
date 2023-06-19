@@ -574,7 +574,7 @@ void AMIntelDNN::WriteGraphWizModel(const char* filename) {
         return l;
     };
 
-    for (int k = 0; k < components.size(); ++k) {
+    for (int k = 0; k < static_cast<int>(components.size()); ++k) {
         std::string l = generate_layer_name(k);
         layersNames.insert(l);
         int lidx = static_cast<int>(std::distance(layersNames.begin(), layersNames.find(l)));
@@ -602,7 +602,7 @@ void AMIntelDNN::WriteGraphWizModel(const char* filename) {
 
         bool inputConnected = false;
 
-        for (int k2 = 0; k2 < components.size(); ++k2) {
+        for (int k2 = 0; k2 < static_cast<int>(components.size()); ++k2) {
             if (k2 == k)
                 continue;
 
@@ -658,7 +658,7 @@ void AMIntelDNN::WriteGraphWizModel(const char* filename) {
         }
         if (!inputConnected) {
             // searching for TMP connection
-            size_t tidx = -1;
+            size_t tidx = std::numeric_limits<size_t>::max();
             for (auto&& en : outputs) {
                 if (intersected(en.first, en.second.size, INPUTS(k))) {
                     tidx = en.second.idx;
@@ -671,7 +671,7 @@ void AMIntelDNN::WriteGraphWizModel(const char* filename) {
                 }
             }
 
-            if (tidx == -1) {
+            if (tidx == std::numeric_limits<size_t>::max()) {
                 outputs[components[k].ptr_inputs] = InputEndPoint(static_cast<int>(outputs.size()),
                                                                   sizeofTensor(INPUTS(k)),
                                                                   components[k].num_bytes_per_input);
@@ -681,7 +681,7 @@ void AMIntelDNN::WriteGraphWizModel(const char* filename) {
         }
     }
 
-    for (int k = 0; k < components.size(); ++k) {
+    for (int k = 0; k < static_cast<int>(components.size()); ++k) {
         std::string l = generate_layer_name(k);
 
         int tidx = 0;
@@ -1386,7 +1386,7 @@ void AMIntelDNN::InitGNAStruct(Gna2Model* gnaModel) {
         THROW_GNA_EXCEPTION << "out of memory in AMIntelDNN::InitGNAStruct()";
     memset(gnaModel->Operations, 0, gnaModel->NumberOfOperations * sizeof(Gna2Operation));
     gnaOperation = gnaModel->Operations;
-    for (int i = 0; i < component.size(); i++) {
+    for (int i = 0; i < static_cast<int>(component.size()); i++) {
         log::debug() << "Component + " << i << "=GNA_" << std::distance(gnaModel->Operations, gnaOperation) << "\n";
 
         auto& comp = component[i];

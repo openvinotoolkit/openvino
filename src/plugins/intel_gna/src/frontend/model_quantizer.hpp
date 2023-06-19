@@ -128,7 +128,7 @@ private:
                         log::debug() << "\t " << s << '\n';
                     }
                     inf_loop_pattern.clear();
-                    auto pattern_len = (inf_loop_history.size() - i) / 2;
+                    auto pattern_len = static_cast<int>((inf_loop_history.size() - i) / 2);
                     log::debug() << "pattern_len: " << pattern_len << '\n';
                     for (int j = 0; j < pattern_len; j++) {
                         inf_loop_pattern.emplace_back(inf_loop_history[inf_loop_history.size() - pattern_len + j]);

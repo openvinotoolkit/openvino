@@ -14,15 +14,6 @@ if (ENABLE_INTEL_GNA_DEBUG)
     add_compile_definitions(GNA_DEBUG)
 endif()
 
-if(CMAKE_COMPILER_IS_GNUCC)
-    ie_add_compiler_flags(-Wno-sign-compare)
-    ie_add_compiler_flags(-Wno-parentheses)
-    ie_add_compiler_flags(-Wno-comment)
-    ie_add_compiler_flags(-Wno-int-in-bool-context)
-elseif(OV_COMPILER_IS_CLANG)
-    ie_add_compiler_flags(-Wno-int-in-bool-context)
-endif()
-
 file(GLOB_RECURSE SOURCES
         ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
 

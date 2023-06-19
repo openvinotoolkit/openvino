@@ -733,7 +733,7 @@ bool ScaleFactorCalculator::ScaleFactorPerLayerCNN(InferenceEngine::CNNLayer* cn
             auto flt_buf = blob->buffer().as<float*>();
             auto size = blob->size();
 
-            for (int i = 0; i < size; i++) {
+            for (size_t i = 0; i < size; i++) {
                 auto val = flt_buf[i];
                 if (val > max_val)
                     max_val = val;
@@ -951,7 +951,7 @@ bool ScaleFactorCalculator::ScaleFactorPerLayerConcat(InferenceEngine::ConcatLay
 
     auto quantData = InferenceEngine::getInjectedData<QuantizedLayerParams>(*concatLayer);
     std::vector<InferenceEngine::CNNLayerPtr> inputLayers;
-    for (auto input_idx = 0; input_idx != concatLayer->insData.size(); input_idx++) {
+    for (auto input_idx = 0; input_idx != static_cast<int>(concatLayer->insData.size()); input_idx++) {
         auto notChangeScaleFactors = [](InferenceEngine::CNNLayerPtr layer) {
             return LayerInfo(layer).isNonFunctional() || LayerInfo(layer).isSplit() || LayerInfo(layer).isCopy();
         };

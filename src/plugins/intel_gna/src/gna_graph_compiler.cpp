@@ -182,7 +182,7 @@ void GNAGraphCompiler::fillSplitConnections(InferenceEngine::CNNLayerPtr layer) 
         size_t padding = 0;
         size_t output_layer_size = 0;
 
-        for (int j = 0; j != getInputTo(layer->outData[i]).size(); j++) {
+        for (int j = 0; j != static_cast<int>(getInputTo(layer->outData[i]).size()); j++) {
             auto outFunctionalLayer =
                 CNNNetCheckNextLayerSkipCertain(layer, static_cast<int>(i), j, true, [](CNNLayerPtr l) {
                     return LayerInfo(l).isNonFunctional();
@@ -1204,7 +1204,7 @@ void GNAGraphCompiler::ConcatPrimitive(InferenceEngine::CNNLayerPtr layer) {
         CNNLayerPtr concatParent;
         int it = 0;
 
-        for (; it != concatLayerInput->insData.size(); it++) {
+        for (; it != static_cast<int>(concatLayerInput->insData.size()); it++) {
             concatParent = CNNNetPrevLayerSkipCertain(concatLayerInput, it, [](CNNLayerPtr l) {
                 return LayerInfo(l).isNonFunctional();
             });
@@ -1212,7 +1212,7 @@ void GNAGraphCompiler::ConcatPrimitive(InferenceEngine::CNNLayerPtr layer) {
                 break;
             }
         }
-        IE_ASSERT(it != concatLayerInput->insData.size());
+        IE_ASSERT(it != static_cast<int>(concatLayerInput->insData.size()));
         auto layerInfo = LayerInfo(concatParent);
         // auto layerInfo = LayerInfo(getCreatorLayer(concatLayerInput->insData[it].lock()).lock());
         if (layerInfo.isInput()) {
@@ -2421,7 +2421,7 @@ void GNAGraphCompiler::connectOutput(InferenceEngine::CNNLayerPtr layer, void* p
     log::debug() << "Connecting output " << layer->name << " ...\n";
     // in case of Memory Layer it's input allocated in meminput layer
     if (layer->outData.size() == 1) {
-        for (int j = 0; j != getInputTo(layer->outData.front()).size(); j++) {
+        for (int j = 0; j != static_cast<int>(getInputTo(layer->outData.front()).size()); j++) {
             auto isNonFunctional = [](CNNLayerPtr l) {
                 return LayerInfo(l).isNonFunctional();
             };
@@ -2811,7 +2811,7 @@ void GNAGraphCompiler::Reset() {
 
 void GNAGraphCompiler::printTensorDesc(const std::string& name, const InferenceEngine::TensorDesc& desc) {
     log::debug() << name << " layout: " << desc.getLayout() << " shape: ";
-    for (auto i = 0; i < desc.getDims().size(); i++) {
+    for (size_t i = 0; i < desc.getDims().size(); i++) {
         if (i > 0) {
             log::debug() << 'x';
         }

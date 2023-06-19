@@ -429,7 +429,7 @@ inline void DumpCompoundBias(std::ostream& dumpFile, const Gna2Tensor& tensor) {
 }
 
 inline void DumpCharArray(std::ostream& dumpFile, const char* carray, size_t count) {
-    auto i = 0;
+    size_t i = 0;
     while (*(carray + i) != 0 && i < count) {
         dumpFile << *(carray + i) << " ";
         i++;

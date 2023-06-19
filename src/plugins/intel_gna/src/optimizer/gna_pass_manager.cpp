@@ -502,7 +502,7 @@ void SubstituteSoftSignPass::run() {
     auto hasNChildren = [](CNNLayerPtr l, int N) {
         if (l->outData.size() != 1)
             return false;
-        if (getInputTo(l->outData.front()).size() != N)
+        if (static_cast<int>(getInputTo(l->outData.front()).size()) != N)
             return false;
         return true;
     };
@@ -776,7 +776,7 @@ void RemovePermutationsNHWCToNCHWPass::run() {
                              ? permute::GetPermuteOrder(InferenceEngine::Layout::NCHW, InferenceEngine::Layout::NHWC)
                              : std::vector<int32_t>{0, 2, 1};
             InferenceEngine::SizeVector new_dims;
-            for (int i = 0; i < dims.size(); ++i) {
+            for (size_t i = 0; i < dims.size(); ++i) {
                 new_dims.push_back(dims[order[i]]);
             }
             data->setDims(new_dims);
@@ -1225,7 +1225,7 @@ void FlattenTrivialConcatPass::run() {
         }
 
         // Reshape concat outputs back to the original size
-        for (auto output_idx = 0; output_idx != concatLayer->outData.size(); output_idx++) {
+        for (size_t output_idx = 0; output_idx != concatLayer->outData.size(); output_idx++) {
             auto output = concatLayer->outData[output_idx];
             auto output_tensor_copy = TensorDesc(output->getTensorDesc());
 
@@ -1268,7 +1268,7 @@ void InsertConcatAligningFilterPass::run() {
         auto concatLayer = info.as<ConcatLayer*>();
         IE_ASSERT(concatLayer != nullptr);
 
-        for (auto input_idx = 0; input_idx != concatLayer->insData.size(); input_idx++) {
+        for (auto input_idx = 0; input_idx != static_cast<int>(concatLayer->insData.size()); input_idx++) {
             auto getLayerByIndex = [&concatLayer](int idx) {
                 auto input = concatLayer->insData[idx];
                 auto lockedInput = input.lock();
@@ -1283,7 +1283,7 @@ void InsertConcatAligningFilterPass::run() {
             auto outputSize = details::product(++dims.begin(), dims.end()) * Limitations::kBytesPerConcatElement;
 
             auto useAlignFilterIf = [&concatLayer, &getLayerByIndex](int concat_input_idx) {
-                if (concatLayer->insData.size() <= concat_input_idx)
+                if (static_cast<int>(concatLayer->insData.size()) <= concat_input_idx)
                     return false;
 
                 auto nextInput = getCreatorLayer(getLayerByIndex(concat_input_idx)).lock();
@@ -1340,7 +1340,7 @@ void InsertConcatAligningFilterPass::run() {
                 std::vector<float> filterWeights(num_rows_out * num_rows_in, 0.f);
 
                 auto identityIdx = num_rows_padded * num_rows_in;
-                for (int i = 0; i != num_rows_in; i++) {
+                for (size_t i = 0; i != num_rows_in; i++) {
                     filterWeights[identityIdx] = 1.0f;
                     identityIdx += num_rows_in + 1;
                 }
@@ -1412,7 +1412,7 @@ void ReorderConcatInputsPass::run() {
             return lockedInput;
         };
 
-        for (auto input_idx = 1; input_idx != concatLayer->insData.size(); input_idx++) {
+        for (auto input_idx = 1; input_idx != static_cast<int>(concatLayer->insData.size()); input_idx++) {
             auto concatInput = getLayerByIndex(input_idx);
             auto currConcatLayer = getCreatorLayer(concatInput).lock();
 
@@ -1630,7 +1630,7 @@ static InferenceEngine::Blob::Ptr tileBlob(Blob::Ptr& blob, size_t TileTo) {
     auto tiledBlob = make_plain_blob(blob->getTensorDesc().getPrecision(), {TileTo});
     tiledBlob->allocate();
 
-    for (int i = 0; i < (TileTo / weightsElements); ++i) {
+    for (size_t i = 0; i < (TileTo / weightsElements); ++i) {
         ie_memcpy(tiledBlob->buffer().as<uint8_t*>() + i * weightsBytes, weightsBytes, blob->cbuffer(), weightsBytes);
     }
     return tiledBlob;
@@ -1874,7 +1874,7 @@ void BreakFusingOfOutputLayersPass::run() {
          */
         if (LayerInfo(layer).isPooling())
             continue;
-        for (int output_idx = 0; output_idx < layer->outData.size(); output_idx++) {
+        for (size_t output_idx = 0; output_idx < layer->outData.size(); output_idx++) {
             auto& output = layer->outData[output_idx];
             auto& input_to = getInputTo(output);
 
@@ -1962,7 +1962,7 @@ void RemoveSingleInputConcatPass::run() {
                 auto out = concat->outData[0];
 
                 for (auto& out_layer : getInputTo(out)) {
-                    for (int i = 0; i < out_layer.second->insData.size(); i++) {
+                    for (size_t i = 0; i < out_layer.second->insData.size(); i++) {
                         if (out_layer.second->insData[i].lock() == out) {
                             out_layer.second->insData[i] = in;
                             getInputTo(in.lock())[out_layer.second->name] = out_layer.second;
@@ -2099,7 +2099,7 @@ void FuseFQIntoWeightsPass::run() {
             inputTo = getInputTo(layerBeforeWeightable->outData[0]);
             layers_connected_to_fq_count = inputTo.size();
         }
-        for (int index = 0; index < layers_connected_to_fq_count; index++) {
+        for (int index = 0; index < static_cast<int>(layers_connected_to_fq_count); index++) {
             auto weightableLayer =
                 CNNNetCheckNextLayerSkipCertain(layerBeforeWeightable, 0, index, true, isNonFunctional).first;
             if (!weightableLayer || !LayerInfo(weightableLayer).isWeightable()) {

@@ -86,7 +86,7 @@ static bool Convert(std::shared_ptr<ngraph::Node> conv,
     split_node->set_friendly_name(conv->get_friendly_name() + "/split");
     ngraph::OutputVector convOutputs;
     std::shared_ptr<ngraph::Node> root_node = fq ? fq : (add ? add : conv);
-    for (int i = 0; i < split_sizes.size(); ++i) {
+    for (size_t i = 0; i < split_sizes.size(); ++i) {
         std::shared_ptr<ngraph::Node> output =
             conv->clone_with_new_inputs({split_node->output(i), conv->input_value(1)});
         ngraph::copy_runtime_info(split_node, output);

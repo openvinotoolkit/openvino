@@ -945,7 +945,7 @@ bool Limitations::validate_concat_axis(const InferenceEngine::CNNLayerPtr layer,
                        ptr->GetParamAsInts("order") == std::vector<int32_t>{0, 2, 1} /* NCW to NWC */))));
         };
 
-        for (auto input_idx = 0; input_idx != concat_layer->insData.size(); input_idx++) {
+        for (auto input_idx = 0; input_idx != static_cast<int>(concat_layer->insData.size()); input_idx++) {
             prev_layer = InferenceEngine::CNNNetPrevLayerSkipCertain(layer, input_idx, isFusableWithConv);
             if (prev_layer && LayerInfo(prev_layer).isConvolution())
                 return true;
@@ -976,7 +976,7 @@ bool Limitations::validate_concat_axis(const InferenceEngine::CNNLayerPtr layer,
         } else {
             concat_all_const_or_inputs = true;
 
-            for (auto input_idx = 0; input_idx != concat_layer->insData.size(); input_idx++) {
+            for (auto input_idx = 0; input_idx != static_cast<int>(concat_layer->insData.size()); input_idx++) {
                 if (concat_layer->insData[input_idx].lock()->getDims()[0] != 1) {
                     // First we're checking concat input layers
                     prev_layer = InferenceEngine::CNNNetPrevLayerSkipCertain(
@@ -1077,7 +1077,7 @@ bool Limitations::validate_conv_concat_axis(const InferenceEngine::ConcatLayer* 
         auto concat_axis = concat_layer->_axis;
         auto concat_layout = concat_layer->input()->getLayout();
 
-        for (auto input_idx = 0; input_idx != concat_layer->insData.size(); input_idx++) {
+        for (auto input_idx = 0; input_idx != static_cast<int>(concat_layer->insData.size()); input_idx++) {
             // Supported cases for concatenation of a convolution
             prev_layer = InferenceEngine::CNNNetPrevLayerSkipCertain(concat_layer, input_idx, isFusableWithConv);
             if (prev_layer && LayerInfo(prev_layer).isConvolution()) {

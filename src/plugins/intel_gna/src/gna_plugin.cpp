@@ -964,7 +964,7 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
         auto model = worker->model();
 
         // relocating all operations data pointers
-        for (int j = 0; j != model->NumberOfOperations; j++) {
+        for (uint32_t j = 0; j != model->NumberOfOperations; j++) {
             auto& gnaOperation = model->Operations[j];
             relocate(const_cast<Gna2Tensor*>(gnaOperation.Operands[0])->Data, gnaOperation.Operands[0]->Data);
             relocate(const_cast<Gna2Tensor*>(gnaOperation.Operands[1])->Data, gnaOperation.Operands[1]->Data);

@@ -46,7 +46,7 @@ public:
         std::list<cnt_type> permuteCycles;
         bool newSeq = false;
 
-        for (int i = 0; i != orderVec.size();) {
+        for (int i = 0; i != static_cast<int>(orderVec.size());) {
             // we have this permutation on the list already
             if (counter[i]) {
                 newSeq = false;

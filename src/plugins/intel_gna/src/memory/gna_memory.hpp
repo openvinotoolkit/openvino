@@ -276,7 +276,7 @@ protected:
                     ie_memcpy(cptr, cptr_avail_size, re._ptr_in, sz);
                 } else {
                     size_t of = 0;
-                    for (int i = 0; i < re._num_elements; i++, of += re._element_size) {
+                    for (size_t i = 0; i < re._num_elements; i++, of += re._element_size) {
                         std::copy(std::begin(re._data), std::end(re._data), cptr + of);
                     }
                 }

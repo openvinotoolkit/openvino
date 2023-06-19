@@ -386,7 +386,7 @@ void GNAModelSerial::Import(void* basePointer,
         pstates_->resize(nStates);
     }
 
-    for (int i = 0; i != nStates; i++) {
+    for (uint32_t i = 0; i != nStates; i++) {
         void* pSegment;
         if (model_header_.version.major == 2) {
             if (model_header_.version.minor < 6) {
