@@ -45,7 +45,7 @@ TORCHTYPE_TO_OVTYPE = {
 }
 
 
-def _setup_size(size: Any, error_msg: str) -> Tuple[int, int]:
+def _setup_size(size: Any, error_msg: str) -> Sequence[int]:
     # TODO: refactor into @singledispatch once Python 3.7 support is dropped
     if isinstance(size, numbers.Number):
         return int(size), int(size)  # type: ignore
