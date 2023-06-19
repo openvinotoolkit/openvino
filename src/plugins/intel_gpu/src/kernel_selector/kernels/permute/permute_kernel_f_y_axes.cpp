@@ -195,8 +195,8 @@ bool PermuteKernel_f_y_axes::Validate(const Params& p, const optional_params& o)
         return false;
     }
 
-    const auto is_rotating_except_batch = [](const std::vector<uint16_t>& order) {
-        // Target transform: Rotate feature with y
+    const auto is_swapping_f_with_y = [](const std::vector<uint16_t>& order) {
+        // Target transform: Swap feature with y
         // IE order:    0 2 1 3 => bfyx -> byfx
         // cldnn order: 0 3 2 1 => bfxy -> byxf
         if (order.size() != 4) {
@@ -219,7 +219,7 @@ bool PermuteKernel_f_y_axes::Validate(const Params& p, const optional_params& o)
     if (in.X().v > 1 && GetDivisor(in.X().v) == 1) {
         return false;
     }
-    if (!is_rotating_except_batch(params.order)) {
+    if (!is_swapping_f_with_y(params.order)) {
         return false;
     }
 
