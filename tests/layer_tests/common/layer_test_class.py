@@ -11,7 +11,7 @@ from pathlib import Path
 import numpy as np
 from common.constants import test_device, test_precision
 from common.layer_utils import IEInfer, InferAPI20
-from common.utils.common_utils import generate_ir_python_api, generate_ir
+from common.utils.common_utils import generate_ir_python_api
 
 
 class CommonLayerTest:
