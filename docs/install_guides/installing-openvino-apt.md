@@ -223,23 +223,27 @@ Uninstalling OpenVINO Runtime
 
 To uninstall OpenVINO Runtime via APT, run the following command based on your needs:
 
-.. tab:: The Latest Version
+.. tab-set::
 
-   .. code-block:: sh
-
-      sudo apt autoremove openvino
-
-.. tab::  A Specific Version
-
-   .. code-block:: sh
-
-      sudo apt autoremove openvino-<VERSION>.<UPDATE>.<PATCH>
-
-   For example:
-
-   .. code-block:: sh
-
-      sudo apt autoremove openvino-2023.0.0
+   .. tab-item:: The Latest Version
+      :sync: latest_version
+   
+      .. code-block:: sh
+   
+         sudo apt autoremove openvino
+   
+   .. tab-item::  A Specific Version
+      :sync: specific_version
+   
+      .. code-block:: sh
+   
+         sudo apt autoremove openvino-<VERSION>.<UPDATE>.<PATCH>
+   
+      For example:
+   
+      .. code-block:: sh
+   
+         sudo apt autoremove openvino-2023.0.0
 
 
 What's Next?
