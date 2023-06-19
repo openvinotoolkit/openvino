@@ -696,6 +696,85 @@ void regclass_graph_Model(py::module m) {
                     :rtype: int
                  )");
 
+    model.def("add_parameters",
+              &ov::Model::add_parameters,
+              py::arg("parameters"),
+              R"(
+                    Add new Parameter nodes to the list.
+
+                    Method doesn't change or validate graph, it should be done manually.
+                    For example, if you want to replace `ReadValue` node by `Parameter`, you should do the
+                    following steps:
+                    * replace node `ReadValue` by `Parameter` in graph
+                    * call add_parameter() to add new input to the list
+                    * call graph validation to check correctness of changes
+
+                    :param parameter: new Parameter nodes.
+                    :type parameter: List[op.Parameter]
+                 )");
+
+    model.def("add_results",
+              &ov::Model::add_results,
+              py::arg("results"),
+              R"(
+                    Add new Result nodes to the list.
+                    
+                    Method doesn't validate graph, it should be done manually after all changes.
+
+                    :param results: new Result nodes.
+                    :type results: List[op.Result]
+                 )");
+
+    model.def("add_sinks",
+              &ov::Model::add_sinks,
+              py::arg("sinks"),
+              R"(
+                    Add new sink nodes to the list.
+                    
+                    Method doesn't validate graph, it should be done manually after all changes.
+
+                    :param sinks: new sink nodes.
+                    :type sinks: List[openvino.runtime.Node]
+                 )");
+
+    model.def(
+        "get_sinks",
+        [](ov::Model& self) {
+            auto sinks = self.get_sinks();
+            std::vector<std::shared_ptr<ov::Node>> nodes;
+            for (const auto& sink : sinks) {
+                auto node = std::dynamic_pointer_cast<ov::Node>(sink);
+                NGRAPH_CHECK(node != nullptr, "Node {} is not instance of Sink");
+                nodes.push_back(node);
+            }
+            return nodes;
+        },
+        R"(
+            Return a list of model's sinks.
+
+            :return: a list of model's sinks.
+            :rtype: List[openvino.runtime.Node]
+        )");
+
+    model.def_property_readonly(
+        "sinks",
+        [](ov::Model& self) {
+            auto sinks = self.get_sinks();
+            std::vector<std::shared_ptr<ov::Node>> nodes;
+            for (const auto& sink : sinks) {
+                auto node = std::dynamic_pointer_cast<ov::Node>(sink);
+                NGRAPH_CHECK(node != nullptr, "Node {} is not instance of Sink");
+                nodes.push_back(node);
+            }
+            return nodes;
+        },
+        R"(
+            Return a list of model outputs.
+
+            :return: ResultVector containing model parameters.
+            :rtype: ResultVector
+        )");
+
     model.def(
         "evaluate",
         [](ov::Model& self,
