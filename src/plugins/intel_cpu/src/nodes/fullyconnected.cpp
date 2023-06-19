@@ -319,15 +319,17 @@ void FullyConnected::prepareParams() {
         IE_THROW() << "Preferable primitive descriptor is not set for node " << getName() << ".";
 #ifdef OV_CPU_WITH_MLAS
     // M, N should be normalized and updated
-    outDims = dstMemPtr->getStaticDims();
-    if (outDims.size() == 3) {
-        M = outDims[0] * outDims[1];
-        N = outDims[2];
-    } else {
-        M = outDims[0];
-        N = outDims[1];
+    if (useMlas) {
+        outDims = dstMemPtr->getStaticDims();
+        if (outDims.size() == 3) {
+            M = outDims[0] * outDims[1];
+            N = outDims[2];
+        } else {
+            M = outDims[0];
+            N = outDims[1];
+        }
+        return;
     }
-    return;
 #endif
     DnnlMemoryDescPtr weightDesc = MemoryDescUtils::convertToDnnlMemoryDesc(weightDescIP);
     DnnlMemoryDescCPtr biasDesc = nullptr;
