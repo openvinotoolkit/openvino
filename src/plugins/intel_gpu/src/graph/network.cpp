@@ -1449,7 +1449,7 @@ void network::allocate_primitive_instance(program_node const& node) {
         if (node.is_type<data>())
             _data_outputs.push_back(inst);
     }
-    if (std::dynamic_pointer_cast<assign_inst>(inst) || std::dynamic_pointer_cast<read_value_inst>(inst)) {
+    if (node.is_type<assign>() || node.is_type<read_value>()) {
         if (node.is_type<assign>()) {
             auto assign_prim = node.as<assign>().get_primitive();
             set_variables_state_info(assign_prim->variable_id, assign_prim->output_layout);
@@ -1529,25 +1529,21 @@ void network::assign_variables_memories() {
 
 void network::update_variable_memory(const std::string& variable_id, const cldnn::layout& layout) {
     auto it = _variables_states.find(variable_id);
-    if (it != _variables_states.end()) {
-        if (it->second->memory->get_layout() != layout) {
-            it->second->set_memory(get_engine().allocate_memory(layout, false));
-            for (auto primitive : _variable_state_primitives) {
-                if (const auto& memory_state_primitive = std::dynamic_pointer_cast<memory_state::variable>(primitive)) {
-                    if (!variable_id.compare(memory_state_primitive->variable_id())) {
-                        primitive->set_output_memory(it->second->memory, false);
-                    }
-                }
-            }
-        }
-    } else {
+    if (it == _variables_states.end()) {
         cldnn::network::VariableState::Ptr variable_state = std::make_shared<cldnn::network::VariableState>(get_engine().allocate_memory(layout, false));
         _variables_states.insert({variable_id, variable_state});
-        for (auto primitive : _variable_state_primitives) {
-            if (const auto& memory_state_primitive = std::dynamic_pointer_cast<memory_state::variable>(primitive)) {
-                if (!variable_id.compare(memory_state_primitive->variable_id())) {
-                    primitive->set_output_memory(variable_state->memory, false);
-                }
+    } else {
+        bool can_reuse = it->second->memory && layout.count() <= it->second->memory->get_layout().count();
+        if (can_reuse)
+            it->second->set_memory(get_engine().reinterpret_buffer(*it->second->memory, layout));
+        else
+            it->second->set_memory(get_engine().allocate_memory(layout, false));
+    }
+    for (auto primitive : _variable_state_primitives) {
+        if (const auto& memory_state_primitive = std::dynamic_pointer_cast<memory_state::variable>(primitive)) {
+            if (!variable_id.compare(memory_state_primitive->variable_id())) {
+                auto& variable_state = get_variable_memory(variable_id);
+                primitive->set_output_memory(variable_state.memory, false);
             }
         }
     }

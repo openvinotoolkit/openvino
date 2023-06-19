@@ -18,7 +18,10 @@ class typed_primitive_inst<read_value> : public typed_primitive_inst_base<read_v
 
 public:
     template<typename ShapeType>
-    static std::vector<layout> calc_output_layouts(read_value_node const& /*node*/, const kernel_impl_params& impl_param);
+    static std::vector<layout> calc_output_layouts(read_value_node const& /*node*/, const kernel_impl_params& impl_param) {
+        return forward_input0_shape<ShapeType>(impl_param);
+    }
+
     static layout calc_output_layout(const read_value_node& node, kernel_impl_params const& impl_param);
 
     static std::string to_string(const read_value_node& node);
