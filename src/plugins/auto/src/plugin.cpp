@@ -18,18 +18,18 @@
 #include "openvino/runtime/device_id_parser.hpp"
 #include "plugin.hpp"
 #include "auto_schedule.hpp"
-#include "auto_executable.hpp"
-#include "cumulative_executable.hpp"
+#include "auto_compiled_model.hpp"
+#include "cumulative_compiled_model.hpp"
 #include "cumulative_schedule.hpp"
 #include "itt.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include "ie_ngraph_utils.hpp"
 
 namespace {
-    const std::string get_network_precision(const std::shared_ptr<const ov::Model> &model) {
+    const std::string get_model_precision(const std::shared_ptr<const ov::Model> &model) {
         bool is_int_model = ov::op::util::has_op_with_type<ngraph::op::FakeQuantize>(model);
         if (is_int_model) {
-            return METRIC_VALUE(INT8);
+            return "INT8";
         }
         for (auto & node : model->get_ordered_ops()) {
             if (std::dynamic_pointer_cast<ngraph::opset1::Convolution>(node) ||
@@ -38,12 +38,12 @@ namespace {
                 std::dynamic_pointer_cast<ngraph::opset1::ConvolutionBackpropData>(node)) {
                 auto layer_type = node->input(1).get_element_type().get_type_name();
                 if (layer_type == "f32")
-                    return METRIC_VALUE(FP32);
+                    return "FP32";
                 if (layer_type == "f16")
-                    return METRIC_VALUE(FP16);
+                    return "FP16";
             }
         }
-        return METRIC_VALUE(FP32);
+        return "FP32";
     }
     int map_priority_value(ov::hint::Priority priority) {
         switch (priority) {
@@ -105,12 +105,14 @@ ov::AnyMap Plugin::pre_process_config(const ov::AnyMap& orig_config) const {
         if (property.first == ov::hint::model_priority.name()) {
             ov::Any converted_val{nullptr};
             auto legacy_val = property.second.as<std::string>();
+            OPENVINO_SUPPRESS_DEPRECATED_START
             if (legacy_val == InferenceEngine::PluginConfigParams::MODEL_PRIORITY_HIGH) {
                 converted_val = ov::hint::Priority::HIGH;
             } else if (legacy_val == InferenceEngine::PluginConfigParams::MODEL_PRIORITY_MED) {
                 converted_val = ov::hint::Priority::MEDIUM;
             } else if (legacy_val == InferenceEngine::PluginConfigParams::MODEL_PRIORITY_LOW) {
                 converted_val = ov::hint::Priority::LOW;
+            OPENVINO_SUPPRESS_DEPRECATED_END
             } else {
                 converted_val = legacy_val;
             }
@@ -131,8 +133,8 @@ std::vector<DeviceInformation> Plugin::parse_meta_devices(const std::string& pri
                               ov::AnyMap& device_config,
                               const ov::AnyMap& properties) {
         auto is_set_perfhint = properties.find(ov::hint::performance_mode.name()) != properties.end();
-        auto is_set_deviceproperties = properties.find(target_device) != properties.end();
-        if (get_device_name() == "AUTO" && !is_set_perfhint && !is_set_deviceproperties) {
+        auto is_set_device_properties = properties.find(target_device) != properties.end();
+        if (get_device_name() == "AUTO" && !is_set_perfhint && !is_set_device_properties) {
             // setting latency as the default performance mode if
             // 1. no hints setting for AUTO plugin
             // 2. no ov::device::properties(secondary properties) setting for target device
@@ -144,7 +146,7 @@ std::vector<DeviceInformation> Plugin::parse_meta_devices(const std::string& pri
             auto is_set_numstreams = properties.find(ov::num_streams.name()) != properties.end();
             auto is_set_affinity = properties.find(ov::affinity.name()) != properties.end();
             auto is_set_numthreads = properties.find(ov::inference_num_threads.name()) != properties.end();
-            if (!is_set_perfhint && !is_set_affinity && !is_set_numthreads && !is_set_deviceproperties && !is_set_numstreams) {
+            if (!is_set_perfhint && !is_set_affinity && !is_set_numthreads && !is_set_device_properties&& !is_set_numstreams) {
                 // setting tput as the default performance mode if
                 // 1. no hints setting for MULTI plugin
                 // 2. no affinity setting for MULTI plugin
@@ -270,10 +272,12 @@ std::vector<DeviceInformation> Plugin::parse_meta_devices(const std::string& pri
 }
 
 ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& arguments) const {
+    OPENVINO_SUPPRESS_DEPRECATED_START
     if (METRIC_KEY(SUPPORTED_METRICS) == name) {
-        return m_plugin_config.supported_metrics(get_device_name());
+        return m_plugin_config.supported_ro_properties(get_device_name());
     } else if (METRIC_KEY(SUPPORTED_CONFIG_KEYS) == name) {
-        return m_plugin_config.supported_config_keys(get_device_name());
+        return m_plugin_config.supported_rw_properties(get_device_name());
+    OPENVINO_SUPPRESS_DEPRECATED_END
     } else if (ov::supported_properties == name) {
         auto ret = m_plugin_config.supported_properties(get_device_name());
         return ret;
@@ -301,9 +305,11 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
             ov::Any legacy_val{nullptr};
             if (!val.empty()) {
             switch (val.as<ov::hint::Priority>()) {
+                OPENVINO_SUPPRESS_DEPRECATED_START
                 case ov::hint::Priority::LOW: legacy_val = InferenceEngine::PluginConfigParams::MODEL_PRIORITY_LOW; break;
                 case ov::hint::Priority::MEDIUM: legacy_val = InferenceEngine::PluginConfigParams::MODEL_PRIORITY_MED; break;
                 case ov::hint::Priority::HIGH: legacy_val = InferenceEngine::PluginConfigParams::MODEL_PRIORITY_HIGH; break;
+                OPENVINO_SUPPRESS_DEPRECATED_END
             default: OPENVINO_ASSERT(false, "Unsupported model priority value");
             }
         }
@@ -339,8 +345,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
 std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<const ov::Model>& model,
                                                           const ov::AnyMap& properties) const {
-    auto network_precision = get_network_precision(model);
-    return compile_model_impl({}, model, properties, network_precision);
+    auto model_precision = get_model_precision(model);
+    return compile_model_impl({}, model, properties, model_precision);
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::string& model_path,
@@ -351,7 +357,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::string& mod
 std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string& model_path,
                                                                const std::shared_ptr<const ov::Model>& model,
                                                                const ov::AnyMap& properties,
-                                                               const std::string& network_precision) const {
+                                                               const std::string& model_precision) const {
     OV_ITT_SCOPED_TASK(itt::domains::AutoPlugin, "Plugin::compile_model");
     OPENVINO_ASSERT(get_core() , "OpenVINO Core is missing!");
     if (model_path.empty() && model == nullptr)
@@ -363,7 +369,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
     auto iter_config = properties.find(ov::hint::performance_mode.name());
     bool is_hint_set = m_plugin_config.is_set_by_user(ov::hint::performance_mode) || iter_config != properties.end();
     if (!is_hint_set && work_mode_auto) {
-        // NO user sets perfHint, then set perfhint to 'LATENCY' for AutoExecutableNetwork.
+        // NO user sets perfHint, then set perfhint to 'LATENCY' for AutoCompiledModel.
         load_config.set_property(ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY));
     }
     // updateFromMap will check config valid
@@ -382,8 +388,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
         full_property.erase(ov::hint::performance_mode.name());
     if (!load_config.is_set_by_user(ov::hint::execution_mode))
         full_property.erase(ov::hint::execution_mode.name());
-    // collect the settings that are applicable to the devices we are loading the network to
-    std::unordered_map<std::string, ov::Any> multi_network_config;
+    // collect the settings that are applicable to the devices we are loading the model to
+    std::unordered_map<std::string, ov::Any> multi_model_config;
     std::vector<DeviceInformation> meta_devices;
     auto priorities = load_config.get_property(ov::device::priorities);
      if (priorities.empty() && !work_mode_auto)
@@ -403,7 +409,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
     }
     auto_s_context->m_model_priority = map_priority_value(load_config.get_property(ov::hint::model_priority));
     auto_s_context->m_batching_disabled = load_config.is_batching_disabled();
-    // set performanceHint for AutoExecutableNetwork
+    // set performanceHint for AutoCompiledModel
     auto_s_context->m_performance_hint = load_config.get_property(ov::hint::performance_mode.name());
     // filter the device that supports filter configure
     meta_devices = parse_meta_devices(str_devices, full_property);
@@ -419,11 +425,11 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
     std::list<DeviceInformation> devices_with_priority(support_devices.begin(), support_devices.end());
     std::shared_ptr<ov::Model> cloned_model, ppp_model;
     if (model_path.empty()) {
-        support_devices = filter_device_by_network(support_devices_by_property, model);
+        support_devices = filter_device_by_model(support_devices_by_property, model);
         cloned_model = model->clone();
         ppp_model = cloned_model->clone();
         ov::preprocess::PrePostProcessor preproc(ppp_model);
-        // temp solution to reolve the prceision/layout mismatch between new/old api
+        // temp solution to resolve the precision/layout mismatch between new/old api
         if (!is_new_api()) {
             for (size_t i = 0; i < ppp_model->inputs().size(); i++) {
                 ov::Output<const Node> input(ppp_model->input(i).get_node(), ppp_model->input(i).get_index());
@@ -476,7 +482,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
         LOG_INFO_TAG("compile model with model path");
     }
     if (!is_cumulative) {
-        devices_with_priority = get_valid_device(support_devices, network_precision);
+        devices_with_priority = get_valid_device(support_devices, model_precision);
     }
     for (auto iter = devices_with_priority.begin(); iter != devices_with_priority.end(); iter++) {
         str_devices += iter->device_name;
@@ -493,7 +499,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
         }
         LOG_INFO_TAG("device:%s, priority:%ld", iter->device_name.c_str(), iter->device_priority);
     }
-    // clone the network, in case of reshape conflict
+    // clone the model, in case of reshape conflict
     auto_s_context->m_model = cloned_model;
     auto_s_context->m_model_path = model_path;
     auto_s_context->m_device_priorities = support_devices;
@@ -503,7 +509,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
     auto_s_context->m_ov_core = get_core();
     OPENVINO_ASSERT(auto_s_context->m_ov_core);
     auto_s_context->m_log_tag = get_device_name();
-    auto_s_context->m_network_precision = network_precision;
+    auto_s_context->m_model_precision = model_precision;
     auto_s_context->m_startup_fallback = load_config.get_property(ov::intel_auto::enable_startup_fallback);
     auto_s_context->m_runtime_fallback = load_config.get_property(ov::intel_auto::enable_runtime_fallback);
     auto_s_context->m_bind_buffer = load_config.get_property(ov::intel_auto::device_bind_buffer);
@@ -551,7 +557,7 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
 
 std::list<DeviceInformation> Plugin::get_valid_device(
     const std::vector<DeviceInformation>& meta_devices,
-    const std::string& network_precision) const {
+    const std::string& model_precision) const {
     if (meta_devices.empty()) {
         OPENVINO_THROW("No available device to select in ", get_device_name());
     }
@@ -596,7 +602,7 @@ std::list<DeviceInformation> Plugin::get_valid_device(
 
     // Priority of selecting device: dGPU > VPUX > iGPU > MYRIAD > CPU
     std::list<DeviceInformation> devices;
-    if (network_precision == "INT8") {
+    if (model_precision == "INT8") {
         devices.splice(devices.end(), VPUX);
         devices.splice(devices.end(), dGPU);
     } else {
@@ -610,11 +616,11 @@ std::list<DeviceInformation> Plugin::get_valid_device(
     std::list<DeviceInformation> valid_devices;
 
     if (meta_devices.size() > 1) {
-        auto select_support_dev = [this, &devices, &valid_devices](const std::string& networkPrecision) {
+        auto select_support_dev = [this, &devices, &valid_devices](const std::string& model_precision) {
             for (auto iter = devices.begin(); iter != devices.end();) {
                 auto capability = get_core()->get_property(iter->device_name, ov::device::capabilities);
-                auto support_network = std::find(capability.begin(), capability.end(), (networkPrecision));
-                if (support_network != capability.end()) {
+                auto support_model = std::find(capability.begin(), capability.end(), (model_precision));
+                if (support_model != capability.end()) {
                     valid_devices.push_back(std::move(*iter));
                     devices.erase(iter++);
                     continue;
@@ -622,9 +628,9 @@ std::list<DeviceInformation> Plugin::get_valid_device(
                 iter++;
             }
         };
-        select_support_dev(network_precision);
-        // If network is FP32, continue to collect the device support FP16 but not support FP32.
-        if (network_precision == "FP32") {
+        select_support_dev(model_precision);
+        // If model is FP32, continue to collect the device support FP16 but not support FP32.
+        if (model_precision == "FP32") {
             const std::string f16 = "FP16";
             select_support_dev(f16);
         }
@@ -644,10 +650,10 @@ std::list<DeviceInformation> Plugin::get_valid_device(
 }
 
 DeviceInformation Plugin::select_device(const std::vector<DeviceInformation>& meta_devices,
-        const std::string& network_precision, unsigned int priority) {
+        const std::string& model_precision, unsigned int priority) {
     OV_ITT_SCOPED_TASK(itt::domains::AutoPlugin, "Plugin::SelectDevice");
 
-    std::list<DeviceInformation> valid_devices = get_valid_device(meta_devices, network_precision);
+    std::list<DeviceInformation> valid_devices = get_valid_device(meta_devices, model_precision);
 
     // all available Devices are in valid_devices now
     // need to remove higher priority devices
@@ -859,7 +865,7 @@ std::vector<DeviceInformation> Plugin::filter_device(const std::vector<DeviceInf
     return filter_device;
 }
 
-std::vector<DeviceInformation> Plugin::filter_device_by_network(const std::vector<DeviceInformation>& meta_devices,
+std::vector<DeviceInformation> Plugin::filter_device_by_model(const std::vector<DeviceInformation>& meta_devices,
                                                                 const std::shared_ptr<const ov::Model>& model) const {
     if (meta_devices.empty()) {
         OPENVINO_THROW("No available device to filter ", get_device_name(), " plugin");
@@ -882,16 +888,16 @@ std::vector<DeviceInformation> Plugin::filter_device_by_network(const std::vecto
         return device_info.device_name.find("CPU") != std::string::npos;
     });
 
-    // If CPU is in candidate list, load dynamic network to CPU first
-    // For MULTI do not only load stateful network to CPU
-    // For AUTO CTPUT only load stateful network to CPU
+    // If CPU is in candidate list, load dynamic model to CPU first
+    // For MULTI do not only load stateful model to CPU
+    // For AUTO CTPUT only load stateful model to CPU
     if (((model->is_dynamic()) || (is_stateful() && get_device_name() != "MULTI")) && cpuiter != meta_devices.end()) {
         filter_device.push_back(*cpuiter);
         return filter_device;
     }
 
-    // If CPU is not in candidate list, continue to run selection logic regardless of whether the input network is a
-    // dynamic network or not
+    // If CPU is not in candidate list, continue to run selection logic regardless of whether the input model is a
+    // dynamic model or not
     return meta_devices;
 }
 

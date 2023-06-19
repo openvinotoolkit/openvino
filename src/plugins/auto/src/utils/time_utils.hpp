@@ -3,8 +3,7 @@
 //
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#ifndef AUTOPLUGIN_TIMEUTILS_H
-#define AUTOPLUGIN_TIMEUTILS_H
+#pragma once
 
 #include <chrono>
 #include <ctime>
@@ -55,4 +54,3 @@ std::string put_time(std::chrono::system_clock::time_point tp, const char* forma
 } // namespace time_utils
 } // namespace auto_plugin
 } // namespace ov
-#endif //AUTOPLUGIN_TIMEUTILS_H

@@ -3,7 +3,7 @@
 //
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#include "auto_executable.hpp"
+#include "auto_compiled_model.hpp"
 #include "common.hpp"
 #include <memory>
 
@@ -80,14 +80,14 @@ ov::Any AutoCompiledModel::get_property(const std::string& name) const {
         {
             std::lock_guard<std::mutex> lock(m_context->m_fallback_mutex);
             if (m_scheduler->m_loadcontext[FALLBACKDEVICE].m_is_already) {
-                all_devices = get_device_supported_metrics(m_scheduler->m_loadcontext[FALLBACKDEVICE]);
+                all_devices = get_device_supported_properties(m_scheduler->m_loadcontext[FALLBACKDEVICE]);
             }
         }
         std::lock_guard<std::mutex> lock(m_context->m_mutex);
         if (m_scheduler->m_loadcontext[ACTUALDEVICE].m_is_already) {
-            all_devices = get_device_supported_metrics(m_scheduler->m_loadcontext[ACTUALDEVICE]);
+            all_devices = get_device_supported_properties(m_scheduler->m_loadcontext[ACTUALDEVICE]);
         } else {
-            all_devices = get_device_supported_metrics(m_scheduler->m_loadcontext[CPU]);
+            all_devices = get_device_supported_properties(m_scheduler->m_loadcontext[CPU]);
         }
         return all_devices;
     } else if (name == ov::hint::model_priority) {
@@ -96,8 +96,10 @@ ov::Any AutoCompiledModel::get_property(const std::string& name) const {
             return value ? ((value > 1) ? ov::hint::Priority::LOW :
                     ov::hint::Priority::MEDIUM) : ov::hint::Priority::HIGH;
         } else {
+            OPENVINO_SUPPRESS_DEPRECATED_START
             return value ? ((value > 1) ? CONFIG_VALUE(MODEL_PRIORITY_LOW) : CONFIG_VALUE(
                         MODEL_PRIORITY_MED)) : CONFIG_VALUE(MODEL_PRIORITY_HIGH);
+            OPENVINO_SUPPRESS_DEPRECATED_END
         }
     } else if (name == ov::optimal_number_of_infer_requests) {
         const unsigned int defaultNumForTPUT = 4u;
@@ -209,6 +211,7 @@ ov::Any AutoCompiledModel::get_property(const std::string& name) const {
                 return m_scheduler->m_loadcontext[CPU].m_exe_network->get_property(name);
             return m_scheduler->m_loadcontext[ACTUALDEVICE].m_exe_network->get_property(name);
         }
+    OPENVINO_SUPPRESS_DEPRECATED_START
     } else if (name == METRIC_KEY(SUPPORTED_METRICS)) {
         auto metrics = default_ro_properties();
         add_ro_properties(METRIC_KEY(SUPPORTED_METRICS), metrics);
@@ -217,6 +220,7 @@ ov::Any AutoCompiledModel::get_property(const std::string& name) const {
     } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
         auto configs = default_rw_properties();
         return to_string_vector(configs);
+    OPENVINO_SUPPRESS_DEPRECATED_END
     } else if (name == ov::loaded_from_cache) {
         std::lock_guard<std::mutex> lock(m_context->m_fallback_mutex);
         if (m_scheduler->m_loadcontext[FALLBACKDEVICE].m_is_already) {

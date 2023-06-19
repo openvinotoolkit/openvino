@@ -6,7 +6,6 @@
 #include "cumulative_schedule.hpp"
 #include "async_infer_request.hpp"
 #include "plugin.hpp"
-#include "auto_executable.hpp"
 
 // ------------------------------CumuSchedule----------------------------
 namespace ov {
@@ -129,9 +128,9 @@ void CumuSchedule::init() {
     OV_ITT_SCOPED_TASK(itt::domains::AutoPlugin, openvino::itt::handle(profilingTask));
     for (auto&& device : m_context->m_device_priorities) {
         // initialize containers before run async task, if not initialized, it will hang during infer
-        m_idle_workerrequests[device.device_name];
-        m_workerrequests[device.device_name];
-        m_infer_pipelinetasks_devicespecific[device.device_name] = nullptr;
+        m_idle_worker_requests[device.device_name];
+        m_worker_requests[device.device_name];
+        m_infer_pipeline_tasks_device_specific[device.device_name] = nullptr;
     }
     // load devices other than CPU first
     if (other_devices_loads.size() > 0) {
@@ -144,8 +143,8 @@ void CumuSchedule::init() {
         m_executor->run_and_wait(cpu_loads);
     }
     if (m_n_ctput_devicenums == 1 && m_p_ctput_loadcontext[0].m_is_already) {
-        m_passthrough_exenet = m_p_ctput_loadcontext[0].m_exe_network;
-        m_context->m_hw_compiled_model = m_passthrough_exenet;
+        m_passthrough_compiled_model = m_p_ctput_loadcontext[0].m_exe_network;
+        m_context->m_hw_compiled_model = m_passthrough_compiled_model;
     }
     m_context->m_hw_compiled_model = wait_first_network_ready();
 }
@@ -225,15 +224,15 @@ bool CumuSchedule::schedule_to_worker_inferrequest(ov::threading::Task pipeline_
         if (!preferred_device.empty() && (device.device_name != preferred_device)) {
             continue;
         }
-        if (run_pipeline_task(pipeline_task, m_idle_workerrequests[device.device_name], preferred_device)) {
+        if (run_pipeline_task(pipeline_task, m_idle_worker_requests[device.device_name], preferred_device)) {
             return true;
         }
     }
     // no vacant requests this time, storing the task to the respective queue
     if (!preferred_device.empty()) {
-        m_infer_pipelinetasks_devicespecific[preferred_device]->push(std::move(pipeline_task));
+        m_infer_pipeline_tasks_device_specific[preferred_device]->push(std::move(pipeline_task));
     } else {
-        m_infer_pipelinetasks.push(std::move(pipeline_task));
+        m_infer_pipeline_tasks.push(std::move(pipeline_task));
     }
     return false;
 }
@@ -246,7 +245,7 @@ CumuSchedule::~CumuSchedule() {
     /* NOTE: The only threads that use `MultiSchedule` worker infer requests' threads.
      *       But AsyncInferRequest destructor should wait for all asynchronous tasks by the request
      */
-    for (auto&& idleWorker : m_idle_workerrequests) {
+    for (auto&& idleWorker : m_idle_worker_requests) {
         // stop accepting any idle requests back (for re-scheduling)
         idleWorker.second.set_capacity(0);
     }

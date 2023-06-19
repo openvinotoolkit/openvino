@@ -140,7 +140,7 @@ public:
     void apply_user_properties();
     ov::AnyMap get_full_properties();
 
-    std::vector<std::string> supported_config_keys(const std::string& plugin_name = "AUTO") const {
+    std::vector<std::string> supported_rw_properties(const std::string& plugin_name = "AUTO") const {
         std::vector<std::string> supported_configKeys;
         for (const auto& iter : property_mutabilities) {
             if (iter.second.as<ov::PropertyMutability>() == ov::PropertyMutability::RW)
@@ -171,14 +171,16 @@ public:
         return plugin_name == "AUTO" ? supported_properties : multi_supported_properties;
     }
 
-    std::vector<std::string> supported_metrics(const std::string& plugin_name = "AUTO") const {
+    std::vector<std::string> supported_ro_properties(const std::string& plugin_name = "AUTO") const {
         std::vector<std::string> supported_metrics;
         for (const auto& iter : property_mutabilities) {
             if (iter.second.as<ov::PropertyMutability>() == ov::PropertyMutability::RO)
                 supported_metrics.push_back(iter.first);
         }
+        OPENVINO_SUPPRESS_DEPRECATED_START
         supported_metrics.push_back(METRIC_KEY(SUPPORTED_METRICS));
         supported_metrics.push_back(METRIC_KEY(SUPPORTED_CONFIG_KEYS));
+        OPENVINO_SUPPRESS_DEPRECATED_END
         auto multi_supported_metrics = supported_metrics;
         return plugin_name == "AUTO" ? supported_metrics : multi_supported_metrics;
     }

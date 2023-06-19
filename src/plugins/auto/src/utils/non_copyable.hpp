@@ -4,8 +4,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-#ifndef AUTOPLUGIN_NONCOPYABLE_H
-#define AUTOPLUGIN_NONCOPYABLE_H
+#pragma once
 
 #ifdef  MULTIUNITTEST
 #define MOCKTESTMACRO virtual
@@ -30,5 +29,3 @@ protected:
 };
 } // namespace auto_plugin
 } // namespace ov
-
-#endif //AUTOPLUGIN_NONCOPYABLE_H

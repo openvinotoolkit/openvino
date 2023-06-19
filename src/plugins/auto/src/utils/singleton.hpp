@@ -4,8 +4,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-#ifndef AUTOPLUGIN_SINGLETON_H
-#define AUTOPLUGIN_SINGLETON_H
+#pragma once
 #include <cassert>
 #include <list>
 #include <memory>
@@ -45,5 +44,3 @@ template <typename Type>
 std::once_flag Singleton<Type>::m_onceFlag;
 } // namespace auto_plugin
 } // namespace ov
-
-#endif //AUTOPLUGIN_SINGLETON_H

@@ -6,11 +6,11 @@
 
 namespace ov {
 namespace auto_plugin {
-thread_local WorkerInferRequest* Schedule::m_this_worker_inferrequest = nullptr;
+thread_local WorkerInferRequest* Schedule::m_this_worker_infer_request = nullptr;
 // TODO: revert to the plain variable (see header file), when we moved to the next CentOS 8.x in our support matrix
-thread_local const char* Schedule::m_this_preferred_devicename = "";
+thread_local const char* Schedule::m_this_preferred_device_name = "";
 
-void Schedule::launch(ScheduleContext::Ptr context) {
+void Schedule::launch(const ScheduleContext::Ptr& context) {
     m_context = context;
     m_log_tag = context->m_log_tag;
     m_plugin = std::const_pointer_cast<Plugin>(std::dynamic_pointer_cast<const Plugin>(context->m_plugin));
@@ -21,34 +21,34 @@ void Schedule::launch(ScheduleContext::Ptr context) {
 ISyncInferPtr Schedule::create_sync_infer_request() {
     auto compiled_model = std::dynamic_pointer_cast<CompiledModel>(
             m_context->m_compiled_model.lock());
-    SoAsyncInferRequest request_to_share_blobs_with;
+    SoAsyncInferRequest request_to_share_tensors_with;
     auto request_id = m_request_id.fetch_add(1);
     if (m_context->m_bind_buffer) {
         size_t sum = 0;
         for (const auto& device : m_context->m_device_priorities_initial) {
-            auto& dev_requests = m_workerrequests[device.device_name];
+            auto& dev_requests = m_worker_requests[device.device_name];
             if ((request_id - sum) <  dev_requests.size()) {
-                request_to_share_blobs_with = dev_requests.at(request_id - sum).m_inferrequest;
+                request_to_share_tensors_with = dev_requests.at(request_id - sum).m_inferrequest;
                 INFO_RUN([&]() {
                     std::lock_guard<std::mutex> lock(m_dev_infer_mutex);
-                    m_dev_infer.insert(std::make_pair(request_to_share_blobs_with._ptr, &dev_requests.at(request_id - sum)));
+                    m_dev_infer.insert(std::make_pair(request_to_share_tensors_with._ptr, &dev_requests.at(request_id - sum)));
                 });
                 break;
             }
             sum += dev_requests.size();
         }
-        if (!request_to_share_blobs_with) {
+        if (!request_to_share_tensors_with) {
             OPENVINO_THROW("binder mode does not allow oversubsciption of infer requests, please use optimal infer request");
         }
-    } else if (m_passthrough_exenet) {
-        request_to_share_blobs_with = {m_passthrough_exenet->create_infer_request(), m_passthrough_exenet._so};
+    } else if (m_passthrough_compiled_model) {
+        request_to_share_tensors_with = {m_passthrough_compiled_model->create_infer_request(), m_passthrough_compiled_model._so};
     }
     return std::make_shared<InferRequest>(
-        std::static_pointer_cast<const CompiledModel>(compiled_model), request_to_share_blobs_with);
+        std::static_pointer_cast<const CompiledModel>(compiled_model), request_to_share_tensors_with);
 }
 
 void Schedule::run(ov::threading::Task pipeline_task) {
-    schedule_to_worker_inferrequest(std::move(pipeline_task), m_this_preferred_devicename);
+    schedule_to_worker_inferrequest(std::move(pipeline_task), m_this_preferred_device_name);
 }
 
 bool Schedule::run_pipeline_task(ov::threading::Task& pipeline_task,
@@ -59,7 +59,7 @@ bool Schedule::run_pipeline_task(ov::threading::Task& pipeline_task,
     if (idle_workerrequests.try_pop(worker)) {
         worker_request_ptr = worker.second;
         IdleGuard<NotBusyPriorityWorkerRequests> idle_guard{worker_request_ptr, idle_workerrequests};
-        m_this_worker_inferrequest = worker_request_ptr;
+        m_this_worker_infer_request = worker_request_ptr;
         {
             auto captured_task = std::move(pipeline_task);
             captured_task();
@@ -70,7 +70,7 @@ bool Schedule::run_pipeline_task(ov::threading::Task& pipeline_task,
     return false;
 }
 
-void Schedule::generate_workers(const std::string& device, const SoCompiledModel& executable_network) {
+void Schedule::generate_workers(const std::string& device, const SoCompiledModel& compiled_model) {
     std::string real_devicename;
     if (device == "CPU_HELP") {
         real_devicename = "CPU";
@@ -80,25 +80,25 @@ void Schedule::generate_workers(const std::string& device, const SoCompiledModel
     auto it_numrequests = deviceChecker().check_and_return_if_device_in_list<DeviceInformation>(real_devicename, m_context->m_device_priorities, true);
     unsigned int optimal_num = 0;
     try {
-        optimal_num = executable_network->get_property(ov::optimal_number_of_infer_requests.name()).as<unsigned int>();
+        optimal_num = compiled_model->get_property(ov::optimal_number_of_infer_requests.name()).as<unsigned int>();
     } catch (const ov::Exception& iie) {
-        OPENVINO_THROW("Every device used with the Multi-Device should support OPTIMAL_NUMBER_OF_INFER_REQUESTS ExecutableNetwork metric",
+        OPENVINO_THROW("Every device used with AUTO should support query optimal_number_of_infer_requests property from compiled model ",
                     iie.what());
     }
     const auto num_requests = (m_context->m_device_priorities.end() == it_numrequests ||
                               it_numrequests->num_requests_per_devices == -1) ? optimal_num : it_numrequests->num_requests_per_devices;
-    auto& worker_requests = m_workerrequests[device];
-    auto& idle_worker_requests = m_idle_workerrequests[device];
+    auto& worker_requests = m_worker_requests[device];
+    auto& idle_worker_requests = m_idle_worker_requests[device];
     worker_requests.resize(num_requests);
-    m_infer_pipelinetasks_devicespecific[device] = std::unique_ptr<TaskQueue>(new TaskQueue);
+    m_infer_pipeline_tasks_device_specific[device] = std::unique_ptr<TaskQueue>(new TaskQueue);
     auto* idle_workerrequests_ptr = &(idle_worker_requests);
     idle_worker_requests.set_capacity(num_requests);
     int num = 0;
     for (auto&& worker_request : worker_requests) {
-        worker_request.m_inferrequest = {executable_network->create_infer_request(), executable_network._so};
+        worker_request.m_inferrequest = {compiled_model->create_infer_request(), compiled_model._so};
         auto* worker_request_ptr = &worker_request;
         worker_request_ptr->m_index = num++;
-        IE_ASSERT(idle_worker_requests.try_push(std::make_pair(worker_request_ptr->m_index, worker_request_ptr)) == true);
+        OPENVINO_ASSERT(idle_worker_requests.try_push(std::make_pair(worker_request_ptr->m_index, worker_request_ptr)) == true);
         worker_request.m_inferrequest->set_callback(
             [worker_request_ptr, this, device, idle_workerrequests_ptr](std::exception_ptr exception_ptr) mutable {
                 IdleGuard<NotBusyPriorityWorkerRequests> idleGuard{worker_request_ptr, *idle_workerrequests_ptr};
@@ -134,10 +134,10 @@ void Schedule::generate_workers(const std::string& device, const SoCompiledModel
                         // if no device-agnostic tasks, let's try pop the device specific task, schedule if succeeded
                         ov::threading::Task t;
                         do {
-                            m_infer_pipelinetasks.try_pop(t);
+                            m_infer_pipeline_tasks.try_pop(t);
                         } while (t && schedule_to_worker_inferrequest(std::move(t)));
                         do {
-                            m_infer_pipelinetasks_devicespecific[device]->try_pop(t);
+                            m_infer_pipeline_tasks_device_specific[device]->try_pop(t);
                         } while (t && schedule_to_worker_inferrequest(std::move(t), device));
                     }
                 }
@@ -147,7 +147,7 @@ void Schedule::generate_workers(const std::string& device, const SoCompiledModel
 
 Pipeline Schedule::get_async_pipeline(const ISyncInferPtr& infer_request, WorkerInferRequest** worker_inferrequest) {
     Pipeline pipeline;
-    if (m_passthrough_exenet || std::static_pointer_cast<InferRequest>(infer_request)->get_shared_request()) {
+    if (m_passthrough_compiled_model || std::static_pointer_cast<InferRequest>(infer_request)->get_shared_request()) {
         struct RequestExecutor : ov::threading::ITaskExecutor {
             explicit RequestExecutor(const SoAsyncInferRequest& infer_request,
                                      WorkerInferRequest* worker)
@@ -197,18 +197,17 @@ Pipeline Schedule::get_async_pipeline(const ISyncInferPtr& infer_request, Worker
     } else {
         AutoImmediateExecutor::Ptr first_executor = std::make_shared<AutoImmediateExecutor>();
         pipeline = {
-            // if the request is coming with device-specific remote blobs make sure it is scheduled to the specific device only:
+            // if the request is coming with device-specific remote tensors make sure it is scheduled to the specific device only:
             Stage {
                 /*TaskExecutor*/ first_executor, /*task*/ [this, &infer_request]() {
                     // by default, no preferred device:
-                    m_this_preferred_devicename = "";
+                    m_this_preferred_device_name = "";
                     auto exec_network = m_context->m_compiled_model.lock();
-                    // if any input is remote (e.g. was set with SetBlob), let' use the corresponding device
+                    // if any input is remote (e.g. was set with set_tensor), let' use the corresponding device
                     for (const auto& it : exec_network->inputs()) {
-                        auto b = infer_request->get_tensor(it);
-                        auto r = b.is<ov::RemoteTensor>();
-                        if (r) {
-                            const auto name = b.as<ov::RemoteTensor>().get_device_name();
+                        auto tensor = infer_request->get_tensor(it);
+                        if (tensor.is<ov::RemoteTensor>()) {
+                            const auto name = tensor.as<ov::RemoteTensor>().get_device_name();
                             const auto res = std::find_if(
                                 m_context->m_device_priorities_initial.cbegin(),
                                 m_context->m_device_priorities_initial.cend(),
@@ -218,23 +217,23 @@ Pipeline Schedule::get_async_pipeline(const ISyncInferPtr& infer_request, Worker
                             });
                             if (m_context->m_device_priorities_initial.cend() == res) {
                                 OPENVINO_THROW(
-                                    "None of the devices supports a remote blob created on the device named ", name);
+                                    "None of the devices supports a remote tensor created on the device named ", name);
                             } else {
-                                // it is ok to take the c_str() here (as pointed in the executable_network.hpp we need to use const char*)
+                                // it is ok to take the c_str() here (as pointed in the schedule.hpp we need to use const char*)
                                 // as the original strings are from the "persistent" vector (with the right lifetime)
-                                m_this_preferred_devicename = res->device_name.c_str();
+                                m_this_preferred_device_name = res->device_name.c_str();
                                 break;
                             }
                         }
                     }
                 }},
             // as the scheduling algo may select any device, this stage accepts the scheduling decision (actual workerRequest)
-            // then sets the device-agnostic blobs to the actual (device-specific) request
+            // then sets the device-agnostic tensors to the actual (device-specific) request
             Stage {
                 /*TaskExecutor*/std::dynamic_pointer_cast<ov::threading::ITaskExecutor>(shared_from_this()), /*task*/ [&infer_request, worker_inferrequest]() {
-                    *worker_inferrequest = m_this_worker_inferrequest;
+                    *worker_inferrequest = m_this_worker_infer_request;
                     auto auto_request = std::dynamic_pointer_cast<InferRequest>(infer_request);
-                    auto_request->set_tensors_to_another_request(m_this_worker_inferrequest->m_inferrequest);
+                    auto_request->set_tensors_to_another_request(m_this_worker_infer_request->m_inferrequest);
                     INFO_RUN([worker_inferrequest]() {
                         (*worker_inferrequest)->m_start_times.push_back(std::chrono::steady_clock::now());
                         });
@@ -267,7 +266,7 @@ std::string Schedule::get_log_tag() const noexcept {
 
 Schedule::~Schedule() {
     INFO_RUN([this] {
-        for (auto&& worker_request : m_workerrequests) {
+        for (auto&& worker_request : m_worker_requests) {
             std::list<Time> req_all_start_times;
             std::list<Time> req_all_end_times;
             for (auto& request : worker_request.second) {
@@ -275,7 +274,7 @@ Schedule::~Schedule() {
                 req_all_end_times.splice(req_all_end_times.end(), request.m_end_times);
             }
             size_t count = req_all_start_times.size();
-            IE_ASSERT(count == req_all_end_times.size());
+            OPENVINO_ASSERT(count == req_all_end_times.size());
             req_all_start_times.sort(std::less<Time>());
             req_all_end_times.sort(std::less<Time>());
             {
@@ -300,7 +299,7 @@ Schedule::~Schedule() {
             }
         }
     });
-    m_workerrequests.clear();
+    m_worker_requests.clear();
     LOG_INFO_TAG("scheduler ending");
 }
 }  // namespace auto_plugin

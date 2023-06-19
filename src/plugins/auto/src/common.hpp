@@ -220,7 +220,7 @@ public:
     std::mutex                                     m_mutex;
     std::mutex                                     m_fallback_mutex;
     SoCompiledModel                                m_hw_compiled_model;
-    std::string                                    m_network_precision;
+    std::string                                    m_model_precision;
     virtual ~ScheduleContext() = default;
 };
 
@@ -234,7 +234,7 @@ struct AutoLoadContext {
     SoCompiledModel m_exe_network;
     DeviceInformation  m_device_info;
     std::vector<DeviceInformation> m_meta_devices;
-    std::string m_network_precision;
+    std::string m_model_precision;
     std::string m_err_message;
     ov::threading::Task m_task;
     std::string m_worker_name = "";

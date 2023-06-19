@@ -3,7 +3,7 @@
 //
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#include "cumulative_executable.hpp"
+#include "cumulative_compiled_model.hpp"
 #include "common.hpp"
 #include <memory>
 
@@ -12,7 +12,6 @@
 #include "openvino/runtime/exec_model_info.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "plugin.hpp"
-//#include "check_network_batchable.hpp"
 #include "ie_plugin_config.hpp"
 
 namespace ov {
@@ -81,7 +80,7 @@ ov::Any AutoCumuCompiledModel::get_property(const std::string& name) const {
         ov::AnyMap all_devices = {};
         for (size_t i = 0; i < m_scheduler->m_n_ctput_devicenums; i++) {
             if (m_scheduler->m_p_ctput_loadcontext[i].m_is_already) {
-                auto temp = get_device_supported_metrics(m_scheduler->m_p_ctput_loadcontext[i]);
+                auto temp = get_device_supported_properties(m_scheduler->m_p_ctput_loadcontext[i]);
                 all_devices.insert(temp.begin(), temp.end());
             }
         }
@@ -92,8 +91,10 @@ ov::Any AutoCumuCompiledModel::get_property(const std::string& name) const {
             return value ? ((value > 1) ? ov::hint::Priority::LOW :
                     ov::hint::Priority::MEDIUM) : ov::hint::Priority::HIGH;
         } else {
+            OPENVINO_SUPPRESS_DEPRECATED_START
             return value ? ((value > 1) ? CONFIG_VALUE(MODEL_PRIORITY_LOW) : CONFIG_VALUE(
                         MODEL_PRIORITY_MED)) : CONFIG_VALUE(MODEL_PRIORITY_HIGH);
+            OPENVINO_SUPPRESS_DEPRECATED_END
         }
     } else if (name == ov::optimal_number_of_infer_requests) {
         std::lock_guard<std::mutex> lock(m_context->m_fallback_mutex);
@@ -106,8 +107,8 @@ ov::Any AutoCumuCompiledModel::get_property(const std::string& name) const {
                                 .as<unsigned int>();
                 }
             } catch (const ov::Exception& err) {
-                OPENVINO_THROW("Every device used in cumulative mode should support OPTIMAL_NUMBER_OF_INFER_REQUESTS ExecutableNetwork metric",
-                        "Failed to query the metric for with error:", err.what());
+                OPENVINO_THROW("Every device used in cumulative mode should support OPTIMAL_NUMBER_OF_INFER_REQUESTS property from compiled model",
+                        "Failed to query the property with error:", err.what());
             }
         }
         return decltype(ov::optimal_number_of_infer_requests)::value_type {res};
@@ -125,7 +126,8 @@ ov::Any AutoCumuCompiledModel::get_property(const std::string& name) const {
                 return m_scheduler->m_p_ctput_loadcontext[i].m_exe_network->get_property(name);
             }
         }
-        OPENVINO_THROW("No valid executable network found to get", name);
+        OPENVINO_THROW("No valid compiled model found to get", name);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     } else if (name == METRIC_KEY(SUPPORTED_METRICS)) {
         auto metrics = default_ro_properties();
         add_ro_properties(METRIC_KEY(SUPPORTED_METRICS), metrics);
@@ -134,6 +136,7 @@ ov::Any AutoCumuCompiledModel::get_property(const std::string& name) const {
     } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
         auto configs = default_rw_properties();
         return to_string_vector(configs);
+    OPENVINO_SUPPRESS_DEPRECATED_END
     } else if (name == ov::loaded_from_cache) {
         bool loaded_from_cache = true;
         std::lock_guard<std::mutex> lock(m_context->m_fallback_mutex);

@@ -3,7 +3,7 @@
 //
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#include "compile_model.hpp"
+#include "compiled_model.hpp"
 #include "common.hpp"
 #include <memory>
 
@@ -44,7 +44,7 @@ ov::auto_plugin::ISyncInferPtr ov::auto_plugin::CompiledModel::create_sync_infer
 }
 
 ov::auto_plugin::IASyncInferPtr ov::auto_plugin::CompiledModel::create_infer_request() const {
-    const_cast<CompiledModel*>(this)->set_compilemodel_for_context();
+    const_cast<CompiledModel*>(this)->set_compile_model_for_context();
     auto internal_request = create_sync_infer_request();
     auto async_infer_request = std::make_shared<AsyncInferRequest>(
         m_scheduler,
@@ -57,7 +57,7 @@ std::string ov::auto_plugin::CompiledModel::get_log_tag() const noexcept {
     return m_context->m_log_tag;
 }
 
-ov::AnyMap ov::auto_plugin::CompiledModel::get_device_supported_metrics(AutoLoadContext& context) {
+ov::AnyMap ov::auto_plugin::CompiledModel::get_device_supported_properties(AutoLoadContext& context) {
      ov::AnyMap all_devices;
     ov::AnyMap device_properties = {};
     OPENVINO_ASSERT(context.m_exe_network);
@@ -73,7 +73,7 @@ ov::AnyMap ov::auto_plugin::CompiledModel::get_device_supported_metrics(AutoLoad
     return all_devices;
 }
 
-void ov::auto_plugin::CompiledModel::set_compilemodel_for_context() {
+void ov::auto_plugin::CompiledModel::set_compile_model_for_context() {
     std::call_once(m_oc, [this]() {
         m_context->m_compiled_model = shared_from_this();
     });

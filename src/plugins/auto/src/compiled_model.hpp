@@ -24,14 +24,14 @@ public:
 protected:
     std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override;
     std::string get_log_tag() const noexcept;
-    static ov::AnyMap get_device_supported_metrics(AutoLoadContext& context);
+    static ov::AnyMap get_device_supported_properties(AutoLoadContext& context);
 
 private:
     ScheduleContext::Ptr   m_context;
     Schedule::Ptr          m_scheduler;
     std::once_flag         m_oc;
     bool m_inputs_outputs_from_hardware;
-    void set_compilemodel_for_context();
+    void set_compile_model_for_context();
 };
 }  // namespace auto_plugin
 } // namespace ov

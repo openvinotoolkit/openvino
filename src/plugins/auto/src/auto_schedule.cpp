@@ -6,7 +6,6 @@
 #include "auto_schedule.hpp"
 #include "async_infer_request.hpp"
 #include "plugin.hpp"
-#include "auto_executable.hpp"
 
 // ------------------------------AutoSchedule----------------------------
 namespace ov {
@@ -19,7 +18,7 @@ bool AutoSchedule::select_other_device(const std::string& cur_dev_name) {
         get_execution_devices = [&](const std::string& device_name) {
             std::string real_device_name;
             bool is_cpuhelp = false;
-                m_loadcontext[FALLBACKDEVICE].m_network_precision = m_context->m_network_precision;
+                m_loadcontext[FALLBACKDEVICE].m_model_precision = m_context->m_model_precision;
             if (device_name == "CPU_HELP") {
                 // if infer failed in CPU_HELP, we will remove CPU from m_device_priorities
                 // and re-run infer request when m_loadcontext[ACTUALDEVICE] is ready
@@ -50,7 +49,7 @@ bool AutoSchedule::select_other_device(const std::string& cur_dev_name) {
             m_loadcontext[FALLBACKDEVICE].m_is_reload_success = false;
             m_loadcontext[FALLBACKDEVICE].m_device_info =
                 m_plugin->select_device(m_context->m_device_priorities,
-                                                        m_loadcontext[FALLBACKDEVICE].m_network_precision,
+                                                        m_loadcontext[FALLBACKDEVICE].m_model_precision,
                                                         m_context->m_model_priority);
             try {
                 m_loadcontext[FALLBACKDEVICE].m_task();
@@ -89,11 +88,11 @@ void AutoSchedule::init() {
     if (m_context->m_runtime_fallback) {
         m_loadcontext[FALLBACKDEVICE].m_is_enabled = true;
     }
-    m_loadcontext[ACTUALDEVICE].m_network_precision = m_context->m_network_precision;
+    m_loadcontext[ACTUALDEVICE].m_model_precision = m_context->m_model_precision;
     m_loadcontext[ACTUALDEVICE].m_meta_devices = m_context->m_device_priorities;
     m_loadcontext[ACTUALDEVICE].m_device_info =
         m_plugin->select_device(m_context->m_device_priorities,
-                                m_loadcontext[ACTUALDEVICE].m_network_precision,
+                                m_loadcontext[ACTUALDEVICE].m_model_precision,
                                 m_context->m_model_priority);
 
     auto load_device_task = [&](AutoLoadContext* context_ptr,  const std::shared_ptr<ov::Model>& model) {
@@ -171,13 +170,13 @@ void AutoSchedule::init() {
                     ov::threading::IStreamsExecutor::ThreadBindingType::NONE});
         for (auto&& device : m_context->m_device_priorities) {
             // initialize containers before run async task
-            m_idle_workerrequests[device.device_name];
-            m_workerrequests[device.device_name];
-            m_infer_pipelinetasks_devicespecific[device.device_name] = nullptr;
+            m_idle_worker_requests[device.device_name];
+            m_worker_requests[device.device_name];
+            m_infer_pipeline_tasks_device_specific[device.device_name] = nullptr;
         }
-        m_idle_workerrequests["CPU_HELP"];
-        m_workerrequests["CPU_HELP"];
-        m_infer_pipelinetasks_devicespecific["CPU_HELP"] = nullptr;
+        m_idle_worker_requests["CPU_HELP"];
+        m_worker_requests["CPU_HELP"];
+        m_infer_pipeline_tasks_device_specific["CPU_HELP"] = nullptr;
         m_executor->run(m_loadcontext[CPU].m_task);
         m_executor->run(m_loadcontext[ACTUALDEVICE].m_task);
         auto recycleTask = [this]() mutable {
@@ -187,7 +186,7 @@ void AutoSchedule::init() {
                 m_loadcontext[CPU].m_future.wait();
                 // clean up helper infer requests
                 // first, wait for all the remaining requests to finish
-                for (auto& iter : m_workerrequests["CPU_HELP"]) {
+                for (auto& iter : m_worker_requests["CPU_HELP"]) {
                     try {
                         iter.m_inferrequest._ptr->wait();
                     } catch (const ov::Exception& iie) {
@@ -200,7 +199,7 @@ void AutoSchedule::init() {
                 std::pair<int, WorkerInferRequest*> worker;
                 std::list<Time> cpuhelp_all_start_times;
                 std::list<Time> cpuhelp_all_end_times;
-                while (m_idle_workerrequests["CPU_HELP"].try_pop(worker)) {
+                while (m_idle_worker_requests["CPU_HELP"].try_pop(worker)) {
                     destroynum++;
                     INFO_RUN([&cpuhelp_all_start_times, &cpuhelp_all_end_times, &worker]() {
                         cpuhelp_all_start_times.splice(cpuhelp_all_start_times.end(), worker.second->m_start_times);
@@ -211,9 +210,9 @@ void AutoSchedule::init() {
                     cpuhelp_all_start_times.sort(std::less<Time>());
                     cpuhelp_all_end_times.sort(std::less<Time>());
                     m_cpuhelp_infer_count = cpuhelp_all_start_times.size();
-                    IE_ASSERT(m_cpuhelp_infer_count == cpuhelp_all_end_times.size());
+                    OPENVINO_ASSERT(m_cpuhelp_infer_count == cpuhelp_all_end_times.size());
                 });
-                if (destroynum == m_workerrequests["CPU_HELP"].size()) {
+                if (destroynum == m_worker_requests["CPU_HELP"].size()) {
                     std::lock_guard<std::mutex> lock(m_context->m_mutex);
                     INFO_RUN([this, &cpuhelp_all_start_times, &cpuhelp_all_end_times, &destroynum]() {
                         m_cpuhelp_release_time = std::chrono::steady_clock::now();
@@ -229,7 +228,7 @@ void AutoSchedule::init() {
                         }
                     });
                     LOG_INFO_TAG("release all work requests of CPU_HELP");
-                    m_workerrequests["CPU_HELP"].clear();
+                    m_worker_requests["CPU_HELP"].clear();
                     m_loadcontext[CPU].m_exe_network._ptr.reset();
                     m_loadcontext[CPU].m_exe_network._so.reset();
                     LOG_INFO_TAG("helper released!!");
@@ -239,18 +238,18 @@ void AutoSchedule::init() {
         };
         m_executor->run(std::move(recycleTask));
     } else if (m_context->m_device_priorities.size() != 1 && m_context->m_runtime_fallback) {
-        // The performance will has some drop then m_passthrough_exenet when enable ENABLE_RUNTIME_FALLBACK
+        // The performance will has some drop then m_passthrough_compiled_model when enable ENABLE_RUNTIME_FALLBACK
         for (auto&& device : m_context->m_device_priorities) {
             // initialize containers before run async task
-            m_idle_workerrequests[device.device_name];
-            m_workerrequests[device.device_name];
-            m_infer_pipelinetasks_devicespecific[device.device_name] = nullptr;
+            m_idle_worker_requests[device.device_name];
+            m_worker_requests[device.device_name];
+            m_infer_pipeline_tasks_device_specific[device.device_name] = nullptr;
         }
         m_loadcontext[ACTUALDEVICE].m_task();
     } else {
         // only one device need to load network, do not need to load it async
         m_loadcontext[ACTUALDEVICE].m_task();
-        m_passthrough_exenet = m_loadcontext[ACTUALDEVICE].m_exe_network;
+        m_passthrough_compiled_model = m_loadcontext[ACTUALDEVICE].m_exe_network;
     }
     m_context->m_hw_compiled_model = wait_first_network_ready();
 }
@@ -318,7 +317,7 @@ void AutoSchedule::try_to_load_network(AutoLoadContext& context, const std::shar
     try {
         std::lock_guard<std::mutex> lock(m_context->m_mutex);
         context.m_device_info = m_plugin->select_device(device_list,
-                context.m_network_precision, m_context->m_model_priority);
+                context.m_model_precision, m_context->m_model_priority);
     } catch (const std::exception&) {
         return;
     }
@@ -430,15 +429,15 @@ bool AutoSchedule::schedule_to_worker_inferrequest(ov::threading::Task pipeline_
         if (!preferred_device.empty() && (device.device_name != preferred_device)) {
             continue;
         }
-        if (run_pipeline_task(pipeline_task, m_idle_workerrequests[device.device_name], preferred_device)) {
+        if (run_pipeline_task(pipeline_task, m_idle_worker_requests[device.device_name], preferred_device)) {
             return true;
         }
     }
     // no vacant requests this time, storing the task to the respective queue
     if (!preferred_device.empty()) {
-        m_infer_pipelinetasks_devicespecific[preferred_device]->push(std::move(pipeline_task));
+        m_infer_pipeline_tasks_device_specific[preferred_device]->push(std::move(pipeline_task));
     } else {
-        m_infer_pipelinetasks.push(std::move(pipeline_task));
+        m_infer_pipeline_tasks.push(std::move(pipeline_task));
     }
     return false;
 }
@@ -463,7 +462,7 @@ AutoSchedule::~AutoSchedule() {
     /* NOTE: The only threads that use `MultiSchedule` worker infer requests' threads.
      *       But AsyncInferRequest destructor should wait for all asynchronous tasks by the request
      */
-    for (auto&& idleWorker : m_idle_workerrequests) {
+    for (auto&& idleWorker : m_idle_worker_requests) {
         // stop accepting any idle requests back (for re-scheduling)
         idleWorker.second.set_capacity(0);
     }

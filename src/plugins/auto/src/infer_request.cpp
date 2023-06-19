@@ -31,9 +31,9 @@ void allocate_tensor_impl(ov::Tensor& tensor, const ov::element::Type& element_t
 }  // namespace
 
 ov::auto_plugin::InferRequest::InferRequest(const std::shared_ptr<const ov::auto_plugin::CompiledModel>& model,
-                                            const SoAsyncInferRequest& request_to_share_blobs_with)
+                                            const SoAsyncInferRequest& request_to_share_tensors_with)
     : ov::ISyncInferRequest(model),
-      m_shared_request(request_to_share_blobs_with) {
+      m_shared_request(request_to_share_tensors_with) {
     if (!m_shared_request) {
         // Allocate input/output tensors
         for (const auto& input : get_inputs()) {

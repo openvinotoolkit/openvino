@@ -22,7 +22,7 @@ class CompiledModel;
 class InferRequest : public ov::ISyncInferRequest {
 public:
     explicit InferRequest(const std::shared_ptr<const ov::auto_plugin::CompiledModel>& compiled_model,
-                          const SoAsyncInferRequest& request_to_share_blobs_with);
+                          const SoAsyncInferRequest& request_to_share_tensors_with);
     ~InferRequest();
 
     void infer() override;
@@ -31,7 +31,7 @@ public:
 
     const SoAsyncInferRequest& get_shared_request();
     void set_scheduled_request(SoAsyncInferRequest request);
-    // Auto-Device impl specific: sets the data (blobs from the device-less requests to the specific device request)
+    // Auto-Device impl specific: sets the data (tensors from the device-less requests to the specific device request)
     void set_tensors_to_another_request(const SoAsyncInferRequest& req);
     void set_tensor(const ov::Output<const ov::Node>& port, const ov::Tensor& tensor) override;
 

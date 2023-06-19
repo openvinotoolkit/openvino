@@ -24,9 +24,9 @@ private:
     bool schedule_to_worker_inferrequest(ov::threading::Task, DeviceName preferred_device = "") override;
     void wait_actual_network_ready() const;
     /**
-     * @brief wait for one of the executable network to finish loading.
-     * @return An SoPtr object hold an available executable network loaded to HW device.
-     * @note An exception will be thrown if all loading of network to hw device fails.
+     * @brief wait for one of the compiled model to finish loading.
+     * @return An SoPtr object hold an available compiled model loaded to HW device.
+     * @note An exception will be thrown if all loading of model to hw device fails.
      */
     SoCompiledModel wait_first_network_ready() override;
     void try_to_load_network(AutoLoadContext& context, const std::shared_ptr<ov::Model>& model) override;
