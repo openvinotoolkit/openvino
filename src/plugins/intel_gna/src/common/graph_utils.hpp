@@ -567,7 +567,8 @@ inline bool is_reshape_unsqueeze(const ov::Output<ov::Node>& output) {
     auto reshape = output.get_node_shared_ptr();
     const ov::Shape input_shape = trim_shape(reshape->get_input_shape(0));
     const ov::Shape output_shape = trim_shape(reshape->get_output_shape(0));
-    return std::equal(input_shape.begin(), input_shape.end(), output_shape.begin());
+    return (input_shape.size() == output_shape.size()) &&
+           std::equal(input_shape.begin(), input_shape.end(), output_shape.begin());
 }
 
 /**
