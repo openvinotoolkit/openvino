@@ -60,8 +60,8 @@ bool common_node_for_all_outputs(const OutputVector& outputs) {
     return ret;
 };
 
-OperatorsBridge init_ops_bridge(const std::vector<ov::frontend::ConversionExtensionBase::Ptr>& conversions) {
-    OperatorsBridge bridge;
+OperatorsBridge register_extensions(OperatorsBridge& bridge,
+                                    const std::vector<ov::frontend::ConversionExtensionBase::Ptr>& conversions) {
     for (const auto& extension : conversions) {
         if (const auto common_conv_ext = std::dynamic_pointer_cast<ov::frontend::ConversionExtension>(extension)) {
             bridge.overwrite_operator(
@@ -77,11 +77,24 @@ OperatorsBridge init_ops_bridge(const std::vector<ov::frontend::ConversionExtens
                                       [onnx_conv_ext](const ngraph::onnx_import::Node& node) -> OutputVector {
                                           return onnx_conv_ext->get_converter()(ov::frontend::onnx::NodeContext(node));
                                       });
-        } else if (const auto legacy_conv_extension = std::dynamic_pointer_cast<LegacyConversionExtension>(extension)) {
-            return legacy_conv_extension->ops_bridge();
         }
     }
     return bridge;
+}
+
+OperatorsBridge init_ops_bridge(const std::vector<ov::frontend::ConversionExtensionBase::Ptr>& conversions) {
+    const auto legacy_conv_ext = std::find_if(std::begin(conversions),
+                                              std::end(conversions),
+                                              [](const ov::frontend::ConversionExtensionBase::Ptr& conv) {
+                                                  return std::dynamic_pointer_cast<LegacyConversionExtension>(conv);
+                                              });
+    if (legacy_conv_ext == std::end(conversions)) {  // no legacy extensions used
+        OperatorsBridge bridge;
+        return register_extensions(bridge, conversions);
+    } else {  // legacy extensions can be mixed with the new one
+        return register_extensions(std::dynamic_pointer_cast<LegacyConversionExtension>(*legacy_conv_ext)->ops_bridge(),
+                                   conversions);
+    }
 }
 
 Model::ModelOpSet build_model_opset(const ONNX_NAMESPACE::ModelProto& model_proto, const OperatorsBridge& ops_bridge) {
