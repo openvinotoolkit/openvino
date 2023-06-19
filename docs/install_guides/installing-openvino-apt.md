@@ -26,23 +26,27 @@ on how to install OpenVINO Runtime for Python using PyPI.
 Prerequisites
 #######################################
 
+.. tab-set::
 
-.. tab:: System Requirements
-
-   | Full requirement listing is available in:
-   | `System Requirements Page <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html>`__
-
-.. tab:: Processor Notes
-
-  Processor graphics are not included in all processors.
-  See `Product Specifications <https://ark.intel.com/>`__ for information about your processor.
-
-.. tab:: Software Requirements
-
-  * `CMake 3.13 or higher, 64-bit <https://cmake.org/download/>`__
-  * GCC 7.5.0 (for Ubuntu 18.04), GCC 9.3.0 (for Ubuntu 20.04) or GCC 11.3.0 (for Ubuntu 22.04)
-  * `Python 3.7 - 3.11, 64-bit <https://www.python.org/downloads/>`__
-
+   .. tab-item:: System Requirements
+      :sync: sysreq
+   
+      | Full requirement listing is available in:
+      | `System Requirements Page <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html>`__
+   
+   .. tab-item:: Processor Notes
+      :sync: processornotes
+   
+      Processor graphics are not included in all processors.
+      See `Product Specifications <https://ark.intel.com/>`__ for information about your processor.
+   
+   .. tab-item:: Software Requirements
+      :sync: softreq
+   
+      * `CMake 3.13 or higher, 64-bit <https://cmake.org/download/>`__
+      * GCC 7.5.0 (for Ubuntu 18.04), GCC 9.3.0 (for Ubuntu 20.04) or GCC 11.3.0 (for Ubuntu 22.04)
+      * `Python 3.7 - 3.11, 64-bit <https://www.python.org/downloads/>`__
+   
 
 Installing OpenVINO Runtime
 #######################################
@@ -77,25 +81,30 @@ Step 1: Set Up the OpenVINO Toolkit APT Repository
             sudo apt-get install gnupg
 
 2. Add the repository via the following command:
+   
+   .. tab-set::
 
-   .. tab:: Ubuntu 22
-
-      .. code-block:: sh
-
-         echo "deb https://apt.repos.intel.com/openvino/2023 ubuntu22 main" | sudo tee /etc/apt/sources.list.d/intel-openvino-2023.list
-
-   .. tab:: Ubuntu 20
-
-      .. code-block:: sh
-
-         echo "deb https://apt.repos.intel.com/openvino/2023 ubuntu20 main" | sudo tee /etc/apt/sources.list.d/intel-openvino-2023.list
-
-   .. tab:: Ubuntu 18
-
-      .. code-block:: sh
-
-         echo "deb https://apt.repos.intel.com/openvino/2023 ubuntu18 main" | sudo tee /etc/apt/sources.list.d/intel-openvino-2023.list
-
+      .. tab-item:: Ubuntu 22
+         :sync: ubuntu22
+   
+         .. code-block:: sh
+   
+            echo "deb https://apt.repos.intel.com/openvino/2023 ubuntu22 main" | sudo tee /etc/apt/sources.list.d/intel-openvino-2023.list
+   
+      .. tab-item:: Ubuntu 20
+         :sync: ubuntu20
+   
+         .. code-block:: sh
+   
+            echo "deb https://apt.repos.intel.com/openvino/2023 ubuntu20 main" | sudo tee /etc/apt/sources.list.d/intel-openvino-2023.list
+   
+      .. tab-item:: Ubuntu 18
+         :sync: ubuntu18
+   
+         .. code-block:: sh
+   
+            echo "deb https://apt.repos.intel.com/openvino/2023 ubuntu18 main" | sudo tee /etc/apt/sources.list.d/intel-openvino-2023.list
+   
 
 3. Update the list of packages via the update command:
 
@@ -118,35 +127,39 @@ Step 2: Install OpenVINO Runtime Using the APT Package Manager
 Install OpenVINO Runtime
 ------------------------
 
-.. tab:: The Latest Version
+.. tab-set::
 
-   Run the following command:
-
-   .. code-block:: sh
-
-      sudo apt install openvino
-
-
-.. tab::  A Specific Version
-
-   #. Get a list of OpenVINO packages available for installation:
-
+   .. tab-item:: The Latest Version
+      :sync: latest
+   
+      Run the following command:
+   
       .. code-block:: sh
-
-         sudo apt-cache search openvino
-
-   #. Install a specific version of an OpenVINO package:
-
-      .. code-block:: sh
-
-         sudo apt install openvino-<VERSION>.<UPDATE>.<PATCH>
-
-      For example:
-
-      .. code-block:: sh
-
-         sudo apt install openvino-2023.0.0
-
+   
+         sudo apt install openvino
+   
+   
+   .. tab-item::  A Specific Version
+      :sync: specific_version
+   
+      #. Get a list of OpenVINO packages available for installation:
+   
+         .. code-block:: sh
+   
+            sudo apt-cache search openvino
+   
+      #. Install a specific version of an OpenVINO package:
+   
+         .. code-block:: sh
+   
+            sudo apt install openvino-<VERSION>.<UPDATE>.<PATCH>
+   
+         For example:
+   
+         .. code-block:: sh
+   
+            sudo apt install openvino-2023.0.0
+   
 .. note::
 
    You can use ``--no-install-recommends`` option to install only required packages. 
@@ -185,17 +198,21 @@ Step 5: Build Samples
 
 To build the C++ or C sample applications for Linux, run the ``build_samples.sh`` script:
 
-.. tab:: C++
+.. tab-set::
 
-   .. code-block:: sh
-
-      /usr/share/openvino/samples/cpp/build_samples.sh
-
-.. tab:: C
-
-   .. code-block:: sh
-
-      /usr/share/openvino/samples/c/build_samples.sh
+   .. tab-item:: C++
+      :sync: cpp
+   
+      .. code-block:: sh
+   
+         /usr/share/openvino/samples/cpp/build_samples.sh
+   
+   .. tab-item:: C
+      :sync: c
+   
+      .. code-block:: sh
+   
+         /usr/share/openvino/samples/c/build_samples.sh
 
 For more information, refer to :ref:`Build the Sample Applications on Linux <build-samples-linux>`.
 
