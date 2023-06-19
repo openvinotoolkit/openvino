@@ -16,7 +16,7 @@ ov_add_plugin(NAME ${TARGET_NAME}
               DEVICE_NAME "BATCH"
               PSEUDO_DEVICE
               SOURCES ${SOURCES} ${HEADERS}
-              VERSION_DEFINES_FOR src/auto_batch.cpp ADD_CLANG_FORMAT)
+              VERSION_DEFINES_FOR src/plugin.cpp ADD_CLANG_FORMAT)
 
 target_link_libraries(${TARGET_NAME} PRIVATE Threads::Threads)
 
