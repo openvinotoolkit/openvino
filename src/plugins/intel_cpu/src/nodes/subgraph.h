@@ -30,6 +30,7 @@ public:
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
     void selectOptimalPrimitiveDescriptor() override;
+    void initOptimalPrimitiveDescriptor() override;
     InferenceEngine::Precision getRuntimePrecision() const override;
 
     // to avoid collisions in throughput mode with copy of TypeRelaxed nodes
@@ -66,9 +67,11 @@ private:
 
     // Create a deep local copy of the input snippet to perform canonicalization & code generation
     // TODO: Probably better to implement a proper copy constructor
-    // NOTE: Before call mutex should be initialized
     void copy_snippet() const;
     void init_body_hash();
+
+    size_t inputNum = 0;
+    size_t outputNum = 0;
 
     // Original subgraph node
     std::shared_ptr<snippets::op::Subgraph> original_snippet;
@@ -114,8 +117,7 @@ private:
             size_t numInput = 0;
             size_t numOutput = 0;
 
-            ov::PartialShape canonicalizeBody();
-            ov::PartialShape reshapeCanonicalizedBody();
+            ov::PartialShape canonicalizeBody(bool reshape);
             // returns true if exec domain was modified
             bool optimizeExecDomain(std::vector<VectorDims>&, std::vector<VectorDims>&, VectorDims&, size_t&) const;
 

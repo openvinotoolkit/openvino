@@ -20,6 +20,7 @@ TEST_F(CompileModelsTests, NgramCompilation) {
     ov::CompiledModel compiled_model = core.compile_model(model, "CPU");
     const auto runtime_model = compiled_model.get_runtime_model();
 
+    EXPECT_EQ(runtime_model->get_ordered_ops().size(), 84);
     EXPECT_EQ(runtime_model->get_parameters().size(), 2);
     EXPECT_EQ(runtime_model->get_results().size(), 1);
 }

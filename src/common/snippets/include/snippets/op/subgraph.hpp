@@ -115,10 +115,9 @@ public:
                                 lowered::pass::PassPipeline& target_lowered_pipeline,
                                 const void* compile_params = nullptr);
     snippets::Schedule generate(const void* compile_params = nullptr);
-    ov::PartialShape canonicalize(const BlockedShapeVector& output_shapes, const BlockedShapeVector& input_shapes);
+    ov::PartialShape canonicalize(const BlockedShapeVector& output_shapes, const BlockedShapeVector& input_shapes, bool reshape = false);
     std::vector<PartialShape> reshape_body(const std::vector<PartialShape>& input_shapes);
     std::vector<Shape> reshape_body(const std::vector<Shape>& input_shapes);
-    ov::PartialShape reshape_canonicalized_body(const BlockedShapeVector& output_shapes, const BlockedShapeVector& input_shapes);
 
     // plugin sets generator for a snippet to some specific generator.
     // it's going to be replaced with Jitters table later
@@ -162,6 +161,8 @@ private:
 
     ov::PartialShape master_shape;
     size_t tileRank = 0; // set by plugin to specify the number of dimensions processed in a single kernel call
+    size_t maxInputRank = 0;
+    std::vector<size_t> appendOnesForCanonical;
 
     /**
     * @interface SubgraphConfig
