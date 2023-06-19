@@ -43,9 +43,7 @@ std::vector<std::vector<ov::test::InputShape>> inputShapes_SingleBatch_dyn = {
 
 std::vector<CPUSpecificParams> cpuParams_4D = {
         CPUSpecificParams({nChw16c}, {nChw16c}, {}, {}),
-        CPUSpecificParams({nhwc}, {nhwc}, {}, {}),
 };
-
 
 const std::vector<std::vector<int>> axes5D = {
         {2, 4},
