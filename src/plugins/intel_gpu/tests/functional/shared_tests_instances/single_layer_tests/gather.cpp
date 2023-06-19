@@ -559,4 +559,23 @@ INSTANTIATE_TEST_SUITE_P(
         GatherLayerTest::getTestCaseName
 );
 
+const auto GatherAxes0Optimized = []() {
+    return testing::Combine(testing::ValuesIn({std::vector<size_t>{4, 8, 2, 2}}),
+                            testing::ValuesIn({std::vector<size_t>{}}),
+                            testing::ValuesIn({std::tuple<int, int>{0, 0}}),
+                            testing::ValuesIn(netPrecisionsFP32),
+                            testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                            testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                            testing::Values(InferenceEngine::Layout::ANY),
+                            testing::Values(InferenceEngine::Layout::ANY),
+                            testing::Values(CommonTestUtils::DEVICE_GPU));
+};
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_Gather7Axes0Optimized,
+        Gather8IndiceScalarLayerTest,
+        GatherAxes0Optimized(),
+        Gather8IndiceScalarLayerTest::getTestCaseName
+);
+
 }  // namespace

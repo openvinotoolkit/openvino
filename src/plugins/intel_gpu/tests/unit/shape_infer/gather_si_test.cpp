@@ -61,4 +61,13 @@ INSTANTIATE_TEST_SUITE_P(smoke, gather_test,
         },
     }));
 
+INSTANTIATE_TEST_SUITE_P(optimized, gather_test,
+    testing::ValuesIn(std::vector<gather_test_params>{
+        {
+            layout{ov::PartialShape{3, 4, 2, 2}, data_types::f32, format::bfyx}, layout{ov::PartialShape{1}, data_types::f32, format::bfyx},
+            0, 0,
+            layout{ov::PartialShape{1, 4, 2, 2}, data_types::f32, format::bfyx}
+        },
+    }));
+
 }  // shape_infer_tests
