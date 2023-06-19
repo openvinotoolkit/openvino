@@ -631,7 +631,7 @@ inline void CNNNetworkInsertLayer(CNNLayerPtr after,
         if (!bLocated) {
             if (before != nullptr) {
                 IE_ASSERT(before->insData.size() == 1 ||
-                          inDataIndex != invalid_data_idx && inDataIndex < before->insData.size());
+                          (inDataIndex != invalid_data_idx && inDataIndex < before->insData.size()));
                 auto prevLayer = after;
                 for (auto idx = prevLayer->outData.begin(); idx != prevLayer->outData.end(); idx++) {
                     auto& outputports = getInputTo(*idx);
