@@ -28,8 +28,8 @@ public:
 
     bool isCompatible(const MemoryDesc& rhs) const override;
     bool isCompatible(const BlockedMemoryDesc& rhs, CmpMask cmpMask) const override;
-    bool isCompatible(const CpuBlockedMemoryDesc &rhs, CmpMask cmpMask = BLOCKED_DESC_FULL_MASK) const;
-    bool isCompatible(const DnnlBlockedMemoryDesc &rhs, CmpMask cmpMask = BLOCKED_DESC_FULL_MASK) const;
+    bool isCompatible(const CpuBlockedMemoryDesc &rhs, CmpMask cmpMask = FULL_MASK) const;
+    bool isCompatible(const DnnlBlockedMemoryDesc &rhs, CmpMask cmpMask = FULL_MASK) const;
 
     const VectorDims& getBlockDims() const override {
         return blockedDims;
