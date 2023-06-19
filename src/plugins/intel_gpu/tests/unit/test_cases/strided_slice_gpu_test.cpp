@@ -710,7 +710,7 @@ public:
         topology.add(data("input4", strides));
         topology.add(strided_slice("strided_slice", input_info("input"), input_info("input2"), input_info("input3"), input_info("input4"), {}, {}, {}, {}, {}, {}));
 
-        ExecutionConfig config;
+        ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
         if (impl_type != impl_types::any)
             config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"strided_slice", {format::bfyx, "", impl_types::cpu}} }));

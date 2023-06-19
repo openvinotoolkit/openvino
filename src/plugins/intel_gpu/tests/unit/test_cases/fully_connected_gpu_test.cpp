@@ -2537,7 +2537,7 @@ public:
         fc_prim.output_data_types = {type_to_data_type<WeightsT>::value};
         topo.add(fc_prim);
 
-        ExecutionConfig config;
+        ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::optimize_data(true));
 
         network net(engine, topo, config);
