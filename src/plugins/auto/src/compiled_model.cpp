@@ -57,7 +57,7 @@ std::string ov::auto_plugin::CompiledModel::get_log_tag() const noexcept {
     return m_context->m_log_tag;
 }
 
-ov::AnyMap ov::auto_plugin::CompiledModel::get_device_supported_properties(AutoLoadContext& context) {
+ov::AnyMap ov::auto_plugin::CompiledModel::get_device_supported_properties(AutoCompileContext& context) {
      ov::AnyMap all_devices;
     ov::AnyMap device_properties = {};
     OPENVINO_ASSERT(context.m_exe_network);

@@ -45,7 +45,7 @@ void CumuSchedule::init() {
         // Total number of devices in CTPUT
         m_n_ctput_devicenums = valid_devices.size();
         // Generate contexts for loading each device
-        m_p_ctput_loadcontext.reset(new AutoLoadContext[m_n_ctput_devicenums]);
+        m_p_ctput_loadcontext.reset(new AutoCompileContext[m_n_ctput_devicenums]);
         int idx = 0;
         DeviceInformation cpu_device_information;
         for (auto& device : valid_devices) {
@@ -69,16 +69,16 @@ void CumuSchedule::init() {
         m_context->m_performance_hint = ov::hint::PerformanceMode::THROUGHPUT;
     }
 
-    auto load_device_task = [&](AutoLoadContext* context_ptr,
+    auto load_device_task = [&](AutoCompileContext* context_ptr,
                                 const std::shared_ptr<ov::Model>& model) {
-        try_to_load_network(*context_ptr, model);
+        try_to_compile_model(*context_ptr, model);
         if (context_ptr->m_is_load_success) {
             if (context_ptr->m_worker_name.empty()) {
                 context_ptr->m_worker_name = context_ptr->m_device_info.device_name;
             }
             generate_workers(context_ptr->m_worker_name, context_ptr->m_exe_network);
             context_ptr->m_is_already = true;
-            // reloadsuccess flag only for m_loadcontext[FALLBACKDEVICE]
+            // reloadsuccess flag only for m_compile_context[FALLBACKDEVICE]
             context_ptr->m_is_reload_success = true;
             auto& device_name = context_ptr->m_device_info.device_name;
             LOG_INFO_TAG("device:%s loading Network finished", device_name.c_str());
@@ -146,10 +146,10 @@ void CumuSchedule::init() {
         m_passthrough_compiled_model = m_p_ctput_loadcontext[0].m_exe_network;
         m_context->m_hw_compiled_model = m_passthrough_compiled_model;
     }
-    m_context->m_hw_compiled_model = wait_first_network_ready();
+    m_context->m_hw_compiled_model = wait_first_compiled_model_ready();
 }
 
-void CumuSchedule::try_to_load_network(AutoLoadContext& context, const std::shared_ptr<ov::Model>& model) {
+void CumuSchedule::try_to_compile_model(AutoCompileContext& context, const std::shared_ptr<ov::Model>& model) {
     auto& device = context.m_device_info.device_name;
     auto& device_config = context.m_device_info.config;
     bool cur_dev_is_gpu = (device.find("GPU") != std::string::npos);
@@ -190,7 +190,7 @@ void CumuSchedule::try_to_load_network(AutoLoadContext& context, const std::shar
         context.m_is_load_success = false;
     }
 }
-SoCompiledModel CumuSchedule::wait_first_network_ready() {
+SoCompiledModel CumuSchedule::wait_first_compiled_model_ready() {
     std::ostringstream result;
     result << "compile model failed, ";
     for (size_t i = 0; i < m_n_ctput_devicenums; i++) {
@@ -205,7 +205,7 @@ SoCompiledModel CumuSchedule::wait_first_network_ready() {
     OPENVINO_THROW("[", get_log_tag(), "] ", result.str());
 }
 
-bool CumuSchedule::schedule_to_worker_inferrequest(ov::threading::Task pipeline_task, DeviceName preferred_device) {
+bool CumuSchedule::schedule_to_worker_infer_request(ov::threading::Task pipeline_task, DeviceName preferred_device) {
     std::vector<DeviceInformation> devices;
     // AUTO work mode
     // Devices that fail infer will be removed from the priority list in the callback, need lock here

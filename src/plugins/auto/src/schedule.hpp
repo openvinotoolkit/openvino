@@ -15,7 +15,7 @@ class Schedule : public std::enable_shared_from_this<Schedule>, public ov::threa
 public:
     using Ptr = std::shared_ptr<Schedule>;
     virtual void launch(const ScheduleContext::Ptr& context);
-    virtual Pipeline get_async_pipeline(const ISyncInferPtr& syncRequestImpl, WorkerInferRequest** WorkerInferRequest);
+    virtual Pipeline get_async_pipeline(const ISyncInferPtr& sync_request, WorkerInferRequest** Worker_infer_request);
     void run(ov::threading::Task infer_task) override;
     virtual ~Schedule();
     virtual ISyncInferPtr create_sync_infer_request();
@@ -30,10 +30,10 @@ protected:
     static bool run_pipeline_task(ov::threading::Task& pipeline_task, NotBusyPriorityWorkerRequests& idle_worker_request,
                                   const DeviceName& preferred_device);
     virtual void generate_workers(const std::string& device, const SoCompiledModel& compiled_network);
-    virtual void try_to_load_network(AutoLoadContext& context, const std::shared_ptr<ov::Model>& model) = 0;
-    virtual bool schedule_to_worker_inferrequest(ov::threading::Task, DeviceName preferred_device = "") = 0;
+    virtual void try_to_compile_model(AutoCompileContext& context, const std::shared_ptr<ov::Model>& model) = 0;
+    virtual bool schedule_to_worker_infer_request(ov::threading::Task, DeviceName preferred_device = "") = 0;
     virtual bool select_other_device(const std::string& cur_dev_name) = 0;
-    virtual SoCompiledModel wait_first_network_ready() = 0;
+    virtual SoCompiledModel wait_first_compiled_model_ready() = 0;
     std::string get_log_tag() const noexcept;
     std::shared_ptr<ov::threading::IStreamsExecutor>                     m_executor;
     DeviceMap<NotBusyPriorityWorkerRequests>                             m_idle_worker_requests;

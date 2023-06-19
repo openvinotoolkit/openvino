@@ -224,7 +224,7 @@ public:
     virtual ~ScheduleContext() = default;
 };
 
-struct AutoLoadContext {
+struct AutoCompileContext {
     std::atomic<bool> m_is_enabled = {false};
     std::atomic<bool> m_is_already = {false};
     std::atomic<bool> m_is_load_success = {false};
@@ -240,7 +240,7 @@ struct AutoLoadContext {
     std::string m_worker_name = "";
 };
 
-enum AutoLoadContextIndex {
+enum AutoCompileContextIndex {
     CPU = 0,
     ACTUALDEVICE = 1,
     FALLBACKDEVICE = 2,

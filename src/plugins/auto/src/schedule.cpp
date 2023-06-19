@@ -48,7 +48,7 @@ ISyncInferPtr Schedule::create_sync_infer_request() {
 }
 
 void Schedule::run(ov::threading::Task pipeline_task) {
-    schedule_to_worker_inferrequest(std::move(pipeline_task), m_this_preferred_device_name);
+    schedule_to_worker_infer_request(std::move(pipeline_task), m_this_preferred_device_name);
 }
 
 bool Schedule::run_pipeline_task(ov::threading::Task& pipeline_task,
@@ -135,17 +135,17 @@ void Schedule::generate_workers(const std::string& device, const SoCompiledModel
                         ov::threading::Task t;
                         do {
                             m_infer_pipeline_tasks.try_pop(t);
-                        } while (t && schedule_to_worker_inferrequest(std::move(t)));
+                        } while (t && schedule_to_worker_infer_request(std::move(t)));
                         do {
                             m_infer_pipeline_tasks_device_specific[device]->try_pop(t);
-                        } while (t && schedule_to_worker_inferrequest(std::move(t), device));
+                        } while (t && schedule_to_worker_infer_request(std::move(t), device));
                     }
                 }
             });
     }
 }
 
-Pipeline Schedule::get_async_pipeline(const ISyncInferPtr& infer_request, WorkerInferRequest** worker_inferrequest) {
+Pipeline Schedule::get_async_pipeline(const ISyncInferPtr& infer_request, WorkerInferRequest** worker_infer_request) {
     Pipeline pipeline;
     if (m_passthrough_compiled_model || std::static_pointer_cast<InferRequest>(infer_request)->get_shared_request()) {
         struct RequestExecutor : ov::threading::ITaskExecutor {
@@ -230,29 +230,29 @@ Pipeline Schedule::get_async_pipeline(const ISyncInferPtr& infer_request, Worker
             // as the scheduling algo may select any device, this stage accepts the scheduling decision (actual workerRequest)
             // then sets the device-agnostic tensors to the actual (device-specific) request
             Stage {
-                /*TaskExecutor*/std::dynamic_pointer_cast<ov::threading::ITaskExecutor>(shared_from_this()), /*task*/ [&infer_request, worker_inferrequest]() {
-                    *worker_inferrequest = m_this_worker_infer_request;
+                /*TaskExecutor*/std::dynamic_pointer_cast<ov::threading::ITaskExecutor>(shared_from_this()), /*task*/ [&infer_request, worker_infer_request]() {
+                    *worker_infer_request = m_this_worker_infer_request;
                     auto auto_request = std::dynamic_pointer_cast<InferRequest>(infer_request);
                     auto_request->set_tensors_to_another_request(m_this_worker_infer_request->m_inferrequest);
-                    INFO_RUN([worker_inferrequest]() {
-                        (*worker_inferrequest)->m_start_times.push_back(std::chrono::steady_clock::now());
+                    INFO_RUN([worker_infer_request]() {
+                        (*worker_infer_request)->m_start_times.push_back(std::chrono::steady_clock::now());
                         });
                 }},
             // final task in the pipeline:
             Stage {
-                /*TaskExecutor*/std::make_shared<ThisRequestExecutor>(worker_inferrequest, first_executor), /*task*/
-                [this, &infer_request, worker_inferrequest]() {
-                    INFO_RUN([worker_inferrequest]() {
-                        (*worker_inferrequest)->m_end_times.push_back(std::chrono::steady_clock::now());
+                /*TaskExecutor*/std::make_shared<ThisRequestExecutor>(worker_infer_request, first_executor), /*task*/
+                [this, &infer_request, worker_infer_request]() {
+                    INFO_RUN([worker_infer_request]() {
+                        (*worker_infer_request)->m_end_times.push_back(std::chrono::steady_clock::now());
                     });
-                    std::exception_ptr eptr = (*worker_inferrequest)->m_exception_ptr;
+                    std::exception_ptr eptr = (*worker_infer_request)->m_exception_ptr;
                     if (nullptr != eptr) {
                         std::rethrow_exception(eptr);
                     }
                     if (m_context->m_need_perf_counters) {
                         auto auto_request = std::dynamic_pointer_cast<InferRequest>
                             (infer_request);
-                        auto_request->set_scheduled_request((*worker_inferrequest)->m_inferrequest);
+                        auto_request->set_scheduled_request((*worker_infer_request)->m_inferrequest);
                     }
                 }}
         };

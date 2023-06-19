@@ -15,21 +15,21 @@ class AutoSchedule : public Schedule {
 public:
     using Ptr = std::shared_ptr<AutoSchedule>;
     virtual ~AutoSchedule();
-    AutoLoadContext                                                     m_loadcontext[CONTEXTNUM];
+    AutoCompileContext                                                     m_compile_context[CONTEXTNUM];
 
 private:
     void init() override;
     // release actual task
     // ov::threading::Task release_actualdevice_task;
-    bool schedule_to_worker_inferrequest(ov::threading::Task, DeviceName preferred_device = "") override;
-    void wait_actual_network_ready() const;
+    bool schedule_to_worker_infer_request(ov::threading::Task, DeviceName preferred_device = "") override;
+    void wait_actual_compiled_model_ready() const;
     /**
      * @brief wait for one of the compiled model to finish loading.
      * @return An SoPtr object hold an available compiled model loaded to HW device.
      * @note An exception will be thrown if all loading of model to hw device fails.
      */
-    SoCompiledModel wait_first_network_ready() override;
-    void try_to_load_network(AutoLoadContext& context, const std::shared_ptr<ov::Model>& model) override;
+    SoCompiledModel wait_first_compiled_model_ready() override;
+    void try_to_compile_model(AutoCompileContext& context, const std::shared_ptr<ov::Model>& model) override;
     bool select_other_device(const std::string& cur_dev_name) override;
     size_t                                                               m_cpuhelp_infer_count = 0;
     double                                                               m_cpuhelp_fps = 0.0;

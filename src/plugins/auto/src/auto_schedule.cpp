@@ -18,13 +18,13 @@ bool AutoSchedule::select_other_device(const std::string& cur_dev_name) {
         get_execution_devices = [&](const std::string& device_name) {
             std::string real_device_name;
             bool is_cpuhelp = false;
-                m_loadcontext[FALLBACKDEVICE].m_model_precision = m_context->m_model_precision;
+                m_compile_context[FALLBACKDEVICE].m_model_precision = m_context->m_model_precision;
             if (device_name == "CPU_HELP") {
                 // if infer failed in CPU_HELP, we will remove CPU from m_device_priorities
-                // and re-run infer request when m_loadcontext[ACTUALDEVICE] is ready
+                // and re-run infer request when m_compile_context[ACTUALDEVICE] is ready
                 real_device_name = "CPU";
                 is_cpuhelp = true;
-                wait_actual_network_ready();
+                wait_actual_compiled_model_ready();
             } else {
                 real_device_name = device_name;
             }
@@ -41,33 +41,33 @@ bool AutoSchedule::select_other_device(const std::string& cur_dev_name) {
                 }
             } else {
                 LOG_DEBUG_TAG("Already selected the fallback device");
-                return m_loadcontext[FALLBACKDEVICE].m_is_reload_success ? true : false;
+                return m_compile_context[FALLBACKDEVICE].m_is_reload_success ? true : false;
             }
-            m_loadcontext[FALLBACKDEVICE].m_meta_devices = m_context->m_device_priorities;
-            m_loadcontext[FALLBACKDEVICE].m_is_load_success = false;
-            m_loadcontext[FALLBACKDEVICE].m_worker_name = "";
-            m_loadcontext[FALLBACKDEVICE].m_is_reload_success = false;
-            m_loadcontext[FALLBACKDEVICE].m_device_info =
+            m_compile_context[FALLBACKDEVICE].m_meta_devices = m_context->m_device_priorities;
+            m_compile_context[FALLBACKDEVICE].m_is_load_success = false;
+            m_compile_context[FALLBACKDEVICE].m_worker_name = "";
+            m_compile_context[FALLBACKDEVICE].m_is_reload_success = false;
+            m_compile_context[FALLBACKDEVICE].m_device_info =
                 m_plugin->select_device(m_context->m_device_priorities,
-                                                        m_loadcontext[FALLBACKDEVICE].m_model_precision,
+                                                        m_compile_context[FALLBACKDEVICE].m_model_precision,
                                                         m_context->m_model_priority);
             try {
-                m_loadcontext[FALLBACKDEVICE].m_task();
+                m_compile_context[FALLBACKDEVICE].m_task();
                 // FALLBACKDEVICE need to be load again if infer failed, so reset promise here
-                m_loadcontext[FALLBACKDEVICE].m_promise = {};
-                m_loadcontext[FALLBACKDEVICE].m_future = m_loadcontext[FALLBACKDEVICE].m_promise.get_future();
+                m_compile_context[FALLBACKDEVICE].m_promise = {};
+                m_compile_context[FALLBACKDEVICE].m_future = m_compile_context[FALLBACKDEVICE].m_promise.get_future();
             } catch (const ov::Exception& iie) {
                 LOG_DEBUG_TAG("Load context in FALLBACKDEVICE with error: %s", iie.what());
             }
-            if (m_loadcontext[FALLBACKDEVICE].m_is_reload_success) {
-                m_loadcontext[ACTUALDEVICE].m_is_enabled = false;
-                m_loadcontext[ACTUALDEVICE].m_is_load_success = false;
-                m_loadcontext[ACTUALDEVICE].m_is_already = false;
-                LOG_INFO_TAG("Select fallback device:%s", m_loadcontext[FALLBACKDEVICE].m_device_info.device_name.c_str());
+            if (m_compile_context[FALLBACKDEVICE].m_is_reload_success) {
+                m_compile_context[ACTUALDEVICE].m_is_enabled = false;
+                m_compile_context[ACTUALDEVICE].m_is_load_success = false;
+                m_compile_context[ACTUALDEVICE].m_is_already = false;
+                LOG_INFO_TAG("Select fallback device:%s", m_compile_context[FALLBACKDEVICE].m_device_info.device_name.c_str());
                 return true;
             } else {
                 // load failed or generate works failed, so reselect other devices
-                return get_execution_devices(m_loadcontext[FALLBACKDEVICE].m_device_info.device_name.c_str());
+                return get_execution_devices(m_compile_context[FALLBACKDEVICE].m_device_info.device_name.c_str());
             }
         };
 
@@ -84,26 +84,26 @@ void AutoSchedule::init() {
     std::string profilingTask = "AutoSchedule::AutoSchedule:AutoMode";
     // loadContext[ACTUALDEVICE] is always enabled,
     // when there is CPU and there are more than two devices, loadContext[CPU] is enabled
-    m_loadcontext[ACTUALDEVICE].m_is_enabled = true;
+    m_compile_context[ACTUALDEVICE].m_is_enabled = true;
     if (m_context->m_runtime_fallback) {
-        m_loadcontext[FALLBACKDEVICE].m_is_enabled = true;
+        m_compile_context[FALLBACKDEVICE].m_is_enabled = true;
     }
-    m_loadcontext[ACTUALDEVICE].m_model_precision = m_context->m_model_precision;
-    m_loadcontext[ACTUALDEVICE].m_meta_devices = m_context->m_device_priorities;
-    m_loadcontext[ACTUALDEVICE].m_device_info =
+    m_compile_context[ACTUALDEVICE].m_model_precision = m_context->m_model_precision;
+    m_compile_context[ACTUALDEVICE].m_meta_devices = m_context->m_device_priorities;
+    m_compile_context[ACTUALDEVICE].m_device_info =
         m_plugin->select_device(m_context->m_device_priorities,
-                                m_loadcontext[ACTUALDEVICE].m_model_precision,
+                                m_compile_context[ACTUALDEVICE].m_model_precision,
                                 m_context->m_model_priority);
 
-    auto load_device_task = [&](AutoLoadContext* context_ptr,  const std::shared_ptr<ov::Model>& model) {
-        try_to_load_network(*context_ptr, model);
+    auto load_device_task = [&](AutoCompileContext* context_ptr,  const std::shared_ptr<ov::Model>& model) {
+        try_to_compile_model(*context_ptr, model);
         if (context_ptr->m_is_load_success) {
             if (context_ptr->m_worker_name.empty()) {
                 context_ptr->m_worker_name = context_ptr->m_device_info.device_name;
             }
             generate_workers(context_ptr->m_worker_name, context_ptr->m_exe_network);
             context_ptr->m_is_already = true;
-            // reloadsuccess flag only for m_loadcontext[FALLBACKDEVICE]
+            // reloadsuccess flag only for m_compile_context[FALLBACKDEVICE]
             context_ptr->m_is_reload_success = true;
             auto& device_name = context_ptr->m_device_info.device_name;
             LOG_INFO_TAG("device:%s loading Network finished", device_name.c_str());
@@ -127,38 +127,38 @@ void AutoSchedule::init() {
             m_firstload_promise.set_value();
         });
     };
-    if (m_loadcontext[ACTUALDEVICE].m_is_enabled) {
-        LOG_INFO_TAG("select device:%s", m_loadcontext[ACTUALDEVICE].m_device_info.device_name.c_str());
-        bool is_actual_cpu = m_loadcontext[ACTUALDEVICE].m_device_info.device_name.find("CPU") != std::string::npos;
-        // if Actual device is CPU or perf_hint is cumulative, disabled m_loadcontext[CPU], only use
-        // m_loadcontext[ACTUALDEVICE]
+    if (m_compile_context[ACTUALDEVICE].m_is_enabled) {
+        LOG_INFO_TAG("select device:%s", m_compile_context[ACTUALDEVICE].m_device_info.device_name.c_str());
+        bool is_actual_cpu = m_compile_context[ACTUALDEVICE].m_device_info.device_name.find("CPU") != std::string::npos;
+        // if Actual device is CPU or perf_hint is cumulative, disabled m_compile_context[CPU], only use
+        // m_compile_context[ACTUALDEVICE]
         if (is_actual_cpu || !m_context->m_startup_fallback) {
-            m_loadcontext[CPU].m_is_enabled = false;
+            m_compile_context[CPU].m_is_enabled = false;
         } else {
             const auto cpu_iter = deviceChecker().check_and_return_if_device_in_list("CPU", m_context->m_device_priorities);
-            // if have CPU Device,  enable m_loadcontext[CPU]
+            // if have CPU Device,  enable m_compile_context[CPU]
             if (cpu_iter != m_context->m_device_priorities.end()) {
-                m_loadcontext[CPU].m_is_enabled = true;
-                m_loadcontext[CPU].m_device_info = *cpu_iter;
-                m_loadcontext[CPU].m_device_info.config[ov::hint::performance_mode.name()] = ov::hint::PerformanceMode::LATENCY;
-                m_loadcontext[CPU].m_worker_name = "CPU_HELP";
+                m_compile_context[CPU].m_is_enabled = true;
+                m_compile_context[CPU].m_device_info = *cpu_iter;
+                m_compile_context[CPU].m_device_info.config[ov::hint::performance_mode.name()] = ov::hint::PerformanceMode::LATENCY;
+                m_compile_context[CPU].m_worker_name = "CPU_HELP";
                 LOG_INFO_TAG("will load CPU for accelerator");
             } else {
-                m_loadcontext[CPU].m_is_enabled = false;
+                m_compile_context[CPU].m_is_enabled = false;
             }
         }
         // initialize the rest members of load context
         for (int i = 0; i < CONTEXTNUM; i++) {
-            if (m_loadcontext[i].m_is_enabled) {
-                m_loadcontext[i].m_future = m_loadcontext[i].m_promise.get_future();
-                auto* context_ptr = &m_loadcontext[i];
+            if (m_compile_context[i].m_is_enabled) {
+                m_compile_context[i].m_future = m_compile_context[i].m_promise.get_future();
+                auto* context_ptr = &m_compile_context[i];
                 auto model = m_context->m_model;
-                m_loadcontext[i].m_task = std::bind(load_device_task, context_ptr, model);
+                m_compile_context[i].m_task = std::bind(load_device_task, context_ptr, model);
             }
         }
     }
     OV_ITT_SCOPED_TASK(itt::domains::AutoPlugin, openvino::itt::handle(profilingTask));
-    if (m_loadcontext[CPU].m_is_enabled) {
+    if (m_compile_context[CPU].m_is_enabled) {
         m_firstload_future = m_firstload_promise.get_future();
         // will not wait for loading accelerator network,
         // so the executor can't be destroyed before finished the task,
@@ -177,13 +177,13 @@ void AutoSchedule::init() {
         m_idle_worker_requests["CPU_HELP"];
         m_worker_requests["CPU_HELP"];
         m_infer_pipeline_tasks_device_specific["CPU_HELP"] = nullptr;
-        m_executor->run(m_loadcontext[CPU].m_task);
-        m_executor->run(m_loadcontext[ACTUALDEVICE].m_task);
+        m_executor->run(m_compile_context[CPU].m_task);
+        m_executor->run(m_compile_context[ACTUALDEVICE].m_task);
         auto recycleTask = [this]() mutable {
-            wait_actual_network_ready();
-            while (!m_exitflag && m_loadcontext[ACTUALDEVICE].m_is_already) {
+            wait_actual_compiled_model_ready();
+            while (!m_exitflag && m_compile_context[ACTUALDEVICE].m_is_already) {
                 // handle the case of ACTUAL faster than CPU
-                m_loadcontext[CPU].m_future.wait();
+                m_compile_context[CPU].m_future.wait();
                 // clean up helper infer requests
                 // first, wait for all the remaining requests to finish
                 for (auto& iter : m_worker_requests["CPU_HELP"]) {
@@ -229,8 +229,8 @@ void AutoSchedule::init() {
                     });
                     LOG_INFO_TAG("release all work requests of CPU_HELP");
                     m_worker_requests["CPU_HELP"].clear();
-                    m_loadcontext[CPU].m_exe_network._ptr.reset();
-                    m_loadcontext[CPU].m_exe_network._so.reset();
+                    m_compile_context[CPU].m_exe_network._ptr.reset();
+                    m_compile_context[CPU].m_exe_network._so.reset();
                     LOG_INFO_TAG("helper released!!");
                     break;
                 }
@@ -245,16 +245,16 @@ void AutoSchedule::init() {
             m_worker_requests[device.device_name];
             m_infer_pipeline_tasks_device_specific[device.device_name] = nullptr;
         }
-        m_loadcontext[ACTUALDEVICE].m_task();
+        m_compile_context[ACTUALDEVICE].m_task();
     } else {
         // only one device need to load network, do not need to load it async
-        m_loadcontext[ACTUALDEVICE].m_task();
-        m_passthrough_compiled_model = m_loadcontext[ACTUALDEVICE].m_exe_network;
+        m_compile_context[ACTUALDEVICE].m_task();
+        m_passthrough_compiled_model = m_compile_context[ACTUALDEVICE].m_exe_network;
     }
-    m_context->m_hw_compiled_model = wait_first_network_ready();
+    m_context->m_hw_compiled_model = wait_first_compiled_model_ready();
 }
 
-void AutoSchedule::try_to_load_network(AutoLoadContext& context, const std::shared_ptr<ov::Model>& model) {
+void AutoSchedule::try_to_compile_model(AutoCompileContext& context, const std::shared_ptr<ov::Model>& model) {
     auto& device = context.m_device_info.device_name;
     auto& device_config = context.m_device_info.config;
     auto& device_list = context.m_meta_devices;
@@ -262,7 +262,7 @@ void AutoSchedule::try_to_load_network(AutoLoadContext& context, const std::shar
     bool cur_dev_is_gpu = (device.find("GPU") != std::string::npos);
     {
         std::lock_guard<std::mutex> lock(m_context->m_mutex);
-        if (cur_dev_is_gpu && m_loadcontext[CPU].m_is_enabled) {
+        if (cur_dev_is_gpu && m_compile_context[CPU].m_is_enabled) {
             // user does not set the compiling threads
             // limit the threads num for compiling
             int max_threads = 0;
@@ -321,7 +321,7 @@ void AutoSchedule::try_to_load_network(AutoLoadContext& context, const std::shar
     } catch (const std::exception&) {
         return;
     }
-    // if the select device is CPU, need to check the config of m_loadcontext[CPU]
+    // if the select device is CPU, need to check the config of m_compile_context[CPU]
     // if they are same, do not need to load again
     cur_dev_is_cpu = (context.m_device_info.device_name.find("CPU") != std::string::npos);
     if (cur_dev_is_cpu) {
@@ -341,33 +341,33 @@ void AutoSchedule::try_to_load_network(AutoLoadContext& context, const std::shar
             }
             return true;
         };
-        if (compare(context.m_device_info.config, m_loadcontext[CPU].m_device_info.config)) {
+        if (compare(context.m_device_info.config, m_compile_context[CPU].m_device_info.config)) {
             return;
         }
     }
     LOG_DEBUG_TAG("try to load %s", context.m_device_info.device_name.c_str());
     // try to load this candidate device
-    try_to_load_network(context, model);
+    try_to_compile_model(context, model);
 }
 
-SoCompiledModel AutoSchedule::wait_first_network_ready() {
+SoCompiledModel AutoSchedule::wait_first_compiled_model_ready() {
     if (m_firstload_future.valid()) {
         // wait for the first loading finished
         m_firstload_future.wait();
     }
     // check if there is any device that have loaded network successfully
     for (int i = CONTEXTNUM - 2; i >= 0; i--) {
-        if (m_loadcontext[i].m_is_enabled && m_loadcontext[i].m_is_already) {
-            return m_loadcontext[i].m_exe_network;
+        if (m_compile_context[i].m_is_enabled && m_compile_context[i].m_is_already) {
+            return m_compile_context[i].m_exe_network;
         }
     }
     // the first loading is failed, wait for another loading
     for (int i = CONTEXTNUM - 2; i >= 0; i--) {
-        if (m_loadcontext[i].m_is_enabled) {
-            m_loadcontext[i].m_future.wait();
+        if (m_compile_context[i].m_is_enabled) {
+            m_compile_context[i].m_future.wait();
             // check if loading is successful
-            if (m_loadcontext[i].m_is_already) {
-                return m_loadcontext[i].m_exe_network;
+            if (m_compile_context[i].m_is_already) {
+                return m_compile_context[i].m_exe_network;
             }
         }
     }
@@ -375,51 +375,51 @@ SoCompiledModel AutoSchedule::wait_first_network_ready() {
     //print m_err_message
     result << "compile model failed, ";
     for (int i = CONTEXTNUM - 2; i >= 0; i--) {
-        if (m_loadcontext[i].m_is_enabled) {
-            result << m_loadcontext[i].m_err_message.c_str();
+        if (m_compile_context[i].m_is_enabled) {
+            result << m_compile_context[i].m_err_message.c_str();
             result << "; ";
-            LOG_ERROR_TAG("load failed, %s", m_loadcontext[i].m_err_message.c_str());
+            LOG_ERROR_TAG("load failed, %s", m_compile_context[i].m_err_message.c_str());
         }
     }
     OPENVINO_THROW("[", get_log_tag(), "] ", result.str());
 }
 
-void AutoSchedule::wait_actual_network_ready() const {
-    OV_ITT_SCOPED_TASK(itt::domains::AutoPlugin, "AutoSchedule::wait_actual_network_ready");
+void AutoSchedule::wait_actual_compiled_model_ready() const {
+    OV_ITT_SCOPED_TASK(itt::domains::AutoPlugin, "AutoSchedule::wait_actual_compiled_model_ready");
     // Maybe different API will call this function, so add call once here
     // for every AutoSchedule instance
     std::call_once(m_oc, [this]() {
-        if (m_loadcontext[ACTUALDEVICE].m_future.valid()) {
-            m_loadcontext[ACTUALDEVICE].m_future.wait();
+        if (m_compile_context[ACTUALDEVICE].m_future.valid()) {
+            m_compile_context[ACTUALDEVICE].m_future.wait();
         }
     });
 }
 
-bool AutoSchedule::schedule_to_worker_inferrequest(ov::threading::Task pipeline_task, DeviceName preferred_device) {
+bool AutoSchedule::schedule_to_worker_infer_request(ov::threading::Task pipeline_task, DeviceName preferred_device) {
     std::vector<DeviceInformation> devices;
     // AUTO work mode
     // Devices that fail infer will be removed from the priority list in the callback, need lock here
     std::unique_lock<std::mutex> lock(m_context->m_fallback_mutex);
     if (!preferred_device.empty()) {
         // if the device needed by customer is not ready, need to wait for it
-        wait_actual_network_ready();
-        devices.push_back(m_loadcontext[ACTUALDEVICE].m_device_info);
+        wait_actual_compiled_model_ready();
+        devices.push_back(m_compile_context[ACTUALDEVICE].m_device_info);
         if (!deviceChecker().check_if_device_in_list<DeviceInformation>(preferred_device, devices)) {
             lock.unlock();
             OPENVINO_THROW("The preferred device should be the selected device");
         }
     } else {
         // _acceleratorDevice could be the same as _cpuDevice, such as AUTO:CPU
-        if (m_loadcontext[FALLBACKDEVICE].m_is_already) {
-            devices.push_back(m_loadcontext[FALLBACKDEVICE].m_device_info);
+        if (m_compile_context[FALLBACKDEVICE].m_is_already) {
+            devices.push_back(m_compile_context[FALLBACKDEVICE].m_device_info);
         } else {
-            if (m_loadcontext[ACTUALDEVICE].m_is_already) {
-                devices.push_back(m_loadcontext[ACTUALDEVICE].m_device_info);
+            if (m_compile_context[ACTUALDEVICE].m_is_already) {
+                devices.push_back(m_compile_context[ACTUALDEVICE].m_device_info);
             } else {
                 // replace deviceName with m_worker_name, so schedule can select correct
                 // idleWorkerQueue
-                auto m_device_info = m_loadcontext[CPU].m_device_info;
-                m_device_info.device_name = m_loadcontext[CPU].m_worker_name;
+                auto m_device_info = m_compile_context[CPU].m_device_info;
+                m_device_info.device_name = m_compile_context[CPU].m_worker_name;
                 devices.push_back(std::move(m_device_info));
             }
         }
@@ -444,17 +444,17 @@ bool AutoSchedule::schedule_to_worker_inferrequest(ov::threading::Task pipeline_
 
 AutoSchedule::~AutoSchedule() {
     // this is necessary to guarantee member destroyed after getting future
-    if (m_loadcontext[CPU].m_is_enabled) {
+    if (m_compile_context[CPU].m_is_enabled) {
         m_exitflag = true;
-        m_loadcontext[CPU].m_future.wait();
-        wait_actual_network_ready();
+        m_compile_context[CPU].m_future.wait();
+        wait_actual_compiled_model_ready();
         // it's necessary to wait the loading network threads to stop here.
         m_plugin->get_executor_manager()->clear("AutoDeviceAsyncLoad");
         m_executor.reset();
     }
     if (m_plugin)
         m_plugin->unregister_priority(m_context->m_model_priority,
-            m_loadcontext[ACTUALDEVICE].m_device_info.unique_name);
+            m_compile_context[ACTUALDEVICE].m_device_info.unique_name);
     if (m_context) {
         std::lock_guard<std::mutex> lock(m_context->m_fallback_mutex);
         m_context->m_device_priorities.clear();

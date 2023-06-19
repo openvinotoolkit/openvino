@@ -79,15 +79,15 @@ ov::Any AutoCompiledModel::get_property(const std::string& name) const {
         ov::AnyMap all_devices = {};
         {
             std::lock_guard<std::mutex> lock(m_context->m_fallback_mutex);
-            if (m_scheduler->m_loadcontext[FALLBACKDEVICE].m_is_already) {
-                all_devices = get_device_supported_properties(m_scheduler->m_loadcontext[FALLBACKDEVICE]);
+            if (m_scheduler->m_compile_context[FALLBACKDEVICE].m_is_already) {
+                all_devices = get_device_supported_properties(m_scheduler->m_compile_context[FALLBACKDEVICE]);
             }
         }
         std::lock_guard<std::mutex> lock(m_context->m_mutex);
-        if (m_scheduler->m_loadcontext[ACTUALDEVICE].m_is_already) {
-            all_devices = get_device_supported_properties(m_scheduler->m_loadcontext[ACTUALDEVICE]);
+        if (m_scheduler->m_compile_context[ACTUALDEVICE].m_is_already) {
+            all_devices = get_device_supported_properties(m_scheduler->m_compile_context[ACTUALDEVICE]);
         } else {
-            all_devices = get_device_supported_properties(m_scheduler->m_loadcontext[CPU]);
+            all_devices = get_device_supported_properties(m_scheduler->m_compile_context[CPU]);
         }
         return all_devices;
     } else if (name == ov::hint::model_priority) {
@@ -105,13 +105,13 @@ ov::Any AutoCompiledModel::get_property(const std::string& name) const {
         const unsigned int defaultNumForTPUT = 4u;
         const unsigned int defaultNumForLatency = 1u;
         unsigned int real = 0;
-        if (m_scheduler->m_loadcontext[ACTUALDEVICE].m_is_already) {
-            real = m_scheduler->m_loadcontext[ACTUALDEVICE].
+        if (m_scheduler->m_compile_context[ACTUALDEVICE].m_is_already) {
+            real = m_scheduler->m_compile_context[ACTUALDEVICE].
                 m_exe_network->get_property(name).as<unsigned int>();
         } else {
-            OPENVINO_ASSERT(m_scheduler->m_loadcontext[CPU].m_is_already == true);
+            OPENVINO_ASSERT(m_scheduler->m_compile_context[CPU].m_is_already == true);
             std::unique_lock<std::mutex> lock(m_context->m_mutex);
-            auto device_info = m_scheduler->m_loadcontext[ACTUALDEVICE].m_device_info;
+            auto device_info = m_scheduler->m_compile_context[ACTUALDEVICE].m_device_info;
             lock.unlock();
             unsigned int optimalBatchSize = 0;
             unsigned int requests = 0;
@@ -193,11 +193,11 @@ ov::Any AutoCompiledModel::get_property(const std::string& name) const {
         {
             std::lock_guard<std::mutex> lock(m_context->m_mutex);
             for (int i = 0; i < CONTEXTNUM; i++) {
-                if (m_scheduler->m_loadcontext[i].m_is_enabled && m_scheduler->m_loadcontext[i].m_is_already) {
-                    if (i == 0 && !m_scheduler->m_loadcontext[CPU].m_exe_network._ptr) {
+                if (m_scheduler->m_compile_context[i].m_is_enabled && m_scheduler->m_compile_context[i].m_is_already) {
+                    if (i == 0 && !m_scheduler->m_compile_context[CPU].m_exe_network._ptr) {
                         continue;
                     } else {
-                        GetExecutionDevices(m_scheduler->m_loadcontext[i].m_worker_name);
+                        GetExecutionDevices(m_scheduler->m_compile_context[i].m_worker_name);
                         break;
                     }
                 }
@@ -207,9 +207,9 @@ ov::Any AutoCompiledModel::get_property(const std::string& name) const {
     } else if (name == ov::model_name) {
         std::lock_guard<std::mutex> lock(m_context->m_mutex);
         {
-            if (m_scheduler->m_loadcontext[CPU].m_is_enabled && m_scheduler->m_loadcontext[CPU].m_is_already)
-                return m_scheduler->m_loadcontext[CPU].m_exe_network->get_property(name);
-            return m_scheduler->m_loadcontext[ACTUALDEVICE].m_exe_network->get_property(name);
+            if (m_scheduler->m_compile_context[CPU].m_is_enabled && m_scheduler->m_compile_context[CPU].m_is_already)
+                return m_scheduler->m_compile_context[CPU].m_exe_network->get_property(name);
+            return m_scheduler->m_compile_context[ACTUALDEVICE].m_exe_network->get_property(name);
         }
     OPENVINO_SUPPRESS_DEPRECATED_START
     } else if (name == METRIC_KEY(SUPPORTED_METRICS)) {
@@ -223,16 +223,16 @@ ov::Any AutoCompiledModel::get_property(const std::string& name) const {
     OPENVINO_SUPPRESS_DEPRECATED_END
     } else if (name == ov::loaded_from_cache) {
         std::lock_guard<std::mutex> lock(m_context->m_fallback_mutex);
-        if (m_scheduler->m_loadcontext[FALLBACKDEVICE].m_is_already) {
-                return m_scheduler->m_loadcontext[FALLBACKDEVICE].m_exe_network->get_property(name).as<bool>();
+        if (m_scheduler->m_compile_context[FALLBACKDEVICE].m_is_already) {
+                return m_scheduler->m_compile_context[FALLBACKDEVICE].m_exe_network->get_property(name).as<bool>();
             }
-        if (m_scheduler->m_loadcontext[ACTUALDEVICE].m_is_already) {
-            return m_scheduler->m_loadcontext[ACTUALDEVICE].
+        if (m_scheduler->m_compile_context[ACTUALDEVICE].m_is_already) {
+            return m_scheduler->m_compile_context[ACTUALDEVICE].
                 m_exe_network->get_property(name).as<bool>();
         } else {
-            OPENVINO_ASSERT(m_scheduler->m_loadcontext[CPU].m_is_already == true);
+            OPENVINO_ASSERT(m_scheduler->m_compile_context[CPU].m_is_already == true);
              std::lock_guard<std::mutex> lock(m_context->m_mutex);
-            return m_scheduler->m_loadcontext[CPU].
+            return m_scheduler->m_compile_context[CPU].
                 m_exe_network->get_property(name).as<bool>();
         }
     }
