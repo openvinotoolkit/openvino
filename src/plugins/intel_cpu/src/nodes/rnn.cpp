@@ -14,6 +14,7 @@
 #include <common/primitive_hashing_utils.hpp>
 #include <memory>
 #include <utils/shape_inference/shape_inference_ngraph.hpp>
+#include "transformations/utils/utils.hpp"
 
 #include "ov_ops/augru_cell.hpp"
 #include "ov_ops/augru_sequence.hpp"
@@ -255,23 +256,55 @@ bool RNN::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::s
         }
 
         auto rnnCellBase = ov::as_type_ptr<const ov::op::util::RNNCellBase>(op);
-        if (rnnCellBase && rnnCellBase->get_clip() != 0.f) {
-            errorMessage = "Clipping is not supported for RNN primitive.";
-            return false;
+        if (rnnCellBase) {
+            if (rnnCellBase->get_clip() != 0.f) {
+                errorMessage = "Clipping is not supported for RNN primitive.";
+                return false;
+            }
+            if (one_of(rnnCellBase->get_type_info(),
+                    ov::op::v0::LSTMCell::get_type_info_static(),
+                    ov::op::v4::LSTMCell::get_type_info_static(),
+                    ov::op::v5::LSTMSequence::get_type_info_static()) &&
+                    rnnCellBase->get_activations() != std::vector<std::string>{"sigmoid", "tanh", "tanh"}) {
+                errorMessage = "Not supported activation functions";
+                return false;
+            } else if (rnnCellBase->get_activations() != std::vector<std::string>{"sigmoid", "tanh"}) {
+                errorMessage = "Not supported activation functions";
+                return false;
+            }
         }
 
         ov::op::RecurrentSequenceDirection direction = ov::op::RecurrentSequenceDirection::FORWARD;
-        if (ov::is_type<ov::op::v5::GRUSequence>(op)) {
-            direction = ov::as_type_ptr<const ov::op::v5::GRUSequence>(op)->get_direction();
-        } else if (ov::is_type<ov::op::v0::LSTMSequence>(op)) {
-            direction = ov::as_type_ptr<const ov::op::v0::LSTMSequence>(op)->get_direction();
-        } else if (ov::is_type<ov::op::v5::LSTMSequence>(op)) {
-            direction = ov::as_type_ptr<const ov::op::v5::LSTMSequence>(op)->get_direction();
-        } else if (ov::is_type<ov::op::v5::RNNSequence>(op)) {
-            direction = ov::as_type_ptr<const ov::op::v5::RNNSequence>(op)->get_direction();
+        size_t seqLenIdx = 2;
+        if (auto gru_seq = ov::as_type_ptr<const ov::op::v5::GRUSequence>(op)) {
+            direction = gru_seq->get_direction();
+        } else if (auto lstm_seq = ov::as_type_ptr<const ov::op::v0::LSTMSequence>(op)) {
+            if (lstm_seq->get_activations() != std::vector<std::string>{"sigmoid", "tanh", "tanh"}) {
+                errorMessage = "Not supported activation functions";
+                return false;
+            }
+            direction = lstm_seq->get_direction();
+            seqLenIdx = 3;
+        } else if (auto lstm_seq = ov::as_type_ptr<const ov::op::v5::LSTMSequence>(op)) {
+            direction = lstm_seq->get_direction();
+            seqLenIdx = 3;
+        } else if (auto augru_seq = ov::as_type_ptr<const ov::op::internal::AUGRUSequence>(op)) {
+            direction = augru_seq->get_direction();
+        } else if (auto rnn_seq = ov::as_type_ptr<const ov::op::v5::RNNSequence>(op)) {
+            direction = rnn_seq->get_direction();
         }
+
         if (!one_of(direction, ov::op::RecurrentSequenceDirection::FORWARD, ov::op::RecurrentSequenceDirection::REVERSE)) {
             errorMessage = "Unsupported sequence direction.";
+            return false;
+        }
+
+        const auto& data_pshape = op->get_input_partial_shape(0);
+        if (data_pshape.rank().is_static() && data_pshape.rank().get_length() > 1 && !data_pshape[1].is_static())
+            return false;
+        auto maxSeqLen = data_pshape[1].get_length();
+        if (ov::op::util::is_seq_len_provided(op->get_input_node_shared_ptr(seqLenIdx), maxSeqLen)) {
+            errorMessage = "Unsupported sequence length.";
             return false;
         }
     } catch (...) {

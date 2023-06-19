@@ -119,6 +119,7 @@
 #include "nodes/normalize.h"
 #include "nodes/fake_quantize.h"
 #include "nodes/mha.h"
+#include "nodes/rnn.h"
 #include "dnnl.hpp"
 #include <cpu/x64/cpu_isa_traits.hpp>
 
@@ -293,80 +294,24 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
         },
         ov::pass::ConvertBatchToSpace, ov::pass::ConvertSpaceToBatch);
 
-    auto isCellPrimitiveSupported = [](const_node_ptr &node) -> bool {
-        if (const auto &rnn_cell = std::dynamic_pointer_cast<const ov::opset4::RNNCell>(node)) {
-            return rnn_cell->get_clip() == 0.0f;
-        } else if (const auto &gru_cell = std::dynamic_pointer_cast<const ov::opset4::GRUCell>(
-                       node)) {
-            return gru_cell->get_clip() == 0.0f
-                && gru_cell->get_activations() == std::vector<std::string>{"sigmoid", "tanh"};
-        } else if (const auto &augru_cell = std::dynamic_pointer_cast<const ov::op::internal::AUGRUCell>(
-                       node)) {
-            return augru_cell->get_clip() == 0.0f
-                && augru_cell->get_activations() == std::vector<std::string>{"sigmoid", "tanh"};
-        } else if (const auto &lstm_cell = std::dynamic_pointer_cast<const ov::opset4::LSTMCell>(
-                       node)) {
-            return lstm_cell->get_clip() == 0.0f &&
-                lstm_cell->get_activations() == std::vector<std::string>{"sigmoid", "tanh", "tanh"};
-        } else if (const auto &lstm_cell_v1 = std::dynamic_pointer_cast<const ov::opset1::LSTMCell>(
-                       node)) {
-            return lstm_cell_v1->get_clip() == 0.0f &&
-                lstm_cell_v1->get_activations() == std::vector<std::string>{"sigmoid", "tanh", "tanh"};
-        }
-        return false;
-    };
-
-    // Sequences supported by the plugin shouldn't be converted to TensorIterator.
-    // sequence_length input is not supported in all Sequences, so if is_seq_len_provided() == true, we
-    // should always convert to TensorIterator.
-    // RNN/GRU/LSTM Sequences are supported with clip == 0, and with default activations.
-    auto isSequencePrimitiveSupported = [](const_node_ptr &node) -> bool {
-        const auto& data = node->input(0);
-        const auto& data_pshape = data.get_partial_shape();
-        // WA: dynamic shapes make impossible to check seq_len due to shapeOf subgraphs
-        // but the sequence is still supported in CPU and doesn't need to be decomposed
-        if (data_pshape.is_dynamic())
-            return true;
-        if (data_pshape.rank().is_static() && data_pshape.rank().get_length() > 1 && !data_pshape[1].is_static())
-            return false;
-        auto max_seq_len = data.get_shape().at(1);
-        if (const auto &rnn_seq = std::dynamic_pointer_cast<const ov::opset6::RNNSequence>(node)) {
-            return rnn_seq->get_clip() == 0.0f &&
-                !ov::op::util::is_seq_len_provided(rnn_seq->get_input_node_shared_ptr(2),
-                                                   max_seq_len);
-        } else if (const auto &gru_seq = std::dynamic_pointer_cast<const ov::opset6::GRUSequence>(
-                       node)) {
-            return gru_seq->get_clip() == 0.0f &&
-                gru_seq->get_activations() == std::vector<std::string>{"sigmoid", "tanh"} &&
-                !ov::op::util::is_seq_len_provided(gru_seq->get_input_node_shared_ptr(2),
-                                                   max_seq_len);
-        } else if (const auto &augru_seq = std::dynamic_pointer_cast<const ov::op::internal::AUGRUSequence>(
-                       node)) {
-            return augru_seq->get_clip() == 0.0f &&
-                augru_seq->get_activations() == std::vector<std::string>{"sigmoid", "tanh"} &&
-                !ov::op::util::is_seq_len_provided(augru_seq->get_input_node_shared_ptr(2),
-                                                   max_seq_len);
-        } else if (const auto &lstm_seq = std::dynamic_pointer_cast<const ov::opset6::LSTMSequence>(
-                       node)) {
-            return lstm_seq->get_clip() == 0.0f &&
-                lstm_seq->get_activations() == std::vector<std::string>{"sigmoid", "tanh", "tanh"} &&
-                !ov::op::util::is_seq_len_provided(lstm_seq->get_input_node_shared_ptr(3),
-                                                   max_seq_len);
-        }
-        return false;
-    };
-
     CPU_SET_CALLBACK_COMMON(manager,
-        [isSequencePrimitiveSupported](const_node_ptr &node) -> bool {
-            return isSequencePrimitiveSupported(node);
+        [](const_node_ptr &node) -> bool {
+            const auto& data_pshape = node->get_input_partial_shape(0);
+            // WA: dynamic shapes make impossible to check seq_len due to shapeOf subgraphs
+            // but the sequence is still supported in CPU and doesn't need to be decomposed
+            if (data_pshape.is_dynamic())
+                return true;
+            std::string msg;
+            return node::RNN::isSupportedOperation(node, msg);
         },
         ov::pass::ConvertRNNSequenceToTensorIterator,
         ov::pass::ConvertGRUSequenceToTensorIterator,
         ov::pass::ConvertLSTMSequenceToTensorIterator);
 
     CPU_SET_CALLBACK_COMMON(manager,
-        [isCellPrimitiveSupported](const_node_ptr &node) -> bool {
-            return isCellPrimitiveSupported(node);
+        [](const_node_ptr &node) -> bool {
+            std::string msg;
+            return node::RNN::isSupportedOperation(node, msg);
         },
         ov::pass::RNNCellDecomposition,
         ov::pass::GRUCellDecomposition,
