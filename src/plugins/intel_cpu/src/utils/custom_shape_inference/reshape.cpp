@@ -89,36 +89,44 @@ Result SqueezeShapeInfer::infer(const std::vector<std::reference_wrapper<const V
         const auto memPtr = data_dependency.at(SQUEEZE_PATTERN);
         const auto data = memPtr->GetPtr();
         const auto& dims = memPtr->getStaticDims();
-        const size_t outputPatternSize = std::accumulate(dims.begin(), dims.end(), 1, std::multiplies<Dim>());
-        std::vector<int64_t> outPattern = ov::get_raw_data_as<int64_t>(
-                                              InferenceEngine::details::convertPrecision(memPtr->getDesc().getPrecision()),
-                                              data,
-                                              outputPatternSize,
-                                              ov::util::Cast<int64_t>());
-        std::vector<bool> removeMask(inputShapeSize, false);
-        bool existError = false;
-        for (size_t i = 0; i < outputPatternSize; i++) {
-            if (outPattern[i] < 0) {
-                outPattern[i] = inputShapeSize + outPattern[i];
+        if (dims.size() != 0) {
+            const size_t outputPatternSize = std::accumulate(dims.begin(), dims.end(), 1, std::multiplies<Dim>());
+            std::vector<int64_t> outPattern = ov::get_raw_data_as<int64_t>(
+                                                  InferenceEngine::details::convertPrecision(memPtr->getDesc().getPrecision()),
+                                                  data,
+                                                  outputPatternSize,
+                                                  ov::util::Cast<int64_t>());
+            std::vector<bool> removeMask(inputShapeSize, false);
+            bool existError = false;
+            for (size_t i = 0; i < outputPatternSize; i++) {
+                if (outPattern[i] < 0) {
+                    outPattern[i] = inputShapeSize + outPattern[i];
+                }
+                if (outPattern[i] >= 0 && outPattern[i] < static_cast<int64_t>(inputShapeSize)) {
+                    removeMask[outPattern[i]] = true;
+                } else {
+                    existError = true;
+                    break;
+                }
             }
-            if (outPattern[i] >= 0 && outPattern[i] < static_cast<int64_t>(inputShapeSize)) {
-                removeMask[outPattern[i]] = true;
-            } else {
-                existError = true;
-                break;
+            for (size_t i = 0; i < inputShapeSize; i++) {
+                if (!removeMask[i]) {
+                    outputShape.push_back(inputShape[i]);
+                } else if (inputShape[i] != 1) {
+                    existError = true;
+                    break;
+                }
             }
-        }
-        for (size_t i = 0; i < inputShapeSize; i++) {
-            if (!removeMask[i]) {
-                outputShape.push_back(inputShape[i]);
-            } else if (inputShape[i] != 1) {
-                existError = true;
-                break;
+            if (existError) {
+                IE_THROW(Unexpected) << "[cpu]squeeze: the shape of input data " << inputShape
+                    << " conflicts with the squeeze pattern " << outPattern;
             }
-        }
-        if (existError) {
-            IE_THROW(Unexpected) << "[cpu]squeeze: the shape of input data " << inputShape
-                << " conflicts with the squeeze pattern " << outPattern;
+        } else {
+            for (size_t i = 0; i < inputShapeSize; i++) {
+                 if (inputShape[i] != 1) {
+                     outputShape.push_back(inputShape[i]);
+                 }
+            }
         }
     } else {
         for (size_t i = 0; i < inputShapeSize; i++) {
