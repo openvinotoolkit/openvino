@@ -491,7 +491,7 @@ void DumpGna2Model(const Gna2Model& gnaModel,
                      << " type: " << GetOperandType(operand.Type) << " shape: " << GetSimpleString(operand.Shape)
                      << " tag: " << foundName << " offset: " << offset << " size: "
                      << Gna2RoundUp(GetGnaShapeSize(operand.Shape, GetTypeByteSize(operand.Type)),
-                                    Limitations::get_instance()->get_memory_alignment())
+                                    static_cast<uint32_t>(Limitations::get_instance()->get_memory_alignment()))
                      << " data: " << operand.Data << " baseAlloc: " << foundPtr << " layout: ";
 
             DumpCharArray(dumpFile, operand.Layout, GNA2_SHAPE_MAXIMUM_NUMBER_OF_DIMENSIONS);

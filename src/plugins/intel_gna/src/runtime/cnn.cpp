@@ -78,7 +78,8 @@ void CNNMaxPoolLegacy(intel_dnn_component_t* component,
                         sum += ptr_inputs[k * in_c + i];
                     }
 
-                    ptr_outputs[m * in_c + i] = ov::intel_gna::frontend::SaturationCast<int32_t>(sum, &num_saturate);
+                    ptr_outputs[m * in_c + i] =
+                        ov::intel_gna::frontend::SaturationCast<int32_t>(static_cast<float>(sum), &num_saturate);
                     m++;
                 }
                 if (num_saturate > 0) {

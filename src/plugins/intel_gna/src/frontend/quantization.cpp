@@ -115,7 +115,8 @@ void QuantizeWeights<int8_t>(const QuantizationData& data,
                 output_low = data.weights_quant_params.GetMinValues(false).at(idx);
                 output_high = data.weights_quant_params.GetMaxValues(false).at(idx);
                 levels = data.weights_quant_params.GetLevels();
-                channel_multiplier = ((input_high - input_low) * data.scale_factor) / (levels - 1);
+                channel_multiplier =
+                    static_cast<uint32_t>(((input_high - input_low) * data.scale_factor) / (levels - 1));
             } else {
                 float scaled_row_max = 0;
                 for (size_t col = 0; col < data.num_columns; col++) {
@@ -126,7 +127,8 @@ void QuantizeWeights<int8_t>(const QuantizationData& data,
                     }
                 }
 
-                channel_multiplier = (scaled_row_max / static_cast<float>(MAX_VAL_1B_WEIGHT) + 0.5f);
+                channel_multiplier =
+                    static_cast<uint32_t>((scaled_row_max / static_cast<float>(MAX_VAL_1B_WEIGHT) + 0.5f));
             }
 
             if (channel_multiplier > MAX_OUT_MULTIPLIER) {
@@ -143,7 +145,7 @@ void QuantizeWeights<int8_t>(const QuantizationData& data,
             float value = ptr_float_weights[offset];
 
             if (min_values_size > 0) {
-                value = ApplyFQ(value, input_low, input_high, output_low, output_high, levels);
+                value = ApplyFQ(value, input_low, input_high, output_low, output_high, static_cast<uint32_t>(levels));
             }
 
             if (ptr_int_biases) {
@@ -199,7 +201,7 @@ void QuantizeWeights<int16_t>(const QuantizationData& data,
             float rounding_value = (ptr_float_weights[row * data.num_columns + col] > 0) ? 0.5f : -0.5f;
             float value = ptr_float_weights[row * data.num_columns + col];
             if (min_values_size > 0) {
-                value = ApplyFQ(value, input_low, input_high, output_low, output_high, levels);
+                value = ApplyFQ(value, input_low, input_high, output_low, output_high, static_cast<uint32_t>(levels));
             }
 
             value = value * data.scale_factor + rounding_value;

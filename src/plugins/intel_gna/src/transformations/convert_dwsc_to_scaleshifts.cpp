@@ -62,7 +62,7 @@ static std::shared_ptr<ngraph::Node> DecomposeDWSC(std::shared_ptr<ngraph::opset
         filter_end = filter_end < input_width ? filter_end : static_cast<int32_t>(input_width);
 
         for (int32_t filter_pos = input_position, filter_idx = 0; filter_pos < filter_end;
-             filter_pos += dilation_width, filter_idx++) {
+             filter_pos += static_cast<int32_t>(dilation_width), filter_idx++) {
             if (filter_pos >= 0) {
                 auto conv_input_slice =
                     FlatCrop(flat_input_plane, filter_pos * input_channel_count, input_channel_count);

@@ -979,9 +979,10 @@ void InsertCopyLayerPass::run() {
             }
             std::vector<FuncChildrenInfo> results;
             for (size_t i = 0; i < getInputTo(currentLayer->outData[0]).size(); ++i) {
-                auto next_layer = CNNNetGetNextLayerSkipCertain(currentLayer, 0, i, [](CNNLayerPtr origin) {
-                                      return false;
-                                  }).first;
+                auto next_layer =
+                    CNNNetGetNextLayerSkipCertain(currentLayer, 0, static_cast<int>(i), [](CNNLayerPtr origin) {
+                        return false;
+                    }).first;
                 auto result = find_func_layers(next_layer,
                                                currentLayer,
                                                CNNLayerFindInsDataIdxes(currentLayer->outData[0], next_layer)[0]);
@@ -1010,7 +1011,7 @@ void InsertCopyLayerPass::run() {
             if (parents.find(inputData) != std::end(parents)) {
                 auto parent = getCreatorLayer(inputData);
                 IE_ASSERT(parent.lock() != nullptr);
-                InsertCopyLayer(parent.lock(), l, input_idx, this->getPassManager(), CopyLayerName);
+                InsertCopyLayer(parent.lock(), l, static_cast<int>(input_idx), this->getPassManager(), CopyLayerName);
             } else {
                 parents.insert(inputData);
             }
@@ -1105,12 +1106,16 @@ void InsertCopyLayerPass::run() {
                     size_t memoryIdx = currentCopyIdx;
                     auto memoryLayer = MemoryLayers[memoryIdx].first;
                     auto inputIdx = MemoryLayers[memoryIdx].second;
-                    InsertCopyLayer(l, memoryLayer, inputIdx, this->getPassManager(), DelayedCopyLayerName);
+                    InsertCopyLayer(l,
+                                    memoryLayer,
+                                    static_cast<int>(inputIdx),
+                                    this->getPassManager(),
+                                    DelayedCopyLayerName);
                 } else {
                     size_t concatIdx = currentCopyIdx - MemoryLayers.size();
                     auto concatLayer = ConcatLayers[concatIdx].first;
                     auto inputIdx = ConcatLayers[concatIdx].second;
-                    InsertCopyLayer(l, concatLayer, inputIdx, this->getPassManager(), CopyLayerName);
+                    InsertCopyLayer(l, concatLayer, static_cast<int>(inputIdx), this->getPassManager(), CopyLayerName);
                 }
                 currentCopyIdx++;
             }
@@ -1142,7 +1147,11 @@ void InsertCopyLayerPass::run() {
                 auto inputData = l->insData[inputIdx].lock();
                 auto parentLayer = getCreatorLayer(inputData);
                 IE_ASSERT(parentLayer.lock() != nullptr);
-                InsertCopyLayer(parentLayer.lock(), l, inputIdx, this->getPassManager(), CopyLayerName);
+                InsertCopyLayer(parentLayer.lock(),
+                                l,
+                                static_cast<int>(inputIdx),
+                                this->getPassManager(),
+                                CopyLayerName);
             }
         }
     }
@@ -1202,7 +1211,7 @@ void FlattenTrivialConcatPass::run() {
 
         // Reshape concat inputs
         for (size_t input_idx = 0; input_idx != concatLayer->insData.size(); input_idx++) {
-            auto concatInput = getLayerByIndex(input_idx, concatLayer);
+            auto concatInput = getLayerByIndex(static_cast<int>(input_idx), concatLayer);
 
             auto tensor = InferenceEngine::TensorDesc(concatInput->getTensorDesc());
             tensor.reshape(SizeVector({1, total_sizes[input_idx]}), InferenceEngine::Layout::NC);
@@ -1570,7 +1579,7 @@ void InsertSplitAligningFilterPass::run() {
                     filterLayer->_out_depth = numberOfFilters;
                     filterLayer->_stride_x = numberOfFilters;
                     filterLayer->_stride_y = 1;
-                    filterLayer->_kernel_x = filterSize;
+                    filterLayer->_kernel_x = static_cast<uint32_t>(filterSize);
                     filterLayer->_kernel_y = 1;
                     filterLayer->_padding_x = 0;
                     filterLayer->_padding_y = 0;
@@ -1676,7 +1685,7 @@ void EltwiseSplitOverChannelsPass::run() {
                 split->outData.push_back(data);
             }
             // replacing connection X->eltwise to X->split
-            auto oData = CNNLayerFindOutData(l, kThEltwiseInput);
+            auto oData = CNNLayerFindOutData(l, static_cast<int>(kThEltwiseInput));
             oData.second->second = split;
 
             if (sameInputs) {
@@ -2187,8 +2196,8 @@ void FuseFQIntoWeightsPass::run() {
 
             size_t depth = 1;
             intel_dnn_component_t component;
-            component.num_columns_in = weightDims[1];
-            component.num_rows_in = weightDims[0];
+            component.num_columns_in = static_cast<uint32_t>(weightDims[1]);
+            component.num_rows_in = static_cast<uint32_t>(weightDims[0]);
 
             if (LayerInfo(weightableLayer).isConvolution()) {
                 depth = (weightDims.size() == 4) ? weightDims[2] * weightDims[3] : 1;
@@ -2687,8 +2696,9 @@ void FuseFullyConnectedWithEltwisePass::run() {
         CNNLayerPtr eltwise_input = nullptr;
         for (size_t i = 0; i < eltwise->insData.size(); i++) {
             // Get Eltwise's prev layer and check its kind
-            auto before_eltwise =
-                CNNNetHasPrevLayer(eltwise.get(), 0) ? CNNNetPrevLayerSkipCertain(eltwise, i, DoNotSkip) : nullptr;
+            auto before_eltwise = CNNNetHasPrevLayer(eltwise.get(), 0)
+                                      ? CNNNetPrevLayerSkipCertain(eltwise, static_cast<int>(i), DoNotSkip)
+                                      : nullptr;
             if (LayerInfo(before_eltwise).isConst()) {
                 eltwise_const = before_eltwise;
             } else {

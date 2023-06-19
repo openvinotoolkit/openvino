@@ -32,7 +32,7 @@ inline void UnscaleAndCast(T2* ptr_dst,
         T1* ptr_int_row = ptr_src + i * num_columns;
         T2* ptr_float_row = ptr_dst + i * num_columns;
         for (uint32_t j = 0; j < num_columns; j++) {
-            ptr_float_row[j] = static_cast<T2>(ptr_int_row[j]) / scale_factor;
+            ptr_float_row[j] = static_cast<T2>(ptr_int_row[j] / scale_factor);
         }
     }
 }

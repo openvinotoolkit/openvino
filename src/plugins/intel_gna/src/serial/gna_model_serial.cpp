@@ -44,8 +44,8 @@ inline void writeBits(const T& obj, std::ostream& os) {
 
 inline void writeString(const std::string& str, std::ostream& os) {
     const char* c_str = str.c_str();
-    const size_t str_len = strlen(c_str) + 1;
-    writeBits(static_cast<uint32_t>(str_len), os);
+    const uint32_t str_len = static_cast<uint32_t>(strlen(c_str)) + 1;
+    writeBits(str_len, os);
     writeNBytes(c_str, str_len, os);
 }
 
@@ -63,7 +63,7 @@ inline void write_pre_processing_model(const std::shared_ptr<ov::Model>& model, 
     writeString(xml_buf.str(), os);
 
     // write BIN
-    size_t ir_bin_size = bin_buf.str().size();
+    uint32_t ir_bin_size = static_cast<uint32_t>(bin_buf.str().size());
     writeBits(ir_bin_size, os);
     writeNBytes(bin_buf.str().c_str(), ir_bin_size, os);
 }
@@ -456,9 +456,9 @@ void GNAModelSerial::Export(const GnaAllocations& allocations, std::ostream& os)
         }
         ep.descriptor_offset = found.second;
         // shape
-        ep.shape.NumberOfDimensions = desc.dims.size();
+        ep.shape.NumberOfDimensions = static_cast<uint32_t>(desc.dims.size());
         for (size_t i = 0; i < ep.shape.NumberOfDimensions; ++i) {
-            ep.shape.Dimensions[i] = desc.dims[i];
+            ep.shape.Dimensions[i] = static_cast<uint32_t>(desc.dims[i]);
         }
         return ep;
     };
@@ -475,10 +475,10 @@ void GNAModelSerial::Export(const GnaAllocations& allocations, std::ostream& os)
     header.gnaMemSize = gnaGraphSize;
     header.layersCount = layers.size();
     header.nGroup = 1;  // just to support the old models
-    header.nInputs = inputs_.size();
-    header.nOutputs = outputs_.size();
-    header.nTransposeInputs = inputs_transpose_info_.size();
-    header.nTransposeOutputs = outputs_transpose_info_.size();
+    header.nInputs = static_cast<uint32_t>(inputs_.size());
+    header.nOutputs = static_cast<uint32_t>(outputs_.size());
+    header.nTransposeInputs = static_cast<uint32_t>(inputs_transpose_info_.size());
+    header.nTransposeOutputs = static_cast<uint32_t>(outputs_transpose_info_.size());
     // 1. Write header
     writeBits(header, os);
     // 2. Write input names
@@ -584,8 +584,8 @@ void GNAModelSerial::Export(const GnaAllocations& allocations, std::ostream& os)
         }
         writeBits(found.second, os);
         writeBits(reserved_size, os);
-        const auto nameSize = strlen(name.c_str()) + 1;
-        writeBits(static_cast<uint32_t>(nameSize), os);
+        const auto nameSize = static_cast<uint32_t>(strlen(name.c_str()) + 1);
+        writeBits(nameSize, os);
         writeNBytes(name.c_str(), nameSize, os);
         writeBits(scale_factor, os);
     }
@@ -635,7 +635,7 @@ void GNAModelSerial::ImportNodes(std::istream& is, void* base_ptr, T& nodes) {
                 readBits(ir_bin_size, is);
 
                 ov::Tensor ir_bin_tensor(ov::element::u8, ov::Shape({ir_bin_size}));
-                readNBytes(ir_bin_tensor.data(), ir_bin_size, is);
+                readNBytes(ir_bin_tensor.data(), static_cast<uint32_t>(ir_bin_size), is);
 
                 // restore model
                 ov::Core core;

@@ -13,7 +13,14 @@
 #include "gna2-device-api.h"
 #include "gna2-model-export-api.h"
 #include "gna2-model-suecreek-header.h"
-#include "gna2-tlv-writer.h"
+#ifdef _MSC_VER
+#    pragma warning(push)
+#    pragma warning(disable : 4200)
+#    include "gna2-tlv-writer.h"
+#    pragma warning(pop)
+#else
+#    include "gna2-tlv-writer.h"
+#endif  // _MSC_VER
 #include "gna2_model_helper.hpp"
 #include "gna_device.hpp"
 #include "log/log.hpp"
@@ -43,7 +50,7 @@ static std::vector<char> GetStringAsTlv(Gna2TlvType type, const std::string& s) 
 
     std::vector<char> vs(s.begin(), s.end());
     vs.resize(vs.size() + (4 - vs.size() % 4) % 4, 0);
-    reinterpret_cast<Gna2TlvRecord*>(record.data())->length = vs.size();
+    reinterpret_cast<Gna2TlvRecord*>(record.data())->length = static_cast<uint32_t>(vs.size());
     record.insert(record.end(), vs.begin(), vs.end());
     return record;
 }

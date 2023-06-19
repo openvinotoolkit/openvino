@@ -62,7 +62,7 @@ public:
                 }
                 permuteCycles.back().push_back({i, orderVec[i]});
                 counter[i] = true;
-                i = orderVec[i];
+                i = static_cast<int>(orderVec[i]);
                 continue;
             }
             // this dims not permuted
@@ -134,7 +134,7 @@ inline bool isTrivialPermute(const std::vector<int64_t> order, const std::vector
             return false;
         }
         // check dims in between
-        for (int j = std::min(transp.first, transp.second) + 1; j < std::max(transp.first, transp.second); j++) {
+        for (int64_t j = std::min(transp.first, transp.second) + 1; j < std::max(transp.first, transp.second); j++) {
             if (input_order_transformed[j] != 1) {
                 return false;
             }

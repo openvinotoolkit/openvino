@@ -42,7 +42,7 @@ void pwl(const T* args, T* out, size_t count, const A* m, const A* b, const A* k
     for (size_t i = 0; i < count; i++) {
         // knots is one more than segments
         size_t segment_index = range_search(args[i], knots, segments_number + 1);
-        out[i] = m[segment_index] * args[i] + b[segment_index];
+        out[i] = static_cast<T>(m[segment_index] * args[i] + b[segment_index]);
     }
 }
 }  // namespace reference

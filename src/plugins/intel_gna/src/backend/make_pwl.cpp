@@ -205,9 +205,10 @@ void make_gna_pwl(const DnnActivation& fun,
         int16_t y_lower = y_min;
         int16_t y_upper = y_max;
         if (kActFakeQuantize && fun.fqParams.set) {
-            x_lower = std::max(static_cast<int64_t>(*fun.fqParams.input_low * in_scale), static_cast<int64_t>(x_lower));
-            x_upper =
-                std::min(static_cast<int64_t>(*fun.fqParams.input_high * in_scale), static_cast<int64_t>(x_upper));
+            x_lower = static_cast<int32_t>(
+                std::max(static_cast<int64_t>(*fun.fqParams.input_low * in_scale), static_cast<int64_t>(x_lower)));
+            x_upper = static_cast<int32_t>(
+                std::min(static_cast<int64_t>(*fun.fqParams.input_high * in_scale), static_cast<int64_t>(x_upper)));
             y_lower =
                 std::max(static_cast<int32_t>(*fun.fqParams.input_low * out_scale), static_cast<int32_t>(y_lower));
             y_upper =
@@ -372,7 +373,7 @@ static void make_gna_pwl(const T* m,
                         s.slope_scale_index;
         int16_t ybase = cast_check_overflow<int16_t>(
             mul_check_overflow(add_check_overflow(mul_check_overflow(m[i], alpha[i]), b[i]), out_scale));
-        int16_t slope = cast_check_overflow<int16_t>(mul_check_overflow(s.slope, s.slope_scale));
+        int16_t slope = cast_check_overflow<int16_t>(mul_check_overflow(s.slope, static_cast<double>(s.slope_scale)));
         gna_pwl.push_back({xbase, ybase, slope});
         print_segment(alpha[i], add_check_overflow(mul_check_overflow(m[i], alpha[i]), b[i]), m[i]);
     }

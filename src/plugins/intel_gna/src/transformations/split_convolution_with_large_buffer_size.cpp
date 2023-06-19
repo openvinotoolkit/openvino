@@ -26,14 +26,14 @@ static bool shouldSplitCnn(const ngraph::Output<ngraph::Node>& node) {
     IE_ASSERT(convolution != nullptr);
     auto& input = convolution->get_input_shape(0);
     auto& filters = convolution->get_input_shape(1);
-    uint32_t width = input.back();
-    uint32_t in_channels = input.at(1);
+    auto width = static_cast<uint32_t>(input.back());
+    auto in_channels = static_cast<uint32_t>(input.at(1));
     if (input.size() >= 4 && filters.size() >= 4) {
-        uint32_t height = input.at(2);
-        auto kH = filters.at(2);
-        auto kW = filters.at(3);
-        auto sH = convolution->get_strides().at(0);
-        auto sW = convolution->get_strides().at(1);
+        auto height = static_cast<uint32_t>(input.at(2));
+        auto kH = static_cast<uint32_t>(filters.at(2));
+        auto kW = static_cast<uint32_t>(filters.at(3));
+        auto sH = static_cast<uint32_t>(convolution->get_strides().at(0));
+        auto sW = static_cast<uint32_t>(convolution->get_strides().at(1));
         if (gna_convolution_layer::is3DInputOr2DKernel(height, width, in_channels, kH, kW) &&
             !gna_convolution_layer::isMappableFrom2DTo1D(height, width, in_channels, kH, kW, sH, sW)) {
             return false;
@@ -62,8 +62,8 @@ static bool Convert(std::shared_ptr<ngraph::Node> conv,
         return false;
     }
     auto& input = conv->get_input_shape(0);
-    uint32_t width = input.back();
-    uint32_t in_channels = input.at(1);
+    uint32_t width = static_cast<uint32_t>(input.back());
+    uint32_t in_channels = static_cast<uint32_t>(input.at(1));
     auto split_sizes = GetAlignedSplitSizes(width,
                                             Limitations::kBufferMaxSize / in_channels,
                                             Limitations::get_instance()->get_memory_alignment());

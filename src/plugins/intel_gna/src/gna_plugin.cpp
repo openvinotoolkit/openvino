@@ -103,12 +103,13 @@ void GNAPlugin::copyInputData(T* dst,
             for (uint32_t j = 0; j < num_vector_elements; j++) {
                 if (!std::is_same<T, U>::value) {
                     if (!gnaFlags->input_low_precision) {
-                        dst[j * num_group + i] = ConvertFloatToInt16(src[i * num_vector_elements + j] * scaleFactor);
+                        dst[j * num_group + i] =
+                            static_cast<T>(ConvertFloatToInt16(src[i * num_vector_elements + j] * scaleFactor));
                     } else {
                         dst[j * num_group + i] = ConvertFloatToInt8(src[i * num_vector_elements + j] * scaleFactor);
                     }
                 } else {
-                    dst[j * num_group + i] = src[i * num_vector_elements + j];
+                    dst[j * num_group + i] = static_cast<T>(src[i * num_vector_elements + j]);
                 }
             }
             // pad to meet weight matrix row length requirement
@@ -130,7 +131,7 @@ void GNAPlugin::copyInputData(T* dst,
                 std::memset(ptr_dst_vec, 0, num_vector_stride * sizeof(T));
                 if (!gnaFlags->input_low_precision) {
                     for (uint32_t j = 0; j < num_vector_elements; j++) {
-                        ptr_dst_vec[j] = ConvertFloatToInt16(ptr_src_vec[j] * scaleFactor);
+                        ptr_dst_vec[j] = static_cast<T>(ConvertFloatToInt16(ptr_src_vec[j] * scaleFactor));
                     }
                 } else {
                     for (uint32_t j = 0; j < num_vector_elements; j++) {
@@ -558,10 +559,10 @@ bool GNAPlugin::TryToInitOutput(const std::string& portName, InferenceEngine::CN
 
         outputs_.at(portName).ptrs.resize(gnaFlags->num_requests);
         outputs_.at(portName).orientation = orientation;
-        outputs_.at(portName).set_precision(numBytesPerElem);
+        outputs_.at(portName).set_precision(static_cast<uint32_t>(numBytesPerElem));
         outputs_.at(portName).scale_factor =
             quantized != nullptr ? quantized->_dst_quant.GetScale() : kScaleFactorDefault;
-        outputs_.at(portName).num_elements = numElem;
+        outputs_.at(portName).num_elements = static_cast<uint32_t>(numElem);
 
         // binding ptr for first infer request - then others will be setup during relocation
         gnamem->getQueue(REGION_AUTO)->bind_ptr(layer, &outputs_.at(portName).ptrs.front(), outputPtr);
@@ -1216,10 +1217,10 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap& inputs, Infer
                      input.second->getTensorDesc().getPrecision(),
                      gnaFlags->sw_fp32 ? kScaleFactorDefault : inputs_ptr_->at(input_name).scale_factor,
                      inputOrientation,
-                     importedFrames,
-                     targetGroups,
-                     importedElements,
-                     importedElements);
+                     static_cast<uint32_t>(importedFrames),
+                     static_cast<uint32_t>(targetGroups),
+                     static_cast<uint32_t>(importedElements),
+                     static_cast<uint32_t>(importedElements));
 
         if (model) {
             Precision output_prc = buff_blob->getTensorDesc().getPrecision();
@@ -1347,11 +1348,11 @@ RequestStatus GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
         ExportScores(output_blob->buffer(),
                      gna_output_blob->cbuffer(),
                      gna_output_desc.orientation,
-                     batchSize,
-                     batchSize,
-                     elementsPerBatch,
-                     elementsPerBatch,
-                     elementsPerBatch,
+                     static_cast<uint32_t>(batchSize),
+                     static_cast<uint32_t>(batchSize),
+                     static_cast<uint32_t>(elementsPerBatch),
+                     static_cast<uint32_t>(elementsPerBatch),
+                     static_cast<uint32_t>(elementsPerBatch),
                      gna_output_desc.tensor_precision,
                      gna_output_desc.model_precision);
 
@@ -1384,16 +1385,16 @@ RequestStatus GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
             case InferenceEngine::Precision::FP32:
                 UnscaleAndCast(output_blob->buffer().as<float*>(),
                                output_blob->buffer().as<int32_t*>(),
-                               elementsPerBatch,
-                               batchSize,
+                               static_cast<uint32_t>(elementsPerBatch),
+                               static_cast<uint32_t>(batchSize),
                                gna_output_desc.scale_factor);
                 break;
 
             case InferenceEngine::Precision::I32:
                 UnscaleAndCast(output_blob->buffer().as<int32_t*>(),
                                output_blob->buffer().as<int32_t*>(),
-                               elementsPerBatch,
-                               batchSize,
+                               static_cast<uint32_t>(elementsPerBatch),
+                               static_cast<uint32_t>(batchSize),
                                gna_output_desc.scale_factor);
                 break;
 
@@ -1522,7 +1523,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr GNAPlugin::ImportNetwork(std::i
 
     gnamem->commit();
 
-    auto model = createModelWrapperForImportNetwork(header.layersCount);
+    auto model = createModelWrapperForImportNetwork(static_cast<uint32_t>(header.layersCount));
     GNAModelSerial::MemoryType mt;
     auto serial = GNAModelSerial(&model->object(), mt);
 

@@ -153,7 +153,7 @@ public:
                 return {true, curOffset};
             }
             const auto size = queuePair.second->getSize();
-            curOffset += ALIGN(size, _data_alignment);
+            curOffset += ALIGN(static_cast<uint32_t>(size), static_cast<uint32_t>(_data_alignment));
         }
         return {false, 0};
     }

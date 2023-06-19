@@ -73,7 +73,7 @@ void GNAVariableState::SetState(const InferenceEngine::Blob::Ptr& newState) {
             pre_post_processing::ConvertToInt16(static_cast<int16_t*>(state->gna_ptr),
                                                 newState->buffer().as<float*>(),
                                                 1,
-                                                data_elements,
+                                                static_cast<uint32_t>(data_elements),
                                                 scale_factor);
         } else {
             THROW_GNA_EXCEPTION

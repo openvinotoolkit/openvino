@@ -42,7 +42,7 @@ struct GnaDesc {
 
     // help methods
     uint32_t get_required_size() const {
-        return num_elements * tensor_precision.size();
+        return num_elements * static_cast<uint32_t>(tensor_precision.size());
     }
 
     uint32_t get_allocated_size() const {

@@ -249,7 +249,7 @@ inline std::vector<CNNLayerPtr> CNNNetGetAllNextLayersSkipCertain(Layer layer,
     int startIdx, endIdx;
     if (oDataIdx == -1) {
         startIdx = 0;
-        endIdx = layer->outData.size();
+        endIdx = static_cast<int>(layer->outData.size());
     } else {
         startIdx = oDataIdx;
         endIdx = oDataIdx + 1;
@@ -886,7 +886,7 @@ inline uint32_t GetDimFromBack(const InferenceEngine::SizeVector& dims, const ui
     if (backOffset > dims.size()) {
         return 1;
     }
-    const auto indexFromFront = dims.size() - backOffset;
+    const auto indexFromFront = static_cast<uint32_t>(dims.size()) - backOffset;
     return GetDimFromFront(dims, indexFromFront);
 }
 
