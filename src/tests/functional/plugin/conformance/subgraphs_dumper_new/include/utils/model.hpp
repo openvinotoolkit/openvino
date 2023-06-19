@@ -20,9 +20,9 @@ namespace ov {
 namespace tools {
 namespace subgraph_dumper {
 
-static std::vector<std::regex> FROTEND_REGEXP {
+static std::vector<std::regex> FROTEND_REGEXP = {
 #ifdef ENABLE_OV_ONNX_FRONTEND
-    std::regex(R"(.*\.onnx)",
+    std::regex(R"(.*\.onnx)"),
 #endif
 #ifdef ENABLE_OV_PADDLE_FRONTEND
     std::regex(R"(.*\.pdmodel)"),
