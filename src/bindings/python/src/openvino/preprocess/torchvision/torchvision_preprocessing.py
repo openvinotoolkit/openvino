@@ -46,13 +46,15 @@ TORCHTYPE_TO_OVTYPE = {
 
 
 def _setup_size(size: Any, error_msg: str) -> Tuple[int, int]:
+    # TODO: refactor into @singledispatch once Python 3.7 support is dropped
     if isinstance(size, numbers.Number):
         return int(size), int(size)  # type: ignore
-    if isinstance(size, Sequence) and len(size) == 1:
-        return size[0], size[0]
-    if len(size) != 2:
-        raise ValueError(error_msg)
-    return size
+    if isinstance(size, Sequence):
+        if len(size) == 1:
+            return size[0], size[0]
+        elif len(size) == 2:
+            return size
+    raise ValueError(error_msg)
 
 
 def _NHWC_to_NCHW(input_shape: List) -> List:  # noqa N802
@@ -64,6 +66,7 @@ def _NHWC_to_NCHW(input_shape: List) -> List:  # noqa N802
 
 
 def _to_list(transform: Callable) -> List:
+    # TODO: refactor into @singledispatch once Python 3.7 support is dropped
     if isinstance(transform, torch.nn.Sequential):
         return list(transform)
     elif isinstance(transform, transforms.Compose):
@@ -297,7 +300,7 @@ def _from_torchvision(model: ov.Model, transform: Callable, input_example: Any, 
         if len(model.get_parameters()) == 1:
             input_idx = 0
         else:
-            raise ValueError("Model contains multiple inputs. Please specify the name of the" "input to which prepocessing is added.")
+            raise ValueError("Model contains multiple inputs. Please specify the name of the input to which prepocessing is added.")
 
     if input_idx is None:
         raise ValueError(f"Input with name {input_name} is not found")
