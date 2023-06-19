@@ -4,6 +4,7 @@
 
 #include "gna_transformations_pipeline.hpp"
 
+#include "debug_new_pass.hpp"
 #include "gna_itt.hpp"
 #include "legacy/net_pass.h"
 #include "legacy/transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp"
