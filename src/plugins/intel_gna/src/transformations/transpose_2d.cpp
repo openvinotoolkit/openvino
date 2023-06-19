@@ -66,6 +66,11 @@ Transpose2D::Transpose2D() {
         for (size_t i = 0; i < fused_sz; ++i) {
             shape_fused_in[i] = shape_fused_out[axis_fused_fixed[i]];
         }
+
+        if (!limitations::Limitations::is_transpose_supported(shape_fused_in)) {
+            return false;
+        }
+
         // Reshape in
         auto reshape_in_const =
             std::make_shared<Constant>(ov::element::i32, ov::Shape{shape_fused_in.size()}, shape_fused_in);
