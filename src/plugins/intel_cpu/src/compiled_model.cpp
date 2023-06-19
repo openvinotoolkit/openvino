@@ -364,7 +364,9 @@ ov::Any CompiledModel::GetMetric(const std::string& name) const {
 
 void CompiledModel::export_model(std::ostream& modelStream) const {
     ModelSerializer serializer(modelStream, extensionManager);
-    serializer << _model;
+    std::pair<const std::shared_ptr<ov::Model>, const std::shared_ptr<const ov::Model>> models =
+        std::make_pair(_model, _original_model);
+    serializer << models;
 }
 
 }  // namespace intel_cpu

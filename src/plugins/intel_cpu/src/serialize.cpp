@@ -25,8 +25,6 @@ void setInfo(pugi::xml_object_range<pugi::xml_named_node_iterator>&& nodes, T&& 
         if (!name_attr || !precision_attr || !shape_attr || info_iter == info.end()) {
             IE_THROW(NetworkNotRead) << "The inputs/outputs information is invalid.";
         }
-        // TODO: Is below info still needed for plugin api 2.0?
-        // info_iter->set_names({name_attr.value()});
         info_iter->get_tensor_ptr()->set_element_type(ov::element::Type(precision_attr.value()));
         info_iter->get_tensor_ptr()->set_tensor_type(ov::element::Type(precision_attr.value()),
                                                      ov::PartialShape(shape_attr.value()));
@@ -39,7 +37,10 @@ ModelSerializer::ModelSerializer(std::ostream & ostream, ExtensionManager::Ptr e
     , _extensionManager(extensionManager) {
 }
 
-void ModelSerializer::operator << (const std::shared_ptr<ov::Model>& model) {
+void ModelSerializer::operator<<(
+    std::pair<const std::shared_ptr<ov::Model>, const std::shared_ptr<const ov::Model>>& models) {
+    auto model = std::get<0>(models);
+    auto orig_model = std::get<1>(models);
     auto getCustomOpSets = [this]() {
         std::map<std::string, ngraph::OpSet> custom_opsets;
 
@@ -62,18 +63,19 @@ void ModelSerializer::operator << (const std::shared_ptr<ov::Model>& model) {
         pugi::xml_node outputs = root.append_child("outputs");
 
         // Need it?
-        for (const auto& in : model->inputs()) {
+        for (const auto& in : orig_model->inputs()) {
             auto in_node = inputs.append_child("in");
             in_node.append_attribute("name").set_value(ov::op::util::get_ie_output_name(in).c_str());
             in_node.append_attribute("precision").set_value(in.get_element_type().get_type_name().c_str());
-            in_node.append_attribute("shape").set_value(in.get_shape().to_string().c_str());
+            in_node.append_attribute("shape").set_value(in.get_partial_shape().to_string().c_str());
         }
 
-        for (const auto& out : model->outputs()) {
+        for (const auto& out : orig_model->outputs()) {
             auto out_node = outputs.append_child("out");
-            out_node.append_attribute("name").set_value(ov::op::util::get_ie_output_name(out).c_str());
+            const auto node = out.get_node_shared_ptr();
+            out_node.append_attribute("name").set_value(ov::op::util::get_ie_output_name(node->input_value(0)).c_str());
             out_node.append_attribute("precision").set_value(out.get_element_type().get_type_name().c_str());
-            out_node.append_attribute("shape").set_value(out.get_shape().to_string().c_str());
+            out_node.append_attribute("shape").set_value(out.get_partial_shape().to_string().c_str());
         }
         xml_doc.save(stream);
     };
@@ -90,11 +92,14 @@ ModelDeserializer::ModelDeserializer(std::istream & istream, model_builder fn)
     , _model_builder(fn) {
 }
 
-void ModelDeserializer::operator >> (std::shared_ptr<ov::Model> & network) {
+void ModelDeserializer::operator>>(std::pair<std::shared_ptr<ov::Model>, std::shared_ptr<ov::Model>>& models) {
     using namespace ov::pass;
 
     std::string xmlString, xmlInOutString;
     ov::Tensor dataBlob;
+
+    auto& network = models.first;
+    auto& orig_model = models.second;
 
     StreamSerialize::DataHeader hdr = {};
     _istream.read(reinterpret_cast<char*>(&hdr), sizeof hdr);
@@ -122,14 +127,15 @@ void ModelDeserializer::operator >> (std::shared_ptr<ov::Model> & network) {
     _istream.read(const_cast<char*>(xmlString.c_str()), hdr.model_size);
 
     network = _model_builder(xmlString, std::move(dataBlob));
+    orig_model = network->clone();
 
     // Set input and output precisions
     pugi::xml_node root = xmlInOutDoc.child("cnndata");
     pugi::xml_node inputs = root.child("inputs");
     pugi::xml_node outputs = root.child("outputs");
 
-    setInfo(inputs.children("in"), network->inputs());
-    setInfo(outputs.children("out"), network->outputs());
+    setInfo(inputs.children("in"), orig_model->inputs());
+    setInfo(outputs.children("out"), orig_model->outputs());
 }
 
 }   // namespace intel_cpu

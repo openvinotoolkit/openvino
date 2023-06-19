@@ -503,23 +503,16 @@ ov::Tensor SyncInferRequest::get_compiled_tensor(const ov::Output<const ov::Node
 }
 
 ov::Tensor SyncInferRequest::get_tensor(const ov::Output<const ov::Node>& _port) const {
-    auto is_compiled_port = check_compiled_port(_port);
     auto port_name = get_port_name(_port);
     auto port = get_compiled_port(_port);
     auto compiled_tensor = ov::ISyncInferRequest::get_tensor(port);
 
-    auto is_imported_model = _compiled_model->get_property(ov::loaded_from_cache.name()).as<bool>();
-    if (is_imported_model && !is_compiled_port) {
-        _orig_ports_map[port_name] = _port;
-    }
-
-    // compiled port is normal case, it means there is no any precision/shape changes between graph and original model
-    // compiled port tensors are managed by InferRequest
-    if (is_compiled_port) {
+    // No precision change
+    auto is_precision_changed = _port_precision_changed[port_name];
+    if (!is_precision_changed)
         return compiled_tensor;
-    }
 
-    // if not compiled port means that there is precision/shape change between graph and original model
+    // If precision has been changed, it need return original precision tensor
     // port's data will be stored in _aux_tensors, and need converted to compiled tensor
     //     input  tensor: will be copied to compiled tensor when sent to do inference
     //     output tensor: need copy compiled tensor to aux tensor and return aux tensor
@@ -541,7 +534,7 @@ ov::Tensor SyncInferRequest::get_tensor(const ov::Output<const ov::Node>& _port)
         _aux_tensors[port_name] = ov::Tensor(_orig_ports_map[port_name].get_element_type(), external_shape);
     }
 
-    // input tensor is in aux tensors, don't need copy any thing
+    // input tensor is in aux tensors, don't need copy anything
     auto& aux_tensor = _aux_tensors[port_name];
     if (is_input) {
         return aux_tensor;
@@ -593,43 +586,42 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& _port, const
         _tensor.get_size() == ov::shape_size(_port.get_shape())) {
         tensor = ov::Tensor(_tensor.get_element_type(), _port.get_shape(), _tensor.data());
     }
-
-    // In case of import model, we cannot get original model info from the imported_model, so have to update it when
-    // set_tensor if possible
     auto name = get_port_name(_port);
-    auto is_imported_model = _compiled_model->get_property(ov::loaded_from_cache.name()).as<bool>();
-    if (is_imported_model && !is_compiled_port) {
-        _orig_ports_map[name] = _port;
-        // _port_precision_changed[name] = get_compiled_port(_port).get_element_type() != _port.get_element_type();
-    }
+    auto is_precision_changed = _port_precision_changed[name];
 
-    // auto precision_changed = check_precision_changed(_port);
-    if (!is_compiled_port) {
-        auto _orig_port = _orig_ports_map[name];
-        if ((_orig_port.get_element_type() != _tensor.get_element_type()) &&
-            (port.get_element_type() != _tensor.get_element_type())) {
-            IE_THROW(ParameterMismatch) << "Failed to set input tensor with precision: " << _tensor.get_element_type()
-                                        << ", if model input tensor precision is: " << _port.get_element_type();
-        }
-        _aux_tensors[name] = _tensor;
-        tensor = ov::ISyncInferRequest::get_tensor(port);
-        tensor.set_shape(_tensor.get_shape());
-    } else {
-        if (_port.get_element_type() != _tensor.get_element_type()) {
-            // Import model cannot get original port info if it is chained in meta plugin, need convert tensor here
-            if (is_imported_model) {
+    // Precision has been changed
+    if (is_precision_changed) {
+        if (!is_compiled_port) {
+            // Orig port
+            auto _orig_port = _orig_ports_map[name];
+            if (_orig_port.get_element_type() == _tensor.get_element_type()) {
+                // Orig port + orig port's tensor
                 _aux_tensors[name] = _tensor;
                 tensor = ov::ISyncInferRequest::get_tensor(port);
                 tensor.set_shape(_tensor.get_shape());
-            } else if (_orig_ports_map[name].get_element_type() == _tensor.get_element_type()) {
-                // origina_port precision tensor
-                _aux_tensors[name] = _tensor;
-                tensor = ov::ISyncInferRequest::get_tensor(port);
-                tensor.set_shape(_tensor.get_shape());
+            } else if (port.get_element_type() == _tensor.get_element_type()) {
+                // Orig port + compiled port's tensor
+                tensor = _tensor;
             } else {
-                IE_THROW(ParameterMismatch)
-                    << "Failed to set input tensor with precision: " << _tensor.get_element_type()
-                    << ", if model input tensor precision is: " << _port.get_element_type();
+                OPENVINO_THROW("Failed to set input tensor with precision: ",
+                               _tensor.get_element_type(), ", if model input tensor precision is: ",
+                               port.get_element_type(),
+                               " or ",
+                               _orig_port.get_element_type());
+            }
+        } else {
+            // Compiled port
+            if (_port.get_element_type() != _tensor.get_element_type()) {
+                if (_orig_ports_map[name].get_element_type() == _tensor.get_element_type()) {
+                    // origina_port precision tensor
+                    _aux_tensors[name] = _tensor;
+                    tensor = ov::ISyncInferRequest::get_tensor(port);
+                    tensor.set_shape(_tensor.get_shape());
+                } else {
+                    IE_THROW(ParameterMismatch)
+                        << "Failed to set input tensor with precision: " << _tensor.get_element_type()
+                        << ", if model input tensor precision is: " << _port.get_element_type();
+                }
             }
         }
     }

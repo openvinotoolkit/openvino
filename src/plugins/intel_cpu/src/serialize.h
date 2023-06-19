@@ -14,8 +14,7 @@ namespace intel_cpu {
 class ModelSerializer {
 public:
     ModelSerializer(std::ostream& ostream, ExtensionManager::Ptr extensionManager);
-    void operator<<(const std::shared_ptr<ov::Model>& model);
-
+    void operator<<(std::pair<const std::shared_ptr<ov::Model>, const std::shared_ptr<const ov::Model>>& models);
 private:
     std::ostream& _ostream;
     ExtensionManager::Ptr _extensionManager;
@@ -25,7 +24,7 @@ class ModelDeserializer {
 public:
     typedef std::function<std::shared_ptr<ov::Model>(const std::string&, const ov::Tensor&)> model_builder;
     ModelDeserializer(std::istream& istream, model_builder fn);
-    void operator>>(std::shared_ptr<ov::Model>& model);
+    void operator>>(std::pair<std::shared_ptr<ov::Model>, std::shared_ptr<ov::Model>>& models);
 
 private:
     std::istream& _istream;

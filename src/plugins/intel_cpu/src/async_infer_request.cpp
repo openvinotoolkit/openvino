@@ -22,6 +22,6 @@ void ov::intel_cpu::AsyncInferRequest::throw_if_canceled() const {
     // only check ov::Cancelled exception.
     try {
         check_state();
-    } catch (ov::Busy& busy) {
+    } catch (ov::Busy&) {
     }
 }

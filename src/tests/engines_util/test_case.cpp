@@ -76,9 +76,8 @@ std::shared_ptr<Function> function_from_ir(const std::string& xml_path, const st
 std::pair<testing::AssertionResult, size_t> TestCase::compare_results(size_t tolerance_bits) {
     auto res = testing::AssertionSuccess();
     size_t output_idx = 0;
-    const auto results = m_function->get_results();
     for (; output_idx < m_expected_outputs.size(); ++output_idx) {
-        const auto& result_tensor = m_request.get_tensor(results[output_idx]);
+        const auto& result_tensor = m_request.get_output_tensor(output_idx);
         const auto& exp_result = m_expected_outputs.at(output_idx);
 
         const auto& element_type = result_tensor.get_element_type();
