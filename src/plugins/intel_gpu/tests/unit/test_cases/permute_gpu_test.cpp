@@ -92,52 +92,6 @@ TEST(permute_gpu_f32, output_ordering_test)
     }
 }
 
-TEST(permute_f_and_y_gpu_f32, output_ordering_test)
-{
-    auto& engine = get_test_engine();
-
-    std::vector<std::vector<int32_t>> input_tensors = {
-        { 1, 256, 1024, 1 },
-    };
-    std::vector<std::vector<uint16_t>> permutations = {
-        { 0, 2, 1, 3 }, //do nothing
-    };
-    std::vector<format> input_formats = { format::bfyx };
-
-    auto get_permutation = [&](const std::vector<int32_t>& inp1, const std::vector<uint16_t>& order) {
-        EXPECT_EQ(inp1.size(), order.size());
-        std::vector<int32_t> output;
-        for (auto const& o : order) {
-            output.push_back(inp1.at(o));
-        }
-        return output;
-    };
-
-    for (auto const& fr : input_formats) {
-        for (auto const& inp_t : input_tensors) {
-            for (auto const& perm : permutations) {
-                auto input = engine.allocate_memory({ data_types::f32, fr, tensor(format::bfyx, inp_t) });
-                topology topology(
-                    input_layout("input", input->get_layout()),
-                    permute("permute", input_info("input"), perm));
-
-                network network(engine, topology);
-                network.set_input_data("input", input);
-                auto outputs = network.execute();
-                auto output = outputs.at("permute");
-                auto output_mem = output.get_memory();
-                EXPECT_EQ(outputs.size(), size_t(1));
-                auto ref_tensor = get_permutation(inp_t, perm);
-                auto dims = output_mem->get_layout().get_dims();
-                EXPECT_EQ(dims[0], ref_tensor[0]);
-                EXPECT_EQ(dims[1], ref_tensor[1]);
-                EXPECT_EQ(dims[2], ref_tensor[2]);
-                EXPECT_EQ(dims[3], ref_tensor[3]);
-            }
-        }
-    }
-}
-
 TEST(permute_gpu_f32, basic_bfyx_permute_0_1_2_3)
 {
     //  Input               : bfyx:2x2x3x2
@@ -1928,16 +1882,6 @@ public:
         tests::set_random_values<T>(mem);
     }
 
-    template<typename T>
-    void set_values(const cldnn::memory::ptr mem) const {
-        cldnn::mem_lock<T> ptr(mem, get_test_stream());
-        int i = 1;
-        for (auto it = ptr.begin(); it != ptr.end(); ++it) {
-            *it = static_cast<T>(i);
-            ++i;
-        }
-    }
-
     template<data_types Data_Type>
     void run_test(const std::vector<cldnn::tensor::value_type>& sizes, cldnn::format format_fsv,
                   const std::string & permute_opt = "permute_tile_8x8_4x4_fsv",
@@ -1998,7 +1942,7 @@ void TiledPermuteTest::run_test(const std::vector<cldnn::tensor::value_type>& si
     }
 
     auto input = engine.allocate_memory({Data_Type, format, tensor});
-    set_values<type>(input);
+    set_random_values<type>(input);
 
     topology topology_ref = topology(
         input_layout("input", input->get_layout()),
