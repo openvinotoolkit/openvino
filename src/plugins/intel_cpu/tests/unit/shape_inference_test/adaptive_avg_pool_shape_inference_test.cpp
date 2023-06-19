@@ -32,7 +32,7 @@ TEST_F(AdaptiveAvgPoolV8StaticShapeInferenceTest, default_ctor) {
     EXPECT_EQ(output_shapes.front(), StaticShape({1, 3, 10, 20}));
 
     // implementation depends on some output information of the op
-    op->set_output_type(0, element::i32, {1, 3, 10, 20});
+    op->set_output_type(0, element::i32, {-1, -1, -1, -1});
     unit_test::cpu_test_shape_infer(op.get(), input_shapes, output_shapes, const_data);
 }
 

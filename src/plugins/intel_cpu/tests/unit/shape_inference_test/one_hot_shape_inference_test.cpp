@@ -78,7 +78,7 @@ TEST(StaticShapeInferenceTest, OneHotTestConstantMapDefaultCtor) {
     EXPECT_EQ(static_output_shapes[0], (StaticShape{3, 2}));
 
     // implementation depends on some output information of the op
-    ont_hot->set_output_type(0, element::i32, {3, 2});
+    ont_hot->set_output_type(0, element::i32, {-1, -1});
     unit_test::cpu_test_shape_infer(ont_hot.get(), static_input_shapes, static_output_shapes, constant_data);
 }
 
