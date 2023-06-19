@@ -4474,7 +4474,7 @@ TEST(scatter_nd_update_gpu, dynamic_5d) {
     topology.add(input_layout("updates", input3_layout));
     topology.add(scatter_nd_update("scatter_nd_update", input_info("data"), input_info("indices"), input_info("updates"), 5));
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     network network(engine, topology, config);
 
