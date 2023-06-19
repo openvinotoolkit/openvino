@@ -12,18 +12,21 @@ See the `Release Notes <https://software.intel.com/en-us/articles/OpenVINO-RelNo
 
    Since the OpenVINO™ 2022.1 release, the following development tools: Model Optimizer, Post-Training Optimization Tool, Model Downloader and other Open Model Zoo tools, Accuracy Checker, and Annotation Converter can be installed via `pypi.org <https://pypi.org/project/openvino-dev/>`__ only.
 
+.. tab-set::
 
-.. tab:: System Requirements
-
-   | Full requirement listing is available in:
-   | `System Requirements Page <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html>`__
-
-.. tab:: Software Requirements
-
-  * `CMake 3.13 or higher <https://cmake.org/download/>`__ (choose "macOS 10.13 or later"). Add ``/Applications/CMake.app/Contents/bin`` to path (for default install).
-  * `Python 3.7 - 3.11 <https://www.python.org/downloads/mac-osx/>`__ (choose 3.7 - 3.11). Install and add to path.
-  * Apple Xcode Command Line Tools. In the terminal, run ``xcode-select --install`` from any directory
-  * (Optional) Apple Xcode IDE (not required for OpenVINO™, but useful for development)
+   .. tab-item:: System Requirements
+      :sync: sysreq
+   
+      | Full requirement listing is available in:
+      | `System Requirements Page <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html>`__
+   
+   .. tab-item:: Software Requirements
+      :sync: softreq
+   
+      * `CMake 3.13 or higher <https://cmake.org/download/>`__ (choose "macOS 10.13 or later"). Add ``/Applications/CMake.app/Contents/bin`` to path (for default install).
+      * `Python 3.7 - 3.11 <https://www.python.org/downloads/mac-osx/>`__ (choose 3.7 - 3.11). Install and add to path.
+      * Apple Xcode Command Line Tools. In the terminal, run ``xcode-select --install`` from any directory
+      * (Optional) Apple Xcode IDE (not required for OpenVINO™, but useful for development)
 
 
 Installing OpenVINO Runtime
