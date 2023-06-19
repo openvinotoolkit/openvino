@@ -72,7 +72,7 @@ inline std::pair<int64_t, std::vector<uint32_t>> AlignedSplitSizesPerAxis(Infere
     IE_ASSERT(firstValuableDim != std::end(dims));
     auto splittedElementsSize = static_cast<uint32_t>(*firstValuableDim);
     auto splittedDimIx = std::distance(std::begin(dims), firstValuableDim);
-    auto alignment = limitations::Limitations::get_instance()->get_memory_alignment();
+    auto alignment = static_cast<uint32_t>(limitations::Limitations::get_instance()->get_memory_alignment());
 
     // Split output size should be multiple of device memory alignment to avoid align filters insertion,
     // but we need to check if our input size to split exceeds alignment; if not we can always

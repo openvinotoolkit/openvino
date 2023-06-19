@@ -63,9 +63,9 @@ inline void write_pre_processing_model(const std::shared_ptr<ov::Model>& model, 
     writeString(xml_buf.str(), os);
 
     // write BIN
-    uint32_t ir_bin_size = static_cast<uint32_t>(bin_buf.str().size());
+    size_t ir_bin_size = bin_buf.str().size();
     writeBits(ir_bin_size, os);
-    writeNBytes(bin_buf.str().c_str(), ir_bin_size, os);
+    writeNBytes(bin_buf.str().c_str(), static_cast<uint32_t>(ir_bin_size), os);
 }
 
 template <class T>

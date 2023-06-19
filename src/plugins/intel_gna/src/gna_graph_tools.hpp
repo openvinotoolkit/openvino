@@ -58,7 +58,7 @@ inline std::vector<int> CNNLayerFindInsDataIdxes(DataPtr sourceData, CNNLayerPtr
         }
         for (size_t j = 0; j < layer->insData.size(); j++) {
             if (areEqualDatas(layer->insData[j].lock(), sourceData)) {
-                dataIdxes.push_back(j);
+                dataIdxes.push_back(static_cast<int>(j));
             }
         }
     }

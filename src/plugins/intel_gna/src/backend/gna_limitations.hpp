@@ -277,6 +277,9 @@ public:
     // Currently crop layer only supports 2 bytes in int16 and int8 mode.
     // In fp32 mode this is not necessary but is useful for testing
     constexpr static uint32_t kBytesPerCropElement = 2;
+    // currently concat layer only supports 2 bytes in int16 and int8 mode. In fp32 mode this no necessary but usefull
+    // for testing
+    constexpr static uint32_t kBytesPerConcatElement = 2;
     constexpr static uint32_t kMemoryPageSize = 4096;
 
 private:
