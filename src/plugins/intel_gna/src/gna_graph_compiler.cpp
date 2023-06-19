@@ -24,7 +24,6 @@
 #include "backend/gna_limitations.hpp"
 #include "caseless.hpp"
 #include "common/numerical_utils.hpp"
-#include "debug_new_pass.hpp"
 #include "descriptions/gna_desc.hpp"
 #include "frontend/layer_quantizer.hpp"
 #include "frontend/scale_factor_calc.hpp"
@@ -313,7 +312,6 @@ void GNAGraphCompiler::assertConvolutionLayoutProper(const InferenceEngine::Data
     }
 }
 
-#ifdef DEBUG_USE_NEW_PASS
 namespace {
 
 template <typename T>
@@ -327,7 +325,6 @@ PropertyVector<T> PropertyVectorAppend(PropertyVector<T> properties, T value) {
 }
 
 }  // namespace
-#endif
 
 /**
  * Create AMIntelDNN Convolutional1DComponent from ConvolutionLayer
@@ -354,7 +351,6 @@ void GNAGraphCompiler::ConvolutionPrimitive(InferenceEngine::CNNLayerPtr layer) 
     const auto outputs = layer->outData.front();
     assertConvolutionLayoutProper(inputs);
 
-#ifdef DEBUG_USE_NEW_PASS
     const auto in_batch = GetDataDimSizeNHWC(inputs, InferenceEngine::DataDimName::N);
     const auto in_channels = GetDataDimSizeNHWC(inputs, InferenceEngine::DataDimName::C);
     auto in_height = GetDataDimSizeNHWC(inputs, InferenceEngine::DataDimName::H);
@@ -373,18 +369,6 @@ void GNAGraphCompiler::ConvolutionPrimitive(InferenceEngine::CNNLayerPtr layer) 
         convolution._padding = PropertyVectorAppend<unsigned int>(convolution._padding, 0);
         convolution._pads_end = PropertyVectorAppend<unsigned int>(convolution._pads_end, 0);
     }
-
-#else
-    const auto in_batch = InferenceEngine::GetDataDimByName(inputs, InferenceEngine::DataDimName::N);
-    const auto in_channels = InferenceEngine::GetDataDimByName(inputs, InferenceEngine::DataDimName::C);
-    auto in_height = InferenceEngine::GetDataDimByName(inputs, InferenceEngine::DataDimName::H);
-    auto in_width = InferenceEngine::GetDataDimByName(inputs, InferenceEngine::DataDimName::W);
-
-    const auto out_batch = InferenceEngine::GetDataDimByName(outputs, InferenceEngine::DataDimName::N);
-    const auto out_channels = InferenceEngine::GetDataDimByName(outputs, InferenceEngine::DataDimName::C);
-    auto out_height = InferenceEngine::GetDataDimByName(outputs, InferenceEngine::DataDimName::H);
-    auto out_width = InferenceEngine::GetDataDimByName(outputs, InferenceEngine::DataDimName::W);
-#endif
 
     if (in_height > 1 && in_width == 1 && !ShouldUseOnlyConv2DGnaIface()) {
         std::swap(in_height, in_width);
@@ -627,34 +611,28 @@ void GNAGraphCompiler::finalizeConvolution1DPrimitive(InferenceEngine::CNNLayerP
         });
     }
 
-#ifndef DEBUG_USE_NEW_PASS
-#endif
     connectOutput(layer, ptr_outputs, num_data_bytes_out);
 
     // Transpose H with W or C with HW
     auto A = transpose_h_w ? in_kernel_h : in_channels;
     auto B = transpose_h_w ? in_kernel_w : convolution._kernel[X_AXIS];
 
-    std::vector<uint8_t> transposedWeights;
+    std::vector<uint8_t> copiedWeights;
     for (uint32_t k = 0; k < num_filters; k++) {
         uint8_t* ptr_filt_current =
             convolution._weights->cbuffer().as<uint8_t*>() + k * A * B * convolution.precision.size();
-#ifdef DEBUG_USE_NEW_PASS
-        auto transposedPart = copyMatrix(ptr_filt_current, convolution.precision.size(), A, B);
-#else
-        auto transposedPart = transposeMatrix(ptr_filt_current, convolution.precision.size(), A, B);
-#endif
-        transposedWeights.insert(transposedWeights.end(), transposedPart.begin(), transposedPart.end());
+        auto copieddPart = copyMatrix(ptr_filt_current, convolution.precision.size(), A, B);
+        copiedWeights.insert(copiedWeights.end(), copieddPart.begin(), copieddPart.end());
     }
-    if (transposedWeights.size() != convolution._weights->byteSize()) {
-        THROW_GNA_LAYER_EXCEPTION(&convolution) << "weights was transposed incorrectly. " << transposedWeights.size()
+    if (copiedWeights.size() != convolution._weights->byteSize()) {
+        THROW_GNA_LAYER_EXCEPTION(&convolution) << "weights was transposed incorrectly. " << copiedWeights.size()
                                                 << ' ' << convolution._weights->byteSize();
     }
 
     if (num_conv_kernel_padding == 0) {
         gnamem->getQueue(REGION_RO)->push_local_ptr(layer,
                                                     ptr_weights,
-                                                    transposedWeights.data(),
+                                                    copiedWeights.data(),
                                                     convolution._weights->byteSize());
     } else {
         auto paddedWeights = num_filter_coefficients * num_filters;
@@ -666,7 +644,7 @@ void GNAGraphCompiler::finalizeConvolution1DPrimitive(InferenceEngine::CNNLayerP
                             layerName,
                             num_conv_kernel_padding,
                             cpSize,
-                            transposedWeights,
+                            copiedWeights,
                             num_filters,
                             single_conv_kernel_size](void* data, std::size_t size) {
             if (paddedWeightsSize > size) {
@@ -678,7 +656,7 @@ void GNAGraphCompiler::finalizeConvolution1DPrimitive(InferenceEngine::CNNLayerP
             for (int i = 0; i < num_filters; i++) {
                 ie_memcpy(dstPtr + offset,
                           size - offset,
-                          transposedWeights.data() + single_conv_kernel_size * i * cpSize,
+                          copiedWeights.data() + single_conv_kernel_size * i * cpSize,
                           single_conv_kernel_size * cpSize);
                 offset += single_conv_kernel_size * cpSize;
                 ie_memcpy(dstPtr + offset, size - offset, &padding_zeros[0], padding_zeros.size());
@@ -1010,7 +988,6 @@ void GNAGraphCompiler::PoolingPrimitive(InferenceEngine::CNNLayerPtr layer) {
     auto inputs = layer->insData.begin()->lock();
     auto outputs = *layer->outData.begin();
 
-#ifdef DEBUG_USE_NEW_PASS
     uint32_t w_dim_in = GetDataDimSizeNHWC(inputs, InferenceEngine::DataDimName::W);
     uint32_t h_dim_in = GetDataDimSizeNHWC(inputs, InferenceEngine::DataDimName::H);
     const uint32_t c_dim_in = GetDataDimSizeNHWC(inputs, InferenceEngine::DataDimName::C);
@@ -1024,15 +1001,6 @@ void GNAGraphCompiler::PoolingPrimitive(InferenceEngine::CNNLayerPtr layer) {
         pooling._kernel = PropertyVectorAppend<unsigned int>(pooling._kernel, 1);
         pooling._stride = PropertyVectorAppend<unsigned int>(pooling._stride, 1);
     }
-#else
-    uint32_t w_dim_in = InferenceEngine::GetDataDimByName(inputs, InferenceEngine::DataDimName::W);
-    uint32_t h_dim_in = InferenceEngine::GetDataDimByName(inputs, InferenceEngine::DataDimName::H);
-    const uint32_t c_dim_in = InferenceEngine::GetDataDimByName(inputs, InferenceEngine::DataDimName::C);
-
-    uint32_t w_dim_out = InferenceEngine::GetDataDimByName(outputs, InferenceEngine::DataDimName::W);
-    uint32_t h_dim_out = InferenceEngine::GetDataDimByName(outputs, InferenceEngine::DataDimName::H);
-    const uint32_t c_dim_out = InferenceEngine::GetDataDimByName(outputs, InferenceEngine::DataDimName::C);
-#endif
 
     void* ptr_inputs = nullptr;
     void* ptr_outputs = nullptr;

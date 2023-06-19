@@ -5,7 +5,6 @@
 #include "scale_factor_calc.hpp"
 
 #include "common/numerical_utils.hpp"
-#include "debug_new_pass.hpp"  // DEBUG
 #include "gna_slope_scale.hpp"
 #include "gna_upstream_iterator.hpp"
 #include "layer_quantizer.hpp"
