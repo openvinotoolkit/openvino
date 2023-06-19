@@ -486,17 +486,18 @@ void ReorderMaxPoolPass::run() {
 
 void SubstituteSoftSignPass::run() {
     OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "SubstituteSoftSignPass");
-    // detecting following pattern
-    // irv7 model:          irv10 model:
-    // a layer                  a layer
-    // |  \                     |  \
-    // abs  \                   abs  \
-    // |     |                  |     |
-    // |     |                  add   |
-    // |     |                  |     |
-    // power |                  power |
-    //  \   /                    \   /
-    //    mul                      mul
+    /* detecting following pattern
+     * irv7 model:          irv10 model:
+     * a layer                  a layer
+     * |  \                     |  \
+     * abs  \                   abs  \
+     * |     |                  |     |
+     * |     |                  add   |
+     * |     |                  |     |
+     * power |                  power |
+     *  \   /                    \   /
+     *    mul                      mul
+     */
 
     auto hasNChildren = [](CNNLayerPtr l, int N) {
         if (l->outData.size() != 1)
