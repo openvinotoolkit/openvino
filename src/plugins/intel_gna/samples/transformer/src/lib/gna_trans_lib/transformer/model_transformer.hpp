@@ -5,7 +5,7 @@
 #pragma once
 
 #include <memory>
-#include <openvino/openvino.hpp>
+#include <openvino/core/model.hpp>
 #include <string>
 
 namespace transformation_sample {

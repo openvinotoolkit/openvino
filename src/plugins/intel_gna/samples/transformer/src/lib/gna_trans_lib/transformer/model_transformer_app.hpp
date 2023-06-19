@@ -5,6 +5,7 @@
 #pragma once
 
 #include "model_transformer.hpp"
+#include <openvino/pass/pass.hpp>
 
 namespace transformation_sample {
 
