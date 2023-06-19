@@ -133,7 +133,7 @@ struct MergeScanner {
     function<set<Input<Node>>(const set<Input<Node>>&)> pull_candidates;
     function<bool(const Input<Node>&, const Input<Node>&)> compare_targets;
     function<bool(set<Node*>)> merge;
-    function<void(Node*)> append_for_check;
+    function<void(Node*, Node*)> update_logs;
     bool run(Output<Node> output) {
         bool rewritten = false;
         auto candidates = pull_candidates(output.get_target_inputs());
@@ -163,12 +163,12 @@ struct MergeScanner {
                            });
 
             if (similar_nodes.size() == 1)
-                append_for_check(*begin(similar_nodes));
+                update_logs(*begin(similar_nodes), nullptr);
             else
                 rewritten |= merge(similar_nodes);
         }
         if (candidates.size() == 1)
-            append_for_check(begin(candidates)->get_node());
+            update_logs(begin(candidates)->get_node(), nullptr);
 
         return rewritten;
     }
@@ -178,15 +178,19 @@ bool MergeSimilarBranches::run_on_model(const std::shared_ptr<ov::Model>& model)
     bool rewritten = false;
 
     stack<Node*> nodes_for_check;
-    set<Node*> nodes_checked;
+    set<Node*> no_check_nodes;
 
-    const auto append_for_check = [&](Node* n) {
-        nodes_for_check.push(n);
+    const auto update_logs = [&](Node* for_check, Node* no_check) -> void {
+        if (for_check)
+            nodes_for_check.push(for_check);
+        if (no_check)
+            no_check_nodes.insert(no_check);
     };
 
     set<Node*> result_procuder_nodes;
     for (const auto& r : model->get_results())
         result_procuder_nodes.insert(r->input(0).get_source_output().get_node());
+    no_check_nodes.insert(begin(result_procuder_nodes), end(result_procuder_nodes));
 
     const auto remove_result_producers = [&](const set<Input<Node>>& inputs) {
         set<Input<Node>> new_inputs;
@@ -203,17 +207,18 @@ bool MergeSimilarBranches::run_on_model(const std::shared_ptr<ov::Model>& model)
     {
         identical_ms.pull_candidates = remove_result_producers;
         identical_ms.compare_targets = compare_consumers;
-        identical_ms.append_for_check = append_for_check;
-        identical_ms.merge = [&append_for_check](set<Node*> nodes_to_merge) {
+        identical_ms.update_logs = update_logs;
+        identical_ms.merge = [&update_logs](set<Node*> nodes_to_merge) {
             if (nodes_to_merge.size() > 1) {
                 const auto first_node = *begin(nodes_to_merge);
                 nodes_to_merge.erase(first_node);
-                append_for_check(first_node);
+                update_logs(first_node, nullptr);
                 const auto replacement_node = first_node->shared_from_this();
                 for (const auto& n : nodes_to_merge) {
                     const auto merge_target_node = n->shared_from_this();
                     copy_runtime_info(merge_target_node, replacement_node);
                     replace_node(merge_target_node, replacement_node);
+                    update_logs(nullptr, n);
                 }
                 return true;
             }
@@ -224,13 +229,15 @@ bool MergeSimilarBranches::run_on_model(const std::shared_ptr<ov::Model>& model)
     {
         matmuls_ms.pull_candidates = remove_result_producers;
         matmuls_ms.compare_targets = compare_matmuls;
-        matmuls_ms.append_for_check = append_for_check;
-        matmuls_ms.merge = [&append_for_check](set<Node*> matmuls_to_merge) {
+        matmuls_ms.update_logs = update_logs;
+        matmuls_ms.merge = [&update_logs](set<Node*> matmuls_to_merge) {
             if (matmuls_to_merge.size() > 1) {
                 const auto output = (*begin(matmuls_to_merge))->input_value(0);
                 OutputVector matmuls_inputs1;
-                for (const auto& m : matmuls_to_merge)
+                for (const auto& m : matmuls_to_merge) {
                     matmuls_inputs1.push_back(m->input_value(1));
+                    update_logs(nullptr, m);
+                }
                 const int64_t axis = -1;
                 const auto concat = make_shared<opset11::Concat>(matmuls_inputs1, axis);
                 const auto matmul = make_shared<opset11::MatMul>(output, concat);
@@ -241,7 +248,7 @@ bool MergeSimilarBranches::run_on_model(const std::shared_ptr<ov::Model>& model)
                 for (const auto& m : matmuls_to_merge) {
                     m->output(0).replace(split->output(idx++));
                 }
-                append_for_check(split.get());
+                update_logs(split.get(), nullptr);
                 return true;
             }
             return false;
@@ -251,8 +258,8 @@ bool MergeSimilarBranches::run_on_model(const std::shared_ptr<ov::Model>& model)
     {
         matmuls_adds_ms.pull_candidates = matmuls_ms.pull_candidates;
         matmuls_adds_ms.compare_targets = compare_matmuls_and_adds;
-        matmuls_adds_ms.append_for_check = append_for_check;
-        matmuls_adds_ms.merge = [&append_for_check](set<Node*> matmuls_to_merge) {
+        matmuls_adds_ms.update_logs = update_logs;
+        matmuls_adds_ms.merge = [&update_logs](set<Node*> matmuls_to_merge) {
             if (matmuls_to_merge.size() > 1) {
                 const auto output = (*begin(matmuls_to_merge))->input_value(0);
                 OutputVector matmuls_inputs1;
@@ -263,6 +270,8 @@ bool MergeSimilarBranches::run_on_model(const std::shared_ptr<ov::Model>& model)
                     const auto a = m->get_output_target_inputs(0).begin()->get_node();
                     adds_inputs1.push_back(a->input_value(1));
                     adds_outputs.push_back(a->output(0));
+                    update_logs(nullptr, m);
+                    update_logs(nullptr, a);
                 }
                 const int64_t axis = -1;
                 const auto mm_concat = make_shared<opset11::Concat>(matmuls_inputs1, axis);
@@ -273,10 +282,10 @@ bool MergeSimilarBranches::run_on_model(const std::shared_ptr<ov::Model>& model)
                                                                opset11::Constant::create(element::i64, {}, {axis}),
                                                                matmuls_to_merge.size());
                 size_t idx = 0;
-                for (auto& m : adds_outputs) {
-                    m.replace(split->output(idx++));
+                for (auto& a : adds_outputs) {
+                    a.replace(split->output(idx++));
                 }
-                append_for_check(split.get());
+                update_logs(split.get(), nullptr);
                 return true;
             }
             return false;
@@ -284,23 +293,20 @@ bool MergeSimilarBranches::run_on_model(const std::shared_ptr<ov::Model>& model)
     }
 
     for (const auto& p : model->get_parameters())
-        append_for_check(p.get());
+        update_logs(p.get(), nullptr);
 
     while (!nodes_for_check.empty()) {
         const auto node = nodes_for_check.top();
         nodes_for_check.pop();
 
-        if (nodes_checked.find(node) != end(nodes_checked) ||
-            result_procuder_nodes.find(node) != end(result_procuder_nodes))
-            continue;
-        nodes_checked.insert(node);
+        vector<MergeScanner*> scanners{&identical_ms, &matmuls_adds_ms, &matmuls_ms};
+        for (const auto& s : scanners) {
+            if (no_check_nodes.find(node) == end(no_check_nodes))
+                for (const auto& output : node->outputs())
+                    rewritten |= s->run(output);
+        }
 
-        for (const auto& output : node->outputs())
-            rewritten |= identical_ms.run(output);
-        for (const auto& output : node->outputs())
-            rewritten |= matmuls_adds_ms.run(output);
-        for (const auto& output : node->outputs())
-            rewritten |= matmuls_ms.run(output);
+        no_check_nodes.insert(node);
     }
     return rewritten;
 }
