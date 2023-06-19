@@ -148,7 +148,7 @@ TEST_F(MetaInfoUnitTest, serialize) {
             ASSERT_EQ(model_info[model_name_xml].total_op_cnt, model_xml.attribute("total_op_count").as_uint());
             auto paths = model_info[model_name_xml].model_paths;
             for (const auto& path_xml : model_xml.child("path")) {
-                auto path_xml_value = std::string(path_xml.name());
+                auto path_xml_value = std::string(path_xml.attribute("path").value());
                 ASSERT_NE(std::find(paths.begin(), paths.end(), path_xml_value), paths.end());
             }
         }
