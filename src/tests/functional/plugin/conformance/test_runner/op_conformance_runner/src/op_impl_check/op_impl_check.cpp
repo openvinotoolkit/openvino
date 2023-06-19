@@ -25,18 +25,9 @@ void OpImplCheckTest::SetUp() {
     auto pgLink = this->GetPGLink();
     if (pgLink) {
         if (this->targetDevice == "CPU") {
+            auto devName = core->get_property(this->targetDevice, "FULL_DEVICE_NAME").as<std::string>();
             pgLink->set_custom_field("targetDevice", this->targetDevice, true);
-#    if defined(OPENVINO_ARCH_X86_64)
-            pgLink->set_custom_field("targetDeviceArch", "x64", true);
-#    elif defined(OPENVINO_ARCH_X86)
-            pgLink->set_custom_field("targetDeviceArch", "x86", true);
-#    elif defined(OPENVINO_ARCH_ARM)
-            pgLink->set_custom_field("targetDeviceArch", "arm", true);
-#    elif defined(OPENVINO_ARCH_ARM64)
-            pgLink->set_custom_field("targetDeviceArch", "arm64", true);
-#    elif defined(OPENVINO_ARCH_RISCV64)
-            pgLink->set_custom_field("targetDeviceArch", "riskv64", true);
-#    endif
+            pgLink->set_custom_field("targetDeviceArch", devName.find("ARM") != std::string::npos ? "arm" : "", true);
         } else if (this->targetDevice == "GPU") {
             auto devName = core->get_property("GPU", "FULL_DEVICE_NAME").as<std::string>();
             std::cerr << "GPU Device: " << devName << std::endl;

@@ -160,7 +160,7 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
                           << "COMMIT; "
                           << "SELECT GET_HOST('" << get_hostname() << "', '" << get_os_version() << "');",
                       hostId,
-                      host_info_id)
+                      host_id)
     GET_PG_IDENTIFIER(request_session_id(void),
                       "BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE; "
                           << "CALL ON_MISS_SESSION('" << this->session_id << "', '" << this->bin_version << "', '"
