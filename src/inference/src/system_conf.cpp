@@ -16,7 +16,7 @@
 #include "dev/threading/parallel_custom_arena.hpp"
 #include "ie_common.h"
 #include "openvino/core/visibility.hpp"
-#include "streams_executor.hpp"
+#include "os/cpu_map_info.hpp"
 #include "threading/ie_cpu_streams_info.hpp"
 
 #ifdef __APPLE__

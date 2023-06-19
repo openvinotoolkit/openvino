@@ -28,7 +28,7 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
                                                      const int input_infer_requests,
                                                      const int model_prefer_threads,
                                                      const std::string input_perf_hint,
-                                                     const LatencyCandidateScope scopeOflatencyCandidate,
+                                                     const Config::LatencyThreadingMode scopeOflatencyCandidate,
                                                      const std::vector<std::vector<int>> proc_type_table) {
     std::vector<int> stream_info(CPU_STREAMS_TABLE_SIZE);
     std::vector<std::vector<int>> streams_info_table;
@@ -53,7 +53,7 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
     };
 
     if (((input_streams_changed == false) && (input_perf_hint == CONFIG_VALUE(LATENCY)) &&
-         ((scopeOflatencyCandidate == LatencyCandidateScope::PER_PLATFORM) || (proc_type_table.size() == 1))) ||
+         ((scopeOflatencyCandidate == Config::LatencyThreadingMode::PER_PLATFORM) || (proc_type_table.size() == 1))) ||
         ((input_streams_changed == true) && (input_streams == 1))) {
         stream_info[NUMBER_OF_STREAMS] = 1;
         if (input_threads > 0) {
@@ -111,7 +111,7 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
             }
             proc_per_socket[proc_type_table[i][PROC_SOCKET_ID]] += proc_type_table[i][ALL_PROC];
         }
-        if (scopeOflatencyCandidate == LatencyCandidateScope::PER_NUMA_NODE) {
+        if (scopeOflatencyCandidate == Config::LatencyThreadingMode::PER_NUMA_NODE) {
             stream_info[NUMBER_OF_STREAMS] = numa_node_cnt;
             stream_info[THREADS_PER_STREAM] = max_per_numa_node;
         } else {

@@ -15,7 +15,7 @@
 #include "ie_common.h"
 #include "openvino/core/except.hpp"
 #include "openvino/runtime/system_conf.hpp"
-#include "streams_executor.hpp"
+#include "os/cpu_map_info.hpp"
 
 namespace ov {
 

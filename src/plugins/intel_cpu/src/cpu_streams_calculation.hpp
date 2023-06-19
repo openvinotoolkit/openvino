@@ -49,7 +49,7 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
                                                      const int input_infer_requests,
                                                      const int model_prefer_threads,
                                                      const std::string input_perf_hint,
-                                                     const LatencyCandidateScope scopeOflatencyCandidate,
+                                                     const Config::LatencyThreadingMode scopeOflatencyCandidate,
                                                      const std::vector<std::vector<int>> proc_type_table);
 /**
  * @brief      Get model_prefer_threads
