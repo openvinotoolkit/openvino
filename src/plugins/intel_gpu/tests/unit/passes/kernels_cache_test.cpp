@@ -60,7 +60,7 @@ TEST(kernels_cache, reuse_kernel_for_static_model_01) {
                       eltwise("sum", {input_info("concat1"), input_info("concat2")}, eltwise_mode::sum),
                       reorder("output", input_info("sum"), {{3, 2}, data_types::f16, format::bfyx}));
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     auto prog = program::build_program(engine, topology, config, false, false);
     auto& cache = prog->get_kernels_cache();
