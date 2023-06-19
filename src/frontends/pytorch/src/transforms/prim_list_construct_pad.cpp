@@ -67,7 +67,7 @@ PrimListConstructPadReplacer::PrimListConstructPadReplacer() {
         std::string mode;
         NodeVector rt_info = {};
         std::shared_ptr<ov::op::util::FrameworkNode> pad_op;
-        if (pad_op = cast_fw_node(m.get_match_root(), "aten::pad")) {
+        if ((pad_op = cast_fw_node(m.get_match_root(), "aten::pad"))) {
             mode = "constant";
             input_node = pad_op->input_value(0);
             padding = pad_op->input_value(1);
@@ -84,7 +84,7 @@ PrimListConstructPadReplacer::PrimListConstructPadReplacer() {
                     mode = attrs.at("string_value");
                 }
             }
-        } else if (pad_op = cast_fw_node(m.get_match_root(), "aten::reflection_pad2d")) {
+        } else if ((pad_op = cast_fw_node(m.get_match_root(), "aten::reflection_pad2d"))) {
             mode = "reflect";
             input_node = pad_op->input_value(0);
             padding = pad_op->input_value(1);
