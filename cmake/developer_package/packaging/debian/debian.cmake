@@ -100,14 +100,16 @@ macro(ov_define_component_include_rules)
     endif()
     # python
     if(ENABLE_PYTHON_PACKAGING)
-        unset(OV_CPACK_COMP_PYTHON_OPENVINO_EXCLUDE_ALL)
-        set(OV_CPACK_COMP_PYTHON_IE_API_EXCLUDE_ALL ${OV_CPACK_COMP_PYTHON_OPENVINO_EXCLUDE_ALL})
-        set(OV_CPACK_COMP_PYTHON_NGRAPH_EXCLUDE_ALL ${OV_CPACK_COMP_PYTHON_OPENVINO_EXCLUDE_ALL})
+        # pack artifacts of setup.py install
+        unset(OV_CPACK_COMP_PYTHON_OPENVINO_PACKAGE_EXCLUDE_ALL)
     else()
-        set(OV_CPACK_COMP_PYTHON_OPENVINO_EXCLUDE_ALL EXCLUDE_FROM_ALL)
-        set(OV_CPACK_COMP_PYTHON_IE_API_EXCLUDE_ALL ${OV_CPACK_COMP_PYTHON_OPENVINO_EXCLUDE_ALL})
-        set(OV_CPACK_COMP_PYTHON_NGRAPH_EXCLUDE_ALL ${OV_CPACK_COMP_PYTHON_OPENVINO_EXCLUDE_ALL})
+        set(OV_CPACK_COMP_PYTHON_OPENVINO_PACKAGE_EXCLUDE_ALL EXCLUDE_FROM_ALL)
     endif()
+    # we don't pack python components itself, we pack artifacts of setup.py install
+    set(OV_CPACK_COMP_PYTHON_OPENVINO_EXCLUDE_ALL EXCLUDE_FROM_ALL)
+    set(OV_CPACK_COMP_PYTHON_IE_API_EXCLUDE_ALL ${OV_CPACK_COMP_PYTHON_OPENVINO_EXCLUDE_ALL})
+    set(OV_CPACK_COMP_PYTHON_NGRAPH_EXCLUDE_ALL ${OV_CPACK_COMP_PYTHON_OPENVINO_EXCLUDE_ALL})
+    # we don't need wheels in Debian packages
     set(OV_CPACK_COMP_PYTHON_WHEELS_EXCLUDE_ALL EXCLUDE_FROM_ALL)
     # tools
     set(OV_CPACK_COMP_CORE_TOOLS_EXCLUDE_ALL EXCLUDE_FROM_ALL)
@@ -182,9 +184,9 @@ endmacro()
 ov_debian_specific_settings()
 
 # needed to override cmake auto generated files
-set(def_postinst "${OpenVINO_BINARY_DIR}/_CPack_Packages/postinst")
-set(def_postrm "${OpenVINO_BINARY_DIR}/_CPack_Packages/postrm")
-set(def_triggers "${OpenVINO_BINARY_DIR}/_CPack_Packages/triggers")
+set(def_postinst "${CMAKE_CURRENT_BINARY_DIR}/_CPack_Packages/postinst")
+set(def_postrm "${CMAKE_CURRENT_BINARY_DIR}/_CPack_Packages/postrm")
+set(def_triggers "${CMAKE_CURRENT_BINARY_DIR}/_CPack_Packages/triggers")
 
 set(triggers_content "activate-noawait ldconfig\n\n")
 set(post_content "#!/bin/sh\n\nset -e;\nset -e\n\n")

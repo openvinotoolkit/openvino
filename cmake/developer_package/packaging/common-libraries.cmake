@@ -36,6 +36,7 @@ macro(ov_common_libraries_cpack_set_dirs)
 
     ov_get_pyversion(pyversion)
     if(pyversion)
+        # should not be used in production; only by setup.py install
         set(OV_CPACK_PYTHONDIR ${CMAKE_INSTALL_LIBDIR}/${pyversion}/site-packages)
     endif()
 
@@ -107,6 +108,10 @@ macro(ov_define_component_include_rules)
     set(OV_CPACK_COMP_PYTHON_OPENVINO_EXCLUDE_ALL EXCLUDE_FROM_ALL)
     set(OV_CPACK_COMP_PYTHON_IE_API_EXCLUDE_ALL ${OV_CPACK_COMP_PYTHON_OPENVINO_EXCLUDE_ALL})
     set(OV_CPACK_COMP_PYTHON_NGRAPH_EXCLUDE_ALL ${OV_CPACK_COMP_PYTHON_OPENVINO_EXCLUDE_ALL})
+    # we don't pack artifacts of setup.py install, because it's called explicitly in conda / brew
+    # or not used at all like in cases with conan / vcpkg
+    set(OV_CPACK_COMP_PYTHON_OPENVINO_PACKAGE_EXCLUDE_ALL ${OV_CPACK_COMP_PYTHON_OPENVINO_EXCLUDE_ALL})
+    # we don't need wheels in package, it's used installed only in open source distribution
     set(OV_CPACK_COMP_PYTHON_WHEELS_EXCLUDE_ALL EXCLUDE_FROM_ALL)
     # tools
     set(OV_CPACK_COMP_CORE_TOOLS_EXCLUDE_ALL EXCLUDE_FROM_ALL)

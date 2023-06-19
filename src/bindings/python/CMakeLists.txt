@@ -196,9 +196,150 @@ else()
     message(WARNING "NOTE: Python API for OpenVINO 1.0 is disabled")
 endif()
 
+#
+# Packaing
+#
+
+macro(ov_define_setup_py_packaging_vars)
+    # PYTHON_VERSION_MAJOR and PYTHON_VERSION_MINOR are defined inside pybind11
+    set(pyversion python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR})
+
+    # define version (syncronize with tools/openvino_dev/CMakeLists.txt)
+    if(DEFINED ENV{CI_BUILD_DEV_TAG} AND NOT "$ENV{CI_BUILD_DEV_TAG}" STREQUAL "")
+        set(WHEEL_VERSION "${OpenVINO_VERSION}.$ENV{CI_BUILD_DEV_TAG}" CACHE STRING "Version of this release" FORCE)
+        set(wheel_pre_release ON)
+    else()
+        set(WHEEL_VERSION ${OpenVINO_VERSION} CACHE STRING "Version of this release" FORCE)
+    endif()
+    set(WHEEL_BUILD "${OpenVINO_VERSION_BUILD}" CACHE STRING "Build number of this release" FORCE)
+
+    # Common vars used by setup.py
+    set(PY_PACKAGES_DIR ${OV_CPACK_PYTHONDIR})
+    set(TBB_LIBS_DIR runtime/3rdparty/tbb/lib)
+    if(WIN32)
+        set(TBB_LIBS_DIR runtime/3rdparty/tbb/bin)
+    endif()
+    set(PUGIXML_LIBS_DIR runtime/3rdparty/pugixml/lib)
+
+    # define setup.py running environment
+    set(setup_py_env ${CMAKE_COMMAND} -E env
+        # for cross-compilation
+        SETUPTOOLS_EXT_SUFFIX=${PYTHON_MODULE_EXTENSION}
+        # versions
+        WHEEL_VERSION=${WHEEL_VERSION}
+        # build locations
+        OPENVINO_BINARY_DIR=${OpenVINO_BINARY_DIR}
+        OPENVINO_PYTHON_BINARY_DIR=${OpenVINOPython_BINARY_DIR}
+        # variables to reflect cpack locations
+        OV_RUNTIME_LIBS_DIR=${OV_WHEEL_RUNTIMEDIR}
+        TBB_LIBS_DIR=${TBB_LIBS_DIR}
+        PUGIXML_LIBS_DIR=${PUGIXML_LIBS_DIR}
+        PY_PACKAGES_DIR=${PY_PACKAGES_DIR})
+endmacro()
+
+macro(ov_define_setup_py_dependencies)
+    foreach(_target
+            # Python API dependencies
+            _pyngraph pyopenvino py_ov_frontends
+            # legacy Python API 1.0 dependencies (remove before 2024.0 release)
+            ie_api constants
+            # plugins
+            ov_plugins
+            # frontends
+            ov_frontends)
+        if(TARGET ${_target})
+            list(APPEND ov_setup_py_deps ${_target})
+        endif()
+    endforeach()
+
+    file(GLOB_RECURSE compat_ngraph_py_files ${OpenVINOPython_SOURCE_DIR}/src/compatibility/*.py)
+    file(GLOB_RECURSE openvino_py_files ${OpenVINOPython_SOURCE_DIR}/src/openvino/*.py)
+
+    list(APPEND ov_setup_py_deps
+        ${openvino_py_files}
+        ${compat_ngraph_py_files}
+        "${CMAKE_CURRENT_SOURCE_DIR}/wheel/setup.py"
+        "${OpenVINOPython_SOURCE_DIR}/requirements.txt"
+        "${OpenVINOPython_SOURCE_DIR}/wheel/readme.txt"
+        "${OpenVINO_SOURCE_DIR}/LICENSE"
+        "${OpenVINO_SOURCE_DIR}/licensing/onednn_third-party-programs.txt"
+        "${OpenVINO_SOURCE_DIR}/licensing/runtime-third-party-programs.txt"
+        "${OpenVINO_SOURCE_DIR}/licensing/tbb_third-party-programs.txt"
+        "${OpenVINO_SOURCE_DIR}/docs/install_guides/pypi-openvino-rt.md")
+
+    if(wheel_pre_release)
+        list(APPEND ov_setup_py_deps
+            "${OpenVINO_SOURCE_DIR}/docs/install_guides/pre-release-note.md")
+    endif()
+endmacro()
+
+ov_define_setup_py_packaging_vars()
+ov_define_setup_py_dependencies()
+
 if(ENABLE_WHEEL)
     add_subdirectory(wheel)
 endif()
+
+#
+# Target, which creates python install tree for cases of DEB | RPM packages
+#
+
+# site-packages depending on package type
+set(python_xy "${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR}")
+if(CPACK_GENERATOR STREQUAL "DEB")
+    set(python_versioned_folder "python${PYTHON_VERSION_MAJOR}")
+    set(ov_site_packages "dist-packages")
+elseif(CPACK_GENERATOR STREQUAL "RPM")
+    set(python_versioned_folder "python${python_xy}")
+    set(ov_site_packages "site-packages")
+endif()
+
+set(python_package_prefix "${CMAKE_CURRENT_BINARY_DIR}/install_${pyversion}")
+set(install_lib "${python_package_prefix}/lib/${python_versioned_folder}/${ov_site_packages}")
+set(meta_info_subdir "openvino-${OpenVINO_VERSION}-py${python_xy}.egg-info/PKG-INFO")
+set(output_dir "${install_lib}/${meta_info_subdir}")
+
+file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/update_benchmark_app.py"
+"from pathlib import Path
+file = Path('${python_package_prefix}/bin/benchmark_app')
+file.write_text(file.read_text().replace('${PYTHON_EXECUTABLE}', '/usr/bin/python3'))")
+
+add_custom_command(OUTPUT ${output_dir}
+    COMMAND ${CMAKE_COMMAND} -E rm -fr
+        "${python_package_prefix}"
+    COMMAND ${setup_py_env}
+        "${PYTHON_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/wheel/setup.py"
+            build
+                --python-extensions-only=True
+            install
+                --no-compile
+                --prefix "${python_package_prefix}"
+                --install-lib "${install_lib}"
+                --install-scripts "${python_package_prefix}/bin"
+            # TODO: add
+            # --single-version-externally-managed
+            # --record=installed.txt
+            # TODO:
+            # --build-number=${WHEEL_BUILD}
+            # --plat-name=${PLATFORM_TAG}
+    COMMAND ${PYTHON_EXECUTABLE} "${CMAKE_CURRENT_BINARY_DIR}/update_benchmark_app.py"
+    WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
+    DEPENDS ${ov_setup_py_deps}
+    COMMENT "Create python package with ${meta_info_subdir} folder")
+
+add_custom_target(_python_api_package ALL DEPENDS ${output_dir})
+
+ov_cpack_add_component(${OV_CPACK_COMP_PYTHON_NGRAPH}_package_${pyversion} HIDDEN)
+
+install(DIRECTORY ${python_package_prefix}/
+        DESTINATION ${CMAKE_INSTALL_PREFIX}
+        COMPONENT ${OV_CPACK_COMP_PYTHON_OPENVINO_PACKAGE}_${pyversion}
+        ${OV_CPACK_COMP_PYTHON_OPENVINO_PACKAGE_EXCLUDE_ALL}
+        USE_SOURCE_PERMISSIONS)
+
+#
+# Tests
+#
 
 if(ENABLE_TESTS)
     add_subdirectory(tests/mock/mock_py_frontend)

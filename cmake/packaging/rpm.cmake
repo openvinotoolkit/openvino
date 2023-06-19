@@ -34,7 +34,9 @@ macro(ov_cpack_settings)
         # filter out some components, which are not needed to be wrapped to .deb package
         if(NOT OV_CPACK_COMP_${UPPER_COMP}_EXCLUDE_ALL AND
            # skip OpenVINO Python API (pattern in form of "<pyie | pyopenvino | pyngraph>_python${PYTHON_VERSION_MAJOR}${PYTHON_VERSION_MINOR}")
-           (NOT item MATCHES "^${OV_CPACK_COMP_PYTHON_OPENVINO}_python.*" OR ENABLE_PYTHON_PACKAGING) AND
+           NOT item MATCHES "^${OV_CPACK_COMP_PYTHON_OPENVINO}_python.*" AND
+           # because in case of debian package, pyopenvino_package_python${PYTHON_VERSION_MAJOR}${PYTHON_VERSION_MINOR} is installed
+           (NOT item MATCHES "^${OV_CPACK_COMP_PYTHON_OPENVINO_PACKAGE}_python.*" OR ENABLE_PYTHON_PACKAGING) AND
            # see ticket # 82605
            NOT item STREQUAL "gna" AND
            # don't install Intel OpenMP during rpm
@@ -266,14 +268,14 @@ macro(ov_cpack_settings)
 
     if(ENABLE_PYTHON_PACKAGING)
         ov_get_pyversion(pyversion)
-        set(python_component "${OV_CPACK_COMP_PYTHON_OPENVINO}_${pyversion}")
+        set(python_component "${OV_CPACK_COMP_PYTHON_OPENVINO_PACKAGE}_${pyversion}")
         string(TOUPPER "${pyversion}" pyversion_upper)
 
-        set(CPACK_COMPONENT_PYOPENVINO_${pyversion_upper}_DESCRIPTION "OpenVINO Python API")
-        set(CPACK_RPM_PYOPENVINO_${pyversion_upper}_PACKAGE_REQUIRES
+        set(CPACK_COMPONENT_PYOPENVINO_PACKAGE_${pyversion_upper}_DESCRIPTION "OpenVINO Python API")
+        set(CPACK_RPM_PYOPENVINO_PACKAGE_${pyversion_upper}_PACKAGE_REQUIRES
             "${core_package}, ${frontend_packages}, ${plugin_packages}, python3, python3-numpy")
-        set(CPACK_RPM_PYOPENVINO_${pyversion_upper}_PACKAGE_NAME "python3-openvino")
-        set(python_package "${CPACK_RPM_PYOPENVINO_${pyversion_upper}_PACKAGE_NAME} = ${cpack_full_ver}")
+        set(CPACK_RPM_PYOPENVINO_PACKAGE_${pyversion_upper}_PACKAGE_NAME "python3-openvino")
+        set(python_package "${CPACK_RPM_PYOPENVINO_PACKAGE_${pyversion_upper}_PACKAGE_NAME} = ${cpack_full_ver}")
         set(${python_component}_copyright "generic")
 
         # we can have a single python installed, so we need to generate conflicts for all other versions

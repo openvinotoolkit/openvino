@@ -2,28 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-# define version (syncronize with tools/openvino_dev/CMakeLists.txt)
-
-if(DEFINED ENV{CI_BUILD_DEV_TAG} AND NOT "$ENV{CI_BUILD_DEV_TAG}" STREQUAL "")
-    set(WHEEL_VERSION "${OpenVINO_VERSION}.$ENV{CI_BUILD_DEV_TAG}" CACHE STRING "Version of this release" FORCE)
-    set(wheel_pre_release ON)
-else()
-    set(WHEEL_VERSION ${OpenVINO_VERSION} CACHE STRING "Version of this release" FORCE)
-endif()
-set(WHEEL_BUILD "${OpenVINO_VERSION_BUILD}" CACHE STRING "Build number of this release" FORCE)
-
-
-#
-# Common vars used by setup.py
-#
-
-set(PY_PACKAGES_DIR ${OV_CPACK_PYTHONDIR})
-set(TBB_LIBS_DIR runtime/3rdparty/tbb/lib)
-if(WIN32)
-    set(TBB_LIBS_DIR runtime/3rdparty/tbb/bin)
-endif()
-set(PUGIXML_LIBS_DIR runtime/3rdparty/pugixml/lib)
-
 #
 # Dependencies
 #
@@ -149,7 +127,7 @@ if(pip_version VERSION_GREATER_EQUAL 22.0)
         ${PYTHON_EXECUTABLE} -m pip wheel
             --no-deps
             --wheel-dir ${openvino_wheels_output_dir}
-            # --verbose
+            --verbose
             --build-option --build-number=${WHEEL_BUILD}
             --build-option --plat-name=${PLATFORM_TAG}
             "${CMAKE_CURRENT_SOURCE_DIR}")
@@ -164,25 +142,8 @@ else()
             --plat-name=${PLATFORM_TAG})
 endif()
 
-# PYTHON_VERSION_MAJOR and PYTHON_VERSION_MINOR are defined inside pybind11
-set(pyversion python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR})
-
-set(wheel_env ${CMAKE_COMMAND} -E env
-    # for cross-compilation
-    SETUPTOOLS_EXT_SUFFIX=${PYTHON_MODULE_EXTENSION}
-    # versions
-    WHEEL_VERSION=${WHEEL_VERSION}
-    # build locations
-    OPENVINO_BINARY_DIR=${OpenVINO_BINARY_DIR}
-    OPENVINO_PYTHON_BINARY_DIR=${OpenVINOPython_BINARY_DIR}
-    # variables to reflect cpack locations
-    OV_RUNTIME_LIBS_DIR=${OV_WHEEL_RUNTIMEDIR}
-    TBB_LIBS_DIR=${TBB_LIBS_DIR}
-    PUGIXML_LIBS_DIR=${PUGIXML_LIBS_DIR}
-    PY_PACKAGES_DIR=${PY_PACKAGES_DIR})
-
 add_custom_command(OUTPUT ${openvino_wheel_path}
-    COMMAND ${wheel_env}
+    COMMAND ${setup_py_env}
         ${wheel_build_command}
     COMMAND ${CMAKE_COMMAND} -E remove_directory "${CMAKE_CURRENT_SOURCE_DIR}/build_${pyversion}"
     DEPENDS ${openvino_wheel_deps}
@@ -215,10 +176,3 @@ install(FILES ${openvino_wheel_path}
         DESTINATION ${OV_CPACK_WHEELSDIR}
         COMPONENT ${OV_CPACK_COMP_PYTHON_WHEELS}
         ${OV_CPACK_COMP_PYTHON_WHEELS_EXCLUDE_ALL})
-
-# # install Python API via setup.py invocation because it will create .egg-info directory
-# install(DIRECTORY "/mnt/data3_1878/ilya/Documents/Programming/build/openvino-release/test/"
-#         DESTINATION ${CMAKE_INSTALL_PREFIX}
-#         COMPONENT ${OV_CPACK_COMP_PYTHON_NGRAPH}_${pyversion}
-#         ${OV_CPACK_COMP_PYTHON_NGRAPH_EXCLUDE_ALL}
-#         USE_SOURCE_PERMISSIONS)

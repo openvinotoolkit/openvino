@@ -48,7 +48,9 @@ macro(ov_cpack_settings)
         # filter out some components, which are not needed to be wrapped to .deb package
         if(NOT OV_CPACK_COMP_${UPPER_COMP}_EXCLUDE_ALL AND
            # skip OpenVINO Python API (pattern in form of "<pyie | pyopenvino | pyngraph>_python${PYTHON_VERSION_MAJOR}${PYTHON_VERSION_MINOR}")
-           (NOT item MATCHES "^${OV_CPACK_COMP_PYTHON_OPENVINO}_python.*" OR ENABLE_PYTHON_PACKAGING) AND
+           NOT item MATCHES "^${OV_CPACK_COMP_PYTHON_OPENVINO}_python.*" AND
+           # because in case of debian package, pyopenvino_package_python${PYTHON_VERSION_MAJOR}${PYTHON_VERSION_MINOR} is installed
+           (NOT item MATCHES "^${OV_CPACK_COMP_PYTHON_OPENVINO_PACKAGE}_python.*" OR ENABLE_PYTHON_PACKAGING) AND
            # see ticket # 82605
            NOT item STREQUAL "gna" AND
            # don't install Intel OpenMP during debian
@@ -302,17 +304,17 @@ macro(ov_cpack_settings)
 
     if(ENABLE_PYTHON_PACKAGING)
         ov_get_pyversion(pyversion)
-        set(python_component "${OV_CPACK_COMP_PYTHON_OPENVINO}_${pyversion}")
+        set(python_component "${OV_CPACK_COMP_PYTHON_OPENVINO_PACKAGE}_${pyversion}")
         string(TOUPPER "${pyversion}" pyversion)
 
-        set(CPACK_COMPONENT_PYOPENVINO_${pyversion}_DESCRIPTION "OpenVINO Python API")
-        set(CPACK_COMPONENT_PYOPENVINO_${pyversion}_DEPENDS "${OV_CPACK_COMP_CORE}")
-        list(APPEND CPACK_COMPONENT_PYOPENVINO_${pyversion}_DEPENDS ${installed_plugins})
-        list(APPEND CPACK_COMPONENT_PYOPENVINO_${pyversion}_DEPENDS ${frontends})
+        set(CPACK_COMPONENT_PYOPENVINO_PACKAGE_${pyversion}_DESCRIPTION "OpenVINO Python API")
+        set(CPACK_COMPONENT_PYOPENVINO_PACKAGE_${pyversion}_DEPENDS "${OV_CPACK_COMP_CORE}")
+        list(APPEND CPACK_COMPONENT_PYOPENVINO_PACKAGE_${pyversion}_DEPENDS ${installed_plugins})
+        list(APPEND CPACK_COMPONENT_PYOPENVINO_PACKAGE_${pyversion}_DEPENDS ${frontends})
 
-        set(CPACK_DEBIAN_PYOPENVINO_${pyversion}_PACKAGE_NAME "python3-openvino")
-        set(python_package "${CPACK_DEBIAN_PYOPENVINO_${pyversion}_PACKAGE_NAME} (= ${cpack_full_ver})")
-        set(CPACK_DEBIAN_PYOPENVINO_${pyversion}_PACKAGE_DEPENDS "python3, python3-numpy")
+        set(CPACK_DEBIAN_PYOPENVINO_PACKAGE_${pyversion}_PACKAGE_NAME "python3-openvino")
+        set(python_package "${CPACK_DEBIAN_PYOPENVINO_PACKAGE_${pyversion}_PACKAGE_NAME} (= ${cpack_full_ver})")
+        set(CPACK_DEBIAN_PYOPENVINO_PACKAGE_${pyversion}_PACKAGE_DEPENDS "python3, python3-numpy")
 
         # we can have a single python installed, so we need to generate conflicts for all other versions
         ov_debian_generate_conflicts(${python_component} ${conflicting_versions})
@@ -325,6 +327,10 @@ macro(ov_cpack_settings)
             "executable-not-elf-or-script"
             # all directories
             "non-standard-dir-perm"
+            # usr/bin/benchmark_app
+            "binary-without-manpage"
+            # usr/bin/benchmark_app
+            "non-standard-executable-perm"
             # all python files
             "non-standard-file-perm")
         set(${python_component}_copyright "generic")
