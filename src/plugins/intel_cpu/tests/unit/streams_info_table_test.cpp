@@ -406,13 +406,16 @@ public:
 };
 
 StreamsCalculationTestCase _2sockets_104cores_latency_platform_1 = {
-    1,          // param[in]: the number of streams in this simulation
-    false,      // param[in]: Whether the user explicitly sets the number of streams in this simulation
-    0,          // param[in]: the number of threads in this simulation
-    0,          // param[in]: the number of infer requests in this simulation
-    0,          // param[in]: the model preferred number of threads in this simulation
-    "LATENCY",  // param[in]: the performance hint in this simulation
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,  // param[in]: the LatencyThreadingMode in this simulation
+    1,      // param[in]: the number of streams in this simulation.
+    false,  // param[in]: Whether the user explicitly sets the number of streams is higher priority in streams
+            // calculation logic. If this param is true, the following performance hint and LatencyThreadingMode will be
+            // ignored.
+    0,      // param[in]: the number of threads in this simulation
+    0,      // param[in]: the number of infer requests in this simulation
+    0,      // param[in]: the model preferred number of threads in this simulation
+    "LATENCY",                                                  // param[in]: the performance hint in this simulation
+    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,  // param[in]: the LatencyThreadingMode in this
+                                                                // simulation
     {{208, 104, 0, 104, -1, -1},
      {104, 52, 0, 52, 0, 0},
      {104, 52, 0, 52, 1, 1}},    // param[in]: the proc_type_table in this simulation
