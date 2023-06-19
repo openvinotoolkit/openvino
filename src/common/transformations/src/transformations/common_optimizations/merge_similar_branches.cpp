@@ -299,7 +299,7 @@ bool MergeSimilarBranches::run_on_model(const std::shared_ptr<ov::Model>& model)
         const auto node = nodes_for_check.top();
         nodes_for_check.pop();
 
-        vector<MergeScanner*> scanners{&identical_ms, &matmuls_adds_ms, &matmuls_ms};
+        vector<MergeScanner*> scanners{&matmuls_adds_ms, &identical_ms, &matmuls_ms};
         for (const auto& s : scanners) {
             if (no_check_nodes.find(node) == end(no_check_nodes))
                 for (const auto& output : node->outputs())
