@@ -1634,6 +1634,21 @@ public:
             });
             return;
         }
+        if (_opData.algo == Algorithm::EltwisePowerStatic) {
+            const float* src_ptr_f = reinterpret_cast<const float*>(args_ptrs.src_ptr[0]);
+            float* dst_ptr_f = reinterpret_cast<float*>(args_ptrs.dst_ptr);
+            if (_opData.alpha == 2) {
+                parallel_for(_fullWorkAmount, [&](size_t i) {
+                    dst_ptr_f[i] = (_opData.beta * src_ptr_f[i] + _opData.gamma) *
+                                   (_opData.beta * src_ptr_f[i] + _opData.gamma);
+                });
+            } else {
+                parallel_for(_fullWorkAmount, [&](size_t i) {
+                    dst_ptr_f[i] = powf(_opData.beta * src_ptr_f[i] + _opData.gamma, _opData.alpha);
+                });
+            }
+            return;
+        }
         if (_opData.algo == Algorithm::EltwisePowerDynamic) {
             const float* src_ptr_f = reinterpret_cast<const float*>(args_ptrs.src_ptr[0]);
             const float* src_ptr_f_pow = reinterpret_cast<const float*>(args_ptrs.src_ptr[1]);
@@ -1760,7 +1775,6 @@ public:
                     case Algorithm::EltwiseLogicalOr:         *dst_ptr_f = src_f[0] || src_f[1]; break;
                     case Algorithm::EltwiseLogicalXor:        *dst_ptr_f = (src_f[0] || src_f[1]) - (src_f[0] && src_f[1]); break;
                     case Algorithm::EltwiseLogicalNot:        *dst_ptr_f = !src_f[0]; break;
-                    case Algorithm::EltwisePowerStatic:       *dst_ptr_f = powf(_opData.beta * src_f[0] + _opData.gamma, _opData.alpha); break;
                     case Algorithm::EltwisePrelu:             *dst_ptr_f = src_f[0] > 0 ? src_f[0] : src_f[0] * src_f[1]; break;
                     case Algorithm::EltwiseErf:               *dst_ptr_f = std::erf(src_f[0]); break;
                     case Algorithm::EltwiseSoftSign:          *dst_ptr_f = src_f[0] / (1 + std::fabs(src_f[0])); break;
