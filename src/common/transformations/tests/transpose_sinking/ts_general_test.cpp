@@ -394,13 +394,13 @@ TEST_F(TransformationTestsF, TSGeneralTestMultipleTypes) {
     {
         auto X = std::make_shared<Parameter>(input_type, input_shape);
 
-        auto ng_order0 = std::make_shared<Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 2, 3, 1});
-        auto transpose0 = std::make_shared<Transpose>(X, ng_order0);
+        auto node0 = MakeAllNodesSubgraph(X, 1, 1);
 
-        auto node0 = MakeAllNodesSubgraph(transpose0, 3, 3);
+        auto ng_order0 = std::make_shared<Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 2, 3, 1});
+        auto transpose0 = std::make_shared<Transpose>(node0, ng_order0);
 
         auto reshape_const = std::make_shared<Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{1, 40, 55, 96});
-        auto reshape = std::make_shared<Reshape>(node0, reshape_const, false);
+        auto reshape = std::make_shared<Reshape>(transpose0, reshape_const, false);
 
         auto node1 = MakeAllNodesSubgraph(reshape, 3, 3);
 

@@ -4,12 +4,14 @@
 
 #include "intel_gpu/plugin/program.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
+#include "transformations/utils/utils.hpp"
 
 #include "ngraph/op/gather.hpp"
 
 #include "intel_gpu/primitives/gather.hpp"
 #include "intel_gpu/primitives/reorder.hpp"
 #include "intel_gpu/primitives/reshape.hpp"
+#include "intel_gpu/primitives/crop.hpp"
 
 using namespace InferenceEngine;
 namespace ov {
@@ -44,12 +46,13 @@ void CreateGatherOpBase(Program& p, const std::shared_ptr<T>& op, const int64_t 
     }
 
     // Dynamic path will do shape infer internally, so no need to pass valid out shape for that case
-    ov::Shape out_shape = op->get_output_partial_shape(0).is_static() ? op->get_output_shape(0) : ov::Shape{};
+    bool is_static = op->get_output_partial_shape(0).is_static();
+    ov::Shape out_shape = is_static ? op->get_output_shape(0) : ov::Shape{};
 
     // Update output_shape in case of scalar indice
     bool need_reshape = false;
     auto out_shape_original = out_shape;
-    if (!p.use_new_shape_infer() && op->get_output_partial_shape(0).is_static()) {
+    if (!p.use_new_shape_infer() && is_static) {
         auto input1_shape = op->get_input_shape(1);
         if (input1_shape.size() == 0 && batch_dim == 0) {
             need_reshape = true;
@@ -77,21 +80,50 @@ void CreateGatherOpBase(Program& p, const std::shared_ptr<T>& op, const int64_t 
         }
     }
 
-    // gather
+    // Set layer name for Gather
     auto reshapeName = layerName + "";
     if (need_reshape) {
         layerName = layerName + "_reshape_output";
     }
 
-    auto gatherPrim = cldnn::gather(layerName,
-                                    reordered_inputs[0],
-                                    reordered_inputs[1],
-                                    axis,
-                                    out_shape,
-                                    batch_dim,
-                                    support_neg_ind);
+    // Check if Gather could be converted to other primitive
+    const auto input_shape = op->get_input_partial_shape(0);
+    const auto input_rank = input_shape.rank().get_length();
+    const auto& indices = op->input_value(1);
+    if (is_static && axis == 0 && input_rank > 1 && indices.get_partial_shape().rank().get_length() == 0 &&
+        std::equal(input_shape.begin()+1, input_shape.end(), out_shape.begin()+1)) {
+        // Gather -> Crop
+        // this Gather simply divides an input tensor along Batch axis
+        auto get_crop_layer_name = [&](std::string name, size_t idx)->std::string {
+            return (name + "/crop_" + std::to_string(idx));
+        };
 
-    p.add_primitive(*op, gatherPrim);
+        // Get indices info to calculate offset
+        const auto& indices_node = indices.get_node_shared_ptr();
+        auto indices_constant = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(indices_node);
+        float result = 0.f;
+        ov::op::util::get_single_value(indices_constant, result);
+
+        // Set tensors for crop shape and offset
+        InferenceEngine::SizeVector start_offset(input_shape.size());
+        start_offset[0] = static_cast<size_t>(result);
+        auto offsetTensor = tensor_from_dims(start_offset, 0);
+        auto outTensor = tensor_from_dims(out_shape, 1);
+
+        // Create Crop
+        layerName = get_crop_layer_name(layerName, static_cast<size_t>(result));
+        auto cropPrim = cldnn::crop(layerName, reordered_inputs[0], outTensor, offsetTensor);
+        p.add_primitive(*op, cropPrim);
+    } else {
+        auto gatherPrim = cldnn::gather(layerName,
+                                        reordered_inputs[0],
+                                        reordered_inputs[1],
+                                        axis,
+                                        out_shape,
+                                        batch_dim,
+                                        support_neg_ind);
+        p.add_primitive(*op, gatherPrim);
+    }
 
     // Add reorder and reshape for scalar indice
     if (need_reshape) {

@@ -28,7 +28,6 @@ public:
     void initDescriptor(const NodeConfig& config) override;
     void selectOptimalPrimitiveDescriptor() override;
     void initSupportedPrimitiveDescriptors() override;
-    void filterSupportedPrimitiveDescriptors() override;
     bool created() const override;
     bool canBeInPlace() const override {
         return false;
