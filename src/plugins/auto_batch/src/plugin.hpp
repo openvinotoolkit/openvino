@@ -8,7 +8,6 @@
 #include <map>
 
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
-#include "ie_metric_helpers.hpp"
 
 #ifdef AUTOBATCH_UNITTEST
 #    define AutoBatchPlugin MockAutoBatchPlugin
