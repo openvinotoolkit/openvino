@@ -378,7 +378,7 @@ inline std::vector<size_t> make_gather_indices_from_transpose_axes(const Shape& 
 
 /**
  * @brief Finds first dimension != 1
-*/
+ */
 inline size_t get_first_valuable_dim_id(const ov::Shape& shape) {
     for (size_t i = 0; i < shape.size(); ++i) {
         if (shape[i] != 1) {
