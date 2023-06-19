@@ -236,6 +236,7 @@ Edge::ReorderStatus Edge::needReorder() {
 }
 
 void Edge::reuse(MemoryPtr ptr) {
+    OPENVINO_ASSERT(ptr != nullptr, "Attempt to reuse initialized memory in " + name());
     memoryPtr = ptr;
     changeStatus(Status::Allocated);
 

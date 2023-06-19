@@ -649,7 +649,7 @@ void Concat::resolveInPlaceEdges(Edge::LOOK look) {
             MemoryPtr newMem;
             if (partDim != 0) {
                 auto memMngr = std::make_shared<PartitionedMemoryMngr>(baseMemMngr, baseDim, offset, partDim);
-                auto newMem = std::make_shared<Memory>(getEngine(), memDesc, memMngr);
+                newMem = std::make_shared<Memory>(getEngine(), memDesc, memMngr);
             } else {
                 // empty tensor, no need to reference a part, default memory is enough
                 newMem = std::make_shared<Memory>(getEngine(), memDesc);
