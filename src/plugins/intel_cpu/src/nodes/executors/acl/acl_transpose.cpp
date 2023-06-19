@@ -30,11 +30,13 @@ bool ov::intel_cpu::ACLTransposeExecutor::init(const ov::intel_cpu::TransposePar
     }
 
     //ACL does not handle NHWC layout properly, so NCHW layout always used
-    //WA: If real layout if NHWC then transpose order should be changed
+    //WA: If real layout if NHWC then transpose order should be changed:
+    //NHWC (0, 1, 2, 3) -> NCHW (0, 3, 1, 2)
     if (getAclDataLayoutByMemoryDesc(srcDescs[0]) == arm_compute::DataLayout::NHWC) {
-        uint32_t tmp = order[3];
-        order[3] = order[2];
-        order[2] = order[1];
+        uint32_t tmp = *order.end();
+        for (size_t i = order.num_dimensions() - 1; i > 1; --i) {
+            order[i] = order[i - 1];
+        }
         order[1] = tmp;
     }
 

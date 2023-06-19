@@ -79,9 +79,9 @@ const std::vector<InferenceEngine::Precision>& netPrecisionsPerChannels() {
 
 const std::vector<InputShape>& staticInputShapes4DC16() {
     static const std::vector<InputShape> staticInputShapes4DC16 = {InputShape{// dynamic
-                                                                    {-1, 3, -1, -1},
+                                                                    {-1, 16, -1, -1},
                                                                     // target
-                                                                    {{1, 3, 1, 2}, {1, 3, 1, 3}, {1, 3, 1, 4}}}};
+                                                                    {{2, 16, 21, 10}, {3, 16, 11, 12}, {2, 16, 21, 10}}}};
     return staticInputShapes4DC16;
 }
 
