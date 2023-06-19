@@ -100,7 +100,7 @@ protected:
             for (int i = 0; i < num_heads * head_size * query_seq_len; i++) {
                 float a = dst[i];
                 float b = dst_ref[i];
-                if (a - b > thresh) {
+                if (std::abs(a - b) > thresh) {
                     FAIL() << " N: " << head_size << " pos: " << i << " opt: " << a << " ref: " << b;
                 }
             }

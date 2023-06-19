@@ -30,7 +30,8 @@ setup(name='llmdnn',
       ext_modules=[
         cpp_extension.CppExtension(
           'llmdnn',
-          ['module.cpp', 'mha_gpt.cpp', f'../../src/test_common.cpp'],
+          ['module.cpp', f'../../src/test_common.cpp',
+           'mha_gpt.cpp', 'emb_gpt.cpp'],
           extra_compile_args=extra_args,
           include_dirs=[f'{os.getcwd()}/../../src',
                         f'{os.getcwd()}/../../../include',

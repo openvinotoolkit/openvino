@@ -15,4 +15,5 @@ PYBIND11_MODULE(llmdnn, m) {
         std::cout << "init amx failed.\n";
     }
     regclass_mha_gpt(m);
+    regclass_emb_gpt(m);
 }

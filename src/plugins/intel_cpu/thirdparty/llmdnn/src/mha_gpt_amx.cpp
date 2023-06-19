@@ -44,7 +44,7 @@ struct mha_gpt_impl_amx : public mha_gpt::impl {
 };
 
 bool mha_gpt_impl_amx::create(const mha_gpt::create_param& param) {
-    if (param.qkv_precision != dnnl_bf16 && param.dst_precision != dnnl_s8) {
+    if (param.qkv_precision != dnnl_bf16 && param.qkv_precision != dnnl_s8) {
         std::cout << "input precision must be bf16 or int8.\n";
         return false;
     }
