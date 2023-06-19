@@ -17,11 +17,13 @@
    
       .. comment to publish in the future, when gpu support comes back:
       
-      .. tab-item::  Processor Notes
-         :sync: processornotes
-      
-         | Not all Intel CPUs include integrated graphics processors.  
-         | See `Product Specifications <https://ark.intel.com/>`__ for information about your hardware.
+      .. tab-set::
+
+         .. tab-item::  Processor Notes
+            :sync: processornotes
+         
+            | Not all Intel CPUs include integrated graphics processors.  
+            | See `Product Specifications <https://ark.intel.com/>`__ for information about your hardware.
    
    .. tab-item:: Software
       :sync: software
