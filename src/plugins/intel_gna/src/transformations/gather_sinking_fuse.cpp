@@ -8,7 +8,6 @@
 #include <transformations/utils/utils.hpp>
 #include <utility>
 
-#include "../debug_new_pass.hpp"
 #include "openvino/opsets/opset9.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/rt_info/gather_sinking_attr.hpp"
