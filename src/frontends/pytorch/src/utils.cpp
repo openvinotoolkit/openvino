@@ -331,6 +331,16 @@ std::shared_ptr<ov::op::util::FrameworkNode> cast_fw_node(std::shared_ptr<Node> 
     return fw_node;
 }
 
+bool is_none_node(const Output<Node>& node) {
+    if (const auto& fw_node_inp = std::dynamic_pointer_cast<ov::op::util::FrameworkNode>(node.get_node_shared_ptr())) {
+        const auto& attrs = fw_node_inp->get_attrs();
+        if (attrs.find("none_value") != attrs.end()) {
+            return true;
+        }
+    }
+    return false;
+}
+
 Any simplified_type_interpret(Any type) {
     // Interpret Tensor[type] as just type
     // After applying of this interpretation we cannot distinguish true scalars (not tensors) and tensors with elements
