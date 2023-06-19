@@ -94,6 +94,11 @@ void EltwiseLayerCPUTest::SetUp() {
         std::tie(postOpMgrPtr, fusedOps) = fusingParams;
 
         selectedType = makeSelectedTypeStr(getPrimitiveType(), netType);
+        #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+            if (eltwiseType == POWER) {
+                selectedType = std::regex_replace(selectedType, std::regex("acl"), "ref");
+            }
+        #endif
 
         shapes.resize(2);
         switch (opType) {
@@ -190,9 +195,7 @@ const std::vector<ngraph::helpers::EltwiseTypes>& eltwiseOpTypesBinInp() {
 
 const std::vector<ngraph::helpers::EltwiseTypes>& eltwiseOpTypesDiffInp() {
         static const std::vector<ngraph::helpers::EltwiseTypes> eltwiseOpTypesDiffInp = { // Different number of input nodes depending on optimizations
-        #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
                 ngraph::helpers::EltwiseTypes::POWER,
-        #endif
                 // ngraph::helpers::EltwiseTypes::MOD // Does not execute because of transformations
         };
         return eltwiseOpTypesDiffInp;
