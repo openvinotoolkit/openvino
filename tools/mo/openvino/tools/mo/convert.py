@@ -64,8 +64,8 @@ def convert_model(
 
         # Caffe*-specific parameters:
         input_proto: [str, pathlib.Path] = None,
-        caffe_parser_path: [str, pathlib.Path] = os.path.join(os.path.dirname(__file__), 'front', 'caffe', 'proto'),
-        k: [str, pathlib.Path] = os.path.join(os.path.dirname(__file__), 'front', 'caffe', 'CustomLayersMapping.xml'),
+        caffe_parser_path: [str, pathlib.Path] = None,
+        k: [str, pathlib.Path] = None,
         disable_omitting_optional: bool = False,
         enable_flattening_nested_params: bool = False,
 
