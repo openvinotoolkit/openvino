@@ -91,7 +91,7 @@ bool TransposeOrderMatches(std::shared_ptr<Transpose> transpose, std::vector<siz
     if (data.empty())
         return false;
 
-    if (!std::equal(order.begin(), order.end(), data.begin()))
+    if (order.size() != data.size() || !std::equal(order.begin(), order.end(), data.begin()))
         return false;
 
     return true;
@@ -155,7 +155,8 @@ void remove_single_input_node(std::shared_ptr<ov::Node> node) {
     if (!node_parent) {
         THROW_GNA_EXCEPTION << "The removing node has no parrent node";
     }
-    if (!std::equal(input_node_shape.begin(), input_node_shape.end(), output_node_shape.begin())) {
+    if (input_node_shape.size() != output_node_shape.size() ||
+        !std::equal(input_node_shape.begin(), input_node_shape.end(), output_node_shape.begin())) {
         auto reshape_const_node =
             std::make_shared<Constant>(ov::element::i64, ov::Shape{output_node_shape.size()}, output_node_shape);
         node_parent = std::make_shared<Reshape>(node_parent, reshape_const_node, false);

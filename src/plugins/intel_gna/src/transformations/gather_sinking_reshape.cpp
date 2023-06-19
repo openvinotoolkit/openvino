@@ -72,7 +72,8 @@ bool IsReshapeUnsqueeze(const Output<Node>& output) {
     NodePtr reshape = output.get_node_shared_ptr();
     const Shape input_shape = StripShape(reshape->get_input_shape(0));
     const Shape output_shape = StripShape(reshape->get_output_shape(0));
-    return std::equal(input_shape.begin(), input_shape.end(), output_shape.begin());
+    return (input_shape.size() == output_shape.size()) &&
+           std::equal(input_shape.begin(), input_shape.end(), output_shape.begin());
 }
 
 }  // namespace

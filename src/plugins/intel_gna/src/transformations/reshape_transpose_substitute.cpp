@@ -82,7 +82,8 @@ AxisVector FindSuitableTransposeOrder(const Shape& input_shape,
                                       const std::vector<AxisVector>& orders) {
     for (const auto& order : orders) {
         const Shape transposed_shape = ApplyPermutation(input_shape, order);
-        if (std::equal(transposed_shape.begin(), transposed_shape.end(), output_shape.begin()))
+        if ((transposed_shape.size() == output_shape.size()) &&
+            std::equal(transposed_shape.begin(), transposed_shape.end(), output_shape.begin()))
             return order;
     }
 

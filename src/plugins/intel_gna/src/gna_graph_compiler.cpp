@@ -625,8 +625,8 @@ void GNAGraphCompiler::finalizeConvolution1DPrimitive(InferenceEngine::CNNLayerP
         copiedWeights.insert(copiedWeights.end(), copieddPart.begin(), copieddPart.end());
     }
     if (copiedWeights.size() != convolution._weights->byteSize()) {
-        THROW_GNA_LAYER_EXCEPTION(&convolution) << "weights was transposed incorrectly. " << copiedWeights.size()
-                                                << ' ' << convolution._weights->byteSize();
+        THROW_GNA_LAYER_EXCEPTION(&convolution) << "weights was transposed incorrectly. " << copiedWeights.size() << ' '
+                                                << convolution._weights->byteSize();
     }
 
     if (num_conv_kernel_padding == 0) {

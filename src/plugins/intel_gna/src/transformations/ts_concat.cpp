@@ -64,7 +64,8 @@ TSConcatForward::TSConcatForward() {
             ov::Shape transpose_shape = concat_input.get_shape();
             ov::AxisVector transpose_order(transpose_shape.size());
             if (transpose) {
-                std::shared_ptr<Constant> transpose_const = ov::as_type_ptr<Constant>(transpose->get_input_node_shared_ptr(1));
+                std::shared_ptr<Constant> transpose_const =
+                    ov::as_type_ptr<Constant>(transpose->get_input_node_shared_ptr(1));
                 transpose_order = transpose_const->get_axis_vector_val();
                 transpose_shape = transpose->get_input_shape(0);
                 concat_input = concat_input.get_node_shared_ptr()->input_value(0);
