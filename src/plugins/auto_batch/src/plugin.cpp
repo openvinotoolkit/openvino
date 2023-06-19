@@ -4,6 +4,8 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+#include "plugin.hpp"
+
 #include "compiled_model.hpp"
 #include "dimension_tracker.hpp"
 #include "ie_icore.hpp"
@@ -13,7 +15,6 @@
 #include "openvino/pass/manager.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
 #include "openvino/util/common_util.hpp"
-#include "plugin.hpp"
 #include "transformations/common_optimizations/dimension_tracking.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/utils/utils.hpp"

@@ -7,6 +7,7 @@
 
 #include <map>
 
+#include "cpp_interfaces/impl/ie_executable_network_thread_safe_default.hpp"
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 
 #ifdef AUTOBATCH_UNITTEST
