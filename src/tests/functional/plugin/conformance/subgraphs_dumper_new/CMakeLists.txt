@@ -11,41 +11,33 @@ list(APPEND LIBRARIES
         openvino::pugixml
 )
 
-list(APPEND DEFINITIONS)
-
-if(TARGET openvino_ir_frontend)
+if(ENABLE_OV_IR_FRONTEND)
     list(APPEND DEPENDENCIES openvino_ir_frontend)
-    list(APPEND DEFINITIONS ENABLE_OV_IR_FRONTEND)
 endif()
 
-if(TARGET openvino_onnx_frontend)
+if(ENABLE_OV_ONNX_FRONTEND)
     list(APPEND DEPENDENCIES openvino_onnx_frontend)
-    list(APPEND DEFINITIONS ENABLE_OV_ONNX_FRONTEND)
 endif()
 
-if(TARGET openvino_paddle_frontend)
+if(ENABLE_OV_PADDLE_FRONTEND)
     list(APPEND DEPENDENCIES openvino_paddle_frontend)
-    list(APPEND DEFINITIONS ENABLE_OV_PADDLE_FRONTEND)
 endif()
 
-if(TARGET openvino_pytorch_frontend)
+# todo: use convert_model and save to ir instead this
+if(ENABLE_OV_PYTORCH_FRONTEND)
     list(APPEND DEPENDENCIES openvino_pytorch_frontend)
-    list(APPEND DEFINITIONS ENABLE_OV_PYTORCH_FRONTEND)
 endif()
 
-if(TARGET openvino_tensorflow_frontend)
+if(ENABLE_OV_TF_FRONTEND)
     list(APPEND DEPENDENCIES openvino_tensorflow_frontend)
-    list(APPEND DEFINITIONS ENABLE_OV_TF_FRONTEND)
 endif()
 
-if(TARGET openvino_tensorflow_lite_frontend)
+if(ENABLE_OV_TF_LITE_FRONTEND)
     list(APPEND DEPENDENCIES openvino_tensorflow_lite_frontend)
-    list(APPEND DEFINITIONS ENABLE_OV_TF_LITE_FRONTEND)
 endif()
 
-if(TARGET openvino_paddle_frontend)
+if(ENABLE_OV_PADDLE_FRONTEND)
     list(APPEND DEPENDENCIES openvino_paddle_frontend)
-    list(APPEND DEFINITIONS ENABLE_OV_PADDLE_FRONTEND)
 endif()
 
 addIeTargetTest(
@@ -62,5 +54,4 @@ addIeTargetTest(
         ADD_CPPLINT
 )
 
-target_compile_definitions(${TARGET_NAME} PRIVATE ${DEFINITIONS})
 ie_faster_build(${TARGET_NAME} UNITY)
