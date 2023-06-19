@@ -23,8 +23,6 @@ public:
     void createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
                           const std::vector<MemoryDescPtr>& outputDesc) override;
     void createPrimitive() override;
-    void filterSupportedPrimitiveDescriptors() override;
-    void filterSupportedDescriptors();
     bool created() const override;
     bool canBeInPlace() const override {
         return false;

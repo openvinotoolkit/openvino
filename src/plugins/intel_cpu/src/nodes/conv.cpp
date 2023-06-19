@@ -1051,43 +1051,6 @@ void Convolution::initDescriptor(const NodeConfig& config) {
     selectedPD->setConfig(updatedConfig);
 }
 
-void Convolution::filterSupportedPrimitiveDescriptors() {
-    Node::filterSupportedPrimitiveDescriptors();
-    // We also need to filter descs in Convolution node
-    filterSupportedDescriptors();
-}
-
-void Convolution::filterSupportedDescriptors() {
-    if (inputMemoryFormatsFilter.empty() && outputMemoryFormatsFilter.empty())
-        return;
-
-    if (inputMemoryFormatsFilter.size() > 1 || outputMemoryFormatsFilter.size() > 1)
-        IE_THROW() << "Incorrect number of input or output memory formats for Convolution node";
-
-    auto isNotSuitableDesc = [&](const dnnl::primitive_desc& desc) {
-        if (!inputMemoryFormatsFilter.empty()) {
-            auto src_tdesc = DnnlExtensionUtils::makeDescriptor(desc.src_desc());
-            if (src_tdesc->isSame(inputMemoryFormatsFilter[0])) {
-                DEBUG_LOG(getName(), " input memory format filter: ", inputMemoryFormatsFilter[0],
-                          " not matched. Erase desc from the list of dnnl primitive descriptors: ", desc);
-                return true;
-            }
-        }
-        if (!outputMemoryFormatsFilter.empty()) {
-            auto dst_tdesc = DnnlExtensionUtils::makeDescriptor(desc.dst_desc());
-            if (dst_tdesc->isSame(outputMemoryFormatsFilter[0])) {
-                DEBUG_LOG(getName(), " Output memory format filter: ", outputMemoryFormatsFilter[0],
-                          " not matched. Erase desc from the list of dnnl primitive descriptors: ", desc);
-                return true;
-            }
-        }
-
-        return false;
-    };
-
-    descs.erase(std::remove_if(descs.begin(), descs.end(), isNotSuitableDesc), descs.end());
-}
-
 std::shared_ptr<MemoryDesc> Convolution::getSrcMemDesc(const dnnl::primitive_desc &prim_desc, size_t idx) const {
     if (idx == 1) {
         // report original plain layout for weight since it needs to be reordered dynamically at runtime
