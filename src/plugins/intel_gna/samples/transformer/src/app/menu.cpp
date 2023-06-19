@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -48,27 +48,27 @@ Menu::Menu(int argc, char* argv[]) {
 }
 
 static void print_usage() {
-    log() << std::endl;
-    log() << "gna_transformer_app [OPTION]" << std::endl;
-    log() << "Options:" << std::endl;
-    log() << std::endl;
-    log() << "    -h                          " << help_message << std::endl;
-    log() << "    -input_model \"<path>\"     " << input_model_message << std::endl;
-    log() << "    -output_model \"<path>\"    " << output_model_message << std::endl;
-    log() << "    -config \"<path>\"          " << config_message << std::endl;
-    log() << "    -transformation \"<string>\"" << transformation_message << std::endl;
-    log() << std::endl;
-    log() << "    commands examples:" << transformation_message << std::endl;
-    log() << std::endl;
+    log_info() << std::endl;
+    log_info() << "gna_transformer_app [OPTION]" << std::endl;
+    log_info() << "Options:" << std::endl;
+    log_info() << std::endl;
+    log_info() << "    -h                          " << help_message << std::endl;
+    log_info() << "    -input_model \"<path>\"     " << input_model_message << std::endl;
+    log_info() << "    -output_model \"<path>\"    " << output_model_message << std::endl;
+    log_info() << "    -config \"<path>\"          " << config_message << std::endl;
+    log_info() << "    -transformation \"<string>\"" << transformation_message << std::endl;
+    log_info() << std::endl;
+    log_info() << "    commands examples:" << transformation_message << std::endl;
+    log_info() << std::endl;
 
-    log() << example_command_config << std::endl;
-    log() << example_command_transformation << std::endl;
+    log_info() << example_command_config << std::endl;
+    log_info() << example_command_transformation << std::endl;
 }
 
 void Menu::execute_action() {
     if (m_action) {
         m_action();
-        log() << "Transformation successed" << std::endl;
+        log_info() << "Transformation successed" << std::endl;
     }
 }
 
@@ -103,7 +103,7 @@ void Menu::init(int argc, char* argv[]) {
 std::function<void(void)> Menu::prepare_app_specific_transformation(const std::string& transformation_name,
                                                                     const std::string& input_model_path,
                                                                     const std::string& output_model_path) {
-    log() << "Chosen Application defined transformation." << std::endl;
+    log_info() << "Chosen Application defined transformation." << std::endl;
 
     std::shared_ptr<ModelTransformer> transformer = std::make_shared<ModelTransformerApp>(transformation_name);
     return [this, input_model_path, transformer, output_model_path]() {
@@ -114,7 +114,7 @@ std::function<void(void)> Menu::prepare_app_specific_transformation(const std::s
 std::function<void(void)> Menu::prepare_gna_specific_transformations(const std::string& configuration_file_path,
                                                                      const std::string& input_model_path,
                                                                      const std::string& output_model_path) {
-    log() << "Chosen GNA transformations specified in configuration file" << std::endl;
+    log_info() << "Chosen GNA transformations specified in configuration file" << std::endl;
 
     auto configuration = TransformerConfigurationLoaderImpl().parse_configuration(configuration_file_path);
     std::shared_ptr<ModelTransformer> transformer = std::make_shared<ModelTransformerGNA>(configuration);

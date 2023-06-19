@@ -10,6 +10,7 @@
 #include "gna_data_types.hpp"
 #include "gna_plugin_config.hpp"
 #include "openvino/core/model.hpp"
+#include "openvino/pass/manager.hpp"
 
 namespace ov {
 namespace intel_gna {

@@ -8,7 +8,6 @@
 #include "legacy/net_pass.h"
 #include "legacy/transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp"
 #include "ngraph/opsets/opset7.hpp"
-#include "openvino/pass/manager.hpp"
 #include "optimizer/gna_pass_manager.hpp"
 #include "transformations/broadcast_const.hpp"
 #include "transformations/common_optimizations/add_fake_quantize_fusion.hpp"

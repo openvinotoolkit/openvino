@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,7 +9,7 @@ using namespace transformation_sample;
 
 int main(int argc, char* argv[]) {
     try {
-        log() << "Starting transforming application" << std::endl;
+        log_info() << "Starting transforming application" << std::endl;
         Menu menu(argc, argv);
         menu.execute_action();
     } catch (const std::exception& exc) {

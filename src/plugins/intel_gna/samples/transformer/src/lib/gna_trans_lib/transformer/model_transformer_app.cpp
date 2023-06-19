@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,8 +13,8 @@ ModelTransformerApp::ModelTransformerApp(const std::string& transformation_name)
 
 void ModelTransformerApp::transform(std::shared_ptr<ov::Model> model) const {
     // TODO pass pass name and implement examplary pass.
-    log() << "Running App Transform" << std::endl;
-    log() << "execution application defined transforamtion: " << m_transformation_name << std::endl;
+    log_info() << "Running App Transform" << std::endl;
+    log_info() << "execution application defined transforamtion: " << m_transformation_name << std::endl;
 }
 
 }  // namespace transformation_sample
