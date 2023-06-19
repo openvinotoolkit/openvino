@@ -76,7 +76,8 @@ Step 1: Install OpenVINO Core Components
 
    .. code-block:: sh
 
-      sudo ln -s openvino_2023.0.0 openvino_2023
+      sudo ln -s /opt/intel/openvino_2023.0.0 /opt/intel/openvino_2023 
+
 
    .. note::
 
@@ -92,6 +93,7 @@ You must update several environment variables before you can compile and run Ope
 
 .. code-block:: sh
 
+   cd /opt/intel/openvino_2023 
    source /opt/intel/openvino_2023/setupvars.sh
 
 

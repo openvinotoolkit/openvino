@@ -102,9 +102,9 @@ protected:
         in1_dims = onednn::convert_gemm_tensor(in1_l.get_tensor(), rank, batched_dims_can_be_removed);
         out_dims = onednn::convert_gemm_tensor(out_l.get_tensor(), rank, batched_dims_can_be_removed);
 
-        in0_fmt = onednn::convert_gemm_data_format(in0_dims);
-        in1_fmt = onednn::convert_gemm_data_format(in1_dims);
-        out_fmt = onednn::convert_gemm_data_format(out_dims);
+        in0_fmt = onednn::convert_gemm_data_format(in0_dims, in0_l.format);
+        in1_fmt = onednn::convert_gemm_data_format(in1_dims, in1_l.format);
+        out_fmt = onednn::convert_gemm_data_format(out_dims, out_l.format);
 
         if (prim->transpose_input0) {
             in0_fmt = transpose_format(in0_fmt);
@@ -121,7 +121,7 @@ protected:
             auto bias_rank = cldnn::format::dimension(bias_l.format);
             bias_dt = onednn::convert_data_type(bias_l.data_type);
             bias_dims = onednn::convert_gemm_tensor(bias_l.get_tensor(), bias_rank, batched_dims_can_be_removed);
-            bias_fmt = onednn::convert_gemm_data_format(bias_dims);
+            bias_fmt = onednn::convert_gemm_data_format(bias_dims, bias_l.format);
         }
     }
 
@@ -321,6 +321,9 @@ attach_gemm_onednn::attach_gemm_onednn() {
     };
     std::vector<format::type> fmt = {
         format::bfyx,
+        format::byxf,
+        format::byfx,
+        format::bxfy,
         format::bfzyx,
         format::bfwzyx,
     };

@@ -6,6 +6,7 @@
 #include "program_helpers.h"
 #include "primitive_inst.h"
 #include "loop_inst.h"
+#include "shape_of_inst.h"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #include "convolution_inst.h"
@@ -202,6 +203,13 @@ std::unique_ptr<json_composite> program_node::desc_to_json() const {
 #endif
     }
     node_info->add("implementation", impls);
+
+    std::vector<std::string> dependant_shape_of_nodes_ids;
+    for (auto shape_of : dependant_shape_of_nodes) {
+        dependant_shape_of_nodes_ids.push_back(shape_of->id());
+    }
+    node_info->add("dependant_shape_of_nodes_ids", dependant_shape_of_nodes_ids);
+    node_info->add("in_shape_of_subgraph", in_shape_of_subgraph);
     return node_info;
 }
 
@@ -211,7 +219,7 @@ void program_node::remove_dependency(program_node& node) {
             remove_dependency(i);
 }
 
-size_t program_node::get_user_index(program_node& node) const {
+size_t program_node::get_user_index(const program_node& node) const {
     size_t idx = 0;
     for (auto& user : users) {
         if (user == &node)
@@ -223,7 +231,7 @@ size_t program_node::get_user_index(program_node& node) const {
     OPENVINO_ASSERT(false, "Search invalid user node" + node.id() + " node");
 }
 
-size_t program_node::get_dependency_index(program_node& node) const {
+size_t program_node::get_dependency_index(const program_node& node) const {
     for (size_t i = 0; i < dependencies.size(); ++i)
         if (dependencies[i].first == &node)
             return i;
@@ -493,6 +501,11 @@ void program_node::set_preferred_output_fmt(size_t idx, format::type type) {
         preferred_output_fmts.resize(idx+1, format::any);
 
     preferred_output_fmts.at(idx) = type;
+}
+
+void program_node::add_dependant_shape_of_node(const program_node* node) {
+    OPENVINO_ASSERT(node->is_type<shape_of>(), "[GPU] Expected node type is shape_of");
+    dependant_shape_of_nodes.insert(node);
 }
 
     /* ----------------------------------------- */
@@ -1000,7 +1013,7 @@ void program_node::init_onednn_primitive_attributes() {
                     size_t in_batched_size = in.count() / (in.spatial(0) * in.spatial(1));
                     dnnl::memory::dims dims = onednn::convert_gemm_tensor(in.get_tensor(), rank, in_batched_size == 1);
                     dnnl::memory::data_type dt = onednn::convert_data_type(in.data_type);
-                    dnnl::memory::format_tag fmt = onednn::convert_gemm_data_format(dims);
+                    dnnl::memory::format_tag fmt = onednn::convert_gemm_data_format(dims, in.format);
                     post_ops.append_binary(alg, dnnl::memory::desc(dims, dt, fmt));
                     update_onednn_post_op_list(op_type, dep_idx, fmt, false, dims, dt);
                 } else {
@@ -1255,4 +1268,3 @@ void program_node::init_onednn_primitive_attributes() {
 
 
 #endif // ENABLE_ONEDNN_FOR_GPU
-

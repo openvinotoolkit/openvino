@@ -393,6 +393,20 @@ StreamCfg Engine::GetNumStreams(InferenceEngine::IStreamsExecutor::ThreadBinding
     return stream_cfg;
 }
 
+static bool shouldEnableLPT(const std::map<std::string, std::string>& modelConfig, const Config& engineConfig) {
+    const auto& enableLPT = modelConfig.find(InferenceEngine::PluginConfigInternalParams::KEY_LP_TRANSFORMS_MODE);
+    if (enableLPT == modelConfig.end()) // model config has higher priority
+        return engineConfig.lpTransformsMode == Config::LPTransformsMode::On;
+
+    const auto& val = enableLPT->second;
+    if (val == PluginConfigParams::YES)
+        return true;
+    else if (val == PluginConfigParams::NO)
+        return false;
+    else
+        IE_THROW() << "Wrong value for property key LP_TRANSFORMS_MODE. Expected values: YES/NO";
+}
+
 static bool shouldEnforceBF16(const std::map<std::string, std::string>& modelConfig, const Config& engineConfig) {
     // For BF16 execution, the machine should have AVX512 at least
     if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core))
@@ -410,13 +424,6 @@ static bool shouldEnforceBF16(const std::map<std::string, std::string>& modelCon
 }
 
 static Config::SnippetsMode getSnippetsMode(const std::map<std::string, std::string>& modelConfig, const Config& engineConfig) {
-    const auto& dynamicBatchProp = modelConfig.find(InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_ENABLED);
-    const bool enableDynamicBatch = (dynamicBatchProp != modelConfig.end() && dynamicBatchProp->second == PluginConfigParams::YES)
-            || engineConfig.enableDynamicBatch;
-
-    if (enableDynamicBatch) // dynamic batch is not supported
-        return Config::SnippetsMode::Disable;
-
     const auto& snippetsMode = modelConfig.find(InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE);
     if (snippetsMode == modelConfig.end()) // not set explicitly
         return Config::SnippetsMode::Enable; // enable by default
@@ -460,9 +467,7 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
     auto config = orig_config;
 
     CNNNetwork clonedNetwork = InferenceEngine::details::cloneNetwork(network);
-    const auto& lptProp = config.find(InferenceEngine::PluginConfigInternalParams::KEY_LP_TRANSFORMS_MODE);
-    const bool enableLPT = (lptProp != config.end() && lptProp->second == PluginConfigParams::YES) /* enabled in the orig_config*/
-            || Config::LPTransformsMode::On == engConfig.lpTransformsMode /* or already enabled for the plugin */;
+    const bool enableLPT = shouldEnableLPT(config, engConfig);
     const bool enableBF16 = shouldEnforceBF16(config, engConfig);
     const Config::SnippetsMode snippetsMode = getSnippetsMode(config, engConfig);
 
@@ -495,10 +500,6 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
     Config conf = engConfig;
 
     conf.readProperties(config);
-    if (conf.enableDynamicBatch) {
-        conf.batchLimit = static_cast<int>(network.getBatchSize());
-    }
-
     if (is_cpu_map_available()) {
         GetPerformanceStreams(conf, nGraphFunc);
     }
@@ -738,10 +739,6 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
     Config conf = engConfig;
     conf.readProperties(config);
 
-    if (conf.enableDynamicBatch) {
-        conf.batchLimit = static_cast<int>(network.getBatchSize());
-    }
-
     const auto& lptProp = config.find(InferenceEngine::PluginConfigInternalParams::KEY_LP_TRANSFORMS_MODE);
     const bool enableLPT = (lptProp != config.end() && lptProp->second == PluginConfigParams::YES) /* enabled in the orig_config*/
                         || Config::LPTransformsMode::On == engConfig.lpTransformsMode /* or already enabled */;
@@ -812,9 +809,6 @@ InferenceEngine::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(std::istr
         }
     }
 
-    if (conf.enableDynamicBatch) {
-        conf.batchLimit = static_cast<int>(cnnnetwork.getBatchSize());
-    }
     if (is_cpu_map_available()) {
         get_num_streams(conf.streamExecutorConfig._streams, function, conf);
     }
