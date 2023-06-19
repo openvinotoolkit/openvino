@@ -107,6 +107,8 @@ private:
 #ifdef OV_CPU_WITH_MLAS
     int64_t M, N, K;
     MemoryPtr mlasPackedPtr = nullptr;
+    void executeMLAS();
+    void prepackMLASWeight();
 #endif
 };
 

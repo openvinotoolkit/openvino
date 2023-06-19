@@ -290,6 +290,7 @@ void FullyConnected::createPrimitive() {
 #ifdef OV_CPU_WITH_MLAS
     if (useMlas) {
         Node::createPrimitive();
+        prepackMLASWeight();
         return;
     }
 #endif
@@ -317,60 +318,16 @@ void FullyConnected::prepareParams() {
     if (selected_pd == nullptr)
         IE_THROW() << "Preferable primitive descriptor is not set for node " << getName() << ".";
 #ifdef OV_CPU_WITH_MLAS
-    if (useMlas) {
-        auto prepareMLASWeight = [&](const int64_t M, const int64_t N, const int64_t K) {
-            if (!getParentEdgeAt(1)->getParent()->isConstant())
-                IE_THROW() << "Weight input is not const for node " << getName() << ".";
-            auto edgeMem = getParentEdgeAt(1)->getMemoryPtr();
-            std::string format = "gemm_mlas_" + std::to_string(N) + "_" + std::to_string(K);
-            if (!edgeMem)
-                IE_THROW() << "Cannot get const weights edgeMem for node " << getName() << ".";
-            auto packedBsize = ov_sgemm_pack_get_size(N, K);
-            MemoryPtr ptr;
-            auto create = [&] () {
-                float* weightPtr = reinterpret_cast<float*>(getParentEdgeAt(1)->getMemoryPtr()->GetPtr());
-                size_t ldb = K;
-                MemoryPtr _ptr = std::make_shared<Memory>(getEngine());
-                _ptr->Create(intel_cpu::DnnlBlockedMemoryDesc(Precision::FP32, intel_cpu::Shape{1, packedBsize / sizeof(float)}));
-                float* prepackedDst = reinterpret_cast<float*>(_ptr->GetPtr());
-                ov_sgemm_pack("T", N, K, ldb, weightPtr, prepackedDst);
-                return _ptr;
-            };
-            if (mlasPackedPtr != nullptr) {
-                ptr = mlasPackedPtr;
-            } else {
-                auto weightCache = context->getWeightsCache();
-                if (weightCache != nullptr) {
-                    const std::string string_hash = getName() + "_" + format
-                                                    + "_" + std::to_string(edgeMem->GetSize())
-                                                    + "_" + std::to_string(reinterpret_cast<uint64_t>(edgeMem->GetData()));
-
-                    ptr = *weightCache->findOrCreate(string_hash, create);
-                } else {
-                    ptr = create();
-                }
-                mlasPackedPtr = ptr;
-            }
-            return ptr;
-        };
-        auto& wgtDims = getParentEdgeAt(WEIGHTS_ID)->getMemoryPtr()->getStaticDims();
-        auto& outDims = getChildEdgeAt(0)->getMemoryPtr()->getStaticDims();
-        // Weight is transpoed by MatMulConstTransposesExtraction
-        // K is the IC of weight
-        K = wgtDims[1];
-        // M, N should be normalized
-        if (outDims.size() == 3) {
-            M = outDims[0] * outDims[1];
-            N = outDims[2];
-        } else {
-            M = outDims[0];
-            N = outDims[1];
-        }
-        if (mlasPackedPtr == nullptr) {
-            prepareMLASWeight(M, N, K);
-        }
-        return;
+    // M, N should be normalized and updated
+    outDims = dstMemPtr->getStaticDims();
+    if (outDims.size() == 3) {
+        M = outDims[0] * outDims[1];
+        N = outDims[2];
+    } else {
+        M = outDims[0];
+        N = outDims[1];
     }
+    return;
 #endif
     DnnlMemoryDescPtr weightDesc = MemoryDescUtils::convertToDnnlMemoryDesc(weightDescIP);
     DnnlMemoryDescCPtr biasDesc = nullptr;
@@ -501,26 +458,7 @@ void FullyConnected::prepareParams() {
 void FullyConnected::execute(dnnl::stream strm) {
 #ifdef OV_CPU_WITH_MLAS
     if (useMlas) {
-        const auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
-        const auto src0MemPtr = getParentEdgeAt(0)->getMemoryPtr();
-        const auto biasMemPtr = withBiases ? getParentEdgeAt(BIAS_ID)->getMemoryPtr() : nullptr;
-        int64_t lda = K;
-        int64_t ldb = K;
-        int64_t ldc = N;
-        ov_sgemm_pack_compute("N",
-                              "N",
-                              M,
-                              N,
-                              K,
-                              1.0f,
-                              reinterpret_cast<float*>(src0MemPtr->GetPtr()),
-                              lda,
-                              reinterpret_cast<float*>(mlasPackedPtr->GetPtr()),
-                              ldb,
-                              0.0f,
-                              reinterpret_cast<float*>(dstMemPtr->GetPtr()),
-                              ldc,
-                              withBiases ? reinterpret_cast<float*>(biasMemPtr->GetData()) : nullptr);
+        executeMLAS();
         return;
     }
 #endif
@@ -754,7 +692,6 @@ void FullyConnected::initSupportedPrimitiveDescriptors() {
     if (useMlas) {
         auto dataPrecision = getOriginalInputPrecisionAtPort(0);
         if (withBiases) {
-            //To Do withBias is not supported for mlas now
             addSupportedPrimDesc({{LayoutType::ncsp, dataPrecision},
                             {LayoutType::ncsp, dataPrecision},
                             {LayoutType::ncsp, dataPrecision}},
@@ -1043,6 +980,78 @@ bool FullyConnected::useSparseWeightsDecompression() {
     return true;
 }
 
+#ifdef OV_CPU_WITH_MLAS
+void FullyConnected::prepackMLASWeight() {
+    auto prepareMLASWeight = [&](const int64_t N, const int64_t K) {
+        if (!getParentEdgeAt(WEIGHTS_ID)->getParent()->isConstant())
+            IE_THROW() << "Weight input is not const for node " << getName() << ".";
+        auto weightsMem = getParentEdgeAt(WEIGHTS_ID)->getMemoryPtr();
+        std::string format = "gemm_mlas_" + std::to_string(N) + "_" + std::to_string(K);
+        if (!weightsMem)
+            IE_THROW() << "Cannot get const weights edgeMem for node " << getName() << ".";
+        auto packedBsize = ov_sgemm_pack_get_size(N, K);
+        MemoryPtr ptr;
+        auto create = [&]() {
+            float* weightPtr = reinterpret_cast<float*>(weightsMem->GetPtr());
+            size_t ldb = K;
+            MemoryPtr _ptr = std::make_shared<Memory>(getEngine());
+            _ptr->Create(
+                intel_cpu::DnnlBlockedMemoryDesc(Precision::I8, intel_cpu::Shape{packedBsize}));
+            float* prepackedDst = reinterpret_cast<float*>(_ptr->GetPtr());
+            ov_sgemm_pack("T", N, K, ldb, weightPtr, prepackedDst);
+            return _ptr;
+        };
+        if (mlasPackedPtr != nullptr) {
+            ptr = mlasPackedPtr;
+        } else {
+            auto weightCache = context->getWeightsCache();
+            if (weightCache != nullptr) {
+                const std::string string_hash = getName() + "_" + format + "_" + std::to_string(weightsMem->GetSize()) +
+                                                "_" + std::to_string(reinterpret_cast<uint64_t>(weightsMem->GetData()));
+
+                ptr = *weightCache->findOrCreate(string_hash, create);
+            } else {
+                ptr = create();
+            }
+            mlasPackedPtr = ptr;
+        }
+        return ptr;
+    };
+    const auto& wgtDims = getParentEdgeAt(WEIGHTS_ID)->getMemoryPtr()->getStaticDims();
+    // Weight is transpoed by MatMulConstTransposesExtraction
+    // K is the IC of weight
+    K = wgtDims[1];
+    N = wgtDims[0];
+
+    if (mlasPackedPtr == nullptr) {
+        prepareMLASWeight(N, K);
+    }
+}
+
+void FullyConnected::executeMLAS() {
+    const auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+    const auto src0MemPtr = getParentEdgeAt(0)->getMemoryPtr();
+    const auto biasMemPtr = withBiases ? getParentEdgeAt(BIAS_ID)->getMemoryPtr() : nullptr;
+    int64_t lda = K;
+    int64_t ldb = K;
+    int64_t ldc = N;
+    ov_sgemm_pack_compute("N",
+                          "N",
+                          M,
+                          N,
+                          K,
+                          1.0f,
+                          reinterpret_cast<float*>(src0MemPtr->GetPtr()),
+                          lda,
+                          reinterpret_cast<float*>(mlasPackedPtr->GetPtr()),
+                          ldb,
+                          0.0f,
+                          reinterpret_cast<float*>(dstMemPtr->GetPtr()),
+                          ldc,
+                          withBiases ? reinterpret_cast<float*>(biasMemPtr->GetData()) : nullptr);
+}
+
+#endif
 }   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov

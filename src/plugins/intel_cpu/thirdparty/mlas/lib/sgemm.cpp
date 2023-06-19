@@ -1614,6 +1614,7 @@ MlasGemmBatch(
     if (TargetThreadCount >= MaximumThreadCount) {
         TargetThreadCount = MaximumThreadCount;
     }
+    // let MLAS uses all available threads
     TargetThreadCount = MaximumThreadCount;
     //
     // Segment the operation across multiple threads.
