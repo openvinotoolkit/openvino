@@ -204,7 +204,7 @@ void make_gna_pwl(const DnnActivation& fun,
         int32_t x_upper = INT32_MAX;
         int16_t y_lower = y_min;
         int16_t y_upper = y_max;
-        if (kActFakeQuantize && fun.fqParams.set) {
+        if (fun.fqParams.set) {
             x_lower = static_cast<int32_t>(
                 std::max(static_cast<int64_t>(*fun.fqParams.input_low * in_scale), static_cast<int64_t>(x_lower)));
             x_upper = static_cast<int32_t>(
