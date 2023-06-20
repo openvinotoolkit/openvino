@@ -8,7 +8,9 @@
 #include "compiled_model.hpp"
 #include "cpp_interfaces/interface/ie_iinfer_request_internal.hpp"
 
-namespace AutoBatchPlugin {
+namespace ov {
+namespace autobatch_plugin {
+
 class AutoBatchInferRequest : public InferenceEngine::IInferRequestInternal {
 public:
     using Ptr = std::shared_ptr<AutoBatchInferRequest>;
@@ -46,4 +48,5 @@ protected:
     size_t _batchId;
     size_t _batchSize;
 };
-}  // namespace AutoBatchPlugin
+}  // namespace autobatch_plugin
+}  // namespace ov

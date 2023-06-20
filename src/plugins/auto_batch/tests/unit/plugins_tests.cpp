@@ -20,7 +20,7 @@ using ::testing::ReturnRef;
 using ::testing::StrEq;
 using ::testing::StrNe;
 using ::testing::Throw;
-using namespace MockAutoBatchPlugin;
+using namespace ov::autobatch_plugin;
 using namespace MockAutoBatchDevice;
 using BatchDeviceConfigParams = std::tuple<std::string,  // Batch devices
                                            std::string,  // Expected device name
@@ -223,8 +223,8 @@ TEST_P(ParseMetaDeviceTest, ParseMetaDeviceTestCase) {
         ASSERT_ANY_THROW(plugin->ParseMetaDevice(batch_cfg, config));
     } else {
         auto result = plugin->ParseMetaDevice(batch_cfg, config);
-        EXPECT_EQ(result.deviceName, expected.deviceName);
-        EXPECT_EQ(result.batchForDevice, expected.batchForDevice);
+        EXPECT_EQ(result.device_name, expected.device_name);
+        EXPECT_EQ(result.batch_for_device, expected.batch_for_device);
         EXPECT_TRUE(compare(result.config, expected.config));
     }
 }
@@ -271,8 +271,8 @@ TEST_P(ParseBatchDeviceTest, ParseBatchDeviceTestCase) {
         ASSERT_ANY_THROW(plugin->ParseBatchDevice(batchDevice));
     } else {
         auto result = plugin->ParseBatchDevice(batchDevice);
-        EXPECT_EQ(result.deviceName, deviceName);
-        EXPECT_EQ(result.batchForDevice, batchSize);
+        EXPECT_EQ(result.device_name, deviceName);
+        EXPECT_EQ(result.batch_for_device, batchSize);
     }
 }
 

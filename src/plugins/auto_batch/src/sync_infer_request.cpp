@@ -5,7 +5,9 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #include "sync_infer_request.hpp"
 
-namespace AutoBatchPlugin {
+namespace ov {
+namespace autobatch_plugin {
+
 using namespace InferenceEngine;
 
 template <Precision::ePrecision precision>
@@ -346,4 +348,5 @@ void AutoBatchInferRequest::CopyOutputsIfNeeded() {
         CopyBlobIfNeeded(_myBatchedRequestWrapper._inferRequestBatched->GetBlob(name), GetBlob(name), false);
     }
 }
-}  // namespace AutoBatchPlugin
+}  // namespace autobatch_plugin
+}  // namespace ov

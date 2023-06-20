@@ -9,7 +9,8 @@
 #include "ie_performance_hints.hpp"
 #include "sync_infer_request.hpp"
 
-namespace AutoBatchPlugin {
+namespace ov {
+namespace autobatch_plugin {
 using namespace InferenceEngine;
 AutoBatchExecutableNetwork::AutoBatchExecutableNetwork(
     const InferenceEngine::SoExecutableNetworkInternal& networkWithBatch,
@@ -59,7 +60,7 @@ InferenceEngine::IInferRequestInternal::Ptr AutoBatchExecutableNetwork::CreateIn
                                                    networkOutputs,
                                                    workerRequestPtrAndId.first,
                                                    workerRequestPtrAndId.second,
-                                                   _device.batchForDevice,
+                                                   _device.batch_for_device,
                                                    _batchedInputs,
                                                    _batchedOutputs);
 }
@@ -74,7 +75,7 @@ InferenceEngine::IInferRequestInternal::Ptr AutoBatchExecutableNetwork::CreateIn
                                                    outputs,
                                                    workerRequestPtrAndId.first,
                                                    workerRequestPtrAndId.second,
-                                                   _device.batchForDevice,
+                                                   _device.batch_for_device,
                                                    _batchedInputs,
                                                    _batchedOutputs);
 }
@@ -82,12 +83,12 @@ InferenceEngine::IInferRequestInternal::Ptr AutoBatchExecutableNetwork::CreateIn
 std::pair<AutoBatchExecutableNetwork::WorkerInferRequest&, int> AutoBatchExecutableNetwork::GetWorkerInferRequest() {
     auto num = _numRequestsCreated++;
     std::lock_guard<std::mutex> lock(_workerRequestsMutex);
-    auto batch_id = num % _device.batchForDevice;
+    auto batch_id = num % _device.batch_for_device;
     if (!batch_id) {  // need new request
         _workerRequests.push_back(std::make_shared<WorkerInferRequest>());
         auto workerRequestPtr = _workerRequests.back().get();
         workerRequestPtr->_inferRequestBatched = {_network->CreateInferRequest(), _network._so};
-        workerRequestPtr->_batchSize = _device.batchForDevice;
+        workerRequestPtr->_batchSize = _device.batch_for_device;
         workerRequestPtr->_completionTasks.resize(workerRequestPtr->_batchSize);
         workerRequestPtr->_inferRequestBatched->SetCallback(
             [workerRequestPtr](std::exception_ptr exceptionPtr) mutable {
@@ -217,11 +218,11 @@ InferenceEngine::Parameter AutoBatchExecutableNetwork::GetMetric(const std::stri
             reqs = InferenceEngine::PerfHintsConfig::CheckPerformanceHintRequestValue(hint);
             if (!reqs)  // no limitations from user, let's deduce the full blown #requests
                 // (multiplied by the devices capabilities to run multiple <batched> requests for further perf)
-                reqs = _device.batchForDevice *
+                reqs = _device.batch_for_device *
                        _networkWithoutBatch->GetMetric(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)).as<unsigned int>();
         } catch (const InferenceEngine::Exception&) {
         }
-        reqs = std::max(reqs, _device.batchForDevice);  // round up to the possible  user's value
+        reqs = std::max(reqs, _device.batch_for_device);  // round up to the possible  user's value
         IE_SET_METRIC_RETURN(OPTIMAL_NUMBER_OF_INFER_REQUESTS, reqs);
     } else if (name == METRIC_KEY(NETWORK_NAME)) {
         IE_SET_METRIC_RETURN(NETWORK_NAME, _networkWithoutBatch->GetMetric(METRIC_KEY(NETWORK_NAME)).as<std::string>());
@@ -241,4 +242,5 @@ InferenceEngine::Parameter AutoBatchExecutableNetwork::GetMetric(const std::stri
         IE_THROW() << "Unsupported Network metric: " << name;
     }
 }
-}  // namespace AutoBatchPlugin
+}  // namespace autobatch_plugin
+}  // namespace ov

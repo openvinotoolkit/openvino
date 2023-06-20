@@ -6,7 +6,8 @@
 
 #include "async_infer_request.hpp"
 
-namespace AutoBatchPlugin {
+namespace ov {
+namespace autobatch_plugin {
 
 using namespace InferenceEngine;
 
@@ -63,4 +64,5 @@ void AutoBatchAsyncInferRequest::Infer_ThreadUnsafe() {
 AutoBatchAsyncInferRequest::~AutoBatchAsyncInferRequest() {
     StopAndWait();
 }
-}  // namespace AutoBatchPlugin
+}  // namespace autobatch_plugin
+}  // namespace ov

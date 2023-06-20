@@ -13,7 +13,7 @@
 #include "plugin.hpp"
 #include "sync_infer_request.hpp"
 
-using namespace MockAutoBatchPlugin;
+using namespace ov::autobatch_plugin;
 namespace MockAutoBatchDevice {
 
 class MockAutoBatchInferencePlugin : public AutoBatchInferencePlugin {

@@ -12,7 +12,8 @@
 #include "plugin.hpp"
 #include "threading/ie_thread_safe_containers.hpp"
 
-namespace AutoBatchPlugin {
+namespace ov {
+namespace autobatch_plugin {
 
 class AutoBatchAsyncInferRequest;
 
@@ -72,4 +73,5 @@ protected:
     const std::set<std::string> _batchedInputs;
     const std::set<std::string> _batchedOutputs;
 };
-}  // namespace AutoBatchPlugin
+}  // namespace autobatch_plugin
+}  // namespace ov

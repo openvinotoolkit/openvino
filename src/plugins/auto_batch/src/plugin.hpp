@@ -10,18 +10,13 @@
 #include "cpp_interfaces/impl/ie_executable_network_thread_safe_default.hpp"
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 
-#ifdef AUTOBATCH_UNITTEST
-#    define AutoBatchPlugin MockAutoBatchPlugin
-#endif
-
-namespace AutoBatchPlugin {
-
-using DeviceName = std::string;
+namespace ov {
+namespace autobatch_plugin {
 
 struct DeviceInformation {
-    DeviceName deviceName;
+    std::string device_name;
     std::map<std::string, std::string> config;
-    int batchForDevice;
+    int batch_for_device;
 };
 
 class AutoBatchInferencePlugin : public InferenceEngine::IInferencePlugin {
@@ -65,4 +60,5 @@ protected:
         const std::shared_ptr<InferenceEngine::RemoteContext> context,
         const std::map<std::string, std::string>& config);
 };
-}  // namespace AutoBatchPlugin
+}  // namespace autobatch_plugin
+}  // namespace ov

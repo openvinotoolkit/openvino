@@ -7,7 +7,8 @@
 #include "cpp_interfaces/impl/ie_infer_async_request_thread_safe_default.hpp"
 #include "sync_infer_request.hpp"
 
-namespace AutoBatchPlugin {
+namespace ov {
+namespace autobatch_plugin {
 class AutoBatchAsyncInferRequest : public InferenceEngine::AsyncInferRequestThreadSafeDefault {
 public:
     using Ptr = std::shared_ptr<AutoBatchAsyncInferRequest>;
@@ -22,4 +23,5 @@ public:
     InferenceEngine::SoIInferRequestInternal _inferRequestWithoutBatch;
     AutoBatchInferRequest::Ptr _inferRequest;
 };
-}  // namespace AutoBatchPlugin
+}  // namespace autobatch_plugin
+}  // namespace ov

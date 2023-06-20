@@ -19,7 +19,8 @@
 #include "transformations/init_node_info.hpp"
 #include "transformations/utils/utils.hpp"
 
-namespace AutoBatchPlugin {
+namespace ov {
+namespace autobatch_plugin {
 using namespace InferenceEngine;
 
 std::vector<std::string> supported_configKeys = {CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG),
@@ -59,7 +60,7 @@ DeviceInformation AutoBatchInferencePlugin::ParseMetaDevice(
     const std::string& devicesBatchCfg,
     const std::map<std::string, std::string>& user_config) const {
     auto metaDevice = ParseBatchDevice(devicesBatchCfg);
-    metaDevice.config = GetCore()->GetSupportedConfig(metaDevice.deviceName, user_config);
+    metaDevice.config = GetCore()->GetSupportedConfig(metaDevice.device_name, user_config);
 
     // check that no irrelevant config-keys left
     for (const auto& k : user_config) {
@@ -72,7 +73,8 @@ DeviceInformation AutoBatchInferencePlugin::ParseMetaDevice(
     return metaDevice;
 }
 
-RemoteContext::Ptr AutoBatchInferencePlugin::CreateContext(const InferenceEngine::ParamMap& remote_properties) {
+InferenceEngine::RemoteContext::Ptr AutoBatchInferencePlugin::CreateContext(
+    const InferenceEngine::ParamMap& remote_properties) {
     auto cfg = remote_properties;
     auto it = cfg.find(CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG));
     if (it == cfg.end())
@@ -86,7 +88,7 @@ RemoteContext::Ptr AutoBatchInferencePlugin::CreateContext(const InferenceEngine
         return nullptr;
     auto metaDevice = ParseMetaDevice(val, std::map<std::string, std::string>());
     cfg.erase(it);
-    return core->CreateContext(metaDevice.deviceName, cfg);
+    return core->CreateContext(metaDevice.device_name, cfg);
 }
 
 Parameter AutoBatchInferencePlugin::GetConfig(const std::string& name,
@@ -131,7 +133,7 @@ void AutoBatchInferencePlugin::SetConfig(const std::map<std::string, std::string
     }
 }
 
-static const Version version = {{2, 1}, CI_BUILD_NUMBER, "AutoBatchPlugin"};
+static const InferenceEngine::Version version = {{2, 1}, CI_BUILD_NUMBER, "AutoBatchPlugin"};
 IE_DEFINE_PLUGIN_CREATE_FUNCTION(AutoBatchInferencePlugin, version)
 
 AutoBatchInferencePlugin::AutoBatchInferencePlugin() {
@@ -179,7 +181,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
         IE_THROW() << "KEY_AUTO_BATCH key is not set for BATCH device";
     }
     auto metaDevice = ParseMetaDevice(device_batch->second, user_config);
-    const auto& deviceName = metaDevice.deviceName;
+    const auto& deviceName = metaDevice.device_name;
     const auto& deviceConfig = metaDevice.config;
     auto deviceConfigNoAutoBatch = deviceConfig;
     // avoid recursive auto-batching
@@ -252,10 +254,10 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
             IE_THROW(NotImplemented)
                 << "Auto-batching supports only networks with inputs/outputs featuring batched dim!";
     } catch (const InferenceEngine::Exception&) {
-        metaDevice.batchForDevice = 1;
+        metaDevice.batch_for_device = 1;
     }
 
-    if (!metaDevice.batchForDevice) {
+    if (!metaDevice.batch_for_device) {
         unsigned int requests = 0;
         // batch size is not set explicitly via device name e.g. BATCH:GPU(4)
         // let's query the optimal batch size
@@ -270,12 +272,12 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
         if (requests)
             optBatchSize = std::max(1u, std::min(requests, optBatchSize));
         if (optBatchSize > 2)  // batching is usually in-efficient for batch<4 (as batch1 kernels are heavily optimized)
-            metaDevice.batchForDevice = optBatchSize;
+            metaDevice.batch_for_device = optBatchSize;
         else
-            metaDevice.batchForDevice = 1;
+            metaDevice.batch_for_device = 1;
     }
 
-    auto report_footprint = [](std::shared_ptr<ICore> pCore, std::string device) -> size_t {
+    auto report_footprint = [](std::shared_ptr<InferenceEngine::ICore> pCore, std::string device) -> size_t {
         size_t footprint = 0;
         // TODO: use the per-network metric (22.2) rather than plugin-level
         auto stats =
@@ -296,9 +298,9 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
             const auto total_mem =
                 GetCore()->GetMetric(deviceName, GPU_METRIC_KEY(DEVICE_TOTAL_MEM_SIZE)).as<uint64_t>();
             const int estimated_batch = static_cast<int>((total_mem - batch1_footprint) / batch1_footprint);
-            int closest = static_cast<int>(pow(2, floor(log(estimated_batch) / log(2))));
+            int closest = static_cast<int>(pow(2, floor(std::log(estimated_batch) / std::log(2))));
             closest = std::max(1, closest);
-            metaDevice.batchForDevice = std::min(metaDevice.batchForDevice, closest);
+            metaDevice.batch_for_device = std::min(metaDevice.batch_for_device, closest);
         }
     }
     // auto-batch settings
@@ -309,17 +311,17 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
     }
 
     InferenceEngine::SoExecutableNetworkInternal executableNetworkWithBatch;
-    if (metaDevice.batchForDevice > 1 && batched_inputs.size()) {
+    if (metaDevice.batch_for_device > 1 && batched_inputs.size()) {
         try {
             CNNNetwork reshaped(InferenceEngine::details::cloneNetwork(network));
             ICNNNetwork::InputShapes shapes = reshaped.getInputShapes();
             for (const auto& input : batched_inputs)
-                shapes[input][0] = metaDevice.batchForDevice;
+                shapes[input][0] = metaDevice.batch_for_device;
             reshaped.reshape(shapes);
             executableNetworkWithBatch = ctx ? core->LoadNetwork(reshaped, ctx, deviceConfigNoAutoBatch)
                                              : core->LoadNetwork(reshaped, deviceName, deviceConfigNoAutoBatch);
         } catch (const InferenceEngine::Exception&) {
-            metaDevice.batchForDevice = 1;
+            metaDevice.batch_for_device = 1;
         }
     }
 
@@ -350,9 +352,10 @@ InferenceEngine::QueryNetworkResult AutoBatchInferencePlugin::QueryNetwork(
             auto val = c.second;
             cfg.erase(c.first);
             auto metaDevice = ParseMetaDevice(val, cfg);
-            return core->QueryNetwork(network, metaDevice.deviceName, cfg);
+            return core->QueryNetwork(network, metaDevice.device_name, cfg);
         }
     }
     IE_THROW() << "Value for KEY_AUTO_BATCH_DEVICE_CONFIG is not set";
 }
-}  // namespace AutoBatchPlugin
+}  // namespace autobatch_plugin
+}  // namespace ov
