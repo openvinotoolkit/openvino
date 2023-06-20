@@ -131,6 +131,9 @@ TEST_P(ExecNetworkget_propertyOptimalNumInferReq, OPTIMAL_NUMBER_OF_INFER_REQUES
     std::tie(isThroughput, cpuOptimalNum, cpuCustomerNum, cpuSleep, actualOptimalNum,
                 actualCustomerNum, actualSleep, actualDeviceName, expectOptimalNum, gpuPerfHintNum) = this->GetParam();
     config.insert(ov::device::priorities(CommonTestUtils::DEVICE_CPU + std::string(",") + actualDeviceName));
+    std::vector<ov::PropertyName> supported_props = {ov::hint::num_requests, ov::range_for_streams, ov::optimal_batch_size, ov::hint::performance_mode};
+    ON_CALL(*core, get_property(_, StrEq(ov::supported_properties.name()), _))
+            .WillByDefault(RETURN_MOCK_VALUE(supported_props));
     if (isThroughput) {
         metaDevices.push_back({CommonTestUtils::DEVICE_CPU, {ov::hint::performance_mode("THROUGHPUT")}, cpuCustomerNum, ""});
         metaDevices.push_back({actualDeviceName, {ov::hint::performance_mode("THROUGHPUT")}, actualCustomerNum, ""});
