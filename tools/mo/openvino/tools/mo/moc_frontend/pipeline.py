@@ -42,7 +42,10 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
             # frozen model without v1 checkpoints
             input_model = moc_front_end.load(argv.input_model)
         elif argv.saved_model_dir:
-            input_model = moc_front_end.load(argv.saved_model_dir)
+            if argv.saved_model_tags:
+                input_model = moc_front_end.load([argv.saved_model_dir, argv.saved_model_tags])
+            else:
+                input_model = moc_front_end.load(argv.saved_model_dir)
         elif argv.input_meta_graph:
             input_model = moc_front_end.load(argv.input_meta_graph)
             if argv.output:

@@ -543,48 +543,6 @@ void Deconvolution::setPostOps(dnnl::primitive_attr& attr, const VectorDims& dim
     attr.set_post_ops(ops);
 }
 
-void Deconvolution::filterSupportedPrimitiveDescriptors() {
-    Node::filterSupportedPrimitiveDescriptors();
-    filterSupportedDescriptors();
-}
-
-void Deconvolution::filterSupportedDescriptors() {
-    if (inputMemoryFormatsFilter.empty() && outputMemoryFormatsFilter.empty())
-        return;
-
-    if (inputMemoryFormatsFilter.size() > 1 || outputMemoryFormatsFilter.size() > 1)
-        IE_THROW() << "Incorrect number of input or output memory formats for Deconvolution node";
-
-    auto isNotSuitableDesc = [&](const dnnl::primitive_desc& desc) {
-        if (!inputMemoryFormatsFilter.empty()) {
-            auto src_tdesc = isInt8 ? DnnlExtensionUtils::makeDescriptor(desc.src_desc()) :
-                DnnlExtensionUtils::makeDescriptor(desc.diff_src_desc());
-
-            if (!src_tdesc->isSame(inputMemoryFormatsFilter[0])) {
-                DEBUG_LOG(getName(), " input memory format filter: ", inputMemoryFormatsFilter[0],
-                          "not matched. Erase desc from the list of dnnl primitive descriptors: ", desc);
-                return true;
-            }
-        }
-
-        if (!outputMemoryFormatsFilter.empty()) {
-            auto dst_tdesc = isInt8 ? DnnlExtensionUtils::makeDescriptor(desc.dst_desc()) :
-                DnnlExtensionUtils::makeDescriptor(desc.diff_dst_desc());
-
-            if (!dst_tdesc->isSame(outputMemoryFormatsFilter[0])) {
-                DEBUG_LOG(getName(), " Output memory format filter: ", outputMemoryFormatsFilter[0],
-                          " not matched. Erase desc from the list of dnnl primitive descriptors: ", desc);
-
-                return true;
-            }
-        }
-
-        return false;
-    };
-
-    descs.erase(std::remove_if(descs.begin(), descs.end(), isNotSuitableDesc), descs.end());
-}
-
 bool Deconvolution::created() const {
     return getType() == Type::Deconvolution;
 }
