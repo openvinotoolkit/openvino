@@ -155,11 +155,11 @@ void Convert::execute(dnnl::stream strm) {
     convertParams.size = parentPaddElemCount;
 
     std::vector<MemoryCPtr> srcMemory;
-    for (int i = 0; i < getOriginalInputsNumber(); i++) {
+    for (size_t i = 0; i < getOriginalInputsNumber(); i++) {
         srcMemory.push_back(getParentEdgeAt(i)->getMemoryPtr());
     }
     std::vector<MemoryPtr> dstMemory;
-    for (int i = 0; i < getOriginalOutputsNumber(); i++) {
+    for (size_t i = 0; i < getOriginalOutputsNumber(); i++) {
         dstMemory.push_back(getChildEdgeAt(i)->getMemoryPtr());
     }
 
