@@ -8,6 +8,7 @@ import pytest
 import math
 
 import openvino.runtime.opset8 as ops
+from openvino.runtime.op import Assign
 from openvino.runtime import (
     Core,
     Model,
@@ -660,5 +661,8 @@ def test_model_add_sinks():
     result = ops.result(relu2, "res")
     model = Model([result], [param], "TestModel")
 
-    # node = ops.assign(add, "var_id_667")
-    # auto assign = std::make_shared<ov::opset8::Assign>();
+    node = Assign()
+    model.add_sinks([node])
+
+    assign_nodes = model.sinks
+    assert ["Assign"] == [sink.get_type_name() for sink in assign_nodes]

@@ -14,6 +14,7 @@
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/model.hpp"  // ov::Model
 #include "openvino/core/partial_shape.hpp"
+#include "openvino/op/assign.hpp"
 #include "openvino/op/parameter.hpp"  // ov::op::v0::Parameter
 #include "openvino/op/sink.hpp"
 #include "pyopenvino/core/common.hpp"
@@ -47,6 +48,16 @@ static ov::SinkVector cast_to_sink_vector(const std::vector<std::shared_ptr<ov::
         sinks.push_back(sink);
     }
     return sinks;
+}
+
+static std::vector<std::shared_ptr<ov::Node>> cast_to_node_vector(const ov::SinkVector& sinks) {
+    std::vector<std::shared_ptr<ov::Node>> nodes;
+    for (const auto& sink : sinks) {
+        auto node = std::dynamic_pointer_cast<ov::Node>(sink);
+        NGRAPH_CHECK(node != nullptr, "Sink {} is not instance of Node");
+        nodes.push_back(node);
+    }
+    return nodes;
 }
 
 void regclass_graph_Model(py::module m) {
@@ -725,10 +736,20 @@ void regclass_graph_Model(py::module m) {
                     :type results: List[op.Result]
                  )");
 
-    model.def("add_sinks",
-              &ov::Model::add_sinks,
-              py::arg("sinks"),
-              R"(
+    model.def(
+        "add_sinks",
+        [](ov::Model& self, py::list& sinks) {
+            ov::SinkVector sinks_cpp;
+            for (py::handle sink : sinks) {
+                auto sink_cpp =
+                    std::dynamic_pointer_cast<ov::op::Sink>(sink.cast<std::shared_ptr<ov::op::v6::Assign>>());
+                NGRAPH_CHECK(sink_cpp != nullptr, "Assign {} is not instance of Sink");
+                sinks_cpp.push_back(sink_cpp);
+            }
+            self.add_sinks(sinks_cpp);
+        },
+        py::arg("sinks"),
+        R"(
                     Add new sink nodes to the list.
                     
                     Method doesn't validate graph, it should be done manually after all changes.
@@ -741,13 +762,7 @@ void regclass_graph_Model(py::module m) {
         "get_sinks",
         [](ov::Model& self) {
             auto sinks = self.get_sinks();
-            std::vector<std::shared_ptr<ov::Node>> nodes;
-            for (const auto& sink : sinks) {
-                auto node = std::dynamic_pointer_cast<ov::Node>(sink);
-                NGRAPH_CHECK(node != nullptr, "Node {} is not instance of Sink");
-                nodes.push_back(node);
-            }
-            return nodes;
+            return cast_to_node_vector(sinks);
         },
         R"(
             Return a list of model's sinks.
@@ -760,13 +775,7 @@ void regclass_graph_Model(py::module m) {
         "sinks",
         [](ov::Model& self) {
             auto sinks = self.get_sinks();
-            std::vector<std::shared_ptr<ov::Node>> nodes;
-            for (const auto& sink : sinks) {
-                auto node = std::dynamic_pointer_cast<ov::Node>(sink);
-                NGRAPH_CHECK(node != nullptr, "Node {} is not instance of Sink");
-                nodes.push_back(node);
-            }
-            return nodes;
+            return cast_to_node_vector(sinks);
         },
         R"(
             Return a list of model outputs.
