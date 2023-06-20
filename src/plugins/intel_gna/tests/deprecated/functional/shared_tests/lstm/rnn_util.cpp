@@ -131,7 +131,7 @@ static Blob::Ptr make_view(const Blob::Ptr &src, const SizeVector dims, const Si
     };
 
     // TODO: Only FP32 supported here
-    IE_ASSERT(desc.getPrecision() == Precision::FP32) << "Current limitation. Only FP32 is supported";
+    IE_ASSERT(desc.getPrecision() == Precision::FP32, "Current limitation. Only FP32 is supported");
     return make_shared_blob<float>(new_desc, src->buffer());
 }
 

@@ -54,13 +54,13 @@ protected:
 
 OPENVINO_PLUGIN_API void CreatePreProcessData(std::shared_ptr<IPreProcessData>& data);
 
-#define OV_PREPROC_PLUGIN_CALL_STATEMENT(...)                                                      \
-    if (!_ptr)                                                                                     \
-        IE_THROW() << "Wrapper used in the OV_PREPROC_PLUGIN_CALL_STATEMENT was not initialized."; \
-    try {                                                                                          \
-        __VA_ARGS__;                                                                               \
-    } catch (...) {                                                                                \
-        ::InferenceEngine::details::Rethrow();                                                     \
+#define OV_PREPROC_PLUGIN_CALL_STATEMENT(...)                                                    \
+    if (!_ptr)                                                                                   \
+        IE_THROW_G("Wrapper used in the OV_PREPROC_PLUGIN_CALL_STATEMENT was not initialized."); \
+    try {                                                                                        \
+        __VA_ARGS__;                                                                             \
+    } catch (...) {                                                                              \
+        ::InferenceEngine::details::Rethrow();                                                   \
     }
 
 class PreProcessDataPlugin {
@@ -73,10 +73,10 @@ public:
 #    ifdef ENABLE_GAPI_PREPROCESSING
         CreatePreProcessData(_ptr);
         if (!_ptr)
-            IE_THROW() << "Failed to create IPreProcessData for G-API based preprocessing";
+            IE_THROW_G("Failed to create IPreProcessData for G-API based preprocessing");
 #   else
-        IE_THROW() << "OpenVINO Runtime is compiled without G-API preprocessing support.\n"
-                      "Use 'cmake -DENABLE_GAPI_PREPROCESSING=ON ...'";
+        IE_THROW_G("OpenVINO Runtime is compiled without G-API preprocessing support.\n"
+                   "Use 'cmake -DENABLE_GAPI_PREPROCESSING=ON ...'");
 #   endif // ENABLE_GAPI_PREPROCESSING
 #else
         // preprocessing plugin can be found in the following locations
@@ -97,9 +97,12 @@ public:
         const bool existsInLib = FileUtils::fileExist(preprocLibraryPath);
 
         if (!existsInOV && !existsInLib) {
-            IE_THROW() << "Please, make sure that pre-processing library "
-                << ov::util::from_file_path(libraryName) << " is in "
-                << ov::util::from_file_path(preprocLibraryPathPlusOV) << " or " << ov::util::from_file_path(preprocLibraryPath);
+            IE_THROW_G("Please, make sure that pre-processing library ",
+                       ov::util::from_file_path(libraryName),
+                       " is in ",
+                       ov::util::from_file_path(preprocLibraryPathPlusOV),
+                       " or ",
+                       ov::util::from_file_path(preprocLibraryPath));
         }
 
         using CreateF = void(std::shared_ptr<IPreProcessData>& data);

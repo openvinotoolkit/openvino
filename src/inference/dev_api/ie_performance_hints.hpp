@@ -40,7 +40,7 @@ struct PerfHintsConfig {
         } else if (PluginConfigParams::KEY_PERFORMANCE_HINT_NUM_REQUESTS == key) {
             return ovPerfHintNumRequests;
         } else {
-            IE_THROW() << "Unsupported Performance Hint config: " << key << std::endl;
+            IE_THROW_G("Unsupported Performance Hint config: ", key);
         }
     }
 
@@ -63,7 +63,7 @@ struct PerfHintsConfig {
         else if (kvp.first == PluginConfigParams::KEY_PERFORMANCE_HINT_NUM_REQUESTS)
             CheckPerformanceHintRequestValue(kvp.second);
         else
-            IE_THROW() << "Unsupported Performance Hint config: " << kvp.first << std::endl;
+            IE_THROW_G("Unsupported Performance Hint config: ", kvp.first);
     }
 
     /**
@@ -76,9 +76,16 @@ struct PerfHintsConfig {
             val == PluginConfigParams::CUMULATIVE_THROUGHPUT || val == PluginConfigParams::UNDEFINED)
             return val;
         else
-            IE_THROW() << "Wrong value for property key " << PluginConfigParams::KEY_PERFORMANCE_HINT
-                       << ". Expected only " << PluginConfigParams::LATENCY << "/" << PluginConfigParams::THROUGHPUT
-                       << "/" << PluginConfigParams::CUMULATIVE_THROUGHPUT << "/" << PluginConfigParams::UNDEFINED;
+            IE_THROW_G("Wrong value for property key ",
+                       PluginConfigParams::KEY_PERFORMANCE_HINT,
+                       ". Expected only ",
+                       PluginConfigParams::LATENCY,
+                       "/",
+                       PluginConfigParams::THROUGHPUT,
+                       "/",
+                       PluginConfigParams::CUMULATIVE_THROUGHPUT,
+                       "/",
+                       PluginConfigParams::UNDEFINED);
     }
 
     /**
@@ -95,9 +102,11 @@ struct PerfHintsConfig {
             else
                 throw std::logic_error("wrong val");
         } catch (const std::exception&) {
-            IE_THROW() << "Wrong value of " << val << " for property key "
-                       << PluginConfigParams::KEY_PERFORMANCE_HINT_NUM_REQUESTS
-                       << ". Expected only positive integer numbers";
+            IE_THROW_G("Wrong value of ",
+                       val,
+                       " for property key ",
+                       PluginConfigParams::KEY_PERFORMANCE_HINT_NUM_REQUESTS,
+                       ". Expected only positive integer numbers");
         }
     }
 };

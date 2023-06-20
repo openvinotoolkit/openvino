@@ -83,7 +83,7 @@ public:
      */
     std::vector<std::string> getImplTypes(const std::shared_ptr<ngraph::Node>& node) override {
         if (node == nullptr)
-            IE_THROW() << "Provided ngraph::Node pointer is nullptr.";
+            IE_THROW_G("Provided ngraph::Node pointer is nullptr.");
         return _actual->getImplTypes(node);
     }
 
@@ -95,7 +95,7 @@ public:
      */
     ILayerImpl::Ptr getImplementation(const std::shared_ptr<ngraph::Node>& node, const std::string& implType) override {
         if (node == nullptr)
-            IE_THROW() << "Provided ngraph::Node pointer is nullptr.";
+            IE_THROW_G("Provided ngraph::Node pointer is nullptr.");
         return _actual->getImplementation(node, implType);
     }
 

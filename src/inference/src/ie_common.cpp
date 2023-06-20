@@ -37,7 +37,7 @@ void Rethrow() {
     try {
         throw;
     } catch (const ov::NotImplemented& e) {
-        IE_THROW(NotImplemented) << e.what();
+        IE_THROW_E(NotImplemented, e.what());
     } catch (const InferenceEngine::GeneralError& e) {
         throw e;
     } catch (const InferenceEngine::NotImplemented& e) {
@@ -65,9 +65,9 @@ void Rethrow() {
     } catch (const InferenceEngine::InferCancelled& e) {
         throw e;
     } catch (const std::exception& e) {
-        IE_THROW() << e.what();
+        IE_THROW_G(e.what());
     } catch (...) {
-        IE_THROW(Unexpected);
+        IE_THROW_E(Unexpected);
     }
 }
 

@@ -43,7 +43,7 @@ struct GenericLayerParams {
             }
             ++real_id;
         }
-        IE_THROW() << "Can not find input port with id " << id << " in layer " << name;
+        IE_THROW_G("Can not find input port with id ", id, " in layer ", name);
     }
 
     size_t get_real_output_port_id(size_t id) const {
@@ -54,7 +54,7 @@ struct GenericLayerParams {
             }
             ++real_id;
         }
-        IE_THROW() << "Can not find output port with id " << id << " in layer " << name;
+        IE_THROW_G("Can not find output port with id ", id, " in layer ", name);
     }
 };
 

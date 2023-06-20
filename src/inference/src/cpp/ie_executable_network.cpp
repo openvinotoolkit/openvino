@@ -18,7 +18,7 @@ namespace InferenceEngine {
 
 #define EXEC_NET_CALL_STATEMENT(...)                                        \
     if (_impl == nullptr)                                                   \
-        IE_THROW(NotAllocated) << "ExecutableNetwork was not initialized."; \
+        IE_THROW_E(NotAllocated, "ExecutableNetwork was not initialized."); \
     try {                                                                   \
         __VA_ARGS__;                                                        \
     } catch (...) {                                                         \
@@ -47,9 +47,9 @@ ConstInputsDataMap ExecutableNetwork::GetInputsInfo() const {
 
 void ExecutableNetwork::reset(IExecutableNetwork::Ptr newActual) {
     if (_impl == nullptr)
-        IE_THROW() << "ExecutableNetwork was not initialized.";
+        IE_THROW_G("ExecutableNetwork was not initialized.");
     if (newActual == nullptr)
-        IE_THROW() << "ExecutableNetwork wrapper used for reset was not initialized.";
+        IE_THROW_G("ExecutableNetwork wrapper used for reset was not initialized.");
     auto newBase = std::dynamic_pointer_cast<ExecutableNetworkBase>(newActual);
     IE_ASSERT(newBase != nullptr);
     auto newImpl = newBase->GetImpl();

@@ -15,16 +15,16 @@ OpImplementation::OpImplementation(const std::shared_ptr<ngraph::Node>& node) {
     try {
         auto castedNode = std::dynamic_pointer_cast<Operation>(node);
         if (!castedNode)
-            IE_THROW() << "Cannot create implementation for unknown operation!";
+            IE_THROW_G("Cannot create implementation for unknown operation!");
         if (castedNode->inputs().size() != 1 || castedNode->outputs().size() != 1)
-            IE_THROW() << "Cannot create implementation for operation with incorrect number of inputs or outputs!";
+            IE_THROW_G( "Cannot create implementation for operation with incorrect number of inputs or outputs!");
         if (castedNode->get_input_partial_shape(0).is_dynamic() || castedNode->get_output_partial_shape(0).is_dynamic())
-            IE_THROW() << "Cannot create implementation for op with dynamic shapes!";
+            IE_THROW_G( "Cannot create implementation for op with dynamic shapes!");
         if (castedNode->get_input_shape(0).size() != 4 || castedNode->get_output_shape(0).size() != 4)
-            IE_THROW() << "Operation supports only 4d tensors for input and output.";
+            IE_THROW_G( "Operation supports only 4d tensors for input and output.");
         if (castedNode->get_input_element_type(0) != ngraph::element::f32 ||
             castedNode->get_output_element_type(0) != ngraph::element::f32)
-            IE_THROW() << "Operation supports only FP32 tensors.";
+            IE_THROW_G( "Operation supports only FP32 tensors.");
         add = castedNode->getAddAttr();
         inShape = castedNode->get_input_shape(0);
         outShape = castedNode->get_output_shape(0);
@@ -99,16 +99,16 @@ InferenceEngine::StatusCode OpImplementation::init(InferenceEngine::LayerConfig&
                                                    InferenceEngine::ResponseDesc* resp) noexcept {
     try {
         if (config.inConfs.size() != 1 || config.outConfs.size() != 1) {
-            IE_THROW() << "Operation cannot be initialized with incorrect number of inputs/outputs!";
+            IE_THROW_G( "Operation cannot be initialized with incorrect number of inputs/outputs!");
         }
 
         if (config.inConfs[0].desc.getDims().size() != 4 || config.outConfs[0].desc.getDims().size() != 4) {
-            IE_THROW() << "Operation can be initialized only with 4d input/output tensors!";
+            IE_THROW_G( "Operation can be initialized only with 4d input/output tensors!");
         }
 
         if (config.outConfs[0].desc.getPrecision() != InferenceEngine::Precision::FP32 ||
             config.inConfs[0].desc.getPrecision() != InferenceEngine::Precision::FP32) {
-            IE_THROW() << "Operation supports only FP32 precisions!";
+            IE_THROW_G( "Operation supports only FP32 precisions!");
         }
     } catch (InferenceEngine::Exception& ex) {
         error = ex.what();

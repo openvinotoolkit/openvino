@@ -75,7 +75,7 @@ void CNNNetworkNGraphImpl::createDataForResult(const ::ngraph::Output<::ngraph::
     // query shape from ngraph::Parameter output shape and check there are no zeros in it
     for (const auto& dim : shape) {
         if (dim.is_static() && dim.get_length() == 0)
-            IE_THROW() << outName << " has zero dimension which is not allowed";
+            IE_THROW_G(outName, " has zero dimension which is not allowed");
     }
 
     auto rank = shape.rank().is_static() ? shape.rank().get_length() : -1;
@@ -95,7 +95,7 @@ void CNNNetworkNGraphImpl::validateFunctionNames() const {
     std::unordered_map<std::string, std::shared_ptr<ngraph::Node>> unique_names;
     for (const auto& param : _ngraph_function->get_parameters()) {
         if (unique_names.count(param->get_friendly_name())) {
-            IE_THROW() << "Function contains several inputs with one friendly name!";
+            IE_THROW_G("Function contains several inputs with one friendly name!");
         }
         unique_names.insert({param->get_friendly_name(), param});
     }
@@ -106,7 +106,7 @@ void CNNNetworkNGraphImpl::validateFunctionNames() const {
             name += "." + std::to_string(result->get_input_source_output(0).get_index());
         }
         if (unique_names.count(name) && !ov::op::util::is_parameter(parent) && parent != unique_names.at(name)) {
-            IE_THROW() << "Function contains several inputs and outputs with one friendly name: " << name;
+            IE_THROW_G("Function contains several inputs and outputs with one friendly name: ", name);
         }
         unique_names.insert({name, parent});
     }
@@ -195,7 +195,7 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const CNNNetwork& network) {
     IE_SUPPRESS_DEPRECATED_END
     const auto net = dynamic_cast<const CNNNetworkNGraphImpl*>(&iNetwork);
     if (network.getFunction() == nullptr || !net) {
-        IE_THROW() << "Cannot create CNNNetwork with nGraph from legacy network format!";
+        IE_THROW_G("Cannot create CNNNetwork with nGraph from legacy network format!");
     }
 
     _ngraph_function = ngraph::clone_function(*network.getFunction());
@@ -504,7 +504,7 @@ void CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::PartialSh
     for (const auto& parameter : _ngraph_function->get_parameters()) {
         const auto& outName = parameter->get_friendly_name();
         if (opName.find(outName) != opName.end()) {
-            IE_THROW() << "All operations in nGraph function should have unique friendly names!";
+            IE_THROW_G("All operations in nGraph function should have unique friendly names!");
         }
         opName.insert(outName);
         createDataForResult(parameter, outName, _data[outName]);

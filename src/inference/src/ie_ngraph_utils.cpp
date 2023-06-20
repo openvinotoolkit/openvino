@@ -19,7 +19,7 @@ CNNNetwork cloneNetwork(const CNNNetwork& network) {
         IE_SUPPRESS_DEPRECATED_END
     }
 
-    IE_THROW() << "InferenceEngine::details::cloneNetwork requires ngraph-based `network` object to clone";
+    IE_THROW_G("InferenceEngine::details::cloneNetwork requires ngraph-based `network` object to clone");
 }
 
 }  // namespace details

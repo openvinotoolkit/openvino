@@ -50,7 +50,7 @@ IInferRequestInternal::IInferRequestInternal(const std::vector<std::shared_ptr<c
         }
         for (const auto& dim : shape) {
             if (dim.is_static() && dim.get_length() == 0)
-                IE_THROW() << name << " has zero dimension which is not allowed";
+                IE_THROW_G(name, " has zero dimension which is not allowed");
         }
         const Layout rankLayout = rank < 0 ? Layout::BLOCKED : TensorDesc::getLayoutByRank(rank);
         const auto precision = InferenceEngine::details::convertPrecision(output.get_element_type());
@@ -82,15 +82,15 @@ void IInferRequestInternal::Infer() {
 }
 
 void IInferRequestInternal::InferImpl() {
-    IE_THROW(NotImplemented);
+    IE_THROW_E(NotImplemented);
 }
 
 void IInferRequestInternal::Cancel() {
-    IE_THROW(NotImplemented);
+    IE_THROW_E(NotImplemented);
 }
 
 std::map<std::string, InferenceEngineProfileInfo> IInferRequestInternal::GetPerformanceCounts() const {
-    IE_THROW(NotImplemented);
+    IE_THROW_E(NotImplemented);
 }
 
 std::shared_ptr<const ov::Node> IInferRequestInternal::findInputByNodeName(const std::string& name) const {
@@ -112,10 +112,10 @@ std::shared_ptr<const ov::Node> IInferRequestInternal::findOutputByNodeName(cons
 void IInferRequestInternal::SetBlob(const std::string& name, const Blob::Ptr& userBlob) {
     OV_ITT_SCOPED_TASK(itt::domains::Plugin, "SetBlob");
     if (name.empty()) {
-        IE_THROW(NotFound) << "Failed to set blob with empty name";
+        IE_THROW_E(NotFound, "Failed to set blob with empty name");
     }
     if (!userBlob)
-        IE_THROW(NotAllocated) << "Failed to set empty blob with name: \'" << name << "\'";
+        IE_THROW_E(NotAllocated, "Failed to set empty blob with name: \'", name, "\'");
     InputInfo::Ptr foundInput;
     DataPtr foundOutput;
     const bool isInput = findInputAndOutputBlobByName(name, foundInput, foundOutput);
@@ -125,10 +125,10 @@ void IInferRequestInternal::SetBlob(const std::string& name, const Blob::Ptr& us
     const bool compoundBlobPassed = userBlob->is<CompoundBlob>();
     const bool remoteBlobPassed = userBlob->is<RemoteBlob>();
     if (!compoundBlobPassed && !remoteBlobPassed && userBlob->buffer() == nullptr)
-        IE_THROW(NotAllocated) << "Input data was not allocated. Input name: \'" << name << "\'";
+        IE_THROW_E(NotAllocated, "Input data was not allocated. Input name: \'", name, "\'");
     if (userBlob->size() == 0 && !((input && input->get_output_partial_shape(0).is_dynamic()) ||
                                    (output && output->get_output_partial_shape(0).is_dynamic()))) {
-        IE_THROW() << "Input data is empty. Input name: \'" << name << "\'";
+        IE_THROW_G("Input data is empty. Input name: \'", name, "\'");
     }
     const bool isInputDynamic = input && input->get_output_partial_shape(0).is_dynamic();
     const bool isOutputDynamic = output && output->get_input_partial_shape(0).is_dynamic();
@@ -138,14 +138,14 @@ void IInferRequestInternal::SetBlob(const std::string& name, const Blob::Ptr& us
         // ilavreno: the condition below is obsolete, but we need an exact list of precisions
         // which are supports by G-API preprocessing
         if (foundInput->getPrecision() != userBlob->getTensorDesc().getPrecision()) {
-            IE_THROW(ParameterMismatch)
-                << "Failed to set Blob with precision not corresponding to user input precision";
+            IE_THROW_E(ParameterMismatch,
+                       "Failed to set Blob with precision not corresponding to user input precision");
         }
 
         auto& devBlob = _deviceInputs[name];
         const bool preProcRequired = preProcessingRequired(foundInput, userBlob, devBlob);
         if (compoundBlobPassed && !preProcRequired) {
-            IE_THROW(NotImplemented) << "cannot set compound blob: supported only for input pre-processing";
+            IE_THROW_E(NotImplemented, "cannot set compound blob: supported only for input pre-processing");
         }
 
         if (preProcRequired) {
@@ -155,8 +155,7 @@ void IInferRequestInternal::SetBlob(const std::string& name, const Blob::Ptr& us
                                    ? InferenceEngine::details::product(foundInput->getTensorDesc().getDims())
                                    : 1;
             if (!isInputDynamic && dataSize != inputSize) {
-                IE_THROW() << "Input blob size is not equal network input size (" << dataSize << "!=" << inputSize
-                           << ").";
+                IE_THROW_G("Input blob size is not equal network input size (", dataSize, "!=", inputSize, ").");
             }
             _inputs[name] = userBlob;
             devBlob = userBlob;
@@ -164,18 +163,17 @@ void IInferRequestInternal::SetBlob(const std::string& name, const Blob::Ptr& us
         _batched_inputs.erase(name);
     } else {
         if (compoundBlobPassed) {
-            IE_THROW(NotImplemented) << "cannot set compound blob: supported only for input pre-processing";
+            IE_THROW_E(NotImplemented, "cannot set compound blob: supported only for input pre-processing");
         }
         size_t outputSize = foundOutput->getTensorDesc().getLayout() != InferenceEngine::Layout::SCALAR
                                 ? details::product(foundOutput->getTensorDesc().getDims())
                                 : 1;
         if (!isOutputDynamic && dataSize != outputSize) {
-            IE_THROW() << "Output blob size is not equal network output size (" << dataSize << "!=" << outputSize
-                       << ").";
+            IE_THROW_G("Output blob size is not equal network output size (", dataSize, "!=", outputSize, ").");
         }
         if (foundOutput->getPrecision() != userBlob->getTensorDesc().getPrecision()) {
-            IE_THROW(ParameterMismatch)
-                << "Failed to set Blob with precision not corresponding to user output precision";
+            IE_THROW_E(ParameterMismatch,
+                       "Failed to set Blob with precision not corresponding to user output precision");
         }
         // ilavreno: this condition is valid for most plugins except MYRIAD
         // it is able to perform layout conversion for output blob dynamically
@@ -204,7 +202,7 @@ void IInferRequestInternal::SetBlobs(const std::string& name, const std::vector<
 }
 
 void IInferRequestInternal::SetBlobsImpl(const std::string& name, const BatchedBlob::Ptr& batched_blob) {
-    IE_THROW(NotImplemented) << "set_input_tensors/set_tensors are not supported by this plugin";
+    IE_THROW_E(NotImplemented, "set_input_tensors/set_tensors are not supported by this plugin");
 }
 
 void IInferRequestInternal::checkBlobsForBatch(const std::string& name, const std::vector<Blob::Ptr>& blobs) {
@@ -413,12 +411,12 @@ const PreProcessInfo& IInferRequestInternal::GetPreProcess(const std::string& na
     if (findInputAndOutputBlobByName(name, foundInput, foundOutput)) {
         return foundInput->getPreProcess();
     } else {
-        IE_THROW() << "Output blob can't have pre-processing";
+        IE_THROW_G("Output blob can't have pre-processing");
     }
 }
 
 std::vector<std::shared_ptr<IVariableStateInternal>> IInferRequestInternal::QueryState() {
-    IE_THROW(NotImplemented);
+    IE_THROW_E(NotImplemented);
 }
 
 void IInferRequestInternal::StartAsync() {
@@ -427,11 +425,11 @@ void IInferRequestInternal::StartAsync() {
 }
 
 void IInferRequestInternal::StartAsyncImpl() {
-    IE_THROW(NotImplemented);
+    IE_THROW_E(NotImplemented);
 }
 
 StatusCode IInferRequestInternal::Wait(int64_t millis_timeout) {
-    IE_THROW(NotImplemented);
+    IE_THROW_E(NotImplemented);
 }
 
 void IInferRequestInternal::SetCallback(Callback callback) {
@@ -455,7 +453,7 @@ bool IInferRequestInternal::findInputAndOutputBlobByName(const std::string& name
     foundInput = nullptr;
     foundOutput = nullptr;
     if (_networkOutputs.empty()) {
-        IE_THROW() << "Internal error: network outputs is not set";
+        IE_THROW_G("Internal error: network outputs is not set");
     }
     auto foundInputPair = std::find_if(std::begin(_networkInputs),
                                        std::end(_networkInputs),
@@ -476,7 +474,7 @@ bool IInferRequestInternal::findInputAndOutputBlobByName(const std::string& name
         foundOutput = foundOutputPair->second;
         retVal = false;
     } else {
-        IE_THROW(NotFound) << "Failed to find input or output with name: \'" << name << "\'";
+        IE_THROW_E(NotFound, "Failed to find input or output with name: \'", name, "\'");
     }
     return retVal;
 }
@@ -491,7 +489,7 @@ void IInferRequestInternal::checkBlob(const Blob::Ptr& blob,
     std::string strNotMatched("The " + sType + " blob size is not equal to the network " + sType + " size");
 
     if (!blob) {
-        IE_THROW(NotAllocated) << strNotAllocated;
+        IE_THROW_E(NotAllocated, strNotAllocated);
     }
     size_t refSize;
     bool isDynamic = false;
@@ -504,7 +502,7 @@ void IInferRequestInternal::checkBlob(const Blob::Ptr& blob,
                                                    return pair.first == name;
                                                });
             if (foundInputPair == std::end(_networkInputs)) {
-                IE_THROW(NotFound) << "Failed to find input with name: \'" << name << "\'";
+                IE_THROW_E(NotFound, "Failed to find input with name: \'" , name , "\'");
             }
             const auto input = findInputByNodeName(name);
             isDynamic = input && input->get_output_partial_shape(0).is_dynamic();
@@ -517,7 +515,7 @@ void IInferRequestInternal::checkBlob(const Blob::Ptr& blob,
                                                     return pair.first == name;
                                                 });
             if (foundOutputPair == std::end(_networkOutputs)) {
-                IE_THROW(NotFound) << "Failed to find output with name: \'" << name << "\'";
+                IE_THROW_E(NotFound, "Failed to find output with name: \'", name, "\'");
             }
             const auto output = findOutputByNodeName(name);
             isDynamic = output && output->get_output_partial_shape(0).is_dynamic();
@@ -536,11 +534,11 @@ void IInferRequestInternal::checkBlob(const Blob::Ptr& blob,
     }
 
     if (!isDynamic && refSize != blob->size()) {
-        IE_THROW() << strNotMatched + ": got " << blob->size() << " expecting " << refSize;
+        IE_THROW_G(strNotMatched, ": got ", blob->size(), " expecting ", refSize);
     }
     const bool remoteBlobPassed = blob->is<RemoteBlob>();
     if (!remoteBlobPassed && blob->buffer() == nullptr)
-        IE_THROW() << strNotAllocated;
+        IE_THROW_G(strNotAllocated);
 }
 
 void IInferRequestInternal::checkBlobs() {

@@ -21,7 +21,7 @@ using namespace ov;
 
 XmlDeserializer::IoMap XmlDeserializer::updated_io_map(const pugi::xml_node& node, const pugi::xml_node& body_node) {
     if (body_node.empty()) {
-        IE_THROW() << "Missing body part.";
+        IE_THROW_G("Missing body part.");
     }
     // Fill map: parameter/result id to parameter/result number in Function
 
@@ -321,7 +321,7 @@ void XmlDeserializer::on_adapter(const std::string& name, ngraph::ValueAccessor<
         auto type = pugixml::utils::GetStrAttr(m_node, "type");
 
         if (dn.empty())
-            IE_THROW() << "No attrtibutes defined for " << type << " op!";
+            IE_THROW_G("No attrtibutes defined for ", type, " op!");
 
         if (getStrAttribute(dn, name, value)) {
             auto buffer = std::make_shared<ngraph::runtime::AlignedBuffer>(value.size());
@@ -342,11 +342,11 @@ void XmlDeserializer::on_adapter(const std::string& name, ngraph::ValueAccessor<
             ngraph::element::Type el_type = InferenceEngine::details::convertPrecision(el_type_str);
 
             if (!m_weights)
-                IE_THROW() << "Empty weights data in bin file or bin file cannot be found!";
+                IE_THROW_G("Empty weights data in bin file or bin file cannot be found!");
             if (m_weights->size() < offset + size)
-                IE_THROW() << "Incorrect weights in bin file!";
+                IE_THROW_G("Incorrect weights in bin file!");
             if (size < ((ngraph::shape_size(shape) * el_type.bitwidth() + 7) >> 3))
-                IE_THROW() << "Attribute and shape size are inconsistent for " << type << " op!";
+                IE_THROW_G("Attribute and shape size are inconsistent for ", type, " op!");
 
             char* data = m_weights->get_ptr<char>() + offset;
             auto buffer =
@@ -379,7 +379,7 @@ void XmlDeserializer::on_adapter(const std::string& name, ngraph::ValueAccessor<
             return;
         a->set(types);
     } else {
-        IE_THROW() << "Error IR reading. Attribute adapter can not be found for " << name << " parameter";
+        IE_THROW_G("Error IR reading. Attribute adapter can not be found for ", name, " parameter");
     }
 }
 
@@ -391,13 +391,13 @@ void XmlDeserializer::on_adapter(const std::string& name,
     if (!name.compare("body") || !name.compare("then_body") || !name.compare("else_body")) {
         auto body_node = m_node.child(name.c_str());
         if (body_node.empty()) {
-            IE_THROW() << "TensorIterator has no body.";
+            IE_THROW_G("TensorIterator has no body.");
         }
         ngraph_function = parse_function(m_node.child(name.c_str()), m_weights);
     } else if (!name.compare("net")) {
         ngraph_function = parse_function(m_node, m_weights);
     } else {
-        IE_THROW() << "Error: not recognized adapter name: " << name << ".";
+        IE_THROW_G("Error: not recognized adapter name: ", name, ".");
     }
     adapter.set(ngraph_function);
 }
@@ -434,7 +434,7 @@ std::shared_ptr<ngraph::Function> XmlDeserializer::parse_function(
     FOREACH_CHILD (node, root.child("layers"), "layer") {
         auto node_param = parse_generic_params(node);
         if (opName.find(node_param.name) != opName.end() && node_param.type != "Result")
-            IE_THROW() << "Invalid IR! " << node_param.name << " name is not unique!";
+            IE_THROW_G("Invalid IR! ", node_param.name, " name is not unique!");
         opName.insert(node_param.name);
         params[node_param.layerId] = {node, node_param};
         if (node_param.type == "Result" || node_param.type == "Assign") {
@@ -486,13 +486,17 @@ std::shared_ptr<ngraph::Function> XmlDeserializer::parse_function(
         for (auto& e : edgeIt->second) {
             auto input_node = id_to_node[e.fromLayerId];
             if (!input_node) {
-                IE_THROW() << "Attempt to access node " << e.fromLayerId << " that not in graph.";
+                IE_THROW_G("Attempt to access node ", e.fromLayerId, " that not in graph.");
             }
             auto& p_output = params[e.fromLayerId].params;
             size_t const realInputPortId = p.params.get_real_input_port_id(e.toPortId);
             if (realInputPortId >= inputs.size())
-                IE_THROW() << p.params.type << " layer " << p.params.name << " with id: " << p.params.layerId
-                           << " is inconsistent!";
+                IE_THROW_G(p.params.type,
+                           " layer ",
+                           p.params.name,
+                           " with id: ",
+                           p.params.layerId,
+                           " is inconsistent!");
             inputs[realInputPortId] = input_node->output(p_output.get_real_output_port_id(e.fromPortId));
         }
 
@@ -504,7 +508,7 @@ std::shared_ptr<ngraph::Function> XmlDeserializer::parse_function(
         // Temporary disabled!
         //        for (size_t i = 0; i < p.params.outputPorts.size(); ++i) {
         //            if (p.params.outputPorts[i].dims != node->output(i).get_shape()) {
-        //                IE_THROW() << "Shape after Model infer " <<
+        //                IE_THROW_G(  "Shape after Model infer " <<
         //                details::dumpVec(node->output(i).get_shape())
         //                                   << " differ from IR shapes: " <<
         //                                   details::dumpVec(p.params.outputPorts[i].dims);
@@ -688,8 +692,12 @@ GenericLayerParams XmlDeserializer::parse_generic_params(const pugi::xml_node& n
             const pugi::char_t* dimVal = node.child_value();
             std::stringstream ss(dimVal);
             if (!(ss >> dim) || dim < -1) {
-                IE_THROW() << "dimension (" << dimVal << ") in node " << node.name()
-                           << " must be greater or equal to -1: at offset " << node.offset_debug();
+                IE_THROW_G("dimension (",
+                           dimVal,
+                           ") in node ",
+                           node.name(),
+                           " must be greater or equal to -1: at offset ",
+                           node.offset_debug());
             }
             port.dims.emplace_back(dim);
         }
@@ -761,11 +769,23 @@ std::shared_ptr<ngraph::Node> XmlDeserializer::create_node(
     // Check that inputs are correctly defined
     for (size_t i = 0; i < inputs.size(); i++) {
         if (!inputs[i].get_node())
-            IE_THROW() << params.type << " layer " << params.name << " with id: " << params.layerId
-                       << " has incorrect input with index " << i << "!";
+            IE_THROW_G(params.type,
+                       " layer ",
+                       params.name,
+                       " with id: ",
+                       params.layerId,
+                       " has incorrect input with index ",
+                       i,
+                       "!");
         if (ngraph::element::Type_t::undefined == inputs[i].get_element_type())
-            IE_THROW() << params.type << " layer " << params.name << " with id: " << params.layerId
-                       << " has undefined element type for input with index " << i << "!";
+            IE_THROW_G(params.type,
+                       " layer ",
+                       params.name,
+                       " with id: ",
+                       params.layerId,
+                       " has undefined element type for input with index ",
+                       i,
+                       "!");
     }
 
     const std::string& type_name = translate_type_name(params.type);
@@ -804,8 +824,14 @@ std::shared_ptr<ngraph::Node> XmlDeserializer::create_node(
             if (type_name == "MVN" || type_name == "ROIPooling" || type_name == "ReorgYolo") {
                 opsetIt = m_opsets.find("opset2");
                 if (opsetIt == m_opsets.end()) {
-                    IE_THROW() << "Cannot create " << params.type << " layer " << params.name
-                               << " id:" << params.layerId << " from unsupported opset: " << params.version;
+                    IE_THROW_G("Cannot create ",
+                               params.type,
+                               " layer ",
+                               params.name,
+                               " id:",
+                               params.layerId,
+                               " from unsupported opset: ",
+                               params.version);
                 }
             }
         }
@@ -814,7 +840,7 @@ std::shared_ptr<ngraph::Node> XmlDeserializer::create_node(
 
         ngraphNode = std::shared_ptr<ngraph::Node>(opset.create_insensitive(type_name));
         if (!ngraphNode) {
-            IE_THROW() << "Opset " << params.version << " doesn't contain the operation with type: " << type_name;
+            IE_THROW_G("Opset ", params.version, " doesn't contain the operation with type: ", type_name);
         }
         // Share Weights form constant blob
         if (auto constant = std::dynamic_pointer_cast<ngraph::op::Constant>(ngraphNode)) {
@@ -843,8 +869,14 @@ std::shared_ptr<ngraph::Node> XmlDeserializer::create_node(
     }
 
     if (!ngraphNode) {
-        IE_THROW() << "Cannot create " << params.type << " layer " << params.name << " id:" << params.layerId
-                   << " from unsupported opset: " << params.version;
+        IE_THROW_G("Cannot create ",
+                   params.type,
+                   " layer ",
+                   params.name,
+                   " id:",
+                   params.layerId,
+                   " from unsupported opset: ",
+                   params.version);
     }
 
     // Save run time info
@@ -878,12 +910,12 @@ std::shared_ptr<ngraph::Node> XmlDeserializer::create_node(
             if (!getStrAttribute(item, "name", attribute_name)) {
                 std::stringstream ss;
                 item.print(ss);
-                IE_THROW() << "rt_info attribute has no \"name\" field: " << ss.str();
+                IE_THROW_G("rt_info attribute has no \"name\" field: ", ss.str());
             }
             if (!getStrAttribute(item, "version", attribute_version)) {
                 std::stringstream ss;
                 item.print(ss);
-                IE_THROW() << "rt_info attribute: " << attribute_name << " has no \"version\" field: " << ss.str();
+                IE_THROW_G("rt_info attribute: ", attribute_name, " has no \"version\" field: ", ss.str());
             }
             const auto& type_info = ov::DiscreteTypeInfo(attribute_name.c_str(), attribute_version.c_str());
             auto attr = attrs_factory.create_by_type_info(type_info);
@@ -893,13 +925,13 @@ std::shared_ptr<ngraph::Node> XmlDeserializer::create_node(
                     if (attr.as<ov::RuntimeAttribute>().visit_attributes(attribute_visitor)) {
                         auto res = rt_info.emplace(type_info, attr);
                         if (!res.second) {
-                            IE_THROW() << "multiple rt_info attributes are detected: " << attribute_name;
+                            IE_THROW_G("multiple rt_info attributes are detected: ", attribute_name);
                         }
                     } else {
-                        IE_THROW() << "VisitAttributes is not supported for: " << item.name() << " attribute";
+                        IE_THROW_G("VisitAttributes is not supported for: ", item.name(), " attribute");
                     }
                 } else {
-                    IE_THROW() << "Attribute: " << item.name() << " is not recognized as runtime attribute";
+                    IE_THROW_G("Attribute: ", item.name(), " is not recognized as runtime attribute");
                 }
             } else {
                 // As runtime attributes are optional, so we skip attribute if it is unknown to avoid exception

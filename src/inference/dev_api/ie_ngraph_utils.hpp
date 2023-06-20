@@ -57,7 +57,7 @@ INFERENCE_ENGINE_1_0_DEPRECATED inline ::ngraph::element::Type convertPrecision(
     case Precision::MIXED:
     case Precision::CUSTOM:
     default:
-        IE_THROW() << "Incorrect precision!";
+        IE_THROW_G("Incorrect precision!");
     }
 }
 
@@ -104,7 +104,7 @@ INFERENCE_ENGINE_1_0_DEPRECATED inline Precision convertPrecision(const ::ngraph
     case ::ngraph::element::Type_t::dynamic:
         return Precision(Precision::UNSPECIFIED);
     default:
-        IE_THROW() << "Incorrect precision " << precision.get_type_name() << "!";
+        IE_THROW_G("Incorrect precision ", precision.get_type_name(), "!");
         return {};
     }
 }

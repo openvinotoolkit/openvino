@@ -31,6 +31,7 @@
 #include <vector>
 
 #include "ie_api.h"
+#include "openvino/core/except.hpp"
 
 IE_SUPPRESS_DEPRECATED_START
 #ifndef NDEBUG
@@ -397,11 +398,35 @@ namespace details {
  */
 [[noreturn]] INFERENCE_ENGINE_1_0_DEPRECATED INFERENCE_ENGINE_API_CPP(void) Rethrow();
 
+struct LockInfo {
+    const char* const file;
+    int line;
+};
+
+inline std::ostream& operator<<(std::ostream& os, const LockInfo& lock_info) {
+    os << '\n' << lock_info.file << ':' << lock_info.line << ' ';
+    return os;
+}
+
 /**
  * @brief Tag struct used to throw exception
  */
 template <typename ExceptionType>
 struct INFERENCE_ENGINE_1_0_DEPRECATED ThrowNow final {
+#ifdef NDEBUG
+    [[noreturn]] static void create(const std::stringstream& explanation) {
+        std::stringstream s;
+        s << ExceptionTraits<ExceptionType>::string() << ' ' << explanation.rdbuf();
+        throw ExceptionType{s.str()};
+    }
+#else
+    [[noreturn]] static void create(LockInfo&& lock_info, const std::stringstream& explanation) {
+        std::stringstream s;
+        s << lock_info << ExceptionTraits<ExceptionType>::string() << ' ' << explanation.rdbuf();
+        throw ExceptionType{s.str()};
+    }
+#endif
+
     [[noreturn]] void operator<<=(const std::ostream& ostream) {
         std::ostringstream stream;
         stream << ostream.rdbuf();
@@ -439,6 +464,82 @@ struct INFERENCE_ENGINE_1_0_DEPRECATED ThrowNow final {
                             << ' '
 /// @endcond
 
+#define IE_THROW_tmp1(...)                                                            \
+    do {                                                                              \
+        std::stringstream s;                                                          \
+        ov::write_all_to_stream(s, IE_LOCATION, ##__VA_ARGS__);                       \
+        InferenceEngine::details::ThrowNow<InferenceEngine::GeneralError>::create(s); \
+    } while (0)
+
+#define IE_THROW_GTMP(...)                                                                      \
+    do {                                                                                        \
+        InferenceEngine::details::ThrowNow<InferenceEngine::GeneralError>::create(__VA_ARGS__); \
+    } while (0)
+
+#ifdef NDEBUG
+#    define IE_THROW_G_HELPER0()                                                           \
+        do {                                                                               \
+            InferenceEngine::details::ThrowNow<InferenceEngine::GeneralError>::create({}); \
+        } while (0)
+
+#    define IE_THROW_G_HELPER1(ExceptionType)                              \
+        do {                                                               \
+            InferenceEngine::details::ThrowNow<ExceptionType>::create({}); \
+        } while (0)
+
+#    define IE_THROW_G_HELPER2(ExceptionType, ...)                                \
+        do {                                                                      \
+            std::stringstream stream___;                                          \
+            ov::write_all_to_stream(stream___, __VA_ARGS__);                      \
+            InferenceEngine::details::ThrowNow<ExceptionType>::create(stream___); \
+        } while (0)
+#else
+#    define IE_THROW_G_HELPER0()                                                       \
+        do {                                                                           \
+            InferenceEngine::details::ThrowNow<InferenceEngine::GeneralError>::create( \
+                InferenceEngine::details::LockInfo{__FILE__, __LINE__},                \
+                {});                                                                   \
+        } while (0)
+
+#    define IE_THROW_G_HELPER1(ExceptionType)                           \
+        do {                                                            \
+            InferenceEngine::details::ThrowNow<ExceptionType>::create(  \
+                InferenceEngine::details::LockInfo{__FILE__, __LINE__}, \
+                {});                                                    \
+        } while (0)
+
+#    define IE_THROW_G_HELPER2(ExceptionType, ...)                      \
+        do {                                                            \
+            std::stringstream stream___;                                \
+            ov::write_all_to_stream(stream___, __VA_ARGS__);            \
+            InferenceEngine::details::ThrowNow<ExceptionType>::create(  \
+                InferenceEngine::details::LockInfo{__FILE__, __LINE__}, \
+                stream___);                                             \
+        } while (0)
+
+#endif
+
+#define CALL_IE_OVERLOAD(name, ...) GLUE(OVERLOAD_MACRO(name, COUNT_ARGS_MAXN(__VA_ARGS__)), (__VA_ARGS__))
+
+/**
+ * The macros to replace IE_THROW macro to reduce binary size of libraries.
+ *
+ * The macro usage:
+ * - IE_THROW_E() -> throws GeneralError with no user comment
+ * - IE_THROW_E(IE_EXCEPTION_TYPE) -> throws IE_EXCEPTION_TYPE with no user comment
+ * - IE_THROW_E(IE_EXCEPTION_TYPE, ...) -> throws IE_EXCEPTION_TYPE with user comment specified as coma separated list
+ *   of parameters which each must support stream operator<<.
+ *
+ * The usage of this macro is compatible with OPENVINO_THROW when legacy exceptions will be removed
+ * the macros can be refactored like:
+ * - IE_THROW_E(IE_EXCEPTION_TYPE, ....) -> OPENVINO_THROW(...)
+ * - IE_THROW_E(NotImplemented, ...) -> OPENVINO_NOT_IMPLEMENTED
+ * - IE_ASSERT(EXPRESSION, ...) - > OPENVINO_ASSERT(EXPRESSION, ...)
+ */
+#define IE_THROW_E(...) CALL_IE_OVERLOAD(IE_THROW_G_HELPER, __VA_ARGS__)
+// Wrapper to throw GeneralError.
+#define IE_THROW_G(...) IE_THROW_E(InferenceEngine::GeneralError, __VA_ARGS__)
+
 /**
  * @def IE_THROW
  * @brief A macro used to throw specified exception with a description
@@ -450,35 +551,21 @@ struct INFERENCE_ENGINE_1_0_DEPRECATED ThrowNow final {
  * @brief Uses assert() function if NDEBUG is not defined, InferenceEngine exception otherwise
  */
 #ifdef NDEBUG
-#    define IE_ASSERT(EXPRESSION) \
-        if (!(EXPRESSION))        \
-        IE_THROW(GeneralError) << " AssertionFailed: " << #EXPRESSION
+#    define IE_ASSERT(EXPRESSION, ...)                                        \
+        do {                                                                  \
+            if (!(EXPRESSION))                                                \
+                IE_THROW_G(" AssertionFailed: ", #EXPRESSION, ##__VA_ARGS__); \
+        } while (0)
 #else
-/**
- * @private
- */
-struct NullStream {
-    template <typename T>
-    NullStream& operator<<(const T&) noexcept {
-        return *this;
-    }
-};
-
-#    define IE_ASSERT(EXPRESSION) \
-        assert((EXPRESSION));     \
-        InferenceEngine::details::NullStream()
+#    define IE_ASSERT(EXPRESSION, ...) assert((EXPRESSION));
 #endif  // NDEBUG
 
 /// @cond
-#define THROW_IE_EXCEPTION                                                                                           \
-    InferenceEngine::details::ThrowNow<InferenceEngine::details::InferenceEngineException>{} <<= std::stringstream{} \
-                                                                                                 << IE_LOCATION
-
 #define IE_EXCEPTION_CASE(TYPE_ALIAS, STATUS_CODE, EXCEPTION_TYPE, ...) \
     case InferenceEngine::STATUS_CODE: {                                \
         using InferenceEngine::EXCEPTION_TYPE;                          \
         using TYPE_ALIAS = EXCEPTION_TYPE;                              \
-        __VA_ARGS__;                                                    \
+        IE_THROW_E(TYPE_ALIAS, __VA_ARGS__);                            \
     } break;
 /// @endcond
 

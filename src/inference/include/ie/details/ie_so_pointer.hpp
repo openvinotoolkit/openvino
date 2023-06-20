@@ -80,7 +80,7 @@ public:
             _so = SharedObjectLoader(name.c_str());
             Load(std::integral_constant<bool, HasRelease::value>{});
         } catch (const std::runtime_error& ex) {
-            IE_THROW() << ex.what();
+            IE_THROW_G(ex.what());
         } catch (...) {
             details::Rethrow();
         }
@@ -162,10 +162,7 @@ protected:
                 ResponseDesc desc;
                 StatusCode sts = reinterpret_cast<CreateF*>(create)(object, &desc);
                 if (sts != OK) {
-                    IE_EXCEPTION_SWITCH(sts,
-                                        ExceptionType,
-                                        InferenceEngine::details::ThrowNow<ExceptionType>{} <<=
-                                        std::stringstream{} << IE_LOCATION << desc.msg)
+                    IE_EXCEPTION_SWITCH(sts, ExceptionType, desc.msg)
                 }
                 IE_SUPPRESS_DEPRECATED_START
                 _ptr = std::shared_ptr<T>(object, [](T* ptr) {

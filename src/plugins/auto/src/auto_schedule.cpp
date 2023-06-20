@@ -90,9 +90,9 @@ Pipeline AutoSchedule::GetPipeline(const IInferPtr& syncInferRequest, WorkerInfe
                                         d.defaultDeviceID)) == name;
                             });
                             if (_autoSContext->_devicePrioritiesInitial.cend() == res) {
-                                IE_THROW() <<
-                                    "None of the devices (for which current MULTI-device configuration was "
-                                    "initialized) supports a remote blob created on the device named " << name;
+                                IE_THROW_G("None of the devices (for which current MULTI-device configuration was "
+                                           "initialized) supports a remote blob created on the device named ",
+                                           name);
                             } else {
                                 // it is ok to take the c_str() here (as pointed in the executable_network.hpp we need to use const char*)
                                 // as the original strings are from the "persistent" vector (with the right lifetime)
@@ -149,11 +149,12 @@ void AutoSchedule::GenerateWorkers(const std::string& device,
     try {
         optimalNum = executableNetwork->GetMetric(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)).as<unsigned int>();
     } catch (const IE::Exception& iie) {
-        IE_THROW()
-                << "Every device used with the Multi-Device should "
-                    << "support OPTIMAL_NUMBER_OF_INFER_REQUESTS ExecutableNetwork metric. "
-                    << "Failed to query the metric for the " << device << " with error:" <<
-                    iie.what();
+        IE_THROW_G("Every device used with the Multi-Device should "
+                   "support OPTIMAL_NUMBER_OF_INFER_REQUESTS ExecutableNetwork metric. "
+                   "Failed to query the metric for the ",
+                   device,
+                   " with error:",
+                   iie.what());
     }
     const auto numRequests = (_autoSContext->_devicePriorities.end() == itNumRequests ||
                               itNumRequests->numRequestsPerDevices == -1) ? optimalNum : itNumRequests->numRequestsPerDevices;

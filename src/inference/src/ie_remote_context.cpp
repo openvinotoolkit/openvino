@@ -15,7 +15,7 @@ IE_SUPPRESS_DEPRECATED_START
 MemoryBlob::Ptr RemoteContext::CreateHostBlob(const TensorDesc& tensorDesc) {
     auto blob = std::dynamic_pointer_cast<MemoryBlob>(make_blob_with_precision(tensorDesc));
     if (!blob)
-        IE_THROW(NotAllocated) << "Failed to create host blob in remote context for " << getDeviceName() << " device";
+        IE_THROW_E(NotAllocated, "Failed to create host blob in remote context for ", getDeviceName(), " device");
 
     return blob;
 }

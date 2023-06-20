@@ -174,16 +174,16 @@ public:
         const auto& params = getParams();
         auto itrType = params.find(GPU_PARAM_KEY(SHARED_MEM_TYPE));
         if (itrType == params.end())
-            IE_THROW() << "Parameter of type " << GPU_PARAM_KEY(SHARED_MEM_TYPE) << " not found";
+            IE_THROW_G("Parameter of type ", GPU_PARAM_KEY(SHARED_MEM_TYPE), " not found");
 
         auto mem_type = itrType->second.as<std::string>();
         if (mem_type != GPU_PARAM_VALUE(USM_USER_BUFFER) && mem_type != GPU_PARAM_VALUE(USM_HOST_BUFFER) &&
             mem_type != GPU_PARAM_VALUE(USM_DEVICE_BUFFER))
-            IE_THROW() << "Unexpected USM blob type: " << mem_type;
+            IE_THROW_G("Unexpected USM blob type: ", mem_type);
 
         auto itrHandle = params.find(GPU_PARAM_KEY(MEM_HANDLE));
         if (itrHandle == params.end()) {
-            IE_THROW() << "No parameter " << GPU_PARAM_KEY(MEM_HANDLE) << " found";
+            IE_THROW_G("No parameter ", GPU_PARAM_KEY(MEM_HANDLE), " found");
         }
 
         return itrHandle->second.as<gpu_handle_param>();
@@ -271,7 +271,7 @@ INFERENCE_ENGINE_1_0_DEPRECATED static inline RemoteContext::Ptr make_shared_con
     cl_context ctx;
     auto res = clGetCommandQueueInfo(queue, CL_QUEUE_CONTEXT, sizeof(cl_context), &ctx, nullptr);
     if (res != CL_SUCCESS)
-        IE_THROW() << "Can't get context from given opencl queue";
+        IE_THROW_G("Can't get context from given opencl queue");
     ParamMap contextParams = {{GPU_PARAM_KEY(CONTEXT_TYPE), GPU_PARAM_VALUE(OCL)},
                               {GPU_PARAM_KEY(OCL_CONTEXT), static_cast<gpu_handle_param>(ctx)},
                               {GPU_PARAM_KEY(OCL_QUEUE), static_cast<gpu_handle_param>(queue)}};
@@ -300,7 +300,7 @@ INFERENCE_ENGINE_1_0_DEPRECATED static inline Blob::Ptr make_shared_blob(const T
                                                                          cl::Buffer& buffer) {
     auto casted = std::dynamic_pointer_cast<ClContext>(ctx);
     if (nullptr == casted) {
-        IE_THROW() << "Invalid remote context passed";
+        IE_THROW_G("Invalid remote context passed");
     }
 
     ParamMap params = {{GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(OCL_BUFFER)},
@@ -320,7 +320,7 @@ INFERENCE_ENGINE_1_0_DEPRECATED static inline Blob::Ptr make_shared_blob(const T
                                                                          cl_mem buffer) {
     auto casted = std::dynamic_pointer_cast<ClContext>(ctx);
     if (nullptr == casted) {
-        IE_THROW() << "Invalid remote context passed";
+        IE_THROW_G("Invalid remote context passed");
     }
 
     ParamMap params = {{GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(OCL_BUFFER)},
@@ -340,7 +340,7 @@ INFERENCE_ENGINE_1_0_DEPRECATED static inline Blob::Ptr make_shared_blob(const T
                                                                          cl::Image2D& image) {
     auto casted = std::dynamic_pointer_cast<ClContext>(ctx);
     if (nullptr == casted) {
-        IE_THROW() << "Invalid remote context passed";
+        IE_THROW_G("Invalid remote context passed");
     }
 
     ParamMap params = {{GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(OCL_IMAGE2D)},

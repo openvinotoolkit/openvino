@@ -31,8 +31,11 @@ TEST_P(StaticShapeLoopTest, CompareWithPredefinedRefs) {
         return;
     }
 
-    IE_ASSERT(actualOutputs.size() == expectedOutputs.size())
-    << "nGraph interpreter has " << expectedOutputs.size() << " outputs, while IE " << actualOutputs.size();
+    IE_ASSERT(actualOutputs.size() == expectedOutputs.size(),
+              "nGraph interpreter has ",
+              expectedOutputs.size(),
+              " outputs, while IE ",
+              actualOutputs.size());
 
     Compare(expectedOutputs, actualOutputs);
 }

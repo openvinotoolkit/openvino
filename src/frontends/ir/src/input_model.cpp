@@ -75,11 +75,11 @@ void parse_pre_process(pugi::xml_node& root,
     }
 
     if (!input_node)
-        IE_THROW() << "pre-process name ref '" << inputName << "' refers to un-existing input";
+        IE_THROW_E(GeneralError, "pre-process name ref '", inputName, "' refers to un-existing input");
 
     const auto& input_shape = input_node->output(0).get_partial_shape();
     if (input_shape.is_dynamic()) {
-        IE_THROW() << "can not apply pre-process for '" << inputName << "' input";
+        IE_THROW_E(GeneralError, "can not apply pre-process for '", inputName, "' input");
     }
 
     Shape mean_scalar_shape;  // [C, 1 ... 1]
@@ -88,7 +88,7 @@ void parse_pre_process(pugi::xml_node& root,
     const auto inputDims = input_shape.to_shape();
 
     if (inputDims.size() < 2) {
-        IE_THROW() << "network did not define input dimensions properly";
+        IE_THROW_E(GeneralError, "network did not define input dimensions properly");
     } else if (inputDims.size() == 2) {  // NC
         mean_scalar_shape = {inputDims[1]};
         mean_shape = {1};
@@ -115,7 +115,7 @@ void parse_pre_process(pugi::xml_node& root,
         auto meanNode = chan.child("mean");
         if (!meanNode.empty()) {
             if (!meanNode.attribute("value") && (!meanNode.attribute("size"))) {
-                IE_THROW() << "mean should have at least one of the following attribute: value, size";
+                IE_THROW_E(GeneralError, "mean should have at least one of the following attribute: value, size");
             }
             if (meanNode.attribute("value")) {
                 mean_scalar_values.insert({chanNo, pugixml::utils::GetFloatAttr(meanNode, "value")});
@@ -124,11 +124,16 @@ void parse_pre_process(pugi::xml_node& root,
                 auto const_size = pugixml::utils::GetUInt64Attr(meanNode, "size");
                 auto const_offset = pugixml::utils::GetUInt64Attr(meanNode, "offset");
                 if (shape_size(mean_shape) * input_type.size() != const_size) {
-                    IE_THROW() << "mean blob size mismatch expected input, got: " << const_size << " expecting "
-                               << mean_shape << " x " << input_type.size();
+                    IE_THROW_E(GeneralError,
+                               "mean blob size mismatch expected input, got: ",
+                               const_size,
+                               " expecting ",
+                               mean_shape,
+                               " x ",
+                               input_type.size());
                 }
                 if (const_offset + const_size > weights->size()) {
-                    IE_THROW() << "mean value offset and size are out of weights size range";
+                    IE_THROW_E(GeneralError, "mean value offset and size are out of weights size range");
                 }
                 mean_values.insert({chanNo, {const_size, const_offset}});
             }
@@ -136,18 +141,22 @@ void parse_pre_process(pugi::xml_node& root,
     }
 
     if (!mean_values.empty() && !mean_scalar_values.empty()) {
-        IE_THROW() << "mean values have different types";
+        IE_THROW_E(GeneralError, "mean values have different types");
     }
 
     if (!mean_scalar_values.empty()) {
         if (mean_scalar_values.size() != channels) {
-            IE_THROW() << "Number of mean values (" << mean_scalar_values.size()
-                       << ") is not equal to number of channels (" << channels << ")";
+            IE_THROW_E(GeneralError,
+                       "Number of mean values (",
+                       mean_scalar_values.size(),
+                       ") is not equal to number of channels (",
+                       channels,
+                       ")");
         }
         std::vector<float> values(channels);
         for (const auto& item : mean_scalar_values) {
             if (item.first >= channels) {
-                IE_THROW() << "Mean values channel index " << item.first << " is out of range (" << channels << ")";
+                IE_THROW_E(GeneralError, "Mean values channel index ", item.first, " is out of range (", channels, ")");
             }
             values[item.first] = item.second;
         }
@@ -162,13 +171,17 @@ void parse_pre_process(pugi::xml_node& root,
 
     if (!mean_values.empty()) {
         if (mean_values.size() != channels) {
-            IE_THROW() << "Number of mean values (" << mean_values.size() << ") is not equal to number of channels ("
-                       << channels << ")";
+            IE_THROW_E(GeneralError,
+                       "Number of mean values (",
+                       mean_values.size(),
+                       ") is not equal to number of channels (",
+                       channels,
+                       ")");
         }
         NodeVector per_channel_values(channels);
         for (const auto& item : mean_values) {
             if (item.first >= channels) {
-                IE_THROW() << "Mean values channel index " << item.first << " is out of range (" << channels << ")";
+                IE_THROW_E(GeneralError, "Mean values channel index ", item.first, " is out of range (", channels, ")");
             }
             const size_t offset = item.second.second;
             const char* data = weights->get_ptr<char>() + offset;
@@ -206,7 +219,7 @@ public:
           m_extensions(extensions) {
         pugi::xml_parse_result res = m_xml_doc.load(stream);
         if (res.status != pugi::status_ok) {
-            IE_THROW() << res.description() << " at offset " << res.offset;
+            IE_THROW_E(GeneralError, res.description(), " at offset ", res.offset);
         }
         m_root = m_xml_doc.document_element();
         for (const auto& it : ov::get_available_opsets()) {

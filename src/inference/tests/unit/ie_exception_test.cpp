@@ -15,7 +15,7 @@ IE_SUPPRESS_DEPRECATED_START
 
 TEST(ExceptionTests, CanThrowUsingMacro) {
     std::string message = "Exception message!";
-    ASSERT_THROW(IE_THROW() << message, InferenceEngine::Exception);
+    ASSERT_THROW(IE_THROW_G(message), InferenceEngine::Exception);
 }
 
 TEST(ExceptionTests, CanThrowScoringException) {
@@ -34,7 +34,7 @@ TEST(ExceptionTests, ExceptionShowsCorrectMessageDebugVersion) {
     int lineNum = 0;
     try {
         lineNum = __LINE__ + 1;
-        IE_THROW() << message;
+        IE_THROW_G(message);
     } catch (InferenceEngine::Exception& iex) {
         std::string ref_message = std::string{"\n"} + __FILE__ + ":" + std::to_string(lineNum) + " " + message;
         ASSERT_STREQ(iex.what(), ref_message.c_str());
@@ -44,25 +44,25 @@ TEST(ExceptionTests, ExceptionShowsCorrectMessageDebugVersion) {
 TEST(ExceptionTests, ExceptionShowsCorrectMessageReleaseVersion) {
     std::string message = "exception";
     try {
-        IE_THROW() << message;
+        IE_THROW_G(message);
     } catch (InferenceEngine::Exception& iex) {
-        std::string ref_message = message;
+        std::string ref_message = "[ GENERAL_ERROR ] " + message;
         ASSERT_STREQ(iex.what(), ref_message.c_str());
     }
 }
 #endif
 
 TEST(ExceptionTests, ExceptionCanBeCaughtAsStandard) {
-    ASSERT_THROW(IE_THROW(), std::exception);
+    ASSERT_THROW(IE_THROW_G(""), std::exception);
 }
 
 #ifdef NDEBUG  // disabled for debug as macros calls assert()
 TEST(ExceptionTests, ExceptionWithAssertThrowsNothingIfTrue) {
-    ASSERT_NO_THROW(IE_ASSERT(true) << "shouldn't assert if true");
+    ASSERT_NO_THROW(IE_ASSERT(true, "shouldn't assert if true"));
 }
 
 TEST(ExceptionTests, ExceptionWithAssertThrowsNothingIfExpressionTrue) {
-    ASSERT_NO_THROW(IE_ASSERT(2 > 0) << "shouldn't assert if true expression");
+    ASSERT_NO_THROW(IE_ASSERT(2 > 0, "shouldn't assert if true expression"));
 }
 
 TEST(ExceptionTests, ExceptionWithAssertThrowsExceptionIfFalse) {

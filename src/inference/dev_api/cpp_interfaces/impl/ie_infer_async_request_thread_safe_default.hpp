@@ -77,9 +77,9 @@ class INFERENCE_ENGINE_1_0_DEPRECATED AsyncInferRequestThreadSafeDefault : publi
             state = _state;
             switch (_state) {
             case InferState::Busy:
-                IE_THROW(RequestBusy);
+                IE_THROW_E(RequestBusy);
             case InferState::Cancelled:
-                IE_THROW(InferCancelled);
+                IE_THROW_E(InferCancelled);
             case InferState::Idle: {
                 _futures.erase(std::remove_if(std::begin(_futures),
                                               std::end(_futures),
@@ -120,9 +120,9 @@ protected:
         std::lock_guard<std::mutex> lock{_mutex};
         switch (_state) {
         case InferState::Busy:
-            IE_THROW(RequestBusy);
+            IE_THROW_E(RequestBusy);
         case InferState::Cancelled:
-            IE_THROW(InferCancelled);
+            IE_THROW_E(InferCancelled);
         default:
             break;
         }
@@ -180,8 +180,10 @@ public:
      */
     StatusCode Wait(int64_t millis_timeout) override {
         if (millis_timeout < InferRequest::WaitMode::RESULT_READY) {
-            IE_THROW(ParameterMismatch) << " Timeout can't be less " << InferRequest::WaitMode::RESULT_READY
-                                        << " for InferRequest::Wait\n";
+            IE_THROW_E(ParameterMismatch,
+                       " Timeout can't be less ",
+                       InferRequest::WaitMode::RESULT_READY,
+                       " for InferRequest::Wait\n");
         }
         auto status = std::future_status::deferred;
 
@@ -272,7 +274,7 @@ public:
     void ThrowIfCanceled() const {
         std::lock_guard<std::mutex> lock{_mutex};
         if (_state == InferState::Cancelled) {
-            IE_THROW(InferCancelled);
+            IE_THROW_E(InferCancelled);
         }
     }
 

@@ -285,8 +285,8 @@ ov::Parsed ov::parseDeviceNameIntoConfig(const std::string& deviceName, const An
         else if (it->second == parsed_device_priority) {
             // do nothing
         } else {
-            IE_THROW() << "Device priority / ID mismatch: " << parsed_device_priority << " (from " << deviceName
-                       << ") vs " << it->second.as<std::string>() << " (from config)";
+            IE_THROW_G("Device priority / ID mismatch: ", parsed_device_priority, " (from ", deviceName,
+                       ") vs ", it->second.as<std::string>(), " (from config)");
         }
     };
 
@@ -339,7 +339,7 @@ void ov::CoreImpl::register_plugins_in_registry(const std::string& xml_config_fi
 
     auto parse_result = ParseXml(xml_config_file.c_str());
     if (!parse_result.error_msg.empty()) {
-        IE_THROW() << parse_result.error_msg;
+        IE_THROW_G(parse_result.error_msg);
     }
 
     pugi::xml_document& xmlDoc = *parse_result.xml;
@@ -351,10 +351,10 @@ void ov::CoreImpl::register_plugins_in_registry(const std::string& xml_config_fi
     FOREACH_CHILD (pluginNode, devicesNode, "plugin") {
         std::string deviceName = GetStrAttr(pluginNode, "name");
         if (pluginRegistry.find(deviceName) != pluginRegistry.end()) {
-            IE_THROW() << "Device with \"" << deviceName << "\"  is already registered in the OpenVINO Runtime";
+            IE_THROW_G("Device with \"", deviceName, "\"  is already registered in the OpenVINO Runtime");
         }
         if (deviceName.find('.') != std::string::npos) {
-            IE_THROW() << "Device name must not contain dot '.' symbol";
+            IE_THROW_G("Device name must not contain dot '.' symbol");
         }
 
         ov::util::FilePath pluginPath =
@@ -410,9 +410,9 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
         it = pluginRegistry.find(deviceName);
         if (it == pluginRegistry.end()) {
             if (pluginName == ov::DEFAULT_DEVICE_NAME)
-                IE_THROW() << "No device is provided, so AUTO device is used by default, which failed loading.";
+                IE_THROW_G("No device is provided, so AUTO device is used by default, which failed loading.");
             else
-                IE_THROW() << "Device with \"" << deviceName << "\" name is not registered in the OpenVINO Runtime";
+                IE_THROW_G("Device with \"", deviceName, "\" name is not registered in the OpenVINO Runtime");
         }
     }
     std::lock_guard<std::mutex> lock(get_mutex(deviceName));
@@ -529,10 +529,14 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
 
         return plugins.emplace(deviceName, plugin).first->second;
     } catch (const InferenceEngine::Exception& ex) {
-        IE_THROW() << "Failed to create plugin " << ov::util::from_file_path(desc.libraryLocation) << " for device "
-                   << deviceName << "\n"
-                   << "Please, check your environment\n"
-                   << ex.what() << "\n";
+        IE_THROW_G("Failed to create plugin ",
+                   ov::util::from_file_path(desc.libraryLocation),
+                   " for device ",
+                   deviceName,
+                   "\n",
+                   "Please, check your environment\n",
+                   ex.what(),
+                   "\n");
     }
 }
 
@@ -567,7 +571,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
                                                           const ov::AnyMap& config) const {
     OV_ITT_SCOPE(FIRST_INFERENCE, ie::itt::domains::IE_LT, "Core::compile_model::RemoteContext");
     if (context._impl == nullptr) {
-        IE_THROW() << "Remote context is null";
+        IE_THROW_G("Remote context is null");
     }
     std::string deviceName = context.get_device_name();
     ov::AnyMap config_with_batch = config;
@@ -718,11 +722,14 @@ std::vector<std::string> ov::CoreImpl::get_available_devices() const {
         } catch (const std::runtime_error&) {
             // plugin is not created by e.g. invalid env
         } catch (const std::exception& ex) {
-            IE_THROW() << "An exception is thrown while trying to create the " << deviceName
-                       << " device and call GetMetric: " << ex.what();
+            IE_THROW_G("An exception is thrown while trying to create the ",
+                       deviceName,
+                       " device and call GetMetric: ",
+                       ex.what());
         } catch (...) {
-            IE_THROW() << "Unknown exception is thrown while trying to create the " << deviceName
-                       << " device and call GetMetric";
+            IE_THROW_G("Unknown exception is thrown while trying to create the ",
+                       deviceName,
+                       " device and call GetMetric");
         }
 
         if (devicesIDs.size() > 1) {
@@ -964,7 +971,7 @@ void ov::CoreImpl::unload_plugin(const std::string& deviceName) {
     std::lock_guard<std::mutex> lock(get_mutex());
     auto it = plugins.find(deviceName);
     if (it == plugins.end()) {
-        IE_THROW() << "Device with \"" << deviceName << "\" name is not registered in the OpenVINO Runtime";
+        IE_THROW_G("Device with \"", deviceName, "\" name is not registered in the OpenVINO Runtime");
     }
 
     plugins.erase(deviceName);
@@ -975,11 +982,11 @@ void ov::CoreImpl::register_plugin(const std::string& plugin, const std::string&
 
     auto it = pluginRegistry.find(device_name);
     if (it != pluginRegistry.end()) {
-        IE_THROW() << "Device with \"" << device_name << "\"  is already registered in the OpenVINO Runtime";
+        IE_THROW_G("Device with \"", device_name, "\"  is already registered in the OpenVINO Runtime");
     }
 
     if (device_name.find('.') != std::string::npos) {
-        IE_THROW() << "Device name must not contain dot '.' symbol";
+        IE_THROW_G("Device name must not contain dot '.' symbol");
     }
 
     PluginDescriptor desc{ov::util::get_plugin_path(plugin)};
@@ -1057,7 +1064,7 @@ void ov::CoreImpl::set_property_for_device(const ov::AnyMap& configMap, const st
         }
 
         if (!configIsSet && !deviceName.empty()) {
-            IE_THROW() << "Device with \"" << deviceName << "\" name is not registered in the OpenVINO Runtime";
+            IE_THROW_G("Device with \"", deviceName, "\" name is not registered in the OpenVINO Runtime");
         }
 
         // set config for already created plugins
@@ -1274,7 +1281,7 @@ void ov::CoreImpl::AddExtensionUnsafe(const InferenceEngine::IExtensionPtr& exte
     std::map<std::string, ngraph::OpSet> opsets = extension->getOpSets();
     for (const auto& it : opsets) {
         if (opsetNames.find(it.first) != opsetNames.end())
-            IE_THROW() << "Cannot add opset with name: " << it.first << ". Opset with the same name already exists.";
+            IE_THROW_G("Cannot add opset with name: ", it.first, ". Opset with the same name already exists.");
         opsetNames.insert(it.first);
     }
 

@@ -31,12 +31,11 @@ std::map<std::string, InferenceEngine::Layout> layout_map = {{"ANY", InferenceEn
                                                              {"CN", InferenceEngine::Layout::CN},
                                                              {"NCDHW", InferenceEngine::Layout::NCDHW},
                                                              {"BLOCKED", InferenceEngine::Layout::BLOCKED}};
-#define stringify(name) #name
 #define IE_CHECK_CALL(expr)                           \
     {                                                 \
         auto ret = (expr);                            \
         if (ret != InferenceEngine::StatusCode::OK) { \
-            IE_THROW() << response.msg;               \
+            IE_THROW_G(response.msg);                 \
         }                                             \
     }
 
@@ -50,14 +49,15 @@ static uint32_t getOptimalNumberOfRequests(const InferenceEngine::ExecutableNetw
             if (parameter_value.is<unsigned int>())
                 return parameter_value.as<unsigned int>();
             else
-                IE_THROW() << "Unsupported format for " << key << "!"
-                           << " Please specify number of infer requests directly!";
+                IE_THROW_G("Unsupported format for ", key, "!", " Please specify number of infer requests directly!");
         } else {
-            IE_THROW() << "Can't load network: " << key << " is not supported!"
-                       << " Please specify number of infer requests directly!";
+            IE_THROW_G("Can't load network: ",
+                       key,
+                       " is not supported!",
+                       " Please specify number of infer requests directly!");
         }
     } catch (const std::exception& ex) {
-        IE_THROW() << "Can't load network: " << ex.what() << " Please specify number of infer requests directly!";
+        IE_THROW_G("Can't load network: ", ex.what(), " Please specify number of infer requests directly!");
     }
 }
 
@@ -217,7 +217,7 @@ InferenceEnginePython::IENetwork InferenceEnginePython::read_network(std::string
 InferenceEnginePython::IENetwork::IENetwork(const std::shared_ptr<InferenceEngine::CNNNetwork>& cnn_network)
     : actual(cnn_network) {
     if (actual == nullptr)
-        IE_THROW() << "IENetwork was not initialized.";
+        IE_THROW_G("IENetwork was not initialized.");
     name = actual->getName();
     batch_size = actual->getBatchSize();
 }
@@ -226,8 +226,8 @@ InferenceEnginePython::IENetwork::IENetwork(PyObject* network) {
     auto* capsule_ptr = PyCapsule_GetPointer(network, "ngraph_function");
     auto* function_sp = static_cast<std::shared_ptr<ngraph::Function>*>(capsule_ptr);
     if (function_sp == nullptr)
-        IE_THROW() << "Cannot create CNNNetwork from capsule! Capsule doesn't "
-                      "contain nGraph function!";
+        IE_THROW_G("Cannot create CNNNetwork from capsule! Capsule doesn't "
+                   "contain nGraph function!");
 
     InferenceEngine::CNNNetwork cnnNetwork(*function_sp);
     actual = std::make_shared<InferenceEngine::CNNNetwork>(cnnNetwork);
@@ -509,12 +509,7 @@ void InferenceEnginePython::IEExecNetwork::createInferRequests(int num_requests)
             .SetCompletionCallback<std::function<void(InferenceEngine::InferRequest r, InferenceEngine::StatusCode)>>(
                 [&](InferenceEngine::InferRequest request, InferenceEngine::StatusCode code) {
                     if (code != InferenceEngine::StatusCode::OK) {
-                        IE_EXCEPTION_SWITCH(code,
-                                            ExceptionType,
-                                            InferenceEngine::details::ThrowNow<ExceptionType>{} <<=
-                                            std::stringstream{}
-                                            << IE_LOCATION
-                                            << InferenceEngine::details::ExceptionTraits<ExceptionType>::string());
+                        IE_EXCEPTION_SWITCH(code, ExceptionType, "");
                     }
 
                     auto end_time = Time::now();

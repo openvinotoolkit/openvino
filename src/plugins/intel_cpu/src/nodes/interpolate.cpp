@@ -1773,7 +1773,7 @@ public:
             } else if (attr.shape_calculation_mode == ngInterpShapeCalcMode::SIZES) {
                 port_mask = PortMask(Interpolate::TARGET_SHAPE_ID, Interpolate::AXES_ID);
             } else {
-                IE_ASSERT(false) << "Unsupported interpolate shape calculation mode";
+                IE_ASSERT(false, "Unsupported interpolate shape calculation mode");
             }
         } else if (auto interp11 = ov::as_type_ptr<ngraph::opset11::Interpolate>(m_op)) {
             port_mask = PortMask(Interpolate::SIZE_OR_SCALE_ID_V11, Interpolate::AXES_ID_V11);

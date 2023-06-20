@@ -60,7 +60,8 @@ void PreProcessData::execute(Blob::Ptr &preprocessedBlob, const PreProcessInfo &
     auto fmt = info.getColorFormat();
 
     if (_userBlob == nullptr || preprocessedBlob == nullptr) {
-        IE_THROW() << "Input pre-processing is called with null " << (_userBlob == nullptr ? "_userBlob" : "preprocessedBlob");
+        IE_THROW_G("Input pre-processing is called with null ",
+                   (_userBlob == nullptr ? "_userBlob" : "preprocessedBlob"));
     }
 
     batchSize = PreprocEngine::getCorrectBatchSize(batchSize, _userBlob);

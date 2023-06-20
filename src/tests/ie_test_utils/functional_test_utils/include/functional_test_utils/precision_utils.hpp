@@ -55,7 +55,7 @@ inline ::ngraph::element::Type convertIE2nGraphPrc(const InferenceEngine::Precis
         case InferenceEngine::Precision::MIXED:
         case InferenceEngine::Precision::CUSTOM:
         default:
-            IE_THROW() << "Incorrect precision!";
+            IE_THROW_G("Incorrect precision!");
     }
 }
 

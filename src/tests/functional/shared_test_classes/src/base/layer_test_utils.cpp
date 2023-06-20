@@ -497,8 +497,11 @@ void LayerTestsCommon::Validate() {
         return;
     }
 
-    IE_ASSERT(actualOutputs.size() == expectedOutputs.size())
-    << "nGraph interpreter has " << expectedOutputs.size() << " outputs, while IE " << actualOutputs.size();
+    IE_ASSERT(actualOutputs.size() == expectedOutputs.size(),
+              "nGraph interpreter has ",
+              expectedOutputs.size(),
+              " outputs, while IE ",
+              actualOutputs.size());
 
     Compare(expectedOutputs, actualOutputs);
 }
@@ -512,7 +515,7 @@ std::string LayerTestsCommon::getRuntimePrecision(const std::string& layerName) 
         if (name == layerName) {
             const auto& rtInfo = op->get_rt_info();
             const auto& it = rtInfo.find("runtimePrecision");
-            IE_ASSERT(it != rtInfo.end()) << "Runtime precision is not found for node: " << name;
+            IE_ASSERT(it != rtInfo.end(), "Runtime precision is not found for node: ", name);
             return it->second.as<std::string>();
         }
     }
@@ -528,12 +531,12 @@ std::string LayerTestsCommon::getRuntimePrecisionByType(const std::string& layer
         const auto& rtInfo = op->get_rt_info();
         const auto& typeIt = rtInfo.find("layerType");
 
-        IE_ASSERT(typeIt != rtInfo.end()) << "Layer is not found for type: " << layerType;
+        IE_ASSERT(typeIt != rtInfo.end(), "Layer is not found for type: ", layerType);
 
         auto type = typeIt->second.as<std::string>();
         if (type == layerType) {
             const auto& it = rtInfo.find("runtimePrecision");
-            IE_ASSERT(it != rtInfo.end()) << "Runtime precision is not found for node: " << type;
+            IE_ASSERT(it != rtInfo.end(), "Runtime precision is not found for node: ", type);
             return it->second.as<std::string>();
         }
     }
@@ -564,14 +567,14 @@ std::string LayerTestsCommon::getRuntimePrecisionByFusedName(const std::string& 
         const auto& rtInfo = op->get_rt_info();
 
         const auto& nameIt = rtInfo.find("originalLayersNames");
-        IE_ASSERT(nameIt != rtInfo.end()) << "originalLayersNames is not found for node: " << layerName;
+        IE_ASSERT(nameIt != rtInfo.end(), "originalLayersNames is not found for node: ", layerName);
         const auto fusedName = parse(nameIt->second.as<std::string>());
         if (fusedName.find(layerName) == fusedName.end()) {
             continue;
         }
 
         const auto& it = rtInfo.find("runtimePrecision");
-        IE_ASSERT(it != rtInfo.end()) << "runtimePrecision is not found for node: " << layerName;
+        IE_ASSERT(it != rtInfo.end(), "runtimePrecision is not found for node: ", layerName);
         const auto rtPrecisionPtr = it->second.as<std::string>();
         return rtPrecisionPtr;
     }

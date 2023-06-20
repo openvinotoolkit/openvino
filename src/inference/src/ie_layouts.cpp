@@ -30,7 +30,7 @@ TensorDesc::TensorDesc(const Precision& precision, const SizeVector& dims, const
         return;
     }
     if (dims.size() != *std::max_element(blockDesc.getOrder().begin(), blockDesc.getOrder().end()) + 1)
-        IE_THROW() << "Cannot create TensorDesc! Blocked dims are inconsistent with original dims.";
+        IE_THROW_G("Cannot create TensorDesc! Blocked dims are inconsistent with original dims.");
 
     layout = Layout::BLOCKED;
     if (dims.size() == blockingDesc.getBlockDims().size()) {
@@ -99,7 +99,7 @@ void TensorDesc::setDims(const SizeVector& dims) {
         blockingDesc = BlockingDesc(dims, newOrder);
     } else {
         if (layout == Layout::SCALAR && (dims.size() > 1 || (dims.size() == 1 && dims[0] != 1)))
-            IE_THROW() << "Cannot set dimensions for SCALAR layout!";
+            IE_THROW_G("Cannot set dimensions for SCALAR layout!");
         blockingDesc = BlockingDesc(dims, layout);
     }
     if (layout != Layout::SCALAR)
@@ -148,7 +148,7 @@ void TensorDesc::setLayout(Layout l) {
     }
 
     if (inconsistentLayout) {
-        IE_THROW() << "Size of dims(" << std::to_string(dims.size()) << ") and format(" << l << ") are inconsistent.";
+        IE_THROW_G("Size of dims(", std::to_string(dims.size()), ") and format(", l, ") are inconsistent.");
     }
 
     // HACK: we need to update BlockingDesc after layout change, but if it was set manually not sure how to di this
@@ -199,7 +199,7 @@ Layout TensorDesc::getLayoutByDims(const SizeVector& dims) {
 
 size_t TensorDesc::offset(const SizeVector& v) const {
     if (layout == Layout::ANY)
-        IE_THROW() << "Cannot calculate offset for any format!";
+        IE_THROW_G("Cannot calculate offset for any format!");
 
     if (layout == Layout::SCALAR)
         return blockingDesc.getOffsetPadding();
@@ -211,7 +211,7 @@ size_t TensorDesc::offset(const SizeVector& v) const {
 
     size_t n_blocked_dims = order.size();
     if (blockedDims.size() != n_blocked_dims || strides.size() != n_blocked_dims) {
-        IE_THROW() << "Cannot calculate offset. Incorrect primitive descriptor!";
+        IE_THROW_G("Cannot calculate offset. Incorrect primitive descriptor!");
     }
     SizeVector blockedShift(n_blocked_dims);
     for (size_t i = 1; i <= n_blocked_dims; i++) {
@@ -241,7 +241,7 @@ size_t TensorDesc::offset(size_t l) const {
 void TensorDesc::reshape(const SizeVector& dims, Layout layout) {
     for (auto& padd : blockingDesc.getOffsetPaddingToData()) {
         if (padd)
-            IE_THROW() << "Cannot reshape a non-packaged blob!";
+            IE_THROW_G("Cannot reshape a non-packaged blob!");
     }
     if (layout != Layout::ANY) {
         blockingDesc = BlockingDesc(dims, layout);
@@ -279,7 +279,7 @@ BlockingDesc::BlockingDesc(const SizeVector& blocked_dims,
     : BlockingDesc(blocked_dims, order) {
     this->offsetPadding = offset;
     if (blocked_dims.size() != dimOffsets.size())
-        IE_THROW() << "Offsets are not initialized for all dimensions.";
+        IE_THROW_G("Offsets are not initialized for all dimensions.");
     this->offsetPaddingToData = dimOffsets;
 }
 
@@ -291,10 +291,10 @@ BlockingDesc::BlockingDesc(const SizeVector& blocked_dims,
     : BlockingDesc(blocked_dims, order) {
     this->offsetPadding = offset;
     if (blocked_dims.size() != strides.size())
-        IE_THROW() << "Strides are not initialized for all dimensions.";
+        IE_THROW_G("Strides are not initialized for all dimensions.");
     this->strides = strides;
     if (blocked_dims.size() != dimOffsets.size())
-        IE_THROW() << "Offsets are not initialized for all dimensions.";
+        IE_THROW_G("Offsets are not initialized for all dimensions.");
     this->offsetPaddingToData = dimOffsets;
 
     // check that strides are valid
@@ -303,10 +303,13 @@ BlockingDesc::BlockingDesc(const SizeVector& blocked_dims,
 
         for (size_t i = 1; i <= strides.size(); i++) {
             if (denseStride > strides[strides.size() - i]) {
-                IE_THROW() << "Stride in " << (strides.size() - i)
-                           << "-th dimension "
-                              "is not valid; actual "
-                           << strides[strides.size() - i] << ", should be >= " << denseStride << std::endl;
+                IE_THROW_G("Stride in ",
+                           (strides.size() - i),
+                           "-th dimension is not valid; actual ",
+                           strides[strides.size() - i],
+                           ", should be >= ",
+                           denseStride,
+                           '\n');
             }
             denseStride = std::max(strides[strides.size() - i], denseStride) * blocked_dims[blocked_dims.size() - i];
         }
@@ -320,7 +323,7 @@ BlockingDesc::BlockingDesc(const SizeVector& dims, Layout layout) : offsetPaddin
     offsetPadding = 0;
     auto checkDims = [](size_t r_size, size_t e_size) {
         if (r_size != e_size)
-            IE_THROW() << "Dims and format are inconsistent.";
+            IE_THROW_G("Dims and format are inconsistent.");
     };
     SizeVector l_order;
     SizeVector l_dims;
@@ -395,10 +398,13 @@ BlockingDesc::BlockingDesc(const SizeVector& dims, Layout layout) : offsetPaddin
 
 void BlockingDesc::fillDesc(const SizeVector& blocked_dims, const SizeVector& order) {
     if (order.size() != blocked_dims.size())
-        IE_THROW() << "Cannot fill descriptor. Size of dimensions (" << blocked_dims.size() << ") and order ("
-                   << order.size() << ") vector don't match.";
+        IE_THROW_G("Cannot fill descriptor. Size of dimensions (",
+                   blocked_dims.size(),
+                   ") and order (",
+                   order.size(),
+                   ") vector don't match.");
     if (blocked_dims.empty() || order.empty())
-        IE_THROW() << "Cannot fill descriptor. Dimensions and order vector are empty.";
+        IE_THROW_G("Cannot fill descriptor. Dimensions and order vector are empty.");
     this->order = order;
     this->blockedDims = blocked_dims;
     offsetPadding = 0;
@@ -440,7 +446,7 @@ void checkROI(const TensorDesc& origDesc, const TensorSlice& roi) {
     const auto numDims = origDesc.getDims().size();
 
     if (roi.size() != numDims) {
-        IE_THROW() << "ROI num dims " << roi.size() << " differs from original num dims " << numDims;
+        IE_THROW_G("ROI num dims ", roi.size(), " differs from original num dims ", numDims);
     }
 
     // TensorDesc stores dimensions in standard layout, as well as roi vector
@@ -451,8 +457,15 @@ void checkROI(const TensorDesc& origDesc, const TensorSlice& roi) {
         const auto endInd = roiSlice.startInd + roiSlice.size;
 
         if (endInd > fullSize) {
-            IE_THROW() << "ROI [" << roiSlice.startInd << ", " << endInd << ")"
-                       << " is out of range " << fullSize << " for dimension " << dimInd;
+            IE_THROW_G("ROI [",
+                       roiSlice.startInd,
+                       ", ",
+                       endInd,
+                       ")",
+                       " is out of range ",
+                       fullSize,
+                       " for dimension ",
+                       dimInd);
         }
     }
 }
@@ -502,7 +515,7 @@ TensorDesc make_roi_desc(const TensorDesc& origDesc, const TensorSlice& roi, boo
 TensorSlice make_roi_slice(const TensorDesc& origDesc, const ROI& roi) {
     const auto layout = origDesc.getLayout();
     if (layout != Layout::NCHW && layout != Layout::NHWC) {
-        IE_THROW() << "Unsupported layout " << layout;
+        IE_THROW_G("Unsupported layout ", layout);
     }
 
     TensorSlice roiSlice(4);
@@ -525,7 +538,7 @@ TensorDesc InferenceEngine::make_roi_desc(const TensorDesc& origDesc,
                                           const std::vector<size_t>& end,
                                           bool useOrigMemDesc) {
     if (begin.size() != end.size()) {
-        IE_THROW() << "`begin` vector size must match `end` vector size";
+        IE_THROW_G("`begin` vector size must match `end` vector size");
     }
     TensorSlice slice;
     for (size_t i = 0; i < begin.size(); ++i) {

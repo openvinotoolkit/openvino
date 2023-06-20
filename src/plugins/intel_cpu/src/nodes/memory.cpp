@@ -140,7 +140,7 @@ static void simple_copy(const Memory& dst, const Memory& src) {
         auto srcSizeInByte = src.GetSize();
         auto dstSizeInByte = dst.GetSize();
 
-        IE_ASSERT(srcSizeInByte == dstSizeInByte) << "MemoryNode objects are not compatible. Has different sizes.";
+        IE_ASSERT(srcSizeInByte == dstSizeInByte, "MemoryNode objects are not compatible. Has different sizes.");
 
         cpu_memcpy(dstPtr, srcPtr, srcSizeInByte);
     } else {

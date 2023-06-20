@@ -419,9 +419,9 @@ convert_plugin(const std::shared_ptr<InferenceEngine::IInferencePlugin>& from);
         } catch (const InferenceEngine::Exception&) {                                 \
             throw;                                                                    \
         } catch (const std::exception& ex) {                                          \
-            IE_THROW() << ex.what();                                                  \
+            IE_THROW_G(ex.what());                                                    \
         } catch (...) {                                                               \
-            IE_THROW(Unexpected);                                                     \
+            IE_THROW_E(Unexpected);                                                   \
         }                                                                             \
         ie_plugin->SetVersion(version);                                               \
         plugin = convert_plugin(ie_plugin);                                           \

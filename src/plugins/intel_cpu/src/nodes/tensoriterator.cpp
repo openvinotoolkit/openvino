@@ -98,7 +98,7 @@ public:
         iter_count = full_dims[axis] / abs_stride;
 
         full_dims[axis] = abs_stride;
-        IE_ASSERT(full_dims == part_dims) << "Shape mismatch for tensor iterator port";
+        IE_ASSERT(full_dims == part_dims, "Shape mismatch for tensor iterator port");
 
         // make chunk view
         auto chunk_desc = full_blob->GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc();

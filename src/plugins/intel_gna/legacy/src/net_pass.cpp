@@ -412,7 +412,7 @@ bool convertToRNNSeq(CNNLayerPtr cur, const N& net) {
         return true;
 
     auto ti = std::dynamic_pointer_cast<TensorIterator>(cur);
-    IE_ASSERT(ti) << "Cannot cast object with type TensorIterator to TensorIterator object";
+    IE_ASSERT(ti, "Cannot cast object with type TensorIterator to TensorIterator object");
 
     auto all_body_layers = TIBodySortTopologically(ti->body);
 
@@ -553,7 +553,7 @@ static bool unrollTI(CNNLayerPtr cur, CNNNetwork& net) {
         return true;
 
     auto ti = std::dynamic_pointer_cast<TensorIterator>(cur);
-    IE_ASSERT(ti) << "Cannot cast object with type TensorIterator to TensorIterator object";
+    IE_ASSERT(ti, "Cannot cast object with type TensorIterator to TensorIterator object");
 
     int num = getNumIteration(*ti);  // -1 means inconsistent TI
     if (num == -1)
@@ -942,7 +942,7 @@ static bool unrollRNNCellBody(CNNLayerPtr cur) {
         return true;
 
     auto cell = std::dynamic_pointer_cast<RNNCellBase>(cur);
-    IE_ASSERT(cell) << "Cannot cast object with type ***Cell to WeightableLayer object";
+    IE_ASSERT(cell, "Cannot cast object with type ***Cell to WeightableLayer object");
 
     auto name = cell->name;
 
@@ -988,7 +988,7 @@ static bool unrollLSTMCellBody(CNNLayerPtr cur) {
         return true;
 
     auto cell = std::dynamic_pointer_cast<RNNCellBase>(cur);
-    IE_ASSERT(cell) << "Cannot cast object with type ***Cell to WeightableLayer object";
+    IE_ASSERT(cell, "Cannot cast object with type ***Cell to WeightableLayer object");
 
     auto name = cell->name;
 
@@ -1074,7 +1074,7 @@ static bool unrollGRUCellBody(CNNLayerPtr cur, bool linear_before_reset = false)
         return true;
 
     auto cell = std::dynamic_pointer_cast<GRUCell>(cur);
-    IE_ASSERT(cell) << "Cannot cast object with type ***Cell to WeightableLayer object";
+    IE_ASSERT(cell, "Cannot cast object with type ***Cell to WeightableLayer object");
 
     auto name = cell->name;
 
@@ -1204,7 +1204,7 @@ static bool unrollSeq(CNNLayerPtr cur) {
         return true;
 
     auto seq = std::dynamic_pointer_cast<RNNSequenceLayer>(cur);
-    IE_ASSERT(seq) << "Cannot cast object with type ***Sequence to RNNSequenceLayer object";
+    IE_ASSERT(seq, "Cannot cast object with type ***Sequence to RNNSequenceLayer object");
 
     auto name = seq->name;
 

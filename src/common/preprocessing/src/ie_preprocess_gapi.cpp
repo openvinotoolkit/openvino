@@ -86,7 +86,8 @@ inline int get_cv_depth(const TensorDesc &ie_desc) {
     case Precision::I16:  return CV_16S;
     case Precision::FP16: return CV_16F;
 
-    default: IE_THROW() << "Unsupported data type";
+    default:
+            IE_THROW_G("Unsupported data type");
     }
 }
 
@@ -106,7 +107,7 @@ std::vector<std::vector<cv::gapi::own::Mat>> bind_to_blob(const Blob::Ptr& blob,
 
     uint8_t* blob_ptr = static_cast<uint8_t*>(blob->buffer());
     if (blob_ptr == nullptr) {
-        IE_THROW() << "Blob buffer is nullptr";
+            IE_THROW_G("Blob buffer is nullptr");
     }
     blob_ptr += blob->element_size()*ie_desc_blk.getOffsetPadding();
 
@@ -119,8 +120,9 @@ std::vector<std::vector<cv::gapi::own::Mat>> bind_to_blob(const Blob::Ptr& blob,
                 curr_data_ptr, stride);
         } else {  // NCHW
             if (desc.d.C <= 0) {
-                IE_THROW() << "Invalid number of channels in blob tensor descriptor, "
-                                      "expected >0, actual: " << desc.d.C;
+                IE_THROW_G("Invalid number of channels in blob tensor descriptor, "
+                           "expected >0, actual: ",
+                           desc.d.C);
             }
             const auto planeType = CV_MAKETYPE(cv_depth, 1);
             for (int ch = 0; ch < desc.d.C; ch++) {
@@ -182,9 +184,11 @@ std::vector<cv::GMat> merge(const std::vector<cv::GMat>& inputs,
     case 2: interleaved.emplace_back(gapi::Merge2::on(inputs[0], inputs[1])); break;
     case 3: interleaved.emplace_back(gapi::Merge3::on(inputs[0], inputs[1], inputs[2])); break;
     case 4: interleaved.emplace_back(gapi::Merge4::on(inputs[0], inputs[1], inputs[2], inputs[3])); break;
-    default: IE_THROW() << "output channels value " << channels
-                                << " is not supported for HWC [by G-API]."
-                                << " Expected range (inclusive): [1;4].";
+    default:
+        IE_THROW_G("output channels value ",
+                   channels,
+                   " is not supported for HWC [by G-API]."
+                   " Expected range (inclusive): [1;4].");
     }
 
     return interleaved;
@@ -197,40 +201,45 @@ void validateColorFormats(const G::Desc &in_desc,
                           Layout out_layout,
                           ColorFormat input_color_format,
                           ColorFormat output_color_format) {
-    const auto verify_desc = [] (const G::Desc& desc, ColorFormat fmt, const std::string& desc_prefix) {
-        const auto throw_invalid_number_of_channels = [&](){
-            IE_THROW() << desc_prefix << " tensor descriptor "
-                               << "has invalid number of channels "
-                               << desc.d.C << " for " << fmt
-                               << "color format";
+    const auto verify_desc = [](const G::Desc& desc, ColorFormat fmt, const std::string& desc_prefix) {
+        const auto throw_invalid_number_of_channels = [&]() {
+            IE_THROW_G(desc_prefix,
+                       " tensor descriptor ",
+                       "has invalid number of channels ",
+                       desc.d.C,
+                       " for ",
+                       fmt,
+                       "color format");
         };
         switch (fmt) {
-            case ColorFormat::RGB:
-            case ColorFormat::BGR: {
-                if (desc.d.C != 3) throw_invalid_number_of_channels();
-                break;
-            }
-            case ColorFormat::RGBX:
-            case ColorFormat::BGRX: {
-                if (desc.d.C != 4) throw_invalid_number_of_channels();
-                break;
-            }
+        case ColorFormat::RGB:
+        case ColorFormat::BGR: {
+            if (desc.d.C != 3)
+                throw_invalid_number_of_channels();
+            break;
+        }
+        case ColorFormat::RGBX:
+        case ColorFormat::BGRX: {
+            if (desc.d.C != 4)
+                throw_invalid_number_of_channels();
+            break;
+        }
 
-            default: break;
+        default:
+            break;
         }
     };
 
     const auto verify_layout = [] (Layout layout, const std::string& layout_prefix) {
         if (layout != NHWC && layout != NCHW) {
-            IE_THROW() << layout_prefix << " layout " << layout
-                               << " is not supported by pre-processing [by G-API]";
+            IE_THROW_G(layout_prefix, " layout ", layout, " is not supported by pre-processing [by G-API]");
         }
     };
 
     // verify inputs/outputs and throw on error
     const bool color_conv_required = !((output_color_format == input_color_format) || (input_color_format == ColorFormat::RAW));
     if (color_conv_required && (output_color_format == ColorFormat::RAW)) {
-        IE_THROW() << "Network's expected color format is unspecified";
+        IE_THROW_G("Network's expected color format is unspecified");
     }
 
     verify_layout(in_layout, "Input blob");
@@ -239,9 +248,12 @@ void validateColorFormats(const G::Desc &in_desc,
     if (!color_conv_required) {
         // verify input and output have the same number of channels
         if (in_desc.d.C != out_desc.d.C) {
-            IE_THROW() << "Input and network expected blobs have different number of "
-                               << "channels: expected " << out_desc.d.C << " channels but provided "
-                               << in_desc.d.C << " channels";
+            IE_THROW_G("Input and network expected blobs have different number of ",
+                       "channels: expected ",
+                       out_desc.d.C,
+                       " channels but provided ",
+                       in_desc.d.C,
+                       " channels");
         }
         return;
     }
@@ -249,9 +261,9 @@ void validateColorFormats(const G::Desc &in_desc,
     // planar 4-channel input is not supported, user can easily pass 3 channels instead of 4
     if (in_layout == NCHW
         && (input_color_format == ColorFormat::RGBX || input_color_format == ColorFormat::BGRX)) {
-        IE_THROW() << "Input blob with NCHW layout and BGRX/RGBX color format is "
-                           << "explicitly not supported, use NCHW + BGR/RGB color format "
-                           << "instead (3 image planes instead of 4)";
+        IE_THROW_G("Input blob with NCHW layout and BGRX/RGBX color format is "
+                   "explicitly not supported, use NCHW + BGR/RGB color format "
+                   "instead (3 image planes instead of 4)");
     }
 
     // verify input and output against their corresponding color format
@@ -270,11 +282,10 @@ void validateTensorDesc(const TensorDesc& desc) {
     if (!supports_layout(layout)
         || dims.size() != 4
         || desc.getBlockingDesc().getStrides().size() != 4) {
-        IE_THROW() << "Preprocess support NCHW/NHWC only";
+        IE_THROW_G("Preprocess support NCHW/NHWC only");
     }
     if (has_zeros(dims)) {
-        IE_THROW() << "Invalid input data dimensions: "
-                           << details::dumpVec(dims);
+        IE_THROW_G("Invalid input data dimensions: ", details::dumpVec(dims));
     }
 }
 
@@ -398,8 +409,7 @@ public:
     const CvtFunction& at(ColorFormat in_fmt, ColorFormat out_fmt) const {
         auto cvtFunc = m_conversions.find(std::make_pair(in_fmt, out_fmt));
         if (cvtFunc == m_conversions.cend()) {
-            IE_THROW() << "Color conversion " << in_fmt << " -> " << out_fmt
-                               << " is not supported";
+            IE_THROW_G("Color conversion ", in_fmt, " -> ", out_fmt, " is not supported");
         }
         return cvtFunc->second;
     }
@@ -430,8 +440,8 @@ convertColorPlanar(const std::vector<cv::GMat>& inputs,
     const auto& convert = conversions.at(input_color_format, output_color_format);
     auto planes = convert(inputs, in_layout, out_layout, algorithm);
     if (planes.empty()) {
-        IE_THROW() << "[G-API] internal error: failed to convert input data into planar "
-                           << "format";
+        IE_THROW_G("[G-API] internal error: failed to convert input data into planar "
+                   "format");
     }
 
     return planes;
@@ -501,9 +511,11 @@ cv::GComputation buildGraph(const G::Desc &in_desc,
 
     const int number_of_planes = static_cast<int>(planes.size());
     if (number_of_planes != out_desc.d.C) {
-        IE_THROW() << "[G-API] internal error: number of channels after color conversion "
-                           << "!= network's expected number of channels: "
-                           << number_of_planes << " != " << out_desc.d.C;
+        IE_THROW_G("[G-API] internal error: number of channels after color conversion "
+                   "!= network's expected number of channels: ",
+                   number_of_planes,
+                   " != ",
+                   out_desc.d.C);
     }
 
     const int tmp_prec = CV_32F;
@@ -520,7 +532,8 @@ cv::GComputation buildGraph(const G::Desc &in_desc,
             switch (ar) {
             case RESIZE_AREA:     return cv::INTER_AREA;
             case RESIZE_BILINEAR: return cv::INTER_LINEAR;
-            default: IE_THROW() << "Unsupported resize operation";
+            default:
+                IE_THROW_G("Unsupported resize operation");
             }
         } (algorithm);
 
@@ -639,12 +652,12 @@ void PreprocEngine::checkApplicabilityGAPI(const Blob::Ptr &src, const Blob::Ptr
     // Note: src blob is the ROI blob, dst blob is the network's input blob
 
     if (!src->is<MemoryBlob>()) {
-        IE_THROW()  << "Unsupported input blob type: expected MemoryBlob";
+        IE_THROW_G("Unsupported input blob type: expected MemoryBlob");
     }
 
     // dst is always a memory blob
     if (!dst->is<MemoryBlob>()) {
-        IE_THROW()  << "Unsupported network's input blob type: expected MemoryBlob";
+        IE_THROW_G("Unsupported network's input blob type: expected MemoryBlob");
     }
 
     const auto &src_dims = src->getTensorDesc().getDims();
@@ -652,33 +665,32 @@ void PreprocEngine::checkApplicabilityGAPI(const Blob::Ptr &src, const Blob::Ptr
 
     // dimensions sizes must be equal if both blobs are memory blobs
     if (src_dims.size() != dst_dims.size()) {
-        IE_THROW() << "Preprocessing is not applicable. Source and destination blobs "
-                              "have different number of dimensions.";
+        IE_THROW_G("Preprocessing is not applicable. Source and destination blobs "
+                   "have different number of dimensions.");
     }
     if (dst_dims.size() != 4) {
-        IE_THROW() << "Preprocessing is not applicable. Only 4D tensors are supported.";
+        IE_THROW_G("Preprocessing is not applicable. Only 4D tensors are supported.");
     }
 
     // dimensions must not have values that are equal to 0
     if (has_zeros(src_dims)) {
-        IE_THROW() << "Invalid input data dimensions: " << details::dumpVec(src_dims);
+        IE_THROW_G("Invalid input data dimensions: ", details::dumpVec(src_dims));
     }
 
     if (has_zeros(dst_dims)) {
-        IE_THROW() << "Invalid network's input dimensions: " << details::dumpVec(dst_dims);
+        IE_THROW_G("Invalid network's input dimensions: ", details::dumpVec(dst_dims));
     }
 }
 
 int PreprocEngine::getCorrectBatchSize(int batch, const Blob::Ptr& blob) {
     if (batch == 0) {
-        IE_THROW() << "Input pre-processing is called with invalid batch size " << batch;
+        IE_THROW_G("Input pre-processing is called with invalid batch size ", batch);
     }
 
     if (blob->is<CompoundBlob>()) {
         // batch size must always be 1 in compound blob case
         if (batch > 1) {
-            IE_THROW()  << "Provided input blob batch size " << batch
-                                << " is not supported in compound blob pre-processing";
+            IE_THROW_G("Provided input blob batch size ", batch, " is not supported in compound blob pre-processing");
         }
         batch = 1;
     } else if (batch < 0) {
@@ -797,14 +809,20 @@ void PreprocEngine::preprocessBlob(const BlobTypePtr &inBlob, MemoryBlob::Ptr &o
     // according to the IE's current design, input blob batch size _must_ match networks's expected
     // batch size, even if the actual processing batch size (set on infer request) is different.
     if (in_desc.d.N != out_desc.d.N) {
-        IE_THROW()  << "Input blob batch size is invalid: (input blob) "
-                            << in_desc.d.N << " != " << out_desc.d.N << " (expected by network)";
+        IE_THROW_G("Input blob batch size is invalid: (input blob) ",
+                   in_desc.d.N,
+                   " != ",
+                   out_desc.d.N,
+                   " (expected by network)");
     }
 
     // sanity check batch size
     if (batch_size > out_desc.d.N) {
-        IE_THROW()  << "Provided batch size is invalid: (provided)"
-                            << batch_size << " > " << out_desc.d.N << " (expected by network)";
+        IE_THROW_G("Provided batch size is invalid: (provided)",
+                   batch_size,
+                   " > ",
+                   out_desc.d.N,
+                   " (expected by network)");
     }
 
     CallDesc thisCall = CallDesc{ BlobDesc{ in_desc_ie.getPrecision(),
@@ -819,7 +837,7 @@ void PreprocEngine::preprocessBlob(const BlobTypePtr &inBlob, MemoryBlob::Ptr &o
 
     if (algorithm == NO_RESIZE && std::get<0>(thisCall) == std::get<1>(thisCall)) {
         //if requested output parameters match input blob no need to do anything
-        IE_THROW()  << "No job to do in the PreProcessing ?";
+        IE_THROW_G("No job to do in the PreProcessing ?");
     }
 
     const Update update = needUpdate(thisCall);
@@ -858,13 +876,12 @@ void PreprocEngine::preprocessWithGAPI(const Blob::Ptr &inBlob, Blob::Ptr &outBl
     // output is always a memory blob
     auto outMemoryBlob = as<MemoryBlob>(outBlob);
     if (!outMemoryBlob) {
-        IE_THROW()  << "Unsupported network's input blob type: expected MemoryBlob";
+        IE_THROW_G("Unsupported network's input blob type: expected MemoryBlob");
     }
 
     auto inMemoryBlob = as<MemoryBlob>(inBlob);
     if (!inMemoryBlob) {
-        IE_THROW()  << "Unsupported input blob for color format " << in_fmt
-            << ": expected MemoryBlob";
+        IE_THROW_G("Unsupported input blob for color format ", in_fmt, ": expected MemoryBlob");
     }
     return preprocessBlob(inMemoryBlob, outMemoryBlob, algorithm, in_fmt, out_fmt, omp_serial,
                           batch_size);

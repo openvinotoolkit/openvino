@@ -76,16 +76,16 @@ void IExecutableNetworkInternal::Export(const std::string& modelFileName) {
     if (modelFile.is_open()) {
         Export(modelFile);
     } else {
-        IE_THROW() << "The " << modelFileName << " file can not be opened for Export";
+        IE_THROW_G("The ", modelFileName, " file can not be opened for Export");
     }
 }
 
 void IExecutableNetworkInternal::Export(std::ostream& networkModel) {
-    IE_THROW(NotImplemented);
+    IE_THROW_E(NotImplemented);
 }
 
 std::shared_ptr<ngraph::Function> IExecutableNetworkInternal::GetExecGraphInfo() {
-    IE_THROW(NotImplemented);
+    IE_THROW_E(NotImplemented);
 }
 
 void IExecutableNetworkInternal::SetPointerToPlugin(const std::shared_ptr<IInferencePlugin>& plugin) {
@@ -97,25 +97,25 @@ std::shared_ptr<void> IExecutableNetworkInternal::GetPointerToSo() {
 }
 
 void IExecutableNetworkInternal::SetConfig(const std::map<std::string, Parameter>&) {
-    IE_THROW(NotImplemented);
+    IE_THROW_E(NotImplemented);
 }
 
 Parameter IExecutableNetworkInternal::GetConfig(const std::string&) const {
-    IE_THROW(NotImplemented);
+    IE_THROW_E(NotImplemented);
 }
 
 Parameter IExecutableNetworkInternal::GetMetric(const std::string&) const {
-    IE_THROW(NotImplemented);
+    IE_THROW_E(NotImplemented);
 }
 
 std::shared_ptr<RemoteContext> IExecutableNetworkInternal::GetContext() const {
-    IE_THROW(NotImplemented);
+    IE_THROW_E(NotImplemented);
 }
 
 std::shared_ptr<IInferRequestInternal> IExecutableNetworkInternal::CreateInferRequestImpl(
     InputsDataMap networkInputs,
     OutputsDataMap networkOutputs) {
-    IE_THROW(NotImplemented);
+    IE_THROW_E(NotImplemented);
 }
 
 void IExecutableNetworkInternal::loadedFromCache() {
@@ -129,7 +129,7 @@ bool IExecutableNetworkInternal::isLoadedFromCache() const {
 std::shared_ptr<IInferRequestInternal> IExecutableNetworkInternal::CreateInferRequestImpl(
     const std::vector<std::shared_ptr<const ov::Node>>& inputs,
     const std::vector<std::shared_ptr<const ov::Node>>& outputs) {
-    IE_THROW(NotImplemented);
+    IE_THROW_E(NotImplemented);
 }
 
 }  // namespace InferenceEngine

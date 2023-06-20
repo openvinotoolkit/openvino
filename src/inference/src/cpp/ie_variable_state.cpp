@@ -11,7 +11,7 @@
 IE_SUPPRESS_DEPRECATED_START
 #define VARIABLE_CALL_STATEMENT(...)                                    \
     if (_impl == nullptr)                                               \
-        IE_THROW(NotAllocated) << "VariableState was not initialized."; \
+        IE_THROW_E(NotAllocated, "VariableState was not initialized."); \
     try {                                                               \
         __VA_ARGS__;                                                    \
     } catch (...) {                                                     \
@@ -38,7 +38,7 @@ VariableState::VariableState(const IVariableStateInternal::Ptr& impl, const std:
     : _impl(impl),
       _so(so) {
     if (_impl == nullptr)
-        IE_THROW() << "VariableState was not initialized.";
+        IE_THROW_G("VariableState was not initialized.");
 }
 
 void VariableState::Reset() {

@@ -165,10 +165,11 @@ void assertIfIRv7LikeModel(std::istream& modelStream) {
     if (!isIRv7 || reader_irv7)
         return;
 
-    IE_THROW() << "The support of IR v" << irVersion
-               << " has been removed from the product. "
-                  "Please, convert the original model using the Model Optimizer which comes with this "
-                  "version of the OpenVINO to generate supported IR version.";
+    IE_THROW_G("The support of IR v",
+               irVersion,
+               " has been removed from the product. "
+               "Please, convert the original model using the Model Optimizer which comes with this "
+               "version of the OpenVINO to generate supported IR version.");
 }
 
 CNNNetwork load_ir_v7_network(const std::string& modelPath,
@@ -188,7 +189,7 @@ CNNNetwork load_ir_v7_network(const std::string& modelPath,
     // Try to open model file
     std::ifstream modelStream(model_path.c_str(), std::ios::binary);
     if (!modelStream.is_open())
-        IE_THROW() << "Model file " << modelPath << " cannot be opened!";
+        IE_THROW_G("Model file ", modelPath, " cannot be opened!");
 
     assertIfIRv7LikeModel(modelStream);
 
@@ -220,7 +221,7 @@ CNNNetwork load_ir_v7_network(const std::string& modelPath,
             std::ifstream binStream;
             binStream.open(weights_path.c_str(), std::ios::binary);
             if (!binStream.is_open())
-                IE_THROW() << "Weights file " << bPath << " cannot be opened!";
+                IE_THROW_G("Weights file ", bPath, " cannot be opened!");
 
             binStream.seekg(0, std::ios::end);
             size_t fileSize = binStream.tellg();
@@ -481,10 +482,13 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath,
     std::string FEs;
     for (const auto& fe_name : manager.get_available_front_ends())
         FEs += fe_name + " ";
-    IE_THROW(NetworkNotRead) << "Unable to read the model: " << modelPath
-                             << " Please check that model format: " << fileExt
-                             << " is supported and the model is correct."
-                             << " Available frontends: " << FEs;
+    IE_THROW_E(NetworkNotRead,
+               "Unable to read the model: ",
+               modelPath,
+               " Please check that model format: ",
+               fileExt,
+               " is supported and the model is correct. Available frontends: ",
+               FEs);
 }
 
 CNNNetwork details::ReadNetwork(const std::string& model,
@@ -537,8 +541,8 @@ CNNNetwork details::ReadNetwork(const std::string& model,
         return convert_to_cnnnetwork(ngFunc, exts, newAPI, frontendMode);
     }
 
-    IE_THROW(NetworkNotRead)
-        << "Unable to read the model. Please check if the model format is supported and model is correct.";
+    IE_THROW_E(NetworkNotRead,
+               "Unable to read the model. Please check if the model format is supported and model is correct.");
 }
 
 }  // namespace InferenceEngine

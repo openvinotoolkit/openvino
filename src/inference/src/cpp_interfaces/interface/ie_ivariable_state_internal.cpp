@@ -13,7 +13,7 @@ std::string IVariableStateInternal::GetName() const {
 }
 
 void IVariableStateInternal::Reset() {
-    IE_THROW(NotImplemented);
+    IE_THROW_E(NotImplemented);
 }
 
 void IVariableStateInternal::SetState(const Blob::Ptr& newState) {

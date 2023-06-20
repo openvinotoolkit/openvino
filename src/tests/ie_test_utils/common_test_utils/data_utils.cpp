@@ -18,7 +18,7 @@ bool isDenseBlob(const InferenceEngine::Blob::Ptr& blob) {
     auto dims = blk_desc.getBlockDims();
     auto strs = blk_desc.getStrides();
 
-    IE_ASSERT(dims.size() == strs.size()) << " isDenseBlob: inconsistent tensor descriptor";
+    IE_ASSERT(dims.size() == strs.size(), " isDenseBlob: inconsistent tensor descriptor");
 
     auto size = dims.size();
     if (size == 0) return true;

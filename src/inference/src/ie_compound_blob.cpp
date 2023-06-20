@@ -26,15 +26,15 @@ TensorDesc getBlobTensorDesc(const Blob::Ptr& blob) {
 TensorDesc verifyBatchedBlobInput(const std::vector<Blob::Ptr>& blobs) {
     // verify invariants
     if (blobs.empty()) {
-        IE_THROW() << "BatchedBlob cannot be created from empty vector of Blob, Please, make sure vector contains at "
-                      "least one Blob";
+        IE_THROW_G("BatchedBlob cannot be created from empty vector of Blob, Please, make sure vector contains at "
+                   "least one Blob");
     }
 
     // Cannot create a compound blob from nullptr Blob objects
     if (std::any_of(blobs.begin(), blobs.end(), [](const Blob::Ptr& blob) {
             return blob == nullptr;
         })) {
-        IE_THROW() << "Cannot create a compound blob from nullptr Blob objects";
+        IE_THROW_G("Cannot create a compound blob from nullptr Blob objects");
     }
 
     const auto subBlobDesc = getBlobTensorDesc(blobs[0]);
@@ -42,7 +42,7 @@ TensorDesc verifyBatchedBlobInput(const std::vector<Blob::Ptr>& blobs) {
     if (std::any_of(blobs.begin(), blobs.end(), [&subBlobDesc](const Blob::Ptr& blob) {
             return getBlobTensorDesc(blob) != subBlobDesc;
         })) {
-        IE_THROW() << "All blobs tensors should be equal";
+        IE_THROW_G("All blobs tensors should be equal");
     }
 
     auto subBlobLayout = subBlobDesc.getLayout();
@@ -58,7 +58,7 @@ TensorDesc verifyBatchedBlobInput(const std::vector<Blob::Ptr>& blobs) {
     case CN:
         blobLayout = subBlobLayout;
         if (blobDims[0] != 1) {
-            IE_THROW() << "All blobs should be batch 1";
+            IE_THROW_G("All blobs should be batch 1");
         }
         blobDims[0] = blobs.size();
         break;
@@ -75,7 +75,7 @@ TensorDesc verifyBatchedBlobInput(const std::vector<Blob::Ptr>& blobs) {
         blobDims.insert(blobDims.begin(), blobs.size());
         break;
     default:
-        IE_THROW() << "Unsupported sub-blobs layout - to be one of: [NCHW, NHWC, NCDHW, NDHWC, NC, CN, C, CHW]";
+        IE_THROW_G("Unsupported sub-blobs layout - to be one of: [NCHW, NHWC, NCDHW, NDHWC, NC, CN, C, CHW]");
     }
 
     return TensorDesc{subBlobDesc.getPrecision(), blobDims, blobLayout};
@@ -90,7 +90,7 @@ CompoundBlob::CompoundBlob(const std::vector<Blob::Ptr>& blobs) : CompoundBlob(T
     if (std::any_of(blobs.begin(), blobs.end(), [](const Blob::Ptr& blob) {
             return blob == nullptr;
         })) {
-        IE_THROW() << "Cannot create a compound blob from nullptr Blob objects";
+        IE_THROW_G("Cannot create a compound blob from nullptr Blob objects");
     }
 
     // Check that none of the blobs provided is compound. If at least one of them is compound, throw
@@ -98,7 +98,7 @@ CompoundBlob::CompoundBlob(const std::vector<Blob::Ptr>& blobs) : CompoundBlob(T
     if (std::any_of(blobs.begin(), blobs.end(), [](const Blob::Ptr& blob) {
             return blob->is<CompoundBlob>();
         })) {
-        IE_THROW() << "Cannot create a compound blob from other compound blobs";
+        IE_THROW_G("Cannot create a compound blob from other compound blobs");
     }
 
     this->_blobs = blobs;
@@ -109,7 +109,7 @@ CompoundBlob::CompoundBlob(std::vector<Blob::Ptr>&& blobs) : CompoundBlob(Tensor
     if (std::any_of(blobs.begin(), blobs.end(), [](const Blob::Ptr& blob) {
             return blob == nullptr;
         })) {
-        IE_THROW() << "Cannot create a compound blob from nullptr Blob objects";
+        IE_THROW_G("Cannot create a compound blob from nullptr Blob objects");
     }
 
     // Check that none of the blobs provided is compound. If at least one of them is compound, throw
@@ -117,7 +117,7 @@ CompoundBlob::CompoundBlob(std::vector<Blob::Ptr>&& blobs) : CompoundBlob(Tensor
     if (std::any_of(blobs.begin(), blobs.end(), [](const Blob::Ptr& blob) {
             return blob->is<CompoundBlob>();
         })) {
-        IE_THROW() << "Cannot create a compound blob from other compound blobs";
+        IE_THROW_G("Cannot create a compound blob from other compound blobs");
     }
 
     this->_blobs = std::move(blobs);

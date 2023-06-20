@@ -47,15 +47,15 @@ protected:
                           const std::string& obj_T2 = "__") const {
         auto itrType = params.find(type_Key);
         if (itrType == params.end())
-            IE_THROW() << "Parameter of type " << type_Key << " not found";
+            IE_THROW_E(GeneralError, "Parameter of type ", type_Key, " not found");
 
         std::string param_val = itrType->second.as<std::string>();
         if (obj_T1 != param_val && obj_T2 != param_val)
-            IE_THROW() << "Unexpected object type " << param_val;
+            IE_THROW_E(GeneralError, "Unexpected object type ", param_val);
 
         auto itrHandle = params.find(handle_Key);
         if (itrHandle == params.end()) {
-            IE_THROW() << "No parameter " << handle_Key << " found";
+            IE_THROW_E(GeneralError, "No parameter ", handle_Key, " found");
         }
 
         return static_cast<Result>(itrHandle->second.as<Tmp>());
@@ -69,7 +69,7 @@ protected:
     Result _ObjFromParamSimple(const ParamMap& params, const std::string& handle_Key) const {
         auto itrHandle = params.find(handle_Key);
         if (itrHandle == params.end()) {
-            IE_THROW() << "No parameter " << handle_Key << " found";
+            IE_THROW_E(GeneralError, "No parameter ", handle_Key, " found");
         }
 
         return itrHandle->second.as<Result>();
@@ -82,7 +82,7 @@ protected:
     std::string _StrFromParams(const ParamMap& params, std::string Key) const {
         auto itrType = params.find(Key);
         if (itrType == params.end())
-            IE_THROW() << "Parameter key " << Key << " not found";
+            IE_THROW_E(GeneralError, "Parameter key ", Key, " not found");
         return itrType->second.as<std::string>();
     }
 };

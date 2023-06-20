@@ -56,7 +56,7 @@ public:
      */
     Precision getPrecision() const {
         if (!_inputData) {
-            IE_THROW() << "Data is empty!";
+            IE_THROW_G("Data is empty!");
         }
         return _inputData->getPrecision();
     }
@@ -69,7 +69,7 @@ public:
      */
     void setPrecision(Precision p) {
         if (!_inputData) {
-            IE_THROW() << "Data is empty!";
+            IE_THROW_G("Data is empty!");
         }
         _inputData->setPrecision(p);
     }
@@ -88,7 +88,7 @@ public:
      */
     Layout getLayout() {
         if (!_inputData) {
-            IE_THROW() << "Data is empty!";
+            IE_THROW_G("Data is empty!");
         }
         return _inputData->getLayout();
     }
@@ -101,7 +101,7 @@ public:
      */
     void setLayout(Layout l) {
         if (!_inputData) {
-            IE_THROW() << "Data is empty!";
+            IE_THROW_G("Data is empty!");
         }
         _inputData->setLayout(l);
     }
@@ -113,7 +113,7 @@ public:
      */
     const std::string& name() const {
         if (!_inputData) {
-            IE_THROW() << "Data is empty!";
+            IE_THROW_G("Data is empty!");
         }
         return _inputData->getName();
     }
@@ -125,7 +125,7 @@ public:
      */
     void setName(const std::string& newName) {
         if (!_inputData) {
-            IE_THROW() << "Data is empty!";
+            IE_THROW_G("Data is empty!");
         }
         _inputData->setName(newName);
     }
@@ -158,7 +158,7 @@ public:
      */
     const TensorDesc& getTensorDesc() const {
         if (!_inputData) {
-            IE_THROW() << "Data is empty!";
+            IE_THROW_G("Data is empty!");
         }
         return _inputData->getTensorDesc();
     }

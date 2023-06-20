@@ -4,6 +4,7 @@
 
 #include <gtest/gtest.h>
 
+#include "ie_common.h"
 #include "utils.hpp"
 
 using namespace ov;
@@ -81,6 +82,12 @@ TEST(StaticShapeInferenceTest, TileStaticShapeRepeatsAsConst) {
 }
 
 TEST(StaticShapeInferenceTest, TileNewApiInputsStaticRank) {
+    int x = 2, y = 3, z = 10;
+    // IE_THROW() << "Test exception " << x << " and z " << z << " and y " << y;
+    // IE_THROW_G("Test exception ", x, " and z ", z, " and y ", y);
+    // IE_ASSERT(x == 3, " Test exception ", x, " and z ", z, " and y ", y);
+    OPENVINO_ASSERT(x == 3, " Test exception ", x, " and z ", z, " and y ", y);
+
     auto param0 = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic(2));
     auto param1 = std::make_shared<ov::op::v0::Parameter>(element::i32, PartialShape::dynamic(1));
     auto tile = std::make_shared<op::v0::Tile>(param0, param1);

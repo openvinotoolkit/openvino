@@ -39,7 +39,7 @@ Blob::Ptr Blob::CreateFromData(const DataPtr& data) {
     case InferenceEngine::Precision::BF16:
         return std::make_shared<InferenceEngine::TBlob<short>>(desc);
     default:
-        IE_THROW() << "precision is no set";
+        IE_THROW_G("precision is no set");
     }
 }
 
@@ -155,7 +155,7 @@ void Data::setPrecision(const Precision& precision) {
 
 const SizeVector& Data::getDims() const {
     if (_impl->pShape.is_dynamic())
-        IE_THROW() << "Cannot return dims for Data with dynamic shapes!";
+        IE_THROW_G("Cannot return dims for Data with dynamic shapes!");
     if (tensorDesc.getDims().empty() && tensorDesc.getLayout() != SCALAR) {
         tensorDesc.setDims(_impl->pShape.to_shape());
     }

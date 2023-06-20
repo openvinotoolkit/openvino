@@ -58,25 +58,20 @@ namespace InferenceEngine {
         return InferenceEngine::DescriptionBuffer(UNEXPECTED);                       \
     }
 
-#define CALL_STATUS_FNC(function, ...)                     \
-    if (!actual)                                           \
-        IE_THROW() << "Wrapper used was not initialized."; \
-    ResponseDesc resp;                                     \
-    auto res = actual->function(__VA_ARGS__, &resp);       \
-    if (res != OK)                                         \
-    IE_EXCEPTION_SWITCH(                                   \
-        res,                                               \
-        ExceptionType,                                     \
-        InferenceEngine::details::ThrowNow<ExceptionType>{} <<= std::stringstream{} << IE_LOCATION << resp.msg)
+#define CALL_STATUS_FNC(function, ...)                   \
+    if (!actual)                                         \
+        IE_THROW_G("Wrapper used was not initialized."); \
+    ResponseDesc resp;                                   \
+    auto res = actual->function(__VA_ARGS__, &resp);     \
+    if (res != OK)                                       \
+    IE_EXCEPTION_SWITCH(res, ExceptionType, resp.msg)
 
-#define CALL_STATUS_FNC_NO_ARGS(function)                                                 \
-    if (!actual)                                                                          \
-        IE_THROW() << "Wrapper used in the CALL_STATUS_FNC_NO_ARGS was not initialized."; \
-    ResponseDesc resp;                                                                    \
-    auto res = actual->function(&resp);                                                   \
-    if (res != OK)                                                                        \
-    IE_EXCEPTION_SWITCH(res,                                                              \
-                        ExceptionType,                                                    \
-                        InferenceEngine::details::ThrowNow<ExceptionType>{} <<= std::stringstream{} << IE_LOCATION)
+#define CALL_STATUS_FNC_NO_ARGS(function)                                               \
+    if (!actual)                                                                        \
+        IE_THROW_G("Wrapper used in the CALL_STATUS_FNC_NO_ARGS was not initialized."); \
+    ResponseDesc resp;                                                                  \
+    auto res = actual->function(&resp);                                                 \
+    if (res != OK)                                                                      \
+    IE_EXCEPTION_SWITCH(res, ExceptionType, "")
 
 }  // namespace InferenceEngine

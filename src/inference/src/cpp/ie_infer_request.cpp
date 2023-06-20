@@ -23,7 +23,7 @@ namespace InferenceEngine {
 
 #define INFER_REQ_CALL_STATEMENT(...)                                     \
     if (_impl == nullptr)                                                 \
-        IE_THROW(NotAllocated) << "Inference Request is not initialized"; \
+        IE_THROW_E(NotAllocated, "Inference Request is not initialized"); \
     try {                                                                 \
         __VA_ARGS__                                                       \
     } catch (...) {                                                       \
@@ -51,10 +51,10 @@ Blob::Ptr InferRequest::GetBlob(const std::string& name) {
     INFER_REQ_CALL_STATEMENT(blobPtr = _impl->GetBlob(name);)
     std::string error = "Internal error: blob with name `" + name + "` is not allocated!";
     if (blobPtr == nullptr)
-        IE_THROW() << error;
+        IE_THROW_G(error);
     const bool remoteBlobPassed = blobPtr->is<RemoteBlob>();
     if (!remoteBlobPassed && blobPtr->buffer() == nullptr)
-        IE_THROW() << error;
+        IE_THROW_G(error);
     return blobPtr;
 }
 

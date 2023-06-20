@@ -135,7 +135,7 @@ protected:
                 }
             }
 
-            IE_ASSERT(generator != nullptr) << "Test output generator is not specified";
+            IE_ASSERT(generator != nullptr, "Test output generator is not specified");
             auto blob = generator(data->getTensorDesc());
             auto blob_size = blob->byteSize();
             auto blob_ptr = blob->buffer().as<uint8_t*>();

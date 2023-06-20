@@ -166,26 +166,26 @@ RemoteContext::Ptr Core::CreateContext(const std::string& deviceName, const Para
 
 RemoteContext::Ptr Core::GetDefaultContext(const std::string& deviceName) {
     if (deviceName.find("HETERO") == 0) {
-        IE_THROW() << "HETERO device does not support remote context";
+        IE_THROW_G("HETERO device does not support remote context");
     }
     if (deviceName.find("MULTI") == 0) {
-        IE_THROW() << "MULTI device does not support remote context";
+        IE_THROW_G("MULTI device does not support remote context");
     }
     if (deviceName.find("AUTO") == 0) {
-        IE_THROW() << "AUTO device does not support remote context";
+        IE_THROW_G("AUTO device does not support remote context");
     }
     return _impl->GetDefaultContext(deviceName);
 }
 
 void Core::AddExtension(IExtensionPtr extension, const std::string& deviceName_) {
     if (deviceName_.find("HETERO") == 0) {
-        IE_THROW() << "HETERO device does not support extensions. Please, set extensions directly to fallback devices";
+        IE_THROW_G("HETERO device does not support extensions. Please, set extensions directly to fallback devices");
     }
     if (deviceName_.find("MULTI") == 0) {
-        IE_THROW() << "MULTI device does not support extensions. Please, set extensions directly to fallback devices";
+        IE_THROW_G("MULTI device does not support extensions. Please, set extensions directly to fallback devices");
     }
     if (deviceName_.find("AUTO") == 0) {
-        IE_THROW() << "AUTO device does not support extensions. Please, set extensions directly to fallback devices";
+        IE_THROW_G("AUTO device does not support extensions. Please, set extensions directly to fallback devices");
     }
 
     _impl->AddExtension(extension);
@@ -202,7 +202,7 @@ ExecutableNetwork Core::ImportNetwork(const std::string& modelFileName,
     auto parsed = ov::parseDeviceNameIntoConfig(deviceName, ov::any_copy(config));
     std::ifstream modelStream(modelFileName, std::ios::binary);
     if (!modelStream.is_open())
-        IE_THROW(NetworkNotRead) << "Model file " << modelFileName << " cannot be opened!";
+        IE_THROW_E(NetworkNotRead, "Model file ", modelFileName, " cannot be opened!");
     auto exec = _impl->get_plugin(parsed._deviceName).import_model(modelStream, parsed._config);
     return {ov::legacy_convert::convert_compiled_model(exec._ptr), exec._so};
 }
@@ -228,8 +228,8 @@ ExecutableNetwork Core::ImportNetwork(std::istream& networkModel) {
     if (exportMagic == magic) {
         std::getline(networkModel, deviceName);
     } else {
-        IE_THROW() << "Passed compiled stream does not contain device name. "
-                      "Please, provide device name manually";
+        IE_THROW_G("Passed compiled stream does not contain device name. "
+                      "Please, provide device name manually");
     }
     networkModel.seekg(currentPos, networkModel.beg);
 
@@ -243,7 +243,7 @@ ExecutableNetwork Core::ImportNetwork(std::istream& networkModel,
     OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Core::ImportNetwork");
 
     if (context == nullptr) {
-        IE_THROW() << "Remote context is null";
+        IE_THROW_G("Remote context is null");
     }
 
     std::string deviceName_ = context->getDeviceName();
@@ -273,20 +273,20 @@ QueryNetworkResult Core::QueryNetwork(const CNNNetwork& network,
 void Core::SetConfig(const std::map<std::string, std::string>& config, const std::string& deviceName) {
     // HETERO case
     if (deviceName.find("HETERO:") == 0) {
-        IE_THROW() << "SetConfig is supported only for HETERO itself (without devices). "
-                      "You can configure the devices with SetConfig before creating the HETERO on top.";
+        IE_THROW_G("SetConfig is supported only for HETERO itself (without devices). "
+                      "You can configure the devices with SetConfig before creating the HETERO on top.");
     }
 
     // MULTI case
     if (deviceName.find("MULTI:") == 0) {
-        IE_THROW() << "SetConfig is supported only for MULTI itself (without devices). "
-                      "You can configure the devices with SetConfig before creating the MULTI on top.";
+        IE_THROW_G("SetConfig is supported only for MULTI itself (without devices). "
+                      "You can configure the devices with SetConfig before creating the MULTI on top.");
     }
 
     // AUTO case
     if (deviceName.find("AUTO:") == 0) {
-        IE_THROW() << "SetConfig is supported only for AUTO itself (without devices). "
-                      "You can configure the devices with SetConfig before creating the AUTO on top.";
+        IE_THROW_G( "SetConfig is supported only for AUTO itself (without devices). "
+                      "You can configure the devices with SetConfig before creating the AUTO on top.");
     }
 
     ov::AnyMap conf = ov::any_copy(config);
@@ -301,22 +301,22 @@ Parameter Core::GetConfig(const std::string& deviceName, const std::string& name
     // HETERO case
     {
         if (deviceName.find("HETERO:") == 0) {
-            IE_THROW() << "You can only GetConfig of the HETERO itself (without devices). "
-                          "GetConfig is also possible for the individual devices before creating the HETERO on top.";
+            IE_THROW_G( "You can only GetConfig of the HETERO itself (without devices). "
+                          "GetConfig is also possible for the individual devices before creating the HETERO on top.");
         }
     }
     // MULTI case
     {
         if (deviceName.find("MULTI:") == 0) {
-            IE_THROW() << "You can only GetConfig of the MULTI itself (without devices). "
-                          "GetConfig is also possible for the individual devices before creating the MULTI on top.";
+            IE_THROW_G( "You can only GetConfig of the MULTI itself (without devices). "
+                          "GetConfig is also possible for the individual devices before creating the MULTI on top.");
         }
     }
     // AUTO case
     {
         if (deviceName.find("AUTO:") == 0) {
-            IE_THROW() << "You can only GetConfig of the AUTO itself (without devices). "
-                          "GetConfig is also possible for the individual devices before creating the AUTO on top.";
+            IE_THROW_G("You can only GetConfig of the AUTO itself (without devices). "
+                          "GetConfig is also possible for the individual devices before creating the AUTO on top.");
         }
     }
 

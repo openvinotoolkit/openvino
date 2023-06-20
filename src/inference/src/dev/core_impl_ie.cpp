@@ -76,7 +76,7 @@ ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::LoadNetwork
         return {ov::legacy_convert::convert_compiled_model(compiled_model._ptr), compiled_model._so};
     }
     if (context == nullptr) {
-        IE_THROW() << "Remote context is null";
+        IE_THROW_G("Remote context is null");
     }
     // have to deduce the device name/config from the context first
     auto parsed = parseDeviceNameIntoConfig(context->getDeviceName(), any_copy(config));
@@ -160,35 +160,32 @@ ov::Any ov::CoreImpl::GetMetric(const std::string& deviceName,
     // HETERO case
     {
         if (deviceName.find("HETERO:") == 0) {
-            IE_THROW()
-                << "You can get specific metrics with the GetMetric only for the HETERO itself (without devices). "
-                   "To get individual devices's metrics call GetMetric for each device separately";
+            IE_THROW_G("You can get specific metrics with the GetMetric only for the HETERO itself (without devices). "
+                       "To get individual devices's metrics call GetMetric for each device separately");
         }
     }
 
     // MULTI case
     {
         if (deviceName.find("MULTI:") == 0) {
-            IE_THROW()
-                << "You can get specific metrics with the GetMetric only for the MULTI itself (without devices). "
-                   "To get individual devices's metrics call GetMetric for each device separately";
+            IE_THROW_G("You can get specific metrics with the GetMetric only for the MULTI itself (without devices). "
+                       "To get individual devices's metrics call GetMetric for each device separately");
         }
     }
 
     // AUTO case
     {
         if (deviceName.find("AUTO:") == 0) {
-            IE_THROW() << "You can get specific metrics with the GetMetric only for the AUTO itself (without devices). "
-                          "To get individual devices's metrics call GetMetric for each device separately";
+            IE_THROW_G("You can get specific metrics with the GetMetric only for the AUTO itself (without devices). "
+                       "To get individual devices's metrics call GetMetric for each device separately");
         }
     }
 
     // BATCH case
     {
         if (deviceName.find("BATCH:") == 0) {
-            IE_THROW()
-                << "You can get specific metrics with the GetMetric only for the BATCH itself (without devices). "
-                   "To get individual devices's metrics call GetMetric for each device separately";
+            IE_THROW_G("You can get specific metrics with the GetMetric only for the BATCH itself (without devices). "
+                       "To get individual devices's metrics call GetMetric for each device separately");
         }
     }
 

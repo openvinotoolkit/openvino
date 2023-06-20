@@ -132,8 +132,7 @@ public:
             auto& outs = layer->outData;
             auto o_idx = std::find(outs.begin(), outs.end(), data) - outs.begin();
             auto sts = net->addOutput(layer->name, o_idx, nullptr);
-            IE_ASSERT(sts == OK) << "TI body. Cannot add output port for layer " << layer->name << " port index "
-                                 << o_idx;
+            IE_ASSERT(sts == OK, "TI body. Cannot add output port for layer ", layer->name, " port index ", o_idx);
         }
 
         // Verify that all input/output are in use
@@ -142,7 +141,7 @@ public:
         net->getInputsInfo(in_info_map);
         net->getOutputsInfo(out_info_map);
 
-        IE_ASSERT(in_info_map.size() == inputs.size()) << "TI body. There are unlinked inputs";
+        IE_ASSERT(in_info_map.size() == inputs.size(), "TI body. There are unlinked inputs");
         for (auto& it : net->allLayers()) {
             auto layer = it.second;
             if (layer->type == "Input" || !layer->insData.empty())

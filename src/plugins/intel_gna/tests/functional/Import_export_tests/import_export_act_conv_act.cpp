@@ -106,8 +106,11 @@ public:
             const auto& name = output.first;
             actualOutputs.push_back(importInfer.GetBlob(name));
         }
-        IE_ASSERT(actualOutputs.size() == expectedOutputs.size())
-            << "nGraph interpreter has " << expectedOutputs.size() << " outputs, while IE " << actualOutputs.size();
+        IE_ASSERT(actualOutputs.size() == expectedOutputs.size(),
+                  "nGraph interpreter has ",
+                  expectedOutputs.size(),
+                  " outputs, while IE ",
+                  actualOutputs.size());
         Compare(expectedOutputs, actualOutputs);
     }
 

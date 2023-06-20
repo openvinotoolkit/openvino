@@ -134,7 +134,7 @@ INFERENCE_ENGINE_1_0_DEPRECATED static inline VASurfaceBlob::Ptr make_shared_blo
                                                                                   uint32_t plane = 0) {
     auto casted = std::dynamic_pointer_cast<VAContext>(ctx);
     if (nullptr == casted) {
-        IE_THROW() << "Invalid remote context passed";
+        IE_THROW_G("Invalid remote context passed");
     }
     ParamMap params = {{GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(VA_SURFACE)},
                        {GPU_PARAM_KEY(DEV_OBJECT_HANDLE), surface},

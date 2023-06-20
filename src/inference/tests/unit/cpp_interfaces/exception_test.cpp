@@ -15,17 +15,11 @@ template <StatusCode statusCode>
 class WrapperClass {
 public:
     static InferenceEngine::StatusCode toStatusWrapper(InferenceEngine::ResponseDesc* resp) {
-        TO_STATUS(IE_EXCEPTION_SWITCH(
-            statusCode,
-            ExceptionType,
-            InferenceEngine::details::ThrowNow<ExceptionType>{} <<= std::stringstream{} << IE_LOCATION))
+        TO_STATUS(IE_EXCEPTION_SWITCH(statusCode, ExceptionType, ""))
     }
 
     static InferenceEngine::StatusCode toStatusWrapperMsg(std::string& msg, InferenceEngine::ResponseDesc* resp) {
-        TO_STATUS(IE_EXCEPTION_SWITCH(
-            statusCode,
-            ExceptionType,
-            InferenceEngine::details::ThrowNow<ExceptionType>{} <<= std::stringstream{} << IE_LOCATION << msg))
+        TO_STATUS(IE_EXCEPTION_SWITCH(statusCode, ExceptionType, msg))
     }
 };
 

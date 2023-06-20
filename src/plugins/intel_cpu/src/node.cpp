@@ -335,8 +335,11 @@ void Node::selectPreferPrimitiveDescriptor(const std::vector<impl_desc_type>& pr
         }
     }
 
-    IE_ASSERT(!getSupportedPrimitiveDescriptors().empty()) <<
-        "Supported primitive descriptors list is empty for node: " << getName() << " type: " << NameFromType(getType());
+    IE_ASSERT(!getSupportedPrimitiveDescriptors().empty(),
+              "Supported primitive descriptors list is empty for node: ",
+              getName(),
+              " type: ",
+              NameFromType(getType()));
 
     // fallback. If there are no primitives from priority list just select a first
     selectPrimitiveDescriptorByIndex(0);
@@ -556,7 +559,11 @@ std::vector<memory::format_tag> Node::getAvailableFormatsForDims(const Shape &di
 }
 
 void Node::updateShapes() {
-    IE_ASSERT(isDynamicNode()) << "Node::updateShapes() is called to a static shape node of type: " << getTypeStr() << " with name: " << getName();
+    IE_ASSERT(isDynamicNode(),
+              "Node::updateShapes() is called to a static shape node of type: ",
+              getTypeStr(),
+              " with name: ",
+              getName());
     if (needShapeInfer()) {
         auto result = shapeInfer();
         if (ShapeInferStatus::success == result.status) {
@@ -566,11 +573,19 @@ void Node::updateShapes() {
 }
 
 void Node::updateDynamicParams() {
-    IE_ASSERT(isDynamicNode()) << "Node::updateDynamicParams() is called to a static shape node of type: " << getTypeStr() << " with name: " << getName();
+    IE_ASSERT(isDynamicNode(),
+              "Node::updateDynamicParams() is called to a static shape node of type: ",
+              getTypeStr(),
+              " with name: ",
+              getName());
     if (isExecutable()) {
         if (needPrepareParams()) {
-            IE_ASSERT(inputShapesDefined()) << "Can't prepare params for " << getTypeStr() << " node with name: " << getName() <<
-                " since the input shapes are not defined.";
+            IE_ASSERT(inputShapesDefined(),
+                      "Can't prepare params for ",
+                      getTypeStr(),
+                      " node with name: ",
+                      getName(),
+                      " since the input shapes are not defined.");
             DEBUG_LOG(" prepareParams() on #", getExecIndex(), " ", getTypeStr(), " ", algToString(getAlgorithm()),
                       " ", getName(), " ", getOriginalLayers());
             prepareParams();
@@ -713,8 +728,11 @@ void Node::filterSupportedPrimitiveDescriptors() {
         std::remove_if(supportedPrimitiveDescriptors.begin(), supportedPrimitiveDescriptors.end(), isNotSuitableDesc),
         supportedPrimitiveDescriptors.end());
 
-    IE_ASSERT(!supportedPrimitiveDescriptors.empty()) << getName() << " type: " << NameFromType(getType()) <<
-        " No supported primitive descriptors matched the provided input / output memory format filters.";
+    IE_ASSERT(!supportedPrimitiveDescriptors.empty(),
+              getName(),
+              " type: ",
+              NameFromType(getType()),
+              " No supported primitive descriptors matched the provided input / output memory format filters.");
 }
 
 void Node::initDescriptor(const NodeConfig& config) {

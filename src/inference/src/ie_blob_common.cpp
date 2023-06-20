@@ -22,7 +22,7 @@ void Blob::setShape(const SizeVector& dims) {
 
         for (size_t i = 1; i <= strides.size(); i++) {
             if (denseStride != strides[strides.size() - i]) {
-                IE_THROW() << "Blob::setShape requires dense blob";
+                IE_THROW_G("Blob::setShape requires dense blob");
             }
             denseStride *= blockedDims[blockedDims.size() - i];
         }
@@ -31,12 +31,11 @@ void Blob::setShape(const SizeVector& dims) {
     if (properProduct(dims) > properProduct(getTensorDesc().getDims())) {
         // 2. Blobs created on top of preallocated memory
         if (std::dynamic_pointer_cast<InferenceEngine::details::PreAllocator>(getAllocator())) {
-            IE_THROW()
-                << "Cannot call setShape for Blobs created on top of preallocated memory if shape was increased.";
+            IE_THROW_G("Cannot call setShape for Blobs created on top of preallocated memory if shape was increased.");
         }
         // New blob shape requires more memory than old one -- reallocate
         if (!deallocate()) {
-            IE_THROW() << "Cannot deallocate blob while an attempt to enlarge blob area in setShape.";
+            IE_THROW_G("Cannot deallocate blob while an attempt to enlarge blob area in setShape.");
         }
 
         // Old and new ranks should match as well as layouts
@@ -48,7 +47,7 @@ void Blob::setShape(const SizeVector& dims) {
         // we can do it
         if (std::dynamic_pointer_cast<InferenceEngine::SystemMemoryAllocator>(getAllocator())) {
             if (buffer() == nullptr) {
-                IE_THROW() << "Failed to allocate memory in Blob::setShape";
+                IE_THROW_G("Failed to allocate memory in Blob::setShape");
             }
         }
     } else {
@@ -62,11 +61,11 @@ Blob::Ptr Blob::createROI(const ROI& roi) const {
         return createROI({roi.id, 0, roi.posY, roi.posX},
                          {roi.id + 1, getTensorDesc().getDims()[1], roi.posY + roi.sizeY, roi.posX + roi.sizeX});
     }
-    IE_THROW(NotImplemented) << "createROI is not implemented for current type of Blob";
+    IE_THROW_E(NotImplemented, "createROI is not implemented for current type of Blob");
 }
 
 Blob::Ptr Blob::createROI(const std::vector<std::size_t>& begin, const std::vector<std::size_t>& end) const {
-    IE_THROW(NotImplemented) << "createROI is not implemented for current type of Blob or roi";
+    IE_THROW_E(NotImplemented, "createROI is not implemented for current type of Blob or roi");
 }
 
 Blob::Ptr make_shared_blob(const Blob::Ptr& inputBlob, const ROI& roi) {

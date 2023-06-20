@@ -556,7 +556,7 @@ public:
         }
 
         if (data_size != 0 && ptr == nullptr) {
-            IE_THROW() << "Using Blob on external nullptr memory";
+            IE_THROW_E(GeneralError, "Using Blob on external nullptr memory");
         }
 
         _allocator = details::make_pre_allocator(ptr, data_size);
@@ -575,7 +575,7 @@ public:
         : MemoryBlob(tensorDesc),
           _allocator(alloc) {
         if (_allocator == nullptr)
-            IE_THROW() << "TBlob allocator was not initialized.";
+            IE_THROW_E(GeneralError, "TBlob allocator was not initialized.");
     }
 
     /**
@@ -799,7 +799,7 @@ protected:
     TBlob(const TBlob& origBlob, const ROI& roi)
         : MemoryBlob(make_roi_desc(origBlob.getTensorDesc(), roi, true)),
           _allocator(origBlob._allocator) {
-        IE_ASSERT(origBlob._handle != nullptr) << "Original Blob must be allocated before ROI creation";
+        IE_ASSERT(origBlob._handle != nullptr, "Original Blob must be allocated before ROI creation");
 
         _handle = origBlob._handle;
     }
@@ -813,7 +813,7 @@ protected:
     TBlob(const TBlob& origBlob, const std::vector<size_t>& begin, const std::vector<size_t>& end)
         : MemoryBlob(make_roi_desc(origBlob.getTensorDesc(), begin, end, true)),
           _allocator(origBlob._allocator) {
-        IE_ASSERT(origBlob._handle != nullptr) << "Original Blob must be allocated before ROI creation";
+        IE_ASSERT(origBlob._handle != nullptr, "Original Blob must be allocated before ROI creation");
 
         _handle = origBlob._handle;
     }
@@ -848,8 +848,7 @@ template <typename Type>
 inline INFERENCE_ENGINE_1_0_DEPRECATED typename InferenceEngine::TBlob<Type>::Ptr make_shared_blob(
     const TensorDesc& tensorDesc) {
     if (!tensorDesc.getPrecision().hasStorageType<Type>())
-        IE_THROW() << "Cannot make shared blob! "
-                   << "The blob type cannot be used to store objects of current precision";
+        IE_THROW_G("Cannot make shared blob! The blob type cannot be used to store objects of current precision");
     return std::make_shared<InferenceEngine::TBlob<Type>>(tensorDesc);
 }
 
@@ -866,8 +865,7 @@ template <typename Type>
 inline INFERENCE_ENGINE_1_0_DEPRECATED typename InferenceEngine::TBlob<Type>::Ptr
 make_shared_blob(const TensorDesc& tensorDesc, Type* ptr, size_t size = 0) {
     if (!tensorDesc.getPrecision().hasStorageType<Type>())
-        IE_THROW() << "Cannot make shared blob! "
-                   << "The blob type cannot be used to store objects of current precision";
+        IE_THROW_G("Cannot make shared blob! The blob type cannot be used to store objects of current precision");
     return std::make_shared<InferenceEngine::TBlob<Type>>(tensorDesc, ptr, size);
 }
 
@@ -884,8 +882,7 @@ inline INFERENCE_ENGINE_1_0_DEPRECATED typename InferenceEngine::TBlob<Type>::Pt
     const TensorDesc& tensorDesc,
     const std::shared_ptr<InferenceEngine::IAllocator>& alloc) {
     if (!tensorDesc.getPrecision().hasStorageType<Type>())
-        IE_THROW() << "Cannot make shared blob! "
-                   << "The blob type cannot be used to store objects of current precision";
+        IE_THROW_G("Cannot make shared blob! The blob type cannot be used to store objects of current precision");
     return std::make_shared<InferenceEngine::TBlob<Type>>(tensorDesc, alloc);
 }
 

@@ -37,11 +37,11 @@ std::shared_ptr<IE::RemoteContext> AutoExecutableNetwork::GetContext() const {
 
 void AutoExecutableNetwork::SetConfig(const std::map<std::string, IE::Parameter>
     & config) {
-    IE_THROW(NotImplemented);
+    IE_THROW_E(NotImplemented);
 }
 
 IE::Parameter AutoExecutableNetwork::GetConfig(const std::string& name) const {
-    IE_THROW(NotFound) << name << " not found in the ExecutableNetwork config";
+    IE_THROW_E(NotFound, name, " not found in the ExecutableNetwork config");
 }
 
 IE::Parameter AutoExecutableNetwork::GetMetric(const std::string& name) const {
@@ -135,11 +135,10 @@ IE::Parameter AutoExecutableNetwork::GetMetric(const std::string& name) const {
                                    .as<unsigned int>();
                     }
                 } catch (const IE::Exception& iie) {
-                    IE_THROW()
-                        << "Every device used in cumulative mode should "
-                            << "support OPTIMAL_NUMBER_OF_INFER_REQUESTS ExecutableNetwork metric. "
-                            << "Failed to query the metric for with error:" <<
-                            iie.what();
+                    IE_THROW_G("Every device used in cumulative mode should "
+                               "support OPTIMAL_NUMBER_OF_INFER_REQUESTS ExecutableNetwork metric. "
+                               "Failed to query the metric for with error:",
+                               iie.what());
                 }
             }
             return decltype(ov::optimal_number_of_infer_requests)::value_type {res};
@@ -263,7 +262,7 @@ IE::Parameter AutoExecutableNetwork::GetMetric(const std::string& name) const {
                     return _autoSchedule->_pCTPUTLoadContext[i].executableNetwork->GetMetric(name);
                 }
             }
-            IE_THROW() << "No valid executable network found to get" << name;
+            IE_THROW_E(GeneralError, "No valid executable network found to get", name);
         } else {
             if (_autoSchedule->_loadContext[CPU].isEnabled && _autoSchedule->_loadContext[CPU].isAlready)
                 return _autoSchedule->_loadContext[CPU].executableNetwork->GetMetric(name);
@@ -278,6 +277,6 @@ IE::Parameter AutoExecutableNetwork::GetMetric(const std::string& name) const {
     } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
         IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, {});
     }
-    IE_THROW() << "Unsupported metric key: " << name;
+    IE_THROW_E(GeneralError, "Unsupported metric key: ", name);
 }
 }  // namespace MultiDevicePlugin
