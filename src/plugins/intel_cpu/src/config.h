@@ -19,7 +19,6 @@
 
 namespace ov {
 namespace intel_cpu {
-
 struct Config {
     Config();
 
@@ -38,6 +37,12 @@ struct Config {
         Enable,
         IgnoreCallback,
         Disable,
+    };
+
+    enum class LatencyThreadingMode {
+        PER_NUMA_NODE,
+        PER_SOCKET,
+        PER_PLATFORM,
     };
 
     bool collectPerfCounters = false;
@@ -59,6 +64,7 @@ struct Config {
     ov::hint::SchedulingCoreType schedulingCoreType = ov::hint::SchedulingCoreType::ANY_CORE;
     bool enableHyperThreading = true;
     bool changedHyperThreading = false;
+    Config::LatencyThreadingMode scopeOflatencyCandidate = Config::LatencyThreadingMode::PER_SOCKET;
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
     LPTransformsMode lpTransformsMode = LPTransformsMode::On;
     bool enforceBF16 = true;
@@ -90,5 +96,5 @@ struct Config {
 #endif
 };
 
-}   // namespace intel_cpu
+}  // namespace intel_cpu
 }   // namespace ov
