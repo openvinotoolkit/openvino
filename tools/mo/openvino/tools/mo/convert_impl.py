@@ -19,9 +19,9 @@ except ImportError:
 
 from openvino.tools.mo.back.SpecialNodesFinalization import RemoveConstOps, CreateConstNodesReplacement, NormalizeTI
 from openvino.tools.ovc.moc_frontend.check_config import legacy_transformations_config_used, \
-    tensorflow_custom_operations_config_update_used, new_extensions_used
-from openvino.tools.ovc.moc_frontend.pipeline import moc_pipeline
-from openvino.tools.ovc.moc_frontend.moc_emit_ir import moc_emit_ir
+    tensorflow_custom_operations_config_update_used, new_extensions_used  # pylint: disable=no-name-in-module,import-error
+from openvino.tools.ovc.moc_frontend.pipeline import moc_pipeline  # pylint: disable=no-name-in-module,import-error
+from openvino.tools.ovc.moc_frontend.moc_emit_ir import moc_emit_ir  # pylint: disable=no-name-in-module,import-error
 from openvino.tools.mo.graph.graph import Graph
 from openvino.tools.mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively
 from openvino.tools.mo.middle.passes.convert_data_type import destination_type_to_np_data_type
@@ -34,23 +34,23 @@ from openvino.tools.ovc.cli_parser import check_available_transforms, \
     get_mean_scale_dictionary, get_mxnet_cli_options, get_onnx_cli_options, \
     get_placeholder_shapes, get_tf_cli_options, parse_transform, parse_tuple_pairs, \
     get_model_name_from_args, depersonalize, get_mo_convert_params, input_to_input_cut_info, \
-    input_shape_to_input_cut_info, freeze_placeholder_to_input_cut_info
+    input_shape_to_input_cut_info, freeze_placeholder_to_input_cut_info  # pylint: disable=no-name-in-module,import-error
 
 from openvino.tools.mo.utils.error import Error, FrameworkError
 from openvino.tools.ovc.get_ov_update_message import get_ov_update_message, get_ov_api20_message, \
-    get_tf_fe_message, get_compression_message
+    get_tf_fe_message, get_compression_message  # pylint: disable=no-name-in-module,import-error
 from openvino.tools.mo.utils.get_ov_update_message import get_try_legacy_fe_message
 from openvino.tools.mo.utils.model_analysis import AnalysisResults
 from openvino.tools.mo.utils.version import VersionChecker
 from openvino.tools.mo.utils.guess_framework import deduce_legacy_frontend_by_namespace
-from openvino.tools.ovc.logger import init_logger, progress_printer
+from openvino.tools.ovc.logger import init_logger, progress_printer  # pylint: disable=no-name-in-module,import-error
 from openvino.tools.mo.utils.utils import refer_to_faq_msg, check_values_equal
 from openvino.tools.mo.utils.telemetry_utils import send_params_info, send_framework_info, send_conversion_result, \
     get_tid
-from openvino.tools.ovc.moc_frontend.check_config import legacy_extensions_used
-from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import get_pytorch_decoder, extract_input_info_from_example
-from openvino.tools.ovc.moc_frontend.paddle_frontend_utils import paddle_frontend_converter
-from openvino.tools.ovc.moc_frontend.shape_utils import parse_input_shapes
+from openvino.tools.ovc.moc_frontend.check_config import legacy_extensions_used  # pylint: disable=no-name-in-module,import-error
+from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import get_pytorch_decoder, extract_input_info_from_example  # pylint: disable=no-name-in-module,import-error
+from openvino.tools.ovc.moc_frontend.paddle_frontend_utils import paddle_frontend_converter  # pylint: disable=no-name-in-module,import-error
+from openvino.tools.ovc.moc_frontend.shape_utils import parse_input_shapes  # pylint: disable=no-name-in-module,import-error
 
 # pylint: disable=no-name-in-module,import-error
 from openvino.frontend import FrontEndManager, OpConversionFailure, ProgressReporterExtension, TelemetryExtension
@@ -491,7 +491,7 @@ def emit_ir(graph: Graph, argv: argparse.Namespace, non_default_params: dict):
     return_code = "not executed"
     if not (argv.framework == 'tf' and argv.tensorflow_custom_operations_config_update):
         try:
-            from openvino.tools.ovc.moc_frontend.offline_transformations import apply_offline_transformations
+            from openvino.tools.ovc.moc_frontend.offline_transformations import apply_offline_transformations  # pylint: disable=no-name-in-module,import-error
             func = apply_offline_transformations(func, argv)
             if "compress_to_fp16" in argv and argv.compress_to_fp16:
                 # restore data_type cmd parameter

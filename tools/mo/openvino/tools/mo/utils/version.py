@@ -12,7 +12,7 @@ from openvino.tools.mo.utils.error import Error
 from openvino.tools.mo.utils.find_ie_version import find_ie_version
 from openvino.tools.mo.utils.utils import get_mo_root_dir
 from openvino.tools.ovc.version import extract_release_version, simplify_version, extract_hash_from_version, \
-    SingletonMetaClass
+    SingletonMetaClass  # pylint: disable=no-name-in-module,import-error
 
 
 def get_version_file_path():

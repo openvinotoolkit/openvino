@@ -70,7 +70,7 @@ from openvino.runtime.ie_api import compile_model
 # Model Conversion API
 try:
     from openvino.tools.ovc import convert_model, InputCutInfo, LayoutMap
-except (ModuleNotFoundError, ImportError):
+except ImportError:
     pass
 
 
