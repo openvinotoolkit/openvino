@@ -383,8 +383,7 @@ TEST_F(TransformationTestsF, ModelWithEmptyTensorListAndPushBack) {
         auto x_flatten = make_shared<Reshape>(x, minus_one_const, false);
         auto zero_const = make_shared<Constant>(i32, Shape{1}, 0);
         auto x_unsqueeze_flatten = make_shared<Unsqueeze>(x_flatten, zero_const);
-        auto empty_const = make_shared<Constant>(f32, Shape{0, 30}, vector<float>{});
-        auto list_push_back = make_shared<Concat>(OutputVector{empty_const, x_unsqueeze_flatten}, 0);
+        auto list_push_back = make_shared<Concat>(OutputVector{x_unsqueeze_flatten}, 0);
         auto list_push_back_shape = make_shared<ShapeOf>(list_push_back, element::i32);
         auto start = make_shared<Constant>(i32, Shape{1}, 0);
         auto stop = make_shared<Constant>(i32, Shape{1}, 1);
