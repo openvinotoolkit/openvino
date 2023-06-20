@@ -39,7 +39,7 @@ std::map<std::string, std::string> mergeConfigs(std::map<std::string, std::strin
 
 }  // namespace
 
-DeviceInformation AutoBatchInferencePlugin::ParseBatchDevice(const std::string& deviceWithBatch) {
+DeviceInformation Plugin::ParseBatchDevice(const std::string& deviceWithBatch) {
     auto&& d = deviceWithBatch;
     auto openingBracket = d.find_first_of('(');
     auto closingBracket = d.find_first_of(')', openingBracket);
@@ -56,9 +56,8 @@ DeviceInformation AutoBatchInferencePlugin::ParseBatchDevice(const std::string& 
     return {deviceName, {{}}, batch};
 }
 
-DeviceInformation AutoBatchInferencePlugin::ParseMetaDevice(
-    const std::string& devicesBatchCfg,
-    const std::map<std::string, std::string>& user_config) const {
+DeviceInformation Plugin::ParseMetaDevice(const std::string& devicesBatchCfg,
+                                          const std::map<std::string, std::string>& user_config) const {
     auto metaDevice = ParseBatchDevice(devicesBatchCfg);
     metaDevice.config = GetCore()->GetSupportedConfig(metaDevice.device_name, user_config);
 
@@ -73,8 +72,7 @@ DeviceInformation AutoBatchInferencePlugin::ParseMetaDevice(
     return metaDevice;
 }
 
-InferenceEngine::RemoteContext::Ptr AutoBatchInferencePlugin::CreateContext(
-    const InferenceEngine::ParamMap& remote_properties) {
+InferenceEngine::RemoteContext::Ptr Plugin::CreateContext(const InferenceEngine::ParamMap& remote_properties) {
     auto cfg = remote_properties;
     auto it = cfg.find(CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG));
     if (it == cfg.end())
@@ -91,8 +89,7 @@ InferenceEngine::RemoteContext::Ptr AutoBatchInferencePlugin::CreateContext(
     return core->CreateContext(metaDevice.device_name, cfg);
 }
 
-Parameter AutoBatchInferencePlugin::GetConfig(const std::string& name,
-                                              const std::map<std::string, Parameter>& user_options) const {
+Parameter Plugin::GetConfig(const std::string& name, const std::map<std::string, Parameter>& user_options) const {
     if (supported_configKeys.end() != std::find(supported_configKeys.begin(), supported_configKeys.end(), name)) {
         auto it = _config.find(name);
         if (it == _config.end()) {
@@ -105,7 +102,7 @@ Parameter AutoBatchInferencePlugin::GetConfig(const std::string& name,
     }
 }
 
-void AutoBatchInferencePlugin::CheckConfig(const std::map<std::string, std::string>& user_config) {
+void Plugin::CheckConfig(const std::map<std::string, std::string>& user_config) {
     for (auto&& kvp : user_config) {
         const auto name = kvp.first;
         const auto val = kvp.second;
@@ -126,7 +123,7 @@ void AutoBatchInferencePlugin::CheckConfig(const std::map<std::string, std::stri
     }
 }
 
-void AutoBatchInferencePlugin::SetConfig(const std::map<std::string, std::string>& user_config) {
+void Plugin::SetConfig(const std::map<std::string, std::string>& user_config) {
     CheckConfig(user_config);
     for (auto&& kvp : user_config) {
         _config[kvp.first] = kvp.second;
@@ -134,14 +131,14 @@ void AutoBatchInferencePlugin::SetConfig(const std::map<std::string, std::string
 }
 
 static const InferenceEngine::Version version = {{2, 1}, CI_BUILD_NUMBER, "AutoBatchPlugin"};
-IE_DEFINE_PLUGIN_CREATE_FUNCTION(AutoBatchInferencePlugin, version)
+IE_DEFINE_PLUGIN_CREATE_FUNCTION(Plugin, version)
 
-AutoBatchInferencePlugin::AutoBatchInferencePlugin() {
+Plugin::Plugin() {
     _pluginName = "BATCH";
     _config[CONFIG_KEY(AUTO_BATCH_TIMEOUT)] = "1000";  // default value, in ms
 }
 
-InferenceEngine::Parameter AutoBatchInferencePlugin::GetMetric(
+InferenceEngine::Parameter Plugin::GetMetric(
     const std::string& name,
     const std::map<std::string, InferenceEngine::Parameter>& user_options) const {
     if (name == METRIC_KEY(SUPPORTED_METRICS)) {
@@ -159,13 +156,12 @@ InferenceEngine::Parameter AutoBatchInferencePlugin::GetMetric(
     }
 }
 
-IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadExeNetworkImpl(
-    const InferenceEngine::CNNNetwork& network,
-    const std::map<std::string, std::string>& user_config) {
+IExecutableNetworkInternal::Ptr Plugin::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork& network,
+                                                           const std::map<std::string, std::string>& user_config) {
     return LoadNetworkImpl(network, nullptr, user_config);
 }
 
-InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadNetworkImpl(
+InferenceEngine::IExecutableNetworkInternal::Ptr Plugin::LoadNetworkImpl(
     const InferenceEngine::CNNNetwork& network,
     const std::shared_ptr<InferenceEngine::RemoteContext> ctx,
     const std::map<std::string, std::string>& user_config) {
@@ -333,16 +329,15 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
                                                         batched_outputs);
 }
 
-InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadExeNetworkImpl(
+InferenceEngine::IExecutableNetworkInternal::Ptr Plugin::LoadExeNetworkImpl(
     const InferenceEngine::CNNNetwork& network,
     const std::shared_ptr<InferenceEngine::RemoteContext>& context,
     const std::map<std::string, std::string>& user_config) {
     return LoadNetworkImpl(network, context, user_config);
 }
 
-InferenceEngine::QueryNetworkResult AutoBatchInferencePlugin::QueryNetwork(
-    const InferenceEngine::CNNNetwork& network,
-    const std::map<std::string, std::string>& user_config) const {
+InferenceEngine::QueryNetworkResult Plugin::QueryNetwork(const InferenceEngine::CNNNetwork& network,
+                                                         const std::map<std::string, std::string>& user_config) const {
     auto core = GetCore();
     if (!core)
         return InferenceEngine::QueryNetworkResult();

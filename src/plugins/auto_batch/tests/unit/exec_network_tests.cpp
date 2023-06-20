@@ -89,14 +89,15 @@ public:
         ON_CALL(*mockIPluginPtr, LoadNetwork(MatcherCast<const CNNNetwork&>(_), _)).WillByDefault(Return(mockIExecNet));
         mockPlugin = mockIPluginPtr;
         EXPECT_CALL(*mockIPluginPtr, LoadNetwork(MatcherCast<const CNNNetwork&>(_), _)).Times(1);
-        mockExecNetwork = ov::SoPtr<InferenceEngine::IExecutableNetworkInternal>(mockPlugin->LoadNetwork(CNNNetwork{}, {}), {});
+        mockExecNetwork =
+            ov::SoPtr<InferenceEngine::IExecutableNetworkInternal>(mockPlugin->LoadNetwork(CNNNetwork{}, {}), {});
 
         core = std::shared_ptr<NiceMock<MockICore>>(new NiceMock<MockICore>());
         plugin = std::shared_ptr<NiceMock<MockAutoBatchInferencePlugin>>(new NiceMock<MockAutoBatchInferencePlugin>());
         plugin->SetCore(core);
 
         ON_CALL(*plugin, ParseBatchDevice).WillByDefault([this](const std::string& batchDevice) {
-            return plugin->AutoBatchInferencePlugin::ParseBatchDevice(batchDevice);
+            return plugin->Plugin::ParseBatchDevice(batchDevice);
         });
         ON_CALL(*core, LoadNetwork(MatcherCast<const CNNNetwork&>(_), MatcherCast<const std::string&>(_), _))
             .WillByDefault(Return(mockExecNetwork));
@@ -174,25 +175,25 @@ TEST_P(ExecNetworkTest, ExecNetworkGetConfigMetricTestCase) {
 }
 
 const std::vector<ExecNetworkParams> testConfigs = {
-        // Metric
-        ExecNetworkParams{METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS), 0, false},
-        ExecNetworkParams{METRIC_KEY(NETWORK_NAME), 0, false},
-        ExecNetworkParams{METRIC_KEY(SUPPORTED_METRICS), 0, false},
-        ExecNetworkParams{METRIC_KEY(SUPPORTED_CONFIG_KEYS), 0, false},
-        ExecNetworkParams{ov::execution_devices.name(), 0, false},
-        // Config in autobatch
-        ExecNetworkParams{CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG), 1, false},
-        ExecNetworkParams{CONFIG_KEY(AUTO_BATCH_TIMEOUT), 1, false},
-        ExecNetworkParams{CONFIG_KEY(CACHE_DIR), 1, false},
-        // Config in dependent plugin
-        ExecNetworkParams{"OPTIMAL_BATCH_SIZE", 1, false},
-        // Incorrect Metric
-        ExecNetworkParams{"INCORRECT_METRIC", 0, true},
-        // Incorrect config
-        ExecNetworkParams{"INCORRECT_CONFIG", 1, true},
-        // Set Config
-        ExecNetworkParams{CONFIG_KEY(AUTO_BATCH_TIMEOUT), 2, false},
-        ExecNetworkParams{"INCORRECT_CONFIG", 2, true},
+    // Metric
+    ExecNetworkParams{METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS), 0, false},
+    ExecNetworkParams{METRIC_KEY(NETWORK_NAME), 0, false},
+    ExecNetworkParams{METRIC_KEY(SUPPORTED_METRICS), 0, false},
+    ExecNetworkParams{METRIC_KEY(SUPPORTED_CONFIG_KEYS), 0, false},
+    ExecNetworkParams{ov::execution_devices.name(), 0, false},
+    // Config in autobatch
+    ExecNetworkParams{CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG), 1, false},
+    ExecNetworkParams{CONFIG_KEY(AUTO_BATCH_TIMEOUT), 1, false},
+    ExecNetworkParams{CONFIG_KEY(CACHE_DIR), 1, false},
+    // Config in dependent plugin
+    ExecNetworkParams{"OPTIMAL_BATCH_SIZE", 1, false},
+    // Incorrect Metric
+    ExecNetworkParams{"INCORRECT_METRIC", 0, true},
+    // Incorrect config
+    ExecNetworkParams{"INCORRECT_CONFIG", 1, true},
+    // Set Config
+    ExecNetworkParams{CONFIG_KEY(AUTO_BATCH_TIMEOUT), 2, false},
+    ExecNetworkParams{"INCORRECT_CONFIG", 2, true},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_BehaviorTests,

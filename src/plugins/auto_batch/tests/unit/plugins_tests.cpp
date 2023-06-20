@@ -82,7 +82,7 @@ public:
         plugin->SetCore(core);
 
         ON_CALL(*plugin, ParseBatchDevice).WillByDefault([this](const std::string& batchDevice) {
-            return plugin->AutoBatchInferencePlugin::ParseBatchDevice(batchDevice);
+            return plugin->Plugin::ParseBatchDevice(batchDevice);
         });
     }
 };
@@ -192,7 +192,7 @@ public:
             });
 
         ON_CALL(*plugin, ParseBatchDevice).WillByDefault([this](const std::string& batchDevice) {
-            return plugin->AutoBatchInferencePlugin::ParseBatchDevice(batchDevice);
+            return plugin->Plugin::ParseBatchDevice(batchDevice);
         });
     }
 
@@ -255,7 +255,7 @@ public:
         plugin->SetCore(core);
 
         ON_CALL(*plugin, ParseBatchDevice).WillByDefault([this](const std::string& batchDevice) {
-            return plugin->AutoBatchInferencePlugin::ParseBatchDevice(batchDevice);
+            return plugin->Plugin::ParseBatchDevice(batchDevice);
         });
     }
 };
@@ -303,7 +303,7 @@ public:
         ON_CALL(*plugin, GetMetric)
             .WillByDefault(
                 [this](const std::string& name, const std::map<std::string, InferenceEngine::Parameter>& options) {
-                    return plugin->AutoBatchInferencePlugin::GetMetric(name, options);
+                    return plugin->Plugin::GetMetric(name, options);
                 });
     }
 };

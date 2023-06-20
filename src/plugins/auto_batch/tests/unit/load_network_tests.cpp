@@ -79,14 +79,15 @@ public:
             .WillByDefault(Return(cpuMockIExecNet));
         cpuMockPlugin = cpuMockIPluginPtr;
         EXPECT_CALL(*cpuMockIPluginPtr, LoadNetwork(MatcherCast<const CNNNetwork&>(_), _)).Times(1);
-        cpuMockExecNetwork = ov::SoPtr<InferenceEngine::IExecutableNetworkInternal>(cpuMockPlugin->LoadNetwork(CNNNetwork{}, {}), {});
+        cpuMockExecNetwork =
+            ov::SoPtr<InferenceEngine::IExecutableNetworkInternal>(cpuMockPlugin->LoadNetwork(CNNNetwork{}, {}), {});
 
         core = std::shared_ptr<NiceMock<MockICore>>(new NiceMock<MockICore>());
         plugin = std::shared_ptr<NiceMock<MockAutoBatchInferencePlugin>>(new NiceMock<MockAutoBatchInferencePlugin>());
         plugin->SetCore(core);
 
         ON_CALL(*plugin, ParseBatchDevice).WillByDefault([this](const std::string& batchDevice) {
-            return plugin->AutoBatchInferencePlugin::ParseBatchDevice(batchDevice);
+            return plugin->Plugin::ParseBatchDevice(batchDevice);
         });
         ON_CALL(*core, LoadNetwork(MatcherCast<const CNNNetwork&>(_), MatcherCast<const std::string&>(_), _))
             .WillByDefault(Return(cpuMockExecNetwork));
@@ -257,12 +258,13 @@ const std::vector<PluginLoadNetworkParams> testConfigs = {
                              {"GPU_DEVICE_TOTAL_MEM_SIZE", "4096000000"}},
                             {{"AUTO_BATCH_TIMEOUT", "200"}, {"AUTO_BATCH_DEVICE_CONFIG", "CPU"}},
                             1},
-    //PluginLoadNetworkParams{{{"PERFORMANCE_HINT", "THROUGHPUT"},
+    // PluginLoadNetworkParams{{{"PERFORMANCE_HINT", "THROUGHPUT"},
     //                         {"OPTIMAL_BATCH_SIZE", "32"},
     //                         {"PERFORMANCE_HINT_NUM_REQUESTS", "16"},
     //                         {"GPU_MEMORY_STATISTICS", "1024000"},
     //                         {"GPU_DEVICE_TOTAL_MEM_SIZE", "4096000000"}},
-    //                        {{"AUTO_BATCH_TIMEOUT", "200"}, {"AUTO_BATCH_DEVICE_CONFIG", "CPU"}, {"PERFORMANCE_HINT_NUM_REQUESTS", "12"}},
+    //                        {{"AUTO_BATCH_TIMEOUT", "200"}, {"AUTO_BATCH_DEVICE_CONFIG", "CPU"},
+    //                        {"PERFORMANCE_HINT_NUM_REQUESTS", "12"}},
     //                        12},
     //
     // Case 3: GPU batch size is figured out by

@@ -16,7 +16,7 @@
 using namespace ov::autobatch_plugin;
 namespace MockAutoBatchDevice {
 
-class MockAutoBatchInferencePlugin : public AutoBatchInferencePlugin {
+class MockAutoBatchInferencePlugin : public Plugin {
 public:
     MOCK_METHOD((DeviceInformation),
                 ParseMetaDevices,
