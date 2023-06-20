@@ -9,6 +9,7 @@ from openvino.frontend.pytorch.py_pytorch_frontend import _Type as DecoderType
 from openvino.runtime import op, PartialShape, Type as OVType, OVAny, Shape
 
 import typing
+from packaging.version import parse
 import torch
 import numpy as np
 
@@ -133,24 +134,27 @@ class TorchScriptPythonDecoder (Decoder):
         import inspect
 
         def prepare_example_inputs(inputs, input_signature):
-            if inputs is not None:
-                if isinstance(inputs, dict):
-                    if input_signature is not None:
-                        ordered_inputs = []
-                        used_sign = []
-                        for key in input_signature:
-                            if key not in inputs:
-                                continue
-                            ordered_inputs.append(inputs[key])
-                            used_sign.append(key)
-                        inputs = ordered_inputs
-                        input_signature = used_sign
-                    else:
-                        inputs = list(inputs.values())
-                        input_signature = input_signature[:len(inputs)]
-                if isinstance(inputs, torch.Tensor):
-                    inputs = [inputs]
-            return inputs, input_signature
+            is_torch_2 = parse(torch.__version__) >= parse("2.0.0")
+            if isinstance(inputs, dict):
+                ordered_inputs = []
+                if input_signature is not None:
+                    used_sign = []
+                    for key in input_signature:
+                        if key not in inputs:
+                            continue
+                        ordered_inputs.append(inputs[key])
+                        used_sign.append(key)
+                    input_signature = used_sign
+                else:
+                    ordered_inputs = list(inputs.values())
+                if is_torch_2:
+                    return {"example_kwarg_inputs": inputs}, input_signature
+                else:
+                    inputs = ordered_inputs
+            if isinstance(inputs, torch.Tensor):
+                inputs = [inputs]
+                
+            return {"example_inputs": inputs}, input_signature
 
         if isinstance(pt_module, torch.nn.Module):
             pt_module.eval()
@@ -160,14 +164,14 @@ class TorchScriptPythonDecoder (Decoder):
             if example_inputs is None:
                 scripted = torch.jit.script(pt_module)
             else:
-                inputs, input_signature = prepare_example_inputs(example_inputs, input_signature)
+                input_parameters, input_signature = prepare_example_inputs(example_inputs, input_signature)
                 try:
-                    scripted = torch.jit.trace(pt_module, inputs)
+                    scripted = torch.jit.trace(pt_module, **input_parameters)
                 except Exception:
                     try:
                         scripted = torch.jit.script(pt_module)
                     except Exception:
-                        scripted = torch.jit.trace(pt_module, inputs, strict=False)
+                        scripted = torch.jit.trace(pt_module, **input_parameters, strict=False)
             skip_freeze = False
             for n in scripted.inlined_graph.nodes():
                 # TODO: switch off freezing for all traced models
