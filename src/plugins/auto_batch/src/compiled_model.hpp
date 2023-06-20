@@ -32,13 +32,12 @@ public:
         std::exception_ptr m_exceptionPtr;
     };
 
-    explicit CompiledModel(
-        const InferenceEngine::SoExecutableNetworkInternal& networkForDevice,
-        const InferenceEngine::SoExecutableNetworkInternal& networkForDeviceWithoutBatch,
-        const DeviceInformation& networkDevices,
-        const std::unordered_map<std::string, InferenceEngine::Parameter>& config,
-        const std::set<std::string>& batchedIntputs,
-        const std::set<std::string>& batchedOutputs);
+    explicit CompiledModel(const InferenceEngine::SoExecutableNetworkInternal& networkForDevice,
+                           const InferenceEngine::SoExecutableNetworkInternal& networkForDeviceWithoutBatch,
+                           const DeviceInformation& networkDevices,
+                           const std::unordered_map<std::string, InferenceEngine::Parameter>& config,
+                           const std::set<std::string>& batchedIntputs,
+                           const std::set<std::string>& batchedOutputs);
 
     void SetConfig(const std::map<std::string, InferenceEngine::Parameter>& config) override;
 

@@ -11,10 +11,9 @@ namespace autobatch_plugin {
 
 using namespace InferenceEngine;
 
-AsyncInferRequest::AsyncInferRequest(
-    const SyncInferRequest::Ptr& inferRequest,
-    InferenceEngine::SoIInferRequestInternal& inferRequestWithoutBatch,
-    const ITaskExecutor::Ptr& callbackExecutor)
+AsyncInferRequest::AsyncInferRequest(const SyncInferRequest::Ptr& inferRequest,
+                                     InferenceEngine::SoIInferRequestInternal& inferRequestWithoutBatch,
+                                     const ITaskExecutor::Ptr& callbackExecutor)
     : AsyncInferRequestThreadSafeDefault(inferRequest, nullptr, callbackExecutor),
       m_infer_request_without_batch(inferRequestWithoutBatch),
       m_sync_infer_request{inferRequest} {
@@ -35,21 +34,21 @@ AsyncInferRequest::AsyncInferRequest(
         };
         AsyncInferRequest* _this = nullptr;
     };
-    _pipeline = {{/*TaskExecutor*/ std::make_shared<ThisRequestExecutor>(this), /*task*/ [this] {
-                      if (this->m_sync_infer_request->m_exceptionPtr)  // if the exception happened in the batch1 fallback
-                          std::rethrow_exception(this->m_sync_infer_request->m_exceptionPtr);
-                      auto& batchReq = this->m_sync_infer_request->m_batched_request_wrapper;
-                      if (batchReq.m_exceptionPtr)  // when the batchN execution failed
-                          std::rethrow_exception(batchReq.m_exceptionPtr);
-                      // in the case of non-batched execution the blobs were set explicitly
-                      if (SyncInferRequest::eExecutionFlavor::BATCH_EXECUTED ==
-                          this->m_sync_infer_request->m_batched_request_status)
-                          this->m_sync_infer_request->CopyOutputsIfNeeded();
-                  }}};
+    _pipeline = {
+        {/*TaskExecutor*/ std::make_shared<ThisRequestExecutor>(this), /*task*/ [this] {
+             if (this->m_sync_infer_request->m_exceptionPtr)  // if the exception happened in the batch1 fallback
+                 std::rethrow_exception(this->m_sync_infer_request->m_exceptionPtr);
+             auto& batchReq = this->m_sync_infer_request->m_batched_request_wrapper;
+             if (batchReq.m_exceptionPtr)  // when the batchN execution failed
+                 std::rethrow_exception(batchReq.m_exceptionPtr);
+             // in the case of non-batched execution the blobs were set explicitly
+             if (SyncInferRequest::eExecutionFlavor::BATCH_EXECUTED ==
+                 this->m_sync_infer_request->m_batched_request_status)
+                 this->m_sync_infer_request->CopyOutputsIfNeeded();
+         }}};
 }
 
-std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> AsyncInferRequest::GetPerformanceCounts()
-    const {
+std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> AsyncInferRequest::GetPerformanceCounts() const {
     CheckState();
     if (SyncInferRequest::eExecutionFlavor::BATCH_EXECUTED == m_sync_infer_request->m_batched_request_status)
         return m_sync_infer_request->m_batched_request_wrapper._inferRequestBatched->GetPerformanceCounts();

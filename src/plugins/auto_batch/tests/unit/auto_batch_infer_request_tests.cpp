@@ -4,6 +4,7 @@
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
+
 #include <thread>
 
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
@@ -174,12 +175,12 @@ TEST_P(AutoBatchRequestTest, AutoBatchRequestCreateTestCase) {
 
     for (int batch_id = 0; batch_id < batch_size; batch_id++) {
         auto req = std::make_shared<SyncInferRequest>(inputs,
-                                                           outputs,
-                                                           *workerRequestPtr,
-                                                           batch_id,
-                                                           batch_size,
-                                                           batchedInputs,
-                                                           batchedOutputs);
+                                                      outputs,
+                                                      *workerRequestPtr,
+                                                      batch_id,
+                                                      batch_size,
+                                                      batchedInputs,
+                                                      batchedOutputs);
         EXPECT_NE(req, nullptr);
         autoBatchInferRequests.emplace_back(req);
 
@@ -207,12 +208,12 @@ TEST_P(AutoBatchRequestTest, AutoBatchRequestCopyBlobTestCase) {
 
     for (int batch_id = 0; batch_id < batch_size; batch_id++) {
         auto req = std::make_shared<SyncInferRequest>(inputs,
-                                                           outputs,
-                                                           *workerRequestPtr,
-                                                           batch_id,
-                                                           batch_size,
-                                                           batchedInputs,
-                                                           batchedOutputs);
+                                                      outputs,
+                                                      *workerRequestPtr,
+                                                      batch_id,
+                                                      batch_size,
+                                                      batchedInputs,
+                                                      batchedOutputs);
         EXPECT_NE(req, nullptr);
         autoBatchInferRequests.emplace_back(req);
 
@@ -312,12 +313,12 @@ TEST_P(AutoBatchAsyncInferRequestTest, AutoBatchAsyncInferRequestCreateTest) {
 
     for (int batch_id = 0; batch_id < batch_size; batch_id++) {
         auto autoRequestImpl = std::make_shared<SyncInferRequest>(inputs,
-                                                                       outputs,
-                                                                       *workerRequestPtr,
-                                                                       batch_id,
-                                                                       batch_size,
-                                                                       batchedInputs,
-                                                                       batchedOutputs);
+                                                                  outputs,
+                                                                  *workerRequestPtr,
+                                                                  batch_id,
+                                                                  batch_size,
+                                                                  batchedInputs,
+                                                                  batchedOutputs);
         EXPECT_NE(autoRequestImpl, nullptr);
         autoBatchInferRequests.emplace_back(autoRequestImpl);
 
@@ -341,12 +342,12 @@ TEST_P(AutoBatchAsyncInferRequestTest, AutoBatchAsyncInferRequestStartAsyncTest)
 
     for (int batch_id = 0; batch_id < batch_size; batch_id++) {
         auto autoRequestImpl = std::make_shared<SyncInferRequest>(inputs,
-                                                                       outputs,
-                                                                       *workerRequestPtr,
-                                                                       batch_id,
-                                                                       batch_size,
-                                                                       batchedInputs,
-                                                                       batchedOutputs);
+                                                                  outputs,
+                                                                  *workerRequestPtr,
+                                                                  batch_id,
+                                                                  batch_size,
+                                                                  batchedInputs,
+                                                                  batchedOutputs);
         EXPECT_NE(autoRequestImpl, nullptr);
         autoBatchInferRequests.emplace_back(autoRequestImpl);
 

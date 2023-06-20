@@ -322,11 +322,11 @@ InferenceEngine::IExecutableNetworkInternal::Ptr Plugin::LoadNetworkImpl(
     }
 
     return std::make_shared<CompiledModel>(executableNetworkWithBatch,
-                                                        executableNetworkWithoutBatch,
-                                                        metaDevice,
-                                                        networkConfig,
-                                                        batched_inputs,
-                                                        batched_outputs);
+                                           executableNetworkWithoutBatch,
+                                           metaDevice,
+                                           networkConfig,
+                                           batched_inputs,
+                                           batched_outputs);
 }
 
 InferenceEngine::IExecutableNetworkInternal::Ptr Plugin::LoadExeNetworkImpl(

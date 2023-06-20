@@ -34,12 +34,12 @@ Blob::Ptr create_shared_blob_on_top_of_batched_blob(Blob::Ptr batched_blob,
 }
 
 SyncInferRequest::SyncInferRequest(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
-                                             const std::vector<std::shared_ptr<const ov::Node>>& outputs,
-                                             CompiledModel::WorkerInferRequest& workerRequest,
-                                             int batch_id,
-                                             int num_batch,
-                                             const std::set<std::string>& batchedInputs,
-                                             const std::set<std::string>& batchedOutputs)
+                                   const std::vector<std::shared_ptr<const ov::Node>>& outputs,
+                                   CompiledModel::WorkerInferRequest& workerRequest,
+                                   int batch_id,
+                                   int num_batch,
+                                   const std::set<std::string>& batchedInputs,
+                                   const std::set<std::string>& batchedOutputs)
     : IInferRequestInternal(inputs, outputs),
       m_batched_request_wrapper(workerRequest),
       m_batch_id(batch_id),
@@ -48,12 +48,12 @@ SyncInferRequest::SyncInferRequest(const std::vector<std::shared_ptr<const ov::N
 }
 
 SyncInferRequest::SyncInferRequest(const InputsDataMap& networkInputs,
-                                             const OutputsDataMap& networkOutputs,
-                                             CompiledModel::WorkerInferRequest& workerRequest,
-                                             int batch_id,
-                                             int num_batch,
-                                             const std::set<std::string>& batchedInputs,
-                                             const std::set<std::string>& batchedOutputs)
+                                   const OutputsDataMap& networkOutputs,
+                                   CompiledModel::WorkerInferRequest& workerRequest,
+                                   int batch_id,
+                                   int num_batch,
+                                   const std::set<std::string>& batchedInputs,
+                                   const std::set<std::string>& batchedOutputs)
     : IInferRequestInternal(networkInputs, networkOutputs),
       m_batched_request_wrapper(workerRequest),
       m_batch_id(batch_id),
@@ -62,7 +62,7 @@ SyncInferRequest::SyncInferRequest(const InputsDataMap& networkInputs,
 }
 
 void SyncInferRequest::ShareBlobsWithBatchRequest(const std::set<std::string>& batchedInputs,
-                                                       const std::set<std::string>& batchedOutputs) {
+                                                  const std::set<std::string>& batchedOutputs) {
     // Allocate all input blobs
     for (const auto& it : _networkInputs) {
         auto blob = m_batched_request_wrapper._inferRequestBatched->GetBlob(it.first);
@@ -317,9 +317,7 @@ void SyncInferRequest::CopyInputsIfNeeded() {
     }
 }
 
-void SyncInferRequest::CopyBlobIfNeeded(InferenceEngine::Blob::CPtr src,
-                                             InferenceEngine::Blob::Ptr dst,
-                                             bool bInput) {
+void SyncInferRequest::CopyBlobIfNeeded(InferenceEngine::Blob::CPtr src, InferenceEngine::Blob::Ptr dst, bool bInput) {
     auto bufferDst = dst->buffer();
     auto ptrDst = bufferDst.as<char*>();
     auto bufferSrc = src->cbuffer();

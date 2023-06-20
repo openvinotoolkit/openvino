@@ -12,13 +12,12 @@
 namespace ov {
 namespace autobatch_plugin {
 using namespace InferenceEngine;
-CompiledModel::CompiledModel(
-    const InferenceEngine::SoExecutableNetworkInternal& networkWithBatch,
-    const InferenceEngine::SoExecutableNetworkInternal& networkWithoutBatch,
-    const DeviceInformation& networkDevice,
-    const std::unordered_map<std::string, InferenceEngine::Parameter>& config,
-    const std::set<std::string>& batchedInputs,
-    const std::set<std::string>& batchedOutputs)
+CompiledModel::CompiledModel(const InferenceEngine::SoExecutableNetworkInternal& networkWithBatch,
+                             const InferenceEngine::SoExecutableNetworkInternal& networkWithoutBatch,
+                             const DeviceInformation& networkDevice,
+                             const std::unordered_map<std::string, InferenceEngine::Parameter>& config,
+                             const std::set<std::string>& batchedInputs,
+                             const std::set<std::string>& batchedOutputs)
     : InferenceEngine::ExecutableNetworkThreadSafeDefault(nullptr,
                                                           std::make_shared<InferenceEngine::ImmediateExecutor>()),
       m_network_with_batch{networkWithBatch},
@@ -57,12 +56,12 @@ InferenceEngine::IInferRequestInternal::Ptr CompiledModel::CreateInferRequestImp
     InferenceEngine::OutputsDataMap networkOutputs) {
     auto workerRequestPtrAndId = GetWorkerInferRequest();
     return std::make_shared<SyncInferRequest>(networkInputs,
-                                                   networkOutputs,
-                                                   workerRequestPtrAndId.first,
-                                                   workerRequestPtrAndId.second,
-                                                   m_device_info.batch_for_device,
-                                                   m_batched_inputs,
-                                                   m_batched_outputs);
+                                              networkOutputs,
+                                              workerRequestPtrAndId.first,
+                                              workerRequestPtrAndId.second,
+                                              m_device_info.batch_for_device,
+                                              m_batched_inputs,
+                                              m_batched_outputs);
 }
 
 InferenceEngine::IInferRequestInternal::Ptr CompiledModel::CreateInferRequestImpl(
@@ -72,12 +71,12 @@ InferenceEngine::IInferRequestInternal::Ptr CompiledModel::CreateInferRequestImp
         return nullptr;
     auto workerRequestPtrAndId = GetWorkerInferRequest();
     return std::make_shared<SyncInferRequest>(inputs,
-                                                   outputs,
-                                                   workerRequestPtrAndId.first,
-                                                   workerRequestPtrAndId.second,
-                                                   m_device_info.batch_for_device,
-                                                   m_batched_inputs,
-                                                   m_batched_outputs);
+                                              outputs,
+                                              workerRequestPtrAndId.first,
+                                              workerRequestPtrAndId.second,
+                                              m_device_info.batch_for_device,
+                                              m_batched_inputs,
+                                              m_batched_outputs);
 }
 
 std::pair<CompiledModel::WorkerInferRequest&, int> CompiledModel::GetWorkerInferRequest() {
@@ -145,7 +144,8 @@ std::pair<CompiledModel::WorkerInferRequest&, int> CompiledModel::GetWorkerInfer
                                 });
                             t.first->m_sync_infer_request->m_batched_request_status =
                                 SyncInferRequest::eExecutionFlavor::TIMEOUT_EXECUTED;
-                            t.first->m_sync_infer_request->SetBlobsToAnotherRequest(t.first->m_infer_request_without_batch);
+                            t.first->m_sync_infer_request->SetBlobsToAnotherRequest(
+                                t.first->m_infer_request_without_batch);
                             t.first->m_infer_request_without_batch->StartAsync();
                         }
                         all_completed_future.get();
@@ -173,15 +173,15 @@ InferenceEngine::IInferRequestInternal::Ptr CompiledModel::CreateInferRequest() 
     syncRequestImpl->setPointerToExecutableNetworkInternal(shared_from_this());
     InferenceEngine::SoIInferRequestInternal inferRequestWithoutBatch = {m_network_without_batch->CreateInferRequest(),
                                                                          m_network_without_batch._so};
-    return std::make_shared<AsyncInferRequest>(
-        std::static_pointer_cast<SyncInferRequest>(syncRequestImpl),
-        inferRequestWithoutBatch,
-        _callbackExecutor);
+    return std::make_shared<AsyncInferRequest>(std::static_pointer_cast<SyncInferRequest>(syncRequestImpl),
+                                               inferRequestWithoutBatch,
+                                               _callbackExecutor);
 }
 
 std::shared_ptr<ngraph::Function> CompiledModel::GetExecGraphInfo() {
-    return m_network_with_batch && m_network_with_batch->GetExecGraphInfo() ? m_network_with_batch->GetExecGraphInfo()
-                                                    : m_network_without_batch->GetExecGraphInfo();
+    return m_network_with_batch && m_network_with_batch->GetExecGraphInfo()
+               ? m_network_with_batch->GetExecGraphInfo()
+               : m_network_without_batch->GetExecGraphInfo();
 }
 
 void CompiledModel::SetConfig(const std::map<std::string, InferenceEngine::Parameter>& user_config) {
@@ -218,14 +218,16 @@ InferenceEngine::Parameter CompiledModel::GetMetric(const std::string& name) con
             reqs = InferenceEngine::PerfHintsConfig::CheckPerformanceHintRequestValue(hint);
             if (!reqs)  // no limitations from user, let's deduce the full blown #requests
                 // (multiplied by the devices capabilities to run multiple <batched> requests for further perf)
-                reqs = m_device_info.batch_for_device *
-                       m_network_without_batch->GetMetric(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)).as<unsigned int>();
+                reqs =
+                    m_device_info.batch_for_device *
+                    m_network_without_batch->GetMetric(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)).as<unsigned int>();
         } catch (const InferenceEngine::Exception&) {
         }
         reqs = std::max(reqs, m_device_info.batch_for_device);  // round up to the possible  user's value
         IE_SET_METRIC_RETURN(OPTIMAL_NUMBER_OF_INFER_REQUESTS, reqs);
     } else if (name == METRIC_KEY(NETWORK_NAME)) {
-        IE_SET_METRIC_RETURN(NETWORK_NAME, m_network_without_batch->GetMetric(METRIC_KEY(NETWORK_NAME)).as<std::string>());
+        IE_SET_METRIC_RETURN(NETWORK_NAME,
+                             m_network_without_batch->GetMetric(METRIC_KEY(NETWORK_NAME)).as<std::string>());
     } else if (name == METRIC_KEY(SUPPORTED_METRICS)) {
         IE_SET_METRIC_RETURN(SUPPORTED_METRICS,
                              {METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS),

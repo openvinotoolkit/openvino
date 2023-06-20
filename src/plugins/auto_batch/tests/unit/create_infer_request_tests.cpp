@@ -30,8 +30,8 @@ using namespace ov::autobatch_plugin;
 using namespace MockAutoBatchDevice;
 using namespace InferenceEngine;
 
-using CreateInferRequestTestParams = std::tuple<int,  // batch_size
-                                                int>; // inferReq number
+using CreateInferRequestTestParams = std::tuple<int,   // batch_size
+                                                int>;  // inferReq number
 class CreateInferRequestTest : public ::testing::TestWithParam<CreateInferRequestTestParams> {
 public:
     std::shared_ptr<NiceMock<MockICore>> core;
@@ -75,7 +75,8 @@ public:
         mockIPlugin = std::make_shared<NiceMock<MockIInferencePlugin>>();
         ON_CALL(*mockIPlugin, LoadNetwork(MatcherCast<const CNNNetwork&>(_), _)).WillByDefault(Return(mockIExecNet));
         mockPlugin = mockIPlugin;
-        mockExecNetwork = ov::SoPtr<InferenceEngine::IExecutableNetworkInternal>(mockPlugin->LoadNetwork(CNNNetwork{}, {}), {});
+        mockExecNetwork =
+            ov::SoPtr<InferenceEngine::IExecutableNetworkInternal>(mockPlugin->LoadNetwork(CNNNetwork{}, {}), {});
         batchedExecNetwork = {};
 
         core = std::shared_ptr<NiceMock<MockICore>>(new NiceMock<MockICore>());
@@ -97,13 +98,14 @@ public:
         std::set<std::string> batched_outputs = {"Convolution_20"};
 
         if (batch_size > 1)
-            batchedExecNetwork = ov::SoPtr<InferenceEngine::IExecutableNetworkInternal>(mockPlugin->LoadNetwork(CNNNetwork{}, {}), {});
+            batchedExecNetwork =
+                ov::SoPtr<InferenceEngine::IExecutableNetworkInternal>(mockPlugin->LoadNetwork(CNNNetwork{}, {}), {});
         return std::make_shared<CompiledModel>(batchedExecNetwork,
-                                                            mockExecNetwork,
-                                                            metaDevice,
-                                                            config,
-                                                            batched_inputs,
-                                                            batched_outputs);
+                                               mockExecNetwork,
+                                               metaDevice,
+                                               config,
+                                               batched_inputs,
+                                               batched_outputs);
     }
 };
 
@@ -128,7 +130,5 @@ const std::vector<int> batch_size{1, 8, 16, 32, 128, 256};
 
 INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_BehaviorTests,
                          CreateInferRequestTest,
-                         ::testing::Combine(
-                            ::testing::ValuesIn(batch_size),
-                            ::testing::ValuesIn(requests_num)),
+                         ::testing::Combine(::testing::ValuesIn(batch_size), ::testing::ValuesIn(requests_num)),
                          CreateInferRequestTest::getTestCaseName);

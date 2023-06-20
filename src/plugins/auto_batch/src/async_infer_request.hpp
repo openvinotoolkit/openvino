@@ -14,8 +14,8 @@ public:
     using Ptr = std::shared_ptr<AsyncInferRequest>;
 
     explicit AsyncInferRequest(const SyncInferRequest::Ptr& inferRequest,
-                                        InferenceEngine::SoIInferRequestInternal& inferRequestWithoutBatch,
-                                        const InferenceEngine::ITaskExecutor::Ptr& callbackExecutor);
+                               InferenceEngine::SoIInferRequestInternal& inferRequestWithoutBatch,
+                               const InferenceEngine::ITaskExecutor::Ptr& callbackExecutor);
 
     void Infer_ThreadUnsafe() override;
 
