@@ -15,7 +15,7 @@ set(SOURCES
 add_library(${TARGET} STATIC ${SOURCES})
 
 target_link_libraries(${TARGET}
-    PRIVATE openvino_intel_gna_plugin_test_static inference_engine_legacy_s
-    PUBLIC gna_trans_lib_config gna_trans_lib_logger libGNA inference_engine_s)
+    PRIVATE inference_engine_legacy_s
+    PUBLIC openvino_intel_gna_plugin_test_static gna_trans_lib_config gna_trans_lib_logger libGNA inference_engine_s)
 
 add_clang_format_target(${TARGET}_clang FOR_TARGETS ${TARGET})

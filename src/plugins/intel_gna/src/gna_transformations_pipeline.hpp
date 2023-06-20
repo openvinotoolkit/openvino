@@ -36,8 +36,8 @@ public:
     const ov::intel_gna::Config& config;
 
 private:
-    using PassesInstances = std::vector<std::shared_ptr<ov::pass::PassBase>>;
-
+    using PassesInstances = std::vector<std::pair<std::string, std::shared_ptr<ov::pass::PassBase>>>;
+    using PasseEntry = PassesInstances::value_type;
     void register_all_passes(const PassesInstances& passes, ov::pass::Manager& manager);
     void register_passes_with_given_order(const std::vector<std::string>& transformations_list,
                                           const PassesInstances& passes,

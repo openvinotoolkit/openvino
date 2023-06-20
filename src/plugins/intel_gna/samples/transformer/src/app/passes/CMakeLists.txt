@@ -13,7 +13,7 @@ SET(SOURCES
     insert_add_after_parameter.cpp)
 
 add_library(${TARGET} STATIC ${HEADERS} ${SOURCES})
-target_link_libraries(${TARGET} PUBLIC openvino::core::dev openvino::conditional_compilation)
+target_link_libraries(${TARGET} PUBLIC inference_engine_s openvino::conditional_compilation)
 target_include_directories(${TARGET} PUBLIC .)
 
 add_clang_format_target(${TARGET}_clang FOR_TARGETS ${TARGET})

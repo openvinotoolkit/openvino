@@ -59,19 +59,6 @@ namespace intel_gna {
 
 static size_t iterator = 0;
 
-template <typename T, typename... Args>
-static std::shared_ptr<T> create_with_unique_name(Args&&... args) {
-    auto pass = std::make_shared<T>(std::forward<Args>(args)...);
-    auto name = pass->get_name();
-    name.append("_" + std::to_string(iterator++));
-
-    if (iterator == std::numeric_limits<size_t>::max()) {
-        iterator = 0;
-    }
-    pass->set_name(name);
-    return pass;
-}
-
 void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
                                     ov::intel_gna::PrePostProcessModels* input_output_subgraphs) {
     apply(model, {}, input_output_subgraphs);
@@ -92,66 +79,112 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
 
     // In OV API 2.0(IRv10) default convertion to fp32 (inputs, outputs and weights) is disabled
     // and we need to run the ConvertPrecision transformation to support old networks.
-    std::vector<std::shared_ptr<ov::pass::PassBase>> transformations;
-    transformations.push_back(create_with_unique_name<ov::pass::ConvertPrecision>(
-        precisions_map{{ngraph::element::f16, ngraph::element::f32}}));
-    transformations.push_back(create_with_unique_name<ov::pass::ConvertMVN1ToMVN6>());
-    transformations.push_back(create_with_unique_name<ov::intel_gna::pass::DecomposeMVN>());
-    transformations.push_back(create_with_unique_name<ov::pass::CommonOptimizations>());
-    transformations.push_back(create_with_unique_name<ov::intel_gna::pass::RemoveInputConvert>());
-    transformations.push_back(create_with_unique_name<ov::intel_gna::pass::RemoveOutputConvert>());
-    transformations.push_back(create_with_unique_name<ov::pass::ConvertSequenceToTensorIterator>());
-    transformations.push_back(create_with_unique_name<ov::pass::GRUCellDecomposition>());
-    transformations.push_back(create_with_unique_name<ov::pass::LSTMCellDecomposition>());
-    transformations.push_back(create_with_unique_name<ov::intel_gna::pass::ConvertDWSCToScaleShifts>());
-    transformations.push_back(create_with_unique_name<ov::intel_gna::pass::ConvertPaddedToValidConv>());
+    std::vector<std::pair<std::string, std::shared_ptr<ov::pass::PassBase>>> transformations;
+    transformations.emplace_back(
+        "ov::pass::ConvertPrecision_0",
+        std::make_shared<ov::pass::ConvertPrecision>(precisions_map{{ngraph::element::f16, ngraph::element::f32}}));
 
-    transformations.push_back(
-        create_with_unique_name<ov::intel_gna::pass::Decompose2DConvTransposedWithBiasAF>(config.gnaPrecision));
-    transformations.push_back(
-        create_with_unique_name<ov::intel_gna::pass::Decompose2DConvTransposedWithBias>(config.gnaPrecision));
-    transformations.push_back(create_with_unique_name<ov::intel_gna::pass::Decompose2DConv>(config.gnaPrecision));
+    transformations.emplace_back("ov::pass::ConvertMVN1ToMVN6_0", std::make_shared<ov::pass::ConvertMVN1ToMVN6>());
+
+    transformations.emplace_back("ov::intel_gna::pass::DecomposeMVN_0",
+                                 std::make_shared<ov::intel_gna::pass::DecomposeMVN>());
+
+    transformations.emplace_back("ov::pass::CommonOptimizations_0", std::make_shared<ov::pass::CommonOptimizations>());
+    transformations.emplace_back("ov::intel_gna::pass::RemoveInputConvert_0",
+                                 std::make_shared<ov::intel_gna::pass::RemoveInputConvert>());
+    transformations.emplace_back("ov::intel_gna::pass::RemoveOutputConvert_0",
+                                 std::make_shared<ov::intel_gna::pass::RemoveOutputConvert>());
+    transformations.emplace_back("ov::pass::ConvertSequenceToTensorIterator_0",
+                                 std::make_shared<ov::pass::ConvertSequenceToTensorIterator>());
+    transformations.emplace_back("ov::pass::GRUCellDecomposition_0",
+                                 std::make_shared<ov::pass::GRUCellDecomposition>());
+    transformations.emplace_back("ov::pass::LSTMCellDecomposition_0",
+                                 std::make_shared<ov::pass::LSTMCellDecomposition>());
+    transformations.emplace_back("ov::intel_gna::pass::ConvertDWSCToScaleShifts_0",
+                                 std::make_shared<ov::intel_gna::pass::ConvertDWSCToScaleShifts>());
+    transformations.emplace_back("ov::intel_gna::pass::ConvertPaddedToValidConv_0",
+                                 std::make_shared<ov::intel_gna::pass::ConvertPaddedToValidConv>());
+
+    transformations.emplace_back(
+        "ov::intel_gna::pass::Decompose2DConvTransposedWithBiasAF_0",
+        std::make_shared<ov::intel_gna::pass::Decompose2DConvTransposedWithBiasAF>(config.gnaPrecision));
+    transformations.emplace_back(
+        "ov::intel_gna::pass::Decompose2DConvTransposedWithBias_0",
+        std::make_shared<ov::intel_gna::pass::Decompose2DConvTransposedWithBias>(config.gnaPrecision));
+    transformations.emplace_back("ov::intel_gna::pass::Decompose2DConv",
+                                 std::make_shared<ov::intel_gna::pass::Decompose2DConv>(config.gnaPrecision));
     if (!has_convolution) {
-        transformations.push_back(
-            create_with_unique_name<ov::intel_gna::pass::ConvertMatmulWithFqToPointWiseConvolution>());
-        transformations.push_back(
-            create_with_unique_name<ov::intel_gna::pass::ConvertMatmulWithBiasToPointWiseConvolution>());
-        transformations.push_back(create_with_unique_name<ov::intel_gna::pass::ConvertMatmulToPointWiseConvolution>());
+        transformations.emplace_back(
+            "ov::intel_gna::pass::ConvertMatmulWithFqToPointWiseConvolution_0",
+            std::make_shared<ov::intel_gna::pass::ConvertMatmulWithFqToPointWiseConvolution>());
+        transformations.emplace_back(
+            "ov::intel_gna::pass::ConvertMatmulWithBiasToPointWiseConvolution_0",
+            std::make_shared<ov::intel_gna::pass::ConvertMatmulWithBiasToPointWiseConvolution>());
+        transformations.emplace_back("ov::intel_gna::pass::ConvertMatmulToPointWiseConvolution_0",
+                                     std::make_shared<ov::intel_gna::pass::ConvertMatmulToPointWiseConvolution>());
     }
 
-    transformations.push_back(create_with_unique_name<ov::intel_gna::pass::SplitConvolutionWithFq>());
-    transformations.push_back(create_with_unique_name<ov::intel_gna::pass::SplitConvolutionWithBias>());
-    transformations.push_back(create_with_unique_name<ov::intel_gna::pass::SplitConvolution>());
-    transformations.push_back(create_with_unique_name<ov::intel_gna::pass::InsertReshapeAroundMatmulWithTranspose>());
-    transformations.push_back(create_with_unique_name<ov::intel_gna::pass::InsertReshapeAroundMatmulWithFq>());
-    transformations.push_back(create_with_unique_name<ov::intel_gna::pass::InsertReshapeAroundMatmulWithAdd>());
-    transformations.push_back(create_with_unique_name<ov::intel_gna::pass::InsertReshapeAroundMatmul>());
-    transformations.push_back(create_with_unique_name<ov::intel_gna::pass::SwapInputMatMulWithTrailingTranspose>());
-    transformations.push_back(create_with_unique_name<ov::intel_gna::pass::SwapInputMatMulWithAct>());
-    transformations.push_back(create_with_unique_name<ov::intel_gna::pass::SwapInputMatMulWithFq>());
-    transformations.push_back(create_with_unique_name<ov::intel_gna::pass::SwapInputMatMulWithBias>());
-    transformations.push_back(create_with_unique_name<ov::intel_gna::pass::SwapInputMatMul>());
-    transformations.push_back(create_with_unique_name<ov::intel_gna::pass::HandleTransposesAroundMatMul>());
-    transformations.push_back(create_with_unique_name<ov::intel_gna::pass::InsertTransposeAfterConvOrPool>());
-    transformations.push_back(create_with_unique_name<ov::intel_gna::pass::Unfuse2dto4dReshapeAndTranspose>());
-    transformations.push_back(create_with_unique_name<ov::intel_gna::pass::Unfuse4dto2dReshapeAndTranspose>());
-    transformations.push_back(create_with_unique_name<ov::intel_gna::pass::RemoveExtraReshapes>());
-    transformations.push_back(create_with_unique_name<ov::intel_gna::pass::ReorderActivationAndPooling>());
-    transformations.push_back(create_with_unique_name<ov::intel_gna::pass::RemoveSingleInputConcat>());
-    transformations.push_back(create_with_unique_name<ov::intel_gna::pass::SubstituteSoftsign>());
-    transformations.push_back(create_with_unique_name<ov::intel_gna::pass::InsertCopyBeforeLayerToBeEliminated>());
+    transformations.emplace_back("ov::intel_gna::pass::SplitConvolutionWithFq_0",
+                                 std::make_shared<ov::intel_gna::pass::SplitConvolutionWithFq>());
+    transformations.emplace_back("ov::intel_gna::pass::SplitConvolutionWithBias_0",
+                                 std::make_shared<ov::intel_gna::pass::SplitConvolutionWithBias>());
+    transformations.emplace_back("ov::intel_gna::pass::SplitConvolution_0",
+                                 std::make_shared<ov::intel_gna::pass::SplitConvolution>());
+    transformations.emplace_back("ov::intel_gna::pass::InsertReshapeAroundMatmulWithTranspose_0",
+                                 std::make_shared<ov::intel_gna::pass::InsertReshapeAroundMatmulWithTranspose>());
+    transformations.emplace_back("ov::intel_gna::pass::InsertReshapeAroundMatmulWithFq_0",
+                                 std::make_shared<ov::intel_gna::pass::InsertReshapeAroundMatmulWithFq>());
+    transformations.emplace_back("ov::intel_gna::pass::InsertReshapeAroundMatmulWithAdd_0",
+                                 std::make_shared<ov::intel_gna::pass::InsertReshapeAroundMatmulWithAdd>());
+    transformations.emplace_back("ov::intel_gna::pass::InsertReshapeAroundMatmul_0",
+                                 std::make_shared<ov::intel_gna::pass::InsertReshapeAroundMatmul>());
+    transformations.emplace_back("ov::intel_gna::pass::SwapInputMatMulWithTrailingTranspose_0",
+                                 std::make_shared<ov::intel_gna::pass::SwapInputMatMulWithTrailingTranspose>());
+    transformations.emplace_back("ov::intel_gna::pass::SwapInputMatMulWithAct_0",
+                                 std::make_shared<ov::intel_gna::pass::SwapInputMatMulWithAct>());
+    transformations.emplace_back("ov::intel_gna::pass::SwapInputMatMulWithFq_0",
+                                 std::make_shared<ov::intel_gna::pass::SwapInputMatMulWithFq>());
+    transformations.emplace_back("ov::intel_gna::pass::SwapInputMatMulWithBias_0",
+                                 std::make_shared<ov::intel_gna::pass::SwapInputMatMulWithBias>());
+    transformations.emplace_back("ov::intel_gna::pass::SwapInputMatMul_0",
+                                 std::make_shared<ov::intel_gna::pass::SwapInputMatMul>());
+    transformations.emplace_back("ov::intel_gna::pass::HandleTransposesAroundMatMul_0",
+                                 std::make_shared<ov::intel_gna::pass::HandleTransposesAroundMatMul>());
+    transformations.emplace_back("ov::intel_gna::pass::InsertTransposeAfterConvOrPool_0",
+                                 std::make_shared<ov::intel_gna::pass::InsertTransposeAfterConvOrPool>());
+    transformations.emplace_back("ov::intel_gna::pass::Unfuse2dto4dReshapeAndTranspose_0",
+                                 std::make_shared<ov::intel_gna::pass::Unfuse2dto4dReshapeAndTranspose>());
+    transformations.emplace_back("ov::intel_gna::pass::Unfuse4dto2dReshapeAndTranspose_0",
+                                 std::make_shared<ov::intel_gna::pass::Unfuse4dto2dReshapeAndTranspose>());
+    transformations.emplace_back("ov::intel_gna::pass::RemoveExtraReshapes_0",
+                                 std::make_shared<ov::intel_gna::pass::RemoveExtraReshapes>());
+    transformations.emplace_back("ov::intel_gna::pass::ReorderActivationAndPooling_0",
+                                 std::make_shared<ov::intel_gna::pass::ReorderActivationAndPooling>());
+    transformations.emplace_back("ov::intel_gna::pass::RemoveSingleInputConcat_0",
+                                 std::make_shared<ov::intel_gna::pass::RemoveSingleInputConcat>());
+    transformations.emplace_back("ov::intel_gna::pass::SubstituteSoftsign_0",
+                                 std::make_shared<ov::intel_gna::pass::SubstituteSoftsign>());
+    transformations.emplace_back("ov::intel_gna::pass::InsertCopyBeforeLayerToBeEliminated_0",
+                                 std::make_shared<ov::intel_gna::pass::InsertCopyBeforeLayerToBeEliminated>());
     if (!has_convolution && !has_matmul && !has_mvn) {
         // TODO: Remove this condition when the legacy layout transformation (NCHW->NHWC) is disabled
-        transformations.push_back(
-            create_with_unique_name<ov::intel_gna::pass::RemoveInputsProcessing>(input_output_subgraphs));
-        transformations.push_back(
-            create_with_unique_name<ov::intel_gna::pass::RemoveOutputsProcessing>(input_output_subgraphs));
+        transformations.emplace_back(
+            "ov::intel_gna::pass::RemoveInputsProcessing_0",
+            std::make_shared<ov::intel_gna::pass::RemoveInputsProcessing>(input_output_subgraphs));
+        transformations.emplace_back(
+            "ov::intel_gna::pass::RemoveOutputsProcessing_0",
+            std::make_shared<ov::intel_gna::pass::RemoveOutputsProcessing>(input_output_subgraphs));
     }
-    transformations.push_back(create_with_unique_name<ov::pass::ConvertOpSet3ToOpSet2>());
-    transformations.push_back(create_with_unique_name<ov::pass::ConvertOpSet2ToOpSet1>());
-    transformations.push_back(create_with_unique_name<ngraph::pass::ConvertOpSet1ToLegacy>());
-    transformations.push_back(create_with_unique_name<ov::intel_gna::pass::MarkupFusableTranspose>());
-    transformations.push_back(create_with_unique_name<ov::intel_gna::pass::RemoveExtraReshapes>());
+    transformations.emplace_back("ov::pass::ConvertOpSet3ToOpSet2_0",
+                                 std::make_shared<ov::pass::ConvertOpSet3ToOpSet2>());
+    transformations.emplace_back("ov::pass::ConvertOpSet2ToOpSet1_0",
+                                 std::make_shared<ov::pass::ConvertOpSet2ToOpSet1>());
+    transformations.emplace_back("ngraph::pass::ConvertOpSet1ToLegacy_0",
+                                 std::make_shared<ngraph::pass::ConvertOpSet1ToLegacy>());
+    transformations.emplace_back("ov::intel_gna::pass::MarkupFusableTranspose_0",
+                                 std::make_shared<ov::intel_gna::pass::MarkupFusableTranspose>());
+    transformations.emplace_back("ov::intel_gna::pass::RemoveExtraReshapes_1",
+                                 std::make_shared<ov::intel_gna::pass::RemoveExtraReshapes>());
     /*
         Put BroadcastAddMultiplyConst here after ConvertOpSet..() transformations since there are conficts with them.
         ngraph::pass::ConvertOpSet1ToLegacy -> ngraph::pass::BiasFusions ->
@@ -160,40 +193,53 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
         TODO: move that transformation just beyond RemoveSingleInputConcat pass after removing ConvertOpSet1ToLegacy
             transormations
     */
-    transformations.push_back(create_with_unique_name<ov::intel_gna::pass::BroadcastAddMultiplyConst>());
+    transformations.emplace_back("ov::intel_gna::pass::BroadcastAddMultiplyConst_0",
+                                 std::make_shared<ov::intel_gna::pass::BroadcastAddMultiplyConst>());
 
     /*
         SplitEltwise has dependency on BroadcastAddMultiplyConst for case when spliting of Constant
         input is doing
     */
-    transformations.push_back(create_with_unique_name<ov::intel_gna::pass::SplitEltwise>());
+    transformations.emplace_back("ov::intel_gna::pass::SplitEltwise_0",
+                                 std::make_shared<ov::intel_gna::pass::SplitEltwise>());
     /* The following transformations perform insertion of Identity layer in 3 steps:
         1. Mark inputs with rt_info attribute where precision change from i32 to i16/i8 is happened
         2. Insert Identity after operation which have consumers marked with precision change
         3. Cleanup appropriate attribute from rt_info
     */
-    transformations.push_back(
-        create_with_unique_name<ov::intel_gna::pass::MarkIdentityCandidates>(config.gnaFlags.input_low_precision));
-    transformations.push_back(create_with_unique_name<ov::intel_gna::pass::InsertIdentity>());
-    transformations.push_back(create_with_unique_name<ov::intel_gna::pass::IdentityCandidatesCleanup>());
+    transformations.emplace_back(
+        "ov::intel_gna::pass::MarkIdentityCandidates_0",
+        std::make_shared<ov::intel_gna::pass::MarkIdentityCandidates>(config.gnaFlags.input_low_precision));
+    transformations.emplace_back("ov::intel_gna::pass::InsertIdentity_0",
+                                 std::make_shared<ov::intel_gna::pass::InsertIdentity>());
+    transformations.emplace_back("ov::intel_gna::pass::IdentityCandidatesCleanup_0",
+                                 std::make_shared<ov::intel_gna::pass::IdentityCandidatesCleanup>());
     // Breaks fusing of layers before result
-    transformations.push_back(create_with_unique_name<ov::intel_gna::pass::BreakFusingOfOutputLayers>());
+    transformations.emplace_back("ov::intel_gna::pass::BreakFusingOfOutputLayer_0",
+                                 std::make_shared<ov::intel_gna::pass::BreakFusingOfOutputLayers>());
     if (!config.gnaFlags.sw_fp32 && !config.gnaFlags.uniformPwlDesign) {
-        transformations.push_back(
-            create_with_unique_name<ov::intel_gna::pass::PWLApproximationWithFq>(config.gnaFlags.pwlMaxErrorPercent));
-        transformations.push_back(
-            create_with_unique_name<ov::intel_gna::pass::PWLApproximation>(config.gnaFlags.pwlMaxErrorPercent));
+        transformations.emplace_back(
+            "ov::intel_gna::pass::PWLApproximationWithFq_0",
+            std::make_shared<ov::intel_gna::pass::PWLApproximationWithFq>(config.gnaFlags.pwlMaxErrorPercent));
+        transformations.emplace_back(
+            "ov::intel_gna::pass::PWLApproximation_0",
+            std::make_shared<ov::intel_gna::pass::PWLApproximation>(config.gnaFlags.pwlMaxErrorPercent));
     }
-    transformations.push_back(create_with_unique_name<ov::pass::UnrollTensorIterator>());
-    transformations.push_back(create_with_unique_name<ov::intel_gna::pass::InsertCopyBeforeAssignLayer>());
-    transformations.push_back(create_with_unique_name<ov::intel_gna::pass::InsertCopyBeforeConcatLayer>());
-    transformations.push_back(
-        create_with_unique_name<ov::intel_gna::pass::HandleMultiConnectedLayerToConcatAndMemory>());
-    transformations.push_back(create_with_unique_name<ov::intel_gna::pass::HandleNonFunctionalSubgraphs>());
-    transformations.push_back(
-        create_with_unique_name<ov::pass::ConvertPrecision>(precisions_map{{ov::element::i64, ov::element::i32},
-                                                                           {ov::element::u64, ov::element::i32},
-                                                                           {ov::element::u32, ov::element::i32}}));
+    transformations.emplace_back("ov::pass::UnrollTensorIterator_0",
+                                 std::make_shared<ov::pass::UnrollTensorIterator>());
+    transformations.emplace_back("ov::intel_gna::pass::InsertCopyBeforeAssignLayer_0",
+                                 std::make_shared<ov::intel_gna::pass::InsertCopyBeforeAssignLayer>());
+    transformations.emplace_back("ov::intel_gna::pass::InsertCopyBeforeConcatLayer_0",
+                                 std::make_shared<ov::intel_gna::pass::InsertCopyBeforeConcatLayer>());
+    transformations.emplace_back("ov::intel_gna::pass::HandleMultiConnectedLayerToConcatAndMemory_0",
+                                 std::make_shared<ov::intel_gna::pass::HandleMultiConnectedLayerToConcatAndMemory>());
+    transformations.emplace_back("ov::intel_gna::pass::HandleNonFunctionalSubgraphs_0",
+                                 std::make_shared<ov::intel_gna::pass::HandleNonFunctionalSubgraphs>());
+    transformations.emplace_back(
+        "ov::pass::ConvertPrecision_1",
+        std::make_shared<ov::pass::ConvertPrecision>(precisions_map{{ov::element::i64, ov::element::i32},
+                                                                    {ov::element::u64, ov::element::i32},
+                                                                    {ov::element::u32, ov::element::i32}}));
 
     if (transformations_list.empty()) {
         register_all_passes(transformations, manager);
@@ -223,27 +269,28 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
     manager.run_passes(model);
 
     is_ngraph_passes_used = true;
-}
+}  // namespace intel_gna
 
 void TransformationsPipeline::register_all_passes(const PassesInstances& passes, ov::pass::Manager& manager) {
-    for (auto& pass : passes) {
-        manager.register_pass_instance(pass);
+    for (const auto& pass : passes) {
+        manager.register_pass_instance(pass.second);
     }
 }
 
 void TransformationsPipeline::register_passes_with_given_order(const std::vector<std::string>& transformations_list,
                                                                const PassesInstances& passes,
                                                                ov::pass::Manager& manager) {
+
 #ifdef DUMP_TRSANSFORMATION_LIST
     // configuration.json has to be updated each time transformation list was modified.
     for (auto& pass : passes) {
-        std::cout << "    { \"name\": \"" << pass->get_name() << "\" }," << std::endl;
+        std::cout << "    { \"name\": \"" << pass.first << "\" }," << std::endl;
     }
 #endif
 
     std::string transformation_name;
-    auto find_pass = [&transformation_name](std::shared_ptr<ov::pass::PassBase> pass) {
-        return transformation_name.compare(pass->get_name()) == 0;
+    auto find_pass = [&transformation_name](const PasseEntry& pass_entry) {
+        return transformation_name.compare(pass_entry.first) == 0;
     };
 
     PassesInstances passes_copy = passes;
@@ -252,7 +299,7 @@ void TransformationsPipeline::register_passes_with_given_order(const std::vector
         transformation_name = transformation;
         auto pass_iterator = std::find_if(passes_copy.begin(), passes_copy.end(), find_pass);
         if (pass_iterator != passes_copy.end()) {
-            manager.register_pass_instance(*pass_iterator);
+            manager.register_pass_instance(pass_iterator->second);
             passes_copy.erase(pass_iterator);
         }
     }

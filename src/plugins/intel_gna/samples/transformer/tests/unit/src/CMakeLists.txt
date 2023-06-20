@@ -2,4 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-add_subdirectory(unit)
+include_directories(../../../src/lib/gna_trans_lib)
+
+add_subdirectory(lib)
