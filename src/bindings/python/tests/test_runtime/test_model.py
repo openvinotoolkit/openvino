@@ -634,9 +634,13 @@ def test_model_add_results():
     model.add_results([result2])
 
     results = model.get_results()
+    print(results)
     assert len(results) == 2
     assert results[0].get_output_element_type(0) == Type.f32
     assert results[0].get_output_partial_shape(0) == PartialShape([1])
+
+    model.remove_result(result)
+    assert len(model.results) == 1
 
 
 def test_model_add_parameters():
@@ -653,6 +657,9 @@ def test_model_add_parameters():
     assert (params[0].get_partial_shape()) == PartialShape([1])
     assert len(params) == 2
 
+    model.remove_parameter(param)
+    assert len(model.parameters) == 1
+
 
 def test_model_add_sinks():
     param = ops.parameter(PartialShape([1]), dtype=np.float32, name="param")
@@ -661,8 +668,10 @@ def test_model_add_sinks():
     result = ops.result(relu2, "res")
     model = Model([result], [param], "TestModel")
 
-    node = Assign()
-    model.add_sinks([node])
+    assign = Assign()
+    model.add_sinks([assign])
 
     assign_nodes = model.sinks
     assert ["Assign"] == [sink.get_type_name() for sink in assign_nodes]
+    model.remove_sink(assign)
+    assert len(model.sinks) == 0

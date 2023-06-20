@@ -707,6 +707,53 @@ void regclass_graph_Model(py::module m) {
                     :rtype: int
                  )");
 
+    model.def("remove_result",
+              &ov::Model::remove_result,
+              py::arg("result"),
+              R"(
+                Delete Result node from the list of results. Method will not delete node from graph.
+
+                :param result: Result node to delete.
+            )");
+
+    model.def("remove_parameter",
+              &ov::Model::remove_parameter,
+              py::arg("parameter"),
+              R"(
+            Delete Parameter node from the list of parameters. Method will not delete node from graph. 
+            You need to replace Parameter with other operation manually.
+
+            Attention: Indexing of parameters can be changed.
+
+            Possible use of method is to replace input by variable. For it the following steps should be done:
+            * `Parameter` node should be replaced by `ReadValue`
+            * call remove_parameter(param) to remove input from the list
+            * check if any parameter indexes are saved/used somewhere, update it for all inputs because indexes can be changed
+            * call graph validation to check all changes
+
+            :param parameter: Parameter node to delete.
+        )");
+
+    model.def(
+        "remove_sink",
+        [](ov::Model& self, const py::object& node) {
+            if (py::isinstance<ov::op::v6::Assign>(node)) {
+                auto sink = std::dynamic_pointer_cast<ov::op::Sink>(node.cast<std::shared_ptr<ov::op::v6::Assign>>());
+                self.remove_sink(sink);
+            } else if (py::isinstance<ov::Node>(node)) {
+                auto sink = std::dynamic_pointer_cast<ov::op::Sink>(node.cast<std::shared_ptr<ov::Node>>());
+                self.remove_sink(sink);
+            } else {
+                throw py::type_error("Incorrect argument type.");
+            }
+        },
+        py::arg("sink"),
+        R"(
+                Delete sink node from the list of sinks. Method doesn't delete node from graph.
+
+                :param sink: Sink to delete.
+        )");
+
     model.def("add_parameters",
               &ov::Model::add_parameters,
               py::arg("parameters"),
