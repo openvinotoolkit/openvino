@@ -164,7 +164,7 @@ void AutoSchedule::init() {
         // so the executor can't be destroyed before finished the task,
         // so use executor as a member of AutoSchedule.
         m_executor = m_plugin->get_executor_manager()->get_idle_cpu_streams_executor(
-                    ov::threading::IStreamsExecutor::Config{"AutoDeviceAsyncLoad",
+                    ov::threading::IStreamsExecutor::Config{"AutoDeviceAsyncCompile",
                     static_cast<int>(std::thread::hardware_concurrency()) /* max possible #streams*/,
                     0 /*default threads per stream, workaround for ticket 62376*/,
                     ov::threading::IStreamsExecutor::ThreadBindingType::NONE});
@@ -247,7 +247,7 @@ void AutoSchedule::init() {
         }
         m_compile_context[ACTUALDEVICE].m_task();
     } else {
-        // only one device need to compile model, do not need to load it async
+        // only one device need to compile model, do not need to compile it async
         m_compile_context[ACTUALDEVICE].m_task();
         m_passthrough_compiled_model = m_compile_context[ACTUALDEVICE].m_compiled_model;
     }
@@ -299,12 +299,12 @@ void AutoSchedule::try_to_compile_model(AutoCompileContext& context, const std::
     if (context.m_is_load_success || cur_dev_is_cpu) {
         return;
     }
-    // need to reload model, unregister it's priority
+    // need to recompile model, unregister it's priority
     // there maybe potential issue.
     // for example they are dGPU, VPUX, iGPU, customer want to compile model with
-    // configure 0 dGPU, 1 VPUX, if dGPU load failed,
-    // the result will be not sure, maybe two models are loaded into VPUX,
-    // maybe 0 is loaded to VPUX, 1 is loaded to iGPU
+    // configure 0 dGPU, 1 VPUX, if dGPU compile failed,
+    // the result will be not sure, maybe two models are compiled into VPUX,
+    // maybe 0 is compiled to VPUX, 1 is compiled to iGPU
     m_plugin->unregister_priority(m_context->m_model_priority, context.m_device_info.unique_name);
     // remove the current device from device_list
     auto erase_device = deviceChecker().check_and_return_if_device_in_list(device, device_list, true);
@@ -322,7 +322,7 @@ void AutoSchedule::try_to_compile_model(AutoCompileContext& context, const std::
         return;
     }
     // if the select device is CPU, need to check the config of m_compile_context[CPU]
-    // if they are same, do not need to load again
+    // if they are same, do not need to compile again
     cur_dev_is_cpu = (context.m_device_info.device_name.find("CPU") != std::string::npos);
     if (cur_dev_is_cpu) {
         auto compare = [](ov::AnyMap& a, ov::AnyMap& b) -> bool {
@@ -345,14 +345,14 @@ void AutoSchedule::try_to_compile_model(AutoCompileContext& context, const std::
             return;
         }
     }
-    LOG_DEBUG_TAG("try to load %s", context.m_device_info.device_name.c_str());
-    // try to load this candidate device
+    LOG_DEBUG_TAG("try to compile %s", context.m_device_info.device_name.c_str());
+    // try to compile this candidate device
     try_to_compile_model(context, model);
 }
 
 SoCompiledModel AutoSchedule::wait_first_compiled_model_ready() {
     if (m_firstload_future.valid()) {
-        // wait for the first loading finished
+        // wait for the first compiling finished
         m_firstload_future.wait();
     }
     // check if there is any device that have compiled model successfully
@@ -365,7 +365,7 @@ SoCompiledModel AutoSchedule::wait_first_compiled_model_ready() {
     for (int i = CONTEXTNUM - 2; i >= 0; i--) {
         if (m_compile_context[i].m_is_enabled) {
             m_compile_context[i].m_future.wait();
-            // check if loading is successful
+            // check if compiling is successful
             if (m_compile_context[i].m_is_already) {
                 return m_compile_context[i].m_compiled_model;
             }
@@ -449,7 +449,7 @@ AutoSchedule::~AutoSchedule() {
         m_compile_context[CPU].m_future.wait();
         wait_actual_compiled_model_ready();
         // it's necessary to wait the compile model threads to stop here.
-        m_plugin->get_executor_manager()->clear("AutoDeviceAsyncLoad");
+        m_plugin->get_executor_manager()->clear("AutoDeviceAsyncCompile");
         m_executor.reset();
     }
     if (m_plugin)

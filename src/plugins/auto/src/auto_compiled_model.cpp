@@ -102,8 +102,8 @@ ov::Any AutoCompiledModel::get_property(const std::string& name) const {
             OPENVINO_SUPPRESS_DEPRECATED_END
         }
     } else if (name == ov::optimal_number_of_infer_requests) {
-        const unsigned int defaultNumForTPUT = 4u;
-        const unsigned int defaultNumForLatency = 1u;
+        const unsigned int default_num_for_tput = 4u;
+        const unsigned int default_num_for_latency = 1u;
         unsigned int real = 0;
         if (m_scheduler->m_compile_context[ACTUALDEVICE].m_is_already) {
             real = m_scheduler->m_compile_context[ACTUALDEVICE].
@@ -113,41 +113,50 @@ ov::Any AutoCompiledModel::get_property(const std::string& name) const {
             std::unique_lock<std::mutex> lock(m_context->m_mutex);
             auto device_info = m_scheduler->m_compile_context[ACTUALDEVICE].m_device_info;
             lock.unlock();
-            unsigned int optimalBatchSize = 0;
+            unsigned int optimal_batch_size = 0;
             unsigned int requests = 0;
-            bool bThroughputEnabledInPlugin = false;
+            bool tput_enabled_in_plugin = false;
+            auto actual_dev_supported_properties = m_context->m_ov_core->get_property(device_info.device_name, ov::supported_properties);
             try {
                 // for benchmark through AUTO:CPU,GPU
                 // SetConfig directly set to CPU/GPU in this case
-                bThroughputEnabledInPlugin =
-                    m_context->m_ov_core->get_property(device_info.device_name,
-                        ov::hint::performance_mode)== ov::hint::PerformanceMode::THROUGHPUT;
+                if (std::find(actual_dev_supported_properties.begin(), actual_dev_supported_properties.end(), ov::hint::performance_mode)
+                    != actual_dev_supported_properties.end())
+                    tput_enabled_in_plugin =
+                        m_context->m_ov_core->get_property(device_info.device_name,
+                            ov::hint::performance_mode)== ov::hint::PerformanceMode::THROUGHPUT;
             } catch (const ov::Exception&) {
                 LOG_DEBUG_TAG("get_property:%s for %s", "PERF_HINT config not supported",
                     device_info.device_name.c_str());
             }
             const auto& mode = device_info.config.find(ov::hint::performance_mode.name());
-            if (bThroughputEnabledInPlugin ||
+            if (tput_enabled_in_plugin ||
                 (mode != device_info.config.end() && mode->second == ov::hint::PerformanceMode::THROUGHPUT)) {
-                unsigned int upperBoundStreamsNum = 0;
-                try {
-                    auto rangeOfStreams = m_context->m_ov_core->get_property(device_info.device_name,
-                            ov::range_for_streams);
-                    upperBoundStreamsNum = std::get<1>(rangeOfStreams);
-                } catch (const ov::Exception&) {
-                    LOG_DEBUG_TAG("get_property RANGE_FOR_STREAMS failed");
-                }
-                if (!m_context->m_batching_disabled) {
+                unsigned int upper_bound_streams_num = 0;
+                if (std::find(actual_dev_supported_properties.begin(), actual_dev_supported_properties.end(), ov::range_for_streams)
+                    != actual_dev_supported_properties.end()) {
                     try {
-                        optimalBatchSize = m_context->m_ov_core->get_property(device_info.device_name,
-                                ov::optimal_batch_size, {ov::hint::model(m_model)});
-                        LOG_DEBUG_TAG("BATCHING:%s:%ld", "optimal batch size",
-                            optimalBatchSize);
+                        auto range_of_streams = m_context->m_ov_core->get_property(device_info.device_name,
+                                ov::range_for_streams);
+                        upper_bound_streams_num = std::get<1>(range_of_streams);
                     } catch (const ov::Exception&) {
-                        LOG_DEBUG_TAG("BATCHING:%s", "property optimal_batch_size not supported");
+                        LOG_DEBUG_TAG("get_property range_for_streams failed");
                     }
                 }
-                if (optimalBatchSize > 1) {
+                if (!m_context->m_batching_disabled) {
+                    if (std::find(actual_dev_supported_properties.begin(), actual_dev_supported_properties.end(), ov::optimal_batch_size)
+                        != actual_dev_supported_properties.end()) {
+                        try {
+                            optimal_batch_size = m_context->m_ov_core->get_property(device_info.device_name,
+                                    ov::optimal_batch_size, {ov::hint::model(m_model)});
+                            LOG_DEBUG_TAG("BATCHING:%s:%ld", "optimal batch size",
+                                optimal_batch_size);
+                        } catch (const ov::Exception&) {
+                            LOG_DEBUG_TAG("BATCHING:%s", "property optimal_batch_size not supported");
+                        }
+                    }
+                }
+                if (optimal_batch_size > 1) {
                     // batching is supported with the device
                     // go with auto-batching
                     try {
@@ -160,32 +169,32 @@ ov::Any AutoCompiledModel::get_property(const std::string& name) const {
                         }
                         LOG_DEBUG_TAG("BATCHING:%s:%ld", "user requested size", requests);
                         if (!requests) { // no limitations from user
-                            requests = optimalBatchSize * upperBoundStreamsNum * 2;
+                            requests = optimal_batch_size * upper_bound_streams_num * 2;
                             LOG_DEBUG_TAG("BATCHING:%s:%ld", "deduced size:", requests);
                         }
                     } catch (const ov::Exception& iie) {
                         LOG_WARNING_TAG("deduce optimal infer requset num for auto-batch failed :%s",
                             iie.what());
                     }
-                    real = (std::max)(requests, optimalBatchSize);
+                    real = (std::max)(requests, optimal_batch_size);
                 } else if (device_info.device_name.find("VPUX") != std::string::npos) {
                     real = 8u;
                 } else {
-                    real = upperBoundStreamsNum ? 2 * upperBoundStreamsNum : defaultNumForTPUT;
+                    real = upper_bound_streams_num ? 2 * upper_bound_streams_num : default_num_for_tput;
                 }
             } else {
-                real = defaultNumForLatency;
+                real = default_num_for_latency;
             }
         }
         return decltype(ov::optimal_number_of_infer_requests)::value_type {real};
     } else if (name == ov::execution_devices) {
         ov::Any execution_devices;
-        auto GetExecutionDevices = [&execution_devices](std::string ExeDevicesString) {
-            std::vector<std::string> exeDevices = {};
-            if (ExeDevicesString == "CPU_HELP")
-                ExeDevicesString = "(CPU)";
-            exeDevices.push_back(ExeDevicesString);
-            execution_devices = decltype(ov::execution_devices)::value_type {exeDevices};
+        auto get_execution_devices = [&execution_devices](std::string exe_devices_string) {
+            std::vector<std::string> exe_devices = {};
+            if (exe_devices_string == "CPU_HELP")
+                exe_devices_string = "(CPU)";
+            exe_devices.push_back(exe_devices_string);
+            execution_devices = decltype(ov::execution_devices)::value_type {exe_devices};
         };
         {
             std::lock_guard<std::mutex> lock(m_context->m_mutex);
@@ -194,7 +203,7 @@ ov::Any AutoCompiledModel::get_property(const std::string& name) const {
                     if (i == 0 && !m_scheduler->m_compile_context[CPU].m_compiled_model._ptr) {
                         continue;
                     } else {
-                        GetExecutionDevices(m_scheduler->m_compile_context[i].m_worker_name);
+                        get_execution_devices(m_scheduler->m_compile_context[i].m_worker_name);
                         break;
                     }
                 }
