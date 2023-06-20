@@ -155,6 +155,25 @@ bool Transformations::fuse_type_to_convert(const std::shared_ptr<ngraph::Node>& 
     return false;
 }
 
+template <typename T>
+bool Transformations::fuse_type_to_binary_comparision(const std::shared_ptr<ngraph::Node>& node,
+                                                      const precisions_map& precisions) {
+    auto it = precisions.find(node->get_output_element_type(0));
+    if (it == precisions.end())
+        return false;
+    const auto& to = it->second;
+    if (auto type_relaxed = std::dynamic_pointer_cast<ov::op::TypeRelaxedBase>(node)) {
+        type_relaxed->set_overridden_output_type(to);
+        return true;
+    } else if (auto casted = std::dynamic_pointer_cast<T>(node)) {
+        auto relaxed_op =
+            std::make_shared<ov::op::TypeRelaxed<T>>(*casted, ov::element::TypeVector{}, ov::element::TypeVector{to});
+        replace_node(node, relaxed_op);
+        return true;
+    }
+    return false;
+}
+
 void Transformations::UpToCpuSpecificOpSet() {
     const bool useLpt = enableLpt &&
         ngraph::pass::low_precision::LowPrecision::isFunctionQuantized(model) &&
@@ -229,7 +248,11 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
         return map;
     };
     static const auto precisions = get_convert_precisions();
-    type_to_fuse_map type_to_fuse = {{ov::opset10::Convert::get_type_info_static(), fuse_type_to_convert}};
+    type_to_fuse_map type_to_fuse = {
+        {ov::opset10::Convert::get_type_info_static(), fuse_type_to_convert},
+        {ov::opset10::IsFinite::get_type_info_static(), fuse_type_to_binary_comparision<ov::opset10::IsFinite>},
+        {ov::opset10::IsNaN::get_type_info_static(), fuse_type_to_binary_comparision<ov::opset10::IsNaN>},
+    };
 
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::AUGRUCellFusion);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::BroadcastTransition);
