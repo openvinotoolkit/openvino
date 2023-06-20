@@ -47,7 +47,7 @@ public:
 
     std::vector<std::shared_ptr<const ov::Node>> inputs, outputs;
     std::set<std::string> batchedInputs, batchedOutputs;
-    std::shared_ptr<AutoBatchExecutableNetwork::WorkerInferRequest> workerRequestPtr;
+    std::shared_ptr<CompiledModel::WorkerInferRequest> workerRequestPtr;
 
 public:
     static std::string getTestCaseName(testing::TestParamInfo<AutoBatchRequestTestParams> obj) {
@@ -80,7 +80,7 @@ public:
     }
 
     void create_worker(int batch_size) {
-        workerRequestPtr = std::make_shared<AutoBatchExecutableNetwork::WorkerInferRequest>();
+        workerRequestPtr = std::make_shared<CompiledModel::WorkerInferRequest>();
 
         workerRequestPtr->_inferRequestBatched = {mockInferRequestBatched, {}};
         workerRequestPtr->_batchSize = batch_size;
@@ -245,7 +245,7 @@ public:
     }
 
     void create_worker(int batch_size) {
-        workerRequestPtr = std::make_shared<AutoBatchExecutableNetwork::WorkerInferRequest>();
+        workerRequestPtr = std::make_shared<CompiledModel::WorkerInferRequest>();
 
         workerRequestPtr->_inferRequestBatched = {mockInferRequestBatched, {}};
         workerRequestPtr->_batchSize = batch_size;

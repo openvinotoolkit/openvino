@@ -16,14 +16,14 @@ public:
     using Ptr = std::shared_ptr<AutoBatchInferRequest>;
     explicit AutoBatchInferRequest(const InferenceEngine::InputsDataMap& networkInputs,
                                    const InferenceEngine::OutputsDataMap& networkOutputs,
-                                   AutoBatchExecutableNetwork::WorkerInferRequest& workerRequestPtr,
+                                   CompiledModel::WorkerInferRequest& workerRequestPtr,
                                    int batch_id,
                                    int num_batch,
                                    const std::set<std::string>& batchedIntputs,
                                    const std::set<std::string>& batchedOutputs);
     explicit AutoBatchInferRequest(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
                                    const std::vector<std::shared_ptr<const ov::Node>>& outputs,
-                                   AutoBatchExecutableNetwork::WorkerInferRequest& workerRequestPtr,
+                                   CompiledModel::WorkerInferRequest& workerRequestPtr,
                                    int batch_id,
                                    int num_batch,
                                    const std::set<std::string>& batchedIntputs,
@@ -33,7 +33,7 @@ public:
     void SetBlobsToAnotherRequest(InferenceEngine::SoIInferRequestInternal& req);
     void CopyInputsIfNeeded();
     void CopyOutputsIfNeeded();
-    AutoBatchExecutableNetwork::WorkerInferRequest& _myBatchedRequestWrapper;
+    CompiledModel::WorkerInferRequest& _myBatchedRequestWrapper;
     std::exception_ptr _exceptionPtr;
     enum eExecutionFlavor : uint8_t {
         NOT_EXECUTED,

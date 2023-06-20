@@ -44,7 +44,7 @@ public:
     std::shared_ptr<InferenceEngine::IInferencePlugin> mockPlugin;
     ov::SoPtr<IExecutableNetworkInternal> batchedExecNetwork;
 
-    std::shared_ptr<AutoBatchExecutableNetwork> actualExecNet;
+    std::shared_ptr<CompiledModel> actualExecNet;
     std::vector<std::shared_ptr<NiceMock<MockIInferRequestInternal>>> inferRequestVec;
 
 public:
@@ -90,7 +90,7 @@ public:
         });
     }
 
-    AutoBatchExecutableNetwork::Ptr createAutoBatchExecutableNetwork(int batch_size) {
+    CompiledModel::Ptr createAutoBatchExecutableNetwork(int batch_size) {
         DeviceInformation metaDevice = {"CPU", {}, batch_size};
         std::unordered_map<std::string, InferenceEngine::Parameter> config = {{CONFIG_KEY(AUTO_BATCH_TIMEOUT), "200"}};
         std::set<std::string> batched_inputs = {"Parameter_0"};
@@ -98,7 +98,7 @@ public:
 
         if (batch_size > 1)
             batchedExecNetwork = ov::SoPtr<InferenceEngine::IExecutableNetworkInternal>(mockPlugin->LoadNetwork(CNNNetwork{}, {}), {});
-        return std::make_shared<AutoBatchExecutableNetwork>(batchedExecNetwork,
+        return std::make_shared<CompiledModel>(batchedExecNetwork,
                                                             mockExecNetwork,
                                                             metaDevice,
                                                             config,

@@ -35,7 +35,7 @@ Blob::Ptr create_shared_blob_on_top_of_batched_blob(Blob::Ptr batched_blob,
 
 AutoBatchInferRequest::AutoBatchInferRequest(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
                                              const std::vector<std::shared_ptr<const ov::Node>>& outputs,
-                                             AutoBatchExecutableNetwork::WorkerInferRequest& workerRequest,
+                                             CompiledModel::WorkerInferRequest& workerRequest,
                                              int batch_id,
                                              int num_batch,
                                              const std::set<std::string>& batchedInputs,
@@ -49,7 +49,7 @@ AutoBatchInferRequest::AutoBatchInferRequest(const std::vector<std::shared_ptr<c
 
 AutoBatchInferRequest::AutoBatchInferRequest(const InputsDataMap& networkInputs,
                                              const OutputsDataMap& networkOutputs,
-                                             AutoBatchExecutableNetwork::WorkerInferRequest& workerRequest,
+                                             CompiledModel::WorkerInferRequest& workerRequest,
                                              int batch_id,
                                              int num_batch,
                                              const std::set<std::string>& batchedInputs,

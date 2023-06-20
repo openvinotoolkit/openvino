@@ -321,7 +321,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr Plugin::LoadNetworkImpl(
         }
     }
 
-    return std::make_shared<AutoBatchExecutableNetwork>(executableNetworkWithBatch,
+    return std::make_shared<CompiledModel>(executableNetworkWithBatch,
                                                         executableNetworkWithoutBatch,
                                                         metaDevice,
                                                         networkConfig,
