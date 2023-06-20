@@ -41,7 +41,7 @@ from openvino.tools.ovc.telemetry_utils import send_params_info, send_conversion
     get_tid
 from openvino.tools.ovc.moc_frontend.check_config import legacy_extensions_used
 from openvino.tools.ovc.moc_frontend.check_config import default_path as extensions_default_path
-from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import get_pytorch_decoder
+from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import get_pytorch_decoder, extract_input_info_from_example
 from openvino.tools.ovc.moc_frontend.paddle_frontend_utils import paddle_frontend_converter
 from openvino.tools.ovc.moc_frontend.shape_utils import parse_input_shapes
 
@@ -636,6 +636,8 @@ def python_api_params_parsing(argv: argparse.Namespace):
                     data_type_list.append(inp.type)
         argv.placeholder_shapes = shape_list if shape_list else None
         argv.placeholder_data_types = data_type_list if data_type_list else {}
+    if argv.framework == "pytorch" and getattr(argv, "example_input", None) is not None:
+        extract_input_info_from_example(argv, inputs)
 
 
 def pack_params_to_args_namespace(args: dict, cli_parser: argparse.ArgumentParser):
@@ -717,8 +719,7 @@ def _convert(cli_parser: argparse.ArgumentParser, args, python_api_used):
                     raise AssertionError(
                         "'example_inputs' argument is not recognized, maybe you meant to provide 'example_input'?")
 
-                decoder = get_pytorch_decoder(args['input_model'], parse_input_shapes(args), example_inputs,
-                                              args.get("input"))
+                decoder = get_pytorch_decoder(args['input_model'], parse_input_shapes(args), example_inputs, args)
                 args['input_model'] = decoder
                 args['framework'] = model_framework
             if model_framework == "paddle":
