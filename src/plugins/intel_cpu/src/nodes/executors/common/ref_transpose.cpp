@@ -93,9 +93,9 @@ void ov::intel_cpu::RefTransposeExecutor::exec(const std::vector<MemoryCPtr>& sr
     const size_t dataSize = src[0]->getDesc().getPrecision().size();
     TransposeContext ctx = {src[0], dst[0], MB};
     OV_SWITCH(intel_cpu, TransposeOptimizedEmitter, ctx, dataSize,
-              OV_CASE(1, InferenceEngine::PrecisionTrait<InferenceEngine::Precision::U8>::value_type),
-              OV_CASE(2, InferenceEngine::PrecisionTrait<InferenceEngine::Precision::U16>::value_type),
-              OV_CASE(4, InferenceEngine::PrecisionTrait<InferenceEngine::Precision::I32>::value_type));
+              OV_CASE(1u, InferenceEngine::PrecisionTrait<InferenceEngine::Precision::U8>::value_type),
+              OV_CASE(2u, InferenceEngine::PrecisionTrait<InferenceEngine::Precision::U16>::value_type),
+              OV_CASE(4u, InferenceEngine::PrecisionTrait<InferenceEngine::Precision::I32>::value_type));
 }
 
 ov::intel_cpu::RefTransposeExecutor::RefTransposeExecutor(const ExecutorContext::CPtr context) : TransposeExecutor(context) {}
