@@ -57,8 +57,6 @@
 namespace ov {
 namespace intel_gna {
 
-static size_t iterator = 0;
-
 void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
                                     ov::intel_gna::PrePostProcessModels* input_output_subgraphs) {
     apply(model, {}, input_output_subgraphs);
@@ -280,7 +278,6 @@ void TransformationsPipeline::register_all_passes(const PassesInstances& passes,
 void TransformationsPipeline::register_passes_with_given_order(const std::vector<std::string>& transformations_list,
                                                                const PassesInstances& passes,
                                                                ov::pass::Manager& manager) {
-
 #ifdef DUMP_TRSANSFORMATION_LIST
     // configuration.json has to be updated each time transformation list was modified.
     for (auto& pass : passes) {

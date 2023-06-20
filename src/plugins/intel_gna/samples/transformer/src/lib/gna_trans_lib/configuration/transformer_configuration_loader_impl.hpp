@@ -11,7 +11,6 @@
 
 namespace transformation_sample {
 
-// TODO write tests
 class TransformerConfigurationLoaderImpl : public TransformerConfigurationLoader {
 public:
     TransformerConfiguration parse_configuration(const std::string& path_to_file) const override;

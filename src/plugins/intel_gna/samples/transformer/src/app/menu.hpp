@@ -35,11 +35,11 @@ private:
     std::function<void(void)> prepare_app_specific_transformation(const std::string& transformation_name,
                                                                   const std::string& input_model_path,
                                                                   const std::string& output_model_path);
-    void run_transformer(const std::string input_model_path,
+    static void run_transformer(const std::string input_model_path,
                          transformation_sample::ModelTransformer& transformer,
                          const std::string& output_model_path);
 
-    void export_model_to_file(std::shared_ptr<ov::Model> model, const std::string& file_path);
+    static void export_model_to_file(std::shared_ptr<ov::Model> model, const std::string& file_path);
 
     void print_app_defined_transformations();
 

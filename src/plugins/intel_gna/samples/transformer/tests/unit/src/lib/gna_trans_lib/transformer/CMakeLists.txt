@@ -8,7 +8,7 @@ add_executable(${GNA_TRANS_TRANSFORMER}
     model_transformer_gna_test.cpp
 )
 
-target_link_libraries(${GNA_TRANS_TRANSFORMER} gtest gtest_main gna_trans_lib_transformer inference_engine_s openvino::conditional_compilation)
+target_link_libraries(${GNA_TRANS_TRANSFORMER} gtest gtest_main gna_trans_lib_transformer)
 
 add_test(
     NAME ${GNA_TRANS_TRANSFORMER}

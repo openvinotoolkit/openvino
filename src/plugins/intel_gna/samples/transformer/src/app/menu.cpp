@@ -121,7 +121,7 @@ std::function<void(void)> Menu::prepare_app_specific_transformation(const std::s
 
     std::shared_ptr<ModelTransformer> transformer = std::make_shared<ModelTransformerApp>(std::move(pass));
 
-    return [this, input_model_path, transformer, output_model_path]() {
+    return [input_model_path, transformer, output_model_path]() {
         run_transformer(input_model_path, *transformer, output_model_path);
     };
 }
@@ -134,7 +134,7 @@ std::function<void(void)> Menu::prepare_gna_specific_transformations(const std::
     auto configuration = TransformerConfigurationLoaderImpl().parse_configuration(configuration_file_path);
     std::shared_ptr<ModelTransformer> transformer = std::make_shared<ModelTransformerGNA>(configuration);
 
-    return [this, input_model_path, transformer, output_model_path]() {
+    return [input_model_path, transformer, output_model_path]() {
         run_transformer(input_model_path, *transformer, output_model_path);
     };
 }

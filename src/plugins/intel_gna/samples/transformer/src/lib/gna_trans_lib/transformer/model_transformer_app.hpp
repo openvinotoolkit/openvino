@@ -9,7 +9,6 @@
 
 namespace transformation_sample {
 
-// TODO write tests
 class ModelTransformerApp : public ModelTransformer {
 public:
     ModelTransformerApp(std::shared_ptr<ov::pass::PassBase> transformation);

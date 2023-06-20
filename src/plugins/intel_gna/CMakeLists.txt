@@ -77,7 +77,27 @@ ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 # Static version for tests and samples
 #
 
-add_library(${TARGET_NAME}_test_static STATIC EXCLUDE_FROM_ALL ${SOURCES} ${HEADERS})
+set(TARGET_NAME_STATIC ${TARGET_NAME}_static)
+add_library(${TARGET_NAME_STATIC} STATIC EXCLUDE_FROM_ALL ${SOURCES} ${HEADERS} )
+ov_add_version_defines(src/gna_plugin_entry_points.cpp ${TARGET_NAME_STATIC})
+
+target_compile_definitions(${TARGET_NAME_STATIC}
+        PRIVATE
+            _NO_MKL_
+            IMPLEMENT_INFERENCE_ENGINE_PLUGIN
+        PUBLIC
+            INTEGER_LOW_P)
+target_link_libraries(${TARGET_NAME_STATIC} PRIVATE Threads::Threads libGNA inference_engine_legacy
+         PUBLIC openvino::runtime openvino::runtime::dev libGNA::API)
+
+target_include_directories(${TARGET_NAME_STATIC}
+    PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/src
+        $<TARGET_PROPERTY:inference_engine_legacy,INTERFACE_INCLUDE_DIRECTORIES>
+        $<TARGET_PROPERTY:openvino::conditional_compilation,INTERFACE_INCLUDE_DIRECTORIES>)
+
+
+add_library(${TARGET_NAME}_test_static STATIC EXCLUDE_FROM_ALL ${SOURCES} ${HEADERS} )
 
 ov_add_version_defines(src/gna_plugin_entry_points.cpp ${TARGET_NAME}_test_static)
 
@@ -97,7 +117,7 @@ target_include_directories(${TARGET_NAME}_test_static
     PRIVATE
         $<TARGET_PROPERTY:openvino::conditional_compilation,INTERFACE_INCLUDE_DIRECTORIES>)
 
-set_target_properties(${TARGET_NAME} ${TARGET_NAME}_test_static
+set_target_properties(${TARGET_NAME} ${TARGET_NAME_STATIC} ${TARGET_NAME}_test_static
                       PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
 # install

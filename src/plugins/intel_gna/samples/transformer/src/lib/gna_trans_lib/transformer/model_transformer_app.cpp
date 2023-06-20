@@ -17,7 +17,6 @@ ModelTransformerApp::ModelTransformerApp(std::shared_ptr<ov::pass::PassBase> tra
 void ModelTransformerApp::transform(std::shared_ptr<ov::Model> model) const {
     ov::pass::Manager manager;
 
-    manager.run_passes(model);
     manager.register_pass<ov::pass::InitNodeInfo>();
     manager.register_pass_instance(m_transformation);
     manager.run_passes(model);

@@ -77,7 +77,7 @@ std::map<std::string, std::string> TransformerConfigurationLoaderImpl::retrieve_
     value = retrieve_string(configuration, field_name, kConfigurationFieldName);
     config.emplace(field_name, value);
 
-    // Transformations uses also input_low_preciosion from config, but there is no possibility
+    // Transformations use also input_low_precision from config, but there is no possibility
     // to change its value, so default value is used.
 
     return config;

@@ -10,12 +10,6 @@
 
 namespace transformation_sample {
 
-struct GNAConfiguration {
-    std::string target_version;
-    std::string gna_precision;
-    std::string pwl_max_error_precentage;
-};
-
 struct TransformerConfiguration {
     std::map<std::string, std::string> gna_configuration;
     std::vector<std::string> transformations_names;

@@ -47,14 +47,15 @@ void TransformerConfigurationLoaderImplFixture::TearDown() {
 
 TEST_F(TransformerConfigurationLoaderImplFixture, invalid_json) {
     TransformerConfigurationLoaderImpl loader;
-    EXPECT_THROW(loader.parse_configuration(std::istringstream(kValidJSONWrongContent)), std::exception);
+    auto json_data = std::istringstream(kValidJSONWrongContent);
+    EXPECT_THROW(loader.parse_configuration(json_data), std::exception);
 }
 
 TEST_F(TransformerConfigurationLoaderImplFixture, proper_json) {
     TransformerConfigurationLoaderImpl loader;
     TransformerConfiguration config;
-
-    ASSERT_NO_THROW({ config = loader.parse_configuration(std::istringstream(kProperJSON)); });
+    auto json_data = std::istringstream(kProperJSON);
+    ASSERT_NO_THROW({ config = loader.parse_configuration(json_data); });
     EXPECT_EQ(config.gna_configuration.size(), 3);
     EXPECT_EQ(config.gna_configuration["GNA_HW_EXECUTION_TARGET"], std::string("GNA_3_5"));
     EXPECT_EQ(config.gna_configuration["GNA_PWL_MAX_ERROR_PERCENT"], std::string("0.5"));
