@@ -24,8 +24,6 @@ class Expression : public std::enable_shared_from_this<Expression> {
     friend class ExpressionPort;
 
 public:
-    static size_t LOOP_NULL_ID;
-
     Expression() = default;
     virtual ~Expression() = default;
 
@@ -48,16 +46,14 @@ public:
     size_t get_input_count() const { return m_input_port_connectors.size(); }
     size_t get_output_count() const { return m_output_port_connectors.size(); }
 
-    std::vector<size_t> get_loop_ids() const { return m_loop_ids; }
-    void set_loop_ids(const std::vector<size_t>& loops) { m_loop_ids = loops; }
-    void set_loop_id(size_t id, size_t idx);
-    void remove_loop_id(size_t id);
-
     void validate() const;
     void init_emitter(const std::shared_ptr<const TargetMachine>& target);
 
     ExpressionPort get_input_port(size_t i);
     ExpressionPort get_output_port(size_t i);
+
+    std::vector<size_t> get_loop_ids() const;
+    void set_loop_ids(const std::vector<size_t>& loops);
 
 protected:
     // Note: The constructor initialization is private since an expression can be created only by Linear IR.
@@ -73,6 +69,7 @@ protected:
     std::vector<PortDescriptorPtr> m_input_port_descriptors{};
     std::vector<PortDescriptorPtr> m_output_port_descriptors{};
     // The order Loops identifies: Outer ---> Inner
+    // Note: The loops with the same dimension index (splitted dimension) should be successively nested
     std::vector<size_t> m_loop_ids;
 };
 using ExpressionPtr = std::shared_ptr<Expression>;

@@ -35,7 +35,7 @@
 
 **Example**
 
-.. code-block: cpp
+.. code-block:: cpp
 
    <layer ... type="Mish">
        <input>

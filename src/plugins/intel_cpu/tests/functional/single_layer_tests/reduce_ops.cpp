@@ -215,6 +215,7 @@ const std::vector<std::vector<int>> axesND = {
 const std::vector<std::vector<int>> axes5D = {
         {2, 4},
         {0, 2, 4},
+        {1, 2, 4},
         {0, 1, 2, 3, 4},
 };
 
@@ -301,6 +302,11 @@ std::vector<std::vector<ov::test::InputShape>> inputShapes_Int32 = {
 std::vector<std::vector<ov::test::InputShape>> inputShapes_SmallChannel = {
     {{{}, {{2, 3, 2, 9}}}},
     {{{{1, 5}, 3, {1, 5}, {1, 10}}, {{2, 3, 2, 2}, {2, 3, 2, 9}}}},
+};
+
+std::vector<std::vector<ov::test::InputShape>> inputShapes_SingleBatch = {
+    {{{}, {{1, 19, 2, 9}}}},
+    {{{{1, 5}, 19, {1, 5}, {1, 10}}, {{1, 19, 2, 2}, {1, 19, 2, 9}}}},
 };
 
 std::vector<CPUSpecificParams> cpuParams_4D = {
@@ -463,6 +469,19 @@ const auto params_NHWC_SmallChannel = testing::Combine(
         testing::ValuesIn(filterCPUSpecificParams(cpuParams_NHWC_4D)),
         testing::Values(emptyFusingSpec));
 
+const auto params_SingleBatch = testing::Combine(
+        testing::Combine(
+                testing::ValuesIn(axes),
+                testing::Values(CommonTestUtils::OpType::VECTOR),
+                testing::Values(true),
+                testing::ValuesIn(reductionTypes),
+                testing::ValuesIn(inpOutPrc),
+                testing::Values(ElementType::undefined),
+                testing::Values(ElementType::undefined),
+                testing::ValuesIn(inputShapes_SingleBatch)),
+        testing::ValuesIn(filterCPUSpecificParams(cpuParams_NHWC_4D)),
+        testing::Values(emptyFusingSpec));
+
 INSTANTIATE_TEST_SUITE_P(
         smoke_Reduce_OneAxis_CPU,
         ReduceCPULayerTest,
@@ -515,9 +534,16 @@ INSTANTIATE_TEST_SUITE_P(
 );
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_Reducea_NHWC_SmallChannel_CPU,
+        smoke_Reduce_NHWC_SmallChannel_CPU,
         ReduceCPULayerTest,
         params_NHWC_SmallChannel,
+        ReduceCPULayerTest::getTestCaseName
+);
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_Reduce_SingleBatch_CPU,
+        ReduceCPULayerTest,
+        params_SingleBatch,
         ReduceCPULayerTest::getTestCaseName
 );
 

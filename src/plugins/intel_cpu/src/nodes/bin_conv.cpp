@@ -929,9 +929,6 @@ BinaryConvolution::BinaryConvolution(const std::shared_ptr<ngraph::Node>& op, co
 }
 
 void BinaryConvolution::getSupportedDescriptors() {
-    if (!descs.empty())
-        return;
-
     withBinarization = isFusedWith(Type::FakeQuantize);
     withSum = false;
     size_t expectedInputEdgesNum = 2;
@@ -1153,7 +1150,7 @@ void BinaryConvolution::setPostOps(dnnl::primitive_attr &attr) {
 }
 
 void BinaryConvolution::executeOptimized(const uint8_t* src, const uint8_t* weights, uint8_t* dst,
-                                                   const std::vector<size_t>& s_str, const std::vector<size_t>& w_str, const std::vector<size_t>& d_str) {
+                                         const std::vector<size_t>& s_str, const std::vector<size_t>& w_str, const std::vector<size_t>& d_str) {
     auto dst_f32 = reinterpret_cast<float *>(dst);
 
     const int MB = jcp.mb;

@@ -100,6 +100,8 @@ std::vector<layout> gather_nd_inst::calc_output_layouts(gather_nd_node const& /*
         ov::op::v8::shape_infer(&op, input_shapes, output_shapes);
     }
 
+    OPENVINO_ASSERT(!output_shapes[0].rank().is_dynamic(),
+                    "[GPU] Doesn't support output dynamic rank in gather_nd");
     format output_format = format::adjust_to_rank(input_layout.format, output_shapes[0].size());
 
     return { layout{output_shapes[0], output_type, output_format} };
