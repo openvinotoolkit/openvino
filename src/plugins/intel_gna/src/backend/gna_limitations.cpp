@@ -661,7 +661,6 @@ constexpr uint32_t Limitations::kConvFiltersNumDivider;
 constexpr uint32_t Limitations::kConvFilterSizeDivider;
 constexpr uint32_t Limitations::kConvFilterMaxSize;
 constexpr uint32_t Limitations::kConvEachKernelByteAlignment;
-constexpr uint32_t Limitations::kInputByteAlignment;
 constexpr uint32_t Limitations::kNoOfInputsDivisor;
 constexpr uint32_t Limitations::kNoOfInputsLowPrecDivisor;
 constexpr uint32_t Limitations::kAffineMaxBatchSize;
@@ -673,6 +672,7 @@ constexpr uint32_t Limitations::kMaxLayersCountGNA2_0;
 constexpr uint32_t Limitations::kMaxLayersCountGNA3_X;
 constexpr uint32_t Limitations::kBytesPerSplitElement;
 constexpr uint32_t Limitations::kBytesPerCropElement;
+constexpr uint32_t Limitations::kBytesPerConcatElement;
 constexpr uint32_t Limitations::kMemoryPageSize;
 
 thread_local std::shared_ptr<Limitations> Limitations::k_instance{nullptr};

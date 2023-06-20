@@ -8,7 +8,7 @@
 
 #include "ie_system_conf.h"
 #include "openvino/runtime/threading/istreams_executor.hpp"
-#include "streams_executor.hpp"
+#include "os/cpu_map_info.hpp"
 
 using namespace testing;
 using namespace ov;

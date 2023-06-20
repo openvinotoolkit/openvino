@@ -18,7 +18,7 @@
 #include "openvino/core/visibility.hpp"
 #include "openvino/runtime/threading/cpu_streams_info.hpp"
 #include "openvino/util/log.hpp"
-#include "streams_executor.hpp"
+#include "os/cpu_map_info.hpp"
 
 #ifdef __APPLE__
 #    include <sys/sysctl.h>
@@ -319,6 +319,7 @@ void reserve_available_cpus(const std::vector<std::vector<int>> streams_info_tab
     OPENVINO_DEBUG << "[ threading ] cpu_mapping_table:";
     for (size_t i = 0; i < cpu._cpu_mapping_table.size(); i++) {
         OPENVINO_DEBUG << cpu._cpu_mapping_table[i][CPU_MAP_PROCESSOR_ID] << " "
+                       << cpu._cpu_mapping_table[i][CPU_MAP_NUMA_NODE_ID] << " "
                        << cpu._cpu_mapping_table[i][CPU_MAP_SOCKET_ID] << " "
                        << cpu._cpu_mapping_table[i][CPU_MAP_CORE_ID] << " "
                        << cpu._cpu_mapping_table[i][CPU_MAP_CORE_TYPE] << " "
@@ -386,14 +387,14 @@ void reserve_cpu_by_streams_info(const std::vector<std::vector<int>> _streams_in
         auto cur_stream_id = stream_id_per_coretype.find(_cpu_mapping_table[i][CPU_MAP_CORE_TYPE]);
         int numa_node_id = (_cpu_status == CPU_USED && _numa_nodes > 1) ? std::max(0, plugin_numa_id - 1) : -1;
         if (cur_stream_id != stream_id_per_coretype.end() && _cpu_mapping_table[i][CPU_MAP_USED_FLAG] == NOT_USED &&
-            (numa_node_id < 0 || _cpu_mapping_table[i][CPU_MAP_SOCKET_ID] == numa_node_id)) {
+            (numa_node_id < 0 || _cpu_mapping_table[i][CPU_MAP_NUMA_NODE_ID] == numa_node_id)) {
             if (_stream_processors[cur_stream_id->second].size() == 0) {
                 _stream_processors[cur_stream_id->second].push_back(_cpu_mapping_table[i][CPU_MAP_PROCESSOR_ID]);
-                _stream_numa_node_ids[cur_stream_id->second] = _cpu_mapping_table[i][CPU_MAP_SOCKET_ID];
+                _stream_numa_node_ids[cur_stream_id->second] = _cpu_mapping_table[i][CPU_MAP_NUMA_NODE_ID];
             } else {
-                if (_stream_numa_node_ids[cur_stream_id->second] == _cpu_mapping_table[i][CPU_MAP_SOCKET_ID]) {
+                if (_stream_numa_node_ids[cur_stream_id->second] == _cpu_mapping_table[i][CPU_MAP_NUMA_NODE_ID]) {
                     _stream_processors[cur_stream_id->second].push_back(_cpu_mapping_table[i][CPU_MAP_PROCESSOR_ID]);
-                    _stream_numa_node_ids[cur_stream_id->second] = _cpu_mapping_table[i][CPU_MAP_SOCKET_ID];
+                    _stream_numa_node_ids[cur_stream_id->second] = _cpu_mapping_table[i][CPU_MAP_NUMA_NODE_ID];
                 } else {
                     remain_cpus_per_coretype[cur_stream_id->first].insert(
                         remain_cpus_per_coretype[cur_stream_id->first].end(),
@@ -401,7 +402,7 @@ void reserve_cpu_by_streams_info(const std::vector<std::vector<int>> _streams_in
                         _stream_processors[cur_stream_id->second].end());
                     _stream_processors[cur_stream_id->second].clear();
                     _stream_processors[cur_stream_id->second].push_back(_cpu_mapping_table[i][CPU_MAP_PROCESSOR_ID]);
-                    _stream_numa_node_ids[cur_stream_id->second] = _cpu_mapping_table[i][CPU_MAP_SOCKET_ID];
+                    _stream_numa_node_ids[cur_stream_id->second] = _cpu_mapping_table[i][CPU_MAP_NUMA_NODE_ID];
                 }
             }
 
@@ -457,11 +458,11 @@ void set_cpu_used(const std::vector<int>& cpu_ids, const int used) {
         all_table.resize(PROC_TYPE_TABLE_SIZE, 0);
         for (int i = 0; i < cpu._processors; i++) {
             if (cpu._cpu_mapping_table[i][CPU_MAP_USED_FLAG] == NOT_USED &&
-                cpu._cpu_mapping_table[i][CPU_MAP_SOCKET_ID] >= 0 &&
+                cpu._cpu_mapping_table[i][CPU_MAP_NUMA_NODE_ID] >= 0 &&
                 cpu._cpu_mapping_table[i][CPU_MAP_CORE_TYPE] >= ALL_PROC) {
-                cpu._proc_type_table[cpu._cpu_mapping_table[i][CPU_MAP_SOCKET_ID] + start]
+                cpu._proc_type_table[cpu._cpu_mapping_table[i][CPU_MAP_NUMA_NODE_ID] + start]
                                     [cpu._cpu_mapping_table[i][CPU_MAP_CORE_TYPE]]++;
-                cpu._proc_type_table[cpu._cpu_mapping_table[i][CPU_MAP_SOCKET_ID] + start][ALL_PROC]++;
+                cpu._proc_type_table[cpu._cpu_mapping_table[i][CPU_MAP_NUMA_NODE_ID] + start][ALL_PROC]++;
                 all_table[cpu._cpu_mapping_table[i][CPU_MAP_CORE_TYPE]]++;
                 all_table[ALL_PROC]++;
             }
