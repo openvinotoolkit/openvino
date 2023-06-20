@@ -9,9 +9,9 @@
 #include "itt.hpp"
 #include "openvino/core/validation_util.hpp"
 
-using namespace ov;
 using namespace std;
 
+namespace ov {
 op::v3::ScatterElementsUpdate::ScatterElementsUpdate(const Output<Node>& data,
                                                      const Output<Node>& indices,
                                                      const Output<Node>& updates,
@@ -37,7 +37,6 @@ shared_ptr<Node> op::v3::ScatterElementsUpdate::clone_with_new_inputs(const Outp
     return make_shared<v3::ScatterElementsUpdate>(inputs.at(0), inputs.at(1), inputs.at(2), inputs.at(3));
 }
 
-namespace ov {
 op::v12::ScatterElementsUpdate::ScatterElementsUpdate(const Output<Node>& data,
                                                       const Output<Node>& indices,
                                                       const Output<Node>& updates,

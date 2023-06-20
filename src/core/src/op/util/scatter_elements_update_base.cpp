@@ -47,7 +47,9 @@ void ov::op::util::ScatterElementsUpdateBase::validate_and_infer_types() {
                           updates_et);
     const auto output_shape = shape_infer(this, get_node_input_partial_shapes(*this)).front();
     OPENVINO_SUPPRESS_DEPRECATED_END
-    set_output_type(0, get_input_element_type(0), output_shape);
+    element::Type out_et = get_input_element_type(0);
+    std::ignore = element::Type::merge(out_et, get_input_element_type(0), get_input_element_type(2));
+    set_output_type(0, out_et, output_shape);
     if (output_shape.is_dynamic()) {
         set_input_is_relevant_to_shape(0);
     }
