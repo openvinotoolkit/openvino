@@ -369,7 +369,7 @@ public:
      * @brief Filters supportedPrimitiveDescriptors according to the input layouts specified in inputMemoryFormatsFilter
      * and output layouts specified in outputMemoryFormatsFilter
      */
-    virtual void filterSupportedPrimitiveDescriptors();
+    void filterSupportedPrimitiveDescriptors();
 
     virtual void createPrimitive();
 
