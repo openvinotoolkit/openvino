@@ -8,6 +8,7 @@
 
 #include "intel_gpu/graph/program.hpp"
 #include "data_inst.h"
+#include "crop_inst.h"
 #include "reshape_inst.h"
 #include "fully_connected_inst.h"
 #include "permute_inst.h"
@@ -165,7 +166,7 @@ TEST(prepare_buffer_fusing, in_place_concat_static) {
     topology.add(concatenation("concat", { input_info("permute1"), input_info("permute2") }, 2));
     topology.add(permute("output", input_info("concat"), {0, 2, 3, 1}));
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
     auto prog = program::build_program(engine, topology, config, false, false);
     ASSERT_NE(prog, nullptr);
@@ -218,7 +219,7 @@ TEST(prepare_buffer_fusing, in_place_concat_dynamic) {
     topology.add(concatenation("concat", { input_info("permute1"), input_info("permute2") }, 2));
     topology.add(permute("output", input_info("concat"), {0, 2, 3, 1}));
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     auto prog = program::build_program(engine, topology, config, false, false);
@@ -254,5 +255,111 @@ TEST(prepare_buffer_fusing, in_place_concat_dynamic) {
     ASSERT_EQ(concat_mem.get(), permute2_mem.get());
     for (size_t x = 0; x < out_l.count(); ++x) {
         ASSERT_EQ(ref_output[x], output_ptr[x]);
+    }
+}
+
+TEST(prepare_buffer_fusing, in_place_concat_dynamic__static_dim_dyn_pad) {
+    auto& engine = get_test_engine();
+    auto in_layout1_0 = layout{ ov::PartialShape{-1, 2, -1, -1}, data_types::f32, format::bfyx }; // => {-1, -1, -1, 2}
+    auto in_layout2_0 = layout{ ov::PartialShape{1, 2, -1, -1}, data_types::f32, format::bfyx }; // => {-1, -1, 1, 2}
+    auto in_layout1 = layout{ ov::PartialShape{1, 2, 3, 4}, data_types::f32, format::bfyx };
+    auto in_layout2 = layout{ ov::PartialShape{1, 2, 4, 1}, data_types::f32, format::bfyx };
+
+    topology topology;
+    topology.add(input_layout("input1", in_layout1_0));
+    topology.add(input_layout("input2", in_layout2_0));
+    topology.add(permute("permute1", input_info("input1"), {0, 3, 2, 1}));
+    topology.add(permute("permute2", input_info("input2"), {3, 2, 0, 1}));
+
+    topology.add(concatenation("concat", { input_info("permute1"), input_info("permute2") }, 2));
+    topology.add(permute("output", input_info("concat"), {0, 2, 3, 1}));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    auto prog = program::build_program(engine, topology, config, false, false);
+    ASSERT_NE(prog, nullptr);
+    cldnn::network net(prog, 0);
+
+    auto input_memory1 = engine.allocate_memory(in_layout1);
+    auto input_memory2 = engine.allocate_memory(in_layout2);
+    set_values<float>(input_memory1,
+                      {1.0,   2.0,   3.0,   4.0,   5.0,   6.0,   11.0,   22.0,   33.0,   44.0,   55.0,   66.0,
+                       111.0, 222.0, 333.0, 444.0, 555.0, 666.0, 1111.0, 2222.0, 3333.0, 4444.0, 5555.0, 6666.0});
+    set_values<float>(input_memory2, {1234.0, 2345.0, 3456.0, 4567.0, 5678.0, 6789.0, 9012.0, 9999.0});
+    net.set_input_data("input1", input_memory1);
+    net.set_input_data("input2", input_memory2);
+
+    std::vector<float> ref_output = {1.0,    2.0,    3.0,    4.0,    111.0,  222.0,  333.0,  444.0,  5.0,    6.0,   11.0,
+                                     22.0,   555.0,  666.0,  1111.0, 2222.0, 33.0,   44.0,   55.0,   66.0,   3333.0, 4444.0,
+                                     5555.0, 6666.0, 1234.0, 2345.0, 3456.0, 4567.0, 5678.0, 6789.0, 9012.0, 9999.0};
+
+    std::map<cldnn::primitive_id, cldnn::network_output> output;
+    EXPECT_NO_THROW(output = net.execute());
+    auto out_l = net.get_output_layout("output");
+    auto out_mem = output.at("output").get_memory();
+    cldnn::mem_lock<float> output_ptr(out_mem, get_test_stream());
+
+    const auto& concat_node = net.get_primitive("concat")->get_node();
+    auto concat_mem = net.get_primitive("concat")->output_memory_ptr();
+    auto permute1_mem = net.get_primitive("permute1")->output_memory_ptr();
+    auto permute2_mem = net.get_primitive("permute1")->output_memory_ptr();
+
+    ASSERT_TRUE(concat_node.can_be_optimized());
+    ASSERT_EQ(concat_mem.get(), permute1_mem.get());
+    ASSERT_EQ(concat_mem.get(), permute2_mem.get());
+    for (size_t x = 0; x < out_l.count(); ++x) {
+        ASSERT_EQ(ref_output[x], output_ptr[x]);
+    }
+}
+
+TEST(prepare_buffer_fusing, crop_b_axis) {
+    auto& engine = get_test_engine();
+
+    auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 3, 2, 2, 2 } });
+
+    set_values(input1, {
+        1.f, 2.f,  3.f,  4.f,  1.f, 2.f,  3.f,  4.f,
+        5.f, 6.f,  7.f,  8.f,  5.f, 6.f,  7.f,  11.f,
+        9.f, 10.f, 11.f, 12.f, 9.f, 10.f, 11.f, 12.f
+    });
+
+    topology topology;
+    topology.add(input_layout("Input", input1->get_layout()));
+    topology.add(crop("crop", input_info("Input"), tensor{1, 2, 2, 2}, tensor(1, 0, 0, 0)));
+    topology.add(reorder("reorder", input_info("crop"), format::bfyx, data_types::i8));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
+
+    network.set_input_data("Input", input1);
+
+    auto outputs = network.execute();
+
+    auto crop_prim = network.get_primitive("crop");
+    ASSERT_EQ(crop_prim->can_be_optimized(), true);
+
+    auto output = outputs.at("reorder").get_memory();
+    cldnn::mem_lock<int8_t> output_ptr(output, get_test_stream());
+
+    std::vector<int8_t> expected_results = {
+        5, 6, 7, 8, 5, 6, 7, 11
+    };
+
+    int crop_batch_num = 1;
+    int crop_feature_num = 2;
+    int crop_y_size = 2;
+    int crop_x_size = 2;
+    for (int b = 0; b < crop_batch_num; ++b) {
+        for (int f = 0; f < crop_feature_num; ++f) {
+            for (int y = 0; y < crop_y_size; ++y) {
+                for (int x = 0; x < crop_x_size; ++x) {
+                    int linear_id = x + 2 * (y + 2 * f);
+                    int output_linear_id = x + crop_x_size * (y + crop_y_size * (f + crop_feature_num * b));
+                    ASSERT_EQ(output_ptr[output_linear_id], expected_results[linear_id]);
+                }
+            }
+        }
     }
 }

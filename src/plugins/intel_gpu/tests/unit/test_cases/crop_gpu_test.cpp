@@ -1163,7 +1163,7 @@ TEST(crop_gpu, basic_in3x1x3x2x2x1_crop_all_bfwzyx) {
 }
 
 // batch size, input feature, crop out feature, (in_out format, crop format)
-using crop_test_params = std::tuple<size_t, size_t, size_t, std::pair<cldnn::format,cldnn::format>, bool>;
+using crop_test_params = std::tuple<size_t, size_t, size_t, std::pair<cldnn::format,cldnn::format>, impl_types, bool>;
 
 class crop_gpu : public ::testing::TestWithParam<crop_test_params> {};
 
@@ -1187,7 +1187,8 @@ TEST_P(crop_gpu, pad_test) {
 
     auto in_out_format = std::get<3>(p).first;
     auto crop_format = std::get<3>(p).second;
-    bool is_caching_test = std::get<4>(p);
+    auto impl_type = std::get<4>(p);
+    bool is_caching_test = std::get<5>(p);
 
     auto input = engine.allocate_memory({ data_types::f32, in_out_format, { tensor(spatial(x_size, y_size, z_size), feature(feature_num), batch(batch_num)) } });
 
@@ -1214,6 +1215,11 @@ TEST_P(crop_gpu, pad_test) {
     set_values(input, input_vec);
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
+
+    if (impl_type != impl_types::any) {
+        auto forcing_map = ov::intel_gpu::ImplForcingMap{{"crop1", {crop_format, "", impl_type}}};
+        config.set_property(ov::intel_gpu::force_implementations(forcing_map));
+    }
 
     cldnn::network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
 
@@ -1243,6 +1249,7 @@ INSTANTIATE_TEST_SUITE_P(crop_test, crop_gpu,
                                 ::testing::ValuesIn(in_features),
                                 ::testing::ValuesIn(crop_features),
                                 ::testing::ValuesIn(formats),
+                                ::testing::Values(impl_types::any),
                                 ::testing::Values(false)
                                 ));
 
@@ -1252,10 +1259,15 @@ INSTANTIATE_TEST_SUITE_P(export_import_crop_test, crop_gpu,
                                 ::testing::Values(in_features[0]),
                                 ::testing::Values(crop_features[0]),
                                 ::testing::Values(formats[0]),
+                                ::testing::Values(impl_types::any),
                                 ::testing::Values(true)
                                 ));
 
-TEST(crop_gpu, dynamic_i32_in2x3x2x2_crop_offsets) {
+class crop_gpu_dynamic : public ::testing::TestWithParam<std::tuple<impl_types>> {};
+TEST_P(crop_gpu_dynamic, i32_in2x3x2x2_crop_offsets) {
+    auto test_params = GetParam();
+    impl_types impl_type = std::get<0>(test_params);
+
     auto& engine = get_test_engine();
 
     auto batch_num = 2;
@@ -1285,9 +1297,16 @@ TEST(crop_gpu, dynamic_i32_in2x3x2x2_crop_offsets) {
     std::vector<float> input_vec = {1.f, 0.f,  5.f, 15.f, 2.f, 0.f,  6.f, 52.f, -10.f, -11.f, -12.f, -13.f,
                                     3.f, 50.f, 7.f, 12.f, 4.f, -5.f, 8.f, 8.f,  -14.f, -15.f, -16.f, -17.f};
     set_values(input, input_vec);
-    ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
-    network network1(engine, topology, config); // run with shape agnostic kernel
+    ExecutionConfig config1 = get_test_default_config(engine);
+    config1.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    ExecutionConfig config2 = config1;
+
+    if (impl_type != impl_types::any) {
+        auto forcing_map = ov::intel_gpu::ImplForcingMap{{"crop", {format::bfyx, "", impl_type}}};
+        config1.set_property(ov::intel_gpu::force_implementations(forcing_map));
+    }
+
+    network network1(engine, topology, config1); // run with shape agnostic kernel
     network1.set_input_data("input", input);
     auto outputs1 = network1.execute();
     auto output1 = outputs1.at("crop").get_memory();
@@ -1303,8 +1322,8 @@ TEST(crop_gpu, dynamic_i32_in2x3x2x2_crop_offsets) {
             }
         }
     }
-    config.set_property(ov::intel_gpu::use_only_static_kernels_for_dynamic_shape(true));
-    network network2(engine, topology, config); // run with static kernel
+    config2.set_property(ov::intel_gpu::use_only_static_kernels_for_dynamic_shape(true));
+    network network2(engine, topology, config2); // run with static kernel
     network2.set_input_data("input", input);
     auto outputs2 = network2.execute();
     auto output2 = outputs2.at("crop").get_memory();
@@ -1321,6 +1340,12 @@ TEST(crop_gpu, dynamic_i32_in2x3x2x2_crop_offsets) {
         }
     }
 }
+
+static std::vector<impl_types> impls = { impl_types::any, impl_types::cpu };
+INSTANTIATE_TEST_SUITE_P(crop_test, crop_gpu_dynamic,
+                        ::testing::Combine(
+                                ::testing::ValuesIn(impls)
+                                ));
 
 TEST(crop_gpu, dynamic_in1x4x1x1_split) {
     auto& engine = get_test_engine();
@@ -1550,4 +1575,55 @@ TEST(crop_gpu, optimized_out_crop) {
     auto all_primitives = network.get_all_primitives();
     ASSERT_TRUE(all_primitives["crop1"] == "_optimized_");
     ASSERT_TRUE(all_primitives["crop2"] == "_optimized_");
+}
+
+TEST(crop_single_axis, simple_Baxis) {
+    auto& engine = get_test_engine();
+
+    auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 3, 2, 1, 2 } });
+
+    set_values(input1, {
+        1.f, 2.f,  3.f,  4.f,
+        5.f, 6.f,  7.f,  8.f,
+        9.f, 10.f, 11.f, 12.f
+    });
+
+    topology topology;
+    topology.add(input_layout("Input", input1->get_layout()));
+    topology.add(crop("crop", input_info("Input"), tensor{1, 2, 1, 2}, tensor(1, 0, 0, 0)));
+    topology.add(reorder("reorder", input_info("crop"), format::bfyx, data_types::i8));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
+
+    network.set_input_data("Input", input1);
+
+
+    auto outputs = network.execute();
+    auto output = outputs.at("reorder").get_memory();
+    cldnn::mem_lock<int8_t> output_ptr(output, get_test_stream());
+
+    std::vector<int8_t> expected_results = {
+        5, 6, 7, 8
+    };
+
+    int crop_batch_num = 1;
+    int crop_feature_num = 2;
+    int crop_y_size = 2;
+    int crop_x_size = 1;
+    for (int b = 0; b < crop_batch_num; ++b) {
+        for (int f = 0; f < crop_feature_num; ++f) {
+            for (int y = 0; y < crop_y_size; ++y) {
+                for (int x = 0; x < crop_x_size; ++x) {
+                    int linear_id = x + y + 2 * f;
+                    int output_linear_id = x + crop_x_size * (y + crop_y_size * (f + crop_feature_num * b));
+                    ASSERT_EQ(output_ptr[output_linear_id], expected_results[linear_id]);
+                }
+            }
+        }
+    }
+
+    auto crop_prim = network.get_primitive("crop");
+    ASSERT_EQ(crop_prim->can_be_optimized(), true);
 }

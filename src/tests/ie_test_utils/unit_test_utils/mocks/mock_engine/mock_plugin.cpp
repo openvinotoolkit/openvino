@@ -21,9 +21,9 @@
 #include "openvino/runtime/iplugin.hpp"
 
 class MockInternalPlugin : public ov::IPlugin {
-    ov::IPlugin* m_plugin;
+    ov::IPlugin* m_plugin = nullptr;
     std::shared_ptr<ov::IPlugin> m_converted_plugin;
-    InferenceEngine::IInferencePlugin* m_old_plugin;
+    InferenceEngine::IInferencePlugin* m_old_plugin = nullptr;
     ov::AnyMap config;
 
 public:
