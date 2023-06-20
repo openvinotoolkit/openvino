@@ -13,7 +13,7 @@ class AutoBatchAsyncInferRequest : public InferenceEngine::AsyncInferRequestThre
 public:
     using Ptr = std::shared_ptr<AutoBatchAsyncInferRequest>;
 
-    explicit AutoBatchAsyncInferRequest(const AutoBatchInferRequest::Ptr& inferRequest,
+    explicit AutoBatchAsyncInferRequest(const SyncInferRequest::Ptr& inferRequest,
                                         InferenceEngine::SoIInferRequestInternal& inferRequestWithoutBatch,
                                         const InferenceEngine::ITaskExecutor::Ptr& callbackExecutor);
     void Infer_ThreadUnsafe() override;
@@ -21,7 +21,7 @@ public:
     std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> GetPerformanceCounts() const override;
 
     InferenceEngine::SoIInferRequestInternal _inferRequestWithoutBatch;
-    AutoBatchInferRequest::Ptr _inferRequest;
+    SyncInferRequest::Ptr _inferRequest;
 };
 }  // namespace autobatch_plugin
 }  // namespace ov

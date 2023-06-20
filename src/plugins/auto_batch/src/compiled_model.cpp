@@ -56,7 +56,7 @@ InferenceEngine::IInferRequestInternal::Ptr CompiledModel::CreateInferRequestImp
     InferenceEngine::InputsDataMap networkInputs,
     InferenceEngine::OutputsDataMap networkOutputs) {
     auto workerRequestPtrAndId = GetWorkerInferRequest();
-    return std::make_shared<AutoBatchInferRequest>(networkInputs,
+    return std::make_shared<SyncInferRequest>(networkInputs,
                                                    networkOutputs,
                                                    workerRequestPtrAndId.first,
                                                    workerRequestPtrAndId.second,
@@ -71,7 +71,7 @@ InferenceEngine::IInferRequestInternal::Ptr CompiledModel::CreateInferRequestImp
     if (!this->_plugin || !_plugin->IsNewAPI())
         return nullptr;
     auto workerRequestPtrAndId = GetWorkerInferRequest();
-    return std::make_shared<AutoBatchInferRequest>(inputs,
+    return std::make_shared<SyncInferRequest>(inputs,
                                                    outputs,
                                                    workerRequestPtrAndId.first,
                                                    workerRequestPtrAndId.second,
@@ -93,7 +93,7 @@ std::pair<CompiledModel::WorkerInferRequest&, int> CompiledModel::GetWorkerInfer
         workerRequestPtr->_inferRequestBatched->SetCallback(
             [workerRequestPtr](std::exception_ptr exceptionPtr) mutable {
                 if (exceptionPtr)
-                    workerRequestPtr->_exceptionPtr = exceptionPtr;
+                    workerRequestPtr->m_exceptionPtr = exceptionPtr;
                 IE_ASSERT(workerRequestPtr->_completionTasks.size() == (size_t)workerRequestPtr->_batchSize);
                 // notify the individual requests on the completion
                 for (int c = 0; c < workerRequestPtr->_batchSize; c++) {
@@ -122,8 +122,8 @@ std::pair<CompiledModel::WorkerInferRequest&, int> CompiledModel::GetWorkerInfer
                             IE_ASSERT(workerRequestPtr->_tasks.try_pop(t));
                             workerRequestPtr->_completionTasks[n] = std::move(t.second);
                             t.first->_inferRequest->CopyInputsIfNeeded();
-                            t.first->_inferRequest->_wasBatchedRequestUsed =
-                                AutoBatchInferRequest::eExecutionFlavor::BATCH_EXECUTED;
+                            t.first->_inferRequest->m_batched_request_status =
+                                SyncInferRequest::eExecutionFlavor::BATCH_EXECUTED;
                         }
                         workerRequestPtr->_inferRequestBatched->StartAsync();
                     } else if ((status == std::cv_status::timeout) && sz) {
@@ -138,13 +138,13 @@ std::pair<CompiledModel::WorkerInferRequest&, int> CompiledModel::GetWorkerInfer
                             t.first->_inferRequestWithoutBatch->SetCallback(
                                 [t, sz, &arrived, &all_completed](std::exception_ptr p) {
                                     if (p)
-                                        t.first->_inferRequest->_exceptionPtr = p;
+                                        t.first->_inferRequest->m_exceptionPtr = p;
                                     t.second();
                                     if (sz == ++arrived)
                                         all_completed.set_value();
                                 });
-                            t.first->_inferRequest->_wasBatchedRequestUsed =
-                                AutoBatchInferRequest::eExecutionFlavor::TIMEOUT_EXECUTED;
+                            t.first->_inferRequest->m_batched_request_status =
+                                SyncInferRequest::eExecutionFlavor::TIMEOUT_EXECUTED;
                             t.first->_inferRequest->SetBlobsToAnotherRequest(t.first->_inferRequestWithoutBatch);
                             t.first->_inferRequestWithoutBatch->StartAsync();
                         }
@@ -174,7 +174,7 @@ InferenceEngine::IInferRequestInternal::Ptr CompiledModel::CreateInferRequest() 
     InferenceEngine::SoIInferRequestInternal inferRequestWithoutBatch = {m_network_without_batch->CreateInferRequest(),
                                                                          m_network_without_batch._so};
     return std::make_shared<AutoBatchAsyncInferRequest>(
-        std::static_pointer_cast<AutoBatchInferRequest>(syncRequestImpl),
+        std::static_pointer_cast<SyncInferRequest>(syncRequestImpl),
         inferRequestWithoutBatch,
         _callbackExecutor);
 }

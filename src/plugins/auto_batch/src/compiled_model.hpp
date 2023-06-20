@@ -29,7 +29,7 @@ public:
         std::thread _thread;
         std::condition_variable _cond;
         std::mutex _mutex;
-        std::exception_ptr _exceptionPtr;
+        std::exception_ptr m_exceptionPtr;
     };
 
     explicit CompiledModel(
@@ -74,7 +74,6 @@ protected:
     std::mutex m_worker_requests_mutex;
 
     std::unordered_map<std::string, InferenceEngine::Parameter> m_config;
-    // bool _needPerfCounters = false;
     std::atomic_size_t m_num_requests_created = {0};
     std::atomic_int m_timeout = {0};  // in ms
 
