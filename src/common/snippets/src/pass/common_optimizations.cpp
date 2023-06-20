@@ -19,6 +19,239 @@ namespace ov {
 namespace snippets {
 namespace pass {
 
+bool CommonOptimizations::canBeParallelismWAOptimized(const std::shared_ptr<const ov::Node>& node, size_t num_threads) {
+    if (!ov::is_type<ov::op::v0::MatMul>(node))
+        return false;
+    // It's needed only for 3D MHA patterns
+    const auto mm_shape = node->get_shape();
+    if (mm_shape.size() != 3)
+        return false;
+    const auto current_parallel_work_amount =
+        std::accumulate(mm_shape.rbegin() + 2, mm_shape.rend(), 1lu, std::multiplies<size_t>());
+    const auto dim_M = *(mm_shape.rbegin() + 1);
+    return (current_parallel_work_amount < num_threads) && (current_parallel_work_amount * dim_M >= num_threads);
+}
+
+void CommonOptimizations::SplitDimensionM(const std::shared_ptr<ov::snippets::op::Subgraph>& subgraph, size_t num_threads) {
+    // To increase parallelism work in 3D cases for MHA pattern,
+    // we split 1st dimension (starting from 0th) into 2 new dimensions to get 4D Shapes where
+    // - 0th and 1st dimensions are used in parallel scheduling,
+    // - 2nd and 3rd dimensions are used in kernel
+    // Note: 3D Patterns don't contain Transpose inside so the reshaping is valid
+
+    // It's needed only for MHA patterns. Need to add support for common patterns
+    if (!subgraph->has_domain_sensitive_ops())
+        return;
+
+    const auto& body = subgraph->body_ptr();
+    const auto& parameters = body->get_parameters();
+    // [107806]: If count of Parameters isn't equal to Subgraph inputs (it's possible case in general),
+    //           we cannot garantee correct extraction since we don't have correct connections between body I/O and Subgraph I/O.
+    OPENVINO_ASSERT(parameters.size() == subgraph->input_values().size(),
+                    "Failed to extract unsupported transposes: the count of Parameters isn't equal to Subgraph inputs");
+
+    // Need to find MatMul0 and check output shape
+    const auto& ops = body->get_ordered_ops();
+    const auto mm_it = std::find_if(ops.begin(), ops.end(),
+                                    [](const std::shared_ptr<ov::Node>& node){ return ov::is_type<ov::op::v0::MatMul>(node); });
+    if (mm_it == ops.end())
+        return;
+
+    const auto matmul0 = ov::as_type_ptr<ov::op::v0::MatMul>(*mm_it);
+    if (!matmul0 || !canBeParallelismWAOptimized(matmul0, num_threads))
+        return;
+
+    auto get_dim_M = [](const ov::Shape& shape) {
+        return *(shape.rbegin() + 1);
+    };
+
+    const auto mm_shape = matmul0->get_shape();
+    const auto optimal_parallelism_work_amount = static_cast<size_t>(num_threads);
+    const auto optimal_m_dim = 64;  // heuristic
+    const auto batch_dim =
+        std::accumulate(mm_shape.rbegin() + 2, mm_shape.rend(), 1, std::multiplies<size_t>());  // B (batch)
+    const auto m_dim = get_dim_M(mm_shape);  // M
+    const auto n_dim = mm_shape.back(); // N
+
+    size_t batch_m_dim = 1;
+    size_t new_m_dim = m_dim;
+
+    // Need to find optimized dimension splitting: [b1..bk, m, n] -> [b1..bk, batch_m_dim, new_m_dim, n]
+    // The work amount for parallelism should be divided by max thread count in ideal case
+    // that all threads have the same full work amount (avoid of thread downtime)
+    // If it's impossible, it should be more than max thread count
+    // TODO: Find solution for finding of optimal splitting in these cases
+    // For example, there are 16 threads and shape [6, 512, 32]
+    //              LCM(6, 16) = 48 <- ideal work amount for parallelism
+    //              new_shape [6, 48 / 6, 512 / (48 / 6), 32 ] => [6, 8, 64, 32]
+    //              Each thread has parallelism_work_amount = 6 * 8 / nthrs = 3
+    auto get_lcm = [](size_t a, size_t b) {
+        std::function<size_t(size_t, size_t)> get_gcd;
+        get_gcd = [&get_gcd](size_t a, size_t b) {
+            if (b == 0)
+                return a;
+            return get_gcd(b, a % b);
+        };
+        return a / get_gcd(a, b) * b;
+    };
+    const auto lcm = get_lcm(batch_dim, optimal_parallelism_work_amount);  // LCM(b, nthrs)
+    const auto batch_dim_multiplier = lcm / batch_dim;  // LCM(b, nthrs) / b
+    const auto needed_new_dim = m_dim / batch_dim_multiplier;  // m / (LCM(b, nthrs) / b) - needed factors of dimension m
+
+    auto is_optimized = [&](size_t batch_m_dim, size_t new_m_dim) {
+        return batch_m_dim != 1 && new_m_dim >= optimal_m_dim;
+    };
+
+    if (batch_dim_multiplier * needed_new_dim == m_dim) {
+        batch_m_dim = batch_dim_multiplier;
+        new_m_dim = needed_new_dim;
+    }
+    if (!is_optimized(batch_m_dim, new_m_dim)) {
+        auto get_factors = [](size_t dim) -> std::vector<size_t> {
+            std::vector<size_t> factors;
+            size_t div = 2;
+            while (div <= dim) {
+                const auto res = dim / div;
+                if (res * div == dim) {
+                    factors.push_back(div);
+                    dim = res;
+                } else {
+                    div++;
+                }
+            }
+            return factors;
+        };
+        const auto m_factors = get_factors(m_dim);
+        // If m_dim is Prime number
+        if (m_factors.size() == 2)
+            return;
+
+        batch_m_dim = 1;
+        new_m_dim = m_dim;
+        size_t idx = 0;
+        while (batch_m_dim * batch_dim < optimal_parallelism_work_amount && idx < m_factors.size()) {
+            auto tmp_batch_m_dim = batch_m_dim * m_factors[idx];
+            // There should be enough work for kernel execution
+            if (m_dim / tmp_batch_m_dim * n_dim < optimal_m_dim)
+                break;
+            batch_m_dim = tmp_batch_m_dim;
+        }
+        new_m_dim = m_dim / batch_m_dim;
+    }
+
+    OPENVINO_ASSERT(batch_m_dim * new_m_dim == m_dim, "Incorrect dimension M splitting!");
+    // nothing to split
+    if (!is_optimized(batch_m_dim, new_m_dim))
+        return;
+
+    /***** Reshape insertion *****/
+
+    // There are two Parameter variants:
+    //  - Parameter on branches for Second input of MatMul - the shape should be only unsqueezed (add just 1)
+    //  - Other Parameters (on First input of MatMuls and between) - the shape should be splitted on M dimension
+
+    bool updated = false;
+    std::set<std::shared_ptr<ov::op::v0::Parameter>> reshaped_params;
+
+    auto insert_reshape = [&](const std::shared_ptr<ov::op::v0::Parameter>& param, const ov::Shape& new_shape) {
+        const auto index = std::distance(parameters.begin(), std::find(parameters.begin(), parameters.end(), param));
+        const auto shape_const = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{new_shape.size()}, new_shape);
+        const auto reshape = std::make_shared<ov::op::v1::Reshape>(subgraph->input_value(index), shape_const, false);
+        subgraph->input(index).replace_source_output(reshape);
+        param->set_partial_shape(new_shape);
+        reshaped_params.insert(param);
+        updated = true;
+    };
+
+    auto reshape_parameter = [&](const std::shared_ptr<ov::Node>& node, bool split_m_dim = true) {
+        const auto param = ov::as_type_ptr<ov::op::v0::Parameter>(node);
+        if (!param || reshaped_params.count(param) > 0)
+            return;
+        const auto shape = param->get_partial_shape().get_shape();
+        ov::Shape new_shape = shape;
+        if (split_m_dim) {
+            const auto current_m_dim = get_dim_M(shape);
+            OPENVINO_ASSERT(current_m_dim == 1 || current_m_dim == m_dim, "Incorrect shape for splitting!");
+            if (current_m_dim == 1) {
+                new_shape.insert((new_shape.rbegin() + 2).base(), 1);
+            } else {
+                new_shape.insert((new_shape.rbegin() + 2).base(), batch_m_dim);
+                *(new_shape.rbegin() + 1) = new_m_dim;
+            }
+        } else {
+            new_shape.insert((new_shape.rbegin() + 2).base(), 1);
+        }
+        OPENVINO_ASSERT(ov::shape_size(new_shape) == ov::shape_size(shape), "Incorrect shape splitting!");
+        insert_reshape(param, new_shape);
+    };
+
+    auto update_matmul_second_branch = [&](const std::shared_ptr<ov::Node>& node) {
+        auto parent = node->get_input_node_shared_ptr(1);
+        while (!ov::is_type<ov::op::v0::Parameter>(parent)) {
+            if (parent->get_input_size() > 1) {
+                for (const auto& input_source : parent->input_values()) {
+                    reshape_parameter(input_source.get_node_shared_ptr(), false);
+                }
+            }
+
+            // [107731]: It's covered my MHA tokenization
+            parent = parent->get_input_node_shared_ptr(0);
+        }
+        reshape_parameter(parent, false);
+    };
+
+    // Firstly, Unsqueeze parameters on second branches of MatMuls
+    for (const auto& op : ops) {
+        if (ov::is_type<ov::op::v0::MatMul>(op)) {
+            update_matmul_second_branch(op);
+        }
+    }
+
+    // Secondly, Update All M dimensions for remaining parameters
+    for (const auto& param : parameters) {
+        if (reshaped_params.count(param) == 0)
+            reshape_parameter(param, true);
+    }
+
+    // Return the previous shape on outputs
+    for (size_t i = 0; i < subgraph->get_output_size() && updated; ++i) {
+        const auto output_shape = subgraph->get_output_shape(i);
+        if (is_scalar(output_shape))
+            continue;
+
+        const auto& target_inputs = subgraph->get_output_target_inputs(i);
+        const auto shape_const = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{output_shape.size()}, output_shape);
+        const auto reshape = std::make_shared<ov::op::v1::Reshape>(subgraph->output(i), shape_const, false);
+        // Save output name
+        const auto original_output = body->get_results()[i]->get_input_node_shared_ptr(0);
+        const auto original_name = original_output->get_friendly_name();
+        reshape->set_friendly_name(original_name);
+        original_output->set_friendly_name(original_name + "_original");
+
+        for (const auto& input : target_inputs) {
+            input.replace_source_output(reshape);
+            // Result input tensor name was changed, the name has to be restored
+            if (ov::is_type<ov::op::v0::Result>(input.get_node())) {
+                input.get_tensor_ptr()->add_names(subgraph->output(i).get_tensor_ptr()->get_names());
+            }
+        }
+        subgraph->output(i).get_tensor_ptr()->set_names({});
+        updated = true;
+    }
+    subgraph->set_friendly_name(subgraph->get_friendly_name() + "_original");
+
+    // Need to update inner Shapes and Softmax Axis
+    if (updated) {
+        for (const auto &op : ops) {
+            if (const auto softmax_v8 = ngraph::as_type_ptr<ov::op::v8::Softmax>(op)) {
+                softmax_v8->set_axis(-1);
+            } else if (const auto softmax_v1 = ngraph::as_type_ptr<ov::op::v1::Softmax>(op)) {
+                softmax_v1->set_axis(softmax_v1->get_output_partial_shape(0).size()); // since new_shape.size() = old_shape.size() + 1
+            }
+        }
+        subgraph->validate_and_infer_types();
+    }
+}
 
 void CommonOptimizations::ExtractConstants(const std::shared_ptr<ov::snippets::op::Subgraph>& subgraph) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::ExtractConstants");
@@ -98,9 +331,9 @@ void CommonOptimizations::ExtractUnsupportedTransposes(const std::shared_ptr<op:
     }
 }
 
-CommonOptimizations::CommonOptimizations() {
+CommonOptimizations::CommonOptimizations(const SnippetsTokenization::Config& config) {
     MATCHER_SCOPE(CommonOptimizations);
-    ov::graph_rewrite_callback callback = [this](ov::pass::pattern::Matcher& m) {
+    ov::graph_rewrite_callback callback = [&](ov::pass::pattern::Matcher& m) {
         OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::CommonOptimizations");
 
         auto subgraph = ov::as_type_ptr<ov::snippets::op::Subgraph>(m.get_match_root());
@@ -130,6 +363,8 @@ CommonOptimizations::CommonOptimizations() {
         // Extract unsupported Transposes from body
         if (subgraph->has_domain_sensitive_ops()) {
             ExtractUnsupportedTransposes(subgraph);
+            if (config.split_m_dimension)
+                SplitDimensionM(subgraph, config.num_threads);
         }
         return true;
     };

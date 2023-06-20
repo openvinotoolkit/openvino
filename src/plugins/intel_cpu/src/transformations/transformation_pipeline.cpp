@@ -627,13 +627,17 @@ void Transformations::MainSnippets(void) {
         !dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2)) // snippets are implemented only for relevant platforms (avx2+ extensions)
         return;
 
+    ov::snippets::pass::SnippetsTokenization::Config tokenization_config;
     // At the moment Snippets supports Transposes in MHA pattern only in FP32 case since
     //      - ConvertSaturation[BF16->FP32] will be inserted after Parameters and before Transposes in canonicalization stage
     //      - ConvertSaturation[FP32->BF16] will be inserted after Transposes and before Brgemm in precision propagation stage
     // Because of that Transposes won't be fused into Brgemm
     // TODO [111813]: Need to update this pipeline to avoid Converts between Transposes and Brgemm on inputs
-    ov::snippets::pass::SnippetsTokenization::Config tokenization_config;
     tokenization_config.mha_token_enable_transpose = (inferencePrecision == ov::element::f32);
+    tokenization_config.num_threads = parallel_get_num_threads();
+    // The optimization "SplitDimensionM" depends on target machine (thread count).
+    // To avoid uncontrolled behavior in tests, we disabled the optimization when there is Config::SnippetsMode::IgnoreCallback
+    tokenization_config.split_m_dimension = snippetsMode != Config::SnippetsMode::IgnoreCallback;
 
     ngraph::pass::Manager snippetsManager;
     snippetsManager.set_per_pass_validation(false);
@@ -687,8 +691,9 @@ void Transformations::MainSnippets(void) {
                 // TODO: The heuristic will be removed after parallelism support on JIT level
                 const auto needed_num_of_threads = 12lu;
                 const auto is_unsupported_parallel_work_amount =
-                    parallel_get_num_threads() / 2 > parallel_work_amount &&
-                    static_cast<size_t>(parallel_work_amount) < needed_num_of_threads;
+                        parallel_get_num_threads() / 2 > parallel_work_amount &&
+                        static_cast<size_t>(parallel_work_amount) < needed_num_of_threads &&
+                        !ov::snippets::pass::CommonOptimizations::canBeParallelismWAOptimized(n, tokenization_config.num_threads);
                 return is_unsupported_parallel_work_amount;
             },
             snippets::pass::TokenizeMHASnippets);
