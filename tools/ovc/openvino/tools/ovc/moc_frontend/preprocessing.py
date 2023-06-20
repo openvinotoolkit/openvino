@@ -12,9 +12,9 @@ from openvino.preprocess import PrePostProcessor  # pylint: disable=no-name-in-m
 # pylint: disable=no-name-in-module,import-error
 from openvino.runtime import Model, Layout, PartialShape, layout_helpers
 
-from openvino.runtime.ovc.moc_frontend.layout_utils import update_layout_to_dict
-from openvino.runtime.ovc.error import Error
-from openvino.runtime.ovc.utils import refer_to_faq_msg
+from openvino.tools.ovc.moc_frontend.layout_utils import update_layout_to_dict
+from openvino.tools.ovc.error import Error
+from openvino.tools.ovc.utils import refer_to_faq_msg
 
 
 def update_mean_scale_to_dict(input_nodes: list, mean_scale_val, scale):

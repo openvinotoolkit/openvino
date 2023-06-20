@@ -11,9 +11,9 @@ from typing import Any
 
 from openvino.runtime import PartialShape, Shape, Layout, Model
 
-from openvino.runtime.ovc.convert_impl import _convert
-from openvino.runtime.ovc.logger import get_logger_state, restore_logger_state
-from openvino.runtime.ovc.cli_parser import get_all_cli_parser
+from openvino.tools.ovc.convert_impl import _convert
+from openvino.tools.ovc.logger import get_logger_state, restore_logger_state
+from openvino.tools.ovc.cli_parser import get_all_cli_parser
 
 InputCutInfo = namedtuple("InputInfo", ["name", "shape", "type", "value"], defaults=[None, None, None, None])
 LayoutMap = namedtuple("LayoutMap", ["source_layout", "target_layout"], defaults=[None, None])

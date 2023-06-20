@@ -3,7 +3,7 @@
 
 import sys
 
-from openvino.runtime.ovc.telemetry_utils import init_mo_telemetry
+from openvino.tools.ovc.telemetry_utils import init_mo_telemetry
 from openvino.tools.ovc.main import main
 
 init_mo_telemetry()

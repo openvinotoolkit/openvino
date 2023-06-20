@@ -6,8 +6,8 @@
 
 import numpy as np
 from openvino.runtime import PartialShape, Dimension
-from openvino.runtime.ovc.error import Error
-from openvino.runtime.ovc.cli_parser import get_placeholder_shapes, split_shapes
+from openvino.tools.ovc.error import Error
+from openvino.tools.ovc.cli_parser import get_placeholder_shapes, split_shapes
 
 
 def get_static_shape(shape: [PartialShape, list, tuple], dynamic_value=None):

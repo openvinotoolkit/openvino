@@ -3,7 +3,7 @@
 
 import sys
 
-from openvino.runtime.ovc.cli_parser import get_all_cli_parser
+from openvino.tools.ovc.cli_parser import get_all_cli_parser
 
 from openvino.frontend import FrontEndManager  # pylint: disable=no-name-in-module,import-error
 

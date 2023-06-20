@@ -7,8 +7,8 @@
 import argparse
 from typing import List
 
-from openvino.runtime.ovc.cli_parser import parse_transform
-from openvino.runtime.ovc.error import Error
+from openvino.tools.ovc.cli_parser import parse_transform
+from openvino.tools.ovc.error import Error
 from openvino.runtime import Model
 
 
@@ -111,7 +111,7 @@ def apply_fused_names_cleanup(func: object):
 
 
 def apply_offline_transformations(func: Model, argv: argparse.Namespace):
-    from openvino.runtime.ovc.moc_frontend.preprocessing import apply_preprocessing  # pylint: disable=no-name-in-module,import-error
+    from openvino.tools.ovc.moc_frontend.preprocessing import apply_preprocessing  # pylint: disable=no-name-in-module,import-error
 
     # Apply preprocessing (mean/scale/reverse_channels/convert_layout/etc)
     apply_preprocessing(ov_function=func, argv=argv)

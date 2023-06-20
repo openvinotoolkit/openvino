@@ -22,10 +22,10 @@ import numpy as np
 from openvino.runtime import Layout, PartialShape, Dimension, Shape, Type
 
 import openvino
-from openvino.runtime.ovc.convert_data_type import destination_type_to_np_data_type
-from openvino.runtime.ovc.error import Error
-from openvino.runtime.ovc.utils import refer_to_faq_msg, get_mo_root_dir
-from openvino.runtime.ovc.help import get_convert_model_help_specifics, get_to_string_methods_for_params
+from openvino.tools.ovc.convert_data_type import destination_type_to_np_data_type
+from openvino.tools.ovc.error import Error
+from openvino.tools.ovc.utils import refer_to_faq_msg, get_mo_root_dir
+from openvino.tools.ovc.help import get_convert_model_help_specifics, get_to_string_methods_for_params
 
 
 def extension_path_to_str_or_extensions_class(extension):
@@ -447,7 +447,7 @@ def transform_param_value_to_str(value):
 
 
 def transform_to_str(value):
-    from openvino.runtime.ovc.moc_frontend.offline_transformations import get_available_transformations
+    from openvino.tools.ovc.moc_frontend.offline_transformations import get_available_transformations
 
     if isinstance(value, str):
         return value
@@ -1975,7 +1975,7 @@ def check_available_transforms(transforms: list):
     :param transforms: list of user specified transformations
     :return: raises an Error if transformation is not available
     """
-    from openvino.runtime.ovc.moc_frontend.offline_transformations import get_available_transformations
+    from openvino.tools.ovc.moc_frontend.offline_transformations import get_available_transformations
     available_transforms = get_available_transformations()
 
     missing_transformations = []

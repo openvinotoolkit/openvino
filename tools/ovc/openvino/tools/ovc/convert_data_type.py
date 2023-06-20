@@ -6,7 +6,7 @@
 
 import numpy as np
 
-from openvino.runtime.ovc.error import Error
+from openvino.tools.ovc.error import Error
 
 """
 Packed data of custom types are stored in numpy uint8 data type.

@@ -8,16 +8,16 @@ import sys
 try:
     import openvino_telemetry as tm
 except ImportError:
-    import openvino.runtime.ovc.telemetry_stub as tm
-from openvino.runtime.ovc.convert_impl import _convert
-from openvino.runtime.ovc.version import VersionChecker
+    import openvino.tools.ovc.telemetry_stub as tm
+from openvino.tools.ovc.convert_impl import _convert
+from openvino.tools.ovc.version import VersionChecker
 
 # pylint: disable=no-name-in-module,import-error
 from openvino.runtime import serialize
 
 
 def main():
-    from openvino.runtime.ovc.cli_parser import get_all_cli_parser
+    from openvino.tools.ovc.cli_parser import get_all_cli_parser
     ngraph_function, argv = _convert(get_all_cli_parser(), {}, False)
     if ngraph_function is None:
         return 1

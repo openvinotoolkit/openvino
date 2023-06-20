@@ -6,11 +6,11 @@
 
 import logging as log
 import numpy as np
-from openvino.runtime.ovc.moc_frontend.shape_utils import get_static_shape
-from openvino.runtime.ovc.error import Error
+from openvino.tools.ovc.moc_frontend.shape_utils import get_static_shape
+from openvino.tools.ovc.error import Error
 from openvino.runtime import Tensor, Type
-from openvino.runtime.ovc.types import get_element_type_str
-from openvino.runtime.ovc.cli_parser import input_to_input_cut_info, input_shape_to_input_cut_info
+from openvino.tools.ovc.types import get_element_type_str
+from openvino.tools.ovc.cli_parser import input_to_input_cut_info, input_shape_to_input_cut_info
 
 
 def get_pytorch_decoder(model, input_shape, example_inputs, input_info):

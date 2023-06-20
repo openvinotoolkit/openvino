@@ -10,12 +10,12 @@ import re
 from typing import Iterable, Union
 
 import numpy as np
-from openvino.runtime.ovc.error import Error
+from openvino.tools.ovc.error import Error
 
 try:
     import openvino_telemetry as tm
 except ImportError:
-    import openvino.runtime.ovc.telemetry_stub as tm
+    import openvino.tools.ovc.telemetry_stub as tm
 
 
 dynamic_dimension = np.ma.masked

@@ -16,14 +16,14 @@ from pathlib import Path
 try:
     import openvino_telemetry as tm
 except ImportError:
-    import openvino.runtime.ovc.telemetry_stub as tm
+    import openvino.tools.ovc.telemetry_stub as tm
 
-from openvino.runtime.ovc.moc_frontend.check_config import legacy_transformations_config_used, \
+from openvino.tools.ovc.moc_frontend.check_config import legacy_transformations_config_used, \
     tensorflow_custom_operations_config_update_used, new_extensions_used
-from openvino.runtime.ovc.moc_frontend.pipeline import moc_pipeline
-from openvino.runtime.ovc.moc_frontend.moc_emit_ir import moc_emit_ir
-from openvino.runtime.ovc.convert_data_type import destination_type_to_np_data_type
-from openvino.runtime.ovc.cli_parser import check_available_transforms, \
+from openvino.tools.ovc.moc_frontend.pipeline import moc_pipeline
+from openvino.tools.ovc.moc_frontend.moc_emit_ir import moc_emit_ir
+from openvino.tools.ovc.convert_data_type import destination_type_to_np_data_type
+from openvino.tools.ovc.cli_parser import check_available_transforms, \
     get_advanced_cli_options, get_available_front_ends, get_caffe_cli_options, \
     get_common_cli_options, get_kaldi_cli_options, get_layout_values, get_freeze_placeholder_values, \
     get_mean_scale_dictionary, get_mxnet_cli_options, get_onnx_cli_options, \
@@ -31,19 +31,19 @@ from openvino.runtime.ovc.cli_parser import check_available_transforms, \
     get_model_name_from_args, depersonalize, get_mo_convert_params, input_to_input_cut_info, \
     input_shape_to_input_cut_info, freeze_placeholder_to_input_cut_info
 
-from openvino.runtime.ovc.error import Error, FrameworkError, legacy_path_error
-from openvino.runtime.ovc.get_ov_update_message import get_ov_update_message, get_ov_api20_message, \
+from openvino.tools.ovc.error import Error, FrameworkError, legacy_path_error
+from openvino.tools.ovc.get_ov_update_message import get_ov_update_message, get_ov_api20_message, \
     get_tf_fe_message, get_try_legacy_fe_message, get_compression_message
-from openvino.runtime.ovc.version import VersionChecker
-from openvino.runtime.ovc.utils import deduce_legacy_frontend_by_namespace,  refer_to_faq_msg, check_values_equal
-from openvino.runtime.ovc.logger import init_logger, progress_printer
-from openvino.runtime.ovc.telemetry_utils import send_params_info, send_conversion_result, \
+from openvino.tools.ovc.version import VersionChecker
+from openvino.tools.ovc.utils import deduce_legacy_frontend_by_namespace,  refer_to_faq_msg, check_values_equal
+from openvino.tools.ovc.logger import init_logger, progress_printer
+from openvino.tools.ovc.telemetry_utils import send_params_info, send_conversion_result, \
     get_tid
-from openvino.runtime.ovc.moc_frontend.check_config import legacy_extensions_used
-from openvino.runtime.ovc.moc_frontend.check_config import default_path as extensions_default_path
-from openvino.runtime.ovc.moc_frontend.pytorch_frontend_utils import get_pytorch_decoder
-from openvino.runtime.ovc.moc_frontend.paddle_frontend_utils import paddle_frontend_converter
-from openvino.runtime.ovc.moc_frontend.shape_utils import parse_input_shapes
+from openvino.tools.ovc.moc_frontend.check_config import legacy_extensions_used
+from openvino.tools.ovc.moc_frontend.check_config import default_path as extensions_default_path
+from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import get_pytorch_decoder
+from openvino.tools.ovc.moc_frontend.paddle_frontend_utils import paddle_frontend_converter
+from openvino.tools.ovc.moc_frontend.shape_utils import parse_input_shapes
 
 # pylint: disable=no-name-in-module,import-error
 from openvino.frontend import FrontEndManager, OpConversionFailure, ProgressReporterExtension, TelemetryExtension

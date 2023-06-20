@@ -7,7 +7,7 @@
 import argparse
 from pathlib import Path
 
-from openvino.runtime.ovc.error import Error
+from openvino.tools.ovc.error import Error
 import os
 
 

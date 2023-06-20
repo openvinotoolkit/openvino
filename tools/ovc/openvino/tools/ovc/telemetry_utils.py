@@ -8,14 +8,14 @@ import argparse
 import numbers
 
 from openvino.runtime import get_version as get_rt_version
-from openvino.runtime.ovc.cli_parser import get_params_with_paths_list
-from openvino.runtime.ovc.telemetry_params import telemetry_params
-from openvino.runtime.ovc.utils import check_values_equal
+from openvino.tools.ovc.cli_parser import get_params_with_paths_list
+from openvino.tools.ovc.telemetry_params import telemetry_params
+from openvino.tools.ovc.utils import check_values_equal
 
 try:
     import openvino_telemetry as tm
 except ImportError:
-    import openvino.runtime.ovc.telemetry_stub as tm
+    import openvino.tools.ovc.telemetry_stub as tm
 
 
 def init_mo_telemetry():
