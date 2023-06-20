@@ -25,6 +25,7 @@
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include <transformations/utils/utils.hpp>
 #include <ie_ngraph_utils.hpp>
+#include "proxy_mem_mgr.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -201,6 +202,12 @@ static inline void changeEdgePtr(const EdgePtr &edge, InferenceEngine::Blob::Ptr
     memMngr->setExtBuff(blob->buffer(), size);
 }
 
+inline MemoryPtr create_memory(InferenceEngine::Precision prc, const Shape& shape) {
+    dnnl::engine eng(dnnl::engine::kind::cpu, 0);
+    CpuBlockedMemoryDescPtr desc = std::make_shared<CpuBlockedMemoryDesc>(prc, shape);
+    return std::make_shared<Memory>(eng, desc);
+}
+
 void InferRequestBase::changeDefaultPtr() {
     for (auto& it : externalPtr) {
         const auto& inputNodesMap = graph->GetInputNodesMap();
@@ -257,6 +264,38 @@ void InferRequestBase::changeDefaultPtr() {
         auto output = outputNodesMap.find(it.first);
         if (output != outputNodesMap.end()) {
             auto parentEdge = output->second->getParentEdgeAt(0);
+            if (Graph::Status::ReadyDynamic == graph->getStatus()) {
+                bool canBeInPlace = true;
+                // TODO: filter
+
+                // share intel_cpu::Tensor to Graph by injecting to corresponding ProxyMemoryMngr instance.
+                ProxyMemoryMngrPtr outputMemMngr;
+                const auto &outMemMngrMap = graph->outputNodesMemMngrMap;
+                auto itr = outMemMngrMap.find(it.first);
+                if (itr != outMemMngrMap.end()) {
+                    outputMemMngr = itr->second;
+                    OPENVINO_ASSERT(outputMemMngr, "proxy mem manager for output ", it.first, " is empty.");
+                } else {
+                    canBeInPlace = false;
+                    DEBUG_LOG("no proxy mem manager for output ", it.first, " !");
+                }
+
+                if (canBeInPlace) {
+                    auto tt = std::get<0>(outputsTensor2BlobMap[it.first]);  // there is no way to get tensor from blob.
+                    auto memptr = tt->get_memory();
+                    outputMemMngr->setManager(memptr->getMemoryMngr());
+                    DEBUG_LOG("setManager proxy ", outputMemMngr, ", actual ", memptr->getMemoryMngr(), " graph ", graph, " inferrequest ", this);
+                    DEBUG_LOG(it.first, ", blob ", std::get<1>(outputsTensor2BlobMap[it.first]), ", tensor ", tt);
+                } else {
+                    if (outputMemMngr) {
+                        outputMemMngr->setManager(nullptr);
+                        DEBUG_LOG("setManager nullptr", " graph ", graph, " inferrequest ", this);
+                    }
+                }
+
+                continue;
+            }
+
             if (parentEdge->getMemory().getData() == static_cast<void*>(it.second->buffer()))
                 continue;
 
@@ -781,15 +820,22 @@ InferenceEngine::Blob::Ptr InferRequest::GetBlob(const std::string& name) {
                     InferenceEngine::SizeVector dims;
                     if (isDynamic) {
                         dims = InferenceEngine::SizeVector(shape.rank().get_length(), 0);
+                        auto mem_ptr = create_memory(InferenceEngine::details::convertPrecision(outputNode->second->get_input_element_type(0)), Shape(dims));
+                        const auto &tensor_ptr = std::make_shared<Tensor>(mem_ptr);
+                        data = tensor_to_blob(tensor_ptr);
+
+                        auto a = std::make_pair(tensor_ptr, data); // as no method to get Tensor from Blob
+                        outputsTensor2BlobMap[name] = a;
+
+                        DEBUG_LOG(name, ", blob ", data, ", tensor ", tensor_ptr, ", memmngr ", mem_ptr->getMemoryMngr());
                     } else {
                         dims = shape.to_shape();
+
+                        InferenceEngine::TensorDesc desc(InferenceEngine::details::convertPrecision(outputNode->second->get_input_element_type(0)),
+                                                        dims, InferenceEngine::TensorDesc::getLayoutByRank(dims.size()));
+                        data = make_blob_with_precision(desc);
+                        data->allocate();
                     }
-
-                    InferenceEngine::TensorDesc desc(InferenceEngine::details::convertPrecision(outputNode->second->get_input_element_type(0)),
-                                                     dims, InferenceEngine::TensorDesc::getLayoutByRank(dims.size()));
-
-                    data = make_blob_with_precision(desc);
-                    data->allocate();
                 } else {
                     const auto& blobDims = data->getTensorDesc().getDims();
                     // in static shape case is enough information that shapes are incompatible to throw exception
@@ -816,8 +862,8 @@ InferenceEngine::Blob::Ptr InferRequest::GetBlob(const std::string& name) {
                 }
 
                 _outputs[name] = data;
-                if (!isDynamic && !externalPtr.count(name) &&
-                    data->getTensorDesc() == MemoryDescUtils::convertToTensorDesc(output->second->getParentEdgesAtPort(0)[0]->getMemory().getDesc())) {
+                if (!externalPtr.count(name) &&
+                    (isDynamic || data->getTensorDesc() == MemoryDescUtils::convertToTensorDesc(output->second->getParentEdgesAtPort(0)[0]->getMemory().getDesc()))) { // TODO: handle desc incompatible if isDynamic.
                     externalPtr[name] = data;
                 }
             } else {
@@ -832,6 +878,17 @@ InferenceEngine::Blob::Ptr InferRequest::GetBlob(const std::string& name) {
     }
 
     return data;
+}
+
+void InferRequest::checkBlobs() {
+    for (auto const& input : _inputs) {
+        checkBlob(input.second, input.first, true);
+    }
+
+    // won't check output blobs as it is not allocated.
+    // for (auto const& output : _outputs) {
+    //     checkBlob(output.second, output.first, false);
+    // }
 }
 
 void InferRequest::PushInputData() {

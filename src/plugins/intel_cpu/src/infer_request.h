@@ -9,6 +9,7 @@
 #include <string>
 #include <map>
 #include <cpp_interfaces/interface/ie_iinfer_request_internal.hpp>
+#include "cpu_tensor.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -58,6 +59,9 @@ protected:
     Graph* graph = nullptr;
     std::unordered_map<std::string, InferenceEngine::Blob::Ptr> externalPtr;
 
+    // keep until api 2.0 adopted,
+    // as there is no way to get the wrapped Tensor from Blob.
+    std::unordered_map<std::string, std::pair<std::shared_ptr<Tensor>, InferenceEngine::Blob::Ptr>> outputsTensor2BlobMap;
 private:
     void PushStates();
     void PullStates();
@@ -96,6 +100,8 @@ public:
     void SetBlob(const std::string& name, const InferenceEngine::Blob::Ptr &data) override;
     void SetBlobsImpl(const std::string& name, const InferenceEngine::BatchedBlob::Ptr& batched_blob) override;
     InferenceEngine::Blob::Ptr GetBlob(const std::string& name) override;
+
+    void checkBlobs() override;
 
 private:
     void PushInputData() override;

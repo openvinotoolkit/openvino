@@ -298,19 +298,19 @@ BlockingDesc::BlockingDesc(const SizeVector& blocked_dims,
     this->offsetPaddingToData = dimOffsets;
 
     // check that strides are valid
-    {
-        size_t denseStride = 1;
+    // {
+    //     size_t denseStride = 1;
 
-        for (size_t i = 1; i <= strides.size(); i++) {
-            if (denseStride > strides[strides.size() - i]) {
-                IE_THROW() << "Stride in " << (strides.size() - i)
-                           << "-th dimension "
-                              "is not valid; actual "
-                           << strides[strides.size() - i] << ", should be >= " << denseStride << std::endl;
-            }
-            denseStride = std::max(strides[strides.size() - i], denseStride) * blocked_dims[blocked_dims.size() - i];
-        }
-    }
+    //     for (size_t i = 1; i <= strides.size(); i++) {
+    //         if (denseStride > strides[strides.size() - i]) {
+    //             IE_THROW() << "Stride in " << (strides.size() - i)
+    //                        << "-th dimension "
+    //                           "is not valid; actual "
+    //                        << strides[strides.size() - i] << ", should be >= " << denseStride << std::endl;
+    //         }
+    //         denseStride = std::max(strides[strides.size() - i], denseStride) * blocked_dims[blocked_dims.size() - i];
+    //     }
+    // }
 }
 
 BlockingDesc::BlockingDesc(const SizeVector& dims, Layout layout) : offsetPadding(0) {

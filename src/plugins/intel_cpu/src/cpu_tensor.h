@@ -29,6 +29,8 @@ public:
 
     void* data(const element::Type& type = {}) const override;
 
+    MemoryPtr get_memory() {return m_memptr;}
+
 private:
     void update_strides() const;
 
@@ -42,5 +44,6 @@ private:
 
 std::shared_ptr<ITensor> make_tensor(MemoryPtr mem);
 
+std::shared_ptr<InferenceEngine::Blob> tensor_to_blob(const std::shared_ptr<ITensor>& tensor);
 }   // namespace intel_cpu
 }   // namespace ov

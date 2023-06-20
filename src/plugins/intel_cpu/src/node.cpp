@@ -633,7 +633,10 @@ void Node::redefineOutputMemory(const std::vector<VectorDims> &newOutputShapes) 
         const bool hasZeroDims = std::count(std::begin(newOutputShape), std::end(newOutputShape), 0) > 0;
         const auto memDesc = getBaseMemDescAtOutputPort(i)->cloneWithNewDims(newOutputShape, hasZeroDims);
         for (size_t j = 0; j < edges.size(); j++) {
+            auto old_mem_ptr = edges[j]->getMemoryPtr()->getData();
             edges[j]->getMemoryPtr()->redefineDesc(memDesc);
+            auto new_mem_ptr = edges[j]->getMemoryPtr()->getData();
+            DEBUG_LOG(getName(), " output ", i, " edge ", j, " ", old_mem_ptr, " -> ", new_mem_ptr, ", memmngr ", edges[j]->getMemoryPtr()->getMemoryMngr());
         }
     }
 }
