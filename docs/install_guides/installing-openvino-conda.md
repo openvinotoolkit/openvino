@@ -19,7 +19,7 @@
       
       .. tab-set::
 
-         .. tab-item::  Processor Notes
+         .. tab-item:: Processor Notes
             :sync: processor-notes
          
             | Not all Intel CPUs include integrated graphics processors.  

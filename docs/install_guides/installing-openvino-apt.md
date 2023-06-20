@@ -139,7 +139,7 @@ Install OpenVINO Runtime
          sudo apt install openvino
    
    
-   .. tab-item::  A Specific Version
+   .. tab-item:: A Specific Version
       :sync: specific-version
    
       #. Get a list of OpenVINO packages available for installation:
@@ -232,7 +232,7 @@ To uninstall OpenVINO Runtime via APT, run the following command based on your n
    
          sudo apt autoremove openvino
    
-   .. tab-item::  A Specific Version
+   .. tab-item:: A Specific Version
       :sync: specific-version
    
       .. code-block:: sh

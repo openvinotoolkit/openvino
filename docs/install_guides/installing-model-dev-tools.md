@@ -96,7 +96,7 @@ Activate the newly created Python virtual environment by issuing this command:
    
          source openvino_env/bin/activate
 
-   .. tab-item::  Windows
+   .. tab-item:: Windows
       :sync: windows
    
       .. code-block:: sh

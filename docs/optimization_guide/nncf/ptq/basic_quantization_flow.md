@@ -80,7 +80,7 @@ Once the dataset is ready and the model object is instantiated, you can apply 8-
          :language: python
          :fragment: [quantization]
 
-   .. tab-item::  PyTorch
+   .. tab-item:: PyTorch
       :sync: pytorch
       
       .. doxygensnippet:: docs/optimization_guide/nncf/ptq/code/ptq_torch.py
@@ -113,7 +113,7 @@ After that the model can be converted into the OpenVINO Intermediate Representat
          :language: python
          :fragment:  [inference]
 
-   .. tab-item::  PyTorch
+   .. tab-item:: PyTorch
       :sync: pytorch
       
       .. doxygensnippet:: docs/optimization_guide/nncf/ptq/code/ptq_torch.py
