@@ -1803,9 +1803,28 @@ void Graph::resolveInPlaceDirection(const NodePtr& node) const {
                     config.inConfs[inpPort].inPlace(-1);
                     node->initDescriptor(config);
                 } else if (parentInPlaceDirection == InplaceDirectionType::DOWN) {
-                    auto config = node->getSelectedPrimitiveDescriptor()->getConfig();
-                    config.outConfs[inPlaceInpPort].inPlace(-1);
-                    node->initDescriptor(config);
+                    //search if siblings already have downstream direction
+                    auto downstreamPeers = [&] {
+                        for (auto& peerEdge : pParent->getChildEdgesAtPort(pEdge->getInputNum())) {
+                            auto peerNode = peerEdge->getChild();
+                            if (peerNode == node) continue;
+                            if (inPlaceDirection(peerNode, PortType::INPUT, peerEdge->getOutputNum()) == InplaceDirectionType::DOWN) {
+                                return true;
+                            }
+                        }
+                        return false;
+                    }();
+                    if (downstreamPeers) {
+                        // when there is an downstream peer we have to resolve upstream inplace for the node
+                        // to avoid inplace conflict
+                        auto config = node->getSelectedPrimitiveDescriptor()->getConfig();
+                        config.inConfs[inpPort].inPlace(-1);
+                        node->initDescriptor(config);
+                    } else {
+                        auto config = node->getSelectedPrimitiveDescriptor()->getConfig();
+                        config.outConfs[inPlaceInpPort].inPlace(-1);
+                        node->initDescriptor(config);
+                    }
                 } else {
                     // the parent node does not use inPlace memory, let's check children
                     std::function<InplaceDirectionType(const NodePtr& node, int portIdx)> searchNonCyclicDirection;
