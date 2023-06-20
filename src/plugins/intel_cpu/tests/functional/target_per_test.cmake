@@ -74,7 +74,6 @@ function(create_target_per_test_for_directory TEST_DIR TARGET_PREFIX)
       DEFINES ${DEFINES}
       DEPENDENCIES ${DEPENDENCIES}
       LINK_LIBRARIES ${LINK_LIBRARIES}
-      ADD_CPPLINT
       LABELS
       CPU
     )

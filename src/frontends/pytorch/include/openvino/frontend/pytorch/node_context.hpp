@@ -74,6 +74,10 @@ public:
         return m_decoder->input_is_none(index);
     }
 
+    Any get_output_type(size_t index) const {
+        return m_decoder->get_output_type(index);
+    }
+
     size_t get_output_size() const {
         return m_decoder_outputs.size();
     }

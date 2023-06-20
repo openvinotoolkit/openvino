@@ -962,9 +962,9 @@ void Graph::PullOutputData(BlobMap &out) {
         auto srcPrec = actualDesc.getPrecision();
         auto dstPrec = expectedDesc.getPrecision();
 
-        if (getConfig().isNewApi && srcPrec == dstPrec && ext_blob->byteSize() != intr_blob.GetSize())
-                IE_THROW() << "Output blob byte size is not equal network output byte size ("
-                                   << ext_blob->byteSize() << "!=" << intr_blob.GetSize() << ").";
+        if (!getConfig().isLegacyApi && srcPrec == dstPrec && ext_blob->byteSize() != intr_blob.GetSize())
+            IE_THROW() << "Output blob byte size is not equal network output byte size (" << ext_blob->byteSize()
+                       << "!=" << intr_blob.GetSize() << ").";
 
         void *ext_blob_ptr = ext_blob->buffer();
         void *intr_blob_ptr = intr_blob.GetData();
