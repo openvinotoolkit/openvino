@@ -1,0 +1,108 @@
+name: Bug Report
+description: Create a report to help us improve
+title: "[Bug]: "
+labels: ["bug", "support_request"]
+assignees:
+  - octocat
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please provide all the necessary information to expedite the response.
+        #Start here
+  - type: input
+    id: ov_version
+    attributes:
+      label: OpenVINO Version 
+      description: OpenVINO Version/Branch/tag
+      placeholder: 2022.3.0 / Master Branch / tag 2022.3.0
+    validations:
+      required: false
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating System
+      description: Operating System 
+      options:
+        - Ubuntu 18.04 (LTS)
+        - Ubuntu 20.04 (LTS)
+        - Windows 10
+        - Windows 11
+        - Red Hat Enterprise Linux 8
+        - macOS 10.15
+        - macOS 11
+        - macOS 12
+        - Other (Please specify in description)
+    validations:
+      required: true
+  - type: dropdown
+    id: device_use
+    attributes:
+      label: Device Use for Inference Engine
+      description: Device Use for Inference Engine
+      options:
+        - CPU
+        - GPU
+        - NCS2 (intel Movidius)
+        - HDDL
+    validations:
+      required: true
+  - type: dropdown
+    id: framework
+    attributes:
+      label: Framework
+      description: Framework use in modal optimization
+      options:
+        - TensorFlow 1
+        - Keras (TensorFlow 2)
+        - Caffe
+        - ONNX
+        - Pytorch
+        - mxnet
+        - Paddle Paddle
+    validations:
+      required: true
+  - type: input
+    id: model_name
+    attributes:
+      label: Model Name  
+      description: Please provide us the link to your model in the description
+      placeholder: ResNet50 / YOLOv4
+    validations:
+      required: false
+      #Endhere 
+  - type: textarea
+    id: bug_description
+    attributes:
+      label: Details Description of the issue
+      description: Also, tell us the issue, and what did you expect to happen?
+      placeholder: Please provide a details description of what happen
+      value: "Error when performing Modal optimization on yolov4 model."
+    validations:
+      required: true
+  - type: textarea
+    id: step_by_step
+    attributes:
+      label: Details Step by Step 
+      description: Details instructions on reproducing the issue
+      placeholder: Please provide us Step by step on how we can reproduce the issue
+    validations:
+      required: false
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant log output
+      description: Please copy and paste any relevant log output. This will be automatically formatted into code, so no need for backticks.
+      render: shell
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Issue submission checklist
+      description: By submitting this issue, you agree to follow our [Code of Conduct](https://example.com)
+      options:
+        - label: I report the issue. It's not a question
+          required: true
+        - label: I checked the problem with the documentation, FAQ, open issues, Stack Overflow, etc., and have not found the solution
+          required: true
+        - label: There is reproducer code and related data files such as images, videos, models, etc.
+          required: true
