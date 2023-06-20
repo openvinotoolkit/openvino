@@ -634,7 +634,6 @@ def test_model_add_remove_result_parameter_sink():
     model.add_results([result2])
 
     results = model.get_results()
-    print(results)
     assert len(results) == 2
     assert results[0].get_output_element_type(0) == Type.f32
     assert results[0].get_output_partial_shape(0) == PartialShape([1])
@@ -642,7 +641,7 @@ def test_model_add_remove_result_parameter_sink():
     model.remove_result(result)
     assert len(model.results) == 1
 
-    param1 =  ops.parameter(PartialShape([1]), name="param1")
+    param1 = ops.parameter(PartialShape([1]), name="param1")
     model.add_parameters([param1])
 
     params = model.parameters
