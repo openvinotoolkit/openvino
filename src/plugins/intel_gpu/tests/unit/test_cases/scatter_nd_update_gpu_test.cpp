@@ -113,9 +113,9 @@ struct scatter_nd_update_random_test : testing::TestWithParam<scatter_nd_update_
         std::reverse(indices_vec.begin() + 2, indices_vec.end());
         indices_vec.resize(params.indices_rank);
 
-        auto input_data_fp16 = rg.generate_random<T>(params.input_size.count(), -127, 127);
+        auto input_data_fp16 = rg.generate_random_1d<T>(params.input_size.count(), -127, 127);
         auto indices_data_fp16 = generate_unique_indices<T>(params);
-        auto updates_data_fp16 = rg.generate_random<T>(params.updates_size.count(), -127, 127);
+        auto updates_data_fp16 = rg.generate_random_1d<T>(params.updates_size.count(), -127, 127);
 
         std::vector<float> input_data(params.input_size.count());
         for (size_t i = 0; i < params.input_size.count(); ++i)
@@ -193,9 +193,9 @@ struct scatter_nd_update_random_test : testing::TestWithParam<scatter_nd_update_
         std::reverse(indices_vec.begin() + 2, indices_vec.end());
         indices_vec.resize(params.indices_rank);
 
-        auto input_data = rg.generate_random<T>(params.input_size.count(), -127, 127);
+        auto input_data = rg.generate_random_1d<T>(params.input_size.count(), -127, 127);
         auto indices_data = generate_unique_indices<T>(params);
-        auto updates_data = rg.generate_random<T>(params.updates_size.count(), -127, 127);
+        auto updates_data = rg.generate_random_1d<T>(params.updates_size.count(), -127, 127);
 
         set_values(input1, input_data);
         set_values(input2, indices_data);
@@ -4541,9 +4541,9 @@ TEST(scatter_nd_update_gpu, dynamic_5d) {
         auto input2 = engine.allocate_memory({ in2_shape, data_types::i32, format::bfzyx }); // Indexes
         auto input3 = engine.allocate_memory({ in3_shape, data_types::f32, format::bfyx });  // Updates
 
-        std::vector<float> input_data = rg.generate_random<float>(input1->count(), 1, 100);
+        std::vector<float> input_data = rg.generate_random_1d<float>(input1->count(), 1, 100);
         std::vector<int32_t> indices = generate_unique_indices(in1_shape, in2_shape);
-        std::vector<float> updates = rg.generate_random<float>(input3->count(), 100, 200);
+        std::vector<float> updates = rg.generate_random_1d<float>(input3->count(), 100, 200);
         auto expected_res = get_expected_res(input_data, indices, updates, in1_shape, in2_shape, in3_shape);
 
         set_values<float>(input1, input_data);

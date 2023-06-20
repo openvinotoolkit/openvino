@@ -76,13 +76,10 @@ TEST(test_count_non_zero, 5d_fp16_1_3_2_1_2) {
     test_count_non_zero<FLOAT16>(layout{ov::PartialShape{1, 3, 2, 1, 2}, data_types::f16, format::bfzyx}, in_data);
 }
 
-#define GET_SUITE_NAME  (std::string(::testing::UnitTest::GetInstance()->current_test_info()->test_suite_name()) + \
-                         std::string(::testing::UnitTest::GetInstance()->current_test_info()->name()))
-
 TEST(test_count_non_zero, 2d_int32_1_256) {
     tests::random_generator rg(GET_SUITE_NAME);
     layout in_layout = {ov::PartialShape{1, 256}, data_types::i32, format::bfyx};
-    auto in_data = rg.generate_random<int32_t>(in_layout.count(), -2, 2);
+    auto in_data = rg.generate_random_1d<int32_t>(in_layout.count(), -2, 2);
     make_min_num_zero(in_data, rg.get_generator(), 100);
     test_count_non_zero<int32_t>(in_layout, in_data);
 }
@@ -90,7 +87,7 @@ TEST(test_count_non_zero, 2d_int32_1_256) {
 TEST(test_count_non_zero, 2d_f32_1_513) {
     tests::random_generator rg(GET_SUITE_NAME);
     layout in_layout = {ov::PartialShape{1, 513}, data_types::f32, format::bfyx};
-    auto in_data = rg.generate_random<float>(in_layout.count(), -2, 2);
+    auto in_data = rg.generate_random_1d<float>(in_layout.count(), -2, 2);
     make_min_num_zero(in_data, rg.get_generator(), 40);
     test_count_non_zero<float>(in_layout, in_data);
 }
@@ -98,7 +95,7 @@ TEST(test_count_non_zero, 2d_f32_1_513) {
 TEST(test_count_non_zero, 6d_f32_21_18_1_5_3_2) {
     tests::random_generator rg(GET_SUITE_NAME);
     layout in_layout = {ov::PartialShape{21, 18, 1, 5, 3, 2}, data_types::f32, format::bfwzyx};
-    auto in_data = rg.generate_random<float>(in_layout.count(), -2, 2);
+    auto in_data = rg.generate_random_1d<float>(in_layout.count(), -2, 2);
     make_min_num_zero(in_data, rg.get_generator(), 172);
     test_count_non_zero<float>(in_layout, in_data);
 }
@@ -106,7 +103,7 @@ TEST(test_count_non_zero, 6d_f32_21_18_1_5_3_2) {
 TEST(test_count_non_zero, 5d_f32_1_16_4_2_24) {
     tests::random_generator rg(GET_SUITE_NAME);
     layout in_layout = {ov::PartialShape{1, 16, 4, 2, 24}, data_types::f32, format::bfzyx};
-    auto in_data = rg.generate_random<float>(in_layout.count(), -2, 2);
+    auto in_data = rg.generate_random_1d<float>(in_layout.count(), -2, 2);
     make_min_num_zero(in_data, rg.get_generator(), 128);
     test_count_non_zero<float>(in_layout, in_data);
 }
@@ -147,7 +144,7 @@ TEST(test_count_non_zero, dynamic_2d_f32_bfyx) {
         auto in_layout = layout({1, static_cast<long int>(input_length)}, data_types::f32, format::bfyx);
         auto input_mem = engine.allocate_memory(in_layout);
 
-        auto in_data = rg.generate_random<float>(in_layout.count(), -2, 2);
+        auto in_data = rg.generate_random_1d<float>(in_layout.count(), -2, 2);
         make_min_num_zero(in_data, rg.get_generator(), 50);
 
         set_values(input_mem, in_data);
