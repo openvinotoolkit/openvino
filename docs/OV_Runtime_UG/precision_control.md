@@ -38,7 +38,7 @@ Code examples:
          :fragment: [ov:execution_mode:part0]
    
    .. tab-item:: Python
-      :sync: python
+      :sync: py
    
       .. doxygensnippet:: docs/snippets/cpu/ov_execution_mode.py
          :language: python

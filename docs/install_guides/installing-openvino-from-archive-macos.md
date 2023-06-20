@@ -15,13 +15,13 @@ See the `Release Notes <https://software.intel.com/en-us/articles/OpenVINO-RelNo
 .. tab-set::
 
    .. tab-item:: System Requirements
-      :sync: sysreq
+      :sync: sys-req
    
       | Full requirement listing is available in:
       | `System Requirements Page <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html>`__
    
    .. tab-item:: Software Requirements
-      :sync: softreq
+      :sync: soft-req
    
       * `CMake 3.13 or higher <https://cmake.org/download/>`__ (choose "macOS 10.13 or later"). Add ``/Applications/CMake.app/Contents/bin`` to path (for default install).
       * `Python 3.7 - 3.11 <https://www.python.org/downloads/mac-osx/>`__ (choose 3.7 - 3.11). Install and add to path.
@@ -61,7 +61,7 @@ Step 1: Install OpenVINO Core Components
    .. tab-set::
 
       .. tab-item:: x86, 64-bit
-         :sync: x86_64bit
+         :sync: x86-64bit
    
          .. code-block:: sh
    
@@ -70,7 +70,7 @@ Step 1: Install OpenVINO Core Components
             sudo mv m_openvino_toolkit_macos_10_15_2023.0.0.10926.b4452d56304_x86_64 /opt/intel/openvino_2023.0.0
    
       .. tab-item:: ARM, 64-bit
-         :sync: arm_64bit
+         :sync: arm-64bit
    
          .. code-block:: sh
    
@@ -129,7 +129,7 @@ Now that you've installed OpenVINO Runtime, you're ready to run your own machine
 .. tab-set::
 
    .. tab-item:: Get started with Python
-      :sync: get_started_python
+      :sync: get-started-py
    
       Try the `Python Quick Start Example <notebooks/201-vision-monodepth-with-output.html>`__ to estimate depth in a scene using an OpenVINO monodepth model in a Jupyter Notebook inside your web browser.
    
@@ -143,7 +143,7 @@ Now that you've installed OpenVINO Runtime, you're ready to run your own machine
       * `Convert a PyTorch model and use it for image background removal <notebooks/205-vision-background-removal-with-output.html>`__
    
    .. tab-item:: Get started with C++
-      :sync: get_started_cpp
+      :sync: get-started-cpp
    
       Try the `C++ Quick Start Example <openvino_docs_get_started_get_started_demos.html>`_ for step-by-step instructions on building and running a basic image classification C++ application.
    

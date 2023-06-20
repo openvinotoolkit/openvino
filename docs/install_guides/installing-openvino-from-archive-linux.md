@@ -19,13 +19,13 @@ See the `Release Notes <https://software.intel.com/en-us/articles/OpenVINO-RelNo
 .. tab-set::
 
    .. tab-item:: System Requirements
-      :sync: sysreq
+      :sync: sys-req
    
       | Full requirement listing is available in:
       | `System Requirements Page <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html>`__
    
    .. tab-item:: Processor Notes
-      :sync: processor_notes
+      :sync: processor-notes
    
       | Processor graphics are not included in all processors. 
       | See `Product Specifications <https://ark.intel.com/>`__ for information about your processor.
@@ -104,7 +104,7 @@ Step 1: Download and Install the OpenVINO Core Components
    .. tab-set::
 
       .. tab-item:: x86_64
-         :sync: x86_64
+         :sync: x86-64
 
          .. tab-set::
 
@@ -154,7 +154,7 @@ Step 1: Download and Install the OpenVINO Core Components
                   sudo mv l_openvino_toolkit_centos7_2023.0.0.10926.b4452d56304_x86_64 /opt/intel/openvino_2023.0.0
        
       .. tab-item:: ARM 64-bit
-         :sync: arm_64
+         :sync: arm-64
       
          .. code-block:: sh
       
@@ -163,7 +163,7 @@ Step 1: Download and Install the OpenVINO Core Components
             sudo mv l_openvino_toolkit_debian9_2023.0.0.10926.b4452d56304_arm64 /opt/intel/openvino_2023.0.0
       
       .. tab-item:: ARM 32-bit
-         :sync: arm_32
+         :sync: arm-32
       
          .. code-block:: sh
       
@@ -265,7 +265,7 @@ Learn more about how to integrate a model in OpenVINO applications by trying out
 .. tab-set::
 
    .. tab-item:: Get started with Python
-      :sync: get_started_python
+      :sync: get-started-py
       
       Try the `Python Quick Start Example <notebooks/201-vision-monodepth-with-output.html>`_
       to estimate depth in a scene using an OpenVINO monodepth model in a Jupyter Notebook inside your web browser.
@@ -281,7 +281,7 @@ Learn more about how to integrate a model in OpenVINO applications by trying out
    
    
    .. tab-item:: Get started with C++
-      :sync: get_started_cpp
+      :sync: get-started-cpp
    
       Try the :doc:`C++ Quick Start Example <openvino_docs_get_started_get_started_demos>` for step-by-step instructions 
       on building and running a basic image classification C++ application.

@@ -19,13 +19,13 @@ System Requirements
 .. tab-set::
 
    .. tab-item:: System Requirements
-      :sync: sysreq
+      :sync: sys_req
    
       | Full requirement listing is available in:
       | `System Requirements Page <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html>`_
    
    .. tab-item:: Processor Notes
-      :sync: processor_notes
+      :sync: processor-notes
    
       Processor graphics are not included in all processors.
       See `Product Specifications`_ for information about your processor.
@@ -181,7 +181,7 @@ Now that you've installed OpenVINO Runtime, you're ready to run your own machine
 .. tab-set::
 
    .. tab-item:: Get started with Python
-      :sync: get_started_python
+      :sync: get-started-py
    
       Try the `Python Quick Start Example <notebooks/201-vision-monodepth-with-output.html>`__ to estimate depth in a scene using an OpenVINO monodepth model in a Jupyter Notebook inside your web browser.
    
@@ -195,7 +195,7 @@ Now that you've installed OpenVINO Runtime, you're ready to run your own machine
       * `Convert a PyTorch model and use it for image background removal <notebooks/205-vision-background-removal-with-output.html>`__
    
    .. tab-item:: Get started with C++
-      :sync: get_started_cpp
+      :sync: get-started-cpp
    
       Try the `C++ Quick Start Example <openvino_docs_get_started_get_started_demos.html>`_ for step-by-step instructions on building and running a basic image classification C++ application.
    

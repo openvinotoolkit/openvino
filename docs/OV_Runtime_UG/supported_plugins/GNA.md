@@ -221,7 +221,7 @@ With the following methods, you can collect profiling information with various p
       ``ov::InferRequest::get_profiling_info``
    
    .. tab-item:: Python
-      :sync: python
+      :sync: py
    
       ``openvino.runtime.InferRequest.get_profiling_info``
 

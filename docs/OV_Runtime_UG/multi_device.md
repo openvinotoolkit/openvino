@@ -55,7 +55,7 @@ The following commands are accepted by the API:
          :fragment: [part0]
 
    .. tab-item:: Python
-      :sync: python
+      :sync: py
    
       .. doxygensnippet:: docs/snippets/ov_multi.py
          :language: python
@@ -80,7 +80,7 @@ As mentioned previously, executing inference with MULTI may be set up by configu
          :fragment: [part4]
    
    .. tab-item:: Python
-      :sync: python
+      :sync: py
    
       .. doxygensnippet:: docs/snippets/ov_multi.py
          :language: python

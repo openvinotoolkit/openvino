@@ -14,13 +14,13 @@ Development and Target Systems
 .. tab-set::
 
    .. tab-item:: System Requirements
-      :sync: sysreq
+      :sync: sys-req
    
       | Full requirement listing is available in:
       | `System Requirements Page <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html>`_
    
    .. tab-item:: Software Requirements
-      :sync: softreq
+      :sync: soft-req
     
       * CMake 3.10 or higher
       * Python 3.7 - 3.11
@@ -48,7 +48,7 @@ Step 1: Download and Install OpenVINO Runtime
    .. tab-set::
 
       .. tab-item:: ARM 64-bit
-         :sync: arm_64
+         :sync: arm-64
    
          .. code-block:: sh
    
@@ -56,7 +56,7 @@ Step 1: Download and Install OpenVINO Runtime
             sudo wget https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.0/linux/l_openvino_toolkit_debian9_2023.0.0.10926.b4452d56304_arm64.tgz -O openvino_2023.0.0.tgz
    
       .. tab-item:: ARM 32-bit
-         :sync: arm_32
+         :sync: arm-32
    
          .. code-block:: sh
    
@@ -68,7 +68,7 @@ Step 1: Download and Install OpenVINO Runtime
    .. tab-set::
 
       .. tab-item:: ARM 64-bit
-         :sync: arm_64
+         :sync: arm-64
    
          .. code-block:: sh
    
@@ -76,7 +76,7 @@ Step 1: Download and Install OpenVINO Runtime
             sudo mv l_openvino_toolkit_debian9_2023.0.0.10926.b4452d56304_arm64 /opt/intel/openvino_2023.0.0
    
       .. tab-item:: ARM 32-bit
-         :sync: arm_32
+         :sync: arm-32
    
          .. code-block:: sh
    
@@ -160,7 +160,7 @@ Now that you've installed OpenVINO Runtime, you're ready to run your own machine
 .. tab-set::
 
    .. tab-item:: Get started with Python
-      :sync: get_started_python
+      :sync: get-started-python
    
       Try the `Python Quick Start Example <notebooks/201-vision-monodepth-with-output.html>`__ to estimate depth in a scene using an OpenVINO monodepth model in a Jupyter Notebook inside your web browser.
    
@@ -175,7 +175,7 @@ Now that you've installed OpenVINO Runtime, you're ready to run your own machine
    
    
    .. tab-item:: Get started with C++
-      :sync: get_started_python
+      :sync: get-started-python
    
       Try the `C++ Quick Start Example <openvino_docs_get_started_get_started_demos.html>`_ for step-by-step instructions on building and running a basic image classification C++ application.
    

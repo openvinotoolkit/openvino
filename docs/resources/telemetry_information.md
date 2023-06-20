@@ -57,14 +57,14 @@ Telemetry Data Collection Details
 .. tab-set::
 
    .. tab-item:: Telemetry Data Collected
-      :sync: telemetry_data_collected
+      :sync: telemetry-data-collected
    
       * Failure reports 
       * Error reports 
       * Usage data 
    
    .. tab-item:: Tools Collecting Data
-      :sync: tools_collecting_data
+      :sync: tools-collecting-data
    
       * Model conversion API 
       * Model Downloader 
@@ -75,7 +75,7 @@ Telemetry Data Collection Details
       * Model Quantizer
    
    .. tab-item:: Telemetry Data Retention
-      :sync: telemetry_data_retention
+      :sync: telemetry-data-retention
    
       Telemetry data is retained in Google Analytics for a maximum of 26 months.
       Any raw data that has reached the 26-month threshold is deleted from Google Analytics on a monthly basis.  

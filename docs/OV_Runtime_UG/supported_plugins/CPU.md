@@ -388,7 +388,7 @@ User can use the following properties to limit available CPU resource for model 
          :fragment: [ov:intel_cpu:multi_threading:part0]
    
    .. tab-item:: Python
-      :sync: python
+      :sync: py
    
       .. doxygensnippet:: docs/snippets/cpu/multi_threading.py
          :language: python
@@ -410,7 +410,7 @@ By default, OpenVINO Runtime will enable CPU threads pinning for better performa
          :fragment: [ov:intel_cpu:multi_threading:part1]
    
    .. tab-item:: Python
-      :sync: python
+      :sync: py
    
       .. doxygensnippet:: docs/snippets/cpu/multi_threading.py
          :language: python
@@ -460,7 +460,7 @@ To enable denormals optimization in the application, the ``denormals_optimizatio
          :fragment: [ov:intel_cpu:denormals_optimization:part0]
    
    .. tab-item:: Python
-      :sync: python
+      :sync: py
    
       .. doxygensnippet:: docs/snippets/ov_denormals.py
          :language: python
@@ -504,7 +504,7 @@ Code examples of how to use ``sparse_weights_decompression_rate``:
          :fragment: [ov:intel_cpu:sparse_weights_decompression:part0]
    
    .. tab-item:: Python
-      :sync: python
+      :sync: py
    
       .. doxygensnippet:: docs/snippets/cpu/ov_sparse_weights_decompression.py
          :language: python

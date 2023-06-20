@@ -40,7 +40,7 @@ In general, most throughput-oriented inference applications should:
                 :fragment: [compile_model]
    
        .. tab-item:: Python
-          :sync: python
+          :sync: py
    
              .. doxygensnippet:: docs/snippets/ov_auto_batching.py
                 :language: python

@@ -29,19 +29,19 @@ Prerequisites
 .. tab-set::
 
    .. tab-item:: System Requirements
-      :sync: sysreq
+      :sync: sys-req
    
       | Full requirement listing is available in:
       | `System Requirements Page <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html>`__
    
    .. tab-item:: Processor Notes
-      :sync: processornotes
+      :sync: processor-notes
    
       Processor graphics are not included in all processors.
       See `Product Specifications <https://ark.intel.com/>`__ for information about your processor.
    
    .. tab-item:: Software Requirements
-      :sync: softreq
+      :sync: soft-req
    
       * `CMake 3.13 or higher, 64-bit <https://cmake.org/download/>`__
       * GCC 7.5.0 (for Ubuntu 18.04), GCC 9.3.0 (for Ubuntu 20.04) or GCC 11.3.0 (for Ubuntu 22.04)
@@ -140,7 +140,7 @@ Install OpenVINO Runtime
    
    
    .. tab-item::  A Specific Version
-      :sync: specific_version
+      :sync: specific-version
    
       #. Get a list of OpenVINO packages available for installation:
    
@@ -226,14 +226,14 @@ To uninstall OpenVINO Runtime via APT, run the following command based on your n
 .. tab-set::
 
    .. tab-item:: The Latest Version
-      :sync: latest_version
+      :sync: latest-version
    
       .. code-block:: sh
    
          sudo apt autoremove openvino
    
    .. tab-item::  A Specific Version
-      :sync: specific_version
+      :sync: specific-version
    
       .. code-block:: sh
    
