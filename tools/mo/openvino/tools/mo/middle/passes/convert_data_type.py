@@ -9,7 +9,7 @@ from openvino.tools.mo.front.extractor import get_new_placeholder_name
 from openvino.tools.mo.graph.graph import Node, Graph
 from openvino.tools.mo.utils.error import Error
 from openvino.tools.mo.utils.utils import refer_to_faq_msg
-from openvino.runtime.utils.convert_data_type import packed_U1, packed_U4, packed_I4, SUPPORTED_DATA_TYPES, \
+from openvino.runtime.ovc.convert_data_type import packed_U1, packed_U4, packed_I4, SUPPORTED_DATA_TYPES, \
     data_type_str_to_np, data_type_str_to_precision, data_type_str_to_destination_type, np_data_type_to_precision, \
     np_data_type_to_destination_type, destination_type_to_np_data_type, precision_to_destination_type
 

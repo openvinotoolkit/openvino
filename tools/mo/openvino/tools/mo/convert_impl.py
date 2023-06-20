@@ -18,17 +18,17 @@ except ImportError:
     import openvino.tools.mo.utils.telemetry_stub as tm
 
 from openvino.tools.mo.back.SpecialNodesFinalization import RemoveConstOps, CreateConstNodesReplacement, NormalizeTI
-from openvino.runtime.utils.moc_frontend.check_config import legacy_transformations_config_used, \
+from openvino.runtime.ovc.moc_frontend.check_config import legacy_transformations_config_used, \
     tensorflow_custom_operations_config_update_used, new_extensions_used
-from openvino.runtime.utils.moc_frontend.pipeline import moc_pipeline
-from openvino.runtime.utils.moc_frontend.moc_emit_ir import moc_emit_ir
+from openvino.runtime.ovc.moc_frontend.pipeline import moc_pipeline
+from openvino.runtime.ovc.moc_frontend.moc_emit_ir import moc_emit_ir
 from openvino.tools.mo.graph.graph import Graph
 from openvino.tools.mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively
 from openvino.tools.mo.middle.passes.convert_data_type import destination_type_to_np_data_type
 from openvino.tools.mo.pipeline.common import prepare_emit_ir
 from openvino.tools.mo.pipeline.unified import unified_pipeline
 from openvino.tools.mo.utils import import_extensions
-from openvino.runtime.utils.cli_parser import check_available_transforms, \
+from openvino.runtime.ovc.cli_parser import check_available_transforms, \
     get_advanced_cli_options, get_available_front_ends, get_caffe_cli_options, \
     get_common_cli_options, get_freeze_placeholder_values, get_kaldi_cli_options, get_layout_values, \
     get_mean_scale_dictionary, get_mxnet_cli_options, get_onnx_cli_options, \
@@ -37,20 +37,20 @@ from openvino.runtime.utils.cli_parser import check_available_transforms, \
     input_shape_to_input_cut_info, freeze_placeholder_to_input_cut_info
 
 from openvino.tools.mo.utils.error import Error, FrameworkError
-from openvino.runtime.utils.get_ov_update_message import get_ov_update_message, get_ov_api20_message, \
+from openvino.runtime.ovc.get_ov_update_message import get_ov_update_message, get_ov_api20_message, \
     get_tf_fe_message, get_compression_message
 from openvino.tools.mo.utils.get_ov_update_message import get_try_legacy_fe_message
 from openvino.tools.mo.utils.model_analysis import AnalysisResults
 from openvino.tools.mo.utils.version import VersionChecker
 from openvino.tools.mo.utils.guess_framework import deduce_legacy_frontend_by_namespace
-from openvino.runtime.utils.logger import init_logger, progress_printer
+from openvino.runtime.ovc.logger import init_logger, progress_printer
 from openvino.tools.mo.utils.utils import refer_to_faq_msg, check_values_equal
 from openvino.tools.mo.utils.telemetry_utils import send_params_info, send_framework_info, send_conversion_result, \
     get_tid
-from openvino.runtime.utils.moc_frontend.check_config import legacy_extensions_used
-from openvino.runtime.utils.moc_frontend.pytorch_frontend_utils import get_pytorch_decoder
-from openvino.runtime.utils.moc_frontend.paddle_frontend_utils import paddle_frontend_converter
-from openvino.runtime.utils.moc_frontend.shape_utils import parse_input_shapes
+from openvino.runtime.ovc.moc_frontend.check_config import legacy_extensions_used
+from openvino.runtime.ovc.moc_frontend.pytorch_frontend_utils import get_pytorch_decoder
+from openvino.runtime.ovc.moc_frontend.paddle_frontend_utils import paddle_frontend_converter
+from openvino.runtime.ovc.moc_frontend.shape_utils import parse_input_shapes
 
 # pylint: disable=no-name-in-module,import-error
 from openvino.frontend import FrontEndManager, OpConversionFailure, ProgressReporterExtension, TelemetryExtension
@@ -491,7 +491,7 @@ def emit_ir(graph: Graph, argv: argparse.Namespace, non_default_params: dict):
     return_code = "not executed"
     if not (argv.framework == 'tf' and argv.tensorflow_custom_operations_config_update):
         try:
-            from openvino.runtime.utils.moc_frontend.offline_transformations import apply_offline_transformations
+            from openvino.runtime.ovc.moc_frontend.offline_transformations import apply_offline_transformations
             func = apply_offline_transformations(func, argv)
             if "compress_to_fp16" in argv and argv.compress_to_fp16:
                 # restore data_type cmd parameter
@@ -950,6 +950,6 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args, python_api_us
 
         send_conversion_result('fail')
         if python_api_used:
-            raise e#.with_traceback(None)
+            raise e.with_traceback(None)
         else:
             return None, argv

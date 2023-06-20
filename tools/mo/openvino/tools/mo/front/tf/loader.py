@@ -11,7 +11,7 @@ from pathlib import Path
 from openvino.tools.mo.graph.graph import Node
 from openvino.tools.mo.utils.error import Error, FrameworkError
 from openvino.tools.mo.utils.utils import refer_to_faq_msg
-from openvino.runtime.utils.environment_setup_utils import get_environment_setup
+from openvino.runtime.ovc.environment_setup_utils import get_environment_setup
 
 # do not print INFO and WARNING messages from TensorFlow
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'

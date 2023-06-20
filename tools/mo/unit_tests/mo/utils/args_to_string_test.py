@@ -5,7 +5,7 @@ import numpy as np
 from openvino.runtime import Layout, PartialShape, Dimension, Shape, Type
 
 from openvino.tools.mo import InputCutInfo, LayoutMap
-from openvino.runtime.utils.cli_parser import mean_scale_value_to_str, \
+from openvino.runtime.ovc.cli_parser import mean_scale_value_to_str, \
     transform_param_to_str, str_list_to_str, source_target_layout_to_str, layout_param_to_str
 from unit_tests.mo.unit_test_with_mocked_telemetry import UnitTestWithMockedTelemetry
 

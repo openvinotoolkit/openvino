@@ -12,13 +12,13 @@ from unittest.mock import patch
 
 import numpy as np
 
-from openvino.runtime.utils.cli_parser import get_placeholder_shapes, get_tuple_values, get_mean_scale_dictionary, \
+from openvino.runtime.ovc.cli_parser import get_placeholder_shapes, get_tuple_values, get_mean_scale_dictionary, \
     get_model_name, \
     parse_tuple_pairs, check_positive, writable_dir, readable_dirs, \
     readable_file, get_freeze_placeholder_values, parse_transform, check_available_transforms, get_layout_values, get_all_cli_parser, \
     get_mo_convert_params
 from openvino.tools.mo.convert_impl import pack_params_to_args_namespace
-from openvino.runtime.utils.error import Error
+from openvino.runtime.ovc.error import Error
 from unit_tests.mo.unit_test_with_mocked_telemetry import UnitTestWithMockedTelemetry
 from openvino.runtime import PartialShape, Dimension, Layout, InputCutInfo, LayoutMap
 
@@ -1153,7 +1153,7 @@ class TestModelNameParsing(unittest.TestCase):
         exp_res = 'model'
         self.assertEqual(exp_res, res)
 
-    @patch("openvino.runtime.utils.cli_parser.os")
+    @patch("openvino.runtime.ovc.cli_parser.os")
     def test_model_name_win(self, old_os):
         old_os.path.basename.return_value = "caffemodel"
         old_os.path.splitext.return_value = ("caffemodel", "")
@@ -1311,7 +1311,7 @@ class TransformChecker(unittest.TestCase):
     def test_single_pass_with_args_neg6(self):
         self.assertRaises(Error, parse_transform, "LowLatency2[key=value")
 
-    @patch("openvino.runtime.utils.moc_frontend.offline_transformations.get_available_transformations")
+    @patch("openvino.runtime.ovc.moc_frontend.offline_transformations.get_available_transformations")
     def test_check_low_latency_is_available(self, available_transformations):
         available_transformations.return_value = {"LowLatency2": None}
         try:
@@ -1319,7 +1319,7 @@ class TransformChecker(unittest.TestCase):
         except Error as e:
             self.assertTrue(False, "Exception \"{}\" is unexpected".format(e))
 
-    @patch("openvino.runtime.utils.moc_frontend.offline_transformations.get_available_transformations")
+    @patch("openvino.runtime.ovc.moc_frontend.offline_transformations.get_available_transformations")
     def test_check_dummy_pass_is_available(self, available_transformations):
         available_transformations.return_value = {"LowLatency2": None}
         self.assertRaises(Error, check_available_transforms, [("DummyPass", "")])

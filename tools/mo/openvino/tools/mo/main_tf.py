@@ -3,7 +3,7 @@
 
 import sys
 
-from openvino.runtime.utils.cli_parser import get_tf_cli_parser
+from openvino.runtime.ovc.cli_parser import get_tf_cli_parser
 
 if __name__ == "__main__":
     from openvino.tools.mo.main import main

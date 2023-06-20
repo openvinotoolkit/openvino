@@ -10,7 +10,7 @@ from typing import Callable
 import numpy as np
 
 from openvino.tools.mo.front.common.partial_infer.utils import dynamic_dimension
-from openvino.runtime.utils.utils import refer_to_faq_msg, check_values_equal
+from openvino.runtime.ovc.utils import refer_to_faq_msg, check_values_equal
 
 
 class NamedAttrsClass:

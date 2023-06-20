@@ -112,7 +112,7 @@ class TestMoFallback(unittest.TestCase):
             os.remove(name)
 
 
-    @patch('openvino.runtime.utils.moc_frontend.analysis.json_model_analysis_print')
+    @patch('openvino.runtime.ovc.moc_frontend.analysis.json_model_analysis_print')
     def test_model(self, json_print):
         args = base_args_config()
         args.input_model = "test_model.onnx"
@@ -132,7 +132,7 @@ class TestMoFallback(unittest.TestCase):
                                                       "add_out": {"shape": "None", "data_type": "None", "value": "None"}}')
 
 
-    @patch('openvino.runtime.utils.moc_frontend.analysis.json_model_analysis_print')
+    @patch('openvino.runtime.ovc.moc_frontend.analysis.json_model_analysis_print')
     def test_model_with_dyn_shapes(self, json_print):
         args = base_args_config()
         args.input_model = "test_model_2.onnx"
@@ -156,7 +156,7 @@ class TestMoFallback(unittest.TestCase):
                                                       "add_out": {"shape": "None", "data_type": "None", "value": "None"}}')
 
 
-    @patch('openvino.runtime.utils.moc_frontend.analysis.json_model_analysis_print')
+    @patch('openvino.runtime.ovc.moc_frontend.analysis.json_model_analysis_print')
     def test_multi_outputs_model(self, json_print):
         args = base_args_config()
         args.input_model = "test_model_3.onnx"

@@ -4,7 +4,7 @@ from collections import Counter
 
 import numpy as np
 
-from openvino.runtime.utils.telemetry_utils import init_mo_telemetry, send_framework_info, get_tid, \
+from openvino.runtime.ovc.telemetry_utils import init_mo_telemetry, send_framework_info, get_tid, \
     send_conversion_result, arg_to_str, send_params_info
 
 from openvino.tools.mo.front.common.partial_infer.utils import is_fully_defined, unmask_shape, int64_array

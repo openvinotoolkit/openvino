@@ -11,7 +11,7 @@ import openvino.runtime.opset11 as opset11
 from openvino.runtime import Model
 from openvino.runtime import PartialShape, Dimension
 from openvino.tools.mo.convert import convert_model
-from openvino.runtime.utils.error import Error
+from openvino.runtime.ovc.error import Error
 
 
 @generator

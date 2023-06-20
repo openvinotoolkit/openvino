@@ -68,7 +68,7 @@ from openvino.runtime.ie_api import compile_model
 
 
 # Model Conversion API
-from openvino.runtime.convert import convert_model, InputCutInfo, LayoutMap
+from openvino.runtime.ovc import convert_model, InputCutInfo, LayoutMap
 
 
 # Extend Node class to support binary operators
