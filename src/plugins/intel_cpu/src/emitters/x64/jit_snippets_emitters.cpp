@@ -1334,10 +1334,18 @@ void BrgemmCopyBEmitter::execute(matmul::jit_brgemm_matmul_copy_b_t *kernel, con
     (*kernel)(&ctx);
 }
 
-HorizonMaxEmitter::HorizonMaxEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n) :
-    jit_emitter(h, isa, n, Precision::FP32, emitter_in_out_map::vec_to_vec) {}
+HorizonEmitter::HorizonEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n) :
+    jit_emitter(h, isa, n, Precision::FP32, emitter_in_out_map::vec_to_vec) {
+    if (ov::is_type<const snippets::op::HorizonMax>(n)) {
+        m_op_type = OpType::max;
+    } else if (ov::is_type<const snippets::op::HorizonSum>(n)) {
+        m_op_type = OpType::sum;
+    } else {
+        OPENVINO_THROW("HorizonEmitter exprects HorizonMax or HorizonSum ops");
+    }
+}
 
-void HorizonMaxEmitter::emit_impl(const std::vector<size_t>& in,
+void HorizonEmitter::emit_impl(const std::vector<size_t>& in,
                                     const std::vector<size_t>& out) const {
     if (host_isa_ == dnnl::impl::cpu::x64::sse41) {
         emit_isa<dnnl::impl::cpu::x64::sse41>(in, out);
@@ -1351,69 +1359,47 @@ void HorizonMaxEmitter::emit_impl(const std::vector<size_t>& in,
 }
 
 template <dnnl::impl::cpu::x64::cpu_isa_t isa>
-void HorizonMaxEmitter::emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
+void HorizonEmitter::emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
     using Vmm = typename dnnl::impl::utils::conditional3<isa == dnnl::impl::cpu::x64::sse41,
             Xmm, isa == dnnl::impl::cpu::x64::avx2, Ymm, Zmm>::type;
 
     Vmm src_vmm = Vmm(in[0]);
-    Xmm dst_xmm = Xmm(out[0]);
-    Xmm aux_xmm = Xmm(aux_vec_idxs[0]);
+    Vmm dst_vmm = Vmm(out[0]);
+    Vmm aux_vmm = Vmm(aux_vec_idxs[0]);
 
-    Reg64 aux_reg = Reg64(aux_gpr_idxs[0]);
-
-    const size_t vlen = dnnl::impl::cpu::x64::cpu_isa_traits<isa>::vlen;
-    const size_t vec_size = vlen / sizeof(float);
-    h->sub(h->rsp, vlen);
-    h->uni_vmovups(h->ptr[h->rsp], src_vmm);
-    // Let the first value be the max
-    h->mov(aux_reg, h->ptr[h->rsp]);
-    h->vmovq(dst_xmm, aux_reg);
-    for (size_t i = 1; i < vec_size; i++) {
-        h->mov(aux_reg, h->ptr[h->rsp + i * sizeof(float)]);
-        h->vmovq(aux_xmm, aux_reg);
-        h->uni_vmaxps(dst_xmm, dst_xmm, aux_xmm);
+    if (in[0] != out[0])
+        h->uni_vmovups(dst_vmm, src_vmm);
+    if (isa == dnnl::impl::cpu::x64::avx512_core) {
+        Zmm dst_zmm = Zmm(out[0]);
+        Zmm aux_zmm = Zmm(aux_vec_idxs[0]);
+        h->vshuff32x4(aux_zmm, dst_zmm, dst_zmm, 0x4E);
+        perform_op<Zmm>(dst_zmm, dst_zmm, aux_zmm);
+        h->vshuff32x4(aux_zmm, dst_zmm, dst_zmm, 0xB1);
+        perform_op<Zmm>(dst_zmm, dst_zmm, aux_zmm);
+    } else if (isa == dnnl::impl::cpu::x64::avx2) {
+        Ymm dst_ymm = Ymm(out[0]);
+        Ymm aux_ymm = Ymm(aux_vec_idxs[0]);
+        h->vperm2i128(aux_ymm, dst_ymm, dst_ymm, 0x01);
+        perform_op<Ymm>(dst_ymm, dst_ymm, aux_ymm);
     }
-    h->add(h->rsp, vlen);
+    h->uni_vshufps(aux_vmm, dst_vmm, dst_vmm, 0x4E);
+    perform_op<Xmm>(dst_vmm, dst_vmm, aux_vmm);
+    h->uni_vshufps(aux_vmm, dst_vmm, dst_vmm, 0xB1);
+    perform_op<Xmm>(dst_vmm, dst_vmm, aux_vmm);
 }
 
-HorizonSumEmitter::HorizonSumEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n) :
-    jit_emitter(h, isa, n, Precision::FP32, emitter_in_out_map::vec_to_vec) {}
-
-void HorizonSumEmitter::emit_impl(const std::vector<size_t>& in,
-                                  const std::vector<size_t>& out) const {
-    if (host_isa_ == dnnl::impl::cpu::x64::sse41) {
-        emit_isa<dnnl::impl::cpu::x64::sse41>(in, out);
-    } else if (host_isa_ == dnnl::impl::cpu::x64::avx2) {
-        emit_isa<dnnl::impl::cpu::x64::avx2>(in, out);
-    } else if (host_isa_ == dnnl::impl::cpu::x64::avx512_core) {
-        emit_isa<dnnl::impl::cpu::x64::avx512_core>(in, out);
-    } else {
-        IE_THROW() << "HorizonSum emitter doesn't support " << host_isa_;
+template<typename Vmm>
+void HorizonEmitter::perform_op(const Vmm &vmm1, const Vmm &vmm2, const Vmm &vmm3) const {
+    switch (m_op_type) {
+        case OpType::max:
+            h->uni_vmaxps(vmm1, vmm2, vmm3);
+            break;
+        case OpType::sum:
+            h->uni_vaddps(vmm1, vmm2, vmm3);
+            break;
+        default:
+            assert(!"Unsupported horizontal operation.");
     }
-}
-
-template <dnnl::impl::cpu::x64::cpu_isa_t isa>
-void HorizonSumEmitter::emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
-    using Vmm = typename dnnl::impl::utils::conditional3<isa == dnnl::impl::cpu::x64::sse41,
-            Xmm, isa == dnnl::impl::cpu::x64::avx2, Ymm, Zmm>::type;
-
-    Vmm src_vmm = Vmm(in[0]);
-    Xmm dst_xmm = Xmm(out[0]);
-    Xmm aux_xmm = Xmm(aux_vec_idxs[0]);
-
-    Reg64 aux_reg = Reg64(aux_gpr_idxs[0]);
-
-    const size_t vlen = dnnl::impl::cpu::x64::cpu_isa_traits<isa>::vlen;
-    const size_t vec_size = vlen / sizeof(float);
-    h->sub(h->rsp, vlen);
-    h->uni_vmovups(h->ptr[h->rsp], src_vmm);
-    h->uni_vpxor(dst_xmm, dst_xmm, dst_xmm);
-    for (size_t i = 0; i < vec_size; i++) {
-        h->mov(aux_reg, h->ptr[h->rsp + i * sizeof(float)]);
-        h->vmovq(aux_xmm, aux_reg);
-        h->uni_vaddps(dst_xmm, dst_xmm, aux_xmm);
-    }
-    h->add(h->rsp, vlen);
 }
 
 VectorBufferEmitter::VectorBufferEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n) :
