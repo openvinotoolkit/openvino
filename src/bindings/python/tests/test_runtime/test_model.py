@@ -623,7 +623,7 @@ def test_serialize_complex_rt_info(request, tmp_path):
     os.remove(bin_path)
 
 
-def test_model_add_results():
+def test_model_add_remove_result_parameter_sink():
     param = ops.parameter(PartialShape([1]), dtype=np.float32, name="param")
     relu1 = ops.relu(param, name="relu1")
     relu2 = ops.relu(relu1, name="relu2")
@@ -642,14 +642,6 @@ def test_model_add_results():
     model.remove_result(result)
     assert len(model.results) == 1
 
-
-def test_model_add_parameters():
-    param = ops.parameter(PartialShape([1]), dtype=np.float32, name="param")
-    relu1 = ops.relu(param, name="relu1")
-    relu2 = ops.relu(relu1, name="relu2")
-    result = ops.result(relu2, "res")
-    model = Model([result], [param], "TestModel")
-
     param1 =  ops.parameter(PartialShape([1]), name="param1")
     model.add_parameters([param1])
 
@@ -659,14 +651,6 @@ def test_model_add_parameters():
 
     model.remove_parameter(param)
     assert len(model.parameters) == 1
-
-
-def test_model_add_sinks():
-    param = ops.parameter(PartialShape([1]), dtype=np.float32, name="param")
-    relu1 = ops.relu(param, name="relu1")
-    relu2 = ops.relu(relu1, name="relu2")
-    result = ops.result(relu2, "res")
-    model = Model([result], [param], "TestModel")
 
     assign = Assign()
     model.add_sinks([assign])
