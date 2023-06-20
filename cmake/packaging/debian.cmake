@@ -49,11 +49,11 @@ macro(ov_cpack_settings)
         if(NOT OV_CPACK_COMP_${UPPER_COMP}_EXCLUDE_ALL AND
            # skip OpenVINO Python API (pattern in form of "<pyie | pyopenvino | pyngraph>_python${PYTHON_VERSION_MAJOR}${PYTHON_VERSION_MINOR}")
            NOT item MATCHES "^${OV_CPACK_COMP_PYTHON_OPENVINO}_python.*" AND
-           # because in case of debian package, pyopenvino_package_python${PYTHON_VERSION_MAJOR}${PYTHON_VERSION_MINOR} is installed
+           # because in case of .deb package, pyopenvino_package_python${PYTHON_VERSION_MAJOR}${PYTHON_VERSION_MINOR} is installed
            (NOT item MATCHES "^${OV_CPACK_COMP_PYTHON_OPENVINO_PACKAGE}_python.*" OR ENABLE_PYTHON_PACKAGING) AND
            # see ticket # 82605
            NOT item STREQUAL "gna" AND
-           # don't install Intel OpenMP during debian
+           # don't install Intel OpenMP
            NOT item STREQUAL "omp" AND
            # even for case of system TBB we have installation rules for wheels packages
            # so, need to skip this explicitly

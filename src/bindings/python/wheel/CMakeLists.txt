@@ -3,36 +3,6 @@
 #
 
 #
-# Dependencies
-#
-
-foreach(_target ie_api constants _pyngraph openvino_c pyopenvino ov_plugins ov_frontends py_ov_frontends)
-    if(TARGET ${_target})
-        list(APPEND openvino_wheel_deps ${_target})
-    endif()
-endforeach()
-
-file(GLOB_RECURSE compat_ngraph_py_files ${OpenVINOPython_SOURCE_DIR}/src/compatibility/*.py)
-file(GLOB_RECURSE openvino_py_files ${OpenVINOPython_SOURCE_DIR}/src/openvino/*.py)
-
-list(APPEND openvino_wheel_deps
-    ${openvino_py_files}
-    ${compat_ngraph_py_files}
-    "${CMAKE_CURRENT_SOURCE_DIR}/setup.py"
-    "${OpenVINOPython_SOURCE_DIR}/requirements.txt"
-    "${OpenVINOPython_SOURCE_DIR}/wheel/readme.txt"
-    "${OpenVINO_SOURCE_DIR}/LICENSE"
-    "${OpenVINO_SOURCE_DIR}/licensing/onednn_third-party-programs.txt"
-    "${OpenVINO_SOURCE_DIR}/licensing/runtime-third-party-programs.txt"
-    "${OpenVINO_SOURCE_DIR}/licensing/tbb_third-party-programs.txt"
-    "${OpenVINO_SOURCE_DIR}/docs/install_guides/pypi-openvino-rt.md")
-
-if(wheel_pre_release)
-    list(APPEND openvino_wheel_deps
-        "${OpenVINO_SOURCE_DIR}/docs/install_guides/pre-release-note.md")
-endif()
-
-#
 # Define proper package name
 #
 
@@ -146,7 +116,7 @@ add_custom_command(OUTPUT ${openvino_wheel_path}
     COMMAND ${setup_py_env}
         ${wheel_build_command}
     COMMAND ${CMAKE_COMMAND} -E remove_directory "${CMAKE_CURRENT_SOURCE_DIR}/build_${pyversion}"
-    DEPENDS ${openvino_wheel_deps}
+    DEPENDS ${ov_setup_py_deps}
     WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
     COMMENT "Building Python wheel ${openvino_wheel_name}"
     VERBATIM)

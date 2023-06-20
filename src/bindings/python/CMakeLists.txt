@@ -162,6 +162,11 @@ endif()
 
 if(CMAKE_VERSION VERSION_LESS 3.15)
     message(${message_mode} "Cmake version 3.15 and higher is required to build 'openvino' wheel. Provided version ${CMAKE_VERSION}")
+    set(SETUP_PY_REQUIREMENTS_FOUND OFF)
+endif()
+
+if(NOT SETUP_PY_REQUIREMENTS_FOUND)
+    # setup.py requirements are importnant to build wheel
     set(ENABLE_WHEEL_DEFAULT OFF)
 endif()
 
@@ -175,6 +180,10 @@ if(NOT ENABLE_PYTHON)
     else()
         return()
     endif()
+endif()
+
+if(NOT SETUP_PY_REQUIREMENTS_FOUND AND ENABLE_PYTHON_PACKAGING)
+    message(FATAL_ERROR "Python cannot be packaged, because setup.py requirements are not satisfied (cmake version >= 3.15 is required)")
 endif()
 
 #
@@ -197,7 +206,7 @@ else()
 endif()
 
 #
-# Packaing
+# Packaging
 #
 
 macro(ov_define_setup_py_packaging_vars)
@@ -284,58 +293,61 @@ endif()
 # Target, which creates python install tree for cases of DEB | RPM packages
 #
 
-# site-packages depending on package type
-set(python_xy "${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR}")
-if(CPACK_GENERATOR STREQUAL "DEB")
-    set(python_versioned_folder "python${PYTHON_VERSION_MAJOR}")
-    set(ov_site_packages "dist-packages")
-elseif(CPACK_GENERATOR STREQUAL "RPM")
-    set(python_versioned_folder "python${python_xy}")
-    set(ov_site_packages "site-packages")
-endif()
+if(ENABLE_PYTHON_PACKAGING)
+    # site-packages depending on package type
+    set(python_xy "${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR}")
+    if(CPACK_GENERATOR STREQUAL "DEB")
+        set(python_versioned_folder "python${PYTHON_VERSION_MAJOR}")
+        set(ov_site_packages "dist-packages")
+    elseif(CPACK_GENERATOR STREQUAL "RPM")
+        set(python_versioned_folder "python${python_xy}")
+        set(ov_site_packages "site-packages")
+    endif()
 
-set(python_package_prefix "${CMAKE_CURRENT_BINARY_DIR}/install_${pyversion}")
-set(install_lib "${python_package_prefix}/lib/${python_versioned_folder}/${ov_site_packages}")
-set(meta_info_subdir "openvino-${OpenVINO_VERSION}-py${python_xy}.egg-info/PKG-INFO")
-set(output_dir "${install_lib}/${meta_info_subdir}")
+    set(python_package_prefix "${CMAKE_CURRENT_BINARY_DIR}/install_${pyversion}")
+    set(install_lib "${python_package_prefix}/lib/${python_versioned_folder}/${ov_site_packages}")
+    set(meta_info_subdir "openvino-${OpenVINO_VERSION}-py${python_xy}.egg-info/PKG-INFO")
+    set(output_dir "${install_lib}/${meta_info_subdir}")
 
-file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/update_benchmark_app.py"
+    file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/update_benchmark_app.py"
 "from pathlib import Path
 file = Path('${python_package_prefix}/bin/benchmark_app')
 file.write_text(file.read_text().replace('${PYTHON_EXECUTABLE}', '/usr/bin/python3'))")
 
-add_custom_command(OUTPUT ${output_dir}
-    COMMAND ${CMAKE_COMMAND} -E remove_directory
-        "${python_package_prefix}"
-    COMMAND ${setup_py_env}
-        "${PYTHON_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/wheel/setup.py"
-            build
-                --python-extensions-only=True
-            install
-                --no-compile
-                --prefix "${python_package_prefix}"
-                --install-lib "${install_lib}"
-                --install-scripts "${python_package_prefix}/bin"
-            # TODO: add
-            # --single-version-externally-managed
-            # --record=installed.txt
-            # TODO:
-            # --build-number=${WHEEL_BUILD}
-            # --plat-name=${PLATFORM_TAG}
-    COMMAND ${PYTHON_EXECUTABLE} "${CMAKE_CURRENT_BINARY_DIR}/update_benchmark_app.py"
-    WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
-    DEPENDS ${ov_setup_py_deps}
-    COMMENT "Create python package with ${meta_info_subdir} folder")
+    add_custom_command(OUTPUT ${output_dir}
+        COMMAND ${CMAKE_COMMAND} -E remove_directory
+            "${python_package_prefix}"
+        COMMAND ${setup_py_env}
+            "${PYTHON_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/wheel/setup.py"
+                build
+                    --python-extensions-only=True
+                install
+                    --no-compile
+                    --prefix "${python_package_prefix}"
+                    --install-lib "${install_lib}"
+                    --install-scripts "${python_package_prefix}/bin"
+                # TODO: add
+                # --single-version-externally-managed
+                # --record=installed.txt
+                # TODO:
+                # --build-number=${WHEEL_BUILD}
+                # --plat-name=${PLATFORM_TAG}
+        COMMAND ${PYTHON_EXECUTABLE} "${CMAKE_CURRENT_BINARY_DIR}/update_benchmark_app.py"
+        WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
+        DEPENDS ${ov_setup_py_deps}
+        COMMENT "Create python package with ${meta_info_subdir} folder")
 
-add_custom_target(_python_api_package ALL DEPENDS ${output_dir})
+    add_custom_target(_python_api_package ALL DEPENDS ${output_dir})
 
-ov_cpack_add_component(${OV_CPACK_COMP_PYTHON_NGRAPH}_package_${pyversion} HIDDEN)
+    # install python package, which will be later packed into DEB | RPM
+    ov_cpack_add_component(${OV_CPACK_COMP_PYTHON_NGRAPH}_package_${pyversion} HIDDEN)
 
-install(DIRECTORY ${python_package_prefix}/
-        DESTINATION ${CMAKE_INSTALL_PREFIX}
-        COMPONENT ${OV_CPACK_COMP_PYTHON_OPENVINO_PACKAGE}_${pyversion}
-        ${OV_CPACK_COMP_PYTHON_OPENVINO_PACKAGE_EXCLUDE_ALL}
-        USE_SOURCE_PERMISSIONS)
+    install(DIRECTORY ${python_package_prefix}/
+            DESTINATION ${CMAKE_INSTALL_PREFIX}
+            COMPONENT ${OV_CPACK_COMP_PYTHON_OPENVINO_PACKAGE}_${pyversion}
+            ${OV_CPACK_COMP_PYTHON_OPENVINO_PACKAGE_EXCLUDE_ALL}
+            USE_SOURCE_PERMISSIONS)
+endif()
 
 #
 # Tests

@@ -334,9 +334,12 @@ class PrepareLibs(build_clib):
 
     def run(self):
         """Run build_clib command."""
-        self.post_install(PY_INSTALL_CFG)
         if self.install_clib:
+            # set RPATH
+            self.post_install(PY_INSTALL_CFG)
+            # remove symlink to avoid copying it, set RPATH
             self.post_install(LIB_INSTALL_CFG)
+            # copy clib to package data (to WHEEL_LIBS_INSTALL_DIR)
             self.copy_package_data(get_install_dirs_list(LIB_INSTALL_CFG))
 
     def post_install(self, install_cfg):
@@ -570,7 +573,7 @@ def set_rpath(rpath, binary):
         sys.exit(f"Unsupported platform: {sys.platform}")
 
     if not is_tool(rpath_tool):
-        sys.exit(f"Could not found {rpath_tool} on the system, " f"please make sure that this tool is installed")
+        sys.exit(f"Could not find {rpath_tool} on the system, " f"please make sure that this tool is installed")
 
     if sys.platform == "darwin":
         remove_rpath(binary)
