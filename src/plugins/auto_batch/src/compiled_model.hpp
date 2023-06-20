@@ -15,7 +15,7 @@
 namespace ov {
 namespace autobatch_plugin {
 
-class AutoBatchAsyncInferRequest;
+class AsyncInferRequest;
 
 class CompiledModel : public InferenceEngine::ExecutableNetworkThreadSafeDefault {
 public:
@@ -24,7 +24,7 @@ public:
         using Ptr = std::shared_ptr<WorkerInferRequest>;
         InferenceEngine::SoIInferRequestInternal _inferRequestBatched;
         int _batchSize;
-        InferenceEngine::ThreadSafeQueueWithSize<std::pair<AutoBatchAsyncInferRequest*, InferenceEngine::Task>> _tasks;
+        InferenceEngine::ThreadSafeQueueWithSize<std::pair<AsyncInferRequest*, InferenceEngine::Task>> _tasks;
         std::vector<InferenceEngine::Task> _completionTasks;
         std::thread _thread;
         std::condition_variable _cond;

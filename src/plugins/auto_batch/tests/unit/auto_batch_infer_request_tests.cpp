@@ -225,7 +225,7 @@ class AutoBatchAsyncInferRequestTest : public AutoBatchRequestTest {
 public:
     std::shared_ptr<NiceMock<MockIInferRequestInternal>> mockInferRequestWithoutBatched;
     MockTaskExecutor::Ptr mockTaskExecutor;
-    std::vector<AutoBatchAsyncInferRequest::Ptr> autoBatchAsyncInferRequestVec;
+    std::vector<AsyncInferRequest::Ptr> autoBatchAsyncInferRequestVec;
     bool terminate;
 
 public:
@@ -275,21 +275,21 @@ public:
                 } else {
                     const int sz = static_cast<int>(workerRequestPtr->_tasks.size());
                     if (sz == workerRequestPtr->_batchSize) {
-                        std::pair<AutoBatchAsyncInferRequest*, InferenceEngine::Task> t;
+                        std::pair<AsyncInferRequest*, InferenceEngine::Task> t;
                         for (int n = 0; n < sz; n++) {
                             IE_ASSERT(workerRequestPtr->_tasks.try_pop(t));
                             workerRequestPtr->_completionTasks[n] = std::move(t.second);
-                            t.first->_inferRequest->m_batched_request_status =
+                            t.first->m_sync_infer_request->m_batched_request_status =
                                 SyncInferRequest::eExecutionFlavor::BATCH_EXECUTED;
                         }
                         workerRequestPtr->_inferRequestBatched->StartAsync();
                     } else if ((status == std::cv_status::timeout) && sz) {
-                        std::pair<AutoBatchAsyncInferRequest*, InferenceEngine::Task> t;
+                        std::pair<AsyncInferRequest*, InferenceEngine::Task> t;
                         for (int n = 0; n < sz; n++) {
                             IE_ASSERT(workerRequestPtr->_tasks.try_pop(t));
-                            t.first->_inferRequest->m_batched_request_status =
+                            t.first->m_sync_infer_request->m_batched_request_status =
                                 SyncInferRequest::eExecutionFlavor::TIMEOUT_EXECUTED;
-                            t.first->_inferRequestWithoutBatch->StartAsync();
+                            t.first->m_infer_request_without_batch->StartAsync();
                             t.second();
                         }
                     }
@@ -323,7 +323,7 @@ TEST_P(AutoBatchAsyncInferRequestTest, AutoBatchAsyncInferRequestCreateTest) {
 
         InferenceEngine::SoIInferRequestInternal inferRequestWithoutBatched = {mockInferRequestWithoutBatched, {}};
         auto asyncInferRequest =
-            std::make_shared<AutoBatchAsyncInferRequest>(autoRequestImpl, inferRequestWithoutBatched, nullptr);
+            std::make_shared<AsyncInferRequest>(autoRequestImpl, inferRequestWithoutBatched, nullptr);
         EXPECT_NE(asyncInferRequest, nullptr);
         autoBatchAsyncInferRequestVec.emplace_back(asyncInferRequest);
     }
@@ -352,7 +352,7 @@ TEST_P(AutoBatchAsyncInferRequestTest, AutoBatchAsyncInferRequestStartAsyncTest)
 
         InferenceEngine::SoIInferRequestInternal inferRequestWithoutBatched = {mockInferRequestWithoutBatched, {}};
         auto asyncInferRequest =
-            std::make_shared<AutoBatchAsyncInferRequest>(autoRequestImpl, inferRequestWithoutBatched, nullptr);
+            std::make_shared<AsyncInferRequest>(autoRequestImpl, inferRequestWithoutBatched, nullptr);
         EXPECT_NE(asyncInferRequest, nullptr);
         autoBatchAsyncInferRequestVec.emplace_back(asyncInferRequest);
     }

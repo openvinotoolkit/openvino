@@ -117,36 +117,36 @@ std::pair<CompiledModel::WorkerInferRequest&, int> CompiledModel::GetWorkerInfer
                     // it is ok to call size() (as the _tasks can only grow in parallel)
                     const int sz = static_cast<int>(workerRequestPtr->_tasks.size());
                     if (sz == workerRequestPtr->_batchSize) {
-                        std::pair<AutoBatchAsyncInferRequest*, InferenceEngine::Task> t;
+                        std::pair<AsyncInferRequest*, InferenceEngine::Task> t;
                         for (int n = 0; n < sz; n++) {
                             IE_ASSERT(workerRequestPtr->_tasks.try_pop(t));
                             workerRequestPtr->_completionTasks[n] = std::move(t.second);
-                            t.first->_inferRequest->CopyInputsIfNeeded();
-                            t.first->_inferRequest->m_batched_request_status =
+                            t.first->m_sync_infer_request->CopyInputsIfNeeded();
+                            t.first->m_sync_infer_request->m_batched_request_status =
                                 SyncInferRequest::eExecutionFlavor::BATCH_EXECUTED;
                         }
                         workerRequestPtr->_inferRequestBatched->StartAsync();
                     } else if ((status == std::cv_status::timeout) && sz) {
                         // timeout to collect the batch is over, have to execute the requests in the batch1 mode
-                        std::pair<AutoBatchAsyncInferRequest*, InferenceEngine::Task> t;
+                        std::pair<AsyncInferRequest*, InferenceEngine::Task> t;
                         // popping all tasks collected by the moment of the time-out and execute each with batch1
                         std::atomic<int> arrived = {0};
                         std::promise<void> all_completed;
                         auto all_completed_future = all_completed.get_future();
                         for (int n = 0; n < sz; n++) {
                             IE_ASSERT(workerRequestPtr->_tasks.try_pop(t));
-                            t.first->_inferRequestWithoutBatch->SetCallback(
+                            t.first->m_infer_request_without_batch->SetCallback(
                                 [t, sz, &arrived, &all_completed](std::exception_ptr p) {
                                     if (p)
-                                        t.first->_inferRequest->m_exceptionPtr = p;
+                                        t.first->m_sync_infer_request->m_exceptionPtr = p;
                                     t.second();
                                     if (sz == ++arrived)
                                         all_completed.set_value();
                                 });
-                            t.first->_inferRequest->m_batched_request_status =
+                            t.first->m_sync_infer_request->m_batched_request_status =
                                 SyncInferRequest::eExecutionFlavor::TIMEOUT_EXECUTED;
-                            t.first->_inferRequest->SetBlobsToAnotherRequest(t.first->_inferRequestWithoutBatch);
-                            t.first->_inferRequestWithoutBatch->StartAsync();
+                            t.first->m_sync_infer_request->SetBlobsToAnotherRequest(t.first->m_infer_request_without_batch);
+                            t.first->m_infer_request_without_batch->StartAsync();
                         }
                         all_completed_future.get();
                         // now when all the tasks for this batch are completed, start waiting for the timeout again
@@ -173,7 +173,7 @@ InferenceEngine::IInferRequestInternal::Ptr CompiledModel::CreateInferRequest() 
     syncRequestImpl->setPointerToExecutableNetworkInternal(shared_from_this());
     InferenceEngine::SoIInferRequestInternal inferRequestWithoutBatch = {m_network_without_batch->CreateInferRequest(),
                                                                          m_network_without_batch._so};
-    return std::make_shared<AutoBatchAsyncInferRequest>(
+    return std::make_shared<AsyncInferRequest>(
         std::static_pointer_cast<SyncInferRequest>(syncRequestImpl),
         inferRequestWithoutBatch,
         _callbackExecutor);
