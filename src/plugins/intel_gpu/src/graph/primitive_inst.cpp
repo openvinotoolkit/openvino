@@ -285,7 +285,7 @@ void primitive_inst::update_shape() {
         has_runtime_deps = true;
     }
 
-    if (has_runtime_deps) {
+    if (has_runtime_deps && !get_node().is_in_shape_of_subgraph()) {
         if (!dependencies_events.empty() && queue_type == QueueTypes::out_of_order) {
             _network.get_stream().wait_for_events(dependencies_events);
         } else if (queue_type == QueueTypes::in_order) {
