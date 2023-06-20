@@ -12,6 +12,10 @@
 #include "ngraph/check.hpp"
 #include "ngraph/util.hpp"
 
+namespace {
+static constexpr char dim_out_range_access_txt[] = "Accessing out-of-range dimension in Dimension[]";
+}
+
 ov::PartialShape::PartialShape() : PartialShape(std::initializer_list<Dimension>{}) {}
 
 ov::PartialShape::PartialShape(std::initializer_list<Dimension> init) : PartialShape(true, init) {}
@@ -26,6 +30,7 @@ ov::PartialShape::PartialShape(const Shape& shape)
       m_dimensions(shape.begin(), shape.end()) {}
 
 ov::PartialShape::PartialShape(const std::string& value) {
+    OPENVINO_SUPPRESS_DEPRECATED_START
     auto val = ngraph::trim(value);
     if (val[0] == '[' && val[val.size() - 1] == ']')
         val = val.substr(1, val.size() - 2);
@@ -44,6 +49,7 @@ ov::PartialShape::PartialShape(const std::string& value) {
         dims.insert(dims.end(), Dimension(field));
     }
     m_dimensions = dims;
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 ov::PartialShape::PartialShape(bool rank_is_static, std::vector<Dimension> dimensions)
@@ -137,7 +143,7 @@ ov::PartialShape ov::operator+(const PartialShape& s1, const PartialShape& s2) {
     }
 
     if (!s1.rank().compatible(s2.rank())) {
-        throw std::invalid_argument("rank mismatch");
+        OPENVINO_THROW("rank mismatch");
     }
 
     PartialShape result;
@@ -266,7 +272,7 @@ bool ov::PartialShape::merge_rank(const Rank& r) {
 
 ov::Shape ov::PartialShape::to_shape() const {
     if (is_dynamic()) {
-        throw std::invalid_argument("to_shape was called on a dynamic shape.");
+        OPENVINO_THROW("to_shape was called on a dynamic shape.");
     }
 
     std::vector<size_t> shape_dimensions(m_dimensions.size());
@@ -373,14 +379,14 @@ bool ov::PartialShape::all_non_negative() const {
 
 const ov::Dimension& ov::PartialShape::operator[](size_t i) const {
     if (i >= m_dimensions.size()) {
-        throw std::out_of_range("Accessing out-of-range dimension in Dimension[]");
+        OPENVINO_THROW(dim_out_range_access_txt);
     }
     return m_dimensions[i];
 }
 
 ov::Dimension& ov::PartialShape::operator[](size_t i) {
     if (i >= m_dimensions.size()) {
-        throw std::out_of_range("Accessing out-of-range dimension in Dimension[]");
+        OPENVINO_THROW(dim_out_range_access_txt);
     }
     m_shape_type = ShapeType::SHAPE_IS_UPDATED;  // We can't guarantee that the shape remains static or dynamic.
     return m_dimensions[i];

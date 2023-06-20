@@ -19,7 +19,6 @@
 
 namespace ov {
 namespace intel_cpu {
-
 struct Config {
     Config();
 
@@ -40,13 +39,17 @@ struct Config {
         Disable,
     };
 
+    enum class LatencyThreadingMode {
+        PER_NUMA_NODE,
+        PER_SOCKET,
+        PER_PLATFORM,
+    };
+
     bool collectPerfCounters = false;
     bool exclusiveAsyncRequests = false;
-    bool enableDynamicBatch = false;
     SnippetsMode snippetsMode = SnippetsMode::Enable;
     std::string dumpToDot = {};
     std::string device_id = {};
-    int batchLimit = 0;
     float fcSparseWeiDecompressionRate = 1.0f;
 #if defined(OPENVINO_ARCH_X86_64)
     size_t rtCacheCapacity = 5000ul;
@@ -61,6 +64,7 @@ struct Config {
     ov::hint::SchedulingCoreType schedulingCoreType = ov::hint::SchedulingCoreType::ANY_CORE;
     bool enableHyperThreading = true;
     bool changedHyperThreading = false;
+    Config::LatencyThreadingMode scopeOflatencyCandidate = Config::LatencyThreadingMode::PER_SOCKET;
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
     LPTransformsMode lpTransformsMode = LPTransformsMode::On;
     ov::element::Type inferencePrecision = ov::element::bf16;
@@ -84,7 +88,7 @@ struct Config {
 
     std::map<std::string, std::string> _config;
 
-    bool isNewApi = true;
+    bool isLegacyApi = false;
 
 #ifdef CPU_DEBUG_CAPS
     DebugCapsConfig debugCaps;
@@ -92,5 +96,5 @@ struct Config {
 #endif
 };
 
-}   // namespace intel_cpu
+}  // namespace intel_cpu
 }   // namespace ov

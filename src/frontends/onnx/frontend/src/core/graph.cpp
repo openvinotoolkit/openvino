@@ -20,6 +20,7 @@
 #include "onnx_import/core/null_node.hpp"
 #include "openvino/frontend/onnx/extension/conversion.hpp"
 #include "openvino/frontend/onnx/node_context.hpp"
+#include "openvino/util/log.hpp"
 #include "ops_bridge.hpp"
 #include "utils/common.hpp"
 #include "utils/legacy_conversion_extension.hpp"
@@ -60,8 +61,8 @@ bool common_node_for_all_outputs(const OutputVector& outputs) {
     return ret;
 };
 
-OperatorsBridge init_ops_bridge(const std::vector<ov::frontend::ConversionExtensionBase::Ptr>& conversions) {
-    OperatorsBridge bridge;
+OperatorsBridge register_extensions(OperatorsBridge& bridge,
+                                    const std::vector<ov::frontend::ConversionExtensionBase::Ptr>& conversions) {
     for (const auto& extension : conversions) {
         if (const auto common_conv_ext = std::dynamic_pointer_cast<ov::frontend::ConversionExtension>(extension)) {
             bridge.overwrite_operator(
@@ -77,11 +78,24 @@ OperatorsBridge init_ops_bridge(const std::vector<ov::frontend::ConversionExtens
                                       [onnx_conv_ext](const ngraph::onnx_import::Node& node) -> OutputVector {
                                           return onnx_conv_ext->get_converter()(ov::frontend::onnx::NodeContext(node));
                                       });
-        } else if (const auto legacy_conv_extension = std::dynamic_pointer_cast<LegacyConversionExtension>(extension)) {
-            return legacy_conv_extension->ops_bridge();
         }
     }
     return bridge;
+}
+
+OperatorsBridge init_ops_bridge(const std::vector<ov::frontend::ConversionExtensionBase::Ptr>& conversions) {
+    const auto legacy_conv_ext = std::find_if(std::begin(conversions),
+                                              std::end(conversions),
+                                              [](const ov::frontend::ConversionExtensionBase::Ptr& conv) {
+                                                  return std::dynamic_pointer_cast<LegacyConversionExtension>(conv);
+                                              });
+    if (legacy_conv_ext == std::end(conversions)) {  // no legacy extensions used
+        OperatorsBridge bridge;
+        return register_extensions(bridge, conversions);
+    } else {  // legacy extensions can be mixed with the new one
+        return register_extensions(std::dynamic_pointer_cast<LegacyConversionExtension>(*legacy_conv_ext)->ops_bridge(),
+                                   conversions);
+    }
 }
 
 Model::ModelOpSet build_model_opset(const ONNX_NAMESPACE::ModelProto& model_proto, const OperatorsBridge& ops_bridge) {
@@ -380,7 +394,7 @@ OutputVector Graph::make_ng_nodes(const Node& onnx_node) {
         std::string msg_prefix = error::detail::get_error_msg_prefix(onnx_node);
         // Since we do not know anything about current exception data type we can only
         // notify user in this way.
-        NGRAPH_ERR << msg_prefix + "Unhandled exception type. \n";
+        OPENVINO_ERR << msg_prefix + "Unhandled exception type. \n";
         std::rethrow_exception(std::current_exception());
     }
 

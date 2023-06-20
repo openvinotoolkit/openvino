@@ -100,9 +100,9 @@ bool AssignRegisters::run(LinearIR& linear_ir) {
     // Otherwise WIN build fails with "IS_MANUALLY_ALLOCATED_REG cannot be implicitly captured because no default capture mode has been specified"
     // the same problem with all the other lambdas in this file
     auto enumerate_out_tensors = [=] (const ExpressionPtr& expr,
-                                                              decltype(regs_vec)& reg_map,
-                                                              const std::map<tensor, Reg>& manually_assigned_regs,
-                                                              size_t& counter) {
+                                      decltype(regs_vec)& reg_map,
+                                      const std::map<tensor, Reg>& manually_assigned_regs,
+                                      size_t& counter) {
         for (const auto& out_tensor : expr->get_output_port_connectors()) {
             // Note that some ops might have identical input&output tensors (Result and Tile* for ex.)
             // so we have to check that the tensor has not been enumerated already

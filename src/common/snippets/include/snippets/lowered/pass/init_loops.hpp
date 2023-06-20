@@ -20,19 +20,20 @@ namespace pass {
  */
 class InitLoops : public Pass {
 public:
-    OPENVINO_RTTI("InsertLoops", "Pass")
+    OPENVINO_RTTI("InitLoops", "Pass")
     InitLoops();
     bool run(LinearIR& linear_ir) override;
 
 private:
-    static void insertion(LinearIR& linear_ir, const LinearIR::LoopManager::LoopInfoPtr& loop_info,
-                          size_t loop_id, size_t dim_idx, bool has_outer_loop);
-    static std::vector<int64_t> init_ptr_increments(const std::vector<ExpressionPort>& loop_inputs,
-                                                    const std::vector<ExpressionPort>& loop_outputs,
-                                                    size_t dim_idx);
-    static std::vector<int64_t> init_finalization_offsets(const std::vector<int64_t>& finalization_offsets, size_t work_amount);
-    static std::vector<int64_t> init_element_type_sizes(const std::vector<ExpressionPort>& loop_inputs,
-                                                        const std::vector<ExpressionPort>& loop_outputs);
+    static void insertion(LinearIR& linear_ir, const LinearIR::LoopManagerPtr& loop_manager, size_t loop_id, bool has_outer_loop);
+
+    static std::vector<int64_t> init_ptr_increments(std::vector<LinearIR::LoopManager::LoopPort>& loop_inputs,
+                                                    std::vector<LinearIR::LoopManager::LoopPort>& loop_outputs,
+                                                    const LinearIR::LoopManagerPtr& loop_manager,
+                                                    size_t loop_id, size_t work_amount, size_t dim_idx);
+    static std::vector<int64_t> init_finalization_offsets(const std::vector<int64_t>& ptr_increments, size_t work_amount);
+    static std::vector<int64_t> init_element_type_sizes(const std::vector<LinearIR::LoopManager::LoopPort>& loop_inputs,
+                                                        const std::vector<LinearIR::LoopManager::LoopPort>& loop_outputs);
 };
 
 } // namespace pass

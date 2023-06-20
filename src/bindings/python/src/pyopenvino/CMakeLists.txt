@@ -9,13 +9,12 @@ endif()
 
 # PYTHON_VERSION_MAJOR and PYTHON_VERSION_MINOR are defined inside pybind11
 set(pyversion python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR})
-message(STATUS "Python version=${pyversion}")
 
 if(OpenVINO_SOURCE_DIR)
     if(OV_GENERATOR_MULTI_CONFIG)
-        set(PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/$<CONFIG>/python_api/${pyversion}/openvino)
+        set(PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/$<CONFIG>/python/openvino)
     else()
-        set(PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/python_api/${pyversion}/openvino)
+        set(PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/python/openvino)
     endif()
 
     set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY})
@@ -102,7 +101,6 @@ if(OpenVINO_SOURCE_DIR)
             POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E copy_directory ${OpenVINOPython_SOURCE_DIR}/src/openvino ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}
             COMMAND ${CMAKE_COMMAND} -E copy ${OpenVINOPython_SOURCE_DIR}/requirements.txt ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/../requirements.txt
-            COMMAND ${CMAKE_COMMAND} -E copy ${OpenVINOPython_SOURCE_DIR}/requirements.txt ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/../../requirements.txt
             )
 endif()
 
@@ -127,8 +125,8 @@ if(OpenVINO_SOURCE_DIR OR OpenVINODeveloperPackage_FOUND)
 
     install(FILES ${OpenVINOPython_SOURCE_DIR}/requirements.txt
             DESTINATION ${OV_CPACK_PYTHONDIR}
-            COMPONENT ${OV_CPACK_COMP_PYTHON_OPENVINO}_${pyversion}
-            ${OV_CPACK_COMP_PYTHON_OPENVINO_EXCLUDE_ALL})
+            COMPONENT ${OV_CPACK_COMP_OPENVINO_DEV_REQ_FILES}
+            ${OV_CPACK_COMP_OPENVINO_DEV_REQ_FILES_EXCLUDE_ALL})
 
     install(DIRECTORY ${OpenVINOPython_SOURCE_DIR}/tests
             DESTINATION tests/${PROJECT_NAME}
