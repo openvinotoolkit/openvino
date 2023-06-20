@@ -8374,23 +8374,24 @@ public:
     }
 
     virtual void param_set_up(const convolution_random_test_all_params& params) {
-        tests::random_generator rg(GET_SUITE_NAME);
+        auto& rg = get_random_generator();
+        rg.set_seed(GET_SUITE_NAME);
         auto wei_in_f = params.input_features / params.groups;
 
-        auto input_data = rg.generate_random_4d<InputT>(
+        auto input_data = rg.template generate_random_4d<InputT>(
             params.batch, params.input_features, params.input_xy[1], params.input_xy[0], -256, 256);
         if (params.grouped_weights_shape) {
-            auto weights_data = rg.generate_random_5d<WeightsT>(
+            auto weights_data = rg.template generate_random_5d<WeightsT>(
                 params.groups, (params.output_features / params.groups), wei_in_f, params.filter_xy[1], params.filter_xy[0], -256, 256);
             this->set_grouped_weights(std::move(weights_data));
         } else {
-            auto weights_data = rg.generate_random_4d<WeightsT>(
+            auto weights_data = rg.template generate_random_4d<WeightsT>(
                 params.output_features, wei_in_f, params.filter_xy[1], params.filter_xy[0], -256, 256);
             this->set_weights(std::move(weights_data));
         }
-        auto bias_data = params.with_bias ? rg.generate_random_1d<OutputT>(params.output_features, -256, 256) : VF<OutputT>();
-        auto weights_zp_data = params.asymmetric_weights ? rg.generate_random_1d<WeightsT>(params.output_features, -256, 256) : VF<WeightsT>();
-        auto input_zp_data = params.asymmetric_data ? rg.generate_random_1d<InputT>(params.input_features, -256, 256) : VF<InputT>();
+        auto bias_data = params.with_bias ? rg.template generate_random_1d<OutputT>(params.output_features, -256, 256) : VF<OutputT>();
+        auto weights_zp_data = params.asymmetric_weights ? rg.template generate_random_1d<WeightsT>(params.output_features, -256, 256) : VF<WeightsT>();
+        auto input_zp_data = params.asymmetric_data ? rg.template generate_random_1d<InputT>(params.input_features, -256, 256) : VF<InputT>();
 
         this->set_input(params.input_format, std::move(input_data));
         this->set_bias(std::move(bias_data));
@@ -8410,6 +8411,9 @@ public:
         VVVVF<OutputT> expected = calculate_reference();
         ASSERT_NO_FATAL_FAILURE(this->run_expect(expected));
     }
+
+    tests::random_generator _rg;
+    tests::random_generator& get_random_generator() { return _rg; }
 };
 
 // construct a readable name in format as follows:
@@ -8630,9 +8634,9 @@ public:
     void param_set_up(const convolution_random_test_all_params& params) override {
         parent::param_set_up(params);
 
-        tests::random_generator rg(GET_SUITE_NAME);
-        _scale = rg.generate_random_1d<OutputT>(this->output_features(), -1, 1);
-        _shift = rg.generate_random_1d<OutputT>(this->output_features(), -128, 128);
+        auto& rg = this->get_random_generator();
+        _scale = rg.template generate_random_1d<OutputT>(this->output_features(), -1, 1);
+        _shift = rg.template generate_random_1d<OutputT>(this->output_features(), -128, 128);
     }
 protected:
     VF<OutputT> _scale;
