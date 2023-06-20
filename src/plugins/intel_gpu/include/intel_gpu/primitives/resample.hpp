@@ -19,7 +19,7 @@ struct resample : public primitive_base<resample> {
 
     DECLARE_OBJECT_TYPE_SERIALIZATION
 
-    using InterpolateOp = ov::op::v4::Interpolate;
+    using InterpolateOp = ov::op::util::InterpolateBase;
 
     /// @brief Constructs Resample primitive.
     /// @param id This primitive id.
