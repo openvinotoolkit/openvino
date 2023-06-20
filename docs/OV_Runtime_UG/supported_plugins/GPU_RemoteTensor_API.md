@@ -47,84 +47,108 @@ of ``ov::RemoteContext`` derived classes.
 .. tab-set::
 
    .. tab-item:: Linux/C++
+      :sync: linux-cpp
+
+      .. tab-set::
    
-      .. tab-item:: Create from cl_context
-    
-         .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation.cpp
-            :language: cpp
-            :fragment: [context_from_cl_context]
-   
-      .. tab-item:: Create from cl_queue
-   
-         .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation.cpp
-            :language: cpp
-            :fragment: [context_from_cl_queue]
-   
-      .. tab-item:: Create from VADisplay
-   
-         .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation.cpp
-            :language: cpp
-            :fragment: [context_from_va_display]
+         .. tab-item:: Create from cl_context
+            :sync: create-from-cl-context
+       
+            .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation.cpp
+               :language: cpp
+               :fragment: [context_from_cl_context]
+      
+         .. tab-item:: Create from cl_queue
+            :sync: create-from-cl-queue
+      
+            .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation.cpp
+               :language: cpp
+               :fragment: [context_from_cl_queue]
+      
+         .. tab-item:: Create from VADisplay
+            :sync: create-from-vadisplay
+      
+            .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation.cpp
+               :language: cpp
+               :fragment: [context_from_va_display]
    
    .. tab-item:: Windows/C++
+      :sync: windows-cpp
+
+      .. tab-set::
    
-      .. tab-item:: Create from cl_context
-   
-         .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation.cpp
-            :language: cpp
-            :fragment: [context_from_cl_context]
-   
-      .. tab-item:: Create from cl_queue
-   
-         .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation.cpp
-            :language: cpp
-            :fragment: [context_from_cl_queue]
-   
-      .. tab-item:: Create from ID3D11Device
+         .. tab-item:: Create from cl_context
+            :sync: create-from-cl-context
       
-         .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation.cpp
-            :language: cpp
-            :fragment: [context_from_d3d_device]
+            .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation.cpp
+               :language: cpp
+               :fragment: [context_from_cl_context]
+      
+         .. tab-item:: Create from cl_queue
+            :sync: create-from-cl-queue
+      
+            .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation.cpp
+               :language: cpp
+               :fragment: [context_from_cl_queue]
+      
+         .. tab-item:: Create from ID3D11Device
+            :sync: create-from-id3d11device
+         
+            .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation.cpp
+               :language: cpp
+               :fragment: [context_from_d3d_device]
    
    .. tab-item:: Linux/C
+      :sync: linux-c
+
+      .. tab-set::
    
-      .. tab-item:: Create from cl_context
-   
-         .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation_c.cpp
-            :language: c
-            :fragment: [context_from_cl_context]
-   
-      .. tab-item:: Create from cl_queue
-   
-         .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation_c.cpp
-            :language: c
-            :fragment: [context_from_cl_queue]
-   
-      .. tab-item:: Create from VADisplay
-   
-         .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation_c.cpp
-            :language: c
-            :fragment: [context_from_va_display]
+         .. tab-item:: Create from cl_context
+            :sync: create-from-cl-context
+      
+            .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation_c.cpp
+               :language: c
+               :fragment: [context_from_cl_context]
+      
+         .. tab-item:: Create from cl_queue
+            :sync: create-from-cl-queue
+      
+            .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation_c.cpp
+               :language: c
+               :fragment: [context_from_cl_queue]
+      
+         .. tab-item:: Create from VADisplay
+            :sync: create-from-vadisplay
+      
+            .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation_c.cpp
+               :language: c
+               :fragment: [context_from_va_display]
    
    .. tab-item:: Windows/C
+      :sync: windows-c
+
+      .. tab-set::
    
-      .. tab-item:: Create from cl_context
-   
-         .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation_c.cpp
-            :language: c
-            :fragment: [context_from_cl_context]
-   
-      .. tab-item:: Create from cl_queue
-   
-         .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation_c.cpp
-            :language: c
-            :fragment: [context_from_cl_queue]
-   
-      .. tab-item:: Create from ID3D11Device
-   
-         .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation_c.cpp
-            :language: c
-            :fragment: [context_from_d3d_device]
+         .. tab-item:: Create from cl_context
+            :sync: create-from-cl-context
+      
+            .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation_c.cpp
+               :language: c
+               :fragment: [context_from_cl_context]
+      
+         .. tab-item:: Create from cl_queue
+            :sync: create-from-cl-queue
+      
+            .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation_c.cpp
+               :language: c
+               :fragment: [context_from_cl_queue]
+      
+         .. tab-item:: Create from ID3D11Device
+            :sync: create-from-id3d11device
+      
+            .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation_c.cpp
+               :language: c
+               :fragment: [context_from_d3d_device]
    
 Getting RemoteContext from the Plugin
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
