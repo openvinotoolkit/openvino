@@ -24,7 +24,7 @@ There are six levels of logs, which can be called explicitly or set via the `OPE
          :fragment: [part6]
    
    .. tab-item:: Python
-      :sync: python
+      :sync: py
    
       .. doxygensnippet:: docs/snippets/ov_auto.py
          :language: python

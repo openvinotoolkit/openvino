@@ -105,7 +105,7 @@ It is possible to build applications without the CMake interface by using: MSVC 
 .. tab-set::
 
    .. tab-item:: Include dirs
-      :sync: inc_dirs
+      :sync: inc-dirs
    
       .. code-block:: sh
    
@@ -113,7 +113,7 @@ It is possible to build applications without the CMake interface by using: MSVC 
          <INSTALL_DIR>/deployment_tools/ngraph/include
    
    .. tab-item:: Path to libs
-      :sync: path_libs
+      :sync: path-libs
    
       .. code-block:: sh
    
@@ -121,7 +121,7 @@ It is possible to build applications without the CMake interface by using: MSVC 
          <INSTALL_DIR>/deployment_tools/ngraph/lib/
    
    .. tab-item:: Shared libs
-      :sync: shared_libs
+      :sync: shared-libs
    
       .. code-block:: sh
    
@@ -132,7 +132,7 @@ It is possible to build applications without the CMake interface by using: MSVC 
          inference_engine.dll ngraph.dll
    
    .. tab-item:: (Windows) .lib files
-      :sync: windows_lib_files
+      :sync: windows-lib-files
    
       .. code-block:: sh
    

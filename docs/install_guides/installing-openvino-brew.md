@@ -21,13 +21,13 @@ See `Installing Additional Components <#optional-installing-additional-component
 .. tab-set::
 
    .. tab-item:: System Requirements
-      :sync: sysreq
+      :sync: sys-req
 
       | Full requirement listing is available in:
       | `System Requirements Page <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html>`__
    
    .. tab-item:: Software Requirements
-      :sync: softreq
+      :sync: soft-req
 
       .. tab-set::
 

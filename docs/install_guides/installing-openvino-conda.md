@@ -10,7 +10,7 @@
 .. tab-set::
 
    .. tab-item:: System Requirements
-      :sync: sysreq
+      :sync: sys-req
 
       | Full requirement listing is available in:
       | `System Requirements Page <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html>`__
@@ -20,7 +20,7 @@
       .. tab-set::
 
          .. tab-item::  Processor Notes
-            :sync: processornotes
+            :sync: processor-notes
          
             | Not all Intel CPUs include integrated graphics processors.  
             | See `Product Specifications <https://ark.intel.com/>`__ for information about your hardware.

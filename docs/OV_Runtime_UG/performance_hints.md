@@ -59,7 +59,7 @@ In the example code snippet below, ``ov::hint::PerformanceMode::THROUGHPUT`` is 
          :fragment: [compile_model]
    
    .. tab-item:: Python
-      :sync: python
+      :sync: py
    
       .. doxygensnippet:: docs/snippets/ov_auto_batching.py
          :language: python
@@ -82,7 +82,7 @@ As mentioned earlier, this will limit the batch size for the GPU and the number 
          :fragment: [hint_num_requests]
    
    .. tab-item:: Python
-      :sync: python
+      :sync: py
    
       .. doxygensnippet:: docs/snippets/ov_auto_batching.py
          :language: python
@@ -104,7 +104,7 @@ The hints are used on the presumption that the application queries ``ov::optimal
          :fragment: [query_optimal_num_requests]
    
    .. tab-item:: Python
-      :sync: python
+      :sync: py
    
       .. doxygensnippet:: docs/snippets/ov_auto_batching.py
          :language: python
@@ -145,7 +145,7 @@ For example, use ``ov::hint::PerformanceMode::THROUGHPUT`` to prepare a general 
          :fragment: [hint_plus_low_level]
 
    .. tab-item:: Python
-      :sync: python
+      :sync: py
    
       .. doxygensnippet:: docs/snippets/ov_auto_batching.py
          :language: python

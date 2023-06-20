@@ -28,7 +28,7 @@ Prerequisites
 .. tab-set::
 
    .. tab-item:: System Requirements
-      :sync: sysreq
+      :sync: sys-req
    
       | Full requirement listing is available in:
       | `System Requirements Page <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html>`__
@@ -38,7 +38,7 @@ Prerequisites
          Installing OpenVINO from YUM is only supported on RHEL 8.2 and higher versions. CentOS 7 is not supported for this installation method.
    
    .. tab-item:: Processor Notes
-      :sync: processor_notes
+      :sync: processor-notes
    
       Processor graphics are not included in all processors.
       See `Product Specifications <https://ark.intel.com/>`__ for information about your processor.
@@ -104,7 +104,7 @@ Install OpenVINO Runtime
 .. tab-set::
 
    .. tab-item:: The Latest Version
-      :sync: latest_version
+      :sync: latest-version
    
       Run the following command:
    
@@ -113,7 +113,7 @@ Install OpenVINO Runtime
          sudo yum install openvino
    
    .. tab-item:: A Specific Version
-      :sync: specific_version
+      :sync: specific-version
    
       Run the following command:
    
@@ -190,7 +190,7 @@ To uninstall OpenVINO Runtime via YUM, run the following command based on your n
 .. tab-set::
 
    .. tab-item:: The Latest Version
-      :sync: latest_version
+      :sync: latest-version
    
       .. code-block:: sh
    
@@ -198,7 +198,7 @@ To uninstall OpenVINO Runtime via YUM, run the following command based on your n
    
    
    .. tab-item::  A Specific Version
-      :sync: specific_version
+      :sync: specific-version
    
       .. code-block:: sh
    
