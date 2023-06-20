@@ -26,7 +26,6 @@ using ::testing::ReturnRef;
 using ::testing::StrEq;
 using ::testing::StrNe;
 using ::testing::Throw;
-using namespace ov::autobatch_plugin;
 using namespace MockAutoBatchDevice;
 using namespace InferenceEngine;
 
@@ -44,7 +43,7 @@ public:
     std::shared_ptr<InferenceEngine::IInferencePlugin> mockPlugin;
     ov::SoPtr<IExecutableNetworkInternal> batchedExecNetwork;
 
-    std::shared_ptr<CompiledModel> actualExecNet;
+    std::shared_ptr<ov::autobatch_plugin::CompiledModel> actualExecNet;
     std::vector<std::shared_ptr<NiceMock<MockIInferRequestInternal>>> inferRequestVec;
 
 public:
@@ -91,8 +90,8 @@ public:
         });
     }
 
-    CompiledModel::Ptr createAutoBatchExecutableNetwork(int batch_size) {
-        DeviceInformation metaDevice = {"CPU", {}, batch_size};
+    ov::autobatch_plugin::CompiledModel::Ptr createAutoBatchExecutableNetwork(int batch_size) {
+        ov::autobatch_plugin::DeviceInformation metaDevice = {"CPU", {}, batch_size};
         std::unordered_map<std::string, InferenceEngine::Parameter> config = {{CONFIG_KEY(AUTO_BATCH_TIMEOUT), "200"}};
         std::set<std::string> batched_inputs = {"Parameter_0"};
         std::set<std::string> batched_outputs = {"Convolution_20"};
@@ -100,12 +99,12 @@ public:
         if (batch_size > 1)
             batchedExecNetwork =
                 ov::SoPtr<InferenceEngine::IExecutableNetworkInternal>(mockPlugin->LoadNetwork(CNNNetwork{}, {}), {});
-        return std::make_shared<CompiledModel>(batchedExecNetwork,
-                                               mockExecNetwork,
-                                               metaDevice,
-                                               config,
-                                               batched_inputs,
-                                               batched_outputs);
+        return std::make_shared<ov::autobatch_plugin::CompiledModel>(batchedExecNetwork,
+                                                                     mockExecNetwork,
+                                                                     metaDevice,
+                                                                     config,
+                                                                     batched_inputs,
+                                                                     batched_outputs);
     }
 };
 

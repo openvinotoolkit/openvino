@@ -26,7 +26,6 @@ using ::testing::ReturnRef;
 using ::testing::StrEq;
 using ::testing::StrNe;
 using ::testing::Throw;
-using namespace ov::autobatch_plugin;
 using namespace MockAutoBatchDevice;
 using namespace InferenceEngine;
 
