@@ -13,30 +13,34 @@ bool ov::intel_cpu::ACLConvertExecutor::init(const ov::intel_cpu::ConvertParams 
                                              const std::vector<MemoryDescPtr> &dstDescs,
                                              const dnnl::primitive_attr &attr) {
     aclConvertParams = convertParams;
-    auto srcDims = srcDescs[0]->getShape().getStaticDims();
-    auto dstDims = dstDescs[0]->getShape().getStaticDims();
-
-    auto srcDataLayout = getAclDataLayoutByMemoryDesc(srcDescs[0]);
-    auto dstDataLayout = getAclDataLayoutByMemoryDesc(dstDescs[0]);
-    if (srcDataLayout == arm_compute::DataLayout::UNKNOWN &&
-        dstDataLayout == arm_compute::DataLayout::UNKNOWN)  {
-        return false;
-    }
 
     auto srcPrecision = precisionToAclDataType(aclConvertParams.srcPrc);
     auto dstPrecision = precisionToAclDataType(aclConvertParams.dstPrc);
-    if (srcPrecision == arm_compute::DataType::F32 && dstPrecision == arm_compute::DataType::U8) {
-        return false;
+    isCopyOp = aclConvertParams.srcPrc == aclConvertParams.dstPrc;
+    //NECast does not support S8. It could be replaced with QASYMM8_SIGNED
+    if (!isCopyOp && srcPrecision == arm_compute::DataType::S8) {
+        srcPrecision = arm_compute::DataType::QASYMM8_SIGNED;
     }
-
+    if (!isCopyOp && dstPrecision == arm_compute::DataType::S8) {
+        dstPrecision = arm_compute::DataType::QASYMM8_SIGNED;
+    }
+    auto srcDims = srcDescs[0]->getShape().getStaticDims();
+    auto dstDims = dstDescs[0]->getShape().getStaticDims();
+    auto srcDataLayout = getAclDataLayoutByMemoryDesc(srcDescs[0]);
+    auto dstDataLayout = getAclDataLayoutByMemoryDesc(dstDescs[0]);
     auto srcTensorInfo = arm_compute::TensorInfo(shapeCast(srcDims), 1, srcPrecision, srcDataLayout);
     auto dstTensorInfo = arm_compute::TensorInfo(shapeCast(dstDims), 1, dstPrecision, dstDataLayout);
-    if (aclConvertParams.srcPrc == aclConvertParams.dstPrc) {
-        if (!arm_compute::NECopy::validate(&srcTensorInfo, &dstTensorInfo)) {
+    if (isCopyOp) {
+        arm_compute::Status s = arm_compute::NECopy::validate(&srcTensorInfo, &dstTensorInfo);
+        if (!s) {
+            DEBUG_LOG("NECopy validation failed: ", s.error_description());
             return false;
         }
     } else {
-        if (!arm_compute::NECast::validate(&srcTensorInfo, &dstTensorInfo, arm_compute::ConvertPolicy::SATURATE)) {
+        arm_compute::Status s = arm_compute::NECast::validate(&srcTensorInfo, &dstTensorInfo, arm_compute::ConvertPolicy::SATURATE);
+        if (!s) {
+            std::cout << "NECast validation failed: " <<  s.error_description() << std::endl;
+            DEBUG_LOG("NECast validation failed: ", s.error_description());
             return false;
         }
     }
@@ -44,7 +48,7 @@ bool ov::intel_cpu::ACLConvertExecutor::init(const ov::intel_cpu::ConvertParams 
     srcTensor.allocator()->init(srcTensorInfo);
     dstTensor.allocator()->init(dstTensorInfo);
 
-    if (aclConvertParams.srcPrc == aclConvertParams.dstPrc) {
+    if (isCopyOp) {
         acl_copy = std::make_unique<arm_compute::NECopy>();
         acl_copy->configure(&srcTensor, &dstTensor);
     } else {
@@ -58,7 +62,7 @@ void ov::intel_cpu::ACLConvertExecutor::exec(const std::vector<MemoryCPtr> &src,
     srcTensor.allocator()->import_memory(src[0]->GetPtr());
     dstTensor.allocator()->import_memory(dst[0]->GetPtr());
 
-    if (aclConvertParams.srcPrc == aclConvertParams.dstPrc) {
+    if (isCopyOp) {
         acl_copy->run();
     } else {
         acl_cast->run();

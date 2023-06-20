@@ -97,6 +97,8 @@ void Convert::initSupportedPrimitiveDescriptors() {
 
     auto supportedPrimitiveDescriptorsBuilder = [this](NodeConfig config) {
         std::vector<MemoryDescPtr> srcMemoryDescs = {config.inConfs[0].getMemDesc()}, dstMemoryDescs = {config.outConfs[0].getMemDesc()};
+        convertParams.srcPrc = srcMemoryDescs.front()->getPrecision();
+        convertParams.dstPrc = dstMemoryDescs.front()->getPrecision();
         auto factory = std::make_shared<ConvertExecutorFactory>(convertParams, srcMemoryDescs, dstMemoryDescs,
                                                                 std::make_shared<ExecutorContext>(context, getImplPriority()));
         supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown, factory);
@@ -150,8 +152,6 @@ void Convert::execute(dnnl::stream strm) {
     if (parentPaddElemCount != childPaddElemCount)
         IE_THROW() << errorPrefix << " has different elements number in input and output buffers";
 
-    convertParams.srcPrc = parentMem.getDesc().getPrecision();
-    convertParams.dstPrc = childMem.getDesc().getPrecision();
     convertParams.size = parentPaddElemCount;
 
     std::vector<MemoryCPtr> srcMemory;
