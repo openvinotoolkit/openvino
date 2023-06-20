@@ -66,11 +66,14 @@ The OpenVINO Runtime API features dedicated methods of enumerating devices and t
 
 A simple programmatic way to enumerate the devices and use with the multi-device is as follows:
 
-.. tab:: C++
+.. tab-set::
 
-    .. doxygensnippet:: docs/snippets/MULTI2.cpp
-       :language: cpp
-       :fragment: [part2]
+   .. tab-item:: C++
+      :sync: cpp
+   
+       .. doxygensnippet:: docs/snippets/MULTI2.cpp
+          :language: cpp
+          :fragment: [part2]
 
 
 
@@ -87,12 +90,14 @@ For example, this is how two GPUs can be listed (iGPU is always GPU.0):
 
 So, the explicit configuration to use both would be "MULTI:GPU.1,GPU.0". Accordingly, the code that loops over all available devices of the "GPU" type only is as follows:
 
+.. tab-set::
 
-.. tab:: C++
-
-    .. doxygensnippet:: docs/snippets/MULTI3.cpp
-       :language: cpp
-       :fragment: [part3]
+   .. tab-item:: C++
+      :sync: cpp
+   
+       .. doxygensnippet:: docs/snippets/MULTI3.cpp
+          :language: cpp
+          :fragment: [part3]
 
 
 

@@ -49,18 +49,21 @@ Using the Performance Hints: Basic API
 
 In the example code snippet below, ``ov::hint::PerformanceMode::THROUGHPUT`` is specified for the ``ov::hint::performance_mode`` property for ``compile_model``:
 
+.. tab-set::
 
-.. tab:: C++
-
-    .. doxygensnippet:: docs/snippets/ov_auto_batching.cpp
-       :language: cpp
-       :fragment: [compile_model]
-
-.. tab:: Python
-
-    .. doxygensnippet:: docs/snippets/ov_auto_batching.py
-       :language: python
-       :fragment: [compile_model]
+   .. tab-item:: C++
+      :sync: cpp
+   
+      .. doxygensnippet:: docs/snippets/ov_auto_batching.cpp
+         :language: cpp
+         :fragment: [compile_model]
+   
+   .. tab-item:: Python
+      :sync: python
+   
+      .. doxygensnippet:: docs/snippets/ov_auto_batching.py
+         :language: python
+         :fragment: [compile_model]
 
 
 Additional (Optional) Hints from the App
@@ -69,18 +72,21 @@ Additional (Optional) Hints from the App
 For an application that processes 4 video streams, the most future-proof way to communicate the limitation of the parallel slack is to equip the performance hint with the optional ``ov::hint::num_requests`` configuration key set to 4. 
 As mentioned earlier, this will limit the batch size for the GPU and the number of inference streams for the CPU. Thus, each device uses the ``ov::hint::num_requests`` while converting the hint to the actual device configuration options:
 
+.. tab-set::
 
-.. tab:: C++
-
-    .. doxygensnippet:: docs/snippets/ov_auto_batching.cpp
-       :language: cpp
-       :fragment: [hint_num_requests]
-
-.. tab:: Python
-
-    .. doxygensnippet:: docs/snippets/ov_auto_batching.py
-       :language: python
-       :fragment: [hint_num_requests]
+   .. tab-item:: C++
+      :sync: cpp
+   
+      .. doxygensnippet:: docs/snippets/ov_auto_batching.cpp
+         :language: cpp
+         :fragment: [hint_num_requests]
+   
+   .. tab-item:: Python
+      :sync: python
+   
+      .. doxygensnippet:: docs/snippets/ov_auto_batching.py
+         :language: python
+         :fragment: [hint_num_requests]
 
 
 Optimal Number of Inference Requests
@@ -88,18 +94,21 @@ Optimal Number of Inference Requests
 
 The hints are used on the presumption that the application queries ``ov::optimal_number_of_infer_requests`` to create and run the returned number of requests simultaneously:
 
+.. tab-set::
 
-.. tab:: C++
-
-    .. doxygensnippet:: docs/snippets/ov_auto_batching.cpp
-       :language: cpp
-       :fragment: [query_optimal_num_requests]
-
-.. tab:: Python
-
-    .. doxygensnippet:: docs/snippets/ov_auto_batching.py
-       :language: python
-       :fragment: [query_optimal_num_requests]
+   .. tab-item:: C++
+      :sync: cpp
+   
+      .. doxygensnippet:: docs/snippets/ov_auto_batching.cpp
+         :language: cpp
+         :fragment: [query_optimal_num_requests]
+   
+   .. tab-item:: Python
+      :sync: python
+   
+      .. doxygensnippet:: docs/snippets/ov_auto_batching.py
+         :language: python
+         :fragment: [query_optimal_num_requests]
 
 
 While an application is free to create more requests if needed (for example to support asynchronous inputs population) **it is very important to at least run the** ``ov::optimal_number_of_infer_requests`` **of the inference requests in parallel**. It is recommended for efficiency, or device utilization, reasons. 
@@ -126,18 +135,21 @@ Combining the Hints and Individual Low-Level Settings
 While sacrificing the portability to some extent, it is possible to combine the hints with individual device-specific settings. 
 For example, use ``ov::hint::PerformanceMode::THROUGHPUT`` to prepare a general configuration and override any of its specific values:
 
+.. tab-set::
 
-.. tab:: C++
+   .. tab-item:: C++
+      :sync: cpp
+   
+      .. doxygensnippet:: docs/snippets/ov_auto_batching.cpp
+         :language: cpp
+         :fragment: [hint_plus_low_level]
 
-    .. doxygensnippet:: docs/snippets/ov_auto_batching.cpp
-       :language: cpp
-       :fragment: [hint_plus_low_level]
-
-.. tab:: Python
-
-    .. doxygensnippet:: docs/snippets/ov_auto_batching.py
-       :language: python
-       :fragment: [hint_plus_low_level]
+   .. tab-item:: Python
+      :sync: python
+   
+      .. doxygensnippet:: docs/snippets/ov_auto_batching.py
+         :language: python
+         :fragment: [hint_plus_low_level]
 
 
 Testing Performance of the Hints with the Benchmark_App

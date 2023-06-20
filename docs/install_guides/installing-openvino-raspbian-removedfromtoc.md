@@ -11,15 +11,19 @@
 Development and Target Systems
 ###############################
 
-.. tab:: System Requirements
+.. tab-set::
 
-   | Full requirement listing is available in:
-   | `System Requirements Page <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html>`_
-
-.. tab:: Software Requirements
-
-  * CMake 3.10 or higher
-  * Python 3.7 - 3.11
+   .. tab-item:: System Requirements
+      :sync: sysreq
+   
+      | Full requirement listing is available in:
+      | `System Requirements Page <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html>`_
+   
+   .. tab-item:: Software Requirements
+      :sync: softreq
+    
+      * CMake 3.10 or higher
+      * Python 3.7 - 3.11
 
 
 .. _install-openvino:
@@ -41,35 +45,43 @@ Step 1: Download and Install OpenVINO Runtime
 
 3. Go to your ``~/Downloads`` directory and download OpenVINO Runtime archive file for Debian from `OpenVINO package repository <https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.0/linux/>`_.
 
-   .. tab:: ARM 64-bit
+   .. tab-set::
 
-      .. code-block:: sh
-
-         cd ~/Downloads/
-         sudo wget https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.0/linux/l_openvino_toolkit_debian9_2023.0.0.10926.b4452d56304_arm64.tgz -O openvino_2023.0.0.tgz
-
-   .. tab:: ARM 32-bit
-
-      .. code-block:: sh
-
-         cd ~/Downloads/
-         sudo wget https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.0/linux/l_openvino_toolkit_debian9_2023.0.0.10926.b4452d56304_armhf.tgz -O openvino_2023.0.0.tgz
-
+      .. tab-item:: ARM 64-bit
+         :sync: arm_64
+   
+         .. code-block:: sh
+   
+            cd ~/Downloads/
+            sudo wget https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.0/linux/l_openvino_toolkit_debian9_2023.0.0.10926.b4452d56304_arm64.tgz -O openvino_2023.0.0.tgz
+   
+      .. tab-item:: ARM 32-bit
+         :sync: arm_32
+   
+         .. code-block:: sh
+   
+            cd ~/Downloads/
+            sudo wget https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.0/linux/l_openvino_toolkit_debian9_2023.0.0.10926.b4452d56304_armhf.tgz -O openvino_2023.0.0.tgz
+   
 4. Extract the archive file and move it to the installation folder:
 
-   .. tab:: ARM 64-bit
+   .. tab-set::
 
-      .. code-block:: sh
-
-         sudo tar -xf openvino_2023.0.0.tgz
-         sudo mv l_openvino_toolkit_debian9_2023.0.0.10926.b4452d56304_arm64 /opt/intel/openvino_2023.0.0
-
-   .. tab:: ARM 32-bit
-
-      .. code-block:: sh
-
-         sudo tar -xf openvino_2023.0.0.tgz
-         sudo mv l_openvino_toolkit_debian9_2023.0.0.10926.b4452d56304_armhf /opt/intel/openvino_2023.0.0
+      .. tab-item:: ARM 64-bit
+         :sync: arm_64
+   
+         .. code-block:: sh
+   
+            sudo tar -xf openvino_2023.0.0.tgz
+            sudo mv l_openvino_toolkit_debian9_2023.0.0.10926.b4452d56304_arm64 /opt/intel/openvino_2023.0.0
+   
+      .. tab-item:: ARM 32-bit
+         :sync: arm_32
+   
+         .. code-block:: sh
+   
+            sudo tar -xf openvino_2023.0.0.tgz
+            sudo mv l_openvino_toolkit_debian9_2023.0.0.10926.b4452d56304_armhf /opt/intel/openvino_2023.0.0
 
 
 5. Install required system dependencies on Linux. To do this, OpenVINO provides a script in the extracted installation directory. Run the following command:
@@ -145,31 +157,35 @@ What's Next?
 
 Now that you've installed OpenVINO Runtime, you're ready to run your own machine learning applications! Learn more about how to integrate a model in OpenVINO applications by trying out the following tutorials.
 
-.. tab:: Get started with Python
+.. tab-set::
 
-   Try the `Python Quick Start Example <notebooks/201-vision-monodepth-with-output.html>`__ to estimate depth in a scene using an OpenVINO monodepth model in a Jupyter Notebook inside your web browser.
-
-   .. image:: https://user-images.githubusercontent.com/15709723/127752390-f6aa371f-31b5-4846-84b9-18dd4f662406.gif
-      :width: 400
-
-   Visit the :ref:`Tutorials <notebook tutorials>` page for more Jupyter Notebooks to get you started with OpenVINO, such as:
-
-   * `OpenVINO Python API Tutorial <notebooks/002-openvino-api-with-output.html>`__
-   * `Basic image classification program with Hello Image Classification <notebooks/001-hello-world-with-output.html>`__
-   * `Convert a PyTorch model and use it for image background removal <notebooks/205-vision-background-removal-with-output.html>`__
-
-
-.. tab:: Get started with C++
-
-   Try the `C++ Quick Start Example <openvino_docs_get_started_get_started_demos.html>`_ for step-by-step instructions on building and running a basic image classification C++ application.
-
-   .. image:: https://user-images.githubusercontent.com/36741649/127170593-86976dc3-e5e4-40be-b0a6-206379cd7df5.jpg
-      :width: 400
-
-   Visit the :ref:`Samples <code samples>` page for other C++ example applications to get you started with OpenVINO, such as:
-
-   * `Basic object detection with the Hello Reshape SSD C++ sample <openvino_inference_engine_samples_hello_reshape_ssd_README.html>`_
-   * `Automatic speech recognition C++ sample <openvino_inference_engine_samples_speech_sample_README.html>`_
+   .. tab-item:: Get started with Python
+      :sync: get_started_python
+   
+      Try the `Python Quick Start Example <notebooks/201-vision-monodepth-with-output.html>`__ to estimate depth in a scene using an OpenVINO monodepth model in a Jupyter Notebook inside your web browser.
+   
+      .. image:: https://user-images.githubusercontent.com/15709723/127752390-f6aa371f-31b5-4846-84b9-18dd4f662406.gif
+         :width: 400
+   
+      Visit the :ref:`Tutorials <notebook tutorials>` page for more Jupyter Notebooks to get you started with OpenVINO, such as:
+   
+      * `OpenVINO Python API Tutorial <notebooks/002-openvino-api-with-output.html>`__
+      * `Basic image classification program with Hello Image Classification <notebooks/001-hello-world-with-output.html>`__
+      * `Convert a PyTorch model and use it for image background removal <notebooks/205-vision-background-removal-with-output.html>`__
+   
+   
+   .. tab-item:: Get started with C++
+      :sync: get_started_python
+   
+      Try the `C++ Quick Start Example <openvino_docs_get_started_get_started_demos.html>`_ for step-by-step instructions on building and running a basic image classification C++ application.
+   
+      .. image:: https://user-images.githubusercontent.com/36741649/127170593-86976dc3-e5e4-40be-b0a6-206379cd7df5.jpg
+         :width: 400
+   
+      Visit the :ref:`Samples <code samples>` page for other C++ example applications to get you started with OpenVINO, such as:
+   
+      * `Basic object detection with the Hello Reshape SSD C++ sample <openvino_inference_engine_samples_hello_reshape_ssd_README.html>`_
+      * `Automatic speech recognition C++ sample <openvino_inference_engine_samples_speech_sample_README.html>`_
 
 To uninstall the toolkit, follow the steps on the :doc:`Uninstalling page <openvino_docs_install_guides_uninstalling_openvino>`.
 

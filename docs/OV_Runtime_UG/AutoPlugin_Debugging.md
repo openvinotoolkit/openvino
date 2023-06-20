@@ -14,30 +14,36 @@ There are six levels of logs, which can be called explicitly or set via the `OPE
 
 @sphinxdirective
 
-.. tab:: C++
+.. tab-set::
 
-    .. doxygensnippet:: docs/snippets/AUTO6.cpp
-       :language: cpp
-       :fragment: [part6]
- 
-.. tab:: Python
-
-    .. doxygensnippet:: docs/snippets/ov_auto.py
-       :language: python
-       :fragment: [part6]
-
-.. tab:: OS environment variable
-
-   .. code-block:: sh
-
-      When defining it via the variable, 
-      a number needs to be used instead of a log level name, e.g.:
-      
-      Linux
-      export OPENVINO_LOG_LEVEL=0
-      
-      Windows
-      set OPENVINO_LOG_LEVEL=0
+   .. tab-item:: C++
+      :sync: cpp
+   
+      .. doxygensnippet:: docs/snippets/AUTO6.cpp
+         :language: cpp
+         :fragment: [part6]
+   
+   .. tab-item:: Python
+      :sync: python
+   
+      .. doxygensnippet:: docs/snippets/ov_auto.py
+         :language: python
+         :fragment: [part6]
+   
+   .. tab-item:: OS environment variable
+      :sync: os_env_variable
+   
+      .. code-block:: sh
+   
+         When defining it via the variable, 
+         a number needs to be used instead of a log level name, e.g.:
+         
+         Linux
+         export OPENVINO_LOG_LEVEL=0
+         
+         Windows
+         set OPENVINO_LOG_LEVEL=0
+   
 @endsphinxdirective
 
 The property returns information in the following format:

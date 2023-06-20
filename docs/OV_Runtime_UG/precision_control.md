@@ -28,17 +28,21 @@ If the model has been quantized using :doc:`OpenVINO optimization tools <ptq_int
 
 Code examples:
 
-.. tab:: C++
+.. tab-set::
 
-   .. doxygensnippet:: docs/snippets/cpu/ov_execution_mode.cpp
-      :language: cpp
-      :fragment: [ov:execution_mode:part0]
-
-.. tab:: Python
-
-   .. doxygensnippet:: docs/snippets/cpu/ov_execution_mode.py
-      :language: python
-      :fragment: [ov:execution_mode:part0]
+   .. tab-item:: C++
+      :sync: cpp
+   
+      .. doxygensnippet:: docs/snippets/cpu/ov_execution_mode.cpp
+         :language: cpp
+         :fragment: [ov:execution_mode:part0]
+   
+   .. tab-item:: Python
+      :sync: python
+   
+      .. doxygensnippet:: docs/snippets/cpu/ov_execution_mode.py
+         :language: python
+         :fragment: [ov:execution_mode:part0]
 
 Inference Precision
 ###################
