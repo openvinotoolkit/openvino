@@ -16,36 +16,41 @@ See the `Release Notes <https://software.intel.com/en-us/articles/OpenVINO-RelNo
 System Requirements
 ####################
 
-.. tab:: System Requirements
+.. tab-set::
 
-   | Full requirement listing is available in:
-   | `System Requirements Page <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html>`_
-
-.. tab:: Processor Notes
-
-   Processor graphics are not included in all processors.
-   See `Product Specifications`_ for information about your processor.
-
-   .. _Product Specifications: https://ark.intel.com/
-
-.. tab:: Software
-
-   * `Microsoft Visual Studio 2019 with MSBuild <https://visualstudio.microsoft.com/vs/older-downloads/>`_ or `Microsoft Visual Studio 2022 <http://visualstudio.microsoft.com/  downloads/>`_
-   * `CMake 3.14 or higher, 64-bit <https://cmake.org/download/>`_ (optional, only required for building sample applications)
-   * `Python 3.7 - 3.11, 64-bit <https://www.python.org/downloads/windows/>`_
-
-   .. note::
-
-      To install Microsoft Visual Studio 2019, follow the `Microsoft Visual Studio installation guide <https://docs.microsoft.com/en-us/visualstudio/install/install-visual-studio?view=vs-2019>`_. You can choose to download the Community version. During installation in the **Workloads** tab, choose **Desktop development with C++**.
-
-   .. note::
-
-      You can either use `cmake<version>.msi` which is the installation wizard or `cmake<version>.zip` where you have to go into the `bin` folder and then manually add the path to environmental variables.
-
-   .. important::
-
-       When installing Python, make sure you click the option **Add Python 3.x to PATH** to `add Python <https://docs.python.org/3/using/windows.html#installation-steps>`_ to your `PATH` environment variable.
-
+   .. tab-item:: System Requirements
+      :sync: sysreq
+   
+      | Full requirement listing is available in:
+      | `System Requirements Page <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html>`_
+   
+   .. tab-item:: Processor Notes
+      :sync: processor_notes
+   
+      Processor graphics are not included in all processors.
+      See `Product Specifications`_ for information about your processor.
+   
+      .. _Product Specifications: https://ark.intel.com/
+   
+   .. tab-item:: Software
+      :sync: software
+   
+      * `Microsoft Visual Studio 2019 with MSBuild <https://visualstudio.microsoft.com/vs/older-downloads/>`_ or `Microsoft Visual Studio 2022 <http://visualstudio.microsoft.com/  downloads/>`_
+      * `CMake 3.14 or higher, 64-bit <https://cmake.org/download/>`_ (optional, only required for building sample applications)
+      * `Python 3.7 - 3.11, 64-bit <https://www.python.org/downloads/windows/>`_
+   
+      .. note::
+   
+         To install Microsoft Visual Studio 2019, follow the `Microsoft Visual Studio installation guide <https://docs.microsoft.com/en-us/visualstudio/install/install-visual-studio?view=vs-2019>`_. You can choose to download the Community version. During installation in the **Workloads** tab, choose **Desktop development with C++**.
+   
+      .. note::
+   
+         You can either use `cmake<version>.msi` which is the installation wizard or `cmake<version>.zip` where you have to go into the `bin` folder and then manually add the path to environmental variables.
+   
+      .. important::
+   
+          When installing Python, make sure you click the option **Add Python 3.x to PATH** to `add Python <https://docs.python.org/3/using/windows.html#installation-steps>`_ to your `PATH` environment variable.
+   
 
 
 Installing OpenVINO Runtime
@@ -153,14 +158,18 @@ Step 4 (Optional): Configure Inference on non-CPU Devices
 
 OpenVINO Runtime has a plugin architecture that enables you to run inference on multiple devices without rewriting your code. Supported devices include integrated GPUs, discrete GPUs and GNAs. See the instructions below to set up OpenVINO on these devices.
 
-.. tab:: GPU
+.. tab-set::
 
-   To enable the toolkit components to use processor graphics (GPU) on your system, follow the steps in :ref:`GPU Setup Guide <gpu guide windows>`.
-
-.. tab:: GNA
-
-   To enable the toolkit components to use Intel® Gaussian & Neural Accelerator (GNA) on your system, follow the steps in :ref:`GNA Setup Guide <gna guide windows>`.
-
+   .. tab-item:: GPU
+      :sync: gpu
+   
+      To enable the toolkit components to use processor graphics (GPU) on your system, follow the steps in :ref:`GPU Setup Guide <gpu guide windows>`.
+   
+   .. tab-item:: GNA
+      :sync: gna
+   
+      To enable the toolkit components to use Intel® Gaussian & Neural Accelerator (GNA) on your system, follow the steps in :ref:`GNA Setup Guide <gna guide windows>`.
+   
 
 .. _get-started-windows:
 
@@ -169,31 +178,34 @@ What's Next?
 
 Now that you've installed OpenVINO Runtime, you're ready to run your own machine learning applications! Learn more about how to integrate a model in OpenVINO applications by trying out the following tutorials.
 
+.. tab-set::
 
-.. tab:: Get started with Python
-
-   Try the `Python Quick Start Example <notebooks/201-vision-monodepth-with-output.html>`__ to estimate depth in a scene using an OpenVINO monodepth model in a Jupyter Notebook inside your web browser.
-
-   .. image:: https://user-images.githubusercontent.com/15709723/127752390-f6aa371f-31b5-4846-84b9-18dd4f662406.gif
-      :width: 400
-
-   Visit the :ref:`Tutorials <notebook tutorials>` page for more Jupyter Notebooks to get you started with OpenVINO, such as:
-
-   * `OpenVINO Python API Tutorial <notebooks/002-openvino-api-with-output.html>`__ 
-   * `Basic image classification program with Hello Image Classification <notebooks/001-hello-world-with-output.html>`__
-   * `Convert a PyTorch model and use it for image background removal <notebooks/205-vision-background-removal-with-output.html>`__
-
-.. tab:: Get started with C++
-
-   Try the `C++ Quick Start Example <openvino_docs_get_started_get_started_demos.html>`_ for step-by-step instructions on building and running a basic image classification C++ application.
-
-   .. image:: https://user-images.githubusercontent.com/36741649/127170593-86976dc3-e5e4-40be-b0a6-206379cd7df5.jpg
-      :width: 400
-
-   Visit the :ref:`Samples <code samples>` page for other C++ example applications to get you started with OpenVINO, such as:
-
-   * `Basic object detection with the Hello Reshape SSD C++ sample <openvino_inference_engine_samples_hello_reshape_ssd_README.html>`_
-   * `Automatic speech recognition C++ sample <openvino_inference_engine_samples_speech_sample_README.html>`_
+   .. tab-item:: Get started with Python
+      :sync: get_started_python
+   
+      Try the `Python Quick Start Example <notebooks/201-vision-monodepth-with-output.html>`__ to estimate depth in a scene using an OpenVINO monodepth model in a Jupyter Notebook inside your web browser.
+   
+      .. image:: https://user-images.githubusercontent.com/15709723/127752390-f6aa371f-31b5-4846-84b9-18dd4f662406.gif
+         :width: 400
+   
+      Visit the :ref:`Tutorials <notebook tutorials>` page for more Jupyter Notebooks to get you started with OpenVINO, such as:
+   
+      * `OpenVINO Python API Tutorial <notebooks/002-openvino-api-with-output.html>`__ 
+      * `Basic image classification program with Hello Image Classification <notebooks/001-hello-world-with-output.html>`__
+      * `Convert a PyTorch model and use it for image background removal <notebooks/205-vision-background-removal-with-output.html>`__
+   
+   .. tab-item:: Get started with C++
+      :sync: get_started_cpp
+   
+      Try the `C++ Quick Start Example <openvino_docs_get_started_get_started_demos.html>`_ for step-by-step instructions on building and running a basic image classification C++ application.
+   
+      .. image:: https://user-images.githubusercontent.com/36741649/127170593-86976dc3-e5e4-40be-b0a6-206379cd7df5.jpg
+         :width: 400
+   
+      Visit the :ref:`Samples <code samples>` page for other C++ example applications to get you started with OpenVINO, such as:
+   
+      * `Basic object detection with the Hello Reshape SSD C++ sample <openvino_inference_engine_samples_hello_reshape_ssd_README.html>`_
+      * `Automatic speech recognition C++ sample <openvino_inference_engine_samples_speech_sample_README.html>`_
 
 
 .. _uninstall-from-windows:
