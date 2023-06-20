@@ -23,6 +23,7 @@
 #include "openvino/util/log.hpp"
 #include "so_extension.hpp"
 #include "tf_framework_node.hpp"
+#include "transformations/common_optimizations/remove_concat_zero_dim_input.hpp"
 #include "transformations/common_optimizations/reverse_shape_and_type_infer.hpp"
 #include "transformations/transpose_sinking/ts_general.hpp"
 #include "translate_session.hpp"
@@ -341,6 +342,7 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     manager.register_pass<pass::BlockLSTMReplacer>();
     manager.register_pass<pass::GRUBlockCellReplacer>();
     manager.register_pass<pass::ConstToResultRemover>();
+    manager.register_pass<ov::pass::RemoveConcatZeroDimInput>();
     manager.register_pass<ov::pass::TransposeSinkingGeneral>();
     manager.register_pass<ov::pass::ReverseShapeAndTypeInfer>();
     manager.run_passes(model);
