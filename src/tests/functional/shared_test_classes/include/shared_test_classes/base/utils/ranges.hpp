@@ -20,6 +20,9 @@
 #include "ngraph/op/max.hpp"
 #include "ngraph/op/min.hpp"
 
+#include <map>
+#include <vector>
+
 namespace ov {
 namespace test {
 namespace utils {
