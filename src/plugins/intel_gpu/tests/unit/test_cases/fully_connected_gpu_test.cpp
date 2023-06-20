@@ -2582,6 +2582,7 @@ class fc_random_types_test
     , public ::testing::WithParamInterface< fully_connected_types_test_params> {
 public:
     void run_random_test() {
+        tests::random_generator rg(GET_SUITE_NAME);
         size_t b, in_f, in_x, in_y, out_f;
         format::type in_fmt;
 
@@ -2591,9 +2592,9 @@ public:
         quant_data.output_low  = std::numeric_limits<WeightsT>::lowest();
         quant_data.output_high = std::numeric_limits<WeightsT>::max();
 
-        VVVVF<InputT> input_data = generate_random_4d<InputT>(b, in_f, in_y, in_x, 0, 127);
-        VVVVF<WeightsT> weights_data = generate_random_4d<WeightsT>(out_f, in_f, in_y, in_x, quant_data.output_low , quant_data.output_high);
-        VF<WeightsT> bias_data = generate_random_1d<WeightsT>(out_f, quant_data.output_low , quant_data.output_high);
+        VVVVF<InputT> input_data = rg.template generate_random_4d<InputT>(b, in_f, in_y, in_x, 0, 127);
+        VVVVF<WeightsT> weights_data = rg.template generate_random_4d<WeightsT>(out_f, in_f, in_y, in_x, quant_data.output_low , quant_data.output_high);
+        VF<WeightsT> bias_data = rg.template generate_random_1d<WeightsT>(out_f, quant_data.output_low , quant_data.output_high);
 
         this->set_input(input_data);
         this->set_weights(weights_data);
