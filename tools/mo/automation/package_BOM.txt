@@ -1076,6 +1076,7 @@ openvino/tools/mo/utils/ir_reader/internal_ops/unsqueeze.py
 openvino/tools/mo/utils/ir_reader/layer_to_class.py
 openvino/tools/mo/utils/ir_reader/restore_graph.py
 openvino/tools/mo/utils/json_schema.py
+openvino/tools/mo/utils/logger.py
 openvino/tools/mo/utils/model_analysis.py
 openvino/tools/mo/utils/pipeline_config.py
 openvino/tools/mo/utils/replacement_pattern.py
