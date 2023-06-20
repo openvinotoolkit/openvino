@@ -46,4 +46,4 @@ try:
     from . import tools
     from .tools.mo import convert_model  # TODO , InputCutInfo, LayoutMap
 except ImportError:
-    warnings.warn("openvino.tools module could not be found!", ImportWarning)
+    warnings.warn("openvino.tools module could not be found!", ImportWarning, stacklevel=2)
