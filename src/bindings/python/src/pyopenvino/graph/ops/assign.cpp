@@ -19,9 +19,10 @@ void regclass_graph_op_Assign(py::module m) {
 
     assign.def(py::init<>());
 
-    assign.def(py::init([](const ov::Output<ov::Node>& new_value, const std::string& variable_id, const std::string& name) {
+    assign.def(
+        py::init([](const ov::Output<ov::Node>& new_value, const std::string& variable_id, const std::string& name) {
             auto variable = std::make_shared<ov::op::util::Variable>(
-                    ov::op::util::VariableInfo{ov::PartialShape::dynamic(), ov::element::dynamic, variable_id});
+                ov::op::util::VariableInfo{ov::PartialShape::dynamic(), ov::element::dynamic, variable_id});
             return ov::op::v6::Assign(new_value, variable);
         }),
         py::arg("new_value"),
