@@ -305,7 +305,7 @@ file = Path('${python_package_prefix}/bin/benchmark_app')
 file.write_text(file.read_text().replace('${PYTHON_EXECUTABLE}', '/usr/bin/python3'))")
 
 add_custom_command(OUTPUT ${output_dir}
-    COMMAND ${CMAKE_COMMAND} -E rm -fr
+    COMMAND ${CMAKE_COMMAND} -E remove_directory
         "${python_package_prefix}"
     COMMAND ${setup_py_env}
         "${PYTHON_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/wheel/setup.py"
