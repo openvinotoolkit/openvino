@@ -32,12 +32,12 @@ public:
         std::exception_ptr m_exceptionPtr;
     };
 
-    explicit CompiledModel(const InferenceEngine::SoExecutableNetworkInternal& networkForDevice,
-                           const InferenceEngine::SoExecutableNetworkInternal& networkForDeviceWithoutBatch,
-                           const DeviceInformation& networkDevices,
-                           const std::unordered_map<std::string, InferenceEngine::Parameter>& config,
-                           const std::set<std::string>& batchedIntputs,
-                           const std::set<std::string>& batchedOutputs);
+    CompiledModel(const InferenceEngine::SoExecutableNetworkInternal& networkForDevice,
+                  const InferenceEngine::SoExecutableNetworkInternal& networkForDeviceWithoutBatch,
+                  const DeviceInformation& networkDevices,
+                  const std::unordered_map<std::string, InferenceEngine::Parameter>& config,
+                  const std::set<std::string>& batchedIntputs,
+                  const std::set<std::string>& batchedOutputs);
 
     void SetConfig(const std::map<std::string, InferenceEngine::Parameter>& config) override;
 
@@ -65,8 +65,8 @@ protected:
     static unsigned int ParseTimeoutValue(const std::string&);
     std::atomic_bool m_terminate = {false};
     DeviceInformation m_device_info;
-    InferenceEngine::SoExecutableNetworkInternal m_network_with_batch;
-    InferenceEngine::SoExecutableNetworkInternal m_network_without_batch;
+    InferenceEngine::SoExecutableNetworkInternal m_model_with_batch;
+    InferenceEngine::SoExecutableNetworkInternal m_model_without_batch;
 
     std::pair<WorkerInferRequest&, int> GetWorkerInferRequest();
     std::vector<WorkerInferRequest::Ptr> m_worker_requests;
