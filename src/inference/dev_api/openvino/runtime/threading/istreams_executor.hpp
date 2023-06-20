@@ -167,6 +167,12 @@ public:
     virtual int get_numa_node_id() = 0;
 
     /**
+     * @brief Return the id of current socket
+     * @return `ID` of current socket, or throws exceptions if called not from stream thread
+     */
+    virtual int get_socket_id() = 0;
+
+    /**
      * @brief Execute the task in the current thread using streams executor configuration and constraints
      * @param task A task to start
      */

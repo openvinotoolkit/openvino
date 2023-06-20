@@ -126,6 +126,12 @@ public:
     virtual int GetNumaNodeId() = 0;
 
     /**
+     * @brief Return the id of current socket
+     * @return `ID` of current socket, or throws exceptions if called not from stream thread
+     */
+    virtual int GetSocketId() = 0;
+
+    /**
      * @brief Execute the task in the current thread using streams executor configuration and constraints
      * @param task A task to start
      */
@@ -137,6 +143,10 @@ public:
 
     int get_numa_node_id() override {
         return GetNumaNodeId();
+    }
+
+    int get_socket_id() override {
+        return GetSocketId();
     }
 
     void execute(Task task) override {

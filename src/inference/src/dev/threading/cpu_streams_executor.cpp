@@ -80,6 +80,7 @@ struct CPUStreamsExecutor::Impl {
                               : _impl->_usedNumaNodes.at(_streamId % _impl->_usedNumaNodes.size());
 #if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO
             if (is_cpu_map_available() && _impl->_config._streams_info_table.size() > 0) {
+                _socketId = get_socket_by_numa_node(_numaNodeId);
                 init_stream();
             } else {
                 init_stream_legacy();
@@ -303,6 +304,7 @@ struct CPUStreamsExecutor::Impl {
         Impl* _impl = nullptr;
         int _streamId = 0;
         int _numaNodeId = 0;
+        int _socketId = 0;
         bool _execute = false;
         std::queue<Task> _taskQueue;
 #if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO
@@ -449,6 +451,11 @@ int CPUStreamsExecutor::get_stream_id() {
 int CPUStreamsExecutor::get_numa_node_id() {
     auto stream = _impl->_streams.local();
     return stream->_numaNodeId;
+}
+
+int CPUStreamsExecutor::get_socket_id() {
+    auto stream = _impl->_streams.local();
+    return stream->_socketId;
 }
 
 CPUStreamsExecutor::CPUStreamsExecutor(const IStreamsExecutor::Config& config) : _impl{new Impl{config}} {}

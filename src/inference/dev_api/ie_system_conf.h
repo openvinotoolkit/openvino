@@ -165,6 +165,13 @@ using ov::get_num_numa_nodes;
 using ov::set_cpu_used;
 
 /**
+ * @brief      Get socket id by current numa node id
+ * @ingroup    ie_dev_api_system_conf
+ * @param[in]  numa_node_id numa node id.
+ */
+using ov::get_socket_by_numa_node;
+
+/**
  * @brief      Returns number of CPU cores on Linux/Windows
  * @ingroup    ie_dev_api_system_conf
  * @param[in]  plugin_task plugin task.

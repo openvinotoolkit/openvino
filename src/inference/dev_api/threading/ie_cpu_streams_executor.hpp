@@ -48,6 +48,8 @@ public:
 
     int GetNumaNodeId() override;
 
+    int GetSocketId() override;
+
 private:
     struct Impl;
     std::unique_ptr<Impl> _impl;

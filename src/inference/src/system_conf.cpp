@@ -191,6 +191,10 @@ std::vector<std::vector<int>> reserve_available_cpus(const std::vector<std::vect
 }
 void set_cpu_used(const std::vector<int>& cpu_ids, const int used) {}
 
+int get_socket_by_numa_node(int numa_node_id) {
+    return -1;
+};
+
 #elif defined(__APPLE__)
 // for Linux and Windows the getNumberOfCPUCores (that accounts only for physical cores) implementation is OS-specific
 // (see cpp files in corresponding folders), for __APPLE__ it is default :
@@ -224,6 +228,16 @@ std::vector<std::vector<int>> reserve_available_cpus(const std::vector<std::vect
     return {{-1}};
 }
 void set_cpu_used(const std::vector<int>& cpu_ids, const int used) {}
+
+int get_socket_by_numa_node(int numa_node_id) {
+    CPU& cpu = cpu_info();
+    for (int i = 0; i < cpu._processors; i++) {
+        if (cpu._cpu_mapping_table[i][CPU_MAP_NUMA_NODE_ID] == numa_node_id) {
+            return cpu._cpu_mapping_table[i][CPU_MAP_SOCKET_ID];
+        }
+    }
+    return -1;
+};
 
 #else
 
@@ -355,6 +369,16 @@ void set_cpu_used(const std::vector<int>& cpu_ids, const int used) {
             }
         }
     }
+}
+
+int get_socket_by_numa_node(int numa_node_id) {
+    CPU& cpu = cpu_info();
+    for (int i = 0; i < cpu._processors; i++) {
+        if (cpu._cpu_mapping_table[i][CPU_MAP_NUMA_NODE_ID] == numa_node_id) {
+            return cpu._cpu_mapping_table[i][CPU_MAP_SOCKET_ID];
+        }
+    }
+    return -1;
 }
 
 int get_number_of_logical_cpu_cores(bool bigCoresOnly) {
