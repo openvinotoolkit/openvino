@@ -7,8 +7,7 @@ import numpy as np
 import pytest
 import math
 
-import openvino.runtime.opset8 as ops
-from openvino.runtime.op import Assign
+import openvino.runtime.opset11 as ops
 from openvino.runtime import (
     Core,
     Model,
@@ -651,7 +650,7 @@ def test_model_add_remove_result_parameter_sink():
     model.remove_parameter(param)
     assert len(model.parameters) == 1
 
-    assign = Assign()
+    assign = ops.assign()
     model.add_sinks([assign])
 
     assign_nodes = model.sinks
