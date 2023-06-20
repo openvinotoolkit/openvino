@@ -27,6 +27,18 @@ public:
                               const Output<Node>& axis);
 
     void validate_and_infer_types() override;
+
+    bool has_evaluate() const override;
+    bool evaluate_lower(TensorVector& output_values) const override;
+    bool evaluate_upper(TensorVector& output_values) const override;
+    bool evaluate_label(TensorLabelVector& output_labels) const override;
+
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
+
+private:
+    bool evaluate_scatter_element_update(const HostTensorVector& outputs, const HostTensorVector& inputs) const;
 };
 }  // namespace util
 }  // namespace op

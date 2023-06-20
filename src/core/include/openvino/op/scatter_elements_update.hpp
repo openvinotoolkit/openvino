@@ -31,16 +31,6 @@ public:
     bool visit_attributes(AttributeVisitor& visitor) override;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override;
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
-    OPENVINO_SUPPRESS_DEPRECATED_END
-    bool has_evaluate() const override;
-    bool evaluate_lower(TensorVector& output_values) const override;
-    bool evaluate_upper(TensorVector& output_values) const override;
-    bool evaluate_label(TensorLabelVector& output_labels) const override;
-
-private:
-    bool evaluate_scatter_element_update(const HostTensorVector& outputs, const HostTensorVector& inputs) const;
 };
 }  // namespace v3
 namespace v12 {
@@ -48,7 +38,7 @@ class OPENVINO_API ScatterElementsUpdate : public op::util::ScatterElementsUpdat
 public:
     OPENVINO_OP("ScatterElementsUpdate", "opset12", op::util::ScatterElementsUpdateBase);
 
-    /// \brief Lists the supported reduction types for this version of the operator. 
+    /// \brief Lists the supported reduction types for this version of the operator.
     ///        See the specification for the description of how reduction works with ScatterElementsUpdate.
     enum class Reduction { NONE, SUM, PROD, MIN, MAX, MEAN };
 
@@ -85,6 +75,8 @@ public:
     }
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
+
+    bool has_evaluate() const override;
 
 private:
     Reduction m_reduction = Reduction::NONE;
