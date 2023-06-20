@@ -152,11 +152,11 @@ void jit_load_emitter::emit_isa(const Xbyak::Reg64 &reg_src, const int out_vec_i
     if (src_prc_ != dst_prc_) {
         switch (dst_prc_) {
             case Precision::FP32:
-                if ((src_prc_ != Precision::FP32) && (src_prc_ != Precision::BF16) && (src_prc_ != Precision::FP16))
+                if (!src_prc_.is_float())
                     h->uni_vcvtdq2ps(Vmm(out_vec_idx), Vmm(out_vec_idx));
                 break;
             case Precision::I32:
-                if ((src_prc_ == Precision::FP32) || (src_prc_ == Precision::BF16) || (src_prc_ == Precision::FP16)) {
+                if (src_prc_.is_float()) {
                     h->uni_vcvtps2dq(Vmm(out_vec_idx), Vmm(out_vec_idx));
                 }
                 break;
@@ -455,7 +455,7 @@ void jit_load_emitter::load_words_to_dword_extension(const Vmm &vmm, const Xbyak
 
     bool is_bf16 = (prc == Precision::BF16);
     bool is_f16 = (prc == Precision::FP16);
-    bool is_signed = (prc == Precision::I16);
+    bool is_signed = prc.isSigned();
 
     if (is_f16 && !mayiuse(cpu::x64::avx512_core_fp16))
         IE_THROW() << "Load emitter in " << name_ << " only support fp16 on platform with avx512_core_fp16.";
@@ -679,7 +679,7 @@ void jit_store_emitter::emit_isa(const int in_vec_idx, const Xbyak::Reg64 &reg_d
     if (src_prc_ != dst_prc_) {
         switch (src_prc_) {
             case Precision::FP32:
-                if ((dst_prc_ != Precision::FP32) && (dst_prc_ != Precision::BF16) && (dst_prc_ != Precision::FP16)) {
+                if (!dst_prc_.is_float()) {
                     if (is_saturation()) {
                         h->uni_vcvtps2dq(Vmm(aux_src_idx), Vmm(data_idx));
                     } else {
@@ -690,7 +690,7 @@ void jit_store_emitter::emit_isa(const int in_vec_idx, const Xbyak::Reg64 &reg_d
                 }
                 break;
             case Precision::I32:
-                if ((dst_prc_ == Precision::FP32) || (dst_prc_ == Precision::BF16) || (dst_prc_ == Precision::FP16)) {
+                if (dst_prc_.is_float()) {
                     h->uni_vcvtdq2ps(Vmm(aux_src_idx), Vmm(data_idx));
                     data_idx = aux_src_idx;
                     data_reg_updated = true;
@@ -1051,7 +1051,7 @@ void jit_store_emitter::store_dword_to_word_extension(const Xbyak::Reg64 &reg,
     int offset, InferenceEngine::Precision precision, int store_num) const {
     const bool is_bf16 = (precision == Precision::BF16);
     const bool is_f16 = (precision == Precision::FP16);
-    const bool is_signed = (precision == Precision::I16);
+    const bool is_signed = precision.isSigned();
 
     constexpr bool is_xmm = std::is_same<Vmm, Xbyak::Xmm>::value;
     constexpr bool is_ymm = std::is_same<Vmm, Xbyak::Ymm>::value;

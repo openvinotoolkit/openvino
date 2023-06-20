@@ -158,6 +158,38 @@ static inline std::ostream& _write_all_to_stream(std::ostream& os, const T& arg,
 
 #define CREATE_DEBUG_TIMER(x) PrintableTimer x
 
+/*
+ * important debugging tools for accuracy issues
+ *   OV_INFER_PRC_TYPES : comma separated list of node types for which infer-precision is enforced
+ *   OV_INFER_PRC_CNT   : number of nodes totally allowed to enforced
+ * adjust these two settings until accuracy issue happens/disappears
+ * from the log we can spot the first node having issue when enabled f16
+ */
+struct EnforceInferPrcDebug {
+    std::string safe_getenv(const char* name, const char* default_value = "") {
+        std::string value = default_value;
+        const char* p = std::getenv(name);
+        if (p)
+            value = p;
+        return value;
+    }
+
+    std::string nodeTypes = safe_getenv("OV_INFER_PRC_TYPES", "");
+    int count_limit = atoi(safe_getenv("OV_INFER_PRC_CNT", "9999999").c_str());
+    int count = 0;
+
+    bool enabled(std::string type, std::string name) {
+        if (nodeTypes.find(type + ",") != std::string::npos) {
+            if (count < count_limit) {
+                std::cout << " infer precision enforced: [" << count << "/" << count_limit << "] : " << type << " " << name << std::endl;
+                count++;
+                return true;
+            }
+        }
+        return false;
+    }
+};
+
 #else // !CPU_DEBUG_CAPS
 
 #define CPU_DEBUG_CAP_ENABLE(...)

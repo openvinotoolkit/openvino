@@ -114,6 +114,8 @@ void jit_convert_truncation_emitter::emit_isa(const std::vector<size_t> &in_vec_
             // to be exact, vcvtph2ps belongs to AVX512VL/AVX512F
             assert(dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_fp16));
             h->vcvtph2ps(vmm_dst, Ymm(vmm_src.getIdx()));
+            if (one_of(output_type, ov::element::i32, ov::element::i8, ov::element::u8))
+                h->uni_vcvttps2dq(vmm_dst, vmm_dst);
             break;
         case ov::element::i8:
             h->uni_vpmovsxbd(vmm_dst, vmm_src);
@@ -143,6 +145,16 @@ void jit_convert_truncation_emitter::emit_isa(const std::vector<size_t> &in_vec_
                 float2bfloat<isa>({static_cast<size_t>(vmm_dst.getIdx())}, {static_cast<size_t>(vmm_dst.getIdx())});
             }
             break;
+        case ov::element::f16:
+            assert(dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_fp16));
+            if (input_type == ov::element::f32) {
+                h->vcvtps2ph(vmm_dst, vmm_src, 0x4);
+            } else {
+                if (one_of(input_type, ov::element::i8, ov::element::u8)) {
+                    h->uni_vcvtdq2ps(vmm_dst, vmm_dst);
+                }
+                h->vcvtps2ph(vmm_dst, vmm_dst, 0x4);
+            }
         case ov::element::i8:
         case ov::element::u8:
             if (input_type == ov::element::i32) {
@@ -231,6 +243,8 @@ void jit_convert_saturation_emitter::emit_isa(const std::vector<size_t> &in_vec_
             // to be exact, vcvtph2ps belongs to AVX512VL/AVX512F
             assert(dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_fp16));
             h->vcvtph2ps(vmm_dst, Ymm(vmm_src.getIdx()));
+            if (one_of(output_type, ov::element::i32, ov::element::i8, ov::element::u8))
+                h->uni_vcvttps2dq(vmm_dst, vmm_dst);
             break;
         case ov::element::i8:
             h->uni_vpmovsxbd(vmm_dst, vmm_src);
@@ -258,6 +272,17 @@ void jit_convert_saturation_emitter::emit_isa(const std::vector<size_t> &in_vec_
                     h->uni_vcvtdq2ps(vmm_dst, vmm_dst);
                 }
                 float2bfloat<isa>({static_cast<size_t>(vmm_dst.getIdx())}, {static_cast<size_t>(vmm_dst.getIdx())});
+            }
+            break;
+        case ov::element::f16:
+            assert(dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_fp16));
+            if (input_type == ov::element::f32) {
+                h->vcvtps2ph(vmm_dst, vmm_src, 0x4);
+            } else {
+                if (one_of(input_type, ov::element::i8, ov::element::u8)) {
+                    h->uni_vcvtdq2ps(vmm_dst, vmm_dst);
+                }
+                h->vcvtps2ph(vmm_dst, vmm_dst, 0x4);
             }
             break;
         case ov::element::i8:

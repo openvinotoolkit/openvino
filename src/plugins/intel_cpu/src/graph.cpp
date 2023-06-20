@@ -1578,43 +1578,9 @@ bool Graph::InsertNode(NodePtr parent, NodePtr child, NodePtr node, int parentPo
     return true;
 }
 
-#ifdef CPU_DEBUG_CAPS
-/*
- * important debugging tools for accuracy issues
- * define F16SET as comma separated list of node types for which F16 is allowed to be enabled
- * define F16CNT as number of nodes totally allowed to enable f16
- * increasing/decreasing F16CNT until accuracy issue happens/disappears
- * from the log we can spot the first node having issue when enabled f16
- */
-struct FP16Debug {
-    std::string safe_getenv(const char* name, const char* default_value = "") {
-        std::string value = default_value;
-        const char* p = std::getenv(name);
-        if (p)
-            value = p;
-        return value;
-    }
-
-    std::string nodeTypes = safe_getenv("F16SET", "");
-    int count_limit = atoi(safe_getenv("F16CNT", "9999999").c_str());
-    int count = 0;
-
-    bool enabled(std::string type, std::string name) {
-        if (nodeTypes.find(type + ",") != std::string::npos) {
-            if (count < count_limit) {
-                std::cout << " enabled [" << count << "/" << count_limit << "] : " << type << " " << name << std::endl;
-                count++;
-                return true;
-            }
-        }
-        return false;
-    }
-};
-#endif
-
 // Set all non const data paths precision to BF16
 void Graph::EnforceInferencePrecision() {
-    CPU_DEBUG_CAP_ENABLE(static FP16Debug f16debug);
+    CPU_DEBUG_CAP_ENABLE(static EnforceInferPrcDebug inferPrecDebug);
     auto inferPrec = InferenceEngine::Precision::FP32;
     switch (getConfig().inferencePrecision) {
     case ov::element::bf16:
@@ -1624,11 +1590,9 @@ void Graph::EnforceInferencePrecision() {
         inferPrec = InferenceEngine::Precision::FP16;
         break;
     default:
+        return;
         break;
     }
-
-    if (inferPrec == InferenceEngine::Precision::FP32)
-        return;
 
     std::function<void(const NodePtr&, std::unordered_set<NodePtr>& skipNodes)> searchForNodesToSkip;
     searchForNodesToSkip = [&](const NodePtr& node, std::unordered_set<NodePtr>& skipNodes) -> void {
@@ -1666,7 +1630,7 @@ void Graph::EnforceInferencePrecision() {
         }
     };
 
-    /* Skip BF16 enforcement for tail of the graph by forming set of nodes to skip.
+    /* Skip low-precision float point enforcement for tail of the graph by forming set of nodes to skip.
      * Necessary to maintain accuracy.
      * Experiments show zero peformance impact on average */
     std::unordered_set<NodePtr> nodesToSkip;
@@ -1683,30 +1647,10 @@ void Graph::EnforceInferencePrecision() {
             continue;
 
         if (node->getType() != Type::Input && node->getType() != Type::Output) {
-            // FP16 is only implemented on limited types of node.
 #ifdef CPU_DEBUG_CAPS
-            if (inferPrec == InferenceEngine::Precision::FP16) {
-                if (!f16debug.enabled(NameFromType(node->getType()), node->getName()))
-                    continue;
-            }
-#endif
-            if (inferPrec == InferenceEngine::Precision::FP16 && !one_of(node->getType(),
-                                                                         Type::Reorder,
-                                                                         Type::Convolution,
-                                                                         Type::Deconvolution,
-                                                                         Type::FullyConnected,
-                                                                         Type::MatMul,
-                                                                         Type::Pooling,
-                                                                         Type::Pad,
-                                                                         Type::Transpose,
-                                                                         Type::Eltwise,
-                                                                         Type::Subgraph,
-                                                                         Type::MVN,
-                                                                         Type::Softmax,
-                                                                         Type::Reshape,
-                                                                         Type::Gather,
-                                                                         Type::Split))
+            if (!inferPrecDebug.enabled(NameFromType(node->getType()), node->getName()))
                 continue;
+#endif
 
             DEBUG_LOG("#", node->getExecIndex(),
                       " ", node->getName(),

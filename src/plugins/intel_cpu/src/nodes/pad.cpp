@@ -13,6 +13,7 @@
 #include "utils/bfloat16.hpp"
 #include <selective_build.h>
 #include <ngraph/opsets/opset1.hpp>
+#include <openvino/core/type/float16.hpp>
 
 using namespace dnnl;
 using namespace InferenceEngine;
@@ -432,7 +433,7 @@ void Pad::PadExecutor::padConstant(MemoryPtr& srcMemPtr, MemoryPtr& dstMemPtr) {
               OV_CASE(InferenceEngine::Precision::FP32, float),
               OV_CASE(InferenceEngine::Precision::I32, int32_t),
               OV_CASE(InferenceEngine::Precision::BF16, bfloat16_t),
-              OV_CASE(InferenceEngine::Precision::FP16, dnnl::impl::float16_t),
+              OV_CASE(InferenceEngine::Precision::FP16, ov::float16),
               OV_CASE(InferenceEngine::Precision::I8, int8_t),
               OV_CASE(InferenceEngine::Precision::U8, uint8_t));
 }

@@ -720,11 +720,11 @@ private:
 
             switch (dst_prc) {
                 case Precision::FP32:
-                    if (src_prc != Precision::FP32 && src_prc != Precision::BF16 && src_prc != Precision::FP16)
+                    if (!src_prc.is_float())
                         uni_vcvtdq2ps(vmm_src, vmm_src);
                     break;
                 case Precision::I32:
-                    if (src_prc == Precision::FP32 || src_prc == Precision::BF16 || src_prc == Precision::FP16)
+                    if (src_prc.is_float())
                         uni_vcvtps2dq(vmm_src, vmm_src);
                     break;
                 default:
@@ -769,11 +769,11 @@ private:
 
         switch (dst_prc) {
             case Precision::FP32:
-                if (src_prc != Precision::FP32 && src_prc != Precision::BF16 && src_prc != Precision::FP16)
+                if (!src_prc.is_float())
                     uni_vcvtdq2ps(xmm_src, xmm_src);
                 break;
             case Precision::I32:
-                if (src_prc == Precision::FP32 || src_prc == Precision::BF16 || src_prc == Precision::FP16)
+                if (src_prc.is_float())
                     uni_vcvtps2dq(xmm_src, xmm_src);
                 break;
             default:
@@ -787,11 +787,11 @@ private:
 
         switch (src_prc) {
             case Precision::FP32:
-                if (dst_prc != Precision::FP32 && dst_prc != Precision::BF16 && dst_prc != Precision::FP16)
+                if (!dst_prc.is_float())
                     uni_vcvtps2dq(vmm_dst, vmm_dst);
                 break;
             case Precision::I32:
-                if (dst_prc == Precision::FP32 || dst_prc == Precision::BF16 || dst_prc == Precision::FP16)
+                if (dst_prc.is_float())
                     uni_vcvtdq2ps(vmm_dst, vmm_dst);
                 break;
             default:
@@ -874,11 +874,11 @@ private:
     inline void store_scalar(const Xbyak::Address &op, Xmm xmm_dst, Precision src_prc, Precision dst_prc) {
         switch (src_prc) {
             case Precision::FP32:
-                if (dst_prc != Precision::FP32 && dst_prc != Precision::BF16 && dst_prc != Precision::FP16)
+                if (!dst_prc.is_float())
                     uni_vcvtps2dq(xmm_dst, xmm_dst);
                 break;
             case Precision::I32:
-                if (dst_prc == Precision::FP32 || dst_prc == Precision::BF16 || dst_prc == Precision::FP16)
+                if (dst_prc.is_float())
                     uni_vcvtdq2ps(xmm_dst, xmm_dst);
                 break;
             default:

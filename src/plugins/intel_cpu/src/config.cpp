@@ -205,22 +205,20 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
             if (val == "bf16") {
                 if (mayiuse(avx512_core)) {
                     inferencePrecision = ov::element::bf16;
-                } else {
-                    IE_THROW() << "Platform doesn't support BF16 format";
+                    inferencePrecisionSetExplicitly = true;
                 }
             } else if (val == "f16") {
                 if (mayiuse(avx512_core_fp16) || mayiuse(avx512_core_amx_fp16)) {
                     inferencePrecision = ov::element::f16;
-                } else {
-                    IE_THROW() << "Platform doesn't support FP16 format";
+                    inferencePrecisionSetExplicitly = true;
                 }
             } else if (val == "f32") {
                 inferencePrecision = ov::element::f32;
+                inferencePrecisionSetExplicitly = true;
             } else {
                 IE_THROW() << "Wrong value for property key " << ov::hint::inference_precision.name()
                     << ". Supported values: bf16, f16, f32";
             }
-            inferencePrecisionSetExplicitly = true;
         } else if (PluginConfigInternalParams::KEY_CPU_RUNTIME_CACHE_CAPACITY == key) {
             int val_i = -1;
             try {
@@ -272,8 +270,6 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
         if (executionMode == ov::hint::ExecutionMode::PERFORMANCE) {
             if (mayiuse(avx512_core_bf16))
                 inferencePrecision = ov::element::bf16;
-            else if (mayiuse(avx512_core_amx_fp16) || mayiuse(avx512_core_fp16))
-                inferencePrecision = ov::element::f16;
             else
                 inferencePrecision = ov::element::f32;
         } else {
