@@ -11,7 +11,6 @@
 
 namespace ov {
 namespace autobatch_plugin {
-using namespace InferenceEngine;
 CompiledModel::CompiledModel(const InferenceEngine::SoExecutableNetworkInternal& networkWithBatch,
                              const InferenceEngine::SoExecutableNetworkInternal& networkWithoutBatch,
                              const DeviceInformation& networkDevice,
@@ -167,7 +166,7 @@ InferenceEngine::IInferRequestInternal::Ptr CompiledModel::CreateInferRequest() 
         return res;
     }
     // trying to create the new API request first
-    IInferRequestInternal::Ptr syncRequestImpl = CreateInferRequestImpl(_parameters, _results);
+    InferenceEngine::IInferRequestInternal::Ptr syncRequestImpl = CreateInferRequestImpl(_parameters, _results);
     if (!syncRequestImpl)
         syncRequestImpl = CreateInferRequestImpl(_networkInputs, _networkOutputs);
     syncRequestImpl->setPointerToExecutableNetworkInternal(shared_from_this());

@@ -8,28 +8,27 @@
 namespace ov {
 namespace autobatch_plugin {
 
-using namespace InferenceEngine;
-
-template <Precision::ePrecision precision>
-Blob::Ptr create_shared_blob_on_top_of_batched_blob(Blob::Ptr batched_blob,
-                                                    std::string name,
-                                                    const std::set<std::string>& batched_names,
-                                                    size_t batch_id,
-                                                    size_t batch_num) {
-    typedef typename PrecisionTrait<precision>::value_type TYPE;
+template <InferenceEngine::Precision::ePrecision precision>
+InferenceEngine::Blob::Ptr create_shared_blob_on_top_of_batched_blob(InferenceEngine::Blob::Ptr batched_blob,
+                                                                     std::string name,
+                                                                     const std::set<std::string>& batched_names,
+                                                                     size_t batch_id,
+                                                                     size_t batch_num) {
+    typedef typename InferenceEngine::PrecisionTrait<precision>::value_type TYPE;
     typedef typename std::add_pointer<TYPE>::type TYPEPTR;
     auto ptr = batched_blob->buffer().as<TYPEPTR>();
     auto sizePerBatch = batched_blob->size() / batch_num;
-    SizeVector dims = batched_blob->getTensorDesc().getDims();
+    InferenceEngine::SizeVector dims = batched_blob->getTensorDesc().getDims();
     // for performance reason (copy avoidance) current impl of the auto-batching supports only batching by 0th dim
     if (batched_names.count(name)) {
         dims[0] = 1;
-        return make_shared_blob<TYPE>({precision, dims, batched_blob->getTensorDesc().getLayout()},
-                                      ptr + sizePerBatch * batch_id,
-                                      sizePerBatch);
+        return InferenceEngine::make_shared_blob<TYPE>({precision, dims, batched_blob->getTensorDesc().getLayout()},
+                                                       ptr + sizePerBatch * batch_id,
+                                                       sizePerBatch);
     } else {
         // same blob for all requests (e.g. constants)
-        return make_shared_blob<TYPE>({precision, dims, batched_blob->getTensorDesc().getLayout()}, ptr);
+        return InferenceEngine::make_shared_blob<TYPE>({precision, dims, batched_blob->getTensorDesc().getLayout()},
+                                                       ptr);
     }
 }
 
@@ -47,8 +46,8 @@ SyncInferRequest::SyncInferRequest(const std::vector<std::shared_ptr<const ov::N
     ShareBlobsWithBatchRequest(batchedInputs, batchedOutputs);
 }
 
-SyncInferRequest::SyncInferRequest(const InputsDataMap& networkInputs,
-                                   const OutputsDataMap& networkOutputs,
+SyncInferRequest::SyncInferRequest(const InferenceEngine::InputsDataMap& networkInputs,
+                                   const InferenceEngine::OutputsDataMap& networkOutputs,
                                    CompiledModel::WorkerInferRequest& workerRequest,
                                    int batch_id,
                                    int num_batch,
@@ -66,7 +65,7 @@ void SyncInferRequest::ShareBlobsWithBatchRequest(const std::set<std::string>& b
     // Allocate all input blobs
     for (const auto& it : _networkInputs) {
         auto blob = m_batched_request_wrapper._inferRequestBatched->GetBlob(it.first);
-        Blob::Ptr res;
+        InferenceEngine::Blob::Ptr res;
         switch (it.second->getTensorDesc().getPrecision()) {
         case InferenceEngine::Precision::FP32:
             res = create_shared_blob_on_top_of_batched_blob<InferenceEngine::Precision::FP32>(
@@ -180,7 +179,7 @@ void SyncInferRequest::ShareBlobsWithBatchRequest(const std::set<std::string>& b
     // Allocate all output blobs
     for (const auto& it : _networkOutputs) {
         auto blob = m_batched_request_wrapper._inferRequestBatched->GetBlob(it.first);
-        Blob::Ptr res;
+        InferenceEngine::Blob::Ptr res;
         switch (it.second->getTensorDesc().getPrecision()) {
         case InferenceEngine::Precision::FP32:
             res = create_shared_blob_on_top_of_batched_blob<InferenceEngine::Precision::FP32>(
@@ -292,7 +291,7 @@ void SyncInferRequest::ShareBlobsWithBatchRequest(const std::set<std::string>& b
         _outputs[it.first] = res;
     }
 }
-void SyncInferRequest::SetBlobsToAnotherRequest(SoIInferRequestInternal& req) {
+void SyncInferRequest::SetBlobsToAnotherRequest(InferenceEngine::SoIInferRequestInternal& req) {
     for (const auto& it : _networkInputs) {
         auto& name = it.first;
         // this request is already in BUSY state, so using the internal functions safely

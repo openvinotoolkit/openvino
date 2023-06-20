@@ -9,18 +9,16 @@
 namespace ov {
 namespace autobatch_plugin {
 
-using namespace InferenceEngine;
-
 AsyncInferRequest::AsyncInferRequest(const SyncInferRequest::Ptr& inferRequest,
                                      InferenceEngine::SoIInferRequestInternal& inferRequestWithoutBatch,
-                                     const ITaskExecutor::Ptr& callbackExecutor)
+                                     const InferenceEngine::ITaskExecutor::Ptr& callbackExecutor)
     : AsyncInferRequestThreadSafeDefault(inferRequest, nullptr, callbackExecutor),
       m_infer_request_without_batch(inferRequestWithoutBatch),
       m_sync_infer_request{inferRequest} {
     // this executor starts the inference while  the task (checking the result) is passed to the next stage
-    struct ThisRequestExecutor : public ITaskExecutor {
+    struct ThisRequestExecutor : public InferenceEngine::ITaskExecutor {
         explicit ThisRequestExecutor(AsyncInferRequest* _this_) : _this{_this_} {}
-        void run(Task task) override {
+        void run(InferenceEngine::Task task) override {
             auto& workerInferRequest = _this->m_sync_infer_request->m_batched_request_wrapper;
             std::pair<AsyncInferRequest*, InferenceEngine::Task> t;
             t.first = _this;

@@ -21,7 +21,6 @@
 
 namespace ov {
 namespace autobatch_plugin {
-using namespace InferenceEngine;
 
 std::vector<std::string> supported_configKeys = {CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG),
                                                  ov::device::priorities.name(),
@@ -89,7 +88,9 @@ InferenceEngine::RemoteContext::Ptr Plugin::CreateContext(const InferenceEngine:
     return core->CreateContext(metaDevice.device_name, cfg);
 }
 
-Parameter Plugin::GetConfig(const std::string& name, const std::map<std::string, Parameter>& user_options) const {
+InferenceEngine::Parameter Plugin::GetConfig(
+    const std::string& name,
+    const std::map<std::string, InferenceEngine::Parameter>& user_options) const {
     if (supported_configKeys.end() != std::find(supported_configKeys.begin(), supported_configKeys.end(), name)) {
         auto it = _config.find(name);
         if (it == _config.end()) {
@@ -156,8 +157,9 @@ InferenceEngine::Parameter Plugin::GetMetric(
     }
 }
 
-IExecutableNetworkInternal::Ptr Plugin::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork& network,
-                                                           const std::map<std::string, std::string>& user_config) {
+InferenceEngine::IExecutableNetworkInternal::Ptr Plugin::LoadExeNetworkImpl(
+    const InferenceEngine::CNNNetwork& network,
+    const std::map<std::string, std::string>& user_config) {
     return LoadNetworkImpl(network, nullptr, user_config);
 }
 
@@ -194,7 +196,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr Plugin::LoadNetworkImpl(
         const bool bTputInLoadCfg = (mode != deviceConfig.end() && mode->second == tput);
         // if the auto-batching is enabled implicitly, check the dims carefully, to avoid outstanding failures
         const bool check_dims = (bTputInPlg || bTputInLoadCfg);
-        CNNNetwork clonedNetwork(InferenceEngine::details::cloneNetwork(network));
+        InferenceEngine::CNNNetwork clonedNetwork(InferenceEngine::details::cloneNetwork(network));
         auto function = clonedNetwork.getFunction();
         // find the batch dim
         ov::pass::Manager m;
@@ -261,10 +263,11 @@ InferenceEngine::IExecutableNetworkInternal::Ptr Plugin::LoadNetworkImpl(
         options["MODEL_PTR"] = std::const_pointer_cast<ngraph::Function>(network.getFunction());
         auto optBatchSize = core->GetMetric(deviceName, METRIC_KEY(OPTIMAL_BATCH_SIZE), options).as<unsigned int>();
         auto res = core->GetConfig(deviceName, CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS)).as<std::string>();
-        requests = PerfHintsConfig::CheckPerformanceHintRequestValue(res);
+        requests = InferenceEngine::PerfHintsConfig::CheckPerformanceHintRequestValue(res);
         const auto& reqs = user_config.find(CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS));
         if (reqs != user_config.end())
-            requests = static_cast<unsigned int>(PerfHintsConfig::CheckPerformanceHintRequestValue(reqs->second));
+            requests = static_cast<unsigned int>(
+                InferenceEngine::PerfHintsConfig::CheckPerformanceHintRequestValue(reqs->second));
         if (requests)
             optBatchSize = std::max(1u, std::min(requests, optBatchSize));
         if (optBatchSize > 2)  // batching is usually in-efficient for batch<4 (as batch1 kernels are heavily optimized)
@@ -309,8 +312,8 @@ InferenceEngine::IExecutableNetworkInternal::Ptr Plugin::LoadNetworkImpl(
     InferenceEngine::SoExecutableNetworkInternal executableNetworkWithBatch;
     if (metaDevice.batch_for_device > 1 && batched_inputs.size()) {
         try {
-            CNNNetwork reshaped(InferenceEngine::details::cloneNetwork(network));
-            ICNNNetwork::InputShapes shapes = reshaped.getInputShapes();
+            InferenceEngine::CNNNetwork reshaped(InferenceEngine::details::cloneNetwork(network));
+            InferenceEngine::ICNNNetwork::InputShapes shapes = reshaped.getInputShapes();
             for (const auto& input : batched_inputs)
                 shapes[input][0] = metaDevice.batch_for_device;
             reshaped.reshape(shapes);
