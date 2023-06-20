@@ -348,13 +348,12 @@ def prepare_ir(argv: argparse.Namespace):
     if moc_front_end:
         fallback_reasons = check_fallback(argv)
         if len(fallback_reasons) == 0:
-            if not argv.use_legacy_frontend and is_tf:
-                if tf_frontend_with_python_bindings_installed and 'tf' in available_moc_front_ends and \
-                        type_supported_by_tf_fe(argv.input_model):
-                    argv.input_model = create_tf_graph_iterator(argv.input_model,
-                                                                argv.placeholder_shapes,
-                                                                argv.placeholder_data_types,
-                                                                getattr(argv, "example_input", None))
+            if is_tf and tf_frontend_with_python_bindings_installed and \
+                    type_supported_by_tf_fe(argv.input_model):
+                argv.input_model = create_tf_graph_iterator(argv.input_model,
+                                                            argv.placeholder_shapes,
+                                                            argv.placeholder_data_types,
+                                                            getattr(argv, "example_input", None))
             try:
                 t.send_event("mo", "conversion_method", moc_front_end.get_name() + "_frontend")
                 moc_front_end.add_extension(TelemetryExtension("mo", t.send_event, t.send_error, t.send_stack_trace))
@@ -460,7 +459,7 @@ def args_dict_to_list(cli_parser, **kwargs):
     # This method is needed to prepare args from convert_model() for args_parse().
     # The method will not be needed when cli_parser checks are moved from cli_parser to a separate pass.
     import inspect
-    from openvino.runtime import convert_model
+    from openvino.tools.ovc import convert_model
     signature = inspect.signature(convert_model)
     result = []
     for key, value in kwargs.items():
@@ -483,7 +482,7 @@ def args_dict_to_list(cli_parser, **kwargs):
 def get_non_default_params(argv, cli_parser):
     import numbers
     import inspect
-    from openvino.runtime import convert_model
+    from openvino.tools.ovc import convert_model
 
     signature = inspect.signature(convert_model)
     # make dictionary with parameters which have non-default values to be serialized in IR in rt_info
@@ -720,8 +719,6 @@ def _convert(cli_parser: argparse.ArgumentParser, args, python_api_used):
                         "'example_inputs' argument is not recognized, maybe you meant to provide 'example_input'?")
 
                 decoder = get_pytorch_decoder(args['input_model'], parse_input_shapes(args), example_inputs, args)
-                args['input_model'] = decoder
-                args['framework'] = model_framework
             if model_framework == "paddle":
                 example_inputs = None
                 if 'example_input' in args and args['example_input'] is not None:
@@ -779,13 +776,12 @@ def _convert(cli_parser: argparse.ArgumentParser, args, python_api_used):
                 paddle_runtime_converter.destroy()
 
         # add MO meta data to model
-        # ov_model.set_rt_info(VersionChecker().get_mo_version(), "MO_version")
         ov_model.set_rt_info(get_rt_version(), "Runtime_version")
         ov_model.set_rt_info(str(legacy_path), "legacy_frontend")
         for key, value in non_default_params.items():
             ov_model.set_rt_info(str(value), ["conversion_parameters", str(key)])
 
-        if silent_is_false(argv):
+        if silent_is_false(argv) or not python_api_used:
             if 'compress_to_fp16' in argv and argv.compress_to_fp16:
                 print(get_compression_message())
 
@@ -804,7 +800,7 @@ def _convert(cli_parser: argparse.ArgumentParser, args, python_api_used):
         return ov_model, argv
 
     except Exception as e:
-        if silent_is_false(argv):
+        if silent_is_false(argv) or not python_api_used:
             if isinstance(e, (FileNotFoundError, NotADirectoryError)):
                 log.error('File {} was not found'.format(str(e).split('No such file or directory:')[1]))
                 log.debug(traceback.format_exc())
