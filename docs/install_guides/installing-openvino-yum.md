@@ -197,7 +197,7 @@ To uninstall OpenVINO Runtime via YUM, run the following command based on your n
          sudo yum autoremove openvino
    
    
-   .. tab-item::  A Specific Version
+   .. tab-item:: A Specific Version
       :sync: specific-version
    
       .. code-block:: sh
