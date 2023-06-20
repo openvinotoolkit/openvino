@@ -13,15 +13,15 @@
 #include "plugin.hpp"
 #include "sync_infer_request.hpp"
 
-namespace MockAutoBatchDevice {
+using namespace ov::mock_autobatch_plugin;
 
-class MockAutoBatchInferencePlugin : public ov::autobatch_plugin::Plugin {
+class MockAutoBatchInferencePlugin : public Plugin {
 public:
-    MOCK_METHOD((ov::autobatch_plugin::DeviceInformation),
+    MOCK_METHOD((DeviceInformation),
                 ParseMetaDevices,
                 (const std::string&, (const std::map<std::string, std::string>&)),
                 (const));
-    MOCK_METHOD((ov::autobatch_plugin::DeviceInformation), ParseBatchDevice, (const std::string&), ());
+    MOCK_METHOD((DeviceInformation), ParseBatchDevice, (const std::string&), ());
 
     MOCK_METHOD((InferenceEngine::Parameter),
                 GetMetric,
@@ -29,10 +29,8 @@ public:
                 (const, override));
 };
 
-class MockAutoBatchExecutableNetwork : public ov::autobatch_plugin::CompiledModel {
+class MockAutoBatchExecutableNetwork : public CompiledModel {
 public:
     MOCK_METHOD((InferenceEngine::Parameter), GetConfig, (const std::string&), (const, override));
     MOCK_METHOD((InferenceEngine::Parameter), GetMetric, (const std::string&), (const, override));
 };
-
-}  // namespace MockAutoBatchDevice

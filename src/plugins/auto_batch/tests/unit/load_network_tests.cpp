@@ -28,7 +28,7 @@ using ::testing::ReturnRef;
 using ::testing::StrEq;
 using ::testing::StrNe;
 using ::testing::Throw;
-using namespace MockAutoBatchDevice;
+using namespace ov::mock_autobatch_plugin;
 using namespace InferenceEngine;
 
 using PluginLoadNetworkParams = std::tuple<std::map<std::string, std::string>,  // Paramters

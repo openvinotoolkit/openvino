@@ -10,6 +10,10 @@
 #include "cpp_interfaces/impl/ie_executable_network_thread_safe_default.hpp"
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 
+#ifdef AUTOBATCH_UNITTEST
+#    define autobatch_plugin mock_autobatch_plugin
+#endif
+
 namespace ov {
 namespace autobatch_plugin {
 

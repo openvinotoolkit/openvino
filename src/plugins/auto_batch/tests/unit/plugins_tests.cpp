@@ -20,20 +20,20 @@ using ::testing::ReturnRef;
 using ::testing::StrEq;
 using ::testing::StrNe;
 using ::testing::Throw;
-using namespace MockAutoBatchDevice;
+using namespace ov::mock_autobatch_plugin;
 using BatchDeviceConfigParams = std::tuple<std::string,  // Batch devices
                                            std::string,  // Expected device name
                                            int,          // Expected batch size
                                            bool          // Throw exception
                                            >;
 using MetricConfigParams = std::tuple<std::string, std::string, bool>;
-using MetaDeviceParams = std::tuple<std::string,                              // Device batch cfg
-                                    std::map<std::string, std::string>,       // Config
-                                    ov::autobatch_plugin::DeviceInformation,  // Expected result
-                                    bool>;                                    // Throw exception
-using SetGetConfigParams = std::tuple<std::map<std::string, std::string>,     // Set Config
-                                      std::string,                            // Get Config
-                                      bool>;                                  // Throw exception
+using MetaDeviceParams = std::tuple<std::string,                           // Device batch cfg
+                                    std::map<std::string, std::string>,    // Config
+                                    DeviceInformation,                     // Expected result
+                                    bool>;                                 // Throw exception
+using SetGetConfigParams = std::tuple<std::map<std::string, std::string>,  // Set Config
+                                      std::string,                         // Get Config
+                                      bool>;                               // Throw exception
 
 const std::vector<std::string> cpu_supported_properties = {
     "CACHE_DIR",
@@ -148,7 +148,7 @@ public:
     static std::string getTestCaseName(testing::TestParamInfo<MetaDeviceParams> obj) {
         std::string batch_cfg;
         std::map<std::string, std::string> config;
-        ov::autobatch_plugin::DeviceInformation info;
+        DeviceInformation info;
         bool throw_exception;
 
         std::tie(batch_cfg, config, info, throw_exception) = obj.param;
@@ -213,7 +213,7 @@ public:
 TEST_P(ParseMetaDeviceTest, ParseMetaDeviceTestCase) {
     std::string batch_cfg;
     std::map<std::string, std::string> config;
-    ov::autobatch_plugin::DeviceInformation expected;
+    DeviceInformation expected;
     bool throw_exception;
 
     std::tie(batch_cfg, config, expected, throw_exception) = this->GetParam();
@@ -340,28 +340,18 @@ const std::vector<MetricConfigParams> metricTestConfigs = {
 };
 
 const std::vector<MetaDeviceParams> testMetaDeviceConfigs = {
-    MetaDeviceParams{"CPU(4)", {}, ov::autobatch_plugin::DeviceInformation{"CPU", {}, 4}, false},
-    MetaDeviceParams{"CPU(4)", {{}}, ov::autobatch_plugin::DeviceInformation{"CPU", {{}}, 4}, true},
-    MetaDeviceParams{"CPU(4)",
-                     {{"CACHE_DIR", "./"}},
-                     ov::autobatch_plugin::DeviceInformation{"CPU", {{"CACHE_DIR", "./"}}, 4},
+    MetaDeviceParams{"CPU(4)", {}, DeviceInformation{"CPU", {}, 4}, false},
+    MetaDeviceParams{"CPU(4)", {{}}, DeviceInformation{"CPU", {{}}, 4}, true},
+    MetaDeviceParams{"CPU(4)", {{"CACHE_DIR", "./"}}, DeviceInformation{"CPU", {{"CACHE_DIR", "./"}}, 4}, false},
+    MetaDeviceParams{"GPU(4)", {{"CACHE_DIR", "./"}}, DeviceInformation{"GPU", {{"CACHE_DIR", "./"}}, 4}, false},
+    MetaDeviceParams{"GPU(8)",
+                     {{"CACHE_DIR", "./"}, {"OPTIMAL_BATCH_SIZE", "16"}},
+                     DeviceInformation{"GPU", {{"CACHE_DIR", "./"}, {"OPTIMAL_BATCH_SIZE", "16"}}, 8},
                      false},
-    MetaDeviceParams{"GPU(4)",
-                     {{"CACHE_DIR", "./"}},
-                     ov::autobatch_plugin::DeviceInformation{"GPU", {{"CACHE_DIR", "./"}}, 4},
-                     false},
-    MetaDeviceParams{
-        "GPU(8)",
-        {{"CACHE_DIR", "./"}, {"OPTIMAL_BATCH_SIZE", "16"}},
-        ov::autobatch_plugin::DeviceInformation{"GPU", {{"CACHE_DIR", "./"}, {"OPTIMAL_BATCH_SIZE", "16"}}, 8},
-        false},
-    MetaDeviceParams{"CPU(4)",
-                     {{"OPTIMAL_BATCH_SIZE", "16"}},
-                     ov::autobatch_plugin::DeviceInformation{"CPU", {{}}, 4},
-                     true},
+    MetaDeviceParams{"CPU(4)", {{"OPTIMAL_BATCH_SIZE", "16"}}, DeviceInformation{"CPU", {{}}, 4}, true},
     MetaDeviceParams{"CPU(4)",
                      {{"CACHE_DIR", "./"}, {"OPTIMAL_BATCH_SIZE", "16"}},
-                     ov::autobatch_plugin::DeviceInformation{"CPU", {{"CACHE_DIR", "./"}}, 4},
+                     DeviceInformation{"CPU", {{"CACHE_DIR", "./"}}, 4},
                      true},
 };
 

@@ -26,7 +26,7 @@ using ::testing::ReturnRef;
 using ::testing::StrEq;
 using ::testing::StrNe;
 using ::testing::Throw;
-using namespace MockAutoBatchDevice;
+using namespace ov::mock_autobatch_plugin;
 using namespace InferenceEngine;
 
 using ExecNetworkParams = std::tuple<std::string,  // Key name
