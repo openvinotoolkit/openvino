@@ -3,8 +3,8 @@
 //
 
 /**
- * @brief A header file that provides a set minimal required Streams Executor API.
- * @file streams_executor.hpp
+ * @brief A header file that provides a set of CPU map and parser functions.
+ * @file cpu_map_info.hpp
  */
 #pragma once
 
@@ -22,6 +22,7 @@ public:
     ~CPU(){};
     int _processors = 0;
     int _numa_nodes = 0;
+    int _sockets = 0;
     int _cores = 0;
     std::vector<std::vector<int>> _proc_type_table;
     std::vector<std::vector<int>> _cpu_mapping_table;
@@ -35,17 +36,36 @@ CPU& cpu_info();
 
 #ifdef __linux__
 /**
+ * @brief      Parse nodes information to update _sockets, proc_type_table and cpu_mapping_table on Linux
+ * @param[in]  node_info_table nodes information for this platform.
+ * @param[in]  _numa_nodes total number for nodes in system
+ * @param[out] _sockets total number for sockets in system
+ * @param[out] _proc_type_table summary table of number of processors per type
+ * @param[out] _cpu_mapping_table CPU mapping table for each processor
+ * @return
+ */
+void parse_node_info_linux(const std::vector<std::string> node_info_table,
+                           const int& _numa_nodes,
+                           int& _sockets,
+                           std::vector<std::vector<int>>& _proc_type_table,
+                           std::vector<std::vector<int>>& _cpu_mapping_table);
+
+/**
  * @brief      Parse CPU cache infomation on Linux
- * @param[in]  _system_info_table system information for this platform.
+ * @param[in]  system_info_table cpus information for this platform.
+ * @param[in]  node_info_table nodes information for this platform.
  * @param[out] _processors total number for processors in system.
+ * @param[out] _numa_nodes total number for nodes in system
  * @param[out] _sockets total number for sockets in system
  * @param[out] _cores total number for physical CPU cores in system
  * @param[out] _proc_type_table summary table of number of processors per type
  * @param[out] _cpu_mapping_table CPU mapping table for each processor
  * @return
  */
-void parse_cache_info_linux(const std::vector<std::vector<std::string>> _system_info_table,
+void parse_cache_info_linux(const std::vector<std::vector<std::string>> system_info_table,
+                            const std::vector<std::string> node_info_table,
                             int& _processors,
+                            int& _numa_nodes,
                             int& _sockets,
                             int& _cores,
                             std::vector<std::vector<int>>& _proc_type_table,
@@ -53,16 +73,20 @@ void parse_cache_info_linux(const std::vector<std::vector<std::string>> _system_
 
 /**
  * @brief      Parse CPU frequency infomation on Linux
- * @param[in]  _system_info_table system information for this platform.
+ * @param[in]  system_info_table cpus information for this platform.
+ * @param[in]  node_info_table nodes information for this platform.
  * @param[out] _processors total number for processors in system.
+ * @param[out] _numa_nodes total number for nodes in system
  * @param[out] _sockets total number for sockets in system
  * @param[out] _cores total number for physical CPU cores in system
  * @param[out] _proc_type_table summary table of number of processors per type
  * @param[out] _cpu_mapping_table CPU mapping table for each processor
  * @return
  */
-void parse_freq_info_linux(const std::vector<std::vector<std::string>> _system_info_table,
+void parse_freq_info_linux(const std::vector<std::vector<std::string>> system_info_table,
+                           const std::vector<std::string> node_info_table,
                            int& _processors,
+                           int& _numa_nodes,
                            int& _sockets,
                            int& _cores,
                            std::vector<std::vector<int>>& _proc_type_table,
@@ -106,6 +130,7 @@ void get_cpu_mapping_from_cores(const int _processors,
  * @param[in]  base_ptr buffer object pointer of Windows system infomation
  * @param[in]  len buffer object length of Windows system infomation
  * @param[out] _processors total number for processors in system.
+ * @param[out] _numa_nodes total number for nodes in system
  * @param[out] _sockets total number for sockets in system
  * @param[out] _cores total number for physical CPU cores in system
  * @param[out] _proc_type_table summary table of number of processors per type
@@ -115,6 +140,7 @@ void get_cpu_mapping_from_cores(const int _processors,
 void parse_processor_info_win(const char* base_ptr,
                               const unsigned long len,
                               int& _processors,
+                              int& _numa_nodes,
                               int& _sockets,
                               int& _cores,
                               std::vector<std::vector<int>>& _proc_type_table,
