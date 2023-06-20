@@ -62,11 +62,11 @@ public:
         const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
         const VectorDims& shapeIn = input_shapes[0].get();
         if (m_needReverse) {
-            for (auto i = 0; i < m_out_rank; ++i) {
+            for (size_t i = 0; i < m_out_rank; ++i) {
                 m_outputShape[i] = shapeIn[m_out_rank - 1 - i];
             }
         } else {
-            for (auto i = 0; i < m_out_rank; ++i) {
+            for (size_t i = 0; i < m_out_rank; ++i) {
                 m_outputShape[i] = shapeIn[m_axes_vec[i]];
             }
         }
@@ -146,11 +146,11 @@ void Transpose::initSupportedPrimitiveDescriptors() {
 
     auto supportedPrimitiveDescriptorsBuilder = [this](NodeConfig config, TransposeParams transposeParams) {
         std::vector<MemoryDescPtr> srcMemoryDescs;
-        for (int i = 0; i < config.inConfs.size(); i++) {
+        for (size_t i = 0; i < config.inConfs.size(); i++) {
             srcMemoryDescs.push_back(config.inConfs[i].getMemDesc());
         }
         std::vector<MemoryDescPtr> dstMemoryDescs;
-        for (int i = 0; i < config.outConfs.size(); i++) {
+        for (size_t i = 0; i < config.outConfs.size(); i++) {
             dstMemoryDescs.push_back(config.outConfs[i].getMemDesc());
         }
         auto factory = std::make_shared<TransposeExecutorFactory>(transposeParams, srcMemoryDescs, dstMemoryDescs, transpose_context);
