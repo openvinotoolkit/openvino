@@ -144,15 +144,15 @@ Step 1: Download and Install the OpenVINO Core Components
                   tar -xf openvino_2023.0.0.tgz
                   sudo mv l_openvino_toolkit_rhel8_2023.0.0.10926.b4452d56304_x86_64 /opt/intel/openvino_2023.0.0
          
-         .. tab-item:: CentOS 7
-            :sync: centos7
-      
-            .. code-block:: sh
+            .. tab-item:: CentOS 7
+               :sync: centos7
          
-               curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.0/linux/l_openvino_toolkit_centos7_2023.0.0.10926.b4452d56304_x86_64.tgz --output openvino_2023.0.0.tgz
-               tar -xf openvino_2023.0.0.tgz
-               sudo mv l_openvino_toolkit_centos7_2023.0.0.10926.b4452d56304_x86_64 /opt/intel/openvino_2023.0.0
-      
+               .. code-block:: sh
+            
+                  curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.0/linux/l_openvino_toolkit_centos7_2023.0.0.10926.b4452d56304_x86_64.tgz --output openvino_2023.0.0.tgz
+                  tar -xf openvino_2023.0.0.tgz
+                  sudo mv l_openvino_toolkit_centos7_2023.0.0.10926.b4452d56304_x86_64 /opt/intel/openvino_2023.0.0
+       
       .. tab-item:: ARM 64-bit
          :sync: arm_64
       
