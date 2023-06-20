@@ -5,8 +5,9 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include "log.hpp"
-
-namespace MultiDevicePlugin {
-uint32_t Log::defaultLogLevel = static_cast<uint32_t>(LogLevel::LOG_NONE);
-std::vector<std::string> Log::validFormat = {"u", "d", "s", "ld", "lu", "lf"};
-} // namespace MultiDevicePlugin
+namespace ov {
+namespace auto_plugin {
+ov::log::Level Log::default_log_level = ov::log::Level::NO;
+std::vector<std::string> Log::valid_format = {"u", "d", "s", "ld", "lu", "lf"};
+} // namespace auto_plugin
+} // namespace ov
