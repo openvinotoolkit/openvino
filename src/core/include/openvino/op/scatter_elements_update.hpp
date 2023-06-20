@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "openvino/op/op.hpp"
+#include "openvino/op/util/scatter_elements_update_base.hpp"
 
 namespace ov {
 namespace op {
@@ -12,9 +12,9 @@ namespace v3 {
 /// \brief ScatterElementsUpdate operation.
 ///
 /// \ingroup ov_ops_cpp_api
-class OPENVINO_API ScatterElementsUpdate : public Op {
+class OPENVINO_API ScatterElementsUpdate : public util::ScatterElementsUpdateBase {
 public:
-    OPENVINO_OP("ScatterElementsUpdate", "opset3", op::Op);
+    OPENVINO_OP("ScatterElementsUpdate", "opset3", util::ScatterElementsUpdateBase);
 
     ScatterElementsUpdate() = default;
     /// \brief Constructs a ScatterElementsUpdate node
@@ -28,7 +28,6 @@ public:
                           const Output<Node>& updates,
                           const Output<Node>& axis);
 
-    void validate_and_infer_types() override;
     bool visit_attributes(AttributeVisitor& visitor) override;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override;
@@ -45,10 +44,12 @@ private:
 };
 }  // namespace v3
 namespace v12 {
-class OPENVINO_API ScatterElementsUpdate : public Op {
+class OPENVINO_API ScatterElementsUpdate : public op::util::ScatterElementsUpdateBase {
 public:
-    OPENVINO_OP("ScatterElementsUpdate", "opset12", op::Op);
+    OPENVINO_OP("ScatterElementsUpdate", "opset12", op::util::ScatterElementsUpdateBase);
 
+    /// \brief Lists the supported reduction types for this version of the operator. 
+    ///        See the specification for the description of how reduction works with ScatterElementsUpdate.
     enum class Reduction { NONE, SUM, PROD, MIN, MAX, MEAN };
 
     ScatterElementsUpdate() = default;
@@ -64,8 +65,6 @@ public:
                           const Output<Node>& axis,
                           const Reduction reduction = Reduction::NONE,
                           const bool use_init_val = true);
-
-    void validate_and_infer_types() override;
 
     bool visit_attributes(AttributeVisitor& visitor) override;
 

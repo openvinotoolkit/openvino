@@ -2,69 +2,29 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/scatter_elements_update.hpp"
+#include "openvino/op/scatter_elements_update.hpp"
 
 #include <scatter_elements_update_shape_inference.hpp>
 
 #include "bound_evaluate.hpp"
 #include "itt.hpp"
-#include "ngraph/op/constant.hpp"
-#include "ngraph/op/util/op_types.hpp"
 #include "ngraph/runtime/reference/scatter_elements_update.hpp"
-#include "ngraph/validation_util.hpp"
+#include "openvino/core/validation_util.hpp"
 
-using namespace ngraph;
+using namespace ov;
 using namespace std;
-
-namespace {
-void validate_scatter_element_types(const ov::Node* op) {
-    const element::Type& data_et = op->get_input_element_type(0);
-    const element::Type& indices_et = op->get_input_element_type(1);
-    const element::Type& updates_et = op->get_input_element_type(2);
-    const element::Type& axis_et = op->get_input_element_type(3);
-
-    NODE_VALIDATION_CHECK(op,
-                          indices_et.is_integral(),
-                          "Indices element type must be integral_number, but is: ",
-                          indices_et);
-
-    NODE_VALIDATION_CHECK(op, axis_et.is_integral(), "Axis element type must be integral_number, but is: ", axis_et);
-
-    element::Type merged_type;
-    NODE_VALIDATION_CHECK(op,
-                          element::Type::merge(merged_type, data_et, updates_et),
-                          "Data type and updates type are required to be the same. ",
-                          "Got: ",
-                          data_et,
-                          " and: ",
-                          updates_et);
-}
-}  // namespace
 
 op::v3::ScatterElementsUpdate::ScatterElementsUpdate(const Output<Node>& data,
                                                      const Output<Node>& indices,
                                                      const Output<Node>& updates,
                                                      const Output<Node>& axis)
-    : Op({data, indices, updates, axis}) {
+    : ov::op::util::ScatterElementsUpdateBase(data, indices, updates, axis) {
     constructor_validate_and_infer_types();
 }
 
 bool op::v3::ScatterElementsUpdate::visit_attributes(AttributeVisitor& visitor) {
     OV_OP_SCOPE(v3_ScatterElementsUpdate_visit_attributes);
     return true;
-}
-
-void op::v3::ScatterElementsUpdate::validate_and_infer_types() {
-    OV_OP_SCOPE(v3_ScatterElementsUpdate_validate_and_infer_types);
-    validate_scatter_element_types(this);
-
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto output_shape = shape_infer(this, get_node_input_partial_shapes(*this)).front();
-    OPENVINO_SUPPRESS_DEPRECATED_END
-    set_output_type(0, get_input_element_type(0), output_shape);
-    if (output_shape.is_dynamic()) {
-        set_input_is_relevant_to_shape(0);
-    }
 }
 
 shared_ptr<Node> op::v3::ScatterElementsUpdate::clone_with_new_inputs(const OutputVector& inputs) const {
@@ -93,13 +53,13 @@ bool evaluate(const HostTensorPtr& data,
 
     out->set_shape(data->get_shape());
 
-    runtime::reference::scatter_elem_update<DataType, IndicesType>(data->get_data_ptr<DT>(),
-                                                                   indices->get_data_ptr<IT>(),
-                                                                   updates->get_data_ptr<DT>(),
-                                                                   normalized_axis,
-                                                                   out->get_data_ptr<DT>(),
-                                                                   data->get_shape(),
-                                                                   indices->get_shape());
+    ngraph::runtime::reference::scatter_elem_update<DataType, IndicesType>(data->get_data_ptr<DT>(),
+                                                                           indices->get_data_ptr<IT>(),
+                                                                           updates->get_data_ptr<DT>(),
+                                                                           normalized_axis,
+                                                                           out->get_data_ptr<DT>(),
+                                                                           data->get_shape(),
+                                                                           indices->get_shape());
 
     return true;
 }
@@ -288,7 +248,7 @@ op::v12::ScatterElementsUpdate::ScatterElementsUpdate(const Output<Node>& data,
                                                       const Output<Node>& axis,
                                                       const Reduction reduction,
                                                       const bool use_init_val)
-    : Op({data, indices, updates, axis}),
+    : op::util::ScatterElementsUpdateBase(data, indices, updates, axis),
       m_reduction{reduction},
       m_use_init_val{use_init_val} {
     constructor_validate_and_infer_types();
@@ -299,19 +259,6 @@ bool op::v12::ScatterElementsUpdate::visit_attributes(AttributeVisitor& visitor)
     visitor.on_attribute("reduction", m_reduction);
     visitor.on_attribute("use_init_val", m_use_init_val);
     return true;
-}
-
-void op::v12::ScatterElementsUpdate::validate_and_infer_types() {
-    OV_OP_SCOPE(v12_ScatterElementsUpdate_validate_and_infer_types);
-    validate_scatter_element_types(this);
-
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto output_shape = shape_infer(this, get_node_input_partial_shapes(*this)).front();
-    OPENVINO_SUPPRESS_DEPRECATED_END
-    set_output_type(0, get_input_element_type(0), output_shape);
-    if (output_shape.is_dynamic()) {
-        set_input_is_relevant_to_shape(0);
-    }
 }
 
 shared_ptr<Node> op::v12::ScatterElementsUpdate::clone_with_new_inputs(const OutputVector& inputs) const {

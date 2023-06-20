@@ -27,7 +27,7 @@ TYPED_TEST_P(ScatterElementsUpdateTest, scatter_elements_update_output_shape) {
     auto updates = make_shared<op::v0::Parameter>(element::f32, updates_shape);
     auto axis = make_shared<op::v0::Parameter>(element::i16, axis_shape);
 
-    auto scatter = make_shared<op::v3::ScatterElementsUpdate>(data, indices, updates, axis);
+    auto scatter = make_shared<TypeParam>(data, indices, updates, axis);
 
     EXPECT_EQ(scatter->get_output_shape(0), expected_output_shape);
 }
@@ -44,7 +44,7 @@ TYPED_TEST_P(ScatterElementsUpdateTest, scatter_elements_update_output_partial_d
     auto updates = make_shared<op::v0::Parameter>(element::f64, updates_shape);
     auto axis = make_shared<op::v0::Parameter>(element::i16, axis_shape);
 
-    auto scatter = make_shared<op::v3::ScatterElementsUpdate>(data, indices, updates, axis);
+    auto scatter = make_shared<TypeParam>(data, indices, updates, axis);
 
     EXPECT_EQ(scatter->get_output_element_type(0), element::f64);
     EXPECT_EQ(scatter->get_output_partial_shape(0), data_shape);
@@ -60,7 +60,7 @@ TYPED_TEST_P(ScatterElementsUpdateTest, scatter_elements_update_data_has_interva
     const auto updates = make_shared<op::v0::Parameter>(element::i64, PartialShape{{0, 2}, -1, 2, -1});
     const auto axis = make_shared<op::v0::Parameter>(element::i16, PartialShape::dynamic());
 
-    const auto scatter = make_shared<op::v3::ScatterElementsUpdate>(data, indices, updates, axis);
+    const auto scatter = make_shared<TypeParam>(data, indices, updates, axis);
 
     EXPECT_EQ(scatter->get_output_element_type(0), element::i64);
     EXPECT_EQ(scatter->get_output_partial_shape(0), data_shape);
@@ -78,7 +78,7 @@ TYPED_TEST_P(ScatterElementsUpdateTest, scatter_elements_update_output_full_dyn_
     auto updates = make_shared<op::v0::Parameter>(element::f32, updates_shape);
     auto axis = make_shared<op::v0::Parameter>(element::i16, axis_shape);
 
-    auto scatter = make_shared<op::v3::ScatterElementsUpdate>(data, indices, updates, axis);
+    auto scatter = make_shared<TypeParam>(data, indices, updates, axis);
 
     EXPECT_EQ(scatter->get_output_element_type(0), element::f32);
     EXPECT_EQ(scatter->get_output_partial_shape(0), data_shape);
@@ -90,7 +90,7 @@ TYPED_TEST_P(ScatterElementsUpdateTest, scatter_elements_update_default_ctor) {
     const auto updates = make_shared<op::v0::Parameter>(element::f32, PartialShape{1, 2, 1, 3});
     const auto axis = make_shared<op::v0::Constant>(element::i16, Shape{}, -4);
 
-    const auto scatter = make_shared<op::v3::ScatterElementsUpdate>(data, indices, updates, axis);
+    const auto scatter = make_shared<TypeParam>(data, indices, updates, axis);
     scatter->set_arguments(OutputVector{data, indices, updates, axis});
     scatter->validate_and_infer_types();
 
@@ -111,7 +111,7 @@ TYPED_TEST_P(ScatterElementsUpdateTest,
 
     const auto shape_of_u =
         std::make_shared<op::v0::ShapeOf>(std::make_shared<op::v0::Parameter>(element::i64, updates_shape));
-    const auto scatter = make_shared<op::v3::ScatterElementsUpdate>(data, indices, shape_of_u, axis);
+    const auto scatter = make_shared<TypeParam>(data, indices, shape_of_u, axis);
 
     auto param = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1});
     auto bc = std::make_shared<op::v3::Broadcast>(param, scatter, op::BroadcastType::BIDIRECTIONAL);
@@ -131,7 +131,7 @@ TYPED_TEST_P(ScatterElementsUpdateTest, scatter_elements_update_axis_validation)
     auto updates = make_shared<op::v0::Parameter>(element::f32, updates_shape);
     auto axis = make_shared<op::v0::Constant>(element::i16, axis_shape, std::vector<int>{8});
 
-    OV_EXPECT_THROW(auto scatter = make_shared<op::v3::ScatterElementsUpdate>(data, indices, updates, axis),
+    OV_EXPECT_THROW(auto scatter = make_shared<TypeParam>(data, indices, updates, axis),
                     ov::AssertFailure,
                     HasSubstr("Parameter axis 8 out of the tensor rank range [-4, 3]"));
 }
@@ -147,7 +147,7 @@ TYPED_TEST_P(ScatterElementsUpdateTest, scatter_elements_updates_indices_shape) 
     auto updates = make_shared<op::v0::Parameter>(element::f32, updates_shape);
     auto axis = make_shared<op::v0::Constant>(element::i16, axis_shape, std::vector<int>{1});
 
-    OV_EXPECT_THROW(auto scatter = make_shared<op::v3::ScatterElementsUpdate>(data, indices, updates, axis),
+    OV_EXPECT_THROW(auto scatter = make_shared<TypeParam>(data, indices, updates, axis),
                     NodeValidationFailure,
                     HasSubstr("Indices and updates input shapes are required to be equal"));
 }
@@ -163,7 +163,7 @@ TYPED_TEST_P(ScatterElementsUpdateTest, scatter_elements_updates_indices_rank) {
     auto updates = make_shared<op::v0::Parameter>(element::f32, updates_shape);
     auto axis = make_shared<op::v0::Constant>(element::i16, axis_shape, std::vector<int>{1});
 
-    OV_EXPECT_THROW(auto scatter = make_shared<op::v3::ScatterElementsUpdate>(data, indices, updates, axis),
+    OV_EXPECT_THROW(auto scatter = make_shared<TypeParam>(data, indices, updates, axis),
                     NodeValidationFailure,
                     HasSubstr("Indices and updates input shapes are required to be equal"));
 }
@@ -179,7 +179,7 @@ TYPED_TEST_P(ScatterElementsUpdateTest, scatter_elements_data_indices_rank) {
     auto updates = make_shared<op::v0::Parameter>(element::f32, updates_shape);
     auto axis = make_shared<op::v0::Constant>(element::i16, axis_shape, std::vector<int>{1});
 
-    OV_EXPECT_THROW(auto scatter = make_shared<op::v3::ScatterElementsUpdate>(data, indices, updates, axis),
+    OV_EXPECT_THROW(auto scatter = make_shared<TypeParam>(data, indices, updates, axis),
                     NodeValidationFailure,
                     HasSubstr("Indices rank and data rank are required to be equal"));
 }

@@ -13,9 +13,9 @@ namespace ov {
 namespace op {
 namespace {
 template <class TShape>
-std::vector<TShape> shape_infer_impl(const Node* op,
-                                     const std::vector<TShape>& input_shapes,
-                                     const std::map<size_t, HostTensorPtr>& constant_data = {}) {
+std::vector<TShape> shape_infer(const util::ScatterElementsUpdateBase* op,
+                                const std::vector<TShape>& input_shapes,
+                                const std::map<size_t, HostTensorPtr>& constant_data = {}) {
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 4);
 
     const auto& data_shape = input_shapes[0];
@@ -62,34 +62,20 @@ std::vector<TShape> shape_infer_impl(const Node* op,
 }  // namespace
 namespace v3 {
 template <class TShape>
-std::vector<TShape> shape_infer(const ScatterElementsUpdate* op,
-                                const std::vector<TShape>& input_shapes,
-                                const std::map<size_t, HostTensorPtr>& constant_data = {}) {
-    return shape_infer_impl(op, input_shapes, constant_data);
-}
-
-template <class TShape>
 void shape_infer(const ScatterElementsUpdate* op,
                  const std::vector<TShape>& input_shapes,
                  std::vector<TShape>& output_shapes,
                  const std::map<size_t, HostTensorPtr>& constant_data = {}) {
-    output_shapes = shape_infer(op, input_shapes, constant_data);
+    output_shapes = ov::op::shape_infer(op, input_shapes, constant_data);
 }
 }  // namespace v3
 namespace v12 {
 template <class TShape>
-std::vector<TShape> shape_infer(const ScatterElementsUpdate* op,
-                                const std::vector<TShape>& input_shapes,
-                                const std::map<size_t, HostTensorPtr>& constant_data = {}) {
-    return shape_infer_impl(op, input_shapes, constant_data);
-}
-
-template <class TShape>
 void shape_infer(const ScatterElementsUpdate* op,
                  const std::vector<TShape>& input_shapes,
                  std::vector<TShape>& output_shapes,
                  const std::map<size_t, HostTensorPtr>& constant_data = {}) {
-    output_shapes = shape_infer(op, input_shapes, constant_data);
+    output_shapes = ov::op::shape_infer(op, input_shapes, constant_data);
 }
 }  // namespace v12
 }  // namespace op
