@@ -14,9 +14,19 @@ using namespace ov::test;
 namespace CPULayerTestsDefinitions {
 namespace Conversion {
 
+static std::string expectedPrimitiveType() {
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+    return "unknown";
+#endif
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+    return "acl";
+#endif
+    return {};
+}
+
 std::vector<CPUSpecificParams> memForm4D_dynamic = {
-    CPUSpecificParams({nchw}, {nchw}, {}, "acl"),
-    CPUSpecificParams({nhwc}, {nhwc}, {}, "acl"),
+    CPUSpecificParams({nchw}, {nchw}, {}, expectedPrimitiveType()),
+    CPUSpecificParams({nhwc}, {nhwc}, {}, expectedPrimitiveType()),
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_ConvertCPULayerTest_Dynamic, ConvertCPULayerTest,
