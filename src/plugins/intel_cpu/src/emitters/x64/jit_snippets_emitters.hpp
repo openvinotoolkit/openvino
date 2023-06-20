@@ -417,9 +417,9 @@ private:
     size_t m_comp_offset = 0lu;
 };
 
-class HorizonMaxEmitter : public jit_emitter {
+class HorizonEmitter : public jit_emitter {
 public:
-    HorizonMaxEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n);
+    HorizonEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n);
 
     size_t get_inputs_num() const override {return 1;}
     static std::set<std::vector<element::Type>> get_supported_precisions(const std::shared_ptr<ngraph::Node>& node = nullptr) {
@@ -427,7 +427,6 @@ public:
     }
 
 protected:
-    size_t aux_gprs_count() const override {return 1;}
     size_t aux_vecs_count() const override {return 1;}
 
 private:
@@ -436,27 +435,12 @@ private:
 
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
     void emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const;
-};
 
-class HorizonSumEmitter : public jit_emitter {
-public:
-    HorizonSumEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n);
+    template<typename Vmm>
+    void perform_op(const Vmm &vmm1, const Vmm &vmm2, const Vmm &vmm3) const;
 
-    size_t get_inputs_num() const override {return 1;}
-    static std::set<std::vector<element::Type>> get_supported_precisions(const std::shared_ptr<ngraph::Node>& node = nullptr) {
-        return {{element::f32}};
-    }
-
-protected:
-    size_t aux_gprs_count() const override {return 1;}
-    size_t aux_vecs_count() const override {return 1;}
-
-private:
-    void emit_impl(const std::vector<size_t>& in,
-                   const std::vector<size_t>& out) const override;
-
-    template <dnnl::impl::cpu::x64::cpu_isa_t isa>
-    void emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const;
+    enum class OpType { max, sum };
+    OpType m_op_type = OpType::max;
 };
 
 class VectorBufferEmitter : public jit_emitter {
