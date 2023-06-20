@@ -28,13 +28,15 @@ from openvino.tools.mo.middle.passes.convert_data_type import destination_type_t
 from openvino.tools.mo.pipeline.common import prepare_emit_ir
 from openvino.tools.mo.pipeline.unified import unified_pipeline
 from openvino.tools.mo.utils import import_extensions
+
+# pylint: disable=no-name-in-module,import-error
 from openvino.tools.ovc.cli_parser import check_available_transforms, \
     get_advanced_cli_options, get_available_front_ends, get_caffe_cli_options, \
     get_common_cli_options, get_freeze_placeholder_values, get_kaldi_cli_options, get_layout_values, \
     get_mean_scale_dictionary, get_mxnet_cli_options, get_onnx_cli_options, \
     get_placeholder_shapes, get_tf_cli_options, parse_transform, parse_tuple_pairs, \
     get_model_name_from_args, depersonalize, get_mo_convert_params, input_to_input_cut_info, \
-    input_shape_to_input_cut_info, freeze_placeholder_to_input_cut_info  # pylint: disable=no-name-in-module,import-error
+    input_shape_to_input_cut_info, freeze_placeholder_to_input_cut_info
 
 from openvino.tools.mo.utils.error import Error, FrameworkError
 from openvino.tools.ovc.get_ov_update_message import get_ov_update_message, get_ov_api20_message, \
