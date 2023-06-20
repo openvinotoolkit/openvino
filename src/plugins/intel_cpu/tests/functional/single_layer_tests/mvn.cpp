@@ -102,7 +102,6 @@ protected:
        selectedType = getPrimitiveType();
        selectedType = makeSelectedTypeStr(selectedType, netPrecision);
 
-       rel_threshold = 0.015f;
        function = makeNgraphFunction(netPrecision, param, mvn, "mvn");
    }
 };
