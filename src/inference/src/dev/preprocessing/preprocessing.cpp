@@ -12,6 +12,7 @@
 #include "openvino/core/preprocess/color_format.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/manager.hpp"
 
@@ -19,6 +20,18 @@ bool ov::pass::AddPreprocessing::run_on_model(const std::shared_ptr<ov::Model>& 
     RUN_ON_MODEL_SCOPE(AddPreprocessing);
     ov::preprocess::PrePostProcessor preproc(model);
     ov::pass::AddMeanImage::MeanMap meanMap;
+
+    // Single layer need preprocess?
+    // If yes, it will cause covert op is added to bring output port name changes by TransformConvertToConvertTruncation
+    auto node_num = 0;
+    for (auto& it : model->get_ordered_ops()) {
+        if (!ov::op::util::is_parameter(it) && !ov::op::util::is_constant(it) && !ov::op::util::is_output(it)) {
+            node_num += 1;
+        }
+    }
+    if (node_num == 1) {
+        return false;
+    }
 
     for (size_t i = 0; i < model->inputs().size(); i++) {
         ov::Output<const Node> const_input(model->input(i).get_node(), model->input(i).get_index());
