@@ -260,6 +260,62 @@ void LinearIR::move(LinearIR::constExprIt from, LinearIR::constExprIt to) {
     m_expressions.splice(to, m_expressions, from);
 }
 
+LinearIR::exprIt LinearIR::find(const ExpressionPtr& target) {
+    return find(begin(), end(), target);
+}
+LinearIR::constExprIt LinearIR::find(const ExpressionPtr& target) const {
+    return find(cbegin(), cend(), target);
+}
+template<>
+LinearIR::exprIt LinearIR::find_before(LinearIR::exprIt it, const ExpressionPtr& target) {
+    return find(begin(), it, target);
+}
+template<>
+LinearIR::constExprIt LinearIR::find_before(LinearIR::constExprIt it, const ExpressionPtr& target) {
+    return find(cbegin(), it, target);
+}
+template<>
+LinearIR::constExprIt LinearIR::find_before(LinearIR::constExprIt it, const ExpressionPtr& target) const {
+    return find(cbegin(), it, target);
+}
+template<>
+LinearIR::exprReverseIt LinearIR::find_before(LinearIR::exprReverseIt it, const ExpressionPtr& target) {
+    return find(rbegin(), it, target);
+}
+template<>
+LinearIR::constExprReverseIt LinearIR::find_before(LinearIR::constExprReverseIt it, const ExpressionPtr& target) {
+    return find(crbegin(), it, target);
+}
+template<>
+LinearIR::constExprReverseIt LinearIR::find_before(LinearIR::constExprReverseIt it, const ExpressionPtr& target) const {
+    return find(crbegin(), it, target);
+}
+template<>
+LinearIR::exprIt LinearIR::find_after(LinearIR::exprIt it, const ExpressionPtr& target) {
+    return find(it, end(), target);
+}
+template<>
+LinearIR::constExprIt LinearIR::find_after(LinearIR::constExprIt it, const ExpressionPtr& target) {
+    return find(it, cend(), target);
+}
+template<>
+LinearIR::constExprIt LinearIR::find_after(LinearIR::constExprIt it, const ExpressionPtr& target) const {
+    return find(it, cend(), target);
+}
+template<>
+LinearIR::exprReverseIt LinearIR::find_after(LinearIR::exprReverseIt it, const ExpressionPtr& target) {
+    return find(it, rend(), target);
+}
+template<>
+LinearIR::constExprReverseIt LinearIR::find_after(LinearIR::constExprReverseIt it, const ExpressionPtr& target) {
+    return find(it, crend(), target);
+}
+template<>
+LinearIR::constExprReverseIt LinearIR::find_after(LinearIR::constExprReverseIt it, const ExpressionPtr& target) const {
+    return find(it, crend(), target);
+}
+
+
 }// namespace lowered
 }// namespace snippets
 }// namespace ov
