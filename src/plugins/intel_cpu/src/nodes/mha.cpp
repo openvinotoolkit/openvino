@@ -73,7 +73,9 @@ private:
         mov(reg_buffer_aux, reg_buffer);
         mov(reg_work_amount, jcp_.work_amount);
         mov(reg_work_amount_aux, reg_work_amount);
-        uni_vpxor(get_vmm_max(0), get_vmm_max(0), get_vmm_max(0));
+        mov(reg_tmp, dnnl::impl::float2int(-FLT_MAX));
+        vmovq(xmm_tmp, reg_tmp);
+        vbroadcastss(get_vmm_max(0), xmm_tmp);
 
         // mul1 input is const and always float
         if (jcp_.with_mul_scales) {
@@ -117,7 +119,9 @@ private:
 
         sub(rsp, sizeof(float) * vec_size);
         uni_vmovups(ptr[rsp], get_vmm_max(0));
-        uni_vpxor(get_vmm_max(0), get_vmm_max(0), get_vmm_max(0));
+        mov(reg_tmp, dnnl::impl::float2int(-FLT_MAX));
+        vmovq(xmm_tmp, reg_tmp);
+        vbroadcastss(get_vmm_max(0), xmm_tmp);
         for (size_t i = 0; i < vec_size; i++) {
             mov(reg_tmp_32, ptr[rsp + i * sizeof(float)]);
             vmovq(xmm_tmp, reg_tmp);

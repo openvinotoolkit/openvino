@@ -705,9 +705,6 @@ ROIAlign::ROIAlign(const std::shared_ptr<ngraph::Node>& op, const GraphContext::
 }
 
 void ROIAlign::getSupportedDescriptors() {
-    if (!descs.empty())
-        return;
-
     if (getParentEdges().size() != 3)
         IE_THROW() << errorPrefix << "has incorrect number of input edges: " << getParentEdges().size();
     if (getChildEdges().empty())

@@ -418,13 +418,6 @@ static bool shouldEnforceBF16(const std::map<std::string, std::string>& modelCon
 }
 
 static Config::SnippetsMode getSnippetsMode(const std::map<std::string, std::string>& modelConfig, const Config& engineConfig) {
-    const auto& dynamicBatchProp = modelConfig.find(InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_ENABLED);
-    const bool enableDynamicBatch = (dynamicBatchProp != modelConfig.end() && dynamicBatchProp->second == PluginConfigParams::YES)
-            || engineConfig.enableDynamicBatch;
-
-    if (enableDynamicBatch) // dynamic batch is not supported
-        return Config::SnippetsMode::Disable;
-
     const auto& snippetsMode = modelConfig.find(InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE);
     if (snippetsMode == modelConfig.end()) // not set explicitly
         return Config::SnippetsMode::Enable; // enable by default
@@ -501,10 +494,6 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
     Config conf = engConfig;
 
     conf.readProperties(config);
-    if (conf.enableDynamicBatch) {
-        conf.batchLimit = static_cast<int>(network.getBatchSize());
-    }
-
     if (is_cpu_map_available()) {
         GetPerformanceStreams(conf, nGraphFunc);
     }
@@ -744,10 +733,6 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
     Config conf = engConfig;
     conf.readProperties(config);
 
-    if (conf.enableDynamicBatch) {
-        conf.batchLimit = static_cast<int>(network.getBatchSize());
-    }
-
     const auto& lptProp = config.find(InferenceEngine::PluginConfigInternalParams::KEY_LP_TRANSFORMS_MODE);
     const bool enableLPT = (lptProp != config.end() && lptProp->second == PluginConfigParams::YES) /* enabled in the orig_config*/
                         || Config::LPTransformsMode::On == engConfig.lpTransformsMode /* or already enabled */;
@@ -816,9 +801,6 @@ InferenceEngine::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(std::istr
         }
     }
 
-    if (conf.enableDynamicBatch) {
-        conf.batchLimit = static_cast<int>(cnnnetwork.getBatchSize());
-    }
     if (is_cpu_map_available()) {
         get_num_streams(conf.streamExecutorConfig._streams, function, conf);
     }

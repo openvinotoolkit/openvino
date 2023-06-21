@@ -240,11 +240,6 @@ public:
         _syncRequest->SetBlob(name, data);
     }
 
-    void SetBlob(const std::string& name, const Blob::Ptr& data, const PreProcessInfo& info) override {
-        CheckState();
-        _syncRequest->SetBlob(name, data, info);
-    }
-
     void SetBlobs(const std::string& name, const std::vector<Blob::Ptr>& blobs) override {
         CheckState();
         _syncRequest->SetBlobs(name, blobs);
@@ -263,13 +258,6 @@ public:
     const PreProcessInfo& GetPreProcess(const std::string& name) const override {
         return _syncRequest->GetPreProcess(name);
     }
-
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    void SetBatch(int batch) override {
-        CheckState();
-        _syncRequest->SetBatch(batch);
-    };
-    OPENVINO_SUPPRESS_DEPRECATED_END
 
     void SetCallback(Callback callback) override {
         CheckState();

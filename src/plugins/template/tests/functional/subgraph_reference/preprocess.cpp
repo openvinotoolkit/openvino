@@ -71,8 +71,7 @@ static std::shared_ptr<Model> create_simple_function(element::Type type, const P
     return std::make_shared<ov::Model>(ResultVector{res}, ParameterVector{data1});
 }
 
-template <int N>
-static std::shared_ptr<Model> create_n_inputs(element::Type type, const PartialShape& shape) {
+static std::shared_ptr<Model> create_n_inputs(const int N, const element::Type& type, const PartialShape& shape) {
     auto params = ParameterVector();
     auto results = ResultVector();
     for (int i = 1; i <= N; i++) {
@@ -225,7 +224,7 @@ static RefPreprocessParams test_multiple() {
 static RefPreprocessParams test_2_inputs_basic() {
     RefPreprocessParams res("test_2_inputs_basic");
     res.function = []() {
-        auto f = create_n_inputs<2>(element::f32, Shape{1, 3, 1, 1});
+        auto f = create_n_inputs(2, element::f32, Shape{1, 3, 1, 1});
         auto p = PrePostProcessor(f);
         p.input(0).preprocess().mean(1.f);
         p.input("tensor_input2").preprocess()
@@ -922,7 +921,7 @@ static RefPreprocessParams preprocess_crop_2axis_dynamic() {
 static RefPreprocessParams postprocess_2_inputs_basic() {
     RefPreprocessParams res("postprocess_2_inputs_basic");
     res.function = []() {
-        auto f = create_n_inputs<2>(element::f32, Shape{1, 3, 1, 2});
+        auto f = create_n_inputs(2, element::f32, Shape{1, 3, 1, 2});
         auto p = PrePostProcessor(f);
         p.output("tensor_output1")
                 .model().set_layout("NCHW");
@@ -984,7 +983,7 @@ static RefPreprocessParams post_convert_layout_by_dims_multi() {
 static RefPreprocessParams pre_and_post_processing() {
     RefPreprocessParams res("pre_and_post_processing");
     res.function = []() {
-        auto f = create_n_inputs<2>(element::f32, Shape{1, 3, 1, 2});
+        auto f = create_n_inputs(2, element::f32, Shape{1, 3, 1, 2});
         auto p = PrePostProcessor(f);
         p.input(0)
                 .tensor().set_element_type(element::u8);
@@ -1070,7 +1069,7 @@ static RefPreprocessParams color_cut_last_channel() {
                                                                                      5, 4, 3,
                                                                                      8, 7, 6});
     res.function = []() {
-        auto f = create_n_inputs<4>(element::f32, Shape{1, 2, 2, 3});
+        auto f = create_n_inputs(4, element::f32, Shape{1, 2, 2, 3});
         auto prep = PrePostProcessor(f);
         prep.input(0).tensor().set_color_format(ColorFormat::RGBX);
         prep.input(0).preprocess().convert_color(ColorFormat::RGB);
