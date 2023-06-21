@@ -33,9 +33,9 @@ public:
     /// \param model_path Path to the file containing the model.
     /// \param enable_mmap Enable mapping files with external weights instead of reading.
     /// \param extensions Holder for custom extensions (like custom ops).
-    ONNXModelEditor(const std::string& model_path,
-                    const bool enable_mmap = false,
-                    frontend::ExtensionHolder extensions = {});
+    explicit ONNXModelEditor(const std::string& model_path,
+                             const bool enable_mmap = false,
+                             frontend::ExtensionHolder extensions = {});
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     ONNXModelEditor(const std::wstring& model_path, const bool enable_mmap, frontend::ExtensionHolder extensions = {});
 #endif
@@ -48,10 +48,10 @@ public:
     ///                   for ONNX external weights feature support.
     /// \param enable_mmap Enable mapping files with external weights instead of reading.
     /// \param extensions Holder for custom extensions (like custom ops).
-    ONNXModelEditor(std::istream& model_stream,
-                    const std::string& path = {},
-                    const bool enable_mmap = false,
-                    frontend::ExtensionHolder extensions = {});
+    explicit ONNXModelEditor(std::istream& model_stream,
+                             const std::string& path = {},
+                             const bool enable_mmap = false,
+                             frontend::ExtensionHolder extensions = {});
 
     /// \brief Modifies the in-memory representation of the model by setting
     ///        custom input types for all inputs specified in the provided map.
@@ -303,8 +303,8 @@ public:
 private:
     void update_mapper_if_needed() const;
 
-    const bool m_enable_mmap;
     const std::string m_model_path;
+    const bool m_enable_mmap;
     frontend::ExtensionHolder m_extensions;
 
     struct Impl;

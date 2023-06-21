@@ -17,9 +17,9 @@ namespace onnx_import {
 class SparseTensor {
 public:
     SparseTensor() = delete;
-    explicit SparseTensor(const ONNX_NAMESPACE::SparseTensorProto& sparse_tensor,
-                          const std::string& model_dir,
-                          const bool enable_mmap)
+    SparseTensor(const ONNX_NAMESPACE::SparseTensorProto& sparse_tensor,
+                 const std::string& model_dir,
+                 const bool enable_mmap)
         : m_values{sparse_tensor.values(), model_dir, enable_mmap},
           m_indices{sparse_tensor.indices(), model_dir, enable_mmap},
           m_shape{std::begin(sparse_tensor.dims()), std::end(sparse_tensor.dims())} {

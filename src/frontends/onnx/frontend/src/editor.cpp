@@ -318,9 +318,9 @@ struct onnx_editor::ONNXModelEditor::Impl {
 onnx_editor::ONNXModelEditor::ONNXModelEditor(const std::string& model_path,
                                               const bool enable_mmap,
                                               frontend::ExtensionHolder extensions)
-    : m_extensions{std::move(extensions)},
-      m_model_path{model_path},
+    : m_model_path{model_path},
       m_enable_mmap{enable_mmap},
+      m_extensions{std::move(extensions)},
       m_pimpl{new ONNXModelEditor::Impl{model_path}, [](Impl* impl) {
                   delete impl;
               }} {}

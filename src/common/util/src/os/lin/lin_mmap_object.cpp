@@ -76,7 +76,6 @@ public:
             throw std::runtime_error("Can not get file size for " + path);
         }
         m_size = data_size > 0 ? data_size : sb.st_size - offset;
-        // std::cout << "m_size: " << m_size << std::endl;
         if (m_size > 0) {
             m_data = mmap(nullptr, m_size, prot, MAP_PRIVATE, m_handle.get(), offset);
             if (m_data == MAP_FAILED) {
