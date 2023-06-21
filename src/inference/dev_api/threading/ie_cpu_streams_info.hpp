@@ -36,7 +36,7 @@ namespace InferenceEngine {
  *          0               1                2                    0                    0
  *          0               2                8                    0                    0
  */
-enum ColumnOfCpuStreamsInfoTable{
+enum ColumnOfCpuStreamsInfoTable {
     NUMBER_OF_STREAMS = 0,      //!< Number of streams on specific CPU core tpye
     PROC_TYPE = 1,              //!< Core type of current streams
     THREADS_PER_STREAM = 2,     //!< Number of threads per stream of current streams
