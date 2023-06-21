@@ -214,6 +214,14 @@ void InputModel::InputModelTFImpl::load_places() {
                                              producer_op_name,
                                              producer_output_port_name,
                                              producer_output_port_idx);
+                if (is_conditional_edge(producer_op_name)) {
+                    // exclude "^" mark indicating (execution) conditional dependency
+                    // for example, "^sub_op" means dependency on a producer node with a name "sub_op"
+                    // if a node has dependent operation nodes and has no data consumers,
+                    // this node is not terminating and will not output to the Result node
+                    producer_op_name = producer_op_name.substr(1);
+                }
+
                 op_names_with_consumers.insert(producer_op_name);
             } catch (const std::exception&) {
                 FRONT_END_THROW("[ ERROR ] Exception happened when preparing input " + std::to_string(input_port_idx) +
