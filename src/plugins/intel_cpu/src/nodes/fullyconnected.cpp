@@ -787,6 +787,15 @@ void FullyConnected::initOptimalPrimitiveDescriptor() {
     auto config = selectedPD->getConfig();
     weightDescIP = config.inConfs[1].getMemDesc();
     config.inConfs[1].setMemDesc(selectedParentPD->getConfig().outConfs[0].getMemDesc());
+#ifdef OV_CPU_WITH_LLMDNN
+    // TODO: llmdnn adds f32 weight support
+    // ask the framework to convert the precision to bf16, currently only support bf16 weight format
+    if (config.inConfs[0].getMemDesc()->getPrecision() == InferenceEngine::Precision::BF16 &&
+        dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx)) {
+        auto mem = config.inConfs[1].getMemDesc()->cloneWithNewPrecision(InferenceEngine::Precision::BF16);
+        config.inConfs[1].setMemDesc(mem);
+    }
+#endif
     selectedPD->setConfig(config);
 }
 
