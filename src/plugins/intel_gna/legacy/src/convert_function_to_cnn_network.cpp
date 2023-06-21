@@ -52,8 +52,8 @@
 #include "transformations/rt_info/fused_names_attribute.hpp"
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
 #include "transformations/utils/utils.hpp"
-#include "../../src/ops/gna_convolution.hpp"
-#include "../../src/ops/gna_max_pool.hpp"
+#include "gna_convolution.hpp"
+#include "gna_max_pool.hpp"
 
 namespace Builder {
 
