@@ -34,8 +34,8 @@ protected:
 
 namespace Transpose {
     const std::vector<InferenceEngine::Precision>& netPrecisionsPerChannels();
-    const std::vector<InputShape>& staticInputShapes4DC16();
-    const std::vector<InputShape>& staticInputShapes4DC32();
+    const std::vector<InputShape>& dynamicInputShapes4DC16();
+    const std::vector<InputShape>& dynamicInputShapes4DC32();
     const std::vector<InputShape>& dynamicInputShapes4D();
     const std::vector<std::vector<size_t>>& inputOrder4D();
 } // namespace Transpose

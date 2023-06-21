@@ -77,20 +77,20 @@ const std::vector<InferenceEngine::Precision>& netPrecisionsPerChannels() {
     return netPrecisionsPerChannels;
 }
 
-const std::vector<InputShape>& staticInputShapes4DC16() {
-    static const std::vector<InputShape> staticInputShapes4DC16 = {InputShape{// dynamic
+const std::vector<InputShape>& dynamicInputShapes4DC16() {
+    static const std::vector<InputShape> dynamicInputShapes4DC16 = {InputShape{// dynamic
                                                                     {-1, 16, -1, -1},
                                                                     // target
                                                                     {{2, 16, 21, 10}, {3, 16, 11, 12}, {2, 16, 21, 10}}}};
-    return staticInputShapes4DC16;
+    return dynamicInputShapes4DC16;
 }
 
-const std::vector<InputShape>& staticInputShapes4DC32() {
-    static const std::vector<InputShape> staticInputShapes4DC32 = {InputShape{// dynamic
+const std::vector<InputShape>& dynamicInputShapes4DC32() {
+    static const std::vector<InputShape> dynamicInputShapes4DC32 = {InputShape{// dynamic
                                                                     {-1, 32, -1, -1},
                                                                     // target
                                                                     {{4, 32, 16, 14}, {16, 32, 5, 16}, {4, 32, 16, 14}}}};
-    return staticInputShapes4DC32;
+    return dynamicInputShapes4DC32;
 }
 
 const std::vector<InputShape>& dynamicInputShapes4D() {

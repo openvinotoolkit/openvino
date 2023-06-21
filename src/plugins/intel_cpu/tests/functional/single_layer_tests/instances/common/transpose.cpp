@@ -36,7 +36,7 @@ const std::vector<CPUSpecificParams> CPUParams4D = {
 
 INSTANTIATE_TEST_SUITE_P(smoke_staticShapes4DC16_Transpose, TransposeLayerCPUTest,
                          ::testing::Combine(
-                                 ::testing::ValuesIn(staticInputShapes4DC16()),
+                                 ::testing::ValuesIn(dynamicInputShapes4DC16()),
                                  ::testing::ValuesIn(inputOrder4D()),
                                  ::testing::ValuesIn(netPrecisions),
                                  ::testing::Values(CommonTestUtils::DEVICE_CPU),
@@ -46,7 +46,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_staticShapes4DC16_Transpose, TransposeLayerCPUTes
 
 INSTANTIATE_TEST_SUITE_P(smoke_staticShapes4DC32_Transpose, TransposeLayerCPUTest,
                          ::testing::Combine(
-                                 ::testing::ValuesIn(staticInputShapes4DC32()),
+                                 ::testing::ValuesIn(dynamicInputShapes4DC32()),
                                  ::testing::ValuesIn(inputOrder4D()),
                                  ::testing::ValuesIn(netPrecisions),
                                  ::testing::Values(CommonTestUtils::DEVICE_CPU),
@@ -66,7 +66,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_dynamicShapes4D_Transpose, TransposeLayerCPUTest,
 
 INSTANTIATE_TEST_SUITE_P(smoke_staticShapes4DC16_PermutePerChannels, TransposeLayerCPUTest,
                          ::testing::Combine(
-                                 ::testing::ValuesIn(staticInputShapes4DC16()),
+                                 ::testing::ValuesIn(dynamicInputShapes4DC16()),
                                  ::testing::ValuesIn(inputOrderPerChannels4D),
                                  ::testing::ValuesIn(netPrecisionsPerChannels()),
                                  ::testing::Values(CommonTestUtils::DEVICE_CPU),
@@ -76,7 +76,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_staticShapes4DC16_PermutePerChannels, TransposeLa
 
 INSTANTIATE_TEST_SUITE_P(smoke_staticShapes4DC32_PermutePerChannels, TransposeLayerCPUTest,
                          ::testing::Combine(
-                                 ::testing::ValuesIn(staticInputShapes4DC32()),
+                                 ::testing::ValuesIn(dynamicInputShapes4DC32()),
                                  ::testing::ValuesIn(inputOrderPerChannels4D),
                                  ::testing::ValuesIn(netPrecisionsPerChannels()),
                                  ::testing::Values(CommonTestUtils::DEVICE_CPU),

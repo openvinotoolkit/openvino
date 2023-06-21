@@ -30,29 +30,29 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
         Precision::BF16,
 };
 
-const std::vector<CPUSpecificParams> CPUParams4D = {
+const std::vector<CPUSpecificParams> CPUParams4D_blocked = {
         cpuParams_nChw16c,
         cpuParams_nChw8c,
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_staticShapes4DC16_Transpose, TransposeLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_staticShapes4DC16_TransposeBlocked, TransposeLayerCPUTest,
                          ::testing::Combine(
-                                 ::testing::ValuesIn(staticInputShapes4DC16()),
+                                 ::testing::ValuesIn(dynamicInputShapes4DC16()),
                                  ::testing::ValuesIn(inputOrder4D()),
                                  ::testing::ValuesIn(netPrecisions),
                                  ::testing::Values(CommonTestUtils::DEVICE_CPU),
                                  ::testing::Values(additional_config),
-                                 ::testing::ValuesIn(CPUParams4D)),
+                                 ::testing::ValuesIn(CPUParams4D_blocked)),
                          TransposeLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_staticShapes4DC32_Transpose, TransposeLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_staticShapes4DC32_TransposeBlocked, TransposeLayerCPUTest,
                          ::testing::Combine(
-                                 ::testing::ValuesIn(staticInputShapes4DC32()),
+                                 ::testing::ValuesIn(dynamicInputShapes4DC32()),
                                  ::testing::ValuesIn(inputOrder4D()),
                                  ::testing::ValuesIn(netPrecisions),
                                  ::testing::Values(CommonTestUtils::DEVICE_CPU),
                                  ::testing::Values(additional_config),
-                                 ::testing::ValuesIn(CPUParams4D)),
+                                 ::testing::ValuesIn(CPUParams4D_blocked)),
                          TransposeLayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_dynamicShapes4D_Transpose, TransposeLayerCPUTest,
