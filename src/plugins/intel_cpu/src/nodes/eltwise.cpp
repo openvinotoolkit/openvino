@@ -743,8 +743,7 @@ private:
                 uni_vpslld(xmm_src, xmm_src, 16);
                 break;
             case Precision::FP16:
-                assert(mayiuse(x64::avx512_core_fp16));
-                vcvtsh2ss(xmm_src, xmm_src, op);
+                vcvtph2ps(xmm_src, op);
                 break;
             case Precision::I16:
                 uni_vpinsrw(xmm_src, xmm_src, op, 0);
@@ -894,8 +893,7 @@ private:
                 uni_vpextrw(op, xmm_dst, 0x0);
                 break;
             case Precision::FP16:
-                assert(mayiuse(x64::avx512_core_fp16));
-                vcvtss2sh(xmm_dst, xmm_dst, xmm_dst);
+                vcvtps2ph(xmm_dst, xmm_dst, 0x4);
                 movq(reg_tmp_64, xmm_dst);
                 mov(op, reg_tmp_16);
                 break;
