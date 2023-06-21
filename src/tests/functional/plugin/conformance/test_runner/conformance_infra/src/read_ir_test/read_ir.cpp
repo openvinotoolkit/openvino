@@ -9,7 +9,6 @@
 
 #include <pugixml.hpp>
 
-
 #include "shared_test_classes/base/utils/ranges.hpp"
 #include "shared_test_classes/base/utils/generate_inputs.hpp"
 #include "ngraph_functions/builders.hpp"
@@ -186,7 +185,7 @@ void ReadIRTest::SetUp() {
             auto next_node = param->get_default_output().get_node_shared_ptr();
             auto it = inputMap.find(next_node->get_type_info());
             auto tensor = it->second(next_node, port, param->get_element_type(), param->get_shape(),
-                                     utils::InputGenerateData(in_info.ranges.min * 1e3, (in_info.ranges.max - in_info.ranges.min) * 1e3, 1e3));
+                                     utils::InputGenerateData(in_info.ranges.min, (in_info.ranges.max - in_info.ranges.min) * 1e3, 1e3));
             auto const_node = std::make_shared<ov::op::v0::Constant>(tensor);
             ov::replace_node(param, const_node);
             function->remove_parameter(param);

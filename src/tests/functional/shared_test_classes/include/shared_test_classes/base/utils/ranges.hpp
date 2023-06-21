@@ -30,26 +30,8 @@ struct InputGenerateData {
     int32_t resolution;
     int seed;
 
-    InputGenerateData(int32_t _start_from = 0, uint32_t _range = 10, int32_t _resolution = 1, int _seed = 1)
-            : start_from(_start_from), range(_range), resolution(_resolution), seed(_seed) {}
-
-    InputGenerateData& operator=(const InputGenerateData& _in_data_gen) {
-        size_t max = this->start_from + this->range;
-        if (_in_data_gen.start_from + this->range < max) {
-            max = _in_data_gen.start_from + this->range;
-        }
-        if (this->start_from < _in_data_gen.start_from) {
-            this->start_from = _in_data_gen.start_from;
-        }
-        this->range = max - this->start_from;
-        if (this->resolution < _in_data_gen.resolution) {
-            this->resolution = _in_data_gen.resolution;
-        }
-        if (this->seed < _in_data_gen.seed) {
-            this->seed = _in_data_gen.seed;
-        }
-        return *this;
-    }
+    InputGenerateData(double _start_from = 0, uint32_t _range = 10, int32_t _resolution = 1, int _seed = 1)
+            : start_from(_start_from * _resolution), range(_range), resolution(_resolution), seed(_seed) {}
 };
 
 static std::map<ov::NodeTypeInfo, std::vector<std::vector<InputGenerateData>>> inputRanges = {
