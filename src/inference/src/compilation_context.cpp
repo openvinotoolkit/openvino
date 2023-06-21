@@ -205,7 +205,7 @@ std::istream& operator>>(std::istream& stream, CompiledBlobHeader& header) {
     pugi::xml_parse_result res = document.load_string(xmlStr.c_str());
 
     if (res.status != pugi::status_ok) {
-        IE_THROW_E(NetworkNotRead, "Error reading compiled blob header");
+        IE_THROW_E(InferenceEngine::NetworkNotRead, "Error reading compiled blob header");
     }
 
     pugi::xml_node compiledBlobNode = document.document_element();
