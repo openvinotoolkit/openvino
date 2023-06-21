@@ -1222,15 +1222,6 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
         }
 
         execute_primitive(inst, events);
-        // {
-        //     get_stream().finish();
-        //     const std::string layer_name = inst->id();
-        //     for (size_t i = 0; i < get_primitive(inst->id())->outputs_memory_count(); i++) {
-        //         check_mem(get_primitive(inst->id())->output_memory_ptr(i),
-        //             get_stream(),
-        //             layer_name + "__" + inst->get_node().get_primitive()->type_string() +"__out"+std::to_string(i));
-        //     }
-        // }
 
         GPU_DEBUG_IF(debug_config->dump_layers_path.length() > 0) {
             get_stream().finish();

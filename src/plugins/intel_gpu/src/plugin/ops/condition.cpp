@@ -2,24 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "intel_gpu/plugin/program.hpp"
-#include "intel_gpu/plugin/common_utils.hpp"
-#include "intel_gpu/plugin/plugin.hpp"
-
-#include <cpp/ie_cnn_network.h>
-
 #include "ngraph/op/if.hpp"
-#include "ngraph/op/constant.hpp"
-#include "ngraph/op/util/sub_graph_base.hpp"
-#include "transformations/utils/utils.hpp"
 #include "ie_ngraph_utils.hpp"
 
 #include "intel_gpu/primitives/condition.hpp"
-#include "intel_gpu/primitives/mutable_data.hpp"
-#include "intel_gpu/primitives/data.hpp"
-#include "intel_gpu/graph/topology.hpp"
-
-#include <vector>
-#include <algorithm>
 
 namespace ov {
 namespace intel_gpu {

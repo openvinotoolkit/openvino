@@ -234,7 +234,7 @@ protected:
         nested_body_then_generator->get_function()->set_friendly_name("nested_then_inner_body");
         nested_body_else_generator->get_function()->set_friendly_name("nested_else_inner_body");
 
-        auto cond_nested = std::make_shared<ngraph::opset9::If>(pred);
+        auto cond_nested = std::make_shared<ngraph::opset8::If>(pred);
         cond_nested->set_friendly_name("if_operator_nested");
         cond_nested->set_else_body(nested_body_else_generator->get_function());
         cond_nested->set_then_body(nested_body_then_generator->get_function());
@@ -283,7 +283,7 @@ static std::shared_ptr<InnerBodyGenerator> get_inner_body_generator(InnerBodyGen
 
 class TestModelGenerator {
 public:
-    enum CondTypes {
+    enum PredicateTypes {
         PARAM,
         NODE
     };
@@ -291,7 +291,7 @@ public:
 public:
     TestModelGenerator(InnerBodyGenerator::InnerBodyType then_body_type,
                         InnerBodyGenerator::InnerBodyType else_body_type,
-                        CondTypes cond_type,
+                        PredicateTypes pred_type,
                         ngraph::element::Type prc,
                         ov::PartialShape input_shape,
                         bool cond_execution_value = false) {
@@ -304,11 +304,11 @@ public:
                             body_then_generator->get_function()->set_friendly_name("then_inner_body");
 
                             ngraph::ParameterVector params{};
-                            auto exec_cond = create_cond_execution(cond_type, params, ngraph::element::boolean, ngraph::Shape{});
-                            exec_cond->set_friendly_name("if_condition");
+                            auto predicate = create_cond_execution(pred_type, params, ngraph::element::boolean, ngraph::Shape{});
+                            predicate->set_friendly_name("if_predicate");
                             auto data = create_condition_input(params, prc, input_shape);
                             data->set_friendly_name("input_data");
-                            auto cond = std::make_shared<ngraph::opset9::If>(exec_cond);
+                            auto cond = std::make_shared<ngraph::opset8::If>(predicate);
                             cond->set_friendly_name("if_operator");
                             cond->set_else_body(body_else_generator->get_function());
                             cond->set_then_body(body_then_generator->get_function());
@@ -332,25 +332,25 @@ private:
         return input;
     }
 
-    std::shared_ptr<ngraph::Node> create_cond_execution(CondTypes cond_type,
+    std::shared_ptr<ngraph::Node> create_cond_execution(PredicateTypes pred_type,
                                                         ngraph::ParameterVector& params,
                                                         const ngraph::element::Type prc = ngraph::element::u8,
                                                         const ngraph::Shape shape = ngraph::Shape{}) {
-        std::shared_ptr<ngraph::Node> if_cond;
-        switch (cond_type) {
-            case CondTypes::PARAM:
+        std::shared_ptr<ngraph::Node> pred;
+        switch (pred_type) {
+            case PredicateTypes::PARAM:
             {
-                if_cond = create_condition_input(params, prc, shape);
+                pred = create_condition_input(params, prc, shape);
                 break;
             }
-            case CondTypes::NODE:
+            case PredicateTypes::NODE:
             {
                 auto param_cond = create_condition_input(params, prc, shape);
                 param_cond->set_friendly_name("param_cond");
                 auto const_cond = create_condition_input(params, prc, ngraph::Shape{}, 1, true);
                 const_cond->set_friendly_name("const_cond");
-                if_cond = std::make_shared<ngraph::opset3::GreaterEqual>(param_cond, const_cond);
-                if_cond->set_friendly_name("if_cond");
+                pred = std::make_shared<ngraph::opset3::GreaterEqual>(param_cond, const_cond);
+                pred->set_friendly_name("pred");
                 break;
             }
             default:
@@ -358,7 +358,7 @@ private:
                 OPENVINO_ASSERT(false, "Not supported type");
             }
         }
-        return if_cond;
+        return pred;
     }
 
 private:
@@ -403,14 +403,14 @@ static std::ostream& operator<<(std::ostream& os, const InnerBodyGenerator::Inne
     return os;
 }
 
-static std::ostream& operator<<(std::ostream& os, const TestModelGenerator::CondTypes type) {
+static std::ostream& operator<<(std::ostream& os, const TestModelGenerator::PredicateTypes type) {
     switch (type) {
-        case TestModelGenerator::CondTypes::PARAM:
+        case TestModelGenerator::PredicateTypes::PARAM:
         {
             os << "PARAM";
             break;
         }
-        case TestModelGenerator::CondTypes::NODE:
+        case TestModelGenerator::PredicateTypes::NODE:
         {
             os << "NODE";
             break;
@@ -427,7 +427,7 @@ static std::ostream& operator<<(std::ostream& os, const TestModelGenerator::Cond
 using ConditionParams = typename std::tuple<
         InferenceEngine::SizeVector,    // Shape
         InferenceEngine::Precision,     // Precision
-        TestModelGenerator::CondTypes,  // if condition type
+        TestModelGenerator::PredicateTypes,  // if predicate type
         LayerTestsUtils::TargetDevice   // Device name
 >;
 
@@ -437,14 +437,14 @@ public:
     static std::string getTestCaseName(const testing::TestParamInfo<ConditionParams>& obj) {
         InferenceEngine::SizeVector data_shape;
         InferenceEngine::Precision data_prc;
-        TestModelGenerator::CondTypes if_cond;
+        TestModelGenerator::PredicateTypes pred;
         std::string targetDevice;
 
-        std::tie(data_shape, data_prc, if_cond, targetDevice) = obj.param;
+        std::tie(data_shape, data_prc, pred, targetDevice) = obj.param;
         std::ostringstream result;
         result << "IS=" << CommonTestUtils::vec2str(data_shape) << "_";
         result << "netPRC=" << std::to_string(data_prc) << "_";
-        result << "ifCond=" << if_cond << "_";
+        result << "ifCond=" << pred << "_";
         result << "targetDevice=" << targetDevice << "_";
         auto res_str = result.str();
         std::replace(res_str.begin(), res_str.end(), '-', '_');
@@ -454,13 +454,13 @@ public:
 protected:
     void SetUp() override {
         targetDevice = CommonTestUtils::DEVICE_GPU;
-        TestModelGenerator::CondTypes if_cond;
-        std::tie(data_shape, data_prc, if_cond, targetDevice) = GetParam();
+        TestModelGenerator::PredicateTypes pred;
+        std::tie(data_shape, data_prc, pred, targetDevice) = GetParam();
         const auto ngShape = ov::PartialShape{data_shape};
         const auto prc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(data_prc);
         TestModelGenerator model_generator(InnerBodyGenerator::InnerBodyType::Type02,
                                             InnerBodyGenerator::InnerBodyType::Type03,
-                                            TestModelGenerator::CondTypes::PARAM,
+                                            pred,
                                             prc,
                                             ngShape);
         function = model_generator.get_function();
@@ -507,8 +507,8 @@ std::vector<InferenceEngine::SizeVector> inputs_shape = {
     {3, 6}
 };
 
-std::vector<GPULayerTestsDefinitions::TestModelGenerator::CondTypes> if_cond_types = {
-    GPULayerTestsDefinitions::TestModelGenerator::CondTypes::PARAM
+std::vector<GPULayerTestsDefinitions::TestModelGenerator::PredicateTypes> if_cond_types = {
+    GPULayerTestsDefinitions::TestModelGenerator::PredicateTypes::PARAM
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_ConditionGPUTest_static, StaticConditionLayerGPUTest,
@@ -527,11 +527,11 @@ struct InnerBodyTypeParams {
 };
 
 using ConditionGPUParams = typename std::tuple<
-        InputShape,                     // Input Shapes
-        InnerBodyTypeParams,            // Inner body type
-        InferenceEngine::Precision,     // Precision
-        TestModelGenerator::CondTypes,  // if condition type
-        LayerTestsUtils::TargetDevice   // Device name
+        InputShape,                         // Input Shapes
+        InnerBodyTypeParams,                // Inner body type
+        InferenceEngine::Precision,         // Precision
+        TestModelGenerator::PredicateTypes, // if predicate type
+        LayerTestsUtils::TargetDevice       // Device name
 >;
 
 class DynamicConditionLayerGPUTest : public testing::WithParamInterface<ConditionGPUParams>,
@@ -541,7 +541,7 @@ public:
         InputShape inputShapes;
         InnerBodyTypeParams bodyParams;
         InferenceEngine::Precision dataPrc;
-        TestModelGenerator::CondTypes condType;
+        TestModelGenerator::PredicateTypes condType;
         std::string targetDevice;
 
         std::tie(inputShapes, bodyParams, dataPrc, condType, targetDevice) = obj.param;
@@ -568,7 +568,7 @@ protected:
         InputShape inputShapes;
         InnerBodyTypeParams bodyParams;
         InferenceEngine::Precision dataPrc;
-        TestModelGenerator::CondTypes condType;
+        TestModelGenerator::PredicateTypes condType;
         std::tie(inputShapes, bodyParams, dataPrc, condType, targetDevice) = GetParam();
         auto num_second = inputShapes.second.size();
         std::vector<ov::Shape> condSecondVec;
@@ -671,9 +671,9 @@ const std::vector<InnerBodyTypeParams> innerBodyTypes_f16 = {
     }
 };
 
-const std::vector<TestModelGenerator::CondTypes> condTypes = {
-    TestModelGenerator::CondTypes::PARAM,
-    TestModelGenerator::CondTypes::NODE
+const std::vector<TestModelGenerator::PredicateTypes> condTypes = {
+    TestModelGenerator::PredicateTypes::PARAM,
+    TestModelGenerator::PredicateTypes::NODE
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_ConditionGPUTest_dynamic_f32, DynamicConditionLayerGPUTest,
