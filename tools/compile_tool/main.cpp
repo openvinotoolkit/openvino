@@ -598,12 +598,15 @@ static std::map<std::string, std::string> parseConfigFile(char comment = '#') {
                 continue;
             }
             size_t spacePos = option.find(' ');
-            std::string key, value;
-            if (spacePos != std::string::npos) {
-                key = option.substr(0, spacePos);
-                value = option.substr(spacePos + 1);
-                config[key] = value;
-            }
+
+            OPENVINO_ASSERT(spacePos != std::string::npos,
+                            "Failed to find a space separator in "
+                            "provided plugin config option: " +
+                                option);
+
+            std::string key = option.substr(0, spacePos);
+            std::string value = option.substr(spacePos + 1);
+            config[key] = value;
         }
     }
     return config;
