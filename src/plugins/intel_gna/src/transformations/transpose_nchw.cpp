@@ -31,15 +31,12 @@ ov::Shape make_transpose_order_nchw2nhwc(size_t shape_size);
 ov::Shape make_transpose_order_nhwc2nchw(size_t shape_size);
 
 /* transpose orders
-   before convolution convert NCHW -> NHWC
+   before convolution layout conversion NCHW -> NHWC
     3D: NCX {0, 1, 2} -> NXC {0, 2, 1}
     4D: NCHW {0, 1, 2, 3} -> NHWC {0, 2, 3, 1}
-    5D: NCZYX {0, 1, 2, 3, 4} -> NZYXC {0, 2, 3, 4, 1}
-
-   after convolution convert NHWC -> NCHW
+   after convolution layout conversion NHWC -> NCHW
    3D: NXC {0, 1, 2} -> NCX {0, 2, 1}
    4D: NHWC {0, 1, 2, 3} -> NCHW {0, 3, 1, 2}
-   5D: NZYXC {0, 1, 2, 3} -> NCZYX {0, 4, 1, 2, 3}
    so just
    1) temp = A[N - 1]
    2) move A[j] -> A[j + 1] for 1 <= j <= N - 2
@@ -92,7 +89,7 @@ bool do_transformation(std::shared_ptr<ov::Node> convolution) {
     const ov::Shape transpose_before_order = make_transpose_order_nchw2nhwc(convolution_input_shape.size());
 
     auto transpose_const =
-        Constant::create(element::i64, ov::Shape{transpose_before_order.size()}, transpose_before_order);
+        Constant::create(element::i32, ov::Shape{transpose_before_order.size()}, transpose_before_order);
 
     auto transpose_before = std::make_shared<Transpose>(convolution_input_data_node, transpose_const);
 
@@ -109,7 +106,7 @@ bool do_transformation(std::shared_ptr<ov::Node> convolution) {
 
     auto transpose_after = std::make_shared<Transpose>(
         conv_new,
-        Constant::create(element::i64, ov::Shape{transpose_after_order.size()}, transpose_after_order));
+        Constant::create(element::i32, ov::Shape{transpose_after_order.size()}, transpose_after_order));
 
     ov::copy_runtime_info(convolution_node,
                           {transpose_before, transpose_const, conv_new, transpose_after, transpose_conv_constant});
@@ -133,7 +130,7 @@ bool do_transformation(std::shared_ptr<ov::Node> max_pool) {
     const ov::Shape transpose_before_order = make_transpose_order_nchw2nhwc(max_pool_input_shape.size());
 
     auto transpose_const =
-        Constant::create(element::i64, ov::Shape{transpose_before_order.size()}, transpose_before_order);
+        Constant::create(element::i32, ov::Shape{transpose_before_order.size()}, transpose_before_order);
 
     auto transpose_before = std::make_shared<Transpose>(max_pool_input_data_node, transpose_const);
 
@@ -149,7 +146,7 @@ bool do_transformation(std::shared_ptr<ov::Node> max_pool) {
 
     auto transpose_after = std::make_shared<Transpose>(
         max_pool_new,
-        Constant::create(element::i64, ov::Shape{transpose_after_order.size()}, transpose_after_order));
+        Constant::create(element::i32, ov::Shape{transpose_after_order.size()}, transpose_after_order));
 
     ov::copy_runtime_info(max_pool_node, {transpose_before, transpose_const, max_pool_new, transpose_after});
 

@@ -11,7 +11,7 @@ namespace intel_gna {
 namespace pass {
 
 /**
- * @brief Substutites ngraph::Convolution (NCHW) -> GNAConvolution (NHWC)
+ * @brief Substitites ngraph::Convolution (NCHW) -> GNAConvolution (NHWC)
  *
  *                              Transpose (NCHW -> NHWC)
  *                                       |
@@ -26,7 +26,7 @@ public:
 };
 
 /**
- * @brief Substutites ngraph::MaxPool (NCHW) -> GNAMaxPool (NHWC)
+ * @brief Substitites ngraph::MaxPool (NCHW) -> GNAMaxPool (NHWC)
  *
  *                              Transpose (NCHW -> NHWC)
  *                                       |
