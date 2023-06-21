@@ -196,7 +196,7 @@ jobs:
     displayName: 'Intel CPU Unit Tests'
     enabled: 'false'
 
-  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/ieMultiPluginUnitTests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ieMultiPluginUnitTests.xml
+  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/ov_auto_unit_tests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ov_auto_unit_tests.xml
     displayName: 'MULTI UT'
     enabled: 'false'
 
