@@ -227,34 +227,6 @@ Using Image Scaling
 Converting Color Space
 ++++++++++++++++++++++
 
-**Inference Engine API**
-
-
-.. tab-set::
-
-    .. tab-item:: C++
-        :sync: cpp
-
-        .. doxygensnippet:: docs/snippets/ov_preprocessing_migration.cpp
-            :language: cpp
-            :fragment: color_space
-
-    .. tab-item:: Python
-        :sync: py
-
-        .. doxygensnippet:: docs/snippets/ov_preprocessing_migration.py
-           :language: python
-           :fragment: color_space
-
-    .. tab-item:: C
-        :sync: c
-
-        .. doxygensnippet:: docs/snippets/ov_preprocessing_migration.c
-           :language: c
-           :fragment: c_api_ppp
-
-
-
 **API 2.0**
 
 

@@ -18,25 +18,25 @@ Auto unit test is a set of unit tests using gmock, each of which is for testing 
 2. Build
 
    ```bash
-   make ieMultiPluginUnitTests
+   make ov_auto_unit_tests
    ```
 
-3. You can find `ieMultiPluginUnitTests` in *bin* directory after build
+3. You can find `ov_auto_unit_tests` in *bin* directory after build
 
 ### Run unit test
 
-You can run _`ieMultiPluginUnitTests`_ in *bin* directory which is the output of OpenVINO build
+You can run _`ov_auto_unit_tests`_ in *bin* directory which is the output of OpenVINO build
 
 If you want to run a specific unit test, you can use `gtest_filter` option as follows:
 
 ```
-./ieMultiPluginUnitTests --gtest_filter='*filter_name*'
+./ov_auto_unit_tests --gtest_filter='*filter_name*'
 ```
 
 Then, you can get the result similar to:
 
 ```bash
-openvino/bin/intel64/Release$ ./ieMultiPluginUnitTests --gtest_filter=*AutoReleaseHelperTest*cpuLoadFailure_accelerateorLoadFailure*
+openvino/bin/intel64/Release$ ./ov_auto_unit_tests --gtest_filter=*AutoReleaseHelperTest*cpuLoadFailure_accelerateorLoadFailure*
 Running main() from /home/openvino/thirdparty/gtest/gtest/googletest/src/gtest_main.cc
 Note: Google Test filter = *AutoReleaseHelperTest*cpuLoadFailure_accelerateorLoadFailure*
 [==========] Running 1 test from 1 test suite.

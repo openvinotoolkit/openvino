@@ -190,14 +190,14 @@ std::string toCodeString(size_t val) {
 std::string toCodeString(const Tensor::Dim& dim, size_t offset, bool padded, bool pad_is_dynamic, size_t pad_offset) {
     std::string pad_str = "";
     if (padded) {
-        if (dim.pad.is_dynamic) {
+        if (pad_is_dynamic) {
             pad_str = " + (shape_info[" + std::to_string(pad_offset) + "] + shape_info[" +
                       std::to_string(pad_offset + 1) + "])";
         } else {
             pad_str = " + " + std::to_string(dim.pad.Total());
         }
     }
-    if (dim.is_dynamic) {
+    if (dim.is_dynamic || pad_is_dynamic) {
         snprintf(buf, sizeof(buf), "(shape_info[%zu] %s)", offset, pad_str.c_str());
     } else {
         snprintf(buf, sizeof(buf), "%zu", dim.v + (padded ? dim.pad.Total() : 0));

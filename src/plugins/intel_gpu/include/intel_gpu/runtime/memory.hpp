@@ -251,4 +251,10 @@ inline std::shared_ptr<ngraph::runtime::HostTensor> make_host_tensor(layout l, v
     return std::make_shared<ngraph::runtime::HostTensor>(et, l.get_shape(), memory_pointer);
 }
 
+inline ov::Tensor make_tensor(layout l, void* memory_pointer) {
+    ov::element::Type et = data_type_to_element_type(l.data_type);
+
+    return ov::Tensor(et, l.get_shape(), memory_pointer);
+}
+
 }  // namespace cldnn

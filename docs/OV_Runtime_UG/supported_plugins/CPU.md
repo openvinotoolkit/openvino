@@ -124,10 +124,22 @@ Inference Precision Hint
 If the model has been converted to ``bf16``, the ``ov::hint::inference_precision`` is set to ``ov::element::bf16`` and can be checked via 
 the ``ov::CompiledModel::get_property`` call. The code below demonstrates how to get the element type:
 
-.. doxygensnippet:: docs/snippets/cpu/Bfloat16Inference1.cpp
-   :language: cpp
-   :fragment: [part1]
+.. tab-set::
 
+   .. tab-item:: C++
+      :sync: cpp
+
+      .. doxygensnippet:: docs/snippets/cpu/Bfloat16Inference1.cpp
+         :language: cpp
+         :fragment: [part1]
+
+   .. tab-item:: Python
+      :sync: py
+
+      .. doxygensnippet:: docs/snippets/cpu/Bfloat16Inference.py
+         :language: py
+         :fragment: [part1]
+         
 To infer the model in ``f32`` precision instead of ``bf16`` on targets with native ``bf16`` support, set the ``ov::hint::inference_precision`` to ``ov::element::f32``.
 
 
@@ -382,7 +394,7 @@ User can use the following properties to limit available CPU resource for model 
    
    ``ov::hint::scheduling_core_type`` and ``ov::hint::enable_hyper_threading`` only support Intel® x86-64 CPU on Linux and Windows in current release.
    
-By default, OpenVINO Runtime will enable CPU threads pinning for better performance. User also can use property ``ov::hint::enable_cpu_pinning`` to switch it off. Disable threads pinning might be benefitial in complex applications with several workloads executed in parallel.
+By default, OpenVINO Runtime will enable CPU threads pinning for better performance. User also can use property ``ov::hint::enable_cpu_pinning`` to switch it off. Disable threads pinning might be beneficial in complex applications with several workloads executed in parallel.
 
 .. tab:: C++
 
