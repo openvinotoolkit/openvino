@@ -510,9 +510,9 @@ public:
         } catch (const ov::Exception& ex) {
             const std::string what = ex.what();
             if (what.find("Failed to set tensor") != std::string::npos) {
-                IE_THROW_E(InferenceEngine::ParameterMismatch, what);
+                IE_THROW_E(ParameterMismatch, what);
             }
-            IE_THROW_E(InferenceEngine::GeneralError, what);
+            IE_THROW_E(GeneralError, what);
         }
     }
 
@@ -524,7 +524,7 @@ public:
             }
             m_request->set_tensors(find_port(name), tensors);
         } catch (const ov::Exception& ex) {
-            IE_THROW_E(InferenceEngine::GeneralError, ex.what());
+            IE_THROW_E(GeneralError, ex.what());
         }
     }
 
