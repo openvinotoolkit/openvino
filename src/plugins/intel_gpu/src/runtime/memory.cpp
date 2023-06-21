@@ -45,4 +45,93 @@ std::unique_ptr<surfaces_lock> surfaces_lock::create(engine_types engine_type, s
     }
 }
 
+ov::Shape MemoryUsageTracker::shapes_math(const ov::Shape& shape1, const ov::Shape& shape2, math_op op) {
+    std::vector<size_t> result;
+
+    OPENVINO_ASSERT(shape1.size() == shape2.size());
+
+    for (size_t i = 0; i < shape1.size(); i++) {
+        if (op == math_op::SUB && shape1[i] < shape2[i])
+            return std::vector<size_t>();
+
+        if (op == math_op::SUB)
+            result.push_back(shape1[i] - shape2[i]);
+        else if (op == math_op::SUM)
+            result.push_back(shape1[i] + shape2[i]);
+        else if (op == math_op::MUL)
+            result.push_back(shape1[i] * shape2[i]);
+    }
+
+    return result;
+}
+
+void MemoryUsageTracker::add_shape(const std::string& id, const ov::Shape& shape) {
+    auto& shapes = _shapes_info[id];
+    if (shapes.size() >= _max_deque_size)
+        shapes.pop_front();
+
+    shapes.push_back(shape);
+}
+
+bool MemoryUsageTracker::can_preallocate(size_t current_buffer_size, size_t desired_buffer_size) {
+    auto device_mem_usage = _engine->get_used_device_memory(cldnn::allocation_type::usm_device);
+
+    if (desired_buffer_size <= current_buffer_size)
+        return true;
+
+    const auto memory_threshold = 0.95;
+    float ration = static_cast<float>(desired_buffer_size) / static_cast<float>(current_buffer_size);
+
+    // TOOD: need to exclude constants from global memory size
+    return device_mem_usage * ration < _engine->get_device_info().max_global_mem_size * memory_threshold;
+}
+
+std::pair<bool, ov::Shape>
+    MemoryUsageTracker::predict_preallocated_shape_size(const std::string& id,
+                                                        const ov::Shape& current_shape,
+                                                        bool can_reuse_buffer) {
+    add_shape(id, current_shape);
+
+    // Save shape information and exit without pre-allocation suggestion if current
+    // buffer can be reused
+    if (can_reuse_buffer)
+        return {false, {}};
+
+    // Check if there is enough data for prediction
+    auto& shapes = _shapes_info[id];
+    if (shapes.size() == _max_deque_size) {
+        std::vector<ov::Shape> diffs;
+        for (size_t i = _max_deque_size - 1; i >= 1; --i) {
+            auto result = shapes_math(shapes[i], shapes[i - 1], math_op::SUB);
+            if (result.empty())
+                break;
+            diffs.push_back(result);
+        }
+
+        bool is_same_diff = diffs.size() > 1;
+        for (size_t i = 1; i < diffs.size(); ++i) {
+            if (diffs[0] != diffs[i]) {
+                is_same_diff = false;
+                break;
+            }
+        }
+
+        if (is_same_diff) {
+            // Apply preallocation for the next N iterations
+            ov::Shape mul_shape(diffs[0].size(), _next_iters_preallocation_count);
+            auto diff = shapes_math(diffs[0], mul_shape, math_op::MUL);
+            auto new_shape = shapes_math(current_shape, diff, math_op::SUM);
+            return {true, new_shape};
+        } else {
+            // Apply percentage buffer preallocation
+            auto current_shape_size = ov::shape_size(current_shape);
+            ov::Shape new_shape_size(current_shape.size(), 1);
+            new_shape_size[0] = static_cast<size_t>(current_shape_size * _buffers_preallocation_ratio);
+            return {true, new_shape_size};
+        }
+    }
+
+    return {false, {}};
+}
+
 }  // namespace cldnn

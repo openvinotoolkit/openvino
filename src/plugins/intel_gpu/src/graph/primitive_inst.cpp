@@ -335,7 +335,10 @@ event::ptr primitive_inst::realloc_if_needed() {
     if (_node->get_users().size() == 1 && _node->get_users().front()->is_type<concatenation>()) {
         auto concat_inst = _network.get_primitive(get_users().front()->id());
         if (concat_inst->can_be_optimized()) {
-            concat_inst->realloc_if_needed();
+            if (!concat_inst->allocation_done_by_other) {
+                concat_inst->realloc_if_needed();
+                concat_inst->allocation_done_by_other = true;
+            }
             this->_outputs[0] = concat_inst->_outputs[0];
             GPU_DEBUG_TRACE_DETAIL << id() << ": use concat user's memory " << this->_outputs[0]->buffer_ptr() << std::endl;
             return ev;
@@ -361,6 +364,23 @@ event::ptr primitive_inst::realloc_if_needed() {
     }
 
     bool can_reuse_buffer = _outputs[0] && actual_layout.count() <= max_output_layout_size;
+
+    // Handle runtime dynamic concat optimization
+    if (_node->is_type<concatenation>() && can_be_optimized() && allocation_done_by_other) {
+        allocation_done_by_other = false;
+        return ev;
+    }
+
+    if (get_network().can_use_buffers_preallocation()) {
+        auto current_shape = actual_layout.get_shape();
+        auto mem_tracker = get_network().get_memory_usage_tracker();
+        auto prealloc_info = mem_tracker->predict_preallocated_shape_size(id(), current_shape, can_reuse_buffer);
+        if (prealloc_info.first) {
+            auto new_layout = actual_layout;
+            new_layout.set_partial_shape(prealloc_info.second);
+            updated_params.output_layouts[0] = new_layout;
+        }
+    }
 
     if (can_reuse_buffer) {
         GPU_DEBUG_TRACE_DETAIL << id() << ": reuse previously allocated output buffer" << std::endl;

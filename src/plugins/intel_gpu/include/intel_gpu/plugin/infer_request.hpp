@@ -75,7 +75,7 @@ private:
     InferenceEngine::IStreamsExecutor* streamExecutor = nullptr;
 
     void prepare_input(const cldnn::primitive_id &inputName, InferenceEngine::Blob::Ptr &inputBlob,
-                       std::vector<cldnn::event::ptr>& dependencies);
+                       std::vector<cldnn::event::ptr>& dependencies, bool is_first_input = true);
     void prepare_output(const cldnn::primitive_id& outputName, InferenceEngine::Blob::Ptr& outputBlob);
     void allocate_dev_mem_if_needed(InferenceEngine::BlobMap& device_mems, InferenceEngine::Blob::Ptr& user_blob,
                                     const cldnn::primitive_id& blob_name, const cldnn::layout& layout,

@@ -12,6 +12,7 @@
 #include "ngraph/runtime/host_tensor.hpp"
 
 #include <type_traits>
+#include <deque>
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #include <oneapi/dnnl/dnnl.hpp>
@@ -257,5 +258,27 @@ inline ov::Tensor make_tensor(layout l, void* memory_pointer) {
 
     return ov::Tensor(et, l.get_shape(), memory_pointer);
 }
+
+struct MemoryUsageTracker {
+public:
+    MemoryUsageTracker(const engine* engine) : _engine(engine) {
+        static_assert(_max_deque_size >= 2, "[GPU] Deque is supposed to contain at least 2 elements for prediction");
+    }
+
+    std::pair<bool, ov::Shape> predict_preallocated_shape_size(const std::string& id, const ov::Shape& current_shape, bool can_reuse_buffer);
+    bool can_preallocate(size_t current_buffer_size, size_t desired_buffer_size);
+
+private:
+    enum class math_op { SUM, SUB, MUL };
+    ov::Shape shapes_math(const ov::Shape& shape1, const ov::Shape& shape2, math_op op);
+    void add_shape(const std::string& id, const ov::Shape& shape);
+
+    std::map<std::string, std::deque<ov::Shape>> _shapes_info;
+    const engine* _engine;
+
+    static constexpr size_t _max_deque_size = 3;
+    static constexpr size_t _next_iters_preallocation_count = 10;
+    static constexpr float _buffers_preallocation_ratio = 1.1f;
+};
 
 }  // namespace cldnn

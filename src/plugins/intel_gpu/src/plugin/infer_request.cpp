@@ -457,10 +457,12 @@ void InferRequest::enqueue() {
         }
     }
 
+    bool is_first_input = true;
     for (auto& item : _inputs) {
         std::string inputName = item.first;
         Blob::Ptr& inputBlob = item.second;
-        prepare_input(inputName, inputBlob, dependencies);
+        prepare_input(inputName, inputBlob, dependencies, is_first_input);
+        is_first_input = false;
     }
 
     auto networkPtr = m_graph->GetNetwork();
@@ -873,7 +875,7 @@ void InferRequest::allocate_dev_mem_if_needed(InferenceEngine::BlobMap& device_m
 }
 
 void InferRequest::prepare_input(const cldnn::primitive_id& inputName, Blob::Ptr& inputBlob,
-                                      std::vector<cldnn::event::ptr>& dependencies) {
+                                 std::vector<cldnn::event::ptr>& dependencies, bool is_first_input) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "InferRequest::prepare_input");
     auto inputLayoutItr = m_graph->GetInputLayouts().find(inputName);
     OPENVINO_ASSERT(inputLayoutItr != m_graph->GetInputLayouts().end(), "[GPU] Input name mismatch");
@@ -898,6 +900,7 @@ void InferRequest::prepare_input(const cldnn::primitive_id& inputName, Blob::Ptr
         }
     };
 
+    auto _nw_ptr = m_graph->GetNetwork();
     if (input_layout.is_dynamic()) {
         bool has_device_blob = _deviceInputs.find(inputName) != _deviceInputs.end();
         bool should_allocate_device_blob = !has_device_blob;
@@ -909,8 +912,27 @@ void InferRequest::prepare_input(const cldnn::primitive_id& inputName, Blob::Ptr
             }
         }
 
+        auto mem_tracker = _nw_ptr->get_memory_usage_tracker();
+        auto current_shape = ov::Shape(inputBlob->getTensorDesc().getDims());
+        auto prealloc_info = mem_tracker->predict_preallocated_shape_size(inputName, current_shape, !should_allocate_device_blob);
+
         if (should_allocate_device_blob) {
-            _deviceInputs[inputName] = create_device_blob(inputBlob->getTensorDesc());
+            const auto& tensor_desc = inputBlob->getTensorDesc();
+            auto preallocation_shape = prealloc_info.second;
+            auto can_preallocate_buffer = prealloc_info.first &&
+                                          mem_tracker->can_preallocate(ov::shape_size(current_shape), ov::shape_size(preallocation_shape));
+
+            if (can_preallocate_buffer)
+                _nw_ptr->set_use_buffers_preallocation(true);
+
+            if (can_preallocate_buffer) {
+                auto new_tensor_desc = tensor_desc;
+                new_tensor_desc.setDims(preallocation_shape);
+                auto device_blob = create_device_blob(new_tensor_desc);
+                _deviceInputs[inputName] = reinterpret_device_blob(device_blob, inputBlob->getTensorDesc());
+            } else {
+                _deviceInputs[inputName] = create_device_blob(tensor_desc);
+            }
         } else {
             _deviceInputs[inputName] = reinterpret_device_blob(_deviceInputs[inputName], inputBlob->getTensorDesc());
         }
@@ -919,7 +941,6 @@ void InferRequest::prepare_input(const cldnn::primitive_id& inputName, Blob::Ptr
     }
     OPENVINO_ASSERT(_deviceInputs.find(inputName) != _deviceInputs.end(), "[GPU] Couldn't find device blob allocated for ", inputName, " input");
     auto reqBlob = _deviceInputs.at(inputName)->as<gpu::ClBlob>();
-    auto _nw_ptr = m_graph->GetNetwork();
     const cldnn::primitive_id internalName = "parameter:" + inputName;
 
     switch (prec) {
@@ -980,7 +1001,7 @@ void InferRequest::prepare_input(const cldnn::primitive_id& inputName, Blob::Ptr
                     }
                 }
             }
-            _nw_ptr->set_input_data(internalName, inputMem);
+            _nw_ptr->set_input_data(internalName, inputMem, is_first_input);
             break;
         }
         default:
