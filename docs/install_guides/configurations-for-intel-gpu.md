@@ -26,7 +26,7 @@ Depending on your operating system, there may be different methods to install th
 
       Download and install the `deb` packages published `here <https://github.com/intel/compute-runtime/releases/latest>`__ and install the apt package `ocl-icd-libopencl1` with the OpenCl ICD loader.
       
-      Add the apt repository following the installation instruction from `here <https://dgpu-docs.intel.com/driver/installation.html#ubuntu-install-steps>`__). 
+      Alternatively, you can add the apt repository by following the `installation guide <https://dgpu-docs.intel.com/driver/installation.html#ubuntu-install-steps>`__. 
       
       Install the `ocl-icd-libopencl1`, `intel-opencl-icd`, `intel-level-zero-gpu` and `level-zero` apt packages:
       
@@ -52,7 +52,7 @@ Depending on your operating system, there may be different methods to install th
    .. tab-item:: RedHat UBI 8
       :sync: redhat8
 
-      Follow the `instructions <https://dgpu-docs.intel.com/driver/installation.html#rhel-install-steps>`__ to add Yum repository.
+      Follow the `guide <https://dgpu-docs.intel.com/driver/installation.html#rhel-install-steps>`__ to add Yum repository.
       
       Install following packages: 
       
