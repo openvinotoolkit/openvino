@@ -611,6 +611,98 @@ INSTANTIATE_TEST_SUITE_P(smoke_VariadicSplit4D_CPU_dynamic_lengths, VariadicSpli
                                 ::testing::Values(planar_4D_ref)),
                         VariadicSplitLayerCPUTest::getTestCaseName);
 
+// =========================================== in - place ============================================================//
+INSTANTIATE_TEST_SUITE_P(smoke_VariadicSplit_CPU_planar_inPlace_0, VariadicSplitLayerCPUTest,
+                        ::testing::Combine(
+                                ::testing::Values(InputShape{ {}, {{5, 6, 5, 6, 7}} },
+                                                  InputShape{ {}, {{5, 6, 5, 6}} },
+                                                  InputShape{ {}, {{5, 6, 5}} },
+                                                  InputShape{ {5, -1, -1, -1, -1},
+                                                              {
+                                                                  {5, 6, 5, 6, 7},
+                                                                  {5, 2, 5, 2, 7},
+                                                                  {5, 8, 5, 8, 7}
+                                                              } },
+                                                  InputShape{ {5, -1, -1, -1},
+                                                              {
+                                                                  {5, 6, 5, 6},
+                                                                  {5, 2, 5, 2},
+                                                                  {5, 8, 5, 8}
+                                                              } },
+                                                  InputShape{ {5, -1, -1},
+                                                              {
+                                                                  {5, 6, 5},
+                                                                  {5, 2, 5},
+                                                                  {5, 8, 5}
+                                                              } }),
+                                ::testing::Values(0),
+                                ::testing::Values(LengthsPerInfer{{1, 2, -1}}),
+                                ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
+                                ::testing::Values(ElementType::f32),
+                               ::testing::Values(CPUSpecificParams{{}, {}, {}, "unknown"})),
+                        VariadicSplitLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_VariadicSplit_CPU_planar_inPlace_1, VariadicSplitLayerCPUTest,
+                        ::testing::Combine(
+                                ::testing::Values(InputShape{ {}, {{1, 6, 5, 6, 7}} },
+                                                  InputShape{ {}, {{1, 6, 5, 6}} },
+                                                  InputShape{ {}, {{1, 6, 5}} },
+                                                  InputShape{ {1, 6, -1, -1, -1},
+                                                              {
+                                                                  {1, 6, 5, 6, 7},
+                                                                  {1, 6, 5, 2, 7},
+                                                                  {1, 6, 5, 8, 7}
+                                                              } },
+                                                  InputShape{ {1, 6, -1, -1},
+                                                              {
+                                                                  {1, 6, 5, 6},
+                                                                  {1, 6, 5, 2},
+                                                                  {1, 6, 5, 8}
+                                                              } },
+                                                  InputShape{ {1, 6, -1},
+                                                              {
+                                                                  {1, 6, 5},
+                                                                  {1, 6, 3},
+                                                                  {1, 6, 7}
+                                                              } }),
+                                ::testing::Values(1),
+                                ::testing::Values(LengthsPerInfer{{1, 2, -1}}),
+                                ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
+                                ::testing::Values(ElementType::f32),
+                               ::testing::Values(CPUSpecificParams{{}, {}, {}, "unknown"})),
+                        VariadicSplitLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_VariadicSplit4D_CPU_block8_inPlace, VariadicSplitLayerCPUTest,
+                        ::testing::Combine(
+                                ::testing::Values(InputShape{ {}, {{1, 32, 5, 6}} },
+                                                  InputShape{ {1, 32, -1, -1},
+                                                              {
+                                                                  {1, 32, 5, 6},
+                                                                  {1, 32, 5, 2},
+                                                                  {1, 32, 5, 8}
+                                                              } }),
+                                ::testing::Values(1),
+                                ::testing::Values(LengthsPerInfer{{8, 16, -1}}),
+                                ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
+                                ::testing::Values(ElementType::f32),
+                               ::testing::Values(blocked8_4D)),
+                        VariadicSplitLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_VariadicSplit4D_CPU_block16_inPlace, VariadicSplitLayerCPUTest,
+                        ::testing::Combine(
+                                ::testing::Values(InputShape{ {}, {{1, 64, 5, 6}} },
+                                                  InputShape{ {1, 64, -1, -1},
+                                                              {
+                                                                  {1, 64, 5, 6},
+                                                                  {1, 64, 5, 2},
+                                                                  {1, 64, 5, 8}
+                                                              } }),
+                                ::testing::Values(1),
+                                ::testing::Values(LengthsPerInfer{{16, 32, -1}}),
+                                ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
+                                ::testing::Values(ElementType::f32),
+                               ::testing::Values(blocked16_4D)),
+                        VariadicSplitLayerCPUTest::getTestCaseName);
 } // namespace
 
 } // namespace CPULayerTestsDefinitions
