@@ -65,11 +65,7 @@ protected:
             {"MatMulWithConstant", "FullyConnected"},
         };
         node_type = ngraph_type_to_plugin_type.at(layer_type);
-        if (node_type == "FullyConnected")
-            // @todo: Recover the Multiply fusing check after moving FC bias fusing into CPUgraph optimizer.
-            fusedOps = std::vector<std::string>{"Add"};
-        else
-            fusedOps = std::vector<std::string>{"Multiply", "Add"};
+        fusedOps = std::vector<std::string>{"Multiply", "Add"};
 
         const auto shapes = layer_type == "MatMul" ? std::vector<InputShape>{input_shape, input_shape}
                                                    : std::vector<InputShape>{input_shape};
