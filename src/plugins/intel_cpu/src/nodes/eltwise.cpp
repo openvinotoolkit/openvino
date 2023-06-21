@@ -699,7 +699,6 @@ private:
                     uni_vpslld(vmm_src, vmm_src, 16);
                     break;
                 case Precision::FP16:
-                    assert(mayiuse(x64::avx512_core_fp16));
                     vcvtph2ps(vmm_src, op);
                     break;
                 case Precision::U16:
