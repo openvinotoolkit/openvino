@@ -76,7 +76,7 @@ void update_input_gather(NodePtr main_node,
             gather_input_info.gather->get_input_partial_shape(0).rank().get_length());
 
     const std::vector<int64_t> gather_indices = get_normalized_gather_indices(gather_input_info.indices_const);
-    const std::vector<int64_t> reversed_gather_indices = reverse_gather_indices(gather_indices);
+    const std::vector<int64_t> reversed_gather_indices = reverse_gather_indexes(gather_indices);
 
     const auto indices_element_type = gather_input_info.indices_const->get_element_type();
     const auto axis_element_type = gather_input_info.axis_const->get_element_type();
@@ -93,9 +93,9 @@ void update_input_gather(NodePtr main_node,
         } else {
             /* Doesn't add Gather layer if input_node_shape[axis] == 1 since it is useless and causes an invalid result.
              * Input nodes can have different shapes. That shapes can have smaller or larger ranks. To manage it we need
-             * to find max input shape rank and unsqeeze all input shapes to it.
+             * to find max input shape rank and unsqueeze all input shapes to it.
              */
-            const Shape unsqueezed_input_shape = unsqeeze_shape(input_node.get_shape(), max_input_rank);
+            const Shape unsqueezed_input_shape = unsqueeze_shape(input_node.get_shape(), max_input_rank);
             if (get_dim_by_axis(unsqueezed_input_shape, gather_negative_axis) == 1)
                 continue;
 
@@ -184,7 +184,7 @@ NodeVector insert_gather_before_node(NodePtr main_node,
     for (const auto& i : input_indices) {
         auto input_node = main_node->input_value(i);
 
-        const Shape unsqueezed_input_shape = unsqeeze_shape(input_node.get_shape(), max_input_rank);
+        const Shape unsqueezed_input_shape = unsqueeze_shape(input_node.get_shape(), max_input_rank);
         if (get_dim_by_axis(unsqueezed_input_shape, gather_negative_axis) == 1)
             continue;
 

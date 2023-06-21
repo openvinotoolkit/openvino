@@ -447,9 +447,9 @@ inline Shape::value_type get_dim_by_axis(const Shape& shape, int64_t axis) {
 }
 
 /**
- * @brief broadcasts shape to rank
+ * @brief unsqueezes shape to rank
  */
-inline Shape unsqeeze_shape(const Shape& shape, ov::Rank::value_type rank) {
+inline Shape unsqueeze_shape(const Shape& shape, ov::Rank::value_type rank) {
     const int rank_delta = rank - shape.size();
 
     if (rank_delta <= 0)
@@ -480,7 +480,7 @@ inline int64_t convert_axis_to_positive(int64_t axis, ov::Rank rank) {
  * @brief Reverts gather indices in such a way that reverted and initial gather will do nothing if
  *   they stay one after another. Works only with positive form (no negative indices).
  */
-inline std::vector<int64_t> reverse_gather_indices(const std::vector<int64_t>& indexes) {
+inline std::vector<int64_t> reverse_gather_indexes(const std::vector<int64_t>& indexes) {
     std::vector<int64_t> out(indexes.size());
     for (size_t i = 0; i < indexes.size(); i++) {
         out.at(indexes[i]) = i;
