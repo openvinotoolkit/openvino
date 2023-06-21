@@ -217,12 +217,11 @@ void LinearIR::LoopManager::mark_loop(LinearIR::constExprIt loop_begin_pos,
 void LinearIR::LoopManager::fuse_loops(const LinearIR& linear_ir, size_t loop_id_upper, size_t loop_id_lower, bool fuse_into_upper) {
     LinearIR::constExprIt loop_begin_target, loop_end_target;
     get_loop_bounds(linear_ir, fuse_into_upper ? loop_id_lower : loop_id_upper, loop_begin_target, loop_end_target);
-    fuse_loops(loop_id_upper, loop_id_lower, loop_begin_target, loop_end_target, fuse_into_upper);
+    fuse_loops(loop_begin_target, loop_end_target, loop_id_upper, loop_id_lower, fuse_into_upper);
 }
 
-void LinearIR::LoopManager::fuse_loops(size_t loop_id_upper, size_t loop_id_lower,
-                                       LinearIR::constExprIt loop_begin_target, LinearIR::constExprIt loop_end_target,
-                                       bool fuse_into_upper) {
+void LinearIR::LoopManager::fuse_loops(LinearIR::constExprIt loop_begin_target, LinearIR::constExprIt loop_end_target,
+                                       size_t loop_id_upper, size_t loop_id_lower, bool fuse_into_upper) {
     OPENVINO_ASSERT(m_map.count(loop_id_upper) == 1 && m_map.count(loop_id_lower) == 1,
                     "Failed Loop Fusion: the Loop with the Loop ID isn't existed");
 
@@ -300,6 +299,7 @@ void LinearIR::LoopManager::fuse_loop_ports(std::vector<LinearIR::LoopManager::L
     exit_points = new_exit_points;
 }
 
+template<>
 void LinearIR::LoopManager::update_loop_port(size_t loop_id, const ExpressionPort& actual_port, const std::vector<ExpressionPort>& target_ports,
                                              bool is_entry) {
     const auto& loop_info = get_loop_info(loop_id);
@@ -314,8 +314,8 @@ void LinearIR::LoopManager::update_loop_port(size_t loop_id, const ExpressionPor
     // to save other parameters except expression port
     std::vector<LoopPort> target_loop_ports(target_ports.size(), *port_it);
     std::transform(target_loop_ports.begin(), target_loop_ports.end(), target_ports.begin(), target_loop_ports.begin(),
-                   [](const LoopPort& loop_port, const ExpressionPort& expr_port) {
-                       LoopPort copy = loop_port;  // to save loop port parameters
+                   [](LoopPort loop_port, const ExpressionPort& expr_port) {
+                       LoopPort copy = std::move(loop_port);  // to save loop port parameters
                        copy.expr_port = std::make_shared<ExpressionPort>(expr_port);
                        return copy;
                    });
@@ -323,6 +323,7 @@ void LinearIR::LoopManager::update_loop_port(size_t loop_id, const ExpressionPor
     ports.insert(port_it, target_ports.cbegin(), target_ports.cend());
 }
 
+template<>
 void LinearIR::LoopManager::update_loop_port(size_t loop_id, const LoopPort& actual_port, const std::vector<LoopPort>& target_ports,
                                              bool is_entry) {
     const auto& loop_info = get_loop_info(loop_id);
@@ -356,6 +357,8 @@ void LinearIR::LoopManager::expression_replacement(constExprIt new_expr_begin, c
 }
 
 void LinearIR::LoopManager::sort_loop_ports(LinearIR::constExprIt& loop_begin_pos, LinearIR::constExprIt& loop_end_pos, size_t loop_id) {
+    // The method sorts Loop ports again
+    // [113536] Update this logic please, when expression numeration will be implemented
     auto push = [](const std::vector<LoopPort>& ports, std::vector<LoopPort>& sorted_ports, const ExpressionPtr& expr) {
         for (const auto& port : ports) {
             if (port.expr_port->get_expr() == expr) {

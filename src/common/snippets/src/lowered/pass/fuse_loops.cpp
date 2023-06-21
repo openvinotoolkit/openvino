@@ -105,7 +105,7 @@ bool FuseLoops::fuse_upper_into_current(LinearIR& linear_ir, const LinearIR::Loo
 
     LinearIR::constExprIt target_loop_begin_pos, target_loop_end_pos;
     loop_manager->get_loop_bounds(linear_ir, target_loop_id, target_loop_begin_pos, target_loop_end_pos);
-    loop_manager->fuse_loops(target_loop_id, current_loop_id, target_loop_begin_pos, target_loop_end_pos, false);
+    loop_manager->fuse_loops(target_loop_begin_pos, target_loop_end_pos, target_loop_id, current_loop_id, false);
     // Update work_amount for Loop (increment is constant because increments must be the identical for fusion):
     loop_current->work_amount = std::max(loop_current->work_amount, loop_target->work_amount);
 
@@ -147,7 +147,7 @@ bool FuseLoops::fuse_lower_into_current(LinearIR& linear_ir, const LinearIR::Loo
 
     LinearIR::constExprIt target_loop_begin_pos, target_loop_end_pos;
     loop_manager->get_loop_bounds(linear_ir, target_loop_id, target_loop_begin_pos, target_loop_end_pos);
-    loop_manager->fuse_loops(current_loop_id, target_loop_id, target_loop_begin_pos, target_loop_end_pos);
+    loop_manager->fuse_loops(target_loop_begin_pos, target_loop_end_pos, current_loop_id, target_loop_id);
     // Update work_amount for Loop (increment is constant because increments must be the identical for fusion):
     loop_current->work_amount = std::max(loop_current->work_amount, loop_target->work_amount);
 

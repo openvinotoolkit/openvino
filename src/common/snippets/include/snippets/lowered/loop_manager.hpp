@@ -78,15 +78,15 @@ public:
                    const std::vector<ExpressionPort>& exits);
 
     void fuse_loops(const LinearIR& linear_ir, size_t loop_id_upper, size_t loop_id_lower, bool fuse_into_upper = true);
-    void fuse_loops(size_t loop_id_upper, size_t loop_id_lower,
-                    LinearIR::constExprIt loop_begin_target, LinearIR::constExprIt loop_end_target, bool fuse_into_upper = true);
+    void fuse_loops(LinearIR::constExprIt loop_begin_target, LinearIR::constExprIt loop_end_target,
+                    size_t loop_id_upper, size_t loop_id_lower, bool fuse_into_upper = true);
 
     // The following methods update ports of LoopInfo. They save the order of ports!
     // Remainder: the order is important to find Loop bounds (the most first and the most last expressions)
     //   - Update LoopPort - insert new loop target ports instead of existing.
-    void update_loop_port(size_t loop_id, const LoopPort& actual_port, const std::vector<LoopPort>& target_ports, bool is_entry = true);
     //   - Update ExpressionPort in the LoopPort - with saving of port parameters. It's softer method since ExpressionPort may not be port of Loop
-    void update_loop_port(size_t loop_id, const ExpressionPort& actual_port, const std::vector<ExpressionPort>& target_ports, bool is_entry = true);
+    template<typename T>
+    void update_loop_port(size_t loop_id, const T& actual_port, const std::vector<T>& target_ports, bool is_entry = true);
     template<typename T>
     void update_loops_port(const std::vector<size_t>& loop_ids, const T& actual_port,
                            const std::vector<T>& target_ports, bool is_entry = true) {
@@ -98,11 +98,11 @@ public:
     void sort_loop_ports(LinearIR::constExprIt& loop_begin_pos, LinearIR::constExprIt& loop_end_pos, size_t loop_id);
 
     // When the previous expression was replaced with new expressions (decomposition), the method updates the corresponding Loop.
-    // `Entries` and `exits` are known new loop ports if there are
+    // If ports of decomposed expression were the Loop ports, these Loop ports may be updated by parameters `entries` and `exits`
     // Note: This method should be removed when Softmax decomposition will be moved on data flow pipeline since
-    //       all decomposition should be call on this pipeline
+    //       all decompositions should be call on this pipeline
     void expression_replacement(constExprIt new_expr_begin, constExprIt new_expr_end, const ExpressionPtr& decomposed_expr,
-                                size_t loop_id, const std::vector<ExpressionPort>& entries, const std::vector<ExpressionPort>& exits);
+                                size_t loop_id, const std::vector<ExpressionPort>& new_entries, const std::vector<ExpressionPort>& exits);
 
     void get_loop_bounds(const LinearIR& linear_ir,
                          size_t loop_id,
