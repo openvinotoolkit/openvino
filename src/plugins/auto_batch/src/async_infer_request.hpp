@@ -7,19 +7,25 @@
 #include "cpp_interfaces/impl/ie_infer_async_request_thread_safe_default.hpp"
 #include "sync_infer_request.hpp"
 
-namespace AutoBatchPlugin {
-class AutoBatchAsyncInferRequest : public InferenceEngine::AsyncInferRequestThreadSafeDefault {
+namespace ov {
+namespace autobatch_plugin {
+class AsyncInferRequest : public InferenceEngine::AsyncInferRequestThreadSafeDefault {
 public:
-    using Ptr = std::shared_ptr<AutoBatchAsyncInferRequest>;
+    using Ptr = std::shared_ptr<AsyncInferRequest>;
 
-    explicit AutoBatchAsyncInferRequest(const AutoBatchInferRequest::Ptr& inferRequest,
-                                        InferenceEngine::SoIInferRequestInternal& inferRequestWithoutBatch,
-                                        const InferenceEngine::ITaskExecutor::Ptr& callbackExecutor);
+    explicit AsyncInferRequest(const SyncInferRequest::Ptr& inferRequest,
+                               InferenceEngine::SoIInferRequestInternal& inferRequestWithoutBatch,
+                               const InferenceEngine::ITaskExecutor::Ptr& callbackExecutor);
+
     void Infer_ThreadUnsafe() override;
-    virtual ~AutoBatchAsyncInferRequest();
+
+    virtual ~AsyncInferRequest();
+
     std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> GetPerformanceCounts() const override;
 
-    InferenceEngine::SoIInferRequestInternal _inferRequestWithoutBatch;
-    AutoBatchInferRequest::Ptr _inferRequest;
+    InferenceEngine::SoIInferRequestInternal m_infer_request_without_batch;
+
+    SyncInferRequest::Ptr m_sync_infer_request;
 };
-}  // namespace AutoBatchPlugin
+}  // namespace autobatch_plugin
+}  // namespace ov

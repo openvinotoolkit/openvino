@@ -6,23 +6,21 @@
 
 #include "async_infer_request.hpp"
 
-namespace AutoBatchPlugin {
+namespace ov {
+namespace autobatch_plugin {
 
-using namespace InferenceEngine;
-
-AutoBatchAsyncInferRequest::AutoBatchAsyncInferRequest(
-    const AutoBatchInferRequest::Ptr& inferRequest,
-    InferenceEngine::SoIInferRequestInternal& inferRequestWithoutBatch,
-    const ITaskExecutor::Ptr& callbackExecutor)
+AsyncInferRequest::AsyncInferRequest(const SyncInferRequest::Ptr& inferRequest,
+                                     InferenceEngine::SoIInferRequestInternal& inferRequestWithoutBatch,
+                                     const InferenceEngine::ITaskExecutor::Ptr& callbackExecutor)
     : AsyncInferRequestThreadSafeDefault(inferRequest, nullptr, callbackExecutor),
-      _inferRequestWithoutBatch(inferRequestWithoutBatch),
-      _inferRequest{inferRequest} {
+      m_infer_request_without_batch(inferRequestWithoutBatch),
+      m_sync_infer_request{inferRequest} {
     // this executor starts the inference while  the task (checking the result) is passed to the next stage
-    struct ThisRequestExecutor : public ITaskExecutor {
-        explicit ThisRequestExecutor(AutoBatchAsyncInferRequest* _this_) : _this{_this_} {}
-        void run(Task task) override {
-            auto& workerInferRequest = _this->_inferRequest->_myBatchedRequestWrapper;
-            std::pair<AutoBatchAsyncInferRequest*, InferenceEngine::Task> t;
+    struct ThisRequestExecutor : public InferenceEngine::ITaskExecutor {
+        explicit ThisRequestExecutor(AsyncInferRequest* _this_) : _this{_this_} {}
+        void run(InferenceEngine::Task task) override {
+            auto& workerInferRequest = _this->m_sync_infer_request->m_batched_request_wrapper;
+            std::pair<AsyncInferRequest*, InferenceEngine::Task> t;
             t.first = _this;
             t.second = std::move(task);
             workerInferRequest._tasks.push(t);
@@ -32,35 +30,36 @@ AutoBatchAsyncInferRequest::AutoBatchAsyncInferRequest(
                 workerInferRequest._cond.notify_one();
             }
         };
-        AutoBatchAsyncInferRequest* _this = nullptr;
+        AsyncInferRequest* _this = nullptr;
     };
-    _pipeline = {{/*TaskExecutor*/ std::make_shared<ThisRequestExecutor>(this), /*task*/ [this] {
-                      if (this->_inferRequest->_exceptionPtr)  // if the exception happened in the batch1 fallback
-                          std::rethrow_exception(this->_inferRequest->_exceptionPtr);
-                      auto& batchReq = this->_inferRequest->_myBatchedRequestWrapper;
-                      if (batchReq._exceptionPtr)  // when the batchN execution failed
-                          std::rethrow_exception(batchReq._exceptionPtr);
-                      // in the case of non-batched execution the blobs were set explicitly
-                      if (AutoBatchInferRequest::eExecutionFlavor::BATCH_EXECUTED ==
-                          this->_inferRequest->_wasBatchedRequestUsed)
-                          this->_inferRequest->CopyOutputsIfNeeded();
-                  }}};
+    _pipeline = {
+        {/*TaskExecutor*/ std::make_shared<ThisRequestExecutor>(this), /*task*/ [this] {
+             if (this->m_sync_infer_request->m_exceptionPtr)  // if the exception happened in the batch1 fallback
+                 std::rethrow_exception(this->m_sync_infer_request->m_exceptionPtr);
+             auto& batchReq = this->m_sync_infer_request->m_batched_request_wrapper;
+             if (batchReq.m_exceptionPtr)  // when the batchN execution failed
+                 std::rethrow_exception(batchReq.m_exceptionPtr);
+             // in the case of non-batched execution the blobs were set explicitly
+             if (SyncInferRequest::eExecutionFlavor::BATCH_EXECUTED ==
+                 this->m_sync_infer_request->m_batched_request_status)
+                 this->m_sync_infer_request->CopyOutputsIfNeeded();
+         }}};
 }
 
-std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> AutoBatchAsyncInferRequest::GetPerformanceCounts()
-    const {
+std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> AsyncInferRequest::GetPerformanceCounts() const {
     CheckState();
-    if (AutoBatchInferRequest::eExecutionFlavor::BATCH_EXECUTED == _inferRequest->_wasBatchedRequestUsed)
-        return _inferRequest->_myBatchedRequestWrapper._inferRequestBatched->GetPerformanceCounts();
+    if (SyncInferRequest::eExecutionFlavor::BATCH_EXECUTED == m_sync_infer_request->m_batched_request_status)
+        return m_sync_infer_request->m_batched_request_wrapper._inferRequestBatched->GetPerformanceCounts();
     else
-        return _inferRequestWithoutBatch->GetPerformanceCounts();
+        return m_infer_request_without_batch->GetPerformanceCounts();
 }
 
-void AutoBatchAsyncInferRequest::Infer_ThreadUnsafe() {
+void AsyncInferRequest::Infer_ThreadUnsafe() {
     InferUsingAsync();
 }
 
-AutoBatchAsyncInferRequest::~AutoBatchAsyncInferRequest() {
+AsyncInferRequest::~AsyncInferRequest() {
     StopAndWait();
 }
-}  // namespace AutoBatchPlugin
+}  // namespace autobatch_plugin
+}  // namespace ov

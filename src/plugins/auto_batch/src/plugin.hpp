@@ -11,43 +11,49 @@
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 
 #ifdef AUTOBATCH_UNITTEST
-#    define AutoBatchPlugin MockAutoBatchPlugin
+#    define autobatch_plugin mock_autobatch_plugin
 #endif
 
-namespace AutoBatchPlugin {
-
-using DeviceName = std::string;
+namespace ov {
+namespace autobatch_plugin {
 
 struct DeviceInformation {
-    DeviceName deviceName;
+    std::string device_name;
     std::map<std::string, std::string> config;
-    int batchForDevice;
+    int batch_for_device;
 };
 
-class AutoBatchInferencePlugin : public InferenceEngine::IInferencePlugin {
+class Plugin : public InferenceEngine::IInferencePlugin {
 public:
-    AutoBatchInferencePlugin();
-    virtual ~AutoBatchInferencePlugin() = default;
+    Plugin();
+
+    virtual ~Plugin() = default;
+
     InferenceEngine::IExecutableNetworkInternal::Ptr LoadExeNetworkImpl(
         const InferenceEngine::CNNNetwork& network,
         const std::map<std::string, std::string>& config) override;
+
     InferenceEngine::IExecutableNetworkInternal::Ptr LoadExeNetworkImpl(
         const InferenceEngine::CNNNetwork& network,
         const std::shared_ptr<InferenceEngine::RemoteContext>& context,
         const std::map<std::string, std::string>& config) override;
 
     void SetConfig(const std::map<std::string, std::string>& config) override;
+
     void CheckConfig(const std::map<std::string, std::string>& config);
 
     InferenceEngine::Parameter GetConfig(
         const std::string& name,
         const std::map<std::string, InferenceEngine::Parameter>& options) const override;
+
     InferenceEngine::QueryNetworkResult QueryNetwork(const InferenceEngine::CNNNetwork& network,
                                                      const std::map<std::string, std::string>& config) const override;
     InferenceEngine::Parameter GetMetric(
         const std::string& name,
         const std::map<std::string, InferenceEngine::Parameter>& options) const override;
+
     InferenceEngine::RemoteContext::Ptr CreateContext(const InferenceEngine::ParamMap&) override;
+
 #ifdef AUTOBATCH_UNITTEST
 
 public:
@@ -65,4 +71,5 @@ protected:
         const std::shared_ptr<InferenceEngine::RemoteContext> context,
         const std::map<std::string, std::string>& config);
 };
-}  // namespace AutoBatchPlugin
+}  // namespace autobatch_plugin
+}  // namespace ov
