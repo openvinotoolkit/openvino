@@ -413,7 +413,9 @@ const MemoryDesc& Edge::getDesc() const {
 }
 
 const IMemory &Edge::getMemory() {
-    return *getMemoryPtr();
+    auto memPtr = getMemoryPtr();
+    IE_ASSERT(memPtr != nullptr) << " Dereferencing NULL memory in edge: " << name();
+    return *memPtr;
 }
 
 MemoryPtr Edge::getMemoryPtr() const {

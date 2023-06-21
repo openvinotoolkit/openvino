@@ -635,7 +635,14 @@ void Concat::resolveInPlaceEdges(Edge::LOOK look) {
         size_t inplaceOutIndx = selected_pd->getConfig().inConfs[0].inPlace();
         auto baseDim = outputShapes.front().getDims()[axis];
         IE_ASSERT(baseDim != Shape::UNDEFINED_DIM) << " Concat node: " << getName() << " can't use inPlace memory with concatenation on dynamic dimension";
-        auto baseMemMngr = getChildEdgesAtPort(inplaceOutIndx).front()->getMemory().getMemoryMngr();
+
+        auto& edges = getChildEdgesAtPort(inplaceOutIndx);
+        auto itr = std::find_if(edges.begin(), edges.end(), [](const EdgePtr& edge) { return edge->getStatus() == Edge::Status::Allocated; });
+        IE_ASSERT(itr != edges.end()) << " Could not find allocated child edge for concat node: " << getName();
+
+        auto baseMemMngr = (*itr)->getMemory().getMemoryMngr();
+        IE_ASSERT(baseMemMngr != nullptr) << " NULL base memory manager in concat node: " << getName();
+
         ptrdiff_t offset = 0;
         for (size_t i = 0; i < numberOfInputs; ++i) {
             auto partDim = inputShapes[i].getDims()[axis];
