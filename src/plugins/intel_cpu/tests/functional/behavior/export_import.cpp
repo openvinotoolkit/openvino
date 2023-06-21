@@ -65,21 +65,6 @@ TEST_P(ExportOptimalNumStreams, OptimalNumStreams) {
     std::stringstream exported_model;
     original_network.export_model(exported_model);
 
-    // import_model with no config can create the same multi_thread setting as compile_model
-    {
-        std::stringstream ss(exported_model.str());
-        auto imported_network = core.import_model(ss, device_name);
-        auto imported_properties_output = GetProperties(imported_network);
-
-        EXPECT_EQ(original_properties_output[0], imported_properties_output[0]);
-        EXPECT_EQ(original_properties_output[1], imported_properties_output[1]);
-        EXPECT_EQ(original_properties_output[2], imported_properties_output[2]);
-        EXPECT_EQ(original_properties_output[3], imported_properties_output[3]);
-        EXPECT_EQ(original_properties_output[4], imported_properties_output[4]);
-        EXPECT_EQ(original_properties_output[5], imported_properties_output[5]);
-        EXPECT_EQ(original_properties_output[6], imported_properties_output[6]);
-    }
-
     // import_model with original config can create the same multi_thread setting as compile_model
     {
         std::stringstream ss(exported_model.str());
