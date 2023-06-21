@@ -208,10 +208,7 @@ jobs:
       source $(BUILD_OPENVINO)/deactivate_conanbuild.sh
     displayName: 'CMake configure'
 
-  - script: |
-      source $(BUILD_OPENVINO)/conanbuild.sh
-      cmake --build $(BUILD_OPENVINO) --parallel --config $(BUILD_TYPE)
-      source $(BUILD_OPENVINO)/deactivate_conanbuild.sh
+  - script: cmake --build $(BUILD_OPENVINO) --parallel --config $(BUILD_TYPE)
     env:
       CCACHE_DIR: $(OPENVINO_CCACHE_DIR)
       CCACHE_TEMPDIR: $(TMP_DIR)/ccache
