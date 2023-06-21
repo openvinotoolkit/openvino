@@ -46,8 +46,6 @@ NonZero::NonZero(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CP
 }
 
 void NonZero::getSupportedDescriptors() {
-    if (!descs.empty())
-        return;
     if (getParentEdges().size() != 1)
         IE_THROW() << errorPrefix << "has incorrect number of input edges: " << getParentEdges().size();
     if (!getChildEdges().size())

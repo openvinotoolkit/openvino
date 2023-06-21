@@ -178,7 +178,7 @@ void Split::initSupportedPrimitiveDescriptors() {
             SizeVector strides(numOfDim);
             strides.back() = 1lu;
             size_t offset = Shape::UNDEFINED_DIM;
-            BlockedMemoryDesc::CmpMask mask = BLOCKED_DESC_SKIP_OFFSET_MASK; // accepts any offset
+            BlockedMemoryDesc::CmpMask mask = BlockedMemoryDesc::SKIP_OFFSET_MASK; // accepts any offset
 
             for (size_t i = 2; i <= numOfDim; i++) {
                 if (numOfDim - i < axis) {
@@ -363,14 +363,16 @@ void Split::initOptimalPrimitiveDescriptor() {
             auto outBlockingDesc = oldDesc->as<BlockedMemoryDesc>();
             const auto& shape = outBlockingDesc->getShape();
             const auto& blkDims = outBlockingDesc->getBlockDims();
-            config.outConfs[i].setMemDesc(std::make_shared<CpuBlockedMemoryDesc>(outBlockingDesc->getPrecision(),
-                                                                             shape,
-                                                                             blkDims,
-                                                                             outBlockingDesc->getOrder(),
-                                                                             firstInBlockingDesc->getOffsetPadding() + offset,
-                                                                             firstInBlockingDesc->getOffsetPaddingToData(),
-                                                                             (shape.hasZeroDims() ? VectorDims(blkDims.size(), 0) :
-                                                                              firstInBlockingDesc->getStrides())), BLOCKED_DESC_FULL_MASK);
+            config.outConfs[i].setMemDesc(std::make_shared<CpuBlockedMemoryDesc>(
+                                              outBlockingDesc->getPrecision(),
+                                              shape,
+                                              blkDims,
+                                              outBlockingDesc->getOrder(),
+                                              firstInBlockingDesc->getOffsetPadding() + offset,
+                                              firstInBlockingDesc->getOffsetPaddingToData(),
+                                              (shape.hasZeroDims() ? VectorDims(blkDims.size(), 0) :
+                                               firstInBlockingDesc->getStrides())),
+                                          BlockedMemoryDesc::FULL_MASK);
 
             size_t axisSize = 1;
             for (size_t j = axis; j < outBlockingDesc->getBlockDims().size(); j++) {
@@ -398,7 +400,7 @@ void Split::selectOptimalPrimitiveDescriptor() {
     // Enforce the reference implementation for the planar layout if the implementation is in the impl priorities list.
     // This is needed mostly for the testing purposes, since for the planar layout Split works always in place, we need to enforce
     // the reference implementation when it is selected in a test to test that piece of code.
-    if (!implPriorities.empty() && implPriorities[0] == impl_desc_type::ref) {
+    if (!customImplPriorities.empty() && customImplPriorities[0] == impl_desc_type::ref) {
         for (size_t i = 0; i < supportedPrimitiveDescriptors.size(); ++i) {
             auto& pd = supportedPrimitiveDescriptors[i];
             if (pd.getConfig().inConfs[0].getMemDesc()->hasLayoutType(LayoutType::ncsp) &&

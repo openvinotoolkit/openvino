@@ -9,6 +9,8 @@
 
 #include "ie_common.h"
 
+IE_SUPPRESS_DEPRECATED_START
+
 //  tests/unit/inference_engine/exception_test.cpp
 
 TEST(ExceptionTests, CanThrowUsingMacro) {

@@ -131,36 +131,6 @@ public:
 };
 
 /**
- * @brief This function is used to obtain a NV12 compound blob object from NV12 DXGI video decoder output.
- * The resulting compound contains two remote blobs for Y and UV planes of the surface.
- * @param height Height of Y plane
- * @param width Widht of Y plane
- * @param ctx A pointer to remote context
- * @param nv12_surf A ID3D11Texture2D instance to create NV12 blob from
- * @return NV12 remote blob
- */
-OPENVINO_DEPRECATED("This function is deprecated and will be removed in 2023.1 release")
-static inline Blob::Ptr make_shared_blob_nv12(size_t height,
-                                              size_t width,
-                                              RemoteContext::Ptr ctx,
-                                              ID3D11Texture2D* nv12_surf) {
-    // despite of layout, blob dimensions always follow in N,C,H,W order
-    TensorDesc desc(Precision::U8, {1, 1, height, width}, Layout::NHWC);
-
-    ParamMap blobParams = {{GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(VA_SURFACE)},
-                           {GPU_PARAM_KEY(DEV_OBJECT_HANDLE), static_cast<gpu_handle_param>(nv12_surf)},
-                           {GPU_PARAM_KEY(VA_PLANE), uint32_t(0)}};
-    Blob::Ptr y_blob = std::dynamic_pointer_cast<Blob>(ctx->CreateBlob(desc, blobParams));
-
-    TensorDesc uvdesc(Precision::U8, {1, 2, height / 2, width / 2}, Layout::NHWC);
-    blobParams[GPU_PARAM_KEY(MEM_HANDLE)] = static_cast<gpu_handle_param>(nv12_surf);
-    blobParams[GPU_PARAM_KEY(VA_PLANE)] = uint32_t(1);
-    Blob::Ptr uv_blob = std::dynamic_pointer_cast<Blob>(ctx->CreateBlob(uvdesc, blobParams));
-
-    return InferenceEngine::make_shared_blob<NV12Blob>(y_blob, uv_blob);
-}
-
-/**
  * @brief This function is used to obtain remote context object from ID3D11Device
  * @param core Inference Engine Core object instance
  * @param deviceName A name of to create a remote context for

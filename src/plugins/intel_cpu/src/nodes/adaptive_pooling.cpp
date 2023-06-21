@@ -116,9 +116,6 @@ AdaptivePooling::AdaptivePooling(const std::shared_ptr<ngraph::Node>& op, const 
 }
 
 void AdaptivePooling::getSupportedDescriptors() {
-    if (!descs.empty())
-        return;
-
     if (getParentEdges().size() != 2)
         IE_THROW() << errorPrefix << "has incorrect number of input edges: " << getParentEdges().size();
     if (getChildEdges().size() < (algorithm == Algorithm::AdaptivePoolingMax ? 2 : 1))
