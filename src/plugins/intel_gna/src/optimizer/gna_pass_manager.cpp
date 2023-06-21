@@ -499,10 +499,10 @@ void SubstituteSoftSignPass::run() {
      *    mul                      mul
      */
 
-    auto hasNChildren = [](CNNLayerPtr l, int N) {
+    auto hasNChildren = [](CNNLayerPtr l, size_t N) {
         if (l->outData.size() != 1)
             return false;
-        if (static_cast<int>(getInputTo(l->outData.front()).size()) != N)
+        if (getInputTo(l->outData.front()).size() != N)
             return false;
         return true;
     };

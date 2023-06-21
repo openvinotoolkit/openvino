@@ -1313,9 +1313,9 @@ RequestStatus GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
         auto is1D = output_layout == InferenceEngine::Layout::C;
         auto isScalar = output_layout == InferenceEngine::Layout::SCALAR;
         auto is3D = output_layout == InferenceEngine::Layout::CHW;
-        auto batchSize = (is1D || isScalar || is3D) ? 1 : dims[0];
-        auto elementsPerBatch =
-            isScalar ? 1 : (is1D ? dims.front() : details::product(++std::begin(dims), std::end(dims)));
+        uint32_t batchSize = static_cast<uint32_t>((is1D || isScalar || is3D) ? 1 : dims[0]);
+        uint32_t elementsPerBatch = static_cast<uint32_t>(
+            isScalar ? 1 : (is1D ? dims.front() : details::product(++std::begin(dims), std::end(dims))));
 
         OutputDesc& gna_output_desc = outputs_.at(output_name);
         Blob::Ptr gna_output_blob = nullptr;
@@ -1348,11 +1348,11 @@ RequestStatus GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
         ExportScores(output_blob->buffer(),
                      gna_output_blob->cbuffer(),
                      gna_output_desc.orientation,
-                     static_cast<uint32_t>(batchSize),
-                     static_cast<uint32_t>(batchSize),
-                     static_cast<uint32_t>(elementsPerBatch),
-                     static_cast<uint32_t>(elementsPerBatch),
-                     static_cast<uint32_t>(elementsPerBatch),
+                     batchSize,
+                     batchSize,
+                     elementsPerBatch,
+                     elementsPerBatch,
+                     elementsPerBatch,
                      gna_output_desc.tensor_precision,
                      gna_output_desc.model_precision);
 
@@ -1385,16 +1385,16 @@ RequestStatus GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
             case InferenceEngine::Precision::FP32:
                 UnscaleAndCast(output_blob->buffer().as<float*>(),
                                output_blob->buffer().as<int32_t*>(),
-                               static_cast<uint32_t>(elementsPerBatch),
-                               static_cast<uint32_t>(batchSize),
+                               elementsPerBatch,
+                               batchSize,
                                gna_output_desc.scale_factor);
                 break;
 
             case InferenceEngine::Precision::I32:
                 UnscaleAndCast(output_blob->buffer().as<int32_t*>(),
                                output_blob->buffer().as<int32_t*>(),
-                               static_cast<uint32_t>(elementsPerBatch),
-                               static_cast<uint32_t>(batchSize),
+                               elementsPerBatch,
+                               batchSize,
                                gna_output_desc.scale_factor);
                 break;
 

@@ -509,7 +509,7 @@ void AMIntelDNN::WriteGraphWizModel(const char* filename) {
     std::map<void*, InputEndPoint> outputs;
     std::set<std::string> layersNames;
 
-    auto generate_layer_name = [&](int k) {
+    auto generate_layer_name = [&](size_t k) {
         std::string l;
         if (components[k].operation == kDnnPiecewiselinearOp) {
             l += intel_dnn_activation_name[components[k].op.pwl.func_id];
@@ -574,7 +574,7 @@ void AMIntelDNN::WriteGraphWizModel(const char* filename) {
         return l;
     };
 
-    for (int k = 0; k < static_cast<int>(components.size()); ++k) {
+    for (size_t k = 0; k < components.size(); ++k) {
         std::string l = generate_layer_name(k);
         layersNames.insert(l);
         int lidx = static_cast<int>(std::distance(layersNames.begin(), layersNames.find(l)));
@@ -602,7 +602,7 @@ void AMIntelDNN::WriteGraphWizModel(const char* filename) {
 
         bool inputConnected = false;
 
-        for (int k2 = 0; k2 < static_cast<int>(components.size()); ++k2) {
+        for (size_t k2 = 0; k2 < components.size(); ++k2) {
             if (k2 == k)
                 continue;
 
@@ -681,7 +681,7 @@ void AMIntelDNN::WriteGraphWizModel(const char* filename) {
         }
     }
 
-    for (int k = 0; k < static_cast<int>(components.size()); ++k) {
+    for (size_t k = 0; k < components.size(); ++k) {
         std::string l = generate_layer_name(k);
 
         int tidx = 0;
@@ -1386,7 +1386,7 @@ void AMIntelDNN::InitGNAStruct(Gna2Model* gnaModel) {
         THROW_GNA_EXCEPTION << "out of memory in AMIntelDNN::InitGNAStruct()";
     memset(gnaModel->Operations, 0, gnaModel->NumberOfOperations * sizeof(Gna2Operation));
     gnaOperation = gnaModel->Operations;
-    for (int i = 0; i < static_cast<int>(component.size()); i++) {
+    for (size_t i = 0; i < component.size(); i++) {
         log::debug() << "Component + " << i << "=GNA_" << std::distance(gnaModel->Operations, gnaOperation) << "\n";
 
         auto& comp = component[i];

@@ -924,7 +924,7 @@ bool ScaleFactorCalculator::ScaleFactorPerLayerEltwise(InferenceEngine::EltwiseL
 
         auto weightsReducer = calculateWeightsReducerFromDstStats(quantData->_dst_quant);
         if (weightsReducer > initial_weights_reducer_val) {
-            float newOutputScale = quantParams1->_dst_quant.GetScale() / static_cast<float>(weightsReducer);
+            float newOutputScale = static_cast<float>(quantParams1->_dst_quant.GetScale() / weightsReducer);
             if (requantizeInput(in1, newOutputScale, result, infiniteLoopCount)) {
                 return true;
             }
@@ -951,11 +951,11 @@ bool ScaleFactorCalculator::ScaleFactorPerLayerConcat(InferenceEngine::ConcatLay
 
     auto quantData = InferenceEngine::getInjectedData<QuantizedLayerParams>(*concatLayer);
     std::vector<InferenceEngine::CNNLayerPtr> inputLayers;
-    for (auto input_idx = 0; input_idx != static_cast<int>(concatLayer->insData.size()); input_idx++) {
+    for (size_t input_idx = 0; input_idx != concatLayer->insData.size(); input_idx++) {
         auto notChangeScaleFactors = [](InferenceEngine::CNNLayerPtr layer) {
             return LayerInfo(layer).isNonFunctional() || LayerInfo(layer).isSplit() || LayerInfo(layer).isCopy();
         };
-        auto prev_layer = CNNNetPrevLayerSkipCertain(concatLayer, input_idx, notChangeScaleFactors);
+        auto prev_layer = CNNNetPrevLayerSkipCertain(concatLayer, static_cast<int>(input_idx), notChangeScaleFactors);
         inputLayers.push_back(prev_layer);
     }
 
@@ -1320,7 +1320,7 @@ bool ScaleFactorCalculator::ScaleFactorPerLayerWeightable(InferenceEngine::Weigh
         // This correction should be done by POT, but we observed issues with int8 quantization
         if (weightsReducer > initial_weights_reducer_val) {
             log::warning() << "Potential overload correction issue at layer " << wl->name;
-            quant->_weights_quant.SetScale(quant->_weights_quant.GetScale() / static_cast<float>(weightsReducer));
+            quant->_weights_quant.SetScale(static_cast<float>(quant->_weights_quant.GetScale() / weightsReducer));
         }
         quant->_dst_quant.SetScale(quant->_weights_quant.GetScale() * quant->_src_quant.GetScale());
     }
