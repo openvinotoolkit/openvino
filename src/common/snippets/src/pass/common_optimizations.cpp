@@ -163,26 +163,25 @@ void CommonOptimizations::SplitDimensionM(const std::shared_ptr<ov::snippets::op
         updated = true;
     };
 
+    auto get_updated_shape = [&](const ov::Shape& shape, bool split_m_dim) {
+        const auto current_m_dim = get_dim_M(shape);
+        OPENVINO_ASSERT(!split_m_dim || current_m_dim == 1 || current_m_dim == m_dim, "Incorrect shape for splitting!");
+        ov::Shape new_shape = shape;
+        if ((split_m_dim && current_m_dim == 1) || !split_m_dim) {
+            new_shape.insert((new_shape.rbegin() + 2).base(), 1);
+        } else {
+            new_shape.insert((new_shape.rbegin() + 2).base(), batch_m_dim);
+            *(new_shape.rbegin() + 1) = new_m_dim;
+        }
+        OPENVINO_ASSERT(ov::shape_size(new_shape) == ov::shape_size(shape), "Incorrect shape splitting!");
+        return new_shape;
+    };
+
     auto reshape_parameter = [&](const std::shared_ptr<ov::Node>& node, bool split_m_dim = true) {
         const auto param = ov::as_type_ptr<ov::op::v0::Parameter>(node);
         if (!param || reshaped_params.count(param) > 0)
             return;
-        const auto shape = param->get_partial_shape().get_shape();
-        ov::Shape new_shape = shape;
-        if (split_m_dim) {
-            const auto current_m_dim = get_dim_M(shape);
-            OPENVINO_ASSERT(current_m_dim == 1 || current_m_dim == m_dim, "Incorrect shape for splitting!");
-            if (current_m_dim == 1) {
-                new_shape.insert((new_shape.rbegin() + 2).base(), 1);
-            } else {
-                new_shape.insert((new_shape.rbegin() + 2).base(), batch_m_dim);
-                *(new_shape.rbegin() + 1) = new_m_dim;
-            }
-        } else {
-            new_shape.insert((new_shape.rbegin() + 2).base(), 1);
-        }
-        OPENVINO_ASSERT(ov::shape_size(new_shape) == ov::shape_size(shape), "Incorrect shape splitting!");
-        insert_reshape(param, new_shape);
+        insert_reshape(param, get_updated_shape(param->get_partial_shape().get_shape(), split_m_dim));
     };
 
     auto update_matmul_second_branch = [&](const std::shared_ptr<ov::Node>& node) {
@@ -243,10 +242,16 @@ void CommonOptimizations::SplitDimensionM(const std::shared_ptr<ov::snippets::op
     // Need to update inner Shapes and Softmax Axis
     if (updated) {
         for (const auto &op : ops) {
-            if (const auto softmax_v8 = ngraph::as_type_ptr<ov::op::v8::Softmax>(op)) {
+            if (const auto softmax_v8 = ov::as_type_ptr<ov::op::v8::Softmax>(op)) {
                 softmax_v8->set_axis(-1);
-            } else if (const auto softmax_v1 = ngraph::as_type_ptr<ov::op::v1::Softmax>(op)) {
+            } else if (const auto softmax_v1 = ov::as_type_ptr<ov::op::v1::Softmax>(op)) {
                 softmax_v1->set_axis(softmax_v1->get_output_partial_shape(0).size()); // since new_shape.size() = old_shape.size() + 1
+            } else if (const auto broadcast = ov::as_type_ptr<ov::op::v1::Broadcast>(op)) {
+                // Broadcast is tokenized only between MatMuls -> Split M dimension
+                const auto shape_const = ov::as_type_ptr<ov::op::v0::Constant>(broadcast->input_value(1).get_node_shared_ptr());
+                OPENVINO_ASSERT(shape_const, "SplitDimensionM expects Broadcast with Constant output shape");
+                const auto new_shape = get_updated_shape(shape_const->cast_vector<size_t>(), true);
+                broadcast->set_argument(1, std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{new_shape.size()}, new_shape));
             }
         }
         subgraph->validate_and_infer_types();
