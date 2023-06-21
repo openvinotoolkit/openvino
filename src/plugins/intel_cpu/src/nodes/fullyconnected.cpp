@@ -167,16 +167,14 @@ bool FullyConnected::isSupportedOperation(const std::shared_ptr<const ngraph::No
 FullyConnected::FullyConnected(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
         : Node(op, context, FCShapeInferFactory(op)), withBiases(false) {
     std::string errorMessage;
-    if (isSupportedOperation(op, errorMessage)) {
-        errorPrefix = "FullyConnected node with name '" + getName() + "'";
-
-        withBiases = inputShapes.size() == 3;
-
-        if (context->getConfig().fcSparseWeiDecompressionRate < 1.0f)
-            minSparseRate = context->getConfig().fcSparseWeiDecompressionRate;
-    } else {
+    if (!isSupportedOperation(op, errorMessage))
         IE_THROW(NotImplemented) << errorMessage;
-    }
+
+    errorPrefix = "FullyConnected node with name '" + getName() + "'";
+    if (context->getConfig().fcSparseWeiDecompressionRate < 1.0f)
+        minSparseRate = context->getConfig().fcSparseWeiDecompressionRate;
+
+    expectedBiasDims = {getInputShapeAtPort(WEIGHTS_ID).getStaticDims()[0]};
 }
 
 std::vector<memory::format_tag> FullyConnected::getAvailableFormatsForDims(const Shape &dims) const {
@@ -222,11 +220,20 @@ VectorDims FullyConnected::makeDummyOutputDims(const VectorDims& inDims) const {
     return shapeInferGeneric(inShapes).front();
 }
 
+bool FullyConnected::canBeExecutedInInt8() const {
+    auto firstInputPrecision = getOriginalInputPrecisionAtPort(0);
+    auto secondInputPrecision = getOriginalInputPrecisionAtPort(1);
+
+    return one_of(firstInputPrecision, Precision::U8, Precision::I8) && secondInputPrecision == Precision::I8;
+}
+
 void FullyConnected::getSupportedDescriptors() {
     if (getParentEdges().size() != 2 && getParentEdges().size() != 3)
         IE_THROW() << errorPrefix << " has incorrect number of input edges";
     if (getChildEdges().empty())
         IE_THROW()<< errorPrefix << " has incorrect number of output edges";
+
+    withBiases = getOriginalInputsNumber() == 3;
 
     useSparseWeights = useSparseWeightsDecompression();
 
@@ -237,8 +244,6 @@ void FullyConnected::getSupportedDescriptors() {
         outputDataType = DnnlExtensionUtils::IEPrecisionToDataType(fusedWith[fusedWith.size() - 1]->getOriginalOutputPrecisionAtPort(0));
     }
     auto weightsDataType = DnnlExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(WEIGHTS_ID));
-
-    isINT8 = one_of(inputDataType, memory::data_type::u8, memory::data_type::s8) && weightsDataType == memory::data_type::s8;
     // revert back outputDataType on special cases
     if (inputDataType == memory::data_type::f32) {
         // oneDNN only support f32 output when input is f32, even if FQ is fused
@@ -332,7 +337,6 @@ void FullyConnected::prepareParams() {
             auto normalizedInDims = {inDims[0] * inDims[1], inDims[2]};
             inDesc = inDesc.reshape(normalizedInDims);
         }
-
         auto outDesc = key.out->getDnnlDesc();
         const auto& outDims = outDesc.get_dims(); // @TODO query + copy might be slow
 
@@ -478,8 +482,8 @@ void FullyConnected::setPostOps(dnnl::primitive_attr& attr, const VectorDims& di
         IE_THROW() << "Unexpected rank(" << dims_ext.size() << ") for output tensor of node: " << getName();
     }
 
-
-    DnnlPostOpsComposer dnnlpoc(getEngine(), attr, ops, postOpsArgs, dims, dims.size() - 1, isINT8, 1 << 0,  getDQScales(), withBiases);
+    DnnlPostOpsComposer dnnlpoc(getEngine(), attr, ops, postOpsArgs, dims, dims.size() - 1, canBeExecutedInInt8(),
+                                    1 << 0,  getDQScales(), withBiases);
 
     for (size_t i = 0; i < fusedWith.size(); ++i) {
         auto& node = fusedWith[i];
@@ -586,7 +590,7 @@ void FullyConnected::createDescriptorInternal(const dnnl::memory::desc &inputDes
     const dnnl::primitive_attr attr;
 
     if (withBiases) {
-        dnnl::memory::desc bias_candidate(DnnlExtensionUtils::convertToDnnlDims(getInputShapeAtPort(BIAS_ID).getStaticDims()), bdt,
+        dnnl::memory::desc bias_candidate(DnnlExtensionUtils::convertToDnnlDims(expectedBiasDims), bdt,
                                             dnnl::memory::format_tag::any);
         auto desc = inner_product_forward::primitive_desc(
             getEngine(),
@@ -755,7 +759,6 @@ FullyConnected::createDescriptorInternalForConv(DnnlMemoryDescCPtr inputDescPtr,
     const dnnl::memory::desc &inputDesc  = inputDescPtr->getDnnlDesc();
     const dnnl::memory::desc &outputDesc = outputDescPtr->getDnnlDesc();
     const dnnl::memory::desc &weightDesc = weightDescPtr->getDnnlDesc();
-
     // make a fake shape: N, IC, W
     auto inDims = inputDesc.get_dims();
     dnnl::memory::dims normalizedInDims;
@@ -767,7 +770,7 @@ FullyConnected::createDescriptorInternalForConv(DnnlMemoryDescCPtr inputDescPtr,
     auto convInDesc = dnnl::memory::desc(normalizedInDims, inputDesc.get_data_type(), memory::format_tag::nwc);
 
     // make a fake shape: N, OC, W
-    auto outDims = outputDesc.get_dims();
+    const auto& outDims = outputDesc.get_dims();
     dnnl::memory::dims normalizedOutDims;
     if (outDims.size() == 3) {
         normalizedOutDims = { outDims[0], outDims[2], outDims[1]};
@@ -910,7 +913,6 @@ bool FullyConnected::useSparseWeightsDecompression() {
 
     return true;
 }
-
 }   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov
