@@ -598,11 +598,12 @@ static std::map<std::string, std::string> parseConfigFile(char comment = '#') {
                 continue;
             }
             size_t spacePos = option.find(' ');
-            if (spacePos == std::string::npos) {
-              throw std::invalid_argument("Failed to find a space separator in "
-                                          "provided plugin config option: " +
-                                          option);
-            }
+
+            OPENVINO_ASSERT(spacePos != std::string::npos,
+                            "Failed to find a space separator in "
+                            "provided plugin config option: " +
+                                option);
+
             std::string key = option.substr(0, spacePos);
             std::string value = option.substr(spacePos + 1);
             config[key] = value;
