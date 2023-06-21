@@ -58,6 +58,8 @@ public:
 
     bool visit_attributes(AttributeVisitor& visitor) override;
 
+    void validate_and_infer_types() override;
+
     Reduction get_reduction() const {
         return m_reduction;
     }

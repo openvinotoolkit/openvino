@@ -184,6 +184,22 @@ TYPED_TEST_P(ScatterElementsUpdateTest, scatter_elements_data_indices_rank) {
                     HasSubstr("Indices rank and data rank are required to be equal"));
 }
 
+TEST(type_prop, scatter_elements_update_mean_reduction_of_bool) {
+    const auto data = make_shared<op::v0::Parameter>(element::boolean, Shape{10});
+    const auto indices = make_shared<op::v0::Parameter>(element::i32, Shape{2});
+    const auto updates = make_shared<op::v0::Parameter>(element::boolean, Shape{2});
+    const auto axis = make_shared<op::v0::Constant>(element::i32, Shape{1}, std::vector<int>{0});
+
+    OV_EXPECT_THROW(
+        std::ignore = make_shared<op::v12::ScatterElementsUpdate>(data,
+                                                                  indices,
+                                                                  updates,
+                                                                  axis,
+                                                                  op::v12::ScatterElementsUpdate::Reduction::MEAN),
+        NodeValidationFailure,
+        HasSubstr("The 'mean' reduction type is not supported for boolean tensors"));
+}
+
 REGISTER_TYPED_TEST_SUITE_P(ScatterElementsUpdateTest,
                             scatter_elements_update_output_shape,
                             scatter_elements_update_output_partial_dyn_shape,

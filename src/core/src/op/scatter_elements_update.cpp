@@ -56,6 +56,18 @@ bool op::v12::ScatterElementsUpdate::visit_attributes(AttributeVisitor& visitor)
     return true;
 }
 
+void op::v12::ScatterElementsUpdate::validate_and_infer_types() {
+    OV_OP_SCOPE(v12_ScatterElementsUpdate_validate_and_infer_types);
+
+    if (m_reduction == Reduction::MEAN) {
+        NODE_VALIDATION_CHECK(this,
+                              get_input_element_type(0) != element::boolean,
+                              "The 'mean' reduction type is not supported for boolean tensors");
+    }
+
+    ScatterElementsUpdateBase::validate_and_infer_types();
+}
+
 shared_ptr<Node> op::v12::ScatterElementsUpdate::clone_with_new_inputs(const OutputVector& inputs) const {
     OV_OP_SCOPE(v12_ScatterElementsUpdate_clone_with_new_inputs);
     NODE_VALIDATION_CHECK(this,
