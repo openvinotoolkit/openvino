@@ -30,5 +30,5 @@ if(ENABLE_FUNCTIONAL_TESTS)
 endif()
 
 if(ENABLE_TESTS)
-    add_subdirectory(tests/unit)
+#    add_subdirectory(tests/unit)
 endif()

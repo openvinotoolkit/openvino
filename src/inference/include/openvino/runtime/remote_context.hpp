@@ -107,6 +107,12 @@ public:
     ~RemoteContext();
 
     /**
+     * @brief method: checks remote is empty or not
+     * @return The context is empty return true, else false.
+     */
+    bool is_empty() const;
+
+    /**
      * @brief Internal method: checks remote type.
      * @param remote_context Remote context which type is checked.
      * @param type_info Map with remote object runtime info.

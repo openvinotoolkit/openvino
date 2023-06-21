@@ -4,28 +4,27 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "cpp_interfaces/impl/ie_infer_async_request_thread_safe_default.hpp"
+
+#include "openvino/runtime/iasync_infer_request.hpp"
 #include "sync_infer_request.hpp"
 
 namespace ov {
 namespace autobatch_plugin {
-class AsyncInferRequest : public InferenceEngine::AsyncInferRequestThreadSafeDefault {
+class AsyncInferRequest : public ov::IAsyncInferRequest {
 public:
-    using Ptr = std::shared_ptr<AsyncInferRequest>;
+    AsyncInferRequest(const std::shared_ptr<ov::autobatch_plugin::SyncInferRequest>& request,
+                      std::shared_ptr<ov::IAsyncInferRequest> request_without_batch,
+                      const std::shared_ptr<ov::threading::ITaskExecutor>& callback_executor);
 
-    explicit AsyncInferRequest(const SyncInferRequest::Ptr& inferRequest,
-                               InferenceEngine::SoIInferRequestInternal& inferRequestWithoutBatch,
-                               const InferenceEngine::ITaskExecutor::Ptr& callbackExecutor);
-
-    void Infer_ThreadUnsafe() override;
+    void infer_thread_unsafe() override;
 
     virtual ~AsyncInferRequest();
 
-    std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> GetPerformanceCounts() const override;
+    std::vector<ov::ProfilingInfo> get_profiling_info() const override;
 
-    InferenceEngine::SoIInferRequestInternal m_infer_request_without_batch;
+    std::shared_ptr<ov::IAsyncInferRequest> m_request_without_batch;
 
-    SyncInferRequest::Ptr m_sync_infer_request;
+    std::shared_ptr<ov::autobatch_plugin::SyncInferRequest> m_sync_request;
 };
 }  // namespace autobatch_plugin
 }  // namespace ov
