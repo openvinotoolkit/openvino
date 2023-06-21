@@ -361,6 +361,37 @@ std::shared_ptr<ov::Model> MHAWOTransposeFunction::initOriginal() const {
     return std::make_shared<ov::Model>(results, ngraphParam, "mha");
 }
 
+std::shared_ptr<ov::Model> MHAWOTransposeSplitMFunction::initReference() const {
+    auto param0 = std::make_shared<ngraph::opset1::Parameter>(precisions[0], input_shapes[0]);
+    auto param1 = std::make_shared<ngraph::opset1::Parameter>(precisions[1], input_shapes[1]);
+    auto param2 = std::make_shared<ngraph::opset1::Parameter>(precisions[2], input_shapes[2]);
+    ngraph::ParameterVector ngraphParam = {param0, param1, param2};
+
+    auto make_reshape = [](const std::shared_ptr<ov::Node>& node, const ov::Shape& new_shape) {
+        auto shape_const = ngraph::builder::makeConstant(ngraph::element::i32, {new_shape.size()}, new_shape);
+        return std::make_shared<ov::op::v1::Reshape>(node, shape_const, true);
+    };
+
+    auto reshape0 = make_reshape(param0, reshapes[0]);
+    auto reshape1 = make_reshape(param1, reshapes[1]);
+    auto reshape2 = make_reshape(param2, reshapes[2]);
+
+    auto data0 = std::make_shared<ngraph::opset1::Parameter>(precisions[0], reshape0->get_shape());
+    auto data1 = std::make_shared<ngraph::opset1::Parameter>(precisions[1], reshape1->get_shape());
+    auto data2 = std::make_shared<ngraph::opset1::Parameter>(precisions[2], reshape2->get_shape());
+
+    const auto matMul0 = std::make_shared<ngraph::opset3::MatMul>(data0, data1);
+    const auto softmax = std::make_shared<ngraph::opset8::Softmax>(matMul0, -1);
+    const auto matMul1 = std::make_shared<ngraph::opset3::MatMul>(softmax, data2);
+
+    const auto subgraph = std::make_shared<ov::snippets::op::Subgraph>(ov::NodeVector{reshape0, reshape1, reshape2},
+                                                                       std::make_shared<ov::Model>(ov::OutputVector{matMul1},
+                                                                                                   ov::ParameterVector{data0, data1, data2}));
+    auto reshape3 = make_reshape(subgraph, reshapes[3]);
+    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(reshape3)};
+    return std::make_shared<ov::Model>(results, ngraphParam, "mha");
+}
+
 std::shared_ptr<ov::Model> MHAFQAfterMatMulFunction::initOriginal() const {
     auto transpose0Param = std::make_shared<ngraph::opset1::Parameter>(precision, input_shapes[0]);
     auto transpose1Param = std::make_shared<ngraph::opset1::Parameter>(precision, input_shapes[1]);

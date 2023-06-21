@@ -157,6 +157,19 @@ protected:
      std::vector<ov::element::Type> precisions;
 };
 
+class MHAWOTransposeSplitMFunction : public MHAWOTransposeFunction {
+public:
+    explicit MHAWOTransposeSplitMFunction(const std::vector<PartialShape>& inputShapes, const std::vector<ov::element::Type>& precisions,
+                                          const std::vector<Shape>& reshapes)
+            : MHAWOTransposeFunction(inputShapes, precisions), reshapes(reshapes) {
+        NGRAPH_CHECK(reshapes.size() == 4, "Got invalid number of Reshape shapes");
+    }
+protected:
+    std::shared_ptr<ov::Model> initReference() const override;
+
+    std::vector<ov::Shape> reshapes;
+};
+
 /* Graph:
  * Transpose0[0,2,1,3] Transpose1[0,2,3,1]
  *              \     /

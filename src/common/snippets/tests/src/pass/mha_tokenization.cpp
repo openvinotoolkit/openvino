@@ -17,7 +17,8 @@ void TokenizeMHASnippetsTests::run() {
     ASSERT_TRUE(function);
     manager.register_pass<ov::snippets::pass::EnumerateNodes>();
     manager.register_pass<ov::snippets::pass::TokenizeMHASnippets>();
-    manager.register_pass<ov::snippets::pass::CommonOptimizations>();
+    manager.register_pass<ov::snippets::pass::CommonOptimizations>(config);
+    manager.register_pass<ov::pass::Serialize>("function.xml", "function.bin");
     disable_rt_info_check();
 }
 
@@ -64,6 +65,16 @@ TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA_Transpose_fusion) {
                                                std::vector<int64_t>{0, 2, 1, 3});
     function = f.getOriginal();
     function_ref = f.getReference();
+    run();
+}
+
+TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA_SplitM) {
+    const auto& f = MHAWOTransposeSplitMFunction(std::vector<PartialShape>{{10, 9216, 128}, {10, 128, 9216}, {10, 9216, 128}},
+                                                 std::vector<ov::element::Type>({ov::element::f32, ov::element::f32, ov::element::f32}),
+                                                 std::vector<Shape>{{10, 9, 1024, 128}, {10, 1, 128, 9216}, {10, 1, 9216, 128}, {10, 9216, 128}});
+    function = f.getOriginal();
+    function_ref = f.getReference();
+    config.num_threads = 18;
     run();
 }
 
