@@ -19,6 +19,8 @@
 #include "caseless.hpp"
 #include "cpp/ie_cnn_network.h"
 #include "exec_graph_info.hpp"
+#include "gna_convolution.hpp"
+#include "gna_max_pool.hpp"
 #include "ie_legacy_itt.hpp"
 #include "legacy/graph_tools.hpp"
 #include "legacy/net_pass.h"
@@ -52,8 +54,6 @@
 #include "transformations/rt_info/fused_names_attribute.hpp"
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
 #include "transformations/utils/utils.hpp"
-#include "gna_convolution.hpp"
-#include "gna_max_pool.hpp"
 
 namespace Builder {
 
