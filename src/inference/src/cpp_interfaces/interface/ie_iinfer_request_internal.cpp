@@ -502,7 +502,7 @@ void IInferRequestInternal::checkBlob(const Blob::Ptr& blob,
                                                    return pair.first == name;
                                                });
             if (foundInputPair == std::end(_networkInputs)) {
-                IE_THROW_E(NotFound, "Failed to find input with name: \'" , name , "\'");
+                IE_THROW_E(NotFound, "Failed to find input with name: \'", name, "\'");
             }
             const auto input = findInputByNodeName(name);
             isDynamic = input && input->get_output_partial_shape(0).is_dynamic();

@@ -229,7 +229,7 @@ ExecutableNetwork Core::ImportNetwork(std::istream& networkModel) {
         std::getline(networkModel, deviceName);
     } else {
         IE_THROW_G("Passed compiled stream does not contain device name. "
-                      "Please, provide device name manually");
+                   "Please, provide device name manually");
     }
     networkModel.seekg(currentPos, networkModel.beg);
 
@@ -274,19 +274,19 @@ void Core::SetConfig(const std::map<std::string, std::string>& config, const std
     // HETERO case
     if (deviceName.find("HETERO:") == 0) {
         IE_THROW_G("SetConfig is supported only for HETERO itself (without devices). "
-                      "You can configure the devices with SetConfig before creating the HETERO on top.");
+                   "You can configure the devices with SetConfig before creating the HETERO on top.");
     }
 
     // MULTI case
     if (deviceName.find("MULTI:") == 0) {
         IE_THROW_G("SetConfig is supported only for MULTI itself (without devices). "
-                      "You can configure the devices with SetConfig before creating the MULTI on top.");
+                   "You can configure the devices with SetConfig before creating the MULTI on top.");
     }
 
     // AUTO case
     if (deviceName.find("AUTO:") == 0) {
-        IE_THROW_G( "SetConfig is supported only for AUTO itself (without devices). "
-                      "You can configure the devices with SetConfig before creating the AUTO on top.");
+        IE_THROW_G("SetConfig is supported only for AUTO itself (without devices). "
+                   "You can configure the devices with SetConfig before creating the AUTO on top.");
     }
 
     ov::AnyMap conf = ov::any_copy(config);
@@ -301,22 +301,22 @@ Parameter Core::GetConfig(const std::string& deviceName, const std::string& name
     // HETERO case
     {
         if (deviceName.find("HETERO:") == 0) {
-            IE_THROW_G( "You can only GetConfig of the HETERO itself (without devices). "
-                          "GetConfig is also possible for the individual devices before creating the HETERO on top.");
+            IE_THROW_G("You can only GetConfig of the HETERO itself (without devices). "
+                       "GetConfig is also possible for the individual devices before creating the HETERO on top.");
         }
     }
     // MULTI case
     {
         if (deviceName.find("MULTI:") == 0) {
-            IE_THROW_G( "You can only GetConfig of the MULTI itself (without devices). "
-                          "GetConfig is also possible for the individual devices before creating the MULTI on top.");
+            IE_THROW_G("You can only GetConfig of the MULTI itself (without devices). "
+                       "GetConfig is also possible for the individual devices before creating the MULTI on top.");
         }
     }
     // AUTO case
     {
         if (deviceName.find("AUTO:") == 0) {
             IE_THROW_G("You can only GetConfig of the AUTO itself (without devices). "
-                          "GetConfig is also possible for the individual devices before creating the AUTO on top.");
+                       "GetConfig is also possible for the individual devices before creating the AUTO on top.");
         }
     }
 

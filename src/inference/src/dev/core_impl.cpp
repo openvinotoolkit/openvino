@@ -285,8 +285,13 @@ ov::Parsed ov::parseDeviceNameIntoConfig(const std::string& deviceName, const An
         else if (it->second == parsed_device_priority) {
             // do nothing
         } else {
-            IE_THROW_G("Device priority / ID mismatch: ", parsed_device_priority, " (from ", deviceName,
-                       ") vs ", it->second.as<std::string>(), " (from config)");
+            IE_THROW_G("Device priority / ID mismatch: ",
+                       parsed_device_priority,
+                       " (from ",
+                       deviceName,
+                       ") vs ",
+                       it->second.as<std::string>(),
+                       " (from config)");
         }
     };
 
