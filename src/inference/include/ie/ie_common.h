@@ -595,6 +595,11 @@ struct NullStream {
 #endif  // NDEBUG
 
 /// @cond
+// Used by vpux-plugin
+#define THROW_IE_EXCEPTION                                                                                           \
+    InferenceEngine::details::ThrowNow<InferenceEngine::details::InferenceEngineException>{} <<= std::stringstream{} \
+                                                                                                 << IE_LOCATION
+
 #define IE_EXCEPTION_CASE(TYPE_ALIAS, STATUS_CODE, EXCEPTION_TYPE, ...) \
     case InferenceEngine::STATUS_CODE: {                                \
         using InferenceEngine::EXCEPTION_TYPE;                          \
