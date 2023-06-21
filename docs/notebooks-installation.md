@@ -581,28 +581,28 @@ Delete Virtual Environment
 
 This operation is optional. However, if you want to remove your virtual environment, simply delete the ``openvino_env`` directory:
 
-   .. tab-set::
+.. tab-set::
 
-      .. tab-item:: Windows
-         :sync: windows
+   .. tab-item:: Windows
+      :sync: windows
 
-         .. code:: bash
-   
-            rmdir /s openvino_env
+      .. code:: bash
 
-      .. tab-item:: Linux
-         :sync: linux
+         rmdir /s openvino_env
 
-         .. code:: bash 
-   
-            rm -rf openvino_env
+   .. tab-item:: Linux
+      :sync: linux
 
-      .. tab-item:: macOS
-         :sync: mac
+      .. code:: bash 
 
-         .. code:: bash 
-   
-            rm -rf openvino_env
+         rm -rf openvino_env
+
+   .. tab-item:: macOS
+      :sync: mac
+
+      .. code:: bash 
+
+         rm -rf openvino_env
 
 
 Remove openvino_env Kernel from Jupyter

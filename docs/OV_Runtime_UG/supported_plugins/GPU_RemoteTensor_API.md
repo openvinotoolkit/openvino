@@ -276,6 +276,7 @@ For more details, see the code snippets below:
                :fragment: [allocate_usm_device]
 
          .. tab-item:: cl::Buffer
+            :sync: buffer
 
             .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation.cpp
                :language: cpp
@@ -296,7 +297,7 @@ For more details, see the code snippets below:
                :fragment: [wrap_usm_pointer]
 
          .. tab-item:: cl_mem
-            :sync: cl_mem
+            :sync: cl-mem
 
             .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation_c.cpp
                :language: c
@@ -305,9 +306,9 @@ For more details, see the code snippets below:
          .. tab-item:: cl::Buffer
             :sync: buffer
 
-             .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation_c.cpp
-               :language: c
-               :fragment: [wrap_cl_buffer]
+            .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation_c.cpp
+              :language: c
+              :fragment: [wrap_cl_buffer]
 
          .. tab-item:: cl::Image2D
             :sync: image2D

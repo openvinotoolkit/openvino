@@ -47,7 +47,6 @@ Running Deployment Manager in Interactive Mode
          .. code-block:: sh
    
             cd <INSTALL_DIR>/tools/deployment_manager
-   
             ./deployment_manager.py
    
       .. tab-item:: Windows
@@ -195,31 +194,31 @@ To deploy the OpenVINO Runtime components from the development machine to the ta
 
 4. Set up the environment variables:
 
-.. tab-set::
-
-   .. tab-item:: Linux
-      :sync: linux
+   .. tab-set::
    
-      .. code-block:: sh
-   
-         cd <destination_dir>/openvino/
-         source ./setupvars.sh
-   
-   .. tab-item:: Windows
-      :sync: windows
-   
-      .. code-block:: bat
-   
-         cd <destination_dir>\openvino\
-         .\setupvars.bat
-   
-   .. tab-item:: macOS
-      :sync: macos
-   
-      .. code-block:: sh
-   
-         cd <destination_dir>/openvino/
-         source ./setupvars.sh
+      .. tab-item:: Linux
+         :sync: linux
+      
+         .. code-block:: sh
+      
+            cd <destination_dir>/openvino/
+            source ./setupvars.sh
+      
+      .. tab-item:: Windows
+         :sync: windows
+      
+         .. code-block:: bat
+      
+            cd <destination_dir>\openvino\
+            .\setupvars.bat
+      
+      .. tab-item:: macOS
+         :sync: macos
+      
+         .. code-block:: sh
+      
+            cd <destination_dir>/openvino/
+            source ./setupvars.sh
 
 
 Now, you have finished the deployment of the OpenVINO Runtime components to the target system.

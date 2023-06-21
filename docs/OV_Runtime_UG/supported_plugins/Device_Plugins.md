@@ -71,9 +71,9 @@ A simple programmatic way to enumerate the devices and use with the multi-device
    .. tab-item:: C++
       :sync: cpp
    
-       .. doxygensnippet:: docs/snippets/MULTI2.cpp
-          :language: cpp
-          :fragment: [part2]
+      .. doxygensnippet:: docs/snippets/MULTI2.cpp
+         :language: cpp
+         :fragment: [part2]
 
 
 
@@ -95,9 +95,9 @@ So, the explicit configuration to use both would be "MULTI:GPU.1,GPU.0". Accordi
    .. tab-item:: C++
       :sync: cpp
    
-       .. doxygensnippet:: docs/snippets/MULTI3.cpp
-          :language: cpp
-          :fragment: [part3]
+      .. doxygensnippet:: docs/snippets/MULTI3.cpp
+         :language: cpp
+         :fragment: [part3]
 
 
 

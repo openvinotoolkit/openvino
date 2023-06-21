@@ -46,15 +46,18 @@ Supported Inference Data Types
 
 CPU plugin supports the following data types as inference precision of internal primitives:
 
-| - Floating-point data types:
-|   - f32 (Intel® x86-64, Arm®)
-|   - bf16 (Intel® x86-64)
-| - Integer data types:
-|   - i32 (Intel® x86-64, Arm®)
-| - Quantized data types:
-|   - u8 (Intel® x86-64)
-|   - i8 (Intel® x86-64)
-|   - u1 (Intel® x86-64)
+- Floating-point data types:
+
+  - ``f32`` (Intel® x86-64, Arm®)
+  - ``bf16 ``(Intel® x86-64)
+- Integer data types:
+
+  - ``i32`` (Intel® x86-64, Arm®)
+- Quantized data types:
+
+  - ``u8`` (Intel® x86-64)
+  - ``i8`` (Intel® x86-64)
+  - ``u1`` (Intel® x86-64)
 
 :doc:`Hello Query Device C++ Sample <openvino_inference_engine_samples_hello_query_device_README>` can be used to print out supported data types for all detected devices.
 
@@ -276,19 +279,19 @@ For more details, see :doc:`preprocessing API guide <openvino_docs_OV_UG_Preproc
 
 .. dropdown:: The CPU plugin support for handling tensor precision conversion is limited to the following ov::element types:
 
-   * bf16
-   * f16
-   * f32
-   * f64
-   * i8
-   * i16
-   * i32
-   * i64
-   * u8
-   * u16
-   * u32
-   * u64
-   * boolean
+   * ``bf16``
+   * ``f16``
+   * ``f32``
+   * ``f64``
+   * ``i8``
+   * ``i16``
+   * ``i32``
+   * ``i64``
+   * ``u8``
+   * ``u16``
+   * ``u32``
+   * ``u64``
+   * ``boolean``
 
 
 Model Caching

@@ -45,7 +45,7 @@ For a successful deep learning inference application, the following four key met
 
 .. tab-set::
 
-   .. tab-item:: :material-regular:`keyboard_double_arrow_right;1.4em` Throughput
+   .. tab-item:: Throughput
       :sync: throughput
 
       Measures the number of inferences delivered within a latency threshold 
@@ -53,7 +53,7 @@ For a successful deep learning inference application, the following four key met
       deep learning inference, select the throughput that delivers the best trade-off 
       between latency and power for the price and performance that meets your requirements.
 
-   .. tab-item:: :material-regular:`attach_money;1.4em` Value
+   .. tab-item:: Value
       :sync: value
 
       While throughput is important, what is more critical in edge AI deployments is 
@@ -63,7 +63,7 @@ For a successful deep learning inference application, the following four key met
       This means for a 2 socket system 2x the price of a CPU is used. Prices are as per 
       date of benchmarking and sources can be found as links in the Hardware Platforms (PDF) description below.
 
-   .. tab-item:: :material-regular:`flash_on;1.4em` Efficiency
+   .. tab-item:: Efficiency
       :sync: efficiency
 
       System power is a key consideration from the edge to the data center. When selecting 
@@ -73,7 +73,7 @@ For a successful deep learning inference application, the following four key met
       inference engine”. This means for a 2 socket system 2x the power dissipation (TDP) of a CPU is used. 
       TDP-values are as per date of benchmarking and sources can be found as links in the Hardware Platforms (PDF) description below.
 
-   .. tab-item:: :material-regular:`hourglass_empty;1.4em` Latency
+   .. tab-item:: Latency
       :sync: latency
 
       This measures the synchronous execution of inference requests and is reported in milliseconds. 
