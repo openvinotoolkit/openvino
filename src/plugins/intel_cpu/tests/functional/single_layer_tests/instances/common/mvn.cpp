@@ -60,7 +60,7 @@ const auto Mvn3D = ::testing::Combine(
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Mvn3D, MvnLayerCPUTest, Mvn3D, MvnLayerCPUTest::getTestCaseName);
 
-const auto Mvn4D = ::testing::Combine(
+const auto Mvn4D_acrossChannels = ::testing::Combine(
        ::testing::Combine(
                ::testing::ValuesIn(inputShapes_4D()),
                ::testing::Values(ElementType::f32),
@@ -73,9 +73,24 @@ const auto Mvn4D = ::testing::Combine(
        ::testing::ValuesIn(inpPrc),
        ::testing::ValuesIn(outPrc));
 
-INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Mvn4D, MvnLayerCPUTest, Mvn4D, MvnLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Mvn4D_acrossChannels, MvnLayerCPUTest, Mvn4D_acrossChannels, MvnLayerCPUTest::getTestCaseName);
 
-const auto Mvn5D = ::testing::Combine(
+const auto Mvn4D_noAcrossChannels = ::testing::Combine(
+       ::testing::Combine(
+               ::testing::ValuesIn(inputShapes_4D()),
+               ::testing::Values(ElementType::f32),
+               ::testing::ValuesIn(emptyReductionAxes()),
+               ::testing::Values(false),
+               ::testing::ValuesIn(normalizeVariance),
+               ::testing::ValuesIn(epsilon())),
+       ::testing::Values(CPUSpecificParams({nchw}, {nchw}, {}, {})), //"initAcrossChannels = false" is not supported by ACL for NHWC layout
+       ::testing::ValuesIn(fusingParamsSet),
+       ::testing::ValuesIn(inpPrc),
+       ::testing::ValuesIn(outPrc));
+
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Mvn4D_noAcrossChannels, MvnLayerCPUTest, Mvn4D_noAcrossChannels, MvnLayerCPUTest::getTestCaseName);
+
+const auto Mvn5D_acrossChannels = ::testing::Combine(
        ::testing::Combine(
                ::testing::ValuesIn(inputShapes_5D()),
                ::testing::Values(ElementType::f32),
@@ -88,7 +103,22 @@ const auto Mvn5D = ::testing::Combine(
        ::testing::ValuesIn(inpPrc),
        ::testing::ValuesIn(outPrc));
 
-INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Mvn5D, MvnLayerCPUTest, Mvn5D, MvnLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Mvn5D_acrossChannels, MvnLayerCPUTest, Mvn5D_acrossChannels, MvnLayerCPUTest::getTestCaseName);
+
+const auto Mvn5D_noAcrossChannels = ::testing::Combine(
+       ::testing::Combine(
+               ::testing::ValuesIn(inputShapes_5D()),
+               ::testing::Values(ElementType::f32),
+               ::testing::ValuesIn(emptyReductionAxes()),
+               ::testing::Values(true),
+               ::testing::ValuesIn(normalizeVariance),
+               ::testing::ValuesIn(epsilon())),
+       ::testing::Values(CPUSpecificParams({nchw}, {nchw}, {}, {})), //"initAcrossChannels = false" is not supported by ACL for NHWC layout
+       ::testing::ValuesIn(fusingParamsSet),
+       ::testing::ValuesIn(inpPrc),
+       ::testing::ValuesIn(outPrc));
+
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Mvn5D_noAcrossChannels, MvnLayerCPUTest, Mvn5D_noAcrossChannels, MvnLayerCPUTest::getTestCaseName);
 
 // 1D 2D case
 std::vector<fusingSpecificParams> fusingUnaryEltwiseParamsSet {
