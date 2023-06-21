@@ -442,9 +442,9 @@ void Deconvolution::getSupportedDescriptors() {
         if (InferenceEngine::Precision::BF16 == outPrecision)
             outPrecision = InferenceEngine::Precision::FP32;
     } else {
-        if (!one_of(inPrecision, InferenceEngine::Precision::FP32, InferenceEngine::Precision::BF16, InferenceEngine::Precision::FP16))
+        if (!inPrecision.is_float())
             inPrecision = InferenceEngine::Precision::FP32;
-        if (!one_of(outPrecision, InferenceEngine::Precision::FP32, InferenceEngine::Precision::BF16, InferenceEngine::Precision::FP16))
+        if (!outPrecision.is_float())
             outPrecision = InferenceEngine::Precision::FP32;
     }
     auto inputDataType = DnnlExtensionUtils::IEPrecisionToDataType(inPrecision);

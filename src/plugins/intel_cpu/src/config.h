@@ -67,12 +67,12 @@ struct Config {
     Config::LatencyThreadingMode scopeOflatencyCandidate = Config::LatencyThreadingMode::PER_SOCKET;
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
     LPTransformsMode lpTransformsMode = LPTransformsMode::On;
-    ov::element::Type inferencePrecision = ov::element::bf16;
 #else
     // Currently INT8 mode is not optimized on ARM / RISCV or other non-x86 platforms, fallback to FP32 mode.
     LPTransformsMode lpTransformsMode = LPTransformsMode::Off;
-    ov::element::Type inferencePrecision = ov::element::f32;
 #endif
+    // default inference precision
+    ov::element::Type inferencePrecision = ov::element::f32;
     bool inferencePrecisionSetExplicitly = false;
     ov::hint::ExecutionMode executionMode = ov::hint::ExecutionMode::PERFORMANCE;
 

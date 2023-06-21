@@ -51,16 +51,6 @@ Config::Config() {
     }
 #endif
 
-    if (mayiuse(avx512_core_bf16)) {
-        inferencePrecision = ov::element::bf16;
-    } else if (mayiuse(avx512_core_amx_fp16)) {
-        inferencePrecision = ov::element::f16;
-    } else if (mayiuse(avx512_core_fp16)) {
-        inferencePrecision = ov::element::f16;
-    } else {
-        inferencePrecision = ov::element::f32;
-    }
-
     CPU_DEBUG_CAP_ENABLE(applyDebugCapsProperties());
 
     updateProperties();

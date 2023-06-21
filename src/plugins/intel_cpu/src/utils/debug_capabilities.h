@@ -160,8 +160,8 @@ static inline std::ostream& _write_all_to_stream(std::ostream& os, const T& arg,
 
 /*
  * important debugging tools for accuracy issues
- *   OV_INFER_PRC_TYPES : comma separated list of node types for which infer-precision is enforced
- *   OV_INFER_PRC_CNT   : number of nodes totally allowed to enforced
+ *   OV_CPU_INFER_PRC_TYPES : comma separated list of node types for which infer-precision is enforced
+ *   OV_CPU_INFER_PRC_CNT   : number of nodes totally allowed to enforced
  * adjust these two settings until accuracy issue happens/disappears
  * from the log we can spot the first node having issue when enabled f16
  */
@@ -174,8 +174,8 @@ struct EnforceInferPrcDebug {
         return value;
     }
 
-    std::string nodeTypes = safe_getenv("OV_INFER_PRC_TYPES", "");
-    int count_limit = atoi(safe_getenv("OV_INFER_PRC_CNT", "9999999").c_str());
+    std::string nodeTypes = safe_getenv("OV_CPU_INFER_PRC_TYPES", "");
+    int count_limit = atoi(safe_getenv("OV_CPU_INFER_PRC_CNT", "9999999").c_str());
     int count = 0;
 
     bool enabled(std::string type, std::string name) {
