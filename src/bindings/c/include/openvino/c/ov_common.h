@@ -122,7 +122,7 @@
  * @ingroup ov_c_api
  * @brief The definitions & operations about tensor
  *
- * @defgroup ov_remote_context_c_api ov_remote_context
+ * @defgroup ov_remote_context_c_api Remote Context
  * @ingroup ov_c_api
  * @brief Set of functions representing of RemoteContext
  */

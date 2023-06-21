@@ -257,7 +257,7 @@ Convolution::Convolution(const std::shared_ptr<ngraph::Node>& op, const GraphCon
         groupIC = IC;
         groupOC = weightDims[0];
 
-        biasesDims = { groupOC };
+        expectedBiasDims = {groupOC};
 
         for (size_t i = 0; i < convolutionOp->get_strides().size(); i++) {
             stride.push_back(convolutionOp->get_strides()[i]);
@@ -280,7 +280,7 @@ Convolution::Convolution(const std::shared_ptr<ngraph::Node>& op, const GraphCon
         IC = groupIC * groupNum;
         groupOC = weightDims[1];
 
-        biasesDims = {groupOC * groupNum};
+        expectedBiasDims = {groupOC * groupNum};
 
         for (size_t i = 0; i < groupConvolutionOp->get_strides().size(); i++) {
             stride.push_back(groupConvolutionOp->get_strides()[i]);
@@ -296,10 +296,11 @@ Convolution::Convolution(const std::shared_ptr<ngraph::Node>& op, const GraphCon
 
 bool Convolution::canBeExecutedInInt8() const {
     auto inputDataType = DnnlExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(0));
+    auto weightsDataType = DnnlExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(1));
+
     if (!legacyInputZeroPoints.empty())
         inputDataType = memory::data_type::u8;
 
-    auto weightsDataType = DnnlExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(1));
     if (!legacyWeightsZeroPoints.empty())
         weightsDataType = memory::data_type::s8;
 
@@ -382,8 +383,7 @@ void Convolution::getSupportedDescriptors() {
         // winograd support only constant weights and bias
         isWino = std::find(customImplPriorities.begin(), customImplPriorities.end(), impl_desc_type::jit_avx512_winograd) != customImplPriorities.end() &&
             dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) && !canBeExecutedInInt8() &&
-            getParentEdgeAt(1)->getParent()->isConstant() && getParentEdgeAt(1)->getParent()->getType() == Type::Input &&
-            (withBiases ? (getParentEdgeAt(2)->getParent()->isConstant() && getParentEdgeAt(2)->getParent()->getType() == Type::Input) : true);
+            getParentEdgeAt(1)->getParent()->isConstant() && getParentEdgeAt(1)->getParent()->getType() == Type::Input;
     }
 
     int expectedInputEdgesNum = static_cast<int>(getOriginalInputsNumber());
@@ -865,7 +865,7 @@ void Convolution::createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
 
     if (withBiases) {
         memory::data_type bdt = memory::data_type::f32;
-        biasDnnlDesc = dnnl::memory::desc(DnnlExtensionUtils::convertToDnnlDims(biasesDims), bdt, memory::format_tag::any);
+        biasDnnlDesc = dnnl::memory::desc(DnnlExtensionUtils::convertToDnnlDims(expectedBiasDims), bdt, memory::format_tag::any);
     }
 
     std::vector<dnnl::algorithm> algorithms;
@@ -1049,43 +1049,6 @@ void Convolution::initDescriptor(const NodeConfig& config) {
     const auto& updatedConfig = updateNodeConfig(currentConfig);
 
     selectedPD->setConfig(updatedConfig);
-}
-
-void Convolution::filterSupportedPrimitiveDescriptors() {
-    Node::filterSupportedPrimitiveDescriptors();
-    // We also need to filter descs in Convolution node
-    filterSupportedDescriptors();
-}
-
-void Convolution::filterSupportedDescriptors() {
-    if (inputMemoryFormatsFilter.empty() && outputMemoryFormatsFilter.empty())
-        return;
-
-    if (inputMemoryFormatsFilter.size() > 1 || outputMemoryFormatsFilter.size() > 1)
-        IE_THROW() << "Incorrect number of input or output memory formats for Convolution node";
-
-    auto isNotSuitableDesc = [&](const dnnl::primitive_desc& desc) {
-        if (!inputMemoryFormatsFilter.empty()) {
-            auto src_tdesc = DnnlExtensionUtils::makeDescriptor(desc.src_desc());
-            if (src_tdesc->isSame(inputMemoryFormatsFilter[0])) {
-                DEBUG_LOG(getName(), " input memory format filter: ", inputMemoryFormatsFilter[0],
-                          " not matched. Erase desc from the list of dnnl primitive descriptors: ", desc);
-                return true;
-            }
-        }
-        if (!outputMemoryFormatsFilter.empty()) {
-            auto dst_tdesc = DnnlExtensionUtils::makeDescriptor(desc.dst_desc());
-            if (dst_tdesc->isSame(outputMemoryFormatsFilter[0])) {
-                DEBUG_LOG(getName(), " Output memory format filter: ", outputMemoryFormatsFilter[0],
-                          " not matched. Erase desc from the list of dnnl primitive descriptors: ", desc);
-                return true;
-            }
-        }
-
-        return false;
-    };
-
-    descs.erase(std::remove_if(descs.begin(), descs.end(), isNotSuitableDesc), descs.end());
 }
 
 std::shared_ptr<MemoryDesc> Convolution::getSrcMemDesc(const dnnl::primitive_desc &prim_desc, size_t idx) const {
@@ -1318,8 +1281,7 @@ void Convolution::prepareParams() {
                                      const dnnl::primitive_attr attr) -> dnnl::primitive_desc {
             dnnl::memory::desc dnnlBiasDesc;
             if (biasDescPtr) {
-                // WA to align IR bias representation (3 to 5 rank tensors) to oneDNN representation (1 rank tensor)
-                dnnlBiasDesc = biasDescPtr->getDnnlDesc().reshape({dstDesc.get_dims()[1]});
+                dnnlBiasDesc = biasDescPtr->getDnnlDesc();
             }
 
             return createDescriptorInternal(
