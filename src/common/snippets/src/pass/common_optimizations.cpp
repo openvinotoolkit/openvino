@@ -27,7 +27,7 @@ bool CommonOptimizations::canBeParallelismWAOptimized(const std::shared_ptr<cons
     if (mm_shape.size() != 3)
         return false;
     const auto current_parallel_work_amount =
-        std::accumulate(mm_shape.rbegin() + 2, mm_shape.rend(), 1lu, std::multiplies<size_t>());
+        std::accumulate(mm_shape.rbegin() + 2, mm_shape.rend(), size_t(1), std::multiplies<size_t>());
     const auto dim_M = *(mm_shape.rbegin() + 1);
     return (current_parallel_work_amount < num_threads) && (current_parallel_work_amount * dim_M >= num_threads);
 }
@@ -69,7 +69,7 @@ void CommonOptimizations::SplitDimensionM(const std::shared_ptr<ov::snippets::op
     const auto optimal_parallelism_work_amount = static_cast<size_t>(num_threads);
     const auto optimal_m_dim = 64;  // heuristic
     const auto batch_dim =
-        std::accumulate(mm_shape.rbegin() + 2, mm_shape.rend(), 1, std::multiplies<size_t>());  // B (batch)
+        std::accumulate(mm_shape.rbegin() + 2, mm_shape.rend(), size_t(1), std::multiplies<size_t>());  // B (batch)
     const auto m_dim = get_dim_M(mm_shape);  // M
     const auto n_dim = mm_shape.back(); // N
 
