@@ -30,6 +30,11 @@ class typed_primitive_inst<assign> : public typed_primitive_inst_base<assign>, p
     using parent = typed_primitive_inst_base<assign>;
 
 public:
+    template<typename ShapeType>
+    static std::vector<layout> calc_output_layouts(assign_node const& /*node*/, const kernel_impl_params& impl_param) {
+        return forward_input0_shape<ShapeType>(impl_param);
+    }
+
     static layout calc_output_layout(const assign_node& node, kernel_impl_params const& impl_param);
 
     static std::string to_string(const assign_node& node);

@@ -101,7 +101,6 @@ private:
     InferenceEngine::Blob::Ptr reinterpret_device_blob(InferenceEngine::Blob::Ptr data, const InferenceEngine::TensorDesc& new_desc);
 
     std::map<cldnn::primitive_id, cldnn::network_output> internal_outputs;
-    Graph::variable_states_map variables_states_;
 };
 
 }  // namespace intel_gpu
