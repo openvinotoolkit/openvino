@@ -1670,27 +1670,6 @@ public:
                     });
                 }
                 return;
-            } else {
-                if (_fullWorkAmount == count_of_power_values) {
-                    bool is_pow_neq_2 = false;
-                    for (int i = 0; i < _fullWorkAmount; i++) {
-                        if (src_ptr_f_pow[i] != 2) {
-                            is_pow_neq_2 = true;
-                            break;
-                        }
-                    }
-
-                    if (is_pow_neq_2) {
-                        parallel_for(_fullWorkAmount, [&](size_t i) {
-                            dst_ptr_f[i] = powf(src_ptr_f[i], src_ptr_f_pow[i]);
-                        });
-                    } else {
-                        parallel_for(_fullWorkAmount, [&](size_t i) {
-                            dst_ptr_f[i] = src_ptr_f[i] * src_ptr_f[i];
-                        });
-                    }
-                    return;
-                }
             }
         }
 
