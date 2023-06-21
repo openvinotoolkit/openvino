@@ -65,7 +65,6 @@ PrimListConstructPadReplacer::PrimListConstructPadReplacer() {
         Output<Node> padding;
         Output<Node> pad_value;
         std::string mode;
-        NodeVector rt_info = {};
         std::shared_ptr<ov::op::util::FrameworkNode> pad_op;
         if ((pad_op = cast_fw_node(m.get_match_root(), "aten::pad"))) {
             mode = "constant";
@@ -73,11 +72,6 @@ PrimListConstructPadReplacer::PrimListConstructPadReplacer() {
             padding = pad_op->input_value(1);
             auto mode_node = pad_op->input_value(2).get_node_shared_ptr();
             pad_value = pad_op->input_value(3);
-            rt_info = {pad_op,
-                       input_node.get_node_shared_ptr(),
-                       padding.get_node_shared_ptr(),
-                       mode_node,
-                       pad_value.get_node_shared_ptr()};
             if (const auto& fw_node_mode = cast_fw_node(mode_node, "prim::Constant")) {
                 const auto& attrs = fw_node_mode->get_attrs();
                 if (attrs.find("string_value") != attrs.end()) {
@@ -90,7 +84,6 @@ PrimListConstructPadReplacer::PrimListConstructPadReplacer() {
             padding = pad_op->input_value(1);
             // Pad value is used only for constant pad, fill with 0 as placeholder.
             pad_value = v0::Constant::create(element::f32, Shape{}, {0});
-            rt_info = {pad_op, input_node.get_node_shared_ptr(), padding.get_node_shared_ptr()};
         } else {
             return false;
         }
