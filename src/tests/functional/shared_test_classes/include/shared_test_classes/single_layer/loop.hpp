@@ -122,7 +122,7 @@ protected:
             //       Expected : auto name = results[i]->get_friendly_name();
             auto name = results[i]->get_input_node_ptr(0)->get_friendly_name();
             auto data = outs_info.at(name);
-            IE_ASSERT(data != nullptr);
+            IE_ASSERT_F(data != nullptr);
 
             RefBlobGenerator generator;
             auto found = outputGens.find(name);
@@ -135,7 +135,7 @@ protected:
                 }
             }
 
-            IE_ASSERT(generator != nullptr, "Test output generator is not specified");
+            IE_ASSERT_F(generator != nullptr, "Test output generator is not specified");
             auto blob = generator(data->getTensorDesc());
             auto blob_size = blob->byteSize();
             auto blob_ptr = blob->buffer().as<uint8_t*>();

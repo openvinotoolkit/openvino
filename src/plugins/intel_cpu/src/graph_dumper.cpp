@@ -130,7 +130,7 @@ std::shared_ptr<ngraph::Function> dump_graph_as_ie_ngraph_net(const Graph &graph
             int ch_port = edge->getOutputNum();
             auto pr_node = edge->getParent();
 
-            IE_ASSERT(node2layer.count(pr_node) == 1);
+            IE_ASSERT_F(node2layer.count(pr_node) == 1);
             auto pr = node2layer[pr_node];
 
             inputs[ch_port] = pr->output(pr_port);

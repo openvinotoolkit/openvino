@@ -11,7 +11,7 @@ NgraphShapeInfer::infer(
         const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
         const std::unordered_map<size_t, MemoryPtr>& data_dependency) {
     const auto& iranks = m_shape_infer->get_input_ranks();
-    IE_ASSERT(iranks.size() <= input_shapes.size(), "Too few input shapes passed to Shape infer.");
+    IE_ASSERT_F(iranks.size() <= input_shapes.size(), "Too few input shapes passed to Shape infer.");
     std::vector<StaticShape> input_static_shapes;
     std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>> input_values;
 

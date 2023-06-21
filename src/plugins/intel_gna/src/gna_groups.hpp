@@ -20,7 +20,7 @@ namespace intel_gna {
 inline InferenceEngine::DataPtr Get2DReshapedData(InferenceEngine::DataPtr input,
                                                   size_t minZeroDimSize,
                                                   size_t maxZeroDimSize) {
-    IE_ASSERT(minZeroDimSize > 0);
+    IE_ASSERT_F(minZeroDimSize > 0);
     auto dims = input->getDims();
     uint32_t numRowsIn = static_cast<uint32_t>(InferenceEngine::details::product(begin(dims), end(dims)));
     uint32_t numColumnsIn = 1;

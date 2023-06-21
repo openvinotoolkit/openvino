@@ -108,7 +108,7 @@ public:
     template <typename U>
     SOPointer(const SOPointer<U>& that) : _so(that._so),
                                           _ptr(std::dynamic_pointer_cast<T>(that._ptr)) {
-        IE_ASSERT(_ptr != nullptr);
+        IE_ASSERT_F(_ptr != nullptr);
     }
 
     /**

@@ -73,7 +73,7 @@ Checker negative(Checker checker) {
 }
 
 static void copy_with_reverse(Blob::Ptr &src, Blob::Ptr &dst, int axis) {
-    IE_ASSERT(src->getTensorDesc().getDims() == dst->getTensorDesc().getDims());
+    IE_ASSERT_F(src->getTensorDesc().getDims() == dst->getTensorDesc().getDims());
 
     const auto &td = src->getTensorDesc();
     const auto &dims = td.getDims();
@@ -112,11 +112,11 @@ static void copy_with_reverse(Blob::Ptr &src, Blob::Ptr &dst, int axis) {
 /** Make view blob (ROI) on parent blob. Doesn't hold parent blob */
 static Blob::Ptr make_view(const Blob::Ptr &src, const SizeVector dims, const SizeVector offsets) {
     auto src_dims = src->getTensorDesc().getDims();
-    IE_ASSERT(dims.size() == src_dims.size());
-    IE_ASSERT(dims.size() == offsets.size());
+    IE_ASSERT_F(dims.size() == src_dims.size());
+    IE_ASSERT_F(dims.size() == offsets.size());
 
     for (size_t i = 0; i < dims.size(); i++)
-        IE_ASSERT(dims[i] + offsets[i] <= src_dims[i]);
+    IE_ASSERT_F(dims[i] + offsets[i] <= src_dims[i]);
 
     auto desc = src->getTensorDesc();
     auto b_desc = desc.getBlockingDesc();
@@ -131,7 +131,7 @@ static Blob::Ptr make_view(const Blob::Ptr &src, const SizeVector dims, const Si
     };
 
     // TODO: Only FP32 supported here
-    IE_ASSERT(desc.getPrecision() == Precision::FP32, "Current limitation. Only FP32 is supported");
+    IE_ASSERT_F(desc.getPrecision() == Precision::FP32, "Current limitation. Only FP32 is supported");
     return make_shared_blob<float>(new_desc, src->buffer());
 }
 
@@ -160,13 +160,13 @@ Filler reverse(const Filler filler, int axis) {
 }
 
 static void copy_with_permute(Blob::Ptr &src, Blob::Ptr &dst, const std::vector<int> order) {
-    IE_ASSERT(order == std::vector<int>({1,0,2}));
-    IE_ASSERT(src->getTensorDesc().getDims().size() == order.size());
+    IE_ASSERT_F(order == std::vector<int>({1, 0, 2}));
+    IE_ASSERT_F(src->getTensorDesc().getDims().size() == order.size());
 
     SizeVector prm_dims, dims = src->getTensorDesc().getDims();
     for (int i : order) prm_dims.push_back(dims[i]);
 
-    IE_ASSERT(prm_dims == dst->getTensorDesc().getDims());
+    IE_ASSERT_F(prm_dims == dst->getTensorDesc().getDims());
 
     size_t stride_2 = 1;
     size_t stride_1 = prm_dims[2] * stride_2;
@@ -262,7 +262,7 @@ static inline bool cmp_near(float res, float ref) {
 }
 
 bool scalar_checker(Blob::Ptr blob, SizeVector dims, float val) {
-    IE_ASSERT(blob->getTensorDesc().getDims() == dims);
+    IE_ASSERT_F(blob->getTensorDesc().getDims() == dims);
 
     bool res = true;
     T_LOOP(blob, [&](float x, int *i) {
@@ -273,8 +273,8 @@ bool scalar_checker(Blob::Ptr blob, SizeVector dims, float val) {
 }
 
 bool vector_checker(Blob::Ptr blob, SizeVector dims, std::vector<float> val, int axis) {
-    IE_ASSERT(blob->getTensorDesc().getDims() == dims);
-    IE_ASSERT(dims[axis] == val.size());
+    IE_ASSERT_F(blob->getTensorDesc().getDims() == dims);
+    IE_ASSERT_F(dims[axis] == val.size());
 
     axis += T_LOOP_RANK - dims.size();
     bool res = true;
@@ -288,7 +288,7 @@ bool vector_checker(Blob::Ptr blob, SizeVector dims, std::vector<float> val, int
 }
 
 void scalar_filler (Blob::Ptr blob, SizeVector dims, float val) {
-    IE_ASSERT(blob->getTensorDesc().getDims() == dims);
+    IE_ASSERT_F(blob->getTensorDesc().getDims() == dims);
 
     T_LOOP( blob, [&](float &x, int *i) {
         x = val;
@@ -296,8 +296,8 @@ void scalar_filler (Blob::Ptr blob, SizeVector dims, float val) {
 }
 
 void vector_filler (Blob::Ptr blob, SizeVector dims, std::vector<float> val, int axis) {
-    IE_ASSERT(blob->getTensorDesc().getDims() == dims);
-    IE_ASSERT(dims[axis] == val.size());
+    IE_ASSERT_F(blob->getTensorDesc().getDims() == dims);
+    IE_ASSERT_F(dims[axis] == val.size());
 
     axis += T_LOOP_RANK - dims.size();
 

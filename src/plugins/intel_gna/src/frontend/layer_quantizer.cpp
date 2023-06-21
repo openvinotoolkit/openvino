@@ -280,7 +280,7 @@ void LayerQuantizer::SetLayerOutputPrecision(InferenceEngine::CNNLayer& cnn_laye
 
 void LayerQuantizer::CreateConstBlob(InferenceEngine::CNNLayer& cnn_layer) {
     auto initial_precision = cnn_layer.blobs["custom"]->getTensorDesc().getPrecision();
-    IE_ASSERT(initial_precision != InferenceEngine::Precision::I32);
+    IE_ASSERT_F(initial_precision != InferenceEngine::Precision::I32);
 
     if (initial_precision == InferenceEngine::Precision::FP16) {
         cnn_layer.blobs["custom"] = make_fp32_blob(cnn_layer.blobs["custom"]);

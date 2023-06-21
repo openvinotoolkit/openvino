@@ -23,7 +23,7 @@ namespace pass {
 // Don't split when convolution is 2D and is not mappable to 1D
 static bool shouldSplitCnn(const ngraph::Output<ngraph::Node>& node) {
     auto convolution = dynamic_cast<ngraph::opset7::Convolution*>(node.get_node());
-    IE_ASSERT(convolution != nullptr);
+    IE_ASSERT_F(convolution != nullptr);
     auto& input = convolution->get_input_shape(0);
     auto& filters = convolution->get_input_shape(1);
     uint32_t width = input.back();
@@ -67,7 +67,7 @@ static bool Convert(std::shared_ptr<ngraph::Node> conv,
     auto split_sizes = GetAlignedSplitSizes(width,
                                             Limitations::kBufferMaxSize / in_channels,
                                             Limitations::get_instance()->get_memory_alignment());
-    IE_ASSERT(split_sizes.size() > 1);
+    IE_ASSERT_F(split_sizes.size() > 1);
     std::vector<int64_t> split_sizes_casted(split_sizes.size());
     std::transform(std::begin(split_sizes), std::end(split_sizes), std::begin(split_sizes_casted), [](uint32_t size) {
         return static_cast<int64_t>(size);

@@ -193,7 +193,7 @@ TEST_P(TestFQScaleFactorsTest, CompareWithRefImpl) {
     const auto expected = reinterpret_cast<const float*>(refs.front().second.data());
     size_t size = results.front()->size();
     auto memory = InferenceEngine::as<InferenceEngine::MemoryBlob>(results.front());
-    IE_ASSERT(memory);
+    IE_ASSERT_F(memory);
     const auto lockedMemory = memory->wmap();
     const auto actualBuffer = lockedMemory.as<const float*>();
 

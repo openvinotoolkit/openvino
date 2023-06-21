@@ -70,10 +70,10 @@ std::shared_ptr<IPassManager> BasePass::getPassManager() {
  */
 template <class T>
 static void SumBlobs_t(Blob::Ptr& src_blob, Blob::Ptr& dst_blob) {
-    IE_ASSERT(src_blob != nullptr);
-    IE_ASSERT(dst_blob != nullptr);
-    IE_ASSERT(src_blob->size() == dst_blob->size());
-    IE_ASSERT(src_blob->getTensorDesc().getPrecision() == dst_blob->getTensorDesc().getPrecision());
+    IE_ASSERT_F(src_blob != nullptr);
+    IE_ASSERT_F(dst_blob != nullptr);
+    IE_ASSERT_F(src_blob->size() == dst_blob->size());
+    IE_ASSERT_F(src_blob->getTensorDesc().getPrecision() == dst_blob->getTensorDesc().getPrecision());
 
     T* src_blob_buf = src_blob->buffer().as<T*>();
     T* dst_blob_buf = dst_blob->buffer().as<T*>();
@@ -81,7 +81,7 @@ static void SumBlobs_t(Blob::Ptr& src_blob, Blob::Ptr& dst_blob) {
 }
 
 static void SumBlobs(Blob::Ptr& src_blob, Blob::Ptr& dst_blob) {
-    IE_ASSERT(src_blob != nullptr);
+    IE_ASSERT_F(src_blob != nullptr);
 
     switch (src_blob->getTensorDesc().getPrecision()) {
 #define CASE(x) \
@@ -117,7 +117,7 @@ static Blob::Ptr convertToRWBlob(const Blob::Ptr& readOnlyBlob, const std::strin
                                blob->size() * blob->getTensorDesc().getPrecision().size(),
                                readOnlyBlob->buffer().as<uint8_t*>(),
                                readOnlyBlob->size() * readOnlyBlob->getTensorDesc().getPrecision().size());
-    IE_ASSERT(ret == 0);
+    IE_ASSERT_F(ret == 0);
     return blob;
 }
 
@@ -144,12 +144,12 @@ static void insertDiagonalLayerBetween(InferenceEngine::CNNLayerPtr prevLayer,
                  << std::flush;
 
     auto diagLayer = std::make_shared<ScaleShiftLayer>(LayerParams({diagName, "ScaleShift", Precision::FP32}));
-    IE_ASSERT(diagLayer != nullptr);
+    IE_ASSERT_F(diagLayer != nullptr);
 
     auto inputLayer = InferenceEngine::CNNNetPrevLayerSkipCertain(nextLayer, 0, [](InferenceEngine::CNNLayerPtr ptr) {
         return LayerInfo(ptr).isNonValuesChangable();
     });
-    IE_ASSERT(inputLayer != nullptr);
+    IE_ASSERT_F(inputLayer != nullptr);
     size_t weightsSize = LayerInfo(prevLayer).has32BOutput()
                              ? nextLayer->outData[0]->getDims().back()
                              : Get2DReshapedData(nextLayer->outData[0],
@@ -157,7 +157,7 @@ static void insertDiagonalLayerBetween(InferenceEngine::CNNLayerPtr prevLayer,
                                                  8)
                                    ->getDims()[1];
     std::vector<float> weightsValues(weightsSize, fillValue);
-    IE_ASSERT(diagLayer != nullptr);
+    IE_ASSERT_F(diagLayer != nullptr);
     diagLayer->_weights = make_shared_blob<float>(TensorDesc(nextLayer->outData[0]->getTensorDesc().getPrecision(),
                                                              SizeVector({weightsValues.size()}),
                                                              InferenceEngine::Layout::C));
@@ -508,8 +508,8 @@ void SubstituteSoftSignPass::run() {
     auto getNthChild = [](CNNLayerPtr l, int N) {
         auto first = getInputTo(l->outData.front()).begin();
         auto last = getInputTo(l->outData.front()).end();
-        IE_ASSERT(first != last);
-        IE_ASSERT(N <= std::distance(first, last));
+        IE_ASSERT_F(first != last);
+        IE_ASSERT_F(N <= std::distance(first, last));
         std::advance(first, N);
         return first->second;
     };
@@ -576,7 +576,7 @@ void SubstituteSoftSignPass::run() {
 
         CNNLayerPtr activationLayer =
             std::make_shared<GenericLayer>(LayerParams({layerName, "SoftSign", Precision::FP32}));
-        IE_ASSERT(activationLayer != nullptr);
+        IE_ASSERT_F(activationLayer != nullptr);
         auto activationLayerWithQuant =
             quantized ? InferenceEngine::injectData<QuantizedLayerParams>(activationLayer) : activationLayer;
 
@@ -668,20 +668,20 @@ void SubstitutePReluPass::run() {
 
         // sum
         auto sum = getNext(negate);
-        IE_ASSERT(sum != nullptr);
+        IE_ASSERT_F(sum != nullptr);
         if (!LayerInfo(sum).isEltwiseSum())
             continue;
         if (sum->insData.size() != 2 || sum->insData[0].lock() == nullptr || sum->insData[1].lock() == nullptr)
             continue;
 
         auto inData_0 = sum->insData[0].lock();
-        IE_ASSERT(inData_0 != nullptr);
+        IE_ASSERT_F(inData_0 != nullptr);
         auto creatorLayer_0 = getCreatorLayer(inData_0).lock();
-        IE_ASSERT(creatorLayer_0 != nullptr);
+        IE_ASSERT_F(creatorLayer_0 != nullptr);
         auto inData_1 = sum->insData[1].lock();
-        IE_ASSERT(inData_1 != nullptr);
+        IE_ASSERT_F(inData_1 != nullptr);
         auto creatorLayer_1 = getCreatorLayer(inData_1).lock();
-        IE_ASSERT(creatorLayer_1 != nullptr);
+        IE_ASSERT_F(creatorLayer_1 != nullptr);
 
         auto s1 = creatorLayer_0.get();
         auto s2 = creatorLayer_1.get();
@@ -870,7 +870,7 @@ void InsertIdentityLayerPass::run() {
         if (LayerInfo(l).isPooling()) {
             // Identity should be inserted after 1D pooling if it's the last functional layer.
             auto pooling = LayerInfo(l).as<PoolingLayer*>();
-            IE_ASSERT(pooling != nullptr);
+            IE_ASSERT_F(pooling != nullptr);
             if (is2D(pooling->_kernel))
                 continue;
 
@@ -1005,11 +1005,11 @@ void InsertCopyLayerPass::run() {
         // Insert copy layers after concat inputs with multiple connections to concat
         std::set<DataPtr> parents;
         for (size_t input_idx = 0; input_idx < l->insData.size(); ++input_idx) {
-            IE_ASSERT(l->insData[input_idx].lock() != nullptr);
+            IE_ASSERT_F(l->insData[input_idx].lock() != nullptr);
             auto inputData = l->insData[input_idx].lock();
             if (parents.find(inputData) != std::end(parents)) {
                 auto parent = getCreatorLayer(inputData);
-                IE_ASSERT(parent.lock() != nullptr);
+                IE_ASSERT_F(parent.lock() != nullptr);
                 InsertCopyLayer(parent.lock(), l, input_idx, this->getPassManager(), CopyLayerName);
             } else {
                 parents.insert(inputData);
@@ -1138,10 +1138,10 @@ void InsertCopyLayerPass::run() {
 
         if (bNeedInsertCopyLayer) {
             for (size_t inputIdx = 0; inputIdx < l->insData.size(); ++inputIdx) {
-                IE_ASSERT(l->insData[inputIdx].lock() != nullptr);
+                IE_ASSERT_F(l->insData[inputIdx].lock() != nullptr);
                 auto inputData = l->insData[inputIdx].lock();
                 auto parentLayer = getCreatorLayer(inputData);
-                IE_ASSERT(parentLayer.lock() != nullptr);
+                IE_ASSERT_F(parentLayer.lock() != nullptr);
                 InsertCopyLayer(parentLayer.lock(), l, inputIdx, this->getPassManager(), CopyLayerName);
             }
         }
@@ -1256,7 +1256,7 @@ void InsertConcatAligningFilterPass::run() {
             continue;
         size_t offset = 0;
         auto concatLayer = info.as<ConcatLayer*>();
-        IE_ASSERT(concatLayer != nullptr);
+        IE_ASSERT_F(concatLayer != nullptr);
 
         for (auto input_idx = 0; input_idx != concatLayer->insData.size(); input_idx++) {
             auto getLayerByIndex = [&concatLayer](int idx) {
@@ -1534,7 +1534,7 @@ void InsertSplitAligningFilterPass::run() {
                         static_cast<int>(ALIGN(currentOffset, Limitations::get_instance()->get_memory_alignment()) -
                                          Limitations::get_instance()->get_memory_alignment()));
 
-                    IE_ASSERT(filterLayer != nullptr);
+                    IE_ASSERT_F(filterLayer != nullptr);
 
                     // encodes offset to beginning of split layer input
                     filterLayer->params["offset"] = std::to_string(aligned_offset / Limitations::kBytesPerSplitElement);
@@ -1634,7 +1634,7 @@ void EltwiseSplitOverChannelsPass::run() {
             continue;
         }
         auto masterEltwise = std::dynamic_pointer_cast<EltwiseLayer>(l);
-        IE_ASSERT(masterEltwise != nullptr);
+        IE_ASSERT_F(masterEltwise != nullptr);
 
         if (l->outData.size() != 1) {
             THROW_GNA_LAYER_EXCEPTION(l) << "number of outputs expected to be 1";
@@ -1695,7 +1695,7 @@ void EltwiseSplitOverChannelsPass::run() {
         for (size_t k = 0; k != splitSizesPerAxis.second.size(); k++) {
             auto eltwiseRaw = std::make_shared<EltwiseLayer>(
                 LayerParams{l->name + "/eltwise/" + std::to_string(k), "Eltwise", Precision::FP32});
-            IE_ASSERT(eltwiseRaw != nullptr);
+            IE_ASSERT_F(eltwiseRaw != nullptr);
             eltwiseRaw->_operation = masterEltwise->_operation;
             eltwiseRaw->coeff = masterEltwise->coeff;
             auto eltwise = quantized ? InferenceEngine::injectData<QuantizedLayerParams>(eltwiseRaw) : eltwiseRaw;
@@ -1740,7 +1740,7 @@ void SubstituteScaleShiftBroadCastPass::run() {
         }
 
         auto scaleShift = layerInfo.as<ScaleShiftLayer*>();
-        IE_ASSERT(scaleShift != nullptr);
+        IE_ASSERT_F(scaleShift != nullptr);
 
         auto insData = scaleShift->insData.front().lock();
         if (!insData) {
@@ -2253,7 +2253,7 @@ void MoveFakeQuantizeLayerIntoQuantParamsPass ::run() {
             }
 
             auto quantParams = InferenceEngine::getInjectedData<QuantizedLayerParams>(layer);
-            IE_ASSERT(quantParams != nullptr);
+            IE_ASSERT_F(quantParams != nullptr);
 
             // Find all output layers connected to FQ
             auto nextLayers = CNNNetGetAllNextLayersSkipCertain(layer.get(), -1, DoNotSkip);
@@ -2452,7 +2452,7 @@ void TransposeWeightsFromNCHWToNHWCPass::run() {
                                         << " Weights transposition is not supported for a layer with batch size > 1";
                 }
                 auto weightable = dynamic_cast<WeightableLayer*>(l.get());
-                IE_ASSERT(weightable != nullptr);
+                IE_ASSERT_F(weightable != nullptr);
 
                 size_t totalWeights = weightable->_weights->size();
                 transpInfoMatchWeightsSize(transpositionInfo, totalWeights, l->name);
@@ -2478,8 +2478,8 @@ void TransposeWeightsFromNCHWToNHWCPass::run() {
 
         if (LayerInfo(l).isFullyConnected()) {
             auto weightable = dynamic_cast<WeightableLayer*>(l.get());
-            IE_ASSERT(weightable != nullptr);
-            IE_ASSERT(weightable->_weights != nullptr);
+            IE_ASSERT_F(weightable != nullptr);
+            IE_ASSERT_F(weightable->_weights != nullptr);
             auto precision = weightable->precision.size();
             auto out_dims = l->outData[0]->getDims();
             auto in_dims = l->input()->getDims();
@@ -2576,7 +2576,7 @@ void TransposeWeightsFromNCHWToNHWCPass::run() {
 
         if (LayerInfo(l).isConcat()) {
             auto concatLayer = LayerInfo(l).as<InferenceEngine::ConcatLayer*>();
-            IE_ASSERT(concatLayer != nullptr);
+            IE_ASSERT_F(concatLayer != nullptr);
             // If concatenation is along channel axis constant input transposition isn't required
             if (concatLayer->_axis <= 1)
                 continue;

@@ -3,6 +3,7 @@
 //
 
 #include "openvino/core/except.hpp"
+#include "openvino/util/file_util.hpp"
 
 ov::Exception::Exception(const std::string& what_arg) : std::runtime_error(what_arg) {}
 
@@ -19,11 +20,22 @@ std::string ov::Exception::make_what(const CheckLocInfo& check_loc_info,
     auto getRelativePath = [](const std::string& path) -> std::string {
         // Path to local OpenVINO repository
         static const std::string project_root(PROJECT_ROOT_DIR);
+        auto root_path = util::sanitize_path(project_root);
+#ifdef _WIN32
+        util::convert_path_win_style(root_path);
+#endif
+        auto p = util::sanitize_path(path);
+
+        std::cout << util::sanitize_path(PROJECT_ROOT_DIR) << std::endl;
+        util::convert_path_win_style(root_path);
+
         // All internal paths start from project root
-        if (path.find(project_root) != 0)
+        if (p.find(root_path) != 0) {
+            std::cout << "ret 1\n";
             return path;
+        }
         // Add +1 to remove first /
-        return path.substr(project_root.length() + 1);
+        return p.substr(root_path.length() + 1);
     };
     std::stringstream ss;
     if (check_loc_info.check_string) {

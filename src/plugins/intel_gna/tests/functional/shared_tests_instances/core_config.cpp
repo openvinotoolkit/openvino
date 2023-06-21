@@ -38,7 +38,7 @@ void CoreConfiguration(LayerTestsUtils::LayerTestsCommon* test) {
         float floatScaleFactor = 1.0f;
 
         auto memory = InferenceEngine::as<InferenceEngine::MemoryBlob>(blob);
-        IE_ASSERT(memory);
+        IE_ASSERT_F(memory);
 
         const auto lockedMemory = memory->wmap();
         if (precision == InferenceEngine::Precision::FP32) {

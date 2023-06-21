@@ -255,7 +255,7 @@ std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::ImportNetwork(
 }
 
 void IInferencePlugin::SetCore(std::weak_ptr<ICore> core) {
-    IE_ASSERT(!core.expired());
+    IE_ASSERT_F(!core.expired());
     _core = core;
     auto locked_core = _core.lock();
     if (locked_core)
@@ -295,7 +295,7 @@ std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::LoadExeNetworkImpl
 void IInferencePlugin::SetExeNetworkInfo(const std::shared_ptr<IExecutableNetworkInternal>& exeNetwork,
                                          const ConstInputsDataMap& inputs,
                                          const ConstOutputsDataMap& outputs) {
-    IE_ASSERT(exeNetwork != nullptr);
+    IE_ASSERT_F(exeNetwork != nullptr);
 
     // Set inputs/outputs and pointer to plugin manually here
     exeNetwork->setNetworkInputs(copyInfo(constMapCast(inputs)));

@@ -98,7 +98,7 @@ public:
         iter_count = full_dims[axis] / abs_stride;
 
         full_dims[axis] = abs_stride;
-        IE_ASSERT(full_dims == part_dims, "Shape mismatch for tensor iterator port");
+        IE_ASSERT_F(full_dims == part_dims, "Shape mismatch for tensor iterator port");
 
         // make chunk view
         auto chunk_desc = full_blob->GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
@@ -126,7 +126,7 @@ public:
     }
 
     void execute(dnnl::stream strm, int iter) override {
-        IE_ASSERT(iter >= 0 && iter < iter_count);
+        IE_ASSERT_F(iter >= 0 && iter < iter_count);
 
         auto &chunk_mem = sliced_src ? mem_holder_src : mem_holder_dst;
         chunk_mem.set_data_handle(static_cast<uint8_t *>(full_mem.get_data_handle()) +
@@ -164,8 +164,8 @@ class IterCountPortHelper : public PortMapHelper {
 public:
     IterCountPortHelper(const MemoryPtr &to, const dnnl::engine& eng) {
         // Only scalar I32 tensor is supported
-        IE_ASSERT(to->GetDataType() == memory::data_type::s32);
-        IE_ASSERT(to->GetShape() == Shape(VectorDims{1}));
+        IE_ASSERT_F(to->GetDataType() == memory::data_type::s32);
+        IE_ASSERT_F(to->GetShape() == Shape(VectorDims{1}));
         mem_holder_dst = to->GetPrimitive();
     }
 
@@ -182,8 +182,8 @@ public:
 class asBoolCheck : public PortChecker {
 public:
     asBoolCheck(const MemoryPtr &mem) {
-        IE_ASSERT(mem->GetDataType() == memory::data_type::u8);
-        IE_ASSERT(mem->GetShape() == Shape(InferenceEngine::SizeVector{1}));
+        IE_ASSERT_F(mem->GetDataType() == memory::data_type::u8);
+        IE_ASSERT_F(mem->GetShape() == Shape(InferenceEngine::SizeVector{1}));
         mem_holder = mem->GetPrimitive();
     }
 
@@ -199,8 +199,8 @@ public:
 class asIntCheck : public PortChecker {
 public:
     asIntCheck(const MemoryPtr &mem) {
-        IE_ASSERT(mem->GetDataType() == memory::data_type::s32);
-        IE_ASSERT(mem->GetShape() == Shape(InferenceEngine::SizeVector{1}));
+        IE_ASSERT_F(mem->GetDataType() == memory::data_type::s32);
+        IE_ASSERT_F(mem->GetShape() == Shape(InferenceEngine::SizeVector{1}));
         mem_holder = mem->GetPrimitive();
     }
 
@@ -436,7 +436,7 @@ void TensorIterator::getSupportedDescriptors() {
         std::string type_name = desc->get_type_info().name;
         if (type_name == "ConcatOutputDescription") {
             auto output_desc = ov::as_type_ptr<const ov::op::util::SubGraphOp::ConcatOutputDescription>(desc);
-            IE_ASSERT(output_desc != nullptr);
+            IE_ASSERT_F(output_desc != nullptr);
 
             outputPortMap.emplace_back(PortMap {
                     static_cast<int>(output_desc->m_output_index), static_cast<int>(body_output_idx),
@@ -445,7 +445,7 @@ void TensorIterator::getSupportedDescriptors() {
                     static_cast<int>(output_desc->m_part_size)});
         } else if (type_name == "BodyOutputDescription") {
             auto output_desc = ov::as_type_ptr<const ov::op::util::SubGraphOp::BodyOutputDescription>(desc);
-            IE_ASSERT(output_desc != nullptr);
+            IE_ASSERT_F(output_desc != nullptr);
 
             outputPortMap.emplace_back(PortMap {
                     static_cast<int>(output_desc->m_output_index), static_cast<int>(body_output_idx), -1, 1, 0, -1, 1});

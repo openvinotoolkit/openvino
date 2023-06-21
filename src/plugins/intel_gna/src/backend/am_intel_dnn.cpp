@@ -238,19 +238,19 @@ bool AMIntelDNN::isOperationCnnLegacySpecific(const Gna2Operation& op) {
 }
 
 void AMIntelDNN::updateNumberOfOutputsIfPoolingEnabled(Gna2Model& gnaModel, bool useLegacyFormula) {
-    IE_ASSERT(gnaModel.Operations != nullptr || gnaModel.NumberOfOperations == 0);
+    IE_ASSERT_F(gnaModel.Operations != nullptr || gnaModel.NumberOfOperations == 0);
     for (uint32_t i = 0; i < gnaModel.NumberOfOperations; i++) {
         auto& gnaOp = gnaModel.Operations[i];
-        IE_ASSERT(gnaOp.Operands != nullptr);
-        IE_ASSERT(gnaOp.Operands[InOpIdx] != nullptr);
+        IE_ASSERT_F(gnaOp.Operands != nullptr);
+        IE_ASSERT_F(gnaOp.Operands[InOpIdx] != nullptr);
         auto& inputShape = gnaOp.Operands[InOpIdx]->Shape;
-        IE_ASSERT(gnaOp.Parameters != nullptr || gnaOp.NumberOfParameters == 0);
+        IE_ASSERT_F(gnaOp.Parameters != nullptr || gnaOp.NumberOfParameters == 0);
         if (gnaOp.Type == Gna2OperationTypeConvolution && inputShape.NumberOfDimensions == 2 &&
             gnaOp.NumberOfParameters >= PoolStrideParamIdx && gnaOp.Parameters != nullptr &&
             gnaOp.Parameters[PoolWinParamIdx] != nullptr && gnaOp.Parameters[PoolStrideParamIdx] != nullptr) {
-            IE_ASSERT(gnaOp.Operands[OutOpIdx] != nullptr);
-            IE_ASSERT(gnaOp.Operands[FilterOpIdx] != nullptr);
-            IE_ASSERT(gnaOp.Parameters[ConvStrideParamIdx] != nullptr);
+            IE_ASSERT_F(gnaOp.Operands[OutOpIdx] != nullptr);
+            IE_ASSERT_F(gnaOp.Operands[FilterOpIdx] != nullptr);
+            IE_ASSERT_F(gnaOp.Parameters[ConvStrideParamIdx] != nullptr);
 
             const auto& fltStrideShape = *reinterpret_cast<Gna2Shape*>(gnaOp.Parameters[ConvStrideParamIdx]);
             const auto fltStride = fltStrideShape.Dimensions[0];
@@ -1498,7 +1498,7 @@ void AMIntelDNN::InitGNAStruct(Gna2Model* gnaModel) {
                                         << i;
                 } else {
                     const auto poolMode = reinterpret_cast<Gna2PoolingMode*>(gnaUserAllocator(sizeof(Gna2PoolingMode)));
-                    IE_ASSERT(poolMode != nullptr);
+                    IE_ASSERT_F(poolMode != nullptr);
                     *poolMode = Gna2PoolingModeMax;
 
                     Gna2Shape* poolWindow{};
@@ -1577,8 +1577,8 @@ void AMIntelDNN::InitGNAStruct(Gna2Model* gnaModel) {
             }
             break;
         case kDnnPiecewiselinearOp: {
-            IE_ASSERT(gnaOperation->Operands != nullptr);
-            IE_ASSERT(OutOpIdx < gnaOperation->NumberOfOperands);
+            IE_ASSERT_F(gnaOperation->Operands != nullptr);
+            IE_ASSERT_F(OutOpIdx < gnaOperation->NumberOfOperands);
             auto& outputTensor = const_cast<Gna2Tensor&>(*gnaOperation->Operands[OutOpIdx]);
             outputTensor.Data = comp.ptr_outputs;
             outputTensor.Type = Gna2DataTypeFromBytes(comp.num_bytes_per_output);

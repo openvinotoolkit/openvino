@@ -56,7 +56,7 @@ public:
         for (auto&& inputData : dm) {
             auto input_layer = getCreatorLayer(inputData.second->getInputData()).lock();
             auto quant_data = InferenceEngine::getInjectedData<frontend::QuantizedLayerParams>(input_layer);
-            IE_ASSERT(quant_data != nullptr);
+            IE_ASSERT_F(quant_data != nullptr);
             quant_data->_src_quant.SetScale(inputs.at(input_layer->name).scale_factor);
         }
 

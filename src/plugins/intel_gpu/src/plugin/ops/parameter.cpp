@@ -77,7 +77,7 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
         break;
     }
     case MEAN_IMAGE: {
-        IE_ASSERT(meanChannels);
+        IE_ASSERT_F(meanChannels);
         // first merge all mean values to a single blob
         // todo make sure mean blob precision is the same as the input precision
         auto meanDims = input_pshape;

@@ -169,13 +169,13 @@ TensorIterator::Body CopyTIBody(const TensorIterator::Body& body, std::string su
     TensorIterator::Body res;
     for (auto& in : body.inputs) {
         auto found = old2new_d.find(in.get());
-        IE_ASSERT(found != old2new_d.end());
+        IE_ASSERT_F(found != old2new_d.end());
         res.inputs.emplace_back(found->second);
     }
 
     for (auto& out : body.outputs) {
         auto found = old2new_d.find(out.get());
-        IE_ASSERT(found != old2new_d.end());
+        IE_ASSERT_F(found != old2new_d.end());
         res.outputs.emplace_back(found->second);
     }
 
@@ -339,7 +339,7 @@ static void SaveOutputDataName(InferenceEngine::DataPtr in_data, InferenceEngine
         in_data->setName(out_data_name);
         if (outputs_data_map.count(out_data_name)) {
             auto parent_layer_ptr = getCreatorLayer(in_data).lock();
-            IE_ASSERT(parent_layer_ptr != nullptr);
+            IE_ASSERT_F(parent_layer_ptr != nullptr);
             auto parent_layer_name = parent_layer_ptr->name;
             size_t in_data_out_index = 0;
             for (size_t ind = 0; ind < parent_layer_ptr->outData.size(); ++ind) {
@@ -361,20 +361,20 @@ static void SaveOutputDataName(InferenceEngine::DataPtr in_data, InferenceEngine
  */
 template <typename NET>
 void RemoveLayer(CNNLayerPtr& layer, NET& net) {
-    IE_ASSERT(layer->insData.size() == 1);
-    IE_ASSERT(layer->outData.size() == 1);
+    IE_ASSERT_F(layer->insData.size() == 1);
+    IE_ASSERT_F(layer->outData.size() == 1);
 
     auto in_data = layer->input();
     auto out_data = layer->outData[0];
 
-    IE_ASSERT(in_data->getTensorDesc() == out_data->getTensorDesc());
+    IE_ASSERT_F(in_data->getTensorDesc() == out_data->getTensorDesc());
     auto& input_to_map = getInputTo(in_data);
     auto self_found = std::find_if(input_to_map.begin(),
                                    input_to_map.end(),
                                    [&layer](const std::pair<std::string, CNNLayerPtr>& kvp) {
                                        return kvp.second == layer;
                                    });
-    IE_ASSERT(self_found != input_to_map.end());
+    IE_ASSERT_F(self_found != input_to_map.end());
     // detach layer from input data
     input_to_map.erase(self_found);
 
@@ -412,7 +412,7 @@ bool convertToRNNSeq(CNNLayerPtr cur, const N& net) {
         return true;
 
     auto ti = std::dynamic_pointer_cast<TensorIterator>(cur);
-    IE_ASSERT(ti, "Cannot cast object with type TensorIterator to TensorIterator object");
+    IE_ASSERT_F(ti, "Cannot cast object with type TensorIterator to TensorIterator object");
 
     auto all_body_layers = TIBodySortTopologically(ti->body);
 
@@ -425,14 +425,14 @@ bool convertToRNNSeq(CNNLayerPtr cur, const N& net) {
     auto cell = std::dynamic_pointer_cast<RNNCellBase>(all_body_layers[1]);
     auto rsp2 = std::dynamic_pointer_cast<ReshapeLayer>(all_body_layers[2]);
 
-    IE_ASSERT(rsp1);
-    IE_ASSERT(cell);
-    IE_ASSERT(rsp2);
+    IE_ASSERT_F(rsp1);
+    IE_ASSERT_F(cell);
+    IE_ASSERT_F(rsp2);
 
     size_t NS = (cell->cellType == RNNSequenceLayer::LSTM) ? 2 : 1;  // number of states
 
-    IE_ASSERT(cell->insData.size() == NS + 1);  // {data, state1, [state2]}
-    IE_ASSERT(cell->outData.size() == NS);      // {state1, [state2]}
+    IE_ASSERT_F(cell->insData.size() == NS + 1);  // {data, state1, [state2]}
+    IE_ASSERT_F(cell->outData.size() == NS);      // {state1, [state2]}
 
     auto outData0InputsTo = getInputTo(cell->outData[0]);
     if (getCreatorLayer(cell->insData[0].lock()).lock() != rsp1 || outData0InputsTo.empty() ||
@@ -547,13 +547,13 @@ static bool unrollTI(CNNLayerPtr cur, CNNNetwork& net) {
     auto& icnnnet = static_cast<ICNNNetwork&>(net);
     IE_SUPPRESS_DEPRECATED_END
     auto inet = dynamic_cast<details::CNNNetworkImpl*>(&icnnnet);
-    IE_ASSERT(inet != nullptr);
+    IE_ASSERT_F(inet != nullptr);
 
     if (cur->type != "TensorIterator")
         return true;
 
     auto ti = std::dynamic_pointer_cast<TensorIterator>(cur);
-    IE_ASSERT(ti, "Cannot cast object with type TensorIterator to TensorIterator object");
+    IE_ASSERT_F(ti, "Cannot cast object with type TensorIterator to TensorIterator object");
 
     int num = getNumIteration(*ti);  // -1 means inconsistent TI
     if (num == -1)
@@ -893,13 +893,13 @@ static Blob::Ptr wrap_as_tensor(Blob::Ptr src, SizeVector dims) {
     auto res = make_blob_with_precision(
         TensorDesc{src->getTensorDesc().getPrecision(), dims, TensorDesc::getLayoutByDims(dims)},
         src->buffer());
-    IE_ASSERT(src->size() == res->size());
+    IE_ASSERT_F(src->size() == res->size());
     return res;
 }
 
 static Blob::Ptr make_region_copy(Blob::Ptr src, SizeVector region, SizeVector offset) {
-    IE_ASSERT(region.size() == offset.size());
-    IE_ASSERT(region.size() == src->getTensorDesc().getDims().size());
+    IE_ASSERT_F(region.size() == offset.size());
+    IE_ASSERT_F(region.size() == src->getTensorDesc().getDims().size());
 
     auto res = make_plain_blob(src->getTensorDesc().getPrecision(), region);
     res->allocate();
@@ -942,7 +942,7 @@ static bool unrollRNNCellBody(CNNLayerPtr cur) {
         return true;
 
     auto cell = std::dynamic_pointer_cast<RNNCellBase>(cur);
-    IE_ASSERT(cell, "Cannot cast object with type ***Cell to WeightableLayer object");
+    IE_ASSERT_F(cell, "Cannot cast object with type ***Cell to WeightableLayer object");
 
     auto name = cell->name;
 
@@ -988,7 +988,7 @@ static bool unrollLSTMCellBody(CNNLayerPtr cur) {
         return true;
 
     auto cell = std::dynamic_pointer_cast<RNNCellBase>(cur);
-    IE_ASSERT(cell, "Cannot cast object with type ***Cell to WeightableLayer object");
+    IE_ASSERT_F(cell, "Cannot cast object with type ***Cell to WeightableLayer object");
 
     auto name = cell->name;
 
@@ -1074,7 +1074,7 @@ static bool unrollGRUCellBody(CNNLayerPtr cur, bool linear_before_reset = false)
         return true;
 
     auto cell = std::dynamic_pointer_cast<GRUCell>(cur);
-    IE_ASSERT(cell, "Cannot cast object with type ***Cell to WeightableLayer object");
+    IE_ASSERT_F(cell, "Cannot cast object with type ***Cell to WeightableLayer object");
 
     auto name = cell->name;
 
@@ -1204,7 +1204,7 @@ static bool unrollSeq(CNNLayerPtr cur) {
         return true;
 
     auto seq = std::dynamic_pointer_cast<RNNSequenceLayer>(cur);
-    IE_ASSERT(seq, "Cannot cast object with type ***Sequence to RNNSequenceLayer object");
+    IE_ASSERT_F(seq, "Cannot cast object with type ***Sequence to RNNSequenceLayer object");
 
     auto name = seq->name;
 
@@ -1333,7 +1333,7 @@ static void restore_net_consistency(CNNNetwork& net) {
     // So, we use static_cast instead of dynamic_cast since we are sure that
     // icnnnet is always a details::CNNNetworkImpl
     auto inet = static_cast<details::CNNNetworkImpl*>(&icnnnet);
-    IE_ASSERT(inet != nullptr);
+    IE_ASSERT_F(inet != nullptr);
     // At first all layers should be available via findByName() api.
     // In other words all layers should be present in internal map<name, layer>
     for (auto& l : TopolSort(net)) {
@@ -1526,7 +1526,7 @@ void fixConvertLayers(NET& net) {
 
             // Restore destination_type attribute after conversion
             auto found = layer->params.find("precision");
-            IE_ASSERT(found != layer->params.end());
+            IE_ASSERT_F(found != layer->params.end());
             found->second = out_precision.name();
 
             // Remove convert layer if it do nothing. After type conversion pass
@@ -1557,7 +1557,7 @@ bool HasInternalSubnet(const CNNLayerPtr& layer) {
 details::CNNSubnet GetInternalSubnet(const CNNLayerPtr& layer) {
     if (layer->type == "TensorIterator") {
         auto ti = static_cast<TensorIterator*>(layer.get());
-        IE_ASSERT(ti);
+        IE_ASSERT_F(ti);
         return {ti->body.inputs, ti->body.outputs};
     }
     return {};

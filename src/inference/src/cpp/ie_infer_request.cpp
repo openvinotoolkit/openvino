@@ -37,7 +37,7 @@ InferRequest::~InferRequest() {
 InferRequest::InferRequest(const IInferRequestInternal::Ptr& impl, const std::shared_ptr<void>& so)
     : _impl(impl),
       _so(so) {
-    IE_ASSERT(_impl != nullptr);
+    IE_ASSERT_F(_impl != nullptr);
 }
 
 IE_SUPPRESS_DEPRECATED_START

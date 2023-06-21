@@ -24,7 +24,7 @@ public:
 
     template<typename T, typename std::enable_if<std::is_integral<T>::value>::type* = nullptr>
     void NormalizeImage(const Shape &inputShape, T *input, InferenceEngine::Layout layout) {
-        IE_ASSERT(input != nullptr);
+        IE_ASSERT_F(input != nullptr);
 
         const auto inputDims = inputShape.getStaticDims();
         if (inputDims.size() != 4) {

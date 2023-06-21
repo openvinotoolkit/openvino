@@ -61,7 +61,7 @@ protected:
 
 public:
     void wFiller(Blob::Ptr blob) override {
-        IE_ASSERT(blob->size() == wSize());
+        IE_ASSERT_F(blob->size() == wSize());
         auto ptr = blob->buffer().as<float*>();
 
         for (int g = 0; g < G; g++)
@@ -72,7 +72,7 @@ public:
     }
 
     void bFiller(Blob::Ptr blob) override {
-        IE_ASSERT(blob->size() == bSize());
+        IE_ASSERT_F(blob->size() == bSize());
         auto ptr = blob->buffer().as<float*>();
 
         for (int g = 0; g < Gb; g++)

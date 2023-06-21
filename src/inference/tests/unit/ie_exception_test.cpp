@@ -58,18 +58,18 @@ TEST(ExceptionTests, ExceptionCanBeCaughtAsStandard) {
 
 #ifdef NDEBUG  // disabled for debug as macros calls assert()
 TEST(ExceptionTests, ExceptionWithAssertThrowsNothingIfTrue) {
-    ASSERT_NO_THROW(IE_ASSERT(true, "shouldn't assert if true"));
+    ASSERT_NO_THROW(IE_ASSERT_F(true, "shouldn't assert if true"));
 }
 
 TEST(ExceptionTests, ExceptionWithAssertThrowsNothingIfExpressionTrue) {
-    ASSERT_NO_THROW(IE_ASSERT(2 > 0, "shouldn't assert if true expression"));
+    ASSERT_NO_THROW(IE_ASSERT_F(2 > 0, "shouldn't assert if true expression"));
 }
 
 TEST(ExceptionTests, ExceptionWithAssertThrowsExceptionIfFalse) {
-    ASSERT_THROW(IE_ASSERT(false), InferenceEngine::Exception);
+    ASSERT_THROW(IE_ASSERT_F(false), InferenceEngine::Exception);
 }
 
 TEST(ExceptionTests, ExceptionWithAssertThrowsExceptionIfFalseExpession) {
-    ASSERT_THROW(IE_ASSERT(0 == 1), InferenceEngine::Exception);
+    ASSERT_THROW(IE_ASSERT_F(0 == 1), InferenceEngine::Exception);
 }
 #endif  // NDEBUG

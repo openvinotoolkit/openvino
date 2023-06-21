@@ -1436,9 +1436,9 @@ bool GNAPlugin::Infer(const InferenceEngine::Blob& input, InferenceEngine::Blob&
                             << "model accepts " << inputs_data_map_.size() << " inputs";
     }
 
-    IE_ASSERT(!inputs_data_map_.empty());
+    IE_ASSERT_F(!inputs_data_map_.empty());
     bmInput[inputs_data_map_.begin()->first] = std::shared_ptr<Blob>(const_cast<Blob*>(&input), [](Blob*) {});
-    IE_ASSERT(!outputs_data_map_.empty());
+    IE_ASSERT_F(!outputs_data_map_.empty());
     bmOutput[outputs_data_map_.begin()->first] = std::shared_ptr<Blob>(&output, [](Blob*) {});
     return Infer(bmInput, bmOutput);
 }
@@ -1612,7 +1612,7 @@ void GNAPlugin::Export(std::ostream& outStream) {
     }
 
     // TODO: nnet group parameter looks only used in application - so can we move this line into load network.
-    IE_ASSERT(!inputs_data_map_.empty());
+    IE_ASSERT_F(!inputs_data_map_.empty());
     auto inputDims = inputs_data_map_.begin()->second->getTensorDesc().getDims();
 
     Gna2Model* model_to_serial = requestWorkerPool_->firstWorker().model();

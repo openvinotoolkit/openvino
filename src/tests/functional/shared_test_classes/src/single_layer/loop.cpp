@@ -280,7 +280,7 @@ namespace LayerTestsDefinitions {
 
     int64_t StaticShapeLoopTest::actual_n_iter() {
         constexpr auto INF_N_ITER = std::numeric_limits<int64_t>::max();
-        IE_ASSERT(dynamic_exit != -1 || max_iter_num != -1);
+        IE_ASSERT_F(dynamic_exit != -1 || max_iter_num != -1);
 
         // dynamic_exit + 1 - because loop body looks like do-while loop with post condition check.
         return std::min(dynamic_exit == -1 ? INF_N_ITER : dynamic_exit + 1,

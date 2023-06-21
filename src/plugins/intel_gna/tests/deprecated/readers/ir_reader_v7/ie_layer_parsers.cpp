@@ -132,7 +132,7 @@ public:
             auto& outs = layer->outData;
             auto o_idx = std::find(outs.begin(), outs.end(), data) - outs.begin();
             auto sts = net->addOutput(layer->name, o_idx, nullptr);
-            IE_ASSERT(sts == OK, "TI body. Cannot add output port for layer ", layer->name, " port index ", o_idx);
+            IE_ASSERT_F(sts == OK, "TI body. Cannot add output port for layer ", layer->name, " port index ", o_idx);
         }
 
         // Verify that all input/output are in use
@@ -141,7 +141,7 @@ public:
         net->getInputsInfo(in_info_map);
         net->getOutputsInfo(out_info_map);
 
-        IE_ASSERT(in_info_map.size() == inputs.size(), "TI body. There are unlinked inputs");
+        IE_ASSERT_F(in_info_map.size() == inputs.size(), "TI body. There are unlinked inputs");
         for (auto& it : net->allLayers()) {
             auto layer = it.second;
             if (layer->type == "Input" || !layer->insData.empty())
@@ -197,12 +197,12 @@ CNNLayer::Ptr TILayerCreator::CreateLayer(pugi::xml_node& node, LayerParseParame
     std::map<PortInf, int> p2i;
     std::vector<DataPtr> inputs, outputs;
     for (const auto& p : all_inputs) {
-        IE_ASSERT(ins.find(p) != ins.end());
+        IE_ASSERT_F(ins.find(p) != ins.end());
         p2i[p] = static_cast<int>(inputs.size());
         inputs.push_back(ins[p]);
     }
     for (const auto& p : all_outputs) {
-        IE_ASSERT(outs.find(p) != outs.end());
+        IE_ASSERT_F(outs.find(p) != outs.end());
         p2i[p] = static_cast<int>(outputs.size());
         outputs.push_back(outs[p]);
     }

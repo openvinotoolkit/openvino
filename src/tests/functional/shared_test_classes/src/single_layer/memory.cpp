@@ -118,7 +118,7 @@ namespace LayerTestsDefinitions {
             const auto &tensorDesc = input->getTensorDesc();
 
             auto memory = InferenceEngine::as<InferenceEngine::MemoryBlob>(input);
-            IE_ASSERT(memory);
+            IE_ASSERT_F(memory);
             const auto lockedMemory = memory->wmap();
             const auto buffer = lockedMemory.as<const std::uint8_t *>();
 
@@ -210,4 +210,3 @@ namespace LayerTestsDefinitions {
     }
 
 }  // namespace LayerTestsDefinitions
-

@@ -93,7 +93,7 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
         auto& nodeInfo = node->get_rt_info();
         auto itInfo = nodeInfo.find("affinity");
         if (itInfo != nodeInfo.end()) {
-            IE_ASSERT(itInfo->second.is<std::string>());
+            IE_ASSERT_F(itInfo->second.is<std::string>());
             queryNetworkResult.supportedLayersMap.emplace(node->get_friendly_name(), itInfo->second.as<std::string>());
             allEmpty = false;
         }
@@ -204,7 +204,7 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
     // Split cyclic dependencies.
     for (std::size_t prevSubgraphs = 0, cyclicSplitStep = 0; prevSubgraphs != subgraphInputs.size();
          ++cyclicSplitStep) {
-        IE_ASSERT(cyclicSplitStep < orderedOps.size());
+        IE_ASSERT_F(cyclicSplitStep < orderedOps.size());
         prevSubgraphs = subgraphInputs.size();
         auto subgraphIds = CollectSubgraphs();
         // All inputs that belong to the same subgraph as node
@@ -348,7 +348,7 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
     NodeSet prevResults;
     size_t subgraphTopoSortsStep = 0;
     do {
-        IE_ASSERT(subgraphTopoSortsStep < subgraphs.size());
+        IE_ASSERT_F(subgraphTopoSortsStep < subgraphs.size());
         ++subgraphTopoSortsStep;
         std::vector<Subgraph> newOrderedSubgraphs;
         auto IsOrderedSubGraph = [&](const Subgraph& subgraph) {
@@ -673,7 +673,7 @@ void HeteroExecutableNetwork::Export(std::ostream& heteroModel) {
     auto subnetworksNode = heteroNode.append_child("subnetworks");
     for (auto&& subnetwork : _networks) {
         auto subnet = subnetwork._clonedNetwork;
-        IE_ASSERT(subnet.getFunction() != nullptr);
+        IE_ASSERT_F(subnet.getFunction() != nullptr);
 
         auto subnetworkNode = subnetworksNode.append_child("subnetwork");
         subnetworkNode.append_attribute("device").set_value(subnetwork._device.c_str());
@@ -789,11 +789,11 @@ InferenceEngine::Parameter HeteroExecutableNetwork::GetConfig(const std::string&
         result = _heteroPlugin->GetTargetFallback(_hetero_config, false);
     } else if (name == HETERO_CONFIG_KEY(DUMP_GRAPH_DOT)) {
         auto it = _hetero_config.find(name);
-        IE_ASSERT(it != _hetero_config.end());
+        IE_ASSERT_F(it != _hetero_config.end());
         result = it->second == YES;
     } else if (name == CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS)) {
         auto it = _device_config.find(name);
-        IE_ASSERT(it != _device_config.end());
+        IE_ASSERT_F(it != _device_config.end());
         result = it->second == YES;
     } else {
         IE_THROW() << "Unsupported Hetero ExecutableNetwork config key: " << name;

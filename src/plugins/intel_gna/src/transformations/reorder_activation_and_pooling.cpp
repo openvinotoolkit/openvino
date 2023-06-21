@@ -50,15 +50,15 @@ ReorderActivationAndPooling::ReorderActivationAndPooling() {
         auto& pattern_map = m.get_pattern_value_map();
         auto pool_node = pattern_map.at(pool).get_node_shared_ptr();
         auto pool = std::dynamic_pointer_cast<ngraph::opset7::MaxPool>(pool_node);
-        IE_ASSERT(pool != nullptr);
+        IE_ASSERT_F(pool != nullptr);
         auto kernel_shape = pool->get_kernel();
         auto act = pool_node->input_value(0).get_node_shared_ptr();
-        IE_ASSERT(act != nullptr);
+        IE_ASSERT_F(act != nullptr);
 
         log::debug() << "Reorder " << pool_node->get_friendly_name() << " and  " << act->get_friendly_name() << "\n";
 
         auto node_before_act = act->input_value(0).get_node_shared_ptr();
-        IE_ASSERT(node_before_act != nullptr);
+        IE_ASSERT_F(node_before_act != nullptr);
 
         auto consumers = node_before_act->output(0).get_target_inputs();
         auto new_pool = std::make_shared<ngraph::opset7::MaxPool>(node_before_act,

@@ -59,7 +59,7 @@ void parse_pre_process(pugi::xml_node& root,
             }
         }
 
-        IE_ASSERT(!f->get_parameters().empty());
+        IE_ASSERT_F(!f->get_parameters().empty());
         if (!input_node) {
             input_node = f->get_parameters()[0];
         }
@@ -190,7 +190,7 @@ void parse_pre_process(pugi::xml_node& root,
         OPENVINO_SUPPRESS_DEPRECATED_START
         auto const_node = get_constant_from_source(std::make_shared<ngraph::opset1::Concat>(per_channel_values, 0));
         OPENVINO_SUPPRESS_DEPRECATED_END
-        IE_ASSERT(const_node);
+        IE_ASSERT_F(const_node);
         const auto& consumers = input_node->output(0).get_target_inputs();
         auto add = std::make_shared<ngraph::opset1::Subtract>(input_node, const_node);
         for (const auto& consumer : consumers) {

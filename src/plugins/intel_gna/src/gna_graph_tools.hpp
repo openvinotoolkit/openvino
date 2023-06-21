@@ -62,7 +62,7 @@ inline std::vector<int> CNNLayerFindInsDataIdxes(DataPtr sourceData, CNNLayerPtr
             }
         }
     }
-    IE_ASSERT(!dataIdxes.empty());
+    IE_ASSERT_F(!dataIdxes.empty());
     return dataIdxes;
 }
 
@@ -74,7 +74,7 @@ inline std::vector<int> CNNLayerFindInsDataIdxes(DataPtr sourceData, CNNLayerPtr
 inline InferenceEngine::CNNLayerPtr CNNNetPrevLayer(const InferenceEngine::CNNLayerPtr& layer, int idx = 0) {
     if (CNNNetHasPrevLayer(layer.get(), idx)) {
         auto prevData = layer->insData[idx].lock();
-        IE_ASSERT(prevData != nullptr);
+        IE_ASSERT_F(prevData != nullptr);
         return getCreatorLayer(prevData).lock();
     } else {
         IE_THROW() << "Layer " << layer->name << " has no previous layer";
@@ -87,7 +87,7 @@ inline InferenceEngine::CNNLayerPtr CNNNetPrevLayer(const InferenceEngine::CNNLa
  * @param layer
  */
 inline InferenceEngine::CNNLayerPtr CNNNetPrevLayer(const InferenceEngine::CNNLayer* layer, int idx = 0) {
-    IE_ASSERT(layer != nullptr);
+    IE_ASSERT_F(layer != nullptr);
     if (CNNNetHasPrevLayer(layer, idx)) {
         auto prevData = layer->insData[idx].lock();
         return getCreatorLayer(prevData).lock();
@@ -136,7 +136,7 @@ template <class Layer>
 inline InferenceEngine::CNNLayerPtr CNNNetPrevLayerSkipCertain(Layer layer,
                                                                int idx,
                                                                const std::function<bool(CNNLayerPtr)>& shouldSkip) {
-    IE_ASSERT(layer != nullptr);
+    IE_ASSERT_F(layer != nullptr);
     if (!CNNNetHasPrevLayer(raw_ptr(layer), idx)) {
         THROW_GNA_EXCEPTION << "Can't find PrevLayer. All layers are skipped.";
         return nullptr;
@@ -467,7 +467,7 @@ inline void CNNNetSwapLayers(InferenceEngine::CNNLayerPtr lhs, InferenceEngine::
         if (!interConnectBackL2R) {
             details::erase_if(rhs->insData, [&interConnectBackR2L, &lhs](DataWeakPtr weakData) {
                 auto data = weakData.lock();
-                IE_ASSERT(data != nullptr);
+                IE_ASSERT_F(data != nullptr);
                 interConnectBackR2L |= getCreatorLayer(data).lock() == lhs;
                 return getCreatorLayer(data).lock() == lhs;
             });
@@ -630,8 +630,8 @@ inline void CNNNetworkInsertLayer(CNNLayerPtr after,
         // if given outputDataIndex is not correct, lets find index that matches *before* layer
         if (!bLocated) {
             if (before != nullptr) {
-                IE_ASSERT(before->insData.size() == 1 ||
-                          inDataIndex != invalid_data_idx && inDataIndex < before->insData.size());
+                IE_ASSERT_F(before->insData.size() == 1 ||
+                            inDataIndex != invalid_data_idx && inDataIndex < before->insData.size());
                 auto prevLayer = after;
                 for (auto idx = prevLayer->outData.begin(); idx != prevLayer->outData.end(); idx++) {
                     auto& outputports = getInputTo(*idx);
@@ -655,7 +655,7 @@ inline void CNNNetworkInsertLayer(CNNLayerPtr after,
             }
             if (bLocated) {
                 // inserting into node that doesnt have child
-                IE_ASSERT(!after->outData.empty());
+                IE_ASSERT_F(!after->outData.empty());
                 for (auto&& next : after->outData) {
                     if (!getInputTo(next).empty())
                         continue;
@@ -713,8 +713,8 @@ inline bool CNNRemoveAndConnect(CNNLayerPtr prev, CNNLayerPtr to_remove, int pre
         return false;
     }
 
-    IE_ASSERT(prev->outData.size() > 0);
-    IE_ASSERT(next->outData.size() > 0);
+    IE_ASSERT_F(prev->outData.size() > 0);
+    IE_ASSERT_F(next->outData.size() > 0);
 
     if (to_remove->outData.size() != 1) {
         // Cannot remove layer, which has different number of outputs than 1
@@ -899,7 +899,7 @@ enum class DataDimName { N, C, H, W };
  */
 inline uint32_t GetDataDimByName(InferenceEngine::DataPtr data, DataDimName dimName) {
     uint32_t dimIxInNCHW = static_cast<uint32_t>(dimName);
-    IE_ASSERT(dimIxInNCHW <= 3);
+    IE_ASSERT_F(dimIxInNCHW <= 3);
 
     std::vector<uint32_t> backOffsets;
     switch (data->getLayout()) {

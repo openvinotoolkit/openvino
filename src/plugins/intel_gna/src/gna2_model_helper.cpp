@@ -75,7 +75,7 @@ Gna2DataType FromOvDataType(OvGnaType t) {
 
 Gna2Tensor HelperGna2TensorInit(OvGnaTensor tensor, void* data) {
     Gna2Tensor t{};
-    IE_ASSERT(tensor.dimensions.size() <= 8);
+    IE_ASSERT_F(tensor.dimensions.size() <= 8);
     for (auto d : tensor.dimensions) {
         t.Shape.Dimensions[t.Shape.NumberOfDimensions] = d;
         t.Shape.NumberOfDimensions++;
@@ -89,7 +89,7 @@ Gna2Tensor HelperGna2TensorInit(OvGnaTensor tensor, void* data) {
 
 Gna2Tensor* createGna2Tensor1D(uint32_t x, uint32_t byteSize, void* data) {
     const auto input = reinterpret_cast<Gna2Tensor*>(gnaUserAllocator(sizeof(Gna2Tensor)));
-    IE_ASSERT(input != nullptr);
+    IE_ASSERT_F(input != nullptr);
     *input = HelperGna2TensorInit1D(x, Gna2DataTypeFromBytes(byteSize), data);
     return input;
 }
@@ -104,7 +104,7 @@ Gna2Tensor* createGna2TensorPwl(uint32_t x, void* data) {
 
 Gna2Tensor* createGna2BiasTensor1D(uint32_t x, uint32_t byteSize, void* data) {
     const auto input = reinterpret_cast<Gna2Tensor*>(gnaUserAllocator(sizeof(Gna2Tensor)));
-    IE_ASSERT(input != nullptr);
+    IE_ASSERT_F(input != nullptr);
     if (byteSize == 8) {
         *input = HelperGna2TensorInit1D(x, Gna2DataTypeCompoundBias, data);
     } else {
@@ -115,35 +115,35 @@ Gna2Tensor* createGna2BiasTensor1D(uint32_t x, uint32_t byteSize, void* data) {
 
 Gna2Tensor* createGna2Tensor2D(uint32_t x, uint32_t y, uint32_t byteSize, void* data) {
     const auto input = reinterpret_cast<Gna2Tensor*>(gnaUserAllocator(sizeof(Gna2Tensor)));
-    IE_ASSERT(input != nullptr);
+    IE_ASSERT_F(input != nullptr);
     *input = HelperGna2TensorInit2D(x, y, Gna2DataTypeFromBytes(byteSize), data);
     return input;
 }
 
 Gna2Tensor* createGna2Tensor(OvGnaTensor tensor, void* data) {
     auto input = reinterpret_cast<Gna2Tensor*>(gnaUserAllocator(sizeof(Gna2Tensor)));
-    IE_ASSERT(input != nullptr);
+    IE_ASSERT_F(input != nullptr);
     *input = HelperGna2TensorInit(tensor, data);
     return input;
 }
 
 Gna2Tensor* createGna2Tensor3D(uint32_t x, uint32_t y, uint32_t z, uint32_t byteSize, void* data) {
     const auto input = reinterpret_cast<Gna2Tensor*>(gnaUserAllocator(sizeof(Gna2Tensor)));
-    IE_ASSERT(input != nullptr);
+    IE_ASSERT_F(input != nullptr);
     *input = HelperGna2TensorInit3D(x, y, z, Gna2DataTypeFromBytes(byteSize), data);
     return input;
 }
 
 uint32_t* create_uint32_parameter(uint32_t value) {
     const auto param = reinterpret_cast<uint32_t*>(gnaUserAllocator(sizeof(uint32_t)));
-    IE_ASSERT(param != nullptr);
+    IE_ASSERT_F(param != nullptr);
     *param = value;
     return param;
 }
 
 Gna2Shape* create_shape1D_parameter(uint32_t x) {
     const auto shp = reinterpret_cast<Gna2Shape*>(gnaUserAllocator(sizeof(Gna2Shape)));
-    IE_ASSERT(shp != nullptr);
+    IE_ASSERT_F(shp != nullptr);
     shp->NumberOfDimensions = 1;
     shp->Dimensions[0] = x;
     return shp;

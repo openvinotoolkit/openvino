@@ -258,7 +258,7 @@ InferenceEngine::Parameter ExecNetwork::GetMetricLegacy(const std::string &name,
     } else if (name == METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)) {
         Config engConfig = graph.getConfig();
         auto option = engConfig._config.find(CONFIG_KEY(CPU_THROUGHPUT_STREAMS));
-        IE_ASSERT(option != engConfig._config.end());
+        IE_ASSERT_F(option != engConfig._config.end());
         auto streams = std::stoi(option->second);
         IE_SET_METRIC_RETURN(OPTIMAL_NUMBER_OF_INFER_REQUESTS, static_cast<unsigned int>(
             streams ? streams : 1));

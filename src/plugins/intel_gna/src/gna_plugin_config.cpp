@@ -307,7 +307,7 @@ void Config::AdjustKeyMapValues() {
             }
         }
     }
-    IE_ASSERT(!device_mode.empty());
+    IE_ASSERT_F(!device_mode.empty());
     keyConfigMap[ov::intel_gna::execution_mode.name()] = device_mode;
     if (!embedded_export_path.empty() && !IsEmbeddedDevice(target->get_user_set_execution_target())) {
         THROW_GNA_EXCEPTION << "Target device for embedded export should be one of embedded devices";

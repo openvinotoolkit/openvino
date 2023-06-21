@@ -119,7 +119,7 @@ void QuantizedMatMulMultiplyFusion::TearDown() {
     auto get_layer_type = [] (const std::shared_ptr<ngraph::Node>& node) -> const std::string& {
         const auto& rt_info = node->get_rt_info();
         auto it = rt_info.find(ExecGraphInfoSerialization::LAYER_TYPE);
-        IE_ASSERT(it != rt_info.end());
+        IE_ASSERT_F(it != rt_info.end());
         return it->second.as<std::string>();
     };
 

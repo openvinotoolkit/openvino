@@ -119,7 +119,7 @@ bool NextElement(T& elementIndex, const Gna2Shape& total) {
     if (total.NumberOfDimensions == 0)
         return false;
     auto idx = total.NumberOfDimensions - 1;
-    IE_ASSERT(idx < GNA2_SHAPE_MAXIMUM_NUMBER_OF_DIMENSIONS);
+    IE_ASSERT_F(idx < GNA2_SHAPE_MAXIMUM_NUMBER_OF_DIMENSIONS);
     while (elementIndex[idx] + 1 >= total.Dimensions[idx] && idx > 0) {
         idx--;
     }

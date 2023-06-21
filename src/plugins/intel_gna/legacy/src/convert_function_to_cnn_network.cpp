@@ -149,8 +149,8 @@ CNNLayer::Ptr createSubGraphLayer(const std::shared_ptr<ngraph::Node>& layer) {
         auto in_info_map_with_parameters = net.getInputsInfo();
         auto out_info_map = net.getOutputsInfo();
 
-        IE_ASSERT(in_info_map_with_parameters.size() == parameters.size());
-        IE_ASSERT(out_info_map.size() == results.size());
+        IE_ASSERT_F(in_info_map_with_parameters.size() == parameters.size());
+        IE_ASSERT_F(out_info_map.size() == results.size());
 
         InferenceEngine::TensorIterator::Body temp_body;
         temp_body.inputs.resize(in_info_map_with_parameters.size());
@@ -213,7 +213,7 @@ CNNLayer::Ptr createSubGraphLayer(const std::shared_ptr<ngraph::Node>& layer) {
                 std::find_if(consumer_in_port_set.begin(), consumer_in_port_set.end(), [&in](const DataWeakPtr& wptr) {
                     return wptr.lock() == in;
                 });
-            IE_ASSERT(found != consumer_in_port_set.end());
+            IE_ASSERT_F(found != consumer_in_port_set.end());
             const auto consumer_port_idx = std::distance(consumer_in_port_set.begin(), found);
 
             auto new_name = consumer_layer->name;
@@ -255,7 +255,7 @@ CNNLayer::Ptr createSubGraphLayer(const std::shared_ptr<ngraph::Node>& layer) {
         std::string type_name = desc->get_type_info().name;
         if (type_name == "ConcatOutputDescription") {
             auto output_desc = ::ngraph::as_type_ptr<ngraph::op::util::SubGraphOp::ConcatOutputDescription>(desc);
-            IE_ASSERT(output_desc != nullptr);
+            IE_ASSERT_F(output_desc != nullptr);
 
             res->output_port_map.emplace_back(
                 InferenceEngine::TensorIterator::PortMap{static_cast<int>(output_desc->m_output_index),
@@ -267,7 +267,7 @@ CNNLayer::Ptr createSubGraphLayer(const std::shared_ptr<ngraph::Node>& layer) {
                                                          static_cast<int>(output_desc->m_part_size)});
         } else if (type_name == "BodyOutputDescription") {
             auto output_desc = ::ngraph::as_type_ptr<ngraph::op::util::SubGraphOp::BodyOutputDescription>(desc);
-            IE_ASSERT(output_desc != nullptr);
+            IE_ASSERT_F(output_desc != nullptr);
 
             res->output_port_map.emplace_back(
                 InferenceEngine::TensorIterator::PortMap{static_cast<int>(output_desc->m_output_index),
@@ -639,12 +639,12 @@ CNNLayerCreator::CNNLayerCreator() {
                            // Precollected_ONNX_ResNet50_88percentinto1bit e2e test res->params = params;
 
                            auto castedLayer = ::ngraph::as_type_ptr<::ngraph::op::v1::BinaryConvolution>(node);
-                           IE_ASSERT(castedLayer,
-                                     " Operation ",
-                                     node->description(),
-                                     " with name ",
-                                     node->get_friendly_name(),
-                                     " cannot be casted to ngraph::op::v1::BinaryConvolution");
+                           IE_ASSERT_F(castedLayer,
+                                       " Operation ",
+                                       node->description(),
+                                       " with name ",
+                                       node->get_friendly_name(),
+                                       " cannot be casted to ngraph::op::v1::BinaryConvolution");
 
                            std::string value;
                            for (const auto& val : castedLayer->get_pads_begin()) {
@@ -709,10 +709,10 @@ CNNLayerCreator::CNNLayerCreator() {
                                res->params["mode"] = "xnor-popcount";
                            }
 
-                           IE_ASSERT(castedLayer->input(1).get_partial_shape().is_static(),
-                                     " Weights for binary convolution ",
-                                     castedLayer->get_friendly_name(),
-                                     " should have static shapes!");
+                           IE_ASSERT_F(castedLayer->input(1).get_partial_shape().is_static(),
+                                       " Weights for binary convolution ",
+                                       castedLayer->get_friendly_name(),
+                                       " should have static shapes!");
                            auto weights_shape = castedLayer->input(1).get_source_output().get_shape();
                            res->params["input"] = Builder::asString(weights_shape[1]);
                            res->params["pad_value"] = Builder::asString(castedLayer->get_pad_value());
@@ -1141,12 +1141,12 @@ CNNLayerCreator::CNNLayerCreator() {
                                                 details::convertPrecision(node->get_output_element_type(0))};
 
                            auto castedLayer = ::ngraph::as_type_ptr<::ngraph::op::NonMaxSuppressionIE3>(node);
-                           IE_ASSERT(castedLayer,
-                                     " Operation ",
-                                     node->description(),
-                                     " with name ",
-                                     node->get_friendly_name(),
-                                     " cannot be casted to ngraph::op::NonMaxSuppressionIE3");
+                           IE_ASSERT_F(castedLayer,
+                                       " Operation ",
+                                       node->description(),
+                                       " with name ",
+                                       node->get_friendly_name(),
+                                       " cannot be casted to ngraph::op::NonMaxSuppressionIE3");
 
                            auto res = std::make_shared<InferenceEngine::NonMaxSuppressionLayer>(attrs);
                            res->params = params;
@@ -1180,12 +1180,12 @@ CNNLayerCreator::CNNLayerCreator() {
                                                 details::convertPrecision(node->get_output_element_type(0))};
 
                            auto castedLayer = ::ngraph::as_type_ptr<::ngraph::op::v5::NonMaxSuppression>(node);
-                           IE_ASSERT(castedLayer,
-                                     " Operation ",
-                                     node->description(),
-                                     " with name ",
-                                     node->get_friendly_name(),
-                                     " cannot be casted to ngraph::op::v5::NonMaxSuppression");
+                           IE_ASSERT_F(castedLayer,
+                                       " Operation ",
+                                       node->description(),
+                                       " with name ",
+                                       node->get_friendly_name(),
+                                       " cannot be casted to ngraph::op::v5::NonMaxSuppression");
 
                            auto res = std::make_shared<InferenceEngine::NonMaxSuppressionLayer>(attrs);
                            res->params = params;
@@ -2262,21 +2262,21 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
             auto outName = ov::op::util::get_ie_output_name(layer->output(i));
 
             DataPtr& ptr = cnnNetworkImpl->getData(outName.c_str());
-            IE_ASSERT(layer->get_output_partial_shape(i).is_static(),
-                      " nGraph ",
-                      layer->description(),
-                      " operation with name: ",
-                      layer->get_friendly_name(),
-                      " cannot be converted to ",
-                      cnnLayer->type,
-                      " layer with name: ",
-                      cnnLayer->name,
-                      " because output with index ",
-                      i,
-                      " contains dynamic shapes: ",
-                      layer->get_output_partial_shape(i),
-                      ". Try to use CNNNetwork::reshape() method in order to specialize shapes "
-                      "before the conversion.");
+            IE_ASSERT_F(layer->get_output_partial_shape(i).is_static(),
+                        " nGraph ",
+                        layer->description(),
+                        " operation with name: ",
+                        layer->get_friendly_name(),
+                        " cannot be converted to ",
+                        cnnLayer->type,
+                        " layer with name: ",
+                        cnnLayer->name,
+                        " because output with index ",
+                        i,
+                        " contains dynamic shapes: ",
+                        layer->get_output_partial_shape(i),
+                        ". Try to use CNNNetwork::reshape() method in order to specialize shapes "
+                        "before the conversion.");
             SizeVector dims = layer->get_output_shape(i);
             for (const auto& dim : dims) {
                 if (!dim)
@@ -2316,7 +2316,7 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
         if (std::dynamic_pointer_cast<::ngraph::op::ReadValueBase>(layer))
             continue;
         if (std::dynamic_pointer_cast<::ngraph::op::Result>(layer)) {
-            IE_ASSERT(layer->get_input_size() == 1);
+            IE_ASSERT_F(layer->get_input_size() == 1);
             const auto& input = layer->input_value(0);
             cnnNetworkImpl->addOutput(ov::op::util::get_ie_output_name(input));
             continue;
@@ -2377,14 +2377,14 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
     // update input preprocessing info
     InputsDataMap resultInputDataMap;
     cnnNetworkImpl->getInputsInfo(resultInputDataMap);
-    IE_ASSERT(resultInputDataMap.size() == thisInputDataMap.size());
+    IE_ASSERT_F(resultInputDataMap.size() == thisInputDataMap.size());
     auto params = graph->get_parameters();
     for (const auto& param : params) {
         const std::string input_name = param->get_friendly_name();
         auto thisInputDataItr = thisInputDataMap.find(input_name);
-        IE_ASSERT(thisInputDataItr != thisInputDataMap.end(),
-                  "Internal issue with model handling. Improper input name: ",
-                  input_name);
+        IE_ASSERT_F(thisInputDataItr != thisInputDataMap.end(),
+                    "Internal issue with model handling. Improper input name: ",
+                    input_name);
         resultInputDataMap[input_name]->setPrecision(thisInputDataItr->second->getPrecision());
         resultInputDataMap[input_name]->setLayout(thisInputDataItr->second->getLayout());
         resultInputDataMap[input_name]->getPreProcess() = thisInputDataItr->second->getPreProcess();

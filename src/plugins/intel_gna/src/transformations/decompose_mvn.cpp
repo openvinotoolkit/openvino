@@ -38,7 +38,7 @@ static bool ValidateAxes(const std::shared_ptr<opset8::Constant> axes_const, con
     size_t axes_vector_size;
 
     std::vector<T> axes_const_vector = axes_const->cast_vector<T>();
-    IE_ASSERT(!axes_const_vector.empty());
+    IE_ASSERT_F(!axes_const_vector.empty());
     axes_value = axes_const_vector[0];
     axes_vector_size = axes_const_vector.size();
 
@@ -59,7 +59,7 @@ static bool GetVerifiedMVNData(const std::shared_ptr<opset8::MVN> mvn, MVNData& 
 
     // Validate axes parameter
     auto axes_const = std::dynamic_pointer_cast<opset8::Constant>(mvn->input_value(1).get_node_shared_ptr());
-    IE_ASSERT(axes_const);
+    IE_ASSERT_F(axes_const);
     auto element_type = axes_const->get_element_type();
 
     if (!(element_type == element::Type_t::i64 ? ValidateAxes<int64_t>(axes_const, mvn_shape_size)

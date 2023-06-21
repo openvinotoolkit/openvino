@@ -163,7 +163,7 @@ CNNNetwork cloneNetwork(const CNNNetwork& network) {
 
 details::CNNNetworkImplPtr cloneNet(const CNNNetwork& network) {
     OV_ITT_SCOPED_TASK(itt::domains::IELegacy, "cloneNet(CNNNetwork)");
-    IE_ASSERT(network.getFunction() == nullptr);
+    IE_ASSERT_F(network.getFunction() == nullptr);
 
     std::vector<CNNLayerPtr> layers;
     details::CNNNetworkIterator i(network);

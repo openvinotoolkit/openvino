@@ -18,7 +18,7 @@ bool isDenseBlob(const InferenceEngine::Blob::Ptr& blob) {
     auto dims = blk_desc.getBlockDims();
     auto strs = blk_desc.getStrides();
 
-    IE_ASSERT(dims.size() == strs.size(), " isDenseBlob: inconsistent tensor descriptor");
+    IE_ASSERT_F(dims.size() == strs.size(), " isDenseBlob: inconsistent tensor descriptor");
 
     auto size = dims.size();
     if (size == 0) return true;
@@ -52,13 +52,13 @@ void fill_data_with_broadcast(InferenceEngine::Blob::Ptr& blob, InferenceEngine:
     using InferenceEngine::SizeVector;
     constexpr size_t MAX_N_DIMS = 7;  // Suppose it's enough
 
-    IE_ASSERT(blob->getTensorDesc().getPrecision() == values->getTensorDesc().getPrecision());
+    IE_ASSERT_F(blob->getTensorDesc().getPrecision() == values->getTensorDesc().getPrecision());
 
     auto values_dims = values->getTensorDesc().getDims();
     auto blob_dims = blob->getTensorDesc().getDims();
     auto n_dims = blob_dims.size();
-    IE_ASSERT(values_dims.size() <= n_dims);
-    IE_ASSERT(n_dims <= MAX_N_DIMS);
+    IE_ASSERT_F(values_dims.size() <= n_dims);
+    IE_ASSERT_F(n_dims <= MAX_N_DIMS);
 
     SizeVector src_dims(MAX_N_DIMS, 1);
     std::copy(values_dims.rbegin(), values_dims.rend(), src_dims.rbegin());
@@ -72,7 +72,7 @@ void fill_data_with_broadcast(InferenceEngine::Blob::Ptr& blob, InferenceEngine:
             compatible = false;
     }
 
-    IE_ASSERT(compatible);
+    IE_ASSERT_F(compatible);
 
     auto fill_strides_like_plain = [] (SizeVector dims) {
         SizeVector str(dims.size());
@@ -144,7 +144,7 @@ void copy_with_convert(InferenceEngine::Blob::Ptr& src_blob, InferenceEngine::Bl
 }
 
 InferenceEngine::Blob::Ptr make_with_precision_convert(InferenceEngine::Blob::Ptr& blob, InferenceEngine::Precision prc) {
-    IE_ASSERT(isDenseBlob(blob));
+    IE_ASSERT_F(isDenseBlob(blob));
     auto td = blob->getTensorDesc();
     td.setPrecision(prc);
 
@@ -183,7 +183,7 @@ void fill_data_with_broadcast(InferenceEngine::Blob::Ptr& blob, size_t axis, std
 InferenceEngine::Blob::Ptr make_reshape_view(const InferenceEngine::Blob::Ptr &blob, InferenceEngine::SizeVector new_shape) {
     using InferenceEngine::TensorDesc;
     auto new_size = std::accumulate(new_shape.begin(), new_shape.end(), 1, std::multiplies<size_t>());
-    IE_ASSERT(new_size == blob->size());
+    IE_ASSERT_F(new_size == blob->size());
 
     auto orig_mem_blob = dynamic_cast<InferenceEngine::MemoryBlob*>(blob.get());
     auto orig_mem = orig_mem_blob->rwmap();

@@ -19,7 +19,7 @@ public:
     GNAVariableState(std::string name, std::shared_ptr<GNAMemoryLayer> state)
         : InferenceEngine::IVariableStateInternal{name},
           state(state) {
-        IE_ASSERT(state != nullptr);
+        IE_ASSERT_F(state != nullptr);
     }
 
     void Reset() override;

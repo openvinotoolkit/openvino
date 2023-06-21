@@ -762,7 +762,7 @@ void PreprocEngine::executeGraph(Opt<cv::GComputation>& lastComputation,
                 auto& computation = lastComputation.value();
                 compiled = computation.compile(descrs_of(input_plane_mats), std::move(args));
             } else {
-                IE_ASSERT(compiled);
+                IE_ASSERT_F(compiled);
                 compiled.reshape(descrs_of(input_plane_mats), std::move(args));
             }
         }

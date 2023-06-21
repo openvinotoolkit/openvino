@@ -1333,7 +1333,7 @@ RNNBaseValidator::RNNBaseValidator(const std::string& _type, RNNSequenceLayer::C
         G = 1;
         NS = 1;
     } else {
-        IE_ASSERT(false);
+        IE_ASSERT_F(false);
     }
 }
 

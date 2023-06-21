@@ -314,7 +314,7 @@ protected:
                        const Pipeline::iterator itEndStage,
                        const ITaskExecutor::Ptr callbackExecutor = {}) {
         auto& firstStageExecutor = std::get<Stage_e::executor>(*itBeginStage);
-        IE_ASSERT(nullptr != firstStageExecutor);
+        IE_ASSERT_F(nullptr != firstStageExecutor);
         firstStageExecutor->run(MakeNextStageTask(itBeginStage, itEndStage, std::move(callbackExecutor)));
     }
 
@@ -396,12 +396,12 @@ private:
                 auto itNextStage = itStage + 1;
                 try {
                     auto& stageTask = std::get<Stage_e::task>(thisStage);
-                    IE_ASSERT(nullptr != stageTask);
+                    IE_ASSERT_F(nullptr != stageTask);
                     stageTask();
                     if (itEndStage != itNextStage) {
                         auto& nextStage = *itNextStage;
                         auto& nextStageExecutor = std::get<Stage_e::executor>(nextStage);
-                        IE_ASSERT(nullptr != nextStageExecutor);
+                        IE_ASSERT_F(nullptr != nextStageExecutor);
                         nextStageExecutor->run(MakeNextStageTask(itNextStage, itEndStage, std::move(callbackExecutor)));
                     }
                 } catch (...) {

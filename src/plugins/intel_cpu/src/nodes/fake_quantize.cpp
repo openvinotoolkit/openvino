@@ -1076,7 +1076,7 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ngraph::Node>& op, const GraphC
             if (isInputLowBroadcasted) {
                 binarizationThresholds.push_back(inputLowData[0]);
             } else {
-                IE_ASSERT(axisSize != -1);
+                IE_ASSERT_F(axisSize != -1);
                 binarizationThresholds.resize(rnd_up(axisSize, 16));
                 for (int i = 0; i < axisSize; i++) {
                     binarizationThresholds[i] = inputLowData[i];
@@ -1086,7 +1086,7 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ngraph::Node>& op, const GraphC
             if (isOutputHighBroadcasted) {
                 binarizationOutputMask.push_back(outputHighData[0] == 1.f ? 0xffffffff : 0x00000000);
             } else {
-                IE_ASSERT(axisSize != -1);
+                IE_ASSERT_F(axisSize != -1);
                 binarizationOutputMask.resize(rnd_up(axisSize, 16));
                 for (int i = 0; i < axisSize; i++) {
                     binarizationOutputMask[i] = outputHighData[i] == 1.f ? 0xffffffff : 0x00000000;
@@ -1393,7 +1393,7 @@ void FakeQuantize::prepareParams() {
     if (isBinarization()) {
         const size_t axisSize = getParentEdgeAt(0)->getMemory().GetShape().getStaticDims()[getAxis()];
         const size_t newPaddedSize = rnd_up(axisSize, 16);
-        IE_ASSERT(newPaddedSize != 0);
+        IE_ASSERT_F(newPaddedSize != 0);
 
         if (internalBlobMemory.empty() || newPaddedSize != rnd_up(currentAxisSize, 16) ||
                 ((isInputLowBroadcasted || isOutputHighBroadcasted) && axisSize != currentAxisSize)) {
@@ -1897,7 +1897,7 @@ void FakeQuantize::appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDi
     std::vector<MemoryPtr> postOpsMemPtrs;
     appendPostOpsImpl(ops, postOpDims, postOpsMemPtrs);
 
-    IE_ASSERT(postOpsMemPtrs.size() <= 1, "at most 1 post ops memory args can be appended.");
+    IE_ASSERT_F(postOpsMemPtrs.size() <= 1, "at most 1 post ops memory args can be appended.");
 
     if (!postOpsMemPtrs.empty()) {
         postOpsMem[DNNL_ARG_ATTR_MULTIPLE_POST_OP(ops.len() - 1) | DNNL_ARG_SRC_1] = postOpsMemPtrs[0];
@@ -1940,12 +1940,12 @@ void FakeQuantize::updateOptimizedFormula(bool do_rounding) {
                           outputScale.size(),
                           outputShift.size()});
 
-    IE_ASSERT(inputScale.size() == 1 || inputScale.size() == OC);
-    IE_ASSERT(inputShift.size() == 1 || inputShift.size() == OC);
-    IE_ASSERT(cropLow.size() == 1 || cropLow.size() == OC);
-    IE_ASSERT(cropHigh.size() == 1 || cropHigh.size() == OC);
-    IE_ASSERT(outputScale.size() == 1 || outputScale.size() == OC);
-    IE_ASSERT(outputShift.size() == 1 || outputShift.size() == OC);
+    IE_ASSERT_F(inputScale.size() == 1 || inputScale.size() == OC);
+    IE_ASSERT_F(inputShift.size() == 1 || inputShift.size() == OC);
+    IE_ASSERT_F(cropLow.size() == 1 || cropLow.size() == OC);
+    IE_ASSERT_F(cropHigh.size() == 1 || cropHigh.size() == OC);
+    IE_ASSERT_F(outputScale.size() == 1 || outputScale.size() == OC);
+    IE_ASSERT_F(outputShift.size() == 1 || outputShift.size() == OC);
 
     // WA: a per-Tensor input shift may little drift away randomly
     //     from it's orginal value when FQ was fused with any

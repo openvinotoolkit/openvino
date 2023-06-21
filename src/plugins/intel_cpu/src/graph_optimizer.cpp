@@ -1478,7 +1478,7 @@ void GraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(Graph &graph)
             int idxChild = edge->getOutputNum();
 
             // reconnect after  activation/sum. Port index must be 0
-            IE_ASSERT(idxParent == 0);
+            IE_ASSERT_F(idxParent == 0);
 
             edge->drop();
 

@@ -256,7 +256,7 @@ public:
         });
 
         ON_CALL(*mockInferRequestBatched, StartAsync()).WillByDefault([this]() {
-            IE_ASSERT(workerRequestPtr->_completionTasks.size() == (size_t)workerRequestPtr->_batchSize);
+            IE_ASSERT_F(workerRequestPtr->_completionTasks.size() == (size_t)workerRequestPtr->_batchSize);
             for (int c = 0; c < workerRequestPtr->_batchSize; c++) {
                 workerRequestPtr->_completionTasks[c]();
             }
@@ -277,7 +277,7 @@ public:
                     if (sz == workerRequestPtr->_batchSize) {
                         std::pair<AsyncInferRequest*, InferenceEngine::Task> t;
                         for (int n = 0; n < sz; n++) {
-                            IE_ASSERT(workerRequestPtr->_tasks.try_pop(t));
+                            IE_ASSERT_F(workerRequestPtr->_tasks.try_pop(t));
                             workerRequestPtr->_completionTasks[n] = std::move(t.second);
                             t.first->m_sync_infer_request->m_batched_request_status =
                                 SyncInferRequest::eExecutionFlavor::BATCH_EXECUTED;
@@ -286,7 +286,7 @@ public:
                     } else if ((status == std::cv_status::timeout) && sz) {
                         std::pair<AsyncInferRequest*, InferenceEngine::Task> t;
                         for (int n = 0; n < sz; n++) {
-                            IE_ASSERT(workerRequestPtr->_tasks.try_pop(t));
+                            IE_ASSERT_F(workerRequestPtr->_tasks.try_pop(t));
                             t.first->m_sync_infer_request->m_batched_request_status =
                                 SyncInferRequest::eExecutionFlavor::TIMEOUT_EXECUTED;
                             t.first->m_infer_request_without_batch->StartAsync();

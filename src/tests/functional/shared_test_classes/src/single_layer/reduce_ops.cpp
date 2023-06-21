@@ -88,7 +88,7 @@ InferenceEngine::Blob::Ptr ReduceOpsLayerTest::GenerateInput(const InferenceEngi
 
 InferenceEngine::Blob::Ptr ReduceOpsLayerWithSpecificInputTest::GenerateInput(const InferenceEngine::InputInfo &info) const {
     auto axis_vec = std::get<0>(GetParam());
-    IE_ASSERT(axis_vec.size() == 1);
+    IE_ASSERT_F(axis_vec.size() == 1);
 
     auto axis = axis_vec[0];
     auto td = info.getTensorDesc();

@@ -95,7 +95,7 @@ TEST_P(PerchannelQuantTest, CompareWithRefImpl) {
     auto results = GetOutputs();
     size_t size = results.front()->size();
     auto memory = InferenceEngine::as<InferenceEngine::MemoryBlob>(results.front());
-    IE_ASSERT(memory);
+    IE_ASSERT_F(memory);
     const auto lockedMemory = memory->wmap();
     const auto actualBuffer = lockedMemory.as<const float*>();
 

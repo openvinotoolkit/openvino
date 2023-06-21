@@ -41,10 +41,10 @@ InferenceEngine::Precision GNAVariableState::getPrecision() const {
 }
 
 void GNAVariableState::SetState(const InferenceEngine::Blob::Ptr& newState) {
-    IE_ASSERT(newState != nullptr);
+    IE_ASSERT_F(newState != nullptr);
 
     auto data_ptr = newState->cbuffer().as<void*>();
-    IE_ASSERT(data_ptr != nullptr);
+    IE_ASSERT_F(data_ptr != nullptr);
     auto data_size = newState->byteSize();
     auto data_elements = data_size / newState->element_size();
     if (state->reserved_size > (data_size / (newState->element_size() / state->elementSizeBytes()))) {

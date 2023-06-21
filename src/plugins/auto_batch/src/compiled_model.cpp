@@ -27,7 +27,7 @@ CompiledModel::CompiledModel(const InferenceEngine::SoExecutableNetworkInternal&
     // WA for gcc 4.8 ( fails compilation with member init-list)
     m_device_info = networkDevice;
     auto time_out = config.find(CONFIG_KEY(AUTO_BATCH_TIMEOUT));
-    IE_ASSERT(time_out != config.end());
+    IE_ASSERT_F(time_out != config.end());
     m_timeout = ParseTimeoutValue(time_out->second.as<std::string>());
 }
 
@@ -92,7 +92,7 @@ std::pair<CompiledModel::WorkerInferRequest&, int> CompiledModel::GetWorkerInfer
             [workerRequestPtr](std::exception_ptr exceptionPtr) mutable {
                 if (exceptionPtr)
                     workerRequestPtr->m_exceptionPtr = exceptionPtr;
-                IE_ASSERT(workerRequestPtr->_completionTasks.size() == (size_t)workerRequestPtr->_batchSize);
+                IE_ASSERT_F(workerRequestPtr->_completionTasks.size() == (size_t)workerRequestPtr->_batchSize);
                 // notify the individual requests on the completion
                 for (int c = 0; c < workerRequestPtr->_batchSize; c++) {
                     workerRequestPtr->_completionTasks[c]();
@@ -117,7 +117,7 @@ std::pair<CompiledModel::WorkerInferRequest&, int> CompiledModel::GetWorkerInfer
                     if (sz == workerRequestPtr->_batchSize) {
                         std::pair<AsyncInferRequest*, InferenceEngine::Task> t;
                         for (int n = 0; n < sz; n++) {
-                            IE_ASSERT(workerRequestPtr->_tasks.try_pop(t));
+                            IE_ASSERT_F(workerRequestPtr->_tasks.try_pop(t));
                             workerRequestPtr->_completionTasks[n] = std::move(t.second);
                             t.first->m_sync_infer_request->CopyInputsIfNeeded();
                             t.first->m_sync_infer_request->m_batched_request_status =
@@ -132,7 +132,7 @@ std::pair<CompiledModel::WorkerInferRequest&, int> CompiledModel::GetWorkerInfer
                         std::promise<void> all_completed;
                         auto all_completed_future = all_completed.get_future();
                         for (int n = 0; n < sz; n++) {
-                            IE_ASSERT(workerRequestPtr->_tasks.try_pop(t));
+                            IE_ASSERT_F(workerRequestPtr->_tasks.try_pop(t));
                             t.first->m_infer_request_without_batch->SetCallback(
                                 [t, sz, &arrived, &all_completed](std::exception_ptr p) {
                                     if (p)

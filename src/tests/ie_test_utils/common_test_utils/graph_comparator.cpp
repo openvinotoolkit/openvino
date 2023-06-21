@@ -1021,7 +1021,7 @@ AccuracyCheckResult accuracy_check(const std::shared_ptr<ov::Model>& ref_functio
         return AccuracyCheckResult{true, ""};
     }
     try {
-        IE_ASSERT(ref_function->get_parameters().size() == cur_function->get_parameters().size());
+        IE_ASSERT_F(ref_function->get_parameters().size() == cur_function->get_parameters().size());
 
         std::map<std::shared_ptr<ov::Node>, ov::Tensor> ref_input_data;
         std::map<std::shared_ptr<ov::Node>, ov::Tensor> cur_input_data;
@@ -1036,7 +1036,7 @@ AccuracyCheckResult accuracy_check(const std::shared_ptr<ov::Model>& ref_functio
         auto ref_outputs = ngraph::helpers::interpretFunction(ref_function, ref_input_data);
         auto outputs = ngraph::helpers::interpretFunction(cur_function, cur_input_data);
 
-        IE_ASSERT(ref_outputs.size() == outputs.size());
+        IE_ASSERT_F(ref_outputs.size() == outputs.size());
 
         for (int i = 0; i < ref_outputs.size(); i++) {
             ov::test::utils::compare(ref_outputs[i], outputs[i], 5e-4, 1e-3);

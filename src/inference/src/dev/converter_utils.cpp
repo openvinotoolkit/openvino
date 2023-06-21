@@ -671,7 +671,7 @@ public:
                 [](const decltype(ieInfos)::value_type& lhs, const decltype(ieInfos)::value_type& rhs) {
                     return lhs.second.execution_index < rhs.second.execution_index;
                 });
-            IE_ASSERT(itIeInfo != ieInfos.end());
+            IE_ASSERT_F(itIeInfo != ieInfos.end());
             auto& ieInfo = itIeInfo->second;
             infos.push_back(ov::ProfilingInfo{});
             auto& info = infos.back();

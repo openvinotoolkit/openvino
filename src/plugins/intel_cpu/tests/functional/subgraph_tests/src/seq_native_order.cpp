@@ -144,7 +144,7 @@ protected:
         if (seqInType == ngraph::helpers::InputLayerType::PARAMETER) {
             inputDynamicShapes.push_back(seq_len_shape);
         } else {
-            IE_ASSERT(seq_len_shape.is_static());
+            IE_ASSERT_F(seq_len_shape.is_static());
             weightShape.push_back(seq_len_shape.to_shape());
         }
 

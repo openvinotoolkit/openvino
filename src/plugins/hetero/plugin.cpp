@@ -288,7 +288,7 @@ std::string Engine::DeviceCachingProperties(const std::string& targetFallback) c
 Parameter Engine::GetConfig(const std::string& name, const ov::AnyMap& options) const {
     if (name == HETERO_CONFIG_KEY(DUMP_GRAPH_DOT)) {
         auto it = _config.find(name);
-        IE_ASSERT(it != _config.end());
+        IE_ASSERT_F(it != _config.end());
         bool dump = it->second == YES;
         return {dump};
     } else if (name == ov::device::priorities) {
@@ -299,7 +299,7 @@ Parameter Engine::GetConfig(const std::string& name, const ov::AnyMap& options) 
         return GetTargetFallback(options);
     } else if (name == CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS)) {
         auto it = _device_config.find(name);
-        IE_ASSERT(it != _device_config.end());
+        IE_ASSERT_F(it != _device_config.end());
         bool exclusive_async = it->second == YES;
         return {exclusive_async};
     } else {

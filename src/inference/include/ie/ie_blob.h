@@ -799,7 +799,7 @@ protected:
     TBlob(const TBlob& origBlob, const ROI& roi)
         : MemoryBlob(make_roi_desc(origBlob.getTensorDesc(), roi, true)),
           _allocator(origBlob._allocator) {
-        IE_ASSERT(origBlob._handle != nullptr, "Original Blob must be allocated before ROI creation");
+        IE_ASSERT_F(origBlob._handle != nullptr, "Original Blob must be allocated before ROI creation");
 
         _handle = origBlob._handle;
     }
@@ -813,7 +813,7 @@ protected:
     TBlob(const TBlob& origBlob, const std::vector<size_t>& begin, const std::vector<size_t>& end)
         : MemoryBlob(make_roi_desc(origBlob.getTensorDesc(), begin, end, true)),
           _allocator(origBlob._allocator) {
-        IE_ASSERT(origBlob._handle != nullptr, "Original Blob must be allocated before ROI creation");
+        IE_ASSERT_F(origBlob._handle != nullptr, "Original Blob must be allocated before ROI creation");
 
         _handle = origBlob._handle;
     }

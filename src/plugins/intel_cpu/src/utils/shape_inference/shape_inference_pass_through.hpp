@@ -12,7 +12,7 @@ namespace intel_cpu {
 /**
  * Specific shape inference implementation designed to cover cases where there are no actual output shape calculation
  * and all the output shapes are equal to the input tensor shapes.
- * 
+ *
  */
 class ShapeInferPassThrough final : public ShapeInferEmptyPads {
 public:
@@ -20,7 +20,7 @@ public:
     Result infer(
         const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
         const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
-        IE_ASSERT(!input_shapes.empty());
+        IE_ASSERT_F(!input_shapes.empty());
         return {{input_shapes.front()}, ShapeInferStatus::success};
     }
     port_mask_t get_port_mask() const override {

@@ -29,7 +29,7 @@ DnnlPostOpsComposer::DnnlPostOpsComposer(const dnnl::engine& engine,
       idxOC(indexOfOutputChannelDim),
       isINT8(isInt8),
       weightScaleMaskPerChannel(weiScaleMaskPerChannel) {
-    IE_ASSERT(idxOC >= 0 && static_cast<size_t>(idxOC) < outputDims.size());
+    IE_ASSERT_F(idxOC >= 0 && static_cast<size_t>(idxOC) < outputDims.size());
     OC = outputDims[idxOC];
     dimsPerOC = dimsPerTensor = VectorDims(outputDims.size(), 1);
     dimsPerOC[idxOC] = OC;
@@ -82,7 +82,7 @@ void DnnlPostOpsComposer::updateDestScales() {
 void DnnlPostOpsComposer::appendBinary(const dnnl::algorithm alg, const std::vector<float>& data) {
     VectorDims* pdims = &dimsPerTensor;
     if (data.size() > 1) {
-        IE_ASSERT(data.size() == OC);
+        IE_ASSERT_F(data.size() == OC);
         pdims = &dimsPerOC;
     }
 
@@ -108,7 +108,7 @@ void DnnlPostOpsComposer::appendRoundHTE() {
 }
 
 bool DnnlPostOpsComposer::appendScale(const std::vector<float>& scale, bool isLastPostOp, bool allowBinary) {
-    IE_ASSERT(scale.size() == OC || scale.size() == 1);
+    IE_ASSERT_F(scale.size() == OC || scale.size() == 1);
 
     bool fuseIntoWeiScale = false;
     // Use dest scale when last post-ops is per-tensor quantization.
@@ -161,7 +161,7 @@ bool DnnlPostOpsComposer::appendScale(const std::vector<float>& scale, bool isLa
             if (wei_scale_mask == 0)
                 wei_scale_values.resize(scale.size(), wei_scale_values[0]);
             else
-                IE_ASSERT(wei_scale_values.size() == OC);
+                IE_ASSERT_F(wei_scale_values.size() == OC);
 
             for (Dim j = 0; j < OC; j++)
                 wei_scale_values[j] *= scale[j];
@@ -233,22 +233,22 @@ void DnnlPostOpsComposer::appendClip(const std::vector<float>& low, const std::v
     if (low.size() == 1 && high.size() == 1) {
         appendEltwise(dnnl::algorithm::eltwise_clip, low[0], high[0]);
     } else if (low.size() == 1) {
-        IE_ASSERT(high.size() == OC);
+        IE_ASSERT_F(high.size() == OC);
         appendEltwise(dnnl::algorithm::eltwise_clip, low[0], std::numeric_limits<float>::max());
         if (high.size() > 0)
             appendBinary(dnnl::algorithm::binary_min, high);
     } else if (high.size() == 1) {
-        IE_ASSERT(low.size() == OC);
+        IE_ASSERT_F(low.size() == OC);
         appendEltwise(dnnl::algorithm::eltwise_clip, -std::numeric_limits<float>::max(), high[0]);
         if (low.size() > 0)
             appendBinary(dnnl::algorithm::binary_max, low);
     } else {
         if (low.size() > 0) {
-            IE_ASSERT(low.size() == OC);
+            IE_ASSERT_F(low.size() == OC);
             appendBinary(dnnl::algorithm::binary_max, low);
         }
         if (high.size() > 0) {
-            IE_ASSERT(high.size() == OC);
+            IE_ASSERT_F(high.size() == OC);
             appendBinary(dnnl::algorithm::binary_min, high);
         }
     }

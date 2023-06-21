@@ -353,7 +353,7 @@ inline void CNNNetBFS(const InferenceEngine::CNNLayerPtr& layer, const T& visit)
  * @param layer
  */
 inline bool CNNNetHasPrevLayer(const InferenceEngine::CNNLayer* layer, int idx = 0) {
-    IE_ASSERT(layer != nullptr);
+    IE_ASSERT_F(layer != nullptr);
     if (layer->insData.empty() || static_cast<int>(layer->insData.size()) <= idx) {
         return false;
     }
@@ -529,7 +529,7 @@ inline CNNNetwork CNNNetCopy(const CNNNetwork& input, const Copier& cp) {
                 break;
             }
         }
-        IE_ASSERT(dataIdx != -1);
+        IE_ASSERT_F(dataIdx != -1);
         return dataIdx;
     };
 
@@ -572,7 +572,7 @@ inline CNNNetwork CNNNetCopy(const CNNNetwork& input, const Copier& cp) {
                 break;
             }
         }
-        IE_ASSERT(dataIdx != -1);
+        IE_ASSERT_F(dataIdx != -1);
         return dataIdx;
     };
 

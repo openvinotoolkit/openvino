@@ -486,9 +486,9 @@ TensorDesc make_roi_desc(const TensorDesc& origDesc, const TensorSlice& roi, boo
     SizeVector roiBlkDimOffsets = origBlkDesc.getOffsetPaddingToData();
     size_t roiBlkOffset = origBlkDesc.getOffsetPadding();
 
-    IE_ASSERT(origBlkStrides.size() == numDims);
-    IE_ASSERT(origBlkOrder.size() == numDims);
-    IE_ASSERT(roiBlkDimOffsets.size() == numDims);
+    IE_ASSERT_F(origBlkStrides.size() == numDims);
+    IE_ASSERT_F(origBlkOrder.size() == numDims);
+    IE_ASSERT_F(roiBlkDimOffsets.size() == numDims);
 
     // BlockingDesc stores dimensions in memory order, so we need to use origOrder array.
     // Offsets in `roi` relates to `origDesc` dimensions, while offsets in `BlockingDesc` relates to top parent tensor
@@ -542,7 +542,7 @@ TensorDesc InferenceEngine::make_roi_desc(const TensorDesc& origDesc,
     }
     TensorSlice slice;
     for (size_t i = 0; i < begin.size(); ++i) {
-        IE_ASSERT(end[i] >= begin[i]);
+        IE_ASSERT_F(end[i] >= begin[i]);
         slice.emplace_back(begin[i], end[i] - begin[i]);
     }
     return make_roi_desc(origDesc, slice, useOrigMemDesc);

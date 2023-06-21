@@ -109,7 +109,7 @@ void DetectionOutputLayerTest::Compare(
 
         const auto &expectedBuffer = expected.data();
         auto memory = InferenceEngine::as<InferenceEngine::MemoryBlob>(actual);
-        IE_ASSERT(memory);
+        IE_ASSERT_F(memory);
         const auto lockedMemory = memory->wmap();
         const auto actualBuffer = lockedMemory.as<const std::uint8_t *>();
 

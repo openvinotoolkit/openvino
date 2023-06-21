@@ -232,7 +232,7 @@ int get_number_of_cpu_cores(bool bigCoresOnly) {
     CPU& cpu = cpu_info();
     unsigned numberOfProcessors = cpu._processors;
     unsigned totalNumberOfCpuCores = cpu._cores;
-    IE_ASSERT(totalNumberOfCpuCores != 0);
+    IE_ASSERT_F(totalNumberOfCpuCores != 0);
     cpu_set_t usedCoreSet, currentCoreSet, currentCpuSet;
     CPU_ZERO(&currentCpuSet);
     CPU_ZERO(&usedCoreSet);

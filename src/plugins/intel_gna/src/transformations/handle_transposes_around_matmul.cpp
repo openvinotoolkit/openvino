@@ -52,7 +52,7 @@ void InsertTranspose(std::shared_ptr<ngraph::Node> prev_node, const std::string&
             transpose_ids.push_back(i);
         }
     }
-    IE_ASSERT(transpose_ids.size() == 2);
+    IE_ASSERT_F(transpose_ids.size() == 2);
     std::vector<size_t> permute_order(orig_shape.size());
     std::iota(std::begin(permute_order), std::end(permute_order), 0);
     std::swap(permute_order[transpose_ids[0]], permute_order[transpose_ids[1]]);

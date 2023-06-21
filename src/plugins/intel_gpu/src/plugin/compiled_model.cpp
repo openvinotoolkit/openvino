@@ -331,7 +331,7 @@ InferenceEngine::Parameter CompiledModel::GetMetric(const std::string &name) con
             ov::PropertyName{ov::execution_devices.name(), PropertyMutability::RO}
         };
     } else if (name == ov::model_name) {
-        IE_ASSERT(!m_graphs.empty());
+        IE_ASSERT_F(!m_graphs.empty());
         return decltype(ov::model_name)::value_type {m_graphs[0]->getName()};
     } else if (name == METRIC_KEY(SUPPORTED_METRICS)) {
         std::vector<std::string> metrics;

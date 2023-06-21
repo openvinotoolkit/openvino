@@ -415,13 +415,13 @@ void make_gna_pwl(const std::shared_ptr<ngraph::Node>& node,
                   bool low_precision,
                   std::vector<gna_pwl_segment_t>& gna_pwl) {
     auto m_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(node->get_input_node_shared_ptr(1));
-    IE_ASSERT(!!m_node);
+    IE_ASSERT_F(!!m_node);
     auto b_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(node->get_input_node_shared_ptr(2));
-    IE_ASSERT(!!b_node);
+    IE_ASSERT_F(!!b_node);
     auto alpha_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(node->get_input_node_shared_ptr(3));
-    IE_ASSERT(!!alpha_node);
-    IE_ASSERT(m_node->get_element_type() == b_node->get_element_type() &&
-              m_node->get_element_type() == alpha_node->get_element_type());
+    IE_ASSERT_F(!!alpha_node);
+    IE_ASSERT_F(m_node->get_element_type() == b_node->get_element_type() &&
+                m_node->get_element_type() == alpha_node->get_element_type());
     make_gna_pwl(std::tuple<std::integral_constant<ngraph::element::Type_t, ngraph::element::f32>,
                             std::integral_constant<ngraph::element::Type_t, ngraph::element::f64>>(),
                  m_node,

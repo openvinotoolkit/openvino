@@ -926,7 +926,7 @@ IE_SUPPRESS_DEPRECATED_START
 bool Limitations::validate_concat_axis(const InferenceEngine::CNNLayerPtr layer, std::string& errMessage) {
     LayerInfo info(layer);
     auto concat_layer = info.as<InferenceEngine::ConcatLayer*>();
-    IE_ASSERT(concat_layer);
+    IE_ASSERT_F(concat_layer);
     auto dims_size = concat_layer->insData[0].lock()->getDims().size();
     auto in_dims = concat_layer->insData[0].lock()->getDims();
     auto concat_axis = concat_layer->_axis;
@@ -985,7 +985,7 @@ bool Limitations::validate_concat_axis(const InferenceEngine::CNNLayerPtr layer,
                             return LayerInfo(ptr).isNonFunctional() || LayerInfo(ptr).isFakeQuantize();
                         });
 
-                    IE_ASSERT(prev_layer);
+                    IE_ASSERT_F(prev_layer);
 
                     if ((LayerInfo(prev_layer).isInput() && prev_layer->outData[0]->getDims()[0] == 1) ||
                         LayerInfo(prev_layer).isConst()) {
@@ -1005,7 +1005,7 @@ bool Limitations::validate_concat_axis(const InferenceEngine::CNNLayerPtr layer,
                                    LayerInfo(ptr).isSplit();
                         });
 
-                    IE_ASSERT(pre_prev_layer);
+                    IE_ASSERT_F(pre_prev_layer);
 
                     if (LayerInfo(pre_prev_layer).isConst()) {
                         continue;
@@ -1060,7 +1060,7 @@ bool Limitations::validate_concat_axis(const InferenceEngine::CNNLayerPtr layer,
 }
 
 bool Limitations::validate_conv_concat_axis(const InferenceEngine::ConcatLayer* concat_layer) {
-    IE_ASSERT(concat_layer);
+    IE_ASSERT_F(concat_layer);
     auto dims_size = concat_layer->insData[0].lock()->getDims().size();
 
     if (dims_size >= 2) {
@@ -1118,7 +1118,7 @@ bool Limitations::are_layers_supported(InferenceEngine::CNNNetwork& network, std
     InferenceEngine::CNNLayerPtr startLayer;
     if (inputs.empty()) {
         auto outputs = network.getOutputsInfo();
-        IE_ASSERT(!outputs.empty());
+        IE_ASSERT_F(!outputs.empty());
         // If there are no inputs start search from an output
         startLayer = getCreatorLayer(outputs.begin()->second).lock();
     } else {

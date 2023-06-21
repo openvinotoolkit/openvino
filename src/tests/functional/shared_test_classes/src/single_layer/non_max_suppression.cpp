@@ -142,7 +142,7 @@ void NmsLayerTest::CompareBBoxes(
     {
         const auto& input = inputs[0];
         auto memory = InferenceEngine::as<InferenceEngine::MemoryBlob>(input);
-        IE_ASSERT(memory);
+        IE_ASSERT_F(memory);
         const auto lockedMemory = memory->rmap();
         const auto buffer = lockedMemory.as<const float*>();
         for (size_t i = 0; i < numBatches; ++i) {
@@ -211,12 +211,12 @@ void NmsLayerTest::CompareBBoxes(
     {
         size_t selected_indices_size = actualOutputs[0]->byteSize() / sizeof(float);
         auto selected_indices_memory = as<MemoryBlob>(actualOutputs[0]);
-        IE_ASSERT(selected_indices_memory);
+        IE_ASSERT_F(selected_indices_memory);
         const auto selected_indices_lockedMemory = selected_indices_memory->rmap();
         const auto selected_indices_data = selected_indices_lockedMemory.as<const int32_t*>();
 
         auto selected_scores_memory = as<MemoryBlob>(actualOutputs[1]);
-        IE_ASSERT(selected_scores_memory);
+        IE_ASSERT_F(selected_scores_memory);
         const auto selected_scores_lockedMemory = selected_scores_memory->rmap();
         const auto selected_scores_data = selected_scores_lockedMemory.as<const float*>();
 

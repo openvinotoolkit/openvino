@@ -315,7 +315,7 @@ void Split::execute(dnnl::stream strm) {
     }
 
     uint8_t* srcData = reinterpret_cast<uint8_t*>(srcMem.GetPtr());
-    IE_ASSERT(execPtr != nullptr);
+    IE_ASSERT_F(execPtr != nullptr);
     execPtr->exec(srcData, getRawDstMemPtrs());
 }
 
@@ -385,7 +385,7 @@ void Split::initOptimalPrimitiveDescriptor() {
 
     config = selected_pd->getConfig();
     canUseOptimizedNspc2Ncsp = false;
-    IE_ASSERT(config.inConfs.size() > 0);
+    IE_ASSERT_F(config.inConfs.size() > 0);
     const auto inConfDesc = config.inConfs[0].getMemDesc();
     if (axis == 1 && one_of(inConfDesc->getShape().getRank(), 4u, 5u) && inConfDesc->hasLayoutType(LayoutType::nspc)) {
         canUseOptimizedNspc2Ncsp = true;

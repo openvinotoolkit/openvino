@@ -14,9 +14,9 @@ namespace node {
 
 namespace {
 /**
- * Implements Shape Of shape inference algorithm. The output shape is simply a 1D tensor with the size of the input tensor
- * rank.
- *  
+ * Implements Shape Of shape inference algorithm. The output shape is simply a 1D tensor with the size of the input
+ * tensor rank.
+ *
  */
 class ShapeOfShapeInfer : public ShapeInferEmptyPads {
 public:
@@ -24,7 +24,7 @@ public:
     Result infer(
         const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
         const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
-        IE_ASSERT(!input_shapes.empty());
+        IE_ASSERT_F(!input_shapes.empty());
         return {{VectorDims{input_shapes.front().get().size()}}, ShapeInferStatus::success};
     }
 

@@ -69,7 +69,7 @@ inline std::pair<int64_t, std::vector<uint32_t>> AlignedSplitSizesPerAxis(Infere
     auto firstValuableDim = std::find_if(std::begin(dims), std::end(dims), [](size_t val) {
         return val > 1;
     });
-    IE_ASSERT(firstValuableDim != std::end(dims));
+    IE_ASSERT_F(firstValuableDim != std::end(dims));
     auto splittedElementsSize = *firstValuableDim;
     auto splittedDimIx = std::distance(std::begin(dims), firstValuableDim);
     auto alignment = limitations::Limitations::get_instance()->get_memory_alignment();

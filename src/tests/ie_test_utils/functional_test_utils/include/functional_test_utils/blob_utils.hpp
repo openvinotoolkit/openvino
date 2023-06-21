@@ -251,9 +251,9 @@ inline void
 compareBlobData(const std::vector<InferenceEngine::Blob::Ptr> &res, const std::vector<InferenceEngine::Blob::Ptr> &ref,
                 float max_diff = 0.01,
                 const std::string &assertDetails = "", bool printData = false) {
-    IE_ASSERT(res.size() == ref.size(),
-              "Length of comparing and references blobs vector are not equal!",
-              assertDetails);
+    IE_ASSERT_F(res.size() == ref.size(),
+                "Length of comparing and references blobs vector are not equal!",
+                assertDetails);
     for (size_t i = 0; i < res.size(); i++) {
         if (printData)
             std::cout << "BEGIN CHECK BLOB [" << i << "]" << std::endl;
@@ -658,7 +658,7 @@ inline InferenceEngine::Blob::Ptr createAndFillBlobUniqueSequence(
 
 inline InferenceEngine::Blob::Ptr convertBlobLayout(const InferenceEngine::Blob::Ptr& in,
                                                     InferenceEngine::Layout layout) {
-    IE_ASSERT(in != nullptr, "Got NULL pointer");
+    IE_ASSERT_F(in != nullptr, "Got NULL pointer");
 
     const auto& inDesc = in->getTensorDesc();
 

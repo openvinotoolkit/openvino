@@ -133,7 +133,7 @@ FindPermutationsAroundConvolutionInNHWCModel(InferenceEngine::CNNLayerPtr layer)
         } else {
             // Check if reshape is expected for this pattern:
             // the next layer has the both, height and width dimensions > 1
-            IE_ASSERT(in_dims_size == 3 || in_dims_size == 4);
+            IE_ASSERT_F(in_dims_size == 3 || in_dims_size == 4);
             size_t height = in_dims_size == 3 ? 1
                                               : InferenceEngine::GetDataDimByName(next->insData[0].lock(),
                                                                                   InferenceEngine::DataDimName::H);
@@ -187,7 +187,7 @@ FindPermutationsAroundConvolutionInNHWCModel(InferenceEngine::CNNLayerPtr layer)
             in_dims_size = parent->insData[0].lock()->getDims().size();
             const auto out_dims = parent->outData[0]->getDims();
             out_dims_size = out_dims.size();
-            IE_ASSERT(out_dims_size == 3 || out_dims_size == 4);
+            IE_ASSERT_F(out_dims_size == 3 || out_dims_size == 4);
             size_t channels = InferenceEngine::GetDimFromFront(out_dims, 1);
             size_t height = out_dims_size == 3 ? 1
                                                : InferenceEngine::GetDataDimByName(parent->outData[0],
@@ -302,7 +302,7 @@ inline std::vector<TranspositionInfo> FindTranspositionInfoFromPrevLayers(Infere
          * transposed, otherwise every part corresponding to some input must be transposed separately */
         if (LayerInfo(layer).isConcat() && !layer->insData.empty()) {
             auto concatLayer = LayerInfo(layer).as<InferenceEngine::ConcatLayer*>();
-            IE_ASSERT(concatLayer != nullptr);
+            IE_ASSERT_F(concatLayer != nullptr);
             if (concatLayer->_axis > 1) {
                 for (const auto& input : layer->insData) {
                     auto in_dims = input.lock()->getDims();
@@ -423,7 +423,7 @@ inline std::vector<TranspositionInfo> FindTranspositionInfoFromNextLayers(Infere
             auto in_dims = layer->input()->getDims();
             auto in_total_size = InferenceEngine::details::product(std::begin(in_dims), std::end(in_dims));
             auto crop_layer = LayerInfo(layer).as<const InferenceEngine::CropLayer*>();
-            IE_ASSERT(crop_layer != nullptr);
+            IE_ASSERT_F(crop_layer != nullptr);
             size_t crop_offset = 1;
             size_t crop_out_size = 1;
             bool first_cropped_dim = true;

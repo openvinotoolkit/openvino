@@ -82,7 +82,7 @@ void MemoryOutput::execute(dnnl::stream strm)  {
     auto& srcMemory = getParentEdgeAt(0)->getMemory();
 
     auto inputMemoryNode = dynamic_cast<MemoryInput*>(inputNode);
-    IE_ASSERT(inputMemoryNode != nullptr);
+    IE_ASSERT_F(inputMemoryNode != nullptr);
     inputMemoryNode->storeState(srcMemory);
 }
 
@@ -140,7 +140,7 @@ static void simple_copy(const Memory& dst, const Memory& src) {
         auto srcSizeInByte = src.GetSize();
         auto dstSizeInByte = dst.GetSize();
 
-        IE_ASSERT(srcSizeInByte == dstSizeInByte, "MemoryNode objects are not compatible. Has different sizes.");
+        IE_ASSERT_F(srcSizeInByte == dstSizeInByte, "MemoryNode objects are not compatible. Has different sizes.");
 
         cpu_memcpy(dstPtr, srcPtr, srcSizeInByte);
     } else {
@@ -178,7 +178,7 @@ MemoryNodeVirtualEdge::Holder* MemoryNodeVirtualEdge::registerInput(MemoryInput 
     auto sibling = MemoryNodeVirtualEdge::getByName(holder, node->getId());
     if (sibling != nullptr) {
         auto outputNode = dynamic_cast<MemoryOutput*>(sibling);
-        IE_ASSERT(outputNode != nullptr);
+        IE_ASSERT_F(outputNode != nullptr);
         outputNode->setInputNode(node);
     } else {
         holder[node->getId()] = node;
@@ -193,7 +193,7 @@ MemoryNodeVirtualEdge::Holder* MemoryNodeVirtualEdge::registerOutput(MemoryOutpu
     auto sibling = MemoryNodeVirtualEdge::getByName(holder, node->getId());
     if (sibling != nullptr) {
         auto inputNode = dynamic_cast<MemoryInput*>(sibling);
-        IE_ASSERT(inputNode != nullptr);
+        IE_ASSERT_F(inputNode != nullptr);
         node->setInputNode(inputNode);
     } else {
         holder[node->getId()] = node;

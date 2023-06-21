@@ -80,7 +80,7 @@ void NormalizePreprocess::Load(const Shape& inputShape, InputInfo::Ptr inputInfo
 }
 
 void NormalizePreprocess::NormalizeImage(const Shape &inputShape, float *input, InferenceEngine::Layout layout) {
-    IE_ASSERT(input != nullptr);
+    IE_ASSERT_F(input != nullptr);
 
     const auto inputDims = inputShape.getStaticDims();
     if (inputDims.size() != 4) {

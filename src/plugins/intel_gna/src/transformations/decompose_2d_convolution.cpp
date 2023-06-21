@@ -62,7 +62,7 @@ static bool VerifyAndGetConvData(std::shared_ptr<ngraph::opset7::Convolution> co
 
     GetConvData(conv, conv_data);
 
-    IE_ASSERT(conv_data.output_channel_count == conv->get_output_shape(0)[1]);
+    IE_ASSERT_F(conv_data.output_channel_count == conv->get_output_shape(0)[1]);
 
     return true;
 }
@@ -170,7 +170,7 @@ static std::vector<std::shared_ptr<ngraph::Node>> Split2DConvFilters(std::shared
     ngraph::Shape reshape_shape;
     auto flat_filters = filters->outputs();
     const auto filter_shape = filters->get_output_shape(0);
-    IE_ASSERT(filter_shape.size() == 4);
+    IE_ASSERT_F(filter_shape.size() == 4);
 
     if (split_channels > 1) {
         const auto axis_node = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{}, {1});

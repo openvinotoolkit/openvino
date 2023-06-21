@@ -167,7 +167,7 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const std::shared_ptr<Function>& nGra
     reshape();
     for (const auto& layer : _ngraph_function->get_parameters()) {
         std::string outName = layer->get_friendly_name();
-        IE_ASSERT(layer->get_output_size() == 1);  // Parameter as only singly output port
+        IE_ASSERT_F(layer->get_output_size() == 1);  // Parameter as only singly output port
 
         // map original names to OpenVINO name
         for (const auto& name : layer->get_output_tensor(0).get_names()) {
@@ -175,7 +175,7 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const std::shared_ptr<Function>& nGra
         }
 
         DataPtr& ptr = _data[outName];
-        IE_ASSERT(ptr);  // Data must be allocated after the reshape method
+        IE_ASSERT_F(ptr);  // Data must be allocated after the reshape method
 
         keep_input_info(*this, ptr);
     }

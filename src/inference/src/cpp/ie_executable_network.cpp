@@ -32,7 +32,7 @@ ExecutableNetwork::~ExecutableNetwork() {
 ExecutableNetwork::ExecutableNetwork(const IExecutableNetworkInternal::Ptr& impl, const std::shared_ptr<void>& so)
     : _impl(impl),
       _so(so) {
-    IE_ASSERT(_impl != nullptr);
+    IE_ASSERT_F(_impl != nullptr);
 }
 
 IE_SUPPRESS_DEPRECATED_START
@@ -51,9 +51,9 @@ void ExecutableNetwork::reset(IExecutableNetwork::Ptr newActual) {
     if (newActual == nullptr)
         IE_THROW_G("ExecutableNetwork wrapper used for reset was not initialized.");
     auto newBase = std::dynamic_pointer_cast<ExecutableNetworkBase>(newActual);
-    IE_ASSERT(newBase != nullptr);
+    IE_ASSERT_F(newBase != nullptr);
     auto newImpl = newBase->GetImpl();
-    IE_ASSERT(newImpl != nullptr);
+    IE_ASSERT_F(newImpl != nullptr);
     _impl = newImpl;
 }
 

@@ -27,7 +27,7 @@ constexpr float max_search_weights_val = 1024.0f;
 constexpr double initial_weights_reducer_val = 1.0;
 
 float GetScaleFactor(InferenceEngine::CNNLayerPtr layer, QuantizedDataType data_type) {
-    IE_ASSERT(layer != nullptr);
+    IE_ASSERT_F(layer != nullptr);
     auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(layer);
     float scale_factor;
     if (!quantized) {

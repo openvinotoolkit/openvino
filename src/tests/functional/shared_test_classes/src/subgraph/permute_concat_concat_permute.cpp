@@ -83,32 +83,32 @@ void PermuteConcatConcatPermute::Validate() {
         functionRefs = ngraph::clone_function(*function);
     }
     const auto& actual_outputs = GetOutputs();
-    IE_ASSERT(actual_outputs.size() == 1);
+    IE_ASSERT_F(actual_outputs.size() == 1);
 
     auto expected_outputs = CalculateRefs();
-    IE_ASSERT(expected_outputs.size() == actual_outputs.size());
+    IE_ASSERT_F(expected_outputs.size() == actual_outputs.size());
 
     const auto& expected = expected_outputs[0];
     const auto& actual = actual_outputs[0];
 
-    IE_ASSERT(actual->byteSize() == expected.second.size());
+    IE_ASSERT_F(actual->byteSize() == expected.second.size());
 
     auto memory = InferenceEngine::as<InferenceEngine::MemoryBlob>(actual);
-    IE_ASSERT(memory);
+    IE_ASSERT_F(memory);
 
     const auto locked_memory = memory->wmap();
     auto precision = actual->getTensorDesc().getPrecision();
 
     switch (precision) {
     case InferenceEngine::Precision::FP16: {
-        IE_ASSERT(expected.first == ngraph::element::f16);
+        IE_ASSERT_F(expected.first == ngraph::element::f16);
         const auto actual_output_buffer = locked_memory.as<const ngraph::float16*>();
         const auto expected_output_buffer = reinterpret_cast<const ngraph::float16*>(expected.second.data());
         CompareBuffers(expected_output_buffer, actual_output_buffer, actual->size(), threshold);
         break;
     }
     case InferenceEngine::Precision::FP32: {
-        IE_ASSERT(expected.first == ngraph::element::f32);
+        IE_ASSERT_F(expected.first == ngraph::element::f32);
         const auto actual_output_buffer = locked_memory.as<const float*>();
         const auto expected_output_buffer = reinterpret_cast<const float*>(expected.second.data());
         CompareBuffers(expected_output_buffer, actual_output_buffer, actual->size(), threshold);

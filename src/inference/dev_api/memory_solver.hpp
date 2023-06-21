@@ -218,7 +218,7 @@ private:
                 top_depth--;
             }
             release_at.erase(time);
-            IE_ASSERT(top_depth > 0);
+            IE_ASSERT_F(top_depth > 0);
 
             _top_depth = std::max(_top_depth, top_depth);
             _depth = std::max(_depth, depth);

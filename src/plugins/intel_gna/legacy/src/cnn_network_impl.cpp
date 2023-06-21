@@ -95,8 +95,8 @@ CNNNetworkImpl::CNNNetworkImpl(const CNNNetwork& cnnnetwork) {
     auto& icnnnetwork = static_cast<const ICNNNetwork&>(cnnnetwork);
     IE_SUPPRESS_DEPRECATED_END
     auto ngraphImplPtr = dynamic_cast<const details::CNNNetworkNGraphImpl*>(&icnnnetwork);
-    IE_ASSERT(ngraphImplPtr != nullptr);
-    IE_ASSERT(ngraphImplPtr->getFunction() != nullptr);
+    IE_ASSERT_F(ngraphImplPtr != nullptr);
+    IE_ASSERT_F(ngraphImplPtr->getFunction() != nullptr);
     auto graph = ngraph::clone_function(*ngraphImplPtr->getFunction());
 
     ::ngraph::pass::Manager manager;

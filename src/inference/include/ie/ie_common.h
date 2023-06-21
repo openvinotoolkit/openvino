@@ -530,7 +530,7 @@ struct INFERENCE_ENGINE_1_0_DEPRECATED ThrowNow final {
  * the macros can be refactored like:
  * - IE_THROW_E(IE_EXCEPTION_TYPE, ....) -> OPENVINO_THROW(...)
  * - IE_THROW_E(NotImplemented, ...) -> OPENVINO_NOT_IMPLEMENTED
- * - IE_ASSERT(EXPRESSION, ...) - > OPENVINO_ASSERT(EXPRESSION, ...)
+ * - IE_ASSERT_F(EXPRESSION, ...) - > OPENVINO_ASSERT(EXPRESSION, ...)
  */
 #define IE_THROW_E(...) CALL_IE_OVERLOAD(IE_THROW_HELPER, __VA_ARGS__)
 // Wrapper to throw GeneralError.
@@ -543,7 +543,7 @@ struct INFERENCE_ENGINE_1_0_DEPRECATED ThrowNow final {
 #define IE_THROW(...) IE_PP_OVERLOAD(IE_THROW, __VA_ARGS__)
 
 /**
- * @def IE_ASSERT
+ * @def IE_ASSERT_F
  * @brief Uses assert() function if NDEBUG is not defined, InferenceEngine exception otherwise
  */
 #ifdef NDEBUG
@@ -565,9 +565,33 @@ struct INFERENCE_ENGINE_1_0_DEPRECATED ThrowNow final {
             }                                                                                         \
         } while (0)
 
-#    define IE_ASSERT(...) CALL_IE_OVERLOAD(IE_ASSERT_HELPER, __VA_ARGS__)
+#    define IE_ASSERT_F(...) CALL_IE_OVERLOAD(IE_ASSERT_HELPER, __VA_ARGS__)
 #else
-#    define IE_ASSERT(EXPRESSION, ...) assert((EXPRESSION));
+#    define IE_ASSERT_F(EXPRESSION, ...) assert((EXPRESSION));
+#endif  // NDEBUG
+
+/**
+ * @def IE_ASSERT
+ * @brief Uses assert() function if NDEBUG is not defined, InferenceEngine exception otherwise
+ */
+#ifdef NDEBUG
+#    define IE_ASSERT(EXPRESSION) \
+        if (!(EXPRESSION))        \
+        IE_THROW(GeneralError) << " AssertionFailed: " << #EXPRESSION
+#else
+/**
+ * @private
+ */
+struct NullStream {
+    template <typename T>
+    NullStream& operator<<(const T&) noexcept {
+        return *this;
+    }
+};
+
+#    define IE_ASSERT(EXPRESSION) \
+        assert((EXPRESSION));     \
+        InferenceEngine::details::NullStream()
 #endif  // NDEBUG
 
 /// @cond
@@ -598,7 +622,7 @@ struct INFERENCE_ENGINE_1_0_DEPRECATED ThrowNow final {
         IE_EXCEPTION_CASE(TYPE_ALIAS, NETWORK_NOT_READ, NetworkNotRead, __VA_ARGS__)      \
         IE_EXCEPTION_CASE(TYPE_ALIAS, INFER_CANCELLED, InferCancelled, __VA_ARGS__)       \
     default:                                                                              \
-        IE_ASSERT(!"Unreachable");                                                        \
+        IE_ASSERT_F(!"Unreachable");                                                      \
     }
 
 }  // namespace details

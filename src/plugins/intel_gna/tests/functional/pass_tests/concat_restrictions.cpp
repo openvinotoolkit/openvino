@@ -379,8 +379,8 @@ struct TransposeTransposeConcat {
         const size_t input_channels = 8;
         const size_t output_channels = 64;
 
-        IE_ASSERT(input_shapes[0] % input_channels == 0);
-        IE_ASSERT(input_shapes[1] % input_shapes[0] == 0);
+        IE_ASSERT_F(input_shapes[0] % input_channels == 0);
+        IE_ASSERT_F(input_shapes[1] % input_shapes[0] == 0);
 
         vector<size_t> concat_input_shape = {input_shapes[1] / input_shapes[0], input_shapes[0]};
         vector<size_t> conv_input_shape = {1, input_channels, 1, input_shapes[0] / input_channels};

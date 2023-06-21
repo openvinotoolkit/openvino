@@ -24,7 +24,7 @@
 namespace ExecutionGraphTests {
 
 std::shared_ptr<ngraph::Function> makeEltwiseFunction(const std::vector<InferenceEngine::Precision>& inputPrecisions) {
-    IE_ASSERT(inputPrecisions.size() == 2);
+    IE_ASSERT_F(inputPrecisions.size() == 2);
 
     auto inputs = ngraph::builder::makeParams(FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inputPrecisions[0]), {{1, 16, 5, 4}});
     auto secondaryInput = ngraph::builder::makeInputLayer(FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inputPrecisions[1]),
@@ -39,7 +39,7 @@ std::shared_ptr<ngraph::Function> makeEltwiseFunction(const std::vector<Inferenc
 }
 
 std::shared_ptr<ngraph::Function> makeFakeQuantizeReluFunction(const std::vector<InferenceEngine::Precision>& inputPrecisions) {
-    IE_ASSERT(inputPrecisions.size() == 1);
+    IE_ASSERT_F(inputPrecisions.size() == 1);
 
     auto inputs = ngraph::builder::makeParams(FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inputPrecisions[0]), {{1, 16, 5, 4}});
 
@@ -58,7 +58,7 @@ std::shared_ptr<ngraph::Function> makeFakeQuantizeReluFunction(const std::vector
 }
 
 std::shared_ptr<ngraph::Function> makeFakeQuantizeBinaryConvolutionFunction(const std::vector<InferenceEngine::Precision> &inputPrecisions) {
-    IE_ASSERT(inputPrecisions.size() == 1);
+    IE_ASSERT_F(inputPrecisions.size() == 1);
 
     auto inputs = ngraph::builder::makeParams(FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inputPrecisions[0]), {{1, 16, 5, 4}});
 

@@ -62,6 +62,7 @@ public:
         OPENVINO_ASSERT(m_element_type.bitwidth() >= 8,
                         "Could not get strides for types with bitwidths less then 8 bit. Tensor type: ",
                         m_element_type);
+        std::cout << "get strides once\n";
         std::call_once(m_strides_once, &ViewTensor::update_strides, this);
         return m_strides;
     }
@@ -81,6 +82,7 @@ protected:
                            m_strides.rbegin() + 1,
                            std::multiplies<size_t>());
         }
+        std::cout << "update strides\n";
     }
 
     element::Type m_element_type;

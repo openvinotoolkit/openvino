@@ -31,12 +31,12 @@ TEST_P(SplitConcatMemory, cyclicBufferCorrectness) {
     auto o_blob_ref = make_blob_with_precision(o_blob->getTensorDesc());
     o_blob_ref->allocate();
 
-    auto fill_by_quarter = [this] (InferenceEngine::Blob::Ptr& blob, std::vector<float> vals) {
-        IE_ASSERT(vals.size() == 4);
+    auto fill_by_quarter = [this](InferenceEngine::Blob::Ptr& blob, std::vector<float> vals) {
+        IE_ASSERT_F(vals.size() == 4);
         auto quarter_blocked_shape = blob->getTensorDesc().getDims();
 
         // splis axis dimension into chunk
-        IE_ASSERT(quarter_blocked_shape[axis] % vals.size() == 0);
+        IE_ASSERT_F(quarter_blocked_shape[axis] % vals.size() == 0);
         quarter_blocked_shape[axis] /= vals.size();
         quarter_blocked_shape.insert(quarter_blocked_shape.begin() + axis, vals.size());
 

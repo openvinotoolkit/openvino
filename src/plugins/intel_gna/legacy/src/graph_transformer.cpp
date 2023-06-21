@@ -343,8 +343,8 @@ const BlobMap ConstTransformer::getConstData(const std::map<std::string, bool>& 
  * @return newly created reshape static layer
  */
 static CNNLayerPtr replace_with_static_reshape(CNNLayerPtr& layer) {
-    IE_ASSERT(layer->insData.size() == 1);
-    IE_ASSERT(layer->outData.size() == 1);
+    IE_ASSERT_F(layer->insData.size() == 1);
+    IE_ASSERT_F(layer->outData.size() == 1);
 
     auto in_data = layer->insData[0].lock();
     if (in_data == nullptr)

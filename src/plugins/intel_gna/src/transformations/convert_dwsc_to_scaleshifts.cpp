@@ -92,7 +92,7 @@ static std::shared_ptr<ngraph::Node> DecomposeDWSC(std::shared_ptr<ngraph::opset
         }
 
         if (!last_layer_output) {
-            IE_ASSERT(const_zero_padding);
+            IE_ASSERT_F(const_zero_padding);
             last_layer_output = const_zero_padding;
         }
 

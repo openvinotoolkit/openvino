@@ -56,7 +56,7 @@ public:
     }
 
     void set_node_params(const program_node& arg) override {
-        IE_ASSERT(arg.is_type<detection_output>());
+        IE_ASSERT_F(arg.is_type<detection_output>());
         const auto& node = arg.as<detection_output>();
         nms_type = (node.get_primitive()->decrease_label_id ? NMSType::MXNET : NMSType::CAFFE);
     }

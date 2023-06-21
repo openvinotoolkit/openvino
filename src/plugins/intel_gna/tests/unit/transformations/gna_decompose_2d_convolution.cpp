@@ -390,7 +390,7 @@ std::shared_ptr<ngraph::Node> ReshapeBiasConst(std::shared_ptr<ngraph::opset7::A
     auto add_const =
         std::dynamic_pointer_cast<ngraph::opset7::Constant>(conv_bias->input_value(1).get_node_shared_ptr());
 
-    IE_ASSERT(add_const);
+    IE_ASSERT_F(add_const);
 
     auto bias_size = shape_size(add_const->get_shape());
     return ov::op::util::make_try_fold<ngraph::opset7::Reshape>(
@@ -425,7 +425,7 @@ static std::vector<std::shared_ptr<ngraph::Node>> Split2DConvFilters(std::shared
     ngraph::Shape reshape_shape;
     auto flat_filters = filters->outputs();
     const auto filter_shape = filters->get_output_shape(0);
-    IE_ASSERT(filter_shape.size() == 4);
+    IE_ASSERT_F(filter_shape.size() == 4);
 
     if (split_channels > 1) {
         const auto axis_node = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{}, {1});

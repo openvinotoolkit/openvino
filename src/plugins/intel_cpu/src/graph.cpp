@@ -788,7 +788,7 @@ void Graph::AllocateWithReuse() {
                 count++;
             }
         }
-        IE_ASSERT(count == 1);
+        IE_ASSERT_F(count == 1);
     }
 
     if (!undefinedBoxes.empty()) {
