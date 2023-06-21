@@ -26,7 +26,7 @@ namespace op {
 using namespace ov::op;
 
 OutputVector translate_fake_quantize_per_tensor_affine(const NodeContext& context) {
-    num_inputs_check(context, 4, 5);
+    num_inputs_check(context, 5, 5);
     auto input_node = context.get_input(0);
     auto scale = std::make_shared<v0::Convert>(context.get_input(1), element::f32);
     auto zero_point = std::make_shared<v0::Convert>(context.get_input(2), element::f32);
@@ -54,6 +54,7 @@ OutputVector translate_fake_quantize_per_tensor_affine(const NodeContext& contex
 }
 
 OutputVector translate_fake_quantize_per_channel_affine(const NodeContext& context) {
+    num_inputs_check(context, 6, 6);
     auto input_node = context.get_input(0);
     auto scale = std::make_shared<v0::Convert>(context.get_input(1), element::f32);
     auto zero_point = std::make_shared<v0::Convert>(context.get_input(2), element::f32);
