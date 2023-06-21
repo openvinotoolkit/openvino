@@ -47,64 +47,6 @@ As shown in the picture above, some plugin libraries may have OS-specific depend
 
    .. tab-item:: Windows OS
 
-      .. list-table::
-         :header-rows: 1
-
-         * - Device
-           - Dependency
-           - Path
-         * - CPU
-           - ``-``
-           - ``-``
-         * - GPU
-           - ``OpenCL.dll``, ``cache.json``
-           - ``C:\Windows\System32\opencl.dll``, ``./runtime/bin/intel64/Release/cache.json``, ``./runtime/bin/intel64/Debug/cache.json``
-         * - GNA
-           - ``gna.dll``
-           - ``./runtime/bin/intel64/Release/gna.dll``, ``./runtime/bin/intel64/Debug/gna.dll``
-         * - Arm® CPU
-           - ``-``
-
-   .. tab-item:: Linux OS
-
-      .. list-table::
-         :header-rows: 1
-
-         * - Device
-           - Dependency
-           - Path
-         * - CPU
-           - ``-``
-           - ``-``
-         * - GPU
-           - ``libOpenCL.so``, ``cache.json``
-           - ``/usr/lib/x86_64-linux-gnu/libOpenCL.so.1``, ``./runtime/lib/intel64/cache.json``
-         * - GNA
-           - ``libgna.so``
-           - ``./runtime/lib/intel64/libgna.so.3``
-         * - Arm® CPU
-           - ``-``
-           - ``-``
-
-   .. tab-item:: MacOS
-
-      .. list-table::
-         :header-rows: 1
-
-         * - Device
-           - Dependency
-           - Path
-         * - CPU
-           - ``-``
-           - ``-``
-         * - Arm® CPU
-           - ``-``
-           - ``-``
-
-.. tab-set::
-
-   .. tab-item:: Windows OS
-
       +--------------+-------------------------+-------------------------------------------------------+
       |    Device    |       Dependency        |                          Path                         |
       +==============+=========================+=======================================================+
@@ -128,7 +70,7 @@ As shown in the picture above, some plugin libraries may have OS-specific depend
       |     CPU      |            —            |                          —                            |
       +--------------+-------------------------+-------------------------------------------------------+
       |     GPU      | | libOpenCL.so          | | /usr/lib/x86_64-linux-gnu/libOpenCL.so.1,           |
-      |              | | cache.json            | | ./runtime/lib/intel64/cache.json                     |
+      |              | | cache.json            | | ./runtime/lib/intel64/cache.json                    |
       +--------------+-------------------------+-------------------------------------------------------+
       |     GNA      |      libgna.so          | ./runtime/lib/intel64/libgna.so.3                     |
       +--------------+-------------------------+-------------------------------------------------------+
@@ -140,9 +82,9 @@ As shown in the picture above, some plugin libraries may have OS-specific depend
       +--------------+-------------------------+-------------------------------------------------------+
       |    Device    |       Dependency        |                          Path                         |
       +==============+=========================+=======================================================+
-      |     CPU      |            —            |                          —                            |
+      |     CPU      |           —             |                          —                            |
       +--------------+-------------------------+-------------------------------------------------------+
-      |  Arm® CPU    |          | — |          |                          —                            |
+      |  Arm® CPU    |           —             |                          —                            |
       +--------------+-------------------------+-------------------------------------------------------+
 
 
