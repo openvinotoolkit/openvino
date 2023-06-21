@@ -160,7 +160,9 @@ if(LINUX)
     endif()
 endif()
 
-if(CMAKE_VERSION VERSION_LESS 3.15)
+if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.15)
+    set(SETUP_PY_REQUIREMENTS_FOUND ON)
+else()
     message(${message_mode} "Cmake version 3.15 and higher is required to build 'openvino' wheel. Provided version ${CMAKE_VERSION}")
     set(SETUP_PY_REQUIREMENTS_FOUND OFF)
 endif()
@@ -183,7 +185,7 @@ if(NOT ENABLE_PYTHON)
 endif()
 
 if(NOT SETUP_PY_REQUIREMENTS_FOUND AND ENABLE_PYTHON_PACKAGING)
-    message(FATAL_ERROR "Python cannot be packaged, because setup.py requirements are not satisfied (cmake version >= 3.15 is required)")
+    message(FATAL_ERROR "Python cannot be packaged, because setup.py requirements are not satisfied (cmake version >= 3.15 is required, provided ${CMAKE_VERSION})")
 endif()
 
 #

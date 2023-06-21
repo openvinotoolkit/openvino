@@ -293,12 +293,18 @@ class CustomBuild(build):
                                      "--component", cpack_comp_name])
 
     def run(self):
+        # build and install clib into temporary directories
         if not self.python_extensions_only:
             self.cmake_build_and_install(LIB_INSTALL_CFG)
+
+        # install python code into a temporary directory (site-packages)
         self.cmake_build_and_install(PY_INSTALL_CFG)
 
-        self.run_command("build_clib")
+        # install clibs into a temporary directory (site-packages)
+        if not self.python_extensions_only:
+            self.run_command("build_clib")
 
+        # run all build pipeline, e.g. build_ext
         build.run(self)
 
         # Copy extra package_data content filtered by 'find_packages'
@@ -315,32 +321,14 @@ class CustomBuild(build):
 class PrepareLibs(build_clib):
     """Install prebuilt libraries."""
 
-    user_options = build_clib.user_options + [
-        ("install_clib=", None, "Install Python extensions without C++ libraries."),
-    ]
-
-    def initialize_options(self):
-        """Set default values for all the options that this command supports."""
-        super().initialize_options()
-
-        self.install_clib = None
-
-    def finalize_options(self):
-        """Set final values for all the options that this command supports."""
-        super().finalize_options()
-
-        if not self.install_clib:
-            self.install_clib = True
-
     def run(self):
         """Run build_clib command."""
-        if self.install_clib:
-            # set RPATH
-            self.post_install(PY_INSTALL_CFG)
-            # remove symlink to avoid copying it, set RPATH
-            self.post_install(LIB_INSTALL_CFG)
-            # copy clib to package data (to WHEEL_LIBS_INSTALL_DIR)
-            self.copy_package_data(get_install_dirs_list(LIB_INSTALL_CFG))
+        # set RPATH
+        self.post_install(PY_INSTALL_CFG)
+        # remove symlink to avoid copying it, set RPATH
+        self.post_install(LIB_INSTALL_CFG)
+        # copy clib to package data (to WHEEL_LIBS_INSTALL_DIR)
+        self.copy_package_data(get_install_dirs_list(LIB_INSTALL_CFG))
 
     def post_install(self, install_cfg):
         """Install prebuilt libraries to the temp directories, set rpath."""
