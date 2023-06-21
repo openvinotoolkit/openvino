@@ -167,7 +167,8 @@ using ov::set_cpu_used;
 /**
  * @brief      Get socket id by current numa node id
  * @ingroup    ie_dev_api_system_conf
- * @param[in]  numa_node_id numa node id.
+ * @param[in]  numa_node_id numa node id
+ * @return     socket id
  */
 using ov::get_socket_by_numa_node;
 
