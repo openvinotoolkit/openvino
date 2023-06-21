@@ -4,7 +4,7 @@
 
 This page provides general instructions on how to convert a model from a PaddlePaddle format to the OpenVINO IR format using Model Optimizer. The instructions are different depending on PaddlePaddle model format.
 
-.. note:: PaddlePaddle models are supported via FrontEnd API. You may skip conversion to IR and read models directly by OpenVINO runtime API. Refer to the :doc:`inference example <openvino_docs_OV_UG_Integrate_OV_with_your_application>` for more details.
+.. note:: PaddlePaddle models are supported via FrontEnd API. You may skip conversion to IR and read models directly by OpenVINO runtime API. Refer to the :doc:`inference example <openvino_docs_OV_UG_Integrate_OV_with_your_application>` for more details. In advanced cases, such as new custom inputs/outputs in model pruning, adding pre-processing, or using Python conversion extensions, you still need to use ``convert_model``.
 
 Converting PaddlePaddle Model Inference Format
 ##############################################
