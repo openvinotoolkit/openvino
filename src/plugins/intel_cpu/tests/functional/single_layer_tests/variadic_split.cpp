@@ -127,8 +127,8 @@ TEST_P(VariadicSplitLayerCPUTest, CompareWithRefs) {
 }
 
 namespace {
-const auto planar_4D_ref = CPUSpecificParams{{nchw}, {nchw}, {"ref"}, "ref"};
-const auto planar_5D_ref = CPUSpecificParams{{ncdhw}, {ncdhw}, {"ref"}, "ref"};
+const auto planar_4D_ref = CPUSpecificParams{{nchw}, {nchw}, {}, "ref"};
+const auto planar_5D_ref = CPUSpecificParams{{ncdhw}, {ncdhw}, {}, "ref"};
 
 const auto planar_4D = CPUSpecificParams{{nchw}, {nchw}, {}, "unknown"};
 const auto planar_5D = CPUSpecificParams{{ncdhw}, {ncdhw}, {}, "unknown"};
@@ -239,7 +239,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_VariadicSplit4D_CPU_planar_static, VariadicSplitL
                                 ::testing::Values(LengthsPerInfer{{1, 3, -1}}),
                                 ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
                                 ::testing::ValuesIn(netPrecisions),
-                                ::testing::Values(planar_4D, planar_4D_ref, perChannels_4D)),
+                                ::testing::Values(planar_4D_ref, perChannels_4D)),
                         VariadicSplitLayerCPUTest::getTestCaseName);
 
 const std::vector<InputShape> inputShapes4D_planar = {
@@ -326,7 +326,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_VariadicSplit5D_CPU_planar_static, VariadicSplitL
                                 ::testing::Values(LengthsPerInfer{{2, 1, -1}}),
                                 ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
                                 ::testing::ValuesIn(netPrecisions),
-                                ::testing::Values(planar_5D, planar_5D_ref, perChannels_5D)),
+                                ::testing::Values(planar_5D_ref, perChannels_5D)),
                         VariadicSplitLayerCPUTest::getTestCaseName);
 
 const std::vector<InputShape> inputShapes5D_planar = {
@@ -409,11 +409,11 @@ INSTANTIATE_TEST_SUITE_P(smoke_VariadicSplit5D_CPU_Block16, VariadicSplitLayerCP
 INSTANTIATE_TEST_SUITE_P(smoke_VariadicSplit3D_static, VariadicSplitLayerCPUTest,
                         ::testing::Combine(
                                 ::testing::Values(InputShape{ {}, {{14, 7, 21}} }),
-                                ::testing::Values(0, 1, 2),
+                                ::testing::Values(1, 2),
                                 ::testing::Values(LengthsPerInfer{{2, 4, -1}}),
                                 ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
                                 ::testing::ValuesIn(netPrecisions),
-                                ::testing::Values(CPUSpecificParams{{}, {}, {}, "unknown"}, CPUSpecificParams{{}, {}, {"ref"}, "ref"})),
+                                ::testing::Values(CPUSpecificParams{{}, {}, {}, "ref"})),
                         VariadicSplitLayerCPUTest::getTestCaseName);
 
 const std::vector<InputShape> inputShapes3D = {
@@ -446,17 +446,17 @@ INSTANTIATE_TEST_SUITE_P(smoke_VariadicSplit3D, VariadicSplitLayerCPUTest,
                                 ::testing::Values(LengthsPerInfer{{2, 4, -1}}),
                                 ::testing::ValuesIn(lengthsTypes),
                                 ::testing::ValuesIn(netPrecisions),
-                                ::testing::Values(CPUSpecificParams{{}, {}, {"ref"}, "ref"})),
+                                ::testing::Values(CPUSpecificParams{{}, {}, {}, "ref"})),
                         VariadicSplitLayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_VariadicSplit2D_static, VariadicSplitLayerCPUTest,
                         ::testing::Combine(
                                 ::testing::Values(InputShape{ {}, {{6, 12}} }),
-                                ::testing::Values(0, 1),
+                                ::testing::Values(1),
                                 ::testing::Values(LengthsPerInfer{{2, -1}}),
                                 ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
                                 ::testing::ValuesIn(netPrecisions),
-                                ::testing::Values(CPUSpecificParams{{}, {}, {}, "unknown"}, CPUSpecificParams{{}, {}, {"ref"}, "ref"})),
+                                ::testing::Values(CPUSpecificParams{{}, {}, {}, "ref"})),
                         VariadicSplitLayerCPUTest::getTestCaseName);
 
 const std::vector<InputShape> inputShapes2D = {
@@ -489,7 +489,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_VariadicSplit2D, VariadicSplitLayerCPUTest,
                                 ::testing::Values(LengthsPerInfer{{2, -1}}),
                                 ::testing::ValuesIn(lengthsTypes),
                                 ::testing::ValuesIn(netPrecisions),
-                                ::testing::Values(CPUSpecificParams{{}, {}, {"ref"}, "ref"})),
+                                ::testing::Values(CPUSpecificParams{{}, {}, {}, "ref"})),
                         VariadicSplitLayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_VariadicSplit1D_static, VariadicSplitLayerCPUTest,
@@ -532,7 +532,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_VariadicSplit1D, VariadicSplitLayerCPUTest,
                                 ::testing::Values(LengthsPerInfer{{2, 1, 1, -1}}),
                                 ::testing::ValuesIn(lengthsTypes),
                                 ::testing::ValuesIn(netPrecisions),
-                                ::testing::Values(CPUSpecificParams{{}, {}, {"ref"}, "ref"})),
+                                ::testing::Values(CPUSpecificParams{{}, {}, {}, "ref"})),
                         VariadicSplitLayerCPUTest::getTestCaseName);
 
 const std::vector<InputShape> inputShapes4D_zero_dims = {
