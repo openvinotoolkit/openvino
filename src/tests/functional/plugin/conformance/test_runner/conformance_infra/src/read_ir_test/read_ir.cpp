@@ -9,6 +9,9 @@
 
 #include <pugixml.hpp>
 
+
+#include "shared_test_classes/base/utils/ranges.hpp"
+#include "shared_test_classes/base/utils/generate_inputs.hpp"
 #include "ngraph_functions/builders.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/data_utils.hpp"
@@ -172,25 +175,21 @@ void ReadIRTest::SetUp() {
             input_info.insert({in_name, in_info});
         }
 
+        auto inputMap = utils::getInputMap();
+        auto port = -1;
         for (const auto &param : function->get_parameters()) {
+            ++port;
             auto in_info = input_info.find(param->get_friendly_name())->second;
             if (!in_info.is_const) {
                 continue;
             }
-            auto tensor =
-                ov::test::utils::create_and_fill_tensor(param->get_element_type(),
-                                                        param->get_shape(),
-                                                        in_info.ranges.max,
-                                                        in_info.ranges.min);
+            auto next_node = param->get_default_output().get_node_shared_ptr();
+            auto it = inputMap.find(next_node->get_type_info());
+            auto tensor = it->second(next_node, port, param->get_element_type(), param->get_shape(),
+                                     utils::InputGenerateData(in_info.ranges.min * 1e3, (in_info.ranges.max - in_info.ranges.min) * 1e3, 1e3));
             auto const_node = std::make_shared<ov::op::v0::Constant>(tensor);
             ov::replace_node(param, const_node);
             function->remove_parameter(param);
-            std::string out_xml_path = "test.xml";
-            std::string out_bin_path = "test.bin";
-
-            ov::pass::Manager manager;
-            manager.register_pass<ov::pass::Serialize>(out_xml_path, out_bin_path);
-            manager.run_passes(function);
         }
     }
 

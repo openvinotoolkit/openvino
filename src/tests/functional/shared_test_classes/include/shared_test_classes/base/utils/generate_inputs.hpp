@@ -7,6 +7,8 @@
 #include "ie_core.hpp"
 #include "ngraph/node.hpp"
 
+#include "shared_test_classes/base/utils/ranges.hpp"
+
 namespace ov {
 namespace test {
 namespace utils {
@@ -15,7 +17,8 @@ using InputsMap = std::map<ov::NodeTypeInfo, std::function<ov::runtime::Tensor(
         const std::shared_ptr<ov::Node>& node,
         size_t port,
         const ov::element::Type& elemType,
-        const ov::Shape& targetShape)>>;
+        const ov::Shape& targetShape,
+        InputGenerateData in_gen_data)>>;
 
 InputsMap getInputMap();
 
