@@ -12,7 +12,7 @@
 namespace InferenceEngine {
 
 /**
- * @enum       column_of_cpu_streams_info_table
+ * @enum       ColumnOfCpuStreamsInfoTable
  * @brief      This enum contains definition of each columns in cpu streams information table.
  *
  * The following are two example of processor type table.
