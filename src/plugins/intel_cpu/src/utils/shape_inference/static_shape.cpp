@@ -15,7 +15,7 @@ void partial_shape_convert_throw() {
 
 template <class T>
 bool merge_into(StaticShapeCon& dst, const T& src) {
-    auto success = (dst.size() != src.size());
+    auto success = (dst.size() == src.size());
 
     for (size_t i = 0; success && (i < dst.size()); ++i)
         success = StaticDimension::merge(dst[i], dst[i], src[i]);
@@ -229,13 +229,61 @@ bool StaticShapeCon::merge_into(StaticShapeAdapter& dst, const StaticShapeAdapte
 }
 
 bool StaticShapeCon::broadcast_merge_into(StaticShapeCon& dst,
-                                          const StaticShapeCon& src,
+                                          const StaticShapeAdapter& src,
                                           const ov::op::AutoBroadcastSpec& autob) {
     // Copy from StaticShape when broadcast shape infer reviewed.
+    switch (autob.m_type) {
+    case ov::op::AutoBroadcastType::NONE:
+        return true;
+    case ov::op::AutoBroadcastType::NUMPY: {
+        auto dst_rank = dst.size();
+        auto src_rank = src.size();
+        auto new_rank = std::max(dst_rank, src_rank);
+        StaticShapeCon merged;
+        merged.resize(new_rank);
+
+        bool success = true;
+        for (size_t i = 0; i < new_rank; i++) {
+            auto dsti = i < (new_rank - dst_rank) ? StaticDimension(1) : dst[i - (new_rank - dst_rank)];
+            auto srci = i < (new_rank - src_rank) ? StaticDimension(1) : src[i - (new_rank - src_rank)];
+            success &= StaticDimension::broadcast_merge(merged[i], dsti, srci);
+        }
+        *dst = std::move(*merged);
+        return success;
+    }
+    case ov::op::AutoBroadcastType::PDPD: {
+        // Ranks are both static.
+        auto dst_rank = dst.rank().get_length();
+        auto src_rank = src.rank().get_length();
+        // source rank can't be bigger than destination rank according to
+        // PDPD broadcast rule.
+
+        int64_t axis = autob.m_axis;
+        if (src_rank > dst_rank || axis < -1)
+            return false;
+
+        axis = (axis == -1) ? (dst_rank - src_rank) : axis;
+        if (src_rank + axis > dst_rank)
+            return false;
+
+        bool success = true;
+        for (int64_t i = 0; i < src_rank; ++i) {
+            if (src[i].get_length() > dst[axis + i].get_length())
+                return false;
+
+            success &= StaticDimension::broadcast_merge(dst[axis + i], dst[axis + i], src[i]);
+        }
+
+        return success;
+    }
+    default:
+        OPENVINO_THROW("Unsupported auto broadcast type: ", autob.m_type);
+    }
     return false;
 }
 
 //-- Shape as reference
+StaticShapeRef::StaticShapeAdapter(const StaticShapeCon& shape) : m_dims{&(*shape)} {}
 StaticShapeRef::StaticShapeAdapter(const ov::PartialShape&) : m_dims{} {
     partial_shape_convert_throw();
 }
@@ -246,6 +294,10 @@ ov::Rank StaticShapeRef::rank() const {
 
 bool StaticShapeRef::merge_rank(const ov::Rank& r) {
     return r.is_dynamic() || (size() == static_cast<size_t>(r.get_length()));
+}
+
+ov::PartialShape StaticShapeRef::to_partial_shape() const {
+    return {to_shape()};
 }
 
 ov::Shape StaticShapeRef::to_shape() const {

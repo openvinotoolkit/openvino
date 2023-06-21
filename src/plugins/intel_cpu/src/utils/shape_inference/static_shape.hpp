@@ -111,7 +111,9 @@ public:
     StaticShapeAdapter();
     StaticShapeAdapter(const TDims& dims);
     StaticShapeAdapter(TDims&& dims) noexcept;
-    StaticShapeAdapter(std::initializer_list<dim_type> dims) noexcept : m_dims{dims} {}
+    StaticShapeAdapter(std::initializer_list<value_type> dims) noexcept : m_dims{dims.begin(), dims.end()} {};
+    StaticShapeAdapter(std::vector<value_type> dims) noexcept : m_dims(dims.begin(), dims.end()) {}
+
     StaticShapeAdapter(const StaticShapeCon& other);
     StaticShapeAdapter(const ov::PartialShape&);
 
@@ -229,7 +231,7 @@ public:
         m_dims.insert(position, first, last);
     }
 
-    void push_back(const dim_type value) {
+    void push_back(const dim_type& value) {
         m_dims.push_back(value);
     }
 
@@ -239,7 +241,7 @@ public:
 
     template <class... Args>
     void emplace_back(Args&&... args) {
-        m_dims.emplace_back(std::forward<Args>(args)...);
+        m_dims.emplace_back(value_type(std::forward<Args>(args)...));
     }
 
 private:
@@ -274,6 +276,7 @@ public:
     constexpr StaticShapeAdapter(const TDims& dims) : m_dims{&dims} {}
     constexpr StaticShapeAdapter(const StaticShapeAdapter<const TDims>& other) : m_dims{other.m_dims} {}
 
+    StaticShapeAdapter(const StaticShapeCon& shape);
     StaticShapeAdapter(const ov::PartialShape&);
 
     operator StaticShapeCon() const {
