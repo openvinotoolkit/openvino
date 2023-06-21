@@ -78,7 +78,7 @@ bool do_transformation(std::shared_ptr<ov::Node> convolution);
 bool do_transformation(std::shared_ptr<ov::Node> convolution) {
     auto convolution_node = std::dynamic_pointer_cast<Convolution>(convolution);
     auto convolution_input_data_node = convolution_node->input_value(0);
-    auto convolution_input_const_node = convolution_node->input_value(1);
+    auto convolution_filters_node = convolution_node->input_value(1);
     const ov::Shape convolution_input_shape = convolution_node->get_input_shape(0);
 
     if (convolution_input_shape.size() != 3 && convolution_input_shape.size() != 4) {
@@ -93,7 +93,7 @@ bool do_transformation(std::shared_ptr<ov::Node> convolution) {
 
     auto transpose_before = std::make_shared<Transpose>(convolution_input_data_node, transpose_const);
 
-    auto transpose_conv_constant = std::make_shared<Transpose>(convolution_input_const_node, transpose_const);
+    auto transpose_conv_constant = std::make_shared<Transpose>(convolution_filters_node, transpose_const);
     auto conv_new = std::make_shared<ov::intel_gna::op::GNAConvolution>(transpose_before,
                                                                         transpose_conv_constant,
                                                                         convolution_node->get_strides(),
