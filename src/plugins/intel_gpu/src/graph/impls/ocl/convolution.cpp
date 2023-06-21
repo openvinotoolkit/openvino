@@ -312,3 +312,4 @@ attach_convolution_impl::attach_convolution_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::convolution_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::convolution)

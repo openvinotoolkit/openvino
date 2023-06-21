@@ -71,3 +71,4 @@ attach_bucketize_impl::attach_bucketize_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::bucketize_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::bucketize)

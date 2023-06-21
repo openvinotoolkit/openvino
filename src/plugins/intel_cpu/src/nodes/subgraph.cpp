@@ -191,7 +191,7 @@ void Snippet::initSupportedPrimitiveDescriptors() {
             const auto equalPrecisions = getOriginalOutputPrecisions().size() == 1 &&
                     precision == getOriginalOutputPrecisionAtPort(0);
 
-            BlockedMemoryDesc::CmpMask inputMask = BLOCKED_DESC_SKIP_OFFSET_MASK;
+            BlockedMemoryDesc::CmpMask inputMask = BlockedMemoryDesc::SKIP_OFFSET_MASK;
             PortConfig portConfig;
             portConfig.inPlace((!i && canBeInPlace() && equalPrecisions) ? 0 : -1);
             portConfig.constant(false);
@@ -207,7 +207,7 @@ void Snippet::initSupportedPrimitiveDescriptors() {
             if (supportedPrecisions.count(precision) == 0)
                 IE_THROW() << "Subgraph node with name `" << getName() << "` doesn't support " << precision << " precision.";
 
-            BlockedMemoryDesc::CmpMask outputMask = BLOCKED_DESC_SKIP_OFFSET_MASK;
+            BlockedMemoryDesc::CmpMask outputMask = BlockedMemoryDesc::SKIP_OFFSET_MASK;
             PortConfig portConfig;
             portConfig.inPlace(-1);
             portConfig.constant(false);
@@ -235,7 +235,7 @@ void Snippet::initSupportedPrimitiveDescriptors() {
 }
 
 void Snippet::selectOptimalPrimitiveDescriptor() {
-    selectPreferPrimitiveDescriptor(getPrimitivesPriority(), true);
+    selectPreferPrimitiveDescriptor(getImplPriority(), true);
 }
 InferenceEngine::Precision Snippet::getRuntimePrecision() const {
     std::vector<InferenceEngine::Precision> inputPrecisions;
@@ -262,11 +262,11 @@ bool Snippet::optimizeExecDomain(std::vector<VectorDims>& inputShapes, std::vect
         auto collapseLastDims = [](VectorDims& dims, size_t dimsToCollapse) {
             if (dimsToCollapse >= dims.size() - 1)
                 IE_THROW() << "Got invalid number of dims to collapse. Expected < " << dims.size() - 1 << " got " << dimsToCollapse;
-            for (int i = dims.size() - 2; i > dims.size() - dimsToCollapse - 2; i--) {
+            for (int i = dims.size() - 2; i > static_cast<int>(dims.size() - dimsToCollapse - 2); i--) {
                 dims[dims.size() - 1] *= dims[i];
             }
 
-            for (int i = dims.size() - 2; i >= dimsToCollapse; i--) {
+            for (int i = dims.size() - 2; i >= static_cast<int>(dimsToCollapse); i--) {
                 dims[i] = dims[i - dimsToCollapse];
             }
 
@@ -501,7 +501,7 @@ void Snippet::prepareParams() {
 
     if (dims_collapsed) {
         std::vector<ov::Shape> new_shapes;
-        for (int i = 0; i < normInputShapes.size(); i++) {
+        for (size_t i = 0; i < normInputShapes.size(); i++) {
             const auto norm_shape = normInputShapes[i];
             size_t ndims_to_skip = norm_shape.size() - original_input_shape_ranks[i];
             new_shapes.emplace_back(norm_shape.begin() + ndims_to_skip, norm_shape.end());

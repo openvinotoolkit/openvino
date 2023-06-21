@@ -427,12 +427,12 @@ void Gather::executeDynamicImpl(dnnl::stream strm) {
                 permIdxMask[0] = idxElPerVec - specIndicesSize;
                 int div = idxElPerVec / specIndicesSize;
                 int remainder = idxElPerVec % specIndicesSize;
-                for (int i = 1; i < idxElPerVec; i++) {
+                for (uint64_t i = 1; i < idxElPerVec; i++) {
                     permIdxMask[i] = permIdxMask[i - 1] + 1;
-                    if (permIdxMask[i] == idxElPerVec)
+                    if (static_cast<uint64_t>(permIdxMask[i]) == idxElPerVec)
                         permIdxMask[i] = idxElPerVec - specIndicesSize;
                 }
-                for (int i = 0; i < idxElPerVec; i++) {
+                for (uint64_t i = 0; i < idxElPerVec; i++) {
                     if (((start + i) % specIndicesSize) < (specIndicesSize - remainder))
                         beforeAxisDiff[i] = axisDim * div;
                     else
@@ -466,9 +466,9 @@ void Gather::initShortParams(threadExecParams& p, const uint64_t start) {
         p.srcBeforeAxisDiff.resize(idxElPerVec);
 
         p.permIdxMask[0] = idxElPerVec - specIndicesSize;
-        for (int i = 1; i < idxElPerVec; i++) {
+        for (uint64_t i = 1; i < idxElPerVec; i++) {
             p.permIdxMask[i] = p.permIdxMask[i - 1] + 1;
-            if (p.permIdxMask[i] == idxElPerVec)
+            if (static_cast<uint64_t>(p.permIdxMask[i]) == idxElPerVec)
                 p.permIdxMask[i] = idxElPerVec - specIndicesSize;
         }
 
@@ -492,7 +492,7 @@ void Gather::initShortParams(threadExecParams& p, const uint64_t start) {
         p.srcBeforeAxisDiff.resize(idxElPerVec);
 
         int secondStart = start + idxElPerVec;
-        for (int i = 0; i < idxElPerVec; i++) {
+        for (uint64_t i = 0; i < idxElPerVec; i++) {
             p.afterAxIdxInBytes[i] = (start + i) % afterAxisSize;
             p.specIdxDiff[i] = (((secondStart + i) / afterAxisSize) % specIndicesSize) * idxTypeSize - p.specIdxInBytes[i];
             if (p.specIdxDiff[i] < 0)
@@ -503,15 +503,15 @@ void Gather::initShortParams(threadExecParams& p, const uint64_t start) {
             p.afterAxIdxInBytes[i] *= dataTypeSize;
             p.afterAxPermMask[i] = idxElPerVec - afterAxisSize + i;
             for (size_t j = 0lu; j < 6lu; j++) {
-                if (p.afterAxPermMask[i] >= idxElPerVec)
+                if (static_cast<uint64_t>(p.afterAxPermMask[i]) >= idxElPerVec)
                     p.afterAxPermMask[i] -= afterAxisSize;
             }
         }
         if (specIndicesSize * afterAxisSize < idxElPerVec) {
             p.beforeAxPermMask[0] = idxElPerVec - specIndicesSize * afterAxisSize;
-            for (int i = 1; i < idxElPerVec; i++) {
+            for (uint64_t i = 1; i < idxElPerVec; i++) {
                 p.beforeAxPermMask[i] = p.beforeAxPermMask[i - 1] + 1;
-                if (p.beforeAxPermMask[i] == idxElPerVec)
+                if (static_cast<uint64_t>(p.beforeAxPermMask[i]) == idxElPerVec)
                     p.beforeAxPermMask[i] = idxElPerVec - specIndicesSize * afterAxisSize;
             }
         }
@@ -536,7 +536,7 @@ void Gather::execReference() {
         }
         const size_t idx = ii;
         const size_t c2 = dstAfterBatchSize * b + afterAxisSizeInBytes * j;
-        if (idx < axisDim) {
+        if (idx < static_cast<size_t>(axisDim)) {
             size_t c1 = srcAfterBatchSizeInBytes * b + afterAxisSizeInBytes * idx;
             for (size_t i = 0; i < betweenBatchAndAxisSize; i++) {
                 size_t srcIdx = c1 + axisAndAfterAxisSizeInBytes * i;

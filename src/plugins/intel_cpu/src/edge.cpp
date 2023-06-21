@@ -152,9 +152,10 @@ bool Edge::enforceReorder() {
 
     if (in_place) {
         int outNumber = getOutputNum();
-        if (inNumber >= 0 && inNumber < parentSPD->getConfig().outConfs.size() &&
+        if (inNumber >= 0 && static_cast<size_t>(inNumber) < parentSPD->getConfig().outConfs.size() &&
             parentSPD->getConfig().outConfs[inNumber].inPlace() >= 0 && outNumber >= 0 &&
-            outNumber < childSPD->getConfig().inConfs.size() && childSPD->getConfig().inConfs[outNumber].inPlace() >= 0)
+            static_cast<size_t>(outNumber) < childSPD->getConfig().inConfs.size() &&
+            childSPD->getConfig().inConfs[outNumber].inPlace() >= 0)
             canBeInPlaceConflicts = true;
     }
 
@@ -236,7 +237,7 @@ static inline bool isPhycicalMemCompatible(const MemoryDesc& lhsMemDesc, const M
         if (dims.size() != flag.size())
             return dims;
         std::vector<size_t> ret;
-        for (int i = 0; i < dims.size(); i++) {
+        for (size_t i = 0; i < dims.size(); i++) {
             if (flag[i] != 1) {
                 ret.push_back(dims[i]);
             }
@@ -400,7 +401,7 @@ PortDescBaseCPtr Edge::getInputPortDesc() const {
     if (outConfs.empty())
         IE_THROW() << "Node " << parentPtr->getName() << " has empty output config list.";
 
-    if (inputIdx >= outConfs.size())
+    if (static_cast<size_t>(inputIdx) >= outConfs.size())
         inputIdx = 0;
 
     auto inputPortDesc = outConfs[inputIdx].getPortDesc();
@@ -425,7 +426,7 @@ PortDescBaseCPtr Edge::getOutputPortDesc() const {
     if (inConfs.empty())
         IE_THROW() << "Node " << childPtr->getName() << " has empty input config list.";
 
-    if (outputIdx >= inConfs.size())
+    if (static_cast<size_t>(outputIdx) >= inConfs.size())
         outputIdx = 0;
 
     auto outPortDesc = inConfs[outputIdx].getPortDesc();
@@ -632,9 +633,9 @@ bool Edge::inPlace(LOOK look) const {
         IE_THROW() << "Cannot make a decision about reorder. Primitive descriptors weren't selected.";
     int inputNum = getInputNum();
     int outputNum = getOutputNum();
-    if (inputNum >= parentSPD->getConfig().outConfs.size())
+    if (inputNum >= static_cast<int>(parentSPD->getConfig().outConfs.size()))
         inputNum = 0;
-    if (outputNum >= childSPD->getConfig().inConfs.size())
+    if (outputNum >= static_cast<int>(childSPD->getConfig().inConfs.size()))
         outputNum = 0;
 
     if (look & LOOK_UP) {

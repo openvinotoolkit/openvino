@@ -125,6 +125,7 @@ struct quantize : public primitive_base<quantize> {
     }
 
     void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<quantize>::save(ob);
         ob << levels;
         ob << scale_shift_opt;
         ob << need_post_scale;
@@ -150,6 +151,7 @@ struct quantize : public primitive_base<quantize> {
     }
 
     void load(BinaryInputBuffer& ib) override {
+        primitive_base<quantize>::load(ib);
         ib >> levels;
         ib >> scale_shift_opt;
         ib >> need_post_scale;

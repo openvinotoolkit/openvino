@@ -12,6 +12,10 @@ namespace cldnn {
 struct convert_color : public primitive_base<convert_color> {
     CLDNN_DECLARE_PRIMITIVE(convert_color)
 
+    convert_color() : primitive_base("", {}) {}
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     enum color_format : uint32_t {
         RGB,       ///< RGB color format
         BGR,       ///< BGR color format, default in OpenVINO
@@ -69,6 +73,22 @@ struct convert_color : public primitive_base<convert_color> {
                output_color_format == rhs_casted.output_color_format &&
                mem_type == rhs_casted.mem_type &&
                output_layout == rhs_casted.output_layout;
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<convert_color>::save(ob);
+        ob << make_data(&input_color_format, sizeof(color_format));
+        ob << make_data(&output_color_format, sizeof(color_format));
+        ob << make_data(&mem_type, sizeof(memory_type));
+        ob << output_layout;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<convert_color>::load(ib);
+        ib >> make_data(&input_color_format, sizeof(color_format));
+        ib >> make_data(&output_color_format, sizeof(color_format));
+        ib >> make_data(&mem_type, sizeof(memory_type));
+        ib >> output_layout;
     }
 };
 }  // namespace cldnn

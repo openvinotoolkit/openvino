@@ -268,7 +268,7 @@ ShuffleChannels::ShuffleChannelsExecutor::ShuffleChannelsExecutor(const ShuffleC
 
     std::iota(params.src_block_order.begin(), params.src_block_order.end(), 0);
     std::iota(params.dst_block_order.begin(), params.dst_block_order.end(), 0);
-    for (size_t i = 0; i < reshapedRank; i++)
+    for (int i = 0; i < reshapedRank; i++)
         params.dst_block_dims[i] = params.src_block_dims[params.order[i]];
 
     permuteKernel = std::unique_ptr<PermuteKernel>(new PermuteKernel(params));

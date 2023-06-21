@@ -9,8 +9,8 @@
 
 #include "exceptions.hpp"
 #include "ngraph/file_util.hpp"
-#include "ngraph/log.hpp"
 #include "openvino/util/file_util.hpp"
+#include "openvino/util/log.hpp"
 
 namespace ngraph {
 namespace onnx_import {
@@ -58,7 +58,7 @@ std::string TensorExternalData::load_external_data(const std::string& model_dir)
     external_data_stream.seekg(m_offset, std::ios::beg);
 
     if (m_sha1_digest.size() > 0) {
-        NGRAPH_WARN << "SHA1 checksum is not supported";
+        OPENVINO_WARN << "SHA1 checksum is not supported";
     }
 
     std::string read_data;

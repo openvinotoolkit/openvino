@@ -116,3 +116,5 @@ attach_gather_nonzero_impl::attach_gather_nonzero_impl() {
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::count_nonzero_impl)
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::gather_nonzero_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::count_nonzero)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::gather_nonzero)

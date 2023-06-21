@@ -3,6 +3,8 @@
 //
 // NOTE: WILL BE REWORKED (31905)
 
+#pragma once
+
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 #include "common_test_utils/common_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"

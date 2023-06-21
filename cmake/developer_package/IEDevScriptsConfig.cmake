@@ -164,7 +164,7 @@ ov_set_if_not_defined(CMAKE_PDB_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
 ov_set_if_not_defined(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
 
 if(CPACK_GENERATOR MATCHES "^(DEB|RPM)$")
-    # to make sure that lib/<multiarch-tuple> is created on Debian
+    # to make sure that lib/<multiarch-triplet> is created on Debian
     set(CMAKE_INSTALL_PREFIX "/usr" CACHE PATH "Cmake install prefix" FORCE)
 endif()
 
@@ -179,10 +179,6 @@ if(APPLE)
         set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/${OV_CPACK_LIBRARYDIR}")
     else()
         message(FATAL_ERROR "Internal error: OV_CPACK_LIBRARYDIR is not defined, while it's required to initialize RPATH")
-    endif()
-
-    if(CPACK_GENERATOR STREQUAL "BREW")
-        set(CMAKE_SKIP_INSTALL_RPATH OFF)
     endif()
 
     # WA for Xcode generator + object libraries issue:
@@ -231,17 +227,6 @@ if(ENABLE_LTO)
 endif()
 
 # General flags
-
-macro(ov_install_static_lib target comp)
-    if(NOT BUILD_SHARED_LIBS)
-        get_target_property(target_type ${target} TYPE)
-        if(target_type STREQUAL "STATIC_LIBRARY")
-            set_target_properties(${target} PROPERTIES EXCLUDE_FROM_ALL OFF)
-        endif()
-        install(TARGETS ${target} EXPORT OpenVINOTargets
-                ARCHIVE DESTINATION ${OV_CPACK_ARCHIVEDIR} COMPONENT ${comp} ${ARGN})
-    endif()
-endmacro()
 
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)

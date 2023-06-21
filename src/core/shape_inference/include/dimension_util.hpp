@@ -12,7 +12,7 @@ namespace ov {
 namespace util {
 namespace dim {
 
-constexpr auto inf_bound = -1;  //!< Infinite bound value for dimension.
+constexpr int64_t inf_bound = -1;  //!< Infinite bound value for dimension.
 
 /**
  * @brief Checks if dimension length is infinite bound (undefined).
@@ -108,11 +108,15 @@ constexpr typename std::enable_if<std::is_arithmetic<TDim>::value, TDim>::type p
  */
 template <class TDim>
 typename std::enable_if<std::is_class<TDim>::value, TDim>::type padded(const TDim& dim, const int64_t pad_num) {
-    auto ub = padded(dim.get_max_length(), pad_num);
-    if (dim.is_static()) {
-        return {ub};
+    if (pad_num != 0) {
+        auto ub = padded(dim.get_max_length(), pad_num);
+        if (dim.is_static()) {
+            return {ub};
+        } else {
+            return {padded(dim.get_min_length(), pad_num), ub};
+        }
     } else {
-        return {padded(dim.get_min_length(), pad_num), ub};
+        return dim;
     }
 }
 
@@ -205,6 +209,31 @@ bool is_divisible(const TDim& quotient, const typename TDim::value_type dividend
 template <>
 inline bool is_divisible<Dimension>(const Dimension& quotient, const typename Dimension::value_type dividend) {
     return !(quotient / dividend).get_interval().empty();
+}
+
+/**
+ * @brief Scale dimension size by floating point value.
+ *
+ * @tparam TDim  Dimension type.
+ * @param d      Dimension to scale.
+ * @param scale  Scale value for dimension.
+ */
+template <class TDim>
+void scale(TDim& d, float scale) {
+    using T = typename TDim::value_type;
+    static constexpr float epsilon = 1.0e-6f;
+    if (scale != 1.0f) {
+        scale += epsilon;
+
+        auto ub = d.get_max_length();
+        ub = is_inf_bound(ub) ? static_cast<T>(inf_bound) : static_cast<T>(static_cast<float>(ub) * scale);
+
+        if (d.is_static()) {
+            d = TDim(ub);
+        } else {
+            d = TDim(static_cast<T>(static_cast<float>(d.get_min_length()) * scale), ub);
+        }
+    }
 }
 
 }  // namespace dim

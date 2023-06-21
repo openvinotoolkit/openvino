@@ -10,6 +10,7 @@
 #include "openvino/runtime/common.hpp"
 #include "system_allocator.hpp"  // IE private header
 
+IE_SUPPRESS_DEPRECATED_START
 namespace InferenceEngine {
 struct BlobAllocator : public IAllocator {
     BlobAllocator(const ov::Allocator& impl) : _impl{impl} {}
@@ -79,3 +80,4 @@ struct BlobAllocator {
     std::shared_ptr<ie::IAllocator> _impl;
 };
 }  // namespace ov
+IE_SUPPRESS_DEPRECATED_END

@@ -17,9 +17,10 @@
 #include <ov_ops/augru_sequence.hpp>
 
 // Common transformations
+#include "transformations/common_optimizations/mark_precision_sensitive_shapeof_subgraphs.hpp"
 #include "transformations/common_optimizations/add_fake_quantize_fusion.hpp"
 #include "transformations/common_optimizations/broadcast_transition.hpp"
-#include "transformations/common_optimizations/convert_compression_only_to_legacy.hpp"
+#include "transformations/fp16_compression/convert_compression_only_to_legacy.hpp"
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
 #include "transformations/common_optimizations/fq_mul_fusion.hpp"
 #include "transformations/common_optimizations/mul_fake_quantize_fusion.hpp"
@@ -30,7 +31,7 @@
 #include "transformations/common_optimizations/common_optimizations.hpp"
 #include "transformations/common_optimizations/wrap_interpolate_into_transposes.hpp"
 #include "transformations/control_flow/unroll_tensor_iterator.hpp"
-#include "transformations/disable_decompression_convert_constant_folding.hpp"
+#include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
 #include "transformations/op_conversions/convert_batch_to_space.hpp"
 #include "transformations/op_conversions/convert_broadcast_to_tiles.hpp"
 #include "transformations/op_conversions/convert_depth_to_space.hpp"
@@ -87,6 +88,7 @@
 #include "low_precision/convolution_backprop_data.hpp"
 #include "low_precision/group_convolution.hpp"
 #include "low_precision/multiply_to_group_convolution.hpp"
+#include "low_precision/recurrent_cell.hpp"
 #include "low_precision/network_helper.hpp"
 #include "low_precision/rt_info/bias_attribute.hpp"
 #include "transformations/low_precision/mark_dequantization_subgraph.hpp"
@@ -108,6 +110,8 @@
 
 // Snippets
 #include "snippets/pass/tokenization.hpp"
+#include "snippets/pass/mha_tokenization.hpp"
+#include "snippets/pass/collapse_subgraph.hpp"
 #include "snippets/pass/common_optimizations.hpp"
 
 // Misc
@@ -115,7 +119,6 @@
 #include "nodes/normalize.h"
 #include "nodes/fake_quantize.h"
 #include "nodes/mha.h"
-
 #include "dnnl.hpp"
 #include <cpu/x64/cpu_isa_traits.hpp>
 
@@ -197,6 +200,9 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     ov::pass::Manager manager;
     manager.set_per_pass_validation(false);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::InitNodeInfo);
+    CPU_REGISTER_PASS_COMMON(manager, ov::pass::MarkShapeOfSubgraphs);
+    // todo: uncomment KeepConstAndDecompression when xxx-105060 is ready
+    // CPU_REGISTER_PASS_COMMON(manager, ov::pass::KeepConstAndDecompression);
 
     const bool useLpt = !defaultPrecisions.empty();
     if (useLpt) {
@@ -255,7 +261,9 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     }
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::Validate);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::RefConvertI64ToI32);
+
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertPrecision, precisions, type_to_fuse);
+
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::EliminateConvert);
     CPU_REGISTER_PASS_COMMON(manager, SwapConvertTranspose);
     CPU_REGISTER_PASS_X64(manager, ConvertToInteraction);
@@ -502,10 +510,10 @@ void Transformations::Lpt(const bool hasINT16orINT32Levels, const std::vector<ov
                     {{1}, {ov::element::i8}}
                 }),
             PrecisionsRestriction::create<ov::opset5::LSTMSequence>({
-                    {{0, 1}, {ov::element::u8, ov::element::i8}},
+                    {{0, 1}, {ov::element::u8}}
                 }),
             PrecisionsRestriction::create<ov::opset6::GRUSequence>({
-                    {{0, 1}, {ov::element::u8, ov::element::i8}},
+                    {{0, 1}, {ov::element::u8}}
                 }),
         });
 
@@ -546,6 +554,7 @@ void Transformations::Lpt(const bool hasINT16orINT32Levels, const std::vector<ov
             return ov::marked_as_bias(node);
         });
 
+    CPU_DISABLE_PASS_ARM(lptManager, ngraph::pass::low_precision::RecurrentCellTransformation);
     CPU_DISABLE_PASS_COMMON(lptManager, ngraph::pass::low_precision::MultiplyToGroupConvolutionTransformation);
 
     lptManager.run_passes(model);
@@ -607,7 +616,7 @@ void Transformations::PostLpt() {
     }
 
     // Execute before snippets. Otherwise FQ will be converted to Subgraph
-    CPU_REGISTER_PASS_COMMON(postLPTPassManager, ConvertFqRnnToQuantizedRnn);
+    CPU_REGISTER_PASS_X64(postLPTPassManager, ConvertFqRnnToQuantizedRnn);
     postLPTPassManager.run_passes(model);
 }
 
@@ -616,22 +625,58 @@ void Transformations::MainSnippets(void) {
         !dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2)) // snippets are implemented only for relevant platforms (avx2+ extensions)
         return;
 
+    // At the moment Snippets supports Transposes in MHA pattern only in FP32 case since
+    //      - ConvertSaturation[BF16->FP32] will be inserted after Parameters and before Transposes in canonicalization stage
+    //      - ConvertSaturation[FP32->BF16] will be inserted after Transposes and before Brgemm in precision propagation stage
+    // Because of that Transposes won't be fused into Brgemm
+    // TODO [111813]: Need to update this pipeline to avoid Converts between Transposes and Brgemm on inputs
+    ov::snippets::pass::SnippetsTokenization::Config tokenization_config;
+    tokenization_config.mha_token_enable_transpose = !enableBF16;
+
     ngraph::pass::Manager snippetsManager;
     snippetsManager.set_per_pass_validation(false);
     if (snippetsMode != Config::SnippetsMode::IgnoreCallback)
         CPU_REGISTER_PASS_X64(snippetsManager, SnippetsMarkSkipped, enableBF16);
-    CPU_REGISTER_PASS_X64(snippetsManager, snippets::pass::SnippetsTokenization);
+    CPU_REGISTER_PASS_X64(snippetsManager, snippets::pass::SnippetsTokenization, tokenization_config);
 
+    // Tokenize MHA in quantized model or with BF16 only in tests.
+    // TODO [106921]: Please enable the tokenization when the ticket 106921 with blocking support for BRGEMM will be implemented
+    const bool onlyFloatSupported = snippetsMode != Config::SnippetsMode::IgnoreCallback;
     const bool isMHASupported =
-            !enableBF16 &&  // TODO: Need to add BF16 support for MHA in Snippets
+            IMPLICATION(enableBF16, !onlyFloatSupported) &&
             dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core);  // MHA has BRGEMM that is supported only on AVX512 platforms
     if (!isMHASupported) {
         CPU_DISABLE_PASS_X64(snippetsManager, snippets::pass::TokenizeMHASnippets);
     }
+
+#if defined(OPENVINO_ARCH_X86_64)
+    auto is_supported_matmul = [onlyFloatSupported](const std::shared_ptr<const ov::Node>& n) {
+        const auto matmul = ov::as_type_ptr<const ov::op::v0::MatMul>(n);
+        if (!matmul)
+            return false;
+        if (matmul->get_input_element_type(1) == ov::element::i8)
+            return !onlyFloatSupported && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_vnni);
+        if (matmul->get_input_element_type(0) == ov::element::bf16 &&
+            matmul->get_input_element_type(1) == ov::element::bf16)
+            return !onlyFloatSupported && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16);
+        return true;
+    };
+#endif // OPENVINO_ARCH_X86_64
+
     if (snippetsMode != Config::SnippetsMode::IgnoreCallback) {
         CPU_SET_CALLBACK_X64(snippetsManager,
-            [](const std::shared_ptr<const ov::Node>& n) -> bool {
-                const auto pshape = n->get_output_partial_shape(0);
+            [&](const std::shared_ptr<const ov::Node>& n) -> bool {
+                // Tranformation callback is called on MatMul0
+                if (!is_supported_matmul(n))
+                    return true;
+                // Search for MatMul1
+                auto child = n->get_output_target_inputs(0).begin()->get_node()->shared_from_this();
+                while (!ov::is_type<const ov::op::v0::MatMul>(child)) {
+                    child = child->get_output_target_inputs(0).begin()->get_node()->shared_from_this();
+                }
+                if (!is_supported_matmul(child))
+                    return true;
+                const auto pshape = child->get_input_partial_shape(0);
                 const auto shape = pshape.get_shape();
                 const auto parallel_work_amount =
                         std::accumulate(shape.rbegin() + 2, shape.rend(), 1, std::multiplies<size_t>());
@@ -646,8 +691,9 @@ void Transformations::MainSnippets(void) {
                 //       - parallelism support on JIT level
                 const auto needed_num_of_threads = 12lu;
                 const auto l2_cache_size = dnnl::utils::get_cache_size(2, true);
-                const auto is_unsupported_parallel_work_amount = parallel_get_num_threads() / 2 > parallel_work_amount &&
-                                                                parallel_work_amount < needed_num_of_threads;
+                const auto is_unsupported_parallel_work_amount =
+                    parallel_get_num_threads() / 2 > parallel_work_amount &&
+                    static_cast<size_t>(parallel_work_amount) < needed_num_of_threads;
                 const auto is_unsupported_kernel_work_amount = kernel_buffer_size > l2_cache_size;
                 return is_unsupported_parallel_work_amount || is_unsupported_kernel_work_amount;
             },
@@ -661,18 +707,18 @@ void Transformations::MainSnippets(void) {
                 // todo: general tokenization flow is not currently supported for these operations.
                 //  they can be tokenized only as a part of complex patterns
                 const bool is_disabled_tokenization = (ov::is_type<const ov::op::v1::Softmax>(n) ||
-                                                    ov::is_type<const ov::op::v8::Softmax>(n) ||
-                                                    ov::is_type<const ov::op::v0::MatMul>(n) ||
-                                                    ov::is_type<const ov::op::v1::Transpose>(n) ||
-                                                    ov::is_type<const ov::op::v1::Broadcast>(n) ||
-                                                    ov::is_type<const ov::op::v3::Broadcast>(n));
+                                                       ov::is_type<const ov::op::v8::Softmax>(n) ||
+                                                       ov::is_type<const ov::op::v0::MatMul>(n) ||
+                                                       ov::is_type<const ov::op::v1::Transpose>(n) ||
+                                                       ov::is_type<const ov::op::v1::Broadcast>(n) ||
+                                                       ov::is_type<const ov::op::v3::Broadcast>(n));
                 const auto& inputs = n->inputs();
                 // todo: clarify whether we can evaluate snippets on const paths
                 const bool has_only_const_inputs = std::all_of(inputs.begin(), inputs.end(),
-                                                            [](const ov::Input<const ov::Node>& in) {
-                                                                return ov::is_type<ov::op::v0::Constant>(
-                                                                        in.get_source_output().get_node_shared_ptr());
-                                                            });
+                                                               [](const ov::Input<const ov::Node>& in) {
+                                                                   return ov::is_type<ov::op::v0::Constant>(
+                                                                           in.get_source_output().get_node_shared_ptr());
+                                                               });
                 // todo: clarify whether we can evaluate snippets on inputs with larger ranks
                 auto rank_is_too_large = [](const ov::descriptor::Tensor& t) {
                     // callback is called has_supported_in_out(), so it's safe to assume that the shapes are static

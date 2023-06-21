@@ -43,7 +43,7 @@ Model Preparation
 
    After that, the full-precision model in the IR format is located in ``<EXAMPLE_DIR>/public/mobilenet-v2-pytorch/FP32/``.
 
-For more information about the Model Optimizer, refer to its :doc:`documentation <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`.
+For more information about Model Conversion API, refer to its :doc:`documentation <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`.
 
 Performance Benchmarking of Full-Precision Models
 #################################################

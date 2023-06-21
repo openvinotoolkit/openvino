@@ -14,6 +14,10 @@ namespace cldnn {
 struct region_yolo : public primitive_base<region_yolo> {
     CLDNN_DECLARE_PRIMITIVE(region_yolo)
 
+    region_yolo() : primitive_base("", {}) {}
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     /// @brief Constructs region_yolo primitive.
     /// @param id This primitive id.
     /// @param input Input primitive id.
@@ -63,6 +67,24 @@ struct region_yolo : public primitive_base<region_yolo> {
                num == rhs_casted.num &&
                mask_size == rhs_casted.mask_size &&
                do_softmax == rhs_casted.do_softmax;
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<region_yolo>::save(ob);
+        ob << coords;
+        ob << classes;
+        ob << num;
+        ob << mask_size;
+        ob << do_softmax;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<region_yolo>::load(ib);
+        ib >> coords;
+        ib >> classes;
+        ib >> num;
+        ib >> mask_size;
+        ib >> do_softmax;
     }
 };
 }  // namespace cldnn

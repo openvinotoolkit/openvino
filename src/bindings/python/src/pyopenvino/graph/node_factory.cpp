@@ -18,12 +18,13 @@
 
 #include "dict_attribute_visitor.hpp"
 #include "ngraph/check.hpp"
-#include "ngraph/log.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/op/util/variable.hpp"
 #include "openvino/opsets/opset.hpp"
+#include "openvino/util/log.hpp"
+#include "pyopenvino/core/common.hpp"
 
 namespace py = pybind11;
 
@@ -60,7 +61,7 @@ public:
                      "Currently NodeFactory doesn't support Constant node: ",
                      op_type_name);
 
-        NGRAPH_WARN << "Empty op created! Please assign inputs and attributes and run validate() before op is used.";
+        OPENVINO_WARN << "Empty op created! Please assign inputs and attributes and run validate() before op is used.";
 
         return op_node;
     }
@@ -101,6 +102,6 @@ void regclass_graph_NodeFactory(py::module m) {
         });
 
     node_factory.def("__repr__", [](const NodeFactory& self) {
-        return "<NodeFactory>";
+        return Common::get_simple_repr(self);
     });
 }

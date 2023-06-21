@@ -10,6 +10,7 @@
 #include "gtest/gtest.h"
 #include "ngraph/log.hpp"
 #include "ngraph/runtime/aligned_buffer.hpp"
+#include "openvino/util/log.hpp"
 #include "util/float_util.hpp"
 
 using namespace std;
@@ -149,7 +150,7 @@ TEST(benchmark, bfloat16) {
     for (size_t i = 0; i < buffer_size; ++i) {
         f[i] = distribution(rng);
     }
-    NGRAPH_INFO << "buffer size " << buffer_size << " floats or " << data.size() << " bytes";
+    OPENVINO_INFO << "buffer size " << buffer_size << " floats or " << data.size() << " bytes";
 
     {
         ngraph::runtime::AlignedBuffer bf_data(buffer_size * sizeof(bfloat16), 4096);
@@ -160,7 +161,7 @@ TEST(benchmark, bfloat16) {
             p[i] = bfloat16(f[i]);
         }
         timer.stop();
-        NGRAPH_INFO << "float to bfloat16 ctor                  " << timer.get_milliseconds() << "ms";
+        OPENVINO_INFO << "float to bfloat16 ctor                  " << timer.get_milliseconds() << "ms";
     }
 
     {
@@ -172,7 +173,7 @@ TEST(benchmark, bfloat16) {
             p[i] = bfloat16::truncate(f[i]);
         }
         timer.stop();
-        NGRAPH_INFO << "float to bfloat16 truncate              " << timer.get_milliseconds() << "ms";
+        OPENVINO_INFO << "float to bfloat16 truncate              " << timer.get_milliseconds() << "ms";
     }
 
     {
@@ -184,7 +185,7 @@ TEST(benchmark, bfloat16) {
             p[i] = bfloat16::round_to_nearest(f[i]);
         }
         timer.stop();
-        NGRAPH_INFO << "float to bfloat16 round to nearest      " << timer.get_milliseconds() << "ms";
+        OPENVINO_INFO << "float to bfloat16 round to nearest      " << timer.get_milliseconds() << "ms";
     }
 
     {
@@ -196,7 +197,7 @@ TEST(benchmark, bfloat16) {
             p[i] = bfloat16::round_to_nearest_even(f[i]);
         }
         timer.stop();
-        NGRAPH_INFO << "float to bfloat16 round to nearest even " << timer.get_milliseconds() << "ms";
+        OPENVINO_INFO << "float to bfloat16 round to nearest even " << timer.get_milliseconds() << "ms";
     }
     NGRAPH_SUPPRESS_DEPRECATED_END
 }

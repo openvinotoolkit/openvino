@@ -3,9 +3,9 @@
 The main responsibility of the AUTO plugin is to provide a unified device that enables developers to code deep learning applications once and deploy them anywhere. 
 
 Other capabilities of the AUTO plugin include:
-* Static device selection, which intelligently loads a network to one device or multiple devices.
-* CPU acceleration to start inferencing while the target device is still loading the network.
-* Model priority support for loading multiple networks to multiple devices.
+* Static device selection, which intelligently compiles a model to one device or multiple devices.
+* CPU acceleration to start inferencing while the target device is still compiling the model.
+* Model priority support for compiling multiple models to multiple devices.
 
 The component is written in `C++`. If you want to contribute to the AUTO plugin, follow [the common coding style rules](../../../docs/dev/coding_style.md).
 
@@ -20,7 +20,7 @@ The AUTO plugin follows the OpenVINO™ plugin architecture and consists of seve
  * [src](./src/) - folder contains sources of the AUTO plugin.
  * [tests](./tests/) - tests for Auto Plugin components.
 
-Learn more in the [OpenVINO™ Plugin Developer Guide](https://docs.openvino.ai/latest/openvino_docs_ie_plugin_dg_overview.html).
+Learn more in the [OpenVINO™ Plugin Developer Guide](https://docs.openvino.ai/2023.0/openvino_docs_ie_plugin_dg_overview.html).
 
 ## Architecture
 The diagram below shows an overview of the components responsible for the basic inference flow:
