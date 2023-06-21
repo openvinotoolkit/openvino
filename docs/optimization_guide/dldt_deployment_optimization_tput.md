@@ -31,20 +31,20 @@ In general, most throughput-oriented inference applications should:
   * Setup the configuration for the *device* (for example, as parameters of the ``ov::Core::compile_model``) via either previously introduced :doc:`low-level explicit options <openvino_docs_deployment_optimization_guide_tput_advanced>` or :doc:`OpenVINO performance hints <openvino_docs_OV_UG_Performance_Hints>` (**preferable**):
     
     .. tab-set::
-
+    
        .. tab-item:: C++
           :sync: cpp
-   
-             .. doxygensnippet:: docs/snippets/ov_auto_batching.cpp
-                :language: cpp
-                :fragment: [compile_model]
-   
+    
+          .. doxygensnippet:: docs/snippets/ov_auto_batching.cpp
+             :language: cpp
+             :fragment: [compile_model]
+    
        .. tab-item:: Python
           :sync: py
-   
-             .. doxygensnippet:: docs/snippets/ov_auto_batching.py
-                :language: python
-                :fragment: [compile_model]
+    
+          .. doxygensnippet:: docs/snippets/ov_auto_batching.py
+             :language: python
+             :fragment: [compile_model]
 
 
   * Query the ``ov::optimal_number_of_infer_requests`` from the ``ov::CompiledModel`` (resulted from a compilation of the model for the device) to create the number of the requests required to saturate the device.

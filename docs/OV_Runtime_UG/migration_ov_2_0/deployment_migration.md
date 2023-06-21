@@ -144,18 +144,21 @@ It is possible to build applications without the CMake interface by using: MSVC 
 .. tab-set::
 
    .. tab-item:: Include dirs
+      :sync: inc-dirs
    
       .. code-block:: sh
    
          <INSTALL_DIR>/runtime/include
    
    .. tab-item:: Path to libs
+      :sync: path-libs
    
       .. code-block:: sh
    
          <INSTALL_DIR>/runtime/lib/intel64/Release
    
    .. tab-item:: Shared libs
+      :sync: shared-libs
    
       .. code-block:: sh
    
@@ -166,6 +169,7 @@ It is possible to build applications without the CMake interface by using: MSVC 
          openvino.dll
    
    .. tab-item:: (Windows) .lib files
+      :sync: windows-lib-files
    
      .. code-block:: sh
    

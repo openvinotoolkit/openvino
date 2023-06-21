@@ -259,31 +259,33 @@ Read-write Properties
 
 In order to take effect, the following parameters must be set before model compilation or passed as additional arguments to ``ov::Core::compile_model()``:
 
-- ov::cache_dir
-- ov::enable_profiling
-- ov::hint::inference_precision
-- ov::hint::num_requests
-- ov::intel_gna::compile_target
-- ov::intel_gna::firmware_model_image_path
-- ov::intel_gna::execution_target
-- ov::intel_gna::pwl_design_algorithm
-- ov::intel_gna::pwl_max_error_percent
-- ov::intel_gna::scale_factors_per_input
+- ``ov::cache_dir``
+- ``ov::enable_profiling``
+- ``ov::hint::inference_precision``
+- ``ov::hint::num_requests``
+- ``ov::intel_gna::compile_target``
+- ``ov::intel_gna::firmware_model_image_path``
+- ``ov::intel_gna::execution_target``
+- ``ov::intel_gna::pwl_design_algorithm``
+- ``ov::intel_gna::pwl_max_error_percent``
+- ``ov::intel_gna::scale_factors_per_input``
 
 These parameters can be changed after model compilation ``ov::CompiledModel::set_property``:
-- ov::hint::performance_mode
-- ov::intel_gna::execution_mode
-- ov::log::level
+
+- ``ov::hint::performance_mode``
+- ``ov::intel_gna::execution_mode``
+- ``ov::log::level``
 
 Read-only Properties
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-- ov::available_devices
-- ov::device::capabilities
-- ov::device::full_name
-- ov::intel_gna::library_full_version
-- ov::optimal_number_of_infer_requests
-- ov::range_for_async_infer_requests
-- ov::supported_properties
+
+- ``ov::available_devices``
+- ``ov::device::capabilities``
+- ``ov::device::full_name``
+- ``ov::intel_gna::library_full_version``
+- ``ov::optimal_number_of_infer_requests``
+- ``ov::range_for_async_infer_requests``
+- ``ov::supported_properties``
 
 Limitations
 ###########################################################

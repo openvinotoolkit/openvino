@@ -63,14 +63,14 @@ Compile tool is now deprecated. If you need to compile a model for inference on 
 
 .. tab-set::
 
-   .. tab-item:: python
+   .. tab-item:: Python
       :sync: py
 
       .. doxygensnippet:: docs/snippets/export_compiled_model.py
          :language: python
          :fragment: [export_compiled_model]
 
-   .. tab-item:: cpp
+   .. tab-item:: C++
       :sync: cpp
 
       .. doxygensnippet:: docs/snippets/export_compiled_model.cpp

@@ -21,14 +21,12 @@ See the `Release Notes <https://software.intel.com/en-us/articles/OpenVINO-RelNo
    .. tab-item:: System Requirements
       :sync: sys-req
    
-      | Full requirement listing is available in:
-      | `System Requirements Page <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html>`__
+      Full requirement listing is available in `System Requirements Page <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html>`__
    
    .. tab-item:: Processor Notes
       :sync: processor-notes
    
-      | Processor graphics are not included in all processors. 
-      | See `Product Specifications <https://ark.intel.com/>`__ for information about your processor.
+      Processor graphics are not included in all processors. See `Product Specifications <https://ark.intel.com/>`__ for information about your processor.
    
    .. tab-item:: Software
       :sync: soft
@@ -64,15 +62,15 @@ See the `Release Notes <https://software.intel.com/en-us/articles/OpenVINO-RelNo
         
               .. code-block:: sh
            
-                sudo yum update -y && sudo yum install -y centos-release-scl epel-release
-                sudo yum install -y devtoolset-8
+                 sudo yum update -y && sudo yum install -y centos-release-scl epel-release
+                 sudo yum install -y devtoolset-8
         
             Enable devtoolset-8 and check current gcc version
         
                .. code-block:: sh
            
-                 source /opt/rh/devtoolset-8/enable
-                 gcc -v
+                  source /opt/rh/devtoolset-8/enable
+                  gcc -v
         
        
 
