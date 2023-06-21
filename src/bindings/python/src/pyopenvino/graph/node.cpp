@@ -304,14 +304,6 @@ void regclass_graph_Node(py::module m) {
                 :return: A dictionary of user defined data.
                 :rtype: openvino.runtime.RTMap
              )");
-    node.def("get_version",
-             &ov::Node::get_version,
-             R"(
-                Returns operation's version of the node.
-
-                :return: Operation version.
-                :rtype: int
-             )");
 
     node.def("set_argument", &ov::Node::set_argument);
     node.def("set_arguments", [](const std::shared_ptr<ov::Node>& self, const ov::NodeVector& args) {
@@ -326,7 +318,6 @@ void regclass_graph_Node(py::module m) {
     node.def_property_readonly("rt_info",
                                (PyRTMap & (ov::Node::*)()) & ov::Node::get_rt_info,
                                py::return_value_policy::reference_internal);
-    node.def_property_readonly("version", &ov::Node::get_version);
     node.def_property_readonly("type_info", &ov::Node::get_type_info);
     node.def_property("friendly_name", &ov::Node::get_friendly_name, &ov::Node::set_friendly_name);
 

@@ -25,6 +25,11 @@ public:
      * @return const ov::AnyMap with meta information
      */
     virtual operator const ov::AnyMap&() const = 0;
+
+    /**
+     * @brief Destructor
+     */
+    virtual ~Meta() = default;
 };
 
 }  // namespace ov

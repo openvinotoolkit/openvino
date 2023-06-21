@@ -274,9 +274,7 @@ std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> getCons
 namespace {
 
 std::string toString(const NodeTypeInfo& typeInfo) {
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    return std::string(typeInfo.name) + " ver. " + std::to_string(typeInfo.version);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    return std::string(typeInfo.name) + " ver. " + std::string(typeInfo.version_id);
 }
 
 void CompareShapes(const PartialShape& actual, const PartialShape& expected) {
@@ -337,9 +335,7 @@ std::shared_ptr<ngraph::Node> getNodeSharedPtr(const ngraph::NodeTypeInfo &type_
             ngraphNode->validate_and_infer_types();
             return ngraphNode;
         }
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    NGRAPH_UNREACHABLE("supported opsets does not contain op with name: ", type_info.name, " version: ", type_info.version);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    NGRAPH_UNREACHABLE("supported opsets does not contain op with name: ", type_info.name, " version: ", type_info.version_id);
 }
 
 bool is_tensor_iterator_exist(const std::shared_ptr<ngraph::Function> & func) {
@@ -759,19 +755,25 @@ std::ostream& operator<<(std::ostream & os, ngraph::helpers::LogicalTypes type) 
     return os;
 }
 
-std::ostream& operator<<(std::ostream & os, ngraph::op::v4::Interpolate::InterpolateMode type) {
+std::ostream& operator<<(std::ostream & os, ngraph::op::v11::Interpolate::InterpolateMode type) {
     switch (type) {
-        case ngraph::op::v4::Interpolate::InterpolateMode::CUBIC:
+        case ngraph::op::v11::Interpolate::InterpolateMode::CUBIC:
             os << "cubic";
             break;
-        case ngraph::op::v4::Interpolate::InterpolateMode::LINEAR:
+        case ngraph::op::v11::Interpolate::InterpolateMode::LINEAR:
             os << "linear";
             break;
-        case ngraph::op::v4::Interpolate::InterpolateMode::LINEAR_ONNX:
+        case ngraph::op::v11::Interpolate::InterpolateMode::LINEAR_ONNX:
             os << "linear_onnx";
             break;
-        case ngraph::op::v4::Interpolate::InterpolateMode::NEAREST:
+        case ngraph::op::v11::Interpolate::InterpolateMode::NEAREST:
             os << "nearest";
+            break;
+        case ngraph::op::v11::Interpolate::InterpolateMode::BILINEAR_PILLOW:
+            os << "bilinear_pillow";
+            break;
+        case ngraph::op::v11::Interpolate::InterpolateMode::BICUBIC_PILLOW:
+            os << "bicubic_pillow";
             break;
         default:
             throw std::runtime_error("NOT_SUPPORTED_OP_TYPE");
@@ -779,21 +781,21 @@ std::ostream& operator<<(std::ostream & os, ngraph::op::v4::Interpolate::Interpo
     return os;
 }
 
-std::ostream& operator<<(std::ostream & os, ngraph::op::v4::Interpolate::CoordinateTransformMode type) {
+std::ostream& operator<<(std::ostream & os, ngraph::op::v11::Interpolate::CoordinateTransformMode type) {
     switch (type) {
-        case ngraph::op::v4::Interpolate::CoordinateTransformMode::ALIGN_CORNERS:
+        case ngraph::op::v11::Interpolate::CoordinateTransformMode::ALIGN_CORNERS:
             os << "align_corners";
             break;
-        case ngraph::op::v4::Interpolate::CoordinateTransformMode::ASYMMETRIC:
+        case ngraph::op::v11::Interpolate::CoordinateTransformMode::ASYMMETRIC:
             os << "asymmetric";
             break;
-        case ngraph::op::v4::Interpolate::CoordinateTransformMode::HALF_PIXEL:
+        case ngraph::op::v11::Interpolate::CoordinateTransformMode::HALF_PIXEL:
             os << "half_pixel";
             break;
-        case ngraph::op::v4::Interpolate::CoordinateTransformMode::PYTORCH_HALF_PIXEL:
+        case ngraph::op::v11::Interpolate::CoordinateTransformMode::PYTORCH_HALF_PIXEL:
             os << "pytorch_half_pixel";
             break;
-        case ngraph::op::v4::Interpolate::CoordinateTransformMode::TF_HALF_PIXEL_FOR_NN:
+        case ngraph::op::v11::Interpolate::CoordinateTransformMode::TF_HALF_PIXEL_FOR_NN:
             os << "tf_half_pixel_for_nn";
             break;
         default:
@@ -802,21 +804,21 @@ std::ostream& operator<<(std::ostream & os, ngraph::op::v4::Interpolate::Coordin
     return os;
 }
 
-std::ostream& operator<<(std::ostream & os, ngraph::op::v4::Interpolate::NearestMode type) {
+std::ostream& operator<<(std::ostream & os, ngraph::op::v11::Interpolate::NearestMode type) {
     switch (type) {
-        case ngraph::op::v4::Interpolate::NearestMode::CEIL:
+        case ngraph::op::v11::Interpolate::NearestMode::CEIL:
             os << "ceil";
             break;
-        case ngraph::op::v4::Interpolate::NearestMode::ROUND_PREFER_CEIL:
+        case ngraph::op::v11::Interpolate::NearestMode::ROUND_PREFER_CEIL:
             os << "round_prefer_ceil";
             break;
-        case ngraph::op::v4::Interpolate::NearestMode::FLOOR:
+        case ngraph::op::v11::Interpolate::NearestMode::FLOOR:
             os << "floor";
             break;
-        case ngraph::op::v4::Interpolate::NearestMode::ROUND_PREFER_FLOOR:
+        case ngraph::op::v11::Interpolate::NearestMode::ROUND_PREFER_FLOOR:
             os << "round_prefer_floor";
             break;
-        case ngraph::op::v4::Interpolate::NearestMode::SIMPLE:
+        case ngraph::op::v11::Interpolate::NearestMode::SIMPLE:
             os << "simple";
             break;
         default:
@@ -825,12 +827,12 @@ std::ostream& operator<<(std::ostream & os, ngraph::op::v4::Interpolate::Nearest
     return os;
 }
 
-std::ostream& operator<<(std::ostream & os, ngraph::op::v4::Interpolate::ShapeCalcMode type) {
+std::ostream& operator<<(std::ostream & os, ngraph::op::v11::Interpolate::ShapeCalcMode type) {
     switch (type) {
-        case ngraph::op::v4::Interpolate::ShapeCalcMode::SCALES:
+        case ngraph::op::v11::Interpolate::ShapeCalcMode::SCALES:
             os << "scales";
             break;
-        case ngraph::op::v4::Interpolate::ShapeCalcMode::SIZES:
+        case ngraph::op::v11::Interpolate::ShapeCalcMode::SIZES:
             os << "sizes";
             break;
         default:
@@ -893,14 +895,8 @@ std::ostream& operator<<(std::ostream & os, MemoryTransformation type) {
         case MemoryTransformation::LOW_LATENCY_V2:
             os << "LOW_LATENCY_V2";
             break;
-        case MemoryTransformation::LOW_LATENCY:
-            os << "LOW_LATENCY";
-            break;
         case MemoryTransformation::LOW_LATENCY_V2_REGULAR_API:
             os << "LOW_LATENCY_V2_REGULAR_API";
-            break;
-        case MemoryTransformation::LOW_LATENCY_REGULAR_API:
-            os << "LOW_LATENCY_REGULAR_API";
             break;
         case MemoryTransformation::LOW_LATENCY_V2_ORIGINAL_INIT:
             os << "LOW_LATENCY_V2_ORIGINAL_INIT";

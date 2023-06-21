@@ -33,18 +33,18 @@ def test_any_list(values, data_type):
     assert ovany.get() == values
 
 
-@pytest.mark.parametrize(("value_dict", "data_type"), [
-    ({"key": "value"}, str),
-    ({21: 37}, int),
-    ({21.0: 37.0}, float),
+@pytest.mark.parametrize(("value_dict", "value_type", "data_type"), [
+    ({"key": "value"}, str, str),
+    ({21: 37}, int, int),
+    ({21.0: 37.0}, float, float),
 ])
-def test_any_dict(value_dict, data_type):
+def test_any_dict(value_dict, value_type, data_type):
     ovany = OVAny(value_dict)
     key = list(value_dict.keys())[0]
     assert isinstance(ovany.value, dict)
     assert ovany[key] == list(value_dict.values())[0]
     assert len(ovany.value) == 1
-    assert type(ovany.value[key]) == data_type
+    assert type(ovany.value[key]) == value_type
     assert type(list(value_dict.values())[0]) == data_type
     assert ovany.get() == value_dict
 
@@ -65,3 +65,26 @@ def test_any_class():
     value = OVAny(TestClass())
     assert isinstance(value.value, TestClass)
     assert value.value.text == "test"
+
+
+@pytest.mark.parametrize(("value", "dtype"), [
+    ("some_value", str),
+    (31.23456, float),
+    (True, bool),
+    (42, int),
+])
+def test_astype(value, dtype):
+    ovany = OVAny(value)
+    assert ovany.astype(dtype) == value
+
+
+@pytest.mark.parametrize(("value", "dtype"), [
+    (["some_value", "another value"], str),
+    ([31.23456, -31.3453], float),
+    ([True, False], bool),
+    ([42, 21], int),
+    ([], None),
+])
+def test_aslist(value, dtype):
+    ovany = OVAny(value)
+    assert ovany.aslist(dtype) == value

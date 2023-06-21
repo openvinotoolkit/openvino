@@ -115,12 +115,6 @@ struct InferRequestWrap {
 
     void setBlob(const std::string& blob_name, const InferenceEngine::Blob::Ptr& blob_ptr);
 
-    void setBlob(const std::string& name,
-                 const InferenceEngine::Blob::Ptr& data,
-                 const InferenceEngine::PreProcessInfo& info);
-
-    void setBatch(int size);
-
     const InferenceEngine::PreProcessInfo& getPreProcess(const std::string& blob_name);
 
     std::map<std::string, InferenceEnginePython::ProfileInfo> getPerformanceCounts();

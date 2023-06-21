@@ -19,12 +19,20 @@ class aten_append_cat(torch.nn.Module):
         list.append(x)
         return torch.cat(list, 1)
 
+
 class aten_loop_append_cat(torch.nn.Module):
     def forward(self, x):
         list = []
         for i in range(3):
             list.append(x)
         return torch.cat(list, 1)
+
+
+class aten_add_cat(torch.nn.Module):
+    def forward(self, x):
+        list = [x, x]
+        list2 = list + [x, x]
+        return torch.cat(list2, 1)
 
 
 class TestCat(PytorchLayerTest):
@@ -46,6 +54,13 @@ class TestCat(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.xfail(reason="Transformation RemoveMultiSubGraphOpDanglingParamsResults doesn't support removing unused merged inputs, ticket 112833.")
     def test_loop_append_cat(self, ie_device, precision, ir_version):
         self._test(aten_loop_append_cat(), None, ["aten::cat", "aten::append", "prim::ListConstruct", "prim::Loop"],
+                   ie_device, precision, ir_version, freeze_model=False)
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_add_cat(self, ie_device, precision, ir_version):
+        self._test(aten_add_cat(), None, ["aten::cat", "aten::add", "prim::ListConstruct"],
                    ie_device, precision, ir_version, freeze_model=False)

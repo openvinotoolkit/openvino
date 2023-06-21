@@ -3,6 +3,7 @@
 
 import os
 import re
+import sys
 import shutil
 import zipfile
 import argparse
@@ -13,7 +14,6 @@ from utils import constants
 
 
 LOGS_ZIP_NAME = 'logs.zip'
-JOB_PREFIX_LINUX = 'ie-tests-linux_'
 NEW_LOG_DIR = 'ie_logs'
 
 SW_PLUGINS = {'HETERO': '1', 'AUTO': '2', 'BATCH': '3', 'MULTI': '4'}
@@ -26,7 +26,12 @@ class AnalyzerConformanceLog:
         self.analyzed_hw_devices = set()
         self.local_log_dir = os.path.join(os.getcwd())
         self.logs_info = {}
+        self.output_path = os.path.join(os.getcwd())
+        self.output_file_name = "apiConformanceFails.xlsx"
 
+    @staticmethod
+    def status_folder_exists(path_name):
+        return any([status for status in constants.TEST_STATUS.keys()])
 
     def setup_log_local_dir(self, user_log_dir):
         if user_log_dir:
@@ -34,8 +39,16 @@ class AnalyzerConformanceLog:
                 self.local_log_dir = user_log_dir
             else:
                 logger.error(f'Local log dir {user_log_dir} is not exists')
-                return 1
 
+    def setup_output_file(self, output_path, output_file_name):
+        if output_path:
+            if os.path.exists(output_path):
+                self.output_path = output_path
+            else:
+                logger.error(f'Output file path {output_path} is not exists, directory {self.output_path} will be used')
+
+        if output_file_name:
+            self.output_file_name = output_file_name
 
     def process_remote_log(self, remote_log_path, job_list):
         if remote_log_path and job_list:
@@ -43,114 +56,90 @@ class AnalyzerConformanceLog:
             # if something will be downloaded, create new dir for these purpose
             self.local_log_dir = os.path.join(self.local_log_dir, NEW_LOG_DIR)
 
-            if 'linux' not in remote_log_path:
-                logger.error('Sorry, I can analyze just linux results now')
-                return 1
-
-            for job_number in job_list:
-                job_name = f'{JOB_PREFIX_LINUX}{job_number}'
+            for job_name in job_list:
                 source_path = os.path.join(remote_log_path, job_name, LOGS_ZIP_NAME)
-                dest_path = os.path.join(self.local_log_dir, job_number)
+                dest_path = os.path.join(self.local_log_dir, job_name)
                 logger.info(f'Copying {source_path} to {dest_path}')
+
                 try:
                     os.makedirs(dest_path, exist_ok=True)
                     shutil.copy2(source_path, dest_path)
                 except Exception as e:
                     logger.error(f'FAIL {e}')
+                    return 1
                 else:
                     logger.info(f'DONE')
 
                 logger.info(f'Unziping {dest_path}')
-                extended_path = "\\\\?\\%s" % os.path.join(dest_path, LOGS_ZIP_NAME)
+                extended_path = os.path.join(dest_path, LOGS_ZIP_NAME)
+                if sys.platform.startswith('win'):
+                    extended_path = "\\\\?\\%s" % os.path.join(dest_path, LOGS_ZIP_NAME)
                 with zipfile.ZipFile(extended_path, "r") as zipObj:
                     for name in zipObj.namelist():
-                        if re.match(f'test/apiconformancetests_(\w*)_(dlb|omz)-\d.log', name):
+                        if 'apiconformancetests' in name and 'logs' in name and self.status_folder_exists(name):
                             zipObj.extract(name, dest_path)
-                            logger.error(f'OK')
-
+                logger.info(f'DONE')
 
     def collect_tests_result(self, exclude_from_log):
         logger.info(f'Collecting results')
         for root, dirs, files in os.walk(self.local_log_dir, topdown=False):
+            if not 'apiconformancetests' in root or not 'logs' in root or\
+               not self.status_folder_exists(root):
+                continue
+
             for file_name in files:
-                file_name_match = re.match(f'apiconformancetests_(\w*)_(dlb|omz)-\d.log', file_name)
-                if "test" in root and file_name_match:
+                extended_path = os.path.join(root, file_name)
+                if sys.platform.startswith('win'):
                     extended_path = "\\\\?\\%s" % os.path.join(root, file_name)
-                    try:
-                        lines = ''
-                        with open(extended_path, encoding="utf8") as f:
-                            lines = f.readlines()
+                try:
+                    lines = ''
+                    with open(extended_path, encoding="utf8") as f:
+                        lines = f.readlines()
 
-                        device = file_name_match.group(1)
-                        self.analyzed_hw_devices.add(device)
+                    path_components = os.path.normpath(extended_path).split(os.path.sep)
+                    # examle: /cpu_conformance_dlb_apiconformancetests_nightly/logs/passed/[hash].log
+                    retult_root_match = re.match(r'(\w*)_conformance_(dlb|omz)_apiconformancetests_.*', path_components[-4])
+                    device = retult_root_match.group(1)
+                    self.analyzed_hw_devices.add(device)
 
-                        test_name = None
-                        test_number = None
-                        in_run_stage = False
-                        error_msg = ''
-                        test_info_by_device = None
+                    status = os.path.normpath(extended_path).split(os.path.sep)[-2]
 
-                        for line in lines:
-                            if constants.RUN in line:
-                                in_run_stage = True
-                                error_msg = ''
-                                # if run stage exists, it is because gtest decided to show log as test fails
-                                test_info_by_device['pass'] = False
-                                continue
+                    test_name = None
+                    error_msg = ''
 
-                            # it is result, we got to the end of run stage
-                            if constants.TEST_STATUS['failed'][0] in line:
-                                in_run_stage = False
-                                if error_msg:
-                                    test_info_by_device['err_info'] = error_msg
-                                    error_msg = None
-                                continue
-                            
-                            # collect error message in run stage
-                            if in_run_stage:
-                                # remove date
-                                line = re.sub('\[\d*-\d*-\d* \d*:\d*:\d*,\d*\] \[\d*\] .* INFO: ', '', line)
-                                line = line.strip('\n')
-                                line = line.strip(' ')
-                                if exclude_from_log:
-                                    error_msg = error_msg.replace(exclude_from_log, '')
-                                if line and 'MEM_USAGE' not in line:
-                                    error_msg += ' ' + line + ' '
+                    for line in lines:
+                        if constants.RUN in line:
+                            test_name_match = re.match(f'.*\[\s*RUN\s*\] (.*)', line)
+                            if test_name_match:
+                                test_name = test_name_match.group(1)
+                            continue
 
-                            test_match = re.search(r'(\[\d*/\d*\]) (.*) \(\d* ms\)', line)
-                            if test_match:
-                                in_run_stage = False
-                                # analyzed failed test without RUN stage, it can be crashed tests
-                                if error_msg and test_info_by_device:
-                                    error_msg = error_msg.replace(test_info_by_device['name'], '')
-                                    error_msg = re.sub('\[\d*\/\d*\]', '', error_msg)
-                                    error_msg = re.sub('\(\d* ms\)', '', error_msg)
-                                    if exclude_from_log:
-                                        error_msg = error_msg.replace(exclude_from_log, '')
-                                    test_info_by_device['err_info'] = error_msg
+                        if line == '' or constants.MEM_USAGE in line or constants.REF_COEF in line or\
+                           status == 'skipped' or status == 'passed' or constants.TEST_STATUS['failed'][0] in line:
+                            continue
 
-                                error_msg = None
+                        line = line.strip('\n')
+                        line = line.strip(' ')
+                        if exclude_from_log:
+                            line = line.replace(exclude_from_log, '')
+                        error_msg += ' ' + line + ' '
 
-                                # start analyze new test
-                                if test_number != test_match.group(1):
-                                    test_number = test_match.group(1)
-                                    test_name = test_match.group(2)
-                                    test_name = re.sub(device.upper(), '[HWDevice]', test_name)
-                                    test_group = test_name.split('/')[0] if len(test_name.split('/')) > 1 else test_name.split('.')[0]
-                                    # cover case ov_infer_request_1/2/...
-                                    if 'ov_infer_request_' in test_group:
-                                        test_group = 'ov_infer_request'
-                                    # cover case conformance_query_model_[ops]
-                                    if 'conformance_query_model_' in test_group:
-                                        test_group = 'conformance_query_model'
+                    test_name = test_name or file_name
+                    test_name = re.sub(device.upper(), '[HWDevice]', test_name)
+                    test_group = test_name.split('/')[0] if len(test_name.split('/')) > 1 else test_name.split('.')[0]
+                    # cover case ov_infer_request_1/2/...
+                    if 'ov_infer_request_' in test_group:
+                        test_group = 'ov_infer_request'
+                    # cover case conformance_query_model_[ops]
+                    if 'conformance_query_model_' in test_group:
+                        test_group = 'conformance_query_model'
 
-                                    self.logs_info.setdefault(test_group, {})
-                                    self.logs_info[test_group].setdefault(test_name, {})
-                                    self.logs_info[test_group][test_name][device] = {'name': test_match.group(2), 'pass': True, 'err_info': ''}
-                                    test_info_by_device = self.logs_info[test_group][test_name][device]
+                    self.logs_info.setdefault(test_group, {})
+                    self.logs_info[test_group].setdefault(test_name, {})
+                    self.logs_info[test_group][test_name][device] = {'name': test_name, 'status': status, 'err_info': error_msg}
 
-                    except Exception as e:
-                        logger.error(f'Analyzing of {file_name} FAIL: {e}')
+                except Exception as e:
+                    logger.error(f'Analyzing of {extended_path} FAIL: {e}')
 
     def create_exel(self, expected_devices, exclude_sw_plugins):
         logger.info(f'Creating exel file with results')
@@ -197,8 +186,10 @@ class AnalyzerConformanceLog:
                 if exclude_sw_plugins and re.search(exclude_sw_plugins, test_name):
                     continue
 
-                # if test pass on all devices, it is not need to analyze it here
-                all_pass = all([dev.lower() in devices_info and devices_info[dev.lower()]['pass'] for dev in expected_devices])
+                # if test passed or skipped on all devices, it is not need to analyze it here
+                all_pass = all([dev.lower() not in devices_info or (dev.lower() in devices_info and\
+                                                                     (devices_info[dev.lower()]['status'] == 'passed' or\
+                                                                      devices_info[dev.lower()]['status'] == 'skipped')) for dev in expected_devices])
                 if all_pass:
                     continue
 
@@ -210,11 +201,12 @@ class AnalyzerConformanceLog:
                     font = not_run_font
                     fill = not_run_fill
                     if dev.lower() in devices_info:
-                        if devices_info[dev.lower()]['pass']:
+                        if devices_info[dev.lower()]['status'] == 'passed':
                             font = pass_font
                             fill = pass_fill
                             status = 'Pass'
-                        else:
+                        elif devices_info[dev.lower()]['status'] == 'failed' or devices_info[dev.lower()]['status'] == 'hanged' or\
+                             devices_info[dev.lower()]['status'] == 'crashed' or devices_info[dev.lower()]['status'] == 'interapted':
                             status = 'Fail'
                             error_msg = devices_info[dev.lower()]['err_info']
                             font = fail_font
@@ -235,7 +227,7 @@ class AnalyzerConformanceLog:
             if worksheet.max_row <= 3:
                 workbook.remove(worksheet)
 
-        workbook.save(os.path.join(self.local_log_dir, 'apiConformanceFails.xlsx'))
+        workbook.save(os.path.join(self.output_path, self.output_file_name))
 
 
 if __name__ == '__main__':
@@ -256,13 +248,21 @@ If it is not be setup, it will be investigated log_dir to find logs. Logs should
     parser.add_argument('--job_list',
                         required=False,
                         nargs='*',
-                        help='Setup list of job number. Logs of these jobs will be downloaded, unzipped and anazized \
-Example: 6030 6035')
+                        help='Setup list of jobs. Logs of these jobs will be downloaded, unzipped and anazized \
+Example: job_name1 job_name2')
     parser.add_argument("--expected_devices",
                         required=False,
                         nargs="*",
                         help='Setup hw devices name, if it is not be setup, all founded deviced will be presented in final report\
 Example: CPU TEMPLATE')
+    parser.add_argument("--output_path",
+                        required=False,
+                        type=str,
+                        help='Setup path for output xlsx file')
+    parser.add_argument("--output_file_name",
+                        required=False,
+                        type=str,
+                        help='Setup name for output xlsx file')
     parser.add_argument('--exclude_from_log',
                         type=str,
                         help='This arguments could be use to removing repeated pattern in log, for example long paths of files with code')
@@ -273,18 +273,21 @@ Example: CPU TEMPLATE')
 Example1 - exclude several: AUTO HETERO\
 Example2 - exclude all from AUTO/HETERO/MULTI/BATCH: ALL')
 
+
     args = parser.parse_args()
 
-    AnalyzerConformanceLog = AnalyzerConformanceLog()
+    analyzerConformanceLog = AnalyzerConformanceLog()
 
     if args.log_dir:
-        if AnalyzerConformanceLog.setup_log_local_dir(args.log_dir):
+        if analyzerConformanceLog.setup_log_local_dir(args.log_dir):
             exit(1)
 
-    if AnalyzerConformanceLog.process_remote_log(args.remote_log_path, args.job_list):
+    analyzerConformanceLog.setup_output_file(args.output_path, args.output_file_name)
+
+    if analyzerConformanceLog.process_remote_log(args.remote_log_path, args.job_list):
         exit(1)
 
-    AnalyzerConformanceLog.collect_tests_result(args.exclude_from_log)
+    analyzerConformanceLog.collect_tests_result(args.exclude_from_log)
 
     exclude_sw_plugins = None
     if args.exclude_sw_plugins:
@@ -294,5 +297,5 @@ Example2 - exclude all from AUTO/HETERO/MULTI/BATCH: ALL')
             exclude_sw_plugins = '(' + '|'.join(args.exclude_sw_plugins)
             sw_plugins_numbers = ''.join([SW_PLUGINS[plugin.upper()] for plugin in args.exclude_sw_plugins if plugin.upper() in SW_PLUGINS])
             exclude_sw_plugins += '|\/[' +  + ']&)' if sw_plugins_numbers else ')'
-    AnalyzerConformanceLog.create_exel(args.expected_devices, exclude_sw_plugins)
+    analyzerConformanceLog.create_exel(args.expected_devices, exclude_sw_plugins)
 

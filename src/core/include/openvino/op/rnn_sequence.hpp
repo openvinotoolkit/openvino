@@ -18,7 +18,7 @@ namespace v5 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API RNNSequence : public util::RNNCellBase {
 public:
-    OPENVINO_OP("RNNSequence", "opset5", util::RNNCellBase, 4);
+    OPENVINO_OP("RNNSequence", "opset5", util::RNNCellBase);
 
     RNNSequence();
 

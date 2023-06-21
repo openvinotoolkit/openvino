@@ -1,13 +1,17 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import os
+import subprocess
+import sys
 import unittest
 import unittest.mock as mock
 from unittest.mock import mock_open
 from unittest.mock import patch
 
+from openvino.tools.mo.subprocess_main import setup_env
 from openvino.tools.mo.utils.version import get_version, extract_release_version, get_simplified_ie_version, \
-    get_simplified_mo_version, extract_hash_from_version
+    get_simplified_mo_version, extract_hash_from_version, VersionChecker
 
 
 class TestingVersion(unittest.TestCase):
@@ -90,3 +94,11 @@ class TestingVersion(unittest.TestCase):
     def test_extracting_version_hash_from_old_format(self):
         self.assertEqual(extract_hash_from_version(full_version="2022.1.0-6311-a90bb1f"),
                          "a90bb1f")
+
+    def test_version_checker(self):
+        setup_env()
+        args = [sys.executable, '-m', 'pytest',
+                os.path.join(os.path.dirname(os.path.dirname(__file__)), 'convert/version_checker_test_actual.py'), '-s']
+
+        status = subprocess.run(args, env=os.environ, capture_output=True)
+        assert not status.returncode

@@ -71,7 +71,7 @@ public:
             const auto& last_cell_state_layout = impl_param.input_layouts[arg.get_dependency_idx("last_cell_output")];
             dlstm_timeloop_params.set_last_cell_output(convert_data_tensor(last_cell_state_layout));
         }
-
+        dlstm_timeloop_params.set_dynamic_shape_offsets();
         // finially get best kernel
         auto dlstm_timeloop_optional_params =
             get_default_optional_params<kernel_selector::lstm_dynamic_optional_params>(impl_param.get_program());
@@ -97,3 +97,4 @@ attach_lstm_dynamic_timeloop_impl::attach_lstm_dynamic_timeloop_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::lstm_dynamic_timeloop_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::lstm_dynamic_timeloop)

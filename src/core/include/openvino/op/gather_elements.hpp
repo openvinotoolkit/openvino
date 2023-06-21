@@ -14,7 +14,7 @@ namespace v6 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API GatherElements : public Op {
 public:
-    OPENVINO_OP("GatherElements", "opset6", op::Op, 6);
+    OPENVINO_OP("GatherElements", "opset6", op::Op);
     GatherElements() = default;
 
     /// \brief Constructs a GatherElements operation.

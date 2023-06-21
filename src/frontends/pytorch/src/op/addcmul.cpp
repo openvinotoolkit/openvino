@@ -17,7 +17,7 @@ namespace op {
 
 using namespace ov::op;
 
-OutputVector translate_addcmul(NodeContext& context) {
+OutputVector translate_addcmul(const NodeContext& context) {
     num_inputs_check(context, 4, 4);
     const auto eltwise_mult = std::make_shared<v1::Multiply>(context.get_input(1), context.get_input(2));
     const auto value = context.get_input(3);

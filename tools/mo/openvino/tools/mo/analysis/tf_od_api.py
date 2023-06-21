@@ -70,7 +70,7 @@ class TensorFlowObjectDetectionAPIAnalysis(AnalyzeAction):
                 if all([graph_contains_scope(graph, scope) for scope in scopes]):
                     result = dict()
                     result['flavor'] = flavor
-                    result['mandatory_parameters'] = {'tensorflow_use_custom_operations_config':
+                    result['mandatory_parameters'] = {'transformations_config':
                                                           files_by_pattern(get_mo_root_dir() + '/openvino/tools/mo/front/tf',
                                                                            __class__.file_patterns[flavor],
                                                                            add_prefix=True),
@@ -83,6 +83,6 @@ class TensorFlowObjectDetectionAPIAnalysis(AnalyzeAction):
                               "\t--input_shape (optional)\n" \
                               "\t--reverse_input_channels (if you convert a model to use with the Inference Engine sample applications)\n" \
                               "Detailed information about conversion of this model can be found at\n" \
-                              "https://docs.openvino.ai/latest/_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_Object_Detection_API_Models.html"
+                              "https://docs.openvino.ai/2023.0/_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_Object_Detection_API_Models.html"
                     return {'model_type': {'TF_OD_API': result}}, message
         return None, None

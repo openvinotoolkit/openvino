@@ -42,13 +42,16 @@ class Extender(object):
         # new (calculated while shape inference) input shapes
         node['new_input_shapes'] = list()
         for n in node.in_ports():
-            if not node.in_port(n).disconnected():  # We use such condition to handle optional inputs
+            # We use such condition to handle optional inputs
+            if not node.in_port(n).disconnected():
                 node.new_input_shapes.append(node.in_port(n).data.get_shape())
         assert len(node.new_input_shapes) == len(node.old_input_shapes), \
-            'Something wrong happened while {} node with type {} copy shape inference!'.format(node.name, node.type)
+            'Something wrong happened while {} node with type {} copy shape inference! {} != {}'.format(
+                node.name, node.type, len(node.new_input_shapes), len(node.old_input_shapes))
         for new_input_shape, old_input_shape in zip(node.new_input_shapes, node.old_input_shapes):
             assert np.array_equal(new_input_shape, old_input_shape), \
-                'Something wrong happened while {} node with type {} copy shape inference!'.format(node.name, node.type)
+                'Something wrong happened while {} node with type {} copy shape inference! {} != {}'.format(
+                    node.name, node.type, new_input_shape, old_input_shape)
 
         # We need to use number of connected input ports to avoid errors with numbering
         # in node.ports dictionary, where used numbers of input nodes

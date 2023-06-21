@@ -4,6 +4,7 @@
 
 #include "pass_manager.h"
 #include "impls/ocl/primitive_base.hpp"
+#include "fully_connected_inst.h"
 #include "fully_connected/fully_connected_params.h"
 #include <memory>
 #include <stdexcept>
@@ -70,8 +71,8 @@ void post_input_reorder::run(program& p) {
                 node->set_output_layout(previous_layout, false);
                 reorder.set_selected_impl(reorder.type()->choose_impl(reorder));
                 if (auto impl = reorder.get_selected_impl()) {
-                    auto kernel_ids = p.get_kernels_cache().add_kernels_source(impl->get_kernels_source());
-                    impl->set_kernel_ids(kernel_ids);
+                    auto params = reorder.get_kernel_impl_params();
+                    p.get_kernels_cache().add_kernels_source(*params, impl->get_kernels_source());
                 }
             }
         }

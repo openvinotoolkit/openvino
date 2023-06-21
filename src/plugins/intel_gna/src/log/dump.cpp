@@ -15,10 +15,13 @@
 #include <string>
 #include <vector>
 
+#include "backend/gna_limitations.hpp"
 #include "gna2-model-api.h"
 #include "gna2_model_helper.hpp"
 #include "gna_device.hpp"
 #include "log.hpp"
+
+using namespace ov::intel_gna::limitations;
 
 namespace ov {
 namespace intel_gna {
@@ -486,8 +489,9 @@ void DumpGna2Model(const Gna2Model& gnaModel,
             }
             dumpFile << "\tOperand " << j << " (" << GetOperandName(operation.Type, j) << ")"
                      << " type: " << GetOperandType(operand.Type) << " shape: " << GetSimpleString(operand.Shape)
-                     << " tag: " << foundName << " offset: " << offset
-                     << " size: " << Gna2RoundUpTo64(GetGnaShapeSize(operand.Shape, GetTypeByteSize(operand.Type)))
+                     << " tag: " << foundName << " offset: " << offset << " size: "
+                     << Gna2RoundUp(GetGnaShapeSize(operand.Shape, GetTypeByteSize(operand.Type)),
+                                    Limitations::get_instance()->get_memory_alignment())
                      << " data: " << operand.Data << " baseAlloc: " << foundPtr << " layout: ";
 
             DumpCharArray(dumpFile, operand.Layout, GNA2_SHAPE_MAXIMUM_NUMBER_OF_DIMENSIONS);

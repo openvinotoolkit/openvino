@@ -70,9 +70,6 @@ public:
     OPENVINO_DEPRECATED(
         "set_element_type() is deprecated. To change Tensor element type please change the Parameter type")
     void set_element_type(const element::Type& elemenet_type);
-    OPENVINO_DEPRECATED(
-        "set_partial_shape() is deprecated. To change Tensor partial shape please change the Parameter partial shape")
-    void set_partial_shape(const PartialShape& partial_shape);
 
     /// \brief sets lower bound value description
     void set_lower_value(const ov::Tensor& value);
@@ -148,6 +145,7 @@ protected:
     friend OPENVINO_API std::string get_ov_tensor_legacy_name(const Tensor& tensor);
     friend OPENVINO_API void set_ov_tensor_legacy_name(Tensor& tensor, const std::string& tensor_name);
     friend class pass::ReverseShapeAndTypeInfer;
+    friend class ngraph::runtime::HostTensor;
 };
 
 OPENVINO_API

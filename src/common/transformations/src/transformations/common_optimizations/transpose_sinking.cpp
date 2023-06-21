@@ -14,7 +14,6 @@
 #include <vector>
 
 #include "itt.hpp"
-#include "transformations/common_optimizations/transpose_sinking_utils.hpp"
 #include "transformations/utils/utils.hpp"
 
 using namespace ov;
@@ -26,9 +25,15 @@ std::shared_ptr<opset6::Constant> get_reduced_order_constant(const std::shared_p
     auto order = order_const->cast_vector<int64_t>();
 
     auto axes = axes_const->cast_vector<int64_t>();
-    std::sort(axes.rbegin(), axes.rend());
-    for (const auto& i : axes)
-        order.erase(order.begin() + i);
+    if (!axes.empty()) {
+        std::sort(axes.rbegin(), axes.rend());
+        for (const auto& i : axes)
+            order.erase(order.begin() + i);
+    } else {
+        // if 2nd input for Squeeze op is not provided, we should remove all 1 dims
+        // this case will be supported in new TSGeneral transformation.
+        return nullptr;
+    }
 
     const auto& updated_order_size = static_cast<int64_t>(order.size());
 
@@ -45,7 +50,9 @@ std::shared_ptr<opset6::Constant> get_reduced_order_constant(const std::shared_p
 std::shared_ptr<opset6::Constant> get_reversed_order_constant(const std::shared_ptr<opset6::Constant>& order_const) {
     const auto& order = order_const->cast_vector<size_t>();
     const auto& rank = order.size();
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto& default_order = ngraph::get_default_order(rank);
+    OPENVINO_SUPPRESS_DEPRECATED_END
     std::vector<size_t> reverse_order(rank);
     for (size_t i = 0; i < rank; ++i)
         reverse_order[order[i]] = default_order[i];
@@ -84,7 +91,9 @@ ov::pass::TransposeEltwise::TransposeEltwise() {
 
         if (ov::shape_size(shape) != 1) {
             eltwise_const_input = std::make_shared<opset6::Transpose>(eltwise_const_input, transpose->input_value(1));
+            OPENVINO_SUPPRESS_DEPRECATED_START
             if (auto const_node = ov::get_constant_from_source(eltwise_const_input)) {
+                OPENVINO_SUPPRESS_DEPRECATED_END
                 eltwise_const_input = const_node;
             }
         }
@@ -162,9 +171,11 @@ ov::pass::TransposeReduction::TransposeReduction() {
         if (!transpose_order || !reduction_axes)
             return false;
 
+        OPENVINO_SUPPRESS_DEPRECATED_START
         const auto& non_negative_axes = normalize_axes(reduction->get_friendly_name(),
                                                        reduction_axes->cast_vector<int64_t>(),
                                                        reduction->get_input_partial_shape(0).rank());
+        OPENVINO_SUPPRESS_DEPRECATED_END
         reduction_axes = opset6::Constant::create(ngraph::element::i64, {non_negative_axes.size()}, non_negative_axes);
 
         ngraph::NodeVector new_ops;
@@ -180,6 +191,10 @@ ov::pass::TransposeReduction::TransposeReduction() {
         if (!keep_dims) {
             updated_order = get_reduced_order_constant(reduction_axes, transpose_order);
             new_ops.push_back(updated_order);
+        }
+
+        if (!updated_order) {
+            return false;
         }
         auto new_transpose = register_new_node<opset6::Transpose>(new_reduce, updated_order);
         new_ops.push_back(new_transpose);
@@ -308,8 +323,6 @@ ov::pass::TransposeFuse::TransposeFuse() {
             new_transpose->set_friendly_name(m.get_match_root()->get_friendly_name());
             ngraph::copy_runtime_info({transpose1, transpose2}, new_transpose);
             ngraph::replace_node(m.get_match_root(), new_transpose);
-
-            transpose_sinking::UpdateForwardSinkingAbility(new_transpose);
         }
 
         return true;

@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,12 +11,12 @@ namespace ov {
 namespace test {
 namespace snippets {
 
-using BlockedShapeVector = ngraph::snippets::op::Subgraph::BlockedShapeVector;
+using BlockedShapeVector = ov::snippets::op::Subgraph::BlockedShapeVector;
 
-class DummyEmitter : public ngraph::snippets::Emitter {
+class DummyEmitter : public ov::snippets::Emitter {
 public:
     // Here I pass Add to Emitter, but could be any other op, since it's ignored anyway.
-    DummyEmitter() : ngraph::snippets::Emitter(std::make_shared<ov::op::v1::Add>()) {}
+    DummyEmitter(const std::vector<ov::Node::type_info_t>& custom_opset = {}) : ov::snippets::Emitter(std::make_shared<ov::op::v1::Add>()) {}
     void emit_code(const std::vector<size_t>&,
                    const std::vector<size_t>&,
                    const std::vector<size_t>&,
@@ -24,18 +24,21 @@ public:
     void emit_data() const override {}
 };
 
-class DummyTargetMachine : public ngraph::snippets::TargetMachine {
+class DummyTargetMachine : public ov::snippets::TargetMachine {
 public:
     DummyTargetMachine(const std::vector<ov::Node::type_info_t>& custom_opset = {});
     bool is_supported() const override { return true; }
-    ngraph::snippets::code get_snippet() const override { return nullptr; }
+    ov::snippets::code get_snippet() const override { return nullptr; }
     size_t get_lanes() const override { return 10; }
 };
 
-class DummyGenerator : public ngraph::snippets::Generator {
+class DummyGenerator : public ov::snippets::Generator {
 public:
-    DummyGenerator() : ngraph::snippets::Generator(std::make_shared<DummyTargetMachine>()) {}
-    DummyGenerator(const std::shared_ptr<ngraph::snippets::TargetMachine>& t) : ngraph::snippets::Generator(t) {}
+    DummyGenerator() : ov::snippets::Generator(std::make_shared<DummyTargetMachine>()) {}
+    DummyGenerator(const std::shared_ptr<ov::snippets::TargetMachine>& t) : ov::snippets::Generator(t) {}
+
+protected:
+    opRegType get_specific_op_reg_type(const std::shared_ptr<ov::Node>& op) const override { return vec2vec; };
 };
 
 class LoweringTests : public TransformationTestsF {
@@ -46,12 +49,15 @@ public:
     void TearDown() override;
 
 protected:
-    static std::shared_ptr<ngraph::snippets::op::Subgraph> getSubgraph(const std::shared_ptr<Model>& f);
-    static std::shared_ptr<ngraph::snippets::op::Subgraph> getLoweredSubgraph(const std::shared_ptr<Model>& f,
+    static std::shared_ptr<ov::snippets::op::Subgraph> getSubgraph(const std::shared_ptr<Model>& f);
+    static std::shared_ptr<ov::snippets::op::Subgraph> getLoweredSubgraph(const std::shared_ptr<Model>& f,
                                                                               const ov::PartialShape& master_shape,
-                                                                              ov::pass::Manager target_optimizations = {},
-                                                                              const std::shared_ptr<ngraph::snippets::Generator> generator = nullptr);
-    static std::shared_ptr<ngraph::snippets::op::Subgraph> getTokenizedSubgraph(const std::shared_ptr<Model>& f);
+                                                                              ov::pass::Manager pre_dialect = {},
+                                                                              ov::pass::Manager post_dialect = {},
+                                                                              ov::pass::Manager post_precision = {},
+                                                                              ov::snippets::lowered::pass::PassPipeline lowered_pipeline = {},
+                                                                              const std::shared_ptr<ov::snippets::Generator> generator = nullptr);
+    static std::shared_ptr<ov::snippets::op::Subgraph> getTokenizedSubgraph(const std::shared_ptr<Model>& f);
     ov::PartialShape master_shape{};
 };
 

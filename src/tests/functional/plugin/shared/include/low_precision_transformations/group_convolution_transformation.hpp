@@ -15,10 +15,27 @@ namespace LayerTestsDefinitions {
 
 class GroupConvolutionTransformationParam {
 public:
+    GroupConvolutionTransformationParam() = default;
+    GroupConvolutionTransformationParam(const size_t group,
+                                        const int groupCalculationDimention,
+                                        const ngraph::builder::subgraph::FakeQuantizeOnData& fakeQuantizeOnData,
+                                        const ngraph::builder::subgraph::FakeQuantizeOnWeights& fakeQuantizeOnWeights,
+                                        const bool addReshape = true,
+                                        const std::string& layerName = "",
+                                        const std::string& expectedKernelType = "")
+        : group(group),
+          groupCalculationDimention(groupCalculationDimention),
+          fakeQuantizeOnData(fakeQuantizeOnData),
+          fakeQuantizeOnWeights(fakeQuantizeOnWeights),
+          addReshape(addReshape),
+          layerName(layerName),
+          expectedKernelType(expectedKernelType) {}
+
     size_t group;
     int groupCalculationDimention;
     ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
     ngraph::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
+    bool addReshape;
     std::string layerName;
     std::string expectedKernelType;
 };

@@ -20,13 +20,19 @@
 #include "openvino/runtime/infer_request.hpp"
 #include "openvino/runtime/tensor.hpp"
 #include "openvino/pass/serialize.hpp"
-#include "pyopenvino/core/containers.hpp"
 #include "pyopenvino/graph/any.hpp"
 #include "pyopenvino/graph/ops/constant.hpp"
+#include "pyopenvino/core/infer_request.hpp"
 
 namespace py = pybind11;
 
 namespace Common {
+
+namespace containers {
+    using TensorIndexMap = std::map<size_t, ov::Tensor>;
+
+    const TensorIndexMap cast_to_tensor_index_map(const py::dict& inputs);
+}; // namespace containers
 
 namespace values {
 
@@ -51,6 +57,8 @@ std::vector<size_t> get_shape(const py::array& array);
 std::vector<size_t> get_strides(const py::array& array);
 
 py::array as_contiguous(py::array& array, ov::element::Type type);
+
+py::array array_from_tensor(ov::Tensor&& t);
 
 }; // namespace array_helpers
 
@@ -80,17 +88,24 @@ ov::PartialShape partial_shape_from_list(const py::list& shape);
 
 const ov::Tensor& cast_to_tensor(const py::handle& tensor);
 
-const Containers::TensorNameMap cast_to_tensor_name_map(const py::dict& inputs);
-
-const Containers::TensorIndexMap cast_to_tensor_index_map(const py::dict& inputs);
-
 void set_request_tensors(ov::InferRequest& request, const py::dict& inputs);
 
 uint32_t get_optimal_number_of_requests(const ov::CompiledModel& actual);
 
-py::dict outputs_to_dict(const std::vector<ov::Output<const ov::Node>>& outputs, ov::InferRequest& request);
+py::dict outputs_to_dict(InferRequestWrapper& request);
 
 ov::pass::Serialize::Version convert_to_version(const std::string& version);
+
+template <typename T>
+std::string get_class_name(const T& obj) {
+    return py::str(py::cast(obj).get_type().attr("__name__"));
+}
+
+template <typename T>
+std::string get_simple_repr(const T& obj) {
+    std::string class_name = get_class_name(obj);
+    return "<" + class_name + ">";
+}
 
 // Use only with classes that are not creatable by users on Python's side, because
 // Objects created in Python that are wrapped with such wrapper will cause memory leaks.

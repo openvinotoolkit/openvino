@@ -5,7 +5,6 @@
 import os
 import pytest
 import numpy as np
-from openvino.runtime import serialize
 from openvino._offline_transformations import (
     apply_moc_transformations,
     apply_pot_transformations,
@@ -17,10 +16,10 @@ from openvino._offline_transformations import (
     apply_fused_names_cleanup,
 )
 
-from openvino.runtime import Model, PartialShape, Core
+from openvino.runtime import Model, PartialShape, Core, serialize
 import openvino.runtime as ov
 
-from tests.test_utils.test_utils import create_filename_for_test
+from tests.test_utils.test_utils import create_filename_for_test, compare_models
 
 
 def get_relu_model():
@@ -183,17 +182,18 @@ def test_serialize_pass_v2(request, tmp_path, is_path_xml, is_path_bin):
     shape = [100, 100, 2]
     parameter_a = ov.opset8.parameter(shape, dtype=np.float32, name="A")
     parameter_b = ov.opset8.parameter(shape, dtype=np.float32, name="B")
-    model = ov.opset8.floor(ov.opset8.minimum(ov.opset8.abs(parameter_a), parameter_b))
-    func = Model(model, [parameter_a, parameter_b], "Model")
+    _model = ov.opset8.floor(ov.opset8.minimum(ov.opset8.abs(parameter_a), parameter_b))
+    model = Model(_model, [parameter_a, parameter_b], "Model")
 
-    serialize(func, xml_path, bin_path)
+    serialize(model, xml_path, bin_path)
 
-    assert func is not None
+    assert model is not None
 
     res_model = core.read_model(model=xml_path, weights=bin_path)
 
-    assert func.get_parameters() == res_model.get_parameters()
-    assert func.get_ordered_ops() == res_model.get_ordered_ops()
+    assert compare_models(model, res_model)
+
+    del res_model
 
     os.remove(xml_path)
     os.remove(bin_path)
@@ -229,14 +229,15 @@ def test_version_default(request, tmp_path, is_path_xml, is_path_bin):
     shape = [100, 100, 2]
     parameter_a = ov.opset8.parameter(shape, dtype=np.float32, name="A")
     parameter_b = ov.opset8.parameter(shape, dtype=np.float32, name="B")
-    model = ov.opset8.floor(ov.opset8.minimum(ov.opset8.abs(parameter_a), parameter_b))
-    func = Model(model, [parameter_a, parameter_b], "Model")
+    _model = ov.opset8.floor(ov.opset8.minimum(ov.opset8.abs(parameter_a), parameter_b))
+    model = Model(_model, [parameter_a, parameter_b], "Model")
 
-    serialize(func, xml_path, bin_path)
+    serialize(model, xml_path, bin_path)
     res_model = core.read_model(model=xml_path, weights=bin_path)
 
-    assert func.get_parameters() == res_model.get_parameters()
-    assert func.get_ordered_ops() == res_model.get_ordered_ops()
+    assert compare_models(model, res_model)
+
+    del res_model
 
     os.remove(xml_path)
     os.remove(bin_path)
@@ -269,14 +270,15 @@ def test_version_ir_v10(request, tmp_path):
     shape = [100, 100, 2]
     parameter_a = ov.opset8.parameter(shape, dtype=np.float32, name="A")
     parameter_b = ov.opset8.parameter(shape, dtype=np.float32, name="B")
-    model = ov.opset8.floor(ov.opset8.minimum(ov.opset8.abs(parameter_a), parameter_b))
-    func = Model(model, [parameter_a, parameter_b], "Model")
+    _model = ov.opset8.floor(ov.opset8.minimum(ov.opset8.abs(parameter_a), parameter_b))
+    model = Model(_model, [parameter_a, parameter_b], "Model")
 
-    serialize(func, xml_path, bin_path, "IR_V10")
+    serialize(model, xml_path, bin_path, "IR_V10")
     res_model = core.read_model(model=xml_path, weights=bin_path)
 
-    assert func.get_parameters() == res_model.get_parameters()
-    assert func.get_ordered_ops() == res_model.get_ordered_ops()
+    assert compare_models(model, res_model, compare_names=False)
+
+    del res_model
 
     os.remove(xml_path)
     os.remove(bin_path)
@@ -289,14 +291,15 @@ def test_version_ir_v11(request, tmp_path):
     shape = [100, 100, 2]
     parameter_a = ov.opset8.parameter(shape, dtype=np.float32, name="A")
     parameter_b = ov.opset8.parameter(shape, dtype=np.float32, name="B")
-    model = ov.opset8.floor(ov.opset8.minimum(ov.opset8.abs(parameter_a), parameter_b))
-    func = Model(model, [parameter_a, parameter_b], "Model")
+    _model = ov.opset8.floor(ov.opset8.minimum(ov.opset8.abs(parameter_a), parameter_b))
+    model = Model(_model, [parameter_a, parameter_b], "Model")
 
-    serialize(func, xml_path, bin_path, "IR_V11")
+    serialize(model, xml_path, bin_path, "IR_V11")
     res_model = core.read_model(model=xml_path, weights=bin_path)
 
-    assert func.get_parameters() == res_model.get_parameters()
-    assert func.get_ordered_ops() == res_model.get_ordered_ops()
+    assert compare_models(model, res_model)
+
+    del res_model
 
     os.remove(xml_path)
     os.remove(bin_path)
@@ -339,3 +342,21 @@ def test_convert_gru_to_tensor_iterator():
     # assert that GRU sequence got transformed into TensorIterator
     assert "GRUSequence" not in ops_types
     assert "TensorIterator" in ops_types
+
+
+def test_flush_fp32_subnormals_to_zero():
+    parameter = ov.opset10.parameter([1, 8], name="X")
+    subnorm_val = -2.0e-45
+
+    weights = ov.opset10.constant(np.array([0.0, 1.0, 2.0, 3.0, subnorm_val, subnorm_val, subnorm_val, subnorm_val]),
+                                  dtype=np.float32)
+    add_node = ov.opset10.add(parameter, weights)
+
+    result = ov.opset10.result(add_node)
+    model = Model([result], [parameter])
+
+    apply_moc_transformations(model, cf=False, smart_reshape=True)  # apply_flush_fp32_subnormals_to_zero is called inside
+
+    new_weights = add_node.input_value(1).get_node()
+    assert np.all(new_weights.data[4:8] != subnorm_val)
+    assert np.all(new_weights.data[4:8] == 0.0)

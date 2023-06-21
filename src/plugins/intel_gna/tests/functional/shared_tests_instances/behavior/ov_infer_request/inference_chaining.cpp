@@ -17,4 +17,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_GNA),
                                             ::testing::ValuesIn(device_modes)),
                          OVInferenceChaining::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
+                         OVInferenceChainingStatic,
+                         ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::ValuesIn(device_modes)),
+                         OVInferenceChainingStatic::getTestCaseName);
 }  // namespace

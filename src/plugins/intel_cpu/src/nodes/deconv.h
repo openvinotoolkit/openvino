@@ -23,19 +23,17 @@ public:
     void createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
                           const std::vector<MemoryDescPtr>& outputDesc) override;
     void createPrimitive() override;
-    void filterSupportedPrimitiveDescriptors() override;
-    void filterSupportedDescriptors();
     bool created() const override;
     bool canBeInPlace() const override {
         return false;
     }
 
-    size_t descInputNumbers(DnnlDesriptor desc) override {
+    size_t descInputNumbers() override {
         return static_cast<size_t>(getParentEdges().size());
     }
 
-    std::shared_ptr<MemoryDesc> getSrcMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
-    std::shared_ptr<MemoryDesc> getDstMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
+    std::shared_ptr<MemoryDesc> getSrcMemDesc(const dnnl::primitive_desc &prim_desc, size_t idx) const override;
+    std::shared_ptr<MemoryDesc> getDstMemDesc(const dnnl::primitive_desc &prim_desc, size_t idx) const override;
 
     InferenceEngine::Precision getRuntimePrecision() const override;
 
@@ -50,7 +48,6 @@ public:
     void executeDynamicImpl(dnnl::stream strm) override { execute(strm); }
     bool needShapeInfer() const override;
 
-    void setDynamicBatchLim(int lim) override;
     bool canBeExecutedInInt8() const;
     bool canFuseBias() const;
 
@@ -80,6 +77,9 @@ private:
                                const dnnl::memory::desc& outMemDesc,
                                const dnnl::engine& engine);
     };
+    // have to hold reference (shared_ptr) to forward convolution primitive_desc
+    // since backward one uses the reference to it as a hint
+    std::vector<dnnl::convolution_forward::primitive_desc> fwdConvPD;
 
     bool withGroups = false;
     bool isDW = false;
@@ -87,8 +87,8 @@ private:
     bool autoPad = false;
     bool externOutShape = false;
     size_t groupNum = 1;
-    size_t IC;
-    size_t OC;
+    size_t IC = 0;
+    size_t OC = 0;
     std::vector<ptrdiff_t> kernel;
     std::vector<ptrdiff_t> stride;
     std::vector<ptrdiff_t> dilation;
@@ -103,7 +103,7 @@ private:
 
     AttrPtr pAttr;
 
-    dnnl::memory::data_type outputDataType;
+    dnnl::memory::data_type outputDataType = dnnl::memory::data_type::undef;
 
     std::shared_ptr<dnnl::primitive_attr> attr;
     void setPostOps(dnnl::primitive_attr &attr, const VectorDims &dims);

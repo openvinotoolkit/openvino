@@ -2,7 +2,7 @@ import os.path
 
 from sphinx.directives.code import LiteralInclude, LiteralIncludeReader, container_wrapper
 from sphinx.util import logging
-from docutils.parsers.rst import directives
+from docutils.parsers.rst import Directive, directives
 from typing import List, Tuple
 from docutils.nodes import Node
 from docutils import nodes
@@ -74,3 +74,61 @@ class DoxygenSnippet(LiteralInclude):
             return [retnode]
         except Exception as exc:
             return [document.reporter.warning(exc, line=self.lineno)]
+
+
+def visit_scrollbox(self, node):
+    attrs = {}
+    attrs["style"] = (
+        (("height:" + "".join(c for c in str(node["height"]) if c.isdigit()) + "px!important; " ) if "height" in node is not None else "")
+        + (("width:" + "".join(c for c in str(node["width"]) if c.isdigit()) ) if "width" in node is not None else "")
+        + (("px; " if node["width"].find("px") != -1 else "%;") if "width" in node is not None else "")
+        + ( ("border-left:solid "+"".join(c for c in str(node["delimiter"]) if c.isdigit())+ "px " + (("".join(str(node["delimiter-color"]))) if "delimiter-color" in node is not None else "#dee2e6") +"; ") if "delimiter" in node is not None else "")
+    )
+    attrs["class"] = "scrollbox"
+    self.body.append(self.starttag(node, "div", **attrs))
+
+
+def depart_scrollbox(self, node):
+    self.body.append("</div>\n")
+
+
+class Nodescrollbox(nodes.container):
+    def create_scrollbox_component(
+        rawtext: str = "",
+        **attributes,
+    ) -> nodes.container:
+        node = nodes.container(rawtext, is_div=True, **attributes)
+        return node
+
+
+class Scrollbox(Directive):
+    has_content = True
+    required_arguments = 0
+    optional_arguments = 1
+    final_argument_whitespace = True
+    option_spec = {
+        'name': directives.unchanged,
+        'width': directives.length_or_percentage_or_unitless,
+        'height': directives.length_or_percentage_or_unitless,
+        'style': directives.unchanged,
+        'delimiter': directives.length_or_percentage_or_unitless,
+        'delimiter-color': directives.unchanged,
+    }
+
+    has_content = True
+
+    def run(self):
+        classes = ['scrollbox','']
+        node = Nodescrollbox("div", rawtext="\n".join(self.content), classes=classes)
+        if 'height' in self.options:
+            node['height'] = self.options['height']
+        if 'width' in self.options:
+            node['width'] = self.options['width']
+        if 'delimiter' in self.options:
+            node['delimiter'] = self.options['delimiter']
+        if 'delimiter-color' in self.options:
+            node['delimiter-color'] = self.options['delimiter-color']
+        self.add_name(node)
+        if self.content:
+            self.state.nested_parse(self.content, self.content_offset, node)
+        return [node]

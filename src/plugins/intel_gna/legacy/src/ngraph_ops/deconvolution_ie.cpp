@@ -140,7 +140,7 @@ shared_ptr<Node> op::DeconvolutionIE::clone_with_new_inputs(const ngraph::Output
                                             m_output_padding,
                                             m_output_shape);
     }
-    throw ngraph::ngraph_error("Unexpected number of arguments");
+    OPENVINO_THROW("Unexpected number of arguments");
 }
 
 bool op::DeconvolutionIE::visit_attributes(AttributeVisitor& visitor) {

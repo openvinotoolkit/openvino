@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <tuple>
@@ -16,7 +17,7 @@ namespace SubgraphTestsDefinitions {
 typedef std::pair<float, float> QuantRange;
 
 typedef std::tuple<
-        size_t,
+        uint64_t,
         QuantRange,
         QuantRange,
         ngraph::helpers::QuantizationGranularity,

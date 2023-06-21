@@ -108,8 +108,10 @@ const std::vector<size_t> eltwise_input_order = {0, 1};
 
 const InferenceEngine::Precision net_precisions{InferenceEngine::Precision::FP32};
 
-const std::vector<std::map<std::string, std::string>> configs = {{{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}},
-                                                                 {{"GNA_DEVICE_MODE", "GNA_SW_FP32"}}};
+const std::vector<std::map<std::string, std::string>> configs = {
+    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_EXEC_TARGET", "GNA_TARGET_3_0"}},
+    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_EXEC_TARGET", "GNA_TARGET_3_5"}},
+    {{"GNA_DEVICE_MODE", "GNA_SW_FP32"}}};
 
 const std::vector<std::vector<size_t>> input_shapes{{1, 8, 32, 16}};
 

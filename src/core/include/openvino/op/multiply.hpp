@@ -13,7 +13,7 @@ namespace v1 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API Multiply : public util::BinaryElementwiseArithmetic {
 public:
-    OPENVINO_OP("Multiply", "opset1", util::BinaryElementwiseArithmetic, 1);
+    OPENVINO_OP("Multiply", "opset1", util::BinaryElementwiseArithmetic);
 
     /// \brief Constructs a multiplication operation.
     Multiply() : util::BinaryElementwiseArithmetic(AutoBroadcastType::NUMPY) {}

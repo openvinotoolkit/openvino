@@ -32,6 +32,13 @@ ParamsKey GemmKernelMMADint8::GetSupportedKey() const {
     return k;
 }
 
+DeviceFeaturesKey GemmKernelMMADint8::get_required_device_features_key(const Params& params, const optional_params& options) const {
+    auto k = get_common_subgroups_device_features_key(params, options);
+    k.requires_subgroup_shuffle();
+
+    return k;
+}
+
 JitConstants GemmKernelMMADint8::GetJitConstants(const gemm_params& params) const {
     JitConstants jit = Parent::GetJitConstants(params);
     GemmTuningData td = SetTuningParams(params);

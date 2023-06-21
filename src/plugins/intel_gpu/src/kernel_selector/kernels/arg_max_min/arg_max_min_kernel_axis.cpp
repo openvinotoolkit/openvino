@@ -20,6 +20,20 @@ size_t getOperationNumber(const arg_max_min_params& params) {
     }
 }
 
+std::string getOperationNumberString(const arg_max_min_params& params) {
+    const auto& output = params.outputs[0];
+    DimensionAccessHelper dims(output);
+    switch (params.argMaxMinAxis) {
+        case ArgMaxMinAxis::BATCH: return toVectorMulString({dims.x(), dims.y(), dims.z(), dims.f()});
+        case ArgMaxMinAxis::FEATURE: return toVectorMulString({dims.x(), dims.y(), dims.z(), dims.b()});
+        case ArgMaxMinAxis::Z: return toVectorMulString({dims.y(), dims.z(), dims.f(), dims.b()});
+        case ArgMaxMinAxis::Y: return toVectorMulString({dims.x(), dims.z(), dims.f(), dims.b()});
+        case ArgMaxMinAxis::X: return toVectorMulString({dims.y(), dims.z(), dims.f(), dims.b()});
+        default:
+            throw std::invalid_argument("Unsupported axis");
+    }
+}
+
 size_t getSortSize(const arg_max_min_params& params) {
     switch (params.argMaxMinAxis) {
         case ArgMaxMinAxis::BATCH: return params.inputs[0].Batch().v;
@@ -65,6 +79,7 @@ ParamsKey ArgMaxMinKernelAxis::GetSupportedKey() const {
     k.EnableBatching();
     k.EnableTensorPitches();
     k.EnableTensorOffset();
+    k.EnableDynamicShapesSupport();
     return k;
 }
 
@@ -83,37 +98,83 @@ bool ArgMaxMinKernelAxis::Validate(const Params& p, const optional_params& o) co
     return true;
 }
 
+ArgMaxMinKernelBase::DispatchData ArgMaxMinKernelAxis::SetDefault(const arg_max_min_params& params) const {
+    DispatchData dispatchData;
+
+    if (!params.has_dynamic_tensors()) {
+        size_t ops_size = getOperationNumber(params);
+        ops_size = ops_size > 1 ? Align(ops_size, 32) : 1;
+        size_t sort_size = params.argMaxMinSortType == ArgMaxMinSortType::VALUE ? getSortSize(params) : 1;
+
+        dispatchData.gws = { ops_size, sort_size, 1 };
+        dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
+    }
+
+    return dispatchData;
+}
+
 KernelsData ArgMaxMinKernelAxis::GetKernelsData(const Params& params, const optional_params& options) const {
     if (!Validate(params, options)) {
         return {};
     }
     const arg_max_min_params& orgParams = static_cast<const arg_max_min_params&>(params);
+    bool is_dynamic = orgParams.has_dynamic_tensors();
 
-    size_t ops_size = getOperationNumber(orgParams);
-    ops_size = ops_size > 1 ? Align(ops_size, 32) : 1;
-    size_t sort_size = orgParams.argMaxMinSortType == ArgMaxMinSortType::VALUE ? getSortSize(orgParams) : 1;
-
-    DispatchData dispatchData;
-
-    dispatchData.gws = { ops_size, sort_size, 1 };
-    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
-
+    auto dispatchData = SetDefault(orgParams);
     KernelData kd = KernelData::Default<arg_max_min_params>(params);
+    kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
+        const auto& prim_params = static_cast<const arg_max_min_params&>(params);
+        auto dispatchData = SetDefault(prim_params);
+        OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
+        kd.kernels[0].params.workGroups.global = dispatchData.gws;
+        kd.kernels[0].params.workGroups.local = dispatchData.lws;
+        kd.kernels[0].skip_execution = KernelData::SkipKernelExecution(prim_params);
+
+        const size_t elem_size = prim_params.inputs[0].ElementSize();
+        const size_t iav_type_size = elem_size + 4;
+        const size_t sort_size = getSortSize(prim_params);
+        const size_t ops_size = getOperationNumber(prim_params);
+        const size_t group_size = prim_params.topK >= 8 ? prim_params.topK : 8;
+        const size_t group_num = ((sort_size - 1) / group_size) + 1;
+
+        kd.internalBufferSizes.clear();
+        kd.internalBufferSizes.push_back(iav_type_size * sort_size * ops_size * 2);
+        kd.internalBufferSizes.push_back(4 * group_num * ops_size * 2);
+        kd.internalBufferSizes.push_back(ops_size * elem_size);
+        kd.internalBufferDataType = prim_params.inputs[0].GetDType();
+    };
 
     auto cldnn_jit = GetJitConstants(orgParams);
     auto entry_point = GetEntryPoint(kernelName, orgParams.layerID, params, options);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = kd.kernels[0];
-    if (!orgParams.use_multiple_outputs) {
-        FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point);
-    } else {
-        FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point,
-                         "", false, false, 1, GetFusedPrimitiveInputsCount(params), 2);
-    }
+    FillCLKernelData(kernel,
+                     dispatchData,
+                     params.engineInfo,
+                     kernelName,
+                     jit,
+                     entry_point,
+                     EXE_MODE_DEFAULT,
+                     false,
+                     false,
+                     1,
+                     GetFusedPrimitiveInputsCount(params),
+                     orgParams.use_multiple_outputs ? 2 : 1,
+                     is_dynamic);
 
     if (orgParams.has_second_output && !orgParams.use_multiple_outputs)
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 1});
+
+    if (is_dynamic) {
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});
+        kd.internalBufferSizes.push_back(orgParams.inputs[0].PhysicalSizeInBytes());
+        kd.internalBufferSizes.push_back(orgParams.inputs[0].PhysicalSizeInBytes());
+        kd.internalBufferSizes.push_back(orgParams.inputs[0].PhysicalSizeInBytes());
+        kd.internalBufferDataType = orgParams.inputs[0].GetDType();
+    }
 
     return {kd};
 }
@@ -125,7 +186,13 @@ KernelsPriority ArgMaxMinKernelAxis::GetKernelsPriority(const Params& /*params*/
 JitConstants ArgMaxMinKernelAxis::GetJitConstants(const arg_max_min_params& params) const {
     auto jit = ArgMaxMinKernelBase::GetJitConstants(params);
 
-    jit.AddConstant(MakeJitConstant("OPERATION_NUM", getOperationNumber(params)));
+    if (params.has_dynamic_tensors()) {
+        const std::string operation_num = getOperationNumberString(params);
+        jit.AddConstant(MakeJitConstant("OPERATION_NUM", operation_num));
+    } else {
+        const size_t operation_num = getOperationNumber(params);
+        jit.AddConstant(MakeJitConstant("OPERATION_NUM", operation_num));
+    }
     if (params.argMaxMinSortType == ArgMaxMinSortType::VALUE)
         jit.AddConstant(MakeJitConstant("SORT_BY_VALUE", 1));
     else

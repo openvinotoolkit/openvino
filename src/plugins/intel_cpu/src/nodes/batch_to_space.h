@@ -24,6 +24,7 @@ public:
     bool created() const override;
 
     bool needPrepareParams() const override { return false; };
+    bool needShapeInfer() const override {return true;};
     void executeDynamicImpl(dnnl::stream strm) override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;

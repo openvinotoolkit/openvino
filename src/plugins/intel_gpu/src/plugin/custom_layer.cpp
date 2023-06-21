@@ -14,11 +14,14 @@
 #include <climits>
 
 #ifdef _WIN32
+# ifndef NOMINMAX
+#  define NOMINMAX
+# endif
 # include <windows.h>
 #endif
 
 using namespace InferenceEngine;
-using namespace XMLParseUtils;
+using namespace pugixml::utils;
 
 #define CheckAndReturnError(cond, errorMsg) \
     if (cond) { std::stringstream ss; ss << errorMsg; m_ErrorMessage = ss.str(); return; }
@@ -245,6 +248,8 @@ void CustomLayer::LoadFromFile(const std::string configFile, CustomLayerMap& cus
 #elif __linux__
     char path[PATH_MAX];
     char* abs_path_ptr = realpath(configFile.c_str(), path);
+#else
+#error "Intel GPU plugin: unknown target system"
 #endif
     if (abs_path_ptr == nullptr) {
         IE_THROW() << "Error loading custom layer configuration file: " << configFile << ", "

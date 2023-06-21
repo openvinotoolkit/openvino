@@ -57,9 +57,11 @@ bool evaluate_negative(const HostTensorPtr& arg0, const HostTensorPtr& out, cons
 
 bool op::Negative::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v0_Negative_evaluate);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     NGRAPH_CHECK(validate_host_tensor_vector(inputs, 1));
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1));
-    return negativeop::evaluate_negative(inputs[0], outputs[0], shape_size(outputs[0]->get_shape()));
+    OPENVINO_SUPPRESS_DEPRECATED_END
+    return negativeop::evaluate_negative(inputs[0], outputs[0], shape_size(inputs[0]->get_shape()));
 }
 
 bool op::Negative::has_evaluate() const {

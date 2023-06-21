@@ -13,7 +13,41 @@ namespace frontend {
 namespace pytorch {
 namespace op {
 
-OutputVector translate_if(NodeContext& context) {
+namespace {
+// TODO: Ticket 106627. This is a WA and will work only if both branches of if will eventually go to the operation that
+// will have same output type for both types
+void align_result_types(const NodeContext& context,
+                        std::shared_ptr<opset10::Result> r1,
+                        std::shared_ptr<opset10::Result> r2) {
+    auto r1_tensor = r1->input_value(0);
+    auto r2_tensor = r2->input_value(0);
+    auto r1_type = r1_tensor.get_element_type();
+    auto r2_type = r2_tensor.get_element_type();
+    if (r1_type == r2_type)
+        return;
+    element::Type merged_type;
+    if (element::Type::merge(merged_type, r1_type, r2_type)) {
+        if (r1_type != merged_type) {
+            auto convert1 = std::make_shared<opset10::Convert>(r1_tensor, merged_type);
+            r1->set_argument(0, convert1);
+        }
+        if (r2_type != merged_type) {
+            auto convert2 = std::make_shared<opset10::Convert>(r2_tensor, merged_type);
+            r2->set_argument(0, convert2);
+        }
+    } else {
+        if (r1_type.bitwidth() >= r2_type.bitwidth()) {
+            auto convert = std::make_shared<opset10::Convert>(r2_tensor, r1_type);
+            r2->set_argument(0, convert);
+        } else {
+            auto convert = std::make_shared<opset10::Convert>(r1_tensor, r2_type);
+            r1->set_argument(0, convert);
+        }
+    }
+}
+}  // namespace
+
+OutputVector translate_if(const NodeContext& context) {
     auto if_node = std::make_shared<opset10::If>(context.get_input(0));
     context.mark_node(if_node);
     auto decoder = context.get_decoder();
@@ -62,6 +96,7 @@ OutputVector translate_if(NodeContext& context) {
     FRONT_END_OP_CONVERSION_CHECK(then_results.size() >= num_outs && else_results.size() >= num_outs,
                                   "Else or then body have less outputs than prim::If requires.");
     for (size_t i = 0; i < num_outs; i++) {
+        align_result_types(context, then_results[i], else_results[i]);
         res.push_back(if_node->set_output(then_results[i], else_results[i]));
     }
     // Each body can have mutated outputs that are not included into pytorch node outputs.
@@ -105,7 +140,7 @@ OutputVector translate_if(NodeContext& context) {
             then_body->add_parameters({new_parameter});
             then_body->add_results({new_result});
             then_body->validate_nodes_and_infer_types();
-            FRONT_END_OP_CONVERSION_CHECK(inputs_map.count(output_idx), "Input must exist in else body");
+            FRONT_END_OP_CONVERSION_CHECK(inputs_map.count(output_idx), "Input must exist in else body: ", output_idx);
             inputs_map[output_idx][0] = new_parameter;
             extra_then_body_results[output_idx] = new_result;
             OPENVINO_DEBUG << "Modified then body: " << if_node << '\n';
@@ -117,7 +152,7 @@ OutputVector translate_if(NodeContext& context) {
             else_body->add_parameters({new_parameter});
             else_body->add_results({new_result});
             else_body->validate_nodes_and_infer_types();
-            FRONT_END_OP_CONVERSION_CHECK(inputs_map.count(output_idx), "Input must exist in then body");
+            FRONT_END_OP_CONVERSION_CHECK(inputs_map.count(output_idx), "Input must exist in then body: ", output_idx);
             inputs_map[output_idx][1] = new_parameter;
             extra_else_body_results[output_idx] = new_result;
             OPENVINO_DEBUG << "Modified else body: " << if_node << '\n';
@@ -136,6 +171,7 @@ OutputVector translate_if(NodeContext& context) {
         }
     }
     for (const auto& output_idx : extra_output_idxs) {
+        align_result_types(context, extra_then_body_results.at(output_idx), extra_else_body_results.at(output_idx));
         context.add_tensor_to_context(
             output_idx,
             if_node->set_output(extra_then_body_results.at(output_idx), extra_else_body_results.at(output_idx)));

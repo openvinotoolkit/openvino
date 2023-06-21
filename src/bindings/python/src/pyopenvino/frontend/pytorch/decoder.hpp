@@ -26,6 +26,10 @@ class PyDecoder : public ov::frontend::pytorch::TorchDecoder {
         PYBIND11_OVERRIDE_PURE(const std::string&, TorchDecoder, get_input_debug_name, index);
     }
 
+    const std::string& get_input_signature_name(size_t index) const override {
+        PYBIND11_OVERRIDE_PURE(const std::string&, TorchDecoder, get_input_signature_name, index);
+    }
+
     ov::PartialShape get_input_shape(size_t index) const override {
         PYBIND11_OVERRIDE_PURE(ov::PartialShape, TorchDecoder, get_input_shape, index);
     }
@@ -104,6 +108,10 @@ class PyDecoder : public ov::frontend::pytorch::TorchDecoder {
 
     std::shared_ptr<TorchDecoder> get_subgraph_decoder(size_t index) const override {
         PYBIND11_OVERRIDE_PURE(std::shared_ptr<TorchDecoder>, TorchDecoder, get_subgraph_decoder, index);
+    }
+
+    bool may_produce_alias(size_t in_index, size_t out_index) const override {
+        PYBIND11_OVERRIDE_PURE(bool, TorchDecoder, may_produce_alias, in_index, out_index);
     }
 };
 

@@ -7,7 +7,6 @@
 #include <pybind11/stl.h>
 
 #include <compress_quantize_weights.hpp>
-#include <generate_mapping_file.hpp>
 #include <openvino/pass/make_stateful.hpp>
 #include <openvino/pass/serialize.hpp>
 #include <pot_transformations.hpp>
@@ -17,6 +16,7 @@
 #include <transformations/common_optimizations/mark_precision_sensitive_shapeof_subgraphs.hpp>
 #include <transformations/common_optimizations/moc_legacy_transformations.hpp>
 #include <transformations/common_optimizations/moc_transformations.hpp>
+#include <transformations/flush_fp32_subnormals_to_zero.hpp>
 #include <transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp>
 #include <transformations/smart_reshape/smart_reshape.hpp>
 
@@ -38,6 +38,7 @@ void regmodule_offline_transformations(py::module m) {
             if (smart_reshape)
                 manager.register_pass<ov::pass::SmartReshape>();
             manager.register_pass<ov::pass::MOCTransformations>(cf);
+            manager.register_pass<ov::pass::FlushFP32SubnormalsToZero>();
             manager.run_passes(model);
         },
         py::arg("model"),
@@ -82,17 +83,6 @@ void regmodule_offline_transformations(py::module m) {
             manager.run_passes(model);
         },
         py::arg("model"));
-
-    m_offline_transformations.def(
-        "generate_mapping_file",
-        [](std::shared_ptr<ov::Model> model, std::string path, bool extract_names) {
-            ov::pass::Manager manager;
-            manager.register_pass<ngraph::pass::GenerateMappingFile>(path, extract_names);
-            manager.run_passes(model);
-        },
-        py::arg("model"),
-        py::arg("path"),
-        py::arg("extract_names"));
 
     m_offline_transformations.def(
         "apply_make_stateful_transformation",

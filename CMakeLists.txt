@@ -3,10 +3,11 @@
 #
 
 if(DEFINED BUILD_SHARED_LIBS AND NOT BUILD_SHARED_LIBS)
-    # 'target_link_libraries' does not work correctly when called from
+    # 3.17: 'target_link_libraries' does not work correctly when called from
     # different directory where 'add_library' is called: CMake generates
     # incorrect OpenVINOConfig.cmake in this case
-    cmake_minimum_required(VERSION 3.17)
+    # 3.18: add_library cannot create ALIAS for non-GLOBAL targets
+    cmake_minimum_required(VERSION 3.18)
 else()
     if(CPACK_GENERATOR STREQUAL "DEB")
         # we have to use CPACK_DEBIAN_PACKAGE_SHLIBDEPS_PRIVATE_DIRS variable
@@ -15,6 +16,10 @@ else()
         # default choice
         cmake_minimum_required(VERSION 3.13)
     endif()
+endif()
+
+if(POLICY CMP0091)
+    cmake_policy(SET CMP0091 NEW) # Enables use of MSVC_RUNTIME_LIBRARY
 endif()
 
 project(OpenVINO DESCRIPTION "OpenVINO toolkit")
@@ -36,8 +41,6 @@ endif()
 
 # resolving dependencies for the project
 message (STATUS "CMAKE_VERSION ......................... " ${CMAKE_VERSION})
-message (STATUS "CMAKE_BINARY_DIR ...................... " ${CMAKE_BINARY_DIR})
-message (STATUS "CMAKE_SOURCE_DIR ...................... " ${CMAKE_SOURCE_DIR})
 message (STATUS "OpenVINO_SOURCE_DIR ................... " ${OpenVINO_SOURCE_DIR})
 message (STATUS "OpenVINO_BINARY_DIR ................... " ${OpenVINO_BINARY_DIR})
 message (STATUS "CMAKE_GENERATOR ....................... " ${CMAKE_GENERATOR})
@@ -62,7 +65,7 @@ endif()
 if(CMAKE_TOOLCHAIN_FILE)
     message (STATUS "CMAKE_TOOLCHAIN_FILE .................. " ${CMAKE_TOOLCHAIN_FILE})
 endif()
-if(OV_GLIBC_VERSION)
+if(NOT OV_GLIBC_VERSION VERSION_EQUAL 0.0)
     message (STATUS "GLIBC_VERSION ......................... " ${OV_GLIBC_VERSION})
 endif()
 
@@ -118,7 +121,7 @@ if (ENABLE_TESTS)
     include(cmake/test_model_zoo.cmake)
 endif()
 
-add_subdirectory(thirdparty)
+include(thirdparty/dependencies.cmake)
 add_subdirectory(src)
 
 if(ENABLE_SAMPLES OR ENABLE_TESTS OR ENABLE_COMPILE_TOOL)

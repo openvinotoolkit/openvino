@@ -26,6 +26,8 @@ using namespace Xbyak;
 namespace ov {
 namespace intel_cpu {
 
+#if defined(OPENVINO_ARCH_X86_64)
+
 template <cpu_isa_t isa>
 struct jit_uni_permute_kernel_f32 : public jit_uni_permute_kernel, public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_permute_kernel_f32)
@@ -75,7 +77,7 @@ struct jit_uni_permute_kernel_f32 : public jit_uni_permute_kernel, public jit_ge
         Xbyak::Label tail_loop_label;
         Xbyak::Label exit_label;
 
-        if (n + 1 == jcp.ndims) {
+        if (n + 1 == static_cast<int>(jcp.ndims)) {
             if (jcp.src_strides[n] == 1 && jcp.dst_strides[n] == 1) {
                 uint32_t step = vlen / jcp.data_size;
 
@@ -100,7 +102,7 @@ struct jit_uni_permute_kernel_f32 : public jit_uni_permute_kernel, public jit_ge
             cmp(reg_work_amount, 0);
             je(exit_label, T_NEAR);
 
-            if (n + 1 == jcp.ndims) {
+            if (n + 1 == static_cast<int>(jcp.ndims)) {
                 load(xmm, ptr[reg_src]);
                 store(ptr[reg_dst], xmm);
             } else {
@@ -140,6 +142,8 @@ private:
     Vmm vmm = Vmm(1);
     Xbyak::Xmm xmm = Xbyak::Xmm(1);
 };
+
+#endif // OPENVINO_ARCH_X86_64
 
 PermuteKernel::PermuteKernel(const PermuteParams& params) : params(params) {
     prepareParams();
@@ -203,7 +207,7 @@ void PermuteKernel::prepareParams() {
     int batch_count = 0;
     int batch_pos = 0;
     for (size_t i = 0; i < new_dst_block_order.size(); i++) {
-        if (new_dst_block_order[i] == batch_ord) {
+        if (static_cast<int>(new_dst_block_order[i]) == batch_ord) {
             batch_count++;
             batch_pos = i;
         }
@@ -220,7 +224,7 @@ void PermuteKernel::prepareParams() {
     for (size_t i = 0; i < mask.size(); i++) {
         if (mask[i] == 0) {
             n2++;
-            if (batch_count == 1 && new_dst_block_order[i] == batch_ord) {
+            if (batch_count == 1 && static_cast<int>(new_dst_block_order[i]) == batch_ord) {
                 continue;
             }
             sorted_src_strides.push_back(new_src_block_strides[i]);
@@ -257,6 +261,7 @@ void PermuteKernel::prepareParams() {
     jcp.ndims = sorted_order.size();
     jcp.data_size = params.data_size;
 
+#if defined(OPENVINO_ARCH_X86_64)
     if (mayiuse(cpu::x64::avx512_core)) {
         permute_kernel.reset(new jit_uni_permute_kernel_f32<cpu::x64::avx512_core>(jcp));
     } else if (mayiuse(cpu::x64::avx2)) {
@@ -264,6 +269,7 @@ void PermuteKernel::prepareParams() {
     } else if (mayiuse(cpu::x64::sse41)) {
         permute_kernel.reset(new jit_uni_permute_kernel_f32<cpu::x64::sse41>(jcp));
     }
+#endif // OPENVINO_ARCH_X86_64
 
     if (permute_kernel)
         permute_kernel->create_ker();
@@ -293,7 +299,7 @@ void PermuteKernel::optimizedExecute(const uint8_t* src_data, uint8_t* dst_data,
     const SizeVector dst_strides = jcp.dst_strides;
     const SizeVector src_strides = jcp.src_strides;
 
-    if (dst_dims[0] != mb)
+    if (static_cast<int>(dst_dims[0]) != mb)
         dst_dims[0] = mb;
 
     switch (jcp.n) {
@@ -362,7 +368,7 @@ void PermuteKernel::referenceExecute(const uint8_t* src_data, uint8_t* dst_data,
     const size_t data_size = jcp.data_size;
     const size_t ndims = dst_dims.size();
 
-    if (dst_dims[0] != mb)
+    if (static_cast<int>(dst_dims[0]) != mb)
         dst_dims[0] = mb;
 
     size_t work_amount = std::accumulate(dst_dims.begin(), dst_dims.end(), 1, std::multiplies<size_t>());

@@ -14,7 +14,7 @@ namespace v1 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API GatherTree : public Op {
 public:
-    OPENVINO_OP("GatherTree", "opset1", op::Op, 1);
+    OPENVINO_OP("GatherTree", "opset1", op::Op);
 
     GatherTree() = default;
     /// \param step_ids     Tensor of shape [MAX_TIME, BATCH_SIZE, BEAM_WIDTH] with

@@ -1,7 +1,10 @@
+import itertools
 import os
+import warnings
 
-import tensorflow as tf
 import numpy as np
+import tensorflow as tf
+
 from common.utils.tf_utils import summarize_graph, transpose_nhwc_to_nchw
 
 
@@ -23,10 +26,17 @@ def make_boolean_array(inputs_dict):
     return inputs_dict
 
 
+def make_int32_positive_array(inputs_dict):
+    for input in inputs_dict.keys():
+        inputs_dict[input] = np.random.randint(1, 10, inputs_dict[input]).astype(np.int32)
+    return inputs_dict
+
+
 data_generators = {
     'positive': make_positive_array,
     'short_range': short_range,
     'boolean': make_boolean_array,
+    'int32_positive': make_int32_positive_array,
 }
 
 
@@ -41,7 +51,7 @@ additional_test_params = [
     [
         {'axis': None},
         {'axis': -1}
-        ],
+    ],
     [
         {'activation': None},
         {'activation': tf.nn.relu},
@@ -51,7 +61,7 @@ additional_test_params = [
         # {'activation': tf.math.tanh},
         # {'activation': lambda x, name: tf.identity(tf.experimental.numpy.signbit(x), name=name)},
         {'activation': lambda x, name: tf.math.minimum(tf.math.maximum(-1., x), 1., name=name)}
-        ]
+    ]
 ]
 
 
@@ -81,6 +91,13 @@ def get_tflite_results(use_new_frontend, use_old_api, inputs_dict, model_path):
     for layer, data in inputs_dict.items():
         tensor_index = input_name_to_id_mapping[layer]
         tensor_id = next(i for i, tensor in enumerate(input_details) if tensor['index'] == tensor_index)
+
+        if list(input_details[tensor_id]['shape']) != list(data.shape):
+            warnings.warn(f'Model and data have different shapes:\nModel {tensor_id} '
+                          f'input shape{input_details[tensor_id]["shape"]}\nInput data shape: {data.shape}')
+            interpreter.resize_tensor_input(input_details[tensor_id]['index'], data.shape)
+            interpreter.allocate_tensors()
+
         interpreter.set_tensor(input_details[tensor_id]['index'], data)
 
     interpreter.invoke()
@@ -119,3 +136,10 @@ def get_tensors_from_graph(graph, ops: list):
 
     return tensors
 
+
+def parametrize_tests(lhs, rhs):
+    test_data = list(itertools.product(lhs, rhs))
+    for i, (parameters, shapes) in enumerate(test_data):
+        parameters.update(shapes)
+        test_data[i] = parameters.copy()
+    return test_data

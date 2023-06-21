@@ -12,7 +12,7 @@ namespace frontend {
 namespace pytorch {
 namespace op {
 
-OutputVector translate_get_attr(NodeContext& context) {
+OutputVector translate_get_attr(const NodeContext& context) {
     auto res = context.get_decoder()->try_decode_get_attr();
     FRONT_END_OP_CONVERSION_CHECK(res.size() > 0, "GetAttr must have at least one output.");
     return res;

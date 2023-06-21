@@ -14,7 +14,7 @@ namespace v3 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API Assign : public util::AssignBase {
 public:
-    OPENVINO_OP("Assign", "opset3", util::AssignBase, 3);
+    OPENVINO_OP("Assign", "opset3", util::AssignBase);
     Assign() = default;
 
     /// \brief Constructs an Assign operation.
@@ -44,7 +44,7 @@ namespace v6 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API Assign : public util::AssignBase {
 public:
-    OPENVINO_OP("Assign", "opset6", util::AssignBase, 6);
+    OPENVINO_OP("Assign", "opset6", util::AssignBase);
     Assign() = default;
 
     /// \brief Constructs an Assign operation.

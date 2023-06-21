@@ -4,6 +4,7 @@
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
+#include <thread>
 
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include "ie_ngraph_utils.hpp"
@@ -88,7 +89,7 @@ public:
             if (exceptionPtr)
                 workerRequestPtr->_exceptionPtr = exceptionPtr;
         });
-        workerRequestPtr->_thread = std::thread([this] {
+        workerRequestPtr->_thread = std::thread([] {
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
         });
         return;

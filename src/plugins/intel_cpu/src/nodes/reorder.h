@@ -24,7 +24,7 @@ public:
     void initSupportedPrimitiveDescriptors() override;
     void execute(dnnl::stream strm) override;
     bool created() const override;
-    const std::vector<impl_desc_type>& getPrimitivesPriority() override;
+    const std::vector<impl_desc_type>& getDefaultImplPriority() override;
 
     bool isExecutable() const override;
 
@@ -52,8 +52,6 @@ public:
         this->isOptimized = isOptimized;
     }
 
-    void setDynamicBatchLim(int lim) override;
-
     bool canBeInPlace() const override {
         return false;
     }
@@ -66,6 +64,7 @@ public:
     static void reorderData(const Memory &input, const Memory &output, MultiCachePtr cache = nullptr);
 
 private:
+    dnnl::reorder::primitive prim;
     std::shared_ptr<MemoryDesc> input;
     std::shared_ptr<MemoryDesc> output;
 

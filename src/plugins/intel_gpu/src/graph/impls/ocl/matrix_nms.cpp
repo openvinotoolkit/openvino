@@ -108,3 +108,4 @@ attach_matrix_nms_impl::attach_matrix_nms_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::matrix_nms_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::matrix_nms)

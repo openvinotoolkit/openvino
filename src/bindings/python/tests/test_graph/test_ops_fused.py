@@ -301,7 +301,6 @@ def test_group_convolution_operator():
     assert list(model.get_output_shape(0)) == [1, 2, 2, 2]
 
 
-@pytest.mark.xfail(reason="Computation mismatch")
 def test_group_convolution_backprop_data():
     data_shape = [1, 1, 3, 3]
     filters_shape = [1, 1, 1, 3, 3]

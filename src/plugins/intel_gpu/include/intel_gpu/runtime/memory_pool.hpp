@@ -106,13 +106,15 @@ public:
                           uint32_t network_id,
                           const std::set<primitive_id>& restrictions,
                           allocation_type type,
-                          bool reusable = true);  // get from pool or create memory allocation
+                          bool reusable = true,
+                          bool reset = true);  // get from pool or create memory allocation
     memory_ptr get_memory(const layout& layout, allocation_type type, bool reset = true);
     memory_ptr get_from_non_padded_pool(const layout& layout,
                                         const primitive_id& id,
                                         uint32_t network_id,
                                         const std::set<primitive_id>&,
-                                        allocation_type type);
+                                        allocation_type type,
+                                        bool reset = true);
     memory_ptr get_from_padded_pool(const layout& layout,
                                     const primitive_id& id,
                                     uint32_t network_id,

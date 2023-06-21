@@ -6,6 +6,7 @@
 
 #include <functional>
 #include <string>
+#include <vector>
 
 namespace ngraph {
 namespace test {
@@ -36,5 +37,6 @@ ComparisonResult compare_onnx_models(const std::string& model,
                                      const std::string& reference_model_path,
                                      CompType comp = default_name_comparator);
 
+std::string change_opset_version(const std::string& model, const std::vector<int64_t>& new_opset_version, const std::string& domain="ai.onnx");
 }  // namespace test
 }  // namespace ngraph

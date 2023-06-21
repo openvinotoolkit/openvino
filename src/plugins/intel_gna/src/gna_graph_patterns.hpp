@@ -6,15 +6,18 @@
 
 #include <legacy/graph_tools.hpp>
 
+#include "common/graph_utils.hpp"
 #include "gna_data_types.hpp"
 #include "gna_graph_tools.hpp"
 #include "gna_upstream_iterator.hpp"
 #include "layers/gna_layer_info.hpp"
 #include "log/debug.hpp"
-#include "ops/util/util.hpp"
+#include "pre_post_process/transposition_info.hpp"
 
 namespace ov {
 namespace intel_gna {
+
+using TranspositionInfo = pre_post_processing::TranspositionInfo;
 
 /**
  * @brief checks if it's a reshape from 4d to 3d tensor
@@ -251,7 +254,7 @@ inline bool MustBeConvertedFromNCHWToNHWC(const std::vector<InferenceEngine::CNN
         auto in_dims = l->insData.begin()->lock()->getDims();
         auto out_dims = l->outData.front()->getDims();
 
-        if (ov::intel_gna::ngraph_util::is_one_dim_shapes(in_dims, out_dims)) {
+        if (ov::intel_gna::graph_utils::is_one_dim_shapes(in_dims, out_dims)) {
             continue;
         }
 

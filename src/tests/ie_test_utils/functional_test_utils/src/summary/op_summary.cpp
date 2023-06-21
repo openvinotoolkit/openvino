@@ -96,8 +96,8 @@ void OpSummary::updateOPsImplStatus(const ov::NodeTypeInfo &op, const bool implS
     }
 }
 
-std::string OpSummary::getOpVersion(const ov::NodeTypeInfo &type_info) {
-    std::string opset_name = "opset", version = type_info.get_version();
+std::string OpSummary::getOpVersion(const std::string& version) {
+    std::string opset_name = "opset";
     auto pos = version.find(opset_name);
     if (pos == std::string::npos) {
         return "undefined";
@@ -160,8 +160,13 @@ void OpSummary::updateOPsStats(const std::shared_ptr<ov::Model> &model, const Pa
              std::dynamic_pointer_cast<ov::op::v0::Result>(op)) && isFunctionalGraph) {
             continue;
         }
-        if (!isReportConvert && std::dynamic_pointer_cast<ov::op::v0::Convert>(op)) {
-            continue;
+        // todo: remove w/a to provide correct convert reporting after merge CVS-110714
+        if (std::dynamic_pointer_cast<ov::op::v0::Convert>(op)) {
+            if (!isReportConvert) {
+                continue;
+            } else {
+                isReportConvert = false;
+            }
         }
         if (extractBody) {
             if (std::dynamic_pointer_cast<ov::op::v0::TensorIterator>(op)) {
@@ -256,12 +261,21 @@ void OpSummary::saveReport() {
 
     std::string outputFilePath = outputFolder + std::string(CommonTestUtils::FileSeparator) + filename;
 
-    std::set<ov::NodeTypeInfo> opsInfo;
+    std::map<ov::NodeTypeInfo, std::string> opsInfo;
     for (const auto &opset_pair : get_available_opsets()) {
         std::string opset_version = opset_pair.first;
         const ov::OpSet& opset = opset_pair.second();
         const auto &type_info_set = opset.get_type_info_set();
-        opsInfo.insert(type_info_set.begin(), type_info_set.end());
+        for (const auto& type_info : type_info_set) {
+            auto it = opsInfo.find(type_info);
+            std::string op_version = getOpVersion(opset_version);
+            if (it == opsInfo.end()) {
+                opsInfo.insert({type_info, op_version});
+            } else {
+                opsInfo[type_info] += " ";
+                opsInfo[type_info] += op_version;
+            }
+        }
     }
 
     auto &summary = OpSummary::getInstance();
@@ -299,16 +313,15 @@ void OpSummary::saveReport() {
 
     pugi::xml_node opsNode = root.append_child("ops_list");
     for (const auto &op : opsInfo) {
-        std::string name = std::string(op.name) + "-" + getOpVersion(op);
-        pugi::xml_node entry = opsNode.append_child(name.c_str());
-        (void) entry;
+        std::string name = std::string(op.first.name) + "-" + getOpVersion(op.first.version_id);
+        opsNode.append_child(name.c_str()).append_attribute("opsets").set_value(op.second.c_str());
     }
 
     pugi::xml_node resultsNode = root.child("results");
     pugi::xml_node currentDeviceNode = resultsNode.append_child(summary.deviceName.c_str());
     std::unordered_set<std::string> opList;
     for (const auto &it : stats) {
-        std::string name = std::string(it.first.name) + "-" + getOpVersion(it.first);
+        std::string name = std::string(it.first.name) + "-" + getOpVersion(it.first.version_id);
         opList.insert(name);
         pugi::xml_node entry = currentDeviceNode.append_child(name.c_str());
         entry.append_attribute("implemented").set_value(it.second.isImplemented);

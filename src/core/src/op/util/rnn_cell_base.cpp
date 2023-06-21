@@ -69,7 +69,9 @@ std::shared_ptr<ov::Node> ov::op::util::convert_lstm_peepholes_format(const Outp
 static vector<string> to_lower_case(const vector<string>& vs) {
     vector<string> res(vs);
     transform(begin(res), end(res), begin(res), [](string& s) {
+        OPENVINO_SUPPRESS_DEPRECATED_START
         return ngraph::to_lower(s);
+        OPENVINO_SUPPRESS_DEPRECATED_END
     });
     return res;
 }

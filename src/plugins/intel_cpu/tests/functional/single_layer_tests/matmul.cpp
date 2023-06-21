@@ -251,7 +251,7 @@ std::vector<CPUSpecificParams> filterSpecificParams_BrgemmAmx() {
 std::vector<CPUSpecificParams> filterSpecificParams_Brgconv1x1() {
     std::vector<CPUSpecificParams> specificParams;
     if (with_cpu_x86_avx512_core()) {
-        specificParams.push_back(CPUSpecificParams{{}, {}, {"brgconv_avx512_1x1"}, "brgconv_avx512_1x1"});
+        specificParams.push_back(CPUSpecificParams{{}, {}, {/* brgconv_avx512_1x1 is not a part of fc impl list */}, "brgconv_avx512_1x1"});
     }
 
     return specificParams;
@@ -1277,6 +1277,13 @@ INSTANTIATE_TEST_SUITE_P(nightly_MM_Brgemm_Amx_Static, MatMulLayerCPUTest, testB
 
 
 const std::vector<ShapeRelatedParams> IS_Brgemm_Dynamic = {
+        {
+                {
+                        {{-1, 256}, {{1, 256}}},
+                        {{256, 384}, {{256, 384}}}
+                },
+                {false, false}
+        },
         {
                 {
                         {{-1, -1}, {{55, 12}, {33, 7}}},

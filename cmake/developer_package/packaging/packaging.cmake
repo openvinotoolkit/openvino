@@ -5,7 +5,21 @@
 include(CPackComponent)
 
 #
-# ov_get_pyversion()
+# ov_install_static_lib(<target> <comp>)
+#
+macro(ov_install_static_lib target comp)
+    if(NOT BUILD_SHARED_LIBS)
+        get_target_property(target_type ${target} TYPE)
+        if(target_type STREQUAL "STATIC_LIBRARY")
+            set_target_properties(${target} PROPERTIES EXCLUDE_FROM_ALL OFF)
+        endif()
+        install(TARGETS ${target} EXPORT OpenVINOTargets
+                ARCHIVE DESTINATION ${OV_CPACK_ARCHIVEDIR} COMPONENT ${comp} ${ARGN})
+    endif()
+endmacro()
+
+#
+# ov_get_pyversion(<OUT pyversion>)
 #
 function(ov_get_pyversion pyversion)
     find_package(PythonInterp 3 QUIET)
@@ -29,15 +43,12 @@ macro(ov_cpack_set_dirs)
     set(OV_CPACK_NGRAPH_CMAKEDIR runtime/cmake)
     set(OV_CPACK_OPENVINO_CMAKEDIR runtime/cmake)
     set(OV_CPACK_DOCDIR docs)
+    set(OV_CPACK_LICENSESDIR licenses)
     set(OV_CPACK_SAMPLESDIR samples)
     set(OV_CPACK_WHEELSDIR tools)
     set(OV_CPACK_TOOLSDIR tools)
     set(OV_CPACK_DEVREQDIR tools)
-
-    ov_get_pyversion(pyversion)
-    if(pyversion)
-        set(OV_CPACK_PYTHONDIR python/${pyversion})
-    endif()
+    set(OV_CPACK_PYTHONDIR python)
 
     if(WIN32)
         set(OV_CPACK_LIBRARYDIR runtime/lib/${ARCH_FOLDER}/$<CONFIG>)
@@ -66,11 +77,11 @@ endmacro()
 ov_cpack_set_dirs()
 
 #
-# ie_cpack_add_component(NAME ...)
+# ov_cpack_add_component(NAME ...)
 #
 # Wraps original `cpack_add_component` and adds component to internal IE list
 #
-function(ie_cpack_add_component name)
+function(ov_cpack_add_component name)
     if(NOT ${name} IN_LIST IE_CPACK_COMPONENTS_ALL)
         cpack_add_component(${name} ${ARGN})
 
@@ -99,10 +110,10 @@ endif()
 # if <FILE> is a symlink, we resolve it, but install file with a name of symlink
 #
 function(ov_install_with_name file component)
-    if((APPLE AND file MATCHES "^[^\.]+\.[0-9]+${CMAKE_SHARED_LIBRARY_SUFFIX}$") OR
-                (file MATCHES "^.*\.${CMAKE_SHARED_LIBRARY_SUFFIX}\.[0-9]+$"))
+    get_filename_component(actual_name "${file}" NAME)
+    if((APPLE AND actual_name MATCHES "^[^\.]+\.[0-9]+${CMAKE_SHARED_LIBRARY_SUFFIX}$") OR
+                (actual_name MATCHES "^.*\.${CMAKE_SHARED_LIBRARY_SUFFIX}\.[0-9]+$"))
         if(IS_SYMLINK "${file}")
-            get_filename_component(actual_name "${file}" NAME)
             get_filename_component(file "${file}" REALPATH)
             set(install_rename RENAME "${actual_name}")
         endif()
@@ -140,7 +151,7 @@ macro(ov_define_component_names)
     set(OV_CPACK_COMP_PYTHON_WHEELS "python_wheels")
     # tools
     set(OV_CPACK_COMP_CORE_TOOLS "core_tools")
-    set(OV_CPACK_COMP_DEV_REQ_FILES "openvino_dev_req_files")
+    set(OV_CPACK_COMP_OPENVINO_DEV_REQ_FILES "openvino_dev_req_files")
     set(OV_CPACK_COMP_DEPLOYMENT_MANAGER "deployment_manager")
     # scripts
     set(OV_CPACK_COMP_INSTALL_DEPENDENCIES "install_dependencies")
@@ -149,20 +160,65 @@ endmacro()
 
 ov_define_component_names()
 
-# Include Debian specific configuration file:
-# - overrides directories set by ov_debian_cpack_set_dirs()
-# - merges some components using ov_override_component_names()
-# - sets ov_debian_specific_settings() with DEB generator variables
-# - defines the following helper functions:
-#  - ov_add_lintian_suppression()
-#  - ov_add_latest_component()
+macro(ov_define_component_include_rules)
+    # core components
+    unset(OV_CPACK_COMP_CORE_EXCLUDE_ALL)
+    unset(OV_CPACK_COMP_CORE_C_EXCLUDE_ALL)
+    unset(OV_CPACK_COMP_CORE_DEV_EXCLUDE_ALL)
+    unset(OV_CPACK_COMP_CORE_C_DEV_EXCLUDE_ALL)
+    # licensing
+    unset(OV_CPACK_COMP_LICENSING_EXCLUDE_ALL)
+    # samples
+    unset(OV_CPACK_COMP_CPP_SAMPLES_EXCLUDE_ALL)
+    unset(OV_CPACK_COMP_C_SAMPLES_EXCLUDE_ALL)
+    unset(OV_CPACK_COMP_PYTHON_SAMPLES_EXCLUDE_ALL)
+    # python
+    unset(OV_CPACK_COMP_PYTHON_IE_API_EXCLUDE_ALL)
+    unset(OV_CPACK_COMP_PYTHON_NGRAPH_EXCLUDE_ALL)
+    unset(OV_CPACK_COMP_PYTHON_OPENVINO_EXCLUDE_ALL)
+    unset(OV_CPACK_COMP_PYTHON_WHEELS_EXCLUDE_ALL)
+    # tools
+    unset(OV_CPACK_COMP_CORE_TOOLS_EXCLUDE_ALL)
+    set(OV_CPACK_COMP_OPENVINO_DEV_REQ_FILES_EXCLUDE_ALL EXCLUDE_FROM_ALL)
+    unset(OV_CPACK_COMP_DEPLOYMENT_MANAGER_EXCLUDE_ALL)
+    # scripts
+    unset(OV_CPACK_COMP_INSTALL_DEPENDENCIES_EXCLUDE_ALL)
+    unset(OV_CPACK_COMP_SETUPVARS_EXCLUDE_ALL)
+endmacro()
+
+ov_define_component_include_rules()
+
+#
+# Include generator specific configuration file:
+# 1. Overrides directories set by ov_<debian | rpm | common_libraries>_cpack_set_dirs()
+#    This is requried, because different generator use different locations for installed files
+# 2. Merges some components using ov_override_component_names()
+#    This is required, because different generators have different set of components
+#    (e.g. C and C++ API are separate components)
+# 3. Exclude some components using ov_define_component_include_rules()
+#    This steps exclude some files from installation by defining variables meaning EXCLUDE_ALL
+# 4. Sets ov_<debian | rpm | ...>_specific_settings() with DEB generator variables
+#    This 'callback' is later called from ov_cpack (wrapper for standard cpack) to set
+#    per-component settings (e.g. package names, dependencies, versions and system dependencies)
+# 5. (Optional) Defines the following helper functions, which can be used by 3rdparty modules:
+#    Debian:
+#     - ov_debian_add_changelog_and_copyright()
+#     - ov_debian_add_lintian_suppression()
+#     - ov_debian_generate_conflicts()
+#     - ov_debian_add_latest_component()
+#    RPM:
+#     - ov_rpm_add_rpmlint_suppression()
+#     - ov_rpm_generate_conflicts()
+#     - ov_rpm_copyright()
+#     - ov_rpm_add_latest_component()
+#
 if(CPACK_GENERATOR STREQUAL "DEB")
     include(packaging/debian/debian)
 elseif(CPACK_GENERATOR STREQUAL "RPM")
     include(packaging/rpm/rpm)
 elseif(CPACK_GENERATOR STREQUAL "NSIS")
     include(packaging/nsis)
-elseif(CPACK_GENERATOR MATCHES "^(CONDA-FORGE|BREW)$")
+elseif(CPACK_GENERATOR MATCHES "^(CONDA-FORGE|BREW|CONAN|VCPKG)$")
     include(packaging/common-libraries)
 endif()
 

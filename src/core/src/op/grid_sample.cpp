@@ -127,8 +127,10 @@ bool evaluate_grid_sample(const HostTensorPtr& output,
 
 bool op::v9::GridSample::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v9_GridSample_evaluate);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     OPENVINO_ASSERT(ngraph::validate_host_tensor_vector(inputs, 2), "Invalid GridSample input TensorVector.");
     OPENVINO_ASSERT(ngraph::validate_host_tensor_vector(outputs, 1), "Invalid GridSample output TensorVector.");
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     return evaluate_grid_sample(outputs[0], inputs[0], inputs[1], m_attributes);
 }

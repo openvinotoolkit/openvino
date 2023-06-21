@@ -349,6 +349,12 @@ public:
     bool isNonValuesChangable() const {
         return isNonFunctional() || isSplit() || isSlice() || isConcat();
     }
+    bool is_gather() const noexcept {
+        return isOfType("gather");
+    }
+    bool is_fq_non_sensitive() const {
+        return isPermute() || is_gather() || isNonFunctional();
+    }
     bool isPooling() const noexcept {
         return isOfType("pooling");
     }
@@ -379,7 +385,7 @@ public:
         auto cropLayer = dynamic_cast<InferenceEngine::CropLayer*>(layer);
         if (cropLayer != nullptr && !cropLayer->offset.empty()) {
             const auto crop_params = GetCropParams(cropLayer);
-            return limitations::isCropAffinedOffset(crop_params.start_offset);
+            return limitations::Limitations::get_instance()->is_crop_affined_offset(crop_params.start_offset);
         }
         return false;
     }

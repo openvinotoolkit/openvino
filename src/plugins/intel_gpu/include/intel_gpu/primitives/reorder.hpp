@@ -26,7 +26,9 @@ enum class reorder_mean_mode {
 struct reorder : public primitive_base<reorder> {
     CLDNN_DECLARE_PRIMITIVE(reorder)
 
-    reorder() : primitive_base("", {}), output_format(format::any) {}
+    reorder() : primitive_base("", {}),
+                output_format(format::any),
+                mean_mode(reorder_mean_mode::subtract) {}
 
     DECLARE_OBJECT_TYPE_SERIALIZATION
 
@@ -185,6 +187,7 @@ struct reorder : public primitive_base<reorder> {
     }
 
     void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<reorder>::save(ob);
         ob << make_data(&output_format, sizeof(format));
         ob << mean;
         ob << subtract_per_feature;
@@ -194,6 +197,7 @@ struct reorder : public primitive_base<reorder> {
     }
 
     void load(BinaryInputBuffer& ib) override {
+        primitive_base<reorder>::load(ib);
         ib >> make_data(&output_format, sizeof(format));
         ib >> mean;
         ib >> subtract_per_feature;

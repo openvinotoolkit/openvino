@@ -14,7 +14,7 @@ namespace v1 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API ReduceMax : public util::ArithmeticReductionKeepDims {
 public:
-    OPENVINO_OP("ReduceMax", "opset1", util::ArithmeticReductionKeepDims, 1);
+    OPENVINO_OP("ReduceMax", "opset1", util::ArithmeticReductionKeepDims);
     /// \brief Constructs a summation operation.
     ReduceMax() = default;
     /// \brief Constructs a summation operation.
@@ -30,6 +30,8 @@ public:
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
     OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
+    bool evaluate_lower(TensorVector& outputs) const override;
+    bool evaluate_upper(TensorVector& outputs) const override;
 };
 }  // namespace v1
 }  // namespace op

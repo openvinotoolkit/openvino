@@ -14,7 +14,8 @@ class HashTable : public InternalOperation {
 public:
     OPENVINO_OP("HashTable", "ov::frontend::tensorflow", InternalOperation);
 
-    HashTable(const std::shared_ptr<DecoderBase>& decoder = nullptr) : InternalOperation(decoder, OutputVector{}, 1) {
+    HashTable(const std::shared_ptr<DecoderBase>& decoder = nullptr)
+        : InternalOperation(decoder, OutputVector{}, 1, "HashTable") {
         validate_and_infer_types();
     }
 

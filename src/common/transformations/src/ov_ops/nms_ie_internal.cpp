@@ -70,7 +70,7 @@ std::shared_ptr<Node> op::internal::NonMaxSuppressionIEInternal::clone_with_new_
                                                         m_sort_result_descending,
                                                         m_output_type);
     }
-    throw ngraph::ngraph_error("Unsupported number of inputs: " + std::to_string(new_args.size()));
+    OPENVINO_THROW("Unsupported number of inputs: " + std::to_string(new_args.size()));
 }
 
 bool op::internal::NonMaxSuppressionIEInternal::visit_attributes(AttributeVisitor& visitor) {

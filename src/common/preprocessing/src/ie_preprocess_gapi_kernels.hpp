@@ -8,6 +8,7 @@
 # error non standalone GAPI
 # endif
 
+#include <cstdint>
 #include <tuple>
 
 #include <opencv2/gapi/opencv_includes.hpp>

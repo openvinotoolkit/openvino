@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "behavior/ov_executable_network/exec_network_base.hpp"
+#include "behavior/compiled_model/compiled_model_base.hpp"
 
 using namespace ov::test::behavior;
 namespace {
@@ -11,8 +11,14 @@ const std::vector<ov::AnyMap> configs = {
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
-                         OVExecutableNetworkBaseTest,
+                         OVCompiledModelBaseTest,
                          ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs)),
-                         OVExecutableNetworkBaseTest::getTestCaseName);
+                         OVCompiledModelBaseTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
+                         OVCompiledModelBaseTestOptional,
+                         ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::ValuesIn(configs)),
+                         OVCompiledModelBaseTestOptional::getTestCaseName);
 }  // namespace

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporationconvert_reduce_to_pooling
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,11 +10,6 @@
 bool CvtReduceBase::is_redundant(ngraph::Shape input, ngraph::Shape output) {
     if (shape_size(input) != shape_size(output))
         return false;
-
-    for (size_t idx = 0; idx < input.size(); idx++) {
-        if (input[idx] != output[idx] && input[idx] != 1)
-            return false;
-    }
 
     return true;
 }

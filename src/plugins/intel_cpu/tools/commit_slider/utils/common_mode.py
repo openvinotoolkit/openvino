@@ -39,18 +39,18 @@ class Mode(ABC):
         self.cachePath = os.path.join(cp, "check_output_cache.json")
         initCacheMap = {}
         try:
-            cacheDump = open(self.cachePath, "r+")
-            if self.cfg["clearCache"]:
-                cacheDump.truncate(0)
-                json.dump(initCacheMap, cacheDump)
-            else:
-                try:
-                    json.load(cacheDump)
-                except json.decoder.JSONDecodeError:
+            with open(self.cachePath, "r+") as cacheDump:
+                if self.cfg["clearCache"]:
+                    cacheDump.truncate(0)
                     json.dump(initCacheMap, cacheDump)
+                else:
+                    try:
+                        json.load(cacheDump)
+                    except json.decoder.JSONDecodeError:
+                        json.dump(initCacheMap, cacheDump)
         except FileNotFoundError:
-            cacheDump = open(self.cachePath, "w")
-            json.dump(initCacheMap, cacheDump)
+            with open(self.cachePath, "w") as cacheDump:
+                json.dump(initCacheMap, cacheDump)
         cacheDump.close()
 
     def getCommitIfCashed(self, commit):

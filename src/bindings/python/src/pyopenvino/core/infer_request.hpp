@@ -4,11 +4,12 @@
 
 #pragma once
 
-#include <chrono>
-
 #include <pybind11/pybind11.h>
 
+#include <chrono>
 #include <openvino/runtime/infer_request.hpp>
+
+#include "openvino/core/except.hpp"
 
 namespace py = pybind11;
 
@@ -24,20 +25,17 @@ public:
 
     // AsyncInferQueue uses this specifc constructor as setting callback
     // for computing a latency will be done there.
-    InferRequestWrapper(ov::InferRequest&& request)
-        : InferRequestWrapper(std::move(request), {}, {}, false)
-    {
-    }
+    InferRequestWrapper(ov::InferRequest&& request) : InferRequestWrapper(std::move(request), {}, {}, false) {}
 
-    InferRequestWrapper(
-        ov::InferRequest&& request,
-        const std::vector<ov::Output<const ov::Node>>& inputs,
-        const std::vector<ov::Output<const ov::Node>>& outputs,
-        bool set_default_callback = true,
-        py::object userdata = py::none()
-    ) : m_request{std::move(request)}, m_inputs{inputs}, m_outputs{outputs},
-        m_userdata{userdata} {
-
+    InferRequestWrapper(ov::InferRequest&& request,
+                        const std::vector<ov::Output<const ov::Node>>& inputs,
+                        const std::vector<ov::Output<const ov::Node>>& outputs,
+                        bool set_default_callback = true,
+                        py::object userdata = py::none())
+        : m_request{std::move(request)},
+          m_inputs{inputs},
+          m_outputs{outputs},
+          m_userdata{userdata} {
         m_start_time = std::make_shared<Time::time_point>(Time::time_point{});
         m_end_time = std::make_shared<Time::time_point>(Time::time_point{});
 
@@ -53,7 +51,7 @@ public:
                         std::rethrow_exception(exception_ptr);
                     }
                 } catch (const std::exception& e) {
-                    throw ov::Exception("Caught exception: " + std::string(e.what()));
+                    OPENVINO_THROW("Caught exception: ", e.what());
                 }
             });
         }
@@ -84,7 +82,7 @@ public:
     // Data that is passed by user from Python->C++
     py::object m_userdata;
     // Times of inference's start and finish
-    std::shared_ptr<Time::time_point> m_start_time; // proposal: change to unique_ptr
+    std::shared_ptr<Time::time_point> m_start_time;  // proposal: change to unique_ptr
     std::shared_ptr<Time::time_point> m_end_time;
 
 private:

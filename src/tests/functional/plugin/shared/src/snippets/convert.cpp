@@ -106,8 +106,8 @@ parameters ConvertInput::generate_params_random() const {
                 break;
             case ov::element::i32:
             case ov::element::i8:
-                startFrom = -10;
-                range = 20;
+                startFrom = -32;
+                range = 64;
                 break;
             case ov::element::u8:
                 startFrom = 10;

@@ -89,8 +89,6 @@ void Convert::initSupportedPrimitiveDescriptors() {
     PortConfig dataIn;
     PortConfig dataConfigOut;
 
-    config.dynBatchSupport = false;
-
     bool canInitExternalDesc = false;
     if (input && output) {
         canInitExternalDesc = true;

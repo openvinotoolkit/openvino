@@ -104,7 +104,7 @@ public:
                         std::rethrow_exception(exception_ptr);
                     }
                 } catch (const std::exception& e) {
-                    throw ov::Exception(e.what());
+                    OPENVINO_THROW(e.what());
                 }
             });
         }
@@ -145,7 +145,7 @@ public:
                         std::rethrow_exception(exception_ptr);
                     }
                 } catch (const std::exception& e) {
-                    throw ov::Exception(e.what());
+                    OPENVINO_THROW(e.what());
                 }
             });
         }
@@ -359,6 +359,6 @@ void regclass_AsyncInferQueue(py::module m) {
     )");
 
     cls.def("__repr__", [](const AsyncInferQueue& self) {
-        return "<AsyncInferQueue: " + std::to_string(self.m_requests.size()) + " jobs>";
+        return "<" + Common::get_class_name(self) + ": " + std::to_string(self.m_requests.size()) + " jobs>";
     });
 }

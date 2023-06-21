@@ -32,38 +32,6 @@ std::vector<ov::element::Type> prcs = {
 
 std::vector<ov::element::Type> supported_input_prcs = {ov::element::f32, ov::element::i16, ov::element::u8};
 
-class OVInferRequestCheckTensorPrecisionGNA : public OVInferRequestCheckTensorPrecision {
-public:
-    void SetUp() override {
-        try {
-            OVInferRequestCheckTensorPrecision::SetUp();
-            if (std::count(supported_input_prcs.begin(), supported_input_prcs.end(), element_type) == 0) {
-                FAIL() << "Precision " << element_type.c_type_string()
-                       << " is marked as unsupported but the network was loaded successfully";
-            }
-        } catch (std::runtime_error& e) {
-            const std::string errorMsg = e.what();
-            const auto expectedMsg = exp_error_str_;
-            ASSERT_STR_CONTAINS(errorMsg, expectedMsg);
-            EXPECT_TRUE(errorMsg.find(expectedMsg) != std::string::npos)
-                << "Wrong error message, actual error message: " << errorMsg << ", expected: " << expectedMsg;
-            if (std::count(supported_input_prcs.begin(), supported_input_prcs.end(), element_type) == 0) {
-                GTEST_SKIP_(expectedMsg.c_str());
-            } else {
-                FAIL() << "Precision " << element_type.c_type_string()
-                       << " is marked as supported but the network was not loaded";
-            }
-        }
-    }
-
-private:
-    std::string exp_error_str_ = "The plugin does not support input precision";
-};
-
-TEST_P(OVInferRequestCheckTensorPrecisionGNA, CheckInputsOutputs) {
-    Run();
-}
-
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          OVInferRequestIOTensorTest,
                          ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_GNA),
@@ -78,10 +46,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          OVInferRequestIOTensorSetPrecisionTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
-                         OVInferRequestCheckTensorPrecisionGNA,
-                         ::testing::Combine(::testing::ValuesIn(prcs),
+                         OVInferRequestCheckTensorPrecision,
+                         ::testing::Combine(::testing::ValuesIn(supported_input_prcs),
                                             ::testing::Values(CommonTestUtils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs)),
-                         OVInferRequestCheckTensorPrecisionGNA::getTestCaseName);
+                         OVInferRequestCheckTensorPrecision::getTestCaseName);
 
 }  // namespace

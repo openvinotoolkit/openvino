@@ -15,7 +15,7 @@ namespace op {
 
 using namespace ov::op;
 
-OutputVector translate_nonzero(NodeContext& context) {
+OutputVector translate_nonzero(const NodeContext& context) {
     num_inputs_check(context, 1, 1);
     auto cond = context.get_input(0);
     auto non_zero = context.mark_node(std::make_shared<v3::NonZero>(cond));

@@ -6,7 +6,7 @@ ov::AnyMap gpu_config = {};
 //! [part5]
 ov::Core core;
 
-// Read a network in IR, TensorFlow, PaddlePaddle, or ONNX format:
+// Read a network in IR, TensorFlow, TensorFlow Lite, PaddlePaddle, or ONNX format:
 std::shared_ptr<ov::Model> model = core.read_model("sample.xml");
 
 // Configure the CPU and the GPU devices when compiling model

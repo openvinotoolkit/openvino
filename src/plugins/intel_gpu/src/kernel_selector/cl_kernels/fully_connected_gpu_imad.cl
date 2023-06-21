@@ -17,6 +17,7 @@
 
 REQD_SUB_GROUP_SIZE(SIMD_SIZE)
 KERNEL(fully_connected_gpu_imad)(
+    OPTIONAL_SHAPE_INFO_ARG
     const __global INPUT0_TYPE* input,
     __global OUTPUT_TYPE* output,
     const __global FILTER_TYPE* weights
@@ -36,19 +37,34 @@ KERNEL(fully_connected_gpu_imad)(
 #if HAS_OFM_LEFTOVERS || HAS_IFM_LEFTOVERS
     const uint sglid = get_sub_group_local_id();
 #endif
+#if IS_DYNAMIC
+    // In dynamic kernel, TILE_BATCH is set to the initial tile batch size for stack arrays such as dotProd
+    // and tile_batch is calculated as an adjusted value from tile_batch_max_size by given global work size
+#if OUTPUT_3D
+    const uint tile_batch = OUTPUT_FEATURE_NUM / (uint)get_global_size(2);
+#else
+    const uint tile_batch = OUTPUT_BATCH_NUM / (uint)get_global_size(1);
+#endif
+#else
+    const uint tile_batch = TILE_BATCH;
+#endif
 
 #if OUTPUT_3D
     const uint batch = (uint)get_global_id(1);
-    const uint skip_f = (uint)get_global_id(2) * TILE_BATCH;
+    const uint skip_f = (uint)get_global_id(2) * tile_batch;
 #else
-    const uint batch = (uint)get_global_id(1) * TILE_BATCH;
+    const uint batch = (uint)get_global_id(1) * tile_batch;
     const uint skip_f = (uint)get_global_id(2);
 #endif
 
     // Accumulators initialization
     MAKE_VECTOR_TYPE(int, TILE_OFM) dotProd[TILE_BATCH];
     MAKE_VECTOR_TYPE(uint, TILE_OFM) idx_w;
-    unroll_for (uint ob_idx = 0; ob_idx < TILE_BATCH; ob_idx++) {
+#if IS_DYNAMIC
+    for (uint ob_idx = 0; ob_idx < tile_batch; ob_idx++) {
+#else
+    unroll_for (uint ob_idx = 0; ob_idx < tile_batch; ob_idx++) {
+#endif
         unroll_for(uint of_idx = 0; of_idx < TILE_OFM; of_idx++) {
             dotProd[ob_idx][of_idx] = 0;
         #if !HAS_IFM_LEFTOVERS
@@ -103,7 +119,11 @@ KERNEL(fully_connected_gpu_imad)(
     #endif // HAS_OFM_LEFTOVERS
         }
 
-        unroll_for(uint ob_idx = 0; ob_idx < TILE_BATCH; ob_idx++) {
+    #if IS_DYNAMIC
+        for (uint ob_idx = 0; ob_idx < tile_batch; ob_idx++) {
+    #else
+        unroll_for(uint ob_idx = 0; ob_idx < tile_batch; ob_idx++) {
+    #endif
             // Loading inputs
         #if OUTPUT_3D
             __global INPUT0_TYPE* current_input = &input[INPUT0_GET_INDEX(batch, skip_f + ob_idx, 0, 0)];
@@ -172,7 +192,11 @@ KERNEL(fully_connected_gpu_imad)(
         }
     }
 
-    unroll_for (uint ob_idx = 0; ob_idx < TILE_BATCH; ob_idx++) {
+#if IS_DYNAMIC
+    for (uint ob_idx = 0; ob_idx < tile_batch; ob_idx++) {
+#else
+    unroll_for (uint ob_idx = 0; ob_idx < tile_batch; ob_idx++) {
+#endif
         // Loading inputs
     #if OUTPUT_3D
         __global INPUT0_TYPE* current_input = &input[INPUT0_GET_INDEX(batch, skip_f + ob_idx, 0, 0)];
@@ -221,7 +245,11 @@ KERNEL(fully_connected_gpu_imad)(
 #if BIAS_TERM
     #if BIAS_PER_OUTPUT
         MAKE_VECTOR_TYPE(uint, TILE_OFM) bias_index[TILE_BATCH];
-        unroll_for(uint ob_idx = 0; ob_idx < TILE_BATCH; ob_idx++) {
+    #if IS_DYNAMIC
+        for (uint ob_idx = 0; ob_idx < tile_batch; ob_idx++) {
+    #else
+        unroll_for(uint ob_idx = 0; ob_idx < tile_batch; ob_idx++) {
+    #endif
             unroll_for (uint of_idx = 0; of_idx < TILE_OFM; of_idx++) {
             #if OUTPUT_3D
                 bias_index[ob_idx][of_idx] = GET_DATA_INDEX(BIAS, batch, skip_f + ob_idx, feature + of_idx * SIMD_SIZE, 0);
@@ -238,7 +266,11 @@ KERNEL(fully_connected_gpu_imad)(
     #endif
 
     MAKE_VECTOR_TYPE(float, TILE_OFM) dequantized[TILE_BATCH];
-    unroll_for (uint ob_idx = 0; ob_idx < TILE_BATCH; ob_idx++) {
+#if IS_DYNAMIC
+    for (uint ob_idx = 0; ob_idx < tile_batch; ob_idx++) {
+#else
+    unroll_for (uint ob_idx = 0; ob_idx < tile_batch; ob_idx++) {
+#endif
         unroll_for(uint of_idx = 0; of_idx < TILE_OFM; of_idx++) {
         #if HAS_OFM_LEFTOVERS
             if (feature + of_idx * SIMD_SIZE < OF_NUMBER)
@@ -252,7 +284,11 @@ KERNEL(fully_connected_gpu_imad)(
     }
 #else
     MAKE_VECTOR_TYPE(float, TILE_OFM) dequantized[TILE_BATCH];
-    unroll_for (uint ob_idx = 0; ob_idx < TILE_BATCH; ob_idx++) {
+#if IS_DYNAMIC
+    for (uint ob_idx = 0; ob_idx < tile_batch; ob_idx++) {
+#else
+    unroll_for (uint ob_idx = 0; ob_idx < tile_batch; ob_idx++) {
+#endif
         unroll_for(uint of_idx = 0; of_idx < TILE_OFM; of_idx++) {
         #if HAS_OFM_LEFTOVERS
             if (feature + of_idx * SIMD_SIZE < OF_NUMBER)
@@ -263,7 +299,11 @@ KERNEL(fully_connected_gpu_imad)(
 #endif
 
 #if HAS_FUSED_OPS
-    unroll_for (uint ob_idx = 0; ob_idx < TILE_BATCH; ob_idx++) {
+#if IS_DYNAMIC
+    for (uint ob_idx = 0; ob_idx < tile_batch; ob_idx++) {
+#else
+    unroll_for (uint ob_idx = 0; ob_idx < tile_batch; ob_idx++) {
+#endif
         unroll_for(uint of_idx = 0; of_idx < TILE_OFM; of_idx++) {
         #if HAS_OFM_LEFTOVERS
             if (feature + of_idx * SIMD_SIZE < OF_NUMBER) {
@@ -282,7 +322,11 @@ KERNEL(fully_connected_gpu_imad)(
         }
     }
 #else
-    unroll_for (uint ob_idx = 0; ob_idx < TILE_BATCH; ob_idx++) {
+#if IS_DYNAMIC
+    for (uint ob_idx = 0; ob_idx < tile_batch; ob_idx++) {
+#else
+    unroll_for (uint ob_idx = 0; ob_idx < tile_batch; ob_idx++) {
+#endif
         unroll_for(uint of_idx = 0; of_idx < TILE_OFM; of_idx++) {
         #if HAS_OFM_LEFTOVERS
             if (feature + of_idx * SIMD_SIZE < OF_NUMBER) {

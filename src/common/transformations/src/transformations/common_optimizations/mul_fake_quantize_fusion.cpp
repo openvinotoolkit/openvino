@@ -99,11 +99,15 @@ ov::pass::MulFakeQuantizeFusion::MulFakeQuantizeFusion() {
         }
 
         auto input_low_div = std::make_shared<opset5::Divide>(fq->input_value(1), new_const);
+        OPENVINO_SUPPRESS_DEPRECATED_START
         std::shared_ptr<Node> new_input_low = get_constant_from_source(input_low_div);
+        OPENVINO_SUPPRESS_DEPRECATED_END
         if (!new_input_low)
             new_input_low = input_low_div;
         auto input_high_div = std::make_shared<opset5::Divide>(fq->input_value(2), new_const);
+        OPENVINO_SUPPRESS_DEPRECATED_START
         std::shared_ptr<Node> new_input_high = get_constant_from_source(input_high_div);
+        OPENVINO_SUPPRESS_DEPRECATED_END
         if (!new_input_high)
             new_input_high = input_high_div;
 

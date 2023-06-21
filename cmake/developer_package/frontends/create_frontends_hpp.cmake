@@ -15,8 +15,8 @@ set(OV_FRONTEND_MAP_DEFINITION "    FrontendsStaticRegistry registry = {")
 
 foreach(frontend IN LISTS FRONTEND_NAMES)
     # common
-    set(_OV_FRONTEND_DATA_FUNC "GetFrontEndData${frontend}")
-    set(_OV_VERSION_FUNC "GetAPIVersion${frontend}")
+    set(_OV_FRONTEND_DATA_FUNC "get_front_end_data_${frontend}")
+    set(_OV_VERSION_FUNC "get_api_version_${frontend}")
 
     # declarations
     set(OV_FRONTEND_DECLARATIONS "${OV_FRONTEND_DECLARATIONS}

@@ -1,4 +1,4 @@
-# Performance analysis using ITT counters
+# Performance Analysis Using ITT Counters
 
 ## Contents
 
@@ -21,8 +21,11 @@ For performance analysis, follow the steps below:
 
 ### Intel SEAPI
 
-#### Example of tool run:
-`python ~/tools/IntelSEAPI/runtool/sea_runtool.py -o trace -f gt ! ./benchmark_app -niter 1 -nireq 1 -nstreams 1 -api sync -m ./resnet-50-pytorch/resnest-50-pytorch.xml`
+#### Example of running the tool:
+
+```sh
+python ~/tools/IntelSEAPI/runtool/sea_runtool.py -o trace -f gt ! ./benchmark_app -niter 1 -nireq 1 -nstreams 1 -api sync -m ./resnet-50-pytorch/resnest-50-pytorch.xml
+```
 
 #### Mandatory parameters:
 * -o trace – output file name
@@ -34,8 +37,11 @@ Generated file can be opened with google chrome using "chrome://tracing" URL.
 
 ### Intel Vtune Profiler
 
-#### Example of tool run:
-`vtune -collect hotspots -k sampling-mode=hw -k enable-stack-collection=true -k stack-size=0 -k sampling-interval=0.5 -- ./benchmark_app -nthreads=1 -api sync -niter 1 -nireq 1 -m ./resnet-50-pytorch/resnet-50-pytorch.xml`
+#### Example of running the tool:
+
+```sh
+vtune -collect hotspots -k sampling-mode=hw -k enable-stack-collection=true -k stack-size=0 -k sampling-interval=0.5 -- ./benchmark_app -nthreads=1 -api sync -niter 1 -nireq 1 -m ./resnet-50-pytorch/resnet-50-pytorch.xml
+```
 
 #### Mandatory parameters:
 * -collect hotspots
@@ -49,9 +55,9 @@ Generated file can be opened with Vtune client.
 Use API defined in [openvino/itt](https://docs.openvinotoolkit.org/latest/itt_2include_2openvino_2itt_8hpp.html) module.
 
 ## See also
+
  * [OpenVINO™ README](../../../../README.md)
  * [OpenVINO Core Components](../../../README.md)
  * [OpenVINO Plugins](../../README.md)
  * [OpenVINO GPU Plugin](../README.md)
  * [Developer documentation](../../../../docs/dev/index.md)
- 

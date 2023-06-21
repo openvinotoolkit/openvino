@@ -40,6 +40,7 @@ private:
     ngraph::helpers::MemoryTransformation transformation;
 protected:
     void SetUp() override;
+    void LoadNetwork() override;
     void Run() override;
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<multipleLSTMCellParams> &obj);

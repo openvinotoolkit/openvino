@@ -464,8 +464,8 @@ def test_extract_subgraph_2():
     model = fe.load("input_model.onnx")
     assert model
 
-    place1 = model.get_place_by_tensor_name(tensor_name="add_out")
-    place2 = model.get_place_by_tensor_name(tensor_name="out3")
+    place1 = model.get_place_by_tensor_name(tensor_name="out3")
+    place2 = model.get_place_by_tensor_name(tensor_name="add_out")
     model.extract_subgraph(inputs=[], outputs=[place1, place2])
     result_model = fe.convert(model)
 
@@ -616,8 +616,8 @@ def test_override_all_outputs():
     model = fe.load("input_model.onnx")
     assert model
 
-    place1 = model.get_place_by_tensor_name(tensor_name="add_out")
-    place2 = model.get_place_by_tensor_name(tensor_name="out3")
+    place1 = model.get_place_by_tensor_name(tensor_name="out3")
+    place2 = model.get_place_by_tensor_name(tensor_name="add_out")
     model.override_all_outputs(outputs=[place1, place2])
     result_model = fe.convert(model)
 

@@ -11,7 +11,7 @@ namespace ov {
 namespace util {
 
 /**
- * \brief Trnsform tensor data by cast them to type T
+ * \brief Transform tensor data by cast them to type T
  *
  * \tparam T Type of returned value.
  */
@@ -19,9 +19,19 @@ template <class T>
 struct Cast {
     constexpr Cast() = default;
 
-    template <class U>
+    template <
+        class U,
+        typename std::enable_if<!std::is_integral<T>::value || !std::is_floating_point<U>::value>::type* = nullptr>
     constexpr T operator()(const U u) const {
         return static_cast<T>(u);
+    }
+
+    template <class U,
+              typename std::enable_if<std::is_integral<T>::value && std::is_floating_point<U>::value>::type* = nullptr>
+    constexpr T operator()(const U u) const {
+        return cmp::lt(u, std::numeric_limits<T>::max())
+                   ? cmp::lt(u, std::numeric_limits<T>::min()) ? std::numeric_limits<T>::min() : static_cast<T>(u)
+                   : std::numeric_limits<T>::max();
     }
 };
 

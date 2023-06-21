@@ -1034,6 +1034,31 @@ TEST(model, add_output_port) {
     EXPECT_EQ(f->get_results()[1]->input_value(0).get_node(), relu1.get());
 }
 
+TEST(model, add_output_to_new_subgraph) {
+    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
+    arg0->set_friendly_name("data");
+    arg0->get_output_tensor(0).set_names({"input"});
+
+    auto relu1 = std::make_shared<ov::opset8::Relu>(arg0);
+    relu1->set_friendly_name("relu1");
+    relu1->get_output_tensor(0).set_names({"relu_t1"});
+
+    auto relu2 = std::make_shared<ov::opset8::Relu>(relu1);
+    relu2->set_friendly_name("relu2");
+    relu2->get_output_tensor(0).set_names({"relu_t2"});
+    auto f = std::make_shared<ov::Model>(relu2, ov::ParameterVector{arg0});
+    f->validate_nodes_and_infer_types();
+
+    EXPECT_EQ(f->get_results().size(), 1);
+
+    ov::Output<ov::Node> out;
+    EXPECT_NO_THROW(
+        out = f->add_output(ov::opset8::Constant::create(ov::element::i32, {1}, std::vector<int32_t>{1})->output(0)));
+    EXPECT_NO_THROW(f->get_ordered_ops());
+    EXPECT_EQ(out.get_node(), f->get_results()[1].get());
+    EXPECT_EQ(f->get_results().size(), 2);
+}
+
 TEST(model, add_output_incorrect_tensor_name) {
     auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
     arg0->set_friendly_name("data");

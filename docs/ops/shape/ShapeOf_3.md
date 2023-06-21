@@ -1,5 +1,7 @@
 # ShapeOf {#openvino_docs_ops_shape_ShapeOf_3}
 
+@sphinxdirective
+
 **Versioned name**: *ShapeOf-3*
 
 **Category**: *Shape manipulation*
@@ -28,25 +30,28 @@
 
 * *T*: any numeric type.
 
-* *T_IND*: `int64` or `int32`.
+* *T_IND*: ``int64`` or ``int32``.
 
 **Example**
 
-```xml
-<layer ... type="ShapeOf">
-    <data output_type="i64"/>
-    <input>
-        <port id="0">
-            <dim>2</dim>
-            <dim>3</dim>
-            <dim>224</dim>
-            <dim>224</dim>
-        </port>
-    </input>
-    <output>
-        <port id="1">  <!-- output value is: [2,3,224,224]-->
-            <dim>4</dim>
-        </port>
-    </output>
-</layer>
-```
+.. code-block:: cpp 
+
+    <layer ... type="ShapeOf">
+        <data output_type="i64"/>
+        <input>
+            <port id="0">
+                <dim>2</dim>
+                <dim>3</dim>
+                <dim>224</dim>
+                <dim>224</dim>
+            </port>
+        </input>
+        <output>
+            <port id="1">  < !-- output value is: [2,3,224,224]-->
+                <dim>4</dim>
+            </port>
+        </output>
+    </layer>
+
+@endsphinxdirective
+

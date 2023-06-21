@@ -4,6 +4,7 @@
 
 #include "common_op_table.hpp"
 #include "openvino/opsets/opset8.hpp"
+#include "utils.hpp"
 
 using namespace std;
 using namespace ov::opset8;
@@ -17,7 +18,7 @@ OutputVector translate_zeros_like_op(const NodeContext& node) {
     default_op_checks(node, 1, {"ZerosLike", "ZEROS_LIKE"});
     auto x = node.get_input(0);
     Output<Node> shape_of = make_shared<ShapeOf>(x, element::i32);
-    auto zero_const = make_shared<Constant>(x.get_element_type(), Shape{1}, 0);
+    auto zero_const = create_same_type_const_scalar<int32_t>(x, 0);
 
     // in case of x to be scalar, we need handle it more specifically
     // since Broadcast supports only broadcasting to rank greater 0

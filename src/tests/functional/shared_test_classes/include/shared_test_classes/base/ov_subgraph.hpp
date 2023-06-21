@@ -39,6 +39,13 @@ protected:
 
     void init_input_shapes(const std::vector<InputShape>& shapes);
 
+    void TearDown() override {
+        if (this->HasFailure() && !is_reported) {
+            summary.setDeviceName(targetDevice);
+            summary.updateOPsStats(function, ov::test::utils::PassRate::Statuses::FAILED, rel_influence_coef);
+        }
+    }
+
     std::shared_ptr<ov::Core> core = ov::test::utils::PluginCache::get().core();
     std::string targetDevice;
     ov::AnyMap configuration;
@@ -57,6 +64,7 @@ protected:
 
     ov::test::utils::OpSummary& summary = ov::test::utils::OpSummary::getInstance();
     bool is_report_stages = false;
+    bool is_reported = false;
     double rel_influence_coef = 1.f;
 
     virtual std::vector<ov::Tensor> calculate_refs();

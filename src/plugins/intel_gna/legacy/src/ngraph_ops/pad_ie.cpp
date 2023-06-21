@@ -26,10 +26,10 @@ op::PadIE::PadIE(const std::shared_ptr<op::v1::Pad>& pad)
         auto const_node =
             std::dynamic_pointer_cast<op::Constant>(pad->input(3).get_source_output().get_node_shared_ptr());
         if (!const_node) {
-            throw ngraph_error("Pad " + pad->get_friendly_name() + " with not constant pad_value is not allowed");
+            OPENVINO_THROW("Pad " + pad->get_friendly_name() + " with not constant pad_value is not allowed");
         }
         if (!ov::op::util::get_single_value(const_node, m_pad_value)) {
-            throw ngraph_error("Unsupported pad value");
+            OPENVINO_THROW("Unsupported pad value");
         }
     }
     constructor_validate_and_infer_types();

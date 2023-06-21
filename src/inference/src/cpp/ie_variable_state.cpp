@@ -8,6 +8,7 @@
 #include "openvino/runtime/ivariable_state.hpp"
 #include "openvino/runtime/variable_state.hpp"
 
+IE_SUPPRESS_DEPRECATED_START
 #define VARIABLE_CALL_STATEMENT(...)                                    \
     if (_impl == nullptr)                                               \
         IE_THROW(NotAllocated) << "VariableState was not initialized."; \
@@ -22,9 +23,9 @@
     try {                                                                    \
         __VA_ARGS__;                                                         \
     } catch (const std::exception& ex) {                                     \
-        throw ov::Exception(ex.what());                                      \
+        OPENVINO_THROW(ex.what());                                           \
     } catch (...) {                                                          \
-        OPENVINO_ASSERT(false, "Unexpected exception");                      \
+        OPENVINO_THROW("Unexpected exception");                              \
     }
 
 namespace InferenceEngine {
@@ -39,8 +40,6 @@ VariableState::VariableState(const IVariableStateInternal::Ptr& impl, const std:
     if (_impl == nullptr)
         IE_THROW() << "VariableState was not initialized.";
 }
-
-IE_SUPPRESS_DEPRECATED_START
 
 void VariableState::Reset() {
     VARIABLE_CALL_STATEMENT(_impl->Reset());
@@ -60,6 +59,7 @@ void VariableState::SetState(Blob::Ptr state) {
 
 }  // namespace InferenceEngine
 
+IE_SUPPRESS_DEPRECATED_END
 namespace ov {
 
 VariableState::~VariableState() {

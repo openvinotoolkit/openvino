@@ -15,7 +15,7 @@ namespace op {
 
 using namespace ov::op;
 
-OutputVector translate_rsub(NodeContext& context) {
+OutputVector translate_rsub(const NodeContext& context) {
     num_inputs_check(context, 3, 3);
     auto self = context.get_input(0);
     auto other = context.get_input(1);

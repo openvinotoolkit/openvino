@@ -12,7 +12,7 @@ namespace ngraph {
 
 class LP_TRANSFORMATIONS_API QuantizationModeAttribute : public ov::RuntimeAttribute {
 public:
-    OPENVINO_RTTI("LowPrecision::QuantizationModeAttribute", "", ov::RuntimeAttribute, 0);
+    OPENVINO_RTTI("LowPrecision::QuantizationModeAttribute", "", ov::RuntimeAttribute);
 
     enum class Mode {
         Asymmetric,

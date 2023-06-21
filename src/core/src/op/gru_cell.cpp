@@ -97,7 +97,9 @@ void op::v3::GRUCell::validate_and_infer_types() {
                           "Element types for X, initial_hidden_state, W, R and B inputs do not "
                           "match.");
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto input_shapes = get_node_input_partial_shapes(*this);
+    OPENVINO_SUPPRESS_DEPRECATED_END
     std::vector<ov::PartialShape> output_shapes{ov::PartialShape::dynamic(2)};
     shape_infer(this, input_shapes, output_shapes);
 
@@ -139,6 +141,6 @@ shared_ptr<Node> op::v3::GRUCell::clone_with_new_inputs(const OutputVector& new_
                                     get_clip(),
                                     m_linear_before_reset);
     } else {
-        throw ngraph_error("Incorrect number of new arguments");
+        OPENVINO_THROW("Incorrect number of new arguments");
     }
 }

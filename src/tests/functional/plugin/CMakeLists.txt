@@ -3,9 +3,4 @@
 #
 
 add_subdirectory(shared)
-
-if (ENABLE_INTEL_GPU)
-    add_subdirectory(gpu)
-endif()
-
 add_subdirectory(conformance)

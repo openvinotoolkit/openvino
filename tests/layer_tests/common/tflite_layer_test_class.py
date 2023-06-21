@@ -5,7 +5,7 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import tensorflow as tf
 from tensorflow.lite.tools import flatbuffer_utils as utils
 from common.layer_test_class import CommonLayerTest
-from common.utils.tflite_utils import get_tflite_results, get_tensors_from_graph
+from common.utils.tflite_utils import get_tflite_results, get_tensors_from_graph, data_generators
 
 
 class TFLiteLayerTest(CommonLayerTest):
@@ -13,6 +13,11 @@ class TFLiteLayerTest(CommonLayerTest):
     inputs = None
     outputs = None
     allowed_ops = None
+
+    def _prepare_input(self, inputs_dict, generator=None):
+        if generator is None:
+            return super()._prepare_input(inputs_dict)
+        return data_generators[generator](inputs_dict)
 
     def make_model(self, params):
         raise RuntimeError("This is TensorFlow Lite base layer test class, "

@@ -4,6 +4,7 @@
 
 #include "ngraph/builder/make_constant.hpp"
 
+NGRAPH_SUPPRESS_DEPRECATED_START
 namespace ngraph {
 namespace builder {
 std::shared_ptr<Node> make_constant_from_double(const element::Type& type, const Shape& shape, double num) {
@@ -62,7 +63,7 @@ std::shared_ptr<Node> make_constant_from_double(const element::Type& type, const
         break;
     }
     default:
-        throw std::runtime_error("Unsupported data type during make_constant_from_double");
+        OPENVINO_THROW("Unsupported data type during make_constant_from_double");
         break;
     }
     return result;

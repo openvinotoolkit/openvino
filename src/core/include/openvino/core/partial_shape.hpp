@@ -157,7 +157,7 @@ public:
     ///        rank is dynamic and `r` is static, updates this shape to have a rank of `r`
     ///        with dimensions all dynamic.
     /// \return `true` if this shape's rank is compatible with `r`, else `false`.
-    bool merge_rank(Rank r);
+    bool merge_rank(const Rank& r);
 
     /// \brief Convert a static PartialShape to a PartialShape.
     /// \return A new PartialShape `s` where `s[i] = size_t((*this)[i])`.

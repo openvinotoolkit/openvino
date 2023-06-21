@@ -29,12 +29,6 @@ public:
           Shape output_shape,
           float pad_value);
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    size_t get_version() const override {
-        return 1;
-    }
-    OPENVINO_SUPPRESS_DEPRECATED_END
-
     void validate_and_infer_types() override;
     bool visit_attributes(AttributeVisitor& visitor) override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;

@@ -176,7 +176,7 @@ struct RuntimeEndPoint {
         *this = header_2_dot_8::RuntimeEndPoint(ep_v7);
     }
 
-    RuntimeEndPoint(header_2_dot_7::RuntimeEndPoint& old) {
+    RuntimeEndPoint(const header_2_dot_7::RuntimeEndPoint& old) {
         scaleFactor = old.scaleFactor;
         descriptor_ptr = old.descriptor_ptr;
         element_size = old.element_size;

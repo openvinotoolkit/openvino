@@ -19,11 +19,12 @@ endif()
 
 # install deployment_manager
 
-ie_cpack_add_component(${OV_CPACK_COMP_DEPLOYMENT_MANAGER} HIDDEN)
+ov_cpack_add_component(${OV_CPACK_COMP_DEPLOYMENT_MANAGER} HIDDEN)
 
 install(DIRECTORY deployment_manager
         DESTINATION ${OV_CPACK_TOOLSDIR}
         COMPONENT ${OV_CPACK_COMP_DEPLOYMENT_MANAGER}
+        ${OV_CPACK_COMP_DEPLOYMENT_MANAGER_EXCLUDE_ALL}
         USE_SOURCE_PERMISSIONS)
 
 # MO

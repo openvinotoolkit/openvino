@@ -3,6 +3,7 @@
 #
 
 set(TARGET_NAME compile_tool)
+add_definitions(-DIN_OV_COMPONENT)
 
 file(GLOB SRCS
     ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
@@ -34,20 +35,18 @@ add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
 
 # install
 
-ie_cpack_add_component(${OV_CPACK_COMP_CORE_TOOLS}
+ov_cpack_add_component(${OV_CPACK_COMP_CORE_TOOLS}
                        HIDDEN
                        DEPENDS ${OV_CPACK_COMP_CORE})
 
-if(CPACK_GENERATOR MATCHES "^(DEB|RPM|CONDA-FORGE|BREW)$")
+if(CPACK_GENERATOR MATCHES "^(DEB|RPM)$")
     install(TARGETS compile_tool
             RUNTIME DESTINATION ${OV_CPACK_TOOLSDIR}
-            COMPONENT ${OV_CPACK_COMP_CORE_TOOLS})
-    # TODO: convert this README.md to man page
+            COMPONENT ${OV_CPACK_COMP_CORE_TOOLS}
+            ${OV_CPACK_COMP_CORE_TOOLS_EXCLUDE_ALL})
 else()
     install(TARGETS compile_tool
             RUNTIME DESTINATION ${OV_CPACK_TOOLSDIR}/compile_tool
-            COMPONENT ${OV_CPACK_COMP_CORE_TOOLS})
-    install(FILES README.md
-            DESTINATION ${OV_CPACK_TOOLSDIR}/compile_tool
-            COMPONENT ${OV_CPACK_COMP_CORE_TOOLS})
+            COMPONENT ${OV_CPACK_COMP_CORE_TOOLS}
+            ${OV_CPACK_COMP_CORE_TOOLS_EXCLUDE_ALL})
 endif()

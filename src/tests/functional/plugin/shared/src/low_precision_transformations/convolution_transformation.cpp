@@ -66,6 +66,7 @@ void ConvolutionTransformation::Run() {
 }
 
 TEST_P(ConvolutionTransformation, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     Run();
 };
 

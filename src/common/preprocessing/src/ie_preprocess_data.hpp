@@ -19,6 +19,7 @@
 
 namespace InferenceEngine {
 
+IE_SUPPRESS_DEPRECATED_START
 /**
  * @brief This class stores pre-process information for exact input
  */
@@ -48,7 +49,7 @@ public:
     virtual void isApplicable(const Blob::Ptr &src, const Blob::Ptr &dst) = 0;
 
 protected:
-    ~IPreProcessData() = default;
+    virtual ~IPreProcessData() = default;
 };
 
 OPENVINO_PLUGIN_API void CreatePreProcessData(std::shared_ptr<IPreProcessData>& data);
@@ -132,4 +133,5 @@ inline PreProcessDataPtr CreatePreprocDataHelper() {
     return std::make_shared<PreProcessDataPlugin>();
 }
 
+IE_SUPPRESS_DEPRECATED_END
 }  // namespace InferenceEngine

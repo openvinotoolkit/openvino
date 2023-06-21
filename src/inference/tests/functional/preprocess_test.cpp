@@ -8,6 +8,7 @@
 
 using namespace std;
 
+IE_SUPPRESS_DEPRECATED_START
 using PreProcessTests = ::testing::Test;
 
 TEST_F(PreProcessTests, throwsOnSettingNullMeanImage) {

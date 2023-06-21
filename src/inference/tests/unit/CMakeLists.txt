@@ -11,9 +11,6 @@ ov_add_test_target(
             template_extension
         LINK_LIBRARIES
             unitTestUtils
-        INCLUDES
-        # for static ie_plugins.hpp
-        "${CMAKE_BINARY_DIR}/src/inference/"
         ADD_CLANG_FORMAT
         LABELS
             OV

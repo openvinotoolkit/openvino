@@ -1762,6 +1762,7 @@ class TestStridedSlicePermute(unittest.TestCase):
                               begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ellipsis_mask)
 
         # with ellipsis
+
     def test_strided_slice_permute_15(
             self,  # inp[..., np.newaxis]
             inp=(1, 35, 35), ref_res=(1, 35, 35, 1),
@@ -1943,3 +1944,129 @@ class TestStridedSlicePermute(unittest.TestCase):
             begin=(0, 0), end=(0, 0), strides=(1, 1), begin_mask=(0, 0), end_mask=(0, 0),
             shrink_axis_mask=(1, 1), new_axis_mask=(0, 0), ellipsis_mask=(0, 0)
         )
+
+
+class TestStridedSliceMaskAlignment(unittest.TestCase):
+    def run_align_test(self, inp, begin, end, strides,
+                       begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ellipsis_mask,
+                       begin_mask_ref, end_mask_ref, shrink_axis_mask_ref, new_axis_mask_ref, ellipsis_mask_ref):
+        nodes = {
+            **regular_op_with_shaped_data('input', int64_array(inp), {'op': 'Parameter', 'type': 'Parameter',
+                                                                      # need to specify shape in 2 places
+                                                                      'shape': int64_array(inp),
+                                                                      'infer': Parameter.infer}),
+            **valued_const_with_data('begin', int64_array(begin)),
+            **valued_const_with_data('end', int64_array(end)),
+            **valued_const_with_data('strides', int64_array(strides)),
+            **regular_op_with_empty_data('strided_slice',
+                                         {'op': 'StridedSlice', 'type': 'StridedSlice',  # need for permute
+                                          'begin_mask': begin_mask, 'end_mask': end_mask,
+                                          'shrink_axis_mask': shrink_axis_mask,
+                                          'new_axis_mask': new_axis_mask,
+                                          'ellipsis_mask': ellipsis_mask}),
+            **regular_op('res', {'kind': 'op', 'type': 'Result', 'op': 'Result', 'infer': lambda x: None})
+        }
+
+        graph = build_graph(nodes, edges, nodes_with_edges_only=True)
+        graph.stage = 'middle'
+        graph.graph['layout'] = 'NHWC'
+
+        nodes_ref = nodes.copy()
+        nodes_ref.update({
+            **regular_op_with_empty_data('strided_slice',
+                                         {'op': 'StridedSlice', 'type': 'StridedSlice',  # need for permute
+                                          'begin_mask': begin_mask_ref, 'end_mask': end_mask_ref,
+                                          'shrink_axis_mask': shrink_axis_mask_ref,
+                                          'new_axis_mask': new_axis_mask_ref,
+                                          'ellipsis_mask': ellipsis_mask_ref}),
+        })
+
+        graph_ref = build_graph(nodes_ref, edges, nodes_with_edges_only=True)
+        res, msg = compare_graphs(graph, graph_ref, 'res', check_op_attrs=True)
+        assert res, msg
+
+    def test_mask_align_compare_graphs_1(self):
+        self.run_align_test(
+            inp=(1, 100, 200, 3), begin=(0, 0), end=(0, 0), strides=(1, 1),
+            begin_mask=(0, 0), end_mask=(0, 0),
+            shrink_axis_mask=(1, 1), new_axis_mask=(0, 0), ellipsis_mask=(0, 0),
+            begin_mask_ref=(0, 0), end_mask_ref=(0, 0),
+            shrink_axis_mask_ref=(1, 1), new_axis_mask_ref=(0, 0), ellipsis_mask_ref=(0, 0),
+
+        )
+
+    def test_mask_align_compare_graphs_2(self):
+        # begin_masks have different values, but they alight to the same mask
+        self.run_align_test(
+            inp=(1, 100, 200, 3), begin=(0, 0), end=(0, 0), strides=(1, 1),
+            begin_mask=(0, 0), end_mask=(0, 0),
+            shrink_axis_mask=(1, 1), new_axis_mask=(0, 0), ellipsis_mask=(0, 0),
+            begin_mask_ref=(0), end_mask_ref=(0, 0),
+            shrink_axis_mask_ref=(1, 1), new_axis_mask_ref=(0, 0), ellipsis_mask_ref=(0, 0),
+
+        )
+
+    def test_mask_align_compare_graphs_3(self):
+        # begin_masks have different values, but they alight to the same mask
+        self.run_align_test(
+            inp=(1, 100, 200, 3), begin=(0, 0), end=(0, 0), strides=(1, 1),
+            begin_mask=(0, 0), end_mask=(0, 0),
+            shrink_axis_mask=(1, 1), new_axis_mask=(0, 0), ellipsis_mask=(0, 0),
+            begin_mask_ref=(0, 0), end_mask_ref=(0),
+            shrink_axis_mask_ref=(1, 1), new_axis_mask_ref=(0), ellipsis_mask_ref=(0),
+        )
+
+    def test_mask_align_compare_graphs_4(self):
+        # begin_masks have different values, but they alight to the same mask
+        self.run_align_test(
+            inp=(1, 100, 200, 3), begin=(0, 0), end=(0, 0), strides=(1, 1),
+            begin_mask=(0, 0), end_mask=(0, 0),
+            shrink_axis_mask=(1, 0), new_axis_mask=(0, 0), ellipsis_mask=(0, 0),
+            begin_mask_ref=(0, 0), end_mask_ref=(0),
+            shrink_axis_mask_ref=(1), new_axis_mask_ref=(0), ellipsis_mask_ref=(0),
+        )
+
+    # corner case with and empty slice
+    def test_mask_align_compare_graphs_5(self):
+        self.run_align_test(
+            inp=(1, 100, 200, 3), begin=[], end=[], strides=[],
+            begin_mask=[], end_mask=[],
+            shrink_axis_mask=[], new_axis_mask=[], ellipsis_mask=[],
+            begin_mask_ref=[], end_mask_ref=[],
+            shrink_axis_mask_ref=[], new_axis_mask_ref=[], ellipsis_mask_ref=[]
+        )
+
+    # emppty mask [] should be aligned into the length of begin
+    def test_mask_align_compare_graphs_6(self):
+        # begin_masks have different values, but they alight to the same mask
+        self.run_align_test(
+            inp=(1, 100, 200, 3), begin=(0, 0), end=(0, 0), strides=(1, 1),
+            begin_mask=(0, 0), end_mask=(0, 0),
+            shrink_axis_mask=(1, 1), new_axis_mask=(0, 0), ellipsis_mask=(0, 0),
+            begin_mask_ref=[], end_mask_ref=(0, 0),
+            shrink_axis_mask_ref=(1, 1), new_axis_mask_ref=(0, 0), ellipsis_mask_ref=(0, 0),
+
+        )
+
+    # empty mask "" should be transformed into [] and then aligned into the length of begin
+    def test_mask_align_compare_graphs_7(self):
+        # begin_masks have different values, but they alight to the same mask
+        self.run_align_test(
+            inp=(1, 100, 200, 3), begin=(0, 0), end=(0, 0), strides=(1, 1),
+            begin_mask=(0, 0), end_mask=(0, 0),
+            shrink_axis_mask=(1, 1), new_axis_mask=(0, 0), ellipsis_mask=(0, 0),
+            begin_mask_ref="", end_mask_ref=(0, 0),
+            shrink_axis_mask_ref=(1, 1), new_axis_mask_ref=(0, 0), ellipsis_mask_ref=(0, 0),
+
+        )
+
+    # negative test
+    def test_negative_mask_align_compare_graphs(self):
+        with self.assertRaisesRegex(AssertionError, 'have different attr "begin_mask"'):
+            self.run_align_test(
+                inp=(1, 100, 200, 3), begin=(0, 0), end=(0, 0), strides=(1, 1),
+                begin_mask=(0, 0), end_mask=(0, 0),
+                shrink_axis_mask=(1, 1), new_axis_mask=(0, 0), ellipsis_mask=(0, 0),
+                begin_mask_ref=(0, 1), end_mask_ref=(0, 0),
+                shrink_axis_mask_ref=(1, 1), new_axis_mask_ref=(0, 0), ellipsis_mask_ref=(0, 0),
+            )

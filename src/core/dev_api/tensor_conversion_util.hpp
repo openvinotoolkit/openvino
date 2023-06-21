@@ -39,7 +39,7 @@ OPENVINO_DEPRECATED("This function is deprecated and will be removed soon.")
 OPENVINO_API TensorVector wrap_tensors(const std::vector<ngraph::HostTensorPtr>& tensors);
 
 /**
- * @brief Update output host tensors if they got dynamic shapee before evaluation (not allocated).
+ * @brief Update output host tensors if they got dynamic shape before evaluation (not allocated).
  *
  * Other tensor not requires update as they are created from outputs and points to same data blob.
  *

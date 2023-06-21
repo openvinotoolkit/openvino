@@ -31,8 +31,9 @@ const std::map<std::string, std::string> supportedConfigKeysWithDefaults = {
     {GNA_CONFIG_KEY(LIB_N_THREADS), "1"},
     {CONFIG_KEY(SINGLE_THREAD), CONFIG_VALUE(YES)},
     {CONFIG_KEY(LOG_LEVEL), PluginConfigParams::LOG_NONE},
-    {CONFIG_KEY(PERFORMANCE_HINT), "UNDEFINED"},
-    {CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS), "1"}};
+    {CONFIG_KEY(PERFORMANCE_HINT), "LATENCY"},
+    {CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS), "1"},
+    {ov::hint::execution_mode.name(), ov::util::to_string<ov::hint::ExecutionMode>(ov::hint::ExecutionMode::ACCURACY)}};
 IE_SUPPRESS_DEPRECATED_END
 
 class GNAPluginConfigTest : public ::testing::Test {
@@ -236,4 +237,34 @@ TEST_F(GNAPluginConfigTest, GnaConfigLogLevel) {
     SetAndCompare(CONFIG_KEY(LOG_LEVEL), PluginConfigParams::LOG_TRACE);
     EXPECT_EQ(config.gnaFlags.log_level, ov::log::Level::TRACE);
     EXPECT_THROW(config.UpdateFromMap({{CONFIG_KEY(LOG_LEVEL), "LOG_UNSUPPORTED"}}), ov::Exception);
+}
+
+TEST_F(GNAPluginConfigTest, GnaConfigExecutionModeUpdatesGnaPrecision) {
+    SetAndCompare(ov::hint::execution_mode.name(), "PERFORMANCE");
+    EXPECT_EQ(config.gnaPrecision, InferenceEngine::Precision::I8);
+    SetAndCompare(ov::hint::execution_mode.name(), "ACCURACY");
+    EXPECT_EQ(config.gnaPrecision, InferenceEngine::Precision::I16);
+}
+
+TEST_F(GNAPluginConfigTest, GnaConfigInferencePrecisionUpdatesGnaPrecision) {
+    SetAndCompare(ov::hint::inference_precision.name(), ov::util::to_string<ov::element::Type>(ov::element::i8));
+    EXPECT_EQ(config.gnaPrecision, InferenceEngine::Precision::I8);
+    SetAndCompare(ov::hint::inference_precision.name(), ov::util::to_string<ov::element::Type>(ov::element::i16));
+    EXPECT_EQ(config.gnaPrecision, InferenceEngine::Precision::I16);
+}
+
+TEST_F(GNAPluginConfigTest, GnaConfigInferencePrecisionHasHigherPriorityI16) {
+    SetAndCompare(GNA_CONFIG_KEY(PRECISION), Precision(Precision::I8).name());
+    SetAndCompare(ov::hint::execution_mode.name(),
+                  ov::util::to_string<ov::hint::ExecutionMode>(ov::hint::ExecutionMode::PERFORMANCE));
+    SetAndCompare(ov::hint::inference_precision.name(), ov::util::to_string<ov::element::Type>(ov::element::i16));
+    EXPECT_EQ(config.gnaPrecision, InferenceEngine::Precision::I16);
+}
+
+TEST_F(GNAPluginConfigTest, GnaConfigInferencePrecisionHasHigherPriorityI8) {
+    SetAndCompare(GNA_CONFIG_KEY(PRECISION), Precision(Precision::I16).name());
+    SetAndCompare(ov::hint::execution_mode.name(),
+                  ov::util::to_string<ov::hint::ExecutionMode>(ov::hint::ExecutionMode::ACCURACY));
+    SetAndCompare(ov::hint::inference_precision.name(), ov::util::to_string<ov::element::Type>(ov::element::i8));
+    EXPECT_EQ(config.gnaPrecision, InferenceEngine::Precision::I8);
 }

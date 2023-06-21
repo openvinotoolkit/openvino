@@ -16,7 +16,7 @@ namespace op {
 
 using namespace ov::op;
 
-OutputVector translate_eye(NodeContext& context) {
+OutputVector translate_eye(const NodeContext& context) {
     size_t num_inputs = context.get_input_size();
     auto x = context.get_input(0);
     // num rows and cols should be integer, but at the moment conversion their data type can be unknown yet

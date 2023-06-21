@@ -6,13 +6,6 @@ set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE OFF)
 
 ov_try_use_gold_linker()
 
-if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-    ie_add_compiler_flags(/wd4244)
-    ie_add_compiler_flags(/wd4267)
-    ie_add_compiler_flags(/wd4305)
-    ie_add_compiler_flags(/wd4756)
-endif()
-
 message(STATUS "ONNX frontend test enabled")
 
 add_compile_definitions(
@@ -75,6 +68,7 @@ set(MULTI_TEST_SRC
     onnx_import_org_pytorch.in.cpp
     onnx_import_reshape.in.cpp
     onnx_import_rnn.in.cpp
+    onnx_import_signal.in.cpp
     onnx_import_quant.in.cpp
     onnx_test_utils.in.cpp
     onnx_import_with_editor.in.cpp)
@@ -94,6 +88,7 @@ set(SRC
     telemetry.cpp
     lib_close.cpp
     model_support_tests.cpp
+    onnx_ops_registration.cpp
     onnx_reader_external_data.cpp
     skip_tests_config.cpp)
 
@@ -134,6 +129,9 @@ target_compile_definitions(ov_onnx_frontend_tests
         SHARED_LIB_PREFIX="${CMAKE_SHARED_LIBRARY_PREFIX}"
         SHARED_LIB_SUFFIX="${IE_BUILD_POSTFIX}${CMAKE_SHARED_LIBRARY_SUFFIX}")
 
+set(ONNX_OPSET_VERSION 17 CACHE INTERNAL "Supported version of ONNX operator set")
+target_compile_definitions(ov_onnx_frontend_tests PRIVATE ONNX_OPSET_VERSION=${ONNX_OPSET_VERSION})
+
 if(ONNX_TESTS_DEPENDENCIES)
     add_dependencies(ov_onnx_frontend_tests ${ONNX_TESTS_DEPENDENCIES})
 endif()
@@ -147,7 +145,7 @@ target_include_directories(ov_onnx_frontend_tests
     SYSTEM PRIVATE
         $<TARGET_PROPERTY:onnx,INTERFACE_INCLUDE_DIRECTORIES>
         $<TARGET_PROPERTY:onnx_proto,INTERFACE_INCLUDE_DIRECTORIES>
-        ${Protobuf_INCLUDE_DIRS})
+        $<TARGET_PROPERTY:protobuf::libprotobuf,INTERFACE_INCLUDE_DIRECTORIES>)
 target_compile_definitions(ov_onnx_frontend_tests PRIVATE $<TARGET_PROPERTY:onnx,INTERFACE_COMPILE_DEFINITIONS>)
 target_compile_definitions(ov_onnx_frontend_tests PRIVATE ENABLE_OV_ONNX_FRONTEND)
 

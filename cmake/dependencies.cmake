@@ -32,28 +32,31 @@ if(THREADING STREQUAL "OMP")
                 TARGET_PATH "${TEMP}/omp"
                 ENVIRONMENT "OMP"
                 VERSION_REGEX ".*_([a-z]*_([a-z0-9]+\\.)*[0-9]+).*"
-                SHA256 "62c68646747fb10f19b53217cb04a1e10ff93606f992e6b35eb8c31187c68fbf")
+                SHA256 "62c68646747fb10f19b53217cb04a1e10ff93606f992e6b35eb8c31187c68fbf"
+                USE_NEW_LOCATION TRUE)
     elseif(LINUX AND X86_64)
         RESOLVE_DEPENDENCY(OMP
                 ARCHIVE_LIN "iomp.tgz"
                 TARGET_PATH "${TEMP}/omp"
                 ENVIRONMENT "OMP"
                 VERSION_REGEX ".*_([a-z]*_([a-z0-9]+\\.)*[0-9]+).*"
-                SHA256 "7832b16d82513ee880d97c27c7626f9525ebd678decf6a8fe6c38550f73227d9")
+                SHA256 "7832b16d82513ee880d97c27c7626f9525ebd678decf6a8fe6c38550f73227d9"
+                USE_NEW_LOCATION TRUE)
     elseif(APPLE AND X86_64)
         RESOLVE_DEPENDENCY(OMP
                 ARCHIVE_MAC "iomp_20190130_mac.tgz"
                 TARGET_PATH "${TEMP}/omp"
                 ENVIRONMENT "OMP"
                 VERSION_REGEX ".*_([a-z]*_([a-z0-9]+\\.)*[0-9]+).*"
-                SHA256 "591ea4a7e08bbe0062648916f42bded71d24c27f00af30a8f31a29b5878ea0cc")
+                SHA256 "591ea4a7e08bbe0062648916f42bded71d24c27f00af30a8f31a29b5878ea0cc"
+                USE_NEW_LOCATION TRUE)
     else()
         message(FATAL_ERROR "Intel OMP is not available on current platform")
     endif()
     update_deps_cache(OMP "${OMP}" "Path to OMP root folder")
     debug_message(STATUS "intel_omp=" ${OMP})
 
-    ie_cpack_add_component(omp HIDDEN)
+    ov_cpack_add_component(omp HIDDEN)
     file(GLOB_RECURSE source_list "${OMP}/*${CMAKE_SHARED_LIBRARY_SUFFIX}*")
     install(FILES ${source_list}
             DESTINATION ${OV_CPACK_RUNTIMEDIR}
@@ -96,37 +99,66 @@ function(ov_download_tbb)
 
     if(WIN32 AND X86_64)
         # TODO: add target_path to be platform specific as well, to avoid following if
+        # build oneTBB 2021.2.1 with Visual Studio 2019 (MSVC 14.21)
         RESOLVE_DEPENDENCY(TBB
-                ARCHIVE_WIN "tbb2020_617e9a71_win.zip"
+                ARCHIVE_WIN "oneapi-tbb-2021.2.2-win.zip"
                 TARGET_PATH "${TEMP}/tbb"
                 ENVIRONMENT "TBBROOT"
-                SHA256 "01cac3cc48705bd52b83a6e1fa1ed95c708928be76160f5b9c5c37f954d56df4"
+                SHA256 "103b19a8af288c6a7d83ed3f0d2239c4afd0dd189fc12aad1d34b3c9e78df94b"
                 USE_NEW_LOCATION TRUE)
     elseif(ANDROID AND X86_64)
         RESOLVE_DEPENDENCY(TBB
                 ARCHIVE_ANDROID "tbb2020_20200404_android.tgz"
                 TARGET_PATH "${TEMP}/tbb"
                 ENVIRONMENT "TBBROOT"
-                SHA256 "f42d084224cc2d643314bd483ad180b081774608844000f132859fca3e9bf0ce")
-    elseif(LINUX AND X86_64)
+                SHA256 "f42d084224cc2d643314bd483ad180b081774608844000f132859fca3e9bf0ce"
+                USE_NEW_LOCATION TRUE)
+    elseif(LINUX AND X86_64 AND OV_GLIBC_VERSION VERSION_GREATER_EQUAL 2.17)
+        # build oneTBB 2021.2.1 with gcc 4.8 (glibc 2.17)
         RESOLVE_DEPENDENCY(TBB
-                ARCHIVE_LIN "tbb2020_617e9a71_lin_strip.tgz"
+                ARCHIVE_LIN "oneapi-tbb-2021.2.1-lin.tgz"
                 TARGET_PATH "${TEMP}/tbb"
                 ENVIRONMENT "TBBROOT"
-                SHA256 "e7a38f68059fb36de8b59d40b283a849f26275e34a58d2acadfdb84d49e31b9b"
+                SHA256 "0a56f73baaa40d72e06949ea6d593ae63a19f7580ce71c08287c1f59d2e5b988"
                 USE_NEW_LOCATION TRUE)
     elseif(YOCTO_AARCH64)
         RESOLVE_DEPENDENCY(TBB
                 ARCHIVE_LIN "keembay/tbb2020_38404_kmb_lic.tgz"
                 TARGET_PATH "${TEMP}/tbb_yocto"
                 ENVIRONMENT "TBBROOT"
-                SHA256 "321261ff2eda6d4568a473cb883262bce77a93dac599f7bd65d2918bdee4d75b")
+                SHA256 "321261ff2eda6d4568a473cb883262bce77a93dac599f7bd65d2918bdee4d75b"
+                USE_NEW_LOCATION TRUE)
     elseif(APPLE AND X86_64)
+        # build oneTBB 2021.2.1 with OS version 11.4
         RESOLVE_DEPENDENCY(TBB
-                ARCHIVE_MAC "tbb2020_617e9a71_mac.tgz"
+                ARCHIVE_MAC "oneapi-tbb-2021.2.1-mac.tgz"
                 TARGET_PATH "${TEMP}/tbb"
                 ENVIRONMENT "TBBROOT"
-                SHA256 "67a44b695bef3348416eaf5bf2baca2b1401576c0e09c394304eba1e0eee96cd"
+                SHA256 "c57ce4b97116cd3093c33e6dcc147fb1bbb9678d0ee6c61a506b2bfe773232cb"
+                USE_NEW_LOCATION TRUE)
+    elseif(WIN32 AND AARCH64)
+        # build oneTBB 2021.2.1 with Visual Studio 2022 (MSVC 14.35)
+        RESOLVE_DEPENDENCY(TBB
+                ARCHIVE_WIN "oneapi-tbb-2021.2.1-win-arm64.zip"
+                TARGET_PATH "${TEMP}/tbb"
+                ENVIRONMENT "TBBROOT"
+                SHA256 "09fe7f5e7be589aa34ccd20fdfd7cad9e0afa89d1e74ecdb008a75d0af71d6e1"
+                USE_NEW_LOCATION TRUE)
+    elseif(LINUX AND AARCH64 AND OV_GLIBC_VERSION VERSION_GREATER_EQUAL 2.17)
+        # build oneTBB 2021.2.1 with gcc 4.8 (glibc 2.17)
+        RESOLVE_DEPENDENCY(TBB
+                ARCHIVE_LIN "oneapi-tbb-2021.2.1-lin-arm64.tgz"
+                TARGET_PATH "${TEMP}/tbb"
+                ENVIRONMENT "TBBROOT"
+                SHA256 "6b87194a845aa9314f3785d842e250d934e545eccc4636655c7b27c98c302c0c"
+                USE_NEW_LOCATION TRUE)
+    elseif(APPLE AND AARCH64)
+        # build oneTBB 2021.2.1 with export MACOSX_DEPLOYMENT_TARGET=11.0
+        RESOLVE_DEPENDENCY(TBB
+                ARCHIVE_MAC "oneapi-tbb-2021.2.1-mac-arm64.tgz"
+                TARGET_PATH "${TEMP}/tbb"
+                ENVIRONMENT "TBBROOT"
+                SHA256 "15d46ef19501e4315a5498af59af873dbf8180e9a3ea55253ccf7f0c0bb6f940"
                 USE_NEW_LOCATION TRUE)
     else()
         message(WARNING "Prebuilt TBB is not available on current platform")
@@ -177,16 +209,18 @@ function(ov_download_tbbbind_2_5)
 
     if(WIN32 AND X86_64)
         RESOLVE_DEPENDENCY(TBBBIND_2_5
-                ARCHIVE_WIN "tbbbind_2_5_static_win_v1.zip"
+                ARCHIVE_WIN "tbbbind_2_5_static_win_v2.zip"
                 TARGET_PATH "${TEMP}/tbbbind_2_5"
                 ENVIRONMENT "TBBBIND_2_5_ROOT"
-                SHA256 "a67afeea8cf194f97968c800dab5b5459972908295242e282045d6b8953573c1")
+                SHA256 "49ae93b13a13953842ff9ae8d01681b269b5b0bc205daf18619ea9a828c44bee"
+                USE_NEW_LOCATION TRUE)
     elseif(LINUX AND X86_64)
         RESOLVE_DEPENDENCY(TBBBIND_2_5
-                ARCHIVE_LIN "tbbbind_2_5_static_lin_v2.tgz"
+                ARCHIVE_LIN "tbbbind_2_5_static_lin_v3.tgz"
                 TARGET_PATH "${TEMP}/tbbbind_2_5"
                 ENVIRONMENT "TBBBIND_2_5_ROOT"
-                SHA256 "865e7894c58402233caf0d1b288056e0e6ab2bf7c9d00c9dc60561c484bc90f4")
+                SHA256 "d39deb262c06981b5e2d2e3c593e9fc9be62ce4feb91dd4e648e92753659a6b3"
+                USE_NEW_LOCATION TRUE)
     else()
         # TMP: for Apple Silicon TBB does not provide TBBBind
         if(NOT (APPLE AND AARCH64))
@@ -298,8 +332,8 @@ if(ENABLE_INTEL_GNA)
             GNA_LIB_DIR
             libGNA_INCLUDE_DIRS
             libGNA_LIBRARIES_BASE_PATH)
-        set(GNA_VERSION "03.00.00.1910")
-        set(GNA_HASH "894ddbc0ae3459f04513b853b0cabc32890dd4ea37228a022b6a32101bdbb7f8")
+        set(GNA_VERSION "03.05.00.2116")
+        set(GNA_HASH "960350567702bda17276ac4c060d7524fb7ce7ced785004bd861c81ff2bfe2c5")
 
         set(FILES_TO_EXTRACT_LIST gna_${GNA_VERSION}/include)
         if(WIN32)

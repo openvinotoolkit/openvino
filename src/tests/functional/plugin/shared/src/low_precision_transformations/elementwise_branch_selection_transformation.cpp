@@ -67,7 +67,7 @@ void ElementwiseBranchSelectionTransformation::SetUp() {
         param.branch2.fakeQuantizeAfter,
         param.fakeQuantizeAfter);
 
-    ov::pass::InitNodeInfo().run_on_function(function);
+    ov::pass::InitNodeInfo().run_on_model(function);
 }
 
 void ElementwiseBranchSelectionTransformation::Run() {
@@ -114,6 +114,7 @@ void ElementwiseBranchSelectionTransformation::Run() {
 }
 
 TEST_P(ElementwiseBranchSelectionTransformation, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     Run();
 };
 

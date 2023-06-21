@@ -34,11 +34,13 @@ namespace InferenceEngine {
 namespace gapi {
 namespace kernels {
 
-struct avx512_tag {};
-struct avx2_tag {};
-struct sse42_tag {};
-struct neon_tag {};
-struct scalar_tag {};
+// dummy field is needed to workaround ABI change issue between CXX ABI 11 (g++-7) and 12 (g++-8)
+// see https://gcc.gnu.org/onlinedocs/gcc/C_002b_002b-Dialect-Options.html
+struct avx512_tag { int _ = 0; };
+struct avx2_tag { int _ = 0; };
+struct sse42_tag { int _ = 0; };
+struct neon_tag { int _ = 0; };
+struct scalar_tag { int _ = 0; };
 
 template<typename DST, typename SRC> static inline DST saturate_cast(SRC x);
 template<> inline short saturate_cast(int x) { return (std::min)(SHRT_MAX, (std::max)(SHRT_MIN, x)); }

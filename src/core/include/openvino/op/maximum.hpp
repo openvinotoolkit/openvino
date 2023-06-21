@@ -13,7 +13,7 @@ namespace v1 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API Maximum : public util::BinaryElementwiseArithmetic {
 public:
-    OPENVINO_OP("Maximum", "opset1", op::util::BinaryElementwiseArithmetic, 1);
+    OPENVINO_OP("Maximum", "opset1", op::util::BinaryElementwiseArithmetic);
 
     /// \brief Constructs a maximum operation.
     Maximum() : util::BinaryElementwiseArithmetic(AutoBroadcastType::NUMPY) {}

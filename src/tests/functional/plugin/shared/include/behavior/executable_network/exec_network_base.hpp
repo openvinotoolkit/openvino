@@ -32,7 +32,7 @@ public:
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
         ov::test::behavior::APIBaseTest::SetUp();
         ie = PluginCache::get().ie(target_device);
-        function = ov::test::behavior::getDefaultNGraphFunctionForTheDevice(target_device);
+        function = ov::test::behavior::getDefaultNGraphFunctionForTheDevice();
         cnnNet = InferenceEngine::CNNNetwork(function);
     }
 
@@ -70,10 +70,6 @@ TEST_P(ExecutableNetworkBaseTest, checkGetMetric) {
 
 TEST_P(ExecutableNetworkBaseTest, canLoadCorrectNetworkToGetExecutableAndCheckConfig) {
     auto execNet = ie->LoadNetwork(cnnNet, target_device, configuration);
-    if (target_device == CommonTestUtils::DEVICE_AUTO) {
-        // AUTO executable network didn't support to read any config.
-        GTEST_SKIP();
-    }
     for (const auto& configItem : configuration) {
         InferenceEngine::Parameter param;
         ASSERT_NO_THROW(param = execNet.GetConfig(configItem.first));
@@ -215,6 +211,7 @@ TEST_P(ExecutableNetworkBaseTest, CheckExecGraphInfoAfterExecution) {
     InferenceEngine::CNNNetwork execGraph;
     // Load CNNNetwork to target plugins
     auto execNet = ie->LoadNetwork(cnnNet, target_device, configuration);
+    execNet.CreateInferRequest().Infer();
     ASSERT_NO_THROW(execGraph = execNet.GetExecGraphInfo());
     std::map<std::string, int> originalLayersMap;
     for (const auto &layer : function->get_ops()) {

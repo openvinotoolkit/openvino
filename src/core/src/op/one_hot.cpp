@@ -106,8 +106,10 @@ bool evaluate_onehot(const HostTensorVector& output_values, const HostTensorVect
 
 bool op::v1::OneHot::evaluate(const HostTensorVector& output_values, const HostTensorVector& input_values) const {
     OV_OP_SCOPE(v1_OneHot_evaluate);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     NGRAPH_CHECK(validate_host_tensor_vector(input_values, 4));
     NGRAPH_CHECK(validate_host_tensor_vector(output_values, 1));
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     const auto& ind_Pshape = input_values[0]->get_partial_shape();
     const auto& out_Pshape = output_values[0]->get_partial_shape();

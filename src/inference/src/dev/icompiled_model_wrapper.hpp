@@ -13,6 +13,7 @@ namespace InferenceEngine {
 class ICompiledModelWrapper : public ov::ICompiledModel {
 public:
     ICompiledModelWrapper(const std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>& model);
+    virtual ~ICompiledModelWrapper() = default;
     std::shared_ptr<ov::IAsyncInferRequest> create_infer_request() const override;
 
     void export_model(std::ostream& model) const override;
@@ -23,9 +24,8 @@ public:
 
     ov::Any get_property(const std::string& name) const override;
 
-    ov::RemoteContext get_context() const override;
-
     std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> get_executable_network();
+    std::shared_ptr<const InferenceEngine::IExecutableNetworkInternal> get_executable_network() const;
 
 private:
     std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> m_model;

@@ -86,7 +86,7 @@ KERNEL(edgpsi_ref_stage_0)
 #endif /* EDGPSI_STAGE_0 */
 
 #ifdef EDGPSI_STAGE_1
-
+#define Box FUNC(_Box)
 typedef struct __attribute__((__packed__)) {
     INPUT0_TYPE x0;
     INPUT0_TYPE y0;
@@ -181,6 +181,7 @@ KERNEL(edgpsi_ref_stage_1)(__global OUTPUT_TYPE* proposals) {
 
     FUNC_CALL(quickSortIterative)(boxes, 0, NUM_PROPOSALS-1);
 }
+#undef Box
 #endif /* EDGPSI_STAGE_1 */
 
 #ifdef EDGPSI_STAGE_2

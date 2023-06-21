@@ -42,7 +42,7 @@ The application also saves executable graph information serialized to an XML fil
 `-exec_graph_path` parameter.
 
 ## Building
-This tools can be built as part of OpenVINO, during standard building process. More information about building OpenVINO can be found here[Build OpenVINO Inference Engine](https://github.com/openvinotoolkit/openvino/wiki/BuildingCode)
+This tools can be built as part of OpenVINO, during standard building process. More information about building OpenVINO can be found here[Build OpenVINO Inference Engine](https://github.com/openvinotoolkit/openvino/blob/master/docs/dev/build.md)
 
 ## Run the Tool
 

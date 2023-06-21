@@ -50,6 +50,12 @@ std::function<bool(Output<Node>)> consumers_count(size_t n) {
     };
 }
 
+std::function<bool(Output<Node>)> consumers_more_than(size_t n) {
+    return [=](Output<Node> output) -> bool {
+        return output.get_target_inputs().size() > n;
+    };
+}
+
 std::function<bool(Output<Node>)> has_static_dim(size_t pos) {
     return [=](Output<Node> output) -> bool {
         const auto& shape = output.get_partial_shape();

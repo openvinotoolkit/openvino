@@ -20,8 +20,8 @@ using ngraph::test::ValueMap;
 
 TEST(attributes, prior_box_op) {
     NodeBuilder::get_ops().register_factory<opset1::PriorBox>();
-    const auto layer_shape = make_shared<op::Parameter>(element::i64, Shape{128, 128});
-    const auto image_shape = make_shared<op::Parameter>(element::i64, Shape{32, 32});
+    const auto layer_shape = make_shared<op::Parameter>(element::i64, Shape{2});
+    const auto image_shape = make_shared<op::Parameter>(element::i64, Shape{2});
 
     op::v0::PriorBox::Attributes attrs;
     attrs.min_size = vector<float>{16.f, 32.f};
@@ -106,8 +106,8 @@ TEST(attributes, prior_box_op2) {
 
 TEST(attributes, prior_box_v8_op) {
     NodeBuilder::get_ops().register_factory<opset8::PriorBox>();
-    const auto layer_shape = make_shared<op::Parameter>(element::i64, Shape{128, 128});
-    const auto image_shape = make_shared<op::Parameter>(element::i64, Shape{32, 32});
+    const auto layer_shape = make_shared<op::Parameter>(element::i64, Shape{2});
+    const auto image_shape = make_shared<op::Parameter>(element::i64, Shape{2});
 
     op::v8::PriorBox::Attributes attrs;
     attrs.min_size = vector<float>{16.f, 32.f};

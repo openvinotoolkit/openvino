@@ -223,6 +223,17 @@ bool ConvolutionKernel_b_fs_zyx_fsv16::Validate(const Params& p, const optional_
         return false;
     }
 
+    // Check if operation fusion is supported
+    if (!params.fused_ops.empty()) {
+        const bool is_1stconv = input.Feature().v == 3 && input.GetLayout() == DataLayout::bfzyx;
+        const bool ver_16mb16c = !is_1stconv && ((output.GetDType() == Datatype::F16 && output.Batch().v % 32 == 0) ||
+                                                (output.GetDType() == Datatype::F32 && output.Batch().v % 16 == 0));
+
+        if (!ver_16mb16c && is_1stconv && output.GetDType() == Datatype::F16) {
+            return false;
+        }
+    }
+
     return true;
 }
 
@@ -310,7 +321,7 @@ JitConstants ConvolutionKernel_b_fs_zyx_fsv16::GetJitConstants(const convolution
             jit.Merge(MakeFusedOpsJitConstants(params, {conf_vec0, conf_vec1, conf_vec2, conf_vec3,
                                                         conf_scalar0, conf_scalar1, conf_scalar2, conf_scalar3}));
         }
-    } else if (!is_1stconv && !params.fused_ops.empty()) {
+    } else if ((!is_1stconv || output.GetDType() == Datatype::F32) && !params.fused_ops.empty()) {
         FusedOpsConfiguration conf_vec0 = GenerateFusedOpsConfiguration_f16(0, "blockC0", input_dt, true);
         FusedOpsConfiguration conf_vec1 = GenerateFusedOpsConfiguration_f16(1, "blockC0", input_dt, true);
         FusedOpsConfiguration conf_scalar0 = GenerateFusedOpsConfiguration_f16(0, "blockC0", input_dt, false);

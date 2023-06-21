@@ -164,7 +164,7 @@ bool test::close_f(double a, double b, int tolerance_bits, double min_signal) {
 
 vector<uint32_t> float_distances(const vector<float>& a, const vector<float>& b, float min_signal) {
     if (a.size() != b.size()) {
-        throw ngraph_error("a.size() != b.size() for float_distances comparison.");
+        OPENVINO_THROW("a.size() != b.size() for float_distances comparison.");
     }
     vector<uint32_t> distances(a.size());
     for (size_t i = 0; i < a.size(); ++i) {
@@ -176,7 +176,7 @@ vector<uint32_t> float_distances(const vector<float>& a, const vector<float>& b,
 
 vector<uint64_t> float_distances(const vector<double>& a, const vector<double>& b, double min_signal) {
     if (a.size() != b.size()) {
-        throw ngraph_error("a.size() != b.size() for float_distances comparison.");
+        OPENVINO_THROW("a.size() != b.size() for float_distances comparison.");
     }
     vector<uint64_t> distances(a.size());
     for (size_t i = 0; i < a.size(); ++i) {

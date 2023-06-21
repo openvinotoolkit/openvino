@@ -8,6 +8,10 @@ set(PUBLIC_HEADERS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
 set(DEPENDENCIES mock_engine)
 
+list(APPEND LINK_LIBRARIES_PRIVATE
+        openvino::util
+        openvino::runtime::dev)
+
 if(ENABLE_HETERO)
     list(APPEND DEPENDENCIES openvino_hetero_plugin)
 endif()
@@ -20,6 +24,9 @@ if(ENABLE_AUTO_BATCH)
     list(APPEND DEPENDENCIES openvino_auto_batch_plugin)
 endif()
 
+if(ENABLE_TEMPLATE)
+    list(APPEND DEPENDENCIES openvino_template_plugin)
+endif()
 
 # remove once CVS-69781 is fixed
 if(ENABLE_OV_IR_FRONTEND)
@@ -27,10 +34,16 @@ if(ENABLE_OV_IR_FRONTEND)
 endif()
 
 if (ENABLE_OV_ONNX_FRONTEND)
-    list(APPEND DEPENDENCIES test_model_zoo)
+    list(APPEND DEPENDENCIES test_model_zoo openvino_onnx_frontend)
     list(APPEND DEFINES TEST_MODELS="${TEST_MODEL_ZOO}/func_tests/models/")
 else()
     set(EXCLUDED_SOURCE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/onnx)
+endif()
+
+if (TARGET inference_engine_snippets)
+    list(APPEND LINK_LIBRARIES_PRIVATE snippetsNgraphFunctions)
+else()
+    list(APPEND EXCLUDED_SOURCE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/snippets)
 endif()
 
 addIeTarget(
@@ -56,9 +69,7 @@ addIeTarget(
                 lptNgraphFunctions
                 sharedTestClasses
             PRIVATE
-                openvino::util
-                openvino::runtime::dev
-                snippetsNgraphFunctions
+                ${LINK_LIBRARIES_PRIVATE}
         DEPENDENCIES
             ${DEPENDENCIES}
 )

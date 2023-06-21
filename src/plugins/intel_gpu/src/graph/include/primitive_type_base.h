@@ -55,8 +55,19 @@ struct primitive_type_base : primitive_type {
                                         "[GPU] Original name: ", p->origin_op_name, "\n"
                                         "[GPU] Original type: ", p->origin_op_type_name, "\n"
                                         "[GPU] Reason: ", e.what());
-            throw ov::Exception(ss.str());
+            OPENVINO_THROW(ss.str());
         }
+    }
+
+    std::set<impl_types> get_available_impls(const cldnn::program_node& node) const override {
+        OPENVINO_ASSERT(node.type() == this, "[GPU] primitive_type_base::get_available_impls: primitive type mismatch");
+        auto kernel_impl_params = *node.get_kernel_impl_params();
+
+        OPENVINO_ASSERT(!kernel_impl_params.input_layouts.empty(), "[GPU] Can't get available implementations for node with empty input layouts");
+        auto in_dt = kernel_impl_params.get_input_layout().data_type;
+        auto target_shape_type = get_shape_type(kernel_impl_params);
+
+        return implementation_map<PType>::query_available_impls(in_dt, target_shape_type);
     }
 
     bool does_an_implementation_exist(const cldnn::program_node& node) const override {
@@ -107,15 +118,11 @@ struct primitive_type_base : primitive_type {
 
         return res;
     }
+
     kernel_impl_params get_fake_aligned_params(kernel_impl_params const& orig_impl_param) const override {
         return typed_primitive_inst<PType>::get_fake_aligned_params(orig_impl_param);
     }
-    std::vector<size_t> extend_input_shape_to_6d(kernel_impl_params const& orig_impl_param, int32_t input_idx) const override {
-        return typed_primitive_inst<PType>::extend_input_shape_to_6d(orig_impl_param, input_idx);
-    }
-    std::vector<size_t> extend_output_shape_to_6d(kernel_impl_params const& orig_impl_param, int32_t output_idx) const override {
-        return typed_primitive_inst<PType>::extend_output_shape_to_6d(orig_impl_param, output_idx);
-    }
+
     std::string to_string(const cldnn::program_node& node) const override {
         OPENVINO_ASSERT(node.type() == this, "[GPU] primitive_type_base::to_string: primitive type mismatch");
         return typed_primitive_inst<PType>::to_string(node);

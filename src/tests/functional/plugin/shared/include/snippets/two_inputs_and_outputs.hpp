@@ -26,6 +26,15 @@ protected:
     void SetUp() override;
 };
 
+
+// TwoInputsAndOutputsWithReversedOutput tests the same network with reversed order of Result nodes.
+// It changes order of nodes after topological sort. The test checks the correctness of the
+// algorithm for checking possible cyclic dependency for nodes with Result node in consumers in tokenization.
+class TwoInputsAndOutputsWithReversedOutputs : public TwoInputsAndOutputs {
+protected:
+    void SetUp() override;
+};
+
 } // namespace snippets
 } // namespace test
 } // namespace ov

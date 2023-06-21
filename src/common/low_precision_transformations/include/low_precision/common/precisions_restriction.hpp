@@ -9,10 +9,8 @@
 #include <unordered_set>
 #include <vector>
 
-#include <ngraph/node.hpp>
-
 #include <low_precision/lpt_visibility.hpp>
-#include <ngraph/pass/graph_rewrite.hpp>
+#include "openvino/core/node.hpp"
 
 namespace ngraph {
 namespace pass {
@@ -37,25 +35,42 @@ namespace low_precision {
 class PrecisionsRestriction {
 public:
     using PrecisionsByPorts = std::vector<std::pair<std::vector<size_t>, std::vector<ngraph::element::Type>>>;
+    using PrecisionsByPortsFunction = std::function<PrecisionsByPorts(const std::shared_ptr<Node>&)>;
 
     ngraph::Node::type_info_t operationType;
     bool specifyVersion;
     PrecisionsByPorts precisionsByPorts;
+    PrecisionsByPortsFunction precisionsByPortsFunction;
 
     PrecisionsRestriction() = default;
     PrecisionsRestriction(
-        const ngraph::Node::type_info_t operationType,
+        const ngraph::Node::type_info_t& operationType,
         const bool specifyVersion,
         const PrecisionsByPorts& precisionsByPorts) :
         operationType(operationType),
         specifyVersion(specifyVersion),
         precisionsByPorts(precisionsByPorts) {}
 
+    PrecisionsRestriction(
+        const ngraph::Node::type_info_t& operationType,
+        const bool specifyVersion,
+        const PrecisionsByPortsFunction& precisionsByPortsFunction) :
+        operationType(operationType),
+        specifyVersion(specifyVersion),
+        precisionsByPortsFunction(precisionsByPortsFunction) {}
+
     template <typename T>
     static PrecisionsRestriction create(
         const PrecisionsByPorts& precisionsByPorts,
         const bool specifyVersion = false) {
         return PrecisionsRestriction(T::get_type_info_static(), specifyVersion, precisionsByPorts);
+    }
+
+    template <typename T>
+    static PrecisionsRestriction create(
+        const PrecisionsByPortsFunction& precisionsByPortsFunction,
+        const bool specifyVersion = false) {
+        return PrecisionsRestriction(T::get_type_info_static(), specifyVersion, precisionsByPortsFunction);
     }
 
     template <typename T>

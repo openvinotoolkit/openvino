@@ -107,7 +107,6 @@ private:
     std::vector<ptrdiff_t> paddingR;
 
     jit_bin_conv_params jcp = {};
-    jit_dw_conv_params jcp_dw_conv = {};
     std::shared_ptr<jit_uni_bin_conv_kernel> bin_conv_kernel = nullptr;
 
     dnnl::primitive_attr attr;

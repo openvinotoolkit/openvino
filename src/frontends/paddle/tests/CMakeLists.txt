@@ -25,10 +25,21 @@ ov_add_test_target(
 )
 
 # Test model generating
-ov_check_pip_packages(REQUIREMENTS_FILE "${CMAKE_CURRENT_SOURCE_DIR}/requirements.txt"
-                      MESSAGE_MODE WARNING
-                      WARNING_MESSAGE "PaddlePaddle frontend unit tests will be skipped"
-                      RESULT_VAR paddlepaddle_FOUND)
+set(PADDLE_REQ "${CMAKE_CURRENT_SOURCE_DIR}/requirements.txt")
+if(PYTHONINTERP_FOUND)
+    execute_process(
+        COMMAND ${PYTHON_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/paddle_pip_check.py" ${PADDLE_REQ}
+        RESULT_VARIABLE EXIT_CODE
+        OUTPUT_VARIABLE OUTPUT_TEXT
+        ERROR_VARIABLE ERROR_TEXT)
+endif()
+
+if(NOT EXIT_CODE EQUAL 0)
+    set(paddlepaddle_FOUND OFF)
+    message(WARNING "Python requirement file ${PADDLE_REQ} is not installed, PaddlePaddle frontend unit tests will be skipped")
+else()
+    set(paddlepaddle_FOUND ON)
+endif()
 
 set(TEST_PADDLE_MODELS_DIRNAME test_model_zoo/paddle_test_models)
 target_compile_definitions(${TARGET_NAME} PRIVATE -D TEST_PADDLE_MODELS_DIRNAME=\"${TEST_PADDLE_MODELS_DIRNAME}/\")

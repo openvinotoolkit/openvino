@@ -19,12 +19,12 @@ from utils.conformance_utils import get_logger
 from utils import file_utils
 
 logger = get_logger('conformance_runner')
-is_hash = True
+has_python_api = True
 try:
-    from rename_conformance_ir import create_hash
+    from rename_conformance_ir import create_hash, save_rel_weights
 except:
     logger.warning("Please set the above env variable to get the same conformance ir names run by run!")
-    is_hash = False
+    has_python_api = False
 
 API_CONFORMANCE_BIN_NAME = "apiConformanceTests"
 OP_CONFORMANCE_BIN_NAME = "conformanceTests"
@@ -50,23 +50,26 @@ def parse_arguments():
     ov_config_path_helper = "Specify path to file contains plugin config"
     dump_conformance_help = "Set '1' if you want to create Conformance IRs from custom/downloaded models. In other cases, set 0. The default value is '1'"
     shape_mode_help = "Specify shape mode for conformance. Default value is ``. Possible values: `static`, `dynamic`, ``"
+    parallel_help = "Parallel over HW devices. For example run tests over GPU.0, GPU.1 and etc"
 
     parser.add_argument("-m", "--models_path", help=models_path_help, type=str, required=False, default=NO_MODEL_CONSTANT)
     parser.add_argument("-d", "--device", help= device_help, type=str, required=False, default="CPU")
     parser.add_argument("-ov", "--ov_path", help=ov_help, type=str, required=False, default=file_utils.get_ov_path(SCRIPT_DIR_PATH))
     parser.add_argument("-w", "--working_dir", help=working_dir_help, type=str, required=False, default=get_default_working_dir())
-    parser.add_argument("-t", "--type", help=type_help, type=str, required=False, default="OP")
+    parser.add_argument("-t", "--type", help=type_help, type=str, required=False, default=constants.OP_CONFORMANCE)
     parser.add_argument("-j", "--workers", help=workers_help, type=int, required=False, default=os.cpu_count()-1)
     parser.add_argument("--gtest_filter", help=gtest_filter_helper, type=str, required=False, default="*")
     parser.add_argument("-c", "--ov_config_path", help=ov_config_path_helper, type=str, required=False, default="")
     parser.add_argument("-s", "--dump_conformance", help=dump_conformance_help, type=int, required=False, default=0)
     parser.add_argument("-sm", "--shape_mode", help=shape_mode_help, type=str, required=False, default="")
+    parser.add_argument("-p", "--parallel_devices", help=parallel_help, type=bool, required=False, default=False)
 
     return parser.parse_args()
 
 class Conformance:
     def __init__(self, device:str, model_path:os.path, ov_path:os.path, type:str, workers:int,
-                 gtest_filter:str, working_dir:os.path, ov_config_path:os.path, shape_mode:str):
+                 gtest_filter:str, working_dir:os.path, ov_config_path:os.path, shape_mode:str,
+                 parallel_devices:bool):
         self._device = device
         self._model_path = model_path
         self._ov_path = ov_path
@@ -76,7 +79,7 @@ class Conformance:
             logger.info(f"Working dir {self._working_dir} is cleaned up")
             rmtree(self._working_dir)
         os.mkdir(self._working_dir)
-        if not (type == "OP" or type == "API"):
+        if not (type == constants.OP_CONFORMANCE or type == constants.API_CONFORMANCE):
             logger.error(f"Incorrect conformance type: {type}. Please use 'OP' or 'API'")
             exit(-1)
         self._type = type
@@ -91,6 +94,7 @@ class Conformance:
         else:
             logger.error(f'Incorrect value to set shape mode: {shape_mode}. Please check to get possible values')
             exit(-1)
+        self._is_parallel_over_devices = parallel_devices
 
     def __download_models(self, url_to_download, path_to_save):
         _, file_name = os.path.split(urlparse(url_to_download).path)
@@ -135,8 +139,9 @@ class Conformance:
             logger.error("Process failed on step: 'Subgraph dumping'")
             exit(-1)
         self._model_path = conformance_ir_path
-        if is_hash:
-            create_hash(Path(self._model_path))
+        if has_python_api:
+            op_rel_weight = create_hash(Path(self._model_path))
+            save_rel_weights(Path(self._model_path), op_rel_weight)
             logger.info(f"All conformance IRs in {self._ov_bin_path} were renamed based on hash")
         else:
             logger.warning("The OV Python was not built or Environment was not updated to requirments. Skip the step to rename Conformance IR based on a hash")
@@ -167,22 +172,26 @@ class Conformance:
                              f"--report_unique_name", f'--output_folder="{parallel_report_dir}"',
                              f'--gtest_filter={self._gtest_filter}', f'--config_path="{self._ov_config_path}"',
                              f'--shape_mode={self._shape_mode}']
-        conformance = TestParallelRunner(f"{conformance_path}", command_line_args, self._workers, logs_dir, "")
+        conformance = TestParallelRunner(f"{conformance_path}", command_line_args, self._workers, logs_dir, "", self._is_parallel_over_devices)
         conformance.run()
         conformance.postprocess_logs()
 
         final_report_name = f'report_{self._type.lower()}'
         # API Conformance contains both report type
-        merge_xml([parallel_report_dir], report_dir, final_report_name, self._type)
+        merge_xml([parallel_report_dir], report_dir, final_report_name, self._type, True)
         if self._type == constants.API_CONFORMANCE:
-            final_op_report_name = f'report_{constants.OP_CONFORMANCE.lower()}'
-            merge_xml([parallel_report_dir], report_dir, final_op_report_name, constants.OP_CONFORMANCE.lower())
+            try:
+                final_report_name = f'report_{constants.OP_CONFORMANCE.lower()}'
+                merge_xml([parallel_report_dir], report_dir, final_report_name, constants.OP_CONFORMANCE.lower(), True)
+            except:
+                logger.warning("Something is wrong to create report_op for API conformance!")
         logger.info(f"Conformance is successful. XML reportwas saved to {report_dir}")
         return (os.path.join(report_dir, final_report_name + ".xml"), report_dir)
 
     def __summarize(self, xml_report_path:os.path, report_dir: os.path):
         summary_root = ET.parse(xml_report_path).getroot()
-        create_summary(summary_root, report_dir, [], "", "", False, True)
+        rel_weights_path = os.path.join(self._model_path, constants.REL_WEIGHTS_FILENAME.replace(constants.REL_WEIGHTS_REPLACE_STR, self._shape_mode))
+        create_summary(summary_root, report_dir, [], "", "", True, True, rel_weights_path)
         copytree(os.path.join(SCRIPT_DIR_PATH, "template"), os.path.join(report_dir, "template"))
         logger.info(f"Report was saved to {os.path.join(report_dir, 'report.html')}")
 
@@ -191,8 +200,9 @@ class Conformance:
         process = Popen(command, shell=True)
         out, err = process.communicate()
         if err is None:
-            for line in str(out).split('\n'):
-                logger.info(line)
+            if not out is None:
+                for line in str(out).split('\n'):
+                    logger.info(line)
         else:
             logger.error(err)
             logger.error("Impossible to install requirements!")
@@ -207,6 +217,7 @@ class Conformance:
         logger.info(f"[ARGUMENTS] --ov_config_path = {self._ov_config_path}")
         logger.info(f"[ARGUMENTS] --dump_conformance = {dump_models}")
         logger.info(f"[ARGUMENTS] --shape_mode = {self._shape_mode}")
+        logger.info(f"[ARGUMENTS] --parallel_devices = {self._is_parallel_over_devices}")
 
         if file_utils.is_url(self._model_path):
             self._model_path = self.__download_models(self._model_path, self._working_dir)
@@ -227,8 +238,7 @@ class Conformance:
             logger.error(f"Directory {self._model_path} does not exist")
             exit(-1)
         xml_report, report_dir = self.__run_conformance()
-        if self._type == "OP":
-            self.__summarize(xml_report, report_dir)
+        self.__summarize(xml_report, report_dir)
 
 if __name__ == "__main__":
     args = parse_arguments()
@@ -236,5 +246,5 @@ if __name__ == "__main__":
                               args.ov_path, args.type,
                               args.workers, args.gtest_filter,
                               args.working_dir, args.ov_config_path,
-                              args.shape_mode)
+                              args.shape_mode, args.parallel_devices)
     conformance.run(args.dump_conformance)

@@ -21,10 +21,9 @@
 #include "async_infer_request.hpp"
 #include "ie_icore.hpp"
 #include "infer_request.hpp"
+#include "plugin.hpp"
 
 namespace HeteroPlugin {
-
-class Engine;
 
 /**
  * @class ExecutableNetwork
@@ -34,22 +33,16 @@ class HeteroExecutableNetwork : public InferenceEngine::ExecutableNetworkThreadS
 public:
     typedef std::shared_ptr<HeteroExecutableNetwork> Ptr;
 
-    /**
-     * @brief constructor
-     */
-    HeteroExecutableNetwork(const InferenceEngine::CNNNetwork& network,
-                            const std::map<std::string, std::string>& config,
-                            Engine* plugin);
-    /**
-     * @brief Import from opened file constructor
-     */
+    HeteroExecutableNetwork(const InferenceEngine::CNNNetwork& network, const Configs& user_config, Engine* plugin);
     HeteroExecutableNetwork(std::istream& heteroModel,
-                            const std::map<std::string, std::string>& config,
-                            Engine* plugin);
+                            const Configs& user_config,
+                            Engine* plugin,
+                            bool from_cache = false);
 
     InferenceEngine::IInferRequestInternal::Ptr CreateInferRequestImpl(
         InferenceEngine::InputsDataMap networkInputs,
         InferenceEngine::OutputsDataMap networkOutputs) override;
+
     InferenceEngine::IInferRequestInternal::Ptr CreateInferRequestImpl(
         const std::vector<std::shared_ptr<const ov::Node>>& inputs,
         const std::vector<std::shared_ptr<const ov::Node>>& outputs) override;
@@ -63,9 +56,6 @@ public:
     void Export(std::ostream& modelFile) override;
 
 private:
-    void InitCNNImpl(const InferenceEngine::CNNNetwork& network);
-    void InitNgraph(const InferenceEngine::CNNNetwork& network);
-
     struct NetworkDesc {
         std::string _device;
         InferenceEngine::CNNNetwork _clonedNetwork;
@@ -75,8 +65,10 @@ private:
     std::vector<NetworkDesc> _networks;
     Engine* _heteroPlugin;
     std::string _name;
-    std::map<std::string, std::string> _config;
+    Configs _hetero_config;
+    Configs _device_config;
     std::unordered_map<std::string, std::string> _blobNameMap;
+    bool _loadedFromCache = false;
 };
 
 }  // namespace HeteroPlugin

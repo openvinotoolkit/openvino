@@ -45,7 +45,7 @@ size_t get_onnx_data_size(int32_t onnx_type) {
     case ONNX_NAMESPACE::TensorProto_DataType_BFLOAT16:
         return sizeof(uint16_t);
     }
-    throw ngraph_error("unsupported element type");
+    OPENVINO_THROW("unsupported element type");
 }
 namespace {
 using namespace ONNX_NAMESPACE;
@@ -73,7 +73,7 @@ element::Type_t onnx_to_ng_data_type(const TensorProto_DataType& onnx_type) {
                          return pair.second == onnx_type;
                      });
     if (result == std::end(NG_2_ONNX_TYPES)) {
-        throw ngraph_error(
+        OPENVINO_THROW(
             "unsupported element type: " +
             ONNX_NAMESPACE::TensorProto_DataType_Name(static_cast<ONNX_NAMESPACE::TensorProto_DataType>(onnx_type)));
     }

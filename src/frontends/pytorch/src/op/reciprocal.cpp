@@ -15,7 +15,7 @@ namespace op {
 
 using namespace ov::op;
 
-OutputVector translate_reciprocal(NodeContext& context) {
+OutputVector translate_reciprocal(const NodeContext& context) {
     num_inputs_check(context, 1, 1);
     auto x = context.get_input(0);
     auto const_neg_1 = context.mark_node(v0::Constant::create(element::i32, Shape{}, {-1}));

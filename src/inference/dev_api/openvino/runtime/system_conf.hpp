@@ -132,34 +132,97 @@ OPENVINO_RUNTIME_API bool with_cpu_x86_avx512_core_amx_bf16();
 OPENVINO_RUNTIME_API bool with_cpu_x86_avx512_core_amx();
 
 /**
- * @enum       ColumnOfProcessorTypeTable
- * @brief      This enum contains defination of each columns in processor type table which bases on cpu core types. Will
- * extend to support other CPU core type like ARM.
- *
+ * @brief      Checks whether cpu_mapping Available
+ * @ingroup    ie_dev_api_system_conf
+ * @return     `True` is CPU mapping is available, `false` otherwise
+ */
+OPENVINO_RUNTIME_API bool is_cpu_map_available();
+
+/**
+ * @brief      Get number of numa nodes
+ * @ingroup    ie_dev_api_system_conf
+ * @return     Number of numa nodes
+ */
+OPENVINO_RUNTIME_API int get_num_numa_nodes();
+
+/**
+ * @brief      Returns a table of number of processor types on Linux/Windows
+ * @ingroup    ie_dev_api_system_conf
+ * @return     A table about number of CPU cores of different types defined with ColumnOfProcessorTypeTable
  * The following are two example of processor type table.
  *  1. Processor table of two socket CPUs XEON server
- *
  *  ALL_PROC | MAIN_CORE_PROC | EFFICIENT_CORE_PROC | HYPER_THREADING_PROC
  *     96            48                 0                       48          // Total number of two sockets
  *     48            24                 0                       24          // Number of socket one
  *     48            24                 0                       24          // Number of socket two
  *
  * 2. Processor table of one socket CPU desktop
- *
  *  ALL_PROC | MAIN_CORE_PROC | EFFICIENT_CORE_PROC | HYPER_THREADING_PROC
  *     32            8                 16                       8           // Total number of one socket
+ */
+OPENVINO_RUNTIME_API std::vector<std::vector<int>> get_proc_type_table();
+
+/**
+ * @enum       ColumnOfProcessorTypeTable
+ * @brief      This enum contains definition of each columns in processor type table which bases on cpu core types. Will
+ * extend to support other CPU core type like ARM.
+ *
+ * The following are two example of processor type table.
+ *  1. Processor table of 4 numa nodes and 2 socket server
+ *
+ *  ALL_PROC | MAIN_CORE_PROC | EFFICIENT_CORE_PROC | HYPER_THREADING_PROC | PROC_NUMA_NODE_ID | PROC_SOCKET_ID
+ *     96            48                 0                       48                  -1                 -1
+ *     24            12                 0                       12                   0                  0
+ *     24            12                 0                       12                   1                  0
+ *     24            12                 0                       12                   2                  1
+ *     24            12                 0                       12                   3                  1
+ *
+ * 2. Processor table of 1 numa node desktop
+ *
+ *  ALL_PROC | MAIN_CORE_PROC | EFFICIENT_CORE_PROC | HYPER_THREADING_PROC | PROC_NUMA_NODE_ID | PROC_SOCKET_ID
+ *     32            8                 16                       8                   -1                 -1
  */
 enum ColumnOfProcessorTypeTable {
     ALL_PROC = 0,              //!< All processors, regardless of backend cpu
     MAIN_CORE_PROC = 1,        //!< Processor based on physical core of Intel Performance-cores
     EFFICIENT_CORE_PROC = 2,   //!< Processor based on Intel Efficient-cores
     HYPER_THREADING_PROC = 3,  //!< Processor based on logical core of Intel Performance-cores
-    PROC_TYPE_TABLE_SIZE = 4   //!< Size of processor type table
+    PROC_NUMA_NODE_ID = 4,     //!< Numa node id of processors in this row
+    PROC_SOCKET_ID = 5,        //!< Socket id of processors in this row
+    PROC_TYPE_TABLE_SIZE = 6   //!< Size of processor type table
 };
 
 /**
+ * @enum       ProcessorUseStatus
+ * @brief      Definition of CPU_MAP_USED_FLAG column in CPU mapping table.
+ */
+enum ProcessorUseStatus {
+    NOT_USED = -1,           //!< Processor is not bound to thread
+    CPU_USED = 1,            //!< CPU is in using
+    PLUGIN_USED_START = 100  //!< Plugin other than CPU needs to use. If more GPUs use CPUs, the CPU_MAP_USED_FLAG is
+                             //!< accumulated from PLUGIN_USED_START. For example: GPU.0:100, GPU.1:101
+};
+
+/**
+ * @brief      Get and reserve available cpu ids
+ * @ingroup    ie_dev_api_system_conf
+ * @param[in]  streams_info_table streams information table.
+ * @return     Array of available cpu ids.
+ */
+OPENVINO_RUNTIME_API std::vector<std::vector<int>> reserve_available_cpus(
+    const std::vector<std::vector<int>> streams_info_table);
+
+/**
+ * @brief      Set CPU_MAP_USED_FLAG of cpu_mapping
+ * @ingroup    ie_dev_api_system_conf
+ * @param[in]  cpu_ids cpus in cpu_mapping.
+ * @param[in]  used update CPU_MAP_USED_FLAG of cpu_mapping with this flag bit
+ */
+OPENVINO_RUNTIME_API void set_cpu_used(const std::vector<int>& cpu_ids, const int used);
+
+/**
  * @enum       ColumnOfCPUMappingTable
- * @brief      This enum contains defination of each columns in CPU mapping table which use processor id as index.
+ * @brief      This enum contains definition of each columns in CPU mapping table which use processor id as index.
  *
  * GROUP_ID is generated according to the following rules.
  *  1. If one MAIN_CORE_PROC and one HYPER_THREADING_PROC are based on same Performance-cores, they are in one group.
@@ -170,24 +233,25 @@ enum ColumnOfProcessorTypeTable {
  *  1. Four processors of two Pcore
  *  2. Four processors of four Ecores shared L2 cache
  *
- *  PROCESSOR_ID | SOCKET_ID | CORE_ID | CORE_TYPE | GROUP_ID | Used
- *       0             0          0          3          0        0
- *       1             0          0          1          0        0
- *       2             0          1          3          1        0
- *       3             0          1          1          1        0
- *       4             0          2          2          2        0
- *       5             0          3          2          2        0
- *       6             0          4          2          2        0
- *       7             0          5          2          2        0
+ *  PROCESSOR_ID | NUMA_NODE_ID | SOCKET_ID | CORE_ID | CORE_TYPE | GROUP_ID | Used
+ *       0               0            0          0          3          0        0
+ *       1               0            0          0          1          0        0
+ *       2               0            0          1          3          1        0
+ *       3               0            0          1          1          1        0
+ *       4               0            0          2          2          2        0
+ *       5               0            0          3          2          2        0
+ *       6               0            0          4          2          2        0
+ *       7               0            0          5          2          2        0
  */
 enum ColumnOfCPUMappingTable {
     CPU_MAP_PROCESSOR_ID = 0,  //!< column for processor id of the processor
-    CPU_MAP_SOCKET_ID = 1,     //!< column for socket id of the processor
-    CPU_MAP_CORE_ID = 2,       //!< column for hardware core id of the processor
-    CPU_MAP_CORE_TYPE = 3,     //!< column for CPU core type corresponding to the processor
-    CPU_MAP_GROUP_ID = 4,      //!< column for group id to the processor. Processors in one group have dependency.
-    CPU_MAP_USED_FLAG = 5,     //!< column for resource management of the processor
-    CPU_MAP_TABLE_SIZE = 6     //!< Size of CPU mapping table
+    CPU_MAP_NUMA_NODE_ID = 1,  //!< column for node id of the processor
+    CPU_MAP_SOCKET_ID = 2,     //!< column for socket id of the processor
+    CPU_MAP_CORE_ID = 3,       //!< column for hardware core id of the processor
+    CPU_MAP_CORE_TYPE = 4,     //!< column for CPU core type corresponding to the processor
+    CPU_MAP_GROUP_ID = 5,      //!< column for group id to the processor. Processors in one group have dependency.
+    CPU_MAP_USED_FLAG = 6,     //!< column for resource management of the processor
+    CPU_MAP_TABLE_SIZE = 7     //!< Size of CPU mapping table
 };
 
 }  // namespace ov

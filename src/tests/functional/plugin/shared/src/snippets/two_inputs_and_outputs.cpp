@@ -33,7 +33,20 @@ void TwoInputsAndOutputs::SetUp() {
     function = f.getOriginal();
 }
 
+void TwoInputsAndOutputsWithReversedOutputs::SetUp() {
+    std::vector<ov::PartialShape> inputShape;
+    std::tie(inputShape, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
+    init_input_shapes(static_partial_shapes_to_test_representation(inputShape));
+    auto f = ov::test::snippets::TwoInputsAndOutputsWithReversedOutputsFunction(inputShape);
+    function = f.getOriginal();
+}
+
 TEST_P(TwoInputsAndOutputs, CompareWithRefImpl) {
+    run();
+    validateNumSubgraphs();
+}
+
+TEST_P(TwoInputsAndOutputsWithReversedOutputs, CompareWithRefImpl) {
     run();
     validateNumSubgraphs();
 }

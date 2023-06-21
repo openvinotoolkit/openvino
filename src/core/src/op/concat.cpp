@@ -12,7 +12,7 @@
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/runtime/reference/concat.hpp"
-#include "ngraph/validation_util.hpp"
+#include "validation_util.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -104,8 +104,10 @@ bool evaluate_concat(const HostTensorVector& args, const HostTensorPtr& out, int
 bool op::Concat::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v0_Concat_evaluate);
     NGRAPH_CHECK(!inputs.empty());
+    OPENVINO_SUPPRESS_DEPRECATED_START
     NGRAPH_CHECK(validate_host_tensor_vector(inputs, inputs.size()));
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1));
+    OPENVINO_SUPPRESS_DEPRECATED_END
     auto concat_axis = get_axis() < 0 ? get_axis() + inputs[0]->get_shape().size() : get_axis();
     return evaluate_concat(inputs, outputs[0], concat_axis);
 }
@@ -115,7 +117,7 @@ bool op::Concat::evaluate(ov::TensorVector& outputs, const ov::TensorVector& inp
     OPENVINO_ASSERT(!inputs.empty());
     OPENVINO_ASSERT(outputs.size() == 1);
 
-    auto concat_axis = ov::normalize(get_axis(), inputs.front().get_shape().size());
+    auto concat_axis = ov::util::normalize(get_axis(), inputs.front().get_shape().size());
 
     std::vector<const char*> arg_bufs;
     std::vector<ov::Shape> arg_shapes;
@@ -155,7 +157,9 @@ bool op::Concat::evaluate_label(TensorLabelVector& output_labels) const {
     const auto& inputs = input_values();
     if (std::all_of(inputs.cbegin(), inputs.cend(), [](const Output<Node>& out) {
             const auto& labels = out.get_tensor().get_value_label();
+            OPENVINO_SUPPRESS_DEPRECATED_START
             return has_no_labels(labels);
+            OPENVINO_SUPPRESS_DEPRECATED_END
         })) {
         return false;
     }

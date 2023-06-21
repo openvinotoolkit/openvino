@@ -17,7 +17,7 @@ namespace op {
 
 using namespace ov::op;
 
-OutputVector translate_log(NodeContext& context) {
+OutputVector translate_log(const NodeContext& context) {
     // torch.log returns a tensor with the natural logarithm of the elements of input.
     num_inputs_check(context, 1, 1);
     auto x = context.get_input(0);
@@ -26,7 +26,7 @@ OutputVector translate_log(NodeContext& context) {
     return {log};
 };
 
-OutputVector translate_log2(NodeContext& context) {
+OutputVector translate_log2(const NodeContext& context) {
     // torch.log2 returns a tensor with the logarithm to the base 2 of the elements of input.
     num_inputs_check(context, 1, 1);
     auto x = context.get_input(0);

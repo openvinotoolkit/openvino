@@ -119,7 +119,7 @@ public:
 #ifdef ONEDNN_PRIMITIVE_SERIALIZATION
         parent::load(ib);
 
-        const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ib.getKernlImplParams());
+        const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ib.getKernelImplParams());
 
         dnnl::algorithm alg;
         ib >> make_data(&alg, sizeof(dnnl::algorithm));
@@ -169,6 +169,7 @@ attach_reduction_onednn::attach_reduction_onednn() {
     std::vector<format::type> fmt = {
         format::bfyx,
         format::bfzyx,
+        format::bfwzyx,
         format::b_fs_yx_fsv16,
         format::b_fs_yx_fsv32,
         format::b_fs_zyx_fsv32,

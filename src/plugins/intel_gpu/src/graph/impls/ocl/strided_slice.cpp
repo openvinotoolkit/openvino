@@ -170,7 +170,7 @@ public:
                         std::swap(begin, end);
                         begin--;
                         end--;
-                    } else {
+                    } else if (begin_org != -1) {  // If begin is -1 with negative stride, clamping begin is already expected value
                         if (is_clamp_begin)
                             begin--;
                         if (is_clamp_end)
@@ -185,7 +185,6 @@ public:
     void update_dispatch_data(const kernel_impl_params& impl_param) override {
         auto kernel_params = get_kernel_params(impl_param, true);
         (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
-        update_kernels_list_to_skip();
     }
 };
 
@@ -224,3 +223,4 @@ attach_strided_slice_impl::attach_strided_slice_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::strided_slice_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::strided_slice)

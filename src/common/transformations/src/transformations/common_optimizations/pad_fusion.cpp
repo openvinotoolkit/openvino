@@ -27,7 +27,9 @@ static bool can_be_fused(const std::shared_ptr<opset5::Pad>& pad,
     if (!node)
         return false;
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     auto pad_value_const = ov::get_constant_from_source(pad_value_node);
+    OPENVINO_SUPPRESS_DEPRECATED_END
     if (!pad_value_const)
         return false;
     auto pad_value = pad_value_const->cast_vector<float>()[0];
@@ -43,11 +45,18 @@ static bool can_be_fused(const std::shared_ptr<opset5::Pad>& pad,
     if (node->get_pads_end().size() != shape_size(pads_end->get_shape()) - 2)
         return false;
 
-    auto pads_begin_val = pads_begin->cast_vector<size_t>();
-    auto pads_end_val = pads_end->cast_vector<size_t>();
+    auto pads_begin_val = pads_begin->cast_vector<int64_t>();
+    auto pads_end_val = pads_end->cast_vector<int64_t>();
     for (size_t i = 0; i < 2; i++) {
         if (pads_begin_val[i] != 0 || pads_end_val[i] != 0)
             return false;
+    }
+    auto pred = [](int64_t a) {
+        return a < 0;
+    };
+    if (std::any_of(pads_begin_val.begin(), pads_begin_val.end(), pred) ||
+        std::any_of(pads_end_val.begin(), pads_end_val.end(), pred)) {
+        return false;
     }
 
     return true;

@@ -1,5 +1,7 @@
 # Negative  {#openvino_docs_ops_arithmetic_Negative_1}
 
+@sphinxdirective
+
 **Versioned name**: *Negative-1*
 
 **Category**: *Arithmetic unary*
@@ -10,9 +12,9 @@
 
 *Negative* performs element-wise negative operation on a given input tensor, based on the following mathematical formula:
 
-\f[
-a_{i} = -a_{i}
-\f]
+.. math::
+
+	a_{i} = -a_{i}
 
 **Attributes**: *Negative* operation has no attributes.
 
@@ -30,19 +32,21 @@ a_{i} = -a_{i}
 
 **Example**
 
-```xml
-<layer ... type="Negative">
-    <input>
-        <port id="0">
-            <dim>256</dim>
-            <dim>56</dim>
-        </port>
-    </input>
-    <output>
-        <port id="1">
-            <dim>256</dim>
-            <dim>56</dim>
-        </port>
-    </output>
-</layer>
-```
+.. code-block::  cpp 
+
+    <layer ... type="Negative">
+        <input>
+            <port id="0">
+                <dim>256</dim>
+                <dim>56</dim>
+            </port>
+        </input>
+        <output>
+            <port id="1">
+                <dim>256</dim>
+                <dim>56</dim>
+            </port>
+        </output>
+    </layer>
+
+@endsphinxdirective

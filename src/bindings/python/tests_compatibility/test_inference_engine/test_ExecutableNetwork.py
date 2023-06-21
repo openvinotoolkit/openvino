@@ -205,9 +205,6 @@ def test_plugin_accessible_after_deletion(device):
 
 def test_exec_graph(device):
     ie_core = ie.IECore()
-    if device == "CPU":
-        if ie_core.get_metric(device, "FULL_DEVICE_NAME") == "arm_compute::NEON":
-            pytest.skip("Can't run on ARM plugin due-to get_exec_graph_info method isn't implemented")
     net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
     exec_net = ie_core.load_network(net, device)
     img = generate_image()
@@ -313,9 +310,6 @@ def test_outputs_deallocation(device):
 
 def test_exec_graph_info_deallocation(device):
     ie_core = ie.IECore()
-    if device == "CPU":
-        if ie_core.get_metric(device, "FULL_DEVICE_NAME") == "arm_compute::NEON":
-            pytest.skip("Can't run on ARM plugin due-to get_exec_graph_info method isn't implemented")
     net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
     exec_net = ie_core.load_network(net, device)
     exec_graph_info = exec_net.get_exec_graph_info()

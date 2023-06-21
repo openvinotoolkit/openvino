@@ -2,6 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    ie_add_compiler_flags(-Wno-literal-conversion)
+endif()
+
 set(TARGET_NAME ov_gna_func_tests)
 
 addIeTargetTest(

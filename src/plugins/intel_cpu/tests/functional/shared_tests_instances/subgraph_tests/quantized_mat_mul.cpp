@@ -40,9 +40,9 @@ const std::vector<QuantRange> ranges_i32 = {
         { INT32_MIN, INT32_MAX }
 };
 
-const std::vector<size_t> levels_8 = {256};
-const std::vector<size_t> levels_16 = {65536};
-const std::vector<size_t> levels_32 = {4294967296};
+const std::vector<uint64_t> levels_8 = {256};
+const std::vector<uint64_t> levels_16 = {65536};
+const std::vector<uint64_t> levels_32 = {4294967296};
 const std::vector<QuantizationGranularity> granularity = {Pertensor};
 
 const auto quantParams_i8 = ::testing::Combine(

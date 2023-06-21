@@ -121,8 +121,8 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Combine(
         ::testing::ValuesIn(testValuesLegacyFuse),
         ::testing::ValuesIn(operations),
-        // reorder (nChw[16|8]c) + MaxPool + reorder(nhwc) + reorder(ABcd16b16a) + Convolution + reorder(nchw)
-        ::testing::Values(std::pair<size_t, size_t>{6, 0}),
+        // reorder (nChw[16|8]c) + MaxPool + reorder(nhwc) + Convolution(with internal weight reordering) + reorder(nchw)
+        ::testing::Values(std::pair<size_t, size_t>{5, 0}),
         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
     FakeQuantizeDecompositionTest::getTestCaseName);
 

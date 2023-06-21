@@ -43,6 +43,8 @@ public:
 using OVCompiledModelPropertiesIncorrectTests = OVCompiledModelPropertiesTests;
 using OVCompiledModelPropertiesDefaultTests = OVCompiledModelPropertiesTests;
 
+using OVClassCompileModelTest = OVClassBaseTestP;
+
 }  // namespace behavior
 }  // namespace test
 }  // namespace ov

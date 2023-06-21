@@ -24,6 +24,7 @@ namespace ov {
 
 /**
  * @brief Interface for syncronous infer request
+ * @ingroup ov_dev_api_sync_infer_request_api
  */
 class OPENVINO_RUNTIME_API ISyncInferRequest : public IInferRequest {
 public:

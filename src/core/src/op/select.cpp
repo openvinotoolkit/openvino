@@ -6,6 +6,7 @@
 
 #include <memory>
 
+#include "bound_evaluate.hpp"
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/runtime/reference/select.hpp"
@@ -39,7 +40,9 @@ void op::v1::Select::validate_and_infer_types() {
                           element::Type::merge(result_et, get_input_element_type(1), get_input_element_type(2)),
                           "Argument 1 and 2 element types must match.");
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto input_shapes = get_node_input_partial_shapes(*this);
+    OPENVINO_SUPPRESS_DEPRECATED_END
     auto output_shapes = std::vector<ov::PartialShape>(1);
 
     shape_infer(this, input_shapes, output_shapes);
@@ -115,10 +118,20 @@ bool evaluate_select(const HostTensorVector& output_values,
 
 bool op::v1::Select::evaluate(const HostTensorVector& output_values, const HostTensorVector& input_values) const {
     OV_OP_SCOPE(v1_Select_evaluate);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     NGRAPH_CHECK(validate_host_tensor_vector(input_values, 3));
     NGRAPH_CHECK(validate_host_tensor_vector(output_values, 1));
+    OPENVINO_SUPPRESS_DEPRECATED_END
     const auto autob = get_auto_broadcast();
     return detail::evaluate_select(output_values, input_values, autob, output_values[0]->get_element_type());
+}
+
+bool op::v1::Select::evaluate_lower(ov::TensorVector& output_values) const {
+    return get_input_tensor(0).has_and_set_bound() && default_lower_bound_evaluator(this, output_values);
+}
+
+bool op::v1::Select::evaluate_upper(ov::TensorVector& output_values) const {
+    return get_input_tensor(0).has_and_set_bound() && default_upper_bound_evaluator(this, output_values);
 }
 
 bool op::v1::Select::has_evaluate() const {

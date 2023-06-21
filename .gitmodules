@@ -66,3 +66,9 @@
 [submodule "thirdparty/flatbuffers/flatbuffers"]
 	path = thirdparty/flatbuffers/flatbuffers
 	url = https://github.com/google/flatbuffers.git
+[submodule "thirdparty/snappy"]
+	path = thirdparty/snappy
+	url = https://github.com/google/snappy.git
+[submodule "ARMComputeLibrary"]
+	path = src/plugins/intel_cpu/thirdparty/ComputeLibrary
+	url = https://github.com/ARM-software/ComputeLibrary.git

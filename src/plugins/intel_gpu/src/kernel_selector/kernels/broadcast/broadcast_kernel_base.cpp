@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -45,7 +45,7 @@ static std::string GetInputBlockND(const broadcast_params& params) {
         for (int idx = (rank - 1); idx >= 0; idx--) {
             int shape_info_idx = idx;
             if (idx >= 2) {
-                shape_info_idx += (6 - rank);
+                shape_info_idx += (static_cast<int>(DataTensor::max_rank()) - rank);
             }
             block_nd_s[idx] = "(" + toCodeString(input.GetDims()[rank - idx - 1], shape_info_idx) + " * " + block_nd_s[idx + 1] + ")";
         }
@@ -91,6 +91,7 @@ KernelsData BroadcastKernelBase::GetCommonKernelsData(const Params& params,
         OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
         kd.kernels[0].params.workGroups.global = dispatchData.gws;
         kd.kernels[0].params.workGroups.local = dispatchData.lws;
+        kd.kernels[0].skip_execution = KernelData::SkipKernelExecution(prim_params);
     };
 
     auto cldnn_jit = GetJitConstants(prim_params);

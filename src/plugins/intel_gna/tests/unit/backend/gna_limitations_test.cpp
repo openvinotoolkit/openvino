@@ -282,10 +282,12 @@ struct Validatecnn2dParams {
 class GNAcnn2dValidatorTest : public ::testing::TestWithParam<GNACnn2DValidatorTestParam> {
 protected:
     void SetUp() override {
-        validator = cnn2d::AbstractValidator::Create(GetParam().target);
-        ASSERT_TRUE(validator != nullptr);
+        Limitations::init(GetParam().target);
+        validator = Limitations::get_instance()->get_cnn_validator();
+        ASSERT_TRUE(validator);
     }
-    std::unique_ptr<cnn2d::AbstractValidator> validator;
+
+    std::shared_ptr<cnn2d::AbstractValidator> validator;
 };
 
 class GNAcnn2dValidatorTestPadding : public GNAcnn2dValidatorTest {

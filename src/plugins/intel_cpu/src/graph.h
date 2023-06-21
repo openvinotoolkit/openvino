@@ -230,10 +230,9 @@ protected:
     void InitEdges();
     void Allocate();
     void AllocateWithReuse();
-    void CreatePrimitives();
-    void ExtractConstantAndExecutableNodes();
+    void ExtractExecutableNodes();
     void ExecuteNode(const NodePtr& node, const dnnl::stream& stream) const;
-    void ExecuteConstantNodesOnly() const;
+    void CreatePrimitivesAndExecConstants() const;
     void InferStatic(InferRequestBase* request);
     void InferDynamic(InferRequestBase* request);
 
@@ -248,9 +247,8 @@ private:
     std::map<std::string, NodePtr> outputNodesMap;
 
     // these node pointers (from graphNodes) are to avoid regular checking for
-    // constantness of nodes in ExecuteConstantNodesOnly, Infer methods and calls of
+    // constantness of nodes in Infer methods and calls of
     // non-executable (optimized out) nodes, such as Input, Reshape, etc.
-    std::vector<NodePtr> constantGraphNodes;
     std::vector<NodePtr> executableGraphNodes;
 
     std::unordered_map<Node*, size_t> syncNodesInds;

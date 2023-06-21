@@ -17,6 +17,7 @@
 #include "ngraph/env_util.hpp"
 #include "ngraph/log.hpp"
 #include "ngraph/op/util/sub_graph_base.hpp"
+#include "openvino/util/log.hpp"
 #include "perf_counters.hpp"
 
 /* GraphRewrite algorithm:
@@ -142,10 +143,10 @@ bool ov::pass::GraphRewrite::apply_matcher_passes(std::shared_ptr<Model> f,
         // Keep this property check for backward compatibility. In future transformation property
         // will be deprecated and removed.
         if (m_pass->get_property(PassProperty::REQUIRE_STATIC_SHAPE) && f->is_dynamic()) {
-            NGRAPH_DEBUG << "matcher callback requires static shape but the "
-                            "model is dynamic, skipping this "
-                            "optimization till the shapes are fully "
-                            "materialized";
+            OPENVINO_DEBUG << "matcher callback requires static shape but the "
+                              "model is dynamic, skipping this "
+                              "optimization till the shapes are fully "
+                              "materialized";
             return false;
         }
 
@@ -239,37 +240,6 @@ bool ov::pass::GraphRewrite::apply_matcher_passes(std::shared_ptr<Model> f,
     return rewritten;
 }
 
-void ov::pass::GraphRewrite::add_matcher(const std::shared_ptr<pattern::Matcher>& m,
-                                         const graph_rewrite_callback& callback,
-                                         const PassPropertyMask& property) {
-    m_matchers.push_back(std::make_shared<MatcherPass>(
-        m->get_name(),
-        m,
-        [m, callback](const std::shared_ptr<Node>& node) -> bool {
-            NGRAPH_DEBUG << "Running matcher " << m->get_name() << " on " << node;
-            if (m->match(node->output(0))) {
-                NGRAPH_DEBUG << "Matcher " << m->get_name() << " matched " << node;
-                OV_PASS_CALLBACK(m);
-                bool status = callback(*m.get());
-                // explicitly clear Matcher state because it holds pointers to matched nodes
-                m->clear_state();
-                return status;
-            }
-            m->clear_state();
-            return false;
-        },
-        property));
-}
-
-void ov::pass::GraphRewrite::add_matcher(const std::shared_ptr<pattern::Matcher>& m,
-                                         const graph_rewrite_callback& callback) {
-    NGRAPH_SUPPRESS_DEPRECATED_START
-    // TODO: before deprecate this function, by default expect the
-    // callback require static shape.
-    add_matcher(m, callback, {PassProperty::REQUIRE_STATIC_SHAPE});
-    NGRAPH_SUPPRESS_DEPRECATED_END
-}
-
 void ov::pass::GraphRewrite::set_pass_config(const std::shared_ptr<PassConfig>& rhs) {
     auto pass_config = get_pass_config();
     // We have to preserve disabled passes because in case when we register matchers inside
@@ -305,10 +275,10 @@ void ov::pass::MatcherPass::register_matcher(const std::shared_ptr<ov::pass::pat
     m_matcher = m;
     m_handler = [m, callback](const std::shared_ptr<Node>& node) -> bool {
         if (m->match(node->output(0))) {
-            NGRAPH_DEBUG << "Matcher " << m->get_name() << " matched " << node;
+            OPENVINO_DEBUG << "Matcher " << m->get_name() << " matched " << node;
             OV_PASS_CALLBACK(m);
             const bool status = callback(*m.get());
-            NGRAPH_DEBUG << "Matcher " << m->get_name() << " callback " << (status ? "succeded" : "failed");
+            OPENVINO_DEBUG << "Matcher " << m->get_name() << " callback " << (status ? "succeded" : "failed");
             // explicitly clear Matcher state because it holds pointers to matched nodes
             m->clear_state();
             return status;

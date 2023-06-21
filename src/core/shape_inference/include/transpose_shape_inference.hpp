@@ -26,14 +26,18 @@ T calc_output_shape(const Transpose* const op, const T& input_shape, std::vector
     const auto output_rank = input_shape.size();
 
     if (axes_order.empty()) {
+        OPENVINO_SUPPRESS_DEPRECATED_START
         generate_transpose_default_order(axes_order, output_rank);
+        OPENVINO_SUPPRESS_DEPRECATED_END
     } else {
+        OPENVINO_SUPPRESS_DEPRECATED_START
         NODE_VALIDATION_CHECK(op,
                               is_valid_axes_order(axes_order, output_rank),
                               "Permutation ",
                               AxisVector(axes_order.begin(), axes_order.end()),
                               " is not valid for input shape ",
                               input_shape);
+        OPENVINO_SUPPRESS_DEPRECATED_END
     }
 
     T output_shape;

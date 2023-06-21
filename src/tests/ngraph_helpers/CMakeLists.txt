@@ -4,4 +4,7 @@
 
 add_subdirectory(ngraph_functions)
 add_subdirectory(lpt_ngraph_functions)
-add_subdirectory(snippets_ngraph_functions)
+
+if(TARGET inference_engine_snippets)
+    add_subdirectory(snippets_ngraph_functions)
+endif()

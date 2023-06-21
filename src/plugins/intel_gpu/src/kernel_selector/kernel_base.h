@@ -70,7 +70,7 @@ protected:
 
     bool IsFusedPrimitiveSupported(const fused_operation_desc& fused_op) const;
     bool IsSIMDSizeSupported(const EngineInfo& info, size_t simd_size) const;
-    JitConstants MakeBaseParamsJitConstants(const base_params& params) const;
+    JitConstants MakeBaseParamsJitConstants(const base_params& params, bool add_tensor_definitions = true) const;
     virtual std::vector<FusedOpType> GetSupportedFusedOps() const;
     virtual JitConstants MakeFusedOpsJitConstants(const base_params &params, const std::vector<FusedOpsConfiguration> &conf) const;
     virtual JitConstants MakeFusedOpsDeclsJitConstants(const base_params &params, const std::vector<FusedOpsConfiguration> &conf) const;

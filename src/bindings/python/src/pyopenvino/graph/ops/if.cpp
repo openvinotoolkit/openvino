@@ -6,9 +6,10 @@
 
 #include <string>
 
-#include "ngraph/log.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/op/util/multi_subgraph_base.hpp"
+#include "openvino/util/log.hpp"
+#include "pyopenvino/core/common.hpp"
 #include "pyopenvino/graph/ops/if.hpp"
 #include "pyopenvino/graph/ops/util/multisubgraph.hpp"
 
@@ -23,8 +24,8 @@ void regclass_graph_op_If(py::module m) {
                 if (MultiSubgraphHelpers::is_constant_or_parameter(execution_condition)) {
                     return std::make_shared<ov::op::v8::If>(execution_condition->output(0));
                 } else {
-                    NGRAPH_WARN << "Please specify execution_condition as Constant or Parameter. Default If() "
-                                   "constructor was applied.";
+                    OPENVINO_WARN << "Please specify execution_condition as Constant or Parameter. Default If() "
+                                     "constructor was applied.";
                     return std::make_shared<ov::op::v8::If>();
                 }
             }),
@@ -82,4 +83,15 @@ void regclass_graph_op_If(py::module m) {
             return result;
         },
         py::arg("index"));
+
+    cls.def("__repr__", [](const ov::op::v8::If& self) {
+        std::stringstream shapes_ss;
+        for (size_t i = 0; i < self.get_output_size(); ++i) {
+            if (i > 0) {
+                shapes_ss << ", ";
+            }
+            shapes_ss << self.get_output_partial_shape(i);
+        }
+        return "<" + Common::get_class_name(self) + ": '" + self.get_friendly_name() + "' (" + shapes_ss.str() + ")>";
+    });
 }

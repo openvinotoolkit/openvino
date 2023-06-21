@@ -9,8 +9,8 @@
 
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset1.hpp>
-#include <ngraph_transformations/convert_to_leaky_relu.hpp>
-#include <ngraph_transformations/op/leaky_relu.hpp>
+#include <transformations/cpu_opset/common/pass/convert_to_leaky_relu.hpp>
+#include <transformations/cpu_opset/common/op/leaky_relu.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
 #include <ov_ops/type_relaxed.hpp>

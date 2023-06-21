@@ -25,11 +25,11 @@
 using namespace ov;
 using namespace ov::frontend::onnx;
 
-ONNX_FRONTEND_C_API ov::frontend::FrontEndVersion GetAPIVersion() {
+ONNX_FRONTEND_C_API ov::frontend::FrontEndVersion get_api_version() {
     return OV_FRONTEND_API_VERSION;
 }
 
-ONNX_FRONTEND_C_API void* GetFrontEndData() {
+ONNX_FRONTEND_C_API void* get_front_end_data() {
     ov::frontend::FrontEndPluginInfo* res = new ov::frontend::FrontEndPluginInfo();
     res->m_name = "onnx";
     res->m_creator = []() {
@@ -59,7 +59,7 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
     if (variants[0].is<std::istream*>()) {
         const auto stream = variants[0].as<std::istream*>();
         if (variants.size() > 1 && variants[1].is<std::string>()) {
-            const auto path = variants[0].as<std::string>();
+            const auto path = variants[1].as<std::string>();
             return std::make_shared<InputModel>(*stream, path, m_extensions);
         }
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
@@ -140,7 +140,7 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     else if (variants[0].is<std::wstring>()) {
         const auto path = variants[0].as<std::wstring>();
-        model_stream.open(path, std::ios::in | std::ifstream::binary);
+        model_stream.open(path.c_str(), std::ios::in | std::ifstream::binary);
     }
 #endif
     if (model_stream.is_open()) {

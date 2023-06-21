@@ -1,5 +1,7 @@
 # Unsqueeze {#openvino_docs_ops_shape_Unsqueeze_1}
 
+@sphinxdirective
+
 **Versioned name**: *Unsqueeze-1*
 
 **Category**: *Shape manipulation*
@@ -12,7 +14,7 @@
 
 *   **1**: Tensor of type *T* and arbitrary shape. **Required.**
 
-*   **2**: Scalar or 1D tensor of type *T_INT* with indices of dimensions to unsqueeze. Values could be negative (have to be from range `[-R, R-1]`, where `R` is the rank of the output). **Required.**
+*   **2**: Scalar or 1D tensor of type *T_INT* with indices of dimensions to unsqueeze. Values could be negative (have to be from range ``[-R, R-1]``, where ``R`` is the rank of the output). **Required.**
 
 **Outputs**:
 
@@ -27,46 +29,52 @@
 **Example**
 
 *Example 1: unsqueeze 2D tensor to a 4D tensor*
-```xml
-<layer ... type="Unsqueeze">
-    <input>
-        <port id="0">
-            <dim>2</dim>
-            <dim>3</dim>
-        </port>
-    </input>
-    <input>
-        <port id="1">
-            <dim>2</dim>  <!-- value is [0, 3] -->
-        </port>
-    </input>
-    <output>
-        <port id="2">
-            <dim>1</dim>
-            <dim>2</dim>
-            <dim>3</dim>
-            <dim>1</dim>
-        </port>
-    </output>
-</layer>
-```
+
+.. code-block:: cpp
+
+    <layer ... type="Unsqueeze">
+        <input>
+            <port id="0">
+                <dim>2</dim>
+                <dim>3</dim>
+            </port>
+        </input>
+        <input>
+            <port id="1">
+                <dim>2</dim>  < !-- value is [0, 3] -->
+            </port>
+        </input>
+        <output>
+            <port id="2">
+                <dim>1</dim>
+                <dim>2</dim>
+                <dim>3</dim>
+                <dim>1</dim>
+            </port>
+        </output>
+    </layer>
+
 
 *Example 2: unsqueeze 0D tensor (constant) to 1D tensor*
-```xml
-<layer ... type="Unsqueeze">
-    <input>
-        <port id="0">
-        </port>
-    </input>
-    <input>
-        <port id="1">
-            <dim>1</dim>  <!-- value is [0] -->
-        </port>
-    </input>
-    <output>
-        <port id="2">
-            <dim>1</dim>
-        </port>
-    </output>
-</layer>
-```
+
+.. code-block:: cpp
+
+    <layer ... type="Unsqueeze">
+        <input>
+            <port id="0">
+            </port>
+        </input>
+        <input>
+            <port id="1">
+                <dim>1</dim>  < !-- value is [0] -->
+            </port>
+        </input>
+        <output>
+            <port id="2">
+                <dim>1</dim>
+            </port>
+        </output>
+    </layer>
+
+
+@endsphinxdirective

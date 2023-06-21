@@ -41,7 +41,7 @@ ov::pass::ConvertROIAlign9To3::ConvertROIAlign9To3() {
             break;
         }
         default: {
-            throw Exception("unsupported PoolingMode ");
+            OPENVINO_THROW("unsupported PoolingMode ");
         }
         }
 

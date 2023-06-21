@@ -37,7 +37,7 @@ public:
 
     ControlDependencyOp(const OutputVector& args, const std::set<std::shared_ptr<Node>>& deps) : Op(args) {
         if (args.size() == 0 && deps.size() == 0) {
-            throw ngraph_error("Expected some arguments or dependencies");
+            OPENVINO_THROW("Expected some arguments or dependencies");
         }
 
         for (auto& node : deps) {
@@ -94,7 +94,7 @@ TEST(control_dependencies, clone_function_cdop) {
 
     auto f = make_shared<Function>(cdop, ParameterVector{A});
     test_ordered_ops(f, NodeVector{absn});
-    auto clone = ngraph::clone_function(*f.get());
+    auto clone = f->clone();
     auto matcher = std::make_shared<pattern::Matcher>(cdop);
     auto cdop_clone = clone->get_results().at(0)->input_value(0).get_node_shared_ptr();
     ASSERT_TRUE(matcher->match(cdop_clone));
@@ -113,7 +113,7 @@ TEST(control_dependencies, clone_function_cdop_abs) {
     auto absn_cdop = make_shared<op::Abs>(cdop);
 
     auto f = make_shared<Function>(absn_cdop, ParameterVector{A, B});
-    auto clone = ngraph::clone_function(*f.get());
+    auto clone = f->clone();
     auto matcher = std::make_shared<pattern::Matcher>(cdop);
     auto cdop_clone =
         clone->get_results().at(0)->input_value(0).get_node_shared_ptr()->input_value(0).get_node_shared_ptr();

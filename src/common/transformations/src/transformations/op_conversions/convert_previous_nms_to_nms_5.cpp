@@ -42,7 +42,7 @@ NMSAttributes get_nms4_attrs(const std::shared_ptr<ov::opset4::NonMaxSuppression
         attrs.box_encoding = ::ov::opset5::NonMaxSuppression::BoxEncodingType::CORNER;
         break;
     default:
-        throw Exception("NonMaxSuppression layer " + nms4->get_friendly_name() + " has unsupported box encoding");
+        OPENVINO_THROW("NonMaxSuppression layer " + nms4->get_friendly_name() + " has unsupported box encoding");
     }
 
     attrs.sort_result_descending = nms4->get_sort_result_descending();
@@ -67,7 +67,7 @@ NMSAttributes get_nms3_attrs(const std::shared_ptr<ov::opset3::NonMaxSuppression
         attrs.box_encoding = ::ov::opset5::NonMaxSuppression::BoxEncodingType::CORNER;
         break;
     default:
-        throw Exception("NonMaxSuppression layer " + nms3->get_friendly_name() + " has unsupported box encoding");
+        OPENVINO_THROW("NonMaxSuppression layer " + nms3->get_friendly_name() + " has unsupported box encoding");
     }
 
     attrs.sort_result_descending = nms3->get_sort_result_descending();
@@ -92,7 +92,7 @@ NMSAttributes get_nms1_attrs(const std::shared_ptr<ov::opset1::NonMaxSuppression
         attrs.box_encoding = ::ov::opset5::NonMaxSuppression::BoxEncodingType::CORNER;
         break;
     default:
-        throw Exception("NonMaxSuppression layer " + nms1->get_friendly_name() + " has unsupported box encoding");
+        OPENVINO_THROW("NonMaxSuppression layer " + nms1->get_friendly_name() + " has unsupported box encoding");
     }
 
     attrs.sort_result_descending = nms1->get_sort_result_descending();

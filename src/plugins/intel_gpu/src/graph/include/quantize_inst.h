@@ -12,7 +12,7 @@
 namespace cldnn {
 class QuantizeFuseParams : public NodeFuseParams {
 public:
-    QuantizeFuseParams(layout out_layout,
+    QuantizeFuseParams(const layout& out_layout,
                        bool scale_shift_opt,
                        bool need_post_scale,
                        bool need_post_shift,
@@ -141,7 +141,6 @@ public:
     using parent::parent;
 
     program_node& input(size_t index = 0) const { return get_dependency(index); }
-    size_t inputs_count() const { return get_dependencies().size(); }
     int get_levels() const { return get_primitive()->levels; }
     bool get_packed_binary_output() const { return get_output_layout().data_type == data_types::bin; }
     bool get_scale_shift_opt() const { return get_primitive()->scale_shift_opt; }

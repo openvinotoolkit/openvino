@@ -181,6 +181,22 @@ public:
 protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
 };
+/// Two different Input and Outputs.
+/// This function is to check correct Broadcasting
+//        in1       in2
+//       HSwish      /
+//  Result      Add
+//              Relu
+//              Sin
+//             Result
+class TwoInputsAndOutputsWithReversedOutputsFunction : public SnippetsFunctionBase {
+public:
+    explicit TwoInputsAndOutputsWithReversedOutputsFunction(const std::vector<PartialShape>& inputShapes) : SnippetsFunctionBase(inputShapes) {
+        NGRAPH_CHECK(input_shapes.size() == 2, "Got invalid number of input shapes");
+    }
+protected:
+    std::shared_ptr<ov::Model> initOriginal() const override;
+};
 /// Verify Select
 //   in0     in1    in2
 //     \      |     /
@@ -226,6 +242,21 @@ protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
 
     PartialShape m_target_shape;
+};
+
+/// graph use case to cover duplicated subgraphs edge elimination in such as in yolo-v3
+//              subgraph/node
+//                /     |
+//           subgraph  subgraph
+//                \     /
+//              eltwise node
+class EdgeReplaceFunction : public SnippetsFunctionBase {
+public:
+    explicit EdgeReplaceFunction(const std::vector<PartialShape>& inputShapes) : SnippetsFunctionBase(inputShapes) {
+        NGRAPH_CHECK(input_shapes.size() == 1, "Got invalid number of input shapes");
+    }
+protected:
+    std::shared_ptr<ov::Model> initOriginal() const override;
 };
 }  // namespace snippets
 }  // namespace test

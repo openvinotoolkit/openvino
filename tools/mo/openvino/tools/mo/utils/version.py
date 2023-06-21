@@ -3,9 +3,13 @@
 
 import os
 import re
-import subprocess # nosec
+import subprocess  # nosec
 import sys
 
+from openvino.runtime import get_version as get_ie_version
+
+from openvino.tools.mo.utils.error import Error
+from openvino.tools.mo.utils.find_ie_version import find_ie_version
 from openvino.tools.mo.utils.utils import get_mo_root_dir
 
 
@@ -81,3 +85,64 @@ def extract_hash_from_version(full_version: str):
         return res[0]
     else:
         return None
+
+
+class SingletonMetaClass(type):
+    def __init__(self, cls_name, super_classes, dic):
+        self.__single_instance = None
+        super().__init__(cls_name, super_classes, dic)
+
+    def __call__(cls, *args, **kwargs):
+        if cls.__single_instance is None:
+            cls.__single_instance = super(SingletonMetaClass, cls).__call__(*args, **kwargs)
+        return cls.__single_instance
+
+
+class VersionChecker(metaclass=SingletonMetaClass):
+    def __init__(self):
+        self.runtime_checked = False
+        self.mo_version = None
+        self.ie_version = None
+        self.mo_simplified_version = None
+        self.ie_simplified_version = None
+
+    def get_mo_version(self):
+        if self.mo_version:
+            return self.mo_version
+        self.mo_version = get_version()
+        return self.mo_version
+
+    def get_ie_version(self):
+        if self.ie_version:
+            return self.ie_version
+        self.ie_version = get_ie_version()
+        return self.ie_version
+
+    def get_mo_simplified_version(self):
+        if self.mo_simplified_version:
+            return self.mo_simplified_version
+        self.mo_simplified_version = simplify_version(self.get_mo_version())
+        return self.mo_simplified_version
+
+    def get_ie_simplified_version(self):
+        if self.ie_simplified_version:
+            return self.ie_simplified_version
+        self.ie_simplified_version = get_simplified_ie_version(env=os.environ)
+        return self.ie_simplified_version
+
+    def check_runtime_dependencies(self, silent=True):
+        if not self.runtime_checked:
+            def raise_ie_not_found():
+                raise Error("Could not find the Inference Engine or nGraph Python API.\n"
+                            "Consider building the Inference Engine and nGraph Python APIs from sources or "
+                            "try to install OpenVINO (TM) Toolkit using pip \npip install openvino")
+
+            try:
+                if not find_ie_version(silent=silent):
+                    raise_ie_not_found()
+            except Exception as e:
+                import logging as log
+                if log is not None:
+                    log.error(e)
+                raise_ie_not_found()
+            self.runtime_checked = True

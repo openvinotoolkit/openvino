@@ -17,7 +17,7 @@ class TRANSFORMATIONS_API SoftmaxFusion;
 
 /**
  * @ingroup ie_transformation_common_api
- * @brief SoftmaxFusion transformation replaces following graph:
+ * @brief SoftmaxFusion transformation replaces following graphs:
  *
  *            +---------------+
  *            │               │
@@ -62,6 +62,38 @@ class TRANSFORMATIONS_API SoftmaxFusion;
  *             |     Div     │
  *             │             │
  *             +-------------+
+ *
+ *  and
+ *            +---------------+
+ *            │               │
+ *            │     input     │
+ *            │               │
+ *            +---------------+
+ *                    |
+ *                    |
+ *                    |
+ *                    v
+ *            +---------------+
+ *            │               │
+ *            │      Exp      │
+ *            │               │
+ *            +---------------+
+ *                │      │
+ *                │      v
+ *                │ +-----------+
+ *                │ │           │
+ *                │ │ ReduceSum │
+ *                │ │           │
+ *                │ +-----------+
+ *                │      │
+ *                │      │
+ *                v      v
+ *             +-------------+
+ *             |             │
+ *             |     Div     │
+ *             │             │
+ *             +-------------+
+ *
  *
  * to a single Softmax node
  *

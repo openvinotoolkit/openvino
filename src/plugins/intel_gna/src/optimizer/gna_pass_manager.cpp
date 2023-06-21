@@ -43,11 +43,14 @@
 #include "layers/gna_layer_info.hpp"
 #include "log/debug.hpp"
 #include "log/log.hpp"
+#include "pre_post_process/transposition_info.hpp"
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 using namespace ov::intel_gna::frontend;
 using namespace ov::intel_gna::common;
+using namespace ov::intel_gna::pre_post_processing;
+using namespace ov::intel_gna::limitations;
 
 namespace ov {
 namespace intel_gna {
@@ -147,11 +150,12 @@ static void insertDiagonalLayerBetween(InferenceEngine::CNNLayerPtr prevLayer,
         return LayerInfo(ptr).isNonValuesChangable();
     });
     IE_ASSERT(inputLayer != nullptr);
-    size_t weightsSize =
-        LayerInfo(prevLayer).has32BOutput()
-            ? nextLayer->outData[0]->getDims().back()
-            : Get2DReshapedData(nextLayer->outData[0], limitations::GetMinBatchToFitInBuffer(nextLayer->outData[0]), 8)
-                  ->getDims()[1];
+    size_t weightsSize = LayerInfo(prevLayer).has32BOutput()
+                             ? nextLayer->outData[0]->getDims().back()
+                             : Get2DReshapedData(nextLayer->outData[0],
+                                                 Limitations::get_min_batch_to_fit_in_buffer(nextLayer->outData[0]),
+                                                 8)
+                                   ->getDims()[1];
     std::vector<float> weightsValues(weightsSize, fillValue);
     IE_ASSERT(diagLayer != nullptr);
     diagLayer->_weights = make_shared_blob<float>(TensorDesc(nextLayer->outData[0]->getTensorDesc().getPrecision(),
@@ -821,7 +825,7 @@ void RemovePermutationsNHWCToNCHWPass::run() {
             !getInputTo(pattern_start->outData.front()).empty()) {
             auto layer_before_permute = CNNNetPrevLayer(pattern_start);
             DataPtr output = nullptr;
-            for (auto before_output : layer_before_permute->outData) {
+            for (const auto& before_output : layer_before_permute->outData) {
                 if (areEqualDatas(pattern_start->input(), before_output)) {
                     output = before_output;
                     output->setLayout(getTransposedLayout(output));
@@ -1022,7 +1026,7 @@ void InsertCopyLayerPass::run() {
             LayerInfo(l).isSplit()) {
             std::vector<FuncChildrenInfo> copy_insertion_tuples;
             std::vector<FuncChildrenInfo> delayed_copy_insertion_tuples;
-            for (auto output : l->outData) {
+            for (const auto& output : l->outData) {
                 auto& inputTo = getInputTo(output);
                 for (auto& childLayer : inputTo) {
                     std::vector<int> connections = CNNLayerFindInsDataIdxes(output, childLayer.second);
@@ -1243,9 +1247,6 @@ void FlattenTrivialConcatPass::run() {
 void InsertConcatAligningFilterPass::run() {
     OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "InsertConcatAligningFilterPass");
     auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(pLayers->front());
-    // currently concat layer only supports 2 bytes in int16 and int8 mode. In fp32 mode this no necessary but usefull
-    // for testing
-    const int bytesPerConcatElement = 2;
 
     int numOfFilterLayers = 0;
 
@@ -1269,7 +1270,7 @@ void InsertConcatAligningFilterPass::run() {
 
             auto concatInput = getLayerByIndex(input_idx);
             auto dims = concatInput->getDims();
-            auto outputSize = details::product(++dims.begin(), dims.end()) * bytesPerConcatElement;
+            auto outputSize = details::product(++dims.begin(), dims.end()) * Limitations::kBytesPerConcatElement;
 
             auto useAlignFilterIf = [&concatLayer, &getLayerByIndex](int concat_input_idx) {
                 if (concatLayer->insData.size() <= concat_input_idx)
@@ -1286,7 +1287,8 @@ void InsertConcatAligningFilterPass::run() {
             // correcting offset by copy layer insertion. This can be improved by collapsing copy and affine or diagonal
             // later-on if next concat inputs requires align filter - then current input also requires either copy or
             // align filter
-            if (ALIGN64(offset) != offset || (ALIGN64(outputSize) != outputSize && useAlignFilterIf(input_idx + 1))) {
+            if ((!Limitations::get_instance()->is_aligned(offset)) ||
+                ((!Limitations::get_instance()->is_aligned(outputSize)) && useAlignFilterIf(input_idx + 1))) {
                 auto prevLayer = getCreatorLayer(concatInput).lock();
                 // input layer parameters are copied not using GNA-primitives - so nothing to allign here.
                 if (!useAlignFilterIf(input_idx))
@@ -1306,13 +1308,17 @@ void InsertConcatAligningFilterPass::run() {
                 }
 
                 auto num_rows_in = dims[1];
-                size_t aligned64_offset = std::max(0, static_cast<int>(ALIGN64(offset) - 64));
-                size_t num_rows_padded = (offset - aligned64_offset) / bytesPerConcatElement;
+                size_t aligned_offset =
+                    std::max(0,
+                             static_cast<int>(ALIGN(offset, Limitations::get_instance()->get_memory_alignment()) -
+                                              Limitations::get_instance()->get_memory_alignment()));
+                size_t num_rows_padded = (offset - aligned_offset) / Limitations::kBytesPerConcatElement;
                 size_t num_rows_out = num_rows_padded + num_rows_in;
 
                 // encodes offset to beginning of split layer input
                 size_t bytesOffset =
-                    (aligned64_offset / bytesPerConcatElement) * (quantized ? bytesPerConcatElement : 4);
+                    (aligned_offset / Limitations::kBytesPerConcatElement) *
+                    (quantized ? Limitations::kBytesPerConcatElement : Precision(Precision::FP32).size());
                 concatAligningFilter->params["output_offset"] = std::to_string(bytesOffset);
 
                 // for padded rows we cannot use copy layer - TBD how to implement
@@ -1492,7 +1498,7 @@ void InsertSplitAligningFilterPass::run() {
         for (auto&& splitOutput : l->outData) {
             auto outputSize = product(begin(splitOutput->getDims()), end(splitOutput->getDims()));
 
-            if ((currentOffset != ALIGN64(currentOffset)) || (padding != 0)) {
+            if ((!Limitations::get_instance()->is_aligned(currentOffset)) || (padding != 0)) {
                 // check that this split output actually connected to further layers
                 if (getInputTo(splitOutput).empty()) {
                     log::debug() << "Output port: " << splitOutIndex << " of " << l->name << " unconnected, skipping\n";
@@ -1503,7 +1509,7 @@ void InsertSplitAligningFilterPass::run() {
                             << " Convolution Filter doesn't support batch=" << splitOutput->getDims().front();
                     }
 
-                    // this split output not beginning from 64 bytes aligned boundary - need to correct by aligning
+                    // this split output not beginning from aligned bytes boundary - need to correct by aligning
                     // filter layer insert the filter
                     auto filterName = std::string("AlignFilter_") + std::to_string(numOfFilterLayers++);
 
@@ -1523,25 +1529,27 @@ void InsertSplitAligningFilterPass::run() {
 
                     auto inputData = splitOutput;
 
-                    size_t aligned64_offset = std::max(0, static_cast<int>(ALIGN64(currentOffset) - 64));
+                    size_t aligned_offset = std::max(
+                        0,
+                        static_cast<int>(ALIGN(currentOffset, Limitations::get_instance()->get_memory_alignment()) -
+                                         Limitations::get_instance()->get_memory_alignment()));
 
                     IE_ASSERT(filterLayer != nullptr);
 
                     // encodes offset to beginning of split layer input
-                    filterLayer->params["offset"] =
-                        std::to_string(aligned64_offset / limitations::bytesPerSplitElement);
+                    filterLayer->params["offset"] = std::to_string(aligned_offset / Limitations::kBytesPerSplitElement);
                     auto dims = splitOutput->getTensorDesc().getDims();
                     if (dims.size() > 3) {
                         THROW_GNA_EXCEPTION << "unsupported split layer dims size: " << dims.size();
                     }
 
                     const auto offsetOfUnalignment =
-                        (currentOffset - aligned64_offset) / limitations::bytesPerSplitElement;
+                        (currentOffset - aligned_offset) / Limitations::kBytesPerSplitElement;
                     // TODO consider to use a different number of filters do decrese the number of trailing zeros
                     // (additionalPaddingOfFilter)
-                    const auto numberOfFilters = limitations::convMinFiltersNum;
+                    const auto numberOfFilters = Limitations::kConvMinFiltersNum;
                     const auto filterSize =
-                        ALIGN(offsetOfUnalignment + numberOfFilters, limitations::convFilterSizeDivider);
+                        ALIGN(offsetOfUnalignment + numberOfFilters, Limitations::kConvFilterSizeDivider);
 
                     // filterWeights: numberOfFilters X (offsetOfUnalignment + additionalPaddingOfFilter +
                     // numberOfFilters) offsetOfUnalignment - the leading zeros in the filter
@@ -1596,7 +1604,7 @@ void InsertSplitAligningFilterPass::run() {
             }
 
             // search data that starts from unaligned location
-            currentOffset += outputSize * limitations::bytesPerSplitElement;
+            currentOffset += outputSize * Limitations::kBytesPerSplitElement;
             splitOutIndex++;
         }
     }
@@ -1634,7 +1642,7 @@ void EltwiseSplitOverChannelsPass::run() {
         auto oData = l->outData.front();
         auto oDims = oData->getDims();
         auto totalElementsSize = details::product(std::begin(oDims), std::end(oDims));
-        if (totalElementsSize <= limitations::bufferMaxSize) {
+        if (totalElementsSize <= Limitations::kBufferMaxSize) {
             continue;
         }
         auto splitSizesPerAxis = AlignedSplitSizesPerAxis(oDims);
@@ -1745,9 +1753,10 @@ void SubstituteScaleShiftBroadCastPass::run() {
         if (was_reshaped) {
             dataDims = reshaped_data[insData->getName()];
         } else {
-            dataDims = HasTo2DReshapeData(l)
-                           ? Get2DReshapedData(insData, limitations::GetMinBatchToFitInBuffer(insData), 8)->getDims()
-                           : insData->getDims();
+            dataDims =
+                HasTo2DReshapeData(l)
+                    ? Get2DReshapedData(insData, Limitations::get_min_batch_to_fit_in_buffer(insData), 8)->getDims()
+                    : insData->getDims();
         }
 
         if (dataDims.size() <= 2) {

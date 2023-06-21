@@ -20,45 +20,65 @@ namespace pull_reshape_through_dequantization {
 namespace {
 
 std::shared_ptr<Node> moveThroughElementwise(const std::shared_ptr<Node>& reshape, const std::shared_ptr<Node>& elementwise) {
-    const auto reshapeValues = reshape->get_input_node_shared_ptr(1);
+    const auto reshapeValues = ov::as_type_ptr<opset1::Constant>(reshape->get_input_node_shared_ptr(1));
     NGRAPH_CHECK(reshapeValues != nullptr, "Reshape constant was not found");
 
-    auto elementwiseValuesConvert = ov::as_type_ptr<opset1::Convert>(elementwise->get_input_node_shared_ptr(1ul));
+    auto elementwiseValuesConvert = ov::as_type_ptr<opset1::Convert>(elementwise->get_input_node_shared_ptr(1));
     auto elementwiseValues = elementwiseValuesConvert == nullptr ?
-        elementwise->get_input_node_shared_ptr(1ul) :
-        elementwiseValuesConvert->get_input_node_shared_ptr(0ul);
-    assert(ov::is_type<opset1::Constant>(elementwiseValues));
+        ov::as_type_ptr<opset1::Constant>(elementwise->get_input_node_shared_ptr(1)) :
+        ov::as_type_ptr<opset1::Constant>(elementwiseValuesConvert->get_input_node_shared_ptr(0));
+    assert(elementwiseValues != nullptr);
 
-    const std::shared_ptr<opset1::Reshape> newReshape = ov::as_type_ptr<opset1::Reshape>(reshape->clone_with_new_inputs({
-        elementwise->input_value(0),
-        reshapeValues }));
+    const auto newElementwiseValues = [&]() -> std::shared_ptr<Node> {
+        // Firstly is checked whether the result constant shape can be set without any calculations
+        const auto& elementwiseValuesShape = elementwiseValues->get_shape();
+        if (ov::shape_size(elementwiseValuesShape) == 1) {
+            return std::make_shared<opset1::Constant>(*elementwiseValues, Shape{});
+        }
 
-    std::shared_ptr<Node> newElementwiseValues;
+        const auto& targetShape = reshape->get_output_shape(0);
+        if (targetShape.size() == elementwiseValuesShape.size()) {
+            bool eltwiseConstAffected = false;
+            for (size_t i = 0; i < targetShape.size(); ++i) {
+                if (elementwiseValuesShape[i] != 1 && elementwiseValuesShape[i] != targetShape[i]) {
+                    eltwiseConstAffected = true;
+                    break;
+                }
+            }
+            if (!eltwiseConstAffected) {
+                return elementwiseValues;
+            }
+        }
 
-    const Shape elementwiseValuesShape = elementwiseValues->get_output_shape(0);
-    if (!elementwiseValuesShape.empty() && (elementwiseValuesShape.size() != 1ul)) {
-        // update shape constant value to avoid eltwise constan value broadcasting
-        const Shape elementwiseShape = elementwise->get_output_shape(0);
-        const std::vector<size_t> reshapeValuesVector = ov::as_type_ptr<opset1::Constant>(reshapeValues)->cast_vector<size_t>();
-
-        const std::vector<size_t> newReshapeValuesVector = ngraph::pass::low_precision::NetworkHelper::updateReshapeValues(
+        // If shape calculation is needed, fold_reshape is used for result constant shape computation
+        const auto newReshapeValuesVector = ngraph::pass::low_precision::NetworkHelper::updateReshapeValues(
             elementwiseValuesShape,
-            elementwiseShape,
-            reshapeValuesVector);
+            elementwise->get_output_shape(0),
+            targetShape);
+
+        // in some cases it's impossible to definitely reshape eltwise constant using Reshape
+        if (ov::shape_size(newReshapeValuesVector) != ov::shape_size(elementwiseValuesShape)) {
+            return nullptr;
+        }
 
         const auto newReshapeValues = std::make_shared<opset1::Constant>(
             reshapeValues->get_output_element_type(0),
             Shape{ newReshapeValuesVector.size() },
             newReshapeValuesVector);
 
-        newElementwiseValues = ngraph::pass::low_precision::fold_reshape<opset1::Reshape>(
+        const auto newElementwiseValues = ngraph::pass::low_precision::fold_reshape<opset1::Reshape>(
             elementwiseValues,
             newReshapeValues,
             ov::as_type_ptr<opset1::Reshape>(reshape)->get_special_zero());
         assert(ov::is_type<opset1::Constant>(newElementwiseValues));
-    } else {
-        newElementwiseValues = elementwiseValues;
+        return newElementwiseValues;
+    }();
+
+    if (newElementwiseValues == nullptr) {
+        return nullptr;
     }
+
+    const auto newReshape = reshape->clone_with_new_inputs({elementwise->input_value(0), reshapeValues});
     const auto newElementwise = elementwise->clone_with_new_inputs({
         newReshape,
         elementwiseValuesConvert == nullptr ?
@@ -66,7 +86,7 @@ std::shared_ptr<Node> moveThroughElementwise(const std::shared_ptr<Node>& reshap
             std::make_shared<opset1::Convert>(newElementwiseValues, elementwiseValuesConvert->get_destination_type()) });
 
     replace_node(reshape, newElementwise);
-    copy_runtime_info({ elementwise, reshape }, { newReshape, newElementwise });
+    ov::copy_runtime_info({ elementwise, reshape }, { newReshape, newElementwise });
     return newReshape;
 }
 
@@ -74,7 +94,7 @@ std::shared_ptr<Node> moveThroughConvert(const std::shared_ptr<Node>& reshape, c
     const auto newReshape = reshape->clone_with_new_inputs({ convert->input_value(0), reshape->input_value(1) });
     const auto newConvert = convert->clone_with_new_inputs({ newReshape });
     replace_node(reshape, newConvert);
-    copy_runtime_info({ convert, reshape }, { newReshape, newConvert });
+    ov::copy_runtime_info({ convert, reshape }, { newReshape, newConvert });
 
     return newReshape;
 }

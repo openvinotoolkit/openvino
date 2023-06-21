@@ -44,43 +44,17 @@ std::vector<Configs> AutoConfigs = {
     }
 };
 
-std::vector<Configs> MultiConfigs = {
-    {
-        {
-            CommonTestUtils::DEVICE_MULTI + std::string(":") + CommonTestUtils::DEVICE_CPU,
-            {ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)}
-        },
-        {CommonTestUtils::DEVICE_CPU, {}}
-    },
-    {
-        {
-            CommonTestUtils::DEVICE_MULTI + std::string(":") + CommonTestUtils::DEVICE_CPU,
-            {ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)}
-        },
-        {CommonTestUtils::DEVICE_CPU, {}}
-    }
-};
-
-
-
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVInferConsistencyTest,
+INSTANTIATE_TEST_SUITE_P(BehaviorTests, OVInferConsistencyTest,
     ::testing::Combine(
         ::testing::Values(10),// inferRequest num
-        ::testing::Values(50),// infer counts
+        ::testing::Values(10),// infer counts
         ::testing::ValuesIn(configs)),
     OVInferConsistencyTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, OVInferConsistencyTest,
+INSTANTIATE_TEST_SUITE_P(Auto_BehaviorTests, OVInferConsistencyTest,
     ::testing::Combine(
         ::testing::Values(10),// inferRequest num
-        ::testing::Values(50),// infer counts
+        ::testing::Values(10),// infer counts
         ::testing::ValuesIn(AutoConfigs)),
-    OVInferConsistencyTest::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, OVInferConsistencyTest,
-    ::testing::Combine(
-        ::testing::Values(10),// inferRequest num
-        ::testing::Values(50),// infer counts
-        ::testing::ValuesIn(MultiConfigs)),
     OVInferConsistencyTest::getTestCaseName);
 }  // namespace

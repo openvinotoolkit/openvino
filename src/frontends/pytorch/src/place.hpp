@@ -33,6 +33,14 @@ public:
         return m_tensor_index;
     }
 
+    bool is_equal_data(const Ptr& another) const override {
+        const auto another_pt = dynamic_cast<ov::frontend::pytorch::Place*>(another.get());
+        if (!another_pt) {
+            return false;
+        }
+        return m_tensor_index == another_pt->get_tensor_index();
+    }
+
 private:
     const ov::frontend::InputModel& m_input_model;
     const size_t m_tensor_index;

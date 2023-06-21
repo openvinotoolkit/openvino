@@ -69,12 +69,13 @@ void ApiSummary::updateStat(ov_entity entity, const std::string& target_device, 
     if (isCrashReported) {
         cur_stat[real_device].crashed--;
         isCrashReported = false;
+    } else {
+        cur_stat[real_device].rel_all += rel_influence_coef;
     }
     if (isHangReported) {
         isHangReported = false;
         return;
     }
-    cur_stat[real_device].rel_all += rel_influence_coef;
     switch (status) {
         case PassRate::Statuses::SKIPPED: {
             cur_stat[real_device].skipped++;

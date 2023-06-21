@@ -104,7 +104,7 @@ std::string toCodeString(double val);
 std::string toCodeString(size_t val);
 std::string toCodeString(uint8_t val);
 std::string toCodeString(int8_t val);
-std::string toCodeString(const Tensor::Dim& dim, size_t offset, bool padded = false);
+std::string toCodeString(const Tensor::Dim& dim, size_t offset, bool padded = false, bool pad_is_dynamic = false, size_t dynamic_pad_offset = 0);
 std::string toShapeInfoString(size_t arg_idx, size_t data_idx_at_6d, bool is_output = false, size_t num_of_inputs = 0);
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -167,7 +167,7 @@ std::shared_ptr<JitConstant> MakeJitConstant(const std::string& name, T value) {
     return std::static_pointer_cast<JitConstant>(std::make_shared<simple_jit_constant>(name, toCodeString(value)));
 }
 
-std::shared_ptr<JitConstant> MakeJitConstant(const std::string& name, const struct Tensor::DataTensor& value, size_t dyn_tensor_index = 0);
+std::shared_ptr<JitConstant> MakeJitConstant(const std::string& name, const struct Tensor::DataTensor& value);
 std::shared_ptr<JitConstant> MakeJitConstant(const std::string& name, const struct Tensor::WeightsTensor& value);
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -331,13 +331,15 @@ public:
     struct idx_desc {
         std::string b;
         std::string f;
+        std::string v;
+        std::string u;
         std::string w;
         std::string z;
         std::string y;
         std::string x;
         size_t dims;
         explicit idx_desc(std::vector<std::string> idx, DataTensor t)
-            : b("0"), f("0"), w("0"), z("0"), y("0"), x("0"), dims(0) {
+            : b("0"), f("0"), v("0"), u("0"), w("0"), z("0"), y("0"), x("0"), dims(0) {
             dims = idx.size();
             switch (dims) {
                 case 1: f = idx[0]; break;
@@ -346,7 +348,9 @@ public:
                 case 4: b = idx[0]; f = idx[1]; y = idx[2]; x = idx[3]; break;
                 case 5: b = idx[0]; f = idx[1]; z = idx[2]; y = idx[3]; x = idx[4]; break;
                 case 6: b = idx[0]; f = idx[1]; w = idx[2]; z = idx[3]; y = idx[4]; x = idx[5]; break;
-                default: throw std::runtime_error("More than 6 dimenstions is not supported in fused op generator");
+                case 7: b = idx[0]; f = idx[1]; u = idx[2]; w = idx[3]; z = idx[4]; y = idx[5]; x = idx[6]; break;
+                case 8: b = idx[0]; f = idx[1]; v = idx[2]; u = idx[3]; w = idx[4]; z = idx[5]; y = idx[6]; x = idx[7]; break;
+                default: throw std::runtime_error("More than 8 dimenstions is not supported in fused op generator");
             }
 
             if (t.Batch().v == 1) {
@@ -354,6 +358,12 @@ public:
             }
             if (t.Feature().v == 1) {
                 f = "0";
+            }
+            if (t.V().v == 1) {
+                v = "0";
+            }
+            if (t.U().v == 1) {
+                u = "0";
             }
             if (t.W().v == 1) {
                 w = "0";
@@ -370,7 +380,7 @@ public:
         }
     };
 
-    JitConstants MakeFusedTensorJitConstants(const FusedOpsConfiguration& conf, size_t dynamic_in_out_tensors_count) const;
+    JitConstants MakeFusedTensorJitConstants(const FusedOpsConfiguration& conf) const;
     JitConstants MakeInputDeclsJitConstants(const FusedOpsConfiguration& conf) const;
     JitConstants MakeLoadJitConstants(const FusedOpsConfiguration& conf, const DataTensor prim_output) const;
     JitConstants MakeOpJitConstants(const FusedOpsConfiguration& conf,

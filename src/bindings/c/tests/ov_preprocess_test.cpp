@@ -3,7 +3,7 @@
 //
 #include "ov_test.hpp"
 
-class ov_preprocess : public ::testing::Test {
+class ov_preprocess_test : public ::testing::Test {
 protected:
     void SetUp() override {
         core = nullptr;
@@ -17,10 +17,14 @@ protected:
         output_tensor_info = nullptr;
         input_model = nullptr;
 
+        TestDataHelpers::generate_test_model();
+        xml_file_name = TestDataHelpers::get_model_xml_file_name();
+        bin_file_name = TestDataHelpers::get_model_bin_file_name();
+
         OV_EXPECT_OK(ov_core_create(&core));
         EXPECT_NE(nullptr, core);
 
-        OV_EXPECT_OK(ov_core_read_model(core, xml, bin, &model));
+        OV_EXPECT_OK(ov_core_read_model(core, xml_file_name.c_str(), bin_file_name.c_str(), &model));
         EXPECT_NE(nullptr, model);
     }
     void TearDown() override {
@@ -34,6 +38,7 @@ protected:
         ov_preprocess_prepostprocessor_free(preprocess);
         ov_model_free(model);
         ov_core_free(core);
+        TestDataHelpers::release_test_model();
     }
 
 public:
@@ -47,14 +52,15 @@ public:
     ov_preprocess_output_info_t* output_info;
     ov_preprocess_output_tensor_info_t* output_tensor_info;
     ov_preprocess_input_model_info_t* input_model;
+    std::string xml_file_name, bin_file_name;
 };
 
-TEST_F(ov_preprocess, ov_preprocess_prepostprocessor_create) {
+TEST_F(ov_preprocess_test, ov_preprocess_prepostprocessor_create) {
     OV_EXPECT_OK(ov_preprocess_prepostprocessor_create(model, &preprocess));
     EXPECT_NE(nullptr, preprocess);
 }
 
-TEST_F(ov_preprocess, ov_preprocess_prepostprocessor_get_input_info) {
+TEST_F(ov_preprocess_test, ov_preprocess_prepostprocessor_get_input_info) {
     OV_EXPECT_OK(ov_preprocess_prepostprocessor_create(model, &preprocess));
     EXPECT_NE(nullptr, preprocess);
 
@@ -62,7 +68,7 @@ TEST_F(ov_preprocess, ov_preprocess_prepostprocessor_get_input_info) {
     EXPECT_NE(nullptr, input_info);
 }
 
-TEST_F(ov_preprocess, ov_preprocess_prepostprocessor_get_input_info_by_name) {
+TEST_F(ov_preprocess_test, ov_preprocess_prepostprocessor_get_input_info_by_name) {
     OV_EXPECT_OK(ov_preprocess_prepostprocessor_create(model, &preprocess));
     EXPECT_NE(nullptr, preprocess);
 
@@ -70,7 +76,7 @@ TEST_F(ov_preprocess, ov_preprocess_prepostprocessor_get_input_info_by_name) {
     EXPECT_NE(nullptr, input_info);
 }
 
-TEST_F(ov_preprocess, ov_preprocess_prepostprocessor_get_input_info_by_index) {
+TEST_F(ov_preprocess_test, ov_preprocess_prepostprocessor_get_input_info_by_index) {
     OV_EXPECT_OK(ov_preprocess_prepostprocessor_create(model, &preprocess));
     EXPECT_NE(nullptr, preprocess);
 
@@ -78,7 +84,7 @@ TEST_F(ov_preprocess, ov_preprocess_prepostprocessor_get_input_info_by_index) {
     EXPECT_NE(nullptr, input_info);
 }
 
-TEST_F(ov_preprocess, ov_preprocess_input_info_get_tensor_info) {
+TEST_F(ov_preprocess_test, ov_preprocess_input_info_get_tensor_info) {
     OV_EXPECT_OK(ov_preprocess_prepostprocessor_create(model, &preprocess));
     EXPECT_NE(nullptr, preprocess);
 
@@ -89,7 +95,7 @@ TEST_F(ov_preprocess, ov_preprocess_input_info_get_tensor_info) {
     EXPECT_NE(nullptr, input_tensor_info);
 }
 
-TEST_F(ov_preprocess, ov_preprocess_input_info_get_preprocess_steps) {
+TEST_F(ov_preprocess_test, ov_preprocess_input_info_get_preprocess_steps) {
     OV_EXPECT_OK(ov_preprocess_prepostprocessor_create(model, &preprocess));
     EXPECT_NE(nullptr, preprocess);
 
@@ -100,7 +106,7 @@ TEST_F(ov_preprocess, ov_preprocess_input_info_get_preprocess_steps) {
     EXPECT_NE(nullptr, input_process);
 }
 
-TEST_F(ov_preprocess, ov_preprocess_preprocess_steps_resize) {
+TEST_F(ov_preprocess_test, ov_preprocess_preprocess_steps_resize) {
     OV_EXPECT_OK(ov_preprocess_prepostprocessor_create(model, &preprocess));
     EXPECT_NE(nullptr, preprocess);
 
@@ -113,7 +119,7 @@ TEST_F(ov_preprocess, ov_preprocess_preprocess_steps_resize) {
     OV_EXPECT_OK(ov_preprocess_preprocess_steps_resize(input_process, ov_preprocess_resize_algorithm_e::RESIZE_LINEAR));
 }
 
-TEST_F(ov_preprocess, ov_preprocess_preprocess_steps_scale) {
+TEST_F(ov_preprocess_test, ov_preprocess_preprocess_steps_scale) {
     OV_EXPECT_OK(ov_preprocess_prepostprocessor_create(model, &preprocess));
     EXPECT_NE(nullptr, preprocess);
 
@@ -126,7 +132,7 @@ TEST_F(ov_preprocess, ov_preprocess_preprocess_steps_scale) {
     OV_EXPECT_OK(ov_preprocess_preprocess_steps_scale(input_process, 2.0f));
 }
 
-TEST_F(ov_preprocess, ov_preprocess_preprocess_steps_mean) {
+TEST_F(ov_preprocess_test, ov_preprocess_preprocess_steps_mean) {
     OV_EXPECT_OK(ov_preprocess_prepostprocessor_create(model, &preprocess));
     EXPECT_NE(nullptr, preprocess);
 
@@ -139,7 +145,7 @@ TEST_F(ov_preprocess, ov_preprocess_preprocess_steps_mean) {
     OV_EXPECT_OK(ov_preprocess_preprocess_steps_mean(input_process, 2.0f));
 }
 
-TEST_F(ov_preprocess, ov_preprocess_preprocess_steps_crop) {
+TEST_F(ov_preprocess_test, ov_preprocess_preprocess_steps_crop) {
     OV_EXPECT_OK(ov_preprocess_prepostprocessor_create(model, &preprocess));
     EXPECT_NE(nullptr, preprocess);
 
@@ -154,7 +160,7 @@ TEST_F(ov_preprocess, ov_preprocess_preprocess_steps_crop) {
     OV_EXPECT_OK(ov_preprocess_preprocess_steps_crop(input_process, begin, 4, end, 4));
 }
 
-TEST_F(ov_preprocess, ov_preprocess_preprocess_steps_convert_layout) {
+TEST_F(ov_preprocess_test, ov_preprocess_preprocess_steps_convert_layout) {
     OV_EXPECT_OK(ov_preprocess_prepostprocessor_create(model, &preprocess));
     EXPECT_NE(nullptr, preprocess);
 
@@ -172,7 +178,7 @@ TEST_F(ov_preprocess, ov_preprocess_preprocess_steps_convert_layout) {
     ov_layout_free(layout);
 }
 
-TEST_F(ov_preprocess, ov_preprocess_preprocess_steps_reverse_channels) {
+TEST_F(ov_preprocess_test, ov_preprocess_preprocess_steps_reverse_channels) {
     OV_EXPECT_OK(ov_preprocess_prepostprocessor_create(model, &preprocess));
     EXPECT_NE(nullptr, preprocess);
 
@@ -185,7 +191,7 @@ TEST_F(ov_preprocess, ov_preprocess_preprocess_steps_reverse_channels) {
     OV_EXPECT_OK(ov_preprocess_preprocess_steps_reverse_channels(input_process));
 }
 
-TEST_F(ov_preprocess, ov_preprocess_input_tensor_info_set_element_type) {
+TEST_F(ov_preprocess_test, ov_preprocess_input_tensor_info_set_element_type) {
     OV_EXPECT_OK(ov_preprocess_prepostprocessor_create(model, &preprocess));
     EXPECT_NE(nullptr, preprocess);
 
@@ -198,7 +204,7 @@ TEST_F(ov_preprocess, ov_preprocess_input_tensor_info_set_element_type) {
     OV_EXPECT_OK(ov_preprocess_input_tensor_info_set_element_type(input_tensor_info, ov_element_type_e::F32));
 }
 
-TEST_F(ov_preprocess, ov_preprocess_input_tensor_info_set_from) {
+TEST_F(ov_preprocess_test, ov_preprocess_input_tensor_info_set_from) {
     OV_EXPECT_OK(ov_preprocess_prepostprocessor_create(model, &preprocess));
     EXPECT_NE(nullptr, preprocess);
 
@@ -218,7 +224,7 @@ TEST_F(ov_preprocess, ov_preprocess_input_tensor_info_set_from) {
     ov_shape_free(&shape);
 }
 
-TEST_F(ov_preprocess, ov_preprocess_input_tensor_info_set_layout) {
+TEST_F(ov_preprocess_test, ov_preprocess_input_tensor_info_set_layout) {
     OV_EXPECT_OK(ov_preprocess_prepostprocessor_create(model, &preprocess));
     EXPECT_NE(nullptr, preprocess);
 
@@ -236,7 +242,7 @@ TEST_F(ov_preprocess, ov_preprocess_input_tensor_info_set_layout) {
     ov_layout_free(layout);
 }
 
-TEST_F(ov_preprocess, ov_preprocess_input_tensor_info_set_color_format) {
+TEST_F(ov_preprocess_test, ov_preprocess_input_tensor_info_set_color_format) {
     OV_EXPECT_OK(ov_preprocess_prepostprocessor_create(model, &preprocess));
     EXPECT_NE(nullptr, preprocess);
 
@@ -250,7 +256,7 @@ TEST_F(ov_preprocess, ov_preprocess_input_tensor_info_set_color_format) {
         ov_preprocess_input_tensor_info_set_color_format(input_tensor_info, ov_color_format_e::NV12_SINGLE_PLANE));
 }
 
-TEST_F(ov_preprocess, ov_preprocess_input_tensor_info_set_spatial_static_shape) {
+TEST_F(ov_preprocess_test, ov_preprocess_input_tensor_info_set_spatial_static_shape) {
     OV_EXPECT_OK(ov_preprocess_prepostprocessor_create(model, &preprocess));
     EXPECT_NE(nullptr, preprocess);
 
@@ -266,7 +272,7 @@ TEST_F(ov_preprocess, ov_preprocess_input_tensor_info_set_spatial_static_shape) 
         ov_preprocess_input_tensor_info_set_spatial_static_shape(input_tensor_info, input_height, input_width));
 }
 
-TEST_F(ov_preprocess, ov_preprocess_preprocess_steps_convert_element_type) {
+TEST_F(ov_preprocess_test, ov_preprocess_preprocess_steps_convert_element_type) {
     OV_EXPECT_OK(ov_preprocess_prepostprocessor_create(model, &preprocess));
     EXPECT_NE(nullptr, preprocess);
 
@@ -283,7 +289,7 @@ TEST_F(ov_preprocess, ov_preprocess_preprocess_steps_convert_element_type) {
     OV_EXPECT_OK(ov_preprocess_preprocess_steps_convert_element_type(input_process, ov_element_type_e::F32));
 }
 
-TEST_F(ov_preprocess, ov_preprocess_preprocess_steps_convert_color) {
+TEST_F(ov_preprocess_test, ov_preprocess_preprocess_steps_convert_color) {
     OV_EXPECT_OK(ov_preprocess_prepostprocessor_create(model, &preprocess));
     EXPECT_NE(nullptr, preprocess);
 
@@ -304,7 +310,7 @@ TEST_F(ov_preprocess, ov_preprocess_preprocess_steps_convert_color) {
     OV_EXPECT_OK(ov_preprocess_preprocess_steps_convert_color(input_process, ov_color_format_e::BGR));
 }
 
-TEST_F(ov_preprocess, ov_preprocess_preprocess_steps_convert_color_rgb_to_gray) {
+TEST_F(ov_preprocess_test, ov_preprocess_preprocess_steps_convert_color_rgb_to_gray) {
     OV_EXPECT_OK(ov_preprocess_prepostprocessor_create(model, &preprocess));
     EXPECT_NE(nullptr, preprocess);
 
@@ -321,7 +327,7 @@ TEST_F(ov_preprocess, ov_preprocess_preprocess_steps_convert_color_rgb_to_gray) 
     OV_EXPECT_OK(ov_preprocess_preprocess_steps_convert_color(input_process, ov_color_format_e::GRAY));
 }
 
-TEST_F(ov_preprocess, ov_preprocess_prepostprocessor_get_output_info) {
+TEST_F(ov_preprocess_test, ov_preprocess_prepostprocessor_get_output_info) {
     OV_EXPECT_OK(ov_preprocess_prepostprocessor_create(model, &preprocess));
     EXPECT_NE(nullptr, preprocess);
 
@@ -329,7 +335,7 @@ TEST_F(ov_preprocess, ov_preprocess_prepostprocessor_get_output_info) {
     EXPECT_NE(nullptr, output_info);
 }
 
-TEST_F(ov_preprocess, ov_preprocess_prepostprocessor_get_output_info_by_index) {
+TEST_F(ov_preprocess_test, ov_preprocess_prepostprocessor_get_output_info_by_index) {
     OV_EXPECT_OK(ov_preprocess_prepostprocessor_create(model, &preprocess));
     EXPECT_NE(nullptr, preprocess);
 
@@ -337,15 +343,15 @@ TEST_F(ov_preprocess, ov_preprocess_prepostprocessor_get_output_info_by_index) {
     EXPECT_NE(nullptr, output_info);
 }
 
-TEST_F(ov_preprocess, ov_preprocess_prepostprocessor_get_output_info_by_name) {
+TEST_F(ov_preprocess_test, ov_preprocess_prepostprocessor_get_output_info_by_name) {
     OV_EXPECT_OK(ov_preprocess_prepostprocessor_create(model, &preprocess));
     EXPECT_NE(nullptr, preprocess);
 
-    OV_EXPECT_OK(ov_preprocess_prepostprocessor_get_output_info_by_name(preprocess, "fc_out", &output_info));
+    OV_EXPECT_OK(ov_preprocess_prepostprocessor_get_output_info_by_name(preprocess, "relu", &output_info));
     EXPECT_NE(nullptr, output_info);
 }
 
-TEST_F(ov_preprocess, ov_preprocess_output_info_get_tensor_info) {
+TEST_F(ov_preprocess_test, ov_preprocess_output_info_get_tensor_info) {
     OV_EXPECT_OK(ov_preprocess_prepostprocessor_create(model, &preprocess));
     EXPECT_NE(nullptr, preprocess);
 
@@ -356,7 +362,7 @@ TEST_F(ov_preprocess, ov_preprocess_output_info_get_tensor_info) {
     EXPECT_NE(nullptr, output_tensor_info);
 }
 
-TEST_F(ov_preprocess, ov_preprocess_output_set_element_type) {
+TEST_F(ov_preprocess_test, ov_preprocess_output_set_element_type) {
     OV_EXPECT_OK(ov_preprocess_prepostprocessor_create(model, &preprocess));
     EXPECT_NE(nullptr, preprocess);
 
@@ -369,7 +375,7 @@ TEST_F(ov_preprocess, ov_preprocess_output_set_element_type) {
     OV_EXPECT_OK(ov_preprocess_output_set_element_type(output_tensor_info, ov_element_type_e::F32));
 }
 
-TEST_F(ov_preprocess, ov_preprocess_input_info_get_model_info) {
+TEST_F(ov_preprocess_test, ov_preprocess_input_info_get_model_info) {
     OV_EXPECT_OK(ov_preprocess_prepostprocessor_create(model, &preprocess));
     EXPECT_NE(nullptr, preprocess);
 
@@ -380,7 +386,7 @@ TEST_F(ov_preprocess, ov_preprocess_input_info_get_model_info) {
     EXPECT_NE(nullptr, input_model);
 }
 
-TEST_F(ov_preprocess, ov_preprocess_input_model_info_set_layout) {
+TEST_F(ov_preprocess_test, ov_preprocess_input_model_info_set_layout) {
     OV_EXPECT_OK(ov_preprocess_prepostprocessor_create(model, &preprocess));
     EXPECT_NE(nullptr, preprocess);
 
@@ -398,7 +404,7 @@ TEST_F(ov_preprocess, ov_preprocess_input_model_info_set_layout) {
     ov_layout_free(layout);
 }
 
-TEST_F(ov_preprocess, ov_preprocess_prepostprocessor_build) {
+TEST_F(ov_preprocess_test, ov_preprocess_prepostprocessor_build) {
     OV_EXPECT_OK(ov_preprocess_prepostprocessor_create(model, &preprocess));
     EXPECT_NE(nullptr, preprocess);
 
@@ -409,7 +415,7 @@ TEST_F(ov_preprocess, ov_preprocess_prepostprocessor_build) {
     ov_model_free(new_model);
 }
 
-TEST_F(ov_preprocess, ov_preprocess_prepostprocessor_build_apply) {
+TEST_F(ov_preprocess_test, ov_preprocess_prepostprocessor_build_apply) {
     OV_EXPECT_OK(ov_preprocess_prepostprocessor_create(model, &preprocess));
     EXPECT_NE(nullptr, preprocess);
 
@@ -459,7 +465,7 @@ TEST_F(ov_preprocess, ov_preprocess_prepostprocessor_build_apply) {
     ov_model_free(new_model);
 }
 
-TEST_F(ov_preprocess, ov_preprocess_prepostprocessor_for_nv12_input) {
+TEST_F(ov_preprocess_test, ov_preprocess_prepostprocessor_for_nv12_input) {
     OV_EXPECT_OK(ov_preprocess_prepostprocessor_create(model, &preprocess));
     EXPECT_NE(nullptr, preprocess);
 

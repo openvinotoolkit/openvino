@@ -84,6 +84,6 @@ shared_ptr<Node> op::v6::CTCGreedyDecoderSeqLen::clone_with_new_inputs(const Out
                                                    m_classes_index_type,
                                                    m_sequence_length_type);
     } else {
-        throw ngraph_error("Incorrect number of arguments");
+        OPENVINO_THROW("Incorrect number of arguments");
     }
 }

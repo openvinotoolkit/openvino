@@ -14,7 +14,7 @@ namespace v3 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API ExtractImagePatches : public Op {
 public:
-    OPENVINO_OP("ExtractImagePatches", "opset3", op::Op, 3);
+    OPENVINO_OP("ExtractImagePatches", "opset3", op::Op);
 
     ExtractImagePatches() = default;
     /// \brief Constructs a ExtractImagePatches operation

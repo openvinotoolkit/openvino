@@ -7,20 +7,21 @@
 #include <memory>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
-#include <openvino/opsets/opset8.hpp>
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/convert_like.hpp"
 
 using namespace ov;
 
 ov::pass::ConvertConvertLike::ConvertConvertLike() {
     MATCHER_SCOPE(ConvertConvertLike);
 
-    auto convertlike = pattern::wrap_type<opset8::ConvertLike>();
+    auto convertlike = pattern::wrap_type<ov::op::v1::ConvertLike>();
 
     matcher_pass_callback callback = [](pattern::Matcher& m) {
-        auto cvtlike = std::dynamic_pointer_cast<opset8::ConvertLike>(m.get_match_root());
+        auto cvtlike = std::dynamic_pointer_cast<ov::op::v1::ConvertLike>(m.get_match_root());
         if (!cvtlike) {
             return false;
         }
@@ -30,7 +31,7 @@ ov::pass::ConvertConvertLike::ConvertConvertLike() {
         if (dest_type == element::dynamic || dest_type == element::undefined)
             return false;
 
-        auto cvt = std::make_shared<opset8::Convert>(cvtlike->input_value(0), dest_type);
+        auto cvt = std::make_shared<ov::op::v0::Convert>(cvtlike->input_value(0), dest_type);
 
         cvt->set_friendly_name(cvtlike->get_friendly_name());
         copy_runtime_info(cvtlike, cvt);

@@ -6,6 +6,7 @@
 
 #include <memory>
 #include <tuple>
+#include <vector>
 
 #if !(defined(__APPLE__) || defined(__EMSCRIPTEN__) || defined(_WIN32))
 #    include <sched.h>
@@ -16,7 +17,7 @@ namespace threading {
 
 #if (defined(__APPLE__) || defined(__EMSCRIPTEN__) || defined(_WIN32))
 using cpu_set_t = void;
-#endif  // (defined(__APPLE__) || defined(_WIN32))
+#endif  // (defined(__APPLE__) || defined(__EMSCRIPTEN__) || defined(_WIN32))
 
 /**
  * @brief      Release the cores affinity mask for the current process
@@ -68,6 +69,7 @@ bool pin_thread_to_vacant_core(int thrIdx,
                                int hyperThreads,
                                int ncores,
                                const CpuSet& processMask,
+                               const std::vector<int>& cpu_ids = {},
                                int cpuIdxOffset = 0);
 
 /**

@@ -51,9 +51,11 @@ OutputVector scan_to_tensor_iterator(const OutputVector& node_inputs,
         const auto axis_node = default_opset::Constant::create(element::i64, Shape{1}, {axis});
         auto shape = node_inputs[in_idx + in_offset].get_partial_shape();
         if (shape.rank().is_static()) {
+            OPENVINO_SUPPRESS_DEPRECATED_START
             axis = ov::normalize_axis(node_description,
                                       scan_input_axes[i],
                                       node_inputs[in_idx + in_offset].get_partial_shape().rank());
+            OPENVINO_SUPPRESS_DEPRECATED_END
             shape[axis] = 1;
         }
         body_inputs[in_idx]->set_partial_shape(shape);
@@ -81,9 +83,11 @@ OutputVector scan_to_tensor_iterator(const OutputVector& node_inputs,
     // Set slicing for Scan (TensorIterator) inputs
     for (int64_t i = 0; i < num_scan_inputs; ++i) {
         const auto in_idx = num_initial_values + i;
+        OPENVINO_SUPPRESS_DEPRECATED_START
         const auto axis = ov::normalize_axis(node_description,
                                              scan_input_axes[i],
                                              node_inputs[in_idx + in_offset].get_partial_shape().rank());
+        OPENVINO_SUPPRESS_DEPRECATED_END
         if (scan_input_directions[i]) {  // reverse direction
             tensor_iterator->set_sliced_input(body_inputs[in_idx], node_inputs[in_idx + in_offset], -1, -1, 1, 0, axis);
         } else {  // forward direction
@@ -100,8 +104,10 @@ OutputVector scan_to_tensor_iterator(const OutputVector& node_inputs,
     }
     for (size_t i = 0; i < num_scan_outputs; ++i) {
         const auto out_idx = num_initial_values + i;
+        OPENVINO_SUPPRESS_DEPRECATED_START
         const auto axis =
             ov::normalize_axis(node_description, scan_output_axes[i], body_outputs[out_idx].get_partial_shape().rank());
+        OPENVINO_SUPPRESS_DEPRECATED_END
         if (scan_output_directions[i]) {  // reverse direction
             outputs.push_back(tensor_iterator->get_concatenated_slices(body_outputs[out_idx], -1, -1, 1, 0, axis));
         } else {  // forward direction

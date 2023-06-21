@@ -19,9 +19,9 @@
 # ifndef _WINSOCK2API_
 #  define _WINSOCK2API_
 # endif
-# include <WinSock2.h>
-# include <Windows.h>
-# include "Psapi.h"
+# include <winsock2.h>
+# include <windows.h>
+# include "psapi.h"
 #endif
 
 static size_t parseLine(char* line) {

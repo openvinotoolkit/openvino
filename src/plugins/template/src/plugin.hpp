@@ -17,8 +17,6 @@ namespace template_plugin {
 
 class Plugin : public ov::IPlugin {
 public:
-    using Ptr = std::shared_ptr<Plugin>;
-
     Plugin();
     ~Plugin();
 
@@ -33,9 +31,9 @@ public:
 
     ov::Any get_property(const std::string& name, const ov::AnyMap& arguments) const override;
 
-    ov::RemoteContext create_context(const ov::AnyMap& remote_properties) const override;
+    std::shared_ptr<ov::IRemoteContext> create_context(const ov::AnyMap& remote_properties) const override;
 
-    ov::RemoteContext get_default_context(const ov::AnyMap& remote_properties) const override;
+    std::shared_ptr<ov::IRemoteContext> get_default_context(const ov::AnyMap& remote_properties) const override;
 
     std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model, const ov::AnyMap& properties) const override;
 
@@ -50,9 +48,9 @@ private:
     friend class CompiledModel;
     friend class InferRequest;
 
-    std::shared_ptr<ov::runtime::Backend> _backend;
-    Configuration _cfg;
-    std::shared_ptr<ov::threading::ITaskExecutor> _waitExecutor;
+    std::shared_ptr<ov::runtime::Backend> m_backend;
+    Configuration m_cfg;
+    std::shared_ptr<ov::threading::ITaskExecutor> m_waitExecutor;
 };
 
 }  // namespace template_plugin

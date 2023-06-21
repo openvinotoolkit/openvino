@@ -66,7 +66,7 @@ void MultiplyTransformation::SetUp() {
         param.fakeQuantizeAfter,
         param.secondInputIsConstant);
 
-    ov::pass::InitNodeInfo().run_on_function(function);
+    ov::pass::InitNodeInfo().run_on_model(function);
 }
 
 void MultiplyTransformation::Run() {
@@ -97,6 +97,7 @@ void MultiplyTransformation::Run() {
 }
 
 TEST_P(MultiplyTransformation, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     Run();
 };
 

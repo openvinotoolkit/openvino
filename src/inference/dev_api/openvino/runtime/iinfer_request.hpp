@@ -24,6 +24,10 @@ namespace ov {
 class IAsyncInferRequest;
 class ICompiledModel;
 
+/**
+ * @brief An internal API of inference request to be implemented by plugin
+ * @ingroup ov_dev_api_infer_request_api
+ */
 class OPENVINO_RUNTIME_API IInferRequest {
 public:
     virtual ~IInferRequest();

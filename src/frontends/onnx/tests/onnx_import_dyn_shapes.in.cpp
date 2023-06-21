@@ -220,7 +220,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_asinh_3_2) {
 
     auto test_case = test::TestCase(function, s_device);
     test_case.add_input<float>(Shape{3, 2}, {-1.5f, 0.0f, 1.5f, -1.5f, 0.0f, 1.5f});
-    test_case.add_expected_output<float>(Shape{3, 2}, {-1.1947632f, 0.0f, 1.1947632f, -1.1947632, 0.0f, 1.1947632f});
+    test_case.add_expected_output<float>(Shape{3, 2}, {-1.1947632f, 0.0f, 1.1947632f, -1.1947632f, 0.0f, 1.1947632f});
 
     test_case.run();
 }
@@ -713,7 +713,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_transpose) {
     const auto elems_in_tensor = shape_size(shape);
 
     std::vector<float> input_values(elems_in_tensor);
-    std::iota(std::begin(input_values), std::end(input_values), 1);
+    std::iota(std::begin(input_values), std::end(input_values), 1.f);
 
     test_case.add_input<float>(shape, input_values);
 
@@ -729,9 +729,12 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_transpose) {
 
 namespace {
 Shape get_flattened_shape(const Shape& in_shape, size_t axis) {
-    size_t first_dim_size =
-        std::accumulate(begin(in_shape), next(begin(in_shape), axis), 1UL, std::multiplies<size_t>());
-    size_t last_dim_size = std::accumulate(next(begin(in_shape), axis), end(in_shape), 1UL, std::multiplies<size_t>());
+    size_t first_dim_size = std::accumulate(begin(in_shape),
+                                            next(begin(in_shape), axis),
+                                            static_cast<size_t>(1),
+                                            std::multiplies<size_t>());
+    size_t last_dim_size =
+        std::accumulate(next(begin(in_shape), axis), end(in_shape), static_cast<size_t>(1), std::multiplies<size_t>());
     return Shape{first_dim_size, last_dim_size};
 }
 }  // namespace
@@ -751,7 +754,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_flatten_axis_0) {
         const auto elems_in_tensor = shape_size(shape);
 
         std::vector<float> input_values(elems_in_tensor);
-        std::iota(input_values.begin(), input_values.end(), 1);
+        std::iota(input_values.begin(), input_values.end(), 1.f);
 
         test_case.add_input<float>(shape, input_values);
 
@@ -778,7 +781,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_flatten_axis) {
         const auto elems_in_tensor = shape_size(shape);
 
         std::vector<float> input_values(elems_in_tensor);
-        std::iota(input_values.begin(), input_values.end(), 1);
+        std::iota(input_values.begin(), input_values.end(), 1.f);
 
         test_case.add_input<float>(shape, input_values);
 
@@ -805,7 +808,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_flatten_neg_axis) {
         const auto elems_in_tensor = shape_size(shape);
 
         std::vector<float> input_values(elems_in_tensor);
-        std::iota(input_values.begin(), input_values.end(), 1);
+        std::iota(input_values.begin(), input_values.end(), 1.f);
 
         test_case.add_input<float>(shape, input_values);
 
@@ -907,7 +910,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_3d_input) {
 
     const Shape input_shape{3, 4, 1};
     std::vector<float> input_values(shape_size(input_shape));
-    std::iota(input_values.begin(), input_values.end(), 0);
+    std::iota(input_values.begin(), input_values.end(), 0.f);
     test_case.add_input<float>(input_values);
     test_case.add_input<int64_t>({0, 0});
     test_case.add_input<int64_t>({2, 3});
@@ -926,7 +929,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_3d_input_neg_axes) {
 
     const Shape input_shape{3, 4, 1};
     std::vector<float> input_values(shape_size(input_shape));
-    std::iota(input_values.begin(), input_values.end(), 0);
+    std::iota(input_values.begin(), input_values.end(), 0.f);
     test_case.add_input<float>(input_values);
     test_case.add_input<int64_t>({0, 0});
     test_case.add_input<int64_t>({2, 3});
@@ -945,7 +948,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_3d_input_12_axes) {
 
     const Shape input_shape{4, 3, 2};
     std::vector<float> input_values(shape_size(input_shape));
-    std::iota(input_values.begin(), input_values.end(), 0);
+    std::iota(input_values.begin(), input_values.end(), 0.f);
     test_case.add_input<float>(input_values);
     test_case.add_input<int64_t>({0, 0});
     test_case.add_input<int64_t>({2, 1});
@@ -963,7 +966,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_3d_input_20_axes) {
 
     const Shape input_shape{4, 3, 2};
     std::vector<float> input_values(shape_size(input_shape));
-    std::iota(input_values.begin(), input_values.end(), 0);
+    std::iota(input_values.begin(), input_values.end(), 0.f);
     test_case.add_input<float>(input_shape, input_values);
     test_case.add_input<int64_t>({0, 1});
     test_case.add_input<int64_t>({1, 3});
@@ -982,7 +985,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_4d_input_23_axes) {
 
     const Shape input_shape{2, 2, 2, 2};
     std::vector<float> input_values(shape_size(input_shape));
-    std::iota(input_values.begin(), input_values.end(), 0);
+    std::iota(input_values.begin(), input_values.end(), 0.f);
     test_case.add_input<float>(input_values);
     test_case.add_input<int64_t>({0, 0});
     test_case.add_input<int64_t>({1, 1});
@@ -1000,7 +1003,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_4d_input_0231_axes_ends_ma
 
     const Shape input_shape{2, 2, 2, 2};
     std::vector<float> input_values(shape_size(input_shape));
-    std::iota(input_values.begin(), input_values.end(), 0);
+    std::iota(input_values.begin(), input_values.end(), 0.f);
     test_case.add_input<float>(input_values);
     test_case.add_input<int64_t>({0, 1, 1, 0});
     test_case.add_input<int64_t>({std::numeric_limits<int64_t>::max(),
@@ -1021,7 +1024,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_4d_input_2103_axes_ends_ma
 
     const Shape input_shape{2, 2, 2, 5};
     std::vector<float> input_values(shape_size(input_shape));
-    std::iota(input_values.begin(), input_values.end(), 0);
+    std::iota(input_values.begin(), input_values.end(), 0.f);
     test_case.add_input<float>(input_values);
     test_case.add_input<int64_t>({1, 0, 0, 1});
     test_case.add_input<int64_t>({2,
@@ -1043,7 +1046,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_4d_input_23_axes_21_steps)
 
     const Shape input_shape{2, 2, 6, 2};
     std::vector<float> input_values(shape_size(input_shape));
-    std::iota(input_values.begin(), input_values.end(), 0);
+    std::iota(input_values.begin(), input_values.end(), 0.f);
     test_case.add_input<float>(input_values);
     test_case.add_input<int64_t>({0, 1});
     test_case.add_input<int64_t>({5, 2});
@@ -1060,7 +1063,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_default_axes) {
 
     const Shape input_shape{4, 3, 2};
     std::vector<float> input_values(shape_size(input_shape));
-    std::iota(input_values.begin(), input_values.end(), 0);
+    std::iota(input_values.begin(), input_values.end(), 0.f);
     test_case.add_input<float>(input_values);
     test_case.add_input<int64_t>({1, 1, 1});
     test_case.add_input<int64_t>({2, 2, 2});
@@ -1116,34 +1119,34 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_model_softmax_axis_2) {
         file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/softmax_axis_2.onnx"));
 
     const std::vector<float> input = {
-        2.75793882,  -0.50841322, 0.82013929,  -0.62409912, -0.96136118, 0.21004745,  1.38337255,
-        1.19030397,  2.0940445,   -0.03551657, -0.78686039, 1.992782,    0.04300319,  -0.29230777,
-        -0.56797112, -1.26732165, -0.61935399, 0.57670432,  0.92844898,  2.82469233,
+        2.75793882f,  -0.50841322f, 0.82013929f,  -0.62409912f, -0.96136118f, 0.21004745f,  1.38337255f,
+        1.19030397f,  2.0940445f,   -0.03551657f, -0.78686039f, 1.992782f,    0.04300319f,  -0.29230777f,
+        -0.56797112f, -1.26732165f, -0.61935399f, 0.57670432f,  0.92844898f,  2.82469233f,
 
-        0.98721677,  -0.05100663, -1.21178917, -0.17530157, 1.40051805,  -0.13259761, -1.14313018,
-        0.2673723,   -0.87996154, 1.29053106,  1.55,        0.8396538,   1.20729817,  0.23727845,
-        -0.89113606, -1.70909842, 0.26460363,  -0.70566808, 2.383518,    1.07024615,
+        0.98721677f,  -0.05100663f, -1.21178917f, -0.17530157f, 1.40051805f,  -0.13259761f, -1.14313018f,
+        0.2673723f,   -0.87996154f, 1.29053106f,  1.55f,        0.8396538f,   1.20729817f,  0.23727845f,
+        -0.89113606f, -1.70909842f, 0.26460363f,  -0.70566808f, 2.383518f,    1.07024615f,
 
-        -1.21722605, 0.82919357,  0.55765697,  0.12657686,  0.63432172,  0.75425957,  -2.43721014,
-        -1.24478184, 2.65316853,  1.19509542,  -0.95523998, 0.5149006,   -0.01151649, 0.68327026,
-        -0.4589638,  -0.46554745, 0.21055324,  0.39266729,  2.05098086,  1.83207919};
+        -1.21722605f, 0.82919357f,  0.55765697f,  0.12657686f,  0.63432172f,  0.75425957f,  -2.43721014f,
+        -1.24478184f, 2.65316853f,  1.19509542f,  -0.95523998f, 0.5149006f,   -0.01151649f, 0.68327026f,
+        -0.4589638f,  -0.46554745f, 0.21055324f,  0.39266729f,  2.05098086f,  1.83207919f};
 
     auto test_case = test::TestCase(function, s_device);
     test_case.add_input<float>(input);
 
     test_case.add_expected_output<float>(
         Shape{3, 4, 5},
-        {0.80619486, 0.03075257, 0.1161086,  0.027393,   0.01955098, 0.07012682, 0.22670066,
-         0.18689779, 0.4614171,  0.05485763, 0.04486172, 0.72286838, 0.10286818, 0.07356265,
-         0.05583908, 0.01280724, 0.02448298, 0.08096658, 0.11509768, 0.76664552,
+        {0.80619486f, 0.03075257f, 0.1161086f,  0.027393f,   0.01955098f, 0.07012682f, 0.22670066f,
+         0.18689779f, 0.4614171f,  0.05485763f, 0.04486172f, 0.72286838f, 0.10286818f, 0.07356265f,
+         0.05583908f, 0.01280724f, 0.02448298f, 0.08096658f, 0.11509768f, 0.76664552f,
 
-         0.30399806, 0.1076406,  0.03371745, 0.0950595,  0.4595844,  0.13369873, 0.04866969,
-         0.19944906, 0.06332151, 0.55486101, 0.39101105, 0.19217177, 0.27755913, 0.10521588,
-         0.03404216, 0.01150354, 0.08279411, 0.03137732, 0.68902071, 0.18530432,
+         0.30399806f, 0.1076406f,  0.03371745f, 0.0950595f,  0.4595844f,  0.13369873f, 0.04866969f,
+         0.19944906f, 0.06332151f, 0.55486101f, 0.39101105f, 0.19217177f, 0.27755913f, 0.10521588f,
+         0.03404216f, 0.01150354f, 0.08279411f, 0.03137732f, 0.68902071f, 0.18530432f,
 
-         0.0402528,  0.31156222, 0.23747503, 0.1543129,  0.25639705, 0.10627912, 0.00436928,
-         0.01439711, 0.70979614, 0.16515835, 0.06798343, 0.2957175,  0.17468555, 0.34994439,
-         0.11166912, 0.03615172, 0.07108136, 0.08527994, 0.44775794, 0.35972905});
+         0.0402528f,  0.31156222f, 0.23747503f, 0.1543129f,  0.25639705f, 0.10627912f, 0.00436928f,
+         0.01439711f, 0.70979614f, 0.16515835f, 0.06798343f, 0.2957175f,  0.17468555f, 0.34994439f,
+         0.11166912f, 0.03615172f, 0.07108136f, 0.08527994f, 0.44775794f, 0.35972905f});
 
     test_case.run(3);
 }
@@ -1184,7 +1187,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_instance_normalization_dyn_shape) {
 
     Shape data_shape{1, 2, 3, 4};
     std::vector<float> data(shape_size(data_shape));
-    std::iota(std::begin(data), std::end(data), 1);
+    std::iota(std::begin(data), std::end(data), 1.f);
 
     auto test_case = test::TestCase(function, s_device);
 
@@ -1207,7 +1210,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_instance_normalization_dyn_shape2) {
 
     Shape data_shape{1, 2, 3, 4};
     std::vector<float> data(shape_size(data_shape));
-    std::iota(std::begin(data), std::end(data), 1);
+    std::iota(std::begin(data), std::end(data), 1.f);
 
     auto test_case = test::TestCase(function, s_device);
 
@@ -1275,7 +1278,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_1_3d_input_21_axes_ends_max) 
 
     const Shape input_shape{1, 2, 3, 4};
     std::vector<float> input_values(shape_size(input_shape));
-    std::iota(input_values.begin(), input_values.end(), 0);
+    std::iota(input_values.begin(), input_values.end(), 0.f);
     test_case.add_input<float>(input_shape, input_values);
     test_case.add_expected_output<float>(Shape{1, 1, 3, 3}, {13, 14, 15, 17, 18, 19, 21, 22, 23});
     test_case.run();
@@ -1315,7 +1318,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_max_pool_dyn_rank_without_default_attrs)
 
     Shape input_shape{1, 1, 4, 4};
     std::vector<float> input(shape_size(input_shape));
-    std::iota(input.begin(), input.end(), 0);
+    std::iota(input.begin(), input.end(), 0.f);
     test_case.add_input<float>(input_shape, input);
     test_case.add_expected_output<float>(Shape{1, 1, 3, 3}, {5, 6, 7, 9, 10, 11, 13, 14, 15});
     test_case.run();
@@ -1327,7 +1330,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_depth_to_space_dynamic_input) {
                                                                         "onnx/dynamic_shapes/depth_to_space.onnx"));
 
     std::vector<float> input(32);
-    std::iota(input.begin(), input.end(), 0);
+    std::iota(input.begin(), input.end(), 0.f);
 
     std::vector<float> expected_output{0.f,  8.f,  1.f,  9.f,  16.f, 24.f, 17.f, 25.f, 2.f,  10.f, 3.f,
                                        11.f, 18.f, 26.f, 19.f, 27.f, 4.f,  12.f, 5.f,  13.f, 20.f, 28.f,
@@ -1345,7 +1348,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_space_to_depth_dynamic_input) {
                                                                         "onnx/dynamic_shapes/space_to_depth.onnx"));
 
     std::vector<float> input(32);
-    std::iota(input.begin(), input.end(), 0);
+    std::iota(input.begin(), input.end(), 0.f);
 
     std::vector<float> expected_output{
         0.f, 2.f, 8.f,  10.f, 16.f, 18.f, 24.f, 26.f, 1.f, 3.f, 9.f,  11.f, 17.f, 19.f, 25.f, 27.f,

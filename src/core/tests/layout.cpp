@@ -195,3 +195,11 @@ TEST(layout, attribute_adapter) {
     at.set("NHCW");
     EXPECT_EQ(l, l2);
 }
+
+TEST(layout, compare_string) {
+    Layout l = "HWC";
+    EXPECT_EQ("[H,W,C]", l.to_string());
+    Layout l2 = l.to_string().c_str();
+    EXPECT_EQ(l2, l);
+    EXPECT_EQ("[H,W,C]", l2.to_string());
+}

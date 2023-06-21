@@ -40,7 +40,7 @@ OV_CC_DOMAINS(ir_reader);
 
 #    define IR_READER_SCOPE(region)                                        \
         if (OV_CC_SCOPE_IS_ENABLED(OV_PP_CAT3(ir_reader, _, region)) == 0) \
-        throw ov::Exception(std::string(OV_PP_TOSTRING(OV_PP_CAT3(ir_reader, _, region))) + " is disabled!")
+        OPENVINO_THROW(OV_PP_TOSTRING(OV_PP_CAT3(ir_reader, _, region)), " is disabled!")
 
 #else
 

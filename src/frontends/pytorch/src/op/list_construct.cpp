@@ -15,7 +15,7 @@ namespace op {
 
 using namespace ov::op;
 
-OutputVector translate_list_construct(NodeContext& context) {
+OutputVector translate_list_construct(const NodeContext& context) {
     // Process the case when prim::ListConstruct has all inputs constant
     auto const_0 = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
     ov::OutputVector consts;

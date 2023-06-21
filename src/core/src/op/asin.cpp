@@ -63,7 +63,7 @@ bool evaluate_asin(const HostTensorPtr& arg0, const HostTensorPtr& out, const si
 
 bool op::Asin::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v0_Asin_evaluate);
-    return asinop::evaluate_asin(inputs[0], outputs[0], shape_size(get_output_shape(0)));
+    return asinop::evaluate_asin(inputs[0], outputs[0], shape_size(inputs[0]->get_shape()));
 }
 
 bool op::Asin::has_evaluate() const {

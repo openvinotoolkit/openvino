@@ -31,7 +31,7 @@ ov::pass::SelectWithOneValueCondition::SelectWithOneValueCondition() {
         NodeRegistry copy_from;
         NodeRegistry copy_to;
         auto& pattern_map = m.get_pattern_value_map();
-        auto select_value = pattern_map.at(select_pattern);
+        auto& select_value = pattern_map.at(select_pattern);
         auto select = std::dynamic_pointer_cast<Select>(select_value.get_node_shared_ptr());
         if (!select) {
             return false;
@@ -70,9 +70,7 @@ ov::pass::SelectWithOneValueCondition::SelectWithOneValueCondition() {
 
         if (select_shape.is_static() && branch_output_shape.same_scheme(select_shape)) {
             // Broadcast is not needed if the select shape is exactly the same as the selected branch
-            select->output(0).replace(branch_output);
-            replace_output_update_name(select->output(0), branch_output);
-            branch_output.get_node_shared_ptr()->set_friendly_name(select->get_friendly_name());
+            return replace_output_update_name(select->output(0), branch_output);
         } else if (select_shape.is_static()) {
             // if the shape of the selected branch is not the same, it needs the broadcasting
             NodeRegistry copy_to;

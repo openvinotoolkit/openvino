@@ -111,7 +111,7 @@ KernelsData ExperimentalDetectronROIFeatureExtractorRef::GetKernelsData(const Pa
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = kd.kernels[0];
-    FillCLKernelData(kernel, dispatch_data, params.engineInfo, kernelName, jit, entry_point, "", false, false, org_params.number_of_inputs);
+    FillCLKernelData(kernel, dispatch_data, params.engineInfo, kernelName, jit, entry_point, "", false, false, static_cast<int>(org_params.number_of_inputs));
     return {kd};
 }
 

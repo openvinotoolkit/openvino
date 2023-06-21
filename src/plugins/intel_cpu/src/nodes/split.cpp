@@ -101,11 +101,6 @@ void Split::initSupportedPrimitiveDescriptors() {
     const auto axisPrecision = Precision::I32;
     auto outPrecision = inpPrecision; // the split layer doesn't convert precisions
 
-    bool dynBatchSupport = true;
-    if (axis < 1) {
-        dynBatchSupport = false;
-    }
-
     // Set plain and tailC formats
     std::vector<LayoutType> tdCreatorTypes{ LayoutType::ncsp, LayoutType::nspc };
 
@@ -137,7 +132,6 @@ void Split::initSupportedPrimitiveDescriptors() {
     for (auto itr = itrRange.first; itr != itrRange.second; ++itr) {
         NodeConfig config;
 
-        config.dynBatchSupport = dynBatchSupport;
         config.inConfs.resize(INPUTS_NUM);
         config.inConfs[0].inPlace(-1);
         config.inConfs[0].constant(false);
@@ -184,7 +178,7 @@ void Split::initSupportedPrimitiveDescriptors() {
             SizeVector strides(numOfDim);
             strides.back() = 1lu;
             size_t offset = Shape::UNDEFINED_DIM;
-            BlockedMemoryDesc::CmpMask mask = BLOCKED_DESC_SKIP_OFFSET_MASK; // accepts any offset
+            BlockedMemoryDesc::CmpMask mask = BlockedMemoryDesc::SKIP_OFFSET_MASK; // accepts any offset
 
             for (size_t i = 2; i <= numOfDim; i++) {
                 if (numOfDim - i < axis) {
@@ -215,7 +209,6 @@ void Split::initSupportedPrimitiveDescriptors() {
     if (axis == 1 && (dstFirstDims.size() == 4 || dstFirstDims.size() == 5)) {
         NodeConfig config;
 
-        config.dynBatchSupport = dynBatchSupport;
         config.inConfs.resize(INPUTS_NUM);
         config.inConfs[0].inPlace(-1);
         config.inConfs[0].constant(false);
@@ -315,17 +308,15 @@ void Split::execute(dnnl::stream strm) {
         THROW_ERROR << "Output data pointers have not been initialized.";
 
     const auto &srcMem = getParentEdgesAtPort(0)[0]->getMemory();
-    size_t batch = srcMem.getStaticDims()[0];
-    Dim MB = isDynamicNode() ? batch : batchToProcess();
 
     if (canUseOptimizedNspc2Ncsp) {
-        optimizedNspc2Ncsp(MB);
+        optimizedNspc2Ncsp(srcMem.getStaticDims()[0]);
         return;
     }
 
     uint8_t* srcData = reinterpret_cast<uint8_t*>(srcMem.GetPtr());
     IE_ASSERT(execPtr != nullptr);
-    execPtr->exec(srcData, getRawDstMemPtrs(), batch, MB);
+    execPtr->exec(srcData, getRawDstMemPtrs());
 }
 
 bool Split::created() const {
@@ -372,14 +363,16 @@ void Split::initOptimalPrimitiveDescriptor() {
             auto outBlockingDesc = oldDesc->as<BlockedMemoryDesc>();
             const auto& shape = outBlockingDesc->getShape();
             const auto& blkDims = outBlockingDesc->getBlockDims();
-            config.outConfs[i].setMemDesc(std::make_shared<CpuBlockedMemoryDesc>(outBlockingDesc->getPrecision(),
-                                                                             shape,
-                                                                             blkDims,
-                                                                             outBlockingDesc->getOrder(),
-                                                                             firstInBlockingDesc->getOffsetPadding() + offset,
-                                                                             firstInBlockingDesc->getOffsetPaddingToData(),
-                                                                             (shape.hasZeroDims() ? VectorDims(blkDims.size(), 0) :
-                                                                              firstInBlockingDesc->getStrides())), BLOCKED_DESC_FULL_MASK);
+            config.outConfs[i].setMemDesc(std::make_shared<CpuBlockedMemoryDesc>(
+                                              outBlockingDesc->getPrecision(),
+                                              shape,
+                                              blkDims,
+                                              outBlockingDesc->getOrder(),
+                                              firstInBlockingDesc->getOffsetPadding() + offset,
+                                              firstInBlockingDesc->getOffsetPaddingToData(),
+                                              (shape.hasZeroDims() ? VectorDims(blkDims.size(), 0) :
+                                               firstInBlockingDesc->getStrides())),
+                                          BlockedMemoryDesc::FULL_MASK);
 
             size_t axisSize = 1;
             for (size_t j = axis; j < outBlockingDesc->getBlockDims().size(); j++) {
@@ -407,7 +400,7 @@ void Split::selectOptimalPrimitiveDescriptor() {
     // Enforce the reference implementation for the planar layout if the implementation is in the impl priorities list.
     // This is needed mostly for the testing purposes, since for the planar layout Split works always in place, we need to enforce
     // the reference implementation when it is selected in a test to test that piece of code.
-    if (!implPriorities.empty() && implPriorities[0] == impl_desc_type::ref) {
+    if (!customImplPriorities.empty() && customImplPriorities[0] == impl_desc_type::ref) {
         for (size_t i = 0; i < supportedPrimitiveDescriptors.size(); ++i) {
             auto& pd = supportedPrimitiveDescriptors[i];
             if (pd.getConfig().inConfs[0].getMemDesc()->hasLayoutType(LayoutType::ncsp) &&
@@ -427,7 +420,7 @@ void Split::selectOptimalPrimitiveDescriptor() {
 
         if (parent_spd != nullptr && !parent_spd->getConfig().outConfs.empty()) {
             int inNum = parentEdge->getInputNum();
-            if (inNum < 0 || inNum >= parent_spd->getConfig().outConfs.size()) {
+            if (inNum < 0 || static_cast<size_t>(inNum) >= parent_spd->getConfig().outConfs.size()) {
                 inNum = 0;
             }
             if (supportedPrimitiveDescriptors[i].getConfig().inConfs[0].getMemDesc()->isCompatible(*parent_spd->getConfig().outConfs[inNum].getMemDesc())) {
@@ -464,7 +457,7 @@ void Split::selectOptimalPrimitiveDescriptor() {
                 }
                 bool hasMatchDesc = false;
                 for (auto& childSpd : vecChildSpd) {
-                    if (inNum >= childSpd.getConfig().inConfs.size()) {
+                    if (static_cast<size_t>(inNum) >= childSpd.getConfig().inConfs.size()) {
                         inNum = 0;
                     }
                     if (outputDesc->isCompatible(*childSpd.getConfig().inConfs[inNum].getMemDesc())) {
@@ -497,13 +490,6 @@ void Split::selectOptimalPrimitiveDescriptor() {
     }
 
     selectPrimitiveDescriptorByIndex(0);
-}
-
-void Split::setDynamicBatchLim(int lim) {
-    if (axis == 0)
-        THROW_ERROR << "Dynamic batch is not supported by split layer with axis == 0 parameter";
-
-    dynBatchLim = lim;
 }
 
 void Split::optimizedNspc2Ncsp(size_t MB) {
@@ -606,11 +592,8 @@ Split::SplitOptimizedExecutor::SplitOptimizedExecutor(BlockedMemoryDescCPtr inDe
     }
 }
 
-void Split::SplitOptimizedExecutor::exec(const uint8_t* srcData, const std::vector<uint8_t*>& dstRawMemPtrs,
-                                                   const Dim origBatch, const Dim perInferBatch) {
+void Split::SplitOptimizedExecutor::exec(const uint8_t* srcData, const std::vector<uint8_t*>& dstRawMemPtrs) {
     size_t execCountStrides = countStrides;
-    if (origBatch != perInferBatch)
-        execCountStrides = execCountStrides / origBatch * perInferBatch;
 
     parallel_for2d(dstRawMemPtrs.size(), execCountStrides, [&](size_t i, size_t j) {
         uint8_t* dstData = dstRawMemPtrs[i];

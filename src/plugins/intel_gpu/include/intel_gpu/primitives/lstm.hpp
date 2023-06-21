@@ -7,7 +7,7 @@
 #include "activation.hpp"
 #include <vector>
 #include <algorithm>
-#include "intel_gpu/graph/serialization/string_serializer.hpp"
+#include "intel_gpu/graph/serialization/activation_serializer.hpp"
 
 namespace cldnn {
 
@@ -50,6 +50,10 @@ enum class lstm_output_selection {
 /// Where f = Sigmoid, g = Tanh, and h = Tanh.
 struct lstm : public primitive_base<lstm> {
     CLDNN_DECLARE_PRIMITIVE(lstm)
+
+    lstm() : primitive_base("", {}) {}
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     /// @brief Constructs lstm layer.
     /// @param id This primitive id.
@@ -170,6 +174,38 @@ struct lstm : public primitive_base<lstm> {
         #undef cmp_fields
     }
 
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<lstm>::save(ob);
+        ob << weights;
+        ob << recurrent;
+        ob << bias;
+        ob << initial_hidden;
+        ob << initial_cell;
+        ob << peepholes;
+        ob << clip;
+        ob << input_forget;
+        ob << activations;
+        ob << activation_params;
+        ob << make_data(&output_selection, sizeof(lstm_output_selection));
+        ob << make_data(&offset_order, sizeof(lstm_weights_order));
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<lstm>::load(ib);
+        ib >> weights;
+        ib >> recurrent;
+        ib >> bias;
+        ib >> initial_hidden;
+        ib >> initial_cell;
+        ib >> peepholes;
+        ib >> clip;
+        ib >> input_forget;
+        ib >> activations;
+        ib >> activation_params;
+        ib >> make_data(&output_selection, sizeof(lstm_output_selection));
+        ib >> make_data(&offset_order, sizeof(lstm_weights_order));
+    }
+
 protected:
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
         std::vector<std::reference_wrapper<const primitive_id>> ret;
@@ -191,7 +227,8 @@ protected:
 struct lstm_gemm : public primitive_base<lstm_gemm> {
     CLDNN_DECLARE_PRIMITIVE(lstm_gemm)
 
-    lstm_gemm() : primitive_base("", {}) {}
+    lstm_gemm() : primitive_base("", {}),
+                  direction(0) {}
 
     DECLARE_OBJECT_TYPE_SERIALIZATION
 
@@ -280,7 +317,7 @@ protected:
 struct lstm_elt : public primitive_base<lstm_elt> {
     CLDNN_DECLARE_PRIMITIVE(lstm_elt)
 
-    lstm_elt() : primitive_base("", {}) {}
+    lstm_elt() : primitive_base("", {}), clip(0), input_forget(0), offset_order(lstm_weights_order::iofz), direction(0) {}
 
     DECLARE_OBJECT_TYPE_SERIALIZATION
 
@@ -373,6 +410,8 @@ struct lstm_elt : public primitive_base<lstm_elt> {
         ob << cell;
         ob << clip;
         ob << input_forget;
+        ob << activations;
+        ob << activation_params;
         ob << make_data(&offset_order, sizeof(lstm_weights_order));
         ob << direction;
     }
@@ -381,6 +420,8 @@ struct lstm_elt : public primitive_base<lstm_elt> {
         ib >> cell;
         ib >> clip;
         ib >> input_forget;
+        ib >> activations;
+        ib >> activation_params;
         ib >> make_data(&offset_order, sizeof(lstm_weights_order));
         ib >> direction;
     }

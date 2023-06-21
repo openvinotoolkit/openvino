@@ -160,9 +160,6 @@ void InferRequestBase::InferImpl() {
 
     if (graph->hasDynamicInput()) {
         redefineMemoryForInputNodes();
-    } else if (graph->getConfig().isNewApi && graph->getConfig().batchLimit > 0) {
-        const auto batch = _inputs.begin()->second->getTensorDesc().getDims()[0];
-        SetBatch(batch);
     }
 
     execDataPreprocessing(_inputs);
@@ -357,22 +354,6 @@ void LegacyInferRequest::initBlobs() {
     }
 }
 
-void LegacyInferRequest::SetBatch(int new_batch) {
-    if (!graph->getConfig().enableDynamicBatch)
-        IE_THROW() << "Dynamic batch is not enabled.";
-
-    if (new_batch < 1 || new_batch > graph->getConfig().batchLimit) {
-        IE_THROW() << "Invalid dynamic batch size " << new_batch <<
-            " for this request.";
-    }
-
-    m_curBatch = new_batch;
-
-    for (const auto& node : graph->GetNodes()) {
-        node->setDynamicBatchLim(new_batch);
-    }
-}
-
 void LegacyInferRequest::changeDefaultPtr() {
     // renew external pointers before infer
     const auto &inMap = graph->inputNodesMap;
@@ -454,7 +435,7 @@ void LegacyInferRequest::SetBlob(const std::string& name, const InferenceEngine:
 
             auto pBlobDesc = MemoryDescUtils::interpretAsBlobDesc(graph->getInputNodeByName(name)->getChildEdgesAtPort(0)[0]->getMemory());
             if (data->getTensorDesc() == pBlobDesc &&
-                graph->_normalizePreprocMap.find(name) == graph->_normalizePreprocMap.end() && !graph->getConfig().batchLimit) {
+                graph->_normalizePreprocMap.find(name) == graph->_normalizePreprocMap.end()) {
                 externalPtr[name] = data->buffer();
             } else if (externalPtr.find(name) != externalPtr.end()) {
                 externalPtr.erase(name);
@@ -487,8 +468,7 @@ void LegacyInferRequest::SetBlob(const std::string& name, const InferenceEngine:
         }
 
         auto pBlobDesc = MemoryDescUtils::interpretAsBlobDesc(graph->getOutputNodeByName(name)->getParentEdgesAtPort(0)[0]->getMemory());
-        if (data->getTensorDesc() == pBlobDesc &&
-                !graph->getConfig().batchLimit) {
+        if (data->getTensorDesc() == pBlobDesc) {
             externalPtr[name] = data->buffer();
         } else if (externalPtr.find(name) != externalPtr.end()) {
             externalPtr.erase(name);
@@ -533,7 +513,7 @@ InferenceEngine::Blob::Ptr LegacyInferRequest::GetBlob(const std::string& name) 
             _inputs[name] = make_blob_with_precision(desc);
             _inputs[name]->allocate();
             if (pBlob->getTensorDesc() == desc &&
-                graph->_normalizePreprocMap.find(name) == graph->_normalizePreprocMap.end() && !graph->getConfig().batchLimit) {
+                graph->_normalizePreprocMap.find(name) == graph->_normalizePreprocMap.end()) {
                 externalPtr[name] = _inputs[name]->buffer();
             }
         }
@@ -595,7 +575,7 @@ InferenceEngine::Blob::Ptr LegacyInferRequest::GetBlob(const std::string& name) 
             }
 
             _outputs[name] = data;
-            if (!externalPtr.count(name) && data->getTensorDesc() == pBlobDesc && !graph->getConfig().batchLimit) {
+            if (!externalPtr.count(name) && data->getTensorDesc() == pBlobDesc) {
                 externalPtr[name] = data->buffer();
             }
         }
@@ -647,22 +627,6 @@ void InferRequest::initBlobs() {
     }
     for (const auto& it : modelOutputsMap) {
         InferRequest::GetBlob(it.first);
-    }
-}
-
-void InferRequest::SetBatch(int new_batch) {
-    if (!graph->getConfig().batchLimit || modelInputsMap.begin()->second->get_output_partial_shape(0).is_static()) {
-        IE_THROW() << "Can't set batch for model that can't be executed via legacy dynamic batch or for static model";
-    }
-
-    if (new_batch < 1 || new_batch > graph->getConfig().batchLimit) {
-        IE_THROW() << "Can't set batch that is bigger than upper bound";
-    }
-
-    m_curBatch = new_batch;
-
-    for (const auto& node : graph->GetNodes()) {
-        node->setDynamicBatchLim(new_batch);
     }
 }
 
@@ -728,7 +692,7 @@ void InferRequest::SetBlob(const std::string& name, const InferenceEngine::Blob:
                                                                                                                 blobDesc.getDims());
         }
         if (actualDesc->isCompatible(MemoryDescUtils::convertToCpuBlockedMemoryDesc(blobDesc)) &&
-                graph->_normalizePreprocMap.find(name) == graph->_normalizePreprocMap.end() && !graph->getConfig().batchLimit) {
+                graph->_normalizePreprocMap.find(name) == graph->_normalizePreprocMap.end()) {
             externalPtr[name] = data->buffer();
         } else if (externalPtr.find(name) != externalPtr.end()) {
             externalPtr.erase(name);
@@ -760,7 +724,7 @@ void InferRequest::SetBlob(const std::string& name, const InferenceEngine::Blob:
         }
 
         const auto &desc = graph->getOutputNodeByName(name)->getParentEdgesAtPort(0)[0]->getMemory().getDesc();
-        if (!isDynamic && blobDesc == MemoryDescUtils::convertToTensorDesc(desc) && !graph->getConfig().batchLimit) {
+        if (!isDynamic && blobDesc == MemoryDescUtils::convertToTensorDesc(desc)) {
             externalPtr[name] = data->buffer();
         } else if (externalPtr.find(name) != externalPtr.end()) {
             externalPtr.erase(name);
@@ -808,7 +772,7 @@ InferenceEngine::Blob::Ptr InferRequest::GetBlob(const std::string& name) {
 
                 if (!isDynamic &&
                     desc == MemoryDescUtils::convertToTensorDesc(graph->getInputNodeByName(name)->getChildEdgesAtPort(0)[0]->getMemory().getDesc()) &&
-                        graph->_normalizePreprocMap.find(name) == graph->_normalizePreprocMap.end() && !graph->getConfig().batchLimit) {
+                        graph->_normalizePreprocMap.find(name) == graph->_normalizePreprocMap.end()) {
                     externalPtr[name] = _inputs[name]->buffer();
                 }
             } else {
@@ -846,8 +810,11 @@ InferenceEngine::Blob::Ptr InferRequest::GetBlob(const std::string& name) {
                     // but in dynamic shape case we also need to handle following corner case:
                     // on blob initialization stage we create empty blob with dimensions equal 0
                     // so if we have blob with all zero dimension we mustn't throw exception
-                    if (!shape.compatible(ov::PartialShape(blobDims)) && (!isDynamic || blobDims.size() != shape.rank().get_length() ||
-                            std::any_of(blobDims.begin(), blobDims.end(), [](const size_t& dims) { return dims != 0; } ))) {
+                    if (!shape.compatible(ov::PartialShape(blobDims)) &&
+                        (!isDynamic || static_cast<int64_t>(blobDims.size()) != shape.rank().get_length() ||
+                         std::any_of(blobDims.begin(), blobDims.end(), [](const size_t& dims) {
+                             return dims != 0;
+                         }))) {
                         IE_THROW(ParameterMismatch) << "Network input and output use the same name: " << name
                                                     << ", but expect blobs with different shapes. Input shape: "
                                                     << ov::PartialShape(blobDims) << ", output shape: " << shape;
@@ -864,8 +831,7 @@ InferenceEngine::Blob::Ptr InferRequest::GetBlob(const std::string& name) {
 
                 _outputs[name] = data;
                 if (!isDynamic && !externalPtr.count(name) &&
-                    data->getTensorDesc() == MemoryDescUtils::convertToTensorDesc(output->second->getParentEdgesAtPort(0)[0]->getMemory().getDesc()) &&
-                        !graph->getConfig().batchLimit) {
+                    data->getTensorDesc() == MemoryDescUtils::convertToTensorDesc(output->second->getParentEdgesAtPort(0)[0]->getMemory().getDesc())) {
                     externalPtr[name] = data->buffer();
                 }
             } else {

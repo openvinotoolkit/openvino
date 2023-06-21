@@ -64,9 +64,9 @@ ov::Any Attribute::get_any() const {
     case Type::tensor:
     case Type::graph:
     case Type::sparse_tensor:
-        throw ov::Exception(get_name() + " attribute is not supported.");
+        OPENVINO_THROW(get_name(), " attribute is not supported.");
     default:
-        throw ov::Exception("Unknown type of attribute " + get_name());
+        OPENVINO_THROW("Unknown type of attribute ", get_name());
     }
 }
 

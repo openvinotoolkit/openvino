@@ -15,6 +15,7 @@
 #include <vector>
 
 #include "openvino/core/core_visibility.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/op/parameter.hpp"
@@ -238,8 +239,9 @@ std::vector<std::shared_ptr<Node>> topological_sort(T root_nodes) {
                 // Node may be at the top of `nodes_to_do` not more than twice before it's added to `nodes_done` -
                 // when visited and placed in `nodes_to_do` and after the subtree traversal is finished.
                 // Otherwise it's a loop.
-                throw Exception("Loop detected during topological sort starting from '" + node->get_friendly_name() +
-                                "' node.");
+                OPENVINO_THROW("Loop detected during topological sort starting from '",
+                               node->get_friendly_name(),
+                               "' node.");
 
             size_t arg_count = node->get_input_size();
             for (size_t i = 0; i < arg_count; ++i) {

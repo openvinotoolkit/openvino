@@ -124,7 +124,7 @@ std::shared_ptr<ngraph::Function> dump_graph_as_ie_ngraph_net(const Graph &graph
         auto pr_edges = node->getParentEdges();
         ngraph::OutputVector inputs(pr_edges.size());
 
-        for (int i = 0; i < pr_edges.size(); i++) {
+        for (size_t i = 0; i < pr_edges.size(); i++) {
             auto edge = node->getParentEdgeAt(i);
             int pr_port = edge->getInputNum();
             int ch_port = edge->getOutputNum();
@@ -256,9 +256,12 @@ void serializeToCout(const Graph &graph) {
 }
 
 void summary_perf(const Graph &graph) {
+    if (!graph.getGraphContext()) {
+        return;
+    }
     const std::string& summaryPerf = graph.getConfig().debugCaps.summaryPerf;
 
-    if (summaryPerf.empty())
+    if (summaryPerf.empty() || !std::stoi(summaryPerf))
         return;
 
     std::map<std::string, double> perf_by_type;
@@ -295,17 +298,17 @@ void summary_perf(const Graph &graph) {
         std::vector<std::pair<std::string, double> > A;
         for (auto& it : perf_by_type)
             A.push_back(it);
-            sort(A.begin(), A.end(),
-                [](std::pair<std::string, double>& a,
-                   std::pair<std::string, double>& b){
-                return a.second > b.second;
-            });
+        sort(A.begin(), A.end(),
+             [](std::pair<std::string, double>& a,
+                std::pair<std::string, double>& b){
+                 return a.second > b.second;
+             });
 
         for (auto& it : A) {
             std::stringstream ss;
             int percentage = static_cast<int>(it.second*100/total_avg);
             if (percentage == 0) break;
-            ss << std::setw(10) << std::right << percentage << " % :" << it.first << std::endl;
+            ss << std::setw(10) << std::right << percentage << " % :  " << std::setw(8) << std::right << it.second << "(us)  " << it.first << std::endl;
             std::cout << ss.str();
         }
     }

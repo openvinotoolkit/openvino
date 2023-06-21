@@ -7,6 +7,7 @@
 #include <map>
 #include <ostream>
 
+#include "openvino/core/except.hpp"
 #include "intel_gpu/primitives/primitive.hpp"
 #include "intel_gpu/runtime/tensor.hpp"
 
@@ -63,7 +64,7 @@ inline std::istream& operator>>(std::istream& is, impl_types& impl_type) {
     } else if (str == "any") {
         impl_type = impl_types::any;
     } else {
-        throw ov::Exception{"Unsupported impl type: " + str};
+        OPENVINO_THROW("Unsupported impl type: ", str);
     }
     return is;
 }

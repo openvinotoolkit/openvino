@@ -35,7 +35,7 @@ void FuseMultiplyToFakeQuantizeTransformation::SetUp() {
         testValues.actual.fakeQuantizeOnData,
         testValues.actual.dequantization);
 
-    ov::pass::InitNodeInfo().run_on_function(function);
+    ov::pass::InitNodeInfo().run_on_model(function);
 }
 
 TEST_P(FuseMultiplyToFakeQuantizeTransformation, CompareWithRefImpl) {

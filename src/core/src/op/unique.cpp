@@ -84,7 +84,7 @@ std::tuple<Shape, Shape, Shape> calculate_static_output_shapes(const Tensor& inp
         unique_elements = call_unique<double>(input_data, std::move(axis), op.get_sorted());
         break;
     default:
-        OPENVINO_UNREACHABLE("Operator `Unique-10` doesn't support element type: ", op.get_input_element_type(0));
+        OPENVINO_THROW("Operator `Unique-10` doesn't support element type: ", op.get_input_element_type(0));
     }
 
     return ngraph::runtime::reference::make_tensor_shapes(unique_elements,
@@ -179,7 +179,9 @@ void op::v10::Unique::validate_and_infer_types() {
                 extract_axis(std::dynamic_pointer_cast<op::v0::Constant>(input_value(1).get_node_shared_ptr()));
 
             if (input_shape.rank().is_static()) {
+                OPENVINO_SUPPRESS_DEPRECATED_START
                 const auto normalized_axis = ngraph::normalize_axis(this, axis, input_shape.rank());
+                OPENVINO_SUPPRESS_DEPRECATED_END
                 const auto dim_at_axis = input_shape[normalized_axis];
 
                 Dimension output_dim_at_axis;

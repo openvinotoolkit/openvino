@@ -4,6 +4,7 @@
 
 #include "common_op_table.hpp"
 #include "openvino/opsets/opset8.hpp"
+#include "utils.hpp"
 
 using namespace std;
 using namespace ov::opset8;
@@ -26,18 +27,10 @@ OutputVector translate_broadcast_args_op(const NodeContext& node) {
 
     // pad the shortest shape value with minus ones
     // to take dynamic shapes into account
-    auto padded_s0 =
-        make_shared<Pad>(s0,
-                         diff1,
-                         make_shared<Constant>(diff1->get_element_type(), Shape{1}, std::vector<int64_t>{0}),
-                         make_shared<Constant>(s0.get_element_type(), Shape{}, std::vector<int64_t>{-1}),
-                         ov::op::PadMode::CONSTANT);
-    auto padded_s1 =
-        make_shared<Pad>(s1,
-                         diff2,
-                         make_shared<Constant>(diff2->get_element_type(), Shape{1}, std::vector<int64_t>{0}),
-                         make_shared<Constant>(s1.get_element_type(), Shape{}, std::vector<int64_t>{-1}),
-                         ov::op::PadMode::CONSTANT);
+    auto const_zero = create_same_type_const<int64_t>(diff1, std::vector<int64_t>{0}, Shape{1});
+    auto const_minus_one = create_same_type_const_scalar<int64_t>(s0, -1);
+    auto padded_s0 = make_shared<Pad>(s0, diff1, const_zero, const_minus_one, ov::op::PadMode::CONSTANT);
+    auto padded_s1 = make_shared<Pad>(s1, diff2, const_zero, const_minus_one, ov::op::PadMode::CONSTANT);
 
     auto broadcasted_shape = make_shared<Maximum>(padded_s0, padded_s1);
     set_node_name(node.get_name(), broadcasted_shape);

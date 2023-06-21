@@ -8,8 +8,14 @@
 
 namespace SubgraphTestsDefinitions {
 
+using PermuteConcatPermuteNeg = PermuteConcatPermute;
+
 TEST_P(PermuteConcatPermute, CompareWithRefs) {
     Run();
+}
+
+TEST_P(PermuteConcatPermuteNeg, CompareWithRefs) {
+    ExpectLoadNetworkToThrow("type: Concat, and concatenation axis(");
 }
 
 }  // namespace SubgraphTestsDefinitions

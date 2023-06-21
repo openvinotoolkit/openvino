@@ -295,7 +295,9 @@ ngraph::Output<ngraph::Node> reshape_input_for_matmul(const ngraph::Output<ngrap
     // if new shape is possible to compute on the shape infer stage, insert Constant node immediatelly
     // in order to prevent repeated computing during constant-folding pass
     std::shared_ptr<ov::opset7::Reshape> reshaped_input_op;
+    OPENVINO_SUPPRESS_DEPRECATED_START
     if (auto new_shape_const = ngraph::get_constant_from_source(new_shape_op)) {
+        OPENVINO_SUPPRESS_DEPRECATED_END
         reshaped_input_op = std::make_shared<ov::opset7::Reshape>(input_node, new_shape_const, false);
         subgraph_nodes.insert(subgraph_nodes.end(), {new_shape_const});
     } else {
@@ -660,7 +662,9 @@ void contract_two_inputs(ov::pass::EinsumDecomposition* einsum_decompose_ptr,
         // if new shape is possible to compute on the shape infer stage, insert Constant node immediatelly
         // in order to prevent repeated computing during constant-folding pass
         std::shared_ptr<ov::opset7::Reshape> result_op;
+        OPENVINO_SUPPRESS_DEPRECATED_START
         if (auto new_shape_const = ngraph::get_constant_from_source(result_shape_op)) {
+            OPENVINO_SUPPRESS_DEPRECATED_END
             result_op = std::make_shared<ov::opset7::Reshape>(matmul->output(0), new_shape_const, false);
             subgraph_nodes.insert(subgraph_nodes.end(), {new_shape_const});
         } else {

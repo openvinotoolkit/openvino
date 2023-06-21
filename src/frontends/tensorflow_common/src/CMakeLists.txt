@@ -27,3 +27,10 @@ target_include_directories(${TARGET_NAME}
 
 add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 ov_install_static_lib(${TARGET_NAME} ${OV_CPACK_COMP_CORE})
+
+ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}
+                    SOURCE_DIRECTORIES "${root_dir}/include"
+                                       "${root_dir}/src"
+                    ADDITIONAL_INCLUDE_DIRECTORIES
+                        $<TARGET_PROPERTY:${TARGET_NAME},INTERFACE_INCLUDE_DIRECTORIES>
+                        $<TARGET_PROPERTY:${TARGET_NAME},INCLUDE_DIRECTORIES>)
