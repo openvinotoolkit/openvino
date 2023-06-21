@@ -37,21 +37,21 @@
 
       The `/opt/intel` path is the recommended folder path for administrators or root users. If you prefer to install OpenVINO in regular userspace, the recommended path is `/home/<USER>/intel`. You may use a different path if desired.
 
-3. Go to your `~/Downloads` directory and download OpenVINO Runtime archive file for Debian from `OpenVINO package repository <https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.3/linux/>`_.
+3. Go to your `~/Downloads` directory and download OpenVINO Runtime archive file for Debian from the `OpenVINO package repository <https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.3.1/linux/>`_.
 
    .. tab:: ARM 32-bit
 
       .. code-block:: sh
 
          cd ~/Downloads/
-         sudo wget https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.3/linux/l_openvino_toolkit_debian9_2022.3.0.9052.9752fafe8eb_armhf.tgz -O openvino_2022.3.0.tgz
+         sudo wget https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.3.1/linux/l_openvino_toolkit_debian9_2022.3.1.9227.cf2c7da5689_armhf.tgz -O openvino_2022.3.1.tgz
 
    .. tab:: ARM 64-bit
 
       .. code-block:: sh
 
          cd ~/Downloads/
-         sudo wget https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.3/linux/l_openvino_toolkit_debian9_2022.3.0.9052.9752fafe8eb_arm64.tgz -O openvino_2022.3.0.tgz
+         sudo wget https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.3.1/linux/l_openvino_toolkit_debian9_2022.3.1.9227.cf2c7da5689_arm64.tgz -O openvino_2022.3.1.tgz
 
 4. Extract the archive file and move it to the installation folder:
 
@@ -59,15 +59,15 @@
 
       .. code-block:: sh
 
-         sudo tar -xf openvino_2022.3.0.tgz
-         sudo mv l_openvino_toolkit_debian9_2022.3.0.9052.9752fafe8eb_armhf /opt/intel/openvino_2022.3.0
+         sudo tar -xf openvino_2022.3.1.tgz
+         sudo mv l_openvino_toolkit_debian9_2022.3.1.9227.cf2c7da5689_armhf /opt/intel/openvino_2022.3.1
 
    .. tab:: ARM 64-bit
 
       .. code-block:: sh
 
          sudo tar -xf openvino_2022.3.0.tgz
-         sudo mv l_openvino_toolkit_debian9_2022.3.0.9052.9752fafe8eb_arm64 /opt/intel/openvino_2022.3.0
+         sudo mv l_openvino_toolkit_debian9_2022.3.1.9227.cf2c7da5689_arm64 /opt/intel/openvino_2022.3.1
 
 5. Install required system dependencies on Linux. To do this, OpenVINO provides a script in the extracted installation directory. Run the following command:
 
@@ -79,7 +79,7 @@
 
    .. code-block:: sh
 
-      sudo ln -s openvino_2022.3.0 openvino_2022
+      sudo ln -s openvino_2022.3.1 openvino_2022
 
    .. note::
 

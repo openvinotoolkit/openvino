@@ -6,19 +6,19 @@ Installing OpenVINO Runtime from archive files is recommended for C++ developers
 
 See the [Release Notes](https://www.intel.com/content/www/us/en/developer/articles/release-notes/openvino-2022-3-lts-relnotes.html) for more information on updates in the latest release.
 
-> **NOTE**: Since the OpenVINO™ 2022.1 release, the following development tools: Model Optimizer, Post-Training Optimization Tool, Model Downloader and other Open Model Zoo tools, Accuracy Checker, and Annotation Converter can be installed via [pypi.org](https://pypi.org/project/openvino-dev/) only.
+> **NOTE**: Since the OpenVINO™ 2022.1 release, the following development tools: Model Optimizer, Post-Training Optimization Tool, Model Downloader and other Open Model Zoo tools, Accuracy Checker, and Annotation Converter can be installed via [pypi.org](https://pypi.org/project/openvino-dev/2022.3.1/) only.
 
 @sphinxdirective
 
 .. tab:: System Requirements
 
    | Full requirement listing is available in:
-   | `System Requirements Page <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html>`_
+   | `System Requirements Page <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html>`__
 
 .. tab:: Software Requirements
 
-  * `CMake 3.13 or higher <https://cmake.org/download/>`_ (choose "macOS 10.13 or later"). Add `/Applications/CMake.app/Contents/bin` to path (for default install).
-  * `Python 3.7 - 3.10 <https://www.python.org/downloads/mac-osx/>`_ (choose 3.7 - 3.10). Install and add to path.
+  * `CMake 3.13 or higher <https://cmake.org/download/>`__ (choose "macOS 10.13 or later"). Add `/Applications/CMake.app/Contents/bin` to path (for default install).
+  * `Python 3.7 - 3.10 <https://www.python.org/downloads/mac-osx/>`__ (choose 3.7 - 3.10). Install and add to path.
   * Apple Xcode Command Line Tools. In the terminal, run `xcode-select --install` from any directory
   * (Optional) Apple Xcode IDE (not required for OpenVINO™, but useful for development)
 
@@ -47,29 +47,29 @@ See the [Release Notes](https://www.intel.com/content/www/us/en/developer/articl
 
       cd <user_home>/Downloads
 
-4. Download the `OpenVINO Runtime archive file for macOS <https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.3/macos/>`_, extract the files, rename the extracted folder and move it to the desired path:
+4. Download the `OpenVINO Runtime archive file for macOS <https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.3/macos/>`__, extract the files, rename the extracted folder and move it to the desired path:
 
    .. tab:: x86, 64-bit
 
       .. code-block:: sh
 
-         curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.3/macos/m_openvino_toolkit_macos_10_15_2022.3.0.9052.9752fafe8eb_x86_64.tgz --output openvino_2022.3.0.tgz
-         tar -xf openvino_2022.3.0.tgz
-         sudo mv m_openvino_toolkit_macos_10_15_2022.3.0.9052.9752fafe8eb_x86_64 /opt/intel/openvino_2022.3.0
+         curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.3.1/macos/m_openvino_toolkit_macos_10_15_2022.3.1.9227.cf2c7da5689_x86_64.tgz --output openvino_2022.3.1.tgz
+         tar -xf openvino_2022.3.1.tgz
+         sudo mv m_openvino_toolkit_macos_10_15_2022.3.1.9227.cf2c7da5689_x86_64 /opt/intel/openvino_2022.3.1
 
    .. tab:: ARM, 64-bit
 
       .. code-block:: sh
 
-         curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.3/macos/m_openvino_toolkit_macos_11_0_2022.3.0.9052.9752fafe8eb_arm64.tgz --output openvino_2022.3.0.tgz
-         tar -xf openvino_2022.3.0.tgz
-         sudo mv m_openvino_toolkit_macos_11_0_2022.3.0.9052.9752fafe8eb_arm64 /opt/intel/openvino_2022.3.0
+         curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.3.1/macos/m_openvino_toolkit_macos_11_0_2022.3.1.9227.cf2c7da5689_arm64.tgz --output openvino_2022.3.1.tgz
+         tar -xf openvino_2022.3.1.tgz
+         sudo mv m_openvino_toolkit_macos_11_0_2022.3.1.9227.cf2c7da5689_arm64 /opt/intel/openvino_2022.3.1
 
 5. For simplicity, it is useful to create a symbolic link as below:
 
    .. code-block:: sh
 
-      sudo ln -s openvino_2022.3.0 openvino_2022
+      sudo ln -s openvino_2022.3.1 openvino_2022
 
    .. note::
 
@@ -122,21 +122,21 @@ Now that you've installed OpenVINO Runtime, you're ready to run your own machine
 
    Visit the :ref:`Tutorials <notebook tutorials>` page for more Jupyter Notebooks to get you started with OpenVINO, such as:
 
-   * `OpenVINO Python API Tutorial <https://docs.openvino.ai/2022.3/notebooks/002-openvino-api-with-output.html>`_
-   * `Basic image classification program with Hello Image Classification <https://docs.openvino.ai/2022.3/notebooks/001-hello-world-with-output.html>`_
-   * `Convert a PyTorch model and use it for image background removal <https://docs.openvino.ai/2022.3/notebooks/205-vision-background-removal-with-output.html>`_
+   * `OpenVINO Python API Tutorial <https://docs.openvino.ai/2022.3/notebooks/002-openvino-api-with-output.html>`__
+   * `Basic image classification program with Hello Image Classification <https://docs.openvino.ai/2022.3/notebooks/001-hello-world-with-output.html>`__
+   * `Convert a PyTorch model and use it for image background removal <https://docs.openvino.ai/2022.3/notebooks/205-vision-background-removal-with-output.html>`__
 
 .. tab:: Get started with C++
 
-   Try the `C++ Quick Start Example <openvino_docs_get_started_get_started_demos.html>`_ for step-by-step instructions on building and running a basic image classification C++ application.
+   Try the `C++ Quick Start Example <openvino_docs_get_started_get_started_demos.html>`__ for step-by-step instructions on building and running a basic image classification C++ application.
 
    .. image:: https://user-images.githubusercontent.com/36741649/127170593-86976dc3-e5e4-40be-b0a6-206379cd7df5.jpg
       :width: 400
 
    Visit the :ref:`Samples <code samples>` page for other C++ example applications to get you started with OpenVINO, such as:
 
-   * `Basic object detection with the Hello Reshape SSD C++ sample <openvino_inference_engine_samples_hello_reshape_ssd_README.html>`_
-   * `Automatic speech recognition C++ sample <openvino_inference_engine_samples_speech_sample_README.html>`_
+   * `Basic object detection with the Hello Reshape SSD C++ sample <openvino_inference_engine_samples_hello_reshape_ssd_README.html>`__
+   * `Automatic speech recognition C++ sample <openvino_inference_engine_samples_speech_sample_README.html>`__
 
 @endsphinxdirective
 
