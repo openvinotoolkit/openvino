@@ -413,7 +413,7 @@ void prepare_buffer_fusing::run(program& p) {
             return true;
         }
 
-        if (is_dynamic || node->is_output() || node->has_fused_primitives()) {
+        if (is_dynamic || node->is_output() || node->has_fused_primitives() || node->is_in_shape_of_subgraph()) {
             return false;
         }
         return true;
