@@ -556,7 +556,7 @@ void Convolution::getSupportedDescriptors() {
 
 #if defined(OPENVINO_ARCH_X86_64)
     // nspc shows better performance only with brgconv implementation
-    bool nspcFirst = isBrgConvAvailable && one_of(inputDataType, memory::data_type::bf16, memory::data_type::f32);
+    bool nspcFirst = isBrgConvAvailable && one_of(inputDataType, memory::data_type::f16, memory::data_type::bf16, memory::data_type::f32);
     bool nspcAdded = false;
     if (nspcFirst) {
         in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(inputShape, inputDataType, nspc);
