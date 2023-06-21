@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/common_optimizations/align_mixed_fp32_fp16_types.hpp"
+#include "transformations/fp16_compression/align_mixed_fp32_fp16_types.hpp"
 
 #include "itt.hpp"
 #include "openvino/core/rt_info.hpp"
