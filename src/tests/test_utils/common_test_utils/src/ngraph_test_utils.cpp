@@ -56,7 +56,6 @@ void TransformationTestsF::SetUp() {
 void TransformationTestsF::TearDown() {
     OPENVINO_ASSERT(function != nullptr, "Test Model is not initialized.");
 
-    ov::pass::Serialize("func_ref.xml", "func_ref.bin").run_on_model(function_ref);
     std::shared_ptr<ov::Model> cloned_function;
     auto acc_enabled = comparator.should_compare(FunctionsComparator::ACCURACY);
     if (!function_ref) {
@@ -67,9 +66,6 @@ void TransformationTestsF::TearDown() {
     }
     manager.register_pass<ov::pass::CheckUniqueNames>(m_unh, m_soft_names_comparison, m_result_friendly_names_check);
     manager.run_passes(function);
-
-    ov::pass::Serialize("func.xml", "func.bin").run_on_model(function);
-    ov::pass::Serialize("func_ref.xml", "func_ref.bin").run_on_model(function_ref);
 
     if (!m_disable_rt_info_check) {
         ASSERT_NO_THROW(check_rt_info(function));
