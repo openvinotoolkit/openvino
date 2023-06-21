@@ -117,7 +117,6 @@ bool InsertLoops::run(LinearIR& linear_ir) {
         const auto expr = *expr_it;
         const auto& node = expr->get_node();
         if (ov::is_type<op::LoopBase>(node) ||
-            ov::is_type<op::Buffer>(node) ||     // Need to cover Buffer
             ov::is_type<ov::op::v0::Parameter>(node) ||
             ov::is_type<ov::op::v0::Result>(node))
             continue;

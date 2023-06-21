@@ -44,7 +44,7 @@ public:
                  const std::vector<LoopPort>& entries,
                  const std::vector<LoopPort>& exits)
             : work_amount(work_amount), increment(increment), dim_idx(dim_idx),
-              entry_points(entries), exit_points(exits) {}
+              entry_points(entries), exit_points(exits), outer_splited_loop(false) {}
         LoopInfo(size_t work_amount, size_t increment, size_t dim_idx,
                  const std::vector<ExpressionPort>& entries,
                  const std::vector<ExpressionPort>& exits);
@@ -58,6 +58,8 @@ public:
         // Note: Scalars aren't entry expressions but can be before first entry expr in Linear IR
         std::vector<LoopPort> entry_points = {};
         std::vector<LoopPort> exit_points = {};
+        // True if this Loop is outer Loop for nested Loops that splits the same dimension
+        bool outer_splited_loop = false;
     };
     using LoopInfoPtr = std::shared_ptr<LoopInfo>;
 

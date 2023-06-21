@@ -29,14 +29,6 @@ std::shared_ptr<op::LoopEnd> InsertTailLoop::create_tail_loop(LinearIR& linear_i
     // finalization offsets which are supported by LoopEnd.
     if (need_vector_loop) {
         auto vector_loop_deep_copy = LinearIR::deep_copy_range(vector_begin, vector_end);
-        auto is_par_or_res = [](const ExpressionPtr& expr) {
-            return is_type<ov::op::v0::Parameter>(expr->get_node()) ||
-                   is_type<ov::op::v0::Result>(expr->get_node());
-        };
-        // Note: It's illegal to insert Parameter or Result to the IR, but they can appear inside vector loop
-        //  So we have to remo them before injecting tail loop into linear_ir
-        auto to_erase = std::remove_if(vector_loop_deep_copy.begin(), vector_loop_deep_copy.end(), is_par_or_res);
-        vector_loop_deep_copy.erase(to_erase, vector_loop_deep_copy.end());
         tail_begin = linear_ir.insert(vector_end, vector_loop_deep_copy.begin(), vector_loop_deep_copy.end());
         tail_end = vector_end;
     } else {
@@ -44,30 +36,35 @@ std::shared_ptr<op::LoopEnd> InsertTailLoop::create_tail_loop(LinearIR& linear_i
         tail_end = vector_end;
     }
 
+    // We have to check the loop body for any nested loops that work on the same dimension
+    // and rescale their work_amount and increment accordingly
     const auto& loop_manager = linear_ir.get_loop_manager();
-    const auto current_dim_idx = loop_manager->get_loop_info(vector_loop_end->get_id())->dim_idx;
-    for (auto it = std::next(tail_begin); it != std::prev(tail_end); ++it) {
-        const auto& expr = *it;
-        const auto inner_loop_end = ov::as_type_ptr<op::LoopEnd>(expr->get_node());
-        if (!inner_loop_end)
-            continue;
-        const auto loop_info = loop_manager->get_loop_info(inner_loop_end->get_id());
-        if (loop_info->dim_idx != current_dim_idx)
-            continue;
-        const auto inner_loop_begin = inner_loop_end->get_loop_begin();
-        const auto inner_tail_work_amount = static_cast<int64_t>(inner_loop_end->get_work_amount());
-        const auto inner_tail_increment = inner_loop_end->get_increment();
-        auto inner_finalization_offsets = inner_loop_end->get_finalization_offsets();
-        for (auto& offset : inner_finalization_offsets) {
-            offset = offset / inner_tail_work_amount * static_cast<int64_t>(tail_size);
+    const auto& current_loop_Info = loop_manager->get_loop_info(vector_loop_end->get_id());
+    if (current_loop_Info->outer_splited_loop) {
+        const auto current_dim_idx = current_loop_Info->dim_idx;
+        for (auto it = std::next(tail_begin); it != std::prev(tail_end); ++it) {
+            const auto& expr = *it;
+            const auto inner_loop_end = ov::as_type_ptr<op::LoopEnd>(expr->get_node());
+            if (!inner_loop_end)
+                continue;
+            const auto loop_info = loop_manager->get_loop_info(inner_loop_end->get_id());
+            if (loop_info->dim_idx != current_dim_idx)
+                continue;
+            const auto inner_loop_begin = inner_loop_end->get_loop_begin();
+            const auto inner_tail_work_amount = static_cast<int64_t>(inner_loop_end->get_work_amount());
+            const auto inner_tail_increment = inner_loop_end->get_increment();
+            auto inner_finalization_offsets = inner_loop_end->get_finalization_offsets();
+            for (auto& offset : inner_finalization_offsets) {
+                offset = offset / inner_tail_work_amount * static_cast<int64_t>(tail_size);
+            }
+            inner_loop_end->set_work_amount(tail_size);
+            inner_loop_end->set_increment(std::min(inner_tail_increment, tail_size));
+            inner_loop_end->set_finalization_offsets(inner_finalization_offsets);
+            const auto inner_loop_begin_it = std::find(tail_begin, it, linear_ir.get_expr_by_node(inner_loop_begin));
+            const auto inner_loop_end_it = std::next(tail_end);
+            OPENVINO_ASSERT(inner_loop_begin_it != it, "LoopBegin has not been found!");
+            tail_transformations(linear_ir, inner_loop_begin_it, inner_loop_end_it, tail_size);
         }
-        inner_loop_end->set_work_amount(tail_size);
-        inner_loop_end->set_increment(std::min(inner_tail_increment, tail_size));
-        inner_loop_end->set_finalization_offsets(inner_finalization_offsets);
-        const auto inner_loop_begin_it = std::find(tail_begin, it, linear_ir.get_expr_by_node(inner_loop_begin));
-        const auto inner_loop_end_it = std::next(tail_end);
-        OPENVINO_ASSERT(inner_loop_begin_it != it, "LoopBegin has not been found!");
-        tail_transformations(linear_ir, inner_loop_begin_it, inner_loop_end_it, tail_size);
     }
 
     tail_transformations(linear_ir, tail_begin, tail_end, tail_size);

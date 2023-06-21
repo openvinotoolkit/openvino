@@ -18,7 +18,7 @@ namespace lowered {
 
 LinearIR::LoopManager::LoopInfo::LoopInfo(size_t work_amount, size_t increment, size_t dim_idx,
                                           const std::vector<ExpressionPort>& entries, const std::vector<ExpressionPort>& exits)
-    : work_amount(work_amount), increment(increment), dim_idx(dim_idx) {
+    : work_amount(work_amount), increment(increment), dim_idx(dim_idx), outer_splited_loop(false) {
     entry_points.reserve(entries.size());
     exit_points.reserve(exits.size());
     for (const auto& port : entries)
@@ -389,37 +389,6 @@ void LinearIR::LoopManager::sort_loop_ports(LinearIR::constExprIt& loop_begin_po
     }
     loop_info->entry_points = entries;
     loop_info->exit_points = exits;
-}
-
-void LinearIR::LoopManager::update_loop_port(size_t loop_id,
-                                             const ExpressionPort& actual_port, const std::vector<ExpressionPort>& target_ports, bool is_entry) {
-    const auto& loop_info = get_loop_info(loop_id);
-    auto& ports = is_entry ? loop_info->entry_points : loop_info->exit_points;
-    auto port_it = std::find_if(ports.begin(), ports.end(),
-                                [&actual_port](const LoopPort& point) { return *point.expr_port.get() == actual_port; });
-    // In some cases actual ExpressionPort may not be LoopPort. We shouldn't throw exception here since ExpressionPort is not strong condition as LoopPort
-    // For example, not all inner loop ports are ports of outer loops
-    if (port_it == ports.end())
-        return;
-
-    // make a copy to save other parameters except expression port
-    std::vector<LoopPort> target_loop_ports(target_ports.size(), *port_it);
-    for (size_t i = 0; i < target_ports.size(); ++i) {
-        target_loop_ports[i].expr_port = std::make_shared<ExpressionPort>(target_ports[i]);
-    }
-    port_it = ports.erase(port_it);
-    ports.insert(port_it, target_ports.cbegin(), target_ports.cend());
-}
-
-void LinearIR::LoopManager::update_loop_port(size_t loop_id,
-                                             const LoopPort& actual_port, const std::vector<LoopPort>& target_ports, bool is_entry) {
-    const auto& loop_info = get_loop_info(loop_id);
-    auto& ports = is_entry ? loop_info->entry_points : loop_info->exit_points;
-    auto port_it = std::find_if(ports.begin(), ports.end(),
-                                [&actual_port](const LoopPort& point) { return point == actual_port; });
-    OPENVINO_ASSERT(port_it != ports.end(), "Failed update_loop_port: existing loop ports has not been found");
-    port_it = ports.erase(port_it);
-    ports.insert(port_it, target_ports.cbegin(), target_ports.cend());
 }
 
 void LinearIR::LoopManager::insert_loop_id(const ExpressionPtr& expr, size_t new_id, bool before, size_t target_id) {

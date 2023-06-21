@@ -47,17 +47,15 @@ bool CleanupLoopOffsets::run(LinearIR& linear_ir) {
                         const auto& managed_connector = outer_loop_inputs[i];
                         const auto& found = per_port_connector_offset.find(managed_connector);
                         if (found != per_port_connector_offset.end()) {
-                            if (fin_offsets[found->second] % outer_increment != 0)
-                                continue;
                             // Since data ptr is incremented on [ptr_increment x increment],
                             // we should guarantee proportionality of ptr shifts
                             // For example,
                             // Inner Loop: WA = 32, Inc = 1, ptr_increment[0] = 20, final_offset[0] = -640
                             // Outer Loop: WA = 70, Inc = 32, ptr_increment[0] = 20, final_offset[0] = -1400
                             // To save data ptr shift proportionality, we have to calculate so:
-                            //    outer_ptr_increment[0] = 20 + (-640 / 32) = 20 + (-20) = 0
-                            const auto shift = fin_offsets[found->second] / outer_increment;
-                            outer_ptr_increments[i] += shift;
+                            //    outer_ptr_increment[0] = (inner_final_offset[0] + outer_ptr_increment[0] * outer_Inc) / outer_Inc
+                            //    outer_ptr_increment[0] = (-640 + 20 x 32) / 32 = 0
+                            outer_ptr_increments[i] = (fin_offsets[found->second] + outer_ptr_increments[i] * outer_increment) / outer_increment;
                             fin_offsets[found->second] = 0;
                             is_modified = true;
                         }
