@@ -23,7 +23,7 @@ namespace pass {
  *          |              |
  *        Any #2         Any #2
  *
- * - Reshape is an unflatten type operation (it should unsquash last dimension into multiple ones.)
+ * - Reshape is an unflatten type operation (one last dimension is expanded into multiple dimensions)
  * - Gather is available for sinking (NoGatherSinkingAttr is not set)
  *
  * This transformation is called from GatherSinkingGeneral.

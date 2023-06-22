@@ -49,7 +49,7 @@ public:
  *       |             |
  *      Any2         Any2
  *
- * Reshape must be tail-unflatten: it should squash last mulitple dimensions into one.
+ * Reshape must be tail-unflatten: it should unsquash last dimension into multiple ones.
  * i.e. [1, 8] => [1, 2, 4]
  *
  * Transpose restrictions:
