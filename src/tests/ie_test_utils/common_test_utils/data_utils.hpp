@@ -194,6 +194,13 @@ template<class T>
 void inline
 fill_data_random(T *pointer, std::size_t size, const uint32_t range = 10, int32_t start_from = 0, const int32_t k = 1,
                  const int seed = 1) {
+    if (range == 0) {
+        for (std::size_t i = 0; i < size; i++) {
+            pointer[i] = static_cast<T>(start_from);
+        }
+        return;
+    }
+
     testing::internal::Random random(seed);
     const uint32_t k_range = k * range; // range with respect to k
     random.Generate(k_range);
@@ -201,9 +208,8 @@ fill_data_random(T *pointer, std::size_t size, const uint32_t range = 10, int32_
     if (start_from < 0 && !std::is_signed<T>::value) {
         start_from = 0;
     }
-
     for (std::size_t i = 0; i < size; i++) {
-        pointer[i] = static_cast<T>(start_from + static_cast<T>(random.Generate(k_range)) / k);
+        pointer[i] = static_cast<T>((start_from + static_cast<T>(random.Generate(k_range))) / k);
     }
 }
 

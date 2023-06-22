@@ -27,6 +27,41 @@ namespace ov {
 namespace test {
 namespace utils {
 
+// todo: remove w/a to generate correct constant data (replace parameter to const) in conformance with defined range
+struct ConstRanges {
+    static double max, min;
+    static bool is_defined;
+
+    static void set(double _min, double _max) {
+        min = _min;
+        max = _max;
+        is_defined = true;
+    }
+
+    static void reset() {
+        min = std::numeric_limits<double>::max();
+        max = std::numeric_limits<double>::min();
+        is_defined = false;
+    }
+
+    // function which provide new resolution allowed to generate correct data instead of round to size_t
+    static int32_t get_new_resolution(int32_t resolution) {
+        if (ConstRanges::min == ConstRanges::max) {
+                return 1;
+        }
+        auto updated_min = static_cast<int32_t>(min * resolution);
+        auto updated_max = static_cast<int32_t>(max * resolution);
+        if (resolution <= 1) {
+                resolution = 10;
+        }
+        while (fabs(updated_min) < 10 && fabs(updated_max) < 10) {
+                updated_min *= resolution;
+                updated_max *= resolution;
+        }
+        return resolution;
+   }
+};
+
 struct InputGenerateData {
     int32_t start_from;
     uint32_t range;
@@ -34,7 +69,19 @@ struct InputGenerateData {
     int seed;
 
     InputGenerateData(int32_t _start_from = 0, uint32_t _range = 10, int32_t _resolution = 1, int _seed = 1)
-            : start_from(_start_from), range(_range), resolution(_resolution), seed(_seed) {}
+            : start_from(_start_from * _resolution), range(_range), resolution(_resolution), seed(_seed) {
+        if (ConstRanges::is_defined) {
+            auto new_resolution = ConstRanges::get_new_resolution(resolution);
+            auto min_orig = start_from * resolution;
+            auto max_orig = (start_from + range) * resolution;
+            auto min_ref = ConstRanges::min * new_resolution;
+            auto max_ref = ConstRanges::max * new_resolution;
+            if (min_orig < min_ref || min_orig == 0)
+                start_from = min_ref;
+            range = (max_orig > max_ref || max_orig == 10 ? max_ref : max_orig - start_from) - start_from;
+            resolution = new_resolution;
+        }
+    }
 };
 
 static std::map<ov::NodeTypeInfo, std::vector<std::vector<InputGenerateData>>> inputRanges = {
