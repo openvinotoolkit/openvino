@@ -47,6 +47,7 @@ protected:
 
 namespace Pooling {
 const std::vector<ElementType>& inpOutPrecision();
+const ngraph::op::RoundingType expectedAvgRoundingType();
 
 const std::vector<LayerTestsDefinitions::poolSpecificParams>& paramsMax3D();
 const std::vector<LayerTestsDefinitions::poolSpecificParams>& paramsAvg3D();
