@@ -45,7 +45,7 @@ As shown in the picture above, some plugin libraries may have OS-specific depend
 
 .. tab-set::
 
-   .. tab-item:: Windows OS
+   .. tab-item:: Windows
 
       +--------------+-------------------------+-------------------------------------------------------+
       |    Device    |       Dependency        |                      Location                         |
@@ -62,7 +62,7 @@ As shown in the picture above, some plugin libraries may have OS-specific depend
       |  Arm® CPU    |            —            |                          —                            |
       +--------------+-------------------------+-------------------------------------------------------+
 
-   .. tab-item:: Linux OS
+   .. tab-item:: Linux
 
       +--------------+-------------------------+-------------------------------------------------------+
       |    Device    |       Dependency        |                      Location                         |
