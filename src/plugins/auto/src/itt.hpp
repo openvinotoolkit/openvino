@@ -4,17 +4,18 @@
 
 /**
  * @brief Defines openvino domains for tracing
- * @file multi_itt.h
+ * @file itt.h
  */
 
 #pragma once
 
 #include <openvino/itt.hpp>
-
-namespace MultiDevicePlugin {
+namespace ov {
+namespace auto_plugin {
 namespace itt {
 namespace domains {
-    OV_ITT_DOMAIN(MULTIPlugin);
+    OV_ITT_DOMAIN(AutoPlugin);
 }
-}
-}
+} // namespace itt
+} // namespace auto_plugin
+} // namespace ov
