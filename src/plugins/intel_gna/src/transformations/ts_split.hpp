@@ -12,11 +12,11 @@ namespace pass {
 
 /**
  * @brief This transformation is a part of Transpose/Gather sinking group of transformations.
- * There is such a transformation in TransposeSinking, that moves Transpose through Split
- * layer. It changes Split axis. Currently GNA plugin has restrictions working with Split layers.
- * It doens't support any Split layers. This transformation allows to remove Transpose layer
+ * This transformation moves Transpose through Split layer. It changes Split axis.
+ * Currently GNA plugin has restrictions working with Split layers.
+ * It doesn't support all types of Split layers. This transformation allows to remove Transpose layer
  * on the Split output with adding Gather layer on the input with Split axis being supported.
- * Substutute from
+ * Substitute graph from
  *          Any#1
  *           |
  *         Split

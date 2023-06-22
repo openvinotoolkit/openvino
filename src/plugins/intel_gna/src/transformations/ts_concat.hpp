@@ -11,10 +11,10 @@ namespace intel_gna {
 namespace pass {
 
 /**
- * @brief This transformation is a part of Transpose/Gather sinking group of transformations.
- * There is such a transformation in TransposeSinking, that moves Transpose through Concat
- * layer. It changes Concat axis. Currently GNA plugin has restrictions working with Concat layers.
- * It doens't support any Concat layers. This transformation allows to remove Transpose layer
+ * @brief This transformation is part of Transpose/Gather sinking group of transformations.
+ * This transformation moves Transpose through Concat layer. It changes Concat axis.
+ * Currently GNA plugin has restrictions working with Concat layers.
+ * It doesn't support all type of Concat layers. This transformation allows to remove Transpose layer
  * on the Concat input with adding Gather layer on the output with Concat axis being supported.
  * Substitute graph from
  *    Any#1 ... Any#K ... Any#N
