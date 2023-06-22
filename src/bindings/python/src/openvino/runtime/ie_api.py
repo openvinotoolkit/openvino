@@ -7,12 +7,12 @@ from pathlib import Path
 
 import numpy as np
 
-from openvino._pyopenvino import Model
+from openvino._pyopenvino import Model as ModelBase
 from openvino._pyopenvino import Core as CoreBase
 from openvino._pyopenvino import CompiledModel as CompiledModelBase
 from openvino._pyopenvino import AsyncInferQueue as AsyncInferQueueBase
-from openvino._pyopenvino import ConstOutput
 from openvino._pyopenvino import Tensor
+from openvino._pyopenvino import Node
 
 from openvino.runtime.utils.data_helpers import (
     OVDict,
@@ -20,6 +20,21 @@ from openvino.runtime.utils.data_helpers import (
     _data_dispatch,
     tensor_from_file,
 )
+
+
+class Model(ModelBase):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        if args and not kwargs:
+            if isinstance(args[0], ModelBase):
+                super().__init__(args[0])
+            elif isinstance(args[0], Node):
+                super().__init__(*args)
+            else:
+                super().__init__(*args)
+        if args and kwargs:
+            super().__init__(*args, **kwargs)
+        if kwargs and not args:
+            super().__init__(**kwargs)
 
 
 class InferRequest(_InferRequestWrapper):
@@ -160,6 +175,9 @@ class CompiledModel(CompiledModelBase):
         self._infer_request: Optional[InferRequest] = None
         super().__init__(other)
 
+    def get_runtime_model(self) -> Model:
+        return Model(super().get_runtime_model())
+
     def create_infer_request(self) -> InferRequest:
         """Creates an inference request object used to infer the compiled model.
 
@@ -280,6 +298,10 @@ class AsyncInferQueue(AsyncInferQueueBase):
     def __iter__(self) -> Iterable[InferRequest]:
         """Allows to iterate over AsyncInferQueue.
 
+        Resulting objects are guaranteed to work with read-only methods like getting tensors.
+        Any mutating methods (e.g. start_async, set_callback) of a single request
+        will put the parent AsyncInferQueue object in an invalid state.
+
         :return: a generator that yields InferRequests.
         :rtype: Iterable[openvino.runtime.InferRequest]
         """
@@ -287,6 +309,10 @@ class AsyncInferQueue(AsyncInferQueueBase):
 
     def __getitem__(self, i: int) -> InferRequest:
         """Gets InferRequest from the pool with given i id.
+
+        Resulting object is guaranteed to work with read-only methods like getting tensors.
+        Any mutating methods (e.g. start_async, set_callback) of a request
+        will put the parent AsyncInferQueue object in an invalid state.
 
         :param i:  InferRequest id.
         :type i: int
@@ -360,6 +386,11 @@ class Core(CoreBase):
     between several Core instances. The recommended way is to have a single
     Core instance per application.
     """
+    def read_model(self, model: Union[str, bytes, object], weights: Union[object, str, bytes, Tensor] = None) -> Model:
+        if weights is not None:
+            return Model(super().read_model(model, weights))
+        else:
+            return Model(super().read_model(model))
 
     def compile_model(
         self,

@@ -535,6 +535,7 @@ private:
     Reg64 reg_indexes = abi_param2;  // reg_d_bias
 
     Reg8 reg_tmp_8 = Reg8(r15.getIdx());
+    Reg16 reg_tmp_16 = Reg16(r15.getIdx());
     Reg32 reg_tmp_32 = Reg32(r15.getIdx());
     Reg64 reg_tmp_64 = Reg64(r15.getIdx());
 
@@ -697,6 +698,9 @@ private:
                     vpmovzxwd(vmm_src, op);
                     uni_vpslld(vmm_src, vmm_src, 16);
                     break;
+                case Precision::FP16:
+                    vcvtph2ps(vmm_src, op);
+                    break;
                 case Precision::U16:
                     uni_vpmovzxwd(vmm_src, op);
                     break;
@@ -715,11 +719,11 @@ private:
 
             switch (dst_prc) {
                 case Precision::FP32:
-                    if (src_prc != Precision::FP32 && src_prc != Precision::BF16)
+                    if (!src_prc.is_float())
                         uni_vcvtdq2ps(vmm_src, vmm_src);
                     break;
                 case Precision::I32:
-                    if (src_prc == Precision::FP32 || src_prc == Precision::BF16)
+                    if (src_prc.is_float())
                         uni_vcvtps2dq(vmm_src, vmm_src);
                     break;
                 default:
@@ -737,6 +741,9 @@ private:
             case Precision::BF16:
                 uni_vpinsrw(xmm_src, xmm_src, op, 0);
                 uni_vpslld(xmm_src, xmm_src, 16);
+                break;
+            case Precision::FP16:
+                vcvtph2ps(xmm_src, op);
                 break;
             case Precision::I16:
                 uni_vpinsrw(xmm_src, xmm_src, op, 0);
@@ -760,11 +767,11 @@ private:
 
         switch (dst_prc) {
             case Precision::FP32:
-                if (src_prc != Precision::FP32 && src_prc != Precision::BF16)
+                if (!src_prc.is_float())
                     uni_vcvtdq2ps(xmm_src, xmm_src);
                 break;
             case Precision::I32:
-                if (src_prc == Precision::FP32 || src_prc == Precision::BF16)
+                if (src_prc.is_float())
                     uni_vcvtps2dq(xmm_src, xmm_src);
                 break;
             default:
@@ -778,11 +785,11 @@ private:
 
         switch (src_prc) {
             case Precision::FP32:
-                if (dst_prc != Precision::FP32 && dst_prc != Precision::BF16)
+                if (!dst_prc.is_float())
                     uni_vcvtps2dq(vmm_dst, vmm_dst);
                 break;
             case Precision::I32:
-                if (dst_prc == Precision::FP32 || dst_prc == Precision::BF16)
+                if (dst_prc.is_float())
                     uni_vcvtdq2ps(vmm_dst, vmm_dst);
                 break;
             default:
@@ -797,6 +804,9 @@ private:
             case Precision::BF16:
                 uni_vcvtneps2bf16->emit_code({static_cast<size_t>(vmm_dst.getIdx())}, {static_cast<size_t>(ymm_dst.getIdx())});
                 vmovdqu16(op, ymm_dst);
+                break;
+            case Precision::FP16:
+                vcvtps2ph(op, vmm_dst, 0x4);
                 break;
             case Precision::I16:
                 if (isa == x64::avx512_core) {
@@ -862,11 +872,11 @@ private:
     inline void store_scalar(const Xbyak::Address &op, Xmm xmm_dst, Precision src_prc, Precision dst_prc) {
         switch (src_prc) {
             case Precision::FP32:
-                if (dst_prc != Precision::FP32 && dst_prc != Precision::BF16)
+                if (!dst_prc.is_float())
                     uni_vcvtps2dq(xmm_dst, xmm_dst);
                 break;
             case Precision::I32:
-                if (dst_prc == Precision::FP32 || dst_prc == Precision::BF16)
+                if (dst_prc.is_float())
                     uni_vcvtdq2ps(xmm_dst, xmm_dst);
                 break;
             default:
@@ -882,15 +892,20 @@ private:
                 uni_vpsrld(xmm_dst, xmm_dst, 16);
                 uni_vpextrw(op, xmm_dst, 0x0);
                 break;
+            case Precision::FP16:
+                vcvtps2ph(xmm_dst, xmm_dst, 0x4);
+                movq(reg_tmp_64, xmm_dst);
+                mov(op, reg_tmp_16);
+                break;
             case Precision::I16:
                 uni_vpackssdw(xmm_dst, xmm_dst, xmm_dst);
                 movq(reg_tmp_64, xmm_dst);
-                mov(op, reg_tmp_8);
+                mov(op, reg_tmp_16);
                 break;
             case Precision::U16:
                 uni_vpackusdw(xmm_dst, xmm_dst, xmm_dst);
                 movq(reg_tmp_64, xmm_dst);
-                mov(op, reg_tmp_8);
+                mov(op, reg_tmp_16);
                 break;
             case Precision::I8:
                 uni_vpackssdw(xmm_dst, xmm_dst, xmm_dst);
@@ -1584,7 +1599,7 @@ public:
     EltwiseRefExecutor(Eltwise::EltwiseData opData,
                        const VectorDims& outBlkDims,
                        std::vector<VectorDims> inpDims)
-    : _opData(std::move(opData)) {
+    : _opData(std::move(opData)), _inpDims(inpDims) {
         if (inpDims.empty()) {
             IE_THROW() << "Can not make Eltwise executor from empty input dims array";
         } else if (inpDims.front().empty()) {
@@ -1633,6 +1648,44 @@ public:
                 dst_ptr_f[i] = logf(src_ptr_f[i]);
             });
             return;
+        }
+        if (_opData.algo == Algorithm::EltwisePowerStatic) {
+            const float* src_ptr_f = reinterpret_cast<const float*>(args_ptrs.src_ptr[0]);
+            float* dst_ptr_f = reinterpret_cast<float*>(args_ptrs.dst_ptr);
+            if (_opData.alpha == 2) {
+                parallel_for(_fullWorkAmount, [&](size_t i) {
+                    dst_ptr_f[i] = (_opData.beta * src_ptr_f[i] + _opData.gamma) *
+                                   (_opData.beta * src_ptr_f[i] + _opData.gamma);
+                });
+            } else {
+                parallel_for(_fullWorkAmount, [&](size_t i) {
+                    dst_ptr_f[i] = powf(_opData.beta * src_ptr_f[i] + _opData.gamma, _opData.alpha);
+                });
+            }
+            return;
+        }
+        if (_opData.algo == Algorithm::EltwisePowerDynamic) {
+            const float* src_ptr_f = reinterpret_cast<const float*>(args_ptrs.src_ptr[0]);
+            const float* src_ptr_f_pow = reinterpret_cast<const float*>(args_ptrs.src_ptr[1]);
+            float* dst_ptr_f = reinterpret_cast<float*>(args_ptrs.dst_ptr);
+
+            uint32_t count_of_power_values = 1;
+            for (unsigned long i : _inpDims[1]) {
+                count_of_power_values *= i;
+            }
+
+            if (count_of_power_values == 1) {
+                if (src_ptr_f_pow[0] != 2) {
+                    parallel_for(_fullWorkAmount, [&](size_t i) {
+                        dst_ptr_f[i] = powf(src_ptr_f[i], src_ptr_f_pow[0]);
+                    });
+                } else {
+                    parallel_for(_fullWorkAmount, [&](size_t i) {
+                        dst_ptr_f[i] = src_ptr_f[i] * src_ptr_f[i];
+                    });
+                }
+                return;
+            }
         }
 
         std::shared_ptr<ref_eltwise_scalar_fwd_t> ref_eltwise_injector = nullptr;
@@ -1716,7 +1769,6 @@ public:
                     case Algorithm::EltwiseLogicalOr:         *dst_ptr_f = src_f[0] || src_f[1]; break;
                     case Algorithm::EltwiseLogicalXor:        *dst_ptr_f = (src_f[0] || src_f[1]) - (src_f[0] && src_f[1]); break;
                     case Algorithm::EltwiseLogicalNot:        *dst_ptr_f = !src_f[0]; break;
-                    case Algorithm::EltwisePowerStatic:       *dst_ptr_f = powf(_opData.beta * src_f[0] + _opData.gamma, _opData.alpha); break;
                     case Algorithm::EltwisePrelu:             *dst_ptr_f = src_f[0] > 0 ? src_f[0] : src_f[0] * src_f[1]; break;
                     case Algorithm::EltwiseErf:               *dst_ptr_f = std::erf(src_f[0]); break;
                     case Algorithm::EltwiseSoftSign:          *dst_ptr_f = src_f[0] / (1 + std::fabs(src_f[0])); break;
@@ -1749,6 +1801,7 @@ private:
     size_t _fullWorkAmount = 0;
     size_t _inputNum = 0;
     size_t _batchDimIdx = 0;
+    std::vector<VectorDims> _inpDims;
 };
 
 } // namespace
@@ -1899,6 +1952,7 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
             Precision::U16,
             Precision::I16,
             Precision::BF16,
+            Precision::FP16,
             Precision::I32
     };
 
@@ -2049,7 +2103,7 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
         NodeConfig config;
 
         for (size_t i = 0; i < getParentEdges().size(); i++) {
-            BlockedMemoryDesc::CmpMask inputMask = BLOCKED_DESC_SKIP_OFFSET_MASK;
+            BlockedMemoryDesc::CmpMask inputMask = BlockedMemoryDesc::SKIP_OFFSET_MASK;
             PortConfig portConfig;
             // TODO [DS]: inplace
             if (!isDynamicNode())
@@ -2070,7 +2124,7 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
         portConfig.constant(false);
 
         const auto &dstShape = getOutputShapeAtPort(0);
-        BlockedMemoryDesc::CmpMask outputMask = BLOCKED_DESC_SKIP_OFFSET_MASK;
+        BlockedMemoryDesc::CmpMask outputMask = BlockedMemoryDesc::SKIP_OFFSET_MASK;
         if (!isDynamicNode() && dstShape.getDims()[0] == 1) {
             outputMask.reset(0); // accepts any stride on the batch axis
         }
@@ -2091,7 +2145,7 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
             }
 
             auto factory = std::make_shared<EltwiseExecutorFactory>(eltwiseAttrs, srcMemoryDescs, dstMemoryDescs,
-                                                                    std::make_shared<ExecutorContext>(context, getPrimitivesPriority()));
+                                                                    std::make_shared<ExecutorContext>(context, getImplPriority()));
 
             return {config, impl_type, !factory->isEmpty() ? factory : nullptr};
         } else {
@@ -2332,7 +2386,7 @@ bool Eltwise::needPrepareParams() const {
 }
 
 void Eltwise::selectOptimalPrimitiveDescriptor() {
-    selectPreferPrimitiveDescriptor(getPrimitivesPriority(), true);
+    selectPreferPrimitiveDescriptor(getImplPriority(), true);
 }
 
 void Eltwise::execute(dnnl::stream strm) {

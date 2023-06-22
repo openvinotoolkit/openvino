@@ -29,20 +29,20 @@ Feature Support Matrix
 
 The table below demonstrates support of key features by OpenVINO device plugins.
 
- ========================================================================================= ============================ =============== ===============
-  Capability                                                                                CPU                         GPU             GNA            
- ========================================================================================= ============================ =============== ===============
-  :doc:`Heterogeneous execution <openvino_docs_OV_UG_Hetero_execution>`                     Yes                         Yes             No            
-  :doc:`Multi-device execution <openvino_docs_OV_UG_Running_on_multiple_devices>`           Yes                         Yes             Partial       
-  :doc:`Automatic batching <openvino_docs_OV_UG_Automatic_Batching>`                        No                          Yes             No            
-  :doc:`Multi-stream execution <openvino_docs_deployment_optimization_guide_tput>`          Yes (Intel® x86-64 only)    Yes             No             
-  :doc:`Models caching <openvino_docs_OV_UG_Model_caching_overview>`                        Yes                         Partial         Yes            
-  :doc:`Dynamic shapes <openvino_docs_OV_UG_DynamicShapes>`                                 Yes                         Partial         No             
-  :doc:`Import/Export <openvino_ecosystem>`                                                 Yes                         No              Yes            
-  :doc:`Preprocessing acceleration <openvino_docs_OV_UG_Preprocessing_Overview>`            Yes                         Yes             No            
-  :doc:`Stateful models <openvino_docs_OV_UG_model_state_intro>`                            Yes                         No              Yes            
-  :doc:`Extensibility <openvino_docs_Extensibility_UG_Intro>`                               Yes                         Yes             No            
- ========================================================================================= ============================ =============== ===============
+========================================================================================= ============================ =============== ===============
+ Capability                                                                                CPU                         GPU             GNA            
+========================================================================================= ============================ =============== ===============
+ :doc:`Heterogeneous execution <openvino_docs_OV_UG_Hetero_execution>`                     Yes                         Yes             No            
+ :doc:`Multi-device execution <openvino_docs_OV_UG_Running_on_multiple_devices>`           Yes                         Yes             Partial       
+ :doc:`Automatic batching <openvino_docs_OV_UG_Automatic_Batching>`                        No                          Yes             No            
+ :doc:`Multi-stream execution <openvino_docs_deployment_optimization_guide_tput>`          Yes (Intel® x86-64 only)    Yes             No             
+ :doc:`Models caching <openvino_docs_OV_UG_Model_caching_overview>`                        Yes                         Partial         Yes            
+ :doc:`Dynamic shapes <openvino_docs_OV_UG_DynamicShapes>`                                 Yes                         Partial         No             
+ :doc:`Import/Export <openvino_ecosystem>`                                                 Yes                         No              Yes            
+ :doc:`Preprocessing acceleration <openvino_docs_OV_UG_Preprocessing_Overview>`            Yes                         Yes             No            
+ :doc:`Stateful models <openvino_docs_OV_UG_model_state_intro>`                            Yes                         No              Yes            
+ :doc:`Extensibility <openvino_docs_Extensibility_UG_Intro>`                               Yes                         Yes             No            
+========================================================================================= ============================ =============== ===============
 
 For more details on plugin-specific feature limitations, see the corresponding plugin pages.
 

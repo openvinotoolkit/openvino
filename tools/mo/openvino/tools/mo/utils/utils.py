@@ -145,3 +145,14 @@ def unique_by(xs: list, predicate: Callable) -> list:
     """
     groups = group_by_with_binary_predicate(xs, predicate)
     return [group[0] for group in groups]
+
+
+def check_values_equal(val1, val2):
+    # This method is needed to check equality of values where some values can be None
+    if val1 is None and val2 is None:
+        return True
+    if val1 is None:
+        return False
+    if val2 is None:
+        return False
+    return val1 == val2

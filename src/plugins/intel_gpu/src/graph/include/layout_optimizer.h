@@ -16,6 +16,7 @@
 #include "deconvolution_inst.h"
 #include "detection_output_inst.h"
 #include "binary_convolution_inst.h"
+#include "quantize_inst.h"
 
 #include <vector>
 #include <memory>
@@ -111,18 +112,9 @@ private:
     size_t _total_conv;
     std::map<std::pair<format::type, bool>, size_t> _optimized_conv_count;
 
-    layout get_expected_layout(layout const& current_layout,
-                               convolution_node const& node,
-                               layout const& output_or_weights_layout);
-    layout get_expected_layout(layout const& current_layout,
-                               deconvolution_node const& node,
-                               layout const& output_or_weights_layout);
-    layout get_expected_layout(layout const& current_layout,
-                               detection_output_node const& node,
-                               layout const& output_or_weights_layout);
-    layout get_expected_layout(layout const& current_layout,
-                               binary_convolution_node const& node,
-                               layout const& output_or_weights_layout);
+    format get_expected_format(convolution_node const& node);
+    format get_expected_format(deconvolution_node const& node);
+    format get_expected_format(quantize_node const& node);
 
     bool is_depthwise(const convolution_node& node) const;
     format imad_case(convolution_node const& node) const;
