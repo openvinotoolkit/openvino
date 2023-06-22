@@ -171,7 +171,7 @@ INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_GNA_CONFIG_VALUE(AVX2_EXACT);
  * If GNA HW is present, use the option corresponding to this HW.
  * If HW is not present, use the option corresponding to the latest fully supported GNA HW generation.
  * A fully supported GNA HW generation means it must be supported by both the OV GNA Plugin and the core GNA Library.
- * For the OV GNA Plugin 2023.2, the latest supported GNA HW generation corresponds to GNA_TARGET_3_5.
+ * For the OV GNA Plugin 2023.1, the latest supported GNA HW generation corresponds to GNA_TARGET_3_5.
  */
 INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_GNA_CONFIG_KEY(EXEC_TARGET);
 
