@@ -255,9 +255,10 @@ InferenceEngine::RemoteContext::Ptr Plugin::CreateContext(const AnyMap& params) 
 }
 
 RemoteCLContext::Ptr Plugin::get_default_context(const std::string& device_id) const {
-    OPENVINO_ASSERT(get_default_contexts().find(device_id) != get_default_contexts().end(), "[GPU] Context was not initialized for ", device_id, " device");
+    auto contexts = get_default_contexts();
+    OPENVINO_ASSERT(contexts.find(device_id) != contexts.end(), "[GPU] Context was not initialized for ", device_id, " device");
 
-    return get_default_contexts().at(device_id);;
+    return contexts.at(device_id);;
 }
 
 InferenceEngine::RemoteContext::Ptr Plugin::GetDefaultContext(const AnyMap& params) {
