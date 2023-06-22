@@ -600,7 +600,7 @@ void Transformations::PostLpt() {
             // Vector madd BF16 instruction on SPR has reduced performance on HW level, which results in overall perf degradation
             size_t bf16Factor = 2;
             if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx) &&
-                (n->get_input_element_type(0) == element::bf16 || (n->get_input_element_type(0) == element::f32 && enableBF16)) &&
+                (n->get_input_element_type(0) == element::bf16 || (n->get_input_element_type(0) == element::f32 && inferencePrecision == ov::element::bf16)) &&
                 (n->get_input_shape(0)[3] % bf16Factor != 0 || n->get_input_shape(1)[1] % bf16Factor != 0 || n->get_input_shape(3)[3] % bf16Factor != 0)) {
                 return true;
             }
@@ -610,7 +610,7 @@ void Transformations::PostLpt() {
         MHAFloatFusion, MHAFloatFusion2, MHAQuantFusion, MHAQuantFusion2);
 
     // Float MHA is supported by snippets now
-    if (!enableBF16) {
+    if (inferencePrecision == ov::element::f32) {
         CPU_DISABLE_PASS_X64(postLPTPassManager, MHAFloatFusion);
         CPU_DISABLE_PASS_X64(postLPTPassManager, MHAFloatFusion2);
     }
@@ -631,19 +631,19 @@ void Transformations::MainSnippets(void) {
     // Because of that Transposes won't be fused into Brgemm
     // TODO [111813]: Need to update this pipeline to avoid Converts between Transposes and Brgemm on inputs
     ov::snippets::pass::SnippetsTokenization::Config tokenization_config;
-    tokenization_config.mha_token_enable_transpose = !enableBF16;
+    tokenization_config.mha_token_enable_transpose = (inferencePrecision == ov::element::f32);
 
     ngraph::pass::Manager snippetsManager;
     snippetsManager.set_per_pass_validation(false);
     if (snippetsMode != Config::SnippetsMode::IgnoreCallback)
-        CPU_REGISTER_PASS_X64(snippetsManager, SnippetsMarkSkipped, enableBF16);
+        CPU_REGISTER_PASS_X64(snippetsManager, SnippetsMarkSkipped, inferencePrecision != ov::element::f32);
     CPU_REGISTER_PASS_X64(snippetsManager, snippets::pass::SnippetsTokenization, tokenization_config);
 
     // Tokenize MHA in quantized model or with BF16 only in tests.
     // TODO [106921]: Please enable the tokenization when the ticket 106921 with blocking support for BRGEMM will be implemented
     const bool onlyFloatSupported = snippetsMode != Config::SnippetsMode::IgnoreCallback;
     const bool isMHASupported =
-            IMPLICATION(enableBF16, !onlyFloatSupported) &&
+            IMPLICATION(inferencePrecision != ov::element::f32, !onlyFloatSupported) &&
             dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core);  // MHA has BRGEMM that is supported only on AVX512 platforms
     if (!isMHASupported) {
         CPU_DISABLE_PASS_X64(snippetsManager, snippets::pass::TokenizeMHASnippets);

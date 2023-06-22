@@ -413,7 +413,8 @@ void Convolution::getSupportedDescriptors() {
 
     // We need to make sure that convolution output and second input of fused Eltwise operation
     // have equal precision sizes since they use the same physical memory. In case precisions are different we upscale to FP32.
-    if (outputDataType != memory::data_type::f32 && outputDataType != memory::data_type::bf16 && withSum) {
+    if (outputDataType != memory::data_type::f32 && outputDataType != memory::data_type::bf16 &&
+        outputDataType != memory::data_type::f16 && withSum) {
         for (size_t i = 0; i < fusedWith.size(); i++) {
             if (fusedWith[i]->getAlgorithm() == Algorithm::EltwiseAdd) {
                 auto* eltwiseNode = dynamic_cast<Eltwise *>(fusedWith[i].get());
@@ -491,16 +492,34 @@ void Convolution::getSupportedDescriptors() {
 
         SetPostOpsAndZeroPoints(attrs);
 
+        // so far oneDNN INT8 convolution only support s8,u8,s32,f32,bf16 output types
+        if (outputDataType == memory::data_type::f16) {
+            outputDataType = memory::data_type::f32;
+        }
+
         in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(0), inputDataType, nspc);
         out_candidate = std::make_shared<DnnlBlockedMemoryDesc>(getOutputShapeAtPort(0), outputDataType, nspc);
         createDescriptor({ in_candidate }, { out_candidate });
         return;
     }
 
-    inputDataType = (getOriginalInputPrecisionAtPort(0) == Precision::BF16
-                     && !(isDepthWise() && ndims == 5)) ? memory::data_type::bf16 : memory::data_type::f32;
-    outputDataType = (getOriginalOutputPrecisionAtPort(0) == Precision::BF16
-                      && !(isDepthWise() && ndims == 5)) ? memory::data_type::bf16 : memory::data_type::f32;
+    auto getSupportedDataType = [this, ndims](InferenceEngine::Precision originalPrec) {
+        auto originalDT = DnnlExtensionUtils::IEPrecisionToDataType(originalPrec);
+        auto dt = memory::data_type::f32;
+
+        // supported lower precisions: bf16, f16
+        if (one_of(originalDT, memory::data_type::bf16, memory::data_type::f16))
+            dt = originalDT;
+
+        // fallback to f32 on special case for performance reasons
+        if (isDepthWise() && ndims == 5)
+            dt = memory::data_type::f32;
+        return dt;
+    };
+
+    inputDataType = getSupportedDataType(getOriginalInputPrecisionAtPort(0));
+    outputDataType = getSupportedDataType(getOriginalOutputPrecisionAtPort(0));
+
     eltwisePrecision = Precision::FP32;
     for (size_t i = 0; i < fusedWith.size(); i++) {
         if (fusedWith[i]->getAlgorithm() == Algorithm::EltwiseAdd) {
@@ -514,14 +533,15 @@ void Convolution::getSupportedDescriptors() {
                 // for input of inplace tensor precision) to FP32. This will add reorder for that in-place tensor
                 // bofore the fused convolution. This behaviour might be more correct regarding expected markup
                 // of the graph but performance of first and second approaches might be different. Need to verify
-                outputDataType = eltwisePrecision == Precision::BF16 ? memory::data_type::bf16 : memory::data_type::f32;
+                outputDataType = getSupportedDataType(eltwisePrecision);
                 eltwisePrecision = DnnlExtensionUtils::DataTypeToIEPrecision(outputDataType);
             }
         }
     }
     // correction for cases of FP32 input - we do not have FP32 convolution supported BF16 output
-    if (inputDataType == memory::data_type::f32
-        && (outputDataType == memory::data_type::bf16 || eltwisePrecision == Precision::BF16)) {
+    if (inputDataType == memory::data_type::f32 &&
+        (outputDataType == memory::data_type::bf16 || eltwisePrecision == Precision::BF16 ||
+         outputDataType == memory::data_type::f16 || eltwisePrecision == Precision::FP16)) {
         outputDataType = memory::data_type::f32;
         eltwisePrecision = Precision::FP32;
     }
@@ -536,7 +556,7 @@ void Convolution::getSupportedDescriptors() {
 
 #if defined(OPENVINO_ARCH_X86_64)
     // nspc shows better performance only with brgconv implementation
-    bool nspcFirst = isBrgConvAvailable && one_of(inputDataType, memory::data_type::bf16, memory::data_type::f32);
+    bool nspcFirst = isBrgConvAvailable && one_of(inputDataType, memory::data_type::f16, memory::data_type::bf16, memory::data_type::f32);
     bool nspcAdded = false;
     if (nspcFirst) {
         in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(inputShape, inputDataType, nspc);
@@ -568,7 +588,7 @@ void Convolution::getSupportedDescriptors() {
     out_candidate = std::make_shared<DnnlBlockedMemoryDesc>(outputShape, outputDataType, ncsp);
     createDescriptor({ in_candidate }, { out_candidate });
 
-    if (!nspcAdded && (inputDataType != memory::data_type::bf16 && isNspcAvailable())) {
+    if (!nspcAdded && (inputDataType != memory::data_type::bf16 && inputDataType != memory::data_type::f16 && isNspcAvailable())) {
         in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(inputShape, inputDataType, nspc);
         out_candidate = std::make_shared<DnnlBlockedMemoryDesc>(outputShape, outputDataType, nspc);
         createDescriptor({ in_candidate }, { out_candidate });

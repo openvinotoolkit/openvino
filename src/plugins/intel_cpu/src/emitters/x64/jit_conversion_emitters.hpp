@@ -32,6 +32,7 @@ protected:
             ov::element::f32,
             ov::element::i32,
             ov::element::bf16,
+            ov::element::f16,
             ov::element::i8,
             ov::element::u8
     };
