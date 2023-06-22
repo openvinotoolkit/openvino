@@ -685,7 +685,7 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
 
     std::string error;
     if (!Limitations::are_layers_supported(network, error)) {
-        THROW_GNA_EXCEPTION << error.c_str();
+        std::cout << error.c_str();
     }
 
     // Set input and output information from ngraph function

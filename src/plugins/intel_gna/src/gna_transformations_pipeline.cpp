@@ -173,6 +173,8 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
                          ov::op::util::has_op_with_type<ov::op::v0::MVN>(model);
     ov::pass::Manager manager;
     manager.register_pass<ov::pass::InitNodeInfo>();
+    // manager.register_pass<ov::pass::Serialize>("model.xml", "model.bin");
+
     // In OV API 2.0(IRv10) default convertion to fp32 (inputs, outputs and weights) is disabled
     // and we need to run the ConvertPrecision transformation to support old networks.
     manager.register_pass<ov::pass::ConvertPrecision>(precisions_map{{ngraph::element::f16, ngraph::element::f32}});
@@ -190,6 +192,9 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
     manager.register_pass<ov::intel_gna::pass::Decompose2DConvTransposedWithBias>(config.gnaPrecision);
     manager.register_pass<ov::intel_gna::pass::Decompose2DConv>(config.gnaPrecision);
     if (!has_convolution) {
+        // manager.register_pass<ov::intel_gna::pass::ReshapeFuse>();
+        // manager.register_pass<ov::intel_gna::pass::ReshapeToSqueeze>();
+        // manager.register_pass<ov::intel_gna::pass::ReshapeToUnsqueeze>();
         manager.register_pass<ov::intel_gna::pass::ConvertMatmulWithFqToPointWiseConvolution>();
         manager.register_pass<ov::intel_gna::pass::ConvertMatmulWithBiasToPointWiseConvolution>();
         manager.register_pass<ov::intel_gna::pass::ConvertMatmulToPointWiseConvolution>();
@@ -223,19 +228,18 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
         manager.register_pass<ov::intel_gna::pass::ReshapeToSqueeze>();
         manager.register_pass<ov::intel_gna::pass::ReshapeToUnsqueeze>();
         manager.register_pass<ov::pass::TransposeSinkingGeneral>();
+        manager.register_pass<ov::pass::transpose_sinking::TSFuse>();
         manager.register_pass<ov::intel_gna::pass::Transpose2D>();
+        // rare cases when we can replace unsupported transpose by gather
         manager.register_pass<ov::intel_gna::pass::TSConcatForward>();
         manager.register_pass<ov::intel_gna::pass::TSSplitBackward>();
         manager.register_pass<ov::intel_gna::pass::GatherSinkingTransposeReshapeForward>();
         manager.register_pass<ov::intel_gna::pass::GatherSinkingTransposeReshapeBackward>();
         manager.register_pass<ov::intel_gna::pass::GatherSinkingTranspose>();
         manager.register_pass<ov::intel_gna::pass::GatherSinkingGeneral>();
-        manager.register_pass<ov::pass::ReshapeSequenceFusion>();
         manager.register_pass<ov::pass::TransposeToReshape>();
         manager.register_pass<ov::intel_gna::pass::GnaConvolutionFusion>();
-        manager.register_pass<ov::pass::transpose_sinking::TSFuse>();
     }
-    manager.register_pass<ov::intel_gna::pass::Transpose2D>();
     manager.register_pass<ov::intel_gna::pass::RemoveInputsProcessing>(input_output_subgraphs);
     manager.register_pass<ov::intel_gna::pass::RemoveOutputsProcessing>(input_output_subgraphs);
     manager.register_pass<ov::pass::ConvertOpSet3ToOpSet2>();
@@ -272,6 +276,8 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
         manager.register_pass<ov::intel_gna::pass::PWLApproximation>(config.gnaFlags.pwlMaxErrorPercent);
     }
     manager.register_pass<ov::pass::UnrollTensorIterator>();
+    manager.register_pass<ov::pass::Serialize>("UnrollTensorIterator.xml", "UnrollTensorIterator.bin");
+
     manager.register_pass<ov::intel_gna::pass::InsertCopyBeforeAssignLayer>();
     manager.register_pass<ov::intel_gna::pass::InsertCopyBeforeConcatLayer>();
     manager.register_pass<ov::intel_gna::pass::HandleMultiConnectedLayerToConcatAndMemory>();
@@ -279,6 +285,7 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
     manager.register_pass<ov::pass::ConvertPrecision>(precisions_map{{ov::element::i64, ov::element::i32},
                                                                      {ov::element::u64, ov::element::i32},
                                                                      {ov::element::u32, ov::element::i32}});
+    // manager.register_pass<ov::pass::Serialize>("gna_model.xml", "gna_model.bin");
     const auto& pass_config = manager.get_pass_config();
 
     pass_config->set_callback<ov::pass::transpose_sinking::TSConcatForward>(
