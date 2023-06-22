@@ -41,7 +41,7 @@ TEST(TSSplit, Backward) {
         auto input_params = std::make_shared<Parameter>(element::Type_t::f32, Shape{1, 4, 1, 2});
         auto reshape_const1 = Constant::create(element::i64, ov::Shape{2}, ov::Shape{1, 8});
         auto reshape1 = std::make_shared<Reshape>(input_params, reshape_const1, false);
-        auto gather = MakeGather(reshape1, TSSplit_Backward_indexes, /* axis */ 1);
+        auto gather = make_gather(reshape1, TSSplit_Backward_indexes, /* axis */ 1);
         auto split_axis = Constant::create(element::i64, ov::Shape{}, ov::Shape{1});
         auto split = std::make_shared<Split>(gather, split_axis, 1);
         auto reshape_const2 = Constant::create(element::i64, ov::Shape{4}, ov::Shape{1, 1, 2, 4});
