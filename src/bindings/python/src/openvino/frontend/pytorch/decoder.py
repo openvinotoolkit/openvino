@@ -153,7 +153,7 @@ class TorchScriptPythonDecoder (Decoder):
                     inputs = ordered_inputs
             if isinstance(inputs, torch.Tensor):
                 inputs = [inputs]
-                
+
             return {"example_inputs": inputs}, input_signature
 
         if isinstance(pt_module, torch.nn.Module):
@@ -172,19 +172,10 @@ class TorchScriptPythonDecoder (Decoder):
                         scripted = torch.jit.script(pt_module)
                     except Exception:
                         scripted = torch.jit.trace(pt_module, **input_parameters, strict=False)
-            skip_freeze = False
-            for n in scripted.inlined_graph.nodes():
-                # TODO: switch off freezing for all traced models
-                if "quantize" in n.kind():
-                    skip_freeze = True
-                    break
-            if not skip_freeze:
-                f_model = torch.jit.freeze(scripted)
-            else:
-                f_model = scripted
+            f_model = scripted
         else:
             f_model = pt_module
-        
+
         self._input_signature = input_signature
         return f_model
 
