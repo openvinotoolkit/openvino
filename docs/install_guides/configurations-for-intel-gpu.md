@@ -11,13 +11,18 @@ Linux
 
 To use a GPU device for OpenVINO inference, you must meet the following prerequisites:
 
-- use a supported Linux kernel as per the `documentation <https://dgpu-docs.intel.com/driver/kernel-driver-types.html>`__
-- install GPU Runtime drivers: `The Intel(R) Graphics Compute Runtime for oneAPI Level Zero and OpenCL(TM) Driver <https://github.com/intel/compute-runtime/releases/latest>`__
-- install `Intel Graphics Memory Management Library <https://github.com/intel/gmmlib>`__ and `Intel® Graphics Compiler for OpenCL™ <https://github.com/intel/intel-graphics-compiler>`__
-- install `OpenCL ICD loader package <https://github.com/KhronosGroup/OpenCL-ICD-Loader>`__
+- Use a supported Linux kernel as per the `documentation <https://dgpu-docs.intel.com/driver/kernel-driver-types.html>`__
+- Install ``intel-i915-dkms`` and ``xpu-smi`` kernel modules as described in the `installation documentation <https://dgpu-docs.intel.com/driver/installation.html>`__
+- Install GPU Runtime packages:
+
+  - `The Intel(R) Graphics Compute Runtime for oneAPI Level Zero and OpenCL(TM) Driver <https://github.com/intel/compute-runtime/releases/latest>`__
+  - `Intel Graphics Memory Management Library <https://github.com/intel/gmmlib>`__
+  - `Intel® Graphics Compiler for OpenCL™ <https://github.com/intel/intel-graphics-compiler>`__
+  - `OpenCL ICD loader package <https://github.com/KhronosGroup/OpenCL-ICD-Loader>`__
+
+.. _wsl-instal:
 
 Depending on your operating system, there may be different methods to install the above packages. Below are the instructions on how to install the packages on supported Linux distributions.
-
 
 .. tab-set::
 
@@ -26,9 +31,7 @@ Depending on your operating system, there may be different methods to install th
 
       Download and install the `deb` packages published `here <https://github.com/intel/compute-runtime/releases/latest>`__ and install the apt package `ocl-icd-libopencl1` with the OpenCl ICD loader.
       
-      Alternatively, you can add the apt repository by following the `installation guide <https://dgpu-docs.intel.com/driver/installation.html#ubuntu-install-steps>`__. 
-      
-      Install the `ocl-icd-libopencl1`, `intel-opencl-icd`, `intel-level-zero-gpu` and `level-zero` apt packages:
+      Alternatively, you can add the apt repository by following the `installation guide <https://dgpu-docs.intel.com/driver/installation.html#ubuntu-install-steps>`__. Then install the `ocl-icd-libopencl1`, `intel-opencl-icd`, `intel-level-zero-gpu` and `level-zero` apt packages:
       
       .. code-block:: sh
       
@@ -100,7 +103,7 @@ WSL allows developers to run a GNU/Linux development environment for the Windows
 
 Below are the required steps to make it work with OpenVINO:
 
-- Install the GPU drivers as described above.
+- Install the GPU drivers as described :ref:`above <wsl-instal>`.
 - Run the following commands in PowerShell to view the latest version of WSL2:
 
   .. code-block:: sh
