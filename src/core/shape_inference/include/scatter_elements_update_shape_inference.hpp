@@ -9,11 +9,11 @@
 #include "utils.hpp"
 
 namespace ov {
-namespace op {
-namespace v3 {
 
+namespace op {
+namespace util {
 template <class TShape>
-std::vector<TShape> shape_infer(const ScatterElementsUpdate* op,
+std::vector<TShape> shape_infer(const util::ScatterElementsUpdateBase* op,
                                 const std::vector<TShape>& input_shapes,
                                 const std::map<size_t, HostTensorPtr>& constant_data = {}) {
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 4);
@@ -59,15 +59,24 @@ std::vector<TShape> shape_infer(const ScatterElementsUpdate* op,
     }
     return {data_shape};
 }
-
+}  // namespace util
+namespace v3 {
 template <class TShape>
 void shape_infer(const ScatterElementsUpdate* op,
                  const std::vector<TShape>& input_shapes,
                  std::vector<TShape>& output_shapes,
                  const std::map<size_t, HostTensorPtr>& constant_data = {}) {
-    output_shapes = shape_infer(op, input_shapes, constant_data);
+    output_shapes = util::shape_infer(op, input_shapes, constant_data);
 }
-
 }  // namespace v3
+namespace v12 {
+template <class TShape>
+void shape_infer(const ScatterElementsUpdate* op,
+                 const std::vector<TShape>& input_shapes,
+                 std::vector<TShape>& output_shapes,
+                 const std::map<size_t, HostTensorPtr>& constant_data = {}) {
+    output_shapes = util::shape_infer(op, input_shapes, constant_data);
+}
+}  // namespace v12
 }  // namespace op
 }  // namespace ov
