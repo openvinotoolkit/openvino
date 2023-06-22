@@ -5,12 +5,8 @@
 #include "test_utils.h"
 
 #include <intel_gpu/primitives/input_layout.hpp>
-#include <intel_gpu/primitives/softmax.hpp>
 #include <intel_gpu/primitives/reorder.hpp>
-#include <intel_gpu/primitives/reshape.hpp>
 #include <intel_gpu/primitives/data.hpp>
-
-#include "softmax_inst.h"
 
 #include "program_wrapper.h"
 
@@ -21,11 +17,11 @@ using namespace cldnn;
 using namespace ::tests;
 
 namespace is_valid_fusion_tests {
-TEST(eltwise_activation_fusing_test, basic) {
+TEST(eltwise_activation_fusing_test, basic_dynamic_rank4) {
+    // is_valid_fusion() should work properly when conv->add->prelu case
     auto& engine = get_test_engine();
 
     layout weight_layout = layout{ov::PartialShape{1, 3, 3, 3}, data_types::f32, format::bfyx};
-
     auto weights = engine.allocate_memory(weight_layout);
     set_values<FLOAT16>(weights, {
             1.0f, 1.0f, 1.0f,
@@ -41,27 +37,31 @@ TEST(eltwise_activation_fusing_test, basic) {
             3.0f, 3.0f, 3.0f,
     });
 
-    layout input_layout_1 = layout{ov::PartialShape{1, 3, 2, 2}, data_types::f32, format::bfyx};
-    auto input_mem_1 = engine.allocate_memory(input_layout_1);
-    set_values(input_mem_1, {11.0f,  11.0f, 11.0f, 11.0f,
-                             11.0f,  11.0f, 11.0f, 11.0f,
-                             11.0f,  11.0f, 11.0f, 11.0f});
-    std::vector<float> ref_output_1 = { 66, 132, 132, 66, 132, 264, 264, 132, 132, 264, 264, 132, 66, 132, 132, 66};
+    layout in_layout = layout{ov::PartialShape{1, 3, 2, 2}, data_types::f32, format::bfyx};
+    auto input_mem = engine.allocate_memory(in_layout);
+    set_values(input_mem, {11.0f,  11.0f, 11.0f, 11.0f,
+                           11.0f,  11.0f, 11.0f, 11.0f,
+                           11.0f,  11.0f, 11.0f, 11.0f});
+    std::vector<float> ref = { 33.0625f, 55.09375f, 55.09375f, 33.0625f,
+                               55.09375f, 99.1875f, 429.75f, 385.75f,
+                               385.75f, 760.5f, 1091.0f, 716.5f,
+                               363.75f, 716.5f, 716.5f, 363.75f};
     
     auto const1 = engine.allocate_memory(layout{ov::PartialShape({1, 1, 1, 1}), data_types::f32, format::bfyx});
     set_values(const1, {11.0f});
     auto const2 = engine.allocate_memory(layout{ov::PartialShape({1, 1, 1, 1}), data_types::f32, format::bfyx});
-    set_values(const2, {0.05f});
+    set_values(const2, {0.1f});
     std::vector<float> values_to_subtract = {};
 
-    auto in_layout = layout{ov::PartialShape::dynamic(4), data_types::f32, format::bfyx};
-    topology topology(input_layout("input", in_layout),
+    auto in_layout_0 = layout{ov::PartialShape::dynamic(4), data_types::f32, format::bfyx};
+    topology topology(input_layout("input", in_layout_0),
                       data("weights", weights),
                       data("const1", const1),
+                      data("const2", const2),
                       reorder("reorder", input_info("input"), format::bfyx, data_types::f16,
                       values_to_subtract, reorder_mean_mode::subtract, padding{{0, 0, 2, 2}, 0}),
                       convolution("conv",
-                                  input_info("input"),
+                                  input_info("reorder"),
                                   "weights",
                                   "",     /*bias*/
                                   1,
@@ -73,20 +73,21 @@ TEST(eltwise_activation_fusing_test, basic) {
                                   ov::op::PadType::EXPLICIT,
                                   padding{{0, 0, 0, 0}, 0}),
                       eltwise("eltwise", input_info("conv"), input_info("const1"), eltwise_mode::sum),
-                      activation("relu", input_info("eltwise"), activation_func::relu),
-                      reorder("output", input_info("relu"), format::bfyx, data_types::f32));
+                      activation("prelu", input_info("eltwise"), "const2", activation_func::relu_negative_slope),
+                      reorder("output", input_info("prelu"), format::bfyx, data_types::f32));
 
     ExecutionConfig config = get_test_default_config(engine);
-    //config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
     network network(engine, topology, config);
-    network.set_input_data("input", input_mem_1);
-    auto outputs_1 = network.execute();
-    auto output_mem_1 = outputs_1.begin()->second.get_memory();
-    cldnn::mem_lock<float> output_mem_1_ptr(output_mem_1, get_test_stream());
-    for (size_t i = 0; i < output_mem_1->get_layout().get_buffer_size().count(); ++i) {
-        ASSERT_EQ(output_mem_1_ptr[i], ref_output_1[i]);
+    network.set_input_data("input", input_mem);
+    auto outputs = network.execute();
+    auto output_mem = outputs.begin()->second.get_memory();
+    cldnn::mem_lock<float> output_mem_ptr(output_mem, get_test_stream());
+
+    for (size_t i = 0; i < output_mem->get_layout().get_buffer_size().count(); ++i) {
+        ASSERT_EQ(output_mem_ptr[i], ref[i]);
     }
 }
-}  // memory_realloc_tests
+}  // is_valid_fusion_tests
