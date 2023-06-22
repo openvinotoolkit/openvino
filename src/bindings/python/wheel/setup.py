@@ -218,8 +218,9 @@ class CustomBuild(build):
     user_options = build.user_options + [
         ("jobs=", None, "Specifies the number of jobs to use with make."),
         ("cmake-args=", None, "Additional options to be passed to CMake."),
-        ("python-extensions-only=", None, "Install Python extensions without C++ libraries."),
+        ("python-extensions-only", None, "Install Python extensions without C++ libraries."),
     ]
+    boolean_options = build.boolean_options + ['python-extensions-only']
 
     def initialize_options(self):
         """Set default values for all the options that this command supports."""
@@ -227,14 +228,11 @@ class CustomBuild(build):
         self.build_base = BUILD_BASE
         self.jobs = None
         self.cmake_args = None
-        self.python_extensions_only = None
+        self.python_extensions_only = False
 
     def finalize_options(self):
         """Set final values for all the options that this command supports."""
         super().finalize_options()
-
-        if self.python_extensions_only is None:
-            self.python_extensions_only = False
 
         if self.jobs is None and os.getenv("MAX_JOBS") is not None:
             self.jobs = os.getenv("MAX_JOBS")
@@ -242,12 +240,6 @@ class CustomBuild(build):
 
         if self.cmake_args is None:
             self.cmake_args = ""
-
-        cmd_obj = self.distribution.get_command_obj("build_clib")
-        cmd_obj.install_clib = not self.python_extensions_only
-
-        cmd_obj = self.distribution.get_command_obj("build_ext")
-        cmd_obj.set_rpath = not self.python_extensions_only
 
     def cmake_build_and_install(self, install_cfg):
         """Runs cmake (configure, build and install) if artfiacts are not already built / installed."""
@@ -304,9 +296,6 @@ class CustomBuild(build):
         if not self.python_extensions_only:
             self.run_command("build_clib")
 
-        # run all build pipeline, e.g. build_ext
-        build.run(self)
-
         # Copy extra package_data content filtered by 'find_packages'
         exclude = ignore_patterns("*ez_setup*", "*__pycache__*", "*.egg-info*")
         src, dst = Path(PACKAGE_DIR), Path(self.build_lib)
@@ -319,12 +308,13 @@ class CustomBuild(build):
 
 
 class PrepareLibs(build_clib):
-    """Install prebuilt libraries."""
+    """Prepares prebuilt libraries.
+
+    The steps include: resolve symlinks for versioned shared libraries, set RPATHs for clibs
+    """
 
     def run(self):
         """Run build_clib command."""
-        # set RPATH
-        self.post_install(PY_INSTALL_CFG)
         # remove symlink to avoid copying it, set RPATH
         self.post_install(LIB_INSTALL_CFG)
         # copy clib to package data (to WHEEL_LIBS_INSTALL_DIR)
@@ -443,27 +433,18 @@ class PrepareLibs(build_clib):
 class CopyExt(build_ext):
     """Copy extension files to the build directory."""
 
-    user_options = build_ext.user_options + [
-        ("set_rpath=", None, "Sets RPATH for Python extensions and C++ libraries."),
+    user_options = [
+        ("skip-rpath", None, "Skips RPATH for Python extensions."),
     ]
+    boolean_options = ['skip_rpath']
 
     def initialize_options(self):
         """Set default values for all the options that this command supports."""
         super().initialize_options()
-
-        self.set_rpath = None
-
-    def finalize_options(self):
-        """Set final values for all the options that this command supports."""
-        super().finalize_options()
-
-        if not self.set_rpath:
-            self.set_rpath = True
+        self.skip_rpath = False
 
     def run(self):
         if len(self.extensions) == 1:
-            # when python3 setup.py build_ext is called, while build_clib is not called before
-            self.run_command("build_clib")
             self.extensions = find_prebuilt_extensions(get_install_dirs_list(PY_INSTALL_CFG))
 
         for extension in self.extensions:
@@ -473,7 +454,7 @@ class CopyExt(build_ext):
             dst = self.get_ext_fullpath(extension.name)
             os.makedirs(os.path.dirname(dst), exist_ok=True)
             # setting relative RPATH to found dlls
-            if sys.platform != "win32" and self.set_rpath:
+            if sys.platform != "win32" and not self.skip_rpath:
                 rpath = os.path.relpath(get_package_dir(PY_INSTALL_CFG), os.path.dirname(src))
                 rpath = os.path.join(LIBS_RPATH, rpath, WHEEL_LIBS_INSTALL_DIR)
                 set_rpath(rpath, os.path.realpath(src))
