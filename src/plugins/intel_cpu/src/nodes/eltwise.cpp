@@ -1584,7 +1584,7 @@ public:
     EltwiseRefExecutor(Eltwise::EltwiseData opData,
                        const VectorDims& outBlkDims,
                        std::vector<VectorDims> inpDims)
-    : _opData(std::move(opData)) {
+    : _opData(std::move(opData)), _inpDims(inpDims) {
         if (inpDims.empty()) {
             IE_THROW() << "Can not make Eltwise executor from empty input dims array";
         } else if (inpDims.front().empty()) {
@@ -1633,6 +1633,44 @@ public:
                 dst_ptr_f[i] = logf(src_ptr_f[i]);
             });
             return;
+        }
+        if (_opData.algo == Algorithm::EltwisePowerStatic) {
+            const float* src_ptr_f = reinterpret_cast<const float*>(args_ptrs.src_ptr[0]);
+            float* dst_ptr_f = reinterpret_cast<float*>(args_ptrs.dst_ptr);
+            if (_opData.alpha == 2) {
+                parallel_for(_fullWorkAmount, [&](size_t i) {
+                    dst_ptr_f[i] = (_opData.beta * src_ptr_f[i] + _opData.gamma) *
+                                   (_opData.beta * src_ptr_f[i] + _opData.gamma);
+                });
+            } else {
+                parallel_for(_fullWorkAmount, [&](size_t i) {
+                    dst_ptr_f[i] = powf(_opData.beta * src_ptr_f[i] + _opData.gamma, _opData.alpha);
+                });
+            }
+            return;
+        }
+        if (_opData.algo == Algorithm::EltwisePowerDynamic) {
+            const float* src_ptr_f = reinterpret_cast<const float*>(args_ptrs.src_ptr[0]);
+            const float* src_ptr_f_pow = reinterpret_cast<const float*>(args_ptrs.src_ptr[1]);
+            float* dst_ptr_f = reinterpret_cast<float*>(args_ptrs.dst_ptr);
+
+            uint32_t count_of_power_values = 1;
+            for (unsigned long i : _inpDims[1]) {
+                count_of_power_values *= i;
+            }
+
+            if (count_of_power_values == 1) {
+                if (src_ptr_f_pow[0] != 2) {
+                    parallel_for(_fullWorkAmount, [&](size_t i) {
+                        dst_ptr_f[i] = powf(src_ptr_f[i], src_ptr_f_pow[0]);
+                    });
+                } else {
+                    parallel_for(_fullWorkAmount, [&](size_t i) {
+                        dst_ptr_f[i] = src_ptr_f[i] * src_ptr_f[i];
+                    });
+                }
+                return;
+            }
         }
 
         std::shared_ptr<ref_eltwise_scalar_fwd_t> ref_eltwise_injector = nullptr;
@@ -1716,7 +1754,6 @@ public:
                     case Algorithm::EltwiseLogicalOr:         *dst_ptr_f = src_f[0] || src_f[1]; break;
                     case Algorithm::EltwiseLogicalXor:        *dst_ptr_f = (src_f[0] || src_f[1]) - (src_f[0] && src_f[1]); break;
                     case Algorithm::EltwiseLogicalNot:        *dst_ptr_f = !src_f[0]; break;
-                    case Algorithm::EltwisePowerStatic:       *dst_ptr_f = powf(_opData.beta * src_f[0] + _opData.gamma, _opData.alpha); break;
                     case Algorithm::EltwisePrelu:             *dst_ptr_f = src_f[0] > 0 ? src_f[0] : src_f[0] * src_f[1]; break;
                     case Algorithm::EltwiseErf:               *dst_ptr_f = std::erf(src_f[0]); break;
                     case Algorithm::EltwiseSoftSign:          *dst_ptr_f = src_f[0] / (1 + std::fabs(src_f[0])); break;
@@ -1749,6 +1786,7 @@ private:
     size_t _fullWorkAmount = 0;
     size_t _inputNum = 0;
     size_t _batchDimIdx = 0;
+    std::vector<VectorDims> _inpDims;
 };
 
 } // namespace
