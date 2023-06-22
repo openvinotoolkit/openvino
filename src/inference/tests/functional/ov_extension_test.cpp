@@ -37,7 +37,6 @@ std::string getRelativeOVExtensionPath() {
 
 }  // namespace
 
-
 class CustomNewIdentity : public ov::op::Op {
 public:
     OPENVINO_OP("Identity")
@@ -87,6 +86,7 @@ public:
 };
 
 #if defined(ENABLE_OV_IR_FRONTEND)
+
 TEST_F(OVExtensionTests, ReshapeIRWithNewExtensionsLib) {
     core.add_extension(getOVExtensionPath());
     test();

@@ -29,10 +29,10 @@ protected:
     }
 };
 
-class TemplateOp : public ov::op::Op {
+class TemplateOpExtension : public ov::op::Op {
 public:
     OPENVINO_OP("Template", "custom_opset");
-    TemplateOp() = default;
+    TemplateOpExtension() = default;
 
     bool visit_attributes(ov::AttributeVisitor& visitor) override {
         return true;
@@ -100,7 +100,7 @@ TEST_F(CustomOpsSerializationTest, CustomOpNoExtensions) {
 )V0G0N";
 
     ov::Core core;
-    auto extension = std::make_shared<ov::OpExtension<TemplateOp>>();
+    auto extension = std::make_shared<ov::OpExtension<TemplateOpExtension>>();
     core.add_extension(extension);
     auto expected = core.read_model(model, ov::Tensor());
     ov::pass::Manager manager;
