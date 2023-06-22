@@ -260,27 +260,26 @@ TEST(prepare_buffer_fusing, in_place_concat_dynamic) {
 }
 
 TEST(prepare_buffer_fusing, in_place_concat_dynamic_onednn_batch1) {
-    // Check 
     auto& engine = get_test_engine();
-    //if (!engine.get_device_info().supports_immad)
-    //    return;
+    if (!engine.get_device_info().supports_immad)
+        return;
     auto in_layout1_0 = layout{ ov::PartialShape::dynamic(4), data_types::f16, format::b_fs_yx_fsv16 };
     auto in_layout2_0 = layout{ ov::PartialShape::dynamic(4), data_types::f16, format::b_fs_yx_fsv16 };
     auto in_layout1 = layout{ ov::PartialShape{1, 16, 2, 1}, data_types::f16, format::b_fs_yx_fsv16 };
     auto in_layout2 = layout{ ov::PartialShape{1, 16, 2, 1}, data_types::f16, format::b_fs_yx_fsv16 };
 
     topology topology;
-    topology.add(input_layout("input1", in_layout1_0));
-    topology.add(input_layout("input2", in_layout2_0));
+    topology.add(input_layout("input1", in_layout1));
+    topology.add(input_layout("input2", in_layout2));
     topology.add(reorder("reorder1", input_info("input1"), format::bfyx, data_types::f16));
     topology.add(reorder("reorder2", input_info("input2"), format::bfyx, data_types::f16));
 
-    topology.add(concatenation("concat", { input_info("reorder1"), input_info("reorder2") }, 2));
+    topology.add(concatenation("concat", { input_info("reorder1"), input_info("reorder2") }, 1));
     topology.add(permute("output", input_info("concat"), {0, 2, 3, 1}));
 
     ExecutionConfig config;
     config.set_property(ov::intel_gpu::optimize_data(true));
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(false));
     auto prog = program::build_program(engine, topology, config, false, false);
     ASSERT_NE(prog, nullptr);
     auto& concat_node_p = prog->get_node("concat");
@@ -305,10 +304,10 @@ TEST(prepare_buffer_fusing, in_place_concat_dynamic_onednn_batch1) {
     std::vector<FLOAT16> ref_output = {
                         FLOAT16(1.0f), FLOAT16(2.0f), FLOAT16(3.0f), FLOAT16(4.0f), FLOAT16(5.0f), FLOAT16(6.0f), FLOAT16(7.0f), FLOAT16(8.0f),
                         FLOAT16(11.0f), FLOAT16(22.0f), FLOAT16(33.0f), FLOAT16(44.0f), FLOAT16(55.0f), FLOAT16(66.0f), FLOAT16(77.0f), FLOAT16(88.0f),
-                        FLOAT16(1.0f), FLOAT16(2.0f), FLOAT16(3.0f), FLOAT16(4.0f), FLOAT16(5.0f), FLOAT16(6.0f), FLOAT16(7.0f), FLOAT16(8.0f),
-                        FLOAT16(11.0f), FLOAT16(22.0f), FLOAT16(33.0f), FLOAT16(44.0f), FLOAT16(55.0f), FLOAT16(66.0f), FLOAT16(77.0f), FLOAT16(88.0f),
                         FLOAT16(111.0f), FLOAT16(222.0f), FLOAT16(333.0f), FLOAT16(444.0f), FLOAT16(555.0f), FLOAT16(666.0f), FLOAT16(777.0f), FLOAT16(888.0f),
                         FLOAT16(1111.0f), FLOAT16(2222.0f), FLOAT16(3333.0f), FLOAT16(4444.0f), FLOAT16(5555.0f), FLOAT16(6666.0f), FLOAT16(7777.0f), FLOAT16(8888.0f),
+                        FLOAT16(1.0f), FLOAT16(2.0f), FLOAT16(3.0f), FLOAT16(4.0f), FLOAT16(5.0f), FLOAT16(6.0f), FLOAT16(7.0f), FLOAT16(8.0f),
+                        FLOAT16(11.0f), FLOAT16(22.0f), FLOAT16(33.0f), FLOAT16(44.0f), FLOAT16(55.0f), FLOAT16(66.0f), FLOAT16(77.0f), FLOAT16(88.0f),
                         FLOAT16(111.0f), FLOAT16(222.0f), FLOAT16(333.0f), FLOAT16(444.0f), FLOAT16(555.0f), FLOAT16(666.0f), FLOAT16(777.0f), FLOAT16(888.0f),
                         FLOAT16(1111.0f), FLOAT16(2222.0f), FLOAT16(3333.0f), FLOAT16(4444.0f), FLOAT16(5555.0f), FLOAT16(6666.0f), FLOAT16(7777.0f), FLOAT16(8888.0f)};
 
@@ -330,34 +329,16 @@ TEST(prepare_buffer_fusing, in_place_concat_dynamic_onednn_batch1) {
     ASSERT_EQ(concat_mem.get(), reorder2_mem.get());
     ASSERT_TRUE(concat_node_n.can_be_optimized());
 
-    std::cout << "input1_ptr[]" << std::endl;
-    for (size_t x = 0; x < in_layout1.count(); ++x) {
-        std::cout << static_cast<float>(input1_ptr[x]) << ", ";
-    }
-    std::cout << std::endl;
-
-    std::cout << "input2_ptr[]" << std::endl;
-    for (size_t x = 0; x < in_layout2.count(); ++x) {
-        std::cout << static_cast<float>(input2_ptr[x]) << ", ";
-    }
-    std::cout << std::endl;
-
-    std::cout << "output_ptr[]" << std::endl;
-    for (size_t x = 0; x < out_l.count(); ++x) {
-        std::cout << static_cast<float>(output_ptr[x]) << ", ";
-    }
-    std::cout << std::endl;
-
     for (size_t x = 0; x < out_l.count(); ++x) {
         ASSERT_EQ(ref_output[x], output_ptr[x]);
     }
 }
 
 TEST(prepare_buffer_fusing, in_place_concat_dynamic_onednn_batch2) {
-    // Check 
+    // Check no buffer fusing when onednn concat with b=2. It is not supported.
     auto& engine = get_test_engine();
-    //if (!engine.get_device_info().supports_immad)
-    //    return;
+    if (!engine.get_device_info().supports_immad)
+        return;
     auto in_layout1_0 = layout{ ov::PartialShape::dynamic(4), data_types::f16, format::b_fs_yx_fsv16 };
     auto in_layout2_0 = layout{ ov::PartialShape::dynamic(4), data_types::f16, format::b_fs_yx_fsv16 };
     auto in_layout1 = layout{ ov::PartialShape{1, 16, 2, 1}, data_types::f16, format::b_fs_yx_fsv16 };
@@ -420,27 +401,9 @@ TEST(prepare_buffer_fusing, in_place_concat_dynamic_onednn_batch2) {
     auto reorder1_mem = net.get_primitive("reorder1")->output_memory_ptr();
     auto reorder2_mem = net.get_primitive("reorder2")->output_memory_ptr();
 
-    //ASSERT_NE(concat_mem.get(), reorder1_mem.get());
-    //ASSERT_NE(concat_mem.get(), reorder2_mem.get());
+    ASSERT_NE(concat_mem.get(), reorder1_mem.get());
+    ASSERT_NE(concat_mem.get(), reorder2_mem.get());
     ASSERT_TRUE(concat_node_n.can_be_optimized());
-
-    std::cout << "input1_ptr[]" << std::endl;
-    for (size_t x = 0; x < in_layout1.count(); ++x) {
-        std::cout << static_cast<float>(input1_ptr[x]) << ", ";
-    }
-    std::cout << std::endl;
-
-    std::cout << "input2_ptr[]" << std::endl;
-    for (size_t x = 0; x < in_layout2.count(); ++x) {
-        std::cout << static_cast<float>(input2_ptr[x]) << ", ";
-    }
-    std::cout << std::endl;
-
-    std::cout << "output_ptr[]" << std::endl;
-    for (size_t x = 0; x < out_l.count(); ++x) {
-        std::cout << static_cast<float>(output_ptr[x]) << ", ";
-    }
-    std::cout << std::endl;
 
     for (size_t x = 0; x < out_l.count(); ++x) {
         ASSERT_EQ(ref_output[x], output_ptr[x]);
