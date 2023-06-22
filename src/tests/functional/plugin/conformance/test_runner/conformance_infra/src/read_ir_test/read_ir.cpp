@@ -27,6 +27,9 @@
 #include <setjmp.h>
 
 #include "openvino/pass/manager.hpp"
+#include "openvino/pass/constant_folding.hpp"
+// #include "openvino/src/common/transformations/include/transformations/init_node_info.hpp"
+#include "openvino/runtime/common.hpp"
 
 namespace ov {
 namespace test {
@@ -173,21 +176,24 @@ void ReadIRTest::SetUp() {
             }
             input_info.insert({in_name, in_info});
         }
-
         auto inputMap = utils::getInputMap();
-        auto port = -1;
-        for (const auto &param : function->get_parameters()) {
-            ++port;
+        std::vector<std::shared_ptr<ov::op::v0::Parameter>> parameter_to_remove;
+        for (const auto& param : function->get_parameters()) {
             auto in_info = input_info.find(param->get_friendly_name())->second;
             if (!in_info.is_const) {
                 continue;
             }
-            auto next_node = param->get_default_output().get_node_shared_ptr();
+            utils::ConstRanges::set(in_info.ranges.min, in_info.ranges.max);
+            // auto next_node = param->get_default_output().get_node_shared_ptr();
+            auto next_node = param->get_default_output().get_target_inputs().begin()->get_node()->shared_from_this();
             auto it = inputMap.find(next_node->get_type_info());
-            auto tensor = it->second(next_node, port, param->get_element_type(), param->get_shape(),
-                                     utils::InputGenerateData(in_info.ranges.min, (in_info.ranges.max - in_info.ranges.min) * 1e3, 1e3));
+            auto tensor = it->second(next_node, function->get_parameter_index(param), param->get_element_type(), param->get_shape());
             auto const_node = std::make_shared<ov::op::v0::Constant>(tensor);
             ov::replace_node(param, const_node);
+            parameter_to_remove.push_back(param);
+            utils::ConstRanges::reset();
+        }
+        for (const auto& param : parameter_to_remove) {
             function->remove_parameter(param);
         }
     }

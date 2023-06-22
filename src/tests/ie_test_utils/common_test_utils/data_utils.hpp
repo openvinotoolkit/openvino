@@ -202,7 +202,7 @@ fill_data_random(T *pointer, std::size_t size, const uint32_t range = 10, int32_
     }
 
     testing::internal::Random random(seed);
-    const uint32_t k_range = range * k; // range with respect to k
+    const uint32_t k_range = range * k;
     random.Generate(k_range);
 
     if (start_from < 0 && !std::is_signed<T>::value) {
