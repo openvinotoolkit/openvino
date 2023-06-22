@@ -48,7 +48,6 @@ bool AclEltwiseExecutorBuilder::isSupported(const EltwiseAttrs& eltwiseAttrs,
         case Algorithm::EltwiseElu:
         case Algorithm::EltwiseTanh:
         case Algorithm::EltwiseSigmoid:
-//            case Algorithm::EltwisePowerDynamic: // TODO: CVS-111880
         case Algorithm::EltwiseSoftRelu:
         case Algorithm::EltwiseClamp:
         case Algorithm::EltwiseSwish: // TODO: CVS-109354: efficientdet-d0 accuracy drops if ACL Swish is used
@@ -254,15 +253,6 @@ bool AclEltwiseExecutor::init(const EltwiseAttrs &eltwiseAttrs, const std::vecto
                 return false;
             exec_func = [this]{
                 auto acl_op = std::make_unique<NEElementwiseSquaredDiff>();
-                acl_op->configure(&srcTensors[0], &srcTensors[1], &dstTensors[0]);
-                acl_op->run();
-            };
-            break;
-        case Algorithm::EltwisePowerDynamic:
-            if (!NEElementwisePower::validate(&srcTensorsInfo[0], &srcTensorsInfo[1], &dstTensorsInfo[0]))
-                return false;
-            exec_func = [this]{
-                auto acl_op = std::make_unique<NEElementwisePower>();
                 acl_op->configure(&srcTensors[0], &srcTensors[1], &dstTensors[0]);
                 acl_op->run();
             };
