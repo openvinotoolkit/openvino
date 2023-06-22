@@ -24,8 +24,7 @@ layout shape_of_inst::calc_output_layout(shape_of_node const& node, kernel_impl_
         dt = impl_param.get_fused_output_layout().data_type;
     }
 
-    auto in_shape = impl_param.get_input_layout();
-    cldnn::tensor out_size{static_cast<tensor::value_type>(in_shape.get_rank()), 1, 1, 1};
+    cldnn::tensor out_size{static_cast<tensor::value_type>(prim->input_rank), 1, 1, 1};
 
     return layout{dt, format::bfyx, out_size};
 }
