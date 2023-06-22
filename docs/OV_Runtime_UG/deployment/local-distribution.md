@@ -53,11 +53,11 @@ As shown in the picture above, some plugin libraries may have OS-specific depend
       |     CPU      |            —            |                          —                            |
       +--------------+-------------------------+-------------------------------------------------------+
       |     GPU      | | OpenCL.dll            | | ``C:\Windows\System32\opencl.dll``                  |
-      |              | | cache.json            | | ``./runtime/bin/intel64/Release/cache.json``   or   |
-      |              |                         | | ``./runtime/bin/intel64/Debug/cache.json``          |
+      |              | | cache.json            | | ``.\runtime\bin\intel64\Release\cache.json``   or   |
+      |              |                         | | ``.\runtime\bin\intel64\Debug\cache.json``          |
       +--------------+-------------------------+-------------------------------------------------------+
-      |     GNA      |         gna.dll         | | ``./runtime/bin/intel64/Release/gna.dll``    or     |
-      |              |                         | | ``./runtime/bin/intel64/Debug/gna.dll``             |
+      |     GNA      |         gna.dll         | | ``.\runtime\bin\intel64\Release\gna.dll``    or     |
+      |              |                         | | ``.\runtime\bin\intel64\Debug\gna.dll``             |
       +--------------+-------------------------+-------------------------------------------------------+
       |  Arm® CPU    |            —            |                          —                            |
       +--------------+-------------------------+-------------------------------------------------------+
