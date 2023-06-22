@@ -13,12 +13,12 @@ namespace autobatch_plugin {
 
 class SyncInferRequest : public ov::ISyncInferRequest {
 public:
-    explicit SyncInferRequest(const std::shared_ptr<const ov::autobatch_plugin::CompiledModel>& compiled_model,
-                              std::shared_ptr<ov::autobatch_plugin::CompiledModel::WorkerInferRequest> workerRequest,
-                              int batch_id,
-                              int num_batch,
-                              const std::set<std::string>& batchedInputs,
-                              const std::set<std::string>& batchedOutputs);
+    SyncInferRequest(const std::shared_ptr<const ov::autobatch_plugin::CompiledModel>& compiled_model,
+                     std::shared_ptr<ov::autobatch_plugin::CompiledModel::WorkerInferRequest> worker_request,
+                     int batch_id,
+                     int num_batch,
+                     const std::set<std::string>& batched_inputs,
+                     const std::set<std::string>& batched_outputs);
 
     // Batch-Device impl specific: sets the data (blobs from the device request to the batched device request)
     void set_tensors_to_another_request(std::shared_ptr<ov::IAsyncInferRequest>& req);
@@ -41,13 +41,13 @@ public:
         NOT_EXECUTED,
         BATCH_EXECUTED,
         TIMEOUT_EXECUTED
-    } m_batched_req_used = eExecutionFlavor::NOT_EXECUTED;
+    } m_batched_request_used = eExecutionFlavor::NOT_EXECUTED;
 
 protected:
     void copy_tensor_if_needed(const ov::Tensor& src, ov::Tensor& dst, bool bInput);
 
-    void share_tensors_with_batched_req(const std::set<std::string>& batchedInputs,
-                                        const std::set<std::string>& batchedOutputs);
+    void share_tensors_with_batched_req(const std::set<std::string>& batched_inputs,
+                                        const std::set<std::string>& batched_outputs);
 
     size_t m_batch_id;
 

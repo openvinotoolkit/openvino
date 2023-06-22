@@ -21,16 +21,16 @@ class AsyncInferRequest;
 class CompiledModel : public ov::ICompiledModel {
 public:
     struct WorkerInferRequest {
-        ov::SoPtr<ov::IAsyncInferRequest> _inferRequestBatched;
-        int _batchSize;
+        ov::SoPtr<ov::IAsyncInferRequest> _infer_request_batched;
+        int _batch_size;
         InferenceEngine::ThreadSafeQueueWithSize<
             std::pair<ov::autobatch_plugin::AsyncInferRequest*, ov::threading::Task>>
             _tasks;
-        std::vector<ov::threading::Task> _completionTasks;
+        std::vector<ov::threading::Task> _completion_tasks;
         std::thread _thread;
         std::condition_variable _cond;
         std::mutex _mutex;
-        std::exception_ptr _exceptionPtr;
+        std::exception_ptr _exception_ptr;
     };
 
     CompiledModel(const std::shared_ptr<ov::Model>& model,
@@ -39,8 +39,8 @@ public:
                   const DeviceInformation& device_info,
                   const std::set<std::string>& batched_inputs,
                   const std::set<std::string>& batched_outputs,
-                  const ov::SoPtr<ov::ICompiledModel>& compiled_Model_with_batch,
-                  const ov::SoPtr<ov::ICompiledModel>& compiled_Model_Without_batch);
+                  const ov::SoPtr<ov::ICompiledModel>& compiled_model_with_batch,
+                  const ov::SoPtr<ov::ICompiledModel>& compiled_model_without_batch);
 
     void set_property(const ov::AnyMap& properties) override;
 

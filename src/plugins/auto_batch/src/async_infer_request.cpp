@@ -26,7 +26,7 @@ AsyncInferRequest::AsyncInferRequest(const std::shared_ptr<ov::autobatch_plugin:
             workerInferRequest->_tasks.push(t);
             // it is ok to call size() here as the queue only grows (and the bulk removal happens under the mutex)
             const int sz = static_cast<int>(workerInferRequest->_tasks.size());
-            if (sz == workerInferRequest->_batchSize) {
+            if (sz == workerInferRequest->_batch_size) {
                 workerInferRequest->_cond.notify_one();
             }
         };
@@ -38,13 +38,13 @@ AsyncInferRequest::AsyncInferRequest(const std::shared_ptr<ov::autobatch_plugin:
                            std::rethrow_exception(this->m_sync_request->m_exception_ptr);
                        }
                        auto batchReq = this->m_sync_request->m_batched_request_wrapper;
-                       if (batchReq->_exceptionPtr)  // when the batchN execution failed
+                       if (batchReq->_exception_ptr)  // when the batchN execution failed
                        {
-                           std::rethrow_exception(batchReq->_exceptionPtr);
+                           std::rethrow_exception(batchReq->_exception_ptr);
                        }
                        // in the case of non-batched execution the tensors were set explicitly
                        if (SyncInferRequest::eExecutionFlavor::BATCH_EXECUTED ==
-                           this->m_sync_request->m_batched_req_used) {
+                           this->m_sync_request->m_batched_request_used) {
                            this->m_sync_request->copy_outputs_if_needed();
                        }
                    }}};
@@ -52,8 +52,9 @@ AsyncInferRequest::AsyncInferRequest(const std::shared_ptr<ov::autobatch_plugin:
 
 std::vector<ov::ProfilingInfo> AsyncInferRequest::get_profiling_info() const {
     check_state();
-    if (ov::autobatch_plugin::SyncInferRequest::eExecutionFlavor::BATCH_EXECUTED == m_sync_request->m_batched_req_used)
-        return m_sync_request->m_batched_request_wrapper->_inferRequestBatched->get_profiling_info();
+    if (ov::autobatch_plugin::SyncInferRequest::eExecutionFlavor::BATCH_EXECUTED ==
+        m_sync_request->m_batched_request_used)
+        return m_sync_request->m_batched_request_wrapper->_infer_request_batched->get_profiling_info();
     else
         return m_request_without_batch->get_profiling_info();
 }

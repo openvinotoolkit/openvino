@@ -15,14 +15,14 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                              const DeviceInformation& device_info,
                              const std::set<std::string>& batched_inputs,
                              const std::set<std::string>& batched_outputs,
-                             const ov::SoPtr<ov::ICompiledModel>& compiled_Model_with_batch,
-                             const ov::SoPtr<ov::ICompiledModel>& compiled_Model_Without_batch)
+                             const ov::SoPtr<ov::ICompiledModel>& compiled_model_with_batch,
+                             const ov::SoPtr<ov::ICompiledModel>& compiled_model_without_batch)
     : ov::ICompiledModel(model, plugin),
       m_config(config),
       m_batched_inputs(batched_inputs),
       m_batched_outputs(batched_outputs),
-      m_compiled_model_with_batch(compiled_Model_with_batch),
-      m_compiled_model_without_batch(compiled_Model_Without_batch) {
+      m_compiled_model_with_batch(compiled_model_with_batch),
+      m_compiled_model_without_batch(compiled_model_without_batch) {
     // WA for gcc 4.8 ( fails compilation with member init-list)
     m_device_info = device_info;
     auto time_out = config.find(ov::auto_batch_timeout.name());
@@ -64,18 +64,18 @@ CompiledModel::GetWorkerInferRequest() const {
     if (!batch_id) {  // need new request
         m_worker_requests.push_back(std::make_shared<WorkerInferRequest>());
         auto workerRequestPtr = m_worker_requests.back().get();
-        workerRequestPtr->_inferRequestBatched = {m_compiled_model_with_batch->create_infer_request(),
-                                                  m_compiled_model_with_batch._so};
-        workerRequestPtr->_batchSize = m_device_info.device_batch_size;
-        workerRequestPtr->_completionTasks.resize(workerRequestPtr->_batchSize);
-        workerRequestPtr->_inferRequestBatched->set_callback(
+        workerRequestPtr->_infer_request_batched = {m_compiled_model_with_batch->create_infer_request(),
+                                                    m_compiled_model_with_batch._so};
+        workerRequestPtr->_batch_size = m_device_info.device_batch_size;
+        workerRequestPtr->_completion_tasks.resize(workerRequestPtr->_batch_size);
+        workerRequestPtr->_infer_request_batched->set_callback(
             [workerRequestPtr](std::exception_ptr exceptionPtr) mutable {
                 if (exceptionPtr)
-                    workerRequestPtr->_exceptionPtr = exceptionPtr;
-                IE_ASSERT(workerRequestPtr->_completionTasks.size() == (size_t)workerRequestPtr->_batchSize);
+                    workerRequestPtr->_exception_ptr = exceptionPtr;
+                IE_ASSERT(workerRequestPtr->_completion_tasks.size() == (size_t)workerRequestPtr->_batch_size);
                 // notify the individual requests on the completion
-                for (int c = 0; c < workerRequestPtr->_batchSize; c++) {
-                    workerRequestPtr->_completionTasks[c]();
+                for (int c = 0; c < workerRequestPtr->_batch_size; c++) {
+                    workerRequestPtr->_completion_tasks[c]();
                 }
                 // reset the timeout
                 workerRequestPtr->_cond.notify_one();
@@ -94,16 +94,16 @@ CompiledModel::GetWorkerInferRequest() const {
                     // as we pop the tasks from the queue only here
                     // it is ok to call size() (as the _tasks can only grow in parallel)
                     const int sz = static_cast<int>(workerRequestPtr->_tasks.size());
-                    if (sz == workerRequestPtr->_batchSize) {
+                    if (sz == workerRequestPtr->_batch_size) {
                         std::pair<ov::autobatch_plugin::AsyncInferRequest*, ov::threading::Task> t;
                         for (int n = 0; n < sz; n++) {
                             IE_ASSERT(workerRequestPtr->_tasks.try_pop(t));
-                            workerRequestPtr->_completionTasks[n] = std::move(t.second);
+                            workerRequestPtr->_completion_tasks[n] = std::move(t.second);
                             t.first->m_sync_request->copy_inputs_if_needed();
-                            t.first->m_sync_request->m_batched_req_used =
+                            t.first->m_sync_request->m_batched_request_used =
                                 ov::autobatch_plugin::SyncInferRequest::eExecutionFlavor::BATCH_EXECUTED;
                         }
-                        workerRequestPtr->_inferRequestBatched->start_async();
+                        workerRequestPtr->_infer_request_batched->start_async();
                     } else if ((status == std::cv_status::timeout) && sz) {
                         // timeout to collect the batch is over, have to execute the requests in the batch1 mode
                         std::pair<ov::autobatch_plugin::AsyncInferRequest*, ov::threading::Task> t;
@@ -122,7 +122,7 @@ CompiledModel::GetWorkerInferRequest() const {
                                         all_completed.set_value();
                                     }
                                 });
-                            t.first->m_sync_request->m_batched_req_used =
+                            t.first->m_sync_request->m_batched_request_used =
                                 ov::autobatch_plugin::SyncInferRequest::eExecutionFlavor::TIMEOUT_EXECUTED;
                             t.first->m_sync_request->set_tensors_to_another_request(t.first->m_request_without_batch);
                             t.first->m_request_without_batch->start_async();
@@ -150,9 +150,8 @@ std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() co
 }
 
 std::shared_ptr<const ov::Model> CompiledModel::get_runtime_model() const {
-    return m_compiled_model_with_batch && m_compiled_model_with_batch->get_runtime_model()
-               ? m_compiled_model_with_batch->get_runtime_model()
-               : m_compiled_model_without_batch->get_runtime_model();
+    return m_compiled_model_with_batch ? m_compiled_model_with_batch->get_runtime_model()
+                                       : m_compiled_model_without_batch->get_runtime_model();
 }
 
 void CompiledModel::set_property(const ov::AnyMap& properties) {

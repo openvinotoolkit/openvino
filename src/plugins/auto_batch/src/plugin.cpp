@@ -157,7 +157,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     if (device_batch == full_properties.end())
         device_batch = full_properties.find(ov::device::priorities.name());
     if (device_batch == full_properties.end()) {
-        OPENVINO_THROW("KEY_AUTO_BATCH key is not set for BATCH device");
+        OPENVINO_THROW("MULTI_DEVICE_PRIORITIES key for AUTO NATCH is not set for BATCH device");
     }
 
     auto meta_device = parse_meta_device(device_batch->second.as<std::string>(), properties);
@@ -240,9 +240,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         // batch size is not set explicitly via device name e.g. BATCH:GPU(4)
         // let's query the optimal batch size
         ov::AnyMap options;
-        options["MODEL_PTR"] = std::const_pointer_cast<ngraph::Function>(model);
-        auto opt_batch_size =
-            core->get_property(device_name, ov::optimal_batch_size.name(), options).as<unsigned int>();
+        options[ov::hint::model.name()] = model;
+        unsigned int opt_batch_size = core->get_property(device_name, ov::optimal_batch_size, options);
         auto requests = core->get_property(device_name, ov::hint::num_requests);
         const auto& reqs = properties.find(ov::hint::num_requests.name());
         if (reqs != properties.end())
@@ -268,9 +267,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     size_t batch1_footprint = 0;
     if (device_name.find("GPU") != std::string::npos)
         batch1_footprint = report_footprint(core, device_name);
-    auto compiledmodel_without_batch = !context.is_empty()
-                                           ? core->compile_model(model, context, device_config_no_auto_batch)
-                                           : core->compile_model(model, device_name, device_config_no_auto_batch);
+    auto compiled_model_without_batch = !context.is_empty()
+                                            ? core->compile_model(model, context, device_config_no_auto_batch)
+                                            : core->compile_model(model, device_name, device_config_no_auto_batch);
     if (device_name.find("GPU") != std::string::npos) {
         batch1_footprint = report_footprint(core, device_name) - batch1_footprint;
         if (batch1_footprint) {
@@ -283,12 +282,12 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     }
 
     // auto-batch settings
-    ov::AnyMap compiledmodel_config;
+    ov::AnyMap compiled_model_config;
     for (const auto& c : full_properties) {
         if (supported_configKeys.end() != std::find(supported_configKeys.begin(), supported_configKeys.end(), c.first))
-            compiledmodel_config.insert(c);
+            compiled_model_config.insert(c);
     }
-    ov::SoPtr<ov::ICompiledModel> compiledmodel_with_batch;
+    ov::SoPtr<ov::ICompiledModel> compiled_model_with_batch;
     auto reshaped = model->clone();
     if (meta_device.device_batch_size > 1 && batched_inputs.size()) {
         try {
@@ -308,23 +307,21 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
                     auto new_input_shape = input.get_shape();
                 }
             }
-            compiledmodel_with_batch = !context.is_empty()
-                                           ? core->compile_model(reshaped, context, device_config_no_auto_batch)
-                                           : core->compile_model(reshaped, device_name, device_config_no_auto_batch);
+            compiled_model_with_batch = !context.is_empty()
+                                            ? core->compile_model(reshaped, context, device_config_no_auto_batch)
+                                            : core->compile_model(reshaped, device_name, device_config_no_auto_batch);
         } catch (const ov::Exception&) {
             meta_device.device_batch_size = 1;
         }
     }
     return std::make_shared<CompiledModel>(model->clone(),
                                            shared_from_this(),
-                                           compiledmodel_config,
+                                           compiled_model_config,
                                            meta_device,
                                            batched_inputs,
                                            batched_outputs,
-                                           compiledmodel_with_batch,
-                                           compiledmodel_without_batch);
-
-    // Todo create auto batch executable network
+                                           compiled_model_with_batch,
+                                           compiled_model_without_batch);
 }
 
 ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& model,
@@ -340,7 +337,7 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
             return get_core()->query_model(model, metaDevice.device_name, cfg);
         }
     }
-    OPENVINO_THROW("Value for KEY_AUTO_BATCH_DEVICE_CONFIG is not set");
+    OPENVINO_THROW("Value for MULTI_DEVICE_PRIORITIES for AUTO BATCH PLUGIN is not set");
 }
 
 std::shared_ptr<ov::IRemoteContext> Plugin::get_default_context(const ov::AnyMap& remote_properties) const {
