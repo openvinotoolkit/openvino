@@ -75,6 +75,9 @@ public:
         if (fstat(m_handle.get(), &sb) == -1) {
             throw std::runtime_error("Can not get file size for " + path);
         }
+        if (data_size + offset > static_cast<size_t>(sb.st_size)) {
+            throw std::runtime_error("Can not map out of scope memory for " + path);
+        }
         m_size = data_size > 0 ? data_size : sb.st_size - offset;
         if (m_size > 0) {
             m_data = mmap(nullptr, m_size, prot, MAP_PRIVATE, m_handle.get(), offset);
