@@ -49,7 +49,7 @@ CPU plugin supports the following data types as inference precision of internal 
 - Floating-point data types:
 
   - ``f32`` (Intel® x86-64, Arm®)
-  - ``bf16 ``(Intel® x86-64)
+  - ``bf16``(Intel® x86-64)
 - Integer data types:
 
   - ``i32`` (Intel® x86-64, Arm®)
@@ -85,8 +85,8 @@ Floating Point Data Types Specifics
 
 CPU plugin supports the following floating-point data types as inference precision of internal primitives:
 
-- f32 (Intel® x86-64, Arm®)
-- bf16 (Intel® x86-64)
+- ``f32`` (Intel® x86-64, Arm®)
+- ``bf16`` (Intel® x86-64)
 
 The default floating-point precision of a CPU primitive is ``f32``. To support the ``f16`` OpenVINO IR the plugin internally converts 
 all the ``f16`` values to ``f32`` and all the calculations are performed using the native precision of ``f32``.

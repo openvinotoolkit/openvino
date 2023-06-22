@@ -60,17 +60,17 @@ See the `Release Notes <https://software.intel.com/en-us/articles/OpenVINO-RelNo
         
             Install GCC 8.3.1 via devtoolset-8
         
-              .. code-block:: sh
+            .. code-block:: sh
            
-                 sudo yum update -y && sudo yum install -y centos-release-scl epel-release
-                 sudo yum install -y devtoolset-8
+               sudo yum update -y && sudo yum install -y centos-release-scl epel-release
+               sudo yum install -y devtoolset-8
         
             Enable devtoolset-8 and check current gcc version
         
-               .. code-block:: sh
-           
-                  source /opt/rh/devtoolset-8/enable
-                  gcc -v
+            .. code-block:: sh
+            
+               source /opt/rh/devtoolset-8/enable
+               gcc -v
         
        
 
