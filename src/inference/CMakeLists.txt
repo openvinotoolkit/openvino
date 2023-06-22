@@ -40,7 +40,14 @@ if(WIN32)
     file (GLOB LIBRARY_HEADERS
          ${LIBRARY_HEADERS}
          ${CMAKE_CURRENT_SOURCE_DIR}/src/os/win/*.hpp)
-elseif(NOT (APPLE OR EMSCRIPTEN))
+elseif(APPLE)
+    file (GLOB LIBRARY_SRC
+        ${LIBRARY_SRC}
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/os/mac/*.cpp)
+    file (GLOB LIBRARY_HEADERS
+        ${LIBRARY_HEADERS}
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/os/mac/*.hpp)
+elseif(NOT EMSCRIPTEN)
     file (GLOB LIBRARY_SRC
           ${LIBRARY_SRC}
           ${CMAKE_CURRENT_SOURCE_DIR}/src/os/lin/*.cpp)

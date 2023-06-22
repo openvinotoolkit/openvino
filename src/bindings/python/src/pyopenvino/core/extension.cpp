@@ -10,12 +10,17 @@
 #include <pybind11/stl_bind.h>
 
 #include "openvino/frontend/manager.hpp"
+#include "pyopenvino/core/common.hpp"
 
 namespace py = pybind11;
 
 void regclass_Extension(py::module m) {
     py::class_<ov::Extension, std::shared_ptr<ov::Extension>> ext(m, "Extension", py::dynamic_attr());
     ext.doc() = "openvino.runtime.Extension provides the base interface for OpenVINO extensions.";
+
+    ext.def("__repr__", [](const ov::Extension& self) {
+        return Common::get_simple_repr(self);
+    });
 
     ext.def(py::init<>());
 }

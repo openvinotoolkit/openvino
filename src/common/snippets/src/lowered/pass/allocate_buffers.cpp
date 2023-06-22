@@ -58,8 +58,17 @@ void AllocateBuffers::propagate_offset(const LinearIR& linear_ir, const Expressi
 bool AllocateBuffers::run(LinearIR& linear_ir) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::AllocateBuffers");
 
-    bool modified = false;
     size_t offset = 0;
+    std::set<ExpressionPtr> allocated_buffers;
+
+    auto allocate = [&](const std::shared_ptr<op::Buffer>& buffer, const ExpressionPtr& expr, size_t buffer_size) {
+        offset = m_buffer_scratchpad_size;
+        buffer->set_offset(static_cast<int64_t>(offset));
+        propagate_offset(linear_ir, expr, offset);
+        m_buffer_scratchpad_size += buffer_size;
+        allocated_buffers.insert(expr);
+    };
+
     for (auto expr_it = linear_ir.begin(); expr_it != linear_ir.end(); expr_it++) {
         const auto& expr = *expr_it;
         if (auto buffer = as_type_ptr<op::Buffer>(expr->get_node())) {
@@ -67,6 +76,7 @@ bool AllocateBuffers::run(LinearIR& linear_ir) {
             // If it's the first buffer, offsets are zero => nothing to propagate, can continue
             if (m_buffer_scratchpad_size == 0) {
                 m_buffer_scratchpad_size += buffer_size;
+                allocated_buffers.insert(expr);
                 continue;
             }
 
@@ -77,29 +87,55 @@ bool AllocateBuffers::run(LinearIR& linear_ir) {
                 // TODO: It should be unified in MemoryManager with memory reuse in the near future
                 const auto ma = ov::as_type_ptr<op::MemoryAccess>(parent_node);
                 if (ma && ma->is_full_memory_access_op()) {
-                    offset = m_buffer_scratchpad_size;
-                    buffer->set_offset(static_cast<int64_t>(offset));
-                    propagate_offset(linear_ir, *expr_it, offset);
-                    m_buffer_scratchpad_size += buffer_size;
+                    allocate(buffer, *expr_it, buffer_size);
                     continue;
                 }
+
+                // Loop       Full_MA
+                //  |           |
+                // Buffer_1  Buffer_0
+                //   \         /
+                //     Full_MA
+                // At the moment the pass support only sequentially implicit InPlace.
+                // If Buffer_0 is allocated firstly as Buffer after full memory access op,
+                // we cannot reuse this allocated memory for Buffer_1 - we must allocate new memory for it.
+                // TODO: It should be unified in MemoryManager with memory reuse in the near future
+                bool need_allocate = false;
+                const auto consumers = expr->get_output_port_connector(0)->get_consumers();
+                for (const auto& consumer : consumers) {
+                    const auto& consumer_expr = consumer.get_expr();
+                    const auto& child_node = consumer_expr->get_node();
+                    const auto ma = ov::as_type_ptr<op::MemoryAccess>(child_node);
+                    if (ma && ma->is_full_memory_access_op()) {
+                        for (size_t i = 0; i < consumer_expr->get_input_count() && !need_allocate; ++i) {
+                            if (i == consumer.get_index())
+                                continue;
+                            const auto buffer_sibling = consumer_expr->get_input_port_connector(i)->get_source().get_expr();
+                            need_allocate = ov::is_type<op::Buffer>(buffer_sibling->get_node()) && allocated_buffers.count(buffer_sibling) != 0;
+                        }
+                    }
+                    if (need_allocate)
+                        break;
+                }
+                if (need_allocate) {
+                    allocate(buffer, *expr_it, buffer_size);
+                    continue;
+                }
+
                 const auto current_allocated_memory_size = m_buffer_scratchpad_size - offset;
                 if (buffer_size > current_allocated_memory_size) {
-                    m_buffer_scratchpad_size += (buffer_size - current_allocated_memory_size);
-                    // Note: we don't update offset because we just add memory to needed size
+                    allocate(buffer, expr, buffer_size);
+                    continue;
                 }
                 propagate_offset(linear_ir, *expr_it, offset);
+                allocated_buffers.insert(expr);
             } else {
                 // Single Buffer without input should allocate new memory
-                offset = m_buffer_scratchpad_size;
-                buffer->set_offset(static_cast<int64_t>(offset));
-                propagate_offset(linear_ir, *expr_it, offset);
-                m_buffer_scratchpad_size += buffer_size;
+                allocate(buffer, *expr_it, buffer_size);
             }
-            modified = true;
         }
     }
-    return modified;
+    return !allocated_buffers.empty();
 }
 
 } // namespace pass

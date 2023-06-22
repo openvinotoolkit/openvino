@@ -7,6 +7,7 @@
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "snippets/pass/fq_decomposition.hpp"
 #include "snippets/pass/tokenization.hpp"
+#include "snippets/pass/collapse_subgraph.hpp"
 #include "fake_quantize_function.hpp"
 #include "snippets/op/subgraph.hpp"
 #include "transformations/snippets/x64/pass/snippets_mark_skipped.hpp"
@@ -20,9 +21,9 @@ class FakeQuantizeTokenizationTest : public TransformationTestsF {
 public:
     void register_passes() {
         manager.register_pass<ov::intel_cpu::SnippetsMarkSkipped>();
-        manager.register_pass<ngraph::snippets::pass::EnumerateNodes>();
-        manager.register_pass<ngraph::snippets::pass::TokenizeSnippets>();
-        manager.get_pass_config()->set_callback<ngraph::snippets::pass::TokenizeSnippets>([](const std::shared_ptr<const ov::Node>& n) -> bool {
+        manager.register_pass<ov::snippets::pass::EnumerateNodes>();
+        manager.register_pass<ov::snippets::pass::TokenizeSnippets>();
+        manager.get_pass_config()->set_callback<ov::snippets::pass::TokenizeSnippets>([](const std::shared_ptr<const ov::Node>& n) -> bool {
             return false;
         });
     }
@@ -31,10 +32,10 @@ public:
         TransformationTestsF::TearDown();
 
         auto subgraph = FunctionHelper::getSubgraph(function);
-        auto body = subgraph == nullptr ? nullptr : std::dynamic_pointer_cast<ngraph::snippets::op::Subgraph>(subgraph)->body_ptr();
+        auto body = subgraph == nullptr ? nullptr : std::dynamic_pointer_cast<ov::snippets::op::Subgraph>(subgraph)->body_ptr();
 
         auto subgraph_ref = FunctionHelper::getSubgraph(function_ref);
-        auto body_ref = subgraph_ref == nullptr ? nullptr : std::dynamic_pointer_cast<ngraph::snippets::op::Subgraph>(subgraph_ref)->body_ptr();
+        auto body_ref = subgraph_ref == nullptr ? nullptr : std::dynamic_pointer_cast<ov::snippets::op::Subgraph>(subgraph_ref)->body_ptr();
 
         if ((body != nullptr) && (body_ref != nullptr)) {
             auto res = comparator.compare(body, body_ref);

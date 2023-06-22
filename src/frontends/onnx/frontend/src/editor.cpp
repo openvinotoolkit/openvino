@@ -12,10 +12,10 @@
 #include "detail/subgraph_extraction.hpp"
 #include "edge_mapper.hpp"
 #include "ngraph/file_util.hpp"
-#include "ngraph/log.hpp"
 #include "onnx_common/parser.hpp"
 #include "onnx_common/utils.hpp"
 #include "openvino/util/file_util.hpp"
+#include "openvino/util/log.hpp"
 #include "utils/common.hpp"
 #include "utils/onnx_internal.hpp"
 
@@ -412,7 +412,7 @@ PartialShape onnx_editor::ONNXModelEditor::get_tensor_shape(const std::string& t
     } else {
         auto shape_infer_applied = onnx_shapes.infer_shapes();
         if (!shape_infer_applied) {
-            NGRAPH_WARN << "Cannot replace existing shapes during get_tensor_shape";
+            OPENVINO_WARN << "Cannot replace existing shapes during get_tensor_shape";
             return PartialShape::dynamic();
         }
         auto node_it = std::find_if(std::begin(onnx_graph->value_info()),
@@ -537,8 +537,8 @@ void onnx_editor::ONNXModelEditor::set_input_values(
         auto onnx_initializer = find_graph_initializer(*onnx_graph, name);
 
         if (!onnx_initializer && !onnx_input) {
-            NGRAPH_INFO << "There is no input nor initializer named '" << name << "' in original model '"
-                        << m_model_path << "'.";
+            OPENVINO_INFO << "There is no input nor initializer named '" << name << "' in original model '"
+                          << m_model_path << "'.";
         }
 
         if (!onnx_initializer) {

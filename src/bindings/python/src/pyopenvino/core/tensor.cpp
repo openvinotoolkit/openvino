@@ -269,6 +269,6 @@ void regclass_Tensor(py::module m) {
 
         ss << "shape" << self.get_shape() << " type: " << self.get_element_type();
 
-        return "<Tensor: " + ss.str() + ">";
+        return "<" + Common::get_class_name(self) + ": " + ss.str() + ">";
     });
 }

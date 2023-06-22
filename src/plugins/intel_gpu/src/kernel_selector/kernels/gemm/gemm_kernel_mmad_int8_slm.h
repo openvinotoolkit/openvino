@@ -43,5 +43,6 @@ protected:
     GemmTuningData SetTuningParams(const gemm_params& params) const;
     size_t GetMmadOperationsNumber(const GemmTuningData& tuning_data) const;
     bool HasLeftovers(const GemmTuningData& tuning_data) const;
+    DeviceFeaturesKey get_required_device_features_key(const Params& params, const optional_params& /*options*/) const override;
 };
 }  // namespace kernel_selector

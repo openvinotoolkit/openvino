@@ -11,6 +11,7 @@
 #include <sstream>
 #include <string>
 
+#include "pyopenvino/core/common.hpp"
 #include "pyopenvino/graph/coordinate_diff.hpp"
 
 namespace py = pybind11;
@@ -30,7 +31,7 @@ void regclass_graph_CoordinateDiff(py::module m) {
     });
 
     coordinate_diff.def("__repr__", [](const ov::CoordinateDiff& self) -> std::string {
-        std::string class_name = py::cast(self).get_type().attr("__name__").cast<std::string>();
+        std::string class_name = Common::get_class_name(self);
         std::string shape_str = py::cast(self).attr("__str__")().cast<std::string>();
         return "<" + class_name + ": (" + shape_str + ")>";
     });

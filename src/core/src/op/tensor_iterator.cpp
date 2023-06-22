@@ -194,7 +194,7 @@ std::shared_ptr<Node> op::v0::TensorIterator::clone_with_new_inputs(const Output
     op->set_output_size(m_output_descriptions.size());
 
     op->m_num_iterations = m_num_iterations;
-    op->m_bodies[0] = clone_function(*get_function());
+    op->m_bodies[0] = get_function()->clone();
 
     for (auto& input_description : m_input_descriptions[0]) {
         op->m_input_descriptions[0].push_back(input_description->copy());

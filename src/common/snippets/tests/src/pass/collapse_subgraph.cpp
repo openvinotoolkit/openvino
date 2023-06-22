@@ -8,6 +8,7 @@
 #include <subgraph_fq.hpp>
 #include <subgraph_converts.hpp>
 #include "snippets/pass/tokenization.hpp"
+#include "snippets/pass/collapse_subgraph.hpp"
 
 namespace ov {
 namespace test {

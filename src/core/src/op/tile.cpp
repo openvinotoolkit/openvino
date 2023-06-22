@@ -54,7 +54,9 @@ bool op::v0::Tile::evaluate_tile(const HostTensorVector& outputs, const HostTens
     const auto& data = inputs[0];
     const auto& axis = inputs[1];
     auto& output = outputs[0];
+    OPENVINO_SUPPRESS_DEPRECATED_START
     auto repeats_val = read_index_vector(axis);
+    OPENVINO_SUPPRESS_DEPRECATED_END
     const auto repeats_rank = repeats_val.size();
 
     const auto input_shapes = std::vector<ov::PartialShape>{data->get_shape(), axis->get_shape()};

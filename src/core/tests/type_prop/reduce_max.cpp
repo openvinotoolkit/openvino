@@ -7,3 +7,14 @@
 using Type = ::testing::Types<op::v1::ReduceMax>;
 INSTANTIATE_TYPED_TEST_SUITE_P(type_prop_reduce_max, ReduceTest, Type);
 INSTANTIATE_TYPED_TEST_SUITE_P(type_prop_reduce_max_et, ReduceArithmeticTest, Type);
+
+TEST(type_prop, reduce_max_value_propagation) {
+    const auto param = std::make_shared<op::Parameter>(element::f32, PartialShape{{1, 8}, {2, 3}, 6});
+    const auto shape_of = std::make_shared<op::v3::ShapeOf>(param);
+    const auto reduce_prod =
+        std::make_shared<op::v1::ReduceMax>(shape_of, op::Constant::create(element::i64, {1}, {0}), true);
+    const auto reshape = std::make_shared<op::v1::Reshape>(param, reduce_prod, false);
+
+    EXPECT_EQ(reshape->get_element_type(), ov::element::f32);
+    EXPECT_EQ(reshape->get_output_partial_shape(0), (PartialShape{{6, 8}}));
+}

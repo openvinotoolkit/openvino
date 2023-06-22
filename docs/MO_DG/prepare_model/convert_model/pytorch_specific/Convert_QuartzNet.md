@@ -14,20 +14,20 @@ Here are the instructions on how to obtain QuartzNet in ONNX format.
 
 2. Run the following code:
 
-.. code-block:: python
+   .. code-block:: python
+   
+      import nemo
+      import nemo.collections.asr as nemo_asr
+   
+      quartznet = nemo_asr.models.EncDecCTCModel.from_pretrained(model_name="QuartzNet15x5Base-En")
+      # Export QuartzNet model to ONNX format
+      quartznet.decoder.export('decoder_qn.onnx')
+      quartznet.encoder.export('encoder_qn.onnx')
+      quartznet.export('qn.onnx')
 
-   import nemo
-   import nemo.collections.asr as nemo_asr
 
-   quartznet = nemo_asr.models.EncDecCTCModel.from_pretrained(model_name="QuartzNet15x5Base-En")
-   # Export QuartzNet model to ONNX format
-   quartznet.decoder.export('decoder_qn.onnx')
-   quartznet.encoder.export('encoder_qn.onnx')
-   quartznet.export('qn.onnx')
-
-
-This code produces 3 ONNX model files: ``encoder_qn.onnx``, ``decoder_qn.onnx``, ``qn.onnx``.
-They are ``decoder``, ``encoder``, and a combined ``decoder(encoder(x))`` models, respectively.
+   This code produces 3 ONNX model files: ``encoder_qn.onnx``, ``decoder_qn.onnx``, ``qn.onnx``.
+   They are ``decoder``, ``encoder``, and a combined ``decoder(encoder(x))`` models, respectively.
 
 Converting an ONNX QuartzNet model to IR
 ########################################

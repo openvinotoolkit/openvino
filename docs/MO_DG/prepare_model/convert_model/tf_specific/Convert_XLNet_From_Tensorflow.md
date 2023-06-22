@@ -187,7 +187,7 @@ The script should save into ``~/XLNet-Large/xlnet``.
 Converting a frozen TensorFlow XLNet Model to IR
 #################################################
 
-To generate the XLNet Intermediate Representation (IR) of the model, run Model Optimizer with the following parameters:
+To generate the XLNet Intermediate Representation (IR) of the model, run model conversion with the following parameters:
 
 .. code-block:: sh
 

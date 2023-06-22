@@ -23,7 +23,7 @@
 #    endif
 #elif defined(_MSC_VER)
 #    define OPENVINO_DEPRECATED(msg) __declspec(deprecated(msg))
-#    if __cplusplus >= 201402L
+#    if _MSC_VER >= 1900 /* VS2015 */
 #        define OPENVINO_ENUM_DEPRECATED(msg) [[deprecated(msg)]]
 #    else
 #        define OPENVINO_ENUM_DEPRECATED(msg)
