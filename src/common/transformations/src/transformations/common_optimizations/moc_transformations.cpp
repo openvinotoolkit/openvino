@@ -244,10 +244,7 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph::Fu
     fq_fusions->set_name("ov::pass::FakeQuantizeFusions");
     REGISTER_PASS(manager, ReverseInputChannelsFusion)
     REGISTER_PASS(manager, AlignEltwiseInputRanks)
-    if (std::getenv("OV_MERGE_MATMULS_BENCHMARK")) {
-        std::cout << "OV_MERGE_MATMULS_BENCHMARK\n";
-        REGISTER_PASS(manager, MergeSimilarBranches);
-    }
+    REGISTER_PASS(manager, MergeSimilarBranches);
     REGISTER_PASS(manager, ConstantFolding)
     manager.run_passes(f);
 
