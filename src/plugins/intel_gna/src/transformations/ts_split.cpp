@@ -38,12 +38,12 @@ bool is_split_sinked(const Output<Node>& output) {
 
 std::vector<size_t> create_gather_indices(const ov::Shape& input_shape, const ov::Shape& order) {
     if (input_shape.size() < 2 || input_shape.size() > 4) {
-        THROW_GNA_EXCEPTION << "Usupported shape size: " << input_shape.size();
+        THROW_GNA_EXCEPTION << "Unsupported shape size: " << input_shape.size();
     }
 
     ov::Shape input_shape_4d = input_shape;
     ov::Shape order_4d = order;
-    // Just to simplify the code we transform all shapes to 4d by adding 1 dimentions at the end
+    // Just to simplify the code we transform all shapes to 4d by adding 1 dimensions at the end
     while (input_shape_4d.size() < 4) {
         input_shape_4d.push_back(1);
         order_4d.push_back(order_4d.size());
