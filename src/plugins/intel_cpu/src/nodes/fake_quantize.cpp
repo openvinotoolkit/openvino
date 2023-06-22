@@ -2056,12 +2056,12 @@ bool FakeQuantize::appendAttrPostOps(DnnlPostOpsComposer& dnnlpoc,
               ", doRounding=",
               doRounding);
     DEBUG_LOG("\t ---- Original formula ----");
-    DEBUG_LOG("\t    cropLow =[", PrintableVector<float>(cropLow), "]");
-    DEBUG_LOG("\t   cropHigh =[", PrintableVector<float>(cropHigh), "]");
-    DEBUG_LOG("\t inputScale =[", PrintableVector<float>(inputScale), "]");
-    DEBUG_LOG("\t inputShift =[", PrintableVector<float>(inputShift), "]");
-    DEBUG_LOG("\t outputScale=[", PrintableVector<float>(outputScale), "]");
-    DEBUG_LOG("\t outputShift=[", PrintableVector<float>(outputShift), "]");
+    DEBUG_LOG("\t    cropLow =[", printable(cropLow), "]");
+    DEBUG_LOG("\t   cropHigh =[", printable(cropHigh), "]");
+    DEBUG_LOG("\t inputScale =[", printable(inputScale), "]");
+    DEBUG_LOG("\t inputShift =[", printable(inputShift), "]");
+    DEBUG_LOG("\t outputScale=[", printable(outputScale), "]");
+    DEBUG_LOG("\t outputShift=[", printable(outputShift), "]");
 
     const size_t bufferAlignment = 1;
     initializePostOpData(dnnlpoc.getOutputDims(), bufferAlignment, doRounding);
@@ -2069,12 +2069,12 @@ bool FakeQuantize::appendAttrPostOps(DnnlPostOpsComposer& dnnlpoc,
     auto& f = optimizedFormula;
 
     DEBUG_LOG("\t ---- Optimized formula ----");
-    DEBUG_LOG("\t inputScale =[", PrintableVector<float>(f.isc), "]");
-    DEBUG_LOG("\t inputShift =[", PrintableVector<float>(f.ish), "]");
-    DEBUG_LOG("\t    cropLow =[", PrintableVector<float>(f.clo), "]");
-    DEBUG_LOG("\t   cropHigh =[", PrintableVector<float>(f.chi), "]");
-    DEBUG_LOG("\toutputScale =[", PrintableVector<float>(f.osc), "]");
-    DEBUG_LOG("\toutputShift =[", PrintableVector<float>(f.osh), "]");
+    DEBUG_LOG("\t inputScale =[", printable(f.isc), "]");
+    DEBUG_LOG("\t inputShift =[", printable(f.ish), "]");
+    DEBUG_LOG("\t    cropLow =[", printable(f.clo), "]");
+    DEBUG_LOG("\t   cropHigh =[", printable(f.chi), "]");
+    DEBUG_LOG("\toutputScale =[", printable(f.osc), "]");
+    DEBUG_LOG("\toutputShift =[", printable(f.osh), "]");
 
     // when FQ is last postOps and output data type is u8/s8
     // round & clip2 can be further optimized since saturation will be performed by oneDNN by default

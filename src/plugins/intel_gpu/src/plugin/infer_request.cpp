@@ -372,7 +372,7 @@ void InferRequest::SetGraph(std::shared_ptr<Graph> graph) {
 
     allocate_inputs();
     allocate_outputs();
-    variables_states_ = m_graph->AllocateVariablesMemories();
+    m_graph->GetNetwork()->allocate_variables_memories();
 }
 
 InferRequest::InferRequest(InputsDataMap networkInputs, OutputsDataMap networkOutputs,
@@ -463,13 +463,8 @@ void InferRequest::enqueue() {
         prepare_input(inputName, inputBlob, dependencies);
     }
 
-    cldnn::network::variables_states_map variables_states;
-    for (auto &variable_state_pair : variables_states_)
-        variables_states.insert({ variable_state_pair.first, variable_state_pair.second[0] });
-
     auto networkPtr = m_graph->GetNetwork();
-
-    networkPtr->assign_variables_memories(std::move(variables_states));
+    networkPtr->assign_variables_memories();
 
     for (auto& item : _outputs) {
         std::string outputName = item.first;
@@ -1051,9 +1046,11 @@ InferenceEngine::Blob::Ptr InferRequest::create_device_blob(const InferenceEngin
 
 std::vector<std::shared_ptr<InferenceEngine::IVariableStateInternal>> InferRequest::QueryState() {
     std::vector<std::shared_ptr<InferenceEngine::IVariableStateInternal>> ret{};
-    ret.reserve(variables_states_.size());
-    for (const auto& pair : variables_states_)
-        ret.push_back(std::make_shared<VariableState>(pair.first, pair.second, m_graph->get_engine(), -1));
+    const auto& variable_states = m_graph->GetNetwork()->get_variable_memories();
+    for (const auto& pair : variable_states) {
+        std::vector<cldnn::network::VariableState::Ptr> states { pair.second };
+        ret.push_back(std::make_shared<VariableState>(pair.first, states, m_graph->get_engine(), -1));
+    }
     return ret;
 }
 
