@@ -21,26 +21,26 @@ namespace element {
  * if not found apply default action.
  */
 template <Type_t...>
-struct Supported;
+struct IfTypeOf;
 
 /**
  * @brief Applies visitor action for not supported ov::element type.
  */
 template <>
-struct Supported<> {
+struct IfTypeOf<> {
     /**
-     * @brief Applies visitor default action for not supported element type using Visitor default call operator.
+     * @brief Applies visitor default action for not supported element type using Visitor non-template visit function.
      *
-     * @tparam Visitor Type of element visitor functor.
-     * @tparam Args    Type of visitor arguments used by visitor call operator.
+     * @tparam Visitor Visitor class implementing visit function.
+     * @tparam Args    Types of visit parameters.
      *
-     * @param visitor  Visitor functor object.
+     * @param et       Input element type.
      * @param args     Visitor arguments.
-     * @return Value of result type returned by Visitor call operator.
+     * @return Value of result type returned by Visitor.
      */
     template <class Visitor, class... Args>
-    static auto apply(Type_t, Visitor&& visitor, Args&&... args) -> decltype(visitor(std::forward<Args>(args)...)) {
-        return visitor(std::forward<Args>(args)...);
+    static auto apply(Type_t et, Args&&... args) -> typename Visitor::result_type {
+        return Visitor::visit();
     }
 };
 
@@ -51,31 +51,26 @@ struct Supported<> {
  * @tparam Others  Others supported ov::element.
  */
 template <Type_t ET, Type_t... Others>
-struct Supported<ET, Others...> {
+struct IfTypeOf<ET, Others...> {
     /**
-     * @brief Applies visitor action for element type using Visitor call operator specified for by ET.
+     * @brief Applies visitor action for element type using Visitor visit function for ET.
      *
-     * @tparam Visitor Type of element visitor functor.
-     * @tparam Args    Type of visitor arguments used by visitor call operator.
+     * @tparam Visitor Visitor class implementing visit function.
+     * @tparam Args    Types of visit parameters.
      *
-     * @param et
-     * @param visitor  Visitor functor object.
+     * @param et       Input element type.
      * @param args     Visitor arguments.
-     * @return Value of result type returned by Visitor call operator.
+     * @return Value of result type returned by Visitor.
      */
     template <class Visitor, class... Args>
-    static auto apply(Type_t et, Visitor&& visitor, Args&&... args)
-        -> decltype(visitor.template operator()<ET>(std::forward<Args>(args)...)) {
-        if (et == ET) {
-            return visitor.template operator()<ET>(std::forward<Args>(args)...);
-        } else {
-            return Supported<Others...>::apply(et, std::forward<Visitor>(visitor), std::forward<Args>(args)...);
-        }
+    static auto apply(Type_t et, Args&&... args) -> typename Visitor::result_type {
+        return (et == ET) ? Visitor::template visit<ET>(std::forward<Args>(args)...)
+                          : IfTypeOf<Others...>::template apply<Visitor>(et, std::forward<Args>(args)...);
     }
 };
 
 /**
- * @brief Helper functor which define no action for not supported type.
+ * @brief Helper visitor which define no action for not supported type.
  *
  * @tparam R     Type of return value.
  * @tparam value Default value returned.
@@ -86,25 +81,23 @@ struct NoAction {
 
     using result_type = R;
 
-    template <class... Args>
-    constexpr R operator()(Args&&...) const {
+    static constexpr R visit() {
         return {value...};
     }
 };
 
 /**
- * @brief Helper functor which define no action for not supported type if result is void type.
+ * @brief Helper visitor which define no action for not supported type if result is void type.
  */
 template <>
 struct NoAction<void> {
     using result_type = void;
 
-    template <class... Args>
-    constexpr void operator()(Args&&...) const {}
+    static void visit() {}
 };
 
 /**
- * @brief Helper functor which throws ov::Exception for not supported element type.
+ * @brief Helper visitor which throws ov::Exception for not supported element type.
  *
  * @tparam R Type of return type (used to be compatible with others call operator in Visitor).
  */
@@ -112,8 +105,7 @@ template <class R>
 struct NotSupported {
     using result_type = R;
 
-    template <class... Args>
-    [[noreturn]] R operator()(Args&&...) {
+    [[noreturn]] static R visit() {
         throw_not_supported();
     }
 
@@ -122,8 +114,5 @@ private:
         OPENVINO_THROW("Element not supported");
     }
 };
-
-template <Type_t... ETs>
-using IfTypeOf = Supported<ETs...>;
 }  // namespace element
 }  // namespace ov

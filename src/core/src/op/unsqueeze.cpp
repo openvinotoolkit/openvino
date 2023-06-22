@@ -50,14 +50,12 @@ shared_ptr<Node> op::v0::Unsqueeze::clone_with_new_inputs(const OutputVector& ne
 namespace ov {
 namespace op {
 namespace unsqueeze {
-struct evaluate : element::NoAction<bool> {
-    using element::NoAction<bool>::operator();
+struct Evaluate : element::NoAction<bool> {
+    using element::NoAction<bool>::visit;
 
     template <element::Type_t ET>
-    result_type operator()(const HostTensorPtr& arg0, const HostTensorPtr& out) {
-        ngraph::runtime::reference::copy(arg0->get_data_ptr<ET>(),
-                                         out->get_data_ptr<ET>(),
-                                         shape_size(out->get_shape()));
+    static result_type visit(const HostTensorPtr& arg0, const HostTensorPtr& out, const size_t count) {
+        ngraph::runtime::reference::copy(arg0->get_data_ptr<ET>(), out->get_data_ptr<ET>(), count);
         return true;
     }
 };
@@ -96,7 +94,10 @@ bool evaluate_unsqueeze(const Node* node,
     out->set_shape(out_shape);
 
     using namespace ov::element;
-    return Supported<i32, i64, u32, u64, f16, f32, f64, bf16>::apply(element_type, evaluate(), arg0, out);
+    return IfTypeOf<i32, i64, u32, u64, f16, f32, f64, bf16>::apply<Evaluate>(element_type,
+                                                                              arg0,
+                                                                              out,
+                                                                              shape_size(out_shape));
 }
 }  // namespace
 }  // namespace unsqueeze
@@ -125,9 +126,8 @@ bool op::v0::Unsqueeze::has_evaluate() const {
     case ngraph::element::bf16:
         return true;
     default:
-        break;
+        return false;
     }
-    return false;
 }
 
 bool op::v0::Unsqueeze::evaluate_lower(ov::TensorVector& output_values) const {

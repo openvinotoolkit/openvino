@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "ngraph/runtime/reference/unique.hpp"
+
 #include "element_visitor.hpp"
 #include "itt.hpp"
-#include "ngraph/runtime/reference/unique.hpp"
 #include "ngraph/validation_util.hpp"
 #include "openvino/op/unique.hpp"
 #include "openvino/op/util/op_types.hpp"
@@ -17,10 +18,10 @@ int64_t extract_axis(const std::shared_ptr<op::v0::Constant>& axis_constant) {
 }
 
 struct Evaluate : element::NotSupported<ngraph::runtime::reference::UniqueElements<int32_t, int32_t>> {
-    using NotSupported<ngraph::runtime::reference::UniqueElements<int32_t, int32_t>>::operator();
+    using NotSupported<ngraph::runtime::reference::UniqueElements<int32_t, int32_t>>::visit;
 
     template <element::Type_t ET>
-    result_type operator()(const Tensor& input, std::unique_ptr<int64_t> axis, const bool sorted) {
+    static result_type visit(const Tensor& input, std::unique_ptr<int64_t> axis, const bool sorted) {
         using T = fundamental_type_for<ET>;
         return ngraph::runtime::reference::find_unique_elements<T, int32_t, int32_t>(input.data<T>(),
                                                                                      input.get_shape(),
@@ -45,11 +46,10 @@ std::tuple<Shape, Shape, Shape> calculate_static_output_shapes(const Tensor& inp
     const auto et = op.get_input_element_type(0);
     using namespace ov::element;
     auto unique_elements =
-        IfTypeOf<boolean, i8, i16, i32, i64, u8, u16, u32, u64, bf16, f16, f32, f64>::apply(et,
-                                                                                            Evaluate(),
-                                                                                            input_data,
-                                                                                            std::move(axis),
-                                                                                            op.get_sorted());
+        IfTypeOf<boolean, i8, i16, i32, i64, u8, u16, u32, u64, bf16, f16, f32, f64>::apply<Evaluate>(et,
+                                                                                                      input_data,
+                                                                                                      std::move(axis),
+                                                                                                      op.get_sorted());
 
     return ngraph::runtime::reference::make_tensor_shapes(unique_elements,
                                                           input_data.get_shape(),

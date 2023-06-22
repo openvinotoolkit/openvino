@@ -53,10 +53,10 @@ void eltwise_shape_infer(const OpType* op, const std::vector<T>& input_shapes, s
 namespace ov {
 
 struct TensorTransform : element::NotSupported<void> {
-    using element::NotSupported<void>::operator();
+    using element::NotSupported<void>::visit;
 
     template <element::Type_t ET, class Iterator, class UnaryOperation>
-    result_type operator()(const void* const ptr, const size_t size, Iterator out_it, UnaryOperation&& func) {
+    static result_type visit(const void* const ptr, const size_t size, Iterator out_it, UnaryOperation&& func) {
         using T = fundamental_type_for<ET>;
         std::transform(static_cast<const T*>(ptr),
                        static_cast<const T*>(ptr) + size,
@@ -87,12 +87,12 @@ TResult get_raw_data_as(const element::Type_t et, const void* const ptr, const s
     auto out_it = std::inserter(out, out.end());
 
     using namespace ov::element;
-    Supported<i4, i8, i16, i32, i64, u4, u8, u16, u32, u64, f16, f32>::apply(et,
-                                                                             TensorTransform(),
-                                                                             ptr,
-                                                                             size,
-                                                                             out_it,
-                                                                             std::forward<UnaryOperation>(func));
+    IfTypeOf<i4, i8, i16, i32, i64, u4, u8, u16, u32, u64, f16, f32>::apply<TensorTransform>(
+        et,
+        ptr,
+        size,
+        out_it,
+        std::forward<UnaryOperation>(func));
     return out;
 }
 
