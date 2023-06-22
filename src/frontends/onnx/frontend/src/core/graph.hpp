@@ -82,7 +82,7 @@ protected:
 private:
     std::vector<Node> m_nodes;
     std::string m_model_dir;
-    const bool m_enable_mmap;
+    bool m_enable_mmap;
 };
 
 /// \brief      Representation of ONNX subgraph. It is used for example by ONNX Loop op.
