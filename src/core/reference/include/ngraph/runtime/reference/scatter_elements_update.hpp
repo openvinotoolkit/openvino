@@ -84,6 +84,7 @@ T reduction_neutral_value(const Reduction reduction_type) {
     case Reduction::PROD:
         return T{1};
     case Reduction::SUM:
+    case Reduction::MEAN:
         return T{0};
     default:
         OPENVINO_ASSERT(false, "Neutral value not available for this type of reduction");
@@ -91,7 +92,7 @@ T reduction_neutral_value(const Reduction reduction_type) {
     }
 }
 
-//todo: specialize for bool? min and max wont work like this
+//todo: ^specialize for bool? min and max wont work like this
 
 template <typename T>
 std::function<T(const T, const T)> reduction_functor_for(const Reduction reduction_type) {
@@ -103,9 +104,10 @@ std::function<T(const T, const T)> reduction_functor_for(const Reduction reducti
     case Reduction::PROD:
         return std::multiplies<T>{};
     case Reduction::SUM:
+    case Reduction::MEAN:
         return std::plus<T>{};
     default:
-        OPENVINO_ASSERT(false, "Neutral value not available for this type of reduction");
+        OPENVINO_ASSERT(false, "No functor available for this type of reduction");
         return 0;
     }
 }
@@ -148,12 +150,22 @@ void scatter_elem_update_with_reduction(const DataType* input_data,
 
     const auto reduce = reduction_functor_for<DataType>(reduction_type);
 
+    std::map<size_t, size_t> mean_reduction_counters;
     for (const auto& offsets : idx_to_output) {
         out_buf[offsets.second] = reduce(out_buf[offsets.second], updates[offsets.first]);
+        if (reduction_type == Reduction::MEAN) {
+            mean_reduction_counters[offsets.second] += 1u;
+        }
+    }
+
+    if (reduction_type == Reduction::MEAN) {
+        for (const auto& counter : mean_reduction_counters) {
+            //include the initial value in the arithmetic mean divisor (if needed)
+            const auto N = counter.second + static_cast<int32_t>(use_init_val);
+            out_buf[counter.first] /= N;
+        }
     }
 }
 }  // namespace reference
 }  // namespace runtime
 }  // namespace ngraph
-
-// mean => neutral==0; divider -= 1 if not use_init_value
