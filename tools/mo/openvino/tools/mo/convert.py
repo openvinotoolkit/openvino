@@ -42,6 +42,7 @@ def convert_model(
         version: bool = None,
         progress: bool = False,
         stream_output: bool = False,
+        disable_mmap: bool = False,
 
         # PaddlePaddle-specific parameters:
         # example_input: Any = None, which can be shared with PyTorch-specific parameters
@@ -269,6 +270,8 @@ def convert_model(
             Enable model conversion progress display.
         :param stream_output:
             Switch model conversion progress display to a multiline mode.
+        :param disable_mmap:
+            Force to read weights instead of using mmap feature.
 
     PaddlePaddle-specific parameters:
         :param example_input:

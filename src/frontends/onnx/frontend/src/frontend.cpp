@@ -46,8 +46,8 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
     if (variants.empty()) {
         return nullptr;
     }
-    const bool enable_mmap =
-        variants[variants.size() - 1].is<bool>() ? variants[variants.size() - 1].as<bool>() : false;
+    // enable mmap by default
+    const bool enable_mmap = variants[variants.size() - 1].is<bool>() ? variants[variants.size() - 1].as<bool>() : true;
 
     if (variants[0].is<std::string>()) {
         const auto path = variants[0].as<std::string>();
