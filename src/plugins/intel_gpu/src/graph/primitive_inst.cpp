@@ -19,6 +19,8 @@
 #include "deconvolution_inst.h"
 #include "shape_of_inst.h"
 #include "gemm_inst.h"
+#include "assign_inst.h"
+#include "read_value_inst.h"
 #include "experimental_detectron_roi_feature_extractor_inst.hpp"
 #include "compilation_context.hpp"
 #include "implementation_map.hpp"
@@ -346,6 +348,16 @@ event::ptr primitive_inst::realloc_if_needed() {
     if (_node->is_type<input_layout>())
         return ev;
 
+    if (_node->is_type<assign>() || _node->is_type<read_value>()) {
+        std::string variable_id = "";
+        if (_node->is_type<assign>())
+            variable_id = _node->as<assign>().get_primitive()->variable_id;
+        else
+            variable_id = _node->as<read_value>().get_primitive()->variable_id;
+        get_network().update_variable_memory(variable_id, actual_layout);
+        return ev;
+    }
+
     bool can_reuse_buffer = _outputs[0] && actual_layout.count() <= max_output_layout_size;
 
     if (can_reuse_buffer) {
@@ -530,6 +542,7 @@ bool primitive_inst::update_impl() {
                 }
             } else {
                 _impl = _node->type()->choose_impl(*_node, updated_params_no_dyn_pad);
+                _impl->set_node_params(*_node);
                 if (!can_be_optimized()) {
                     auto& kernels_cache = get_network().get_program()->get_kernels_cache();
                     auto kernels = kernels_cache.compile(updated_params_no_dyn_pad, _impl->get_kernels_source());
