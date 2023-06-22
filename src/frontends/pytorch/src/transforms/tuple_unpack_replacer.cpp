@@ -22,7 +22,6 @@ PrimTupleUnpackReplacer::PrimTupleUnpackReplacer() {
         if (!tuple_unpack)
             return false;
         OutputVector outputs;
-        NodeVector to_copy_rt;
         auto input_node = tuple_unpack->get_input_node_shared_ptr(0);
         auto tuple_construct = cast_fw_node(input_node, "prim::TupleConstruct");
         if (!tuple_construct) {
@@ -31,9 +30,7 @@ PrimTupleUnpackReplacer::PrimTupleUnpackReplacer() {
         for (const auto& input : input_node->inputs()) {
             const auto& out = input.get_source_output();
             outputs.push_back(out);
-            to_copy_rt.push_back(out.get_node_shared_ptr());
         }
-        copy_runtime_info({tuple_unpack, input_node}, to_copy_rt);
         replace_node(tuple_unpack, outputs);
 
         return true;

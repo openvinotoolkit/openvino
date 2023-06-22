@@ -157,7 +157,8 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     manager.register_pass<ov::pass::ConvertConvertLike>();
     manager.register_pass<ov::frontend::pytorch::pass::AtenIndexToSelect>();
 
-    manager.register_pass<ov::pass::MarkDequantizationSubgraph>(element::TypeVector{element::u8});
+    manager.register_pass<ov::pass::MarkDequantizationSubgraph>(
+        element::TypeVector{element::u8, element::i8, element::u4, element::i4});
     manager.register_pass<ov::pass::ConstantFolding>();
     manager.register_pass<ov::pass::PushConstantToSubgraph>();
     manager.register_pass<ov::pass::UnrollIf>();
