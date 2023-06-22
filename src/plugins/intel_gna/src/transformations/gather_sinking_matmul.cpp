@@ -34,7 +34,7 @@ bool is_matmul_sinked(const Output<Node>& output) {
     return has_2d_inputs(output) && has_gather_inputs(output);
 }
 
-int64_t swap_2d_negative_axis(int64_t axis) {
+int64_t get_another_input_negative_axis(int64_t axis) {
     if (axis == -1)
         return -2;
     return -1;
@@ -55,10 +55,10 @@ GatherSinkingMatmulForward::GatherSinkingMatmulForward() {
         int64_t gather_negative_axis = get_normalized_negative_gather_axis(
             gather_input_info.axis_const,
             gather_input_info.gather->get_input_partial_shape(0).rank().get_length());
-        gather_negative_axis = swap_2d_negative_axis(gather_negative_axis);
+        gather_negative_axis = get_another_input_negative_axis(gather_negative_axis);
         const auto another_input_idx = gather_input_info.input_idx ? 0 : 1;
         if (is_matmul_input_transposed(matmul, another_input_idx))
-            gather_negative_axis = swap_2d_negative_axis(gather_negative_axis);
+            gather_negative_axis = get_another_input_negative_axis(gather_negative_axis);
 
         sink_forward::update_input_gather(matmul, gather_input_info, &gather_negative_axis);
         return true;
@@ -91,7 +91,7 @@ GatherSinkingMatmulBackward::GatherSinkingMatmulBackward() {
         const int matmul_insert_input_idx =
             convert_axis_to_positive(gather_negative_axis, gather->get_input_partial_shape(0).rank().get_length());
         if (is_matmul_input_transposed(matmul, gather_negative_axis))
-            gather_negative_axis = swap_2d_negative_axis(gather_negative_axis);
+            gather_negative_axis = get_another_input_negative_axis(gather_negative_axis);
         auto new_axis_const = std::make_shared<Constant>(axis_const->get_element_type(), Shape{}, gather_negative_axis);
         for (auto& new_node : sink_backward::insert_gather_before_node(matmul,
                                                                        indices_const,
