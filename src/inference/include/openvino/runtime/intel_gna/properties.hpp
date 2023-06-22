@@ -194,7 +194,7 @@ static constexpr Property<ExecutionMode> execution_mode{"GNA_DEVICE_MODE"};
  * If GNA HW is present, use the option corresponding to this HW.
  * If HW is not present, use the option corresponding to the latest fully supported GNA HW generation.
  * A fully supported GNA HW generation means it must be supported by both the OV GNA Plugin and the core GNA Library.
- * Currently, the latest supported GNA HW generation corresponds to GNA_3_0.
+ * Currently, the latest supported GNA HW generation corresponds to GNA_3_5.
  * @ingroup ov_runtime_gna_prop_cpp_api
  */
 static constexpr Property<HWGeneration> execution_target{"GNA_HW_EXECUTION_TARGET"};
