@@ -41,14 +41,9 @@ bool SoftmaxDecomposition::run(LinearIR& linear_ir) {
             const auto tensor_out = softmax_expr->get_output_port_descriptor(0)->get_shape();
             const auto inner_work_amount = *(tensor_out.rbegin());
 
-            expr_it = linear_ir.erase(expr_it);   // Remove Softmax
-
-            std::vector<ExpressionPtr> new_exprs;
-
             // We need an iterator to the inserted element
-            auto push_node = [&linear_ir, &expr_it, &new_exprs](const std::shared_ptr<Node>& n) {
+            auto push_node = [&linear_ir, &expr_it](const std::shared_ptr<Node>& n) {
                 const auto expr = linear_ir.insert(expr_it, n);
-                new_exprs.push_back(*expr);
                 return std::make_pair(expr, n);
             };
 
@@ -102,34 +97,15 @@ bool SoftmaxDecomposition::run(LinearIR& linear_ir) {
                                                                 (*mul.first)->get_input_port(1)},
                                     std::vector<ExpressionPort>{(*mul.first)->get_output_port(0)});
 
-            // Moved other Loop IDs from Softmax
-            for (const auto& expr : new_exprs) {
-                if (expr->get_loop_ids().empty()) {
-                    expr->set_loop_ids(softmax_loop_ids);
-                    continue;
-                }
-                loop_manager->insert_loop_ids(expr, softmax_loop_ids, true, expr->get_loop_ids().back());
-            }
-
-            auto update_loop_bounds = [&softmax_expr](std::vector<LinearIR::LoopManager::LoopPort>& points,
-                                                     const std::vector<ExpressionPort>& new_points,
-                                                     const LinearIR::LoopManager::LoopInfoPtr& loop_info) {
-                auto entry_found = std::find_if(points.begin(), points.end(), [&softmax_expr](const LinearIR::LoopManager::LoopPort& point) {
-                    return point.expr_port->get_expr() == softmax_expr;
-                });
-                if (entry_found != points.end()) {
-                    entry_found = points.erase(entry_found);
-                    points.insert(entry_found, new_points.begin(), new_points.end());
-                }
-            };
-
             // Update Loop info for outer loops
+            const auto entry_points = std::vector<ExpressionPort>{(*max.first)->get_input_port(0),
+                                                                  (*sub.first)->get_input_port(0)};
+            const auto exit_points = std::vector<ExpressionPort>{(*mul.first)->get_output_port(0)};
             for (auto loop_id : softmax_loop_ids) {
-                const auto loop_info = loop_manager->get_loop_info(loop_id);
-                update_loop_bounds(loop_info->entry_points, std::vector<ExpressionPort>{(*max.first)->get_input_port(0),
-                                                                                       (*sub.first)->get_input_port(0)}, loop_info);
-                update_loop_bounds(loop_info->exit_points, std::vector<ExpressionPort>{(*mul.first)->get_output_port(0)}, loop_info);
+                loop_manager->expression_replacement(vector_buffer_max.first, expr_it, softmax_expr, loop_id, entry_points, exit_points);
             }
+
+            expr_it = linear_ir.erase(expr_it);   // Remove Softmax
 
             /* =========================================== */
 

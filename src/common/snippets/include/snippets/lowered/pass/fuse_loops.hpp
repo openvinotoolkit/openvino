@@ -53,8 +53,8 @@ private:
                                         const std::shared_ptr<ExpressionPort>& current_entry_point,
                                         size_t current_loop_id, size_t target_loop_id,
                                         LinearIR::constExprIt& current_loop_begin_pos, LinearIR::constExprIt& current_loop_end_pos);
-    static void fuse_points(std::vector<LinearIR::LoopManager::LoopPort>& exit_points, std::vector<LinearIR::LoopManager::LoopPort>& entry_points,
-                            LinearIR::constExprIt loop_begin_pos, LinearIR::constExprIt loop_end_pos);
+    static void move(LinearIR& linear_ir, const LinearIR::LoopManagerPtr& loop_manager, size_t loop_id,
+                     LinearIR::constExprIt loop_begin_pos, LinearIR::constExprIt loop_end_pos, LinearIR::constExprIt pos);
 };
 
 } // namespace pass
