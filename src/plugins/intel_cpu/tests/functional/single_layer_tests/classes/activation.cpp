@@ -5,6 +5,7 @@
 #include "activation.hpp"
 #include "gtest/gtest.h"
 #include "test_utils/cpu_test_utils.hpp"
+#include "shared_test_classes/base/utils/ranges.hpp"
 
 using namespace InferenceEngine;
 using namespace CPUTestUtils;
@@ -48,29 +49,19 @@ std::string ActivationLayerCPUTest::getTestCaseName(const testing::TestParamInfo
 }
 
 void ActivationLayerCPUTest::generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) {
-    int32_t startFrom = 0;
-    uint32_t range = 0;
-    int32_t resolution = 0;
+    ov::test::utils::InputGenerateData in_gen_data(0, 0, 0);
 
     if (activationType == ActivationTypes::Exp && netPrecision == Precision::BF16) {
-        startFrom = 0;
-        range = 2;
-        resolution = 32768;
+        in_gen_data = ov::test::utils::InputGenerateData(0, 2, 32768);
     } else if (activationType == ActivationTypes::Acosh) {
-        startFrom = 2;
-        range = 2;
-        resolution = 128;
+        in_gen_data = ov::test::utils::InputGenerateData(2, 2, 128);
     } else if (activationType == ActivationTypes::Acos ||
                activationType == ActivationTypes::Asin ||
                activationType == ActivationTypes::Atanh) {
         // range [-1. 1] is required
-        startFrom = -1;
-        range = 2;
-        resolution = 128;
+        in_gen_data = ov::test::utils::InputGenerateData(-1, 2, 128);
     } else {
-        startFrom = 0;
-        range = 15;
-        resolution = 32768;
+        in_gen_data = ov::test::utils::InputGenerateData(0, 15, 32768);
     }
     inputs.clear();
     const auto& funcInputs = function->inputs();
@@ -79,7 +70,7 @@ void ActivationLayerCPUTest::generate_inputs(const std::vector<ngraph::Shape>& t
         ov::Tensor tensor;
         if (funcInput.get_element_type().is_real()) {
             tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i],
-                                                             range, startFrom, resolution);
+                                                             in_gen_data.range, in_gen_data.start_from, in_gen_data.resolution);
         } else {
             tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
         }

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "shared_test_classes/base/utils/ranges.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 #include "ngraph_functions/builders.hpp"
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
@@ -96,38 +97,40 @@ public:
 protected:
     void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) override {
         inputs.clear();
-        const auto& funcInputs = function->inputs();
-        auto inShape = targetInputStaticShapes[0];
-        auto offShape = targetInputStaticShapes[1];
-        auto filtShape = targetInputStaticShapes[2];
+        ov::test::utils::InputGenerateData in_gen_data;
+        ov::Shape shape;
 
         for (size_t i = 0; i < funcInputs.size(); ++i) {
             const auto& funcInput = funcInputs[i];
             ov::Tensor tensor;
             if (i == 0) {  // "a_data"
-                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), inShape, 2, -1, 100);
+                in_gen_data = ov::test::utils::InputGenerateData(2, -1, 100);
+                shape = targetInputStaticShapes[0];
             } else if (i == 1) {  // "b_offset_vals"
                 if (offsetType == OffsetType::NATURAL) {
-                    tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), offShape, 10, 0, 1);
+                    in_gen_data = ov::test::utils::InputGenerateData(10, 0, 1);
                 } else if (offsetType == OffsetType::ZERO) {
-                    tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), offShape, 1, 0, 1);
+                    in_gen_data = ov::test::utils::InputGenerateData(1, 0, 1);
                 } else if (offsetType == OffsetType::REAL_POSITIVE) {
-                    tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), offShape, 2, 0, 100);
+                    in_gen_data = ov::test::utils::InputGenerateData(2, 0, 100);
                 } else if (offsetType == OffsetType::REAL_NEGATIVE) {
-                    tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), offShape, 2, -2, 100);
+                    in_gen_data = ov::test::utils::InputGenerateData(2, -2, 100);
                 } else if (offsetType == OffsetType::REAL_MISC) {
-                    tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), offShape, 4, -2, 100);
+                    in_gen_data = ov::test::utils::InputGenerateData(4, -2, 100);
                 } else {
                     IE_THROW() << "Unexpected offset type";
                 }
+                shape = targetInputStaticShapes[0];
             } else if (i == 2) {  // "c_filter_vals"
-                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), filtShape, 2, -1, 100);
+                in_gen_data = ov::test::utils::InputGenerateData(2, -1, 100);
+                shape = targetInputStaticShapes[2];
             } else if (i == 3) {  // "c_modulation_scalars"
-                auto modShape = targetInputStaticShapes[3];
-                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), modShape, 1, 0, 100);
+                in_gen_data = ov::test::utils::InputGenerateData(1, 0, 100);
+                shape = targetInputStaticShapes[3];
             } else {
                 IE_THROW() << "Unknown input of DeformableConvolution";
             }
+            tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), shape, in_gen_data.range, in_gen_data.start_from, in_gen_data.resolution);
             inputs.insert({funcInput.get_node_shared_ptr(), tensor});
         }
     }

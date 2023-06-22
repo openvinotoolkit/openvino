@@ -76,7 +76,6 @@ ov::runtime::Tensor generate(const ov::element::Type& elemType,
                              InputGenerateData inGenData = InputGenerateData(-1, 2, 32768, 1)) {
     if (!elemType.is_signed()) {
         inGenData.range = 15;
-        inGenData.start_from = 0;
     }
     return ov::test::utils::create_and_fill_tensor(elemType, targetShape, inGenData.range, inGenData.start_from, inGenData.resolution, inGenData.seed);
 }
