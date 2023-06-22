@@ -20,7 +20,7 @@ TEST(GatherSinkingMatMul, Forward) {
     {
         auto input_params = std::make_shared<Parameter>(element::Type_t::f32, Shape{20, 20});
 
-        auto gather = MakeGather(input_params, GatherForward, /* axis */ 1);
+        auto gather = make_gather(input_params, gather_forward, /* axis */ 1);
 
         auto input_const1 = Constant::create(ov::element::f32, {20, 20}, {1});
         auto matmul1 = std::make_shared<MatMul>(gather, input_const1);
@@ -44,7 +44,7 @@ TEST(GatherSinkingMatMul, Forward) {
         auto input_params = std::make_shared<Parameter>(element::Type_t::f32, Shape{20, 20});
         auto input_const = Constant::create(ov::element::f32, {20, 20}, {1});
 
-        auto gather = MakeGather(input_const, GatherBackward, /* axis */ 0);
+        auto gather = make_gather(input_const, gather_backward, /* axis */ 0);
 
         auto input_const1 = Constant::create(ov::element::f32, {20, 20}, {1});
         auto matmul1 = std::make_shared<MatMul>(input_params, gather);
@@ -73,7 +73,7 @@ TEST(GatherSinkingMatMul, Backward) {
         auto input_const2 = Constant::create(ov::element::f32, {20, 20}, {1});
         auto matmul2 = std::make_shared<MatMul>(input_const2, matmul1);
 
-        auto gather = MakeGather(matmul2, GatherForward, /* axis */ 1);
+        auto gather = make_gather(matmul2, gather_forward, /* axis */ 1);
 
         const auto result = std::make_shared<Result>(gather);
         function = std::make_shared<Model>(OutputVector{result}, ParameterVector{input_params});
@@ -91,7 +91,7 @@ TEST(GatherSinkingMatMul, Backward) {
         auto input_params = std::make_shared<Parameter>(element::Type_t::f32, Shape{20, 20});
         auto input_const = Constant::create(ov::element::f32, {20, 20}, {1});
 
-        auto gather = MakeGather(input_const, GatherForward, /* axis */ 1);
+        auto gather = make_gather(input_const, gather_forward, /* axis */ 1);
 
         auto input_const1 = Constant::create(ov::element::f32, {20, 20}, {1});
         auto matmul1 = std::make_shared<MatMul>(input_params, gather);

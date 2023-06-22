@@ -18,7 +18,7 @@ using NodePtr = std::shared_ptr<ov::Node>;
 
 namespace {
 
-std::shared_ptr<Gather> MakeGather(NodePtr input_node, const std::vector<size_t>& indices, size_t axis) {
+std::shared_ptr<Gather> make_gather(NodePtr input_node, const std::vector<size_t>& indices, size_t axis) {
     const ov::Shape& input_shape = input_node->get_output_shape(0);
     auto gather_indexes_node = Constant::create(element::i64, ov::Shape{indices.size()}, indices);
 
@@ -35,8 +35,8 @@ TEST(GatherSinkingFuse, Remove) {
         auto input_params = std::make_shared<Parameter>(element::Type_t::f32, Shape{1, 3, 80});
         auto tanh0 = std::make_shared<Tanh>(input_params);
 
-        auto input_gather = MakeGather(tanh0, std::vector<size_t>{2, 0, 1}, /* axis */ 1);
-        auto output_gather = MakeGather(input_gather, std::vector<size_t>{1, 2, 0}, /* axis */ 1);
+        auto input_gather = make_gather(tanh0, std::vector<size_t>{2, 0, 1}, /* axis */ 1);
+        auto output_gather = make_gather(input_gather, std::vector<size_t>{1, 2, 0}, /* axis */ 1);
 
         auto tanh1 = std::make_shared<Tanh>(output_gather);
         const auto result = std::make_shared<Result>(tanh1);
@@ -72,8 +72,8 @@ TEST(GatherSinkingFuse, DifferentAxis) {
         auto input_params = std::make_shared<Parameter>(element::Type_t::f32, Shape{1, 3, 80});
         auto tanh0 = std::make_shared<Tanh>(input_params);
 
-        auto input_gather = MakeGather(tanh0, std::vector<size_t>{2, 0, 1}, /* axis */ 1);
-        auto output_gather = MakeGather(input_gather, std::vector<size_t>{1, 2, 0}, /* axis */ 2);
+        auto input_gather = make_gather(tanh0, std::vector<size_t>{2, 0, 1}, /* axis */ 1);
+        auto output_gather = make_gather(input_gather, std::vector<size_t>{1, 2, 0}, /* axis */ 2);
 
         auto tanh1 = std::make_shared<Tanh>(output_gather);
         const auto result = std::make_shared<Result>(tanh1);
@@ -101,8 +101,8 @@ TEST(GatherSinkingFuse, Combine) {
         auto input_params = std::make_shared<Parameter>(element::Type_t::f32, Shape{1, 3, 80});
         auto tanh0 = std::make_shared<Tanh>(input_params);
 
-        auto input_gather = MakeGather(tanh0, std::vector<size_t>{2, 0, 1}, /* axis */ 1);
-        auto output_gather = MakeGather(input_gather, std::vector<size_t>{1, 0, 2}, /* axis */ 1);
+        auto input_gather = make_gather(tanh0, std::vector<size_t>{2, 0, 1}, /* axis */ 1);
+        auto output_gather = make_gather(input_gather, std::vector<size_t>{1, 0, 2}, /* axis */ 1);
 
         auto tanh1 = std::make_shared<Tanh>(output_gather);
         const auto result = std::make_shared<Result>(tanh1);
@@ -121,7 +121,7 @@ TEST(GatherSinkingFuse, Combine) {
         auto input_params = std::make_shared<Parameter>(element::Type_t::f32, Shape{1, 3, 80});
         auto tanh0 = std::make_shared<Tanh>(input_params);
 
-        auto gather = MakeGather(tanh0, std::vector<size_t>{0, 2, 1}, /* axis */ 1);
+        auto gather = make_gather(tanh0, std::vector<size_t>{0, 2, 1}, /* axis */ 1);
 
         auto tanh1 = std::make_shared<Tanh>(gather);
         const auto result = std::make_shared<Result>(tanh1);

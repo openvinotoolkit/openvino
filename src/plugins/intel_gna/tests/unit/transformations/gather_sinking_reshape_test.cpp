@@ -30,7 +30,7 @@ TEST(GatherSinkingReshape, Backward) {
         auto reshape_const2 = Constant::create(element::i64, ov::Shape{5}, ov::Shape{1, 168, 1, 1, 1});
         auto reshape2 = std::make_shared<Reshape>(reshape1, reshape_const2, false);
 
-        auto gather = MakeGather(reshape2, GatherForward, /* axis */ 1);
+        auto gather = make_gather(reshape2, gather_forward, /* axis */ 1);
 
         const auto result = std::make_shared<Result>(gather);
         function = std::make_shared<Model>(OutputVector{result}, ParameterVector{input_params});
@@ -47,7 +47,7 @@ TEST(GatherSinkingReshape, Backward) {
     {
         auto input_params = std::make_shared<Parameter>(element::Type_t::f32, Shape{1, 168});
 
-        auto gather = MakeGather(input_params, GatherForward, /* axis */ 1);
+        auto gather = make_gather(input_params, gather_forward, /* axis */ 1);
 
         auto reshape_const1 = Constant::create(element::i64, ov::Shape{4}, ov::Shape{1, 168, 1, 1});
         auto reshape1 = std::make_shared<Reshape>(gather, reshape_const1, false);

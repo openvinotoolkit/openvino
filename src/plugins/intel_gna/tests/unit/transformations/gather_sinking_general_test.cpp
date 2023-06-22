@@ -20,7 +20,7 @@ TEST(GatherSinkingGeneral, General) {
         auto input_params1 = std::make_shared<Parameter>(element::Type_t::f32, Shape{20, 20});
         auto input_params2 = std::make_shared<Parameter>(element::Type_t::f32, Shape{20, 20});
 
-        auto gather = MakeGather(input_params1, GatherForward, /* axis */ 1);
+        auto gather = make_gather(input_params1, gather_forward, /* axis */ 1);
 
         auto tanh = std::make_shared<Tanh>(input_params2);
         auto mult = std::make_shared<Multiply>(gather, tanh);
@@ -42,13 +42,13 @@ TEST(GatherSinkingGeneral, General) {
         auto input_params1 = std::make_shared<Parameter>(element::Type_t::f32, Shape{20, 20});
         auto input_params2 = std::make_shared<Parameter>(element::Type_t::f32, Shape{20, 20});
 
-        auto gather1 = MakeGather(input_params2, GatherBackward, /* axis */ 1);
+        auto gather1 = make_gather(input_params2, gather_backward, /* axis */ 1);
 
         auto tanh = std::make_shared<Tanh>(gather1);
         auto mult = std::make_shared<Multiply>(input_params1, tanh);
         auto sinh = std::make_shared<Sinh>(mult);
 
-        auto gather2 = MakeGather(sinh, GatherForward, /* axis */ 1);
+        auto gather2 = make_gather(sinh, gather_forward, /* axis */ 1);
 
         const auto result = std::make_shared<Result>(gather2);
         reference_function =

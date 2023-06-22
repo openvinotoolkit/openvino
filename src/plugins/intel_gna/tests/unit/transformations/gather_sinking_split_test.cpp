@@ -26,7 +26,7 @@ TEST(GatherSinkingSplit, Backward) {
         auto split_axis2 = Constant::create(element::i64, ov::Shape{}, ov::Shape{0});
         auto split2 = std::make_shared<Split>(split1, split_axis2, 2);
 
-        auto gather = MakeGather(split2, GatherForward, /* axis */ 1);
+        auto gather = make_gather(split2, gather_forward, /* axis */ 1);
 
         const auto result = std::make_shared<Result>(gather);
         function = std::make_shared<Model>(OutputVector{result}, ParameterVector{input_params});
@@ -43,7 +43,7 @@ TEST(GatherSinkingSplit, Backward) {
     {
         auto input_params = std::make_shared<Parameter>(element::Type_t::f32, Shape{20, 20});
 
-        auto gather = MakeGather(input_params, GatherForward, /* axis */ 1);
+        auto gather = make_gather(input_params, gather_forward, /* axis */ 1);
 
         auto split_axis1 = Constant::create(element::i64, ov::Shape{}, ov::Shape{0});
         auto split1 = std::make_shared<Split>(gather, split_axis1, 2);

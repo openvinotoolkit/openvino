@@ -127,7 +127,7 @@ std::shared_ptr<Model> CreateFunction(BinaryFactoryPtr binary_factory,
     const Shape const_shape{1, 20};
 
     auto X = std::make_shared<Parameter>(input_type, input_shape);
-    auto gather = MakeGather(X, GatherForward, /* axis */ 1);
+    auto gather = make_gather(X, gather_forward, /* axis */ 1);
 
     NodePtr in_op = gather;
     for (size_t i = 0; i < num_binary_ops; ++i) {
@@ -152,7 +152,7 @@ std::shared_ptr<Model> CreateReferenceFunction(BinaryFactoryPtr binary_factory,
     NodePtr in_op = X;
     for (size_t i = 0; i < num_binary_ops; ++i) {
         auto in_constant = std::make_shared<Constant>(input_type, input_shape, Shape{1});
-        auto gather_reversed = MakeGather(in_constant, GatherBackward, /* axis */ 1);
+        auto gather_reversed = make_gather(in_constant, gather_backward, /* axis */ 1);
 
         if (!binary_gather_input_idx)
             in_op = binary_factory->create(in_op, gather_reversed);
@@ -160,7 +160,7 @@ std::shared_ptr<Model> CreateReferenceFunction(BinaryFactoryPtr binary_factory,
             in_op = binary_factory->create(gather_reversed, in_op);
     }
 
-    auto gather = MakeGather(in_op, GatherForward, /* axis */ 1);
+    auto gather = make_gather(in_op, gather_forward, /* axis */ 1);
 
     return std::make_shared<Model>(ov::OutputVector{gather}, ov::ParameterVector{X});
 }
@@ -174,12 +174,12 @@ std::shared_ptr<Model> CreateFunction(BinaryFactoryPtr binary_factory,
     const Shape input_shape{1, 20};
 
     auto X = std::make_shared<Parameter>(input_type, input_shape);
-    auto gather = MakeGather(X, GatherForward, /* axis */ 1);
+    auto gather = make_gather(X, gather_forward, /* axis */ 1);
 
     NodePtr in_op = gather;
     for (size_t i = 0; i < num_binary_ops; ++i) {
         auto in_constant = std::make_shared<Constant>(input_type, input_shape, Shape{1});
-        auto gather = MakeGather(in_constant, GatherForward, /* axis */ 1);
+        auto gather = make_gather(in_constant, gather_forward, /* axis */ 1);
 
         in_op = binary_factory->create(in_op, gather);
     }
@@ -197,13 +197,13 @@ std::shared_ptr<Model> CreateReferenceFunction(BinaryFactoryPtr binary_factory,
     NodePtr in_op = X;
     for (size_t i = 0; i < num_binary_ops; ++i) {
         auto in_constant = std::make_shared<Constant>(input_type, input_shape, Shape{1});
-        auto gather = MakeGather(in_constant, GatherForward, /* axis */ 1);
-        auto gather_reversed = MakeGather(gather, GatherBackward, /* axis */ 1);
+        auto gather = make_gather(in_constant, gather_forward, /* axis */ 1);
+        auto gather_reversed = make_gather(gather, gather_backward, /* axis */ 1);
 
         in_op = binary_factory->create(in_op, gather_reversed);
     }
 
-    auto gather = MakeGather(in_op, GatherForward, /* axis */ 1);
+    auto gather = make_gather(in_op, gather_forward, /* axis */ 1);
 
     return std::make_shared<Model>(ov::OutputVector{gather}, ov::ParameterVector{X});
 }
@@ -291,7 +291,7 @@ std::shared_ptr<Model> CreateFunction(BinaryFactoryPtr binary_factory,
         else
             in_op = binary_factory->create(in_constant, in_op);
     }
-    auto gather = MakeGather(in_op, GatherForward, /* axis */ 1);
+    auto gather = make_gather(in_op, gather_forward, /* axis */ 1);
 
     return std::make_shared<Model>(ov::OutputVector{gather}, ov::ParameterVector{X});
 }
@@ -305,12 +305,12 @@ std::shared_ptr<Model> CreateReferenceFunction(BinaryFactoryPtr binary_factory,
     auto X = std::make_shared<Parameter>(input_type, input_shape);
 
     auto tanh = std::make_shared<Tanh>(X);
-    auto gather = MakeGather(X, GatherForward, /* axis */ 1);
+    auto gather = make_gather(X, gather_forward, /* axis */ 1);
 
     NodePtr in_op = gather;
     for (size_t i = 0; i < num_binary_ops; ++i) {
         auto in_constant = std::make_shared<Constant>(input_type, input_shape, Shape{1});
-        auto gather = MakeGather(in_constant, GatherForward, /* axis */ 1);
+        auto gather = make_gather(in_constant, gather_forward, /* axis */ 1);
         if (!binary_gather_input_idx)
             in_op = binary_factory->create(in_op, gather);
         else
@@ -467,7 +467,7 @@ std::shared_ptr<Model> CreateFunction(BinaryFactoryPtr binary_factory,
     else
         binary_op = binary_factory->create(in_constant, X);
 
-    auto gather = MakeGather(binary_op, GatherForward, /* axis */ 2);
+    auto gather = make_gather(binary_op, gather_forward, /* axis */ 2);
     return std::make_shared<Model>(ov::OutputVector{gather}, ov::ParameterVector{X});
 }
 
@@ -475,10 +475,10 @@ std::shared_ptr<Model> CreateReferenceFunction(BinaryFactoryPtr binary_factory,
                                                element::Type input_type,
                                                size_t binary_gather_input_idx) {
     auto X = std::make_shared<Parameter>(input_type, Shape{1, 20, 1});
-    auto gather0 = MakeGather(X, GatherForward, /* axis */ 1);
+    auto gather0 = make_gather(X, gather_forward, /* axis */ 1);
 
     auto in_constant = std::make_shared<Constant>(input_type, Shape{5, 3, 20, 7}, Shape{1});
-    auto gather1 = MakeGather(in_constant, GatherForward, /* axis */ 2);
+    auto gather1 = make_gather(in_constant, gather_forward, /* axis */ 2);
 
     NodePtr binary_op;
     if (!binary_gather_input_idx)
@@ -504,7 +504,7 @@ std::shared_ptr<Model> CreateFunction(BinaryFactoryPtr binary_factory,
     else
         binary_op = binary_factory->create(in_constant, X);
 
-    auto gather = MakeGather(binary_op, GatherForward, /* axis */ 0);
+    auto gather = make_gather(binary_op, gather_forward, /* axis */ 0);
     return std::make_shared<Model>(ov::OutputVector{gather}, ov::ParameterVector{X});
 }
 
@@ -514,7 +514,7 @@ std::shared_ptr<Model> CreateReferenceFunction(BinaryFactoryPtr binary_factory,
     auto X = std::make_shared<Parameter>(input_type, Shape{1, 20, 1});
 
     auto in_constant = std::make_shared<Constant>(input_type, Shape{5, 3, 20, 7}, Shape{1});
-    auto gather1 = MakeGather(in_constant, GatherForward, /* axis */ 0);
+    auto gather1 = make_gather(in_constant, gather_forward, /* axis */ 0);
 
     NodePtr binary_op;
     if (!binary_gather_input_idx)
@@ -539,7 +539,7 @@ std::shared_ptr<Model> CreateFunction(BinaryFactoryPtr binary_factory,
     auto X = std::make_shared<Parameter>(input_type, Shape{1, 20, 1});
 
     auto in_constant = std::make_shared<Constant>(input_type, Shape{5, 3, 20, 7}, Shape{1});
-    auto gather0 = MakeGather(in_constant, GatherForward, /* axis */ 2);
+    auto gather0 = make_gather(in_constant, gather_forward, /* axis */ 2);
 
     NodePtr binary_op;
     if (!binary_gather_input_idx)
@@ -554,7 +554,7 @@ std::shared_ptr<Model> CreateReferenceFunction(BinaryFactoryPtr binary_factory,
                                                element::Type input_type,
                                                size_t binary_gather_input_idx) {
     auto X = std::make_shared<Parameter>(input_type, Shape{1, 20, 1});
-    auto gather0 = MakeGather(X, GatherBackward, /* axis */ 1);
+    auto gather0 = make_gather(X, gather_backward, /* axis */ 1);
 
     auto in_constant = std::make_shared<Constant>(input_type, Shape{5, 3, 20, 7}, Shape{1});
 
@@ -564,7 +564,7 @@ std::shared_ptr<Model> CreateReferenceFunction(BinaryFactoryPtr binary_factory,
     else
         binary_op = binary_factory->create(gather0, in_constant);
 
-    auto gather1 = MakeGather(binary_op, GatherForward, /* axis */ 2);
+    auto gather1 = make_gather(binary_op, gather_forward, /* axis */ 2);
 
     return std::make_shared<Model>(ov::OutputVector{gather1}, ov::ParameterVector{X});
 }
@@ -577,7 +577,7 @@ std::shared_ptr<Model> CreateFunction(BinaryFactoryPtr binary_factory,
     auto X = std::make_shared<Parameter>(input_type, Shape{1, 20, 1});
 
     auto in_constant = std::make_shared<Constant>(input_type, Shape{5, 3, 20, 7}, Shape{1});
-    auto gather0 = MakeGather(in_constant, GatherForward, /* axis */ 0);
+    auto gather0 = make_gather(in_constant, gather_forward, /* axis */ 0);
 
     NodePtr binary_op;
     if (!binary_gather_input_idx)
@@ -601,7 +601,7 @@ std::shared_ptr<Model> CreateReferenceFunction(BinaryFactoryPtr binary_factory,
     else
         binary_op = binary_factory->create(X, in_constant);
 
-    auto gather1 = MakeGather(binary_op, GatherForward, /* axis */ 0);
+    auto gather1 = make_gather(binary_op, gather_forward, /* axis */ 0);
 
     return std::make_shared<Model>(ov::OutputVector{gather1}, ov::ParameterVector{X});
 }
@@ -617,7 +617,7 @@ std::shared_ptr<Model> CreateFunction(BinaryFactoryPtr binary_factory,
     auto X = std::make_shared<Parameter>(input_type, Shape{5, 3, 20, 7});
 
     auto in_constant = std::make_shared<Constant>(input_type, Shape{1, 20, 1}, Shape{1});
-    auto gather0 = MakeGather(in_constant, GatherForward, /* axis */ 1);
+    auto gather0 = make_gather(in_constant, gather_forward, /* axis */ 1);
 
     NodePtr binary_op;
     if (!binary_gather_input_idx)
@@ -632,7 +632,7 @@ std::shared_ptr<Model> CreateReferenceFunction(BinaryFactoryPtr binary_factory,
                                                element::Type input_type,
                                                size_t binary_gather_input_idx) {
     auto X = std::make_shared<Parameter>(input_type, Shape{5, 3, 20, 7});
-    auto gather0 = MakeGather(X, GatherBackward, /* axis */ 2);
+    auto gather0 = make_gather(X, gather_backward, /* axis */ 2);
 
     auto in_constant = std::make_shared<Constant>(input_type, Shape{1, 20, 1}, Shape{1});
 
@@ -642,7 +642,7 @@ std::shared_ptr<Model> CreateReferenceFunction(BinaryFactoryPtr binary_factory,
     else
         binary_op = binary_factory->create(gather0, in_constant);
 
-    auto gather1 = MakeGather(binary_op, GatherForward, /* axis */ 2);
+    auto gather1 = make_gather(binary_op, gather_forward, /* axis */ 2);
 
     return std::make_shared<Model>(ov::OutputVector{gather1}, ov::ParameterVector{X});
 }
@@ -710,7 +710,7 @@ INSTANTIATE_TEST_SUITE_P(
     GatherSinkingBinaryIncompatShapesTestFixture::get_test_name);
 
 INSTANTIATE_TEST_SUITE_P(
-    GatherSinkingBinaryIncompatShapesGatherLargeInputInsertGatherForwardTestSuite,
+    GatherSinkingBinaryIncompatShapesGatherLargeInputInsertgather_forwardTestSuite,
     GatherSinkingBinaryIncompatShapesTestFixture,
     ::testing::Combine(
         ::testing::ValuesIn(binary_elementwise_factories),
@@ -737,7 +737,7 @@ std::shared_ptr<Model> CreateFunction(BinaryFactoryPtr binary_factory,
     const Shape input_shape{1, 20};
 
     auto X = std::make_shared<Parameter>(input_type, input_shape);
-    auto gather0 = MakeGather(X, GatherForward, /* axis */ 1);
+    auto gather0 = make_gather(X, gather_forward, /* axis */ 1);
 
     auto tanh = std::make_shared<Tanh>(gather0);
 
@@ -757,20 +757,20 @@ std::shared_ptr<Model> CreateReferenceFunction(BinaryFactoryPtr binary_factory,
     const Shape input_shape{1, 20};
 
     auto X = std::make_shared<Parameter>(input_type, input_shape);
-    auto gather0 = MakeGather(X, GatherForward, /* axis */ 1);
+    auto gather0 = make_gather(X, gather_forward, /* axis */ 1);
 
     auto tanh = std::make_shared<Tanh>(gather0);
 
     NodePtr binary;
     auto in_constant = std::make_shared<Constant>(input_type, input_shape, Shape{1});
-    auto gather_reversed = MakeGather(in_constant, GatherBackward, /* axis */ 1);
+    auto gather_reversed = make_gather(in_constant, gather_backward, /* axis */ 1);
 
     if (!binary_gather_input_idx)
         binary = binary_factory->create(X, gather_reversed);
     else
         binary = binary_factory->create(gather_reversed, X);
 
-    auto gather1 = MakeGather(binary, GatherForward, /* axis */ 1);
+    auto gather1 = make_gather(binary, gather_forward, /* axis */ 1);
 
     return std::make_shared<Model>(ov::OutputVector{gather1, tanh}, ov::ParameterVector{X});
 }
@@ -788,7 +788,7 @@ std::shared_ptr<Model> CreateFunction(BinaryFactoryPtr binary_factory,
 
     auto X = std::make_shared<Parameter>(input_type, input_shape);
 
-    auto gather0 = MakeGather(X, GatherForward, /* axis */ 1);
+    auto gather0 = make_gather(X, gather_forward, /* axis */ 1);
 
     NodePtr binary;
     auto in_constant = std::make_shared<Constant>(input_type, input_shape, Shape{1});
@@ -813,14 +813,14 @@ std::shared_ptr<Model> CreateReferenceFunction(BinaryFactoryPtr binary_factory,
     NodePtr binary;
     auto in_constant = std::make_shared<Constant>(input_type, input_shape, Shape{1});
 
-    auto gather_reversed = MakeGather(in_constant, GatherBackward, /* axis */ 1);
+    auto gather_reversed = make_gather(in_constant, gather_backward, /* axis */ 1);
 
     if (!binary_gather_input_idx)
         binary = binary_factory->create(X, gather_reversed);
     else
         binary = binary_factory->create(gather_reversed, X);
 
-    auto gather0 = MakeGather(binary, GatherForward, /* axis */ 1);
+    auto gather0 = make_gather(binary, gather_forward, /* axis */ 1);
 
     auto tanh1 = std::make_shared<Tanh>(gather0);
     auto tanh2 = std::make_shared<Tanh>(gather0);
@@ -841,7 +841,7 @@ std::shared_ptr<Model> CreateFunction(BinaryFactoryPtr binary_factory,
 
     auto X = std::make_shared<Parameter>(input_type, input_shape);
 
-    auto gather0 = MakeGather(X, GatherForward, /* axis */ 1);
+    auto gather0 = make_gather(X, gather_forward, /* axis */ 1);
 
     NodePtr binary;
     auto in_constant = std::make_shared<Constant>(input_type, input_shape, Shape{1});
@@ -867,14 +867,14 @@ std::shared_ptr<Model> CreateReferenceFunction(BinaryFactoryPtr binary_factory,
     NodePtr binary;
     auto in_constant = std::make_shared<Constant>(input_type, input_shape, Shape{1});
 
-    auto gather_reversed = MakeGather(in_constant, GatherBackward, /* axis */ 1);
+    auto gather_reversed = make_gather(in_constant, gather_backward, /* axis */ 1);
 
     if (!binary_gather_input_idx)
         binary = binary_factory->create(X, gather_reversed);
     else
         binary = binary_factory->create(gather_reversed, X);
 
-    auto gather1 = MakeGather(binary, GatherForward, /* axis */ 1);
+    auto gather1 = make_gather(binary, gather_forward, /* axis */ 1);
 
     return std::make_shared<Model>(ov::OutputVector{gather1, tanh}, ov::ParameterVector{X});
 }
@@ -907,7 +907,7 @@ std::shared_ptr<Model> CreateFunction(BinaryFactoryPtr binary_factory,
 
     auto tanh = std::make_shared<Tanh>(binary);
 
-    auto gather0 = MakeGather(binary, GatherForward, /* axis */ 1);
+    auto gather0 = make_gather(binary, gather_forward, /* axis */ 1);
 
     return std::make_shared<Model>(ov::OutputVector{gather0, tanh}, ov::ParameterVector{X});
 }
@@ -937,7 +937,7 @@ std::shared_ptr<Model> CreateFunction(BinaryFactoryPtr binary_factory,
 
     auto tanh = std::make_shared<Tanh>(in_op);
 
-    auto gather0 = MakeGather(in_op, GatherForward, /* axis */ 1);
+    auto gather0 = make_gather(in_op, gather_forward, /* axis */ 1);
 
     return std::make_shared<Model>(ov::OutputVector{gather0, tanh}, ov::ParameterVector{X});
 }
@@ -964,7 +964,7 @@ std::shared_ptr<Model> CreateFunction(BinaryFactoryPtr binary_factory,
     else
         binary = binary_factory->create(in_constant, tanh0);
 
-    auto gather0 = MakeGather(binary, GatherForward, /* axis */ 1);
+    auto gather0 = make_gather(binary, gather_forward, /* axis */ 1);
 
     auto tanh1 = std::make_shared<Tanh>(tanh0);
 
@@ -980,11 +980,11 @@ std::shared_ptr<Model> CreateReferenceFunction(BinaryFactoryPtr binary_factory,
 
     auto tanh0 = std::make_shared<Tanh>(X);
 
-    auto gather0 = MakeGather(tanh0, GatherForward, /* axis */ 1);
+    auto gather0 = make_gather(tanh0, gather_forward, /* axis */ 1);
 
     auto in_constant = std::make_shared<Constant>(input_type, input_shape, Shape{1});
 
-    auto gather = MakeGather(in_constant, GatherForward, /* axis */ 1);
+    auto gather = make_gather(in_constant, gather_forward, /* axis */ 1);
 
     NodePtr binary;
     if (!binary_gather_input_idx)
@@ -1015,7 +1015,7 @@ std::shared_ptr<Model> CreateFunction(BinaryFactoryPtr binary_factory,
     else
         binary = binary_factory->create(in_constant, X);
 
-    auto gather0 = MakeGather(binary, GatherForward, /* axis */ 1);
+    auto gather0 = make_gather(binary, gather_forward, /* axis */ 1);
 
     auto tanh0 = std::make_shared<Tanh>(gather0);
     auto tanh1 = std::make_shared<Tanh>(gather0);
@@ -1030,11 +1030,11 @@ std::shared_ptr<Model> CreateReferenceFunction(BinaryFactoryPtr binary_factory,
 
     auto X = std::make_shared<Parameter>(input_type, input_shape);
 
-    auto gather0 = MakeGather(X, GatherForward, /* axis */ 1);
+    auto gather0 = make_gather(X, gather_forward, /* axis */ 1);
 
     auto in_constant = std::make_shared<Constant>(input_type, input_shape, Shape{1});
 
-    auto gather = MakeGather(in_constant, GatherForward, /* axis */ 1);
+    auto gather = make_gather(in_constant, gather_forward, /* axis */ 1);
 
     NodePtr binary;
     if (!binary_gather_input_idx)
@@ -1066,11 +1066,11 @@ std::shared_ptr<Model> CreateFunction(BinaryFactoryPtr binary_factory,
     else
         binary = binary_factory->create(in_constant, X);
 
-    auto gather0 = MakeGather(binary, GatherForward, /* axis */ 1);
+    auto gather0 = make_gather(binary, gather_forward, /* axis */ 1);
 
     auto tanh0 = std::make_shared<Tanh>(gather0);
 
-    auto gather1 = MakeGather(binary, GatherForward, /* axis */ 1);
+    auto gather1 = make_gather(binary, gather_forward, /* axis */ 1);
 
     auto tanh1 = std::make_shared<Tanh>(gather1);
 
@@ -1084,11 +1084,11 @@ std::shared_ptr<Model> CreateReferenceFunction(BinaryFactoryPtr binary_factory,
 
     auto X = std::make_shared<Parameter>(input_type, input_shape);
 
-    auto gather0 = MakeGather(X, GatherForward, /* axis */ 1);
+    auto gather0 = make_gather(X, gather_forward, /* axis */ 1);
 
     auto in_constant = std::make_shared<Constant>(input_type, input_shape, Shape{1});
 
-    auto gather = MakeGather(in_constant, GatherForward, /* axis */ 1);
+    auto gather = make_gather(in_constant, gather_forward, /* axis */ 1);
 
     NodePtr binary;
     if (!binary_gather_input_idx)
