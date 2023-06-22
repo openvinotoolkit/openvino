@@ -126,14 +126,11 @@ public:
     void set_adding_above(const ov::CoordinateDiff& pads_end) {
         m_pads_end = pads_end;
     }
-    /// \return The pad type for convolution.
-    const ov::op::PadType& get_auto_pad() const {
-        return m_auto_pad;
-    }
+
     void set_auto_pad(const ov::op::PadType& auto_pad) {
         m_auto_pad = auto_pad;
     }
-    bool has_add_node() const {
+    bool has_bias() const {
         return m_has_add_node;
     }
     ActivationType get_activation() const {
@@ -142,14 +139,6 @@ public:
     void set_activation(ActivationType activation_type) {
         m_activation_type = activation_type;
     }
-
-    /*
-     * TODO: for unit tests
-    bool evaluate(ov::runtime::TensorVector& output_values,
-                  const ov::runtime::TensorVector& input_values,
-                  const ov::EvaluationContext & evaluation_context) const override;
-    bool has_evaluate() const override;
-    */
 
 protected:
     ov::Strides m_strides;

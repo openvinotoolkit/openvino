@@ -138,7 +138,7 @@ struct GnaConvCallbacks {
             return false;
         }
 
-        if (gna_conv->has_add_node() || gna_conv->get_activation() != ActivationType::NO_ACTIVATION) {
+        if (gna_conv->has_bias() || gna_conv->get_activation() != ActivationType::NO_ACTIVATION) {
             return false;
         }
 
