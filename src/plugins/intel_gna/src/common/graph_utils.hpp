@@ -20,6 +20,8 @@
 #include "ngraph/opsets/opset7.hpp"
 #include "ngraph/opsets/opset8.hpp"
 #include "ngraph/opsets/opset9.hpp"
+#include "openvino/opsets/opset10.hpp"
+#include "openvino/opsets/opset12.hpp"
 #include "ops/copy.hpp"
 #include "ops/identity.hpp"
 #include "ops/pwl.hpp"
@@ -372,6 +374,227 @@ inline std::vector<size_t> make_gather_indices_from_transpose_axes(const Shape& 
     }
 
     return gather_order;
+}
+
+inline int64_t get_first_valuable_dim_id(const ov::Shape& shape) {
+    for (size_t i = 0; i < shape.size(); ++i) {
+        if (shape[i] != 1) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+/**
+ * @brief Converts Gather indexes into positive form
+ */
+template <typename T>
+std::vector<T> normalize_gather_indices(const std::vector<T>& indices) {
+    std::vector<T> normalized(indices.size());
+    for (size_t i = 0; i < indices.size(); ++i) {
+        T index = indices[i];
+        if (index < 0)
+            index += indices.size();
+        normalized[i] = index;
+    }
+    return normalized;
+}
+
+/**
+ * @brief Gets Gather indexes from Constant and converts them into positive form
+ */
+inline std::vector<int64_t> get_normalized_gather_indices(const std::shared_ptr<ov::opset12::Constant>& indices) {
+    return normalize_gather_indices(indices->cast_vector<int64_t>());
+}
+
+/**
+ * @brief Checks if node has dynamic rank inputs
+ */
+inline bool has_dynamic_rank_input(const std::shared_ptr<ov::Node>& node) {
+    for (const auto& input_node : node->input_values()) {
+        const Rank output_rank = input_node.get_partial_shape().rank();
+        if (output_rank.is_dynamic())
+            return true;
+    }
+    return false;
+}
+
+/**
+ * @brief Gets maximum rank of all input nodes
+ */
+inline Rank::value_type get_max_input_rank(const std::shared_ptr<ov::Node>& node) {
+    Rank::value_type max_input_rank = 0;
+    for (auto& input_node : node->input_values()) {
+        const Rank output_rank = input_node.get_partial_shape().rank();
+        if (output_rank.is_dynamic())
+            return -1;
+        const Rank::value_type output_rank_len = output_rank.get_length();
+        if (output_rank_len > max_input_rank)
+            max_input_rank = output_rank_len;
+    }
+    return max_input_rank;
+}
+
+/**
+ * @brief Gets dimension value by axis (works if axis could be < 0)
+ */
+inline Shape::value_type get_dim_by_axis(const Shape& shape, int64_t axis) {
+    if (axis < 0)
+        axis += shape.size();
+    if (axis < 0 || axis >= shape.size())
+        throw std::runtime_error("get_dim_by_axis invalid axis");
+    return shape[axis];
+}
+
+/**
+ * @brief unsqueezes shape to rank
+ */
+inline Shape unsqueeze_shape(const Shape& shape, ov::Rank::value_type rank) {
+    const int rank_delta = rank - shape.size();
+
+    if (rank_delta <= 0)
+        return shape;
+
+    Shape broadcasted(rank);
+    for (int i = 0; i < rank_delta; ++i) {
+        broadcasted[i] = 1;
+    }
+    std::copy(shape.begin(), shape.end(), broadcasted.begin() + rank_delta);
+
+    return broadcasted;
+}
+
+/**
+ * @brief Converts axis to positive form
+ */
+inline int64_t convert_axis_to_positive(int64_t axis, ov::Rank rank) {
+    const auto rank_val = rank.get_length();
+    if (axis < 0)
+        axis += rank_val;
+    if (axis < 0 || axis >= rank_val)
+        throw std::runtime_error("convert_axis_to_positive invalid axis");
+    return axis;
+}
+
+/**
+ * @brief Reverts gather indices in such a way that reverted and initial gather will do nothing if
+ *   they stay one after another. Works only with positive form (no negative indices).
+ */
+inline std::vector<int64_t> reverse_gather_indexes(const std::vector<int64_t>& indexes) {
+    std::vector<int64_t> out(indexes.size());
+    for (size_t i = 0; i < indexes.size(); i++) {
+        out.at(indexes[i]) = i;
+    }
+    return out;
+}
+
+/**
+ * @brief Finds first consumer node
+ */
+inline Node* find_first_consumer(const std::shared_ptr<ov::Node>& node) {
+    for (const auto& output : node->outputs()) {
+        auto inputs = output.get_target_inputs();
+        if (inputs.empty())
+            continue;
+        return inputs.begin()->get_node();
+    }
+    return nullptr;
+}
+
+/**
+ * @brief Finds first input node with type NodeT
+ */
+template <typename NodeT>
+std::shared_ptr<NodeT> find_first_input_node(const std::shared_ptr<ov::Node>& node) {
+    for (size_t input_idx = 0; input_idx < node->get_input_size(); ++input_idx) {
+        std::shared_ptr<ov::Node> input_node = node->get_input_node_shared_ptr(input_idx);
+        auto target_node = ov::as_type_ptr<NodeT>(input_node);
+        if (target_node)
+            return target_node;
+    }
+    return {};
+}
+
+/**
+ * @brief Gets split axis from Constant converting it to positive form
+ */
+inline bool get_split_axis(const std::shared_ptr<ov::opset12::Constant>& split_axis,
+                           const ov::Rank& rank,
+                           int64_t& axis) {
+    auto split_axis_val = split_axis->cast_vector<int64_t>();
+    if (split_axis_val.empty()) {
+        return false;
+    }
+    axis = convert_axis_to_positive(split_axis_val[0], rank);
+    return true;
+}
+
+/**
+ * @brief Checks if has 2D input shape inputs
+ */
+inline bool has_2d_inputs(const ov::Output<ov::Node>& output) {
+    auto node = output.get_node_shared_ptr();
+    auto input_left_rank = node->get_input_partial_shape(0).rank();
+    auto input_right_rank = node->get_input_partial_shape(0).rank();
+    return (input_left_rank.is_static() && input_right_rank.is_static() && input_left_rank.get_length() == 2 &&
+            input_right_rank.get_length() == 2);
+}
+
+/**
+ * @brief Checks if the permutation does nothing
+ */
+inline bool is_pointless_permutation(const std::vector<int64_t>& indices) {
+    for (size_t i = 0; i < indices.size(); ++i) {
+        if (indices[i] != i)
+            return false;
+    }
+    return true;
+}
+
+/**
+ * @brief Checks if MatMul input with @arg input_idx input is transposed
+ */
+inline bool is_matmul_input_transposed(const std::shared_ptr<ov::opset12::MatMul>& matmul, size_t input_idx) {
+    if (!input_idx)
+        return matmul->get_transpose_a();
+    return matmul->get_transpose_b();
+}
+
+/**
+ * @brief Checks if Reshape node is Unsqueeze
+ */
+inline bool is_reshape_unsqueeze(const ov::Output<ov::Node>& output) {
+    auto reshape = output.get_node_shared_ptr();
+    const ov::Shape input_shape = trim_shape(reshape->get_input_shape(0));
+    const ov::Shape output_shape = trim_shape(reshape->get_output_shape(0));
+    return (input_shape.size() == output_shape.size()) &&
+           std::equal(input_shape.begin(), input_shape.end(), output_shape.begin());
+}
+
+/**
+ * @brief Checks if output has rank not more than expected
+ */
+inline std::function<bool(Output<Node>)> rank_not_more_than(const ov::Rank::value_type expected_rank) {
+    return [=](Output<Node> output) -> bool {
+        const Rank rank = output.get_partial_shape().rank();
+        return (rank.is_static() && (rank.get_length() <= expected_rank));
+    };
+}
+
+/**
+ * @brief Checks if output has rank not more than expected
+ */
+inline bool constant_has_rank_not_more_than(const std::shared_ptr<ov::opset12::Constant>& node,
+                                            const ov::Rank::value_type expected_rank) {
+    const ov::Rank rank = node->get_output_partial_shape(0).rank();
+    return (rank.is_static() && (rank.get_length() <= expected_rank));
+}
+
+/**
+ * @brief Checks if output is Constant with rank 1
+ */
+inline bool is_constant_1d(const Output<Node>& output) {
+    return ov::pass::pattern::rank_equals(0)(output) || ov::pass::pattern::rank_equals(1)(output);
 }
 
 }  // namespace graph_utils

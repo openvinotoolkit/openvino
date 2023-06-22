@@ -101,6 +101,21 @@ std::shared_ptr<ngraph::Node> InsertFQLayer(const std::shared_ptr<ngraph::opset7
  */
 void remove_single_input_node(std::shared_ptr<ov::Node> node);
 
+/**
+ * @brief Swaps @args output tensor names
+ */
+void swap_output_names(ov::Output<ov::Node>, ov::Output<ov::Node>);
+
+/**
+ * @brief Swaps @args friendly names
+ */
+void swap_friendly_names(std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>);
+
+/**
+ * @brief Swaps @args output tensor names and friendly names
+ */
+void swap_names(std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>);
+
 }  // namespace helper
 }  // namespace pass
 }  // namespace intel_gna

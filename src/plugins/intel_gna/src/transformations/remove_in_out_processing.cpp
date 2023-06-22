@@ -8,7 +8,7 @@
 #include "common/graph_utils.hpp"
 #include "openvino/cc/pass/itt.hpp"
 #include "openvino/opsets/opset1.hpp"
-#include "openvino/opsets/opset10.hpp"
+#include "openvino/opsets/opset12.hpp"
 #include "openvino/opsets/opset7.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/pass/manager.hpp"
@@ -16,7 +16,7 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/transformation_helper.hpp"
 
-using namespace ov::opset10;
+using namespace ov::opset12;
 using namespace ov::intel_gna::pass;
 using namespace ov::intel_gna::limitations;
 
