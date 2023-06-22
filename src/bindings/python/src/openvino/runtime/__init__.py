@@ -71,7 +71,7 @@ from openvino.runtime.ie_api import compile_model
 try:
     from openvino.tools.ovc import convert_model, InputCutInfo, LayoutMap
 except ImportError:
-    pass
+    raise Exception("Could not import convert_model() from openvino.tools.ovc.")
 
 
 # Extend Node class to support binary operators
