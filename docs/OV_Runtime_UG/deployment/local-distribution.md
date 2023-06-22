@@ -52,12 +52,12 @@ As shown in the picture above, some plugin libraries may have OS-specific depend
       +==============+=========================+=======================================================+
       |     CPU      |            —            |                          —                            |
       +--------------+-------------------------+-------------------------------------------------------+
-      |     GPU      | | OpenCL.dll            | | C:\Windows\System32\opencl.dll                      |
-      |              | | cache.json            | | ./runtime/bin/intel64/Release/cache.json   or       |
-      |              |                         | | ./runtime/bin/intel64/Debug/cache.json              |
+      |     GPU      | | OpenCL.dll            | | ``C:\Windows\System32\opencl.dll``                  |
+      |              | | cache.json            | | ``./runtime/bin/intel64/Release/cache.json``   or   |
+      |              |                         | | ``./runtime/bin/intel64/Debug/cache.json``          |
       +--------------+-------------------------+-------------------------------------------------------+
-      |     GNA      |         gna.dll         | | ./runtime/bin/intel64/Release/gna.dll    or         |
-      |              |                         | | ./runtime/bin/intel64/Debug/gna.dll                 |
+      |     GNA      |         gna.dll         | | ``./runtime/bin/intel64/Release/gna.dll``    or     |
+      |              |                         | | ``./runtime/bin/intel64/Debug/gna.dll``             |
       +--------------+-------------------------+-------------------------------------------------------+
       |  Arm® CPU    |            —            |                          —                            |
       +--------------+-------------------------+-------------------------------------------------------+
@@ -69,10 +69,10 @@ As shown in the picture above, some plugin libraries may have OS-specific depend
       +==============+=========================+=======================================================+
       |     CPU      |            —            |                          —                            |
       +--------------+-------------------------+-------------------------------------------------------+
-      |     GPU      | | libOpenCL.so          | | /usr/lib/x86_64-linux-gnu/libOpenCL.so.1            |
-      |              | | cache.json            | | ./runtime/lib/intel64/cache.json                    |
+      |     GPU      | | libOpenCL.so          | | ``/usr/lib/x86_64-linux-gnu/libOpenCL.so.1``        |
+      |              | | cache.json            | | ``./runtime/lib/intel64/cache.json``                |
       +--------------+-------------------------+-------------------------------------------------------+
-      |     GNA      |      libgna.so          | ./runtime/lib/intel64/libgna.so.3                     |
+      |     GNA      |      libgna.so          | ``./runtime/lib/intel64/libgna.so.3``                 |
       +--------------+-------------------------+-------------------------------------------------------+
       |  Arm® CPU    |            —            |                          —                            |
       +--------------+-------------------------+-------------------------------------------------------+
