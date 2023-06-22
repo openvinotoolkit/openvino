@@ -55,9 +55,9 @@ class GNAConvolution : public ov::op::Op {
 public:
     OPENVINO_OP("GNAConvolution", "intel_gna", ov::op::Op);
 
-    /// \brief Constructs a batched convolution operation.
+    /// \brief Constructs a convolution operation.
     GNAConvolution() = default;
-    /// \brief Constructs a batched convolution operation.
+    /// \brief Constructs a convolution operation.
     ///
     /// \param data_batch The node producing the input data batch tensor.<br>
     /// `[N, C_IN, D1, ... Df]`
