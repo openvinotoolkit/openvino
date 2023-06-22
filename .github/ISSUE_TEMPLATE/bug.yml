@@ -14,8 +14,8 @@ body:
     id: ov_version
     attributes:
       label: OpenVINO Version 
-      description: OpenVINO Version/Branch/tag
-      placeholder: 2022.3.0 / Master Branch / tag 2022.3.0
+      description: OpenVINO Version or Branch/tag in OpenVINO Github
+      placeholder: 2021.4.0 LTS / Master Branch / tag 2022.3.0
     validations:
       required: false
   - type: dropdown
@@ -26,25 +26,30 @@ body:
       options:
         - Ubuntu 18.04 (LTS)
         - Ubuntu 20.04 (LTS)
-        - Windows 10
-        - Windows 11
+        - Windows System
         - Red Hat Enterprise Linux 8
-        - macOS 10.15
-        - macOS 11
-        - macOS 12
+        - Android System
+        - Raspbian Stretch OS
+        - macOS Systems for Intel CPU
+        - macOS Systems for Apple Silicon
+        - WebAssembly
         - Other (Please specify in description)
     validations:
       required: true
   - type: dropdown
     id: device_use
     attributes:
-      label: Device Use for Inference Engine
-      description: Device Use for Inference Engine
+      label: Device Use for Inferencing
+      description: Device Use for Inferencing
       options:
         - CPU
         - GPU
+        - GNA
         - NCS2 (intel Movidius)
         - HDDL
+        - AUTO
+        - HETERO
+        - BATCH
     validations:
       required: true
   - type: dropdown
@@ -76,7 +81,7 @@ body:
     attributes:
       label: Details Description of the issue
       description: Also, tell us the issue, and what did you expect to happen?
-      placeholder: Please provide a details description of what happen
+      placeholder: Please provide a details description of what happened
       value: "Error when performing Modal optimization on yolov4 model."
     validations:
       required: true
