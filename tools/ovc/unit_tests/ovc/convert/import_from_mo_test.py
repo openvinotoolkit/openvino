@@ -8,7 +8,7 @@ from pathlib import Path
 from generator import generator, generate
 from openvino.runtime import serialize, InputCutInfo, LayoutMap
 
-from unit_tests.mo.unit_test_with_mocked_telemetry import UnitTestWithMockedTelemetry
+from unit_tests.ovc.unit_test_with_mocked_telemetry import UnitTestWithMockedTelemetry
 from utils import create_onnx_model, save_to_onnx
 
 

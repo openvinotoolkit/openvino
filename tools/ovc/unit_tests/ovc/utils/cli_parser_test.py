@@ -19,7 +19,7 @@ from openvino.tools.ovc.cli_parser import get_placeholder_shapes, get_tuple_valu
     get_mo_convert_params
 from openvino.tools.ovc.convert_impl import pack_params_to_args_namespace
 from openvino.tools.ovc.error import Error
-from unit_tests.mo.unit_test_with_mocked_telemetry import UnitTestWithMockedTelemetry
+from unit_tests.ovc.unit_test_with_mocked_telemetry import UnitTestWithMockedTelemetry
 from openvino.runtime import PartialShape, Dimension, Layout, InputCutInfo, LayoutMap
 
 
