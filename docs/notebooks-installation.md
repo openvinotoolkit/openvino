@@ -103,7 +103,7 @@ operating system or environment.
       
          The following installation steps should work on a clean install of Ubuntu Desktop 20.04, and should also work on Ubuntu 22.04 and 20.10, and on Ubuntu Server.
       
-         .. code-block::
+         .. code-block:: sh
       
             sudo apt-get update
             sudo apt-get upgrade
@@ -115,14 +115,14 @@ operating system or environment.
       
             Only execute this command if you do not yet have OpenCL drivers installed.
       
-         .. code-block::
+         .. code-block:: sh
       
             sudo apt-get install intel-opencl-icd
       
       
          The following installation steps should work on a clean install of Red Hat, CentOS, Amazon Linux 2 or Fedora. If any issues occur, see the `Troubleshooting <#-troubleshooting>`__ section.
       
-         .. code-block::
+         .. code-block:: sh
       
             sudo yum update
             sudo yum upgrade
@@ -135,20 +135,20 @@ operating system or environment.
 
       1. **Install Xcode Command Line Tools**
 
-         .. code-block::
+         .. code-block:: sh
    
             xcode-select --install
 
       2. **Install Homebrew**
 
-         .. code-block::
+         .. code-block:: sh
    
             /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
             After you install it, follow the instructions from the Homebrew installation to set it up.
 
       3. **Install Python and dependencies**
    
-         .. code-block::
+         .. code-block:: sh
    
             brew install python@3.9
             brew install protobuf
@@ -184,7 +184,7 @@ operating system or environment.
       
       To run the notebooks inside a Linux-based Docker container, use the Dockerfile:
 
-      .. code-block:: bash
+      .. code-block:: sh
 
          :caption: Source: https://github.com/openvinotoolkit/openvino_notebooks/blob/main/Dockerfile
    
@@ -279,7 +279,7 @@ operating system or environment.
    
       2. **Activate the Environment**
    
-         .. code-block::
+         .. code-block:: sh
    
             openvino_env\Scripts\activate
    
@@ -287,14 +287,14 @@ operating system or environment.
    
          Using the --depth=1 option for git clone reduces download size.
    
-         .. code-block::
+         .. code-block:: sh
    
             git clone --depth=1 https://github.com/openvinotoolkit/openvino_notebooks.git
             cd openvino_notebooks
    
       4. **Upgrade PIP**
    
-         .. code-block::
+         .. code-block:: sh
    
             python -m pip install --upgrade pip wheel setuptools
    
@@ -313,13 +313,13 @@ operating system or environment.
 
          If you already have installed *openvino-dev*, you may skip this step and proceed with the next one.
    
-         .. code-block::
+         .. code-block:: sh
    
             python3 -m venv openvino_env
    
       2. **Activate the Environment**
    
-         .. code-block::
+         .. code-block:: sh
    
             source openvino_env/bin/activate
    
@@ -327,21 +327,21 @@ operating system or environment.
    
          Using the --depth=1 option for git clone reduces download size.
    
-         .. code-block::
+         .. code-block:: sh
    
             git clone --depth=1 https://github.com/openvinotoolkit/openvino_notebooks.git
             cd openvino_notebooks
    
       4. **Upgrade PIP**
    
-         .. code-block::
+         .. code-block:: sh
    
             python -m pip install --upgrade pip
             pip install wheel setuptools
    
       5. **Install required packages**
    
-         .. code-block::
+         .. code-block:: sh
    
             pip install -r requirements.txt
    
@@ -353,13 +353,13 @@ operating system or environment.
 
          If you already have installed *openvino-dev*, you may skip this step and proceed with the next one.
    
-         .. code-block::
+         .. code-block:: sh
    
             python3 -m venv openvino_env
    
       2. **Activate the Environment**
    
-         .. code-block::
+         .. code-block:: sh
    
             source openvino_env/bin/activate
    
@@ -367,20 +367,20 @@ operating system or environment.
    
          Using the --depth=1 option for git clone reduces download size.
    
-         .. code-block::
+         .. code-block:: sh
    
             git clone --depth=1 https://github.com/openvinotoolkit/openvino_notebooks.git
             cd openvino_notebooks
    
       4. **Upgrade PIP**
    
-         .. code-block::
+         .. code-block:: sh
    
             python -m pip install --upgrade pip wheel setuptools
    
       5. **Install required packages**
    
-         .. code-block::
+         .. code-block:: sh
    
             pip install -r requirements.txt
    
@@ -390,38 +390,38 @@ operating system or environment.
 
       1. Create a Conda environment
 
-         .. code-block::
+         .. code-block:: sh
    
             conda create --name openvino_env python=3.8 -y
    
       2. Activate the environment
    
-         .. code-block::
+         .. code-block:: sh
    
             conda activate openvino_env
    
       3. Clone OpenVINO notebooks
    
-         .. code-block::
+         .. code-block:: sh
    
             git clone https://github.com/openvinotoolkit/openvino_notebooks.git
    
       4. Change directory to ``openvino_notebooks``
    
-         .. code-block::
+         .. code-block:: sh
    
             cd openvino_notebooks
    
       5. Upgrade ``pip`` and install required dependencies.
    
-         .. code-block::
+         .. code-block:: sh
    
             python -m pip install --upgrade pip
             pip install -r requirements.txt
    
       6. Add ``openvino_env`` to PATH
    
-         .. code-block::
+         .. code-block:: sh
    
             set PATH="/anaconda/envs/openvino_env/bin;%PATH%"
    
@@ -447,20 +447,20 @@ operating system or environment.
       
       1. **Clone the Repository**
 
-         .. code-block::
+         .. code-block:: sh
    
             git clone https://github.com/openvinotoolkit/openvino_notebooks.git
             cd openvino_notebooks
    
       2. **Build the Docker Image**
    
-         .. code-block::
+         .. code-block:: sh
    
             docker build -t openvino_notebooks .
    
       3. **Run the Docker Image**
    
-         .. code-block::
+         .. code-block:: sh
    
             docker run -it -p 8888:8888 openvino_notebooks
    
@@ -468,7 +468,7 @@ operating system or environment.
    
             For using model training notebooks, allocate additional memory:
    
-            .. code-block::
+            .. code-block:: sh
    
                docker run -it -p 8888:8888 --shm-size 8G openvino_notebooks
    

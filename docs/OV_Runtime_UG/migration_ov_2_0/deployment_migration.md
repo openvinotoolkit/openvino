@@ -171,9 +171,9 @@ It is possible to build applications without the CMake interface by using: MSVC 
    .. tab-item:: (Windows) .lib files
       :sync: windows-lib-files
    
-     .. code-block:: sh
+      .. code-block:: sh
    
-       openvino.lib
+         openvino.lib
    
 
 Clearer Library Structure for Deployment
