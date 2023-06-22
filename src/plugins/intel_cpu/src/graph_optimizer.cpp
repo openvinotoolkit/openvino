@@ -9,6 +9,7 @@
 #include "nodes/pooling.h"
 #include "nodes/eltwise.h"
 #include "nodes/concat.h"
+#include "nodes/convert.h"
 #include "nodes/reorder.h"
 #include "nodes/conv.h"
 #include "nodes/deconv.h"
@@ -84,6 +85,10 @@ void GraphOptimizer::ApplyCommonGraphOptimizations(Graph &graph) {
 
     OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "MergeConvertAndScaleShift");
     MergeConvertAndScaleShift(graph);
+    graph.RemoveDroppedNodes();
+
+    OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "RemoveConvertF16ToF32");
+    RemoveConvertF16ToF32(graph);
     graph.RemoveDroppedNodes();
 
     OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseDeconvolutionAndSimpleOperation");
@@ -688,6 +693,20 @@ void GraphOptimizer::MergeConvertAndScaleShift(Graph& graph) {
         childNode->setOriginalInputPrecisionAtPort(0, parentNode->getOriginalInputPrecisionAtPort(0));
         childNode->addOriginalLayer(parentNode->getOriginalLayers());
         graph.DropNode(parentNode);
+    }
+}
+
+void GraphOptimizer::RemoveConvertF16ToF32(Graph& graph) {
+    auto& graphNodes = graph.GetNodes();
+
+    auto parent = graphNodes.begin();
+    while (parent != graphNodes.end()) {
+        auto parentNode = *parent;
+        if (parentNode->getType() == Type::Convert && parentNode->getOriginalInputPrecisionAtPort(0) == Precision::FP16
+                && parentNode->getOriginalOutputPrecisionAtPort(0) == Precision::FP32) {
+            graph.DropNode(parentNode);
+        }
+        parent++;
     }
 }
 

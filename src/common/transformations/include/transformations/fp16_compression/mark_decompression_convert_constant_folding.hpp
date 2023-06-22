@@ -13,8 +13,8 @@ namespace pass {
 
 class TRANSFORMATIONS_API EnableDecompressionConvertConstantFolding;
 class TRANSFORMATIONS_API DisableDecompressionConvertConstantFolding;
-class TRANSFORMATIONS_API EnableCFForConvConstants;
 class TRANSFORMATIONS_API KeepConstAndDecompression;
+class TRANSFORMATIONS_API KeepConstAndDecompressionForMatMul;
 
 }  // namespace pass
 }  // namespace ov
@@ -49,8 +49,8 @@ public:
     KeepConstAndDecompression();
 };
 
-class ov::pass::EnableCFForConvConstants : public MatcherPass {
+class ov::pass::KeepConstAndDecompressionForMatMul : public MatcherPass {
 public:
-    OPENVINO_RTTI("EnableCFForConvConstants", "0");
-    EnableCFForConvConstants();
+    OPENVINO_RTTI("KeepConstAndDecompressionForMatMul", "0");
+    KeepConstAndDecompressionForMatMul();
 };

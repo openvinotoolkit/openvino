@@ -70,27 +70,27 @@ pass::KeepConstAndDecompression::KeepConstAndDecompression() {
     register_matcher(m, callback);
 }
 
-pass::EnableCFForConvConstants::EnableCFForConvConstants() {
-    MATCHER_SCOPE(EnableCFForConvConstants);
-    auto convert = pass::pattern::wrap_type<op::util::ConvolutionBase, op::util::ConvolutionFwdPropBase>();
+pass::KeepConstAndDecompressionForMatMul::KeepConstAndDecompressionForMatMul() {
+    MATCHER_SCOPE(KeepConstAndDecompressionForMatMul);
+    auto matmul = pass::pattern::wrap_type<opset8::MatMul>();
 
     matcher_pass_callback callback = [=](pass::pattern::Matcher& m) {
         auto node = m.get_match_root();
 
-        // input to convolution is decompression Convert
+        // input to matmul is decompression Convert
         const auto& inp_convert = node->input_value(1).get_node_shared_ptr();
         if (!is_type<opset8::Convert>(inp_convert) || !is_decompression(inp_convert))
             return false;
-        ov::enable_constant_folding(inp_convert);
+
+        disable_constant_folding(inp_convert);
 
         if (!is_type<opset8::Constant>(inp_convert->input_value(0).get_node_shared_ptr()))
             return true;
-
-        disable_keep_fp16_const(inp_convert->input_value(0).get_node_shared_ptr());
+        enable_keep_fp16_const(inp_convert->input_value(0).get_node_shared_ptr());
 
         return true;
     };
 
-    auto m = std::make_shared<pass::pattern::Matcher>(convert, matcher_name);
+    auto m = std::make_shared<pass::pattern::Matcher>(matmul, matcher_name);
     this->register_matcher(m, callback);
 }

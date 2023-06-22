@@ -202,10 +202,10 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     manager.set_per_pass_validation(false);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::InitNodeInfo);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::MarkShapeOfSubgraphs);
-    CPU_REGISTER_PASS_COMMON(manager, ov::pass::VisualizeTree, "before.svg");
+    // CPU_REGISTER_PASS_COMMON(manager, ov::pass::VisualizeTree, "before.svg");
     // todo: uncomment KeepConstAndDecompression when xxx-105060 is ready
-     CPU_REGISTER_PASS_COMMON(manager, ov::pass::KeepConstAndDecompression);
-     CPU_REGISTER_PASS_COMMON(manager, ov::pass::EnableCFForConvConstants);
+    // CPU_REGISTER_PASS_COMMON(manager, ov::pass::KeepConstAndDecompression);
+    CPU_REGISTER_PASS_COMMON(manager, ov::pass::KeepConstAndDecompressionForMatMul);
 
     const bool useLpt = !defaultPrecisions.empty();
     if (useLpt) {
@@ -268,7 +268,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     // element type propagation. This transformation is called before the ConvertPrecision pass to align the actual precisions with the list of supported ones.
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::InsertConvertAfterExtension);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertPrecision, precisions, type_to_fuse);
-    CPU_REGISTER_PASS_COMMON(manager, ov::pass::VisualizeTree, "after.svg");
+    // CPU_REGISTER_PASS_COMMON(manager, ov::pass::VisualizeTree, "after.svg");
 
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::EliminateConvert);
     CPU_REGISTER_PASS_COMMON(manager, SwapConvertTranspose);
