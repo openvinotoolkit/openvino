@@ -69,7 +69,7 @@ public:
  *        Any #3
  *
  * Input index depends on the shapes and Gather axis.
- * This transformation is called called from GatherSinkingGeneral.
+ * This transformation is called from GatherSinkingGeneral.
  */
 
 class GatherSinkingMatmulBackward : public ov::pass::MatcherPass {
