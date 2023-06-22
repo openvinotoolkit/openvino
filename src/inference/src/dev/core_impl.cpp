@@ -608,7 +608,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model_with_preprocess(ov::Pl
     }
 
     return context ? plugin.compile_model(preprocessed_model, context, config)
-                         : plugin.compile_model(preprocessed_model, config);
+                   : plugin.compile_model(preprocessed_model, config);
 }
 
 ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& model_path,
@@ -1214,7 +1214,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
             }
 
             compiled_model = context ? plugin.import_model(networkStream, context, config)
-                                           : plugin.import_model(networkStream, config);
+                                     : plugin.import_model(networkStream, config);
             if (auto wrapper = std::dynamic_pointer_cast<InferenceEngine::ICompiledModelWrapper>(compiled_model._ptr)) {
                 wrapper->get_executable_network()->loadedFromCache();
             }
