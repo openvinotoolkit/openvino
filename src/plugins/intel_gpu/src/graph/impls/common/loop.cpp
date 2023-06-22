@@ -110,6 +110,7 @@ struct loop_impl : typed_primitive_impl<loop> {
             }
         }
 
+        std::vector<event::ptr> all_events;
         std::vector<event::ptr> loop_carried_dep(events.begin(), events.end());
         int64_t current_iteration_idx = 0;
         while (current_iteration_idx < trip_count && execution_condition) {
@@ -145,6 +146,15 @@ struct loop_impl : typed_primitive_impl<loop> {
                 loop_carried_dep.emplace_back(body_event);
             }
 
+            // Collect output events for waiting for all iterations finishing
+            for (auto& out : body_network->get_outputs()) {
+                auto output_id = out->id();
+                if (body_network->has_event(output_id)) {
+                    auto output_event = body_network->get_primitive_event(output_id);
+                    all_events.push_back(output_event);
+                }
+            }
+
             //TODO: execution_condition is prepared as they are presented in the
             //      ngraph opset document for loop operation.
             // However they are not being used yet and only TensorIterator which
@@ -157,7 +167,9 @@ struct loop_impl : typed_primitive_impl<loop> {
             ++current_iteration_idx;
         }
 
-        body_network->reset_execution();
+        // Reset network and wait for all collected events
+        body_network->reset_execution(false);
+        stream.wait_for_events(all_events);
 
         // Concatenate sliced output to the outer network
         for (size_t i = 0; i < concatenated_output_mem_mappings.size(); ++i) {

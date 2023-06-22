@@ -34,11 +34,19 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
         raise Exception("ONNX frontend does not support input model as BytesIO object. "
                         "Please use use_legacy_frontend=True to convert the model.")
     else:
+        input_checkpoint = getattr(argv, 'input_checkpoint', None)
         enable_mmap = enable_mmap = not argv.disable_mmap
-        if argv.input_model:
+        if argv.input_model and input_checkpoint:
+            # frozen format with v1 checkpoints
+            input_model = moc_front_end.load([argv.input_model, argv.input_checkpoint], enable_mmap)
+        elif argv.input_model:
+            # frozen model without v1 checkpoints
             input_model = moc_front_end.load(argv.input_model, enable_mmap)
         elif argv.saved_model_dir:
-            input_model = moc_front_end.load(argv.saved_model_dir, enable_mmap)
+            if argv.saved_model_tags:
+                input_model = moc_front_end.load([argv.saved_model_dir, argv.saved_model_tags], enable_mmap)
+            else:
+                input_model = moc_front_end.load(argv.saved_model_dir, enable_mmap)
         elif argv.input_meta_graph:
             input_model = moc_front_end.load(argv.input_meta_graph, enable_mmap)
             if argv.output:

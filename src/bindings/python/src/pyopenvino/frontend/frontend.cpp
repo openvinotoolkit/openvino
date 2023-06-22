@@ -30,6 +30,11 @@ void regclass_frontend_FrontEnd(py::module m) {
     py::class_<FrontEnd, std::shared_ptr<FrontEnd>> fem(m, "FrontEnd", py::dynamic_attr(), py::module_local());
     fem.doc() = "openvino.frontend.FrontEnd wraps ov::frontend::FrontEnd";
 
+    fem.def(py::init([](const std::shared_ptr<FrontEnd>& other) {
+                return other;
+            }),
+            py::arg("other"));
+
     fem.def(
         "load",
         [](FrontEnd& self, const py::object& py_obj, const bool enable_mmap = true) {
@@ -60,6 +65,21 @@ void regclass_frontend_FrontEnd(py::module m) {
                 :type enable_mmap: boolean
                 :return: Loaded input model.
                 :rtype: openvino.frontend.InputModel
+             )");
+
+    fem.def(
+        "supported",
+        [](FrontEnd& self, const py::object& model) {
+            return self.supported({Common::utils::py_object_to_any(model)});
+        },
+        py::arg("model"),
+        R"(
+                Checks if model type is supported.
+
+                :param model: Object describing the model. It can be path to model file.
+                :type model: Any
+                :return: True if model type is supported, otherwise False.
+                :rtype: bool
              )");
 
     fem.def("convert",
