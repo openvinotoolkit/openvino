@@ -818,7 +818,7 @@ void Node::prepareMemory(const DnnlMemoryDescPtr& intDesc, size_t indx) {
         // TODO [DS]: internal blobs should be removed or rewritten using Memory object
         auto newDesc = MemoryDescUtils::convertToDnnlBlockedMemoryDesc(internalBlob->getTensorDesc());
 
-        Memory memory(engine, newDesc, internalBlob->buffer());
+        Memory memory{engine, newDesc, internalBlob->buffer()};
 
         MemoryPtr _ptr = std::make_shared<Memory>(engine, intDesc);
         node::Reorder::reorderData(memory, *_ptr, context->getParamsCache());
