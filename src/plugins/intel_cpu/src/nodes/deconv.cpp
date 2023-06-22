@@ -437,15 +437,17 @@ void Deconvolution::getSupportedDescriptors() {
         if (InferenceEngine::Precision::BF16 == outPrecision)
             outPrecision = InferenceEngine::Precision::FP32;
     } else {
-        if (!one_of(inPrecision, InferenceEngine::Precision::FP32, InferenceEngine::Precision::BF16))
+        if (!inPrecision.is_float())
             inPrecision = InferenceEngine::Precision::FP32;
-        if (!one_of(outPrecision, InferenceEngine::Precision::FP32, InferenceEngine::Precision::BF16))
+        if (!outPrecision.is_float())
             outPrecision = InferenceEngine::Precision::FP32;
     }
     auto inputDataType = DnnlExtensionUtils::IEPrecisionToDataType(inPrecision);
     outputDataType = DnnlExtensionUtils::IEPrecisionToDataType(outPrecision);
     if (inputDataType == memory::data_type::bf16 || outputDataType == memory::data_type::bf16)
        inputDataType = outputDataType = memory::data_type::bf16;
+    if (inputDataType == memory::data_type::f16 || outputDataType == memory::data_type::f16)
+       inputDataType = outputDataType = memory::data_type::f16;
     if (!fusedWith.empty()) {
         outputDataType = DnnlExtensionUtils::IEPrecisionToDataType(fusedWith[fusedWith.size() - 1]->getOriginalOutputPrecisionAtPort(0));
     }
