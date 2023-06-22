@@ -73,7 +73,7 @@ TSConcatForward::TSConcatForward() {
                 std::iota(transpose_order.begin(), transpose_order.end(), 0);
             }
             ov::AxisVector slice_ids =
-                graph_utils::make_gather_indices_from_transpose_axes(transpose_shape, transpose_order);
+                graph_utils::make_gather_indexes_from_transpose_axes(transpose_shape, transpose_order);
             // shift slice indexes and insert at the end of the gather indexes vector
             size_t id = gather_ids.size();
             std::for_each(slice_ids.begin(), slice_ids.end(), [&id](size_t& i) {
@@ -98,7 +98,7 @@ TSConcatForward::TSConcatForward() {
         auto gather_const_ids = std::make_shared<Constant>(ov::element::i64, ov::Shape{gather_ids.size()}, gather_ids);
         auto gather_node = std::make_shared<Gather>(concat_new, gather_const_ids, gather_const_axis);
 
-        // reshape afther Gather
+        // reshape after gather
         ov::Shape concat_shape_out = concat_node->get_output_shape(0);
         auto reshape_output_const =
             std::make_shared<Constant>(ov::element::i64, ov::Shape{concat_shape_out.size()}, concat_shape_out);
