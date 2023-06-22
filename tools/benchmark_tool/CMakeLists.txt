@@ -4,7 +4,7 @@
 
 cmake_minimum_required (VERSION 3.13)
 
-project(OpenVINOConverter)
+project(OpenVINOBenchmarkTool)
 
 #
 # Packages & settings
@@ -29,7 +29,7 @@ ov_get_pyversion(pyversion)
 ov_cpack_add_component(${OV_CPACK_COMP_PYTHON_OPENVINO}_${pyversion}
                         HIDDEN)
 
-install(DIRECTORY ${OpenVINOConverter_SOURCE_DIR}/openvino
+install(DIRECTORY ${OpenVINOBenchmarkTool_SOURCE_DIR}/openvino
         DESTINATION ${OV_CPACK_PYTHONDIR}
         COMPONENT ${OV_CPACK_COMP_PYTHON_OPENVINO}_${pyversion}
         ${OV_CPACK_COMP_PYTHON_OPENVINO_EXCLUDE_ALL}
