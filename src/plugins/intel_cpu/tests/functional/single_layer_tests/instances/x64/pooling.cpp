@@ -19,11 +19,24 @@ namespace CPULayerTestsDefinitions {
 namespace Pooling {
 namespace {
 
+const auto ref = CPUSpecificParams{{}, {}, {"ref_any"}, "ref_any"};
 const auto avx512 = CPUSpecificParams{{}, {}, {"jit_avx512"}, "jit_avx512"};
 const auto avx = CPUSpecificParams{{}, {}, {"jit_avx"}, "jit_avx"};
 const auto sse42 = CPUSpecificParams{{}, {}, {"jit_sse42"}, "jit_sse42"};
 
 const std::vector<CPUSpecificParams> vecCpuConfigs = {sse42, avx, avx512};
+
+const std::vector<LayerTestsDefinitions::maxPoolV8SpecificParams> paramsMaxV84D_ref = {
+        LayerTestsDefinitions::maxPoolV8SpecificParams{ {2, 2}, {2, 2}, {2, 2}, {0, 0}, {0, 0},
+                                                        ngraph::element::Type_t::i32, 0,
+                                                        ngraph::op::RoundingType::CEIL, ngraph::op::PadType::SAME_UPPER },
+        LayerTestsDefinitions::maxPoolV8SpecificParams{ {4, 2}, {2, 2}, {1, 2}, {0, 0}, {0, 0},
+                                                        ngraph::element::Type_t::i32, 0,
+                                                        ngraph::op::RoundingType::CEIL, ngraph::op::PadType::EXPLICIT },
+        LayerTestsDefinitions::maxPoolV8SpecificParams{ {4, 2}, {2, 1}, {2, 2}, {0, 0}, {0, 0},
+                                                        ngraph::element::Type_t::i32, 0,
+                                                        ngraph::op::RoundingType::CEIL, ngraph::op::PadType::EXPLICIT },
+};
 
 INSTANTIATE_TEST_SUITE_P(smoke_MaxPool_CPU_3D, PoolingLayerCPUTest,
                          ::testing::Combine(
@@ -61,6 +74,14 @@ INSTANTIATE_TEST_SUITE_P(smoke_MaxPoolV8_CPU_4D, MaxPoolingV8LayerCPUTest,
                                  ::testing::ValuesIn(inputShapes4D()),
                                  ::testing::ValuesIn(inpOutPrecision()),
                                  ::testing::ValuesIn(filterCPUInfoForDevice(vecCpuConfigs))),
+                         MaxPoolingV8LayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_MaxPoolV8_CPU_4D_ref, MaxPoolingV8LayerCPUTest,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(paramsMaxV84D_ref),
+                                 ::testing::ValuesIn(inputShapes4D()),
+                                 ::testing::ValuesIn((inpOutPrecision())),
+                                 ::testing::Values(ref)),
                          MaxPoolingV8LayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_CPU_4D, PoolingLayerCPUTest,
