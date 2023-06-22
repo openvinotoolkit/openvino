@@ -100,6 +100,45 @@ bool condition_inst::get_pred_from_memory(memory::ptr mem, stream& stream) {
     }
 }
 
+static ov::PartialShape resolve_shape(const ov::PartialShape& true_pshape, const ov::PartialShape& false_pshape) {
+    // true_pshape - shape of output from then_body
+    // false_pshape - shape of output from else_body
+    auto then_rank = true_pshape.rank();
+    auto else_rank = false_pshape.rank();
+
+    // if rangs of shapes are not equal or rang of one of them is dynamic function
+    // return shape with dynamic rank
+    if (then_rank.is_dynamic() || else_rank.is_dynamic()) {
+        return ov::PartialShape::dynamic();
+    }
+    if (then_rank.get_length() != else_rank.get_length()) {
+        // Union of scalar and 1D case
+        if (then_rank.get_length() <= 1 && else_rank.get_length() <= 1) {
+            return ov::PartialShape::dynamic(1);
+        } else {
+            return ov::PartialShape::dynamic();
+        }
+    }
+    std::vector<ov::Dimension> new_dims;
+
+    // If rangs are equal each dimesion of then_body output is union with each dimension of
+    // else_body
+    for (auto then_it = true_pshape.cbegin(), else_it = false_pshape.cbegin(); then_it != true_pshape.cend();
+         then_it++, else_it++) {
+        if ((*then_it).is_dynamic() || (*else_it).is_dynamic()) {
+            new_dims.push_back(ov::Dimension::dynamic());
+        } else if (*then_it == *else_it) {
+            new_dims.emplace_back(*then_it);
+        } else {
+            auto dim_min = std::min((*then_it).get_min_length(), (*else_it).get_min_length());
+            auto dim_max = std::max((*then_it).get_min_length(), (*else_it).get_min_length());
+            new_dims.emplace_back(dim_min, dim_max);
+        }
+    }
+
+    return ov::PartialShape(new_dims);
+}
+
 template<typename ShapeType>
 std::vector<layout> condition_inst::calc_output_layouts(condition_node const& node, kernel_impl_params const& impl_param) {
     if (impl_param.inner_nets.empty()) {
@@ -107,12 +146,23 @@ std::vector<layout> condition_inst::calc_output_layouts(condition_node const& no
         auto layouts_true  = get_output_layouts(get_out_layout_map(impl_param.inner_progs[idx_branch_true]),  impl_param.io_output_maps[idx_branch_true]);
         auto layouts_false = get_output_layouts(get_out_layout_map(impl_param.inner_progs[idx_branch_false]), impl_param.io_output_maps[idx_branch_false]);
 
-        if (layouts_true[0].is_static() && layouts_true[0] == layouts_false[0]) {
-            return {layouts_true[0]};
-        } else {
-            OPENVINO_ASSERT(layouts_true[0].get_rank() == layouts_false[0].get_rank(), "dynamic rank is not supported");
-            return {layout{ov::PartialShape::dynamic(layouts_true[0].get_rank()), layouts_true[0].data_type, layouts_true[0].format }};
+        const size_t num_outputs = impl_param.output_layouts.size();
+        OPENVINO_ASSERT((num_outputs == layouts_true.size() && num_outputs == layouts_false.size()),
+                            "The number of outputs for each branch should be same!");
+        std::vector<layout> output_layouts;
+
+        for (size_t i = 0; i < num_outputs; i++) {
+            if (layouts_true[i] == layouts_false[i]) {
+                output_layouts.push_back(layouts_true[i]);
+            } else {
+                OPENVINO_ASSERT(layouts_true[i].data_type == layouts_false[i].data_type, "data type of each branches should be same");
+                OPENVINO_ASSERT(layouts_true[i].format == layouts_false[i].format, "output format of each branches should be same");
+                auto out_layout = resolve_shape(layouts_true[i].get_partial_shape(), layouts_false[i].get_partial_shape());
+                output_layouts.push_back(layout{out_layout, layouts_true[i].data_type, layouts_true[i].format });
+            }
         }
+
+        return output_layouts;
     } else {
         auto& memory_deps = impl_param.memory_deps;
         OPENVINO_ASSERT(memory_deps.count(0) > 0, "The count of memory deps should not be zero");
@@ -120,10 +170,10 @@ std::vector<layout> condition_inst::calc_output_layouts(condition_node const& no
         auto pred = condition_inst::get_pred_from_memory(mem_ptr, impl_param.get_stream());
         if (pred) {
             auto layouts_true  = get_output_layouts(get_out_layout_map(impl_param.inner_nets[idx_branch_true]),  impl_param.io_output_maps[idx_branch_true]);
-            return {layouts_true[0]};
+            return layouts_true;
         } else {
             auto layouts_false = get_output_layouts(get_out_layout_map(impl_param.inner_nets[idx_branch_false]), impl_param.io_output_maps[idx_branch_false]);
-            return {layouts_false[0]};
+            return layouts_false;
         }
     }
 }
