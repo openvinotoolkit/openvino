@@ -700,3 +700,19 @@ TEST_F(FrontEndConversionWithReferenceTestsF, PartitionedCallsWithConvInBodyGrap
         model_ref = make_shared<Model>(OutputVector{conv}, ParameterVector{input1, filter});
     }
 }
+
+TEST_F(FrontEndConversionWithReferenceTestsF, ControlDependencyNumberOutputs) {
+    // The test aims to check a number of outputs of the resulted model
+    // If the node has dependent nodes by conditional edge, it is not terminating
+    // and it should not go to the Result node
+    { model = convert_model("control_dependency/control_dependency.pb"); }
+    {
+        auto input1 = make_shared<Parameter>(f32, Shape{2, 3});
+        auto input2 = make_shared<Parameter>(f32, Shape{2, 3});
+
+        // AddV2 node is excluded since it is not terminating
+        auto sub = make_shared<Subtract>(input1, input2);
+
+        model_ref = make_shared<Model>(OutputVector{sub}, ParameterVector{input1, input2});
+    }
+}
