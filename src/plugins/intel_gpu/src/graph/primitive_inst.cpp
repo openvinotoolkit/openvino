@@ -19,6 +19,8 @@
 #include "deconvolution_inst.h"
 #include "shape_of_inst.h"
 #include "gemm_inst.h"
+#include "assign_inst.h"
+#include "read_value_inst.h"
 #include "experimental_detectron_roi_feature_extractor_inst.hpp"
 #include "compilation_context.hpp"
 #include "implementation_map.hpp"
@@ -346,6 +348,16 @@ event::ptr primitive_inst::realloc_if_needed() {
     if (_node->is_type<input_layout>())
         return ev;
 
+    if (_node->is_type<assign>() || _node->is_type<read_value>()) {
+        std::string variable_id = "";
+        if (_node->is_type<assign>())
+            variable_id = _node->as<assign>().get_primitive()->variable_id;
+        else
+            variable_id = _node->as<read_value>().get_primitive()->variable_id;
+        get_network().update_variable_memory(variable_id, actual_layout);
+        return ev;
+    }
+
     bool can_reuse_buffer = _outputs[0] && actual_layout.count() <= max_output_layout_size;
 
     if (can_reuse_buffer) {
@@ -530,6 +542,7 @@ bool primitive_inst::update_impl() {
                 }
             } else {
                 _impl = _node->type()->choose_impl(*_node, updated_params_no_dyn_pad);
+                _impl->set_node_params(*_node);
                 if (!can_be_optimized()) {
                     auto& kernels_cache = get_network().get_program()->get_kernels_cache();
                     auto kernels = kernels_cache.compile(updated_params_no_dyn_pad, _impl->get_kernels_source());
@@ -684,7 +697,9 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
         dependencies = events;
     } else {
         auto queue_type = get_network().get_stream().get_queue_type();
-        if (queue_type == QueueTypes::out_of_order) {
+        // Prepare dependencies events in case of OOO queue, CPU implementation,
+        // or optimized_out impl which has CPU users (needs_completion_event() && !is_output() condition)
+        if (queue_type == QueueTypes::out_of_order || _impl->is_cpu() || (can_be_optimized() && needs_completion_event() && !is_output())) {
             dependencies.reserve(dependencies.size() + _exec_deps.size());
             for (auto& input : _exec_deps) {
                 auto id = input->id();
@@ -797,13 +812,14 @@ primitive_inst::primitive_inst(network& network, program_node const& node, bool 
     , _org_id(node.get_org_primitive_id())
     , _is_input(node.is_input())
     , _is_output(node.is_output())
-    , _inputs_memory_count(node.get_primitive()->input_size())
-    , _outputs_memory_count(node.get_primitive()->output_size())
+    , _inputs_memory_count(node.get_inputs_count())
+    , _outputs_memory_count(node.get_outputs_count())
     , _fused_mem_count(node.get_fused_inputs_count())
     , _fused_mem_offset((_fused_mem_count > 0 && node.has_fused_dep()) ? node.get_first_fused_dep_idx() : 0)
     , _can_be_optimized(node.can_be_optimized())
     , _can_share_buffer(node.can_share_buffer())
-    , _is_constant(node.is_constant()) {
+    , _is_constant(node.is_constant())
+    , _needs_completion_event(is_any_user_cpu(node.get_users()) || node.is_output()) {
     if (allocate_memory) {
         // In case when output is mutable_data primitive, and other users dependencies are only used for
         // suychronization, The output memory of such primitive will be fused with mutable_data
@@ -1392,9 +1408,7 @@ void primitive_inst::save(cldnn::BinaryOutputBuffer& ob) const {
     ob << can_be_optimized();
     ob << can_share_buffer();
     ob << is_constant();
-    auto users = get_node().get_users();
-    bool is_output_event = is_any_user_cpu(users) || get_node().is_output();
-    ob << is_output_event;
+    ob << needs_completion_event();
 
     if (type() == cldnn::data::type_id()) {
         return;
@@ -1485,7 +1499,7 @@ void primitive_inst::load(cldnn::BinaryInputBuffer& ib) {
     ib >> _can_be_optimized;
     ib >> _can_share_buffer;
     ib >> _is_constant;
-    ib >> _is_output_event;
+    ib >> _needs_completion_event;
 
     if (type() == cldnn::data::type_id()) {
         return;
