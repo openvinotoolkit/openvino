@@ -9,7 +9,6 @@
    Use Archive <openvino_docs_install_guides_installing_openvino_from_archive_windows>
    Use PyPI <openvino_docs_install_guides_installing_openvino_pip>
    Use Conda Forge <openvino_docs_install_guides_installing_openvino_conda>
-   Use Docker <openvino_docs_install_guides_installing_openvino_docker_windows>
 
 
 If you want to install OpenVINO™ Runtime on Windows, you have the following options:
@@ -17,7 +16,6 @@ If you want to install OpenVINO™ Runtime on Windows, you have the following op
 * :doc:`Install OpenVINO Runtime from an Archive File <openvino_docs_install_guides_installing_openvino_from_archive_windows>`
 * :doc:`Install OpenVINO Runtime using PyPI <openvino_docs_install_guides_installing_openvino_pip>`
 * :doc:`Install OpenVINO Runtime using Conda Forge <openvino_docs_install_guides_installing_openvino_conda>`
-* :doc:`Install OpenVINO using Docker <openvino_docs_install_guides_installing_openvino_docker_windows>`
 
 For a full selection of distribution channels, 
 see the `OpenVINO Installation Selector Tool <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/download.html>`__
