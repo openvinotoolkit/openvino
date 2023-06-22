@@ -39,8 +39,7 @@ def get_mo_root_dir():
     Return the absolute path to the Model Conversion API root directory (where mo folder is located)
     :return: path to the MO root directory
     """
-    return os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(os.path.realpath(__file__))), os.pardir,
-                                         os.pardir))
+    return os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(os.path.realpath(__file__))), os.pardir))
 
 
 def check_values_equal(val1, val2):

@@ -606,7 +606,7 @@ def canonicalize_and_check_paths(values: Union[str, List[str]], param_name,
             elif not try_mo_root or val == '':
                 raise Error(error_msg)
             elif try_mo_root:
-                path_from_mo_root = get_mo_root_dir() + '/mo/' + val
+                path_from_mo_root = get_mo_root_dir() + '/ovc/' + val
                 list_of_values[idx] = path_from_mo_root
                 if not os.path.exists(path_from_mo_root):
                     raise Error(error_msg)
