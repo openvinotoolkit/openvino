@@ -54,7 +54,7 @@ struct ConstRanges {
         if (resolution <= 1) {
                 resolution = 10;
         }
-        while (fabs(updated_min) < 10 && fabs(updated_max) < 10) {
+        while (std::abs(updated_min) < 10 && std::abs(updated_max) < 10) {
                 updated_min *= resolution;
                 updated_max *= resolution;
         }
