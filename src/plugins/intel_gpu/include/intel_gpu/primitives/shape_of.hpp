@@ -12,6 +12,10 @@ namespace cldnn {
 struct shape_of : public primitive_base<shape_of> {
     CLDNN_DECLARE_PRIMITIVE(shape_of)
 
+    shape_of() : primitive_base("", {}) {}
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     /// @brief Constructs shape_of primitive.
     /// @param id This primitive id.
     /// @param input Input primitive id.
@@ -44,6 +48,16 @@ struct shape_of : public primitive_base<shape_of> {
         auto rhs_casted = downcast<const shape_of>(rhs);
 
         return output_rank == rhs_casted.output_rank;
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<shape_of>::save(ob);
+        ob << output_rank;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<shape_of>::load(ib);
+        ib >> output_rank;
     }
 };
 }  // namespace cldnn

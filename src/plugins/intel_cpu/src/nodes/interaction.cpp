@@ -221,7 +221,7 @@ static inline void cat(uint8_t* out,
                        int64_t bs,
                        size_t elemSize) {
     size_t offset = 0;
-    for (int j = 0; j < feature_sizes.size(); j++) {
+    for (size_t j = 0; j < feature_sizes.size(); j++) {
         cpu_memcpy(out + offset * elemSize, in[j] + bs * feature_sizes[j] * elemSize,
             feature_sizes[j] * elemSize);
         offset += feature_sizes[j];
@@ -230,7 +230,7 @@ static inline void cat(uint8_t* out,
 
 static inline void flat_triangle(const uint8_t* in, uint8_t* out, size_t size, size_t elemSize) {
     size_t offset = 0;
-    for (int i = 1; i < size; i++) {
+    for (size_t i = 1; i < size; i++) {
         cpu_memcpy(out + offset * elemSize, in + i * size * elemSize, i * elemSize);
         offset += i;
     }

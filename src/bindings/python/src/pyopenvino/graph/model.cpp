@@ -730,7 +730,7 @@ void regclass_graph_Model(py::module m) {
         )");
 
     model.def("__repr__", [](const ov::Model& self) {
-        std::string class_name = py::cast(self).get_type().attr("__name__").cast<std::string>();
+        std::string class_name = Common::get_class_name(self);
 
         auto inputs_str = Common::docs::container_to_string(self.inputs(), ",\n");
         auto outputs_str = Common::docs::container_to_string(self.outputs(), ",\n");

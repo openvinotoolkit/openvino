@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include "ngraph/op/op.hpp"
 #include "snippets/op/store.hpp"
 
 namespace ov {
@@ -16,9 +15,9 @@ namespace intel_cpu {
  *        The operation is used for peephole optimization during subgraph lowering.
  * @ingroup snippets
  */
-class StoreConvertSaturation : public ngraph::snippets::op::Store {
+class StoreConvertSaturation : public snippets::op::Store {
 public:
-    OPENVINO_OP("StoreConvertSaturation", "SnippetsOpset", ngraph::snippets::op::Store);
+    OPENVINO_OP("StoreConvertSaturation", "SnippetsOpset", snippets::op::Store);
 
     StoreConvertSaturation(const Output<Node>& x, const ov::element::Type& destination_type, const size_t count = 1lu, const size_t offset = 0lu);
     StoreConvertSaturation() = default;
@@ -43,9 +42,9 @@ protected:
  *        The operation is used for peephole optimization during subgraph lowering.
  * @ingroup snippets
  */
-class StoreConvertTruncation : public ngraph::snippets::op::Store {
+class StoreConvertTruncation : public snippets::op::Store {
 public:
-    OPENVINO_OP("StoreConvertTruncation", "SnippetsOpset", ngraph::snippets::op::Store);
+    OPENVINO_OP("StoreConvertTruncation", "SnippetsOpset", snippets::op::Store);
 
     StoreConvertTruncation(const Output<Node>& x, const ov::element::Type& destination_type, const size_t count = 1lu, const size_t offset = 0lu);
     StoreConvertTruncation() = default;

@@ -290,7 +290,7 @@ void ScatterUpdate::execute(dnnl::stream strm) {
         parallel_nt(0, [&](const int ithr, const int nthr) {
             size_t start = 0, end = 0;
             splitter(indicesBlockND[0], nthr, ithr, start, end);
-            for (int i = start; i < end; i++) {
+            for (size_t i = start; i < end; i++) {
                 int64_t idxValue =  getIndicesValue(indicesPtr, i);
                 if (idxValue >= static_cast<int64_t>(srcDimAxis) || idxValue < 0) {
                     IE_THROW() << errorPrefix
@@ -307,7 +307,7 @@ void ScatterUpdate::execute(dnnl::stream strm) {
             SizeVector expectUpdateShape(srcRank + indicesRank - 1, 0);
             int axisIter = 0;
             for (size_t rs = 0; rs < srcRank; rs++) {
-                if (rs != axis) {
+                if (rs != static_cast<size_t>(axis)) {
                     expectUpdateShape[axisIter] = srcDataDim[rs];
                     axisIter++;
                 } else {
@@ -382,7 +382,7 @@ void ScatterUpdate::scatterUpdate(uint8_t *indices, uint8_t *update, int axis, u
         idxLength *= indicesDim[ri];
     }
     size_t batchToUpdate = mulIdentity;
-    for (size_t x = 0; x < axis; x++) {
+    for (int x = 0; x < axis; x++) {
         batchToUpdate *= srcDataDim[x];
     }
     // blockToUpdate is srcBlockND[axis + 1], also is updateBlockND[axis + indicesRank]
@@ -417,7 +417,7 @@ void ScatterUpdate::scatterNDUpdate(uint8_t *indices, uint8_t *update, uint8_t *
     parallel_for(idxTupleNum, [&](size_t tupleIdx) {
         size_t indicesOffset = tupleIdx * k;
         size_t dstOffset = 0;
-        for (int i = 0; i < k; i++) {
+        for (size_t i = 0; i < k; i++) {
             size_t idxValue = getIndicesValue(indices, indicesOffset + i);
             dstOffset += idxValue * srcBlockND[i + 1];
         }
@@ -462,7 +462,7 @@ void ScatterUpdate::scatterElementsUpdate(uint8_t *indices, uint8_t *update, int
             for (j = updateRank - 1; j >= 0; j--) {
                 tensorItr[j]++;
                 if (tensorItr[j] < updateDim[j]) {
-                    if (j != static_cast<size_t>(axis))
+                    if (j != axis)
                         dst_idx += srcBlockND[j + 1];
                     break;
                 } else {

@@ -19,22 +19,39 @@ typedef std::tuple<
 > MatMulParams;
 
 class MatMul : public testing::WithParamInterface<ov::test::snippets::MatMulParams>,
-            virtual public ov::test::SnippetsTestsCommon {
+               virtual public ov::test::SnippetsTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<ov::test::snippets::MatMulParams> obj);
 
 protected:
     void SetUp() override;
+
+    virtual void init_subgraph(const std::vector<PartialShape>& inputShapes, const std::vector<ov::element::Type>& types);
 };
 
 class MatMulFQ : public MatMul {
 protected:
-    void SetUp() override;
+    void init_subgraph(const std::vector<PartialShape>& inputShapes, const std::vector<ov::element::Type>& types) override;
 };
 
 class MatMulBias : public MatMul {
 protected:
-    void SetUp() override;
+    void init_subgraph(const std::vector<PartialShape>& inputShapes, const std::vector<ov::element::Type>& types) override;
+};
+
+class MatMulBiasQuantized : public MatMul {
+protected:
+    void init_subgraph(const std::vector<PartialShape>& inputShapes, const std::vector<ov::element::Type>& types) override;
+};
+
+class MatMulsQuantized : public MatMul {
+protected:
+    void init_subgraph(const std::vector<PartialShape>& inputShapes, const std::vector<ov::element::Type>& types) override;
+};
+
+class MatMulsQuantizedSoftmax : public MatMul {
+protected:
+    void init_subgraph(const std::vector<PartialShape>& inputShapes, const std::vector<ov::element::Type>& types) override;
 };
 
 } // namespace snippets

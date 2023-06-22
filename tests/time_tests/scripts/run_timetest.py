@@ -73,13 +73,14 @@ def run_timetest(args: dict, log=None):
         log = logging.getLogger("run_timetest")
 
     cmd_common = prepare_executable_cmd(args)
-
+    ov_env = os.environ
+    ov_env['OPENVINO_LOG_LEVEL'] = '4'
     # Run executable and collect statistics
     stats = {}
     logs = []
     for run_iter in range(args["niter"]):
         tmp_stats_path = tempfile.NamedTemporaryFile().name
-        retcode, msg = cmd_exec(cmd_common + ["-s", str(tmp_stats_path)], log=log)
+        retcode, msg = cmd_exec(cmd_common + ["-s", str(tmp_stats_path)], log=log, env=ov_env)
 
         if os.path.exists(tmp_stats_path):
             with open(tmp_stats_path, "r") as file:

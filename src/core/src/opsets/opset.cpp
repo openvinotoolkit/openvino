@@ -5,10 +5,13 @@
 #include "ngraph/opsets/opset.hpp"
 
 #include "itt.hpp"
+#include "ngraph/deprecated.hpp"
 #include "ngraph/log.hpp"
 #include "ngraph/ops.hpp"
 #include "openvino/opsets/opset.hpp"
+#include "openvino/util/log.hpp"
 
+NGRAPH_SUPPRESS_DEPRECATED_START
 ngraph::OpSet::OpSet(const ov::OpSet& opset) : ov::OpSet(opset) {}
 
 ngraph::OpSet::OpSet(const ngraph::OpSet& opset) : ov::OpSet(opset) {}
@@ -31,7 +34,7 @@ ov::OpSet& ov::OpSet::operator=(const ov::OpSet& opset) {
 ov::Node* ov::OpSet::create(const std::string& name) const {
     auto type_info_it = m_name_type_info_map.find(name);
     if (type_info_it == m_name_type_info_map.end()) {
-        NGRAPH_WARN << "Couldn't create operator of type: " << name << " . Operation not registered in opset.";
+        OPENVINO_WARN << "Couldn't create operator of type: " << name << " . Operation not registered in opset.";
         return nullptr;
     }
     REGISTER_OP(m_name, name);
@@ -41,7 +44,7 @@ ov::Node* ov::OpSet::create(const std::string& name) const {
 ov::Node* ov::OpSet::create_insensitive(const std::string& name) const {
     auto type_info_it = m_case_insensitive_type_info_map.find(to_upper_name(name));
     if (type_info_it == m_case_insensitive_type_info_map.end()) {
-        NGRAPH_WARN << "Couldn't create operator of type: " << name << " . Operation not registered in opset.";
+        OPENVINO_WARN << "Couldn't create operator of type: " << name << " . Operation not registered in opset.";
         return nullptr;
     }
     REGISTER_OP(m_name, name);
@@ -61,7 +64,8 @@ const std::map<std::string, std::function<const ngraph::OpSet&()>>& ngraph::get_
                                                                                            _NGRAPH_REG_OPSET(opset8),
                                                                                            _NGRAPH_REG_OPSET(opset9),
                                                                                            _NGRAPH_REG_OPSET(opset10),
-                                                                                           _NGRAPH_REG_OPSET(opset11)};
+                                                                                           _NGRAPH_REG_OPSET(opset11),
+                                                                                           _NGRAPH_REG_OPSET(opset12)};
 #undef _NGRAPH_REG_OPSET
     return opset_map;
 }
@@ -79,7 +83,8 @@ const std::map<std::string, std::function<const ov::OpSet&()>>& ov::get_availabl
                                                                                        _OPENVINO_REG_OPSET(opset8),
                                                                                        _OPENVINO_REG_OPSET(opset9),
                                                                                        _OPENVINO_REG_OPSET(opset10),
-                                                                                       _OPENVINO_REG_OPSET(opset11)};
+                                                                                       _OPENVINO_REG_OPSET(opset11),
+                                                                                       _OPENVINO_REG_OPSET(opset12)};
 #undef _OPENVINO_REG_OPSET
     return opset_map;
 }
@@ -205,6 +210,17 @@ const ov::OpSet& ov::get_opset11() {
     return opset;
 }
 
+const ov::OpSet& ov::get_opset12() {
+    static OpSet opset;
+    static std::once_flag flag;
+    std::call_once(flag, [&]() {
+#define _OPENVINO_OP_REG(NAME, NAMESPACE) opset.insert<NAMESPACE::NAME>();
+#include "openvino/opsets/opset12_tbl.hpp"
+#undef _OPENVINO_OP_REG
+    });
+    return opset;
+}
+
 const ngraph::OpSet& ngraph::get_opset1() {
     static OpSet opset(ov::get_opset1());
     return opset;
@@ -257,5 +273,10 @@ const ngraph::OpSet& ngraph::get_opset10() {
 
 const ngraph::OpSet& ngraph::get_opset11() {
     static OpSet opset(ov::get_opset11());
+    return opset;
+}
+
+const ngraph::OpSet& ngraph::get_opset12() {
+    static OpSet opset(ov::get_opset12());
     return opset;
 }

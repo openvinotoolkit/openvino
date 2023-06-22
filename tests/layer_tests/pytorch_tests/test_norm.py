@@ -8,9 +8,6 @@ import torch
 from pytorch_layer_test_class import PytorchLayerTest
 
 
-@pytest.mark.parametrize('p', [-2, -1, 0, 1, 2, 2.5, float('inf'), float('-inf')])
-@pytest.mark.parametrize('dim', [[0], [0, 1], [0, 1, 2]])
-@pytest.mark.parametrize('keepdim', [True, False])
 class TestNorm(PytorchLayerTest):
 
     def _prepare_input(self):
@@ -32,11 +29,86 @@ class TestNorm(PytorchLayerTest):
 
         return aten_norm(p, dim, keepdim), ref_net, "aten::norm"
 
+    def create_model_tensor_norm(self, p, dim, keepdim):
+        class aten_norm(torch.nn.Module):
+
+            def __init__(self, p, dim, keepdim) -> None:
+                super().__init__()
+                self.p = p
+                self.dim = dim
+                self.keepdim = keepdim
+                if self.keepdim is None or self.dim is None:
+                    self.forward = self.forward2
+                else:
+                    self.forward = self.forward4
+
+            def forward4(self, input_data):
+                return input_data.norm(self.p, self.dim, self.keepdim)
+
+            def forward2(self, input_data):
+                return input_data.norm(self.p)
+
+        ref_net = None
+
+        return aten_norm(p, dim, keepdim), ref_net, "aten::norm"
+
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.parametrize('p', [-2, -1, 0, 1, 2, 2.5, float('inf'), float('-inf')])
+    @pytest.mark.parametrize('dim', [[0], [0, 1], [0, 1, 2]])
+    @pytest.mark.parametrize('keepdim', [True, False])
     def test_norm(self, ie_device, precision, ir_version, p, dim, keepdim):
         self._test(*self.create_model(p, dim, keepdim),
                    ie_device, precision, ir_version)
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.parametrize('p', [-2, -1, 0, 1, 2, 2.5, float('inf'), float('-inf')])
+    @pytest.mark.parametrize('dim', [None, [0], [0, 1], [0, 1, 2]])
+    @pytest.mark.parametrize('keepdim', [None, True, False])
+    def test_norm_tensor(self, ie_device, precision, ir_version, p, dim, keepdim):
+        self._test(*self.create_model_tensor_norm(p, dim, keepdim),
+                   ie_device, precision, ir_version)
+
+
+class TestFrobeniusNorm(PytorchLayerTest):
+    def _prepare_input(self, out=False, dtype="float32"):
+        x = np.random.randn(10, 12, 14).astype(dtype)
+        if not out:
+            return (x,)
+        y = np.zeros_like(x)
+        return (x, y)
+
+    def create_model(self, dim, keepdim, out):
+        class aten_frobenius_norm(torch.nn.Module):
+
+            def __init__(self, dim, keepdim, out) -> None:
+                super().__init__()
+                self.dim = dim
+                self.keepdim = keepdim
+                if out:
+                    self.forward = self.forward_out
+
+            def forward(self, input_data):
+                return torch._VF.frobenius_norm(input_data, self.dim, self.keepdim)
+
+            def forward_out(self, input_data, out):
+                return torch._VF.frobenius_norm(input_data, self.dim, self.keepdim, out=out), out
+
+        ref_net = None
+
+        return aten_frobenius_norm(dim, keepdim, out), ref_net, "aten::frobenius_norm"
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.parametrize('dim', [(1, ), (0, ), (-1, ), (0, 1), (1, 0)])
+    @pytest.mark.parametrize('keepdim', [True, False])
+    @pytest.mark.parametrize("out", [False, True])
+    @pytest.mark.parametrize("dtype", ["float32", "float64"])
+    def test_frobenius_norm(self, ie_device, precision, ir_version, dim, keepdim, out, dtype):
+        self._test(*self.create_model(dim, keepdim, out), ie_device, precision, ir_version,
+                   kwargs_to_prepare_input={"out": out, "dtype": dtype}
+                   )
 
 
 class TestLinalgVectorNorm(PytorchLayerTest):
@@ -105,7 +177,7 @@ class TestLinalgVectorNorm(PytorchLayerTest):
     @pytest.mark.parametrize("prim_dtype", [True, False])
     def test_linalg_vector_norm(self, p, dim, keepdim, dtype, out, prim_dtype, ie_device, precision, ir_version):
         self._test(*self.create_model(p, dim, keepdim, dtype, out, prim_dtype),
-                   ie_device, precision, ir_version, 
+                   ie_device, precision, ir_version,
                    kwargs_to_prepare_input={"out": out or prim_dtype, "out_dtype": dtype if prim_dtype else None})
 
 
@@ -175,7 +247,7 @@ class TestLinalgMatrixNorm(PytorchLayerTest):
     @pytest.mark.parametrize("prim_dtype", [True, False])
     def test_linalg_matrix_norm(self, p, dim, keepdim, dtype, out, prim_dtype, ie_device, precision, ir_version):
         self._test(*self.create_model(p, dim, keepdim, dtype, out, prim_dtype),
-                   ie_device, precision, ir_version, 
+                   ie_device, precision, ir_version,
                    kwargs_to_prepare_input={"out": out or prim_dtype, "out_dtype": dtype if prim_dtype else None})
 
 
@@ -238,9 +310,9 @@ class TestLinalgNorm(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.parametrize('p,dim', [
-        (-1, [0, 1]), (1, [-1, -2]), (float('inf'), [1, 0]), 
-        (float('-inf'), [-2, -1]), (0, 1), (1, -1), 
-        (None, None), (2.5, 0), (-1, 1), (2, 0), 
+        (-1, [0, 1]), (1, [-1, -2]), (float('inf'), [1, 0]),
+        (float('-inf'), [-2, -1]), (0, 1), (1, -1),
+        (None, None), (2.5, 0), (-1, 1), (2, 0),
         (float('inf'), 1), (float('-inf'), 1), ("fro", (0, 1))])
     @pytest.mark.parametrize('keepdim', [True, False])
     @pytest.mark.parametrize("dtype", ["float32", "float64", None])
@@ -248,5 +320,5 @@ class TestLinalgNorm(PytorchLayerTest):
     @pytest.mark.parametrize("prim_dtype", [True, False])
     def test_linalg_norm(self, p, dim, keepdim, dtype, out, prim_dtype, ie_device, precision, ir_version):
         self._test(*self.create_model(p, dim, keepdim, dtype, out, prim_dtype),
-                   ie_device, precision, ir_version, 
+                   ie_device, precision, ir_version,
                    kwargs_to_prepare_input={"out": out or prim_dtype, "out_dtype": dtype if prim_dtype else None})

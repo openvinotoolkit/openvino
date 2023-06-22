@@ -221,9 +221,8 @@ CompiledModel Core::import_model(std::istream& modelStream, const std::string& d
 CompiledModel Core::import_model(std::istream& modelStream, const RemoteContext& context, const AnyMap& config) {
     OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Core::import_model");
 
-    auto parsed = parseDeviceNameIntoConfig(context.get_device_name(), config);
     OV_CORE_CALL_STATEMENT({
-        auto exec = _impl->get_plugin(parsed._deviceName).import_model(modelStream, context, parsed._config);
+        auto exec = _impl->import_model(modelStream, context, config);
         return {exec._ptr, exec._so};
     });
 }

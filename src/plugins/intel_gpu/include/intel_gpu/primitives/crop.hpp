@@ -44,6 +44,10 @@ constexpr auto crop_borders = crop_borders_t{};
 struct crop : public primitive_base<crop> {
     CLDNN_DECLARE_PRIMITIVE(crop)
 
+    crop() : primitive_base("", {}) {}
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     /// @brief Constructs crop primitive.
     /// @param id This primitive id.
     /// @param input Input primitive id.
@@ -146,6 +150,24 @@ struct crop : public primitive_base<crop> {
                output_idx == rhs_casted.output_idx &&
                num_splits == rhs_casted.num_splits &&
                op_mode == rhs_casted.op_mode;
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<crop>::save(ob);
+        ob << reference_input;
+        ob << offsets;
+        ob << output_idx;
+        ob << num_splits;
+        ob << make_data(&op_mode, sizeof(crop_ngraph_op_mode));
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<crop>::load(ib);
+        ib >> reference_input;
+        ib >> offsets;
+        ib >> output_idx;
+        ib >> num_splits;
+        ib >> make_data(&op_mode, sizeof(crop_ngraph_op_mode));
     }
 };
 }  // namespace cldnn

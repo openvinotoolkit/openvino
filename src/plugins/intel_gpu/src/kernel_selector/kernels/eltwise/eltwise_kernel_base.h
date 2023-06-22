@@ -90,8 +90,11 @@ struct eltwise_optional_params : optional_params {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 struct eltwise_fuse_params : fuse_params {
     EltwiseMode mode;
+    bool m_pythondiv;
 
-    eltwise_fuse_params(EltwiseMode mode) : fuse_params(KernelType::ELTWISE), mode(mode) {}
+    eltwise_fuse_params(EltwiseMode mode, bool m_pythondiv) : fuse_params(KernelType::ELTWISE)
+    , mode(mode)
+    , m_pythondiv(m_pythondiv) {}
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -53,8 +53,8 @@ Thus we can define:
 Quantization specifics and restrictions
 #######################################
 
-In general, OpenVINO can represent and execute quantized models from different sources. However, the Post-training Optimization Tool (POT)
-is considered the default way to get optimized models. Since the POT supports HW-aware quantization it means that specific rules can be implemented in it for 
+In general, OpenVINO can represent and execute quantized models from different sources. However, the Neural Network Compression Framework (NNCF)
+is considered the default way to get optimized models. Since the NNCF supports HW-aware quantization it means that specific rules can be implemented in it for 
 the particular HW. However, it is reasonable to have compatibility with general-purpose HW such as CPU and GPU and support their quantization schemes.
 Below we define these rules as follows:
 

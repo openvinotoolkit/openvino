@@ -14,18 +14,19 @@
 #include <stdint.h>
 #include <stdio.h>
 
-#ifndef ENABLE_UNICODE_PATH_SUPPORT
+#ifndef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 #    ifdef _WIN32
-#        if defined __INTEL_COMPILER || defined _MSC_VER
-#            define ENABLE_UNICODE_PATH_SUPPORT
+#        if defined(__INTEL_COMPILER) || defined(_MSC_VER) || defined(__GNUC__)
+#            define OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 #        endif
-#    elif defined(__GNUC__) && (__GNUC__ > 5 || (__GNUC__ == 5 && __GNUC_MINOR__ > 2)) || defined(__clang__)
-#        define ENABLE_UNICODE_PATH_SUPPORT
+#    elif defined(__clang__)
+#        define OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+#    elif defined(__GNUC__) && (__GNUC__ > 5 || (__GNUC__ == 5 && __GNUC_MINOR__ > 2))
+#        define OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 #    endif
 #endif
 
-#ifdef ENABLE_UNICODE_PATH_SUPPORT
-#    define OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 #    include <wchar.h>
 #endif
 
@@ -40,7 +41,7 @@
 #    define OPENVINO_C_VAR(...) OPENVINO_C_API_EXTERN __VA_ARGS__
 #    define OV_NODISCARD
 #else
-#    if defined(_WIN32)
+#    if defined(_WIN32) || defined(__CYGWIN__)
 #        define OPENVINO_C_API_CALLBACK __cdecl
 #        ifdef openvino_c_EXPORTS
 #            define OPENVINO_C_API(...) OPENVINO_C_API_EXTERN __declspec(dllexport) __VA_ARGS__ __cdecl
@@ -121,7 +122,7 @@
  * @ingroup ov_c_api
  * @brief The definitions & operations about tensor
  *
- * @defgroup ov_remote_context_c_api ov_remote_context
+ * @defgroup ov_remote_context_c_api Remote Context
  * @ingroup ov_c_api
  * @brief Set of functions representing of RemoteContext
  */

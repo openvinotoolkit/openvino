@@ -7,6 +7,8 @@
 #include "snippets/op/brgemm.hpp"
 #include "brgemm_copy_b.hpp"
 
+#include "snippets/lowered/port_descriptor.hpp"
+
 namespace ov {
 namespace intel_cpu {
 
@@ -16,9 +18,9 @@ namespace intel_cpu {
  *        with support of several precisions on plugin level
  * @ingroup snippets
  */
-class BrgemmCPU : public ngraph::snippets::op::Brgemm {
+class BrgemmCPU : public snippets::op::Brgemm {
 public:
-    OPENVINO_OP("BrgemmCPU", "SnippetsOpset", ngraph::snippets::op::Brgemm);
+    OPENVINO_OP("BrgemmCPU", "SnippetsOpset", snippets::op::Brgemm);
 
     enum Type {
         Floating,          // f32|f32
@@ -28,9 +30,11 @@ public:
     };
 
     BrgemmCPU(const Output<Node>& A, const Output<Node>& B, const Type type,
-              const size_t offset_a = 0, const size_t offset_b = 0, const size_t offset_c = 0);
+              const size_t offset_a = 0, const size_t offset_b = 0, const size_t offset_c = 0,
+              std::vector<size_t> layout_a = {}, std::vector<size_t> layout_b = {}, std::vector<size_t> layout_c = {});
     BrgemmCPU(const Output<Node>& A, const Output<Node>& B, const Output<Node>& scratch, const Type type,
-              const size_t offset_a = 0, const size_t offset_b = 0, const size_t offset_scratch = 0, const size_t offset_c = 0);
+              const size_t offset_a = 0, const size_t offset_b = 0, const size_t offset_scratch = 0, const size_t offset_c = 0,
+              std::vector<size_t> layout_a = {}, std::vector<size_t> layout_b = {}, std::vector<size_t> layout_c = {});
     BrgemmCPU() = default;
 
     void validate_and_infer_types() override;
@@ -48,7 +52,11 @@ public:
     constexpr static size_t SCRATCH_BYTE_SIZE = 32 * 1024;
 
 private:
-   Type m_type = Type::Floating;
+    void custom_constructor_validate_and_infer_types(std::vector<size_t> layout_a, std::vector<size_t> layout_b, std::vector<size_t> layout_c);
+    void validate_with_scratchpad(const ov::Shape& shape_b) const;
+    void validate_inputs() const;
+
+    Type m_type = Type::Floating;
 };
 
 } // namespace intel_cpu

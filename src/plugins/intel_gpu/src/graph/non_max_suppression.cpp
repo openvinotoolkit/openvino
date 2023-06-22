@@ -76,7 +76,7 @@ std::string non_max_suppression_inst::to_string(non_max_suppression_node const& 
     json_composite info;
     info.add("center point box", desc->center_point_box);
 
-    node_info->add("non max supression info", info);
+    node_info->add("non max suppression info", info);
 
     std::stringstream description;
     node_info->dump(description);

@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include "ngraph/runtime/reference/convolution_backprop_data.hpp"
 #include "ngraph/runtime/reference/group_convolution.hpp"
 #include "ngraph/util.hpp"
 

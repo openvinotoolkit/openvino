@@ -227,27 +227,12 @@ void InferRequest::set_input(const std::string& name, const Blob::Ptr& data) {
     auto remote_ptr = data->as<gpu::ClBlob>();
     bool is_remote = remote_ptr != nullptr;
 
-    auto node = findInputByNodeName(name);
-    bool isDynamic = node && node->get_output_partial_shape(0).is_dynamic();
-
     if (is_remote) {
         _deviceInputs[name] = data;
         _inputs[name] = data;
     } else {
-        if (data->buffer() == nullptr)
-            IE_THROW(NotAllocated) << str_input_not_allocated << " Input name: \'" << name << "\'";
+        OPENVINO_ASSERT(data->buffer().as<void*>() != nullptr, str_input_not_allocated, " Input name: \'", name, "\'");
         _inputs[name] = data;
-        if (isDynamic) {
-            // We must create new input data if it has never been allocated or previously allocated
-            // device blob is smaller than currently assigned user blob
-            bool needs_realloc = _deviceInputs.find(name) == _deviceInputs.end() || _deviceInputs.at(name)->byteSize() < data->byteSize();
-            if (needs_realloc) {
-                _deviceInputs[name] = create_device_blob(data->getTensorDesc());
-            } else {
-                if (_deviceInputs.at(name)->getTensorDesc() != data->getTensorDesc())
-                    _deviceInputs[name] = reinterpret_device_blob(_deviceInputs[name], data->getTensorDesc());
-            }
-        }
     }
 }
 
@@ -387,7 +372,7 @@ void InferRequest::SetGraph(std::shared_ptr<Graph> graph) {
 
     allocate_inputs();
     allocate_outputs();
-    variables_states_ = m_graph->AllocateVariablesMemories();
+    m_graph->GetNetwork()->allocate_variables_memories();
 }
 
 InferRequest::InferRequest(InputsDataMap networkInputs, OutputsDataMap networkOutputs,
@@ -478,13 +463,8 @@ void InferRequest::enqueue() {
         prepare_input(inputName, inputBlob, dependencies);
     }
 
-    cldnn::network::variables_states_map variables_states;
-    for (auto &variable_state_pair : variables_states_)
-        variables_states.insert({ variable_state_pair.first, variable_state_pair.second[0] });
-
     auto networkPtr = m_graph->GetNetwork();
-
-    networkPtr->assign_variables_memories(std::move(variables_states));
+    networkPtr->assign_variables_memories();
 
     for (auto& item : _outputs) {
         std::string outputName = item.first;
@@ -922,8 +902,9 @@ void InferRequest::prepare_input(const cldnn::primitive_id& inputName, Blob::Ptr
         bool has_device_blob = _deviceInputs.find(inputName) != _deviceInputs.end();
         bool should_allocate_device_blob = !has_device_blob;
         if (has_device_blob) {
-            auto device_blob = _deviceInputs.at(inputName);
-            if (device_blob->byteSize() < inputBlob->byteSize()) {
+            auto device_blob = _deviceInputs.at(inputName)->as<gpu::ClBlob>();
+            auto blob = getBlobImpl(device_blob);
+            if (blob->get_original_memory()->size() < inputBlob->byteSize()) {
                 should_allocate_device_blob = true;
             }
         }
@@ -1065,9 +1046,11 @@ InferenceEngine::Blob::Ptr InferRequest::create_device_blob(const InferenceEngin
 
 std::vector<std::shared_ptr<InferenceEngine::IVariableStateInternal>> InferRequest::QueryState() {
     std::vector<std::shared_ptr<InferenceEngine::IVariableStateInternal>> ret{};
-    ret.reserve(variables_states_.size());
-    for (const auto& pair : variables_states_)
-        ret.push_back(std::make_shared<VariableState>(pair.first, pair.second, m_graph->get_engine(), m_curBatch));
+    const auto& variable_states = m_graph->GetNetwork()->get_variable_memories();
+    for (const auto& pair : variable_states) {
+        std::vector<cldnn::network::VariableState::Ptr> states { pair.second };
+        ret.push_back(std::make_shared<VariableState>(pair.first, states, m_graph->get_engine(), -1));
+    }
     return ret;
 }
 

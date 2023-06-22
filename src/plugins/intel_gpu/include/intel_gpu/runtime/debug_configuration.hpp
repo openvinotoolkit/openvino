@@ -42,7 +42,7 @@ enum class LogLevel : int8_t {
 }  // namespace ov
 
 #ifdef GPU_DEBUG_CONFIG
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(_WIN32)
 #define SEPARATE '\\'
 #else
 #define SEPARATE '/'

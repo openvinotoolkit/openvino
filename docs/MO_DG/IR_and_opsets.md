@@ -19,7 +19,7 @@ Overview of Artificial Neural Networks Representation
 A deep learning network is usually represented as a directed graph describing the flow of data from the network input data to the inference results.
 Input data can be in the form of images, video, text, audio, or preprocessed information representing objects from the target area of interest.
 
-Here is an illustration sof a small graph representing a model that consists of a single Convolutional layer and activation function:
+Here is an illustration of a small graph representing a model that consists of a single Convolutional layer and activation function:
 
 .. image:: _static/images/small_IR_graph_demonstration.png
 
@@ -52,7 +52,7 @@ A set consists of several groups of operations:
 
 * Generic element-wise arithmetic tensor operations such as ``Add``, ``Subtract``, and ``Multiply``.
 
-* Comparison operations that compare two numeric tensors and produce boolean tensors, for example, ``Less``, ``Equeal``, ``Greater``.
+* Comparison operations that compare two numeric tensors and produce boolean tensors, for example, ``Less``, ``Equal``, ``Greater``.
 
 * Logical operations that are dealing with boolean tensors, for example, ``And``, ``Xor``, ``Not``.
 

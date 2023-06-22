@@ -64,7 +64,9 @@ bool op::v1::Transpose::evaluate(const HostTensorVector& output_values, const Ho
                     "Transpose axis element type has to be integral data type.");
 
     const auto& arg = input_values[ARG];
+    OPENVINO_SUPPRESS_DEPRECATED_START
     std::vector<int64_t> axes_order = host_tensor_2_vector<int64_t>(order);
+    OPENVINO_SUPPRESS_DEPRECATED_END
     auto out_shape = calc_output_shape(this, arg->get_shape(), axes_order);
 
     auto& out = output_values[ARG_T];

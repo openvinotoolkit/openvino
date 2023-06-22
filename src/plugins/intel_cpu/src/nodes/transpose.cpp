@@ -62,11 +62,11 @@ public:
         const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
         const VectorDims& shapeIn = input_shapes[0].get();
         if (m_needReverse) {
-            for (auto i = 0; i < m_out_rank; ++i) {
+            for (size_t i = 0; i < m_out_rank; ++i) {
                 m_outputShape[i] = shapeIn[m_out_rank - 1 - i];
             }
         } else {
-            for (auto i = 0; i < m_out_rank; ++i) {
+            for (size_t i = 0; i < m_out_rank; ++i) {
                 m_outputShape[i] = shapeIn[m_axes_vec[i]];
             }
         }
@@ -411,9 +411,9 @@ void Transpose::TransposeRefExecutor::exec(Transpose* node, MemoryPtr& srcMemPtr
     const size_t dataSize = srcMemPtr->getDesc().getPrecision().size();
     TransposeContext ctx = {node, srcMemPtr, dstMemPtr, MB};
     OV_SWITCH(intel_cpu, TransposeOptimizedEmitter, ctx, dataSize,
-              OV_CASE(1, PrecisionTrait<Precision::U8>::value_type),
-              OV_CASE(2, PrecisionTrait<Precision::U16>::value_type),
-              OV_CASE(4, PrecisionTrait<Precision::I32>::value_type));
+              OV_CASE(1u, PrecisionTrait<Precision::U8>::value_type),
+              OV_CASE(2u, PrecisionTrait<Precision::U16>::value_type),
+              OV_CASE(4u, PrecisionTrait<Precision::I32>::value_type));
 }
 
 bool Transpose::created() const {

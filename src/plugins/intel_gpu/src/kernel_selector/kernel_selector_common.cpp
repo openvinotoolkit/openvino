@@ -90,6 +90,8 @@ std::string toString(DataLayout l) {
         case kernel_selector::DataLayout::bfyx:                  return "BFYX";
         case kernel_selector::DataLayout::yxfb:                  return "YXFB";
         case kernel_selector::DataLayout::byxf:                  return "BYXF";
+        case kernel_selector::DataLayout::byfx:                  return "BYFX";
+        case kernel_selector::DataLayout::bxfy:                  return "BXFY";
         case kernel_selector::DataLayout::fyxb:                  return "FYXB";
         case kernel_selector::DataLayout::b_fs_yx_fsv2:          return "B_FS_YX_FSV2";
         case kernel_selector::DataLayout::b_fs_yx_fsv4:          return "B_FS_YX_FSV4";
@@ -297,6 +299,8 @@ std::string toString(WeightsLayout layout) {
         case WeightsLayout::oiyx:                                        return "OIYX";
         case WeightsLayout::ioyx:                                        return "IOYX";
         case WeightsLayout::oyxi:                                        return "OYXI";
+        case WeightsLayout::oyix:                                        return "OYIX";
+        case WeightsLayout::oxiy:                                        return "OXIY";
         case WeightsLayout::iyxo:                                        return "IYXO";
         case WeightsLayout::yxio:                                        return "YXIO";
         case WeightsLayout::os_is_yx_isv16_osv16:                        return "OS_IS_YX_ISV16_OSV16";

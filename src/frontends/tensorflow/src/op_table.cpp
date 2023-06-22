@@ -20,29 +20,30 @@ namespace op {
 
 #define TF_OP_CONVERTER(op) OutputVector op(const ov::frontend::tensorflow::NodeContext& node)
 
-TF_OP_CONVERTER(translate_if_op);
+TF_OP_CONVERTER(translate_assignvariable_op);
 TF_OP_CONVERTER(translate_block_lstm_op);
 TF_OP_CONVERTER(translate_fifo_queue_op);
 TF_OP_CONVERTER(translate_gru_block_cell_op);
 TF_OP_CONVERTER(translate_hash_table_op);
+TF_OP_CONVERTER(translate_if_op);
 TF_OP_CONVERTER(translate_iterator_get_next_op);
 TF_OP_CONVERTER(translate_iterator_op);
+TF_OP_CONVERTER(translate_mergev2checkpoint_op);
 TF_OP_CONVERTER(translate_partitioned_call_op);
+TF_OP_CONVERTER(translate_placeholder_linked_op);
 TF_OP_CONVERTER(translate_queue_dequeue_op);
 TF_OP_CONVERTER(translate_queue_dequeue_many_op);
+TF_OP_CONVERTER(translate_readvariable_op);
+TF_OP_CONVERTER(translate_restorev2_op);
 TF_OP_CONVERTER(translate_sparse_fill_empty_rows_op);
 TF_OP_CONVERTER(translate_sparse_reshape_op);
 TF_OP_CONVERTER(translate_sparse_segment_sum_op);
-TF_OP_CONVERTER(translate_varisinitialized_op);
-TF_OP_CONVERTER(translate_readvariable_op);
-TF_OP_CONVERTER(translate_assignvariable_op);
-TF_OP_CONVERTER(translate_varhandle_op);
-TF_OP_CONVERTER(translate_restorev2_op);
 TF_OP_CONVERTER(translate_staticregexfullmatch_op);
 TF_OP_CONVERTER(translate_stringjoin_op);
-TF_OP_CONVERTER(translate_mergev2checkpoint_op);
+TF_OP_CONVERTER(translate_varhandle_op);
+TF_OP_CONVERTER(translate_variable_op);
+TF_OP_CONVERTER(translate_varisinitialized_op);
 TF_OP_CONVERTER(translate_while_op);
-TF_OP_CONVERTER(translate_placeholder_linked_op);
 
 const std::map<std::string, CreatorFunction> get_supported_ops() {
     return {
@@ -275,6 +276,9 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"VarIsInitializedOp", CreatorFunction(translate_varisinitialized_op)},
         {"VarHandleOp", CreatorFunction(translate_varhandle_op)},
         {"VariableV2", CreatorFunction(translate_varhandle_op)},
+
+        // Translator for Checkpoint V1
+        {"Variable", CreatorFunction(translate_variable_op)},
 
         // Translators for internal operations
         {"BlockLSTM", CreatorFunction(translate_block_lstm_op)},

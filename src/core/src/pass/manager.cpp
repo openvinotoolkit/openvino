@@ -21,6 +21,7 @@
 #include "ngraph/pass/visualize_tree.hpp"
 #include "ngraph/util.hpp"
 #include "openvino/util/env_util.hpp"
+#include "openvino/util/log.hpp"
 #include "perf_counters.hpp"
 
 using namespace std;
@@ -75,11 +76,11 @@ bool ov::pass::Manager::run_passes(shared_ptr<ov::Model> func) {
     bool needs_validate = false;
     for (auto& pass : m_pass_list) {
         if (m_pass_config->is_disabled(pass->get_type_info())) {
-            NGRAPH_DEBUG << "Pass " << pass->get_name() << " is disabled";
+            OPENVINO_DEBUG << "Pass " << pass->get_name() << " is disabled";
             continue;
         }
 
-        OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::ov_pass, pass::perf_counters()[pass->get_type_info()]);
+        OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::ov_pass, ov::pass::perf_counters()[pass->get_type_info()]);
 
         pass_timer.start();
 
@@ -87,8 +88,8 @@ bool ov::pass::Manager::run_passes(shared_ptr<ov::Model> func) {
             // This checks is to skip the graph transformation when the graph pass relies on
             // static shape but the function state is dynamic.
             if (matcher_pass->get_property(PassProperty::REQUIRE_STATIC_SHAPE) && func->is_dynamic()) {
-                NGRAPH_DEBUG << "Pass " << pass->get_name() << " requires static shape but the "
-                             << "model is dynamic. Skipping this transformation";
+                OPENVINO_DEBUG << "Pass " << pass->get_name() << " requires static shape but the "
+                               << "model is dynamic. Skipping this transformation";
                 continue;
             }
             // GraphRewrite is a temporary container for MatcherPass to make execution
@@ -98,8 +99,8 @@ bool ov::pass::Manager::run_passes(shared_ptr<ov::Model> func) {
             // This checks is to skip the graph transformation when the graph pass relies on
             // static shape but the function state is dynamic.
             if (function_pass->get_property(PassProperty::REQUIRE_STATIC_SHAPE) && func->is_dynamic()) {
-                NGRAPH_DEBUG << "Pass " << pass->get_name() << " requires static shape but the "
-                             << "model is dynamic. Skipping this transformation";
+                OPENVINO_DEBUG << "Pass " << pass->get_name() << " requires static shape but the "
+                               << "model is dynamic. Skipping this transformation";
                 continue;
             }
 
@@ -113,8 +114,8 @@ bool ov::pass::Manager::run_passes(shared_ptr<ov::Model> func) {
             }
         } else if (auto node_pass = dynamic_pointer_cast<ngraph::pass::NodePass>(pass)) {
             if (node_pass->get_property(PassProperty::REQUIRE_STATIC_SHAPE) && func->is_dynamic()) {
-                NGRAPH_DEBUG << "Pass " << pass->get_name() << " requires static shape but the "
-                             << "model is dynamic. Skipping this transformation";
+                OPENVINO_DEBUG << "Pass " << pass->get_name() << " requires static shape but the "
+                               << "model is dynamic. Skipping this transformation";
                 continue;
             }
             for (const shared_ptr<Node>& n : func->get_ops()) {

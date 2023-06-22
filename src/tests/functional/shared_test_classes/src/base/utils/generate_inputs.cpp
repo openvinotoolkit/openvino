@@ -19,16 +19,39 @@ namespace test {
 namespace utils {
 
 namespace {
+
+/**
+ * Sets proper range and resolution for real numbers generation
+ *
+ * range = 8 and resolution 32
+ *
+ * The worst case scenario is 7 + 31/32 (7.96875)
+ * IEEE 754 representation is:
+ * ----------------------------------------------
+ *      sign | exponent | mantissa
+ * ----------------------------------------------
+ * FP32    0 | 10000001 | 11111110000000000000000
+ * FP16    0 |    10001 | 1111111000
+ * BF16    0 | 10000001 | 1111111
+ * ----------------------------------------------
+ *
+ * All the generated numbers completely fit into the data type without truncation
+ */
+static inline void set_real_number_generation_data(InputGenerateData& inGenData) {
+    inGenData.range = 8;
+    inGenData.resolution = 32;
+}
+
 ov::runtime::Tensor generate(const std::shared_ptr<ov::Node>& node,
                              size_t port,
                              const ov::element::Type& elemType,
                              const ov::Shape& targetShape) {
-    size_t inNodeCnt = node->get_input_size();
     InputGenerateData inGenData;
     if (elemType.is_real()) {
-        inGenData.range = 2560;
-        inGenData.resolution = 256;
+        set_real_number_generation_data(inGenData);
     }
+
+    const size_t inNodeCnt = node->get_input_size();
     auto it = inputRanges.find(node->get_type_info());
     if (it != inputRanges.end()) {
         const auto& ranges = it->second;
@@ -39,18 +62,13 @@ ov::runtime::Tensor generate(const std::shared_ptr<ov::Node>& node,
         inGenData = range.size() < inNodeCnt ? range.front() : range.at(port);
     }
     return ov::test::utils::create_and_fill_tensor(elemType, targetShape, inGenData.range,
-                                          inGenData.start_from, inGenData.resolution, inGenData.seed);
+                                                   inGenData.start_from, inGenData.resolution, inGenData.seed);
 }
 
 namespace Activation {
-// todo: this is a bug fixed! Merge it separately.
-//  Default parameters InputGenerateData(10, 20, 32768, 1) lead to input generation according to 10 + x/32768,
-//  where x {0, 20}, so all generated values are in the range [10, 10 + 6.1e-4].
-//  Thus all the interval more-or-less fall within the uncertainty validation interval
-//  Fix let the range be at least 20x of resolution
 ov::runtime::Tensor generate(const ov::element::Type& elemType,
                              const ov::Shape& targetShape,
-                             InputGenerateData inGenData = InputGenerateData(-1, 2*32768, 32768, 1)) {
+                             InputGenerateData inGenData = InputGenerateData(-1, 2, 32768, 1)) {
     if (!elemType.is_signed()) {
         inGenData.range = 15;
         inGenData.start_from = 0;

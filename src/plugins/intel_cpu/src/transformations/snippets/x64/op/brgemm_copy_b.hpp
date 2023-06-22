@@ -16,9 +16,9 @@ namespace intel_cpu {
          OneDNN requiers data repacking for second input of Brgemm with input non-fp32 precisions.
 * @ingroup snippets
 */
-class BrgemmCopyB : public ngraph::snippets::op::MemoryAccess {
+class BrgemmCopyB : public snippets::op::MemoryAccess {
 public:
-    OPENVINO_OP("BrgemmCopyB", "SnippetsOpset", MemoryAccess);
+    OPENVINO_OP("BrgemmCopyB", "SnippetsOpset", snippets::op::MemoryAccess);
 
     enum Type {
         OnlyRepacking,     // Just data repacking - one output
@@ -26,7 +26,8 @@ public:
     };
 
     BrgemmCopyB(const Output<Node>& x, const element::Type src_type, const Type type = Type::OnlyRepacking,
-                const size_t offset_in = 0lu, const size_t offset_out0 = 0lu, const size_t offset_out1 = 0lu);
+                const size_t offset_in = 0lu, const size_t offset_out0 = 0lu, const size_t offset_out1 = 0lu,
+                std::vector<size_t> layout_input = {});
     BrgemmCopyB() = default;
 
     size_t get_offset_in() const { return get_input_offset(0); }
@@ -43,6 +44,9 @@ public:
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
 private:
+    void custom_constructor_validate_and_infer_types(std::vector<size_t> layout_input = {});
+    void validate(const ov::PartialShape& pshape, const ov::element::Type& element_type);
+
     Type m_type = Type::OnlyRepacking;
     element::Type m_src_type = ov::element::undefined;  // src element type of the corresponding BRGEMM
 };

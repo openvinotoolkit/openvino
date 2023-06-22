@@ -13,13 +13,13 @@ namespace snippets {
 class PrecisionPropagationGetPrecisionsTest : public testing::Test {};
 
 TEST_F(PrecisionPropagationGetPrecisionsTest, empty) {
-    ASSERT_EQ(std::vector<element::Type>{}, ngraph::snippets::pass::PropagatePrecision::get_precisions({}, {}));
+    ASSERT_EQ(std::vector<element::Type>{}, ov::snippets::pass::PropagatePrecision::get_precisions({}, {}));
 }
 
 TEST_F(PrecisionPropagationGetPrecisionsTest, selected) {
     ASSERT_EQ(
         std::vector<element::Type>({element::f32, element::f32}),
-        ngraph::snippets::pass::PropagatePrecision::get_precisions(
+        ov::snippets::pass::PropagatePrecision::get_precisions(
             { element::f32, element::f32 },
             {
                 {element::bf16, element::bf16},
@@ -31,7 +31,7 @@ TEST_F(PrecisionPropagationGetPrecisionsTest, selected) {
 TEST_F(PrecisionPropagationGetPrecisionsTest, first) {
     ASSERT_EQ(
         std::vector<element::Type>({ element::bf16, element::bf16 }),
-        ngraph::snippets::pass::PropagatePrecision::get_precisions(
+        ov::snippets::pass::PropagatePrecision::get_precisions(
             { element::i32, element::i32 },
             {
                 {element::bf16, element::bf16},

@@ -34,9 +34,6 @@ public:
     MOCK_METHOD(StatusCode, GetPreProcess,
         (const char*, const PreProcessInfo**, ResponseDesc*), (const, noexcept));
     MOCK_METHOD(StatusCode, SetBlob, (const char*, const Blob::Ptr&, ResponseDesc*), (noexcept));
-    MOCK_METHOD(StatusCode, SetBlob,
-        (const char*, const Blob::Ptr&, const PreProcessInfo&, ResponseDesc*), (noexcept));
-    MOCK_METHOD(StatusCode, SetBatch, (int batch, ResponseDesc*), (noexcept));
     MOCK_METHOD(StatusCode, Cancel, (ResponseDesc*), (noexcept));
 };
 

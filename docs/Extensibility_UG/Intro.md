@@ -23,10 +23,10 @@
    
    openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer
 
-The Intel® Distribution of OpenVINO™ toolkit supports neural network models trained with various frameworks, including
+The Intel® Distribution of OpenVINO™ toolkit supports neural-network models trained with various frameworks, including
 TensorFlow, PyTorch, ONNX, TensorFlow Lite, and PaddlePaddle (OpenVINO support for Apache MXNet, Caffe, and Kaldi is currently 
 being deprecated and will be removed entirely in the future). The list of supported operations is different for each of the supported frameworks. 
-To see the operations supported by your framework, refer to :doc:`Supported Framework Operations <openvino_docs_MO_DG_prepare_model_Supported_Frameworks_Layers>`.
+To see the operations supported by your framework, refer to :doc:`Supported Framework Operations <openvino_resources_supported_operations_frontend>`.
 
 Custom operations, which are not included in the list, are not recognized by OpenVINO out-of-the-box. The need for custom operation may appear in two cases:
 
@@ -126,6 +126,8 @@ The ``Identity`` is a custom operation class defined in :doc:`Custom Operation G
 When Python API is used, there is no way to implement a custom OpenVINO operation. Even if custom OpenVINO operation is implemented in C++ and loaded into the runtime by a shared library, there is still no way to add a frontend mapping extension that refers to this custom operation. In this case, use C++ shared library approach to implement both operations semantics and framework mapping.
 
 Python can still be used to map and decompose operations when only operations from the standard OpenVINO operation set are used.
+
+.. _create_a_library_with_extensions:
  
 Create a Library with Extensions
 ++++++++++++++++++++++++++++++++

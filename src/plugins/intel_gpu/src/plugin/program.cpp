@@ -148,6 +148,8 @@ Program::Program(InferenceEngine::CNNNetwork& network, cldnn::engine& engine, co
     Dl_info dl_info;
     dladdr(reinterpret_cast<void *>(CustomLayer::LoadFromFile), &dl_info);
     const char* mpath = dl_info.dli_fname;
+#else
+#error "Intel GPU plugin: unknown target system"
 #endif
     std::string configFile(mpath);
     std::size_t dir_split_pos = configFile.find_last_of("/\\");
@@ -168,21 +170,10 @@ Program::Program(InferenceEngine::CNNNetwork& network, cldnn::engine& engine, co
     bool dyn_shape_batch_found = false;
     std::map<std::string, ngraph::PartialShape> shapes;
     std::map<std::string, std::pair<int64_t, int64_t>> batch_dim;
-    auto enable_dynamic_batch = m_config.get_property(ov::intel_gpu::enable_dynamic_batch);
-    if (enable_dynamic_batch) {
-        m_config.set_property(ov::intel_gpu::max_dynamic_batch(network.getBatchSize()));
-        // in case of legacy dynamic batch,
-        // we assume 4D input with 0 batch dim
-        auto param = func->get_parameters().front();
-        auto pname = getParamName(param);
-        shapes[pname] = param->get_output_partial_shape(0);
-        batch_dim[pname].first = 0;
-        batch_dim[pname].second = m_config.get_property(ov::intel_gpu::max_dynamic_batch);
-    } else {
-        dyn_shape_batch_found = IsDynBatchModel(func, shapes, batch_dim);
-        if (dyn_shape_batch_found) {
-            m_config.set_property(ov::intel_gpu::max_dynamic_batch(batch_dim.begin()->second.second));
-        }
+
+    dyn_shape_batch_found = IsDynBatchModel(func, shapes, batch_dim);
+    if (dyn_shape_batch_found) {
+        m_config.set_property(ov::intel_gpu::max_dynamic_batch(batch_dim.begin()->second.second));
     }
 
     int m_bv_sz = GetMaxBatchSizeForSingleProgram();
@@ -301,6 +292,19 @@ Program::Program(InferenceEngine::CNNNetwork& network, cldnn::engine& engine, co
     } else {
         m_programs.emplace_back(BuildProgram(ops, networkInputs, networkOutputs, createTopologyOnly, partialBuild));
     }
+}
+
+Program::Program(cldnn::engine& engine, const ExecutionConfig& config,
+                 InferenceEngine::InputsDataMap* inputs, InferenceEngine::OutputsDataMap* outputs)
+        : m_max_batch(1)
+        , m_curBatch(-1)
+        , m_config(config)
+        , m_engine(engine)
+        , queryMode(false) {
+    if (inputs != nullptr)
+        m_networkInputs = *inputs;
+    if (outputs != nullptr)
+        m_networkOutputs = *outputs;
 }
 
 int Program::GetMaxBatchSizeForSingleProgram() {
