@@ -59,6 +59,7 @@
 #include "transformations/remove_in_out_processing.hpp"
 #include "transformations/remove_single_input_concat.hpp"
 #include "transformations/reorder_activation_and_pooling.hpp"
+#include "transformations/reshape_to_squeeze.hpp"
 #include "transformations/reshape_transpose_substitute.hpp"
 #include "transformations/rt_info/transpose_sinking_attr.hpp"
 #include "transformations/split_convolution_with_large_buffer_size.hpp"
@@ -216,6 +217,9 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
     // TODO enable this transformation for networks without convolutions
     if (has_convolution || has_maxpool || has_mvn || has_matmul) {
         manager.register_pass<ov::intel_gna::pass::TransposeNCHW>();
+        manager.register_pass<ov::intel_gna::pass::ReshapeFuse>();
+        manager.register_pass<ov::intel_gna::pass::ReshapeToSqueeze>();
+        manager.register_pass<ov::intel_gna::pass::ReshapeToUnsqueeze>();
         manager.register_pass<ov::pass::TransposeSinkingGeneral>();
         manager.register_pass<ov::intel_gna::pass::Transpose2D>();
         manager.register_pass<ov::intel_gna::pass::TSConcatForward>();
