@@ -72,7 +72,7 @@ CompiledModel::GetWorkerInferRequest() const {
             [workerRequestPtr](std::exception_ptr exceptionPtr) mutable {
                 if (exceptionPtr)
                     workerRequestPtr->_exception_ptr = exceptionPtr;
-                IE_ASSERT(workerRequestPtr->_completion_tasks.size() == (size_t)workerRequestPtr->_batch_size);
+                OPENVINO_ASSERT(workerRequestPtr->_completion_tasks.size() == (size_t)workerRequestPtr->_batch_size);
                 // notify the individual requests on the completion
                 for (int c = 0; c < workerRequestPtr->_batch_size; c++) {
                     workerRequestPtr->_completion_tasks[c]();
@@ -97,7 +97,7 @@ CompiledModel::GetWorkerInferRequest() const {
                     if (sz == workerRequestPtr->_batch_size) {
                         std::pair<ov::autobatch_plugin::AsyncInferRequest*, ov::threading::Task> t;
                         for (int n = 0; n < sz; n++) {
-                            IE_ASSERT(workerRequestPtr->_tasks.try_pop(t));
+                            OPENVINO_ASSERT(workerRequestPtr->_tasks.try_pop(t));
                             workerRequestPtr->_completion_tasks[n] = std::move(t.second);
                             t.first->m_sync_request->copy_inputs_if_needed();
                             t.first->m_sync_request->m_batched_request_used =
@@ -112,7 +112,7 @@ CompiledModel::GetWorkerInferRequest() const {
                         std::promise<void> all_completed;
                         auto all_completed_future = all_completed.get_future();
                         for (int n = 0; n < sz; n++) {
-                            IE_ASSERT(workerRequestPtr->_tasks.try_pop(t));
+                            OPENVINO_ASSERT(workerRequestPtr->_tasks.try_pop(t));
                             t.first->m_request_without_batch->set_callback(
                                 [t, sz, &arrived, &all_completed](std::exception_ptr p) {
                                     if (p)
@@ -165,6 +165,7 @@ void CompiledModel::set_property(const ov::AnyMap& properties) {
 }
 
 ov::Any CompiledModel::get_property(const std::string& name) const {
+    OPENVINO_SUPPRESS_DEPRECATED_START
     auto it = m_config.find(name);
     if (it != m_config.end()) {
         return it->second;
@@ -208,6 +209,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
             OPENVINO_THROW("Unsupported Compiled Model Property: ", name);
         }
     }
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 void CompiledModel::export_model(std::ostream& model) const {

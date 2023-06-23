@@ -60,21 +60,22 @@ protected:
     std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override;
     static unsigned int ParseTimeoutValue(const std::string&);
     std::atomic_bool m_terminate = {false};
+    ov::AnyMap m_config;
     DeviceInformation m_device_info;
-    ov::SoPtr<ov::ICompiledModel> m_compiled_model_with_batch;
-    ov::SoPtr<ov::ICompiledModel> m_compiled_model_without_batch;
 
     std::pair<std::shared_ptr<ov::autobatch_plugin::CompiledModel::WorkerInferRequest>, int> GetWorkerInferRequest()
         const;
     mutable std::vector<std::shared_ptr<WorkerInferRequest>> m_worker_requests;
     mutable std::mutex m_worker_requests_mutex;
 
-    ov::AnyMap m_config;
     mutable std::atomic_size_t m_num_requests_created = {0};
     std::atomic<std::uint32_t> m_timeOut = {0};  // in ms
 
     const std::set<std::string> m_batched_inputs;
     const std::set<std::string> m_batched_outputs;
+
+    ov::SoPtr<ov::ICompiledModel> m_compiled_model_with_batch;
+    ov::SoPtr<ov::ICompiledModel> m_compiled_model_without_batch;
 };
 }  // namespace autobatch_plugin
 }  // namespace ov

@@ -22,9 +22,9 @@ public:
 
     std::vector<ov::ProfilingInfo> get_profiling_info() const override;
 
-    std::shared_ptr<ov::IAsyncInferRequest> m_request_without_batch;
-
     std::shared_ptr<ov::autobatch_plugin::SyncInferRequest> m_sync_request;
+
+    std::shared_ptr<ov::IAsyncInferRequest> m_request_without_batch;
 };
 }  // namespace autobatch_plugin
 }  // namespace ov
