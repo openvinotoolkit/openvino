@@ -105,28 +105,28 @@ protected:
             const auto& funcInput = funcInputs[i];
             ov::Tensor tensor;
             if (i == 0) {  // "a_data"
-                in_gen_data = ov::test::utils::InputGenerateData(2, -1, 100);
+                in_gen_data = ov::test::utils::InputGenerateData(-1, 2, 100);
                 shape = targetInputStaticShapes[0];
             } else if (i == 1) {  // "b_offset_vals"
                 if (offsetType == OffsetType::NATURAL) {
-                    in_gen_data = ov::test::utils::InputGenerateData(10, 0, 1);
+                    in_gen_data = ov::test::utils::InputGenerateData(0, 10, 1);
                 } else if (offsetType == OffsetType::ZERO) {
-                    in_gen_data = ov::test::utils::InputGenerateData(1, 0, 1);
+                    in_gen_data = ov::test::utils::InputGenerateData(0, 1, 1);
                 } else if (offsetType == OffsetType::REAL_POSITIVE) {
-                    in_gen_data = ov::test::utils::InputGenerateData(2, 0, 100);
+                    in_gen_data = ov::test::utils::InputGenerateData(0, 2, 100);
                 } else if (offsetType == OffsetType::REAL_NEGATIVE) {
-                    in_gen_data = ov::test::utils::InputGenerateData(2, -2, 100);
+                    in_gen_data = ov::test::utils::InputGenerateData(-2, 2, 100);
                 } else if (offsetType == OffsetType::REAL_MISC) {
-                    in_gen_data = ov::test::utils::InputGenerateData(4, -2, 100);
+                    in_gen_data = ov::test::utils::InputGenerateData(-2, 4, 100);
                 } else {
                     IE_THROW() << "Unexpected offset type";
                 }
                 shape = targetInputStaticShapes[0];
             } else if (i == 2) {  // "c_filter_vals"
-                in_gen_data = ov::test::utils::InputGenerateData(2, -1, 100);
+                in_gen_data = ov::test::utils::InputGenerateData(-1, 2, 100);
                 shape = targetInputStaticShapes[2];
             } else if (i == 3) {  // "c_modulation_scalars"
-                in_gen_data = ov::test::utils::InputGenerateData(1, 0, 100);
+                in_gen_data = ov::test::utils::InputGenerateData(0, 1, 100);
                 shape = targetInputStaticShapes[3];
             } else {
                 IE_THROW() << "Unknown input of DeformableConvolution";
