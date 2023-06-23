@@ -50,13 +50,13 @@ void regclass_frontend_FrontEnd(py::module m) {
             }
         },
         py::arg("path"),
-        py::arg("enable_mmap"),
+        py::arg("enable_mmap") = true,
         R"(
                 Loads an input model.
 
                 :param path: Object describing the model. It can be path to model file.
                 :type path: Any
-                :param enable_mmap: Use mmap feature to map memory of a model's weights instead of reading directly.
+                :param enable_mmap: Use mmap feature to map memory of a model's weights instead of reading directly. Optional. The default value is true.
                 :type enable_mmap: boolean
                 :return: Loaded input model.
                 :rtype: openvino.frontend.InputModel

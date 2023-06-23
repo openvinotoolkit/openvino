@@ -35,7 +35,7 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
                         "Please use use_legacy_frontend=True to convert the model.")
     else:
         input_checkpoint = getattr(argv, 'input_checkpoint', None)
-        enable_mmap = enable_mmap = not argv.disable_mmap
+        enable_mmap = not argv.disable_mmap
         if argv.input_model and input_checkpoint:
             # frozen format with v1 checkpoints
             input_model = moc_front_end.load([argv.input_model, argv.input_checkpoint], enable_mmap)
