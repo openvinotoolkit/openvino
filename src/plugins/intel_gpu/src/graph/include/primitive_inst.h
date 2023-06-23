@@ -190,7 +190,7 @@ public:
 
     memory::ptr shape_info_memory_ptr() const { return _shape_info_memory; }
 
-    virtual event::ptr execute(const std::vector<event::ptr>& events);
+    event::ptr execute(const std::vector<event::ptr>& events);
     void init_kernels(const kernels_cache& kernels_cache) {
         _impl->init_kernels(kernels_cache, *_impl_params);
     }
