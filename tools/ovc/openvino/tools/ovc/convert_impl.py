@@ -119,7 +119,7 @@ def legacy_framework_check(is_caffe, is_mxnet, is_kaldi):
         legacy_path_error("The provided model is from Kaldi framework. This is legacy functionality. ")
 
 
-def check_legacy_args(non_default_params):
+def check_legacy_args(non_default_params, python_api_used):
     ignored_cli_options = ["output_dir", "model_name"]
     legacy_groups = ['Kaldi-specific parameters:', 'Caffe*-specific parameters:', 'MXNet-specific parameters:']
     tf_legacy_args = ['tensorflow_custom_operations_config_update', 'tensorflow_object_detection_api_pipeline_config',
@@ -128,7 +128,8 @@ def check_legacy_args(non_default_params):
 
     for key, value in non_default_params.items():
         if key in ignored_cli_options:
-            print("The provided option \"{}\" is applicable in MO Command line tool only. The option will be ignored.".format(key))
+            if python_api_used:
+                print("The provided option \"{}\" is applicable in MO Command line tool only. The option will be ignored.".format(key))
         for group in legacy_groups:
             if key in mo_convert_params[group]:
                 legacy_path_error("The provided option \"{}\" refers to legacy functionality. ".format(key))
@@ -750,7 +751,7 @@ def _convert(cli_parser: argparse.ArgumentParser, args, python_api_used):
         send_params_info(argv, cli_parser)
 
         non_default_params = get_non_default_params(argv, cli_parser)
-        check_legacy_args(non_default_params)
+        check_legacy_args(non_default_params, python_api_used)
         argv.is_python_api_used = python_api_used
 
         if inp_model_is_object:
@@ -824,4 +825,7 @@ def _convert(cli_parser: argparse.ArgumentParser, args, python_api_used):
                     print(get_try_legacy_fe_message())
 
         send_conversion_result('fail')
-        raise e.with_traceback(None)
+        if python_api_used:
+            raise e.with_traceback(None)
+        else:
+            return None, argv
