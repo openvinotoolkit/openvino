@@ -58,7 +58,7 @@ public:
                                                                   testValues.actual.dequantization);
 
         SimpleLowPrecisionTransformer transformer;
-        transformer.add<ngraph::pass::low_precision::PReluTransformation, ngraph::opset1::PRelu>(testValues.params);
+        transformer.add<ngraph::pass::low_precision::PReluTransformation, ov::op::v0::PRelu>(testValues.params);
         transformer.transform(actualFunction);
 
         referenceFunction =

@@ -204,7 +204,6 @@ inline int64_t file_size(const std::wstring& path) {
 inline bool file_exists(const std::wstring& path) {
     return file_exists(wstring_to_string(path).c_str());
 }
-
 #endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
 /**
@@ -223,17 +222,6 @@ inline int64_t file_size(const std::string& path) {
  */
 inline bool file_exists(const std::string& path) {
     return file_exists(path.c_str());
-}
-
-/**
- * @brief      Returns true if file exists
- * @param[in]  path  The path to file
- * @return     true if file exists
- */
-template <typename C,
-          typename = typename std::enable_if<(std::is_same<C, char>::value || std::is_same<C, wchar_t>::value)>::type>
-inline bool file_exists(const std::basic_string<C>& path) {
-    return file_exists(path);
 }
 
 std::string get_file_ext(const std::string& path);

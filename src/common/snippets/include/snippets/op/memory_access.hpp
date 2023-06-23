@@ -44,6 +44,7 @@ public:
 
         friend class MemoryAccess;
     };
+    using PortMap = std::map<size_t, PortDescriptor>;
 
     void set_input_count(size_t count, size_t idx = 0);
     void set_output_count(size_t count, size_t idx = 0);
@@ -55,8 +56,8 @@ public:
     size_t get_input_offset(size_t idx = 0) const;
     size_t get_output_offset(size_t idx = 0) const;
 
-    std::map<size_t, PortDescriptor> get_memory_access_input_ports() const { return m_input_ports; }
-    std::map<size_t, PortDescriptor> get_memory_access_output_ports() const { return m_output_ports; }
+    PortMap get_memory_access_input_ports() const { return m_input_ports; }
+    PortMap get_memory_access_output_ports() const { return m_output_ports; }
 
     bool is_memory_access_input_port(size_t idx) const;
     bool is_memory_access_output_port(size_t idx) const;
@@ -69,6 +70,7 @@ public:
 protected:
     explicit MemoryAccess(const OutputVector& arguments, size_t input_count = 0, size_t output_count = 0);
     explicit MemoryAccess(const OutputVector& arguments, const std::set<size_t>& input_ports, const std::set<size_t>& output_ports);
+    explicit MemoryAccess(const OutputVector& arguments, const PortMap& input_ports, const PortMap& output_ports);
     MemoryAccess() = default;
 
     // This method can be called only in ctors
@@ -80,8 +82,8 @@ protected:
     const PortDescriptor& get_output_port_descriptor(const size_t i) const;
 
     // [port_num, port_desc]
-    std::map<size_t, PortDescriptor> m_input_ports;
-    std::map<size_t, PortDescriptor> m_output_ports;
+    PortMap m_input_ports;
+    PortMap m_output_ports;
 };
 
 } // namespace op
