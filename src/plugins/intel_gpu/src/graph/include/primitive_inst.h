@@ -5,7 +5,6 @@
 #pragma once
 #include "intel_gpu/primitives/primitive.hpp"
 #include "intel_gpu/primitives/concatenation.hpp"
-#include "intel_gpu/primitives/generic_layer.hpp"
 #include "intel_gpu/runtime/event.hpp"
 #include "intel_gpu/runtime/memory.hpp"
 #include "intel_gpu/runtime/lru_cache.hpp"
@@ -99,7 +98,6 @@ struct primitive_impl {
 
     bool need_weights_reorder() const { return _weights_reorder_params != nullptr; }
     std::shared_ptr<WeightsReorderParams> get_weights_reorder_params() const { return _weights_reorder_params; }
-    void reset_weights_reorder_params() { _weights_reorder_params = nullptr; }
 
     std::shared_ptr<kernel_impl_params> get_weights_reorder_kernel_params() const;
 
@@ -232,10 +230,18 @@ public:
     bool is_constant() const { return _is_constant; }
     bool needs_completion_event() const { return _needs_completion_event; }
     bool has_unfused_subgraph() const { return (_unfused_subgraph != nullptr); }
+<<<<<<< HEAD
     bool has_inner_networks() const;
     void allocate_internal_buffers(bool reset = true);
     static memory::ptr allocate_output(engine& engine, memory_pool& pool, const program_node& _node, const kernel_impl_params& impl_params, uint32_t net_id,
             bool is_internal, size_t idx = 0, bool reset_mem = true, bool is_output_buffer = false, memory* curr_memory = nullptr, bool runtime_alloc = false);
+=======
+    bool has_node() const { return _node != nullptr; }
+
+    void allocate_internal_buffers();
+    static memory::ptr allocate_output(engine& engine, memory_pool& pool, const program_node& _node,
+            const kernel_impl_params& impl_params, uint32_t net_id, bool is_internal, size_t idx = 0, bool reset_mem = true, bool is_output_buffer = false);
+>>>>>>> d00c7d30f9 ([GPU] Reorder weights refactoring (#17787))
 
     std::vector<memory::cptr> get_intermediates_memories() const { return _intermediates_memory; }
 
