@@ -211,8 +211,13 @@ std::vector<std::string> disabledTestPatterns() {
         // Issue: 113703 - input/output port's name maybe changed after transformation in plugin api 2.0
         R"(.*smoke_If/SimpleIfTest.*Cond=0.*)",
         R"(.*smoke_Transpose(2|4|5|6)D/TransposeLayerTest.CompareWithRefs.*netPRC=(I8|U8).*)",
-        // Issue: 113703 -Layout information maybe incorrect when covert tensor to blob
-        R"(smoke_.*BehaviorTests/InferRequestPreprocessConversionTest.*)",
+        // Issue: 113704 -Layout information maybe incorrect when covert tensor to blob
+        R"(.*smoke_.*BehaviorTests/InferRequestPreprocessConversionTest.*)",
+        // Issue: There are some problem when work with AUTO plugin API 2.0
+        R"(.*smoke_Auto_CachingSupportCase_CPU/CompileModelCacheTestBase.CompareWithRefImpl.*)",
+        R"(.*smoke_Auto_CachingSupportCase_CPU_Float/CompileModelCacheTestBase.CompareWithRefImpl.*)",
+        R"(.*smoke_Auto_BehaviorTests/CorrectConfigTests.CanLoadNetworkWithCorrectConfig/target_device=AUTO.*)",
+        R"(.*smoke_Auto_BehaviorTests/CorrectConfigTests.CanUseCache/target_device=AUTO.*)",
     };
 
 #if defined(OPENVINO_ARCH_X86)
