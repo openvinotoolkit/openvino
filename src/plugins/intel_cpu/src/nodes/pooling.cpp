@@ -307,7 +307,7 @@ void Pooling::getSupportedDescriptors() {
                                              (getOriginalOutputsNumber() > 1) ? &getOutputShapeAtPort(1).getDims() : nullptr,
                                              &pool_info,
                                              &pool3d_info,
-                                             true);
+                                             isDynamicNode());
     //FIXME: 5D tensors case is not assigned to ACL because there is no way to check layout here
     //NEPooling3dLayer supports NDHWC only
     if (inShape.getDims().size() == 5) {
