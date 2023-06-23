@@ -23,6 +23,19 @@ intel_cpu::BrgemmCopyB::BrgemmCopyB(const Output<Node>& x, const element::Type s
     custom_constructor_validate_and_infer_types(std::move(layout_input));
 }
 
+intel_cpu::BrgemmCopyB::BrgemmCopyB(const Output<Node>& x, const element::Type src_type, const Type type,
+                                    const PortDescriptor& desc_in0, const PortDescriptor& desc_out0, const PortDescriptor& desc_out1,
+                                    std::vector<size_t> layout_input)
+    : snippets::op::MemoryAccess({x}, 1, type == Type::WithCompensations ? 2 : 1), m_type(type), m_src_type(src_type) {
+    set_output_size(type == Type::WithCompensations ? 2 : 1);
+    set_input_port_descriptor(desc_in0, 0);
+    set_output_port_descriptor(desc_out0, 0);
+    if (is_with_compensations()) {
+        set_output_port_descriptor(desc_out1, 1);
+    }
+    custom_constructor_validate_and_infer_types(std::move(layout_input));
+}
+
 bool intel_cpu::BrgemmCopyB::visit_attributes(AttributeVisitor& visitor) {
     INTERNAL_OP_SCOPE(BrgemmRepack_visit_attributes);
     MemoryAccess::visit_attributes(visitor);
@@ -76,9 +89,9 @@ std::shared_ptr<Node> intel_cpu::BrgemmCopyB::clone_with_new_inputs(const Output
     INTERNAL_OP_SCOPE(BrgemmRepack_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return std::make_shared<BrgemmCopyB>(new_args.at(0), m_src_type, m_type,
-                                         get_offset_in(),
-                                         get_offset_out(),
-                                         is_with_compensations() ? get_offset_compensations() : 0,
+                                         get_input_port_descriptor(0),
+                                         get_output_port_descriptor(0),
+                                         is_with_compensations() ? get_output_port_descriptor(1) : PortDescriptor{},
                                          snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(input(0))->get_layout());
 }
 

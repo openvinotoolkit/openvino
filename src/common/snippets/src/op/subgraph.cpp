@@ -38,6 +38,7 @@
 #include "snippets/lowered/pass/clean_repeated_ptr_shifts.hpp"
 #include "snippets/lowered/pass/identify_buffers.hpp"
 #include "snippets/lowered/pass/validate_loops.hpp"
+#include "snippets/lowered/pass/insert_loops.hpp"
 
 #include "transformations/utils/utils.hpp"
 
@@ -513,9 +514,6 @@ void snippets::op::Subgraph::control_flow_transformations(lowered::LinearIR& lin
     const size_t vector_size = get_generator()->get_target_machine()->get_lanes();
     const int32_t buffer_allocation_rank = static_cast<int32_t>(linear_ir.get_config().m_loop_depth);
 
-    // Note: The pass InitLoops uses LoopInfo that contains entry and exit points of the corresponding Loop.
-    //       To avoid the Loop information corruption, we should call the passes with Load/Store work
-    //       (for example, LoadMoveBroadcastToBroadcastLoad()) after explicit Loop insertion (InitLoops())
     lowered::pass::PassPipeline common_pipeline;
     common_pipeline.register_pass<lowered::pass::MarkLoops>(vector_size);
     common_pipeline.register_pass<lowered::pass::SoftmaxDecomposition>(vector_size);
@@ -523,10 +521,11 @@ void snippets::op::Subgraph::control_flow_transformations(lowered::LinearIR& lin
     common_pipeline.register_pass<lowered::pass::MoveResultOutOfLoop>();
     common_pipeline.register_pass<lowered::pass::InsertBuffers>(buffer_allocation_rank);
     common_pipeline.register_pass<lowered::pass::InsertLoadStore>(vector_size);
-    common_pipeline.register_pass<lowered::pass::ValidateLoops>();
-    common_pipeline.register_pass<lowered::pass::InitLoops>();
     common_pipeline.register_pass<lowered::pass::MoveScalarToConsumer>();
     common_pipeline.register_pass<lowered::pass::LoadMoveBroadcastToBroadcastLoad>();
+    common_pipeline.register_pass<lowered::pass::ValidateLoops>();
+    common_pipeline.register_pass<lowered::pass::InitLoops>();
+    common_pipeline.register_pass<lowered::pass::InsertLoops>();
     common_pipeline.run(linear_ir);
 
     target_pipeline.run(linear_ir);
