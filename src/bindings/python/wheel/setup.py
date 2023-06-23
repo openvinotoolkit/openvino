@@ -192,6 +192,7 @@ class CustomBuild(build):
         ("jobs=", None, "Specifies the number of jobs to use with make."),
         ("cmake-args=", None, "Additional options to be passed to CMake."),
     ]
+    boolean_options = build.boolean_options + ["python-extensions-only"]
 
     def initialize_options(self):
         """Set default values for all the options that this command supports."""
@@ -380,6 +381,16 @@ class PrepareLibs(build_clib):
 
 class CopyExt(build_ext):
     """Copy extension files to the build directory."""
+
+    user_options = [
+        ("skip-rpath", None, "Skips RPATH for Python extensions."),
+    ]
+    boolean_options = ["skip_rpath"]
+
+    def initialize_options(self):
+        """Set default values for all the options that this command supports."""
+        super().initialize_options()
+        self.skip_rpath = False
 
     def run(self):
         if len(self.extensions) == 1:
