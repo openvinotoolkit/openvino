@@ -295,6 +295,6 @@ TEST_P(SerializationDeterministicityInputOutputTest, FromIrModel) {
     EXPECT_TRUE(files_equal(xml_2, xml_1));
 }
 
-INSTANTIATE_TEST_CASE_P(DeterministicityInputOutput,
-                        SerializationDeterministicityInputOutputTest,
-                        ::testing::Values(ov::pass::Serialize::Version::IR_V10, ov::pass::Serialize::Version::IR_V11));
+INSTANTIATE_TEST_SUITE_P(DeterministicityInputOutput,
+                         SerializationDeterministicityInputOutputTest,
+                         ::testing::Values(ov::pass::Serialize::Version::IR_V10, ov::pass::Serialize::Version::IR_V11));

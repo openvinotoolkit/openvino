@@ -123,12 +123,12 @@ private:
 };
 
 TEST_P(nGraphFQReshapeFusionTests, ReshapeMatMul) {
-    auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
+    auto unh = std::make_shared<ov::pass::UniqueNamesHolder>();
     ngraph::pass::Manager manager;
-    manager.register_pass<ngraph::pass::InitUniqueNames>(unh);
+    manager.register_pass<ov::pass::InitUniqueNames>(unh);
     manager.register_pass<ov::pass::InitNodeInfo>();
     manager.register_pass<ov::pass::FakeQuantizeReshapeFusion>();
-    manager.register_pass<ngraph::pass::CheckUniqueNames>(unh);
+    manager.register_pass<ov::pass::CheckUniqueNames>(unh);
 
     manager.run_passes(f);
     ASSERT_NO_THROW(check_rt_info(f));

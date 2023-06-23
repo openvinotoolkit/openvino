@@ -68,7 +68,7 @@ public:
                                                                    opset_version);
 
         SimpleLowPrecisionTransformer transformer;
-        transformer.add<ngraph::pass::low_precision::GatherTransformation, ngraph::opset1::Gather>(testValues.params);
+        transformer.add<ngraph::pass::low_precision::GatherTransformation, ov::op::v1::Gather>(testValues.params);
         transformer.transform(actualFunction);
 
         referenceFunction =

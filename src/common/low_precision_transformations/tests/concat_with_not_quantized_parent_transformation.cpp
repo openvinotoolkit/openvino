@@ -156,15 +156,15 @@ public:
             testValues.addNotPrecisionPreservedOperation);
 
         auto precisionsRestrictions = std::vector<ngraph::pass::low_precision::PrecisionsRestriction>({
-            ngraph::pass::low_precision::PrecisionsRestriction::create<ngraph::opset1::Convolution>({
+            ngraph::pass::low_precision::PrecisionsRestriction::create<ov::op::v1::Convolution>({
                 {{0}, {ngraph::element::u8}},
                 {{1}, {ngraph::element::i8}}
             }),
-            ngraph::pass::low_precision::PrecisionsRestriction::create<ngraph::opset1::AvgPool>({{{0}, testValues.params.precisionsOnActivations}})
+            ngraph::pass::low_precision::PrecisionsRestriction::create<ov::op::v1::AvgPool>({{{0}, testValues.params.precisionsOnActivations}})
         });
 
         auto quantizationRestrictions = std::vector<ngraph::pass::low_precision::QuantizationGranularityRestriction>({
-            ngraph::pass::low_precision::QuantizationGranularityRestriction::create<ngraph::opset1::Convolution>({0})
+            ngraph::pass::low_precision::QuantizationGranularityRestriction::create<ov::op::v1::Convolution>({0})
         });
 
         const auto params = TestTransformationParams(testValues.params.updatePrecisions);
@@ -250,7 +250,7 @@ TEST_P(ConcatWithNotQuantizedParentTransformation, CompareFunctions) {
     auto res = compare_functions(actualFunction, referenceFunction, true, true, false, true, false);
     ASSERT_TRUE(res.first) << res.second;
 
-    auto actualFakeQuantizes = LayerTransformation::get<opset1::FakeQuantize>(actualFunction);
+    auto actualFakeQuantizes = LayerTransformation::get<ov::op::v0::FakeQuantize>(actualFunction);
     for (auto it = actualFakeQuantizes.begin(); it != actualFakeQuantizes.end(); it++) {
         const auto actualFakeQuantize = *it;
         if (actualFakeQuantize->output(0).get_target_inputs().begin()->get_index() == 1ul) {
@@ -263,7 +263,7 @@ TEST_P(ConcatWithNotQuantizedParentTransformation, CompareFunctions) {
 
     ConcatWithNotQuantizedParentTransformationTestValues testValues = std::get<2>(GetParam());
     if (testValues.checkIntervalsAlignmentAttributes) {
-        auto operations = LayerTransformation::get<opset1::Concat>(actualFunction);
+        auto operations = LayerTransformation::get<ov::op::v0::Concat>(actualFunction);
         operations.insert(operations.end(), actualFakeQuantizes.begin(), actualFakeQuantizes.end());
         ASSERT_TRUE(checkIfAttributesSharedValuesAreTheSame<IntervalsAlignmentAttribute>(operations)) <<
             "IntervalsAlignmentAttribute are not the same";

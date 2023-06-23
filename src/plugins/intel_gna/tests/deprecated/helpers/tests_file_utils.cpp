@@ -27,10 +27,10 @@ using namespace std;
 void FileUtils::readAllFile(const std::string &file_name, void *buffer, size_t maxSize) {
     std::ifstream inputFile;
     inputFile.open(file_name, std::ios::binary | std::ios::in);
-    if (!inputFile.is_open()) IE_THROW() << "cannot open file " << file_name;
+    if (!inputFile.is_open()) OPENVINO_THROW("cannot open file ", file_name);
     if (!inputFile.read(static_cast<char *> (buffer), maxSize)) {
         inputFile.close();
-        IE_THROW() << "cannot read " << maxSize << " bytes from file " << file_name;
+        OPENVINO_THROW("cannot read ", maxSize, " bytes from file ", file_name);
     }
 
     inputFile.close();

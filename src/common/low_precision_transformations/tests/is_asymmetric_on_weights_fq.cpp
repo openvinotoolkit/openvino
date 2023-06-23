@@ -24,7 +24,7 @@ public:
     TestTransformationParams params;
     ngraph::element::Type precisionBeforeDequantization;
     ngraph::builder::subgraph::DequantizationOperations dequantizationOnActivations;
-    std::shared_ptr<ngraph::opset1::Constant> weights;
+    std::shared_ptr<ov::op::v0::Constant> weights;
     builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
 };
 

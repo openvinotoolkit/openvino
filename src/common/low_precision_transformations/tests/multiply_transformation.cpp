@@ -55,7 +55,7 @@ public:
 
         actualFunction = MultiplyFunction::get(precision, testParams.actual);
         SimpleLowPrecisionTransformer transform;
-        transform.add<low_precision::MultiplyTransformation, ngraph::opset1::Multiply>(testParams.transformationParams);
+        transform.add<low_precision::MultiplyTransformation, ov::op::v1::Multiply>(testParams.transformationParams);
         transform.transform(actualFunction);
 
         referenceFunction = MultiplyFunction::get(precision, testParams.expected);

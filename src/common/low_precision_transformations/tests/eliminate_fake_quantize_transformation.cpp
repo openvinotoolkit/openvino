@@ -56,13 +56,12 @@ public:
                                                                                   testValues.actual.fakeQuantizeOnData2,
                                                                                   {});
         SimpleLowPrecisionTransformer transformer;
-        transformer
-            .add<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation, ngraph::opset1::FakeQuantize>(
-                testValues.params);
-        transformer.add<ngraph::pass::low_precision::MaxPoolTransformation, ngraph::opset1::MaxPool>(testValues.params);
-        transformer.add<ngraph::pass::low_precision::FakeQuantizeTransformation, ngraph::opset1::FakeQuantize>(
+        transformer.add<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation, ov::op::v0::FakeQuantize>(
             testValues.params);
-        transformer.add<ngraph::pass::low_precision::EliminateFakeQuantizeTransformation, ngraph::opset1::FakeQuantize>(
+        transformer.add<ngraph::pass::low_precision::MaxPoolTransformation, ov::op::v1::MaxPool>(testValues.params);
+        transformer.add<ngraph::pass::low_precision::FakeQuantizeTransformation, ov::op::v0::FakeQuantize>(
+            testValues.params);
+        transformer.add<ngraph::pass::low_precision::EliminateFakeQuantizeTransformation, ov::op::v0::FakeQuantize>(
             testValues.params);
         transformer.transform(actualFunction);
 

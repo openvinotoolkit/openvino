@@ -54,7 +54,7 @@ static std::shared_ptr<ov::Model> makeInteraction(const ElementType inType, cons
         features.push_back(sparse_feat);
         inputsParams.push_back(sparse_input);
     }
-    auto shapeof = std::make_shared<opset8::ShapeOf>(dense_feature);
+    auto shapeof = std::make_shared<ov::op::v3::ShapeOf>(dense_feature);
     auto gather_batch_indices =  std::make_shared<opset1::Constant>(element::i32, ov::Shape{1}, std::vector<int32_t>{0});
     auto gather_batch_axis =  std::make_shared<opset1::Constant>(element::i32, ov::Shape{}, 0);
     auto gather_batch = std::make_shared<opset8::Gather>(shapeof, gather_batch_indices, gather_batch_axis);

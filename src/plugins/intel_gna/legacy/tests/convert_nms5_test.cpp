@@ -812,7 +812,7 @@ TEST_F(TransformationTestsF, ConvertNMS5ToNMSIEDynamic2TwoInputs) {
                                                               true,
                                                               element::i32);
 
-        auto convert_0 = std::make_shared<opset1::Convert>(nms->output(0), element::i64);
+        auto convert_0 = std::make_shared<ov::op::v0::Convert>(nms->output(0), element::i64);
 
         function_ref = std::make_shared<Function>(NodeVector{convert_0}, ParameterVector{boxes, scores});
     }

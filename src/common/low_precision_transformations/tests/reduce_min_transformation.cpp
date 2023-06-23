@@ -27,13 +27,13 @@ using namespace ngraph;
 using namespace ngraph::pass;
 using namespace ngraph::builder::subgraph;
 
-class ReduceMinTransformation : public ReduceTransformation<opset1::ReduceMin> {
+class ReduceMinTransformation : public ReduceTransformation<ov::op::v1::ReduceMin> {
     void SetUp() override {
         ReduceTransformation::SetUp();
         const auto transformationParams = std::get<1>(GetParam()).params;
 
         SimpleLowPrecisionTransformer transform;
-        transform.add<ngraph::pass::low_precision::ReduceMinTransformation, ngraph::opset1::ReduceMin>(transformationParams);
+        transform.add<ngraph::pass::low_precision::ReduceMinTransformation, ov::op::v1::ReduceMin>(transformationParams);
         transform.transform(actualFunction);
     }
 };

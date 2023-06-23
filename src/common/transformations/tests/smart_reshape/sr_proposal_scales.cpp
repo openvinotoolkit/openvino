@@ -42,7 +42,7 @@ TEST(SmartReshapeTests, Proposal1Scales) {
     }
 
     InferenceEngine::CNNNetwork network(f);
-    auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
+    auto unh = std::make_shared<ov::pass::UniqueNamesHolder>();
     init_unique_names(f, unh);
     ASSERT_NO_THROW(network.setBatchSize(2));
     check_unique_names(f, unh);
@@ -81,7 +81,7 @@ TEST(SmartReshapeTests, Proposal1Scales_WithConvert) {
     }
 
     InferenceEngine::CNNNetwork network(f);
-    auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
+    auto unh = std::make_shared<ov::pass::UniqueNamesHolder>();
     init_unique_names(f, unh);
     ASSERT_NO_THROW(network.setBatchSize(2));
     check_unique_names(f, unh);
@@ -120,7 +120,7 @@ TEST(SmartReshapeTests, Proposal4Scales) {
 
     InferenceEngine::CNNNetwork network(f);
 
-    auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
+    auto unh = std::make_shared<ov::pass::UniqueNamesHolder>();
     init_unique_names(f, unh);
     ASSERT_NO_THROW(network.setBatchSize(2));
     check_unique_names(f, unh);
@@ -161,7 +161,7 @@ TEST(SmartReshapeTests, Proposal4Scales_WithConvert) {
 
     InferenceEngine::CNNNetwork network(f);
 
-    auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
+    auto unh = std::make_shared<ov::pass::UniqueNamesHolder>();
     init_unique_names(f, unh);
     ASSERT_NO_THROW(network.setBatchSize(2));
     check_unique_names(f, unh);

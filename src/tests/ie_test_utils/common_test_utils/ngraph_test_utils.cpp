@@ -23,19 +23,20 @@ public:
         }
         return false;
     }
+
 private:
     // we store a reference to shared_ptr because it will be initialized later in the test body
     const std::shared_ptr<ov::Model>& m_ref_model;
 };
 
-} // namespace pass
-} // namespace ov
+}  // namespace pass
+}  // namespace ov
 
 TransformationTestsF::TransformationTestsF()
     : model(function),
       model_ref(function_ref),
       comparator(FunctionsComparator::no_default()) {
-    m_unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
+    m_unh = std::make_shared<ov::pass::UniqueNamesHolder>();
     comparator.enable(FunctionsComparator::CmpValues::NODES);
     comparator.enable(FunctionsComparator::CmpValues::PRECISIONS);
     comparator.enable(FunctionsComparator::CmpValues::RUNTIME_KEYS);
@@ -47,7 +48,7 @@ TransformationTestsF::TransformationTestsF()
 }
 
 void TransformationTestsF::SetUp() {
-    manager.register_pass<ngraph::pass::InitUniqueNames>(m_unh);
+    manager.register_pass<ov::pass::InitUniqueNames>(m_unh);
     manager.register_pass<ov::pass::InitNodeInfo>();
     manager.register_pass<ov::pass::CopyTensorNamesToRefModel>(function_ref);
 }
@@ -58,16 +59,16 @@ void TransformationTestsF::TearDown() {
     std::shared_ptr<ov::Model> cloned_function;
     auto acc_enabled = comparator.should_compare(FunctionsComparator::ACCURACY);
     if (!function_ref) {
-        cloned_function = ngraph::clone_function(*function);
+        cloned_function = function->clone();
         function_ref = cloned_function;
     } else if (acc_enabled) {
-        cloned_function = ngraph::clone_function(*function);
+        cloned_function = function->clone();
     }
-    manager.register_pass<ngraph::pass::CheckUniqueNames>(m_unh, m_soft_names_comparison, m_result_friendly_names_check);
+    manager.register_pass<ov::pass::CheckUniqueNames>(m_unh, m_soft_names_comparison, m_result_friendly_names_check);
     manager.run_passes(function);
 
     if (!m_disable_rt_info_check) {
-    ASSERT_NO_THROW(check_rt_info(function));
+        ASSERT_NO_THROW(check_rt_info(function));
     }
 
     if (acc_enabled) {
@@ -94,18 +95,18 @@ void TransformationTestsF::disable_result_friendly_names_check() {
     m_result_friendly_names_check = false;
 }
 
-void init_unique_names(std::shared_ptr<ngraph::Function> f, const std::shared_ptr<ngraph::pass::UniqueNamesHolder>& unh) {
-    ngraph::pass::Manager manager;
-    manager.register_pass<ngraph::pass::InitUniqueNames>(unh);
+void init_unique_names(const std::shared_ptr<ov::Model>& f, const std::shared_ptr<ov::pass::UniqueNamesHolder>& unh) {
+    ov::pass::Manager manager;
+    manager.register_pass<ov::pass::InitUniqueNames>(unh);
     manager.run_passes(f);
 }
 
-void check_unique_names(std::shared_ptr<ngraph::Function> f, const std::shared_ptr<ngraph::pass::UniqueNamesHolder>& unh) {
-    ngraph::pass::Manager manager;
-    manager.register_pass<ngraph::pass::CheckUniqueNames>(unh, true);
+void check_unique_names(const std::shared_ptr<ov::Model>& f, const std::shared_ptr<ov::pass::UniqueNamesHolder>& unh) {
+    ov::pass::Manager manager;
+    manager.register_pass<ov::pass::CheckUniqueNames>(unh, true);
     manager.run_passes(f);
 }
 
-std::shared_ptr<ov::opset8::Constant> create_zero_constant(const ov::element::Type_t& et, const ov::Shape& shape) {
-    return ov::opset8::Constant::create(et, shape, {0});
+std::shared_ptr<ov::op::v0::Constant> create_zero_constant(const ov::element::Type_t& et, const ov::Shape& shape) {
+    return ov::op::v0::Constant::create(et, shape, {0});
 }

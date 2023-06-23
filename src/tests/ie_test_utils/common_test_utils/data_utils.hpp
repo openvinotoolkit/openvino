@@ -18,6 +18,7 @@
 #include <random>
 
 namespace CommonTestUtils {
+OPENVINO_SUPPRESS_DEPRECATED_START
 
 inline void fill_data(float *data, size_t size, size_t duty_ratio = 10) {
     for (size_t i = 0; i < size; i++) {
@@ -507,5 +508,7 @@ inline ngraph::bfloat16 ie_abs(const ngraph::bfloat16 &val) {
 inline ngraph::float16 ie_abs(const ngraph::float16 &val) {
     return ngraph::float16::from_bits(val.to_bits() & 0x7FFF);
 }
+
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 }  // namespace CommonTestUtils

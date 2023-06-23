@@ -64,7 +64,7 @@ public:
             testValues.group);
 
         SimpleLowPrecisionTransformer transform;
-        transform.add<ngraph::pass::low_precision::ShuffleChannelsTransformation, ngraph::opset1::ShuffleChannels>(testValues.params);
+        transform.add<ngraph::pass::low_precision::ShuffleChannelsTransformation, ov::op::v0::ShuffleChannels>(testValues.params);
         transform.transform(actualFunction);
 
         referenceFunction = ngraph::builder::subgraph::ShuffleChannelsFunction::getReference(

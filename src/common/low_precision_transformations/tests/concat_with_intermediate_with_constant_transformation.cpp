@@ -94,14 +94,14 @@ public:
         auto quantizationRestrictions = testValues.multiChannels ?
             std::vector<ngraph::pass::low_precision::QuantizationGranularityRestriction>() :
             std::vector<ngraph::pass::low_precision::QuantizationGranularityRestriction>({
-                ngraph::pass::low_precision::QuantizationGranularityRestriction::create<ngraph::opset1::AvgPool>()
+                ngraph::pass::low_precision::QuantizationGranularityRestriction::create<ov::op::v1::AvgPool>()
             });
 
         SimpleLowPrecisionTransformer transform({}, quantizationRestrictions);
-        transform.add<ngraph::pass::low_precision::ConcatTransformation, ngraph::opset1::Concat>(testValues.params);
-        transform.add<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation, ngraph::opset1::FakeQuantize>(testValues.params);
-        transform.add<ngraph::pass::low_precision::MaxPoolTransformation, ngraph::opset1::MaxPool>(testValues.params);
-        transform.add<ngraph::pass::low_precision::InterpolateTransformation, ngraph::opset1::Interpolate>(testValues.params);
+        transform.add<ngraph::pass::low_precision::ConcatTransformation, ov::op::v0::Concat>(testValues.params);
+        transform.add<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation, ov::op::v0::FakeQuantize>(testValues.params);
+        transform.add<ngraph::pass::low_precision::MaxPoolTransformation, ov::op::v1::MaxPool>(testValues.params);
+        transform.add<ngraph::pass::low_precision::InterpolateTransformation, ov::op::v0::Interpolate>(testValues.params);
         transform.transform(actualFunction);
 
         referenceFunction = ngraph::builder::subgraph::ConcatFunction::getReferenceWithIntermediateWithConstant(

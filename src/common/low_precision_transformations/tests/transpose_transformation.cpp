@@ -60,8 +60,7 @@ public:
                                                                       testValues.actual.dequantization);
 
         SimpleLowPrecisionTransformer transformer;
-        transformer.add<ngraph::pass::low_precision::TransposeTransformation, ngraph::opset1::Transpose>(
-            testValues.params);
+        transformer.add<ngraph::pass::low_precision::TransposeTransformation, ov::op::v1::Transpose>(testValues.params);
         transformer.transform(actualFunction);
 
         referenceFunction = ngraph::builder::subgraph::TransposeFunction::getReference(

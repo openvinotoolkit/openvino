@@ -55,26 +55,26 @@ public:
             const ngraph::element::Type precision,
             const ngraph::Shape& inputShape,
             const ngraph::builder::subgraph::DequantizationOperations& dequantizations) -> std::shared_ptr<ngraph::Function> {
-            const std::shared_ptr<ngraph::opset1::Parameter> input = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape);
-            const auto relu = std::make_shared<ngraph::opset1::Relu>(input);
+            const std::shared_ptr<ov::op::v0::Parameter> input = std::make_shared<ov::op::v0::Parameter>(precision, inputShape);
+            const auto relu = std::make_shared<ov::op::v0::Relu>(input);
             const auto dequantizationsNode = ngraph::builder::subgraph::makeDequantization(relu, dequantizations);
 
-            const std::shared_ptr<ngraph::Node> reshape1 = std::make_shared<ngraph::opset1::Reshape>(
+            const std::shared_ptr<ngraph::Node> reshape1 = std::make_shared<ov::op::v1::Reshape>(
                 dequantizationsNode,
-                std::make_shared<ngraph::opset1::Constant>(ngraph::element::i32, ngraph::Shape{ 2 }, std::vector<double>({0, -1})),
+                std::make_shared<ov::op::v0::Constant>(ngraph::element::i32, ngraph::Shape{ 2 }, std::vector<double>({0, -1})),
                 true);
             reshape1->set_friendly_name("reshape1");
 
-            const std::shared_ptr<ngraph::Node> reshape2 = std::make_shared<ngraph::opset1::Reshape>(
+            const std::shared_ptr<ngraph::Node> reshape2 = std::make_shared<ov::op::v1::Reshape>(
                 dequantizationsNode,
-                std::make_shared<ngraph::opset1::Constant>(ngraph::element::i32, ngraph::Shape{ 2 }, std::vector<double>({0, -1})),
+                std::make_shared<ov::op::v0::Constant>(ngraph::element::i32, ngraph::Shape{ 2 }, std::vector<double>({0, -1})),
                 true);
             reshape2->set_friendly_name("reshape2");
 
             return std::make_shared<ngraph::Function>(
                 ngraph::ResultVector{
-                    std::make_shared<ngraph::opset1::Result>(reshape1),
-                    std::make_shared<ngraph::opset1::Result>(reshape2)
+                    std::make_shared<ov::op::v0::Result>(reshape1),
+                    std::make_shared<ov::op::v0::Result>(reshape2)
                 },
                 std::vector<std::shared_ptr<ngraph::op::Parameter>> { input },
                 "SeparateInStandaloneBranchTransformation");
@@ -87,25 +87,25 @@ public:
             const ngraph::element::Type precision,
             const ngraph::Shape& inputShape,
             const ngraph::builder::subgraph::DequantizationOperations& dequantization) -> std::shared_ptr<ngraph::Function> {
-            const std::shared_ptr<ngraph::opset1::Parameter> input = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape);
-            const auto relu = std::make_shared<ngraph::opset1::Relu>(input);
+            const std::shared_ptr<ov::op::v0::Parameter> input = std::make_shared<ov::op::v0::Parameter>(precision, inputShape);
+            const auto relu = std::make_shared<ov::op::v0::Relu>(input);
 
-            const std::shared_ptr<ngraph::Node> reshape1 = std::make_shared<ngraph::opset1::Reshape>(
+            const std::shared_ptr<ngraph::Node> reshape1 = std::make_shared<ov::op::v1::Reshape>(
                 ngraph::builder::subgraph::makeDequantization(relu, dequantization),
-                std::make_shared<ngraph::opset1::Constant>(ngraph::element::i32, ngraph::Shape{ 2 }, std::vector<double>({0, -1})),
+                std::make_shared<ov::op::v0::Constant>(ngraph::element::i32, ngraph::Shape{ 2 }, std::vector<double>({0, -1})),
                 true);
             reshape1->set_friendly_name("reshape1");
 
-            const std::shared_ptr<ngraph::Node> reshape2 = std::make_shared<ngraph::opset1::Reshape>(
+            const std::shared_ptr<ngraph::Node> reshape2 = std::make_shared<ov::op::v1::Reshape>(
                 ngraph::builder::subgraph::makeDequantization(relu, dequantization),
-                std::make_shared<ngraph::opset1::Constant>(ngraph::element::i32, ngraph::Shape{ 2 }, std::vector<double>({0, -1})),
+                std::make_shared<ov::op::v0::Constant>(ngraph::element::i32, ngraph::Shape{ 2 }, std::vector<double>({0, -1})),
                 true);
             reshape2->set_friendly_name("reshape2");
 
             return std::make_shared<ngraph::Function>(
                 ngraph::ResultVector{
-                    std::make_shared<ngraph::opset1::Result>(reshape1),
-                    std::make_shared<ngraph::opset1::Result>(reshape2)
+                    std::make_shared<ov::op::v0::Result>(reshape1),
+                    std::make_shared<ov::op::v0::Result>(reshape2)
                 },
                 std::vector<std::shared_ptr<ngraph::op::Parameter>> { input },
                 "SeparateInStandaloneBranchTransformation");

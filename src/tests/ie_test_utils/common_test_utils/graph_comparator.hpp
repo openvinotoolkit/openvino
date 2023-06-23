@@ -11,10 +11,9 @@
 #include "openvino/core/dimension.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/model.hpp"
+#include "openvino/op/loop.hpp"
 #include "openvino/op/util/framework_node.hpp"
-#include "openvino/opsets/opset8.hpp"
-#include "openvino/pass/pass.hpp"
-#include "openvino/pass/serialize.hpp"
+#include "openvino/op/util/sub_graph_base.hpp"
 
 class FunctionsComparator {
 public:
@@ -69,10 +68,9 @@ public:
     bool should_compare(CmpValues f) const noexcept {
         return m_comparison_flags & f;
     }
-    Result compare(const std::shared_ptr<ngraph::Function>& f, const std::shared_ptr<ngraph::Function>& f_ref) const;
+    Result compare(const std::shared_ptr<ov::Model>& f, const std::shared_ptr<ov::Model>& f_ref) const;
 
-    Result operator()(const std::shared_ptr<ngraph::Function>& f,
-                      const std::shared_ptr<ngraph::Function>& f_ref) const {
+    Result operator()(const std::shared_ptr<ov::Model>& f, const std::shared_ptr<ov::Model>& f_ref) const {
         return compare(f, f_ref);
     }
 
@@ -85,8 +83,8 @@ private:
 /// \deprecated
 /// \brief compare_functions is obsolete function use FunctionsComparator instead.
 ///
-inline std::pair<bool, std::string> compare_functions(const std::shared_ptr<ngraph::Function>& f,
-                                                      const std::shared_ptr<ngraph::Function>& f_ref,
+inline std::pair<bool, std::string> compare_functions(const std::shared_ptr<ov::Model>& f,
+                                                      const std::shared_ptr<ov::Model>& f_ref,
                                                       const bool compareConstValues = false,
                                                       const bool compareNames = false,
                                                       const bool compareRuntimeKeys = false,
@@ -114,17 +112,17 @@ inline std::pair<bool, std::string> compare_functions(const std::shared_ptr<ngra
     return {r.valid, r.message};
 }
 
-void check_rt_info(const std::shared_ptr<ngraph::Function>& f);
+void check_rt_info(const std::shared_ptr<ov::Model>& f);
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 class InjectionPass : public ov::pass::ModelPass {
 public:
-    using injection_callback = std::function<void(std::shared_ptr<ngraph::Function>)>;
+    using injection_callback = std::function<void(std::shared_ptr<ov::Model>)>;
 
     explicit InjectionPass(injection_callback callback) : ModelPass(), m_callback(std::move(callback)) {}
 
-    bool run_on_model(const std::shared_ptr<ngraph::Function>& f) override {
+    bool run_on_model(const std::shared_ptr<ov::Model>& f) override {
         m_callback(f);
         return false;
     }
@@ -155,7 +153,7 @@ public:
 
     UniqueNamesHolder() = default;
 
-    void init_names(std::shared_ptr<Function> f) {
+    void init_names(std::shared_ptr<ov::Model> f) {
         // initialize function with unique friendly and tensor names
         for (auto node : f->get_ordered_ops()) {
             const auto& node_name = generate_friendly_name();
@@ -185,7 +183,7 @@ public:
         }
     }
 
-    void check_unique_names(std::shared_ptr<Function> f) {
+    void check_unique_names(std::shared_ptr<ov::Model> f) {
         // Check that all tensor names and friendly names are unique
         names_t unique_tensor_names, unique_friendly_names;
         for (auto node : f->get_ordered_ops()) {
@@ -197,13 +195,13 @@ public:
             }
             unique_friendly_names.insert(node->get_friendly_name());
 
-            if (as_type_ptr<op::Result>(node))
+            if (as_type_ptr<ov::op::v0::Result>(node))
                 continue;
             for (auto output : node->outputs()) {
                 const auto& tensor_names = output.get_names();
                 if (std::any_of(tensor_names.begin(), tensor_names.end(), [&](const std::string& name) {
-                    return unique_tensor_names.count(name);
-                })) {
+                        return unique_tensor_names.count(name);
+                    })) {
                     std::stringstream ss;
                     ss << "Node: " << node->get_type_info() << " with name " << node->get_friendly_name() << " ";
                     ss << "has non unique tensor name.";
@@ -230,8 +228,8 @@ public:
             if (m_result_friendly_names_check) {
                 // Check that result input node names are preserved
                 bool is_multi_output = m_result_node_names.at(r.get()).second;
-                const auto &ref_node_name = m_result_node_names.at(r.get()).first;
-                const auto &cur_node_name = r->input_value(0).get_node()->get_friendly_name();
+                const auto& ref_node_name = m_result_node_names.at(r.get()).first;
+                const auto& cur_node_name = r->input_value(0).get_node()->get_friendly_name();
                 if (is_multi_output || m_soft_names_comparison) {
                     if (cur_node_name.find(ref_node_name) == std::string::npos) {
                         std::stringstream ss;
@@ -262,7 +260,7 @@ class InitUniqueNames : public ov::pass::ModelPass {
 
 public:
     InitUniqueNames(UniqueNamesHolder::Ptr unh) : m_unh(unh) {}
-    bool run_on_model(const std::shared_ptr<Function>& f) override {
+    bool run_on_model(const std::shared_ptr<ov::Model>& f) override {
         m_unh->init_names(f);
         return false;
     }
@@ -272,32 +270,35 @@ class CheckUniqueNames : public ov::pass::ModelPass {
     UniqueNamesHolder::Ptr m_unh;
 
 public:
-    CheckUniqueNames(UniqueNamesHolder::Ptr unh, bool soft_names_comparison = false, bool result_friendly_names_check = true) : m_unh(unh) {
+    CheckUniqueNames(UniqueNamesHolder::Ptr unh,
+                     bool soft_names_comparison = false,
+                     bool result_friendly_names_check = true)
+        : m_unh(unh) {
         if (soft_names_comparison)
             m_unh->enable_soft_names_comparison();
         if (!result_friendly_names_check)
             m_unh->disable_result_friendly_names_check();
     }
-    bool run_on_model(const std::shared_ptr<Function>& f) override {
+    bool run_on_model(const std::shared_ptr<ov::Model>& f) override {
         m_unh->check_unique_names(f);
         return false;
     }
 };
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 class Comparator {
 public:
     using CmpValues = FunctionsComparator::CmpValues;
     using Result = FunctionsComparator::Result;
-    using ComparedNodes = std::pair<ngraph::Node*, ngraph::Node*>;
+    using ComparedNodes = std::pair<ov::Node*, ov::Node*>;
 
     explicit Comparator(CmpValues f) : m_comparison_flags(f) {}
 
-    Result compare(const std::shared_ptr<ngraph::Function>& f, const std::shared_ptr<ngraph::Function>& f_ref);
+    Result compare(const std::shared_ptr<ov::Model>& f, const std::shared_ptr<ov::Model>& f_ref);
 
-    Result compare(ngraph::Node* node1, ngraph::Node* node2) {
+    Result compare(ov::Node* node1, ov::Node* node2) {
         std::stringstream errors;
         const auto result = compare(node1, node2, errors);
         if (!result.valid) {
@@ -311,11 +312,11 @@ public:
         return Comparator(m_comparison_flags);
     }
 
-    void compare_inputs(ngraph::Node* node1, ngraph::Node* node2, std::ostream& err_log);
+    void compare_inputs(ov::Node* node1, ov::Node* node2, std::ostream& err_log);
 
-    void compare_outputs(ngraph::Node* node1, ngraph::Node* node2, std::ostream& err_log);
+    void compare_outputs(ov::Node* node1, ov::Node* node2, std::ostream& err_log);
 
-    void compare_nodes(ngraph::Node* node1, ngraph::Node* node2, std::ostream& err_log);
+    void compare_nodes(ov::Node* node1, ov::Node* node2, std::ostream& err_log);
 
 private:
     bool should_compare(CmpValues f) const noexcept {
@@ -326,15 +327,15 @@ private:
     /// \param err_log - will be fill by minor errors if happen
     /// \return only fatality error if some minor one appears it will be add to err_log
     ///
-    Result compare(ngraph::Node* node1, ngraph::Node* node2, std::ostream& err_log);
+    Result compare(ov::Node* node1, ov::Node* node2, std::ostream& err_log);
 
-    void add_nodes_inputs_to_queue(ngraph::Node* node1, ngraph::Node* node2);
+    void add_nodes_inputs_to_queue(ov::Node* node1, ov::Node* node2);
 
     //-- DATA --
     CmpValues m_comparison_flags;
 
     std::queue<ComparedNodes> q;
-    std::unordered_set<ngraph::Node*> used;
+    std::unordered_set<ov::Node*> used;
 };
 
 inline namespace tools {
@@ -381,7 +382,7 @@ using SubGraphOpInputDescription = std::vector<std::shared_ptr<ov::op::util::Sub
 
 using SubGraphOpOutputDescription = std::vector<std::shared_ptr<ov::op::util::SubGraphOp::OutputDescription>>;
 
-using SpecialBodyPorts = ov::opset8::Loop::SpecialBodyPorts;
+using SpecialBodyPorts = ov::op::v5::Loop::SpecialBodyPorts;
 
 namespace storage {
 
@@ -449,11 +450,11 @@ class Storage : private AttributeStorage<MemoryChunk>,
                 private AttributeStorage<std::vector<float>>,
                 private AttributeStorage<std::vector<double>>,
                 private AttributeStorage<std::vector<std::string>>,
-                private AttributeStorage<std::shared_ptr<ngraph::Function>>,
+                private AttributeStorage<std::shared_ptr<ov::Model>>,
                 private AttributeStorage<SubGraphOpInputDescription>,
                 private AttributeStorage<SubGraphOpOutputDescription>,
                 private AttributeStorage<ov::op::util::FrameworkNodeAttrs>,
-                private AttributeStorage<std::shared_ptr<ngraph::Variable>>,
+                private AttributeStorage<std::shared_ptr<ov::op::util::Variable>>,
                 private AttributeStorage<ov::PartialShape>,
                 private AttributeStorage<ov::Dimension> {
 public:
@@ -484,25 +485,25 @@ public:
                storage<std::vector<float>>().get_attributes_number() +
                storage<std::vector<double>>().get_attributes_number() +
                storage<std::vector<std::string>>().get_attributes_number() +
-               storage<std::shared_ptr<ngraph::Function>>().get_attributes_number() +
+               storage<std::shared_ptr<ov::Model>>().get_attributes_number() +
                storage<SubGraphOpInputDescription>().get_attributes_number() +
                storage<SubGraphOpOutputDescription>().get_attributes_number() +
                storage<ov::op::util::FrameworkNodeAttrs>().get_attributes_number() +
-               storage<std::shared_ptr<ngraph::Variable>>().get_attributes_number() +
+               storage<std::shared_ptr<ov::op::util::Variable>>().get_attributes_number() +
                storage<ov::PartialShape>().get_attributes_number() + storage<ov::Dimension>().get_attributes_number();
     }
 };
 
 }  // namespace storage
 
-class ReadAndStoreAttributes : public ngraph::AttributeVisitor, protected storage::Storage {
+class ReadAndStoreAttributes : public ov::AttributeVisitor, protected storage::Storage {
 public:
-    void on_adapter(const std::string& name, ngraph::ValueAccessor<void>& adapter) override;
+    void on_adapter(const std::string& name, ov::ValueAccessor<void>& adapter) override;
 
-#define ON_ADAPTER(TYPE)                                                                      \
-void on_adapter(const std::string& name, ngraph::ValueAccessor<TYPE>& adapter) override { \
-insert(name, adapter.get());                                                          \
-}
+#define ON_ADAPTER(TYPE)                                                                  \
+    void on_adapter(const std::string& name, ov::ValueAccessor<TYPE>& adapter) override { \
+        insert(name, adapter.get());                                                      \
+    }
 
     ON_ADAPTER(bool)
     ON_ADAPTER(std::string)
@@ -527,7 +528,7 @@ insert(name, adapter.get());                                                    
     ON_ADAPTER(std::vector<float>)
     ON_ADAPTER(std::vector<double>)
     ON_ADAPTER(std::vector<std::string>)
-    ON_ADAPTER(std::shared_ptr<ngraph::Function>)
+    ON_ADAPTER(std::shared_ptr<ov::Model>)
 
 #undef ON_ADAPTER
 
@@ -563,8 +564,8 @@ struct Equal {
 };
 
 template <>
-struct Equal<ngraph::bfloat16> {
-    static bool equal_value(ngraph::bfloat16 lhs, ngraph::bfloat16 rhs) {
+struct Equal<ov::bfloat16> {
+    static bool equal_value(ov::bfloat16 lhs, ov::bfloat16 rhs) {
         if (lhs.to_bits() == rhs.to_bits()) {
             return true;
         }
@@ -573,8 +574,8 @@ struct Equal<ngraph::bfloat16> {
 };
 
 template <>
-struct Equal<ngraph::float16> {
-    static bool equal_value(ngraph::float16 lhs, ngraph::float16 rhs) {
+struct Equal<ov::float16> {
+    static bool equal_value(ov::float16 lhs, ov::float16 rhs) {
         if (lhs.to_bits() == rhs.to_bits()) {
             return true;
         }
@@ -686,9 +687,9 @@ struct Equal<SubGraphOpOutputDescription> {
 };
 
 template <>
-struct Equal<std::shared_ptr<ngraph::Variable>> {
-    static bool equal_value(const std::shared_ptr<ngraph::Variable>& lhs,
-                            const std::shared_ptr<ngraph::Variable>& rhs) {
+struct Equal<std::shared_ptr<ov::op::util::Variable>> {
+    static bool equal_value(const std::shared_ptr<ov::op::util::Variable>& lhs,
+                            const std::shared_ptr<ov::op::util::Variable>& rhs) {
         return lhs->get_info() == rhs->get_info();
     }
 };
@@ -719,7 +720,7 @@ struct Equal<uint8_t*> {
     }
 };
 
-using Constant = ov::opset8::Constant;
+using Constant = ov::op::v0::Constant;
 template <>
 struct Equal<std::shared_ptr<Constant>> {
     static bool equal_value(const std::shared_ptr<Constant>& lhs, const std::shared_ptr<Constant>& rhs) {
@@ -730,37 +731,37 @@ struct Equal<std::shared_ptr<Constant>> {
         }
 
         switch (lhs_t) {
-            case ngraph::element::Type_t::u1: {
-                const auto lhs_v = static_cast<const uint8_t*>(lhs->get_data_ptr());
-                const auto rhs_v = static_cast<const uint8_t*>(rhs->get_data_ptr());
-                const auto lhs_bit_size = shape_size(lhs->get_shape());
-                const auto rhs_bit_size = shape_size(rhs->get_shape());
-                return Equal<uint8_t*>::equal_value(lhs_v, rhs_v, lhs_bit_size, rhs_bit_size);
-            }
-            case ngraph::element::Type_t::bf16: {
-                auto lhs_v = lhs->cast_vector<ngraph::bfloat16>();
-                auto rhs_v = rhs->cast_vector<ngraph::bfloat16>();
-                return Equal<std::vector<ngraph::bfloat16>>::equal_value(lhs_v, rhs_v);
-                break;
-            }
-            case ngraph::element::Type_t::f16: {
-                const auto& lhs_v = lhs->cast_vector<ngraph::float16>();
-                const auto& rhs_v = rhs->cast_vector<ngraph::float16>();
-                return Equal<std::vector<ngraph::float16>>::equal_value(lhs_v, rhs_v);
-                break;
-            }
-            case ngraph::element::Type_t::f32: {
-                const auto& lhs_v = lhs->cast_vector<float>();
-                const auto& rhs_v = rhs->cast_vector<float>();
-                return Equal<std::vector<float>>::equal_value(lhs_v, rhs_v);
-                break;
-            }
-            default: {
-                const auto& lhs_v = lhs->cast_vector<double>();
-                const auto& rhs_v = rhs->cast_vector<double>();
-                return Equal<std::vector<double>>::equal_value(lhs_v, rhs_v);
-                break;
-            }
+        case ov::element::Type_t::u1: {
+            const auto lhs_v = static_cast<const uint8_t*>(lhs->get_data_ptr());
+            const auto rhs_v = static_cast<const uint8_t*>(rhs->get_data_ptr());
+            const auto lhs_bit_size = shape_size(lhs->get_shape());
+            const auto rhs_bit_size = shape_size(rhs->get_shape());
+            return Equal<uint8_t*>::equal_value(lhs_v, rhs_v, lhs_bit_size, rhs_bit_size);
+        }
+        case ov::element::Type_t::bf16: {
+            auto lhs_v = lhs->cast_vector<ov::bfloat16>();
+            auto rhs_v = rhs->cast_vector<ov::bfloat16>();
+            return Equal<std::vector<ov::bfloat16>>::equal_value(lhs_v, rhs_v);
+            break;
+        }
+        case ov::element::Type_t::f16: {
+            const auto& lhs_v = lhs->cast_vector<ov::float16>();
+            const auto& rhs_v = rhs->cast_vector<ov::float16>();
+            return Equal<std::vector<ov::float16>>::equal_value(lhs_v, rhs_v);
+            break;
+        }
+        case ov::element::Type_t::f32: {
+            const auto& lhs_v = lhs->cast_vector<float>();
+            const auto& rhs_v = rhs->cast_vector<float>();
+            return Equal<std::vector<float>>::equal_value(lhs_v, rhs_v);
+            break;
+        }
+        default: {
+            const auto& lhs_v = lhs->cast_vector<double>();
+            const auto& rhs_v = rhs->cast_vector<double>();
+            return Equal<std::vector<double>>::equal_value(lhs_v, rhs_v);
+            break;
+        }
         }
         return false;
     }
@@ -863,8 +864,8 @@ struct Get<ov::PartialShape, void> {
 };
 
 template <>
-struct Get<std::shared_ptr<ngraph::Variable>, void> {
-    static std::string value(const std::shared_ptr<ngraph::Variable>& variable) {
+struct Get<std::shared_ptr<ov::op::util::Variable>, void> {
+    static std::string value(const std::shared_ptr<ov::op::util::Variable>& variable) {
         std::stringstream oss;
         const auto variable_info = variable->get_info();
         oss << "[";
@@ -878,21 +879,21 @@ struct Get<std::shared_ptr<ngraph::Variable>, void> {
 
 }  // namespace str
 
-class ReadAndCompareAttributes : public ngraph::AttributeVisitor {
+class ReadAndCompareAttributes : public ov::AttributeVisitor {
 public:
     ReadAndCompareAttributes(const ReadAndStoreAttributes& ref, Comparator::CmpValues check_flags)
-            : m_attr_ref(ref),
-              m_cmp_result{ref.read_result()},
-              m_check_flags(check_flags) {}
+        : m_attr_ref(ref),
+          m_cmp_result{ref.read_result()},
+          m_check_flags(check_flags) {}
 
-    void on_adapter(const std::string& name, ngraph::ValueAccessor<void>& adapter) override {
+    void on_adapter(const std::string& name, ov::ValueAccessor<void>& adapter) override {
         verify_others(name, adapter);
     }
 
-#define ON_ADAPTER(TYPE)                                                                      \
-void on_adapter(const std::string& name, ngraph::ValueAccessor<TYPE>& adapter) override { \
-verify(name, adapter.get());                                                          \
-}
+#define ON_ADAPTER(TYPE)                                                                  \
+    void on_adapter(const std::string& name, ov::ValueAccessor<TYPE>& adapter) override { \
+        verify(name, adapter.get());                                                      \
+    }
 
     ON_ADAPTER(bool)
     ON_ADAPTER(std::string)
@@ -920,8 +921,7 @@ verify(name, adapter.get());                                                    
 
 #undef ON_ADAPTER
 
-    void on_adapter(const std::string& name,
-                    ngraph::ValueAccessor<std::shared_ptr<ngraph::Function>>& adapter) override {
+    void on_adapter(const std::string& name, ov::ValueAccessor<std::shared_ptr<ov::Model>>& adapter) override {
         verify_function(name, adapter);
     }
 
@@ -947,11 +947,11 @@ private:
 
     void verify_mem_buf(const std::string& name, const std::shared_ptr<ngraph::runtime::AlignedBuffer>& buffer);
 
-    using ModelAccessor = ngraph::ValueAccessor<std::shared_ptr<ngraph::Function>>;
+    using ModelAccessor = ov::ValueAccessor<std::shared_ptr<ov::Model>>;
 
     void verify_function(const std::string& name, ModelAccessor& adapter);
 
-    void verify_others(const std::string& name, ngraph::ValueAccessor<void>& adapter);
+    void verify_others(const std::string& name, ov::ValueAccessor<void>& adapter);
     //-- DATA --
     const ReadAndStoreAttributes& m_attr_ref;
     Result m_cmp_result;
@@ -997,7 +997,7 @@ private:
 
 }  // namespace detail
 
-Comparator::Result compare(ngraph::Node* node1, ngraph::Node* node2, Comparator::CmpValues comparition_flags);
+Comparator::Result compare(ov::Node* node1, ov::Node* node2, Comparator::CmpValues comparition_flags);
 
 }  // namespace attributes
 

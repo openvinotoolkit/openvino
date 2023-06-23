@@ -19,19 +19,19 @@ public:
         const PartialShape& input_shape2,
         const ov::element::Type input_type,
         const ov::op::AutoBroadcastSpec broadcast) {
-        const auto parameter1 = std::make_shared<ngraph::opset1::Parameter>(input_type, input_shape1);
+        const auto parameter1 = std::make_shared<ov::op::v0::Parameter>(input_type, input_shape1);
         parameter1->set_friendly_name("parameter1");
 
-        const auto parameter2 = std::make_shared<ngraph::opset1::Parameter>(input_type, input_shape2);
+        const auto parameter2 = std::make_shared<ov::op::v0::Parameter>(input_type, input_shape2);
         parameter2->set_friendly_name("parameter2");
 
-        std::shared_ptr<Node> parent = std::make_shared<ngraph::opset1::Multiply>(
+        std::shared_ptr<Node> parent = std::make_shared<ov::op::v1::Multiply>(
             parameter1,
             parameter2,
             broadcast);
         parent->set_friendly_name("multiply");
 
-        const auto result = std::make_shared<ngraph::opset1::Result>(parent);
+        const auto result = std::make_shared<ov::op::v0::Result>(parent);
         result->set_friendly_name("result");
 
         return std::make_shared<ngraph::Function>(

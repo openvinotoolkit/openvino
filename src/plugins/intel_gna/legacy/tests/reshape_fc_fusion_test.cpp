@@ -35,12 +35,12 @@ TEST(TransformationTests, ReshapeFCFusiuonTest1) {
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{fc}, ngraph::ParameterVector{});
 
-        auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
+        auto unh = std::make_shared<ov::pass::UniqueNamesHolder>();
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitUniqueNames>(unh);
+        m.register_pass<ov::pass::InitUniqueNames>(unh);
         m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ngraph::pass::ReshapeFullyConnectedFusion>();
-        m.register_pass<ngraph::pass::CheckUniqueNames>(unh);
+        m.register_pass<ov::pass::CheckUniqueNames>(unh);
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -59,12 +59,12 @@ TEST(TransformationTests, ReshapeFCFusiuonTest2) {
         auto fc = std::make_shared<ngraph::op::FullyConnected>(reshape, fc_weights, fc_biases, ngraph::Shape{1, 6});
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{fc}, ngraph::ParameterVector{});
-        auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
+        auto unh = std::make_shared<ov::pass::UniqueNamesHolder>();
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitUniqueNames>(unh);
+        m.register_pass<ov::pass::InitUniqueNames>(unh);
         m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ngraph::pass::ReshapeFullyConnectedFusion>();
-        m.register_pass<ngraph::pass::CheckUniqueNames>(unh);
+        m.register_pass<ov::pass::CheckUniqueNames>(unh);
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -83,12 +83,12 @@ TEST(TransformationTests, ReshapeFCFusiuonTest3) {
         auto fc = std::make_shared<ngraph::op::FullyConnected>(reshape, fc_weights, fc_biases, ngraph::Shape{2, 6});
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{fc}, ngraph::ParameterVector{});
-        auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
+        auto unh = std::make_shared<ov::pass::UniqueNamesHolder>();
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitUniqueNames>(unh);
+        m.register_pass<ov::pass::InitUniqueNames>(unh);
         m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ngraph::pass::ReshapeFullyConnectedFusion>();
-        m.register_pass<ngraph::pass::CheckUniqueNames>(unh);
+        m.register_pass<ov::pass::CheckUniqueNames>(unh);
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -105,12 +105,12 @@ TEST(TransformationTests, ReshapeFCFusiuonDynamic) {
     auto fc = std::make_shared<ngraph::op::FullyConnected>(reshape, fc_weights, fc_biases, ngraph::Shape{1, 6});
 
     auto f = std::make_shared<ngraph::Function>(ngraph::NodeVector{fc}, ngraph::ParameterVector{});
-    auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
+    auto unh = std::make_shared<ov::pass::UniqueNamesHolder>();
     ngraph::pass::Manager m;
-    m.register_pass<ngraph::pass::InitUniqueNames>(unh);
+    m.register_pass<ov::pass::InitUniqueNames>(unh);
     m.register_pass<ov::pass::InitNodeInfo>();
     m.register_pass<ngraph::pass::ReshapeFullyConnectedFusion>();
-    m.register_pass<ngraph::pass::CheckUniqueNames>(unh);
+    m.register_pass<ov::pass::CheckUniqueNames>(unh);
     m.run_passes(f);
     ASSERT_NO_THROW(check_rt_info(f));
 }

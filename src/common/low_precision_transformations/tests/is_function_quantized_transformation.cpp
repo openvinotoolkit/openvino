@@ -33,7 +33,7 @@ public:
     void SetUp() override {
         const auto testValues = GetParam();
 
-        const auto input = std::make_shared<ov::opset1::Parameter>(testValues.precision, ngraph::Shape(testValues.shape));
+        const auto input = std::make_shared<ov::op::v0::Parameter>(testValues.precision, ngraph::Shape(testValues.shape));
         const auto fakeQuantize = ngraph::builder::subgraph::makeFakeQuantize(
             input,
             testValues.precision,
@@ -44,7 +44,7 @@ public:
             replace_node(fakeQuantize->get_input_node_shared_ptr(3), input);
         }
 
-        ngraph::ResultVector results{ std::make_shared<ov::opset1::Result>(fakeQuantize) };
+        ngraph::ResultVector results{ std::make_shared<ov::op::v0::Result>(fakeQuantize) };
         function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "IsFunctionQuantizedFunction");
         function->validate_nodes_and_infer_types();
     }

@@ -81,13 +81,13 @@ std::shared_ptr<ngraph::Function> get_reference_function(const ngraph::PartialSh
 }
 
 void test(std::shared_ptr<ngraph::Function> f, std::shared_ptr<ngraph::Function> f_ref) {
-    auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
+    auto unh = std::make_shared<ov::pass::UniqueNamesHolder>();
     ngraph::pass::Manager manager;
-    manager.register_pass<ngraph::pass::InitUniqueNames>(unh);
+    manager.register_pass<ov::pass::InitUniqueNames>(unh);
     manager.register_pass<ov::pass::InitNodeInfo>();
     manager.register_pass<ov::pass::ConvertScatterElementsToScatter>();
-    manager.register_pass<ngraph::pass::CheckUniqueNames>(unh);
-    manager.register_pass<ngraph::pass::InjectionPass>([](std::shared_ptr<ngraph::Function> f) {
+    manager.register_pass<ov::pass::CheckUniqueNames>(unh);
+    manager.register_pass<ov::pass::InjectionPass>([](std::shared_ptr<ngraph::Function> f) {
         check_rt_info(f);
     });
     manager.register_pass<ngraph::pass::ConstantFolding>();

@@ -56,43 +56,43 @@ void getTransformerWithTransformationByName(
     using namespace pass::low_precision;
 
     if (name == "AddTransformationWithoutConcat" || name == "AddTransformationWithConcat") {
-        transformer.add<AddTransformation, ngraph::opset1::Add>(params);
+        transformer.add<AddTransformation, ov::op::v1::Add>(params);
         return;
     }
     if (name == "AvgPoolTransformation") {
-        transformer.add<AvgPoolTransformation, opset1::AvgPool>(params);
+        transformer.add<AvgPoolTransformation, ov::op::v1::AvgPool>(params);
         return;
     }
     if (name == "ClampTransformation") {
-        transformer.add<ClampTransformation, opset1::Clamp>(params);
+        transformer.add<ClampTransformation, ov::op::v0::Clamp>(params);
         return;
     }
     if (name == "ConvolutionTransformation" || name == "AsymmetricConvolutionTransformation") {
-        transformer.add<ConvolutionTransformation, opset1::Convolution>(params);
+        transformer.add<ConvolutionTransformation, ov::op::v1::Convolution>(params);
         return;
     }
     if (name == "DepthToSpaceTransformation") {
-        transformer.add<DepthToSpaceTransformation, opset1::DepthToSpace>(params);
+        transformer.add<DepthToSpaceTransformation, ov::op::v0::DepthToSpace>(params);
         return;
     }
     if (name == "FakeQuantizeTransformation") {
-        transformer.add<FakeQuantizeTransformation, opset1::FakeQuantize>(params);
+        transformer.add<FakeQuantizeTransformation, ov::op::v0::FakeQuantize>(params);
         return;
     }
     if (name == "InterpolateTransformation") {
-        transformer.add<InterpolateTransformation, ngraph::opset1::Interpolate>(params);
+        transformer.add<InterpolateTransformation, ov::op::v0::Interpolate>(params);
         return;
     }
     if (name == "MatMulTransformation") {
-        transformer.add<MatMulTransformation, ngraph::opset1::MatMul>(params);
+        transformer.add<MatMulTransformation, ov::op::v0::MatMul>(params);
         return;
     }
     if (name == "MaxPoolTransformation") {
-        transformer.add<MaxPoolTransformation, ngraph::opset1::MaxPool>(params);
+        transformer.add<MaxPoolTransformation, ov::op::v1::MaxPool>(params);
         return;
     }
     if (name == "MultiplyTransformation") {
-        transformer.add<MultiplyTransformation, ngraph::opset1::Multiply>(params);
+        transformer.add<MultiplyTransformation, ov::op::v1::Multiply>(params);
         return;
     }
     if (name == "MVNTransformation") {
@@ -100,51 +100,51 @@ void getTransformerWithTransformationByName(
         return;
     }
     if (name == "NormalizeL2Transformation") {
-        transformer.add<NormalizeL2Transformation, ngraph::opset1::NormalizeL2>(params);
+        transformer.add<NormalizeL2Transformation, ov::op::v0::NormalizeL2>(params);
         return;
     }
     if (name == "PReluTransformation") {
-        transformer.add<PReluTransformation, ngraph::opset1::PRelu>(params);
+        transformer.add<PReluTransformation, ov::op::v0::PRelu>(params);
         return;
     }
     if (name == "ReluTransformation") {
-        transformer.add<ReluTransformation, ngraph::opset1::Relu>(params);
+        transformer.add<ReluTransformation, ov::op::v0::PRelu>(params);
         return;
     }
     if (name == "ReshapeTransformation") {
-        transformer.add<ReshapeTransformation, ngraph::opset1::Reshape>(params);
+        transformer.add<ReshapeTransformation, ov::op::v1::Reshape>(params);
         return;
     }
     if (name == "SqueezeTransformation") {
-        transformer.add<SqueezeTransformation, ngraph::opset1::Squeeze>(params);
+        transformer.add<SqueezeTransformation, ov::op::v0::Squeeze>(params);
         return;
     }
     if (name == "StridedSliceTransformation") {
-        transformer.add<StridedSliceTransformation, ngraph::opset1::StridedSlice>(params);
+        transformer.add<StridedSliceTransformation, ov::op::v1::StridedSlice>(params);
         return;
     }
     if (name == "TransposeTransformation") {
-        transformer.add<TransposeTransformation, ngraph::opset1::Transpose>(params);
+        transformer.add<TransposeTransformation, ov::op::v1::Transpose>(params);
         return;
     }
     if (name == "UnsqueezeTransformation") {
-        transformer.add<UnsqueezeTransformation, ngraph::opset1::Unsqueeze>(params);
+        transformer.add<UnsqueezeTransformation, ov::op::v0::Unsqueeze>(params);
         return;
     }
     if (name == "FuseConvertTransformation") {
-        transformer.add<FuseConvertTransformation, ngraph::opset1::Multiply>(params);
+        transformer.add<FuseConvertTransformation, ov::op::v1::Multiply>(params);
         return;
     }
     if (name == "FuseSubtractToFakeQuantizeTransformation") {
-        transformer.add<FuseSubtractToFakeQuantizeTransformation, ngraph::opset1::Subtract>(params);
+        transformer.add<FuseSubtractToFakeQuantizeTransformation, ov::op::v1::Subtract>(params);
         return;
     }
     if (name == "FuseMultiplyToFakeQuantizeTransformation") {
-        transformer.add<FuseMultiplyToFakeQuantizeTransformation, ngraph::opset1::Multiply>(params);
+        transformer.add<FuseMultiplyToFakeQuantizeTransformation, ov::op::v1::Multiply>(params);
         return;
     }
     if (name == "MultiplyToGroupConvolutionTransformation") {
-        transformer.add<MultiplyToGroupConvolutionTransformation, ngraph::opset1::Multiply>(params);
+        transformer.add<MultiplyToGroupConvolutionTransformation, ov::op::v1::Multiply>(params);
         return;
     }
     throw std::runtime_error("unexpected transformation name");

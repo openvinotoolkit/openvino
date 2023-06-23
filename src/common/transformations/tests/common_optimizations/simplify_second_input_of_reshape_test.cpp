@@ -368,7 +368,7 @@ TEST_F(TransformationTestsF, SimplifySecondInputOfReshapeTest14) {
     {
         auto data = std::make_shared<opset7::Parameter>(element::f32, data_shape);
 
-        auto shape_of = std::make_shared<opset1::ShapeOf>(data);
+        auto shape_of = std::make_shared<ov::op::v0::ShapeOf>(data);
         auto gather_op = gather(shape_of, std::vector<int64_t>{0, 1});
         auto constant = opset7::Constant::create(element::i64, Shape{1}, {768});
         auto concat = std::make_shared<opset7::Concat>(OutputVector{gather_op, constant}, 0);

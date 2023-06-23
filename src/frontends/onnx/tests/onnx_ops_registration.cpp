@@ -23,7 +23,7 @@ static std::string s_manifest = "${MANIFEST}";
 
 NGRAPH_TEST(ops_registration, check_importing_abs_in_all_opset_versions) {
     ONNXModelEditor editor{
-        ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/abs.onnx")};
+        ov::util::path_join({CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/abs.onnx"})};
     for (int version = 1; version <= ONNX_OPSET_VERSION; ++version) {
         const auto changed_opset_model = change_opset_version(editor.model_string(), {version});
         std::stringstream model_stream{changed_opset_model};
@@ -37,9 +37,8 @@ NGRAPH_TEST(ops_registration, check_importing_add_in_different_opsets) {
                    return std::string{op->get_type_name()} == "Reshape";
                }) != std::end(ops);
     };
-    ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
-                                                        SERIALIZED_ZOO,
-                                                        "onnx/add_v6_broadcast_dynamic.onnx")};
+    ONNXModelEditor editor{ov::util::path_join(
+        {CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/add_v6_broadcast_dynamic.onnx"})};
     for (int version = 1; version <= ONNX_OPSET_VERSION; ++version) {
         const auto changed_opset_model = change_opset_version(editor.model_string(), {version});
         std::stringstream model_stream{changed_opset_model};

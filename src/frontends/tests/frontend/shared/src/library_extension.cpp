@@ -8,6 +8,8 @@
 #include <ostream>
 
 #include "common_test_utils/file_utils.hpp"
+#include "openvino/op/relu.hpp"
+#include "openvino/op/swish.hpp"
 #include "utils.hpp"
 
 using namespace ov::frontend;
@@ -52,7 +54,7 @@ TEST_P(FrontendLibraryExtensionTest, verifyFunctions) {
         ASSERT_NE(std::find_if(nodes.begin(),
                                nodes.end(),
                                [](const std::shared_ptr<ov::Node>& n) {
-                                   return ov::is_type<ov::opset8::Relu>(n);
+                                   return ov::is_type<ov::op::v0::Relu>(n);
                                }),
                   nodes.end());
     }
@@ -76,13 +78,13 @@ TEST_P(FrontendLibraryExtensionTest, verifyFunctions) {
         ASSERT_EQ(std::find_if(nodes.begin(),
                                nodes.end(),
                                [](const std::shared_ptr<ov::Node>& n) {
-                                   return ov::is_type<ov::opset8::Relu>(n);
+                                   return ov::is_type<ov::op::v0::Relu>(n);
                                }),
                   nodes.end());
         ASSERT_NE(std::find_if(nodes.begin(),
                                nodes.end(),
                                [](const std::shared_ptr<ov::Node>& n) {
-                                   return ov::is_type<ov::opset8::Swish>(n);
+                                   return ov::is_type<ov::op::v4::Swish>(n);
                                }),
                   nodes.end());
     }
