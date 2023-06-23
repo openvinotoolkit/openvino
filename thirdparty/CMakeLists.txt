@@ -35,10 +35,6 @@ if(ENABLE_PROFILING_ITT)
     add_subdirectory(itt_collector EXCLUDE_FROM_ALL)
 endif()
 
-if(ENABLE_SAMPLES OR ENABLE_TESTS)
-    add_subdirectory(cnpy EXCLUDE_FROM_ALL)
-endif()
-
 if(X86_64 OR UNIVERSAL2)
     find_package(xbyak QUIET)
     if(xbyak_FOUND)
@@ -172,19 +168,19 @@ endif()
 #
 
 if(ENABLE_SAMPLES OR ENABLE_TESTS)
-    find_package(ZLIB QUIET NO_MODULE)
+    find_package(ZLIB QUIET)
     if(ZLIB_FOUND)
-        # need to make it global to use outside of the current sub-directory
-        set_target_properties(ZLIB::ZLIB PROPERTIES IMPORTED_GLOBAL ON)
+        # FindZLIB module defines ZLIB::ZLIB, no extra steps are required
     endif()
 
     # cmake has failed to find zlib, let's try pkg-config
     if(NOT ZLIB_FOUND AND PkgConfig_FOUND)
         pkg_search_module(zlib QUIET
-                          IMPORTED_TARGET GLOBAL
+                          IMPORTED_TARGET
                           zlib)
         if(zlib_FOUND)
-            add_library(ZLIB::ZLIB ALIAS PkgConfig::zlib)
+            add_library(ZLIB::ZLIB INTERFACE IMPORTED)
+            set_target_properties(ZLIB::ZLIB PROPERTIES INTERFACE_LINK_LIBRARIES PkgConfig::zlib)
             message(STATUS "${PKG_CONFIG_EXECUTABLE}: zlib (${zlib_VERSION}) is found at ${zlib_PREFIX}")
         endif()
     endif()
@@ -192,6 +188,14 @@ if(ENABLE_SAMPLES OR ENABLE_TESTS)
     if(NOT (zlib_FOUND OR ZLIB_FOUND))
         add_subdirectory(zlib EXCLUDE_FROM_ALL)
     endif()
+endif()
+
+#
+# cnpy
+#
+
+if(ENABLE_SAMPLES OR ENABLE_TESTS)
+    add_subdirectory(cnpy EXCLUDE_FROM_ALL)
 endif()
 
 #
