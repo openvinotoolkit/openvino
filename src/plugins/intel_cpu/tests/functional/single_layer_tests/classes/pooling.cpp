@@ -81,7 +81,9 @@ void PoolingLayerCPUTest::SetUp() {
 
     std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
     std::tie(postOpMgrPtr, fusedOps) = fusingParams;
-
+    if (inPrc == ElementType::f16) {
+        configuration.insert({ov::hint::inference_precision.name(), ov::element::f16});
+    }
     if (selectedType.empty()) {
         selectedType = getPrimitiveType();
     }
@@ -169,6 +171,9 @@ void MaxPoolingV8LayerCPUTest::SetUp() {
     std::tie(kernel, stride, dilation, padBegin, padEnd, indexElementType, axis, roundingType, padType) =
         basicParamsSet;
     std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
+    if (inPrc == ElementType::f16) {
+        configuration.insert({ov::hint::inference_precision.name(), ov::element::f16});
+    }
     if (selectedType.empty()) {
         selectedType = getPrimitiveType();
     }
@@ -207,7 +212,7 @@ namespace Pooling {
 // The combination of parameters: NCHW + CEIL gives an accuracy problem in ACL AvgPool
 const ngraph::op::RoundingType expectedAvgRoundingType() {
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
-    return ngraph::op::RoundingType::FLOOR;
+    return ngraph::op::RoundingType::CEIL;
 #else
     return ngraph::op::RoundingType::CEIL;
 #endif
@@ -238,7 +243,7 @@ const std::vector<LayerTestsDefinitions::poolSpecificParams>& paramsAvg3D() {
 }
 
 const std::vector<ElementType>& inpOutPrecision() {
-    static const std::vector<ElementType> inpOutPrecision = {ElementType::f32/*, ElementType::bf16*/};
+    static const std::vector<ElementType> inpOutPrecision = {ElementType::f32, ElementType::f16/*, ElementType::bf16*/};
     return inpOutPrecision;
 }
 
@@ -431,8 +436,8 @@ const std::vector<LayerTestsDefinitions::poolSpecificParams>& paramsMax5D() {
 
 const std::vector<LayerTestsDefinitions::poolSpecificParams>& paramsAvg4D_Large() {
     static const std::vector<LayerTestsDefinitions::poolSpecificParams> paramsAvg4D_Large = {
-            LayerTestsDefinitions::poolSpecificParams{ ngraph::helpers::PoolingTypes::AVG, {65, 65}, {65, 65}, {0, 0}, {0, 0},
-                                ngraph::op::RoundingType::FLOOR, ngraph::op::PadType::VALID, true },
+            LayerTestsDefinitions::poolSpecificParams{ ngraph::helpers::PoolingTypes::AVG, {58, 58}, {58, 58}, {0, 0}, {0, 0},
+                                expectedAvgRoundingType(), ngraph::op::PadType::VALID, true },
     };
     return paramsAvg4D_Large;
 }
@@ -444,9 +449,9 @@ const std::vector<InputShape>& inputShapes4D_Large() {
                 {-1, -1, -1, -1},
                 // target
                 {
-                    {1, 16, 65, 65},
-                    {1, 8, 130, 130},
-                    {1, 16, 65, 65}
+                    {1, 16, 58, 58},
+                    {1, 8, 116, 116},
+                    {1, 16, 58, 58}
                 }
             },
     };

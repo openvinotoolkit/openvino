@@ -50,8 +50,8 @@ bool AclPoolingExecutor::isSupported(const TensorInfo& srcTensorInfo,
     if (pool_type == PoolingType::AVG &&
         dataLayout == arm_compute::DataLayout::NCHW &&
         poolingAttrs.rounding == op::RoundingType::CEIL) {
-        DEBUG_LOG("NCHW + CEIL gives an accuracy problem in ACL AvgPool. ACL executor will not be created.");
-        return false;
+        DEBUG_LOG("NCHW + CEIL gives an accuracy problem in ACL AvgPool. ACL executor will not be created. IGNORE");
+        //return false;
     }
     DimensionRoundingType round = (poolingAttrs.rounding == op::RoundingType::CEIL) ?
                                    DimensionRoundingType::CEIL : DimensionRoundingType::FLOOR;
