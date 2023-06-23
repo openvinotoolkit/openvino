@@ -237,7 +237,7 @@ MakePWLIdentityTestParam createIdentityParamsForScales(double in, double out) {
 
     // check if exception is thrown if division by zero is possible
     // check if exception is thrown if scale factor with too big difference are used
-    const auto x_lower = FloatToInt32(static_cast<double>(std::numeric_limits<int16_t>::min()) * in / out);
+    const auto x_lower = DoubleToInt32(static_cast<double>(std::numeric_limits<int16_t>::min()) * in / out);
 
     if (slope.value == 0 || x_lower == 0) {
         should_throw = true;

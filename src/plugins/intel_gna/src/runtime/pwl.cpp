@@ -354,7 +354,7 @@ void PwlDesign(const DnnActivation& activation_type,
         double pow_domain = x_max - x_min;
         ptr_segment[0].xBase = static_cast<int32_t>(INT32_MIN & XBASEMASK);  // zero out the 2 lsb
         num_segment_size = static_cast<int32_t>(pow_domain * scale_in / (num_segments - 2) + 0.5);
-        int32_t x_min_scaled = x_min * scale_in + 0.5;
+        int32_t x_min_scaled = static_cast<int32_t>(x_min * scale_in + 0.5);
         int32_t offset = x_min_scaled;
         for (uint32_t i = 1; i < num_segments; i++) {
             ptr_segment[i].xBase = static_cast<int32_t>(offset & XBASEMASK);  // zero out the 2 lsb
@@ -377,10 +377,10 @@ void PwlDesign(const DnnActivation& activation_type,
             double slope = (valnext - val) / (static_cast<double>(xbasenext - xbase) / scale_in);
             auto s = gna_slope(slope, scale_in, scale_out);
 
-            ptr_segment[i].slope = FloatToInt16(s.slope * s.slope_scale);
+            ptr_segment[i].slope = DoubleToInt16(s.slope * s.slope_scale);
             ptr_segment[i].xBase = ptr_segment[i].xBase | s.slope_scale_index;
 
-            ptr_segment[i].yBase = FloatToInt16(val * scale_out);
+            ptr_segment[i].yBase = DoubleToInt16(val * scale_out);
             log::debug() << (static_cast<int32_t>((ptr_segment[i].xBase & XBASEMASK)) / scale_out) << " "
                          << (static_cast<float>((ptr_segment[i].yBase)) / scale_out) << " " << (s.slope / scale_out)
                          << "\n";
@@ -523,16 +523,16 @@ void PwlApply32(intel_dnn_component_t* component,
         }
     } break;
     case kActFakeQuantize: {
-        double levels = static_cast<double>(transform->func_id.fqParams.levels);
+        auto levels = static_cast<uint32_t>(transform->func_id.fqParams.levels);
 
         for (uint32_t i = num_row_start; i <= num_row_end; i++) {
             auto inputChannel = transform->func_id.fqParams.inputPerChannel ? i : 0;
             auto outputChannel = transform->func_id.fqParams.outputPerChannel ? i : 0;
 
-            double input_low = transform->func_id.fqParams.input_low[inputChannel];
-            double input_high = transform->func_id.fqParams.input_high[inputChannel];
-            double output_low = transform->func_id.fqParams.output_low[outputChannel];
-            double output_high = transform->func_id.fqParams.output_high[outputChannel];
+            float input_low = transform->func_id.fqParams.input_low[inputChannel];
+            float input_high = transform->func_id.fqParams.input_high[inputChannel];
+            float output_low = transform->func_id.fqParams.output_low[outputChannel];
+            float output_high = transform->func_id.fqParams.output_high[outputChannel];
 
             for (uint32_t j = num_col_start; j <= num_col_end; j++) {
                 auto offset = i * num_columns + j;

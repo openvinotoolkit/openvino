@@ -15,7 +15,7 @@ void WorkerPoolImpl::addModelWorker(std::shared_ptr<Worker> worker) {
     if (!worker) {
         THROW_GNA_EXCEPTION << "cannot not add nullptr request worker to the pool";
     }
-    worker->setRepresentingIndex(modelWorkers_.size());
+    worker->setRepresentingIndex(static_cast<uint32_t>(modelWorkers_.size()));
     modelWorkers_.push_back(std::move(worker));
 }
 

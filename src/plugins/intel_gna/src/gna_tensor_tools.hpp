@@ -47,12 +47,12 @@ inline void ConvertTensorFromNCHWToNHWC(size_t precision,
         if (transpositionInfoPart.transpose && transpositionInfoPart.num_transpose_rows != 1 &&
             transpositionInfoPart.num_transpose_columns != 1) {
             if (transpose_rows) {
-                for (int weightsRowIx = 0; weightsRowIx < rows; ++weightsRowIx) {
+                for (size_t weightsRowIx = 0; weightsRowIx < rows; ++weightsRowIx) {
                     auto weightsRowsOffset = weightsRowIx * partSize * precision;
                     auto cbuffer = buffer + weightsPartOffset + weightsRowsOffset;
                     auto weights_ptr = transposedWeights.data() + weightsPartOffset + weightsRowsOffset;
-                    for (int colsIx = 0; colsIx < transpositionInfoPart.num_transpose_columns; ++colsIx) {
-                        for (int rowIx = 0; rowIx < transpositionInfoPart.num_transpose_rows; ++rowIx) {
+                    for (size_t colsIx = 0; colsIx < transpositionInfoPart.num_transpose_columns; ++colsIx) {
+                        for (size_t rowIx = 0; rowIx < transpositionInfoPart.num_transpose_rows; ++rowIx) {
                             auto offsetWrite = (colsIx * transpositionInfoPart.num_transpose_rows + rowIx) * precision;
                             auto offsetRead =
                                 (transpositionInfoPart.num_transpose_columns * rowIx + colsIx) * precision;
@@ -66,8 +66,8 @@ inline void ConvertTensorFromNCHWToNHWC(size_t precision,
             } else {
                 auto cbuffer = buffer + weightsPartOffset;
                 auto weights_ptr = transposedWeights.data() + weightsPartOffset;
-                for (int colsIx = 0; colsIx < transpositionInfoPart.num_transpose_columns; ++colsIx) {
-                    for (int rowIx = 0; rowIx < transpositionInfoPart.num_transpose_rows; ++rowIx) {
+                for (size_t colsIx = 0; colsIx < transpositionInfoPart.num_transpose_columns; ++colsIx) {
+                    for (size_t rowIx = 0; rowIx < transpositionInfoPart.num_transpose_rows; ++rowIx) {
                         auto offsetWrite =
                             (colsIx * transpositionInfoPart.num_transpose_rows + rowIx) * columns * precision;
                         auto offsetRead =

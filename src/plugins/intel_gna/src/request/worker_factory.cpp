@@ -66,7 +66,7 @@ std::vector<std::shared_ptr<Subrequest>> WorkerFactory::createModelSubrequests(
         THROW_GNA_EXCEPTION << "device is nullptr";
     };
 
-    for (int i = 0; i < submodelsNumber; ++i) {
+    for (uint32_t i = 0; i < submodelsNumber; ++i) {
         // this models are needed only temporarily to create configurations
         Gna2Model tempModel;
         tempModel.NumberOfOperations =

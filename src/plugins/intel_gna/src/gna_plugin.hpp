@@ -66,7 +66,7 @@ protected:
     /**
      * @brief size of RW segment without extra memory for parallel execution
      */
-    uint32_t rwSegmentSize = 0;
+    size_t rwSegmentSize = 0;
 
     InferenceEngine::InputsDataMap inputs_data_map_;    //!< Holds information about network inputs info
     InferenceEngine::OutputsDataMap outputs_data_map_;  //!< Holds information about network outputs data

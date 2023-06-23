@@ -174,7 +174,7 @@ struct RuntimeEndPoint {
         descriptor_offset = old.descriptor_offset;
         InferenceEngine::SizeVector dims = {ngroup, elements_count / ngroup};
         shape.NumberOfDimensions = static_cast<uint32_t>(dims.size());
-        for (auto i = 0; i < dims.size(); i++) {
+        for (size_t i = 0; i < dims.size(); i++) {
             shape.Dimensions[i] = static_cast<uint32_t>(dims[i]);
         }
     }

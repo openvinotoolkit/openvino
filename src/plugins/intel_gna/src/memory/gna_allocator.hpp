@@ -27,7 +27,7 @@ public:
     explicit GNAAllocator(std::shared_ptr<GNADeviceHelper> device) : _device(device) {}
     uint8_t* allocate(std::size_t n) {
         uint32_t granted = 0;
-        auto result = _device->alloc(n, &granted);
+        auto result = _device->alloc(static_cast<uint32_t>(n), &granted);
         if (result == nullptr || granted == 0) {
             throw std::bad_alloc();
         }

@@ -343,7 +343,7 @@ inline std::vector<TranspositionInfo> FindTranspositionInfoFromPrevLayers(Infere
         }
 
         std::vector<TranspositionInfo> transpositionInfo;
-        for (int idx = 0; idx < layer->insData.size(); ++idx) {
+        for (int idx = 0; idx < static_cast<int>(layer->insData.size()); ++idx) {
             if (!InferenceEngine::CNNNetHasPrevLayer(layer.get(), idx))
                 continue;
             auto inputLayer = InferenceEngine::CNNNetPrevLayer(layer, idx);
@@ -427,8 +427,8 @@ inline std::vector<TranspositionInfo> FindTranspositionInfoFromNextLayers(Infere
             size_t crop_offset = 1;
             size_t crop_out_size = 1;
             bool first_cropped_dim = true;
-            for (int i = 0; i < crop_layer->axis.size(); ++i) {
-                if (crop_layer->offset[i] == 0 && crop_layer->dim[i] == in_dims[i])
+            for (size_t i = 0; i < crop_layer->axis.size(); ++i) {
+                if (crop_layer->offset[i] == 0 && crop_layer->dim[i] == static_cast<int32_t>(in_dims[i]))
                     continue;
                 crop_offset *= first_cropped_dim ? crop_layer->offset[i] : crop_layer->dim[i];
                 crop_out_size *= crop_layer->dim[i];

@@ -290,7 +290,7 @@ void Config::AdjustKeyMapValues() {
             inputScaleFactors.push_back(kScaleFactorDefault);
         }
         keyConfigMap[GNA_CONFIG_KEY(SCALE_FACTOR)] = std::to_string(inputScaleFactors[0]);
-        for (int n = 0; n < inputScaleFactors.size(); n++) {
+        for (size_t n = 0; n < inputScaleFactors.size(); n++) {
             keyConfigMap[GNA_CONFIG_KEY(SCALE_FACTOR) + std::string("_") + std::to_string(n)] =
                 std::to_string(inputScaleFactors[n]);
         }

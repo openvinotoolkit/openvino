@@ -94,16 +94,16 @@ static bool GNA30SupportedConv(const InferenceEngine::Precision& gnaPrecision,
         return false;
     }
     const auto cnnIsValid = cnn2dValidatorPtr->ValidateCnn2D(graph_data.conv->get_friendly_name(),
-                                                             conv_data.input_height,
-                                                             conv_data.input_width,
-                                                             conv_data.input_channel_count,
-                                                             conv_data.filter_height,
-                                                             conv_data.filter_width,
-                                                             conv_data.filter_channel_count,
-                                                             conv_data.filter_stride_height,
-                                                             conv_data.filter_stride_width,
-                                                             conv_data.filter_dilation_height,
-                                                             conv_data.filter_dilation_width,
+                                                             static_cast<uint32_t>(conv_data.input_height),
+                                                             static_cast<uint32_t>(conv_data.input_width),
+                                                             static_cast<uint32_t>(conv_data.input_channel_count),
+                                                             static_cast<uint32_t>(conv_data.filter_height),
+                                                             static_cast<uint32_t>(conv_data.filter_width),
+                                                             static_cast<uint32_t>(conv_data.filter_channel_count),
+                                                             static_cast<uint32_t>(conv_data.filter_stride_height),
+                                                             static_cast<uint32_t>(conv_data.filter_stride_width),
+                                                             static_cast<uint32_t>(conv_data.filter_dilation_height),
+                                                             static_cast<uint32_t>(conv_data.filter_dilation_width),
                                                              OvGnaTypeIntFromBytes(gnaPrecision.size()),
                                                              false);
     if (!cnnIsValid) {
@@ -112,12 +112,13 @@ static bool GNA30SupportedConv(const InferenceEngine::Precision& gnaPrecision,
     if (!graph_data.max_pool) {
         return true;
     }
-    const auto poolingValid = cnn2dValidatorPtr->ValidatePooling2D(graph_data.conv->get_friendly_name(),
-                                                                   graph_data.max_pool->get_kernel()[0],
-                                                                   graph_data.max_pool->get_kernel()[1],
-                                                                   graph_data.max_pool->get_strides()[0],
-                                                                   graph_data.max_pool->get_strides()[1],
-                                                                   false);
+    const auto poolingValid =
+        cnn2dValidatorPtr->ValidatePooling2D(graph_data.conv->get_friendly_name(),
+                                             static_cast<uint32_t>(graph_data.max_pool->get_kernel()[0]),
+                                             static_cast<uint32_t>(graph_data.max_pool->get_kernel()[1]),
+                                             static_cast<uint32_t>(graph_data.max_pool->get_strides()[0]),
+                                             static_cast<uint32_t>(graph_data.max_pool->get_strides()[1]),
+                                             false);
     return poolingValid;
 }
 
@@ -147,13 +148,13 @@ static bool ShouldDecompose(GraphData& graph_data, const ConvData& conv_data) {
     if (graph_data.conv_count == 1 &&
         (((conv_data.input_height == 1 || conv_data.input_width == 1) && conv_data.filter_dilation_width == 1 &&
           conv_data.filter_dilation_height == 1) ||
-         gna_convolution_layer::isMappableFrom2DTo1D(conv_data.input_height,
-                                                     conv_data.input_width,
-                                                     conv_data.input_channel_count,
-                                                     conv_data.filter_height,
-                                                     conv_data.filter_width,
-                                                     conv_data.filter_stride_height,
-                                                     conv_data.filter_stride_width)))
+         gna_convolution_layer::isMappableFrom2DTo1D(static_cast<uint32_t>(conv_data.input_height),
+                                                     static_cast<uint32_t>(conv_data.input_width),
+                                                     static_cast<uint32_t>(conv_data.input_channel_count),
+                                                     static_cast<uint32_t>(conv_data.filter_height),
+                                                     static_cast<uint32_t>(conv_data.filter_width),
+                                                     static_cast<uint32_t>(conv_data.filter_stride_height),
+                                                     static_cast<uint32_t>(conv_data.filter_stride_width))))
         return false;
 
     return true;

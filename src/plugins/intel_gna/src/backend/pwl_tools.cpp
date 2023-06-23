@@ -28,7 +28,7 @@ int64_t ComputeSlopeScale(const int32_t x_base) {
 
 PWLSegmentSlope ComputeSlopeForSegment(double slope, double in_scale, double out_scale) {
     const auto gna_slope_value = gna_slope(slope, in_scale, out_scale);
-    auto segment_slope = common::FloatToInt64(gna_slope_value.slope * gna_slope_value.slope_scale);
+    auto segment_slope = common::DoubleToInt64(gna_slope_value.slope * gna_slope_value.slope_scale);
 
     if (segment_slope > std::numeric_limits<int16_t>::max()) {
         segment_slope = std::numeric_limits<int16_t>::max();
