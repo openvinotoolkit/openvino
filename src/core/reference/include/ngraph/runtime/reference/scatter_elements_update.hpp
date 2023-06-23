@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <cfenv>
 #include <cstring>
 #include <iterator>
 
@@ -112,6 +113,25 @@ std::function<T(const T, const T)> reduction_functor_for(const Reduction reducti
     }
 }
 
+template<typename T>
+T arithmetic_mean_int(const T accumulator, const int32_t N) {
+    const auto old_mode = std::fegetround();
+    std::fesetround(FE_DOWNWARD);
+    const T value = static_cast<T>(std::nearbyint(static_cast<double>(accumulator) / N));
+    std::fesetround(old_mode);
+    return value;
+}
+
+template<typename T>
+T arithmetic_mean(const T accumulator, const int32_t N) {
+    const auto et = element::from<T>();
+    if (et.is_integral_number()) {
+        return arithmetic_mean_int(accumulator, N);
+    } else {
+        return accumulator / N;
+    }
+}
+
 template <typename DataType, typename IndicesType>
 void scatter_elem_update_with_reduction(const DataType* input_data,
                                         const IndicesType* indices,
@@ -148,21 +168,24 @@ void scatter_elem_update_with_reduction(const DataType* input_data,
         }
     }
 
-    const auto reduce = reduction_functor_for<DataType>(reduction_type);
+    // keeps the count of numbers included in the initial sums accumulated in the output tensor (reduction: MEAN)
+    // the values in this map will later be used to divide the sums and calculate the final means
+    // the key is the output tensor's element index and the value is the count
+    std::unordered_map<size_t, int32_t> mean_reduction_counters;
 
-    std::map<size_t, size_t> mean_reduction_counters;
+    const auto reduce = reduction_functor_for<DataType>(reduction_type);
     for (const auto& offsets : idx_to_output) {
         out_buf[offsets.second] = reduce(out_buf[offsets.second], updates[offsets.first]);
         if (reduction_type == Reduction::MEAN) {
-            mean_reduction_counters[offsets.second] += 1u;
+            mean_reduction_counters[offsets.second] += 1;
         }
     }
 
     if (reduction_type == Reduction::MEAN) {
         for (const auto& counter : mean_reduction_counters) {
-            //include the initial value in the arithmetic mean divisor (if needed)
+            // include the initial value in the arithmetic mean divisor (if needed)
             const auto N = counter.second + static_cast<int32_t>(use_init_val);
-            out_buf[counter.first] /= N;
+            out_buf[counter.first] = arithmetic_mean<DataType>(out_buf[counter.first], N);
         }
     }
 }
