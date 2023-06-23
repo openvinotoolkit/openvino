@@ -776,7 +776,6 @@ std::vector<std::string> Plugin::get_device_capabilities(const cldnn::device_inf
     if (info.supports_immad)
         capabilities.push_back(ov::intel_gpu::capability::HW_MATMUL);
     capabilities.push_back(ov::device::capability::EXPORT_IMPORT);
-
     return capabilities;
 }
 
