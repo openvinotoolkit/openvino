@@ -363,3 +363,68 @@ TEST(prepare_buffer_fusing, crop_b_axis) {
         }
     }
 }
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+TEST(prepare_buffer_fusing, in_place_onednn_concat_static) {
+    auto& engine = get_test_engine();
+
+    if (!engine.get_device_info().supports_immad)
+       return;
+
+    auto in_layout1 = layout{ ov::PartialShape{1, 1, 4, 2}, data_types::f32, format::bfyx };
+    auto in_layout2 = layout{ ov::PartialShape{1, 2, 4, 2}, data_types::f32, format::bfyx };
+
+    topology topology;
+    topology.add(input_layout("input1", in_layout1));
+    topology.add(input_layout("input2", in_layout2));
+    topology.add(reorder("reorder1", input_info("input1"), format::bfyx, data_types::f16));
+    topology.add(reorder("reorder2", input_info("input2"), format::bfyx, data_types::f16));
+    topology.add(concatenation("concat", { input_info("reorder1"), input_info("reorder2") }, 1));
+    topology.add(reorder("output", input_info("concat"), format::bfyx, data_types::f32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(false));
+    network network(engine, topology, config);
+
+    auto input_memory1 = engine.allocate_memory(in_layout1);
+    auto input_memory2 = engine.allocate_memory(in_layout2);
+
+    set_values<float>(input_memory1,
+                       {1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f});
+    set_values<float>(input_memory2,
+                       {11.f, 22.f, 33.f, 44.f, 55.f, 66.f, 77.f, 88.f,
+                        111.f, 222.f, 333.f, 444.f, 555.f, 666.f, 777.f, 888.f});
+
+    network.set_input_data("input1", input_memory1);
+    network.set_input_data("input2", input_memory2);
+
+    std::vector<float> ref_output = {
+                        1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f,
+                        11.f, 22.f, 33.f, 44.f, 55.f, 66.f, 77.f, 88.f,
+                        111.f, 222.f, 333.f, 444.f, 555.f, 666.f, 777.f, 888.f};
+
+    std::map<cldnn::primitive_id, cldnn::network_output> output;
+
+    EXPECT_NO_THROW(output = network.execute());
+    auto out_l = network.get_output_layout("output");
+    auto out_mem = output.at("output").get_memory();
+    cldnn::mem_lock<float> output_ptr(out_mem, get_test_stream());
+    cldnn::mem_lock<float> input1_ptr(input_memory1, get_test_stream());
+    cldnn::mem_lock<float> input2_ptr(input_memory2, get_test_stream());
+
+    const auto& concat_node_n = network.get_primitive("concat")->get_node();
+    auto concat_mem = network.get_primitive("concat")->output_memory_ptr();
+    auto reorder1_mem = network.get_primitive("reorder1")->output_memory_ptr();
+    auto reorder2_mem = network.get_primitive("reorder2")->output_memory_ptr();
+
+    ASSERT_EQ(concat_mem.get(), reorder1_mem.get());
+    ASSERT_EQ(concat_mem.get(), reorder2_mem.get());
+    ASSERT_TRUE(concat_node_n.can_be_optimized());
+
+    for (size_t x = 0; x < out_l.count(); ++x) {
+        ASSERT_EQ(ref_output[x], output_ptr[x]);
+    }
+}
+
+#endif
