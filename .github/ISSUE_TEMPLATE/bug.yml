@@ -75,7 +75,6 @@ body:
       placeholder: ResNet50 / YOLOv4
     validations:
       required: false
-      #Endhere 
   - type: textarea
     id: bug_description
     attributes:
