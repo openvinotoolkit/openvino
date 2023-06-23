@@ -12,7 +12,7 @@ using primitive_desc_iterator = dnnl::primitive_desc;
 
 namespace utils {
 
-int get_cache_size(int level, bool per_core);
+unsigned get_cache_size(int level, bool per_core);
 
 const char* fmt2str(memory::format_tag fmt);
 dnnl::memory::format_tag str2fmt(const char *str);

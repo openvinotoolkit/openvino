@@ -160,3 +160,4 @@ attach_mvn_impl::attach_mvn_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::mvn_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::mvn)

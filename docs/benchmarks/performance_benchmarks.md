@@ -7,8 +7,8 @@
    :hidden:
 
    openvino_docs_performance_benchmarks_faq
-   openvino_docs_performance_int8_vs_fp32
-   Performance Data Spreadsheet (download xlsx) <https://docs.openvino.ai/2022.3/_static/benchmarks_files/OV-2022.3-Performance-Data.xlsx>
+   OpenVINO Accuracy <openvino_docs_performance_int8_vs_fp32>
+   Performance Data Spreadsheet (download xlsx) <https://docs.openvino.ai/2023.0/_static/benchmarks_files/OV-2023.0-Performance-Data.xlsx> 
    openvino_docs_MO_DG_Getting_Performance_Numbers
 
 
@@ -91,23 +91,19 @@ For a listing of all platforms and configurations used for testing, refer to the
 
    .. grid-item::
 
-      .. button-link:: _static/benchmarks_files/platform_list_22.3.pdf
+      .. button-link:: _static/benchmarks_files/OV-2023.0-Platform_list.pdf
          :color: primary
          :outline:
          :expand:
 
-         :material-regular:`download;1.5em` Click for Hardware Platforms    [PDF]
+         :material-regular:`download;1.5em` Click for Hardware Platforms [PDF]
       
-      .. button-link:: _static/benchmarks_files/OV-2022.3-system-info-detailed.xlsx
+      .. button-link:: _static/benchmarks_files/OV-2023.0-system-info-detailed.xlsx
          :color: primary
          :outline:
          :expand:
          
          :material-regular:`download;1.5em` Click for Configuration Details [XLSX]
-
-
-.. the files above need to be updated with OVMS !!!
-
 
 
 The OpenVINO benchmark setup includes a single system with OpenVINO™, as well as the benchmark application installed.
@@ -161,7 +157,7 @@ or `create an account <https://www.intel.com/content/www/us/en/secure/forms/devc
 Disclaimers
 ####################################
 
-* Intel® Distribution of OpenVINO™ toolkit performance results are based on release 2022.3, as of December 13, 2022.
+* Intel® Distribution of OpenVINO™ toolkit performance results are based on release 2023.0, as of June 01, 2023.
 
 * OpenVINO Model Server performance results are based on release 2022.3, as of December 13, 2022.
 

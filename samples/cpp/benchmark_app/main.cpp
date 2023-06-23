@@ -14,8 +14,18 @@
 #include "openvino/openvino.hpp"
 #include "openvino/pass/serialize.hpp"
 
+#ifndef IN_OV_COMPONENT
+#    define IN_OV_COMPONENT
+#    define WAS_OV_LIBRARY_DEFINED
+#endif
+
 #include "gna/gna_config.hpp"
 #include "gpu/gpu_config.hpp"
+
+#ifdef WAS_OV_LIBRARY_DEFINED
+#    undef IN_OV_COMPONENT
+#    undef WAS_OV_LIBRARY_DEFINED
+#endif
 
 #include "samples/args_helper.hpp"
 #include "samples/common.hpp"
@@ -299,6 +309,7 @@ int main(int argc, char* argv[]) {
             slog::info << "Extensions are loaded: " << FLAGS_extensions << slog::endl;
         }
 
+        OPENVINO_SUPPRESS_DEPRECATED_START
         // Load clDNN Extensions
         if ((FLAGS_d.find("GPU") != std::string::npos) && !FLAGS_c.empty()) {
             // Override config if command line parameter is specified
@@ -311,6 +322,7 @@ int main(int argc, char* argv[]) {
             core.set_property("GPU", {{CONFIG_KEY(CONFIG_FILE), ext}});
             slog::info << "GPU extensions are loaded: " << ext << slog::endl;
         }
+        OPENVINO_SUPPRESS_DEPRECATED_END
 
         slog::info << "OpenVINO:" << slog::endl;
         slog::info << ov::get_openvino_version() << slog::endl;
@@ -832,10 +844,12 @@ int main(int argc, char* argv[]) {
                 for (auto& item : devices_properties) {
                     slog::info << "  " << item.first << ": " << slog::endl;
                     for (auto& item2 : item.second.as<ov::AnyMap>()) {
+                        OPENVINO_SUPPRESS_DEPRECATED_START
                         if (item2.first == ov::supported_properties ||
                             item2.first == METRIC_KEY(SUPPORTED_CONFIG_KEYS) ||
                             item2.first == METRIC_KEY(SUPPORTED_METRICS))
                             continue;
+                        OPENVINO_SUPPRESS_DEPRECATED_END
                         slog::info << "    " << item2.first << ": " << item2.second.as<std::string>() << slog::endl;
                     }
                 }

@@ -22,11 +22,11 @@ Intel® Distribution of OpenVINO™ toolkit is a comprehensive toolkit for devel
 Install OpenVINO
 ################
 
-.. button-link:: https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/download.html
-   :color: primary
-   :outline:
+.. raw:: html
 
-   Check out the OpenVINO Download Page :fas:`fa-external-link-alt`
+   <script type="module" crossorigin src="_static/selector-tool/assets/index-89e3365b.js"></script>
+   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+   <iframe id="selector" src="_static/selector-tool/selector-0290a24.html" style="width: 100%; border: none" title="Download Intel® Distribution of OpenVINO™ Toolkit"></iframe>
 
 
 OpenVINO installation package is distributed in two parts: OpenVINO Runtime and OpenVINO Development Tools.
@@ -62,7 +62,6 @@ The following methods are available to install OpenVINO Runtime:
 * Linux: You can install OpenVINO Runtime using APT, YUM, archive files or Docker. See :doc:`Install OpenVINO on Linux <openvino_docs_install_guides_installing_openvino_linux_header>`.
 * Windows: You can install OpenVINO Runtime using archive files or Docker. See :doc:`Install OpenVINO on Windows <openvino_docs_install_guides_installing_openvino_windows_header>`.
 * macOS: You can install OpenVINO Runtime using archive files or Docker. See :doc:`Install OpenVINO on macOS <openvino_docs_install_guides_installing_openvino_macos_header>`.
-* :doc:`Raspbian OS <openvino_docs_install_guides_installing_openvino_raspbian>`
 
 Option 3. Build OpenVINO from source
 ++++++++++++++++++++++++++++++++++++
@@ -73,11 +72,13 @@ Next Steps
 ##########
 
 Still unsure if you want to install OpenVINO toolkit? Check out the :doc:`OpenVINO tutorials <tutorials>` to run example applications directly in your web browser without installing it locally. Here are some exciting demos you can explore:
-- `Monodepth Estimation with OpenVINO <https://docs.openvino.ai/latest/notebooks/201-vision-monodepth-with-output.html>`__
-- `Style Transfer on ONNX Models with OpenVINO <https://docs.openvino.ai/latest/notebooks/212-onnx-style-transfer-with-output.html>`__
-- `OpenVINO API Tutorial <https://docs.openvino.ai/latest/notebooks/002-openvino-api-with-output.html>`__
+
+- `Monodepth Estimation with OpenVINO <notebooks/201-vision-monodepth-with-output.html>`__
+- `Live Style Transfer with OpenVINO <notebooks/404-style-transfer-with-output.html>`__
+- `OpenVINO API Tutorial <notebooks/002-openvino-api-with-output.html>`__
 
 Follow these links to install OpenVINO:
+
 - :doc:`Install OpenVINO Development Tools <openvino_docs_install_guides_install_dev_tools>`
 - :doc:`Install OpenVINO Runtime <openvino_docs_install_guides_install_runtime>`
 - `Build from Source <https://github.com/openvinotoolkit/openvino/blob/master/docs/dev/build.md>`__

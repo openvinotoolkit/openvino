@@ -8,6 +8,7 @@
 
    openvino_docs_deployment_optimization_guide_common
    openvino_docs_OV_UG_Performance_Hints
+   openvino_docs_OV_UG_Precision_Control
    openvino_docs_deployment_optimization_guide_latency
    openvino_docs_deployment_optimization_guide_tput
    openvino_docs_deployment_optimization_guide_tput_advanced

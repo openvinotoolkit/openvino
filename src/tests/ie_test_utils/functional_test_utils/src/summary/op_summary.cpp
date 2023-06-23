@@ -160,8 +160,13 @@ void OpSummary::updateOPsStats(const std::shared_ptr<ov::Model> &model, const Pa
              std::dynamic_pointer_cast<ov::op::v0::Result>(op)) && isFunctionalGraph) {
             continue;
         }
-        if (!isReportConvert && std::dynamic_pointer_cast<ov::op::v0::Convert>(op)) {
-            continue;
+        // todo: remove w/a to provide correct convert reporting after merge CVS-110714
+        if (std::dynamic_pointer_cast<ov::op::v0::Convert>(op)) {
+            if (!isReportConvert) {
+                continue;
+            } else {
+                isReportConvert = false;
+            }
         }
         if (extractBody) {
             if (std::dynamic_pointer_cast<ov::op::v0::TensorIterator>(op)) {

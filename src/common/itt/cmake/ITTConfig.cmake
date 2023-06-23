@@ -26,11 +26,10 @@ if(DEFINED INTEL_VTUNE_DIR)
     message(STATUS "INTEL_VTUNE_DIR = ${INTEL_VTUNE_DIR}")
 
     find_path(ITT_INCLUDE_DIR ittnotify.h
-    PATHS "${INTEL_VTUNE_DIR}/include/")
+              PATHS "${INTEL_VTUNE_DIR}/include/")
 
-    find_library(ITT_LIB
-    "libittnotify${CMAKE_STATIC_LIBRARY_SUFFIX}"
-    PATHS ${INTEL_VTUNE_DIR}/lib64)
+    find_library(ITT_LIB "${CMAKE_STATIC_LIBRARY_PREFIX}ittnotify${CMAKE_STATIC_LIBRARY_SUFFIX}"
+                 PATHS "${INTEL_VTUNE_DIR}/lib64")
 
     set(Located_ITT_LIBS ${ITT_LIB})
     set(Located_ITT_INCLUDE_DIRS ${ITT_INCLUDE_DIR})
@@ -48,12 +47,12 @@ find_package_handle_standard_args(ITT
 if(ITT_FOUND)
     set(INTEL_ITT_FOUND ${ITT_FOUND})
 
-    add_library(ittnotify STATIC IMPORTED GLOBAL)
-    set_target_properties(ittnotify PROPERTIES IMPORTED_LOCATION "${Located_ITT_LIBS}"
-                                               INTERFACE_INCLUDE_DIRECTORIES ${Located_ITT_INCLUDE_DIRS}
-                                               INTERFACE_COMPILE_DEFINITIONS ENABLE_PROFILING_ITT)
+    add_library(ittapi::ittnotify STATIC IMPORTED GLOBAL)
+    set_target_properties(ittapi::ittnotify PROPERTIES IMPORTED_LOCATION "${Located_ITT_LIBS}"
+                                                       INTERFACE_INCLUDE_DIRECTORIES ${Located_ITT_INCLUDE_DIRS}
+                                                       INTERFACE_COMPILE_DEFINITIONS ENABLE_PROFILING_ITT)
 
     if(UNIX)
-        set_target_properties(ittnotify PROPERTIES INTERFACE_LINK_LIBRARIES "${CMAKE_DL_LIBS};Threads::Threads")
+        set_target_properties(ittapi::ittnotify PROPERTIES INTERFACE_LINK_LIBRARIES "${CMAKE_DL_LIBS};Threads::Threads")
     endif()
 endif()

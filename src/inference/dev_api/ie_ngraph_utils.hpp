@@ -16,7 +16,7 @@
 namespace InferenceEngine {
 namespace details {
 
-inline ::ngraph::element::Type convertPrecision(const Precision& precision) {
+INFERENCE_ENGINE_1_0_DEPRECATED inline ::ngraph::element::Type convertPrecision(const Precision& precision) {
     Precision::ePrecision pType = precision;
     switch (pType) {
     case Precision::UNSPECIFIED:
@@ -61,11 +61,11 @@ inline ::ngraph::element::Type convertPrecision(const Precision& precision) {
     }
 }
 
-inline ::ngraph::element::Type convertPrecision(const std::string& precision) {
+INFERENCE_ENGINE_1_0_DEPRECATED inline ::ngraph::element::Type convertPrecision(const std::string& precision) {
     return ::ov::element::Type(precision);
 }
 
-inline Precision convertPrecision(const ::ngraph::element::Type& precision) {
+INFERENCE_ENGINE_1_0_DEPRECATED inline Precision convertPrecision(const ::ngraph::element::Type& precision) {
     switch (precision) {
     case ::ngraph::element::Type_t::undefined:
         return Precision(Precision::UNSPECIFIED);
@@ -115,7 +115,7 @@ inline Precision convertPrecision(const ::ngraph::element::Type& precision) {
  * @param network A network to clone
  * @return A cloned object
  */
-INFERENCE_ENGINE_API_CPP(CNNNetwork) cloneNetwork(const CNNNetwork& network);
+INFERENCE_ENGINE_1_0_DEPRECATED INFERENCE_ENGINE_API_CPP(CNNNetwork) cloneNetwork(const CNNNetwork& network);
 
 }  // namespace details
 }  // namespace InferenceEngine

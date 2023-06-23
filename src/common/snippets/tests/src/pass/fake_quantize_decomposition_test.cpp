@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,17 +17,17 @@ namespace snippets {
 class FakeQuantizeDecompositionTest : public TransformationTestsF {
 public:
     void register_passes() {
-        manager.register_pass<ngraph::snippets::pass::CommonOptimizations>();
+        manager.register_pass<ov::snippets::pass::CommonOptimizations>();
     }
 
     void TearDown() override {
         TransformationTestsF::TearDown();
 
         auto subgraph = FunctionHelper::getSubgraph(function);
-        auto body = subgraph == nullptr ? nullptr : std::dynamic_pointer_cast<ngraph::snippets::op::Subgraph>(subgraph)->body_ptr();
+        auto body = subgraph == nullptr ? nullptr : std::dynamic_pointer_cast<ov::snippets::op::Subgraph>(subgraph)->body_ptr();
 
         auto subgraph_ref = FunctionHelper::getSubgraph(function_ref);
-        auto body_ref = subgraph_ref == nullptr ? nullptr : std::dynamic_pointer_cast<ngraph::snippets::op::Subgraph>(subgraph_ref)->body_ptr();
+        auto body_ref = subgraph_ref == nullptr ? nullptr : std::dynamic_pointer_cast<ov::snippets::op::Subgraph>(subgraph_ref)->body_ptr();
 
         auto res = comparator.compare(body, body_ref);
         ASSERT_TRUE(res.valid) << res.message;

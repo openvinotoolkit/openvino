@@ -235,6 +235,7 @@ struct proposal : public primitive_base<proposal> {
     }
 
     void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<proposal>::save(ob);
         ob << max_proposals;
         ob << iou_threshold;
         ob << base_bbox_size;
@@ -258,6 +259,7 @@ struct proposal : public primitive_base<proposal> {
     }
 
     void load(BinaryInputBuffer& ib) override {
+        primitive_base<proposal>::load(ib);
         ib >> max_proposals;
         ib >> iou_threshold;
         ib >> base_bbox_size;

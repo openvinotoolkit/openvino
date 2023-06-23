@@ -65,3 +65,4 @@ attach_convert_color_impl::attach_convert_color_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::convert_color_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::convert_color)

@@ -31,14 +31,14 @@ void TileBroadcastCommon::fillOptimizedDimsAndSrcStrides(const VectorDims& srcBl
     optimizedSrcStrides.clear();
     VectorDims srcBlockedStrides = calculateDenseStrides(srcBlockedDims);
 
-    for (int i = 0; i < srcBlockedDims.size(); i++) {
+    for (size_t i = 0; i < srcBlockedDims.size(); i++) {
         optimizedDims.push_back(blockedRepeats[i]);
         optimizedDims.push_back(srcBlockedDims[i]);
         optimizedSrcStrides.push_back(0);
         optimizedSrcStrides.push_back(srcBlockedStrides[i]);
     }
 
-    int i = 1;
+    size_t i = 1;
     while (i < optimizedDims.size() - 1) {
         if (optimizedDims[i] == 1) {
             optimizedDims[i + 1] *= optimizedDims[i - 1];
@@ -120,7 +120,7 @@ std::vector<NodeDesc> TileBroadcastCommon::getSupportedConfigs(const Node *node)
 
     auto pushDesc = [&](dnnl::memory::format_tag inFormat, dnnl::memory::format_tag outFormat) {
         config.inConfs[0].setMemDesc(std::make_shared<DnnlBlockedMemoryDesc>(node->getInputShapeAtPort(0), dataType, inFormat));
-        for (int i = 0; i < config.outConfs.size(); i++) {
+        for (size_t i = 0; i < config.outConfs.size(); i++) {
             config.outConfs[i].inPlace(-1);
             config.outConfs[i].constant(false);
             config.outConfs[i].setMemDesc(std::make_shared<DnnlBlockedMemoryDesc>(node->getOutputShapeAtPort(0), dataType, outFormat));
@@ -156,7 +156,7 @@ std::vector<NodeDesc> TileBroadcastCommon::getSupportedConfigs(const Node *node)
     auto outFmt = DnnlExtensionUtils::GetPlainFormatByRank(outDataShapeRank);
     if (inFmt == dnnl::memory::format_tag::undef || outFmt == dnnl::memory::format_tag::undef) {
         config.inConfs[0].setMemDesc(std::make_shared<CpuBlockedMemoryDesc>(precision, node->getInputShapeAtPort(0)));
-        for (int i = 0; i < config.outConfs.size(); i++) {
+        for (size_t i = 0; i < config.outConfs.size(); i++) {
             config.outConfs[i].inPlace(-1);
             config.outConfs[i].constant(false);
             config.outConfs[i].setMemDesc(std::make_shared<CpuBlockedMemoryDesc>(precision, node->getOutputShapeAtPort(i)));
@@ -180,7 +180,7 @@ bool TileBroadcastCommon::prepareOptimizedParams(const Node *node, VectorDims& s
         blockedRepeats.push_back(1);
     }
     // for NSPC layouts
-    if (node->getBaseMemDescAtInputPort(0)->hasLayoutType(LayoutType::nspc) && one_of(node->getBaseMemDescAtInputPort(0)->getShape().getRank(), 4, 5)) {
+    if (node->getBaseMemDescAtInputPort(0)->hasLayoutType(LayoutType::nspc) && one_of(node->getBaseMemDescAtInputPort(0)->getShape().getRank(), 4u, 5u)) {
         blockedRepeats.push_back(blockedRepeats[1]);
         blockedRepeats.erase(blockedRepeats.begin() + 1);
     }
@@ -200,7 +200,7 @@ bool TileBroadcastCommon::prepareOptimizedParams(const Node *node, VectorDims& s
     VectorDims optimizedDstStrides = calculateDenseStrides(optimizedDims);
 
     size_t dataSize = node->getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].getMemDesc()->getPrecision().size();
-    for (int i = 0; i < optimizedDims.size(); i++) {
+    for (size_t i = 0; i < optimizedDims.size(); i++) {
         optimizedSrcStrides[i] *= dataSize;
         optimizedDstStrides[i] *= dataSize;
     }
@@ -277,7 +277,7 @@ void TileBroadcastCommon::optimizedExecute(const MemoryPtr& srcMemory, const Mem
                 auto dstData2 = dstData + (i0 * optimizedParams.dstStrides[0] + i1 * optimizedParams.dstStrides[1] +
                         i2 * optimizedParams.dstStrides[2] + i3 * optimizedParams.dstStrides[3] +
                         i4 * optimizedParams.dstStrides[4]);
-                for (int i = 0; i < optimizedParams.dims[5]; i++) {
+                for (size_t i = 0; i < optimizedParams.dims[5]; i++) {
                     cpu_memcpy(dstData2 + i * optimizedParams.dstStrides[5], srcData2, optimizedParams.dstStrides[5]);
                 }
             });

@@ -25,6 +25,7 @@ def convert_model(
         input: [str, list, tuple, InputCutInfo] = None,
         output: [str, list] = None,
         input_shape: [str, PartialShape, Shape, list] = None,
+        example_input: Any = None,
         batch: int = None,
         mean_values: [str, dict, list] = (),
         scale_values: [str, dict, list] = (),
@@ -43,9 +44,8 @@ def convert_model(
         progress: bool = False,
         stream_output: bool = False,
 
-        # PyTorch-specific parameters:
-        example_input: Any = None,
-        onnx_opset_version: int = None,
+        # PaddlePaddle-specific parameters:
+        example_output: Any = None,
 
         # TensorFlow*-specific parameters
         input_model_is_text: bool = None,
@@ -96,6 +96,11 @@ def convert_model(
             Caffe*: a model proto file with model weights
 
             Supported formats of input model:
+
+            PaddlePaddle
+            paddle.hapi.model.Model
+            paddle.fluid.dygraph.layers.Layer
+            paddle.fluid.executor.Executor
 
             PyTorch
             torch.nn.Module
@@ -158,6 +163,11 @@ def convert_model(
             for each input separated by a comma, for example: [1,3,227,227],[2,4]
             for a model with two inputs with 4D and 2D shapes. Alternatively, specify
             shapes with the --input option.
+        :param example_input:
+            Sample of model input in original framework.
+            For PyTorch it can be torch.Tensor.
+            For Tensorflow it can be tf.Tensor or numpy.ndarray.
+            For PaddlePaddle it can be Paddle Variable.
         :param batch:
             Set batch size. It applies to 1D or higher dimension inputs.
             The default dimension index for the batch is zero.
@@ -262,11 +272,9 @@ def convert_model(
         :param stream_output:
             Switch model conversion progress display to a multiline mode.
 
-    PyTorch-specific parameters:
-        :param example_input:
-            Sample of model input in original framework. For PyTorch it can be torch.Tensor.
-        :param onnx_opset_version:
-            Version of ONNX opset that is used for converting from PyTorch to ONNX.
+    PaddlePaddle-specific parameters:
+        :param example_output:
+            Sample of model output in original framework. For PaddlePaddle it can be Paddle Variable.
 
     TensorFlow*-specific parameters:
         :param input_model_is_text:

@@ -7,6 +7,7 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
+#include "pyopenvino/core/common.hpp"
 #include "pyopenvino/graph/any.hpp"
 #include "pyopenvino/utils/utils.hpp"
 
@@ -30,7 +31,7 @@ void regclass_graph_Any(py::module m) {
     }));
 
     ov_any.def("__repr__", [](const ov::Any& self) {
-        return "<OVAny class>";
+        return "<" + Common::get_class_name(self) + " class>";
     });
 
     ov_any.def("__hash__", [](ov::Any& self) {

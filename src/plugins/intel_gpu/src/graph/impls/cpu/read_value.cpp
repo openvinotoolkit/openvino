@@ -81,3 +81,4 @@ attach_read_value_impl::attach_read_value_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::cpu::read_value_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::read_value)

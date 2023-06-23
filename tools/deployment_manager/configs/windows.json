@@ -10,7 +10,7 @@
     "openvino_license": {
       "mandatory" : "yes",
       "files": [
-        "docs/licensing"
+        "licenses"
       ]
     },
     "ie_core": {
@@ -32,7 +32,7 @@
       ]
     },
     "cpu": {
-      "ui_name": "Inference Engine Runtime for Intel(R) CPU",
+      "ui_name": "OpenVINO Runtime for Intel(R) CPU",
       "group": ["ie"],
       "dependencies" : ["ie_core"],
       "files": [
@@ -40,7 +40,7 @@
       ]
     },
     "gpu": {
-      "ui_name": "Inference Engine Runtime for Intel(R) Processor Graphics",
+      "ui_name": "OpenVINO Runtime for Intel(R) Processor Graphics",
       "group": ["ie"],
       "dependencies" : ["ie_core"],
       "files": [
@@ -49,7 +49,7 @@
       ]
     },
     "gna": {
-      "ui_name": "Inference Engine Runtime for Intel(R) Gaussian Neural Accelerator",
+      "ui_name": "OpenVINO Runtime for Intel(R) Gaussian Neural Accelerator",
       "group": ["ie"],
       "dependencies" : ["ie_core"],
       "files": [
@@ -57,36 +57,12 @@
         "runtime/bin/intel64/Release/openvino_intel_gna_plugin.dll"
       ]
     },
-    "python3.7": {
-      "ui_name": "OpenVINO Python API for Python 3.7",
+    "python": {
+      "ui_name": "OpenVINO Python API",
       "group": ["python"],
       "dependencies" : ["ie_core"],
       "files": [
-        "python/python3.7"
-      ]
-    },
-    "python3.8": {
-      "ui_name": "OpenVINO Python API for Python 3.8",
-      "group": ["python"],
-      "dependencies" : ["ie_core"],
-      "files": [
-        "python/python3.8"
-      ]
-    },
-    "python3.9": {
-      "ui_name": "OpenVINO Python API for Python 3.9",
-      "group": ["python"],
-      "dependencies" : ["ie_core"],
-      "files": [
-        "python/python3.9"
-      ]
-    },
-    "python3.10": {
-      "ui_name": "OpenVINO Python API for Python 3.10",
-      "group": ["python"],
-      "dependencies" : ["ie_core"],
-      "files": [
-        "python/python3.10"
+        "python"
       ]
     }
   }

@@ -134,3 +134,4 @@ attach_generic_layer_impl::attach_generic_layer_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::generic_layer_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::generic_layer)

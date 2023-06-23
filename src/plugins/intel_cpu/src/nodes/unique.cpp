@@ -189,7 +189,7 @@ void Unique::flattenTensorExec() {
         if (definedOutputs[FIRST_UNIQUE_IDX]) {
             T* first = uniDataTmpPtr;
             for (T* it = first; it < last; it++) {
-                for (int i = 0; i < inputLen; i++) {
+                for (size_t i = 0; i < inputLen; i++) {
                     if (srcDataPtr[i] == *it) {
                         *firstTmpPtr++ = i;
                         first++;
@@ -199,12 +199,12 @@ void Unique::flattenTensorExec() {
             }
         }
         if (definedOutputs[INPUT_TO_UNIQ_IDX]) {
-            for (int i = 0; i < inputLen; i++) {
+            for (size_t i = 0; i < inputLen; i++) {
                 if (i > 0 && srcDataPtr[i] == srcDataPtr[i - 1]) {
                     inToOutTmpPtr[i] = inToOutTmpPtr[i - 1];
                     continue;
                 }
-                for (int j = 0; j < uniqueLen; j++) {
+                for (size_t j = 0; j < uniqueLen; j++) {
                     if (srcDataPtr[i] == uniDataTmpPtr[j]) {
                         inToOutTmpPtr[i] = j;
                         break;
@@ -214,8 +214,8 @@ void Unique::flattenTensorExec() {
         }
         if (definedOutputs[OCCURRENCES_NUM]) {
             std::fill(occurTmpPtr, occurTmpPtr + uniqueLen, 0);
-            for (int j = 0; j < uniqueLen; j++) {
-                for (int i = 0; i < inputLen; i++) {
+            for (size_t j = 0; j < uniqueLen; j++) {
+                for (size_t i = 0; i < inputLen; i++) {
                     if (srcDataPtr[i] == uniDataTmpPtr[j]) {
                         occurTmpPtr[j]++;
                     }
@@ -235,9 +235,9 @@ void Unique::flattenTensorExec() {
         }
         uniqueLen = 1;
 
-        for (int i = 1; i < inputLen; i++) {
+        for (size_t i = 1; i < inputLen; i++) {
             bool found = false;
-            int j = 0;
+            size_t j = 0;
             for (; j < uniqueLen; j++) {
                 if (uniDataTmpPtr[j] == srcDataPtr[i]) {
                     found = true;
@@ -304,7 +304,7 @@ void Unique::slicedTensorExec() {
         partsInBl = std::accumulate(srcDataShape.begin(), srcDataShape.begin() + axis, 1, std::multiplies<Dim>());
     }
     int64_t elPerPart = 1; // Elements number in part.
-    if (axis < srcDataShape.size() - 1) {
+    if (static_cast<size_t>(axis) < srcDataShape.size() - 1) {
         elPerPart = std::accumulate(srcDataShape.begin() + axis + 1, srcDataShape.end(), 1, std::multiplies<Dim>());
     }
     const auto partLenB = elPerPart * dataPrecision.size();
@@ -323,11 +323,11 @@ void Unique::slicedTensorExec() {
 
     uniqueLen = 1;
     std::vector<int64_t> uniqIdx(cmpBlNum, 0);
-    for (int b1 = 1; b1 < cmpBlNum; b1++) {
+    for (size_t b1 = 1; b1 < cmpBlNum; b1++) {
         auto first1 = srcDataPtr + b1 * elPerPart;
         auto last1 = srcDataPtr + (b1 + 1) * elPerPart;
         bool equal = true;
-        int b2 = 0;
+        size_t b2 = 0;
         // Compare with unique blocks.
         for (; b2 < uniqueLen; b2++) {
             auto first2 = srcDataPtr + uniqIdx[b2] * elPerPart;
@@ -362,7 +362,7 @@ void Unique::slicedTensorExec() {
     }
 
     const auto dstPrtStep = elPerPart * uniqueLen;
-    for (int b1 = 0; b1 < uniqueLen; b1++) {
+    for (size_t b1 = 0; b1 < uniqueLen; b1++) {
         auto first1 = srcDataPtr + uniqIdx[b1] * elPerPart;
         auto first2 = uniDataTmpPtr + b1 * elPerPart;
         for (int p = 0; p < partsInBl; p++) {
@@ -381,7 +381,7 @@ void Unique::slicedTensorExec() {
 
         std::vector<OrdEl> colToSort(uniqueLen);
         std::vector<int64_t> moveTo(uniqueLen);
-        for (int k = 0; k < uniqueLen; k++) {
+        for (size_t k = 0; k < uniqueLen; k++) {
             moveTo[k] = k;
         }
         std::vector<T> buff1(elPerPart);
@@ -394,7 +394,7 @@ void Unique::slicedTensorExec() {
                     colToSort[i] = {uniDataTmpPtr[pos2], i};
                 }
                 std::stable_sort(colToSort.begin(), colToSort.end(), [](const OrdEl &el1, const OrdEl &el2) { return el1.val < el2.val; });
-                for (int k = 0; k < uniqueLen; k++) {
+                for (size_t k = 0; k < uniqueLen; k++) {
                     moveTo[colToSort[k].idx] = k;
                 }
 
@@ -427,7 +427,7 @@ void Unique::slicedTensorExec() {
                 if (definedOutputs[OCCURRENCES_NUM]) {
                     ocSrc = occurTmpPtr[0];
                 }
-                for (int k = 0; k < uniqueLen; k++) {
+                for (size_t k = 0; k < uniqueLen; k++) {
                     if (mPos == moveTo[mPos]) {
                         mPos = moveTo[mPos + 1];
                         continue;
@@ -452,11 +452,11 @@ void Unique::slicedTensorExec() {
         }
 
         if (definedOutputs[INPUT_TO_UNIQ_IDX]) {
-            for (int b1 = 0; b1 < cmpBlNum; b1++) {
+            for (size_t b1 = 0; b1 < cmpBlNum; b1++) {
                 auto first1 = srcDataPtr + b1 * elPerPart;
                 auto last1 = srcDataPtr + (b1 + 1) * elPerPart;
                 bool equal = true;
-                for (int b2 = 0; b2 < uniqueLen; b2++) {
+                for (size_t b2 = 0; b2 < uniqueLen; b2++) {
                     auto first2 = uniDataTmpPtr + b2 * elPerPart;
                     equal = true;
                     for (int p = 0; p < partsInBl; p++) {

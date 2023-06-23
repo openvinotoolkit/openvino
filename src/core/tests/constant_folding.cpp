@@ -13,6 +13,7 @@
 #include "ngraph/opsets/opset5.hpp"
 #include "ngraph/pass/manager.hpp"
 #include "openvino/opsets/opset11.hpp"
+#include "transformations/common_optimizations/disable_shapeof_constant_folding.hpp"
 #include "util/all_close_f.hpp"
 #include "util/test_tools.hpp"
 
@@ -2424,6 +2425,84 @@ TEST(constant_folding, strided_slice_not_ignored_dynamic_begin_from_shape_of) {
     ASSERT_EQ(count_ops_of_type<op::Constant>(model), 2);
 }
 
+TEST(constant_folding, strided_slice_can_be_folded_but_is_blocked_by_shape_of_which_got_folding_disabled) {
+    const auto constant =
+        make_shared<op::Constant>(element::i32,
+                                  Shape{1, 1, 2, 4, 2},
+                                  std::vector<int>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16});
+    constant->set_friendly_name("constant");
+
+    const auto begin_shape = PartialShape{0, -1, 0, 0, 0};
+    const auto p_begin = std::make_shared<op::Parameter>(element::i64, begin_shape);
+    const auto shape_of_begin = std::make_shared<op::ShapeOf>(p_begin);
+    shape_of_begin->set_friendly_name("begin");
+
+    const auto end_shape = PartialShape{-1, 512, 2, 2, 16};
+    const auto p_end = std::make_shared<op::Parameter>(element::i64, end_shape);
+    const auto shape_of_end = std::make_shared<op::ShapeOf>(p_end);
+    shape_of_end->set_friendly_name("end");
+
+    const auto stride = op::Constant::create(element::i64, {5}, {1, 1, 1, 1, 1});
+    stride->set_friendly_name("stride");
+
+    const auto slice = make_shared<op::v1::StridedSlice>(constant,
+                                                         shape_of_begin,
+                                                         shape_of_end,
+                                                         stride,
+                                                         std::vector<int64_t>{0, 1, 0, 0, 0},
+                                                         std::vector<int64_t>{1, 1, 0, 0, 1});
+    slice->set_friendly_name("test");
+
+    auto model = make_shared<ov::Model>(slice, ParameterVector{p_begin, p_end});
+
+    pass::Manager pass_manager;
+    pass_manager.register_pass<ov::pass::InitNodeInfo>();
+    pass_manager.register_pass<ov::pass::DisableShapeOfConstantFolding>();
+    pass_manager.register_pass<pass::ConstantFolding>();
+    pass_manager.run_passes(model);
+
+    ASSERT_EQ(count_ops_of_type<op::v1::StridedSlice>(model), 1);
+    ASSERT_EQ(count_ops_of_type<op::Constant>(model), 2);
+}
+
+TEST(constant_folding, strided_slice_is_foldable_but_got_set_disable_constant_fold) {
+    const auto constant =
+        make_shared<op::Constant>(element::i32,
+                                  Shape{1, 1, 2, 4, 2},
+                                  std::vector<int>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16});
+    constant->set_friendly_name("constant");
+
+    const auto begin_shape = PartialShape{0, -1, 0, 0, 0};
+    const auto p_begin = std::make_shared<op::Parameter>(element::i64, begin_shape);
+    const auto shape_of_begin = std::make_shared<op::ShapeOf>(p_begin);
+    shape_of_begin->set_friendly_name("begin");
+
+    const auto end_shape = PartialShape{-1, 512, 2, 2, 16};
+    const auto p_end = std::make_shared<op::Parameter>(element::i64, end_shape);
+    const auto shape_of_end = std::make_shared<op::ShapeOf>(p_end);
+    shape_of_end->set_friendly_name("end");
+
+    const auto stride = op::Constant::create(element::i64, {5}, {1, 1, 1, 1, 1});
+    stride->set_friendly_name("stride");
+
+    const auto slice = make_shared<op::v1::StridedSlice>(constant,
+                                                         shape_of_begin,
+                                                         shape_of_end,
+                                                         stride,
+                                                         std::vector<int64_t>{0, 1, 0, 0, 0},
+                                                         std::vector<int64_t>{1, 1, 0, 0, 1});
+    slice->set_friendly_name("test");
+
+    auto model = make_shared<ov::Model>(slice, ParameterVector{p_begin, p_end});
+
+    ov::disable_constant_folding(slice);
+
+    run_constant_folding(model);
+
+    ASSERT_EQ(count_ops_of_type<op::v1::StridedSlice>(model), 1);
+    ASSERT_EQ(count_ops_of_type<op::Constant>(model), 2);
+}
+
 TEST(constant_folding, constant_dyn_reshape) {
     Shape shape_in{2, 4};
     vector<float> values_in{0, 1, 2, 3, 4, 5, 6, 7};
@@ -2584,11 +2663,11 @@ void range_test(T start, T stop, T step, const vector<T>& values_expected) {
     vector<T> values_stop{stop};
     vector<T> values_step{step};
 
-    auto constant_start = make_shared<op::Constant>(element::from<T>(), Shape{}, values_start);
+    auto constant_start = make_shared<op::Constant>(ov::element::from<T>(), Shape{}, values_start);
     constant_start->set_friendly_name("constant_start");
-    auto constant_stop = make_shared<op::Constant>(element::from<T>(), Shape{}, values_stop);
+    auto constant_stop = make_shared<op::Constant>(ov::element::from<T>(), Shape{}, values_stop);
     constant_stop->set_friendly_name("constant_stop");
-    auto constant_step = make_shared<op::Constant>(element::from<T>(), Shape{}, values_step);
+    auto constant_step = make_shared<op::Constant>(ov::element::from<T>(), Shape{}, values_step);
     constant_step->set_friendly_name("constant_step");
     auto range = make_shared<op::Range>(constant_start, constant_stop, constant_step);
     range->set_friendly_name("test");

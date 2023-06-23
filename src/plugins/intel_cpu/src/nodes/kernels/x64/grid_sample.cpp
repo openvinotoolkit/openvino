@@ -520,7 +520,7 @@ void GridSampleKernel<x64::avx>::getTailCoordinates(const Vmm& vHCoord, const Vm
     mov(rGridRest, regWorkAmount);
     sal(rGridRest, 0x1); // multiply by gridShape[3] == 2
 
-    for (int i = 0; i < dataElPerVec; i++) {
+    for (size_t i = 0; i < dataElPerVec; i++) {
         cmp(rGridRest, 0);
         jle(lEnd, T_NEAR);
 
@@ -539,7 +539,7 @@ void GridSampleKernel<x64::avx>::getTailCoordinates(const Vmm& vHCoord, const Vm
     vperm2f128(vWCoord, vWCoord, vWCoord, 0x1);
     vperm2f128(vHCoord, vHCoord, vHCoord, 0x1);
 
-    for (int i = 0; i < dataElPerVec; i++) {
+    for (size_t i = 0; i < dataElPerVec; i++) {
         cmp(rGridRest, 0);
         jle(lLoop2End, T_NEAR);
 
@@ -1224,7 +1224,7 @@ void GridSampleKernel<isa>::nearestInterpolation(const Vmm& vWCoord, const Vmm& 
     mov(rSrcTmp, regSrc);
     mov(rDstTmp, regDst);
 
-    for (int ch = 0; ch < jcp.cannelNum; ch++) {
+    for (uint64_t ch = 0; ch < jcp.cannelNum; ch++) {
         if (jcp.dynamicChannel) {
             rChannel = getReg64();
             mov(rChannel, ptr[regParams + GET_OFF(channelsNum)]);
@@ -1334,7 +1334,7 @@ void GridSampleKernel<x64::avx512_core>::bilinearInterpolation(const Vmm& vWCoor
     mov(rSrcTmp, regSrc);
     mov(rDstTmp, regDst);
 
-    for (int ch = 0; ch < jcp.cannelNum; ch++) {
+    for (uint64_t ch = 0; ch < jcp.cannelNum; ch++) {
         if (jcp.dynamicChannel) {
             rChannel = getReg64();
             mov(rChannel, 0);
@@ -1502,7 +1502,7 @@ void GridSampleKernel<isa>::bilinearInterpolation(const Vmm& vWCoord, const Vmm&
     mov(rDstTmp,   regDst);
     mov(rTypeSize, ptr[regParams + GET_OFF(dataTypeSize)]);
 
-    for (int ch = 0; ch < jcp.cannelNum; ch++) {
+    for (uint64_t ch = 0; ch < jcp.cannelNum; ch++) {
         if (jcp.dynamicChannel) {
             rChannel = getReg64();
             mov(rChannel, ptr[regParams + GET_OFF(channelsNum)]);
@@ -1663,7 +1663,7 @@ void GridSampleKernel<x64::avx512_core>::bicubicInterpolation(const Vmm& vWCoord
     mov(rSrcTmp, regSrc);
     mov(rDstTmp, regDst);
 
-    for (int ch = 0; ch < jcp.cannelNum; ch++) {
+    for (size_t ch = 0; ch < jcp.cannelNum; ch++) {
         if (jcp.dynamicChannel) {
             rChannel = getReg64();
             mov(rChannel, 0);
@@ -1956,7 +1956,7 @@ void GridSampleKernel<isa>::bicubicInterpolation(const Vmm& vWCoord, const Vmm& 
     mov(rSrcTmp, regSrc);
     mov(rDstTmp, regDst);
 
-    for (int ch = 0; ch < jcp.cannelNum; ch++) {
+    for (uint64_t ch = 0; ch < jcp.cannelNum; ch++) {
         if (jcp.dynamicChannel) {
             rChannel = getReg64();
             mov(rChannel, ptr[regParams + GET_OFF(channelsNum)]);

@@ -30,6 +30,8 @@ size_t kernel_impl_params::hash() const {
     for (auto& fd : fused_desc) {
         seed = hash_combine(seed, fd.desc->hash());
     }
+
+    seed = hash_combine(seed, _can_be_optimized);
     return seed;
 }
 

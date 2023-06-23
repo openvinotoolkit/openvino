@@ -14,6 +14,10 @@ namespace cldnn {
 struct binary_convolution : public primitive_base<binary_convolution> {
     CLDNN_DECLARE_PRIMITIVE(binary_convolution)
 
+    binary_convolution() : primitive_base("", {}) {}
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     /// @brief Constructs binary_convolution primitive.
     /// @param id This primitive id.
     /// @param input Input primitive id.
@@ -88,6 +92,28 @@ struct binary_convolution : public primitive_base<binary_convolution> {
                groups == rhs_casted.groups &&
                pad_value == rhs_casted.pad_value &&
                weights.size() == rhs_casted.weights.size();
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<binary_convolution>::save(ob);
+        ob << pad;
+        ob << stride;
+        ob << dilation;
+        ob << output_size;
+        ob << groups;
+        ob << pad_value;
+        ob << weights;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<binary_convolution>::load(ib);
+        ib >> pad;
+        ib >> stride;
+        ib >> dilation;
+        ib >> output_size;
+        ib >> groups;
+        ib >> pad_value;
+        ib >> *const_cast<primitive_id_arr*>(&weights);
     }
 
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {

@@ -197,8 +197,8 @@ void PSROIPooling::unpackParams(const BlockedMemoryDesc& srcDesc, const BlockedM
                                           unsigned long& inputChannelsPadding, unsigned long& outputChannelsPadding) {
     const bool inpIsBlk = srcDesc.hasLayoutType(LayoutType::nCsp16c) || srcDesc.hasLayoutType(LayoutType::nCsp8c);
     const bool outIsBlk = dstDesc.hasLayoutType(LayoutType::nCsp16c) || dstDesc.hasLayoutType(LayoutType::nCsp8c);
-    int expectedInBlockDimsSize = (inpIsBlk ? 5 : 4);
-    int expectedOutBlockDimsSize = (outIsBlk ? 5 : 4);
+    size_t expectedInBlockDimsSize = (inpIsBlk ? 5 : 4);
+    size_t expectedOutBlockDimsSize = (outIsBlk ? 5 : 4);
     auto inBlkDims = srcDesc.getBlockDims();
     auto outBlkDims = dstDesc.getBlockDims();
     if (inBlkDims.size() != expectedInBlockDimsSize)
@@ -214,14 +214,14 @@ void PSROIPooling::unpackParams(const BlockedMemoryDesc& srcDesc, const BlockedM
     outputChannelsPadding = dstDesc.getBlockDims()[1] * outBlockSize;
     outBlockCount = outputChannelsPadding / outBlockSize;
 
-    int hOutStrIndex = 0, wOutStrIndex = 0, hInStrIndex = 0, wInStrIndex = 0;
+    size_t hOutStrIndex = 0, wOutStrIndex = 0, hInStrIndex = 0, wInStrIndex = 0;
     const auto& outOrder = dstDesc.getOrder();
     const auto& inOrder = srcDesc.getOrder();
-    for (int i = 0; i < outOrder.size(); i++) {
+    for (size_t i = 0; i < outOrder.size(); i++) {
         if (outOrder[i] == 2) hOutStrIndex = i;
         if (outOrder[i] == 3) wOutStrIndex = i;
     }
-    for (int i = 0; i < inOrder.size(); i++) {
+    for (size_t i = 0; i < inOrder.size(); i++) {
         if (inOrder[i] == 2) hInStrIndex = i;
         if (inOrder[i] == 3) wInStrIndex = i;
     }

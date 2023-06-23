@@ -26,7 +26,6 @@ numpy_autobroadcast_incompatible_shapes::numpy_autobroadcast_incompatible_shapes
     : ngraph_error(error_str(shape1, shape2)),
       m_shape1(shape1),
       m_shape2(shape2) {}
-OPENVINO_SUPPRESS_DEPRECATED_END
 
 string numpy_autobroadcast_incompatible_shapes::error_str(const Shape& shape1, const Shape& shape2) {
     ostringstream os;
@@ -34,6 +33,7 @@ string numpy_autobroadcast_incompatible_shapes::error_str(const Shape& shape1, c
        << " shape1=" << vector_to_string(shape1) << " shape2=" << vector_to_string(shape2);
     return os.str();
 }
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 ///
 /// \brief      Calculate the output shape of numpy-style broadcast operation for two

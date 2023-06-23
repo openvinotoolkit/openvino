@@ -16,6 +16,9 @@ namespace SubgraphTestsDefinitions {
         results << "IS=" << CommonTestUtils::vec2str(input[0]) << "_";
         results << "netPRC=" << netPrecision.name() << "_";
         results << "targetDevice=" << targetName << "_";
+        for (auto const& configItem : additional_config) {
+            results << "_configItem=" << configItem.first << "_" << configItem.second;
+        }
         return results.str();
     }
 

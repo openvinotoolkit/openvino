@@ -48,6 +48,8 @@
 using ov::intel_gna::gna_convolution_layer::outputFromConv;
 using ov::intel_gna::gna_convolution_layer::outputFromPooling;
 
+using namespace ov::intel_gna::limitations;
+
 namespace ov {
 namespace intel_gna {
 namespace backend {
@@ -180,8 +182,8 @@ void AMIntelDNN::InitConvolutional1DComponentPrivate(intel_dnn_component_t& comp
         THROW_GNA_EXCEPTION << "Number of inputs to Convolutional1DComponent (" << num_columns_in
                             << ") is not a multiply by 8";
     }
-    if (num_filters < limitations::convMinFiltersNum || num_filters > limitations::convMaxFiltersNum ||
-        num_filters % limitations::convFiltersNumDivider != 0) {
+    if (num_filters < Limitations::kConvMinFiltersNum || num_filters > Limitations::kConvMaxFiltersNum ||
+        num_filters % Limitations::kConvFiltersNumDivider != 0) {
         THROW_GNA_EXCEPTION << "Unsupported number of filters in Convolutional1DComponent: " << num_filters;
     }
     auto max_number_of_out_elements = outputFromConv(num_columns_in, num_filter_coefficients, convStride);

@@ -153,7 +153,7 @@ vector2D<bounding_box> load_boxes(stream& stream, memory::ptr mem, bool center_p
     case cldnn::data_types::f32:
         return load_boxes_impl<data_type_to_type<data_types::f32>::type>(stream, mem, center_point);
     default:
-        throw std::runtime_error("Non max supression - unsupported boxes data type");
+        throw std::runtime_error("Non max suppression - unsupported boxes data type");
     }
 }
 
@@ -190,7 +190,7 @@ vector3D<float> load_scores(stream& stream, memory::ptr mem) {
     case cldnn::data_types::f32:
         return load_scores_impl<data_type_to_type<data_types::f32>::type>(stream, mem);
     default:
-        throw std::runtime_error("Non max supression - unsupported scores data type");
+        throw std::runtime_error("Non max suppression - unsupported scores data type");
     }
 }
 
@@ -213,7 +213,7 @@ T load_scalar(stream& stream, memory::ptr mem) {
     case cldnn::data_types::f32:
         return load_scalar_impl<T, data_type_to_type<data_types::f32>::type>(stream, mem);
     default:
-        throw std::runtime_error("Non max supression - unsupported data type");
+        throw std::runtime_error("Non max suppression - unsupported data type");
     }
 }
 
@@ -253,7 +253,7 @@ void store_result(stream& stream, memory::ptr mem, const std::vector<result_indi
         store_result_impl<data_type_to_type<data_types::f32>::type>(stream, mem, result);
         break;
     default:
-        throw std::runtime_error("Non max supression - unsupported output data type");
+        throw std::runtime_error("Non max suppression - unsupported output data type");
     }
 }
 
@@ -267,7 +267,7 @@ void store_first_output(stream& stream, memory::ptr mem, const std::vector<resul
         store_result_impl<data_type_to_type<data_types::i32>::type>(stream, mem, result);
         break;
     default:
-        throw std::runtime_error("Non max supression - unsupported output data type");
+        throw std::runtime_error("Non max suppression - unsupported output data type");
     }
 }
 
@@ -304,7 +304,7 @@ void store_second_output(stream& stream, memory::ptr mem, const std::vector<resu
         store_second_output_impl<data_type_to_type<data_types::f32>::type>(stream, mem, result);
         break;
     default:
-        throw std::runtime_error("Non max supression - unsupported second output data type");
+        throw std::runtime_error("Non max suppression - unsupported second output data type");
     }
 }
 
@@ -325,7 +325,7 @@ void store_third_output(stream& stream, memory::ptr mem, const std::vector<resul
         store_third_output_impl<data_type_to_type<data_types::i32>::type>(stream, mem, result);
         break;
     default:
-        throw std::runtime_error("Non max supression - unsupported third output data type");
+        throw std::runtime_error("Non max suppression - unsupported third output data type");
     }
 }
 

@@ -51,7 +51,7 @@ Running Deployment Manager in Interactive Mode
 
       .. code-block:: bat
 
-         cd <INSTALL_DIR>\deployment_tools\tools\deployment_manager
+         cd <INSTALL_DIR>\tools\deployment_manager
          .\deployment_manager.py
 
    .. tab:: macOS
@@ -172,7 +172,7 @@ To deploy the OpenVINO Runtime components from the development machine to the ta
 
 3. On a target Linux system, to run inference install additional dependencies by running the ``install_openvino_dependencies.sh`` script:
 
-   .. code-block: sh
+   .. code-block:: sh
 
       cd <destination_dir>/openvino/install_dependencies
       sudo -E ./install_openvino_dependencies.sh
