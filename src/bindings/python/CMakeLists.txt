@@ -238,6 +238,7 @@ macro(ov_define_setup_py_packaging_vars)
         SETUPTOOLS_EXT_SUFFIX=${PYTHON_MODULE_EXTENSION}
         # versions
         WHEEL_VERSION=${WHEEL_VERSION}
+        WHEEL_BUILD=${WHEEL_BUILD}
         # build locations
         OPENVINO_BINARY_DIR=${OpenVINO_BINARY_DIR}
         OPENVINO_PYTHON_BINARY_DIR=${OpenVINOPython_BINARY_DIR}
@@ -308,38 +309,35 @@ if(ENABLE_PYTHON_PACKAGING)
 
     set(python_package_prefix "${CMAKE_CURRENT_BINARY_DIR}/install_${pyversion}")
     set(install_lib "${python_package_prefix}/lib/${python_versioned_folder}/${ov_site_packages}")
-    set(meta_info_subdir "openvino-${OpenVINO_VERSION}-py${python_xy}.egg-info/PKG-INFO")
-    set(output_dir "${install_lib}/${meta_info_subdir}")
 
-    file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/update_benchmark_app.py"
-"from pathlib import Path
-file = Path('${python_package_prefix}/bin/benchmark_app')
-file.write_text(file.read_text().replace('${PYTHON_EXECUTABLE}', '/usr/bin/python3'))")
+    set(meta_info_subdir "openvino-${OpenVINO_VERSION}-py${python_xy}.egg-info")
+    set(meta_info_file "${install_lib}/${meta_info_subdir}/PKG-INFO")
 
-    add_custom_command(OUTPUT ${output_dir}
+    add_custom_command(OUTPUT ${meta_info_file}
         COMMAND ${CMAKE_COMMAND} -E remove_directory
             "${python_package_prefix}"
         COMMAND ${setup_py_env}
             "${PYTHON_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/wheel/setup.py"
+                --no-user-cfg
+                --quiet
                 build
-                    --python-extensions-only=True
+                    --python-extensions-only
+                    --executable "/usr/bin/python3"
+                build_ext
+                    --skip-rpath
                 install
                     --no-compile
                     --prefix "${python_package_prefix}"
                     --install-lib "${install_lib}"
                     --install-scripts "${python_package_prefix}/bin"
-                # TODO: add
-                # --single-version-externally-managed
-                # --record=installed.txt
-                # TODO:
-                # --build-number=${WHEEL_BUILD}
-                # --plat-name=${PLATFORM_TAG}
-        COMMAND ${PYTHON_EXECUTABLE} "${CMAKE_CURRENT_BINARY_DIR}/update_benchmark_app.py"
+
+                    # --single-version-externally-managed
+                    # --record=installed.txt
         WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
         DEPENDS ${ov_setup_py_deps}
         COMMENT "Create python package with ${meta_info_subdir} folder")
 
-    add_custom_target(_python_api_package ALL DEPENDS ${output_dir})
+    add_custom_target(_python_api_package ALL DEPENDS ${meta_info_file})
 
     # install python package, which will be later packed into DEB | RPM
     ov_cpack_add_component(${OV_CPACK_COMP_PYTHON_NGRAPH}_package_${pyversion} HIDDEN)
