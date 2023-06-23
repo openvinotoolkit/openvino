@@ -84,7 +84,6 @@ def _get_shape_layout_from_data(input_example: Union[torch.Tensor, np.ndarray, I
 
     if len(shape) == 3:
         shape = [1] + shape
-        raise Warning("Input dimensions extended with batch equal to 1")
     elif len(shape) != 4:
         raise ValueError(f"Unsupported number of input dimensions: {len(shape)}")
 
