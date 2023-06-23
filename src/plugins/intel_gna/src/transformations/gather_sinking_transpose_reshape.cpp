@@ -118,8 +118,8 @@ bool AreFlattenShapes(const ov::Shape& shape1, const ov::Shape& shape2) {
     if (shape1.size() - 1 != i && shape2.size() - 1 != i)
         return false;
     // min_shape.back() == MULTIPLY(max_shape.begin() + i, max_shape.end())
-    const size_t mult1 = std::accumulate(shape1.begin() + i, shape1.end(), 1, std::multiplies<size_t>());
-    const size_t mult2 = std::accumulate(shape2.begin() + i, shape2.end(), 1, std::multiplies<size_t>());
+    const size_t mult1 = std::accumulate(shape1.begin() + i, shape1.end(), std::size_t{1}, std::multiplies<size_t>());
+    const size_t mult2 = std::accumulate(shape2.begin() + i, shape2.end(), std::size_t{1}, std::multiplies<size_t>());
     return mult1 == mult2;
 }
 
