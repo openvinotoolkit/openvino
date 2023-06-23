@@ -320,13 +320,15 @@ TEST(prepare_buffer_fusing, in_place_concat_dynamic_onednn_batch1) {
     cldnn::mem_lock<FLOAT16> input1_ptr(input_memory1, get_test_stream());
     cldnn::mem_lock<FLOAT16> input2_ptr(input_memory2, get_test_stream());
 
-    const auto& concat_node_n = net.get_primitive("concat")->get_node();
+    const auto& concat_inst = net.get_primitive("concat");
+    const auto& concat_node_n = concat_inst->get_node();
     auto concat_mem = net.get_primitive("concat")->output_memory_ptr();
     auto reorder1_mem = net.get_primitive("reorder1")->output_memory_ptr();
     auto reorder2_mem = net.get_primitive("reorder2")->output_memory_ptr();
 
     ASSERT_EQ(concat_mem.get(), reorder1_mem.get());
     ASSERT_EQ(concat_mem.get(), reorder2_mem.get());
+    ASSERT_TRUE(concat_inst->can_be_optimized());
     ASSERT_TRUE(concat_node_n.can_be_optimized());
 
     for (size_t x = 0; x < out_l.count(); ++x) {
@@ -396,13 +398,15 @@ TEST(prepare_buffer_fusing, in_place_concat_dynamic_onednn_batch2) {
     cldnn::mem_lock<FLOAT16> input1_ptr(input_memory1, get_test_stream());
     cldnn::mem_lock<FLOAT16> input2_ptr(input_memory2, get_test_stream());
 
-    const auto& concat_node_n = net.get_primitive("concat")->get_node();
+    const auto& concat_inst = net.get_primitive("concat");
+    const auto& concat_node_n = concat_inst->get_node();
     auto concat_mem = net.get_primitive("concat")->output_memory_ptr();
     auto reorder1_mem = net.get_primitive("reorder1")->output_memory_ptr();
     auto reorder2_mem = net.get_primitive("reorder2")->output_memory_ptr();
 
     ASSERT_NE(concat_mem.get(), reorder1_mem.get());
     ASSERT_NE(concat_mem.get(), reorder2_mem.get());
+    ASSERT_FALSE(concat_inst->can_be_optimized());
     ASSERT_TRUE(concat_node_n.can_be_optimized());
 
     for (size_t x = 0; x < out_l.count(); ++x) {
