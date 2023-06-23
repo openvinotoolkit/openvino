@@ -114,7 +114,7 @@ std::shared_ptr<ov::IRemoteContext> ov::ICompiledModel::get_context() const {
     if (auto wrapper = dynamic_cast<const InferenceEngine::ICompiledModelWrapper*>(this)) {
         return ov::legacy_convert::convert_remote_context(wrapper->get_executable_network()->GetContext());
     }
-    if (m_context._impl)
+    if (m_context)
         return m_context._impl;
     return m_plugin->get_default_context({});
 }

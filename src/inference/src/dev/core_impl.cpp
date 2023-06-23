@@ -566,7 +566,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
                                                           const ov::RemoteContext& context,
                                                           const ov::AnyMap& config) const {
     OV_ITT_SCOPE(FIRST_INFERENCE, ie::itt::domains::IE_LT, "Core::compile_model::RemoteContext");
-    if (context._impl == nullptr) {
+    if (!context) {
         IE_THROW() << "Remote context is null";
     }
     std::string deviceName = context.get_device_name();
@@ -607,8 +607,8 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model_with_preprocess(ov::Pl
         preprocessed_model = cloned_model;
     }
 
-    return context._impl ? plugin.compile_model(preprocessed_model, context, config)
-                         : plugin.compile_model(preprocessed_model, config);
+    return context ? plugin.compile_model(preprocessed_model, context, config)
+                   : plugin.compile_model(preprocessed_model, config);
 }
 
 ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& model_path,
@@ -1213,8 +1213,8 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
                 throw HeaderException();
             }
 
-            compiled_model = context._impl ? plugin.import_model(networkStream, context, config)
-                                           : plugin.import_model(networkStream, config);
+            compiled_model = context ? plugin.import_model(networkStream, context, config)
+                                     : plugin.import_model(networkStream, config);
             if (auto wrapper = std::dynamic_pointer_cast<InferenceEngine::ICompiledModelWrapper>(compiled_model._ptr)) {
                 wrapper->get_executable_network()->loadedFromCache();
             }
