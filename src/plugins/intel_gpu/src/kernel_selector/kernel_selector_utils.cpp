@@ -4,6 +4,7 @@
 
 #include "kernel_selector_utils.h"
 #include "reorder/reorder_weights_kernel_selector.h"
+#include "reorder/reorder_kernel_selector.h"
 #include "reorder/reorder_kernel_base.h"
 #include "convolution/convolution_params.h"
 #include <vector>
@@ -110,31 +111,10 @@ bool UpdateWeightsParams(weight_bias_params& newParams,
             if (!optParams.allowStaticInputReordering) {
                 return false;
             }
-
-            auto& reorderKS = ReorderWeightsKernelSelctor::Instance();
-            reorder_weights_params r_params;
-
-            r_params.layerID = newParams.layerID + "_reorder_";
-            r_params.input = newParams.weights;
-            r_params.output = newParams.weights.TransformIgnorePadding(reqLayout, dtype, groups, false);
-            r_params.rotate_180 = rotate;
-            r_params.engineInfo = newParams.engineInfo;
-            r_params.uniqueID = newParams.uniqueID + "_weight";
-
-            reorder_optional_params op;
-            KernelsData kernels_data = reorderKS.GetBestKernels(r_params, op);
-
-            if (kernels_data.empty()) {
-                throw std::runtime_error("No suitable kernel found for weights reorder from " +
-                                         toString(r_params.input.GetLayout()) + " to " +
-                                         toString(r_params.output.GetLayout()) +
-                                         (rotate ? " with rotate" : ""));
-            }
-
-            weightsReorderParams.engine = WeightsReorderParams::Engine::GPU;
-            weightsReorderParams.clKernel = std::make_shared<clKernelData>(kernels_data[0].kernels[0]);
-            weightsReorderParams.src = r_params.input;
-            weightsReorderParams.dest = r_params.output;
+            weightsReorderParams.is_initialized = true;
+            weightsReorderParams.src = newParams.weights;
+            weightsReorderParams.dest = newParams.weights.TransformIgnorePadding(reqLayout, dtype, groups, false);
+            weightsReorderParams.rotate = rotate;
 
             newParams.weights = newParams.weights.TransformIgnorePadding(reqLayout, dtype, groups);
             return true;

@@ -77,7 +77,9 @@ public:
     static std::string to_string(reorder_node const& node);
 
 public:
+    typed_primitive_inst(network& network);
     typed_primitive_inst(network& network, reorder_node const& node);
+
     memory::ptr mean_nv12_memory() const { return dep_memory_ptr(2); }
     memory::ptr mean_memory() const { return dep_memory_ptr(1); }
 

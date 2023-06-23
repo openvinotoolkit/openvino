@@ -471,13 +471,12 @@ public:
        * @endcode
      */
     tensor transform(cldnn::format new_fmt, value_type default_size) const {
-        cldnn::format format = cldnn::format::bfvuwzyx;
-        auto val_order = format.internal_order();
+        cldnn::format default_fmt = cldnn::format::bfvuwzyx;
+        auto val_order = default_fmt.internal_order();
         auto new_order = new_fmt.internal_order();
         std::vector<value_type> old_sizes = sizes();
         std::vector<value_type> new_sizes(old_sizes.size(), default_size);
         const auto& new_traits = format::traits(new_fmt);
-        const cldnn::format default_fmt = cldnn::format::bfvuwzyx;
         static const std::map<char, char> flatten_mapping = {
             { 'v', 'u'},
             { 'u', 'w'},

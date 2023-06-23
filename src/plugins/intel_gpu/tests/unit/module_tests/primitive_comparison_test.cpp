@@ -10,7 +10,6 @@
 #include <intel_gpu/primitives/fully_connected.hpp>
 #include <intel_gpu/primitives/gather.hpp>
 #include <intel_gpu/primitives/permute.hpp>
-#include <intel_gpu/primitives/generic_layer.hpp>
 
 using namespace cldnn;
 using namespace ::tests;
@@ -111,18 +110,20 @@ TEST(primitive_comparison, permute) {
     ASSERT_NE(permute_prim, permute_prim_order);
 }
 
-TEST(primitive_comparison, generic_layer) {
+TEST(primitive_comparison, reorder_weights) {
     auto shape = ov::PartialShape{1, 2, 3, 4};
     auto data_type = data_types::f32;
-    auto format_in = format::bfyx;
-    auto format_out = format::os_iyx_osv16;
 
-    auto input_layout = layout{shape, data_type, format_in};
-    auto output_layout = layout{shape, data_type, format_out};
-    auto generic_layer_prim = generic_layer("generic_layer", "", std::make_shared<WeightsReorderParams>(input_layout, output_layout));
-    auto generic_layer_eq_prim = generic_layer("generic_layer_eq", "", std::make_shared<WeightsReorderParams>(input_layout, output_layout));
-    auto generic_layer_different_prim = generic_layer("generic_layer", "", std::make_shared<WeightsReorderParams>(output_layout, input_layout));
+    auto format_osv16 = format::os_iyx_osv16;
+    auto format_osv32 = format::os_iyx_osv32;
 
-    ASSERT_EQ(generic_layer_prim, generic_layer_eq_prim);
-    ASSERT_NE(generic_layer_prim, generic_layer_different_prim);
+    auto layout_osv16 = layout{shape, data_type, format_osv16};
+    auto layout_osv32 = layout{shape, data_type, format_osv32};
+
+    auto reorder_weights_prim = reorder("reorder_weights", input_info("input"), layout_osv16);
+    auto reorder_weights_eq_prim = reorder("reorder_weights_eq", input_info("input"), layout_osv16);
+    auto reorder_weights_diff_prim = reorder("reorder_weights_neq", input_info("input"), layout_osv32);
+
+    ASSERT_EQ(reorder_weights_prim, reorder_weights_eq_prim);
+    ASSERT_NE(reorder_weights_prim, reorder_weights_diff_prim);
 }
