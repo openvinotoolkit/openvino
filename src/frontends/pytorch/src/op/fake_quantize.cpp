@@ -8,13 +8,11 @@
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/convert.hpp"
-#include "openvino/op/less.hpp"
 #include "openvino/op/maximum.hpp"
 #include "openvino/op/minimum.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/scatter_elements_update.hpp"
-#include "openvino/op/select.hpp"
 #include "openvino/op/subtract.hpp"
 #include "utils.hpp"
 
