@@ -98,74 +98,84 @@ This guide used the following model to run the Image Classification Sample:
 
    To download the GoogleNet v1 Caffe model to the `models` folder:
 
-   .. tab:: Linux
+   .. tab-set::
 
-      .. code-block:: sh
+      .. tab-item:: Linux
+         :sync: linux
 
-         omz_downloader --name googlenet-v1 --output_dir ~/models
+         .. code-block:: sh
+   
+            omz_downloader --name googlenet-v1 --output_dir ~/models
+   
+      .. tab-item:: Windows
+         :sync: windows
 
-   .. tab:: Windows
-
-      .. code-block:: bat
-
-         omz_downloader --name googlenet-v1 --output_dir %USERPROFILE%\Documents\models
-
-   .. tab:: macOS
-
-      .. code-block:: sh
-
-         omz_downloader --name googlenet-v1 --output_dir ~/models
+         .. code-block:: bat
+   
+            omz_downloader --name googlenet-v1 --output_dir %USERPROFILE%\Documents\models
+   
+      .. tab-item:: macOS
+         :sync: mac
+   
+         .. code-block:: sh
+   
+            omz_downloader --name googlenet-v1 --output_dir ~/models
 
 
    Your screen will look similar to this after the download and show the paths of downloaded files:
 
-   .. tab:: Linux
+   .. tab-set::
 
-      .. code-block:: sh
-
-         ###############|| Downloading models ||###############
-
-         ========= Downloading /home/username/models/public/googlenet-v1/googlenet-v1.prototxt
-
-         ========= Downloading /home/username/models/public/googlenet-v1/googlenet-v1.caffemodel
-         ... 100%, 4834 KB, 3157 KB/s, 1 seconds passed
-
-         ###############|| Post processing ||###############
-
-         ========= Replacing text in /home/username/models/public/googlenet-v1/googlenet-v1.prototxt =========
-
-   .. tab:: Windows
-
-      .. code-block:: bat
-
-         ################|| Downloading models ||################
-
-         ========== Downloading C:\Users\username\Documents\models\public\googlenet-v1\googlenet-v1.prototxt
-         ... 100%, 9 KB, ? KB/s, 0 seconds passed
-
-         ========== Downloading C:\Users\username\Documents\models\public\googlenet-v1\googlenet-v1.caffemodel
-         ... 100%, 4834 KB, 571 KB/s, 8 seconds passed
-
-         ################|| Post-processing ||################
-
-         ========== Replacing text in C:\Users\username\Documents\models\public\googlenet-v1\googlenet-v1.prototxt
-
-   .. tab:: macOS
-
-      .. code-block:: sh
-
-         ###############|| Downloading models ||###############
-
-         ========= Downloading /Users/username/models/public/googlenet-v1/googlenet-v1.prototxt
-         ... 100%, 9 KB, 44058 KB/s, 0 seconds passed
-
-         ========= Downloading /Users/username/models/public/googlenet-v1/googlenet-v1.caffemodel
-         ... 100%, 4834 KB, 4877 KB/s, 0 seconds passed
-
-         ###############|| Post processing ||###############
-
-         ========= Replacing text in /Users/username/models/public/googlenet-v1/googlenet-v1.prototxt =========
-
+      .. tab-item:: Linux
+         :sync: linux
+   
+         .. code-block:: sh
+   
+            ###############|| Downloading models ||###############
+   
+            ========= Downloading /home/username/models/public/googlenet-v1/googlenet-v1.prototxt
+   
+            ========= Downloading /home/username/models/public/googlenet-v1/googlenet-v1.caffemodel
+            ... 100%, 4834 KB, 3157 KB/s, 1 seconds passed
+   
+            ###############|| Post processing ||###############
+   
+            ========= Replacing text in /home/username/models/public/googlenet-v1/googlenet-v1.prototxt =========
+   
+      .. tab-item:: Windows
+         :sync: windows
+   
+         .. code-block:: bat
+   
+            ################|| Downloading models ||################
+   
+            ========== Downloading C:\Users\username\Documents\models\public\googlenet-v1\googlenet-v1.prototxt
+            ... 100%, 9 KB, ? KB/s, 0 seconds passed
+   
+            ========== Downloading C:\Users\username\Documents\models\public\googlenet-v1\googlenet-v1.caffemodel
+            ... 100%, 4834 KB, 571 KB/s, 8 seconds passed
+   
+            ################|| Post-processing ||################
+   
+            ========== Replacing text in C:\Users\username\Documents\models\public\googlenet-v1\googlenet-v1.prototxt
+   
+      .. tab-item:: macOS
+         :sync: mac
+   
+         .. code-block:: sh
+   
+            ###############|| Downloading models ||###############
+   
+            ========= Downloading /Users/username/models/public/googlenet-v1/googlenet-v1.prototxt
+            ... 100%, 9 KB, 44058 KB/s, 0 seconds passed
+   
+            ========= Downloading /Users/username/models/public/googlenet-v1/googlenet-v1.caffemodel
+            ... 100%, 4834 KB, 4877 KB/s, 0 seconds passed
+   
+            ###############|| Post processing ||###############
+   
+            ========= Replacing text in /Users/username/models/public/googlenet-v1/googlenet-v1.prototxt =========
+   
 .. _convert-models-to-intermediate-representation:
 
 Step 2: Convert the Model with ``mo``
@@ -185,23 +195,28 @@ The googlenet-v1 model is downloaded in the Caffe format. You must use ``mo`` to
 
 Create an ``<ir_dir>`` directory to contain the model's Intermediate Representation (IR).
 
-.. tab:: Linux
+.. tab-set::
 
-   .. code-block:: sh
-
-      mkdir ~/ir
-
-.. tab:: Windows
-
-   .. code-block:: bat
-
-      mkdir %USERPROFILE%\Documents\ir
-
-.. tab:: macOS
-
-   .. code-block:: sh
-
-      mkdir ~/ir
+   .. tab-item:: Linux
+      :sync: linux
+   
+      .. code-block:: sh
+   
+         mkdir ~/ir
+   
+   .. tab-item:: Windows
+      :sync: windows
+   
+      .. code-block:: bat
+   
+         mkdir %USERPROFILE%\Documents\ir
+   
+   .. tab-item:: macOS
+      :sync: mac
+   
+      .. code-block:: sh
+   
+         mkdir ~/ir
 
 To save disk space for your IR file, you can apply :doc:`weights compression to FP16 <openvino_docs_MO_DG_FP16_Compression>`. To generate an IR with FP16 weights, run model conversion with the ``--compress_to_fp16`` option.
 
@@ -216,23 +231,28 @@ The IR files produced by the script are written to the ``<ir_dir>`` directory.
 
 The command with most placeholders filled in and FP16 precision:
 
-.. tab:: Linux
+.. tab-set::
 
-   .. code-block:: sh
-
-      mo --input_model ~/models/public/googlenet-v1/googlenet-v1.caffemodel --compress_to_fp16 --output_dir ~/ir
-
-.. tab:: Windows
-
-   .. code-block:: bat
-
-      mo --input_model %USERPROFILE%\Documents\models\public\googlenet-v1\googlenet-v1.caffemodel --compress_to_fp16 --output_dir %USERPROFILE%\Documents\ir
-
-.. tab:: macOS
-
-   .. code-block:: sh
-
-      mo --input_model ~/models/public/googlenet-v1/googlenet-v1.caffemodel --compress_to_fp16 --output_dir ~/ir
+   .. tab-item:: Linux
+      :sync: linux
+   
+      .. code-block:: sh
+   
+         mo --input_model ~/models/public/googlenet-v1/googlenet-v1.caffemodel --compress_to_fp16 --output_dir ~/ir
+   
+   .. tab-item:: Windows
+      :sync: windows
+   
+      .. code-block:: bat
+   
+         mo --input_model %USERPROFILE%\Documents\models\public\googlenet-v1\googlenet-v1.caffemodel --compress_to_fp16 --output_dir %USERPROFILE%\Documents\ir
+   
+   .. tab-item:: macOS
+      :sync: mac
+   
+      .. code-block:: sh
+   
+         mo --input_model ~/models/public/googlenet-v1/googlenet-v1.caffemodel --compress_to_fp16 --output_dir ~/ir
 
 .. _download-media:
 
@@ -255,63 +275,78 @@ To run the **Image Classification** code sample with an input image using the IR
 
 1. Set up the OpenVINO environment variables:
 
-   .. tab:: Linux
-   
-      .. code-block:: sh
-   
-         source  <INSTALL_DIR>/setupvars.sh
-   
-   .. tab:: Windows
-   
-      .. code-block:: bat
-   
-         <INSTALL_DIR>\setupvars.bat
-   
-   .. tab:: macOS
-   
-      .. code-block:: sh
-   
-         source <INSTALL_DIR>/setupvars.sh
+   .. tab-set::
 
+      .. tab-item:: Linux
+         :sync: linux
+      
+         .. code-block:: sh
+      
+            source  <INSTALL_DIR>/setupvars.sh
+      
+      .. tab-item:: Windows
+         :sync: windows
+      
+         .. code-block:: bat
+      
+            <INSTALL_DIR>\setupvars.bat
+      
+      .. tab-item:: macOS
+         :sync: mac
+      
+         .. code-block:: sh
+      
+            source <INSTALL_DIR>/setupvars.sh
+   
 2. Go to the code samples release directory created when you built the samples earlier:
 
-   .. tab:: Linux
-   
-      .. code-block:: sh
-   
-         cd ~/openvino_cpp_samples_build/intel64/Release
-   
-   .. tab:: Windows
-   
-      .. code-block:: bat
-   
-         cd  %USERPROFILE%\Documents\Intel\OpenVINO\openvino_samples_build\intel64\Release
-   
-   .. tab:: macOS
-   
-      .. code-block:: sh
-   
-         cd ~/openvino_cpp_samples_build/intel64/Release
+   .. tab-set::
+
+      .. tab-item:: Linux
+         :sync: linux
+      
+         .. code-block:: sh
+      
+            cd ~/openvino_cpp_samples_build/intel64/Release
+      
+      .. tab-item:: Windows
+         :sync: windows
+      
+         .. code-block:: bat
+      
+            cd  %USERPROFILE%\Documents\Intel\OpenVINO\openvino_samples_build\intel64\Release
+      
+      .. tab-item:: macOS
+         :sync: mac
+      
+         .. code-block:: sh
+      
+            cd ~/openvino_cpp_samples_build/intel64/Release
    
 3. Run the code sample executable, specifying the input media file, the IR for your model, and a target device for performing inference:
 
-   .. tab:: Linux
-   
-      .. code-block:: sh
-   
-         classification_sample_async -i <path_to_media> -m <path_to_model> -d <target_device>
-   
-   .. tab:: Windows
-   
-      .. code-block:: bat
-   
-         classification_sample_async.exe -i <path_to_media> -m <path_to_model> -d <target_device>
-   
-   .. tab:: macOS
-   
-      .. code-block:: sh
-   
-         classification_sample_async -i <path_to_media> -m <path_to_model> -d <target_device>
+   .. tab-set::
+
+      .. tab-item:: Linux
+         :sync: linux
+      
+         .. code-block:: sh
+      
+            classification_sample_async -i <path_to_media> -m <path_to_model> -d <target_device>
+      
+      .. tab-item:: Windows
+         :sync: windows
+      
+         .. code-block:: bat
+      
+            classification_sample_async.exe -i <path_to_media> -m <path_to_model> -d <target_device>
+      
+      .. tab-item:: macOS
+         :sync: mac
+      
+         .. code-block:: sh
+      
+            classification_sample_async -i <path_to_media> -m <path_to_model> -d <target_device>
    
 Examples
 ++++++++
@@ -321,23 +356,28 @@ Running Inference on CPU
 
 The following command shows how to run the Image Classification Code Sample using the `dog.bmp <https://storage.openvinotoolkit.org/data/test_data/images/224x224/dog.bmp>`__ file as an input image, the model in IR format from the ``ir`` directory, and the CPU as the target hardware:
 
-.. tab:: Linux
+.. tab-set::
 
-   .. code-block:: sh
-
-      ./classification_sample_async -i ~/Downloads/dog.bmp -m ~/ir/googlenet-v1.xml -d CPU
-
-.. tab:: Windows
-
-   .. code-block:: bat
-
-      .\classification_sample_async.exe -i %USERPROFILE%\Downloads\dog.bmp -m %USERPROFILE%\Documents\ir\googlenet-v1.xml -d CPU
-
-.. tab:: macOS
-
-   .. code-block:: sh
-
-      ./classification_sample_async -i ~/Downloads/dog.bmp -m ~/ir/googlenet-v1.xml -d CPU
+   .. tab-item:: Linux
+      :sync: linux
+   
+      .. code-block:: sh
+   
+         ./classification_sample_async -i ~/Downloads/dog.bmp -m ~/ir/googlenet-v1.xml -d CPU
+   
+   .. tab-item:: Windows
+      :sync: windows
+   
+      .. code-block:: bat
+   
+         .\classification_sample_async.exe -i %USERPROFILE%\Downloads\dog.bmp -m %USERPROFILE%\Documents\ir\googlenet-v1.xml -d CPU
+   
+   .. tab-item:: macOS
+      :sync: mac
+   
+      .. code-block:: sh
+   
+         ./classification_sample_async -i ~/Downloads/dog.bmp -m ~/ir/googlenet-v1.xml -d CPU
 
 When the sample application is complete, you are given the label and confidence for the top 10 categories. The input image and sample output of the inference results is shown below:
 
@@ -371,17 +411,21 @@ Running Inference on GPU
    
    Running inference on Intel® Processor Graphics (GPU) requires :doc:`additional hardware configuration steps <openvino_docs_install_guides_configurations_for_intel_gpu>`, as described earlier on this page. Running on GPU is not compatible with macOS.
 
-.. tab:: Linux
+.. tab-set::
 
-   .. code-block:: sh
-
-      ./classification_sample_async -i ~/Downloads/dog.bmp -m ~/ir/googlenet-v1.xml -d GPU
-
-.. tab:: Windows
-
-   .. code-block:: bat
-
-      .\classification_sample_async.exe -i %USERPROFILE%\Downloads\dog.bmp -m %USERPROFILE%\Documents\ir\googlenet-v1.xml -d GPU
+   .. tab-item:: Linux
+      :sync: linux
+   
+      .. code-block:: sh
+   
+         ./classification_sample_async -i ~/Downloads/dog.bmp -m ~/ir/googlenet-v1.xml -d GPU
+   
+   .. tab-item:: Windows
+      :sync: windows
+   
+      .. code-block:: bat
+   
+         .\classification_sample_async.exe -i %USERPROFILE%\Downloads\dog.bmp -m %USERPROFILE%\Documents\ir\googlenet-v1.xml -d GPU
 
 
 Other Demos and Samples

@@ -96,7 +96,7 @@ In this case, you can directly say that 'MyRelu' -> ``Relu`` mapping should be u
          :fragment: [frontend_extension_MyRelu]
 
    .. tab-item:: Python
-      :sync: python
+      :sync: py
    
       .. doxygensnippet:: docs/snippets/ov_extensions.py
          :language: python
@@ -337,7 +337,7 @@ from ONNX according to the formula: ``ThresholdedRelu(x, alpha) -> Multiply(x, C
          :fragment: [frontend_extension_ThresholdedReLU_header]
 
    .. tab-item:: Python
-      :sync: python
+      :sync: py
 
       .. doxygensnippet:: docs/snippets/ov_extensions.py
          :language: python
@@ -353,7 +353,7 @@ from ONNX according to the formula: ``ThresholdedRelu(x, alpha) -> Multiply(x, C
          :fragment: [frontend_extension_ThresholdedReLU]
 
    .. tab-item:: Python
-      :sync: python
+      :sync: py
  
       .. doxygensnippet:: docs/snippets/ov_extensions.py
          :language: python

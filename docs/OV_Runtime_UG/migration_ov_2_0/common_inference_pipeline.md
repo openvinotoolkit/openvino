@@ -514,7 +514,7 @@ API 2.0 fills inputs with data of the ``I64`` precision (aligned with the origin
 
 
    .. tab-item:: Model created in code
-      :sync: model
+      :sync: model_created_in_code
 
       .. tab-set::
 

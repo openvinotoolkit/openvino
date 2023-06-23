@@ -118,7 +118,7 @@ Compile the model for a specific device using ``ov::Core::compile_model()``:
                 :fragment: [part2_4]
 
           .. tab-item:: TensorFlow Lite
-             :sync: tflite
+             :sync: tf_lite
 
              .. doxygensnippet:: docs/snippets/src/main.cpp
                 :language: cpp
@@ -165,7 +165,7 @@ Compile the model for a specific device using ``ov::Core::compile_model()``:
                 :fragment: [part2_4]
 
           .. tab-item:: TensorFlow Lite
-             :sync: tflite
+             :sync: tf_lite
 
              .. doxygensnippet:: docs/snippets/src/main.py
                 :language: python
@@ -212,7 +212,7 @@ Compile the model for a specific device using ``ov::Core::compile_model()``:
                 :fragment: [part2_4]
 
           .. tab-item:: TensorFlow Lite
-             :sync: tflite
+             :sync: tf_lite
 
              .. doxygensnippet:: docs/snippets/src/main.c
                 :language: cpp

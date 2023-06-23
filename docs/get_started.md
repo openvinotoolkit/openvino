@@ -1,4 +1,4 @@
-# Get Started {#get_started}
+# GET STARTED {#get_started}
 
 @sphinxdirective
 

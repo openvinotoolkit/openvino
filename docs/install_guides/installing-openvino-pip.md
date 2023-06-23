@@ -26,7 +26,7 @@ To create a virtual environment, use the following command:
 .. tab-set::
 
     .. tab-item:: Linux and macOS
-       :sync: linmac
+       :sync: lin-mac
 
        .. code-block:: sh
 
@@ -47,7 +47,7 @@ Step 2. Activate Virtual Environment
 .. tab-set::
 
     .. tab-item:: Linux and macOS
-       :sync: linmac
+       :sync: lin-mac
 
        .. code-block:: sh
 
