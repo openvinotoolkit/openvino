@@ -21,6 +21,7 @@
 #include "openvino/frontend/extension/telemetry.hpp"
 #include "ops_bridge.hpp"
 #include "so_extension.hpp"
+#include "transformations/resolve_names_collisions.hpp"
 
 using namespace ov;
 using namespace ov::frontend::onnx;
@@ -89,11 +90,14 @@ std::shared_ptr<ngraph::Function> FrontEnd::convert(const InputModel::Ptr& model
         return function;
     }
 
-    return model_onnx->convert();
+    const auto& converted_model = model_onnx->convert();
+    normalize(converted_model);
+    return converted_model;
 }
 
 void FrontEnd::convert(const std::shared_ptr<ov::Model>& partially_converted) const {
     ngraph::onnx_import::detail::convert_decoded_function(partially_converted);
+    normalize(partially_converted);
 }
 
 std::shared_ptr<ngraph::Function> FrontEnd::decode(const InputModel::Ptr& model) const {
@@ -178,4 +182,10 @@ void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
             m_extensions.conversions.push_back(ngraph::onnx_import::detail::get_legacy_conversion_extension());
         });
     }
+}
+
+void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
+    ov::pass::Manager manager;
+    manager.register_pass<pass::ResolveNameCollisions>();
+    manager.run_passes(model);
 }
