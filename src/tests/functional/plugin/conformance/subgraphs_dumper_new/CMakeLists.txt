@@ -6,39 +6,10 @@ set(TARGET_NAME subgraphs_dumper)
 
 list(APPEND LIBRARIES
         gflags
-        inference_engine
+        openvino::runtime
         funcTestUtils
         openvino::pugixml
 )
-
-if(ENABLE_OV_IR_FRONTEND)
-    list(APPEND DEPENDENCIES openvino_ir_frontend)
-endif()
-
-if(ENABLE_OV_ONNX_FRONTEND)
-    list(APPEND DEPENDENCIES openvino_onnx_frontend)
-endif()
-
-if(ENABLE_OV_PADDLE_FRONTEND)
-    list(APPEND DEPENDENCIES openvino_paddle_frontend)
-endif()
-
-# todo: use convert_model and save to ir instead this
-if(ENABLE_OV_PYTORCH_FRONTEND)
-    list(APPEND DEPENDENCIES openvino_pytorch_frontend)
-endif()
-
-if(ENABLE_OV_TF_FRONTEND)
-    list(APPEND DEPENDENCIES openvino_tensorflow_frontend)
-endif()
-
-if(ENABLE_OV_TF_LITE_FRONTEND)
-    list(APPEND DEPENDENCIES openvino_tensorflow_lite_frontend)
-endif()
-
-if(ENABLE_OV_PADDLE_FRONTEND)
-    list(APPEND DEPENDENCIES openvino_paddle_frontend)
-endif()
 
 addIeTargetTest(
         NAME ${TARGET_NAME}
@@ -50,7 +21,7 @@ addIeTargetTest(
             PRIVATE
                 ${LIBRARIES}
         DEPENDENCIES
-            ${DEPENDENCIES}
+            ov_frontends
         ADD_CPPLINT
 )
 
