@@ -3,6 +3,7 @@
 //
 
 #include "common_test_utils/common_utils.hpp"
+#include "openvino/core/except.hpp"
 
 #include <gtest/gtest.h>
 
@@ -20,7 +21,7 @@ std::ostream& operator<<(std::ostream& os, OpType type) {
         os << "VECTOR";
         break;
     default:
-        IE_THROW() << "NOT_SUPPORTED_OP_TYPE";
+        OPENVINO_THROW("NOT_SUPPORTED_OP_TYPE");
     }
     return os;
 }

@@ -12,7 +12,6 @@
 #include "snippets/op/subgraph.hpp"
 #include "transformations/snippets/x64/pass/snippets_mark_skipped.hpp"
 #include "function_helper.hpp"
-
 namespace ov {
 namespace test {
 namespace snippets {
@@ -90,7 +89,7 @@ TEST_F(FakeQuantizeTokenizationTest, smoke_Snippets_ConvolutionWithFakeQuantize)
         {{}, {}, {}, {}},
         true,
         FunctionHelper::makePrerequisitesOriginal(),
-        std::make_shared<ngraph::opset1::Convolution>());
+        std::make_shared<ov::op::v1::Convolution>());
 
     function_ref = FakeQuantizeFunction::getOperationAndFakeQuantize(
         {{1, 3, 16, 16}},
@@ -98,7 +97,7 @@ TEST_F(FakeQuantizeTokenizationTest, smoke_Snippets_ConvolutionWithFakeQuantize)
         {{}, {}, {}, {}},
         true,
         FunctionHelper::makePrerequisitesOriginal(),
-        std::make_shared<ngraph::opset1::Convolution>());
+        std::make_shared<ov::op::v1::Convolution>());
 
     register_passes();
 }

@@ -74,7 +74,7 @@ std::shared_ptr<ov::Model> ToProcessModel(const std::vector<TranspositionInfo>& 
         std::vector<size_t> transpose_order =
             transpose.transpose ? std::vector<size_t>{1, 0} : std::vector<size_t>{0, 1};
         slice_indices =
-            graph_utils::make_gather_indices_from_transpose_axes(ov::Shape{c_size, hw_size}, transpose_order);
+            graph_utils::make_gather_indexes_from_transpose_axes(ov::Shape{c_size, hw_size}, transpose_order);
         size_t id = indices.size();
         std::for_each(slice_indices.begin(), slice_indices.end(), [&id](size_t& i) {
             i += id;
