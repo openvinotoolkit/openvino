@@ -75,7 +75,7 @@ macro(ov_dev_package_no_errors)
     if(OV_COMPILER_IS_CLANG OR CMAKE_COMPILER_IS_GNUCXX)
         set(ie_c_cxx_dev_no_errors "-Wno-all")
         if(SUGGEST_OVERRIDE_SUPPORTED)
-            set(ie_cxx_dev_no_errors "${ie_c_cxx_dev_no_errors} -Wno-error=suggest-override")
+            set(ie_cxx_dev_no_errors "-Wno-error=suggest-override")
         endif()
     endif()
 
