@@ -31,13 +31,6 @@ shared_ptr<Node> op::Tanh::clone_with_new_inputs(const OutputVector& new_args) c
 
 namespace tanhop {
 namespace {
-template <element::Type_t ET>
-inline bool evaluate(const HostTensorPtr& arg0, const HostTensorPtr& out, const size_t count) {
-    using T = typename element_type_traits<ET>::value_type;
-    runtime::reference::tanh<T>(arg0->get_data_ptr<ET>(), out->get_data_ptr<ET>(), count);
-    return true;
-}
-
 struct Evaluate : ov::element::NoAction<bool> {
     using ov::element::NoAction<bool>::visit;
 

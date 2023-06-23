@@ -17,28 +17,28 @@ using namespace ngraph;
 
 namespace roundop {
 
-struct Evaluate : ov::element::NoAction<bool> {
-    using ov::element::NoAction<bool>::visit;
-
+class Evaluate : public ov::element::NoAction<bool> {
     template <element::Type_t ET>
     static constexpr bool is_floating() {
         return (ET == element::f16) || (ET == element::f32) || (ET == element::bf16);
     }
 
-    template <element::Type_t ET>
-    static typename std::enable_if<!is_floating<ET>(), bool>::type visit(const HostTensorPtr& arg0,
-                                                                         const HostTensorPtr& out,
-                                                                         const size_t count,
-                                                                         const op::v5::Round::RoundMode) {
+public:
+    using ov::element::NoAction<bool>::visit;
+    template <element::Type_t ET, typename std::enable_if<!is_floating<ET>()>::type* = nullptr>
+    static result_type visit(const HostTensorPtr& arg0,
+                             const HostTensorPtr& out,
+                             const size_t count,
+                             const op::v5::Round::RoundMode) {
         memcpy(out->get_data_ptr(), arg0->get_data_ptr(), out->get_size_in_bytes());
         return true;
     }
 
-    template <ov::element::Type_t ET>
-    static typename std::enable_if<is_floating<ET>(), bool>::type visit(const HostTensorPtr& arg0,
-                                                                        const HostTensorPtr& out,
-                                                                        const size_t count,
-                                                                        const op::v5::Round::RoundMode mode) {
+    template <element::Type_t ET, typename std::enable_if<is_floating<ET>()>::type* = nullptr>
+    static result_type visit(const HostTensorPtr& arg0,
+                             const HostTensorPtr& out,
+                             const size_t count,
+                             const op::v5::Round::RoundMode mode) {
         ngraph::runtime::reference::round(arg0->get_data_ptr<ET>(), out->get_data_ptr<ET>(), count, mode);
         return true;
     }
