@@ -129,7 +129,7 @@ def check_legacy_args(non_default_params, python_api_used):
     for key, value in non_default_params.items():
         if key in ignored_cli_options:
             if python_api_used:
-                print("The provided option \"{}\" is applicable in MO Command line tool only. The option will be ignored.".format(key))
+                print("The provided option \"{}\" is applicable in command line tool only. The option will be ignored.".format(key))
         for group in legacy_groups:
             if key in mo_convert_params[group]:
                 legacy_path_error("The provided option \"{}\" refers to legacy functionality. ".format(key))
