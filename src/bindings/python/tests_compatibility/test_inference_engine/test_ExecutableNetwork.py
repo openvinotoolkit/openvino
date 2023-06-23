@@ -122,6 +122,7 @@ def test_async_infer_many_req_get_idle(device):
     del ie_core
 
 
+@pytest.mark.skip(reason="Plugin API 2.0 has the different behavior.")
 def test_wait_before_start(device):
   ie_core = ie.IECore()
   net = generate_relu_model([1, 3, 32, 32])

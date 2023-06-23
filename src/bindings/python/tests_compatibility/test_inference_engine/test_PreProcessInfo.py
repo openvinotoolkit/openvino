@@ -108,6 +108,7 @@ def test_set_mean_image_for_channel():
     assert preprocess_info.mean_variant == MeanVariant.MEAN_IMAGE
 
 
+@pytest.mark.skip(reason="Plugin API 2.0 doesn't support GetPreProcess.")
 def test_resize_algorithm_set(device):
     ie_core = IECore()
     net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
@@ -119,6 +120,7 @@ def test_resize_algorithm_set(device):
     assert pp.resize_algorithm == ResizeAlgorithm.RESIZE_BILINEAR
 
 
+@pytest.mark.skip(reason="Plugin API 2.0 doesn't support GetPreProcess.")
 def test_set_mean_variant_to_read_only_preprocess(device):
     ie_core = IECore()
     net = ie_core.read_network(test_net_xml)
@@ -131,6 +133,7 @@ def test_set_mean_variant_to_read_only_preprocess(device):
     assert "Cannot set mean image when called from constant" in str(e.value)
 
 
+@pytest.mark.skip(reason="Plugin API 2.0 doesn't support GetPreProcess.")
 def test_set_resize_algorithm_to_read_only_preprocess(device):
     ie_core = IECore()
     net = ie_core.read_network(test_net_xml)
@@ -143,6 +146,7 @@ def test_set_resize_algorithm_to_read_only_preprocess(device):
     assert "Cannot set resize algorithm when called from constant" in str(e.value)
 
 
+@pytest.mark.skip(reason="Plugin API 2.0 doesn't support GetPreProcess.")
 def test_set_color_format_to_read_only_preprocess(device):
     ie_core = IECore()
     net = ie_core.read_network(test_net_xml)

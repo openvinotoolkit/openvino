@@ -283,6 +283,7 @@ def test_async_infer_callback(device):
     del ie_core
 
 
+@pytest.mark.skip(reason="Plugin API 2.0 has the different behavior for request.wait().")
 def test_async_infer_callback_wait_before_start(device):
     def static_vars(**kwargs):
         def decorate(func):
@@ -313,6 +314,7 @@ def test_async_infer_callback_wait_before_start(device):
     del ie_core
 
 
+@pytest.mark.skip(reason="Plugin API 2.0 has the different behavior for request.wait().")
 def test_async_infer_callback_wait_in_callback(device):
     class InferReqWrap:
         def __init__(self, request):
@@ -401,6 +403,7 @@ def test_blob_setter(device):
     assert np.allclose(res_1, res_2, atol=1e-2, rtol=1e-2)
 
 
+@pytest.mark.skip(reason="Plugin API 2.0 doesn't support GetPreProcess.")
 def test_getting_preprocess(device):
     ie_core = ie.IECore()
     net = ie_core.read_network(test_net_xml, test_net_bin)
@@ -411,6 +414,7 @@ def test_getting_preprocess(device):
     assert preprocess_info.mean_variant == ie.MeanVariant.NONE
 
 
+@pytest.mark.skip(reason="Plugin API 2.0 doesn't support GetPreProcess.")
 def test_resize_algorithm_work(device):
     ie_core = ie.IECore()
     net = generate_relu_model([1, 3, 32, 32])
@@ -498,6 +502,7 @@ def test_set_blob_with_incorrect_name(device):
     assert f"Failed to find input or output with name: 'incorrect_name'" in str(e.value)
 
 
+@pytest.mark.skip(reason="Plugin API 2.0 has the different behavior.")
 def test_set_blob_with_incorrect_size(device):
     function = create_encoder([4, 4, 20, 20])
     net = ng.function_to_cnn(function)

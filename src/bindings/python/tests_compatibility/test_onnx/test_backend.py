@@ -64,6 +64,7 @@ from tests_compatibility import (
     xfail_issue_99970,
     xfail_issue_99972,
     xfail_issue_99973,
+    xfail_issue_113702,
     skip_dynamic_model,
 )
 from tests_compatibility.test_onnx.utils.onnx_backend import OpenVinoTestBackend
@@ -718,6 +719,10 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_split_2d_uneven_split_opset18_cpu",
         "OnnxBackendNodeModelTest.test_split_zero_size_splits_opset13_cpu",
         "OnnxBackendNodeModelTest.test_split_zero_size_splits_opset18_cpu",
+    ),
+    (
+        xfail_issue_113702,
+        "OnnxBackendNodeModelTest.test_maxpool_with_argmax_2d_precomputed_pads_cpu",
     ),
 ]
 

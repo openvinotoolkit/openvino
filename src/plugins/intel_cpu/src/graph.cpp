@@ -86,10 +86,10 @@ void Graph::CreateGraph(NET &net, const GraphContext::CPtr ctx) {
     CPU_DEBUG_CAP_ENABLE(serialize(*this));
 }
 
-void Graph::CreateGraph(const std::vector<NodePtr> &graphNodes,
-                              const std::vector<EdgePtr> &graphEdges,
-                              const GraphContext::CPtr ctx,
-                              std::string name) {
+void Graph::CreateGraph(const std::vector<NodePtr>& graphNodes,
+                        const std::vector<EdgePtr>& graphEdges,
+                        const GraphContext::CPtr ctx,
+                        std::string name) {
     if (IsReady())
         ForgetGraphData();
 
@@ -139,6 +139,7 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &subgraph) {
         return -1;
     };
 
+    const bool is_legacy_api = getConfig().isLegacyApi;
     for (const auto& op : subgraph->get_ordered_ops()) {
         const NodePtr node {Node::factory().create(op, context)};
 
@@ -152,8 +153,7 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &subgraph) {
         }
 
         if (op->get_type_info() == ngraph::op::v0::Result::get_type_info_static()) {
-            const auto prev = op->input_value(0);
-            const std::string inputID = ov::op::util::get_ie_output_name(prev);
+            const std::string inputID = get_port_name(op->output(0), is_legacy_api);
 
             outputNodesMap[inputID] = node;
         }
@@ -209,9 +209,9 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &subgraph) {
     };
 
     auto input_ports = subgraph->inputs();
-    auto find_input_port_prec = [&input_ports](const std::string& name) -> ov::element::Type_t {
+    auto find_input_port_prec = [&input_ports, &is_legacy_api](const std::string& name) -> ov::element::Type_t {
         for (auto& it : input_ports) {
-            auto port_name = ov::op::util::get_ie_output_name(it);
+            auto port_name = get_port_name(it, is_legacy_api);
             if (port_name == name)
                 return it.get_element_type();
             port_name = it.get_node_shared_ptr()->get_friendly_name();
@@ -237,10 +237,9 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &subgraph) {
     }
 
     auto output_ports = subgraph->outputs();
-    auto find_output_port_prec = [&output_ports](const std::string& name) -> ov::element::Type_t {
+    auto find_output_port_prec = [&output_ports, &is_legacy_api](const std::string& name) -> ov::element::Type_t {
         for (auto& it : output_ports) {
-            const auto node = it.get_node_shared_ptr();
-            auto port_name = ov::op::util::get_ie_output_name(node->input_value(0));
+            auto port_name = get_port_name(it, is_legacy_api);
             if (port_name == name)
                 return it.get_element_type();
         }
@@ -291,6 +290,7 @@ void Graph::Replicate(const CNNNetwork &network) {
 
     OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "AllNodes");
 
+    const bool is_legacy_api = getConfig().isLegacyApi;
     // Replicate All Nodes in topological order
     for (const auto& op : orderedOps) {
         const NodePtr node(Node::factory().create(op, context));
@@ -308,8 +308,7 @@ void Graph::Replicate(const CNNNetwork &network) {
         }
 
         if (op->get_type_info() == ngraph::op::v0::Result::get_type_info_static()) {
-            const auto &input = op->input_value(0);
-            const auto name = ov::op::util::get_ie_output_name(input);
+            const auto name = get_port_name(op->output(0), is_legacy_api);
 
             if (outputsInfo.count(name) != 0) {
                 outputNodesMap[name] = node;

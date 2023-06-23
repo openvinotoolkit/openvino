@@ -5,6 +5,8 @@
 #pragma once
 
 #include <cassert>
+#include <transformations/utils/utils.hpp>
+
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
 
 namespace ov {
@@ -45,6 +47,29 @@ inline bool isDynamicNgraphNode(const std::shared_ptr<const ngraph::Node>& op) {
         ret = ret || op->get_output_partial_shape(i).is_dynamic();
     }
     return ret;
+}
+
+inline std::string get_port_name(const ov::Output<const ov::Node>& port, const bool is_legacy_api) {
+    std::string name;
+    // TODO: Should use tensor name as the port name, but many legacy tests still use legacy name
+    // plus sometimes it will get empty tensor name.
+    if (!is_legacy_api) {
+        name = {};
+        // auto tensor_ptr = port.get_tensor_ptr();
+        // if (tensor_ptr->get_names().size() >= 1) {
+        //     name = port.get_tensor_ptr()->get_any_name();
+        // }
+    }
+    if (name.empty()) {
+        bool is_input = ov::op::util::is_parameter(port.get_node());
+        if (is_input) {
+            name = ov::op::util::get_ie_output_name(port);
+        } else {
+            const auto node = port.get_node_shared_ptr();
+            name = ov::op::util::get_ie_output_name(node->input_value(0));
+        }
+    }
+    return name;
 }
 
 }   // namespace intel_cpu

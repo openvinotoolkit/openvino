@@ -64,8 +64,6 @@ private:
     void PullStates();
     void redefineMemoryForInputNodes();
 
-    std::string get_port_name(const ov::Output<const ov::Node>& port) const;
-    std::string query_port_name(const ov::Output<const ov::Node>& port) const;
     // Check port is original port or compiled port, return true for compiled port
     bool check_compiled_port(const ov::Output<const ov::Node>& port) const;
     void update_external_inputs();
@@ -81,6 +79,7 @@ private:
     mutable std::unordered_map<std::string, ov::Tensor> _aux_tensors;
     mutable std::unordered_map<std::string, bool> _port_precision_changed;
     bool _port_name_change = false;
+    bool _is_legacy_api = false;
 
     std::shared_ptr<const CompiledModel> _compiled_model;
     openvino::itt::handle_t _profiling_task;
