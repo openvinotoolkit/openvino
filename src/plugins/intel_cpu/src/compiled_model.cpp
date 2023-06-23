@@ -266,10 +266,6 @@ ov::Any CompiledModel::GetMetric(const std::string& name) const {
     const auto& graph = graphLock._graph;
     const auto& config = graph.getConfig();
 
-    if (_cfg.isLegacyApi) {
-        return GetMetricLegacy(name, graph);
-    }
-
     auto RO_property = [](const std::string& propertyName) {
         return ov::PropertyName(propertyName, ov::PropertyMutability::RO);
     };

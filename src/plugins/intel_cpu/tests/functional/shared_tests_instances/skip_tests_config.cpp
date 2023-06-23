@@ -216,8 +216,6 @@ std::vector<std::string> disabledTestPatterns() {
         // Issue: There are some problem when work with AUTO plugin API 2.0
         R"(.*smoke_Auto_CachingSupportCase_CPU/CompileModelCacheTestBase.CompareWithRefImpl.*)",
         R"(.*smoke_Auto_CachingSupportCase_CPU_Float/CompileModelCacheTestBase.CompareWithRefImpl.*)",
-        R"(.*smoke_Auto_BehaviorTests/CorrectConfigTests.CanLoadNetworkWithCorrectConfig/target_device=AUTO.*)",
-        R"(.*smoke_Auto_BehaviorTests/CorrectConfigTests.CanUseCache/target_device=AUTO.*)",
     };
 
 #if defined(OPENVINO_ARCH_X86)

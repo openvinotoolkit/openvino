@@ -45,7 +45,6 @@ SyncInferRequest::SyncInferRequest(std::shared_ptr<const CompiledModel> compiled
         _output_ports_map[port_name] = out;
     }
 
-    // Sometimes tansfromation will change input/output name, such as SimpleIf test, need handle it.
     auto orig_model = _compiled_model->get_orig_model();
     for (const auto& in : orig_model->inputs()) {
         auto port_name = get_port_name(in, _is_legacy_api);
