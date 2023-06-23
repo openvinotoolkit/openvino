@@ -401,20 +401,10 @@ static bool shouldEnableLPT(const ov::AnyMap& modelConfig, const Config& engineC
         IE_THROW() << "Wrong value for property key LP_TRANSFORMS_MODE. Expected values: YES/NO";
 }
 
-static bool shouldEnforceBF16(const ov::AnyMap& modelConfig, const Config& engineConfig) {
-    // For BF16 execution, the machine should have AVX512 at least
-    if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core))
-        return false;
-
-    const auto& enforceBF16 = modelConfig.find(InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16);
-    const auto& inferPrec = modelConfig.find(ov::hint::inference_precision.name());
-    if (enforceBF16 != modelConfig.end()) {
-        return enforceBF16->second.as<std::string>() == PluginConfigParams::YES;
-    } else if (inferPrec != modelConfig.end()) {
-        return inferPrec->second.as<std::string>() == "bf16";
-    } else {
-        return engineConfig.enforceBF16;
-    }
+static ov::element::Type getInferencePrecision(const ov::AnyMap& modelConfig, const Config& engineConfig) {
+    Config tempConf = engineConfig;
+    tempConf.readProperties(modelConfig);
+    return tempConf.inferencePrecision;
 }
 
 static Config::SnippetsMode getSnippetsMode(const ov::AnyMap& modelConfig, const Config& engineConfig) {
@@ -462,12 +452,12 @@ Engine::compile_model(const std::shared_ptr<const ov::Model>& model, const ov::A
     auto config = orig_config;
     const std::shared_ptr<ov::Model> cloned_model = model->clone();
     const bool enableLPT = shouldEnableLPT(config, engConfig);
-    const bool enableBF16 = shouldEnforceBF16(config, engConfig);
+    ov::element::Type inferencePrecision = getInferencePrecision(config, engConfig);
     const Config::SnippetsMode snippetsMode = getSnippetsMode(config, engConfig);
 
     DEBUG_LOG(PrintableModel(*cloned_model, "org_"));
 
-    Transformations transformations(cloned_model, enableLPT, enableBF16, is_legacy_api(), snippetsMode, engConfig);
+    Transformations transformations(cloned_model, enableLPT, inferencePrecision, is_legacy_api(), snippetsMode, engConfig);
     transformations.UpToCpuSpecificOpSet();
 
     // need to check that all outputs have static shapes
@@ -565,9 +555,7 @@ ov::Any Engine::get_property(const std::string& name, const ov::AnyMap& options)
         const bool perfCount = engConfig.collectPerfCounters;
         return decltype(ov::enable_profiling)::value_type(perfCount);
     } else if (name == ov::hint::inference_precision) {
-        const auto enforceBF16 = engConfig.enforceBF16;
-        const auto inference_precision = enforceBF16 ? ov::element::bf16 : ov::element::f32;
-        return decltype(ov::hint::inference_precision)::value_type(inference_precision);
+        return decltype(ov::hint::inference_precision)::value_type(engConfig.inferencePrecision);
     } else if (name == ov::hint::performance_mode) {
         const auto perfHint = ov::util::from_string(engConfig.perfHintsConfig.ovPerfHint, ov::hint::performance_mode);
         return perfHint;
@@ -737,7 +725,7 @@ ov::SupportedOpsMap Engine::query_model(const std::shared_ptr<const ov::Model>& 
     auto supported = ov::get_supported_nodes(
         model,
         [&](std::shared_ptr<ov::Model>& model) {
-            Transformations transformation(model, enableLPT, conf.enforceBF16, is_legacy_api(), snippetsMode, engConfig);
+            Transformations transformation(model, enableLPT, conf.inferencePrecision, is_legacy_api(), snippetsMode, engConfig);
             transformation.UpToCpuSpecificOpSet();
             transformation.CpuSpecificOpSet();
         },

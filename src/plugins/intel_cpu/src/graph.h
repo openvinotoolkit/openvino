@@ -253,7 +253,7 @@ private:
 
     GraphContext::CPtr context;
 
-    void EnforceBF16();
+    void EnforceInferencePrecision();
 };
 
 }  // namespace intel_cpu
