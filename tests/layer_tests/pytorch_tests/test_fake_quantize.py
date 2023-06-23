@@ -91,7 +91,7 @@ class TestFakeQuantizePerChannelAffine(PytorchLayerTest):
         "scale, zero_point, axis, quant_min, quant_max",
         [
             (torch.tensor([0.005, 0.7]), torch.zeros(2), 1, 0, 255),
-            (torch.tensor([1.5, -0.7, -0.1]), torch.zeros(3), 0, -128, 127),
+            (torch.tensor([1.5, -0.7, -0.1]), torch.tensor([1, 0, -1], dtype=torch.int32), 0, -128, 127),
             (torch.tensor([-0.005, 0.7]), torch.tensor([0, 1], dtype=torch.int32), 1, 0, 127),
             (torch.tensor([-0.005, -0.7, 0.1]), torch.tensor([1, 0, 1], dtype=torch.int32), 0, 0, 255),
         ],
