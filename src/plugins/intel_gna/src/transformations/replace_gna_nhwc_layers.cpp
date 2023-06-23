@@ -82,7 +82,8 @@ bool do_transformation(std::shared_ptr<ov::Node> convolution) {
     const ov::Shape convolution_input_shape = convolution_node->get_input_shape(0);
 
     if (convolution_input_shape.size() != 3 && convolution_input_shape.size() != 4) {
-        std::cout << "ReplaceGnaNHWCLayers: unsupported convolution size " << convolution_input_shape.size() << std::endl;
+        std::cout << "ReplaceGnaNHWCLayers: unsupported convolution size " << convolution_input_shape.size()
+                  << std::endl;
         return false;
     }
 
