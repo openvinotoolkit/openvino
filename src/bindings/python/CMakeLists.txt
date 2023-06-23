@@ -309,7 +309,6 @@ if(ENABLE_PYTHON_PACKAGING)
 
     set(python_package_prefix "${CMAKE_CURRENT_BINARY_DIR}/install_${pyversion}")
     set(install_lib "${python_package_prefix}/lib/${python_versioned_folder}/${ov_site_packages}")
-
     set(meta_info_subdir "openvino-${OpenVINO_VERSION}-py${python_xy}.egg-info")
     set(meta_info_file "${install_lib}/${meta_info_subdir}/PKG-INFO")
 
@@ -330,7 +329,6 @@ if(ENABLE_PYTHON_PACKAGING)
                     --prefix "${python_package_prefix}"
                     --install-lib "${install_lib}"
                     --install-scripts "${python_package_prefix}/bin"
-
                     # --single-version-externally-managed
                     # --record=installed.txt
         WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"

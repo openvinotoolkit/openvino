@@ -37,9 +37,6 @@ configure_file("${CMAKE_CURRENT_SOURCE_DIR}/pot/openvino/tools/pot/version.txt.i
                "${CMAKE_CURRENT_SOURCE_DIR}/pot/openvino/tools/pot/version.txt" @ONLY)
 
 
-
-# TODO: do we need to add ENABLE_PYTHON_TOOLS ?
-
 if(ENABLE_PYTHON)
 
 # Benchmark Tool
