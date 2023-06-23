@@ -385,8 +385,6 @@ TEST(prepare_buffer_fusing, in_place_onednn_concat_static) {
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
     config.set_property(ov::intel_gpu::allow_new_shape_infer(false));
-    ov::intel_gpu::ImplementationDesc impl = { format::bfyx, std::string(""), impl_types::onednn };
-    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"concat", impl} }));
     network network(engine, topology, config);
 
     auto input_memory1 = engine.allocate_memory(in_layout1);
