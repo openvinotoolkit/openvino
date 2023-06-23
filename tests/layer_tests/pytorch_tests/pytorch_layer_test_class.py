@@ -50,8 +50,15 @@ class PytorchLayerTest:
         else:
             inputs = self._prepare_input()
 
-        torch_inputs = [torch.from_numpy(inp) if isinstance(
-            inp, np.ndarray) else inp for inp in inputs]
+        def numpy_to_torch_recursively(x):
+            if isinstance(x, tuple):
+                return tuple(numpy_to_torch_recursively(y) for y in x)
+            elif isinstance(x, np.ndarray):
+                return torch.from_numpy(x)
+            else:
+                return x
+
+        torch_inputs = [numpy_to_torch_recursively(inp) for inp in inputs]
 
         if 'custom_eps' in kwargs and kwargs['custom_eps'] is not None:
             custom_eps = kwargs['custom_eps']
@@ -61,6 +68,8 @@ class PytorchLayerTest:
         def use_ts_backend():
             return(os.environ.get('USE_TS_BACKEND', False))
 
+        ov_inputs = flattenize(inputs)
+
         if use_ts_backend():
             self.ts_backend_test(model, torch_inputs, custom_eps)
         else:
@@ -68,7 +77,7 @@ class PytorchLayerTest:
                 model.eval()
                 trace_model = kwargs.get('trace_model', False)
                 freeze_model = kwargs.get('freeze_model', True)
-                model, converted_model = self.convert_directly_via_frontend(model, torch_inputs, trace_model, dynamic_shapes, inputs, freeze_model)
+                model, converted_model = self.convert_directly_via_frontend(model, torch_inputs, trace_model, dynamic_shapes, ov_inputs, freeze_model)
                 graph = model.inlined_graph
 
                 if kind is not None and not isinstance(kind, (tuple, list)):
@@ -80,7 +89,7 @@ class PytorchLayerTest:
             # OV infer:
             core = Core()
             compiled = core.compile_model(converted_model, ie_device)
-            infer_res = compiled(deepcopy(inputs))
+            infer_res = compiled(deepcopy(ov_inputs))
 
             if hasattr(self, 'skip_framework') and self.skip_framework:
                 warnings.warn('Framework is skipped')
@@ -96,7 +105,7 @@ class PytorchLayerTest:
 
             flatten_fw_res = []
 
-            flatten_fw_res = flattenize_outputs(fw_res)
+            flatten_fw_res = flattenize(fw_res)
 
             assert len(flatten_fw_res) == len(
                 output_list), f'number of outputs not equal, {len(flatten_fw_res)} != {len(output_list)}'
@@ -212,8 +221,8 @@ class PytorchLayerTest:
             ov_res = (ov_res,)
 
         flatten_fw_res, flatten_ov_res = [], []
-        flatten_fw_res = flattenize_outputs(fw_res)
-        flatten_ov_res = flattenize_outputs(ov_res)
+        flatten_fw_res = flattenize(fw_res)
+        flatten_ov_res = flattenize(ov_res)
 
         assert len(flatten_fw_res) == len(
             flatten_ov_res
@@ -268,10 +277,10 @@ def get_params(ie_device=None, precision=None):
 
 def flattenize_dict_outputs(res):
     if isinstance(res, dict):
-        return flattenize_outputs(res.values())
+        return flattenize(res.values())
 
 
-def flattenize_outputs(res):
+def flattenize(res):
     results = []
     for res_item in res:
         # if None is at output we skip it
@@ -279,7 +288,7 @@ def flattenize_outputs(res):
             continue
         # If input is list or tuple flattenize it
         if isinstance(res_item, (list, tuple)):
-            decomposed_res = flattenize_outputs(res_item)
+            decomposed_res = flattenize(res_item)
             results.extend(decomposed_res)
             continue
         if isinstance(res_item, dict):
