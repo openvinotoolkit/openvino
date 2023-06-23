@@ -18,7 +18,7 @@ namespace pass {
 bool DecomposeListTupleParameters::run_on_model(const std::shared_ptr<Model>& model) {
     bool at_least_one_decomposed = false;
     std::queue<std::shared_ptr<ov::op::v0::Parameter>> parameters;
-    for (auto par : model->get_parameters()) {
+    for (const auto& par : model->get_parameters()) {
         parameters.push(par);
     }
     while (!parameters.empty()) {
@@ -31,7 +31,7 @@ bool DecomposeListTupleParameters::run_on_model(const std::shared_ptr<Model>& mo
         // collects all outputs per each consumer operation for this tuple/list Parameter
         std::vector<OutputVector> consumer_outputs;
 
-        for (auto consumer : consumers) {
+        for (const auto& consumer : consumers) {
             auto node = consumer.get_node()->shared_from_this();
             auto tuple_unpack = cast_fw_node(node, "prim::TupleUnpack");
             auto list_unpack = cast_fw_node(node, "prim::ListUnpack");
@@ -64,7 +64,7 @@ bool DecomposeListTupleParameters::run_on_model(const std::shared_ptr<Model>& mo
             element::Type et = element::dynamic;
             std::set<Input<Node>> inputs;
 
-            for (auto outputs : consumer_outputs) {
+            for (const auto& outputs : consumer_outputs) {
                 auto output = outputs[i];
                 OPENVINO_ASSERT(PartialShape::merge_into(ps, output.get_partial_shape()),
                                 "Consumers for unpack op have incompatible shape");
