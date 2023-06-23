@@ -124,7 +124,7 @@ protected:
         PhysicalSet(int size) : isFreeIndexVector(size, true) {}
 
         void setAsUsed(size_t regIdx) {
-            if (regIdx >= isFreeIndexVector.size() || regIdx < 0) {
+            if (regIdx >= isFreeIndexVector.size()) {
                 IE_THROW() << "regIdx is out of bounds in RegistersPool::PhysicalSet::setAsUsed()";
             }
             if (!isFreeIndexVector[regIdx]) {
@@ -134,7 +134,7 @@ protected:
         }
 
         void setAsUnused(size_t regIdx) {
-            if (regIdx >= isFreeIndexVector.size() || regIdx < 0) {
+            if (regIdx >= isFreeIndexVector.size()) {
                 IE_THROW() << "regIdx is out of bounds in RegistersPool::PhysicalSet::setAsUsed()";
             }
             if (isFreeIndexVector[regIdx]) {
@@ -147,7 +147,7 @@ protected:
             if (requestedIdx == static_cast<size_t>(anyIdx)) {
                 return getFirstFreeIndex();
             } else {
-                if (requestedIdx >= isFreeIndexVector.size() || requestedIdx < 0) {
+                if (requestedIdx >= isFreeIndexVector.size()) {
                     IE_THROW() << "requestedIdx is out of bounds in RegistersPool::PhysicalSet::getUnused()";
                 }
                 if (!isFreeIndexVector[requestedIdx]) {
@@ -191,7 +191,7 @@ protected:
 
     RegistersPool(int simdRegistersNumber)
             : simdSet(simdRegistersNumber) {
-        checkUniqueAndUpdate();
+        checkUniqueAndUpdate(true);
         generalSet.exclude(Xbyak::Reg64(Xbyak::Operand::RSP));
         generalSet.exclude(Xbyak::Reg64(Xbyak::Operand::RAX));
         generalSet.exclude(Xbyak::Reg64(Xbyak::Operand::RCX));
@@ -201,7 +201,7 @@ protected:
 
     RegistersPool(std::initializer_list<Xbyak::Reg> regsToExclude, int simdRegistersNumber)
             : simdSet(simdRegistersNumber) {
-        checkUniqueAndUpdate();
+        checkUniqueAndUpdate(true);
         for (auto& reg : regsToExclude) {
             if (reg.isXMM() || reg.isYMM() || reg.isZMM()) {
                 simdSet.exclude(reg);
@@ -241,7 +241,7 @@ private:
         }
     }
 
-    void checkUniqueAndUpdate(bool isCtor = true) {
+    void checkUniqueAndUpdate(bool isCtor) {
         static thread_local bool isCreated = false;
         if (isCtor) {
             if (isCreated) {
@@ -254,7 +254,11 @@ private:
     }
 
     void checkUniqueAndUpdate() {
+        // will be assigned once per thread
         static thread_local bool isCreated = false;
+        // the same logic, as in parametrized function,
+        // necessary in non-ctor case
+        isCreated = false;
     }
 
     PhysicalSet generalSet {16};
