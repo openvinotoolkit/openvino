@@ -40,6 +40,7 @@ OP_CONVERTER(translate_convolution_mode);
 OP_CONVERTER(translate_copy_);
 OP_CONVERTER(translate_cumsum);
 OP_CONVERTER(translate_deform_conv);
+OP_CONVERTER(translate_dequantize);
 OP_CONVERTER(translate_derive_index);
 OP_CONVERTER(translate_dim);
 OP_CONVERTER(translate_div);
@@ -104,6 +105,7 @@ OP_CONVERTER(translate_pad);
 OP_CONVERTER(translate_pairwise_distance);
 OP_CONVERTER(translate_pow);
 OP_CONVERTER(translate_pythonop);
+OP_CONVERTER(translate_quantize_per_tensor);
 OP_CONVERTER(translate_range_length);
 OP_CONVERTER(translate_reciprocal);
 OP_CONVERTER(translate_relu6);
@@ -225,6 +227,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::cosh_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Cosh>>},
         {"aten::cumsum", op::translate_cumsum},
         {"aten::detach", op::skip_node},
+        {"aten::dequantize", op::translate_dequantize},
         {"aten::dim", op::translate_dim},
         {"aten::div", op::translate_div},
         {"aten::div_", op::inplace_op<op::translate_div>},
@@ -314,6 +317,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::pairwise_distance", op::translate_pairwise_distance},
         {"aten::permute", op::translate_1to1_match_2_inputs<opset10::Transpose>},
         {"aten::pow", op::translate_pow},
+        {"aten::quantize_per_tensor", op::translate_quantize_per_tensor},
         {"aten::reciprocal", op::translate_reciprocal},
         {"aten::relu", op::translate_1to1_match_1_inputs<opset10::Relu>},
         {"aten::relu_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Relu>>},

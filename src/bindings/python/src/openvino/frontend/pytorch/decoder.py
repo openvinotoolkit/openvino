@@ -89,6 +89,9 @@ pt_to_ov_type_map = {
     "torch.IntTensor": OVType.i32,
     "torch.LongTensor": OVType.i64,
     "torch.BoolTensor": OVType.boolean,
+    "torch.quint8": OVType.u8,
+    "torch.qint8": OVType.i8,
+    "torch.qint32": OVType.i32
 }
 
 
