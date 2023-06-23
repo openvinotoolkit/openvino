@@ -74,6 +74,7 @@ struct Config {
     std::map<std::string, std::string> keyConfigMap;
 
     static const uint8_t max_num_requests = 127;
+    std::string device_id;
 };
 
 }  // namespace GNAPluginNS
