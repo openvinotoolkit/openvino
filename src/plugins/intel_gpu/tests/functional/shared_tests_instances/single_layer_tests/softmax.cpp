@@ -71,6 +71,7 @@ const std::vector<ov::Shape> inputShapes4D = {
     {1, 100, 1, 1},
     {1, 3, 4, 3},
     {2, 3, 4, 5},
+    {1, 32, 1, 286},
 };
 
 const std::vector<int64_t> axis4D = {-4, -3, -2, -1, 0, 1, 2, 3};

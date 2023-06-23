@@ -80,9 +80,9 @@ JitConstants SoftmaxKerneItemsClassOptimized::GetJitConstants(const softmax_para
     auto jit = SoftmaxItemsClassKernelBase::GetJitConstants(params, dispatchData);
 
     // sub_group_block_write requires aligned memory,
-    // therefore it can be utilized if either memory is aligned by 16 bytes or there is only 1 dataset
+    // therefore it can be utilized if either memory is aligned by 16 bytes
     bool isSubGroupBlockIOEnabled = params.dim != SoftmaxDim::BATCH &&
-        (dispatchData.dataSetSize % (16 / params.inputs[0].ElementSize()) == 0 || dispatchData.dataSetsCount == 1);
+        (dispatchData.dataSetSize * params.outputs[0].ElementSize()) % 16 == 0;
 
     jit.AddConstants({
         MakeJitConstant("LEFTOVERS", dispatchData.leftovers),
