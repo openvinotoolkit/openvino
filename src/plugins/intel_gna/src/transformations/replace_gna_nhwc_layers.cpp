@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/transpose_nchw.hpp"
+#include "transformations/replace_gna_nhwc_layers.hpp"
 
 #include <vector>
 
@@ -22,7 +22,7 @@ using namespace ov::pass::pattern;
 using namespace ov::intel_gna::pass;
 using namespace ov::intel_gna::pass::helper;
 
-NGRAPH_RTTI_DEFINITION(ov::intel_gna::pass::TransposeNCHW, "TransposeNCHW");
+NGRAPH_RTTI_DEFINITION(ov::intel_gna::pass::ReplaceGnaNHWCLayers, "ReplaceGnaNHWCLayers");
 NGRAPH_RTTI_DEFINITION(ov::intel_gna::pass::SubstituteGNAConvolution, "SubstituteGNAConvolution");
 NGRAPH_RTTI_DEFINITION(ov::intel_gna::pass::SubstituteGNAMaxPool, "SubstituteGNAMaxPool");
 
@@ -82,7 +82,7 @@ bool do_transformation(std::shared_ptr<ov::Node> convolution) {
     const ov::Shape convolution_input_shape = convolution_node->get_input_shape(0);
 
     if (convolution_input_shape.size() != 3 && convolution_input_shape.size() != 4) {
-        std::cout << "TransposeNCHW: unsupported convolution size " << convolution_input_shape.size() << std::endl;
+        std::cout << "ReplaceGnaNHWCLayers: unsupported convolution size " << convolution_input_shape.size() << std::endl;
         return false;
     }
 
@@ -195,8 +195,8 @@ ov::intel_gna::pass::SubstituteGNAMaxPool::SubstituteGNAMaxPool() {
     this->register_matcher(m, callback);
 }
 
-bool ov::intel_gna::pass::TransposeNCHW::run_on_model(const std::shared_ptr<Model>& function) {
-    RUN_ON_MODEL_SCOPE(TransposeNCHW);
+bool ov::intel_gna::pass::ReplaceGnaNHWCLayers::run_on_model(const std::shared_ptr<Model>& function) {
+    RUN_ON_MODEL_SCOPE(ReplaceGnaNHWCLayers);
 
     ov::pass::Manager manager(get_pass_config());
     manager.register_pass<ov::intel_gna::pass::SubstituteGNAConvolution>();

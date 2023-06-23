@@ -43,7 +43,7 @@ public:
 /**
  * @brief calls SubstituteGNAConvolution and SubstituteGNAMaxPool together
  */
-class TransposeNCHW : public ngraph::pass::FunctionPass {
+class ReplaceGnaNHWCLayers : public ngraph::pass::FunctionPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     bool run_on_model(const std::shared_ptr<ngraph::Function>& f) override;
