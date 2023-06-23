@@ -220,7 +220,7 @@ class CustomBuild(build):
         ("cmake-args=", None, "Additional options to be passed to CMake."),
         ("python-extensions-only", None, "Install Python extensions without C++ libraries."),
     ]
-    boolean_options = build.boolean_options + ['python-extensions-only']
+    boolean_options = build.boolean_options + ["python-extensions-only"]
 
     def initialize_options(self):
         """Set default values for all the options that this command supports."""
@@ -436,7 +436,7 @@ class CopyExt(build_ext):
     user_options = [
         ("skip-rpath", None, "Skips RPATH for Python extensions."),
     ]
-    boolean_options = ['skip_rpath']
+    boolean_options = ["skip_rpath"]
 
     def initialize_options(self):
         """Set default values for all the options that this command supports."""
