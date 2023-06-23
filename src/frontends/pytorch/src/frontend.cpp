@@ -16,6 +16,7 @@
 #include "transformations/common_optimizations/remove_multi_subgraph_op_dangling_params.hpp"
 #include "transformations/common_optimizations/reverse_shape_and_type_infer.hpp"
 #include "transformations/control_flow/unroll_if.hpp"
+#include "transformations/low_precision/mark_dequantization_subgraph.hpp"
 #include "transformations/op_conversions/convert_convertlike.hpp"
 #include "transforms.hpp"
 #include "transforms/append_list_unpack_replacer.hpp"
@@ -35,6 +36,7 @@
 #include "transforms/prim_list_unpack_replacer.hpp"
 #include "transforms/rfftn_complex_replacer.hpp"
 #include "transforms/string_equality_replacer.hpp"
+#include "transforms/tuple_unpack_replacer.hpp"
 #include "translate_session.hpp"
 
 namespace ov {
@@ -155,6 +157,8 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     manager.register_pass<ov::pass::ConvertConvertLike>();
     manager.register_pass<ov::frontend::pytorch::pass::AtenIndexToSelect>();
 
+    manager.register_pass<ov::pass::MarkDequantizationSubgraph>(
+        element::TypeVector{element::u8, element::i8, element::u4, element::i4});
     manager.register_pass<ov::pass::ConstantFolding>();
     manager.register_pass<ov::pass::PushConstantToSubgraph>();
     manager.register_pass<ov::pass::UnrollIf>();
@@ -172,6 +176,7 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     manager.register_pass<ov::frontend::pytorch::pass::StringEqualityReplacer>();
     manager.register_pass<ov::frontend::pytorch::pass::RFFTNComplexReplacer>();
     manager.register_pass<ov::frontend::pytorch::pass::IRFFTNComplexReplacer>();
+    manager.register_pass<ov::frontend::pytorch::pass::PrimTupleUnpackReplacer>();
     manager.register_pass<ov::frontend::pytorch::pass::DecomposeListTupleResults>();
     manager.register_pass<ov::frontend::pytorch::pass::DictResolver>();
     manager.register_pass<ov::frontend::pytorch::pass::IndexLoopGetitemReplacer>();
