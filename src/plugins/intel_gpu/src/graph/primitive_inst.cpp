@@ -270,6 +270,8 @@ void primitive_inst::update_shape() {
             continue;
         }
         auto& dep = _node->get_dependency(i);
+        if (dep.is_in_shape_of_subgraph())
+            continue;
         auto dep_id = dep.id();
         // exclude fused node from memory_deps
         if (_node->is_fused_dep(i)) {
@@ -285,7 +287,7 @@ void primitive_inst::update_shape() {
         has_runtime_deps = true;
     }
 
-    if (has_runtime_deps && !get_node().is_in_shape_of_subgraph()) {
+    if (has_runtime_deps) {
         if (!dependencies_events.empty() && queue_type == QueueTypes::out_of_order) {
             _network.get_stream().wait_for_events(dependencies_events);
         } else if (queue_type == QueueTypes::in_order) {
