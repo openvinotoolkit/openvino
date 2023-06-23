@@ -36,12 +36,12 @@ TEST_P(SoftmaxFusionFixture, SoftmaxFusion) {
         auto div = std::make_shared<opset6::Divide>(exp, reduce_sum);
         f = std::make_shared<Function>(NodeVector{div}, ParameterVector{data});
 
-        auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
+        auto unh = std::make_shared<ov::pass::UniqueNamesHolder>();
         pass::Manager m;
-        m.register_pass<pass::InitUniqueNames>(unh);
+        m.register_pass<ov::pass::InitUniqueNames>(unh);
         m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ov::pass::SoftmaxFusion>();
-        m.register_pass<pass::CheckUniqueNames>(unh);
+        m.register_pass<ov::pass::CheckUniqueNames>(unh);
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -81,12 +81,12 @@ TEST_P(SoftmaxFusionSimplePatternFixture, SoftmaxFusionSimplePatternTest) {
         auto div = std::make_shared<opset6::Divide>(exp, reduce_sum);
         f = std::make_shared<Function>(NodeVector{div}, ParameterVector{data});
 
-        auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
+        auto unh = std::make_shared<ov::pass::UniqueNamesHolder>();
         pass::Manager m;
-        m.register_pass<pass::InitUniqueNames>(unh);
+        m.register_pass<ov::pass::InitUniqueNames>(unh);
         m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ov::pass::SoftmaxFusion>();
-        m.register_pass<pass::CheckUniqueNames>(unh);
+        m.register_pass<ov::pass::CheckUniqueNames>(unh);
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -136,12 +136,12 @@ TEST_P(NegativeSoftmaxFusionFixture, NegativeSoftmaxFusion) {
     auto div = std::make_shared<opset6::Divide>(exp, reduce_sum);
     f = std::make_shared<Function>(NodeVector{div}, ParameterVector{data});
 
-    auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
+    auto unh = std::make_shared<ov::pass::UniqueNamesHolder>();
     pass::Manager m;
-    m.register_pass<pass::InitUniqueNames>(unh);
+    m.register_pass<ov::pass::InitUniqueNames>(unh);
     m.register_pass<ov::pass::InitNodeInfo>();
     m.register_pass<ov::pass::SoftmaxFusion>();
-    m.register_pass<pass::CheckUniqueNames>(unh);
+    m.register_pass<ov::pass::CheckUniqueNames>(unh);
     m.run_passes(f);
     ASSERT_NO_THROW(check_rt_info(f));
     ASSERT_EQ(count_ops_of_type<opset6::ReduceMax>(f), 1);
