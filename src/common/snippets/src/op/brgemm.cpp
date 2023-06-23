@@ -24,6 +24,14 @@ Brgemm::Brgemm(const Output<Node>& A, const Output<Node>& B,
     custom_constructor_validate_and_infer_types(std::move(layout_a), std::move(layout_b), std::move(layout_c));
 }
 
+Brgemm::Brgemm(const Output<Node>& A, const Output<Node>& B,
+               const PortDescriptor& desc_a, const PortDescriptor& desc_b, const PortDescriptor& desc_c,
+               std::vector<size_t> layout_a, std::vector<size_t> layout_b, std::vector<size_t> layout_c)
+    : MemoryAccess({A, B}, PortMap{{0, desc_a}, {1, desc_b}}, PortMap{{0, desc_c}}) {
+    set_output_size(1);
+    custom_constructor_validate_and_infer_types(std::move(layout_a), std::move(layout_b), std::move(layout_c));
+}
+
 void Brgemm::custom_constructor_validate_and_infer_types(std::vector<size_t> layout_a, std::vector<size_t> layout_b, std::vector<size_t> layout_c) {
     INTERNAL_OP_SCOPE(BrgemmCPU_constructor_validate_and_infer_types);
     validate_inputs();
@@ -56,7 +64,7 @@ std::shared_ptr<Node> Brgemm::clone_with_new_inputs(const OutputVector& new_args
     INTERNAL_OP_SCOPE(Brgemm_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return std::make_shared<Brgemm>(new_args.at(0), new_args.at(1),
-                                    get_offset_a(), get_offset_b(), get_offset_c(),
+                                    get_input_port_descriptor(0), get_input_port_descriptor(1), get_output_port_descriptor(0),
                                     lowered::PortDescriptorUtils::get_port_descriptor_ptr(input(0))->get_layout(),
                                     lowered::PortDescriptorUtils::get_port_descriptor_ptr(input(1))->get_layout(),
                                     lowered::PortDescriptorUtils::get_port_descriptor_ptr(output(0))->get_layout());
