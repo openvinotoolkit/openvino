@@ -1471,12 +1471,15 @@ bool Node::isInputTensorAtPortEmpty(size_t port) const {
         IE_THROW() << "Incorrect input port number for node " << getName();
     }
 
-    if (inputShapes[port].isStatic()) {
-        return inputShapes[port].hasZeroDims();
+    if (inputShapes[port].hasZeroDims()) {
+        return true;
     } else {
-        auto& mem = getParentEdgesAtPort(port)[0]->getMemory();
-        if (mem.isAllocated()) {
-            return mem.getShape().hasZeroDims();
+        auto edge = getParentEdgesAtPort(port)[0];
+        if (one_of(edge->getStatus(), Edge::Status::Allocated, Edge::Status::Validated)) {
+            auto&& mem = edge->getMemory();
+            if (mem.isAllocated()) {
+                return mem.getShape().hasZeroDims();
+            }
         }
     }
     return false;
