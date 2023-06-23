@@ -120,8 +120,8 @@ public:
         SimpleLowPrecisionTransformer transform(supportedPrecisionsOnActivation, quantizationRestrictions);
         transform.add<ngraph::pass::low_precision::ConcatTransformation, ov::opset1::Concat>(testValues.params);
         transform.add<ngraph::pass::low_precision::ConvolutionTransformation, ov::opset1::Convolution>(testValues.params);
-        transform.add<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation, ov::opset1::FakeQuantize>(testValues.params);
-        transform.add<ngraph::pass::low_precision::MaxPoolTransformation, ov::opset1::MaxPool>(testValues.params);
+        transform.add<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation, ov::op::v0::FakeQuantize>(testValues.params);
+        transform.add<ngraph::pass::low_precision::MaxPoolTransformation, ov::op::v1::MaxPool>(testValues.params);
         transform.transform(actualFunction);
 
         referenceFunction = ngraph::builder::subgraph::PrecisionPropagationFunction::getReferenceWithNeighbors(
@@ -157,7 +157,7 @@ TEST_P(ConcatWithNeighborsWithConvolutionTransformation, CompareFunctions) {
     //auto res = compare_functions(actualFunction, referenceFunction, true, false, false);
     //ASSERT_TRUE(res.first) << res.second;
 
-    auto actualFakeQuantizes = LayerTransformation::get<ov::opset1::FakeQuantize>(actualFunction);
+    auto actualFakeQuantizes = LayerTransformation::get<ov::op::v0::FakeQuantize>(actualFunction);
     ASSERT_EQ(3ul, actualFakeQuantizes.size()) << "unexpected FakeQuantize operations count " << actualFakeQuantizes.size();
 
     ASSERT_TRUE(checkIfOutputAttributesSharedValuesAreTheSame<PrecisionsAttribute>(actualFakeQuantizes)) <<
