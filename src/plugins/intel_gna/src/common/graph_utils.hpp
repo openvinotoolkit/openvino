@@ -339,7 +339,7 @@ inline ov::Shape transpose_shape(const ov::Shape& shape, std::vector<size_t> ord
  * @param order the permutation array to apply to the input shape
  * @return vector with indexes to gather
  */
-inline std::vector<size_t> make_gather_indices_from_transpose_axes(const Shape& input_shape, const Shape& order) {
+inline std::vector<size_t> make_gather_indexes_from_transpose_axes(const Shape& input_shape, const Shape& order) {
     // Supported shape ranks: 2d, 3d, 4d
     if (input_shape.size() < 2 || input_shape.size() > 4) {
         THROW_GNA_EXCEPTION << "Usupported shape size: " << input_shape.size();
