@@ -15,6 +15,7 @@ __version__ = get_version()
 
 # Openvino pybind bindings and python extended classes
 from openvino._pyopenvino import Dimension
+from openvino._pyopenvino import Model
 from openvino._pyopenvino import Input
 from openvino._pyopenvino import Output
 from openvino._pyopenvino import Node
@@ -35,7 +36,6 @@ from openvino._pyopenvino import RTMap
 from openvino.runtime.ie_api import Core
 from openvino.runtime.ie_api import CompiledModel
 from openvino.runtime.ie_api import InferRequest
-from openvino.runtime.ie_api import Model
 from openvino.runtime.ie_api import AsyncInferQueue
 from openvino._pyopenvino import Version
 from openvino._pyopenvino import Tensor
