@@ -121,7 +121,7 @@ protected:
                 } else {
                     IE_THROW() << "Unexpected offset type";
                 }
-                shape = targetInputStaticShapes[0];
+                shape = targetInputStaticShapes[1];
             } else if (i == 2) {  // "c_filter_vals"
                 in_gen_data = ov::test::utils::InputGenerateData(-1, 2, 100);
                 shape = targetInputStaticShapes[2];
