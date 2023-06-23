@@ -53,13 +53,16 @@ struct condition_impl : typed_primitive_impl<condition> {
 
         executed_net->execute({});
 
-        // Set output memory of condition_inst after inner network execution
+        // Set output memory of condition_inst to inner network output memory after inner network execution
         for (auto out_mem_map : branch.output_map) {
             auto out_mem_idx = out_mem_map.first;
             auto inner_out_id = out_mem_map.second;
             auto mem_ptr = executed_net->get_output(inner_out_id).get_memory();
             instance.set_output_memory(mem_ptr, false, out_mem_idx);
         }
+
+        // Update output layout of impl_param in condition_inst
+        instance.update_output_layout();
 
         ev->set();
         return ev;

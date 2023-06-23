@@ -66,8 +66,8 @@ class typed_primitive_inst<condition> : public typed_primitive_inst_base<conditi
 
 public:
     template<typename ShapeType>
-    static std::vector<layout> calc_output_layouts(condition_node const& node, kernel_impl_params const& impl_param);
-    static layout calc_output_layout(condition_node const& node, kernel_impl_params const& impl_param);
+    static std::vector<layout> calc_output_layouts(condition_node const& /*node*/, kernel_impl_params const& impl_param);
+    static layout calc_output_layout(condition_node const& /* node */, kernel_impl_params const& impl_param);
     static std::string to_string(condition_node const& node);
     static bool get_pred_from_memory(memory::ptr mem, stream& stream);
     typed_primitive_inst(network& network, condition_node const& node);
@@ -78,7 +78,7 @@ public:
     condition::branch get_branch_true() const { return node->get_branch_true(); }
     condition::branch get_branch_false() const { return node->get_branch_false(); }
 
-    event::ptr execute(const std::vector<event::ptr>& events) override;
+    void update_output_layout();
 
 private:
     network::ptr _net_true;

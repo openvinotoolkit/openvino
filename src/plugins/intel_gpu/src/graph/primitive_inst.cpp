@@ -620,6 +620,10 @@ void primitive_inst::do_runtime_in_place_concat() {
     GPU_DEBUG_TRACE_DETAIL << "[In place concat] " << concat_inst->id() << ": can_be_optimized " << std::endl;
 }
 
+bool primitive_inst::has_inner_networks() const {
+    return (_impl_params->inner_nets.size() > 0);
+}
+
 event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
     const auto primitive_id = id();
     OPENVINO_ASSERT(_has_valid_input, primitive_id, " has invalid/unset input");
@@ -627,7 +631,7 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
 
     bool need_args_update = false;
     std::vector<event::ptr> dependencies;
-    if (is_dynamic()) {
+    if (is_dynamic() && !has_inner_networks()) {
         do_runtime_in_place_concat();
         OPENVINO_ASSERT(_node != nullptr, "[GPU] Invalid primitive_inst object for dynamic shapes case: program_node can't be null");
         update_shape();
@@ -680,11 +684,11 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
                     dependencies.push_back(ev_reset);
             }
         }
+
+        OPENVINO_ASSERT(_impl_params->get_output_layout().is_static(),
+                        "[GPU] Can't execute ", primitive_id, " primitive as output layout is dynamic in runtime");
     }
     update_shape_done_by_other = false; // reset
-    OPENVINO_ASSERT(_impl_params->get_output_layout().is_static(),
-                    "[GPU] Can't execute ", primitive_id, " primitive as output layout is dynamic in runtime");
-
     OPENVINO_ASSERT(_impl != nullptr, "[GPU] Implementation is nullptr for ", primitive_id,  " primitive");
 
     // Output buffer may be changed under the following conditions, so we need to set args to kernel on each iteration

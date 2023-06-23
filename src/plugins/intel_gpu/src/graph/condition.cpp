@@ -140,7 +140,7 @@ static ov::PartialShape resolve_shape(const ov::PartialShape& true_pshape, const
 }
 
 template<typename ShapeType>
-std::vector<layout> condition_inst::calc_output_layouts(condition_node const& node, kernel_impl_params const& impl_param) {
+std::vector<layout> condition_inst::calc_output_layouts(condition_node const& /* node */, kernel_impl_params const& impl_param) {
     if (impl_param.inner_nets.empty()) {
         OPENVINO_ASSERT(impl_param.inner_progs.empty() == false, "The count of inner programs should not be zero");
         auto layouts_true  = get_output_layouts(get_out_layout_map(impl_param.inner_progs[idx_branch_true]),  impl_param.io_output_maps[idx_branch_true]);
@@ -202,62 +202,30 @@ condition_inst::typed_primitive_inst(network& network, condition_node const& nod
     this->set_inner_networks({_net_true, _net_false});
 }
 
-event::ptr condition_inst::execute(const std::vector<event::ptr>& events) {
-    const auto primitive_id = id();
-    OPENVINO_ASSERT(_has_valid_input, primitive_id, " has invalid/unset input");
-    GPU_DEBUG_GET_INSTANCE(debug_config);
-
-    std::vector<event::ptr> dependencies;
-
-    on_execute();
-
-    GPU_DEBUG_TRACE << id() << ": execute " << _impl->get_kernel_name() << std::endl;
-
-    if (_exec_deps.empty() && dependencies.empty()) {
-        dependencies = events;
-    } else {
-        auto queue_type = get_network().get_stream().get_queue_type();
-        // Prepare dependencies events in case of OOO queue, CPU implementation,
-        // or optimized_out impl which has CPU users (needs_completion_event() && !is_output() condition)
-        if (queue_type == QueueTypes::out_of_order || _impl->is_cpu() || (can_be_optimized() && needs_completion_event() && !is_output())) {
-            dependencies.reserve(dependencies.size() + _exec_deps.size());
-            for (auto& input : _exec_deps) {
-                auto id = input->id();
-                try {
-                    // if the requested event does not exists it means that it has not been executed, so the processing_order is
-                    // wrong or synchronization failed.
-                    auto ev = get_network().get_primitive_event(id);
-                    dependencies.emplace_back(ev);
-                } catch (const std::out_of_range& oor) {
-                    OPENVINO_ASSERT(false, "[GPU] execution order corrupted: ", oor.what());
-                }
-            }
+void condition_inst::update_output_layout() {
+    auto memory_deps = _node->get_const_memory_deps();
+    for (auto& i : _node->get_shape_infer_dependencies()) {
+        if (memory_deps.count(i) > 0 || i >= _node->get_dependencies().size()) {
+            continue;
         }
+        auto dep_id = _node->get_dependency(i).id();
+
+        auto dep_mem = _network.get_output_memory(dep_id);
+        memory_deps.insert({i, dep_mem});
     }
+    _impl_params->memory_deps = memory_deps;
 
-    {
-        GPU_DEBUG_PROFILED_STAGE(instrumentation::pipeline_stage::inference);
-        auto ev = _impl->execute(dependencies, *this);
-
-        GPU_DEBUG_IF(!debug_config->dump_profiling_data.empty()) {
-            get_network().get_stream().wait_for_events({ev});
-
-            if (ev != nullptr) {
-                auto profiling_info = ev->get_profiling_info();
-                for (const auto &interval : profiling_info) {
-                    if (interval.stage == cldnn::instrumentation::profiling_stage::executing) {
-                        GPU_DEBUG_CODE(stage_prof.set_custom_stage_duration(interval.value->value()));
-                    }
-                }
-            }
+    auto new_layouts = _node->type()->calc_output_layouts(*_node, *_impl_params);
+    if (new_layouts.empty()) {
+        auto new_layout = _node->type()->calc_output_layout(*_node, *_impl_params);
+        new_layout.data_padding = padding::max(_node->get_primitive()->output_paddings[0], new_layout.data_padding);
+        _impl_params->output_layouts[0] = new_layout;
+    } else {
+        for (size_t i = 0; i != new_layouts.size(); ++i) {
+            auto new_layout = new_layouts[i];
+            new_layout.data_padding = padding::max(_node->get_primitive()->output_paddings[i], new_layout.data_padding);
+            _impl_params->output_layouts[i] = new_layout;
         }
-
-        if (is_dynamic()) {
-            update_shape();
-            reset_shape_change();
-        }
-
-        return ev;
     }
 }
 }  // namespace cldnn
