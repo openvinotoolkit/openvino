@@ -30,6 +30,8 @@ std::vector<size_t> get_buffer_loop_ids(const std::vector<size_t>& lhs, const st
     return buffer_loop_ids;
 }
 
+// Ticket: 113744
+// TODO: This logic covers only several specific cases so it should be generalized.
 ov::Shape compute_allocation_shape(const LinearIR::LoopManagerPtr& loop_manager,
                                    const std::vector<size_t>& buffer_loop_ids,
                                    const std::vector<size_t>& parent_loop_ids,
@@ -40,7 +42,7 @@ ov::Shape compute_allocation_shape(const LinearIR::LoopManagerPtr& loop_manager,
     const auto port = lowered::PortDescriptorUtils::get_port_descriptor_ptr(parent_output);
     const auto planar_shape = utils::get_reordered_planar_shape(ov::Shape{port->get_shape()}, port->get_layout());
     for (size_t i = 0; i < rank; ++i) {
-        allocation_shape[rank - 1 - i] = planar_shape[planar_shape.size() - 1 - i].get_length();
+        *(allocation_shape.rbegin() + i) = (planar_shape.rbegin() + i)->get_length();
     }
 
     if (buffer_loop_ids.empty() || parent_loop_ids.empty()) {
@@ -56,8 +58,8 @@ ov::Shape compute_allocation_shape(const LinearIR::LoopManagerPtr& loop_manager,
         allocation_shape[0] = buffer_loop->increment;
     } else {
         for (size_t i = 0; i < std::min(rank, parent_loop_ids.size()); ++i) {
-            const auto loop = loop_manager->get_loop_info(parent_loop_ids[parent_loop_ids.size() - 1 - i]);
-            allocation_shape[allocation_shape.size() - 1 - i] = loop->work_amount;
+            const auto loop = loop_manager->get_loop_info(*(parent_loop_ids.rbegin() + i));
+            *(allocation_shape.rbegin() + i) = loop->work_amount;
         }
     }
     return allocation_shape;

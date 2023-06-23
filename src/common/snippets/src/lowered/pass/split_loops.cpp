@@ -4,6 +4,7 @@
 
 #include "snippets/lowered/pass/split_loops.hpp"
 
+#include "snippets/lowered/pass/fuse_loops.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/loop_manager.hpp"
 #include "snippets/snippets_isa.hpp"
@@ -35,6 +36,7 @@ bool SplitLoops::run(LinearIR& linear_ir) {
         if (loop_ids.empty())
             continue;
 
+        // Ticket: 113755
         // Note: we currently consider only the outermost loops for splitting
         // Splitting could also be done in a more general case, but the splitted loop and its parent must always
         // be in the same set of outer loops. Otherwise they won't be fused.
@@ -50,7 +52,7 @@ bool SplitLoops::run(LinearIR& linear_ir) {
             const auto& parent_loop_id = parent_loop_ids.front();
             const auto parent_loop_port = loop_manager->get_loop_port_by_expr_port(parent_port, parent_loop_id);
             // We don't split loop which are not compatible with parent loop because such loops will not be fused
-            if (parent_loop_port.is_incremented != entry_point.is_incremented)
+            if (!FuseLoops::loop_ports_are_compatible(loop_manager, loop_id, parent_loop_id))
                 continue;
 
             const auto parent_loop = loop_manager->get_loop_info(parent_loop_id);
@@ -60,14 +62,8 @@ bool SplitLoops::run(LinearIR& linear_ir) {
                 const auto& loop_to_split = split_parent ? parent_loop : loop;
                 const auto& loop_to_split_id = split_parent ? parent_loop_id : loop_id;
                 const auto& loop_to_fuse = !split_parent ? parent_loop : loop;
-
                 loop_to_split->work_amount = loop_to_fuse->increment;
-                const auto split_loop = std::make_shared<LoopManager::LoopInfo>(loop_to_fuse->work_amount,
-                                                                                loop_to_fuse->increment,
-                                                                                loop_to_split->dim_idx,
-                                                                                loop_to_split->entry_points,
-                                                                                loop_to_split->exit_points);
-                split_loop->outer_splited_loop = true;
+
                 LinearIR::constExprIt loop_begin_pos, loop_end_pos;
                 LoopManager::get_loop_bounds(linear_ir,
                                              loop_to_split->entry_points,
@@ -75,17 +71,14 @@ bool SplitLoops::run(LinearIR& linear_ir) {
                                              loop_begin_pos,
                                              loop_end_pos,
                                              loop_to_split_id);
-
-                const auto new_loop_id = loop_manager->add_loop_info(split_loop);
-                for (auto it = loop_begin_pos; it != loop_end_pos; it++) {
-                    const auto& iexpr = *it;
-                    // Note: There could be exprs inside loop bounds that don't belong to the loop
-                    if (iexpr->get_loop_ids().front() == loop_to_split_id) {
-                        auto split_loop_ids = iexpr->get_loop_ids();
-                        split_loop_ids.insert(split_loop_ids.begin(), new_loop_id);
-                        iexpr->set_loop_ids(split_loop_ids);
-                    }
-                }
+                const auto split_loop_id = loop_manager->mark_loop(loop_begin_pos,
+                                                                   loop_end_pos,
+                                                                   loop_to_fuse->work_amount,
+                                                                   loop_to_fuse->increment,
+                                                                   loop_to_split->dim_idx,
+                                                                   loop_to_split->entry_points,
+                                                                   loop_to_split->exit_points);
+                loop_manager->get_loop_info(split_loop_id)->outer_splited_loop = true;
                 break;
             }
         }

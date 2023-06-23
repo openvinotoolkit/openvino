@@ -15,7 +15,7 @@ namespace pass {
 /**
  * @interface SplitLoops
  * @brief If a loop has larger increment than another but similar works amount, then split an outer loop into two
- *        so the outermost of the two could be fused with the second loop.
+ *        so the outermost of the two could be fused with the second loop using the pass `FuseLoops`.
  * @ingroup snippets
  */
 

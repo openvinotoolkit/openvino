@@ -13,30 +13,32 @@ namespace ov {
 namespace snippets {
 namespace lowered {
 namespace pass {
-using LoopManager = LinearIR::LoopManager;
-using LoopInfoPtr = LoopManager::LoopInfoPtr;
 namespace {
 bool is_loop_id_found(const std::vector<size_t>& ids, size_t id) {
     return std::find(ids.cbegin(), ids.cend(), id) != ids.cend();
 }
+} // namespace
 
-bool loop_ports_are_compatible(const LinearIR::LoopManagerPtr& loop_manager,
-                               const LoopInfoPtr& loop_lower,
-                               const size_t loop_upper_id) {
+using LoopManager = LinearIR::LoopManager;
+using LoopInfoPtr = LoopManager::LoopInfoPtr;
+
+FuseLoops::FuseLoops() : Pass() {}
+
+bool FuseLoops::loop_ports_are_compatible(const LinearIR::LoopManagerPtr& loop_manager,
+                                          const size_t loop_lower_id,
+                                          const size_t loop_upper_id) {
+    const auto loop_lower = loop_manager->get_loop_info(loop_lower_id);
     for (const auto& entry : loop_lower->entry_points) {
-        auto src_port = entry.expr_port->get_port_connector_ptr()->get_source();
+        const auto& src_port = entry.expr_port->get_port_connector_ptr()->get_source();
         if (is_loop_id_found(src_port.get_expr()->get_loop_ids(), loop_upper_id)) {
             auto src_loop_port = loop_manager->get_loop_port_by_expr_port(src_port, loop_upper_id);
-            if (src_loop_port.is_incremented != entry.is_incremented) {
+            if (!src_loop_port.is_incremented || !entry.is_incremented) {
                 return false;
             }
         }
     }
     return true;
 }
-} // namespace
-
-FuseLoops::FuseLoops() : Pass() {}
 
 bool FuseLoops::can_be_fused(const LoopInfoPtr& loop_current, const LoopInfoPtr& loop_target) {
     auto current_work_amount = loop_current->work_amount;
@@ -93,7 +95,7 @@ bool FuseLoops::fuse_upper_into_current(LinearIR& linear_ir, const LinearIR::Loo
                                         LinearIR::constExprIt& current_loop_begin_pos, LinearIR::constExprIt& current_loop_end_pos) {
     const auto& loop_current = loop_manager->get_loop_info(current_loop_id);
     const auto& loop_target = loop_manager->get_loop_info(target_loop_id);
-    if (!can_be_fused(loop_current, loop_target) || !loop_ports_are_compatible(loop_manager, loop_current, target_loop_id))
+    if (!can_be_fused(loop_current, loop_target) || !loop_ports_are_compatible(loop_manager, current_loop_id, target_loop_id))
         return false;
 
     // We can fuse Loop_up to Loop_down only in cases when other consumers of Loop_up are after Loop_down
@@ -143,7 +145,7 @@ bool FuseLoops::fuse_lower_into_current(LinearIR& linear_ir, const LinearIR::Loo
                                         LinearIR::constExprIt& current_loop_begin_pos, LinearIR::constExprIt& current_loop_end_pos) {
     const auto& loop_current = loop_manager->get_loop_info(current_loop_id);
     const auto& loop_target = loop_manager->get_loop_info(target_loop_id);
-    if (!can_be_fused(loop_current, loop_target) || !loop_ports_are_compatible(loop_manager, loop_target, current_loop_id))
+    if (!can_be_fused(loop_current, loop_target) || !loop_ports_are_compatible(loop_manager, target_loop_id, current_loop_id))
         return false;
 
     // We can fuse Loop_down to Loop_up only in cases when other parents of Loop_down are before Loop_up

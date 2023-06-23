@@ -223,30 +223,6 @@ void LinearIR::LoopManager::mark_loop(LinearIR::constExprIt loop_begin_pos,
     }
 }
 
-size_t LinearIR::LoopManager::mark_loop(LinearIR::constExprIt loop_begin_pos,
-                                        LinearIR::constExprIt loop_end_pos,
-                                        size_t work_amount, size_t work_amount_increment, size_t dim_idx,
-                                        const std::vector<ExpressionPort>& entries,
-                                        const std::vector<ExpressionPort>& exits) {
-    const auto loop_info = std::make_shared<LoopManager::LoopInfo>(work_amount, work_amount_increment, dim_idx, entries, exits);
-    const auto loop_id = this->add_loop_info(loop_info);
-    for (auto expr_it = loop_begin_pos; expr_it != loop_end_pos; ++expr_it) {
-        insert_loop_id(*expr_it, loop_id);
-    }
-    return loop_id;
-}
-
-void LinearIR::LoopManager::mark_loop(const ExpressionPtr expr,
-                                      size_t work_amount,
-                                      size_t work_amount_increment,
-                                      size_t dim_idx,
-                                      const std::vector<LoopPort>& entries,
-                                      const std::vector<LoopPort>& exits) {
-    const auto loop_info = std::make_shared<LoopManager::LoopInfo>(work_amount, work_amount_increment, dim_idx, entries, exits);
-    const auto loop_id = this->add_loop_info(loop_info);
-    insert_loop_id(expr, loop_id);
-}
-
 void LinearIR::LoopManager::fuse_loops(const LinearIR& linear_ir, size_t loop_id_upper, size_t loop_id_lower, bool fuse_into_upper) {
     LinearIR::constExprIt loop_begin_target, loop_end_target;
     get_loop_bounds(linear_ir, fuse_into_upper ? loop_id_lower : loop_id_upper, loop_begin_target, loop_end_target);
