@@ -22,6 +22,12 @@ public:
     /// It exports JavaScript Output class.
     static Napi::Object Init(Napi::Env env, Napi::Object exports);
 
+    void set_output(const ov::Output<const ov::Node>& output);
+
+    static Napi::Object Wrap(Napi::Env env, ov::Output<const ov::Node> output);
+
+    Napi::Value get_any_name(const Napi::CallbackInfo& info);
+
 private:
     ov::Output<const ov::Node> _output;
 };
