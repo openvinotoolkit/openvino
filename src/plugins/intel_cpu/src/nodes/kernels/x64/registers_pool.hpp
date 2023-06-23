@@ -94,7 +94,7 @@ public:
     };
 
     virtual ~RegistersPool() {
-        checkUniqueAndUpdate(false);
+        checkUniqueAndUpdate();
     }
 
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
@@ -251,6 +251,10 @@ private:
         } else {
             isCreated = false;
         }
+    }
+
+    void checkUniqueAndUpdate() {
+        static thread_local bool isCreated = false;
     }
 
     PhysicalSet generalSet {16};
