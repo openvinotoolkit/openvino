@@ -122,7 +122,8 @@ protected:
                 int32_t range = std::accumulate(targetInputStaticShapes[0].begin(), targetInputStaticShapes[0].end(), 1u, std::multiplies<uint32_t>());
                 ov::test::utils::InputGenerateData in_gen_data(range, -range / 2, 1);
                 tensor = utils::create_and_fill_tensor(
-                        funcInput.get_element_type(), targetInputStaticShapes[0], in_gen_data.range, in_gen_data.start_from, in_gen_data.resoluion, in_gen_data.seed);
+                        funcInput.get_element_type(), targetInputStaticShapes[0],
+                        in_gen_data.range, in_gen_data.start_from, in_gen_data.resolution, in_gen_data.seed);
             } else if (funcInput.get_node()->get_friendly_name() == "grid") {
                 int32_t range = std::max(targetInputStaticShapes[0][2], targetInputStaticShapes[0][3]) + 2;
                 int32_t resolution = range / 2;

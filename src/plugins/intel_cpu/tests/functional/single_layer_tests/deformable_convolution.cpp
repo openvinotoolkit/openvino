@@ -97,6 +97,7 @@ public:
 protected:
     void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) override {
         inputs.clear();
+        const auto& funcInputs = function->inputs();
         ov::test::utils::InputGenerateData in_gen_data;
         ov::Shape shape;
 
@@ -130,7 +131,8 @@ protected:
             } else {
                 IE_THROW() << "Unknown input of DeformableConvolution";
             }
-            tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), shape, in_gen_data.range, in_gen_data.start_from, in_gen_data.resolution);
+            tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), shape,
+                                                             in_gen_data.range, in_gen_data.start_from, in_gen_data.resolution);
             inputs.insert({funcInput.get_node_shared_ptr(), tensor});
         }
     }
