@@ -61,7 +61,7 @@ ov::Shape make_transpose_order_nhwc2nchw(size_t shape_size) {
 
     const size_t channels_position = *(shape.end() - 1);
 
-    for (int i = shape.size() - 1; i > 0; --i)
+    for (size_t i = shape.size() - 1; i > 0; --i)
         shape[i] = shape[i - 1];
 
     shape[1] = channels_position;
