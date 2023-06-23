@@ -203,6 +203,7 @@ jobs:
         -DARM_COMPUTE_SCONS_JOBS=$(NUM_PROC) \
         -DCMAKE_INSTALL_PREFIX=$(INSTALL_OPENVINO) \
         -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) \
+        -DENABLE_PYTHON_PACKAGING=ON \
         -S $(OPENVINO_REPO_DIR) \
         -B $(BUILD_OPENVINO)
       source $(BUILD_OPENVINO)/deactivate_conanbuild.sh
