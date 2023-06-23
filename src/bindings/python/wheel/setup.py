@@ -190,7 +190,7 @@ PY_INSTALL_CFG = {
     "ovc": {
         "entry_point": {
             "console_scripts": [
-                "mo = openvino.tools.ovc.main:main",
+                "ovc = openvino.tools.ovc.main:main",
             ],
         },
         "name": f"pyopenvino_{PYTHON_VERSION}",
