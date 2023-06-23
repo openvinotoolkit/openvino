@@ -33,11 +33,7 @@ struct network_output {
     memory::ptr get_memory() const {
         // TODO: in_order queue doesn't create proper output event in some cases which leads to syncronization issues with user app
         // So call finish for associated stream to enusre that the output data is ready.
-        if (_stream->get_queue_type() == QueueTypes::in_order) {
-            _stream->finish();
-        } else {
-            _event->wait();
-        }
+        _event->wait();
         return _result;
     }
 
@@ -128,9 +124,7 @@ public:
     }
 
     network_output get_output(const primitive_id& output_id) {
-        event::ptr evt;
-        if (get_stream().get_queue_type() == QueueTypes::out_of_order)
-            evt = get_primitive_event(output_id);
+        event::ptr evt = get_primitive_event(output_id);
         return network_output(evt, get_output_memory(output_id), get_stream_ptr(), get_output_layout(output_id));
     }
     layout get_node_output_layout(const primitive_id& output_id) const;
@@ -247,6 +241,7 @@ private:
     std::vector<std::shared_ptr<primitive_inst>> _outputs;
     std::list<std::shared_ptr<primitive_inst>> _exec_order;
     std::list<std::shared_ptr<primitive_inst>> _data_outputs;
+    std::list<std::shared_ptr<primitive_inst>> _mutable_data_insts;
     variables_states_map _variables_states;
     std::vector<std::shared_ptr<primitive_inst>> _variable_state_primitives;
     program::primitives_info _prims_info;

@@ -98,6 +98,19 @@ bool is_user_cpu(const program_node* user) {
         return impl->is_cpu();
     return false;
 }
+
+bool is_user_optimized_out_output(const program_node* user) {
+    if (user->can_be_optimized()) {
+        auto users = user->get_users();
+        for (const auto& u : users) {
+            if (is_user_optimized_out_output(u)) {
+                return true;
+            }
+        }
+        return user->is_output();
+    }
+    return false;
+}
 }  // namespace
 
 bool is_any_user_cpu(const std::list<const program_node*>& users) {
@@ -105,6 +118,15 @@ bool is_any_user_cpu(const std::list<const program_node*>& users) {
         if (is_user_cpu(user))
             return true;
     }
+    return false;
+}
+
+bool is_any_user_optimized_out_output(const std::list<const program_node*>& users);
+bool is_any_user_optimized_out_output(const std::list<const program_node*>& users) {
+    for (const auto& user : users)
+        if (is_user_optimized_out_output(user))
+            return true;
+
     return false;
 }
 
@@ -686,7 +708,7 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
         auto queue_type = get_network().get_stream().get_queue_type();
         // Prepare dependencies events in case of OOO queue, CPU implementation,
         // or optimized_out impl which has CPU users (needs_completion_event() && !is_output() condition)
-        if (queue_type == QueueTypes::out_of_order || _impl->is_cpu() || (can_be_optimized() && needs_completion_event() && !is_output())) {
+        if (queue_type == QueueTypes::out_of_order || _impl->is_cpu() || (can_be_optimized() && needs_completion_event() && !is_output()) || (can_be_optimized() && is_output())) {
             dependencies.reserve(dependencies.size() + _exec_deps.size());
             for (auto& input : _exec_deps) {
                 auto id = input->id();
@@ -806,7 +828,8 @@ primitive_inst::primitive_inst(network& network, program_node const& node, bool 
     , _can_be_optimized(node.can_be_optimized())
     , _can_share_buffer(node.can_share_buffer())
     , _is_constant(node.is_constant())
-    , _needs_completion_event(is_any_user_cpu(node.get_users()) || node.is_output()) {
+    , _needs_completion_event(is_any_user_cpu(node.get_users()) || node.is_output() || is_any_user_optimized_out_output(node.get_users())) {
+
     if (allocate_memory) {
         // In case when output is mutable_data primitive, and other users dependencies are only used for
         // suychronization, The output memory of such primitive will be fused with mutable_data

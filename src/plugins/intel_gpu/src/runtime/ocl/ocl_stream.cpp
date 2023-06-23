@@ -330,7 +330,7 @@ event::ptr ocl_stream::enqueue_marker(std::vector<event::ptr> const& deps, bool 
         return std::make_shared<ocl_event>(ret_ev);
     }
 
-    if (sync_method == sync_methods::events) {
+    if (sync_method == sync_methods::events || sync_method == sync_methods::none) {
         cl::Event ret_ev;
         std::vector<cl::Event> dep_events;
         for (auto& dep : deps) {
