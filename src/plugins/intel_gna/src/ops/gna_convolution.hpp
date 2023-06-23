@@ -126,7 +126,10 @@ public:
     void set_adding_above(const ov::CoordinateDiff& pads_end) {
         m_pads_end = pads_end;
     }
-
+    /// \return The pad type for pooling.
+    ov::op::PadType get_auto_pad() const {
+        return m_auto_pad;
+    }
     void set_auto_pad(const ov::op::PadType& auto_pad) {
         m_auto_pad = auto_pad;
     }
