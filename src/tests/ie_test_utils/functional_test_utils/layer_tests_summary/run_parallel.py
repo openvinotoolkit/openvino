@@ -453,14 +453,14 @@ class TestParallelRunner:
                         test_name = line[line.find(constants.RUN) + len(constants.RUN) + 1:-1:]
                         has_status = False
                         if test_name is not None:
-                            test_names.add(f'"{test_name}":')
+                            test_names.add(f'"{self.__replace_restricted_symbols(test_name)}":')
                     for _, status_messages in constants.TEST_STATUS.items():
                         for status_msg in status_messages:
                             if status_msg in line:
                                 has_status = True
                                 break
-                            if has_status:
-                                break
+                        if has_status:
+                            break
                 if not has_status:
                     interapted_tests.append(f'"{test_name}":')
                 log_file.close()
