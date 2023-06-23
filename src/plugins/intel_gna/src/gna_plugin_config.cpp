@@ -262,6 +262,8 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& config) {
             OPENVINO_SUPPRESS_DEPRECATED_END
         } else if (key == CONFIG_KEY(LOG_LEVEL) || key == ov::log::level) {
             gnaFlags.log_level = ov::util::from_string(value, ov::log::level);
+        } else if (key == CONFIG_KEY(DEVICE_ID) || key == ov::device::id.name()) {
+            device_id = value;
         } else {
             IE_THROW(NotFound) << "[GNAPlugin] in function " << __PRETTY_FUNCTION__ << ": "
                                << "Incorrect GNA Plugin config. Key " << item.first << " not supported";
@@ -341,6 +343,7 @@ void Config::AdjustKeyMapValues() {
     keyConfigMap[ov::enable_profiling.name()] =
         gnaFlags.performance_counting ? PluginConfigParams::YES : PluginConfigParams::NO;
     keyConfigMap[ov::log::level.name()] = ov::util::to_string(gnaFlags.log_level);
+    keyConfigMap[CONFIG_KEY(DEVICE_ID)] = device_id;
 }
 
 Parameter Config::GetParameter(const std::string& name) const {
