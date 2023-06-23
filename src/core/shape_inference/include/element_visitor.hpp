@@ -13,12 +13,12 @@ namespace ov {
 namespace element {
 
 /**
- * @brief Defines supported elements for applying the element visitor action.
+ * @brief Primary template defines suppoted element types.
+ *
+ * The list of element types is used to check if runtime value of element type is one in the list.
+ * Base on this check the Visitor::visit function is called for specific element type.
  *
  * @tparam List of supported ov::element types.
- *
- * The apply function check input element type, if is on the list apply function of visitor for specific type
- * if not found apply default action.
  */
 template <Type_t...>
 struct IfTypeOf;
@@ -29,7 +29,9 @@ struct IfTypeOf;
 template <>
 struct IfTypeOf<> {
     /**
-     * @brief Applies visitor default action for not supported element type using Visitor non-template visit function.
+     * @brief Applies visitor default action if input element type is not not supported by IfTypeOf.
+     *
+     * Uses Visitor::visit non-template function.
      *
      * @tparam Visitor Visitor class implementing visit function.
      * @tparam Args    Types of visit parameters.
@@ -53,7 +55,9 @@ struct IfTypeOf<> {
 template <Type_t ET, Type_t... Others>
 struct IfTypeOf<ET, Others...> {
     /**
-     * @brief Applies visitor action for element type using Visitor visit function for ET.
+     * @brief Applies visitor action if input element type is same as ET.
+     *
+     * Uses Visitor::visit<ET> function if `et == ET`, otherwise check input element type against Others.
      *
      * @tparam Visitor Visitor class implementing visit function.
      * @tparam Args    Types of visit parameters.
@@ -70,7 +74,7 @@ struct IfTypeOf<ET, Others...> {
 };
 
 /**
- * @brief Helper visitor which define no action for not supported type.
+ * @brief Helper visitor which defines no action for not supported type.
  *
  * @tparam R     Type of return value.
  * @tparam value Default value returned.
@@ -81,7 +85,7 @@ struct NoAction {
 
     using result_type = R;
 
-    static constexpr R visit() {
+    static constexpr result_type visit() {
         return {value...};
     }
 };
@@ -93,19 +97,19 @@ template <>
 struct NoAction<void> {
     using result_type = void;
 
-    static void visit() {}
+    static result_type visit() {}
 };
 
 /**
  * @brief Helper visitor which throws ov::Exception for not supported element type.
  *
- * @tparam R Type of return type (used to be compatible with others call operator in Visitor).
+ * @tparam R  Type of return value.
  */
 template <class R>
 struct NotSupported {
     using result_type = R;
 
-    [[noreturn]] static R visit() {
+    [[noreturn]] static result_type visit() {
         throw_not_supported();
     }
 
