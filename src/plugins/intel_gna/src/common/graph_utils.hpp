@@ -452,7 +452,7 @@ inline Shape::value_type get_dim_by_axis(const Shape& shape, int64_t axis) {
  * @brief unsqueezes shape to rank
  */
 inline Shape unsqueeze_shape(const Shape& shape, ov::Rank::value_type rank) {
-    const int rank_delta = rank - shape.size();
+    const int rank_delta = static_cast<int>(rank) - static_cast<int>(shape.size());
 
     if (rank_delta <= 0)
         return shape;
