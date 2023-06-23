@@ -7,10 +7,13 @@
    Installing OpenVINO Runtime from Homebrew is recommended for C++ developers. 
    If you work with Python, consider :doc:`installing OpenVINO from PyPI <openvino_docs_install_guides_installing_openvino_pip>`
 
-   The current Homebrew package provides inference support for CPU only.
+   Importantly, Homebrew always distributes the most recent package. You cannot use it to install previous versions of OpenVINO.
+    
+   The current Homebrew package provides inference support for CPU and GPU for Linux, but CPU only for macOS.
 
 
-You can use `Homebrew <https://brew.sh/>`_ to install OpenVINO Runtime on macOS and Linux. 
+
+You can use `Homebrew <https://brew.sh/>`__ to install OpenVINO Runtime on macOS and Linux. 
 OpenVINO™ Development Tools can be installed via PyPI only. 
 See `Installing Additional Components <#optional-installing-additional-components>`__ for more information.
 

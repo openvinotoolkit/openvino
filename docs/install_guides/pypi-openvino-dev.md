@@ -105,7 +105,7 @@ For example, to install and configure the components for working with TensorFlow
 
 ## What's in the Package?
 
-> **NOTE**: The openvino-dev package installs [OpenVINO™ Runtime](https://pypi.org/project/openvino) as a dependency, which is the engine that runs the deep learning model and includes a set of libraries for an easy inference integration into your applications.  
+> **NOTE**: The openvino-dev package installs [OpenVINO™ Runtime](https://pypi.org/project/openvino/2022.3.1/) as a dependency, which is the engine that runs the deep learning model and includes a set of libraries for an easy inference integration into your applications.  
 
 **In addition, the openvino-dev package installs the following components by default:**
 

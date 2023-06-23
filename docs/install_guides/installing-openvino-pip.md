@@ -14,7 +14,7 @@ You can install both OpenVINO™ Runtime and OpenVINO Development Tools through 
 Installing OpenVINO Runtime
 ###########################
 
-For system requirements and troubleshooting, see https://pypi.org/project/openvino/
+For system requirements and troubleshooting, see https://pypi.org/project/openvino/2022.3.1/
 
 Step 1. Set Up Python Virtual Environment
 +++++++++++++++++++++++++++++++++++++++++
