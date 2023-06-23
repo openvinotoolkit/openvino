@@ -46,6 +46,17 @@ else()
     list(APPEND EXCLUDED_SOURCE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/snippets)
 endif()
 
+find_package(OpenCV QUIET COMPONENTS core imgproc)
+
+if(OpenCV_FOUND)
+    message("-- Shared preprocessing: OpenCV tests are enabled")
+else()
+    message("-- Shared preprocessing: OpenCV tests are disabled")
+    list(APPEND EXCLUDED_SOURCE_PATHS
+        ${CMAKE_CURRENT_SOURCE_DIR}/include/preprocessing/open_cv*
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/preprocessing/open_cv*)
+endif()
+
 addIeTarget(
         NAME ${TARGET_NAME}
         TYPE STATIC
@@ -87,3 +98,5 @@ if (ENABLE_INTEL_CPU)
         "${CMAKE_CURRENT_SOURCE_DIR}/src/behavior/ov_executable_network/get_metric.cpp"
         PROPERTIES COMPILE_DEFINITIONS ENABLE_INTEL_CPU=1)
 endif()
+
+target_link_libraries(${TARGET_NAME} PUBLIC $<$<BOOL:${OPENCV_FOUND}>:opencv_imgproc opencv_core>)

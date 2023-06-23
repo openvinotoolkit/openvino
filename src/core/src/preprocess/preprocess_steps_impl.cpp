@@ -379,6 +379,9 @@ void PreStepsList::add_convert_color_impl(const ColorFormat& dst_format) {
                 case ColorFormat::BGR:
                     convert = std::make_shared<op::v8::NV12toBGR>(nodes[0], nodes[1]);
                     break;
+                case ColorFormat::GRAY:
+                    convert = nodes[0].get_node_shared_ptr();
+                    break;
                 default:
                     OPENVINO_ASSERT(false,
                                     "Unsupported conversion from NV12 to '",

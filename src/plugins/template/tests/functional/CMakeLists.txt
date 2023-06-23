@@ -9,6 +9,11 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     ie_add_compiler_flags(/wd4305)
 endif()
 
+find_package(OpenCV QUIET COMPONENTS core imgproc)
+if(NOT OpenCV_FOUND)
+    set(EXCLUDED_SOURCE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/preprocessing/open_cv*)
+endif()
+
 ov_add_test_target(
         NAME ${TARGET_NAME}
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
@@ -17,6 +22,7 @@ ov_add_test_target(
         LINK_LIBRARIES
             openvino::funcSharedTests
             openvino::runtime::dev
+        EXCLUDED_SOURCE_PATHS ${EXCLUDED_SOURCE_PATHS}
         INCLUDES
             "${TEMPLATE_PLUGIN_SOURCE_DIR}/include"
             "${CMAKE_CURRENT_SOURCE_DIR}/op_reference"
@@ -25,12 +31,9 @@ ov_add_test_target(
             TEMPLATE
 )
 
-find_package(OpenCV QUIET COMPONENTS core imgproc)
-
 if(OpenCV_FOUND)
     message("-- Reference preprocessing: OpenCV tests are enabled")
     target_compile_definitions(${TARGET_NAME} PRIVATE OPENCV_TEMPLATE_TESTS)
-    target_link_libraries(${TARGET_NAME} PRIVATE opencv_imgproc opencv_core)
 else()
     message("-- Reference preprocessing: OpenCV tests are disabled")
 endif()

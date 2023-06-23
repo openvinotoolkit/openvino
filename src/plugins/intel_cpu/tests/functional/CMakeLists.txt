@@ -41,6 +41,11 @@ else()
     set(TMP_EXPLICITLY_ENABLED_TESTS "${TMP_LIST_OF_EXPLICITLY_ENABLED_TESTS}")
 endif()
 
+find_package(OpenCV QUIET COMPONENTS core imgproc)
+if(NOT OpenCV_FOUND)
+    list(APPEND EXCLUDED_SOURCE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/preprocessing/open_cv*)
+endif()
+
 addIeTargetTest(
         NAME ${TARGET_NAME}
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
