@@ -163,6 +163,9 @@ void WriteInputAndOutputTextGNAImpl(const Gna2Model& gnaModel,
                                     const std::string refFolderName) {
     for (uint32_t i = 0; i < gnaModel.NumberOfOperations; i++) {
         const auto& operation = gnaModel.Operations[i];
+        if (operation.Type == Gna2OperationTypeNone) {
+            continue;
+        }
         std::stringstream out_file_name;
         const auto& outputTensor = *operation.Operands[OutOpIdx];
         const auto& intputTensor = *operation.Operands[InOpIdx];
