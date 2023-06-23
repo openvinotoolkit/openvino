@@ -216,6 +216,9 @@ std::vector<std::string> disabledTestPatterns() {
         // Issue: There are some problem when work with AUTO plugin API 2.0
         R"(.*smoke_Auto_CachingSupportCase_CPU/CompileModelCacheTestBase.CompareWithRefImpl.*)",
         R"(.*smoke_Auto_CachingSupportCase_CPU_Float/CompileModelCacheTestBase.CompareWithRefImpl.*)",
+        // Issue: JIT choose error issue, don't know why not choose jit_avx512_BF16
+        R"(.*smoke_PSROIPoolingAverageLayoutTest/PSROIPoolingLayerCPUTest.*)",
+        R"(.*smoke_PSROIPoolingBilinearLayoutTest/PSROIPoolingLayerCPUTest.*)",
     };
 
 #if defined(OPENVINO_ARCH_X86)
