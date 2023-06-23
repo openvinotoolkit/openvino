@@ -50,6 +50,7 @@ def base_args_config(use_legacy_fe: bool = None, use_new_fe: bool = None):
     args.saved_model_dir = None
     args.input_meta_graph = None
     args.saved_model_tags = None
+    args.disable_mmap = False
     return args
 
 
