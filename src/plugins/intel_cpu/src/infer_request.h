@@ -78,7 +78,6 @@ private:
     // Store external tensor due to precision changes
     mutable std::unordered_map<std::string, ov::Tensor> _aux_tensors;
     mutable std::unordered_map<std::string, bool> _port_precision_changed;
-    bool _port_name_change = false;
     bool _is_legacy_api = false;
 
     std::shared_ptr<const CompiledModel> _compiled_model;
