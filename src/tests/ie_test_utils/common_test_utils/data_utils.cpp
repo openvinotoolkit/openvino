@@ -8,10 +8,13 @@
 
 #include <ie_blob.h>
 #include <blob_factory.hpp>
+#include "openvino/core/deprecated.hpp"
 
 using namespace InferenceEngine::details;
 
 namespace CommonTestUtils {
+
+OPENVINO_SUPPRESS_DEPRECATED_START
 
 bool isDenseBlob(const InferenceEngine::Blob::Ptr& blob) {
     auto blk_desc = blob->getTensorDesc().getBlockingDesc();
@@ -251,4 +254,6 @@ void fill_data_const(InferenceEngine::Blob::Ptr& blob, const std::vector<float> 
 void fill_data_const(InferenceEngine::Blob::Ptr& blob, float val) {
     fill_data_const(blob, std::vector<float> {val});
 }
+
+OPENVINO_SUPPRESS_DEPRECATED_END
 }  // namespace CommonTestUtils

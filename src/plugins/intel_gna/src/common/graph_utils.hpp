@@ -37,7 +37,9 @@ template <typename T>
 inline bool get_constant_value(const std::shared_ptr<ngraph::opset8::Constant>& constant, std::vector<double>& values) {
     using A = typename ov::element_type_traits<T::value>::value_type;
     const auto& v = constant->get_vector<A>();
-    std::copy(v.begin(), v.end(), std::back_inserter(values));
+    std::transform(v.begin(), v.end(), std::back_inserter(values), [](A value) {
+        return static_cast<double>(value);
+    });
     return true;
 }
 
@@ -339,7 +341,7 @@ inline ov::Shape transpose_shape(const ov::Shape& shape, std::vector<size_t> ord
  * @param order the permutation array to apply to the input shape
  * @return vector with indexes to gather
  */
-inline std::vector<size_t> make_gather_indices_from_transpose_axes(const Shape& input_shape, const Shape& order) {
+inline std::vector<size_t> make_gather_indexes_from_transpose_axes(const Shape& input_shape, const Shape& order) {
     // Supported shape ranks: 2d, 3d, 4d
     if (input_shape.size() < 2 || input_shape.size() > 4) {
         THROW_GNA_EXCEPTION << "Usupported shape size: " << input_shape.size();
@@ -441,7 +443,7 @@ inline Rank::value_type get_max_input_rank(const std::shared_ptr<ov::Node>& node
 inline Shape::value_type get_dim_by_axis(const Shape& shape, int64_t axis) {
     if (axis < 0)
         axis += shape.size();
-    if (axis < 0 || axis >= shape.size())
+    if (axis < 0 || axis >= static_cast<int64_t>(shape.size()))
         throw std::runtime_error("get_dim_by_axis invalid axis");
     return shape[axis];
 }
@@ -450,7 +452,7 @@ inline Shape::value_type get_dim_by_axis(const Shape& shape, int64_t axis) {
  * @brief unsqueezes shape to rank
  */
 inline Shape unsqueeze_shape(const Shape& shape, ov::Rank::value_type rank) {
-    const int rank_delta = rank - shape.size();
+    const int rank_delta = static_cast<int>(rank) - static_cast<int>(shape.size());
 
     if (rank_delta <= 0)
         return shape;

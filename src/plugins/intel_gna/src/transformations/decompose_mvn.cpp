@@ -47,7 +47,7 @@ static bool ValidateAxes(const std::shared_ptr<opset8::Constant> axes_const, con
     }
 
     // Verify supported first axes value
-    if (axes_value != 2 && axes_value != 2 - mvn_shape_size)
+    if (axes_value != 2 && axes_value != static_cast<T>(2 - mvn_shape_size))
         return false;
 
     return true;
