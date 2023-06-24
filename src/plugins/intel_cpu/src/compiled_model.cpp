@@ -1,39 +1,37 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include <ie_metric_helpers.hpp>
+#include "ie_metric_helpers.hpp"  // must be included first
 
 #include "compiled_model.h"
-
-#include <precision_utils.h>
-#include <low_precision/low_precision.hpp>
-#include <threading/ie_executor_manager.hpp>
 
 #include "async_infer_request.h"
 #include "infer_request.h"
 #include "itt.h"
+#include "low_precision/low_precision.hpp"
 #include "memory_state.h"
 #include "ngraph/type/element_type.hpp"
 #include "nodes/memory.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
+#include "precision_utils.h"
 #include "serialize.h"
+#include "threading/ie_executor_manager.hpp"
 #define FIX_62820 0
 #if FIX_62820 && ((IE_THREAD == IE_THREAD_TBB) || (IE_THREAD == IE_THREAD_TBB_AUTO))
 #    include <threading/ie_tbb_streams_executor.hpp>
 #endif
-#include <ie_system_conf.h>
-
 #include <algorithm>
 #include <cstring>
-#include <ie_ngraph_utils.hpp>
-#include <ngraph/opsets/opset1.hpp>
-#include <threading/ie_cpu_streams_executor.hpp>
-#include <transformations/utils/utils.hpp>
 #include <unordered_set>
 #include <utility>
 
+#include "ie_ngraph_utils.hpp"
+#include "ie_system_conf.h"
+#include "ngraph/opsets/opset1.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/util/common_util.hpp"
+#include "threading/ie_cpu_streams_executor.hpp"
+#include "transformations/utils/utils.hpp"
 
 using namespace ov::threading;
 

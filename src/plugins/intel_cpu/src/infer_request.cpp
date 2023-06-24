@@ -4,19 +4,17 @@
 
 #include "infer_request.h"
 
-#include <debug.h>
-#include <ie_common.h>
-
-#include <blob_factory.hpp>
-#include <ie_ngraph_utils.hpp>
 #include <map>
 #include <string>
-#include <transformations/utils/utils.hpp>
 #include <vector>
 
 #include "async_infer_request.h"
+#include "blob_factory.hpp"
 #include "compiled_model.h"
+#include "debug.h"
 #include "dnnl_extension_utils.h"
+#include "ie_common.h"
+#include "ie_ngraph_utils.hpp"
 #include "itt.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "memory_state.h"
@@ -27,6 +25,7 @@
 #include "nodes/split.h"
 #include "openvino/core/shape.hpp"
 #include "openvino/runtime/tensor.hpp"
+#include "transformations/utils/utils.hpp"
 #include "utils/cpu_utils.hpp"
 #include "utils/general_utils.h"
 

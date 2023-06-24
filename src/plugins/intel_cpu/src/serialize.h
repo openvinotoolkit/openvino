@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
-#include "extension_mngr.h"
-
-#include <iostream>
 #include <functional>
-#include <cpp/ie_cnn_network.h>
+#include <iostream>
+
+#include "cpp/ie_cnn_network.h"
+#include "extension_mngr.h"
 
 namespace ov {
 namespace intel_cpu {

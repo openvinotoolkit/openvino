@@ -2,58 +2,55 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <algorithm>
-#include <string>
-#include <map>
-#include <vector>
-#include <tuple>
-#include <unordered_set>
-#include <limits>
-#include <fstream>
-#include <unordered_map>
-#include <memory>
-#include <utility>
-
 #include "graph.h"
-#include "graph_dumper.h"
-#include "graph_optimizer.h"
+
+#include <algorithm>
+#include <fstream>
+#include <limits>
+#include <map>
+#include <memory>
+#include <string>
+#include <tuple>
+#include <unordered_map>
+#include <unordered_set>
+#include <utility>
+#include <vector>
+
+#include "blob_factory.hpp"
+#include "common/primitive_desc.hpp"
+#include "common/primitive_desc_iface.hpp"
 #include "dnnl_extension_utils.h"
 #include "extension_mngr.h"
-#include "memory_solver.hpp"
-#include "itt.h"
+#include "graph_dumper.h"
+#include "graph_optimizer.h"
+#include "ie_algorithm.hpp"
+#include "ie_plugin_config.hpp"
 #include "infer_request.h"
-#include "nodes/input.h"
-#include <nodes/reorder.h>
-#include "nodes/convert.h"
-#include "nodes/subgraph.h"
-#include "nodes/fullyconnected.h"
-
-#include <ie_algorithm.hpp>
-#include <blob_factory.hpp>
-#include "nodes/common/cpu_memcpy.h"
-#include "nodes/common/cpu_convert.h"
-
-#include "precision_utils.h"
-#include <ie_plugin_config.hpp>
-
-#include "utils/general_utils.h"
-#include "utils/debug_capabilities.h"
-#include "utils/node_dumper.h"
-#include "utils/ngraph_utils.hpp"
-#include "utils/cpu_utils.hpp"
-#include "utils/verbose.h"
+#include "itt.h"
+#include "low_precision/low_precision.hpp"
 #include "memory_desc/cpu_memory_desc_utils.h"
-
-#include <ngraph/node.hpp>
-#include <ngraph/function.hpp>
-#include <ngraph/ops.hpp>
-#include <transformations/utils/utils.hpp>
-#include <low_precision/low_precision.hpp>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
-#include <common/primitive_desc.hpp>
-#include <common/primitive_desc_iface.hpp>
+#include "memory_solver.hpp"
+#include "ngraph/function.hpp"
+#include "ngraph/node.hpp"
+#include "ngraph/ops.hpp"
+#include "nodes/common/cpu_convert.h"
+#include "nodes/common/cpu_memcpy.h"
+#include "nodes/convert.h"
+#include "nodes/fullyconnected.h"
+#include "nodes/input.h"
+#include "nodes/reorder.h"
+#include "nodes/subgraph.h"
+#include "precision_utils.h"
+#include "transformations/utils/utils.hpp"
+#include "utils/cpu_utils.hpp"
+#include "utils/debug_capabilities.h"
+#include "utils/general_utils.h"
+#include "utils/ngraph_utils.hpp"
+#include "utils/node_dumper.h"
+#include "utils/verbose.h"
 #if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
-#   include <tbb/task.h>
+#    include <tbb/task.h>
 #endif
 
 using namespace dnnl;

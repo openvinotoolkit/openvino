@@ -4,25 +4,23 @@
 #include "ie_metric_helpers.hpp"  // must be included first
 
 #include "plugin.h"
+
+#include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "extension.h"
 #include "extension_mngr.h"
 
-#include "itt.h"
-#include "openvino/runtime/properties.hpp"
-#include "serialize.h"
-#include "threading/ie_executor_manager.hpp"
-#include "transformations/transformation_pipeline.h"
-
-#include <ie_ngraph_utils.hpp>
-#include <transformations/utils/utils.hpp>
-
-#include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
+#include "ie_ngraph_utils.hpp"
 #include "ie_plugin_config.hpp"
 #include "ie_system_conf.h"
+#include "itt.h"
 #include "openvino/runtime/intel_cpu/properties.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "performance_heuristics.hpp"
+#include "serialize.h"
 #include "threading/ie_cpu_streams_info.hpp"
+#include "threading/ie_executor_manager.hpp"
+#include "transformations/transformation_pipeline.h"
+#include "transformations/utils/utils.hpp"
 #include "utils/denormals.hpp"
 #include "weights_cache.hpp"
 

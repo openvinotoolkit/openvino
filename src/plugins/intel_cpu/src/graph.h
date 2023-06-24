@@ -7,7 +7,6 @@
 #include <atomic>
 #include <map>
 #include <memory>
-#include <openvino/runtime/profiling_info.hpp>
 #include <string>
 #include <vector>
 
@@ -19,6 +18,7 @@
 #include "graph_context.h"
 #include "node.h"
 #include "normalize_preprocess.h"
+#include "openvino/runtime/profiling_info.hpp"
 
 namespace ov {
 namespace intel_cpu {

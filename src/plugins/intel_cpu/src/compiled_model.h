@@ -7,17 +7,17 @@
 #include <map>
 #include <memory>
 #include <string>
-#include <openvino/runtime/threading/thread_local.hpp>
 #include <unordered_map>
 #include <vector>
 
 #include "extension_mngr.h"
 #include "graph.h"
 #include "graph_context.h"
-#include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/iinfer_request.hpp"
+#include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/isync_infer_request.hpp"
+#include "openvino/runtime/threading/thread_local.hpp"
 
 namespace ov {
 namespace intel_cpu {
