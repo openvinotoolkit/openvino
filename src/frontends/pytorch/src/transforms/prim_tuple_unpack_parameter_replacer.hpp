@@ -25,9 +25,9 @@ namespace pass {
 // Note, that there is no special 'tuple' type of an input, tuple structure is restored by
 // following prim::TupleUnpack operations in the graph only assuming that they can be applied on
 // tuples only and the most nested objects in those tuples are tensors.
-class DecomposeListTupleParameters : public ov::pass::ModelPass {
+class DecomposeTupleParameters : public ov::pass::ModelPass {
 public:
-    OPENVINO_RTTI("ov::frontend::pytorch::pass::DecomposeListTupleParameters");
+    OPENVINO_RTTI("ov::frontend::pytorch::pass::DecomposeTupleParameters");
     bool run_on_model(const std::shared_ptr<Model>& model) override;
 };
 

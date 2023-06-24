@@ -39,7 +39,7 @@ def update_list_or_dict(container, name, idx, value):
         container[idx] = value
     return
 
-    
+
 def get_value_from_list_or_dict(container, name, idx):
     if isinstance(container, dict):
         if name is None:
@@ -83,8 +83,8 @@ def extract_input_info_from_example(args, inputs):
             example_dtype = pt_to_ov_type_map.get(str(dtype))
             user_dtype = get_value_from_list_or_dict(data_types, input_name, input_id)
             if user_dtype is not None and example_dtype.to_dtype() != user_dtype:
-                raise Error(f"Defined input type {user_dtype} is not equal to provided example_input type {example_dtype.to_dtype()}") 
-     
+                raise Error(f"Defined input type {user_dtype} is not equal to provided example_input type {example_dtype.to_dtype()}")
+
             data_rank = getattr(example_input, "ndim", 0)
             user_input_shape = get_value_from_list_or_dict(input_shapes, input_name, input_id)
             if user_input_shape.rank.get_length() != data_rank:
@@ -104,7 +104,7 @@ def extract_input_info_from_example(args, inputs):
             input_name = input_names[input_id] if input_names else None
             update_list_or_dict(input_shapes, input_name, input_id, input_shape)
             update_list_or_dict(data_types, input_name, input_id, ov_dtype.to_dtype())
-    
+
     args.placeholder_data_types = data_types
     args.placeholder_shapes = input_shapes
     if not args.input and input_names:
@@ -125,8 +125,6 @@ def to_torch_tensor(tensor):
     if isinstance(tensor, tuple):
         # TODO: Function to_torch_tensor should be renamed as it handles not only a tensor
         return tuple(to_torch_tensor(x) for x in tensor)
-    if isinstance(tensor, list):
-        return [to_torch_tensor(x) for x in tensor]
     else:
         raise Error("Unexpected type of example_input. Supported types torch.Tensor, np.array or ov.Tensor. "
                     "Got {}".format(type(tensor)))

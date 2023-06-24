@@ -1,7 +1,7 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "prim_list_tuple_unpack_replacer.hpp"
+#include "prim_tuple_unpack_parameter_replacer.hpp"
 
 #include <queue>
 
@@ -15,7 +15,7 @@ namespace frontend {
 namespace pytorch {
 namespace pass {
 
-bool DecomposeListTupleParameters::run_on_model(const std::shared_ptr<Model>& model) {
+bool DecomposeTupleParameters::run_on_model(const std::shared_ptr<Model>& model) {
     bool at_least_one_decomposed = false;
     std::queue<std::shared_ptr<ov::op::v0::Parameter>> parameters;
     for (const auto& par : model->get_parameters()) {
@@ -28,14 +28,13 @@ bool DecomposeListTupleParameters::run_on_model(const std::shared_ptr<Model>& mo
         size_t num_outputs = 0;  // number of outputs in each unpack consumer should match
         bool all_unpacks = true;
 
-        // collects all outputs per each consumer operation for this tuple/list Parameter
+        // collects all outputs per each consumer operation for this tuple Parameter
         std::vector<OutputVector> consumer_outputs;
 
         for (const auto& consumer : consumers) {
             auto node = consumer.get_node()->shared_from_this();
             auto tuple_unpack = cast_fw_node(node, "prim::TupleUnpack");
-            auto list_unpack = cast_fw_node(node, "prim::ListUnpack");
-            if (!tuple_unpack && !list_unpack) {
+            if (!tuple_unpack) {
                 all_unpacks = false;
                 break;
             }
@@ -43,7 +42,7 @@ bool DecomposeListTupleParameters::run_on_model(const std::shared_ptr<Model>& mo
                 num_outputs = node->get_output_size();
             } else if (num_outputs != node->get_output_size()) {
                 std::cerr << "[ PT FE WARNING ] Unpack node " << node
-                          << " as one of the consumers of tuple/list object has number of outputs "
+                          << " as one of the consumers of tuple object has number of outputs "
                           << node->get_output_size() << " not matching number of outputs " << num_outputs
                           << " for other consumer.\n";
                 all_unpacks = false;

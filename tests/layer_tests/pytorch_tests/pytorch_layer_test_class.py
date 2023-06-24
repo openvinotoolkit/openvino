@@ -68,7 +68,7 @@ class PytorchLayerTest:
         def use_ts_backend():
             return(os.environ.get('USE_TS_BACKEND', False))
 
-        ov_inputs = flattenize(inputs)
+        ov_inputs = flattenize_inputs(inputs)
 
         if use_ts_backend():
             self.ts_backend_test(model, torch_inputs, custom_eps)
@@ -105,7 +105,7 @@ class PytorchLayerTest:
 
             flatten_fw_res = []
 
-            flatten_fw_res = flattenize(fw_res)
+            flatten_fw_res = flattenize_outputs(fw_res)
 
             assert len(flatten_fw_res) == len(
                 output_list), f'number of outputs not equal, {len(flatten_fw_res)} != {len(output_list)}'
@@ -221,8 +221,8 @@ class PytorchLayerTest:
             ov_res = (ov_res,)
 
         flatten_fw_res, flatten_ov_res = [], []
-        flatten_fw_res = flattenize(fw_res)
-        flatten_ov_res = flattenize(ov_res)
+        flatten_fw_res = flattenize_outputs(fw_res)
+        flatten_ov_res = flattenize_outputs(ov_res)
 
         assert len(flatten_fw_res) == len(
             flatten_ov_res
@@ -275,25 +275,33 @@ def get_params(ie_device=None, precision=None):
     return test_args
 
 
-def flattenize_dict_outputs(res):
+def flattenize_dict_outputs(res, types):
     if isinstance(res, dict):
-        return flattenize(res.values())
+        return flattenize(res.values(), types)
 
 
-def flattenize(res):
+def flattenize(res, types: list):
     results = []
     for res_item in res:
         # if None is at output we skip it
         if res_item is None:
             continue
         # If input is list or tuple flattenize it
-        if isinstance(res_item, (list, tuple)):
-            decomposed_res = flattenize(res_item)
+        if isinstance(res_item, (list, tuple)) and type(res_item) in types:
+            decomposed_res = flattenize(res_item, types)
             results.extend(decomposed_res)
             continue
-        if isinstance(res_item, dict):
-            decomposed_res = flattenize_dict_outputs(res_item)
+        if isinstance(res_item, dict) and type(res_item) in types:
+            decomposed_res = flattenize_dict_outputs(res_item, types)
             results.extend(decomposed_res)
             continue
         results.append(res_item)
     return results
+
+
+def flattenize_outputs(res):
+    return flattenize(res, [list, tuple, dict])
+
+
+def flattenize_inputs(res):
+    return flattenize(res, [tuple])
