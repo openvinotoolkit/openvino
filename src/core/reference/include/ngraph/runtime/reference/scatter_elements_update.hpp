@@ -98,10 +98,14 @@ T reduction_neutral_value(const Reduction reduction_type) {
 template <typename T>
 std::function<T(const T, const T)> reduction_functor_for(const Reduction reduction_type) {
     switch (reduction_type) {
-    // case Reduction::MAX:
-    //     return std::numeric_limits<T>::min();
-    // case Reduction::MIN:
-    //     return std::numeric_limits<T>::max();
+    case Reduction::MAX:
+        return [](const T a, const T b) {
+            return a > b ? a : b;
+        };
+    case Reduction::MIN:
+        return [](const T a, const T b) {
+            return a < b ? a : b;
+        };
     case Reduction::PROD:
         return std::multiplies<T>{};
     case Reduction::SUM:
@@ -147,7 +151,13 @@ void scatter_elem_update_with_reduction(const DataType* input_data,
     const auto indices_strides = row_major_strides(indices_shape);
     const auto data_strides = row_major_strides(data_shape);
 
-    std::map<size_t, size_t> idx_to_output;  // todo: change to vector if no multiple lookups?
+    struct Offsets
+    {
+        size_t idx_offset;
+        size_t out_offset;
+    };
+    
+    std::vector<Offsets> idx_to_output_element;
     for (const Coordinate& indices_cord : indices_transform) {
         const size_t indices_idx =
             std::inner_product(indices_cord.begin(), indices_cord.end(), indices_strides.begin(), uint64_t(0));
@@ -155,7 +165,7 @@ void scatter_elem_update_with_reduction(const DataType* input_data,
         out_cord.at(axis) = indices[indices_idx];
         const auto out_idx = std::inner_product(out_cord.begin(), out_cord.end(), data_strides.begin(), uint64_t(0));
 
-        idx_to_output[indices_idx] = out_idx;
+        idx_to_output_element.push_back({indices_idx, out_idx});
     }
 
     // When this is false we need to substitute the copied values at target locations with values that will not affect
@@ -163,8 +173,8 @@ void scatter_elem_update_with_reduction(const DataType* input_data,
     // for the reduction accumulators.
     if (!use_init_val) {
         const auto value = reduction_neutral_value<DataType>(reduction_type);
-        for (const auto& offsets : idx_to_output) {
-            out_buf[offsets.second] = value;
+        for (const auto& offsets : idx_to_output_element) {
+            out_buf[offsets.out_offset] = value;
         }
     }
 
@@ -174,10 +184,10 @@ void scatter_elem_update_with_reduction(const DataType* input_data,
     std::unordered_map<size_t, int32_t> mean_reduction_counters;
 
     const auto reduce = reduction_functor_for<DataType>(reduction_type);
-    for (const auto& offsets : idx_to_output) {
-        out_buf[offsets.second] = reduce(out_buf[offsets.second], updates[offsets.first]);
+    for (const auto& offsets : idx_to_output_element) {
+        out_buf[offsets.out_offset] = reduce(out_buf[offsets.out_offset], updates[offsets.idx_offset]);
         if (reduction_type == Reduction::MEAN) {
-            mean_reduction_counters[offsets.second] += 1;
+            mean_reduction_counters[offsets.out_offset] += 1;
         }
     }
 
