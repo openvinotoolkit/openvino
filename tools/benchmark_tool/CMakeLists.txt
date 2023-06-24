@@ -16,9 +16,9 @@ endif()
 
 if(NOT IEDevScripts_FOUND)
     find_package(IEDevScripts REQUIRED
-                PATHS "${OpenVINO_SOURCE_DIR}/cmake/developer_package"
-                NO_CMAKE_FIND_ROOT_PATH
-                NO_DEFAULT_PATH)
+                 PATHS "${OpenVINO_SOURCE_DIR}/cmake/developer_package"
+                 NO_CMAKE_FIND_ROOT_PATH
+                 NO_DEFAULT_PATH)
 endif()
 
 #
