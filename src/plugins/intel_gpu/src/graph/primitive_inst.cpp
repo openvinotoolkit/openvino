@@ -5,7 +5,7 @@
 #include "primitive_inst.h"
 #include "data_inst.h"
 #include "mutable_data_inst.h"
-#include "generic_layer_inst.h"
+#include "reorder_inst.h"
 #include "input_layout_inst.h"
 #include "arg_max_min_inst.h"
 #include "fully_connected_inst.h"
@@ -115,7 +115,7 @@ std::shared_ptr<kernel_impl_params> primitive_impl::get_weights_reorder_kernel_p
         return nullptr;
 
     auto reorder_kernel_params = std::make_shared<kernel_impl_params>();
-    auto prim = std::make_shared<generic_layer>("", "", _weights_reorder_params);
+    auto prim = std::make_shared<reorder>("", input_info(), _weights_reorder_params);
     reorder_kernel_params->desc = prim;
     reorder_kernel_params->unique_id = _weights_reorder_params->hash();
     reorder_kernel_params->input_layouts.push_back(_weights_reorder_params->get_input_layout());
@@ -955,6 +955,9 @@ event::ptr primitive_inst::update_weights() {
     auto& engine = _network.get_engine();
     auto reorder_kernel_params = _impl->get_weights_reorder_kernel_params();
 
+    if (reorder_kernel_params)
+        reorder_kernel_params->prog = get_network().get_program().get();
+
     auto weights_idx = _node->get_primitive()->input.size();
     auto original_weights_memory = dep_memory_ptr(weights_idx);
     auto original_layout = original_weights_memory->get_layout();
@@ -983,7 +986,7 @@ event::ptr primitive_inst::update_weights() {
         } else {
             GPU_DEBUG_PROFILED_STAGE_CACHE_HIT(false);
             auto& cache = get_network().get_program()->get_implementations_cache();
-            auto reorder_inst = std::make_shared<generic_layer_inst>(get_network());
+            auto reorder_inst = std::make_shared<cldnn::reorder_inst>(get_network());
 
             if (auto cached_impl = cache.get(*reorder_kernel_params)) {
                 GPU_DEBUG_TRACE_DETAIL << id() << ": reorder weights (cached) from " << original_layout.to_short_string()
@@ -996,7 +999,7 @@ event::ptr primitive_inst::update_weights() {
                 auto factory = WeightsReordersFactory::get(impl_types::ocl, shape_types::static_shape);
                 auto reorder_impl = factory(*reorder_kernel_params);
                 auto& kernels_cache = get_network().get_program()->get_kernels_cache();
-                auto kernels = kernels_cache.compile(*_impl_params, reorder_impl->get_kernels_source());
+                auto kernels = kernels_cache.compile(*reorder_kernel_params, reorder_impl->get_kernels_source());
                 OPENVINO_ASSERT(kernels.size() == 1, "[GPU] Expected number of compiled kernels is 1, but got ", kernels.size());
                 reorder_impl->set_kernels(kernels);
 
@@ -1011,7 +1014,7 @@ event::ptr primitive_inst::update_weights() {
             memory::ptr weights_memory = nullptr;
             if (_reordered_weights_cache.is_full()) {
                 weights_memory = _reordered_weights_cache.get_lru_element().second;
-                can_reuse = weights_memory->size() <= expected_layout.bytes_count() && weights_memory != original_weights_memory;
+                can_reuse = weights_memory->size() <= expected_layout.bytes_count() && (weights_memory->buffer_ptr() != original_weights_memory->buffer_ptr());
             }
 
             if (can_reuse) {
@@ -1106,10 +1109,11 @@ memory::ptr primitive_inst::allocate_output(engine& _engine, memory_pool& pool, 
                     : !usm_device_allocatable ? lockable_mem_type : allocation_type::usm_device;
 
     if (is_internal) {
-        if (_node.can_be_optimized() || _node.is_type<generic_layer>()) {
+        bool is_reorder_weights = _node.is_type<reorder>() && _node.as<reorder>().get_primitive()->weights_reorder_params;
+        if (_node.can_be_optimized() || is_reorder_weights) {
             GPU_DEBUG_LOG << "[" << _node.id() << ": output]" << std::endl;
             // Use usm_device memory for weights reordering
-            if (is_internal && _node.is_type<generic_layer>() &&
+            if (is_internal && is_reorder_weights &&
                 _engine.supports_allocation(allocation_type::usm_device))
                 alloc_type = allocation_type::usm_device;
             return get_memory_from_pool(_engine,
@@ -1120,7 +1124,7 @@ memory::ptr primitive_inst::allocate_output(engine& _engine, memory_pool& pool, 
                                         false,
                                         reset);
         } else {
-            if ((_node.is_output() && _node.is_type<generic_layer>()) || (!_node.is_output() && _node.is_type<input_layout>()))
+            if ((_node.is_output() && is_reorder_weights) || (!_node.is_output() && _node.is_type<input_layout>()))
                 reset = false;
             GPU_DEBUG_LOG << "[" << _node.id() << ": constant]" << std::endl;
             return _engine.allocate_memory(layout, alloc_type, reset);

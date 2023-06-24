@@ -47,9 +47,9 @@ static std::tuple<bool, uint32_t, uint32_t, uint32_t> VerifyAndGetConvParams(
     }
 
     // Check if MatMul or corresponding pointwise convolution are supported by GNA
-    const uint32_t width = input1_shape.front();
-    const uint32_t in_channels = input2_shape.back();
-    const uint32_t out_channels = input2_shape.front();
+    const uint32_t width = static_cast<uint32_t>(input1_shape.front());
+    const uint32_t in_channels = static_cast<uint32_t>(input2_shape.back());
+    const uint32_t out_channels = static_cast<uint32_t>(input2_shape.front());
     if (input1_shape.front() <= Limitations::kAffineMaxBatchSize ||
         out_channels % Limitations::kConvFiltersNumDivider != 0 || out_channels > Limitations::kConvMaxFiltersNum ||
         in_channels > Limitations::kConvFilterMaxSize) {
