@@ -442,7 +442,7 @@ inline Rank::value_type get_max_input_rank(const std::shared_ptr<ov::Node>& node
  */
 inline Shape::value_type get_dim_by_axis(const Shape& shape, int64_t axis) {
     if (axis < 0)
-        axis += shape.size();
+        axis += static_cast<int64_t>(shape.size());
     if (axis < 0 || axis >= static_cast<int64_t>(shape.size()))
         throw std::runtime_error("get_dim_by_axis invalid axis");
     return shape[axis];
@@ -547,7 +547,7 @@ inline bool has_2d_inputs(const ov::Output<ov::Node>& output) {
  */
 inline bool is_pointless_permutation(const std::vector<int64_t>& indices) {
     for (size_t i = 0; i < indices.size(); ++i) {
-        if (indices[i] != i)
+        if (indices[i] != static_cast<int64_t>(i))
             return false;
     }
     return true;

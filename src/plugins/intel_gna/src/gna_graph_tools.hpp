@@ -571,7 +571,7 @@ inline void CNNNetworkInsertLayer(CNNLayerPtr after,
 
                 // located data
                 for (auto input_port_idx : CNNLayerFindInsDataIdxes(data, input)) {
-                    if ((inDataIndex == input_port_idx) || inDataIndex == invalid_data_idx)
+                    if ((inDataIndex == static_cast<size_t>(input_port_idx)) || inDataIndex == invalid_data_idx)
                         input->insData[input_port_idx] = layerToInsert->outData.front();
                     number_of_connections_between_after_n_before++;
                 }
