@@ -81,7 +81,7 @@ class TestTupleUnpackParameterSingle(PytorchLayerTest):
         self._test(*self.create_model(), ie_device, precision, ir_version)
 
 
-class TestTupleUnpackParameterSingle(PytorchLayerTest):
+class TestTupleUnpackParameterNested(PytorchLayerTest):
     def _prepare_input(self):
         def tensor_gen():
             return np.random.uniform(0, 50, (1, 2, 10)).astype(np.float32)
@@ -107,7 +107,7 @@ class TestTupleUnpackParameterSingle(PytorchLayerTest):
         self._test(*self.create_model(), ie_device, precision, ir_version)
 
 
-class TestTupleUnpackParameterSingle(PytorchLayerTest):
+class TestTupleUnpackParameterMultiple(PytorchLayerTest):
     def _prepare_input(self):
         def tensor_gen():
             return np.random.uniform(0, 50, (1, 2, 10)).astype(np.float32)
