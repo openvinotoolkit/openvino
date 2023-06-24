@@ -131,7 +131,7 @@ void mha_gpt_impl_amx::mha_bf16(const mha_gpt::exec_param &param) {
             auto pKIn0_aux = pKIn0[i0] + i1 * param.head_stride_in_kv * get_precision_size(_create_param.qkv_precision);
             auto pVIn0_aux = pVIn0[i0] + i1 * param.head_stride_in_kv * get_precision_size(_create_param.qkv_precision);
 
-            auto pAddIn1_aux = attn_masks[i0];
+            auto pAddIn1_aux = attn_masks + i0 * param.key_seq_len;
 
             auto bufferMatMul0Out_local = reinterpret_cast<uint8_t*>(bufferMatMul0Out.get() + threadNum * bufferMatMul0OutSize);
             auto bufferMatMul1Out_local = reinterpret_cast<uint8_t*>(bufferMatMul1Out.get() + threadNum * bufferMatMul1OutSize);
@@ -181,8 +181,6 @@ void mha_gpt_impl_amx::mha_bf16(const mha_gpt::exec_param &param) {
                 auto pKIn0_aux = pKIn0[i0] + i1 * param.head_stride_in_kv * get_precision_size(_create_param.qkv_precision);
                 auto pVIn0_aux = pVIn0[i0] + i1 * param.head_stride_in_kv * get_precision_size(_create_param.qkv_precision);
 
-                auto pAddIn1_aux = attn_masks[i0];
-
                 auto bufferMatMul0Out_local = reinterpret_cast<uint8_t*>(bufferMatMul0Out.get() + threadNum * bufferMatMul0OutSize);
                 auto bufferMatMul1Out_local = reinterpret_cast<uint8_t*>(bufferMatMul1Out.get() + threadNum * bufferMatMul1OutSize);
                 
@@ -194,20 +192,33 @@ void mha_gpt_impl_amx::mha_bf16(const mha_gpt::exec_param &param) {
                 prev_k = pKIn0_aux;
 
                 auto pMatMul0Out = bufferMatMul0Out_local;
-                // loop along K dimension
-                size_t valid_softmax_items = causal_mask_offset_start + seq_start + 1;
-                for (int m = 0; m < seq_cout; m++) {
-                    float* src = reinterpret_cast<float*>(pMatMul0Out + m * rndup(param.key_seq_len * sizeof(float), 64));
-                    ov::bfloat16* dst = reinterpret_cast<ov::bfloat16*>(pMatMul0Out + m * rndup(param.key_seq_len * sizeof(ov::bfloat16), 64));
-                    mul_add_f32_avx512(src, src, _create_param.normal_factor, pAddIn1_aux, valid_softmax_items);
-                    softmax_avx512<ov::bfloat16>(dst, src, valid_softmax_items, nullptr);
-                    // attn_scores = torch.where(causal_mask, attn_scores, mask_value)
-                    if (param.key_seq_len > valid_softmax_items) {
-                        auto *invalidPtr = dst + valid_softmax_items;
-                        memset(static_cast<void*>(invalidPtr), 0, (param.key_seq_len - valid_softmax_items) * get_precision_size(_create_param.qkv_precision));
-                        valid_softmax_items = std::min(valid_softmax_items + 1, param.key_seq_len);
+                if (param.is_causal_in_attention) {
+                    auto pAddIn1_aux = attn_masks + i0 * param.key_seq_len * param.query_seq_len;
+                    // loop along K dimension
+                    for (int m = 0; m < seq_cout; m++) {
+                        float* src = reinterpret_cast<float*>(pMatMul0Out + m * rndup(param.key_seq_len * sizeof(float), 64));
+                        ov::bfloat16* dst = reinterpret_cast<ov::bfloat16*>(pMatMul0Out + m * rndup(param.key_seq_len * sizeof(ov::bfloat16), 64));
+                        mul_add_f32_avx512(src, src, _create_param.normal_factor, pAddIn1_aux + (m + seq_start) * param.key_seq_len, param.key_seq_len);
+                        softmax_avx512<ov::bfloat16>(dst, src, param.key_seq_len, nullptr);
+                    }
+                } else {
+                    auto pAddIn1_aux = attn_masks + i0 * param.key_seq_len;
+                    // loop along K dimension
+                    size_t valid_softmax_items = causal_mask_offset_start + seq_start + 1;
+                    for (int m = 0; m < seq_cout; m++) {
+                        float* src = reinterpret_cast<float*>(pMatMul0Out + m * rndup(param.key_seq_len * sizeof(float), 64));
+                        ov::bfloat16* dst = reinterpret_cast<ov::bfloat16*>(pMatMul0Out + m * rndup(param.key_seq_len * sizeof(ov::bfloat16), 64));
+                        mul_add_f32_avx512(src, src, _create_param.normal_factor, pAddIn1_aux, valid_softmax_items);
+                        softmax_avx512<ov::bfloat16>(dst, src, valid_softmax_items, nullptr);
+                        // attn_scores = torch.where(causal_mask, attn_scores, mask_value)
+                        if (param.key_seq_len > valid_softmax_items) {
+                            auto *invalidPtr = dst + valid_softmax_items;
+                            memset(static_cast<void*>(invalidPtr), 0, (param.key_seq_len - valid_softmax_items) * get_precision_size(_create_param.qkv_precision));
+                            valid_softmax_items = std::min(valid_softmax_items + 1, param.key_seq_len);
+                        }
                     }
                 }
+
                 auto pOut_aux = pout + (i0 * batch_stride_in_attn + i1 * head_stride_in_attn
                     + seq_start * head_stride_in_attn * _create_param.num_heads) * outPrcSize;
                 tensor2D<ov::bfloat16> matQKBF16(seq_cout, param.key_seq_len, reinterpret_cast<ov::bfloat16*>(bufferMatMul0Out_local), rndup(param.key_seq_len * sizeof(ov::bfloat16), 64));
@@ -258,7 +269,7 @@ void mha_gpt_impl_amx::mha_i8(const mha_gpt::exec_param &param) {
             auto pKIn0_aux = pKIn0[i0] + i1 * param.head_stride_in_kv * get_precision_size(_create_param.qkv_precision);
             auto pVIn0_aux = pVIn0[i0] + i1 * param.head_stride_in_kv * get_precision_size(_create_param.qkv_precision);
 
-            auto pAddIn1_aux = attn_masks[i0];
+            auto pAddIn1_aux = attn_masks + i0 * param.key_seq_len;
 
             auto bufferMatMul0Out_local = reinterpret_cast<uint8_t*>(bufferMatMul0Out.get() + threadNum * bufferMatMul0OutSize);
             auto bufferMatMul1Out_local = reinterpret_cast<uint8_t*>(bufferMatMul1Out.get() + threadNum * bufferMatMul1OutSize);
@@ -309,8 +320,6 @@ void mha_gpt_impl_amx::mha_i8(const mha_gpt::exec_param &param) {
                 auto pKIn0_aux = pKIn0[i0] + i1 * param.head_stride_in_kv;
                 auto pVIn0_aux = pVIn0[i0] + i1 * param.head_stride_in_kv;
 
-                auto pAddIn1_aux = attn_masks[i0];
-
                 auto bufferMatMul0Out_local = reinterpret_cast<uint8_t*>(bufferMatMul0Out.get() + threadNum * bufferMatMul0OutSize);
                 auto bufferMatMul1Out_local = reinterpret_cast<uint8_t*>(bufferMatMul1Out.get() + threadNum * bufferMatMul1OutSize);
                 
@@ -322,18 +331,30 @@ void mha_gpt_impl_amx::mha_i8(const mha_gpt::exec_param &param) {
                 prev_k = pKIn0_aux;
 
                 auto pMatMul0Out = bufferMatMul0Out_local;
-                // loop along K dimension
-                size_t valid_softmax_items = causal_mask_offset_start + seq_start + 1;
-                for (int m = 0; m < seq_cout; m++) {
-                    float* src = reinterpret_cast<float*>(pMatMul0Out + m * rndup(param.key_seq_len * sizeof(float), 64));
-                    uint8_t* dst = reinterpret_cast<uint8_t*>(pMatMul0Out + m * rndup(param.key_seq_len * sizeof(uint8_t), 64));
-                    mul_add_f32_avx512(src, src, mul_scales, pAddIn1_aux, valid_softmax_items);
-                    softmax_avx512<uint8_t>(dst, src, valid_softmax_items, param.qk_quant);
-                    // attn_scores = torch.where(causal_mask, attn_scores, mask_value)
-                    if (param.key_seq_len > valid_softmax_items) {
-                        auto *invalidPtr = dst + valid_softmax_items;
-                        memset(invalidPtr, 0, (param.key_seq_len - valid_softmax_items) * get_precision_size(_create_param.qkv_precision));
-                        valid_softmax_items = std::min(valid_softmax_items + 1, param.key_seq_len);
+                if (param.is_causal_in_attention) {
+                    auto pAddIn1_aux = attn_masks + i0 * param.key_seq_len * param.query_seq_len;
+                    // loop along K dimension
+                    for (int m = 0; m < seq_cout; m++) {
+                        float* src = reinterpret_cast<float*>(pMatMul0Out + m * rndup(param.key_seq_len * sizeof(float), 64));
+                        uint8_t* dst = reinterpret_cast<uint8_t*>(pMatMul0Out + m * rndup(param.key_seq_len * sizeof(uint8_t), 64));
+                        mul_add_f32_avx512(src, src, mul_scales, pAddIn1_aux + (m + seq_start) * param.key_seq_len, param.key_seq_len);
+                        softmax_avx512<uint8_t>(dst, src, param.key_seq_len, param.qk_quant);
+                    }
+                } else {
+                    auto pAddIn1_aux = attn_masks + i0 * param.key_seq_len;
+                    // loop along K dimension
+                    size_t valid_softmax_items = causal_mask_offset_start + seq_start + 1;
+                    for (int m = 0; m < seq_cout; m++) {
+                        float* src = reinterpret_cast<float*>(pMatMul0Out + m * rndup(param.key_seq_len * sizeof(float), 64));
+                        uint8_t* dst = reinterpret_cast<uint8_t*>(pMatMul0Out + m * rndup(param.key_seq_len * sizeof(uint8_t), 64));
+                        mul_add_f32_avx512(src, src, mul_scales, pAddIn1_aux, valid_softmax_items);
+                        softmax_avx512<uint8_t>(dst, src, valid_softmax_items, param.qk_quant);
+                        // attn_scores = torch.where(causal_mask, attn_scores, mask_value)
+                        if (param.key_seq_len > valid_softmax_items) {
+                            auto *invalidPtr = dst + valid_softmax_items;
+                            memset(invalidPtr, 0, (param.key_seq_len - valid_softmax_items) * get_precision_size(_create_param.qkv_precision));
+                            valid_softmax_items = std::min(valid_softmax_items + 1, param.key_seq_len);
+                        }
                     }
                 }
                 auto pOut_aux = pout + (i0 * batch_stride_in_attn + i1 * head_stride_in_attn

@@ -1,0 +1,28 @@
+{
+  "_name_or_path": "THUDM/chatglm-6b",
+  "architectures": [
+    "ChatGLMModel"
+  ],
+  "auto_map": {
+    "AutoConfig": "configuration_chatglm.ChatGLMConfig",
+    "AutoModel": "modeling_chatglm.ChatGLMForConditionalGeneration",
+    "AutoModelForSeq2SeqLM": "modeling_chatglm.ChatGLMForConditionalGeneration"
+  },
+  "bos_token_id": 130004,
+  "eos_token_id": 130005,
+  "mask_token_id": 130000,
+  "gmask_token_id": 130001,
+  "pad_token_id": 3,
+  "hidden_size": 4096,
+  "inner_hidden_size": 16384,
+  "layernorm_epsilon": 1e-05,
+  "max_sequence_length": 2048,
+  "model_type": "chatglm",
+  "num_attention_heads": 32,
+  "num_layers": 28,
+  "position_encoding_2d": true,
+  "torch_dtype": "float32",
+  "transformers_version": "4.23.1",
+  "use_cache": true,
+  "vocab_size": 130528
+}

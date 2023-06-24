@@ -50,39 +50,41 @@ void regclass_mha_gpt(pybind11::module m) {
             :param num_heads: heads number.
             :type num_heads: int
         )");
-    cls.def("exec", [] (llmdnn::mha_gpt& self, const torch::Tensor& q, const torch::Tensor& k, const torch::Tensor& v, const torch::Tensor& attn_mask) {
-            // q: [batch, num_heads, query_seq_len, head_size]
-            // k: [batch, num_heads, key_seq_len, head_size]
-            // v: [batch, num_heads, value_seq_len, head_size]
-            // attn_mask: [batch, MAX_POSITION_EMBEDDINGS]
+    cls.def("exec", [] (llmdnn::mha_gpt& self, const torch::Tensor& q, const torch::Tensor& k, const torch::Tensor& v, const torch::Tensor& attn_mask, int64_t head_size, int64_t key_seq_len) {
+            // q: [batch, num_heads, query_seq_len, head_size_aligned]
+            // k: [batch, num_heads, max_seq_len, head_size_aligned] valid in max_seq_len: key_seq_len
+            // v: [batch, num_heads, max_seq_len, head_size_aligned] valid in max_seq_len: key_seq_len
+            // attn_mask: [batch, 1, 1/query_seq_len, key_seq_len]
             // out: [batch, query_seq_len, num_heads * head_size]
-            AT_ASSERT(q.dim() == 4 && k.dim() == 4 && v.dim() == 4 && attn_mask.dim() == 2);
+            AT_ASSERT(q.dim() == 4 && k.dim() == 4 && v.dim() == 4 && attn_mask.dim() == 4);
             auto batch = q.size(0);
             auto num_heads = q.size(1);
             auto query_seq_len = q.size(2);
-            auto head_size = q.size(3);
-            auto key_seq_len = k.size(2);
-            auto attn_len = attn_mask.size(1);
-            AT_ASSERT(key_seq_len == v.size(2) && key_seq_len == attn_len &&
-                    batch == k.size(0) && batch == v.size(0) && 1 == attn_mask.size(0) &&
+            auto head_size_aligned = q.size(3);
+            auto max_seq_len = k.size(2);
+            auto attn_len = attn_mask.size(3);
+            AT_ASSERT(max_seq_len == v.size(2) &&
+                    batch == k.size(0) && batch == v.size(0) && batch == attn_mask.size(0) &&
                     num_heads == k.size(1) && num_heads == v.size(1) &&
-                    head_size == k.size(3) && head_size == v.size(3));
+                    head_size_aligned == k.size(3) && head_size_aligned == v.size(3));
 
-            auto out = q.new_empty({batch, query_seq_len, num_heads * head_size});
             llmdnn::mha_gpt::exec_param param;
             param.batch = batch;
             param.query_seq_len = query_seq_len;
-            param.key_seq_len = key_seq_len;
+            param.key_seq_len = key_seq_len == 0 ? max_seq_len : key_seq_len;
+            head_size = head_size == 0 ? head_size_aligned : head_size;
+            auto out = q.new_empty({batch, query_seq_len, num_heads * head_size});
+            AT_ASSERT((int64_t)param.key_seq_len == attn_len);
             param.q = reinterpret_cast<uint8_t*>(q.data_ptr());
             param.attn_output = reinterpret_cast<uint8_t*>(out.data_ptr());
-            param.head_stride_in_kv = key_seq_len * head_size;
+            param.head_stride_in_kv = max_seq_len * head_size_aligned;
+            param.is_causal_in_attention = attn_mask.size(2) != 1;
+            param.attention_mask = attn_mask.data_ptr<float>();
             param.k = reinterpret_cast<uint8_t**>(alloca(batch * sizeof(uint8_t*)));
             param.v = reinterpret_cast<uint8_t**>(alloca(batch * sizeof(uint8_t*)));
-            param.attention_mask = reinterpret_cast<float**>(alloca(batch * sizeof(float*)));
             for (int i = 0; i < batch; i++) {
-                param.k[i] = reinterpret_cast<uint8_t*>(k.data_ptr()) + i * num_heads * key_seq_len * head_size * sizeof(ov::bfloat16);
-                param.v[i] = reinterpret_cast<uint8_t*>(v.data_ptr()) + i * num_heads * key_seq_len * head_size * sizeof(ov::bfloat16);
-                param.attention_mask[i] = attn_mask.data_ptr<float>();
+                param.k[i] = reinterpret_cast<uint8_t*>(k[i].data_ptr());
+                param.v[i] = reinterpret_cast<uint8_t*>(v[i].data_ptr());
             }
 
             self.exec(param);
@@ -92,6 +94,8 @@ void regclass_mha_gpt(pybind11::module m) {
         py::arg("k"),
         py::arg("v"),
         py::arg("attn_mask"),
+        py::arg("head_size") = 0,
+        py::arg("key_seq_len") = 0,
         R"(
             exec mha
 
@@ -99,44 +103,46 @@ void regclass_mha_gpt(pybind11::module m) {
             :type num_heads: int
         )");
     cls.def("exec_quant", [] (llmdnn::mha_gpt& self, const torch::Tensor& q, const torch::Tensor& k, const torch::Tensor& v, const torch::Tensor& attn_mask,
-        float q_dequant, float k_dequant, float v_dequant, float qk_quant, const std::vector<float>& qkv_quant) {
-            // q: [batch, num_heads, query_seq_len, head_size]
-            // k: [batch, num_heads, key_seq_len, head_size]
-            // v: [batch, num_heads, value_seq_len, head_size]
-            // attn_mask: [batch, MAX_POSITION_EMBEDDINGS]
+        float q_dequant, float k_dequant, float v_dequant, float qk_quant, const std::vector<float>& qkv_quant, int64_t head_size, int64_t key_seq_len) {
+            // q: [batch, num_heads, query_seq_len, head_size_aligned]
+            // k: [batch, num_heads, max_seq_len, head_size_aligned] valid in max_seq_len: key_seq_len
+            // v: [batch, num_heads, max_seq_len, head_size_aligned] valid in max_seq_len: key_seq_len
+            // attn_mask: [batch, 1, 1/query_seq_len, key_seq_len]
             // out: [batch, query_seq_len, num_heads * head_size]
-            AT_ASSERT(q.dim() == 4 && k.dim() == 4 && v.dim() == 4 && attn_mask.dim() == 2);
+            AT_ASSERT(q.dim() == 4 && k.dim() == 4 && v.dim() == 4 && attn_mask.dim() == 4);
             auto batch = q.size(0);
             auto num_heads = q.size(1);
             auto query_seq_len = q.size(2);
-            auto head_size = q.size(3);
-            auto key_seq_len = k.size(2);
-            auto attn_len = attn_mask.size(1);
-            AT_ASSERT(key_seq_len == v.size(2) && key_seq_len == attn_len &&
-                    batch == k.size(0) && batch == v.size(0) && 1 == attn_mask.size(0) &&
+            auto head_size_aligned = q.size(3);
+            auto max_seq_len = k.size(2);
+            auto attn_len = attn_mask.size(3);
+            AT_ASSERT(max_seq_len == v.size(2) &&
+                    batch == k.size(0) && batch == v.size(0) && batch == attn_mask.size(0) &&
                     num_heads == k.size(1) && num_heads == v.size(1) &&
-                    head_size == k.size(3) && head_size == v.size(3));
+                    head_size_aligned == k.size(3) && head_size_aligned == v.size(3));
 
-            auto out = q.new_empty({batch, query_seq_len, num_heads * head_size}, torch::TensorOptions(torch::kInt8));
             llmdnn::mha_gpt::exec_param param;
             param.batch = batch;
             param.query_seq_len = query_seq_len;
-            param.key_seq_len = key_seq_len;
+            param.key_seq_len = key_seq_len == 0 ? max_seq_len : key_seq_len;
+            head_size = head_size == 0 ? head_size_aligned : head_size;
+            auto out = q.new_empty({batch, query_seq_len, num_heads * head_size}, torch::TensorOptions(torch::kInt8));
+            AT_ASSERT((int64_t)param.key_seq_len == attn_len);
             param.q = reinterpret_cast<uint8_t*>(q.data_ptr());
             param.attn_output = reinterpret_cast<uint8_t*>(out.data_ptr());
-            param.head_stride_in_kv = key_seq_len * head_size;
+            param.head_stride_in_kv = max_seq_len * head_size_aligned;
             param.k = reinterpret_cast<uint8_t**>(alloca(batch * sizeof(uint8_t*)));
             param.v = reinterpret_cast<uint8_t**>(alloca(batch * sizeof(uint8_t*)));
-            param.attention_mask = reinterpret_cast<float**>(alloca(batch * sizeof(float*)));
+            param.is_causal_in_attention = attn_mask.size(2) != 1;
+            param.attention_mask = attn_mask.data_ptr<float>();
             param.q_dequant = q_dequant;
             param.k_dequant = k_dequant;
             param.v_dequant = v_dequant;
             param.qk_quant = qk_quant;
             param.qkv_quant = qkv_quant;
             for (int i = 0; i < batch; i++) {
-                param.k[i] = reinterpret_cast<uint8_t*>(k.data_ptr()) + i * num_heads * key_seq_len * head_size;
-                param.v[i] = reinterpret_cast<uint8_t*>(v.data_ptr()) + i * num_heads * key_seq_len * head_size;
-                param.attention_mask[i] = attn_mask.data_ptr<float>();
+                param.k[i] = reinterpret_cast<uint8_t*>(k[i].data_ptr());
+                param.v[i] = reinterpret_cast<uint8_t*>(v[i].data_ptr());
             }
 
             self.exec(param);
@@ -151,6 +157,8 @@ void regclass_mha_gpt(pybind11::module m) {
         py::arg("v_dequant"),
         py::arg("qk_quant"),
         py::arg("qkv_quant"),
+        py::arg("head_size") = 0,
+        py::arg("key_seq_len") = 0,
         R"(
             exec mha quant
 

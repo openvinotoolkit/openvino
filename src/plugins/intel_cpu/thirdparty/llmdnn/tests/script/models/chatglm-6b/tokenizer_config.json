@@ -1,0 +1,20 @@
+{
+  "name_or_path": "THUDM/chatglm-6b",
+  "bos_token": "<sop>",
+  "eos_token": "<eop>",
+  "end_token": "</s>",
+  "gmask_token": "[gMASK]",
+  "mask_token": "[MASK]",
+  "pad_token": "<pad>",
+  "unk_token": "<unk>",
+  "remove_space": false,
+  "do_lower_case": false,
+  "tokenizer_class": "ChatGLMTokenizer",
+  "num_image_tokens": 0,
+  "auto_map": {
+    "AutoTokenizer": [
+      "tokenization_chatglm.ChatGLMTokenizer",
+      null
+      ]
+  }
+}

@@ -23,6 +23,7 @@ public:
         data_type_t dst_precision;
         size_t rotary_emb_base;
         float rotary_pct;
+        bool use_position2d;
     };
     struct exec_param {
         size_t batch;
@@ -32,6 +33,7 @@ public:
         uint8_t* query_dst;
         uint8_t** layer_past_key_padded;
         uint8_t** layer_past_value_padded;
+        int* position2d_ids;        // shape: [batch, 2, query_seq_len]
     };
 
     emb_gpt();
