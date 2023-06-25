@@ -275,11 +275,13 @@ void remove_redundant_reorders::run(program& p) {
             !r_node.get_primitive()->subtract_per_feature.empty() ||
             no_output_optimization ||
             r_node.has_fused_primitives() ||
-            r_node.get_primitive()->has_surface_input())
+            r_node.get_primitive()->has_surface_input() ||
+            (r_node.get_primitive()->weights_reorder_params &&
+             r_node.get_primitive()->weights_reorder_params->should_be_transposed()))
             continue;
 
         auto o_layout = r_node.get_output_layout();
-        auto i_layout = r_node.get_dependency(0).get_output_layout();
+        auto i_layout = r_node.get_input_layout(0);
 
         // Optimize reorder b_fs_yx_fsv16 -> bfyx when spatials are equal to 1. In this case we can reinterpret buffer,
         // but pads need to be handled correctly.
@@ -513,9 +515,9 @@ void remove_redundant_reorders::run(program& p) {
                         return false;
 
                     auto node_format = node->get_output_layout().format;
-                    for (size_t axis = 0; axis < node->get_dependency(0).get_output_layout().data_padding.lower_size().sizes(node_format).size(); axis++) {
+                    for (size_t axis = 0; axis < node->get_input_layout(0).data_padding.lower_size().sizes(node_format).size(); axis++) {
                         if (!user->is_padding_supported(static_cast<int>(axis),
-                            node->get_dependency(0).get_output_layout().data_padding.lower_size().sizes(node_format)[axis]))
+                            node->get_input_layout(0).data_padding.lower_size().sizes(node_format)[axis]))
                             return false;
                     }
                 }
@@ -580,7 +582,7 @@ void remove_redundant_reorders::run(program& p) {
 
             // Add fused_primitive_desc of reorder to convolution which propagate original output layout to jitter
             fused_primitive_desc local_desc(node->get_primitive());
-            local_desc.input_layout = input.get_dependency(0).get_output_layout();  // original convolution's output layout
+            local_desc.input_layout = input.get_input_layout(0);  // original convolution's output layout
             node->set_input_layout(local_desc.input_layout);
             local_desc.f_param = node->get_fuse_params();
             local_desc.outer_dep_start_idx = -1;
@@ -654,7 +656,7 @@ void remove_redundant_reorders::run(program& p) {
         bool remove_dep = reshape_input_node.get_users().size() == 1 && !reshape_input_node.is_output() &&
                           !reshape_input_node.has_fused_primitives();
         bool remove_current = remove_dep && !reshape_input_node.get_dependencies().empty() &&
-                              reshape_input_node.get_dependency(0).get_output_layout() == reshape_node.get_output_layout() &&
+                              reshape_input_node.get_input_layout(0) == reshape_node.get_output_layout() &&
                               !reshape_node.has_fused_primitives();
 
         if (remove_dep) {
@@ -692,7 +694,7 @@ void remove_redundant_reorders::run(program& p) {
 
     for (auto n : p.get_processing_order()) {
         if (n->is_in_data_flow() && n->is_type<reorder>()) {
-            auto preferred_impl = lo.get_preferred_impl_type(*n, n->get_dependency(0).get_output_layout().format);
+            auto preferred_impl = lo.get_preferred_impl_type(*n, n->get_input_layout(0).format);
             n->set_preferred_impl_type(preferred_impl);
         }
 
