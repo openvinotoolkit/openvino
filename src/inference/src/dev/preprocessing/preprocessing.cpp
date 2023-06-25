@@ -127,7 +127,6 @@ bool ov::pass::AddPreprocessing::run_on_model(const std::shared_ptr<ov::Model>& 
             output_info->getLayout() != InferenceEngine::Layout::SCALAR) {
             std::stringstream stream;
             stream << output_info->getLayout();
-            // preproc.output(i).tensor().set_layout(ov::Layout{stream.str()});
             if (stream.str() == "NHWC") {
                 if (const_output.get_partial_shape().is_static() && const_output.get_shape().size() == 4)
                     preproc.output(i).model().set_layout("NCHW");

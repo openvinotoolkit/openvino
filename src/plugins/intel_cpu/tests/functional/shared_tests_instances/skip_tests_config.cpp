@@ -163,19 +163,15 @@ std::vector<std::string> disabledTestPatterns() {
         // Issue: 95607
         R"(.*CachingSupportCase.*LoadNetworkCacheTestBase.*(TIwithLSTMcell1|MatMulBias|2InputSubtract)_(i|u).*)",
         R"(.*CachingSupportCase.*ReadConcatSplitAssign.*)",
-        // 94982. FP32->I32 conversion issue in the reference implementation. There can be some garbage in the rest of
-        // float values like 0.333333745.
-        // The kernel does not have such garbage. The diff 0.000000745 is taken into account in calculations and affects
-        // further type conversion.
-        // Reorder->GridSample->Reorder also does not work here. Potential fix is to use nearest conversion instead of
-        // truncation.
+        // 94982. FP32->I32 conversion issue in the reference implementation. There can be some garbage in the rest of float values like 0.333333745.
+        // The kernel does not have such garbage. The diff 0.000000745 is taken into account in calculations and affects further type conversion.
+        // Reorder->GridSample->Reorder also does not work here. Potential fix is to use nearest conversion instead of truncation.
         R"(.*GridSampleLayerTestCPU.*(BILINEAR|BICUBIC).*(i32|i8).*)",
         // 98151. Not valid sorting for slices in reference.
         R"(.*UniqueLayerTestCPU.*axis.*True.*)",
         // AUTO does not support import / export
         R"(.*smoke_Auto_BehaviorTests/OVCompiledGraphImportExportTest.*(mportExport|readFromV10IR).*/targetDevice=(AUTO).*)",
-        // AdaptiveAvgPool is converted into Reduce op for suitable parameters. CPU Reduce impl doesn't support non
-        // planar layout for 3D case
+        // AdaptiveAvgPool is converted into Reduce op for suitable parameters. CPU Reduce impl doesn't support non planar layout for 3D case
         R"(.*StaticAdaPoolAvg3DLayoutTest.*OS=\(1\).*_inFmts=(nwc|nCw16c|nCw8c).*)",
         // Issue: 111404
         R"(.*smoke_set1/GatherElementsCPUTest.*)",
@@ -210,7 +206,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*smoke_IsOp/ComparisonLayerTest.*)",
         // Issue: 113703 - input/output port's name maybe changed after transformation in plugin api 2.0
         R"(.*smoke_If/SimpleIfTest.*Cond=0.*)",
-        R"(.*smoke_Transpose(2|4|5|6)D/TransposeLayerTest.CompareWithRefs.*netPRC=(I8|U8).*)",
+        R"(.*smoke_Transpose(2|4|5|6)D/TransposeLayerTest.CompareWithRefs.*)",
         // Issue: 113704 - Layout information maybe incorrect when covert tensor to blob
         R"(.*smoke_.*BehaviorTests/InferRequestPreprocessConversionTest.*)",
         // Issue: There are some problem when work with AUTO plugin API 2.0
