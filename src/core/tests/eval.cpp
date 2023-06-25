@@ -1654,8 +1654,8 @@ TEST(eval, evaluate_static_scatter_elements_update_boolean_sum_exclusive) {
     auto fun = make_shared<Function>(OutputVector{scatter_elements_update}, ParameterVector{arg1, arg2, arg3, arg4});
     auto result_tensor = make_shared<HostTensor>();
     ASSERT_TRUE(fun->evaluate({result_tensor},
-                              {make_host_tensor<element::Type_t::boolean>(data_shape,    {1, 0, 1, 1, 0}),
-                               make_host_tensor<element::Type_t::i32>(indices_shape,     {0, 1, 2, 4, 4, 0}),
+                              {make_host_tensor<element::Type_t::boolean>(data_shape, {1, 0, 1, 1, 0}),
+                               make_host_tensor<element::Type_t::i32>(indices_shape, {0, 1, 2, 4, 4, 0}),
                                make_host_tensor<element::Type_t::boolean>(indices_shape, {0, 1, 0, 1, 1, 1}),
                                make_host_tensor<element::Type_t::i64>({}, {0})}));
     EXPECT_EQ(result_tensor->get_element_type(), element::boolean);
@@ -1710,14 +1710,126 @@ TEST(eval, evaluate_static_scatter_elements_update_boolean_prod_exclusive) {
     auto fun = make_shared<Function>(OutputVector{scatter_elements_update}, ParameterVector{arg1, arg2, arg3, arg4});
     auto result_tensor = make_shared<HostTensor>();
     ASSERT_TRUE(fun->evaluate({result_tensor},
-                              {make_host_tensor<element::Type_t::boolean>(data_shape,    {1, 0, 1, 1, 0}),
-                               make_host_tensor<element::Type_t::i32>(indices_shape,     {0, 1, 2, 4, 4, 0}),
+                              {make_host_tensor<element::Type_t::boolean>(data_shape, {1, 0, 1, 1, 0}),
+                               make_host_tensor<element::Type_t::i32>(indices_shape, {0, 1, 2, 4, 4, 0}),
                                make_host_tensor<element::Type_t::boolean>(indices_shape, {0, 0, 1, 1, 1, 1}),
                                make_host_tensor<element::Type_t::i64>({}, {0})}));
     EXPECT_EQ(result_tensor->get_element_type(), element::boolean);
     EXPECT_EQ(result_tensor->get_shape(), data_shape);
     const auto cval = read_vector<char>(result_tensor);
     const vector<char> out{0, 0, 1, 1, 1};
+    ASSERT_EQ(cval, out);
+}
+
+TEST(eval, evaluate_static_scatter_elements_update_boolean_min) {
+    const Shape data_shape{6};
+    const Shape indices_shape{8};
+    auto arg1 = make_shared<op::Parameter>(element::boolean, data_shape);
+    auto arg2 = make_shared<op::Parameter>(element::i32, indices_shape);
+    auto arg3 = make_shared<op::Parameter>(element::boolean, indices_shape);
+    auto arg4 = make_shared<op::Parameter>(element::i64, Shape{});
+    auto scatter_elements_update =
+        make_shared<ov::op::v12::ScatterElementsUpdate>(arg1,
+                                                        arg2,
+                                                        arg3,
+                                                        arg4,
+                                                        ov::op::v12::ScatterElementsUpdate::Reduction::MIN,
+                                                        true);
+    auto fun = make_shared<Function>(OutputVector{scatter_elements_update}, ParameterVector{arg1, arg2, arg3, arg4});
+    auto result_tensor = make_shared<HostTensor>();
+    ASSERT_TRUE(fun->evaluate({result_tensor},
+                              {make_host_tensor<element::Type_t::boolean>(data_shape, {1, 0, 0, 1, 1, 0}),
+                               make_host_tensor<element::Type_t::i32>(indices_shape, {0, 1, 2, 3, 4, 4, 5, 5}),
+                               make_host_tensor<element::Type_t::boolean>(indices_shape, {0, 0, 0, 1, 0, 1, 1, 0}),
+                               make_host_tensor<element::Type_t::i64>({}, {0})}));
+    EXPECT_EQ(result_tensor->get_element_type(), element::boolean);
+    EXPECT_EQ(result_tensor->get_shape(), data_shape);
+    const auto cval = read_vector<char>(result_tensor);
+    const vector<char> out{0, 0, 0, 1, 0, 0};
+    ASSERT_EQ(cval, out);
+}
+
+TEST(eval, evaluate_static_scatter_elements_update_boolean_min_exclusive) {
+    const Shape data_shape{6};
+    const Shape indices_shape{8};
+    auto arg1 = make_shared<op::Parameter>(element::boolean, data_shape);
+    auto arg2 = make_shared<op::Parameter>(element::i32, indices_shape);
+    auto arg3 = make_shared<op::Parameter>(element::boolean, indices_shape);
+    auto arg4 = make_shared<op::Parameter>(element::i64, Shape{});
+    auto scatter_elements_update =
+        make_shared<ov::op::v12::ScatterElementsUpdate>(arg1,
+                                                        arg2,
+                                                        arg3,
+                                                        arg4,
+                                                        ov::op::v12::ScatterElementsUpdate::Reduction::MIN,
+                                                        false);
+    auto fun = make_shared<Function>(OutputVector{scatter_elements_update}, ParameterVector{arg1, arg2, arg3, arg4});
+    auto result_tensor = make_shared<HostTensor>();
+    ASSERT_TRUE(fun->evaluate({result_tensor},
+                              {make_host_tensor<element::Type_t::boolean>(data_shape, {1, 0, 1, 0, 1, 0}),
+                               make_host_tensor<element::Type_t::i32>(indices_shape, {0, 1, 2, 3, 4, 4, 5, 5}),
+                               make_host_tensor<element::Type_t::boolean>(indices_shape, {0, 0, 1, 1, 0, 1, 1, 1}),
+                               make_host_tensor<element::Type_t::i64>({}, {0})}));
+    EXPECT_EQ(result_tensor->get_element_type(), element::boolean);
+    EXPECT_EQ(result_tensor->get_shape(), data_shape);
+    const auto cval = read_vector<char>(result_tensor);
+    const vector<char> out{0, 0, 1, 1, 0, 1};
+    ASSERT_EQ(cval, out);
+}
+
+TEST(eval, evaluate_static_scatter_elements_update_boolean_max) {
+    const Shape data_shape{6};
+    const Shape indices_shape{8};
+    auto arg1 = make_shared<op::Parameter>(element::boolean, data_shape);
+    auto arg2 = make_shared<op::Parameter>(element::i32, indices_shape);
+    auto arg3 = make_shared<op::Parameter>(element::boolean, indices_shape);
+    auto arg4 = make_shared<op::Parameter>(element::i64, Shape{});
+    auto scatter_elements_update =
+        make_shared<ov::op::v12::ScatterElementsUpdate>(arg1,
+                                                        arg2,
+                                                        arg3,
+                                                        arg4,
+                                                        ov::op::v12::ScatterElementsUpdate::Reduction::MAX,
+                                                        true);
+    auto fun = make_shared<Function>(OutputVector{scatter_elements_update}, ParameterVector{arg1, arg2, arg3, arg4});
+    auto result_tensor = make_shared<HostTensor>();
+    ASSERT_TRUE(fun->evaluate({result_tensor},
+                              {make_host_tensor<element::Type_t::boolean>(data_shape, {1, 0, 0, 1, 1, 0}),
+                               make_host_tensor<element::Type_t::i32>(indices_shape, {0, 1, 2, 3, 4, 4, 5, 5}),
+                               make_host_tensor<element::Type_t::boolean>(indices_shape, {0, 1, 0, 1, 0, 1, 0, 0}),
+                               make_host_tensor<element::Type_t::i64>({}, {0})}));
+    EXPECT_EQ(result_tensor->get_element_type(), element::boolean);
+    EXPECT_EQ(result_tensor->get_shape(), data_shape);
+    const auto cval = read_vector<char>(result_tensor);
+    const vector<char> out{1, 1, 0, 1, 1, 0};
+    ASSERT_EQ(cval, out);
+}
+
+TEST(eval, evaluate_static_scatter_elements_update_boolean_max_exclusive) {
+    const Shape data_shape{6};
+    const Shape indices_shape{8};
+    auto arg1 = make_shared<op::Parameter>(element::boolean, data_shape);
+    auto arg2 = make_shared<op::Parameter>(element::i32, indices_shape);
+    auto arg3 = make_shared<op::Parameter>(element::boolean, indices_shape);
+    auto arg4 = make_shared<op::Parameter>(element::i64, Shape{});
+    auto scatter_elements_update =
+        make_shared<ov::op::v12::ScatterElementsUpdate>(arg1,
+                                                        arg2,
+                                                        arg3,
+                                                        arg4,
+                                                        ov::op::v12::ScatterElementsUpdate::Reduction::MAX,
+                                                        false);
+    auto fun = make_shared<Function>(OutputVector{scatter_elements_update}, ParameterVector{arg1, arg2, arg3, arg4});
+    auto result_tensor = make_shared<HostTensor>();
+    ASSERT_TRUE(fun->evaluate({result_tensor},
+                              {make_host_tensor<element::Type_t::boolean>(data_shape, {1, 0, 1, 0, 1, 0}),
+                               make_host_tensor<element::Type_t::i32>(indices_shape, {0, 1, 2, 3, 4, 4, 5, 5}),
+                               make_host_tensor<element::Type_t::boolean>(indices_shape, {0, 1, 1, 0, 0, 1, 0, 0}),
+                               make_host_tensor<element::Type_t::i64>({}, {0})}));
+    EXPECT_EQ(result_tensor->get_element_type(), element::boolean);
+    EXPECT_EQ(result_tensor->get_shape(), data_shape);
+    const auto cval = read_vector<char>(result_tensor);
+    const vector<char> out{0, 1, 1, 0, 1, 0};
     ASSERT_EQ(cval, out);
 }
 
