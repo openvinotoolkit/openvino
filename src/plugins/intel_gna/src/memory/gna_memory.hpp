@@ -153,7 +153,7 @@ public:
                 return {true, curOffset};
             }
             const auto size = queuePair.second->getSize();
-            curOffset += ALIGN(size, _data_alignment);
+            curOffset += ALIGN(static_cast<uint32_t>(size), static_cast<uint32_t>(_data_alignment));
         }
         return {false, 0};
     }
@@ -276,7 +276,7 @@ protected:
                     ie_memcpy(cptr, cptr_avail_size, re._ptr_in, sz);
                 } else {
                     size_t of = 0;
-                    for (int i = 0; i < re._num_elements; i++, of += re._element_size) {
+                    for (size_t i = 0; i < re._num_elements; i++, of += re._element_size) {
                         std::copy(std::begin(re._data), std::end(re._data), cptr + of);
                     }
                 }

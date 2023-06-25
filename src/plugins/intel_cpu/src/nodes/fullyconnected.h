@@ -55,10 +55,7 @@ public:
 
     void prepareParams() override;
     void executeDynamicImpl(dnnl::stream strm) override;
-
-    bool withBiasFused() const {
-        return withBiases;
-    }
+    bool canBeExecutedInInt8() const override;
 
 private:
     void createDescriptorInternal(const dnnl::memory::desc &inputDesc,
@@ -104,6 +101,7 @@ private:
     bool useSparseWeightsDecompression();
     bool isINT8 = false;
     bool useMlas = false;
+    VectorDims expectedBiasDims {};
 #ifdef OV_CPU_WITH_MLAS
     int64_t M, N, K;
     MemoryPtr mlasPackedPtr = nullptr;

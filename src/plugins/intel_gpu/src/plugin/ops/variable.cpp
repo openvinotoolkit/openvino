@@ -19,17 +19,15 @@ void CreateVariableAccessPrimitive(Program &p, const std::shared_ptr<ngraph::op:
                                    const std::string &variable_id) {
     validate_inputs_count(op, {1});
 
-    const auto output_data_type = cldnn::element_type_to_data_type(op->get_output_element_type(0));
-    const auto op_output_shape = op->get_output_shape(0);
-    const auto output_format = cldnn::format::get_default_format(op_output_shape.size());
-    const auto output_shape = tensor_from_dims(op_output_shape);
+    const auto output_pshape = op->get_output_partial_shape(0);
+    const auto output_dtype = cldnn::element_type_to_data_type(op->get_output_element_type(0));
+    const auto output_format = cldnn::format::get_default_format(output_pshape.size());
 
-    const auto variable_layout = cldnn::layout{output_data_type,
-                                               output_format,
-                                               output_shape};
+    const auto variable_layout = cldnn::layout{ output_pshape, output_dtype, output_format };
 
     auto inputs = p.GetInputInfo(op);
-    p.AddVariableStateInfo(variable_id, variable_layout);
+    if (!p.use_new_shape_infer())
+        p.AddVariableStateInfo(variable_id, variable_layout);
     const auto prim = T_PRIMITIVE{layer_type_name_ID(op),
                                   inputs,
                                   variable_id,
