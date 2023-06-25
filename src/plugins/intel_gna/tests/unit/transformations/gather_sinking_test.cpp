@@ -16,7 +16,7 @@
 #include "transformations/gather_sinking_matmul.hpp"
 #include "transformations/gather_sinking_reshape.hpp"
 #include "transformations/gather_sinking_split.hpp"
-#include "transformations/transpose_nchw.hpp"
+#include "transformations/replace_gna_nhwc_layers.hpp"
 #include "transformations/ts_concat.hpp"
 #include "transformations/ts_split.hpp"
 
@@ -51,13 +51,13 @@ TEST(TransposeNCHW, Convolution) {
     {
         auto input_params = std::make_shared<Parameter>(element::Type_t::f32, Shape{1, 1, 41, 1});
 
-        auto transpose_before_const = Constant::create(element::i64, Shape{4}, {0, 2, 3, 1});
+        auto transpose_before_const = Constant::create(element::i32, Shape{4}, {0, 2, 3, 1});
 
         auto transpose_before = std::make_shared<Transpose>(input_params, transpose_before_const);
 
         auto kernel = Constant::create(ov::element::f32, {4, 1, 3, 1}, {1});
 
-        auto transpose_conv_const = Constant::create(element::i64, Shape{4}, {0, 2, 3, 1});
+        auto transpose_conv_const = Constant::create(element::i32, Shape{4}, {0, 2, 3, 1});
 
         auto transpose_conv_before = std::make_shared<Transpose>(input_params, transpose_conv_const);
 
@@ -70,7 +70,7 @@ TEST(TransposeNCHW, Convolution) {
                                                                                CoordinateDiff{0, 0},
                                                                                Strides{1, 1});
 
-        auto transpose_after_const = Constant::create(element::i64, Shape{4}, {0, 3, 1, 2});
+        auto transpose_after_const = Constant::create(element::i32, Shape{4}, {0, 3, 1, 2});
 
         auto transpose_after = std::make_shared<Transpose>(convolution, transpose_after_const);
 
@@ -107,7 +107,7 @@ TEST(TransposeNCHW, MaxPool) {
     {
         auto input_params = std::make_shared<Parameter>(element::Type_t::f32, Shape{1, 1, 41, 1});
 
-        auto transpose_before_const = Constant::create(element::i64, Shape{4}, {0, 2, 3, 1});
+        auto transpose_before_const = Constant::create(element::i32, Shape{4}, {0, 2, 3, 1});
 
         auto transpose_before = std::make_shared<Transpose>(input_params, transpose_before_const);
 
@@ -117,7 +117,7 @@ TEST(TransposeNCHW, MaxPool) {
                                                                         Shape{0, 0},
                                                                         Shape{4, 1});
 
-        auto transpose_after_const = Constant::create(element::i64, Shape{4}, {0, 3, 1, 2});
+        auto transpose_after_const = Constant::create(element::i32, Shape{4}, {0, 3, 1, 2});
 
         auto transpose_after = std::make_shared<Transpose>(max_pool, transpose_after_const);
 
