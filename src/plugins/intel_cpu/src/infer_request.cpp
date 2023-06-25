@@ -471,20 +471,19 @@ ov::Tensor SyncInferRequest::get_tensor(const ov::Output<const ov::Node>& _port)
     //     input  tensor: will be copied to compiled tensor before do graph inference
     //     output tensor: has be copied from graph's memory to aux tensor
 
+    if (_orig_ports_map.find(port_name) == _orig_ports_map.end()) {
+        OPENVINO_THROW("Cannot find original port, name: ", port_name);
+    }
+
     // Find aux tensor, will create one if cannot find
-    if (_aux_tensors.find(port_name) == _aux_tensors.end()) {
-        auto it = _orig_ports_map.find(port_name);
-        if (it == _orig_ports_map.end()) {
-            OPENVINO_THROW("Cannot find original port, name: ", port_name);
-        }
-        auto port_shape = _orig_ports_map[port_name].get_partial_shape();
-        ov::Shape aux_shape;
-        if (port_shape.is_dynamic()) {
-            aux_shape = compiled_tensor.get_shape();
-        } else {
-            aux_shape = _orig_ports_map[port_name].get_shape();
-        }
+    auto port_shape = port.get_partial_shape();
+    auto it = _aux_tensors.find(port_name);
+    ov::Shape aux_shape = compiled_tensor.get_shape();
+    if (it == _aux_tensors.end()) {
         _aux_tensors[port_name] = ov::Tensor(_orig_ports_map[port_name].get_element_type(), aux_shape);
+    } else if (port_shape.is_dynamic()) {
+        if (_aux_tensors[port_name].get_shape() != aux_shape)
+            _aux_tensors[port_name].set_shape(aux_shape);
     }
 
     return _aux_tensors[port_name];

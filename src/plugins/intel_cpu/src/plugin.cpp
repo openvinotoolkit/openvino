@@ -428,11 +428,7 @@ Engine::compile_model(const std::shared_ptr<const ov::Model>& model, const ov::A
     // verification of supported input
     for (const auto &ii : model->inputs()) {
         auto input_precision = ii.get_element_type();
-
-        //using hash_t = std::hash<typename std::underlying_type<ov::element::Type_t>::type>;
-        using hash_t = std::hash<ov::element::Type_t>;
-
-        static const std::unordered_set<ov::element::Type_t, hash_t> supported_precisions = {
+        static const std::unordered_set<ov::element::Type_t> supported_precisions = {
             ov::element::Type_t::u8,   ov::element::Type_t::i8,
             ov::element::Type_t::u16,  ov::element::Type_t::i16,
             ov::element::Type_t::u32,  ov::element::Type_t::i32,
@@ -442,7 +438,7 @@ Engine::compile_model(const std::shared_ptr<const ov::Model>& model, const ov::A
             ov::element::Type_t::boolean
         };
 
-        if (!supported_precisions.count(ov::element::Type_t(input_precision))) {
+        if (!supported_precisions.count(input_precision)) {
             IE_CPU_PLUGIN_THROW(NotImplemented)
                         << "Input image format " << input_precision << " is not supported yet...";
         }

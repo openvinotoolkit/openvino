@@ -1070,11 +1070,8 @@ void Graph::PullOutputData(std::unordered_map<std::string, ov::Tensor>& out,
             }
 
             auto& aux_tensor = it->second;
-            // Dynamic case
-            if (outDims != aux_tensor.get_shape()) {
-                aux_tensor.set_shape(outDims);
-            }
-            void* ext_blob_ptr = it->second.data();
+            aux_tensor.set_shape(out[name].get_shape());
+            ext_blob_ptr = aux_tensor.data();
             if ((intr_blob_ptr == nullptr) || (ext_blob_ptr == nullptr)) {
                 OPENVINO_THROW("Get tensor has no allocated memory");
             }
@@ -1082,8 +1079,8 @@ void Graph::PullOutputData(std::unordered_map<std::string, ov::Tensor>& out,
             cpu_convert(intr_blob_ptr,
                         ext_blob_ptr,
                         srcPrec,
-                        InferenceEngine::details::convertPrecision(it->second.get_element_type()),
-                        it->second.get_size());
+                        InferenceEngine::details::convertPrecision(aux_tensor.get_element_type()),
+                        intr_blob.GetDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount());
             continue;
         }
 
