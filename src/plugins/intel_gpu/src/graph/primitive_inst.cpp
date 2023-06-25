@@ -1056,8 +1056,6 @@ event::ptr primitive_inst::update_weights() {
 
 static bool user_requesting_mem_reuse_false(const program_node& node) {
     for (auto& user : node.get_users()) {
-        if (user->is_dynamic())
-            return true;
         if ((user->get_selected_impl() != nullptr) && (user->get_selected_impl()->can_reuse_memory == false)) {
             return true;
         } else if (user->get_selected_impl() == nullptr) {
