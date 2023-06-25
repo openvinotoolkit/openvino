@@ -93,7 +93,22 @@ T reduction_neutral_value(const Reduction reduction_type) {
     }
 }
 
-//todo: ^specialize for bool? min and max wont work like this
+template <>
+char reduction_neutral_value<char>(const Reduction reduction_type) {
+    switch (reduction_type) {
+    case Reduction::SUM:
+    case Reduction::MAX:
+        return 0;
+    case Reduction::PROD:
+    case Reduction::MIN:
+        return 1;
+    default:
+        OPENVINO_ASSERT(false, "Neutral value not available for this type of reduction");
+        return 0;
+    }
+}
+
+// todo: ^specialize for bool? min and max wont work like this
 
 template <typename T>
 std::function<T(const T, const T)> reduction_functor_for(const Reduction reduction_type) {
@@ -123,12 +138,12 @@ std::function<char(const char, const char)> reduction_functor_for<char>(const Re
     case Reduction::MAX:
         return [](const char a, const char b) {
             return a > b ? a : b;
-            //return a || b;
+            // return a || b;
         };
     case Reduction::MIN:
         return [](const char a, const char b) {
             return a < b ? a : b;
-            //return a && b;
+            // return a && b;
         };
     case Reduction::PROD:
         return [](const char a, const char b) {
@@ -144,7 +159,7 @@ std::function<char(const char, const char)> reduction_functor_for<char>(const Re
     }
 }
 
-template<typename T>
+template <typename T>
 T arithmetic_mean_int(const T accumulator, const int32_t N) {
     const auto old_mode = std::fegetround();
     std::fesetround(FE_DOWNWARD);
@@ -153,7 +168,7 @@ T arithmetic_mean_int(const T accumulator, const int32_t N) {
     return value;
 }
 
-template<typename T>
+template <typename T>
 T arithmetic_mean(const T accumulator, const int32_t N) {
     const auto et = element::from<T>();
     if (et.is_integral_number()) {
@@ -178,12 +193,11 @@ void scatter_elem_update_with_reduction(const DataType* input_data,
     const auto indices_strides = row_major_strides(indices_shape);
     const auto data_strides = row_major_strides(data_shape);
 
-    struct Offsets
-    {
+    struct Offsets {
         size_t idx_offset;
         size_t out_offset;
     };
-    
+
     std::vector<Offsets> idx_to_output_element;
     for (const Coordinate& indices_cord : indices_transform) {
         const size_t indices_idx =
