@@ -18,7 +18,8 @@ std::string ReduceCPULayerTest::getTestCaseName(testing::TestParamInfo<ReduceLay
     basicReduceParams basicParams;
     CPUSpecificParams cpuParams;
     fusingSpecificParams fusingParams;
-    std::tie(basicParams, cpuParams, fusingParams) = obj.param;
+    std::map<std::string, ov::element::Type> additionalConfig;
+    std::tie(basicParams, cpuParams, fusingParams, additionalConfig) = obj.param;
 
     std::vector<int> axes;
     CommonTestUtils::OpType opType;
@@ -51,6 +52,13 @@ std::string ReduceCPULayerTest::getTestCaseName(testing::TestParamInfo<ReduceLay
     result << "inPRC=" << inPrc << "_";
     result << "outPRC=" << outPrc << "_";
 
+    if (!additionalConfig.empty()) {
+        result << "_PluginConf";
+        for (auto& item : additionalConfig) {
+            result << "_" << item.first << "=" << item.second.get_type_name();
+        }
+    }
+
     result << CPUTestsBase::getTestCaseName(cpuParams);
     result << CpuTestWithFusing::getTestCaseName(fusingParams);
 
@@ -63,7 +71,8 @@ void ReduceCPULayerTest::SetUp() {
     basicReduceParams basicParams;
     CPUSpecificParams cpuParams;
     fusingSpecificParams fusingParams;
-    std::tie(basicParams, cpuParams, fusingParams) = this->GetParam();
+    std::map<std::string, ov::element::Type> additionalConfig;
+    std::tie(basicParams, cpuParams, fusingParams, additionalConfig) = this->GetParam();
 
     std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
     std::tie(postOpMgrPtr, fusedOps) = fusingParams;
@@ -75,7 +84,18 @@ void ReduceCPULayerTest::SetUp() {
     std::vector<InputShape> inputShapes;
 
     std::tie(axes, opType, keepDims, reductionType, netPrecision, inPrc, outPrc, inputShapes) = basicParams;
-    inPrc = outPrc = netPrecision;
+    if (netPrecision == ElementType::boolean) {
+        inPrc = outPrc = netPrecision;
+    } else {
+        if (additionalConfig[ov::hint::inference_precision.name()] == ov::element::bf16) {
+            inPrc = outPrc = netPrecision = ElementType::bf16;
+        } else if (additionalConfig[ov::hint::inference_precision.name()] == ov::element::f16) {
+            inPrc = outPrc = netPrecision = ElementType::f16;
+        } else {
+            inPrc = outPrc = netPrecision;
+        }
+    }
+    configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
     init_input_shapes(inputShapes);
 
@@ -141,6 +161,11 @@ void ReduceCPULayerTest::generate_inputs(const std::vector<ngraph::Shape>& targe
                                                              5);
             if (netPrecision == ElementType::f32) {
                 auto* rawBlobDataPtr = static_cast<float*>(tensor.data());
+                for (size_t i = 0; i < tensor.get_size(); ++i) {
+                    rawBlobDataPtr[i] /= 10.f;
+                }
+            } else if (netPrecision == ElementType::f16) {
+                auto *rawBlobDataPtr = static_cast<ngraph::float16 *>(tensor.data());
                 for (size_t i = 0; i < tensor.get_size(); ++i) {
                     rawBlobDataPtr[i] /= 10.f;
                 }
@@ -222,8 +247,17 @@ const std::vector<ngraph::helpers::ReductionType>& reductionTypes() {
 }
 
 const std::vector<ElementType>& inpOutPrc() {
-    static const std::vector<ElementType> inpOutPrc = {ElementType::bf16, ElementType::f32};
+    static const std::vector<ElementType> inpOutPrc = {ElementType::f32};
     return inpOutPrc;
+}
+
+const std::vector<std::map<std::string, ov::element::Type>> additionalConfig() {
+    static const std::vector<std::map<std::string, ov::element::Type>> additionalConfig = {
+        {{ov::hint::inference_precision.name(), ov::element::f32}},
+        {{ov::hint::inference_precision.name(), ov::element::bf16}},
+        {{ov::hint::inference_precision.name(), ov::element::f16}},
+    };
+    return additionalConfig;
 }
 
 const std::vector<ngraph::helpers::ReductionType>& reductionTypesInt32() {
