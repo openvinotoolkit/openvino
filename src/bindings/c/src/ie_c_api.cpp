@@ -25,12 +25,11 @@
 
 namespace IE = InferenceEngine;
 
-IE_SUPPRESS_DEPRECATED_START
 /**
  * @struct ie_core
  * @brief This struct represents Inference Engine Core entity.
  */
-struct INFERENCE_ENGINE_1_0_DEPRECATED ie_core {
+struct ie_core {
     IE::Core object;
 };
 
@@ -38,7 +37,7 @@ struct INFERENCE_ENGINE_1_0_DEPRECATED ie_core {
  * @struct ie_executable
  * @brief This is an interface of an executable network
  */
-struct INFERENCE_ENGINE_1_0_DEPRECATED ie_executable {
+struct ie_executable {
     IE::ExecutableNetwork object;
 };
 
@@ -46,7 +45,7 @@ struct INFERENCE_ENGINE_1_0_DEPRECATED ie_executable {
  * @struct ie_infer_request
  * @brief This is an interface of asynchronous infer request
  */
-struct INFERENCE_ENGINE_1_0_DEPRECATED ie_infer_request {
+struct ie_infer_request {
     IE::InferRequest object;
 };
 
@@ -54,7 +53,7 @@ struct INFERENCE_ENGINE_1_0_DEPRECATED ie_infer_request {
  * @struct ie_blob
  * @brief This struct represents a universal container in the Inference Engine
  */
-struct INFERENCE_ENGINE_1_0_DEPRECATED ie_blob {
+struct ie_blob {
     IE::Blob::Ptr object;
 };
 
@@ -62,7 +61,7 @@ struct INFERENCE_ENGINE_1_0_DEPRECATED ie_blob {
  * @struct ie_network
  * @brief This is the main interface to describe the NN topology
  */
-struct INFERENCE_ENGINE_1_0_DEPRECATED ie_network {
+struct ie_network {
     IE::CNNNetwork object;
 };
 
@@ -70,7 +69,7 @@ struct INFERENCE_ENGINE_1_0_DEPRECATED ie_network {
  * @struct mem_stringbuf
  * @brief This struct puts memory buffer to stringbuf.
  */
-struct INFERENCE_ENGINE_1_0_DEPRECATED mem_stringbuf : std::streambuf {
+struct mem_stringbuf : std::streambuf {
     mem_stringbuf(const char* buffer, size_t sz) {
         char* bptr(const_cast<char*>(buffer));
         setg(bptr, bptr, bptr + sz);
@@ -104,7 +103,7 @@ struct INFERENCE_ENGINE_1_0_DEPRECATED mem_stringbuf : std::streambuf {
  * @struct mem_istream
  * @brief This struct puts stringbuf buffer to istream.
  */
-struct INFERENCE_ENGINE_1_0_DEPRECATED mem_istream : virtual mem_stringbuf, std::istream {
+struct mem_istream : virtual mem_stringbuf, std::istream {
     mem_istream(const char* buffer, size_t sz)
         : mem_stringbuf(buffer, sz),
           std::istream(static_cast<std::streambuf*>(this)) {}
@@ -202,7 +201,7 @@ std::map<IE::ColorFormat, colorformat_e> colorformat_map = {{IE::ColorFormat::RA
 /**
  *@brief convert the config type data to map type data.
  */
-inline std::map<std::string, std::string> INFERENCE_ENGINE_1_0_DEPRECATED config2Map(const ie_config_t* config) {
+inline std::map<std::string, std::string> config2Map(const ie_config_t* config) {
     std::map<std::string, std::string> m;
     const ie_config_t* tmp = config;
     while (tmp && tmp->name && tmp->value) {
@@ -212,7 +211,7 @@ inline std::map<std::string, std::string> INFERENCE_ENGINE_1_0_DEPRECATED config
     return m;
 }
 
-inline std::map<std::string, IE::Parameter> INFERENCE_ENGINE_1_0_DEPRECATED config2ParamMap(const ie_config_t* config) {
+inline std::map<std::string, IE::Parameter> config2ParamMap(const ie_config_t* config) {
     std::map<std::string, IE::Parameter> param_map;
     const ie_config_t* tmp = config;
 
@@ -227,7 +226,7 @@ inline std::map<std::string, IE::Parameter> INFERENCE_ENGINE_1_0_DEPRECATED conf
 /**
  *@brief convert the parameter.
  */
-inline void INFERENCE_ENGINE_1_0_DEPRECATED parameter2IEparam(const IE::Parameter param, ie_param_t* ie_param) {
+inline void parameter2IEparam(const IE::Parameter param, ie_param_t* ie_param) {
     if (param.is<std::string>()) {
         std::unique_ptr<char> params_temp(new char[param.as<std::string>().length() + 1]);
         ie_param->params = params_temp.release();
@@ -263,7 +262,7 @@ inline void INFERENCE_ENGINE_1_0_DEPRECATED parameter2IEparam(const IE::Paramete
     }
 }
 
-ie_version_t INFERENCE_ENGINE_1_0_DEPRECATED ie_c_api_version(void) {
+ie_version_t ie_c_api_version(void) {
     auto version = IE::GetInferenceEngineVersion();
     std::string version_str = version->buildNumber;
 
@@ -275,21 +274,21 @@ ie_version_t INFERENCE_ENGINE_1_0_DEPRECATED ie_c_api_version(void) {
     return version_res;
 }
 
-void INFERENCE_ENGINE_1_0_DEPRECATED ie_version_free(ie_version_t* version) {
+void ie_version_free(ie_version_t* version) {
     if (version) {
         delete[] version->api_version;
         version->api_version = NULL;
     }
 }
 
-void INFERENCE_ENGINE_1_0_DEPRECATED ie_param_free(ie_param_t* param) {
+void ie_param_free(ie_param_t* param) {
     if (param && param->params) {
         delete[] param->params;
         param->params = NULL;
     }
 }
 
-IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_core_create(const char* xml_config_file, ie_core_t** core) {
+IEStatusCode ie_core_create(const char* xml_config_file, ie_core_t** core) {
     if (xml_config_file == nullptr || core == nullptr) {
         return IEStatusCode::GENERAL_ERROR;
     }
@@ -304,16 +303,14 @@ IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_core_create(const char* xml_conf
     return status;
 }
 
-void INFERENCE_ENGINE_1_0_DEPRECATED ie_core_free(ie_core_t** core) {
+void ie_core_free(ie_core_t** core) {
     if (core) {
         delete *core;
         *core = NULL;
     }
 }
 
-IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_core_get_versions(const ie_core_t* core,
-                                                                  const char* device_name,
-                                                                  ie_core_versions_t* versions) {
+IEStatusCode ie_core_get_versions(const ie_core_t* core, const char* device_name, ie_core_versions_t* versions) {
     if (core == nullptr || device_name == nullptr || versions == nullptr) {
         return IEStatusCode::GENERAL_ERROR;
     }
@@ -351,7 +348,7 @@ IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_core_get_versions(const ie_core_
     return status;
 }
 
-void INFERENCE_ENGINE_1_0_DEPRECATED ie_core_versions_free(ie_core_versions_t* vers) {
+void ie_core_versions_free(ie_core_versions_t* vers) {
     if (vers) {
         for (size_t i = 0; i < vers->num_vers; ++i) {
             delete[] const_cast<char*>(vers->versions[i].device_name);
@@ -362,10 +359,7 @@ void INFERENCE_ENGINE_1_0_DEPRECATED ie_core_versions_free(ie_core_versions_t* v
     }
 }
 
-IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_core_read_network(ie_core_t* core,
-                                                                  const char* xml,
-                                                                  const char* weights_file,
-                                                                  ie_network_t** network) {
+IEStatusCode ie_core_read_network(ie_core_t* core, const char* xml, const char* weights_file, ie_network_t** network) {
     if (core == nullptr || xml == nullptr || network == nullptr) {
         return IEStatusCode::GENERAL_ERROR;
     }
@@ -386,11 +380,11 @@ IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_core_read_network(ie_core_t* cor
     return status;
 }
 
-IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_core_read_network_from_memory(ie_core_t* core,
-                                                                              const uint8_t* xml_content,
-                                                                              size_t xml_content_size,
-                                                                              const ie_blob_t* weight_blob,
-                                                                              ie_network_t** network) {
+IEStatusCode ie_core_read_network_from_memory(ie_core_t* core,
+                                              const uint8_t* xml_content,
+                                              size_t xml_content_size,
+                                              const ie_blob_t* weight_blob,
+                                              ie_network_t** network) {
     if (core == nullptr || xml_content == nullptr || network == nullptr || weight_blob == nullptr) {
         return IEStatusCode::GENERAL_ERROR;
     }
@@ -410,11 +404,11 @@ IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_core_read_network_from_memory(ie
     return status;
 }
 
-IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_core_import_network(ie_core_t* core,
-                                                                    const char* file_name,
-                                                                    const char* device_name,
-                                                                    const ie_config_t* config,
-                                                                    ie_executable_network_t** exe_network) {
+IEStatusCode ie_core_import_network(ie_core_t* core,
+                                    const char* file_name,
+                                    const char* device_name,
+                                    const ie_config_t* config,
+                                    ie_executable_network_t** exe_network) {
     IEStatusCode status = IEStatusCode::OK;
 
     if (core == nullptr || file_name == nullptr || device_name == nullptr || exe_network == nullptr) {
@@ -434,12 +428,12 @@ IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_core_import_network(ie_core_t* c
     return status;
 }
 
-IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_core_import_network_from_memory(ie_core_t* core,
-                                                                                const uint8_t* content,
-                                                                                size_t content_size,
-                                                                                const char* device_name,
-                                                                                const ie_config_t* config,
-                                                                                ie_executable_network_t** exe_network) {
+IEStatusCode ie_core_import_network_from_memory(ie_core_t* core,
+                                                const uint8_t* content,
+                                                size_t content_size,
+                                                const char* device_name,
+                                                const ie_config_t* config,
+                                                ie_executable_network_t** exe_network) {
     if (core == nullptr || content == nullptr || device_name == nullptr || exe_network == nullptr) {
         return IEStatusCode::GENERAL_ERROR;
     }
@@ -459,8 +453,7 @@ IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_core_import_network_from_memory(
     return status;
 }
 
-IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_core_export_network(ie_executable_network_t* exe_network,
-                                                                    const char* file_name) {
+IEStatusCode ie_core_export_network(ie_executable_network_t* exe_network, const char* file_name) {
     IEStatusCode status = IEStatusCode::OK;
 
     if (file_name == nullptr || exe_network == nullptr) {
@@ -475,11 +468,11 @@ IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_core_export_network(ie_executabl
     return status;
 }
 
-IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_core_load_network(ie_core_t* core,
-                                                                  const ie_network_t* network,
-                                                                  const char* device_name,
-                                                                  const ie_config_t* config,
-                                                                  ie_executable_network_t** exe_network) {
+IEStatusCode ie_core_load_network(ie_core_t* core,
+                                  const ie_network_t* network,
+                                  const char* device_name,
+                                  const ie_config_t* config,
+                                  ie_executable_network_t** exe_network) {
     IEStatusCode status = IEStatusCode::OK;
 
     if (core == nullptr || network == nullptr || device_name == nullptr || exe_network == nullptr) {
@@ -500,11 +493,11 @@ IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_core_load_network(ie_core_t* cor
     return status;
 }
 
-IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_core_load_network_from_file(ie_core_t* core,
-                                                                            const char* xml,
-                                                                            const char* device_name,
-                                                                            const ie_config_t* config,
-                                                                            ie_executable_network_t** exe_network) {
+IEStatusCode ie_core_load_network_from_file(ie_core_t* core,
+                                            const char* xml,
+                                            const char* device_name,
+                                            const ie_config_t* config,
+                                            ie_executable_network_t** exe_network) {
     IEStatusCode status = IEStatusCode::OK;
 
     if (core == nullptr || xml == nullptr || device_name == nullptr || exe_network == nullptr) {
@@ -524,9 +517,7 @@ IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_core_load_network_from_file(ie_c
     return status;
 }
 
-IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_core_set_config(ie_core_t* core,
-                                                                const ie_config_t* ie_core_config,
-                                                                const char* device_name) {
+IEStatusCode ie_core_set_config(ie_core_t* core, const ie_config_t* ie_core_config, const char* device_name) {
     IEStatusCode status = IEStatusCode::OK;
 
     if (core == nullptr || ie_core_config == nullptr) {
@@ -548,9 +539,7 @@ IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_core_set_config(ie_core_t* core,
     return status;
 }
 
-IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_core_register_plugin(ie_core_t* core,
-                                                                     const char* plugin,
-                                                                     const char* device_name) {
+IEStatusCode ie_core_register_plugin(ie_core_t* core, const char* plugin, const char* device_name) {
     IEStatusCode status = IEStatusCode::OK;
 
     if (core == nullptr || plugin == nullptr || device_name == nullptr) {
@@ -566,7 +555,7 @@ IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_core_register_plugin(ie_core_t* 
     return status;
 }
 
-IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_core_register_plugins(ie_core_t* core, const char* xml_config_file) {
+IEStatusCode ie_core_register_plugins(ie_core_t* core, const char* xml_config_file) {
     IEStatusCode status = IEStatusCode::OK;
 
     if (core == nullptr || xml_config_file == nullptr) {
@@ -582,7 +571,7 @@ IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_core_register_plugins(ie_core_t*
     return status;
 }
 
-IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_core_unregister_plugin(ie_core_t* core, const char* device_name) {
+IEStatusCode ie_core_unregister_plugin(ie_core_t* core, const char* device_name) {
     IEStatusCode status = IEStatusCode::OK;
 
     if (core == nullptr || device_name == nullptr) {
@@ -598,9 +587,7 @@ IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_core_unregister_plugin(ie_core_t
     return status;
 }
 
-IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_core_add_extension(ie_core_t* core,
-                                                                   const char* extension_path,
-                                                                   const char* device_name) {
+IEStatusCode ie_core_add_extension(ie_core_t* core, const char* extension_path, const char* device_name) {
     IEStatusCode status = IEStatusCode::OK;
 
     if (core == nullptr || extension_path == nullptr || device_name == nullptr) {
@@ -618,10 +605,10 @@ IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_core_add_extension(ie_core_t* co
     return status;
 }
 
-IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_core_get_metric(const ie_core_t* core,
-                                                                const char* device_name,
-                                                                const char* metric_name,
-                                                                ie_param_t* param_result) {
+IEStatusCode ie_core_get_metric(const ie_core_t* core,
+                                const char* device_name,
+                                const char* metric_name,
+                                ie_param_t* param_result) {
     IEStatusCode status = IEStatusCode::OK;
 
     if (core == nullptr || device_name == nullptr || metric_name == nullptr || param_result == nullptr) {
@@ -638,10 +625,10 @@ IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_core_get_metric(const ie_core_t*
     return status;
 }
 
-IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_core_get_config(const ie_core_t* core,
-                                                                const char* device_name,
-                                                                const char* config_name,
-                                                                ie_param_t* param_result) {
+IEStatusCode ie_core_get_config(const ie_core_t* core,
+                                const char* device_name,
+                                const char* config_name,
+                                ie_param_t* param_result) {
     IEStatusCode status = IEStatusCode::OK;
 
     if (core == nullptr || device_name == nullptr || config_name == nullptr || param_result == nullptr) {
@@ -660,8 +647,7 @@ IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_core_get_config(const ie_core_t*
     return status;
 }
 
-IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_core_get_available_devices(const ie_core_t* core,
-                                                                           ie_available_devices_t* avai_devices) {
+IEStatusCode ie_core_get_available_devices(const ie_core_t* core, ie_available_devices_t* avai_devices) {
     if (core == nullptr || avai_devices == nullptr)
         return IEStatusCode::GENERAL_ERROR;
 
@@ -684,7 +670,7 @@ IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_core_get_available_devices(const
     return IEStatusCode::OK;
 }
 
-void INFERENCE_ENGINE_1_0_DEPRECATED ie_core_available_devices_free(ie_available_devices_t* avai_devices) {
+void ie_core_available_devices_free(ie_available_devices_t* avai_devices) {
     if (avai_devices->devices) {
         for (size_t i = 0; i < avai_devices->num_devices; ++i) {
             if (avai_devices->devices[i]) {
@@ -698,15 +684,15 @@ void INFERENCE_ENGINE_1_0_DEPRECATED ie_core_available_devices_free(ie_available
     }
 }
 
-void INFERENCE_ENGINE_1_0_DEPRECATED ie_exec_network_free(ie_executable_network_t** ie_exec_network) {
+void ie_exec_network_free(ie_executable_network_t** ie_exec_network) {
     if (ie_exec_network) {
         delete *ie_exec_network;
         *ie_exec_network = NULL;
     }
 }
 
-IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED
-ie_exec_network_create_infer_request(ie_executable_network_t* ie_exec_network, ie_infer_request_t** request) {
+IEStatusCode ie_exec_network_create_infer_request(ie_executable_network_t* ie_exec_network,
+                                                  ie_infer_request_t** request) {
     IEStatusCode status = IEStatusCode::OK;
     if (ie_exec_network == nullptr || request == nullptr) {
         status = IEStatusCode::GENERAL_ERROR;
@@ -723,9 +709,9 @@ ie_exec_network_create_infer_request(ie_executable_network_t* ie_exec_network, i
     return status;
 }
 
-IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_exec_network_get_metric(const ie_executable_network_t* ie_exec_network,
-                                                                        const char* metric_name,
-                                                                        ie_param_t* param_result) {
+IEStatusCode ie_exec_network_get_metric(const ie_executable_network_t* ie_exec_network,
+                                        const char* metric_name,
+                                        ie_param_t* param_result) {
     IEStatusCode status = IEStatusCode::OK;
 
     if (ie_exec_network == nullptr || metric_name == nullptr || param_result == nullptr) {
@@ -742,8 +728,7 @@ IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_exec_network_get_metric(const ie
     return status;
 }
 
-IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_exec_network_set_config(ie_executable_network_t* ie_exec_network,
-                                                                        const ie_config_t* param_config) {
+IEStatusCode ie_exec_network_set_config(ie_executable_network_t* ie_exec_network, const ie_config_t* param_config) {
     IEStatusCode status = IEStatusCode::OK;
 
     if (ie_exec_network == nullptr || param_config == nullptr) {
@@ -760,9 +745,9 @@ IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_exec_network_set_config(ie_execu
     return status;
 }
 
-IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_exec_network_get_config(const ie_executable_network_t* ie_exec_network,
-                                                                        const char* metric_config,
-                                                                        ie_param_t* param_result) {
+IEStatusCode ie_exec_network_get_config(const ie_executable_network_t* ie_exec_network,
+                                        const char* metric_config,
+                                        ie_param_t* param_result) {
     IEStatusCode status = IEStatusCode::OK;
 
     if (ie_exec_network == nullptr || metric_config == nullptr || param_result == nullptr) {
@@ -779,14 +764,14 @@ IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_exec_network_get_config(const ie
     return status;
 }
 
-void INFERENCE_ENGINE_1_0_DEPRECATED ie_network_free(ie_network_t** network) {
+void ie_network_free(ie_network_t** network) {
     if (network) {
         delete *network;
         *network = NULL;
     }
 }
 
-IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_network_get_name(const ie_network_t* network, char** name) {
+IEStatusCode ie_network_get_name(const ie_network_t* network, char** name) {
     if (network == nullptr || name == nullptr) {
         return IEStatusCode::GENERAL_ERROR;
     }
@@ -802,8 +787,7 @@ IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_network_get_name(const ie_networ
     return IEStatusCode::OK;
 }
 
-IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_network_get_inputs_number(const ie_network_t* network,
-                                                                          size_t* size_result) {
+IEStatusCode ie_network_get_inputs_number(const ie_network_t* network, size_t* size_result) {
     IEStatusCode status = IEStatusCode::OK;
     if (network == nullptr || size_result == nullptr) {
         status = IEStatusCode::GENERAL_ERROR;
@@ -819,9 +803,7 @@ IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_network_get_inputs_number(const 
     return status;
 }
 
-IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_network_get_input_name(const ie_network_t* network,
-                                                                       size_t number,
-                                                                       char** name) {
+IEStatusCode ie_network_get_input_name(const ie_network_t* network, size_t number, char** name) {
     if (network == nullptr || name == nullptr) {
         return IEStatusCode::GENERAL_ERROR;
     }
@@ -849,9 +831,9 @@ IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_network_get_input_name(const ie_
     return status;
 }
 
-IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_network_get_input_precision(const ie_network_t* network,
-                                                                            const char* input_name,
-                                                                            precision_e* prec_result) {
+IEStatusCode ie_network_get_input_precision(const ie_network_t* network,
+                                            const char* input_name,
+                                            precision_e* prec_result) {
     IEStatusCode status = IEStatusCode::OK;
 
     if (network == nullptr || input_name == nullptr || prec_result == nullptr) {
@@ -873,9 +855,7 @@ IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_network_get_input_precision(cons
     return status;
 }
 
-IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_network_set_input_precision(ie_network_t* network,
-                                                                            const char* input_name,
-                                                                            const precision_e p) {
+IEStatusCode ie_network_set_input_precision(ie_network_t* network, const char* input_name, const precision_e p) {
     IEStatusCode status = IEStatusCode::OK;
 
     if (network == nullptr || input_name == nullptr) {
@@ -903,9 +883,7 @@ IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_network_set_input_precision(ie_n
     return status;
 }
 
-IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_network_get_input_layout(const ie_network_t* network,
-                                                                         const char* input_name,
-                                                                         layout_e* layout_result) {
+IEStatusCode ie_network_get_input_layout(const ie_network_t* network, const char* input_name, layout_e* layout_result) {
     IEStatusCode status = IEStatusCode::OK;
 
     if (network == nullptr || input_name == nullptr || layout_result == nullptr) {
@@ -927,9 +905,7 @@ IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_network_get_input_layout(const i
     return status;
 }
 
-IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_network_set_input_layout(ie_network_t* network,
-                                                                         const char* input_name,
-                                                                         const layout_e l) {
+IEStatusCode ie_network_set_input_layout(ie_network_t* network, const char* input_name, const layout_e l) {
     IEStatusCode status = IEStatusCode::OK;
 
     if (network == nullptr || input_name == nullptr) {
@@ -957,9 +933,7 @@ IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_network_set_input_layout(ie_netw
     return status;
 }
 
-IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_network_get_input_dims(const ie_network_t* network,
-                                                                       const char* input_name,
-                                                                       dimensions_t* dims_result) {
+IEStatusCode ie_network_get_input_dims(const ie_network_t* network, const char* input_name, dimensions_t* dims_result) {
     IEStatusCode status = IEStatusCode::OK;
 
     if (network == nullptr || input_name == nullptr || dims_result == nullptr) {
@@ -984,9 +958,9 @@ IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_network_get_input_dims(const ie_
     return status;
 }
 
-IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_network_get_input_resize_algorithm(const ie_network_t* network,
-                                                                                   const char* input_name,
-                                                                                   resize_alg_e* resize_alg_result) {
+IEStatusCode ie_network_get_input_resize_algorithm(const ie_network_t* network,
+                                                   const char* input_name,
+                                                   resize_alg_e* resize_alg_result) {
     IEStatusCode status = IEStatusCode::OK;
 
     if (network == nullptr || input_name == nullptr || resize_alg_result == nullptr) {
@@ -1008,9 +982,9 @@ IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_network_get_input_resize_algorit
     return status;
 }
 
-IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_network_set_input_resize_algorithm(ie_network_t* network,
-                                                                                   const char* input_name,
-                                                                                   const resize_alg_e resize_algo) {
+IEStatusCode ie_network_set_input_resize_algorithm(ie_network_t* network,
+                                                   const char* input_name,
+                                                   const resize_alg_e resize_algo) {
     IEStatusCode status = IEStatusCode::OK;
 
     if (network == nullptr || input_name == nullptr) {
@@ -1038,9 +1012,9 @@ IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_network_set_input_resize_algorit
     return status;
 }
 
-IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_network_get_color_format(const ie_network_t* network,
-                                                                         const char* input_name,
-                                                                         colorformat_e* colformat_result) {
+IEStatusCode ie_network_get_color_format(const ie_network_t* network,
+                                         const char* input_name,
+                                         colorformat_e* colformat_result) {
     IEStatusCode status = IEStatusCode::OK;
 
     if (network == nullptr || input_name == nullptr || colformat_result == nullptr) {
@@ -1062,9 +1036,9 @@ IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_network_get_color_format(const i
     return status;
 }
 
-IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_network_set_color_format(ie_network_t* network,
-                                                                         const char* input_name,
-                                                                         const colorformat_e color_format) {
+IEStatusCode ie_network_set_color_format(ie_network_t* network,
+                                         const char* input_name,
+                                         const colorformat_e color_format) {
     IEStatusCode status = IEStatusCode::OK;
 
     if (network == nullptr || input_name == nullptr) {
@@ -1092,7 +1066,7 @@ IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_network_set_color_format(ie_netw
     return status;
 }
 
-IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_network_get_input_shapes(ie_network* network, input_shapes_t* shapes) {
+IEStatusCode ie_network_get_input_shapes(ie_network* network, input_shapes_t* shapes) {
     if (network == nullptr || shapes == nullptr) {
         return IEStatusCode::GENERAL_ERROR;
     }
@@ -1129,7 +1103,7 @@ IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_network_get_input_shapes(ie_netw
     return status;
 }
 
-IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_network_reshape(ie_network_t* network, const input_shapes_t shapes) {
+IEStatusCode ie_network_reshape(ie_network_t* network, const input_shapes_t shapes) {
     IEStatusCode status = IEStatusCode::OK;
 
     if (network == nullptr) {
@@ -1155,8 +1129,7 @@ IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_network_reshape(ie_network_t* ne
     return status;
 }
 
-IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_network_get_outputs_number(const ie_network_t* network,
-                                                                           size_t* size_result) {
+IEStatusCode ie_network_get_outputs_number(const ie_network_t* network, size_t* size_result) {
     IEStatusCode status = IEStatusCode::OK;
 
     if (network == nullptr || size_result == nullptr) {
@@ -1173,9 +1146,7 @@ IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_network_get_outputs_number(const
     return status;
 }
 
-IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_network_get_output_name(const ie_network_t* network,
-                                                                        const size_t number,
-                                                                        char** name) {
+IEStatusCode ie_network_get_output_name(const ie_network_t* network, const size_t number, char** name) {
     IEStatusCode status = IEStatusCode::OK;
 
     if (network == nullptr || name == nullptr) {
@@ -1203,9 +1174,9 @@ IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_network_get_output_name(const ie
     return status;
 }
 
-IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_network_get_output_precision(const ie_network_t* network,
-                                                                             const char* output_name,
-                                                                             precision_e* prec_result) {
+IEStatusCode ie_network_get_output_precision(const ie_network_t* network,
+                                             const char* output_name,
+                                             precision_e* prec_result) {
     IEStatusCode status = IEStatusCode::OK;
 
     if (network == nullptr || output_name == nullptr || prec_result == nullptr) {
@@ -1227,9 +1198,7 @@ IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_network_get_output_precision(con
     return status;
 }
 
-IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_network_set_output_precision(ie_network_t* network,
-                                                                             const char* output_name,
-                                                                             const precision_e p) {
+IEStatusCode ie_network_set_output_precision(ie_network_t* network, const char* output_name, const precision_e p) {
     IEStatusCode status = IEStatusCode::OK;
 
     if (network == nullptr || output_name == nullptr) {
@@ -1257,9 +1226,9 @@ IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_network_set_output_precision(ie_
     return status;
 }
 
-IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_network_get_output_layout(const ie_network_t* network,
-                                                                          const char* output_name,
-                                                                          layout_e* layout_result) {
+IEStatusCode ie_network_get_output_layout(const ie_network_t* network,
+                                          const char* output_name,
+                                          layout_e* layout_result) {
     IEStatusCode status = IEStatusCode::OK;
 
     if (network == nullptr || output_name == nullptr || layout_result == nullptr) {
@@ -1281,9 +1250,7 @@ IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_network_get_output_layout(const 
     return status;
 }
 
-IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_network_set_output_layout(ie_network_t* network,
-                                                                          const char* output_name,
-                                                                          const layout_e l) {
+IEStatusCode ie_network_set_output_layout(ie_network_t* network, const char* output_name, const layout_e l) {
     IEStatusCode status = IEStatusCode::OK;
 
     if (network == nullptr || output_name == nullptr) {
@@ -1311,9 +1278,9 @@ IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_network_set_output_layout(ie_net
     return status;
 }
 
-IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_network_get_output_dims(const ie_network_t* network,
-                                                                        const char* output_name,
-                                                                        dimensions_t* dims_result) {
+IEStatusCode ie_network_get_output_dims(const ie_network_t* network,
+                                        const char* output_name,
+                                        dimensions_t* dims_result) {
     IEStatusCode status = IEStatusCode::OK;
 
     if (network == nullptr || output_name == nullptr || dims_result == nullptr) {
@@ -1338,7 +1305,7 @@ IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_network_get_output_dims(const ie
     return status;
 }
 
-void INFERENCE_ENGINE_1_0_DEPRECATED ie_network_input_shapes_free(input_shapes_t* inputShapes) {
+void ie_network_input_shapes_free(input_shapes_t* inputShapes) {
     if (inputShapes) {
         for (size_t i = 0; i < inputShapes->shape_num; ++i) {
             delete[] inputShapes->shapes[i].name;
@@ -1349,23 +1316,21 @@ void INFERENCE_ENGINE_1_0_DEPRECATED ie_network_input_shapes_free(input_shapes_t
     }
 }
 
-void INFERENCE_ENGINE_1_0_DEPRECATED ie_network_name_free(char** name) {
+void ie_network_name_free(char** name) {
     if (*name) {
         delete[] * name;
         *name = NULL;
     }
 }
 
-void INFERENCE_ENGINE_1_0_DEPRECATED ie_infer_request_free(ie_infer_request_t** infer_request) {
+void ie_infer_request_free(ie_infer_request_t** infer_request) {
     if (infer_request) {
         delete *infer_request;
         *infer_request = NULL;
     }
 }
 
-IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_infer_request_get_blob(ie_infer_request_t* infer_request,
-                                                                       const char* name,
-                                                                       ie_blob_t** blob) {
+IEStatusCode ie_infer_request_get_blob(ie_infer_request_t* infer_request, const char* name, ie_blob_t** blob) {
     IEStatusCode status = IEStatusCode::OK;
 
     if (infer_request == nullptr || name == nullptr || blob == nullptr) {
@@ -1384,9 +1349,7 @@ IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_infer_request_get_blob(ie_infer_
     return status;
 }
 
-IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_infer_request_set_blob(ie_infer_request_t* infer_request,
-                                                                       const char* name,
-                                                                       const ie_blob_t* blob) {
+IEStatusCode ie_infer_request_set_blob(ie_infer_request_t* infer_request, const char* name, const ie_blob_t* blob) {
     IEStatusCode status = IEStatusCode::OK;
 
     if (infer_request == nullptr || name == nullptr || blob == nullptr) {
@@ -1402,7 +1365,7 @@ IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_infer_request_set_blob(ie_infer_
     return status;
 }
 
-IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_infer_request_infer(ie_infer_request_t* infer_request) {
+IEStatusCode ie_infer_request_infer(ie_infer_request_t* infer_request) {
     IEStatusCode status = IEStatusCode::OK;
 
     if (infer_request == nullptr) {
@@ -1418,7 +1381,7 @@ IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_infer_request_infer(ie_infer_req
     return status;
 }
 
-IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_infer_request_infer_async(ie_infer_request_t* infer_request) {
+IEStatusCode ie_infer_request_infer_async(ie_infer_request_t* infer_request) {
     IEStatusCode status = IEStatusCode::OK;
 
     if (infer_request == nullptr) {
@@ -1434,8 +1397,7 @@ IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_infer_request_infer_async(ie_inf
     return status;
 }
 
-IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_infer_set_completion_callback(ie_infer_request_t* infer_request,
-                                                                              ie_complete_call_back_t* callback) {
+IEStatusCode ie_infer_set_completion_callback(ie_infer_request_t* infer_request, ie_complete_call_back_t* callback) {
     IEStatusCode status = IEStatusCode::OK;
 
     if (infer_request == nullptr || callback == nullptr) {
@@ -1454,8 +1416,7 @@ IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_infer_set_completion_callback(ie
     return status;
 }
 
-IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_infer_request_wait(ie_infer_request_t* infer_request,
-                                                                   const int64_t timeout) {
+IEStatusCode ie_infer_request_wait(ie_infer_request_t* infer_request, const int64_t timeout) {
     IEStatusCode status = IEStatusCode::OK;
 
     if (infer_request == nullptr) {
@@ -1472,7 +1433,7 @@ IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_infer_request_wait(ie_infer_requ
     return status;
 }
 
-IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_blob_make_memory(const tensor_desc_t* tensorDesc, ie_blob_t** blob) {
+IEStatusCode ie_blob_make_memory(const tensor_desc_t* tensorDesc, ie_blob_t** blob) {
     if (tensorDesc == nullptr || blob == nullptr) {
         return IEStatusCode::GENERAL_ERROR;
     }
@@ -1536,10 +1497,10 @@ IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_blob_make_memory(const tensor_de
     return status;
 }
 
-IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_blob_make_memory_from_preallocated(const tensor_desc_t* tensorDesc,
-                                                                                   void* ptr,
-                                                                                   size_t size,
-                                                                                   ie_blob_t** blob) {
+IEStatusCode ie_blob_make_memory_from_preallocated(const tensor_desc_t* tensorDesc,
+                                                   void* ptr,
+                                                   size_t size,
+                                                   ie_blob_t** blob) {
     if (tensorDesc == nullptr || ptr == nullptr || blob == nullptr) {
         return IEStatusCode::GENERAL_ERROR;
     }
@@ -1611,9 +1572,7 @@ IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_blob_make_memory_from_preallocat
     return status;
 }
 
-IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_blob_make_memory_with_roi(const ie_blob_t* inputBlob,
-                                                                          const roi_t* roi,
-                                                                          ie_blob_t** blob) {
+IEStatusCode ie_blob_make_memory_with_roi(const ie_blob_t* inputBlob, const roi_t* roi, ie_blob_t** blob) {
     if (inputBlob == nullptr || roi == nullptr || blob == nullptr) {
         return IEStatusCode::GENERAL_ERROR;
     }
@@ -1630,7 +1589,7 @@ IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_blob_make_memory_with_roi(const 
     return status;
 }
 
-IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_blob_size(ie_blob_t* blob, int* size_result) {
+IEStatusCode ie_blob_size(ie_blob_t* blob, int* size_result) {
     IEStatusCode status = IEStatusCode::OK;
 
     if (blob == nullptr || size_result == nullptr) {
@@ -1643,7 +1602,7 @@ IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_blob_size(ie_blob_t* blob, int* 
     return status;
 }
 
-IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_blob_byte_size(ie_blob_t* blob, int* bsize_result) {
+IEStatusCode ie_blob_byte_size(ie_blob_t* blob, int* bsize_result) {
     IEStatusCode status = IEStatusCode::OK;
 
     if (blob == nullptr || bsize_result == nullptr) {
@@ -1656,7 +1615,7 @@ IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_blob_byte_size(ie_blob_t* blob, 
     return status;
 }
 
-void INFERENCE_ENGINE_1_0_DEPRECATED ie_blob_deallocate(ie_blob_t** blob) {
+void ie_blob_deallocate(ie_blob_t** blob) {
     if (*blob) {
         (*blob)->object->deallocate();
         delete *blob;
@@ -1664,7 +1623,7 @@ void INFERENCE_ENGINE_1_0_DEPRECATED ie_blob_deallocate(ie_blob_t** blob) {
     }
 }
 
-IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_blob_get_buffer(const ie_blob_t* blob, ie_blob_buffer_t* blob_buffer) {
+IEStatusCode ie_blob_get_buffer(const ie_blob_t* blob, ie_blob_buffer_t* blob_buffer) {
     if (blob == nullptr || blob_buffer == nullptr) {
         return IEStatusCode::GENERAL_ERROR;
     }
@@ -1674,8 +1633,7 @@ IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_blob_get_buffer(const ie_blob_t*
     return IEStatusCode::OK;
 }
 
-IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_blob_get_cbuffer(const ie_blob_t* blob,
-                                                                 ie_blob_buffer_t* blob_cbuffer) {
+IEStatusCode ie_blob_get_cbuffer(const ie_blob_t* blob, ie_blob_buffer_t* blob_cbuffer) {
     if (blob == nullptr || blob_cbuffer == nullptr) {
         return IEStatusCode::GENERAL_ERROR;
     }
@@ -1685,7 +1643,7 @@ IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_blob_get_cbuffer(const ie_blob_t
     return IEStatusCode::OK;
 }
 
-IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_blob_get_dims(const ie_blob_t* blob, dimensions_t* dims_result) {
+IEStatusCode ie_blob_get_dims(const ie_blob_t* blob, dimensions_t* dims_result) {
     IEStatusCode status = IEStatusCode::OK;
 
     if (blob == nullptr || dims_result == nullptr) {
@@ -1705,7 +1663,7 @@ IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_blob_get_dims(const ie_blob_t* b
     return status;
 }
 
-IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_blob_get_layout(const ie_blob_t* blob, layout_e* layout_result) {
+IEStatusCode ie_blob_get_layout(const ie_blob_t* blob, layout_e* layout_result) {
     IEStatusCode status = IEStatusCode::OK;
 
     if (blob == nullptr || layout_result == nullptr) {
@@ -1722,7 +1680,7 @@ IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_blob_get_layout(const ie_blob_t*
     return status;
 }
 
-IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_blob_get_precision(const ie_blob_t* blob, precision_e* prec_result) {
+IEStatusCode ie_blob_get_precision(const ie_blob_t* blob, precision_e* prec_result) {
     IEStatusCode status = IEStatusCode::OK;
 
     if (blob == nullptr || prec_result == nullptr) {
@@ -1739,15 +1697,13 @@ IEStatusCode INFERENCE_ENGINE_1_0_DEPRECATED ie_blob_get_precision(const ie_blob
     return status;
 }
 
-void INFERENCE_ENGINE_1_0_DEPRECATED ie_blob_free(ie_blob_t** blob) {
+void ie_blob_free(ie_blob_t** blob) {
     if (blob) {
         delete *blob;
         *blob = NULL;
     }
 }
 
-void INFERENCE_ENGINE_1_0_DEPRECATED ie_shutdown() {
+void ie_shutdown() {
     InferenceEngine::shutdown();
 }
-
-IE_SUPPRESS_DEPRECATED_END
