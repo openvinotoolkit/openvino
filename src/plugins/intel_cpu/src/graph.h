@@ -59,7 +59,9 @@ public:
     }
 
     void PushInputData(const std::string& name, const ov::Tensor& in);
-    void PullOutputData(std::unordered_map<std::string, ov::Tensor>& out);
+    void PullOutputData(std::unordered_map<std::string, ov::Tensor>& out,
+                        std::unordered_map<std::string, bool>& out_precision_changed,
+                        std::unordered_map<std::string, ov::Tensor>& aux_tensors);
 
     void Infer(SyncInferRequest* request = nullptr);
 

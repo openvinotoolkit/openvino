@@ -209,9 +209,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*smoke_Transpose(2|4|5|6)D/TransposeLayerTest.CompareWithRefs.*)",
         // Issue: 113704 - Layout information maybe incorrect when covert tensor to blob
         R"(.*smoke_.*BehaviorTests/InferRequestPreprocessConversionTest.*)",
-        // Issue: There are some problem when work with AUTO plugin API 2.0
-        R"(.*smoke_Auto_CachingSupportCase_CPU/CompileModelCacheTestBase.CompareWithRefImpl.*)",
-        R"(.*smoke_Auto_CachingSupportCase_CPU_Float/CompileModelCacheTestBase.CompareWithRefImpl.*)",
         // Issue: JIT choose error issue, don't know why not choose jit_avx512_BF16
         R"(.*smoke_PSROIPoolingAverageLayoutTest/PSROIPoolingLayerCPUTest.*)",
         R"(.*smoke_PSROIPoolingBilinearLayoutTest/PSROIPoolingLayerCPUTest.*)",

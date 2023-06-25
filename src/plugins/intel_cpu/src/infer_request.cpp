@@ -80,6 +80,8 @@ void SyncInferRequest::create_infer_request() {
     }
     for (const auto& it : _output_ports_map) {
         init_tensor(it.first);
+        // allocate aux tensor for output if output precision has been changed
+        get_tensor(it.second);
     }
 
     // Save all MemoryLayer data tensors. Will use insight about mechanics
@@ -233,7 +235,7 @@ void SyncInferRequest::infer() {
 
     throw_if_canceled();
 
-    graph->PullOutputData(_outputs);
+    graph->PullOutputData(_outputs, _port_precision_changed, _aux_tensors);
 }
 
 std::vector<ov::ProfilingInfo> SyncInferRequest::get_profiling_info() const {
@@ -486,25 +488,7 @@ ov::Tensor SyncInferRequest::get_tensor(const ov::Output<const ov::Node>& _port)
         _aux_tensors[port_name] = ov::Tensor(_orig_ports_map[port_name].get_element_type(), external_shape);
     }
 
-    // input tensor is in aux tensors, don't need copy anything
-    auto& aux_tensor = _aux_tensors[port_name];
-    if (is_input) {
-        return aux_tensor;
-    }
-
-    // output tensor need copy data from compiled tensor
-    const void* srcData = compiled_tensor.data();
-    void* dstData = aux_tensor.data();
-    if ((dstData == nullptr) || (srcData == nullptr)) {
-        OPENVINO_THROW("Get tensor has no allocated memory");
-    }
-
-    cpu_convert(srcData,
-                dstData,
-                InferenceEngine::details::convertPrecision(compiled_tensor.get_element_type()),
-                InferenceEngine::details::convertPrecision(aux_tensor.get_element_type()),
-                compiled_tensor.get_size());
-    return aux_tensor;
+    return _aux_tensors[port_name];
 }
 
 std::vector<ov::Tensor> SyncInferRequest::get_tensors(const ov::Output<const ov::Node>& _port) const {

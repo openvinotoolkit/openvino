@@ -996,7 +996,9 @@ void Graph::PushInputData(const std::string& name, const ov::Tensor &in) {
     }
 }
 
-void Graph::PullOutputData(std::unordered_map<std::string, ov::Tensor> &out) {
+void Graph::PullOutputData(std::unordered_map<std::string, ov::Tensor>& out,
+                           std::unordered_map<std::string, bool>& out_precision_changed,
+                           std::unordered_map<std::string, ov::Tensor>& aux_tensors) {
     if (!IsReady())
         IE_THROW() << "Wrong state. Topology not ready.";
 
@@ -1059,6 +1061,25 @@ void Graph::PullOutputData(std::unordered_map<std::string, ov::Tensor> &out) {
 
         void *ext_blob_ptr = ext_blob.data();
         void *intr_blob_ptr = intr_blob.GetData();
+
+        // If output precision has been changed comparing to original model's output, it must be copied to aux tensor
+        if (out_precision_changed[name]) {
+            auto it = aux_tensors.find(name);
+            if (it == aux_tensors.end()) {
+                OPENVINO_THROW("Output precision has been changed, but cannot find its aux tensor.");
+            }
+            void* ext_blob_ptr = it->second.data();
+            if ((intr_blob_ptr == nullptr) || (ext_blob_ptr == nullptr)) {
+                OPENVINO_THROW("Get tensor has no allocated memory");
+            }
+
+            cpu_convert(intr_blob_ptr,
+                        ext_blob_ptr,
+                        srcPrec,
+                        InferenceEngine::details::convertPrecision(it->second.get_element_type()),
+                        it->second.get_size());
+            continue;
+        }
 
         // That is the same memory. No need to copy
         if (ext_blob_ptr == intr_blob_ptr) continue;
