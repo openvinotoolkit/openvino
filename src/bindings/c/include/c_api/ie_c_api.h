@@ -26,7 +26,6 @@
 #    include <stdio.h>
 
 #    include "openvino/c/deprecated.h"
-#    include "ie_api.h"
 
 #    ifdef __cplusplus
 #        define INFERENCE_ENGINE_C_API_EXTERN extern "C"
@@ -65,7 +64,7 @@ typedef struct ie_executable ie_executable_network_t;
 typedef struct ie_infer_request ie_infer_request_t;
 typedef struct ie_blob ie_blob_t;
 
-IE_SUPPRESS_DEPRECATED_START
+OPENVINO_SUPPRESS_DEPRECATED_START
 
 /**
  * @struct ie_version
@@ -322,7 +321,7 @@ typedef struct ie_available_devices {
  * @brief Returns number of version that is exported. Use the ie_version_free() to free memory.
  * @return Version number of the API.
  */
-INFERENCE_ENGINE_C_API(ie_version_t) ie_c_api_version(void);
+INFERENCE_ENGINE_C_API(ie_version_t) INFERENCE_ENGINE_1_0_DEPRECATED ie_c_api_version(void);
 
 /**
  * @brief Release the memory allocated by ie_c_api_version.
@@ -1217,7 +1216,7 @@ INFERENCE_ENGINE_C_API(void) INFERENCE_ENGINE_1_0_DEPRECATED ie_blob_free(ie_blo
  */
 INFERENCE_ENGINE_C_API(void) INFERENCE_ENGINE_1_0_DEPRECATED ie_shutdown();
 
-IE_SUPPRESS_DEPRECATED_END
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 #endif  // IE_C_API_H
 
