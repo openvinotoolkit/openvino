@@ -117,6 +117,33 @@ std::function<T(const T, const T)> reduction_functor_for(const Reduction reducti
     }
 }
 
+template <>
+std::function<char(const char, const char)> reduction_functor_for<char>(const Reduction reduction_type) {
+    switch (reduction_type) {
+    case Reduction::MAX:
+        return [](const char a, const char b) {
+            return a > b ? a : b;
+            //return a || b;
+        };
+    case Reduction::MIN:
+        return [](const char a, const char b) {
+            return a < b ? a : b;
+            //return a && b;
+        };
+    case Reduction::PROD:
+        return [](const char a, const char b) {
+            return static_cast<bool>(a) && static_cast<bool>(b);
+        };
+    case Reduction::SUM:
+        return [](const char a, const char b) {
+            return static_cast<bool>(a) || static_cast<bool>(b);
+        };
+    default:
+        OPENVINO_ASSERT(false, "No functor available for this type of reduction");
+        return 0;
+    }
+}
+
 template<typename T>
 T arithmetic_mean_int(const T accumulator, const int32_t N) {
     const auto old_mode = std::fegetround();

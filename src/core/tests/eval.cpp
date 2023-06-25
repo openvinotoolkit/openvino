@@ -1435,8 +1435,8 @@ TEST(eval, evaluate_static_scatter_elements_update_reduction_prod_exclusive) {
 }
 
 TEST(eval, evaluate_static_scatter_elements_update_reduction_mean) {
-    const Shape data_shape{3,3};
-    const Shape indices_shape{2,2};
+    const Shape data_shape{3, 3};
+    const Shape indices_shape{2, 2};
     auto arg1 = make_shared<op::Parameter>(element::f32, data_shape);
     auto arg2 = make_shared<op::Parameter>(element::i32, indices_shape);
     auto arg3 = make_shared<op::Parameter>(element::f32, indices_shape);
@@ -1452,10 +1452,9 @@ TEST(eval, evaluate_static_scatter_elements_update_reduction_mean) {
     auto result_tensor = make_shared<HostTensor>();
     ASSERT_TRUE(fun->evaluate(
         {result_tensor},
-        {make_host_tensor<element::Type_t::f32>(data_shape,
-                                                {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f}),
+        {make_host_tensor<element::Type_t::f32>(data_shape, {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f}),
          make_host_tensor<element::Type_t::i32>(indices_shape, {2, 2, 0, 1}),
-         make_host_tensor<element::Type_t::f32>(indices_shape, {10.f, 21.f,25.f,38.f}),
+         make_host_tensor<element::Type_t::f32>(indices_shape, {10.f, 21.f, 25.f, 38.f}),
          make_host_tensor<element::Type_t::i64>({}, {1})}));
     EXPECT_EQ(result_tensor->get_element_type(), element::f32);
     EXPECT_EQ(result_tensor->get_shape(), data_shape);
@@ -1466,8 +1465,8 @@ TEST(eval, evaluate_static_scatter_elements_update_reduction_mean) {
 }
 
 TEST(eval, evaluate_static_scatter_elements_update_reduction_mean_exclusive) {
-    const Shape data_shape{3,3};
-    const Shape indices_shape{2,2};
+    const Shape data_shape{3, 3};
+    const Shape indices_shape{2, 2};
     auto arg1 = make_shared<op::Parameter>(element::f32, data_shape);
     auto arg2 = make_shared<op::Parameter>(element::i32, indices_shape);
     auto arg3 = make_shared<op::Parameter>(element::f32, indices_shape);
@@ -1483,10 +1482,9 @@ TEST(eval, evaluate_static_scatter_elements_update_reduction_mean_exclusive) {
     auto result_tensor = make_shared<HostTensor>();
     ASSERT_TRUE(fun->evaluate(
         {result_tensor},
-        {make_host_tensor<element::Type_t::f32>(data_shape,
-                                                {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f}),
+        {make_host_tensor<element::Type_t::f32>(data_shape, {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f}),
          make_host_tensor<element::Type_t::i32>(indices_shape, {2, 2, 0, 1}),
-         make_host_tensor<element::Type_t::f32>(indices_shape, {10.f, 21.f,25.f,38.f}),
+         make_host_tensor<element::Type_t::f32>(indices_shape, {10.f, 21.f, 25.f, 38.f}),
          make_host_tensor<element::Type_t::i64>({}, {1})}));
     EXPECT_EQ(result_tensor->get_element_type(), element::f32);
     EXPECT_EQ(result_tensor->get_shape(), data_shape);
@@ -1497,8 +1495,8 @@ TEST(eval, evaluate_static_scatter_elements_update_reduction_mean_exclusive) {
 }
 
 TEST(eval, evaluate_static_scatter_elements_update_reduction_mean_ints) {
-    const Shape data_shape{3,3};
-    const Shape indices_shape{2,2};
+    const Shape data_shape{3, 3};
+    const Shape indices_shape{2, 2};
     auto arg1 = make_shared<op::Parameter>(element::i32, data_shape);
     auto arg2 = make_shared<op::Parameter>(element::i32, indices_shape);
     auto arg3 = make_shared<op::Parameter>(element::i32, indices_shape);
@@ -1512,13 +1510,11 @@ TEST(eval, evaluate_static_scatter_elements_update_reduction_mean_ints) {
                                                         true);
     auto fun = make_shared<Function>(OutputVector{scatter_elements_update}, ParameterVector{arg1, arg2, arg3, arg4});
     auto result_tensor = make_shared<HostTensor>();
-    ASSERT_TRUE(fun->evaluate(
-        {result_tensor},
-        {make_host_tensor<element::Type_t::i32>(data_shape,
-                                                {1, 2, 3, 4, -5, 6, 7, 8, 9}),
-         make_host_tensor<element::Type_t::i32>(indices_shape, {0, 1, 2, 1}),
-         make_host_tensor<element::Type_t::i32>(indices_shape, {-6, -2, 600, -120}),
-         make_host_tensor<element::Type_t::i64>({}, {0})}));
+    ASSERT_TRUE(fun->evaluate({result_tensor},
+                              {make_host_tensor<element::Type_t::i32>(data_shape, {1, 2, 3, 4, -5, 6, 7, 8, 9}),
+                               make_host_tensor<element::Type_t::i32>(indices_shape, {0, 1, 2, 1}),
+                               make_host_tensor<element::Type_t::i32>(indices_shape, {-6, -2, 600, -120}),
+                               make_host_tensor<element::Type_t::i64>({}, {0})}));
     EXPECT_EQ(result_tensor->get_element_type(), element::i32);
     EXPECT_EQ(result_tensor->get_shape(), data_shape);
     const auto cval = read_vector<int32_t>(result_tensor);
@@ -1542,13 +1538,12 @@ TEST(eval, evaluate_static_scatter_elements_update_reduction_min) {
                                                         true);
     auto fun = make_shared<Function>(OutputVector{scatter_elements_update}, ParameterVector{arg1, arg2, arg3, arg4});
     auto result_tensor = make_shared<HostTensor>();
-    ASSERT_TRUE(fun->evaluate(
-        {result_tensor},
-        {make_host_tensor<element::Type_t::i32>(data_shape,
-                                                {-1000, 2, 3, 4, -5, 6, 7, -2, 8}),
-         make_host_tensor<element::Type_t::i32>(indices_shape, {0, 1, 2, 3, 4, 5, 6, 7, 0}),
-         make_host_tensor<element::Type_t::i32>(indices_shape, {-999, 1, 3, 5, -4, 6, 8, 9, -1001}),
-         make_host_tensor<element::Type_t::i64>({}, {0})}));
+    ASSERT_TRUE(
+        fun->evaluate({result_tensor},
+                      {make_host_tensor<element::Type_t::i32>(data_shape, {-1000, 2, 3, 4, -5, 6, 7, -2, 8}),
+                       make_host_tensor<element::Type_t::i32>(indices_shape, {0, 1, 2, 3, 4, 5, 6, 7, 0}),
+                       make_host_tensor<element::Type_t::i32>(indices_shape, {-999, 1, 3, 5, -4, 6, 8, 9, -1001}),
+                       make_host_tensor<element::Type_t::i64>({}, {0})}));
     EXPECT_EQ(result_tensor->get_element_type(), element::i32);
     EXPECT_EQ(result_tensor->get_shape(), data_shape);
     const auto cval = read_vector<int32_t>(result_tensor);
@@ -1572,13 +1567,12 @@ TEST(eval, evaluate_static_scatter_elements_update_reduction_max) {
                                                         true);
     auto fun = make_shared<Function>(OutputVector{scatter_elements_update}, ParameterVector{arg1, arg2, arg3, arg4});
     auto result_tensor = make_shared<HostTensor>();
-    ASSERT_TRUE(fun->evaluate(
-        {result_tensor},
-        {make_host_tensor<element::Type_t::i32>(data_shape,
-                                                {-1000, 2, 3, 4, -5, 6, 7, -2, 8}),
-         make_host_tensor<element::Type_t::i32>(indices_shape, {0, 1, 2, 3, 4, 5, 6, 7, 0}),
-         make_host_tensor<element::Type_t::i32>(indices_shape, {-999, 1, 3, 5, -4, 6, 8, 9, -1001}),
-         make_host_tensor<element::Type_t::i64>({}, {0})}));
+    ASSERT_TRUE(
+        fun->evaluate({result_tensor},
+                      {make_host_tensor<element::Type_t::i32>(data_shape, {-1000, 2, 3, 4, -5, 6, 7, -2, 8}),
+                       make_host_tensor<element::Type_t::i32>(indices_shape, {0, 1, 2, 3, 4, 5, 6, 7, 0}),
+                       make_host_tensor<element::Type_t::i32>(indices_shape, {-999, 1, 3, 5, -4, 6, 8, 9, -1001}),
+                       make_host_tensor<element::Type_t::i64>({}, {0})}));
     EXPECT_EQ(result_tensor->get_element_type(), element::i32);
     EXPECT_EQ(result_tensor->get_shape(), data_shape);
     const auto cval = read_vector<int32_t>(result_tensor);
@@ -1602,17 +1596,45 @@ TEST(eval, evaluate_static_scatter_elements_update_reduction_max_exclusive) {
                                                         false);
     auto fun = make_shared<Function>(OutputVector{scatter_elements_update}, ParameterVector{arg1, arg2, arg3, arg4});
     auto result_tensor = make_shared<HostTensor>();
-    ASSERT_TRUE(fun->evaluate(
-        {result_tensor},
-        {make_host_tensor<element::Type_t::i32>(data_shape,
-                                                {1000, 2, 3, 4, -5, 6, 7, -2, 8}),
-         make_host_tensor<element::Type_t::i32>(indices_shape, {0, 2, 1, 3, 7, 5, 6, 7, 0}),
-         make_host_tensor<element::Type_t::i32>(indices_shape, {999, 10, 20, 30, -40, 6, 8, 9, 555}),
-         make_host_tensor<element::Type_t::i64>({}, {0})}));
+    ASSERT_TRUE(
+        fun->evaluate({result_tensor},
+                      {make_host_tensor<element::Type_t::i32>(data_shape, {1000, 2, 3, 4, -5, 6, 7, -2, 8}),
+                       make_host_tensor<element::Type_t::i32>(indices_shape, {0, 2, 1, 3, 7, 5, 6, 7, 0}),
+                       make_host_tensor<element::Type_t::i32>(indices_shape, {999, 10, 20, 30, -40, 6, 8, 9, 555}),
+                       make_host_tensor<element::Type_t::i64>({}, {0})}));
     EXPECT_EQ(result_tensor->get_element_type(), element::i32);
     EXPECT_EQ(result_tensor->get_shape(), data_shape);
     const auto cval = read_vector<int32_t>(result_tensor);
     const vector<int32_t> out{999, 20, 10, 30, -5, 6, 8, 9, 8};
+    ASSERT_EQ(cval, out);
+}
+
+TEST(eval, evaluate_static_scatter_elements_update_boolean_sum) {
+    const Shape data_shape{5};
+    const Shape indices_shape{6};
+    auto arg1 = make_shared<op::Parameter>(element::boolean, data_shape);
+    auto arg2 = make_shared<op::Parameter>(element::i32, indices_shape);
+    auto arg3 = make_shared<op::Parameter>(element::boolean, indices_shape);
+    auto arg4 = make_shared<op::Parameter>(element::i64, Shape{});
+    auto scatter_elements_update =
+        make_shared<ov::op::v12::ScatterElementsUpdate>(arg1,
+                                                        arg2,
+                                                        arg3,
+                                                        arg4,
+                                                        ov::op::v12::ScatterElementsUpdate::Reduction::SUM,
+                                                        true);
+    auto fun = make_shared<Function>(OutputVector{scatter_elements_update}, ParameterVector{arg1, arg2, arg3, arg4});
+    auto result_tensor = make_shared<HostTensor>();
+    ASSERT_TRUE(fun->evaluate(
+        {result_tensor},
+        {make_host_tensor<element::Type_t::boolean>(data_shape, {1, 0, 0, 1, 0}),
+         make_host_tensor<element::Type_t::i32>(indices_shape, {0, 1, 2, 3, 4, 1}),
+         make_host_tensor<element::Type_t::boolean>(indices_shape, {0, 0, 0, 1, 1, 1}),
+         make_host_tensor<element::Type_t::i64>({}, {0})}));
+    EXPECT_EQ(result_tensor->get_element_type(), element::boolean);
+    EXPECT_EQ(result_tensor->get_shape(), data_shape);
+    const auto cval = read_vector<char>(result_tensor);
+    const vector<char> out{1, 1, 0, 1, 1};
     ASSERT_EQ(cval, out);
 }
 
