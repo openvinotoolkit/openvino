@@ -296,11 +296,6 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
 
     CPU_SET_CALLBACK_COMMON(manager,
         [](const_node_ptr &node) -> bool {
-            const auto& data_pshape = node->get_input_partial_shape(0);
-            // WA: dynamic shapes make impossible to check seq_len due to shapeOf subgraphs
-            // but the sequence is still supported in CPU and doesn't need to be decomposed
-            if (data_pshape.is_dynamic())
-                return true;
             std::string msg;
             return node::RNN::isSupportedOperation(node, msg);
         },

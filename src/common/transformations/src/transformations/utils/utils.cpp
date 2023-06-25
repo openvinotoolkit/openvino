@@ -340,6 +340,28 @@ bool can_eliminate_eltwise_node(const std::shared_ptr<Node>& eltwise,
     }
     return true;
 }
+
+bool is_constfoldable(const ov::Output<ov::Node>& output) {
+    auto status = true;
+    std::deque<ov::Node*> nodes_to_calculate = {output.get_node()};
+
+    while (status && !nodes_to_calculate.empty()) {
+        auto current_node = nodes_to_calculate.front();
+        nodes_to_calculate.pop_front();
+
+        if (current_node->get_input_size() == 0 && !ov::is_type<ov::op::v0::Constant>(current_node)) {
+            status = false;
+        } else {
+            // not a leaf - continue to search
+            for (const auto& input_value : current_node->input_values()) {
+                const auto& input_node = input_value.get_node();
+                nodes_to_calculate.push_front(input_node);
+            }
+        }
+    }
+    return status;
+}
+
 }  // namespace util
 }  // namespace op
 }  // namespace ov
