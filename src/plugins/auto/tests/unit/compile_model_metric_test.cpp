@@ -16,7 +16,8 @@ using ConfigParams = std::tuple<bool,          // if THROUGHPUT
                                 bool,          // if Actual device sleep, cpu device will load slow
                                 std::string,   // Actual Device Name
                                 unsigned int,  // expect OPTIMAL_NUMBER_OF_INFER_REQUESTS
-                                int            // Actual PERFORMANCE_HINT_NUM_REQUESTS
+                                int,           // Actual PERFORMANCE_HINT_NUM_REQUESTS
+                                bool           // if actual device supported OptimalNum
                                 >;
 class ExecNetworkget_propertyOptimalNumInferReq : public tests::AutoTest,
                                                   public ::testing::TestWithParam<ConfigParams> {
@@ -31,6 +32,7 @@ public:
         bool actualSleep;
         bool isThroughput;
         int gpuPerfHintNum;
+        bool isSupportOptimalNum;
         std::string actualDeviceName;
         std::tie(isThroughput,
                  cpuOptimalNum,
@@ -41,7 +43,8 @@ public:
                  actualSleep,
                  actualDeviceName,
                  expectOptimalNum,
-                 gpuPerfHintNum) = obj.param;
+                 gpuPerfHintNum,
+                 isSupportOptimalNum) = obj.param;
         std::ostringstream result;
         result << "cpuOptimalNum_" << cpuOptimalNum << "cpuCustomerNum_" << cpuCustomerNum;
         result << "actualOptimalNum_" << actualOptimalNum << "actualCustomerNum_" << actualCustomerNum;
@@ -70,6 +73,13 @@ public:
         }
         result << "_actualDeviceName_" << actualDeviceName;
         result << "_gpuPerfHintNum_" << gpuPerfHintNum;
+        if (isSupportOptimalNum) {
+            result << "_supportOptimalNum_"
+                   << "true";
+        } else {
+            result << "_supportOptimalNum_"
+                   << "false";
+        }
         return result.str();
     }
 };
@@ -127,13 +137,40 @@ TEST_P(ExecNetworkget_propertyOptimalNumInferReq, OPTIMAL_NUMBER_OF_INFER_REQUES
     bool actualSleep;
     bool isThroughput;
     unsigned int gpuPerfHintNum;
+    bool isSupportedOptimalNum;
     std::string actualDeviceName;
-    std::tie(isThroughput, cpuOptimalNum, cpuCustomerNum, cpuSleep, actualOptimalNum,
-                actualCustomerNum, actualSleep, actualDeviceName, expectOptimalNum, gpuPerfHintNum) = this->GetParam();
+    std::tie(isThroughput,
+             cpuOptimalNum,
+             cpuCustomerNum,
+             cpuSleep,
+             actualOptimalNum,
+             actualCustomerNum,
+             actualSleep,
+             actualDeviceName,
+             expectOptimalNum,
+             gpuPerfHintNum,
+             isSupportedOptimalNum) = this->GetParam();
     config.insert(ov::device::priorities(CommonTestUtils::DEVICE_CPU + std::string(",") + actualDeviceName));
-    std::vector<ov::PropertyName> supported_props = {ov::hint::num_requests, ov::range_for_streams, ov::optimal_batch_size, ov::hint::performance_mode};
-    ON_CALL(*core, get_property(_, StrEq(ov::supported_properties.name()), _))
+    std::vector<ov::PropertyName> supported_props = {ov::hint::num_requests,
+                                                     ov::range_for_streams,
+                                                     ov::optimal_batch_size,
+                                                     ov::hint::performance_mode};
+    std::vector<ov::PropertyName> supported_props_with_optimal_num = {ov::hint::num_requests,
+                                                                      ov::range_for_streams,
+                                                                      ov::optimal_batch_size,
+                                                                      ov::hint::performance_mode,
+                                                                      ov::optimal_number_of_infer_requests};
+    if (isSupportedOptimalNum) {
+        ON_CALL(*core, get_property(_, StrEq(ov::supported_properties.name()), _))
+            .WillByDefault(RETURN_MOCK_VALUE(supported_props_with_optimal_num));
+        ON_CALL(*core, get_property(StrEq(CommonTestUtils::DEVICE_GPU), StrEq(ov::optimal_number_of_infer_requests.name()), _))
+            .WillByDefault(RETURN_MOCK_VALUE(actualOptimalNum));
+        ON_CALL(*core, get_property(StrEq(CommonTestUtils::DEVICE_KEEMBAY), StrEq(ov::optimal_number_of_infer_requests.name()), _))
+            .WillByDefault(RETURN_MOCK_VALUE(actualOptimalNum));
+    } else {
+        ON_CALL(*core, get_property(_, StrEq(ov::supported_properties.name()), _))
             .WillByDefault(RETURN_MOCK_VALUE(supported_props));
+    }
     if (isThroughput) {
         metaDevices.push_back({CommonTestUtils::DEVICE_CPU, {ov::hint::performance_mode("THROUGHPUT")}, cpuCustomerNum, ""});
         metaDevices.push_back({actualDeviceName, {ov::hint::performance_mode("THROUGHPUT")}, actualCustomerNum, ""});
@@ -235,27 +272,35 @@ TEST_P(ExecNetworkget_propertyOptimalNumInferReq, OPTIMAL_NUMBER_OF_INFER_REQUES
 // every element for ConfigParams
 // {is throughput mode, cpuOptimalNum, customer hope for cpu infer requset num, if cpu sleep when load,
 //  actualOptimalNum, customer hope for actual infer requset num, if actual sleep when load, actual device Name
-//  expectOptimalNum of Auto ExecNetwork}
+//  expectOptimalNum of Auto ExecNetwork, gpu Number of requests, if actual supported OptimalNum, default Value of OptimalNum}
 //
 const std::vector<ConfigParams> testConfigs = {
-                                               ConfigParams {false, 3, -1, false, 2, -1, true, CommonTestUtils::DEVICE_GPU,  1, 0},
-                                               ConfigParams {true,  3, -1, false, 2, -1, true, CommonTestUtils::DEVICE_GPU,  48, 0},
-                                               ConfigParams {false, 3, -1, true, 2, -1, false, CommonTestUtils::DEVICE_GPU,  2, 0},
-                                               ConfigParams {true,  3, -1, true, 2, -1, false, CommonTestUtils::DEVICE_GPU,  2, 0},
-                                               ConfigParams {false, 3, 5, false, 2, 5, true, CommonTestUtils::DEVICE_GPU,  1, 0},
-                                               ConfigParams {true,  3, 5, false, 2, 5, true, CommonTestUtils::DEVICE_GPU,  48, 0},
-                                               ConfigParams {false, 3, 5, true, 2, 5, false, CommonTestUtils::DEVICE_GPU,  2, 0},
-                                               ConfigParams {true,  3, 5, true, 2, 5, false, CommonTestUtils::DEVICE_GPU,  2, 0},
-                                               ConfigParams {true,  3, 5, false, 2, 5, true, CommonTestUtils::DEVICE_GPU,  48, 48},
-                                               ConfigParams {true,  3, 5, false, 2, 5, true, CommonTestUtils::DEVICE_GPU,  8, 6},
-                                               ConfigParams {false, 3, -1, false, 2, -1, true, CommonTestUtils::DEVICE_KEEMBAY,  1, 0},
-                                               ConfigParams {true,  3, -1, false, 2, -1, true, CommonTestUtils::DEVICE_KEEMBAY,  8, 0},
-                                               ConfigParams {false, 3, -1, true, 2, -1, false, CommonTestUtils::DEVICE_KEEMBAY,  2, 0},
-                                               ConfigParams {true,  3, -1, true, 2, -1, false, CommonTestUtils::DEVICE_KEEMBAY,  2, 0},
-                                               ConfigParams {false, 3, 5, false, 2, 5, true, CommonTestUtils::DEVICE_KEEMBAY,  1, 0},
-                                               ConfigParams {true,  3, 5, false, 2, 5, true, CommonTestUtils::DEVICE_KEEMBAY,  8, 0},
-                                               ConfigParams {false, 3, 5, true, 2, 5, false, CommonTestUtils::DEVICE_KEEMBAY,  2, 0},
-                                               ConfigParams {true,  3, 5, true, 2, 5, false, CommonTestUtils::DEVICE_KEEMBAY,  2, 0},
+                                               ConfigParams {false, 3, -1, false, 2, -1, true, CommonTestUtils::DEVICE_GPU,  1, 0, false},
+                                               ConfigParams {true,  3, -1, false, 2, -1, true, CommonTestUtils::DEVICE_GPU,  48, 0, false},
+                                               ConfigParams {false, 3, -1, true, 2, -1, false, CommonTestUtils::DEVICE_GPU,  2, 0, false},
+                                               ConfigParams {true,  3, -1, true, 2, -1, false, CommonTestUtils::DEVICE_GPU,  2, 0, false},
+                                               ConfigParams {false, 3, 5, false, 2, 5, true, CommonTestUtils::DEVICE_GPU,  1, 0, false},
+                                               ConfigParams {true,  3, 5, false, 2, 5, true, CommonTestUtils::DEVICE_GPU,  48, 0, false},
+                                               ConfigParams {false, 3, 5, true, 2, 5, false, CommonTestUtils::DEVICE_GPU,  2, 0, false},
+                                               ConfigParams {true,  3, 5, true, 2, 5, false, CommonTestUtils::DEVICE_GPU,  2, 0, false},
+                                               ConfigParams {true,  3, 5, false, 2, 5, true, CommonTestUtils::DEVICE_GPU,  48, 48, false},
+                                               ConfigParams {true,  3, 5, false, 2, 5, true, CommonTestUtils::DEVICE_GPU,  8, 6, false},
+                                               ConfigParams {true,  3, 5, false, 0, 5, true, CommonTestUtils::DEVICE_GPU,  8, 6, true},
+                                               ConfigParams {false,  3, 5, false, 0, 5, true, CommonTestUtils::DEVICE_GPU,  1, 6, true},
+                                               ConfigParams {true,  3, 5, false, 6, 5, true, CommonTestUtils::DEVICE_GPU,  6, 6, true},
+                                               ConfigParams {false,  3, 5, false, 6, 5, true, CommonTestUtils::DEVICE_GPU,  6, 6, true},
+                                               ConfigParams {false, 3, -1, false, 2, -1, true, CommonTestUtils::DEVICE_KEEMBAY,  1, 0, false},
+                                               ConfigParams {true,  3, -1, false, 2, -1, true, CommonTestUtils::DEVICE_KEEMBAY,  8, 0, false},
+                                               ConfigParams {false, 3, -1, false, 0, -1, true, CommonTestUtils::DEVICE_KEEMBAY,  1, 0, true},
+                                               ConfigParams {true, 3, -1, false, 0, -1, true, CommonTestUtils::DEVICE_KEEMBAY,  8, 0, true},
+                                               ConfigParams {false,  3, -1, false, 2, -1, true, CommonTestUtils::DEVICE_KEEMBAY,  2, 0, true},
+                                               ConfigParams {true,  3, -1, false, 2, -1, true, CommonTestUtils::DEVICE_KEEMBAY,  2, 0, true},
+                                               ConfigParams {false, 3, -1, true, 2, -1, false, CommonTestUtils::DEVICE_KEEMBAY,  2, 0, false},
+                                               ConfigParams {true,  3, -1, true, 2, -1, false, CommonTestUtils::DEVICE_KEEMBAY,  2, 0, false},
+                                               ConfigParams {false, 3, 5, false, 2, 5, true, CommonTestUtils::DEVICE_KEEMBAY,  1, 0, false},
+                                               ConfigParams {true,  3, 5, false, 2, 5, true, CommonTestUtils::DEVICE_KEEMBAY,  8, 0, false},
+                                               ConfigParams {false, 3, 5, true, 2, 5, false, CommonTestUtils::DEVICE_KEEMBAY,  2, 0, false},
+                                               ConfigParams {true,  3, 5, true, 2, 5, false, CommonTestUtils::DEVICE_KEEMBAY,  2, 0, false},
                                               };
 
 INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests,
