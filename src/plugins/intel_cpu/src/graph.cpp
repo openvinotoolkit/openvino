@@ -1068,6 +1068,12 @@ void Graph::PullOutputData(std::unordered_map<std::string, ov::Tensor>& out,
             if (it == aux_tensors.end()) {
                 OPENVINO_THROW("Output precision has been changed, but cannot find its aux tensor.");
             }
+
+            auto& aux_tensor = it->second;
+            // Dynamic case
+            if (outDims != aux_tensor.get_shape()) {
+                aux_tensor.set_shape(outDims);
+            }
             void* ext_blob_ptr = it->second.data();
             if ((intr_blob_ptr == nullptr) || (ext_blob_ptr == nullptr)) {
                 OPENVINO_THROW("Get tensor has no allocated memory");
