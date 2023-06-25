@@ -111,12 +111,4 @@ int64_t get_normalized_negative_gather_axis(const std::shared_ptr<ov::opset12::C
  */
 bool get_gather_axis(const std::shared_ptr<ov::Node>& gather, int64_t& axis);
 
-bool constant_has_rank_not_more_than(const std::shared_ptr<ov::opset9::Constant>&,
-                                     const ov::Rank::value_type expected_rank);
-
-/**
- * Checks if output has rank not more than expected
- */
-std::function<bool(ov::Output<ov::Node>)> rank_not_more_than(const ov::Rank::value_type expected_rank);
-
 }  // namespace gather_sinking
