@@ -4,6 +4,7 @@
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
+
 #include <thread>
 
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
@@ -30,8 +31,7 @@ using ::testing::ReturnRef;
 using ::testing::StrEq;
 using ::testing::StrNe;
 using ::testing::Throw;
-using namespace MockAutoBatchPlugin;
-using namespace MockAutoBatchDevice;
+using namespace ov::mock_autobatch_plugin;
 using namespace InferenceEngine;
 
 using AutoBatchRequestTestParams = std::tuple<int,                      // batch_size
@@ -42,12 +42,12 @@ public:
     // Mock inferRequest
     std::shared_ptr<NiceMock<MockIInferRequestInternal>> mockInferRequestBatched;
 
-    std::vector<std::shared_ptr<AutoBatchInferRequest>> autoBatchInferRequests;
+    std::vector<std::shared_ptr<SyncInferRequest>> autoBatchInferRequests;
     std::map<std::string, InferenceEngine::Blob::Ptr> blobMap;
 
     std::vector<std::shared_ptr<const ov::Node>> inputs, outputs;
     std::set<std::string> batchedInputs, batchedOutputs;
-    std::shared_ptr<AutoBatchExecutableNetwork::WorkerInferRequest> workerRequestPtr;
+    std::shared_ptr<CompiledModel::WorkerInferRequest> workerRequestPtr;
 
 public:
     static std::string getTestCaseName(testing::TestParamInfo<AutoBatchRequestTestParams> obj) {
@@ -80,14 +80,14 @@ public:
     }
 
     void create_worker(int batch_size) {
-        workerRequestPtr = std::make_shared<AutoBatchExecutableNetwork::WorkerInferRequest>();
+        workerRequestPtr = std::make_shared<CompiledModel::WorkerInferRequest>();
 
         workerRequestPtr->_inferRequestBatched = {mockInferRequestBatched, {}};
         workerRequestPtr->_batchSize = batch_size;
         workerRequestPtr->_completionTasks.resize(workerRequestPtr->_batchSize);
         workerRequestPtr->_inferRequestBatched->SetCallback([this](std::exception_ptr exceptionPtr) mutable {
             if (exceptionPtr)
-                workerRequestPtr->_exceptionPtr = exceptionPtr;
+                workerRequestPtr->m_exceptionPtr = exceptionPtr;
         });
         workerRequestPtr->_thread = std::thread([] {
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
@@ -173,13 +173,13 @@ TEST_P(AutoBatchRequestTest, AutoBatchRequestCreateTestCase) {
     create_worker(batch_size);
 
     for (int batch_id = 0; batch_id < batch_size; batch_id++) {
-        auto req = std::make_shared<AutoBatchInferRequest>(inputs,
-                                                           outputs,
-                                                           *workerRequestPtr,
-                                                           batch_id,
-                                                           batch_size,
-                                                           batchedInputs,
-                                                           batchedOutputs);
+        auto req = std::make_shared<SyncInferRequest>(inputs,
+                                                      outputs,
+                                                      *workerRequestPtr,
+                                                      batch_id,
+                                                      batch_size,
+                                                      batchedInputs,
+                                                      batchedOutputs);
         EXPECT_NE(req, nullptr);
         autoBatchInferRequests.emplace_back(req);
 
@@ -206,13 +206,13 @@ TEST_P(AutoBatchRequestTest, AutoBatchRequestCopyBlobTestCase) {
     create_worker(batch_size);
 
     for (int batch_id = 0; batch_id < batch_size; batch_id++) {
-        auto req = std::make_shared<AutoBatchInferRequest>(inputs,
-                                                           outputs,
-                                                           *workerRequestPtr,
-                                                           batch_id,
-                                                           batch_size,
-                                                           batchedInputs,
-                                                           batchedOutputs);
+        auto req = std::make_shared<SyncInferRequest>(inputs,
+                                                      outputs,
+                                                      *workerRequestPtr,
+                                                      batch_id,
+                                                      batch_size,
+                                                      batchedInputs,
+                                                      batchedOutputs);
         EXPECT_NE(req, nullptr);
         autoBatchInferRequests.emplace_back(req);
 
@@ -225,7 +225,7 @@ class AutoBatchAsyncInferRequestTest : public AutoBatchRequestTest {
 public:
     std::shared_ptr<NiceMock<MockIInferRequestInternal>> mockInferRequestWithoutBatched;
     MockTaskExecutor::Ptr mockTaskExecutor;
-    std::vector<AutoBatchAsyncInferRequest::Ptr> autoBatchAsyncInferRequestVec;
+    std::vector<AsyncInferRequest::Ptr> autoBatchAsyncInferRequestVec;
     bool terminate;
 
 public:
@@ -245,14 +245,14 @@ public:
     }
 
     void create_worker(int batch_size) {
-        workerRequestPtr = std::make_shared<AutoBatchExecutableNetwork::WorkerInferRequest>();
+        workerRequestPtr = std::make_shared<CompiledModel::WorkerInferRequest>();
 
         workerRequestPtr->_inferRequestBatched = {mockInferRequestBatched, {}};
         workerRequestPtr->_batchSize = batch_size;
         workerRequestPtr->_completionTasks.resize(workerRequestPtr->_batchSize);
         workerRequestPtr->_inferRequestBatched->SetCallback([this](std::exception_ptr exceptionPtr) mutable {
             if (exceptionPtr)
-                workerRequestPtr->_exceptionPtr = exceptionPtr;
+                workerRequestPtr->m_exceptionPtr = exceptionPtr;
         });
 
         ON_CALL(*mockInferRequestBatched, StartAsync()).WillByDefault([this]() {
@@ -275,21 +275,21 @@ public:
                 } else {
                     const int sz = static_cast<int>(workerRequestPtr->_tasks.size());
                     if (sz == workerRequestPtr->_batchSize) {
-                        std::pair<AutoBatchAsyncInferRequest*, InferenceEngine::Task> t;
+                        std::pair<AsyncInferRequest*, InferenceEngine::Task> t;
                         for (int n = 0; n < sz; n++) {
                             IE_ASSERT(workerRequestPtr->_tasks.try_pop(t));
                             workerRequestPtr->_completionTasks[n] = std::move(t.second);
-                            t.first->_inferRequest->_wasBatchedRequestUsed =
-                                AutoBatchInferRequest::eExecutionFlavor::BATCH_EXECUTED;
+                            t.first->m_sync_infer_request->m_batched_request_status =
+                                SyncInferRequest::eExecutionFlavor::BATCH_EXECUTED;
                         }
                         workerRequestPtr->_inferRequestBatched->StartAsync();
                     } else if ((status == std::cv_status::timeout) && sz) {
-                        std::pair<AutoBatchAsyncInferRequest*, InferenceEngine::Task> t;
+                        std::pair<AsyncInferRequest*, InferenceEngine::Task> t;
                         for (int n = 0; n < sz; n++) {
                             IE_ASSERT(workerRequestPtr->_tasks.try_pop(t));
-                            t.first->_inferRequest->_wasBatchedRequestUsed =
-                                AutoBatchInferRequest::eExecutionFlavor::TIMEOUT_EXECUTED;
-                            t.first->_inferRequestWithoutBatch->StartAsync();
+                            t.first->m_sync_infer_request->m_batched_request_status =
+                                SyncInferRequest::eExecutionFlavor::TIMEOUT_EXECUTED;
+                            t.first->m_infer_request_without_batch->StartAsync();
                             t.second();
                         }
                     }
@@ -311,19 +311,19 @@ TEST_P(AutoBatchAsyncInferRequestTest, AutoBatchAsyncInferRequestCreateTest) {
     create_worker(batch_size);
 
     for (int batch_id = 0; batch_id < batch_size; batch_id++) {
-        auto autoRequestImpl = std::make_shared<AutoBatchInferRequest>(inputs,
-                                                                       outputs,
-                                                                       *workerRequestPtr,
-                                                                       batch_id,
-                                                                       batch_size,
-                                                                       batchedInputs,
-                                                                       batchedOutputs);
+        auto autoRequestImpl = std::make_shared<SyncInferRequest>(inputs,
+                                                                  outputs,
+                                                                  *workerRequestPtr,
+                                                                  batch_id,
+                                                                  batch_size,
+                                                                  batchedInputs,
+                                                                  batchedOutputs);
         EXPECT_NE(autoRequestImpl, nullptr);
         autoBatchInferRequests.emplace_back(autoRequestImpl);
 
         InferenceEngine::SoIInferRequestInternal inferRequestWithoutBatched = {mockInferRequestWithoutBatched, {}};
         auto asyncInferRequest =
-            std::make_shared<AutoBatchAsyncInferRequest>(autoRequestImpl, inferRequestWithoutBatched, nullptr);
+            std::make_shared<AsyncInferRequest>(autoRequestImpl, inferRequestWithoutBatched, nullptr);
         EXPECT_NE(asyncInferRequest, nullptr);
         autoBatchAsyncInferRequestVec.emplace_back(asyncInferRequest);
     }
@@ -340,19 +340,19 @@ TEST_P(AutoBatchAsyncInferRequestTest, AutoBatchAsyncInferRequestStartAsyncTest)
     create_worker(batch_size);
 
     for (int batch_id = 0; batch_id < batch_size; batch_id++) {
-        auto autoRequestImpl = std::make_shared<AutoBatchInferRequest>(inputs,
-                                                                       outputs,
-                                                                       *workerRequestPtr,
-                                                                       batch_id,
-                                                                       batch_size,
-                                                                       batchedInputs,
-                                                                       batchedOutputs);
+        auto autoRequestImpl = std::make_shared<SyncInferRequest>(inputs,
+                                                                  outputs,
+                                                                  *workerRequestPtr,
+                                                                  batch_id,
+                                                                  batch_size,
+                                                                  batchedInputs,
+                                                                  batchedOutputs);
         EXPECT_NE(autoRequestImpl, nullptr);
         autoBatchInferRequests.emplace_back(autoRequestImpl);
 
         InferenceEngine::SoIInferRequestInternal inferRequestWithoutBatched = {mockInferRequestWithoutBatched, {}};
         auto asyncInferRequest =
-            std::make_shared<AutoBatchAsyncInferRequest>(autoRequestImpl, inferRequestWithoutBatched, nullptr);
+            std::make_shared<AsyncInferRequest>(autoRequestImpl, inferRequestWithoutBatched, nullptr);
         EXPECT_NE(asyncInferRequest, nullptr);
         autoBatchAsyncInferRequestVec.emplace_back(asyncInferRequest);
     }

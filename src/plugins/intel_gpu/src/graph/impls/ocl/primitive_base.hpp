@@ -38,10 +38,7 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
     // a pair of batch program hash and kernel entry hash of each ocl impl.
     std::pair<std::string, std::string> kernel_dump_info;
 
-    typed_primitive_impl_ocl() :  _kernel_data({}), _cached_kernel_ids({}), _kernels({}) {
-        _kernel_data.weightsReorderParams.engine = kernel_selector::generic_kernel_params::Engine::NONE;
-        _kernel_data.weightsReorderParams.clKernel = nullptr;
-    }
+    typed_primitive_impl_ocl() : _kernel_data({}), _cached_kernel_ids({}), _kernels({}) {}
 
     typed_primitive_impl_ocl(const typed_primitive_impl_ocl<PType>& other)
     : typed_primitive_impl<PType>(other._weights_reorder_params, other._kernel_name, other._is_dynamic)
@@ -58,10 +55,6 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
     typed_primitive_impl_ocl(const kernel_selector::kernel_data& kd)
         : typed_primitive_impl<PType>(create_weights_reorder_params(kd.weightsReorderParams), kd.kernelName),
           _kernel_data(kd) {
-        // weights reorder params got copied to parent, clear in _kernel_data to release shared ptr
-        _kernel_data.weightsReorderParams.engine = kernel_selector::generic_kernel_params::Engine::NONE;
-        _kernel_data.weightsReorderParams.clKernel = nullptr;
-
         this->can_reuse_memory = _kernel_data.can_reuse_memory;
     }
 
@@ -194,7 +187,7 @@ protected:
         OPENVINO_ASSERT(_kernels.size() == _kernel_data.kernels.size(), "[GPU] Mismatch between compiled kernels count and expected kernels data\n",
                                                                         "[GPU] Compiled kernels count: ", _kernels.size(), "\n",
                                                                         "[GPU] KernelData count: ", _kernel_data.kernels.size(), "\n",
-                                                                        "[GPU] Likely some issue with empty tensors hanlding happened");
+                                                                        "[GPU] Likely some issue with empty tensor handling happened");
 
         stream& stream = instance.get_network().get_stream();
         for (size_t kd_idx = 0; kd_idx < _kernel_data.kernels.size(); ++kd_idx) {
@@ -255,7 +248,7 @@ protected:
         OPENVINO_ASSERT(_kernels.size() == _kernel_data.kernels.size(), "[GPU] Mismatch between compiled kernels count and expected kernels data\n",
                                                                         "[GPU] Compiled kernels count: ", _kernels.size(), "\n",
                                                                         "[GPU] KernelData count: ", _kernel_data.kernels.size(), "\n",
-                                                                        "[GPU] Likely some issue with empty tensors hanlding happened");
+                                                                        "[GPU] Likely some issue with empty tensor handling happened");
         for (size_t kd_idx = 0; kd_idx < _kernel_data.kernels.size(); ++kd_idx) {
             if (_kernel_data.kernels[kd_idx].skip_execution)
                 continue;

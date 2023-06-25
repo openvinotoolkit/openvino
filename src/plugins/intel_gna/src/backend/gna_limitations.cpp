@@ -785,7 +785,8 @@ bool Limitations::is_conv_supported(const std::shared_ptr<ngraph::op::Convolutio
     auto check_dilation = [&](size_t filter_dilation_height, size_t filter_stride_width) -> bool {
         cnn2d::RangeLimit2D dilation_limit{{kConvDilationHeight, kConvDilationHeight, "dilation height"},
                                            {kConvDilationWidth, kConvDilationWidth, "dilation width"}};
-        std::string error = dilation_limit.GetErrorOrEmpty(filter_dilation_height, filter_stride_width);
+        std::string error = dilation_limit.GetErrorOrEmpty(static_cast<uint32_t>(filter_dilation_height),
+                                                           static_cast<uint32_t>(filter_stride_width));
         return cnn2d::AbstractValidator::ValidationSuccesful(is_exception_allowed,
                                                              error,
                                                              conv_ie->get_friendly_name(),
@@ -797,28 +798,28 @@ bool Limitations::is_conv_supported(const std::shared_ptr<ngraph::op::Convolutio
         (4 == input_shape.size() && input_shape[2] > 1 && input_shape[3] > 1)) {
         pass::helper::ConvData conv_data;
         pass::helper::GetConvData(conv_ie, conv_data);
-        if (gna_convolution_layer::isMappableFrom2DTo1D(conv_data.input_height,
-                                                        conv_data.input_width,
-                                                        conv_data.input_channel_count,
-                                                        conv_data.filter_height,
-                                                        conv_data.filter_width,
-                                                        conv_data.filter_stride_height,
-                                                        conv_data.filter_stride_width)) {
+        if (gna_convolution_layer::isMappableFrom2DTo1D(static_cast<uint32_t>(conv_data.input_height),
+                                                        static_cast<uint32_t>(conv_data.input_width),
+                                                        static_cast<uint32_t>(conv_data.input_channel_count),
+                                                        static_cast<uint32_t>(conv_data.filter_height),
+                                                        static_cast<uint32_t>(conv_data.filter_width),
+                                                        static_cast<uint32_t>(conv_data.filter_stride_height),
+                                                        static_cast<uint32_t>(conv_data.filter_stride_width))) {
             return check_dilation(conv_data.filter_dilation_height, conv_data.filter_dilation_width);
         }
 
         if (m_cnn_validator) {
             return m_cnn_validator->ValidateCnn2D(conv_ie->get_friendly_name(),
-                                                  conv_data.input_height,
-                                                  conv_data.input_width,
-                                                  conv_data.input_channel_count,
-                                                  conv_data.filter_height,
-                                                  conv_data.filter_width,
-                                                  conv_data.filter_channel_count,
-                                                  conv_data.filter_stride_height,
-                                                  conv_data.filter_stride_width,
-                                                  conv_data.filter_dilation_height,
-                                                  conv_data.filter_dilation_width,
+                                                  static_cast<uint32_t>(conv_data.input_height),
+                                                  static_cast<uint32_t>(conv_data.input_width),
+                                                  static_cast<uint32_t>(conv_data.input_channel_count),
+                                                  static_cast<uint32_t>(conv_data.filter_height),
+                                                  static_cast<uint32_t>(conv_data.filter_width),
+                                                  static_cast<uint32_t>(conv_data.filter_channel_count),
+                                                  static_cast<uint32_t>(conv_data.filter_stride_height),
+                                                  static_cast<uint32_t>(conv_data.filter_stride_width),
+                                                  static_cast<uint32_t>(conv_data.filter_dilation_height),
+                                                  static_cast<uint32_t>(conv_data.filter_dilation_width),
                                                   OvGnaTypeIntFromBytes(gna_precision.size()),
                                                   is_exception_allowed);
         }
@@ -834,10 +835,10 @@ bool Limitations::is_pooling_supported(const std::shared_ptr<ngraph::opset7::Max
         if (m_cnn_validator) {
             auto strides = max_pool->get_strides();
             return m_cnn_validator->ValidatePooling2D(max_pool->get_friendly_name(),
-                                                      kernels[0],
-                                                      kernels[1],
-                                                      strides[0],
-                                                      strides[1],
+                                                      static_cast<uint32_t>(kernels[0]),
+                                                      static_cast<uint32_t>(kernels[1]),
+                                                      static_cast<uint32_t>(strides[0]),
+                                                      static_cast<uint32_t>(strides[1]),
                                                       is_exception_allowed);
         }
     }
@@ -944,8 +945,9 @@ bool Limitations::validate_concat_axis(const InferenceEngine::CNNLayerPtr layer,
                        ptr->GetParamAsInts("order") == std::vector<int32_t>{0, 2, 1} /* NCW to NWC */))));
         };
 
-        for (auto input_idx = 0; input_idx != concat_layer->insData.size(); input_idx++) {
-            prev_layer = InferenceEngine::CNNNetPrevLayerSkipCertain(layer, input_idx, isFusableWithConv);
+        for (size_t input_idx = 0; input_idx != concat_layer->insData.size(); input_idx++) {
+            prev_layer =
+                InferenceEngine::CNNNetPrevLayerSkipCertain(layer, static_cast<int>(input_idx), isFusableWithConv);
             if (prev_layer && LayerInfo(prev_layer).isConvolution())
                 return true;
         }
@@ -975,12 +977,12 @@ bool Limitations::validate_concat_axis(const InferenceEngine::CNNLayerPtr layer,
         } else {
             concat_all_const_or_inputs = true;
 
-            for (auto input_idx = 0; input_idx != concat_layer->insData.size(); input_idx++) {
+            for (size_t input_idx = 0; input_idx != concat_layer->insData.size(); input_idx++) {
                 if (concat_layer->insData[input_idx].lock()->getDims()[0] != 1) {
                     // First we're checking concat input layers
                     prev_layer = InferenceEngine::CNNNetPrevLayerSkipCertain(
                         concat_layer,
-                        input_idx,
+                        static_cast<int>(input_idx),
                         [](InferenceEngine::CNNLayerPtr ptr) {
                             return LayerInfo(ptr).isNonFunctional() || LayerInfo(ptr).isFakeQuantize();
                         });
@@ -1076,9 +1078,11 @@ bool Limitations::validate_conv_concat_axis(const InferenceEngine::ConcatLayer* 
         auto concat_axis = concat_layer->_axis;
         auto concat_layout = concat_layer->input()->getLayout();
 
-        for (auto input_idx = 0; input_idx != concat_layer->insData.size(); input_idx++) {
+        for (size_t input_idx = 0; input_idx != concat_layer->insData.size(); input_idx++) {
             // Supported cases for concatenation of a convolution
-            prev_layer = InferenceEngine::CNNNetPrevLayerSkipCertain(concat_layer, input_idx, isFusableWithConv);
+            prev_layer = InferenceEngine::CNNNetPrevLayerSkipCertain(concat_layer,
+                                                                     static_cast<int>(input_idx),
+                                                                     isFusableWithConv);
             if (prev_layer && LayerInfo(prev_layer).isConvolution()) {
                 // Allow concatenation along N axis for non-interleaved primitives
                 // (currently only convolution)
