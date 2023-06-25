@@ -51,19 +51,19 @@ void ov_sgemm_compute(const char* transa,
                       float* C,
                       const int64_t ldc) {
     // C = alpha*op( A )op( B ) + beta * C
-    std::vector<MLAS_SGEMM_DATA_PARAMS> data(1);
-    data[0].BIsPacked = false;
-    data[0].A = A;
-    data[0].lda = lda;
-    data[0].B = B;
-    data[0].ldb = ldb;
-    data[0].C = C;
-    data[0].ldc = ldc;
-    data[0].alpha = alpha;
-    data[0].beta = beta;
+    MLAS_SGEMM_DATA_PARAMS sgemmParam;
+    sgemmParam.BIsPacked = false;
+    sgemmParam.A = A;
+    sgemmParam.lda = lda;
+    sgemmParam.B = B;
+    sgemmParam.ldb = ldb;
+    sgemmParam.C = C;
+    sgemmParam.ldc = ldc;
+    sgemmParam.alpha = alpha;
+    sgemmParam.beta = beta;
     auto _transa = *transa == 'N' ? CblasNoTrans : CblasTrans;
     auto _transb = *transb == 'N' ? CblasNoTrans : CblasTrans;
-    MlasGemmBatch(_transa, _transb, M, N, K, data.data(), 1, nullptr);
+    MlasGemmBatch(_transa, _transb, M, N, K, &sgemmParam, 1, nullptr);
 }
 
 void ov_sgemm_pack_compute(const char* transa,
@@ -82,18 +82,18 @@ void ov_sgemm_pack_compute(const char* transa,
                            const float* bias) {
     // C = alpha*op( A )op( B ) + beta * C
     ov::cpu::ThreadPool threadPool;
-    std::vector<MLAS_SGEMM_DATA_PARAMS> data(1);
-    data[0].BIsPacked = true;
-    data[0].A = A;
-    data[0].lda = lda;
-    data[0].B = B;
-    data[0].ldb = ldb;
-    data[0].C = C;
-    data[0].ldc = ldc;
-    data[0].alpha = alpha;
-    data[0].beta = beta;
-    data[0].bias = bias;
+    MLAS_SGEMM_DATA_PARAMS sgemmParam;
+    sgemmParam.BIsPacked = true;
+    sgemmParam.A = A;
+    sgemmParam.lda = lda;
+    sgemmParam.B = B;
+    sgemmParam.ldb = ldb;
+    sgemmParam.C = C;
+    sgemmParam.ldc = ldc;
+    sgemmParam.alpha = alpha;
+    sgemmParam.beta = beta;
+    sgemmParam.bias = bias;
     auto _transa = *transa == 'N' ? CblasNoTrans : CblasTrans;
     auto _transb = *transb == 'N' ? CblasNoTrans : CblasTrans;
-    MlasGemmBatch(_transa, _transb, M, N, K, data.data(), 1, &threadPool);
+    MlasGemmBatch(_transa, _transb, M, N, K, &sgemmParam, 1, &threadPool);
 }

@@ -321,12 +321,10 @@ void FullyConnected::prepareParams() {
     // M, N should be normalized and updated
     if (useMlas) {
         outDims = dstMemPtr->getStaticDims();
-        if (outDims.size() == 3) {
-            M = outDims[0] * outDims[1];
-            N = outDims[2];
+        if (outDims.size() >= 3) {
+            M = std::accumulate(outDims.begin(), outDims.end() - 1, 1, std::multiplies<size_t>());
         } else {
             M = outDims[0];
-            N = outDims[1];
         }
         return;
     }
@@ -998,24 +996,20 @@ void FullyConnected::prepackMLASWeight() {
             size_t ldb = K;
             MemoryPtr _ptr = std::make_shared<Memory>(getEngine());
             _ptr->Create(
-                intel_cpu::DnnlBlockedMemoryDesc(Precision::I8, intel_cpu::Shape{packedBsize}));
+                intel_cpu::CpuBlockedMemoryDesc(Precision::I8, intel_cpu::Shape{packedBsize}));
             float* prepackedDst = reinterpret_cast<float*>(_ptr->GetPtr());
             ov_sgemm_pack("T", N, K, ldb, weightPtr, prepackedDst);
             return _ptr;
         };
-        if (mlasPackedPtr != nullptr) {
-            ptr = mlasPackedPtr;
-        } else {
-            auto weightCache = context->getWeightsCache();
-            if (weightCache != nullptr) {
-                const std::string string_hash = getName() + "_" + format + "_" + std::to_string(weightsMem->GetSize()) +
-                                                "_" + std::to_string(reinterpret_cast<uint64_t>(weightsMem->GetData()));
 
-                ptr = *weightCache->findOrCreate(string_hash, create);
-            } else {
-                ptr = create();
-            }
-            mlasPackedPtr = ptr;
+        auto weightCache = context->getWeightsCache();
+        if (weightCache != nullptr) {
+            const std::string string_hash = getName() + "_" + format + "_" + std::to_string(weightsMem->GetSize()) +
+                                            "_" + std::to_string(reinterpret_cast<uint64_t>(weightsMem->GetData()));
+
+            ptr = *weightCache->findOrCreate(string_hash, create);
+        } else {
+            ptr = create();
         }
         return ptr;
     };
@@ -1026,7 +1020,7 @@ void FullyConnected::prepackMLASWeight() {
     N = wgtDims[0];
 
     if (mlasPackedPtr == nullptr) {
-        prepareMLASWeight(N, K);
+        mlasPackedPtr = prepareMLASWeight(N, K);
     }
 }
 
