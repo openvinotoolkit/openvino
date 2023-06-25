@@ -4,7 +4,7 @@ With the OpenVINO™ 2022.3 release, you can download and use archive files to i
 
 Installing OpenVINO Runtime from archive files is recommended for C++ developers. If you are working with Python, the PyPI package has everything needed for Python development and deployment on CPU and GPUs. See the [Install OpenVINO from PyPI](installing-openvino-pip.md) page for instructions on how to install OpenVINO Runtime for Python using PyPI.
 
-> **NOTE**: Since the OpenVINO™ 2022.1 release, the following development tools: Model Optimizer, Post-Training Optimization Tool, Model Downloader and other Open Model Zoo tools, Accuracy Checker, and Annotation Converter can be installed via [pypi.org](https://pypi.org/project/openvino-dev/) only.
+> **NOTE**: Since the OpenVINO™ 2022.1 release, the following development tools: Model Optimizer, Post-Training Optimization Tool, Model Downloader and other Open Model Zoo tools, Accuracy Checker, and Annotation Converter can be installed via [pypi.org](https://pypi.org/project/openvino-dev/2022.3.1/) only.
 
 See the [Release Notes](https://www.intel.com/content/www/us/en/developer/articles/release-notes/openvino-2022-3-lts-relnotes.html) for more information on updates in the latest release.
 
@@ -14,7 +14,7 @@ See the [Release Notes](https://www.intel.com/content/www/us/en/developer/articl
 .. tab:: System Requirements
 
    | Full requirement listing is available in:
-   | `System Requirements Page <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html>`_
+   | `System Requirements Page <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html>`__
 
 .. tab:: Processor Notes
 
@@ -25,18 +25,18 @@ See the [Release Notes](https://www.intel.com/content/www/us/en/developer/articl
 
 .. tab:: Software
 
-  * `Microsoft Visual Studio 2019 with MSBuild <https://visualstudio.microsoft.com/vs/older-downloads/>`_ or `Microsoft Visual Studio 2022 <http://visualstudio.microsoft.com/downloads/>`_
-  * `CMake 3.14 or higher, 64-bit <https://cmake.org/download/>`_ (optional, only required for building sample applications)
-  * `Python 3.7 - 3.10, 64-bit <https://www.python.org/downloads/windows/>`_
+  * `Microsoft Visual Studio 2019 with MSBuild <https://visualstudio.microsoft.com/vs/older-downloads/>`__ or `Microsoft Visual Studio 2022 <http://visualstudio.microsoft.com/downloads/>`__
+  * `CMake 3.14 or higher, 64-bit <https://cmake.org/download/>`__ (optional, only required for building sample applications)
+  * `Python 3.7 - 3.10, 64-bit <https://www.python.org/downloads/windows/>`__
 
   .. note::
-     To install Microsoft Visual Studio 2019, follow the `Microsoft Visual Studio installation guide <https://docs.microsoft.com/en-us/visualstudio/install/install-visual-studio?view=vs-2019>`_. You can choose to download the Community version. During installation in the **Workloads** tab, choose **Desktop development with C++**.
+     To install Microsoft Visual Studio 2019, follow the `Microsoft Visual Studio installation guide <https://docs.microsoft.com/en-us/visualstudio/install/install-visual-studio?view=vs-2019>`__. You can choose to download the Community version. During installation in the **Workloads** tab, choose **Desktop development with C++**.
 
   .. note::
-    You can either use `cmake<version>.msi` which is the installation wizard or `cmake<version>.zip` where you have to go into the `bin` folder and then manually add the path to environmental variables.
+    You can either use ``cmake<version>.msi`` which is the installation wizard or ``cmake<version>.zip`` where you have to go into the ``bin`` folder and then manually add the path to environmental variables.
 
   .. important::
-    When installing Python, make sure you click the option **Add Python 3.x to PATH** to `add Python <https://docs.python.org/3/using/windows.html#installation-steps>`_ to your `PATH` environment variable.
+    When installing Python, make sure you click the option **Add Python 3.x to PATH** to `add Python <https://docs.python.org/3/using/windows.html#installation-steps>`__ to your ``PATH`` environment variable.
 
 @endsphinxdirective
 
@@ -52,13 +52,15 @@ See the [Release Notes](https://www.intel.com/content/www/us/en/developer/articl
    ```
    > **NOTE**: `C:\Program Files (x86)\Intel` is the recommended folder. You may also use a different path if desired or if you don't have administrator privileges on your computer.
 
-2. Download the [OpenVINO Runtime archive file for Windows](https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.3/windows/) to your local `Downloads` folder.
+2. Download the [OpenVINO Runtime archive file for Windows](https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.3.1/windows/) to your local `Downloads` folder.
 
    If you prefer using command-lines, run the following commands in the command prompt window you opened:
+
    ```sh
    cd <user_home>/Downloads
-   curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.3/windows/w_openvino_toolkit_windows_2022.3.0.9052.9752fafe8eb_x86_64.zip --output openvino_2022.3.0.zip
+   curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.3.1/windows/w_openvino_toolkit_windows_2022.3.1.9227.cf2c7da5689_x86_64.zip --output openvino_2022.3.1.zip
    ```
+
    > **NOTE**: A `.sha256` file is provided together with the archive file to validate your download process. To do that, download the `.sha256` file from the same repository and run `CertUtil -hashfile openvino_2022.3.0.zip SHA256`. Compare the returned value in the output with what's in the `.sha256` file: if the values are the same, you have downloaded the correct file successfully; if not, create a Support ticket [here](https://www.intel.com/content/www/us/en/support/contact-intel.html).
 
 

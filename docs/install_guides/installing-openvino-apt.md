@@ -10,7 +10,8 @@ Installing OpenVINO Runtime from APT is recommended for C++ developers. If you a
 
 .. warning:: 
 
-   By downloading and using this container and the included software, you agree to the terms and conditions of the `software license agreements <https://software.intel.com/content/dam/develop/external/us/en/documents/intel-openvino-license-agreements.pdf>`_.
+   By downloading and using this container and the included software, you agree to the terms and conditions of the `software license agreements <https://software.intel.com/content/dam/develop/external/us/en/documents/intel-openvino-license-agreements.pdf>`__.
+
 
 @endsphinxdirective
 
