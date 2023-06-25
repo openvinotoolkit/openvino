@@ -2097,3 +2097,64 @@ TEST(gather_gpu_u8, 322_axisF) {
 TEST(gather_gpu_u8, export_import) {
     test_gather_gpu_u8_322_axisF<uint8_t>(true);
 }
+
+TEST(gather_single_axis, simple_Baxis) {
+    auto& engine = get_test_engine();
+
+    auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 3, 2, 1, 2 } }); // Dictionary
+    auto input2 = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 1 } }); // Indexes
+    int64_t axis = 0;
+
+    set_values(input1, {
+        1.f, 2.f,  3.f,  4.f,
+        5.f, 6.f,  7.f,  8.f,
+        9.f, 10.f, 11.f, 12.f
+    });
+
+    set_values(input2, {
+        1
+    });
+
+    topology topology;
+    topology.add(input_layout("InputDictionary", input1->get_layout()));
+    topology.add(input_layout("InputText", input2->get_layout()));
+    topology.add(
+        gather("gather", input_info("InputDictionary"), input_info("InputText"), axis, ov::Shape{1, 2, 2, 1})
+    );
+    topology.add(reorder("reorder", input_info("gather"), format::bfyx, data_types::i8));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
+
+    network.set_input_data("InputDictionary", input1);
+    network.set_input_data("InputText", input2);
+
+    auto outputs = network.execute();
+
+    auto output = outputs.at("reorder").get_memory();
+    cldnn::mem_lock<int8_t> output_ptr(output, get_test_stream());
+
+    std::vector<int8_t> expected_results = {
+        5, 6, 7, 8
+    };
+
+    int crop_batch_num = 1;
+    int crop_feature_num = 2;
+    int crop_y_size = 2;
+    int crop_x_size = 1;
+    for (int b = 0; b < crop_batch_num; ++b) {
+        for (int f = 0; f < crop_feature_num; ++f) {
+            for (int y = 0; y < crop_y_size; ++y) {
+                for (int x = 0; x < crop_x_size; ++x) {
+                    int linear_id = x + y + 2 * f;
+                    int output_linear_id = x + crop_x_size * (y + crop_y_size * (f + crop_feature_num * b));
+                    ASSERT_EQ(output_ptr[output_linear_id], expected_results[linear_id]);
+                }
+            }
+        }
+    }
+
+    auto crop_prim = network.get_primitive("gather");
+    ASSERT_EQ(crop_prim->can_be_optimized(), false);
+}

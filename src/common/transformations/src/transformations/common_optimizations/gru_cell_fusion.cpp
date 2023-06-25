@@ -4,6 +4,7 @@
 
 #include "transformations/common_optimizations/gru_cell_fusion.hpp"
 
+#include <cctype>
 #include <memory>
 
 #include "itt.hpp"

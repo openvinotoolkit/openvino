@@ -483,7 +483,7 @@ TEST(TransformationTests, ReorgYoloNegativeDifferentMax) {
         auto param = std::make_shared<Parameter>(ngraph::element::f32, ngraph::Shape{10, 10, 10, 10});
         auto reorg_yolo = std::make_shared<ReorgYolo>(param, stride);
 
-        return std::make_shared<ngraph::Function>(std::make_shared<ngraph::opset1::Result>(reorg_yolo),
+        return std::make_shared<ngraph::Function>(std::make_shared<ov::op::v0::Result>(reorg_yolo),
                                                   ngraph::ParameterVector{param});
     };
 
