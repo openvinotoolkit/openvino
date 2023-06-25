@@ -137,6 +137,7 @@ struct CPUStreamsExecutor::Impl {
                 _taskArena.reset(new custom::task_arena{concurrency});
             } else if (stream_type == STREAM_WITH_NUMA_ID) {
                 _numaNodeId = _impl->_usedNumaNodes.at(numa_node_id);
+                _socketId = get_socket_by_numa_node(_numaNodeId);
                 _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{_numaNodeId, concurrency}});
             } else if (stream_type == STREAM_WITH_CORE_TYPE) {
                 const auto real_core_type = (core_type == MAIN_CORE_PROC || core_type == HYPER_THREADING_PROC)
@@ -301,6 +302,7 @@ struct CPUStreamsExecutor::Impl {
         Impl* _impl = nullptr;
         int _streamId = 0;
         int _numaNodeId = 0;
+        int _socketId = 0;
         bool _execute = false;
         std::queue<Task> _taskQueue;
 #if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO
@@ -445,6 +447,11 @@ int CPUStreamsExecutor::get_stream_id() {
 int CPUStreamsExecutor::get_numa_node_id() {
     auto stream = _impl->_streams.local();
     return stream->_numaNodeId;
+}
+
+int CPUStreamsExecutor::get_socket_id() {
+    auto stream = _impl->_streams.local();
+    return stream->_socketId;
 }
 
 CPUStreamsExecutor::CPUStreamsExecutor(const IStreamsExecutor::Config& config) : _impl{new Impl{config}} {}

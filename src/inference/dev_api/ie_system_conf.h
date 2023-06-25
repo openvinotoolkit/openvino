@@ -192,6 +192,14 @@ using ov::reserve_available_cpus;
 using ov::set_cpu_used;
 
 /**
+ * @brief      Get socket id by current numa node id
+ * @ingroup    ie_dev_api_system_conf
+ * @param[in]  numa_node_id numa node id
+ * @return     socket id
+ */
+using ov::get_socket_by_numa_node;
+
+/**
  * @brief      This enum contains definition of each columns in processor type table which bases on cpu core types. Will
  * extend to support other CPU core type like ARM.
  *

@@ -166,6 +166,7 @@ ExecNetwork::GraphGuard::Lock ExecNetwork::GetGraph() const {
     if (nullptr != streamsExecutor) {
         streamId = streamsExecutor->GetStreamId();
         numaNodeId = streamsExecutor->GetNumaNodeId();
+
     }
     auto graphLock = GraphGuard::Lock(_graphs[streamId % _graphs.size()]);
     if (!graphLock._graph.IsReady()) {
