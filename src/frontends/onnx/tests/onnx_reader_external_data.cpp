@@ -4,14 +4,9 @@
 
 #include <file_utils.h>
 #include <gtest/gtest.h>
-#include <ie_blob.h>
 
 #include <algorithm>
 #include <fstream>
-#include <ie_core.hpp>
-#include <ngraph/ngraph.hpp>
-#include <openvino/frontend/manager.hpp>
-#include <openvino/openvino.hpp>
 #include <set>
 #include <streambuf>
 #include <string>
@@ -19,6 +14,11 @@
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/unicode_utils.hpp"
 #include "engines_util/test_case.hpp"
+#include "ie_blob.h"
+#include "ie_core.hpp"
+#include "ngraph/ngraph.hpp"
+#include "openvino/frontend/manager.hpp"
+#include "openvino/openvino.hpp"
 
 // API 1.0 tests
 TEST(ONNX_Reader_Tests, ImportModelWithExternalDataFromFile) {
