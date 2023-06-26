@@ -32,8 +32,7 @@
 
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include <itt.h>
-#include <unordered_map>
-#include <unordered_set>
+#include <set>
 
 using namespace InferenceEngine;
 
@@ -429,7 +428,7 @@ Engine::compile_model(const std::shared_ptr<const ov::Model>& model, const ov::A
     // verification of supported input
     for (const auto &ii : model->inputs()) {
         auto input_precision = ii.get_element_type();
-        static const std::unordered_set<ov::element::Type_t> supported_precisions = {
+        static const std::set<ov::element::Type_t> supported_precisions = {
             ov::element::Type_t::u8,   ov::element::Type_t::i8,
             ov::element::Type_t::u16,  ov::element::Type_t::i16,
             ov::element::Type_t::u32,  ov::element::Type_t::i32,
