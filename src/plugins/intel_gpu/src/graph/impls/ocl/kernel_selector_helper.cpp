@@ -406,6 +406,8 @@ kernel_selector::weights_layout to_weights_layout(format f, bool is_grouped) {
             return kernel_selector::weights_layout::yxio;
         case format::os_yxi_osv16:
             return kernel_selector::weights_layout::os_yxi_osv16;
+        case format::o_is_yx_isv4:
+            return kernel_selector::weights_layout::o_is_yx_isv4;
         case format::o_is_yx_isv16:
             return kernel_selector::weights_layout::o_is_yx_isv16;
         case format::os_iyx_osv16:
@@ -567,6 +569,10 @@ kernel_selector::weights_layout to_weights_layout(format f, bool is_grouped) {
             return kernel_selector::weights_layout::g_os_iyx_osv16;
         case format::g_os_iyx_osv32:
             return kernel_selector::weights_layout::g_os_iyx_osv32;
+        case format::gs_oiyx_gsv8:
+            return kernel_selector::weights_layout::gs_oiyx_gsv8;
+        case format::gs_oizyx_gsv8:
+            return kernel_selector::weights_layout::gs_oizyx_gsv8;
         case format::gs_oiyx_gsv16:
             return kernel_selector::weights_layout::gs_oiyx_gsv16;
         case format::gs_oizyx_gsv16:
@@ -711,6 +717,8 @@ cldnn::format::type from_weights_layout(kernel_selector::weights_layout l) {
             return cldnn::format::yxio;
         case kernel_selector::weights_layout::os_yxi_osv16:
             return cldnn::format::os_yxi_osv16;
+        case kernel_selector::weights_layout::o_is_yx_isv4:
+            return cldnn::format::o_is_yx_isv4;
         case kernel_selector::weights_layout::o_is_yx_isv16:
             return cldnn::format::o_is_yx_isv16;
         case kernel_selector::weights_layout::os_iyx_osv16:
@@ -871,6 +879,10 @@ cldnn::format::type from_weights_layout(kernel_selector::weights_layout l) {
             return cldnn::format::g_os_iyx_osv16;
         case kernel_selector::weights_layout::g_os_iyx_osv32:
             return cldnn::format::g_os_iyx_osv32;
+        case kernel_selector::weights_layout::gs_oiyx_gsv8:
+            return cldnn::format::gs_oiyx_gsv8;
+        case kernel_selector::weights_layout::gs_oizyx_gsv8:
+            return cldnn::format::gs_oizyx_gsv8;
         case kernel_selector::weights_layout::gs_oiyx_gsv16:
             return cldnn::format::gs_oiyx_gsv16;
         case kernel_selector::weights_layout::gs_oizyx_gsv16:
