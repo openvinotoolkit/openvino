@@ -60,7 +60,7 @@ function returns an OpenVINO model ready to load on device and start
 making predictions. We can save it on disk for next usage with
 ``openvino.runtime.serialize``. For more information about Model
 Optimizer Python API, see the `Model Optimizer Developer
-Guide <https://docs.openvino.ai/latest/openvino_docs_MO_DG_Python_API.html>`__.
+Guide <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_Python_API.html>`__.
 
 .. code:: ipython3
 

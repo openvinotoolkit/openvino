@@ -143,7 +143,7 @@ Prerequisites
 
 .. code:: ipython3
 
-    !pip install -q "diffusers>=0.14.0" "git+https://github.com/huggingface/accelerate.git" controlnet-aux
+    !pip install -q "diffusers>=0.14.0" "git+https://github.com/huggingface/accelerate.git" controlnet-aux gradio
 
 
 .. parsed-literal::
@@ -298,7 +298,7 @@ example, input and output names or dynamic shapes).
 While ONNX models are directly supported by OpenVINO™ runtime, it can be
 useful to convert them to IR format to take the advantage of advanced
 OpenVINO optimization tools and features. We will use OpenVINO `Model
-Optimizer <https://docs.openvino.ai/latest/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html>`__
+Optimizer <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html>`__
 to convert a model to IR format and compression weights to ``FP16``
 format.
 
@@ -801,6 +801,7 @@ on OpenVINO.
             self.vae_scale_factor = 8
             self.scheduler = scheduler
             self.load_models(core, device, controlnet, text_encoder, unet, vae_decoder)
+            self.set_progress_bar_config(disable=True)
     
         def load_models(self, core: Core, device: str, controlnet:Model, text_encoder: Model, unet: Model, vae_decoder: Model):
             """
@@ -1118,70 +1119,43 @@ negative prompting.
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
+    import gradio as gr
+    from urllib.request import urlretrieve
     
-    style = {'description_width': 'initial'}
-    text_prompt = widgets.Textarea(value="Dancing Darth Vader, best quality, extremely detailed", description='positive prompt', layout=widgets.Layout(width="auto"))
-    negative_prompt = widgets.Textarea(value="monochrome, lowres, bad anatomy, worst quality, low quality", description='negative prompt', layout=widgets.Layout(width="auto"))
-    num_steps = widgets.IntSlider(min=1, max=100, value=20, description='steps:')
-    seed = widgets.IntSlider(min=0, max=1024000000, description='seed: ', value=42)
-    image_widget = widgets.FileUpload(
-        accept='',
-        multiple=False,
-        description='Upload image',
-        style=style
-    )
-    widgets.VBox([text_prompt, negative_prompt, seed, num_steps, image_widget])
-
-
-
-
-.. parsed-literal::
-
-    VBox(children=(Textarea(value='Dancing Darth Vader, best quality, extremely detailed', description='positive p…
-
-
-
-.. code:: ipython3
-
-    import io
+    urlretrieve(example_url, "example.jpg")
+    gr.close_all()
+    with gr.Blocks() as demo:
+        with gr.Row():
+            with gr.Column():
+                inp_img = gr.Image(label="Input image")
+                pose_btn = gr.Button("Extract pose")
+                examples = gr.Examples(["example.jpg"], inp_img)
+            with gr.Column(visible=False) as step1:
+                out_pose = gr.Image(label="Estimated pose", type='pil')
+                inp_prompt = gr.Textbox(
+                    "Dancing Darth Vader, best quality, extremely detailed", label="Prompt"
+                )
+                inp_neg_prompt = gr.Textbox(
+                    "monochrome, lowres, bad anatomy, worst quality, low quality",
+                    label="Negative prompt",
+                )
+                inp_seed = gr.Slider(label="Seed", value=42, maximum=1024000000)
+                inp_steps = gr.Slider(label="Steps", value=20, minimum=1, maximum=50)
+                btn = gr.Button()
+            with gr.Column(visible=False) as step2:
+                out_result = gr.Image(label="Result")
     
-    # read uploaded image
-    image = Image.open(io.BytesIO(image_widget.value[-1]['content'])) if image_widget.value else img
-    image = image.convert("RGB")
-    pose = pose_estimator(image)
-    print('Pipeline settings')
-    print(f'Input positive prompt: {text_prompt.value}')
-    print(f'Input negative prompt: {negative_prompt.value}')
-    print(f'Seed: {seed.value}')
-    print(f'Number of steps: {num_steps.value}')
-    np.random.seed(seed.value)
+        def extract_pose(img):
+            if img is None:
+                raise gr.Error("Please upload the image or use one from the examples list")
+            return {step1: gr.update(visible=True), step2: gr.update(visible=True), out_pose: pose_estimator(img)}
     
-    processed_image = ov_pipe(text_prompt.value, pose, num_steps.value, negative_prompt.value)
-
-
-.. parsed-literal::
-
-    Pipeline settings
-    Input positive prompt: Dancing Darth Vader, best quality, extremely detailed
-    Input negative prompt: monochrome, lowres, bad anatomy, worst quality, low quality
-    Seed: 42
-    Number of steps: 20
-
-
-
-.. parsed-literal::
-
-      0%|          | 0/20 [00:00<?, ?it/s]
-
-
-Let us look on result
-
-.. code:: ipython3
-
-    fig = visualize_results(image, pose, processed_image[0])
-
-
-
-.. image:: 235-controlnet-stable-diffusion-with-output_files/235-controlnet-stable-diffusion-with-output_32_0.png
-
+        def generate(pose, prompt, negative_prompt, seed, num_steps, progress=gr.Progress(track_tqdm=True)):
+            np.random.seed(seed)
+            result = ov_pipe(prompt, pose, num_steps, negative_prompt)[0]
+            return result
+    
+        pose_btn.click(extract_pose, inp_img, [out_pose, step1, step2])
+        btn.click(generate, [out_pose, inp_prompt, inp_neg_prompt, inp_seed, inp_steps], out_result)
+    
+    demo.queue().launch(share=True, debug=True)

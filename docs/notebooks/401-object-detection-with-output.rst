@@ -30,6 +30,7 @@ Imports
     from IPython import display
     from openvino import runtime as ov
     from openvino.tools.mo.front import tf as ov_tf_front
+    from openvino.tools import mo
     
     sys.path.append("../utils")
     import notebook_utils as utils
@@ -84,10 +85,10 @@ Convert the Model
 ~~~~~~~~~~~~~~~~~
 
 The pre-trained model is in TensorFlow format. To use it with OpenVINO,
-convert it to OpenVINO IR format. Use Model Optimizer (``mo``), a
-command-line tool from the ``openvino-dev`` package. You can achieve the
-same if you use Python API for Model Optimizer. If the model has been
-already converted, this step is skipped.
+convert it to OpenVINO IR format using `Model Optimizer Python
+API <https://docs.openvino.ai/2022.3/openvino_docs_MO_DG_Python_API.html>`__
+(``mo.convert_model`` function). If the model has been already
+converted, this step is skipped.
 
 .. code:: ipython3
 
@@ -98,26 +99,20 @@ already converted, this step is skipped.
     # Convert it to IR if not previously converted
     trans_config_path = Path(ov_tf_front.__file__).parent / "ssd_v2_support.json"
     if not converted_model_path.exists():
-        convert_command = f"mo " \
-                          f"--input_model {tf_model_path} " \
-                          f"--output_dir {base_model_dir} " \
-                          f"--model_name {model_name}_{precision.lower()} " \
-                          f"--compress_to_fp16 {True if precision == 'FP16' else False} " \
-                          f"--transformations_config={trans_config_path} " \
-                          f"--tensorflow_object_detection_api_pipeline_config {tf_model_path.parent}/pipeline.config " \
-                          f"--reverse_input_channels"
-        ! $convert_command
+        ov_model = mo.convert_model(
+            tf_model_path, 
+            compress_to_fp16=(precision == 'FP16'), 
+            transformations_config=trans_config_path,
+            tensorflow_object_detection_api_pipeline_config=tf_model_path.parent / "pipeline.config", 
+            reverse_input_channels=True
+        )
+        ov.serialize(ov_model, converted_model_path)
+        del ov_model
 
 
 .. parsed-literal::
 
     [ WARNING ]  The Preprocessor block has been removed. Only nodes performing mean value subtraction and scaling (if applicable) are kept.
-    Check for a new version of Intel(R) Distribution of OpenVINO(TM) toolkit here https://software.intel.com/content/www/us/en/develop/tools/openvino-toolkit/download.html?cid=other&source=prod&campid=ww_2023_bu_IOTG_OpenVINO-2022-3&content=upg_all&medium=organic or on https://github.com/openvinotoolkit/openvino
-    [ INFO ] The model was converted to IR v11, the latest model format that corresponds to the source DL framework input/output format. While IR v11 is backwards compatible with OpenVINO Inference Engine API v1.0, please use API v2.0 (as of 2022.1) to take advantage of the latest improvements in IR v11.
-    Find more information about API v2.0 and IR v11 at https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html
-    [ SUCCESS ] Generated IR version 11 model.
-    [ SUCCESS ] XML file: /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/notebooks/401-object-detection-webcam/model/ssdlite_mobilenet_v2_fp16.xml
-    [ SUCCESS ] BIN file: /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/notebooks/401-object-detection-webcam/model/ssdlite_mobilenet_v2_fp16.bin
 
 
 Load the Model
@@ -140,7 +135,7 @@ startup time).
     ie_core = ov.Core()
     # Read the network and corresponding weights from a file.
     model = ie_core.read_model(model=converted_model_path)
-    # Compile the model for CPU (you can choose manually CPU, GPU, MYRIAD etc.)
+    # Compile the model for CPU (you can choose manually CPU, GPU etc.)
     # or let the engine choose the best available device (AUTO).
     compiled_model = ie_core.compile_model(model=model, device_name="CPU")
     
@@ -405,8 +400,8 @@ Run the object detection:
 
 .. parsed-literal::
 
-    [ WARN:0@45.663] global cap_v4l.cpp:982 open VIDEOIO(V4L2:/dev/video0): can't open camera by index
-    [ERROR:0@45.663] global obsensor_uvc_stream_channel.cpp:156 getStreamChannelGroup Camera index out of range
+    [ WARN:0@42.904] global cap_v4l.cpp:982 open VIDEOIO(V4L2:/dev/video0): can't open camera by index
+    [ERROR:0@42.904] global obsensor_uvc_stream_channel.cpp:156 getStreamChannelGroup Camera index out of range
 
 
 Run Object Detection on a Video File

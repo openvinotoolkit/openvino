@@ -179,7 +179,7 @@ Use Model Optimizer to convert the ONNX model to OpenVINO IR with
 ``FP16`` precision. The models are saved inside the current directory.
 For more information about Model Optimizer, see the `Model Optimizer
 Developer
-Guide <https://docs.openvino.ai/latest/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html>`__.
+Guide <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html>`__.
 
 Executing this command may take a while. There may be some errors or
 warnings in the output. When Model Optimization is successful, the last
@@ -221,12 +221,13 @@ lines of the output will include:
 .. parsed-literal::
 
     Exporting ONNX model to IR... This may take a few minutes.
-    Check for a new version of Intel(R) Distribution of OpenVINO(TM) toolkit here https://software.intel.com/content/www/us/en/develop/tools/openvino-toolkit/download.html?cid=other&source=prod&campid=ww_2023_bu_IOTG_OpenVINO-2022-3&content=upg_all&medium=organic or on https://github.com/openvinotoolkit/openvino
+    [ INFO ] Generated IR will be compressed to FP16. If you get lower accuracy, please consider disabling compression by removing argument --compress_to_fp16 or set it to false --compress_to_fp16=False.
+    Find more information about compression to FP16 at https://docs.openvino.ai/latest/openvino_docs_MO_DG_FP16_Compression.html
     [ INFO ] The model was converted to IR v11, the latest model format that corresponds to the source DL framework input/output format. While IR v11 is backwards compatible with OpenVINO Inference Engine API v1.0, please use API v2.0 (as of 2022.1) to take advantage of the latest improvements in IR v11.
     Find more information about API v2.0 and IR v11 at https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html
     [ SUCCESS ] Generated IR version 11 model.
-    [ SUCCESS ] XML file: /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/notebooks/102-pytorch-onnx-to-openvino/model/lraspp_mobilenet_v3_large.xml
-    [ SUCCESS ] BIN file: /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/notebooks/102-pytorch-onnx-to-openvino/model/lraspp_mobilenet_v3_large.bin
+    [ SUCCESS ] XML file: /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/notebooks/102-pytorch-onnx-to-openvino/model/lraspp_mobilenet_v3_large.xml
+    [ SUCCESS ] BIN file: /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/notebooks/102-pytorch-onnx-to-openvino/model/lraspp_mobilenet_v3_large.bin
 
 
 Show Results
@@ -402,7 +403,7 @@ Performance Comparison
 Measure the time it takes to do inference on twenty images. This gives
 an indication of performance. For more accurate benchmarking, use the
 `Benchmark
-Tool <https://docs.openvino.ai/latest/openvino_inference_engine_tools_benchmark_tool_README.html>`__.
+Tool <https://docs.openvino.ai/2023.0/openvino_inference_engine_tools_benchmark_tool_README.html>`__.
 Keep in mind that many optimizations are possible to improve the
 performance.
 
@@ -467,9 +468,9 @@ performance.
 
 .. parsed-literal::
 
-    PyTorch model on CPU: 0.039 seconds per image, FPS: 25.80
-    ONNX model in OpenVINO Runtime/CPU: 0.031 seconds per image, FPS: 32.10
-    OpenVINO IR model in OpenVINO Runtime/CPU: 0.031 seconds per image, FPS: 32.29
+    PyTorch model on CPU: 0.037 seconds per image, FPS: 27.22
+    ONNX model in OpenVINO Runtime/CPU: 0.025 seconds per image, FPS: 39.64
+    OpenVINO IR model in OpenVINO Runtime/CPU: 0.031 seconds per image, FPS: 31.95
 
 
 **Show Device Information**
@@ -497,6 +498,6 @@ References
 -  `OpenVINO ONNX
    support <https://docs.openvino.ai/2021.4/openvino_docs_IE_DG_ONNX_Support.html>`__
 -  `Model Optimizer
-   Documentation <https://docs.openvino.ai/latest/openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model_General.html>`__
+   Documentation <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model_General.html>`__
 -  `Model Optimizer Pytorch conversion
-   guide <https://docs.openvino.ai/latest/openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_PyTorch.html>`__
+   guide <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_PyTorch.html>`__

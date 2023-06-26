@@ -6,7 +6,7 @@ DeblurGAN-v2 in OpenVINO, by first converting the
 `VITA-Group/DeblurGANv2 <https://github.com/VITA-Group/DeblurGANv2>`__
 model to OpenVINO Intermediate Representation (OpenVINO IR) format. For
 more information about the model, see the
-`documentation <https://docs.openvino.ai/latest/omz_models_model_deblurgan_v2.html>`__.
+`documentation <https://docs.openvino.ai/2023.0/omz_models_model_deblurgan_v2.html>`__.
 
 What is deblurring?
 ~~~~~~~~~~~~~~~~~~~
@@ -155,20 +155,13 @@ Convert DeblurGAN-v2 Model to OpenVINO IR format
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 For best results with OpenVINO, it is recommended to convert the model
-to OpenVINO IR format. OpenVINO supports PyTorch via ONNX conversion. We
-will use ``torch.onnx.export`` for exporting the ONNX model from
-PyTorch. We need to provide initialized model object and example of
-inputs for shape inference. More information about torch.onnx.export
-provided in PyTorch
-`documentation <https://pytorch.org/docs/stable/onnx.html>`__.
-
-Then, we will use Model Optimizer Python API functionality to convert
-the ONNX model. The ``mo.convert_model`` Python function returns an
-OpenVINO model ready to load on device and start making predictions. We
-can save it on disk for next usage with ``openvino.runtime.serialize``.
-For more information about Model Optimizer Python API, see the `Model
-Optimizer Developer
-Guide <https://docs.openvino.ai/latest/openvino_docs_MO_DG_Python_API.html>`__.
+to OpenVINO IR format. We will use Model Optimizer Python API
+functionality to convert the PyTorch model. The ``mo.convert_model``
+Python function returns an OpenVINO model ready to load on device and
+start making predictions. We can save it on disk for next usage with
+``openvino.runtime.serialize``. For more information about Model
+Optimizer Python API, see the `Model Optimizer Developer
+Guide <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_Python_API.html>`__.
 
 Model Conversion may take a while.
 
@@ -181,20 +174,8 @@ Model Conversion may take a while.
     
     with torch.no_grad():
         deblur_gan_model.eval()
-        torch.onnx.export(deblur_gan_model, torch.zeros((1,3,736,1312)), model_xml_path.with_suffix('.onnx'))
-        ov_model = mo.convert_model(model_xml_path.with_suffix('.onnx'), compress_to_fp16=(precision == "FP16"))
-        serialize(ov_model, str(model_xml_path))
-
-
-.. parsed-literal::
-
-    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/onnx/_internal/jit_utils.py:258: UserWarning: The shape inference of prim::Constant type is missing, so it may result in wrong shape inference for the exported graph. Please consider adding it in symbolic function. (Triggered internally at ../torch/csrc/jit/passes/onnx/shape_type_inference.cpp:1884.)
-      _C._jit_pass_onnx_node_shape_type_inference(node, params_dict, opset_version)
-    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/onnx/utils.py:687: UserWarning: The shape inference of prim::Constant type is missing, so it may result in wrong shape inference for the exported graph. Please consider adding it in symbolic function. (Triggered internally at ../torch/csrc/jit/passes/onnx/shape_type_inference.cpp:1884.)
-      _C._jit_pass_onnx_graph_shape_type_inference(
-    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/onnx/utils.py:1178: UserWarning: The shape inference of prim::Constant type is missing, so it may result in wrong shape inference for the exported graph. Please consider adding it in symbolic function. (Triggered internally at ../torch/csrc/jit/passes/onnx/shape_type_inference.cpp:1884.)
-      _C._jit_pass_onnx_graph_shape_type_inference(
-
+        ov_model = mo.convert_model(deblur_gan_model, input_shape=[[1,3,736,1312]], compress_to_fp16=(precision == "FP16"))
+        serialize(ov_model, model_xml_path)
 
 Load the Model
 --------------
@@ -224,7 +205,7 @@ shape for the model.
 
 .. parsed-literal::
 
-    <ConstOutput: names[input.1] shape[1,3,736,1312] type: f32>
+    <ConstOutput: names[image, 1] shape[1,3,736,1312] type: f32>
 
 
 
@@ -237,7 +218,7 @@ shape for the model.
 
 .. parsed-literal::
 
-    <ConstOutput: names[769] shape[1,3,736,1312] type: f32>
+    <ConstOutput: names[294] shape[1,3,736,1312] type: f32>
 
 
 

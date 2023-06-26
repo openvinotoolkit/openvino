@@ -4,7 +4,7 @@ Hello Image Segmentation
 A very basic introduction to using segmentation models with OpenVINO™.
 
 In this tutorial, a pre-trained
-`road-segmentation-adas-0001 <https://docs.openvino.ai/latest/omz_models_model_road_segmentation_adas_0001.html>`__
+`road-segmentation-adas-0001 <https://docs.openvino.ai/2023.0/omz_models_model_road_segmentation_adas_0001.html>`__
 model from the `Open Model
 Zoo <https://github.com/openvinotoolkit/open_model_zoo/>`__ is used.
 ADAS stands for Advanced Driver Assistance Services. The model
@@ -22,7 +22,44 @@ Imports
     from openvino.runtime import Core
     
     sys.path.append("../utils")
-    from notebook_utils import segmentation_map_to_image
+    from notebook_utils import segmentation_map_to_image, download_file
+
+Download model weights
+----------------------
+
+.. code:: ipython3
+
+    from pathlib import Path
+    
+    base_model_dir = Path("./model").expanduser()
+    
+    model_name = "road-segmentation-adas-0001"
+    model_xml_name = f'{model_name}.xml'
+    model_bin_name = f'{model_name}.bin'
+    
+    model_xml_path = base_model_dir / model_xml_name
+    
+    if not model_xml_path.exists():
+        model_xml_url = "https://storage.openvinotoolkit.org/repositories/open_model_zoo/2023.0/models_bin/1/road-segmentation-adas-0001/FP32/road-segmentation-adas-0001.xml"
+        model_bin_url = "https://storage.openvinotoolkit.org/repositories/open_model_zoo/2023.0/models_bin/1/road-segmentation-adas-0001/FP32/road-segmentation-adas-0001.bin"
+    
+        download_file(model_xml_url, model_xml_name, base_model_dir)
+        download_file(model_bin_url, model_bin_name, base_model_dir)
+    else:
+        print(f'{model_name} already downloaded to {base_model_dir}')
+
+
+
+.. parsed-literal::
+
+    model/road-segmentation-adas-0001.xml:   0%|          | 0.00/389k [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    model/road-segmentation-adas-0001.bin:   0%|          | 0.00/720k [00:00<?, ?B/s]
+
 
 Load the Model
 --------------
@@ -31,7 +68,7 @@ Load the Model
 
     ie = Core()
     
-    model = ie.read_model(model="model/road-segmentation-adas-0001.xml")
+    model = ie.read_model(model=model_xml_path)
     compiled_model = ie.compile_model(model=model, device_name="CPU")
     
     input_layer_ir = compiled_model.input(0)
@@ -69,12 +106,12 @@ provided.
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7f02b820d640>
+    <matplotlib.image.AxesImage at 0x7f40900e8ac0>
 
 
 
 
-.. image:: 003-hello-segmentation-with-output_files/003-hello-segmentation-with-output_6_1.png
+.. image:: 003-hello-segmentation-with-output_files/003-hello-segmentation-with-output_8_1.png
 
 
 Do Inference
@@ -94,12 +131,12 @@ Do Inference
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7f02b80ef6d0>
+    <matplotlib.image.AxesImage at 0x7f4090039a30>
 
 
 
 
-.. image:: 003-hello-segmentation-with-output_files/003-hello-segmentation-with-output_8_1.png
+.. image:: 003-hello-segmentation-with-output_files/003-hello-segmentation-with-output_10_1.png
 
 
 Prepare Data for Visualization
@@ -142,5 +179,5 @@ Visualize data
 
 
 
-.. image:: 003-hello-segmentation-with-output_files/003-hello-segmentation-with-output_12_0.png
+.. image:: 003-hello-segmentation-with-output_files/003-hello-segmentation-with-output_14_0.png
 

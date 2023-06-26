@@ -282,7 +282,7 @@ name, shape, type, and value within a single argument, providing greater
 flexibility.
 
 To learn more please refer to `Model Optimizer Python API
-docs <https://docs.openvino.ai/latest/openvino_docs_MO_DG_Python_API.html>`__
+docs <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_Python_API.html>`__
 
 .. code:: ipython3
 

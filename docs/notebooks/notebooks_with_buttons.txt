@@ -8,7 +8,6 @@
 106-auto-device
 110-ct-segmentation-quantize
 113-image-classification-quantization
-114-quantization-simplified-mode
 115-async-api
 201-vision-monodepth
 202-vision-superresolution-image

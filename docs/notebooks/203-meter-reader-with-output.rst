@@ -524,7 +524,7 @@ Initialize the model and parameters.
 The number of detected meter from detection network can be arbitrary in
 some scenarios, which means the batch size of segmentation network input
 is a `dynamic
-dimension <https://docs.openvino.ai/latest/openvino_docs_OV_UG_DynamicShapes.html>`__,
+dimension <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_DynamicShapes.html>`__,
 and it should be specified as ``-1`` or the ``ov::Dimension()`` instead
 of a positive number used for static dimensions. In this case, for
 memory consumption optimization, we can specify the lower and/or upper
@@ -557,7 +557,7 @@ bounds of input batch size.
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7f33fc644490>
+    <matplotlib.image.AxesImage at 0x7fbebc7c0250>
 
 
 

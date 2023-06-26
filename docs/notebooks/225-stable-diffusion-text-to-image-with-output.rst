@@ -74,34 +74,8 @@ solutions based on Stable Diffusion.
 
 .. code:: ipython3
 
-    !pip install -r requirements.txt
-
-
-.. parsed-literal::
-
-    Requirement already satisfied: diffusers[torch]>=0.9.0 in /home/ea/work/notebooks_env/lib/python3.8/site-packages (from -r requirements.txt (line 1)) (0.13.0.dev0)
-    Requirement already satisfied: huggingface-hub>=0.9.1 in /home/ea/work/notebooks_env/lib/python3.8/site-packages (from -r requirements.txt (line 2)) (0.11.1)
-    Requirement already satisfied: regex!=2019.12.17 in /home/ea/work/notebooks_env/lib/python3.8/site-packages (from diffusers[torch]>=0.9.0->-r requirements.txt (line 1)) (2022.10.31)
-    Requirement already satisfied: Pillow in /home/ea/work/notebooks_env/lib/python3.8/site-packages (from diffusers[torch]>=0.9.0->-r requirements.txt (line 1)) (9.4.0)
-    Requirement already satisfied: importlib-metadata in /home/ea/work/notebooks_env/lib/python3.8/site-packages (from diffusers[torch]>=0.9.0->-r requirements.txt (line 1)) (4.13.0)
-    Requirement already satisfied: requests in /home/ea/work/notebooks_env/lib/python3.8/site-packages (from diffusers[torch]>=0.9.0->-r requirements.txt (line 1)) (2.28.2)
-    Requirement already satisfied: filelock in /home/ea/work/notebooks_env/lib/python3.8/site-packages (from diffusers[torch]>=0.9.0->-r requirements.txt (line 1)) (3.9.0)
-    Requirement already satisfied: numpy in /home/ea/work/notebooks_env/lib/python3.8/site-packages (from diffusers[torch]>=0.9.0->-r requirements.txt (line 1)) (1.23.4)
-    Requirement already satisfied: torch>=1.4 in /home/ea/work/notebooks_env/lib/python3.8/site-packages (from diffusers[torch]>=0.9.0->-r requirements.txt (line 1)) (1.13.1+cpu)
-    Requirement already satisfied: accelerate>=0.11.0 in /home/ea/work/notebooks_env/lib/python3.8/site-packages (from diffusers[torch]>=0.9.0->-r requirements.txt (line 1)) (0.13.2)
-    Requirement already satisfied: typing-extensions>=3.7.4.3 in /home/ea/work/notebooks_env/lib/python3.8/site-packages (from huggingface-hub>=0.9.1->-r requirements.txt (line 2)) (4.4.0)
-    Requirement already satisfied: tqdm in /home/ea/work/notebooks_env/lib/python3.8/site-packages (from huggingface-hub>=0.9.1->-r requirements.txt (line 2)) (4.64.1)
-    Requirement already satisfied: pyyaml>=5.1 in /home/ea/work/notebooks_env/lib/python3.8/site-packages (from huggingface-hub>=0.9.1->-r requirements.txt (line 2)) (6.0)
-    Requirement already satisfied: packaging>=20.9 in /home/ea/work/notebooks_env/lib/python3.8/site-packages (from huggingface-hub>=0.9.1->-r requirements.txt (line 2)) (23.0)
-    Requirement already satisfied: psutil in /home/ea/work/notebooks_env/lib/python3.8/site-packages (from accelerate>=0.11.0->diffusers[torch]>=0.9.0->-r requirements.txt (line 1)) (5.9.4)
-    Requirement already satisfied: zipp>=0.5 in /home/ea/work/notebooks_env/lib/python3.8/site-packages (from importlib-metadata->diffusers[torch]>=0.9.0->-r requirements.txt (line 1)) (3.11.0)
-    Requirement already satisfied: idna<4,>=2.5 in /home/ea/work/notebooks_env/lib/python3.8/site-packages (from requests->diffusers[torch]>=0.9.0->-r requirements.txt (line 1)) (3.4)
-    Requirement already satisfied: certifi>=2017.4.17 in /home/ea/work/notebooks_env/lib/python3.8/site-packages (from requests->diffusers[torch]>=0.9.0->-r requirements.txt (line 1)) (2022.12.7)
-    Requirement already satisfied: charset-normalizer<4,>=2 in /home/ea/work/notebooks_env/lib/python3.8/site-packages (from requests->diffusers[torch]>=0.9.0->-r requirements.txt (line 1)) (2.1.1)
-    Requirement already satisfied: urllib3<1.27,>=1.21.1 in /home/ea/work/notebooks_env/lib/python3.8/site-packages (from requests->diffusers[torch]>=0.9.0->-r requirements.txt (line 1)) (1.26.14)
-    
-    [notice] A new release of pip available: 22.3.1 -> 23.0
-    [notice] To update, run: pip install --upgrade pip
+    !pip install -q 'diffusers[torch]>=0.9.0'
+    !pip install -q 'huggingface-hub>=0.9.1'
 
 
 Create Pytorch Models pipeline

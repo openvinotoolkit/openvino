@@ -20,8 +20,8 @@ original image. The Following pipeline will be used in this notebook.
     import matplotlib.pyplot as plt
     import numpy as np
     from zipfile import ZipFile
-    from openvino.runtime import Core, Tensor
-    from IPython.display import Markdown, display
+    from openvino.tools import mo
+    from openvino.runtime import Core, Tensor, serialize
     
     sys.path.append("../utils")
     import notebook_utils as utils
@@ -33,7 +33,7 @@ Download ``gmcnn-places2-tf``\ model (this step will be skipped if the
 model is already downloaded) and then unzip it. Downloaded model stored
 in TensorFlow frozen graph format. The steps how this frozen graph can
 be obtained from original model checkpoint can be found in this
-`instruction <https://docs.openvino.ai/latest/omz_models_model_gmcnn_places2_tf.html#steps-to-reproduce-conversion-to-frozen-graph>`__
+`instruction <https://docs.openvino.ai/2023.0/omz_models_model_gmcnn_places2_tf.html#steps-to-reproduce-conversion-to-frozen-graph>`__
 
 .. code:: ipython3
 
@@ -65,7 +65,7 @@ The pre-trained model is in TensorFlow format. To use it with OpenVINO,
 convert it to OpenVINO IR format. To do this Model Optimizer is used.
 For more information about Model Optimizer, see the `Model Optimizer
 Developer
-Guide <https://docs.openvino.ai/latest/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html>`__.
+Guide <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html>`__.
 This step is also skipped if the model is already converted.
 
 .. code:: ipython3
@@ -75,10 +75,8 @@ This step is also skipped if the model is already converted.
     
     # Run Model Optimizer to convert model to OpenVINO IR FP32 format, if the IR file does not exist.
     if not ir_path.exists():
-        mo_command = f'mo --input_model {model_path} --input Placeholder,Placeholder_1 --input_shape [1,512,680,3],[1,512,680,1] --output=Minimum --output_dir {model_dir}'
-        display(Markdown(f"Model Optimizer command to convert the Tensorflow model to IR: `{mo_command}`"))
-        display(Markdown("_Converting model to IR. This may take a few minutes..._"))
-        ! $mo_command
+        ov_model = mo.convert_model(model_path, input_shape=[[1,512,680,3],[1,512,680,1]])
+        serialize(ov_model, str(ir_path))
     else:
         print(f"{ir_path} already exists.")
 
@@ -238,19 +236,11 @@ restored image.
     result = compiled_model([Tensor(masked_image.astype(np.float32)), Tensor(mask.astype(np.float32))])[output_layer]
     result = result.squeeze().astype(np.uint8)
     plt.figure(figsize=(16, 12))
-    plt.imshow(cv2.cvtColor(result, cv2.COLOR_BGR2RGB))
+    plt.imshow(cv2.cvtColor(result, cv2.COLOR_BGR2RGB));
 
 
 
-
-.. parsed-literal::
-
-    <matplotlib.image.AxesImage at 0x7fade00d60a0>
-
-
-
-
-.. image:: 215-image-inpainting-with-output_files/215-image-inpainting-with-output_20_1.png
+.. image:: 215-image-inpainting-with-output_files/215-image-inpainting-with-output_20_0.png
 
 
 Save the Restored Image

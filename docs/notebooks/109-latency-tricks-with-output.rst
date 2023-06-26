@@ -94,7 +94,7 @@ requirements of this particular object detection model.
 
 .. parsed-literal::
 
-    <DisplayHandle display_id=6f2409e74123f40cdda4989b2a2a5922>
+    <DisplayHandle display_id=18f2331c8bf61fd35d93bb638f7ea64b>
 
 
 
@@ -346,8 +346,8 @@ optimizations applied. We will treat it as our baseline.
 
 .. parsed-literal::
 
-    PyTorch model on CPU. First inference time: 0.0288 seconds
-    PyTorch model on CPU: 0.0205 seconds per image (48.90 FPS)
+    PyTorch model on CPU. First inference time: 0.0241 seconds
+    PyTorch model on CPU: 0.0195 seconds per image (51.21 FPS)
 
 
 ONNX model
@@ -395,8 +395,8 @@ Representation (IR) to leverage the OpenVINO Runtime.
 
 .. parsed-literal::
 
-    ONNX model on CPU. First inference time: 0.0165 seconds
-    ONNX model on CPU: 0.0091 seconds per image (109.62 FPS)
+    ONNX model on CPU. First inference time: 0.0167 seconds
+    ONNX model on CPU: 0.0132 seconds per image (76.03 FPS)
 
 
 OpenVINO IR model
@@ -433,8 +433,8 @@ accuracy drop. That’s why we skip that step in this notebook.
 
 .. parsed-literal::
 
-    OpenVINO model on CPU. First inference time: 0.0152 seconds
-    OpenVINO model on CPU: 0.0092 seconds per image (109.13 FPS)
+    OpenVINO model on CPU. First inference time: 0.0155 seconds
+    OpenVINO model on CPU: 0.0132 seconds per image (75.91 FPS)
 
 
 OpenVINO IR model on GPU
@@ -467,7 +467,7 @@ OpenVINO IR model + more inference threads
 There is a possibility to add a config for any device (CPU in this
 case). We will increase the number of threads to an equal number of our
 cores. It should help us a lot. There are `more
-options <https://docs.openvino.ai/latest/groupov_runtime_cpp_prop_api.html>`__
+options <https://docs.openvino.ai/2023.0/groupov_runtime_cpp_prop_api.html>`__
 to be changed, so it’s worth playing with them to see what works best in
 our case.
 
@@ -490,15 +490,15 @@ our case.
 
 .. parsed-literal::
 
-    OpenVINO model + more threads on CPU. First inference time: 0.0143 seconds
-    OpenVINO model + more threads on CPU: 0.0094 seconds per image (106.13 FPS)
+    OpenVINO model + more threads on CPU. First inference time: 0.0151 seconds
+    OpenVINO model + more threads on CPU: 0.0131 seconds per image (76.12 FPS)
 
 
 OpenVINO IR model in latency mode
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 OpenVINO offers a virtual device called
-`AUTO <https://docs.openvino.ai/latest/openvino_docs_OV_UG_supported_plugins_AUTO.html>`__,
+`AUTO <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_supported_plugins_AUTO.html>`__,
 which can select the best device for us based on a performance hint.
 There are three different hints: ``LATENCY``, ``THROUGHPUT``, and
 ``CUMULATIVE_THROUGHPUT``. As this notebook is focused on the latency
@@ -520,8 +520,8 @@ devices as well.
 
 .. parsed-literal::
 
-    OpenVINO model on AUTO. First inference time: 0.0134 seconds
-    OpenVINO model on AUTO: 0.0095 seconds per image (105.46 FPS)
+    OpenVINO model on AUTO. First inference time: 0.0155 seconds
+    OpenVINO model on AUTO: 0.0135 seconds per image (73.89 FPS)
 
 
 OpenVINO IR model in latency mode + shared memory
@@ -554,8 +554,8 @@ performance!
 
 .. parsed-literal::
 
-    OpenVINO model + shared memory on AUTO. First inference time: 0.0140 seconds
-    OpenVINO model + shared memory on AUTO: 0.0055 seconds per image (181.99 FPS)
+    OpenVINO model + shared memory on AUTO. First inference time: 0.0132 seconds
+    OpenVINO model + shared memory on AUTO: 0.0053 seconds per image (187.78 FPS)
 
 
 Other tricks
@@ -612,6 +612,6 @@ object detection model. Even if you experience much better performance
 after running this notebook, please note this may not be valid for every
 hardware or every model. For the most accurate results, please use
 ``benchmark_app`` `command-line
-tool <https://docs.openvino.ai/latest/openvino_inference_engine_samples_benchmark_app_README.html>`__.
+tool <https://docs.openvino.ai/2023.0/openvino_inference_engine_samples_benchmark_app_README.html>`__.
 Note that ``benchmark_app`` cannot measure the impact of some tricks
 above, e.g., shared memory.

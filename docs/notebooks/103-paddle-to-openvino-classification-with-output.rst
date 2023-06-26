@@ -6,7 +6,7 @@ This notebook shows how to convert a MobileNetV3 model from
 on the `ImageNet <https://www.image-net.org>`__ dataset, to OpenVINO IR.
 It also shows how to perform classification inference on a sample image,
 using `OpenVINO
-Runtime <https://docs.openvino.ai/latest/openvino_docs_IE_DG_Deep_Learning_Inference_Engine_DevGuide.html>`__
+Runtime <https://docs.openvino.ai/nightly/openvino_docs_OV_UG_OV_Runtime_User_Guide.html>`__
 and compares the results of the
 `PaddlePaddle <https://github.com/PaddlePaddle/Paddle>`__ model with the
 IR model.
@@ -22,7 +22,12 @@ Imports
 
 .. code:: ipython3
 
-    !pip install -q "paddlepaddle==2.5.0rc0"
+    import sys
+    
+    if sys.version_info.minor > 7:
+        !pip install -q "paddlepaddle==2.5.0rc0"
+    else:
+        !pip install -q "paddlepaddle==2.4.2"
 
 .. code:: ipython3
 
@@ -48,7 +53,6 @@ Imports
     import matplotlib.pyplot as plt
     import numpy as np
     from paddleclas import PaddleClas
-    from IPython.display import Markdown, display
     from PIL import Image
     from openvino.runtime import Core
     sys.path.append("../utils")
@@ -57,8 +61,8 @@ Imports
 
 .. parsed-literal::
 
-    2023-05-29 22:27:09 INFO: Loading faiss with AVX2 support.
-    2023-05-29 22:27:09 INFO: Successfully loaded faiss with AVX2 support.
+    2023-06-21 22:26:35 INFO: Loading faiss with AVX2 support.
+    2023-06-21 22:26:35 INFO: Successfully loaded faiss with AVX2 support.
 
 
 Settings
@@ -126,12 +130,12 @@ inference on that image, and then show the top three prediction results.
 
 .. parsed-literal::
 
-    [2023/05/29 22:27:44] ppcls WARNING: The current running environment does not support the use of GPU. CPU has been used instead.
+    [2023/06/21 22:27:03] ppcls WARNING: The current running environment does not support the use of GPU. CPU has been used instead.
 
 
 .. parsed-literal::
 
-    W0529 22:27:44.770324 2561117 analysis_config.cc:971] It is detected that mkldnn and memory_optimize_pass are enabled at the same time, but they are not supported yet. Currently, memory_optimize_pass is explicitly disabled
+    W0621 22:27:03.734274 1205526 analysis_config.cc:971] It is detected that mkldnn and memory_optimize_pass are enabled at the same time, but they are not supported yet. Currently, memory_optimize_pass is explicitly disabled
 
 
 .. parsed-literal::
@@ -201,7 +205,7 @@ values.
 
 .. parsed-literal::
 
-    2023-05-29 22:27:45 WARNING: Clipping input data to the valid range for imshow with RGB data ([0..1] for floats or [0..255] for integers).
+    2023-06-21 22:27:04 WARNING: Clipping input data to the valid range for imshow with RGB data ([0..1] for floats or [0..255] for integers).
 
 
 .. parsed-literal::
@@ -213,7 +217,7 @@ values.
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7f68a9799eb0>
+    <matplotlib.image.AxesImage at 0x7fedb78da400>
 
 
 
@@ -240,63 +244,26 @@ OpenVINO model.
 Convert the Model to OpenVINO IR Format
 ---------------------------------------
 
-Call the OpenVINO Model Optimizer tool to convert the PaddlePaddle model
-to OpenVINO IR, with FP32 precision. The models are saved to the current
-directory. You can add the mean values to the model with
-``--mean_values`` and scale the output with the standard deviation with
-``--scale_values``. With these options, it is not necessary to normalize
-input data before propagating it through the network. However, to get
-the exact same output as the PaddlePaddle model, it is necessary to
-preprocess in the image in the same way. Therefore, for this tutorial,
-you do not add the mean and scale values to the model, and you use the
-``process_image`` function, as described in the previous section, to
-ensure that both the IR and the PaddlePaddle model use the same
-preprocessing methods. It is explained how to get the mean and scale
-values of the PaddleGAN model, so you can add them to the Model
-Optimizer command if you want. See the `PyTorch/ONNX to
-OpenVINO <102-pytorch-onnx-to-openvino-with-output.html>`__
-notebook, where these options are used.
-
-Run ``! mo --help`` in a code cell to show an overview of command line
-options for Model Optimizer. See the `Model Optimizer Developer
-Guide <https://docs.openvino.ai/latest/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html>`__
+Call the OpenVINO Model Optimizer Python API to convert the PaddlePaddle
+model to OpenVINO IR, with FP32 precision. ``mo.convert_model`` function
+accept path to PaddlePaddle model and returns OpenVINO Model class
+instance which represents this model. Obtained model is ready to use and
+loading on device using ``compile_model`` or can be saved on disk using
+``serialize`` function. See the `Model Optimizer Developer
+Guide <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html>`__
 for more information about Model Optimizer.
-
-In the next cell, we first construct the command for Model Optimizer,
-and then execute this command in the notebook by prepending the command
-with a ``!``. When Model Optimization is successful, the last lines of
-the output include ``[ SUCCESS ] Generated IR version 11 model``.
 
 .. code:: ipython3
 
+    from openvino.tools import mo
+    from openvino.runtime import serialize
+    
     model_xml = Path(MODEL_NAME).with_suffix('.xml')
     if not model_xml.exists():
-        mo_command = f'mo --input_model model/MobileNetV3_large_x1_0_infer/inference.pdmodel --model_name {MODEL_NAME}'
-        display(Markdown(f"Model Optimizer command to convert the ONNX model to IR: `{mo_command}`"))
-        display(Markdown("_Converting model to IR. This may take a few minutes..._"))
-        ! $mo_command
+        ov_model = mo.convert_model("model/MobileNetV3_large_x1_0_infer/inference.pdmodel")
+        serialize(ov_model, str(model_xml))
     else:
         print(f"{model_xml} already exists.")
-
-
-
-Model Optimizer command to convert the ONNX model to IR:
-``mo --input_model model/MobileNetV3_large_x1_0_infer/inference.pdmodel --model_name MobileNetV3_large_x1_0``
-
-
-
-*Converting model to IR. This may take a few minutes…*
-
-
-.. parsed-literal::
-
-    Check for a new version of Intel(R) Distribution of OpenVINO(TM) toolkit here https://software.intel.com/content/www/us/en/develop/tools/openvino-toolkit/download.html?cid=other&source=prod&campid=ww_2023_bu_IOTG_OpenVINO-2022-3&content=upg_all&medium=organic or on https://github.com/openvinotoolkit/openvino
-    [ INFO ] The model was converted to IR v11, the latest model format that corresponds to the source DL framework input/output format. While IR v11 is backwards compatible with OpenVINO Inference Engine API v1.0, please use API v2.0 (as of 2022.1) to take advantage of the latest improvements in IR v11.
-    Find more information about API v2.0 and IR v11 at https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html
-    [ SUCCESS ] Generated IR version 11 model.
-    [ SUCCESS ] XML file: /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/notebooks/103-paddle-to-openvino/MobileNetV3_large_x1_0.xml
-    [ SUCCESS ] BIN file: /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/notebooks/103-paddle-to-openvino/MobileNetV3_large_x1_0.bin
-
 
 Show Inference on OpenVINO Model
 --------------------------------
@@ -353,7 +320,7 @@ Measure the time it takes to do inference on fifty images and compare
 the result. The timing information gives an indication of performance.
 For a fair comparison, we include the time it takes to process the
 image. For more accurate benchmarking, use the `OpenVINO benchmark
-tool <https://docs.openvino.ai/latest/openvino_inference_engine_tools_benchmark_tool_README.html>`__.
+tool <https://docs.openvino.ai/2023.0/openvino_inference_engine_tools_benchmark_tool_README.html>`__.
 Note that many optimizations are possible to improve the performance.
 
 .. code:: ipython3
@@ -396,7 +363,7 @@ Note that many optimizations are possible to improve the performance.
 
 .. parsed-literal::
 
-    PaddlePaddle model on CPU: 0.0067 seconds per image, FPS: 148.81
+    PaddlePaddle model on CPU: 0.0073 seconds per image, FPS: 137.70
     
     PaddlePaddle result:
     Labrador retriever, 0.75138
@@ -440,7 +407,7 @@ Note that many optimizations are possible to improve the performance.
 
 .. parsed-literal::
 
-    OpenVINO IR model in OpenVINO Runtime (CPU): 0.0029 seconds per image, FPS: 342.28
+    OpenVINO IR model in OpenVINO Runtime (CPU): 0.0027 seconds per image, FPS: 364.96
     
     OpenVINO result:
     Labrador retriever, 0.75138
@@ -459,6 +426,6 @@ References
 
 -  `PaddleClas <https://github.com/PaddlePaddle/PaddleClas>`__
 -  `OpenVINO PaddlePaddle
-   support <https://docs.openvino.ai/latest/openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Paddle.html>`__
+   support <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Paddle.html>`__
 -  `OpenVINO Model Optimizer
-   Documentation <https://docs.openvino.ai/latest/openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model_General.html>`__
+   Documentation <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model_General.html>`__

@@ -47,7 +47,7 @@ Test File Functions
 
 .. code:: ipython3
 
-    model_url = "https://github.com/openvinotoolkit/openvino_notebooks/raw/main/notebooks/002-openvino-api/model/segmentation.xml"
+    model_url = "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/models/002-example-models/segmentation.xml"
     download_ir_model(model_url, "model")
     
     assert os.path.exists("model/segmentation.xml")
@@ -78,7 +78,7 @@ Test File Functions
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/notebooks/utils/Safety_Full_Hat_and_Vest.mp4
+    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/notebooks/utils/Safety_Full_Hat_and_Vest.mp4
 
 
 .. code:: ipython3
@@ -95,12 +95,12 @@ Test File Functions
 
 .. parsed-literal::
 
-    openvino_notebooks_readme.md:   0%|          | 0.00/9.18k [00:00<?, ?B/s]
+    openvino_notebooks_readme.md:   0%|          | 0.00/9.70k [00:00<?, ?B/s]
 
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/notebooks/utils/openvino_notebooks_readme.md
+    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/notebooks/utils/openvino_notebooks_readme.md
 
 
 .. code:: ipython3
@@ -118,7 +118,7 @@ Test File Functions
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/notebooks/utils/openvino_notebooks_readme.md
+    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/notebooks/utils/openvino_notebooks_readme.md
 
 
 .. code:: ipython3
@@ -481,5 +481,5 @@ Test Alerts
 
 .. raw:: html
 
-    <div class="alert alert-danger">This notebook requires OpenVINO 2022.1. The version on your system is: <i>2022.3.0-9052-9752fafe8eb-releases/2022/3</i>.<br>Please run <span style='font-family:monospace'>pip install --upgrade -r requirements.txt</span> in the openvino_env environment to install this version. See the <a href='https://github.com/openvinotoolkit/openvino_notebooks'>OpenVINO Notebooks README</a> for detailed instructions
+    <div class="alert alert-danger">This notebook requires OpenVINO 2022.1. The version on your system is: <i>2023.0.0-10926-b4452d56304-releases/2023/0</i>.<br>Please run <span style='font-family:monospace'>pip install --upgrade -r requirements.txt</span> in the openvino_env environment to install this version. See the <a href='https://github.com/openvinotoolkit/openvino_notebooks'>OpenVINO Notebooks README</a> for detailed instructions
 

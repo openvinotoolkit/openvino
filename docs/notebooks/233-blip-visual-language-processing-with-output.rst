@@ -185,22 +185,23 @@ text and vision modalities and postprocessing of generation results.
 
 .. parsed-literal::
 
-    Requirement already satisfied: transformers>=4.26.0 in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (4.29.2)
-    Requirement already satisfied: filelock in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from transformers>=4.26.0) (3.12.0)
-    Requirement already satisfied: huggingface-hub<1.0,>=0.14.1 in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from transformers>=4.26.0) (0.14.1)
-    Requirement already satisfied: numpy>=1.17 in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from transformers>=4.26.0) (1.23.4)
-    Requirement already satisfied: packaging>=20.0 in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from transformers>=4.26.0) (23.1)
-    Requirement already satisfied: pyyaml>=5.1 in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from transformers>=4.26.0) (6.0)
-    Requirement already satisfied: regex!=2019.12.17 in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from transformers>=4.26.0) (2023.5.5)
-    Requirement already satisfied: requests in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from transformers>=4.26.0) (2.31.0)
-    Requirement already satisfied: tokenizers!=0.11.3,<0.14,>=0.11.1 in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from transformers>=4.26.0) (0.13.3)
-    Requirement already satisfied: tqdm>=4.27 in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from transformers>=4.26.0) (4.65.0)
-    Requirement already satisfied: fsspec in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from huggingface-hub<1.0,>=0.14.1->transformers>=4.26.0) (2023.5.0)
-    Requirement already satisfied: typing-extensions>=3.7.4.3 in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from huggingface-hub<1.0,>=0.14.1->transformers>=4.26.0) (4.6.2)
-    Requirement already satisfied: charset-normalizer<4,>=2 in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from requests->transformers>=4.26.0) (3.1.0)
-    Requirement already satisfied: idna<4,>=2.5 in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from requests->transformers>=4.26.0) (3.4)
-    Requirement already satisfied: urllib3<3,>=1.21.1 in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from requests->transformers>=4.26.0) (1.26.16)
-    Requirement already satisfied: certifi>=2017.4.17 in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from requests->transformers>=4.26.0) (2023.5.7)
+    Requirement already satisfied: transformers>=4.26.0 in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (4.30.2)
+    Requirement already satisfied: filelock in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from transformers>=4.26.0) (3.12.2)
+    Requirement already satisfied: huggingface-hub<1.0,>=0.14.1 in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from transformers>=4.26.0) (0.15.1)
+    Requirement already satisfied: numpy>=1.17 in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from transformers>=4.26.0) (1.23.5)
+    Requirement already satisfied: packaging>=20.0 in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from transformers>=4.26.0) (23.1)
+    Requirement already satisfied: pyyaml>=5.1 in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from transformers>=4.26.0) (6.0)
+    Requirement already satisfied: regex!=2019.12.17 in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from transformers>=4.26.0) (2023.6.3)
+    Requirement already satisfied: requests in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from transformers>=4.26.0) (2.31.0)
+    Requirement already satisfied: tokenizers!=0.11.3,<0.14,>=0.11.1 in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from transformers>=4.26.0) (0.13.3)
+    Requirement already satisfied: safetensors>=0.3.1 in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from transformers>=4.26.0) (0.3.1)
+    Requirement already satisfied: tqdm>=4.27 in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from transformers>=4.26.0) (4.65.0)
+    Requirement already satisfied: fsspec in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from huggingface-hub<1.0,>=0.14.1->transformers>=4.26.0) (2023.6.0)
+    Requirement already satisfied: typing-extensions>=3.7.4.3 in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from huggingface-hub<1.0,>=0.14.1->transformers>=4.26.0) (4.6.3)
+    Requirement already satisfied: charset-normalizer<4,>=2 in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from requests->transformers>=4.26.0) (3.1.0)
+    Requirement already satisfied: idna<4,>=2.5 in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from requests->transformers>=4.26.0) (3.4)
+    Requirement already satisfied: urllib3<3,>=1.21.1 in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from requests->transformers>=4.26.0) (1.26.16)
+    Requirement already satisfied: certifi>=2017.4.17 in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from requests->transformers>=4.26.0) (2023.5.7)
 
 
 .. code:: ipython3
@@ -236,10 +237,10 @@ text and vision modalities and postprocessing of generation results.
 
 .. parsed-literal::
 
-    2023-05-29 23:42:59.091662: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2023-05-29 23:42:59.125358: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2023-06-21 23:30:46.392992: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2023-06-21 23:30:46.427438: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2023-05-29 23:42:59.761237: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2023-06-21 23:30:46.898823: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 
@@ -250,7 +251,7 @@ text and vision modalities and postprocessing of generation results.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/generation/utils.py:1346: UserWarning: Using `max_length`'s default (20) to control the generation length. This behaviour is deprecated and will be removed from the config in v5 of Transformers -- we recommend using `max_new_tokens` to control the maximum length of the generation.
+    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/generation/utils.py:1353: UserWarning: Using `max_length`'s default (20) to control the generation length. This behaviour is deprecated and will be removed from the config in v5 of Transformers -- we recommend using `max_new_tokens` to control the maximum length of the generation.
       warnings.warn(
 
 
@@ -261,7 +262,7 @@ text and vision modalities and postprocessing of generation results.
 
 .. parsed-literal::
 
-    Processing time: 0.2163 s
+    Processing time: 0.2080 s
 
 
 .. code:: ipython3
@@ -426,24 +427,15 @@ tutorial <https://pytorch.org/tutorials/advanced/super_resolution_with_onnxrunti
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/blip/modeling_blip_text.py:711: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/blip/modeling_blip_text.py:711: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if is_decoder:
-    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/blip/modeling_blip_text.py:630: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/blip/modeling_blip_text.py:630: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if is_decoder:
 
 
 .. parsed-literal::
 
-    huggingface/tokenizers: The current process just got forked, after parallelism has already been used. Disabling parallelism to avoid deadlocks...
-    To disable this warning, you can either:
-    	- Avoid using `tokenizers` before the fork if possible
-    	- Explicitly set the environment variable TOKENIZERS_PARALLELISM=(true | false)
     Text encoder successfuly converted and saved to blip_text_encoder.xml
-
-
-.. parsed-literal::
-
-    Warning: One or more of the values of the Constant can't fit in the float16 data type. Those values were casted to the nearest limit value, the model can produce incorrect results.
 
 
 Text Decoder
@@ -541,23 +533,10 @@ shapes.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/blip/modeling_blip_text.py:639: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/blip/modeling_blip_text.py:639: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if causal_mask.shape[1] < attention_mask.shape[1]:
-    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/blip/modeling_blip_text.py:890: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/blip/modeling_blip_text.py:890: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if return_logits:
-
-
-.. parsed-literal::
-
-    huggingface/tokenizers: The current process just got forked, after parallelism has already been used. Disabling parallelism to avoid deadlocks...
-    To disable this warning, you can either:
-    	- Avoid using `tokenizers` before the fork if possible
-    	- Explicitly set the environment variable TOKENIZERS_PARALLELISM=(true | false)
-
-
-.. parsed-literal::
-
-    Warning: One or more of the values of the Constant can't fit in the float16 data type. Those values were casted to the nearest limit value, the model can produce incorrect results.
 
 
 .. parsed-literal::
@@ -601,19 +580,6 @@ layers.
         print(f"Text decoder with past successfuly converted and saved to {TEXT_DECODER_WITH_PAST_OV}")
     else:
         print(f"Text decoder with past will be loaded from {TEXT_DECODER_WITH_PAST_OV}")
-
-
-.. parsed-literal::
-
-    huggingface/tokenizers: The current process just got forked, after parallelism has already been used. Disabling parallelism to avoid deadlocks...
-    To disable this warning, you can either:
-    	- Avoid using `tokenizers` before the fork if possible
-    	- Explicitly set the environment variable TOKENIZERS_PARALLELISM=(true | false)
-
-
-.. parsed-literal::
-
-    Warning: One or more of the values of the Constant can't fit in the float16 data type. Those values were casted to the nearest limit value, the model can produce incorrect results.
 
 
 .. parsed-literal::
@@ -866,5 +832,5 @@ Question Answering
 
 .. parsed-literal::
 
-    Processing time: 0.1516
+    Processing time: 0.1522
 
