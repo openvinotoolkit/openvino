@@ -272,6 +272,8 @@ void primitive_inst::update_shape() {
             continue;
         }
         auto& dep = _node->get_dependency(i);
+        if (dep.is_in_shape_of_subgraph())
+            continue;
         auto dep_id = dep.id();
         // exclude fused node from memory_deps
         if (_node->is_fused_dep(i)) {
