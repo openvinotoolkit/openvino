@@ -15,7 +15,6 @@ void get_cur_stream_info(const int stream_id,
                          const bool cpu_reservation,
                          const std::vector<std::vector<int>> proc_type_table,
                          const std::vector<std::vector<int>> streams_info_table,
-                         const std::vector<int> stream_numa_node_ids,
                          StreamCreateType& stream_type,
                          int& concurrency,
                          int& core_type,
@@ -24,8 +23,7 @@ void get_cur_stream_info(const int stream_id,
     size_t stream_info_id = 0;
     bool cpu_reserve = cpu_reservation;
     for (size_t i = 0; i < streams_info_table.size(); i++) {
-        stream_total =
-            i > 0 ? stream_total + streams_info_table[i][NUMBER_OF_STREAMS] : streams_info_table[i][NUMBER_OF_STREAMS];
+        stream_total += streams_info_table[i][NUMBER_OF_STREAMS];
         if (stream_id < stream_total) {
             stream_info_id = i;
             break;
@@ -33,7 +31,7 @@ void get_cur_stream_info(const int stream_id,
     }
     concurrency = streams_info_table[stream_info_id][THREADS_PER_STREAM];
     core_type = streams_info_table[stream_info_id][PROC_TYPE];
-    numa_node_id = stream_numa_node_ids.size() > 0 ? stream_numa_node_ids[stream_id] : 0;
+    numa_node_id = streams_info_table[stream_info_id][STREAM_NUMA_NODE_ID];
 
 #if defined(_WIN32) || defined(__APPLE__)
     cpu_reserve = false;

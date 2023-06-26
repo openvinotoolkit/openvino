@@ -37,7 +37,6 @@ public:
         const auto& test_data = std::get<0>(GetParam());
 
         std::vector<std::vector<int>> stream_processor_ids;
-        std::vector<int> stream_numa_node_ids;
         std::vector<StreamCreateType> test_stream_types;
         std::vector<int> test_concurrencys;
         std::vector<int> test_core_types;
@@ -53,7 +52,6 @@ public:
                                     test_data._proc_type_table,
                                     test_data._numa_nodes,
                                     stream_processor_ids,
-                                    stream_numa_node_ids,
                                     NOT_USED);
 
         for (auto i = 0; i < streams; i++) {
@@ -65,7 +63,6 @@ public:
                                 test_data._cpu_reservation,
                                 test_data._proc_type_table,
                                 test_data._streams_info_table,
-                                stream_numa_node_ids,
                                 test_stream_type,
                                 test_concurrency,
                                 test_core_type,
@@ -126,9 +123,9 @@ LinuxCpuStreamTypeCase _2sockets_72cores_nobinding_36streams = {
         {70, 1, 1, 70, MAIN_CORE_PROC, 70, -1},       {71, 1, 1, 71, MAIN_CORE_PROC, 71, -1},
     },
     // param[in]: proc_type_table,
-    {{72, 36, 0, 36}, {36, 18, 0, 18}, {36, 18, 0, 18}},
+    {{72, 36, 0, 36, -1, -1}, {36, 18, 0, 18, 0, 0}, {36, 18, 0, 18, 1, 1}},
     // param[in]: streams_info_table, {NUMBER_OF_STREAMS, PROC_TYPE, THREADS_PER_STREAM}
-    {{36, MAIN_CORE_PROC, 1}},
+    {{18, MAIN_CORE_PROC, 1, 0, 0}, {18, MAIN_CORE_PROC, 1, 1, 1}},
     // param[out]: stream_type per stream used in new task_arena
     {
         STREAM_WITH_NUMA_ID, STREAM_WITH_NUMA_ID, STREAM_WITH_NUMA_ID, STREAM_WITH_NUMA_ID, STREAM_WITH_NUMA_ID,
@@ -195,8 +192,8 @@ LinuxCpuStreamTypeCase _2sockets_72cores_nobinding_9streams = {
         {68, 1, 1, 68, MAIN_CORE_PROC, 68, -1},       {69, 1, 1, 69, MAIN_CORE_PROC, 69, -1},
         {70, 1, 1, 70, MAIN_CORE_PROC, 70, -1},       {71, 1, 1, 71, MAIN_CORE_PROC, 71, -1},
     },
-    {{72, 36, 0, 36}, {36, 18, 0, 18}, {36, 18, 0, 18}},
-    {{9, MAIN_CORE_PROC, 4}},
+    {{72, 36, 0, 36, -1, -1}, {36, 18, 0, 18, 0, 0}, {36, 18, 0, 18, 1, 1}},
+    {{4, MAIN_CORE_PROC, 4, 0, 0}, {4, MAIN_CORE_PROC, 4, 1, 1}, {1, MAIN_CORE_PROC, 4, -1, -1}},
     {
         STREAM_WITH_NUMA_ID,
         STREAM_WITH_NUMA_ID,
@@ -263,8 +260,8 @@ LinuxCpuStreamTypeCase _2sockets_72cores_binding_9streams = {
         {68, 1, 1, 68, MAIN_CORE_PROC, 68, -1},       {69, 1, 1, 69, MAIN_CORE_PROC, 69, -1},
         {70, 1, 1, 70, MAIN_CORE_PROC, 70, -1},       {71, 1, 1, 71, MAIN_CORE_PROC, 71, -1},
     },
-    {{72, 36, 0, 36}, {36, 18, 0, 18}, {36, 18, 0, 18}},
-    {{9, MAIN_CORE_PROC, 4}},
+    {{72, 36, 0, 36, -1, -1}, {36, 18, 0, 18, 0, 0}, {36, 18, 0, 18, 1, 1}},
+    {{4, MAIN_CORE_PROC, 4, 0, 0}, {4, MAIN_CORE_PROC, 4, 1, 1}, {1, MAIN_CORE_PROC, 4, -1, -1}},
 #    if defined(__linux__)
     {
         STREAM_WITH_OBSERVE,
@@ -317,8 +314,8 @@ LinuxCpuStreamTypeCase _1sockets_4cores_nobinding = {
         {6, 0, 0, 2, MAIN_CORE_PROC, 2, -1},
         {7, 0, 0, 3, MAIN_CORE_PROC, 3, -1},
     },
-    {{8, 4, 0, 4}},
-    {{1, MAIN_CORE_PROC, 8}},
+    {{8, 4, 0, 4, 0, 0}},
+    {{1, MAIN_CORE_PROC, 8, 0, 0}},
     {STREAM_WITHOUT_PARAM},
     {8},
     {MAIN_CORE_PROC},
@@ -337,8 +334,8 @@ LinuxCpuStreamTypeCase _1sockets_4cores_binding = {
         {6, 0, 0, 2, MAIN_CORE_PROC, 2, -1},
         {7, 0, 0, 3, MAIN_CORE_PROC, 3, -1},
     },
-    {{8, 4, 0, 4}},
-    {{4, MAIN_CORE_PROC, 1}},
+    {{8, 4, 0, 4, 0, 0}},
+    {{4, MAIN_CORE_PROC, 1, 0, 0}},
 #    if defined(__linux__)
     {
         STREAM_WITH_OBSERVE,
@@ -378,8 +375,8 @@ LinuxCpuStreamTypeCase _1sockets_12cores_pcore_nobinding = {
         {16, 0, 0, 8, EFFICIENT_CORE_PROC, 8, -1},  {17, 0, 0, 9, EFFICIENT_CORE_PROC, 8, -1},
         {18, 0, 0, 10, EFFICIENT_CORE_PROC, 8, -1}, {19, 0, 0, 11, EFFICIENT_CORE_PROC, 8, -1},
     },
-    {{20, 8, 4, 8}},
-    {{1, MAIN_CORE_PROC, 8}},
+    {{20, 8, 4, 8, 0, 0}},
+    {{1, MAIN_CORE_PROC, 8, 0, 0}},
     {STREAM_WITH_CORE_TYPE},
     {8},
     {MAIN_CORE_PROC},
@@ -400,8 +397,8 @@ LinuxCpuStreamTypeCase _1sockets_12cores_pcore_binding = {
         {16, 0, 0, 8, EFFICIENT_CORE_PROC, 8, -1},  {17, 0, 0, 9, EFFICIENT_CORE_PROC, 8, -1},
         {18, 0, 0, 10, EFFICIENT_CORE_PROC, 8, -1}, {19, 0, 0, 11, EFFICIENT_CORE_PROC, 8, -1},
     },
-    {{20, 8, 4, 8}},
-    {{2, MAIN_CORE_PROC, 4}},
+    {{20, 8, 4, 8, 0, 0}},
+    {{2, MAIN_CORE_PROC, 4, 0, 0}},
 #    if defined(__linux__)
     {
         STREAM_WITH_OBSERVE,
@@ -435,8 +432,8 @@ LinuxCpuStreamTypeCase _1sockets_12cores_ecore_nobinding = {
         {16, 0, 0, 8, EFFICIENT_CORE_PROC, 8, -1},  {17, 0, 0, 9, EFFICIENT_CORE_PROC, 8, -1},
         {18, 0, 0, 10, EFFICIENT_CORE_PROC, 8, -1}, {19, 0, 0, 11, EFFICIENT_CORE_PROC, 8, -1},
     },
-    {{20, 8, 4, 8}},
-    {{2, EFFICIENT_CORE_PROC, 2}},
+    {{20, 8, 4, 8, 0, 0}},
+    {{2, EFFICIENT_CORE_PROC, 2, 0, 0}},
     {
         STREAM_WITH_CORE_TYPE,
         STREAM_WITH_CORE_TYPE,
@@ -463,8 +460,8 @@ LinuxCpuStreamTypeCase _1sockets_12cores_ecore_binding = {
         {16, 0, 0, 8, EFFICIENT_CORE_PROC, 8, -1},  {17, 0, 0, 9, EFFICIENT_CORE_PROC, 8, -1},
         {18, 0, 0, 10, EFFICIENT_CORE_PROC, 8, -1}, {19, 0, 0, 11, EFFICIENT_CORE_PROC, 8, -1},
     },
-    {{20, 8, 4, 8}},
-    {{4, EFFICIENT_CORE_PROC, 1}},
+    {{20, 8, 4, 8, 0, 0}},
+    {{4, EFFICIENT_CORE_PROC, 1, 0, 0}},
 #    if defined(__linux__)
     {
         STREAM_WITH_OBSERVE,
@@ -510,8 +507,8 @@ LinuxCpuStreamTypeCase _1sockets_24cores_all_proc = {
         {28, 0, 0, 20, EFFICIENT_CORE_PROC, 11, -1}, {29, 0, 0, 21, EFFICIENT_CORE_PROC, 11, -1},
         {30, 0, 0, 22, EFFICIENT_CORE_PROC, 11, -1}, {31, 0, 0, 23, EFFICIENT_CORE_PROC, 11, -1},
     },
-    {{32, 8, 16, 8}},
-    {{1, ALL_PROC, 24}},
+    {{32, 8, 16, 8, 0, 0}},
+    {{1, ALL_PROC, 24, 0, 0}},
     {STREAM_WITHOUT_PARAM},
     {24},
     {ALL_PROC},

@@ -133,11 +133,11 @@ struct CPUStreamsExecutor::Impl {
                                    const int concurrency,
                                    const int core_type,
                                    const int numa_node_id) {
+            _numaNodeId = numa_node_id;
+            _socketId = get_socket_by_numa_node(_numaNodeId);
             if (stream_type == STREAM_WITHOUT_PARAM) {
                 _taskArena.reset(new custom::task_arena{concurrency});
             } else if (stream_type == STREAM_WITH_NUMA_ID) {
-                _numaNodeId = _impl->_usedNumaNodes.at(numa_node_id);
-                _socketId = get_socket_by_numa_node(_numaNodeId);
                 _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{_numaNodeId, concurrency}});
             } else if (stream_type == STREAM_WITH_CORE_TYPE) {
                 const auto real_core_type = (core_type == MAIN_CORE_PROC || core_type == HYPER_THREADING_PROC)
@@ -181,7 +181,6 @@ struct CPUStreamsExecutor::Impl {
                                 _impl->_config._cpu_reservation,
                                 org_proc_type_table,
                                 _impl->_config._streams_info_table,
-                                _impl->_config._stream_numa_node_ids,
                                 stream_type,
                                 concurrency,
                                 cpu_core_type,

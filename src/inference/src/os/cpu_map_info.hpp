@@ -40,7 +40,6 @@ void reserve_cpu_by_streams_info(const std::vector<std::vector<int>> _streams_in
                                  const std::vector<std::vector<int>> _proc_type_table,
                                  const int _numa_nodes,
                                  std::vector<std::vector<int>>& _stream_processors,
-                                 std::vector<int>& _stream_numa_node_ids,
                                  const int _cpu_status);
 
 #ifdef __linux__

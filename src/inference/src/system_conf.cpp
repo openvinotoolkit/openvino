@@ -321,7 +321,6 @@ void reserve_available_cpus(const std::vector<std::vector<int>> streams_info_tab
                                 proc_type_table,
                                 cpu._numa_nodes,
                                 stream_processors,
-                                stream_numa_node_ids,
                                 cpu_status);
 
     OPENVINO_DEBUG << "[ threading ] cpu_mapping_table:";
@@ -338,12 +337,14 @@ void reserve_available_cpus(const std::vector<std::vector<int>> streams_info_tab
     for (size_t i = 0; i < cpu._proc_type_table.size(); i++) {
         OPENVINO_DEBUG << cpu._proc_type_table[i][ALL_PROC] << " " << cpu._proc_type_table[i][MAIN_CORE_PROC] << " "
                        << cpu._proc_type_table[i][EFFICIENT_CORE_PROC] << " "
-                       << cpu._proc_type_table[i][HYPER_THREADING_PROC];
+                       << cpu._proc_type_table[i][HYPER_THREADING_PROC] << " "
+                       << cpu._proc_type_table[i][PROC_NUMA_NODE_ID] << " " << cpu._proc_type_table[i][PROC_SOCKET_ID];
     }
     OPENVINO_DEBUG << "[ threading ] streams_info_table:";
     for (size_t i = 0; i < streams_info_table.size(); i++) {
         OPENVINO_DEBUG << streams_info_table[i][NUMBER_OF_STREAMS] << " " << streams_info_table[i][PROC_TYPE] << " "
-                       << streams_info_table[i][THREADS_PER_STREAM];
+                       << streams_info_table[i][THREADS_PER_STREAM] << " " << streams_info_table[i][STREAM_NUMA_NODE_ID]
+                       << " " << streams_info_table[i][STREAM_SOCKET_ID];
     }
 }
 
@@ -352,98 +353,84 @@ void reserve_cpu_by_streams_info(const std::vector<std::vector<int>> _streams_in
                                  const std::vector<std::vector<int>> _proc_type_table,
                                  const int _numa_nodes,
                                  std::vector<std::vector<int>>& _stream_processors,
-                                 std::vector<int>& _stream_numa_node_ids,
                                  const int _cpu_status) {
-    std::map<int, int> stream_id_per_coretype;
-    std::map<int, std::vector<int>> streams_info_per_coretype;
-    std::vector<int> stream_num_per_coretype(PROC_TYPE_TABLE_SIZE, 0);
-    std::vector<std::vector<int>> remain_cpus_per_coretype;
+    std::vector<std::vector<int>> streams_info_table = _streams_info_table;
+    std::vector<std::vector<std::string>> stream_conditions;
+    std::vector<int> stream_pos;
+    std::vector<int> stream_num;
     std::vector<int> cpu_ids;
-    int first_core_type = MAIN_CORE_PROC;
-    int plugin_numa_id = 1;
     int num_streams = 0;
 
+    stream_pos.assign(_streams_info_table.size(), 0);
+    stream_num.assign(_streams_info_table.size(), 0);
     for (size_t i = 0; i < _streams_info_table.size(); i++) {
-        if (_streams_info_table[i][NUMBER_OF_STREAMS] > 0 && _streams_info_table[i][PROC_TYPE] != ALL_PROC) {
-            first_core_type = i == 0 ? _streams_info_table[i][PROC_TYPE] : first_core_type;
-            stream_id_per_coretype.insert(std::pair<int, int>(_streams_info_table[i][PROC_TYPE], num_streams));
-            num_streams += _streams_info_table[i][NUMBER_OF_STREAMS];
-            streams_info_per_coretype.insert(
-                std::pair<int, std::vector<int>>(_streams_info_table[i][PROC_TYPE], _streams_info_table[i]));
-        }
+        stream_pos[i] = num_streams;
+        num_streams += _streams_info_table[i][NUMBER_OF_STREAMS];
     }
-    if (num_streams == 1 && _streams_info_table[0][THREADS_PER_STREAM] > _proc_type_table[0][MAIN_CORE_PROC]) {
-        stream_id_per_coretype.insert(std::pair<int, int>(HYPER_THREADING_PROC, 0));
-        streams_info_per_coretype.insert(
-            std::pair<int, std::vector<int>>(HYPER_THREADING_PROC,
-                                             {1, HYPER_THREADING_PROC, _streams_info_table[0][THREADS_PER_STREAM]}));
-    }
-
     _stream_processors.assign(num_streams, std::vector<int>());
-    _stream_numa_node_ids.assign(num_streams, -1);
-    remain_cpus_per_coretype.assign(PROC_TYPE_TABLE_SIZE, std::vector<int>());
-
-    if (_cpu_status == CPU_USED && _numa_nodes > 1) {
-        for (int i = 2; i < static_cast<int>(_proc_type_table.size()); i++) {
-            plugin_numa_id = _proc_type_table[i][first_core_type] > _proc_type_table[plugin_numa_id][first_core_type]
-                                 ? i
-                                 : plugin_numa_id;
+    stream_conditions.assign(_streams_info_table.size(), std::vector<std::string>());
+    for (size_t i = 0; i < _streams_info_table.size(); i++) {
+        std::vector<std::string> proc_types;
+        std::vector<std::string> numa_nodes;
+        std::vector<std::string> sockets;
+        if (_streams_info_table[i][PROC_TYPE] == ALL_PROC) {
+            proc_types.push_back(std::to_string(MAIN_CORE_PROC));
+            proc_types.push_back(std::to_string(EFFICIENT_CORE_PROC));
+            proc_types.push_back(std::to_string(HYPER_THREADING_PROC));
+        } else {
+            proc_types.push_back(std::to_string(_streams_info_table[i][PROC_TYPE]));
+        }
+        if (num_streams == 1 && _streams_info_table[0][PROC_TYPE] == MAIN_CORE_PROC &&
+            _streams_info_table[0][THREADS_PER_STREAM] > _proc_type_table[0][MAIN_CORE_PROC]) {
+            proc_types.push_back(std::to_string(HYPER_THREADING_PROC));
+        }
+        if (_streams_info_table[i][STREAM_NUMA_NODE_ID] < 0) {
+            for (int j = 0; j < _numa_nodes; j++) {
+                numa_nodes.push_back(std::to_string(j));
+            }
+        } else {
+            numa_nodes.push_back(std::to_string(_streams_info_table[i][STREAM_NUMA_NODE_ID]));
+        }
+        if (_streams_info_table[i][STREAM_SOCKET_ID] < 0) {
+            for (int j = 0; j < _numa_nodes; j++) {
+                sockets.push_back(std::to_string(j));
+            }
+        } else {
+            sockets.push_back(std::to_string(_streams_info_table[i][STREAM_SOCKET_ID]));
+        }
+        for (auto t : proc_types) {
+            for (auto n : numa_nodes) {
+                for (auto s : sockets) {
+                    stream_conditions[i].push_back(t + n + s);
+                }
+            }
         }
     }
 
     for (size_t i = 0; i < _cpu_mapping_table.size(); i++) {
-        auto cur_stream_id = stream_id_per_coretype.find(_cpu_mapping_table[i][CPU_MAP_CORE_TYPE]);
-        int numa_node_id = (_cpu_status == CPU_USED && _numa_nodes > 1) ? std::max(0, plugin_numa_id - 1) : -1;
-        if (cur_stream_id != stream_id_per_coretype.end() && _cpu_mapping_table[i][CPU_MAP_USED_FLAG] == NOT_USED &&
-            (numa_node_id < 0 || _cpu_mapping_table[i][CPU_MAP_NUMA_NODE_ID] == numa_node_id)) {
-            if (_stream_processors[cur_stream_id->second].size() == 0) {
-                _stream_processors[cur_stream_id->second].push_back(_cpu_mapping_table[i][CPU_MAP_PROCESSOR_ID]);
-                _stream_numa_node_ids[cur_stream_id->second] = _cpu_mapping_table[i][CPU_MAP_NUMA_NODE_ID];
-            } else {
-                if (_stream_numa_node_ids[cur_stream_id->second] == _cpu_mapping_table[i][CPU_MAP_NUMA_NODE_ID]) {
-                    _stream_processors[cur_stream_id->second].push_back(_cpu_mapping_table[i][CPU_MAP_PROCESSOR_ID]);
-                    _stream_numa_node_ids[cur_stream_id->second] = _cpu_mapping_table[i][CPU_MAP_NUMA_NODE_ID];
-                } else {
-                    remain_cpus_per_coretype[cur_stream_id->first].insert(
-                        remain_cpus_per_coretype[cur_stream_id->first].end(),
-                        _stream_processors[cur_stream_id->second].begin(),
-                        _stream_processors[cur_stream_id->second].end());
-                    _stream_processors[cur_stream_id->second].clear();
-                    _stream_processors[cur_stream_id->second].push_back(_cpu_mapping_table[i][CPU_MAP_PROCESSOR_ID]);
-                    _stream_numa_node_ids[cur_stream_id->second] = _cpu_mapping_table[i][CPU_MAP_NUMA_NODE_ID];
+        for (size_t j = 0; j < stream_conditions.size(); j++) {
+            std::string cpu_string = std::to_string(_cpu_mapping_table[i][CPU_MAP_CORE_TYPE]) +
+                                     std::to_string(_cpu_mapping_table[i][CPU_MAP_NUMA_NODE_ID]) +
+                                     std::to_string(_cpu_mapping_table[i][CPU_MAP_SOCKET_ID]);
+            if (std::find(stream_conditions[j].begin(), stream_conditions[j].end(), cpu_string) !=
+                stream_conditions[j].end()) {
+                _stream_processors[stream_pos[j]].push_back(_cpu_mapping_table[i][CPU_MAP_PROCESSOR_ID]);
+                if (static_cast<int>(_stream_processors[stream_pos[j]].size()) ==
+                    _streams_info_table[j][THREADS_PER_STREAM]) {
+                    cpu_ids.insert(cpu_ids.end(),
+                                   _stream_processors[stream_pos[j]].begin(),
+                                   _stream_processors[stream_pos[j]].end());
+                    stream_pos[j]++;
+                    stream_num[j]++;
                 }
+                if (stream_num[j] >= _streams_info_table[j][NUMBER_OF_STREAMS]) {
+                    stream_conditions[j].clear();
+                }
+                break;
             }
+        }
+    }
 
-            if (_stream_processors[cur_stream_id->second].size() ==
-                static_cast<size_t>(streams_info_per_coretype.at(cur_stream_id->first)[THREADS_PER_STREAM])) {
-                cpu_ids.insert(cpu_ids.end(),
-                               _stream_processors[cur_stream_id->second].begin(),
-                               _stream_processors[cur_stream_id->second].end());
-                stream_id_per_coretype.at(cur_stream_id->first)++;
-                stream_num_per_coretype[cur_stream_id->first]++;
-            }
-            if (stream_num_per_coretype[cur_stream_id->first] >=
-                streams_info_per_coretype.at(cur_stream_id->first)[NUMBER_OF_STREAMS]) {
-                stream_id_per_coretype.erase(cur_stream_id);
-            }
-        }
-    }
-    if (stream_id_per_coretype.size() > 0) {
-        for (auto i = stream_id_per_coretype.begin(); i != stream_id_per_coretype.end(); i++) {
-            if (stream_num_per_coretype[i->first] < streams_info_per_coretype[i->first][NUMBER_OF_STREAMS] &&
-                remain_cpus_per_coretype[i->first].size() > 0) {
-                _stream_processors[i->second].insert(_stream_processors[i->second].end(),
-                                                     remain_cpus_per_coretype[i->first].begin(),
-                                                     remain_cpus_per_coretype[i->first].begin() +
-                                                         streams_info_per_coretype[i->first][THREADS_PER_STREAM] -
-                                                         _stream_processors[i->second].size());
-                cpu_ids.insert(cpu_ids.end(),
-                               _stream_processors[i->second].begin(),
-                               _stream_processors[i->second].end());
-                _stream_numa_node_ids[i->second] = NUMA_ALL;
-            }
-        }
-    }
     if (_cpu_status > NOT_USED) {
         set_cpu_used(cpu_ids, _cpu_status);
     }
