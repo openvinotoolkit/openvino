@@ -1259,7 +1259,7 @@ bool layout_optimizer::are_data_types_suitable_for_onednn(program_node& node) {
         return onednn_check_data_types_for_deconvolution(in_dt, wei_dt, out_dt);
     } else if (node.is_type<fully_connected>() || node.is_type<gemm>()) {
         bool is_fc = node.is_type<fully_connected>();
-        auto wei_dt = is_fc ? node.as<fully_connected>().weights().get_output_layout().data_type :
+        auto wei_dt = is_fc ? node.as<fully_connected>().weights().get_output_layout(false).data_type :
                               node.as<gemm>().get_input_layout(1).data_type;
         return onednn_check_data_types_for_fc_gemm(in_dt, wei_dt, out_dt);
     } else if (node.is_type<reorder>()) {
