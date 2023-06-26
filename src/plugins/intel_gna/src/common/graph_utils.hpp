@@ -442,8 +442,8 @@ inline Rank::value_type get_max_input_rank(const std::shared_ptr<ov::Node>& node
  */
 inline Shape::value_type get_dim_by_axis(const Shape& shape, int64_t axis) {
     if (axis < 0)
-        axis += shape.size();
-    if (axis < 0 || axis >= shape.size())
+        axis += static_cast<int64_t>(shape.size());
+    if (axis < 0 || axis >= static_cast<int64_t>(shape.size()))
         throw std::runtime_error("get_dim_by_axis invalid axis");
     return shape[axis];
 }
@@ -452,7 +452,7 @@ inline Shape::value_type get_dim_by_axis(const Shape& shape, int64_t axis) {
  * @brief unsqueezes shape to rank
  */
 inline Shape unsqueeze_shape(const Shape& shape, ov::Rank::value_type rank) {
-    const int rank_delta = rank - shape.size();
+    const ov::Rank::value_type rank_delta = rank - static_cast<ov::Rank::value_type>(shape.size());
 
     if (rank_delta <= 0)
         return shape;
@@ -547,7 +547,7 @@ inline bool has_2d_inputs(const ov::Output<ov::Node>& output) {
  */
 inline bool is_pointless_permutation(const std::vector<int64_t>& indices) {
     for (size_t i = 0; i < indices.size(); ++i) {
-        if (indices[i] != i)
+        if (indices[i] != static_cast<int64_t>(i))
             return false;
     }
     return true;
@@ -597,6 +597,32 @@ inline bool constant_has_rank_not_more_than(const std::shared_ptr<ov::opset12::C
  */
 inline bool is_constant_1d(const Output<Node>& output) {
     return ov::pass::pattern::rank_equals(0)(output) || ov::pass::pattern::rank_equals(1)(output);
+}
+
+/**
+ * @brief Checks if node has parent node with type T
+ */
+template <typename T>
+bool has_parent_node(std::shared_ptr<ov::Node> node) {
+    for (const auto& parent : node->input_values()) {
+        if (dynamic_cast<const T*>(parent.get_node()))
+            return true;
+    }
+    return false;
+}
+
+/**
+ * @brief Checks if node has child node with type T
+ */
+template <typename T>
+bool has_child_node(std::shared_ptr<ov::Node> node) {
+    for (size_t output_idx = 0; output_idx < node->get_output_size(); ++output_idx) {
+        for (auto& input : node->get_output_target_inputs(output_idx)) {
+            if (dynamic_cast<const T*>(input.get_node()))
+                return true;
+        }
+    }
+    return false;
 }
 
 }  // namespace graph_utils

@@ -80,7 +80,7 @@ TSSplitBackward::TSSplitBackward() {
         const Shape& split_input_shape = split_node->get_input_shape(0);
         const size_t split_input_dims = std::accumulate(split_input_shape.begin(),
                                                         split_input_shape.end(),
-                                                        1,
+                                                        std::size_t{1},
                                                         std::multiplies<Shape::value_type>());
 
         const Shape reshape_input_shape = {1, split_input_dims};

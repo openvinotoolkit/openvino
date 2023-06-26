@@ -272,6 +272,8 @@ void primitive_inst::update_shape() {
             continue;
         }
         auto& dep = _node->get_dependency(i);
+        if (dep.is_in_shape_of_subgraph())
+            continue;
         auto dep_id = dep.id();
         // exclude fused node from memory_deps
         if (_node->is_fused_dep(i)) {
@@ -1014,7 +1016,7 @@ event::ptr primitive_inst::update_weights() {
             memory::ptr weights_memory = nullptr;
             if (_reordered_weights_cache.is_full()) {
                 weights_memory = _reordered_weights_cache.get_lru_element().second;
-                can_reuse = weights_memory->size() <= expected_layout.bytes_count() && weights_memory != original_weights_memory;
+                can_reuse = weights_memory->size() <= expected_layout.bytes_count() && (weights_memory->buffer_ptr() != original_weights_memory->buffer_ptr());
             }
 
             if (can_reuse) {
