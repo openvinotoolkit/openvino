@@ -280,6 +280,7 @@ void FullyConnected::getSupportedDescriptors() {
     inDims = isDynamicNode() ? makeDummyInputDims() : getInputShapeAtPort(DATA_ID).getStaticDims();
     outDims = isDynamicNode() ? makeDummyOutputDims(inDims) : getOutputShapeAtPort(0).getStaticDims();
 #ifdef OV_CPU_WITH_MLAS
+    bool isINT8 = one_of(inputDataType, memory::data_type::u8, memory::data_type::s8) && weightsDataType == memory::data_type::s8;
     useMlas = !useSparseWeights && (inputDataType != memory::data_type::bf16) && !isINT8;
     if (withBiases) {
         const auto& biasDims = getInputShapeAtPort(BIAS_ID).getStaticDims();

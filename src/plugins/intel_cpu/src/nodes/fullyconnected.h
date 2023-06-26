@@ -99,9 +99,8 @@ private:
     float minSparseRate = 1.f;
     float weiSparseRate = 0.f;
     bool useSparseWeightsDecompression();
-    bool isINT8 = false;
-    bool useMlas = false;
     VectorDims expectedBiasDims {};
+    bool useMlas = false;
 #ifdef OV_CPU_WITH_MLAS
     int64_t M, N, K;
     MemoryPtr mlasPackedPtr = nullptr;
