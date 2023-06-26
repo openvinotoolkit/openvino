@@ -1099,8 +1099,8 @@ RequestStatus GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
         }
 
         if (!gnadevice) {
-            export_scores(gna_output_blob->buffer(),
-                          gna_output_desc.ptrs[request_idx],
+            export_scores(output_blob->buffer(),
+                          gna_output_blob->cbuffer(),
                           gna_output_desc.orientation,
                           batchSize,
                           batchSize,
@@ -1112,8 +1112,8 @@ RequestStatus GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
                           1.0f,
                           isAvx2Supported);
         } else {
-            export_scores(gna_output_blob->buffer(),
-                          gna_output_desc.ptrs[request_idx],
+            export_scores(output_blob->buffer(),
+                          gna_output_blob->cbuffer(),
                           gna_output_desc.orientation,
                           batchSize,
                           batchSize,
