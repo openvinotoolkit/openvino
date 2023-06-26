@@ -243,7 +243,7 @@ Test performance in Sync Mode
 .. parsed-literal::
 
     Source ended
-    average throuput in sync mode: 41.15 fps
+    average throuput in sync mode: 36.81 fps
 
 
 Async Mode
@@ -372,7 +372,7 @@ Test the performance in Async Mode
 .. parsed-literal::
 
     Source ended
-    average throuput in async mode: 71.19 fps
+    average throuput in async mode: 72.96 fps
 
 
 Compare the performance
@@ -407,7 +407,7 @@ AsyncInferQueue
 ---------------
 
 Asynchronous mode pipelines can be supported with the
-`AsyncInferQueue <https://docs.openvino.ai/latest/openvino_docs_OV_UG_Python_API_exclusives.html#asyncinferqueue>`__
+`AsyncInferQueue <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_Python_API_exclusives.html#asyncinferqueue>`__
 wrapper class. This class automatically spawns the pool of InferRequest
 objects (also called “jobs”) and provides synchronization mechanisms to
 control the flow of the pipeline. It is a simpler way to manage the
@@ -507,5 +507,5 @@ Test the performance with AsyncInferQueue
 
 .. parsed-literal::
 
-    average throughput in async mode with async infer queue: 111.22 fps
+    average throughput in async mode with async infer queue: 102.11 fps
 
