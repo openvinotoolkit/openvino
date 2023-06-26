@@ -49,8 +49,9 @@ class MockPlugin : public ov::IPlugin {
 
     ov::Any get_property(const std::string& name, const ov::AnyMap& arguments) const override {
         if (name == ov::supported_properties) {
-            std::vector<ov::PropertyName> supportedProperties = {ov::PropertyName(ov::supported_properties.name(), ov::PropertyMutability::RO),
-                                                                 ov::PropertyName(ov::num_streams.name(), ov::PropertyMutability::RW)};
+            std::vector<ov::PropertyName> supportedProperties = {
+                ov::PropertyName(ov::supported_properties.name(), ov::PropertyMutability::RO),
+                ov::PropertyName(ov::num_streams.name(), ov::PropertyMutability::RW)};
             return decltype(ov::supported_properties)::value_type(supportedProperties);
         } else if (name == ov::num_streams.name()) {
             return decltype(ov::num_streams)::value_type(num_streams);
@@ -66,11 +67,9 @@ class MockPlugin : public ov::IPlugin {
         OPENVINO_NOT_IMPLEMENTED;
     }
 
-    std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model,
-                                                     const ov::AnyMap& properties) const override {
+    std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model, const ov::AnyMap& properties) const override {
         OPENVINO_NOT_IMPLEMENTED;
     }
-
 
     std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model,
                                                      const ov::RemoteContext& context,
