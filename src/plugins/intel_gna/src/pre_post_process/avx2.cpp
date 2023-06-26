@@ -16,15 +16,15 @@ namespace pre_post_processing {
 #ifdef HAVE_AVX2
 void convert_matrix_fp32_to_int16_avx(int16_t* ptr_dst,
                                       const float* ptr_src,
-                                      const uint32_t num_rows,
-                                      const uint32_t num_columns,
+                                      const size_t num_rows,
+                                      const size_t num_columns,
                                       const float scale_factor,
                                       bool transpose) {
-    const uint32_t num_elements = num_rows * num_columns;
-    uint32_t moves = num_elements / 8;
-    uint32_t mod = num_elements % 8;
-    uint32_t i, j;
-    uint32_t index = 0;
+    const size_t num_elements = num_rows * num_columns;
+    size_t moves = num_elements / 8;
+    size_t mod = num_elements % 8;
+    size_t i, j;
+    size_t index = 0;
 
     __m256 v, zero, half, neg_half, scaleFactors, mask, roundingValues, min, max, values;
 
@@ -52,10 +52,10 @@ void convert_matrix_fp32_to_int16_avx(int16_t* ptr_dst,
         // cast
         if (transpose) {
             for (j = 0; j < 8; j++, index++) {
-                uint32_t targetColumn = index / num_columns;
-                uint32_t targetRow = index % num_columns;
+                size_t targetColumn = index / num_columns;
+                size_t targetRow = index % num_columns;
                 // target number of rows == source number of columns
-                uint32_t targetIndex = targetRow * num_rows + targetColumn;
+                size_t targetIndex = targetRow * num_rows + targetColumn;
                 ptr_dst[targetIndex] = static_cast<int16_t>(values.m256_f32[j]);
             }
         } else {
@@ -66,10 +66,10 @@ void convert_matrix_fp32_to_int16_avx(int16_t* ptr_dst,
 
     for (i = 0; i < mod; i++, index++) {
         if (transpose) {
-            uint32_t targetColumn = index / num_columns;
-            uint32_t targetRow = index % num_columns;
+            size_t targetColumn = index / num_columns;
+            size_t targetRow = index % num_columns;
             // target number of rows == source number of columns
-            uint32_t targetIndex = targetRow * num_rows + targetColumn;
+            size_t targetIndex = targetRow * num_rows + targetColumn;
             ptr_dst[targetIndex] = ConvertFloatToInt16(ptr_src[moves * 8 + i] * scale_factor);
         } else {
             ptr_dst[moves * 8 + i] = ConvertFloatToInt16(ptr_src[moves * 8 + i] * scale_factor);
@@ -79,15 +79,15 @@ void convert_matrix_fp32_to_int16_avx(int16_t* ptr_dst,
 
 void convert_matrix_fp32_to_int8_avx(int8_t* ptr_dst,
                                      const float* ptr_src,
-                                     const uint32_t num_rows,
-                                     const uint32_t num_columns,
+                                     const size_t num_rows,
+                                     const size_t num_columns,
                                      const float scale_factor,
                                      bool transpose) {
-    const uint32_t num_elements = num_rows * num_columns;
-    uint32_t moves = num_elements / 8;
-    uint32_t mod = num_elements % 8;
-    uint32_t i, j;
-    uint32_t index = 0;
+    const size_t num_elements = num_rows * num_columns;
+    size_t moves = num_elements / 8;
+    size_t mod = num_elements % 8;
+    size_t i, j;
+    size_t index = 0;
 
     __m256 v, zero, half, neg_half, scaleFactors, mask, roundingValues, min, max, values;
 
@@ -115,10 +115,10 @@ void convert_matrix_fp32_to_int8_avx(int8_t* ptr_dst,
         // cast
         if (transpose) {
             for (j = 0; j < 8; j++, index++) {
-                uint32_t targetColumn = index / num_columns;
-                uint32_t targetRow = index % num_columns;
+                size_t targetColumn = index / num_columns;
+                size_t targetRow = index % num_columns;
                 // target number of rows == source number of columns
-                uint32_t targetIndex = targetRow * num_rows + targetColumn;
+                size_t targetIndex = targetRow * num_rows + targetColumn;
                 ptr_dst[targetIndex] = static_cast<int8_t>(values.m256_f32[j]);
             }
         } else {
@@ -130,10 +130,10 @@ void convert_matrix_fp32_to_int8_avx(int8_t* ptr_dst,
 
     for (i = 0; i < mod; i++, index++) {
         if (transpose) {
-            uint32_t targetColumn = index / num_columns;
-            uint32_t targetRow = index % num_columns;
+            size_t targetColumn = index / num_columns;
+            size_t targetRow = index % num_columns;
             // target number of rows == source number of columns
-            uint32_t targetIndex = targetRow * num_rows + targetColumn;
+            size_t targetIndex = targetRow * num_rows + targetColumn;
             ptr_dst[targetIndex] = ConvertFloatToInt8(ptr_src[moves * 8 + i] * scale_factor);
         } else {
             ptr_dst[moves * 8 + i] = ConvertFloatToInt8(ptr_src[moves * 8 + i] * scale_factor);
@@ -143,15 +143,15 @@ void convert_matrix_fp32_to_int8_avx(int8_t* ptr_dst,
 
 void convert_matrix_int32_to_fp32_avx(float* ptr_dst,
                                       const int32_t* ptr_src,
-                                      uint32_t num_rows,
-                                      uint32_t num_columns,
+                                      size_t num_rows,
+                                      size_t num_columns,
                                       float scale_factor,
                                       bool transpose) {
-    const uint32_t num_elements = num_rows * num_columns;
-    uint32_t moves = num_elements / 8;
-    uint32_t mod = num_elements % 8;
-    uint32_t i, j;
-    uint32_t index = 0;
+    const size_t num_elements = num_rows * num_columns;
+    size_t moves = num_elements / 8;
+    size_t mod = num_elements % 8;
+    size_t i, j;
+    size_t index = 0;
 
     __m256 v, scaleFactors, values;
     scaleFactors = _mm256_set1_ps(scale_factor);
@@ -162,10 +162,10 @@ void convert_matrix_int32_to_fp32_avx(float* ptr_dst,
         values = _mm256_div_ps(v, scaleFactors);
         if (transpose) {
             for (j = 0; j < 8; j++, index++) {
-                uint32_t targetColumn = index / num_columns;
-                uint32_t targetRow = index % num_columns;
+                size_t targetColumn = index / num_columns;
+                size_t targetRow = index % num_columns;
                 // target number of rows == source number of columns
-                uint32_t targetIndex = targetRow * num_rows + targetColumn;
+                size_t targetIndex = targetRow * num_rows + targetColumn;
                 ptr_dst[targetIndex] = values.m256_f32[j];
             }
         } else {
@@ -174,10 +174,10 @@ void convert_matrix_int32_to_fp32_avx(float* ptr_dst,
     }
     for (i = 0; i < mod; i++, index++) {
         if (transpose) {
-            uint32_t targetColumn = index / num_columns;
-            uint32_t targetRow = index % num_columns;
+            size_t targetColumn = index / num_columns;
+            size_t targetRow = index % num_columns;
             // target number of rows == source number of columns
-            uint32_t targetIndex = targetRow * num_rows + targetColumn;
+            size_t targetIndex = targetRow * num_rows + targetColumn;
             ptr_dst[targetIndex] = static_cast<float>(ptr_src[moves * 8 + i] / scale_factor);
         } else {
             ptr_dst[moves * 8 + i] = static_cast<float>(ptr_src[moves * 8 + i] / scale_factor);
@@ -187,15 +187,15 @@ void convert_matrix_int32_to_fp32_avx(float* ptr_dst,
 
 void convert_matrix_int16_to_fp32_avx(float* ptr_dst,
                                       const int16_t* ptr_src,
-                                      uint32_t num_rows,
-                                      uint32_t num_columns,
+                                      size_t num_rows,
+                                      size_t num_columns,
                                       float scale_factor,
                                       bool transpose) {
-    const uint32_t num_elements = num_rows * num_columns;
-    uint32_t moves = num_elements / 8;
-    uint32_t mod = num_elements % 8;
-    uint32_t i, j;
-    uint32_t index = 0;
+    const size_t num_elements = num_rows * num_columns;
+    size_t moves = num_elements / 8;
+    size_t mod = num_elements % 8;
+    size_t i, j;
+    size_t index = 0;
 
     __m256 v, scaleFactors, values;
     scaleFactors = _mm256_set1_ps(scale_factor);
@@ -207,10 +207,10 @@ void convert_matrix_int16_to_fp32_avx(float* ptr_dst,
         values = _mm256_div_ps(v, scaleFactors);
         if (transpose) {
             for (j = 0; j < 8; j++, index++) {
-                uint32_t targetColumn = index / num_columns;
-                uint32_t targetRow = index % num_columns;
+                size_t targetColumn = index / num_columns;
+                size_t targetRow = index % num_columns;
                 // target number of rows == source number of columns
-                uint32_t targetIndex = targetRow * num_rows + targetColumn;
+                size_t targetIndex = targetRow * num_rows + targetColumn;
                 ptr_dst[targetIndex] = values.m256_f32[j];
             }
         } else {
@@ -219,10 +219,10 @@ void convert_matrix_int16_to_fp32_avx(float* ptr_dst,
     }
     for (i = 0; i < mod; i++, index++) {
         if (transpose) {
-            uint32_t targetColumn = index / num_columns;
-            uint32_t targetRow = index % num_columns;
+            size_t targetColumn = index / num_columns;
+            size_t targetRow = index % num_columns;
             // target number of rows == source number of columns
-            uint32_t targetIndex = targetRow * num_rows + targetColumn;
+            size_t targetIndex = targetRow * num_rows + targetColumn;
             ptr_dst[targetIndex] = static_cast<float>(ptr_src[moves * 8 + i] / scale_factor);
         } else {
             ptr_dst[moves * 8 + i] = static_cast<float>(ptr_src[moves * 8 + i] / scale_factor);
@@ -232,15 +232,15 @@ void convert_matrix_int16_to_fp32_avx(float* ptr_dst,
 
 void convert_matrix_int8_to_fp32_avx(float* ptr_dst,
                                      const int8_t* ptr_src,
-                                     uint32_t num_rows,
-                                     uint32_t num_columns,
+                                     size_t num_rows,
+                                     size_t num_columns,
                                      float scale_factor,
                                      bool transpose) {
-    const uint32_t num_elements = num_rows * num_columns;
-    uint32_t moves = num_elements / 8;
-    uint32_t mod = num_elements % 8;
-    uint32_t i, j;
-    uint32_t index = 0;
+    const size_t num_elements = num_rows * num_columns;
+    size_t moves = num_elements / 8;
+    size_t mod = num_elements % 8;
+    size_t i, j;
+    size_t index = 0;
 
     __m256 v, scaleFactors, values;
     scaleFactors = _mm256_set1_ps(scale_factor);
@@ -252,10 +252,10 @@ void convert_matrix_int8_to_fp32_avx(float* ptr_dst,
         values = _mm256_div_ps(v, scaleFactors);
         if (transpose) {
             for (j = 0; j < 8; j++, index++) {
-                uint32_t targetColumn = index / num_columns;
-                uint32_t targetRow = index % num_columns;
+                size_t targetColumn = index / num_columns;
+                size_t targetRow = index % num_columns;
                 // target number of rows == source number of columns
-                uint32_t targetIndex = targetRow * num_rows + targetColumn;
+                size_t targetIndex = targetRow * num_rows + targetColumn;
                 ptr_dst[targetIndex] = values.m256_f32[j];
             }
         } else {
@@ -264,10 +264,10 @@ void convert_matrix_int8_to_fp32_avx(float* ptr_dst,
     }
     for (i = 0; i < mod; i++, index++) {
         if (transpose) {
-            uint32_t targetColumn = index / num_columns;
-            uint32_t targetRow = index % num_columns;
+            size_t targetColumn = index / num_columns;
+            size_t targetRow = index % num_columns;
             // target number of rows == source number of columns
-            uint32_t targetIndex = targetRow * num_rows + targetColumn;
+            size_t targetIndex = targetRow * num_rows + targetColumn;
             ptr_dst[targetIndex] = static_cast<float>(ptr_src[moves * 8 + i] / scale_factor);
         } else {
             ptr_dst[moves * 8 + i] = static_cast<float>(ptr_src[moves * 8 + i] / scale_factor);
@@ -278,36 +278,36 @@ void convert_matrix_int8_to_fp32_avx(float* ptr_dst,
 
 void convert_matrix_fp32_to_int16_avx(int16_t* /*ptr_dst*/,
                                       const float* /*ptr_src*/,
-                                      const uint32_t /*num_rows*/,
-                                      const uint32_t /*num_columns*/,
+                                      const size_t /*num_rows*/,
+                                      const size_t /*num_columns*/,
                                       const float /*scale_factor*/,
                                       bool /*transpose*/) {}
 
 void convert_matrix_fp32_to_int8_avx(int8_t* /*ptr_dst*/,
                                      const float* /*ptr_src*/,
-                                     const uint32_t /*num_rows*/,
-                                     const uint32_t /*num_columns*/,
+                                     const size_t /*num_rows*/,
+                                     const size_t /*num_columns*/,
                                      const float /*scale_factor*/,
                                      bool /*transpose*/) {}
 
 void convert_matrix_int32_to_fp32_avx(float* /*ptr_dst*/,
                                       const int32_t* /*ptr_src*/,
-                                      uint32_t /*num_rows*/,
-                                      uint32_t /*num_columns*/,
+                                      size_t /*num_rows*/,
+                                      size_t /*num_columns*/,
                                       float /*scale_factor*/,
                                       bool /*transpose*/) {}
 
 void convert_matrix_int16_to_fp32_avx(float* /*ptr_dst*/,
                                       const int16_t* /*ptr_src*/,
-                                      uint32_t /*num_rows*/,
-                                      uint32_t /*num_columns*/,
+                                      size_t /*num_rows*/,
+                                      size_t /*num_columns*/,
                                       float /*scale_factor*/,
                                       bool /*transpose*/) {}
 
 void convert_matrix_int8_to_fp32_avx(float* /*ptr_dst*/,
                                      const int8_t* /*ptr_src*/,
-                                     uint32_t /*num_rows*/,
-                                     uint32_t /*num_columns*/,
+                                     size_t /*num_rows*/,
+                                     size_t /*num_columns*/,
                                      float /*scale_factor*/,
                                      bool /*transpose*/) {}
 #endif  // HAVE_AVX2

@@ -32,13 +32,13 @@ int8_t ConvertFloatToInt8(float src) {
 
 void ConvertToInt16(int16_t* ptr_dst,
                     const float* ptr_src,
-                    const uint32_t num_rows,
-                    const uint32_t num_columns,
+                    const size_t num_rows,
+                    const size_t num_columns,
                     const float scale_factor) {
     if (!ptr_dst || !ptr_src) {
         return;
     }
-    for (uint32_t i = 0; i < num_rows * num_columns; i++) {
+    for (size_t i = 0; i < num_rows * num_columns; i++) {
         ptr_dst[i] = ConvertFloatToInt16(ptr_src[i] * scale_factor);
     }
 }
@@ -48,11 +48,11 @@ using InferenceEngine::Precision;
 void export_scores(void* ptr_dst,
                    const void* ptr_src,
                    intel_dnn_orientation_t orientation,
-                   uint32_t num_frames,
-                   uint32_t num_group,
-                   uint32_t num_vector_elements,
-                   uint32_t num_active_elements,
-                   uint32_t num_vector_stride,
+                   size_t num_frames,
+                   size_t num_group,
+                   size_t num_vector_elements,
+                   size_t num_active_elements,
+                   size_t num_vector_stride,
                    const InferenceEngine::Precision& precision_in,
                    const InferenceEngine::Precision& precision_out,
                    const float scale_factor,
@@ -186,10 +186,10 @@ void import_frames(void* ptr_dst,
                    const InferenceEngine::Precision& input_precision,
                    float scaleFactor,
                    intel_dnn_orientation_t orientation,
-                   uint32_t num_frames,
-                   uint32_t num_group,
-                   uint32_t num_vector_elements,
-                   uint32_t num_vector_stride,
+                   size_t num_frames,
+                   size_t num_group,
+                   size_t num_vector_elements,
+                   size_t num_vector_stride,
                    bool input_low_precision,
                    bool isGnaDevice,
                    bool isAvx2Supported) {
