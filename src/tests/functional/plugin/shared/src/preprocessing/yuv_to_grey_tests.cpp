@@ -2,13 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#ifdefn HAS_OPEN_CV
-#include <opencv2/imgproc/types_c.h>
+#ifdef HAS_OPEN_CV
+#    include <opencv2/imgproc/types_c.h>
 
-#include <opencv2/imgproc.hpp>
-#end
+#    include <opencv2/imgproc.hpp>
+#endif
 
 #include "preprocessing/yuv_to_grey_tests.hpp"
+#include "shared_test_classes/single_layer/convert_color_i420.hpp"
+#include "shared_test_classes/single_layer/convert_color_nv12.hpp"
 
 namespace ov {
 namespace preprocess {
