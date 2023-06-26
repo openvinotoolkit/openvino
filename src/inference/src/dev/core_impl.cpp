@@ -246,7 +246,7 @@ bool ov::is_config_applicable(const std::string& user_device_name, const std::st
 
 ov::Parsed ov::parseDeviceNameIntoConfig(const std::string& deviceName,
                                          const AnyMap& config,
-                                         const bool keep_batch_property) {
+                                         const bool keep_core_property) {
     auto updated_config = config;
     auto updated_device_name = deviceName;
 
@@ -292,8 +292,8 @@ ov::Parsed ov::parseDeviceNameIntoConfig(const std::string& deviceName,
         }
     };
 
-    // clean-up auto-batch related properties when api is not called from get_supported_property
-    if (!keep_batch_property) {
+    // keep batch property only when called from query_supported_property
+    if (!keep_core_property) {
         clean_batch_properties(updated_device_name, updated_config, ov::hint::allow_auto_batching);
         clean_batch_properties(updated_device_name, updated_config, ov::auto_batch_timeout);
     }

@@ -33,7 +33,7 @@ struct Parsed {
     AnyMap _config;
 };
 
-Parsed parseDeviceNameIntoConfig(const std::string& deviceName, const AnyMap& config = {}, const bool keep_batch_property = false);
+Parsed parseDeviceNameIntoConfig(const std::string& deviceName, const AnyMap& config = {}, const bool keep_core_property = false);
 
 /**
  * @brief Checks whether config is applicable for device with 'device_name'

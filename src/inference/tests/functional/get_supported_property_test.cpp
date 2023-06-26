@@ -7,10 +7,8 @@
 #include <string>
 
 #include "common_test_utils/file_utils.hpp"
-#include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
-#include "ie_core.hpp"
-#include "ie_icore.hpp"
 #include "openvino/openvino.hpp"
+#include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
@@ -21,12 +19,6 @@ std::string get_mock_engine_path() {
     return ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(),
                                               mockEngineName + IE_BUILD_POSTFIX);
 }
-ov::PropertyName RO_property(const std::string& propertyName) {
-    return ov::PropertyName(propertyName, ov::PropertyMutability::RO);
-}
-ov::PropertyName RW_property(const std::string& propertyName) {
-    return ov::PropertyName(propertyName, ov::PropertyMutability::RW);
-}
 template <class T>
 std::function<T> make_std_function(const std::shared_ptr<void> so, const std::string& functionName) {
     std::function<T> ptr(reinterpret_cast<T*>(ov::util::get_symbol(so, functionName.c_str())));
@@ -35,49 +27,60 @@ std::function<T> make_std_function(const std::shared_ptr<void> so, const std::st
 
 }  // namespace
 
-class MockHardWarePlugin : public InferenceEngine::IInferencePlugin {
-public:
-    void SetConfig(const std::map<std::string, std::string>& config) override {
-        for (const auto& it : config) {
-            if (it.first == ov::num_streams.name())
-                num_streams = std::stoi(it.second);
-            else
-                OPENVINO_THROW(GetName(), " set config: " + it.first);
-        }
+class MockPlugin : public ov::IPlugin {
+    std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
+                                                      const ov::AnyMap& properties) const override {
+        OPENVINO_NOT_IMPLEMENTED;
     }
-    InferenceEngine::Parameter GetMetric(
-        const std::string& name,
-        const std::map<std::string, InferenceEngine::Parameter>& options) const override {
-        const std::vector<ov::PropertyName> roProperties{
-            RO_property(ov::supported_properties.name()),
-        };
-        // the whole config is RW before network is loaded.
-        const std::vector<ov::PropertyName> rwProperties{
-            RW_property(ov::num_streams.name()),
-        };
-        if (name == ov::supported_properties) {
-            std::vector<ov::PropertyName> supportedProperties;
-            supportedProperties.reserve(roProperties.size() + rwProperties.size());
-            supportedProperties.insert(supportedProperties.end(), roProperties.begin(), roProperties.end());
-            supportedProperties.insert(supportedProperties.end(), rwProperties.begin(), rwProperties.end());
 
+    std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
+                                                      const ov::AnyMap& properties,
+                                                      const ov::RemoteContext& context) const override {
+        OPENVINO_NOT_IMPLEMENTED;
+    }
+
+    void set_property(const ov::AnyMap& properties) override {
+        for (auto&& it : properties) {
+            if (it.first == ov::num_streams.name())
+                num_streams = it.second.as<ov::streams::Num>();
+        }
+        OPENVINO_NOT_IMPLEMENTED;
+    }
+
+    ov::Any get_property(const std::string& name, const ov::AnyMap& arguments) const override {
+        if (name == ov::supported_properties) {
+            std::vector<ov::PropertyName> supportedProperties = {ov::PropertyName(ov::supported_properties.name(), ov::PropertyMutability::RO),
+                                                                 ov::PropertyName(ov::num_streams.name(), ov::PropertyMutability::RW)};
             return decltype(ov::supported_properties)::value_type(supportedProperties);
-        } else if (name == "SUPPORTED_METRICS") {  //
-            std::vector<std::string> configs;
-            for (const auto& property : roProperties) {
-                configs.emplace_back(property);
-            }
-            return configs;
-        } else if (name == "SUPPORTED_CONFIG_KEYS") {
-            std::vector<std::string> configs;
-            for (const auto& property : rwProperties) {
-                configs.emplace_back(property);
-            }
-            return configs;
         } else if (name == ov::num_streams.name()) {
-            return num_streams;
+            return decltype(ov::num_streams)::value_type(num_streams);
         }
         return "";
+    }
+
+    std::shared_ptr<ov::IRemoteContext> create_context(const ov::AnyMap& remote_properties) const override {
+        OPENVINO_NOT_IMPLEMENTED;
+    }
+
+    std::shared_ptr<ov::IRemoteContext> get_default_context(const ov::AnyMap& remote_properties) const override {
+        OPENVINO_NOT_IMPLEMENTED;
+    }
+
+    std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model,
+                                                     const ov::AnyMap& properties) const override {
+        OPENVINO_NOT_IMPLEMENTED;
+    }
+
+
+    std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model,
+                                                     const ov::RemoteContext& context,
+                                                     const ov::AnyMap& properties) const override {
+        OPENVINO_NOT_IMPLEMENTED;
+    }
+
+    ov::SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>& model,
+                                    const ov::AnyMap& properties) const override {
+        OPENVINO_NOT_IMPLEMENTED;
     }
 
 private:
@@ -94,12 +97,12 @@ public:
         m_expected_properties = std::get<1>(GetParam());
     }
 
-    void reg_plugin(ov::Core& core, std::shared_ptr<InferenceEngine::IInferencePlugin>& plugin) {
+    void reg_plugin(ov::Core& core, std::shared_ptr<ov::IPlugin>& plugin) {
         std::string libraryPath = get_mock_engine_path();
         if (!m_so)
             m_so = ov::util::load_shared_object(libraryPath.c_str());
-        std::function<void(InferenceEngine::IInferencePlugin*)> injectProxyEngine =
-            make_std_function<void(InferenceEngine::IInferencePlugin*)>(m_so, "InjectProxyEngine");
+        std::function<void(ov::IPlugin*)> injectProxyEngine =
+            make_std_function<void(ov::IPlugin*)>(m_so, "InjectPlugin");
 
         injectProxyEngine(plugin.get());
         core.register_plugin(ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(),
@@ -114,7 +117,7 @@ public:
 
 protected:
     std::shared_ptr<void> m_so;
-    std::shared_ptr<InferenceEngine::IInferencePlugin> m_mock_plugin;
+    std::shared_ptr<ov::IPlugin> m_mock_plugin;
     ov::AnyMap m_properties;
     ov::AnyMap m_expected_properties;
     std::string m_plugin_name{"MOCK_HARDWARE"};
@@ -138,18 +141,15 @@ static std::string getTestCaseName(const testing::TestParamInfo<TestParam>& obj)
 }
 
 TEST_P(GetPropertyTest, canGenerateCorrectPropertyList) {
-    auto plugin = std::make_shared<MockHardWarePlugin>();
-    std::shared_ptr<InferenceEngine::IInferencePlugin> base_plugin = plugin;
+    auto plugin = std::make_shared<MockPlugin>();
+    std::shared_ptr<ov::IPlugin> base_plugin = plugin;
     reg_plugin(core, base_plugin);
     core.get_property(m_plugin_name, ov::supported_properties);
     std::map<std::string, std::string> config;
-    for (auto&& value : m_properties) {
-        config.emplace(value.first, value.second.as<std::string>());
-    }
-    auto actual_output = m_mock_plugin->GetCore()->GetSupportedConfig(m_plugin_name, config);
+    auto actual_output = m_mock_plugin->get_core()->get_supported_property(m_plugin_name, m_properties);
     for (auto& iter : m_expected_properties) {
         ASSERT_TRUE(actual_output.find(iter.first) != actual_output.end());
-        ASSERT_EQ(actual_output.find(iter.first)->second, iter.second.as<std::string>());
+        ASSERT_EQ(actual_output.find(iter.first)->second, iter.second);
     }
     for (auto& iter : m_properties) {
         if (m_expected_properties.find(iter.first) == m_expected_properties.end()) {
