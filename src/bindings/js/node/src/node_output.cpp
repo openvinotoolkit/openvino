@@ -24,6 +24,10 @@ void Output::set_output(const ov::Output<const ov::Node>& output) {
     _output = output;
 }
 
+ov::Output<const ov::Node> Output::get_output() const {
+    return _output;
+}
+
 Napi::Object Output::Wrap(Napi::Env env, ov::Output<const ov::Node> output) {
     Napi::HandleScope scope(env);
     Napi::Object obj = GetClassConstructor(env).New({});

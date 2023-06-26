@@ -1,5 +1,6 @@
 #include "infer_request.hpp"
 
+#include "node_output.hpp"
 #include "tensor.hpp"
 
 InferRequestWrap::InferRequestWrap(const Napi::CallbackInfo& info) : Napi::ObjectWrap<InferRequestWrap>(info) {}
@@ -9,6 +10,7 @@ Napi::Function InferRequestWrap::GetClassConstructor(Napi::Env env) {
                        "InferRequest",
                        {InstanceMethod("set_input_tensor", &InferRequestWrap::set_input_tensor),
                         InstanceMethod("infer", &InferRequestWrap::infer),
+                        InstanceMethod("getTensor", &InferRequestWrap::get_tensor),
                         InstanceMethod("get_output_tensor", &InferRequestWrap::get_output_tensor)});
 }
 
@@ -46,6 +48,14 @@ Napi::Value InferRequestWrap::set_input_tensor(const Napi::CallbackInfo& info) {
 Napi::Value InferRequestWrap::infer(const Napi::CallbackInfo& info) {
     _infer_request.infer();
     return Napi::Value();
+}
+
+Napi::Value InferRequestWrap::get_tensor(const Napi::CallbackInfo& info) {
+    auto* outputWrap = Napi::ObjectWrap<Output>::Unwrap(info[0].ToObject());
+    ov::Output<const ov::Node> output = outputWrap->get_output();
+
+    ov::Tensor tensor = _infer_request.get_tensor(output);
+    return TensorWrap::Wrap(info.Env(), tensor);
 }
 
 Napi::Value InferRequestWrap::get_output_tensor(const Napi::CallbackInfo& info) {

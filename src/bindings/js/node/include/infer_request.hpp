@@ -48,7 +48,16 @@ public:
     Napi::Value set_input_tensor(const Napi::CallbackInfo& info);
     /// @brief  Infers specified input in synchronous mode.
     Napi::Value infer(const Napi::CallbackInfo& info);
-    /// @return A Javascript Tensor
+
+    /**
+     * @brief Gets an input/output tensor for inference.
+     * @param info contains passed arguments.
+     * @param info[0] Javascript ov::Output<ov::Node> object
+     * @return Tensor for the specified Node object
+     */
+    Napi::Value get_tensor(const Napi::CallbackInfo& info);
+
+    /// @return A Javascript output tensor for the model. If model has several outputs, an error occurs.
     Napi::Value get_output_tensor(const Napi::CallbackInfo& info);
 
 private:
