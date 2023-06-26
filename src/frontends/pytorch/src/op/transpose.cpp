@@ -62,7 +62,7 @@ OutputVector translate_transpose_fx(const NodeContext& context) {
     } else {
         auto input_rank = input.get_partial_shape().rank();
         Output<Node> input_order;
-        if (input_rank == 1) 
+        if (input_rank == 1)
             input_order = v0::Constant::create(element::i32, Shape{1}, {0});
         else if (input_rank == 2)
             input_order = v0::Constant::create(element::i32, Shape{2}, {1,0});
@@ -76,6 +76,15 @@ OutputVector translate_transpose_fx(const NodeContext& context) {
         return {context.mark_node(std::make_shared<v1::Transpose>(context.get_input(0), input_order))};
     }
 };
+OutputVector translate_t(const NodeContext& context) {
+    num_inputs_check(context, 1, 1);
+    auto input = context.get_input(0);
+    if (input.get_partial_shape().rank().is_dynamic() || input.get_partial_shape().rank().get_length() < 2) {
+        return {input};
+    }
+    auto dims = context.mark_node(v0::Constant::create(element::i32, Shape{2}, {1, 0}));
+    return {context.mark_node(std::make_shared<v1::Transpose>(input, dims))};
+}
 
 }  // namespace op
 }  // namespace pytorch

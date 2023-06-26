@@ -4,6 +4,7 @@
 import argparse
 import os
 import csv
+from pathlib import Path
 import defusedxml.ElementTree as ET
 from defusedxml import defuse_stdlib
 
@@ -44,6 +45,7 @@ def parse_arguments():
     csv_help = "Allow to serialize report as csv file"
     expected_devices_help = "List of expected devices"
     rel_weights_help = "Path to dir/file with rel weights"
+    report_type_help = "Report type: OP or API"
 
     parser.add_argument("--xml", help=xml_help, nargs="*", required=True)
     parser.add_argument("--out", help=out_help, default="")
@@ -54,6 +56,7 @@ def parse_arguments():
     parser.add_argument("--csv", help=csv_help, default=False)
     parser.add_argument("--expected_devices", help=expected_devices_help, nargs="*", required=False)
     parser.add_argument("--rel_weights", help=rel_weights_help, type=str, required=False)
+    parser.add_argument("-t", "--report_type", help=report_type_help, default="OP")
 
     return parser.parse_args()
 
@@ -330,15 +333,96 @@ def create_summary(summary_root: Element, output_folder: os.path, expected_devic
     if is_serialize_to_csv:
         serialize_to_csv(output_filename, output_folder, op_list, device_list, results)
 
+def create_api_summary(xml_paths: list, output_folder: str, expected_devices:list, report_tag: str, report_version: str,
+                       output_filename='report'):
+        timestamp = None
+
+        api_info = {}
+        sw_plugins = set()
+        api_devices = set(expected_devices) if expected_devices else set()
+
+        logger.info("Statistic collecting is started")
+        for xml_path in xml_paths:
+            if not Path(xml_path).exists():
+                logger.error(f'File is not exists: {xml_path}')
+                continue
+            try:
+                xml_root = ET.parse(xml_path).getroot()
+                if timestamp is None or timestamp < xml_root.attrib["timestamp"]:
+                    timestamp = xml_root.attrib["timestamp"]
+
+                for device in xml_root.findall("results/*"):
+                    if expected_devices and device.tag not in expected_devices:
+                        continue
+
+                    api_devices.add(device.tag)
+                    for test_type in xml_root.findall(f"results/{device.tag}/*"):
+                        api_info.setdefault(test_type.tag, {})
+                        for sw_plugin in xml_root.findall(f"results/{device.tag}/{test_type.tag}/*"):
+                            sw_plugin_name = 'HW_PLUGIN' if str(sw_plugin.tag).upper() == str(device.tag).upper() else sw_plugin.tag
+                            sw_plugins.add(sw_plugin_name)
+                            api_info[test_type.tag].setdefault(sw_plugin_name, {device.tag: {}})
+                            api_info[test_type.tag][sw_plugin_name][device.tag] = {'passrate': float(sw_plugin.get('passrate', 0)),
+                                                                                   'relative_passrate': float(sw_plugin.get('relative_passrate', 0)),
+                                                                                   'relative_all': float(sw_plugin.get('relative_all', 0)),
+                                                                                   'relative_passed': float(sw_plugin.get('relative_passed', 0)),
+                                                                                   'passed': int(sw_plugin.get('passed', 0)), 
+                                                                                   'failed': int(sw_plugin.get('failed', 0)),
+                                                                                   'crashed': int(sw_plugin.get('crashed', 0)),
+                                                                                   'skipped': int(sw_plugin.get('skipped', 0)),
+                                                                                   'hanged': int(sw_plugin.get('hanged', 0)),
+                                                                                   'test_amout': int(sw_plugin.get('passed', 0)) +\
+                                                                                                    int(sw_plugin.get('failed', 0)) +\
+                                                                                                    int(sw_plugin.get('passed', 0)) +\
+                                                                                                    int(sw_plugin.get('crashed', 0)) +\
+                                                                                                    int(sw_plugin.get('hanged', 0))}
+
+            except ET.ParseError:
+                logger.error(f'Error parsing {xml_path}')
+        logger.info("Statistic collecting is completed")
+
+        sw_plugins = list(sw_plugins)
+        sw_plugins.sort()
+        if 'HW_PLUGIN' in sw_plugins:
+            sw_plugins.remove('HW_PLUGIN')
+            sw_plugins.insert(0, 'HW_PLUGIN')
+
+        logger.info("File with report creating is started")
+        script_dir = Path(__file__).parent.absolute()
+        file_loader = FileSystemLoader(script_dir.joinpath('template').as_posix())
+        env = Environment(loader=file_loader)
+        template = env.get_template('report_api_template.html')
+
+        res_summary = template.render(devices=api_devices,
+                                      api_info=api_info,
+                                      sw_plugins=sw_plugins,
+                                      timestamp=timestamp,
+                                      report_tag=report_tag,
+                                      report_version=report_version)
+
+        report_path = Path()
+        if output_folder and Path(output_folder).is_dir():
+            report_path = Path(output_folder)
+
+        report_path = report_path.joinpath(f'{output_filename}.html')
+
+        with open(report_path.as_posix(), "w") as f:
+            logger.info(f'Final report is saved to {report_path}')
+            f.write(res_summary)
+
 if __name__ == "__main__":
     args = parse_arguments()
-    summary_root = merge_xmls(args.xml)
-    create_summary(summary_root, args.out,
-                   [] if args.expected_devices is None else args.expected_devices,
-                   args.report_tag,
-                   args.report_version,
-                   args.conformance_mode,
-                   args.csv,
-                   args.rel_weights,
-                   args.output_filename)
-    
+    if args.report_type == 'OP':
+        summary_root = merge_xmls(args.xml)
+        create_summary(summary_root, args.out,
+                    [] if args.expected_devices is None else args.expected_devices,
+                    args.report_tag,
+                    args.report_version,
+                    args.conformance_mode,
+                    args.csv,
+                    args.rel_weights,
+                    args.output_filename)
+    else:
+        create_api_summary(args.xml, args.out, args.expected_devices,
+                           args.report_tag, args.report_version, args.output_filename)
+
