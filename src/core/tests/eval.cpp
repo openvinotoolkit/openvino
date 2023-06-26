@@ -1218,14 +1218,18 @@ TEST(eval, max_pool_v1_dynamic) {
     vector<float> out{1, 2, 2, 2, 3, 3, 3, 2, 2, 2, 2, 0};
 }
 
-TEST(eval, evaluate_static_scatter_elements_update_basic) {
+template <class T>
+class ScatterElementsUpdateEvalTest : public ::testing::Test {};
+TYPED_TEST_SUITE_P(ScatterElementsUpdateEvalTest);
+
+TYPED_TEST_P(ScatterElementsUpdateEvalTest, evaluate_static_scatter_elements_update_basic) {
     const Shape data_shape{3, 3};
     const Shape indices_shape{2, 3};
     auto arg1 = make_shared<op::Parameter>(element::f32, data_shape);
     auto arg2 = make_shared<op::Parameter>(element::i32, indices_shape);
     auto arg3 = make_shared<op::Parameter>(element::f32, indices_shape);
     auto arg4 = make_shared<op::Parameter>(element::i64, Shape{});
-    auto scatter_elements_update = make_shared<op::v3::ScatterElementsUpdate>(arg1, arg2, arg3, arg4);
+    auto scatter_elements_update = make_shared<TypeParam>(arg1, arg2, arg3, arg4);
     auto fun = make_shared<Function>(OutputVector{scatter_elements_update}, ParameterVector{arg1, arg2, arg3, arg4});
     auto result_tensor = make_shared<HostTensor>();
     ASSERT_TRUE(fun->evaluate(
@@ -1241,7 +1245,7 @@ TEST(eval, evaluate_static_scatter_elements_update_basic) {
     ASSERT_EQ(cval, out);
 }
 
-TEST(eval, evaluate_dynamic_scatter_elements_update_basic) {
+TYPED_TEST_P(ScatterElementsUpdateEvalTest, evaluate_dynamic_scatter_elements_update_basic) {
     const Shape data_shape{3, 3};
     const Shape indices_shape{2, 3};
 
@@ -1250,7 +1254,7 @@ TEST(eval, evaluate_dynamic_scatter_elements_update_basic) {
     auto arg3 = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
     auto arg4 = make_shared<op::Parameter>(element::i64, PartialShape::dynamic());
 
-    auto scatter_elements_update = make_shared<op::v3::ScatterElementsUpdate>(arg1, arg2, arg3, arg4);
+    auto scatter_elements_update = make_shared<TypeParam>(arg1, arg2, arg3, arg4);
     auto fun = make_shared<Function>(OutputVector{scatter_elements_update}, ParameterVector{arg1, arg2, arg3, arg4});
     auto result_tensor = make_shared<HostTensor>();
     ASSERT_TRUE(fun->evaluate(
@@ -1267,7 +1271,7 @@ TEST(eval, evaluate_dynamic_scatter_elements_update_basic) {
     ASSERT_EQ(cval, out);
 }
 
-TEST(eval, evaluate_dynamic_scatter_elements_update_negative_axis) {
+TYPED_TEST_P(ScatterElementsUpdateEvalTest, evaluate_dynamic_scatter_elements_update_negative_axis) {
     const Shape data_shape{3, 3};
     const Shape indices_shape{2, 3};
     const Shape axis_shape{};
@@ -1277,7 +1281,7 @@ TEST(eval, evaluate_dynamic_scatter_elements_update_negative_axis) {
     auto arg3 = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
     auto arg4 = make_shared<op::Parameter>(element::i64, PartialShape::dynamic());
 
-    auto scatter_elements_update = make_shared<op::v3::ScatterElementsUpdate>(arg1, arg2, arg3, arg4);
+    auto scatter_elements_update = make_shared<TypeParam>(arg1, arg2, arg3, arg4);
     auto fun = make_shared<Function>(OutputVector{scatter_elements_update}, ParameterVector{arg1, arg2, arg3, arg4});
     auto result_tensor = make_shared<HostTensor>();
     ASSERT_TRUE(fun->evaluate(
@@ -1294,7 +1298,7 @@ TEST(eval, evaluate_dynamic_scatter_elements_update_negative_axis) {
     ASSERT_EQ(cval, out);
 }
 
-TEST(eval, evaluate_dynamic_scatter_elements_update_1d_axis) {
+TYPED_TEST_P(ScatterElementsUpdateEvalTest, evaluate_dynamic_scatter_elements_update_1d_axis) {
     const Shape data_shape{3, 3};
     const Shape indices_shape{2, 3};
 
@@ -1303,7 +1307,7 @@ TEST(eval, evaluate_dynamic_scatter_elements_update_1d_axis) {
     auto arg3 = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
     auto arg4 = make_shared<op::Parameter>(element::i64, PartialShape::dynamic());
 
-    auto scatter_elements_update = make_shared<op::v3::ScatterElementsUpdate>(arg1, arg2, arg3, arg4);
+    auto scatter_elements_update = make_shared<TypeParam>(arg1, arg2, arg3, arg4);
     auto fun = make_shared<Function>(OutputVector{scatter_elements_update}, ParameterVector{arg1, arg2, arg3, arg4});
     auto result_tensor = make_shared<HostTensor>();
     ASSERT_TRUE(fun->evaluate(
@@ -1321,7 +1325,7 @@ TEST(eval, evaluate_dynamic_scatter_elements_update_1d_axis) {
 }
 
 // Disabled test for disabled reference implementation
-TEST(eval, DISABLED_evaluate_dynamic_scatter_elements_update_3d_i16) {
+TYPED_TEST_P(ScatterElementsUpdateEvalTest, DISABLED_evaluate_dynamic_scatter_elements_update_3d_i16) {
     const Shape data_shape{3, 3, 3};
     const Shape indices_shape{2, 2, 3};
 
@@ -1330,7 +1334,7 @@ TEST(eval, DISABLED_evaluate_dynamic_scatter_elements_update_3d_i16) {
     auto arg3 = make_shared<op::Parameter>(element::i16, PartialShape::dynamic());
     auto arg4 = make_shared<op::Parameter>(element::i64, PartialShape::dynamic());
 
-    auto scatter_elements_update = make_shared<op::v3::ScatterElementsUpdate>(arg1, arg2, arg3, arg4);
+    auto scatter_elements_update = make_shared<TypeParam>(arg1, arg2, arg3, arg4);
     auto fun = make_shared<Function>(OutputVector{scatter_elements_update}, ParameterVector{arg1, arg2, arg3, arg4});
     auto result_tensor = make_shared<HostTensor>();
     ASSERT_TRUE(
@@ -1348,7 +1352,7 @@ TEST(eval, DISABLED_evaluate_dynamic_scatter_elements_update_3d_i16) {
     ASSERT_EQ(cval, out);
 }
 
-TEST(eval, evaluate_dynamic_scatter_elements_update_one_elem_i32) {
+TYPED_TEST_P(ScatterElementsUpdateEvalTest, evaluate_dynamic_scatter_elements_update_one_elem_i32) {
     const Shape data_shape{3, 3, 3};
     const Shape indices_shape{1, 1, 1};
 
@@ -1357,7 +1361,7 @@ TEST(eval, evaluate_dynamic_scatter_elements_update_one_elem_i32) {
     auto arg3 = make_shared<op::Parameter>(element::i32, PartialShape::dynamic());
     auto arg4 = make_shared<op::Parameter>(element::i64, PartialShape::dynamic());
 
-    auto scatter_elements_update = make_shared<op::v3::ScatterElementsUpdate>(arg1, arg2, arg3, arg4);
+    auto scatter_elements_update = make_shared<TypeParam>(arg1, arg2, arg3, arg4);
     auto fun = make_shared<Function>(OutputVector{scatter_elements_update}, ParameterVector{arg1, arg2, arg3, arg4});
     auto result_tensor = make_shared<HostTensor>();
     ASSERT_TRUE(
@@ -1374,6 +1378,17 @@ TEST(eval, evaluate_dynamic_scatter_elements_update_one_elem_i32) {
     vector<int32_t> out{0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
     ASSERT_EQ(cval, out);
 }
+
+REGISTER_TYPED_TEST_SUITE_P(ScatterElementsUpdateEvalTest,
+                            evaluate_dynamic_scatter_elements_update_one_elem_i32,
+                            DISABLED_evaluate_dynamic_scatter_elements_update_3d_i16,
+                            evaluate_dynamic_scatter_elements_update_1d_axis,
+                            evaluate_dynamic_scatter_elements_update_negative_axis,
+                            evaluate_dynamic_scatter_elements_update_basic,
+                            evaluate_static_scatter_elements_update_basic);
+
+using OpVersions = ::testing::Types<ov::op::v3::ScatterElementsUpdate, ov::op::v12::ScatterElementsUpdate>;
+INSTANTIATE_TYPED_TEST_SUITE_P(eval, ScatterElementsUpdateEvalTest, OpVersions);
 
 TEST(eval, evaluate_static_scatter_elements_update_reduction_sum) {
     const Shape data_shape{10};
