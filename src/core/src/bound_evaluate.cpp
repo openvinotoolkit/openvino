@@ -112,9 +112,19 @@ ov::Tensor evaluate_bound(const Output<Node>& output, bool is_upper, bool invali
                     }
                 }
 
-                if (node->evaluate_label(output_labels))
-                    for (size_t i = 0; i < outputs.size(); ++i)
+                bool labels_evaluated = node->evaluate_label(output_labels);
+                for (size_t i = 0; i < outputs.size(); ++i) {
+                    if (node->get_friendly_name() == "/gpt_neox/layers.0/attention/Mul_4") {
+                        std::cout << "Empty? " << node->get_output_tensor(i).get_value_label().empty() << std::endl;
+                    }
+
+                    if (!node->get_output_tensor(i).get_value_label().empty())
+                        continue;
+                    if (labels_evaluated)
                         node->get_output_tensor(i).set_value_label(output_labels[i]);
+                    else if (outputs[i])
+                        node->get_output_tensor(i).set_value_label(std::vector<ov::label_t>(shape_size(outputs[i].get_shape()), 0));
+                }
 
                 for (const auto& input : input_values) {
                     auto& tensor = input.get_tensor();
@@ -329,8 +339,12 @@ std::pair<ov::Tensor, ov::Tensor> ov::evaluate_both_bounds(const Output<Node>& o
                     out_tensor.set_upper_value(outputs_upper[i]);
                 }
 
+                if (!out_tensor.get_value_label().empty())
+                    continue;
                 if (labels_evaluated)
-                    node->get_output_tensor(i).set_value_label(output_labels[i]);
+                    out_tensor.set_value_label(output_labels[i]);
+                else
+                    out_tensor.set_value_label(std::vector<ov::label_t>(shape_size(outputs_lower[i].get_shape()), 0));
             }
             for (const auto& input : node->input_values()) {
                 auto& tensor = input.get_tensor();

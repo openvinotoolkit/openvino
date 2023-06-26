@@ -159,8 +159,7 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph::Fu
     // GRUCellFusion and SequenceFusion should be before NopElimination
     REGISTER_PASS(manager, GRUCellFusion)
     REGISTER_PASS(manager, SequenceFusion)
-    REGISTER_PASS(manager, SymbolicPOC)
-    REGISTER_PASS(manager, VisualizeTree, "model.svg")
+    REGISTER_PASS(manager, SymbolicOptimizations)
 
     auto transpose_sinking = manager.register_pass<ov::pass::GraphRewrite>();
     ADD_MATCHER(transpose_sinking, TransposeSinking)

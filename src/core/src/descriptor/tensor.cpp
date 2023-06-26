@@ -6,6 +6,7 @@
 
 #include "ngraph/node.hpp"
 #include "openvino/core/except.hpp"
+#include "dimension_tracker.hpp"
 
 using namespace std;
 
@@ -49,9 +50,12 @@ void ov::descriptor::Tensor::set_element_type(const element::Type& element_type)
 OPENVINO_SUPPRESS_DEPRECATED_END
 
 void ov::descriptor::Tensor::invalidate_values() {
-    m_upper_value = {};
-    m_lower_value = {};
-    m_value_label.clear();
+    bool skip_invalidation = m_rt_info.count("SKIP_INVALIDATION") && m_rt_info["SKIP_INVALIDATION"].as<bool>();
+    if (!skip_invalidation) {
+        m_upper_value = {};
+        m_lower_value = {};
+        m_value_label.clear();
+    }
 }
 
 void ov::descriptor::Tensor::set_lower_value(const ov::Tensor& value) {
@@ -76,6 +80,16 @@ void ov::descriptor::Tensor::set_value_label(const TensorLabel& value_label) {
         NGRAPH_CHECK(m_partial_shape.is_static());
         NGRAPH_CHECK(shape_size(m_partial_shape.to_shape()) == labels_size);
         m_value_label = value_label;
+
+        if (m_rt_info.count("TABLE_OF_EQUIVALENCE")) {
+            std::shared_ptr<ov::TableOfEquivalence> table = m_rt_info["TABLE_OF_EQUIVALENCE"].as<std::shared_ptr<ov::TableOfEquivalence>>();
+            if (table) {
+                for (auto& label : m_value_label) {
+                    if (!label)
+                        label = table->get_next_label();
+                }
+            }
+        }
     }
 }
 

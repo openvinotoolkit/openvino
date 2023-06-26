@@ -15,7 +15,11 @@ namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API FindBatch;
+class TRANSFORMATIONS_API SymbolicOptimizations;
 class TRANSFORMATIONS_API SymbolicPOC;
+class TRANSFORMATIONS_API ChainedMaximumOptimization;
+class TRANSFORMATIONS_API NopBroadcast;
+class TRANSFORMATIONS_API DeReshapeMatMul;
 
 }  // namespace pass
 }  // namespace ov
@@ -32,10 +36,39 @@ protected:
     bool track = true, detach_do = false;
 };
 
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief runs optimizations which are based on symbolic shape inference
+ */
+class ov::pass::SymbolicOptimizations : public ov::pass::ModelPass {
+public:
+    OPENVINO_RTTI("SymbolicOptimizations", "0");
+    bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
+};
+
+
 class ov::pass::SymbolicPOC : public ov::pass::ModelPass {
 public:
     OPENVINO_RTTI("SymbolicPOC");
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
+};
+
+class ov::pass::ChainedMaximumOptimization : public ov::pass::MatcherPass {
+public:
+    OPENVINO_RTTI("ChainedMaximumOptimization", "0");
+    ChainedMaximumOptimization();
+};
+
+class ov::pass::NopBroadcast : public ov::pass::MatcherPass {
+public:
+    OPENVINO_RTTI("NopBroadcast", "0");
+    NopBroadcast();
+};
+
+class ov::pass::DeReshapeMatMul : public ov::pass::MatcherPass {
+public:
+    OPENVINO_RTTI("DeReshapeMatMul", "0");
+    DeReshapeMatMul();
 };
 
 namespace ov {

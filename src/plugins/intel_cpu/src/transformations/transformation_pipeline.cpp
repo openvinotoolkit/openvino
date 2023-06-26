@@ -194,9 +194,7 @@ void Transformations::CpuSpecificOpSet(void) {
 
     ConvertToCPUSpecificOpset(model);
 
-//    ov::pass::Manager symbolic_manager;
-//    CPU_REGISTER_PASS_COMMON(symbolic_manager, ov::pass::SymbolicPOC);
-//    symbolic_manager.run_passes(model);
+// TODO: ov::pass::Manager symbolic_manager;
 }
 
 void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecisions, const bool isLegacyApi) {
