@@ -4,7 +4,10 @@
 
 #include "common_test_utils/file_utils.hpp"
 
-#include "read_ir_test/read_ir_compare_with_refs.hpp"
+// #include "read_ir_test/read_ir_compare_with_refs.hpp"
+// #include "read_ir_test/read_ir_query_model.hpp"
+#include "read_ir_test/read_ir.hpp"
+
 #include "conformance.hpp"
 
 namespace ov {
@@ -23,10 +26,9 @@ namespace {
                                                 ::testing::Values(targetDevice),                           \
                                                 ::testing::Values(pluginConfig)),                          \
                              ReadIRTest::getTestCaseName); \
-
 // It should point on latest opset which contains biggest list of operations
 #include "openvino/opsets/opset10_tbl.hpp"
-#undef _OPENVINO_OP_REG
+#undef _OPENVINO_OP_REG1
 
 INSTANTIATE_TEST_SUITE_P(conformance_other,
                         ReadIRTest,

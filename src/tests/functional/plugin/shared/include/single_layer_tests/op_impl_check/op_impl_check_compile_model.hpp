@@ -9,7 +9,7 @@ namespace ov {
 namespace test {
 namespace subgraph {
 
-TEST_P(OpImplCheckTest, checkPluginImplementation) {
+TEST_P(OpImplCheckCompileModelTest, checkPluginImplementation) {
     if (function == nullptr) {
         GTEST_FAIL() << "Target model is empty!";
     }

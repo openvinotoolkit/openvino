@@ -150,10 +150,8 @@ inline std::vector<std::pair<std::string, std::string>> getModelPaths(const std:
             while (it != dirList.end()) {
                 if (it->find(strToFind) != std::string::npos) {
                     result.push_back({*it, get_ref_path(*it)});
-                    it = dirList.erase(it);
-                } else {
-                    ++it;
                 }
+                ++it;
             }
         }
     } else if (opName == "Other") {
