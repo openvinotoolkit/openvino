@@ -31,7 +31,7 @@ OutputVector translate_fake_quantize_per_tensor_affine(const NodeContext& contex
     auto out_low = context.const_input<int64_t>(3);
     auto out_high = context.const_input<int64_t>(4);
     // Calculate levels value - distance between bounds.
-    auto levels = abs(out_high - out_low) + 1;
+    auto levels = std::abs(out_high - out_low) + 1;
     auto out_low_const = v0::Constant::create(element::f32, Shape{1}, {out_low});
     auto out_high_const = v0::Constant::create(element::f32, Shape{1}, {out_high});
 
@@ -57,7 +57,7 @@ OutputVector translate_fake_quantize_per_channel_affine(const NodeContext& conte
     auto out_low = context.const_input<int64_t>(4);
     auto out_high = context.const_input<int64_t>(5);
     // Calculate levels value - distance between bounds.
-    auto levels = abs(out_high - out_low) + 1;
+    auto levels = std::abs(out_high - out_low) + 1;
     auto out_low_const = v0::Constant::create(element::f32, Shape{1}, {out_low});
     auto out_high_const = v0::Constant::create(element::f32, Shape{1}, {out_high});
 
