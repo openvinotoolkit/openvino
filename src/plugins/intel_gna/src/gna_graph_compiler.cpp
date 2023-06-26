@@ -307,11 +307,25 @@ void GNAGraphCompiler::ConstPrimitive(InferenceEngine::CNNLayerPtr constLayer) {
 
 void GNAGraphCompiler::assertConvolutionLayoutProper(const InferenceEngine::DataPtr& data) {
     if (data->getLayout() != InferenceEngine::Layout::NHWC && data->getLayout() != InferenceEngine::Layout::NCHW &&
-        data->getLayout() != InferenceEngine::Layout::NC) {
+        data->getLayout() != InferenceEngine::Layout::NC && data->getLayout() != InferenceEngine::Layout::CHW) {
         THROW_GNA_EXCEPTION << "layer: \"Convolution\" with layout " << data->getLayout()
                             << " isn't currently supported on GNA";
     }
 }
+
+namespace {
+
+template <typename T>
+PropertyVector<T> PropertyVectorAppend(PropertyVector<T> properties, T value) {
+    std::vector<T> new_values;
+    for (size_t i = 0; i < properties.size(); ++i)
+        new_values.push_back(properties[i]);
+    new_values.push_back(value);
+
+    return PropertyVector<T>(new_values);
+}
+
+}  // namespace
 
 /**
  * Create AMIntelDNN Convolutional1DComponent from ConvolutionLayer
@@ -338,15 +352,24 @@ void GNAGraphCompiler::ConvolutionPrimitive(InferenceEngine::CNNLayerPtr layer) 
     const auto outputs = layer->outData.front();
     assertConvolutionLayoutProper(inputs);
 
-    const auto in_batch = InferenceEngine::GetDataDimByName(inputs, InferenceEngine::DataDimName::N);
-    const auto in_channels = InferenceEngine::GetDataDimByName(inputs, InferenceEngine::DataDimName::C);
-    auto in_height = InferenceEngine::GetDataDimByName(inputs, InferenceEngine::DataDimName::H);
-    auto in_width = InferenceEngine::GetDataDimByName(inputs, InferenceEngine::DataDimName::W);
+    const auto in_batch = GetDataDimSizeNHWC(inputs, InferenceEngine::DataDimName::N);
+    const auto in_channels = GetDataDimSizeNHWC(inputs, InferenceEngine::DataDimName::C);
+    auto in_height = GetDataDimSizeNHWC(inputs, InferenceEngine::DataDimName::H);
+    auto in_width = GetDataDimSizeNHWC(inputs, InferenceEngine::DataDimName::W);
+    const auto out_batch = GetDataDimSizeNHWC(outputs, InferenceEngine::DataDimName::N);
+    const auto out_channels = GetDataDimSizeNHWC(outputs, InferenceEngine::DataDimName::C);
+    auto out_height = GetDataDimSizeNHWC(outputs, InferenceEngine::DataDimName::H);
+    auto out_width = GetDataDimSizeNHWC(outputs, InferenceEngine::DataDimName::W);
 
-    const auto out_batch = InferenceEngine::GetDataDimByName(outputs, InferenceEngine::DataDimName::N);
-    const auto out_channels = InferenceEngine::GetDataDimByName(outputs, InferenceEngine::DataDimName::C);
-    auto out_height = InferenceEngine::GetDataDimByName(outputs, InferenceEngine::DataDimName::H);
-    auto out_width = InferenceEngine::GetDataDimByName(outputs, InferenceEngine::DataDimName::W);
+    if (inputs->getLayout() == InferenceEngine::Layout::CHW) {
+        // convolution is ngraph-3D here. Make some fixes to work with it as it's ngraph-4D
+        convolution._kernel_y = 1;
+        convolution._dilation_y = 1;
+        convolution._stride_y = 1;
+
+        convolution._padding = PropertyVectorAppend<unsigned int>(convolution._padding, 0);
+        convolution._pads_end = PropertyVectorAppend<unsigned int>(convolution._pads_end, 0);
+    }
 
     if (in_height > 1 && in_width == 1 && !ShouldUseOnlyConv2DGnaIface()) {
         std::swap(in_height, in_width);
@@ -589,20 +612,6 @@ void GNAGraphCompiler::finalizeConvolution1DPrimitive(InferenceEngine::CNNLayerP
         });
     }
 
-    // TODO: convolution might be not the first layer in sorted order but connected via split for example - dont know
-    // how kaldi will handle that
-    if (!dnn->do_rotate_input) {
-        if ((inputs->getLayout() != InferenceEngine::Layout::NHWC || transpose_h_w) &&
-            LayerInfo(connectedInputLayer).isInput()) {
-            //  Kaldi features are opposite orientation
-            dnn->do_rotate_input = true;
-            dnn->num_rotate_rows = effectiveStride;
-            dnn->num_rotate_columns = num_inputs / effectiveStride;
-        } else {
-            dnn->do_rotate_input = false;
-        }
-    }
-
     connectOutput(layer, ptr_outputs, num_data_bytes_out);
 
     // Transpose H with W or C with HW
@@ -613,7 +622,7 @@ void GNAGraphCompiler::finalizeConvolution1DPrimitive(InferenceEngine::CNNLayerP
     for (uint32_t k = 0; k < num_filters; k++) {
         uint8_t* ptr_filt_current =
             convolution._weights->cbuffer().as<uint8_t*>() + k * A * B * convolution.precision.size();
-        auto transposedPart = transposeMatrix(ptr_filt_current, convolution.precision.size(), A, B);
+        auto transposedPart = copyMatrix(ptr_filt_current, convolution.precision.size(), A, B);
         transposedWeights.insert(transposedWeights.end(), transposedPart.begin(), transposedPart.end());
     }
     if (transposedWeights.size() != convolution._weights->byteSize()) {
@@ -783,22 +792,6 @@ void GNAGraphCompiler::finalizeConvolution2DPrimitive(InferenceEngine::CNNLayerP
 
     auto connectedInputLayer = connectInput(layer, ptr_inputs, num_data_bytes_in).input;
 
-    // TODO: convolution might be not the first layer in sorted order but connected via split for example - dont know
-    // how kaldi will handle that
-    if (!dnn->do_rotate_input && inputs->getLayout() != InferenceEngine::Layout::NHWC &&
-        LayerInfo(connectedInputLayer).isInput()) {
-        //  Kaldi features are opposite orientation
-        dnn->do_rotate_input = true;
-        dnn->num_rotate_rows = in_channels;
-        if (in_height != 1) {
-            dnn->num_rotate_rows *= convolution._stride_y;
-        }
-        if (in_width != 1) {
-            dnn->num_rotate_rows *= convolution._stride_x;
-        }
-        dnn->num_rotate_columns = num_inputs / dnn->num_rotate_rows;
-    }
-
     connectOutput(layer, ptr_outputs, num_data_bytes_out);
 
     const auto convolution_precision = convolution.precision.size();
@@ -815,7 +808,7 @@ void GNAGraphCompiler::finalizeConvolution2DPrimitive(InferenceEngine::CNNLayerP
         ALIGN(effective_single_kernel_size, Limitations::kConvEachKernelByteAlignment) - effective_single_kernel_size;
     for (uint32_t k = 0; k < convolution._out_depth; k++) {
         uint8_t* ptr_filt_current = convolution._weights->cbuffer().as<uint8_t*>() + k * single_kernel_size;
-        auto transposed_part = transposeMatrix(ptr_filt_current, convolution_precision, in_channels, kernelHW);
+        auto transposed_part = copyMatrix(ptr_filt_current, convolution.precision.size(), in_channels, kernelHW);
         transposed_weights.insert(transposed_weights.end(), transposed_part.begin(), transposed_part.end());
         transposed_weights.resize(transposed_weights.size() + effective_single_kernel_size - single_kernel_size +
                                   kernel_pad);
@@ -997,13 +990,19 @@ void GNAGraphCompiler::PoolingPrimitive(InferenceEngine::CNNLayerPtr layer) {
     auto inputs = layer->insData.begin()->lock();
     auto outputs = *layer->outData.begin();
 
-    uint32_t w_dim_in = InferenceEngine::GetDataDimByName(inputs, InferenceEngine::DataDimName::W);
-    uint32_t h_dim_in = InferenceEngine::GetDataDimByName(inputs, InferenceEngine::DataDimName::H);
-    const uint32_t c_dim_in = InferenceEngine::GetDataDimByName(inputs, InferenceEngine::DataDimName::C);
+    uint32_t w_dim_in = GetDataDimSizeNHWC(inputs, InferenceEngine::DataDimName::W);
+    uint32_t h_dim_in = GetDataDimSizeNHWC(inputs, InferenceEngine::DataDimName::H);
+    const uint32_t c_dim_in = GetDataDimSizeNHWC(inputs, InferenceEngine::DataDimName::C);
 
-    uint32_t w_dim_out = InferenceEngine::GetDataDimByName(outputs, InferenceEngine::DataDimName::W);
-    uint32_t h_dim_out = InferenceEngine::GetDataDimByName(outputs, InferenceEngine::DataDimName::H);
-    const uint32_t c_dim_out = InferenceEngine::GetDataDimByName(outputs, InferenceEngine::DataDimName::C);
+    uint32_t w_dim_out = GetDataDimSizeNHWC(outputs, InferenceEngine::DataDimName::W);
+    uint32_t h_dim_out = GetDataDimSizeNHWC(outputs, InferenceEngine::DataDimName::H);
+    const uint32_t c_dim_out = GetDataDimSizeNHWC(outputs, InferenceEngine::DataDimName::C);
+
+    if (inputs->getLayout() == InferenceEngine::Layout::CHW) {
+        // Pooling is ngraph-3D here. Make some fixes to work with it as it's ngraph-4D
+        pooling._kernel = PropertyVectorAppend<unsigned int>(pooling._kernel, 1);
+        pooling._stride = PropertyVectorAppend<unsigned int>(pooling._stride, 1);
+    }
 
     void* ptr_inputs = nullptr;
     void* ptr_outputs = nullptr;
@@ -2590,7 +2589,8 @@ void GNAGraphCompiler::connectOutput(InferenceEngine::CNNLayerPtr layer, void* p
                 if (layer->params.find("output_offset") != layer->params.end()) {
                     output_offset = layer->GetParamAsInt("output_offset");
                 }
-                gnamem->getQueue(REGION_AUTO)->bind_ptr(layer, ptr, &concatLayerInfoItem.gna_ptr, output_offset);
+                gnamem->getQueue(REGION_AUTO)
+                    ->bind_ptr(layer, ptr, &concatLayerInfoItem.gna_ptr, output_offset, num_data_bytes_out);
             }
             return;
         }
@@ -2856,6 +2856,16 @@ std::vector<uint8_t> GNAGraphCompiler::transposeMatrix(uint8_t* ptr_matrix,
                       element_size);
         }
     }
+    return temp_buffer;
+}
+
+std::vector<uint8_t> GNAGraphCompiler::copyMatrix(uint8_t* ptr_matrix,
+                                                  size_t element_size,
+                                                  uint32_t num_rows,
+                                                  uint32_t num_cols) {
+    const size_t dest_size = num_rows * num_cols * element_size;
+    std::vector<uint8_t> temp_buffer(dest_size);
+    ::memcpy(temp_buffer.data(), ptr_matrix, dest_size);
     return temp_buffer;
 }
 

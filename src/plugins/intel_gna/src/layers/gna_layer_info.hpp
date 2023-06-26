@@ -305,6 +305,12 @@ public:
     bool isPermute() const noexcept {
         return isOfType("permute");
     }
+    bool is_gather() const noexcept {
+        return isOfType("gather");
+    }
+    bool is_fq_skipped() const noexcept {
+        return isPermute() || is_gather() || isNonFunctional();
+    }
     bool isPermuteFusable() const noexcept {
         return isPermute() &&
                (layer->params.count(ov::intel_gna::rt_info::GNATransposeFusable::get_type_info_static()) > 0);
@@ -348,9 +354,6 @@ public:
     }
     bool isNonValuesChangable() const {
         return isNonFunctional() || isSplit() || isSlice() || isConcat();
-    }
-    bool is_gather() const noexcept {
-        return isOfType("gather");
     }
     bool is_fq_non_sensitive() const {
         return isPermute() || is_gather() || isNonFunctional();

@@ -16,6 +16,8 @@
 #include <unordered_set>
 #include <vector>
 
+#include "../../src/ops/gna_convolution.hpp"
+#include "../../src/ops/gna_max_pool.hpp"
 #include "caseless.hpp"
 #include "cpp/ie_cnn_network.h"
 #include "exec_graph_info.hpp"
