@@ -1,0 +1,47 @@
+{
+    "makeCmd_prev" : "cmake -DCMAKE_BUILD_TYPE=Release -G Visual#Studio#17#2022 -DENABLE_PYTHON=OFF -DTHREADING=TBB -DENABLE_INTEL_CPU=ON -DENABLE_INTEL_GPU=OFF -DENABLE_INTEL_GNA=OFF -DENABLE_INTEL_VPU=OFF -DENABLE_INTEL_MYRIAD=OFF -DENABLE_INTEL_MYRIAD_COMMON=OFF -DENABLE_HDDL=OFF -DENABLE_MODELS=OFF -DENABLE_SAMPLES=ON -DENABLE_TESTS=OFF -DENABLE_HETERO=OFF -DENABLE_TEMPLATE=OFF -DENABLE_DEBUG_CAPS=ON -DENABLE_OV_CORE_BACKEND_UNIT_TESTS=OFF -DENABLE_OPENVINO_DEBUG=OFF ..",
+    "makeCmd" : "cmake -DCMAKE_BUILD_TYPE=Release -DENABLE_STRICT_DEPENDENCIES=OFF -DVERBOSE_BUILD=OFF -G Visual#Studio#17#2022 -DENABLE_INTEL_CPU=ON -DENABLE_SAMPLES=ON -DENABLE_DATA=OFF -DENABLE_MODELS=OFF -DENABLE_VALIDATION_SET=OFF -DENABLE_PRIVATE_MODELS=OFF -DENABLE_LTO=OFF -DENABLE_INTEL_GNA=OFF -DENABLE_MULTI=OFF -DENABLE_AUTO=OFF -DENABLE_AUTO_BATCH=OFF -DENABLE_HETERO=OFF -DENABLE_TEMPLATE=OFF -DENABLE_INTEL_MYRIAD_COMMON=OFF -DENABLE_INTEL_MYRIAD=OFF -DENABLE_INTEL_GPU=OFF -DENABLE_OV_PADDLE_FRONTEND=OFF -DENABLE_OV_ONNX_FRONTEND=OFF -DENABLE_PYTHON=OFF -DENABLE_TESTS=OFF -DENABLE_GAPI_TESTS=OFF -DENABLE_CLDNN_TESTS=OFF -DENABLE_DEBUG_CAPS=ON -DENABLE_CPU_DEBUG_CAPS=ON ..",
+    "appCmd" : "benchmark_app.exe -m C:\\projects\\tasks\\CVS-112970_stable_diffusion\\pipeline\\unet\\openvino_model.xml -d CPU -api async -nstreams 1 -nireq 1  -hint none -niter 1 -shape=sample[1,4,64,64],encoder_hidden_states[1,77,768]",
+    "envVars" : [
+        {"name" : "OV_CPU_BLOB_DUMP_NODE_TYPE", "val" : "Output"},
+        {"name" : "OV_CPU_BLOB_DUMP_FORMAT", "val" : "TEXT"},
+        {"name" : "OV_CPU_BLOB_DUMP_DIR", "val" : "C:\\projects\\tasks\\CVS-112970_stable_diffusion\\blobs"},
+        {"name" : "OV_CPU_BLOB_DUMP_NODE_NAME", "val" : "out_sample/sink_port_0"}
+    ],
+    "runConfig" : {
+        "commitList" : {
+            "getCommitListCmd_base" : "git log eb19a7f7adfc1427b927c47c7106bb38960b6484..893b29eab49fdb0389d52c44d26243d152f34134 --boundary --pretty=\"%h\"",
+            "getCommitListCmd" : "git log 893b29eab49fdb0389d52c44d26243d152f34134..0adf0e27ee55af18bbc023df438493af3cb4554f --boundary --pretty=\"%h\""
+        },
+        "mode" : "compareBlobs",
+        "traversal" : "firstFailedVersion",
+        "outputFileNamePattern" : "(.)*Output_out_sample_sink_port_0_in0.ieb$",
+        "outputDirectory" : "C:\\projects\\tasks\\CVS-112970_stable_diffusion\\blobs",
+        "limit_" : 0.0023,
+        "limit" : 0.0
+    },
+    "commandList" : [
+        {"cmd" : "git checkout -- .", "path" : "{gitPath}"},
+        {"cmd" : "git clean -fxd", "path" : "{gitPath}", "tag" : "clean"},
+        {"cmd" : "mkdir build", "path" : "{gitPath}"},
+        {"cmd" : "git checkout {commit}", "catchMsg" : "error", "path" : "{gitPath}"},
+        {"cmd" : "git submodule init", "path" : "{gitPath}"},
+        {"cmd" : "git submodule update --recursive", "path" : "{buildPath}"},
+        {"cmd" : "git remote add eshoguli https://github.com/eshoguli/openvino", "path" : "{buildPath}"},
+        {"cmd" : "git fetch eshoguli", "path" : "{buildPath}"},
+        {"cmd" : "git cherry-pick 0db63e83b3d7feebd7352cbc3d2977732f66aac7", "path" : "{buildPath}"},
+        {"cmd" : "git cherry-pick 57844ed15844e10eea77cec51a28fb7981112031", "path" : "{buildPath}"},
+        {"cmd" : "git cherry-pick 787264f0d338cb0d7fa35554a011a076cf4a8481", "path" : "{buildPath}"},
+        {"cmd" : "git cherry-pick 36585aae171f868578fa4036693bf8d47e3322ae", "path" : "{buildPath}"},
+        {"cmd" : "git checkout 893b29eab49fdb0389d52c44d26243d152f34134 -- src/core/include/openvino/op/strided_slice.hpp", "path" : "{buildPath}"},
+        {"cmd" : "git checkout 893b29eab49fdb0389d52c44d26243d152f34134 -- src/core/src/op/strided_slice.cpp", "path" : "{buildPath}"},
+        {"cmd" : "git cherry-pick 4ec59bd3cc0b6849a341f78d4990b5d7c29009ba", "path" : "{buildPath}"},
+        {"cmd" : "{makeCmd}", "catchMsg" : "CMake Error", "path" : "{buildPath}"},
+        {"cmd" : "MSBuild.exe C:\\projects\\openvino_commit_slider\\build\\OpenVINO.sln -target:openvino_intel_cpu_plugin;openvino_ir_frontend -property:Configuration=Release", "path" : "C:\\Program Files\\Microsoft Visual Studio\\2022\\Professional\\MSBuild\\Current\\Bin"},
+        {"cmd" : "MSBuild.exe C:\\projects\\openvino_commit_slider\\build\\samples\\cpp\\Samples.sln -property:Configuration=Release", "path" : "C:\\Program Files\\Microsoft Visual Studio\\2022\\Professional\\MSBuild\\Current\\Bin"}
+    ],
+    "appPath" : "C:\\projects\\openvino_commit_slider\\bin\\intel64\\Release",
+    "gitPath" : "C:\\projects\\openvino_commit_slider",
+    "buildPath" : "C:\\projects\\openvino_commit_slider\\build",
+    "workPath" : "C:\\projects\\commit_slider"
+}

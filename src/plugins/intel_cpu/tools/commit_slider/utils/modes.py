@@ -217,6 +217,7 @@ class CompareBlobsMode(Mode):
         else:
             fileList = os.listdir(self.outDir)
             # we look for just created output file
+            filename = ""
             for filename in fileList:
                 isDump = re.search(self.outFileNamePattern, filename)
                 if isDump:
@@ -239,6 +240,7 @@ class CompareBlobsMode(Mode):
         pass
 
     def getCommitIfCashed(self, commit):
+        os.makedirs(self.cachePath, exist_ok=True)
         fileList = os.listdir(self.cachePath)
         curCommitPattern = "{c}_(.)*".format(c=getMeaningfullCommitTail(commit))
         for filename in fileList:

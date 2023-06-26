@@ -181,6 +181,7 @@ def runCommandList(commit, cfgData, enforceClean=False):
         makeCmd = cfgData["makeCmd"]
         strCommand = cmd["cmd"].format(commit=commit, makeCmd=makeCmd)
         formattedCmd = strCommand.split()
+        formattedCmd = [s.replace('#', ' ') for s in formattedCmd]
         cwd = defRepo
         if "path" in cmd:
             cwd = cmd["path"].format(buildPath=buildPath, gitPath=gitPath)
@@ -189,7 +190,7 @@ def runCommandList(commit, cfgData, enforceClean=False):
         )
         proc = subprocess.Popen(
             formattedCmd, cwd=cwd, stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT
+            stderr=subprocess.STDOUT, shell=True
         )
         for line in proc.stdout:
             # decode if line is byte-type
