@@ -81,7 +81,7 @@ struct IfTypeOf<ET, Others...> {
  */
 template <class R, R... value>
 struct NoAction {
-    static_assert(sizeof...(value) < 2, "There should no more then one result value.");
+    static_assert(sizeof...(value) < 2, "There should be no more than one result value.");
 
     using result_type = R;
 
@@ -91,7 +91,7 @@ struct NoAction {
 };
 
 /**
- * @brief Helper visitor which define no action for not supported type if result is void type.
+ * @brief Helper visitor which defines no action for not supported type if result is void type.
  */
 template <>
 struct NoAction<void> {
