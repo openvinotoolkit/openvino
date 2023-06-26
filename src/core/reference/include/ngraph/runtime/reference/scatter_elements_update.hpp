@@ -156,6 +156,15 @@ typename std::enable_if<std::is_integral<T>::value, T>::type arithmetic_mean(con
     return value;
 }
 
+template <typename T>
+size_t normalize_index(const T idx, const size_t dim_value) {
+    if (idx < 0) {
+        return static_cast<size_t>(idx + dim_value);
+    } else {
+        return static_cast<size_t>(idx);
+    }
+}
+
 template <typename DataType, typename IndicesType>
 void scatter_elem_update_with_reduction(const DataType* input_data,
                                         const IndicesType* indices,
@@ -177,14 +186,15 @@ void scatter_elem_update_with_reduction(const DataType* input_data,
     };
 
     std::vector<Offsets> idx_to_output_element;
+    idx_to_output_element.reserve(shape_size(indices_shape));
     for (const Coordinate& indices_cord : indices_transform) {
-        const size_t indices_idx =
+        const size_t indices_offset =
             std::inner_product(indices_cord.begin(), indices_cord.end(), indices_strides.begin(), uint64_t(0));
         Coordinate out_cord(indices_cord);
-        out_cord.at(axis) = indices[indices_idx];
-        const auto out_idx = std::inner_product(out_cord.begin(), out_cord.end(), data_strides.begin(), uint64_t(0));
+        out_cord.at(axis) = normalize_index(indices[indices_offset], data_shape[axis]);
+        const auto out_offset = std::inner_product(out_cord.begin(), out_cord.end(), data_strides.begin(), uint64_t(0));
 
-        idx_to_output_element.push_back({indices_idx, out_idx});
+        idx_to_output_element.push_back({indices_offset, out_offset});
     }
 
     // When this is false we need to substitute the copied values at target locations with values that will not affect
