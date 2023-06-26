@@ -9,17 +9,17 @@ In case of execution problems, just like all other plugins, Auto-Device provides
 
 There are six levels of logs, which can be called explicitly or set via the ``OPENVINO_LOG_LEVEL`` environment variable (can be overwritten by ``compile_model()`` or ``set_property()``):
 
-0 - `ov::log::Level::NO <https://docs.openvino.ai/nightly/enumov_1_1log_1_1Level.html#doxid-group-ov-runtime-cpp-prop-api-1gga9868e1ed6b0286d17cdb0ab85b2cc66bac2f3f489a00553e7a01d369c103c7251>`__
+0 - `ov::log::Level::NO <https://docs.openvino.ai/2023.0/enumov_1_1log_1_1Level.html#doxid-group-ov-runtime-cpp-prop-api-1gga9868e1ed6b0286d17cdb0ab85b2cc66bac2f3f489a00553e7a01d369c103c7251>`__
 
-1 - `ov::log::Level::ERR <https://docs.openvino.ai/nightly/enumov_1_1log_1_1Level.html#doxid-group-ov-runtime-cpp-prop-api-1gga9868e1ed6b0286d17cdb0ab85b2cc66bac2f3f489a00553e7a01d369c103c7251>`__
+1 - `ov::log::Level::ERR <https://docs.openvino.ai/2023.0/enumov_1_1log_1_1Level.html#doxid-group-ov-runtime-cpp-prop-api-1gga9868e1ed6b0286d17cdb0ab85b2cc66bac2f3f489a00553e7a01d369c103c7251>`__
 
-2 - `ov::log::Level::WARNING <https://docs.openvino.ai/nightly/enumov_1_1log_1_1Level.html#doxid-group-ov-runtime-cpp-prop-api-1gga9868e1ed6b0286d17cdb0ab85b2cc66bac2f3f489a00553e7a01d369c103c7251>`__
+2 - `ov::log::Level::WARNING <https://docs.openvino.ai/2023.0/enumov_1_1log_1_1Level.html#doxid-group-ov-runtime-cpp-prop-api-1gga9868e1ed6b0286d17cdb0ab85b2cc66bac2f3f489a00553e7a01d369c103c7251>`__
 
-3 - `ov::log::Level::INFO <https://docs.openvino.ai/nightly/enumov_1_1log_1_1Level.html#doxid-group-ov-runtime-cpp-prop-api-1gga9868e1ed6b0286d17cdb0ab85b2cc66bac2f3f489a00553e7a01d369c103c7251>`__
+3 - `ov::log::Level::INFO <https://docs.openvino.ai/2023.0/enumov_1_1log_1_1Level.html#doxid-group-ov-runtime-cpp-prop-api-1gga9868e1ed6b0286d17cdb0ab85b2cc66bac2f3f489a00553e7a01d369c103c7251>`__
 
-4 - `ov::log::Level::DEBUG <https://docs.openvino.ai/nightly/enumov_1_1log_1_1Level.html#doxid-group-ov-runtime-cpp-prop-api-1gga9868e1ed6b0286d17cdb0ab85b2cc66bac2f3f489a00553e7a01d369c103c7251>`__
+4 - `ov::log::Level::DEBUG <https://docs.openvino.ai/2023.0/enumov_1_1log_1_1Level.html#doxid-group-ov-runtime-cpp-prop-api-1gga9868e1ed6b0286d17cdb0ab85b2cc66bac2f3f489a00553e7a01d369c103c7251>`__
 
-5 - `ov::log::Level::TRACE <https://docs.openvino.ai/nightly/enumov_1_1log_1_1Level.html#doxid-group-ov-runtime-cpp-prop-api-1gga9868e1ed6b0286d17cdb0ab85b2cc66bac2f3f489a00553e7a01d369c103c7251>`__
+5 - `ov::log::Level::TRACE <https://docs.openvino.ai/2023.0/enumov_1_1log_1_1Level.html#doxid-group-ov-runtime-cpp-prop-api-1gga9868e1ed6b0286d17cdb0ab85b2cc66bac2f3f489a00553e7a01d369c103c7251>`__
 
 .. tab-set::
 
