@@ -504,6 +504,17 @@ public:
             }
         }
 
+        const auto lhs_body = sub_lhs->get_function();
+        const auto rhs_body = sub_rhs->get_function();
+        if (lhs_body && rhs_body) {
+            auto cmpr = FunctionsComparator::no_default();
+            cmpr.enable(FunctionsComparator::NODES);
+            cmpr.enable(FunctionsComparator::SUBGRAPH_DESCRIPTORS);
+            const auto res = cmpr.compare(lhs_body, rhs_body);
+            if (!res.valid)
+                return res;
+        }
+
         return compare_backedges(sub_lhs, sub_rhs);
     }
 
@@ -723,7 +734,7 @@ Comparator::Result Comparator::compare(ov::Node* node1, ov::Node* node2, std::os
     auto type_info2 = node2->get_type_info();
 
     if (!compare_type_info(type_info1, type_info2)) {
-        return Result::error(name(node1) + " and " + name(node2) + "have different type info: " +
+        return Result::error(name(node1) + " and " + name(node2) + " have different type info: " +
                              typeInfoToStr(type_info1) + " != " + typeInfoToStr(type_info2));
     }
 
