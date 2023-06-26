@@ -78,8 +78,8 @@ Shape apply_permutation(const Shape& shape, const AxisVector& order) {
 }
 
 AxisVector find_suitable_transpose_order(const Shape& input_shape,
-                                      const Shape& output_shape,
-                                      const std::vector<AxisVector>& orders) {
+                                         const Shape& output_shape,
+                                         const std::vector<AxisVector>& orders) {
     for (const auto& order : orders) {
         const Shape transposed_shape = apply_permutation(input_shape, order);
         if ((transposed_shape.size() == output_shape.size()) &&
@@ -130,7 +130,8 @@ ReshapeTransposeSubstitute::ReshapeTransposeSubstitute() {
         const auto& pattern_to_output = m.get_pattern_value_map();
         auto reshape = as_type_ptr<Reshape>(pattern_to_output.at(reshape_label).get_node_shared_ptr());
 
-        const AxisVector transpose_order = get_transpose_order(reshape->get_input_shape(0), reshape->get_output_shape(0));
+        const AxisVector transpose_order =
+            get_transpose_order(reshape->get_input_shape(0), reshape->get_output_shape(0));
         if (transpose_order.empty())
             return false;
 
