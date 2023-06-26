@@ -821,12 +821,8 @@ bool Limitations::is_conv_supported(const std::shared_ptr<ov::intel_gna::op::GNA
                                                   is_exception_allowed);
         }
     }
-    // 1D Convolution
-    if (conv_gna->get_dilations().size() == 1) {
-        return check_dilation(conv_gna->get_dilations()[0], conv_gna->get_dilations()[0]);
-    } else {
-        return check_dilation(conv_gna->get_dilations()[0], conv_gna->get_dilations()[1]);
-    }
+
+    return check_dilation(conv_gna->get_dilations()[0], conv_gna->get_dilations()[conv_gna->get_dilations().size() - 1]);
 }
 
 bool Limitations::is_pooling_supported(const std::shared_ptr<ov::intel_gna::op::GNAMaxPool> max_pool,
@@ -893,7 +889,7 @@ bool Limitations::is_forward_transposed_concat_supported(const std::shared_ptr<c
 
     const ov::Shape& transposed_shape =
         graph_utils::transpose_shape(output_shape, pass::helper::reverse_transpose_order(order));
-    const int64_t transposed_concat_axis = order[axis];
+    const size_t transposed_concat_axis = order[axis];
 
     return graph_utils::get_first_valuable_dim_id(transposed_shape) == transposed_concat_axis;
 }
@@ -910,7 +906,7 @@ bool Limitations::is_backward_transposed_concat_supported(const std::shared_ptr<
     auto axis = concat_node->get_axis();
 
     const ov::Shape& transposed_shape = graph_utils::transpose_shape(output_shape, order);
-    const int64_t transposed_concat_axis = order[axis];
+    const size_t transposed_concat_axis = order[axis];
 
     return graph_utils::get_first_valuable_dim_id(transposed_shape) == transposed_concat_axis;
 }
@@ -935,7 +931,7 @@ bool Limitations::is_forward_transposed_split_supported(const std::shared_ptr<co
 
     const ov::Shape& transposed_shape =
         graph_utils::transpose_shape(output_shape, pass::helper::reverse_transpose_order(order));
-    const int64_t transposed_concat_axis = order[axis];
+    const size_t transposed_concat_axis = order[axis];
 
     return graph_utils::get_first_valuable_dim_id(transposed_shape) == transposed_concat_axis;
 }
