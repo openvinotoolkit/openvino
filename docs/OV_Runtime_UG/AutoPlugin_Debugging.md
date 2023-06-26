@@ -107,8 +107,7 @@ With Intel® VTune™ Profiler installed you can configure your analysis with th
    .. image:: _static/images/OV_UG_supported_plugins_AUTO_debugging-img02-launch.png
       :align: center
 
-5. In the **how** pane, choose and configure the analysis type you want to perform, for example, **Hotspots Analysis**:
-identify the most time-consuming functions and drill down to see time spent on each line of source code. Focus optimization efforts on hot code for the greatest performance impact.
+5. In the **how** pane, choose and configure the analysis type you want to perform, for example, **Hotspots Analysis**: identify the most time-consuming functions and drill down to see time spent on each line of source code. Focus optimization efforts on hot code for the greatest performance impact.
 
    .. image:: _static/images/OV_UG_supported_plugins_AUTO_debugging-img03-hotspots.png
       :align: center
