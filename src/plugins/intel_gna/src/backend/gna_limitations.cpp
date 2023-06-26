@@ -18,8 +18,7 @@
 #include "gna_lib_ver_selector.hpp"
 #include "ie_ngraph_utils.hpp"
 #include "log/log.hpp"
-#include "openvino/opsets/opset11.hpp"
-#include "openvino/opsets/opset7.hpp"
+#include "openvino/opsets/opset12.hpp"
 
 namespace std {
 inline std::ostream& operator<<(std::ostream& os, const std::set<ov::element::Type>& t) {
@@ -37,7 +36,7 @@ inline std::ostream& operator<<(std::ostream& os, const std::set<ov::element::Ty
 namespace ov {
 namespace intel_gna {
 using namespace target;
-using namespace opset11;
+using namespace opset12;
 namespace limitations {
 
 class SupportedElementTypes {
@@ -874,7 +873,7 @@ bool Limitations::is_split_supported(const std::shared_ptr<ov::Node>& node, bool
 
 bool Limitations::is_concat_supported(const std::shared_ptr<const ov::Node>& node) {
     OPENVINO_ASSERT(node, "Concat node is empty!");
-    auto concat_node = std::dynamic_pointer_cast<const ngraph::opset9::Concat>(node);
+    auto concat_node = std::dynamic_pointer_cast<const Concat>(node);
     const ov::Shape& output_shape = concat_node->get_output_shape(0);
     auto axis = concat_node->get_axis();
 
@@ -893,7 +892,7 @@ bool Limitations::is_forward_transposed_concat_supported(const std::shared_ptr<c
     auto axis = concat_node->get_axis();
 
     const ov::Shape& transposed_shape =
-        graph_utils::transpose_shape(output_shape, pass::helper::ReverseTransposeOrder(order));
+        graph_utils::transpose_shape(output_shape, pass::helper::reverse_transpose_order(order));
     const int64_t transposed_concat_axis = order[axis];
 
     return graph_utils::get_first_valuable_dim_id(transposed_shape) == transposed_concat_axis;
@@ -929,13 +928,13 @@ bool Limitations::is_forward_transposed_split_supported(const std::shared_ptr<co
     }
 
     const ov::Shape& output_shape = split_node->get_output_shape(0);
-    auto constant_node = as_type_ptr<ngraph::opset9::Constant>(split_node->input_value(1).get_node_shared_ptr());
+    auto constant_node = as_type_ptr<Constant>(split_node->input_value(1).get_node_shared_ptr());
     if (!constant_node)
         return false;
     auto axis = constant_node->get_axis_vector_val()[0];
 
     const ov::Shape& transposed_shape =
-        graph_utils::transpose_shape(output_shape, pass::helper::ReverseTransposeOrder(order));
+        graph_utils::transpose_shape(output_shape, pass::helper::reverse_transpose_order(order));
     const int64_t transposed_concat_axis = order[axis];
 
     return graph_utils::get_first_valuable_dim_id(transposed_shape) == transposed_concat_axis;
@@ -954,13 +953,13 @@ bool Limitations::is_backward_transposed_split_supported(const std::shared_ptr<c
     }
 
     const ov::Shape& output_shape = split_node->get_output_shape(0);
-    auto constant_node = as_type_ptr<ngraph::opset9::Constant>(split_node->input_value(1).get_node_shared_ptr());
+    auto constant_node = as_type_ptr<Constant>(split_node->input_value(1).get_node_shared_ptr());
     if (!constant_node)
         return false;
     auto axis = constant_node->get_axis_vector_val()[0];
 
     const ov::Shape& transposed_shape =
-        graph_utils::transpose_shape(output_shape, pass::helper::ReverseTransposeOrder(order));
+        graph_utils::transpose_shape(output_shape, pass::helper::reverse_transpose_order(order));
     const int64_t transposed_concat_axis = order[axis];
 
     return graph_utils::get_first_valuable_dim_id(transposed_shape) == transposed_concat_axis;
@@ -989,11 +988,11 @@ bool Limitations::is_op_supported(const std::shared_ptr<ov::Node>& node,
                (std::dynamic_pointer_cast<ov::op::util::ReadValueBase>(node) != nullptr) ||
                (std::dynamic_pointer_cast<ngraph::op::ScaleShiftIE>(node) != nullptr) ||
                (std::dynamic_pointer_cast<ngraph::op::PowerIE>(node) != nullptr) ||
-               (std::dynamic_pointer_cast<ngraph::opset9::MatMul>(node) != nullptr)) {
+               (std::dynamic_pointer_cast<MatMul>(node) != nullptr)) {
         return true;
     } else if (ov::intel_gna::graph_utils::is_gna_precision_agnostic(node)) {
-        if ((std::dynamic_pointer_cast<ngraph::opset9::Split>(node) != nullptr) ||
-            (std::dynamic_pointer_cast<ngraph::opset9::VariadicSplit>(node) != nullptr)) {
+        if ((std::dynamic_pointer_cast<Split>(node) != nullptr) ||
+            (std::dynamic_pointer_cast<VariadicSplit>(node) != nullptr)) {
             return is_split_supported(node, is_exception_allowed);
         }
         // TODO check concat are aligned when transformation will be moved to ngraph

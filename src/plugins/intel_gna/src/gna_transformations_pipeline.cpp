@@ -11,7 +11,6 @@
 #include "ngraph/opsets/opset2.hpp"
 #include "ngraph/opsets/opset7.hpp"
 #include "openvino/pass/manager.hpp"
-#include "openvino/pass/serialize.hpp"
 #include "optimizer/gna_pass_manager.hpp"
 #include "transformations/broadcast_const.hpp"
 #include "transformations/common_optimizations/add_fake_quantize_fusion.hpp"
@@ -79,7 +78,7 @@ using namespace ov::intel_gna::limitations;
 
 namespace {
 
-ov::NodeVector FindInputTransposes(const std::shared_ptr<const ov::Node>& node) {
+ov::NodeVector find_input_transposes(const std::shared_ptr<const ov::Node>& node) {
     ov::NodeVector transposes;
     for (size_t input_idx = 0; input_idx < node->get_input_size(); ++input_idx) {
         auto input_node = node->get_input_node_shared_ptr(input_idx);
@@ -91,8 +90,8 @@ ov::NodeVector FindInputTransposes(const std::shared_ptr<const ov::Node>& node) 
     return transposes;
 }
 
-void MarkInputTransposesAsNoSinking(std::shared_ptr<const ov::Node> node) {
-    for (const auto& input : FindInputTransposes(node))
+void mark_input_transposes_as_nosinking(std::shared_ptr<const ov::Node> node) {
+    for (const auto& input : find_input_transposes(node))
         ov::mark_as_no_sinking_node(input);
 }
 
@@ -105,7 +104,7 @@ struct TransposeInfo {
     }
 };
 
-TransposeInfo GetFirstInputTranspose(const std::shared_ptr<const ov::Node>& node) {
+TransposeInfo get_first_input_transpose(const std::shared_ptr<const ov::Node>& node) {
     for (size_t input_idx = 0; input_idx < node->get_input_size(); ++input_idx) {
         std::shared_ptr<Node> input_node = node->get_input_node_shared_ptr(input_idx);
         auto transpose_node = as_type_ptr<Transpose>(input_node);
@@ -125,7 +124,7 @@ TransposeInfo GetFirstInputTranspose(const std::shared_ptr<const ov::Node>& node
     return {};
 }
 
-TransposeInfo GetFirstOutputTranspose(const std::shared_ptr<const ov::Node>& node) {
+TransposeInfo get_first_output_transpose(const std::shared_ptr<const ov::Node>& node) {
     for (size_t i = 0; i < node->get_output_size(); ++i) {
         for (const auto& input : node->output(i).get_target_inputs()) {
             Node* node = input.get_node();
@@ -201,7 +200,6 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
     manager.register_pass<ov::intel_gna::pass::SwapInputMatMulWithBias>();
     manager.register_pass<ov::intel_gna::pass::SwapInputMatMul>();
     manager.register_pass<ov::intel_gna::pass::HandleTransposesAroundMatMul>();
-    // manager.register_pass<ov::intel_gna::pass::InsertTransposeAfterConvOrPool>();
     manager.register_pass<ov::intel_gna::pass::Unfuse2dto4dReshapeAndTranspose>();
     manager.register_pass<ov::intel_gna::pass::Unfuse4dto2dReshapeAndTranspose>();
     manager.register_pass<ov::intel_gna::pass::RemoveExtraReshapes>();
@@ -269,20 +267,20 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
 
     pass_config->set_callback<ov::pass::transpose_sinking::TSConcatForward>(
         [](const std::shared_ptr<const ov::Node>& node) -> bool {
-            const TransposeInfo transpose_info = GetFirstInputTranspose(node);
+            const TransposeInfo transpose_info = get_first_input_transpose(node);
             if (transpose_info.isEmpty())
                 return false;
             const bool is_supported = Limitations::is_forward_transposed_concat_supported(
                 node,
                 transpose_info.transpose_const->get_axis_vector_val());
             if (!is_supported)
-                MarkInputTransposesAsNoSinking(node);
+                mark_input_transposes_as_nosinking(node);
             return !is_supported;
         });
 
     pass_config->set_callback<ov::pass::transpose_sinking::TSConcatBackward>(
         [](const std::shared_ptr<const ov::Node>& node) -> bool {
-            const TransposeInfo transpose_info = GetFirstOutputTranspose(node);
+            const TransposeInfo transpose_info = get_first_output_transpose(node);
             if (transpose_info.isEmpty())
                 return false;
             return !Limitations::is_backward_transposed_concat_supported(
@@ -292,20 +290,20 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
 
     pass_config->set_callback<ov::pass::transpose_sinking::TSSplitForward>(
         [](const std::shared_ptr<const ov::Node>& node) -> bool {
-            const TransposeInfo transpose_info = GetFirstInputTranspose(node);
+            const TransposeInfo transpose_info = get_first_input_transpose(node);
             if (transpose_info.isEmpty())
                 return false;
             const bool is_supported = Limitations::is_forward_transposed_split_supported(
                 node,
                 transpose_info.transpose_const->get_axis_vector_val());
             if (!is_supported)
-                MarkInputTransposesAsNoSinking(node);
+                mark_input_transposes_as_nosinking(node);
             return !is_supported;
         });
 
     pass_config->set_callback<ov::pass::transpose_sinking::TSSplitBackward>(
         [](const std::shared_ptr<const ov::Node>& node) -> bool {
-            const TransposeInfo transpose_info = GetFirstOutputTranspose(node);
+            const TransposeInfo transpose_info = get_first_output_transpose(node);
             if (transpose_info.isEmpty())
                 return false;
             return !Limitations::is_backward_transposed_split_supported(

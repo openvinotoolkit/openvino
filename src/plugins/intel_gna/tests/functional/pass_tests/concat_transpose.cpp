@@ -9,11 +9,11 @@
 
 #include "common_test_utils/common_utils.hpp"
 #include "ngraph_functions/builders.hpp"
-#include "openvino/opsets/opset10.hpp"
+#include "openvino/opsets/opset12.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
-using namespace ov::opset10;
+using namespace ov::opset12;
 using namespace ov::test;
 
 namespace TransposesConcatTests {

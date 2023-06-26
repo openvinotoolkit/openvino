@@ -182,7 +182,7 @@ void swap_names(std::shared_ptr<ov::Node> node1, std::shared_ptr<ov::Node> node2
     swap_output_names(node1->output(0), node2->output(0));
 }
 
-ov::AxisVector ReverseTransposeOrder(const ov::AxisVector& axis_order) {
+ov::AxisVector reverse_transpose_order(const ov::AxisVector& axis_order) {
     ov::AxisVector out(axis_order.size());
     for (size_t i = 0; i < axis_order.size(); i++) {
         out.at(axis_order[i]) = i;

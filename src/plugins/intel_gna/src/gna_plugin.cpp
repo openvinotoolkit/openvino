@@ -945,7 +945,7 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
         }
     }
 
-    // TODO: Need to remove this conversation when ngraph NCHW<->NHWC transformation is enabled
+    // TODO: Need to remove this conversion when ngraph NCHW->NHWC transformation is enabled
     if (!transpose_inputs_info.empty()) {
         ConvertTransposeMapToModel(transpose_inputs_info, inputs_ptr_->Get());
     }

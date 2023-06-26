@@ -8,18 +8,18 @@
 #include <transformations/utils/utils.hpp>
 #include <utility>
 
-#include "openvino/opsets/opset10.hpp"
+#include "openvino/opsets/opset12.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
 using namespace ov;
-using namespace ov::opset10;
+using namespace ov::opset12;
 using namespace ov::pass::pattern;
 using namespace ov::op::util;
 using namespace ov::intel_gna::pass;
 
 namespace {
 
-bool IsShapePermutation(const Shape& input_shape, const Shape& output_shape) {
+bool is_shape_permutation(const Shape& input_shape, const Shape& output_shape) {
     std::unordered_map<Shape::value_type, size_t> values_count;
     for (const auto& dim : input_shape) {
         auto it = values_count.find(dim);
@@ -43,7 +43,7 @@ bool IsShapePermutation(const Shape& input_shape, const Shape& output_shape) {
     return values_count.empty();
 }
 
-bool DimsUnique(const Shape& shape) {
+bool are_dims_unique(const Shape& shape) {
     std::unordered_set<Shape::value_type> dims;
     for (const auto& dim : shape) {
         if (dims.find(dim) != dims.end())
@@ -53,7 +53,7 @@ bool DimsUnique(const Shape& shape) {
     return true;
 }
 
-AxisVector GetUniqueShapesTransposeOrder(const Shape& input_shape, const Shape& output_shape) {
+AxisVector get_unique_shapes_transpose_order(const Shape& input_shape, const Shape& output_shape) {
     std::unordered_map<Shape::value_type, size_t> input_shape_items;
     for (size_t i = 0; i < input_shape.size(); ++i) {
         input_shape_items[input_shape[i]] = i;
@@ -68,7 +68,7 @@ AxisVector GetUniqueShapesTransposeOrder(const Shape& input_shape, const Shape& 
     return order;
 }
 
-Shape ApplyPermutation(const Shape& shape, const AxisVector& order) {
+Shape apply_permutation(const Shape& shape, const AxisVector& order) {
     Shape transposed_shape;
     transposed_shape.reserve(shape.size());
     for (const auto& position : order) {
@@ -77,11 +77,11 @@ Shape ApplyPermutation(const Shape& shape, const AxisVector& order) {
     return transposed_shape;
 }
 
-AxisVector FindSuitableTransposeOrder(const Shape& input_shape,
+AxisVector find_suitable_transpose_order(const Shape& input_shape,
                                       const Shape& output_shape,
                                       const std::vector<AxisVector>& orders) {
     for (const auto& order : orders) {
-        const Shape transposed_shape = ApplyPermutation(input_shape, order);
+        const Shape transposed_shape = apply_permutation(input_shape, order);
         if ((transposed_shape.size() == output_shape.size()) &&
             std::equal(transposed_shape.begin(), transposed_shape.end(), output_shape.begin()))
             return order;
@@ -90,15 +90,15 @@ AxisVector FindSuitableTransposeOrder(const Shape& input_shape,
     return {};
 }
 
-AxisVector FindSuitableTransposeOrder(const Shape& input_shape, const Shape& output_shape) {
+AxisVector find_suitable_transpose_order(const Shape& input_shape, const Shape& output_shape) {
     static std::vector<AxisVector> orders_4d = {AxisVector{0, 2, 3, 1}, AxisVector{0, 3, 1, 2}};
     static std::vector<AxisVector> orders_3d = {AxisVector{1, 2, 0}, AxisVector{2, 0, 1}};
 
     switch (input_shape.size()) {
     case 4:
-        return FindSuitableTransposeOrder(input_shape, output_shape, orders_4d);
+        return find_suitable_transpose_order(input_shape, output_shape, orders_4d);
     case 3:
-        return FindSuitableTransposeOrder(input_shape, output_shape, orders_3d);
+        return find_suitable_transpose_order(input_shape, output_shape, orders_3d);
     case 2:
         return AxisVector{1, 0};
     default:
@@ -108,10 +108,10 @@ AxisVector FindSuitableTransposeOrder(const Shape& input_shape, const Shape& out
 }
 
 // return empty AxisVector on unsupported case
-AxisVector GetTransposeOrder(const Shape& input_shape, const Shape& output_shape) {
-    if (DimsUnique(input_shape))
-        return GetUniqueShapesTransposeOrder(input_shape, output_shape);
-    return FindSuitableTransposeOrder(input_shape, output_shape);
+AxisVector get_transpose_order(const Shape& input_shape, const Shape& output_shape) {
+    if (are_dims_unique(input_shape))
+        return get_unique_shapes_transpose_order(input_shape, output_shape);
+    return find_suitable_transpose_order(input_shape, output_shape);
 }
 
 }  // namespace
@@ -123,14 +123,14 @@ ReshapeTransposeSubstitute::ReshapeTransposeSubstitute() {
         if (!has_static_shape()(output))
             return false;
         const Node* node = output.get_node();
-        return IsShapePermutation(node->get_input_shape(0), node->get_output_shape(0));
+        return is_shape_permutation(node->get_input_shape(0), node->get_output_shape(0));
     });
 
     ov::matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
         auto reshape = as_type_ptr<Reshape>(pattern_to_output.at(reshape_label).get_node_shared_ptr());
 
-        const AxisVector transpose_order = GetTransposeOrder(reshape->get_input_shape(0), reshape->get_output_shape(0));
+        const AxisVector transpose_order = get_transpose_order(reshape->get_input_shape(0), reshape->get_output_shape(0));
         if (transpose_order.empty())
             return false;
 
