@@ -2,17 +2,24 @@
 
 @sphinxdirective
 
-## Using Debug Log
-In case of execution problems, just like all other plugins, Auto-Device provides the user with information on exceptions and error values. If the returned data is not enough for debugging purposes, more information may be acquired by means of `ov::log::Level`.
+Using Debug Log
+###############
 
-There are six levels of logs, which can be called explicitly or set via the `OPENVINO_LOG_LEVEL` environment variable (can be overwritten by `compile_model()` or `set_property()`):
+In case of execution problems, just like all other plugins, Auto-Device provides the user with information on exceptions and error values. If the returned data is not enough for debugging purposes, more information may be acquired by means of ``ov::log::Level``.
 
-0 - ov::log::Level::NO  
-1 - ov::log::Level::ERR  
-2 - ov::log::Level::WARNING  
-3 - ov::log::Level::INFO  
-4 - ov::log::Level::DEBUG  
-5 - ov::log::Level::TRACE  
+There are six levels of logs, which can be called explicitly or set via the ``OPENVINO_LOG_LEVEL`` environment variable (can be overwritten by ``compile_model()`` or ``set_property()``):
+
+0 - ov::log::Level::NO
+
+1 - ov::log::Level::ERR
+
+2 - ov::log::Level::WARNING
+
+3 - ov::log::Level::INFO
+
+4 - ov::log::Level::DEBUG
+
+5 - ov::log::Level::TRACE
 
 .. tab-set::
 
@@ -50,7 +57,7 @@ The property returns information in the following format:
 
    [time]LOG_LEVEL[file] [PLUGIN]: message
 
-in which the `LOG_LEVEL` is represented by the first letter of its name (ERROR being an exception and using its full name). For example:
+in which the ``LOG_LEVEL`` is represented by the first letter of its name (ERROR being an exception and using its full name). For example:
 
 .. code-block:: sh
 
@@ -59,7 +66,8 @@ in which the `LOG_LEVEL` is represented by the first letter of its name (ERROR b
    [17:09:36.6809]ERROR[executable_network.cpp:384] [AUTOPLUGIN] load failed, GPU:[ GENERAL_ERROR ]
 
 
-## Instrumentation and Tracing Technology
+Instrumentation and Tracing Technology
+######################################
 
 All major performance calls of both OpenVINO™ Runtime and the AUTO plugin are instrumented with Instrumentation and Tracing Technology (ITT) APIs. To enable ITT in OpenVINO™ Runtime, compile it with the following option:
 
@@ -71,7 +79,8 @@ All major performance calls of both OpenVINO™ Runtime and the AUTO plugin are 
 For more information, you can refer to:
 * `Intel® VTune™ Profiler User Guide <https://www.intel.com/content/www/us/en/develop/documentation/vtune-help/top/api-support/instrumentation-and-tracing-technology-apis.html>`__
 
-### Analyze Code Performance on Linux
+Analyze Code Performance on Linux
++++++++++++++++++++++++++++++++++
 
 You can analyze code performance using Intel® VTune™ Profiler. For more information and installation instructions refer to the `installation guide (PDF) <https://software.intel.com/content/www/us/en/develop/download/intel-vtune-install-guide-linux-os.html>`__
 With Intel® VTune™ Profiler installed you can configure your analysis with the following steps:
@@ -85,7 +94,8 @@ With Intel® VTune™ Profiler installed you can configure your analysis with th
       vtune-gui
 
 
-2. select **Configure Analysis**
+2. Select **Configure Analysis**
+
 3. In the **where** pane, select **Local Host**
 
    .. image:: _static/images/OV_UG_supported_plugins_AUTO_debugging-img01-localhost.png
