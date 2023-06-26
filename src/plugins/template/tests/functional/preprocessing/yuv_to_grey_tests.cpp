@@ -4,7 +4,7 @@
 
 #include <gtest/gtest.h>
 
-#include "preprocessing/open_cv_yuv_to_grey_tests.hpp"
+#include "preprocessing/yuv_to_grey_tests.hpp"
 
 using namespace ov::preprocess;
 

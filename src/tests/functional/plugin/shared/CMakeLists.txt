@@ -48,15 +48,6 @@ endif()
 
 find_package(OpenCV QUIET COMPONENTS core imgproc)
 
-if(OpenCV_FOUND)
-    message("-- Shared preprocessing: OpenCV tests are enabled")
-else()
-    message("-- Shared preprocessing: OpenCV tests are disabled")
-    list(APPEND EXCLUDED_SOURCE_PATHS
-        ${CMAKE_CURRENT_SOURCE_DIR}/include/preprocessing/open_cv*
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/preprocessing/open_cv*)
-endif()
-
 addIeTarget(
         NAME ${TARGET_NAME}
         TYPE STATIC
@@ -88,6 +79,8 @@ addIeTarget(
 if(ENABLE_GAPI_PREPROCESSING)
     target_compile_definitions(${TARGET_NAME} PUBLIC ENABLE_GAPI_PREPROCESSING)
 endif()
+
+target_compile_definitions(${TARGET_NAME} PUBLIC $<$<BOOL:${OpenCV_FOUND}>:HAS_OPEN_CV>)
 
 ie_faster_build(${TARGET_NAME}
     PCH PRIVATE "src/precomp.hpp"
