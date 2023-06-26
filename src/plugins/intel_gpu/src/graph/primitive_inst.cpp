@@ -272,8 +272,6 @@ void primitive_inst::update_shape() {
             continue;
         }
         auto& dep = _node->get_dependency(i);
-        if (dep.is_in_shape_of_subgraph())
-            continue;
         auto dep_id = dep.id();
         // exclude fused node from memory_deps
         if (_node->is_fused_dep(i)) {
@@ -286,7 +284,8 @@ void primitive_inst::update_shape() {
         }
         auto dep_mem = _network.get_output_memory(dep_id);
         memory_deps.insert({i, dep_mem});
-        has_runtime_deps = true;
+        if (!dep.is_in_shape_of_subgraph())
+            has_runtime_deps = true;
     }
 
     if (has_runtime_deps) {
@@ -692,7 +691,6 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
         set_arguments();
     }
     on_execute();
-
     GPU_DEBUG_TRACE << id() << ": execute " << _impl->get_kernel_name() << std::endl;
 
     if (_exec_deps.empty() && dependencies.empty()) {
