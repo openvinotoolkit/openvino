@@ -60,7 +60,7 @@
 #    define OPENVINO_ENUM_DEPRECATED(msg)
 #endif
 
-#define INFERENCE_ENGINE_1_0_DEPRECATED                                                                      \
+#define IE_1_0_DEPRECATED                                                                      \
     OPENVINO_DEPRECATED("The Inference Engine API is deprecated and will be removed in the 2024.0 release. " \
                         "For instructions on transitioning to the new API, please refer to "                 \
                         "https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")

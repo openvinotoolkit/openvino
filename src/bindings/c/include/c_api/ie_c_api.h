@@ -319,19 +319,19 @@ typedef struct ie_available_devices {
  * @brief Returns number of version that is exported. Use the ie_version_free() to free memory.
  * @return Version number of the API.
  */
-INFERENCE_ENGINE_C_API(ie_version_t) INFERENCE_ENGINE_1_0_DEPRECATED ie_c_api_version(void);
+INFERENCE_ENGINE_C_API(ie_version_t) IE_1_0_DEPRECATED ie_c_api_version(void);
 
 /**
  * @brief Release the memory allocated by ie_c_api_version.
  * @param version A pointer to the ie_version_t to free memory.
  */
-INFERENCE_ENGINE_C_API(void) INFERENCE_ENGINE_1_0_DEPRECATED ie_version_free(ie_version_t* version);
+INFERENCE_ENGINE_C_API(void) IE_1_0_DEPRECATED ie_version_free(ie_version_t* version);
 
 /**
  * @brief Release the memory allocated by ie_param_t.
  * @param param A pointer to the ie_param_t to free memory.
  */
-INFERENCE_ENGINE_C_API(void) INFERENCE_ENGINE_1_0_DEPRECATED ie_param_free(ie_param_t* param);
+INFERENCE_ENGINE_C_API(void) IE_1_0_DEPRECATED ie_param_free(ie_param_t* param);
 
 // Core
 
@@ -353,14 +353,14 @@ INFERENCE_ENGINE_C_API(void) INFERENCE_ENGINE_1_0_DEPRECATED ie_param_free(ie_pa
  * @return Status code of the operation: OK(0) for success.
  */
 INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode)
-INFERENCE_ENGINE_1_0_DEPRECATED ie_core_create(const char* xml_config_file, ie_core_t** core);
+IE_1_0_DEPRECATED ie_core_create(const char* xml_config_file, ie_core_t** core);
 
 /**
  * @brief Releases memory occupied by core.
  * @ingroup Core
  * @param core A pointer to the core to free memory.
  */
-INFERENCE_ENGINE_C_API(void) INFERENCE_ENGINE_1_0_DEPRECATED ie_core_free(ie_core_t** core);
+INFERENCE_ENGINE_C_API(void) IE_1_0_DEPRECATED ie_core_free(ie_core_t** core);
 
 /**
  * @brief Gets version information of the device specified. Use the ie_core_versions_free() method to free memory.
@@ -371,16 +371,14 @@ INFERENCE_ENGINE_C_API(void) INFERENCE_ENGINE_1_0_DEPRECATED ie_core_free(ie_cor
  * @return Status code of the operation: OK(0) for success.
  */
 INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode)
-INFERENCE_ENGINE_1_0_DEPRECATED ie_core_get_versions(const ie_core_t* core,
-                                                     const char* device_name,
-                                                     ie_core_versions_t* versions);
+IE_1_0_DEPRECATED ie_core_get_versions(const ie_core_t* core, const char* device_name, ie_core_versions_t* versions);
 
 /**
  * @brief Releases memory occupied by ie_core_versions.
  * @ingroup Core
  * @param vers A pointer to the ie_core_versions to free memory.
  */
-INFERENCE_ENGINE_C_API(void) INFERENCE_ENGINE_1_0_DEPRECATED ie_core_versions_free(ie_core_versions_t* vers);
+INFERENCE_ENGINE_C_API(void) IE_1_0_DEPRECATED ie_core_versions_free(ie_core_versions_t* vers);
 
 /**
  * @brief Reads the model from the .xml and .bin files of the IR. Use the ie_network_free() method to free memory.
@@ -393,10 +391,10 @@ INFERENCE_ENGINE_C_API(void) INFERENCE_ENGINE_1_0_DEPRECATED ie_core_versions_fr
  * @return Status code of the operation: OK(0) for success.
  */
 INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode)
-INFERENCE_ENGINE_1_0_DEPRECATED ie_core_read_network(ie_core_t* core,
-                                                     const char* xml,
-                                                     const char* weights_file,
-                                                     ie_network_t** network);
+IE_1_0_DEPRECATED ie_core_read_network(ie_core_t* core,
+                                       const char* xml,
+                                       const char* weights_file,
+                                       ie_network_t** network);
 
 /**
  * @brief Reads the model from an xml string and a blob of the bin part of the IR. Use the ie_network_free() method to
@@ -410,11 +408,11 @@ INFERENCE_ENGINE_1_0_DEPRECATED ie_core_read_network(ie_core_t* core,
  * @return Status code of the operation: OK(0) for success.
  */
 INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode)
-INFERENCE_ENGINE_1_0_DEPRECATED ie_core_read_network_from_memory(ie_core_t* core,
-                                                                 const uint8_t* xml_content,
-                                                                 size_t xml_content_size,
-                                                                 const ie_blob_t* weight_blob,
-                                                                 ie_network_t** network);
+IE_1_0_DEPRECATED ie_core_read_network_from_memory(ie_core_t* core,
+                                                   const uint8_t* xml_content,
+                                                   size_t xml_content_size,
+                                                   const ie_blob_t* weight_blob,
+                                                   ie_network_t** network);
 
 /**
  * @brief Creates an executable network from a network previously exported to a file. Users can create as many networks
@@ -429,11 +427,11 @@ INFERENCE_ENGINE_1_0_DEPRECATED ie_core_read_network_from_memory(ie_core_t* core
  * @return Status code of the operation: OK(0) for success.
  */
 INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode)
-INFERENCE_ENGINE_1_0_DEPRECATED ie_core_import_network(ie_core_t* core,
-                                                       const char* file_name,
-                                                       const char* device_name,
-                                                       const ie_config_t* config,
-                                                       ie_executable_network_t** exe_network);
+IE_1_0_DEPRECATED ie_core_import_network(ie_core_t* core,
+                                         const char* file_name,
+                                         const char* device_name,
+                                         const ie_config_t* config,
+                                         ie_executable_network_t** exe_network);
 
 /**
  * @brief Creates an executable network from a network previously exported to memory. Users can create as many networks
@@ -449,12 +447,12 @@ INFERENCE_ENGINE_1_0_DEPRECATED ie_core_import_network(ie_core_t* core,
  * @return Status code of the operation: OK(0) for success.
  */
 INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode)
-INFERENCE_ENGINE_1_0_DEPRECATED ie_core_import_network_from_memory(ie_core_t* core,
-                                                                   const uint8_t* content,
-                                                                   size_t content_size,
-                                                                   const char* device_name,
-                                                                   const ie_config_t* config,
-                                                                   ie_executable_network_t** exe_network);
+IE_1_0_DEPRECATED ie_core_import_network_from_memory(ie_core_t* core,
+                                                     const uint8_t* content,
+                                                     size_t content_size,
+                                                     const char* device_name,
+                                                     const ie_config_t* config,
+                                                     ie_executable_network_t** exe_network);
 
 /**
  * @brief Exports an executable network to a .bin file.
@@ -464,7 +462,7 @@ INFERENCE_ENGINE_1_0_DEPRECATED ie_core_import_network_from_memory(ie_core_t* co
  * @return Status code of the operation: OK(0) for success.
  */
 INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode)
-INFERENCE_ENGINE_1_0_DEPRECATED ie_core_export_network(ie_executable_network_t* exe_network, const char* file_name);
+IE_1_0_DEPRECATED ie_core_export_network(ie_executable_network_t* exe_network, const char* file_name);
 
 /**
  * @brief Creates an executable network from a given network object. Users can create as many networks as they need and
@@ -479,11 +477,11 @@ INFERENCE_ENGINE_1_0_DEPRECATED ie_core_export_network(ie_executable_network_t* 
  * @return Status code of the operation: OK(0) for success.
  */
 INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode)
-INFERENCE_ENGINE_1_0_DEPRECATED ie_core_load_network(ie_core_t* core,
-                                                     const ie_network_t* network,
-                                                     const char* device_name,
-                                                     const ie_config_t* config,
-                                                     ie_executable_network_t** exe_network);
+IE_1_0_DEPRECATED ie_core_load_network(ie_core_t* core,
+                                       const ie_network_t* network,
+                                       const char* device_name,
+                                       const ie_config_t* config,
+                                       ie_executable_network_t** exe_network);
 
 /**
  * @brief Reads model and creates an executable network from IR or ONNX file. Users can create as many networks as they
@@ -498,11 +496,11 @@ INFERENCE_ENGINE_1_0_DEPRECATED ie_core_load_network(ie_core_t* core,
  * @return Status code of the operation: OK(0) for success.
  */
 INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode)
-INFERENCE_ENGINE_1_0_DEPRECATED ie_core_load_network_from_file(ie_core_t* core,
-                                                               const char* xml,
-                                                               const char* device_name,
-                                                               const ie_config_t* config,
-                                                               ie_executable_network_t** exe_network);
+IE_1_0_DEPRECATED ie_core_load_network_from_file(ie_core_t* core,
+                                                 const char* xml,
+                                                 const char* device_name,
+                                                 const ie_config_t* config,
+                                                 ie_executable_network_t** exe_network);
 
 /**
  * @brief Sets configuration for device.
@@ -514,9 +512,7 @@ INFERENCE_ENGINE_1_0_DEPRECATED ie_core_load_network_from_file(ie_core_t* core,
  * @return Status code of the operation: OK(0) for success.
  */
 INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode)
-INFERENCE_ENGINE_1_0_DEPRECATED ie_core_set_config(ie_core_t* core,
-                                                   const ie_config_t* ie_core_config,
-                                                   const char* device_name);
+IE_1_0_DEPRECATED ie_core_set_config(ie_core_t* core, const ie_config_t* ie_core_config, const char* device_name);
 
 /**
  * @brief Registers a new device and a plugin which implement this device inside Inference Engine.
@@ -529,7 +525,7 @@ INFERENCE_ENGINE_1_0_DEPRECATED ie_core_set_config(ie_core_t* core,
  * @return Status code of the operation: OK(0) for success.
  */
 INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode)
-INFERENCE_ENGINE_1_0_DEPRECATED ie_core_register_plugin(ie_core_t* core, const char* plugin, const char* device_name);
+IE_1_0_DEPRECATED ie_core_register_plugin(ie_core_t* core, const char* plugin, const char* device_name);
 
 /**
  * @brief Registers plugins specified in an ".xml" configuration file.
@@ -539,7 +535,7 @@ INFERENCE_ENGINE_1_0_DEPRECATED ie_core_register_plugin(ie_core_t* core, const c
  * @return Status code of the operation: OK(0) for success.
  */
 INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode)
-INFERENCE_ENGINE_1_0_DEPRECATED ie_core_register_plugins(ie_core_t* core, const char* xml_config_file);
+IE_1_0_DEPRECATED ie_core_register_plugins(ie_core_t* core, const char* xml_config_file);
 
 /**
  * @brief Unregisters a plugin with a specified device name.
@@ -549,7 +545,7 @@ INFERENCE_ENGINE_1_0_DEPRECATED ie_core_register_plugins(ie_core_t* core, const 
  * @return Status code of the operation: OK(0) for success.
  */
 INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode)
-INFERENCE_ENGINE_1_0_DEPRECATED ie_core_unregister_plugin(ie_core_t* core, const char* device_name);
+IE_1_0_DEPRECATED ie_core_unregister_plugin(ie_core_t* core, const char* device_name);
 
 /**
  * @brief Loads extension library to the device with a specified device name.
@@ -560,9 +556,7 @@ INFERENCE_ENGINE_1_0_DEPRECATED ie_core_unregister_plugin(ie_core_t* core, const
  * @return Status code of the operation: OK(0) for success.
  */
 INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode)
-INFERENCE_ENGINE_1_0_DEPRECATED ie_core_add_extension(ie_core_t* core,
-                                                      const char* extension_path,
-                                                      const char* device_name);
+IE_1_0_DEPRECATED ie_core_add_extension(ie_core_t* core, const char* extension_path, const char* device_name);
 
 /**
  * @brief Gets general runtime metric for dedicated hardware. The method is needed to request common device properties
@@ -575,10 +569,10 @@ INFERENCE_ENGINE_1_0_DEPRECATED ie_core_add_extension(ie_core_t* core,
  * @return Status code of the operation: OK(0) for success.
  */
 INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode)
-INFERENCE_ENGINE_1_0_DEPRECATED ie_core_get_metric(const ie_core_t* core,
-                                                   const char* device_name,
-                                                   const char* metric_name,
-                                                   ie_param_t* param_result);
+IE_1_0_DEPRECATED ie_core_get_metric(const ie_core_t* core,
+                                     const char* device_name,
+                                     const char* metric_name,
+                                     ie_param_t* param_result);
 
 /**
  * @brief Gets configuration dedicated to device behaviour. The method is targeted to extract information
@@ -591,10 +585,10 @@ INFERENCE_ENGINE_1_0_DEPRECATED ie_core_get_metric(const ie_core_t* core,
  * @return Status code of the operation: OK(0) for success.
  */
 INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode)
-INFERENCE_ENGINE_1_0_DEPRECATED ie_core_get_config(const ie_core_t* core,
-                                                   const char* device_name,
-                                                   const char* config_name,
-                                                   ie_param_t* param_result);
+IE_1_0_DEPRECATED ie_core_get_config(const ie_core_t* core,
+                                     const char* device_name,
+                                     const char* config_name,
+                                     ie_param_t* param_result);
 
 /**
  * @brief Gets available devices for neural network inference.
@@ -605,8 +599,7 @@ INFERENCE_ENGINE_1_0_DEPRECATED ie_core_get_config(const ie_core_t* core,
  * @return Status code of the operation: OK(0) for success.
  */
 INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode)
-INFERENCE_ENGINE_1_0_DEPRECATED ie_core_get_available_devices(const ie_core_t* core,
-                                                              ie_available_devices_t* avai_devices);
+IE_1_0_DEPRECATED ie_core_get_available_devices(const ie_core_t* core, ie_available_devices_t* avai_devices);
 
 /**
  * @brief Releases memory occpuied by ie_available_devices_t
@@ -614,7 +607,7 @@ INFERENCE_ENGINE_1_0_DEPRECATED ie_core_get_available_devices(const ie_core_t* c
  * @param avai_devices A pointer to the ie_available_devices_t to free memory.
  */
 INFERENCE_ENGINE_C_API(void)
-INFERENCE_ENGINE_1_0_DEPRECATED ie_core_available_devices_free(ie_available_devices_t* avai_devices);
+IE_1_0_DEPRECATED ie_core_available_devices_free(ie_available_devices_t* avai_devices);
 
 /** @} */  // end of Core
 
@@ -633,7 +626,7 @@ INFERENCE_ENGINE_1_0_DEPRECATED ie_core_available_devices_free(ie_available_devi
  * @param ie_exec_network A pointer to the ExecutableNetwork to free memory.
  */
 INFERENCE_ENGINE_C_API(void)
-INFERENCE_ENGINE_1_0_DEPRECATED ie_exec_network_free(ie_executable_network_t** ie_exec_network);
+IE_1_0_DEPRECATED ie_exec_network_free(ie_executable_network_t** ie_exec_network);
 
 /**
  * @brief Creates an inference request instance used to infer the network. The created request has allocated input
@@ -644,8 +637,8 @@ INFERENCE_ENGINE_1_0_DEPRECATED ie_exec_network_free(ie_executable_network_t** i
  * @return Status code of the operation: OK(0) for success.
  */
 INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode)
-INFERENCE_ENGINE_1_0_DEPRECATED ie_exec_network_create_infer_request(ie_executable_network_t* ie_exec_network,
-                                                                     ie_infer_request_t** request);
+IE_1_0_DEPRECATED ie_exec_network_create_infer_request(ie_executable_network_t* ie_exec_network,
+                                                       ie_infer_request_t** request);
 
 /**
  * @brief Gets general runtime metric for an executable network. It can be network name, actual device ID on which
@@ -657,9 +650,9 @@ INFERENCE_ENGINE_1_0_DEPRECATED ie_exec_network_create_infer_request(ie_executab
  * @return Status code of the operation: OK(0) for success.
  */
 INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode)
-INFERENCE_ENGINE_1_0_DEPRECATED ie_exec_network_get_metric(const ie_executable_network_t* ie_exec_network,
-                                                           const char* metric_name,
-                                                           ie_param_t* param_result);
+IE_1_0_DEPRECATED ie_exec_network_get_metric(const ie_executable_network_t* ie_exec_network,
+                                             const char* metric_name,
+                                             ie_param_t* param_result);
 
 /**
  * @brief Sets configuration for current executable network. Currently, the method can be used
@@ -670,8 +663,7 @@ INFERENCE_ENGINE_1_0_DEPRECATED ie_exec_network_get_metric(const ie_executable_n
  * @return Status code of the operation: OK(0) for success.
  */
 INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode)
-INFERENCE_ENGINE_1_0_DEPRECATED ie_exec_network_set_config(ie_executable_network_t* ie_exec_network,
-                                                           const ie_config_t* param_config);
+IE_1_0_DEPRECATED ie_exec_network_set_config(ie_executable_network_t* ie_exec_network, const ie_config_t* param_config);
 
 /**
  * @brief Gets configuration for current executable network. The method is responsible to
@@ -683,9 +675,9 @@ INFERENCE_ENGINE_1_0_DEPRECATED ie_exec_network_set_config(ie_executable_network
  * @return Status code of the operation: OK(0) for success.
  */
 INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode)
-INFERENCE_ENGINE_1_0_DEPRECATED ie_exec_network_get_config(const ie_executable_network_t* ie_exec_network,
-                                                           const char* metric_config,
-                                                           ie_param_t* param_result);
+IE_1_0_DEPRECATED ie_exec_network_get_config(const ie_executable_network_t* ie_exec_network,
+                                             const char* metric_config,
+                                             ie_param_t* param_result);
 
 /** @} */  // end of ExecutableNetwork
 
@@ -704,7 +696,7 @@ INFERENCE_ENGINE_1_0_DEPRECATED ie_exec_network_get_config(const ie_executable_n
  * @ingroup InferRequest
  * @param infer_request A pointer to the ie_infer_request_t to free memory.
  */
-INFERENCE_ENGINE_C_API(void) INFERENCE_ENGINE_1_0_DEPRECATED ie_infer_request_free(ie_infer_request_t** infer_request);
+INFERENCE_ENGINE_C_API(void) IE_1_0_DEPRECATED ie_infer_request_free(ie_infer_request_t** infer_request);
 
 /**
  * @brief Gets input/output data for inference
@@ -715,9 +707,7 @@ INFERENCE_ENGINE_C_API(void) INFERENCE_ENGINE_1_0_DEPRECATED ie_infer_request_fr
  * @return Status code of the operation: OK(0) for success.
  */
 INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode)
-INFERENCE_ENGINE_1_0_DEPRECATED ie_infer_request_get_blob(ie_infer_request_t* infer_request,
-                                                          const char* name,
-                                                          ie_blob_t** blob);
+IE_1_0_DEPRECATED ie_infer_request_get_blob(ie_infer_request_t* infer_request, const char* name, ie_blob_t** blob);
 
 /**
  * @brief Sets input/output data to inference.
@@ -728,9 +718,7 @@ INFERENCE_ENGINE_1_0_DEPRECATED ie_infer_request_get_blob(ie_infer_request_t* in
  * @return Status code of the operation: OK(0) for success.
  */
 INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode)
-INFERENCE_ENGINE_1_0_DEPRECATED ie_infer_request_set_blob(ie_infer_request_t* infer_request,
-                                                          const char* name,
-                                                          const ie_blob_t* blob);
+IE_1_0_DEPRECATED ie_infer_request_set_blob(ie_infer_request_t* infer_request, const char* name, const ie_blob_t* blob);
 
 /**
  * @brief Starts synchronous inference of the infer request and fill outputs.
@@ -739,7 +727,7 @@ INFERENCE_ENGINE_1_0_DEPRECATED ie_infer_request_set_blob(ie_infer_request_t* in
  * @return Status code of the operation: OK(0) for success.
  */
 INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode)
-INFERENCE_ENGINE_1_0_DEPRECATED ie_infer_request_infer(ie_infer_request_t* infer_request);
+IE_1_0_DEPRECATED ie_infer_request_infer(ie_infer_request_t* infer_request);
 
 /**
  * @brief Starts asynchronous inference of the infer request and fill outputs.
@@ -748,7 +736,7 @@ INFERENCE_ENGINE_1_0_DEPRECATED ie_infer_request_infer(ie_infer_request_t* infer
  * @return Status code of the operation: OK(0) for success.
  */
 INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode)
-INFERENCE_ENGINE_1_0_DEPRECATED ie_infer_request_infer_async(ie_infer_request_t* infer_request);
+IE_1_0_DEPRECATED ie_infer_request_infer_async(ie_infer_request_t* infer_request);
 
 /**
  * @brief Sets a callback function that will be called on success or failure of asynchronous request
@@ -758,8 +746,8 @@ INFERENCE_ENGINE_1_0_DEPRECATED ie_infer_request_infer_async(ie_infer_request_t*
  * @return Status code of the operation: OK(0) for success.
  */
 INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode)
-INFERENCE_ENGINE_1_0_DEPRECATED ie_infer_set_completion_callback(ie_infer_request_t* infer_request,
-                                                                 ie_complete_call_back_t* callback);
+IE_1_0_DEPRECATED ie_infer_set_completion_callback(ie_infer_request_t* infer_request,
+                                                   ie_complete_call_back_t* callback);
 
 /**
  * @brief Waits for the result to become available. Blocks until specified timeout elapses or the result becomes
@@ -773,7 +761,7 @@ INFERENCE_ENGINE_1_0_DEPRECATED ie_infer_set_completion_callback(ie_infer_reques
  * @return Status code of the operation: OK(0) for success.
  */
 INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode)
-INFERENCE_ENGINE_1_0_DEPRECATED ie_infer_request_wait(ie_infer_request_t* infer_request, const int64_t timeout);
+IE_1_0_DEPRECATED ie_infer_request_wait(ie_infer_request_t* infer_request, const int64_t timeout);
 
 /** @} */  // end of InferRequest
 
@@ -792,7 +780,7 @@ INFERENCE_ENGINE_1_0_DEPRECATED ie_infer_request_wait(ie_infer_request_t* infer_
  * @ingroup Network
  * @param network The pointer to the instance of the ie_network_t to free.
  */
-INFERENCE_ENGINE_C_API(void) INFERENCE_ENGINE_1_0_DEPRECATED ie_network_free(ie_network_t** network);
+INFERENCE_ENGINE_C_API(void) IE_1_0_DEPRECATED ie_network_free(ie_network_t** network);
 
 /**
  * @brief Get name of network.
@@ -802,7 +790,7 @@ INFERENCE_ENGINE_C_API(void) INFERENCE_ENGINE_1_0_DEPRECATED ie_network_free(ie_
  * @return Status code of the operation: OK(0) for success.
  */
 INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode)
-INFERENCE_ENGINE_1_0_DEPRECATED ie_network_get_name(const ie_network_t* network, char** name);
+IE_1_0_DEPRECATED ie_network_get_name(const ie_network_t* network, char** name);
 
 /**
  * @brief Gets number of inputs for the network.
@@ -812,7 +800,7 @@ INFERENCE_ENGINE_1_0_DEPRECATED ie_network_get_name(const ie_network_t* network,
  * @return Status code of the operation: OK(0) for success.
  */
 INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode)
-INFERENCE_ENGINE_1_0_DEPRECATED ie_network_get_inputs_number(const ie_network_t* network, size_t* size_result);
+IE_1_0_DEPRECATED ie_network_get_inputs_number(const ie_network_t* network, size_t* size_result);
 
 /**
  * @brief Gets name corresponding to the "number". Use the ie_network_name_free() method to free memory.
@@ -823,7 +811,7 @@ INFERENCE_ENGINE_1_0_DEPRECATED ie_network_get_inputs_number(const ie_network_t*
  * @return status Status code of the operation: OK(0) for success.
  */
 INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode)
-INFERENCE_ENGINE_1_0_DEPRECATED ie_network_get_input_name(const ie_network_t* network, size_t number, char** name);
+IE_1_0_DEPRECATED ie_network_get_input_name(const ie_network_t* network, size_t number, char** name);
 
 /**
  * @brief Gets a precision of the input data provided by user.
@@ -834,9 +822,9 @@ INFERENCE_ENGINE_1_0_DEPRECATED ie_network_get_input_name(const ie_network_t* ne
  * @return Status code of the operation: OK(0) for success.
  */
 INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode)
-INFERENCE_ENGINE_1_0_DEPRECATED ie_network_get_input_precision(const ie_network_t* network,
-                                                               const char* input_name,
-                                                               precision_e* prec_result);
+IE_1_0_DEPRECATED ie_network_get_input_precision(const ie_network_t* network,
+                                                 const char* input_name,
+                                                 precision_e* prec_result);
 
 /**
  * @brief Changes the precision of the input data provided by the user.
@@ -848,9 +836,7 @@ INFERENCE_ENGINE_1_0_DEPRECATED ie_network_get_input_precision(const ie_network_
  * @return Status code of the operation: OK(0) for success.
  */
 INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode)
-INFERENCE_ENGINE_1_0_DEPRECATED ie_network_set_input_precision(ie_network_t* network,
-                                                               const char* input_name,
-                                                               const precision_e p);
+IE_1_0_DEPRECATED ie_network_set_input_precision(ie_network_t* network, const char* input_name, const precision_e p);
 
 /**
  * @brief Gets a layout of the input data.
@@ -861,9 +847,9 @@ INFERENCE_ENGINE_1_0_DEPRECATED ie_network_set_input_precision(ie_network_t* net
  * @return Status code of the operation: OK(0) for success.
  */
 INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode)
-INFERENCE_ENGINE_1_0_DEPRECATED ie_network_get_input_layout(const ie_network_t* network,
-                                                            const char* input_name,
-                                                            layout_e* layout_result);
+IE_1_0_DEPRECATED ie_network_get_input_layout(const ie_network_t* network,
+                                              const char* input_name,
+                                              layout_e* layout_result);
 
 /**
  * @brief Changes the layout of the input data named "input_name".
@@ -875,9 +861,7 @@ INFERENCE_ENGINE_1_0_DEPRECATED ie_network_get_input_layout(const ie_network_t* 
  * @return Status code of the operation: OK(0) for success.
  */
 INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode)
-INFERENCE_ENGINE_1_0_DEPRECATED ie_network_set_input_layout(ie_network_t* network,
-                                                            const char* input_name,
-                                                            const layout_e l);
+IE_1_0_DEPRECATED ie_network_set_input_layout(ie_network_t* network, const char* input_name, const layout_e l);
 
 /**
  * @brief Gets dimensions/shape of the input data with reversed order.
@@ -888,9 +872,9 @@ INFERENCE_ENGINE_1_0_DEPRECATED ie_network_set_input_layout(ie_network_t* networ
  * @return Status code of the operation: OK(0) for success.
  */
 INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode)
-INFERENCE_ENGINE_1_0_DEPRECATED ie_network_get_input_dims(const ie_network_t* network,
-                                                          const char* input_name,
-                                                          dimensions_t* dims_result);
+IE_1_0_DEPRECATED ie_network_get_input_dims(const ie_network_t* network,
+                                            const char* input_name,
+                                            dimensions_t* dims_result);
 
 /**
  * @brief Gets pre-configured resize algorithm.
@@ -901,9 +885,9 @@ INFERENCE_ENGINE_1_0_DEPRECATED ie_network_get_input_dims(const ie_network_t* ne
  * @return Status code of the operation: OK(0) for success.
  */
 INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode)
-INFERENCE_ENGINE_1_0_DEPRECATED ie_network_get_input_resize_algorithm(const ie_network_t* network,
-                                                                      const char* input_name,
-                                                                      resize_alg_e* resize_alg_result);
+IE_1_0_DEPRECATED ie_network_get_input_resize_algorithm(const ie_network_t* network,
+                                                        const char* input_name,
+                                                        resize_alg_e* resize_alg_result);
 
 /**
  * @brief Sets resize algorithm to be used during pre-processing
@@ -914,9 +898,9 @@ INFERENCE_ENGINE_1_0_DEPRECATED ie_network_get_input_resize_algorithm(const ie_n
  * @return Status code of the operation: OK(0) for success.
  */
 INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode)
-INFERENCE_ENGINE_1_0_DEPRECATED ie_network_set_input_resize_algorithm(ie_network_t* network,
-                                                                      const char* input_name,
-                                                                      const resize_alg_e resize_algo);
+IE_1_0_DEPRECATED ie_network_set_input_resize_algorithm(ie_network_t* network,
+                                                        const char* input_name,
+                                                        const resize_alg_e resize_algo);
 
 /**
  * @brief Gets color format of the input data.
@@ -927,9 +911,9 @@ INFERENCE_ENGINE_1_0_DEPRECATED ie_network_set_input_resize_algorithm(ie_network
  * @return Status code of the operation: OK(0) for success.
  */
 INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode)
-INFERENCE_ENGINE_1_0_DEPRECATED ie_network_get_color_format(const ie_network_t* network,
-                                                            const char* input_name,
-                                                            colorformat_e* colformat_result);
+IE_1_0_DEPRECATED ie_network_get_color_format(const ie_network_t* network,
+                                              const char* input_name,
+                                              colorformat_e* colformat_result);
 
 /**
  * @brief Changes the color format of the input data.
@@ -940,9 +924,9 @@ INFERENCE_ENGINE_1_0_DEPRECATED ie_network_get_color_format(const ie_network_t* 
  * @return Status code of the operation: OK(0) for success.
  */
 INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode)
-INFERENCE_ENGINE_1_0_DEPRECATED ie_network_set_color_format(ie_network_t* network,
-                                                            const char* input_name,
-                                                            const colorformat_e color_format);
+IE_1_0_DEPRECATED ie_network_set_color_format(ie_network_t* network,
+                                              const char* input_name,
+                                              const colorformat_e color_format);
 
 /**
  * @brief Helper method collect all input shapes with input names of corresponding input data.
@@ -953,7 +937,7 @@ INFERENCE_ENGINE_1_0_DEPRECATED ie_network_set_color_format(ie_network_t* networ
  * @return Status code of the operation: OK(0) for success.
  */
 INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode)
-INFERENCE_ENGINE_1_0_DEPRECATED ie_network_get_input_shapes(ie_network_t* network, input_shapes_t* shapes);
+IE_1_0_DEPRECATED ie_network_get_input_shapes(ie_network_t* network, input_shapes_t* shapes);
 
 /**
  * @brief Run shape inference with new input shapes for the network.
@@ -963,7 +947,7 @@ INFERENCE_ENGINE_1_0_DEPRECATED ie_network_get_input_shapes(ie_network_t* networ
  * @return Status code of the operation: OK(0) for success.
  */
 INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode)
-INFERENCE_ENGINE_1_0_DEPRECATED ie_network_reshape(ie_network_t* network, const input_shapes_t shapes);
+IE_1_0_DEPRECATED ie_network_reshape(ie_network_t* network, const input_shapes_t shapes);
 
 /**
  * @brief Gets number of output for the network.
@@ -973,7 +957,7 @@ INFERENCE_ENGINE_1_0_DEPRECATED ie_network_reshape(ie_network_t* network, const 
  * @return Status code of the operation: OK(0) for success.
  */
 INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode)
-INFERENCE_ENGINE_1_0_DEPRECATED ie_network_get_outputs_number(const ie_network_t* network, size_t* size_result);
+IE_1_0_DEPRECATED ie_network_get_outputs_number(const ie_network_t* network, size_t* size_result);
 
 /**
  * @brief Gets name corresponding to the "number". Use the ie_network_name_free() method to free memory.
@@ -984,9 +968,7 @@ INFERENCE_ENGINE_1_0_DEPRECATED ie_network_get_outputs_number(const ie_network_t
  * @return Status code of the operation: OK(0) for success.
  */
 INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode)
-INFERENCE_ENGINE_1_0_DEPRECATED ie_network_get_output_name(const ie_network_t* network,
-                                                           const size_t number,
-                                                           char** name);
+IE_1_0_DEPRECATED ie_network_get_output_name(const ie_network_t* network, const size_t number, char** name);
 
 /**
  * @brief Gets a precision of the output data named "output_name".
@@ -997,9 +979,9 @@ INFERENCE_ENGINE_1_0_DEPRECATED ie_network_get_output_name(const ie_network_t* n
  * @return Status code of the operation: OK(0) for success.
  */
 INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode)
-INFERENCE_ENGINE_1_0_DEPRECATED ie_network_get_output_precision(const ie_network_t* network,
-                                                                const char* output_name,
-                                                                precision_e* prec_result);
+IE_1_0_DEPRECATED ie_network_get_output_precision(const ie_network_t* network,
+                                                  const char* output_name,
+                                                  precision_e* prec_result);
 
 /**
  * @brief Changes the precision of the output data named "output_name".
@@ -1010,9 +992,7 @@ INFERENCE_ENGINE_1_0_DEPRECATED ie_network_get_output_precision(const ie_network
  * @return Status code of the operation: OK(0) for success.
  */
 INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode)
-INFERENCE_ENGINE_1_0_DEPRECATED ie_network_set_output_precision(ie_network_t* network,
-                                                                const char* output_name,
-                                                                const precision_e p);
+IE_1_0_DEPRECATED ie_network_set_output_precision(ie_network_t* network, const char* output_name, const precision_e p);
 
 /**
  * @brief Gets a layout of the output data.
@@ -1023,9 +1003,9 @@ INFERENCE_ENGINE_1_0_DEPRECATED ie_network_set_output_precision(ie_network_t* ne
  * @return Status code of the operation: OK(0) for success.
  */
 INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode)
-INFERENCE_ENGINE_1_0_DEPRECATED ie_network_get_output_layout(const ie_network_t* network,
-                                                             const char* output_name,
-                                                             layout_e* layout_result);
+IE_1_0_DEPRECATED ie_network_get_output_layout(const ie_network_t* network,
+                                               const char* output_name,
+                                               layout_e* layout_result);
 
 /**
  * @brief Changes the layout of the output data named "output_name".
@@ -1036,9 +1016,7 @@ INFERENCE_ENGINE_1_0_DEPRECATED ie_network_get_output_layout(const ie_network_t*
  * @return Status code of the operation: OK(0) for success.
  */
 INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode)
-INFERENCE_ENGINE_1_0_DEPRECATED ie_network_set_output_layout(ie_network_t* network,
-                                                             const char* output_name,
-                                                             const layout_e l);
+IE_1_0_DEPRECATED ie_network_set_output_layout(ie_network_t* network, const char* output_name, const layout_e l);
 
 /**
  * @brief Gets dimensions/shape of the output data with reversed order.
@@ -1049,23 +1027,23 @@ INFERENCE_ENGINE_1_0_DEPRECATED ie_network_set_output_layout(ie_network_t* netwo
  * @return Status code of the operation: OK(0) for success.
  */
 INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode)
-INFERENCE_ENGINE_1_0_DEPRECATED ie_network_get_output_dims(const ie_network_t* network,
-                                                           const char* output_name,
-                                                           dimensions_t* dims_result);
+IE_1_0_DEPRECATED ie_network_get_output_dims(const ie_network_t* network,
+                                             const char* output_name,
+                                             dimensions_t* dims_result);
 
 /**
  * @brief Releases memory occupied by input_shapes.
  * @ingroup Network
  * @param inputShapes A pointer to the input_shapes to free memory.
  */
-INFERENCE_ENGINE_C_API(void) INFERENCE_ENGINE_1_0_DEPRECATED ie_network_input_shapes_free(input_shapes_t* inputShapes);
+INFERENCE_ENGINE_C_API(void) IE_1_0_DEPRECATED ie_network_input_shapes_free(input_shapes_t* inputShapes);
 
 /**
  * @brief Releases momory occupied by input_name or output_name.
  * @ingroup Network
  * @param name A pointer to the input_name or output_name to free memory.
  */
-INFERENCE_ENGINE_C_API(void) INFERENCE_ENGINE_1_0_DEPRECATED ie_network_name_free(char** name);
+INFERENCE_ENGINE_C_API(void) IE_1_0_DEPRECATED ie_network_name_free(char** name);
 
 /** @} */  // end of InferRequest
 
@@ -1087,7 +1065,7 @@ INFERENCE_ENGINE_C_API(void) INFERENCE_ENGINE_1_0_DEPRECATED ie_network_name_fre
  * @return Status code of the operation: OK(0) for success.
  */
 INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode)
-INFERENCE_ENGINE_1_0_DEPRECATED ie_blob_make_memory(const tensor_desc_t* tensorDesc, ie_blob_t** blob);
+IE_1_0_DEPRECATED ie_blob_make_memory(const tensor_desc_t* tensorDesc, ie_blob_t** blob);
 
 /**
  * @brief Creates a blob with the given tensor descriptor from the pointer to the pre-allocated memory.
@@ -1099,10 +1077,10 @@ INFERENCE_ENGINE_1_0_DEPRECATED ie_blob_make_memory(const tensor_desc_t* tensorD
  * @return Status code of the operation: OK(0) for success.
  */
 INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode)
-INFERENCE_ENGINE_1_0_DEPRECATED ie_blob_make_memory_from_preallocated(const tensor_desc_t* tensorDesc,
-                                                                      void* ptr,
-                                                                      size_t size,
-                                                                      ie_blob_t** blob);
+IE_1_0_DEPRECATED ie_blob_make_memory_from_preallocated(const tensor_desc_t* tensorDesc,
+                                                        void* ptr,
+                                                        size_t size,
+                                                        ie_blob_t** blob);
 
 /**
  * @brief Creates a blob describing given roi_t instance based on the given blob with pre-allocated memory.
@@ -1113,9 +1091,7 @@ INFERENCE_ENGINE_1_0_DEPRECATED ie_blob_make_memory_from_preallocated(const tens
  * @return Status code of the operation: OK(0) for success.
  */
 INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode)
-INFERENCE_ENGINE_1_0_DEPRECATED ie_blob_make_memory_with_roi(const ie_blob_t* inputBlob,
-                                                             const roi_t* roi,
-                                                             ie_blob_t** blob);
+IE_1_0_DEPRECATED ie_blob_make_memory_with_roi(const ie_blob_t* inputBlob, const roi_t* roi, ie_blob_t** blob);
 
 /**
  * @brief Gets the total number of elements, which is a product of all the dimensions.
@@ -1125,7 +1101,7 @@ INFERENCE_ENGINE_1_0_DEPRECATED ie_blob_make_memory_with_roi(const ie_blob_t* in
  * @return Status code of the operation: OK(0) for success.
  */
 INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode)
-INFERENCE_ENGINE_1_0_DEPRECATED ie_blob_size(ie_blob_t* blob, int* size_result);
+IE_1_0_DEPRECATED ie_blob_size(ie_blob_t* blob, int* size_result);
 
 /**
  * @brief Gets the size of the current Blob in bytes.
@@ -1135,14 +1111,14 @@ INFERENCE_ENGINE_1_0_DEPRECATED ie_blob_size(ie_blob_t* blob, int* size_result);
  * @return Status code of the operation: OK(0) for success.
  */
 INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode)
-INFERENCE_ENGINE_1_0_DEPRECATED ie_blob_byte_size(ie_blob_t* blob, int* bsize_result);
+IE_1_0_DEPRECATED ie_blob_byte_size(ie_blob_t* blob, int* bsize_result);
 
 /**
  * @brief Releases previously allocated data
  * @ingroup Blob
  * @param blob A pointer to the blob to free memory.
  */
-INFERENCE_ENGINE_C_API(void) INFERENCE_ENGINE_1_0_DEPRECATED ie_blob_deallocate(ie_blob_t** blob);
+INFERENCE_ENGINE_C_API(void) IE_1_0_DEPRECATED ie_blob_deallocate(ie_blob_t** blob);
 
 /**
  * @brief Gets access to the allocated memory .
@@ -1152,7 +1128,7 @@ INFERENCE_ENGINE_C_API(void) INFERENCE_ENGINE_1_0_DEPRECATED ie_blob_deallocate(
  * @return Status code of the operation: OK(0) for success.
  */
 INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode)
-INFERENCE_ENGINE_1_0_DEPRECATED ie_blob_get_buffer(const ie_blob_t* blob, ie_blob_buffer_t* blob_buffer);
+IE_1_0_DEPRECATED ie_blob_get_buffer(const ie_blob_t* blob, ie_blob_buffer_t* blob_buffer);
 
 /**
  * @brief Gets read-only access to the allocated memory.
@@ -1162,7 +1138,7 @@ INFERENCE_ENGINE_1_0_DEPRECATED ie_blob_get_buffer(const ie_blob_t* blob, ie_blo
  * @return Status code of the operation: OK(0) for success
  */
 INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode)
-INFERENCE_ENGINE_1_0_DEPRECATED ie_blob_get_cbuffer(const ie_blob_t* blob, ie_blob_buffer_t* blob_cbuffer);
+IE_1_0_DEPRECATED ie_blob_get_cbuffer(const ie_blob_t* blob, ie_blob_buffer_t* blob_cbuffer);
 
 /**
  * @brief Gets dimensions of blob's tensor.
@@ -1172,7 +1148,7 @@ INFERENCE_ENGINE_1_0_DEPRECATED ie_blob_get_cbuffer(const ie_blob_t* blob, ie_bl
  * @return Status code of the operation: OK(0) for success.
  */
 INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode)
-INFERENCE_ENGINE_1_0_DEPRECATED ie_blob_get_dims(const ie_blob_t* blob, dimensions_t* dims_result);
+IE_1_0_DEPRECATED ie_blob_get_dims(const ie_blob_t* blob, dimensions_t* dims_result);
 
 /**
  * @brief Gets layout of blob's tensor.
@@ -1182,7 +1158,7 @@ INFERENCE_ENGINE_1_0_DEPRECATED ie_blob_get_dims(const ie_blob_t* blob, dimensio
  * @return Status code of the operation: OK(0) for success.
  */
 INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode)
-INFERENCE_ENGINE_1_0_DEPRECATED ie_blob_get_layout(const ie_blob_t* blob, layout_e* layout_result);
+IE_1_0_DEPRECATED ie_blob_get_layout(const ie_blob_t* blob, layout_e* layout_result);
 
 /**
  * @brief Gets precision of blob's tensor.
@@ -1192,14 +1168,14 @@ INFERENCE_ENGINE_1_0_DEPRECATED ie_blob_get_layout(const ie_blob_t* blob, layout
  * @return Status code of the operation: OK(0) for success.
  */
 INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode)
-INFERENCE_ENGINE_1_0_DEPRECATED ie_blob_get_precision(const ie_blob_t* blob, precision_e* prec_result);
+IE_1_0_DEPRECATED ie_blob_get_precision(const ie_blob_t* blob, precision_e* prec_result);
 
 /**
  * @brief Releases the memory occupied by the ie_blob_t pointer.
  * @ingroup Blob
  * @param blob A pointer to the blob pointer to release memory.
  */
-INFERENCE_ENGINE_C_API(void) INFERENCE_ENGINE_1_0_DEPRECATED ie_blob_free(ie_blob_t** blob);
+INFERENCE_ENGINE_C_API(void) IE_1_0_DEPRECATED ie_blob_free(ie_blob_t** blob);
 
 /** @} */  // end of Blob
 
@@ -1212,7 +1188,7 @@ INFERENCE_ENGINE_C_API(void) INFERENCE_ENGINE_1_0_DEPRECATED ie_blob_free(ie_blo
  * You might want to use this function if you are developing a dynamically-loaded library which should clean up all
  * resources after itself when the library is unloaded.
  */
-INFERENCE_ENGINE_C_API(void) INFERENCE_ENGINE_1_0_DEPRECATED ie_shutdown();
+INFERENCE_ENGINE_C_API(void) IE_1_0_DEPRECATED ie_shutdown();
 
 OPENVINO_SUPPRESS_DEPRECATED_END
 
