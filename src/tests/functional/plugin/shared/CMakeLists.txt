@@ -46,7 +46,9 @@ else()
     list(APPEND EXCLUDED_SOURCE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/snippets)
 endif()
 
-find_package(OpenCV QUIET COMPONENTS core imgproc)
+if(ENABLE_OPENCV)
+    find_package(OpenCV QUIET COMPONENTS core imgproc)
+endif()
 
 addIeTarget(
         NAME ${TARGET_NAME}
@@ -80,16 +82,17 @@ if(ENABLE_GAPI_PREPROCESSING)
     target_compile_definitions(${TARGET_NAME} PUBLIC ENABLE_GAPI_PREPROCESSING)
 endif()
 
+add_custom_target(genexdebug COMMAND ${CMAKE_COMMAND} -E echo "$<$<BOOL:${OpenCV_FOUND}>:HAS_OPEN_CV>")
+
 target_compile_definitions(${TARGET_NAME} PUBLIC $<$<BOOL:${OpenCV_FOUND}>:HAS_OPEN_CV>)
+target_link_libraries(${TARGET_NAME} PUBLIC $<$<BOOL:${OpenCV_FOUND}>:opencv_imgproc opencv_core>)
 
 ie_faster_build(${TARGET_NAME}
     PCH PRIVATE "src/precomp.hpp"
 )
 
-if (ENABLE_INTEL_CPU)
+if(ENABLE_INTEL_CPU)
     set_source_files_properties(
         "${CMAKE_CURRENT_SOURCE_DIR}/src/behavior/ov_executable_network/get_metric.cpp"
         PROPERTIES COMPILE_DEFINITIONS ENABLE_INTEL_CPU=1)
 endif()
-
-target_link_libraries(${TARGET_NAME} PUBLIC $<$<BOOL:${OPENCV_FOUND}>:opencv_imgproc opencv_core>)
