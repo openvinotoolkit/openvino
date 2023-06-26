@@ -38,14 +38,13 @@ made of three key components which are as follows: |deepsort|
 
 2. **Prediction**
 
-   In this step, we use Kalman filter\ `1 <#f1>`__\  framework to
-   predict a target bounding box of each tracking object in the next
-   frame. There are two states of prediction output: ``confirmed`` and
-   ``unconfirmed``. A new track comes with a state of ``unconfirmed`` by
-   default, and it can be turned into ``confirmed`` when a certain
-   number of consecutive detections are matched with this new track.
-   Meanwhile, if a matched track is missed over a specific time, it will
-   be deleted as well.
+   In this step, we use Kalman filter [1] framework to predict a target
+   bounding box of each tracking object in the next frame. There are two
+   states of prediction output: ``confirmed`` and ``unconfirmed``. A new
+   track comes with a state of ``unconfirmed`` by default, and it can be
+   turned into ``confirmed`` when a certain number of consecutive
+   detections are matched with this new track. Meanwhile, if a matched
+   track is missed over a specific time, it will be deleted as well.
 
 3. **Data association and update**
 
@@ -53,10 +52,10 @@ made of three key components which are as follows: |deepsort|
    bounding box, and update track identities. A conventional way to
    solve the association between the predicted Kalman states and newly
    arrived measurements is to build an assignment problem with the
-   Hungarian algorithm\ `2 <#f2>`__\ . In this problem formulation, we
-   integrate motion and appearance information through a combination of
-   two appropriate metrics. The cost used for the first matching step is
-   set as a combination of the Mahalanobis and the cosine distances. The
+   Hungarian algorithm [2]. In this problem formulation, we integrate
+   motion and appearance information through a combination of two
+   appropriate metrics. The cost used for the first matching step is set
+   as a combination of the Mahalanobis and the cosine distances. The
    `Mahalanobis
    distance <https://en.wikipedia.org/wiki/Mahalanobis_distance>`__ is
    used to incorporate motion information and the cosine distance is
@@ -69,32 +68,28 @@ made of three key components which are as follows: |deepsort|
    powerful and accurate.
 
    In the second matching stage, we will run intersection over
-   union(IOU) association as proposed in the original SORT
-   algorithm\ `3 <#f3>`__\  on the set of unconfirmed and unmatched
-   tracks from the previous step. If the IOU of detection and target is
-   less than a certain threshold value called IOUmin then that
-   assignment is rejected. This helps to account for sudden appearance
-   changes, for example, due to partial occlusion with static scene
-   geometry, and to increase robustness against erroneous.
+   union(IOU) association as proposed in the original SORT algorithm [3]
+   on the set of unconfirmed and unmatched tracks from the previous
+   step. If the IOU of detection and target is less than a certain
+   threshold value called IOUmin then that assignment is rejected. This
+   helps to account for sudden appearance changes, for example, due to
+   partial occlusion with static scene geometry, and to increase
+   robustness against erroneous.
 
    When detection result is associated with a target, the detected
    bounding box is used to update the target state.
 
-..
+--------------
 
-   1 R. Kalman, “A New Approach to Linear Filtering and Prediction
-   Problems”, Journal of Basic Engineering, vol. 82, no. Series D,
-   pp. 35-45, 1960. `:math:`\hookleftarrow` <#a1>`__
+[1] R. Kalman, “A New Approach to Linear Filtering and Prediction
+Problems”, Journal of Basic Engineering, vol. 82, no. Series D,
+pp. 35-45, 1960.
 
-   2 H. W. Kuhn, “The Hungarian method for the assignment problem”,
-   Naval ResearchLogistics Quarterly, vol. 2, pp. 83-97, 1955.
-   `:math:`\hookleftarrow` <#a2>`__
+[2] H. W. Kuhn, “The Hungarian method for the assignment problem”, Naval
+ResearchLogistics Quarterly, vol. 2, pp. 83-97, 1955.
 
-..
-
-   3 A. Bewley, G. Zongyuan, F. Ramos, and B. Upcroft, “Simple online
-   and realtime tracking,” in ICIP, 2016, pp. 3464–3468.
-   `:math:`\hookleftarrow` <#a3>`__
+[3] A. Bewley, G. Zongyuan, F. Ramos, and B. Upcroft, “Simple online and
+realtime tracking,” in ICIP, 2016, pp. 3464–3468.
 
 .. |deepsort| image:: https://user-images.githubusercontent.com/91237924/221744683-0042eff8-2c41-43b8-b3ad-b5929bafb60b.png
 
@@ -138,18 +133,18 @@ Representation (OpenVINO IR).
    and post-processing.
 
 In this case, `person detection
-model <https://docs.openvino.ai/latest/omz_models_model_person_detection_0202.html>`__
+model <https://docs.openvino.ai/2023.0/omz_models_model_person_detection_0202.html>`__
 is deployed to detect the person in each frame of the video, and
 `reidentification
-model <https://docs.openvino.ai/latest/omz_models_model_person_reidentification_retail_0287.html>`__
+model <https://docs.openvino.ai/2023.0/omz_models_model_person_reidentification_retail_0287.html>`__
 is used to output embedding vector to match a pair of images of a person
 by the cosine distance.
 
 If you want to download another model (``person-detection-xxx`` from
 `Object Detection Models
-list <https://docs.openvino.ai/latest/omz_models_group_intel.html#object-detection-models>`__,
+list <https://docs.openvino.ai/2023.0/omz_models_group_intel.html#object-detection-models>`__,
 ``person-reidentification-retail-xxx`` from `Reidentification Models
-list <https://docs.openvino.ai/latest/omz_models_group_intel.html#reidentification-models>`__),
+list <https://docs.openvino.ai/2023.0/omz_models_group_intel.html#reidentification-models>`__),
 replace the name of the model in the code below.
 
 .. code:: ipython3
@@ -445,7 +440,7 @@ Compare two persons
 
 .. parsed-literal::
 
-    Different person (confidence: 0.0272662453353405)
+    Different person (confidence: 0.02726622298359871)
 
 
 Main Processing Function
@@ -648,8 +643,8 @@ Firefox, may cause flickering. If you experience flickering, set
 
 .. parsed-literal::
 
-    [ WARN:0@8.463] global cap_v4l.cpp:982 open VIDEOIO(V4L2:/dev/video0): can't open camera by index
-    [ERROR:0@8.463] global obsensor_uvc_stream_channel.cpp:156 getStreamChannelGroup Camera index out of range
+    [ WARN:0@8.532] global cap_v4l.cpp:982 open VIDEOIO(V4L2:/dev/video0): can't open camera by index
+    [ERROR:0@8.532] global obsensor_uvc_stream_channel.cpp:156 getStreamChannelGroup Camera index out of range
 
 
 Run Person Tracking on a Video File

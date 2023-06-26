@@ -5,7 +5,7 @@ Super Resolution is the process of enhancing the quality of an image by
 increasing the pixel count using deep learning. This notebook shows the
 Single Image Super Resolution (SISR) which takes just one low resolution
 image. A model called
-`single-image-super-resolution-1032 <https://docs.openvino.ai/latest/omz_models_model_single_image_super_resolution_1032.html>`__,
+`single-image-super-resolution-1032 <https://docs.openvino.ai/2023.0/omz_models_model_single_image_super_resolution_1032.html>`__,
 which is available in Open Model Zoo, is used in this tutorial. It is
 based on the research paper cited below.
 
@@ -26,6 +26,7 @@ Imports
     import time
     import requests
     from pathlib import Path
+    import sys
     
     import cv2
     import matplotlib.pyplot as plt
@@ -35,6 +36,9 @@ Imports
     from IPython.display import Pretty, ProgressBar, clear_output, display
     from PIL import Image
     from openvino.runtime import Core
+    
+    sys.path.append("../utils")
+    from notebook_utils import download_file
 
 Settings
 ~~~~~~~~
@@ -42,11 +46,41 @@ Settings
 .. code:: ipython3
 
     # Device to use for inference. For example, "CPU", or "GPU".
-    DEVICE = "CPU"
+    DEVICE = 'CPU'
+    
     # 1032: 4x superresolution, 1033: 3x superresolution
-    MODEL_FILE = "model/single-image-super-resolution-1032.xml"
-    model_name = os.path.basename(MODEL_FILE)
-    model_xml_path = Path(MODEL_FILE)
+    model_name = 'single-image-super-resolution-1032'
+    
+    base_model_dir = Path("./model").expanduser()
+    
+    model_xml_name = f'{model_name}.xml'
+    model_bin_name = f'{model_name}.bin'
+    
+    model_xml_path = base_model_dir / model_xml_name
+    model_bin_path = base_model_dir / model_bin_name
+    
+    if not model_xml_path.exists():
+        base_url = f'https://storage.openvinotoolkit.org/repositories/open_model_zoo/2023.0/models_bin/1/{model_name}/FP16/'
+        model_xml_url = base_url + model_xml_name
+        model_bin_url = base_url + model_bin_name
+    
+        download_file(model_xml_url, model_xml_name, base_model_dir)
+        download_file(model_bin_url, model_bin_name, base_model_dir)
+    else:
+        print(f'{model_name} already downloaded to {base_model_dir}')
+
+
+
+.. parsed-literal::
+
+    model/single-image-super-resolution-1032.xml:   0%|          | 0.00/89.3k [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    model/single-image-super-resolution-1032.bin:   0%|          | 0.00/58.4k [00:00<?, ?B/s]
+
 
 Functions
 ~~~~~~~~~
@@ -636,8 +670,8 @@ as total time to process each patch.
 
 .. parsed-literal::
 
-    Processed 42 patches in 4.63 seconds. Total patches per second (including processing): 9.08.
-    Inference patches per second: 20.79 
+    Processed 42 patches in 5.06 seconds. Total patches per second (including processing): 8.29.
+    Inference patches per second: 16.98 
 
 
 Save superresolution image and the bicubic image
