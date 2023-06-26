@@ -112,7 +112,7 @@ With Intel® VTune™ Profiler installed you can configure your analysis with th
    .. image:: _static/images/OV_UG_supported_plugins_AUTO_debugging-img03-hotspots.png
       :align: center
 
-6.	Start the analysis by clicking the start button. When it is done, you will get a summary of the run, including top hotspots and top tasks in your application:
+6. Start the analysis by clicking the start button. When it is done, you will get a summary of the run, including top hotspots and top tasks in your application:
 
    .. image:: _static/images/OV_UG_supported_plugins_AUTO_debugging-img04-vtunesummary.png
       :align: center
