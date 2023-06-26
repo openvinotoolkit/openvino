@@ -33,11 +33,12 @@ def update_passrates(results: ET.SubElement, rel_weights={}):
                     rel_passed_tests = float(op.attrib.get(attrib))
                     continue
                 elif attrib == "relative_all":
-                    if op.tag in rel_weights.keys():
-                        rel_all_tests = rel_weights[op.tag]
-                    else:
-                        rel_all_tests = float(op.attrib.get(attrib))
+                    # if op.tag in rel_weights.keys():
+                    #     rel_all_tests = rel_weights[op.tag]
+                    # else:
+                    rel_all_tests = float(op.attrib.get(attrib))
                     continue
+                    
                 total_tests += int(float(op.attrib.get(attrib)))
             passrate = float(passed_tests * 100 / total_tests) if total_tests != 0 else 0
             rel_passrate = float(rel_passed_tests * 100 / rel_all_tests) if rel_all_tests != None and rel_all_tests != 0 else 0
