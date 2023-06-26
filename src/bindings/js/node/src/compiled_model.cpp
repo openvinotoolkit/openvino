@@ -23,18 +23,11 @@ Napi::Object CompiledModelWrap::Init(Napi::Env env, Napi::Object exports) {
     return exports;
 }
 
-void CompiledModelWrap::set_compiled_model(const ov::CompiledModel& compiled_model) {
-    _compiled_model = compiled_model;
-}
-ov::CompiledModel CompiledModelWrap::get_compiled_model() const {
-    return _compiled_model;
-}
-
 Napi::Object CompiledModelWrap::Wrap(Napi::Env env, ov::CompiledModel compiled_model) {
     Napi::HandleScope scope(env);
     Napi::Object obj = GetClassConstructor(env).New({});
     CompiledModelWrap* cm = Napi::ObjectWrap<CompiledModelWrap>::Unwrap(obj);
-    cm->set_compiled_model(compiled_model);
+    cm->_compiled_model = compiled_model;
     return obj;
 }
 
@@ -44,9 +37,7 @@ Napi::Value CompiledModelWrap::create_infer_request(const Napi::CallbackInfo& in
 }
 
 Napi::Value CompiledModelWrap::get_outputs(const Napi::CallbackInfo& info) {
-    auto cm = CompiledModelWrap::get_compiled_model();
-    auto cm_outputs = cm.outputs();  // Output<Node>
-
+    auto cm_outputs = _compiled_model.outputs();  // Output<Node>
     Napi::Array js_outputs = Napi::Array::New(info.Env(), cm_outputs.size());
 
     size_t i = 0;
