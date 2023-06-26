@@ -1,4 +1,4 @@
-# Installation of OpenVINO™ Notebooks {#notebooks-installation}
+# Installation of OpenVINO™ Notebooks {#notebooks_installation}
 
 
 @sphinxdirective
