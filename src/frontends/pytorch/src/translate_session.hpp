@@ -48,7 +48,8 @@ public:
     /// \brief Gets pytorch tensor index from openvino tensor
     size_t decode_tensor_name(const Output<Node>& tensor_desc);
 
-    size_t m_friendly_name_counter = 0;
+    /// \brief Make sure Node has unique name
+    void unique_name(const std::shared_ptr<Node>& node);
 
     // Maps tensor index to initial tensor index which it is alias to, and to decoder of the node produced this alias
     // and to the output produced during conversion of this node
@@ -64,6 +65,8 @@ private:
 
     std::map<size_t, std::pair<size_t, Output<Node>>> m_counter_map;
     std::map<std::string, uint64_t> m_op_statistics;
+    std::unordered_set<std::string> m_unique_friendly_name_set;
+    size_t m_friendly_name_counter = 0;
 };
 
 }  // namespace pytorch

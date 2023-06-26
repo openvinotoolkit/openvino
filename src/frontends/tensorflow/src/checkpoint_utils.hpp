@@ -18,6 +18,7 @@ namespace tensorflow {
 #define VARIABLES_INDEX_FOOTER_SIZE 48
 #define BLOCK_TRAILER_SIZE          5
 #define SAVED_TENSOR_SLICES_KEY     ""
+#define META_GRAPH_DEFAULT_TAG      "serve"
 
 template <typename T>
 static T smUnpack(char*& ptr, const char* ptr_end) {

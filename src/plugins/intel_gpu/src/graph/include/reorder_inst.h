@@ -29,7 +29,6 @@ public:
         support_padding_all(true);
     }
 
-    size_t inputs_count() const { return get_primitive()->input.size(); }
     program_node& mean_nv12() const { return get_dependency(2); }
     program_node& input(size_t idx = 0) const { return get_dependency(idx); }
     program_node& mean() const { return get_dependency(1); }
@@ -78,7 +77,9 @@ public:
     static std::string to_string(reorder_node const& node);
 
 public:
+    typed_primitive_inst(network& network);
     typed_primitive_inst(network& network, reorder_node const& node);
+
     memory::ptr mean_nv12_memory() const { return dep_memory_ptr(2); }
     memory::ptr mean_memory() const { return dep_memory_ptr(1); }
 
