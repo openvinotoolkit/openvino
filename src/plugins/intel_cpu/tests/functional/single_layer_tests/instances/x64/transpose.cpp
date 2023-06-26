@@ -27,7 +27,9 @@ const auto cpuParams_nChw8c = CPUSpecificParams {{nChw8c}, {}, {}, {}};
 const auto cpuParams_nCdhw8c = CPUSpecificParams {{nCdhw8c}, {}, {}, {}};
 
 const std::vector<InferenceEngine::Precision> netPrecisions = {
+        Precision::I8,
         Precision::BF16,
+        Precision::FP32
 };
 
 const std::vector<CPUSpecificParams> CPUParams4D_blocked = {
@@ -59,7 +61,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_dynamicShapes4D_Transpose, TransposeLayerCPUTest,
                          ::testing::Combine(
                                  ::testing::ValuesIn(dynamicInputShapes4D()),
                                  ::testing::ValuesIn(inputOrder4D()),
-                                 ::testing::ValuesIn(netPrecisions),
+                                 ::testing::Values(Precision::BF16),
                                  ::testing::Values(CommonTestUtils::DEVICE_CPU),
                                  ::testing::Values(additional_config),
                                  ::testing::Values(CPUSpecificParams{})),
@@ -139,7 +141,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_dynamicShapes5D_Transpose, TransposeLayerCPUTest,
                          ::testing::Combine(
                                  ::testing::ValuesIn(dynamicInputShapes5D),
                                  ::testing::ValuesIn(inputOrder5D),
-                                 ::testing::ValuesIn(netPrecisions),
+                                 ::testing::Values(Precision::BF16),
                                  ::testing::Values(CommonTestUtils::DEVICE_CPU),
                                  ::testing::Values(additional_config),
                                  ::testing::Values(CPUSpecificParams{})),
