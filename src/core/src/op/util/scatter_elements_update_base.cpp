@@ -69,7 +69,7 @@ bool op::util::ScatterElementsUpdateBase::has_evaluate() const {
     default:
         return false;
     }
-    
+
     return is_supported_index_input_element_type();
 }
 
