@@ -217,7 +217,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
             {ov::element::u16,     ov::element::i32},
             {ov::element::u32,     ov::element::i32},
             {ov::element::f64,     ov::element::f32},
-            {ov::element::f16,     ov::element::f32},
+            //{ov::element::f16,     ov::element::f32},
             {ov::element::boolean, ov::element::u8},
             {ov::element::i4,      ov::element::i8},
             {ov::element::u4,      ov::element::u8}
