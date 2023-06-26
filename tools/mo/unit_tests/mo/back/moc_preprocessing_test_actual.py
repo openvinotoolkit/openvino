@@ -4,7 +4,7 @@
 from argparse import Namespace
 
 import numpy as np
-from openvino.tools.ovc.error import Error
+from openvino.tools.mo.utils.error import Error
 from unit_tests.mo.unit_test_with_mocked_telemetry import UnitTestWithMockedTelemetry
 
 try:

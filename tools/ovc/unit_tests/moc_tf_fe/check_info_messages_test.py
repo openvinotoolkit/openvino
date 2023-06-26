@@ -86,6 +86,21 @@ class TestInfoMessagesTFFE(unittest.TestCase):
         assert get_try_legacy_fe_message() in std_out
 
 
+class TestInfoMessagesTFFEWithFallback(unittest.TestCase):
+    @patch('argparse.ArgumentParser.parse_args',
+           return_value=arg_parse_helper(input_model="model_switch_merge.pbtxt",
+                                         use_legacy_frontend=False, use_new_frontend=False,
+                                         framework=None, input_model_is_text=True,
+                                         freeze_placeholder_with_value="is_training->False"))
+    def test_tf_fe_message_fallback(self, mock_argparse):
+        f = io.StringIO()
+        with redirect_stdout(f):
+            main()
+            std_out = f.getvalue()
+        tf_fe_message_found = get_try_legacy_fe_message() in std_out
+        assert not tf_fe_message_found, 'TF FE Info message is found for the fallback case'
+
+
 class TestInfoMessagesCompressFP16(unittest.TestCase):
     @patch('argparse.ArgumentParser.parse_args',
            return_value=arg_parse_helper(input_model="model_int32.pbtxt",

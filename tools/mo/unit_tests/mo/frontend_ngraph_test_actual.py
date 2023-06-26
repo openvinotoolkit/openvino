@@ -26,7 +26,7 @@ try:
     # pylint: disable=no-name-in-module,import-error
     from openvino.runtime import PartialShape
     from openvino.frontend import FrontEndManager
-    from openvino.tools.ovc.types import get_element_type
+    from openvino.runtime.utils.types import get_element_type
 
 except Exception:
     print("No mock frontend API available, "
