@@ -39,9 +39,7 @@ static cldnn::condition::branch gen_branch(Program& p, const std::shared_ptr<ngr
     }
 
     auto config = p.get_config();
-    config.set_property(ov::intel_gpu::max_dynamic_batch(1));
-    Program body_program(body_network, p.get_engine(), config);
-    branch.inner_program = body_program.GetCompiledProgram();
+    branch.inner_program = p.create_inner_program(body_network, config);
 
     auto& input_map = branch.input_map;
     auto external_inputs = p.GetInputInfo(op);

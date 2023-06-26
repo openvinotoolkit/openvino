@@ -104,15 +104,58 @@
 using namespace cldnn;
 using namespace ov::intel_gpu;
 
+static void adjust_num_cores(InferenceEngine::CPUStreamsExecutor::Config& config) {
+    if (InferenceEngine::getAvailableCoresTypes().size() == 1) {
+        return;
+    }
+
+    const auto total_num_cores = InferenceEngine::getNumberOfLogicalCPUCores();
+    const auto total_num_big_cores = InferenceEngine::getNumberOfLogicalCPUCores(true);
+    const auto total_num_little_cores = total_num_cores - total_num_big_cores;
+    auto core_type = config._threadPreferredCoreType;
+
+    int num_cores = total_num_cores;
+    if (core_type == InferenceEngine::IStreamsExecutor::Config::BIG) {
+        num_cores = total_num_big_cores;
+    } else if (core_type == InferenceEngine::IStreamsExecutor::Config::LITTLE) {
+        num_cores = total_num_little_cores;
+    }
+
+    config._streams = std::min(config._streams, num_cores);
+}
+
+static InferenceEngine::CPUStreamsExecutor::Config make_task_executor_config(const ExecutionConfig& config, std::string tags) {
+    InferenceEngine::CPUStreamsExecutor::Config task_executor_config(tags, 1);
+    task_executor_config._streams = config.get_property(ov::compilation_num_threads);
+    auto priority = config.get_property(ov::intel_gpu::hint::host_task_priority);
+    switch (priority) {
+        case ov::hint::Priority::LOW: task_executor_config._threadPreferredCoreType = InferenceEngine::IStreamsExecutor::Config::LITTLE; break;
+        case ov::hint::Priority::MEDIUM: task_executor_config._threadPreferredCoreType = InferenceEngine::IStreamsExecutor::Config::ANY; break;
+        case ov::hint::Priority::HIGH: task_executor_config._threadPreferredCoreType = InferenceEngine::IStreamsExecutor::Config::BIG; break;
+        default: OPENVINO_ASSERT(false, "[GPU] Can't create task executor: invalid host task priority value: ", priority);
+    }
+
+    adjust_num_cores(task_executor_config);
+
+    return task_executor_config;
+}
+
+std::shared_ptr<InferenceEngine::CPUStreamsExecutor> program::make_task_executor(const ExecutionConfig& config) {
+    InferenceEngine::CPUStreamsExecutor::Config task_executor_config = make_task_executor_config(config, "CPU Tasks executor for GPU plugin");
+    return std::make_shared<InferenceEngine::CPUStreamsExecutor>(task_executor_config);
+}
+
 program::program(engine& engine_ref,
                  topology const& topology,
                  const ExecutionConfig& config,
+                 InferenceEngine::CPUStreamsExecutor::Ptr task_executor,
                  bool is_internal,
                  bool no_optimizations,
                  bool is_body_program)
     : _engine(engine_ref),
       _stream(_engine.create_stream(config)),
       _config(config),
+      _task_executor(task_executor),
       processing_order(),
       is_body_program(is_body_program) {
     _config.apply_user_properties(_engine.get_device_info());
@@ -163,7 +206,8 @@ void program::init_program() {
 
     pm = std::unique_ptr<pass_manager>(new pass_manager(*this));
 
-    _task_executor = make_task_executor(_config);
+    if (_task_executor == nullptr)
+        _task_executor = program::make_task_executor(_config);
     _kernels_cache = std::unique_ptr<kernels_cache>(new kernels_cache(_engine, _config, prog_id, _task_executor,
                                                                       kernel_selector::KernelBase::get_db().get_batch_header_str()));
 
@@ -195,49 +239,18 @@ void program::init_primitives() {
     }
 }
 
-static void adjust_num_cores(InferenceEngine::CPUStreamsExecutor::Config& config) {
-    if (InferenceEngine::getAvailableCoresTypes().size() == 1) {
-        return;
-    }
-
-    const auto total_num_cores = InferenceEngine::getNumberOfLogicalCPUCores();
-    const auto total_num_big_cores = InferenceEngine::getNumberOfLogicalCPUCores(true);
-    const auto total_num_little_cores = total_num_cores - total_num_big_cores;
-    auto core_type = config._threadPreferredCoreType;
-
-    int num_cores = total_num_cores;
-    if (core_type == InferenceEngine::IStreamsExecutor::Config::BIG) {
-        num_cores = total_num_big_cores;
-    } else if (core_type == InferenceEngine::IStreamsExecutor::Config::LITTLE) {
-        num_cores = total_num_little_cores;
-    }
-
-    config._streams = std::min(config._streams, num_cores);
-}
-
-InferenceEngine::CPUStreamsExecutor::Config program::make_task_executor_config(const ExecutionConfig& config, std::string tags) const {
-    InferenceEngine::CPUStreamsExecutor::Config task_executor_config(tags, 1);
-    task_executor_config._streams = config.get_property(ov::compilation_num_threads);
-    auto priority = config.get_property(ov::intel_gpu::hint::host_task_priority);
-    switch (priority) {
-        case ov::hint::Priority::LOW: task_executor_config._threadPreferredCoreType = InferenceEngine::IStreamsExecutor::Config::LITTLE; break;
-        case ov::hint::Priority::MEDIUM: task_executor_config._threadPreferredCoreType = InferenceEngine::IStreamsExecutor::Config::ANY; break;
-        case ov::hint::Priority::HIGH: task_executor_config._threadPreferredCoreType = InferenceEngine::IStreamsExecutor::Config::BIG; break;
-        default: OPENVINO_ASSERT(false, "[GPU] Can't create task executor: invalid host task priority value: ", priority);
-    }
-
-    adjust_num_cores(task_executor_config);
-
-    return task_executor_config;
-}
-
-std::shared_ptr<InferenceEngine::CPUStreamsExecutor> program::make_task_executor(const ExecutionConfig& config) const {
-    InferenceEngine::CPUStreamsExecutor::Config task_executor_config = make_task_executor_config(config, "CPU Tasks executor for GPU plugin");
-    return std::make_shared<InferenceEngine::CPUStreamsExecutor>(task_executor_config);
-}
-
 kernels_cache& program::get_kernels_cache() const {
     return *_kernels_cache;
+}
+
+program::ptr program::build_program(engine& engine,
+                                    const topology& topology,
+                                    const ExecutionConfig& config,
+                                    InferenceEngine::CPUStreamsExecutor::Ptr task_executor,
+                                    bool is_internal,
+                                    bool no_optimizations,
+                                    bool is_body_program) {
+    return std::make_shared<program>(engine, topology, config, task_executor, is_internal, no_optimizations, is_body_program);
 }
 
 program::ptr program::build_program(engine& engine,
@@ -246,7 +259,7 @@ program::ptr program::build_program(engine& engine,
                                     bool is_internal,
                                     bool no_optimizations,
                                     bool is_body_program) {
-    return std::make_shared<program>(engine, topology, config, is_internal, no_optimizations, is_body_program);
+    return std::make_shared<program>(engine, topology, config, nullptr, is_internal, no_optimizations, is_body_program);
 }
 
 program::ptr program::build_program(engine& engine,

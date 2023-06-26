@@ -158,6 +158,10 @@ public:
     bool use_new_shape_infer() const { return allow_new_shape_infer; }
     bool requires_new_shape_infer(const ngraph::Node& op) const;
 
+    InferenceEngine::CPUStreamsExecutor::Ptr get_task_executor() { return m_task_executor; }
+
+    cldnn::program::ptr create_inner_program(InferenceEngine::CNNNetwork& network, const ExecutionConfig& config);
+
 private:
     static factories_map_t factories_map;
     std::vector<std::shared_ptr<cldnn::program>> m_programs;
@@ -173,11 +177,14 @@ private:
 
     bool queryMode;
 
+    InferenceEngine::CPUStreamsExecutor::Ptr m_task_executor;
+
     void EnableQueryMode() { queryMode = true; }
     void DisableQueryMode() { queryMode = false; }
 
     void PrepareBuild(InferenceEngine::InputsDataMap networkInputs, InferenceEngine::OutputsDataMap networkOutputs);
     void CleanupBuild();
+    void CheckAllowNewShapeInfer(const std::vector<std::shared_ptr<ngraph::Node>>& ops);
 
     // TODO(eunsoo): remove createTopolpgyOnly argument and add another method to create topology from ngraph function
     std::shared_ptr<cldnn::program> BuildProgram(const std::vector<std::shared_ptr<ngraph::Node>>& ops,
@@ -187,6 +194,11 @@ private:
 
     void CreateSingleLayerPrimitive(cldnn::topology& topology, const std::shared_ptr<ngraph::Node>& op);
     void ChangeInputBatch(int batch);
+
+    Program(InferenceEngine::CNNNetwork& network,
+            cldnn::engine& engine,
+            const ExecutionConfig& config,
+            InferenceEngine::CPUStreamsExecutor::Ptr task_executor);
 };
 
 void CreateCustomOp(Program& p, const std::shared_ptr<ngraph::Node>& node, CustomLayerPtr customLayer);

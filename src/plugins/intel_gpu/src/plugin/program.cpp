@@ -16,6 +16,8 @@
 #include "intel_gpu/primitives/mutable_data.hpp"
 #include "intel_gpu/primitives/data.hpp"
 
+#include <ie_system_conf.h>
+
 #ifdef __linux__
 # include <dlfcn.h>
 #endif
@@ -126,6 +128,7 @@ Program::Program(InferenceEngine::CNNNetwork& network, cldnn::engine& engine, co
     , m_config(config)
     , m_engine(engine)
     , queryMode(false) {
+    m_task_executor = cldnn::program::make_task_executor(m_config);
     // Extract inputs/outputs info from CNNNetwork
     auto networkInputs = (inputs != nullptr) ? *inputs : network.getInputsInfo();
     auto networkOutputs = (outputs != nullptr) ? *outputs : network.getOutputsInfo();
@@ -290,6 +293,7 @@ Program::Program(InferenceEngine::CNNNetwork& network, cldnn::engine& engine, co
             m_input_batch_dim = batch_dim;
         }
     } else {
+        CheckAllowNewShapeInfer(ops);
         m_programs.emplace_back(BuildProgram(ops, networkInputs, networkOutputs, createTopologyOnly, partialBuild));
     }
 }
@@ -301,10 +305,64 @@ Program::Program(cldnn::engine& engine, const ExecutionConfig& config,
         , m_config(config)
         , m_engine(engine)
         , queryMode(false) {
+    m_task_executor = cldnn::program::make_task_executor(m_config);
     if (inputs != nullptr)
         m_networkInputs = *inputs;
     if (outputs != nullptr)
         m_networkOutputs = *outputs;
+}
+
+Program::Program(InferenceEngine::CNNNetwork& network,
+    cldnn::engine& engine,
+    const ExecutionConfig& config,
+    InferenceEngine::CPUStreamsExecutor::Ptr task_executor)
+    : m_max_batch(1)
+    , m_curBatch(-1)
+    , m_config(config)
+    , m_engine(engine)
+    , queryMode(false)
+    , m_task_executor(task_executor) {
+    auto networkInputs = network.getInputsInfo();
+    auto networkOutputs = network.getOutputsInfo();
+    auto func = network.getFunction();
+    if (!func) {
+        IE_THROW() << "Function pointer inside CNNNetwork is nullptr";
+    }
+
+    // locate global custom kernel config
+    // and auto-load kernels from it
+#ifdef _WIN32
+    CHAR mpath[MAX_PATH + 1];
+    HMODULE nModule;
+    GetModuleHandleEx(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+        (LPCSTR)CustomLayer::LoadFromFile,
+        &nModule);
+    GetModuleFileName(nModule, mpath, sizeof(mpath));
+#elif __linux__
+    Dl_info dl_info;
+    dladdr(reinterpret_cast<void *>(CustomLayer::LoadFromFile), &dl_info);
+    const char* mpath = dl_info.dli_fname;
+#else
+#error "Intel GPU plugin: unknown target system"
+#endif
+    std::string configFile(mpath);
+    std::size_t dir_split_pos = configFile.find_last_of("/\\");
+    std::string config_path;
+
+    if (dir_split_pos != std::string::npos) {
+        // path contains directory
+        config_path = configFile.substr(0, dir_split_pos);
+    }
+    config_path += "/cldnn_global_custom_kernels/cldnn_global_custom_kernels.xml";
+
+    CustomLayer::LoadFromFile(config_path, m_custom_layers, true);
+    auto custom_layers_config = m_config.get_property(ov::intel_gpu::config_file);
+    CustomLayer::LoadFromFile(custom_layers_config, m_custom_layers, custom_layers_config.empty());
+
+    auto ops = func->get_ordered_ops();
+    allow_new_shape_infer = m_config.get_property(ov::intel_gpu::allow_new_shape_infer);
+
+    m_programs.emplace_back(BuildProgram(ops, networkInputs, networkOutputs, false, false));
 }
 
 int Program::GetMaxBatchSizeForSingleProgram() {
@@ -324,6 +382,20 @@ int Program::GetMaxBatchSizeForSingleProgram() {
     }
 
     return 0;
+}
+
+void Program::CheckAllowNewShapeInfer(const std::vector<std::shared_ptr<ngraph::Node>>& ops) {
+    for (const auto& op : ops) {
+        if (requires_new_shape_infer(*op)) {
+            allow_new_shape_infer = true;
+            break;
+        }
+    }
+}
+
+cldnn::program::ptr Program::create_inner_program(InferenceEngine::CNNNetwork& network, const ExecutionConfig& config) {
+    Program prog(network, get_engine(), config, get_task_executor());
+    return prog.GetCompiledProgram();
 }
 
 std::shared_ptr<cldnn::program> Program::GetCompiledProgram(int program_id) {
@@ -359,13 +431,6 @@ std::shared_ptr<cldnn::program> Program::BuildProgram(const std::vector<std::sha
                                                       bool createTopologyOnly, bool partialBuild) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Program::BuildProgram");
 
-    for (const auto& op : ops) {
-        if (requires_new_shape_infer(*op)) {
-            allow_new_shape_infer = true;
-            break;
-        }
-    }
-
     m_config.set_property(ov::intel_gpu::partial_build_program(partialBuild));
     m_config.set_property(ov::intel_gpu::optimize_data(true));
     m_config.set_property(ov::intel_gpu::allow_new_shape_infer(allow_new_shape_infer));
@@ -383,7 +448,7 @@ std::shared_ptr<cldnn::program> Program::BuildProgram(const std::vector<std::sha
         OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Program::CreateProgram");
         cldnn::program::ptr program;
         try {
-            program = cldnn::program::build_program(m_engine, *m_topology, m_config);
+            program = cldnn::program::build_program(m_engine, *m_topology, m_config, get_task_executor());
         } catch (std::exception& e) {
             OPENVINO_ASSERT(false, "GPU program build failed!\n", e.what());
         }
