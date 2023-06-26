@@ -158,22 +158,18 @@ std::pair<std::shared_ptr<reorder>, bool> reorder_factory::get_reorder(primitive
 
 std::pair<std::shared_ptr<primitive>, bool> reorder_factory::get_weights_reorder(primitive_id input_id,
                                                                                  std::shared_ptr<WeightsReorderParams> reorder_params) {
-    if (reorder_params == nullptr)
-        return {};
+    OPENVINO_ASSERT(reorder_params != nullptr, "[GPU] WeightsReorderParams is not initialized.");
 
-    layout expected_layout = reorder_params->get_output_layout();
-
-    cache_key ckey{ input_id, expected_layout, false };
-    auto itr = _cached_generic_reorders.find(ckey);
-    if (itr != _cached_generic_reorders.end()) {
+    cache_key ckey{ input_id, reorder_params->get_output_layout(), false };
+    auto itr = _cached_reorders.find(ckey);
+    if (itr != _cached_reorders.end()) {
         return std::make_pair(itr->second, true);
     } else {
-        auto count = _cached_generic_reorders.size();
-        std::stringstream ss;
-        ss << input_id << "_generic_layer_" << count;
+        auto count = _cached_reorders.size();
+        std::string reorder_id = input_id + "_weights_reorder_" + std::to_string(count);
 
-        auto reorder = std::make_shared<cldnn::generic_layer>(ss.str(), input_id, reorder_params);
-        _cached_generic_reorders[ckey] = reorder;
+        auto reorder = std::make_shared<cldnn::reorder>(reorder_id, input_id, reorder_params);
+        _cached_reorders[ckey] = reorder;
         return std::make_pair(reorder, false);
     }
 }
@@ -941,8 +937,8 @@ bool layout_optimizer::deps_for_convolution_byxf_opt(program_node const& node, u
         return true;
 
     for (auto& dep : node.get_dependencies()) {
-        // skip data and generic_layers
-        if (dep.first->is_type<data>() || dep.first->is_type<generic_layer>())
+        // skip data layers
+        if (dep.first->is_type<data>())
             continue;
 
         if (dep.first->is_type<convolution>()) {
@@ -1688,7 +1684,8 @@ format layout_optimizer::get_preferred_format(program_node& node) {
     } else if (node.is_type<resample>()) {
         // if the resample is in the last part of the network and there are no users using blocked format,
         // it is better to reorder to bfyx before resample is done.
-        if (all_users_simple_format_until_output(node, node, 0, 10)) {
+        // Skip all user format check when node is dynamic. It could cause endless recursive call in get_preferred_foramt()
+        if (!node.is_dynamic() && all_users_simple_format_until_output(node, node, 0, 10)) {
             const auto& dim = format::dimension(node.get_output_layout().format);
             expected = format::get_default_format(dim, false, false);
         } else {

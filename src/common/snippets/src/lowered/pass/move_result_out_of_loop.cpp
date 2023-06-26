@@ -46,6 +46,8 @@ bool MoveResultOutOfLoop::run(LinearIR& linear_ir) {
                 linear_ir.move(result_it, insertion_pos);
                 modified = true;
             }
+            // The Result is executed out of Loop
+            expr->set_loop_ids({});
             continue;
         }
 
@@ -57,6 +59,8 @@ bool MoveResultOutOfLoop::run(LinearIR& linear_ir) {
             linear_ir.move(forward_it, loop_end_pos);
             modified = true;
         }
+        // The Result is executed out of Loop
+        expr->set_loop_ids({});
     }
 
     return modified;

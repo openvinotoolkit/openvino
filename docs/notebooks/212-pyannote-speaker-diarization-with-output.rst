@@ -203,7 +203,7 @@ pipeline
 
 .. parsed-literal::
 
-    Diarization pipeline took 15.66 s
+    Diarization pipeline took 15.13 s
 
 
 The result of running the pipeline can be represented as a diagram
@@ -330,7 +330,7 @@ Run speaker diarization with OpenVINO
 
 .. parsed-literal::
 
-    Diarization pipeline took 15.14 s
+    Diarization pipeline took 14.63 s
 
 
 .. code:: ipython3
