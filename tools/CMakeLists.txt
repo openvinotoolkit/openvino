@@ -42,7 +42,7 @@ if(ENABLE_PYTHON)
 # Benchmark Tool
     add_subdirectory(benchmark_tool)
   
-# Openvino Conversion Tool
+# OpenVino Conversion Tool
     add_subdirectory(ovc)
 
 endif()
