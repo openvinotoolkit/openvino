@@ -20,43 +20,41 @@
  */
 
 #ifndef IE_C_API_H
-#    define IE_C_API_H
+#define IE_C_API_H
 
-#    include <stdint.h>
-#    include <stdio.h>
+#include <stdint.h>
+#include <stdio.h>
 
-#    include "openvino/c/deprecated.h"
+#include "openvino/c/deprecated.h"
 
-#    ifdef __cplusplus
-#        define INFERENCE_ENGINE_C_API_EXTERN extern "C"
-#    else
-#        define INFERENCE_ENGINE_C_API_EXTERN
-#    endif
+#ifdef __cplusplus
+#    define INFERENCE_ENGINE_C_API_EXTERN extern "C"
+#else
+#    define INFERENCE_ENGINE_C_API_EXTERN
+#endif
 
-#    if defined(OPENVINO_STATIC_LIBRARY) || defined(__GNUC__) && (__GNUC__ < 4)
-#        define INFERENCE_ENGINE_C_API(...) INFERENCE_ENGINE_C_API_EXTERN __VA_ARGS__
+#if defined(OPENVINO_STATIC_LIBRARY) || defined(__GNUC__) && (__GNUC__ < 4)
+#    define INFERENCE_ENGINE_C_API(...) INFERENCE_ENGINE_C_API_EXTERN __VA_ARGS__
+#    define IE_NODISCARD
+#else
+#    if defined(_WIN32) || defined(__CYGWIN__)
+#        define INFERENCE_ENGINE_C_API_CALLBACK __cdecl
+#        ifdef openvino_c_EXPORTS
+#            define INFERENCE_ENGINE_C_API(...) INFERENCE_ENGINE_C_API_EXTERN __declspec(dllexport) __VA_ARGS__ __cdecl
+#        else
+#            define INFERENCE_ENGINE_C_API(...) INFERENCE_ENGINE_C_API_EXTERN __declspec(dllimport) __VA_ARGS__ __cdecl
+#        endif
 #        define IE_NODISCARD
 #    else
-#        if defined(_WIN32) || defined(__CYGWIN__)
-#            define INFERENCE_ENGINE_C_API_CALLBACK __cdecl
-#            ifdef openvino_c_EXPORTS
-#                define INFERENCE_ENGINE_C_API(...) \
-                    INFERENCE_ENGINE_C_API_EXTERN __declspec(dllexport) __VA_ARGS__ __cdecl
-#            else
-#                define INFERENCE_ENGINE_C_API(...) \
-                    INFERENCE_ENGINE_C_API_EXTERN __declspec(dllimport) __VA_ARGS__ __cdecl
-#            endif
-#            define IE_NODISCARD
-#        else
-#            define INFERENCE_ENGINE_C_API(...) \
-                INFERENCE_ENGINE_C_API_EXTERN __attribute__((visibility("default"))) __VA_ARGS__
-#            define IE_NODISCARD __attribute__((warn_unused_result))
-#        endif
+#        define INFERENCE_ENGINE_C_API(...) \
+            INFERENCE_ENGINE_C_API_EXTERN __attribute__((visibility("default"))) __VA_ARGS__
+#        define IE_NODISCARD __attribute__((warn_unused_result))
 #    endif
+#endif
 
-#    ifndef INFERENCE_ENGINE_C_API_CALLBACK
-#        define INFERENCE_ENGINE_C_API_CALLBACK
-#    endif
+#ifndef INFERENCE_ENGINE_C_API_CALLBACK
+#    define INFERENCE_ENGINE_C_API_CALLBACK
+#endif
 
 typedef struct ie_core ie_core_t;
 typedef struct ie_network ie_network_t;
