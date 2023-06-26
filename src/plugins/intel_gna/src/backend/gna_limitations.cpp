@@ -739,10 +739,6 @@ bool SupportedElementTypes::IsConstantTypeSupported(ov::element::Type elem_type,
     return true;
 }
 
-bool Limitations::is_shape_2d(const ov::Shape& shape) {
-    return graph_utils::squeeze_shape(shape).size() == 2;
-}
-
 bool Limitations::is_transpose_supported(const ov::Shape& shape) {
     const ov::Shape squeezed_shape = graph_utils::squeeze_shape(shape);
 
@@ -822,7 +818,8 @@ bool Limitations::is_conv_supported(const std::shared_ptr<ov::intel_gna::op::GNA
         }
     }
 
-    return check_dilation(conv_gna->get_dilations()[0], conv_gna->get_dilations()[conv_gna->get_dilations().size() - 1]);
+    return check_dilation(conv_gna->get_dilations()[0],
+                          conv_gna->get_dilations()[conv_gna->get_dilations().size() - 1]);
 }
 
 bool Limitations::is_pooling_supported(const std::shared_ptr<ov::intel_gna::op::GNAMaxPool> max_pool,

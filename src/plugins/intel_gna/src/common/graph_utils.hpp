@@ -626,6 +626,13 @@ bool has_child_node(std::shared_ptr<ov::Node> node) {
     return false;
 }
 
+/**
+ * @brief Checks if shape without dimensions == 1 is 2D
+ */
+inline bool is_shape_2d(const ov::Shape& shape) {
+    return graph_utils::squeeze_shape(shape).size() == 2;
+}
+
 }  // namespace graph_utils
 }  // namespace intel_gna
 }  // namespace ov

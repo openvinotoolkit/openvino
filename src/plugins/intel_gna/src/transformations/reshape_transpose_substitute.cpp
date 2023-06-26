@@ -19,6 +19,9 @@ using namespace ov::intel_gna::pass;
 
 namespace {
 
+/**
+ * @brief Checks if output_shape is just permutation of input_shape dimensions
+ */
 bool is_shape_permutation(const Shape& input_shape, const Shape& output_shape) {
     std::unordered_map<Shape::value_type, size_t> values_count;
     for (const auto& dim : input_shape) {
@@ -43,6 +46,9 @@ bool is_shape_permutation(const Shape& input_shape, const Shape& output_shape) {
     return values_count.empty();
 }
 
+/**
+ * @brief Checks if all shape dimensions have different values
+ */
 bool are_dims_unique(const Shape& shape) {
     std::unordered_set<Shape::value_type> dims;
     for (const auto& dim : shape) {
@@ -68,6 +74,9 @@ AxisVector get_unique_shapes_transpose_order(const Shape& input_shape, const Sha
     return order;
 }
 
+/**
+ * @brief Changes shape according to specified order
+ */
 Shape apply_permutation(const Shape& shape, const AxisVector& order) {
     Shape transposed_shape;
     transposed_shape.reserve(shape.size());
@@ -107,7 +116,11 @@ AxisVector find_suitable_transpose_order(const Shape& input_shape, const Shape& 
     return {};
 }
 
-// return empty AxisVector on unsupported case
+/**
+ * @brief Finds applicable transpose order to get output_shape from input_shape if
+ * it is possible
+ * Returns empty AxisVector on unsupported case
+ */
 AxisVector get_transpose_order(const Shape& input_shape, const Shape& output_shape) {
     if (are_dims_unique(input_shape))
         return get_unique_shapes_transpose_order(input_shape, output_shape);

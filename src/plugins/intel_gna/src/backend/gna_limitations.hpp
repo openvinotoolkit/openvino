@@ -203,7 +203,6 @@ public:
      */
     static bool is_split_supported(const std::shared_ptr<ov::Node>& node, bool is_exception_allowed = false);
 
-    static bool is_shape_2d(const ov::Shape& shape);
     /**
      * @brief Validates if transpose is supported by GNA
      * @param shape transpose
