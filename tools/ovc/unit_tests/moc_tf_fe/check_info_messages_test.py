@@ -19,7 +19,8 @@ def arg_parse_helper(input_model,
                      input_model_is_text,
                      framework,
                      compress_to_fp16=False,
-                     freeze_placeholder_with_value=None):
+                     freeze_placeholder_with_value=None,
+                     tensorflow_object_detection_api_pipeline_config=None):
     path = os.path.dirname(__file__)
     input_model = os.path.join(path, "test_models", input_model)
 
@@ -51,6 +52,7 @@ def arg_parse_helper(input_model,
         freeze_placeholder_with_value=freeze_placeholder_with_value,
         data_type=None,
         tensorflow_custom_operations_config_update=None,
+        tensorflow_object_detection_api_pipeline_config=tensorflow_object_detection_api_pipeline_config,
         compress_to_fp16=compress_to_fp16,
         extensions=None
     )
@@ -98,6 +100,22 @@ class TestInfoMessagesTFFEWithFallback(unittest.TestCase):
             main()
             std_out = f.getvalue()
         tf_fe_message_found = get_try_legacy_fe_message() in std_out
+        assert not tf_fe_message_found, 'TF FE Info message is found for the fallback case'
+
+    @patch('argparse.ArgumentParser.parse_args',
+           return_value=arg_parse_helper(input_model="model_int32.pbtxt",
+                                         use_legacy_frontend=False, use_new_frontend=True,
+                                         compress_to_fp16=True,
+                                         framework=None, input_model_is_text=True,
+                                         tensorflow_object_detection_api_pipeline_config="config.yml"))
+    def test_tf_fe_message_fallback(self, mock_argparse):
+        f = io.StringIO()
+        with redirect_stdout(f):
+            main()
+            std_out = f.getvalue()
+        tf_fe_message_found = "The provided option \"tensorflow_object_detection_api_pipeline_config\" " \
+                              "refers to legacy functionality. Please try to install openvino-dev and " \
+                              "use convert_model() from openvino.tools.mo." in std_out
         assert not tf_fe_message_found, 'TF FE Info message is found for the fallback case'
 
 
