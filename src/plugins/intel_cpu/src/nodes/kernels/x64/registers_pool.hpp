@@ -94,7 +94,7 @@ public:
     };
 
     virtual ~RegistersPool() {
-        checkUniqueAndUpdate();
+        checkUniqueAndUpdate(false);
     }
 
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
@@ -191,7 +191,7 @@ protected:
 
     RegistersPool(int simdRegistersNumber)
             : simdSet(simdRegistersNumber) {
-        checkUniqueAndUpdate(true);
+        checkUniqueAndUpdate();
         generalSet.exclude(Xbyak::Reg64(Xbyak::Operand::RSP));
         generalSet.exclude(Xbyak::Reg64(Xbyak::Operand::RAX));
         generalSet.exclude(Xbyak::Reg64(Xbyak::Operand::RCX));
@@ -201,7 +201,7 @@ protected:
 
     RegistersPool(std::initializer_list<Xbyak::Reg> regsToExclude, int simdRegistersNumber)
             : simdSet(simdRegistersNumber) {
-        checkUniqueAndUpdate(true);
+        checkUniqueAndUpdate();
         for (auto& reg : regsToExclude) {
             if (reg.isXMM() || reg.isYMM() || reg.isZMM()) {
                 simdSet.exclude(reg);
@@ -241,7 +241,7 @@ private:
         }
     }
 
-    void checkUniqueAndUpdate(bool isCtor) {
+    void checkUniqueAndUpdate(bool isCtor = true) {
         static thread_local bool isCreated = false;
         if (isCtor) {
             if (isCreated) {
@@ -251,14 +251,6 @@ private:
         } else {
             isCreated = false;
         }
-    }
-
-    void checkUniqueAndUpdate() {
-        // will be assigned once per thread
-        static thread_local bool isCreated = false;
-        // the same logic, as in parametrized function,
-        // necessary in non-ctor case
-        isCreated = false;
     }
 
     PhysicalSet generalSet {16};
