@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "element_visitor.hpp"
+
 #include <gmock/gmock.h>
 
 #include "common_test_utils/test_assertions.hpp"
-#include "element_visitor.hpp"
 
 using namespace testing;
 using namespace ov::element;
