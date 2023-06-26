@@ -64,7 +64,7 @@ from tests import (
     xfail_issue_99973,
     xfail_issue_101965,
 )
-from tests.test_onnx.utils.onnx_backend import OpenVinoTestBackend
+from tests.tests_python.utils.onnx_backend import OpenVinoTestBackend
 
 
 def expect_fail(test_case_path, xfail):  # type: (str) -> None

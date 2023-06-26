@@ -8,7 +8,7 @@ import pytest
 from onnx.helper import make_graph, make_model, make_node, make_tensor_value_info
 
 from tests.runtime import get_runtime
-from tests.test_onnx.utils import (
+from tests.tests_python.utils import (
     all_arrays_equal,
     get_node_model,
     import_onnx_model,

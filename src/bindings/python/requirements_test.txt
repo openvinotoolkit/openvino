@@ -1,7 +1,4 @@
--c ./constraints.txt
-protobuf
-numpy
-onnx
+-c ./constraints.txtnumpy
 bandit
 black
 flake8
