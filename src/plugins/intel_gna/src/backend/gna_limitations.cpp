@@ -795,7 +795,7 @@ bool Limitations::is_conv_supported(const std::shared_ptr<ov::intel_gna::op::GNA
     if ((4 == filter_shape.size() && filter_shape[1] > 1 && filter_shape[2] > 1) ||
         (4 == input_shape.size() && input_shape[1] > 1 && input_shape[2] > 1)) {
         pass::helper::ConvData conv_data;
-        pass::helper::GetConvData(conv_ie, conv_data);
+        pass::helper::GetConvData(conv_gna, conv_data);
         if (gna_convolution_layer::isMappableFrom2DTo1D(static_cast<uint32_t>(conv_data.input_height),
                                                         static_cast<uint32_t>(conv_data.input_width),
                                                         static_cast<uint32_t>(conv_data.input_channel_count),
@@ -807,7 +807,7 @@ bool Limitations::is_conv_supported(const std::shared_ptr<ov::intel_gna::op::GNA
         }
 
         if (m_cnn_validator) {
-            return m_cnn_validator->ValidateCnn2D(conv_ie->get_friendly_name(),
+            return m_cnn_validator->ValidateCnn2D(conv_gna->get_friendly_name(),
                                                   static_cast<uint32_t>(conv_data.input_height),
                                                   static_cast<uint32_t>(conv_data.input_width),
                                                   static_cast<uint32_t>(conv_data.input_channel_count),

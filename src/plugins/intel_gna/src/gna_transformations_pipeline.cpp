@@ -33,7 +33,7 @@
 #include "transformations/decompose_mvn.hpp"
 #include "transformations/fp16_compression/convert_compression_only_to_legacy.hpp"
 #include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
-#include "transformations/fuse_conv_biasadd_activation.hpp"
+#include "transformations/fuse_conv_bias_activation.hpp"
 #include "transformations/gather_sinking.hpp"
 #include "transformations/handle_transposes_around_matmul.hpp"
 #include "transformations/init_node_info.hpp"
@@ -56,13 +56,13 @@
 #include "transformations/remove_in_out_processing.hpp"
 #include "transformations/remove_single_input_concat.hpp"
 #include "transformations/reorder_activation_and_pooling.hpp"
+#include "transformations/replace_gna_nhwc_layers.hpp"
 #include "transformations/reshape_transpose_substitute.hpp"
 #include "transformations/rt_info/transpose_sinking_attr.hpp"
 #include "transformations/split_convolution_with_large_buffer_size.hpp"
 #include "transformations/split_eltwise.hpp"
 #include "transformations/substitute_softsign.hpp"
 #include "transformations/swap_input_matmul_gna.hpp"
-#include "transformations/transpose_nchw.hpp"
 #include "transformations/transpose_sinking/ts_concat.hpp"
 #include "transformations/transpose_sinking/ts_fuse.hpp"
 #include "transformations/transpose_sinking/ts_general.hpp"
@@ -210,7 +210,7 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
     manager.register_pass<ov::intel_gna::pass::InsertCopyBeforeLayerToBeEliminated>();
     // TODO enable this transformation for networks without convolutions
     if (has_convolution || has_maxpool || has_mvn || has_matmul) {
-        manager.register_pass<ov::intel_gna::pass::TransposeNCHW>();
+        manager.register_pass<ov::intel_gna::pass::ReplaceGnaNHWCLayers>();
         manager.register_pass<ov::pass::TransposeSinkingGeneral>();
         manager.register_pass<ov::intel_gna::pass::GatherSinkingGeneral>();
         manager.register_pass<ov::pass::ReshapeSequenceFusion>();

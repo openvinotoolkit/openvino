@@ -118,6 +118,8 @@ void swap_friendly_names(std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>);
  */
 void swap_names(std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>);
 
+ov::AxisVector ReverseTransposeOrder(const ov::AxisVector& axis_order);
+
 }  // namespace helper
 }  // namespace pass
 }  // namespace intel_gna
