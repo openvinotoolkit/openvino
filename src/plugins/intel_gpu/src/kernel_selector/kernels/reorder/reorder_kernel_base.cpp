@@ -50,6 +50,8 @@ inline uint32_t SubGroupSize(WeightsLayout l) {
         case WeightsLayout::iy_xs_os_xsv2_osv8__ao32:
         case WeightsLayout::giy_xs_os_xsv2_osv8__ao32:
         case WeightsLayout::g_os_iyx_osv8:
+        case WeightsLayout::gs_oiyx_gsv8:
+        case WeightsLayout::gs_oizyx_gsv8:
             return 8;
         default:
             return 1;
