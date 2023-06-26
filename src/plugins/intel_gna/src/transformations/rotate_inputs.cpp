@@ -41,10 +41,10 @@ InsertConvolutionTransposeHW::InsertConvolutionTransposeHW() {
                 std::dynamic_pointer_cast<op::GNAConvolution>(node.get_node_shared_ptr());
             helper::ConvData conv_data;
             helper::GetConvData(conv, conv_data);
-            return gna_convolution_layer::should_transpose_h_w(conv_data.input_height,
-                                                               conv_data.filter_height,
-                                                               conv_data.input_channel_count,
-                                                               conv_data.filter_stride_height);
+            return gna_convolution_layer::should_transpose_h_w(static_cast<uint32_t>(conv_data.input_height),
+                                                               static_cast<uint32_t>(conv_data.filter_height),
+                                                               static_cast<uint32_t>(conv_data.input_channel_count),
+                                                               static_cast<uint32_t>(conv_data.filter_stride_height));
         });
 
     ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
