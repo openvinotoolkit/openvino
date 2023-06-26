@@ -229,7 +229,6 @@ class OperatorSupport(OperatorSupport):
         if node.op not in CALLABLE_NODE_OPS:
             return False
 
-        print("target: ", node.target)
         # ops in supported_dict doesn't have overload name
         # use overloadpacket's qualified_name for OpOverload
         if isinstance(node.target, OpOverload):

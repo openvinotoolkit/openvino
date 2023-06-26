@@ -28,16 +28,11 @@ def openvino_compile(gm: GraphModule, *args):
         input_types.append(input_data.type())
         input_shapes.append(input_data.size())
 
-    print("type(gm): ", type(gm))
     decoder = TorchFXPythonDecoder(gm, gm, input_shapes=input_shapes, input_types=input_types)
 
-    print("@@Executing fe.load(decoder)")
     im = fe.load(decoder)
-    print("!!Decoder loaded successfully!!")
 
-    print("@@Executing fe.convert(im)")
     om = fe.convert(im)
-    print("!!Done with convert step!!")
 
     dtype_mapping = {
         torch.float32: Type.f32,
@@ -49,13 +44,13 @@ def openvino_compile(gm: GraphModule, *args):
         torch.bool: Type.boolean
     }
 
-    for idx, input_data in enumerate(args): 
+    for idx, input_data in enumerate(args):
         om.inputs[idx].get_node().set_element_type(dtype_mapping[input_data.dtype])
         om.inputs[idx].get_node().set_partial_shape(PartialShape(list(input_data.shape)))
     om.validate_nodes_and_infer_types()
 
     core = Core()
-    
+
     device = 'CPU'
 
     if os.getenv("OPENVINO_DEVICE") is not None:
@@ -63,5 +58,4 @@ def openvino_compile(gm: GraphModule, *args):
         assert device in core.available_devices, "Specified device " + device + " is not in the list of OpenVINO Available Devices"
 
     compiled = core.compile_model(om, device)
-    print("!!Returning compiled model!!")
     return compiled

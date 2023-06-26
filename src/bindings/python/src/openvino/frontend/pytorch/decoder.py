@@ -195,7 +195,7 @@ class TorchScriptPythonDecoder (Decoder):
                     inputs = ordered_inputs
             if isinstance(inputs, torch.Tensor):
                 inputs = [inputs]
-                
+
             return {"example_inputs": inputs}, input_signature
 
         if isinstance(pt_module, torch.nn.Module):
@@ -226,7 +226,7 @@ class TorchScriptPythonDecoder (Decoder):
                 f_model = scripted
         else:
             f_model = pt_module
-        
+
         self._input_signature = input_signature
         return f_model
 
@@ -540,10 +540,7 @@ class TorchFXPythonDecoder (Decoder):
         self.input_types = input_types
         self.input_shapes = input_shapes
 
-        print(type(pt_module))
         if issubclass(type(pt_module), torch.fx.graph_module.GraphModule):
-
-            print(f'[ FX DECODER DEBUG ] __init__ called for GraphModule')
 
             self._nodes = list(pt_module.graph.nodes)
             self._inputs = []
@@ -553,31 +550,22 @@ class TorchFXPythonDecoder (Decoder):
                     self._inputs.append(i)
                 elif self._nodes[i].op == 'output':
                     # Instead of putting output index, refer to its target
-                    #print(dir(self._nodes[i]))
                     args = self._nodes[i].args
                     if isinstance(args[0], tuple):
                         args = args[0]
-                    print(args)
                     for output in args:
                         self._outputs.append(self._nodes.index(output))
 
-            print(f'[ FX DECODER DEBUG ] inputs: {self._inputs}')
-            print(f'[ FX DECODER DEBUG ] outputs: {self._outputs}')
-            print(f'[ FX DECODER DEBUG ] #nodes: {len(self._nodes)}')
-
         elif issubclass(type(pt_module), torch.fx.Node):
 
-            print(f'[ FX DECODER DEBUG ] __init__ called for Node')
 
             self._nodes = nodes # passed from outer context
-            print(f'len(nodes) = {len(nodes)}')
 
             # FIXME: Quadratic complexity nodes*nodes considering the outer loop over all nodes
             for i in range(len(self._nodes)):
                 if self._nodes[i] == pt_module:
                     self._outputs = [i]
 
-            print(f'pt_module.args = {pt_module.args}')
             # code constant or None input as a tuple to diffirentiate it from regular input
             # negative index is used to mark inputs initialized by inline constants, there are no such inputs in the graph
             self._inputs = [self._nodes.index(arg) if arg in self._nodes else (arg,) for arg in pt_module.args]
@@ -598,17 +586,12 @@ class TorchFXPythonDecoder (Decoder):
                     new_inputs.append(self._inputs[i])
             self._inputs = new_inputs
 
-            print(f'[ FX DECODER DEBUG ] inputs: {self._inputs}')
-            print(f'[ FX DECODER DEBUG ] outputs: {self._outputs}')
 
 
     def inputs(self):
-        print(f'[ FX DECODER DEBUG ] Decoder method called: {inspect.currentframe().f_code.co_name}')
-        print([x if x is not None else 100000 for x in self._inputs])
         return [x if x is not None else 100000 for x in self._inputs]
 
     def input(self, index):  # TODO: remove
-        print(f'[ FX DECODER DEBUG ] Decoder method called: {inspect.currentframe().f_code.co_name}')
         return self.inputs()[index]  # TODO: find specialized method
 
     def get_input_debug_name(self, index):
@@ -618,14 +601,12 @@ class TorchFXPythonDecoder (Decoder):
         return self.get_input_debug_name(index)
 
     def get_input_shape(self, index):
-        print(f'[ FX DECODER DEBUG ] Decoder method called: {inspect.currentframe().f_code.co_name}')
         if index < len(self.input_shapes):
             return PartialShape(self.input_shapes[index])
         input = self._raw_input(index)
         return self.get_shape_for_value(input)
 
     def get_input_type(self, index):
-        print(f'[ FX DECODER DEBUG ] Decoder method called: {inspect.currentframe().f_code.co_name}')
         if index < len(self.input_types):
             return OVAny(pt_to_ov_type_map[self.input_types[index]])
         input = self._raw_input(index)
@@ -635,53 +616,43 @@ class TorchFXPythonDecoder (Decoder):
         return "output"+str(index)
 
     def get_output_shape(self, index):
-        print(f'[ FX DECODER DEBUG ] Decoder method called: {inspect.currentframe().f_code.co_name}')
         output = self._raw_output(index)
         return self.get_shape_for_value(output)
 
     def get_output_type(self, index):
-        print(f'[ FX DECODER DEBUG ] Decoder method called: {inspect.currentframe().f_code.co_name}')
         output = self._raw_output(index)
         return self.get_type_for_value(output)
 
     def _get_known_type_for_value(self, type):
-        print(f'[ FX DECODER DEBUG ] Decoder method called: {inspect.currentframe().f_code.co_name}')
         '''
             Returns known/unknown types wrapped as OVAny
         '''
-        #print(f'Trying to parse type {type} of class {type.__class__}')
         # Check for simple scalar types first
         # TODO: Don't use str, use native types
         if type is None:
             return OVAny(OVType.dynamic)
         if str(type) in pt_to_ov_type_map:
-            #print(f'Recognized native type, type.__class__ = {type.__class__}')
             return OVAny(pt_to_ov_type_map[str(type)])
         elif type.__class__ is torch.TensorType:
-            #print(f'Recognized Tensor type with type.dtype() = {type.dtype()}')
             # Tensor type, parse element type
             # TODO: replace string by native type
             # return OVAny(PartialShape([1,2,3]))
             return OVAny(DecoderType.Tensor(self._get_known_type_for_value(type.dtype())))
         elif type.__class__ is torch.ListType:
             element_type = type.getElementType()
-            #print(f'Recognized torch List type. Type of element is {element_type}')
             return OVAny(DecoderType.List(self._get_known_type_for_value(element_type)))
         else:
-            #print(f'Not a tensor nor native type: {type}')
             # Not yet recognized
             return OVAny(OVType.dynamic)
             #pt_type_class = value.type().__class__
             #    if pt_type_class is torch.ListType:
 
     def get_shape_for_value(self, value):
-        print(f'[ FX DECODER DEBUG ] Decoder method called: {inspect.currentframe().f_code.co_name}')
         if value and ('tensor_meta' in value.meta.keys()):
             return PartialShape(value.meta['tensor_meta'].shape)
         return PartialShape([1])
 
     def get_type_for_value(self, value):
-        print(f'[ FX DECODER DEBUG ] Decoder method called: {inspect.currentframe().f_code.co_name}')
         if issubclass(type(value), torch.fx.Node):
             if ('tensor_meta' in value.meta.keys()):
                 pt_type = value.meta['tensor_meta'].dtype
@@ -700,7 +671,6 @@ class TorchFXPythonDecoder (Decoder):
             return OVAny(OVType.f32)
 
     def get_input_transpose_order(self, index):
-        print(f'[ FX DECODER DEBUG ] Decoder method called: {inspect.currentframe().f_code.co_name}')
         return []
         # TODO TBD
 
@@ -712,7 +682,6 @@ class TorchFXPythonDecoder (Decoder):
         return []
 
     def get_output_transpose_order(self, index):
-        print(f'[ FX DECODER DEBUG ] Decoder method called: {inspect.currentframe().f_code.co_name}')
         return []
 
         # old code
@@ -724,13 +693,11 @@ class TorchFXPythonDecoder (Decoder):
         return []
 
     def get_subgraph_size(self):
-        print(f'[ FX DECODER DEBUG ] Decoder method called: {inspect.currentframe().f_code.co_name}')
         if issubclass(type(self.pt_module), torch.fx.Node):
             return 0
         return len(self.get_subgraphs()) if hasattr(self.pt_module, 'blocks') else 1
 
     def visit_subgraph(self, node_visitor):
-        print(f'[ FX DECODER DEBUG ] Decoder method called: {inspect.currentframe().f_code.co_name}')
         # make sure topological order is satisfied
         for node in self._nodes:
             if node.op == 'placeholder' or node.op == 'output':
@@ -740,115 +707,85 @@ class TorchFXPythonDecoder (Decoder):
             node_visitor(decoder)
 
     def get_subgraphs(self):
-        print(f'[ FX DECODER DEBUG ] Decoder method called: {inspect.currentframe().f_code.co_name}')
         if issubclass(type(self.pt_module), torch.fx.Node):
             return []
         return list(self.pt_module.blocks())
 
     def get_subgraph_decoder(self, index):
-        print(f'[ FX DECODER DEBUG ] Decoder method called: {inspect.currentframe().f_code.co_name}')
         decoder = TorchFXPythonDecoder(self.get_subgraphs()[index], self.fx_gm, mark_node_callback=self.mark_node_callback)
         self.m_decoders.append(decoder)
         return decoder
 
     def get_op_type(self):
-        print(f'[ FX DECODER DEBUG ] Decoder method called: {inspect.currentframe().f_code.co_name}')
-        print(f'fx.op = {self.pt_module.op}')
         if self.pt_module.op == 'call_function':
-            print(f'function: {self.pt_module.target} str of it: {str(self.pt_module.target)}')
             return str(self.pt_module.target)
         elif self.pt_module.op == 'get_attr':
             return 'get_attr'  # FIXME should be aligned with get_attr from TS implementation
         else:
-            print('UNKNOWN_TYPE')
             return 'UNKNOWN_TYPE_' + str(self.pt_module.op)
 
     def get_schema(self):
         return ''
-        print(f'[ FX DECODER DEBUG ] Decoder method called: {inspect.currentframe().f_code.co_name}')
         return self.pt_module.schema()
 
     def outputs(self):
-        print(f'[ FX DECODER DEBUG ] Decoder method called: {inspect.currentframe().f_code.co_name}')
         return self._outputs
 
     def _raw_outputs(self):
-        print(f'[ FX DECODER DEBUG ] Decoder method called: {inspect.currentframe().f_code.co_name}')
         return [self._nodes[x] for x in self._outputs]
 
     def _raw_output(self, index):
-        print(f'[ FX DECODER DEBUG ] Decoder method called: {inspect.currentframe().f_code.co_name}')
         return self._raw_outputs()[index]
 
     def _raw_inputs(self):
-        print(f'[ FX DECODER DEBUG ] Decoder method called: {inspect.currentframe().f_code.co_name}')
-        #print([self._nodes[x] if x is not None else None for x in self._inputs])
         return [self._nodes[x] if x is not None and x < len(self._nodes) else x for x in self._inputs]
 
     def _raw_input(self, index):
-        print(f'[ FX DECODER DEBUG ] Decoder method called: {inspect.currentframe().f_code.co_name}')
         return self._raw_inputs()[index]
 
     def num_of_outputs(self):
-        print(f'[ FX DECODER DEBUG ] Decoder method called: {inspect.currentframe().f_code.co_name}')
         return len(self.outputs())
 
     def output(self, index):
-        print(f'[ FX DECODER DEBUG ] Decoder method called: {inspect.currentframe().f_code.co_name}')
         return self.outputs()[index]
 
     def mark_node(self, node):
-        print(f'[ FX DECODER DEBUG ] Decoder method called: {inspect.currentframe().f_code.co_name}')
         if self.mark_node_callback is not None:
             self.mark_node_callback(self, node)
         return node
 
     def as_constant(self):
-        print(f'[ FX DECODER DEBUG ] Decoder method called: {inspect.currentframe().f_code.co_name}')
 
         if self.pt_module.op == 'get_attr':
             # Extract Constant from FX module field
-            print(dir(self.pt_module))
             ret = fetch_attr(self.fx_gm, self.pt_module.target)
-            print(type(ret))
-            print(ret.size())
             ovshape = PartialShape(ret.size())
             ovtype = pt_to_ov_type_map[ret.type()]
-            print(ovshape, ovtype)
             c_type = ctypes.POINTER(ov_to_c_type_map[ovtype])
             data_c_ptr = ctypes.cast(ret.data_ptr(), c_type)
             ov_const = op.Constant(ovtype, ovshape.get_shape(), data_c_ptr[:ret.nelement()])
-            print('Made constant')
             return ov_const.outputs()
 
 
         if not self.get_op_type() == 'prim::Constant':
-            #print(f'[ ERROR ] Requested const value {self._raw_output(0)} from a non const prim {self.get_op_type()}')
             return None
         pt_value = self._raw_output(0)
 
         pt_type_class = pt_value.type().__class__
-        #print(f'Not a tensor, type = {pt_value.type()}\ndir = {dir(pt_value.type())}\n__class__ = {pt_value.type().__class__}')
         if pt_type_class is torch.TensorType:
             return self.as_constant_tensor(pt_value)
         if pt_type_class is torch.ListType:
             return self.as_constant_list(pt_value)
-        #print(f'Trying to recognize value {pt_value}, type = {type(pt_value.toIValue())}, ivalue = {pt_value.toIValue()}')
         if str(pt_value.type()) in ['torch.int32', 'int']:
-            #print(f'Found int value=  {pt_value}, type = {type(pt_value.toIValue())}, ivalue = {pt_value.toIValue()}')
             return make_constant(OVType.i32, Shape([]), [pt_value.toIValue()]).outputs()
         if str(pt_value.type()) in ['torch.float', 'torch.FloatType', 'float']:
-            #print(f'Found float value=  {pt_value}, type = {type(pt_value.toIValue())}, ivalue = {pt_value.toIValue()}')
             return make_constant(OVType.f32, Shape([]), [pt_value.toIValue()]).outputs()
         if str(pt_value.type()) in ['torch.bool', 'bool']:
-            #print('Scalar bool detected')
             return make_constant(OVType.boolean, Shape([]), [pt_value.toIValue()]).outputs()
-        #print(f'Left value not converted to const, value = {pt_value}')
 
         return None
 
     def as_string(self):
-        print(f'[ FX DECODER DEBUG ] Decoder method called: {inspect.currentframe().f_code.co_name}')
         if not self.get_op_type() == 'prim::Constant':
             return None
         pt_value = self._raw_output(0)
@@ -858,9 +795,7 @@ class TorchFXPythonDecoder (Decoder):
         return None
 
     def as_constant_tensor(self, pt_value):
-        print(f'[ FX DECODER DEBUG ] Decoder method called: {inspect.currentframe().f_core.co_name}')
         ivalue = pt_value.toIValue()
-        print(f'[ FX DECODER DEBUG ] as_constant_tensor with {pt_value}')
         if pt_value.isCompleteTensor():
             try:
                 ivalue = ivalue.to(memory_format=torch.contiguous_format).detach().cpu()
@@ -911,11 +846,9 @@ class TorchFXPythonDecoder (Decoder):
         return None
 
     def as_constant_list(self, pt_value):
-        print(f'[ FX DECODER DEBUG ] Decoder method called: {inspect.currentframe().f_code.co_name}')
         # For now it is treat a list as a 1D tensor; it is required by converters to avoid need to massively rewrite them in that part where constant attributes are queried
         pt_element_type = str(pt_value.type().getElementType())
         ivalue = pt_value.toIValue()
-        #print(f'List toIValue: {ivalue}, type of it: {type(ivalue)}')
         is_known_type = pt_element_type in pt_to_ov_type_map
 
         # WA to broken ov.Type
@@ -927,26 +860,19 @@ class TorchFXPythonDecoder (Decoder):
 
         if is_known_type:
             ovtype = pt_to_ov_type_map[pt_element_type]
-            #print(f'ovtype = {ovtype}, pt_element_type = {pt_element_type}, OVType.i32 = {OVType.i32}, {OVType.f32}')
             ovshape = PartialShape([len(ivalue)])
             ov_const = make_constant(ovtype, ovshape.get_shape(), ivalue)
             return ov_const.outputs()
 
     def input_is_none(self, index):
-        print(f'[ FX DECODER DEBUG ] Decoder method called: {inspect.currentframe().f_code.co_name}')
-        print(f'index = {index}, op = {self.get_op_type()}')
         if index >= len(self.inputs()) or self._raw_input(index) is None:
-            print(f'saying None, {self._raw_input(index) if index < len(self.inputs()) else "out of range"}')
             return True
         else:
             r_input = self._raw_input(index)
-            print(f'r_input = {r_input}')
             return str(type(r_input)) in ['torch.NoneType', 'NoneType']
 
     def debug(self):
-        print(f'[ FX DECODER DEBUG ] Decoder method called: {inspect.currentframe().f_code.co_name}')
-        print(f'DEBUG CALLED FOR {self._raw_output(0)}')
-        # self.pt_module.print()
+        self.pt_module.print()
 
     def inlined_inputs(self, index):
         result = []
@@ -969,7 +895,6 @@ class TorchFXPythonDecoder (Decoder):
                     constant = make_constant(OVType.f32, Shape([]), [arg])  # TODO: f32? why not f64?
 
                 if constant is None:
-                    print(f'[ ERROR ] Not supported inlined input type {type(arg)} with value {arg}')
                     if arg is None:
                         self._inputs[i] = None
                 else:
