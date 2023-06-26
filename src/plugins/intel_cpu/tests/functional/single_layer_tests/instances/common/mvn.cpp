@@ -110,10 +110,10 @@ const auto Mvn5D_noAcrossChannels = ::testing::Combine(
                ::testing::ValuesIn(inputShapes_5D()),
                ::testing::Values(ElementType::f32),
                ::testing::ValuesIn(emptyReductionAxes()),
-               ::testing::Values(true),
+               ::testing::Values(false),
                ::testing::ValuesIn(normalizeVariance),
                ::testing::ValuesIn(epsilon())),
-       ::testing::Values(CPUSpecificParams({nchw}, {nchw}, {}, {})), //"initAcrossChannels = false" is not supported by ACL for NHWC layout
+       ::testing::Values(CPUSpecificParams({ncdhw}, {ncdhw}, {}, {})), //"initAcrossChannels = false" is not supported by ACL for NHWC layout
        ::testing::ValuesIn(fusingParamsSet),
        ::testing::ValuesIn(inpPrc),
        ::testing::ValuesIn(outPrc));
