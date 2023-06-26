@@ -280,6 +280,8 @@ inline uint FUNC(get_input_index)(uint g, uint o, uint i, uint z, uint y, uint x
     return GET_FILTER_OS_IYX_OSV_INDEX(INPUT0, o, i, y, x, 32);
 #elif defined INPUT0_LAYOUT_OS_IYX_OSV32__AI32
     return GET_FILTER_OS_IYX_OSV_INDEX(INPUT0, o, i, y, x, 32);
+#elif defined INPUT0_LAYOUT_O_IS_YX_ISV4
+    return GET_FILTER_O_IS_YX_ISV16_INDEX(INPUT0, o, i, y, x, 4);
 #elif defined INPUT0_LAYOUT_O_IS_YX_ISV16
     return GET_FILTER_O_IS_YX_ISV16_INDEX(INPUT0, o, i, y, x, 16);
 #elif defined INPUT0_LAYOUT_IYX_OSV64
@@ -384,6 +386,10 @@ inline uint FUNC(get_input_index)(uint g, uint o, uint i, uint z, uint y, uint x
     return GET_FILTER_G_OS_IYX_OSV16(INPUT0, g, o, i, y, x, 16);
 #elif defined INPUT0_LAYOUT_G_OS_IYX_OSV32
     return GET_FILTER_G_OS_IYX_OSV16(INPUT0, g, o, i, y, x, 32);
+#elif defined INPUT0_LAYOUT_GS_OIYX_GSV8
+    return GET_FILTER_GS_OIYX_GSV16(INPUT0, g, o, i, y, x, 8);
+#elif defined INPUT0_LAYOUT_GS_OIZYX_GSV8
+    return GET_FILTER_GS_OIZYX_GSV16(INPUT0, g, o, i, z, y, x, 8);
 #elif defined INPUT0_LAYOUT_GS_OIYX_GSV16
     return GET_FILTER_GS_OIYX_GSV16(INPUT0, g, o, i, y, x, 16);
 #elif defined INPUT0_LAYOUT_GS_OIZYX_GSV16
@@ -487,6 +493,8 @@ inline uint FUNC(get_output_index)(uint g, uint o, uint i, uint z, uint y, uint 
     return GET_FILTER_OS_IYX_OSV_INDEX(OUTPUT, o, i, y, x, 32);
 #elif defined OUTPUT_LAYOUT_OS_IYX_OSV64
     return GET_FILTER_OS_IYX_OSV_INDEX(OUTPUT, o, i, y, x, 64);
+#elif defined OUTPUT_LAYOUT_O_IS_YX_ISV4
+    return GET_FILTER_O_IS_YX_ISV16_INDEX(OUTPUT, o, i, y, x, 4);
 #elif defined OUTPUT_LAYOUT_O_IS_YX_ISV16
     return GET_FILTER_O_IS_YX_ISV16_INDEX(OUTPUT, o, i, y, x, 16);
 #elif defined OUTPUT_LAYOUT_OS_IYX_OSV16_ROTATE_180
@@ -645,6 +653,10 @@ inline uint FUNC(get_output_index)(uint g, uint o, uint i, uint z, uint y, uint 
     return GET_FILTER_G_OS_IYX_OSV16(OUTPUT, g, o, i, y, x, 16);
 #elif defined OUTPUT_LAYOUT_G_OS_IYX_OSV32
     return GET_FILTER_G_OS_IYX_OSV16(OUTPUT, g, o, i, y, x, 32);
+#elif defined OUTPUT_LAYOUT_GS_OIYX_GSV8
+    return GET_FILTER_GS_OIYX_GSV16(OUTPUT, g, o, i, y, x, 8);
+#elif defined OUTPUT_LAYOUT_GS_OIZYX_GSV8
+    return GET_FILTER_GS_OIZYX_GSV16(OUTPUT, g, o, i, z, y, x, 8);
 #elif defined OUTPUT_LAYOUT_GS_OIYX_GSV16
     return GET_FILTER_GS_OIYX_GSV16(OUTPUT, g, o, i, y, x, 16);
 #elif defined OUTPUT_LAYOUT_GS_OIZYX_GSV16

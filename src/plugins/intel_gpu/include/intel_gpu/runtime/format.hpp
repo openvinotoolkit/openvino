@@ -135,6 +135,7 @@ struct format {
         oyix,
         oxiy,
         os_iyx_osv16,                                 ///< format used only for convolution weights
+        o_is_yx_isv4,                                 ///< format used only for convolution weights
         o_is_yx_isv16,                                ///< format used only for convolution weights
         os_yxi_osv16,                                 ///< format used only for convolution weights
         os_is_yx_osv16_isv2,                          ///< format used only for convolution weights
@@ -241,7 +242,9 @@ struct format {
         g_os_iyx_osv8,                                ///< format used for weights for 2D convolution
         g_os_iyx_osv16,                               ///< format used for weights for 2D convolution
         g_os_iyx_osv32,                               ///< format used for weights for 2D convolution
+        gs_oiyx_gsv8,                                 ///< format used for weights for 2D convolution
         gs_oiyx_gsv16,                                ///< format used for weights for 2D convolution
+        gs_oizyx_gsv8,                                ///< format used for weights for 3D convolution
         gs_oizyx_gsv16,                               ///< format used for weights for 3D convolution
         gs_oiyx_gsv32,                                ///< format used for weights for 2D convolution
         gs_oizyx_gsv32,                               ///< format used for weights for 3D convolution

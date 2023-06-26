@@ -82,6 +82,7 @@ WeightsTensor::WeightsChannelArray WeightsTensor::weightsChannelArray {{
     { WeightsLayout::os_iyx_osv32__ai32,                          {  0,  1, -1,   2,   3, -1 } },
     { WeightsLayout::os_iyx_osv64,                                {  0,  1, -1,   2,   3, -1 } },
     { WeightsLayout::os_iyx_osv16_rotate_180,                     {  0,  1, -1,   2,   3, -1 } },
+    { WeightsLayout::o_is_yx_isv4,                                {  0,  1, -1,   2,   3, -1 } },
     { WeightsLayout::o_is_yx_isv16,                               {  0,  1, -1,   2,   3, -1 } },
     { WeightsLayout::os_yxi_osv16,                                {  1,  2, -1,   0,   3, -1 } },
     { WeightsLayout::os_i_osv8__ai8,                              { -1, -1, -1,   0,   1, -1 } },
@@ -180,6 +181,8 @@ WeightsTensor::WeightsChannelArray WeightsTensor::weightsChannelArray {{
     { WeightsLayout::g_os_iyx_osv8,                               {  0,  1, -1,   2,   3,  4 } },
     { WeightsLayout::g_os_iyx_osv16,                              {  0,  1, -1,   2,   3,  4 } },
     { WeightsLayout::g_os_iyx_osv32,                              {  0,  1, -1,   2,   3,  4 } },
+    { WeightsLayout::gs_oiyx_gsv8,                                {  0,  1, -1,   2,   3,  4 } },
+    { WeightsLayout::gs_oizyx_gsv8,                               {  0,  1,  2,   3,   4,  5 } },
     { WeightsLayout::gs_oiyx_gsv16,                               {  0,  1, -1,   2,   3,  4 } },
     { WeightsLayout::gs_oizyx_gsv16,                              {  0,  1,  2,   3,   4,  5 } },
     { WeightsLayout::gs_oiyx_gsv32,                               {  0,  1, -1,   2,   3,  4 } },
@@ -588,6 +591,10 @@ NDims WeightsTensor::GetSimpleDims(const std::vector<size_t>& d, WeightsLayout l
 
     // TODO: It's not the right pitches. it's here in order to calculate physical size
     switch (l) {
+        case o_is_yx_isv4:
+            assert(newDims.size() == 4);
+            newDims[2] = RoundUp(newDims[2], 4);
+            break;
         case o_is_yx_isv16:
             assert(newDims.size() == 4);
             newDims[2] = RoundUp(newDims[2], 16);
@@ -826,6 +833,14 @@ NDims WeightsTensor::GetSimpleDims(const std::vector<size_t>& d, WeightsLayout l
         case g_os_iyx_osv32:
             assert(newDims.size() == 5);
             newDims[3] = RoundUp(newDims[3], 32);
+            break;
+        case gs_oiyx_gsv8:
+            assert(newDims.size() == 5);
+            newDims[4] = RoundUp(newDims[4], 8);
+            break;
+        case gs_oizyx_gsv8:
+            assert(newDims.size() == 6);
+            newDims[5] = RoundUp(newDims[5], 8);
             break;
         case gs_oiyx_gsv16:
             assert(newDims.size() == 5);
