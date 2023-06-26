@@ -29,16 +29,19 @@ In general, most throughput-oriented inference applications should:
 * Decompose the data flow into a collection of concurrent inference requests that are aggressively scheduled to be executed in parallel:
 
   * Setup the configuration for the *device* (for example, as parameters of the ``ov::Core::compile_model``) via either previously introduced :doc:`low-level explicit options <openvino_docs_deployment_optimization_guide_tput_advanced>` or :doc:`OpenVINO performance hints <openvino_docs_OV_UG_Performance_Hints>` (**preferable**):
-
-
-    .. tab:: C++
-
+    
+    .. tab-set::
+    
+       .. tab-item:: C++
+          :sync: cpp
+    
           .. doxygensnippet:: docs/snippets/ov_auto_batching.cpp
              :language: cpp
              :fragment: [compile_model]
-
-    .. tab:: Python
-
+    
+       .. tab-item:: Python
+          :sync: py
+    
           .. doxygensnippet:: docs/snippets/ov_auto_batching.py
              :language: python
              :fragment: [compile_model]
