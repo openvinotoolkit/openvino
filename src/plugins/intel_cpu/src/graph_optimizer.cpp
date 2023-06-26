@@ -1369,8 +1369,8 @@ void GraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(Graph &graph)
 
 #if defined(OV_CPU_WITH_ACL)
     // OneDNN doesn't post-ops for FP16 case
-    if (convNode1->getOriginalInputPrecisionAtPort(0) == Precision::FP16 ||
-        convNode2->getOriginalInputPrecisionAtPort(0) == Precision::FP16)
+    if ((convNode1 && convNode1->getOriginalInputPrecisionAtPort(0) == Precision::FP16) ||
+        (convNode2 && convNode2->getOriginalInputPrecisionAtPort(0) == Precision::FP16))
             continue;
 #endif
 
