@@ -14,6 +14,9 @@
 #include "transformations/common_optimizations/dimension_tracking.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/utils/utils.hpp"
+OPENVINO_SUPPRESS_DEPRECATED_START
+#include "ie_ngraph_utils.hpp"
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 namespace ov {
 namespace autobatch_plugin {
@@ -306,13 +309,33 @@ OPENVINO_SUPPRESS_DEPRECATED_END
                 }
                 partial_shapes.insert({input, ov::PartialShape(input_shape)});
             }
+
             reshaped->reshape(partial_shapes);
-            {
-                auto new_inputs = reshaped->inputs();
-                for (auto& input : inputs) {
-                    auto new_input_shape = input.get_shape();
+
+            OPENVINO_SUPPRESS_DEPRECATED_START
+            for (auto&& input : reshaped->inputs()) {
+                auto param_name = input.get_node()->get_friendly_name();
+                auto& rt_info = input.get_rt_info();
+                auto it = rt_info.find("ie_legacy_td");
+                if (it != rt_info.end()) {
+                    auto td = it->second.as<InferenceEngine::TensorDesc>();
+                    rt_info["ie_legacy_td"] =
+                        InferenceEngine::TensorDesc(td.getPrecision(), input.get_shape(), td.getLayout());
                 }
             }
+            for (auto&& result : reshaped->get_results()) {
+                auto output = result->input_value(0);
+                const auto& res_name = ov::op::util::create_ie_output_name(output);
+                auto& rt_info = output.get_rt_info();
+                auto it = rt_info.find("ie_legacy_td");
+                if (it != rt_info.end()) {
+                    auto td = it->second.as<InferenceEngine::TensorDesc>();
+                    rt_info["ie_legacy_td"] =
+                        InferenceEngine::TensorDesc(td.getPrecision(), output.get_shape(), td.getLayout());
+                }
+            }
+            OPENVINO_SUPPRESS_DEPRECATED_END
+
             compiled_model_with_batch = !context.is_empty()
                                             ? core->compile_model(reshaped, context, device_config_no_auto_batch)
                                             : core->compile_model(reshaped, device_name, device_config_no_auto_batch);
