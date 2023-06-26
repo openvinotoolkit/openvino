@@ -182,7 +182,7 @@ static void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::Mat
                 return false;
 
             // dynamic shapes and 1D tensors are not transposed
-            if (shapes[0].rank().is_dynamic() || shapes[1].rank().is_dynamic() ||
+            if (shapes[0].is_dynamic() || shapes[1].is_dynamic() ||
                 shapes[0].size() < 2 || shapes[1].size() < 2)
                 return false;
 
