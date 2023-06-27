@@ -25,7 +25,6 @@ static decltype(&fc_kernel_create) fc_kernel_create_ptr = fc_kernel_create_amx;
 static decltype(&fc_kernel_destroy) fc_kernel_destroy_ptr = fc_kernel_destroy_amx;
 static decltype(&fc_kernel_execute) fc_kernel_execute_ptr = fc_kernel_execute_amx;
 static decltype(&fc_kernel_bf16w8_get_q_dq) fc_kernel_bf16w8_get_q_dq_ptr = fc_kernel_bf16w8_get_q_dq_amx;
-static decltype(&fc_kernel_bf16w8_set_q_dq) fc_kernel_bf16w8_set_q_dq_ptr = fc_kernel_bf16w8_set_q_dq_amx;
 
 // interface
 bool fc_kernel_create(fc_kernel** mm, const fc_create_param* param) {
@@ -43,11 +42,6 @@ void fc_kernel_execute(const fc_kernel* mm, void* ptr_a, void* ptr_b, void* ptr_
 
 void fc_kernel_bf16w8_get_q_dq(size_t K, size_t N, size_t stride, void* ptr, float* q, float* dq) {
     fc_kernel_bf16w8_get_q_dq_ptr(K, N, stride, ptr, q, dq);
-}
-
-/// set q, dq for each fc_kernel instance
-void fc_kernel_bf16w8_set_q_dq(const fc_kernel* mm, float q, float dq) {
-    fc_kernel_bf16w8_set_q_dq_ptr(mm, q, dq);
 }
 
 }

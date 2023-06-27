@@ -14,6 +14,5 @@ void fc_kernel_execute_amx(const fc_kernel* mm, void* ptr_a, void* ptr_b, void* 
         size_t M, size_t N, size_t K, size_t n_start, size_t n_end, float* dq, float* q, float* bias);
 
 void fc_kernel_bf16w8_get_q_dq_amx(size_t K, size_t N, size_t stride, void* ptr, float* q, float* dq);
-void fc_kernel_bf16w8_set_q_dq_amx(const fc_kernel* mm, float q, float dq);
 
 }

@@ -1015,6 +1015,17 @@ bool FullyConnected::tryExtractParamForLLMFc(llmdnn::fc_create_param& param) {
             if (fusedWith.size() == 1 && fusedWith[0]->getAlgorithm() == Algorithm::EltwiseGeluErf)
                 param.postops_type = static_cast<llmdnn::postops_types>(param.postops_type | llmdnn::GELU);
 
+            // compute q/dq
+            auto p = getenv("USE_INT8_WEIGHT");
+            if (p && p[0] == '1') {
+                auto weightPtr = getParentEdgeAt(1)->getMemoryPtr();
+                auto* weight = reinterpret_cast<bfloat16*>(weightPtr->GetPtr());
+                auto& weight_dims = weightPtr->getStaticDims();
+                llmdnn::fc_kernel_bf16w8_get_q_dq(weight_dims[0], weight_dims[1], weight_dims[1] * sizeof(bfloat16), weight, &param.q, &param.dq);
+                param.dt_b = llmdnn::dnnl_s8;
+                param.postops_type = static_cast<llmdnn::postops_types>(param.postops_type | llmdnn::DEQUANT);
+            }
+
             return true;
         }
     } else if (data_type == Precision::I8) {

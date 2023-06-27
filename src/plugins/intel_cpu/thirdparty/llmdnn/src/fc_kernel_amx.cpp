@@ -90,6 +90,8 @@ bool fc_kernel_create_amx(fc_kernel** mm, const fc_create_param* param) {
         m->bf16xbf16 = std::make_shared<amx_kernel::Matmul<bfloat16, bfloat16>>(true, param->b_is_trans);
     } else if (param->dt_a == dnnl_bf16 && param->dt_b == dnnl_s8) {
         m->bf16xi8 = std::make_shared<amx_kernel::Matmul<bfloat16, int8_t>>(true, param->b_is_trans);
+        m->bf16xi8->quant_scale_B = param->q;
+        m->bf16xi8->dequant_scale_B = param->dq;
     } else {
         std::cout << "fc_kernel_create: unsupport input type, a: " << param->dt_a << ", b: " << param->dt_b << ".\n";
         goto ERR;
@@ -301,16 +303,6 @@ void fc_kernel_bf16w8_get_q_dq_amx(size_t K, size_t N, size_t stride, void* ptr,
     max = std::max(std::abs(max), std::abs(min));
     *q = 127 / max;
     *dq = max / 127;
-}
-
-/// set q, dq for each fc_kernel instance
-void fc_kernel_bf16w8_set_q_dq_amx(const fc_kernel* mm, float q, float dq) {
-    if (!mm || !mm->bf16xi8) {
-        std::cout << "fc_kernel_bf16w8_set_q_dq: created kernel is not int8 weight.\n";
-        return;
-    }
-    mm->bf16xi8->quant_scale_B = q;
-    mm->bf16xi8->dequant_scale_B = dq;
 }
 
 }

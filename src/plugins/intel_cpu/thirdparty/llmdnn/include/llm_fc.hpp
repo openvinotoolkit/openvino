@@ -32,6 +32,9 @@ struct fc_create_param {
     data_type_t dt_c;
     bool b_is_trans;
     postops_types postops_type;
+    // for weight compression
+    float q;
+    float dq;
 };
 
 struct fc_kernel;
@@ -58,7 +61,5 @@ void fc_kernel_execute(const fc_kernel* mm,
 /// weight compression
 /// compute weight min/max once, set q, dq for each fc_kernel instance
 void fc_kernel_bf16w8_get_q_dq(size_t K, size_t N, size_t stride, void* ptr, float* q, float* dq);
-/// set q, dq for each fc_kernel instance, must call before first fc_kernel_execute
-void fc_kernel_bf16w8_set_q_dq(const fc_kernel* mm, float q, float dq);
 
 }
