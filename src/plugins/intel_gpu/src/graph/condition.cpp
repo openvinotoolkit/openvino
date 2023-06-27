@@ -139,6 +139,24 @@ static ov::PartialShape resolve_shape(const ov::PartialShape& true_pshape, const
     return ov::PartialShape(new_dims);
 }
 
+static std::vector<layout> resolve_shape(std::vector<layout>& target_list, std::vector<layout>& other_list) {
+    std::vector<layout> resolved_layout;
+    for (size_t i = 0; i < target_list.size(); i++) {
+        auto target = target_list[i];
+        auto other = other_list[i];
+        auto target_pshape  = target.get_partial_shape();
+        auto other_pshape   = other.get_partial_shape();
+        auto target_rank    = target_pshape.rank();
+        auto other_rank     = other_pshape.rank();
+        if (target_rank.get_length() == 0 && other_rank.get_length() == 1) {
+            resolved_layout.push_back({ov::PartialShape{1}, target.data_type, target.format});
+        } else {
+            resolved_layout.push_back(target);
+        }
+    }
+    return resolved_layout;
+}
+
 template<typename ShapeType>
 std::vector<layout> condition_inst::calc_output_layouts(condition_node const& /* node */, kernel_impl_params const& impl_param) {
     if (impl_param.inner_nets.empty()) {
@@ -164,16 +182,20 @@ std::vector<layout> condition_inst::calc_output_layouts(condition_node const& /*
 
         return output_layouts;
     } else {
+        auto layouts_true  = get_output_layouts(get_out_layout_map(impl_param.inner_nets[idx_branch_true]),  impl_param.io_output_maps[idx_branch_true]);
+        auto layouts_false = get_output_layouts(get_out_layout_map(impl_param.inner_nets[idx_branch_false]), impl_param.io_output_maps[idx_branch_false]);
+        const size_t num_outputs = impl_param.output_layouts.size();
+        OPENVINO_ASSERT((num_outputs == layouts_true.size() && num_outputs == layouts_false.size()),
+                            "The number of outputs for each branch should be same!");
+
         auto& memory_deps = impl_param.memory_deps;
         OPENVINO_ASSERT(memory_deps.count(0) > 0, "The count of memory deps should not be zero");
         auto mem_ptr = memory_deps.at(0);
         auto pred = condition_inst::get_pred_from_memory(mem_ptr, impl_param.get_stream());
         if (pred) {
-            auto layouts_true  = get_output_layouts(get_out_layout_map(impl_param.inner_nets[idx_branch_true]),  impl_param.io_output_maps[idx_branch_true]);
-            return layouts_true;
+            return resolve_shape(layouts_true, layouts_false);
         } else {
-            auto layouts_false = get_output_layouts(get_out_layout_map(impl_param.inner_nets[idx_branch_false]), impl_param.io_output_maps[idx_branch_false]);
-            return layouts_false;
+            return resolve_shape(layouts_false, layouts_true);
         }
     }
 }
@@ -197,8 +219,8 @@ Condition primitive is resuing memory with the input.
 */
 condition_inst::typed_primitive_inst(network& network, condition_node const& node)
     : parent(network, node),
-      _net_true(network::allocate_network(node.get_program().get_engine(), node.get_branch_true().inner_program, true)),
-      _net_false(network::allocate_network(node.get_program().get_engine(), node.get_branch_false().inner_program, true)) {
+      _net_true(network::allocate_network(node.get_program().get_engine(), node.get_branch_true().inner_program)),
+      _net_false(network::allocate_network(node.get_program().get_engine(), node.get_branch_false().inner_program)) {
     this->set_inner_networks({_net_true, _net_false});
 }
 
