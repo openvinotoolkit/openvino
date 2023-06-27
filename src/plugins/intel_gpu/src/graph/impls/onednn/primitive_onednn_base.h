@@ -46,8 +46,8 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
             const ExecutionConfig& config,
             std::shared_ptr<dnnl::primitive_attr> attrs,
             const PrimDescType& pd,
-            std::shared_ptr<WeightsReorderParams> weights_reorder = {})
-        : typed_primitive_impl<PType>(weights_reorder, pd.impl_info_str()),
+            kernel_selector::WeightsReorderParams weights_reorder = {})
+        : typed_primitive_impl<PType>(create_weights_reorder_params(weights_reorder), pd.impl_info_str()),
         _engine(&engine),
         _attrs(attrs),
         _pd(pd) {

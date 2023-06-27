@@ -13,7 +13,7 @@
 
 namespace kernel_selector {
 
-ReorderWeightsKernelSelector::ReorderWeightsKernelSelector() {
+ReorderWeightsKernelSelctor::ReorderWeightsKernelSelctor() {
     Attach<ReorderWeightsKernel>();
     Attach<ReorderWeightsWinograd2x3Kernel>();
     Attach<ReorderWeightsWinograd6x3Kernel>();
@@ -23,7 +23,7 @@ ReorderWeightsKernelSelector::ReorderWeightsKernelSelector() {
     Attach<ReorderWeightsOpt>();
 }
 
-KernelsData ReorderWeightsKernelSelector::GetBestKernels(const Params& params, const optional_params& options) const {
+KernelsData ReorderWeightsKernelSelctor::GetBestKernels(const Params& params, const optional_params& options) const {
     return GetNaiveBestKernel(params, options, KernelType::REORDER);
 }
 }  // namespace kernel_selector
