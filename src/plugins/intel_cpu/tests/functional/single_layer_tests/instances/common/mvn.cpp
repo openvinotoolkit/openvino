@@ -26,7 +26,10 @@ std::vector<ElementType> inpPrc = {
 std::vector<ElementType> outPrc = {
         ElementType::f32,
 };
-
+std::vector<ElementType> netPrc = {
+        ElementType::f16,
+        ElementType::f32,
+};
 std::vector<CPUSpecificParams> cpuParams_4D = {
         CPUSpecificParams({nchw}, {nchw}, {}, {}),
         CPUSpecificParams({nhwc}, {nhwc}, {}, {}),
@@ -48,7 +51,7 @@ std::vector<fusingSpecificParams> fusingParamsSetStaticShape {
 const auto Mvn3D = ::testing::Combine(
        ::testing::Combine(
            ::testing::ValuesIn(inputShapes_3D()),
-           ::testing::Values(ElementType::f32),
+           ::testing::ValuesIn(netPrc),
            ::testing::ValuesIn(emptyReductionAxes()),
            ::testing::ValuesIn(acrossChannels()),
            ::testing::ValuesIn(normalizeVariance),
@@ -63,7 +66,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Mvn3D, MvnLayerCPUTest, Mvn3D, Mv
 const auto Mvn4D_acrossChannels = ::testing::Combine(
        ::testing::Combine(
                ::testing::ValuesIn(inputShapes_4D()),
-               ::testing::Values(ElementType::f32),
+               ::testing::ValuesIn(netPrc),
                ::testing::ValuesIn(emptyReductionAxes()),
                ::testing::Values(true),
                ::testing::ValuesIn(normalizeVariance),
@@ -78,7 +81,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Mvn4D_acrossChannels, MvnLayerCPU
 const auto Mvn4D_noAcrossChannels = ::testing::Combine(
        ::testing::Combine(
                ::testing::ValuesIn(inputShapes_4D()),
-               ::testing::Values(ElementType::f32),
+               ::testing::ValuesIn(netPrc),
                ::testing::ValuesIn(emptyReductionAxes()),
                ::testing::Values(false),
                ::testing::ValuesIn(normalizeVariance),
@@ -93,7 +96,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Mvn4D_noAcrossChannels, MvnLayerC
 const auto Mvn5D_acrossChannels = ::testing::Combine(
        ::testing::Combine(
                ::testing::ValuesIn(inputShapes_5D()),
-               ::testing::Values(ElementType::f32),
+               ::testing::ValuesIn(netPrc),
                ::testing::ValuesIn(emptyReductionAxes()),
                ::testing::Values(true),
                ::testing::ValuesIn(normalizeVariance),
@@ -108,7 +111,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Mvn5D_acrossChannels, MvnLayerCPU
 const auto Mvn5D_noAcrossChannels = ::testing::Combine(
        ::testing::Combine(
                ::testing::ValuesIn(inputShapes_5D()),
-               ::testing::Values(ElementType::f32),
+               ::testing::ValuesIn(netPrc),
                ::testing::ValuesIn(emptyReductionAxes()),
                ::testing::Values(false),
                ::testing::ValuesIn(normalizeVariance),
@@ -128,7 +131,7 @@ std::vector<fusingSpecificParams> fusingUnaryEltwiseParamsSet {
 const auto Mvn1D = ::testing::Combine(
        ::testing::Combine(
                ::testing::ValuesIn(inputShapes_1D()),
-               ::testing::Values(ElementType::f32),
+               ::testing::ValuesIn(netPrc),
                ::testing::ValuesIn(emptyReductionAxes()),
                ::testing::ValuesIn(acrossChannels()),
                ::testing::ValuesIn(normalizeVariance),
@@ -144,7 +147,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Mvn1D, MvnLayerCPUTest, Mvn1D, Mv
 const auto Mvn2D = ::testing::Combine(
        ::testing::Combine(
                ::testing::ValuesIn(inputShapes_2D()),
-               ::testing::Values(ElementType::f32),
+               ::testing::ValuesIn(netPrc),
                ::testing::ValuesIn(emptyReductionAxes()),
                ::testing::Values(false),
                ::testing::ValuesIn(normalizeVariance),
@@ -160,7 +163,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Mvn2D, MvnLayerCPUTest, Mvn2D, Mv
 const auto Mvn2DTrans = ::testing::Combine(
        ::testing::Combine(
                ::testing::ValuesIn(inputShapes_2D()),
-               ::testing::Values(ElementType::f32),
+               ::testing::ValuesIn(netPrc),
                ::testing::ValuesIn(emptyReductionAxes()),
                ::testing::Values(true),
                ::testing::ValuesIn(normalizeVariance),
@@ -175,7 +178,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Mvn2DTrans, MvnLayerCPUTest, Mvn2
 const auto Mvn2DStatic = ::testing::Combine(
        ::testing::Combine(
                ::testing::ValuesIn(inputShapesStatic_2D()),
-               ::testing::Values(ElementType::f32),
+               ::testing::ValuesIn(netPrc),
                ::testing::ValuesIn(emptyReductionAxes()),
                ::testing::Values(false),
                ::testing::ValuesIn(normalizeVariance),
@@ -188,7 +191,7 @@ const auto Mvn2DStatic = ::testing::Combine(
 const auto Mvn3DStatic = ::testing::Combine(
        ::testing::Combine(
            ::testing::ValuesIn(static_shapes_to_test_representation(inputShapesStatic_3D())),
-           ::testing::Values(ElementType::f32),
+           ::testing::ValuesIn(netPrc),
            ::testing::ValuesIn(emptyReductionAxes()),
            ::testing::ValuesIn(acrossChannels()),
            ::testing::ValuesIn(normalizeVariance),
@@ -203,7 +206,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Mvn3D_Static, MvnLayerCPUTest, Mv
 const auto Mvn4DStatic = ::testing::Combine(
        ::testing::Combine(
                ::testing::ValuesIn(static_shapes_to_test_representation(inputShapesStatic_4D())),
-               ::testing::Values(ElementType::f32),
+               ::testing::ValuesIn(netPrc),
                ::testing::ValuesIn(emptyReductionAxes()),
                ::testing::Values(true),
                ::testing::ValuesIn(normalizeVariance),
@@ -218,7 +221,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Mvn4D_Static, MvnLayerCPUTest, Mv
 const auto Mvn5DStatic = ::testing::Combine(
        ::testing::Combine(
                ::testing::ValuesIn(static_shapes_to_test_representation(inputShapesStatic_5D())),
-               ::testing::Values(ElementType::f32),
+               ::testing::ValuesIn(netPrc),
                ::testing::ValuesIn(emptyReductionAxes()),
                ::testing::Values(true),
                ::testing::ValuesIn(normalizeVariance),

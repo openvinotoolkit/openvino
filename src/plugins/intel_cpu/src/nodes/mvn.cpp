@@ -1181,9 +1181,11 @@ void MVN::initSupportedPrimitiveDescriptors() {
     }
 
     // ref with float planar and no fusion
+#if defined(OPENVINO_ARCH_X86_64)
     if (!mayiuse(cpu::x64::sse41)) {
         inputPrecision = outputPrecision = Precision::FP32;
     }
+#endif
 
     // TODO [DS]: inplace
     bool canBeInplace = !isDynamicNode() && (inputPrecision.size() == outputPrecision.size()) &&
