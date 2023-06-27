@@ -1,7 +1,6 @@
-.. OpenVINO Toolkit documentation master file, created by
-   sphinx-quickstart on Wed Jul  7 10:46:56 2021.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
+============================
+OpenVINO 2023.0
+============================
 
 .. meta::
    :google-site-verification: _YqumYQ98cmXUTwtzM_0WIIadtDc6r_TMYGbmGgNvrk
@@ -9,7 +8,6 @@
 .. raw:: html
 
    <link rel="stylesheet" type="text/css" href="_static/css/homepage_style.css">
-
 
 
 
@@ -29,19 +27,10 @@
 
       Get started
 
-
-
 .. rst-class:: openvino-diagram
 
    .. image:: _static/images/ov_homepage_diagram.png
       :align: center
-
-
-
-
-
-
-
 
 .. grid:: 2 2 3 3
    :class-container: ov-homepage-higlight-grid
@@ -82,11 +71,8 @@
       Reach for performance with post-training and training-time compression with NNCF
 
 
-
-
-
 Feature Overview
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##############################
 
 .. grid:: 1 2 2 2
    :class-container: ov-homepage-feature-grid
@@ -113,9 +99,6 @@ Feature Overview
       In applications where fast start-up is required, OpenVINO significantly reduces first-inference latency by using the 
       CPU for initial inference and then switching to another device once the model has been compiled and loaded to memory. 
       Compiled models are cached improving start-up time even more.
-
-
-
 
 
 
