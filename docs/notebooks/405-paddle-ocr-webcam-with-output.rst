@@ -66,7 +66,7 @@ stored in the “model” folder.
 Only a few lines of code are required to run the model. First,
 initialize the runtime for inference. Then, read the network
 architecture and model weights from the ``.pdmodel`` and ``.pdiparams``
-files to load to CPU.
+files to load to CPU/GPU.
 
 .. code:: ipython3
 
@@ -131,7 +131,7 @@ Load the Model for Text **Detection**
     # Initialize OpenVINO Runtime for text detection.
     core = Core()
     det_model = core.read_model(model=det_model_file_path)
-    det_compiled_model = core.compile_model(model=det_model, device_name="CPU")
+    det_compiled_model = core.compile_model(model=det_model, device_name="AUTO")
     
     # Get input and output nodes for text detection.
     det_input_layer = det_compiled_model.input(0)
@@ -167,14 +167,6 @@ different image sizes, for example, dynamic input shapes. Hence:
    by setting the upper bound of the input dimension using, for example,
    ``Dimension(1, 512)``.
 
-..
-
-   Note: Since the text recognition model is with dynamic input shape
-   and current release of OpenVINO 2022.2 does not support dynamic shape
-   on iGPU, you cannot directly switch device to iGPU for inference in
-   this case. Otherwise, you may need to resize the input images to this
-   model into a fixed size and then try running the inference on iGPU.
-
 .. code:: ipython3
 
     # Read the model and corresponding weights from a file.
@@ -186,7 +178,7 @@ different image sizes, for example, dynamic input shapes. Hence:
         input_shape[3] = -1
         rec_model.reshape({input_layer: input_shape})
     
-    rec_compiled_model = core.compile_model(model=rec_model, device_name="CPU")
+    rec_compiled_model = core.compile_model(model=rec_model, device_name="AUTO")
     
     # Get input and output nodes.
     rec_input_layer = rec_compiled_model.input(0)
@@ -520,8 +512,8 @@ Run live PaddleOCR:
 
 .. parsed-literal::
 
-    [ WARN:0@45.089] global cap_v4l.cpp:982 open VIDEOIO(V4L2:/dev/video0): can't open camera by index
-    [ERROR:0@45.089] global obsensor_uvc_stream_channel.cpp:156 getStreamChannelGroup Camera index out of range
+    [ WARN:0@23.888] global cap_v4l.cpp:982 open VIDEOIO(V4L2:/dev/video0): can't open camera by index
+    [ERROR:0@23.888] global obsensor_uvc_stream_channel.cpp:156 getStreamChannelGroup Camera index out of range
 
 
 If you do not have a webcam, you can still run this demo with a video
