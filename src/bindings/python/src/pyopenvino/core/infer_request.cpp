@@ -29,12 +29,6 @@ inline py::object run_sync_infer(InferRequestWrapper& self, ReturnPolicy policy)
 }
 
 void regclass_InferRequest(py::module m) {
-    py::enum_<ReturnPolicy>(m, "ReturnPolicy")
-        .value("NONE", ReturnPolicy::NONE)
-        .value("COPY", ReturnPolicy::COPY)
-        .value("VIEW", ReturnPolicy::VIEW)
-        .export_values();
-
     py::class_<InferRequestWrapper, std::shared_ptr<InferRequestWrapper>> cls(m, "InferRequest");
     cls.doc() = "openvino.runtime.InferRequest represents infer request which can be run in asynchronous or "
                 "synchronous manners.";

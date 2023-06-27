@@ -13,7 +13,6 @@ from openvino._pyopenvino import CompiledModel as CompiledModelBase
 from openvino._pyopenvino import AsyncInferQueue as AsyncInferQueueBase
 from openvino._pyopenvino import ConstOutput
 from openvino._pyopenvino import Tensor
-from openvino._pyopenvino import ReturnPolicy
 
 from openvino.runtime.utils.data_helpers import (
     OVDict,
