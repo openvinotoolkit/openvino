@@ -16,6 +16,8 @@
 #define IE_ASSERT_OK(...) ASSERT_EQ(IEStatusCode::OK, __VA_ARGS__)
 #define IE_EXPECT_NOT_OK(...) EXPECT_NE(IEStatusCode::OK, __VA_ARGS__)
 
+OPENVINO_SUPPRESS_DEPRECATED_START
+
 static std::mutex m;
 static bool ready = false;
 static std::condition_variable condVar;

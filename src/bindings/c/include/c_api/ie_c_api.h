@@ -56,20 +56,30 @@
 #    define INFERENCE_ENGINE_C_API_CALLBACK
 #endif
 
+#if !defined(IN_OV_COMPONENT) && !defined(C_API_LEGACY_HEADER_INCLUDED)
+#    define C_API_LEGACY_HEADER_INCLUDED
+#    ifdef _MSC_VER
+#        pragma message(
+            "The legacy C API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    else
+#        warning("The legacy C API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    endif
+#endif
+
 typedef struct ie_core ie_core_t;
-typedef struct ie_network ie_network_t;
-typedef struct ie_executable ie_executable_network_t;
-typedef struct ie_infer_request ie_infer_request_t;
-typedef struct ie_blob ie_blob_t;
+            typedef struct ie_network ie_network_t;
+            typedef struct ie_executable ie_executable_network_t;
+            typedef struct ie_infer_request ie_infer_request_t;
+            typedef struct ie_blob ie_blob_t;
 
-OPENVINO_SUPPRESS_DEPRECATED_START
+            OPENVINO_SUPPRESS_DEPRECATED_START
 
-/**
- * @struct ie_version
- * @brief Represents an API version information that reflects the set of supported features
- */
-typedef struct ie_version {
-    char* api_version;  //!< A string representing Inference Engine version
+            /**
+             * @struct ie_version
+             * @brief Represents an API version information that reflects the set of supported features
+             */
+            typedef struct ie_version {
+                char* api_version;  //!< A string representing Inference Engine version
 } ie_version_t;
 
 /**
