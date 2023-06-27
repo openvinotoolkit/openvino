@@ -23,17 +23,20 @@ public:
         data_type_t dst_precision;
         size_t rotary_emb_base;
         float rotary_pct;
-        bool use_position2d;
+        bool use_position2d;            // chatglm true, other false
     };
     struct exec_param {
         size_t batch;
         size_t query_seq_len;
         size_t past_seq_len;
-        uint8_t* qkv;
-        uint8_t* query_dst;
-        uint8_t** layer_past_key_padded;
-        uint8_t** layer_past_value_padded;
-        int* position2d_ids;        // shape: [batch, 2, query_seq_len]
+        uint8_t* qkv;                       // shape: [batch, query_seq_len, 3 * hidden size]
+        uint8_t* query_dst;                 // rotary embbeding dst
+        uint8_t** layer_past_key_src;       // past key src
+        uint8_t** layer_past_value_src;     // past value src
+        uint8_t** layer_past_key_dst;       // past key dst, if layer_past_key_src!=layer_past_key_dst, will copy layer_past_key_src to layer_past_key_dst
+        uint8_t** layer_past_value_dst;     // past value dst, if layer_past_value!=layer_past_value_dst, will copy layer_past_value to layer_past_value_dst
+        int* position2d_ids;                // shape: [batch, 2, query_seq_len]
+        size_t head_stride_in_kv;           // kv stride for next head; kv may be preallocated a big buffer
     };
 
     emb_gpt();

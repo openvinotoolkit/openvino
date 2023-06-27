@@ -35,8 +35,8 @@ public:
         size_t past_seq_len;
         bool is_causal_in_attention;        // causal mask is fused in attention mask: chatglm uses it.
         uint8_t* qkv;
-        uint8_t** layer_past_key_padded;
-        uint8_t** layer_past_value_padded;
+        uint8_t** layer_past_key_dst;
+        uint8_t** layer_past_value_dst;
         int* position2d_ids;                // shape: [batch, 2, query_seq_len]
         float* attention_mask;              // attention mask, attention_mask[0] shape:
                                             //      [batch, 1, 1, key_seq_len], when is_causal_in_attention is false
@@ -106,9 +106,12 @@ void attn_gpt::exec(const attn_gpt::exec_param& param) {
     emb_param.past_seq_len = param.past_seq_len;
     emb_param.qkv = param.qkv;
     emb_param.query_dst = _query_dst.get();
-    emb_param.layer_past_key_padded = param.layer_past_key_padded;
-    emb_param.layer_past_value_padded = param.layer_past_value_padded;
+    emb_param.layer_past_key_src = param.layer_past_key_dst;
+    emb_param.layer_past_value_src = param.layer_past_value_dst;
+    emb_param.layer_past_key_dst = param.layer_past_key_dst;
+    emb_param.layer_past_value_dst = param.layer_past_value_dst;
     emb_param.position2d_ids = param.position2d_ids;
+    emb_param.head_stride_in_kv = param.head_stride_in_kv;
     _emb_gpt->exec(emb_param);
 
     llmdnn::mha_gpt::exec_param mha_param;
@@ -120,8 +123,8 @@ void attn_gpt::exec(const attn_gpt::exec_param& param) {
     mha_param.head_stride_in_kv = param.head_stride_in_kv;
     mha_param.is_causal_in_attention = param.is_causal_in_attention;
     mha_param.attention_mask = param.attention_mask;
-    mha_param.k = emb_param.layer_past_key_padded;
-    mha_param.v = emb_param.layer_past_value_padded;
+    mha_param.k = emb_param.layer_past_key_dst;
+    mha_param.v = emb_param.layer_past_value_dst;
     _mha_gpt->exec(mha_param);
 }
 
@@ -173,35 +176,35 @@ void regclass_attn_gpt(pybind11::module m) {
             :param num_heads: heads number.
             :type num_heads: int
         )");
-    cls.def("exec_position", [] (attn_gpt& self, const torch::Tensor& qkv, const torch::Tensor& layer_past_key_padded,
-        const torch::Tensor& layer_past_value_padded, int64_t past_seq_len, const torch::Tensor& attn_mask, const torch::Tensor& position2d_ids) {
+    cls.def("exec_position", [] (attn_gpt& self, const torch::Tensor& qkv, const torch::Tensor& layer_past_key_dst,
+        const torch::Tensor& layer_past_value_dst, int64_t past_seq_len, const torch::Tensor& attn_mask, const torch::Tensor& position2d_ids) {
             // qkv: [batch, seq_len, (num_heads * 3 * head_size)]
             // layer_past_padded: [batch, num_attention_heads, MAX_SEQ_LEN, head_size_aligned]
             // past_seq_len: past_seq_len==layer_past.shape[-2]
             // attn_mask: [batch, 1, 1/query_seq_len, key_seq_len]
             // key/value: [batch, num_heads, query_seq_len+past_seq_len, head_size_aligned]
-            AT_ASSERT(qkv.dim() == 3 && layer_past_key_padded.dim() == 4 && layer_past_value_padded.dim() == 4 && attn_mask.dim() == 4 &&
-                qkv.size(0) == layer_past_key_padded.size(0) &&
-                layer_past_key_padded.dim() == layer_past_value_padded.dim());
+            AT_ASSERT(qkv.dim() == 3 && layer_past_key_dst.dim() == 4 && layer_past_value_dst.dim() == 4 && attn_mask.dim() == 4 &&
+                qkv.size(0) == layer_past_key_dst.size(0) &&
+                layer_past_key_dst.dim() == layer_past_value_dst.dim());
             auto batch = qkv.size(0);
-            auto num_heads = layer_past_key_padded.size(1);
+            auto num_heads = layer_past_key_dst.size(1);
             auto query_seq_len = qkv.size(1);
             auto head_size = qkv.size(2) / 3 / num_heads;
-            auto head_size_aligned = layer_past_key_padded.size(3);
-            auto max_seq_len = layer_past_key_padded.size(2);
-            AT_ASSERT(past_seq_len <= layer_past_key_padded.size(2) && head_size <= layer_past_key_padded.size(3) &&
-                      query_seq_len <= layer_past_key_padded.size(2));
+            auto head_size_aligned = layer_past_key_dst.size(3);
+            auto max_seq_len = layer_past_key_dst.size(2);
+            AT_ASSERT(past_seq_len <= layer_past_key_dst.size(2) && head_size <= layer_past_key_dst.size(3) &&
+                      query_seq_len <= layer_past_key_dst.size(2));
 
             attn_gpt::exec_param param;
             param.batch = batch;
             param.query_seq_len = query_seq_len;
             param.past_seq_len = past_seq_len;
             param.qkv = reinterpret_cast<uint8_t*>(qkv.data_ptr());
-            param.layer_past_key_padded = reinterpret_cast<uint8_t**>(alloca(batch * sizeof(uint8_t*)));
-            param.layer_past_value_padded = reinterpret_cast<uint8_t**>(alloca(batch * sizeof(uint8_t*)));
+            param.layer_past_key_dst = reinterpret_cast<uint8_t**>(alloca(batch * sizeof(uint8_t*)));
+            param.layer_past_value_dst = reinterpret_cast<uint8_t**>(alloca(batch * sizeof(uint8_t*)));
             for (int i = 0; i < batch; i++) {
-                param.layer_past_key_padded[i] = reinterpret_cast<uint8_t*>(layer_past_key_padded[i].data_ptr());
-                param.layer_past_value_padded[i] = reinterpret_cast<uint8_t*>(layer_past_value_padded[i].data_ptr());
+                param.layer_past_key_dst[i] = reinterpret_cast<uint8_t*>(layer_past_key_dst[i].data_ptr());
+                param.layer_past_value_dst[i] = reinterpret_cast<uint8_t*>(layer_past_value_dst[i].data_ptr());
             }
             param.position2d_ids = reinterpret_cast<int*>(position2d_ids.data_ptr());
 
@@ -218,8 +221,8 @@ void regclass_attn_gpt(pybind11::module m) {
             return out;
         },
         py::arg("qkv"),
-        py::arg("layer_past_key_padded"),
-        py::arg("layer_past_value_padded"),
+        py::arg("layer_past_key_dst"),
+        py::arg("layer_past_value_dst"),
         py::arg("past_seq_len"),
         py::arg("attn_mask"),
         py::arg("position2d_ids"),

@@ -23,10 +23,12 @@ struct emb_gpt_impl_avx512 : public emb_gpt::impl {
     void exec(const emb_gpt::exec_param& param) override;
 
     void initRotery(size_t max_seq_len);
+    void memcpyPastKV(uint8_t** pastk_src, uint8_t** pastv_src, uint8_t** pastk_dst, uint8_t** pastv_dst,
+        size_t batch, size_t past_seq_len, size_t head_stride_in_kv);
     void applyRotaryPosEmbMemcpy(uint8_t* q_src, uint8_t* k_src, uint8_t* v_src, uint8_t* q_dst, uint8_t** k_dst, uint8_t** v_dst,
-        size_t batch, size_t q_seq_len, size_t past_seq_len);
+        size_t batch, size_t q_seq_len, size_t past_seq_len, size_t head_stride_in_kv);
     void applyRotaryPosEmbMemcpyWithPosition2d(uint8_t* q_src, uint8_t* k_src, uint8_t* v_src, uint8_t* q_dst, uint8_t** k_dst, uint8_t** v_dst,
-        size_t batch, size_t q_seq_len, size_t past_seq_len, int* position2d_ids);
+        size_t batch, size_t q_seq_len, size_t past_seq_len, int* position2d_ids, size_t head_stride_in_kv);
 
     emb_gpt::create_param _create_param;
     size_t _head_num = 32;
@@ -111,12 +113,33 @@ void emb_gpt_impl_avx512::initRotery(size_t max_seq_len) {
     }
 }
 
+void emb_gpt_impl_avx512::memcpyPastKV(uint8_t** pastk_src, uint8_t** pastv_src, uint8_t** pastk_dst, uint8_t** pastv_dst,
+        size_t batch, size_t past_seq_len, size_t head_stride_in_kv) {
+    parallel_for3d(batch, _head_num, past_seq_len, [&](size_t b, size_t h, size_t s) {
+        auto k_dst_batch = pastk_dst[b];
+        auto v_dst_batch = pastv_dst[b];
+        auto k_src_batch = pastk_src[b];
+        auto v_src_batch = pastv_src[b];
+        auto k_dst_seq = k_dst_batch + s * _size_per_head_aligned * _output_type_size;
+        auto v_dst_seq = v_dst_batch + s * _size_per_head_aligned * _output_type_size;
+        auto k_src_seq = k_src_batch + s * _size_per_head_aligned * _output_type_size;
+        auto v_src_seq = v_src_batch + s * _size_per_head_aligned * _output_type_size;
+        auto* k_src_f = k_src_seq + h * past_seq_len * _size_per_head_aligned * _output_type_size;
+        auto* k_dst_f = k_dst_seq + h * head_stride_in_kv * _output_type_size;
+        auto* v_src_f = v_src_seq + h * past_seq_len * _size_per_head_aligned * _output_type_size;
+        auto* v_dst_f = v_dst_seq + h * head_stride_in_kv * _output_type_size;
+
+        memcpy(k_dst_f, k_src_f, _output_type_size * _size_per_head);
+        memcpy(v_dst_f, v_src_f, _output_type_size * _size_per_head);
+    });
+}
+
 // q_src shape: [batch, q_seq_len, num_attention_heads, 3 * head_size]
 // q_dst shape: [batch, num_attention_heads, q_seq_len, head_size_aligned]
 // kv_src shape: [batch, q_seq_len, num_attention_heads, 3 * head_size]
 // kv_dst shape: [batch, num_attention_heads, q_seq_len+past_seq_len, head_size_aligned]
 void emb_gpt_impl_avx512::applyRotaryPosEmbMemcpy(uint8_t* q_src, uint8_t* k_src, uint8_t* v_src, uint8_t* q_dst, uint8_t** k_dst, uint8_t** v_dst,
-    size_t batch, size_t q_seq_len, size_t past_seq_len) {
+    size_t batch, size_t q_seq_len, size_t past_seq_len, size_t head_stride_in_kv) {
     auto key_offset = _output_type_size * past_seq_len * _size_per_head_aligned;
     auto* cos_cached = _cos_cached.get() + past_seq_len * _rotary_ndims;
     auto* sin_cached = _sin_cached.get() + past_seq_len * _rotary_ndims;
@@ -137,14 +160,14 @@ void emb_gpt_impl_avx512::applyRotaryPosEmbMemcpy(uint8_t* q_src, uint8_t* k_src
         auto* q_src_f = reinterpret_cast<ov::bfloat16*>(q_src_seq + h * _size_per_head * 3 * _input_type_size);
         auto* k_src_f = reinterpret_cast<ov::bfloat16*>(k_src_seq + h * _size_per_head * 3 * _input_type_size);
         auto* q_dst_f = reinterpret_cast<ov::bfloat16*>(q_dst_seq + h * q_seq_len * _size_per_head_aligned * _output_type_size);
-        auto* k_dst_f = reinterpret_cast<ov::bfloat16*>(k_dst_seq + h * _max_seq_len * _size_per_head_aligned * _output_type_size);
+        auto* k_dst_f = reinterpret_cast<ov::bfloat16*>(k_dst_seq + h * head_stride_in_kv * _output_type_size);
         rotary_avx512(_rotary_ndims, cos_cached + s * _rotary_ndims, sin_cached + s * _rotary_ndims, q_src_f, k_src_f, q_dst_f, k_dst_f);
 
         // q, k concat
         memcpy(reinterpret_cast<uint8_t*>(q_dst_f) + _rotary_ndims * _output_type_size, reinterpret_cast<uint8_t*>(q_src_f) + _rotary_ndims * _input_type_size, _output_type_size * (_size_per_head - _rotary_ndims));
         memcpy(reinterpret_cast<uint8_t*>(k_dst_f) + _rotary_ndims * _output_type_size, reinterpret_cast<uint8_t*>(k_src_f) + _rotary_ndims * _input_type_size, _output_type_size * (_size_per_head - _rotary_ndims));
         // v concat
-        memcpy(static_cast<uint8_t*>(v_dst_seq) + h * _max_seq_len * _size_per_head_aligned * _output_type_size,
+        memcpy(static_cast<uint8_t*>(v_dst_seq) + h * head_stride_in_kv * _output_type_size,
             static_cast<uint8_t*>(v_src_seq) + h * _size_per_head * 3 * _input_type_size,
             _size_per_head * _output_type_size);
     });
@@ -156,7 +179,7 @@ void emb_gpt_impl_avx512::applyRotaryPosEmbMemcpy(uint8_t* q_src, uint8_t* k_src
 // kv_dst shape: [batch, num_attention_heads, q_seq_len+past_seq_len, head_size_aligned]
 // position2d_ids: [batch, 2, q_seq_len]
 void emb_gpt_impl_avx512::applyRotaryPosEmbMemcpyWithPosition2d(uint8_t* q_src, uint8_t* k_src, uint8_t* v_src, uint8_t* q_dst, uint8_t** k_dst, uint8_t** v_dst,
-    size_t batch, size_t q_seq_len, size_t past_seq_len, int* position2d_ids) {
+    size_t batch, size_t q_seq_len, size_t past_seq_len, int* position2d_ids, size_t head_stride_in_kv) {
     auto key_offset = _output_type_size * past_seq_len * _size_per_head_aligned;
     auto* cos_cached = _cos_cached.get();
     auto* sin_cached = _sin_cached.get();
@@ -179,7 +202,7 @@ void emb_gpt_impl_avx512::applyRotaryPosEmbMemcpyWithPosition2d(uint8_t* q_src, 
         auto* q_src_f = reinterpret_cast<ov::bfloat16*>(q_src_seq + h * _size_per_head * 3 * _input_type_size);
         auto* k_src_f = reinterpret_cast<ov::bfloat16*>(k_src_seq + h * _size_per_head * 3 * _input_type_size);
         auto* q_dst_f = reinterpret_cast<ov::bfloat16*>(q_dst_seq + h * q_seq_len * _size_per_head_aligned * _output_type_size);
-        auto* k_dst_f = reinterpret_cast<ov::bfloat16*>(k_dst_seq + h * _max_seq_len * _size_per_head_aligned * _output_type_size);
+        auto* k_dst_f = reinterpret_cast<ov::bfloat16*>(k_dst_seq + h * head_stride_in_kv * _output_type_size);
         rotary_avx512(_rotary_ndims, cos_cached + pos_batch[s] * _rotary_ndims, sin_cached + pos_batch[s] * _rotary_ndims, q_src_f, k_src_f, q_dst_f, k_dst_f);
         rotary_avx512(_rotary_ndims, cos_cached + block_batch[s] * _rotary_ndims, sin_cached + block_batch[s] * _rotary_ndims,
             q_src_f + _rotary_ndims,
@@ -188,7 +211,7 @@ void emb_gpt_impl_avx512::applyRotaryPosEmbMemcpyWithPosition2d(uint8_t* q_src, 
             k_dst_f + _rotary_ndims);
 
         // v concat
-        memcpy(static_cast<uint8_t*>(v_dst_seq) + h * _max_seq_len * _size_per_head_aligned * _output_type_size,
+        memcpy(static_cast<uint8_t*>(v_dst_seq) + h * head_stride_in_kv * _output_type_size,
             static_cast<uint8_t*>(v_src_seq) + h * _size_per_head * 3 * _input_type_size,
             _size_per_head * _output_type_size);
     });
@@ -202,11 +225,17 @@ void emb_gpt_impl_avx512::exec(const emb_gpt::exec_param& param) {
     auto key = qkv + _size_per_head * _input_type_size;           // qkv[..., self.head_size : 2 * self.head_size].permute(0, 2, 1, 3)
     auto value = qkv + 2 * _size_per_head * _input_type_size;     // qkv[..., 2 * self.head_size :].permute(0, 2, 1, 3)
     auto query_dst = param.query_dst;
-    auto key_dst = param.layer_past_key_padded;
-    auto value_dst = param.layer_past_value_padded;
+    auto key_dst = param.layer_past_key_dst;
+    auto value_dst = param.layer_past_value_dst;
     auto batch = param.batch;
     auto query_seq_len = param.query_seq_len;
     auto past_seq_len = param.past_seq_len;
+    auto head_stride_in_kv = param.head_stride_in_kv;
+
+    // past kv src != dst, copy src to dst first
+    if (param.layer_past_key_src[0] != param.layer_past_key_dst[0] && past_seq_len)
+        memcpyPastKV(param.layer_past_key_src, param.layer_past_value_src, param.layer_past_key_dst, param.layer_past_value_dst, batch, past_seq_len, head_stride_in_kv);
+
     // transpose + rotary embbeding:
     // transpose: [batch, seq_len, num_attention_heads, 3 * head_size] -->
     //          3 [batch, num_attention_heads, seq_len, head_size]
@@ -225,9 +254,9 @@ void emb_gpt_impl_avx512::exec(const emb_gpt::exec_param& param) {
         // q_dst shape: [batch, num_attention_heads, q_seq_len, head_size_aligned]
         // kv_dst shape: [batch, num_attention_heads, q_seq_len+past_seq_len, head_size_aligned]
         if (_use_position2d) {
-            applyRotaryPosEmbMemcpyWithPosition2d(query, key, value, query_dst, key_dst, value_dst, batch, query_seq_len, past_seq_len, param.position2d_ids);
+            applyRotaryPosEmbMemcpyWithPosition2d(query, key, value, query_dst, key_dst, value_dst, batch, query_seq_len, past_seq_len, param.position2d_ids, head_stride_in_kv);
         } else {
-            applyRotaryPosEmbMemcpy(query, key, value, query_dst, key_dst, value_dst, batch, query_seq_len, past_seq_len);
+            applyRotaryPosEmbMemcpy(query, key, value, query_dst, key_dst, value_dst, batch, query_seq_len, past_seq_len, head_stride_in_kv);
         }
     }
 }

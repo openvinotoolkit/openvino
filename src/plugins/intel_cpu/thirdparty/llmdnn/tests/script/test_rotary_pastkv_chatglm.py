@@ -268,8 +268,8 @@ class GPTNeoXAttentionExt:
     #       1: query: [batch, num_attention_heads, seq_len, head_size_aligned]
     #       2: k: [batch, num_attention_heads, MAX_SEQ_LEN, head_size_aligned]
     #       3: v: [batch, num_attention_heads, MAX_SEQ_LEN, head_size_aligned]
-    def forward(self, qkv, layer_past_key_padded, layer_past_value_padded, query_padded, past_seq_len, position_ids):
-        self.emd.exec_position(qkv, layer_past_key_padded, layer_past_value_padded, query_padded, past_seq_len, position_ids)
+    def forward(self, qkv, layer_past_key_src, layer_past_value_src, layer_past_key_dst, layer_past_value_dst, query_padded, past_seq_len, position_ids):
+        self.emd.exec_position(qkv, layer_past_key_src, layer_past_value_src, layer_past_key_dst, layer_past_value_dst, query_padded, past_seq_len, position_ids)
 
 
 HEAD_NUM = 32
@@ -298,6 +298,7 @@ def test_chatglm():
     ]
     ref_net = get_ref_model()
     net = GPTNeoXAttentionExt(HEAD_NUM, HIDDEN_SIZE, SIZE_PER_HEAD_ALIGN, MAX_POSITION_EMBEDDINGS, ROTARY_EMB_BASE, ROTARY_PCT)
+    net_seq = GPTNeoXAttentionExt(HEAD_NUM, HIDDEN_SIZE, SIZE_PER_HEAD, MAX_POSITION_EMBEDDINGS, ROTARY_EMB_BASE, ROTARY_PCT)
     with torch.cpu.amp.autocast():
         for (i, input) in enumerate(inputs):
             qkv, layer_past_key, layer_past_value = input
@@ -318,7 +319,29 @@ def test_chatglm():
             seq_ids[:, 0, :] = seq_batch1
             seq_ids[:, 1, :] = block_batch1
             query_ref, key_ref, value_ref = ref_net.forward(qkv, seq_ids, (layer_past_key, layer_past_value))
+            query_ref = query_ref.to(dtype=torch.bfloat16)
+            key_ref = key_ref.to(dtype=torch.bfloat16)
+            
+            # no prealloc past kv
+            layer_past_key_seq = torch.zeros(key_ref.shape, dtype=torch.bfloat16)
+            layer_past_value_seq = torch.zeros(value_ref.shape, dtype=torch.bfloat16)
+            query_seq = torch.zeros(query_ref.shape, dtype=torch.bfloat16)
+            net_seq.forward(qkv, layer_past_key, layer_past_value, layer_past_key_seq, layer_past_value_seq, query_seq, past_seq_len, seq_ids)
+            query, key, value = query_seq, layer_past_key_seq, layer_past_value_seq
+            # check query
+            if not torch.allclose(query_ref, query, rtol=0.001, atol=0.01):
+                print(f"error at sequence query index {i} ref:\n{query_ref} \ncur:\n {query} ")
+                #assert(False)
+            # check key
+            if not torch.allclose(key_ref, key, rtol=0.001, atol=0.01):
+                print(f"error at sequence key index {i} ref:\n{key_ref} \ncur:\n {key} ")
+                assert(False)
+            # check value
+            if not torch.allclose(value_ref, value, rtol=0.001, atol=0.01):
+                print(f"error at sequence value index {i} ref:\n{value_ref} \ncur:\n {value} ")
+                assert(False)
 
+            # prealloc past kv
             shape[-2] = MAX_SEQ_LEN
             shape[-1] = SIZE_PER_HEAD_ALIGN
             layer_past_key_padded = torch.zeros(shape, dtype=torch.bfloat16)
@@ -328,10 +351,8 @@ def test_chatglm():
             query_padded = torch.zeros(query_shape, dtype=torch.bfloat16)
             layer_past_key_padded[:,:,:layer_past_key.shape[-2],:layer_past_key.shape[-1]] = layer_past_key
             layer_past_value_padded[:,:,:layer_past_key.shape[-2],:layer_past_key.shape[-1]] = layer_past_value
-            query_ref = query_ref.to(dtype=torch.bfloat16)
-            key_ref = key_ref.to(dtype=torch.bfloat16)
-            net.forward(qkv, layer_past_key_padded, layer_past_value_padded, query_padded, past_seq_len, seq_ids)
-            output, query, key, value = (layer_past_key_padded, layer_past_value_padded), query_padded, layer_past_key_padded, layer_past_value_padded
+            net.forward(qkv, layer_past_key_padded, layer_past_value_padded, layer_past_key_padded, layer_past_value_padded, query_padded, past_seq_len, seq_ids)
+            query, key, value = query_padded, layer_past_key_padded, layer_past_value_padded
             # check query
             if not torch.allclose(query_ref, query[:,:,:,:query_ref.shape[-1]], rtol=0.001, atol=0.01):
                 print(f"error at query index {i} ref:\n{query_ref} \ncur:\n {query} ")
