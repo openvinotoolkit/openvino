@@ -68,21 +68,21 @@ DeviceInformation Plugin::parse_meta_device(const std::string& devices_batch_con
 }
 
 std::shared_ptr<ov::IRemoteContext> Plugin::create_context(const ov::AnyMap& remote_properties) const {
-    OPENVINO_NOT_IMPLEMENTED;
-    // auto cfg = remote_properties;
-    // auto it = cfg.find(CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG));
-    // if (it == cfg.end())
-    //     it = cfg.find(ov::device::priorities.name());
-    // if (it == cfg.end())
-    //     IE_THROW() << "Value for KEY_AUTO_BATCH_DEVICE_CONFIG is not set";
+    auto cfg = remote_properties;
+    auto it = cfg.find(CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG));
+    if (it == cfg.end())
+        it = cfg.find(ov::device::priorities.name());
+    if (it == cfg.end())
+        IE_THROW() << "Value for KEY_AUTO_BATCH_DEVICE_CONFIG is not set";
 
-    // auto val = it->second.as<std::string>();
-    // auto core = get_core();
-    // if (!core)
-    //     return nullptr;
-    // auto metaDevice = parse_meta_device(val, ov::AnyMap());
-    // cfg.erase(it);
-    // return core->create_context(metaDevice.device_name, cfg);
+    auto val = it->second.as<std::string>();
+    auto core = get_core();
+    if (!core)
+        return nullptr;
+    auto metaDevice = parse_meta_device(val, ov::AnyMap());
+    cfg.erase(it);
+    auto remote_context = core->create_context(metaDevice.device_name, cfg);
+    return remote_context._impl;
 }
 
 ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& arguments) const {
@@ -369,7 +369,20 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
 }
 
 std::shared_ptr<ov::IRemoteContext> Plugin::get_default_context(const ov::AnyMap& remote_properties) const {
-    OPENVINO_NOT_IMPLEMENTED;
+    auto cfg = remote_properties;
+    auto it = cfg.find(CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG));
+    if (it == cfg.end())
+        it = cfg.find(ov::device::priorities.name());
+    if (it == cfg.end())
+        IE_THROW() << "Value for KEY_AUTO_BATCH_DEVICE_CONFIG is not set";
+
+    auto val = it->second.as<std::string>();
+    auto core = get_core();
+    if (!core)
+        return nullptr;
+    auto metaDevice = parse_meta_device(val, ov::AnyMap());
+    auto remote_context = core->get_default_context(metaDevice.device_name);
+    return remote_context._impl;
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model, const ov::AnyMap& properties) const {
