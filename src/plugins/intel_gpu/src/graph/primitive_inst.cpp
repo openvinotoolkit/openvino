@@ -21,6 +21,7 @@
 #include "gemm_inst.h"
 #include "assign_inst.h"
 #include "read_value_inst.h"
+#include "condition_inst.h"
 #include "experimental_detectron_roi_feature_extractor_inst.hpp"
 #include "compilation_context.hpp"
 #include "implementation_map.hpp"
@@ -619,6 +620,10 @@ void primitive_inst::do_runtime_in_place_concat() {
     GPU_DEBUG_TRACE_DETAIL << "[In place concat] " << concat_inst->id() << ": can_be_optimized " << std::endl;
 }
 
+bool primitive_inst::has_inner_networks() const {
+    return (_impl_params->inner_nets.size() > 0);
+}
+
 event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
     const auto primitive_id = id();
     OPENVINO_ASSERT(_has_valid_input, primitive_id, " has invalid/unset input");
@@ -626,7 +631,7 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
 
     bool need_args_update = false;
     std::vector<event::ptr> dependencies;
-    if (is_dynamic()) {
+    if (is_dynamic() && !has_inner_networks()) {
         do_runtime_in_place_concat();
         OPENVINO_ASSERT(_node != nullptr, "[GPU] Invalid primitive_inst object for dynamic shapes case: program_node can't be null");
         update_shape();
@@ -679,11 +684,11 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
                     dependencies.push_back(ev_reset);
             }
         }
+
+        OPENVINO_ASSERT(_impl_params->get_output_layout().is_static(),
+                        "[GPU] Can't execute ", primitive_id, " primitive as output layout is dynamic in runtime");
     }
     update_shape_done_by_other = false; // reset
-    OPENVINO_ASSERT(_impl_params->get_output_layout().is_static(),
-                    "[GPU] Can't execute ", primitive_id, " primitive as output layout is dynamic in runtime");
-
     OPENVINO_ASSERT(_impl != nullptr, "[GPU] Implementation is nullptr for ", primitive_id,  " primitive");
 
     // Output buffer may be changed under the following conditions, so we need to set args to kernel on each iteration
@@ -1253,7 +1258,7 @@ cldnn::network::ptr primitive_inst::get_unfused_subgraph() {
             ov::intel_gpu::allow_static_input_reorder(true),
             ov::intel_gpu::allow_new_shape_infer(true)
         };
-        auto prog = program::build_program(get_network().get_engine(), t, subgraph_config, true, false);
+        auto prog = program::build_program(get_network().get_engine(), t, subgraph_config, get_network().get_program()->get_task_executor(), true, false);
 
         _unfused_subgraph = network::allocate_network(get_network().get_stream_ptr(), prog, true, get_network().is_primary_stream());
     }

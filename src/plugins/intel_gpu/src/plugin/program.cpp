@@ -16,6 +16,8 @@
 #include "intel_gpu/primitives/mutable_data.hpp"
 #include "intel_gpu/primitives/data.hpp"
 
+#include <ie_system_conf.h>
+
 #ifdef __linux__
 # include <dlfcn.h>
 #endif
@@ -121,11 +123,15 @@ bool Program::IsDynBatchModel(const std::shared_ptr<ov::Model>& model,
 
 Program::Program(InferenceEngine::CNNNetwork& network, cldnn::engine& engine, const ExecutionConfig& config,
     bool createTopologyOnly, bool partialBuild,
-    InferenceEngine::InputsDataMap* inputs, InferenceEngine::OutputsDataMap* outputs)
+    InferenceEngine::InputsDataMap* inputs, InferenceEngine::OutputsDataMap* outputs,
+    InferenceEngine::CPUStreamsExecutor::Ptr task_executor, bool innerProgram)
     : m_curBatch(-1)
     , m_config(config)
     , m_engine(engine)
-    , queryMode(false) {
+    , queryMode(false)
+    , m_task_executor(task_executor) {
+    if (m_task_executor == nullptr)
+        m_task_executor = cldnn::program::make_task_executor(m_config);
     // Extract inputs/outputs info from CNNNetwork
     auto networkInputs = (inputs != nullptr) ? *inputs : network.getInputsInfo();
     auto networkOutputs = (outputs != nullptr) ? *outputs : network.getOutputsInfo();
@@ -179,7 +185,8 @@ Program::Program(InferenceEngine::CNNNetwork& network, cldnn::engine& engine, co
     int m_bv_sz = GetMaxBatchSizeForSingleProgram();
     m_max_batch = static_cast<int>(m_config.get_property(ov::intel_gpu::max_dynamic_batch));
 
-    if (dyn_shape_batch_found || m_max_batch > 1) {
+    // Do not apply dynamic batch for inner program (only single batch is allowed)
+    if (!innerProgram && (dyn_shape_batch_found || m_max_batch > 1)) {
         // compile log2 networks to serve dynamic batch requests
         for (int b = m_bv_sz - 1; b >= 0; b--) {
             inputLayouts.clear();
@@ -290,7 +297,7 @@ Program::Program(InferenceEngine::CNNNetwork& network, cldnn::engine& engine, co
             m_input_batch_dim = batch_dim;
         }
     } else {
-        m_programs.emplace_back(BuildProgram(ops, networkInputs, networkOutputs, createTopologyOnly, partialBuild));
+        m_programs.emplace_back(BuildProgram(ops, networkInputs, networkOutputs, createTopologyOnly, partialBuild, innerProgram));
     }
 }
 
@@ -301,6 +308,7 @@ Program::Program(cldnn::engine& engine, const ExecutionConfig& config,
         , m_config(config)
         , m_engine(engine)
         , queryMode(false) {
+    m_task_executor = cldnn::program::make_task_executor(m_config);
     if (inputs != nullptr)
         m_networkInputs = *inputs;
     if (outputs != nullptr)
@@ -356,14 +364,20 @@ void Program::CleanupBuild() {
 std::shared_ptr<cldnn::program> Program::BuildProgram(const std::vector<std::shared_ptr<ngraph::Node>>& ops,
                                                       InferenceEngine::InputsDataMap networkInputs,
                                                       InferenceEngine::OutputsDataMap networkOutputs,
-                                                      bool createTopologyOnly, bool partialBuild) {
+                                                      bool createTopologyOnly, bool partialBuild, bool innerProgram) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Program::BuildProgram");
-
+    // std::cout << "BuildProgram " << createTopologyOnly << ", " << partialBuild << ", " << innerProgram << std::endl;
+    // In the case of inner program, allow_new_shape_infer flag is setted by outside of program.
+    // So, do not check allow_new_shape_infer for inner program build
     for (const auto& op : ops) {
         if (requires_new_shape_infer(*op)) {
             allow_new_shape_infer = true;
             break;
         }
+    }
+
+    if (innerProgram) {
+        allow_new_shape_infer = (m_config.get_property(ov::intel_gpu::allow_new_shape_infer) || allow_new_shape_infer);
     }
 
     m_config.set_property(ov::intel_gpu::partial_build_program(partialBuild));
@@ -383,7 +397,7 @@ std::shared_ptr<cldnn::program> Program::BuildProgram(const std::vector<std::sha
         OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Program::CreateProgram");
         cldnn::program::ptr program;
         try {
-            program = cldnn::program::build_program(m_engine, *m_topology, m_config);
+            program = cldnn::program::build_program(m_engine, *m_topology, m_config, get_task_executor());
         } catch (std::exception& e) {
             OPENVINO_ASSERT(false, "GPU program build failed!\n", e.what());
         }

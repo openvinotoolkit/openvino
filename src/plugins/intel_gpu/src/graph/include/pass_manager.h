@@ -378,9 +378,9 @@ public:
     void run(program& p) override;
 };
 
-class update_loop_primitive_map : public base_pass {
+class update_inner_program_io_map : public base_pass {
 public:
-    update_loop_primitive_map() : base_pass("update_loop_primitive_map") {}
+    update_inner_program_io_map() : base_pass("update_inner_program_io_map") {}
 
 private:
     void run(program& p) override;

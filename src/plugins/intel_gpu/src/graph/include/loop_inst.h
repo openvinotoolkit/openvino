@@ -308,7 +308,7 @@ public:
         std::vector<primitive_id> output_names_vec(output_names.begin(), output_names.end());
         auto config = get_program().get_config();
         config.set_property(ov::intel_gpu::custom_outputs(output_names_vec));
-        body_program = program::build_program(get_program().get_engine(), body, config, false, false, true);
+        body_program = program::build_program(get_program().get_engine(), body, config, get_program().get_task_executor(), false, false, true);
     }
 
     const primitive_id& get_trip_count_id() const { return get_primitive()->trip_count_id; }

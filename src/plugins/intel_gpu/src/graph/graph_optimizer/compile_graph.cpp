@@ -12,6 +12,7 @@
 #include "quantize_inst.h"
 #include "arg_max_min_inst.h"
 #include "fully_connected_inst.h"
+#include "condition_inst.h"
 #include "program_node.h"
 
 #include <iostream>
@@ -71,6 +72,9 @@ void compile_graph::run(program& p) {
 
         if (node->is_dynamic() && !is_planar)
             can_select_impl = false;
+
+        if (node->is_type<condition>())
+            can_select_impl = true;
 
         if (can_select_impl) {
             tasks.push_back([node, &exception, change_initial_impl, original_impl_type] {
