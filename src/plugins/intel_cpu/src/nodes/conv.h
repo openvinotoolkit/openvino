@@ -28,7 +28,6 @@ public:
     void initDescriptor(const NodeConfig& config) override;
     void selectOptimalPrimitiveDescriptor() override;
     void initSupportedPrimitiveDescriptors() override;
-    void filterSupportedPrimitiveDescriptors() override;
     bool created() const override;
     bool canBeInPlace() const override {
         return false;
@@ -43,7 +42,7 @@ public:
         return getOriginalInputsNumber();
     }
 
-    bool canBeExecutedInInt8() const;
+    bool canBeExecutedInInt8() const override;
     size_t getGroupNum() const { return groupNum; }
     //OV Legacy input zero point mechanism can support per-channel zero point.
     //Hold legacy input zero point.
@@ -127,13 +126,13 @@ private:
     zpType inputZeroPointType = zpType::None;
     // maps each supportedPrimitiveDescriptor to corresponding desc from descs
     std::vector<size_t> descIdx;
+    VectorDims expectedBiasDims {};
 
     std::vector<size_t> stride;
     std::vector<ptrdiff_t> dilation;
     std::vector<ptrdiff_t> paddingL;
     std::vector<ptrdiff_t> paddingR;
     InferenceEngine::SizeVector weightDims;
-    InferenceEngine::SizeVector biasesDims;
     std::unordered_map<int, MemoryPtr> convPostOpsArgs[2];
 
     size_t dw_conv_oc;

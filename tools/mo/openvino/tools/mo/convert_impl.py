@@ -48,7 +48,7 @@ from openvino.tools.mo.utils.utils import refer_to_faq_msg, check_values_equal
 from openvino.tools.mo.utils.telemetry_utils import send_params_info, send_framework_info, send_conversion_result, \
     get_tid
 from openvino.tools.mo.moc_frontend.check_config import legacy_extensions_used
-from openvino.tools.mo.moc_frontend.pytorch_frontend_utils import get_pytorch_decoder
+from openvino.tools.mo.moc_frontend.pytorch_frontend_utils import get_pytorch_decoder, extract_input_info_from_example
 from openvino.tools.mo.moc_frontend.paddle_frontend_utils import paddle_frontend_converter
 from openvino.tools.mo.moc_frontend.shape_utils import parse_input_shapes
 
@@ -390,18 +390,12 @@ def prepare_ir(argv: argparse.Namespace):
     if moc_front_end:
         fallback_reasons = check_fallback(argv)
         if len(fallback_reasons) == 0:
-            path_to_aux_pb = None
-            orig_argv_values = {"input_model": argv.input_model, "model_name": argv.model_name}
-            if not argv.use_legacy_frontend and is_tf:
-                if tf_frontend_with_python_bindings_installed and 'tf' in available_moc_front_ends and \
-                        type_supported_by_tf_fe(argv.input_model):
-                    argv.input_model = create_tf_graph_iterator(argv.input_model,
-                                                                argv.placeholder_shapes,
-                                                                argv.placeholder_data_types,
-                                                                getattr(argv, "example_input", None))
-                else:
-                    from openvino.tools.mo.front.tf.loader import convert_to_pb
-                    path_to_aux_pb = convert_to_pb(argv)
+            if is_tf and tf_frontend_with_python_bindings_installed and \
+                    type_supported_by_tf_fe(argv.input_model):
+                argv.input_model = create_tf_graph_iterator(argv.input_model,
+                                                            argv.placeholder_shapes,
+                                                            argv.placeholder_data_types,
+                                                            getattr(argv, "example_input", None))
             try:
                 t.send_event("mo", "conversion_method", moc_front_end.get_name() + "_frontend")
                 moc_front_end.add_extension(TelemetryExtension("mo", t.send_event, t.send_error, t.send_stack_trace))
@@ -424,14 +418,6 @@ def prepare_ir(argv: argparse.Namespace):
                     # re-throw exception for all frontends except TensorFlow FE
                     # and in case unexpected conversion failures
                     raise
-            finally:
-                # TODO: remove this workaround once new TensorFlow frontend supports non-frozen formats: checkpoint, MetaGraph, and SavedModel
-                # Now it converts all TensorFlow formats to the frozen .pb format in case new TensorFlow frontend
-                if is_tf and path_to_aux_pb is not None:
-                    argv.input_model = orig_argv_values["input_model"]
-                    argv.model_name = orig_argv_values["model_name"]
-                    if path_to_aux_pb is not None and os.path.exists(path_to_aux_pb):
-                        os.remove(path_to_aux_pb)
 
     if len(fallback_reasons) > 0:
         reasons_message = ", ".join(fallback_reasons)
@@ -774,6 +760,9 @@ def python_api_params_parsing(argv: argparse.Namespace):
         argv.placeholder_shapes = shape_list if shape_list else None
         argv.placeholder_data_types = data_type_list if data_type_list else {}
 
+    if argv.framework == "pytorch" and getattr(argv, "example_input", None) is not None:
+        extract_input_info_from_example(argv, inputs)
+
 
 def pack_params_to_args_namespace(args: dict, cli_parser: argparse.ArgumentParser):
     if len(args) > 0:
@@ -852,9 +841,7 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args, python_api_us
                 elif 'example_inputs' in args:
                     raise AssertionError("'example_inputs' argument is not recognized, maybe you meant to provide 'example_input'?")
 
-                decoder = get_pytorch_decoder(args['input_model'], parse_input_shapes(args), example_inputs, args.get("input"))
-                args['input_model'] = decoder
-                args['framework'] = model_framework
+                decoder =  get_pytorch_decoder(args['input_model'], parse_input_shapes(args), example_inputs, args)
             if model_framework == "paddle":
                 example_inputs = None
                 if 'example_input' in args and args['example_input'] is not None:
@@ -964,6 +951,6 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args, python_api_us
 
         send_conversion_result('fail')
         if python_api_used:
-            raise e.with_traceback(None)
+            raise e#.with_traceback(None)
         else:
             return None, argv

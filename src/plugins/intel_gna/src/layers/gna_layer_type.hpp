@@ -52,6 +52,8 @@ enum class LayerType {
     Gemm,
     Pwl,
     Identity,
+    GNAConvolution,
+    GNAMaxPool,
     NO_TYPE
 };
 
@@ -93,6 +95,8 @@ static const InferenceEngine::details::caseless_map<std::string, LayerType> Laye
     {"Pwl", LayerType::Pwl},
     {"Identity", LayerType::Identity},
     {"Gemm", LayerType::Gemm},
+    {"GNAConvolution", LayerType::GNAConvolution},
+    {"GNAMaxPool", LayerType::GNAMaxPool},
 };
 
 LayerType LayerTypeFromStr(const std::string& str);
