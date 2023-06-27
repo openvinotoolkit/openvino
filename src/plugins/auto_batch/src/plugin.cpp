@@ -314,7 +314,6 @@ OPENVINO_SUPPRESS_DEPRECATED_END
 
             OPENVINO_SUPPRESS_DEPRECATED_START
             for (auto&& input : reshaped->inputs()) {
-                auto param_name = input.get_node()->get_friendly_name();
                 auto& rt_info = input.get_rt_info();
                 auto it = rt_info.find("ie_legacy_td");
                 if (it != rt_info.end()) {
@@ -325,7 +324,6 @@ OPENVINO_SUPPRESS_DEPRECATED_END
             }
             for (auto&& result : reshaped->get_results()) {
                 auto output = result->input_value(0);
-                const auto& res_name = ov::op::util::create_ie_output_name(output);
                 auto& rt_info = output.get_rt_info();
                 auto it = rt_info.find("ie_legacy_td");
                 if (it != rt_info.end()) {
