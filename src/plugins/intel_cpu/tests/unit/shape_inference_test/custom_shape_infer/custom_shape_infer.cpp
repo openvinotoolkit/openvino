@@ -1,6 +1,7 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include <openvino/cc/factory.h>
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/type.hpp"
 #include <ngraph/opsets/opset1.hpp>

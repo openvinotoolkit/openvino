@@ -72,7 +72,7 @@ TEST(StaticShapeInferenceTest, LSTMCellV0Test) {
     const auto H_t = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, -1});
     const auto C_t = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, -1});
     const auto Bias = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1});
-    const auto Peelhole = op::v0::Constant::create(element::f32, ov::Shape{3 * hidden_size}, std::vector<float>{0.f});
+    const auto Peelhole = op::v0::Constant::create(element::f32, Shape{3 * hidden_size}, std::vector<float>{0.f});
     const auto lstm_cell = std::make_shared<op::v0::LSTMCell>(X, H_t, C_t, W, R, Bias, Peelhole, hidden_size);
 
     std::vector<StaticShape> static_input_shapes = {StaticShape{batch_size, input_size},

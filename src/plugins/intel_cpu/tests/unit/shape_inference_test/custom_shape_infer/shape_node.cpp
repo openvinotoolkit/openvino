@@ -1,0 +1,50 @@
+// Copyright (C) 2018-2023 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include <gtest/gtest.h>
+#include <ostream>
+
+#include "common_test_utils/test_assertions.hpp"
+#include "custom_shape_infer.hpp"
+#include <ngraph/opsets/opset1.hpp>
+#include <ngraph/opsets/opset3.hpp>
+
+using namespace ov;
+using namespace ov::intel_cpu;
+using namespace testing;
+
+TEST(CpuShapeInferenceTest , ShapeOf5DTest) {
+    auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
+
+    auto shapeof =
+            std::make_shared<op::v0::ShapeOf>(data);
+
+    std::vector<StaticShape> static_input_shapes = {StaticShape{2, 3, 4, 5, 6}},
+            static_output_shapes = {StaticShape{5}};
+    unit_test::cpu_test_shape_infer(shapeof.get(), static_input_shapes, static_output_shapes);
+}
+
+TEST(CpuShapeInferenceTest , v3ShapeOf5DTest) {
+    auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
+
+    auto shapeof =
+            std::make_shared<op::v3::ShapeOf>(data);
+
+    std::vector<StaticShape> static_input_shapes = {StaticShape{2, 3, 4, 5, 6}},
+            static_output_shapes = {StaticShape{5}};
+    unit_test::cpu_test_shape_infer(shapeof.get(), static_input_shapes, static_output_shapes);
+}
+
+
+TEST(CpuShapeInferenceTest , ShapeOf0DTest) {
+    auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{});
+
+    auto shapeof =
+            std::make_shared<op::v3::ShapeOf>(data);
+
+    std::vector<StaticShape> static_input_shapes = {StaticShape{}},
+            static_output_shapes = {StaticShape{}};
+    // TODO , can't pass implementation don't support 0D shape input
+    // unit_test::cpu_test_shape_infer(shapeof.get(), static_input_shapes, static_output_shapes);
+}

@@ -4,12 +4,12 @@
 
 #include <gtest/gtest.h>
 #include "transformations/cpu_opset/common/op/fully_connected.hpp"
-#include "utils.hpp"
+#include "custom_shape_infer.hpp"
 
 using namespace ov;
 using namespace ov::intel_cpu;
 
-TEST(StaticShapeInferenceTest, FC_InputSize_2) {
+TEST(CpuShapeInferenceTest, FC_InputSize_2) {
     auto activate = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1 });
     auto weight = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{5, 6});
     auto op = std::make_shared<ov::intel_cpu::FullyConnectedNode>(activate, weight, ngraph::Rank(5), element::f32);
@@ -18,7 +18,7 @@ TEST(StaticShapeInferenceTest, FC_InputSize_2) {
     unit_test::cpu_test_shape_infer(op.get(), static_input_shapes, static_output_shapes);
 }
 
-TEST(StaticShapeInferenceTest, FC_InputSize_3) {
+TEST(CpuShapeInferenceTest, FC_InputSize_3) {
     auto activate = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1});
     auto weight = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{5, 6});
     auto channel = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{5});

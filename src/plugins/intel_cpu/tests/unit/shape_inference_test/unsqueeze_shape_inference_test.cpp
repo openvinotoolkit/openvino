@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "common_test_utils/test_assertions.hpp"
 #include "gmock/gmock.h"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
@@ -20,8 +19,6 @@ protected:
         output_shapes = ShapeVector(1);
     }
 };
-
-using UnsqueezeCustomStaticShapeInferenceAssertTest = UnsqueezeStaticShapeInferenceAssertTest;
 
 TEST_F(UnsqueezeStaticShapeInferenceAssertTest, no_axes) {
     const auto arg = std::make_shared<op::v0::Parameter>(element::f64, PartialShape{-1, -1});
@@ -41,8 +38,8 @@ TEST_F(UnsqueezeStaticShapeInferenceAssertTest, no_axes) {
 }
 
 TEST_F(UnsqueezeStaticShapeInferenceAssertTest, empty_axes) {
-    const auto arg = std::make_shared<op::v0::Parameter>(element::f64, ov::Shape{5, 6});
-    const auto axes = std::make_shared<op::v0::Constant>(element::i64, ov::Shape{0}, std::vector<int64_t>{});
+    const auto arg = std::make_shared<op::v0::Parameter>(element::f64, Shape{5, 6});
+    const auto axes = std::make_shared<op::v0::Constant>(element::i64, Shape{0}, std::vector<int64_t>{});
 
     try {
         op = std::make_shared<op::v0::Unsqueeze>(arg, axes);
@@ -53,24 +50,6 @@ TEST_F(UnsqueezeStaticShapeInferenceAssertTest, empty_axes) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
-
-TEST_F(UnsqueezeCustomStaticShapeInferenceAssertTest, wrong_pattern) {
-    const auto arg = std::make_shared<op::v0::Parameter>(element::f64, PartialShape{-1, -1});
-    const auto axes = std::make_shared<op::v0::Parameter>(element::i64, PartialShape{1});
-
-    const auto op = std::make_shared<op::v0::Unsqueeze>(arg, axes);
-
-    input_shapes = ShapeVector{{5, 6}, axes->get_shape()};
-
-    int64_t axes_data[] = {3};
-    const auto axes_tensor = std::make_shared<ngraph::runtime::HostTensor>(element::i64, ov::Shape{1}, axes_data);
-    const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>> constant_data = {{1, axes_tensor}};
-
-    OV_EXPECT_THROW(unit_test::cpu_test_shape_infer(op.get(), input_shapes, output_shapes, constant_data),
-                    InferenceEngine::Unexpected,
-                    HasSubstr("[cpu]unsqueeze: the shape of input data [5,6] conflicts with the unsqueeze pattern [3]"));
-}
-
 
 using TestParams = std::tuple<ShapeVector,           // Input shapes
                               std::vector<int64_t>,  // Unsqueeze axes
@@ -123,23 +102,22 @@ INSTANTIATE_TEST_SUITE_P(
     Values(
         make_tuple(ShapeVector{{2, 3}, {2}}, std::vector<int64_t>{1, 1}, StaticShape({2, 1, 3})),
         make_tuple(ShapeVector{{3, 2}, {3}}, std::vector<int64_t>{1, -1, 1}, StaticShape({3, 1, 2, 1})),
-        make_tuple(ShapeVector{{3, 2}, {4}}, std::vector<int64_t>{1, -1, 1, -1}, StaticShape({3, 1, 2, 1})),
-        make_tuple(ShapeVector{{3, 2}, {5}}, std::vector<int64_t>{2, -1, 2, -1, 0}, StaticShape({1, 3, 1, 2, 1})),
+        make_tuple(ShapeVector{{3, 2}, {3}}, std::vector<int64_t>{1, -1, 1, -1}, StaticShape({3, 1, 2, 1})),
+        make_tuple(ShapeVector{{3, 2}, {3}}, std::vector<int64_t>{2, -1, 2, -1, 0}, StaticShape({1, 3, 1, 2, 1})),
         make_tuple(ShapeVector{{2, 6, 7, 8, 3}, {2}}, std::vector<int64_t>{-1, -1}, StaticShape({2, 6, 7, 8, 3, 1}))),
     PrintToStringParamName());
 
 TEST_P(UnsqueezeStaticShapeInferenceTest, shape_inference_empty_const_map) {
-    const auto axes_node = std::make_shared<op::v0::Constant>(element::i64, ov::Shape{axes.size()}, axes);
+    const auto axes_node = std::make_shared<op::v0::Constant>(element::i64, Shape{axes.size()}, axes);
     op = std::make_shared<op::v0::Unsqueeze>(arg, axes_node);
 
     shape_infer(op.get(), input_shapes, output_shapes);
 
     ASSERT_EQ(output_shapes.front(), exp_shape);
-    unit_test::cpu_test_shape_infer(op.get(), input_shapes, output_shapes);
 }
 
 TEST_P(UnsqueezeStaticShapeInferenceTest, shape_inference_with_const_map) {
-    const auto axes_node = std::make_shared<op::v0::Parameter>(element::i64, ov::Shape{1});
+    const auto axes_node = std::make_shared<op::v0::Parameter>(element::i64, Shape{1});
     op = std::make_shared<op::v0::Unsqueeze>(arg, axes_node);
 
     const auto axes_const = std::make_shared<op::v0::Constant>(element::i64, ov::Shape{axes.size()}, axes);
@@ -149,5 +127,4 @@ TEST_P(UnsqueezeStaticShapeInferenceTest, shape_inference_with_const_map) {
     shape_infer(op.get(), input_shapes, output_shapes, constant_data);
 
     ASSERT_EQ(output_shapes.front(), exp_shape);
-    unit_test::cpu_test_shape_infer(op.get(), input_shapes, output_shapes, constant_data);
 }

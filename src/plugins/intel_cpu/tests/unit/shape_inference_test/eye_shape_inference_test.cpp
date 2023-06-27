@@ -22,10 +22,10 @@ public:
 };
 
 TEST_F(EyeV9StaticShapeInferenceTest, parameters_as_constant) {
-    const auto rows = Constant::create(element::i32, ov::Shape{1}, {5});
-    const auto cols = Constant::create(element::i32, ov::Shape{1}, {4});
-    const auto diag = Constant::create(element::i32, ov::Shape{}, {1});
-    const auto batch = Constant::create(element::i32, ov::Shape{1}, {2});
+    const auto rows = Constant::create(element::i32, Shape{1}, {5});
+    const auto cols = Constant::create(element::i32, Shape{1}, {4});
+    const auto diag = Constant::create(element::i32, Shape{}, {1});
+    const auto batch = Constant::create(element::i32, Shape{1}, {2});
 
     const auto op = make_op(rows, cols, diag, batch, element::f64);
 
@@ -47,9 +47,9 @@ TEST_F(EyeV9StaticShapeInferenceTest, parameters_in_const_data_map) {
     int32_t rows = 3, cols = 8;
     auto batch = std::array<int32_t, 3>{2, 4, 1};
     const auto const_data =
-        std::map<size_t, HostTensorPtr>{{0, std::make_shared<HostTensor>(element::i32, ov::Shape{}, &rows)},
-                                        {1, std::make_shared<HostTensor>(element::i32, ov::Shape{1}, &cols)},
-                                        {3, std::make_shared<HostTensor>(element::i32, ov::Shape{3}, batch.data())}};
+        std::map<size_t, HostTensorPtr>{{0, std::make_shared<HostTensor>(element::i32, Shape{}, &rows)},
+                                        {1, std::make_shared<HostTensor>(element::i32, Shape{1}, &cols)},
+                                        {3, std::make_shared<HostTensor>(element::i32, Shape{3}, batch.data())}};
 
     input_shapes = ShapeVector{{}, {1}, {1}, {3}};
     shape_inference(op.get(), input_shapes, output_shapes, const_data);
@@ -69,9 +69,9 @@ TEST_F(EyeV9StaticShapeInferenceTest, assert_on_negative_rows) {
     int64_t rows = -3, cols = 8;
     auto batch = std::array<int32_t, 3>{2, 4, 1};
     const auto const_data =
-        std::map<size_t, HostTensorPtr>{{0, std::make_shared<HostTensor>(element::i64, ov::Shape{}, &rows)},
-                                        {1, std::make_shared<HostTensor>(element::i64, ov::Shape{1}, &cols)},
-                                        {3, std::make_shared<HostTensor>(element::i32, ov::Shape{3}, batch.data())}};
+        std::map<size_t, HostTensorPtr>{{0, std::make_shared<HostTensor>(element::i64, Shape{}, &rows)},
+                                        {1, std::make_shared<HostTensor>(element::i64, Shape{1}, &cols)},
+                                        {3, std::make_shared<HostTensor>(element::i32, Shape{3}, batch.data())}};
 
     input_shapes = ShapeVector{{}, {1}, {1}, {3}};
 
@@ -91,9 +91,9 @@ TEST_F(EyeV9StaticShapeInferenceTest, assert_on_negative_columns) {
     int64_t rows = 3, cols = -8;
     auto batch = std::array<int32_t, 3>{2, 4, 1};
     const auto const_data =
-        std::map<size_t, HostTensorPtr>{{0, std::make_shared<HostTensor>(element::i64, ov::Shape{}, &rows)},
-                                        {1, std::make_shared<HostTensor>(element::i64, ov::Shape{1}, &cols)},
-                                        {3, std::make_shared<HostTensor>(element::i32, ov::Shape{3}, batch.data())}};
+        std::map<size_t, HostTensorPtr>{{0, std::make_shared<HostTensor>(element::i64, Shape{}, &rows)},
+                                        {1, std::make_shared<HostTensor>(element::i64, Shape{1}, &cols)},
+                                        {3, std::make_shared<HostTensor>(element::i32, Shape{3}, batch.data())}};
 
     input_shapes = ShapeVector{{}, {1}, {1}, {3}};
 
@@ -114,9 +114,9 @@ TEST_F(EyeV9StaticShapeInferenceTest, assert_on_rows_not_1D) {
     auto rows = std::array<int64_t, 2>{2, 1};
     auto batch = std::array<int32_t, 3>{2, 4, 1};
     const auto const_data = std::map<size_t, HostTensorPtr>{
-        {0, std::make_shared<HostTensor>(element::i64, ov::Shape{rows.size()}, rows.data())},
-        {1, std::make_shared<HostTensor>(element::i64, ov::Shape{1}, &cols)},
-        {3, std::make_shared<HostTensor>(element::i32, ov::Shape{batch.size()}, batch.data())}};
+        {0, std::make_shared<HostTensor>(element::i64, Shape{rows.size()}, rows.data())},
+        {1, std::make_shared<HostTensor>(element::i64, Shape{1}, &cols)},
+        {3, std::make_shared<HostTensor>(element::i32, Shape{batch.size()}, batch.data())}};
 
     input_shapes = ShapeVector{{}, {1}, {1}, {3}};
 
@@ -137,9 +137,9 @@ TEST_F(EyeV9StaticShapeInferenceTest, assert_on_columns_not_1D) {
     auto cols = std::array<int64_t, 2>{2, 1};
     auto batch = std::array<int32_t, 3>{2, 4, 1};
     const auto const_data = std::map<size_t, HostTensorPtr>{
-        {0, std::make_shared<HostTensor>(element::i64, ov::Shape{}, &rows)},
-        {1, std::make_shared<HostTensor>(element::i64, ov::Shape{cols.size()}, cols.data())},
-        {3, std::make_shared<HostTensor>(element::i32, ov::Shape{batch.size()}, batch.data())}};
+        {0, std::make_shared<HostTensor>(element::i64, Shape{}, &rows)},
+        {1, std::make_shared<HostTensor>(element::i64, Shape{cols.size()}, cols.data())},
+        {3, std::make_shared<HostTensor>(element::i32, Shape{batch.size()}, batch.data())}};
 
     input_shapes = ShapeVector{{1}, {}, {1}, {3}};
 
@@ -159,9 +159,9 @@ TEST_F(EyeV9StaticShapeInferenceTest, assert_on_batch_shape_not_match_shape_in_c
     int64_t rows = 8, cols = 5;
     auto batch = std::array<int32_t, 3>{2, 4, 1};
     const auto const_data = std::map<size_t, HostTensorPtr>{
-        {0, std::make_shared<HostTensor>(element::i64, ov::Shape{}, &rows)},
-        {1, std::make_shared<HostTensor>(element::i64, ov::Shape{}, &cols)},
-        {3, std::make_shared<HostTensor>(element::i32, ov::Shape{batch.size()}, batch.data())}};
+        {0, std::make_shared<HostTensor>(element::i64, Shape{}, &rows)},
+        {1, std::make_shared<HostTensor>(element::i64, Shape{}, &cols)},
+        {3, std::make_shared<HostTensor>(element::i32, Shape{batch.size()}, batch.data())}};
 
     input_shapes = ShapeVector{{}, {}, {}, {2}};
 

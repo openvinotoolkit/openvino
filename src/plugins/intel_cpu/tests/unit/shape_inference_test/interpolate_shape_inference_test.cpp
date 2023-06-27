@@ -31,7 +31,7 @@ TEST_F(InterpolateV0StaticShapeInferenceTest, default_ctor_no_attributes) {
 
     int32_t out_shape_v[] = {10, 20, 30};
     const auto const_data =
-        std::map<size_t, HostTensorPtr>{{1, std::make_shared<HostTensor>(element::i32, ov::Shape{3}, out_shape_v)}};
+        std::map<size_t, HostTensorPtr>{{1, std::make_shared<HostTensor>(element::i32, Shape{3}, out_shape_v)}};
 
     input_shapes = ShapeVector{{5, 2, 128, 128, 128, 64}, {3}};
     shape_inference(op.get(), input_shapes, output_shapes, const_data);
@@ -44,7 +44,7 @@ TEST_F(InterpolateV0StaticShapeInferenceTest, out_shape_as_constant) {
     attrs.axes = AxisSet{1, 3};
 
     const auto img = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
-    const auto out_shape = op::v0::Constant::create<int64_t>(element::i64, ov::Shape{2}, {100, 100});
+    const auto out_shape = op::v0::Constant::create<int64_t>(element::i64, Shape{2}, {100, 100});
     op = make_op(img, out_shape, attrs);
 
     input_shapes = ShapeVector{{5, 2, 128, 128, 128}, {2}};
@@ -63,7 +63,7 @@ TEST_F(InterpolateV0StaticShapeInferenceTest, all_inputs_dynamic_rank_use_scales
 
     int32_t out_shape_v[] = {10, 20, 30};
     const auto const_data =
-        std::map<size_t, HostTensorPtr>{{1, std::make_shared<HostTensor>(element::i32, ov::Shape{3}, out_shape_v)}};
+        std::map<size_t, HostTensorPtr>{{1, std::make_shared<HostTensor>(element::i32, Shape{3}, out_shape_v)}};
 
     input_shapes = ShapeVector{{5, 2, 128, 128, 128, 64}, {3}};
     shape_inference(op.get(), input_shapes, output_shapes, const_data);
@@ -81,7 +81,7 @@ TEST_F(InterpolateV0StaticShapeInferenceTest, all_inputs_static_rank_use_sizes) 
 
     int32_t out_shape_v[] = {10, 20, 30};
     const auto const_data =
-        std::map<size_t, HostTensorPtr>{{1, std::make_shared<HostTensor>(element::i32, ov::Shape{3}, out_shape_v)}};
+        std::map<size_t, HostTensorPtr>{{1, std::make_shared<HostTensor>(element::i32, Shape{3}, out_shape_v)}};
 
     input_shapes = ShapeVector{{5, 2, 128, 128, 128, 64}, {3}};
     shape_inference(op.get(), input_shapes, output_shapes, const_data);
@@ -112,8 +112,8 @@ TEST_F(InterpolateV4StaticShapeInferenceTest, default_ctor_no_attributes) {
     float scales_v[] = {1.5f, 3.0f, 0.2f};
     int32_t axes_v[] = {2, 0, 5};
     const auto const_data =
-        std::map<size_t, HostTensorPtr>{{2, std::make_shared<HostTensor>(element::f32, ov::Shape{3}, scales_v)},
-                                        {3, std::make_shared<HostTensor>(element::i32, ov::Shape{3}, axes_v)}};
+        std::map<size_t, HostTensorPtr>{{2, std::make_shared<HostTensor>(element::f32, Shape{3}, scales_v)},
+                                        {3, std::make_shared<HostTensor>(element::i32, Shape{3}, axes_v)}};
 
     input_shapes = ShapeVector{{5, 2, 128, 128, 128, 64}, {3}, {3}, {3}};
     shape_inference(op.get(), input_shapes, output_shapes, const_data);
@@ -127,8 +127,8 @@ TEST_F(InterpolateV4StaticShapeInferenceTest, scales_as_constant) {
 
     const auto img = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
     const auto sizes = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{1});
-    const auto scales = op::v0::Constant::create<float>(element::f32, ov::Shape{2}, {2.0f, 0.7f});
-    const auto axes = op::v0::Constant::create<int64_t>(element::i64, ov::Shape{2}, {1, 3});
+    const auto scales = op::v0::Constant::create<float>(element::f32, Shape{2}, {2.0f, 0.7f});
+    const auto axes = op::v0::Constant::create<int64_t>(element::i64, Shape{2}, {1, 3});
     op = make_op(img, sizes, scales, axes, attrs);
 
     input_shapes = ShapeVector{{5, 2, 128, 128, 128}, {1}, {2}, {2}};
@@ -140,9 +140,9 @@ TEST_F(InterpolateV4StaticShapeInferenceTest, scales_as_constant) {
 
 TEST_F(InterpolateV4StaticShapeInferenceTest, sizes_as_constant) {
     const auto img = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
-    const auto sizes = op::v0::Constant::create<float>(element::i32, ov::Shape{2}, {10, 5});
+    const auto sizes = op::v0::Constant::create<float>(element::i32, Shape{2}, {10, 5});
     const auto scales = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1});
-    const auto axes = op::v0::Constant::create<int64_t>(element::i64, ov::Shape{2}, {3, 1});
+    const auto axes = op::v0::Constant::create<int64_t>(element::i64, Shape{2}, {3, 1});
     op = make_op(img, sizes, scales, axes, attrs);
 
     input_shapes = ShapeVector{{5, 2, 128, 128, 128}, {2}, {1}, {2}};
@@ -165,8 +165,8 @@ TEST_F(InterpolateV4StaticShapeInferenceTest, all_inputs_dynamic_rank_use_scales
     float scales_v[] = {1.5f, 3.0f, 0.2f};
     int32_t axes_v[] = {2, 0, 5};
     const auto const_data =
-        std::map<size_t, HostTensorPtr>{{2, std::make_shared<HostTensor>(element::f32, ov::Shape{3}, scales_v)},
-                                        {3, std::make_shared<HostTensor>(element::i32, ov::Shape{3}, axes_v)}};
+        std::map<size_t, HostTensorPtr>{{2, std::make_shared<HostTensor>(element::f32, Shape{3}, scales_v)},
+                                        {3, std::make_shared<HostTensor>(element::i32, Shape{3}, axes_v)}};
 
     input_shapes = ShapeVector{{5, 2, 128, 128, 128, 64}, {3}, {3}, {3}};
     shape_inference(op.get(), input_shapes, output_shapes, const_data);
@@ -187,8 +187,8 @@ TEST_F(InterpolateV4StaticShapeInferenceTest, all_inputs_static_rank_use_sizes) 
     int32_t sizes_v[] = {10, 50, 60};
     int32_t axes_v[] = {1, 0, 3};
     const auto const_data =
-        std::map<size_t, HostTensorPtr>{{1, std::make_shared<HostTensor>(element::i32, ov::Shape{3}, sizes_v)},
-                                        {3, std::make_shared<HostTensor>(element::i32, ov::Shape{3}, axes_v)}};
+        std::map<size_t, HostTensorPtr>{{1, std::make_shared<HostTensor>(element::i32, Shape{3}, sizes_v)},
+                                        {3, std::make_shared<HostTensor>(element::i32, Shape{3}, axes_v)}};
 
     input_shapes = ShapeVector{{5, 2, 128, 128, 128, 64}, {3}, {3}, {3}};
     shape_inference(op.get(), input_shapes, output_shapes, const_data);
@@ -219,8 +219,8 @@ TEST_F(InterpolateV11StaticShapeInferenceTest, default_ctor_no_attributes) {
     float scales_v[] = {1.5f, 3.0f, 0.2f};
     int32_t axes_v[] = {2, 0, 5};
     const auto const_data =
-        std::map<size_t, HostTensorPtr>{{1, std::make_shared<HostTensor>(element::f32, ov::Shape{3}, scales_v)},
-                                        {2, std::make_shared<HostTensor>(element::i32, ov::Shape{3}, axes_v)}};
+        std::map<size_t, HostTensorPtr>{{1, std::make_shared<HostTensor>(element::f32, Shape{3}, scales_v)},
+                                        {2, std::make_shared<HostTensor>(element::i32, Shape{3}, axes_v)}};
 
     input_shapes = ShapeVector{{5, 2, 128, 128, 128, 64}, {3}, {3}};
     shape_inference(op.get(), input_shapes, output_shapes, const_data);
@@ -233,8 +233,8 @@ TEST_F(InterpolateV11StaticShapeInferenceTest, scales_as_constant) {
     attrs.shape_calculation_mode = ShapeCalcMode::SCALES;
 
     const auto img = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
-    const auto scales = op::v0::Constant::create<float>(element::f32, ov::Shape{2}, {2.0f, 0.7f});
-    const auto axes = op::v0::Constant::create<int64_t>(element::i64, ov::Shape{2}, {1, 3});
+    const auto scales = op::v0::Constant::create<float>(element::f32, Shape{2}, {2.0f, 0.7f});
+    const auto axes = op::v0::Constant::create<int64_t>(element::i64, Shape{2}, {1, 3});
     op = make_op(img, scales, axes, attrs);
 
     input_shapes = ShapeVector{{5, 2, 128, 128, 128}, {2}, {2}};
@@ -246,8 +246,8 @@ TEST_F(InterpolateV11StaticShapeInferenceTest, scales_as_constant) {
 
 TEST_F(InterpolateV11StaticShapeInferenceTest, sizes_as_constant) {
     const auto img = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
-    const auto sizes = op::v0::Constant::create<float>(element::i32, ov::Shape{2}, {10, 5});
-    const auto axes = op::v0::Constant::create<int64_t>(element::i64, ov::Shape{2}, {3, 1});
+    const auto sizes = op::v0::Constant::create<float>(element::i32, Shape{2}, {10, 5});
+    const auto axes = op::v0::Constant::create<int64_t>(element::i64, Shape{2}, {3, 1});
     op = make_op(img, sizes, axes, attrs);
 
     input_shapes = ShapeVector{{5, 2, 128, 128, 128}, {2}, {2}};
@@ -268,8 +268,8 @@ TEST_F(InterpolateV11StaticShapeInferenceTest, all_inputs_dynamic_rank_use_scale
     float scales_v[] = {1.5f, 3.0f, 0.2f};
     int32_t axes_v[] = {2, 0, 5};
     const auto const_data =
-        std::map<size_t, HostTensorPtr>{{1, std::make_shared<HostTensor>(element::f32, ov::Shape{3}, scales_v)},
-                                        {2, std::make_shared<HostTensor>(element::i32, ov::Shape{3}, axes_v)}};
+        std::map<size_t, HostTensorPtr>{{1, std::make_shared<HostTensor>(element::f32, Shape{3}, scales_v)},
+                                        {2, std::make_shared<HostTensor>(element::i32, Shape{3}, axes_v)}};
 
     input_shapes = ShapeVector{{5, 2, 128, 128, 128, 64}, {3}, {3}};
     shape_inference(op.get(), input_shapes, output_shapes, const_data);
@@ -289,8 +289,8 @@ TEST_F(InterpolateV11StaticShapeInferenceTest, all_inputs_static_rank_use_sizes)
     int32_t sizes_v[] = {10, 50, 60};
     int32_t axes_v[] = {1, 0, 3};
     const auto const_data =
-        std::map<size_t, HostTensorPtr>{{1, std::make_shared<HostTensor>(element::i32, ov::Shape{3}, sizes_v)},
-                                        {2, std::make_shared<HostTensor>(element::i32, ov::Shape{3}, axes_v)}};
+        std::map<size_t, HostTensorPtr>{{1, std::make_shared<HostTensor>(element::i32, Shape{3}, sizes_v)},
+                                        {2, std::make_shared<HostTensor>(element::i32, Shape{3}, axes_v)}};
 
     input_shapes = ShapeVector{{5, 2, 128, 128, 128, 64}, {3}, {3}};
     shape_inference(op.get(), input_shapes, output_shapes, const_data);

@@ -11,9 +11,9 @@ using namespace ov::intel_cpu;
 
 TEST(StaticShapeInferenceTest, ExtractImagePatchesTest) {
     auto data = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{-1, -1, -1, -1});
-    auto sizes = ov::Shape{3, 3};
+    auto sizes = Shape{3, 3};
     auto strides = Strides{5, 5};
-    auto rates = ov::Shape{1, 1};
+    auto rates = Shape{1, 1};
     auto padTypePadding = op::PadType::VALID;
     auto extractImagePatches =
         std::make_shared<op::v3::ExtractImagePatches>(data, sizes, strides, rates, padTypePadding);

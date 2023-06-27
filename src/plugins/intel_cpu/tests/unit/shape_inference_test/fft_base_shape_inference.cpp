@@ -26,8 +26,8 @@ static std::shared_ptr<op::v7::DFT> build_dft_signal() {
 
 static std::shared_ptr<op::v7::DFT> build_dft_constant() {
     auto input_shape = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
-    auto axes = std::make_shared<ov::op::v0::Constant>(element::i32, ov::Shape{2}, std::vector<int32_t>{1, 2});
-    auto signal = std::make_shared<ov::op::v0::Constant>(element::i32, ov::Shape{2}, std::vector<int32_t>{512, 100});
+    auto axes = std::make_shared<ov::op::v0::Constant>(element::i32, Shape{2}, std::vector<int32_t>{1, 2});
+    auto signal = std::make_shared<ov::op::v0::Constant>(element::i32, Shape{2}, std::vector<int32_t>{512, 100});
     auto DFT_signal = std::make_shared<ov::op::v7::DFT>(input_shape, axes, signal);
     return DFT_signal;
 }
@@ -51,7 +51,7 @@ TEST(StaticShapeInferenceTest, DFTTest) {
     auto DFT = build_dft();
     std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>> constant_data;
     int32_t axes_val[] = {1, 2};
-    constant_data[1] = std::make_shared<ngraph::runtime::HostTensor>(ngraph::element::Type_t::i32, ov::Shape{2}, axes_val);
+    constant_data[1] = std::make_shared<ngraph::runtime::HostTensor>(ngraph::element::Type_t::i32, Shape{2}, axes_val);
 
     std::vector<StaticShape> static_input_shapes = {StaticShape{1, 320, 320, 2}, StaticShape{2}},
                              static_output_shapes = {StaticShape{}};
@@ -65,9 +65,9 @@ TEST(StaticShapeInferenceTest, DFTSignalTest) {
     std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>> constant_data;
     int32_t axes_val[] = {1, 2};
     int32_t signal_val[] = {512, 100};
-    constant_data[1] = std::make_shared<ngraph::runtime::HostTensor>(ngraph::element::Type_t::i32, ov::Shape{2}, axes_val);
+    constant_data[1] = std::make_shared<ngraph::runtime::HostTensor>(ngraph::element::Type_t::i32, Shape{2}, axes_val);
     constant_data[2] =
-        std::make_shared<ngraph::runtime::HostTensor>(ngraph::element::Type_t::i32, ov::Shape{2}, signal_val);
+        std::make_shared<ngraph::runtime::HostTensor>(ngraph::element::Type_t::i32, Shape{2}, signal_val);
 
     std::vector<StaticShape> static_input_shapes = {StaticShape{1, 320, 320, 2}, StaticShape{2}, StaticShape{2}},
                              static_output_shapes = {StaticShape{}};
@@ -90,7 +90,7 @@ TEST(StaticShapeInferenceTest, DFTSignalMissingConstDataTest) {
     auto DFT = build_dft_signal();
     std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>> constant_data;
     int32_t axes_val[] = {1, 2};
-    constant_data[1] = std::make_shared<ngraph::runtime::HostTensor>(ngraph::element::Type_t::i32, ov::Shape{2}, axes_val);
+    constant_data[1] = std::make_shared<ngraph::runtime::HostTensor>(ngraph::element::Type_t::i32, Shape{2}, axes_val);
 
     std::vector<StaticShape> static_input_shapes = {StaticShape{1, 320, 320, 2}, StaticShape{2}, StaticShape{2}},
                              static_output_shapes = {StaticShape{}};
@@ -102,7 +102,7 @@ TEST(StaticShapeInferenceTest, IDFTTest) {
     auto IDFT = build_idft();
     std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>> constant_data;
     int32_t axes_val[] = {1, 2};
-    constant_data[1] = std::make_shared<ngraph::runtime::HostTensor>(ngraph::element::Type_t::i32, ov::Shape{2}, axes_val);
+    constant_data[1] = std::make_shared<ngraph::runtime::HostTensor>(ngraph::element::Type_t::i32, Shape{2}, axes_val);
 
     std::vector<StaticShape> static_input_shapes = {StaticShape{1, 320, 320, 2}, StaticShape{2}},
                              static_output_shapes = {StaticShape{}};
@@ -116,9 +116,9 @@ TEST(StaticShapeInferenceTest, IDFTSignalTest) {
     std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>> constant_data;
     int32_t axes_val[] = {1, 2};
     int32_t signal_val[] = {512, 100};
-    constant_data[1] = std::make_shared<ngraph::runtime::HostTensor>(ngraph::element::Type_t::i32, ov::Shape{2}, axes_val);
+    constant_data[1] = std::make_shared<ngraph::runtime::HostTensor>(ngraph::element::Type_t::i32, Shape{2}, axes_val);
     constant_data[2] =
-        std::make_shared<ngraph::runtime::HostTensor>(ngraph::element::Type_t::i32, ov::Shape{2}, signal_val);
+        std::make_shared<ngraph::runtime::HostTensor>(ngraph::element::Type_t::i32, Shape{2}, signal_val);
 
     std::vector<StaticShape> static_input_shapes = {StaticShape{1, 320, 320, 2}, StaticShape{2}, StaticShape{2}},
                              static_output_shapes = {StaticShape{}};
@@ -131,7 +131,7 @@ TEST(StaticShapeInferenceTest, IDFTSignalMissingConstDataTest) {
     auto IDFT = build_idft_signal();
     std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>> constant_data;
     int32_t axes_val[] = {1, 2};
-    constant_data[1] = std::make_shared<ngraph::runtime::HostTensor>(ngraph::element::Type_t::i32, ov::Shape{2}, axes_val);
+    constant_data[1] = std::make_shared<ngraph::runtime::HostTensor>(ngraph::element::Type_t::i32, Shape{2}, axes_val);
 
     std::vector<StaticShape> static_input_shapes = {StaticShape{1, 320, 320, 2}, StaticShape{2}, StaticShape{2}},
                              static_output_shapes = {StaticShape{}};
@@ -145,7 +145,7 @@ TEST(StaticShapeInferenceTest, RDFT) {
     auto RDFT = std::make_shared<ov::op::v9::RDFT>(input_shape, axes);
     std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>> constant_data;
     int32_t axes_val[] = {2, 3};
-    constant_data[1] = std::make_shared<ngraph::runtime::HostTensor>(ngraph::element::Type_t::i32, ov::Shape{2}, axes_val);
+    constant_data[1] = std::make_shared<ngraph::runtime::HostTensor>(ngraph::element::Type_t::i32, Shape{2}, axes_val);
 
     std::vector<StaticShape> static_input_shapes = {StaticShape{1, 120, 64, 64}, StaticShape{2}},
                              static_output_shapes = {StaticShape{}};
@@ -162,9 +162,9 @@ TEST(StaticShapeInferenceTest, RDFTWithSignalSizes) {
     std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>> constant_data;
     int32_t axes_val[] = {2, 3};
     int32_t signal_val[] = {40, 30};
-    constant_data[1] = std::make_shared<ngraph::runtime::HostTensor>(ngraph::element::Type_t::i32, ov::Shape{2}, axes_val);
+    constant_data[1] = std::make_shared<ngraph::runtime::HostTensor>(ngraph::element::Type_t::i32, Shape{2}, axes_val);
     constant_data[2] =
-        std::make_shared<ngraph::runtime::HostTensor>(ngraph::element::Type_t::i32, ov::Shape{2}, signal_val);
+        std::make_shared<ngraph::runtime::HostTensor>(ngraph::element::Type_t::i32, Shape{2}, signal_val);
 
     std::vector<StaticShape> static_input_shapes = {StaticShape{1, 120, 64, 64}, StaticShape{2}, StaticShape{2}},
                              static_output_shapes = {StaticShape{}};
@@ -175,8 +175,8 @@ TEST(StaticShapeInferenceTest, RDFTWithSignalSizes) {
 
 TEST(StaticShapeInferenceTest, RDFTWithConstAxesAndSignalSizes) {
     auto input_shape = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
-    auto axes = std::make_shared<ov::op::v0::Constant>(element::i32, ov::Shape{2}, std::vector<int32_t>{2, 3});
-    auto signal = std::make_shared<ov::op::v0::Constant>(element::i32, ov::Shape{2}, std::vector<int32_t>{64, 64});
+    auto axes = std::make_shared<ov::op::v0::Constant>(element::i32, Shape{2}, std::vector<int32_t>{2, 3});
+    auto signal = std::make_shared<ov::op::v0::Constant>(element::i32, Shape{2}, std::vector<int32_t>{64, 64});
     auto RDFT = std::make_shared<ov::op::v9::RDFT>(input_shape, axes, signal);
 
     std::vector<StaticShape> static_input_shapes = {StaticShape{1, 120, 64, 64}, StaticShape{2}, StaticShape{2}},
@@ -193,7 +193,7 @@ TEST(StaticShapeInferenceTest, RDFTMissingSignalTensor) {
     auto RDFT = std::make_shared<ov::op::v9::RDFT>(input_shape, axes, signal);
     std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>> constant_data;
     int32_t axes_val[] = {2, 3};
-    constant_data[1] = std::make_shared<ngraph::runtime::HostTensor>(ngraph::element::Type_t::i32, ov::Shape{2}, axes_val);
+    constant_data[1] = std::make_shared<ngraph::runtime::HostTensor>(ngraph::element::Type_t::i32, Shape{2}, axes_val);
 
     std::vector<StaticShape> static_input_shapes = {StaticShape{1, 120, 64, 64}, StaticShape{2}, StaticShape{2}},
                              static_output_shapes = {StaticShape{}};
@@ -207,7 +207,7 @@ TEST(StaticShapeInferenceTest, IRDFT) {
     auto IRDFT = std::make_shared<ov::op::v9::IRDFT>(input_shape, axes);
     std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>> constant_data;
     int32_t axes_val[] = {2, 3};
-    constant_data[1] = std::make_shared<ngraph::runtime::HostTensor>(ngraph::element::Type_t::i32, ov::Shape{2}, axes_val);
+    constant_data[1] = std::make_shared<ngraph::runtime::HostTensor>(ngraph::element::Type_t::i32, Shape{2}, axes_val);
 
     std::vector<StaticShape> static_input_shapes = {StaticShape{1, 120, 64, 33, 2}, StaticShape{2}},
                              static_output_shapes = {StaticShape{}};
@@ -224,9 +224,9 @@ TEST(StaticShapeInferenceTest, IRDFTWithSignalSizes) {
     std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>> constant_data;
     int32_t axes_val[] = {2, 3};
     int32_t signal_val[] = {64, 64};
-    constant_data[1] = std::make_shared<ngraph::runtime::HostTensor>(ngraph::element::Type_t::i32, ov::Shape{2}, axes_val);
+    constant_data[1] = std::make_shared<ngraph::runtime::HostTensor>(ngraph::element::Type_t::i32, Shape{2}, axes_val);
     constant_data[2] =
-        std::make_shared<ngraph::runtime::HostTensor>(ngraph::element::Type_t::i32, ov::Shape{2}, signal_val);
+        std::make_shared<ngraph::runtime::HostTensor>(ngraph::element::Type_t::i32, Shape{2}, signal_val);
 
     std::vector<StaticShape> static_input_shapes = {StaticShape{1, 120, 64, 33, 2}, StaticShape{2}, StaticShape{2}},
                              static_output_shapes = {StaticShape{}};
@@ -242,7 +242,7 @@ TEST(StaticShapeInferenceTest, IRDFTMissingSignalSizesTensor) {
     auto IRDFT = std::make_shared<ov::op::v9::IRDFT>(input_shape, axes, signal);
     std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>> constant_data;
     int32_t axes_val[] = {2, 3};
-    constant_data[1] = std::make_shared<ngraph::runtime::HostTensor>(ngraph::element::Type_t::i32, ov::Shape{2}, axes_val);
+    constant_data[1] = std::make_shared<ngraph::runtime::HostTensor>(ngraph::element::Type_t::i32, Shape{2}, axes_val);
 
     std::vector<StaticShape> static_input_shapes = {StaticShape{1, 120, 64, 33, 2}, StaticShape{2}, StaticShape{2}},
                              static_output_shapes = {StaticShape{}};

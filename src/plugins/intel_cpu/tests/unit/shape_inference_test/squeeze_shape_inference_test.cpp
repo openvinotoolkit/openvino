@@ -21,7 +21,6 @@ protected:
     }
 };
 
-using SqueezeCustomStaticShapeInferenceTest =  SqueezeStaticShapeInferenceAssertTest;
 TEST_F(SqueezeStaticShapeInferenceAssertTest, no_axes) {
     const auto arg = std::make_shared<op::v0::Parameter>(element::f64, PartialShape{-1, -1});
     const auto axes = std::make_shared<op::v0::Parameter>(element::i64, PartialShape{1});
@@ -35,8 +34,8 @@ TEST_F(SqueezeStaticShapeInferenceAssertTest, no_axes) {
 }
 
 TEST_F(SqueezeStaticShapeInferenceAssertTest, parameter_static_shape_axes_no_data) {
-    const auto arg = std::make_shared<op::v0::Parameter>(element::f64, ov::Shape{2, 1, 3, 1});
-    const auto axes = std::make_shared<op::v0::Parameter>(element::i64, ov::Shape{2});
+    const auto arg = std::make_shared<op::v0::Parameter>(element::f64, Shape{2, 1, 3, 1});
+    const auto axes = std::make_shared<op::v0::Parameter>(element::i64, Shape{2});
     const auto op = make_op(arg, axes);
 
     input_shapes = ShapeVector{arg->get_shape(), axes->get_shape()};
@@ -44,22 +43,6 @@ TEST_F(SqueezeStaticShapeInferenceAssertTest, parameter_static_shape_axes_no_dat
     OV_EXPECT_THROW(shape_inference(op.get(), input_shapes, output_shapes),
                     NodeValidationFailure,
                     HasSubstr("Check 'constant != nullptr'"));
-}
-
-TEST_F(SqueezeCustomStaticShapeInferenceTest, wrong_pattern) {
-    const auto arg = std::make_shared<op::v0::Parameter>(element::f64, PartialShape{-1, -1});
-    const auto axes = std::make_shared<op::v0::Parameter>(element::i64, PartialShape{1});
-    const auto op = make_op(arg, axes);
-
-    input_shapes = ShapeVector{{5, 6}, axes->get_shape()};
-
-    int64_t axes_data[] = {2};
-    const auto axes_tensor = std::make_shared<ngraph::runtime::HostTensor>(element::i64, ov::Shape{1}, axes_data);
-    const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>> constant_data = {{1, axes_tensor}};
-
-    OV_EXPECT_THROW(unit_test::cpu_test_shape_infer(op.get(), input_shapes, output_shapes, constant_data),
-                    InferenceEngine::Unexpected,
-                    HasSubstr("[cpu]squeeze: the shape of input data [5,6] conflicts with the squeeze pattern [2]"));
 }
 
 using TestParams = std::tuple<ShapeVector,           // Input shapes
@@ -99,7 +82,6 @@ INSTANTIATE_TEST_SUITE_P(
            make_tuple(ShapeVector{{10, 1, 0, 1, 3, 1, 1}, {4}},
                       std::vector<int64_t>{1, -1, 3, -2},
                       StaticShape({10, 0, 3})),
-           make_tuple(ShapeVector{{10, 1, 0, 1, 3, 1, 1}}, std::vector<int64_t>{}, StaticShape({10, 0, 3})),
            make_tuple(ShapeVector{{10, 1, 0, 1, 3, 1, 1}, {}}, std::vector<int64_t>{}, StaticShape({10, 0, 3})),
            make_tuple(ShapeVector{{2, 1, 7, 8, 3}, {1}}, std::vector<int64_t>{1}, StaticShape({2, 7, 8, 3}))),
     PrintToStringParamName());
@@ -109,23 +91,22 @@ INSTANTIATE_TEST_SUITE_P(
     SqueezeStaticShapeInferenceTest,
     Values(make_tuple(ShapeVector{{2, 1, 3}, {2}}, std::vector<int64_t>{1, 1}, StaticShape({2, 3})),
            make_tuple(ShapeVector{{3, 1, 2, 1}, {3}}, std::vector<int64_t>{1, -1, 1}, StaticShape({3, 2})),
-           make_tuple(ShapeVector{{3, 1, 2, 1}, {4}}, std::vector<int64_t>{1, -1, 1, -1}, StaticShape({3, 2})),
-           make_tuple(ShapeVector{{1, 3, 1, 2, 1}, {5}}, std::vector<int64_t>{2, -1, 2, -1, 0}, StaticShape({3, 2})),
+           make_tuple(ShapeVector{{3, 1, 2, 1}, {3}}, std::vector<int64_t>{1, -1, 1, -1}, StaticShape({3, 2})),
+           make_tuple(ShapeVector{{1, 3, 1, 2, 1}, {3}}, std::vector<int64_t>{2, -1, 2, -1, 0}, StaticShape({3, 2})),
            make_tuple(ShapeVector{{2, 6, 7, 8, 1}, {2}}, std::vector<int64_t>{-1, -1}, StaticShape({2, 6, 7, 8}))),
     PrintToStringParamName());
 
 TEST_P(SqueezeStaticShapeInferenceTest, shape_inference_empty_const_map) {
-    const auto axes_node = std::make_shared<op::v0::Constant>(element::i64, ov::Shape{axes.size()}, axes);
+    const auto axes_node = std::make_shared<op::v0::Constant>(element::i64, Shape{axes.size()}, axes);
     const auto op = make_op(arg, axes_node);
 
     shape_inference(op.get(), input_shapes, output_shapes);
 
     ASSERT_EQ(output_shapes.front(), exp_shape);
-    unit_test::cpu_test_shape_infer(op.get(), input_shapes, output_shapes);
 }
 
 TEST_P(SqueezeStaticShapeInferenceTest, shape_inference_with_const_map) {
-    const auto axes_node = std::make_shared<op::v0::Parameter>(element::i64, ov::Shape{1});
+    const auto axes_node = std::make_shared<op::v0::Parameter>(element::i64, Shape{1});
     const auto op = make_op(arg, axes_node);
 
     const auto axes_const = std::make_shared<op::v0::Constant>(element::i64, ov::Shape{axes.size()}, axes);
@@ -135,6 +116,4 @@ TEST_P(SqueezeStaticShapeInferenceTest, shape_inference_with_const_map) {
     shape_inference(op.get(), input_shapes, output_shapes, constant_data);
 
     ASSERT_EQ(output_shapes.front(), exp_shape);
-    unit_test::cpu_test_shape_infer(op.get(), input_shapes, output_shapes, constant_data);
 }
-

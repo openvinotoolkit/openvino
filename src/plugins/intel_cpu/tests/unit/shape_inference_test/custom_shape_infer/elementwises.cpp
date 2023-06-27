@@ -1,0 +1,22 @@
+// Copyright (C) 2018-2023 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include <gtest/gtest.h>
+
+#include "custom_shape_infer.hpp"
+#include <ngraph/opsets/opset1.hpp>
+
+using namespace ov;
+using namespace ov::intel_cpu;
+
+TEST(CpuShapeInferenceTest, UnaryEltwiseTest) {
+    auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
+    auto node = std::make_shared<ov::op::v0::Relu>(data);
+
+    std::vector<StaticShape> static_input_shapes = {StaticShape{3, 6, 5, 5}},
+        static_output_shapes = {StaticShape{3, 6, 5, 5}};
+
+    unit_test::cpu_test_shape_infer(node.get(), static_input_shapes, static_output_shapes);
+}
+

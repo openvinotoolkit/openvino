@@ -47,7 +47,7 @@ TEST_F(TopKV1AssertStaticShapeInferenceTest, k_is_negative) {
 
     int64_t k = -2;
     const auto const_map =
-        std::map<size_t, HostTensorPtr>{{1, std::make_shared<HostTensor>(element::i64, ov::Shape{}, &k)}};
+        std::map<size_t, HostTensorPtr>{{1, std::make_shared<HostTensor>(element::i64, Shape{}, &k)}};
 
     OV_EXPECT_THROW(shape_inference(op.get(), input_shapes, output_shapes, const_map),
                     ov::AssertFailure,
@@ -59,7 +59,7 @@ INSTANTIATE_TEST_SUITE_P(StaticShapeInference, TopKV1Test, TopkTestValues, Print
 
 TEST_P(TopKV1Test, no_constant_map) {
     const auto data = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
-    const auto k_node = Constant::create(element::i64, ov::Shape{}, {k});
+    const auto k_node = Constant::create(element::i64, Shape{}, {k});
 
     const auto op = make_op(data, k_node, axis, "max", "value");
 
@@ -85,7 +85,7 @@ TEST_P(TopKV1Test, k_as_param_in_const_map) {
     const auto k_node = std::make_shared<Parameter>(element::i64, PartialShape::dynamic());
 
     const auto const_map =
-        std::map<size_t, HostTensorPtr>{{1, std::make_shared<HostTensor>(element::i64, ov::Shape{}, &k)}};
+        std::map<size_t, HostTensorPtr>{{1, std::make_shared<HostTensor>(element::i64, Shape{}, &k)}};
 
     const auto op = make_op(data, k_node, axis, "min", "value");
 
@@ -110,7 +110,7 @@ TEST_F(TopKV3AssertStaticShapeInferenceTest, k_is_negative) {
 
     int64_t k = -2;
     const auto const_map =
-        std::map<size_t, HostTensorPtr>{{1, std::make_shared<HostTensor>(element::i64, ov::Shape{}, &k)}};
+        std::map<size_t, HostTensorPtr>{{1, std::make_shared<HostTensor>(element::i64, Shape{}, &k)}};
 
     OV_EXPECT_THROW(shape_inference(op.get(), input_shapes, output_shapes, const_map),
                     ov::AssertFailure,
@@ -122,7 +122,7 @@ INSTANTIATE_TEST_SUITE_P(StaticShapeInference, TopKV3Test, TopkTestValues, Print
 
 TEST_P(TopKV3Test, k_as_constant) {
     const auto data = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
-    const auto k_node = Constant::create(element::i64, ov::Shape{}, {k});
+    const auto k_node = Constant::create(element::i64, Shape{}, {k});
 
     const auto op = make_op(data, k_node, axis, "min", "value");
 
@@ -148,7 +148,7 @@ TEST_P(TopKV3Test, k_as_param_in_const_map) {
     const auto k_node = std::make_shared<Parameter>(element::i64, PartialShape::dynamic());
 
     const auto const_map =
-        std::map<size_t, HostTensorPtr>{{1, std::make_shared<HostTensor>(element::i64, ov::Shape{}, &k)}};
+        std::map<size_t, HostTensorPtr>{{1, std::make_shared<HostTensor>(element::i64, Shape{}, &k)}};
 
     const auto op = make_op(data, k_node, axis, "max", "value");
 

@@ -31,8 +31,8 @@ TYPED_TEST_P(PadStaticShapeInference, default_ctor) {
     int32_t pads_end[] = {0, 1, 2, 3};
 
     const auto const_data =
-        std::map<size_t, HostTensorPtr>{{1, std::make_shared<HostTensor>(element::i64, ov::Shape{4}, pads_begin)},
-                                        {2, std::make_shared<HostTensor>(element::i32, ov::Shape{4}, pads_end)}};
+        std::map<size_t, HostTensorPtr>{{1, std::make_shared<HostTensor>(element::i64, Shape{4}, pads_begin)},
+                                        {2, std::make_shared<HostTensor>(element::i32, Shape{4}, pads_end)}};
 
     this->input_shapes = ShapeVector{{3, 6, 5, 5}, {4}, {4}};
     shape_inference(op.get(), this->input_shapes, this->output_shapes, const_data);
@@ -44,9 +44,9 @@ TYPED_TEST_P(PadStaticShapeInference, default_ctor) {
 TYPED_TEST_P(PadStaticShapeInference, pads_begin_end_value_as_constants) {
     const auto data = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
 
-    const auto pads_begin = Constant::create(element::i64, ov::Shape{4}, {3, 2, 1, 0});
-    const auto pads_end = Constant::create(element::i64, ov::Shape{4}, {0, 1, 2, 3});
-    const auto pad_val = Constant::create(element::f32, ov::Shape{}, {2112});
+    const auto pads_begin = Constant::create(element::i64, Shape{4}, {3, 2, 1, 0});
+    const auto pads_end = Constant::create(element::i64, Shape{4}, {0, 1, 2, 3});
+    const auto pad_val = Constant::create(element::f32, Shape{}, {2112});
 
     const auto op = this->make_op(data, pads_begin, pads_end, pad_val, op::PadMode::CONSTANT);
 
@@ -66,8 +66,8 @@ TYPED_TEST_P(PadStaticShapeInference, pads_begin_end_in_constant_map) {
     uint32_t pads_end_data[] = {0, 1, 2, 0};
 
     const auto const_data =
-        std::map<size_t, HostTensorPtr>{{1, std::make_shared<HostTensor>(element::u64, ov::Shape{4}, pads_begin_data)},
-                                        {2, std::make_shared<HostTensor>(element::u32, ov::Shape{4}, pads_end_data)}};
+        std::map<size_t, HostTensorPtr>{{1, std::make_shared<HostTensor>(element::u64, Shape{4}, pads_begin_data)},
+                                        {2, std::make_shared<HostTensor>(element::u32, Shape{4}, pads_end_data)}};
 
     const auto op = this->make_op(data, pads_begin, pads_end, op::PadMode::REFLECT);
 
@@ -80,12 +80,12 @@ TYPED_TEST_P(PadStaticShapeInference, pads_begin_end_in_constant_map) {
 TYPED_TEST_P(PadStaticShapeInference, pads_begin_got_negative_value) {
     const auto data = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
     const auto pads_begin = std::make_shared<Parameter>(element::i8, PartialShape::dynamic());
-    const auto pads_end = Constant::create(element::i64, ov::Shape{4}, {0, 0, 0, 0});
+    const auto pads_end = Constant::create(element::i64, Shape{4}, {0, 0, 0, 0});
 
     int8_t pads_begin_data[] = {0, -2, -2, 0};
 
     const auto const_data =
-        std::map<size_t, HostTensorPtr>{{1, std::make_shared<HostTensor>(element::i8, ov::Shape{4}, pads_begin_data)}};
+        std::map<size_t, HostTensorPtr>{{1, std::make_shared<HostTensor>(element::i8, Shape{4}, pads_begin_data)}};
 
     const auto op = this->make_op(data, pads_begin, pads_end, op::PadMode::REFLECT);
     this->input_shapes = ShapeVector{{3, SIZE_MAX, 5, 2}, {4}, {4}};
@@ -97,14 +97,14 @@ TYPED_TEST_P(PadStaticShapeInference, pads_begin_got_negative_value) {
 
 TYPED_TEST_P(PadStaticShapeInference, pads_end_got_negative_value) {
     const auto data = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
-    const auto pads_begin = Constant::create(element::i64, ov::Shape{4}, {1, 1, 2, 1});
+    const auto pads_begin = Constant::create(element::i64, Shape{4}, {1, 1, 2, 1});
     const auto pads_end = std::make_shared<Parameter>(element::i8, PartialShape::dynamic());
     const auto op = this->make_op(data, pads_begin, pads_end, op::PadMode::REFLECT);
 
     int8_t pads_end_data[] = {0, -3, -2, 0};
 
     const auto const_data =
-        std::map<size_t, HostTensorPtr>{{2, std::make_shared<HostTensor>(element::i8, ov::Shape{4}, pads_end_data)}};
+        std::map<size_t, HostTensorPtr>{{2, std::make_shared<HostTensor>(element::i8, Shape{4}, pads_end_data)}};
 
     this->input_shapes = ShapeVector{{3, 6, 5, SIZE_MAX}, {4}, {4}};
 
@@ -116,10 +116,10 @@ TYPED_TEST_P(PadStaticShapeInference, pads_end_got_negative_value) {
 TYPED_TEST_P(PadStaticShapeInference, pads_begin_is_empty) {
     const auto data = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
     const auto pads_begin = std::make_shared<Parameter>(element::u64, PartialShape::dynamic());
-    const auto pads_end = Constant::create(element::i64, ov::Shape{4}, {0, 0, 0, 0});
+    const auto pads_end = Constant::create(element::i64, Shape{4}, {0, 0, 0, 0});
     const auto op = this->make_op(data, pads_begin, pads_end, op::PadMode::REFLECT);
 
-    const auto const_data = std::map<size_t, HostTensorPtr>{{1, std::make_shared<HostTensor>(element::u64, ov::Shape{0})}};
+    const auto const_data = std::map<size_t, HostTensorPtr>{{1, std::make_shared<HostTensor>(element::u64, Shape{0})}};
 
     this->input_shapes = ShapeVector{{3, 6, 5, 2}, {0}, {4}};
 
@@ -130,11 +130,11 @@ TYPED_TEST_P(PadStaticShapeInference, pads_begin_is_empty) {
 
 TYPED_TEST_P(PadStaticShapeInference, pads_end_is_empty) {
     const auto data = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
-    const auto pads_begin = Constant::create(element::i64, ov::Shape{4}, {1, 1, 1, 1});
+    const auto pads_begin = Constant::create(element::i64, Shape{4}, {1, 1, 1, 1});
     const auto pads_end = std::make_shared<Parameter>(element::i8, PartialShape::dynamic());
     const auto op = this->make_op(data, pads_begin, pads_end, op::PadMode::REFLECT);
 
-    const auto const_data = std::map<size_t, HostTensorPtr>{{2, std::make_shared<HostTensor>(element::i8, ov::Shape{0})}};
+    const auto const_data = std::map<size_t, HostTensorPtr>{{2, std::make_shared<HostTensor>(element::i8, Shape{0})}};
 
     this->input_shapes = ShapeVector{{3, 6, 5, 2}, {4}, {0}};
 

@@ -53,7 +53,7 @@ TEST_F(GroupConvolutionBackpropDataStaticShapeInferenceTest, default_ctor) {
 
     int32_t spatial_shape[] = {5, 10, 15};
     const auto const_data =
-        std::map<size_t, HostTensorPtr>{{2, std::make_shared<HostTensor>(element::i32, ov::Shape{3}, spatial_shape)}};
+        std::map<size_t, HostTensorPtr>{{2, std::make_shared<HostTensor>(element::i32, Shape{3}, spatial_shape)}};
 
     input_shapes = ShapeVector{{1, 6, 10, 12, 2}, {3, 2, 2, 5, 5, 5}, {3}};
     auto shape_infer = make_shape_inference(op);
@@ -76,7 +76,7 @@ TEST_F(GroupConvolutionBackpropDataStaticShapeInferenceTest, default_ctor_more_i
 
     int32_t spatial_shape[] = {5, 10, 15};
     const auto const_data =
-        std::map<size_t, HostTensorPtr>{{2, std::make_shared<HostTensor>(element::i32, ov::Shape{3}, spatial_shape)}};
+        std::map<size_t, HostTensorPtr>{{2, std::make_shared<HostTensor>(element::i32, Shape{3}, spatial_shape)}};
 
     // More than three inputs can be provided, but not used
     input_shapes = ShapeVector{{1, 6, 10, 12, 2}, {3, 2, 2, 5, 5, 5}, {3}, {0}};
@@ -117,7 +117,7 @@ TEST_F(GroupConvolutionBackpropDataStaticShapeInferenceTest, 3d_auto_pad_same_lo
 
     const auto data = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic(5));
     const auto filters = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic(6));
-    const auto out_spatial = op::v0::Constant::create(element::i64, ov::Shape{3}, {2, 1, 3});
+    const auto out_spatial = op::v0::Constant::create(element::i64, Shape{3}, {2, 1, 3});
 
     op = make_op(data, filters, out_spatial, strides, pads_begin, pads_end, dilations, auto_pad);
 
@@ -142,7 +142,7 @@ TEST_F(GroupConvolutionBackpropDataStaticShapeInferenceTest, 3d_auto_pad_same_up
     op = make_op(data, filters, out_spatial, strides, pads_begin, pads_end, dilations, auto_pad);
     int32_t spatial_dims[] = {2, 6, 1};
     const auto const_data =
-        std::map<size_t, HostTensorPtr>{{2, std::make_shared<HostTensor>(element::i32, ov::Shape{3}, spatial_dims)}};
+        std::map<size_t, HostTensorPtr>{{2, std::make_shared<HostTensor>(element::i32, Shape{3}, spatial_dims)}};
 
     input_shapes = ShapeVector{{3, 5, 5, 5, 5}, {1, 5, 1, 3, 3, 3}, {3}};
     shape_inference(op.get(), input_shapes, output_shapes, const_data);

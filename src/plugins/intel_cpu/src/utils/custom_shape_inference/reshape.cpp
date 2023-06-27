@@ -96,6 +96,7 @@ Result SqueezeShapeInfer::infer(const std::vector<std::reference_wrapper<const V
                                                   data,
                                                   outputPatternSize,
                                                   ov::util::Cast<int64_t>());
+            std::vector<int64_t> OriginOutPattern = outPattern;
             std::vector<bool> removeMask(inputShapeSize, false);
             bool existError = false;
             for (size_t i = 0; i < outputPatternSize; i++) {
@@ -119,7 +120,7 @@ Result SqueezeShapeInfer::infer(const std::vector<std::reference_wrapper<const V
             }
             if (existError) {
                 IE_THROW(Unexpected) << "[cpu]squeeze: the shape of input data " << inputShape
-                    << " conflicts with the squeeze pattern " << outPattern;
+                    << " conflicts with the squeeze pattern " << OriginOutPattern;
             }
         } else {
             for (size_t i = 0; i < inputShapeSize; i++) {
@@ -147,14 +148,14 @@ Result UnsqueezeShapeInfer::infer(const std::vector<std::reference_wrapper<const
     const auto data = memPtr->GetPtr();
     const auto& dims = memPtr->getStaticDims();
     size_t outputPatternSize = std::accumulate(dims.begin(), dims.end(), 1, std::multiplies<Dim>());
-    std::vector<int64_t> outPattern = ov::get_raw_data_as<int64_t>(
+    std::vector<int64_t> originOutPattern = ov::get_raw_data_as<int64_t>(
                                           InferenceEngine::details::convertPrecision(memPtr->getDesc().getPrecision()),
                                           data,
                                           outputPatternSize,
                                           ov::util::Cast<int64_t>());
     // remove repeated pattern
-    std::unordered_set<int64_t> tmp(outPattern.begin(), outPattern.end());
-    outPattern = std::vector<int64_t>(tmp.begin(), tmp.end());
+    std::unordered_set<int64_t> tmp(originOutPattern.begin(), originOutPattern.end());
+    std::vector<int64_t> outPattern = std::vector<int64_t>(tmp.begin(), tmp.end());
     outputPatternSize = outPattern.size();
     size_t outputShapeSize = inputShapeSize + outputPatternSize;
     VectorDims outputShape(outputShapeSize, 0);
@@ -183,7 +184,7 @@ Result UnsqueezeShapeInfer::infer(const std::vector<std::reference_wrapper<const
     }
     if (existError) {
         IE_THROW(Unexpected) << "[cpu]unsqueeze: the shape of input data " << inputShape
-           << " conflicts with the unsqueeze pattern " << outPattern;
+           << " conflicts with the unsqueeze pattern " << originOutPattern;
     }
     return {{std::move(outputShape)}, ShapeInferStatus::success};
 }

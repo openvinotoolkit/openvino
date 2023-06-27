@@ -8,13 +8,13 @@
 #include <openvino/op/parameter.hpp>
 #include <utils/shape_inference/shape_inference.hpp>
 #include <utils/shape_inference/static_shape.hpp>
-#include "custom_shape_infer.hpp"
+
+#include "utils/shape_inference/static_shape.hpp"
 
 #pragma once
 
 namespace ov {
 namespace intel_cpu {
-
 template <class TIface = IShapeInferCommon, class TTensorPtr = HostTensorPtr>
 void shape_inference(ov::Node* op,
                      const std::vector<StaticShape>& input_shapes,

@@ -4,7 +4,7 @@
 
 #include <gtest/gtest.h>
 #include "transformations/cpu_opset/common/op/ngram.hpp"
-#include "utils.hpp"
+#include "custom_shape_infer.hpp"
 
 using namespace ov;
 using namespace ov::intel_cpu;

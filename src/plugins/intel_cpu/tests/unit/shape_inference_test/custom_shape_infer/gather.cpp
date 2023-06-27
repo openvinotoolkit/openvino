@@ -3,26 +3,21 @@
 //
 
 #include <gtest/gtest.h>
-
-#include <openvino/op/constant.hpp>
-#include <openvino/op/gather.hpp>
-#include <openvino/op/parameter.hpp>
-#include <openvino/util/common_util.hpp>
-#include <utils/shape_inference/shape_inference.hpp>
-
-#include "utils.hpp"
+#include "custom_shape_infer.hpp"
+#include <ngraph/opsets/opset1.hpp>
 
 using namespace ov;
 using namespace ov::intel_cpu;
 using namespace testing;
+using namespace ov::intel_cpu::unit_test;
 
 using TestParams = std::tuple<int32_t, ShapeVector, StaticShape>;
 
-template <class TGather>
-class StaticShapeInferenceGatherTest : public OpStaticShapeInferenceTest<TGather> {
+template <typename TGather>
+class CpuShapeInferenceGatherTest : public unit_test::OpCpuShapeInferenceTest<TGather> {
 protected:
     void SetUp() override {
-        OpStaticShapeInferenceTest<TGather>::output_shapes = ShapeVector(1);
+        this->output_shapes.resize(0);
     }
 
     std::shared_ptr<TGather> make_gather(const ShapeVector& shapes, const int32_t* const axis_val_ptr = nullptr) {
@@ -32,7 +27,7 @@ protected:
         auto indicies = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{i_dims});
 
         if (axis_val_ptr) {
-            auto axis = op::v0::Constant::create(element::i32, Shape{}, {*axis_val_ptr});
+            auto axis = op::v0::Constant::create(element::i32, ov::Shape{}, {*axis_val_ptr});
             return this->make_op(param, indicies, axis);
         } else {
             auto axis = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{});
@@ -53,37 +48,30 @@ const auto GatherTestParams =
                             make_tuple(-1, ShapeVector{{3, 2, 4}, {2, 1, 2}, {}}, StaticShape({3, 2, 2, 1, 2})),
                             make_tuple(-2, ShapeVector{{3, 2, 4}, {2, 1, 2}, {}}, StaticShape({3, 2, 1, 2, 4}))};
 
-TYPED_TEST_SUITE_P(StaticShapeInferenceGatherTest);
+TYPED_TEST_SUITE_P(CpuShapeInferenceGatherTest);
 
-TYPED_TEST_P(StaticShapeInferenceGatherTest, axis_const) {
+TYPED_TEST_P(CpuShapeInferenceGatherTest, axis_const) {
     for (auto&& params : GatherTestParams) {
         std::tie(this->axis_val, this->input_shapes, this->exp_shape) = params;
 
         auto op = this->make_gather(this->input_shapes, &this->axis_val);
-
-        shape_inference(op.get(), this->input_shapes, this->output_shapes);
-
-        ASSERT_EQ(this->output_shapes.front(), this->exp_shape)
-            << "Failed for axis: " << this->axis_val
-            << ", input shapes: " << util::vector_to_string(this->input_shapes);
+        this->output_shapes = {this->exp_shape};
+        unit_test::cpu_test_shape_infer(op.get(), this->input_shapes, this->output_shapes);
     }
 }
 
-TYPED_TEST_P(StaticShapeInferenceGatherTest, axis_in_const_map) {
+TYPED_TEST_P(CpuShapeInferenceGatherTest, axis_in_const_map) {
     for (auto&& params : GatherTestParams) {
         std::tie(this->axis_val, this->input_shapes, this->exp_shape) = params;
 
         auto op = this->make_gather(this->input_shapes);
-        auto axis_tensor = std::make_shared<HostTensor>(element::i32, Shape{1}, &this->axis_val);
+        auto axis_tensor = std::make_shared<HostTensor>(element::i32, ov::Shape{1}, &this->axis_val);
 
-        shape_inference(op.get(), this->input_shapes, this->output_shapes, {{2, axis_tensor}});
-
-        ASSERT_EQ(this->output_shapes.front(), this->exp_shape)
-            << "Failed for axis: " << this->axis_val
-            << ", input shapes: " << util::vector_to_string(this->input_shapes);
+        this->output_shapes = {this->exp_shape};
+        unit_test::cpu_test_shape_infer(op.get(), this->input_shapes, this->output_shapes, {{2, axis_tensor}});
     }
 }
 
-REGISTER_TYPED_TEST_SUITE_P(StaticShapeInferenceGatherTest, axis_const, axis_in_const_map);
+REGISTER_TYPED_TEST_SUITE_P(CpuShapeInferenceGatherTest, axis_const, axis_in_const_map);
 using GatherTypes = Types<op::v1::Gather, op::v7::Gather, op::v8::Gather>;
-INSTANTIATE_TYPED_TEST_SUITE_P(shape_infer, StaticShapeInferenceGatherTest, GatherTypes);
+INSTANTIATE_TYPED_TEST_SUITE_P(shape_infer, CpuShapeInferenceGatherTest, GatherTypes);

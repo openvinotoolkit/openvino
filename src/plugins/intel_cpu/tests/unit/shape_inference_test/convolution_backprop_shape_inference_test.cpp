@@ -134,7 +134,7 @@ TEST_F(ConvolutionBackpropDataV1StaticShapeInferenceTest, 3d_auto_pad_same_lower
 
     const auto data = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic(5));
     const auto filters = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic(5));
-    const auto out_spatial = op::v0::Constant::create(element::i64, ov::Shape{3}, {2, 1, 3});
+    const auto out_spatial = op::v0::Constant::create(element::i64, Shape{3}, {2, 1, 3});
 
     op = make_op(data, filters, out_spatial, strides, pads_begin, pads_end, dilations, auto_pad);
 
@@ -159,7 +159,7 @@ TEST_F(ConvolutionBackpropDataV1StaticShapeInferenceTest, 3d_auto_pad_same_upper
     op = make_op(data, filters, out_spatial, strides, pads_begin, pads_end, dilations, auto_pad);
     int32_t spatial_dims[] = {2, 6, 1};
     const auto const_map =
-        std::map<size_t, HostTensorPtr>{{2, std::make_shared<HostTensor>(element::i32, ov::Shape{3}, spatial_dims)}};
+        std::map<size_t, HostTensorPtr>{{2, std::make_shared<HostTensor>(element::i32, Shape{3}, spatial_dims)}};
 
     input_shapes = ShapeVector{{3, 5, 5, 5, 5}, {5, 7, 3, 3, 3}, {3}};
     shape_inference(op.get(), input_shapes, output_shapes, const_map);

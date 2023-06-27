@@ -18,7 +18,6 @@ TEST(StaticShapeInferenceTest, UnaryEltwiseTest) {
     shape_inference(node.get(), static_input_shapes, static_output_shapes);
 
     ASSERT_EQ(static_output_shapes[0], StaticShape({3, 6, 5, 5}));
-    unit_test::cpu_test_shape_infer(node.get(), static_input_shapes, static_output_shapes);
 }
 
 TEST(StaticShapeInferenceTest, FakeQuantizeTest) {

@@ -30,11 +30,6 @@ TEST_F(AdaptiveMaxPoolV8StaticShapeInferenceTest, default_ctor) {
 
     EXPECT_EQ(output_shapes.size(), 2);
     EXPECT_THAT(output_shapes, Each(StaticShape({1, 3, 10, 20})));
-
-    // implementation depends on some output information of the op
-    op->set_output_type(0, element::i32, {-1, -1, -1, -1});
-    op->set_output_type(1, element::i32, {-1, -1, -1, -1});
-    unit_test::cpu_test_shape_infer(op.get(), input_shapes, output_shapes, const_data);
 }
 
 TEST_F(AdaptiveMaxPoolV8StaticShapeInferenceTest, out_spatial_dims_as_constant) {
@@ -48,10 +43,7 @@ TEST_F(AdaptiveMaxPoolV8StaticShapeInferenceTest, out_spatial_dims_as_constant) 
 
     EXPECT_EQ(output_shapes.size(), 2);
     EXPECT_THAT(output_shapes, Each(StaticShape({1, 3, 17})));
-
-    unit_test::cpu_test_shape_infer(op.get(), input_shapes, output_shapes);
 }
-
 
 TEST_F(AdaptiveMaxPoolV8StaticShapeInferenceTest, out_spatial_dims_in_const_map) {
     const auto data = std::make_shared<op::v0::Parameter>(element::f64, PartialShape::dynamic());
@@ -68,8 +60,6 @@ TEST_F(AdaptiveMaxPoolV8StaticShapeInferenceTest, out_spatial_dims_in_const_map)
 
     EXPECT_EQ(output_shapes.size(), 2);
     EXPECT_THAT(output_shapes, Each(StaticShape({1, 3, 9, 8, 7})));
-
-    unit_test::cpu_test_shape_infer(op.get(), input_shapes, output_shapes, const_data);
 }
 
 TEST_F(AdaptiveMaxPoolV8StaticShapeInferenceTest, out_spatial_dims_in_const_map_has_wrong_length) {
@@ -86,8 +76,4 @@ TEST_F(AdaptiveMaxPoolV8StaticShapeInferenceTest, out_spatial_dims_in_const_map_
     OV_EXPECT_THROW(shape_inference(op.get(), input_shapes, output_shapes, const_data),
                     ov::NodeValidationFailure,
                     HasSubstr("Number of spatial dimensions is not compatible with input data rank"));
-
-    // TODO ,implementation should throw exception
-    // ASSERT_THROW(unit_test::cpu_test_shape_infer(op.get(), input_shapes, output_shapes, const_data),
-    //             InferenceEngine::GeneralError);
 }
