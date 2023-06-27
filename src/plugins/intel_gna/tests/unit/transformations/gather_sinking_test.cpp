@@ -17,8 +17,6 @@
 #include "transformations/gather_sinking_reshape.hpp"
 #include "transformations/gather_sinking_split.hpp"
 #include "transformations/replace_gna_nhwc_layers.hpp"
-#include "transformations/ts_concat.hpp"
-#include "transformations/ts_split.hpp"
 
 using namespace ov;
 using namespace ov::opset10;

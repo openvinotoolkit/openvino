@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/ts_concat.hpp"
+#include "transformations/ts_concat_forward.hpp"
 
 #include <openvino/cc/ngraph/itt.hpp>
 

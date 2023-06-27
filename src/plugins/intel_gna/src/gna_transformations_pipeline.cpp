@@ -67,8 +67,8 @@
 #include "transformations/transpose_sinking/ts_fuse.hpp"
 #include "transformations/transpose_sinking/ts_general.hpp"
 #include "transformations/transpose_sinking/ts_split.hpp"
-#include "transformations/ts_concat.hpp"
-#include "transformations/ts_split.hpp"
+#include "transformations/ts_concat_forward.hpp"
+#include "transformations/ts_split_backward.hpp"
 #include "transformations/unfuse_reshape_and_transpose.hpp"
 #include "transformations/utils/utils.hpp"
 
