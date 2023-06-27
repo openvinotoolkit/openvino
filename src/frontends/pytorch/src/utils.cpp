@@ -339,6 +339,7 @@ std::shared_ptr<ov::op::util::FrameworkNode> make_list_construct(const ov::Outpu
     list_construct->set_attrs(attrs);
     list_construct->validate_and_infer_types();
     return list_construct;
+}
 
 bool is_none_node(const Output<Node>& node) {
     if (const auto& fw_node_inp = std::dynamic_pointer_cast<ov::op::util::FrameworkNode>(node.get_node_shared_ptr())) {
