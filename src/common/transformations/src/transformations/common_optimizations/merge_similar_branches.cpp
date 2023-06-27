@@ -35,20 +35,20 @@ bool is_op_input_order_agnostic(Node* n) {
 bool compare_matmuls(const Input<Node>& l, const Input<Node>& r) {
     if (l == r)
         return true;
-    const auto l_node = l.get_node();
-    const auto r_node = r.get_node();
+    const auto l_node = dynamic_cast<opset11::MatMul*>(l.get_node());
+    const auto r_node = dynamic_cast<opset11::MatMul*>(r.get_node());
 
-    if (!is_type<op::v0::MatMul>(l_node) || !is_type<op::v0::MatMul>(r_node) ||
-        l_node->get_input_node_ptr(0) != r_node->get_input_node_ptr(0))
+    if (!l_node || !r_node || l_node->get_input_node_ptr(0) != r_node->get_input_node_ptr(0) ||
+        l_node->get_transpose_a() != r_node->get_transpose_a() ||
+        l_node->get_transpose_b() != r_node->get_transpose_b())
         return false;
 
     if (l_node->get_output_element_type(0) == r_node->get_output_element_type(0) &&
         l_node->get_output_partial_shape(0) == r_node->get_output_partial_shape(0)) {
         const auto l_input1 = l_node->input_value(1);
         const auto r_input1 = r_node->input_value(1);
-        return /* op::util::is_constant(l_input1.get_node()) && op::util::is_constant(r_input1.get_node()) && */
-            l_input1.get_element_type() == r_input1.get_element_type() &&
-            l_input1.get_partial_shape() == r_input1.get_partial_shape();
+        return l_input1.get_element_type() == r_input1.get_element_type() &&
+               l_input1.get_partial_shape() == r_input1.get_partial_shape();
     }
     return false;
 }
@@ -56,38 +56,29 @@ bool compare_matmuls(const Input<Node>& l, const Input<Node>& r) {
 bool compare_matmuls_and_adds(const Input<Node>& l, const Input<Node>& r) {
     if (l == r)
         return true;
-    const auto l_node = l.get_node();
-    const auto r_node = r.get_node();
 
-    if (!is_type<op::v0::MatMul>(l_node) || !is_type<op::v0::MatMul>(r_node) ||
-        l_node->get_input_node_ptr(0) != r_node->get_input_node_ptr(0))
+    if (!compare_matmuls(l, r))
         return false;
 
-    if (l_node->get_output_element_type(0) == r_node->get_output_element_type(0) &&
-        l_node->get_output_partial_shape(0) == r_node->get_output_partial_shape(0)) {
-        const auto l_input1 = l_node->input_value(1);
-        const auto r_input1 = r_node->input_value(1);
-        if (l_input1.get_element_type() != r_input1.get_element_type() ||
-            l_input1.get_partial_shape() != r_input1.get_partial_shape())
-            return false;
+    const auto l_node = l.get_node();
+    const auto r_node = r.get_node();
+    const auto l_target_inputs = l_node->get_output_target_inputs(0);
+    const auto r_target_inputs = r_node->get_output_target_inputs(0);
+    if (l_target_inputs.size() > 1 || r_target_inputs.size() > 1)
+        return false;
 
-        const auto l_target_inputs = l_node->get_output_target_inputs(0);
-        const auto r_target_inputs = r_node->get_output_target_inputs(0);
-        if (l_target_inputs.size() > 1 || r_target_inputs.size() > 1)
-            return false;
-        const auto l_target = begin(l_target_inputs)->get_node();
-        const auto r_target = begin(r_target_inputs)->get_node();
-        if (is_type<op::v1::Add>(l_target) && is_type<op::v1::Add>(r_target) &&
-            l_target->input_value(0).get_node() == l_node && r_target->input_value(0).get_node() == r_node) {
-            const auto l_target_input1_node = l_target->input_value(1).get_node();
-            const auto r_target_input1_node = r_target->input_value(1).get_node();
-            if (/* op::util::is_constant(l_target_input1_node) && op::util::is_constant(r_target_input1_node) && */
-                l_target_input1_node->get_output_element_type(0) == r_target_input1_node->get_output_element_type(0) &&
+    const auto l_target = begin(l_target_inputs)->get_node();
+    const auto r_target = begin(r_target_inputs)->get_node();
+    if (is_type<opset11::Add>(l_target) && is_type<opset11::Add>(r_target) &&
+        l_target->input_value(0).get_node() == l_node && r_target->input_value(0).get_node() == r_node) {
+        const auto l_target_input1_node = l_target->input_value(1).get_node();
+        const auto r_target_input1_node = r_target->input_value(1).get_node();
+            if (l_target_input1_node->get_output_element_type(0) == r_target_input1_node->get_output_element_type(0) &&
                 l_target_input1_node->get_output_shape(0) == r_target_input1_node->get_output_shape(0)) {
                 return true;
             }
-        }
     }
+
     return false;
 }
 
@@ -232,17 +223,19 @@ bool MergeSimilarBranches::run_on_model(const std::shared_ptr<ov::Model>& model)
         matmuls_ms.update_logs = update_logs;
         matmuls_ms.merge = [&update_logs](set<Node*> matmuls_to_merge) {
             if (matmuls_to_merge.size() > 1) {
-                const auto output = (*begin(matmuls_to_merge))->input_value(0);
+                const auto mm = dynamic_cast<opset11::MatMul*>(*begin(matmuls_to_merge));
+                const auto output = mm->input_value(0);
                 OutputVector matmuls_inputs1;
                 for (const auto& m : matmuls_to_merge) {
                     matmuls_inputs1.push_back(m->input_value(1));
                     update_logs(nullptr, m);
                 }
-                const int64_t axis = -1;
-                const auto concat = make_shared<opset11::Concat>(matmuls_inputs1, axis);
-                const auto matmul = make_shared<opset11::MatMul>(output, concat);
+                const auto transp_a = mm->get_transpose_a();
+                const auto transp_b = mm->get_transpose_b();
+                const auto concat = make_shared<opset11::Concat>(matmuls_inputs1, transp_b ? -2 : -1);
+                const auto matmul = make_shared<opset11::MatMul>(output, concat, transp_a, transp_b);
                 const auto split = make_shared<opset11::Split>(matmul,
-                                                               opset11::Constant::create(element::i64, {}, {axis}),
+                                                               opset11::Constant::create(element::i64, {}, {-1}),
                                                                matmuls_to_merge.size());
                 size_t idx = 0;
                 for (const auto& m : matmuls_to_merge) {
@@ -261,7 +254,8 @@ bool MergeSimilarBranches::run_on_model(const std::shared_ptr<ov::Model>& model)
         matmuls_adds_ms.update_logs = update_logs;
         matmuls_adds_ms.merge = [&update_logs](set<Node*> matmuls_to_merge) {
             if (matmuls_to_merge.size() > 1) {
-                const auto output = (*begin(matmuls_to_merge))->input_value(0);
+                const auto mm = dynamic_cast<opset11::MatMul*>(*begin(matmuls_to_merge));
+                const auto output = mm->input_value(0);
                 OutputVector matmuls_inputs1;
                 OutputVector adds_inputs1;
                 OutputVector adds_outputs;
@@ -273,13 +267,14 @@ bool MergeSimilarBranches::run_on_model(const std::shared_ptr<ov::Model>& model)
                     update_logs(nullptr, m);
                     update_logs(nullptr, a);
                 }
-                const int64_t axis = -1;
-                const auto mm_concat = make_shared<opset11::Concat>(matmuls_inputs1, axis);
-                const auto matmul = make_shared<opset11::MatMul>(output, mm_concat);
-                const auto add_concat = make_shared<opset11::Concat>(adds_inputs1, axis);
+                const auto transp_a = mm->get_transpose_a();
+                const auto transp_b = mm->get_transpose_b();
+                const auto mm_concat = make_shared<opset11::Concat>(matmuls_inputs1, transp_b ? -2 : -1);
+                const auto matmul = make_shared<opset11::MatMul>(output, mm_concat, transp_a, transp_b);
+                const auto add_concat = make_shared<opset11::Concat>(adds_inputs1, -1);
                 const auto add = make_shared<opset11::Add>(matmul, add_concat);
                 const auto split = make_shared<opset11::Split>(add,
-                                                               opset11::Constant::create(element::i64, {}, {axis}),
+                                                               opset11::Constant::create(element::i64, {}, {-1}),
                                                                matmuls_to_merge.size());
                 size_t idx = 0;
                 for (auto& a : adds_outputs) {

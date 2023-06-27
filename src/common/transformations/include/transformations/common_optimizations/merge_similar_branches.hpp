@@ -14,10 +14,6 @@ namespace pass {
  * @brief
  * @ingroup ov_pass_cpp_api
  */
-// tj notes:
-//      - when to apply? before or after others:
-//          * before might break some other transforms (not aware of multi-comsumers)
-//      - apply after ConstFold
 class TRANSFORMATIONS_API MergeSimilarBranches : public ModelPass {
 public:
     OPENVINO_RTTI("MergeSimilarBranches");

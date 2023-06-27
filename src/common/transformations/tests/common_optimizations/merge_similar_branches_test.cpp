@@ -245,22 +245,32 @@ TEST_F(DISABLED_MergeSimilarBranchesTestF, mixed_input_order) {
     }
 }
 
+template <typename T>
+vector<T> generate_seeded_tensor_data(size_t size, int seed = 101, T range_min = 0, T range_max = 200) {
+    std::mt19937 gen(seed);
+    std::uniform_real_distribution<T> dis(0, 200);
+
+    vector<T> data;
+    data.reserve(size);
+    for (size_t i = 0; i < size; ++i)
+        data.push_back(dis(gen));
+    return data;
+}
+
 TEST(MergeSimilarBranchesTest, matmuls_fusion) {
     using namespace ov::opset11;
 
     const auto mm_in0_shape = Shape{9, 7};
     const auto mm_in1_shape = Shape{7, 11};
-    vector<uint32_t> mmA_in1_data(shape_size(mm_in1_shape));
-    vector<uint32_t> mmB_in1_data(shape_size(mm_in1_shape));
-    vector<uint32_t> mmC_in1_data(shape_size(mm_in1_shape));
-    seed_seq{1, 2, 3}.generate(mmA_in1_data.begin(), mmA_in1_data.end());
-    seed_seq{4, 5, 6}.generate(mmB_in1_data.begin(), mmB_in1_data.end());
-    seed_seq{7, 8, 9}.generate(mmC_in1_data.begin(), mmC_in1_data.end());
+    const auto mm_in1_shape_size = shape_size(mm_in1_shape);
+    const auto mmA_in1_data = generate_seeded_tensor_data<float>(mm_in1_shape_size, 2);
+    const auto mmB_in1_data = generate_seeded_tensor_data<float>(mm_in1_shape_size, 4);
+    const auto mmC_in1_data = generate_seeded_tensor_data<float>(mm_in1_shape_size, 16);
 
-    const auto input = make_shared<Parameter>(u32, mm_in0_shape);
-    const auto constA = Constant::create(u32, mm_in1_shape, mmA_in1_data);
-    const auto constB = Constant::create(u32, mm_in1_shape, mmB_in1_data);
-    const auto constC = Constant::create(u32, mm_in1_shape, mmC_in1_data);
+    const auto input = make_shared<Parameter>(f32, mm_in0_shape);
+    const auto constA = Constant::create(f32, mm_in1_shape, mmA_in1_data);
+    const auto constB = Constant::create(f32, mm_in1_shape, mmB_in1_data);
+    const auto constC = Constant::create(f32, mm_in1_shape, mmC_in1_data);
     const auto matmulA = make_shared<MatMul>(input, constA);
     const auto matmulB = make_shared<MatMul>(input, constB);
     const auto matmulC = make_shared<MatMul>(input, constC);
@@ -280,16 +290,44 @@ TEST(MergeSimilarBranchesTest, matmuls_fusion) {
     ASSERT_TRUE(res.valid) << res.message;
 }
 
-template <typename T>
-vector<T> generate_seeded_tensor_data(size_t size, int seed = 101, T range_min = 0, T range_max = 200) {
-    std::mt19937 gen(seed);
-    std::uniform_real_distribution<T> dis(0, 200);
+TEST(MergeSimilarBranchesTest, matmuls_w_transpose_fusion) {
+    using namespace ov::opset11;
 
-    vector<T> data;
-    data.reserve(size);
-    for (size_t i = 0; i < size; ++i)
-        data.push_back(dis(gen));
-    return data;
+    const auto mm_in0_shape = Shape{7, 7};
+    const auto mm_in1_shape = Shape{7, 11};
+    const auto mm_in1_shape_T = Shape{11, 7};
+    const auto mm_in1_shape_size = shape_size(mm_in1_shape);
+    const auto mmA_in1_data = generate_seeded_tensor_data<float>(mm_in1_shape_size, 11);
+    const auto mmB_in1_data = generate_seeded_tensor_data<float>(mm_in1_shape_size, 22);
+    const auto mmC_in1_data = generate_seeded_tensor_data<float>(mm_in1_shape_size, 33);
+    const auto mmD_in1_data = generate_seeded_tensor_data<float>(mm_in1_shape_size, 44);
+    const auto mmE_in1_data = generate_seeded_tensor_data<float>(mm_in1_shape_size, 55);
+
+    const auto input = make_shared<Parameter>(f32, mm_in0_shape);
+    const auto constA = Constant::create(f32, mm_in1_shape, mmA_in1_data);
+    const auto constB = Constant::create(f32, mm_in1_shape, mmB_in1_data);
+    const auto constC = Constant::create(f32, mm_in1_shape, mmC_in1_data);
+    const auto constD = Constant::create(f32, mm_in1_shape_T, mmD_in1_data);
+    const auto constE = Constant::create(f32, mm_in1_shape_T, mmE_in1_data);
+    const auto matmulA = make_shared<MatMul>(input, constA, true);
+    const auto matmulB = make_shared<MatMul>(input, constB, false);
+    const auto matmulC = make_shared<MatMul>(input, constC, true);
+    const auto matmulD = make_shared<MatMul>(input, constD, false, true);
+    const auto matmulE = make_shared<MatMul>(input, constE, false, true);
+    const auto concat = make_shared<Concat>(OutputVector{matmulA, matmulB, matmulC, matmulD, matmulE}, 0);
+
+    const auto model = make_shared<Model>(NodeVector{concat}, ParameterVector{input});
+    const auto cloned_model = model->clone();
+
+    Manager manager;
+    manager.register_pass<MergeSimilarBranches>();
+    manager.run_passes(model);
+    ASSERT_EQ(count_ops_of_type<MatMul>(model), 3);
+
+    auto acc_comparator = FunctionsComparator::no_default();
+    acc_comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
+    const auto res = acc_comparator.compare(model, cloned_model);
+    ASSERT_TRUE(res.valid) << res.message;
 }
 
 TEST(MergeSimilarBranchesTest, matmuls_adds_fusion) {
