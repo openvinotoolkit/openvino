@@ -23,26 +23,27 @@
     ],
     "105-language-quantize-bert": [
         "Benchmark Model",
-        "Dynamic Shape",
         "NNCF",
-        "ONNX",
+        "Optimize Model",
         "Pytorch",
-        "Reshape Model",
         "Transformers"
     ],
     "106-auto-device": [
-        "Async Inference"
+        "Async Inference",
+        "Pytorch",
+        "Torchvision"
     ],
     "107-speech-recognition-quantization-data2vec": [
         "Benchmark Model",
+        "NNCF",
         "ONNX",
         "Pytorch",
         "Transformers"
     ],
     "107-speech-recognition-quantization-wav2vec2": [
         "Benchmark Model",
+        "NNCF",
         "ONNX",
-        "Optimize Model",
         "Pytorch",
         "Transformers"
     ],
@@ -80,16 +81,7 @@
     ],
     "113-image-classification-quantization": [
         "Benchmark Model",
-        "ONNX",
-        "Optimize Model",
-        "Pytorch",
-        "Torchvision"
-    ],
-    "114-quantization-simplified-mode": [
-        "Async Inference",
-        "Benchmark Model",
-        "ONNX",
-        "Optimize Model",
+        "NNCF",
         "Pytorch",
         "Torchvision"
     ],
@@ -106,6 +98,9 @@
     ],
     "118-optimize-preprocessing": [
         "Tensorflow"
+    ],
+    "119-tflite-to-openvino": [
+        "Benchmark Model"
     ],
     "203-meter-reader": [
         "Dynamic Shape",
@@ -156,9 +151,11 @@
     "214-grammar-correction": [
         "Transformers"
     ],
+    "216-attention-center": [
+        "Tensorflow"
+    ],
     "217-vision-deblur": [
         "Download Model",
-        "ONNX",
         "Pytorch"
     ],
     "218-vehicle-detection-and-recognition": [
@@ -206,8 +203,6 @@
         "Transformers"
     ],
     "229-distilbert-sequence-classification": [
-        "ONNX",
-        "Pytorch",
         "Transformers"
     ],
     "230-yolov8-optimization": [
@@ -255,11 +250,6 @@
         "Pytorch",
         "Transformers"
     ],
-    "237-segment-anything-fiftyone": [
-        "ONNX",
-        "Pytorch",
-        "Torchvision"
-    ],
     "237-segment-anything": [
         "Benchmark Model",
         "NNCF",
@@ -273,6 +263,16 @@
         "Reshape Model"
     ],
     "239-image-bind": [
+        "ONNX",
+        "Pytorch"
+    ],
+    "240-dolly-2-instruction-following": [
+        "Transformers"
+    ],
+    "241-riffusion-text-to-music": [
+        "Pytorch"
+    ],
+    "242-freevc-voice-conversion": [
         "ONNX",
         "Pytorch"
     ],

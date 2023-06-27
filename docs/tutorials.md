@@ -19,7 +19,7 @@
    :caption: Notebooks
    :hidden:
 
-   notebooks-installation
+   notebooks_installation
    notebooks/notebooks
 
 This collection of Python tutorials are written for running on Jupyter notebooks.
@@ -36,7 +36,7 @@ see the `Additional Resources <#-additional-resources>`__ section).
 
 .. note::
    For the best performance, more control and resources, you should run the notebooks locally.
-   Follow the `Installation Guide <notebooks-installation.html>`__ in order to get information
+   Follow the :doc:`Installation Guide <notebooks_installation>` in order to get information
    on how to run and manage the notebooks on your machine.
 
 
@@ -137,8 +137,6 @@ Tutorials that explain how to optimize and quantize models with OpenVINO tools.
    +------------------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------+
    | `113-image-classification-quantization <notebooks/113-image-classification-quantization-with-output.html>`__ |br| |n113|     | Quantize MobileNet image classification.                                                                                         |
    +------------------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------+
-   | `114-quantization-simplified-mode <notebooks/114-quantization-simplified-mode-with-output.html>`__ |br| |n114|               | Quantize image classification models with POT in simplified mode.                                                                |
-   +------------------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------+
    | `115-async-api <notebooks/115-async-api-with-output.html>`__ |br| |n115|                                                     | Use asynchronous execution to improve data pipelining.                                                                           |
    +------------------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------+
    | `116-sparsity-optimization <notebooks/116-sparsity-optimization-with-output.html>`__                                         | Improve performance of sparse Transformer models.                                                                                |
@@ -146,6 +144,8 @@ Tutorials that explain how to optimize and quantize models with OpenVINO tools.
    | `117-model-server <notebooks/117-model-server-with-output.html>`__                                                           | Improve performance of sparse Transformer models.                                                                                |
    +------------------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------+
    | `118-optimize-preprocessing <notebooks/118-optimize-preprocessing-with-output.html>`__                                       | Improve performance of image preprocessing step.                                                                                 |
+   +------------------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------+
+   | `119-tflite-to-openvino <notebooks/119-tflite-to-openvino-with-output.html>`__                                               | Convert TensorFlow Lite models to OpenVINO IR.                                                                                   |
    +------------------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------+
 
 
@@ -199,6 +199,8 @@ Demos that demonstrate inference on a particular model.
    +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
    | `214-grammar-correction <notebooks/214-grammar-correction-with-output.html>`__                                                | Grammatical error correction with OpenVINO.                                                                                                |                                           |
    +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
+   | `216-attention-center <notebooks/216-attention-center-with-output.html>`__                                                    | The attention center model with OpenVINO™                                                                                                  |                                           |
+   +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
    | `217-vision-deblur <notebooks/217-vision-deblur-with-output.html>`__ |br| |n217|                                              | Deblur images with DeblurGAN-v2.                                                                                                           | |n217-img1|                               |
    +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
    | `219-knowledge-graphs-conve <notebooks/219-knowledge-graphs-conve-with-output.html>`__ |br| |n219|                            | Optimize the knowledge graph embeddings model (ConvE) with OpenVINO.                                                                       |                                           |
@@ -243,6 +245,10 @@ Demos that demonstrate inference on a particular model.
    +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
    | `239-image-bind <notebooks/239-image-bind-with-output.html>`__                                                                | Binding multimodal data, using ImageBind and OpenVINO™.                                                                                    | |n239-img1|                               |
    +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
+   | `240-dolly-2-instruction-following <notebooks/240-dolly-2-instruction-following-with-output.html>`__                          | Instruction following using Databricks Dolly 2.0 and OpenVINO™.                                                                            | |n240-img1|                               |
+   +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
+   | `241-riffusion-text-to-music <notebooks/241-riffusion-text-to-music-with-output.html>`__                                      | Text-to-Music generation using Riffusion and OpenVINO™.                                                                                    | |n241-img1|                               |
+   +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
 
 
 .. raw:: html
@@ -258,6 +264,10 @@ Tutorials that include code to train neural networks.
 +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
 | Notebook                                                                                                                      | Description                                                                                                                                | Preview                                   |
 +===============================================================================================================================+============================================================================================================================================+===========================================+
+| `301-tensorflow-training-openvino <notebooks/301-tensorflow-training-openvino-with-output.html>`__                            | Train a flower classification model from TensorFlow, then convert to OpenVINO IR.                                                          | |n301-img1|                               |
++-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
+| `301-tensorflow-training-openvino-nncf <notebooks/301-tensorflow-training-openvino-nncf-with-output.html>`__                  | Use Post-training Optimization Tool (POT) to quantize the flowers model.                                                                   |                                           |
++-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
 | `302-pytorch-quantization-aware-training <notebooks/302-pytorch-quantization-aware-training-with-output.html>`__              | Use Neural Network Compression Framework (NNCF) to quantize PyTorch model.                                                                 |                                           |
 +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
 | `305-tensorflow-quantization-aware-training <notebooks/305-tensorflow-quantization-aware-training-with-output.html>`__        | Use Neural Network Compression Framework (NNCF) to quantize TensorFlow model.                                                              |                                           |
@@ -318,7 +328,7 @@ The following tutorials are guaranteed to provide a great experience with infere
 -------------------
 
 .. note::
-   If there are any issues while running the notebooks, refer to the **Troubleshooting** and **FAQ** sections in the `Installation Guide <notebooks-installation.html>`__ or start a GitHub
+   If there are any issues while running the notebooks, refer to the **Troubleshooting** and **FAQ** sections in the :doc:`Installation Guide <notebooks_installation>` or start a GitHub
    `discussion <https://github.com/openvinotoolkit/openvino_notebooks/discussions>`__.
 
 
@@ -456,6 +466,10 @@ Made with `contributors-img <https://contrib.rocks>`__.
    :target: https://user-images.githubusercontent.com/29454499/241643886-dfcf3c48-8d50-4730-ae28-a21595d9504f.png
 .. |n239-img1| image:: https://user-images.githubusercontent.com/29454499/240364108-39868933-d221-41e6-9b2e-dac1b14ef32f.png
    :target: https://user-images.githubusercontent.com/29454499/240364108-39868933-d221-41e6-9b2e-dac1b14ef32f.png
+.. |n240-img1| image:: https://user-images.githubusercontent.com/29454499/237291423-022f07d2-966b-4be2-9a1c-98f1cf0691c2.png
+   :target: https://user-images.githubusercontent.com/29454499/237291423-022f07d2-966b-4be2-9a1c-98f1cf0691c2.png
+.. |n241-img1| image:: https://user-images.githubusercontent.com/29454499/244291912-bbc6e08c-c0a9-41fe-bc2d-5f89a0d2463b.png
+   :target: https://user-images.githubusercontent.com/29454499/244291912-bbc6e08c-c0a9-41fe-bc2d-5f89a0d2463b.png
 .. |n301-img1| image:: https://user-images.githubusercontent.com/15709723/127779607-8fa34947-1c35-4260-8d04-981c41a2a2cc.png
    :target: https://user-images.githubusercontent.com/15709723/127779607-8fa34947-1c35-4260-8d04-981c41a2a2cc.png
 .. |n401-img1| image:: https://user-images.githubusercontent.com/4547501/141471665-82b28c86-cf64-4bfe-98b3-c314658f2d96.gif
@@ -504,8 +518,6 @@ Made with `contributors-img <https://contrib.rocks>`__.
    :target: https://mybinder.org/v2/gh/openvinotoolkit/openvino_notebooks/HEAD?filepath=notebooks%2F110-ct-segmentation-quantize%2F110-ct-scan-live-inference.ipynb
 .. |n113| image:: https://mybinder.org/badge_logo.svg
    :target: https://mybinder.org/v2/gh/openvinotoolkit/openvino_notebooks/HEAD?labpath=notebooks%2F113-image-classification-quantization%2F113-image-classification-quantization.ipynb
-.. |n114| image:: https://mybinder.org/badge_logo.svg
-   :target: https://mybinder.org/v2/gh/openvinotoolkit/openvino_notebooks/HEAD?labpath=notebooks%2F114-quantization-simplified-mode%2F114-quantization-simplified-mode.ipynb
 .. |n115| image:: https://mybinder.org/badge_logo.svg
    :target: https://mybinder.org/v2/gh/openvinotoolkit/openvino_notebooks/HEAD?labpath=notebooks%2F115-async-api%2F115-async-api.ipynb
 
