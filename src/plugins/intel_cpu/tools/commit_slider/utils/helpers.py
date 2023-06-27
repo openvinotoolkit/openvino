@@ -130,9 +130,9 @@ def runCommandList(commit, cfgData, enforceClean=False):
     defRepo = gitPath
     for cmd in commandList:
         if "tag" in cmd:
-            if cmd["tag"] == "clean" and skipCleanInterval:
+            if "clean" in cmd["tag"] and skipCleanInterval:
                 continue
-            elif cmd["tag"] == "preprocess":
+            elif "preprocess" in cmd["tag"]:
                 if not (
                     "preprocess" in cfgData["runConfig"]
                     and "name" in cfgData["runConfig"]["preprocess"]
@@ -154,24 +154,33 @@ def runCommandList(commit, cfgData, enforceClean=False):
         commitLogger.info("Run command: {command}".format(
             command=formattedCmd)
         )
-        proc = subprocess.Popen(
-            formattedCmd, cwd=cwd, stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT
-        )
-        for line in proc.stdout:
-            # decode if line is byte-type
+        checkOut = ""
+        if "tag" in cmd and "run_via_call" in cmd["tag"]:
+            # for running command as shell script
+            with open("sh.sh", "w+") as tf:
+                tf.write(strCommand)
+                tf.seek(0)
+            checkOut = subprocess.call(['sh', 'sh.sh'])
+            os.remove("sh.sh")
+        else:
+            proc = subprocess.Popen(
+                formattedCmd, cwd=cwd, stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT
+            )
+            for line in proc.stdout:
+                # decode if line is byte-type
+                try:
+                    line = line.decode("utf-8")
+                except (UnicodeDecodeError, AttributeError):
+                    pass
+                sys.stdout.write(line)
+                commitLogger.info(line)
+            proc.wait()
+            checkOut, err = proc.communicate()
             try:
-                line = line.decode("utf-8")
+                checkOut = checkOut.decode("utf-8")
             except (UnicodeDecodeError, AttributeError):
                 pass
-            sys.stdout.write(line)
-            commitLogger.info(line)
-        proc.wait()
-        checkOut, err = proc.communicate()
-        try:
-            checkOut = checkOut.decode("utf-8")
-        except (UnicodeDecodeError, AttributeError):
-            pass
         if "catchMsg" in cmd:
             isErrFound = re.search(cmd["catchMsg"], checkOut)
             if isErrFound:
