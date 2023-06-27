@@ -836,11 +836,11 @@ static RefPreprocessParams set_shape_custom_crop() {
         p.input().preprocess().custom([](const Output<Node>& node) {
             // Add custom crop to model's dimensions using 'Slice' operation
             // Middle part 2x2x2x2 of original user's 4x4x4x4 input tensor will be extracted
-            auto start = opset8::Constant::create(element::i32, {4}, {1, 1, 1, 1});
-            auto stop = opset8::Constant::create(element::i32, {4}, {3, 3, 3, 3});
-            auto step = opset8::Constant::create(element::i32, {4}, {1, 1, 1, 1});
-            auto axis = opset8::Constant::create(element::i32, {4}, {0, 1, 2, 3});
-            auto slice = std::make_shared<opset8::Slice>(node, start, stop, step, axis);
+            auto start = ov::op::v0::Constant::create(element::i32, {4}, {1, 1, 1, 1});
+            auto stop = ov::op::v0::Constant::create(element::i32, {4}, {3, 3, 3, 3});
+            auto step = ov::op::v0::Constant::create(element::i32, {4}, {1, 1, 1, 1});
+            auto axis = ov::op::v0::Constant::create(element::i32, {4}, {0, 1, 2, 3});
+            auto slice = std::make_shared<ov::op::v8::Slice>(node, start, stop, step, axis);
             return slice;
         });
         p.build();
