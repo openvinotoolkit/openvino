@@ -2844,9 +2844,9 @@ std::vector<uint8_t> GNAGraphCompiler::transposeMatrix(uint8_t* ptr_matrix,
 }
 
 std::vector<uint8_t> GNAGraphCompiler::copy_matrix(uint8_t* ptr_matrix,
-                                                  size_t element_size,
-                                                  uint32_t num_rows,
-                                                  uint32_t num_cols) {
+                                                   size_t element_size,
+                                                   uint32_t num_rows,
+                                                   uint32_t num_cols) {
     const size_t dest_size = num_rows * num_cols * element_size;
     std::vector<uint8_t> temp_buffer(dest_size);
     ::memcpy(temp_buffer.data(), ptr_matrix, dest_size);
