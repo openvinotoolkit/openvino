@@ -47,7 +47,7 @@ In this step, NNCF-related imports are added in the beginning of the training sc
          :fragment: [imports]
          
    .. tab-item:: TensorFlow 2
-      :sync: tensorflow        
+      :sync: tf2        
 
       .. doxygensnippet:: docs/optimization_guide/nncf/code/pruning_tf.py
          :language: python
@@ -69,7 +69,7 @@ of optimization methods (`"compression"` section).
          :fragment: [nncf_congig]
          
    .. tab-item:: TensorFlow 2
-      :sync: tensorflow        
+      :sync: tf2        
 
       .. doxygensnippet:: docs/optimization_guide/nncf/code/pruning_tf.py
          :language: python
@@ -104,7 +104,7 @@ optimization.
          :fragment: [wrap_model]
          
    .. tab-item:: TensorFlow 2
-      :sync: tensorflow        
+      :sync: tf2        
 
       .. doxygensnippet:: docs/optimization_guide/nncf/code/pruning_tf.py
          :language: python
@@ -127,7 +127,7 @@ of the original model.
          :fragment: [tune_model]
          
    .. tab-item:: TensorFlow 2
-      :sync: tensorflow        
+      :sync: tf2        
 
       .. doxygensnippet:: docs/optimization_guide/nncf/code/pruning_tf.py
          :language: python
@@ -150,7 +150,7 @@ fine-tuning that will inform optimization methods to do some adjustments to func
          :fragment: [distributed]
          
    .. tab-item:: TensorFlow 2
-      :sync: tensorflow        
+      :sync: tf2        
 
       .. doxygensnippet:: docs/optimization_guide/nncf/code/pruning_tf.py
          :language: python
@@ -172,7 +172,7 @@ the case of PyTorch and frozen graph - for TensorFlow 2.
          :fragment: [export]
          
    .. tab-item:: TensorFlow 2
-      :sync: tensorflow        
+      :sync: tf2        
 
       .. doxygensnippet:: docs/optimization_guide/nncf/code/pruning_tf.py
          :language: python
@@ -198,7 +198,7 @@ To save model checkpoint use the following API:
          :fragment: [save_checkpoint]
          
    .. tab-item:: TensorFlow 2
-      :sync: tensorflow        
+      :sync: tf2        
 
       .. doxygensnippet:: docs/optimization_guide/nncf/code/pruning_tf.py
          :language: python
@@ -220,7 +220,7 @@ To restore the model from checkpoint you should use the following API:
          :fragment: [load_checkpoint]
          
    .. tab-item:: TensorFlow 2
-      :sync: tensorflow        
+      :sync: tf2        
 
       .. doxygensnippet:: docs/optimization_guide/nncf/code/pruning_tf.py
          :language: python
