@@ -90,6 +90,21 @@ void reshape_in2(const char* in,
     }
 }
 
+static std::vector<size_t> get_strides(size_t rank, size_t elem_size, const AxisVector& order, const Shape& in_shape) {
+    size_t rev_order[rank];
+    for (size_t i = 0; i < rank; i++) {
+        rev_order[order[i]] = i;
+    }
+
+    std::vector<size_t> strides(rank);
+    strides[rev_order[rank - 1]] = elem_size;
+    for (size_t i = rank - 1; i > 0; i--) {
+        strides[rev_order[i - 1]] = strides[rev_order[i]] * in_shape[i];
+    }
+
+    return strides;
+}
+
 void reshape_in3(const char* in,
                  char* out,
                  const Shape& in_shape,
@@ -98,22 +113,21 @@ void reshape_in3(const char* in,
                  size_t elem_size) {
     size_t num_elements = shape_size(in_shape);
     if (num_elements <= get_threshold()) {
-        size_t i, j, k;
-        size_t* in_indexes[3];
-        in_indexes[in_axis_order[0]] = &i;
-        in_indexes[in_axis_order[1]] = &j;
-        in_indexes[in_axis_order[2]] = &k;
+        const auto strides = get_strides(3, elem_size, in_axis_order, in_shape);
 
-        for (i = 0; i < out_shape[0]; i++) {
-            for (j = 0; j < out_shape[1]; j++) {
-                for (k = 0; k < out_shape[2]; k++) {
-                    copy_element(out,
-                                 in + ((*in_indexes[0] * in_shape[1] + *in_indexes[1]) * in_shape[2] + *in_indexes[2]) *
-                                          elem_size,
-                                 elem_size);
+        size_t off_0 = 0;
+        for (size_t i = 0; i < out_shape[0]; i++) {
+            size_t off_1 = off_0;
+            for (size_t j = 0; j < out_shape[1]; j++) {
+                size_t in_off = off_1;
+                for (size_t k = 0; k < out_shape[2]; k++) {
+                    copy_element(out, in + in_off, elem_size);
                     out += elem_size;
+                    in_off += strides[2];
                 }
+                off_1 += strides[1];
             }
+            off_0 += strides[0];
         }
     } else {
         ov::parallel_for3d(out_shape[0],
@@ -140,26 +154,25 @@ void reshape_in4(const char* in,
                  size_t elem_size) {
     size_t num_elements = shape_size(in_shape);
     if (num_elements <= get_threshold()) {
-        size_t i, j, k, l;
-        size_t* in_indexes[4];
-        in_indexes[in_axis_order[0]] = &i;
-        in_indexes[in_axis_order[1]] = &j;
-        in_indexes[in_axis_order[2]] = &k;
-        in_indexes[in_axis_order[3]] = &l;
+        const auto strides = get_strides(4, elem_size, in_axis_order, in_shape);
 
-        for (i = 0; i < out_shape[0]; i++) {
-            for (j = 0; j < out_shape[1]; j++) {
-                for (k = 0; k < out_shape[2]; k++) {
-                    for (l = 0; l < out_shape[3]; l++) {
-                        size_t in_off =
-                            ((*in_indexes[0] * in_shape[1] + *in_indexes[1]) * in_shape[2] + *in_indexes[2]) *
-                                in_shape[3] +
-                            *in_indexes[3];
-                        copy_element(out, in + in_off * elem_size, elem_size);
+        size_t off_0 = 0;
+        for (size_t i = 0; i < out_shape[0]; i++) {
+            size_t off_1 = off_0;
+            for (size_t j = 0; j < out_shape[1]; j++) {
+                size_t off_2 = off_1;
+                for (size_t k = 0; k < out_shape[2]; k++) {
+                    size_t in_off = off_2;
+                    for (size_t l = 0; l < out_shape[3]; l++) {
+                        copy_element(out, in + in_off, elem_size);
                         out += elem_size;
+                        in_off += strides[3];
                     }
+                    off_2 += strides[2];
                 }
+                off_1 += strides[1];
             }
+            off_0 += strides[0];
         }
     } else {
         ov::parallel_for4d(
@@ -190,31 +203,29 @@ void reshape_in5(const char* in,
                  size_t elem_size) {
     size_t num_elements = shape_size(in_shape);
     if (num_elements <= get_threshold()) {
-        size_t i, j, k, l, m;
-        size_t* in_indexes[5];
-        in_indexes[in_axis_order[0]] = &i;
-        in_indexes[in_axis_order[1]] = &j;
-        in_indexes[in_axis_order[2]] = &k;
-        in_indexes[in_axis_order[3]] = &l;
-        in_indexes[in_axis_order[4]] = &m;
+        const auto strides = get_strides(5, elem_size, in_axis_order, in_shape);
 
-        for (i = 0; i < out_shape[0]; i++) {
-            for (j = 0; j < out_shape[1]; j++) {
-                for (k = 0; k < out_shape[2]; k++) {
-                    for (l = 0; l < out_shape[3]; l++) {
-                        for (m = 0; m < out_shape[4]; m++) {
-                            size_t in_off =
-                                (((*in_indexes[0] * in_shape[1] + *in_indexes[1]) * in_shape[2] + *in_indexes[2]) *
-                                     in_shape[3] +
-                                 *in_indexes[3]) *
-                                    in_shape[4] +
-                                *in_indexes[4];
-                            copy_element(out, in + in_off * elem_size, elem_size);
+        size_t off_0 = 0;
+        for (size_t i = 0; i < out_shape[0]; i++) {
+            size_t off_1 = off_0;
+            for (size_t j = 0; j < out_shape[1]; j++) {
+                size_t off_2 = off_1;
+                for (size_t k = 0; k < out_shape[2]; k++) {
+                    size_t off_3 = off_2;
+                    for (size_t l = 0; l < out_shape[3]; l++) {
+                        size_t in_off = off_3;
+                        for (size_t m = 0; m < out_shape[4]; m++) {
+                            copy_element(out, in + in_off, elem_size);
                             out += elem_size;
+                            in_off += strides[4];
                         }
+                        off_3 += strides[3];
                     }
+                    off_2 += strides[2];
                 }
+                off_1 += strides[1];
             }
+            off_0 += strides[0];
         }
     } else {
         ov::parallel_for5d(
@@ -253,36 +264,33 @@ void reshape_in6(const char* in,
                  size_t elem_size) {
     size_t num_elements = shape_size(in_shape);
     if (num_elements <= get_threshold()) {
-        size_t i, j, k, l, m, n;
-        size_t* in_indexes[6];
-        in_indexes[in_axis_order[0]] = &i;
-        in_indexes[in_axis_order[1]] = &j;
-        in_indexes[in_axis_order[2]] = &k;
-        in_indexes[in_axis_order[3]] = &l;
-        in_indexes[in_axis_order[4]] = &m;
-        in_indexes[in_axis_order[5]] = &n;
+        const auto strides = get_strides(6, elem_size, in_axis_order, in_shape);
 
-        for (i = 0; i < out_shape[0]; i++) {
-            for (j = 0; j < out_shape[1]; j++) {
-                for (k = 0; k < out_shape[2]; k++) {
-                    for (l = 0; l < out_shape[3]; l++) {
-                        for (m = 0; m < out_shape[4]; m++) {
-                            for (n = 0; n < out_shape[5]; n++) {
-                                size_t in_off =
-                                    ((((*in_indexes[0] * in_shape[1] + *in_indexes[1]) * in_shape[2] + *in_indexes[2]) *
-                                          in_shape[3] +
-                                      *in_indexes[3]) *
-                                         in_shape[4] +
-                                     *in_indexes[4]) *
-                                        in_shape[5] +
-                                    *in_indexes[5];
-                                copy_element(out, in + in_off * elem_size, elem_size);
+        size_t off_0 = 0;
+        for (size_t i = 0; i < out_shape[0]; i++) {
+            size_t off_1 = off_0;
+            for (size_t j = 0; j < out_shape[1]; j++) {
+                size_t off_2 = off_1;
+                for (size_t k = 0; k < out_shape[2]; k++) {
+                    size_t off_3 = off_2;
+                    for (size_t l = 0; l < out_shape[3]; l++) {
+                        size_t off_4 = off_3;
+                        for (size_t m = 0; m < out_shape[4]; m++) {
+                            size_t in_off = off_4;
+                            for (size_t n = 0; n < out_shape[5]; n++) {
+                                copy_element(out, in + in_off, elem_size);
                                 out += elem_size;
+                                in_off += strides[5];
                             }
+                            off_4 += strides[4];
                         }
+                        off_3 += strides[3];
                     }
+                    off_2 += strides[2];
                 }
+                off_1 += strides[1];
             }
+            off_0 += strides[0];
         }
     } else {
         ov::parallel_for6d(
