@@ -83,7 +83,8 @@ class Program {
 public:
     Program(InferenceEngine::CNNNetwork& network, cldnn::engine& engine, const ExecutionConfig& config,
             bool createTopologyOnly = false, bool partialBuild = false,
-            InferenceEngine::InputsDataMap* inputs = nullptr, InferenceEngine::OutputsDataMap* outputs = nullptr);
+            InferenceEngine::InputsDataMap* inputs = nullptr, InferenceEngine::OutputsDataMap* outputs = nullptr,
+            InferenceEngine::CPUStreamsExecutor::Ptr task_executor = nullptr, bool innerProgram = false);
     Program(cldnn::engine& engine, const ExecutionConfig& config,
             InferenceEngine::InputsDataMap* inputs = nullptr, InferenceEngine::OutputsDataMap* outputs = nullptr);
 
@@ -160,8 +161,6 @@ public:
 
     InferenceEngine::CPUStreamsExecutor::Ptr get_task_executor() { return m_task_executor; }
 
-    cldnn::program::ptr create_inner_program(InferenceEngine::CNNNetwork& network, const ExecutionConfig& config);
-
 private:
     static factories_map_t factories_map;
     std::vector<std::shared_ptr<cldnn::program>> m_programs;
@@ -193,11 +192,6 @@ private:
 
     void CreateSingleLayerPrimitive(cldnn::topology& topology, const std::shared_ptr<ngraph::Node>& op);
     void ChangeInputBatch(int batch);
-
-    Program(InferenceEngine::CNNNetwork& network,
-            cldnn::engine& engine,
-            const ExecutionConfig& config,
-            InferenceEngine::CPUStreamsExecutor::Ptr task_executor);
 };
 
 void CreateCustomOp(Program& p, const std::shared_ptr<ngraph::Node>& node, CustomLayerPtr customLayer);

@@ -123,12 +123,15 @@ bool Program::IsDynBatchModel(const std::shared_ptr<ov::Model>& model,
 
 Program::Program(InferenceEngine::CNNNetwork& network, cldnn::engine& engine, const ExecutionConfig& config,
     bool createTopologyOnly, bool partialBuild,
-    InferenceEngine::InputsDataMap* inputs, InferenceEngine::OutputsDataMap* outputs)
+    InferenceEngine::InputsDataMap* inputs, InferenceEngine::OutputsDataMap* outputs,
+    InferenceEngine::CPUStreamsExecutor::Ptr task_executor, bool innerProgram)
     : m_curBatch(-1)
     , m_config(config)
     , m_engine(engine)
-    , queryMode(false) {
-    m_task_executor = cldnn::program::make_task_executor(m_config);
+    , queryMode(false)
+    , m_task_executor(task_executor) {
+    if (m_task_executor == nullptr)
+        m_task_executor = cldnn::program::make_task_executor(m_config);
     // Extract inputs/outputs info from CNNNetwork
     auto networkInputs = (inputs != nullptr) ? *inputs : network.getInputsInfo();
     auto networkOutputs = (outputs != nullptr) ? *outputs : network.getOutputsInfo();
@@ -182,7 +185,8 @@ Program::Program(InferenceEngine::CNNNetwork& network, cldnn::engine& engine, co
     int m_bv_sz = GetMaxBatchSizeForSingleProgram();
     m_max_batch = static_cast<int>(m_config.get_property(ov::intel_gpu::max_dynamic_batch));
 
-    if (dyn_shape_batch_found || m_max_batch > 1) {
+    // Do not apply dynamic batch for inner program (only single batch is allowed)
+    if (!innerProgram && (dyn_shape_batch_found || m_max_batch > 1)) {
         // compile log2 networks to serve dynamic batch requests
         for (int b = m_bv_sz - 1; b >= 0; b--) {
             inputLayouts.clear();
@@ -293,7 +297,7 @@ Program::Program(InferenceEngine::CNNNetwork& network, cldnn::engine& engine, co
             m_input_batch_dim = batch_dim;
         }
     } else {
-        m_programs.emplace_back(BuildProgram(ops, networkInputs, networkOutputs, createTopologyOnly, partialBuild));
+        m_programs.emplace_back(BuildProgram(ops, networkInputs, networkOutputs, createTopologyOnly, partialBuild, innerProgram));
     }
 }
 
@@ -309,59 +313,6 @@ Program::Program(cldnn::engine& engine, const ExecutionConfig& config,
         m_networkInputs = *inputs;
     if (outputs != nullptr)
         m_networkOutputs = *outputs;
-}
-
-Program::Program(InferenceEngine::CNNNetwork& network,
-    cldnn::engine& engine,
-    const ExecutionConfig& config,
-    InferenceEngine::CPUStreamsExecutor::Ptr task_executor)
-    : m_max_batch(1)
-    , m_curBatch(-1)
-    , m_config(config)
-    , m_engine(engine)
-    , queryMode(false)
-    , m_task_executor(task_executor) {
-    auto networkInputs = network.getInputsInfo();
-    auto networkOutputs = network.getOutputsInfo();
-    auto func = network.getFunction();
-    if (!func) {
-        IE_THROW() << "Function pointer inside CNNNetwork is nullptr";
-    }
-
-    // locate global custom kernel config
-    // and auto-load kernels from it
-#ifdef _WIN32
-    CHAR mpath[MAX_PATH + 1];
-    HMODULE nModule;
-    GetModuleHandleEx(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
-        (LPCSTR)CustomLayer::LoadFromFile,
-        &nModule);
-    GetModuleFileName(nModule, mpath, sizeof(mpath));
-#elif __linux__
-    Dl_info dl_info;
-    dladdr(reinterpret_cast<void *>(CustomLayer::LoadFromFile), &dl_info);
-    const char* mpath = dl_info.dli_fname;
-#else
-#error "Intel GPU plugin: unknown target system"
-#endif
-    std::string configFile(mpath);
-    std::size_t dir_split_pos = configFile.find_last_of("/\\");
-    std::string config_path;
-
-    if (dir_split_pos != std::string::npos) {
-        // path contains directory
-        config_path = configFile.substr(0, dir_split_pos);
-    }
-    config_path += "/cldnn_global_custom_kernels/cldnn_global_custom_kernels.xml";
-
-    CustomLayer::LoadFromFile(config_path, m_custom_layers, true);
-    auto custom_layers_config = m_config.get_property(ov::intel_gpu::config_file);
-    CustomLayer::LoadFromFile(custom_layers_config, m_custom_layers, custom_layers_config.empty());
-
-    auto ops = func->get_ordered_ops();
-    allow_new_shape_infer = m_config.get_property(ov::intel_gpu::allow_new_shape_infer);
-
-    m_programs.emplace_back(BuildProgram(ops, networkInputs, networkOutputs, false, false, true));
 }
 
 int Program::GetMaxBatchSizeForSingleProgram() {
@@ -381,11 +332,6 @@ int Program::GetMaxBatchSizeForSingleProgram() {
     }
 
     return 0;
-}
-
-cldnn::program::ptr Program::create_inner_program(InferenceEngine::CNNNetwork& network, const ExecutionConfig& config) {
-    Program prog(network, get_engine(), config, get_task_executor());
-    return prog.GetCompiledProgram();
 }
 
 std::shared_ptr<cldnn::program> Program::GetCompiledProgram(int program_id) {
@@ -420,15 +366,18 @@ std::shared_ptr<cldnn::program> Program::BuildProgram(const std::vector<std::sha
                                                       InferenceEngine::OutputsDataMap networkOutputs,
                                                       bool createTopologyOnly, bool partialBuild, bool innerProgram) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Program::BuildProgram");
+    // std::cout << "BuildProgram " << createTopologyOnly << ", " << partialBuild << ", " << innerProgram << std::endl;
     // In the case of inner program, allow_new_shape_infer flag is setted by outside of program.
     // So, do not check allow_new_shape_infer for inner program build
-    if (!innerProgram) {
-        for (const auto& op : ops) {
-            if (requires_new_shape_infer(*op)) {
-                allow_new_shape_infer = true;
-                break;
-            }
+    for (const auto& op : ops) {
+        if (requires_new_shape_infer(*op)) {
+            allow_new_shape_infer = true;
+            break;
         }
+    }
+
+    if (innerProgram) {
+        allow_new_shape_infer = (m_config.get_property(ov::intel_gpu::allow_new_shape_infer) || allow_new_shape_infer);
     }
 
     m_config.set_property(ov::intel_gpu::partial_build_program(partialBuild));

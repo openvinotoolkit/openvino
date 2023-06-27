@@ -342,14 +342,8 @@ network::network(program::ptr program, const ExecutionConfig& config, stream::pt
 network::network(engine& engine,
                  const topology& topo,
                  const ExecutionConfig& config,
-                 bool is_internal)
-    : network(program::build_program(engine, topo, config, is_internal), config, engine.create_stream(config), is_internal) {}
-
-network::network(engine& engine,
-                 const topology& topo,
-                 const ExecutionConfig& config,
-                 std::shared_ptr<InferenceEngine::CPUStreamsExecutor> task_executor,
-                 bool is_internal)
+                 bool is_internal,
+                 InferenceEngine::CPUStreamsExecutor::Ptr task_executor)
     : network(program::build_program(engine, topo, config, task_executor, is_internal), config, engine.create_stream(config), is_internal) {}
 
 network::network(engine& engine,
@@ -662,14 +656,7 @@ network::ptr network::build_network(engine& engine,
                                     const ExecutionConfig& config,
                                     std::shared_ptr<InferenceEngine::CPUStreamsExecutor> task_executor,
                                     bool is_internal) {
-    return std::make_shared<network>(engine, topology, config, task_executor, is_internal);
-}
-
-network::ptr network::build_network(engine& engine,
-                                    const topology& topology,
-                                    const ExecutionConfig& config,
-                                    bool is_internal) {
-    return std::make_shared<network>(engine, topology, config, is_internal);
+    return std::make_shared<network>(engine, topology, config, is_internal, task_executor);
 }
 
 network::ptr network::build_network(engine& engine,
