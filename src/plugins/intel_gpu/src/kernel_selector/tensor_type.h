@@ -40,6 +40,8 @@ enum DataLayout {
     b_fs_zyx_fsv2,
     b_fs_yx_fsv4,           // reordering format for swizzled input for convolution using IMAD
     b_fs_zyx_fsv4,
+    b_fs_yx_fsv8,
+    b_fs_zyx_fsv8,
     b_fs_yx_fsv16,          // 3D+batch
     b_fs_zyx_fsv16,         // batch, feature, 3D spatial. Blocks of 16 input channels
     b_fs_yx_fsv32,          // 3D+batch

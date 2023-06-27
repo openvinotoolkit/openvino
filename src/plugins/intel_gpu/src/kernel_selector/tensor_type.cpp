@@ -27,10 +27,12 @@ DataTensor::DataChannelArray DataTensor::dataChannelArray {{
     { DataLayout::fyxb,                  {  1,  2, -1, -1, -1, -1,  3,  0 } },
     { DataLayout::b_fs_yx_fsv2,          {  0,  1, -1, -1, -1, -1,  2,  3 } },
     { DataLayout::b_fs_yx_fsv4,          {  0,  1, -1, -1, -1, -1,  2,  3 } },
+    { DataLayout::b_fs_yx_fsv8,          {  0,  1, -1, -1, -1, -1,  2,  3 } },
     { DataLayout::b_fs_yx_fsv16,         {  0,  1, -1, -1, -1, -1,  2,  3 } },
     { DataLayout::b_fs_yx_fsv32,         {  0,  1, -1, -1, -1, -1,  2,  3 } },
     { DataLayout::b_fs_zyx_fsv2,         {  0,  1,  2, -1, -1, -1,  3,  4 } },
     { DataLayout::b_fs_zyx_fsv4,         {  0,  1,  2, -1, -1, -1,  3,  4 } },
+    { DataLayout::b_fs_zyx_fsv8,         {  0,  1,  2, -1, -1, -1,  3,  4 } },
     { DataLayout::b_fs_zyx_fsv16,        {  0,  1,  2, -1, -1, -1,  3,  4 } },
     { DataLayout::b_fs_zyx_fsv32,        {  0,  1,  2, -1, -1, -1,  3,  4 } },
     { DataLayout::bs_fs_yx_bsv16_fsv32,  {  0,  1, -1, -1, -1, -1,  2,  3 } },
@@ -236,6 +238,10 @@ NDims DataTensor::GetSimpleDims(const std::vector<size_t>& d, DataLayout l) {
             newDims[0] = RoundUp(newDims[0], 8);
             newDims[1] = RoundUp(newDims[1], 16);
             break;
+        case b_fs_yx_fsv8:
+            assert(newDims.size() == 4);
+            newDims[2] = RoundUp(newDims[2], 8);
+            break;
         case b_fs_yx_fsv16:
             assert(newDims.size() == 4);
             newDims[2] = RoundUp(newDims[2], 16);
@@ -255,6 +261,10 @@ NDims DataTensor::GetSimpleDims(const std::vector<size_t>& d, DataLayout l) {
         case fs_b_yx_fsv32:
             assert(newDims.size() == 4);
             newDims[3] = RoundUp(newDims[3], 32);
+            break;
+        case b_fs_zyx_fsv8:
+            assert(newDims.size() == 5);
+            newDims[3] = RoundUp(newDims[3], 8);
             break;
         case b_fs_zyx_fsv16:
             assert(newDims.size() == 5);

@@ -96,6 +96,7 @@ std::string toString(DataLayout l) {
         case kernel_selector::DataLayout::fyxb:                  return "FYXB";
         case kernel_selector::DataLayout::b_fs_yx_fsv2:          return "B_FS_YX_FSV2";
         case kernel_selector::DataLayout::b_fs_yx_fsv4:          return "B_FS_YX_FSV4";
+        case kernel_selector::DataLayout::b_fs_yx_fsv8:          return "B_FS_YX_FSV8";
         case kernel_selector::DataLayout::b_fs_yx_fsv16:         return "B_FS_YX_FSV16";
         case kernel_selector::DataLayout::b_fs_yx_fsv32:         return "B_FS_YX_FSV32";
         case kernel_selector::DataLayout::b_fs_zyx_fsv32:        return "B_FS_ZYX_FSV32";
@@ -109,6 +110,7 @@ std::string toString(DataLayout l) {
         case kernel_selector::DataLayout::bfwzyx:                return "BFWZYX";
         case kernel_selector::DataLayout::bfuwzyx:               return "BFUWZYX";
         case kernel_selector::DataLayout::bfvuwzyx:              return "BFVUWZYX";
+        case kernel_selector::DataLayout::b_fs_zyx_fsv8:         return "B_FS_ZYX_FSV8";
         case kernel_selector::DataLayout::b_fs_zyx_fsv16:        return "B_FS_ZYX_FSV16";
         case kernel_selector::DataLayout::bs_fs_yx_bsv16_fsv16:  return "BS_FS_YX_BSV16_FSV16";
         case kernel_selector::DataLayout::bs_fs_yx_bsv16_fsv32:  return "BS_FS_YX_BSV16_FSV32";
