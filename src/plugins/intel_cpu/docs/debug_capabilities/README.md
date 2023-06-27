@@ -12,6 +12,7 @@ Use the following cmake option to enable debug capabilities:
 * [Graph serialization](graph_serialization.md)
 * [Graph transformation disabling](feature_disabling.md#graph-transformations)
 * [Logging](logging.md)
+* [Inference Precision](infer_prc.md)
 * Performance summary
     * set `OV_CPU_SUMMARY_PERF` environment variable to display performance summary at the time when model is being destructed.
     * Internal performance counter will be enabled automatically. 

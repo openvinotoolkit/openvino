@@ -28,13 +28,12 @@ public:
     void initDescriptor(const NodeConfig& config) override;
     void selectOptimalPrimitiveDescriptor() override;
     void initSupportedPrimitiveDescriptors() override;
-    void filterSupportedPrimitiveDescriptors() override;
     bool created() const override;
     bool canBeInPlace() const override {
         return false;
     }
     InferenceEngine::Precision getRuntimePrecision() const override;
-    std::shared_ptr<MemoryDesc> getSrcMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
+    std::shared_ptr<MemoryDesc> getSrcMemDesc(const dnnl::primitive_desc &prim_desc, size_t idx) const override;
 
     dnnl::memory getWeights() const;
     dnnl::memory getBias() const;
@@ -43,7 +42,7 @@ public:
         return getOriginalInputsNumber();
     }
 
-    bool canBeExecutedInInt8() const;
+    bool canBeExecutedInInt8() const override;
     size_t getGroupNum() const { return groupNum; }
     //OV Legacy input zero point mechanism can support per-channel zero point.
     //Hold legacy input zero point.
@@ -73,7 +72,7 @@ protected:
     InferenceEngine::Precision fusedEltwisePrecision(const NodePtr& fusingNode) const;
     void redefineOutputMemory(const std::vector<VectorDims> &newOutputShapes) override;
     void addFusedNode(const NodePtr &fusingNode) override;
-    const std::vector<impl_desc_type>& getPrimitivesPriority() override;
+    const std::vector<impl_desc_type>& getDefaultImplPriority() override;
 
 private:
     enum class zpType {
@@ -105,12 +104,11 @@ private:
     void setPostOps(dnnl::primitive_attr &attr, const VectorDims &dims, bool useLegacyPostOps, bool initWeights = false);
     void SetPostOpsAndZeroPoints(std::vector<dnnl::primitive_attr> &attrs);
     void filterSupportedDescriptors();
-    bool isPossibleToSkipInitConfig(const dnnl::primitive_desc &desc) const;
     bool isNspcAvailable() const;
     InferenceEngine::Blob::Ptr createInternalBlob(InferenceEngine::SizeVector dims, size_t edgeNum, bool isGrouped = false);
 
     void updatePadding();
-    MemoryDescPtr getSumMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it);
+    MemoryDescPtr getSumMemDesc(const dnnl::primitive_desc &primitive_desc_it);
     MemoryPtr getOutputMemory() const;
     VectorDims makeInputDummyShape(const Shape& inpShape) const;
     VectorDims outputStaticShape() const;
@@ -128,13 +126,13 @@ private:
     zpType inputZeroPointType = zpType::None;
     // maps each supportedPrimitiveDescriptor to corresponding desc from descs
     std::vector<size_t> descIdx;
+    VectorDims expectedBiasDims {};
 
     std::vector<size_t> stride;
     std::vector<ptrdiff_t> dilation;
     std::vector<ptrdiff_t> paddingL;
     std::vector<ptrdiff_t> paddingR;
     InferenceEngine::SizeVector weightDims;
-    InferenceEngine::SizeVector biasesDims;
     std::unordered_map<int, MemoryPtr> convPostOpsArgs[2];
 
     size_t dw_conv_oc;

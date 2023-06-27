@@ -59,6 +59,21 @@ void regclass_frontend_FrontEnd(py::module m) {
                 :rtype: openvino.frontend.InputModel
              )");
 
+    fem.def(
+        "supported",
+        [](FrontEnd& self, const py::object& model) {
+            return self.supported({Common::utils::py_object_to_any(model)});
+        },
+        py::arg("model"),
+        R"(
+                Checks if model type is supported.
+
+                :param model: Object describing the model. It can be path to model file.
+                :type model: Any
+                :return: True if model type is supported, otherwise False.
+                :rtype: bool
+             )");
+
     fem.def("convert",
             static_cast<std::shared_ptr<ov::Model> (FrontEnd::*)(const InputModel::Ptr&) const>(&FrontEnd::convert),
             py::arg("model"),

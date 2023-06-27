@@ -89,7 +89,7 @@ bool TransposeOrderMatches(std::shared_ptr<Transpose> transpose, std::vector<siz
     if (data.empty())
         return false;
 
-    if (!std::equal(order.begin(), order.end(), data.begin()))
+    if (order.size() != data.size() || !std::equal(order.begin(), order.end(), data.begin()))
         return false;
 
     return true;
@@ -153,13 +153,31 @@ void remove_single_input_node(std::shared_ptr<ov::Node> node) {
     if (!node_parent) {
         THROW_GNA_EXCEPTION << "The removing node has no parrent node";
     }
-    if (!std::equal(input_node_shape.begin(), input_node_shape.end(), output_node_shape.begin())) {
+    if (input_node_shape.size() != output_node_shape.size() ||
+        !std::equal(input_node_shape.begin(), input_node_shape.end(), output_node_shape.begin())) {
         auto reshape_const_node =
             std::make_shared<Constant>(ov::element::i64, ov::Shape{output_node_shape.size()}, output_node_shape);
         node_parent = std::make_shared<Reshape>(node_parent, reshape_const_node, false);
     }
 
     ov::replace_output_update_name(node->output(0), node_parent->output(0));
+}
+
+void swap_output_names(ov::Output<ov::Node> output1, ov::Output<ov::Node> output2) {
+    const auto node2_output_names = output2.get_names();
+    output2.set_names(output1.get_names());
+    output1.set_names(node2_output_names);
+}
+
+void swap_friendly_names(std::shared_ptr<ov::Node> node1, std::shared_ptr<ov::Node> node2) {
+    const std::string node2_name = node2->get_friendly_name();
+    node2->set_friendly_name(node1->get_friendly_name());
+    node1->set_friendly_name(node2_name);
+}
+
+void swap_names(std::shared_ptr<ov::Node> node1, std::shared_ptr<ov::Node> node2) {
+    swap_friendly_names(node1, node2);
+    swap_output_names(node1->output(0), node2->output(0));
 }
 
 }  // namespace helper

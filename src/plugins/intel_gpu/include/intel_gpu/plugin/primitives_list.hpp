@@ -248,6 +248,7 @@ REGISTER_FACTORY(v9, Eye);
 REGISTER_FACTORY(v10, IsFinite);
 REGISTER_FACTORY(v10, IsInf);
 REGISTER_FACTORY(v10, IsNaN);
+REGISTER_FACTORY(v10, Unique);
 
 // --------------------------- Supported internal ops --------------------------- //
 REGISTER_FACTORY(internal, NonMaxSuppressionIEInternal);

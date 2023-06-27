@@ -1914,11 +1914,11 @@ INSTANTIATE_TEST_SUITE_P(smoke_JIT_AVX512_DW_GroupConv, GroupConvolutionLayerCPU
 
 /* ============= brgemm GroupConvolution test, expect fallback to other implementation ============= */
 const std::vector<CPUSpecificParams> CPUParams_Fallback_Brgemm_2D = {
-        conv_avx512_2D_nspc_brgconv,
-        conv_avx512_2D_nspc_brgconv_amx
+    CPUSpecificParams{{nhwc}, {nhwc}, {/* non-brgconv_avx512 is expected */}, "brgconv_avx512"},
+    CPUSpecificParams{{nhwc}, {nhwc}, {/* non-brgconv_avx512_amx is expected */}, "brgconv_avx512_amx"},
 };
 const std::vector<CPUSpecificParams> CPUParams_Fallback_Brgemm_1D_Small_Shape = {
-        conv_avx512_1D_nspc_brgconv_amx
+        CPUSpecificParams{{nwc}, {nwc}, {/* non-brgconv_avx512_amx is expected */}, "brgconv_avx512_amx"}
 };
 const std::vector<groupConvLayerCPUTestParamsSet> BRGEMM_EXPECT_FALLBACK_GroupConvTestCases = generateSingleGroupConvCPUTestCases(
         // channel <= 16
