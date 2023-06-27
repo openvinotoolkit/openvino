@@ -888,7 +888,7 @@ bool Limitations::is_forward_transposed_concat_supported(const std::shared_ptr<c
         graph_utils::transpose_shape(output_shape, pass::helper::reverse_transpose_order(order));
     const size_t transposed_concat_axis = order[axis];
 
-    return graph_utils::get_first_valuable_dim_id(transposed_shape) == transposed_concat_axis;
+    return graph_utils::get_first_valuable_dim_id(transposed_shape) == static_cast<int64_t>(transposed_concat_axis);
 }
 
 bool Limitations::is_backward_transposed_concat_supported(const std::shared_ptr<const ov::Node>& node,
@@ -905,7 +905,7 @@ bool Limitations::is_backward_transposed_concat_supported(const std::shared_ptr<
     const ov::Shape& transposed_shape = graph_utils::transpose_shape(output_shape, order);
     const size_t transposed_concat_axis = order[axis];
 
-    return graph_utils::get_first_valuable_dim_id(transposed_shape) == transposed_concat_axis;
+    return graph_utils::get_first_valuable_dim_id(transposed_shape) == static_cast<int64_t>(transposed_concat_axis);
 }
 
 bool Limitations::is_forward_transposed_split_supported(const std::shared_ptr<const ov::Node>& node,
@@ -930,7 +930,7 @@ bool Limitations::is_forward_transposed_split_supported(const std::shared_ptr<co
         graph_utils::transpose_shape(output_shape, pass::helper::reverse_transpose_order(order));
     const size_t transposed_concat_axis = order[axis];
 
-    return graph_utils::get_first_valuable_dim_id(transposed_shape) == transposed_concat_axis;
+    return graph_utils::get_first_valuable_dim_id(transposed_shape) == static_cast<int64_t>(transposed_concat_axis);
 }
 
 bool Limitations::is_backward_transposed_split_supported(const std::shared_ptr<const ov::Node>& node,
