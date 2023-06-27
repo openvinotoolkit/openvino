@@ -453,7 +453,16 @@ InferenceEngine::TensorDesc SyncInferRequest::create_tensor_desc(const ov::Tenso
 ov::Tensor SyncInferRequest::get_compiled_tensor(const ov::Output<const ov::Node>& _port) const {
     check_compiled_port(_port);
     auto port = get_compiled_port(_port);
-    return ov::ISyncInferRequest::get_tensor(port);
+    auto tensor = ov::ISyncInferRequest::get_tensor(port);
+    auto name = get_port_name(_port, _is_legacy_api);
+
+    if (_aux_tensors.find(name) != _aux_tensors.end()) {
+        auto& aux_tensor = _aux_tensors[name];
+        if (aux_tensor.get_shape() != tensor.get_shape()) {
+            tensor.set_shape(aux_tensor.get_shape());
+        }
+    }
+    return tensor;
 }
 
 ov::Tensor SyncInferRequest::get_tensor(const ov::Output<const ov::Node>& _port) const {
