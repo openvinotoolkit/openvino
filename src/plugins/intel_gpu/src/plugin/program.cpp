@@ -293,7 +293,6 @@ Program::Program(InferenceEngine::CNNNetwork& network, cldnn::engine& engine, co
             m_input_batch_dim = batch_dim;
         }
     } else {
-        CheckAllowNewShapeInfer(ops);
         m_programs.emplace_back(BuildProgram(ops, networkInputs, networkOutputs, createTopologyOnly, partialBuild));
     }
 }
@@ -362,7 +361,7 @@ Program::Program(InferenceEngine::CNNNetwork& network,
     auto ops = func->get_ordered_ops();
     allow_new_shape_infer = m_config.get_property(ov::intel_gpu::allow_new_shape_infer);
 
-    m_programs.emplace_back(BuildProgram(ops, networkInputs, networkOutputs, false, false));
+    m_programs.emplace_back(BuildProgram(ops, networkInputs, networkOutputs, false, false, true));
 }
 
 int Program::GetMaxBatchSizeForSingleProgram() {
@@ -382,15 +381,6 @@ int Program::GetMaxBatchSizeForSingleProgram() {
     }
 
     return 0;
-}
-
-void Program::CheckAllowNewShapeInfer(const std::vector<std::shared_ptr<ngraph::Node>>& ops) {
-    for (const auto& op : ops) {
-        if (requires_new_shape_infer(*op)) {
-            allow_new_shape_infer = true;
-            break;
-        }
-    }
 }
 
 cldnn::program::ptr Program::create_inner_program(InferenceEngine::CNNNetwork& network, const ExecutionConfig& config) {
@@ -428,8 +418,18 @@ void Program::CleanupBuild() {
 std::shared_ptr<cldnn::program> Program::BuildProgram(const std::vector<std::shared_ptr<ngraph::Node>>& ops,
                                                       InferenceEngine::InputsDataMap networkInputs,
                                                       InferenceEngine::OutputsDataMap networkOutputs,
-                                                      bool createTopologyOnly, bool partialBuild) {
+                                                      bool createTopologyOnly, bool partialBuild, bool innerProgram) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Program::BuildProgram");
+    // In the case of inner program, allow_new_shape_infer flag is setted by outside of program.
+    // So, do not check allow_new_shape_infer for inner program build
+    if (!innerProgram) {
+        for (const auto& op : ops) {
+            if (requires_new_shape_infer(*op)) {
+                allow_new_shape_infer = true;
+                break;
+            }
+        }
+    }
 
     m_config.set_property(ov::intel_gpu::partial_build_program(partialBuild));
     m_config.set_property(ov::intel_gpu::optimize_data(true));
