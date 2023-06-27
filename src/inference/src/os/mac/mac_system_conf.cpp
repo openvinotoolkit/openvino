@@ -8,17 +8,13 @@
 
 #include "dev/threading/parallel_custom_arena.hpp"
 #include "openvino/runtime/system_conf.hpp"
-#include "streams_executor.hpp"
+#include "os/cpu_map_info.hpp"
 
 namespace ov {
 
 CPU::CPU() {
     _num_threads = parallel_get_max_threads();
-    parse_processor_info_macos(
-                             _processors,
-                             _numa_nodes,
-                             _cores,
-                             _proc_type_table);
+    parse_processor_info_macos(_processors, _numa_nodes, _cores, _proc_type_table);
 }
 
 int parse_processor_info_macos(int& _processors,

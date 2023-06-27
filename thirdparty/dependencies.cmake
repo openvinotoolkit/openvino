@@ -29,9 +29,15 @@ endif()
 if(ENABLE_PROFILING_ITT)
     find_package(ittapi QUIET)
     if(ittapi_FOUND)
-        # conan defines 'ittapi::ittapi' target
-        set_target_properties(ittapi::ittapi PROPERTIES
-            INTERFACE_COMPILE_DEFINITIONS ENABLE_PROFILING_ITT)
+        if(TARGET ittapi::ittapi)
+            # conan defines 'ittapi::ittapi' target
+            set_target_properties(ittapi::ittapi PROPERTIES
+                INTERFACE_COMPILE_DEFINITIONS ENABLE_PROFILING_ITT)
+        elseif(TARGET ittapi::ittnotify)
+            # official 'ittapi::ittnotify' target
+            set_target_properties(ittapi::ittnotify PROPERTIES
+                INTERFACE_COMPILE_DEFINITIONS ENABLE_PROFILING_ITT)
+        endif()
     else()
         add_subdirectory(thirdparty/ittapi)
     endif()

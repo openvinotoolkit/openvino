@@ -4,6 +4,8 @@
 
 This page provides general instructions on how to convert a model from a PaddlePaddle format to the OpenVINO IR format using Model Optimizer. The instructions are different depending on PaddlePaddle model format.
 
+.. note:: PaddlePaddle models are supported via FrontEnd API. You may skip conversion to IR and read models directly by OpenVINO runtime API. Refer to the :doc:`inference example <openvino_docs_OV_UG_Integrate_OV_with_your_application>` for more details. Using ``convert_model`` is still necessary in more complex cases, such as new custom inputs/outputs in model pruning, adding pre-processing, or using Python conversion extensions.
+
 Converting PaddlePaddle Model Inference Format
 ##############################################
 
@@ -24,7 +26,7 @@ To convert a PaddlePaddle model, use the ``mo`` script and specify the path to t
 Converting PaddlePaddle Model From Memory Using Python API
 ##########################################################
 
-MO Python API supports passing PaddlePaddle models directly from memory.
+Model conversion API supports passing PaddlePaddle models directly from memory.
 
 Following PaddlePaddle model formats are supported:
 
@@ -102,7 +104,7 @@ Converting certain PaddlePaddle models may require setting ``example_input`` or 
 Supported PaddlePaddle Layers
 #############################
 
-For the list of supported standard layers, refer to the :doc:`Supported Framework Layers <openvino_docs_MO_DG_prepare_model_Supported_Frameworks_Layers>` page.
+For the list of supported standard layers, refer to the :doc:`Supported Operations <openvino_resources_supported_operations_frontend>` page.
 
 Officially Supported PaddlePaddle Models
 ########################################
@@ -162,7 +164,7 @@ The following PaddlePaddle models have been officially validated and confirmed t
 Frequently Asked Questions (FAQ)
 ################################
 
-When Model Optimizer is unable to run to completion due to typographical errors, incorrectly used options, or other issues, it provides explanatory messages. They describe the potential cause of the problem and give a link to the :doc:`Model Optimizer FAQ <openvino_docs_MO_DG_prepare_model_Model_Optimizer_FAQ>`, which provides instructions on how to resolve most issues. The FAQ also includes links to relevant sections in the Model Optimizer Developer Guide to help you understand what went wrong.
+When model conversion API is unable to run to completion due to typographical errors, incorrectly used options, or other issues, it provides explanatory messages. They describe the potential cause of the problem and give a link to the :doc:`Model Optimizer FAQ <openvino_docs_MO_DG_prepare_model_Model_Optimizer_FAQ>`, which provides instructions on how to resolve most issues. The FAQ also includes links to relevant sections in :doc:`Convert a Model <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>` to help you understand what went wrong.
 
 Additional Resources
 ####################

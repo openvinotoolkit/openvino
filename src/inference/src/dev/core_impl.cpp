@@ -244,7 +244,9 @@ bool ov::is_config_applicable(const std::string& user_device_name, const std::st
     return false;
 }
 
-ov::Parsed ov::parseDeviceNameIntoConfig(const std::string& deviceName, const AnyMap& config) {
+ov::Parsed ov::parseDeviceNameIntoConfig(const std::string& deviceName,
+                                         const AnyMap& config,
+                                         const bool keep_core_property) {
     auto updated_config = config;
     auto updated_device_name = deviceName;
 
@@ -290,9 +292,11 @@ ov::Parsed ov::parseDeviceNameIntoConfig(const std::string& deviceName, const An
         }
     };
 
-    // clean-up auto-batch related properties
-    clean_batch_properties(updated_device_name, updated_config, ov::hint::allow_auto_batching);
-    clean_batch_properties(updated_device_name, updated_config, ov::auto_batch_timeout);
+    // keep batch property only when called from query_supported_property
+    if (!keep_core_property) {
+        clean_batch_properties(updated_device_name, updated_config, ov::hint::allow_auto_batching);
+        clean_batch_properties(updated_device_name, updated_config, ov::auto_batch_timeout);
+    }
 
     return {updated_device_name, updated_config};
 }
@@ -566,7 +570,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
                                                           const ov::RemoteContext& context,
                                                           const ov::AnyMap& config) const {
     OV_ITT_SCOPE(FIRST_INFERENCE, ie::itt::domains::IE_LT, "Core::compile_model::RemoteContext");
-    if (context._impl == nullptr) {
+    if (!context) {
         IE_THROW() << "Remote context is null";
     }
     std::string deviceName = context.get_device_name();
@@ -597,7 +601,8 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model_with_preprocess(ov::Pl
                                                                           const ov::AnyMap& config) const {
     std::shared_ptr<const ov::Model> preprocessed_model = model;
 
-    if (!is_new_api() && !std::dynamic_pointer_cast<InferenceEngine::IPluginWrapper>(plugin.m_ptr)) {
+    if (!is_new_api() && !std::dynamic_pointer_cast<InferenceEngine::IPluginWrapper>(plugin.m_ptr) &&
+        !is_virtual_device(plugin.get_name())) {
         ov::pass::Manager manager;
         manager.register_pass<ov::pass::AddPreprocessing>();
 
@@ -606,8 +611,8 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model_with_preprocess(ov::Pl
         preprocessed_model = cloned_model;
     }
 
-    return context._impl ? plugin.compile_model(preprocessed_model, context, config)
-                         : plugin.compile_model(preprocessed_model, config);
+    return context ? plugin.compile_model(preprocessed_model, context, config)
+                   : plugin.compile_model(preprocessed_model, config);
 }
 
 ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& model_path,
@@ -673,6 +678,19 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::import_model(std::istream& model,
     OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Core::import_model");
     auto parsed = parseDeviceNameIntoConfig(device_name, config);
     auto compiled_model = get_plugin(parsed._deviceName).import_model(model, parsed._config);
+    if (auto wrapper = std::dynamic_pointer_cast<InferenceEngine::ICompiledModelWrapper>(compiled_model._ptr)) {
+        wrapper->get_executable_network()->loadedFromCache();
+    }
+
+    return compiled_model;
+}
+
+ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::import_model(std::istream& modelStream,
+                                                         const ov::RemoteContext& context,
+                                                         const ov::AnyMap& config) const {
+    OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Core::import_model");
+    auto parsed = parseDeviceNameIntoConfig(context.get_device_name(), config);
+    auto compiled_model = get_plugin(parsed._deviceName).import_model(modelStream, context, parsed._config);
     if (auto wrapper = std::dynamic_pointer_cast<InferenceEngine::ICompiledModelWrapper>(compiled_model._ptr)) {
         wrapper->get_executable_network()->loadedFromCache();
     }
@@ -758,7 +776,7 @@ ov::AnyMap ov::CoreImpl::get_supported_property(const std::string& full_device_n
         ov::hint::allow_auto_batching.name(),
     };
 
-    const auto flattened = ov::parseDeviceNameIntoConfig(full_device_name, user_properties);
+    const auto flattened = ov::parseDeviceNameIntoConfig(full_device_name, user_properties, true);
     const std::string& device_name = flattened._deviceName;
     const auto& flattened_config = flattened._config;
 
@@ -1199,8 +1217,8 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
                 throw HeaderException();
             }
 
-            compiled_model = context._impl ? plugin.import_model(networkStream, context, config)
-                                           : plugin.import_model(networkStream, config);
+            compiled_model = context ? plugin.import_model(networkStream, context, config)
+                                     : plugin.import_model(networkStream, config);
             if (auto wrapper = std::dynamic_pointer_cast<InferenceEngine::ICompiledModelWrapper>(compiled_model._ptr)) {
                 wrapper->get_executable_network()->loadedFromCache();
             }

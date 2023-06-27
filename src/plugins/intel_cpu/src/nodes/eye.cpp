@@ -62,8 +62,6 @@ Eye::Eye(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context) 
 }
 
 void Eye::getSupportedDescriptors() {
-    if (!descs.empty())
-        return;
     if (!one_of(getParentEdges().size(), 3u, 4u))
         THROW_ERROR << errorPrefix << "has incorrect number of input edges: " << getParentEdges().size();
     if (getChildEdges().empty())
@@ -94,7 +92,7 @@ void Eye::initSupportedPrimitiveDescriptors() {
     std::vector<PortConfigurator> outDataConf;
 
     inDataConf.reserve(inputShapes.size());
-    for (int i = 0; i < inputShapes.size(); ++i)
+    for (size_t i = 0; i < inputShapes.size(); ++i)
         inDataConf.emplace_back(LayoutType::ncsp, Precision::I32);
     outDataConf.reserve(1);
     outDataConf.emplace_back(LayoutType::ncsp, convertPrecision(outType));

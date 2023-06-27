@@ -1352,7 +1352,7 @@ template <typename T1, typename T2>
 ::testing::AssertionResult test_convert() {
     Shape shape{5};
     vector<T1> expected{1, 2, 3, 4, 5};
-    auto c1 = make_shared<op::Constant>(element::from<T2>(), shape, expected);
+    auto c1 = make_shared<op::Constant>(ov::element::from<T2>(), shape, expected);
     vector<T1> actual = c1->template cast_vector<T1>();
     ::testing::AssertionResult rc =
         (actual == expected ? ::testing::AssertionSuccess() : ::testing::AssertionFailure());
@@ -1522,7 +1522,7 @@ template <typename T1, typename T2>
 ::testing::AssertionResult test_uniform_ctor() {
     Shape shape{5};
     vector<T1> expected{3, 3, 3, 3, 3};
-    auto c1 = make_shared<op::Constant>(element::from<T2>(), shape, 3);
+    auto c1 = make_shared<op::Constant>(ov::element::from<T2>(), shape, 3);
     vector<T1> actual = c1->template cast_vector<T1>();
     ::testing::AssertionResult rc =
         (actual == expected ? ::testing::AssertionSuccess() : ::testing::AssertionFailure());

@@ -60,7 +60,7 @@ protected:
         CPUSpecificParams cpuParams;
         std::tie(numSplits, axis, netPrecision, inputShapes, outIndices, cpuParams) = this->GetParam();
         if (outIndices.empty()) {
-            for (int i = 0; i < numSplits; ++i) {
+            for (size_t i = 0; i < numSplits; ++i) {
                 outIndices.push_back(i);
             }
         }
@@ -77,7 +77,7 @@ protected:
                                                                                                  netPrecision, numSplits, axis));
         ngraph::ResultVector results;
 
-        for (int i = 0; i < outIndices.size(); i++) {
+        for (size_t i = 0; i < outIndices.size(); i++) {
             // This WA is necessary because result nodes connected to the same output of the split node (or any node) are deduplicated
             // on the CNNNetwork level. It might not be needed when the CPU plugin moves completely to nGraph.
             // This is still a single layer test since the Relu nodes are added only as a WA.

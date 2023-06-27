@@ -111,7 +111,7 @@ The patch modifies the framework code by adding a special command-line argument 
       +        else:
       +            state_dict = torch.load(path, map_location=torch.device('cpu'))
 
-               # For backward compatability, remove these (the new variable is called layers)
+               # For backward compatibility, remove these (the new variable is called layers)
                for key in list(state_dict.keys()):
       @@ -673,8 +679,11 @@ class Yolact(nn.Module):
                        else:
@@ -184,9 +184,9 @@ Converting a YOLACT Model to the OpenVINO IR format
    mo --input_model /path/to/yolact.onnx
 
 
-**Step 4**. Embed input preprocessing into the IR:
+**Step 5**. Embed input preprocessing into the IR:
 
-To get performance gain by offloading to the OpenVINO application of mean/scale values and RGB->BGR conversion, use the following options of the Model Optimizer (MO):
+To get performance gain by offloading to the OpenVINO application of mean/scale values and RGB->BGR conversion, use the following model conversion API parameters:
 
 * If the backbone of the model is Resnet50-FPN or Resnet101-FPN, use the following MO command line:
 

@@ -43,16 +43,12 @@ macro(ov_cpack_set_dirs)
     set(OV_CPACK_NGRAPH_CMAKEDIR runtime/cmake)
     set(OV_CPACK_OPENVINO_CMAKEDIR runtime/cmake)
     set(OV_CPACK_DOCDIR docs)
-    set(OV_CPACK_LICENSESDIR ${OV_CPACK_DOCDIR}/licenses)
+    set(OV_CPACK_LICENSESDIR licenses)
     set(OV_CPACK_SAMPLESDIR samples)
     set(OV_CPACK_WHEELSDIR tools)
     set(OV_CPACK_TOOLSDIR tools)
     set(OV_CPACK_DEVREQDIR tools)
-
-    ov_get_pyversion(pyversion)
-    if(pyversion)
-        set(OV_CPACK_PYTHONDIR python/${pyversion})
-    endif()
+    set(OV_CPACK_PYTHONDIR python)
 
     if(WIN32)
         set(OV_CPACK_LIBRARYDIR runtime/lib/${ARCH_FOLDER}/$<CONFIG>)
@@ -152,6 +148,7 @@ macro(ov_define_component_names)
     set(OV_CPACK_COMP_PYTHON_IE_API "pyie")
     set(OV_CPACK_COMP_PYTHON_NGRAPH "pyngraph")
     set(OV_CPACK_COMP_PYTHON_OPENVINO "pyopenvino")
+    set(OV_CPACK_COMP_PYTHON_OPENVINO_PACKAGE "pyopenvino_package")
     set(OV_CPACK_COMP_PYTHON_WHEELS "python_wheels")
     # tools
     set(OV_CPACK_COMP_CORE_TOOLS "core_tools")
@@ -164,6 +161,7 @@ endmacro()
 
 ov_define_component_names()
 
+# default components for case when CPACK_GENERATOR is not set (i.e. default open source user)
 macro(ov_define_component_include_rules)
     # core components
     unset(OV_CPACK_COMP_CORE_EXCLUDE_ALL)
@@ -181,6 +179,9 @@ macro(ov_define_component_include_rules)
     unset(OV_CPACK_COMP_PYTHON_NGRAPH_EXCLUDE_ALL)
     unset(OV_CPACK_COMP_PYTHON_OPENVINO_EXCLUDE_ALL)
     unset(OV_CPACK_COMP_PYTHON_WHEELS_EXCLUDE_ALL)
+    # TODO: think about python entry points
+    # maybe we can create entry points without python interpreter and use it in debian / rpm as well?
+    set(OV_CPACK_COMP_PYTHON_OPENVINO_PACKAGE_EXCLUDE_ALL EXCLUDE_FROM_ALL)
     # tools
     unset(OV_CPACK_COMP_CORE_TOOLS_EXCLUDE_ALL)
     set(OV_CPACK_COMP_OPENVINO_DEV_REQ_FILES_EXCLUDE_ALL EXCLUDE_FROM_ALL)

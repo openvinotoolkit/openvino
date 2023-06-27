@@ -16,7 +16,7 @@
 #include "dev/threading/parallel_custom_arena.hpp"
 #include "ie_common.h"
 #include "openvino/core/visibility.hpp"
-#include "streams_executor.hpp"
+#include "os/cpu_map_info.hpp"
 #include "threading/ie_cpu_streams_info.hpp"
 
 #ifdef __APPLE__
@@ -278,8 +278,7 @@ std::vector<std::vector<int>> get_proc_type_table() {
 
 bool is_cpu_map_available() {
     CPU& cpu = cpu_info();
-    std::lock_guard<std::mutex> lock{cpu._cpu_mutex};
-    return cpu._proc_type_table.size() > 0 && cpu._num_threads == cpu._proc_type_table[0][ALL_PROC];
+    return cpu._cpu_mapping_table.size() > 0;
 }
 
 int get_num_numa_nodes() {
@@ -342,11 +341,11 @@ void set_cpu_used(const std::vector<int>& cpu_ids, const int used) {
             all_table.resize(PROC_TYPE_TABLE_SIZE, 0);
             for (int i = 0; i < cpu._processors; i++) {
                 if (cpu._cpu_mapping_table[i][CPU_MAP_USED_FLAG] < PLUGIN_USED_START &&
-                    cpu._cpu_mapping_table[i][CPU_MAP_SOCKET_ID] >= 0 &&
+                    cpu._cpu_mapping_table[i][CPU_MAP_NUMA_NODE_ID] >= 0 &&
                     cpu._cpu_mapping_table[i][CPU_MAP_CORE_TYPE] >= ALL_PROC) {
-                    cpu._proc_type_table[cpu._cpu_mapping_table[i][CPU_MAP_SOCKET_ID] + start]
+                    cpu._proc_type_table[cpu._cpu_mapping_table[i][CPU_MAP_NUMA_NODE_ID] + start]
                                         [cpu._cpu_mapping_table[i][CPU_MAP_CORE_TYPE]]++;
-                    cpu._proc_type_table[cpu._cpu_mapping_table[i][CPU_MAP_SOCKET_ID] + start][ALL_PROC]++;
+                    cpu._proc_type_table[cpu._cpu_mapping_table[i][CPU_MAP_NUMA_NODE_ID] + start][ALL_PROC]++;
                     all_table[cpu._cpu_mapping_table[i][CPU_MAP_CORE_TYPE]]++;
                     all_table[ALL_PROC]++;
                 }

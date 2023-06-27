@@ -153,6 +153,12 @@ const std::vector<std::vector<ov::test::InputShape>> dynamicShapes = {
         { {1, 1}, {3, 1}, {5, 1} } },      // Target shapes
       { { -1, 1 },                         // Dynamic shape 2
         { {1, 1}, {3, 1}, {5, 1} } } },    // Target shapes
+    { { { -1, 1 },                         // Dynamic shape 0
+        { {1, 1}, {5, 1} } },              // Target shapes
+      { { {1, 5}, 1 },                     // Dynamic shape 1
+        { {1, 1}, {5, 1} } },              // Target shapes
+      { { {1, 5}, 1 },                     // Dynamic shape 2
+        { {1, 1}, {5, 1} } } },            // Target shapes
     { { { {1, 20}, 30 },                   // Dynamic shape 0
         { {2, 30}, {5, 30}, {8, 30} } },   // Target shapes
       { { {1, 20}, 10 },                   // Dynamic shape 1

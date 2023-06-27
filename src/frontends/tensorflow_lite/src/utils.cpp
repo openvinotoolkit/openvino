@@ -7,7 +7,6 @@
 #include <openvino/frontend/tensorflow_lite/node_context.hpp>
 #include <openvino/opsets/opset10.hpp>
 
-#include "schema_generated.h"
 #include "tflite_ops/tflite_quantize.hpp"
 
 using namespace ov;

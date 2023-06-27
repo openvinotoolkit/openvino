@@ -10,6 +10,16 @@
  */
 #pragma once
 
+#if !defined(IN_OV_COMPONENT) && !defined(IE_LEGACY_HEADER_INCLUDED)
+#    define IE_LEGACY_HEADER_INCLUDED
+#    ifdef _MSC_VER
+#        pragma message( \
+            "The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    else
+#        warning("The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    endif
+#endif
+
 #include "ie_plugin_config.hpp"
 
 namespace InferenceEngine {
@@ -38,9 +48,9 @@ namespace CPUConfigParams {
  * PluginConfigParams::YES or PluginConfigParams::NO
  * If not set explicitly, the behavior is kept in runtime enviroment where compile_model is called.
  */
-DECLARE_CPU_CONFIG_KEY(DENORMALS_OPTIMIZATION);
+INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_CPU_CONFIG_KEY(DENORMALS_OPTIMIZATION);
 
-DECLARE_CPU_CONFIG_KEY(SPARSE_WEIGHTS_DECOMPRESSION_RATE);
+INFERENCE_ENGINE_1_0_DEPRECATED DECLARE_CPU_CONFIG_KEY(SPARSE_WEIGHTS_DECOMPRESSION_RATE);
 
 }  // namespace CPUConfigParams
 }  // namespace InferenceEngine
