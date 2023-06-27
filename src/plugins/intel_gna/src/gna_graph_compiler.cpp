@@ -614,10 +614,6 @@ void GNAGraphCompiler::finalizeConvolution1DPrimitive(InferenceEngine::CNNLayerP
 
     connectOutput(layer, ptr_outputs, num_data_bytes_out);
 
-    // Transpose H with W or C with HW
-    auto A = transpose_h_w ? in_kernel_h : in_channels;
-    auto B = transpose_h_w ? in_kernel_w : convolution._kernel[X_AXIS];
-
     if (num_conv_kernel_padding == 0) {
         gnamem->getQueue(REGION_RO)->push_local_ptr(layer,
                                                     ptr_weights,
