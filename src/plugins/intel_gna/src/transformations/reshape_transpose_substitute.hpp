@@ -16,6 +16,12 @@ namespace pass {
  * It is usefull with Tranpose/Gather sinking transformations to simplify Transpose movement.
  * TransposeSinking is not possible to use with Reshapes (except some cases when Reshape is Squeeze/Unsqueeze).
  * GatherSinking is much harder to implement for all existed layer types.
+ *
+ * any layer          any layer
+ *    |                  |
+ *  Reshape   =>      Transpose
+ *    |                  |
+ * any layer          any layer
  */
 class ReshapeTransposeSubstitute : public ov::pass::MatcherPass {
 public:
