@@ -116,6 +116,8 @@ const std::vector<std::pair<data_type_t, data_type_t>> types = {
 const std::vector<MMKernelTestShape> shapes = {
     // normal
     {256, 48, 448},
+    // k < 32
+    {256, 48, 15},
     // k tail
     {256, 48, 449},
     // M tail == unroll 8

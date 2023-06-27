@@ -1990,9 +1990,22 @@ struct Matmul {
                     int n0, int n1,
                     PP ppkernel,
                     bool skip_repack = false) {
-        auto matB = getSubMatB(_matB, n0, n1, transposeB);
         int M = matA.dims[0];
         int K = matA.dims[1];
+        if (K < kStep) {
+            int B0, B1;
+            if (transposeB) {
+                B0 = _matB.dims[0];
+                B1 = kStep;
+            } else {
+                B0 = kStep;
+                B1 = _matB.dims[1];
+            }
+            matA = matA.clone_with_padzero(M, kStep);
+            _matB = _matB.clone_with_padzero(B0, B1);
+            K = kStep;
+        }
+        auto matB = getSubMatB(_matB, n0, n1, transposeB);
         int N = matB.dims[transposeB ? 0 : 1];
         assert(K == matB.dims[transposeB ? 1 : 0]);
         // Due to the fact that we load a full tile at tails of K dimension

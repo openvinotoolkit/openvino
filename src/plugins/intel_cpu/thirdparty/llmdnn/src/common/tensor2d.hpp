@@ -72,6 +72,20 @@ struct tensor2D {
         }
         return ret;
     }
+    tensor2D<T> clone_with_padzero(int dim0, int dim1) {
+        tensor2D<T> ret;
+        ret.resize(dim0, dim1, force_compact);
+        assert(dim0 >= dims[0] && dim1 >= dims[1]);
+        for(int i = 0; i < dims[0]; i++) {
+            memcpy(&ret(i, 0), &(*this)(i, 0), dims[1] * sizeof(T));
+            memset(reinterpret_cast<void*>(&ret(i, 0) + dims[1]), 0, ret.stride - dims[1] * sizeof(T));
+        }
+        if (dims[1] == dim1) {
+            memset(reinterpret_cast<void*>(ret.data + dims[0] * ret.padded_dim1), 0, (dim0 - dims[0]) * ret.stride);
+        }
+
+        return ret;
+    }
     void resize(int d0, int d1, bool _force_compact = false, bool is_const=false) {
         own = true;
         force_compact = _force_compact;
