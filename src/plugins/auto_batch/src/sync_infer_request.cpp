@@ -11,12 +11,12 @@
 namespace ov {
 namespace autobatch_plugin {
 
-ov::Tensor create_shared_tensor_on_batched_tensor(ov::Tensor batched_tensor,
-                                                  std::string name,
-                                                  const std::set<std::string>& batched_names,
-                                                  size_t batch_id,
-                                                  size_t batch_num) {
-    auto ptr = batched_tensor.data();
+inline ov::Tensor create_shared_tensor_on_batched_tensor(ov::Tensor batched_tensor,
+                                                         std::string name,
+                                                         const std::set<std::string>& batched_names,
+                                                         size_t batch_id,
+                                                         size_t batch_num) {
+    auto ptr = static_cast<uint8_t*>(batched_tensor.data());
     auto sizePerBatch = batched_tensor.get_byte_size() / batch_num;
     auto batched_shape = batched_tensor.get_shape();
     // for performance reason (copy avoidance) current impl of the auto-batching supports only batching by 0th dim

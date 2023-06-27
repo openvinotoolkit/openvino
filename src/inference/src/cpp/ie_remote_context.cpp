@@ -28,12 +28,6 @@
 
 namespace ov {
 
-bool RemoteContext::is_empty() const {
-    if (_impl != nullptr)
-        return false;
-    return true;
-}
-
 void RemoteContext::type_check(const RemoteContext& context,
                                const std::map<std::string, std::vector<std::string>>& type_info) {
     auto remote_impl = context._impl;

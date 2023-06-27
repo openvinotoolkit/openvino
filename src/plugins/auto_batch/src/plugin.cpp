@@ -276,9 +276,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     size_t batch1_footprint = 0;
     if (device_name.find("GPU") != std::string::npos)
         batch1_footprint = report_footprint(core, device_name);
-    auto compiled_model_without_batch = !context.is_empty()
-                                            ? core->compile_model(model, context, device_config_no_auto_batch)
-                                            : core->compile_model(model, device_name, device_config_no_auto_batch);
+    auto compiled_model_without_batch = context ? core->compile_model(model, context, device_config_no_auto_batch)
+                                                : core->compile_model(model, device_name, device_config_no_auto_batch);
     if (device_name.find("GPU") != std::string::npos) {
         batch1_footprint = report_footprint(core, device_name) - batch1_footprint;
         if (batch1_footprint) {
@@ -334,7 +333,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
             }
             OPENVINO_SUPPRESS_DEPRECATED_END
 
-            compiled_model_with_batch = !context.is_empty()
+            compiled_model_with_batch = context
                                             ? core->compile_model(reshaped, context, device_config_no_auto_batch)
                                             : core->compile_model(reshaped, device_name, device_config_no_auto_batch);
         } catch (const ov::Exception&) {
