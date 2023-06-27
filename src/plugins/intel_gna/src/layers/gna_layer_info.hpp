@@ -297,7 +297,7 @@ public:
         return isOfType("FakeQuantize");
     }
     bool isNonFunctional() const {
-        return isOfType("reshape") || isOfType("squeeze") || isOfType("unsqueeze") || isTrivialPermute();
+        return isOfType("reshape") || isOfType("squeeze") || isOfType("unsqueeze") || isTrivialPermute() || is_gather();
     }
     bool isReshape() const noexcept {
         return isOfType("reshape");
@@ -353,7 +353,7 @@ public:
         return isNonFunctional() || isSplit() || isSlice() || isConcat();
     }
     bool is_fq_non_sensitive() const {
-        return isPermute() || is_gather() || isNonFunctional();
+        return isPermute() || isNonFunctional();
     }
     bool isPooling() const noexcept {
         return isOfType("pooling");

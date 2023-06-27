@@ -646,7 +646,6 @@ void GNAGraphCompiler::finalizeConvolution1DPrimitive(InferenceEngine::CNNLayerP
                 ie_memcpy(dstPtr + offset,
                           size - offset,
                           convolution._weights->cbuffer().as<uint8_t*>() + single_conv_kernel_size * i * cpSize,
-                          ,
                           single_conv_kernel_size * cpSize);
                 offset += single_conv_kernel_size * cpSize;
                 ie_memcpy(dstPtr + offset, size - offset, &padding_zeros[0], padding_zeros.size());
