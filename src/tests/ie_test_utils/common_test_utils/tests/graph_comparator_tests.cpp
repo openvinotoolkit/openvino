@@ -421,7 +421,7 @@ TEST(GraphComparatorTests, CheckTensorIteratorPositive) {
 }
 
 namespace {
-std::shared_ptr<ov::Model> make_CheckLoop_model(bool different_body) {
+std::shared_ptr<ov::Model> make_check_loop_model(bool different_body) {
     auto X = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
     auto Y = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
     auto M = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
@@ -463,7 +463,7 @@ std::shared_ptr<ov::Model> make_CheckLoop_model(bool different_body) {
 
 TEST(GraphComparatorTests, CheckLoopPositive) {
     std::shared_ptr<ov::Model> function, function_ref;
-    function_ref = make_CheckLoop_model(false);
+    function_ref = make_check_loop_model(false);
     function = function_ref->clone();
 
     auto comparator = FunctionsComparator::no_default();
@@ -475,8 +475,8 @@ TEST(GraphComparatorTests, CheckLoopPositive) {
 
 TEST(GraphComparatorTests, CheckLoopNegative) {
     std::shared_ptr<ov::Model> function, function_ref;
-    function_ref = make_CheckLoop_model(false);
-    function = make_CheckLoop_model(true);
+    function_ref = make_check_loop_model(false);
+    function = make_check_loop_model(true);
 
     auto comparator = FunctionsComparator::no_default();
     comparator.enable(FunctionsComparator::NODES);
