@@ -297,7 +297,7 @@ public:
         return isOfType("FakeQuantize");
     }
     bool isNonFunctional() const {
-        return isOfType("reshape") || isOfType("squeeze") || isOfType("unsqueeze") || isTrivialPermute() || is_gather();
+        return isOfType("reshape") || isOfType("squeeze") || isOfType("unsqueeze") || isTrivialPermute();
     }
     bool isReshape() const noexcept {
         return isOfType("reshape");
@@ -307,6 +307,9 @@ public:
     }
     bool is_gather() const noexcept {
         return isOfType("gather");
+    }
+    bool is_fq_skipped() const noexcept {
+        return isPermute() || is_gather() || isNonFunctional();
     }
     bool isPermuteFusable() const noexcept {
         return isPermute() &&
@@ -353,7 +356,7 @@ public:
         return isNonFunctional() || isSplit() || isSlice() || isConcat();
     }
     bool is_fq_non_sensitive() const {
-        return isPermute() || isNonFunctional();
+        return isPermute() || is_gather() || isNonFunctional();
     }
     bool isPooling() const noexcept {
         return isOfType("pooling");

@@ -316,7 +316,7 @@ void GNAGraphCompiler::assertConvolutionLayoutProper(const InferenceEngine::Data
 namespace {
 
 template <typename T>
-PropertyVector<T> property_vector_append(PropertyVector<T> properties, T value) {
+PropertyVector<T> PropertyVectorAppend(PropertyVector<T> properties, T value) {
     std::vector<T> new_values;
     for (size_t i = 0; i < properties.size(); ++i)
         new_values.push_back(properties[i]);
@@ -367,8 +367,8 @@ void GNAGraphCompiler::ConvolutionPrimitive(InferenceEngine::CNNLayerPtr layer) 
         convolution._dilation_y = 1;
         convolution._stride_y = 1;
 
-        convolution._padding = property_vector_append<unsigned int>(convolution._padding, 0);
-        convolution._pads_end = property_vector_append<unsigned int>(convolution._pads_end, 0);
+        convolution._padding = PropertyVectorAppend<unsigned int>(convolution._padding, 0);
+        convolution._pads_end = PropertyVectorAppend<unsigned int>(convolution._pads_end, 0);
     }
 
     if (in_height > 1 && in_width == 1 && !ShouldUseOnlyConv2DGnaIface()) {
@@ -614,10 +614,26 @@ void GNAGraphCompiler::finalizeConvolution1DPrimitive(InferenceEngine::CNNLayerP
 
     connectOutput(layer, ptr_outputs, num_data_bytes_out);
 
+    // Transpose H with W or C with HW
+    auto A = transpose_h_w ? in_kernel_h : in_channels;
+    auto B = transpose_h_w ? in_kernel_w : convolution._kernel[X_AXIS];
+
+    std::vector<uint8_t> transposedWeights;
+    for (uint32_t k = 0; k < num_filters; k++) {
+        uint8_t* ptr_filt_current =
+            convolution._weights->cbuffer().as<uint8_t*>() + k * A * B * convolution.precision.size();
+        auto transposedPart = copyMatrix(ptr_filt_current, convolution.precision.size(), A, B);
+        transposedWeights.insert(transposedWeights.end(), transposedPart.begin(), transposedPart.end());
+    }
+    if (transposedWeights.size() != convolution._weights->byteSize()) {
+        THROW_GNA_LAYER_EXCEPTION(&convolution) << "weights was transposed incorrectly. " << transposedWeights.size()
+                                                << ' ' << convolution._weights->byteSize();
+    }
+
     if (num_conv_kernel_padding == 0) {
         gnamem->getQueue(REGION_RO)->push_local_ptr(layer,
                                                     ptr_weights,
-                                                    convolution._weights->cbuffer(),
+                                                    transposedWeights.data(),
                                                     convolution._weights->byteSize());
     } else {
         auto paddedWeights = num_filter_coefficients * num_filters;
@@ -629,7 +645,7 @@ void GNAGraphCompiler::finalizeConvolution1DPrimitive(InferenceEngine::CNNLayerP
                             layerName,
                             num_conv_kernel_padding,
                             cpSize,
-                            convolution,
+                            transposedWeights,
                             num_filters,
                             single_conv_kernel_size](void* data, std::size_t size) {
             if (paddedWeightsSize > size) {
@@ -641,7 +657,7 @@ void GNAGraphCompiler::finalizeConvolution1DPrimitive(InferenceEngine::CNNLayerP
             for (uint32_t i = 0; i < num_filters; i++) {
                 ie_memcpy(dstPtr + offset,
                           size - offset,
-                          convolution._weights->cbuffer().as<uint8_t*>() + single_conv_kernel_size * i * cpSize,
+                          transposedWeights.data() + single_conv_kernel_size * i * cpSize,
                           single_conv_kernel_size * cpSize);
                 offset += single_conv_kernel_size * cpSize;
                 ie_memcpy(dstPtr + offset, size - offset, &padding_zeros[0], padding_zeros.size());
@@ -792,7 +808,7 @@ void GNAGraphCompiler::finalizeConvolution2DPrimitive(InferenceEngine::CNNLayerP
         ALIGN(effective_single_kernel_size, Limitations::kConvEachKernelByteAlignment) - effective_single_kernel_size;
     for (uint32_t k = 0; k < convolution._out_depth; k++) {
         uint8_t* ptr_filt_current = convolution._weights->cbuffer().as<uint8_t*>() + k * single_kernel_size;
-        auto transposed_part = copy_matrix(ptr_filt_current, convolution.precision.size(), in_channels, kernelHW);
+        auto transposed_part = copyMatrix(ptr_filt_current, convolution.precision.size(), in_channels, kernelHW);
         transposed_weights.insert(transposed_weights.end(), transposed_part.begin(), transposed_part.end());
         transposed_weights.resize(transposed_weights.size() + effective_single_kernel_size - single_kernel_size +
                                   kernel_pad);
@@ -984,8 +1000,8 @@ void GNAGraphCompiler::PoolingPrimitive(InferenceEngine::CNNLayerPtr layer) {
 
     if (inputs->getLayout() == InferenceEngine::Layout::CHW) {
         // Pooling is ngraph-3D here. Make some fixes to work with it as it's ngraph-4D
-        pooling._kernel = property_vector_append<unsigned int>(pooling._kernel, 1);
-        pooling._stride = property_vector_append<unsigned int>(pooling._stride, 1);
+        pooling._kernel = PropertyVectorAppend<unsigned int>(pooling._kernel, 1);
+        pooling._stride = PropertyVectorAppend<unsigned int>(pooling._stride, 1);
     }
 
     void* ptr_inputs = nullptr;
@@ -2843,10 +2859,10 @@ std::vector<uint8_t> GNAGraphCompiler::transposeMatrix(uint8_t* ptr_matrix,
     return temp_buffer;
 }
 
-std::vector<uint8_t> GNAGraphCompiler::copy_matrix(uint8_t* ptr_matrix,
-                                                   size_t element_size,
-                                                   uint32_t num_rows,
-                                                   uint32_t num_cols) {
+std::vector<uint8_t> GNAGraphCompiler::copyMatrix(uint8_t* ptr_matrix,
+                                                  size_t element_size,
+                                                  uint32_t num_rows,
+                                                  uint32_t num_cols) {
     const size_t dest_size = num_rows * num_cols * element_size;
     std::vector<uint8_t> temp_buffer(dest_size);
     ::memcpy(temp_buffer.data(), ptr_matrix, dest_size);

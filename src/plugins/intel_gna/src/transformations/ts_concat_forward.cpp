@@ -23,6 +23,7 @@ using namespace ov::intel_gna::pass::helper;
 using namespace ov::intel_gna::limitations;
 
 namespace {
+
 bool is_concat_sinked(const Output<Node>& output) {
     auto concat_node = ov::as_type_ptr<Concat>(output.get_node_shared_ptr());
 
@@ -40,6 +41,7 @@ bool is_concat_sinked(const Output<Node>& output) {
 
     return false;
 }
+
 }  // namespace
 
 TSConcatForward::TSConcatForward() {
