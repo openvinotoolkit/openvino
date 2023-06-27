@@ -11,15 +11,13 @@
 namespace ov {
 namespace autobatch_plugin {
 
-template <ov::element::Type_t precision>
 ov::Tensor create_shared_tensor_on_batched_tensor(ov::Tensor batched_tensor,
                                                   std::string name,
                                                   const std::set<std::string>& batched_names,
                                                   size_t batch_id,
                                                   size_t batch_num) {
-    using T = ov::fundamental_type_for<precision>;
-    auto ptr = static_cast<T*>(batched_tensor.data());
-    auto sizePerBatch = batched_tensor.get_size() / batch_num;
+    auto ptr = batched_tensor.data();
+    auto sizePerBatch = batched_tensor.get_byte_size() / batch_num;
     auto batched_shape = batched_tensor.get_shape();
     // for performance reason (copy avoidance) current impl of the auto-batching supports only batching by 0th dim
     if (batched_names.count(name)) {
@@ -48,228 +46,22 @@ void SyncInferRequest::share_tensors_with_batched_req(const std::set<std::string
                                                       const std::set<std::string>& batched_outputs) {
     for (const auto& it : get_inputs()) {
         ov::Tensor res;
-        switch (it.get_tensor_ptr()->get_element_type()) {
-        case ov::element::f32:
-            res = create_shared_tensor_on_batched_tensor<ov::element::f32>(
-                m_batched_request_wrapper->_infer_request_batched->get_tensor(it),
-                ov::op::util::get_ie_output_name(it),
-                batched_inputs,
-                m_batch_id,
-                m_batch_size);
-            break;
-        case ov::element::i32:
-            res = create_shared_tensor_on_batched_tensor<ov::element::i32>(
-                m_batched_request_wrapper->_infer_request_batched->get_tensor(it),
-                ov::op::util::get_ie_output_name(it),
-                batched_inputs,
-                m_batch_id,
-                m_batch_size);
-            break;
-        case ov::element::i8:
-            res = create_shared_tensor_on_batched_tensor<ov::element::i8>(
-                m_batched_request_wrapper->_infer_request_batched->get_tensor(it),
-                ov::op::util::get_ie_output_name(it),
-                batched_inputs,
-                m_batch_id,
-                m_batch_size);
-            break;
-        case ov::element::i16:
-            res = create_shared_tensor_on_batched_tensor<ov::element::i16>(
-                m_batched_request_wrapper->_infer_request_batched->get_tensor(it),
-                ov::op::util::get_ie_output_name(it),
-                batched_inputs,
-                m_batch_id,
-                m_batch_size);
-            break;
-        case ov::element::u16:
-            res = create_shared_tensor_on_batched_tensor<ov::element::u16>(
-                m_batched_request_wrapper->_infer_request_batched->get_tensor(it),
-                ov::op::util::get_ie_output_name(it),
-                batched_inputs,
-                m_batch_id,
-                m_batch_size);
-            break;
-        case ov::element::u32:
-            res = create_shared_tensor_on_batched_tensor<ov::element::u32>(
-                m_batched_request_wrapper->_infer_request_batched->get_tensor(it),
-                ov::op::util::get_ie_output_name(it),
-                batched_inputs,
-                m_batch_id,
-                m_batch_size);
-            break;
-        case ov::element::f64:
-            res = create_shared_tensor_on_batched_tensor<ov::element::f64>(
-                m_batched_request_wrapper->_infer_request_batched->get_tensor(it),
-                ov::op::util::get_ie_output_name(it),
-                batched_inputs,
-                m_batch_id,
-                m_batch_size);
-            break;
-        case ov::element::f16:
-            res = create_shared_tensor_on_batched_tensor<ov::element::f16>(
-                m_batched_request_wrapper->_infer_request_batched->get_tensor(it),
-                ov::op::util::get_ie_output_name(it),
-                batched_inputs,
-                m_batch_id,
-                m_batch_size);
-            break;
-        case ov::element::bf16:
-            res = create_shared_tensor_on_batched_tensor<ov::element::bf16>(
-                m_batched_request_wrapper->_infer_request_batched->get_tensor(it),
-                ov::op::util::get_ie_output_name(it),
-                batched_inputs,
-                m_batch_id,
-                m_batch_size);
-            break;
-        case ov::element::u64:
-            res = create_shared_tensor_on_batched_tensor<ov::element::u64>(
-                m_batched_request_wrapper->_infer_request_batched->get_tensor(it),
-                ov::op::util::get_ie_output_name(it),
-                batched_inputs,
-                m_batch_id,
-                m_batch_size);
-            break;
-        case ov::element::i64:
-            res = create_shared_tensor_on_batched_tensor<ov::element::i64>(
-                m_batched_request_wrapper->_infer_request_batched->get_tensor(it),
-                ov::op::util::get_ie_output_name(it),
-                batched_inputs,
-                m_batch_id,
-                m_batch_size);
-            break;
-        case ov::element::u8:
-            res = create_shared_tensor_on_batched_tensor<ov::element::u8>(
-                m_batched_request_wrapper->_infer_request_batched->get_tensor(it),
-                ov::op::util::get_ie_output_name(it),
-                batched_inputs,
-                m_batch_id,
-                m_batch_size);
-            break;
-        case ov::element::boolean:
-            res = create_shared_tensor_on_batched_tensor<ov::element::boolean>(
-                m_batched_request_wrapper->_infer_request_batched->get_tensor(it),
-                ov::op::util::get_ie_output_name(it),
-                batched_inputs,
-                m_batch_id,
-                m_batch_size);
-            break;
-        default:
-            OPENVINO_THROW("Unsupported input precision ", it.get_tensor_ptr()->get_element_type());
-        }
+        res = create_shared_tensor_on_batched_tensor(m_batched_request_wrapper->_infer_request_batched->get_tensor(it),
+                                                     ov::op::util::get_ie_output_name(it),
+                                                     batched_inputs,
+                                                     m_batch_id,
+                                                     m_batch_size);
         set_tensor(it, res);
     }
 
     for (const auto& it : get_outputs()) {
         auto name = ov::op::util::get_ie_output_name(it.get_node_shared_ptr()->input_value(0));
         ov::Tensor res;
-        switch (it.get_tensor_ptr()->get_element_type()) {
-        case ov::element::f32:
-            res = create_shared_tensor_on_batched_tensor<ov::element::f32>(
-                m_batched_request_wrapper->_infer_request_batched->get_tensor(it),
-                name,
-                batched_outputs,
-                m_batch_id,
-                m_batch_size);
-            break;
-        case ov::element::i32:
-            res = create_shared_tensor_on_batched_tensor<ov::element::i32>(
-                m_batched_request_wrapper->_infer_request_batched->get_tensor(it),
-                name,
-                batched_outputs,
-                m_batch_id,
-                m_batch_size);
-            break;
-        case ov::element::i8:
-            res = create_shared_tensor_on_batched_tensor<ov::element::i8>(
-                m_batched_request_wrapper->_infer_request_batched->get_tensor(it),
-                name,
-                batched_outputs,
-                m_batch_id,
-                m_batch_size);
-            break;
-        case ov::element::i16:
-            res = create_shared_tensor_on_batched_tensor<ov::element::i16>(
-                m_batched_request_wrapper->_infer_request_batched->get_tensor(it),
-                name,
-                batched_outputs,
-                m_batch_id,
-                m_batch_size);
-            break;
-        case ov::element::u16:
-            res = create_shared_tensor_on_batched_tensor<ov::element::u16>(
-                m_batched_request_wrapper->_infer_request_batched->get_tensor(it),
-                name,
-                batched_outputs,
-                m_batch_id,
-                m_batch_size);
-            break;
-        case ov::element::u32:
-            res = create_shared_tensor_on_batched_tensor<ov::element::u32>(
-                m_batched_request_wrapper->_infer_request_batched->get_tensor(it),
-                name,
-                batched_outputs,
-                m_batch_id,
-                m_batch_size);
-            break;
-        case ov::element::f64:
-            res = create_shared_tensor_on_batched_tensor<ov::element::f64>(
-                m_batched_request_wrapper->_infer_request_batched->get_tensor(it),
-                name,
-                batched_outputs,
-                m_batch_id,
-                m_batch_size);
-            break;
-        case ov::element::f16:
-            res = create_shared_tensor_on_batched_tensor<ov::element::f16>(
-                m_batched_request_wrapper->_infer_request_batched->get_tensor(it),
-                name,
-                batched_outputs,
-                m_batch_id,
-                m_batch_size);
-            break;
-        case ov::element::bf16:
-            res = create_shared_tensor_on_batched_tensor<ov::element::bf16>(
-                m_batched_request_wrapper->_infer_request_batched->get_tensor(it),
-                name,
-                batched_outputs,
-                m_batch_id,
-                m_batch_size);
-            break;
-        case ov::element::u64:
-            res = create_shared_tensor_on_batched_tensor<ov::element::u64>(
-                m_batched_request_wrapper->_infer_request_batched->get_tensor(it),
-                name,
-                batched_outputs,
-                m_batch_id,
-                m_batch_size);
-            break;
-        case ov::element::i64:
-            res = create_shared_tensor_on_batched_tensor<ov::element::i64>(
-                m_batched_request_wrapper->_infer_request_batched->get_tensor(it),
-                name,
-                batched_outputs,
-                m_batch_id,
-                m_batch_size);
-            break;
-        case ov::element::u8:
-            res = create_shared_tensor_on_batched_tensor<ov::element::u8>(
-                m_batched_request_wrapper->_infer_request_batched->get_tensor(it),
-                name,
-                batched_outputs,
-                m_batch_id,
-                m_batch_size);
-            break;
-        case ov::element::boolean:
-            res = create_shared_tensor_on_batched_tensor<ov::element::boolean>(
-                m_batched_request_wrapper->_infer_request_batched->get_tensor(it),
-                name,
-                batched_outputs,
-                m_batch_id,
-                m_batch_size);
-            break;
-        default:
-            OPENVINO_THROW("Unsupported input precision ", it.get_tensor_ptr()->get_element_type());
-        }
+        res = create_shared_tensor_on_batched_tensor(m_batched_request_wrapper->_infer_request_batched->get_tensor(it),
+                                                     name,
+                                                     batched_outputs,
+                                                     m_batch_id,
+                                                     m_batch_size);
         set_tensor(it, res);
     }
 }

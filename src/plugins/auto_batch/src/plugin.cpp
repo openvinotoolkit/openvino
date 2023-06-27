@@ -86,7 +86,7 @@ std::shared_ptr<ov::IRemoteContext> Plugin::create_context(const ov::AnyMap& rem
 }
 
 ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& arguments) const {
-OPENVINO_SUPPRESS_DEPRECATED_START
+    OPENVINO_SUPPRESS_DEPRECATED_START
     if (supported_configKeys.end() != std::find(supported_configKeys.begin(), supported_configKeys.end(), name)) {
         auto it = m_plugin_config.find(name);
         if (it == m_plugin_config.end()) {
@@ -109,7 +109,7 @@ OPENVINO_SUPPRESS_DEPRECATED_START
     } else {
         OPENVINO_THROW("Unsupported property: ", name);
     }
-OPENVINO_SUPPRESS_DEPRECATED_END
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 void Plugin::set_property(const ov::AnyMap& properties) {
@@ -118,7 +118,7 @@ void Plugin::set_property(const ov::AnyMap& properties) {
         const auto& val = c.second;
         if (supported_configKeys.end() == std::find(supported_configKeys.begin(), supported_configKeys.end(), name))
             OPENVINO_THROW("Unsupported config key: ", name);
-OPENVINO_SUPPRESS_DEPRECATED_START
+        OPENVINO_SUPPRESS_DEPRECATED_START
         if (name == CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG) || name == ov::device::priorities.name()) {
             parse_batch_device(val.as<std::string>());
         } else if (name == ov::auto_batch_timeout.name()) {
@@ -133,7 +133,7 @@ OPENVINO_SUPPRESS_DEPRECATED_START
                                val.as<uint32_t>());
             }
         }
-OPENVINO_SUPPRESS_DEPRECATED_END
+        OPENVINO_SUPPRESS_DEPRECATED_END
         m_plugin_config[name] = val;
     }
 }
@@ -161,14 +161,14 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
     // merge configs from func properties and m_plugin_config
     auto full_properties = merge_properties(m_plugin_config, properties);
-OPENVINO_SUPPRESS_DEPRECATED_START
+    OPENVINO_SUPPRESS_DEPRECATED_START
     auto device_batch = full_properties.find(CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG));
     if (device_batch == full_properties.end())
         device_batch = full_properties.find(ov::device::priorities.name());
     if (device_batch == full_properties.end()) {
         OPENVINO_THROW("MULTI_DEVICE_PRIORITIES key for AUTO NATCH is not set for BATCH device");
     }
-OPENVINO_SUPPRESS_DEPRECATED_END
+    OPENVINO_SUPPRESS_DEPRECATED_END
     auto meta_device = parse_meta_device(device_batch->second.as<std::string>(), properties);
 
     const auto& device_name = meta_device.device_name;
@@ -357,14 +357,14 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     OPENVINO_ASSERT(get_core(), "Core is missing!");
     auto cfg = properties;
     for (const auto& c : cfg) {
-OPENVINO_SUPPRESS_DEPRECATED_START
+        OPENVINO_SUPPRESS_DEPRECATED_START
         if (c.first == CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG) || c.first == ov::device::priorities.name()) {
             auto val = c.second;
             cfg.erase(c.first);
             auto metaDevice = parse_meta_device(val.as<std::string>(), cfg);
             return get_core()->query_model(model, metaDevice.device_name, cfg);
         }
-OPENVINO_SUPPRESS_DEPRECATED_END
+        OPENVINO_SUPPRESS_DEPRECATED_END
     }
     OPENVINO_THROW("Value for MULTI_DEVICE_PRIORITIES for AUTO BATCH PLUGIN is not set");
 }
