@@ -139,8 +139,9 @@ std::vector<layout> fully_connected_inst::calc_output_layouts(fully_connected_no
     auto input_layout = impl_param.get_input_layout();
     auto weights_layout = *impl_param.weights_layout;
 
-    auto default_out_dt = data_type_traits::is_floating_point(input_layout.data_type) ? input_layout.data_type : data_types::f32;
-    auto output_type = desc->output_data_types[0].value_or(default_out_dt);
+    auto output_type = input_layout.data_type;
+    if (data_type_traits::is_i8_u8(output_type) && desc->output_data_types[0])
+        output_type = *desc->output_data_types[0];
 
     if (impl_param.has_fused_primitives()) {
         output_type = impl_param.get_fused_output_layout().data_type;
