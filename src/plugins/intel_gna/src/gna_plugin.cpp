@@ -945,14 +945,6 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
         }
     }
 
-    // TODO: Need to remove this conversion when ngraph NCHW->NHWC transformation is enabled
-    if (!transpose_inputs_info.empty()) {
-        ConvertTransposeMapToModel(transpose_inputs_info, inputs_ptr_->Get());
-    }
-    if (!transpose_outputs_info.empty()) {
-        ConvertTransposeMapToModel(transpose_outputs_info, outputs_.Get());
-    }
-
     DumpXNNToFile();
 
 #ifdef PLOT
