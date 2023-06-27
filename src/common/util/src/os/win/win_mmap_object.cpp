@@ -99,10 +99,10 @@ private:
         if(::GetFileSizeEx(m_handle.get(), &file_size_large) == 0) {
             throw std::runtime_error("Can not get file size for " + path);
         }
-        if (data_size + offset > static_cast<size_t>(file_size_large)) {
+        if (data_size + offset > static_cast<size_t>(file_size_large.QuadPart)) {
             throw std::runtime_error("Can not map out of scope memory for " + path);
         }
-        m_size = data_size > 0 ? data_size : static_cast<uint64_t>(file_size_large.QuadPart) - offset;
+        m_size = data_size > 0 ? data_size : static_cast<size_t>(file_size_large.QuadPart) - offset;
 
         // the offset must be a multiple of the allocation granularity
         const size_t alloc_gran = sys_info.dwAllocationGranularity;
