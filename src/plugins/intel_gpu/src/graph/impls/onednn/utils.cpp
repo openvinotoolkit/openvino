@@ -18,6 +18,8 @@ std::string convert_data_format_string(cldnn::format fmt) {
     switch (fmt) {
         case cldnn::format::b_fs_yx_fsv2: return "aBcd2b";
         case cldnn::format::b_fs_zyx_fsv2: return "aBcde2b";
+        case cldnn::format::b_fs_yx_fsv8: return "aBcd8b";
+        case cldnn::format::b_fs_zyx_fsv8: return "aBcde8b";
         case cldnn::format::bs_fs_yx_bsv16_fsv2: return "ABcd16a2b";
         case cldnn::format::bs_fs_zyx_bsv16_fsv2: return "ABcde16a2b";
         case cldnn::format::bs_fs_yx_bsv16_fsv4: return "ABcd16a4b";
@@ -132,9 +134,11 @@ std::vector<std::pair<cldnn::format, dnnl::memory::format_tag>> format_map = {
         { cldnn::format::bzyxf, dnnl::memory::format_tag::ndhwc },
         { cldnn::format::b_fs_yx_fsv2, dnnl::memory::format_tag::undef },
         { cldnn::format::b_fs_yx_fsv4, dnnl::memory::format_tag::aBcd4b },
+        { cldnn::format::b_fs_yx_fsv8, dnnl::memory::format_tag::aBcd8b },
         { cldnn::format::b_fs_yx_fsv16, dnnl::memory::format_tag::nChw16c },
         { cldnn::format::b_fs_yx_fsv32, dnnl::memory::format_tag::aBcd32b },
         { cldnn::format::b_fs_zyx_fsv4, dnnl::memory::format_tag::aBcde4b },
+        { cldnn::format::b_fs_zyx_fsv8, dnnl::memory::format_tag::aBcde8b },
         { cldnn::format::b_fs_zyx_fsv16, dnnl::memory::format_tag::nCdhw16c },
         { cldnn::format::b_fs_zyx_fsv32, dnnl::memory::format_tag::aBcde32b },
         { cldnn::format::bs_fs_yx_bsv16_fsv16, dnnl::memory::format_tag::NChw16n16c },
