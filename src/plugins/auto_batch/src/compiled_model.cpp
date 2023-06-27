@@ -165,7 +165,6 @@ void CompiledModel::set_property(const ov::AnyMap& properties) {
 }
 
 ov::Any CompiledModel::get_property(const std::string& name) const {
-    OPENVINO_SUPPRESS_DEPRECATED_START
     auto it = m_config.find(name);
     if (it != m_config.end()) {
         return it->second;
@@ -178,23 +177,24 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
             }
         }
         if (name == ov::optimal_number_of_infer_requests.name()) {
-            uint32_t numRequest = 0;
+            uint32_t num_request = 0;
             try {
-                numRequest =
+                num_request =
                     m_compiled_model_without_batch->get_property(ov::hint::num_requests.name()).as<std::uint32_t>();
-                if (numRequest == 0)  // no limitations from user, let's deduce the full blown #requests
+                if (num_request == 0)  // no limitations from user, let's deduce the full blown #requests
                     // (multiplied by the devices capabilities to run multiple <batched> requests for further perf)
-                    numRequest =
+                    num_request =
                         m_device_info.device_batch_size *
                         m_compiled_model_without_batch->get_property(ov::optimal_number_of_infer_requests.name())
                             .as<uint32_t>();
             } catch (const ov::Exception&) {
             }
-            numRequest =
-                std::max(numRequest, m_device_info.device_batch_size);  // round up to the possible  user's value
-            return ov::Any(numRequest);
+            num_request =
+                std::max(num_request, m_device_info.device_batch_size);  // round up to the possible  user's value
+            return num_request;
         } else if (name == ov::model_name.name()) {
             return m_compiled_model_without_batch->get_property(name);
+            OPENVINO_SUPPRESS_DEPRECATED_START
         } else if (name == METRIC_KEY(SUPPORTED_METRICS)) {
             return std::vector<std::string>{ov::optimal_number_of_infer_requests.name(),
                                             METRIC_KEY(SUPPORTED_METRICS),
