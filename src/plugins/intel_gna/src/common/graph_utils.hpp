@@ -634,7 +634,7 @@ inline bool is_shape_2d(const ov::Shape& shape) {
 }
 
 /**
- * @brief Checks if node has one consumer
+ * @brief Checks if node has N consumers
  */
 inline bool has_n_consumers(const std::shared_ptr<ov::Node>& node, size_t n_consumers) {
     return node->output(0).get_target_inputs().size() == n_consumers;

@@ -238,6 +238,12 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
                 transpose_info.transpose_const->get_axis_vector_val());
         });
 
+    /**
+     * TransposeSinking doesn't currently support StridedSlice. We disable SliceToStridedSlice
+     * transformation to prevent convert Slice to StridedSlice. This allows us to work with
+     * networks, that initialy have Slice.
+     * That could be removed after StridedSlice implementation in TransposeSinking
+     */
     if (has_slice && (has_convolution || has_maxpool || has_mvn)) {
         pass_config->disable<ov::pass::SliceToStridedSlice>();
     }
@@ -262,6 +268,12 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
     pass_config->disable<ov::pass::ConcatReduceFusion>();
     manager.run_passes(model);
 
+    /**
+     * As we disabled SliceToStridedSlice, we have after all transformations
+     * Slice, that is not supported natively in our plugin. Here we convert
+     * Slice -> StridedSlice -> CropIE
+     * That could be removed after StridedSlice implementation in TransposeSinking
+     */
     if (has_slice && (has_convolution || has_maxpool || has_mvn)) {
         ov::pass::Manager manager;
         manager.register_pass<ov::pass::InitNodeInfo>();
