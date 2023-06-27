@@ -11,7 +11,7 @@
 #include "openvino/runtime/iasync_infer_request.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
 #include "plugin.hpp"
-#include "threading/ie_thread_safe_containers.hpp"
+#include "openvino/runtime/threading/thread_safe_containers.hpp"
 
 namespace ov {
 namespace autobatch_plugin {
@@ -23,8 +23,7 @@ public:
     struct WorkerInferRequest {
         ov::SoPtr<ov::IAsyncInferRequest> _infer_request_batched;
         int _batch_size;
-        InferenceEngine::ThreadSafeQueueWithSize<
-            std::pair<ov::autobatch_plugin::AsyncInferRequest*, ov::threading::Task>>
+        ov::threading::ThreadSafeQueueWithSize<std::pair<ov::autobatch_plugin::AsyncInferRequest*, ov::threading::Task>>
             _tasks;
         std::vector<ov::threading::Task> _completion_tasks;
         std::thread _thread;
