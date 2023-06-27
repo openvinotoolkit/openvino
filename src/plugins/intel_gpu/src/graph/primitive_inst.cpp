@@ -284,7 +284,8 @@ void primitive_inst::update_shape() {
         }
         auto dep_mem = _network.get_output_memory(dep_id);
         memory_deps.insert({i, dep_mem});
-        has_runtime_deps = true;
+        if (!dep.is_in_shape_of_subgraph())
+            has_runtime_deps = true;
     }
 
     if (has_runtime_deps) {
@@ -690,7 +691,6 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
         set_arguments();
     }
     on_execute();
-
     GPU_DEBUG_TRACE << id() << ": execute " << _impl->get_kernel_name() << std::endl;
 
     if (_exec_deps.empty() && dependencies.empty()) {
@@ -1014,7 +1014,7 @@ event::ptr primitive_inst::update_weights() {
             memory::ptr weights_memory = nullptr;
             if (_reordered_weights_cache.is_full()) {
                 weights_memory = _reordered_weights_cache.get_lru_element().second;
-                can_reuse = weights_memory->size() <= expected_layout.bytes_count() && weights_memory != original_weights_memory;
+                can_reuse = weights_memory->size() <= expected_layout.bytes_count() && (weights_memory->buffer_ptr() != original_weights_memory->buffer_ptr());
             }
 
             if (can_reuse) {
@@ -1294,7 +1294,9 @@ bool primitive_inst::is_valid_fusion() const {
 
         auto outer_dep_pshape = outer_dep.first->_impl_params->get_output_layout().get_partial_shape();
         auto merged_shape = out_pshape;
-        auto can_broadcast = ov::PartialShape::broadcast_merge_into(merged_shape, outer_dep_pshape, fd.typed_desc<eltwise>()->broadcast_spec);
+        bool can_broadcast = true;
+        if (fd.is_type<eltwise>())
+            can_broadcast = ov::PartialShape::broadcast_merge_into(merged_shape, outer_dep_pshape, fd.typed_desc<eltwise>()->broadcast_spec);
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
         // WA for OneDNN binary add fusions: we need to broadcast batch dimension to avoid situation with
