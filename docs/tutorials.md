@@ -19,7 +19,7 @@
    :caption: Notebooks
    :hidden:
 
-   notebooks-installation
+   notebooks_installation
    notebooks/notebooks
 
 This collection of Python tutorials are written for running on Jupyter notebooks.
@@ -36,7 +36,7 @@ see the `Additional Resources <#-additional-resources>`__ section).
 
 .. note::
    For the best performance, more control and resources, you should run the notebooks locally.
-   Follow the `Installation Guide <notebooks-installation.html>`__ in order to get information
+   Follow the :doc:`Installation Guide <notebooks_installation>` in order to get information
    on how to run and manage the notebooks on your machine.
 
 
@@ -328,7 +328,7 @@ The following tutorials are guaranteed to provide a great experience with infere
 -------------------
 
 .. note::
-   If there are any issues while running the notebooks, refer to the **Troubleshooting** and **FAQ** sections in the `Installation Guide <notebooks-installation.html>`__ or start a GitHub
+   If there are any issues while running the notebooks, refer to the **Troubleshooting** and **FAQ** sections in the :doc:`Installation Guide <notebooks_installation>` or start a GitHub
    `discussion <https://github.com/openvinotoolkit/openvino_notebooks/discussions>`__.
 
 
