@@ -102,6 +102,12 @@ public:
     RemoteContext& operator=(RemoteContext&& other) = default;
 
     /**
+     * @brief Checks if current RemoteContext object is initialized
+     * @return `true` if current RemoteContext object is initialized, `false` - otherwise
+     */
+    operator bool() const noexcept;
+
+    /**
      * @brief Destructor that preserves unloading order of implementation object and reference to the library.
      */
     ~RemoteContext();

@@ -126,7 +126,7 @@ KERNEL(softmax_items_class_optimized)(
     denominator = sub_group_reduce_add(denominator);
 
     // PART 3. Write out results
-    uint output_idx = out_depth_offset;// + simd_lane * OUTPUT_CLASS_PITCH;
+    uint output_idx = out_depth_offset;
     cls = 0;
 #if FULL_ITERATIONS_NUM >= SUB_GROUP_SIZE && IS_SUBGROUP_BLOCK_IO_ENABLED
     for (; cls < FULL_ITERATIONS_NUM - (FULL_ITERATIONS_NUM % BLOCK_SIZE); cls += BLOCK_SIZE)
