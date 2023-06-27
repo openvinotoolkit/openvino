@@ -105,6 +105,8 @@ def main():
 
     log.info('')
 
+    # WA clean output tensor to handle destruction order in sync infer case
+    results = {}
 # ----------------------------------------------------------------------------------------------------------------------
     log.info('This sample is an API example, for any performance measurements please use the dedicated benchmark_app tool\n')
     return 0
