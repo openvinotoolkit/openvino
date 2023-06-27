@@ -30,11 +30,13 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_Eltwise, Add,
 std::vector<std::vector<ov::Shape>> inShapesStatic{
         {{1, 128, 1, 1}, {1, 128, 1, 1}},
         {{1, 128, 1, 9}, {1, 128, 1, 9}},
+        {{1, 128, 1, 16}, {1, 128, 1, 16}},
         {{1, 128, 1, 17}, {1, 128, 1, 17}},
         {{1, 128, 1, 29}, {1, 128, 1, 29}},
         {{1, 128, 1, 33}, {1, 128, 1, 33}},
         {{1, 128, 9, 30}, {1, 128, 1, 30}},
         {{1, 128, 9, 1}, {1, 128, 1, 30}},
+        {{1, 128, 9, 16}, {1, 128, 9, 1}},
 };
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_Eltwise, AddPair,
                          ::testing::Combine(
