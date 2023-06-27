@@ -22,7 +22,7 @@ template <typename DataType, typename IndicesType>
 void scatter_elem_update_with_reduction(const DataType* input_data,
                                         const IndicesType* indices,
                                         const DataType* updates,
-                                        const int64_t& axis,
+                                        const int64_t axis,
                                         DataType* out_buf,
                                         const Shape& data_shape,
                                         const Shape& indices_shape,
@@ -33,7 +33,7 @@ template <typename DataType, typename IndicesType>
 void scatter_elem_update(const DataType* input_data,
                          const IndicesType* indices,
                          const DataType* updates,
-                         const int64_t& axis,
+                         const int64_t axis,
                          DataType* out_buf,
                          const Shape& data_shape,
                          const Shape& indices_shape,
@@ -88,7 +88,7 @@ T reduction_neutral_value(const Reduction reduction_type) {
     case Reduction::MEAN:
         return T{0};
     default:
-        OPENVINO_ASSERT(false, "Neutral value not available for this type of reduction");
+        OPENVINO_THROW("Neutral value not available for this type of reduction");
         return 0;
     }
 }
@@ -110,7 +110,7 @@ std::function<T(const T, const T)> reduction_functor_for(const Reduction reducti
     case Reduction::MEAN:
         return std::plus<T>{};
     default:
-        OPENVINO_ASSERT(false, "No functor available for this type of reduction");
+        OPENVINO_THROW("No functor available for this type of reduction");
         return 0;
     }
 }
@@ -135,7 +135,7 @@ std::function<char(const char, const char)> reduction_functor_for<char>(const Re
             return static_cast<bool>(a) || static_cast<bool>(b);
         };
     default:
-        OPENVINO_ASSERT(false, "No functor available for this type of reduction");
+        OPENVINO_THROW("No functor available for this type of reduction");
         return 0;
     }
 }
@@ -169,7 +169,7 @@ template <typename DataType, typename IndicesType>
 void scatter_elem_update_with_reduction(const DataType* input_data,
                                         const IndicesType* indices,
                                         const DataType* updates,
-                                        const int64_t& axis,
+                                        const int64_t axis,
                                         DataType* out_buf,
                                         const Shape& data_shape,
                                         const Shape& indices_shape,
