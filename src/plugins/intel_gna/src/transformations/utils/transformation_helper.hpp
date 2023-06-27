@@ -7,6 +7,7 @@
 #include <legacy/ngraph_ops/convolution_ie.hpp>
 #include <ngraph/opsets/opset7.hpp>
 
+#include "openvino/opsets/opset12.hpp"
 #include "ops/gna_convolution.hpp"
 
 namespace ov {
@@ -118,7 +119,40 @@ void swap_friendly_names(std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>);
  */
 void swap_names(std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>);
 
+/**
+ * @brief Reverses axis order. Final result will be such an order, that together
+ * with initial order will be {0, 1, 2, ...}
+ */
 ov::AxisVector reverse_transpose_order(const ov::AxisVector& axis_order);
+
+/**
+ * @brief Finds all input node transposes
+ */
+ov::NodeVector find_input_transposes(const std::shared_ptr<const ov::Node>& node);
+
+/**
+ * @brief Marks all input transposes with flag NoSinking
+ */
+void mark_input_transposes_as_nosinking(std::shared_ptr<const ov::Node> node);
+
+struct TransposeInfo {
+    std::shared_ptr<ov::opset12::Transpose> transpose;
+    std::shared_ptr<ov::opset12::Constant> transpose_const;
+
+    bool isEmpty() const {
+        return !transpose || !transpose_const;
+    }
+};
+
+/**
+ * @brief Finds first input node transpose
+ */
+TransposeInfo get_first_input_transpose(const std::shared_ptr<const ov::Node>& node);
+
+/**
+ * @brief Finds first output node transpose
+ */
+TransposeInfo get_first_output_transpose(const std::shared_ptr<const ov::Node>& node);
 
 }  // namespace helper
 }  // namespace pass

@@ -58,7 +58,6 @@
 #include "transformations/replace_gna_nhwc_layers.hpp"
 #include "transformations/reshape_transpose_substitute.hpp"
 #include "transformations/rotate_inputs.hpp"
-#include "transformations/rt_info/transpose_sinking_attr.hpp"
 #include "transformations/split_convolution_with_large_buffer_size.hpp"
 #include "transformations/split_eltwise.hpp"
 #include "transformations/substitute_softsign.hpp"
@@ -70,85 +69,13 @@
 #include "transformations/ts_concat_forward.hpp"
 #include "transformations/ts_split_backward.hpp"
 #include "transformations/unfuse_reshape_and_transpose.hpp"
+#include "transformations/utils/transformation_helper.hpp"
 #include "transformations/utils/utils.hpp"
 
 using namespace ov;
 using namespace ov::opset8;
 using namespace ov::intel_gna::limitations;
-
-namespace {
-
-ov::NodeVector find_input_transposes(const std::shared_ptr<const ov::Node>& node) {
-    ov::NodeVector transposes;
-    for (size_t input_idx = 0; input_idx < node->get_input_size(); ++input_idx) {
-        auto input_node = node->get_input_node_shared_ptr(input_idx);
-        auto transpose_node = ov::as_type_ptr<ov::opset8::Transpose>(input_node);
-        if (transpose_node)
-            transposes.push_back(transpose_node);
-    }
-
-    return transposes;
-}
-
-void mark_input_transposes_as_nosinking(std::shared_ptr<const ov::Node> node) {
-    for (const auto& input : find_input_transposes(node))
-        ov::mark_as_no_sinking_node(input);
-}
-
-struct TransposeInfo {
-    std::shared_ptr<Transpose> transpose;
-    std::shared_ptr<Constant> transpose_const;
-
-    bool isEmpty() const {
-        return !transpose || !transpose_const;
-    }
-};
-
-TransposeInfo get_first_input_transpose(const std::shared_ptr<const ov::Node>& node) {
-    for (size_t input_idx = 0; input_idx < node->get_input_size(); ++input_idx) {
-        std::shared_ptr<Node> input_node = node->get_input_node_shared_ptr(input_idx);
-        auto transpose_node = as_type_ptr<Transpose>(input_node);
-        if (!transpose_node)
-            continue;
-        auto constant_node = as_type_ptr<Constant>(transpose_node->input_value(1).get_node_shared_ptr());
-        if (!constant_node)
-            continue;
-        {
-            TransposeInfo input_info;
-            input_info.transpose = transpose_node;
-            input_info.transpose_const = constant_node;
-            return input_info;
-        }
-    }
-
-    return {};
-}
-
-TransposeInfo get_first_output_transpose(const std::shared_ptr<const ov::Node>& node) {
-    for (size_t i = 0; i < node->get_output_size(); ++i) {
-        for (const auto& input : node->output(i).get_target_inputs()) {
-            Node* node = input.get_node();
-            if (!dynamic_cast<Transpose*>(node))
-                continue;
-            auto transpose_node = as_type_ptr<Transpose>(node->shared_from_this());
-            if (!transpose_node)
-                continue;
-            auto constant_node = as_type_ptr<Constant>(transpose_node->input_value(1).get_node_shared_ptr());
-            if (!constant_node)
-                continue;
-            {
-                TransposeInfo input_info;
-                input_info.transpose = transpose_node;
-                input_info.transpose_const = constant_node;
-                return input_info;
-            }
-        }
-    }
-
-    return {};
-}
-
-}  // namespace
+using namespace ov::intel_gna::pass::helper;
 
 namespace ov {
 namespace intel_gna {
