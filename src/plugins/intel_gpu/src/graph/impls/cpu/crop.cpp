@@ -53,7 +53,7 @@ struct crop_impl : public typed_primitive_impl<crop> {
         auto output_layout = params->output_layouts[0];
 
         auto input_shape = input_layout.get_partial_shape().to_shape();
-        auto offsets_shape = input_offset.get_partial_shape(input_shape.size()).to_shape();
+        auto offsets_shape = input_offset.get_partial_shape(input_shape.size(), input_layout.get_rank()).to_shape();
         auto output_shape = output_layout.get_partial_shape().to_shape();
 
         OPENVINO_ASSERT(offsets_shape.size() == output_shape.size(), "[GPU] Offset shape is supposed to have the same rank as output shape");

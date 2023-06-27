@@ -616,15 +616,17 @@ public:
         return offset;
     }
 
-    /// @brief Returns tensor as Partial shape of requested rank
-    ov::PartialShape get_partial_shape(size_t rank) const {
+    /// @brief Returns partial shape of the requested rank
+    /// @param rank The requested rank of partial shape
+    /// @param format_dims Number of actual dimensions for layout's format
+    ov::PartialShape get_partial_shape(size_t rank, size_t format_dims) const {
         ov::Shape shape;
         size_t i = 0;
         for (; i < std::min(static_cast<size_t>(2), rank); ++i) {
             shape.push_back(_sizes[i]);
         }
         for (; i < rank; ++i) {
-            shape.push_back(_sizes[rank - (i - 2) - 1]);
+            shape.push_back(_sizes[format_dims - (i - 2) - 1]);
         }
         return ov::PartialShape(shape);
     }
