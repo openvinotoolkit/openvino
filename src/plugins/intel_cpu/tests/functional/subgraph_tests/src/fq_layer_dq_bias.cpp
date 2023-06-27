@@ -100,7 +100,7 @@ const std::vector<std::string> layer_types_4D_static = {
 INSTANTIATE_TEST_SUITE_P(smoke_FQLayerDQBias_4D_static, FQLayerDQBias,
                          ::testing::Combine(::testing::ValuesIn(input_shapes_4D_static),
                                             ::testing::ValuesIn(layer_types_4D_static),
-                                            ::testing::ValuesIn({false})),
+                                            ::testing::Values(false)),
                          FQLayerDQBias::getTestCaseName);
 
 const std::vector<InputShape> input_shapes_4D_dynamic = {

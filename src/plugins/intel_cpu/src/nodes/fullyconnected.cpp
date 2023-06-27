@@ -381,8 +381,8 @@ void FullyConnected::prepareParams() {
             return std::make_shared<DnnlExecutor>(prim_desc);
 
         // For dynamic shape, the expected implement type kernel can support with dummy shape but
-        // not support with run time inference shape. With this case, the implement type would be
-        // ignored and first available primitive descriptor would be chosen.
+        // not the run time inference shape. In this case, the implementation type will be
+        // ignored and the first available primitive descriptor will be chosen
         return std::make_shared<DnnlExecutor>(first_desc);
     };
 
