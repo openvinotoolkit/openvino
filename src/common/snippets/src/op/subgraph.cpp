@@ -525,7 +525,6 @@ void snippets::op::Subgraph::control_flow_transformations(lowered::LinearIR& lin
     common_pipeline.register_pass<lowered::pass::SoftmaxDecomposition>(vector_size);
     common_pipeline.register_pass<lowered::pass::FuseLoops>();
     common_pipeline.register_pass<lowered::pass::SplitLoops>();
-    common_pipeline.register_pass<lowered::pass::FuseLoops>();
     common_pipeline.register_pass<lowered::pass::MoveResultOutOfLoop>();
     common_pipeline.register_pass<lowered::pass::InsertBuffers>(buffer_allocation_rank);
     common_pipeline.register_pass<lowered::pass::InsertLoadStore>(vector_size);

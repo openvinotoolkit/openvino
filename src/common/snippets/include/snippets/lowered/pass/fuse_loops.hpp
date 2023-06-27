@@ -42,6 +42,8 @@ public:
     FuseLoops();
     bool run(LinearIR& linear_ir) override;
 
+    // This method checks that all ports which connect lower and upper loops are incremented.
+    // This helps to avoid fusing for the ports with incompleted data
     static bool loop_ports_are_compatible(const LinearIR::LoopManagerPtr& loop_manager,
                                           const size_t loop_lower_id,
                                           const size_t loop_upper_id);

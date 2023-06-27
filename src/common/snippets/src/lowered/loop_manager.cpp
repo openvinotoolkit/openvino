@@ -117,7 +117,7 @@ LinearIR::LoopManager::LoopPort LinearIR::LoopManager::get_loop_port_by_expr_por
     auto get_loop_port = [&](const std::vector<LinearIR::LoopManager::LoopPort>& ports) {
         auto it = std::find_if(ports.cbegin(), ports.cend(), [&](const LinearIR::LoopManager::LoopPort& p) { return *p.expr_port == expr_port; });
         if (it == ports.cend())
-            OPENVINO_THROW("Expression has not been found in loop with id " + std::to_string(loop_id));
+            OPENVINO_THROW("Expression has not been found among loop ports. Loop id: " + std::to_string(loop_id));
         return *it;
     };
     const auto& loop_info = get_loop_info(loop_id);

@@ -31,10 +31,11 @@ bool FuseLoops::loop_ports_are_compatible(const LinearIR::LoopManagerPtr& loop_m
     for (const auto& entry : loop_lower->entry_points) {
         const auto& src_port = entry.expr_port->get_port_connector_ptr()->get_source();
         if (is_loop_id_found(src_port.get_expr()->get_loop_ids(), loop_upper_id)) {
-            auto src_loop_port = loop_manager->get_loop_port_by_expr_port(src_port, loop_upper_id);
-            if (!src_loop_port.is_incremented || !entry.is_incremented) {
+            if (!entry.is_incremented)
                 return false;
-            }
+            auto src_loop_port = loop_manager->get_loop_port_by_expr_port(src_port, loop_upper_id);
+            if (!src_loop_port.is_incremented)
+                return false;
         }
     }
     return true;

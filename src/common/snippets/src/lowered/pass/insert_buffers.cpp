@@ -49,18 +49,26 @@ ov::Shape compute_allocation_shape(const LinearIR::LoopManagerPtr& loop_manager,
         return allocation_shape;
     }
 
+    auto set_rest_dims_to_ones = [&](const int filled_dims_count) {
+        for (int i = 0; i < static_cast<int>(allocation_shape.size()) - filled_dims_count; ++i) {
+            allocation_shape[i] = 1;
+        }
+    };
+
     // In some cases it's possible to allocate less shape
     // 1. Buffer and its parent are in the same loop: allocation size for the outer dimension can be extracted from loop increment
     // 2. Buffer is outside the parent's loops: allocation size can be extracted from the corresponding loop work amount
     // TODO: Use general logic with the help of memory counts for allocation shape computation
     if (buffer_loop_ids.back() == parent_loop_ids.back()) {
         const auto buffer_loop = loop_manager->get_loop_info(buffer_loop_ids.back());
-        allocation_shape[0] = buffer_loop->increment;
+        *(allocation_shape.rbegin() + 1) = buffer_loop->increment;
+        set_rest_dims_to_ones(2);
     } else {
         for (size_t i = 0; i < std::min(rank, parent_loop_ids.size()); ++i) {
             const auto loop = loop_manager->get_loop_info(*(parent_loop_ids.rbegin() + i));
             *(allocation_shape.rbegin() + i) = loop->work_amount;
         }
+        set_rest_dims_to_ones(parent_loop_ids.size());
     }
     return allocation_shape;
 }
