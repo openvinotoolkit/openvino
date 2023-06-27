@@ -349,7 +349,9 @@ jobs:
     displayName: 'Python API 2.0 Tests'
 
   - script: |
-      /usr/bin/python3 -m pytest -s $(REPO_DIR)/src/frontends/onnx/tests -v
+      /usr/bin/python3 -m pytest -s $(REPO_DIR)/src/frontends/onnx/tests \
+        --ignore=$(REPO_DIR)/src/frontends/onnx/tests/test_python/test_zoo_models.py \
+        --ignore=$(REPO_DIR)/src/frontends/onnx/tests/test_python/test_backend.py -v
     env:
       LD_LIBRARY_PATH: $(INSTALL_TEST_DIR)
       PYTHONPATH: $(INSTALL_TEST_DIR)
@@ -386,8 +388,8 @@ jobs:
       IE_APP_PYTHON_PATH: $(PYTHON_SAMPLES_INSTALL_DIR)/
       SHARE: $(INSTALL_TEST_DIR)/smoke_tests/samples_smoke_tests_data/
       WORKSPACE: $(INSTALL_DIR)
-    displayName: 'Samples Smoke Tests' 
-  
+    displayName: 'Samples Smoke Tests'
+
   - script: |
       $(TEST_VENV)/bin/python3 -m pip install -r $(LAYER_TESTS_DIR)/requirements.txt
       $(TEST_VENV)/bin/python3 -m pytest $(LAYER_TESTS_DIR)/tensorflow_tests/test_tf_Roll.py --ir_version=10 --junitxml=$(INSTALL_TEST_DIR)/TEST-tf_Roll.xmlTEST

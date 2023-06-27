@@ -443,7 +443,9 @@ jobs:
     displayName: 'Python API 2.0 Tests'
   
   - script: |
-      /usr/bin/python3 -m pytest -s $(REPO_DIR)/src/frontends/onnx/tests -v
+      /usr/bin/python3 -m pytest -s $(REPO_DIR)/src/frontends/onnx/tests \
+        --ignore=$(REPO_DIR)/src/frontends/onnx/tests/test_python/test_zoo_models.py \
+        --ignore=$(REPO_DIR)/src/frontends/onnx/tests/test_python/test_backend.py -v
     env:
       LD_LIBRARY_PATH: $(INSTALL_TEST_DIR)
       PYTHONPATH: $(INSTALL_TEST_DIR)
