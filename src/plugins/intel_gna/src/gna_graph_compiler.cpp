@@ -618,22 +618,10 @@ void GNAGraphCompiler::finalizeConvolution1DPrimitive(InferenceEngine::CNNLayerP
     auto A = transpose_h_w ? in_kernel_h : in_channels;
     auto B = transpose_h_w ? in_kernel_w : convolution._kernel[X_AXIS];
 
-    std::vector<uint8_t> transposedWeights;
-    for (uint32_t k = 0; k < num_filters; k++) {
-        uint8_t* ptr_filt_current =
-            convolution._weights->cbuffer().as<uint8_t*>() + k * A * B * convolution.precision.size();
-        auto transposedPart = copyMatrix(ptr_filt_current, convolution.precision.size(), A, B);
-        transposedWeights.insert(transposedWeights.end(), transposedPart.begin(), transposedPart.end());
-    }
-    if (transposedWeights.size() != convolution._weights->byteSize()) {
-        THROW_GNA_LAYER_EXCEPTION(&convolution) << "weights was transposed incorrectly. " << transposedWeights.size()
-                                                << ' ' << convolution._weights->byteSize();
-    }
-
     if (num_conv_kernel_padding == 0) {
         gnamem->getQueue(REGION_RO)->push_local_ptr(layer,
                                                     ptr_weights,
-                                                    transposedWeights.data(),
+                                                    convolution._weights->cbuffer(),
                                                     convolution._weights->byteSize());
     } else {
         auto paddedWeights = num_filter_coefficients * num_filters;
@@ -645,7 +633,7 @@ void GNAGraphCompiler::finalizeConvolution1DPrimitive(InferenceEngine::CNNLayerP
                             layerName,
                             num_conv_kernel_padding,
                             cpSize,
-                            transposedWeights,
+                            convolution,
                             num_filters,
                             single_conv_kernel_size](void* data, std::size_t size) {
             if (paddedWeightsSize > size) {
@@ -657,7 +645,8 @@ void GNAGraphCompiler::finalizeConvolution1DPrimitive(InferenceEngine::CNNLayerP
             for (uint32_t i = 0; i < num_filters; i++) {
                 ie_memcpy(dstPtr + offset,
                           size - offset,
-                          transposedWeights.data() + single_conv_kernel_size * i * cpSize,
+                          convolution._weights->cbuffer().as<uint8_t*>() + single_conv_kernel_size * i * cpSize,
+                          ,
                           single_conv_kernel_size * cpSize);
                 offset += single_conv_kernel_size * cpSize;
                 ie_memcpy(dstPtr + offset, size - offset, &padding_zeros[0], padding_zeros.size());
