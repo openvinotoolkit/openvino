@@ -90,6 +90,8 @@ struct format {
         b_fs_zyx_fsv2,
         b_fs_yx_fsv4,                           ///< format for input for IMAD convolutions
         b_fs_zyx_fsv4,                          ///< format for input for IMAD 3D convolutions
+        b_fs_yx_fsv8,
+        b_fs_zyx_fsv8,
         b_fs_yx_fsv16,                          ///< format used for blocked convolution
         b_fs_yx_fsv32,                          ///< format used for blocked int8 convolution
         b_fs_zyx_fsv16,                         ///< format used for 3D blocked convolution (features blocked by 16)

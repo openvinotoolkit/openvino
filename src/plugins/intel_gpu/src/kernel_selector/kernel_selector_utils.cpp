@@ -252,6 +252,7 @@ std::vector<size_t> GetOptimalLocalWorkGroupSizes(std::vector<size_t> gws, const
 
     auto blocked_fsv_layout = output_layout == DataLayout::b_fs_yx_fsv2 || output_layout == DataLayout::b_fs_zyx_fsv2 ||
                               output_layout == DataLayout::b_fs_yx_fsv4 || output_layout == DataLayout::b_fs_zyx_fsv4 ||
+                              output_layout == DataLayout::b_fs_yx_fsv8 || output_layout == DataLayout::b_fs_zyx_fsv8 ||
                               output_layout == DataLayout::b_fs_yx_fsv16 || output_layout == DataLayout::b_fs_zyx_fsv16 ||
                               output_layout == DataLayout::b_fs_yx_fsv32 || output_layout == DataLayout::b_fs_zyx_fsv32 ||
                               output_layout == DataLayout::fs_b_yx_fsv32;

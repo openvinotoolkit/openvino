@@ -219,6 +219,8 @@ kernel_selector::data_layout to_data_layout(format f) {
             return kernel_selector::data_layout::b_fs_yx_fsv2;
         case format::b_fs_yx_fsv4:
             return kernel_selector::data_layout::b_fs_yx_fsv4;
+        case format::b_fs_yx_fsv8:
+            return kernel_selector::data_layout::b_fs_yx_fsv8;
         case format::b_fs_yx_fsv16:
             return kernel_selector::data_layout::b_fs_yx_fsv16;
         case format::b_fs_yx_fsv32:
@@ -227,6 +229,8 @@ kernel_selector::data_layout to_data_layout(format f) {
             return kernel_selector::data_layout::b_fs_zyx_fsv2;
         case format::b_fs_zyx_fsv4:
             return kernel_selector::data_layout::b_fs_zyx_fsv4;
+        case format::b_fs_zyx_fsv8:
+            return kernel_selector::data_layout::b_fs_zyx_fsv8;
         case format::b_fs_zyx_fsv32:
             return kernel_selector::data_layout::b_fs_zyx_fsv32;
         case format::bs_f_bsv16:
@@ -320,10 +324,14 @@ cldnn::format from_data_layout(kernel_selector::data_layout l) {
             return cldnn::format::b_fs_yx_fsv2;
         case kernel_selector::data_layout::b_fs_yx_fsv4:
             return cldnn::format::b_fs_yx_fsv4;
+        case kernel_selector::data_layout::b_fs_yx_fsv8:
+            return cldnn::format::b_fs_yx_fsv8;
         case kernel_selector::data_layout::b_fs_yx_fsv16:
             return cldnn::format::b_fs_yx_fsv16;
         case kernel_selector::data_layout::b_fs_yx_fsv32:
             return cldnn::format::b_fs_yx_fsv32;
+        case kernel_selector::data_layout::b_fs_zyx_fsv8:
+            return cldnn::format::b_fs_zyx_fsv8;
         case kernel_selector::data_layout::b_fs_zyx_fsv32:
             return cldnn::format::b_fs_zyx_fsv32;
         case kernel_selector::data_layout::bs_f_bsv8__af8:
