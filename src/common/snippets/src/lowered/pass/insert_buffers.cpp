@@ -68,7 +68,7 @@ ov::Shape compute_allocation_shape(const LinearIR::LoopManagerPtr& loop_manager,
             const auto loop = loop_manager->get_loop_info(*(parent_loop_ids.rbegin() + i));
             *(allocation_shape.rbegin() + i) = loop->work_amount;
         }
-        set_rest_dims_to_ones(parent_loop_ids.size());
+        set_rest_dims_to_ones(static_cast<int>(parent_loop_ids.size()));
     }
     return allocation_shape;
 }
