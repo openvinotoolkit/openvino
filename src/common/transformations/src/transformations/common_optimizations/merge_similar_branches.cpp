@@ -73,10 +73,10 @@ bool compare_matmuls_and_adds(const Input<Node>& l, const Input<Node>& r) {
         l_target->input_value(0).get_node() == l_node && r_target->input_value(0).get_node() == r_node) {
         const auto l_target_input1_node = l_target->input_value(1).get_node();
         const auto r_target_input1_node = r_target->input_value(1).get_node();
-            if (l_target_input1_node->get_output_element_type(0) == r_target_input1_node->get_output_element_type(0) &&
-                l_target_input1_node->get_output_shape(0) == r_target_input1_node->get_output_shape(0)) {
-                return true;
-            }
+        if (l_target_input1_node->get_output_element_type(0) == r_target_input1_node->get_output_element_type(0) &&
+            l_target_input1_node->get_output_shape(0) == r_target_input1_node->get_output_shape(0)) {
+            return true;
+        }
     }
 
     return false;
