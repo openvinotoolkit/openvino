@@ -7,6 +7,10 @@
 #include <ie_system_conf.h>
 #include <stdint.h>
 
+#ifdef HAVE_AVX2
+#    include <immintrin.h>
+#endif  // HAVE_AVX2
+
 namespace ov {
 namespace intel_gna {
 
@@ -54,6 +58,8 @@ void convert_matrix_int8_to_fp32_avx(float* ptr_dst,
                                      size_t num_columns,
                                      float scale_factor,
                                      bool transpose);
+
+
 }  // namespace pre_post_processing
 }  // namespace intel_gna
 }  // namespace ov

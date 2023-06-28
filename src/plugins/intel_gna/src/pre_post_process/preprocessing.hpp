@@ -19,8 +19,17 @@ void ConvertToInt16(int16_t* ptr_dst,
                     const size_t num_columns,
                     const float scale_factor);
 
-int16_t ConvertFloatToInt16(float src);
-int8_t ConvertFloatToInt8(float src);
+template <typename T>
+T FloatToInt(float src) {
+    float rounding_value = (src > 0) ? 0.5f : -0.5f;
+    float value = src + rounding_value;
+    if (value > static_cast<float>(std::numeric_limits<T>::max())) {
+        return std::numeric_limits<T>::max();
+    } else if (value < static_cast<float>(std::numeric_limits<T>::min())) {
+        return std::numeric_limits<T>::min();
+    }
+    return static_cast<T>(value);
+}
 
 template <typename T, typename U>
 inline void unscale_transpose_and_cast(T* ptr_dst,
@@ -70,12 +79,7 @@ void copy_input_data(T* dst,
         for (size_t i = 0; i < num_frames; i++) {
             for (size_t j = 0; j < num_vector_elements; j++) {
                 if (!std::is_same<T, U>::value) {
-                    if (!input_low_precision) {
-                        dst[j * num_group + i] =
-                            static_cast<T>(ConvertFloatToInt16(src[i * num_vector_elements + j] * scaleFactor));
-                    } else {
-                        dst[j * num_group + i] = ConvertFloatToInt8(src[i * num_vector_elements + j] * scaleFactor);
-                    }
+                    dst[j * num_group + i] = FloatToInt<T>(src[i * num_vector_elements + j] * scaleFactor);
                 } else {
                     dst[j * num_group + i] = static_cast<T>(src[i * num_vector_elements + j]);
                 }
@@ -97,14 +101,8 @@ void copy_input_data(T* dst,
                 T* ptr_dst_vec = reinterpret_cast<T*>(dst) + i * num_vector_stride;
                 const U* ptr_src_vec = reinterpret_cast<const U*>(src) + i * num_vector_elements;
                 std::memset(ptr_dst_vec, 0, num_vector_stride * sizeof(T));
-                if (!input_low_precision) {
-                    for (size_t j = 0; j < num_vector_elements; j++) {
-                        ptr_dst_vec[j] = static_cast<T>(ConvertFloatToInt16(ptr_src_vec[j] * scaleFactor));
-                    }
-                } else {
-                    for (size_t j = 0; j < num_vector_elements; j++) {
-                        ptr_dst_vec[j] = ConvertFloatToInt8(ptr_src_vec[j] * scaleFactor);
-                    }
+                for (size_t j = 0; j < num_vector_elements; j++) {
+                    ptr_dst_vec[j] = FloatToInt<T>(ptr_src_vec[j] * scaleFactor);
                 }
             }
         } else {

@@ -8,28 +8,6 @@ namespace ov {
 namespace intel_gna {
 namespace pre_post_processing {
 
-int16_t ConvertFloatToInt16(float src) {
-    float rounding_value = (src > 0) ? 0.5f : -0.5f;
-    float value = src + rounding_value;
-    if (value > 32767.0) {
-        return 32767;
-    } else if (value < -32768.0) {
-        return -32768;
-    }
-    return (int16_t)value;
-}
-
-int8_t ConvertFloatToInt8(float src) {
-    float rounding_value = (src > 0) ? 0.5f : -0.5f;
-    float value = src + rounding_value;
-    if (value > 127.0) {
-        return 127;
-    } else if (value < -128.0) {
-        return -128;
-    }
-    return (int8_t)value;
-}
-
 void ConvertToInt16(int16_t* ptr_dst,
                     const float* ptr_src,
                     const size_t num_rows,
@@ -39,7 +17,7 @@ void ConvertToInt16(int16_t* ptr_dst,
         return;
     }
     for (size_t i = 0; i < num_rows * num_columns; i++) {
-        ptr_dst[i] = ConvertFloatToInt16(ptr_src[i] * scale_factor);
+        ptr_dst[i] = FloatToInt<int16_t>(ptr_src[i] * scale_factor);
     }
 }
 
