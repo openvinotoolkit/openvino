@@ -208,7 +208,8 @@ const std::vector<std::string> export_models_legacy = {"export2dot1.blob",
 
 const std::vector<std::string> export_models = {"export2dot6.blob", "export2dot7.blob", "export2dot8.blob"};
 
-INSTANTIATE_TEST_SUITE_P(smoke_OldVersion,
+// Those tests should not be run in CI due to dependency on model blobs
+INSTANTIATE_TEST_SUITE_P(OldVersion,
                          BackwardCompatibilityLegacy,
                          ::testing::Combine(::testing::ValuesIn(input_precisions),
                                             ::testing::Values(CommonTestUtils::DEVICE_GNA),
@@ -217,7 +218,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_OldVersion,
                                             ::testing::ValuesIn(import_configs_legacy)),
                          BackwardCompatibilityLegacy::get_test_case_name);
 
-INSTANTIATE_TEST_SUITE_P(smoke_OldVersion,
+INSTANTIATE_TEST_SUITE_P(OldVersion,
                          BackwardCompatibility,
                          ::testing::Combine(::testing::ValuesIn(input_precisions),
                                             ::testing::Values(CommonTestUtils::DEVICE_GNA),
