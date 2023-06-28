@@ -3,13 +3,13 @@
 #openvino-documentation > h1 {
     display: none;
 }
-img {
-    cursor: default;
-}
 h1 {
-    font-size: var(--pst-font-size-h2);
-    margin-bottom: 3rem;
+    /*font-size: var(--pst-font-size-h2);*/
+    /*margin-bottom: 3rem;*/
+    display: none!important;
 }
+
+
 #ov-homepage-banner, .openvino-diagram, .ov-homepage-higlight-grid {
     margin-bottom: 90px!important;
 }
