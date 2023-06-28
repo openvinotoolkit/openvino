@@ -22,7 +22,7 @@ class aten_quantize_per_tensor_aten_dequantize(torch.nn.Module):
 
 class TestQuantizePerTensorDequantize(PytorchLayerTest):
     def _prepare_input(self):
-        return (np.array(5.00 * np.random.randn(4, 4) + 5.00, dtype=np.float32),) # N(0,100)
+        return (np.array(5.00 * np.random.randn(4, 4) + 5.00, dtype=np.float32),) # N(5,5)
 
     @pytest.mark.parametrize("scale", [
         1.0, # 0.21, 0.62
@@ -31,7 +31,7 @@ class TestQuantizePerTensorDequantize(PytorchLayerTest):
         0, # 4, -7
     ])
     @pytest.mark.parametrize("dtype", [
-        torch.qint32,
+        torch.quint8, torch.qint8, torch.qint32
     ])
     @pytest.mark.nightly
     @pytest.mark.precommit
