@@ -33,7 +33,7 @@ OutputVector translate_fake_quantize_per_tensor_affine(const NodeContext& contex
     // Calculate levels value - distance between bounds.
     auto levels = std::abs(out_high_const - out_low_const) + 1;
     auto out_low = std::make_shared<v0::Convert>(context.get_input(3), element::f32);
-    auto out_high= std::make_shared<v0::Convert>(context.get_input(4), element::f32);
+    auto out_high = std::make_shared<v0::Convert>(context.get_input(4), element::f32);
 
     // Normalize bounds according to quantization zero point value.
     auto out_low_normalized = std::make_shared<v1::Subtract>(out_low, zero_point);
@@ -59,7 +59,7 @@ OutputVector translate_fake_quantize_per_channel_affine(const NodeContext& conte
     // Calculate levels value - distance between bounds.
     auto levels = std::abs(out_high_const - out_low_const) + 1;
     auto out_low = std::make_shared<v0::Convert>(context.get_input(4), element::f32);
-    auto out_high= std::make_shared<v0::Convert>(context.get_input(5), element::f32);
+    auto out_high = std::make_shared<v0::Convert>(context.get_input(5), element::f32);
 
     auto const_neg_1 = v0::Constant::create(element::i32, Shape{1}, {-1});
     auto const_0 = v0::Constant::create(element::i32, Shape{}, {0});
