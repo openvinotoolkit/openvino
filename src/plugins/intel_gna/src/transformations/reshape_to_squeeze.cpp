@@ -132,7 +132,7 @@ ReshapeFuse::ReshapeFuse() {
     MATCHER_SCOPE(ReshapeFuse);
 
     auto reshape_in_pattern = pattern::wrap_type<Reshape>({pattern::any_input(), pattern::any_input()});
-    auto reshape_out_pattern = pattern::wrap_type<Reshape>({reshape_in_pattern, pattern::any_input()});
+    auto reshape_out_pattern = pattern::wrap_type<Reshape, Squeeze, Unsqueeze>({reshape_in_pattern, pattern::any_input()});
 
     ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -142,8 +142,7 @@ ReshapeFuse::ReshapeFuse() {
 
         // new reshape
         auto reshape_new_const = std::make_shared<Constant>(ov::element::i32, ov::Shape{shape_out.size()}, shape_out);
-        auto reshape_node_new =
-            reshape_in_node->clone_with_new_inputs({reshape_in_node->input_value(0), reshape_new_const});
+        auto reshape_node_new = std::make_shared<Reshape>(reshape_in_node->input_value(0), reshape_new_const, false);
 
         ov::replace_node_update_name(reshape_out_node, reshape_node_new);
 
