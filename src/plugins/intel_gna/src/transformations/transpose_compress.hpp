@@ -28,10 +28,10 @@ namespace pass {
  *         |                       |
  *     Any Layer                Any Layer
  */
-class Transpose2D : public ov::pass::MatcherPass {
+class TransposeCompress : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("Transpose2D", "0");
-    Transpose2D();
+    OPENVINO_RTTI("TransposeCompress", "0");
+    TransposeCompress();
 };
 
 }  // namespace pass
