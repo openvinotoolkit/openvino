@@ -20,37 +20,29 @@ OutputVector translate_quantize_per_tensor(const NodeContext& context) {
     const auto input = context.get_input(0);
     const auto scale = context.get_input(1);
     const auto zero_point = context.get_input(2);
-    // const auto dtype = context.get_input(3); Not supported
-
-    const auto one = context.mark_node(v0::Constant::create(element::i32, Shape{}, {1}));
-
-    const auto all_axes = get_axes_range(context, 0);
-    const auto max = context.mark_node(std::make_shared<opset10::ReduceMax>(input, all_axes));
-    const auto min = context.mark_node(std::make_shared<opset10::ReduceMean>(input, all_axes));
-
-    const auto zero_point_convert = context.mark_node(std::make_shared<opset10::ConvertLike>(zero_point, max));
-    const auto output_max = context.mark_node(std::make_shared<opset10::Add>(max, zero_point_convert));
-    const auto output_min = context.mark_node(std::make_shared<opset10::Add>(min, zero_point_convert));
-
-    const auto diff = context.mark_node(std::make_shared<opset10::Subtract>(max, min));
-    const auto scale_convert = context.mark_node(std::make_shared<opset10::ConvertLike>(scale, diff));
-    const auto div = context.mark_node(std::make_shared<opset10::Divide>(diff, scale_convert));
-    const auto one_convert = context.mark_node(std::make_shared<opset10::ConvertLike>(one, div));
-    const auto levels = context.mark_node(std::make_shared<opset10::Add>(div, one_convert));
-
-    // const auto dtype_size = context.mark_node(v0::Constant::create(element::i32, Shape{}, {32}));
-    // const auto dtype_convert = context.mark_node(std::make_shared<opset10::ConvertLike>(dtype_size, levels));
-    // const auto step_size = context.mark_node(std::make_shared<opset10::Divide>(dtype_convert, levels));
+    // const auto dtype = convert_dtype(context.const_input<int64_t>(3));
+    const auto dtype = element::f32;
 
     // Affine quantization
+    const auto scale_convert = context.mark_node(std::make_shared<opset10::ConvertLike>(scale, input));
+    const auto zero_point_convert = context.mark_node(std::make_shared<opset10::ConvertLike>(zero_point, input));
     const auto scaled_input = context.mark_node(std::make_shared<opset10::Divide>(input, scale_convert));
     const auto scaled_input_with_zero_pt =
         context.mark_node(std::make_shared<opset10::Add>(scaled_input, zero_point_convert));
     const auto quantized_input = context.mark_node(
         std::make_shared<opset10::Round>(scaled_input_with_zero_pt, opset10::Round::RoundMode::HALF_TO_EVEN));
 
-    const auto convert = context.mark_node(std::make_shared<opset10::Convert>(quantized_input, element::i32));
-    return {convert};
+    std::shared_ptr<ov::Node> output;
+    if (dtype == element::u8) {
+        const auto clamp = context.mark_node(std::make_shared<opset10::Clamp>(quantized_input, std::numeric_limits<unsigned char>::lowest(), std::numeric_limits<unsigned char>::max()));
+        output = context.mark_node(std::make_shared<opset10::Convert>(clamp, element::u8));
+    } else if (dtype == element::i8) {
+        const auto clamp = context.mark_node(std::make_shared<opset10::Clamp>(quantized_input, std::numeric_limits<char>::lowest(), std::numeric_limits<char>::max()));
+        output = context.mark_node(std::make_shared<opset10::Convert>(clamp, element::i8));
+    } else {
+        output = context.mark_node(std::make_shared<opset10::Convert>(quantized_input, element::f32));
+    }
+    return {output};
 }
 
 OutputVector translate_dequantize(const NodeContext& context) {
