@@ -594,7 +594,7 @@ TEST(TransformationTests, LowLatency2_LSTM_Loop_Reshape) {
         auto results = body->get_results();
 
         auto shape_of = std::make_shared<ShapeOf>(X);
-        const auto trip_count = std::make_shared<ov::opset8::Gather>(shape_of,
+        const auto trip_count = std::make_shared<ov::op::v8::Gather>(shape_of,
                                                                      Constant::create(ngraph::element::i64, {1}, {0}),
                                                                      Constant::create(ngraph::element::i64, {1}, {0}));
         auto exec_condition = std::make_shared<Constant>(element::boolean, Shape{}, true);

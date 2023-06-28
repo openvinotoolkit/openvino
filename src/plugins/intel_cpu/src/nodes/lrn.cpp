@@ -151,14 +151,14 @@ void Lrn::getSupportedDescriptors() {
     }
 }
 
-std::shared_ptr<MemoryDesc> Lrn::getSrcMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx) {
+std::shared_ptr<MemoryDesc> Lrn::getSrcMemDesc(const dnnl::primitive_desc &prim_desc, size_t idx) const {
     if (idx > 0) {
         return std::make_shared<CpuBlockedMemoryDesc>(getOriginalInputPrecisionAtPort(idx), getInputShapeAtPort(idx));
     } else {
         if (getInputShapeAtPort(idx).isDynamic()) {
-            return DnnlExtensionUtils::makeUndefinedDesc(primitive_desc_it.src_desc(idx), getInputShapeAtPort(idx));
+            return DnnlExtensionUtils::makeUndefinedDesc(prim_desc.src_desc(idx), getInputShapeAtPort(idx));
         }
-        return DnnlExtensionUtils::makeDescriptor(primitive_desc_it.src_desc(idx));
+        return DnnlExtensionUtils::makeDescriptor(prim_desc.src_desc(idx));
     }
 }
 

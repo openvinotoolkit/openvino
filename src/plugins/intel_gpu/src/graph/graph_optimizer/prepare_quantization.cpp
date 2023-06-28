@@ -444,7 +444,7 @@ void prepare_quantization::remove_fake_reorders(program& p, reorder_node& reorde
 
     auto &usr = reorder_node.get_users().front();
     auto &dep = reorder_node.get_dependency(0);
-    if (!(usr->is_type<convolution>() && usr->get_dependency(1).get_output_layout().data_type == data_types::i8) ||
+    if (!(usr->is_type<convolution>() && usr->get_input_layout(1).data_type == data_types::i8) ||
         !dep.is_input() ||
         dep.get_output_layout().data_type != data_types::u8 ||
         (reorder_node.get_output_layout().data_type != data_types::f32 && reorder_node.get_output_layout().data_type != data_types::f16) ||
@@ -492,8 +492,8 @@ void prepare_quantization::prepare_asymmetric_quantization(program &p, convoluti
         if (node.get_users().size() != 1)
             return false;
 
-        auto in0_layout = node.get_dependency(0).get_output_layout();
-        auto in1_layout = node.get_dependency(1).get_output_layout();
+        auto in0_layout = node.get_input_layout(0);
+        auto in1_layout = node.get_input_layout(1);
 
         if (!node.get_dependency(1).is_type<data>())
             return false;

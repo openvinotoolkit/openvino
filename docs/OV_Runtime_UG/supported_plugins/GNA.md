@@ -78,39 +78,29 @@ Starting with the 2021.4.1 release of OpenVINO™ and the 03.00.00.1363 version 
 In this mode, the GNA driver automatically falls back on CPU for a particular infer request if the HW queue is not empty. 
 Therefore, there is no need for explicitly switching between GNA and CPU.
 
+.. tab-set::
 
+   .. tab-item:: C++
+      :sync: cpp
 
+      .. doxygensnippet:: docs/snippets/gna/configure.cpp
+         :language: cpp
+         :fragment: [include]
 
+      .. doxygensnippet:: docs/snippets/gna/configure.cpp
+         :language: cpp
+         :fragment: [ov_gna_exec_mode_hw_with_sw_fback]
 
+   .. tab-item:: Python
+      :sync: py
 
+      .. doxygensnippet:: docs/snippets/gna/configure.py
+         :language: py
+         :fragment: [import]
 
-
-   .. tab-set::
-   
-      .. tab-item:: C++
-         :sync: cpp
-   
-         .. doxygensnippet:: docs/snippets/gna/configure.cpp
-            :language: cpp
-            :fragment: [include]
-   
-         .. doxygensnippet:: docs/snippets/gna/configure.cpp
-            :language: cpp
-            :fragment: [ov_gna_exec_mode_hw_with_sw_fback]
-   
-      .. tab-item:: Python
-         :sync: py
-   
-         .. doxygensnippet:: docs/snippets/gna/configure.py
-            :language: py
-            :fragment: [import]
-   
-         .. doxygensnippet:: docs/snippets/gna/configure.py
-            :language: py
-            :fragment: [ov_gna_exec_mode_hw_with_sw_fback]
-
-
-
+      .. doxygensnippet:: docs/snippets/gna/configure.py
+         :language: py
+         :fragment: [ov_gna_exec_mode_hw_with_sw_fback]
 
 
 .. note:: 
@@ -223,14 +213,17 @@ Profiling
 The GNA plugin allows turning on profiling, using the ``ov::enable_profiling`` property.
 With the following methods, you can collect profiling information with various performance data about execution on GNA:
 
+.. tab-set::
 
-.. tab:: C++
-
-   ``ov::InferRequest::get_profiling_info``
-
-.. tab:: Python
-
-   ``openvino.runtime.InferRequest.get_profiling_info``
+   .. tab-item:: C++
+      :sync: cpp
+   
+      ``ov::InferRequest::get_profiling_info``
+   
+   .. tab-item:: Python
+      :sync: py
+   
+      ``openvino.runtime.InferRequest.get_profiling_info``
 
 
 The current GNA implementation calculates counters for the whole utterance scoring and does not provide per-layer information. 
@@ -266,31 +259,33 @@ Read-write Properties
 
 In order to take effect, the following parameters must be set before model compilation or passed as additional arguments to ``ov::Core::compile_model()``:
 
-- ov::cache_dir
-- ov::enable_profiling
-- ov::hint::inference_precision
-- ov::hint::num_requests
-- ov::intel_gna::compile_target
-- ov::intel_gna::firmware_model_image_path
-- ov::intel_gna::execution_target
-- ov::intel_gna::pwl_design_algorithm
-- ov::intel_gna::pwl_max_error_percent
-- ov::intel_gna::scale_factors_per_input
+- ``ov::cache_dir``
+- ``ov::enable_profiling``
+- ``ov::hint::inference_precision``
+- ``ov::hint::num_requests``
+- ``ov::intel_gna::compile_target``
+- ``ov::intel_gna::firmware_model_image_path``
+- ``ov::intel_gna::execution_target``
+- ``ov::intel_gna::pwl_design_algorithm``
+- ``ov::intel_gna::pwl_max_error_percent``
+- ``ov::intel_gna::scale_factors_per_input``
 
 These parameters can be changed after model compilation ``ov::CompiledModel::set_property``:
-- ov::hint::performance_mode
-- ov::intel_gna::execution_mode
-- ov::log::level
+
+- ``ov::hint::performance_mode``
+- ``ov::intel_gna::execution_mode``
+- ``ov::log::level``
 
 Read-only Properties
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-- ov::available_devices
-- ov::device::capabilities
-- ov::device::full_name
-- ov::intel_gna::library_full_version
-- ov::optimal_number_of_infer_requests
-- ov::range_for_async_infer_requests
-- ov::supported_properties
+
+- ``ov::available_devices``
+- ``ov::device::capabilities``
+- ``ov::device::full_name``
+- ``ov::intel_gna::library_full_version``
+- ``ov::optimal_number_of_infer_requests``
+- ``ov::range_for_async_infer_requests``
+- ``ov::supported_properties``
 
 Limitations
 ###########################################################

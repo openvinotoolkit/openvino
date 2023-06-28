@@ -29,6 +29,8 @@
 
 namespace InferenceEngine {
 
+IE_SUPPRESS_DEPRECATED_START
+
 class IInferRequestInternal;
 
 namespace details {
@@ -117,17 +119,6 @@ public:
     Blob::Ptr GetBlob(const std::string& name);
 
     /**
-     * @deprecated This method will be removed in 2023.1 release
-     * @brief Sets blob with a pre-process information
-     * @note Returns an error in case if data blob is output
-     * @param name Name of input blob.
-     * @param data A reference to input. The type of Blob must correspond to the network input precision and size.
-     * @param info Preprocess info for blob.
-     */
-    INFERENCE_ENGINE_DEPRECATED("This method is deprecated and will be removed in 2023.1 release")
-    void SetBlob(const std::string& name, const Blob::Ptr& data, const PreProcessInfo& info);
-
-    /**
      * @brief Gets pre-process for input data
      * @param name Name of input blob.
      * @return pointer to pre-process info of blob with name
@@ -172,15 +163,6 @@ public:
      *        The type of Blob must correspond to the network output precision and size.
      */
     void SetOutput(const BlobMap& results);
-
-    /**
-     * @brief Sets new batch size when dynamic batching is enabled in executable network that created this request.
-     * @deprecated
-     *
-     * @param batch new batch size to be used by all the following inference calls for this request.
-     */
-    INFERENCE_ENGINE_DEPRECATED("This method is deprecated and will be removed in 2023.1 release")
-    void SetBatch(const int batch);
 
     /**
      * @brief Start inference of specified input(s) in asynchronous mode
@@ -271,7 +253,6 @@ public:
     bool operator==(const InferRequest&) const noexcept;
 };
 
-IE_SUPPRESS_DEPRECATED_START
 /**
  * @private
  */
