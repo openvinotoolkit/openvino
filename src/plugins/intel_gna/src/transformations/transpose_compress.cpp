@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/transpose_2d.hpp"
+#include "transformations/transpose_compress.hpp"
 
 #include "common/graph_utils.hpp"
 #include "openvino/cc/ngraph/itt.hpp"
@@ -26,8 +26,8 @@ inline std::vector<size_t> fix_indexes(const std::vector<size_t>& ids) {
 
 }  // namespace
 
-Transpose2D::Transpose2D() {
-    MATCHER_SCOPE(Transpose2D);
+TransposeCompress::TransposeCompress() {
+    MATCHER_SCOPE(TransposeCompress);
 
     auto transpose_const = pattern::wrap_type<Constant>();
     auto transpose =

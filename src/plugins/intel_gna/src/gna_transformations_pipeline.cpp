@@ -52,7 +52,7 @@
 #include "transformations/split_eltwise.hpp"
 #include "transformations/substitute_softsign.hpp"
 #include "transformations/swap_input_matmul_gna.hpp"
-#include "transformations/transpose_2d.hpp"
+#include "transformations/transpose_compress.hpp"
 #include "transformations/unfuse_reshape_and_transpose.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -115,7 +115,7 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
     manager.register_pass<ov::intel_gna::pass::InsertCopyBeforeLayerToBeEliminated>();
     if (!has_convolution && !has_matmul && !has_mvn) {
         // TODO: Remove this condition when the legacy layout transformation (NCHW->NHWC) is disabled
-        manager.register_pass<ov::intel_gna::pass::Transpose2D>();
+        manager.register_pass<ov::intel_gna::pass::TransposeCompress>();
         manager.register_pass<ov::intel_gna::pass::RemoveInputsProcessing>(input_output_subgraphs);
         manager.register_pass<ov::intel_gna::pass::RemoveOutputsProcessing>(input_output_subgraphs);
     }
