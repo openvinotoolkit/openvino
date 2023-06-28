@@ -113,6 +113,18 @@ void LinearIR::LoopManager::get_loop_bounds(const LinearIR &linear_ir,
     }
 }
 
+LinearIR::LoopManager::LoopPort LinearIR::LoopManager::get_loop_port_by_expr_port(const ExpressionPort& expr_port, const size_t loop_id) {
+    auto get_loop_port = [&](const std::vector<LinearIR::LoopManager::LoopPort>& ports) {
+        auto it = std::find_if(ports.cbegin(), ports.cend(), [&](const LinearIR::LoopManager::LoopPort& p) { return *p.expr_port == expr_port; });
+        if (it == ports.cend())
+            OPENVINO_THROW("Expression has not been found among loop ports. Loop id: " + std::to_string(loop_id));
+        return *it;
+    };
+    const auto& loop_info = get_loop_info(loop_id);
+    return expr_port.get_type() == ExpressionPort::Input ? get_loop_port(loop_info->entry_points)
+                                                         : get_loop_port(loop_info->exit_points);
+}
+
 void LinearIR::LoopManager::get_io_loop_ports(LinearIR::constExprIt loop_begin_pos,
                                               LinearIR::constExprIt loop_end_pos,
                                               std::vector<ExpressionPort> &entries,
@@ -211,18 +223,6 @@ void LinearIR::LoopManager::mark_loop(LinearIR::constExprIt loop_begin_pos,
     }
 }
 
-size_t LinearIR::LoopManager::mark_loop(LinearIR::constExprIt loop_begin_pos,
-                                        LinearIR::constExprIt loop_end_pos,
-                                        size_t work_amount, size_t work_amount_increment, size_t dim_idx,
-                                        const std::vector<ExpressionPort>& entries,
-                                        const std::vector<ExpressionPort>& exits) {
-    const auto loop_info = std::make_shared<LoopManager::LoopInfo>(work_amount, work_amount_increment, dim_idx, entries, exits);
-    const auto loop_id = this->add_loop_info(loop_info);
-    for (auto expr_it = loop_begin_pos; expr_it != loop_end_pos; ++expr_it) {
-        insert_loop_id(*expr_it, loop_id);
-    }
-    return loop_id;
-}
 void LinearIR::LoopManager::fuse_loops(const LinearIR& linear_ir, size_t loop_id_upper, size_t loop_id_lower, bool fuse_into_upper) {
     LinearIR::constExprIt loop_begin_target, loop_end_target;
     get_loop_bounds(linear_ir, fuse_into_upper ? loop_id_lower : loop_id_upper, loop_begin_target, loop_end_target);

@@ -701,8 +701,8 @@ void StoreConvertEmitter::emit_isa(const std::vector<size_t> &in, const std::vec
 void StoreConvertEmitter::emit_data() const {
     store_emitter->emit_data();
 }
-size_t BrgemmEmitter::getBrgIdx(size_t mIdx, size_t kIdx, size_t nIdx) const {
-    return mIdx * 4 + kIdx * 2 + nIdx;
+size_t BrgemmEmitter::getBrgIdx(size_t kIdx, size_t nIdx) const {
+    return kIdx * 2 + nIdx;
 }
 BrgemmEmitter::BrgemmEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa,
                              const std::shared_ptr<ov::Node>& node) : jit_emitter(h, isa, node) {
@@ -758,10 +758,8 @@ BrgemmEmitter::BrgemmEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl:
         return std::distance(layout.begin(), std::find(layout.begin(), layout.end(), idx));
     };
 
-    m_M = C_shape[get_ordered_idx(C_layout, C_layout.size() - 2)];
     m_K = A_shape[get_ordered_idx(A_layout, A_layout.size() - 1)];
-    m_M_blk = matmulOptimalM;
-    m_M_tail = m_M % m_M_blk;
+    m_M = brgemm_node->get_input_count(0);
     m_N = C_shape[get_ordered_idx(C_layout, C_layout.size() - 1)];
 
     auto brg0Prc = InferenceEngine::details::convertPrecision(brgemm_node->get_input_element_type(0));
@@ -780,34 +778,28 @@ BrgemmEmitter::BrgemmEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl:
                          : m_K;
     m_K_tail = m_K % m_K_blk;
 
-    size_t brg0BaseIdx = std::numeric_limits<size_t>::max();
-    for (size_t m = 0; m < 2; m++) {
-        for (size_t k = 0; k < 2; k++) {
-            for (size_t n = 0; n < 2; n++) {
-                auto& brgemmCtx = m_brgCtxs0[getBrgIdx(m, k, n)];
+    for (size_t k = 0; k < 2; k++) {
+        for (size_t n = 0; n < 2; n++) {
+            auto& brgemmCtx = m_brgCtxs0[getBrgIdx(k, n)];
 
-                auto M_ = m ? m_M_tail
-                            : m_M < m_M_blk ? 0 : m_M_blk;
-                auto N_ = n ? m_N_tail : m_N - m_N_tail;
-                auto K_ = k ? m_K_tail : m_K - m_K_tail;
-                auto beta = k && m_brgCtxs0[getBrgIdx(m, 0, n)].K != 0 ? 1.0f : 0.0f;
+            auto M_ = m_M;
+            auto N_ = n ? m_N_tail : m_N - m_N_tail;
+            auto K_ = k ? m_K_tail : m_K - m_K_tail;
+            auto beta = k && m_brgCtxs0[getBrgIdx(0, n)].K != 0 ? 1.0f : 0.0f;
 
-                brgemmCtx.M = M_;
-                brgemmCtx.N = N_;
-                brgemmCtx.K = K_;
-                brgemmCtx.LDA = leading_dimensions[0];
-                brgemmCtx.LDB = brgemm_node->is_with_data_repacking() ? rnd_up(m_N, m_N_blk) : leading_dimensions[1];
-                brgemmCtx.LDC = leading_dimensions[2];
-                brgemmCtx.dt_in0 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::IEPrecisionToDataType(brg0Prc));
-                brgemmCtx.dt_in1 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::IEPrecisionToDataType(brg1Prc));
-                brgemmCtx.beta = beta;
+            brgemmCtx.M = M_;
+            brgemmCtx.N = N_;
+            brgemmCtx.K = K_;
+            brgemmCtx.LDA = leading_dimensions[0];
+            brgemmCtx.LDB = brgemm_node->is_with_data_repacking() ? rnd_up(m_N, m_N_blk) : leading_dimensions[1];
+            brgemmCtx.LDC = leading_dimensions[2];
+            brgemmCtx.dt_in0 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::IEPrecisionToDataType(brg0Prc));
+            brgemmCtx.dt_in1 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::IEPrecisionToDataType(brg1Prc));
+            brgemmCtx.beta = beta;
 
-                // don't create brgemm kernels for empty tiles
-                if (M_ != 0 && K_ != 0 && N_ != 0) {
-                    if (brg0BaseIdx == std::numeric_limits<size_t>::max())
-                        brg0BaseIdx = getBrgIdx(m, k, n);
-                    initBrgemm(brgemmCtx, m_brgKernels0[getBrgIdx(m, k, n)], brgWithAMX);
-                }
+            // don't create brgemm kernels for empty tiles
+            if (M_ != 0 && K_ != 0 && N_ != 0) {
+                initBrgemm(brgemmCtx, m_brgKernels0[getBrgIdx(k, n)], brgWithAMX);
             }
         }
     }
@@ -878,36 +870,31 @@ void BrgemmEmitter::emit_impl(const std::vector<size_t>& in,
         }
         Xbyak::Reg64 output_0(static_cast<int>(out[0]));
 
-        for (size_t mb = 0; mb < div_up(m_M, m_M_blk); mb++) {
-            const bool is_M_tail = (m_M - mb * m_M_blk < m_M_blk);
+        size_t brgIdx0 = getBrgIdx(0, 0);
+        size_t K0_step0 = m_brgCtxs0[brgIdx0].K;
+        size_t K0_step1 = m_brgCtxs0[brgIdx0].K * m_brgCtxs0[brgIdx0].LDB;
+        size_t N0_step0 = m_brgCtxs0[brgIdx0].N * m_brg0VnniFactor;
+        size_t N0_step1 = m_brgCtxs0[brgIdx0].N;
+        for (size_t n = 0; n < 2; n++) {
+            for (size_t k = 0; k < 2; k++) {
+                auto& brgemmCtx = m_brgCtxs0[getBrgIdx(k, n)];
 
-            size_t brgIdx0 = getBrgIdx(0, 0, 0);
-            size_t K0_step0 = m_brgCtxs0[brgIdx0].K;
-            size_t K0_step1 = m_brgCtxs0[brgIdx0].K * m_brgCtxs0[brgIdx0].LDB;
-            size_t N0_step0 = m_brgCtxs0[brgIdx0].N * m_brg0VnniFactor;
-            size_t N0_step1 = m_brgCtxs0[brgIdx0].N;
-            for (size_t n = 0; n < 2; n++) {
-                for (size_t k = 0; k < 2; k++) {
-                    size_t mIdx = is_M_tail ? 1 : 0;
-                    auto& brgemmCtx = m_brgCtxs0[getBrgIdx(mIdx, k, n)];
+                if (brgemmCtx.K != 0 && brgemmCtx.N != 0) {
+                    const size_t in0_offset = m_load_offset_a + k * K0_step0 * io_data_size[0];
+                    const size_t in1_offset = m_load_offset_b + (k * K0_step1 + n * N0_step0) * io_data_size[1];
+                    const size_t in2_offset = m_load_offset_scratch + (m_with_comp ? n * N0_step1 * sizeof(int32_t) : 0);
+                    const size_t out0_offset = m_store_offset_c + n * N0_step1 * io_data_size[2];
 
-                    if (brgemmCtx.K != 0 && brgemmCtx.N != 0) {
-                        const size_t in0_offset = m_load_offset_a + (k * K0_step0 + mb * m_M_blk * brgemmCtx.LDA) * io_data_size[0];
-                        const size_t in1_offset = m_load_offset_b + (k * K0_step1 + n * N0_step0) * io_data_size[1];
-                        const size_t in2_offset = m_load_offset_scratch + (m_with_comp ? n * N0_step1 * sizeof(int32_t) : 0);
-                        const size_t out0_offset = m_store_offset_c + (n * N0_step1 + mb * m_M_blk * brgemmCtx.LDC) * io_data_size[2];
-
-                        emit_brgemm_kernel_call(m_brgKernels0[getBrgIdx(mIdx, k, n)].get(),
-                                                brgemmCtx,
-                                                input_0,
-                                                input_1,
-                                                input_2,
-                                                output_0,
-                                                in0_offset,
-                                                in1_offset,
-                                                in2_offset,
-                                                out0_offset);
-                    }
+                    emit_brgemm_kernel_call(m_brgKernels0[getBrgIdx(k, n)].get(),
+                                            brgemmCtx,
+                                            input_0,
+                                            input_1,
+                                            input_2,
+                                            output_0,
+                                            in0_offset,
+                                            in1_offset,
+                                            in2_offset,
+                                            out0_offset);
                 }
             }
         }

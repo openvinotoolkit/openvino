@@ -4,9 +4,10 @@
 
 #include "snippets/lowered/pass/insert_buffers.hpp"
 
+#include "snippets/itt.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/snippets_isa.hpp"
-#include "snippets/itt.hpp"
+#include "snippets/utils.hpp"
 
 
 namespace ov {
@@ -27,6 +28,49 @@ std::vector<size_t> get_buffer_loop_ids(const std::vector<size_t>& lhs, const st
         break;
     }
     return buffer_loop_ids;
+}
+
+// Ticket: 113744
+// TODO: This logic covers only several specific cases so it should be generalized.
+ov::Shape compute_allocation_shape(const LinearIR::LoopManagerPtr& loop_manager,
+                                   const std::vector<size_t>& buffer_loop_ids,
+                                   const std::vector<size_t>& parent_loop_ids,
+                                   const ov::Output<ov::Node>& parent_output,
+                                   const int allocation_rank) {
+    const size_t rank = allocation_rank >= 0 ? allocation_rank : parent_output.get_shape().size();
+    ov::Shape allocation_shape(rank);
+    const auto port = lowered::PortDescriptorUtils::get_port_descriptor_ptr(parent_output);
+    const auto planar_shape = utils::get_reordered_planar_shape(ov::Shape{port->get_shape()}, port->get_layout());
+    for (size_t i = 0; i < rank; ++i) {
+        *(allocation_shape.rbegin() + i) = (planar_shape.rbegin() + i)->get_length();
+    }
+
+    if (buffer_loop_ids.empty() || parent_loop_ids.empty()) {
+        return allocation_shape;
+    }
+
+    auto set_rest_dims_to_ones = [&](const int filled_dims_count) {
+        for (int i = 0; i < static_cast<int>(allocation_shape.size()) - filled_dims_count; ++i) {
+            allocation_shape[i] = 1;
+        }
+    };
+
+    // In some cases it's possible to allocate less shape
+    // 1. Buffer and its parent are in the same loop: allocation size for the outer dimension can be extracted from loop increment
+    // 2. Buffer is outside the parent's loops: allocation size can be extracted from the corresponding loop work amount
+    // TODO: Use general logic with the help of memory counts for allocation shape computation
+    if (buffer_loop_ids.back() == parent_loop_ids.back()) {
+        const auto buffer_loop = loop_manager->get_loop_info(buffer_loop_ids.back());
+        *(allocation_shape.rbegin() + 1) = buffer_loop->increment;
+        set_rest_dims_to_ones(2);
+    } else {
+        for (size_t i = 0; i < std::min(rank, parent_loop_ids.size()); ++i) {
+            const auto loop = loop_manager->get_loop_info(*(parent_loop_ids.rbegin() + i));
+            *(allocation_shape.rbegin() + i) = loop->work_amount;
+        }
+        set_rest_dims_to_ones(static_cast<int>(parent_loop_ids.size()));
+    }
+    return allocation_shape;
 }
 }  // namespace
 
@@ -110,7 +154,12 @@ void InsertBuffers::insertion(LinearIR& linear_ir, const LinearIR::LoopManagerPt
             //          Current expr Loop identifies:  3, 4, 6
             //          Need to insert between 2nd and 4th Loops - after 2nd Loop
             const auto pos = insertion_position(linear_ir, loop_manager, parent_expr, expr);
-            const auto buffer = std::make_shared<op::Buffer>(parent->output(parent_port), m_buffer_allocation_rank);
+            const auto allocation_shape = compute_allocation_shape(loop_manager,
+                                                                   buffer_loop_ids,
+                                                                   parent_loops,
+                                                                   parent->output(parent_port),
+                                                                   m_buffer_allocation_rank);
+            const auto buffer = std::make_shared<op::Buffer>(parent->output(parent_port), allocation_shape);
             PortDescriptorUtils::set_port_descriptor_ptr(buffer->output(0), parent_expr_output.get_descriptor_ptr()->clone());
             // Output connector is automatically filled from PortDescriptor
             const auto buffer_expr = linear_ir.create_expression(buffer, {input_connector});
@@ -183,7 +232,12 @@ void InsertBuffers::insertion(LinearIR& linear_ir, const LinearIR::LoopManagerPt
             // Note: All potential consumers must have the same count of first equal Loop identifies and the same count of different last identifies
             const auto pos = insertion_position(linear_ir, loop_manager, expr, (*potential_consumers.begin()).get_expr());
 
-            auto buffer = std::make_shared<op::Buffer>(node->output(port), m_buffer_allocation_rank);
+            const auto allocation_shape = compute_allocation_shape(loop_manager,
+                                                                   buffer_loop_ids,
+                                                                   current_loops,
+                                                                   node->output(port),
+                                                                   m_buffer_allocation_rank);
+            auto buffer = std::make_shared<op::Buffer>(node->output(port), allocation_shape);
             PortDescriptorUtils::set_port_descriptor_ptr(buffer->output(0), exit_port->get_descriptor_ptr()->clone());
             // We cannot insert Node output connector on Buffer output because not all consumers of Node needs Buffer
             //  Example:

@@ -51,10 +51,15 @@ void InitLoops::init_ptr_increments(std::vector<LoopPort>& loop_inputs, std::vec
         const auto& layout = port->get_descriptor_ptr()->get_layout();
         const auto& shape = port->get_descriptor_ptr()->get_shape();
         const auto& dim = *(layout.rbegin() + dim_idx);
+        // Ticket: 113106
+        // WA: the current logic doesn't support the case with transposed output shape for brgemm layer
+        // but for all existing cases planar layout can be used
+        std::vector<size_t> planar(layout.size());
+        std::iota(planar.begin(), planar.end(), 0);
         loop_output.ptr_increment = 0;
         // If relevant dim is not broadcasted, then ptr_increment is the dim stride in the new layout
         if (loop_output.is_incremented && !(shape[dim] == 1 && work_amount != 1)) {
-            loop_output.ptr_increment = get_dim_stride(dim, layout, shape);
+            loop_output.ptr_increment = get_dim_stride(dim, planar, shape);
         }
     }
 }
