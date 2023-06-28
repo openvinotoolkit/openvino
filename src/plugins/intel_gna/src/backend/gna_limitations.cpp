@@ -1059,10 +1059,12 @@ bool Limitations::validate_concat_axis(const InferenceEngine::CNNLayerPtr layer,
                     IE_ASSERT(prev_layer);
 
                     std::vector<size_t> prev_dims = prev_layer->outData[0]->getDims();
-                    if ((LayerInfo(prev_layer).isInput() && graph_utils::get_first_valuable_dim_id(prev_dims) == concat_axis) ||
+                    if ((LayerInfo(prev_layer).isInput() &&
+                         graph_utils::get_first_valuable_dim_id(prev_dims) == concat_axis) ||
                         LayerInfo(prev_layer).isConst()) {
                         continue;
-                    } else if ((LayerInfo(prev_layer).isInput() && graph_utils::get_first_valuable_dim_id(prev_dims) != concat_axis)) {
+                    } else if ((LayerInfo(prev_layer).isInput() &&
+                                graph_utils::get_first_valuable_dim_id(prev_dims) != concat_axis)) {
                         is_not_trivial_concat = true;
                         break;
                     }
