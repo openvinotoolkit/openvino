@@ -33,6 +33,11 @@ class TestTupleConstruct(PytorchLayerTest):
             def forward(self, x):
                 return (x, [None, x + x], None)
 
+        class prim_tuple_construct_with_tensor_tail(torch.nn.Module):
+
+            def forward(self, x):
+                return ((x, x + x), x + x + x)
+
         class prim_tuple_construct_with_list_and_tuple(torch.nn.Module):
 
             def forward(self, x):
@@ -43,6 +48,7 @@ class TestTupleConstruct(PytorchLayerTest):
             "multiple": prim_tuple_construct,
             "none": prim_tuple_construct_with_none,
             "list": prim_tuple_construct_with_list,
+            "tensor_tail": prim_tuple_construct_with_tensor_tail,
             "list_and_tuple": prim_tuple_construct_with_list_and_tuple
         }
 
@@ -51,7 +57,7 @@ class TestTupleConstruct(PytorchLayerTest):
 
         return model(), ref_net, "prim::TupleConstruct"
 
-    @pytest.mark.parametrize("case", ["single", "multiple", "none", "list", "list_and_tuple"])
+    @pytest.mark.parametrize("case", ["single", "multiple", "none", "list", "tensor_tail", "list_and_tuple"])
     @pytest.mark.nightly
     def test_tuple_construct(self, case, ie_device, precision, ir_version):
         self._test(*self.create_model(case), ie_device, precision, ir_version)
@@ -98,6 +104,33 @@ class TestTupleUnpackParameterSingle(PytorchLayerTest):
             def forward(self, x: Tuple[torch.Tensor, torch.Tensor]):
                 x1, x2 = x
                 return x1, x2
+
+
+        return model(), None, ["prim::TupleUnpack"]
+
+    @pytest.mark.nightly
+    def test(self, ie_device, precision, ir_version):
+        self._test(*self.create_model(), ie_device, precision, ir_version)
+
+
+class TestTupleUnpackParameterSingleMixed(PytorchLayerTest):
+    def _prepare_input(self):
+        def tensor_gen():
+            return np.random.uniform(0, 50, (1, 2, 10)).astype(np.float32)
+        # generate tensor with a different shape for easier mismatch detection in case of mixed input order
+        def tensor_gen_2():
+            return np.random.uniform(0, 50, (2, 3)).astype(np.float32)
+        return (tensor_gen_2(), (tensor_gen(), tensor_gen()), tensor_gen_2())
+
+    def create_model(self):
+        import torch
+        from typing import Tuple
+
+        class model(torch.nn.Module):
+
+            def forward(self, y1, x: Tuple[torch.Tensor, torch.Tensor], y2):
+                x1, x2 = x
+                return x1, x2, y1, y2
 
 
         return model(), None, ["prim::TupleUnpack"]

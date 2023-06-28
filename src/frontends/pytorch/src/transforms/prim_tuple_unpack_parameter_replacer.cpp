@@ -3,7 +3,7 @@
 //
 #include "prim_tuple_unpack_parameter_replacer.hpp"
 
-#include <queue>
+#include <deque>
 
 #include "openvino/frontend/pytorch/decoder.hpp"
 #include "openvino/op/result.hpp"
@@ -17,13 +17,13 @@ namespace pass {
 
 bool DecomposeTupleParameters::run_on_model(const std::shared_ptr<Model>& model) {
     bool at_least_one_decomposed = false;
-    std::queue<std::shared_ptr<ov::op::v0::Parameter>> parameters;
-    for (const auto& par : model->get_parameters()) {
-        parameters.push(par);
-    }
+    const auto& orig_parameters = model->get_parameters();
+    std::deque<std::shared_ptr<ov::op::v0::Parameter>> parameters(orig_parameters.begin(), orig_parameters.end());
+    ov::ParameterVector updated_parameters;   // will hold final fully unpacked parameters list
+
     while (!parameters.empty()) {
         auto parameter = parameters.front();
-        parameters.pop();
+        parameters.pop_front();
         auto consumers = parameter->get_output_target_inputs(0);
         size_t num_outputs = 0;  // number of outputs in each unpack consumer should match
         bool all_unpacks = true;
@@ -52,12 +52,14 @@ bool DecomposeTupleParameters::run_on_model(const std::shared_ptr<Model>& model)
         }
 
         if (!all_unpacks || consumer_outputs.empty()) {
+            updated_parameters.push_back(parameter);
             // if at least one consumer is not an unpack-like op or there are not matching number of unpacked objects,
             // we cannot replace other unpacks even if they exist, leaving Unpack-op(s) in the graph for this Parameter
             continue;
         }
 
-        for (size_t i = 0; i < num_outputs; ++i) {
+        // enumerating outputs in reverse order because of parameters.push_front below
+        for (size_t i = num_outputs; i--;) {
             // Merged partial shape and element type among all the consumers of i-th result of unpack ops
             PartialShape ps = PartialShape::dynamic();
             element::Type et = element::dynamic;
@@ -82,11 +84,17 @@ bool DecomposeTupleParameters::run_on_model(const std::shared_ptr<Model>& model)
             }
 
             // TODO: Assign correct names
-            model->add_parameters({new_parameter});
-            parameters.push(new_parameter);
-            model->remove_parameter(parameter);
+            parameters.push_front(new_parameter);
             at_least_one_decomposed = true;
         }
+    }
+
+    if (at_least_one_decomposed) {
+        // remove all parameters
+        while(!model->get_parameters().empty())
+            model->remove_parameter(model->get_parameters()[0]);
+        // and replace them by updated list of parameters
+        model->add_parameters(updated_parameters);
     }
 
     return at_least_one_decomposed;
