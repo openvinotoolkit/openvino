@@ -79,7 +79,7 @@ macro(ov_cpack_settings)
         # - 2022.1.0 is the last public release with rpm packages from Intel install team
         # - 2022.1.1, 2022.2 do not have rpm packages enabled, distributed only as archives
         # - 2022.3 is the first release where RPM updated packages are introduced, others 2022.3.X are LTS
-        2022.3.0 2022.3.1 2022.3.2 2022.3.3 2022.3.4 2022.3.5
+        2022.3.0 2022.3.1 2022.3.2 2022.3.3 2022.3.4 2022.3.5 2023.0.0
         )
 
     find_host_program(rpmlint_PROGRAM NAMES rpmlint DOC "Path to rpmlint")
