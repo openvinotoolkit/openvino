@@ -216,6 +216,8 @@ public:
                         uint32_t bilinear_interp : 1;
                         uint32_t cubic : 1;
                         uint32_t linear_onnx : 1;
+                        uint32_t bilinear_pillow : 1;
+                        uint32_t bicubic_pillow : 1;
                     } resample;
                     struct reorder_t {
                         uint32_t winograd : 1;

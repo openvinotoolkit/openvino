@@ -23,6 +23,10 @@ inline kernel_selector::sample_type convert_to_sample_type(resample::Interpolate
             return kernel_selector::sample_type::CUBIC;
         case resample::InterpolateOp::InterpolateMode::LINEAR_ONNX:
             return kernel_selector::sample_type::LINEAR_ONNX;
+        case resample::InterpolateOp::InterpolateMode::BILINEAR_PILLOW:
+            return kernel_selector::sample_type::BILINEAR_PILLOW;
+        case resample::InterpolateOp::InterpolateMode::BICUBIC_PILLOW:
+            return kernel_selector::sample_type::BICUBIC_PILLOW;
         default:
             return kernel_selector::sample_type::NEAREST_NEIGHBOR;
     }
