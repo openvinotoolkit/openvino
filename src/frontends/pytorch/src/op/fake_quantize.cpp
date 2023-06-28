@@ -28,16 +28,16 @@ OutputVector translate_fake_quantize_per_tensor_affine(const NodeContext& contex
     auto input_node = context.get_input(0);
     auto scale = std::make_shared<v0::Convert>(context.get_input(1), element::f32);
     auto zero_point = std::make_shared<v0::Convert>(context.get_input(2), element::f32);
-    auto out_low = context.const_input<int64_t>(3);
-    auto out_high = context.const_input<int64_t>(4);
+    auto out_low_const = context.const_input<int64_t>(3);
+    auto out_high_const = context.const_input<int64_t>(4);
     // Calculate levels value - distance between bounds.
-    auto levels = std::abs(out_high - out_low) + 1;
-    auto out_low_const = v0::Constant::create(element::f32, Shape{1}, {out_low});
-    auto out_high_const = v0::Constant::create(element::f32, Shape{1}, {out_high});
+    auto levels = std::abs(out_high_const - out_low_const) + 1;
+    auto out_low = std::make_shared<v0::Convert>(context.get_input(3), element::f32);
+    auto out_high= std::make_shared<v0::Convert>(context.get_input(4), element::f32);
 
     // Normalize bounds according to quantization zero point value.
-    auto out_low_normalized = std::make_shared<v1::Subtract>(out_low_const, zero_point);
-    auto out_high_normalized = std::make_shared<v1::Subtract>(out_high_const, zero_point);
+    auto out_low_normalized = std::make_shared<v1::Subtract>(out_low, zero_point);
+    auto out_high_normalized = std::make_shared<v1::Subtract>(out_high, zero_point);
     // Rescale bounds according to scale value to calculate limits for input/output maximum/minimum values.
     auto bound_a = std::make_shared<v1::Multiply>(scale, out_low_normalized);
     auto bound_b = std::make_shared<v1::Multiply>(scale, out_high_normalized);
@@ -54,12 +54,12 @@ OutputVector translate_fake_quantize_per_channel_affine(const NodeContext& conte
     auto scale = std::make_shared<v0::Convert>(context.get_input(1), element::f32);
     auto zero_point = std::make_shared<v0::Convert>(context.get_input(2), element::f32);
     auto axis = context.get_input(3);
-    auto out_low = context.const_input<int64_t>(4);
-    auto out_high = context.const_input<int64_t>(5);
+    auto out_low_const = context.const_input<int64_t>(4);
+    auto out_high_const = context.const_input<int64_t>(5);
     // Calculate levels value - distance between bounds.
-    auto levels = std::abs(out_high - out_low) + 1;
-    auto out_low_const = v0::Constant::create(element::f32, Shape{1}, {out_low});
-    auto out_high_const = v0::Constant::create(element::f32, Shape{1}, {out_high});
+    auto levels = std::abs(out_high_const - out_low_const) + 1;
+    auto out_low = std::make_shared<v0::Convert>(context.get_input(4), element::f32);
+    auto out_high= std::make_shared<v0::Convert>(context.get_input(5), element::f32);
 
     auto const_neg_1 = v0::Constant::create(element::i32, Shape{1}, {-1});
     auto const_0 = v0::Constant::create(element::i32, Shape{}, {0});
@@ -76,8 +76,8 @@ OutputVector translate_fake_quantize_per_channel_affine(const NodeContext& conte
     auto zero_point_bc = std::make_shared<v1::Reshape>(zero_point, new_shape, false);
 
     // Normalize bounds according to per-channel quantization zero point values.
-    auto out_low_normalized = std::make_shared<v1::Subtract>(out_low_const, zero_point_bc);
-    auto out_high_normalized = std::make_shared<v1::Subtract>(out_high_const, zero_point_bc);
+    auto out_low_normalized = std::make_shared<v1::Subtract>(out_low, zero_point_bc);
+    auto out_high_normalized = std::make_shared<v1::Subtract>(out_high, zero_point_bc);
     // Rescale bounds according to scale value to calculate limits for input/output maximum/minimum values.
     auto bound_a = std::make_shared<v1::Multiply>(scale_bc, out_low_normalized);
     auto bound_b = std::make_shared<v1::Multiply>(scale_bc, out_high_normalized);
