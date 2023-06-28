@@ -183,20 +183,26 @@ bool MergeSimilarBranches::run_on_model(const std::shared_ptr<ov::Model>& model)
         result_procuder_nodes.insert(r->input(0).get_source_output().get_node());
     no_check_nodes.insert(begin(result_procuder_nodes), end(result_procuder_nodes));
 
-    const auto remove_result_producers = [&](const set<Input<Node>>& inputs) {
+    const auto remove_untouchable_nodes = [&](const set<Input<Node>>& inputs) {
         set<Input<Node>> new_inputs;
         copy_if(begin(inputs),  // std::remove_if doesn't work with Input<Node>
                 end(inputs),
                 inserter(new_inputs, end(new_inputs)),
                 [&](const Input<Node>& i) {
-                    return result_procuder_nodes.find(i.get_node()) == end(result_procuder_nodes);
+                    const auto i_node = i.get_node();
+                    return result_procuder_nodes.find(i_node) == end(result_procuder_nodes) &&
+                           !(dynamic_cast<op::util::AssignBase*>(i_node) ||
+                             dynamic_cast<op::util::ReadValueBase*>(i_node) ||
+                             dynamic_cast<op::util::Variable*>(i_node));
+
+                    ;
                 });
         return new_inputs;
     };
 
     MergeScanner identical_ms;
     {
-        identical_ms.pull_candidates = remove_result_producers;
+        identical_ms.pull_candidates = remove_untouchable_nodes;
         identical_ms.compare_targets = compare_consumers;
         identical_ms.update_logs = update_logs;
         identical_ms.merge = [&update_logs](set<Node*> nodes_to_merge) {
@@ -218,7 +224,7 @@ bool MergeSimilarBranches::run_on_model(const std::shared_ptr<ov::Model>& model)
     }
     MergeScanner matmuls_ms;
     {
-        matmuls_ms.pull_candidates = remove_result_producers;
+        matmuls_ms.pull_candidates = remove_untouchable_nodes;
         matmuls_ms.compare_targets = compare_matmuls;
         matmuls_ms.update_logs = update_logs;
         matmuls_ms.merge = [&update_logs](set<Node*> matmuls_to_merge) {
