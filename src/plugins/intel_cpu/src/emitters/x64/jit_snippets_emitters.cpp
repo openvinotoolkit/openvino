@@ -701,11 +701,13 @@ void StoreConvertEmitter::emit_isa(const std::vector<size_t> &in, const std::vec
 void StoreConvertEmitter::emit_data() const {
     store_emitter->emit_data();
 }
-size_t BrgemmEmitter::getBrgIdx(size_t kIdx, size_t nIdx) const {
-    return kIdx * 2 + nIdx;
+size_t BrgemmEmitter::getBrgIdx(size_t kIdx, size_t nIdx) {
+    return kIdx * BRGEMM_KERNELS_NUM[1] + nIdx;
 }
 BrgemmEmitter::BrgemmEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa,
                              const std::shared_ptr<ov::Node>& node) : jit_emitter(h, isa, node) {
+    m_brgCtxs.fill(brgemmCtx());
+    std::generate(m_brgKernels.begin(), m_brgKernels.end(), [](){return nullptr;});
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
     const auto& brgemm_node = as_type_ptr<ov::intel_cpu::BrgemmCPU>(node);
     if (brgemm_node->is_dynamic())
@@ -760,48 +762,69 @@ BrgemmEmitter::BrgemmEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl:
 
     m_K = A_shape[get_ordered_idx(A_layout, A_layout.size() - 1)];
     m_M = brgemm_node->get_input_count(0);
+    if (m_M == 0)
+        return;
     m_N = C_shape[get_ordered_idx(C_layout, C_layout.size() - 1)];
 
     auto brg0Prc = InferenceEngine::details::convertPrecision(brgemm_node->get_input_element_type(0));
     auto brg1Prc = InferenceEngine::details::convertPrecision(brgemm_node->get_input_element_type(1));
     io_data_size = {brg0Prc.size(), brg1Prc.size(), brgemm_node->get_output_element_type(0).size()};
+    if (brgemm_node->get_input_size() > 2)
+        io_data_size.insert(io_data_size.begin() + 2, brgemm_node->get_input_element_type(2).size());
     m_brg0VnniFactor = 4 / brg0Prc.size();
     bool brgWithAMX = brgemm_node->is_amx();
 
     m_with_comp = brgemm_node->is_with_compensations();
     m_with_scratch = brgemm_node->is_with_scratchpad();
 
-    m_N_blk = brg1Prc == Precision::FP32 ? m_N :
-              brg1Prc == Precision::BF16 ? 32 : 64;
+    m_N_blk = 64;
+    m_K_blk = 1024;
+    // m_N_blk = brg1Prc == Precision::FP32 ? m_N :
+    //           brg1Prc == Precision::BF16 ? 32 : 64;
     m_N_tail = m_N % m_N_blk;
-    m_K_blk = brgWithAMX ? brg0Prc == Precision::BF16 ? 32 : 64
-                         : m_K;
+    // m_K_blk = brgWithAMX ? brg0Prc == Precision::BF16 ? 32 : 64
+    //                      : m_K;
     m_K_tail = m_K % m_K_blk;
+    m_N_blocking_loop_needed = m_N >= 2 * m_N_blk;
+    // Note: K dimension is covered by TWO blocked kernels (with beta = 0 and 1)
+    // so we need a K loop only if more than 2 blocked + tail are required
+    m_K_blocking_loop_needed = m_K >= 3 * m_K_blk;
+    bool has_K_kernel = false;
+    for (size_t k = 0; k < BRGEMM_KERNELS_NUM[0]; k++) {
+        bool has_N_kernel = false;
+        for (size_t n = 0; n < BRGEMM_KERNELS_NUM[1]; n++) {
+            const size_t kernel_idx = getBrgIdx(k, n);
 
-    for (size_t k = 0; k < 2; k++) {
-        for (size_t n = 0; n < 2; n++) {
-            auto& brgemmCtx = m_brgCtxs0[getBrgIdx(k, n)];
+            auto& brgemmCtx = m_brgCtxs[kernel_idx];
 
-            auto M_ = m_M;
-            auto N_ = n ? m_N_tail : m_N - m_N_tail;
-            auto K_ = k ? m_K_tail : m_K - m_K_tail;
-            auto beta = k && m_brgCtxs0[getBrgIdx(0, n)].K != 0 ? 1.0f : 0.0f;
+            brgemmCtx.M = m_M;
+            brgemmCtx.N = n == 0 ? m_N_blk : m_N_tail;
+            // The first two kernels are blocked in case of K
+            brgemmCtx.K = [=]() {
+                switch (k) {
+                    case 0: return m_K_blk;
+                    case 1: return m_K >= 2 * m_K_blk ? m_K_blk : 0;
+                    case 2: return m_K_tail;
+                    default:  IE_THROW() << "BrgemmEmitter detected unsupported K value";
+                }
+            }();
+            if (brgemmCtx.N == 0 || brgemmCtx.N > m_N ||
+                brgemmCtx.K == 0 || brgemmCtx.K > m_K)
+                continue;
 
-            brgemmCtx.M = M_;
-            brgemmCtx.N = N_;
-            brgemmCtx.K = K_;
             brgemmCtx.LDA = leading_dimensions[0];
             brgemmCtx.LDB = brgemm_node->is_with_data_repacking() ? rnd_up(m_N, m_N_blk) : leading_dimensions[1];
             brgemmCtx.LDC = leading_dimensions[2];
             brgemmCtx.dt_in0 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::IEPrecisionToDataType(brg0Prc));
             brgemmCtx.dt_in1 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::IEPrecisionToDataType(brg1Prc));
-            brgemmCtx.beta = beta;
-
-            // don't create brgemm kernels for empty tiles
-            if (M_ != 0 && K_ != 0 && N_ != 0) {
-                initBrgemm(brgemmCtx, m_brgKernels0[getBrgIdx(k, n)], brgWithAMX);
-            }
+            // Note: beta must be 1 ony if we need to add the result to the output
+            brgemmCtx.beta = has_K_kernel ? 1 : 0;
+//            std::cerr << "k = " << k << " n = " << n << " beta = " << brgemmCtx.beta << "\n";
+            initBrgemm(brgemmCtx, m_brgKernels[kernel_idx], brgWithAMX);
+            has_N_kernel = true;
         }
+        if (has_N_kernel)
+            has_K_kernel = true;
     }
 
     m_load_offset_a = brgemm_node->get_offset_a();
@@ -831,14 +854,14 @@ std::set<std::vector<element::Type>> BrgemmEmitter::get_supported_precisions(con
     }
 }
 
-void BrgemmEmitter::initBrgemm(brgemmCtx& ctx, std::unique_ptr<brgemm_kernel_t>& brgKernel, bool use_amx) const {
+void BrgemmEmitter::initBrgemm(brgemmCtx& ctx, std::unique_ptr<brgemm_kernel_t>& brgKernel, bool use_amx) {
     brgemm_t brgDesc;
-    brgemm_strides_t strides {static_cast<dnnl_dim_t>(ctx.M * ctx.K), static_cast<dnnl_dim_t>(ctx.K * ctx.N)};
+    // brgemm_strides_t strides {static_cast<dnnl_dim_t>(ctx.M * ctx.K), static_cast<dnnl_dim_t>(ctx.K * ctx.N)};
     const bool is_int8 = utils::one_of(ctx.dt_in0, data_type::u8, data_type::s8) && utils::one_of(ctx.dt_in1, data_type::u8, data_type::s8);
     auto isa = use_amx ? isa_undef
                        : ctx.dt_in0 == dnnl_data_type_t::dnnl_bf16 ? avx512_core_bf16 : (is_int8 ? avx512_core_vnni : avx512_core);
     auto status = brgemm_desc_init(&brgDesc, isa, brgemm_strd, ctx.dt_in0, ctx.dt_in1,
-                                   false, false, brgemm_row_major, 1.f, ctx.beta, ctx.LDA, ctx.LDB, ctx.LDC, ctx.M, ctx.N, ctx.K, &strides);
+                                   false, false, brgemm_row_major, 1.f, ctx.beta, ctx.LDA, ctx.LDB, ctx.LDC, ctx.M, ctx.N, ctx.K, nullptr);
     if (status != dnnl_success)
         IE_THROW() << "BrgemmEmitter cannot initialize brgemm descriptor due to invalid params";
 
@@ -856,48 +879,128 @@ void BrgemmEmitter::initBrgemm(brgemmCtx& ctx, std::unique_ptr<brgemm_kernel_t>&
     brgKernel.reset(brgKernel_);
 }
 
+size_t BrgemmEmitter::aux_gprs_count() const {
+    return  m_N_blocking_loop_needed + m_K_blocking_loop_needed;
+}
+
+void BrgemmEmitter::emit_N_blocking_loops(size_t k_kernel_id,
+                                          const Xbyak::Reg64& input_0, const Xbyak::Reg64& input_1,
+                                          const Xbyak::Reg64& input_2, const Xbyak::Reg64& output_0,
+                                          const Xbyak::Reg64& work_amount_N) const {
+    auto emit_and_shift_pointers = [&](size_t kernel_idx) {
+        const auto& brgemmCtx = m_brgCtxs[kernel_idx];
+        emit_brgemm_kernel_call(m_brgKernels[kernel_idx].get(), brgemmCtx, input_0, input_1, input_2, output_0);
+        h->add(output_0, brgemmCtx.N * io_data_size.back());
+        h->add(input_1, brgemmCtx.N * io_data_size[1]);
+        if (m_with_scratch && m_with_comp)
+            h->add(input_2, brgemmCtx.N * io_data_size[2]);
+    };
+    // Blocked N loop
+    size_t kernel_idx = getBrgIdx(k_kernel_id, 0);
+    if (m_brgKernels[kernel_idx]) {
+        const auto& brgemmCtx = m_brgCtxs[kernel_idx];
+        Label N_loop_begin;
+        if (m_N_blocking_loop_needed) {
+            h->mov(work_amount_N, m_N);
+            h->L(N_loop_begin);
+        }
+
+        emit_and_shift_pointers(kernel_idx);
+
+        if (m_N_blocking_loop_needed) {
+            h->sub(work_amount_N, brgemmCtx.N);
+            h->cmp(work_amount_N, brgemmCtx.N);
+            h->jge(N_loop_begin);
+        }
+    }
+    // N loop tail
+    kernel_idx = getBrgIdx(k_kernel_id, 1);
+    if (m_brgKernels[kernel_idx])
+        emit_and_shift_pointers(kernel_idx);
+}
+
 void BrgemmEmitter::emit_impl(const std::vector<size_t>& in,
                               const std::vector<size_t>& out) const {
     if (host_isa_ == cpu::x64::avx512_core) {
         Xbyak::Reg64 input_0(static_cast<int>(in[0]));
         Xbyak::Reg64 input_1(static_cast<int>(in[1]));
         Xbyak::Reg64 input_2(static_cast<int>(0));  // scratch. Default reg index is 0 if there isn't scratch
+        Xbyak::Reg64 output_0(static_cast<int>(out[0]));
+        Xbyak::Reg64 work_amount_N(static_cast<int>(0));
+        Xbyak::Reg64 work_amount_K(static_cast<int>(0));
+        if (m_N_blocking_loop_needed || m_K_blocking_loop_needed) {
+            if (aux_gpr_idxs.size() < static_cast<size_t>(m_N_blocking_loop_needed) + static_cast<size_t>(m_K_blocking_loop_needed))
+                IE_THROW() << "BRGEMM Emitter requires extra gpr which was not allocated";
+            if (m_N_blocking_loop_needed)
+                work_amount_N = Xbyak::Reg64(static_cast<int>(aux_gpr_idxs[0]));
+            if (m_K_blocking_loop_needed)
+                work_amount_K = Xbyak::Reg64(static_cast<int>(aux_gpr_idxs[m_N_blocking_loop_needed]));
+        }
+
+        h->add(input_0, m_load_offset_a);
+        h->add(input_1, m_load_offset_b);
+        h->add(output_0, m_store_offset_c);
         if (m_with_scratch) {
             if (in.size() != 3) {
                 IE_THROW() << "BRGEMM Emitter expects 3 inputs if there are compensations/wsp";
             }
             input_2 = Xbyak::Reg64(static_cast<int>(in[2]));
+            h->add(input_2, m_load_offset_scratch);
         }
-        Xbyak::Reg64 output_0(static_cast<int>(out[0]));
 
-        size_t brgIdx0 = getBrgIdx(0, 0);
-        size_t K0_step0 = m_brgCtxs0[brgIdx0].K;
-        size_t K0_step1 = m_brgCtxs0[brgIdx0].K * m_brgCtxs0[brgIdx0].LDB;
-        size_t N0_step0 = m_brgCtxs0[brgIdx0].N * m_brg0VnniFactor;
-        size_t N0_step1 = m_brgCtxs0[brgIdx0].N;
-        for (size_t n = 0; n < 2; n++) {
-            for (size_t k = 0; k < 2; k++) {
-                auto& brgemmCtx = m_brgCtxs0[getBrgIdx(k, n)];
+        // returns the first idx of non-empty K kernel, or -1 otherwise
+        auto get_K_kernel_idx = [this](size_t k_kernel_id, size_t& kernel_idx) {
+            for (size_t n = 0; n < BRGEMM_KERNELS_NUM[1]; n++) {
+                const auto idx = getBrgIdx(k_kernel_id, n);
+                if (m_brgKernels[idx]) {
+                    kernel_idx = idx;
+                    return true;
+                }
+            }
+            return false;
+        };
+        // Blocked K loop
+        const auto k_tail_id = BRGEMM_KERNELS_NUM[0] - 1;
+        size_t total_K_work_amount = m_K;
+        size_t kernel_idx = SIZE_MAX;
+        for (size_t k_blocked_id = 0; k_blocked_id < k_tail_id; k_blocked_id++) {
+            if (get_K_kernel_idx(k_blocked_id, kernel_idx)) {
+                const auto& brgemmCtx = m_brgCtxs[kernel_idx];
+                Label K_loop_begin;
+                // Note: we never emit loop for the first blocked kernel, since it always executed only once.
+                // The purpose of the first blocked K kernel is to initializes output, because it has beta = 0
+                if (k_blocked_id == 0) {
+                    total_K_work_amount -= brgemmCtx.K;
+                } else if (m_K_blocking_loop_needed) {
+                    h->mov(work_amount_K, total_K_work_amount);
+                    h->L(K_loop_begin);
+                }
 
-                if (brgemmCtx.K != 0 && brgemmCtx.N != 0) {
-                    const size_t in0_offset = m_load_offset_a + k * K0_step0 * io_data_size[0];
-                    const size_t in1_offset = m_load_offset_b + (k * K0_step1 + n * N0_step0) * io_data_size[1];
-                    const size_t in2_offset = m_load_offset_scratch + (m_with_comp ? n * N0_step1 * sizeof(int32_t) : 0);
-                    const size_t out0_offset = m_store_offset_c + n * N0_step1 * io_data_size[2];
+                emit_N_blocking_loops(k_blocked_id, input_0, input_1, input_2, output_0, work_amount_N);
+                h->sub(input_1, m_N * io_data_size[1]);
+                h->sub(output_0, m_N * io_data_size.back());
 
-                    emit_brgemm_kernel_call(m_brgKernels0[getBrgIdx(k, n)].get(),
-                                            brgemmCtx,
-                                            input_0,
-                                            input_1,
-                                            input_2,
-                                            output_0,
-                                            in0_offset,
-                                            in1_offset,
-                                            in2_offset,
-                                            out0_offset);
+                h->add(input_0, brgemmCtx.K * io_data_size[0]);
+                h->add(input_1, (brgemmCtx.K * m_N) * io_data_size[1]);
+                if (m_K_blocking_loop_needed && k_blocked_id) {
+                    h->sub(work_amount_K, brgemmCtx.K);
+                    h->cmp(work_amount_K, brgemmCtx.K);
+                    h->jge(K_loop_begin);
                 }
             }
         }
+        // K loop tail
+        if (get_K_kernel_idx(k_tail_id, kernel_idx)) {
+            emit_N_blocking_loops(k_tail_id, input_0, input_1, input_2, output_0, work_amount_N);
+            h->sub(input_1, m_N * io_data_size[1]);
+            h->sub(output_0, m_N * io_data_size.back());
+        }
+
+        h->sub(input_0, m_load_offset_a + (m_K - m_K_tail) * io_data_size[0]);
+        h->sub(input_1, m_load_offset_b + (m_K - m_K_tail) * m_N * io_data_size[1]);
+        if (m_with_scratch)
+            h->sub(input_2, m_load_offset_scratch);
+        h->sub(output_0, m_store_offset_c);
     } else {
         IE_THROW() << "BrgemmEmitter requires at least avx512_core instruction set";
     }
@@ -1047,6 +1150,7 @@ void BrgemmEmitter::emit_brgemm_kernel_call(const brgemm_kernel_t *brg_kernel, c
     for (int i = n_gprs_to_save - 1; i >= 0; --i)
         h->mov(gprs_to_save[i], h->ptr[h->rsp + i * gpr_size]);
     h->add(h->rsp, n_gprs_to_save * gpr_size);
+    std::cout << "[ INFO ] EmitBrgemm kernel was called\n";
 }
 
 void BrgemmEmitter::kernel_execute(const brgemm_kernel_t *brg_kernel,
