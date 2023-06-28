@@ -116,13 +116,12 @@ namespace onnxruntime {
 } // namespace onnxruntime
 
 namespace ov {
-    namespace cpu {
-        class ThreadPool;
-        size_t getTotalThreads();
-        void TrySimpleParallelFor(const std::ptrdiff_t total,
-            const std::function<void(std::ptrdiff_t)>& fn);
-        size_t getL2CacheSize();
-    };
+namespace cpu {
+    class ThreadPool;
+    size_t DegreeOfParallelism(ThreadPool* tp);
+    void TrySimpleParallelFor(ThreadPool* tp, const std::ptrdiff_t total, const std::function<void(std::ptrdiff_t)>& fn);
+    size_t getCacheSize(int level, bool perCore);
+};  // namespace cpu
 };  // namespace ov
 
 using MLAS_THREADPOOL = ov::cpu::ThreadPool;

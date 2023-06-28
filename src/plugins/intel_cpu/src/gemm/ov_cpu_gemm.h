@@ -48,7 +48,7 @@ void ov_sgemm_pack(const char* transb,
  * @param beta         Supplies the scalar beta multiplier (see SGEMM definition)
  * @param C            Supplies the address of matrix C
  * @param ldc          Supplies the first dimension of matrix C.
- * @param thread_num   0 for all threads 1 for single thread.
+ * @param thread_num   0 for all threads, otherwise use thread_num
  */
 void ov_sgemm(const char* transa,
               const char* transb,

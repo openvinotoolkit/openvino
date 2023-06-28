@@ -32,7 +32,7 @@ static size_t getKStride() {
     // MLAS split matrix into A(12*K_Blk) x B(12xK_Blk*32) = C(12 * 32)
     // if these data is smaller than L2 cache, then we could enlarge K_Blk
     // 1024 here is chosen as a empirical value
-    if ((12*1024 + 1024 * 32 + 12 * 32) * 4 < ov::cpu::getL2CacheSize()) {
+    if ((12*1024 + 1024 * 32 + 12 * 32) * 4 < ov::cpu::getCacheSize(2, true)) {
         SGEMM_PACKED_STRIDEK = 1024;
     }
     return SGEMM_PACKED_STRIDEK;

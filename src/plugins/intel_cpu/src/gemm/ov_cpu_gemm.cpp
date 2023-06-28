@@ -6,7 +6,7 @@
 #include <string>
 #include <vector>
 
-#include "ie_parallel.hpp"
+#include "openvino/core/parallel.hpp"
 #include "onednn/dnnl.h"
 #include "mlas.h"
 
@@ -14,16 +14,26 @@ namespace ov {
 namespace cpu {
 class ThreadPool {
 public:
-    ThreadPool() = default;
+    ThreadPool() = delete;
+    ThreadPool(const size_t& threadNum) : threadNum(threadNum) {}
+public:
+    // the actual threads used for sgemm
+    size_t threadNum;
 };
-size_t getTotalThreads() {
-    return parallel_get_max_threads();
+size_t DegreeOfParallelism(ThreadPool* tp) {
+    return tp->threadNum;
 }
-void TrySimpleParallelFor(const std::ptrdiff_t total, const std::function<void(std::ptrdiff_t)>& fn) {
-    parallel_for(total, fn);
+void TrySimpleParallelFor(ThreadPool* tp, const std::ptrdiff_t total, const std::function<void(std::ptrdiff_t)>& fn) {
+    ov::parallel_nt(tp->threadNum, [&](const size_t ithr, const size_t nthr) {
+        std::ptrdiff_t start = 0, end = 0;
+        ov::splitter(total, nthr, ithr, start, end);
+        for (std::ptrdiff_t i = start; i < end; i++) {
+            fn(i);
+        }
+    });
 }
-size_t getL2CacheSize() {
-    return dnnl::utils::get_cache_size(2, true);
+size_t getCacheSize(int level, bool perCore) {
+    return dnnl::utils::get_cache_size(level, perCore);
 }
 };  // namespace cpu
 };  // namespace ov
@@ -68,12 +78,8 @@ void ov_sgemm(const char* transa,
     sgemmParam.beta = beta;
     auto _transa = *transa == 'N' ? CblasNoTrans : CblasTrans;
     auto _transb = *transb == 'N' ? CblasNoTrans : CblasTrans;
-    if (thread_num == 1) {
-        MlasGemmBatch(_transa, _transb, M, N, K, &sgemmParam, 1, nullptr);
-    } else {
-        ov::cpu::ThreadPool threadPool;
-        MlasGemmBatch(_transa, _transb, M, N, K, &sgemmParam, 1, &threadPool);
-    }
+    ov::cpu::ThreadPool threadPool(0 == thread_num ? parallel_get_num_threads() : thread_num);
+    MlasGemmBatch(_transa, _transb, M, N, K, &sgemmParam, 1, &threadPool);
 }
 
 void ov_sgemm_compute(const char* transa,
@@ -91,7 +97,7 @@ void ov_sgemm_compute(const char* transa,
                       const int64_t ldc,
                       const float* bias) {
     // C = alpha*op( A )op( B ) + beta * C
-    ov::cpu::ThreadPool threadPool;
+    ov::cpu::ThreadPool threadPool(parallel_get_num_threads());
     MLAS_SGEMM_DATA_PARAMS sgemmParam;
     sgemmParam.BIsPacked = true;
     sgemmParam.A = A;
