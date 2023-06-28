@@ -206,21 +206,26 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
         layout concat_out_l = concat_params.get_output_layout();
         if (!use_usm)
             return false;
-        if (concat_out_l.batch() > 1)
-            return false;
-        // TODO: cldnn cases should be updated. This logic is working for onednn only.
-        //       white list for support fusing formats.
-        const std::vector<format> white_list = {
-            format::bfyx,
-            format::bfzyx,
-            format::b_fs_yx_fsv16,
-            format::b_fs_zyx_fsv16,
-            format::b_fs_yx_fsv32,
-            format::b_fs_zyx_fsv32,
-            format::b_fs_yx_fsv4,
-        };
-        if (std::find_if(white_list.begin(), white_list.end(), [&concat_out_l](format fmt){ return (fmt == concat_out_l.format); }) == std::end(white_list))
-            return false;
+        if (concat_node.is_dynamic() && !is_runtime) {
+            // Return true in build time, it will be checked again in runtime
+            return true;
+        } else {
+            if (concat_out_l.batch() > 1)
+                return false;
+            // TODO: cldnn cases should be updated. This logic is working for onednn only.
+            //       white list for support fusing formats.
+            const std::vector<format> white_list = {
+                format::bfyx,
+                format::bfzyx,
+                format::b_fs_yx_fsv16,
+                format::b_fs_zyx_fsv16,
+                format::b_fs_yx_fsv32,
+                format::b_fs_zyx_fsv32,
+                format::b_fs_yx_fsv4,
+            };
+            if (std::find_if(white_list.begin(), white_list.end(), [&concat_out_l](format fmt){ return (fmt == concat_out_l.format); }) == std::end(white_list))
+                return false;
+        }
     }
     return true;
 }

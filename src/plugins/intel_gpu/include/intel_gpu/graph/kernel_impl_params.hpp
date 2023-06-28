@@ -126,6 +126,13 @@ struct kernel_impl_params {
     template <class PType>
     std::shared_ptr<const PType> typed_desc() const { return std::static_pointer_cast<const PType>(desc); }
 
+    template <class PType>
+    bool is_type() const {
+        return std::static_pointer_cast<const PType>(desc)->type == PType::type_id();
+    }
+
+virtual primitive_type_id type() const { return desc->type; }
+
     void save(BinaryOutputBuffer& ob) const;
     void load(BinaryInputBuffer& ib);
     const program& get_program() const {
