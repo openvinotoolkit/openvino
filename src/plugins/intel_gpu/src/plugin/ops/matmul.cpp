@@ -194,13 +194,16 @@ static void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::Mat
             if (inputsAligned)
                 return false;
 
-            auto is_u8_i8 = (type == ov::element::Type_t::i8 || type == ov::element::Type_t::u8);
             // Heuristic condition for permute and tiled_opt kernel perform better than ref kernel.
-            return  (std::all_of(shapes[0].rbegin(), shapes[0].rbegin() + 2,
-                                [] (const ngraph::Dimension& dim) { return dim.is_static() && dim.get_length() >= 64; }) &&
-                        std::all_of(shapes[1].rbegin(), shapes[1].rbegin() + 2,
-                                [] (const ngraph::Dimension& dim) { return dim.is_static() && dim.get_length() >= 64; })) ||
-                    ((tensor_from_dims(shapes[0].to_shape()).count() > 100000 || tensor_from_dims(shapes[1].to_shape()).count() > 100000) && !is_u8_i8);
+            auto is_u8_i8 = (type == ov::element::Type_t::i8 || type == ov::element::Type_t::u8);
+            bool in0_large = std::all_of(shapes[0].rbegin(), shapes[0].rbegin() + 2,
+                                        [] (const ngraph::Dimension& dim) { return dim.is_static() && dim.get_length() >= 64; });
+            bool in1_large = std::all_of(shapes[1].rbegin(), shapes[1].rbegin() + 2,
+                                        [] (const ngraph::Dimension& dim) { return dim.is_static() && dim.get_length() >= 64; });
+            bool in0_very_large = tensor_from_dims(shapes[0].to_shape()).count() > 100000;
+            bool in1_very_large = tensor_from_dims(shapes[0].to_shape()).count() > 100000;
+
+            return (in0_large && in1_large) || ((in0_very_large || in1_very_large) && !is_u8_i8);
         };
 
         auto transposeInput = [] (Program& p, const std::shared_ptr<ngraph::Node>& op, const ngraph::PartialShape& shape,
