@@ -52,7 +52,7 @@ static std::string vector_to_string(const std::vector<T>& values) {
     return s.str();
 }
 
-static std::shared_ptr<ov::Node> grey_from_yuv_single_plane(const std::vector<Output<Node>>& nodes) {
+std::shared_ptr<ov::Node> grey_from_yuv_single_plane(const std::vector<Output<Node>>& nodes) {
     using namespace ov::opset8;
     const auto axis = Constant::create(element::i32, {1}, {1});
     const auto yuv_shape_of = std::make_shared<ShapeOf>(nodes[0]);
