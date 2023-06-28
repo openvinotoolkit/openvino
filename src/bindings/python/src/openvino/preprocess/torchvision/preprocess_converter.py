@@ -35,11 +35,13 @@ class PreprocessConverter():
             >>> model = PreprocessorConvertor.from_torchvision(model, "input", transform, input_example)
         """
         try:
+            import PIL
+            import torch
             from torchvision import transforms
             from .torchvision_preprocessing import _from_torchvision
             return _from_torchvision(model, transform, input_example, input_name)
         except ImportError as e:
-            raise ImportError(f"Please install torchvision and pillow packages:\n{e}")
+            raise ImportError(f"Please install torch, torchvision and pillow packages:\n{e}")
         except Exception as e:
             logging.error(f"Unexpected error: {e}")
             raise e
