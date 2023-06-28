@@ -45,7 +45,7 @@ TEST_F(TransformationTestsF, GeluFusionPatternOne) {
     }
 
     {
-        auto data = std::make_shared<opset1::Parameter>(element::f32, Shape{2, 2});
+        auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 2});
         auto gelu = std::make_shared<opset7::Gelu>(data);
         function_ref = std::make_shared<Function>(NodeVector{gelu}, ParameterVector{data});
     }
@@ -71,7 +71,7 @@ TEST_F(TransformationTestsF, GeluFusionPatternOneF16) {
     }
 
     {
-        auto data = std::make_shared<opset1::Parameter>(element::f16, Shape{2, 2});
+        auto data = std::make_shared<ov::op::v0::Parameter>(element::f16, Shape{2, 2});
         auto gelu = std::make_shared<opset7::Gelu>(data);
         function_ref = std::make_shared<Function>(NodeVector{gelu}, ParameterVector{data});
     }
@@ -97,7 +97,7 @@ TEST_F(TransformationTestsF, GeluFusionPatternTwo) {
     }
 
     {
-        auto data = std::make_shared<opset1::Parameter>(element::f32, Shape{2, 2});
+        auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 2});
         auto gelu = std::make_shared<opset7::Gelu>(data);
         function_ref = std::make_shared<Function>(NodeVector{gelu}, ParameterVector{data});
     }
@@ -123,7 +123,7 @@ TEST_F(TransformationTestsF, GeluFusionPatternTwoF16) {
     }
 
     {
-        auto data = std::make_shared<opset1::Parameter>(element::f16, Shape{2, 2});
+        auto data = std::make_shared<ov::op::v0::Parameter>(element::f16, Shape{2, 2});
         auto gelu = std::make_shared<opset7::Gelu>(data);
         function_ref = std::make_shared<Function>(NodeVector{gelu}, ParameterVector{data});
     }
@@ -149,7 +149,7 @@ TEST_F(TransformationTestsF, GeluFusionPatternThree) {
     }
 
     {
-        auto data = std::make_shared<opset1::Parameter>(element::f32, Shape{2, 2});
+        auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 2});
         auto gelu = std::make_shared<opset7::Gelu>(data);
         function_ref = std::make_shared<Function>(NodeVector{gelu}, ParameterVector{data});
     }
@@ -175,7 +175,7 @@ TEST_F(TransformationTestsF, GeluFusionPatternThreeF16) {
     }
 
     {
-        auto data = std::make_shared<opset1::Parameter>(element::f16, Shape{2, 2});
+        auto data = std::make_shared<ov::op::v0::Parameter>(element::f16, Shape{2, 2});
         auto gelu = std::make_shared<opset7::Gelu>(data);
         function_ref = std::make_shared<Function>(NodeVector{gelu}, ParameterVector{data});
     }
@@ -201,7 +201,7 @@ TEST_F(TransformationTestsF, GeluFusionPatternFour) {
     }
 
     {
-        auto data = std::make_shared<opset1::Parameter>(element::f32, Shape{2, 2});
+        auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 2});
         auto gelu = std::make_shared<opset9::Gelu>(data);
         function_ref = std::make_shared<Function>(NodeVector{gelu}, ParameterVector{data});
     }
@@ -227,7 +227,7 @@ TEST_F(TransformationTestsF, GeluFusionPatternFourF16) {
     }
 
     {
-        auto data = std::make_shared<opset1::Parameter>(element::f16, Shape{2, 2});
+        auto data = std::make_shared<ov::op::v0::Parameter>(element::f16, Shape{2, 2});
         auto gelu = std::make_shared<opset9::Gelu>(data);
         function_ref = std::make_shared<Function>(NodeVector{gelu}, ParameterVector{data});
     }

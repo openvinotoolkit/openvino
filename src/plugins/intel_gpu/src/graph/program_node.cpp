@@ -219,7 +219,7 @@ void program_node::remove_dependency(program_node& node) {
             remove_dependency(i);
 }
 
-size_t program_node::get_user_index(program_node& node) const {
+size_t program_node::get_user_index(const program_node& node) const {
     size_t idx = 0;
     for (auto& user : users) {
         if (user == &node)
@@ -231,7 +231,7 @@ size_t program_node::get_user_index(program_node& node) const {
     OPENVINO_ASSERT(false, "Search invalid user node" + node.id() + " node");
 }
 
-size_t program_node::get_dependency_index(program_node& node) const {
+size_t program_node::get_dependency_index(const program_node& node) const {
     for (size_t i = 0; i < dependencies.size(); ++i)
         if (dependencies[i].first == &node)
             return i;
@@ -965,7 +965,7 @@ void program_node::init_onednn_primitive_attributes() {
             if (fused_desc->activation_function == cldnn::activation_func::relu_negative_slope
                 && !fused_desc->additional_params_input.empty()) {
                 auto dep_idx = cldnn_post_ops[idx].outer_dep_start_idx;
-                int oc_dim = static_cast<int>(desc.output_layout.get_tensor().feature.size());
+                auto oc_dim = static_cast<int>(desc.output_layout.get_partial_shape()[1].get_max_length());
                 post_ops.append_prelu(1 << oc_dim);
                 update_onednn_post_op_list(onednn_post_op_type::binary_relu, dep_idx);
             } else if (fused_desc->activation_function == cldnn::activation_func::hard_sigmoid) {
@@ -1268,4 +1268,3 @@ void program_node::init_onednn_primitive_attributes() {
 
 
 #endif // ENABLE_ONEDNN_FOR_GPU
-

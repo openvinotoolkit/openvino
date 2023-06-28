@@ -111,7 +111,7 @@ bool GNAInferRequest::IsRequestCompleted() {
 }
 
 bool GNAInferRequest::SetRequestIndex(uint32_t request_index) {
-    return _infer_request_idx = request_index;
+    return (_infer_request_idx = request_index);
 }
 
 void GNAInferRequest::ValidateAndConfigureTimeout(int64_t& millis_timeout) {

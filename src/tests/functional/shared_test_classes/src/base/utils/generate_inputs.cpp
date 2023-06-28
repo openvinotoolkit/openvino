@@ -19,16 +19,39 @@ namespace test {
 namespace utils {
 
 namespace {
+
+/**
+ * Sets proper range and resolution for real numbers generation
+ *
+ * range = 8 and resolution 32
+ *
+ * The worst case scenario is 7 + 31/32 (7.96875)
+ * IEEE 754 representation is:
+ * ----------------------------------------------
+ *      sign | exponent | mantissa
+ * ----------------------------------------------
+ * FP32    0 | 10000001 | 11111110000000000000000
+ * FP16    0 |    10001 | 1111111000
+ * BF16    0 | 10000001 | 1111111
+ * ----------------------------------------------
+ *
+ * All the generated numbers completely fit into the data type without truncation
+ */
+static inline void set_real_number_generation_data(InputGenerateData& inGenData) {
+    inGenData.range = 8;
+    inGenData.resolution = 32;
+}
+
 ov::runtime::Tensor generate(const std::shared_ptr<ov::Node>& node,
                              size_t port,
                              const ov::element::Type& elemType,
                              const ov::Shape& targetShape) {
-    size_t inNodeCnt = node->get_input_size();
     InputGenerateData inGenData;
     if (elemType.is_real()) {
-        inGenData.range = 10;
-        inGenData.resolution = 256;
+        set_real_number_generation_data(inGenData);
     }
+
+    const size_t inNodeCnt = node->get_input_size();
     auto it = inputRanges.find(node->get_type_info());
     if (it != inputRanges.end()) {
         const auto& ranges = it->second;

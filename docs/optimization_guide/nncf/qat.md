@@ -36,7 +36,7 @@ In this step, you add NNCF-related imports in the beginning of the training scri
          :fragment: [imports]
          
    .. tab-item:: TensorFlow 2
-      :sync: tensorflow        
+      :sync: tf2        
 
       .. doxygensnippet:: docs/optimization_guide/nncf/code/qat_tf.py
          :language: python
@@ -59,7 +59,7 @@ specific to the DL framework. It will be used at the model creation step to init
          :fragment: [nncf_congig]
          
    .. tab-item:: TensorFlow 2
-      :sync: tensorflow        
+      :sync: tf2        
 
       .. doxygensnippet:: docs/optimization_guide/nncf/code/qat_tf.py
          :language: python
@@ -86,7 +86,7 @@ will be shown below.
          :fragment: [wrap_model]
          
    .. tab-item:: TensorFlow 2
-      :sync: tensorflow        
+      :sync: tf2        
 
       .. doxygensnippet:: docs/optimization_guide/nncf/code/qat_tf.py
          :language: python
@@ -110,7 +110,7 @@ you can skip this step which means that the post-training optimization will be a
          :fragment: [tune_model]
          
    .. tab-item:: TensorFlow 2
-      :sync: tensorflow        
+      :sync: tf2        
 
       .. doxygensnippet:: docs/optimization_guide/nncf/code/qat_tf.py
          :language: python
@@ -134,7 +134,7 @@ the fine-tuning that will inform optimization methods to do some adjustments to 
          :fragment: [distributed]
          
    .. tab-item:: TensorFlow 2
-      :sync: tensorflow        
+      :sync: tf2       
 
       .. doxygensnippet:: docs/optimization_guide/nncf/code/qat_tf.py
          :language: python
@@ -156,7 +156,7 @@ the case of PyTorch and frozen graph - for TensorFlow 2.
          :fragment: [export]
          
    .. tab-item:: TensorFlow 2
-      :sync: tensorflow        
+      :sync: tf2        
 
       .. doxygensnippet:: docs/optimization_guide/nncf/code/qat_tf.py
          :language: python
@@ -186,7 +186,7 @@ To save model checkpoint use the following API:
          :fragment: [save_checkpoint]
          
    .. tab-item:: TensorFlow 2
-      :sync: tensorflow        
+      :sync: tf2        
 
       .. doxygensnippet:: docs/optimization_guide/nncf/code/qat_tf.py
          :language: python
@@ -208,7 +208,7 @@ To restore the model from checkpoint you should use the following API:
          :fragment: [load_checkpoint]
          
    .. tab-item:: TensorFlow 2
-      :sync: tensorflow        
+      :sync: tf2        
 
       .. doxygensnippet:: docs/optimization_guide/nncf/code/qat_tf.py
          :language: python
