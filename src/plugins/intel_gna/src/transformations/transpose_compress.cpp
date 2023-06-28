@@ -84,7 +84,8 @@ TransposeCompress::TransposeCompress() {
         auto reshape_out = std::make_shared<Reshape>(transpose, reshape_out_const, false);
         //
         ov::replace_output_update_name(transpose_node->output(0), reshape_out->output(0));
-        ov::copy_runtime_info({transpose_node, transpose_order}, {transpose, transpose_const, reshape_in, reshape_in_const});
+        ov::copy_runtime_info({transpose_node, transpose_order},
+                              {transpose, transpose_const, reshape_in, reshape_in_const});
 
         return true;
     };
