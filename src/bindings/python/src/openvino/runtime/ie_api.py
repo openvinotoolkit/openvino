@@ -101,7 +101,7 @@ class InferRequest(_InferRequestWrapper):
                               Note: Use with extra care, shared data can be modified or lost during runtime!
 
                               Default value: False
-        :type share_inputs: bool, optional
+        :type share_outputs: bool, optional
         :param shared_memory: Deprecated. Works like `share_inputs` mode.
 
                               If not specified, function uses `share_inputs` value.
@@ -328,7 +328,7 @@ class CompiledModel(CompiledModelBase):
                               Note: Use with extra care, shared data can be modified or lost during runtime!
 
                               Default value: False
-        :type share_inputs: bool, optional
+        :type share_outputs: bool, optional
         :param shared_memory: Deprecated. Works like `share_inputs` mode.
 
                               If not specified, function uses `share_inputs` value.
