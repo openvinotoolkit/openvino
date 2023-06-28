@@ -22,6 +22,7 @@
 namespace cldnn {
 
 struct program;
+struct network;
 
 
 struct kernel_impl_params {
@@ -54,6 +55,9 @@ struct kernel_impl_params {
 
     std::map<size_t, memory::ptr> memory_deps = {};
     size_t primary_input_idx = 0;
+    std::vector<std::shared_ptr<program>> inner_progs = {};
+    std::vector<std::shared_ptr<network>> inner_nets = {};
+    std::vector<std::map<size_t, primitive_id>> io_output_maps = {};
 
     kernel_impl_params() : prog(nullptr), strm(nullptr), desc(nullptr), unique_id(0) {}
 
