@@ -1,4 +1,4 @@
-# Installation of OpenVINO™ Notebooks {#notebooks-installation}
+# Installation of OpenVINO™ Notebooks {#notebooks_installation}
 
 
 @sphinxdirective
@@ -22,10 +22,10 @@ Follow the guide below in order to run and manage the notebooks on your machine.
 Contents:
 
 - `Installation Guide <#-installation-guide>`__
--  `Run the Notebooks <#-run-the-notebooks>`__
--  `Manage the notebooks <#-manage-the-notebooks>`__
--  `Troubleshooting <#-troubleshooting>`__
--  `FAQ <#-faq>`__
+- `Run the Notebooks <#-run-the-notebooks>`__
+- `Manage the notebooks <#-manage-the-notebooks>`__
+- `Troubleshooting <#-troubleshooting>`__
+- `FAQ <#-faq>`__
 
 --------------------
 
