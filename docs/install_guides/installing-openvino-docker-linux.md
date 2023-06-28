@@ -12,7 +12,7 @@ The `Docker CI framework <https://github.com/openvinotoolkit/docker_ci/>`__ can 
 
 To start using them, the following conditions must be met:
 
-- Linux OS or Windows :ref:`(under Windows Subsystem for Linux (WSL2)) <openvino_docs_install_guides_configurations_for_intel_gpu#wsl-install>`
+- Linux OS or Windows :doc:`(under Windows Subsystem for Linux (WSL2)) <openvino_docs_install_guides_configurations_for_intel_gpu#wsl-install>`
 - Installed docker engine or compatible container engine
 - Permissions to run containers (sudo or docker group membership)
 
