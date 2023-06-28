@@ -198,7 +198,8 @@ inline bool is_eltwise_add(const std::shared_ptr<ngraph::Node>& node) {
 }
 
 inline bool is_pooling(const std::shared_ptr<ngraph::Node>& node) {
-    return (std::dynamic_pointer_cast<ngraph::opset7::MaxPool>(node) != nullptr);
+    return ((std::dynamic_pointer_cast<ngraph::opset7::MaxPool>(node) != nullptr) ||
+            std::dynamic_pointer_cast<ov::intel_gna::op::GNAMaxPool>(node) != nullptr);
 }
 
 template <typename T>
@@ -268,7 +269,7 @@ inline bool has_32bit_output(const std::shared_ptr<ngraph::Node>& node) {
     return ((std::dynamic_pointer_cast<ngraph::op::FullyConnected>(node) != nullptr) ||
             (std::dynamic_pointer_cast<ngraph::opset9::MatMul>(node) != nullptr) ||
             (std::dynamic_pointer_cast<ngraph::opset9::Convolution>(node) != nullptr) ||
-            (std::dynamic_pointer_cast<ngraph::op::ConvolutionIE>(node) != nullptr) ||
+            (std::dynamic_pointer_cast<ov::intel_gna::op::GNAConvolution>(node) != nullptr) ||
             (std::dynamic_pointer_cast<ngraph::opset9::Add>(node) != nullptr) ||
             (std::dynamic_pointer_cast<ngraph::opset9::Multiply>(node) != nullptr) ||
             (std::dynamic_pointer_cast<ngraph::op::Eltwise>(node) != nullptr) ||
@@ -623,6 +624,20 @@ bool has_child_node(std::shared_ptr<ov::Node> node) {
         }
     }
     return false;
+}
+
+/**
+ * @brief Checks if shape without dimensions == 1 is 2D
+ */
+inline bool is_shape_2d(const ov::Shape& shape) {
+    return graph_utils::squeeze_shape(shape).size() == 2;
+}
+
+/**
+ * @brief Checks if node has N consumers
+ */
+inline bool has_n_consumers(const std::shared_ptr<ov::Node>& node, size_t n_consumers) {
+    return node->output(0).get_target_inputs().size() == n_consumers;
 }
 
 }  // namespace graph_utils

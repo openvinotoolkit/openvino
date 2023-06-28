@@ -47,7 +47,7 @@ ov::Shape make_transpose_order_nchw2nhwc(size_t shape_size) {
     ov::Shape shape(shape_size);
     std::iota(shape.begin(), shape.end(), 0);
 
-    for (int i = 1; i < shape.size() - 1; ++i)
+    for (size_t i = 1; i < shape.size() - 1; ++i)
         shape[i] = shape[i + 1];
 
     *(shape.end() - 1) = 1;

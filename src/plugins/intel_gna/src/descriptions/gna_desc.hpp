@@ -74,9 +74,11 @@ struct GnaDesc {
     }
 
     InferenceEngine::DataPtr to_ie_data() {
+        OPENVINO_SUPPRESS_DEPRECATED_START
         return std::make_shared<InferenceEngine::Data>(
             name,
             InferenceEngine::TensorDesc(model_precision, dims, model_layout));
+        OPENVINO_SUPPRESS_DEPRECATED_END
     }
 };
 
@@ -98,9 +100,11 @@ struct InputDesc : GnaDesc {
     }
 
     InferenceEngine::InputInfo::Ptr ToIEInputInfo() {
+        OPENVINO_SUPPRESS_DEPRECATED_START
         InferenceEngine::InputInfo::Ptr input_info = std::make_shared<InferenceEngine::InputInfo>();
         input_info->setInputData(this->to_ie_data());
         return input_info;
+        OPENVINO_SUPPRESS_DEPRECATED_END
     }
 };
 

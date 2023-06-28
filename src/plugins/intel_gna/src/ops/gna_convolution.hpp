@@ -133,6 +133,9 @@ public:
     void set_auto_pad(const ov::op::PadType& auto_pad) {
         m_auto_pad = auto_pad;
     }
+    bool has_add_node() const {
+        return m_has_add_node;
+    }
     bool has_bias() const {
         return m_has_add_node;
     }

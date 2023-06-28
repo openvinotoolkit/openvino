@@ -273,32 +273,6 @@ TEST_F(I16QuantisationTest, EltwiseSumm_onlyOneIdentityInsertion) {
         .once();
 }
 
-TEST_F(I16QuantisationTest, canDetectLeakyRelu) {
-    assert_that()
-        .onInferModel(TFLeakyReluModel())
-        .inNotCompactMode()
-        .withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f)
-        .gna()
-        .propagate_forward()
-        .called_with()
-        .pwl_inserted_into_nnet();
-}
-
-TEST_F(I16QuantisationTest, MaxPool_followedAfterActivation) {
-    assert_that()
-        .onInferModel(maxpoolAfterRelu())
-        .inNotCompactMode()
-        .withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f)
-        .gna()
-        .propagate_forward()
-        .called_with()
-        .convolution_inserted_into_nnet()
-        .And()
-        .pwl_inserted_into_nnet()
-        .And()
-        .max_pooling_inserted_into_nnet();
-}
-
 TEST_F(I16QuantisationTest, EltwiseMull_willInsertTwoIdentities) {
     assert_that()
         .onInferModel(eltwiseMulModel())

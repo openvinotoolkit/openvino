@@ -924,4 +924,38 @@ inline uint32_t GetDataDimByName(InferenceEngine::DataPtr data, DataDimName dimN
     return GetDimFromBack(dims, backOffsets[dimIxInNCHW]);
 }
 
+/**
+ * @brief returns a size of a specified data dimension depending on the layout
+ *        NHWC specialization
+ * @param data a pointer to the data
+ * @param dimName dimension name
+ */
+inline uint32_t GetDataDimSizeNHWC(InferenceEngine::DataPtr data, DataDimName dimName) {
+    uint32_t dimIxInNCHW = static_cast<uint32_t>(dimName);
+    IE_ASSERT(dimIxInNCHW <= 3);
+
+    std::vector<uint32_t> backOffsets;
+    switch (data->getLayout()) {
+    case Layout::C:
+    case Layout::NC:
+        // 1 will be returned for offsets > 2
+        backOffsets = std::vector<uint32_t>{2, 1, 3, 4};
+        break;
+    case Layout::HWC:
+        // 1 will be returned for offset 4
+    case Layout::NHWC:
+        backOffsets = std::vector<uint32_t>{4, 3, 2, 1};
+        break;
+    case Layout::CHW:
+        // 1 will be returned for offset 4
+    case Layout::NCHW:
+        backOffsets = std::vector<uint32_t>{4, 1, 3, 2};
+        break;
+    default:
+        THROW_GNA_EXCEPTION << data->getName() << " Unexpected layout " << data->getLayout();
+    }
+    auto dims = data->getDims();
+    return GetDimFromBack(dims, backOffsets[dimIxInNCHW]);
+}
+
 }  // namespace InferenceEngine
