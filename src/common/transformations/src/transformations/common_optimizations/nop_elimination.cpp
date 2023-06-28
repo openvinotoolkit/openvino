@@ -16,6 +16,7 @@
 #include <openvino/pass/pattern/op/or.hpp>
 #include <transformations/common_optimizations/nop_elimination.hpp>
 #include <transformations/utils/utils.hpp>
+#include <openvino/op/util/pad_base.hpp>
 
 #include "compare.hpp"
 #include "itt.hpp"
@@ -315,7 +316,7 @@ SIMPLE_MATCHER_PASS_DEFINITION(EliminateGather, simplify_gather, opset3::Gather,
 
 pass::EliminatePad::EliminatePad() {
     MATCHER_SCOPE(EliminatePad);
-    auto pad_node_pattern = pattern::wrap_type<opset8::Pad>();
+    auto pad_node_pattern = pattern::wrap_type<op::util::PadBase>();
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto pad = m.get_match_root();

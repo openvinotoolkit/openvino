@@ -202,6 +202,7 @@ pass::PadFusionConvolution::PadFusionConvolution() {
     auto conv_pattern = pattern::wrap_type<opset5::Convolution>({pad_node_pattern, filter_pattern});
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
+        std::cout << "[EMUTEX DEBUG] CHECKPOINT PadFusionConvolution" << std::endl;
         auto pattern_map = m.get_pattern_value_map();
         auto data = pattern_map[data_pattern];
         auto filter = pattern_map[filter_pattern];
