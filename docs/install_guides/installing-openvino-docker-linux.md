@@ -12,17 +12,17 @@ The `Docker CI framework <https://github.com/openvinotoolkit/docker_ci/>`__ can 
 
 To start using them, the following conditions must be met:
 
-- Linux OS or Windows Subsystem for Linux (WSL2)
+- Linux OS or Windows :ref:`(under Windows Subsystem for Linux (WSL2)) <openvino_docs_install_guides_configurations_for_intel_gpu#wsl-install>`
 - Installed docker engine or compatible container engine
 - Permissions to run containers (sudo or docker group membership)
 
-OpenVINO's `Docker <https://docs.docker.com/>`__ and `Bare Metal <https://docs.openvino.ai/2023.0/ovms_docs_deploying_server.html#doxid-ovms-docs-deploying-server>` distributions are identical, so the documentation applies to both.
+OpenVINO's `Docker <https://docs.docker.com/>`__ and `Bare Metal <https://docs.openvino.ai/2023.0/ovms_docs_deploying_server.html#doxid-ovms-docs-deploying-server>`__ distributions are identical, so the documentation applies to both.
 
 .. note:: 
 
    The OpenVINO development environment in a docker container is also available in the `notebook repository <https://github.com/openvinotoolkit/openvino_notebooks>`__ . It can be implemented in `OpenShift RedHat OpenData Science (RHODS) <https://github.com/openvinotoolkit/operator/blob/main/docs/notebook_in_rhods.md>`__.
 
-ore information about Docker CI for Intel® Distribution of OpenVINO™ toolset can be found `here <https://github.com/openvinotoolkit/docker_ci/blob/master/README.md>`__
+More information about Docker CI for Intel® Distribution of OpenVINO™ toolset can be found `here <https://github.com/openvinotoolkit/docker_ci/blob/master/README.md>`__
 
 * `Docker CI framework for Intel® Distribution of OpenVINO™ toolkit <https://github.com/openvinotoolkit/docker_ci/blob/master/README.md>`__
 * `Get Started with DockerHub CI for Intel® Distribution of OpenVINO™ toolkit <https://github.com/openvinotoolkit/docker_ci/blob/master/get-started.md>`__
