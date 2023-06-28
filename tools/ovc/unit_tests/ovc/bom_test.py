@@ -30,7 +30,7 @@ class TestBOMFile(unittest.TestCase):
         cls.existing_files = []
         cur_path = os.path.join(os.path.realpath(__file__), os.pardir)
         mo_path = os.path.abspath(os.path.join(cur_path, os.pardir, os.pardir))
-        with open(os.path.join(mo_path, 'automation', 'package_BOM.txt'), 'r') as bom_file:
+        with open(os.path.join(mo_path, 'unit_tests', 'ovc', 'package_BOM.txt'), 'r') as bom_file:
             if platform.system() == 'Windows':
                 cls.existing_files = [name.rstrip().replace('/', '\\') for name in bom_file.readlines()]
             else:
