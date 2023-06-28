@@ -19,7 +19,7 @@ bool DecomposeTupleParameters::run_on_model(const std::shared_ptr<Model>& model)
     bool at_least_one_decomposed = false;
     const auto& orig_parameters = model->get_parameters();
     std::deque<std::shared_ptr<ov::op::v0::Parameter>> parameters(orig_parameters.begin(), orig_parameters.end());
-    ov::ParameterVector updated_parameters;   // will hold final fully unpacked parameters list
+    ov::ParameterVector updated_parameters;  // will hold final fully unpacked parameters list
 
     while (!parameters.empty()) {
         auto parameter = parameters.front();
@@ -91,7 +91,7 @@ bool DecomposeTupleParameters::run_on_model(const std::shared_ptr<Model>& model)
 
     if (at_least_one_decomposed) {
         // remove all parameters
-        while(!model->get_parameters().empty())
+        while (!model->get_parameters().empty())
             model->remove_parameter(model->get_parameters()[0]);
         // and replace them by updated list of parameters
         model->add_parameters(updated_parameters);

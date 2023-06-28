@@ -19,7 +19,7 @@ bool DecomposeListTupleResults::run_on_model(const std::shared_ptr<Model>& model
     bool at_least_one_decomposed = false;
     const auto& orig_results = model->get_results();
     std::deque<std::shared_ptr<ov::op::v0::Result>> results(orig_results.begin(), orig_results.end());
-    ov::ResultVector updated_results;   // will hold final fully unpacked results list
+    ov::ResultVector updated_results;  // will hold final fully unpacked results list
 
     while (!results.empty()) {
         auto result = results.front();
@@ -52,7 +52,7 @@ bool DecomposeListTupleResults::run_on_model(const std::shared_ptr<Model>& model
 
     if (at_least_one_decomposed) {
         // remove all results
-        while(!model->get_results().empty())
+        while (!model->get_results().empty())
             model->remove_result(model->get_results()[0]);
         // and replace them all by updated list of results
         model->add_results(updated_results);
