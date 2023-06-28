@@ -27,7 +27,7 @@ def _deprecated_memory_arg(shared_memory: bool, share_inputs: bool) -> bool:
     if shared_memory is not None:
         warnings.warn(
             "`shared_memory` is deprecated and will be removed in 2024.0. "
-            "Value of `shared_memory` is going to override `share_inputs` value. " 
+            "Value of `shared_memory` is going to override `share_inputs` value. "
             "Please use only `share_inputs` explicitly.",
             FutureWarning,
             stacklevel=3,
