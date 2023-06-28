@@ -13,6 +13,7 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/rt_info/gather_sinking_attr.hpp"
 #include "transformations/utils/gather_sinking_utils.hpp"
+#include "common/graph_utils.hpp"
 
 using namespace ov;
 using namespace ov::opset9;
@@ -128,33 +129,53 @@ std::shared_ptr<Gather> FuseGatherNodes(TransformationInfo& info) {
 
     return new_gather;
 }
+
+inline bool has_one_consumer(const std::shared_ptr<ov::Node>& node) {
+    return node->output(0).get_target_inputs().size() == 1;
+}
+
+inline bool is_skip_operation(const std::shared_ptr<ov::Node>& node) {
+    return (std::dynamic_pointer_cast<Reshape>(node) != nullptr ||
+            std::dynamic_pointer_cast<Squeeze>(node) != nullptr ||
+            std::dynamic_pointer_cast<Unsqueeze>(node) != nullptr) &&
+           has_one_consumer(node);
+}
+
+
 }  // namespace
 
 GatherSinkingFuse::GatherSinkingFuse() {
     MATCHER_SCOPE(GatherSinkingFuse);
 
-    auto input_indices_const_label = wrap_type<Constant>(IsConstant1D);
-    auto input_axis_const_label = wrap_type<Constant>(IsConstant1D);
-    auto input_gather_label = wrap_type<Gather>({any_input(), input_indices_const_label, input_axis_const_label});
-    auto output_indices_const_label = wrap_type<Constant>(IsConstant1D);
-    auto output_axis_const_label = wrap_type<Constant>(IsConstant1D);
-    auto output_gather_label =
-        wrap_type<Gather>({input_gather_label, output_indices_const_label, output_axis_const_label},
-                          IsGatherWithParentGatherSameAxis);
+    // auto input_indices_const_label = wrap_type<Constant>(IsConstant1D);
+    // auto input_axis_const_label = wrap_type<Constant>(IsConstant1D);
+    // auto input_gather_label = wrap_type<Gather>({any_input(), input_indices_const_label, input_axis_const_label});
+    auto indices_in_const_label = wrap_type<Constant>(IsConstant1D);
+    auto axis_in_const_label = wrap_type<Constant>(IsConstant1D);
+    auto gather_in_label =
+        wrap_type<Gather>({any_input(), indices_in_const_label, axis_in_const_label});
 
     ov::matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
+        auto gather_in = as_type_ptr<Gather>(pattern_to_output.at(gather_in_label).get_node_shared_ptr());
+
         TransformationInfo info;
-        info.input_indices_const =
-            as_type_ptr<Constant>(pattern_to_output.at(input_indices_const_label).get_node_shared_ptr());
-        info.input_axis_const =
-            as_type_ptr<Constant>(pattern_to_output.at(input_axis_const_label).get_node_shared_ptr());
-        info.input_gather = as_type_ptr<Gather>(pattern_to_output.at(input_gather_label).get_node_shared_ptr());
         info.output_indices_const =
-            as_type_ptr<Constant>(pattern_to_output.at(output_indices_const_label).get_node_shared_ptr());
+            as_type_ptr<Constant>(pattern_to_output.at(indices_in_const_label).get_node_shared_ptr());
         info.output_axis_const =
-            as_type_ptr<Constant>(pattern_to_output.at(output_axis_const_label).get_node_shared_ptr());
-        info.output_gather = as_type_ptr<Gather>(pattern_to_output.at(output_gather_label).get_node_shared_ptr());
+            as_type_ptr<Constant>(pattern_to_output.at(axis_in_const_label).get_node_shared_ptr());
+        info.output_gather = gather_in;
+
+         // skip all the non-functional layers
+        std::shared_ptr<ov::Node> non_reshape_node = graph_utils::get_prev_node_skipping_certain(gather_in->get_input_node_shared_ptr(0), is_skip_operation);
+        auto gather_out = std::dynamic_pointer_cast<Gather>(non_reshape_node);
+        if (!gather_out) {
+            return false;
+        }
+
+        info.input_indices_const = as_type_ptr<Constant>(gather_out->get_input_node_shared_ptr(1));
+        info.input_axis_const = as_type_ptr<Constant>(gather_out->get_input_node_shared_ptr(2));
+        info.input_gather = gather_out;
 
         auto new_node = FuseGatherNodes(info);
         if (new_node)
@@ -163,6 +184,6 @@ GatherSinkingFuse::GatherSinkingFuse() {
         return true;
     };
 
-    auto m = std::make_shared<Matcher>(output_gather_label, matcher_name);
+    auto m = std::make_shared<Matcher>(gather_in_label, matcher_name);
     register_matcher(m, matcher_pass_callback);
 }
