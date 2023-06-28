@@ -91,7 +91,7 @@ void reshape_in2(const char* in,
 }
 
 static std::vector<size_t> get_strides(size_t rank, size_t elem_size, const AxisVector& order, const Shape& in_shape) {
-    size_t rev_order[rank];
+    std::vector<size_t> rev_order(rank);
     for (size_t i = 0; i < rank; i++) {
         rev_order[order[i]] = i;
     }
