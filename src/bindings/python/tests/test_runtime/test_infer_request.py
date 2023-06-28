@@ -1112,3 +1112,33 @@ def test_mixed_dynamic_infer(device, shared_flag, input_data):
     else:
         assert not np.shares_memory(input_data[0], input_tensor0.data)
         assert not np.shares_memory(input_data[1], input_tensor1.data)
+
+
+@pytest.mark.parametrize("shared_flag", [True, False])
+@pytest.mark.parametrize(("input_data", "change_flags"), [
+    ({0: np.frombuffer(b"\x01\x02\x03\x04", np.uint8)}, False),
+    ({0: np.array([1, 2, 3, 4], dtype=np.uint8)}, True),
+])
+def test_not_writable_inputs_infer(device, shared_flag, input_data, change_flags):
+    if change_flags is True:
+        input_data[0].setflags(write=0)
+    # identity model
+    input_shape = [4]
+    param_node = ops.parameter(input_shape, np.uint8, name="data0")
+    core = Core()
+    model = Model(param_node, [param_node])
+    compiled = core.compile_model(model, "CPU")
+
+    results = compiled(input_data, shared_memory=shared_flag)
+
+    assert np.array_equal(results[0], input_data[0])
+
+    request = compiled.create_infer_request()
+    results = request.infer(input_data, shared_memory=shared_flag)
+
+    assert np.array_equal(results[0], input_data[0])
+
+    input_tensor = request.get_input_tensor(0)
+
+    # Not writable inputs should always be copied.
+    assert not np.shares_memory(input_data[0], input_tensor.data)
