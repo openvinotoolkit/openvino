@@ -23,10 +23,8 @@ a general changelog for each version published under the current cycle.
    :color: primary
 
    The first pre-release for OpenVINO 2023.1 focused on fixing bugs and performance issues.
-   
-   2023.1.0.dev20230623
 
-   `GitHub Release <https://github.com/openvinotoolkit/openvino/releases/tag/2023.1.0.dev20230623>`__ 
+   `Check on GitHub <https://github.com/openvinotoolkit/openvino/releases/tag/2023.1.0.dev20230623>`__ 
 
 
 .. dropdown:: OpenVINO Toolkit 2023.0.0.dev20230407
