@@ -9,6 +9,7 @@ Napi::Function CompiledModelWrap::GetClassConstructor(Napi::Env env) {
     return DefineClass(env,
                        "CompiledModel",
                        {InstanceMethod("create_infer_request", &CompiledModelWrap::create_infer_request),
+                        InstanceAccessor<&CompiledModelWrap::get_inputs>("inputs"),
                         InstanceAccessor<&CompiledModelWrap::get_outputs>("outputs")});
 }
 
@@ -45,4 +46,15 @@ Napi::Value CompiledModelWrap::get_outputs(const Napi::CallbackInfo& info) {
         js_outputs[i++] = Output::Wrap(info.Env(), out);
 
     return js_outputs;
+}
+
+Napi::Value CompiledModelWrap::get_inputs(const Napi::CallbackInfo& info) {
+    auto cm_inputs = _compiled_model.inputs();  // Output<Node>
+    Napi::Array js_inputs = Napi::Array::New(info.Env(), cm_inputs.size());
+
+    size_t i = 0;
+    for (auto& out : cm_inputs)
+        js_inputs[i++] = Output::Wrap(info.Env(), out);
+
+    return js_inputs;
 }

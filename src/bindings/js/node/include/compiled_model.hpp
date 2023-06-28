@@ -46,6 +46,12 @@ public:
      */
     Napi::Value get_outputs(const Napi::CallbackInfo& info);
 
+    /**
+     * @brief Helper function to access the compiled model inputs as an attribute of JavaScript Compiled Model.
+     * @param info Contains information about the environment and passed arguments
+     */
+    Napi::Value get_inputs(const Napi::CallbackInfo& info);
+
 private:
     ov::CompiledModel _compiled_model;
 };
