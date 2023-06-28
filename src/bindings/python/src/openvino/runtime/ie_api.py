@@ -23,7 +23,7 @@ from openvino.runtime.utils.data_helpers import (
 )
 
 
-def _deprecated_memory_arg(shared_memory, share_inputs):
+def _deprecated_memory_arg(shared_memory: bool, share_inputs: bool) -> bool:
     if shared_memory is not None:
         warnings.warn(
             "`shared_memory` is deprecated and will be removed in 2024.0. "
@@ -42,7 +42,7 @@ class InferRequest(_InferRequestWrapper):
     def infer(
         self,
         inputs: Any = None,
-        share_inputs: bool = True,
+        share_inputs: bool = False,
         share_outputs: bool = False,
         *,
         shared_memory: bool = None,
@@ -88,7 +88,7 @@ class InferRequest(_InferRequestWrapper):
                               Note: Use with extra care, shared data can be modified during runtime!
                               Note: Using `share_inputs` may result in extra memory overhead.
 
-                              Default value: True
+                              Default value: False
         :type share_inputs: bool, optional
         :param share_outputs: Enables `share_outputs` mode. Controls memory usage on inference's outputs.
 
@@ -124,7 +124,7 @@ class InferRequest(_InferRequestWrapper):
         self,
         inputs: Any = None,
         userdata: Any = None,
-        share_inputs: bool = True,
+        share_inputs: bool = False,
         *,
         shared_memory: bool = None,
     ) -> None:
@@ -172,7 +172,7 @@ class InferRequest(_InferRequestWrapper):
                               Note: Use with extra care, shared data can be modified during runtime!
                               Note: Using `share_inputs` may result in extra memory overhead.
 
-                              Default value: True
+                              Default value: False
         :type share_inputs: bool, optional
         :param shared_memory: Deprecated. Works like `share_inputs` mode.
 
@@ -389,7 +389,7 @@ class AsyncInferQueue(AsyncInferQueueBase):
         self,
         inputs: Any = None,
         userdata: Any = None,
-        share_inputs: bool = True,
+        share_inputs: bool = False,
         *,
         shared_memory: bool = None,
     ) -> None:
@@ -433,7 +433,7 @@ class AsyncInferQueue(AsyncInferQueueBase):
                               Note: Use with extra care, shared data can be modified during runtime!
                               Note: Using `share_inputs` may result in extra memory overhead.
 
-                              Default value: True
+                              Default value: False
         :type share_inputs: bool, optional
         :param shared_memory: Deprecated. Works like `share_inputs` mode.
 
