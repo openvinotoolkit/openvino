@@ -177,11 +177,11 @@ protected:
     }
 };
 
-TEST_P(BackwardCompatibility, smoke_BackwardCompatibility) {
+TEST_P(BackwardCompatibility, BackwardCompatibility) {
     Run();
 }
 
-TEST_P(BackwardCompatibilityLegacy, smoke_BackwardCompatibility) {
+TEST_P(BackwardCompatibilityLegacy, BackwardCompatibility) {
     Run();
 }
 
