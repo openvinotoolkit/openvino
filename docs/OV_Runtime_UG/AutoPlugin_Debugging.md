@@ -43,7 +43,7 @@ There are six levels of logs, which can be called explicitly or set via the ``OP
          :fragment: [part6]
    
    .. tab-item:: OS environment variable
-      :sync: os_env_variable
+      :sync: os-environment-variable
    
       .. code-block:: sh
    

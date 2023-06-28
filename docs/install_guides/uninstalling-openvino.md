@@ -35,7 +35,7 @@ If you have installed OpenVINO Runtime from archive files, you can uninstall it 
    
    
    .. tab-item:: Linux & macOS
-      :sync: lin-mac
+      :sync: linux-and-macos
    
       If you have created the symbolic link, remove the link first:
     
