@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "ie_parallel.hpp"
+#include "onednn/dnnl.h"
 #include "mlas.h"
 
 namespace ov {
@@ -20,6 +21,9 @@ size_t getTotalThreads() {
 }
 void TrySimpleParallelFor(const std::ptrdiff_t total, const std::function<void(std::ptrdiff_t)>& fn) {
     parallel_for(total, fn);
+}
+size_t getL2CacheSize() {
+    return dnnl::utils::get_cache_size(2, true);
 }
 };  // namespace cpu
 };  // namespace ov
@@ -37,19 +41,20 @@ void ov_sgemm_pack(const char* transb,
     MlasGemmPackB(*transb == 'T' ? CblasTrans : CblasNoTrans, N, K, src, ldb, dst);
 }
 
-void ov_sgemm_compute(const char* transa,
-                      const char* transb,
-                      const int64_t M,
-                      const int64_t N,
-                      const int64_t K,
-                      const float alpha,
-                      const float* A,
-                      const int64_t lda,
-                      const float* B,
-                      const int64_t ldb,
-                      const float beta,
-                      float* C,
-                      const int64_t ldc) {
+void ov_sgemm(const char* transa,
+              const char* transb,
+              const int64_t M,
+              const int64_t N,
+              const int64_t K,
+              const float alpha,
+              const float* A,
+              const int64_t lda,
+              const float* B,
+              const int64_t ldb,
+              const float beta,
+              float* C,
+              const int64_t ldc,
+              size_t thread_num) {
     // C = alpha*op( A )op( B ) + beta * C
     MLAS_SGEMM_DATA_PARAMS sgemmParam;
     sgemmParam.BIsPacked = false;
@@ -63,23 +68,28 @@ void ov_sgemm_compute(const char* transa,
     sgemmParam.beta = beta;
     auto _transa = *transa == 'N' ? CblasNoTrans : CblasTrans;
     auto _transb = *transb == 'N' ? CblasNoTrans : CblasTrans;
-    MlasGemmBatch(_transa, _transb, M, N, K, &sgemmParam, 1, nullptr);
+    if (thread_num == 1) {
+        MlasGemmBatch(_transa, _transb, M, N, K, &sgemmParam, 1, nullptr);
+    } else {
+        ov::cpu::ThreadPool threadPool;
+        MlasGemmBatch(_transa, _transb, M, N, K, &sgemmParam, 1, &threadPool);
+    }
 }
 
-void ov_sgemm_pack_compute(const char* transa,
-                           const char* transb,
-                           const int64_t M,
-                           const int64_t N,
-                           const int64_t K,
-                           const float alpha,
-                           const float* A,
-                           const int64_t lda,
-                           const float* B,
-                           const int64_t ldb,
-                           const float beta,
-                           float* C,
-                           const int64_t ldc,
-                           const float* bias) {
+void ov_sgemm_compute(const char* transa,
+                      const char* transb,
+                      const int64_t M,
+                      const int64_t N,
+                      const int64_t K,
+                      const float alpha,
+                      const float* A,
+                      const int64_t lda,
+                      const float* B,
+                      const int64_t ldb,
+                      const float beta,
+                      float* C,
+                      const int64_t ldc,
+                      const float* bias) {
     // C = alpha*op( A )op( B ) + beta * C
     ov::cpu::ThreadPool threadPool;
     MLAS_SGEMM_DATA_PARAMS sgemmParam;

@@ -121,6 +121,7 @@ namespace ov {
         size_t getTotalThreads();
         void TrySimpleParallelFor(const std::ptrdiff_t total,
             const std::function<void(std::ptrdiff_t)>& fn);
+        size_t getL2CacheSize();
     };
 };  // namespace ov
 
