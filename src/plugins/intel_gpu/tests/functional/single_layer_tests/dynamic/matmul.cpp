@@ -379,6 +379,11 @@ const std::vector<ShapeRelatedParams> IS = {
     {static_shapes_to_test_representation({{1, 2, 32, 120}, {120, 5}}), {false, true}},
     {static_shapes_to_test_representation({{1, 2, 32, 120}, {120, 5}}), {true, true}},
 
+    {static_shapes_to_test_representation({{1, 2, 100010, 120}, {120, 5}}), {true, true}},
+    {static_shapes_to_test_representation({{1, 2, 200010, 120}, {120, 5}}), {false, true}},
+    {static_shapes_to_test_representation({{1, 2, 30, 120}, {120, 100010}}), {true, true}},
+    {static_shapes_to_test_representation({{1, 2, 30, 120}, {120, 100010}}), {true, false}},
+
     {static_shapes_to_test_representation({{7, 32, 120}, {3, 7, 120, 50}}), {false, false}},
     {static_shapes_to_test_representation({{7, 32, 120}, {3, 7, 120, 50}}), {true, false}},
     {static_shapes_to_test_representation({{7, 32, 120}, {3, 7, 120, 50}}), {false, true}},
