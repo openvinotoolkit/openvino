@@ -693,14 +693,13 @@ dnnl::primitive_desc createDescriptorInternalInt8(const dnnl::memory::desc& in_c
 DefaultDeconvDescs createDefaultMkldnnDeconvDesc(const dnnl::memory::desc& srcDesc,
                                                                     const dnnl::memory::desc& wghDesc,
                                                                     const dnnl::memory::desc& dstDesc,
-                                                                    bool isWinograd,
                                                                     const std::vector<ptrdiff_t>& stride,
                                                                     const std::vector<ptrdiff_t>& dilation,
                                                                     const ov::CoordinateDiff& paddingL,
                                                                     const ov::CoordinateDiff& paddingR,
                                                                     const dnnl::primitive_attr& attr,
                                                                     const dnnl::engine& engine) {
-    dnnl::algorithm alg = isWinograd ? dnnl::algorithm::convolution_winograd : dnnl::algorithm::convolution_direct;
+    dnnl::algorithm alg = dnnl::algorithm::convolution_direct;
     convolution_backward_data::primitive_desc deconv_desc;
     convolution_forward::primitive_desc fwd_conv_pd;
     std::tie(deconv_desc, fwd_conv_pd) = createDescriptorInternalDefault(srcDesc, wghDesc, dstDesc, alg, stride, dilation, paddingL, paddingR, attr, engine);
@@ -868,7 +867,6 @@ void Deconvolution::prepareParams() {
                                               key.bias != nullptr, key.stride, key.dilation, key.paddingL, key.paddingR, key.attr, engine);
         } else {
             std::tie(desc, fwd_conv_pd) = createDefaultMkldnnDeconvDesc(key.inp0->getDnnlDesc(), key.inp1->getDnnlDesc(), key.out->getDnnlDesc(),
-                                                                        (key.implType & impl_desc_type::winograd),
                                                                         key.stride, key.dilation, key.paddingL, key.paddingR, key.attr, engine);
         }
 
@@ -920,7 +918,7 @@ void Deconvolution::prepareParams() {
                 anyDeconvDesc = createInt8MkldnnDeconvDesc(inDesc, wghDesc, dnnlBiasDesc, outDesc, key.bias != nullptr,
                                                            key.stride, key.dilation, key.paddingL, key.paddingR, key.attr, engine);
             } else {
-                std::tie(anyDeconvDesc, fwdConvPd) = createDefaultMkldnnDeconvDesc(inDesc, wghDesc, outDesc, (key.implType & impl_desc_type::winograd),
+                std::tie(anyDeconvDesc, fwdConvPd) = createDefaultMkldnnDeconvDesc(inDesc, wghDesc, outDesc,
                                                               key.stride, key.dilation, key.paddingL, key.paddingR, key.attr, engine);
             }
 
@@ -1012,8 +1010,7 @@ void Deconvolution::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc
     } else {
         dnnl::memory::desc wgh_candidate(DnnlExtensionUtils::convertToDnnlDims(getWeightDims()),
                                            dnnlInDesc.getDataType(), memory::format_tag::any);
-        for (auto alg : {dnnl::algorithm::convolution_winograd, dnnl::algorithm::convolution_direct}) {
-        // for (auto alg : {dnnl::algorithm::convolution_direct}) {
+        for (auto alg : {dnnl::algorithm::convolution_direct}) {
             convolution_backward_data::primitive_desc deconv_desc;
             convolution_forward::primitive_desc fwd_conv_pd;
             std::tie(deconv_desc, fwd_conv_pd) = createDescriptorInternalDefault(in_candidate, wgh_candidate, out_candidate, alg,
