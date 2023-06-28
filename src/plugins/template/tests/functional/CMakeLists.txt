@@ -17,7 +17,6 @@ ov_add_test_target(
         LINK_LIBRARIES
             openvino::funcSharedTests
             openvino::runtime::dev
-        EXCLUDED_SOURCE_PATHS ${EXCLUDED_SOURCE_PATHS}
         INCLUDES
             "${TEMPLATE_PLUGIN_SOURCE_DIR}/include"
             "${CMAKE_CURRENT_SOURCE_DIR}/op_reference"
@@ -27,6 +26,7 @@ ov_add_test_target(
 )
 
 find_package(OpenCV QUIET COMPONENTS core imgproc)
+
 if(OpenCV_FOUND)
     message("-- Reference preprocessing: OpenCV tests are enabled")
     target_compile_definitions(${TARGET_NAME} PRIVATE OPENCV_TEMPLATE_TESTS)

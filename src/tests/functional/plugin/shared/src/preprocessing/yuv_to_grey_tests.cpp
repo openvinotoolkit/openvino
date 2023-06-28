@@ -2,12 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#ifdef HAS_OPEN_CV
-#    include <opencv2/imgproc/types_c.h>
-
-#    include <opencv2/imgproc.hpp>
-#endif
-
 #include "preprocessing/yuv_to_grey_tests.hpp"
 #include "shared_test_classes/single_layer/convert_color_i420.hpp"
 #include "shared_test_classes/single_layer/convert_color_nv12.hpp"
@@ -169,7 +163,6 @@ TEST_P(PreprocessingYUV2GreyTest, convert_two_plane_nv12_hardcoded_ref) {
     run();
 }
 
-#ifdef HAS_OPEN_CV
 TEST_P(PreprocessingYUV2GreyTest, convert_single_plane_i420_use_opencv) {
     // Test various possible r/g/b values within dimensions
     const auto input_yuv_shape = Shape{1, get_full_height() * 3 / 2, width, 1};
@@ -178,13 +171,7 @@ TEST_P(PreprocessingYUV2GreyTest, convert_single_plane_i420_use_opencv) {
     auto ov20_input_y =
         std::vector<uint8_t>(ov20_input_yuv.begin(), ov20_input_yuv.begin() + shape_size(input_y_shape));
 
-    // Calculate reference expected values from OpenCV
-    cv::Mat pic_yv12 =
-        cv::Mat(static_cast<int>(get_full_height()) * 3 / 2, static_cast<int>(width), CV_8UC1, ov20_input_yuv.data());
-
-    cv::Mat pic_gray;
-    cv::cvtColor(pic_yv12, pic_gray, CV_YUV2GRAY_I420);
-    ref_out_data.emplace_back(outType, input_y_shape, pic_gray.data);
+    ref_out_data.emplace_back(outType, input_y_shape, ov20_input_y.data());
 
     // Build model and set inputs
     function = build_test_model(inType, input_y_shape);
@@ -213,12 +200,7 @@ TEST_P(PreprocessingYUV2GreyTest, convert_three_plane_i420_use_opencv) {
     input_yuv_iter += shape_size(input_u_shape);
     auto ov20_input_v = std::vector<uint8_t>(input_yuv_iter, input_yuv_iter + shape_size(input_v_shape));
 
-    // Calculate reference expected values from OpenCV
-    cv::Mat pic_yv12 =
-        cv::Mat(static_cast<int>(get_full_height()) * 3 / 2, static_cast<int>(width), CV_8UC1, ov20_input_yuv.data());
-    cv::Mat pic_gray;
-    cv::cvtColor(pic_yv12, pic_gray, CV_YUV2GRAY_I420);
-    ref_out_data.emplace_back(outType, input_y_shape, pic_gray.data);
+    ref_out_data.emplace_back(outType, input_y_shape, ov20_input_y.data());
 
     // Build model and set inputs
     function = build_test_model(inType, input_y_shape);
@@ -240,13 +222,7 @@ TEST_P(PreprocessingYUV2GreyTest, convert_single_plane_nv12_use_opencv) {
     auto ov20_input_y =
         std::vector<uint8_t>(ov20_input_yuv.begin(), ov20_input_yuv.begin() + shape_size(input_y_shape));
 
-    // Calculate reference expected values from OpenCV
-    cv::Mat pic_yv12 =
-        cv::Mat(static_cast<int>(get_full_height()) * 3 / 2, static_cast<int>(width), CV_8UC1, ov20_input_yuv.data());
-
-    cv::Mat pic_gray;
-    cv::cvtColor(pic_yv12, pic_gray, CV_YUV2GRAY_NV12);
-    ref_out_data.emplace_back(outType, input_y_shape, pic_gray.data);
+    ref_out_data.emplace_back(outType, input_y_shape, ov20_input_y.data());
 
     // Build model and set inputs
     function = build_test_model(inType, input_y_shape);
@@ -271,15 +247,7 @@ TEST_P(PreprocessingYUV2GreyTest, convert_two_plane_nv12_use_opencv) {
     auto ov20_input_uv = std::vector<uint8_t>(input_yuv_iter, input_yuv_iter + shape_size(input_uv_shape));
     input_yuv_iter += shape_size(input_uv_shape);
 
-    // Calculate reference expected values from OpenCV
-    cv::Mat pic_yv12 =
-        cv::Mat(static_cast<int>(get_full_height()) * 3 / 2, static_cast<int>(width), CV_8UC1, ov20_input_yuv.data());
-    // Note: cv::cvtColorTwoPlane doesn't support YUV2GRAY conversion, and
-    // cv::cvtColorTwoPlane(YUV2RGB) + cv::cvtColor(RGB2GRAY) lead to huge
-    // difference in U8, so compare OV TWO_PLANES vs CV SINGLE_PLANE
-    cv::Mat pic_gray;
-    cv::cvtColor(pic_yv12, pic_gray, CV_YUV2GRAY_NV12);
-    ref_out_data.emplace_back(outType, input_y_shape, pic_gray.data);
+    ref_out_data.emplace_back(outType, input_y_shape, ov20_input_y.data());
 
     // Build model and set inputs
     function = build_test_model(inType, input_y_shape);
@@ -291,6 +259,5 @@ TEST_P(PreprocessingYUV2GreyTest, convert_two_plane_nv12_use_opencv) {
 
     run();
 }
-#endif
 }  // namespace preprocess
 }  // namespace ov
