@@ -777,8 +777,10 @@ BrgemmEmitter::BrgemmEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl:
     m_with_comp = brgemm_node->is_with_compensations();
     m_with_scratch = brgemm_node->is_with_scratchpad();
 
-    m_N_blk = 64;
-    m_K_blk = 1024;
+    m_N_blk = m_N;
+    m_K_blk = m_K;
+    // m_N_blk = 64;
+    // m_K_blk = 1024;
     // m_N_blk = brg1Prc == Precision::FP32 ? m_N :
     //           brg1Prc == Precision::BF16 ? 32 : 64;
     m_N_tail = m_N % m_N_blk;
@@ -813,7 +815,7 @@ BrgemmEmitter::BrgemmEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl:
                 continue;
 
             brgemmCtx.LDA = leading_dimensions[0];
-            brgemmCtx.LDB = brgemm_node->is_with_data_repacking() ? rnd_up(m_N, m_N_blk) : leading_dimensions[1];
+            brgemmCtx.LDB = brgemm_node->is_with_data_repacking() ? std::max(64ul, rnd_up(m_N, m_N_blk)) : leading_dimensions[1];
             brgemmCtx.LDC = leading_dimensions[2];
             brgemmCtx.dt_in0 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::IEPrecisionToDataType(brg0Prc));
             brgemmCtx.dt_in1 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::IEPrecisionToDataType(brg1Prc));
@@ -979,7 +981,8 @@ void BrgemmEmitter::emit_impl(const std::vector<size_t>& in,
                 emit_N_blocking_loops(k_blocked_id, input_0, input_1, input_2, output_0, work_amount_N);
                 h->sub(input_1, m_N * io_data_size[1]);
                 h->sub(output_0, m_N * io_data_size.back());
-
+                if (m_with_scratch && m_with_comp)
+                    h->sub(input_2, m_N * io_data_size[2]);
                 h->add(input_0, brgemmCtx.K * io_data_size[0]);
                 h->add(input_1, (brgemmCtx.K * m_N) * io_data_size[1]);
                 if (m_K_blocking_loop_needed && k_blocked_id) {
@@ -994,6 +997,8 @@ void BrgemmEmitter::emit_impl(const std::vector<size_t>& in,
             emit_N_blocking_loops(k_tail_id, input_0, input_1, input_2, output_0, work_amount_N);
             h->sub(input_1, m_N * io_data_size[1]);
             h->sub(output_0, m_N * io_data_size.back());
+            if (m_with_scratch && m_with_comp)
+                h->sub(input_2, m_N * io_data_size[2]);
         }
 
         h->sub(input_0, m_load_offset_a + (m_K - m_K_tail) * io_data_size[0]);
@@ -1156,6 +1161,7 @@ void BrgemmEmitter::emit_brgemm_kernel_call(const brgemm_kernel_t *brg_kernel, c
 void BrgemmEmitter::kernel_execute(const brgemm_kernel_t *brg_kernel,
                                    const void *A, const void *B, void *C, void *scratch, int with_comp) {
     brgemm_kernel_params_t brgemm_p;
+    // std::cerr << "A = " << A << " B = " << B << " C = " << C << " scratch = " << scratch << "\n";
 
     brgemm_p.batch = nullptr;  // default value
     brgemm_p.ptr_A = A;
