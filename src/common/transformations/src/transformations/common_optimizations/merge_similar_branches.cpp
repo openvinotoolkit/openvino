@@ -255,7 +255,7 @@ bool MergeSimilarBranches::run_on_model(const std::shared_ptr<ov::Model>& model)
     }
     MergeScanner matmuls_adds_ms;
     {
-        matmuls_adds_ms.pull_candidates = matmuls_ms.pull_candidates;
+        matmuls_adds_ms.pull_candidates = remove_untouchable_nodes;
         matmuls_adds_ms.compare_targets = compare_matmuls_and_adds;
         matmuls_adds_ms.update_logs = update_logs;
         matmuls_adds_ms.merge = [&update_logs](set<Node*> matmuls_to_merge) {
