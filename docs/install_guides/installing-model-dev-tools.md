@@ -71,7 +71,7 @@ Create a virtual Python environment to avoid dependency conflicts. To create a v
 .. tab-set::
 
    .. tab-item:: Linux and macOS
-      :sync: lin-mac
+      :sync: linux-and-macos
    
       .. code-block:: sh
       
@@ -94,7 +94,7 @@ Activate the newly created Python virtual environment by issuing this command:
 .. tab-set::
 
    .. tab-item:: Linux and macOS
-      :sync: lin-mac
+      :sync: linux-and-macos
 
       .. code-block:: sh
    

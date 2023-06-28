@@ -25,7 +25,7 @@ See the `Release Notes <https://www.intel.com/content/www/us/en/developer/articl
 .. tab-set::
 
    .. tab-item:: System Requirements
-      :sync: sys-req
+      :sync: system-requirements
    
       Full requirement listing is available in `System Requirements Page <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html>`__
    
@@ -35,7 +35,7 @@ See the `Release Notes <https://www.intel.com/content/www/us/en/developer/articl
       Processor graphics are not included in all processors. See `Product Specifications <https://ark.intel.com/>`__ for information about your processor.
    
    .. tab-item:: Software
-      :sync: soft
+      :sync: software
    
       * `CMake 3.13 or higher, 64-bit <https://cmake.org/download/>`__
       * `Python 3.7 - 3.11, 64-bit <https://www.python.org/downloads/>`__
@@ -44,22 +44,22 @@ See the `Release Notes <https://www.intel.com/content/www/us/en/developer/articl
       .. tab-set::
 
          .. tab-item:: Ubuntu 18.04
-            :sync: ubuntu18
+            :sync: ubuntu-18
        
             * GCC 7.5.0
        
          .. tab-item:: Ubuntu 20.04
-            :sync: ubuntu20
+            :sync: ubuntu-20
        
             * GCC 9.3.0
        
          .. tab-item:: RHEL 8
-            :sync: rhel8
+            :sync: rhel-8
        
             * GCC 8.4.1
        
          .. tab-item:: CentOS 7
-            :sync: centos7
+            :sync: centos-7
        
             * GCC 8.3.1
             Use the following instructions to install it:
@@ -114,7 +114,7 @@ Step 1: Download and Install the OpenVINO Core Components
          .. tab-set::
 
             .. tab-item:: Ubuntu 22.04
-               :sync: ubuntu22
+               :sync: ubuntu-22
          
                .. code-block:: sh
                   
@@ -123,7 +123,7 @@ Step 1: Download and Install the OpenVINO Core Components
                   sudo mv l_openvino_toolkit_ubuntu22_2023.0.1.11005.fa1c41994f3_x86_64 /opt/intel/openvino_2023.0.1
          
             .. tab-item:: Ubuntu 20.04
-               :sync: ubuntu20
+               :sync: ubuntu-20
          
                .. code-block:: sh
             
@@ -132,7 +132,7 @@ Step 1: Download and Install the OpenVINO Core Components
                   sudo mv l_openvino_toolkit_ubuntu20_2023.0.1.11005.fa1c41994f3_x86_64 /opt/intel/openvino_2023.0.1
          
             .. tab-item:: Ubuntu 18.04
-               :sync: ubuntu18
+               :sync: ubuntu-18
          
                .. code-block:: sh
             
@@ -141,7 +141,7 @@ Step 1: Download and Install the OpenVINO Core Components
                   sudo mv l_openvino_toolkit_ubuntu18_2023.0.1.11005.fa1c41994f3_x86_64 /opt/intel/openvino_2023.0.1
          
             .. tab-item:: RHEL 8
-               :sync: rhel8
+               :sync: rhel-8
          
                .. code-block:: sh
             
@@ -150,7 +150,7 @@ Step 1: Download and Install the OpenVINO Core Components
                   sudo mv l_openvino_toolkit_rhel8_2023.0.1.11005.fa1c41994f3_x86_64 /opt/intel/openvino_2023.0.1
          
             .. tab-item:: CentOS 7
-               :sync: centos7
+               :sync: centos-7
          
                .. code-block:: sh
             

@@ -27,18 +27,18 @@ See `Installing Additional Components <#optional-installing-additional-component
 .. tab-set::
 
    .. tab-item:: System Requirements
-      :sync: sys-req
+      :sync: system-requirements
 
       | Full requirement listing is available in:
       | `System Requirements Page <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html>`__
    
    .. tab-item:: Software Requirements
-      :sync: soft-req
+      :sync: software-requirements
 
       .. tab-set::
 
          .. tab-item:: macOS
-            :sync: mac
+            :sync: macos
          
             * `Homebrew <https://brew.sh/>`_
             * `CMake 3.13 or higher <https://cmake.org/download/>`__ (choose "macOS 10.13 or later"). Add ``/Applications/CMake.app/Contents/bin`` to path (for default installation). 

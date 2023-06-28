@@ -126,7 +126,7 @@ operating system or environment.
             sudo yum install python36-devel mesa-libGL
 
    .. tab-item:: macOS
-      :sync: mac
+      :sync: macos
 
       Alternatively, you may skip steps 1-3 if you prefer to manually install `Python 3 <https://www.python.org/>`__ and `Git <https://git-scm.com/>`__.
 
@@ -158,7 +158,7 @@ operating system or environment.
             If OpenVINO is installed globally, do not run any of these commands in a terminal where ``setupvars.sh`` is sourced.
 
    .. tab-item:: Azure ML
-      :sync: azure
+      :sync: azure-ml
 
       .. note::  
       
@@ -344,7 +344,7 @@ operating system or environment.
    
 
    .. tab-item:: macOS
-      :sync: mac
+      :sync: macos
       
       1. **Create a Virtual Environment**
 
@@ -383,7 +383,7 @@ operating system or environment.
    
 
    .. tab-item:: Azure ML
-      :sync: azure
+      :sync: azure-ml
 
       1. Create a Conda environment
 
@@ -564,7 +564,7 @@ To reactivate your environment, run:
          source openvino_env/bin/activate
 
    .. tab-item:: macOS
-      :sync: mac
+      :sync: macos
 
       .. code:: bash 
    
@@ -595,7 +595,7 @@ This operation is optional. However, if you want to remove your virtual environm
          rm -rf openvino_env
 
    .. tab-item:: macOS
-      :sync: mac
+      :sync: macos
 
       .. code:: bash 
 
