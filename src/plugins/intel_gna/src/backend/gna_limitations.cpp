@@ -1024,23 +1024,6 @@ bool Limitations::validate_concat_axis(const InferenceEngine::CNNLayerPtr layer,
 
     if (dims_size >= 2) {
         InferenceEngine::CNNLayerPtr prev_layer, pre_prev_layer;
-        // Skip all convolutions in this check, they will be handled during concat primitive creation
-        auto isFusableWithConv = [](InferenceEngine::CNNLayerPtr ptr) {
-            return (LayerInfo(ptr).isFusableWithConv() || LayerInfo(ptr).isNonFunctional() ||
-                    (LayerInfo(ptr).isPermute() &&
-                     ((ptr->input()->getLayout() == InferenceEngine::Layout::NCHW &&
-                       ptr->GetParamAsInts("order") ==
-                           permute::GetPermuteOrder(InferenceEngine::Layout::NCHW, InferenceEngine::Layout::NHWC)) ||
-                      (ptr->input()->getLayout() == InferenceEngine::Layout::CHW &&
-                       ptr->GetParamAsInts("order") == std::vector<int32_t>{0, 2, 1} /* NCW to NWC */))));
-        };
-
-        for (size_t input_idx = 0; input_idx != concat_layer->insData.size(); input_idx++) {
-            prev_layer =
-                InferenceEngine::CNNNetPrevLayerSkipCertain(layer, static_cast<int>(input_idx), isFusableWithConv);
-            if (prev_layer && LayerInfo(prev_layer).isConvolution())
-                return true;
-        }
 
         // Look for trivial cases which will be flattened later
         // for explanation of what is meant by trivial case,
@@ -1055,34 +1038,31 @@ bool Limitations::validate_concat_axis(const InferenceEngine::CNNLayerPtr layer,
         bool concat_all_const_or_inputs = false;
 
         // If concat axis > 0, detect any dimension > 1 before the concat axis
-        if (concat_axis > 0) {
-            for (unsigned int axis = 0; axis < concat_axis; axis++) {
-                if (in_dims[axis] > 1) {
-                    is_not_trivial_concat = true;
-                    break;
-                }
-            }
+        if (concat_axis > graph_utils::get_first_valuable_dim_id(in_dims)) {
+            is_not_trivial_concat = true;
+        } else {
             // If concat axis == 0, detect any preceding functional layer's input
             // with 0'th dimension > 1, but take into account that some layers need to be skipped
-        } else {
             concat_all_const_or_inputs = true;
 
-            for (size_t input_idx = 0; input_idx != concat_layer->insData.size(); input_idx++) {
-                if (concat_layer->insData[input_idx].lock()->getDims()[0] != 1) {
+            for (auto input_idx = 0; input_idx != concat_layer->insData.size(); input_idx++) {
+                std::vector<size_t> concat_in_dims = concat_layer->insData[input_idx].lock()->getDims();
+                if (concat_axis > graph_utils::get_first_valuable_dim_id(concat_in_dims)) {
                     // First we're checking concat input layers
                     prev_layer = InferenceEngine::CNNNetPrevLayerSkipCertain(
                         concat_layer,
-                        static_cast<int>(input_idx),
+                        input_idx,
                         [](InferenceEngine::CNNLayerPtr ptr) {
                             return LayerInfo(ptr).isNonFunctional() || LayerInfo(ptr).isFakeQuantize();
                         });
 
                     IE_ASSERT(prev_layer);
 
-                    if ((LayerInfo(prev_layer).isInput() && prev_layer->outData[0]->getDims()[0] == 1) ||
+                    std::vector<size_t> prev_dims = prev_layer->outData[0]->getDims();
+                    if ((LayerInfo(prev_layer).isInput() && graph_utils::get_first_valuable_dim_id(prev_dims) == concat_axis) ||
                         LayerInfo(prev_layer).isConst()) {
                         continue;
-                    } else if ((LayerInfo(prev_layer).isInput() && prev_layer->outData[0]->getDims()[0] != 1)) {
+                    } else if ((LayerInfo(prev_layer).isInput() && graph_utils::get_first_valuable_dim_id(prev_dims) != concat_axis)) {
                         is_not_trivial_concat = true;
                         break;
                     }
