@@ -1061,20 +1061,16 @@ bool Limitations::validate_concat_axis(const InferenceEngine::CNNLayerPtr layer,
         bool concat_all_const_or_inputs = false;
 
         // If concat axis > 0, detect any dimension > 1 before the concat axis
-        if (concat_axis > 0) {
-            for (unsigned int axis = 0; axis < concat_axis; axis++) {
-                if (in_dims[axis] > 1) {
-                    is_not_trivial_concat = true;
-                    break;
-                }
-            }
+        if (concat_axis > graph_utils::get_first_valuable_dim_id(in_dims)) {
+            is_not_trivial_concat = true;
+        } else {
             // If concat axis == 0, detect any preceding functional layer's input
             // with 0'th dimension > 1, but take into account that some layers need to be skipped
-        } else {
             concat_all_const_or_inputs = true;
 
             for (auto input_idx = 0; input_idx != concat_layer->insData.size(); input_idx++) {
-                if (concat_layer->insData[input_idx].lock()->getDims()[0] != 1) {
+                std::vector<size_t> concat_in_dims = concat_layer->insData[input_idx].lock()->getDims();
+                if (concat_axis > graph_utils::get_first_valuable_dim_id(concat_in_dims)) {
                     // First we're checking concat input layers
                     prev_layer = InferenceEngine::CNNNetPrevLayerSkipCertain(
                         concat_layer,
@@ -1085,10 +1081,11 @@ bool Limitations::validate_concat_axis(const InferenceEngine::CNNLayerPtr layer,
 
                     IE_ASSERT(prev_layer);
 
-                    if ((LayerInfo(prev_layer).isInput() && prev_layer->outData[0]->getDims()[0] == 1) ||
+                    std::vector<size_t> prev_dims = prev_layer->outData[0]->getDims();
+                    if ((LayerInfo(prev_layer).isInput() && graph_utils::get_first_valuable_dim_id(prev_dims) == concat_axis) ||
                         LayerInfo(prev_layer).isConst()) {
                         continue;
-                    } else if ((LayerInfo(prev_layer).isInput() && prev_layer->outData[0]->getDims()[0] != 1)) {
+                    } else if ((LayerInfo(prev_layer).isInput() && graph_utils::get_first_valuable_dim_id(prev_dims) != concat_axis)) {
                         is_not_trivial_concat = true;
                         break;
                     }
@@ -1256,7 +1253,7 @@ bool Limitations::are_layers_supported(InferenceEngine::CNNNetwork& network, std
                 }
             } else if (info.isConcat()) {
                 if (!validate_concat_axis(layer, errMessage)) {
-                    // THROW_GNA_EXCEPTION << errMessage;
+                    THROW_GNA_EXCEPTION << errMessage;
                 }
             }
         },
