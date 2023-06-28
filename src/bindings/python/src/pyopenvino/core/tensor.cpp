@@ -207,7 +207,7 @@ void regclass_Tensor(py::module m) {
     cls.def_property_readonly(
         "data",
         [](ov::Tensor& self) {
-            return Common::array_helpers::array_from_tensor(std::forward<ov::Tensor>(self), ReturnPolicy::VIEW);
+            return Common::array_helpers::array_from_tensor(std::forward<ov::Tensor>(self), true);
         },
         R"(
             Access to Tensor's data.

@@ -15,17 +15,14 @@
 
 namespace py = pybind11;
 
-inline py::object run_sync_infer(InferRequestWrapper& self, ReturnPolicy policy) {
+inline py::object run_sync_infer(InferRequestWrapper& self, bool share_outputs) {
     {
         py::gil_scoped_release release;
         *self.m_start_time = Time::now();
         self.m_request.infer();
         *self.m_end_time = Time::now();
     }
-    if (policy == ReturnPolicy::NONE) {
-        return py::none();
-    }
-    return Common::outputs_to_dict(self, policy);
+    return Common::outputs_to_dict(self, share_outputs);
 }
 
 void regclass_InferRequest(py::module m) {
@@ -171,12 +168,12 @@ void regclass_InferRequest(py::module m) {
     // Overload for single input, it will throw error if a model has more than one input.
     cls.def(
         "infer",
-        [](InferRequestWrapper& self, const ov::Tensor& inputs, ReturnPolicy return_policy) {
+        [](InferRequestWrapper& self, const ov::Tensor& inputs, bool share_outputs) {
             self.m_request.set_input_tensor(inputs);
-            return run_sync_infer(self, return_policy);
+            return run_sync_infer(self, share_outputs);
         },
         py::arg("inputs"),
-        py::arg("return_policy"),
+        py::arg("share_outputs"),
         R"(
             Infers specified input(s) in synchronous mode.
             Blocks all methods of InferRequest while request is running.
@@ -198,14 +195,14 @@ void regclass_InferRequest(py::module m) {
     // and values are always of type: ov::Tensor.
     cls.def(
         "infer",
-        [](InferRequestWrapper& self, const py::dict& inputs, ReturnPolicy return_policy) {
+        [](InferRequestWrapper& self, const py::dict& inputs, bool share_outputs) {
             // Update inputs if there are any
             Common::set_request_tensors(self.m_request, inputs);
             // Call Infer function
-            return run_sync_infer(self, return_policy);
+            return run_sync_infer(self, share_outputs);
         },
         py::arg("inputs"),
-        py::arg("return_policy"),
+        py::arg("share_outputs"),
         R"(
             Infers specified input(s) in synchronous mode.
             Blocks all methods of InferRequest while request is running.
@@ -720,7 +717,7 @@ void regclass_InferRequest(py::module m) {
     cls.def_property_readonly(
         "results",
         [](InferRequestWrapper& self) {
-            return Common::outputs_to_dict(self, ReturnPolicy::COPY);
+            return Common::outputs_to_dict(self, false);
         },
         R"(
             Gets all outputs tensors of this InferRequest.
