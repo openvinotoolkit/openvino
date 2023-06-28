@@ -51,7 +51,7 @@ static std::string vector_to_string(const std::vector<T>& values) {
     s << ")";
     return s.str();
 }
-
+namespace {
 std::shared_ptr<ov::Node> grey_from_yuv_single_plane(const std::vector<Output<Node>>& nodes) {
     using namespace ov::opset8;
     const auto axis = Constant::create(element::i32, {1}, {1});
@@ -67,6 +67,7 @@ std::shared_ptr<ov::Node> grey_from_yuv_single_plane(const std::vector<Output<No
     //
     return std::make_shared<ov::op::v8::Slice>(nodes[0], start, stop, step, axis);
 }
+}  // namespace
 
 void PreStepsList::add_scale_impl(const std::vector<float>& values) {
     m_actions.emplace_back(
