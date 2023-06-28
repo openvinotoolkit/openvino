@@ -8,7 +8,6 @@
    :hidden:
 
    openvino_docs_performance_benchmarks
-   prerelease_information
 
 .. toctree::
    :maxdepth: 1
