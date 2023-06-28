@@ -11,7 +11,6 @@
 #include <transformations/utils/utils.hpp>
 
 #include "backend/gna_limitations.hpp"
-#include "openvino/op/mvn.hpp"
 
 using namespace ngraph;
 using namespace ov::intel_gna::limitations;
