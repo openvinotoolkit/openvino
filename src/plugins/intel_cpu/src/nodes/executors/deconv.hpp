@@ -55,6 +55,7 @@ struct DeconvAttrs {
     dnnl::engine engine;
     DeconvKey key;
     std::unordered_map<int, dnnl::memory> primArgs;
+    MultiCachePtr cache;
 };
 
 class DeconvExecutor {

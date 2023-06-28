@@ -13,6 +13,8 @@ namespace intel_cpu {
 
 class DNNLDeconvExecutor : public DeconvExecutor {
 public:
+    using executorPtr = std::shared_ptr<DnnlExecutor>;
+
     DNNLDeconvExecutor();
     using AttrPtr = std::shared_ptr<dnnl::primitive_attr>;
 
@@ -23,14 +25,31 @@ public:
     void exec(const std::vector<MemoryCPtr>& src,
               const std::vector<MemoryPtr>& dst,
               const void *post_ops_data_) override;
-
     impl_desc_type getImplType() const override { return implType; }
 
 private:
     DeconvAttrs deconvAttrs;
     impl_desc_type implType = impl_desc_type::any;
-    using executorPtr = std::shared_ptr<DnnlExecutor>;
     executorPtr execPtr = nullptr;
+
+
+    class DeconvExecutorDefault : public DnnlExecutor {
+    public:
+        DeconvExecutorDefault(const dnnl::convolution_backward_data::primitive_desc& pd,
+                              const dnnl::memory::desc& inMemDesc,
+                              const dnnl::memory::desc& weightMemDesc,
+                              const dnnl::memory::desc& outMemDesc,
+                              const dnnl::engine& engine);
+    };
+
+    class DeconvExecutorInt8 : public DnnlExecutor {
+    public:
+        DeconvExecutorInt8(const dnnl::deconvolution_forward::primitive_desc& pd,
+                           const dnnl::memory::desc& inMemDesc,
+                           const dnnl::memory::desc& weightMemDesc,
+                           const dnnl::memory::desc& outMemDesc,
+                           const dnnl::engine& engine);
+    };
 };
 
 class DNNLDeconvExecutorBuilder : public DeconvExecutorBuilder {

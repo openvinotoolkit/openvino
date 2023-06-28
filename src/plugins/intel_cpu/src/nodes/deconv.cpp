@@ -27,8 +27,6 @@
 #include "utils/debug_capabilities.h"
 #endif
 
-#include <oneapi/dnnl/dnnl.hpp>
-
 #include <string>
 #include <vector>
 
@@ -809,56 +807,57 @@ void Deconvolution::prepareParams() {
     auto *selected_pd = getSelectedPrimitiveDescriptor();
     if (selected_pd == nullptr)
         IE_THROW() << "Preferable primitive descriptor is not set for node " << getName() << ".";
+    auto inMemoryDesc = getParentEdgesAtPort(0).front()->getMemory().GetDescWithType<DnnlMemoryDesc>();
+    auto outMemoryDesc = getChildEdgesAtPort(0).front()->getMemory().GetDescWithType<DnnlMemoryDesc>();
+
+    AttrPtr pAttrLocal;
+    if (isDynamicNode()) {
+        if (!pAttr) {
+            pAttr = makePrimitiveAttr(dstMemPtr->getStaticDims());
+        }
+        pAttrLocal = pAttr;
+        if (deconvAttrs.autoPad || deconvAttrs.externOutShape) {
+            deconvAttrs.paddingL = shapeInference->get_pads_begin();
+            deconvAttrs.paddingR = shapeInference->get_pads_end();
+        }
+        initPaddingR(inMemoryDesc->getShape(), outMemoryDesc->getShape());
+    } else {
+        pAttrLocal = makePrimitiveAttr(dstMemPtr->getStaticDims());
+    }
+    (*pAttrLocal).set_scratchpad_mode(dnnl::scratchpad_mode::user);
+
+    DnnlMemoryDescCPtr wghDesc;
+    MemoryPtr biasMemPtr = nullptr;
+    DnnlMemoryDescCPtr biasDesc;
+
+    if (deconvAttrs.isInt8) {
+        wghDesc = internalBlobMemory.front()->GetDescWithType<DnnlMemoryDesc>();
+        if (withBiases) {
+            biasMemPtr = getParentEdgesAtPort(biasPort)[0]->getMemoryPtr();
+            if (!biasMemPtr || !biasMemPtr->isAllocated())
+                IE_THROW() << "Bias memory  memory didn't allocate.";
+            biasDesc = biasMemPtr->GetDescWithType<DnnlMemoryDesc>();
+        }
+    } else {
+        wghDesc = getParentEdgesAtPort(1).front()->getMemory().GetDescWithType<DnnlMemoryDesc>();
+    }
+
+    deconvAttrs.key = {inMemoryDesc,
+                       wghDesc,
+                       biasDesc,
+                       outMemoryDesc,
+                       deconvAttrs.stride,
+                       deconvAttrs.dilation,
+                       deconvAttrs.paddingL,
+                       deconvAttrs.paddingR,
+                       deconvAttrs.isInt8,
+                       *pAttrLocal,
+                       selected_pd->getImplementationType()};
+
+    deconvAttrs.engine = getEngine();
+    deconvAttrs.cache = context->getParamsCache();
 
     if (!useACL) {
-        auto inMemoryDesc = getParentEdgesAtPort(0).front()->getMemory().GetDescWithType<DnnlMemoryDesc>();
-        auto outMemoryDesc = getChildEdgesAtPort(0).front()->getMemory().GetDescWithType<DnnlMemoryDesc>();
-
-        AttrPtr pAttrLocal;
-        if (isDynamicNode()) {
-            if (!pAttr) {
-                pAttr = makePrimitiveAttr(dstMemPtr->getStaticDims());
-            }
-            pAttrLocal = pAttr;
-            if (deconvAttrs.autoPad || deconvAttrs.externOutShape) {
-                deconvAttrs.paddingL = shapeInference->get_pads_begin();
-                deconvAttrs.paddingR = shapeInference->get_pads_end();
-            }
-            initPaddingR(inMemoryDesc->getShape(), outMemoryDesc->getShape());
-        } else {
-            pAttrLocal = makePrimitiveAttr(dstMemPtr->getStaticDims());
-        }
-        (*pAttrLocal).set_scratchpad_mode(dnnl::scratchpad_mode::user);
-
-        DnnlMemoryDescCPtr wghDesc;
-        MemoryPtr biasMemPtr = nullptr;
-        DnnlMemoryDescCPtr biasDesc;
-
-        if (deconvAttrs.isInt8) {
-            wghDesc = internalBlobMemory.front()->GetDescWithType<DnnlMemoryDesc>();
-            if (withBiases) {
-                biasMemPtr = getParentEdgesAtPort(biasPort)[0]->getMemoryPtr();
-                if (!biasMemPtr || !biasMemPtr->isAllocated())
-                    IE_THROW() << "Bias memory  memory didn't allocate.";
-                biasDesc = biasMemPtr->GetDescWithType<DnnlMemoryDesc>();
-            }
-        } else {
-            wghDesc = getParentEdgesAtPort(1).front()->getMemory().GetDescWithType<DnnlMemoryDesc>();
-        }
-
-        deconvAttrs.key = {inMemoryDesc,
-                             wghDesc,
-                             biasDesc,
-                             outMemoryDesc,
-                             deconvAttrs.stride,
-                             deconvAttrs.dilation,
-                             deconvAttrs.paddingL,
-                             deconvAttrs.paddingR,
-                             deconvAttrs.isInt8,
-                             *pAttrLocal,
-                             selected_pd->getImplementationType()};
-
-        deconvAttrs.engine = getEngine();
         auto builder = [this](const DeconvKey& key) -> executorPtr {
             dnnl::primitive_desc desc;
             convolution_forward::primitive_desc fwd_conv_pd;
@@ -953,8 +952,7 @@ void Deconvolution::prepareParams() {
         };
 
         execPtr = nullptr;
-        auto cache = context->getParamsCache();
-        auto result = cache->getOrCreate(deconvAttrs.key, builder);
+        auto result = deconvAttrs.cache->getOrCreate(deconvAttrs.key, builder);
 
         execPtr = result.first;
 
