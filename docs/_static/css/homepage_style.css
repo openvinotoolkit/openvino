@@ -5,15 +5,14 @@
 	display: none;
 }
 
-img {
-	cursor: default;
+main img {
+    cursor: pointer;
 }
+
 /* === OPENVINO INTRO ================================================= */
 
 .openvino-intro-text {
-
 	font-size: 1em;
-
 }
 /* === OPENVINO DIAGRAM ================================================= */
 
