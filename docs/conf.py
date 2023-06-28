@@ -28,6 +28,7 @@ copyright = '2022, Intel®'
 author = 'Intel®'
 
 language = 'en'
+version_name = '2022.3'
 
 # -- General configuration ---------------------------------------------------
 
@@ -48,7 +49,13 @@ extensions = [
 
 html_baseurl = 'https://docs.openvino.ai/canonical/'
 
+# -- Sitemap configuration ---------------------------
+
 sitemap_url_scheme = "{link}"
+site_url = f'https://docs.openvino.ai/{version_name}/'
+
+# ----------------------------------------------------
+
 
 html_favicon = '_static/favicon.ico'
 autodoc_default_flags = ['members']
