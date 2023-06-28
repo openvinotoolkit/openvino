@@ -14,6 +14,17 @@ using matmul_test_params_t = std::tuple<StaticShape,  // Input A shape
                                         >;
 
 class CPUMatMulTest : public TestWithParam<matmul_test_params_t> {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<matmul_test_params_t>& obj) {
+        StaticShape tmp_input_shape_A;
+        StaticShape tmp_input_shape_B;
+        std::tie(tmp_input_shape_A, tmp_input_shape_B) = obj.param;
+        std::ostringstream result;
+        result << "IA" << tmp_input_shape_A << "_";
+        result << "IB" << tmp_input_shape_B;
+        return result.str();
+    }
+
 protected:
     void SetUp() override {
         std::tie(a_shape, b_shape) = GetParam();
@@ -62,21 +73,6 @@ protected:
     StaticShape a_shape, b_shape, exp_shape;
 };
 
-/** \brief Use transpose order -> output shape dimensions shall be as transpose order. */
-INSTANTIATE_TEST_SUITE_P(CpuShapeInference,
-                         CPUMatMulTest,
-                         Values(make_tuple(StaticShape({1}), StaticShape({1})),
-                                make_tuple(StaticShape({1}), StaticShape({1, 3})),
-                                make_tuple(StaticShape({1}), StaticShape({1, 1, 3})),
-                                make_tuple(StaticShape({3, 1}), StaticShape({1})),
-                                make_tuple(StaticShape({3, 2, 1}), StaticShape({1})),
-                                make_tuple(StaticShape({3}), StaticShape({3})),
-                                make_tuple(StaticShape({5, 2}), StaticShape({2, 6})),
-                                make_tuple(StaticShape({2, 1, 2}), StaticShape({2, 6})),
-                                make_tuple(StaticShape({10, 8, 9, 2}), StaticShape({10, 8, 2, 8})),
-                                make_tuple(StaticShape({3, 1, 4, 3, 4}), StaticShape({3, 2, 1, 4, 1}))),
-                         PrintToStringParamName());
-
 TEST_P(CPUMatMulTest, no_input_transpose) {
     const auto matmul = make_matmul(a_shape.size(), b_shape.size(), false, false);
 
@@ -117,3 +113,19 @@ TEST_P(CPUMatMulTest, transpose_inputs_a_b) {
     // TODO ,below test case can't pass
     // unit_test::cpu_test_shape_infer(matmul.get(), static_input_shapes, exp_shape);
 }
+
+/** \brief Use transpose order -> output shape dimensions shall be as transpose order. */
+INSTANTIATE_TEST_SUITE_P(CpuShapeInfer,
+                         CPUMatMulTest,
+                         Values(make_tuple(StaticShape({1}), StaticShape({1})),
+                                make_tuple(StaticShape({1}), StaticShape({1, 3})),
+                                make_tuple(StaticShape({1}), StaticShape({1, 1, 3})),
+                                make_tuple(StaticShape({3, 1}), StaticShape({1})),
+                                make_tuple(StaticShape({3, 2, 1}), StaticShape({1})),
+                                make_tuple(StaticShape({3}), StaticShape({3})),
+                                make_tuple(StaticShape({5, 2}), StaticShape({2, 6})),
+                                make_tuple(StaticShape({2, 1, 2}), StaticShape({2, 6})),
+                                make_tuple(StaticShape({10, 8, 9, 2}), StaticShape({10, 8, 2, 8})),
+                                make_tuple(StaticShape({3, 1, 4, 3, 4}), StaticShape({3, 2, 1, 4, 1}))),
+                         CPUMatMulTest::getTestCaseName);
+

@@ -12,67 +12,87 @@ using namespace ov;
 using namespace ov::intel_cpu;
 using namespace testing;
 
-class AdaptiveAvgPoolV8CpuShapeInferenceTest : public unit_test::OpCpuShapeInferenceTest<op::v8::AdaptiveAvgPool> {
+using AdaptiveAvgPoolV8TestParams = std::tuple<unit_test::ShapeVector, // Input shapes
+                                               std::vector<int32_t>,   // output_shapes
+                                               StaticShape             // Expected shape
+                                               >;
+
+class AdaptiveAvgPoolV8CpuShapeInferenceTest  : public unit_test::OpCpuShapeInferenceTest<op::v8::AdaptiveAvgPool>,
+                                                public WithParamInterface<AdaptiveAvgPoolV8TestParams> {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<AdaptiveAvgPoolV8TestParams>& obj) {
+        unit_test::ShapeVector tmp_input_shapes;
+        std::vector<int32_t> tmp_axes;
+        StaticShape tmp_exp_shape;
+        std::tie(tmp_input_shapes, tmp_axes, tmp_exp_shape) = obj.param;
+        std::ostringstream result;
+        result << "IS" << CommonTestUtils::vec2str(tmp_input_shapes) << "_";
+        result << "sd" << CommonTestUtils::vec2str(tmp_axes) << "_";
+        result << "exp_shape" << tmp_exp_shape;
+        return result.str();
+    }
+
 protected:
     void SetUp() override {
-        output_shapes.resize(0);
+        std::tie(input_shapes, axes, exp_shape) = GetParam();
+        output_shapes = unit_test::ShapeVector(0);
+        output_shapes.push_back(exp_shape);
+        arg = std::make_shared<op::v0::Parameter>(element::f64, input_shapes.front().get_shape());
     }
+    std::vector<int32_t> axes;
+    std::shared_ptr<op::v0::Parameter> arg;
+    bool specalZero;
 };
 
-TEST_F(AdaptiveAvgPoolV8CpuShapeInferenceTest, default_ctor) {
-    int32_t spatial_dims[] = {10, 20};
-    const std::map<size_t, HostTensorPtr> const_data{
-        {1, std::make_shared<HostTensor>(element::i32, ov::Shape{2}, spatial_dims)}};
+TEST_P(AdaptiveAvgPoolV8CpuShapeInferenceTest , shape_inference_empty_const_map) {
+    const auto axes_node = std::make_shared<op::v0::Constant>(element::i32, ov::Shape{axes.size()}, axes);
+    const auto op = make_op(arg, axes_node);
 
-    op = make_op();
-    input_shapes = unit_test::ShapeVector{{1, 3, 1, 2}, {2}};
-    output_shapes.push_back(StaticShape{1, 3, 10, 20});
-
-    // implementation depends on some output information of the op
-    op->set_output_type(0, element::i32, {-1, -1, -1, -1});
-    unit_test::cpu_test_shape_infer(op.get(), input_shapes, output_shapes, const_data);
-}
-
-TEST_F(AdaptiveAvgPoolV8CpuShapeInferenceTest, out_spatial_dims_as_constant) {
-    const auto data = std::make_shared<op::v0::Parameter>(element::f64, PartialShape{-1, -1, -2});
-    const auto out_shape = op::v0::Constant::create<int64_t>(element::i64, ov::Shape{1}, {17});
-
-    op = make_op(data, out_shape);
-
-    input_shapes = unit_test::ShapeVector{{1, 3, 10}, {1}};
-
-    output_shapes.push_back(StaticShape{1, 3, 17});
     unit_test::cpu_test_shape_infer(op.get(), input_shapes, output_shapes);
 }
 
-TEST_F(AdaptiveAvgPoolV8CpuShapeInferenceTest, out_spatial_dims_in_const_map) {
-    const auto data = std::make_shared<op::v0::Parameter>(element::f64, PartialShape::dynamic());
-    const auto out_shape = std::make_shared<op::v0::Parameter>(element::i32, PartialShape::dynamic());
+TEST_P(AdaptiveAvgPoolV8CpuShapeInferenceTest , shape_inference_with_const_map) {
+    const auto axes_node = std::make_shared<op::v0::Parameter>(element::i32, PartialShape::dynamic());
+    const auto op = make_op(arg, axes_node);
 
-    op = make_op(data, out_shape);
+    const auto axes_const = std::make_shared<op::v0::Constant>(element::i32, ov::Shape{axes.size()}, axes);
+    const auto axes_tensor = std::make_shared<ngraph::runtime::HostTensor>(axes_const);
+    const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {{1, axes_tensor}};
 
-    int32_t spatial_dims[] = {9, 8, 7};
-    const std::map<size_t, HostTensorPtr> const_data{
-        {1, std::make_shared<HostTensor>(element::i32, ov::Shape{3}, spatial_dims)}};
-
-    input_shapes = unit_test::ShapeVector{{1, 3, 10, 2, 4}, {3}};
-
-    output_shapes.push_back(StaticShape{1, 3, 9, 8, 7});
-    unit_test::cpu_test_shape_infer(op.get(), input_shapes, output_shapes, const_data);
+    unit_test::cpu_test_shape_infer(op.get(), input_shapes, output_shapes, constant_data);
 }
 
-TEST_F(AdaptiveAvgPoolV8CpuShapeInferenceTest, out_spatial_dims_in_const_map_has_wrong_length) {
-    const auto data = std::make_shared<op::v0::Parameter>(element::f64, PartialShape::dynamic());
-    const auto out_shape = std::make_shared<op::v0::Parameter>(element::i32, PartialShape::dynamic());
+INSTANTIATE_TEST_SUITE_P(
+    CpuShapeInfer,
+    AdaptiveAvgPoolV8CpuShapeInferenceTest ,
+    Values(make_tuple(unit_test::ShapeVector{{1, 3, 1, 2}, {2}}, std::vector<int32_t>{10, 20}, StaticShape({1, 3, 10, 20})),
+           make_tuple(unit_test::ShapeVector{{1, 2, 10}, {1}}, std::vector<int32_t>{17}, StaticShape({1, 2, 17}))),
+    AdaptiveAvgPoolV8CpuShapeInferenceTest::getTestCaseName);
 
-    op = make_op(data, out_shape);
 
-    int32_t spatial_dims[] = {9, 8};
-    const std::map<size_t, HostTensorPtr> const_data{
-        {1, std::make_shared<HostTensor>(element::i32, ov::Shape{2}, spatial_dims)}};
+using AdaptiveAvgPoolV8CpuShapeInferenceThrowExceptionTest = AdaptiveAvgPoolV8CpuShapeInferenceTest;
 
-    input_shapes = unit_test::ShapeVector{{1, 3, 10, 2, 4}, {3}};
+TEST_P(AdaptiveAvgPoolV8CpuShapeInferenceThrowExceptionTest, wrong_pattern) {
+    const auto axes_node = std::make_shared<op::v0::Parameter>(element::i32, PartialShape::dynamic());
+    const auto op = make_op(arg, axes_node);
+
+    const auto axes_const = std::make_shared<op::v0::Constant>(element::i32, ov::Shape{axes.size()}, axes);
+    const auto axes_tensor = std::make_shared<ngraph::runtime::HostTensor>(axes_const);
+    const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {{1, axes_tensor}};
+
+    //  OV_EXPECT_THROW(unit_test::cpu_test_shape_infer(op.get(), input_shapes, output_shapes, constant_data),
+    //                  InferenceEngine::Unexpected,
+    //                  HasSubstr(os.str()));
+
     // TODO ,implementation should throw exception
     // ASSERT_THROW(unit_test::cpu_test_shape_infer(op.get(), input_shapes, output_shapes, const_data),
     //             InferenceEngine::GeneralError);
 }
+
+INSTANTIATE_TEST_SUITE_P(
+    CpuShapeInfer,
+    AdaptiveAvgPoolV8CpuShapeInferenceThrowExceptionTest,
+    Values(make_tuple(unit_test::ShapeVector{{1, 3, 10, 2, 4} , {3}}, std::vector<int32_t>{9, 8}, StaticShape({}))),
+    AdaptiveAvgPoolV8CpuShapeInferenceThrowExceptionTest::getTestCaseName);
+
+

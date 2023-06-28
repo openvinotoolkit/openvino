@@ -6,169 +6,185 @@
 
 #include "common_test_utils/test_assertions.hpp"
 #include "custom_shape_infer.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/prior_box_clustered.hpp"
 #include <ngraph/opsets/opset1.hpp>
 
 using namespace ov;
 using namespace ov::intel_cpu;
 using namespace testing;
 
-class PriorBoxClusteredV0CpuShapeInferenceTest  : public unit_test::OpCpuShapeInferenceTest<op::v0::PriorBoxClustered> {
-protected:
-    void SetUp() override {
-        output_shapes.resize(0);
+using PriorBoxClusteredV0TestParams = std::tuple<unit_test::ShapeVector,                // Input shapes
+                                                 op::v0::PriorBoxClustered::Attributes,
+                                                 std::vector<std::vector<int32_t>>,     // layer_data, image_data
+                                                 StaticShape                            // Expected shape
+                                                 >;
 
-        attrs.widths = {2.0f, 3.0f};
-        attrs.heights = {1.5f, 2.0f};
+class PriorBoxClusteredV0CpuShapeInferenceTest  : public unit_test::OpCpuShapeInferenceTest<op::v0::PriorBoxClustered>,
+                                                  public WithParamInterface<PriorBoxClusteredV0TestParams> {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<PriorBoxClusteredV0TestParams>& obj) {
+        unit_test::ShapeVector tmp_input_shapes;
+        op::v0::PriorBoxClustered::Attributes tmp_attrs;
+        std::vector<std::vector<int32_t>> tmp_data;
+        StaticShape tmp_exp_shape;
+        std::tie(tmp_input_shapes, tmp_attrs, tmp_data, tmp_exp_shape) = obj.param;
+        std::ostringstream result;
+
+        result << "IS" << CommonTestUtils::vec2str(tmp_input_shapes) << "_";
+        result << "widths" << CommonTestUtils::vec2str(tmp_attrs.widths) << "_";
+        result << "heights" << CommonTestUtils::vec2str(tmp_attrs.heights) << "_";
+        result << "clip(" << unit_test::boolToString(tmp_attrs.clip) << ")_";
+        result << "step_widths(" << tmp_attrs.step_widths<< ")_";
+        result << "step_heights(" << tmp_attrs.step_heights << ")_";
+        result << "offset(" << tmp_attrs.offset << ")_";
+        result << "variances" << CommonTestUtils::vec2str(tmp_attrs.variances) << "_";
+        result << "exp_shape(" << tmp_exp_shape << ")";
+        return result.str();
     }
 
-    typename op_type::Attributes attrs;
+protected:
+    void SetUp() override {
+        std::tie(input_shapes, attrs, data, exp_shape) = GetParam();
+        output_shapes = unit_test::ShapeVector(0);
+        output_shapes.push_back(exp_shape);
+        ASSERT_LE(input_shapes.size(), 2);
+        ASSERT_LE(data.size(), 2);
+    }
+
+    op::v0::PriorBoxClustered::Attributes attrs;
+    std::vector<std::vector<int32_t>> data;
+    unit_test::ShapeVector input_shapes;
 };
 
-TEST_F(PriorBoxClusteredV0CpuShapeInferenceTest , default_ctor_no_args) {
-    op = make_op();
-    op->set_attrs(attrs);
-
-    int32_t out_size[] = {2, 5};
-    input_shapes = unit_test::ShapeVector{{2}, {2}};
-    output_shapes.push_back(StaticShape{2, 80});
-
-    unit_test::cpu_test_shape_infer(op.get(),
-                    input_shapes,
-                    output_shapes,
-                    {{0, std::make_shared<HostTensor>(element::i32, ov::Shape{2}, out_size)}});
+namespace {
+const op::v0::PriorBoxClustered::Attributes createAttrs(
+    std::vector<float> widths,
+    std::vector<float> heights,
+    bool clip,
+    float step_widths,
+    float step_heights,
+    float step,
+    float offset,
+    std::vector<float> variances) {
+    op::v0::PriorBoxClustered::Attributes attrs;
+    attrs.widths = widths;
+    attrs.heights = heights;
+    attrs.clip = clip;
+    attrs.step_widths = step_widths;
+    attrs.step_heights = step_heights;
+    attrs.offset = offset;
+    attrs.variances = variances;
+    return attrs;
 }
 
-TEST_F(PriorBoxClusteredV0CpuShapeInferenceTest , all_inputs_dynamic_rank) {
-    const auto out_size = std::make_shared<op::v0::Parameter>(element::i32, PartialShape::dynamic());
-    const auto img_size = std::make_shared<op::v0::Parameter>(element::i32, PartialShape::dynamic());
+const op::v0::PriorBoxClustered::Attributes attrs1 = createAttrs(
+    {2.0f, 3.0f} , // widths         Desired widths of prior boxes
+    {1.5f, 2.0f},  // heights        Desired heights of prior boxes
+    true,          // clip           Clip output to [0,  1]
+    0.0f,          // step_widths    Distance between prior box centers
+    0.0f,          // step_heights   Distance between prior box centers
+    0.0f,          // step           Distance between prior box centers (when step_w = step_h)
+    0.0f,          // offset         Box offset relative to top center of image
+    {}             // variances      Values to adjust prior boxes with
+);
 
-    op = make_op(out_size, img_size, attrs);
+const op::v0::PriorBoxClustered::Attributes attrs2 = createAttrs(
+    {86.0f, 13.0f, 57.0f, 39.0f, 68.0f, 34.0f, 142.0f, 50.0f, 23.0f}, // widths         Desired widths of prior boxes
+    {44.0f, 10.0f, 30.0f, 19.0f, 94.0f, 32.0f, 61.0f, 53.0f, 17.0f},  // heights        Desired heights of prior boxes
+    false,                                                            // clip           Clip output to [0,  1]
+    0.0f,                                                             // step_widths    Distance between prior box centers
+    0.0f,                                                             // step_heights   Distance between prior box centers
+    16.0f,                                                            // step           Distance between prior box centers (when step_w = step_h)
+    0.5f,                                                             // offset         Box offset relative to top center of image
+    {0.1f, 0.1f, 0.2f, 0.2f}                                          // variances      Values to adjust prior boxes with
+);
 
-    int32_t output_size[] = {2, 5};
-    input_shapes = unit_test::ShapeVector{{2}, {2}};
-    output_shapes.push_back(StaticShape{2, 4 * 2 * 5 * 2});
+const op::v0::PriorBoxClustered::Attributes attrs3 = createAttrs(
+    {4.0f, 2.0f, 3.2f} , // widths         Desired widths of prior boxes
+    {1.0f, 2.0f, 1.1f},  // heights        Desired heights of prior boxes
+    true,                // clip           Clip output to [0,  1]
+    0.0f,                // step_widths    Distance between prior box centers
+    0.0f,                // step_heights   Distance between prior box centers
+    0.0f,                // step           Distance between prior box centers (when step_w = step_h)
+    0.0f,                // offset         Box offset relative to top center of image
+    {}                   // variances      Values to adjust prior boxes with
+);
 
-    unit_test::cpu_test_shape_infer(op.get(),
-                    input_shapes,
-                    output_shapes,
-                    {{0, std::make_shared<HostTensor>(element::i32, ov::Shape{2}, output_size)}});
-}
+} // namespace
 
-TEST_F(PriorBoxClusteredV0CpuShapeInferenceTest , all_inputs_static_rank) {
-    const auto out_size = std::make_shared<op::v0::Parameter>(element::i32, PartialShape::dynamic(1));
-    const auto img_size = std::make_shared<op::v0::Parameter>(element::i32, PartialShape::dynamic(1));
-
-    op = make_op(out_size, img_size, attrs);
-
-    int32_t output_size[] = {5, 2};
-
-    input_shapes = unit_test::ShapeVector{{2}, {2}};
-    output_shapes.push_back(StaticShape{2, 4 * 5 * 2 * 2});
-    unit_test::cpu_test_shape_infer(op.get(),
-                    input_shapes,
-                    output_shapes,
-                    {{0, std::make_shared<HostTensor>(element::i32, ov::Shape{2}, output_size)}});
-}
-
-TEST_F(PriorBoxClusteredV0CpuShapeInferenceTest , out_size_constant) {
-    const auto out_size = op::v0::Constant::create(element::i32, ov::Shape{2}, {4, 6});
-    const auto img_size = std::make_shared<op::v0::Parameter>(element::i32, PartialShape::dynamic(1));
-
-    op = make_op(out_size, img_size, attrs);
-
-    input_shapes = unit_test::ShapeVector{{2}, {2}};
-    output_shapes.push_back(StaticShape{2, 4 * 4 * 6 * 2});
+TEST_P(PriorBoxClusteredV0CpuShapeInferenceTest , shape_inference_empty_const_map) {
+    const auto layer_const = std::make_shared<op::v0::Constant>(element::i32, ov::Shape{2}, data[0]);
+    std::shared_ptr<op::v0::PriorBoxClustered> op;
+    if (input_shapes.size() == 2) {
+        const auto image_const = std::make_shared<op::v0::Constant>(element::i32, ov::Shape{2}, data[1]);
+        op = make_op(layer_const, image_const, attrs);
+    } else {
+        const auto image_param = std::make_shared<op::v0::Parameter>(element::i32, PartialShape::dynamic());
+        op = make_op(layer_const, image_param, attrs);
+    }
     unit_test::cpu_test_shape_infer(op.get(), input_shapes, output_shapes);
 }
 
-TEST_F(PriorBoxClusteredV0CpuShapeInferenceTest , all_inputs_constants) {
-    const auto out_size = op::v0::Constant::create(element::i32, ov::Shape{2}, {12, 16});
-    const auto img_size = op::v0::Constant::create(element::i32, ov::Shape{2}, {50, 50});
+TEST_P(PriorBoxClusteredV0CpuShapeInferenceTest , shape_inference_with_const_map) {
+    const auto layer_shape = std::make_shared<ov::op::v0::Parameter>(element::i32, PartialShape::dynamic());
+    const auto image_shape = std::make_shared<ov::op::v0::Parameter>(element::i32, PartialShape::dynamic());
+    auto op = make_op(layer_shape, image_shape, attrs);
+    const auto layer_const = std::make_shared<op::v0::Constant>(element::i32, ov::Shape{2}, data[0]);
+    std::map<size_t, HostTensorPtr> const_data{{0, std::make_shared<HostTensor>(layer_const)}};
 
-    op = make_op(out_size, img_size, attrs);
-
-    input_shapes = unit_test::ShapeVector{{2}, {2}};
-    output_shapes.push_back(StaticShape{2, 4 * 12 * 16 * 2});
-    unit_test::cpu_test_shape_infer(op.get(), input_shapes, output_shapes);
+    if (input_shapes.size() == 2) {
+        const auto image_const = std::make_shared<op::v0::Constant>(element::i32, ov::Shape{2}, data[1]);
+        const_data.insert({1, std::make_shared<HostTensor>(image_const)});
+    }
+    unit_test::cpu_test_shape_infer(op.get(), input_shapes, output_shapes, const_data);
 }
 
-TEST_F(PriorBoxClusteredV0CpuShapeInferenceTest , invalid_number_of_elements_in_out_size) {
-    const auto out_size = std::make_shared<op::v0::Parameter>(element::i64, PartialShape::dynamic(1));
-    const auto img_size = std::make_shared<op::v0::Parameter>(element::i64, PartialShape::dynamic(1));
+INSTANTIATE_TEST_SUITE_P(
+    CpuShapeInfer,
+    PriorBoxClusteredV0CpuShapeInferenceTest ,
+    Values(make_tuple(unit_test::ShapeVector{{2}}, attrs1,
+                        std::vector<std::vector<int32_t>>{{2, 5}}, StaticShape({2, 80})),
+           make_tuple(unit_test::ShapeVector{{2}, {2}}, attrs1,
+                        std::vector<std::vector<int32_t>>{{12, 16}, {50, 50}}, StaticShape({2, 1536})),
+           make_tuple(unit_test::ShapeVector{{2}, {2}}, attrs2,
+                        std::vector<std::vector<int32_t>>{{10, 19}, {180, 300}}, StaticShape({2, 6840})),
+           make_tuple(unit_test::ShapeVector{{2}, {2}}, attrs3,
+                        std::vector<std::vector<int32_t>>{{19, 19}, {300, 300}}, StaticShape({2, 4332}))),
+    PriorBoxClusteredV0CpuShapeInferenceTest::getTestCaseName);
 
-    op = make_op(out_size, img_size, attrs);
-
-    int64_t output_size[] = {5, 2, 1};
-    input_shapes = unit_test::ShapeVector{{2}, {2}};
-
-    // TODO , implementation should throw execption
-    // ASSERT_THROW(unit_test::cpu_test_shape_infer(op.get(),
-    //                                 input_shapes,
-    //                                 output_shapes,
-    //                                 {{0, std::make_shared<HostTensor>(element::i64, ov::Shape{3}, output_size)}}),
-    //                 InferenceEngine::GeneralError);
-}
-
-TEST_F(PriorBoxClusteredV0CpuShapeInferenceTest , invalid_input_ranks) {
-    const auto out_size = std::make_shared<op::v0::Parameter>(element::i64, PartialShape::dynamic(1));
-    const auto img_size = std::make_shared<op::v0::Parameter>(element::i64, PartialShape::dynamic(1));
-
-    op = make_op(out_size, img_size, attrs);
-
-    int64_t output_size[] = {5, 2, 1};
-    input_shapes = unit_test::ShapeVector{{2, 1}, {2}};
-
-    // TODO , implementation should throw execption
-    // ASSERT_THROW(unit_test::cpu_test_shape_infer(op.get(),
-    //                                input_shapes,
-    //                                output_shapes,
-    //                                {{0, std::make_shared<HostTensor>(element::i64, ov::Shape{3}, output_size)}}),
-    //                InferenceEngine::GeneralError);
-}
-
-TEST(CpuShapeInferenceTest , prior_box_clustered0) {
-    op::v0::PriorBoxClustered::Attributes attrs;
-    attrs.widths = {86.0f, 13.0f, 57.0f, 39.0f, 68.0f, 34.0f, 142.0f, 50.0f, 23.0};
-    attrs.heights = {44.0f, 10.0f, 30.0f, 19.0f, 94.0f, 32.0f, 61.0f, 53.0f, 17.0f};
-    attrs.clip = false;
-    attrs.step = 16.0f;
-    attrs.offset = 0.5f;
-    attrs.variances = {0.1f, 0.1f, 0.2f, 0.2f};
-
-    auto layer_shape = std::make_shared<ov::op::v0::Parameter>(element::i32, PartialShape{-1});
-    auto image_shape = std::make_shared<ov::op::v0::Parameter>(element::i32, PartialShape{-1});
-    auto op =
-        std::make_shared<ov::op::v0::PriorBoxClustered>(layer_shape, image_shape, attrs);
-    int32_t layer_data[] = {10, 19};
-    int32_t image_data[] = {180, 320};
-    const std::map<size_t, HostTensorPtr> const_data{
-        {0, std::make_shared<HostTensor>(element::i32, ov::Shape{2}, layer_data)},
-        {1, std::make_shared<HostTensor>(element::i32, ov::Shape{2}, image_data)},
-    };
-
-    std::vector<StaticShape> static_input_shapes = {StaticShape{2}, StaticShape{2}};
-    std::vector<StaticShape> static_output_shapes = {StaticShape{2, 6840}};
-    unit_test::cpu_test_shape_infer(op.get(), static_input_shapes, static_output_shapes, const_data);
-}
-
-TEST(CpuShapeInferenceTest , prior_box_clustered1) {
-    op::v0::PriorBoxClustered::Attributes attrs;
-    attrs.widths = {4.0f, 2.0f, 3.2f};
-    attrs.heights = {1.0f, 2.0f, 1.1f};
-
-    auto layer_shape = std::make_shared<ov::op::v0::Parameter>(element::i32, PartialShape{-1});
-    auto image_shape = std::make_shared<ov::op::v0::Parameter>(element::i32, PartialShape{-1});
-    auto op =
-        std::make_shared<ov::op::v0::PriorBoxClustered>(layer_shape, image_shape, attrs);
-    int32_t layer_data[] = {19, 19};
-    int32_t image_data[] = {300, 300};
-    const std::map<size_t, HostTensorPtr> const_data{
-        {0, std::make_shared<HostTensor>(element::i32, ov::Shape{2}, layer_data)},
-        {1, std::make_shared<HostTensor>(element::i32, ov::Shape{2}, image_data)},
-    };
-
-    std::vector<StaticShape> static_input_shapes = {StaticShape{2}, StaticShape{2}};
-    std::vector<StaticShape> static_output_shapes = {StaticShape{2, 4332}};
-    unit_test::cpu_test_shape_infer(op.get(), static_input_shapes, static_output_shapes, const_data);
-}
-
+//
+// TEST_F(PriorBoxClusteredV0CpuShapeInferenceTest , invalid_number_of_elements_in_out_size) {
+//     const auto out_size = std::make_shared<op::v0::Parameter>(element::i64, PartialShape::dynamic(1));
+//     const auto img_size = std::make_shared<op::v0::Parameter>(element::i64, PartialShape::dynamic(1));
+//
+//     op = make_op(out_size, img_size, attrs);
+//
+//     int64_t output_size[] = {5, 2, 1};
+//     input_shapes = unit_test::ShapeVector{{2}, {2}};
+//
+//     // TODO , implementation should throw execption
+//     // ASSERT_THROW(unit_test::cpu_test_shape_infer(op.get(),
+//     //                                 input_shapes,
+//     //                                 output_shapes,
+//     //                                 {{0, std::make_shared<HostTensor>(element::i64, ov::Shape{3}, output_size)}}),
+//     //                 InferenceEngine::GeneralError);
+// }
+//
+// TEST_F(PriorBoxClusteredV0CpuShapeInferenceTest , invalid_input_ranks) {
+//     const auto out_size = std::make_shared<op::v0::Parameter>(element::i64, PartialShape::dynamic(1));
+//     const auto img_size = std::make_shared<op::v0::Parameter>(element::i64, PartialShape::dynamic(1));
+//
+//     op = make_op(out_size, img_size, attrs);
+//
+//     int64_t output_size[] = {5, 2, 1};
+//     input_shapes = unit_test::ShapeVector{{2, 1}, {2}};
+//
+//     // TODO , implementation should throw execption
+//     // ASSERT_THROW(unit_test::cpu_test_shape_infer(op.get(),
+//     //                                input_shapes,
+//     //                                output_shapes,
+//     //                                {{0, std::make_shared<HostTensor>(element::i64, ov::Shape{3}, output_size)}}),
+//     //                InferenceEngine::GeneralError);
+// }
+//

@@ -10,7 +10,7 @@
 using namespace ov;
 using namespace ov::intel_cpu;
 
-TEST(CpuShapeInferenceTest, UnaryEltwiseTest) {
+TEST(CpuShapeInfer, UnaryEltwiseTest) {
     auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
     auto node = std::make_shared<ov::op::v0::Relu>(data);
 

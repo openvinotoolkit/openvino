@@ -101,13 +101,13 @@ REGISTER_TYPED_TEST_SUITE_P(CpuShapeInferenceTest_BEA,
                             shape_inference_aubtob_none,
                             shape_inference_aubtob_none_incompatible_shapes);
 
-INSTANTIATE_TYPED_TEST_SUITE_P(shape_infer_add, CpuShapeInferenceTest_BEA, ::testing::Types<op::v1::Add>);
-INSTANTIATE_TYPED_TEST_SUITE_P(shape_infer_divide, CpuShapeInferenceTest_BEA, ::testing::Types<op::v1::Divide>);
-INSTANTIATE_TYPED_TEST_SUITE_P(shape_infer_floor_mod, CpuShapeInferenceTest_BEA, ::testing::Types<op::v1::FloorMod>);
-INSTANTIATE_TYPED_TEST_SUITE_P(shape_infer_maximum, CpuShapeInferenceTest_BEA, ::testing::Types<op::v1::Maximum>);
-INSTANTIATE_TYPED_TEST_SUITE_P(shape_infer_minimum, CpuShapeInferenceTest_BEA, ::testing::Types<op::v1::Minimum>);
-INSTANTIATE_TYPED_TEST_SUITE_P(shape_infer_mod, CpuShapeInferenceTest_BEA, ::testing::Types<op::v1::Mod>);
-INSTANTIATE_TYPED_TEST_SUITE_P(shape_infer_multiply, CpuShapeInferenceTest_BEA, ::testing::Types<op::v1::Multiply>);
-INSTANTIATE_TYPED_TEST_SUITE_P(shape_infer_power, CpuShapeInferenceTest_BEA, ::testing::Types<op::v1::Power>);
-INSTANTIATE_TYPED_TEST_SUITE_P(shape_infer_squared_difference, CpuShapeInferenceTest_BEA, ::testing::Types<op::v0::SquaredDifference>);
-INSTANTIATE_TYPED_TEST_SUITE_P(shape_infer_subtract, CpuShapeInferenceTest_BEA, ::testing::Types<op::v1::Subtract>);
+INSTANTIATE_TYPED_TEST_SUITE_P(CpuShapeInfer_add, CpuShapeInferenceTest_BEA, ::testing::Types<op::v1::Add>);
+INSTANTIATE_TYPED_TEST_SUITE_P(CpuShapeInfer_divide, CpuShapeInferenceTest_BEA, ::testing::Types<op::v1::Divide>);
+INSTANTIATE_TYPED_TEST_SUITE_P(CpuShapeInfer_floor_mod, CpuShapeInferenceTest_BEA, ::testing::Types<op::v1::FloorMod>);
+INSTANTIATE_TYPED_TEST_SUITE_P(CpuShapeInfer_maximum, CpuShapeInferenceTest_BEA, ::testing::Types<op::v1::Maximum>);
+INSTANTIATE_TYPED_TEST_SUITE_P(CpuShapeInfer_minimum, CpuShapeInferenceTest_BEA, ::testing::Types<op::v1::Minimum>);
+INSTANTIATE_TYPED_TEST_SUITE_P(CpuShapeInfer_mod, CpuShapeInferenceTest_BEA, ::testing::Types<op::v1::Mod>);
+INSTANTIATE_TYPED_TEST_SUITE_P(CpuShapeInfer_multiply, CpuShapeInferenceTest_BEA, ::testing::Types<op::v1::Multiply>);
+INSTANTIATE_TYPED_TEST_SUITE_P(CpuShapeInfer_power, CpuShapeInferenceTest_BEA, ::testing::Types<op::v1::Power>);
+INSTANTIATE_TYPED_TEST_SUITE_P(CpuShapeInfer_squared_difference, CpuShapeInferenceTest_BEA, ::testing::Types<op::v0::SquaredDifference>);
+INSTANTIATE_TYPED_TEST_SUITE_P(CpuShapeInfer_subtract, CpuShapeInferenceTest_BEA, ::testing::Types<op::v1::Subtract>);

@@ -11,81 +11,79 @@
 using namespace ov;
 using namespace ov::intel_cpu;
 
-TEST(CpuShapeInferenceTest, ColorConvertNV12toBGR) {
+template <class T>
+class CpuShapeInferenceTest_ColorConvertNV12 : public testing::Test {};
+
+// CpuShapeInferenceTest for BinaryElementwiseArithmetis (ColorConvert) operations
+TYPED_TEST_SUITE_P(CpuShapeInferenceTest_ColorConvertNV12);
+
+TYPED_TEST_P(CpuShapeInferenceTest_ColorConvertNV12, singlePlane) {
     auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
-    auto op = std::make_shared<op::v8::NV12toBGR>(data);
+    auto op = std::make_shared<TypeParam>(data);
     std::vector<StaticShape> static_input_shapes = {StaticShape{1, 720, 640, 1}};
     std::vector<StaticShape> static_output_shapes = {StaticShape{1, 480, 640, 3}};
     unit_test::cpu_test_shape_infer(op.get(), static_input_shapes, static_output_shapes);
 }
 
-TEST(CpuShapeInferenceTest, ColorConvertNV12toBGRMutliPlane) {
+TYPED_TEST_P(CpuShapeInferenceTest_ColorConvertNV12, multiPlane) {
     auto dataY = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
     auto dataUV = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
-    auto op = std::make_shared<op::v8::NV12toBGR>(dataY, dataUV);
+    auto op = std::make_shared<TypeParam>(dataY, dataUV);
     std::vector<StaticShape> static_input_shapes = {StaticShape{1, 480, 640, 1}, StaticShape{1, 240, 320, 2}};
     std::vector<StaticShape> static_output_shapes = {StaticShape{1, 480, 640, 3}};
     unit_test::cpu_test_shape_infer(op.get(), static_input_shapes, static_output_shapes);
 }
 
-TEST(CpuShapeInferenceTest, ColorConvertNV12toRGB) {
-    auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
-    auto op = std::make_shared<op::v8::NV12toRGB>(data);
-    std::vector<StaticShape> static_input_shapes = {StaticShape{1, 720, 640, 1}};
-    std::vector<StaticShape> static_output_shapes = {StaticShape{1, 480, 640, 3}};
-    unit_test::cpu_test_shape_infer(op.get(), static_input_shapes, static_output_shapes);
-}
-
-TEST(CpuShapeInferenceTest, ColorConvertNV12toRGBMutliPlane) {
+TYPED_TEST_P(CpuShapeInferenceTest_ColorConvertNV12, novalid_input) {
     auto dataY = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
     auto dataUV = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
-    auto op = std::make_shared<op::v8::NV12toRGB>(dataY, dataUV);
-    std::vector<StaticShape> static_input_shapes = {StaticShape{1, 480, 640, 1}, StaticShape{1, 240, 320, 2}};
-    std::vector<StaticShape> static_output_shapes = {StaticShape{1, 480, 640, 3}};
-    unit_test::cpu_test_shape_infer(op.get(), static_input_shapes, static_output_shapes);
+    auto op = std::make_shared<TypeParam>(dataY, dataUV);
+    std::vector<StaticShape> static_input_shapes = {StaticShape{480, 640, 1}, StaticShape{240, 320, 2}};
+    std::vector<StaticShape> static_output_shapes = {StaticShape{}};
+
+    OV_EXPECT_THROW(unit_test::cpu_test_shape_infer(op.get(), static_input_shapes, static_output_shapes),
+                    InferenceEngine::GeneralError,
+                    testing::HasSubstr("NV12Converter node has incorrect input dimensions"));
 }
 
-TEST(CpuShapeInferenceTest, ColorConvertI420toBGR) {
+
+REGISTER_TYPED_TEST_SUITE_P(CpuShapeInferenceTest_ColorConvertNV12,
+                            singlePlane,
+                            multiPlane,
+                            novalid_input);
+
+INSTANTIATE_TYPED_TEST_SUITE_P(CpuShapeInfer_NV12toBGR, CpuShapeInferenceTest_ColorConvertNV12, ::testing::Types<op::v8::NV12toBGR>);
+INSTANTIATE_TYPED_TEST_SUITE_P(CpuShapeInfer_NV12toRGB, CpuShapeInferenceTest_ColorConvertNV12, ::testing::Types<op::v8::NV12toRGB>);
+
+template <class T>
+class CpuShapeInferenceTest_ColorConvertI420 : public testing::Test {};
+
+// CpuShapeInferenceTest for BinaryElementwiseArithmetis (ColorConvert) operations
+TYPED_TEST_SUITE_P(CpuShapeInferenceTest_ColorConvertI420);
+
+TYPED_TEST_P(CpuShapeInferenceTest_ColorConvertI420, singlePlane) {
     auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
-    auto op = std::make_shared<op::v8::I420toBGR>(data);
+    auto op = std::make_shared<TypeParam>(data);
     std::vector<StaticShape> static_input_shapes = {StaticShape{1, 720, 640, 1}};
     std::vector<StaticShape> static_output_shapes = {StaticShape{1, 480, 640, 3}};
     unit_test::cpu_test_shape_infer(op.get(), static_input_shapes, static_output_shapes);
 }
 
-TEST(CpuShapeInferenceTest, ColorConvertI420toBGRMutliPlane) {
+TYPED_TEST_P(CpuShapeInferenceTest_ColorConvertI420, multiPlane) {
     auto dataY = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
     auto dataU = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
     auto dataV = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
-    auto op = std::make_shared<op::v8::I420toBGR>(dataY, dataU, dataV);
+    auto op = std::make_shared<TypeParam>(dataY, dataU, dataV);
     std::vector<StaticShape> static_input_shapes = {StaticShape{1, 480, 640, 1}, StaticShape{1, 240, 320, 1}, StaticShape{1, 240, 320, 1}};
     std::vector<StaticShape> static_output_shapes = {StaticShape{1, 480, 640, 3}};
     unit_test::cpu_test_shape_infer(op.get(), static_input_shapes, static_output_shapes);
 }
 
-TEST(CpuShapeInferenceTest, ColorConvertI420toRGB) {
-    auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
-    auto op = std::make_shared<op::v8::I420toRGB>(data);
-    std::vector<StaticShape> static_input_shapes = {StaticShape{1, 720, 640, 1}};
-    std::vector<StaticShape> static_output_shapes = {StaticShape{1, 480, 640, 3}};
-    unit_test::cpu_test_shape_infer(op.get(), static_input_shapes, static_output_shapes);
-}
-
-TEST(CpuShapeInferenceTest, ColorConvertI420toRGBMutliPlane) {
+TYPED_TEST_P(CpuShapeInferenceTest_ColorConvertI420, novalid_input) {
     auto dataY = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
     auto dataU = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
     auto dataV = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
-    auto op = std::make_shared<op::v8::I420toRGB>(dataY, dataU, dataV);
-    std::vector<StaticShape> static_input_shapes = {StaticShape{1, 480, 640, 1}, StaticShape{1, 240, 320, 1}, StaticShape{1, 240, 320, 1}};
-    std::vector<StaticShape> static_output_shapes = {StaticShape{1, 480, 640, 3}};
-    unit_test::cpu_test_shape_infer(op.get(), static_input_shapes, static_output_shapes);
-}
-
-TEST(StaticCustomShapeInferenceTest, novalid_input) {
-    auto dataY = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
-    auto dataU = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
-    auto dataV = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
-    auto op = std::make_shared<op::v8::I420toRGB>(dataY, dataU, dataV);
+    auto op = std::make_shared<TypeParam>(dataY, dataU, dataV);
     std::vector<StaticShape> static_input_shapes = {StaticShape{480, 640, 1}, StaticShape{240, 320, 1}, StaticShape{240, 320, 1}};
     std::vector<StaticShape> static_output_shapes = {StaticShape{}};
 
@@ -94,4 +92,12 @@ TEST(StaticCustomShapeInferenceTest, novalid_input) {
                     testing::HasSubstr("NV12Converter node has incorrect input dimensions"));
 }
 
+
+REGISTER_TYPED_TEST_SUITE_P(CpuShapeInferenceTest_ColorConvertI420,
+                            singlePlane,
+                            multiPlane,
+                            novalid_input);
+
+INSTANTIATE_TYPED_TEST_SUITE_P(CpuShapeInfer_I420toBGR, CpuShapeInferenceTest_ColorConvertI420, ::testing::Types<op::v8::I420toBGR>);
+INSTANTIATE_TYPED_TEST_SUITE_P(CpuShapeInfer_I420toRGB, CpuShapeInferenceTest_ColorConvertI420, ::testing::Types<op::v8::I420toRGB>);
 

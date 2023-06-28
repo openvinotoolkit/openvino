@@ -9,7 +9,7 @@
 using namespace ov;
 using namespace ov::intel_cpu;
 
-TEST(StaticShapeInferenceTest, Ngram) {
+TEST(CpuShapeInfer, Ngram) {
     auto embeddings = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1});
     auto idces = std::make_shared<ov::op::v0::Parameter>(element::i32, PartialShape{-1, -1});
     auto op = std::make_shared<ov::intel_cpu::NgramNode>(embeddings, idces, 3);

@@ -10,92 +10,87 @@ using namespace ov;
 using namespace ov::intel_cpu;
 using namespace testing;
 
-template <class TInput, class TOrder>
-std::shared_ptr<op::v1::Transpose> make_transpose(const TInput& input_shape, const TOrder& transpose_order) {
-    const auto input = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic(input_shape.size()));
-    const auto order =
-        std::make_shared<op::v0::Constant>(element::i64, ov::Shape{transpose_order.size()}, transpose_order);
-    return std::make_shared<op::v1::Transpose>(input, order);
-}
-
-using transpose_params = std::tuple<std::vector<size_t>,  // transpose order
-                                    StaticShape,          // Input shape
-                                    StaticShape           // Expected shape
+using transpose_params = std::tuple<unit_test::ShapeVector, // Input shapes
+                                    std::vector<int64_t>,   // transpose order
+                                    StaticShape             // Expected shape
                                     >;
 
-class TransposeCpuShapeInferenceTest  : public TestWithParam<transpose_params> {
-protected:
-    void SetUp() override {
-        std::tie(transpose_order, input_shape, exp_shape) = GetParam();
-        transpose = make_transpose(input_shape, transpose_order);
+
+class TransposeCpuShapeInferenceTest  : public unit_test::OpCpuShapeInferenceTest<op::v1::Transpose>,
+                                        public WithParamInterface<transpose_params> {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<transpose_params>& obj) {
+        unit_test::ShapeVector tmp_input_shapes;
+        std::vector<int64_t> tmp_transpose_order;
+        StaticShape tmp_exp_shape;
+        std::tie(tmp_input_shapes, tmp_transpose_order, tmp_exp_shape) = obj.param;
+        std::ostringstream result;
+        result << "input_shapes(" << CommonTestUtils::vec2str(tmp_input_shapes) << ")_";
+        result << "order(" << CommonTestUtils::vec2str(tmp_transpose_order) << ")_";
+        result << "exp_shape(" << tmp_exp_shape << ")";
+        return result.str();
     }
 
-    StaticShape input_shape, exp_shape;
-    std::vector<size_t> transpose_order;
+protected:
+    void SetUp() override {
+        std::tie(input_shapes, transpose_order, exp_shape) = GetParam();
+        output_shapes = unit_test::ShapeVector(0);
+        output_shapes.push_back(exp_shape);
+        ASSERT_EQ(input_shapes.size(), 2);
+        arg = std::make_shared<op::v0::Parameter>(element::f32, input_shapes.front().get_shape());
+    }
 
-    std::shared_ptr<op::v1::Transpose> transpose;
+    std::vector<int64_t> transpose_order;
+    std::shared_ptr<op::v0::Parameter> arg;
 };
+
+
+TEST_P(TransposeCpuShapeInferenceTest , shape_inference_empty_const_map) {
+    const auto order =
+        std::make_shared<op::v0::Constant>(element::i64, ov::Shape{transpose_order.size()}, transpose_order);
+    auto op = make_op(arg, order);
+    unit_test::cpu_test_shape_infer(op.get(), input_shapes, output_shapes);
+}
 
 /** \brief Use transpose order -> output shape dimensions shall be as transpose order. */
 INSTANTIATE_TEST_SUITE_P(
-    transpose_by_order,
-    TransposeCpuShapeInferenceTest ,
-    Values(make_tuple(std::vector<size_t>{0}, StaticShape({3}), StaticShape({3})),
-           make_tuple(std::vector<size_t>{0, 1}, StaticShape({5, 2}), StaticShape({5, 2})),
-           make_tuple(std::vector<size_t>{1, 0}, StaticShape({8, 3}), StaticShape({3, 8})),
-           make_tuple(std::vector<size_t>{2, 0, 1}, StaticShape({1, 0, 2}), StaticShape({2, 1, 0})),
-           make_tuple(std::vector<size_t>{2, 0, 3, 1}, StaticShape({10, 8, 9, 2}), StaticShape({9, 10, 2, 8})),
-           make_tuple(std::vector<size_t>{1, 3, 2, 0}, StaticShape({1, 2, 3, 4}), StaticShape({2, 4, 3, 1}))),
-    PrintToStringParamName());
+    CpuShapeInfer,
+    TransposeCpuShapeInferenceTest,
+    Values(make_tuple(unit_test::ShapeVector{{3}, {1}}, std::vector<int64_t>{0}, StaticShape({3})),
+           make_tuple(unit_test::ShapeVector{{5, 2}, {2}}, std::vector<int64_t>{0, 1}, StaticShape({5, 2})),
+           make_tuple(unit_test::ShapeVector{{8, 3}, {2}}, std::vector<int64_t>{1, 0}, StaticShape({3, 8})),
+           make_tuple(unit_test::ShapeVector{{1, 0, 2}, {3}}, std::vector<int64_t>{2, 0, 1}, StaticShape({2, 1, 0})),
+           make_tuple(unit_test::ShapeVector{{10, 8, 9, 2}, {4}}, std::vector<int64_t>{2, 0, 3, 1}, StaticShape({9, 10, 2, 8})),
+           make_tuple(unit_test::ShapeVector{{1, 2, 3, 4}, {4}}, std::vector<int64_t>{1, 3, 2, 0}, StaticShape({2, 4, 3, 1})),
+           make_tuple(unit_test::ShapeVector{{1}, {0}}, std::vector<int64_t>{}, StaticShape({1})),
+           make_tuple(unit_test::ShapeVector{{23}, {0}}, std::vector<int64_t>{}, StaticShape({23})),
+           make_tuple(unit_test::ShapeVector{{3, 8}, {0}}, std::vector<int64_t>{}, StaticShape({8, 3})),
+           make_tuple(unit_test::ShapeVector{{1, 0, 2}, {0}}, std::vector<int64_t>{}, StaticShape({2, 0, 1})),
+           make_tuple(unit_test::ShapeVector{{21, 1, 5, 9}, {0}}, std::vector<int64_t>{}, StaticShape({9, 5, 1, 21})),
+           make_tuple(unit_test::ShapeVector{{0, 0, 0}, {0}}, std::vector<int64_t>{}, StaticShape({0, 0, 0})),
+           make_tuple(unit_test::ShapeVector{{0, 2, 0}, {0}}, std::vector<int64_t>{}, StaticShape({0, 2, 0})),
+           make_tuple(unit_test::ShapeVector{{0, 2, 0, 0}, {0}}, std::vector<int64_t>{}, StaticShape({0, 0, 2, 0}))),
+    TransposeCpuShapeInferenceTest::getTestCaseName);
 
-/** \brief Empty transpose order -> output shape dimensions shall be in reverse order. */
-INSTANTIATE_TEST_SUITE_P(
-    transpose_reverse,
-    TransposeCpuShapeInferenceTest ,
-    Values(make_tuple(std::vector<size_t>{}, StaticShape({1}), StaticShape({1})),
-           make_tuple(std::vector<size_t>{}, StaticShape({23}), StaticShape({23})),
-           make_tuple(std::vector<size_t>{}, StaticShape({3, 8}), StaticShape({8, 3})),
-           make_tuple(std::vector<size_t>{}, StaticShape({1, 0, 2}), StaticShape({2, 0, 1})),
-           make_tuple(std::vector<size_t>{}, StaticShape({21, 1, 5, 9}), StaticShape({9, 5, 1, 21})),
-           make_tuple(std::vector<size_t>{}, StaticShape({0, 0, 0}), StaticShape({0, 0, 0})),
-           make_tuple(std::vector<size_t>{}, StaticShape({0, 2, 0}), StaticShape({0, 2, 0})),
-           make_tuple(std::vector<size_t>{}, StaticShape({0, 2, 0, 0}), StaticShape({0, 0, 2, 0}))),
-    PrintToStringParamName());
 
-/** \brief Check shape_infer for transpose on static shapes. */
-TEST_P(TransposeCpuShapeInferenceTest , transpose_static) {
-    auto output_shapes = std::vector<StaticShape>{exp_shape};
+using TransposeCpuShapeInferenceThrowExceptionTest = TransposeCpuShapeInferenceTest;
+TEST_P(TransposeCpuShapeInferenceThrowExceptionTest, shape_inference_in_const_map) {
+    const auto order = std::make_shared<op::v0::Parameter>(element::i64, PartialShape::dynamic());
+    auto op = make_op(arg, order);
 
-    unit_test::cpu_test_shape_infer(transpose.get(), {input_shape, transpose_order}, output_shapes);
-}
-
-/** \brief Shape infer when transpose input got dynamic dimensions. */
-TEST(TransposeCpuShapeInferenceTest , transpose_input_shape_dim_dynamic) {
-    const auto input_shape = PartialShape{-1, -1, -1};
-    const auto order = std::vector<size_t>{1, 2, 0};
-    const auto transpose = make_transpose(input_shape, order);
-
-    auto output_shapes = std::vector<StaticShape>{StaticShape{6, 3, 2}};
-
-    unit_test::cpu_test_shape_infer(transpose.get(), {StaticShape{2, 6, 3}, order}, output_shapes);
-}
-
-/** \brief Shape inference when transpose order stored in constant map. */
-TEST(TransposeCpuShapeInferenceTest , transpose_order_in_constant_map) {
-    const auto input_shape = PartialShape{2, 4, 6, 8};
-    const auto input = std::make_shared<op::v0::Parameter>(element::f32, input_shape);
-    const auto order = std::make_shared<op::v0::Parameter>(element::i64, ov::Shape{4});
-
-    const auto transpose = std::make_shared<op::v1::Transpose>(input, order);
-
-    const auto axes_order = std::vector<size_t>{1, 2, 0, 3};
-    const auto axes = std::make_shared<op::v0::Constant>(element::i64, ov::Shape{axes_order.size()}, axes_order);
+    const auto axes = std::make_shared<op::v0::Constant>(element::i64, ov::Shape{transpose_order.size()}, transpose_order);
     const auto const_tensor = std::make_shared<ngraph::runtime::HostTensor>(axes);
     const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>> const_map = {{1, const_tensor}};
 
-    auto output_shapes = std::vector<StaticShape>{StaticShape{4, 6, 2, 8}};
-    OV_EXPECT_THROW(unit_test::cpu_test_shape_infer(transpose.get(),
-                        {StaticShape({2, 4, 6, 8}), StaticShape()}, output_shapes, const_map),
+    OV_EXPECT_THROW(unit_test::cpu_test_shape_infer(op.get(), input_shapes, output_shapes, const_map),
                     InferenceEngine::NotImplemented,
                     HasSubstr("TODO: Support parameterized Order input for dynamic shapes."));
 }
+
+INSTANTIATE_TEST_SUITE_P(
+    CpuShapeInfer,
+    TransposeCpuShapeInferenceThrowExceptionTest,
+    Values(make_tuple(unit_test::ShapeVector{{3}, {1}}, std::vector<int64_t>{0}, StaticShape({3})),
+           make_tuple(unit_test::ShapeVector{{1}, {0}}, std::vector<int64_t>{}, StaticShape({1}))),
+    TransposeCpuShapeInferenceThrowExceptionTest::getTestCaseName);
+

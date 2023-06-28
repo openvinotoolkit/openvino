@@ -14,7 +14,7 @@ using namespace ov;
 using namespace ov::intel_cpu;
 using namespace testing;
 
-TEST(CpuShapeInferenceTest , ShapeOf5DTest) {
+TEST(CpuShapeInfer, ShapeOf5DTest) {
     auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
 
     auto shapeof =
@@ -25,7 +25,7 @@ TEST(CpuShapeInferenceTest , ShapeOf5DTest) {
     unit_test::cpu_test_shape_infer(shapeof.get(), static_input_shapes, static_output_shapes);
 }
 
-TEST(CpuShapeInferenceTest , v3ShapeOf5DTest) {
+TEST(CpuShapeInfer, v3ShapeOf5DTest) {
     auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
 
     auto shapeof =
@@ -37,7 +37,7 @@ TEST(CpuShapeInferenceTest , v3ShapeOf5DTest) {
 }
 
 
-TEST(CpuShapeInferenceTest , ShapeOf0DTest) {
+TEST(CpuShapeInfer, ShapeOf0DTest) {
     auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{});
 
     auto shapeof =

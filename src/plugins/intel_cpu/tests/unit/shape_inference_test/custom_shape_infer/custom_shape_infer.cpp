@@ -20,8 +20,6 @@
 #include "utils/custom_shape_inference/priorbox_clustered.hpp"
 #include "utils/custom_shape_inference/shapeof.hpp"
 #include "utils/custom_shape_inference/strided_slice.hpp"
-// #include "utils/custom_shape_inference/deconv.hpp"
-// #include "utils/custom_shape_inference/subgraph.hpp"
 #include "ie_ngraph_utils.hpp"
 #include "custom_shape_infer.hpp"
 #include "utils/shape_inference/shape_inference_status.hpp"
@@ -81,6 +79,7 @@ static void compare_result(const std::vector<StaticShape>& ref, const std::vecto
     for (size_t i = 0; i < ref.size(); i++) {
         ASSERT_TRUE(ref[i].size() == cus[i].size());
         for (size_t y = 0; y < ref[i].size(); y++) {
+            std::cout << ref[i][y].get_length()<< "==" << cus[i][y] << std::endl;
             ASSERT_TRUE(ref[i][y].get_length() == cus[i][y]);
         }
     }
@@ -140,6 +139,12 @@ void cpu_test_shape_infer(ov::Node* op,
     compare_result(output_shapes, result.dims);
     ASSERT_TRUE(result.status == ov::intel_cpu::ShapeInferStatus::success);
 }
+
+std::string boolToString(const bool value) {
+    return value ? "true" : "false";
+}
+
+
 } // namespace unit_test
 } // namespace intel_cpu
 } // namespace ov

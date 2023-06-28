@@ -7,272 +7,181 @@
 #include "common_test_utils/test_assertions.hpp"
 #include "custom_shape_infer.hpp"
 #include <ngraph/opsets/opset8.hpp>
+#include <vector>
 
 using namespace ov;
 using namespace ov::intel_cpu;
 using namespace testing;
 
-class PriorBoxV8CpuShapeInferenceTest  : public unit_test::OpCpuShapeInferenceTest<op::v8::PriorBox> {
-protected:
-    void SetUp() override {
-        output_shapes.resize(0);
+// TODO should support v8::PriorBox
 
-        attrs.min_size = {2.0f, 3.0f};
-        attrs.aspect_ratio = {1.5f, 2.0f, 2.5f};
-        attrs.scale_all_sizes = false;
+using PriorBoxV0TestParams = std::tuple<unit_test::ShapeVector,            // Input shapes
+                                        op::v0::PriorBox::Attributes,
+                                        std::vector<std::vector<int32_t>>, // layer_data, image_data
+                                        StaticShape                        // Expected shape
+                                        >;
+
+class PriorBoxV0CpuShapeInferenceTest  : public unit_test::OpCpuShapeInferenceTest<ov::op::v0::PriorBox>,
+                                      public WithParamInterface<PriorBoxV0TestParams> {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<PriorBoxV0TestParams>& obj) {
+        unit_test::ShapeVector tmp_input_shapes;
+        op::v0::PriorBox::Attributes tmp_attrs;
+        std::vector<std::vector<int32_t>> tmp_data;
+        StaticShape tmp_exp_shape;
+        std::tie(tmp_input_shapes, tmp_attrs, tmp_data, tmp_exp_shape) = obj.param;
+        std::ostringstream result;
+        result << "IS" << CommonTestUtils::vec2str(tmp_input_shapes) << "_";
+        result << "min_size" << CommonTestUtils::vec2str(tmp_attrs.min_size) << "_";
+        result << "max_size" << CommonTestUtils::vec2str(tmp_attrs.max_size) << "_";
+        result << "density" << CommonTestUtils::vec2str(tmp_attrs.density) << "_";
+        result << "fixed_ratio" << CommonTestUtils::vec2str(tmp_attrs.fixed_ratio) << "_";
+        result << "fixed_size" << CommonTestUtils::vec2str(tmp_attrs.fixed_size) << "_";
+        result << "clip(" << unit_test::boolToString(tmp_attrs.clip) << ")_";
+        result << "flip(" << unit_test::boolToString(tmp_attrs.flip) << ")_";
+        result << "step(" << tmp_attrs.step << ")_";
+        result << "offset(" << tmp_attrs.offset << ")_";
+        result << "variance" << CommonTestUtils::vec2str(tmp_attrs.variance) << "_";
+        result << "scale_all_sizes(" << unit_test::boolToString(tmp_attrs.scale_all_sizes) << ")_";
+        result << "exp_shape(" << tmp_exp_shape << ")";
+        return result.str();
     }
 
-    typename op_type::Attributes attrs;
+protected:
+    void SetUp() override {
+        std::tie(input_shapes, attrs, data, exp_shape) = GetParam();
+        output_shapes = unit_test::ShapeVector(0);
+        output_shapes.push_back(exp_shape);
+        ASSERT_EQ(input_shapes.size(), 2);
+        ASSERT_EQ(data.size(), 2);
+    }
+
+    op::v0::PriorBox::Attributes attrs;
+    std::vector<std::vector<int32_t>> data;
 };
 
-TEST_F(PriorBoxV8CpuShapeInferenceTest , default_ctor_no_args) {
-    op = make_op();
-    op->set_attrs(attrs);
-
-    int32_t out_size[] = {2, 5};
-    input_shapes = unit_test::ShapeVector{{2}, {2}};
-
-    output_shapes.push_back(StaticShape({2, 200}));
-
-    // TODO should support v8::PriorBox
-    // unit_test::cpu_test_shape_infer(op.get(),
-    //         input_shapes,
-    //         output_shapes,
-    //         {{0, std::make_shared<HostTensor>(element::i32, ov::Shape{2}, out_size)}});
-}
-
-TEST_F(PriorBoxV8CpuShapeInferenceTest , all_inputs_dynamic_rank) {
-    const auto out_size = std::make_shared<op::v0::Parameter>(element::i32, PartialShape::dynamic());
-    const auto img_size = std::make_shared<op::v0::Parameter>(element::i32, PartialShape::dynamic());
-
-    op = make_op(out_size, img_size, attrs);
-
-    int32_t output_size[] = {2, 5};
-
-    input_shapes = unit_test::ShapeVector{{2}, {2}};
-    output_shapes.push_back(StaticShape({2, 200}));
-
-    // TODO should support v8::PriorBox
-    // unit_test::cpu_test_shape_infer(op.get(),
-    //         input_shapes,
-    //         output_shapes,
-    //         {{0, std::make_shared<HostTensor>(element::i32, ov::Shape{2}, output_size)}});
-}
-
-TEST_F(PriorBoxV8CpuShapeInferenceTest , all_inputs_static_rank) {
-    const auto out_size = std::make_shared<op::v0::Parameter>(element::i32, PartialShape::dynamic(1));
-    const auto img_size = std::make_shared<op::v0::Parameter>(element::i32, PartialShape::dynamic(1));
-
-    op = make_op(out_size, img_size, attrs);
-
-    int32_t output_size[] = {5, 2};
-
-    input_shapes = unit_test::ShapeVector{{2}, {2}};
-    output_shapes.push_back(StaticShape({2, 200}));
-    // TODO should support v8::PriorBox
-    // unit_test::cpu_test_shape_infer(op.get(),
-    //                input_shapes,
-    //                output_shapes,
-    //                {{0, std::make_shared<HostTensor>(element::i32, ov::Shape{2}, output_size)}});
-}
-
-TEST_F(PriorBoxV8CpuShapeInferenceTest , out_size_constant) {
-    const auto out_size = op::v0::Constant::create(element::i32, ov::Shape{2}, {4, 6});
-    const auto img_size = std::make_shared<op::v0::Parameter>(element::i32, PartialShape::dynamic(1));
-
-    op = make_op(out_size, img_size, attrs);
-
-    input_shapes = unit_test::ShapeVector{{2}, {2}};
-    output_shapes.push_back(StaticShape({2, 480}));
-    // TODO should support v8::PriorBox
-    // unit_test::cpu_test_shape_infer(op.get(), input_shapes, output_shapes);
-}
-
-TEST_F(PriorBoxV8CpuShapeInferenceTest , all_inputs_constants) {
-    const auto out_size = op::v0::Constant::create(element::i32, ov::Shape{2}, {12, 16});
-    const auto img_size = op::v0::Constant::create(element::i32, ov::Shape{2}, {50, 50});
-
-    op = make_op(out_size, img_size, attrs);
-
-    input_shapes = unit_test::ShapeVector{{2}, {2}};
-    output_shapes.push_back(StaticShape({2, 3840}));
-
-    // TODO should support v8::PriorBox
-    // unit_test::cpu_test_shape_infer(op.get(), input_shapes, output_shapes);
-}
-
-TEST_F(PriorBoxV8CpuShapeInferenceTest , invalid_number_of_elements_in_out_size) {
-    const auto out_size = std::make_shared<op::v0::Parameter>(element::i64, PartialShape::dynamic(1));
-    const auto img_size = std::make_shared<op::v0::Parameter>(element::i64, PartialShape::dynamic(1));
-
-    op = make_op(out_size, img_size, attrs);
-
-    int64_t output_size[] = {5, 2, 1};
-    input_shapes = unit_test::ShapeVector{{2}, {2}};
-
-    // TODO should support v8::PriorBox
-}
-
-TEST_F(PriorBoxV8CpuShapeInferenceTest , invalid_input_ranks) {
-    const auto out_size = std::make_shared<op::v0::Parameter>(element::i64, PartialShape::dynamic(1));
-    const auto img_size = std::make_shared<op::v0::Parameter>(element::i64, PartialShape::dynamic(1));
-
-    op = make_op(out_size, img_size, attrs);
-
-    int64_t output_size[] = {5, 2, 1};
-    input_shapes = unit_test::ShapeVector{{2, 1}, {2}};
-
-    // TODO should support v8::PriorBox
-}
-
-TEST(CpuShapeInferenceTest , prior_box0) {
+namespace {
+const op::v0::PriorBox::Attributes createAttrs(
+    std::vector<float> min_size,
+    std::vector<float> max_size,
+    std::vector<float> aspect_ratio,
+    std::vector<float> density,
+    std::vector<float> fixed_ratio,
+    std::vector<float> fixed_size,
+    bool clip,
+    bool flip,
+    float step,
+    float offset,
+    std::vector<float> variance,
+    bool scale_all_sizes) {
     op::v0::PriorBox::Attributes attrs;
-    attrs.min_size = {16.0f};
-    attrs.max_size = {38.46f};
-    attrs.aspect_ratio = {2.0f};
-    attrs.clip = false;
-    attrs.flip = true;
-    attrs.step = 16.0f;
-    attrs.offset = 0.5f;
-    attrs.scale_all_sizes = true;
-    attrs.density = {};
-    attrs.fixed_ratio = {};
-    attrs.fixed_size = {};
-    attrs.variance = {0.1f, 0.1f, 0.2f, 0.2f};
+    attrs.min_size = min_size;
+    attrs.max_size = max_size;
+    attrs.aspect_ratio = aspect_ratio;
+    attrs.density = density;
+    attrs.fixed_ratio = fixed_ratio;
+    attrs.fixed_size = fixed_size;
+    attrs.clip = clip;
+    attrs.flip = flip;
+    attrs.step = step;
+    attrs.offset = offset;
+    attrs.variance = variance;
+    attrs.scale_all_sizes = scale_all_sizes;
+    return attrs;
+}
+const op::v0::PriorBox::Attributes attrs1 = createAttrs(
+    {16.0f},                  // min_size         Desired min_size of prior boxes
+    {38.46f},                 // max_size         Desired max_size of prior boxes
+    {2.0f},                   // aspect_ratio     Aspect ratios of prior boxes
+    {},                       // density
+    {},                       // fixed_ratio
+    {},                       // fixed_size
+    false,                    // clip             Clip output to [0,  1]
+    true,                     // flip             Flip aspect ratios
+    16.0f,                    // step             Distance between prior box centers
+    0.5f,                     // offset           Box offset relative to top center of image
+    {0.1f, 0.1f, 0.2f, 0.2f}, // variance         Values to adjust prior boxes with
+    true                      // scale_all_sizes  Scale all sizes
+);
 
-    auto layer_shape = std::make_shared<ov::op::v0::Parameter>(element::i32, PartialShape{-1});
-    auto image_shape = std::make_shared<ov::op::v0::Parameter>(element::i32, PartialShape{-1});
-    auto op =
-        std::make_shared<ov::op::v0::PriorBox>(layer_shape, image_shape, attrs);
-    int32_t layer_data[] = {24, 42};
-    int32_t image_data[] = {384, 672};
-    const std::map<size_t, HostTensorPtr> const_data{
-        {0, std::make_shared<HostTensor>(element::i32, ov::Shape{2}, layer_data)},
-        {1, std::make_shared<HostTensor>(element::i32, ov::Shape{2}, image_data)},
-    };
+const op::v0::PriorBox::Attributes attrs2 = createAttrs(
+    {2.0f, 3.0f},       // min_size         Desired min_size of prior boxes
+    {},                 // max_size         Desired max_size of prior boxes
+    {1.5f, 2.0f, 2.5f}, // aspect_ratio     Aspect ratios of prior boxes
+    {},                 // density
+    {},                 // fixed_ratio
+    {},                 // fixed_size
+    false,              // clip             Clip output to [0,  1]
+    false,              // flip             Flip aspect ratios
+    0.0f,               // step             Distance between prior box centers
+    0.0f,               // offset           Box offset relative to top center of image
+    {},                 // variance         Values to adjust prior boxes with
+    false               // scale_all_sizes  Scale all sizes
+);
 
-    std::vector<StaticShape> static_input_shapes = {StaticShape{2}, StaticShape{2}};
-    std::vector<StaticShape> static_output_shapes = {StaticShape{2, 16128}};
-    unit_test::cpu_test_shape_infer(op.get(), static_input_shapes, static_output_shapes, const_data);
+const op::v0::PriorBox::Attributes attrs3 = createAttrs(
+    {2.0f, 3.0f},       // min_size         Desired min_size of prior boxes
+    {},                 // max_size         Desired max_size of prior boxes
+    {1.5f, 2.0f, 2.5f}, // aspect_ratio     Aspect ratios of prior boxes
+    {},                 // density
+    {},                 // fixed_ratio
+    {},                 // fixed_size
+    false,              // clip             Clip output to [0,  1]
+    true,               // flip             Flip aspect ratios
+    0.0f,               // step             Distance between prior box centers
+    0.0f,               // offset           Box offset relative to top center of image
+    {},                 // variance         Values to adjust prior boxes with
+    false               // scale_all_sizes  Scale all sizes
+);
+
+const op::v0::PriorBox::Attributes attrs4 = createAttrs(
+    {256.0f}, // min_size         Desired min_size of prior boxes
+    {315.0f}, // max_size         Desired max_size of prior boxes
+    {2.0f},   // aspect_ratio     Aspect ratios of prior boxes
+    {},       // density
+    {},       // fixed_ratio
+    {},       // fixed_size
+    false,    // clip             Clip output to [0,  1]
+    true,     // flip             Flip aspect ratios
+    0.0f,     // step             Distance between prior box centers
+    0.0f,     // offset           Box offset relative to top center of image
+    {},       // variance         Values to adjust prior boxes with
+    true      // scale_all_sizes  Scale all sizes
+);
+
+} // namespace
+
+TEST_P(PriorBoxV0CpuShapeInferenceTest , shape_inference_empty_const_map) {
+    const auto layer_const = std::make_shared<op::v0::Constant>(element::i32, ov::Shape{2}, data[0]);
+    const auto image_const = std::make_shared<op::v0::Constant>(element::i32, ov::Shape{2}, data[1]);
+    auto op = make_op(layer_const, image_const, attrs);
+    unit_test::cpu_test_shape_infer(op.get(), input_shapes, output_shapes);
 }
 
-TEST(CpuShapeInferenceTest , prior_box1) {
-    op::v0::PriorBox::Attributes attrs;
-    attrs.min_size = {2.0f, 3.0f};
-    attrs.aspect_ratio = {1.5f, 2.0f, 2.5f};
-    attrs.scale_all_sizes = false;
+TEST_P(PriorBoxV0CpuShapeInferenceTest , shape_inference_with_const_map) {
+    const auto layer_shape = std::make_shared<ov::op::v0::Parameter>(element::i32, PartialShape::dynamic());
+    const auto image_shape = std::make_shared<ov::op::v0::Parameter>(element::i32, PartialShape::dynamic());
+    auto op = make_op(layer_shape, image_shape, attrs);
 
-    auto layer_shape = std::make_shared<ov::op::v0::Parameter>(element::i32, PartialShape{-1});
-    auto image_shape = std::make_shared<ov::op::v0::Parameter>(element::i32, PartialShape{-1});
-    auto op =
-        std::make_shared<ov::op::v0::PriorBox>(layer_shape, image_shape, attrs);
-    int32_t layer_data[] = {32, 32};
-    int32_t image_data[] = {300, 300};
-    const std::map<size_t, HostTensorPtr> const_data{
-        {0, std::make_shared<HostTensor>(element::i32, ov::Shape{2}, layer_data)},
-        {1, std::make_shared<HostTensor>(element::i32, ov::Shape{2}, image_data)},
+    const auto layer_const = std::make_shared<op::v0::Constant>(element::i32, ov::Shape{2}, data[0]);
+    const auto image_const = std::make_shared<op::v0::Constant>(element::i32, ov::Shape{2}, data[1]);
+    const std::map<size_t, HostTensorPtr> const_data {
+        {0, std::make_shared<HostTensor>(layer_const)},
+            {1, std::make_shared<HostTensor>(image_const)},
     };
 
-    std::vector<StaticShape> static_input_shapes = {StaticShape{2}, StaticShape{2}};
-    std::vector<StaticShape> static_output_shapes = {StaticShape{2, 20480}};
-    unit_test::cpu_test_shape_infer(op.get(), static_input_shapes, static_output_shapes, const_data);
+    unit_test::cpu_test_shape_infer(op.get(), input_shapes, output_shapes, const_data);
 }
 
-TEST(CpuShapeInferenceTest , prior_box2) {
-    op::v0::PriorBox::Attributes attrs;
-    attrs.min_size = {2.0f, 3.0f};
-    attrs.aspect_ratio = {1.5f, 2.0f, 2.5f};
-    attrs.flip = true;
-    attrs.scale_all_sizes = false;
-
-    auto layer_shape = std::make_shared<ov::op::v0::Parameter>(element::i32, PartialShape{-1});
-    auto image_shape = std::make_shared<ov::op::v0::Parameter>(element::i32, PartialShape{-1});
-    auto op =
-        std::make_shared<ov::op::v0::PriorBox>(layer_shape, image_shape, attrs);
-    int32_t layer_data[] = {32, 32};
-    int32_t image_data[] = {300, 300};
-    const std::map<size_t, HostTensorPtr> const_data{
-        {0, std::make_shared<HostTensor>(element::i32, ov::Shape{2}, layer_data)},
-        {1, std::make_shared<HostTensor>(element::i32, ov::Shape{2}, image_data)},
-    };
-
-    std::vector<StaticShape> static_input_shapes = {StaticShape{2}, StaticShape{2}};
-    std::vector<StaticShape> static_output_shapes = {StaticShape{2, 32768}};
-    unit_test::cpu_test_shape_infer(op.get(), static_input_shapes, static_output_shapes, const_data);
-}
-
-TEST(CpuShapeInferenceTest , prior_box3) {
-    op::v0::PriorBox::Attributes attrs;
-    attrs.min_size = {256.0f};
-    attrs.max_size = {315.0f};
-    attrs.aspect_ratio = {2.0f};
-    attrs.flip = true;
-
-    auto layer_shape = std::make_shared<ov::op::v0::Parameter>(element::i32, PartialShape{-1});
-    auto image_shape = std::make_shared<ov::op::v0::Parameter>(element::i32, PartialShape{-1});
-    auto op =
-        std::make_shared<ov::op::v0::PriorBox>(layer_shape, image_shape, attrs);
-    int32_t layer_data[] = {1, 1};
-    int32_t image_data[] = {300, 300};
-    const std::map<size_t, HostTensorPtr> const_data{
-        {0, std::make_shared<HostTensor>(element::i32, ov::Shape{2}, layer_data)},
-        {1, std::make_shared<HostTensor>(element::i32, ov::Shape{2}, image_data)},
-    };
-
-    std::vector<StaticShape> static_input_shapes = {StaticShape{2}, StaticShape{2}};
-    std::vector<StaticShape> static_output_shapes = {StaticShape{2, 16}};
-    unit_test::cpu_test_shape_infer(op.get(), static_input_shapes, static_output_shapes, const_data);
-}
-
-TEST(CpuShapeInferenceTest , prior_box_v8_1) {
-    op::v8::PriorBox::Attributes attrs;
-    attrs.min_size = {2.0f, 3.0f};
-    attrs.aspect_ratio = {1.5f, 2.0f, 2.5f};
-    attrs.scale_all_sizes = false;
-    attrs.min_max_aspect_ratios_order = true;
-
-    auto layer_shape = std::make_shared<ov::op::v0::Parameter>(element::i32, PartialShape{-1});
-    auto image_shape = std::make_shared<ov::op::v0::Parameter>(element::i32, PartialShape{-1});
-    auto op =
-        std::make_shared<ov::op::v8::PriorBox>(layer_shape, image_shape, attrs);
-    int32_t layer_data[] = {32, 32};
-    int32_t image_data[] = {300, 300};
-    const std::map<size_t, HostTensorPtr> const_data{
-        {0, std::make_shared<HostTensor>(element::i32, ov::Shape{2}, layer_data)},
-        {1, std::make_shared<HostTensor>(element::i32, ov::Shape{2}, image_data)},
-    };
-
-    std::vector<StaticShape> static_input_shapes = {StaticShape{2}, StaticShape{2}};
-    std::vector<StaticShape> static_output_shapes = {StaticShape{2, 20480}};
-
-    ASSERT_EQ(static_output_shapes[0], StaticShape({2, 20480}));
-
-    // TODO should support v8::PriorBox
-    // unit_test::cpu_test_shape_infer(op.get(), static_input_shapes, static_output_shapes, const_data);
-}
-
-TEST(CpuShapeInferenceTest , prior_box_v8_2) {
-    op::v8::PriorBox::Attributes attrs;
-    attrs.min_size = {2.0f, 3.0f};
-    attrs.aspect_ratio = {1.5f, 2.0f, 2.5f};
-    attrs.flip = true;
-    attrs.scale_all_sizes = false;
-    attrs.min_max_aspect_ratios_order = false;
-
-    auto layer_shape = std::make_shared<ov::op::v0::Parameter>(element::i32, PartialShape{-1});
-    auto image_shape = std::make_shared<ov::op::v0::Parameter>(element::i32, PartialShape{-1});
-    auto op =
-        std::make_shared<ov::op::v8::PriorBox>(layer_shape, image_shape, attrs);
-    int32_t layer_data[] = {32, 32};
-    int32_t image_data[] = {300, 300};
-    const std::map<size_t, HostTensorPtr> const_data{
-        {0, std::make_shared<HostTensor>(element::i32, ov::Shape{2}, layer_data)},
-        {1, std::make_shared<HostTensor>(element::i32, ov::Shape{2}, image_data)},
-    };
-
-    std::vector<StaticShape> static_input_shapes = {StaticShape{2}, StaticShape{2}};
-    std::vector<StaticShape> static_output_shapes = {StaticShape{2, 32768}};
-
-    // should support v8::PriorBox
-    // unit_test::cpu_test_shape_infer(op.get(), static_input_shapes, static_output_shapes, const_data);
-}
+INSTANTIATE_TEST_SUITE_P(
+    CpuShapeInfer,
+    PriorBoxV0CpuShapeInferenceTest ,
+    Values(make_tuple(unit_test::ShapeVector{{2}, {2}}, attrs1,
+                        std::vector<std::vector<int32_t>>{{24, 42}, {384, 672}}, StaticShape({2, 16128})),
+           make_tuple(unit_test::ShapeVector{{2}, {2}}, attrs2,
+                        std::vector<std::vector<int32_t>>{{32, 32}, {384, 672}}, StaticShape({2, 20480})),
+           make_tuple(unit_test::ShapeVector{{2}, {2}}, attrs3,
+                        std::vector<std::vector<int32_t>>{{32, 32}, {300, 300}}, StaticShape({2, 32768})),
+           make_tuple(unit_test::ShapeVector{{2}, {2}}, attrs4,
+                        std::vector<std::vector<int32_t>>{{1, 1}, {300, 300}}, StaticShape({2, 16}))),
+    PriorBoxV0CpuShapeInferenceTest::getTestCaseName);

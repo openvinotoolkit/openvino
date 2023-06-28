@@ -7,23 +7,39 @@
 
 #include "common_test_utils/test_assertions.hpp"
 #include "custom_shape_infer.hpp"
+#include <ngraph/opsets/opset1.hpp>
 
 using namespace ov;
 using namespace ov::intel_cpu;
 using namespace testing;
 
-using ReshapeTestParams = std::tuple<ShapeVector,    // Input shapes
-                              std::vector<int64_t>,  // Squeeze axes
-                              StaticShape,           // Expected shape
-                              bool                   // specal zero
-                              >;
+using ReshapeTestParams = std::tuple<unit_test::ShapeVector, // Input shapes
+                                     std::vector<int64_t>,   // reshape axes
+                                     StaticShape,            // Expected shape
+                                     bool                    // specal zero
+                                     >;
 
 class ReshapeCpuShapeInferenceTest  : public unit_test::OpCpuShapeInferenceTest<op::v1::Reshape>,
-                                        public WithParamInterface<ReshapeTestParams> {
+                                      public WithParamInterface<ReshapeTestParams> {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<ReshapeTestParams>& obj) {
+        unit_test::ShapeVector tmp_input_shapes;
+        std::vector<int64_t> tmp_axes;
+        StaticShape tmp_exp_shape;
+        bool tmp_specialZero;
+        std::tie(tmp_input_shapes, tmp_axes, tmp_exp_shape, tmp_specialZero) = obj.param;
+        std::ostringstream result;
+        result << "IS" << CommonTestUtils::vec2str(tmp_input_shapes) << "_";
+        result << "axes" << CommonTestUtils::vec2str(tmp_axes) << "_";
+        result << "exp_shape(" << tmp_exp_shape << ")_";
+        result << "specalZero(" << unit_test::boolToString(tmp_specialZero) << ")";
+        return result.str();
+    }
+
 protected:
     void SetUp() override {
         std::tie(input_shapes, axes, exp_shape, specalZero) = GetParam();
-        output_shapes = ShapeVector(0);
+        output_shapes = unit_test::ShapeVector(0);
         arg = std::make_shared<op::v0::Parameter>(element::f32, input_shapes.front().get_shape());
     }
 
@@ -40,7 +56,7 @@ TEST_P(ReshapeCpuShapeInferenceTest , shape_inference_empty_const_map) {
 }
 
 TEST_P(ReshapeCpuShapeInferenceTest , shape_inference_with_const_map) {
-    const auto axes_node = std::make_shared<op::v0::Parameter>(element::i64, ov::Shape{1});
+    const auto axes_node = std::make_shared<op::v0::Parameter>(element::i64, PartialShape::dynamic());
     const auto op = make_op(arg, axes_node, specalZero);
 
     const auto axes_const = std::make_shared<op::v0::Constant>(element::i64, ov::Shape{axes.size()}, axes);
@@ -54,23 +70,23 @@ TEST_P(ReshapeCpuShapeInferenceTest , shape_inference_with_const_map) {
 INSTANTIATE_TEST_SUITE_P(
     CpuShapeInfer,
     ReshapeCpuShapeInferenceTest ,
-    Values(make_tuple(ShapeVector{{1, 2, 3, 1}, {2}}, std::vector<int64_t>{0, -1}, StaticShape({1, 6}), true),
-           make_tuple(ShapeVector{{1, 2, 3, 8}, {4}}, std::vector<int64_t>{1, 2, 3, 8}, StaticShape({1, 2, 3, 8}), true),
-           make_tuple(ShapeVector{{1, 2, 3, 8}, {4}}, std::vector<int64_t>{0, 2, 0, 8}, StaticShape({1, 2, 3, 8}), true),
-           make_tuple(ShapeVector{{0, 2, 2}, {2}}, std::vector<int64_t>{0, -1}, StaticShape({0, 4}), true),
-           make_tuple(ShapeVector{{0, 2, 2}, {2}}, std::vector<int64_t>{0, 4}, StaticShape({0, 4}), true),
-           make_tuple(ShapeVector{{4, 0, 2}, {2}}, std::vector<int64_t>{-1, 0}, StaticShape({8, 0}), true),
-           make_tuple(ShapeVector{{1, 2, 3, 8}, {4}}, std::vector<int64_t>{1, 2, 3, 8}, StaticShape({1, 2, 3, 8}), false),
-           make_tuple(ShapeVector{{0, 2, 2}, {2}}, std::vector<int64_t>{3, 0}, StaticShape({3, 0}), false),
-           make_tuple(ShapeVector{{0, 2, 2}, {2}}, std::vector<int64_t>{4, 0}, StaticShape({4, 0}), false),
-           make_tuple(ShapeVector{{3, 6, 5, 5}, {2}}, std::vector<int64_t>{0, -1}, StaticShape({3, 150}), true)),
-        PrintToStringParamName());
+    Values(make_tuple(unit_test::ShapeVector{{1, 2, 3, 1}, {2}}, std::vector<int64_t>{0, -1}, StaticShape({1, 6}), true),
+           make_tuple(unit_test::ShapeVector{{1, 2, 3, 8}, {4}}, std::vector<int64_t>{1, 2, 3, 8}, StaticShape({1, 2, 3, 8}), true),
+           make_tuple(unit_test::ShapeVector{{1, 2, 3, 8}, {4}}, std::vector<int64_t>{0, 2, 0, 8}, StaticShape({1, 2, 3, 8}), true),
+           make_tuple(unit_test::ShapeVector{{0, 2, 2}, {2}}, std::vector<int64_t>{0, -1}, StaticShape({0, 4}), true),
+           make_tuple(unit_test::ShapeVector{{0, 2, 2}, {2}}, std::vector<int64_t>{0, 4}, StaticShape({0, 4}), true),
+           make_tuple(unit_test::ShapeVector{{4, 0, 2}, {2}}, std::vector<int64_t>{-1, 0}, StaticShape({8, 0}), true),
+           make_tuple(unit_test::ShapeVector{{1, 2, 3, 8}, {4}}, std::vector<int64_t>{1, 2, 3, 8}, StaticShape({1, 2, 3, 8}), false),
+           make_tuple(unit_test::ShapeVector{{0, 2, 2}, {2}}, std::vector<int64_t>{3, 0}, StaticShape({3, 0}), false),
+           make_tuple(unit_test::ShapeVector{{0, 2, 2}, {2}}, std::vector<int64_t>{4, 0}, StaticShape({4, 0}), false),
+           make_tuple(unit_test::ShapeVector{{3, 6, 5, 5}, {2}}, std::vector<int64_t>{0, -1}, StaticShape({3, 150}), true)),
+        ReshapeCpuShapeInferenceTest::getTestCaseName);
 
 
 using ReshapeCpuShapeInferenceThrowExceptionTest = ReshapeCpuShapeInferenceTest;
 
 TEST_P(ReshapeCpuShapeInferenceThrowExceptionTest, wrong_pattern) {
-    const auto axes_node = std::make_shared<op::v0::Parameter>(element::i64, ov::Shape{1});
+    const auto axes_node = std::make_shared<op::v0::Parameter>(element::i64, PartialShape::dynamic());
     const auto op = make_op(arg, axes_node, specalZero);
 
     const auto axes_const = std::make_shared<op::v0::Constant>(element::i64, ov::Shape{axes.size()}, axes);
@@ -104,11 +120,11 @@ TEST_P(ReshapeCpuShapeInferenceThrowExceptionTest, wrong_pattern) {
 INSTANTIATE_TEST_SUITE_P(
     CpuShapeInfer,
     ReshapeCpuShapeInferenceThrowExceptionTest,
-    Values(make_tuple(ShapeVector{{1, 2, 3, 1}, {3}}, std::vector<int64_t>{0, -1, -1}, StaticShape({}), true),
-           make_tuple(ShapeVector{{1, 2, 3, 8}, {4}}, std::vector<int64_t>{1, 2, 3, 6}, StaticShape({}), true),
-           make_tuple(ShapeVector{{1, 2, 3, 8}, {4}}, std::vector<int64_t>{0, 3, 0, 8}, StaticShape({}), true),
-           make_tuple(ShapeVector{{1, 2, 3, 8}, {4}}, std::vector<int64_t>{1, 2, 3, 6}, StaticShape({}), false),
-           make_tuple(ShapeVector{{0, 2, 2}, {2}}, std::vector<int64_t>{3, 3}, StaticShape({}), false)),
-        PrintToStringParamName());
+    Values(make_tuple(unit_test::ShapeVector{{1, 2, 3, 1}, {3}}, std::vector<int64_t>{0, -1, -1}, StaticShape({}), true),
+           make_tuple(unit_test::ShapeVector{{1, 2, 3, 8}, {4}}, std::vector<int64_t>{1, 2, 3, 6}, StaticShape({}), true),
+           make_tuple(unit_test::ShapeVector{{1, 2, 3, 8}, {4}}, std::vector<int64_t>{0, 3, 0, 8}, StaticShape({}), true),
+           make_tuple(unit_test::ShapeVector{{1, 2, 3, 8}, {4}}, std::vector<int64_t>{1, 2, 3, 6}, StaticShape({}), false),
+           make_tuple(unit_test::ShapeVector{{0, 2, 2}, {2}}, std::vector<int64_t>{3, 3}, StaticShape({}), false)),
+        ReshapeCpuShapeInferenceThrowExceptionTest::getTestCaseName);
 
 
