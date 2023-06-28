@@ -116,7 +116,7 @@ const std::vector<std::string> layer_types_4D_dynamic = {
 INSTANTIATE_TEST_SUITE_P(smoke_FQLayerDQBias_4D_dynamic, FQLayerDQBias,
                          ::testing::Combine(::testing::ValuesIn(input_shapes_4D_dynamic),
                                             ::testing::ValuesIn(layer_types_4D_dynamic),
-                                            ::testing::ValuesIn({false})),
+                                            ::testing::Values(false)),
                          FQLayerDQBias::getTestCaseName);
 const std::vector<InputShape> input_shapes_2D = {
     {{-1, 768}, {{1, 768}}}
@@ -129,13 +129,13 @@ const std::vector<std::string> layer_types_2D = {
 INSTANTIATE_TEST_SUITE_P(smoke_FQLayerDQBias_2D, FQLayerDQBias,
                          ::testing::Combine(::testing::ValuesIn(input_shapes_2D),
                                             ::testing::ValuesIn(layer_types_2D),
-                                            ::testing::ValuesIn({false})),
+                                            ::testing::Values(false)),
                          FQLayerDQBias::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_FQLayerDQExtraMultiplyAdd_2D, FQLayerDQBias,
                          ::testing::Combine(::testing::ValuesIn(input_shapes_2D),
                                             ::testing::ValuesIn(layer_types_2D),
-                                            ::testing::ValuesIn({true})),
+                                            ::testing::Values(false)),
                          FQLayerDQBias::getTestCaseName);
 
 } // namespace

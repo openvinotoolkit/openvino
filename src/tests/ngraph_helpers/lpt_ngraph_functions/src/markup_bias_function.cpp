@@ -89,7 +89,6 @@ std::shared_ptr<ov::Model> MarkupBiasFunction::get(const ov::element::Type& prec
     const auto& out_shape = layer->get_output_partial_shape(0);
 
     std::shared_ptr<ov::Node> add_input0 = layer;
-    std::shared_ptr<ov::Node> add_input1;
     if (extra_multipy) {
         Shape mul_shape{};
         if (out_shape.is_static()) {
@@ -97,7 +96,7 @@ std::shared_ptr<ov::Model> MarkupBiasFunction::get(const ov::element::Type& prec
             if (layer_type != "MatMul")
                 mul_shape[1] = out_shape[1].get_length();
             else
-                mul_shape[out_shape.size()-1] = out_shape[out_shape.size() - 1].get_length();
+                mul_shape[out_shape.size() - 1] = out_shape[out_shape.size() - 1].get_length();
         } else {
             mul_shape = Shape{1};
         }
@@ -105,7 +104,8 @@ std::shared_ptr<ov::Model> MarkupBiasFunction::get(const ov::element::Type& prec
         auto mul_input = builder::makeConstant<float>(precision, mul_shape, {}, true);
         add_input0 = std::make_shared<ov::opset1::Multiply>(layer, mul_input);
     }
-    //empty add_shape means that add_input must be generated automatically
+    std::shared_ptr<ov::Node> add_input1;
+    // empty add_shape means that add_input1 must be generated automatically
     if (add_shape.is_static() && add_shape.size() == 0) {
         Shape bias_shape(out_shape.size(), 1);
         if (layer_type != "MatMul")
