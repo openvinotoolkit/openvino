@@ -43,23 +43,23 @@ TransposeCompress::TransposeCompress() {
         const ov::Shape& shape = transpose_node->get_input_shape(0);
         const ov::Shape& shape_out = transpose_node->get_output_shape(0);
         ov::AxisVector axis = transpose_order->get_axis_vector_val();
-        ov::AxisVector axis_fused = {};
+        ov::AxisVector axis_compressed = {};
         ov::Shape shape_fused_out = {};
         for (const size_t& axis : axis) {
-            if (axis_fused.empty() || (axis - axis_fused.back()) != 1) {
-                axis_fused.push_back(axis);
+            if (axis_compressed.empty() || (axis - axis_compressed.back()) != 1) {
+                axis_compressed.push_back(axis);
                 shape_fused_out.push_back(shape[axis]);
             } else {
                 shape_fused_out.back() *= shape[axis];
             }
         }
         // check that fusing is required
-        if (axis.size() == axis_fused.size()) {
+        if (axis.size() == axis_compressed.size()) {
             return false;
         }
 
         // correct fused indexes, e.g. (2, 0, 3) -> (1, 0, 2)
-        ov::AxisVector axis_fused_fixed = fix_indexes(axis_fused);
+        ov::AxisVector axis_fused_fixed = fix_indexes(axis_compressed);
         size_t fused_sz = axis_fused_fixed.size();
         // Restore input shape
         ov::Shape shape_fused_in(fused_sz);
@@ -84,6 +84,7 @@ TransposeCompress::TransposeCompress() {
         auto reshape_out = std::make_shared<Reshape>(transpose, reshape_out_const, false);
         //
         ov::replace_output_update_name(transpose_node->output(0), reshape_out->output(0));
+        ov::copy_runtime_info({transpose_node, transpose_order}, {transpose, transpose_const, reshape_in, reshape_in_const});
 
         return true;
     };
