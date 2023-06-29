@@ -24,9 +24,9 @@ Install OpenVINO
 
 .. raw:: html
 
-   <script type="module" crossorigin src="_static/selector-tool/assets/index-89e3365b.js"></script>
+   <script type="module" crossorigin src="_static/selector-tool/assets/index-f34d1fad.js"></script>
    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-   <iframe id="selector" src="_static/selector-tool/selector-0290a24.html" style="width: 100%; border: none" title="Download Intel® Distribution of OpenVINO™ Toolkit"></iframe>
+   <iframe id="selector" src="_static/selector-tool/selector-8db148d.html" style="width: 100%; border: none" title="Download Intel® Distribution of OpenVINO™ Toolkit"></iframe>
 
 
 OpenVINO installation package is distributed in two parts: OpenVINO Runtime and OpenVINO Development Tools.
