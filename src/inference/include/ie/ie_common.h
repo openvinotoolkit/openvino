@@ -402,18 +402,32 @@ namespace details {
  */
 template <typename ExceptionType>
 struct INFERENCE_ENGINE_1_0_DEPRECATED ThrowNow final {
-    [[noreturn]] void operator<<=(const std::ostream& ostream) {
-        std::ostringstream stream;
-        stream << ostream.rdbuf();
+#ifndef NDEBUG
+    const char* const file;
+    const int line;
+#endif
+
+    [[noreturn]] void create(const std::ostream& ostream) const {
+        std::stringstream stream;
+#ifndef NDEBUG
+        stream << '\n' << file << ':' << line << ' ';
+#endif
+        stream << InferenceEngine::details::ExceptionTraits<ExceptionType>::string() << ' ' << ostream.rdbuf();
         throw ExceptionType{stream.str()};
+    }
+
+    [[noreturn]] void operator<<=(const std::ostream& ostream) {
+        create(ostream);
     }
 };
 
 /// @cond
 #ifndef NDEBUG
-#    define IE_LOCATION '\n' << __FILE__ << ':' << __LINE__ << ' '
+#    define IE_LOCATION       '\n' << __FILE__ << ':' << __LINE__ << ' '
+#    define IE_LOCATION_PARAM __FILE__, __LINE__
 #else
 #    define IE_LOCATION ""
+#    define IE_LOCATION_PARAM
 #endif  // NDEBUG
 
 // WARNING: DO NOT USE THIS MACRO! Use openvino/util/pp.hpp macro library
@@ -430,13 +444,10 @@ struct INFERENCE_ENGINE_1_0_DEPRECATED ThrowNow final {
 // ENDWARNING
 
 #define IE_THROW_0() \
-    InferenceEngine::details::ThrowNow<InferenceEngine::GeneralError>{} <<= std::stringstream{} << IE_LOCATION
+    (InferenceEngine::details::ThrowNow<InferenceEngine::GeneralError>{IE_LOCATION_PARAM}) <<= std::stringstream {}
 
-#define IE_THROW_1(ExceptionType)                                                                                  \
-    InferenceEngine::details::ThrowNow<InferenceEngine::ExceptionType>{} <<=                                       \
-        std::stringstream{} << IE_LOCATION                                                                         \
-                            << InferenceEngine::details::ExceptionTraits<InferenceEngine::ExceptionType>::string() \
-                            << ' '
+#define IE_THROW_1(ExceptionType) \
+    (InferenceEngine::details::ThrowNow<InferenceEngine::ExceptionType>{IE_LOCATION_PARAM}) <<= std::stringstream {}
 /// @endcond
 
 /**
@@ -452,7 +463,7 @@ struct INFERENCE_ENGINE_1_0_DEPRECATED ThrowNow final {
 #ifdef NDEBUG
 #    define IE_ASSERT(EXPRESSION) \
         if (!(EXPRESSION))        \
-        IE_THROW(GeneralError) << " AssertionFailed: " << #EXPRESSION
+        IE_THROW(GeneralError) << " AssertionError " #EXPRESSION
 #else
 /**
  * @private
@@ -470,9 +481,9 @@ struct NullStream {
 #endif  // NDEBUG
 
 /// @cond
-#define THROW_IE_EXCEPTION                                                                                           \
-    InferenceEngine::details::ThrowNow<InferenceEngine::details::InferenceEngineException>{} <<= std::stringstream{} \
-                                                                                                 << IE_LOCATION
+#define THROW_IE_EXCEPTION                                                                                          \
+    (InferenceEngine::details::ThrowNow<InferenceEngine::details::InferenceEngineException>{IE_LOCATION_PARAM}) <<= \
+        std::stringstream {}
 
 #define IE_EXCEPTION_CASE(TYPE_ALIAS, STATUS_CODE, EXCEPTION_TYPE, ...) \
     case InferenceEngine::STATUS_CODE: {                                \
