@@ -146,6 +146,19 @@ TEST_BODY(ConvertPadToConv) {
     }
 }
 
+TEST_BODY(NegativeConvertPadToConv) {
+    {
+        auto input = std::make_shared<Parameter>(element::f32, Shape{1, 3, 64, 64});
+        auto pad_begin = Constant::create(element::i64, Shape{4}, {0, 0, -1, 0});
+        auto pad_end = Constant::create(element::i64, Shape{4}, {0, 0, 0, -1});
+        auto pad_value = Constant::create(element::f32, Shape{}, {0});
+        auto pad_mode = op::PadMode::CONSTANT;
+        auto pad = pad_factory->create(input, pad_begin, pad_end, pad_value, pad_mode);
+        function = std::make_shared<Model>(NodeVector{pad}, ParameterVector{input});
+    }
+    manager.register_pass<ov::pass::ConvertPadToGroupConvolution>();
+}
+
 TEST_BODY(ConvertPadToConvNeg1) {
     {
         auto input = std::make_shared<Parameter>(element::f32, Shape{1, 3, 64, 64});
@@ -209,7 +222,8 @@ std::vector<TestModelFactoryPtr> model_factories = {CREATE_MODEL_FACTORY(Convert
                                                     CREATE_MODEL_FACTORY(ConvertPadToConvNeg1),
                                                     CREATE_MODEL_FACTORY(ConvertPadToConvNeg2),
                                                     CREATE_MODEL_FACTORY(ConvertPadToConvNeg3),
-                                                    CREATE_MODEL_FACTORY(ConvertPadToConvNeg4)};
+                                                    CREATE_MODEL_FACTORY(ConvertPadToConvNeg4),
+                                                    CREATE_MODEL_FACTORY(NegativeConvertPadToConv)};
 
 INSTANTIATE_TEST_SUITE_P(ConvertPadToGroupConvolutionTestSuite,
                          PadTestFixture,
