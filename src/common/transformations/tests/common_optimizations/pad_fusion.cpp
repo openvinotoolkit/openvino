@@ -75,7 +75,7 @@ PadFactoryPtr CreatePadFactory(const std::string& type_name) {
 #undef CREATE_PAD_FACTORY
 #define CREATE_PAD_FACTORY(type_name, type_str) CreatePadFactory<type_name>(type_str)
 
-std::vector<PadFactoryPtr> pad_factories = {CREATE_PAD_FACTORY(opset12::Pad, "opset12_Pad"),
+std::vector<PadFactoryPtr> pad_factories = {CREATE_PAD_FACTORY(ov::op::v1::Pad, "op_v1_Pad"),
                                             CREATE_PAD_FACTORY(ov::op::v12::Pad, "op_v12_Pad")};
 
 struct ITestModelFactory {
@@ -204,6 +204,26 @@ TEST_BODY(PadFusionAvgPoolExcludePad) {
                                                   op::PadType::EXPLICIT);
         function_ref = std::make_shared<Model>(NodeVector{avg_pool}, ParameterVector{data});
     }
+}
+
+TEST_BODY(NegativePadFusionAvgPoolExcludePad) {
+    Shape data_shape{1, 3, 14, 14};
+    {
+        auto data = std::make_shared<Parameter>(element::i32, data_shape);
+        auto pads_begin = Constant::create(element::i32, Shape{4}, {0, 0, -1, -1});
+        auto pads_end = Constant::create(element::i32, Shape{4}, {0, 0, -2, -2});
+        auto pad = pad_factory->create(data, pads_begin, pads_end, op::PadMode::CONSTANT);
+        auto avg_pool = std::make_shared<AvgPool>(pad,
+                                                  Strides{1, 1},
+                                                  Shape{0, 0},
+                                                  Shape{0, 0},
+                                                  Shape{4, 4},
+                                                  true,
+                                                  op::RoundingType::FLOOR);
+        function = std::make_shared<Model>(NodeVector{avg_pool}, ParameterVector{data});
+        manager.register_pass<ov::pass::PadFusion>();
+    }
+    // Reference function is equal to function
 }
 
 TEST_BODY(PadFusionAvgPoolDontExcludePad) {
@@ -747,7 +767,8 @@ std::vector<TestModelFactoryPtr> model_factories = {
     CREATE_MODEL_FACTORY(NegativePadFusionAvgPoolExcludePadNonZeroPads),
     CREATE_MODEL_FACTORY(NegativePadFusionConvolutionBackpropDataTooSmallPad),
     CREATE_MODEL_FACTORY(NegativePadPreservation),
-    CREATE_MODEL_FACTORY(NegativePadElimination)};
+    CREATE_MODEL_FACTORY(NegativePadElimination),
+    CREATE_MODEL_FACTORY(NegativePadFusionAvgPoolExcludePad)};
 
 INSTANTIATE_TEST_SUITE_P(PadTestSuite,
                          PadTestFixture,
