@@ -442,7 +442,9 @@ def read_model(fem: FrontEndManager, path_to_xml: str):
     # avoid segfault during object destruction. So fe must
     # be destructed before fem object explicitly.
     fe = fem.load_by_framework(framework="ir")
-    function = fe.convert(fe.load(path_to_xml))
+    # *.xml/.*bin files are temporary in this flow, so we cannot map the memory
+    enable_mmap = False
+    function = fe.convert(fe.load(path_to_xml, enable_mmap))
     return function
 
 
