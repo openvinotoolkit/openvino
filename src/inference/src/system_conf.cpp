@@ -450,7 +450,7 @@ void set_cpu_used(const std::vector<int>& cpu_ids, const int used) {
         std::vector<int> all_table;
         std::map<int, int> numa_node_map;
         if (cpu._numa_nodes > 1) {
-            for (int i = 1; i < cpu._proc_type_table.size(); i++) {
+            for (int i = 1; i < static_cast<int>(cpu._proc_type_table.size()); i++) {
                 numa_node_map.insert(std::pair<int, int>(cpu._proc_type_table[i][PROC_NUMA_NODE_ID], i));
             }
         } else {
