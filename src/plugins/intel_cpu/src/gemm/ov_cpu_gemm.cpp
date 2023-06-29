@@ -15,10 +15,10 @@ namespace cpu {
 class ThreadPool {
 public:
     ThreadPool() = delete;
-    ThreadPool(const size_t& threadNum) : threadNum(threadNum) {}
+    explicit ThreadPool(const size_t& threadNum) : threadNum(threadNum) {}
 public:
     // the actual threads used for sgemm
-    size_t threadNum;
+    size_t threadNum = 0;
 };
 size_t DegreeOfParallelism(ThreadPool* tp) {
     // threadpool nullptr means single threaded

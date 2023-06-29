@@ -32,10 +32,10 @@ void ov_sgemm_pack(const char* transb,
                    float* dst);
 
 /**
- * @brief  Signle threaded SGEMM
+ * @brief  SGEMM
  *
  * @param transa       T for transpose A, N for none-tranpose A.
- * @param transb       T for transpose A, N for none-tranpose A.
+ * @param transb       T for transpose B, N for none-tranpose B.
  * @param M            Supplies the number of rows of matrix A and matrix C.
  * @param N            Supplies the number of columns of matrix B and matrix C.
  * @param K            Supplies the number of columns of matrix A and the number
@@ -69,7 +69,7 @@ void ov_sgemm(const char* transa,
  * @brief SGEMM with B matrix prepacked
  *
  * @param transa  T for transpose A, N for none-tranpose A.
- * @param transb  T for transpose A, N for none-tranpose A.
+ * @param transb  T for transpose B, N for none-tranpose B.
  * @param M       Supplies the number of rows of matrix A and matrix C.
  * @param N       Supplies the number of columns of matrix B and matrix C.
  * @param K       Supplies the number of columns of matrix A and the number
