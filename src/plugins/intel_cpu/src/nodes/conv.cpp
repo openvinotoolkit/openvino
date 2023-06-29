@@ -954,10 +954,10 @@ void Convolution::addLegacyZeroPoints(dnnl::primitive_attr& attr) {
     }
 }
 
-static bool attrContainsPostOp(const dnnl::primitive_attr& attr, const dnnl::impl::primitive_kind_t kind) {
-    const auto ops = attr.get_post_ops();
-    return ops.get()->find(kind) != -1;
-}
+// static bool attrContainsPostOp(const dnnl::primitive_attr& attr, const dnnl::impl::primitive_kind_t kind) {
+//     const auto ops = attr.get_post_ops();
+//     return ops.get()->find(kind) != -1;
+// }
 
 // See the src/plugins/intel_cpu/src/docs/convPostOps.md for details
 void Convolution::SetPostOpsAndZeroPoints(std::vector<dnnl::primitive_attr> &attrs) {
@@ -965,42 +965,39 @@ void Convolution::SetPostOpsAndZeroPoints(std::vector<dnnl::primitive_attr> &att
     auto outputShape = outputStaticShape();
     // attr[0] - Legacy post ops + Legacy zero points.
     DEBUG_LOG(getName(), ": set post ops, attr 0, useLegacyPostOps=true");
-    setPostOps(attrs[0], outputShape, true);
-    addLegacyZeroPoints(attrs[0]);
+    setPostOps(attrs[0], outputShape, false);
+    addZeroPoints(attrs[0]);
 
-    //dw-conv would be fused into conv only on AVX2 platform. no need attr[1]. Avoid extra useless attribute.
-    if (attrContainsPostOp(attrs[0], dnnl::impl::primitive_kind::convolution)) {
-        return;
-    }
+    // //dw-conv would be fused into conv only on AVX2 platform. no need attr[1]. Avoid extra useless attribute.
+    // if (attrContainsPostOp(attrs[0], dnnl::impl::primitive_kind::convolution)) {
+    //     return;
+    // }
 
-    // no matter if brgconv is available, 1 attribute is enough. Avoid duplicated attribute
-    if (inputZeroPointType == zpType::None &&
-        !attrContainsPostOp(attrs[0], dnnl::impl::primitive_kind::depthwise) &&
-        !attrContainsPostOp(attrs[0], dnnl::impl::primitive_kind::quantization)) {
-        return;
-    }
-    // Per channel zero point can only supported on attr[0].Avoid extra useless attribute.
-    if (inputZeroPointType == zpType::PerChannel) {
-        DEBUG_LOG(getName(), ": Per channel zero point can only supported on attr[0].Avoid extra useless attribute.");
-        return;
-    }
-    if (!isBrgConvAvailable) {
-        DEBUG_LOG(getName(), ": brgconv is not available. Skip extra attribute");
-        return;
-    }
+    // // no matter if brgconv is available, 1 attribute is enough. Avoid duplicated attribute
+    // if (inputZeroPointType == zpType::None &&
+    //     !attrContainsPostOp(attrs[0], dnnl::impl::primitive_kind::depthwise) &&
+    //     !attrContainsPostOp(attrs[0], dnnl::impl::primitive_kind::quantization)) {
+    //     return;
+    // }
+    // // Per channel zero point can only supported on attr[0].Avoid extra useless attribute.
+    // if (inputZeroPointType == zpType::PerChannel) {
+    //     DEBUG_LOG(getName(), ": Per channel zero point can only supported on attr[0].Avoid extra useless attribute.");
+    //     return;
+    // }
+    // if (!isBrgConvAvailable) {
+    //     DEBUG_LOG(getName(), ": brgconv is not available. Skip extra attribute");
+    //     return;
+    // }
     // Try 2 attributes.
-    attrs.resize(2);
-    if (inputZeroPointType == zpType::PerTensor && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx)) {
-        //WR to ONEDNN limitation. attr[1] - legacy post ops + stock zero point.
-        //@todo:Unify to use binary postops+stock zero point when limitation is fixed.
-        //For now, have to adapt to JIT_AMX kernel for performance.
-        DEBUG_LOG(getName(), ": set post ops, attr 1, useLegacyPostOps=true");
-        setPostOps(attrs[1], outputShape, true);
-    } else {
-        DEBUG_LOG(getName(), ": set post ops, attr 1, useLegacyPostOps=false");
-        setPostOps(attrs[1], outputShape, false);
-    }
-    addZeroPoints(attrs[1]);
+    // if (inputZeroPointType == zpType::PerTensor && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx)) {
+    //     //WR to ONEDNN limitation. attr[1] - legacy post ops + stock zero point.
+    //     //@todo:Unify to use binary postops+stock zero point when limitation is fixed.
+    //     //For now, have to adapt to JIT_AMX kernel for performance.
+    //     attrs.resize(2);
+    //     DEBUG_LOG(getName(), ": set post ops, attr 1, useLegacyPostOps=true");
+    //     setPostOps(attrs[1], outputShape, true);
+    //     addZeroPoints(attrs[1]);
+    // }
 }
 
 void Convolution::initDescriptor(const NodeConfig& config) {
@@ -1012,23 +1009,23 @@ void Convolution::initDescriptor(const NodeConfig& config) {
 
     // attr[0] for legacy post ops;
     // attr[1] is mostly for binaryPostops except when having per-tensor zp on AMX.
-    const int descId = descIdx[selectedPrimitiveDescriptorIndex];
-    int attrId = attrs.size() == 1 ? 0 :
-        descId % 2 == 0 ? 0 : 1;
+    //const int descId = descIdx[selectedPrimitiveDescriptorIndex];
+    // int attrId = attrs.size() == 1 ? 0 :
+    //     descId % 2 == 0 ? 0 : 1;
 
-    preferLegacyPostOps = (attrId == 0 || (attrId == 1 && (inputZeroPointType == zpType::PerTensor) &&
-                                      dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx)));
+    // preferLegacyPostOps = ((attrId == 1 && (inputZeroPointType == zpType::PerTensor) &&
+    //                                   dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx)));
     //attr[0] for legacy zero point.
     //attr[1] for stock per-tensor zero point.
-    preferLegacyZeroPoint = (attrId == 0);
+    //preferLegacyZeroPoint = (attrId == 0);
 
-    DEBUG_LOG(getName(),
-              " selectedPrimitiveDescriptorIndex: ", selectedPrimitiveDescriptorIndex,
-              " DescIdx: ", descId,
-              " Selected impl type: ", selectedPD->getImplementationType(),
-              " Desc impl type: ", parse_impl_name(descs[descId].impl_info_str()),
-              " preferLegacyPostOps: ", preferLegacyPostOps,
-              " preferLegacyZeroPoint: ", preferLegacyZeroPoint);
+    // DEBUG_LOG(getName(),
+    //           " selectedPrimitiveDescriptorIndex: ", selectedPrimitiveDescriptorIndex,
+    //           " DescIdx: ", descId,
+    //           " Selected impl type: ", selectedPD->getImplementationType(),
+    //           " Desc impl type: ", parse_impl_name(descs[descId].impl_info_str()),
+    //           " preferLegacyPostOps: ", preferLegacyPostOps,
+    //           " preferLegacyZeroPoint: ", preferLegacyZeroPoint);
 
     auto updateNodeConfig = [&](const NodeConfig& cfg){
         auto updatedConfig = cfg;
@@ -1245,11 +1242,11 @@ void Convolution::prepareParams() {
 
     auto initPrimitiveAttr = [&]() {
         dnnl::primitive_attr attr;
-        if (preferLegacyZeroPoint)
-            addLegacyZeroPoints(attr);
-        else
-            addZeroPoints(attr);
-        setPostOps(attr, outMemoryDesc->getShape().getStaticDims(), preferLegacyPostOps, true);
+        // if (preferLegacyZeroPoint)
+        //     addLegacyZeroPoints(attr);
+        // else
+        addZeroPoints(attr);
+        setPostOps(attr, outMemoryDesc->getShape().getStaticDims(), false, true);
         attr.set_scratchpad_mode(dnnl::scratchpad_mode::user);
 
         return std::make_shared<dnnl::primitive_attr>(std::move(attr));
@@ -1410,12 +1407,12 @@ void Convolution::prepareParams() {
         primArgs[DNNL_ARG_BIAS] = biasMemPtr->GetPrimitive();
     }
 
-    if (preferLegacyZeroPoint)
-        appendLegacyZeroPointsArgs();
-    else
-        appendZeroPointsArgs();
+    // if (preferLegacyZeroPoint)
+    //     appendLegacyZeroPointsArgs();
+    // else
+    appendZeroPointsArgs();
 
-    Node::appendPostOpArgs(*pAttrLocal, primArgs, convPostOpsArgs[preferLegacyPostOps]);
+    Node::appendPostOpArgs(*pAttrLocal, primArgs, convPostOpsArgs[0]);
 
     auto scratchpadMem = getScratchPadMem(execPtr->getScratchPadDesc());
     primArgs[DNNL_ARG_SCRATCHPAD] = scratchpadMem->GetPrimitive();
@@ -1572,18 +1569,12 @@ void Convolution::initializeInputZeroPoints(const uint8_t* inputZpData, const si
         IE_THROW() << "input zero point is not empty '" << getName() << "'";
     if (inputZpSize)
         inputZeroPointType = zpType::PerTensor;
-    for (size_t j = 0; j < inputZpSize; j++) {
-        legacyInputZeroPoints.push_back(inputZpData[j]);
-        if (inputZpData[j] != inputZpData[0])
-            inputZeroPointType = zpType::PerChannel;
-    }
     // Only enable per-tensor zero point on avx512-amx and avx512-core.
     // If zero point is pertensor, both legacy zp and stock zp
     // would be passed into conv node. The conv node would determine how to create
     // post-ops attribute and prioritize to choose final onednn kernel.
-    if (inputZeroPointType == zpType::PerTensor &&
-        (impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core_amx) || impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core_vnni)))
-        inputZeroPoints.push_back(static_cast<int32_t>(inputZpData[0]));
+    inputZeroPoints.push_back(static_cast<int32_t>(inputZpData[0]));
+    legacyInputZeroPoints.push_back(inputZpData[0]);
 }
 
 VectorDims Convolution::makeInputDummyShape(const Shape& inpShape) const {
