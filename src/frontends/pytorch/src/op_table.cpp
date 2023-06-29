@@ -477,7 +477,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.split.Tensor", op::translate_chunk_fx},
         {"aten.sub.default", op::translate_sub},
         {"aten.sub.Tensor", op::translate_sub},
-        {"aten.t.default", op::translate_transpose_fx},
+        {"aten.t.default", op::translate_t},
         {"aten.tanh.default", op::translate_1to1_match_1_inputs<opset10::Tanh>},
         {"aten.transpose.int", op::translate_transpose},
         {"aten.unsqueeze.default", op::translate_1to1_match_2_inputs<opset10::Unsqueeze>},
