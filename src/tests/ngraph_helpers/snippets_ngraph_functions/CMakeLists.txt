@@ -6,7 +6,6 @@ set(TARGET_NAME snippetsNgraphFunctions)
 
 set(PUBLIC_HEADERS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
 set(SNIPPETS_INCLUDES "$<TARGET_PROPERTY:inference_engine_snippets,SOURCE_DIR>/include")
-set(COMMON_TEST_UTILS_INCLUDES "$<TARGET_PROPERTY:commonTestUtils,INTERFACE_INCLUDE_DIRECTORIES>")
 addIeTarget(
         NAME ${TARGET_NAME}
         TYPE STATIC
@@ -14,7 +13,7 @@ addIeTarget(
         INCLUDES
             PUBLIC
                 ${PUBLIC_HEADERS_DIR}
-                ${COMMON_TEST_UTILS_INCLUDES}
+                ${IE_TESTS_ROOT}
             PRIVATE
                 ${SNIPPETS_INCLUDES}
 

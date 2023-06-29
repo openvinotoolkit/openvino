@@ -8,6 +8,7 @@
 #include <ngraph/pass/graph_rewrite.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
+
 #include "common_test_utils/test_tools.hpp"
 using namespace ::testing;
 using namespace std;

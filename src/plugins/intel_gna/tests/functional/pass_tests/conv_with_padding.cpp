@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <util/type_prop.hpp>
+#include <common_test_utils/type_prop.hpp>
 
 #include "../shared_tests_instances/skip_tests_check.hpp"
 #include "ngraph_functions/builders.hpp"

@@ -22,4 +22,7 @@ addIeTarget(
                 commonTestUtils_s
                 inference_engine_s
                 gmock
-)
+        INCLUDES
+            PUBLIC
+                "${CMAKE_CURRENT_SOURCE_DIR}/.."
+    )

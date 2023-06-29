@@ -32,7 +32,7 @@ function(add_common_utils ADD_TARGET_NAME)
 
     ie_faster_build(${ADD_TARGET_NAME}
         UNITY
-        PCH PRIVATE "precomp.hpp"
+        PCH PRIVATE "include/common_test_utils/precomp.hpp"
     )
 
     # detecting regex support
@@ -65,3 +65,5 @@ set(TARGET_NAME commonTestUtils)
 
 add_common_utils(${TARGET_NAME})
 add_common_utils(${TARGET_NAME}_s USE_STATIC_IE)
+
+openvino_developer_export_targets(COMPONENT tests TARGETS ${TARGET_NAME})

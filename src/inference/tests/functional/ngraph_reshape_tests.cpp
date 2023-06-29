@@ -35,7 +35,7 @@ using namespace testing;
 using namespace InferenceEngine;
 using namespace CommonTestUtils;
 
-using NGraphReshapeTests = TestsCommon;
+using NGraphReshapeTests = ov::test::TestsCommon;
 
 TEST_F(NGraphReshapeTests, getBatchSize) {
     std::shared_ptr<ngraph::Function> ngraph;

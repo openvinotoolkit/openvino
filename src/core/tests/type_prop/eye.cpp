@@ -3,11 +3,11 @@
 //
 
 #include "common_test_utils/test_assertions.hpp"
+#include "common_test_utils/type_prop.hpp"
 #include "dimension_tracker.hpp"
 #include "eye_shape_inference.hpp"
 #include "gtest/gtest.h"
 #include "openvino/opsets/opset10.hpp"
-#include "common_test_utils/type_prop.hpp"
 
 using namespace std;
 using namespace ov;

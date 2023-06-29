@@ -247,7 +247,7 @@ inline std::vector<std::string> splitStringByDelimiter(std::string paths, const 
     return splitPath;
 }
 
-inline std::string getModelFromTestModelZoo(const std::string& relModelPath);
+std::string getModelFromTestModelZoo(const std::string& relModelPath);
 
 inline std::vector<std::string> readListFiles(const std::vector<std::string>& filePaths) {
     std::vector<std::string> res;

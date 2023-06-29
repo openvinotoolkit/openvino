@@ -60,10 +60,12 @@ addIeTarget(
         INCLUDES
             PUBLIC
                 ${PUBLIC_HEADERS_DIR}
+                ${IE_TESTS_ROOT}
         LINK_LIBRARIES
             PUBLIC
                 openvino::pugixml
                 funcTestUtils
+                commonTestUtils
                 ngraphFunctions
                 lptNgraphFunctions
                 sharedTestClasses
