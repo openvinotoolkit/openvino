@@ -29,7 +29,7 @@ else()
          ${CMAKE_CURRENT_SOURCE_DIR}/subgraph_tests/src/x64)
     # temporary disable all custom tests for ARM
     list(APPEND EXCLUDED_SOURCE_PATHS
-        ${CMAKE_CURRENT_SOURCE_DIR}/single_layer_tests
+#        ${CMAKE_CURRENT_SOURCE_DIR}/single_layer_tests
         ${CMAKE_CURRENT_SOURCE_DIR}/subgraph_tests)
     # except ones which already enabled
     file(GLOB_RECURSE TMP_LIST_OF_TEST_CLASSES          ${CMAKE_CURRENT_SOURCE_DIR}/single_layer_tests/classes/*.cpp)

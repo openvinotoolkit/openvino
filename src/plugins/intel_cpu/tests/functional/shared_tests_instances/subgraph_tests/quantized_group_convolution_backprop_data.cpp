@@ -13,7 +13,9 @@ using namespace ngraph::helpers;
 namespace {
 
 const std::vector<InferenceEngine::Precision> netPrecisions = {
-    InferenceEngine::Precision::FP32
+#if defined(OPENVINO_ARCH_X86_64)
+        InferenceEngine::Precision::FP32
+#endif
 };
 
 const std::vector<size_t> numOutChannels = {16, 32};

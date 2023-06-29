@@ -43,6 +43,7 @@ enum impl_desc_type {
     // real types
     ref_any             = ref  | any,
 
+    gemm_ref            = gemm | ref,
     gemm_any            = gemm | any,
     gemm_blas           = gemm | blas,
     gemm_avx512         = gemm | avx512,
