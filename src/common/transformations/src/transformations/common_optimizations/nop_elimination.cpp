@@ -9,6 +9,7 @@
 #include <ngraph/util.hpp>
 #include <numeric>
 #include <openvino/core/validation_util.hpp>
+#include <openvino/op/util/pad_base.hpp>
 #include <openvino/opsets/opset3.hpp>
 #include <openvino/opsets/opset7.hpp>
 #include <openvino/opsets/opset8.hpp>
@@ -16,7 +17,6 @@
 #include <openvino/pass/pattern/op/or.hpp>
 #include <transformations/common_optimizations/nop_elimination.hpp>
 #include <transformations/utils/utils.hpp>
-#include <openvino/op/util/pad_base.hpp>
 
 #include "compare.hpp"
 #include "itt.hpp"
