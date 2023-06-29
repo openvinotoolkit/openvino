@@ -9,7 +9,7 @@
 
    Importantly, Homebrew always distributes the most recent package. You cannot use it to install previous versions of OpenVINO.
     
-   The current Homebrew package provides inference support for CPU and GPU for Linux, but CPU only for macOS.
+   The current Homebrew package provides inference support for CPU (under macOS x86_64, macOS arm64, Linux x86_64), as well as GPU (under Linux x86_64 only).
 
 
 
