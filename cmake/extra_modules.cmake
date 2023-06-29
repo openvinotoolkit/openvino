@@ -15,7 +15,7 @@ function(ie_generate_dev_package_config)
     add_custom_target(ie_dev_targets DEPENDS ${all_dev_targets})
 
     set(PATH_VARS "OpenVINO_SOURCE_DIR")
-    if(ENABLE_SAMPLES OR ENABLE_COMPILE_TOOL OR ENABLE_TESTS)
+    if(ENABLE_SAMPLES OR ENABLE_TESTS)
         list(APPEND PATH_VARS "gflags_BINARY_DIR")
         # if we've found system gflags
         if(gflags_DIR)
@@ -52,7 +52,7 @@ function(ov_generate_dev_package_config)
     add_custom_target(ov_dev_targets DEPENDS ${all_dev_targets})
 
     set(PATH_VARS "OpenVINO_SOURCE_DIR")
-    if(ENABLE_SAMPLES OR ENABLE_COMPILE_TOOL OR ENABLE_TESTS)
+    if(ENABLE_SAMPLES OR ENABLE_TESTS)
         list(APPEND PATH_VARS "gflags_BINARY_DIR")
         # if we've found system gflags
         if(gflags_DIR)
