@@ -20,8 +20,6 @@ To use a GPU device for OpenVINO inference, you must meet the following prerequi
   - `Intel® Graphics Compiler for OpenCL™ <https://github.com/intel/intel-graphics-compiler>`__
   - `OpenCL ICD loader package <https://github.com/KhronosGroup/OpenCL-ICD-Loader>`__
 
-.. _wsl-instal:
-
 Depending on your operating system, there may be different methods to install the above packages. Below are the instructions on how to install the packages on supported Linux distributions.
 
 .. tab-set::
@@ -91,6 +89,8 @@ To check if the driver has been installed:
       :width: 400
 
 Your device driver has been updated and is now ready to use your GPU.
+
+.. _wsl-install:
 
 Windows Subsystem for Linux (WSL)
 #################################
