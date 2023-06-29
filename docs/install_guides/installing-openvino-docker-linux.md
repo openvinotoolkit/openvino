@@ -9,6 +9,10 @@ Supported operating systems for the Docker Base image:
 - RedHat UBI 8
 - Windows
 
+.. important::
+
+   Even though Windows is listed as one of the supported operating systems for Docker, there is no dedicated Docker tool for Windows. The following solution works with the the Windows Subsystem for Linux (WSL2) and is the recommended way to work with Docker in a Windows enviorment.
+
 The `Docker CI framework <https://github.com/openvinotoolkit/docker_ci/>`__ can generate a Dockerfile, build, test, and deploy an image using the Intel® Distribution of OpenVINO™ toolkit. You can reuse available Dockerfiles, add your layer and customize the OpenVINO™ image to your needs. You can get started easily with pre-built and published docker images. Details on how to get started can be found `here <https://github.com/openvinotoolkit/docker_ci/blob/master/get-started.md>`__.
 
 To start using them, the following conditions must be met:
