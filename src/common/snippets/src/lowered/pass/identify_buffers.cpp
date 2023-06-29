@@ -4,9 +4,10 @@
 
 #include "snippets/lowered/pass/identify_buffers.hpp"
 
-#include "snippets/lowered/linear_ir.hpp"
-#include "snippets/snippets_isa.hpp"
 #include "snippets/itt.hpp"
+#include "snippets/lowered/linear_ir.hpp"
+#include "snippets/op/brgemm.hpp"
+#include "snippets/snippets_isa.hpp"
 
 namespace ov {
 namespace snippets {
@@ -51,6 +52,47 @@ std::vector<bool> IdentifyBuffers::create_adjacency_matrix(const LinearIR& linea
 
     for (auto expr_it = linear_ir.cbegin(); expr_it != linear_ir.cend(); expr_it++) {
         const auto &expr = *expr_it;
+        if (const auto brgemm = ov::as_type_ptr<op::Brgemm>(expr->get_node())) {
+            const auto consumers = expr->get_output_port_connector(0)->get_consumers();
+            std::cout << "consumers:\n";
+            for (const auto& buf : consumers) {
+                std::cout << "\t" << buf.get_expr()->get_node() << std::endl;
+            }
+            // OPENVINO_ASSERT(consumers.size() == 1);
+            const auto& consumer = consumers.begin();
+            const auto output_buffer = ov::as_type_ptr<op::Buffer>(consumer->get_expr()->get_node());
+            if (output_buffer == nullptr) {
+                continue;
+            }
+            OPENVINO_ASSERT(output_buffer != nullptr);
+
+            std::vector<std::shared_ptr<op::Buffer>> input_buffers;
+            for (const auto& input_connector : expr->get_input_port_connectors()) {
+                const auto parent_node = input_connector->get_source().get_expr()->get_node();
+                if (const auto neighbour_buffer = ov::as_type_ptr<op::Buffer>(parent_node)) {
+                    input_buffers.push_back(neighbour_buffer);
+                }
+            }
+            std::cout << "brgemm\n\t" << brgemm << std::endl;
+            std::cout << "output_buffer:\n\t" << output_buffer << std::endl;
+            std::cout << "input_buffers:\n";
+            for (const auto& buf : input_buffers) {
+                std::cout << "\t" << buf << std::endl;
+            }
+            for (const auto& input_buff : input_buffers) {
+                const auto buffer_idx = get_buffer_idx(output_buffer);
+                const auto neighbour_idx = get_buffer_idx(input_buff);
+                adj[index(size, neighbour_idx, buffer_idx)] = adj[index(size, buffer_idx, neighbour_idx)] = true;
+            }
+            for (auto buffer_it = input_buffers.begin(); buffer_it != input_buffers.end(); ++buffer_it) {
+                for (auto neighbour_it = std::next(buffer_it); neighbour_it != input_buffers.end(); ++neighbour_it) {
+                    const auto buffer_idx = get_buffer_idx(*buffer_it);
+                    const auto neighbour_idx = get_buffer_idx(*neighbour_it);
+                    adj[index(size, neighbour_idx, buffer_idx)] = adj[index(size, buffer_idx, neighbour_idx)] = true;
+                }
+            }
+        }
+
         const auto& loop_end = ov::as_type_ptr<op::LoopEnd>(expr->get_node());
         if (!loop_end)
             continue;
