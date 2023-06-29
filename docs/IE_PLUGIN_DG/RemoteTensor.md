@@ -3,7 +3,7 @@
 @sphinxdirective
 
 .. meta::
-   :description: Use the ov::IRemoteTensor interface as a base class for device specific remote tensors.
+   :description: Use the ov::IRemoteTensor interface as a base class for device-specific remote tensors.
 
 
 ov::RemoteTensor class functionality:

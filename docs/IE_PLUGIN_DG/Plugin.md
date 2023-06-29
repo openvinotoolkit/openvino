@@ -3,8 +3,8 @@
 @sphinxdirective
 
 .. meta::
-   :description: Get to know OpenVINO Plugin API, which includes functions and 
-                 helper classes that simplify development of new plugins.
+   :description: Explore OpenVINO Plugin API, which includes functions and 
+                 helper classes that simplify the development of new plugins.
 
 
 OpenVINO Plugin usually represents a wrapper around a backend. Backends can be:
