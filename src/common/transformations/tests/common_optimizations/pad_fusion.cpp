@@ -257,6 +257,26 @@ TEST_BODY(PadFusionAvgPoolDontExcludePad) {
     }
 }
 
+TEST_BODY(NegativePadFusionAvgPoolDontExcludePad) {
+    Shape data_shape{1, 3, 14, 14};
+    {
+        auto data = std::make_shared<Parameter>(element::i32, data_shape);
+        auto pads_begin = Constant::create(element::i32, Shape{4}, {0, 0, -1, -1});
+        auto pads_end = Constant::create(element::i32, Shape{4}, {0, 0, -2, -2});
+        auto pad = pad_factory->create(data, pads_begin, pads_end, op::PadMode::CONSTANT);
+        auto avg_pool = std::make_shared<AvgPool>(pad,
+                                                  Strides{1, 1},
+                                                  Shape{0, 0},
+                                                  Shape{1, 1},
+                                                  Shape{4, 4},
+                                                  false,
+                                                  op::RoundingType::FLOOR);
+        function = std::make_shared<Model>(NodeVector{avg_pool}, ParameterVector{data});
+        manager.register_pass<ov::pass::PadFusion>();
+    }
+    // Reference function is equal to function
+}
+
 TEST_BODY(PadFusionConvolution) {
     Shape data_shape{1, 3, 14, 14};
     {
@@ -286,6 +306,26 @@ TEST_BODY(PadFusionConvolution) {
                                                   op::PadType::EXPLICIT);
         function_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
     }
+}
+
+TEST_BODY(NegativePadFusionConvolution) {
+    Shape data_shape{1, 3, 14, 14};
+    {
+        auto data = std::make_shared<Parameter>(element::i32, data_shape);
+        auto pads_begin = Constant::create(element::i32, Shape{4}, {0, 0, -1, -1});
+        auto pads_end = Constant::create(element::i32, Shape{4}, {0, 0, -2, -2});
+        auto pad = pad_factory->create(data, pads_begin, pads_end, op::PadMode::CONSTANT);
+        auto filters = std::make_shared<Parameter>(element::i32, Shape{1, 3, 4, 4});
+        auto conv = std::make_shared<Convolution>(pad,
+                                                  filters,
+                                                  Strides{1, 1},
+                                                  CoordinateDiff{0, 0},
+                                                  CoordinateDiff{1, 1},
+                                                  Shape{1, 1});
+        function = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
+        manager.register_pass<ov::pass::PadFusion>();
+    }
+    // Reference function is equal to function
 }
 
 TEST_BODY(PadFusionConvolutionBackpropData) {
@@ -351,6 +391,27 @@ TEST_BODY(PadFusionGroupConvolution) {
                                                        op::PadType::EXPLICIT);
         function_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
     }
+}
+
+TEST_BODY(NegativePadFusionGroupConvolution) {
+    Shape data_shape{1, 4, 14, 14};
+    {
+        auto data = std::make_shared<Parameter>(element::f32, data_shape);
+        auto pads_begin = Constant::create(element::i32, Shape{4}, {0, 0, -1, -1});
+        auto pads_end = Constant::create(element::i32, Shape{4}, {0, 0, -2, -2});
+        auto pad = pad_factory->create(data, pads_begin, pads_end, op::PadMode::CONSTANT);
+        auto filters = std::make_shared<Parameter>(element::f32, Shape{1, 1, 4, 4, 4});
+        auto conv = std::make_shared<GroupConvolution>(pad,
+                                                       filters,
+                                                       Strides{1, 1},
+                                                       CoordinateDiff{0, 0},
+                                                       CoordinateDiff{1, 1},
+                                                       Shape{1, 1});
+
+        function = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
+        manager.register_pass<ov::pass::PadFusion>();
+    }
+    // Reference function is equal to function
 }
 
 TEST_BODY(PadFusionGroupConvolutionBackpropData) {
@@ -768,7 +829,10 @@ std::vector<TestModelFactoryPtr> model_factories = {
     CREATE_MODEL_FACTORY(NegativePadFusionConvolutionBackpropDataTooSmallPad),
     CREATE_MODEL_FACTORY(NegativePadPreservation),
     CREATE_MODEL_FACTORY(NegativePadElimination),
-    CREATE_MODEL_FACTORY(NegativePadFusionAvgPoolExcludePad)};
+    CREATE_MODEL_FACTORY(NegativePadFusionAvgPoolExcludePad),
+    CREATE_MODEL_FACTORY(NegativePadFusionAvgPoolDontExcludePad),
+    CREATE_MODEL_FACTORY(NegativePadFusionConvolution),
+    CREATE_MODEL_FACTORY(NegativePadFusionGroupConvolution)};
 
 INSTANTIATE_TEST_SUITE_P(PadTestSuite,
                          PadTestFixture,
