@@ -5,7 +5,7 @@
 
 .. meta::
    :description: Learn about the support for quantized models with different 
-                 precisions and FakeQuantize operation used to express 
+                 precisions and the FakeQuantize operation used to express 
                  quantization rules.
 
 One of the feature of OpenVINO is the support of quantized models with different precisions: INT8, INT4, etc.
