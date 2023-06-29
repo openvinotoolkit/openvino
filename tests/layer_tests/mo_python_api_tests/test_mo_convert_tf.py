@@ -9,6 +9,7 @@ import pytest
 from openvino.runtime import PartialShape, Model, Dimension
 
 from common.mo_convert_test_class import CommonMOConvertTest
+from common.layer_test_class import CommonLayerTest
 
 
 def create_tf_graph_def(tmp_dir):
@@ -659,6 +660,60 @@ class TestMoConvertTF(CommonMOConvertTest):
 
         test_params = {'input_model': saved_model_dir, 'use_new_frontend': False}
         self._test_by_ref_graph(temp_dir, test_params, graph_ref, compare_tensor_names=False)
+
+    def test_zero_copy(self, ie_device, precision, ir_version, temp_dir):
+        import tensorflow as tf
+        from openvino.tools.mo import convert_model
+        from openvino.runtime import compile_model
+        class LayerModel(tf.Module):
+            def __init__(self):
+                super(LayerModel, self).__init__()
+                self.var1 = tf.Variable(np.random.rand(3).astype(np.float32), name='var1')
+                self.var2 = tf.Variable(np.random.rand(3).astype(np.float32), name='var2')
+
+
+            @tf.function
+            def sub_function(self, input):
+                return input * self.var1 + self.var2
+
+            @tf.function()
+            def __call__(self, input):
+                return self.sub_function(input)
+
+        if precision == 'FP32':
+            eps = 1e-4
+        else:
+            eps = 5e-2
+
+        # Create TF model with variables
+        keras_model = LayerModel()
+        test_input = np.random.rand(1).astype(np.float32)
+
+        # Convert model to OV
+        ov_model = convert_model(keras_model, input_shape=[1])
+        cmp_model = compile_model(ov_model)
+
+        # Check model inference
+        ov_infer1 = cmp_model(test_input, ie_device)
+        wf_infer1 = keras_model(test_input).numpy()
+
+        CommonLayerTest().compare_ie_results_with_framework(ov_infer1, {"Identity:0": wf_infer1}, eps)
+
+        # Change value of variables in original model
+        for val in keras_model.variables:
+            arr = val.value().__array__()
+            arr[0] = 0
+            arr[1] = 1
+            arr[2] = 2
+
+        # Check model inference
+        ov_infer2 = cmp_model(test_input)
+        wf_infer2 = keras_model(test_input).numpy()
+
+        CommonLayerTest().compare_ie_results_with_framework(ov_infer2, {"Identity:0": wf_infer2}, eps)
+
+        # Check that first and second inference produce different results
+        assert np.max(np.abs(ov_infer1['Identity:0']-ov_infer2['Identity:0'])) > 1.0
 
 
 class TFConvertTest(unittest.TestCase):
