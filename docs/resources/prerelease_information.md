@@ -20,13 +20,15 @@ Please file a github Issue on these with the label “pre-release” so we can g
 
 
 
-.. dropdown:: OpenVINO Toolkit 2023.0.0.dev20230407
+.. dropdown:: OpenVINO Toolkit 2023.1.0.dev20230623
+   :open:
    :animate: fade-in-slide-down
    :color: primary
 
-   The first pre-release for OpenVINO 2023.1 focused on fixing bugs and performance issues.
-   
+   The first pre-release for OpenVINO 2023.1, focused on fixing bugs and performance issues.
 
+   `Check on GitHub <https://github.com/openvinotoolkit/openvino/releases/tag/2023.1.0.dev20230623>`__ 
+   
 
 .. dropdown:: OpenVINO Toolkit 2023.0.0.dev20230407
    :animate: fade-in-slide-down
