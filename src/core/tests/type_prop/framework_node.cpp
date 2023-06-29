@@ -7,7 +7,7 @@
 #include <gtest/gtest.h>
 
 #include "openvino/opsets/opset8.hpp"
-#include "util/type_prop.hpp"
+#include "common_test_utils/type_prop.hpp"
 
 using namespace std;
 

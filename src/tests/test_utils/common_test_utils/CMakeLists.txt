@@ -8,9 +8,6 @@ function(add_common_utils ADD_TARGET_NAME)
             NAME ${ADD_TARGET_NAME}
             TYPE STATIC
             ROOT ${CMAKE_CURRENT_SOURCE_DIR}
-            EXCLUDED_SOURCE_PATHS
-                ${CMAKE_CURRENT_SOURCE_DIR}/gtest
-                ${CMAKE_CURRENT_SOURCE_DIR}/tests
             ADD_CPPLINT
             DEVELOPER_PACKAGE
                 tests
@@ -57,7 +54,7 @@ function(add_common_utils ADD_TARGET_NAME)
             $<TARGET_PROPERTY:openvino::runtime,INTERFACE_INCLUDE_DIRECTORIES>
         PRIVATE
             $<TARGET_PROPERTY:openvino::runtime::dev,INTERFACE_INCLUDE_DIRECTORIES>)
-    target_include_directories(${ADD_TARGET_NAME} SYSTEM PUBLIC ${IE_TESTS_ROOT}/ie_test_utils)
+    target_include_directories(${ADD_TARGET_NAME} SYSTEM PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
     target_compile_definitions(${ADD_TARGET_NAME} PUBLIC ${ARGN})
 endfunction()
@@ -66,5 +63,3 @@ set(TARGET_NAME commonTestUtils)
 
 add_common_utils(${TARGET_NAME})
 add_common_utils(${TARGET_NAME}_s USE_STATIC_IE)
-
-add_subdirectory(tests)

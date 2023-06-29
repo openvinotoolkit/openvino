@@ -7,7 +7,7 @@
 #include "ngraph/op/util/variable.hpp"
 #include "ngraph/opsets/opset5.hpp"
 #include "ngraph/opsets/opset6.hpp"
-#include "util/type_prop.hpp"
+#include "common_test_utils/type_prop.hpp"
 
 using namespace std;
 using namespace ngraph;

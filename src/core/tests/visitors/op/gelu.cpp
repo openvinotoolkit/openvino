@@ -7,7 +7,7 @@
 #include "ngraph/op/util/attr_types.hpp"
 #include "ngraph/opsets/opset2.hpp"
 #include "ngraph/opsets/opset7.hpp"
-#include "util/visitor.hpp"
+#include "common_test_utils/visitor.hpp"
 
 using namespace std;
 using namespace ngraph;

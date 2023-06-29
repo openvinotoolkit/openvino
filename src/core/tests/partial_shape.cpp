@@ -5,7 +5,7 @@
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
 #include "ngraph/validation_util.hpp"
-#include "util/test_tools.hpp"
+#include "common_test_utils/test_tools.hpp"
 
 using namespace ngraph;
 

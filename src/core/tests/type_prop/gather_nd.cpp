@@ -5,7 +5,7 @@
 #include "dimension_tracker.hpp"
 #include "gmock/gmock.h"
 #include "openvino/op/ops.hpp"
-#include "util/type_prop.hpp"
+#include "common_test_utils/type_prop.hpp"
 
 using namespace std;
 using namespace ov;

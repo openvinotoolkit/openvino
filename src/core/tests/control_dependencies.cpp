@@ -20,9 +20,9 @@
 #include "ngraph/pass/visualize_tree.hpp"
 #include "ngraph/pattern/matcher.hpp"
 #include "ngraph/util.hpp"
-#include "util/all_close.hpp"
-#include "util/ndarray.hpp"
-#include "util/test_tools.hpp"
+#include "common_test_utils/all_close.hpp"
+#include "common_test_utils/ndarray.hpp"
+#include "common_test_utils/test_tools.hpp"
 
 using namespace ngraph;
 using namespace std;

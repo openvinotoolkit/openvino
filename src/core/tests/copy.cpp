@@ -10,8 +10,8 @@
 #include "ngraph/ngraph.hpp"
 #include "ngraph/opsets/opset5.hpp"
 #include "openvino/opsets/opset8.hpp"
-#include "util/ndarray.hpp"
-#include "util/test_tools.hpp"
+#include "common_test_utils/ndarray.hpp"
+#include "common_test_utils/test_tools.hpp"
 
 using namespace std;
 using namespace ngraph;

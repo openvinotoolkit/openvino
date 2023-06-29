@@ -32,8 +32,8 @@
 #include "ngraph/pattern/op/skip.hpp"
 #include "ngraph/pattern/op/true.hpp"
 #include "openvino/util/log.hpp"
-#include "util/matcher.hpp"
-#include "util/test_tools.hpp"
+#include "common_test_utils/matcher.hpp"
+#include "common_test_utils/test_tools.hpp"
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 

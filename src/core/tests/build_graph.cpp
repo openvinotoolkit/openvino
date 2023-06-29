@@ -12,7 +12,7 @@
 #include "ngraph/ngraph.hpp"
 #include "ngraph/opsets/opset5.hpp"
 #include "ngraph/opsets/opset7.hpp"
-#include "util/test_tools.hpp"
+#include "common_test_utils/test_tools.hpp"
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 

@@ -6,16 +6,12 @@
 
 #include <gtest/gtest.h>
 
-#include <memory>
-#include <openvino/core/model.hpp>
 #include <string>
-#include <utility>
+#include "test_assertions.hpp"
 
 namespace ov {
-
-class SharedRTInfo;
-
 namespace test {
+
 
 class TestsCommon : virtual public ::testing::Test {
 protected:
@@ -24,9 +20,12 @@ protected:
 
     static std::string GetTimestamp();
     std::string GetTestName() const;
+    std::string GetFullTestName() const;
 };
 
 }  // namespace test
+
+class SharedRTInfo;
 
 class ModelAccessor {
     std::weak_ptr<Model> m_function;
@@ -45,4 +44,5 @@ public:
 
     std::set<std::shared_ptr<SharedRTInfo>> get_shared_info() const;
 };
+
 }  // namespace ov

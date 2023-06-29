@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(TARGET_NAME commonUtilsTests)
+set(TARGET_NAME common_tests)
 
 addIeTargetTest(
         NAME ${TARGET_NAME}

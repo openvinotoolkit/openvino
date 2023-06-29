@@ -8,7 +8,7 @@
 #include "ngraph/opsets/opset1.hpp"
 #include "ngraph/opsets/opset8.hpp"
 #include "ngraph/opsets/opset9.hpp"
-#include "util/visitor.hpp"
+#include "common_test_utils/visitor.hpp"
 
 using namespace std;
 using namespace ngraph;

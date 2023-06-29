@@ -10,7 +10,7 @@
 #include "ngraph/file_util.hpp"
 #include "ngraph/ngraph.hpp"
 #include "onnx_import/onnx.hpp"
-#include "util/type_prop.hpp"
+#include "common_test_utils/type_prop.hpp"
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 
