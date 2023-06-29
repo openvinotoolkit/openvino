@@ -45,7 +45,7 @@ class InferRequest(_InferRequestWrapper):
         share_inputs: bool = False,
         share_outputs: bool = False,
         *,
-        shared_memory: bool = None,
+        shared_memory: Any = None,
     ) -> OVDict:
         """Infers specified input(s) in synchronous mode.
 
@@ -126,7 +126,7 @@ class InferRequest(_InferRequestWrapper):
         userdata: Any = None,
         share_inputs: bool = False,
         *,
-        shared_memory: bool = None,
+        shared_memory: Any = None,
     ) -> None:
         """Starts inference of specified input(s) in asynchronous mode.
 
@@ -264,7 +264,7 @@ class CompiledModel(CompiledModelBase):
         share_inputs: bool = True,
         share_outputs: bool = False,
         *,
-        shared_memory: bool = None,
+        shared_memory: Any = None,
     ) -> OVDict:
         """Callable infer wrapper for CompiledModel.
 
@@ -391,7 +391,7 @@ class AsyncInferQueue(AsyncInferQueueBase):
         userdata: Any = None,
         share_inputs: bool = False,
         *,
-        shared_memory: bool = None,
+        shared_memory: Any = None,
     ) -> None:
         """Run asynchronous inference using the next available InferRequest from the pool.
 
