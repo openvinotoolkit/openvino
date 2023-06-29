@@ -51,7 +51,7 @@ Napi::Value InferRequestWrap::infer(const Napi::CallbackInfo& info) {
 }
 
 Napi::Value InferRequestWrap::get_tensor(const Napi::CallbackInfo& info) {
-    auto* outputWrap = Napi::ObjectWrap<Output>::Unwrap(info[0].ToObject());
+    auto* outputWrap = Napi::ObjectWrap<Output<const ov::Node>>::Unwrap(info[0].ToObject());
     ov::Output<const ov::Node> output = outputWrap->get_output();
 
     ov::Tensor tensor = _infer_request.get_tensor(output);

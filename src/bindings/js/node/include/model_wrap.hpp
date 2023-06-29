@@ -15,8 +15,8 @@
 #include <openvino/runtime/core.hpp>
 
 #include "compiled_model.hpp"
-#include "tensor.hpp"
 #include "errors.hpp"
+#include "tensor.hpp"
 
 class ModelWrap : public Napi::ObjectWrap<ModelWrap> {
 public:
@@ -54,6 +54,22 @@ public:
     Napi::Value get_name(const Napi::CallbackInfo& info);
     std::string get_name();
     std::shared_ptr<ov::Model> get_model();
+
+    /**
+     * @brief Helper function to access model outputs as an attribute of JavaScript Model.
+     * @param info Contains information about the environment and passed arguments
+     * Empty info array => Gets a single output of a model. If a model has more than one output, this method
+     * throws ov::Exception. info[0] of type string => Gets output of a model identified by tensor_name.
+     * info[0] of type int => Gets output of a model identified by index of output.
+     */
+    Napi::Value get_output(const Napi::CallbackInfo& info);
+
+    /**
+     * @brief Helper function to access model outputs
+     * @param info Contains information about the environment and passed arguments
+     * @return A Javascript Array containing Outputs
+     */
+    Napi::Value get_outputs(const Napi::CallbackInfo& info);
 
 private:
     std::shared_ptr<ov::Model> _model;

@@ -28,7 +28,8 @@ Napi::Object InitAll(Napi::Env env, Napi::Object exports) {
     ShapeLite::Init(env, exports);
     PrePostProcessorWrap::Init(env, exports);
     Input::Init(env, exports);
-    Output::Init(env, exports);
+    Output<const ov::Node>::Init(env, exports);
+    Output<ov::Node>::Init(env, exports);
     Napi::PropertyDescriptor element = Napi::PropertyDescriptor::Accessor<enumElementType>("element");
     exports.DefineProperty(element);
 
