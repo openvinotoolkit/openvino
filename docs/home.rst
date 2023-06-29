@@ -112,4 +112,5 @@ Feature Overview
    DOCUMENTATION <documentation>
    MODEL ZOO <model_zoo>
    RESOURCES <resources>
-   RELEASE NOTES <https://software.intel.com/content/www/us/en/develop/articles/openvino-relnotes.html>
+   RELEASE NOTES <release_notes>
+

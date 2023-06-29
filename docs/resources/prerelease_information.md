@@ -14,13 +14,66 @@ a general changelog for each version published under the current cycle.
    * NOT subject to official support.
    * Subject to change in the future.
    * Introduced to allow early testing and get early feedback from the community.
- 
 
 
-.. dropdown:: OpenVINO Toolkit 2023.0.0.dev20230407
+
+.. dropdown:: OpenVINO Toolkit 2023.1.0.dev20230623
    :open:
    :animate: fade-in-slide-down
    :color: primary
+
+   The first pre-release for OpenVINO 2023.1 focused on fixing bugs and performance issues.
+
+   `Check on GitHub <https://github.com/openvinotoolkit/openvino/releases/tag/2023.1.0.dev20230623>`__ 
+
+
+.. dropdown:: OpenVINO Toolkit 2023.0.0.dev20230407
+   :animate: fade-in-slide-down
+   :color: secondary
+
+   Note that a new distribution channel has been introduced for C++ developers: `Conda Forge <https://anaconda.org/conda-forge/openvino>`__ 
+   (the 2022.3.0 release is available there now).
+
+   * ARM device support is improved:
+
+     * increased model coverage up to the scope of x86, 
+     * dynamic shapes enabled, 
+     * performance boosted for many models including BERT,
+     * validated for Raspberry Pi 4 and Apple® Mac M1/M2.
+
+   * Performance for NLP scenarios is improved, especially for int8 models.
+   * The CPU device is enabled with BF16 data types, such that quantized models (INT8) can be run with BF16 plus INT8 mixed 
+     precision, taking full advantage of the AMX capability of 4th Generation Intel® Xeon® Scalable Processors
+     (formerly Sapphire Rapids). The customer sees BF16/INT8 advantage, by default.
+   * Performance is improved on modern, hybrid Intel® Xeon® and Intel® Core® platforms, 
+     where threads can be reliably and correctly mapped to the E-cores, P-cores, or both CPU core types. 
+     It is now possible to optimize for performance or for power savings as needed.
+   * Neural Network Compression Framework (NNCF) becomes the quantization tool of choice. It now enables you to perform
+     post-training optimization, as well as quantization-aware training. Try it out: ``pip install nncf``. 
+     Post-training Optimization Tool (POT) has been deprecated and will be removed in the future 
+     (`MR16758 <https://github.com/openvinotoolkit/openvino/pull/16758/files>`__).
+   * New models are enabled, such as:
+   
+     * Stable Diffusion 2.0, 
+     * Paddle Slim, 
+     * Segment Anything Model (SAM),
+     * Whisper,
+     * YOLOv8.  
+ 
+   * Bug fixes:  
+ 
+     * Fixes the problem of OpenVINO-dev wheel not containing the benchmark_app package.
+     * Rolls back the default of model saving with the FP16 precision - FP32 is the default again.  
+   
+   * Known issues:   
+  
+     * PyTorch model conversion via convert_model Python API fails if “silent=false” is specified explicitly. 
+       By default, this parameter is set to true and there should be no issues.
+
+
+.. dropdown:: OpenVINO Toolkit 2023.0.0.dev20230407
+   :animate: fade-in-slide-down
+   :color: secondary
 
    * Enabled remote tensor in C API 2.0 (accepting tensor located in graph memory)
    * Introduced model caching on GPU. Model Caching, which reduces First Inference Latency (FIL), is 
