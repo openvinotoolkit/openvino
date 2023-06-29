@@ -3,7 +3,7 @@
 @sphinxdirective
 
 .. meta::
-   :description: Use the ov::CompiledModel class as a base class for a compiled 
+   :description: Use the ov::CompiledModel class as the base class for a compiled 
                  model and to create an arbitrary number of ov::InferRequest objects.
 
 ov::CompiledModel class functionality:

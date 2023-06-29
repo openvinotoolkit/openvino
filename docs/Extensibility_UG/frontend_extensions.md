@@ -3,8 +3,8 @@
 @sphinxdirective
 
 .. meta::
-   :description: Learn how to use frontend extension classes to facilitate mapping 
-                 of custom operations from framework model representation to OpenVINO 
+   :description: Learn how to use frontend extension classes to facilitate the mapping 
+                 of custom operations from the framework model representation to the OpenVINO 
                  representation.
 
 
