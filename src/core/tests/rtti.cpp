@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "gtest/gtest.h"
-#include "ngraph/node.hpp"
 #include "common_test_utils/all_close_f.hpp"
 #include "common_test_utils/test_tools.hpp"
+#include "gtest/gtest.h"
+#include "ngraph/node.hpp"
 
 using namespace ngraph;
 using namespace std;

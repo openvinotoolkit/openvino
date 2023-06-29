@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "common_test_utils/type_prop.hpp"
 #include "dimension_tracker.hpp"
 #include "gmock/gmock.h"
 #include "ngraph/ngraph.hpp"
 #include "sequnce_generator.hpp"
-#include "common_test_utils/type_prop.hpp"
 
 using namespace std;
 using namespace ngraph;

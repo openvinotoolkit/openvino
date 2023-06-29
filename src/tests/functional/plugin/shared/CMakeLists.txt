@@ -64,7 +64,6 @@ addIeTarget(
             PUBLIC
                 openvino::pugixml
                 funcTestUtils
-                ngraph_test_util
                 ngraphFunctions
                 lptNgraphFunctions
                 sharedTestClasses

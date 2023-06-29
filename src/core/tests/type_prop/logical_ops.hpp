@@ -5,9 +5,9 @@
 #pragma once
 
 #include "common_test_utils/test_assertions.hpp"
+#include "common_test_utils/type_prop.hpp"
 #include "dimension_tracker.hpp"
 #include "ngraph/ngraph.hpp"
-#include "common_test_utils/type_prop.hpp"
 
 template <typename T, ngraph::element::Type_t ELEMENT_TYPE>
 class LogicalOperatorType {
