@@ -11,7 +11,7 @@ Supported operating systems for the Docker Base image:
 
 .. important::
 
-   While Windows is listed as one of the supported OS, there is no dedicated Docker Image for it. The following solution works with the Windows Subsystem for Linux (WSL2).
+   While Windows is listed as a supported system, there is no dedicated Docker Image for it. To work with Windows, use Windows Subsystem for Linux (WLS2).
 
 The `Docker CI framework <https://github.com/openvinotoolkit/docker_ci/>`__ can generate a Dockerfile, build, test, and deploy an image using the Intel® Distribution of OpenVINO™ toolkit. You can reuse available Dockerfiles, add your layer and customize the OpenVINO™ image to your needs. You can get started easily with pre-built and published docker images. Details on how to get started can be found `here <https://github.com/openvinotoolkit/docker_ci/blob/master/get-started.md>`__.
 
