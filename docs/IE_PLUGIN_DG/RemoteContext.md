@@ -3,7 +3,7 @@
 @sphinxdirective
 
 .. meta::
-   :description: Use the ov::RemoteContext class as a base class for a plugin specific remote context.
+   :description: Use the ov::RemoteContext class as the base class for a plugin-specific remote context.
 
 
 ov::RemoteContext class functionality:
