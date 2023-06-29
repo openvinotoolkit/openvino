@@ -328,7 +328,14 @@ IE_SUPPRESS_DEPRECATED_END
 namespace details {
 template <typename ExceptionType>
 struct ExceptionTraits;
-}
+
+template <>
+struct INFERENCE_ENGINE_1_0_DEPRECATED ExceptionTraits<InferenceEngineException> {
+    static const char* string() {
+        return "";
+    }
+};
+}  // namespace details
 
 #define INFERENCE_ENGINE_DECLARE_EXCEPTION(ExceptionType, statusCode)                      \
     struct INFERENCE_ENGINE_1_0_DEPRECATED INFERENCE_ENGINE_API_CLASS(ExceptionType) final \
@@ -400,19 +407,29 @@ namespace details {
 /**
  * @brief Tag struct used to throw exception
  */
+#ifndef NDEBUG
 template <typename ExceptionType>
 struct INFERENCE_ENGINE_1_0_DEPRECATED ThrowNow final {
-#ifndef NDEBUG
     const char* const file;
     const int line;
-#endif
 
-    [[noreturn]] void create(const std::ostream& ostream) const {
+    [[noreturn]] static void create(const std::ostream& ostream, const char* file, int line) {
         std::stringstream stream;
-#ifndef NDEBUG
         stream << '\n' << file << ':' << line << ' ';
-#endif
-        stream << InferenceEngine::details::ExceptionTraits<ExceptionType>::string() << ' ' << ostream.rdbuf();
+        stream << ExceptionTraits<ExceptionType>::string() << ' ' << ostream.rdbuf();
+        throw ExceptionType{stream.str()};
+    }
+
+    [[noreturn]] void operator<<=(const std::ostream& ostream) {
+        create(ostream, file, line);
+    }
+};
+#else
+template <typename ExceptionType>
+struct INFERENCE_ENGINE_1_0_DEPRECATED ThrowNow final {
+    [[noreturn]] static void create(const std::ostream& ostream) {
+        std::stringstream stream;
+        stream << ExceptionTraits<ExceptionType>::string() << ' ' << ostream.rdbuf();
         throw ExceptionType{stream.str()};
     }
 
@@ -420,6 +437,7 @@ struct INFERENCE_ENGINE_1_0_DEPRECATED ThrowNow final {
         create(ostream);
     }
 };
+#endif
 
 /// @cond
 #ifndef NDEBUG
