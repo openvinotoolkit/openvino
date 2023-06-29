@@ -173,14 +173,14 @@ To request the current default context of the plugin, use one of the following m
       .. tab-set::
    
          .. tab-item:: Get context from Core
-            :sync: context-core
+            :sync: get-context-core
       
             .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation.cpp
                :language: cpp
                :fragment: [default_context_from_core]
       
          .. tab-item:: Get context from compiled model
-            :sync: context-compiled-model
+            :sync: get-context-compiled-model
       
             .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation.cpp
                :language: cpp
@@ -192,14 +192,14 @@ To request the current default context of the plugin, use one of the following m
       .. tab-set::
          
          .. tab-item:: Get context from Core
-            :sync: context-core
+            :sync: get-context-core
       
             .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation_c.cpp
                :language: c
                :fragment: [default_context_from_core]
       
          .. tab-item:: Get context from compiled model
-            :sync: context-compiled-model
+            :sync: get-context-compiled-model
       
             .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation_c.cpp
                :language: c
@@ -255,7 +255,7 @@ For more details, see the code snippets below:
                :fragment: [wrap_cl_image]
 
          .. tab-item:: biplanar NV12 surface
-            :sync: biplanar
+            :sync: biplanar-nv12-surface
 
             .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation.cpp
                :language: cpp
@@ -323,7 +323,7 @@ For more details, see the code snippets below:
                :fragment: [wrap_cl_image]
 
          .. tab-item:: biplanar NV12 surface
-            :sync: biplanar
+            :sync: biplanar-nv12-surface
 
             .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation_c.cpp
                :language: c
@@ -370,7 +370,7 @@ should be added before model compilation:
 .. tab-set::
 
    .. tab-item:: two-plane
-      :sync: two_plane
+      :sync: two-plane
 
       .. tab-set::
          
@@ -389,7 +389,7 @@ should be added before model compilation:
                :fragment: [init_preproc]
    
    .. tab-item:: single-plane
-      :sync: single_plane
+      :sync: single-plane
    
       .. doxygensnippet:: docs/snippets/gpu/preprocessing_nv12_single_plane.cpp
          :language: cpp
@@ -467,7 +467,7 @@ inputs need to be set via the ``ov::InferRequest::set_tensors`` method with vect
                :fragment: [batched_case]
       
          .. tab-item:: NV12 to Grey
-            :sync: single-plane
+            :sync: nv12-grey
       
             .. doxygensnippet:: docs/snippets/gpu/preprocessing_nv12_to_gray.cpp
                :language: cpp
