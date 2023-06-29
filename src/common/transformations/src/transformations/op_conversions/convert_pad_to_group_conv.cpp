@@ -8,8 +8,8 @@
 #include <ngraph/pattern/op/pattern.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
-#include <openvino/opsets/opset4.hpp>
 #include <openvino/op/util/pad_base.hpp>
+#include <openvino/opsets/opset4.hpp>
 #include <vector>
 
 #include "itt.hpp"
