@@ -104,9 +104,21 @@ public:
     }
 };
 
+TEST_P(PadTestFixture, CompareFunctions) {
+    PadFactoryPtr pad_factory;
+    TestModelFactoryPtr model_factory;
+    std::tie(pad_factory, model_factory) = this->GetParam();
+
+    model_factory->setup(pad_factory, manager);
+    model = model_factory->function;
+    model_ref = model_factory->function_ref;
+    if (!model_ref)
+        model_ref = model->clone();
+}
+
 #define TEST_BODY(TestName)                                                         \
     struct TestName : public ITestModelFactory {                                    \
-        TestName() : ITestModelFactory(#TestName) {}    \
+        TestName() : ITestModelFactory(#TestName) {}                                \
         void setup(PadFactoryPtr pad_factory, ov::pass::Manager& manager) override; \
     };                                                                              \
     void TestName::setup(PadFactoryPtr pad_factory, ov::pass::Manager& manager)
@@ -140,6 +152,26 @@ TEST_BODY(PadElimination) {
                                                   op::PadType::EXPLICIT);
         function_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
     }
+}
+
+TEST_BODY(NegativePadElimination) {
+    Shape data_shape{1, 3, 14, 14};
+    {
+        auto data = std::make_shared<Parameter>(element::i32, data_shape);
+        auto pads_begin = Constant::create(element::i32, Shape{4}, {0, 0, -1, -1});
+        auto pads_end = Constant::create(element::i32, Shape{4}, {0, 0, -1, -1});
+        auto pad = pad_factory->create(data, pads_begin, pads_end, op::PadMode::CONSTANT);
+        auto filters = std::make_shared<Parameter>(element::i32, Shape{1, 3, 4, 4});
+        auto conv = std::make_shared<Convolution>(pad,
+                                                  filters,
+                                                  Strides{1, 1},
+                                                  CoordinateDiff{0, 0},
+                                                  CoordinateDiff{1, 1},
+                                                  Shape{1, 1});
+        function = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
+        manager.register_pass<ov::pass::EliminatePad>();
+    }
+    // Reference function is equal to function
 }
 
 TEST_BODY(PadFusionAvgPoolExcludePad) {
@@ -713,19 +745,8 @@ std::vector<TestModelFactoryPtr> model_factories = {
     CREATE_MODEL_FACTORY(NegativePadFusionPadForBatchSize),
     CREATE_MODEL_FACTORY(NegativePadFusionAvgPoolExcludePadNonZeroPads),
     CREATE_MODEL_FACTORY(NegativePadFusionConvolutionBackpropDataTooSmallPad),
-    CREATE_MODEL_FACTORY(NegativePadPreservation)};
-
-TEST_P(PadTestFixture, CompareFunctions) {
-    PadFactoryPtr pad_factory;
-    TestModelFactoryPtr model_factory;
-    std::tie(pad_factory, model_factory) = this->GetParam();
-
-    model_factory->setup(pad_factory, manager);
-    model = model_factory->function;
-    model_ref = model_factory->function_ref;
-    if (!model_ref)
-        model_ref = model->clone();
-}
+    CREATE_MODEL_FACTORY(NegativePadPreservation),
+    CREATE_MODEL_FACTORY(NegativePadElimination)};
 
 INSTANTIATE_TEST_SUITE_P(PadTestSuite,
                          PadTestFixture,
