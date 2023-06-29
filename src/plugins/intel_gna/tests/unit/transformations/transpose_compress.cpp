@@ -83,6 +83,7 @@ public:
         ov::pass::Manager m;
         m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ov::intel_gna::pass::TransposeCompress>();
+        m.run_passes(m_model_test);
 
         check_rt_info(m_model_test);
 
@@ -120,11 +121,15 @@ TEST_P(TransposeCompressNegTest, CompareWithRefs) {
     Run();
 }
 
-const std::vector<TestData> test_shapes = {{{2, 2, 4}, {1, 2, 0}, {2, 8}, {1, 0}},
+const std::vector<TestData> test_shapes = {{{1, 2, 3}, {1, 2, 0}, {1, 6}, {1, 0}},
+                                           {{1, 2, 4}, {1, 2, 0}, {1, 8}, {1, 0}},
+                                           {{2, 2, 4}, {1, 2, 0}, {2, 8}, {1, 0}},
                                            {{2, 2, 4, 4}, {2, 3, 0, 1}, {4, 16}, {1, 0}}};
 
-const std::vector<TestData> test_neg_shapes = {{{1, 2, 3}, {1, 2, 0}, {1, 6}, {1, 0}},
-                                               {{1, 2, 3, 4}, {1, 0, 2, 3}, {}, {}}};
+const std::vector<TestData> test_neg_shapes = {{{1, 2, 3, 4}, {1, 0, 2, 3}, {}, {}},
+                                               {{1, 2, 3, 4}, {0, 2, 1, 3}, {}, {}},
+                                               {{1, 2, 3, 4}, {2, 3, 0, 1}, {}, {}},
+                                               {{10, 20}, {1, 0}, {}, {}}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_transpose_compress_test,
                          TransposeCompressTest,

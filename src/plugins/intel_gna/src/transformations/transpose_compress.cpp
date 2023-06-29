@@ -32,8 +32,7 @@ TransposeCompress::TransposeCompress() {
     auto transpose_const = pattern::wrap_type<Constant>();
     auto transpose =
         pattern::wrap_type<Transpose>({pattern::any_input(), transpose_const}, [](const ov::Output<ov::Node>& node) {
-            const uint8_t supported_size = 2;
-            return (graph_utils::trim_shape(node.get_shape()).size() > supported_size);
+            return !limitations::Limitations::is_transpose_supported(node.get_node_shared_ptr());
         });
 
     ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
