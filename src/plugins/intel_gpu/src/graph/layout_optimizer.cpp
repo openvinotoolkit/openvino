@@ -13,6 +13,7 @@
 #include "reshape_inst.h"
 #include "arg_max_min_inst.h"
 #include "shape_of_inst.h"
+#include "condition_inst.h"
 #include <sstream>
 
 #include "gemm_inst.h"
@@ -158,18 +159,22 @@ std::pair<std::shared_ptr<reorder>, bool> reorder_factory::get_reorder(primitive
 
 std::pair<std::shared_ptr<primitive>, bool> reorder_factory::get_weights_reorder(primitive_id input_id,
                                                                                  std::shared_ptr<WeightsReorderParams> reorder_params) {
-    OPENVINO_ASSERT(reorder_params != nullptr, "[GPU] WeightsReorderParams is not initialized.");
+    if (reorder_params == nullptr)
+        return {};
 
-    cache_key ckey{ input_id, reorder_params->get_output_layout(), false };
-    auto itr = _cached_reorders.find(ckey);
-    if (itr != _cached_reorders.end()) {
+    layout expected_layout = reorder_params->get_output_layout();
+
+    cache_key ckey{ input_id, expected_layout, false };
+    auto itr = _cached_generic_reorders.find(ckey);
+    if (itr != _cached_generic_reorders.end()) {
         return std::make_pair(itr->second, true);
     } else {
-        auto count = _cached_reorders.size();
-        std::string reorder_id = input_id + "_weights_reorder_" + std::to_string(count);
+        auto count = _cached_generic_reorders.size();
+        std::stringstream ss;
+        ss << input_id << "_generic_layer_" << count;
 
-        auto reorder = std::make_shared<cldnn::reorder>(reorder_id, input_id, reorder_params);
-        _cached_reorders[ckey] = reorder;
+        auto reorder = std::make_shared<cldnn::generic_layer>(ss.str(), input_id, reorder_params);
+        _cached_generic_reorders[ckey] = reorder;
         return std::make_pair(reorder, false);
     }
 }
@@ -937,8 +942,8 @@ bool layout_optimizer::deps_for_convolution_byxf_opt(program_node const& node, u
         return true;
 
     for (auto& dep : node.get_dependencies()) {
-        // skip data layers
-        if (dep.first->is_type<data>())
+        // skip data and generic_layers
+        if (dep.first->is_type<data>() || dep.first->is_type<generic_layer>())
             continue;
 
         if (dep.first->is_type<convolution>()) {
@@ -1259,7 +1264,7 @@ bool layout_optimizer::are_data_types_suitable_for_onednn(program_node& node) {
         return onednn_check_data_types_for_deconvolution(in_dt, wei_dt, out_dt);
     } else if (node.is_type<fully_connected>() || node.is_type<gemm>()) {
         bool is_fc = node.is_type<fully_connected>();
-        auto wei_dt = is_fc ? node.as<fully_connected>().weights().get_output_layout().data_type :
+        auto wei_dt = is_fc ? node.as<fully_connected>().weights().get_output_layout(false).data_type :
                               node.as<gemm>().get_input_layout(1).data_type;
         return onednn_check_data_types_for_fc_gemm(in_dt, wei_dt, out_dt);
     } else if (node.is_type<reorder>()) {
@@ -1406,6 +1411,8 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
 
     if (!_forcing_map.empty() && _forcing_map.count(node.id()) != 0) {
         preferred_impl = _forcing_map.at(node.id()).second;
+    } else if (node.is_type<condition>()) {
+        preferred_impl = impl_types::common;
     } else if (node.is_type<detection_output>()) {
         const auto& program = node.get_program();
         const auto& device_info = program.get_engine().get_device_info();
