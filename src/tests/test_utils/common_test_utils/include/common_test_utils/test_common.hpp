@@ -5,9 +5,10 @@
 #pragma once
 
 #include <gtest/gtest.h>
-
 #include <string>
-#include "test_assertions.hpp"
+
+#include "common_test_utils/test_assertions.hpp"
+#include "openvino/core/model.hpp"
 
 namespace ov {
 namespace test {
@@ -28,21 +29,22 @@ protected:
 class SharedRTInfo;
 
 class ModelAccessor {
-    std::weak_ptr<Model> m_function;
+    std::weak_ptr<ov::Model> m_function;
 
 public:
-    ModelAccessor(std::weak_ptr<Model> f) : m_function(std::move(f)) {}
+    ModelAccessor(std::weak_ptr<ov::Model> f) : m_function(std::move(f)) {}
 
     std::shared_ptr<SharedRTInfo> get_shared_info() const;
 };
 
 class NodeAccessor {
-    std::weak_ptr<Node> m_node;
+    std::weak_ptr<ov::Node> m_node;
 
 public:
-    NodeAccessor(std::weak_ptr<Node> node) : m_node(std::move(node)) {}
+    NodeAccessor(std::weak_ptr<ov::Node> node) : m_node(std::move(node)) {}
 
     std::set<std::shared_ptr<SharedRTInfo>> get_shared_info() const;
 };
 
 }  // namespace ov
+

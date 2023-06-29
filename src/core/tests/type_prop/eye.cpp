@@ -7,7 +7,7 @@
 #include "eye_shape_inference.hpp"
 #include "gtest/gtest.h"
 #include "openvino/opsets/opset10.hpp"
-#include "type_prop.hpp"
+#include "common_test_utils/type_prop.hpp"
 
 using namespace std;
 using namespace ov;

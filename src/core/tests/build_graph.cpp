@@ -3,7 +3,7 @@
 //
 
 #include <memory>
-#include <util/type_prop.hpp>
+#include <common_test_utils/type_prop.hpp>
 
 #include "common_test_utils/graph_comparator.hpp"
 #include "common_test_utils/test_tools.hpp"

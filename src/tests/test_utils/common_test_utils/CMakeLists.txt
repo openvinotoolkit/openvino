@@ -19,8 +19,10 @@ function(add_common_utils ADD_TARGET_NAME)
                     ngraphFunctions
                     openvino::runtime
                     openvino::runtime::dev
+                    openvino::util
                 PRIVATE
                     openvino::util
+                    ov_shape_inference
     )
 
     # USE_STATIC_IE is passed
@@ -54,7 +56,7 @@ function(add_common_utils ADD_TARGET_NAME)
             $<TARGET_PROPERTY:openvino::runtime,INTERFACE_INCLUDE_DIRECTORIES>
         PRIVATE
             $<TARGET_PROPERTY:openvino::runtime::dev,INTERFACE_INCLUDE_DIRECTORIES>)
-    target_include_directories(${ADD_TARGET_NAME} SYSTEM PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+    target_include_directories(${ADD_TARGET_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
     target_compile_definitions(${ADD_TARGET_NAME} PUBLIC ${ARGN})
 endfunction()

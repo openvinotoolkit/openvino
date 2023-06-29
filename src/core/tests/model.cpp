@@ -8,8 +8,7 @@
 
 #include <memory>
 #include <shared_node_info.hpp>
-#include <test_common.hpp>
-
+#include "common_test_utils/test_common.hpp"
 #include "common_test_utils/graph_comparator.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/partial_shape.hpp"

@@ -8,10 +8,11 @@
 #include <string>
 #include <fstream>
 #include <algorithm>
+#include <unistd.h>
+#include <sys/stat.h>
 
-#include <file_utils.h>
-#include "common_utils.hpp"
-#include "w_dirent.h"
+#include "common_test_utils/common_utils.hpp"
+#include "common_test_utils/w_dirent.h"
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 

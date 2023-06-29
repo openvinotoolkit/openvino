@@ -20,7 +20,7 @@
 
 namespace testing {
 
-class InsertIdentityLayerTest : public CommonTestUtils::TestsCommon {
+class InsertIdentityLayerTest : public ov::test::TestsCommon {
 public:
     virtual void Validate();
     virtual void Run();

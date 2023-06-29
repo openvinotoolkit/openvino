@@ -23,7 +23,7 @@ struct SchedulingCoreTypeTestCase {
     ov::hint::SchedulingCoreType output_type;
 };
 
-class SchedulingCoreTypeTests : public CommonTestUtils::TestsCommon,
+class SchedulingCoreTypeTests : public ov::test::TestsCommon,
                                 public testing::WithParamInterface<std::tuple<SchedulingCoreTypeTestCase>> {
 public:
     void SetUp() override {
@@ -112,7 +112,7 @@ struct UseHTTestCase {
     bool output_ht_value;
 };
 
-class UseHTTests : public CommonTestUtils::TestsCommon, public testing::WithParamInterface<std::tuple<UseHTTestCase>> {
+class UseHTTests : public ov::test::TestsCommon, public testing::WithParamInterface<std::tuple<UseHTTestCase>> {
 public:
     void SetUp() override {
         auto test_data = std::get<0>(GetParam());
@@ -385,7 +385,7 @@ struct StreamsCalculationTestCase {
     std::vector<std::vector<int>> stream_info_table;
 };
 
-class StreamsCalculationTests : public CommonTestUtils::TestsCommon,
+class StreamsCalculationTests : public ov::test::TestsCommon,
                                 public testing::WithParamInterface<std::tuple<StreamsCalculationTestCase>> {
 public:
     void SetUp() override {
@@ -2104,7 +2104,7 @@ void make_config(StreamGenerateionTestCase& test_data, ov::intel_cpu::Config& co
     config.streamExecutorConfig._orig_proc_type_table = test_data.input_proc_type_table;
 }
 
-class StreamGenerationTests : public CommonTestUtils::TestsCommon,
+class StreamGenerationTests : public ov::test::TestsCommon,
                               public testing::WithParamInterface<std::tuple<StreamGenerateionTestCase>> {
 public:
     void SetUp() override {
