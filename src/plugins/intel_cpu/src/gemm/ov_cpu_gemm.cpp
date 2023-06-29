@@ -26,7 +26,7 @@ size_t DegreeOfParallelism(ThreadPool* tp) {
 }
 void TrySimpleParallelFor(ThreadPool* tp, const std::ptrdiff_t total, const std::function<void(std::ptrdiff_t)>& fn) {
     if (tp == nullptr) {
-        for(std::ptrdiff_t i = 0; i < total; i++) {
+        for (std::ptrdiff_t i = 0; i < total; i++) {
             fn(i);
         }
     } else {
