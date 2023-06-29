@@ -9,13 +9,13 @@ std::string get_model_repo();
 
 namespace TestDataHelpers {
 
-const char *getModelPathNonFatal() noexcept;
+const char* get_model_path_non_fatal() noexcept;
 
 std::string get_data_path();
 
-inline const char *getModelPathNonFatalDefault() noexcept {
-    if (const auto envVar = std::getenv("MODELS_PATH")) {
-        return envVar;
+inline const char* get_model_path_non_fatal_default() noexcept {
+    if (const auto env_var = std::getenv("MODELS_PATH")) {
+        return env_var;
     }
 
 #ifdef MODELS_PATH
@@ -26,12 +26,12 @@ inline const char *getModelPathNonFatalDefault() noexcept {
 };
 
 inline std::string get_data_path_default() {
-    if (const auto envVar = std::getenv("DATA_PATH")) {
-        return envVar;
+    if (const auto env_var = std::getenv("GNA_DATA_PATH")) {
+        return env_var;
     }
 
-#ifdef DATA_PATH
-    return DATA_PATH;
+#ifdef GNA_DATA_PATH
+    return GNA_DATA_PATH;
 #else
     return nullptr;
 #endif

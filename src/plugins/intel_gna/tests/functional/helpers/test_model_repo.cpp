@@ -8,8 +8,8 @@ std::string get_model_repo() {
     return "models:";
 };
 
-const char* TestDataHelpers::getModelPathNonFatal() noexcept {
-    return TestDataHelpers::getModelPathNonFatalDefault();
+const char* TestDataHelpers::get_model_path_non_fatal() noexcept {
+    return TestDataHelpers::get_model_path_non_fatal_default();
 }
 
 std::string TestDataHelpers::get_data_path() {
