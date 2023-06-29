@@ -80,7 +80,7 @@ std::vector<PadFactoryPtr> pad_factories = {CREATE_PAD_FACTORY(ov::op::v1::Pad, 
 
 struct ITestModelFactory {
     explicit ITestModelFactory(const std::string& a_test_name) : test_name(a_test_name) {}
-    ~ITestModelFactory() = default;
+    virtual ~ITestModelFactory() = default;
     virtual void setup(PadFactoryPtr pad_factory, ov::pass::Manager& manager) = 0;
     std::string test_name;
     std::shared_ptr<ov::Model> function;
