@@ -104,644 +104,596 @@ public:
     }
 };
 
-struct PadElimination : public ITestModelFactory {
-    PadElimination(const std::string& test_name) : ITestModelFactory(test_name) {}
-    void setup(PadFactoryPtr pad_factory, ov::pass::Manager& manager) override {
-        Shape data_shape{1, 3, 14, 14};
-        {
-            auto data = std::make_shared<Parameter>(element::i32, data_shape);
-            auto pads_begin = Constant::create(element::i32, Shape{4}, {0, 0, 0, 0});
-            auto pads_end = Constant::create(element::i32, Shape{4}, {0, 0, 0, 0});
-            auto pad = pad_factory->create(data, pads_begin, pads_end, op::PadMode::CONSTANT);
-            auto filters = std::make_shared<Parameter>(element::i32, Shape{1, 3, 4, 4});
-            auto conv = std::make_shared<Convolution>(pad,
-                                                      filters,
-                                                      Strides{1, 1},
-                                                      CoordinateDiff{0, 0},
-                                                      CoordinateDiff{1, 1},
-                                                      Shape{1, 1});
-            function = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
-            manager.register_pass<ov::pass::EliminatePad>();
-        }
-        {
-            auto data = std::make_shared<Parameter>(element::i32, data_shape);
-            auto filters = std::make_shared<Parameter>(element::i32, Shape{1, 3, 4, 4});
-            auto conv = std::make_shared<Convolution>(data,
-                                                      filters,
-                                                      Strides{1, 1},
-                                                      CoordinateDiff{0, 0},
-                                                      CoordinateDiff{1, 1},
-                                                      Shape{1, 1},
-                                                      op::PadType::EXPLICIT);
-            function_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
-        }
+#define TEST_BODY(TestName)                                                         \
+    struct TestName : public ITestModelFactory {                                    \
+        TestName() : ITestModelFactory(#TestName) {}    \
+        void setup(PadFactoryPtr pad_factory, ov::pass::Manager& manager) override; \
+    };                                                                              \
+    void TestName::setup(PadFactoryPtr pad_factory, ov::pass::Manager& manager)
+
+TEST_BODY(PadElimination) {
+    Shape data_shape{1, 3, 14, 14};
+    {
+        auto data = std::make_shared<Parameter>(element::i32, data_shape);
+        auto pads_begin = Constant::create(element::i32, Shape{4}, {0, 0, 0, 0});
+        auto pads_end = Constant::create(element::i32, Shape{4}, {0, 0, 0, 0});
+        auto pad = pad_factory->create(data, pads_begin, pads_end, op::PadMode::CONSTANT);
+        auto filters = std::make_shared<Parameter>(element::i32, Shape{1, 3, 4, 4});
+        auto conv = std::make_shared<Convolution>(pad,
+                                                  filters,
+                                                  Strides{1, 1},
+                                                  CoordinateDiff{0, 0},
+                                                  CoordinateDiff{1, 1},
+                                                  Shape{1, 1});
+        function = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
+        manager.register_pass<ov::pass::EliminatePad>();
     }
-};
-
-struct PadFusionAvgPoolExcludePad : public ITestModelFactory {
-    PadFusionAvgPoolExcludePad(const std::string& test_name) : ITestModelFactory(test_name) {}
-    void setup(PadFactoryPtr pad_factory, ov::pass::Manager& manager) override {
-        Shape data_shape{1, 3, 14, 14};
-        {
-            auto data = std::make_shared<Parameter>(element::i32, data_shape);
-            auto pads_begin = Constant::create(element::i32, Shape{4}, {0, 0, 1, 1});
-            auto pads_end = Constant::create(element::i32, Shape{4}, {0, 0, 2, 2});
-            auto pad = pad_factory->create(data, pads_begin, pads_end, op::PadMode::CONSTANT);
-            auto avg_pool = std::make_shared<AvgPool>(pad,
-                                                      Strides{1, 1},
-                                                      Shape{0, 0},
-                                                      Shape{0, 0},
-                                                      Shape{4, 4},
-                                                      true,
-                                                      op::RoundingType::FLOOR);
-            function = std::make_shared<Model>(NodeVector{avg_pool}, ParameterVector{data});
-            manager.register_pass<ov::pass::PadFusion>();
-        }
-        {
-            auto data = std::make_shared<Parameter>(element::i32, data_shape);
-            auto avg_pool = std::make_shared<AvgPool>(data,
-                                                      Strides{1, 1},
-                                                      Shape{1, 1},
-                                                      Shape{2, 2},
-                                                      Shape{4, 4},
-                                                      false,
-                                                      op::RoundingType::FLOOR,
-                                                      op::PadType::EXPLICIT);
-            function_ref = std::make_shared<Model>(NodeVector{avg_pool}, ParameterVector{data});
-        }
+    {
+        auto data = std::make_shared<Parameter>(element::i32, data_shape);
+        auto filters = std::make_shared<Parameter>(element::i32, Shape{1, 3, 4, 4});
+        auto conv = std::make_shared<Convolution>(data,
+                                                  filters,
+                                                  Strides{1, 1},
+                                                  CoordinateDiff{0, 0},
+                                                  CoordinateDiff{1, 1},
+                                                  Shape{1, 1},
+                                                  op::PadType::EXPLICIT);
+        function_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
     }
-};
+}
 
-struct PadFusionAvgPoolDontExcludePad : public ITestModelFactory {
-    PadFusionAvgPoolDontExcludePad(const std::string& test_name) : ITestModelFactory(test_name) {}
-    void setup(PadFactoryPtr pad_factory, ov::pass::Manager& manager) override {
-        Shape data_shape{1, 3, 14, 14};
-        {
-            auto data = std::make_shared<Parameter>(element::i32, data_shape);
-            auto pads_begin = Constant::create(element::i32, Shape{4}, {0, 0, 1, 1});
-            auto pads_end = Constant::create(element::i32, Shape{4}, {0, 0, 2, 2});
-            auto pad = pad_factory->create(data, pads_begin, pads_end, op::PadMode::CONSTANT);
-            auto avg_pool = std::make_shared<AvgPool>(pad,
-                                                      Strides{1, 1},
-                                                      Shape{0, 0},
-                                                      Shape{1, 1},
-                                                      Shape{4, 4},
-                                                      false,
-                                                      op::RoundingType::FLOOR);
-            function = std::make_shared<Model>(NodeVector{avg_pool}, ParameterVector{data});
-            manager.register_pass<ov::pass::PadFusion>();
-        }
-        {
-            auto data = std::make_shared<Parameter>(element::i32, data_shape);
-            auto avg_pool = std::make_shared<AvgPool>(data,
-                                                      Strides{1, 1},
-                                                      Shape{1, 1},
-                                                      Shape{3, 3},
-                                                      Shape{4, 4},
-                                                      false,
-                                                      op::RoundingType::FLOOR,
-                                                      op::PadType::EXPLICIT);
-            function_ref = std::make_shared<Model>(NodeVector{avg_pool}, ParameterVector{data});
-        }
+TEST_BODY(PadFusionAvgPoolExcludePad) {
+    Shape data_shape{1, 3, 14, 14};
+    {
+        auto data = std::make_shared<Parameter>(element::i32, data_shape);
+        auto pads_begin = Constant::create(element::i32, Shape{4}, {0, 0, 1, 1});
+        auto pads_end = Constant::create(element::i32, Shape{4}, {0, 0, 2, 2});
+        auto pad = pad_factory->create(data, pads_begin, pads_end, op::PadMode::CONSTANT);
+        auto avg_pool = std::make_shared<AvgPool>(pad,
+                                                  Strides{1, 1},
+                                                  Shape{0, 0},
+                                                  Shape{0, 0},
+                                                  Shape{4, 4},
+                                                  true,
+                                                  op::RoundingType::FLOOR);
+        function = std::make_shared<Model>(NodeVector{avg_pool}, ParameterVector{data});
+        manager.register_pass<ov::pass::PadFusion>();
     }
-};
-
-struct PadFusionConvolution : public ITestModelFactory {
-    PadFusionConvolution(const std::string& test_name) : ITestModelFactory(test_name) {}
-    void setup(PadFactoryPtr pad_factory, ov::pass::Manager& manager) override {
-        Shape data_shape{1, 3, 14, 14};
-        {
-            auto data = std::make_shared<Parameter>(element::i32, data_shape);
-            auto pads_begin = Constant::create(element::i32, Shape{4}, {0, 0, 1, 1});
-            auto pads_end = Constant::create(element::i32, Shape{4}, {0, 0, 2, 2});
-            auto pad = pad_factory->create(data, pads_begin, pads_end, op::PadMode::CONSTANT);
-            auto filters = std::make_shared<Parameter>(element::i32, Shape{1, 3, 4, 4});
-            auto conv = std::make_shared<Convolution>(pad,
-                                                      filters,
-                                                      Strides{1, 1},
-                                                      CoordinateDiff{0, 0},
-                                                      CoordinateDiff{1, 1},
-                                                      Shape{1, 1});
-            function = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
-            manager.register_pass<ov::pass::PadFusion>();
-        }
-        {
-            auto data = std::make_shared<Parameter>(element::i32, data_shape);
-            auto filters = std::make_shared<Parameter>(element::i32, Shape{1, 3, 4, 4});
-            auto conv = std::make_shared<Convolution>(data,
-                                                      filters,
-                                                      Strides{1, 1},
-                                                      CoordinateDiff{1, 1},
-                                                      CoordinateDiff{3, 3},
-                                                      Shape{1, 1},
-                                                      op::PadType::EXPLICIT);
-            function_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
-        }
+    {
+        auto data = std::make_shared<Parameter>(element::i32, data_shape);
+        auto avg_pool = std::make_shared<AvgPool>(data,
+                                                  Strides{1, 1},
+                                                  Shape{1, 1},
+                                                  Shape{2, 2},
+                                                  Shape{4, 4},
+                                                  false,
+                                                  op::RoundingType::FLOOR,
+                                                  op::PadType::EXPLICIT);
+        function_ref = std::make_shared<Model>(NodeVector{avg_pool}, ParameterVector{data});
     }
-};
+}
 
-struct PadFusionConvolutionBackpropData : public ITestModelFactory {
-    PadFusionConvolutionBackpropData(const std::string& test_name) : ITestModelFactory(test_name) {}
-    void setup(PadFactoryPtr pad_factory, ov::pass::Manager& manager) override {
-        Shape data_shape{1, 3, 14, 14};
-        {
-            auto data = std::make_shared<Parameter>(element::f32, data_shape);
-            auto pads_begin = Constant::create(element::i32, Shape{4}, {0, 0, 1, 1});
-            auto pads_end = Constant::create(element::i32, Shape{4}, {0, 0, 2, 2});
-            auto pad = pad_factory->create(data, pads_begin, pads_end, op::PadMode::CONSTANT);
-
-            auto filters = std::make_shared<Parameter>(element::f32, Shape{3, 2, 5, 5});
-            auto conv = std::make_shared<ConvolutionBackpropData>(pad,
-                                                                  filters,
-                                                                  Strides{1, 1},
-                                                                  CoordinateDiff{4, 4},
-                                                                  CoordinateDiff{3, 3},
-                                                                  Shape{1, 1});
-
-            function = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
-            manager.register_pass<ov::pass::PadFusion>();
-        }
-        {
-            auto data = std::make_shared<Parameter>(element::f32, data_shape);
-            auto filters = std::make_shared<Parameter>(element::f32, Shape{3, 2, 5, 5});
-            auto conv = std::make_shared<ConvolutionBackpropData>(data,
-                                                                  filters,
-                                                                  Strides{1, 1},
-                                                                  CoordinateDiff{3, 3},
-                                                                  CoordinateDiff{1, 1},
-                                                                  Shape{1, 1});
-
-            function_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
-        }
+TEST_BODY(PadFusionAvgPoolDontExcludePad) {
+    Shape data_shape{1, 3, 14, 14};
+    {
+        auto data = std::make_shared<Parameter>(element::i32, data_shape);
+        auto pads_begin = Constant::create(element::i32, Shape{4}, {0, 0, 1, 1});
+        auto pads_end = Constant::create(element::i32, Shape{4}, {0, 0, 2, 2});
+        auto pad = pad_factory->create(data, pads_begin, pads_end, op::PadMode::CONSTANT);
+        auto avg_pool = std::make_shared<AvgPool>(pad,
+                                                  Strides{1, 1},
+                                                  Shape{0, 0},
+                                                  Shape{1, 1},
+                                                  Shape{4, 4},
+                                                  false,
+                                                  op::RoundingType::FLOOR);
+        function = std::make_shared<Model>(NodeVector{avg_pool}, ParameterVector{data});
+        manager.register_pass<ov::pass::PadFusion>();
     }
-};
-
-struct PadFusionGroupConvolution : public ITestModelFactory {
-    PadFusionGroupConvolution(const std::string& test_name) : ITestModelFactory(test_name) {}
-    void setup(PadFactoryPtr pad_factory, ov::pass::Manager& manager) override {
-        Shape data_shape{1, 4, 14, 14};
-        {
-            auto data = std::make_shared<Parameter>(element::f32, data_shape);
-            auto pads_begin = Constant::create(element::i32, Shape{4}, {0, 0, 1, 1});
-            auto pads_end = Constant::create(element::i32, Shape{4}, {0, 0, 2, 2});
-            auto pad = pad_factory->create(data, pads_begin, pads_end, op::PadMode::CONSTANT);
-            auto filters = std::make_shared<Parameter>(element::f32, Shape{1, 1, 4, 4, 4});
-            auto conv = std::make_shared<GroupConvolution>(pad,
-                                                           filters,
-                                                           Strides{1, 1},
-                                                           CoordinateDiff{0, 0},
-                                                           CoordinateDiff{1, 1},
-                                                           Shape{1, 1});
-
-            function = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
-            manager.register_pass<ov::pass::PadFusion>();
-        }
-        {
-            auto data = std::make_shared<Parameter>(element::f32, data_shape);
-            auto filters = std::make_shared<Parameter>(element::f32, Shape{1, 1, 4, 4, 4});
-            auto conv = std::make_shared<GroupConvolution>(data,
-                                                           filters,
-                                                           Strides{1, 1},
-                                                           CoordinateDiff{1, 1},
-                                                           CoordinateDiff{3, 3},
-                                                           Shape{1, 1},
-                                                           op::PadType::EXPLICIT);
-            function_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
-        }
+    {
+        auto data = std::make_shared<Parameter>(element::i32, data_shape);
+        auto avg_pool = std::make_shared<AvgPool>(data,
+                                                  Strides{1, 1},
+                                                  Shape{1, 1},
+                                                  Shape{3, 3},
+                                                  Shape{4, 4},
+                                                  false,
+                                                  op::RoundingType::FLOOR,
+                                                  op::PadType::EXPLICIT);
+        function_ref = std::make_shared<Model>(NodeVector{avg_pool}, ParameterVector{data});
     }
-};
+}
 
-struct PadFusionGroupConvolutionBackpropData : public ITestModelFactory {
-    PadFusionGroupConvolutionBackpropData(const std::string& test_name) : ITestModelFactory(test_name) {}
-    void setup(PadFactoryPtr pad_factory, ov::pass::Manager& manager) override {
-        Shape data_shape{1, 4, 14, 14};
-        {
-            auto data = std::make_shared<Parameter>(element::f32, data_shape);
-            auto pads_begin = Constant::create(element::i32, Shape{4}, {0, 0, 1, 1});
-            auto pads_end = Constant::create(element::i32, Shape{4}, {0, 0, 3, 1});
-            auto pad = pad_factory->create(data, pads_begin, pads_end, op::PadMode::CONSTANT);
-            auto filters = std::make_shared<Parameter>(element::f32, Shape{2, 2, 1, 5, 5});
-            auto conv = std::make_shared<GroupConvolutionBackpropData>(pad,
-                                                                       filters,
-                                                                       Strides{1, 1},
-                                                                       CoordinateDiff{3, 2},
-                                                                       CoordinateDiff{4, 3},
-                                                                       Shape{1, 1});
-            function = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
-            manager.register_pass<ov::pass::PadFusion>();
-        }
-        {
-            auto data = std::make_shared<Parameter>(element::f32, data_shape);
-            auto filters = std::make_shared<Parameter>(element::f32, Shape{2, 2, 1, 5, 5});
-            auto conv = std::make_shared<GroupConvolutionBackpropData>(data,
-                                                                       filters,
-                                                                       Strides{1, 1},
-                                                                       CoordinateDiff{2, 1},
-                                                                       CoordinateDiff{1, 2},
-                                                                       Shape{1, 1});
-            function_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
-        }
+TEST_BODY(PadFusionConvolution) {
+    Shape data_shape{1, 3, 14, 14};
+    {
+        auto data = std::make_shared<Parameter>(element::i32, data_shape);
+        auto pads_begin = Constant::create(element::i32, Shape{4}, {0, 0, 1, 1});
+        auto pads_end = Constant::create(element::i32, Shape{4}, {0, 0, 2, 2});
+        auto pad = pad_factory->create(data, pads_begin, pads_end, op::PadMode::CONSTANT);
+        auto filters = std::make_shared<Parameter>(element::i32, Shape{1, 3, 4, 4});
+        auto conv = std::make_shared<Convolution>(pad,
+                                                  filters,
+                                                  Strides{1, 1},
+                                                  CoordinateDiff{0, 0},
+                                                  CoordinateDiff{1, 1},
+                                                  Shape{1, 1});
+        function = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
+        manager.register_pass<ov::pass::PadFusion>();
     }
-};
-
-struct PadFusionAvgPoolNonConstPadValue : public ITestModelFactory {
-    PadFusionAvgPoolNonConstPadValue(const std::string& test_name) : ITestModelFactory(test_name) {}
-    void setup(PadFactoryPtr pad_factory, ov::pass::Manager& manager) override {
-        Shape data_shape{1, 3, 14, 14};
-        {
-            auto data = std::make_shared<Parameter>(element::f32, data_shape);
-            auto pads_begin = Constant::create(element::i32, Shape{4}, {0, 0, 1, 1});
-            auto pads_end = Constant::create(element::i32, Shape{4}, {0, 0, 2, 2});
-            std::shared_ptr<Node> pad_value = Constant::create(element::f16, Shape{}, {0});
-            pad_value = std::make_shared<Convert>(pad_value, element::f32);
-            auto pad = pad_factory->create(data, pads_begin, pads_end, pad_value, op::PadMode::CONSTANT);
-            auto avg_pool = std::make_shared<AvgPool>(pad,
-                                                      Strides{1, 1},
-                                                      Shape{0, 0},
-                                                      Shape{0, 0},
-                                                      Shape{4, 4},
-                                                      true,
-                                                      op::RoundingType::FLOOR);
-            function = std::make_shared<Model>(NodeVector{avg_pool}, ParameterVector{data});
-            manager.register_pass<ov::pass::PadFusion>();
-        }
-        {
-            auto data = std::make_shared<Parameter>(element::f32, data_shape);
-            auto avg_pool = std::make_shared<AvgPool>(data,
-                                                      Strides{1, 1},
-                                                      Shape{1, 1},
-                                                      Shape{2, 2},
-                                                      Shape{4, 4},
-                                                      false,
-                                                      op::RoundingType::FLOOR,
-                                                      op::PadType::EXPLICIT);
-            function_ref = std::make_shared<Model>(NodeVector{avg_pool}, ParameterVector{data});
-        }
+    {
+        auto data = std::make_shared<Parameter>(element::i32, data_shape);
+        auto filters = std::make_shared<Parameter>(element::i32, Shape{1, 3, 4, 4});
+        auto conv = std::make_shared<Convolution>(data,
+                                                  filters,
+                                                  Strides{1, 1},
+                                                  CoordinateDiff{1, 1},
+                                                  CoordinateDiff{3, 3},
+                                                  Shape{1, 1},
+                                                  op::PadType::EXPLICIT);
+        function_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
     }
-};
+}
 
-struct PadFusionConvolutionNonConstPadValue : public ITestModelFactory {
-    PadFusionConvolutionNonConstPadValue(const std::string& test_name) : ITestModelFactory(test_name) {}
-    void setup(PadFactoryPtr pad_factory, ov::pass::Manager& manager) override {
-        Shape data_shape{1, 3, 14, 14};
-        {
-            auto data = std::make_shared<Parameter>(element::f32, data_shape);
-            auto pads_begin = Constant::create(element::i32, Shape{4}, {0, 0, 1, 1});
-            auto pads_end = Constant::create(element::i32, Shape{4}, {0, 0, 2, 2});
-            std::shared_ptr<Node> pad_value = Constant::create(element::f16, Shape{}, {0});
-            pad_value = std::make_shared<Convert>(pad_value, element::f32);
-            auto pad = pad_factory->create(data, pads_begin, pads_end, pad_value, op::PadMode::CONSTANT);
-            auto filters = std::make_shared<Parameter>(element::f32, Shape{1, 3, 4, 4});
-            auto conv = std::make_shared<Convolution>(pad,
-                                                      filters,
-                                                      Strides{1, 1},
-                                                      CoordinateDiff{0, 0},
-                                                      CoordinateDiff{1, 1},
-                                                      Shape{1, 1});
-            function = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
-            manager.register_pass<ov::pass::PadFusion>();
-        }
-        {
-            auto data = std::make_shared<Parameter>(element::f32, data_shape);
-            auto filters = std::make_shared<Parameter>(element::f32, Shape{1, 3, 4, 4});
-            auto conv = std::make_shared<Convolution>(data,
-                                                      filters,
-                                                      Strides{1, 1},
-                                                      CoordinateDiff{1, 1},
-                                                      CoordinateDiff{3, 3},
-                                                      Shape{1, 1},
-                                                      op::PadType::EXPLICIT);
-            function_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
-        }
+TEST_BODY(PadFusionConvolutionBackpropData) {
+    Shape data_shape{1, 3, 14, 14};
+    {
+        auto data = std::make_shared<Parameter>(element::f32, data_shape);
+        auto pads_begin = Constant::create(element::i32, Shape{4}, {0, 0, 1, 1});
+        auto pads_end = Constant::create(element::i32, Shape{4}, {0, 0, 2, 2});
+        auto pad = pad_factory->create(data, pads_begin, pads_end, op::PadMode::CONSTANT);
+
+        auto filters = std::make_shared<Parameter>(element::f32, Shape{3, 2, 5, 5});
+        auto conv = std::make_shared<ConvolutionBackpropData>(pad,
+                                                              filters,
+                                                              Strides{1, 1},
+                                                              CoordinateDiff{4, 4},
+                                                              CoordinateDiff{3, 3},
+                                                              Shape{1, 1});
+
+        function = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
+        manager.register_pass<ov::pass::PadFusion>();
     }
-};
+    {
+        auto data = std::make_shared<Parameter>(element::f32, data_shape);
+        auto filters = std::make_shared<Parameter>(element::f32, Shape{3, 2, 5, 5});
+        auto conv = std::make_shared<ConvolutionBackpropData>(data,
+                                                              filters,
+                                                              Strides{1, 1},
+                                                              CoordinateDiff{3, 3},
+                                                              CoordinateDiff{1, 1},
+                                                              Shape{1, 1});
 
-struct PadFusionConvolutionBackpropDataNonConstPadValue : public ITestModelFactory {
-    PadFusionConvolutionBackpropDataNonConstPadValue(const std::string& test_name) : ITestModelFactory(test_name) {}
-    void setup(PadFactoryPtr pad_factory, ov::pass::Manager& manager) override {
-        Shape data_shape{1, 3, 14, 14};
-        {
-            auto data = std::make_shared<Parameter>(element::f32, data_shape);
-            auto pads_begin = Constant::create(element::i32, Shape{4}, {0, 0, 1, 1});
-            auto pads_end = Constant::create(element::i32, Shape{4}, {0, 0, 2, 2});
-            std::shared_ptr<Node> pad_value = Constant::create(element::f16, Shape{}, {0});
-            pad_value = std::make_shared<Convert>(pad_value, element::f32);
-            auto pad = pad_factory->create(data, pads_begin, pads_end, pad_value, op::PadMode::CONSTANT);
-
-            auto filters = std::make_shared<Parameter>(element::f32, Shape{3, 2, 5, 5});
-            auto conv = std::make_shared<ConvolutionBackpropData>(pad,
-                                                                  filters,
-                                                                  Strides{1, 1},
-                                                                  CoordinateDiff{4, 4},
-                                                                  CoordinateDiff{3, 3},
-                                                                  Shape{1, 1});
-
-            function = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
-            manager.register_pass<ov::pass::PadFusion>();
-        }
-        {
-            auto data = std::make_shared<Parameter>(element::f32, data_shape);
-            auto filters = std::make_shared<Parameter>(element::f32, Shape{3, 2, 5, 5});
-            auto conv = std::make_shared<ConvolutionBackpropData>(data,
-                                                                  filters,
-                                                                  Strides{1, 1},
-                                                                  CoordinateDiff{3, 3},
-                                                                  CoordinateDiff{1, 1},
-                                                                  Shape{1, 1});
-
-            function_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
-        }
+        function_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
     }
-};
+}
 
-struct PadFusionGroupConvolutionNonConstPadValue : public ITestModelFactory {
-    PadFusionGroupConvolutionNonConstPadValue(const std::string& test_name) : ITestModelFactory(test_name) {}
-    void setup(PadFactoryPtr pad_factory, ov::pass::Manager& manager) override {
-        Shape data_shape{1, 4, 14, 14};
-        {
-            auto data = std::make_shared<Parameter>(element::f32, data_shape);
-            auto pads_begin = Constant::create(element::i32, Shape{4}, {0, 0, 1, 1});
-            auto pads_end = Constant::create(element::i32, Shape{4}, {0, 0, 2, 2});
-            std::shared_ptr<Node> pad_value = Constant::create(element::f16, Shape{}, {0});
-            pad_value = std::make_shared<Convert>(pad_value, element::f32);
-            auto pad = pad_factory->create(data, pads_begin, pads_end, pad_value, op::PadMode::CONSTANT);
-            auto filters = std::make_shared<Parameter>(element::f32, Shape{1, 1, 4, 4, 4});
-            auto conv = std::make_shared<GroupConvolution>(pad,
-                                                           filters,
-                                                           Strides{1, 1},
-                                                           CoordinateDiff{0, 0},
-                                                           CoordinateDiff{1, 1},
-                                                           Shape{1, 1});
+TEST_BODY(PadFusionGroupConvolution) {
+    Shape data_shape{1, 4, 14, 14};
+    {
+        auto data = std::make_shared<Parameter>(element::f32, data_shape);
+        auto pads_begin = Constant::create(element::i32, Shape{4}, {0, 0, 1, 1});
+        auto pads_end = Constant::create(element::i32, Shape{4}, {0, 0, 2, 2});
+        auto pad = pad_factory->create(data, pads_begin, pads_end, op::PadMode::CONSTANT);
+        auto filters = std::make_shared<Parameter>(element::f32, Shape{1, 1, 4, 4, 4});
+        auto conv = std::make_shared<GroupConvolution>(pad,
+                                                       filters,
+                                                       Strides{1, 1},
+                                                       CoordinateDiff{0, 0},
+                                                       CoordinateDiff{1, 1},
+                                                       Shape{1, 1});
 
-            function = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
-            manager.register_pass<ov::pass::PadFusion>();
-        }
-        {
-            auto data = std::make_shared<Parameter>(element::f32, data_shape);
-            auto filters = std::make_shared<Parameter>(element::f32, Shape{1, 1, 4, 4, 4});
-            auto conv = std::make_shared<GroupConvolution>(data,
-                                                           filters,
-                                                           Strides{1, 1},
-                                                           CoordinateDiff{1, 1},
-                                                           CoordinateDiff{3, 3},
-                                                           Shape{1, 1},
-                                                           op::PadType::EXPLICIT);
-            function_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
-        }
+        function = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
+        manager.register_pass<ov::pass::PadFusion>();
     }
-};
-
-struct PadFusionGroupConvolutionBackpropDataNonConstPadValue : public ITestModelFactory {
-    PadFusionGroupConvolutionBackpropDataNonConstPadValue(const std::string& test_name)
-        : ITestModelFactory(test_name) {}
-    void setup(PadFactoryPtr pad_factory, ov::pass::Manager& manager) override {
-        Shape data_shape{1, 4, 14, 14};
-        {
-            auto data = std::make_shared<Parameter>(element::f32, data_shape);
-            auto pads_begin = Constant::create(element::i32, Shape{4}, {0, 0, 1, 1});
-            auto pads_end = Constant::create(element::i32, Shape{4}, {0, 0, 3, 1});
-            std::shared_ptr<Node> pad_value = Constant::create(element::f16, Shape{}, {0});
-            pad_value = std::make_shared<Convert>(pad_value, element::f32);
-            auto pad = pad_factory->create(data, pads_begin, pads_end, pad_value, op::PadMode::CONSTANT);
-            auto filters = std::make_shared<Parameter>(element::f32, Shape{2, 2, 1, 5, 5});
-            auto conv = std::make_shared<GroupConvolutionBackpropData>(pad,
-                                                                       filters,
-                                                                       Strides{1, 1},
-                                                                       CoordinateDiff{3, 2},
-                                                                       CoordinateDiff{4, 3},
-                                                                       Shape{1, 1});
-            function = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
-            manager.register_pass<ov::pass::PadFusion>();
-        }
-        {
-            auto data = std::make_shared<Parameter>(element::f32, data_shape);
-            auto filters = std::make_shared<Parameter>(element::f32, Shape{2, 2, 1, 5, 5});
-            auto conv = std::make_shared<GroupConvolutionBackpropData>(data,
-                                                                       filters,
-                                                                       Strides{1, 1},
-                                                                       CoordinateDiff{2, 1},
-                                                                       CoordinateDiff{1, 2},
-                                                                       Shape{1, 1});
-            function_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
-        }
+    {
+        auto data = std::make_shared<Parameter>(element::f32, data_shape);
+        auto filters = std::make_shared<Parameter>(element::f32, Shape{1, 1, 4, 4, 4});
+        auto conv = std::make_shared<GroupConvolution>(data,
+                                                       filters,
+                                                       Strides{1, 1},
+                                                       CoordinateDiff{1, 1},
+                                                       CoordinateDiff{3, 3},
+                                                       Shape{1, 1},
+                                                       op::PadType::EXPLICIT);
+        function_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
     }
-};
+}
 
-struct NegativePadFusionNonConstantPadMode : public ITestModelFactory {
-    NegativePadFusionNonConstantPadMode(const std::string& test_name) : ITestModelFactory(test_name) {}
-    void setup(PadFactoryPtr pad_factory, ov::pass::Manager& manager) override {
-        Shape data_shape{1, 3, 14, 14};
-        {
-            auto data = std::make_shared<Parameter>(element::i32, data_shape);
-            auto pads_begin = Constant::create(element::i32, Shape{4}, {0, 0, 1, 1});
-            auto pads_end = Constant::create(element::i32, Shape{4}, {0, 0, 2, 2});
-            auto pad = pad_factory->create(data, pads_begin, pads_end, op::PadMode::REFLECT);
-            auto filters = std::make_shared<Parameter>(element::i32, Shape{1, 3, 4, 4});
-            auto conv = std::make_shared<Convolution>(pad,
-                                                      filters,
-                                                      Strides{1, 1},
-                                                      CoordinateDiff{0, 0},
-                                                      CoordinateDiff{1, 1},
-                                                      Shape{1, 1});
-            function = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
-            manager.register_pass<ov::pass::PadFusion>();
-        }
-        {
-            auto data = std::make_shared<Parameter>(element::i32, data_shape);
-            auto pads_begin = Constant::create(element::i32, Shape{4}, {0, 0, 1, 1});
-            auto pads_end = Constant::create(element::i32, Shape{4}, {0, 0, 2, 2});
-            auto pad = pad_factory->create(data, pads_begin, pads_end, op::PadMode::REFLECT);
-            auto filters = std::make_shared<Parameter>(element::i32, Shape{1, 3, 4, 4});
-            auto conv = std::make_shared<Convolution>(pad,
-                                                      filters,
-                                                      Strides{1, 1},
-                                                      CoordinateDiff{0, 0},
-                                                      CoordinateDiff{1, 1},
-                                                      Shape{1, 1});
-            function_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
-        }
+TEST_BODY(PadFusionGroupConvolutionBackpropData) {
+    Shape data_shape{1, 4, 14, 14};
+    {
+        auto data = std::make_shared<Parameter>(element::f32, data_shape);
+        auto pads_begin = Constant::create(element::i32, Shape{4}, {0, 0, 1, 1});
+        auto pads_end = Constant::create(element::i32, Shape{4}, {0, 0, 3, 1});
+        auto pad = pad_factory->create(data, pads_begin, pads_end, op::PadMode::CONSTANT);
+        auto filters = std::make_shared<Parameter>(element::f32, Shape{2, 2, 1, 5, 5});
+        auto conv = std::make_shared<GroupConvolutionBackpropData>(pad,
+                                                                   filters,
+                                                                   Strides{1, 1},
+                                                                   CoordinateDiff{3, 2},
+                                                                   CoordinateDiff{4, 3},
+                                                                   Shape{1, 1});
+        function = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
+        manager.register_pass<ov::pass::PadFusion>();
     }
-};
-
-struct NegativePadFusionNonZeroPadValue : public ITestModelFactory {
-    NegativePadFusionNonZeroPadValue(const std::string& test_name) : ITestModelFactory(test_name) {}
-    void setup(PadFactoryPtr pad_factory, ov::pass::Manager& manager) override {
-        Shape data_shape{1, 3, 14, 14};
-        {
-            auto data = std::make_shared<Parameter>(element::i32, data_shape);
-            auto pads_begin = Constant::create(element::i32, Shape{4}, {0, 0, 1, 1});
-            auto pads_end = Constant::create(element::i32, Shape{4}, {0, 0, 2, 2});
-            auto pad_value = Constant::create(element::i32, Shape{}, {2});
-            auto pad = pad_factory->create(data, pads_begin, pads_end, pad_value, op::PadMode::CONSTANT);
-            auto filters = std::make_shared<Parameter>(element::i32, Shape{1, 3, 4, 4});
-            auto conv = std::make_shared<Convolution>(pad,
-                                                      filters,
-                                                      Strides{1, 1},
-                                                      CoordinateDiff{0, 0},
-                                                      CoordinateDiff{1, 1},
-                                                      Shape{1, 1});
-            function = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
-            manager.register_pass<ov::pass::PadFusion>();
-        }
-        {
-            auto data = std::make_shared<Parameter>(element::i32, data_shape);
-            auto pads_begin = Constant::create(element::i32, Shape{4}, {0, 0, 1, 1});
-            auto pads_end = Constant::create(element::i32, Shape{4}, {0, 0, 2, 2});
-            auto pad_value = Constant::create(element::i32, Shape{}, {2});
-            auto pad = pad_factory->create(data, pads_begin, pads_end, pad_value, op::PadMode::CONSTANT);
-            auto filters = std::make_shared<Parameter>(element::i32, Shape{1, 3, 4, 4});
-            auto conv = std::make_shared<Convolution>(pad,
-                                                      filters,
-                                                      Strides{1, 1},
-                                                      CoordinateDiff{0, 0},
-                                                      CoordinateDiff{1, 1},
-                                                      Shape{1, 1});
-            function_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
-        }
+    {
+        auto data = std::make_shared<Parameter>(element::f32, data_shape);
+        auto filters = std::make_shared<Parameter>(element::f32, Shape{2, 2, 1, 5, 5});
+        auto conv = std::make_shared<GroupConvolutionBackpropData>(data,
+                                                                   filters,
+                                                                   Strides{1, 1},
+                                                                   CoordinateDiff{2, 1},
+                                                                   CoordinateDiff{1, 2},
+                                                                   Shape{1, 1});
+        function_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
     }
-};
+}
 
-struct NegativePadFusionPadForBatchSize : public ITestModelFactory {
-    NegativePadFusionPadForBatchSize(const std::string& test_name) : ITestModelFactory(test_name) {}
-    void setup(PadFactoryPtr pad_factory, ov::pass::Manager& manager) override {
-        Shape data_shape{1, 3, 14, 14};
-        {
-            auto data = std::make_shared<Parameter>(element::i32, data_shape);
-            auto pads_begin = Constant::create(element::i32, Shape{4}, {1, 0, 1, 1});
-            auto pads_end = Constant::create(element::i32, Shape{4}, {0, 0, 2, 2});
-            auto pad_value = Constant::create(element::i32, Shape{}, {0});
-            auto pad = pad_factory->create(data, pads_begin, pads_end, pad_value, op::PadMode::CONSTANT);
-            auto filters = std::make_shared<Parameter>(element::i32, Shape{1, 3, 4, 4});
-            auto conv = std::make_shared<Convolution>(pad,
-                                                      filters,
-                                                      Strides{1, 1},
-                                                      CoordinateDiff{0, 0},
-                                                      CoordinateDiff{1, 1},
-                                                      Shape{1, 1});
-            function = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
-            manager.register_pass<ov::pass::PadFusion>();
-        }
-        {
-            auto data = std::make_shared<Parameter>(element::i32, data_shape);
-            auto pads_begin = Constant::create(element::i32, Shape{4}, {1, 0, 1, 1});
-            auto pads_end = Constant::create(element::i32, Shape{4}, {0, 0, 2, 2});
-            auto pad_value = Constant::create(element::i32, Shape{}, {0});
-            auto pad = pad_factory->create(data, pads_begin, pads_end, pad_value, op::PadMode::CONSTANT);
-            auto filters = std::make_shared<Parameter>(element::i32, Shape{1, 3, 4, 4});
-            auto conv = std::make_shared<Convolution>(pad,
-                                                      filters,
-                                                      Strides{1, 1},
-                                                      CoordinateDiff{0, 0},
-                                                      CoordinateDiff{1, 1},
-                                                      Shape{1, 1});
-            function_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
-        }
+TEST_BODY(PadFusionAvgPoolNonConstPadValue) {
+    Shape data_shape{1, 3, 14, 14};
+    {
+        auto data = std::make_shared<Parameter>(element::f32, data_shape);
+        auto pads_begin = Constant::create(element::i32, Shape{4}, {0, 0, 1, 1});
+        auto pads_end = Constant::create(element::i32, Shape{4}, {0, 0, 2, 2});
+        std::shared_ptr<Node> pad_value = Constant::create(element::f16, Shape{}, {0});
+        pad_value = std::make_shared<Convert>(pad_value, element::f32);
+        auto pad = pad_factory->create(data, pads_begin, pads_end, pad_value, op::PadMode::CONSTANT);
+        auto avg_pool = std::make_shared<AvgPool>(pad,
+                                                  Strides{1, 1},
+                                                  Shape{0, 0},
+                                                  Shape{0, 0},
+                                                  Shape{4, 4},
+                                                  true,
+                                                  op::RoundingType::FLOOR);
+        function = std::make_shared<Model>(NodeVector{avg_pool}, ParameterVector{data});
+        manager.register_pass<ov::pass::PadFusion>();
     }
-};
-
-struct NegativePadFusionAvgPoolExcludePadNonZeroPads : public ITestModelFactory {
-    NegativePadFusionAvgPoolExcludePadNonZeroPads(const std::string& test_name) : ITestModelFactory(test_name) {}
-    void setup(PadFactoryPtr pad_factory, ov::pass::Manager& manager) override {
-        Shape data_shape{1, 3, 14, 14};
-        {
-            auto data = std::make_shared<Parameter>(element::i32, data_shape);
-            auto pads_begin = Constant::create(element::i32, Shape{4}, {0, 0, 1, 1});
-            auto pads_end = Constant::create(element::i32, Shape{4}, {0, 0, 2, 2});
-            auto pad = pad_factory->create(data, pads_begin, pads_end, op::PadMode::CONSTANT);
-            auto avg_pool = std::make_shared<AvgPool>(pad,
-                                                      Strides{1, 1},
-                                                      Shape{0, 0},
-                                                      Shape{1, 1},
-                                                      Shape{4, 4},
-                                                      true,
-                                                      op::RoundingType::FLOOR);
-            function = std::make_shared<Model>(NodeVector{avg_pool}, ParameterVector{data});
-            manager.register_pass<ov::pass::PadFusion>();
-        }
-        {
-            auto data = std::make_shared<Parameter>(element::i32, data_shape);
-            auto pads_begin = Constant::create(element::i32, Shape{4}, {0, 0, 1, 1});
-            auto pads_end = Constant::create(element::i32, Shape{4}, {0, 0, 2, 2});
-            auto pad = pad_factory->create(data, pads_begin, pads_end, op::PadMode::CONSTANT);
-            auto avg_pool = std::make_shared<AvgPool>(pad,
-                                                      Strides{1, 1},
-                                                      Shape{0, 0},
-                                                      Shape{1, 1},
-                                                      Shape{4, 4},
-                                                      true,
-                                                      op::RoundingType::FLOOR);
-            function_ref = std::make_shared<Model>(NodeVector{avg_pool}, ParameterVector{data});
-        }
+    {
+        auto data = std::make_shared<Parameter>(element::f32, data_shape);
+        auto avg_pool = std::make_shared<AvgPool>(data,
+                                                  Strides{1, 1},
+                                                  Shape{1, 1},
+                                                  Shape{2, 2},
+                                                  Shape{4, 4},
+                                                  false,
+                                                  op::RoundingType::FLOOR,
+                                                  op::PadType::EXPLICIT);
+        function_ref = std::make_shared<Model>(NodeVector{avg_pool}, ParameterVector{data});
     }
-};
+}
 
-struct NegativePadFusionConvolutionBackpropDataTooSmallPad : public ITestModelFactory {
-    NegativePadFusionConvolutionBackpropDataTooSmallPad(const std::string& test_name) : ITestModelFactory(test_name) {}
-    void setup(PadFactoryPtr pad_factory, ov::pass::Manager& manager) override {
-        Shape data_shape{1, 3, 14, 14};
-        {
-            auto data = std::make_shared<Parameter>(element::f32, data_shape);
-
-            auto pads_begin = Constant::create(element::i32, Shape{4}, {0, 0, 2, 2});
-            auto pads_end = Constant::create(element::i32, Shape{4}, {0, 0, 2, 2});
-            auto pad = pad_factory->create(data, pads_begin, pads_end, op::PadMode::CONSTANT);
-
-            auto filters = std::make_shared<Parameter>(element::f32, Shape{3, 2, 5, 5});
-            auto conv = std::make_shared<ConvolutionBackpropData>(pad,
-                                                                  filters,
-                                                                  Strides{1, 1},
-                                                                  CoordinateDiff{1, 1},
-                                                                  CoordinateDiff{1, 1},
-                                                                  Shape{1, 1});
-
-            function = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
-            manager.register_pass<ov::pass::PadFusion>();
-        }
-        {
-            auto data = std::make_shared<Parameter>(element::f32, data_shape);
-
-            auto pads_begin = Constant::create(element::i32, Shape{4}, {0, 0, 2, 2});
-            auto pads_end = Constant::create(element::i32, Shape{4}, {0, 0, 2, 2});
-            auto pad = pad_factory->create(data, pads_begin, pads_end, op::PadMode::CONSTANT);
-
-            auto filters = std::make_shared<Parameter>(element::f32, Shape{3, 2, 5, 5});
-            auto conv = std::make_shared<ConvolutionBackpropData>(pad,
-                                                                  filters,
-                                                                  Strides{1, 1},
-                                                                  CoordinateDiff{1, 1},
-                                                                  CoordinateDiff{1, 1},
-                                                                  Shape{1, 1});
-
-            function_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
-        }
+TEST_BODY(PadFusionConvolutionNonConstPadValue) {
+    Shape data_shape{1, 3, 14, 14};
+    {
+        auto data = std::make_shared<Parameter>(element::f32, data_shape);
+        auto pads_begin = Constant::create(element::i32, Shape{4}, {0, 0, 1, 1});
+        auto pads_end = Constant::create(element::i32, Shape{4}, {0, 0, 2, 2});
+        std::shared_ptr<Node> pad_value = Constant::create(element::f16, Shape{}, {0});
+        pad_value = std::make_shared<Convert>(pad_value, element::f32);
+        auto pad = pad_factory->create(data, pads_begin, pads_end, pad_value, op::PadMode::CONSTANT);
+        auto filters = std::make_shared<Parameter>(element::f32, Shape{1, 3, 4, 4});
+        auto conv = std::make_shared<Convolution>(pad,
+                                                  filters,
+                                                  Strides{1, 1},
+                                                  CoordinateDiff{0, 0},
+                                                  CoordinateDiff{1, 1},
+                                                  Shape{1, 1});
+        function = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
+        manager.register_pass<ov::pass::PadFusion>();
     }
-};
-
-struct NegativePadPreservation : public ITestModelFactory {
-    NegativePadPreservation(const std::string& test_name) : ITestModelFactory(test_name) {}
-    void setup(PadFactoryPtr pad_factory, ov::pass::Manager& manager) override {
-        Shape data_shape{1, 3, 14, 14};
-        {
-            auto data = std::make_shared<Parameter>(element::i32, data_shape);
-            auto pads_begin = Constant::create(element::i32, Shape{4}, {0, 0, -1, -1});
-            auto pads_end = Constant::create(element::i32, Shape{4}, {0, 0, -1, -1});
-            auto pad = pad_factory->create(data, pads_begin, pads_end, op::PadMode::CONSTANT);
-            auto filters = std::make_shared<Parameter>(element::i32, Shape{1, 3, 4, 4});
-            auto conv = std::make_shared<Convolution>(pad,
-                                                      filters,
-                                                      Strides{1, 1},
-                                                      CoordinateDiff{0, 0},
-                                                      CoordinateDiff{1, 1},
-                                                      Shape{1, 1});
-            function = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
-            manager.register_pass<ov::pass::PadFusion>();
-        }
-        // Reference function is equal to function
+    {
+        auto data = std::make_shared<Parameter>(element::f32, data_shape);
+        auto filters = std::make_shared<Parameter>(element::f32, Shape{1, 3, 4, 4});
+        auto conv = std::make_shared<Convolution>(data,
+                                                  filters,
+                                                  Strides{1, 1},
+                                                  CoordinateDiff{1, 1},
+                                                  CoordinateDiff{3, 3},
+                                                  Shape{1, 1},
+                                                  op::PadType::EXPLICIT);
+        function_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
     }
-};
+}
+
+TEST_BODY(PadFusionConvolutionBackpropDataNonConstPadValue) {
+    Shape data_shape{1, 3, 14, 14};
+    {
+        auto data = std::make_shared<Parameter>(element::f32, data_shape);
+        auto pads_begin = Constant::create(element::i32, Shape{4}, {0, 0, 1, 1});
+        auto pads_end = Constant::create(element::i32, Shape{4}, {0, 0, 2, 2});
+        std::shared_ptr<Node> pad_value = Constant::create(element::f16, Shape{}, {0});
+        pad_value = std::make_shared<Convert>(pad_value, element::f32);
+        auto pad = pad_factory->create(data, pads_begin, pads_end, pad_value, op::PadMode::CONSTANT);
+
+        auto filters = std::make_shared<Parameter>(element::f32, Shape{3, 2, 5, 5});
+        auto conv = std::make_shared<ConvolutionBackpropData>(pad,
+                                                              filters,
+                                                              Strides{1, 1},
+                                                              CoordinateDiff{4, 4},
+                                                              CoordinateDiff{3, 3},
+                                                              Shape{1, 1});
+
+        function = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
+        manager.register_pass<ov::pass::PadFusion>();
+    }
+    {
+        auto data = std::make_shared<Parameter>(element::f32, data_shape);
+        auto filters = std::make_shared<Parameter>(element::f32, Shape{3, 2, 5, 5});
+        auto conv = std::make_shared<ConvolutionBackpropData>(data,
+                                                              filters,
+                                                              Strides{1, 1},
+                                                              CoordinateDiff{3, 3},
+                                                              CoordinateDiff{1, 1},
+                                                              Shape{1, 1});
+
+        function_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
+    }
+}
+
+TEST_BODY(PadFusionGroupConvolutionNonConstPadValue) {
+    Shape data_shape{1, 4, 14, 14};
+    {
+        auto data = std::make_shared<Parameter>(element::f32, data_shape);
+        auto pads_begin = Constant::create(element::i32, Shape{4}, {0, 0, 1, 1});
+        auto pads_end = Constant::create(element::i32, Shape{4}, {0, 0, 2, 2});
+        std::shared_ptr<Node> pad_value = Constant::create(element::f16, Shape{}, {0});
+        pad_value = std::make_shared<Convert>(pad_value, element::f32);
+        auto pad = pad_factory->create(data, pads_begin, pads_end, pad_value, op::PadMode::CONSTANT);
+        auto filters = std::make_shared<Parameter>(element::f32, Shape{1, 1, 4, 4, 4});
+        auto conv = std::make_shared<GroupConvolution>(pad,
+                                                       filters,
+                                                       Strides{1, 1},
+                                                       CoordinateDiff{0, 0},
+                                                       CoordinateDiff{1, 1},
+                                                       Shape{1, 1});
+
+        function = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
+        manager.register_pass<ov::pass::PadFusion>();
+    }
+    {
+        auto data = std::make_shared<Parameter>(element::f32, data_shape);
+        auto filters = std::make_shared<Parameter>(element::f32, Shape{1, 1, 4, 4, 4});
+        auto conv = std::make_shared<GroupConvolution>(data,
+                                                       filters,
+                                                       Strides{1, 1},
+                                                       CoordinateDiff{1, 1},
+                                                       CoordinateDiff{3, 3},
+                                                       Shape{1, 1},
+                                                       op::PadType::EXPLICIT);
+        function_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
+    }
+}
+
+TEST_BODY(PadFusionGroupConvolutionBackpropDataNonConstPadValue) {
+    Shape data_shape{1, 4, 14, 14};
+    {
+        auto data = std::make_shared<Parameter>(element::f32, data_shape);
+        auto pads_begin = Constant::create(element::i32, Shape{4}, {0, 0, 1, 1});
+        auto pads_end = Constant::create(element::i32, Shape{4}, {0, 0, 3, 1});
+        std::shared_ptr<Node> pad_value = Constant::create(element::f16, Shape{}, {0});
+        pad_value = std::make_shared<Convert>(pad_value, element::f32);
+        auto pad = pad_factory->create(data, pads_begin, pads_end, pad_value, op::PadMode::CONSTANT);
+        auto filters = std::make_shared<Parameter>(element::f32, Shape{2, 2, 1, 5, 5});
+        auto conv = std::make_shared<GroupConvolutionBackpropData>(pad,
+                                                                   filters,
+                                                                   Strides{1, 1},
+                                                                   CoordinateDiff{3, 2},
+                                                                   CoordinateDiff{4, 3},
+                                                                   Shape{1, 1});
+        function = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
+        manager.register_pass<ov::pass::PadFusion>();
+    }
+    {
+        auto data = std::make_shared<Parameter>(element::f32, data_shape);
+        auto filters = std::make_shared<Parameter>(element::f32, Shape{2, 2, 1, 5, 5});
+        auto conv = std::make_shared<GroupConvolutionBackpropData>(data,
+                                                                   filters,
+                                                                   Strides{1, 1},
+                                                                   CoordinateDiff{2, 1},
+                                                                   CoordinateDiff{1, 2},
+                                                                   Shape{1, 1});
+        function_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
+    }
+}
+
+TEST_BODY(NegativePadFusionNonConstantPadMode) {
+    Shape data_shape{1, 3, 14, 14};
+    {
+        auto data = std::make_shared<Parameter>(element::i32, data_shape);
+        auto pads_begin = Constant::create(element::i32, Shape{4}, {0, 0, 1, 1});
+        auto pads_end = Constant::create(element::i32, Shape{4}, {0, 0, 2, 2});
+        auto pad = pad_factory->create(data, pads_begin, pads_end, op::PadMode::REFLECT);
+        auto filters = std::make_shared<Parameter>(element::i32, Shape{1, 3, 4, 4});
+        auto conv = std::make_shared<Convolution>(pad,
+                                                  filters,
+                                                  Strides{1, 1},
+                                                  CoordinateDiff{0, 0},
+                                                  CoordinateDiff{1, 1},
+                                                  Shape{1, 1});
+        function = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
+        manager.register_pass<ov::pass::PadFusion>();
+    }
+    {
+        auto data = std::make_shared<Parameter>(element::i32, data_shape);
+        auto pads_begin = Constant::create(element::i32, Shape{4}, {0, 0, 1, 1});
+        auto pads_end = Constant::create(element::i32, Shape{4}, {0, 0, 2, 2});
+        auto pad = pad_factory->create(data, pads_begin, pads_end, op::PadMode::REFLECT);
+        auto filters = std::make_shared<Parameter>(element::i32, Shape{1, 3, 4, 4});
+        auto conv = std::make_shared<Convolution>(pad,
+                                                  filters,
+                                                  Strides{1, 1},
+                                                  CoordinateDiff{0, 0},
+                                                  CoordinateDiff{1, 1},
+                                                  Shape{1, 1});
+        function_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
+    }
+}
+
+TEST_BODY(NegativePadFusionNonZeroPadValue) {
+    Shape data_shape{1, 3, 14, 14};
+    {
+        auto data = std::make_shared<Parameter>(element::i32, data_shape);
+        auto pads_begin = Constant::create(element::i32, Shape{4}, {0, 0, 1, 1});
+        auto pads_end = Constant::create(element::i32, Shape{4}, {0, 0, 2, 2});
+        auto pad_value = Constant::create(element::i32, Shape{}, {2});
+        auto pad = pad_factory->create(data, pads_begin, pads_end, pad_value, op::PadMode::CONSTANT);
+        auto filters = std::make_shared<Parameter>(element::i32, Shape{1, 3, 4, 4});
+        auto conv = std::make_shared<Convolution>(pad,
+                                                  filters,
+                                                  Strides{1, 1},
+                                                  CoordinateDiff{0, 0},
+                                                  CoordinateDiff{1, 1},
+                                                  Shape{1, 1});
+        function = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
+        manager.register_pass<ov::pass::PadFusion>();
+    }
+    {
+        auto data = std::make_shared<Parameter>(element::i32, data_shape);
+        auto pads_begin = Constant::create(element::i32, Shape{4}, {0, 0, 1, 1});
+        auto pads_end = Constant::create(element::i32, Shape{4}, {0, 0, 2, 2});
+        auto pad_value = Constant::create(element::i32, Shape{}, {2});
+        auto pad = pad_factory->create(data, pads_begin, pads_end, pad_value, op::PadMode::CONSTANT);
+        auto filters = std::make_shared<Parameter>(element::i32, Shape{1, 3, 4, 4});
+        auto conv = std::make_shared<Convolution>(pad,
+                                                  filters,
+                                                  Strides{1, 1},
+                                                  CoordinateDiff{0, 0},
+                                                  CoordinateDiff{1, 1},
+                                                  Shape{1, 1});
+        function_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
+    }
+}
+
+TEST_BODY(NegativePadFusionPadForBatchSize) {
+    Shape data_shape{1, 3, 14, 14};
+    {
+        auto data = std::make_shared<Parameter>(element::i32, data_shape);
+        auto pads_begin = Constant::create(element::i32, Shape{4}, {1, 0, 1, 1});
+        auto pads_end = Constant::create(element::i32, Shape{4}, {0, 0, 2, 2});
+        auto pad_value = Constant::create(element::i32, Shape{}, {0});
+        auto pad = pad_factory->create(data, pads_begin, pads_end, pad_value, op::PadMode::CONSTANT);
+        auto filters = std::make_shared<Parameter>(element::i32, Shape{1, 3, 4, 4});
+        auto conv = std::make_shared<Convolution>(pad,
+                                                  filters,
+                                                  Strides{1, 1},
+                                                  CoordinateDiff{0, 0},
+                                                  CoordinateDiff{1, 1},
+                                                  Shape{1, 1});
+        function = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
+        manager.register_pass<ov::pass::PadFusion>();
+    }
+    {
+        auto data = std::make_shared<Parameter>(element::i32, data_shape);
+        auto pads_begin = Constant::create(element::i32, Shape{4}, {1, 0, 1, 1});
+        auto pads_end = Constant::create(element::i32, Shape{4}, {0, 0, 2, 2});
+        auto pad_value = Constant::create(element::i32, Shape{}, {0});
+        auto pad = pad_factory->create(data, pads_begin, pads_end, pad_value, op::PadMode::CONSTANT);
+        auto filters = std::make_shared<Parameter>(element::i32, Shape{1, 3, 4, 4});
+        auto conv = std::make_shared<Convolution>(pad,
+                                                  filters,
+                                                  Strides{1, 1},
+                                                  CoordinateDiff{0, 0},
+                                                  CoordinateDiff{1, 1},
+                                                  Shape{1, 1});
+        function_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
+    }
+}
+
+TEST_BODY(NegativePadFusionAvgPoolExcludePadNonZeroPads) {
+    Shape data_shape{1, 3, 14, 14};
+    {
+        auto data = std::make_shared<Parameter>(element::i32, data_shape);
+        auto pads_begin = Constant::create(element::i32, Shape{4}, {0, 0, 1, 1});
+        auto pads_end = Constant::create(element::i32, Shape{4}, {0, 0, 2, 2});
+        auto pad = pad_factory->create(data, pads_begin, pads_end, op::PadMode::CONSTANT);
+        auto avg_pool = std::make_shared<AvgPool>(pad,
+                                                  Strides{1, 1},
+                                                  Shape{0, 0},
+                                                  Shape{1, 1},
+                                                  Shape{4, 4},
+                                                  true,
+                                                  op::RoundingType::FLOOR);
+        function = std::make_shared<Model>(NodeVector{avg_pool}, ParameterVector{data});
+        manager.register_pass<ov::pass::PadFusion>();
+    }
+    {
+        auto data = std::make_shared<Parameter>(element::i32, data_shape);
+        auto pads_begin = Constant::create(element::i32, Shape{4}, {0, 0, 1, 1});
+        auto pads_end = Constant::create(element::i32, Shape{4}, {0, 0, 2, 2});
+        auto pad = pad_factory->create(data, pads_begin, pads_end, op::PadMode::CONSTANT);
+        auto avg_pool = std::make_shared<AvgPool>(pad,
+                                                  Strides{1, 1},
+                                                  Shape{0, 0},
+                                                  Shape{1, 1},
+                                                  Shape{4, 4},
+                                                  true,
+                                                  op::RoundingType::FLOOR);
+        function_ref = std::make_shared<Model>(NodeVector{avg_pool}, ParameterVector{data});
+    }
+}
+
+TEST_BODY(NegativePadFusionConvolutionBackpropDataTooSmallPad) {
+    Shape data_shape{1, 3, 14, 14};
+    {
+        auto data = std::make_shared<Parameter>(element::f32, data_shape);
+
+        auto pads_begin = Constant::create(element::i32, Shape{4}, {0, 0, 2, 2});
+        auto pads_end = Constant::create(element::i32, Shape{4}, {0, 0, 2, 2});
+        auto pad = pad_factory->create(data, pads_begin, pads_end, op::PadMode::CONSTANT);
+
+        auto filters = std::make_shared<Parameter>(element::f32, Shape{3, 2, 5, 5});
+        auto conv = std::make_shared<ConvolutionBackpropData>(pad,
+                                                              filters,
+                                                              Strides{1, 1},
+                                                              CoordinateDiff{1, 1},
+                                                              CoordinateDiff{1, 1},
+                                                              Shape{1, 1});
+
+        function = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
+        manager.register_pass<ov::pass::PadFusion>();
+    }
+    {
+        auto data = std::make_shared<Parameter>(element::f32, data_shape);
+
+        auto pads_begin = Constant::create(element::i32, Shape{4}, {0, 0, 2, 2});
+        auto pads_end = Constant::create(element::i32, Shape{4}, {0, 0, 2, 2});
+        auto pad = pad_factory->create(data, pads_begin, pads_end, op::PadMode::CONSTANT);
+
+        auto filters = std::make_shared<Parameter>(element::f32, Shape{3, 2, 5, 5});
+        auto conv = std::make_shared<ConvolutionBackpropData>(pad,
+                                                              filters,
+                                                              Strides{1, 1},
+                                                              CoordinateDiff{1, 1},
+                                                              CoordinateDiff{1, 1},
+                                                              Shape{1, 1});
+
+        function_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
+    }
+}
+
+TEST_BODY(NegativePadPreservation) {
+    Shape data_shape{1, 3, 14, 14};
+    {
+        auto data = std::make_shared<Parameter>(element::i32, data_shape);
+        auto pads_begin = Constant::create(element::i32, Shape{4}, {0, 0, -1, -1});
+        auto pads_end = Constant::create(element::i32, Shape{4}, {0, 0, -1, -1});
+        auto pad = pad_factory->create(data, pads_begin, pads_end, op::PadMode::CONSTANT);
+        auto filters = std::make_shared<Parameter>(element::i32, Shape{1, 3, 4, 4});
+        auto conv = std::make_shared<Convolution>(pad,
+                                                  filters,
+                                                  Strides{1, 1},
+                                                  CoordinateDiff{0, 0},
+                                                  CoordinateDiff{1, 1},
+                                                  Shape{1, 1});
+        function = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data, filters});
+        manager.register_pass<ov::pass::PadFusion>();
+    }
+    // Reference function is equal to function
+}
 
 #undef CREATE_MODEL_FACTORY
-#define CREATE_MODEL_FACTORY(type_name) std::make_shared<type_name>(#type_name)
+#define CREATE_MODEL_FACTORY(type_name) std::make_shared<type_name>()
 
 std::vector<TestModelFactoryPtr> model_factories = {
     CREATE_MODEL_FACTORY(PadElimination),
