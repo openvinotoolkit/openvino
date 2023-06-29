@@ -40,15 +40,36 @@ public:
 
     /// @return A Javascript InferRequest
     Napi::Value create_infer_request(const Napi::CallbackInfo& info);
+
     /**
      * @brief Helper function to access the compiled model outputs as an attribute of JavaScript Compiled Model.
      * @param info Contains information about the environment and passed arguments
+     * Empty info array => Gets a single output of a compiled model. If a model has more than one output, this method
+     * throws ov::Exception. info[0] of type string => Gets output of a compiled model identified by tensor_name.
+     * info[0] of type int => Gets output of a compiled model identified by index of output.
+     */
+    Napi::Value get_output(const Napi::CallbackInfo& info);
+
+    /**
+     * @brief Helper function to access the compiled model outputs
+     * @param info Contains information about the environment and passed arguments
+     * @return A Javascript Array containing Outputs
      */
     Napi::Value get_outputs(const Napi::CallbackInfo& info);
 
     /**
+     * @brief Helper function to access the compiled model inputs
+     * @param info Contains information about the environment and passed arguments
+     * Empty info array => Gets a single input of a compiled model. If a model has more than one input, this method
+     * throws ov::Exception. info[0] of type string => Gets input of a compiled model identified by tensor_name. info[0]
+     * of type int => Gets input of a compiled model identified by index of input.
+     */
+    Napi::Value get_input(const Napi::CallbackInfo& info);
+
+    /**
      * @brief Helper function to access the compiled model inputs as an attribute of JavaScript Compiled Model.
      * @param info Contains information about the environment and passed arguments
+     * @return A Javascript Array containing Inputs
      */
     Napi::Value get_inputs(const Napi::CallbackInfo& info);
 
