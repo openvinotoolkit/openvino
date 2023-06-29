@@ -266,6 +266,7 @@ public:
     bool use_only_16bit_convolution_weights() const;
     bool is_crop_affined_offset(size_t numberOfElements) const;
     bool is_aligned(size_t addr) const;
+    bool has_internal_memory_buffers() const;
     size_t get_memory_alignment() const;
     std::shared_ptr<cnn2d::AbstractValidator> get_cnn_validator() const;
 
@@ -300,14 +301,26 @@ public:
     constexpr static uint32_t kMemoryPageSize = 4096;
 
 private:
+    struct LimitationsWrapper {
+        LimitationsWrapper() = default;
+
+        LimitationsWrapper(bool buffers_memory, bool use_only_16bit_conv_weights, size_t mem_alignment)
+            : internal_memory_buffers(buffers_memory),
+              use_only_16bit_conv_weights(use_only_16bit_conv_weights),
+              mem_alignment(mem_alignment) {}
+
+        bool internal_memory_buffers;
+        bool use_only_16bit_conv_weights;
+        size_t mem_alignment;
+    };
+
     Limitations(const target::DeviceVersion& target);
     Limitations(const Limitations&) = delete;
     Limitations& operator=(const Limitations&) = delete;
 
-    size_t get_memory_alignment_bytes(const target::DeviceVersion& target) const;
+    LimitationsWrapper get_limitations_for_target(const target::DeviceVersion& target) const;
 
-    bool m_use_only_16bit_conv_weights = false;
-    size_t m_mem_alignment = 0;
+    LimitationsWrapper m_limitations;
     std::shared_ptr<cnn2d::AbstractValidator> m_cnn_validator;
     static thread_local std::shared_ptr<Limitations> k_instance;
 };
@@ -328,8 +341,12 @@ inline bool Limitations::is_aligned(size_t addr) const {
     return (addr == ALIGN(addr, get_memory_alignment()));
 }
 
+inline bool Limitations::has_internal_memory_buffers() const {
+    return m_limitations.internal_memory_buffers;
+}
+
 inline size_t Limitations::get_memory_alignment() const {
-    return m_mem_alignment;
+    return m_limitations.mem_alignment;
 }
 
 inline std::shared_ptr<cnn2d::AbstractValidator> Limitations::get_cnn_validator() const {

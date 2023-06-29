@@ -135,19 +135,24 @@ inline typename ExtractRawPtr<T>::raw_ptr_type raw_ptr(T obj) {
 template <class Layer>
 inline InferenceEngine::CNNLayerPtr CNNNetPrevLayerSkipCertain(Layer layer,
                                                                int idx,
-                                                               const std::function<bool(CNNLayerPtr)>& shouldSkip) {
+                                                               const std::function<bool(CNNLayerPtr)>& shouldSkip,
+                                                               bool bOnlyCheck = false) {
     IE_ASSERT(layer != nullptr);
     if (!CNNNetHasPrevLayer(raw_ptr(layer), idx)) {
+        if (bOnlyCheck) {
+            return nullptr;
+        };
         THROW_GNA_EXCEPTION << "Can't find PrevLayer. All layers are skipped.";
-        return nullptr;
     }
     auto prev = CNNNetPrevLayer(layer, idx);
 
     /// using upper search simplified version
     while (shouldSkip(prev)) {
         if (!CNNNetHasPrevLayer(prev.get(), 0)) {
+            if (bOnlyCheck) {
+                return nullptr;
+            };
             THROW_GNA_EXCEPTION << "Can't find PrevLayer. All layers are skipped.";
-            return nullptr;
         }
         prev = CNNNetPrevLayer(prev, 0);
     }

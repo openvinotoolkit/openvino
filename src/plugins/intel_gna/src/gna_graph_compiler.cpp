@@ -2392,6 +2392,31 @@ void GNAGraphCompiler::CreateLayerPrimitive(CNNLayerPtr layer) {
     }
 }
 
+bool GNAGraphCompiler::should_use_scratch_allocation(const InferenceEngine::CNNLayerPtr& layer, bool fp32_mode) const {
+    auto is_non_functional_layer = [](CNNLayerPtr l) {
+        return LayerInfo(l).isNonFunctional();
+    };
+
+    auto next_layer = CNNNetCheckNextLayerSkipCertain(layer, 0, 0, true, is_non_functional_layer).first;
+    auto prev_layer = CNNNetPrevLayerSkipCertain(layer, 0, is_non_functional_layer, true);
+
+    // In FP32 mode, max pooling or activation function are implemented as separate operations, which cannot be
+    // integrated into convolution.
+    if (!fp32_mode && Limitations::get_instance()->has_internal_memory_buffers()) {
+        if (LayerInfo(layer).isConvolution() && next_layer) {
+            if (LayerInfo(next_layer).isFusableWithConv()) {
+                return false;
+            }
+        } else if (LayerInfo(layer).isFusableWithConv() && prev_layer && next_layer) {
+            if (LayerInfo(prev_layer).isConvolution() && LayerInfo(next_layer).isFusableWithConv()) {
+                return false;
+            }
+        }
+    }
+
+    return true;
+}
+
 void GNAGraphCompiler::connectOutput(InferenceEngine::CNNLayerPtr layer, void* ptr, size_t num_data_bytes_out) {
     auto getOffsetForBinding = [](InferenceEngine::CNNLayerPtr layer) {
         int32_t output_offset = 0;
@@ -2588,10 +2613,12 @@ void GNAGraphCompiler::connectOutput(InferenceEngine::CNNLayerPtr layer, void* p
     // Check that layer will be an output
     if (LayerInfo(layer).isOutput() || !nextLayer) {
         mem_region = REGION_OUTPUTS;
-    }
-    if (LayerInfo(layer).isConst()) {
+    } else if (LayerInfo(layer).isConst()) {
         mem_region = REGION_RO;
+    } else if (!should_use_scratch_allocation(layer, gna_config.gnaFlags.sw_fp32)) {
+        return;
     }
+
     gnamem->getQueue(mem_region)->reserve_ptr(layer, ptr, num_data_bytes_out);
 }
 

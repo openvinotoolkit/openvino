@@ -35,6 +35,7 @@ private:
     std::shared_ptr<backend::AMIntelDNN> dnn;
     std::shared_ptr<gna_memory_type> gnamem;
     std::shared_ptr<GnaInputs> inputs_ptr_;
+    std::shared_ptr<limitations::cnn2d::AbstractValidator> m_cnn2d_validator;
 
     // layers with extra storage for connections and additional
     // non trivial processing
@@ -59,8 +60,7 @@ private:
                                             uint32_t num_cols);
 
     bool ShouldUseOnlyConv2DGnaIface() const;
-
-    std::shared_ptr<limitations::cnn2d::AbstractValidator> m_cnn2d_validator;
+    bool should_use_scratch_allocation(const InferenceEngine::CNNLayerPtr& layer, bool fp32_mode) const;
 
 public:
     backend::DnnComponents dnnComponents;
