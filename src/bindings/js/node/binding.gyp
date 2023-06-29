@@ -7,6 +7,7 @@
       "cflags_cc": ["-std=c++17"],
 
       "sources": [  
+        "src/node_input.cpp",
         "src/node_output.cpp",
         "src/shape_lite.cpp",
         "src/async_reader.cpp",
