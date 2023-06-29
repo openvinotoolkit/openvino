@@ -446,7 +446,7 @@ if(ENABLE_OV_PADDLE_FRONTEND OR ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_TF_FRONTEND
         if(CMAKE_VERBOSE_MAKEFILE)
             set(Protobuf_DEBUG ON)
         endif()
-        # Note: we also specify 'protobuf' in NAMES because vcpkg
+        # Note: we also specify 'protobuf' in NAMES because of vcpkg
         find_package(Protobuf 3.20.3 REQUIRED NAMES Protobuf protobuf)
         set(PROTOC_EXECUTABLE protobuf::protoc)
     else()
