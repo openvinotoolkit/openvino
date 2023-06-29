@@ -202,25 +202,25 @@ elif [ "$os" == "centos7" ] || [ "$os" == "centos8" ] ||
     elif [ "$os" == "centos8" ] || [ "$os" == "rhel8" ] || [ "$os" == "almalinux8.7" ] ; then
         pkgs_core+=(
             "https://vault.centos.org/centos/8/AppStream/$arch/os/Packages/tbb-2018.2-9.el8.$arch.rpm"
-            "https://download-ib01.fedoraproject.org/pub/epel/8/Everything/$arch/Packages/p/pugixml-1.13-1.el8.$arch.rpm"
+            "https://dl.fedoraproject.org/pub/epel/8/Everything/$arch/Packages/p/pugixml-1.13-1.el8.$arch.rpm"
             "https://vault.centos.org/centos/8/PowerTools/$arch/os/Packages/gflags-2.1.2-6.el8.$arch.rpm"
         )
         pkgs_gpu+=("http://mirror.centos.org/centos/8-stream/AppStream/$arch/os/Packages/ocl-icd-2.2.12-1.el8.$arch.rpm")
         pkgs_python+=(python38 python38-pip)
         pkgs_dev+=(
             "https://vault.centos.org/centos/8/PowerTools/$arch/os/Packages/gflags-devel-2.1.2-6.el8.$arch.rpm"
-            "https://download-ib01.fedoraproject.org/pub/epel/8/Everything/$arch/Packages/j/json-devel-3.6.1-2.el8.$arch.rpm"
+            "https://dl.fedoraproject.org/pub/epel/8/Everything/$arch/Packages/j/json-devel-3.6.1-2.el8.$arch.rpm"
         )
         extra_repos+=("https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm")
     elif [ "$os" == "rhel9.1" ] ; then
         pkgs_core=(
             "http://mirror.stream.centos.org/9-stream/AppStream/$arch/os/Packages/tbb-2020.3-8.el9.$arch.rpm"
-            "https://download-ib01.fedoraproject.org/pub/epel/9/Everything/$arch/Packages/p/pugixml-1.13-1.el9.$arch.rpm"
-            "https://download-ib01.fedoraproject.org/pub/epel/9/Everything/$arch/Packages/g/gflags-2.2.2-9.el9.$arch.rpm"
+            "https://dl.fedoraproject.org/pub/epel/9/Everything/$arch/Packages/p/pugixml-1.13-1.el9.$arch.rpm"
+            "https://dl.fedoraproject.org/pub/epel/9/Everything/$arch/Packages/g/gflags-2.2.2-9.el9.$arch.rpm"
         )
         pkgs_gpu+=("https://mirror.stream.centos.org/9-stream/AppStream/$arch/os/Packages/ocl-icd-2.2.13-4.el9.$arch.rpm")
         pkgs_python=(python3 python3-pip)
-        pkgs_dev+=("https://download-ib01.fedoraproject.org/pub/epel/9/Everything/$arch/Packages/g/gflags-devel-2.2.2-9.el9.$arch.rpm")
+        pkgs_dev+=("https://dl.fedoraproject.org/pub/epel/9/Everything/$arch/Packages/g/gflags-devel-2.2.2-9.el9.$arch.rpm")
         extra_repos+=("https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm")
     fi
 elif [ "$os" == "opensuse-leap15.3" ] ; then
