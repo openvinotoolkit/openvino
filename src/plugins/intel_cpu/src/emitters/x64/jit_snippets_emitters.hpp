@@ -343,8 +343,6 @@ public:
 private:
     void emit_impl(const std::vector<size_t>& in,
                    const std::vector<size_t>& out) const override;
-
-    std::vector<size_t> io_data_size {};
     struct brgemmCtx {
         brgemmCtx() : M(0), N(0), K(0),
                     LDA(0), LDB(0), LDC(0),
@@ -370,17 +368,18 @@ private:
                                const Xbyak::Reg64& input_2, const Xbyak::Reg64& output_0,
                                const Xbyak::Reg64& work_amount_N) const;
 
-    // Note: 3 kernels for K blocking and two for N blocking
-    static constexpr size_t BRGEMM_KERNELS_NUM[] = {3, 2};
-    std::array<brgemmCtx, BRGEMM_KERNELS_NUM[0] * BRGEMM_KERNELS_NUM[1]> m_brgCtxs;
-    std::array<std::unique_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t>, BRGEMM_KERNELS_NUM[0] * BRGEMM_KERNELS_NUM[1]> m_brgKernels;
+    // Note: K dimension is covered by TWO blocked kernels (with beta = 0 and 1) + 1 for tail
+    static constexpr size_t BRGEMM_K_KERNEL_NUM = 3;
+    static constexpr size_t BRGEMM_N_KERNEL_NUM = 2;
+    std::array<brgemmCtx, BRGEMM_K_KERNEL_NUM * BRGEMM_N_KERNEL_NUM> m_brgCtxs;
+    std::array<std::unique_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t>, BRGEMM_K_KERNEL_NUM * BRGEMM_N_KERNEL_NUM> m_brgKernels;
 
     size_t m_M;
     size_t m_K, m_K_blk, m_K_tail;
     size_t m_N, m_N_blk, m_N_tail;
     size_t m_brg0VnniFactor;
-    bool m_N_blocking_loop_needed = false;
-    bool m_K_blocking_loop_needed = false;
+    bool m_N_blk_loop = false;
+    bool m_K_blk_loop = false;
 
     bool m_with_scratch = false;
     bool m_with_comp = false;
@@ -389,6 +388,8 @@ private:
     size_t m_load_offset_b = 0lu;
     size_t m_load_offset_scratch = 0lu;
     size_t m_store_offset_c = 0lu;
+
+    std::vector<size_t> io_data_size {};
 };
 
 class BrgemmCopyBEmitter : public jit_emitter {
