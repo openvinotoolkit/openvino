@@ -69,11 +69,13 @@ DeviceInformation Plugin::parse_meta_device(const std::string& devices_batch_con
 
 std::shared_ptr<ov::IRemoteContext> Plugin::create_context(const ov::AnyMap& remote_properties) const {
     auto cfg = remote_properties;
+OPENVINO_SUPPRESS_DEPRECATED_START
     auto it = cfg.find(CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG));
+OPENVINO_SUPPRESS_DEPRECATED_END
     if (it == cfg.end())
         it = cfg.find(ov::device::priorities.name());
     if (it == cfg.end())
-        IE_THROW() << "Value for KEY_AUTO_BATCH_DEVICE_CONFIG is not set";
+        OPENVINO_THROW("Value for MULTI_DEVICE_PRIORITIES is not set");
 
     auto val = it->second.as<std::string>();
     auto core = get_core();
@@ -370,11 +372,13 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
 
 std::shared_ptr<ov::IRemoteContext> Plugin::get_default_context(const ov::AnyMap& remote_properties) const {
     auto cfg = remote_properties;
+OPENVINO_SUPPRESS_DEPRECATED_START
     auto it = cfg.find(CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG));
+OPENVINO_SUPPRESS_DEPRECATED_END
     if (it == cfg.end())
         it = cfg.find(ov::device::priorities.name());
     if (it == cfg.end())
-        IE_THROW() << "Value for KEY_AUTO_BATCH_DEVICE_CONFIG is not set";
+        OPENVINO_THROW("Value for MULTI_DEVICE_PRIORITIES is not set");
 
     auto val = it->second.as<std::string>();
     auto core = get_core();
