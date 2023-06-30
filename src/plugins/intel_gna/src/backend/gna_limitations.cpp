@@ -867,13 +867,20 @@ bool Limitations::is_split_supported(const std::shared_ptr<ov::Node>& node, bool
     return is_aligned;
 }
 
-bool Limitations::is_concat_supported(const std::shared_ptr<const ov::Node>& node) {
+bool Limitations::is_concat_supported(const std::shared_ptr<const ov::Node>& node, bool is_exception_allowed) {
     OPENVINO_ASSERT(node, "Concat node is empty!");
     auto concat_node = std::dynamic_pointer_cast<const Concat>(node);
     const ov::Shape& output_shape = concat_node->get_output_shape(0);
     auto axis = concat_node->get_axis();
 
-    return graph_utils::get_first_valuable_dim_id(output_shape) == axis;
+    bool is_supported = graph_utils::get_first_valuable_dim_id(output_shape) == axis;
+
+    if (!is_supported && is_exception_allowed) {
+        THROW_GNA_EXCEPTION << concat_node->get_friendly_name() << " Unsupported concatenation axis=" << axis
+                            << " for input dimensions: " << concat_node->get_input_shape(0);
+    }
+
+    return is_supported;
 }
 
 bool Limitations::is_forward_transposed_concat_supported(const std::shared_ptr<const ov::Node>& node,
@@ -970,6 +977,8 @@ bool Limitations::is_op_supported(const std::shared_ptr<ov::Node>& node,
         return SupportedElementTypes::IsConstantTypeSupported(node->get_element_type(), is_exception_allowed);
     } else if (auto conv = std::dynamic_pointer_cast<ov::intel_gna::op::GNAConvolution>(node)) {
         return is_conv_supported(conv, gna_precision, is_exception_allowed);
+    } else if (auto concat = std::dynamic_pointer_cast<Concat>(node)) {
+        return is_concat_supported(concat, is_exception_allowed);
     } else if (auto fully_connected = std::dynamic_pointer_cast<ngraph::op::FullyConnected>(node)) {
         return is_fc_supported(fully_connected, is_exception_allowed);
     } else if (ov::intel_gna::graph_utils::is_pooling(node)) {
@@ -1002,9 +1011,13 @@ void Limitations::check_all_ops_supported(const std::shared_ptr<ov::Model>& mode
     std::stringstream error;
     // Walk through the transformed model
     for (auto& op : model->get_ops()) {
-        if (!is_op_supported(op, gna_precision, true)) {
-            error << "The plugin does not support layer " << op->get_friendly_name() << " (type " << op->get_type_name()
-                  << ")!" << std::endl;
+        try {
+            if (!is_op_supported(op, gna_precision, true)) {
+                error << "The plugin does not support layer " << op->get_friendly_name() << " (type "
+                      << op->get_type_name() << ")!" << std::endl;
+            }
+        } catch (const InferenceEngine::GeneralError& e) {
+            error << e.what() << std::endl;
         }
     }
     if (!error.str().empty()) {

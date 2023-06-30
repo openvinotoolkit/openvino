@@ -234,7 +234,7 @@ public:
     bool is_pooling_supported(const std::shared_ptr<ov::intel_gna::op::GNAMaxPool> max_pool,
                               bool is_exception_allowed = false);
 
-    static bool is_concat_supported(const std::shared_ptr<const ov::Node>& node);
+    static bool is_concat_supported(const std::shared_ptr<const ov::Node>& node, bool is_exception_allowed);
     static bool is_forward_transposed_concat_supported(const std::shared_ptr<const ov::Node>& node,
                                                        const AxisVector& order);
     static bool is_backward_transposed_concat_supported(const std::shared_ptr<const ov::Node>& node,
