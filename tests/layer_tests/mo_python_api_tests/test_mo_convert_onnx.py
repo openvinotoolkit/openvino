@@ -53,7 +53,7 @@ def create_ref_model(shape):
     parameter_list = [param1]
     return Model([relu], parameter_list, "test")
 
-def create_graph_proto():
+def create_bytes_io():
     import onnx
     onnx_model = make_graph_proto_model()
 
@@ -66,7 +66,7 @@ def create_graph_proto():
 
 
 class TestMoConvertONNX(CommonMOConvertTest):
-    test_data = [create_graph_proto]
+    test_data = [create_bytes_io]
     @pytest.mark.parametrize("create_model", test_data)
     @pytest.mark.nightly
     @pytest.mark.precommit_tf_fe
