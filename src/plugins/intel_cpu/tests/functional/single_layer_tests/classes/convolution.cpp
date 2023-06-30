@@ -168,8 +168,6 @@ void ConvolutionLayerCPUTest::SetUp() {
     }
 
     ngraph::op::PadType padType;
-    InferenceEngine::SizeVector stride;
-    std::vector<ptrdiff_t> padBegin, padEnd;
     size_t convOutChannels;
     std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType) = convParams;
 
@@ -231,6 +229,15 @@ TEST_P(ConvolutionLayerCPUTest, CompareWithRefs) {
         }
     }
 
+// FIXME: ACL output shape check fails if kernel, stride and padding equal to 1
+// CpuGemm::validate checks that 2nd and 3rd dimention of the input and output shapes are equal and fails (ticket 114201)
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+    if (std::all_of(kernel.begin(), kernel.end(), [](size_t i){return i == 1;}) &&
+        std::all_of(stride.begin(), stride.end(), [](size_t i){return i == 1;}) &&
+        std::all_of(padBegin.begin(), padBegin.end(), [](ptrdiff_t i){return i == 1;})) {
+        GTEST_SKIP() << "Disabled test due to output shape check failed" << std::endl;
+    }
+#endif
     run();
 
     if (isBias) {
@@ -238,4 +245,329 @@ TEST_P(ConvolutionLayerCPUTest, CompareWithRefs) {
     }
     CheckPluginRelatedResults(compiledModel, "Convolution");
 }
+
+namespace Convolution {
+
+const SizeVector& numOutChannels() {
+    static const SizeVector numOutChannels = { 64, 63 };
+    return numOutChannels;
+}
+
+const SizeVector& numOutChannels_Gemm() {
+    static const SizeVector numOutChannels_Gemm = { 6 };
+    return numOutChannels_Gemm;
+}
+
+const std::vector<SizeVector>& kernels2d() {
+    static const std::vector<SizeVector> kernels2d = { {3, 3}, {1, 1} };
+    return kernels2d;
+}
+
+const std::vector<SizeVector>& strides2d() {
+    static const std::vector<SizeVector> strides2d = { {1, 1}, {2, 2} };
+    return strides2d;
+}
+
+const std::vector<std::vector<ptrdiff_t>>& padBegins2d() {
+    static const std::vector<std::vector<ptrdiff_t>> padBegins2d = { {0, 0}, {1, 1} };
+    return padBegins2d;
+}
+
+const std::vector<std::vector<ptrdiff_t>>& padEnds2d() {
+    static const std::vector<std::vector<ptrdiff_t>> padEnds2d = { {0, 0} };
+    return padEnds2d;
+}
+
+const std::vector<SizeVector>& dilations2d() {
+    static const std::vector<SizeVector> dilations2d = { {1, 1} };
+    return dilations2d;
+}
+
+const std::vector<InputShape>& inShapesGemm2D() {
+    static const std::vector<InputShape> inShapesGemm2D = {
+            {{}, {{ 2, 12, 7, 7 }}},
+            {
+                //dynamic shape
+                { {1, 200}, 12, -1, {1, 200} },
+                { //target static shapes
+                    { 2, 12, 7, 7 },
+                    { 1, 12, 5, 5 }
+                }
+            }
+    };
+    return inShapesGemm2D;
+}
+
+const std::vector<InputShape>& inShapesGemm2D_cache() {
+    static const std::vector<InputShape> inShapesGemm2D_cache = {
+            {{}, {{ 2, 12, 7, 7 }}},
+            {
+                //dynamic shape
+                { {1, 200}, 12, -1, {1, 200} },
+                { //target static shapes
+                    { 1, 12, 5, 5 },
+                    { 1, 12, 7, 7 },
+                    { 1, 12, 5, 5 }
+                }
+            }
+    };
+    return inShapesGemm2D_cache;
+}
+
+const std::vector<CPUSpecificParams>& CPUParams_2D() {
+    static const std::vector<CPUSpecificParams> CPUParams_2D = {
+    #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+            conv_sse42_2D,
+            conv_avx2_2D,
+            conv_avx512_2D,
+            conv_sse42_2D_nspc,
+            conv_avx2_2D_nspc,
+            conv_avx512_2D_nspc,
+            conv_avx512_2D_nspc_brgconv
+    #endif
+    #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+    //FIXME: NCHW tests failed because filterSupportedPrimitiveDescriptors deletes ACL descr:
+    //Convolution_3 input memory format filter: abcd not matched. Erase desc from supported primitive descriptors
+            //conv_gemm_acl_2D,
+            conv_gemm_acl_2D_nspc
+    #endif
+    };
+    return CPUParams_2D;
+}
+
+const std::vector<CPUSpecificParams>& CPUParams_GEMM_2D() {
+    static const std::vector<CPUSpecificParams> CPUParams_GEMM_2D = {
+    #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+            conv_gemm_2D,
+            conv_gemm_2D_nspc
+    #endif
+    #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+            //FIXME: NCHW tests failed because filterSupportedPrimitiveDescriptors deletes ACL descr:
+            //Convolution_3 input memory format filter: abcd not matched. Erase desc from supported primitive descriptors
+            //conv_gemm_acl_2D,
+            conv_gemm_acl_2D_nspc
+    #endif
+    };
+    return CPUParams_GEMM_2D;
+}
+
+const std::vector<InputShape>& inputShapes1d() {
+    static const std::vector<InputShape> inputShapes1d = {
+            {{}, {{ 2, 64, 7 }}},
+            {{}, {{ 1, 67, 7 }}},
+            {
+                //dynamic shape
+                { -1, 64, {1, 200} },
+                { //target static shapes
+                    { 2, 64, 7 },
+                    { 1, 64, 9 }
+                }
+            },
+            {
+                //dynamic shape
+                { -1, 67, {1, 200} },
+                { //target static shapes
+                    { 2, 67, 7 },
+                    { 1, 67, 9 }
+                }
+            },
+            {
+                //dynamic shape
+                { {1, 200}, 64, -1 },
+                { //target static shapes
+                    { 2, 64, 7 },
+                    { 1, 64, 5 }
+                }
+            }
+    };
+    return inputShapes1d;
+}
+
+const std::vector<InputShape>& inputShapes2d() {
+    static const std::vector<InputShape> inputShapes2d = {
+            {{}, {{ 1, 64, 7, 7 }}},
+            {{}, {{ 1, 67, 7, 7 }}},
+            {
+                //dynamic shape
+                { -1, 64, -1, {1, 200} },
+                { //target static shapes
+                    { 2, 64, 7, 7 },
+                    { 1, 64, 9, 9}
+                }
+            },
+            {
+                //dynamic shape
+                { -1, 67, -1, {1, 200} },
+                { //target static shapes
+                    { 2, 67, 7, 7 },
+                    { 1, 67, 9, 9}
+                }
+            }
+    };
+    return inputShapes2d;
+}
+
+const std::vector<InputShape>& inputShapesPlain2Blocked2d() {
+    static const std::vector<InputShape> inputShapesPlain2Blocked2d = {
+            {{}, {{ 1, 1, 7, 7 }}},
+            {{}, {{ 1, 2, 7, 7 }}},
+            {{}, {{ 1, 3, 7, 7 }}},
+            {
+                //dynamic shape
+                { -1, 1, -1, {1, 200} },
+                { //target static shapes
+                    { 2, 1, 7, 7 },
+                    { 1, 1, 9, 9}
+                }
+            },
+            {
+                //dynamic shape
+                { -1, 3, -1, {1, 200} },
+                { //target static shapes
+                    { 2, 3, 7, 7 },
+                    { 1, 3, 9, 9}
+                }
+            }
+    };
+    return inputShapesPlain2Blocked2d;
+}
+
+const std::vector<InputShape>& inputShapes2d_dynBatch() {
+    static const std::vector<InputShape> inputShapes2d_dynBatch = {
+            {
+                //dynamic shape
+                { {1, 10}, 64, 7, 7 },
+                { //target static shapes
+                    { 2, 64, 7, 7 },
+                    { 1, 64, 7, 7 }
+                }
+            },
+    };
+    return inputShapes2d_dynBatch;
+}
+
+const std::vector<CPUSpecificParams>& CPUParams_1x1_1D() {
+    static const std::vector<CPUSpecificParams> CPUParams_1x1_1D = {
+            conv_sse42_1D_1x1,
+            conv_avx2_1D_1x1,
+            conv_avx512_1D_1x1,
+            conv_sse42_1D_1x1_nspc,
+            conv_avx2_1D_1x1_nspc,
+            conv_avx512_1D_1x1_nspc,
+            conv_avx512_1D_1x1_nspc_brgconv
+    };
+    return CPUParams_1x1_1D;
+}
+
+const std::vector<SizeVector>& kernels3d() {
+    static const std::vector<SizeVector> kernels3d = { {3, 3, 3}, {1, 1, 1} };
+    return kernels3d;
+}
+
+const std::vector<SizeVector>& strides3d() {
+    static const std::vector<SizeVector> strides3d = { {1, 1, 1}, {2, 2, 2} };
+    return strides3d;
+}
+
+const std::vector<std::vector<ptrdiff_t>>& padBegins3d() {
+    static const std::vector<std::vector<ptrdiff_t>> padBegins3d = { {0, 0, 0}, {1, 1, 1} };
+    return padBegins3d;
+}
+
+const std::vector<std::vector<ptrdiff_t>>& padEnds3d() {
+    static const std::vector<std::vector<ptrdiff_t>> padEnds3d = { {0, 0, 0} };
+    return padEnds3d;
+}
+
+const std::vector<SizeVector>& dilations3d() {
+    static const std::vector<SizeVector> dilations3d = { {1, 1, 1} };
+    return dilations3d;
+}
+
+const std::vector<InputShape> & inputShapes3d() {
+    static const std::vector<InputShape> inputShapes3d = {
+            {{}, {{ 1, 64, 7, 7, 7 }}},
+            {{}, {{ 1, 67, 7, 7, 7 }}},
+            {
+                //dynamic shapes
+                { -1, 64, -1, {1, 200}, -1 },
+                { //target static shapes
+                    { 1, 64, 7, 7, 7 },
+                    { 1, 64, 9, 9, 9}
+                }
+            },
+            {
+                //dynamic shapes
+                { -1, 67, -1, {1, 200}, -1 },
+                { //target static shapes
+                    { 1, 67, 7, 7, 7 },
+                    { 1, 67, 9, 9, 9}
+                }
+            }
+    };
+    return inputShapes3d;
+}
+
+const std::vector<InputShape> & inShapesGemm3D() {
+    static const std::vector<InputShape> inShapesGemm3D = {
+            {{}, {{ 2, 12, 7, 7, 7 }}},
+            {
+                //dynamic shape
+                { {1, 200}, 12, -1, {1, 200}, -1 },
+                { //target static shapes
+                    { 2, 12, 7, 7, 7 },
+                    { 1, 12, 5, 5, 5 }
+                }
+            }
+    };
+    return inShapesGemm3D;
+}
+
+const std::vector<CPUSpecificParams>& CPUParams_GEMM_3D() {
+    static const std::vector<CPUSpecificParams> CPUParams_GEMM_3D = {
+            conv_gemm_3D,
+            conv_gemm_3D_nspc
+    };
+    return CPUParams_GEMM_3D;
+}
+
+const std::vector<CPUSpecificParams>& CPUParams_1x1_2D() {
+    static const std::vector<CPUSpecificParams> CPUParams_1x1_2D = {
+            conv_sse42_2D_1x1,
+            conv_avx2_2D_1x1,
+            conv_avx512_2D_1x1,
+            conv_sse42_2D_1x1_nspc,
+            conv_avx2_2D_1x1_nspc,
+            conv_avx512_2D_1x1_nspc,
+            conv_avx512_2D_1x1_nspc_brgconv
+    };
+    return CPUParams_1x1_2D;
+}
+
+const std::vector<InputShape>& inputShapes2d_cache() {
+    static const std::vector<InputShape> inputShapes2d_cache = {
+            {{}, {{ 1, 64, 7, 7 }}},
+            {{}, {{ 1, 67, 7, 7 }}},
+            {
+                //dynamic shape
+                { -1, 64, -1, {1, 200} },
+                { //target static shapes
+                    { 1, 64, 7, 7 },
+                    { 1, 64, 9, 9 },
+                    { 1, 64, 7, 7 }
+                }
+            },
+            {
+                //dynamic shape
+                { -1, 67, -1, {1, 200} },
+                { //target static shapes
+                    { 1, 67, 7, 7 },
+                    { 1, 67, 9, 9}
+                }
+            }
+    };
+    return inputShapes2d_cache;
+}
+
+} // namespace Convolution
 }  // namespace CPULayerTestsDefinitions

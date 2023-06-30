@@ -19,6 +19,14 @@ namespace CPUTestUtils {
     const auto conv_gemm_2D_nspc = CPUSpecificParams{{nhwc}, {nhwc}, {"jit_gemm"}, "jit_gemm"};
     const auto conv_gemm_3D_nspc = CPUSpecificParams{{ndhwc}, {ndhwc}, {"jit_gemm"}, "jit_gemm"};
 
+    const auto conv_gemm_acl_1D = CPUSpecificParams{{ncw}, {ncw}, {"gemm_acl"}, "gemm_acl"};
+    const auto conv_gemm_acl_2D = CPUSpecificParams{{nchw}, {nchw}, {"gemm_acl"}, "gemm_acl"};
+    const auto conv_gemm_acl_3D = CPUSpecificParams{{ncdhw}, {ncdhw}, {"gemm_acl"}, "gemm_acl"};
+
+    const auto conv_gemm_acl_1D_nspc = CPUSpecificParams{{nwc}, {nwc}, {"gemm_acl"}, "gemm_acl"};
+    const auto conv_gemm_acl_2D_nspc = CPUSpecificParams{{nhwc}, {nhwc}, {"gemm_acl"}, "gemm_acl"};
+    const auto conv_gemm_acl_3D_nspc = CPUSpecificParams{{ndhwc}, {ndhwc}, {"gemm_acl"}, "gemm_acl"};
+
     const auto conv_sse42_1D = CPUSpecificParams{{nCw8c}, {nCw8c}, {"jit_sse42"}, "jit_sse42"};
     const auto conv_sse42_2D = CPUSpecificParams{{nChw8c}, {nChw8c}, {"jit_sse42"}, "jit_sse42"};
     const auto conv_sse42_3D = CPUSpecificParams{{nCdhw8c}, {nCdhw8c}, {"jit_sse42"}, "jit_sse42"};

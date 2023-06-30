@@ -44,6 +44,8 @@ public:
 protected:
     bool isBias = false;
     InferenceEngine::SizeVector kernel, dilation;
+    InferenceEngine::SizeVector stride;
+    std::vector<ptrdiff_t> padBegin, padEnd;
 
     void checkBiasFusing(ov::CompiledModel &execNet) const;
     std::shared_ptr<ngraph::Node> modifyGraph(const ngraph::element::Type &ngPrc,
@@ -53,5 +55,36 @@ protected:
 };
 
 namespace Convolution {
+    const std::vector<SizeVector>& kernels2d();
+    const std::vector<SizeVector>& strides2d();
+    const std::vector<std::vector<ptrdiff_t>>& padBegins2d();
+    const std::vector<std::vector<ptrdiff_t>>& padEnds2d();
+    const std::vector<SizeVector>& dilations2d();
+
+    const std::vector<SizeVector>& kernels3d();
+    const std::vector<SizeVector>& strides3d();
+    const std::vector<std::vector<ptrdiff_t>>& padBegins3d();
+    const std::vector<std::vector<ptrdiff_t>>& padEnds3d();
+    const std::vector<SizeVector>& dilations3d();
+    const std::vector<InputShape> & inputShapes3d();
+
+    const std::vector<CPUSpecificParams>& CPUParams_1x1_1D();
+    const std::vector<CPUSpecificParams>& CPUParams_1x1_2D();
+    const std::vector<CPUSpecificParams>& CPUParams_2D();
+    const std::vector<CPUSpecificParams>& CPUParams_GEMM_2D();
+    const std::vector<CPUSpecificParams>& CPUParams_GEMM_3D();
+
+    const std::vector<InputShape>& inputShapes1d();
+    const std::vector<InputShape>& inputShapes2d();
+    const std::vector<InputShape>& inputShapes2d_cache();
+    const std::vector<InputShape>& inputShapesPlain2Blocked2d();
+    const std::vector<InputShape>& inputShapes2d_dynBatch();
+
+    const std::vector<InputShape>& inShapesGemm2D();
+    const std::vector<InputShape>& inShapesGemm2D_cache();
+    const std::vector<InputShape> & inShapesGemm3D();
+
+    const SizeVector& numOutChannels();
+    const SizeVector& numOutChannels_Gemm();
 } // namespace Convolution
 } // namespace CPULayerTestsDefinitions
