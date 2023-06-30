@@ -68,9 +68,6 @@ RUN cmake .. \
     -DCMAKE_INSTALL_PREFIX=/openvino/dist
 RUN ninja install
 
-# Install MO requirements for torchvision -> OV preprocessing converter
-RUN pip install -r /openvino/tools/mo/requirements.txt
-
 # Run tests via tox
 WORKDIR /openvino/src/bindings/python
 ENV OpenVINO_DIR=/openvino/dist/runtime/cmake
