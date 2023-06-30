@@ -36,7 +36,8 @@ TEST(ExceptionTests, ExceptionShowsCorrectMessageDebugVersion) {
         lineNum = __LINE__ + 1;
         IE_THROW() << message;
     } catch (InferenceEngine::Exception& iex) {
-        std::string ref_message = std::string{"\n"} + __FILE__ + ":" + std::to_string(lineNum) + " " + message;
+        std::string ref_message =
+            std::string{"\n"} + __FILE__ + ":" + std::to_string(lineNum) + " [ GENERAL_ERROR ] " + message;
         ASSERT_STREQ(iex.what(), ref_message.c_str());
     }
 }
@@ -46,7 +47,7 @@ TEST(ExceptionTests, ExceptionShowsCorrectMessageReleaseVersion) {
     try {
         IE_THROW() << message;
     } catch (InferenceEngine::Exception& iex) {
-        std::string ref_message = message;
+        std::string ref_message = "[ GENERAL_ERROR ] " + message;
         ASSERT_STREQ(iex.what(), ref_message.c_str());
     }
 }

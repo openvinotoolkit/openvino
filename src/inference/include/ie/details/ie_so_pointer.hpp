@@ -164,8 +164,8 @@ protected:
                 if (sts != OK) {
                     IE_EXCEPTION_SWITCH(sts,
                                         ExceptionType,
-                                        InferenceEngine::details::ThrowNow<ExceptionType>{} <<=
-                                        std::stringstream{} << IE_LOCATION << desc.msg)
+                                        InferenceEngine::details::ThrowNow<ExceptionType>{IE_LOCATION_PARAM} <<=
+                                        std::stringstream{} << desc.msg)
                 }
                 IE_SUPPRESS_DEPRECATED_START
                 _ptr = std::shared_ptr<T>(object, [](T* ptr) {
