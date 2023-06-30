@@ -636,8 +636,7 @@ private:
         if (jcp_.with_binarization) {
             int binarization_idx = p.find(primitive_kind::binarization);
 
-            if (binarization_idx < 0)  // for coverity correctness
-                binarization_idx = 0;
+            IE_ASSERT(binarization_idx >= 0) << "postops don't contain binarization";
 
             pop(reg_oc_off);
 
