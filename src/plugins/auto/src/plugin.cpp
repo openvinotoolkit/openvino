@@ -807,9 +807,8 @@ std::string Plugin::get_device_list(const ov::AnyMap& properties) const {
                         // The device is the device with default device ID (eg. GPU.0) and
                         // its wide name (eg. GPU) has been in device candidate list.
                         continue;
-                    std::string realName = parsed.get_device_name();
-                    if (is_any_dev(realName, device_list))
-                        devices_merged.push_back(device);
+                    // Add user specified device into candidate list
+                    devices_merged.push_back(device);
                 } else {
                     // Update device name if supported device with id existed
                     for (auto&& item : device_list) {
