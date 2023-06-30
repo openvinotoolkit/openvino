@@ -124,32 +124,6 @@ Setting Configuration Values
 
 .. tab-set::
 
-    .. tab-item:: C++
-       :sync: cpp
-
-       .. tab-set::
-
-          .. tab-item:: Devices
-             :sync: devices
-
-             .. doxygensnippet:: docs/snippets/ov_properties_migration.cpp
-                 :language: cpp
-                 :fragment: core_set_property
-
-          .. tab-item:: Model Loading
-             :sync: model-loading
-
-             .. doxygensnippet:: docs/snippets/ov_properties_migration.cpp
-                 :language: cpp
-                 :fragment: core_compile_model
-
-          .. tab-item:: Execution
-             :sync: execution
-
-             .. doxygensnippet:: docs/snippets/ov_properties_migration.cpp
-                 :language: cpp
-                 :fragment: compiled_model_set_property
-
     .. tab-item:: Python
        :sync: py
 
@@ -174,6 +148,32 @@ Setting Configuration Values
 
              .. doxygensnippet:: docs/snippets/ov_properties_migration.py
                  :language: python
+                 :fragment: compiled_model_set_property
+
+    .. tab-item:: C++
+       :sync: cpp
+
+       .. tab-set::
+
+          .. tab-item:: Devices
+             :sync: devices
+
+             .. doxygensnippet:: docs/snippets/ov_properties_migration.cpp
+                 :language: cpp
+                 :fragment: core_set_property
+
+          .. tab-item:: Model Loading
+             :sync: model-loading
+
+             .. doxygensnippet:: docs/snippets/ov_properties_migration.cpp
+                 :language: cpp
+                 :fragment: core_compile_model
+
+          .. tab-item:: Execution
+             :sync: execution
+
+             .. doxygensnippet:: docs/snippets/ov_properties_migration.cpp
+                 :language: cpp
                  :fragment: compiled_model_set_property
 
     .. tab-item:: C
@@ -211,39 +211,6 @@ Getting Information
 
 .. tab-set::
 
-    .. tab-item:: C++
-       :sync: cpp
-
-       .. tab-set::
-
-          .. tab-item:: Device Configuration
-             :sync: device-configuration
-
-             .. doxygensnippet:: docs/snippets/ov_properties_migration.cpp
-                 :language: cpp
-                 :fragment: core_get_config
-
-          .. tab-item:: Device metrics
-             :sync: device-metrics
-
-             .. doxygensnippet:: docs/snippets/ov_properties_migration.cpp
-                 :language: cpp
-                 :fragment: core_get_metric
-
-          .. tab-item:: Execution config
-             :sync: execution-config
-
-             .. doxygensnippet:: docs/snippets/ov_properties_migration.cpp
-                 :language: cpp
-                 :fragment: executable_network_set_config
-
-          .. tab-item:: Execution metrics
-             :sync: execution-metrics
-
-             .. doxygensnippet:: docs/snippets/ov_properties_migration.cpp
-                 :language: cpp
-                 :fragment: executable_network_get_metric
-
     .. tab-item:: Python
        :sync: py
 
@@ -275,6 +242,39 @@ Getting Information
 
              .. doxygensnippet:: docs/snippets/ov_properties_migration.py
                  :language: python
+                 :fragment: executable_network_get_metric
+
+    .. tab-item:: C++
+       :sync: cpp
+
+       .. tab-set::
+
+          .. tab-item:: Device Configuration
+             :sync: device-configuration
+
+             .. doxygensnippet:: docs/snippets/ov_properties_migration.cpp
+                 :language: cpp
+                 :fragment: core_get_config
+
+          .. tab-item:: Device metrics
+             :sync: device-metrics
+
+             .. doxygensnippet:: docs/snippets/ov_properties_migration.cpp
+                 :language: cpp
+                 :fragment: core_get_metric
+
+          .. tab-item:: Execution config
+             :sync: execution-config
+
+             .. doxygensnippet:: docs/snippets/ov_properties_migration.cpp
+                 :language: cpp
+                 :fragment: executable_network_set_config
+
+          .. tab-item:: Execution metrics
+             :sync: execution-metrics
+
+             .. doxygensnippet:: docs/snippets/ov_properties_migration.cpp
+                 :language: cpp
                  :fragment: executable_network_get_metric
 
     .. tab-item:: C
@@ -316,39 +316,6 @@ Getting Information
 
 .. tab-set::
 
-    .. tab-item:: C++
-       :sync: cpp
-
-       .. tab-set::
-
-          .. tab-item:: Device Configuration
-             :sync: device-configuration
-
-             .. doxygensnippet:: docs/snippets/ov_properties_migration.cpp
-                 :language: cpp
-                 :fragment: core_get_rw_property
-
-          .. tab-item:: Device metrics
-             :sync: device-metrics
-
-             .. doxygensnippet:: docs/snippets/ov_properties_migration.cpp
-                 :language: cpp
-                 :fragment: core_get_ro_property
-
-          .. tab-item:: Execution config
-             :sync: execution-config
-
-             .. doxygensnippet:: docs/snippets/ov_properties_migration.cpp
-                 :language: cpp
-                 :fragment: compiled_model_get_rw_property
-
-          .. tab-item:: Execution metrics
-             :sync: execution-metrics
-
-             .. doxygensnippet:: docs/snippets/ov_properties_migration.cpp
-                 :language: cpp
-                 :fragment: compiled_model_get_ro_property
-
     .. tab-item:: Python
        :sync: py
 
@@ -380,6 +347,39 @@ Getting Information
 
              .. doxygensnippet:: docs/snippets/ov_properties_migration.py
                  :language: python
+                 :fragment: compiled_model_get_ro_property
+
+    .. tab-item:: C++
+       :sync: cpp
+
+       .. tab-set::
+
+          .. tab-item:: Device Configuration
+             :sync: device-configuration
+
+             .. doxygensnippet:: docs/snippets/ov_properties_migration.cpp
+                 :language: cpp
+                 :fragment: core_get_rw_property
+
+          .. tab-item:: Device metrics
+             :sync: device-metrics
+
+             .. doxygensnippet:: docs/snippets/ov_properties_migration.cpp
+                 :language: cpp
+                 :fragment: core_get_ro_property
+
+          .. tab-item:: Execution config
+             :sync: execution-config
+
+             .. doxygensnippet:: docs/snippets/ov_properties_migration.cpp
+                 :language: cpp
+                 :fragment: compiled_model_get_rw_property
+
+          .. tab-item:: Execution metrics
+             :sync: execution-metrics
+
+             .. doxygensnippet:: docs/snippets/ov_properties_migration.cpp
+                 :language: cpp
                  :fragment: compiled_model_get_ro_property
 
     .. tab-item:: C

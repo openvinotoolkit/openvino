@@ -62,33 +62,6 @@ operating system or environment.
 
 .. tab-set::
 
-   .. tab-item:: Windows
-      :sync: windows
-
-      1. **Install Python**
-       
-         Download 64 bit version of Python software (3.7, 3.8, 3.9, 3.10, 3.11) from `python.org <https://www.python.org/downloads/windows/>`__
-         
-         Run the installer by double clicking it. Follow the installation steps to set up the software.
-         
-         While installing, make sure you check the box to *add Python to system PATH*.
-
-         .. note::  
-      
-            Python software available in the Microsoft Store is not recommended. It may require additional packages.
-      
-      2. **Install GIT**
-
-         Download 64 bit version of GIT from `git-scm.org <https://github.com/git-for-windows/git/releases/download/v2.36.0.windows.1/Git-2.36.0-64-bit.exe>`__
-   
-         Run the installer by double clicking it. Follow the installation steps to set up the software.
-
-      3. **Install C++ Redistributable (For Python 3.8 only)**
-
-         Download 64 bit version of  C++ Redistributable from `here <https://download.visualstudio.microsoft.com/download/pr/4100b84d-1b4d-487d-9f89-1354a7138c8f/5B0CBB977F2F5253B1EBE5C9D30EDBDA35DBD68FB70DE7AF5FAAC6423DB575B5/VC_redist.x64.exe>`__
-   
-         Run the installer by double clicking it. Follow the installation steps to set up the software.
-
    .. tab-item:: Linux
       :sync: linux
 
@@ -124,6 +97,33 @@ operating system or environment.
             sudo yum update
             sudo yum upgrade
             sudo yum install python36-devel mesa-libGL
+
+   .. tab-item:: Windows
+      :sync: windows
+
+      1. **Install Python**
+       
+         Download 64 bit version of Python software (3.7, 3.8, 3.9, 3.10, 3.11) from `python.org <https://www.python.org/downloads/windows/>`__
+         
+         Run the installer by double clicking it. Follow the installation steps to set up the software.
+         
+         While installing, make sure you check the box to *add Python to system PATH*.
+
+         .. note::  
+      
+            Python software available in the Microsoft Store is not recommended. It may require additional packages.
+      
+      2. **Install GIT**
+
+         Download 64 bit version of GIT from `git-scm.org <https://github.com/git-for-windows/git/releases/download/v2.36.0.windows.1/Git-2.36.0-64-bit.exe>`__
+   
+         Run the installer by double clicking it. Follow the installation steps to set up the software.
+
+      3. **Install C++ Redistributable (For Python 3.8 only)**
+
+         Download 64 bit version of  C++ Redistributable from `here <https://download.visualstudio.microsoft.com/download/pr/4100b84d-1b4d-487d-9f89-1354a7138c8f/5B0CBB977F2F5253B1EBE5C9D30EDBDA35DBD68FB70DE7AF5FAAC6423DB575B5/VC_redist.x64.exe>`__
+   
+         Run the installer by double clicking it. Follow the installation steps to set up the software.
 
    .. tab-item:: macOS
       :sync: macos
@@ -263,46 +263,6 @@ operating system or environment.
 
 .. tab-set::
 
-   .. tab-item:: Windows
-      :sync: windows
-      
-      1. **Create a Virtual Environment**
-
-         If you already have installed *openvino-dev*, you may skip this step and proceed with the next one.
-   
-         .. code-block::
-   
-            python -m venv openvino_env
-   
-      2. **Activate the Environment**
-   
-         .. code-block:: sh
-   
-            openvino_env\Scripts\activate
-   
-      3. **Clone the Repository**
-   
-         Using the --depth=1 option for git clone reduces download size.
-   
-         .. code-block:: sh
-   
-            git clone --depth=1 https://github.com/openvinotoolkit/openvino_notebooks.git
-            cd openvino_notebooks
-   
-      4. **Upgrade PIP**
-   
-         .. code-block:: sh
-   
-            python -m pip install --upgrade pip wheel setuptools
-   
-
-      5. **Install required packages**
-   
-         .. code-block::
-   
-            pip install -r requirements.txt
-
-
    .. tab-item:: Linux
       :sync: linux
 
@@ -339,6 +299,45 @@ operating system or environment.
       5. **Install required packages**
    
          .. code-block:: sh
+   
+            pip install -r requirements.txt
+
+   .. tab-item:: Windows
+      :sync: windows
+      
+      1. **Create a Virtual Environment**
+
+         If you already have installed *openvino-dev*, you may skip this step and proceed with the next one.
+   
+         .. code-block::
+   
+            python -m venv openvino_env
+   
+      2. **Activate the Environment**
+   
+         .. code-block:: sh
+   
+            openvino_env\Scripts\activate
+   
+      3. **Clone the Repository**
+   
+         Using the --depth=1 option for git clone reduces download size.
+   
+         .. code-block:: sh
+   
+            git clone --depth=1 https://github.com/openvinotoolkit/openvino_notebooks.git
+            cd openvino_notebooks
+   
+      4. **Upgrade PIP**
+   
+         .. code-block:: sh
+   
+            python -m pip install --upgrade pip wheel setuptools
+   
+
+      5. **Install required packages**
+   
+         .. code-block::
    
             pip install -r requirements.txt
    
@@ -549,19 +548,19 @@ To reactivate your environment, run:
 
 .. tab-set::
 
-   .. tab-item:: Windows
-      :sync: windows
-
-      .. code:: bash
-   
-         source openvino_env\Scripts\activate
-
    .. tab-item:: Linux
       :sync: linux
 
       .. code:: bash 
    
          source openvino_env/bin/activate
+
+   .. tab-item:: Windows
+      :sync: windows
+
+      .. code:: bash
+   
+         source openvino_env\Scripts\activate
 
    .. tab-item:: macOS
       :sync: macos
@@ -580,19 +579,19 @@ This operation is optional. However, if you want to remove your virtual environm
 
 .. tab-set::
 
-   .. tab-item:: Windows
-      :sync: windows
-
-      .. code:: bash
-
-         rmdir /s openvino_env
-
    .. tab-item:: Linux
       :sync: linux
 
       .. code:: bash 
 
          rm -rf openvino_env
+
+   .. tab-item:: Windows
+      :sync: windows
+
+      .. code:: bash
+
+         rmdir /s openvino_env
 
    .. tab-item:: macOS
       :sync: macos

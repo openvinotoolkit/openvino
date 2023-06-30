@@ -37,6 +37,14 @@ See `Installing Additional Components <#optional-installing-additional-component
 
       .. tab-set::
 
+         .. tab-item:: Linux
+            :sync: linux
+         
+            * `Homebrew <https://brew.sh/>`_
+            * `CMake 3.13 or higher, 64-bit <https://cmake.org/download/>`__
+            * GCC 7.5.0 (for Ubuntu 18.04), GCC 9.3.0 (for Ubuntu 20.04) or GCC 11.3.0 (for Ubuntu 22.04)
+            * `Python 3.7 - 3.10, 64-bit <https://www.python.org/downloads/>`__
+
          .. tab-item:: macOS
             :sync: macos
          
@@ -46,14 +54,6 @@ See `Installing Additional Components <#optional-installing-additional-component
             * Apple Xcode Command Line Tools. In the terminal, run ``xcode-select --install`` from any directory to install it.
             * (Optional) Apple Xcode IDE (not required for OpenVINO™, but useful for development)
          
-         .. tab-item:: Linux
-            :sync: linux
-         
-            * `Homebrew <https://brew.sh/>`_
-            * `CMake 3.13 or higher, 64-bit <https://cmake.org/download/>`__
-            * GCC 7.5.0 (for Ubuntu 18.04), GCC 9.3.0 (for Ubuntu 20.04) or GCC 11.3.0 (for Ubuntu 22.04)
-            * `Python 3.7 - 3.10, 64-bit <https://www.python.org/downloads/>`__
-      
 
 
 Installing OpenVINO Runtime
