@@ -34,5 +34,5 @@ def main(cli_parser: argparse.ArgumentParser, framework=None):
 
 
 if __name__ == "__main__":
-    from openvino.tools.mo.utils.cli_parser import get_all_cli_parser
+    from openvino.tools.ovc.cli_parser import get_all_cli_parser  # pylint: disable=no-name-in-module,import-error
     sys.exit(main(get_all_cli_parser(), None))

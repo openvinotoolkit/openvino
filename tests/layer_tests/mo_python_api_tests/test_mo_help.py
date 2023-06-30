@@ -6,7 +6,7 @@ import os
 import sys
 import unittest
 from openvino.tools.mo import mo
-from openvino.tools.mo.utils.cli_parser import get_mo_convert_params
+from openvino.tools.ovc.cli_parser import get_mo_convert_params
 from pathlib import Path
 
 from common.utils.common_utils import shell

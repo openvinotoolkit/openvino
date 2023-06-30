@@ -175,6 +175,18 @@ PY_INSTALL_CFG = {
         "install_dir": PY_PACKAGES_DIR,
         "binary_dir": OPENVINO_PYTHON_BINARY_DIR,
     },
+    "ovc": {
+        "entry_point": {
+            "console_scripts": [
+                "ovc = openvino.tools.ovc.main:main",
+            ],
+        },
+        "name": f"pyopenvino_{PYTHON_VERSION}",
+        "prefix": f"{BUILD_BASE}/site-packages",
+        "source_dir": f"{OPENVINO_SOURCE_DIR}/tools/ovc",
+        "install_dir": PY_PACKAGES_DIR,
+        "binary_dir": "ovc",
+    },
     # "benchmark_app": {                                                 # noqa: E731
     #     "entry_point": {                                               # noqa: E731
     #         "console_scripts": [                                       # noqa: E731
@@ -186,18 +198,6 @@ PY_INSTALL_CFG = {
     #     "source_dir": f"{OPENVINO_SOURCE_DIR}/tools/benchmark_tool",   # noqa: E731
     #     "install_dir": PY_PACKAGES_DIR,                                # noqa: E731
     #     "binary_dir": "benchmark_app",                                 # noqa: E731
-    # },                                                                 # noqa: E731
-    # "model_optimizer": {                                               # noqa: E731
-    #     "entry_point": {                                               # noqa: E731
-    #         "console_scripts": [                                       # noqa: E731
-    #             "mo = openvino.tools.mo.main:main",                    # noqa: E731
-    #         ],                                                         # noqa: E731
-    #     },                                                             # noqa: E731
-    #     "name": f"pyopenvino_{PYTHON_VERSION}",                        # noqa: E731
-    #     "prefix": f"{BUILD_BASE}/site-packages",                       # noqa: E731
-    #     "source_dir": f"{OPENVINO_SOURCE_DIR}/tools/mo",               # noqa: E731
-    #     "install_dir": PY_PACKAGES_DIR,                                # noqa: E731
-    #     "binary_dir": "model_optimizer",                               # noqa: E731
     # },                                                                 # noqa: E731
 }
 

@@ -10,7 +10,6 @@ import sys
 import traceback
 from collections import OrderedDict
 from copy import deepcopy
-from distutils.version import LooseVersion
 from pathlib import Path
 
 try:
@@ -19,17 +18,19 @@ except ImportError:
     import openvino.tools.mo.utils.telemetry_stub as tm
 
 from openvino.tools.mo.back.SpecialNodesFinalization import RemoveConstOps, CreateConstNodesReplacement, NormalizeTI
-from openvino.tools.mo.moc_frontend.check_config import legacy_transformations_config_used, \
-    tensorflow_custom_operations_config_update_used, new_extensions_used
-from openvino.tools.mo.moc_frontend.pipeline import moc_pipeline
-from openvino.tools.mo.moc_frontend.serialize import moc_emit_ir
+from openvino.tools.ovc.moc_frontend.check_config import legacy_transformations_config_used, \
+    tensorflow_custom_operations_config_update_used, new_extensions_used  # pylint: disable=no-name-in-module,import-error
+from openvino.tools.ovc.moc_frontend.pipeline import moc_pipeline  # pylint: disable=no-name-in-module,import-error
+from openvino.tools.ovc.moc_frontend.moc_emit_ir import moc_emit_ir  # pylint: disable=no-name-in-module,import-error
 from openvino.tools.mo.graph.graph import Graph
 from openvino.tools.mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively
 from openvino.tools.mo.middle.passes.convert_data_type import destination_type_to_np_data_type
 from openvino.tools.mo.pipeline.common import prepare_emit_ir
 from openvino.tools.mo.pipeline.unified import unified_pipeline
 from openvino.tools.mo.utils import import_extensions
-from openvino.tools.mo.utils.cli_parser import check_available_transforms, \
+
+# pylint: disable=no-name-in-module,import-error
+from openvino.tools.ovc.cli_parser import check_available_transforms, \
     get_advanced_cli_options, get_available_front_ends, get_caffe_cli_options, \
     get_common_cli_options, get_freeze_placeholder_values, get_kaldi_cli_options, get_layout_values, \
     get_mean_scale_dictionary, get_mxnet_cli_options, get_onnx_cli_options, \
@@ -38,19 +39,20 @@ from openvino.tools.mo.utils.cli_parser import check_available_transforms, \
     input_shape_to_input_cut_info, freeze_placeholder_to_input_cut_info
 
 from openvino.tools.mo.utils.error import Error, FrameworkError
-from openvino.tools.mo.utils.get_ov_update_message import get_ov_update_message, get_ov_api20_message, \
-    get_tf_fe_message, get_try_legacy_fe_message, get_compression_message
+from openvino.tools.ovc.get_ov_update_message import get_ov_update_message, get_ov_api20_message, \
+    get_tf_fe_message, get_compression_message  # pylint: disable=no-name-in-module,import-error
+from openvino.tools.mo.utils.get_ov_update_message import get_try_legacy_fe_message
 from openvino.tools.mo.utils.model_analysis import AnalysisResults
 from openvino.tools.mo.utils.version import VersionChecker
 from openvino.tools.mo.utils.guess_framework import deduce_legacy_frontend_by_namespace
-from openvino.tools.mo.utils.logger import init_logger, progress_printer
+from openvino.tools.ovc.logger import init_logger, progress_printer  # pylint: disable=no-name-in-module,import-error
 from openvino.tools.mo.utils.utils import refer_to_faq_msg, check_values_equal
 from openvino.tools.mo.utils.telemetry_utils import send_params_info, send_framework_info, send_conversion_result, \
     get_tid
-from openvino.tools.mo.moc_frontend.check_config import legacy_extensions_used
-from openvino.tools.mo.moc_frontend.pytorch_frontend_utils import get_pytorch_decoder, extract_input_info_from_example
-from openvino.tools.mo.moc_frontend.paddle_frontend_utils import paddle_frontend_converter
-from openvino.tools.mo.moc_frontend.shape_utils import parse_input_shapes
+from openvino.tools.ovc.moc_frontend.check_config import legacy_extensions_used  # pylint: disable=no-name-in-module,import-error
+from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import get_pytorch_decoder, extract_input_info_from_example  # pylint: disable=no-name-in-module,import-error
+from openvino.tools.ovc.moc_frontend.paddle_frontend_utils import paddle_frontend_converter  # pylint: disable=no-name-in-module,import-error
+from openvino.tools.ovc.moc_frontend.shape_utils import parse_input_shapes  # pylint: disable=no-name-in-module,import-error
 
 # pylint: disable=no-name-in-module,import-error
 from openvino.frontend import FrontEndManager, OpConversionFailure, ProgressReporterExtension, TelemetryExtension
@@ -491,7 +493,7 @@ def emit_ir(graph: Graph, argv: argparse.Namespace, non_default_params: dict):
     return_code = "not executed"
     if not (argv.framework == 'tf' and argv.tensorflow_custom_operations_config_update):
         try:
-            from openvino.tools.mo.back.offline_transformations import apply_offline_transformations
+            from openvino.tools.ovc.moc_frontend.offline_transformations import apply_offline_transformations  # pylint: disable=no-name-in-module,import-error
             func = apply_offline_transformations(func, argv)
             if "compress_to_fp16" in argv and argv.compress_to_fp16:
                 # restore data_type cmd parameter
@@ -841,7 +843,7 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args, python_api_us
                 elif 'example_inputs' in args:
                     raise AssertionError("'example_inputs' argument is not recognized, maybe you meant to provide 'example_input'?")
 
-                decoder =  get_pytorch_decoder(args['input_model'], parse_input_shapes(args), example_inputs, args)
+                decoder = get_pytorch_decoder(args['input_model'], parse_input_shapes(args), example_inputs, args)
             if model_framework == "paddle":
                 example_inputs = None
                 if 'example_input' in args and args['example_input'] is not None:
@@ -951,6 +953,6 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args, python_api_us
 
         send_conversion_result('fail')
         if python_api_used:
-            raise e#.with_traceback(None)
+            raise e.with_traceback(None)
         else:
             return None, argv
