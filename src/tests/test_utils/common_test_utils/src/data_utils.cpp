@@ -387,5 +387,4 @@ void fill_data_const(const ov::Tensor& tensor, float val) {
     fill_data_const(tensor, std::vector<float> {val});
 }
 
-OPENVINO_SUPPRESS_DEPRECATED_END
 }  // namespace CommonTestUtils
