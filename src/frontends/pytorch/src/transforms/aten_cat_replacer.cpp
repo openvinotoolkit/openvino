@@ -21,6 +21,8 @@ namespace frontend {
 namespace pytorch {
 namespace pass {
 
+using namespace ov::op;
+
 // aten::cat needs a special handling since it takes a Tensor[] as input. We set the inputs of ListConstruct as the
 // inputs of cat.
 //
@@ -41,7 +43,7 @@ AtenCatToConcat::AtenCatToConcat() {
         int64_t axis;
         if (cat->get_input_size() > 1) {
             auto axis_node = cat->get_input_node_shared_ptr(1);
-            auto axis_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(axis_node);
+            auto axis_const = std::dynamic_pointer_cast<v0::Constant>(axis_node);
             if (!axis_const) {
                 add_exception_to_fw_node(cat, "aten::cat unsupported case: axis is not a constant.");
                 return false;
@@ -62,7 +64,7 @@ AtenCatToConcat::AtenCatToConcat() {
         }
 
         std::shared_ptr<Node> input_node = cat->get_input_node_shared_ptr(0);
-        if (auto loop = std::dynamic_pointer_cast<ov::op::v5::Loop>(input_node)) {
+        if (auto loop = std::dynamic_pointer_cast<v5::Loop>(input_node)) {
             // case when concatenation is done inside the Loop
             auto body = loop->get_function();
             auto output_index = cat->input(0).get_source_output().get_index();
@@ -82,7 +84,7 @@ AtenCatToConcat::AtenCatToConcat() {
                     "aten::cat unsupported case: aten::append wasn't found inside prim::Loop body.");
                 return false;
             }
-            auto param = std::dynamic_pointer_cast<ov::op::v0::Parameter>(append->get_input_node_shared_ptr(0));
+            auto param = std::dynamic_pointer_cast<v0::Parameter>(append->get_input_node_shared_ptr(0));
             if (!param) {
                 add_exception_to_fw_node(cat,
                                          "aten::cat unsupported case: input of aten::append inside prim::Loop "
@@ -106,7 +108,7 @@ AtenCatToConcat::AtenCatToConcat() {
                                          "body is not a prim::ListConstruct.");
                 return false;
             }
-            auto new_result = std::make_shared<ov::op::v0::Result>(append->input_value(1));
+            auto new_result = std::make_shared<v0::Result>(append->input_value(1));
             body->add_results({new_result});
             auto new_output = loop->get_concatenated_slices(new_result, 0, 1, 1, -1, axis);
             copy_runtime_info(cat, loop);
@@ -115,10 +117,9 @@ AtenCatToConcat::AtenCatToConcat() {
         }
 
         const auto&& tmp_inputs = get_list_as_outputs(cat->get_input_source_output(0));
-        auto result = std::make_shared<ov::op::v0::Concat>(OutputVector(tmp_inputs.begin(), tmp_inputs.end()), axis);
-        copy_runtime_info(cat, result);
+        auto result = std::make_shared<v0::Concat>(OutputVector(tmp_inputs.begin(), tmp_inputs.end()), axis);
+        copy_runtime_info_and_name(cat, {result});
         replace_node(cat, result);
-        result->set_friendly_name(cat->get_friendly_name());
 
         return true;
     };

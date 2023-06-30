@@ -154,11 +154,14 @@ void RegPrinter::print_vmm(jit_generator &h, REG_T vmm, const char *name) {
         h.mov(abi_param2, reinterpret_cast<size_t>(vmm.toString()));
         h.mov(abi_param1, reinterpret_cast<size_t>(name));
         if (vmm.isZMM()) {
-            h.mov(h.rax, reinterpret_cast<size_t>(&print_vmm_prc<PRC_T, 64>));
+            auto p = &print_vmm_prc<PRC_T, 64>;
+            h.mov(h.rax, reinterpret_cast<size_t>(p));
         } else if (vmm.isYMM()) {
-            h.mov(h.rax, reinterpret_cast<size_t>(&print_vmm_prc<PRC_T, 32>));
+            auto p = &print_vmm_prc<PRC_T, 32>;
+            h.mov(h.rax, reinterpret_cast<size_t>(p));
         } else {
-            h.mov(h.rax, reinterpret_cast<size_t>(&print_vmm_prc<PRC_T, 16>));
+            auto p = &print_vmm_prc<PRC_T, 16>;
+            h.mov(h.rax, reinterpret_cast<size_t>(p));
         }
         align_rsp(h);
         h.call(h.rax);
@@ -191,7 +194,8 @@ void RegPrinter::print_reg(jit_generator &h, REG_T reg, const char *name) {
         h.mov(abi_param3, h.rsp);
         h.mov(abi_param2, reinterpret_cast<size_t>(reg.toString()));
         h.mov(abi_param1, reinterpret_cast<size_t>(name));
-        h.mov(h.rax, reinterpret_cast<size_t>(&print_reg_prc<PRC_T>));
+        auto p = &print_reg_prc<PRC_T>;
+        h.mov(h.rax, reinterpret_cast<size_t>(p));
         align_rsp(h);
         h.call(h.rax);
         restore_rsp(h);

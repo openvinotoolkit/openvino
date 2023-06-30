@@ -16,6 +16,7 @@
 #include "transformations/common_optimizations/remove_multi_subgraph_op_dangling_params.hpp"
 #include "transformations/common_optimizations/reverse_shape_and_type_infer.hpp"
 #include "transformations/control_flow/unroll_if.hpp"
+#include "transformations/low_precision/mark_dequantization_subgraph.hpp"
 #include "transformations/op_conversions/convert_convertlike.hpp"
 #include "transforms.hpp"
 #include "transforms/append_list_unpack_replacer.hpp"
@@ -27,12 +28,15 @@
 #include "transforms/dict_resolver.hpp"
 #include "transforms/einsum_list_construct.hpp"
 #include "transforms/index_loop_getitem_replacer.hpp"
+#include "transforms/irfftn_complex_replacer.hpp"
 #include "transforms/listconstruct_replacer.hpp"
 #include "transforms/min_max_prim_list_construct_replacer.hpp"
 #include "transforms/prim_list_construct_pad.hpp"
 #include "transforms/prim_list_tuple_construct_replacer.hpp"
 #include "transforms/prim_list_unpack_replacer.hpp"
+#include "transforms/rfftn_complex_replacer.hpp"
 #include "transforms/string_equality_replacer.hpp"
+#include "transforms/tuple_unpack_replacer.hpp"
 #include "translate_session.hpp"
 
 namespace ov {
@@ -121,7 +125,7 @@ std::shared_ptr<Model> FrontEnd::convert(const InputModel::Ptr& model) const {
         }
     }
     bool is_conversion_successful = unconverted_ops.size() == 0 && norm_err.empty();
-    FRONT_END_GENERAL_CHECK(is_conversion_successful, pack_detailed_failure_report(unconverted_ops, norm_err));
+    FRONT_END_OP_CONVERSION_CHECK(is_conversion_successful, pack_detailed_failure_report(unconverted_ops, norm_err));
     return converted_model;
 }
 
@@ -153,6 +157,8 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     manager.register_pass<ov::pass::ConvertConvertLike>();
     manager.register_pass<ov::frontend::pytorch::pass::AtenIndexToSelect>();
 
+    manager.register_pass<ov::pass::MarkDequantizationSubgraph>(
+        element::TypeVector{element::u8, element::i8, element::u4, element::i4});
     manager.register_pass<ov::pass::ConstantFolding>();
     manager.register_pass<ov::pass::PushConstantToSubgraph>();
     manager.register_pass<ov::pass::UnrollIf>();
@@ -168,6 +174,9 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     manager.register_pass<ov::frontend::pytorch::pass::AtenEinsumListConstructReplacer>();
     manager.register_pass<ov::frontend::pytorch::pass::MinMaxPrimListConstructReplacer>();
     manager.register_pass<ov::frontend::pytorch::pass::StringEqualityReplacer>();
+    manager.register_pass<ov::frontend::pytorch::pass::RFFTNComplexReplacer>();
+    manager.register_pass<ov::frontend::pytorch::pass::IRFFTNComplexReplacer>();
+    manager.register_pass<ov::frontend::pytorch::pass::PrimTupleUnpackReplacer>();
     manager.register_pass<ov::frontend::pytorch::pass::DecomposeListTupleResults>();
     manager.register_pass<ov::frontend::pytorch::pass::DictResolver>();
     manager.register_pass<ov::frontend::pytorch::pass::IndexLoopGetitemReplacer>();

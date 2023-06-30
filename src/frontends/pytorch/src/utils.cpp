@@ -5,6 +5,7 @@
 #include "utils.hpp"
 
 #include "op_table.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/frontend/pytorch/decoder.hpp"
 #include "openvino/opsets/opset10.hpp"
 #include "openvino/util/log.hpp"
@@ -330,6 +331,16 @@ std::shared_ptr<ov::op::util::FrameworkNode> cast_fw_node(std::shared_ptr<Node> 
     return fw_node;
 }
 
+bool is_none_node(const Output<Node>& node) {
+    if (const auto& fw_node_inp = std::dynamic_pointer_cast<ov::op::util::FrameworkNode>(node.get_node_shared_ptr())) {
+        const auto& attrs = fw_node_inp->get_attrs();
+        if (attrs.find("none_value") != attrs.end()) {
+            return true;
+        }
+    }
+    return false;
+}
+
 Any simplified_type_interpret(Any type) {
     // Interpret Tensor[type] as just type
     // After applying of this interpretation we cannot distinguish true scalars (not tensors) and tensors with elements
@@ -495,6 +506,30 @@ void add_exception_to_fw_node(std::shared_ptr<Node> node, const std::string& msg
         attrs[PtFrameworkNode::failed_conversion_key] = msg;
         fw_node->set_attrs(attrs);
     }
+}
+
+void copy_runtime_info_and_name(const std::shared_ptr<Node>& from,
+                                ov::NodeVector to,
+                                const ov::NodeVector& additional_rt_info_src) {
+    if (to.size() == 1) {
+        // We do 1 to 1 matching, no need to process names, just inherit initial name
+        to[0]->set_friendly_name(from->get_friendly_name());
+    } else {
+        std::unordered_set<std::string> unique_names;
+        size_t idx = 0;
+        for (auto& op : to) {
+            auto new_name = from->get_friendly_name() + '/' + op->get_type_name();
+            if (unique_names.count(new_name)) {
+                new_name += '_' + std::to_string(idx++);
+            } else {
+                unique_names.insert(new_name);
+            }
+            op->set_friendly_name(new_name);
+        }
+    }
+    copy_runtime_info(from, to);
+    if (!additional_rt_info_src.empty())
+        copy_runtime_info(additional_rt_info_src, to);
 }
 
 }  // namespace pytorch

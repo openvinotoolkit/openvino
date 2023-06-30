@@ -88,11 +88,11 @@ else
 fi
 
 OS_PATH=$(uname -m)
-NUM_THREADS="-j2"
+NUM_THREADS=2
 
 if [ "$OS_PATH" == "x86_64" ]; then
     OS_PATH="intel64"
-    NUM_THREADS="-j8"
+    NUM_THREADS=8
 fi
 
 if [ -e "$samples_build_dir/CMakeCache.txt" ]; then
