@@ -42,7 +42,8 @@ Converting certain PaddlePaddle models may require setting ``example_input`` or 
 
 * Example of converting ``paddle.hapi.model.Model`` format model:
 
-  .. code-block:: python
+  .. code-block:: py
+     :force:
 
     import paddle
     from openvino.tools.mo import convert_model
@@ -67,7 +68,8 @@ Converting certain PaddlePaddle models may require setting ``example_input`` or 
 
   ``list`` with tensor(``paddle.Tensor``) or InputSpec(``paddle.static.input.InputSpec``)
 
-  .. code-block:: python
+  .. code-block:: py
+     :force:
   
     import paddle
     from openvino.tools.mo import convert_model
@@ -85,7 +87,8 @@ Converting certain PaddlePaddle models may require setting ``example_input`` or 
 
   ``list`` or ``tuple`` with variable(``paddle.static.data``)
 
-  .. code-block:: python
+  .. code-block:: py
+     :force:
 
     import paddle
     from openvino.tools.mo import convert_model

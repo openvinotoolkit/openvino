@@ -772,7 +772,8 @@ The name should be the compilation of the layer name with the module name separa
 
 For example, your topology contains this layer with type ``Python``:
 
-.. code-block::
+.. code-block:: py
+   :force:
 
    layer {
      name: 'proposal'
@@ -788,7 +789,8 @@ For example, your topology contains this layer with type ``Python``:
 
 The first step is to implement an extension for this layer in Model Optimizer as an ancestor of ``Op`` class:
 
-.. code-block::
+.. code-block:: py
+   :force:
 
    class ProposalPythonExampleOp(Op):
           op = 'Proposal'
@@ -799,7 +801,8 @@ The first step is to implement an extension for this layer in Model Optimizer as
 
 It is mandatory to call two functions right after the implementation of that class:
 
-.. code-block::
+.. code-block:: py
+   :force:
 
    class ProposalPythonExampleOp(Op):
          ...
