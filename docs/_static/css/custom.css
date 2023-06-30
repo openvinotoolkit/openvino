@@ -70,6 +70,7 @@ ul#navbar-main-elements li:first-of-type {
 
 ul#navbar-main-elements > li:hover { 
     text-decoration: underline;
+    color: #fff;
 }
 
 

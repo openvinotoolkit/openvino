@@ -25,6 +25,19 @@ layout roi_align_inst::calc_output_layout(roi_align_node const& node, kernel_imp
                   {num_rois, num_channels, primitive->pooled_h, primitive->pooled_w});
 }
 
+template<typename ShapeType>
+std::vector<layout> roi_align_inst::calc_output_layouts(roi_align_node const& node, kernel_impl_params const& impl_param) {
+    auto primitive = impl_param.typed_desc<roi_align>();
+    auto input_layout = impl_param.get_input_layout(0);
+    auto rois_layout = impl_param.get_input_layout(1);
+    auto num_rois = rois_layout.get_partial_shape()[0];
+    auto num_channels = input_layout.get_partial_shape()[1];
+    return {layout({num_rois, num_channels, primitive->pooled_h, primitive->pooled_w}, input_layout.data_type, input_layout.format) };
+}
+
+template
+std::vector<layout> roi_align_inst::calc_output_layouts<ov::PartialShape>(roi_align_node const& node, const kernel_impl_params& impl_param);
+
 std::string roi_align_inst::to_string(roi_align_node const& node) {
     auto node_info = node.desc_to_json();
     json_composite roi_align_info;
