@@ -27,6 +27,7 @@ public:
 
 using OVClassSeveralDevicesTestCompileModel = OVClassSeveralDevicesTests;
 using OVClassSeveralDevicesTestQueryModel = OVClassSeveralDevicesTests;
+using OVClassSeveralDevicesTestDefaultCore = OVClassSeveralDevicesTests;
 using OVClassCompileModelWithCondidateDeviceListContainedMetaPluginTest = OVClassSetDevicePriorityConfigPropsTest;
 
 TEST_P(OVClassCompileModelWithCondidateDeviceListContainedMetaPluginTest,
