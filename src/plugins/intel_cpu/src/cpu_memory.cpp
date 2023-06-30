@@ -72,15 +72,13 @@ void Memory::create(MemoryDescPtr desc, const void* data, bool pads_zeroing) {
     m_padsZeroing = pads_zeroing;
     dnnlMemHandle.resetDnnlPrim();
 
-    size_t memSize = 0;
     if (m_pMemDesc->isDefined()) {
-        memSize = m_pMemDesc->getCurrentMemSize();
-    }
-
-    if (nullptr != data) {
-        m_mgrHandle->setExtBuff(const_cast<void*>(data), memSize);
-    } else {
-        m_mgrHandle->resize(memSize);
+        auto memSize = m_pMemDesc->getCurrentMemSize();
+        if (nullptr != data) {
+            m_mgrHandle->setExtBuff(const_cast<void*>(data), memSize);
+        } else {
+            m_mgrHandle->resize(memSize);
+        }
     }
 }
 
