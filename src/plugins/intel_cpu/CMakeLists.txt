@@ -96,9 +96,10 @@ target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_INFERENCE_EXTENSION_
 target_include_directories(${TARGET_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 target_include_directories(${TARGET_NAME} SYSTEM PRIVATE $<TARGET_PROPERTY:dnnl,INCLUDE_DIRECTORIES>)
 
-if(ENABLE_LLMDNN)
-    target_link_libraries(${TARGET_NAME} PRIVATE llmdnn)
-    target_include_directories(${TARGET_NAME} SYSTEM PRIVATE $<TARGET_PROPERTY:llmdnn,INCLUDE_DIRECTORIES>)
+if(ENABLE_CPU_EXTENSIONS)
+    find_package(cpu_extensions REQUIRED)
+    target_link_libraries(${TARGET_NAME} PRIVATE cpu_extensions::cpu_extensions)
+    target_include_directories(${TARGET_NAME} PRIVATE SYSTEM PRIVATE $<TARGET_PROPERTY:cpu_extensions::cpu_extensions,INTERFACE_INCLUDE_DIRECTORIES>)
     add_definitions(-DOV_CPU_WITH_LLMDNN)
 endif()
 
@@ -139,8 +140,8 @@ if(BUILD_SHARED_LIBS)
             $<TARGET_PROPERTY:openvino::conditional_compilation,INTERFACE_INCLUDE_DIRECTORIES>)
 
     target_include_directories(${TARGET_NAME}_obj SYSTEM PUBLIC $<TARGET_PROPERTY:dnnl,INCLUDE_DIRECTORIES>)
-    if(ENABLE_LLMDNN)
-        target_include_directories(${TARGET_NAME}_obj SYSTEM PUBLIC $<TARGET_PROPERTY:llmdnn,INCLUDE_DIRECTORIES>)
+    if(ENABLE_CPU_EXTENSIONS)
+        target_include_directories(${TARGET_NAME}_obj SYSTEM PRIVATE $<TARGET_PROPERTY:cpu_extensions::cpu_extensions,INTERFACE_INCLUDE_DIRECTORIES>)
         add_definitions(-DOV_CPU_WITH_LLMDNN)
     endif()
 

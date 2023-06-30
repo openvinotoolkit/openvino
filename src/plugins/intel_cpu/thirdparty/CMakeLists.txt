@@ -132,8 +132,3 @@ function(ov_add_onednn)
 endfunction()
 
 ov_add_onednn()
-
-if(ENABLE_LLMDNN)
-    set(LLMDNN_BUILD_TESTS ${ENABLE_TESTS} CACHE BOOL "" FORCE)
-    add_subdirectory(llmdnn)
-endif()
