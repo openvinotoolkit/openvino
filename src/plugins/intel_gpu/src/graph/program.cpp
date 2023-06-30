@@ -1641,6 +1641,7 @@ std::pair<int64_t, int64_t> program::get_estimated_device_mem_usage() {
             allocated_mem_ptrs.insert(primitive_inst::allocate_output(engine,
                                                                       pool,
                                                                       *node,
+                                                                      nullptr,
                                                                       *node->get_kernel_impl_params(),
                                                                       0,
                                                                       false,

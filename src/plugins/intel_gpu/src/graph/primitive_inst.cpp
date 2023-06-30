@@ -364,8 +364,10 @@ event::ptr primitive_inst::realloc_if_needed() {
 
     if (can_reuse_buffer) {
         GPU_DEBUG_TRACE_DETAIL << id() << ": reuse previously allocated output buffer" << std::endl;
-        if (_outputs[0]->get_layout() != actual_layout)
+        if (_outputs[0]->get_layout() != actual_layout) {
+            _outputs[0]->set_reused(true);
             _outputs[0] = _network.get_engine().reinterpret_buffer(*_outputs[0], actual_layout);
+        }
         if (need_reset_output_memory()) {
             ev = _outputs[0]->fill(_network.get_stream());
         }
@@ -1054,28 +1056,44 @@ event::ptr primitive_inst::update_weights() {
     return nullptr;
 }
 
-static bool user_requesting_mem_reuse_false(const program_node& node) {
-    for (auto& user : node.get_users()) {
-        if ((user->get_selected_impl() != nullptr) && (user->get_selected_impl()->can_reuse_memory == false)) {
-            return true;
-        } else if (user->get_selected_impl() == nullptr) {
-            if (user_requesting_mem_reuse_false(*user)) {
+static bool user_requesting_mem_reuse_false(const program_node& node, const primitive_inst* prim, bool runtime_alloc) {
+    if (prim == nullptr || runtime_alloc == false) {
+        for (auto& user : node.get_users()) {
+            if ((user->get_selected_impl() != nullptr) && (user->get_selected_impl()->can_reuse_memory == false)) {
                 return true;
+            } else if (user->get_selected_impl() == nullptr) {
+                if (user_requesting_mem_reuse_false(*user, nullptr, runtime_alloc)) {
+                    return true;
+                }
+            }
+        }
+    } else {
+        for (auto& user : prim->get_user_insts()) {
+            if ((user->get_impl() != nullptr) && (user->get_impl()->can_reuse_memory == false)) {
+                return true;
+            } else if (user->get_impl() == nullptr) {
+                if (user_requesting_mem_reuse_false(user->get_node(), user.get(), runtime_alloc)) {
+                    return true;
+                }
             }
         }
     }
+
     return false;
 }
 
-memory::ptr primitive_inst::allocate_output(engine& _engine, memory_pool& pool, const program_node& _node, const kernel_impl_params& impl_params,
-                                            uint32_t net_id, bool is_internal, size_t idx, bool reset, bool is_output_buffer) {
+memory::ptr primitive_inst::allocate_output(engine& _engine, memory_pool& pool, const program_node& _node, const primitive_inst* prim, const kernel_impl_params& impl_params,
+                        uint32_t net_id, bool is_internal, size_t idx, bool reset, bool is_output_buffer, bool runtime_alloc, memory* curr_memory) {
     auto get_memory_from_pool = [&](engine& _engine, const layout& layout, const primitive_id id, std::set<primitive_id> dependencies,
-            allocation_type type, bool reusable, bool reset = true) {
+            allocation_type type, bool reusable, bool reset = true, memory* curr_memory) {
         OPENVINO_ASSERT(!layout.is_dynamic() || layout.has_upper_bound(), "[GPU] Can't allocate output for dynamic layout without upper bound");
         // Use layout with max tensor for dynamic shape with upper bound
         auto static_layout = cldnn::layout(layout.get_partial_shape().get_max_shape(), layout.data_type, layout.format, layout.data_padding);
-        if (_node.get_program().get_config().get_property(ov::intel_gpu::enable_memory_pool))
+        if (_node.get_program().get_config().get_property(ov::intel_gpu::enable_memory_pool)) {
+            if (curr_memory != nullptr)
+                pool.release_memory(curr_memory, id, net_id);
             return pool.get_memory(static_layout, id, net_id, dependencies, type, reusable, reset);
+        }
         return pool.get_memory(static_layout, type, reset);
     };
 
@@ -1095,7 +1113,7 @@ memory::ptr primitive_inst::allocate_output(engine& _engine, memory_pool& pool, 
     if (total_device_input_mem_size > _engine.get_device_info().max_global_mem_size)
         usm_device_allocatable = false;
 
-    bool memory_reuse_by_user = !user_requesting_mem_reuse_false(_node);
+    bool memory_reuse_by_user = !user_requesting_mem_reuse_false(_node, prim, runtime_alloc);
 
     // For outputs, cpu prim we want to have lockable alloc type
     // Also if the successor of a node is an cpu, then memory needs to be lockable.
@@ -1121,7 +1139,8 @@ memory::ptr primitive_inst::allocate_output(engine& _engine, memory_pool& pool, 
                                         _node.get_memory_dependencies(),
                                         alloc_type,
                                         false,
-                                        reset);
+                                        reset,
+                                        curr_memory);
         } else {
             if ((_node.is_output() && _node.is_type<generic_layer>()) || (!_node.is_output() && _node.is_type<input_layout>()))
                 reset = false;
@@ -1138,7 +1157,8 @@ memory::ptr primitive_inst::allocate_output(engine& _engine, memory_pool& pool, 
                                     _node.get_memory_dependencies(),
                                     alloc_type,
                                     memory_reuse_by_user,
-                                    reset);
+                                    reset,
+                                    curr_memory);
     }
 }
 
@@ -1146,8 +1166,9 @@ std::vector<memory::ptr> primitive_inst::allocate_outputs(kernel_impl_params* up
     std::vector<memory::ptr> outputs;
     for (size_t i = 0; i < get_node().get_outputs_count() ; ++i) {
         outputs.push_back(allocate_output(get_network().get_engine(), _network.get_memory_pool(),
-                         *_node, (updated_params != nullptr) ? *updated_params : *_impl_params,
-                         get_network_id(), _network.is_internal(), i, reset_mem, is_output_buffer(this, runtime_alloc)));
+                         *_node, this, (updated_params != nullptr) ? *updated_params : *_impl_params,
+                         get_network_id(), _network.is_internal(), i, reset_mem, is_output_buffer(this, runtime_alloc),
+                         runtime_alloc, output_memory_ptr(i).get()));
     }
     return outputs;
 }
@@ -1432,7 +1453,7 @@ void primitive_inst::save(cldnn::BinaryOutputBuffer& ob) const {
     }
 
     bool can_reuse_memory = true;
-    if (user_requesting_mem_reuse_false(*_node)) {
+    if (user_requesting_mem_reuse_false(*_node, this, false)) {
         can_reuse_memory = false;
     }
     ob << can_reuse_memory;
