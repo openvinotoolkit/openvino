@@ -353,7 +353,7 @@ bool isSuitableParentForFusingSumActivation(const std::shared_ptr<const Node> &n
             return false;
         const auto conv_shape = conv.get_partial_shape();
         const auto bias_shape = bias.get_partial_shape();
-        if  (bias_shape.is_dynamic() || bias_shape.size() > conv_shape.size())
+        if  (bias_shape.is_dynamic() || conv_shape.is_dynamic() || bias_shape.size() > conv_shape.size())
             return false;
         auto getNormalizedDims = [](const ov::Shape &dims, size_t ndims) -> std::vector<size_t>{
             std::vector<size_t> normalizedDims = dims;
