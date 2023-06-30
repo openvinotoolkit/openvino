@@ -8,7 +8,7 @@
 #include "openvino/opsets/opset12.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/init_node_info.hpp"
-#include "transformations/ts_split.hpp"
+#include "transformations/ts_split_backward.hpp"
 
 using namespace ov;
 using namespace ov::opset12;
