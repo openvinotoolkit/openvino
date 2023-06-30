@@ -36,7 +36,8 @@ For example, the following command specifies the ``NHWC`` layout for a Tensorflo
     .. tab-item:: Python
        :sync: py
 
-       .. code-block:: python
+       .. code-block:: py
+          :force:
 
           from openvino.tools.mo import convert_model
           ov_model = convert_model("tf_nasnet_large.onnx", layout="nhwc")
@@ -61,7 +62,8 @@ having two dimensions: batch and size of the image expressed as the ``N?`` layou
     .. tab-item:: Python
        :sync: py
 
-       .. code-block:: python
+       .. code-block:: py
+          :force:
 
           from openvino.tools.mo import convert_model
           ov_model = convert_model("yolov3-tiny.onnx", layout={"input_1": "nchw", "image_shape": "n?"})
@@ -89,7 +91,8 @@ the following commands to provide data in the ``NCHW`` layout:
     .. tab-item:: Python
        :sync: py
 
-       .. code-block:: python
+       .. code-block:: py
+          :force:
 
           from openvino.tools.mo import convert_model
           ov_model = convert_model("tf_nasnet_large.onnx", source_layout="nhwc", target_layout="nchw")
@@ -117,7 +120,8 @@ mentioned earlier, use the following commands:
     .. tab-item:: Python
        :sync: py
 
-       .. code-block:: python
+       .. code-block:: py
+          :force:
 
           from openvino.tools.mo import convert_model
           ov_model = convert_model("yolov3-tiny.onnx", source_layout={"input_1": "nchw", "image_shape": "n?"}, target_layout={"input_1": "nhwc"})
@@ -170,7 +174,8 @@ model and applies mean-scale normalization to the input data:
     .. tab-item:: Python
        :sync: py
 
-       .. code-block:: python
+       .. code-block:: py
+          :force:
 
           from openvino.tools.mo import convert_model
           ov_model = convert_model("unet.pdmodel", mean_values=[123,117,104], scale=255)
@@ -213,7 +218,8 @@ model and embeds the ``reverse_input_channel`` preprocessing block into OpenVINO
     .. tab-item:: Python
        :sync: py
 
-       .. code-block:: python
+       .. code-block:: py
+          :force:
 
           from openvino.tools.mo import convert_model
           ov_model = convert_model("alexnet.pb", reverse_input_channels=True)
