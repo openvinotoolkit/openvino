@@ -39,7 +39,8 @@
 
 **Example**
 
-.. code-block::  cpp   
+.. code-block:: xml
+   :force:
 
   <layer ... type="Parameter" ...>
       <data>element_type="f32" shape="1,3,224,224"</data>

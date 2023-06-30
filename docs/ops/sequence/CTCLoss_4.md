@@ -96,7 +96,8 @@ Having log-probabilities for aligned paths, log of summed up probabilities for t
 
 **Example**
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
    
    <layer ... type="CTCLoss" ...>
        <input>

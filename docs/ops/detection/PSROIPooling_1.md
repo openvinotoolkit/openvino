@@ -86,7 +86,8 @@ Batch indices must be in the range of ``[0, N-1]``.
 
 **Example**
 
-.. code-block::  cpp   
+.. code-block:: xml
+   :force:
 
   <layer ... type="PSROIPooling" ... >
       <data group_size="6" mode="bilinear" output_dim="360" spatial_bins_x="3" spatial_bins_y="3" spatial_scale="1"/>

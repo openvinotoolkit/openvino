@@ -75,7 +75,8 @@ Batch indices must be in the range of ``[0, N-1]``.
 
 **Example**
 
-.. code-block:: cpp 
+.. code-block:: xml
+   :force:
 
   <layer ... type="ROIPooling" ... >
           <data pooled_h="6" pooled_w="6" spatial_scale="0.062500"/>
