@@ -142,6 +142,7 @@ Keeping Aspect Ratio Resizer Replacement
 * If the ``input_shape [1, H, W, 3]`` command line parameter is specified, model conversion API scales the specified input image height ``H`` and width ``W`` to satisfy the ``min_dimension`` and ``max_dimension`` constraints defined in the ``keep_aspect_ratio_resizer``. The following function calculates the input operation height and width:
 
   .. code-block:: py
+     :force:
 
     def calculate_shape_keeping_aspect_ratio(H: int, W: int, min_dimension: int, max_dimension: int):
         ratio_min = min_dimension / min(H, W)

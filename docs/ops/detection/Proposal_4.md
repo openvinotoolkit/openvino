@@ -170,7 +170,8 @@ the second optional tensor of shape ``[batch_size * post_nms_topn]`` with probab
 **Example**
 
 
-.. code-block::  cpp 
+.. code-block:: xml
+   :force:
 
   <layer ... type="Proposal" ... >
       <data base_size="16" feat_stride="8" min_size="16" nms_thresh="1.0" normalize="0" post_nms_topn="1000" pre_nms_topn="1000" ratio="1" scale="1,2"/>

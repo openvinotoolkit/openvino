@@ -95,7 +95,8 @@
 
 **Example**
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
   < !-- YOLO V3 example -->
   <layer type="RegionYolo" ... >

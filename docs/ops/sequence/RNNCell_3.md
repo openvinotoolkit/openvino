@@ -80,7 +80,8 @@
 
 **Example**
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
   <layer ... type="RNNCell" ...>
       <data hidden_size="128"/>

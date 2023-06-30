@@ -73,7 +73,8 @@ The main difference between :doc:`CTCGreedyDecoder <openvino_docs_ops_sequence_C
 
 **Example**
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
    
    <layer ... type="CTCGreedyDecoderSeqLen" version="opset6">
        <data merge_repeated="true" classes_index_type="i64" sequence_length_type="i64"/>
