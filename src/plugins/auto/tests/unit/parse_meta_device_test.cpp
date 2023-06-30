@@ -6,6 +6,7 @@
 
 using namespace ov::mock_auto_plugin;
 using Config = std::map<std::string, std::string>;
+using testing::Throw;
 
 const char igpuFullDeviceName[] = "Intel(R) Gen9 HD Graphics (iGPU)";
 const char dgpuFullDeviceName[] = "Intel(R) Iris(R) Xe MAX Graphics (dGPU)";
@@ -33,6 +34,7 @@ public:
     }
 
     void SetUp() override {
+       ON_CALL(*core, get_supported_property(StrEq("INVALID_DEVICE"), _)).WillByDefault(Throw(ov::Exception("")));
        ON_CALL(*plugin, parse_meta_devices).WillByDefault([this](const std::string& priorityDevices,
                    const ov::AnyMap& config) {
                return plugin->Plugin::parse_meta_devices(priorityDevices, config);
@@ -134,6 +136,11 @@ const std::vector<ConfigParams> testConfigs = {
              {"GPU.0", {}, -1, "", std::string(igpuFullDeviceName) + "_0", 1},
              {"GPU.1", {}, -1, "", std::string(dgpuFullDeviceName) + "_1", 1},
              {"CPU", {}, -1, "", "CPU_", 2}}, false},
+    ConfigParams {"VPUX,GPU,INVALID_DEVICE",
+         {{"VPUX", {}, -1, "", "VPUX_", 0},
+             {"GPU.0", {}, -1, "", std::string(igpuFullDeviceName) + "_0", 1},
+             {"GPU.1", {}, -1, "", std::string(dgpuFullDeviceName) + "_1", 1}
+             }, false},
     ConfigParams {"CPU(1),GPU(2),VPUX(4)",
          {{"CPU", {}, 1, "", "CPU_", 0},
              {"GPU.0", {}, 2, "", std::string(igpuFullDeviceName) + "_0", 1},
@@ -142,6 +149,7 @@ const std::vector<ConfigParams> testConfigs = {
 
     ConfigParams {"CPU(-1),GPU,VPUX",  {}, true},
     ConfigParams {"CPU(NA),GPU,VPUX",  {}, true},
+    ConfigParams {"INVALID_DEVICE",  {}, false},
 
     ConfigParams {"CPU(3),GPU.1,VPUX",
         {{"CPU", {}, 3, "",  "CPU_", 0},
