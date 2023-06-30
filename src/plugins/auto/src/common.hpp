@@ -92,9 +92,9 @@ struct DeviceInformation {
     DeviceName unique_name;
     unsigned int device_priority;
     DeviceInformation(DeviceName dn = {}, ov::AnyMap conf = {},
-        int nReq = -1, std::string defaultID = {}, DeviceName uName = {}, unsigned int priority = 0)
-        : device_name(dn), config(conf),
-        num_requests_per_devices(nReq), default_device_id(defaultID), unique_name(uName), device_priority(priority)
+        int n_req = -1, std::string default_id = {}, DeviceName name = {}, unsigned int priority = 0)
+        : device_name(std::move(dn)), config(std::move(conf)),
+        num_requests_per_devices(n_req), default_device_id(std::move(default_id)), unique_name(std::move(name)), device_priority(priority)
         {}
 };
 
