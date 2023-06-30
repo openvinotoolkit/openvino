@@ -32,6 +32,7 @@ Imports
     ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
     paddleclas 2.5.1 requires faiss-cpu==1.7.1.post2, but you have faiss-cpu 1.7.4 which is incompatible.
     paddleclas 2.5.1 requires gast==0.3.3, but you have gast 0.4.0 which is incompatible.
+    scikit-image 0.21.0 requires imageio>=2.27, but you have imageio 2.9.0 which is incompatible.
     
 
 .. code:: ipython3
@@ -122,7 +123,7 @@ source of the function.
 
 .. parsed-literal::
 
-    [05/29 23:19:20] ppgan INFO: Found /opt/home/k8sworker/.cache/ppgan/animeganv2_hayao.pdparams
+    [06/21 23:07:12] ppgan INFO: Found /opt/home/k8sworker/.cache/ppgan/animeganv2_hayao.pdparams
 
 
 .. code:: ipython3
@@ -251,19 +252,19 @@ succeeds, the output of the next cell will include
 
 .. parsed-literal::
 
-    2023-05-29 23:19:28 [INFO]	Static PaddlePaddle model saved in model/paddle_model_static_onnx_temp_dir.
+    2023-06-21 23:07:20 [INFO]	Static PaddlePaddle model saved in model/paddle_model_static_onnx_temp_dir.
     [Paddle2ONNX] Start to parse PaddlePaddle model...
     [Paddle2ONNX] Model file path: model/paddle_model_static_onnx_temp_dir/model.pdmodel
     [Paddle2ONNX] Paramters file path: model/paddle_model_static_onnx_temp_dir/model.pdiparams
     [Paddle2ONNX] Start to parsing Paddle model...
     [Paddle2ONNX] Use opset_version = 11 for ONNX export.
     [Paddle2ONNX] PaddlePaddle model is exported as ONNX format now.
-    2023-05-29 23:19:28 [INFO]	ONNX model saved in model/paddlegan_anime.onnx.
+    2023-06-21 23:07:20 [INFO]	ONNX model saved in model/paddlegan_anime.onnx.
 
 
 .. parsed-literal::
 
-    I0529 23:19:28.491920 2574087 interpretercore.cc:267] New Executor is Running.
+    I0621 23:07:20.536170 1218719 interpretercore.cc:267] New Executor is Running.
 
 
 Convert to OpenVINO IR
@@ -310,11 +311,11 @@ inputs are known, you can use Model Optimizer and convert the model to
 OpenVINO IR with these values. Use ``FP16`` precision and set log level
 to ``CRITICAL`` to ignore warnings that are irrelevant for this demo.
 For information about setting the parameters, see the `Model Optimizer
-Documentation <https://docs.openvino.ai/latest/openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model_General.html>`__
+Documentation <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model_General.html>`__
 .
 
 **Convert ONNX Model to OpenVINO IR with**\ `Model Optimizer Python
-API <https://docs.openvino.ai/latest/openvino_docs_MO_DG_Python_API.html>`__
+API <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_Python_API.html>`__
 
 .. code:: ipython3
 
@@ -527,8 +528,8 @@ measure inference on one image. For more accurate benchmarking, use
 
 .. parsed-literal::
 
-    OpenVINO IR model in OpenVINO Runtime/CPU: 0.475 seconds per image, FPS: 2.10
-    PaddleGAN model on CPU: 6.630 seconds per image, FPS: 0.15
+    OpenVINO IR model in OpenVINO Runtime/CPU: 0.472 seconds per image, FPS: 2.12
+    PaddleGAN model on CPU: 6.423 seconds per image, FPS: 0.16
 
 
 References
@@ -539,7 +540,7 @@ References
 -  `OpenVINO ONNX
    support <https://docs.openvino.ai/2021.4/openvino_docs_IE_DG_ONNX_Support.html>`__
 -  `OpenVINO Model Optimizer
-   Documentation <https://docs.openvino.ai/latest/openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model_General.html>`__
+   Documentation <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model_General.html>`__
 
 The PaddleGAN code that is shown in this notebook is written by
 PaddlePaddle Authors and licensed under the Apache 2.0 license. The
