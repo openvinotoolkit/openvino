@@ -31,15 +31,9 @@ edges_with_convert = [*connect('placeholder', '0:random_uniform'), *connect('min
                       *connect('convert', 'result'), ]
 
 
-@generator
 class ChangeRandomUniformOutputTypeTest(unittest.TestCase):
-    @generate(*[
-        ("FP16", np.float32, np.float16),
-        ("FP32", np.float16, np.float32),
-        ("FP32", np.float32, None),
-        ("FP32", np.int64, None)
-    ])
-    def test_change_random_uniform_output_type(self, ir_type, out_type, dst_type):
+    def test_change_random_uniform_output_type_case1(self):
+        ir_type, out_type, dst_type = "FP16", np.float32, np.float16
         graph = build_graph(nodes, edges, cli=Namespace(data_type=ir_type))
         graph_ref = build_graph(nodes, edges if dst_type is None else edges_with_convert, {},
                                 nodes_with_edges_only=True)
@@ -53,3 +47,52 @@ class ChangeRandomUniformOutputTypeTest(unittest.TestCase):
         if dst_type is not None:
             convert_node = Node(graph, 'random_uniform').out_port(0).get_destination().node
             self.assertTrue(convert_node['dst_type'] == dst_type)
+
+    def test_change_random_uniform_output_type_case2(self):
+        ir_type, out_type, dst_type = "FP32", np.float16, np.float32
+        graph = build_graph(nodes, edges, cli=Namespace(data_type=ir_type))
+        graph_ref = build_graph(nodes, edges if dst_type is None else edges_with_convert, {},
+                                nodes_with_edges_only=True)
+        Node(graph, 'random_uniform')['output_type'] = out_type
+
+        ChangeRandomUniformOutputType().find_and_replace_pattern(graph)
+
+        (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
+        self.assertTrue(flag, resp)
+
+        if dst_type is not None:
+            convert_node = Node(graph, 'random_uniform').out_port(0).get_destination().node
+            self.assertTrue(convert_node['dst_type'] == dst_type)
+
+    def test_change_random_uniform_output_type_case3(self):
+        ir_type, out_type, dst_type = "FP32", np.float32, None
+        graph = build_graph(nodes, edges, cli=Namespace(data_type=ir_type))
+        graph_ref = build_graph(nodes, edges if dst_type is None else edges_with_convert, {},
+                                nodes_with_edges_only=True)
+        Node(graph, 'random_uniform')['output_type'] = out_type
+
+        ChangeRandomUniformOutputType().find_and_replace_pattern(graph)
+
+        (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
+        self.assertTrue(flag, resp)
+
+        if dst_type is not None:
+            convert_node = Node(graph, 'random_uniform').out_port(0).get_destination().node
+            self.assertTrue(convert_node['dst_type'] == dst_type)
+
+    def test_change_random_uniform_output_type_case4(self):
+        ir_type, out_type, dst_type = "FP32", np.int64, None
+        graph = build_graph(nodes, edges, cli=Namespace(data_type=ir_type))
+        graph_ref = build_graph(nodes, edges if dst_type is None else edges_with_convert, {},
+                                nodes_with_edges_only=True)
+        Node(graph, 'random_uniform')['output_type'] = out_type
+
+        ChangeRandomUniformOutputType().find_and_replace_pattern(graph)
+
+        (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
+        self.assertTrue(flag, resp)
+
+        if dst_type is not None:
+            convert_node = Node(graph, 'random_uniform').out_port(0).get_destination().node
+            self.assertTrue(convert_node['dst_type'] == dst_type)
+   
