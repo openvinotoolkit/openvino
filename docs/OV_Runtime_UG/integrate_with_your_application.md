@@ -33,19 +33,19 @@ Include next files to work with OpenVINO™ Runtime:
 
 .. tab-set::
 
-    .. tab-item:: C++
-       :sync: cpp
-
-       .. doxygensnippet:: docs/snippets/src/main.cpp
-          :language: cpp
-          :fragment: [include]
-
     .. tab-item:: Python
        :sync: py
 
        .. doxygensnippet:: docs/snippets/src/main.py
           :language: python
           :fragment: [import]
+
+    .. tab-item:: C++
+       :sync: cpp
+
+       .. doxygensnippet:: docs/snippets/src/main.cpp
+          :language: cpp
+          :fragment: [include]
 
     .. tab-item:: C
        :sync: c
@@ -59,18 +59,18 @@ Use the following code to create OpenVINO™ Core to manage available devices an
 
 .. tab-set::
 
-    .. tab-item:: C++
-       :sync: cpp
-
-       .. doxygensnippet:: docs/snippets/src/main.cpp
-          :language: cpp
-          :fragment: [part1]
-
     .. tab-item:: Python
        :sync: py
 
        .. doxygensnippet:: docs/snippets/src/main.py
           :language: python
+          :fragment: [part1]
+
+    .. tab-item:: C++
+       :sync: cpp
+
+       .. doxygensnippet:: docs/snippets/src/main.cpp
+          :language: cpp
           :fragment: [part1]
 
     .. tab-item:: C
@@ -90,53 +90,6 @@ Compile the model for a specific device using ``ov::Core::compile_model()``:
 
 .. tab-set::
 
-    .. tab-item:: C++
-       :sync: cpp
-
-       .. tab-set::
-
-          .. tab-item:: IR
-             :sync: ir
-
-             .. doxygensnippet:: docs/snippets/src/main.cpp
-                :language: cpp
-                :fragment: [part2_1]
-
-          .. tab-item:: ONNX
-             :sync: onnx
-
-             .. doxygensnippet:: docs/snippets/src/main.cpp
-                :language: cpp
-                :fragment: [part2_2]
-
-          .. tab-item:: PaddlePaddle
-             :sync: paddlepaddle
-
-             .. doxygensnippet:: docs/snippets/src/main.cpp
-                :language: cpp
-                :fragment: [part2_3]
-
-          .. tab-item:: TensorFlow
-             :sync: tensorflow
-
-             .. doxygensnippet:: docs/snippets/src/main.cpp
-                :language: cpp
-                :fragment: [part2_4]
-
-          .. tab-item:: TensorFlow Lite
-             :sync: tensorflow_lite
-
-             .. doxygensnippet:: docs/snippets/src/main.cpp
-                :language: cpp
-                :fragment: [part2_5]
-
-          .. tab-item:: ov::Model
-             :sync: openvinomodel
-
-             .. doxygensnippet:: docs/snippets/src/main.cpp
-                :language: cpp
-                :fragment: [part2_6]
-
     .. tab-item:: Python
        :sync: py
 
@@ -182,6 +135,53 @@ Compile the model for a specific device using ``ov::Core::compile_model()``:
 
              .. doxygensnippet:: docs/snippets/src/main.py
                 :language: python
+                :fragment: [part2_6]
+
+    .. tab-item:: C++
+       :sync: cpp
+
+       .. tab-set::
+
+          .. tab-item:: IR
+             :sync: ir
+
+             .. doxygensnippet:: docs/snippets/src/main.cpp
+                :language: cpp
+                :fragment: [part2_1]
+
+          .. tab-item:: ONNX
+             :sync: onnx
+
+             .. doxygensnippet:: docs/snippets/src/main.cpp
+                :language: cpp
+                :fragment: [part2_2]
+
+          .. tab-item:: PaddlePaddle
+             :sync: paddlepaddle
+
+             .. doxygensnippet:: docs/snippets/src/main.cpp
+                :language: cpp
+                :fragment: [part2_3]
+
+          .. tab-item:: TensorFlow
+             :sync: tensorflow
+
+             .. doxygensnippet:: docs/snippets/src/main.cpp
+                :language: cpp
+                :fragment: [part2_4]
+
+          .. tab-item:: TensorFlow Lite
+             :sync: tensorflow_lite
+
+             .. doxygensnippet:: docs/snippets/src/main.cpp
+                :language: cpp
+                :fragment: [part2_5]
+
+          .. tab-item:: ov::Model
+             :sync: openvinomodel
+
+             .. doxygensnippet:: docs/snippets/src/main.cpp
+                :language: cpp
                 :fragment: [part2_6]
 
     .. tab-item:: C
@@ -248,18 +248,18 @@ Create an infer request using the following code (see
 
 .. tab-set::
 
-    .. tab-item:: C++
-       :sync: cpp
-
-       .. doxygensnippet:: docs/snippets/src/main.cpp
-          :language: cpp
-          :fragment: [part3]
-
     .. tab-item:: Python
        :sync: py
 
        .. doxygensnippet:: docs/snippets/src/main.py
           :language: python
+          :fragment: [part3]
+
+    .. tab-item:: C++
+       :sync: cpp
+
+       .. doxygensnippet:: docs/snippets/src/main.cpp
+          :language: cpp
           :fragment: [part3]
 
     .. tab-item:: C
@@ -277,18 +277,18 @@ You can use external memory to create ``ov::Tensor`` and use the ``ov::InferRequ
 
 .. tab-set::
 
-    .. tab-item:: C++
-       :sync: cpp
-
-       .. doxygensnippet:: docs/snippets/src/main.cpp
-          :language: cpp
-          :fragment: [part4]
-
     .. tab-item:: Python
        :sync: py
 
        .. doxygensnippet:: docs/snippets/src/main.py
           :language: python
+          :fragment: [part4]
+
+    .. tab-item:: C++
+       :sync: cpp
+
+       .. doxygensnippet:: docs/snippets/src/main.cpp
+          :language: cpp
           :fragment: [part4]
 
     .. tab-item:: C
@@ -306,18 +306,18 @@ OpenVINO™ Runtime supports inference in either synchronous or asynchronous mod
 
 .. tab-set::
 
-    .. tab-item:: C++
-       :sync: cpp
-
-       .. doxygensnippet:: docs/snippets/src/main.cpp
-          :language: cpp
-          :fragment: [part5]
-
     .. tab-item:: Python
        :sync: py
 
        .. doxygensnippet:: docs/snippets/src/main.py
           :language: python
+          :fragment: [part5]
+
+    .. tab-item:: C++
+       :sync: cpp
+
+       .. doxygensnippet:: docs/snippets/src/main.cpp
+          :language: cpp
           :fragment: [part5]
 
     .. tab-item:: C
@@ -338,18 +338,18 @@ Go over the output tensors and process the inference results.
 
 .. tab-set::
 
-    .. tab-item:: C++
-       :sync: cpp
-
-       .. doxygensnippet:: docs/snippets/src/main.cpp
-          :language: cpp
-          :fragment: [part6]
-
     .. tab-item:: Python
        :sync: py
 
        .. doxygensnippet:: docs/snippets/src/main.py
           :language: python
+          :fragment: [part6]
+
+    .. tab-item:: C++
+       :sync: cpp
+
+       .. doxygensnippet:: docs/snippets/src/main.cpp
+          :language: cpp
           :fragment: [part6]
 
     .. tab-item:: C

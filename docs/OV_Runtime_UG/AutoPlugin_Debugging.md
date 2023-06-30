@@ -28,18 +28,18 @@ There are six levels of logs, which can be called explicitly or set via the ``OP
 
 .. tab-set::
 
-   .. tab-item:: C++
-      :sync: cpp
-   
-      .. doxygensnippet:: docs/snippets/AUTO6.cpp
-         :language: cpp
-         :fragment: [part6]
-   
    .. tab-item:: Python
       :sync: py
    
       .. doxygensnippet:: docs/snippets/ov_auto.py
          :language: python
+         :fragment: [part6]
+
+   .. tab-item:: C++
+      :sync: cpp
+   
+      .. doxygensnippet:: docs/snippets/AUTO6.cpp
+         :language: cpp
          :fragment: [part6]
    
    .. tab-item:: OS environment variable
