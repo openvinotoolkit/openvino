@@ -344,13 +344,13 @@ void GNAPlugin::PrePostProcess(InferenceEngine::Blob::Ptr input_blob,
                                std::shared_ptr<ov::Model> model) {
     const ov::element::Type input_type = details::convertPrecision(input_blob->getTensorDesc().getPrecision());
     const ov::element::Type output_type = details::convertPrecision(output_blob->getTensorDesc().getPrecision());
-    const ov::Shape& input_shape = model->get_parameters().front()->get_shape();
-    const ov::Shape& output_shape = model->get_results().front()->get_shape();
+    const ov::Shape& output_shape = output_blob->getTensorDesc().getDims();
 
     for (const auto& param : model->get_parameters()) {
         param->set_element_type(input_type);
     }
     model->validate_nodes_and_infer_types();
+    const ov::Shape& input_shape = model->get_parameters()[0]->get_output_shape(0);
 
     ov::TensorVector inputs = {ov::Tensor(input_type, input_shape, input_blob->cbuffer().as<void*>())};
     ov::TensorVector results = {ov::Tensor(output_type, output_shape, output_blob->buffer().as<void*>())};
@@ -611,52 +611,6 @@ bool GNAPlugin::TryToInitOutput(const std::string& portName, InferenceEngine::CN
     return false;
 }
 
-void GNAPlugin::FillInputsAndOutputsTranspositionInfo(const InferenceEngine::CNNNetwork& net) {
-    OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "FillInputsAndOutputsTranspositionInfo");
-    auto printTranspositionInfo = [](const std::vector<TranspositionInfo>& transpositionInfo) {
-        for (const auto& transpositionInfoPart : transpositionInfo) {
-            log::debug() << "transpose=" << transpositionInfoPart.transpose
-                         << " rows_num=" << transpositionInfoPart.num_transpose_rows
-                         << " columns_num=" << transpositionInfoPart.num_transpose_columns << "\n";
-        }
-    };
-
-    auto inputLayers = CNNNetGetAllInputLayers(net);
-    for (const auto& inputLayer : inputLayers) {
-        // Collect information for inputs transposition
-        if (!LayerInfo(inputLayer).isInput())
-            continue;
-        auto transpositionInfo = FindTranspositionInfoFromNextLayers(inputLayer);
-        if (transpositionInfo.empty())
-            continue;
-
-        transpose_inputs_info.insert({inputLayer->name, transpositionInfo});
-        log::debug() << "Input " << inputLayer->name << " transposition info: \n";
-        printTranspositionInfo(transpositionInfo);
-    }
-
-    auto outputsMap = net.getOutputsInfo();
-    for (const auto& outPort : outputsMap) {
-        auto outLayer = getCreatorLayer(outPort.second).lock();
-        // Collect information for outputs transposition
-        if (!LayerInfo(outLayer).isOutput())
-            continue;
-        auto transpositionInfo = FindTranspositionInfoFromPrevLayers(outLayer);
-        if (transpositionInfo.empty())
-            continue;
-
-        // Swap transposition info rows and columns since we need to transpose output back from NHWC to NCHW
-        for (auto&& transpositionInfoPart : transpositionInfo) {
-            if (transpositionInfoPart.transpose) {
-                std::swap(transpositionInfoPart.num_transpose_rows, transpositionInfoPart.num_transpose_columns);
-            }
-        }
-        transpose_outputs_info.insert({outLayer->name, transpositionInfo});
-        log::debug() << "Output " << outLayer->name << " transposition info: \n";
-        printTranspositionInfo(transpositionInfo);
-    }
-}
-
 #ifdef PLOT
 void GNAPlugin::AddDebugProperties(const InferenceEngine::CNNLayerPtr layer,
                                    InferenceEngine::ordered_properties& printed_properties,
@@ -749,10 +703,6 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
 
     if (transformer.is_fake_quantized()) {
         UpdateInputScaleFromNetwork(network);
-    }
-
-    if (MustBeConvertedFromNCHWToNHWC(CNNNetSortTopologically(network))) {
-        FillInputsAndOutputsTranspositionInfo(network);
     }
 
     InferenceEngine::CNNNetwork newNet;
@@ -993,22 +943,6 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
                                                                  m_graph_compiler->dnnComponents,
                                                                  outputs_);
         }
-    }
-
-    if (dnn->do_rotate_input && transpose_inputs_info.empty()) {
-        for (auto& inputLayer : inputLayers) {
-            transpose_inputs_info.insert(
-                {inputLayer->name,
-                 {TranspositionInfo{dnn->do_rotate_input, dnn->num_rotate_rows, dnn->num_rotate_columns}}});
-        }
-    }
-
-    // TODO: Need to remove this conversion when ngraph NCHW->NHWC transformation is enabled
-    if (!transpose_inputs_info.empty()) {
-        ConvertTransposeMapToModel(transpose_inputs_info, inputs_ptr_->Get());
-    }
-    if (!transpose_outputs_info.empty()) {
-        ConvertTransposeMapToModel(transpose_outputs_info, outputs_.Get());
     }
 
     DumpXNNToFile();
