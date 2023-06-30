@@ -58,8 +58,8 @@ TEST_P(AdaptiveMaxPoolV8CpuShapeInferenceTest , shape_inference_with_const_map) 
     const auto op = make_op(arg, axes_node);
 
     const auto axes_const = std::make_shared<op::v0::Constant>(element::i32, ov::Shape{axes.size()}, axes);
-    const auto axes_tensor = std::make_shared<ngraph::runtime::HostTensor>(axes_const);
-    const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {{1, axes_tensor}};
+    const auto axes_tensor = std::make_shared<ov::HostTensor>(axes_const);
+    const std::map<size_t, std::shared_ptr<ov::HostTensor>>& constant_data = {{1, axes_tensor}};
 
     unit_test::cpu_test_shape_infer(op.get(), input_shapes, output_shapes, constant_data);
 }
@@ -70,31 +70,4 @@ INSTANTIATE_TEST_SUITE_P(
     Values(make_tuple(unit_test::ShapeVector{{1, 3, 1, 2}, {2}}, std::vector<int32_t>{10, 20}, StaticShape({1, 3, 10, 20})),
            make_tuple(unit_test::ShapeVector{{1, 2, 10}, {1}}, std::vector<int32_t>{17}, StaticShape({1, 2, 17}))),
     AdaptiveMaxPoolV8CpuShapeInferenceTest::getTestCaseName);
-
-
-using AdaptiveMaxPoolV8CpuShapeInferenceThrowExceptionTest = AdaptiveMaxPoolV8CpuShapeInferenceTest;
-
-TEST_P(AdaptiveMaxPoolV8CpuShapeInferenceThrowExceptionTest, wrong_pattern) {
-    const auto axes_node = std::make_shared<op::v0::Parameter>(element::i32, PartialShape::dynamic());
-    const auto op = make_op(arg, axes_node);
-
-    const auto axes_const = std::make_shared<op::v0::Constant>(element::i32, ov::Shape{axes.size()}, axes);
-    const auto axes_tensor = std::make_shared<ngraph::runtime::HostTensor>(axes_const);
-    const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {{1, axes_tensor}};
-
-    //  OV_EXPECT_THROW(unit_test::cpu_test_shape_infer(op.get(), input_shapes, output_shapes, constant_data),
-    //                  InferenceEngine::Unexpected,
-    //                  HasSubstr(os.str()));
-
-    // TODO ,implementation should throw exception
-    // ASSERT_THROW(unit_test::cpu_test_shape_infer(op.get(), input_shapes, output_shapes, const_data),
-    //             InferenceEngine::GeneralError);
-}
-
-INSTANTIATE_TEST_SUITE_P(
-    CpuShapeInfer,
-    AdaptiveMaxPoolV8CpuShapeInferenceThrowExceptionTest,
-    Values(make_tuple(unit_test::ShapeVector{{1, 3, 10, 2, 4} , {3}}, std::vector<int32_t>{9, 8}, StaticShape({}))),
-    AdaptiveMaxPoolV8CpuShapeInferenceThrowExceptionTest::getTestCaseName);
-
 

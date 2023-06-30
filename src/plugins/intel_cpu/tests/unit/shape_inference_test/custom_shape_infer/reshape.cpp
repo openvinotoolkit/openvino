@@ -60,8 +60,8 @@ TEST_P(ReshapeCpuShapeInferenceTest , shape_inference_with_const_map) {
     const auto op = make_op(arg, axes_node, specalZero);
 
     const auto axes_const = std::make_shared<op::v0::Constant>(element::i64, ov::Shape{axes.size()}, axes);
-    const auto axes_tensor = std::make_shared<ngraph::runtime::HostTensor>(axes_const);
-    const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {{1, axes_tensor}};
+    const auto axes_tensor = std::make_shared<ov::HostTensor>(axes_const);
+    const std::map<size_t, std::shared_ptr<ov::HostTensor>>& constant_data = {{1, axes_tensor}};
 
     output_shapes.push_back(exp_shape);
     unit_test::cpu_test_shape_infer(op.get(), input_shapes, output_shapes, constant_data);
@@ -90,8 +90,8 @@ TEST_P(ReshapeCpuShapeInferenceThrowExceptionTest, wrong_pattern) {
     const auto op = make_op(arg, axes_node, specalZero);
 
     const auto axes_const = std::make_shared<op::v0::Constant>(element::i64, ov::Shape{axes.size()}, axes);
-    const auto axes_tensor = std::make_shared<ngraph::runtime::HostTensor>(axes_const);
-    const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {{1, axes_tensor}};
+    const auto axes_tensor = std::make_shared<ov::HostTensor>(axes_const);
+    const std::map<size_t, std::shared_ptr<ov::HostTensor>>& constant_data = {{1, axes_tensor}};
     std::ostringstream os;
     os << "[cpu]reshape: the shape of input data ";
     os << "[";

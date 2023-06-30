@@ -71,19 +71,17 @@ public:
     }
 };
 
-} //namespace
-
-
-static void compare_result(const std::vector<StaticShape>& ref, const std::vector<VectorDims>& cus) {
+void compare_result(const std::vector<StaticShape>& ref, const std::vector<VectorDims>& cus) {
     ASSERT_TRUE(ref.size() == cus.size());
     for (size_t i = 0; i < ref.size(); i++) {
         ASSERT_TRUE(ref[i].size() == cus[i].size());
         for (size_t y = 0; y < ref[i].size(); y++) {
-            std::cout << ref[i][y].get_length()<< "==" << cus[i][y] << std::endl;
             ASSERT_TRUE(ref[i][y].get_length() == cus[i][y]);
         }
     }
 }
+
+} //namespace
 
 void cpu_test_shape_infer(ov::Node* op,
                      const std::vector<StaticShape>& input_shapes,

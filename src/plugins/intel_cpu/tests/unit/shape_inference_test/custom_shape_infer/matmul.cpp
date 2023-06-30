@@ -30,6 +30,8 @@ protected:
         std::tie(a_shape, b_shape) = GetParam();
 
         set_exp_shape();
+        output_shapes.clear();
+        output_shapes.push_back(exp_shape);
     }
 
     std::shared_ptr<op::v0::MatMul> make_matmul(const size_t& a_dim_count,
@@ -71,35 +73,39 @@ protected:
     }
 
     StaticShape a_shape, b_shape, exp_shape;
+    unit_test::ShapeVector output_shapes;
 };
 
 TEST_P(CPUMatMulTest, no_input_transpose) {
     const auto matmul = make_matmul(a_shape.size(), b_shape.size(), false, false);
 
-    std::vector<StaticShape> static_input_shapes = {a_shape, b_shape}, static_output_shapes = {StaticShape{}};
+    std::vector<StaticShape> static_input_shapes = {a_shape, b_shape};
 
-    // TODO ,below test case can't pass
-    // unit_test::cpu_test_shape_infer(matmul.get(), static_input_shapes, exp_shape);
+    GTEST_SKIP() << "Skipping test, please check CVS-108946";
+    // TODO  108946,below test case can't pass
+    unit_test::cpu_test_shape_infer(matmul.get(), static_input_shapes, output_shapes);
 }
 
 TEST_P(CPUMatMulTest, transpose_input_a) {
     const auto matmul = make_matmul(a_shape.size(), b_shape.size(), true, false);
 
     const auto a_transpose = make_transpose_input(a_shape);
-    std::vector<StaticShape> static_input_shapes = {a_transpose, b_shape}, static_output_shapes = {StaticShape{}};
+    std::vector<StaticShape> static_input_shapes = {a_transpose, b_shape};
 
-    // TODO ,below test case can't pass
-    // unit_test::cpu_test_shape_infer(matmul.get(), static_input_shapes, exp_shape);
+    GTEST_SKIP() << "Skipping test, please check CVS-108946";
+    // TODO 108946,below test case can't pass
+    unit_test::cpu_test_shape_infer(matmul.get(), static_input_shapes, output_shapes);
 }
 
 TEST_P(CPUMatMulTest, transpose_input_b) {
     const auto matmul = make_matmul(a_shape.size(), b_shape.size(), false, true);
 
     const auto b_transpose = make_transpose_input(b_shape);
-    std::vector<StaticShape> static_input_shapes = {a_shape, b_transpose}, static_output_shapes = {StaticShape{}};
+    std::vector<StaticShape> static_input_shapes = {a_shape, b_transpose};
 
-    // TODO ,below test case can't pass
-    // unit_test::cpu_test_shape_infer(matmul.get(), static_input_shapes, exp_shape);
+    GTEST_SKIP() << "Skipping test, please check CVS-108946";
+    // TODO 108946,below test case can't pass
+    unit_test::cpu_test_shape_infer(matmul.get(), static_input_shapes, output_shapes);
 }
 
 TEST_P(CPUMatMulTest, transpose_inputs_a_b) {
@@ -108,10 +114,11 @@ TEST_P(CPUMatMulTest, transpose_inputs_a_b) {
     const auto a_transpose = make_transpose_input(a_shape);
     const auto b_transpose = make_transpose_input(b_shape);
 
-    std::vector<StaticShape> static_input_shapes = {a_transpose, b_transpose}, static_output_shapes = {StaticShape{}};
+    std::vector<StaticShape> static_input_shapes = {a_transpose, b_transpose};
 
-    // TODO ,below test case can't pass
-    // unit_test::cpu_test_shape_infer(matmul.get(), static_input_shapes, exp_shape);
+    GTEST_SKIP() << "Skipping test, please check CVS-108946";
+    // TODO 108946,below test case can't pass
+    unit_test::cpu_test_shape_infer(matmul.get(), static_input_shapes, output_shapes);
 }
 
 /** \brief Use transpose order -> output shape dimensions shall be as transpose order. */

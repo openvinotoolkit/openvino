@@ -72,10 +72,10 @@ TEST_P(OneHotCpuShapeInferenceTest , shape_inference_with_const_map) {
     const auto depth_const = std::make_shared<op::v0::Constant>(element::i64, ov::Shape{}, std::vector<int64_t>{m_depth});
     const auto on_const = std::make_shared<op::v0::Constant>(element::i32, ov::Shape{}, std::vector<int32_t>{m_on});
     const auto off_const = std::make_shared<op::v0::Constant>(element::i32, ov::Shape{}, std::vector<int32_t>{m_off});
-    const auto depth_tensor = std::make_shared<ngraph::runtime::HostTensor>(depth_const);
-    const auto on_tensor = std::make_shared<ngraph::runtime::HostTensor>(on_const);
-    const auto off_tensor = std::make_shared<ngraph::runtime::HostTensor>(off_const);
-    const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {{1, depth_tensor},
+    const auto depth_tensor = std::make_shared<ov::HostTensor>(depth_const);
+    const auto on_tensor = std::make_shared<ov::HostTensor>(on_const);
+    const auto off_tensor = std::make_shared<ov::HostTensor>(off_const);
+    const std::map<size_t, std::shared_ptr<ov::HostTensor>>& constant_data = {{1, depth_tensor},
                                                                                            {2, on_tensor},
                                                                                            {3, off_tensor}};
 
@@ -101,17 +101,18 @@ TEST_P(OneHotCpuShapeInferenceThrowExceptionTest, wrong_pattern) {
     const auto depth_const = std::make_shared<op::v0::Constant>(element::i64, ov::Shape{}, std::vector<int64_t>{m_depth});
     const auto on_const = std::make_shared<op::v0::Constant>(element::i32, ov::Shape{}, std::vector<int32_t>{m_on});
     const auto off_const = std::make_shared<op::v0::Constant>(element::i32, ov::Shape{}, std::vector<int32_t>{m_off});
-    const auto depth_tensor = std::make_shared<ngraph::runtime::HostTensor>(depth_const);
-    const auto on_tensor = std::make_shared<ngraph::runtime::HostTensor>(on_const);
-    const auto off_tensor = std::make_shared<ngraph::runtime::HostTensor>(off_const);
-    const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {{1, depth_tensor},
+    const auto depth_tensor = std::make_shared<ov::HostTensor>(depth_const);
+    const auto on_tensor = std::make_shared<ov::HostTensor>(on_const);
+    const auto off_tensor = std::make_shared<ov::HostTensor>(off_const);
+    const std::map<size_t, std::shared_ptr<ov::HostTensor>>& constant_data = {{1, depth_tensor},
                                                                                            {2, on_tensor},
                                                                                            {3, off_tensor}};
 
 
+    GTEST_SKIP() << "Skipping test, please check CVS-108946";
     // TODO , implementation should throw exception
-    // ASSERT_THROW(unit_test::cpu_test_shape_infer(ont_hot.get(), static_input_shapes, static_output_shapes, constant_data),
-    //            InferenceEngine::GeneralError);
+    ASSERT_THROW(unit_test::cpu_test_shape_infer(op.get(), input_shapes, output_shapes, constant_data),
+                 InferenceEngine::GeneralError);
 }
 
 INSTANTIATE_TEST_SUITE_P(

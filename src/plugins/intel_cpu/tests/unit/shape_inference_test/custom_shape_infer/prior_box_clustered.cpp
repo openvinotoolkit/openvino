@@ -152,39 +152,3 @@ INSTANTIATE_TEST_SUITE_P(
            make_tuple(unit_test::ShapeVector{{2}, {2}}, attrs3,
                         std::vector<std::vector<int32_t>>{{19, 19}, {300, 300}}, StaticShape({2, 4332}))),
     PriorBoxClusteredV0CpuShapeInferenceTest::getTestCaseName);
-
-//
-// TEST_F(PriorBoxClusteredV0CpuShapeInferenceTest , invalid_number_of_elements_in_out_size) {
-//     const auto out_size = std::make_shared<op::v0::Parameter>(element::i64, PartialShape::dynamic(1));
-//     const auto img_size = std::make_shared<op::v0::Parameter>(element::i64, PartialShape::dynamic(1));
-//
-//     op = make_op(out_size, img_size, attrs);
-//
-//     int64_t output_size[] = {5, 2, 1};
-//     input_shapes = unit_test::ShapeVector{{2}, {2}};
-//
-//     // TODO , implementation should throw execption
-//     // ASSERT_THROW(unit_test::cpu_test_shape_infer(op.get(),
-//     //                                 input_shapes,
-//     //                                 output_shapes,
-//     //                                 {{0, std::make_shared<HostTensor>(element::i64, ov::Shape{3}, output_size)}}),
-//     //                 InferenceEngine::GeneralError);
-// }
-//
-// TEST_F(PriorBoxClusteredV0CpuShapeInferenceTest , invalid_input_ranks) {
-//     const auto out_size = std::make_shared<op::v0::Parameter>(element::i64, PartialShape::dynamic(1));
-//     const auto img_size = std::make_shared<op::v0::Parameter>(element::i64, PartialShape::dynamic(1));
-//
-//     op = make_op(out_size, img_size, attrs);
-//
-//     int64_t output_size[] = {5, 2, 1};
-//     input_shapes = unit_test::ShapeVector{{2, 1}, {2}};
-//
-//     // TODO , implementation should throw execption
-//     // ASSERT_THROW(unit_test::cpu_test_shape_infer(op.get(),
-//     //                                input_shapes,
-//     //                                output_shapes,
-//     //                                {{0, std::make_shared<HostTensor>(element::i64, ov::Shape{3}, output_size)}}),
-//     //                InferenceEngine::GeneralError);
-// }
-//

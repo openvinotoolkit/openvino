@@ -79,8 +79,8 @@ TEST_P(TransposeCpuShapeInferenceThrowExceptionTest, shape_inference_in_const_ma
     auto op = make_op(arg, order);
 
     const auto axes = std::make_shared<op::v0::Constant>(element::i64, ov::Shape{transpose_order.size()}, transpose_order);
-    const auto const_tensor = std::make_shared<ngraph::runtime::HostTensor>(axes);
-    const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>> const_map = {{1, const_tensor}};
+    const auto const_tensor = std::make_shared<ov::HostTensor>(axes);
+    const std::map<size_t, std::shared_ptr<ov::HostTensor>> const_map = {{1, const_tensor}};
 
     OV_EXPECT_THROW(unit_test::cpu_test_shape_infer(op.get(), input_shapes, output_shapes, const_map),
                     InferenceEngine::NotImplemented,
