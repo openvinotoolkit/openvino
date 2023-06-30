@@ -1,12 +1,14 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import numpy as np
-import pytest
-from common.mo_convert_test_class import CommonMOConvertTest
-from openvino.runtime import Model
-import openvino.runtime as ov
 import io
+
+import numpy as np
+import openvino.runtime as ov
+import pytest
+from openvino.runtime import Model
+
+from common.mo_convert_test_class import CommonMOConvertTest
 
 
 def make_graph_proto_model():
