@@ -443,7 +443,7 @@ jobs:
     displayName: 'Python API 2.0 Tests'
   
   - script: |
-      /usr/bin/python3 -m pytest -s $(REPO_DIR)/src/frontends/onnx/tests \
+      python3 -m pytest -sv $(REPO_DIR)/src/frontends/onnx/tests $(PYTHON_STATIC_ARGS) \
         --ignore=$(REPO_DIR)/src/frontends/onnx/tests/test_python/test_zoo_models.py \
         --ignore=$(REPO_DIR)/src/frontends/onnx/tests/test_python/test_backend.py -v
     displayName: 'ONNX Frontend Python Tests'
