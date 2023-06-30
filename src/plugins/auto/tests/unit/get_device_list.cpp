@@ -138,6 +138,8 @@ const std::vector<Params> testConfigs = { Params{"", "CPU,GPU"},
                                          Params{"CPU,-VPUX", "CPU"},
                                          Params{"CPU,-INVALID_DEVICE", "CPU"},
                                          Params{"CPU,INVALID_DEVICE", "CPU"},
+                                         Params{"INVALID_DEVICE,CPU", "CPU"},
+                                         Params{"INVALID_DEVICE,CPU,GPU", "CPU,GPU"},
                                          Params{"INVALID_DEVICE", ""},
                                          Params{"CPU,GPU,VPUX", "CPU,GPU,VPUX"}};
 
