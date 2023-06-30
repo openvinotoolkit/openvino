@@ -4,3 +4,4 @@ numpy
 protobuf
 docopt
 onnx
+pytest
