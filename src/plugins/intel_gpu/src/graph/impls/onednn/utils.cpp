@@ -24,6 +24,8 @@ std::string convert_data_format_string(cldnn::format fmt) {
         case cldnn::format::bs_fs_zyx_bsv16_fsv2: return "ABcde16a2b";
         case cldnn::format::bs_fs_yx_bsv16_fsv4: return "ABcd16a4b";
         case cldnn::format::bs_fs_zyx_bsv16_fsv4: return "ABcde16a4b";
+        case cldnn::format::bs_fs_yx_bsv16_fsv8: return "ABcd16a8b";
+        case cldnn::format::bs_fs_zyx_bsv16_fsv8: return "ABcde16a8b";
         case cldnn::format::bs_fs_yx_bsv16_fsv32: return "ABcd16a32b";
         case cldnn::format::bs_fs_zyx_bsv16_fsv32: return "ABcde16a32b";
         default: throw std::invalid_argument("[clDNN] Unsupported conversion from cldnn to onednn layout string" + fmt_to_str(fmt));
@@ -141,6 +143,7 @@ std::vector<std::pair<cldnn::format, dnnl::memory::format_tag>> format_map = {
         { cldnn::format::b_fs_zyx_fsv8, dnnl::memory::format_tag::aBcde8b },
         { cldnn::format::b_fs_zyx_fsv16, dnnl::memory::format_tag::nCdhw16c },
         { cldnn::format::b_fs_zyx_fsv32, dnnl::memory::format_tag::aBcde32b },
+        { cldnn::format::bs_fs_yx_bsv16_fsv8, dnnl::memory::format_tag::ABcd16a8b },
         { cldnn::format::bs_fs_yx_bsv16_fsv16, dnnl::memory::format_tag::NChw16n16c },
         { cldnn::format::bs_fs_yx_bsv16_fsv32, dnnl::memory::format_tag::NChw16n32c },
         { cldnn::format::bs_fs_yx_bsv32_fsv32, dnnl::memory::format_tag::NChw32n32c },
@@ -151,6 +154,7 @@ std::vector<std::pair<cldnn::format, dnnl::memory::format_tag>> format_map = {
         { cldnn::format::bs_fs_yx_bsv32_fsv16, dnnl::memory::format_tag::NChw32n16c },
         { cldnn::format::bs_fs_zyx_bsv32_fsv16, dnnl::memory::format_tag::NCdhw32n16c },
         { cldnn::format::bs_fs_zyx_bsv32_fsv32, dnnl::memory::format_tag::NCdhw32n32c },
+        { cldnn::format::bs_fs_zyx_bsv16_fsv8, dnnl::memory::format_tag::ABcde16a8b },
         { cldnn::format::bs_fs_zyx_bsv16_fsv16, dnnl::memory::format_tag::NCdhw16n16c },
         // { cldnn::format::bs_fs_zyx_bsv16_fsv32, dnnl::memory::format_tag::NCdhw16n32c }, // TODO onednn3.0: Request NCdhw16n32c format
         { cldnn::format::bs_fs_zyx_bsv8_fsv4, dnnl::memory::format_tag::ABcde8a4b },
