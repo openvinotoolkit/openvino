@@ -119,6 +119,8 @@ std::string toString(DataLayout l) {
         case kernel_selector::DataLayout::bs_fs_yx_bsv4_fsv4:    return "BS_FS_YX_BSV4_FSV4";
         case kernel_selector::DataLayout::bs_fs_yx_bsv8_fsv4:    return "BS_FS_YX_BSV8_FSV4";
         case kernel_selector::DataLayout::bs_fs_zyx_bsv8_fsv4:   return "BS_FS_ZYX_BSV8_FSV4";
+        case kernel_selector::DataLayout::bs_fs_yx_bsv16_fsv8:   return "BS_FS_YX_BSV16_FSV8";
+        case kernel_selector::DataLayout::bs_fs_zyx_bsv16_fsv8:  return "BS_FS_ZYX_BSV16_FSV8";
         case kernel_selector::DataLayout::bs_fs_yx_bsv16_fsv4:   return "BS_FS_YX_BSV16_FSV4";
         case kernel_selector::DataLayout::bs_fs_zyx_bsv16_fsv4:  return "BS_FS_ZYX_BSV16_FSV4";
         case kernel_selector::DataLayout::bs_fs_yx_bsv16_fsv2:   return "BS_FS_YX_BSV16_FSV2";

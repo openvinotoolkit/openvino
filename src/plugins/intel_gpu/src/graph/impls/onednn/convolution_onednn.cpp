@@ -53,15 +53,18 @@ protected:
             dnnl::memory::desc desc = onednn::layout_to_memory_desc(a_zp->get_layout(), dnnl::memory::format_tag::a, true);
             args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_SRC, a_zp->get_onednn_memory(desc)});
 
-            auto dnnl_mem = a_zp->get_onednn_memory(desc);
-            void *mapped_ptr = dnnl_mem.map_data();
-            if (mapped_ptr) {
-                GPU_DEBUG_TRACE_DETAIL << instance.id() << " activations_zero_points: ";
-                for (size_t i = 0; i < desc.get_size(); ++i) {
-                    GPU_DEBUG_TRACE_DETAIL << static_cast<int32_t*>(mapped_ptr)[i] << " ";
+            GPU_DEBUG_GET_INSTANCE(debug_config);
+            GPU_DEBUG_IF(debug_config->verbose >= static_cast<int>(ov::intel_gpu::LogLevel::TRACE_DETAIL)) {
+                auto dnnl_mem = a_zp->get_onednn_memory(desc);
+                void *mapped_ptr = dnnl_mem.map_data();
+                if (mapped_ptr) {
+                    GPU_DEBUG_TRACE_DETAIL << instance.id() << " activations_zero_points: ";
+                    for (size_t i = 0; i < desc.get_size(); ++i) {
+                        GPU_DEBUG_TRACE_DETAIL << static_cast<int32_t*>(mapped_ptr)[i] << " ";
+                    }
+                    GPU_DEBUG_TRACE_DETAIL << std::endl;
+                    dnnl_mem.unmap_data(mapped_ptr);  // segfault in v3.3pc; TODO Report oneDNN
                 }
-                GPU_DEBUG_TRACE_DETAIL << std::endl;
-                dnnl_mem.unmap_data(mapped_ptr);
             }
         }
 
@@ -70,15 +73,18 @@ protected:
             dnnl::memory::desc desc = onednn::layout_to_memory_desc(w_zp->get_layout(), dnnl::memory::format_tag::a, true);
             args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS, w_zp->get_onednn_memory(desc)});
 
-            auto dnnl_mem = w_zp->get_onednn_memory(desc);
-            void *mapped_ptr = dnnl_mem.map_data();
-            if (mapped_ptr) {
-                GPU_DEBUG_TRACE_DETAIL << instance.id() << " weights_zero_points: ";
-                for (size_t i = 0; i < desc.get_size(); ++i) {
-                    GPU_DEBUG_TRACE_DETAIL << static_cast<int32_t*>(mapped_ptr)[i] << " ";
+            GPU_DEBUG_GET_INSTANCE(debug_config);
+            GPU_DEBUG_IF(debug_config->verbose >= static_cast<int>(ov::intel_gpu::LogLevel::TRACE_DETAIL)) {
+                auto dnnl_mem = w_zp->get_onednn_memory(desc);
+                void *mapped_ptr = dnnl_mem.map_data();
+                if (mapped_ptr) {
+                    GPU_DEBUG_TRACE_DETAIL << instance.id() << " weights_zero_points: ";
+                    for (size_t i = 0; i < desc.get_size(); ++i) {
+                        GPU_DEBUG_TRACE_DETAIL << static_cast<int32_t*>(mapped_ptr)[i] << " ";
+                    }
+                    GPU_DEBUG_TRACE_DETAIL << std::endl;
+                    dnnl_mem.unmap_data(mapped_ptr);  // segfault in v3.3pc; TODO Report oneDNN
                 }
-                GPU_DEBUG_TRACE_DETAIL << std::endl;
-                dnnl_mem.unmap_data(mapped_ptr);
             }
         }
 
@@ -271,9 +277,11 @@ attach_convolution_onednn::attach_convolution_onednn() {
         format::bs_fs_zyx_bsv32_fsv32,
         format::bs_fs_yx_bsv4_fsv4,
         format::bs_fs_yx_bsv8_fsv4,
+        format::bs_fs_yx_bsv16_fsv8,
         format::bs_fs_yx_bsv16_fsv4,
         format::bs_fs_yx_bsv16_fsv2,
         format::bs_fs_zyx_bsv8_fsv4,
+        format::bs_fs_zyx_bsv16_fsv8,
         format::bs_fs_zyx_bsv16_fsv4,
         format::bs_fs_zyx_bsv16_fsv2,
         format::bs_fs_yx_bsv8_fsv2,
