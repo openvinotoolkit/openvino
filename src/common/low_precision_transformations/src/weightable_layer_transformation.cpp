@@ -324,11 +324,13 @@ bool WeightableLayerTransformation::isPrecisionPreserved(std::shared_ptr<Node> l
     return false;
 }
 
-bool WeightableLayerTransformation::decomposeFakeQuantizeForWeightsPath(const std::shared_ptr<Node>& node, const size_t outChannelsShapeIndex) const {
+std::tuple<bool, std::shared_ptr<Node>, std::shared_ptr<Node>> WeightableLayerTransformation::decomposeFakeQuantizeForWeightsPath(
+        const std::shared_ptr<Node>& node,
+        const size_t outChannelsShapeIndex) const {
     const auto fq = getFakeQuantizeOnWeights(node);
     if (fq == nullptr) {
         // FakeQuantize has been decomposed already
-        return true;
+        return std::make_tuple(true, nullptr, nullptr);
     }
 
     const QuantizationDetails quantizationDetails = QuantizationDetails::getDetails(fq);
@@ -339,7 +341,7 @@ bool WeightableLayerTransformation::decomposeFakeQuantizeForWeightsPath(const st
 
     const DataPrecision dataPrecision = getDataPrecision(fq, quantizationDetails, precisions);
     if (dataPrecision.empty()) {
-        return false;
+        return std::make_tuple(false, nullptr, nullptr);
     }
 
     auto tuple = NetworkHelper::decomposeFakeQuantize(
@@ -352,17 +354,19 @@ bool WeightableLayerTransformation::decomposeFakeQuantizeForWeightsPath(const st
         element::f32,
         outChannelsShapeIndex);
 
-    std::shared_ptr<ngraph::Node> fqOnWeights = std::get<0>(tuple);
+    std::shared_ptr<Node> fqOnWeights = std::get<0>(tuple);
+    std::shared_ptr<Node> dequantize = std::get<1>(tuple);
+
     // TODO: LPT: issue #58685
     if ((!updatePrecisions) && (fqOnWeights == nullptr)) {
-        return false;
+        return std::make_tuple(false, nullptr, nullptr);
     }
 
     if (ov::as_type_ptr<ov::opset1::Constant>(fqOnWeights) == nullptr) {
         THROW_IE_LPT_EXCEPTION(*fqOnWeights) << "FakeQuantize on weights was not folded to constant";
     }
 
-    return true;
+    return std::make_tuple(true, fqOnWeights, dequantize);
 }
 
 bool WeightableLayerTransformation::isGroup(const std::shared_ptr<Node>& layer) {

@@ -99,7 +99,7 @@ public:
                                                   testValues.postops_configuration);
 
         SimpleLowPrecisionTransformer transform;
-        transform.add<ngraph::pass::low_precision::AddTransformation, ngraph::opset1::Add>(testValues.params);
+        transform.add<ngraph::pass::low_precision::AddTransformation, ov::op::v1::Add>(testValues.params);
         transform.transform(actualFunction);
 
         auto inputShape1Ref = inputShapes.first;

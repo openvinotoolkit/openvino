@@ -11,7 +11,7 @@ import openvino.runtime.opset10 as opset10
 from openvino.runtime import Model, serialize, Core, PartialShape, Dimension
 
 from openvino.tools.mo.utils.ir_reader.restore_graph import restore_graph_from_ir, save_restored_graph
-from openvino.tools.mo.utils.logger import init_logger
+from openvino.tools.ovc.logger import init_logger
 
 # required to be in global area to run MO IR Reader
 init_logger('ERROR', False)
