@@ -138,6 +138,22 @@ void Convert::initSupportedPrimitiveDescriptors() {
     }
 }
 
+void Convert::prepareParams() {
+    auto& parentMem = getParentEdgeAt(0)->getMemory();
+    auto& childMem = getChildEdgeAt(0)->getMemory();
+    convertParams.size = parentMem.GetDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
+
+    dnnl::primitive_attr attr;
+    auto selectedPD = getSelectedPrimitiveDescriptor();
+    std::vector<MemoryDescPtr> srcDescs = {parentMem.getDescPtr()};
+    std::vector<MemoryDescPtr> dstDescs = {childMem.getDescPtr()};
+    execPtr = selectedPD->getExecutorFactoryAs<ConvertExecutorFactory>()->makeExecutor(convertParams,
+                                                                                       srcDescs,
+                                                                                       dstDescs,
+                                                                                       attr);
+    selectedPD->setImplementationType(execPtr->getImplType());
+}
+
 void Convert::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
@@ -152,8 +168,6 @@ void Convert::execute(dnnl::stream strm) {
     if (parentPaddElemCount != childPaddElemCount)
         IE_THROW() << errorPrefix << " has different elements number in input and output buffers";
 
-    convertParams.size = parentPaddElemCount;
-
     std::vector<MemoryCPtr> srcMemory;
     for (size_t i = 0; i < getOriginalInputsNumber(); i++) {
         srcMemory.push_back(getParentEdgeAt(i)->getMemoryPtr());
@@ -163,15 +177,6 @@ void Convert::execute(dnnl::stream strm) {
         dstMemory.push_back(getChildEdgeAt(i)->getMemoryPtr());
     }
 
-    dnnl::primitive_attr attr;
-    auto selectedPD = getSelectedPrimitiveDescriptor();
-    std::vector<MemoryDescPtr> srcDescs = {parentMem.getDescPtr()};
-    std::vector<MemoryDescPtr> dstDescs = {childMem.getDescPtr()};
-    execPtr = selectedPD->getExecutorFactoryAs<ConvertExecutorFactory>()->makeExecutor(convertParams,
-                                                                                       srcDescs,
-                                                                                       dstDescs,
-                                                                                       attr);
-    selectedPD->setImplementationType(execPtr->getImplType());
     execPtr->exec(srcMemory, dstMemory);
 }
 

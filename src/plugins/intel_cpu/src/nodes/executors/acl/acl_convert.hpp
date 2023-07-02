@@ -38,48 +38,48 @@ public:
                      const std::vector<MemoryDescPtr>& srcDescs,
                      const std::vector<MemoryDescPtr>& dstDescs) const override {
         if (convertParams.srcPrc != convertParams.dstPrc) {
-            if (convertParams.srcPrc != InferenceEngine::Precision::I8 &&
-                convertParams.srcPrc != InferenceEngine::Precision::U8 &&
-                convertParams.srcPrc != InferenceEngine::Precision::U16 &&
-                convertParams.srcPrc != InferenceEngine::Precision::I16 &&
-                convertParams.srcPrc != InferenceEngine::Precision::FP16 &&
-                convertParams.srcPrc != InferenceEngine::Precision::I32 &&
-                convertParams.srcPrc != InferenceEngine::Precision::FP32) {
+            if (!one_of(convertParams.srcPrc, InferenceEngine::Precision::I8,
+                                              InferenceEngine::Precision::U8,
+                                              InferenceEngine::Precision::U16,
+                                              InferenceEngine::Precision::I16,
+                                              InferenceEngine::Precision::FP16,
+                                              InferenceEngine::Precision::I32,
+                                              InferenceEngine::Precision::FP32)) {
                 DEBUG_LOG("NECopy does not support source precision: ", convertParams.srcPrc.name());
                 return false;
             }
             if ((convertParams.srcPrc == InferenceEngine::Precision::I8 &&
-                    convertParams.dstPrc != InferenceEngine::Precision::I16 &&
-                    convertParams.dstPrc != InferenceEngine::Precision::I32 &&
-                    convertParams.dstPrc != InferenceEngine::Precision::FP16 &&
-                    convertParams.dstPrc != InferenceEngine::Precision::FP32) ||
+                !one_of(convertParams.dstPrc, InferenceEngine::Precision::I16,
+                                              InferenceEngine::Precision::I32,
+                                              InferenceEngine::Precision::FP16,
+                                              InferenceEngine::Precision::FP32)) ||
                 (convertParams.srcPrc == InferenceEngine::Precision::U8 &&
-                    convertParams.dstPrc != InferenceEngine::Precision::U16 &&
-                    convertParams.dstPrc != InferenceEngine::Precision::I16 &&
-                    convertParams.dstPrc != InferenceEngine::Precision::I32 &&
-                    convertParams.dstPrc != InferenceEngine::Precision::FP16 &&
-                    convertParams.dstPrc != InferenceEngine::Precision::FP32) ||
+                !one_of(convertParams.dstPrc, InferenceEngine::Precision::U16,
+                                              InferenceEngine::Precision::I16,
+                                              InferenceEngine::Precision::I32,
+                                              InferenceEngine::Precision::FP16,
+                                              InferenceEngine::Precision::FP32)) ||
                 (convertParams.srcPrc == InferenceEngine::Precision::U16 &&
-                    convertParams.dstPrc != InferenceEngine::Precision::U8 &&
-                    convertParams.dstPrc != InferenceEngine::Precision::U32) ||
+                !one_of(convertParams.dstPrc, InferenceEngine::Precision::U8,
+                                              InferenceEngine::Precision::U32)) ||
                 (convertParams.srcPrc == InferenceEngine::Precision::I16 &&
-                    convertParams.dstPrc != InferenceEngine::Precision::I8 &&
-                    convertParams.dstPrc != InferenceEngine::Precision::U8 &&
-                    convertParams.dstPrc != InferenceEngine::Precision::I32) ||
+                !one_of(convertParams.dstPrc, InferenceEngine::Precision::I8,
+                                              InferenceEngine::Precision::U8,
+                                              InferenceEngine::Precision::I32)) ||
                 (convertParams.srcPrc == InferenceEngine::Precision::FP16 &&
-                    convertParams.dstPrc != InferenceEngine::Precision::I8 &&
-                    convertParams.dstPrc != InferenceEngine::Precision::FP32 &&
-                    convertParams.dstPrc != InferenceEngine::Precision::I32 &&
-                    convertParams.dstPrc != InferenceEngine::Precision::U8) ||
+                !one_of(convertParams.dstPrc, InferenceEngine::Precision::I8,
+                                              InferenceEngine::Precision::FP32,
+                                              InferenceEngine::Precision::I32,
+                                              InferenceEngine::Precision::U8)) ||
                 (convertParams.srcPrc == InferenceEngine::Precision::I32 &&
-                    convertParams.dstPrc != InferenceEngine::Precision::I8 &&
-                    convertParams.dstPrc != InferenceEngine::Precision::FP16 &&
-                    convertParams.dstPrc != InferenceEngine::Precision::FP32 &&
-                    convertParams.dstPrc != InferenceEngine::Precision::U8) ||
+                !one_of(convertParams.dstPrc, InferenceEngine::Precision::I8,
+                                              InferenceEngine::Precision::FP16,
+                                              InferenceEngine::Precision::FP32,
+                                              InferenceEngine::Precision::U8)) ||
                 (convertParams.srcPrc == InferenceEngine::Precision::FP32 &&
-                    convertParams.dstPrc != InferenceEngine::Precision::BF16 &&
-                    convertParams.dstPrc != InferenceEngine::Precision::FP16 &&
-                    convertParams.dstPrc != InferenceEngine::Precision::I32)) {
+                !one_of(convertParams.dstPrc, InferenceEngine::Precision::BF16,
+                                              InferenceEngine::Precision::FP16,
+                                              InferenceEngine::Precision::I32))) {
                 DEBUG_LOG("NECopy does not support passed combination of source and destination precisions. ",
                           "source precision: ", convertParams.srcPrc.name(), " destination precsion: " , convertParams.dstPrc.name());
                 return false;

@@ -22,6 +22,7 @@ public:
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
+    void prepareParams() override;
     void execute(dnnl::stream strm) override;
     void executeDynamicImpl(dnnl::stream strm) override;
     bool created() const override;
@@ -41,7 +42,7 @@ public:
     const MemoryDesc& getInput() const { return *input; }
     const MemoryDesc& getOutput() const { return *output; }
 
-    bool needPrepareParams() const override { return false; }
+    bool needPrepareParams() const override { return true; }
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
