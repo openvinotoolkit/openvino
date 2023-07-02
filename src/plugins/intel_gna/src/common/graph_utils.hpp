@@ -244,6 +244,45 @@ inline bool is_activation(const std::shared_ptr<ngraph::Node>& node) noexcept {
     return is_activation(node.get());
 }
 
+inline bool is_non_functional(const std::shared_ptr<ov::Node>& node) {
+    return std::dynamic_pointer_cast<ov::opset12::Reshape>(node) != nullptr ||
+           std::dynamic_pointer_cast<ov::opset12::Squeeze>(node) != nullptr ||
+           std::dynamic_pointer_cast<ov::opset12::Unsqueeze>(node) != nullptr ||
+           std::dynamic_pointer_cast<ov::opset12::FakeQuantize>(node) != nullptr;
+}
+
+inline bool is_parameter(const std::shared_ptr<ov::Node>& node) {
+    return std::dynamic_pointer_cast<ov::opset12::Parameter>(node) != nullptr;
+}
+
+inline bool is_copy(const std::shared_ptr<ov::Node>& node) {
+    return std::dynamic_pointer_cast<ov::intel_gna::op::Copy>(node) != nullptr;
+}
+
+inline bool is_relu(const std::shared_ptr<ov::Node>& node) {
+    return std::dynamic_pointer_cast<ov::opset12::Relu>(node) != nullptr;
+}
+
+inline bool is_matmul(const std::shared_ptr<ov::Node>& node) {
+    return std::dynamic_pointer_cast<ov::opset12::MatMul>(node) != nullptr;
+}
+
+inline bool is_constant(const std::shared_ptr<ov::Node>& node) {
+    return std::dynamic_pointer_cast<ov::opset12::Constant>(node) != nullptr;
+}
+
+inline bool is_identity(const std::shared_ptr<ov::Node>& node) {
+    return std::dynamic_pointer_cast<ov::intel_gna::op::Identity>(node) != nullptr;
+}
+
+inline bool is_fully_connected(const std::shared_ptr<ov::Node>& node) {
+    return std::dynamic_pointer_cast<ngraph::op::FullyConnected>(node) != nullptr;
+}
+
+inline bool is_interleaved(const std::shared_ptr<ov::Node>& node) {
+    return is_relu(node) || is_matmul(node) || is_fully_connected(node);
+}
+
 inline bool is_gna_precision_agnostic(std::shared_ptr<ngraph::Node> node) {
     return ((std::dynamic_pointer_cast<ngraph::opset9::VariadicSplit>(node) != nullptr) ||
             (std::dynamic_pointer_cast<ngraph::opset9::Split>(node) != nullptr) ||

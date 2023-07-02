@@ -306,10 +306,6 @@ private:
 
     size_t get_memory_alignment_bytes(const target::DeviceVersion& target) const;
 
-    IE_SUPPRESS_DEPRECATED_START
-    static bool validate_concat_axis(const InferenceEngine::CNNLayerPtr layer, std::string& errMessage);
-    IE_SUPPRESS_DEPRECATED_END
-
     bool m_use_only_16bit_conv_weights = false;
     size_t m_mem_alignment = 0;
     std::shared_ptr<cnn2d::AbstractValidator> m_cnn_validator;
