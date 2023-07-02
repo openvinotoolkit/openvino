@@ -1996,17 +1996,15 @@ void GraphOptimizer::FusePerformedAsScaleShiftAndFakeQuantize(Graph &graph) {
 
         const auto &outputShape = child->getOutputShapeAtPort(0);
         VectorDims outputDims = outputShape.getDims();
-        size_t eltwiseParentIdx = 0;
-        //Incase parent is Matmul/FC the fusing axis should follow their impl
-        for (size_t i = 0; i < parent->getParentEdges().size(); i++) {
-            const auto eltWiseParent = parent->getParentEdgeAt(i)->getParent();
-            const auto eltWiseParentType = eltWiseParent->getType();
-            if (eltWiseParentType == Type::FullyConnected || eltWiseParentType == Type::MatMul) {
-                eltwiseParentIdx = i;
-                break;
-            }
-        }
-        const auto channelPos = parent->getParentEdgeAt(eltwiseParentIdx)->getParent()->getFusingAxis();
+
+        // We need to compute explicitly port with unfolded parent,
+        // because there is no guarantee, that the order of operands will be invariant
+        // (i.e. zero) after all transformations, which may cause wrong channel-dim in
+        // [Const-Schift -> Add <- Mul] topology with constant-folded schift,
+        // (Const node return 1 by default as channel dim.)
+        // Look into FQScaleshiftWithConstantShift test
+        const auto nonConstPort = (parent->getParentEdgeAt(0)->getParent()->isConstant() ? 1 : 0);
+        const auto channelPos = parent->getParentEdgeAt(nonConstPort)->getParent()->getFusingAxis();
 
         if (outputShape.isDynamic()) {
             if (outputDims[channelPos] == Shape::UNDEFINED_DIM) {
@@ -2093,6 +2091,7 @@ void GraphOptimizer::FusePerformedAsScaleShiftAndFakeQuantize(Graph &graph) {
         fakeQuantizeNode->setCropHigh(newCropHigh);
         fakeQuantizeNode->setInputScale(newInputScale);
         fakeQuantizeNode->setInputShift(newInputShift);
+
         return true;
     };
 

@@ -58,7 +58,7 @@ class InferRequest(_InferRequestWrapper):
                               Tensors for every input in form of:
                               * `numpy.ndarray` and all the types that are castable to it, e.g. `torch.Tensor`
                               Data that is going to be copied:
-                              * `numpy.ndarray` which are not C contiguous
+                              * `numpy.ndarray` which are not C contiguous and/or not writable (WRITEABLE flag is set to False)
                               * inputs which data types are mismatched from Infer Request's inputs
                               * inputs that should be in `BF16` data type
                               * scalar inputs (i.e. `np.float_`/`int`/`float`)
@@ -118,7 +118,7 @@ class InferRequest(_InferRequestWrapper):
                               Tensors for every input in form of:
                               * `numpy.ndarray` and all the types that are castable to it, e.g. `torch.Tensor`
                               Data that is going to be copied:
-                              * `numpy.ndarray` which are not C contiguous
+                              * `numpy.ndarray` which are not C contiguous and/or not writable (WRITEABLE flag is set to False)
                               * inputs which data types are mismatched from Infer Request's inputs
                               * inputs that should be in `BF16` data type
                               * scalar inputs (i.e. `np.float_`/`int`/`float`)
@@ -246,7 +246,7 @@ class CompiledModel(CompiledModelBase):
                               Tensors for every input in form of:
                               * `numpy.ndarray` and all the types that are castable to it, e.g. `torch.Tensor`
                               Data that is going to be copied:
-                              * `numpy.ndarray` which are not C contiguous
+                              * `numpy.ndarray` which are not C contiguous and/or not writable (WRITEABLE flag is set to False)
                               * inputs which data types are mismatched from Infer Request's inputs
                               * inputs that should be in `BF16` data type
                               * scalar inputs (i.e. `np.float_`/`int`/`float`)
@@ -340,7 +340,7 @@ class AsyncInferQueue(AsyncInferQueueBase):
                               Tensors for every input in form of:
                               * `numpy.ndarray` and all the types that are castable to it, e.g. `torch.Tensor`
                               Data that is going to be copied:
-                              * `numpy.ndarray` which are not C contiguous
+                              * `numpy.ndarray` which are not C contiguous and/or not writable (WRITEABLE flag is set to False)
                               * inputs which data types are mismatched from Infer Request's inputs
                               * inputs that should be in `BF16` data type
                               * scalar inputs (i.e. `np.float_`/`int`/`float`)
