@@ -1,11 +1,15 @@
 #include "node_output.hpp"
 
+#include "shape_lite.hpp"
+
 Output<ov::Node>::Output(const Napi::CallbackInfo& info) : Napi::ObjectWrap<Output<ov::Node>>(info) {}
 
 Napi::Function Output<ov::Node>::GetClassConstructor(Napi::Env env) {
     return Output::DefineClass(env,
                                "Output",
-                               {Output<ov::Node>::InstanceMethod("getAnyName", &Output<ov::Node>::get_any_name),
+                               {Output<ov::Node>::InstanceMethod("getShape", &Output<ov::Node>::get_shape),
+                                Output<ov::Node>::InstanceAccessor<&Output<ov::Node>::get_shape_data>("shape"),
+                                Output<ov::Node>::InstanceMethod("getAnyName", &Output<ov::Node>::get_any_name),
                                 Output<ov::Node>::InstanceMethod("setNames", &Output<ov::Node>::set_names),
                                 Output<ov::Node>::InstanceMethod("addNames", &Output<ov::Node>::add_names),
                                 Output<ov::Node>::InstanceMethod("toString", &Output<ov::Node>::get_any_name)});
@@ -34,6 +38,20 @@ Napi::Object Output<ov::Node>::Wrap(Napi::Env env, ov::Output<ov::Node> output) 
     return obj;
 }
 
+Napi::Value Output<ov::Node>::get_shape(const Napi::CallbackInfo& info) {
+    auto shape = _output.get_shape();
+    return ShapeLite::Wrap(info.Env(), shape);
+}
+
+Napi::Value Output<ov::Node>::get_shape_data(const Napi::CallbackInfo& info) {
+    auto shape = _output.get_shape();
+    auto arr = Napi::Uint32Array::New(info.Env(), shape.size());
+    for (size_t i = 0; i < shape.size(); i++)
+        arr[i] = shape[i];
+
+    return arr;
+}
+
 Napi::Value Output<ov::Node>::get_any_name(const Napi::CallbackInfo& info) {
     return Napi::String::New(info.Env(), _output.get_any_name());
 }
@@ -56,7 +74,9 @@ Napi::Function Output<const ov::Node>::GetClassConstructor(Napi::Env env) {
     return Output::DefineClass(
         env,
         "Output",
-        {Output<const ov::Node>::InstanceMethod("getAnyName", &Output<const ov::Node>::get_any_name),
+        {Output<const ov::Node>::InstanceMethod("getShape", &Output<const ov::Node>::get_shape),
+         Output<const ov::Node>::InstanceAccessor<&Output<const ov::Node>::get_shape_data>("shape"),
+         Output<const ov::Node>::InstanceMethod("getAnyName", &Output<const ov::Node>::get_any_name),
          Output<const ov::Node>::InstanceMethod("toString", &Output<const ov::Node>::get_any_name)});
 }
 
@@ -81,6 +101,20 @@ Napi::Object Output<const ov::Node>::Wrap(Napi::Env env, ov::Output<const ov::No
     Output* output_ptr = Napi::ObjectWrap<Output>::Unwrap(obj);
     output_ptr->_output = output;
     return obj;
+}
+
+Napi::Value Output<const ov::Node>::get_shape(const Napi::CallbackInfo& info) {
+    auto shape = _output.get_shape();
+    return ShapeLite::Wrap(info.Env(), shape);
+}
+
+Napi::Value Output<const ov::Node>::get_shape_data(const Napi::CallbackInfo& info) {
+    auto shape = _output.get_shape();
+    auto arr = Napi::Uint32Array::New(info.Env(), shape.size());
+    for (size_t i = 0; i < shape.size(); i++)
+        arr[i] = shape[i];
+
+    return arr;
 }
 
 Napi::Value Output<const ov::Node>::get_any_name(const Napi::CallbackInfo& info) {
