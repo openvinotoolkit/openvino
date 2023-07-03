@@ -35,7 +35,7 @@
 
 #if defined(OPENVINO_STATIC_LIBRARY) || defined(__GNUC__) && (__GNUC__ < 4)
 #    define INFERENCE_ENGINE_C_API(...) \
-        INFERENCE_ENGINE_C_API_EXTERN __VA_ARGS__ OPENVINO_DEPRECATED("The Inference Engine API is deprecated.")
+        INFERENCE_ENGINE_C_API_EXTERN __VA_ARGS__ IE_1_0_DEPRECATED
 #    define IE_NODISCARD
 #else
 #    if defined(_WIN32) || defined(__CYGWIN__)
@@ -43,15 +43,13 @@
 #        ifdef openvino_c_EXPORTS
 #            define INFERENCE_ENGINE_C_API(...) INFERENCE_ENGINE_C_API_EXTERN __declspec(dllexport) __VA_ARGS__ __cdecl
 #        else
-#            define INFERENCE_ENGINE_C_API(...)                     \
-                INFERENCE_ENGINE_C_API_EXTERN __declspec(dllimport) \
-                    __VA_ARGS__ OPENVINO_DEPRECATED("The Inference Engine API is deprecated.") __cdecl
+#            define INFERENCE_ENGINE_C_API(...) \
+                INFERENCE_ENGINE_C_API_EXTERN __declspec(dllimport) IE_1_0_DEPRECATED __cdecl
 #        endif
 #        define IE_NODISCARD
 #    else
-#        define INFERENCE_ENGINE_C_API(...)                                      \
-            INFERENCE_ENGINE_C_API_EXTERN __attribute__((visibility("default"))) \
-            __VA_ARGS__ OPENVINO_DEPRECATED("The Inference Engine API is deprecated.")
+#        define INFERENCE_ENGINE_C_API(...) \
+            INFERENCE_ENGINE_C_API_EXTERN __attribute__((visibility("default"))) __VA_ARGS__ IE_1_0_DEPRECATED
 #        define IE_NODISCARD __attribute__((warn_unused_result))
 #    endif
 #endif
