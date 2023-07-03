@@ -67,21 +67,6 @@ void group_normalization(const T* const data,
             }
         }
     }
-
-    {  // TODO remove it
-        for (size_t i = 0; i < shape_size(data_shape); ++i)
-            cout << data[i] << ", ";
-        cout << "\n";
-        for (size_t i = 0; i < group_mean.size(); ++i)
-            cout << group_mean[i] << ", ";
-        cout << "\n";
-        for (size_t i = 0; i < group_variance.size(); ++i)
-            cout << group_variance[i] << ", ";
-        cout << "\n";
-        for (size_t i = 0; i < shape_size(data_shape); ++i)
-            cout << out[i] << ", ";
-        cout << "\n";
-    }
 }
 }  // namespace reference
 }  // namespace runtime
