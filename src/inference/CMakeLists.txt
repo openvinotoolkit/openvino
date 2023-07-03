@@ -126,7 +126,7 @@ if(NOT BUILD_SHARED_LIBS)
     target_compile_definitions(${TARGET_NAME}_obj PUBLIC OPENVINO_STATIC_LIBRARY)
 endif()
 
-if(NOT TARGET openvino_proxy_plugin_obj)
+if(NOT ENABLE_PROXY)
     target_compile_definitions(${TARGET_NAME}_obj PUBLIC NO_PROXY_PLUGIN)
 endif()
 

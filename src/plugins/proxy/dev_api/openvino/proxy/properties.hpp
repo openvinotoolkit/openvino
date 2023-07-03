@@ -21,7 +21,8 @@ namespace configuration {
 static constexpr Property<std::string, PropertyMutability::RW> alias{"PROXY_CONFIGURATION_ALIAS"};
 
 /**
- * @brief Read-write property to set device priority in alias
+ * @brief Read-write property to set devices priority in alias
+ * This property allows to configure the order of devices from different low-level plugins under the proxy
  * value type: int32_t lower value means the higher priority
  * @ingroup ov_runtime_cpp_prop_api
  */
@@ -35,12 +36,6 @@ static constexpr Property<int32_t, PropertyMutability::RW> priority{"PROXY_CONFI
 static constexpr Property<std::string, PropertyMutability::RW> fallback{"PROXY_CONFIGURATION_FALLBACK"};
 
 }  // namespace configuration
-
-/**
- * @brief Property allows to configure the fallback priorities under the proxy plugin
- * Vector of string. String has the next format: <first_device>-><fallback_device>
- */
-// static constexpr Property<std::vector<std::string>, PropertyMutability::RW> fallback{"PROXY_FALLBACK_PRIORITIES"};
 
 /**
  * @brief Property allows to configure the low level device priorities.

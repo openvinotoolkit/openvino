@@ -39,8 +39,8 @@ const std::shared_ptr<ov::ITensor>& get_hardware_tensor(const std::shared_ptr<ov
 
 class Plugin : public ov::IPlugin {
 public:
-    Plugin();
-    ~Plugin();
+    Plugin() = default;
+    ~Plugin() = default;
 
     void set_property(const ov::AnyMap& properties) override;
 

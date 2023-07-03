@@ -102,10 +102,6 @@ ov::AnyMap construct_device_config(const std::string& dev_name,
 
 }  // namespace
 
-ov::proxy::Plugin::Plugin() {}
-
-ov::proxy::Plugin::~Plugin() = default;
-
 size_t ov::proxy::Plugin::get_device_from_config(const ov::AnyMap& config) const {
     if (is_device_in_config(config))
         return config.at(ov::device::id.name()).as<size_t>();
