@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about NV12toRGB-8 - an image processing operation, which 
+                can be performed to convert an image from NV12 to RGB format.
+
 **Versioned name**: *NV12toRGB-8*
 
 **Category**: *Image processing*
