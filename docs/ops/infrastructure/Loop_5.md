@@ -2,10 +2,6 @@
 
 @sphinxdirective
 
-.. meta::
-  :description: Learn about Loop-5 - an infrastructure operation, which 
-                can be performed on two required and one optional input tensor.
-
 **Versioned name**: *Loop-5*
 
 **Category**: *Infrastructure*

@@ -2,10 +2,6 @@
 
 @sphinxdirective
 
-.. meta::
-  :description: Learn about Interpolate-11 - an image processing operation, which 
-                can be performed on two required and one optional tensor.
-
 **Versioned name**: *Interpolate-11*
 
 **Category**: *Image processing*

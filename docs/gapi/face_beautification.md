@@ -2,10 +2,6 @@
 
 @sphinxdirective
 
-.. meta::
-   :description: Learn how to use a simple face beautification algorithm in a 
-                 pipeline with G-API that can be run on a video stream.
-
 Introduction
 ############
 

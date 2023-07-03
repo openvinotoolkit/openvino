@@ -3,10 +3,6 @@
 
 @sphinxdirective
 
-.. meta::
-  :description: Learn about PriorBox-1 - an object detection operation, 
-                which can be performed on two required input tensors.
-
 **Versioned name**: *PriorBox-1*
 
 **Category**: *Object detection*

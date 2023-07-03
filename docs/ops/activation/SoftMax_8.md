@@ -2,10 +2,6 @@
 
 @sphinxdirective
 
-.. meta::
-  :description: Learn about SoftMax-8 - an element-wise, activation operation, which 
-                can be performed on a single tensor in OpenVINO.
-
 **Versioned name**: *SoftMax-8*
 
 **Category**: *Activation function*

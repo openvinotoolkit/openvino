@@ -2,10 +2,6 @@
 
 @sphinxdirective
 
-.. meta::
-  :description: Learn about ROIPooling-1 - an object detection operation, 
-                which can be performed on two required input tensors.
-
 **Versioned name**: *ROIPooling-1*
 
 **Category**: *Object detection*

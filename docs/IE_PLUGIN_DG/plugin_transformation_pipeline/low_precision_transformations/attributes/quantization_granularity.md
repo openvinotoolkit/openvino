@@ -2,10 +2,6 @@
 
 @sphinxdirective
 
-.. meta::
-   :description: Learn about QuantizationGranularity attribute, which describes quantization granularity of operation inputs.
-
-
 ngraph::QuantizationAttribute class represents the ``QuantizationGranularity`` attribute.
 
 The attribute defines quantization granularity of operation inputs.

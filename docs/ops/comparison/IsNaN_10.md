@@ -2,10 +2,6 @@
 
 @sphinxdirective
 
-.. meta::
-  :description: Learn about IsNaN-10 - an element-wise, comparison operation, which 
-                can be performed on a single tensor in OpenVINO.
-
 **Versioned name**: *IsNaN-10*
 
 **Category**: *Comparison*

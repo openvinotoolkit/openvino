@@ -2,10 +2,6 @@
 
 @sphinxdirective
 
-.. meta::
-  :description: Learn about ReorgYolo-1 - an object detection operation, 
-                which can be performed on a 4D input tensor.
-
 **Versioned name**: *ReorgYolo-1*
 
 **Category**: *Object detection*

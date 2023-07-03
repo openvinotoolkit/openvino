@@ -2,10 +2,6 @@
 
 @sphinxdirective
 
-.. meta::
-  :description: Learn about LogicalAnd-1 - an element-wise, logical binary 
-                operation, which can be performed on two required input tensors.
-
 **Versioned name**: *LogicalAnd-1*
 
 **Category**: *Logical binary*

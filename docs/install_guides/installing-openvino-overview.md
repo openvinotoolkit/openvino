@@ -2,16 +2,10 @@
 
 @sphinxdirective
 
-.. meta::
-   :description: You can choose to install OpenVINO Runtime package - a core set 
-                 of libraries or OpenVINO Development Tools - a set of utilities 
-                 for working with OpenVINO.
-
-
 .. toctree::
    :maxdepth: 3
    :hidden:
-
+   
    OpenVINO Runtime <openvino_docs_install_guides_install_runtime>
    OpenVINO Development Tools <openvino_docs_install_guides_install_dev_tools>
    Build from Source <https://github.com/openvinotoolkit/openvino/blob/master/docs/dev/build.md>

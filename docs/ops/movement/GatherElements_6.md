@@ -3,10 +3,6 @@
 
 @sphinxdirective
 
-.. meta::
-  :description: Learn about GatherElements-6 - a data movement operation, 
-                which can be performed on two required input tensors.
-
 **Versioned name**: *GatherElements-6*
 
 **Category**: *Data movement*

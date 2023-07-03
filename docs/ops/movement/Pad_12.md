@@ -2,10 +2,6 @@
 
 @sphinxdirective
 
-.. meta::
-  :description: Learn about Pad-12 - a data movement operation, 
-                which can be performed on three required and one optional input tensor.
-
 **Versioned name**: *Pad-12*
 
 **Category**: *Data movement*

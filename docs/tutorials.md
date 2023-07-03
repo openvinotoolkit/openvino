@@ -5,9 +5,14 @@
 .. _notebook tutorials:
 
 .. meta::
-   :description: Run Python tutorials on Jupyter notebooks to learn how to use OpenVINO™ toolkit for optimized
+   :description: A collection of Python tutorials run on Jupyter notebooks. The
+                 tutorials explain how to use OpenVINO™ toolkit for optimized
                  deep learning inference.
-
+   :keywords: OpenVINO™ toolkit, Jupyter, Jupyter notebooks, tutorials, Python
+              API, Python, deep learning, inference, model inference, infer a
+              model, Binder, object detection, quantization, image
+              classification, speech recognition, OCR, OpenVINO IR, deep
+              learning model, AI, neural networks
 
 .. toctree::
    :maxdepth: 2

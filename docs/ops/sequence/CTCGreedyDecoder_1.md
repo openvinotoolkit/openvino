@@ -2,10 +2,6 @@
 
 @sphinxdirective
 
-.. meta::
-  :description: Learn about CTCGreedyDecoder-1 - a sequence processing operation, 
-                which can be performed on two required input tensors.
-
 **Versioned name**: *CTCGreedyDecoder-1*
 
 **Category**: *Sequence processing*

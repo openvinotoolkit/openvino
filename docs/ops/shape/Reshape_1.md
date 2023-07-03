@@ -2,10 +2,6 @@
 
 @sphinxdirective
 
-.. meta::
-  :description: Learn about Reshape-1 - a shape manipulation operation, which 
-                can be performed on two required input tensors.
-
 **Versioned name**: *Reshape-1*
 
 **Category**: *Shape manipulation*

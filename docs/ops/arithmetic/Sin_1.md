@@ -2,10 +2,6 @@
 
 @sphinxdirective
 
-.. meta::
-  :description: Learn about Sin-1 - an element-wise, arithmetic operation, which 
-                can be performed on a single tensor in OpenVINO.
-
 **Versioned name**: *Sin-1*
 
 **Category**: *Arithmetic unary*

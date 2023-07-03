@@ -2,10 +2,6 @@
 
 @sphinxdirective
 
-.. meta::
-   :description: Use the ov::RemoteContext class as the base class for a plugin-specific remote context.
-
-
 ov::RemoteContext class functionality:
 
 * Represents device-specific inference context.

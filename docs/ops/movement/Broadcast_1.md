@@ -2,10 +2,6 @@
 
 @sphinxdirective
 
-.. meta::
-  :description: Learn about Broadcast-1 - a data movement operation, 
-                which can be performed on two required and one optional input tensor.
-
 **Versioned name**: *Broadcast-1*
 
 **Category**: *Data movement*

@@ -2,10 +2,6 @@
 
 @sphinxdirective
 
-.. meta::
-  :description: Learn about Reverse-1 - a data movement operation, 
-                which can be performed on one required and one optional input tensor.
-
 **Versioned name**: *Reverse-1*
 
 **Category**: *Data movement*

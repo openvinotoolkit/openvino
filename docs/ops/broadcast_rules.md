@@ -2,11 +2,6 @@
 
 @sphinxdirective
 
-.. meta::
-  :description: Learn about Numpy and PDPD broadcast types in OpenVINO, that 
-                enable performing element-wise operation for inputs of arbitrary 
-                number of dimensions.
-
 The purpose of this document is to provide a set of common rules which are applicable for ops using broadcasting.
 
 Description

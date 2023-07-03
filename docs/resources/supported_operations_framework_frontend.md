@@ -2,10 +2,6 @@
 
 @sphinxdirective
 
-.. meta::
-   :description: Check the list of operations supported by OpenVINO Framework Frontend.
-
-
 This page lists operations supported by OpenVINO Framework Frontend.
 
 

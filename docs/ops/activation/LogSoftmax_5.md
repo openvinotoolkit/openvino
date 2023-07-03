@@ -2,10 +2,6 @@
 
 @sphinxdirective
 
-.. meta::
-  :description: Learn about LogSoftmax-5 - an activation operation, which 
-                can be performed on a single tensor in OpenVINO.
-
 **Versioned name**: *LogSoftmax-5*
 
 **Category**: *Activation function*

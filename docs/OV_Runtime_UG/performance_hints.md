@@ -2,12 +2,6 @@
 
 @sphinxdirective
 
-.. meta::
-   :description: OpenVINO Runtime offers two dedicated high-level performance 
-                 hints, namely throughput and latency, that help to configure 
-                 an inference device.
-
-
 Even though all :doc:`supported devices <openvino_docs_OV_UG_Working_with_devices>` in OpenVINO™ offer low-level performance settings, utilizing them is not recommended outside of very few cases. 
 The preferred way to configure performance in OpenVINO Runtime is using performance hints. This is a future-proof solution fully compatible with the :doc:`automatic device selection inference mode <openvino_docs_OV_UG_supported_plugins_AUTO>` and designed with *portability* in mind. 
 

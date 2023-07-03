@@ -2,10 +2,6 @@
 
 @sphinxdirective
 
-.. meta::
-   :description: OpenVINO™ is an ecosystem of utilities that have advanced capabilities, which help develop deep learning solutions.
-
-
 .. toctree::
    :maxdepth: 1
    :hidden:

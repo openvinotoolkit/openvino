@@ -2,10 +2,6 @@
 
 @sphinxdirective
 
-.. meta::
-  :description: Learn about MatMul-1 - a matrix multiplication operation, 
-                which can be performed on two required input tensors.
-
 **Versioned name**: *MatMul-1*
 
 **Category**: *Matrix multiplication*

@@ -2,10 +2,6 @@
 
 @sphinxdirective
 
-.. meta::
-  :description: Learn about PriorBox-8 - an object detection operation, 
-                which can be performed on two required input tensors.
-
 **Versioned name**: *PriorBox-8*
 
 **Category**: *Object detection*

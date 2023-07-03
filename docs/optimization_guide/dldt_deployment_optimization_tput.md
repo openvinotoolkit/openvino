@@ -2,12 +2,6 @@
 
 @sphinxdirective
 
-.. meta::
-   :description: Throughput-oriented approaches in OpenVINO involve 
-                 execution of a large number of inference requests 
-                 simultaneously which improves the device utilization.
-
-
 As described in the section on the :doc:`latency-specific considerations <openvino_docs_deployment_optimization_guide_latency>`, one of the possible use cases is *delivering every single request at the minimal delay*.
 Throughput, on the other hand, is about inference scenarios in which potentially **large number of inference requests are served simultaneously to improve the device utilization**.
 

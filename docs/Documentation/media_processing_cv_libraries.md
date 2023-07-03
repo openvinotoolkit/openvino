@@ -2,10 +2,6 @@
 
 @sphinxdirective
 
-.. meta::
-  :description: Explore OpenCV Graph API and other media processing frameworks 
-                used for development of computer vision solutions.
-
 .. toctree::
    :maxdepth: 1
 

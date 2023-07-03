@@ -2,10 +2,6 @@
 
 @sphinxdirective
 
-.. meta::
-  :description: Learn about Roll-7 - a data movement operation, which can be 
-                performed on three required input tensors.
-
 **Versioned name**: *Roll-7*
 
 **Category**: *Data movement*

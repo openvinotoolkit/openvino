@@ -1,11 +1,6 @@
 # Model Preparation {#openvino_docs_model_processing_introduction}
 
 @sphinxdirective
-
-.. meta::
-   :description: Preparing models for OpenVINO Runtime. Learn how to convert and compile models from different frameworks or read them directly.
-
-
 .. toctree::
    :maxdepth: 1
    :hidden:

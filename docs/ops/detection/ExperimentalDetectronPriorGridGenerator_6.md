@@ -2,11 +2,6 @@
 
 @sphinxdirective
 
-.. meta::
-  :description: Learn about ExperimentalDetectronPriorGridGenerator-6 - 
-                an object detection operation, which can be performed on three 
-                required input tensors.
-
 **Versioned name**: *ExperimentalDetectronPriorGridGenerator-6*
 
 **Category**: *Object detection*

@@ -2,10 +2,6 @@
 
 @sphinxdirective
 
-.. meta::
-  :description: Learn about ROIAlign-3 - an object detection operation, 
-                which can be performed on three required input tensors.
-
 **Versioned name**: *ROIAlign-3*
 
 **Category**: *Object detection*

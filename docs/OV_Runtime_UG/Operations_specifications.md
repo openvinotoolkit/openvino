@@ -2,9 +2,6 @@
 
 @sphinxdirective
 
-.. meta::
-  :description: Explore the examples of operations supported in OpenVINO™ toolkit.
-
 .. toctree::
    :maxdepth: 1
 

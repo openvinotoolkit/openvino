@@ -2,10 +2,6 @@
 
 @sphinxdirective
 
-.. meta::
-  :description: Learn about SpaceToBatch-2 - a data movement operation, 
-                which can be performed on four required input tensors.
-
 **Versioned name**: *SpaceToBatch-2*
 
 **Category**: *Data movement*

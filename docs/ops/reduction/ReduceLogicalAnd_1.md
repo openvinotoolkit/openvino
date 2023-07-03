@@ -2,10 +2,6 @@
 
 @sphinxdirective
 
-.. meta::
-  :description: Learn about ReduceLogicalAnd-1 - a reduction operation, which can be 
-                performed on two required input tensors.
-
 **Versioned name**: *ReduceLogicalAnd-1*
 
 **Category**: *Reduction*

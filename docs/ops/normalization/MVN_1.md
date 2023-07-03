@@ -2,10 +2,6 @@
 
 @sphinxdirective
 
-.. meta::
-  :description: Learn about MVN-1 - a normalization operation, which can be 
-                performed on a single input tensor.
-
 **Versioned name**: *MVN-1*
 
 **Category**: *Normalization*

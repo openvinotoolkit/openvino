@@ -3,11 +3,6 @@
 
 @sphinxdirective
 
-.. meta::
-   :description: The GNA plugin in OpenVINO™ Runtime enables running inference 
-                 on Intel® Gaussian & Neural Accelerator (GNA) and in the 
-                 software execution mode on CPU.
-
 
 The Intel® Gaussian & Neural Accelerator (GNA) is a low-power neural coprocessor for continuous inference at the edge.
 

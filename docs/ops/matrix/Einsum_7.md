@@ -2,10 +2,6 @@
 
 @sphinxdirective
 
-.. meta::
-  :description: Learn about Einsum-7 - a matrix multiplication operation, 
-                which can be performed on multiple input tensors of different shape.
-
 **Versioned name**: *Einsum-7*
 
 **Category**: *Matrix multiplication*

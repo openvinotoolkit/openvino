@@ -2,10 +2,6 @@
 
 @sphinxdirective
 
-.. meta::
-   :description: Check the lists of attributes created or used by model transformations.
-
-
 .. toctree::
    :maxdepth: 1
    :caption: Attributes

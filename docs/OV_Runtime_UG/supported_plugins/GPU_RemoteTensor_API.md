@@ -2,11 +2,6 @@
 
 @sphinxdirective
 
-.. meta::
-   :description: The Remote Tensor API of GPU plugin in OpenVINO™ supports 
-                 interoperability with existing native APIs, such as OpenCL, 
-                 Microsoft DirectX, or VAAPI.
-
 
 The GPU plugin implementation of the ``ov::RemoteContext`` and ``ov::RemoteTensor`` interfaces supports GPU
 pipeline developers who need video memory sharing and interoperability with existing native APIs, 

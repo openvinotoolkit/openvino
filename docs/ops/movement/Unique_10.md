@@ -2,10 +2,6 @@
 
 @sphinxdirective
 
-.. meta::
-  :description: Learn about Unique-10 - a data movement operation, which can be 
-                performed on one required and one optional input tensor.
-
 **Versioned name**: *Unique-10*
 
 **Category**: *Data movement*

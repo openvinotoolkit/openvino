@@ -2,10 +2,6 @@
 
 @sphinxdirective
 
-.. meta::
-  :description: Learn about Swish-4 - an element-wise, activation operation, which 
-                can be performed on a single tensor in OpenVINO.
-
 **Versioned name**: *Swish-4*
 
 **Category**: *Activation function*

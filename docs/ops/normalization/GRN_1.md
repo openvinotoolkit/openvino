@@ -2,10 +2,6 @@
 
 @sphinxdirective
 
-.. meta::
-  :description: Learn about GRN-1 - a normalization operation, which can be 
-                performed on a single input tensor.
-
 **Versioned name**: *GRN-1*
 
 **Category**: *Normalization*

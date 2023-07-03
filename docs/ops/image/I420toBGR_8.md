@@ -2,10 +2,6 @@
 
 @sphinxdirective
 
-.. meta::
-  :description: Learn about I420toBGR-8 - an image processing operation, which 
-                can be performed to convert image from I420 to BGR format.
-
 **Versioned name**: *I420toBGR-8*
 
 **Category**: *Image processing*

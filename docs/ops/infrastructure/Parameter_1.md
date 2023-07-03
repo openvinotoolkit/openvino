@@ -2,10 +2,6 @@
 
 @sphinxdirective
 
-.. meta::
-  :description: Learn about Parameter-1 - an infrastructure operation, which 
-                can be performed to specify input to the model.
-
 **Versioned name**: *Parameter-1*
 
 **Category**: *Infrastructure*

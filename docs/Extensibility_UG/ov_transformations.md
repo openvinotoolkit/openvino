@@ -2,11 +2,6 @@
 
 @sphinxdirective
 
-.. meta::
-   :description: Learn how to apply additional model optimizations or transform 
-                 unsupported subgraphs and operations, using OpenVINO™ Transformations API.
-
-
 .. toctree::
    :maxdepth: 1
    :hidden:

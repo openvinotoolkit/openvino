@@ -2,10 +2,6 @@
 
 @sphinxdirective
 
-.. meta::
-  :description: Learn about ReduceProd-1 - a reduction operation, which can be 
-                performed on two required input tensors.
-
 **Versioned name**: *ReduceProd-1*
 
 **Category**: *Reduction*

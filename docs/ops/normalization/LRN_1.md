@@ -2,10 +2,6 @@
 
 @sphinxdirective
 
-.. meta::
-  :description: Learn about LRN-1 - a normalization operation, which can be 
-                performed on two required input tensors.
-
 **Versioned name**: *LRN-1*
 
 **Category**: *Normalization*

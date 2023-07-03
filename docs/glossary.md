@@ -2,10 +2,6 @@
 
 @sphinxdirective
 
-.. meta::
-   :description: Check the list of acronyms, abbreviations and terms used in 
-                 Intel® Distribution of OpenVINO™ toolkit.
-
 
 Acronyms and Abbreviations
 #################################################

@@ -2,11 +2,6 @@
 
 @sphinxdirective
 
-.. meta::
-   :description: Learn how to install OpenVINO™ Runtime on macOS operating 
-                 system, using an archive file, which is a recommended 
-                 installation method for C++ developers.
-
 With the OpenVINO™ 2023.0 release, you can download and use archive files to install OpenVINO Runtime. The archive files contain pre-built binaries and library files needed for OpenVINO Runtime, as well as code samples.
 
 Installing OpenVINO Runtime from archive files is recommended for C++ developers. If you are working with Python, the PyPI package has everything needed for Python development and deployment on CPU and GPUs. Visit the :doc:`Install OpenVINO from PyPI <openvino_docs_install_guides_installing_openvino_pip>` page for instructions on how to install OpenVINO Runtime for Python using PyPI.

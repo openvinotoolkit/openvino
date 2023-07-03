@@ -1,11 +1,6 @@
 # Datumaro {#datumaro_documentation}
 
-@sphinxdirective
-
-.. meta::
-   :description: Start working with Datumaro, which offers functionalities for basic data 
-                 import/export, validation, correction, filtration and transformations.
-
+@sphinxdirective 
 
 Datumaro provides a suite of basic data import/export (IE) for more than 35 public vision data
 formats and manipulation functionalities such as validation, correction, filtration, and some

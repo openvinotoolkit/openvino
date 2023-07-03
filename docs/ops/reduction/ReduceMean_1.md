@@ -2,10 +2,6 @@
 
 @sphinxdirective
 
-.. meta::
-  :description: Learn about ReduceMean-1 - a reduction operation, which can be 
-                performed on two required input tensors.
-
 **Versioned name**: *ReduceMean-1*
 
 **Category**: *Reduction*

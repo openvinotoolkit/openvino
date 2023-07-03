@@ -2,10 +2,6 @@
 
 @sphinxdirective
 
-.. meta::
-  :description: Learn about LessEqual-1 - an element-wise, comparison operation, which 
-                can be performed on two given tensors in OpenVINO.
-
 **Versioned name**: *LessEqual-1*
 
 **Category**: *Comparison binary*

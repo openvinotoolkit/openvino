@@ -2,11 +2,6 @@
 
 @sphinxdirective
 
-.. meta::
-  :description: Learn about MulticlassNonMaxSuppression-8 - a sorting and 
-                maximization operation, which can be performed on two or three 
-                required input tensors.
-
 **Versioned name**: *MulticlassNonMaxSuppression-9*
 
 **Category**: *Sorting and maximization*

@@ -2,11 +2,6 @@
 
 @sphinxdirective
 
-.. meta::
-   :description: OpenVINO™ Runtime Python API enables you to share memory on inputs, hide 
-                 the latency with asynchronous calls and implement "postponed return".
-
-
 .. warning:: 
    
    All mentioned methods are very dependent on a specific hardware and software set-up. 

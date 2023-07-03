@@ -2,11 +2,6 @@
 
 @sphinxdirective
 
-.. meta::
-   :description: Learn how to convert GluonCV models
-                 from MXNet to the OpenVINO Intermediate Representation.
-
-
 .. warning::
 
    Note that OpenVINO support for Apache MXNet is currently being deprecated and will be removed entirely in the future.

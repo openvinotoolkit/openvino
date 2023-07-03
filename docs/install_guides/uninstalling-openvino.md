@@ -2,11 +2,6 @@
 
 @sphinxdirective
 
-.. meta::
-   :description: Learn how to uninstall Intel® Distribution of OpenVINO™ Toolkit from your 
-                 operating system.
-
-
 .. note::
 
    Uninstallation procedures remove all Intel® Distribution of OpenVINO™ Toolkit component files but don't affect user files in the installation directory.

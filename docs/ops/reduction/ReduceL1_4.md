@@ -2,10 +2,6 @@
 
 @sphinxdirective
 
-.. meta::
-  :description: Learn about ReduceL1-4 - a reduction operation, which can be 
-                performed on two required input tensors.
-
 **Versioned name**: *ReduceL1-4*
 
 **Category**: *Reduction*

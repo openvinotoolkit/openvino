@@ -2,10 +2,6 @@
 
 @sphinxdirective
 
-.. meta::
-  :description: Learn about EmbeddingBagPackedSum-3 - a sparse operation, which 
-                can be performed on two required and one optional input tensor.
-
 **Versioned name**: *EmbeddingBagPackedSum-3*
 
 **Category**: *Sparse*

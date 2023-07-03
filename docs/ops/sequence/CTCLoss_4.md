@@ -2,10 +2,6 @@
 
 @sphinxdirective
 
-.. meta::
-  :description: Learn about CTCLoss-4 - a sequence processing operation, which 
-                can be performed on four required and one optional input tensor.
-
 **Versioned name**: *CTCLoss-4*
 
 **Category**: *Sequence processing*

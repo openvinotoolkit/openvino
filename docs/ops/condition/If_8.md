@@ -2,10 +2,6 @@
 
 @sphinxdirective
 
-.. meta::
-  :description: Learn about If-8 - an element-wise, condition operation, which 
-                can be performed on multiple tensors in OpenVINO.
-
 **Versioned name**: *If-8*
 
 **Category**: *Condition*

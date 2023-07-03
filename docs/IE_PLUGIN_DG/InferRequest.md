@@ -2,10 +2,6 @@
 
 @sphinxdirective
 
-.. meta::
-   :description: Use the ov::ISyncInferRequest interface as the base class to implement a synchronous inference request in OpenVINO.
-
-
 ``InferRequest`` class functionality:
 
 * Allocate input and output tensors needed for a backend-dependent network inference.

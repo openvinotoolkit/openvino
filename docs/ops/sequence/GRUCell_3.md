@@ -2,10 +2,6 @@
 
 @sphinxdirective
 
-.. meta::
-  :description: Learn about GRUCell-3 - a sequence processing operation, which 
-                can be performed on four required and one optional input tensor.
-
 **Versioned name**: *GRUCell-3*
 
 **Category**: *Sequence processing*

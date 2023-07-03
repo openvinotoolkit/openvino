@@ -2,10 +2,6 @@
 
 @sphinxdirective
 
-.. meta::
-  :description: Learn about Squeeze-1 - a shape manipulation operation, which 
-                can be performed on one required and one optional input tensor.
-
 **Versioned name**: *Squeeze-1*
 
 **Category**: *Shape manipulation*

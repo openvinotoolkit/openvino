@@ -2,12 +2,6 @@
 
 @sphinxdirective
 
-.. meta::
-   :description: Learn how to do inference of image 
-                 classification models using Asynchronous Inference Request 
-                 (C++) API.
-
-
 This sample demonstrates how to do inference of image classification models using Asynchronous Inference Request API. 
  
 Models with only one input and output are supported.

@@ -2,10 +2,6 @@
 
 @sphinxdirective
 
-.. meta::
-   :description: Learn how to create a Yocto image with Intel® Distribution of 
-                 OpenVINO™ toolkit on your host machine.
-
 This document provides instructions for creating a Yocto image with Intel® Distribution of OpenVINO™ toolkit.
 
 System Requirements

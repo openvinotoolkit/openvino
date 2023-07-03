@@ -2,10 +2,6 @@
 
 @sphinxdirective
 
-.. meta::
-  :description: Learn about Convert-1 - an element-wise, type conversion 
-                operation, which can be performed on a single input tensor.
-
 **Versioned name**: *Convert-1*
 
 **Category**: *Type conversion*

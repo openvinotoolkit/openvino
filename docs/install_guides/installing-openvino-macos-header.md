@@ -2,12 +2,6 @@
 
 @sphinxdirective
 
-.. meta::
-   :description: Learn how to install OpenVINO™ Runtime on macOS operating 
-                 system. You can use an archive, a PyPi package, Conda Forge 
-                 or Homebrew.
-
-
 .. toctree::
    :maxdepth: 3
    :hidden:

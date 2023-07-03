@@ -2,10 +2,6 @@
 
 @sphinxdirective
 
-.. meta::
-  :description: Learn about ReadValue-3 - an infrastructure operation, which 
-                can be performed on a single input tensor to return the value of variable_id.
-
 **Versioned name**: *ReadValue-3*
 
 **Category**: *Infrastructure*

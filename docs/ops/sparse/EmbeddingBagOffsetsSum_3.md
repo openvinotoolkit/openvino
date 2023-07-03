@@ -2,10 +2,6 @@
 
 @sphinxdirective
 
-.. meta::
-  :description: Learn about EmbeddingBagOffsetsSum-3 - a sparse operation, which 
-                can be performed on three required and two optional input tensors.
-
 **Versioned name**: *EmbeddingBagOffsetsSum-3*
 
 **Category**: *Sparse*

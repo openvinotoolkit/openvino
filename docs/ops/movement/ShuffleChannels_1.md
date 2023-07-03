@@ -2,10 +2,6 @@
 
 @sphinxdirective
 
-.. meta::
-  :description: Learn about ShuffleChannels-1 - a data movement operation, 
-                which can be performed on a single input tensor.
-
 **Versioned name**: *ShuffleChannels-1*
 
 **Name**: *ShuffleChannels*

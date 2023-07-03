@@ -2,10 +2,6 @@
 
 @sphinxdirective
 
-.. meta::
-  :description: Learn about AdaptiveMaxPool-8 - a pooling operation, which can 
-                be performed on two required input tensors.
-
 **Versioned name**: *AdaptiveMaxPool-8*
 
 **Category**: *Pooling*

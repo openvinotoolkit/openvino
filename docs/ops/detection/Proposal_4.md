@@ -2,9 +2,6 @@
 
 @sphinxdirective
 
-.. meta::
-  :description: Learn about Proposal-4 - an object detection operation, 
-                which can be performed on three required input tensors.
 
 **Versioned name**: *Proposal-4*
 

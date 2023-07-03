@@ -2,10 +2,6 @@
 
 @sphinxdirective
 
-.. meta::
-  :description: Learn about EmbeddingSegmentsSum-3 - a sparse operation, which 
-                can be performed on four required and two optional input tensors.
-
 **Versioned name**: *EmbeddingSegmentsSum-3*
 
 **Category**: *Sparse*

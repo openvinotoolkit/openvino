@@ -2,10 +2,6 @@
 
 @sphinxdirective
 
-.. meta::
-  :description: Learn about IDFT-7 - a signal processing operation, which can be 
-                performed on two required and one optional input tensor.
-
 **Versioned name**: *IDFT-7*
 
 **Category**: *Signal processing*

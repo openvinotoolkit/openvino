@@ -2,10 +2,6 @@
 
 @sphinxdirective
 
-.. meta::
-  :description: Learn about Slice-8 - a data movement operation, 
-                which can be performed on four required and one optional input tensor.
-
 **Versioned name**: *Slice-8*
 
 **Category**: *Data movement*
