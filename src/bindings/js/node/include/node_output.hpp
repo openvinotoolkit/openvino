@@ -4,56 +4,63 @@
 
 #include <openvino/core/node_output.hpp>
 
+#include "helper.hpp"
+
 template <class NodeType>
-class Output : public Napi::ObjectWrap<Output<NodeType>> {
+class Output : public Napi::ObjectWrap<Output<NodeType>> {};
+
+template <>
+class Output<ov::Node> : public Napi::ObjectWrap<Output<ov::Node>> {
 public:
-    /**
-     * @brief TO_DO
-     */
-    Output(const Napi::CallbackInfo& info) : Napi::ObjectWrap<Output<NodeType>>(info) {}
+    Output(const Napi::CallbackInfo& info);
 
     /**
      * @brief Defines a Javascript Output class with constructor, static and instance properties and methods.
      * @param env The environment in which to construct a JavaScript class.
      * @return Napi::Function representing the constructor function for the Javascript Output class.
      */
-    static Napi::Function GetClassConstructor(Napi::Env env) {
-        return Output::DefineClass(env,
-                                   "Output",
-                                   {Output::InstanceMethod("getAnyName", &Output::get_any_name),
-                                    Output::InstanceMethod("toString", &Output::get_any_name)});
-    }
+    static Napi::Function GetClassConstructor(Napi::Env env);
 
     /// @brief This method is called during initialization of OpenVino native add-on.
     /// It exports JavaScript Output class.
-    static Napi::Object Init(Napi::Env env, Napi::Object exports) {
-        auto func = GetClassConstructor(env);
+    static Napi::Object Init(Napi::Env env, Napi::Object exports);
 
-        Napi::FunctionReference* constructor = new Napi::FunctionReference();
-        *constructor = Napi::Persistent(func);
-        env.SetInstanceData(constructor);
+    ov::Output<ov::Node> get_output() const;
 
-        exports.Set("Output", func);
-        return exports;
-    }
+    static Napi::Object Wrap(Napi::Env env, ov::Output<ov::Node> output);
 
-    ov::Output<NodeType> get_output() const {
-        return _output;
-    }
+    Napi::Value get_any_name(const Napi::CallbackInfo& info);
 
-    static Napi::Object Wrap(Napi::Env env, ov::Output<NodeType> output) {
-        Napi::HandleScope scope(env);
-        Napi::Object obj = GetClassConstructor(env).New({});
-        Output* output_ptr = Napi::ObjectWrap<Output<NodeType>>::Unwrap(obj);
-        output_ptr->_output = output;
-        return obj;
-    }
+    Napi::Value set_names(const Napi::CallbackInfo& info);
 
-    Napi::Value get_any_name(const Napi::CallbackInfo& info) {
-        return Napi::String::New(info.Env(), _output.get_any_name());
-    }
+    Napi::Value add_names(const Napi::CallbackInfo& info);
 
 private:
-    // ov::Output<const ov::Node> _output;
-    ov::Output<NodeType> _output;
+    ov::Output<ov::Node> _output;
+};
+
+template <>
+class Output<const ov::Node> : public Napi::ObjectWrap<Output<const ov::Node>> {
+public:
+    Output(const Napi::CallbackInfo& info);
+
+    /**
+     * @brief Defines a Javascript Output class with constructor, static and instance properties and methods.
+     * @param env The environment in which to construct a JavaScript class.
+     * @return Napi::Function representing the constructor function for the Javascript Output class.
+     */
+    static Napi::Function GetClassConstructor(Napi::Env env);
+
+    /// @brief This method is called during initialization of OpenVino native add-on.
+    /// It exports JavaScript Output class.
+    static Napi::Object Init(Napi::Env env, Napi::Object exports);
+
+    ov::Output<const ov::Node> get_output() const;
+
+    static Napi::Object Wrap(Napi::Env env, ov::Output<const ov::Node> output);
+
+    Napi::Value get_any_name(const Napi::CallbackInfo& info);
+
+private:
+    ov::Output<const ov::Node> _output;
 };

@@ -1,37 +1,88 @@
-// #include "node_output.hpp"
+#include "node_output.hpp"
 
-// Output::Output(const Napi::CallbackInfo& info) : Napi::ObjectWrap<Output>(info) {}
+Output<ov::Node>::Output(const Napi::CallbackInfo& info) : Napi::ObjectWrap<Output<ov::Node>>(info) {}
 
-// Napi::Function Output::GetClassConstructor(Napi::Env env) {
-//     return DefineClass(
-//         env,
-//         "Output",
-//         {InstanceMethod("getAnyName", &Output::get_any_name), InstanceMethod("toString", &Output::get_any_name)});
-// }
+Napi::Function Output<ov::Node>::GetClassConstructor(Napi::Env env) {
+    return Output::DefineClass(env,
+                               "Output",
+                               {Output<ov::Node>::InstanceMethod("getAnyName", &Output<ov::Node>::get_any_name),
+                                Output<ov::Node>::InstanceMethod("setNames", &Output<ov::Node>::set_names),
+                                Output<ov::Node>::InstanceMethod("addNames", &Output<ov::Node>::add_names),
+                                Output<ov::Node>::InstanceMethod("toString", &Output<ov::Node>::get_any_name)});
+}
 
-// Napi::Object Output::Init(Napi::Env env, Napi::Object exports) {
-//     auto func = GetClassConstructor(env);
+Napi::Object Output<ov::Node>::Init(Napi::Env env, Napi::Object exports) {
+    auto func = GetClassConstructor(env);
 
-//     Napi::FunctionReference* constructor = new Napi::FunctionReference();
-//     *constructor = Napi::Persistent(func);
-//     env.SetInstanceData(constructor);
+    Napi::FunctionReference* constructor = new Napi::FunctionReference();
+    *constructor = Napi::Persistent(func);
+    env.SetInstanceData(constructor);
 
-//     exports.Set("Output", func);
-//     return exports;
-// }
+    exports.Set("Output", func);
+    return exports;
+}
 
-// ov::Output<const ov::Node> Output::get_output() const {
-//     return _output;
-// }
+ov::Output<ov::Node> Output<ov::Node>::get_output() const {
+    return _output;
+}
 
-// Napi::Object Output::Wrap(Napi::Env env, ov::Output<const ov::Node> output) {
-//     Napi::HandleScope scope(env);
-//     Napi::Object obj = GetClassConstructor(env).New({});
-//     Output* output_ptr = Napi::ObjectWrap<Output>::Unwrap(obj);
-//     output_ptr->_output = output;
-//     return obj;
-// }
+Napi::Object Output<ov::Node>::Wrap(Napi::Env env, ov::Output<ov::Node> output) {
+    Napi::HandleScope scope(env);
+    Napi::Object obj = GetClassConstructor(env).New({});
+    Output* output_ptr = Napi::ObjectWrap<Output>::Unwrap(obj);
+    output_ptr->_output = output;
+    return obj;
+}
 
-// Napi::Value Output::get_any_name(const Napi::CallbackInfo& info) {
-//     return Napi::String::New(info.Env(), _output.get_any_name());
-// }
+Napi::Value Output<ov::Node>::get_any_name(const Napi::CallbackInfo& info) {
+    return Napi::String::New(info.Env(), _output.get_any_name());
+}
+
+Napi::Value Output<ov::Node>::set_names(const Napi::CallbackInfo& info) {
+    auto names = js_to_cpp<std::unordered_set<std::string>>(info, 0, {js_array});
+    _output.set_names(names);
+    return Napi::Value();
+}
+
+Napi::Value Output<ov::Node>::add_names(const Napi::CallbackInfo& info) {
+    auto names = js_to_cpp<std::unordered_set<std::string>>(info, 0, {js_array});
+    _output.add_names(names);
+    return Napi::Value();
+}
+
+Output<const ov::Node>::Output(const Napi::CallbackInfo& info) : Napi::ObjectWrap<Output<const ov::Node>>(info) {}
+
+Napi::Function Output<const ov::Node>::GetClassConstructor(Napi::Env env) {
+    return Output::DefineClass(
+        env,
+        "Output",
+        {Output<const ov::Node>::InstanceMethod("getAnyName", &Output<const ov::Node>::get_any_name),
+         Output<const ov::Node>::InstanceMethod("toString", &Output<const ov::Node>::get_any_name)});
+}
+
+Napi::Object Output<const ov::Node>::Init(Napi::Env env, Napi::Object exports) {
+    auto func = GetClassConstructor(env);
+
+    Napi::FunctionReference* constructor = new Napi::FunctionReference();
+    *constructor = Napi::Persistent(func);
+    env.SetInstanceData(constructor);
+
+    exports.Set("Output", func);
+    return exports;
+}
+
+ov::Output<const ov::Node> Output<const ov::Node>::get_output() const {
+    return _output;
+}
+
+Napi::Object Output<const ov::Node>::Wrap(Napi::Env env, ov::Output<const ov::Node> output) {
+    Napi::HandleScope scope(env);
+    Napi::Object obj = GetClassConstructor(env).New({});
+    Output* output_ptr = Napi::ObjectWrap<Output>::Unwrap(obj);
+    output_ptr->_output = output;
+    return obj;
+}
+
+Napi::Value Output<const ov::Node>::get_any_name(const Napi::CallbackInfo& info) {
+    return Napi::String::New(info.Env(), _output.get_any_name());
+}
