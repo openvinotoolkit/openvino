@@ -79,12 +79,8 @@ KERNEL (permute_f_y_axes)(
         for (int i = 0; i < TILE_SIZE; ++i) {
             const int x_idx = x_begin + i;
             const int y_idx = y_begin + j;
-#ifdef SUB_GROUP_SIZE
             const uint input_offset = INPUT0_GET_INDEX(b_idx, f_idx, y_idx, x_idx) - get_sub_group_local_id();
             INPUT0_TYPE res = DT_INPUT_BLOCK_READ(input, input_offset);
-#else
-            INPUT0_TYPE res = input[INPUT0_GET_INDEX(b_idx, f_idx, y_idx, x_idx)];
-#endif
     #if HAS_FUSED_OPS
             FUSED_OPS;
             transpose_buf[bf_local][j][i]  = FUSED_OPS_RESULT;
@@ -101,13 +97,8 @@ KERNEL (permute_f_y_axes)(
             const int x_idx = x_begin + i;
             const int f = f_begin + j;
             const int y_idx = y_begin + bf_local;
-#ifdef SUB_GROUP_SIZE
             const uint output_offset = OUTPUT_GET_INDEX(b_idx, y_idx, f, x_idx) - get_sub_group_local_id();
             DT_OUTPUT_BLOCK_WRITE(output, output_offset, transpose_buf[j][bf_local][i]);
-#else
-            const int output_idx = OUTPUT_GET_INDEX(b_idx, y_idx, f, x_idx);
-            output[output_idx] = transpose_buf[j][bf_local][i];
-#endif
         }
     }
 }
@@ -169,12 +160,8 @@ KERNEL (permute_f_y_axes)(
     __attribute__((opencl_unroll_hint(TILE_SIZE)))
     for (int j = 0; j < TILE_SIZE; ++j) {
         const int y_idx = y_begin + j;
-#ifdef SUB_GROUP_SIZE
         const uint input_offset = INPUT0_GET_INDEX(b_idx, f_idx, y_idx, x_idx) - get_sub_group_local_id();
         INPUT0_TYPE res = DT_INPUT_BLOCK_READ(input, input_offset);
-#else
-        INPUT0_TYPE res = input[INPUT0_GET_INDEX(b_idx, f_idx, y_idx, x_idx)];
-#endif
 #if HAS_FUSED_OPS
         FUSED_OPS;
         transpose_buf[bf_local][j]  = FUSED_OPS_RESULT;
@@ -186,13 +173,8 @@ KERNEL (permute_f_y_axes)(
     for (int j = 0; j < TILE_SIZE; ++j) {
         const int f = f_begin + j;
         const int y_idx = y_begin + bf_local;
-#ifdef SUB_GROUP_SIZE
         const uint output_offset = OUTPUT_GET_INDEX(b_idx, y_idx, f, x_idx) - get_sub_group_local_id();
         DT_OUTPUT_BLOCK_WRITE(output, output_offset, transpose_buf[j][bf_local]);
-#else
-        const int output_idx = OUTPUT_GET_INDEX(b_idx, y_idx, f, x_idx);
-        output[output_idx] = transpose_buf[j][bf_local];
-#endif
     }
 #endif
 }

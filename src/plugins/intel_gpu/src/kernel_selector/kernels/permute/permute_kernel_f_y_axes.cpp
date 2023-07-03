@@ -140,9 +140,8 @@ JitConstants PermuteKernel_f_y_axes::GetJitConstants(const permute_params& param
     jit.AddConstant(MakeJitConstant("FEATURE_BLOCK_SIZE", feature_block_size));
 
     const auto layout = params.inputs.front().GetLayout();
-    const auto subgroup_size = Is3DTranspose(params) ? feature_block_size : tile_size;
-    if (IsSIMDSizeSupported(params.engineInfo, subgroup_size) &&
-        (layout == DataLayout::b_fs_yx_fsv32 || layout == DataLayout::b_fs_yx_fsv16)) {
+    if (!SimpleLayout(layout)) {
+        const auto subgroup_size = Is3DTranspose(params) ? feature_block_size : tile_size;
         jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", subgroup_size));
     }
 
@@ -211,6 +210,7 @@ bool PermuteKernel_f_y_axes::Validate(const Params& p, const optional_params& o)
 
     const auto& params = dynamic_cast<const permute_params&>(p);
     const auto& in = params.inputs[0];
+    const auto in_layout = in.GetLayout();
 
     const auto feature_div = GetDivisor(in.Feature().v);
     const auto y_div = GetDivisor(in.Y().v);
@@ -222,6 +222,17 @@ bool PermuteKernel_f_y_axes::Validate(const Params& p, const optional_params& o)
     }
     if (!is_swapping_f_with_y(params.order)) {
         return false;
+    }
+
+    // Accept only supported blocked layouts and SIMD sizes.
+    if (!SimpleLayout(in_layout)) {
+        const auto feature_block_size = GetFeatureBlockSize(params);
+        const auto tile_size = GetTileSize(params);
+        const auto subgroup_size = Is3DTranspose(params) ? feature_block_size : tile_size;
+        if (!(IsSIMDSizeSupported(params.engineInfo, subgroup_size) &&
+              (in_layout == DataLayout::b_fs_yx_fsv32 || in_layout == DataLayout::b_fs_yx_fsv16))) {
+            return false;
+        }
     }
 
     return true;
