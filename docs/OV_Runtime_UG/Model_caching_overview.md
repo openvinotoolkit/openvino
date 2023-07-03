@@ -1,7 +1,13 @@
 # Model Caching Overview {#openvino_docs_OV_UG_Model_caching_overview}
 
 @sphinxdirective
- 
+
+.. meta::
+   :description: Enabling model caching to export compiled model 
+                 automatically and reusing it can significantly 
+                 reduce duration of model compilation on application startup.
+
+
 As described in :doc:`Integrate OpenVINO™ with Your Application <openvino_docs_OV_UG_Integrate_OV_with_your_application>`, 
 a common application flow consists of the following steps:
 
@@ -40,16 +46,16 @@ To enable model caching, the application must specify a folder to store the cach
    .. tab-item:: C++
       :sync: cpp
 
-         .. doxygensnippet:: docs/snippets/ov_caching.cpp
-            :language: cpp
-            :fragment: [ov:caching:part0]
-   
+      .. doxygensnippet:: docs/snippets/ov_caching.cpp
+         :language: cpp
+         :fragment: [ov:caching:part0]
+
    .. tab-item:: Python
       :sync: py
 
-         .. doxygensnippet:: docs/snippets/ov_caching.py
-            :language: py
-            :fragment: [ov:caching:part0]
+      .. doxygensnippet:: docs/snippets/ov_caching.py
+         :language: py
+         :fragment: [ov:caching:part0]
 
 
 With this code, if the device specified by ``device_name`` supports import/export model capability, 

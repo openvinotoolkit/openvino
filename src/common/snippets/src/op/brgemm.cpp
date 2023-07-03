@@ -24,6 +24,14 @@ Brgemm::Brgemm(const Output<Node>& A, const Output<Node>& B,
     custom_constructor_validate_and_infer_types(std::move(layout_a), std::move(layout_b), std::move(layout_c));
 }
 
+Brgemm::Brgemm(const Output<Node>& A, const Output<Node>& B,
+               const PortDescriptor& desc_a, const PortDescriptor& desc_b, const PortDescriptor& desc_c,
+               std::vector<size_t> layout_a, std::vector<size_t> layout_b, std::vector<size_t> layout_c)
+    : MemoryAccess({A, B}, PortMap{{0, desc_a}, {1, desc_b}}, PortMap{{0, desc_c}}) {
+    set_output_size(1);
+    custom_constructor_validate_and_infer_types(std::move(layout_a), std::move(layout_b), std::move(layout_c));
+}
+
 void Brgemm::custom_constructor_validate_and_infer_types(std::vector<size_t> layout_a, std::vector<size_t> layout_b, std::vector<size_t> layout_c) {
     INTERNAL_OP_SCOPE(BrgemmCPU_constructor_validate_and_infer_types);
     validate_inputs();
@@ -56,28 +64,35 @@ std::shared_ptr<Node> Brgemm::clone_with_new_inputs(const OutputVector& new_args
     INTERNAL_OP_SCOPE(Brgemm_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return std::make_shared<Brgemm>(new_args.at(0), new_args.at(1),
-                                    get_offset_a(), get_offset_b(), get_offset_c(),
+                                    get_input_port_descriptor(0), get_input_port_descriptor(1), get_output_port_descriptor(0),
                                     lowered::PortDescriptorUtils::get_port_descriptor_ptr(input(0))->get_layout(),
                                     lowered::PortDescriptorUtils::get_port_descriptor_ptr(input(1))->get_layout(),
                                     lowered::PortDescriptorUtils::get_port_descriptor_ptr(output(0))->get_layout());
 }
 
-ov::element::Type Brgemm::get_output_type() const {
-    const auto element_type_a = get_input_element_type(0);
-    const auto element_type_b = get_input_element_type(1);
-    const bool is_f32 = utils::everyone_is(element::f32, element_type_a, element_type_b);
-    const bool is_int8 = utils::one_of(element_type_a, element::i8, element::u8) && element_type_b == element::i8;
-    const bool is_bf16 = utils::everyone_is(element::bf16, element_type_a, element_type_b);
+ov::element::Type Brgemm::get_output_type(const ov::element::Type& in_type0, const ov::element::Type& in_type1) {
+    const bool is_f32 = utils::everyone_is(element::f32, in_type0, in_type1);
+    const bool is_int8 = utils::one_of(in_type0, element::i8, element::u8) && in_type1 == element::i8;
+    const bool is_bf16 = utils::everyone_is(element::bf16, in_type0, in_type1);
     if (is_f32 || is_bf16) {
-       return element::f32;
+        return element::f32;
     } else if (is_int8) {
         return element::i32;
     } else {
-        OPENVINO_THROW("BrgemmCPU node has incompatible input element types: " +
-                            element_type_a.get_type_name() +
-                            " and " +
-                            element_type_b.get_type_name());
+        return element::undefined;
     }
+}
+
+ov::element::Type Brgemm::get_output_type() const {
+    auto output_type = get_output_type(get_input_element_type(0), get_input_element_type(1));
+    if (output_type == element::undefined) {
+        OPENVINO_THROW("BrgemmCPU node has incompatible input element types: " +
+                       get_input_element_type(0).get_type_name() +
+                       " and " +
+                       get_input_element_type(1).get_type_name());
+    }
+
+    return output_type;
 }
 
 std::vector<ov::PartialShape> Brgemm::get_planar_input_shapes(const std::vector<ov::Input<ov::Node>>& inputs) const {

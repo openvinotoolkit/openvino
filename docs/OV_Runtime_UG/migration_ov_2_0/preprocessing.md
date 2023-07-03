@@ -2,6 +2,12 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: In OpenVINO™ API 2.0 each preprocessing or post-processing 
+                 operation is integrated directly into the model and compiled 
+                 together with the inference graph.
+
+
 This guide introduces how preprocessing works in API 2.0 by a comparison with preprocessing in the previous Inference Engine API. It also demonstrates how to migrate preprocessing scenarios from Inference Engine to API 2.0 via code samples.
 
 How Preprocessing Works in API 2.0
@@ -226,34 +232,6 @@ Using Image Scaling
 
 Converting Color Space
 ++++++++++++++++++++++
-
-**Inference Engine API**
-
-
-.. tab-set::
-
-    .. tab-item:: C++
-        :sync: cpp
-
-        .. doxygensnippet:: docs/snippets/ov_preprocessing_migration.cpp
-            :language: cpp
-            :fragment: color_space
-
-    .. tab-item:: Python
-        :sync: py
-
-        .. doxygensnippet:: docs/snippets/ov_preprocessing_migration.py
-           :language: python
-           :fragment: color_space
-
-    .. tab-item:: C
-        :sync: c
-
-        .. doxygensnippet:: docs/snippets/ov_preprocessing_migration.c
-           :language: c
-           :fragment: c_api_ppp
-
-
 
 **API 2.0**
 

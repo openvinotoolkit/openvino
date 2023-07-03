@@ -12,6 +12,7 @@
 #include "quantize_inst.h"
 #include "arg_max_min_inst.h"
 #include "fully_connected_inst.h"
+#include "condition_inst.h"
 #include "program_node.h"
 
 #include <iostream>
@@ -59,7 +60,7 @@ void compile_graph::run(program& p) {
 
         // TODO: need to come up with better handling of unsupported shape agnostic cases
         // e.g. process exceptions from choose_impl() and ignore those for dynamic parameters
-        if (node->is_type<fully_connected>() && node->is_dynamic() && node->get_output_layout().get_partial_shape().size() > 3)
+        if (node->is_type<fully_connected>() && node->is_dynamic() && node->get_output_pshape().size() > 3)
             can_select_impl = false;
 
         // TODO: Remove this WA once we have shape agnostic arg_max_min_axis kernel with non-const k input
@@ -71,6 +72,9 @@ void compile_graph::run(program& p) {
 
         if (node->is_dynamic() && !is_planar)
             can_select_impl = false;
+
+        if (node->is_type<condition>())
+            can_select_impl = true;
 
         if (can_select_impl) {
             tasks.push_back([node, &exception, change_initial_impl, original_impl_type] {

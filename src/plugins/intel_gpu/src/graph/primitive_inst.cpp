@@ -19,6 +19,9 @@
 #include "deconvolution_inst.h"
 #include "shape_of_inst.h"
 #include "gemm_inst.h"
+#include "assign_inst.h"
+#include "read_value_inst.h"
+#include "condition_inst.h"
 #include "experimental_detectron_roi_feature_extractor_inst.hpp"
 #include "compilation_context.hpp"
 #include "implementation_map.hpp"
@@ -215,8 +218,26 @@ void primitive_inst::update_shape() {
         set_shape_change();
 
     // We assume that tensor ranks are static, thus shape_of doesn't need to update anything even if input shape is dynamic
-    if (_node->is_type<shape_of>() && !input_shape_changed)
+    if (_node->is_type<shape_of>() && !input_shape_changed) {
+        reset_shape_change();
         return;
+    }
+
+    // Do not update shapes in shape_of subraph if shape_of's input shape is not changed
+    if (_node->is_in_shape_of_subgraph()) {
+        bool subgraph_input_changed = false;
+        for (size_t i = 0; i < dependant_shape_of_insts.size(); i++) {
+            if (dependant_shape_of_insts[i]->shape_changed()) {
+                subgraph_input_changed = true;
+                break;
+            }
+        }
+        if (!subgraph_input_changed) {
+            GPU_DEBUG_TRACE_DETAIL << id() << ": skip shape_update, because it is in shape_of_subgrap and input shape is not changed\n";
+            reset_shape_change();
+            return;
+        }
+    }
 
     // Even though the predecessors' shapes are not changed, the output shape might be udpated by the mem_dep
     auto memory_deps = _node->get_const_memory_deps();
@@ -224,6 +245,19 @@ void primitive_inst::update_shape() {
         if (memory_deps.count(i) > 0) {
             continue;
         }
+        if (i >= _deps.size())
+            continue;
+
+        if (_deps[i].first->get_node().is_in_shape_of_subgraph()) {
+            bool can_skip = true;
+            const auto& insts = _deps[i].first->dependant_shape_of_insts;
+            for (auto inst : insts) {
+                can_skip &= !inst->shape_changed();
+            }
+            if (can_skip)
+                continue;
+        }
+
         input_shape_changed = true;
     }
 
@@ -251,7 +285,8 @@ void primitive_inst::update_shape() {
         }
         auto dep_mem = _network.get_output_memory(dep_id);
         memory_deps.insert({i, dep_mem});
-        has_runtime_deps = true;
+        if (!dep.is_in_shape_of_subgraph())
+            has_runtime_deps = true;
     }
 
     if (has_runtime_deps) {
@@ -314,6 +349,16 @@ event::ptr primitive_inst::realloc_if_needed() {
     // input_layout node is supposed to always use external memory in dynamic case
     if (_node->is_type<input_layout>())
         return ev;
+
+    if (_node->is_type<assign>() || _node->is_type<read_value>()) {
+        std::string variable_id = "";
+        if (_node->is_type<assign>())
+            variable_id = _node->as<assign>().get_primitive()->variable_id;
+        else
+            variable_id = _node->as<read_value>().get_primitive()->variable_id;
+        get_network().update_variable_memory(variable_id, actual_layout);
+        return ev;
+    }
 
     bool can_reuse_buffer = _outputs[0] && actual_layout.count() <= max_output_layout_size;
 
@@ -432,6 +477,11 @@ bool primitive_inst::update_impl() {
         GPU_DEBUG_TRACE_DETAIL << id() << ": update dynamic impl " << prev_impl_str << " to new shape: " << s.str() << std::endl;
     };
 
+    if ((_impl != nullptr && _impl->is_cpu()) || can_be_optimized()) {
+        // Return false if shape not changed, otherwise return true to trigger realloc_if_needed, but do not change impl itself
+        return shape_changed();
+    }
+
     if (!_node->is_type<data>() && !(_node->is_type<mutable_data>() && _node->get_dependencies().empty())) {
         // Update param if fake_alignment is available
         auto updated_params = _node->type()->get_fake_aligned_params(*_impl_params);
@@ -494,6 +544,7 @@ bool primitive_inst::update_impl() {
                 }
             } else {
                 _impl = _node->type()->choose_impl(*_node, updated_params_no_dyn_pad);
+                _impl->set_node_params(*_node);
                 if (!can_be_optimized()) {
                     auto& kernels_cache = get_network().get_program()->get_kernels_cache();
                     auto kernels = kernels_cache.compile(updated_params_no_dyn_pad, _impl->get_kernels_source());
@@ -547,7 +598,7 @@ void primitive_inst::do_runtime_in_place_concat() {
     }
 
     if (!concat_in_place_optimization::match(concat_inst->get_node(), *concat_inst->_impl_params, pred_params, true)) {
-        concat_inst->_can_be_optimized = false;
+        concat_inst->set_can_be_optimized(false);
         GPU_DEBUG_TRACE_DETAIL << "[In place concat] " << concat_inst->id() << " cannot be optimized " << std::endl;
         return;
     }
@@ -564,9 +615,13 @@ void primitive_inst::do_runtime_in_place_concat() {
                                << dep.first->_impl_params->output_layouts[0].to_string() << std::endl;
         ++i;
     }
-    concat_inst->_impl_params->output_layouts[0] = concat_layout;
-    concat_inst->_can_be_optimized = true;
+    concat_inst->_impl_params->output_layouts[0] = concat_layout; // TODO : Once this primitive_inst::can_be_optimized, consolidate it to impl_params->optimized
+    concat_inst->set_can_be_optimized(true);
     GPU_DEBUG_TRACE_DETAIL << "[In place concat] " << concat_inst->id() << ": can_be_optimized " << std::endl;
+}
+
+bool primitive_inst::has_inner_networks() const {
+    return (_impl_params->inner_nets.size() > 0);
 }
 
 event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
@@ -574,8 +629,9 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
     OPENVINO_ASSERT(_has_valid_input, primitive_id, " has invalid/unset input");
     GPU_DEBUG_GET_INSTANCE(debug_config);
 
+    bool need_args_update = false;
     std::vector<event::ptr> dependencies;
-    if (is_dynamic()) {
+    if (is_dynamic() && !has_inner_networks()) {
         do_runtime_in_place_concat();
         OPENVINO_ASSERT(_node != nullptr, "[GPU] Invalid primitive_inst object for dynamic shapes case: program_node can't be null");
         update_shape();
@@ -617,6 +673,8 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
         // Try update impl if current impl is dynamic because opt kernel may be added to impl cache through async compilation.
         // Only try update weight and realloc when impl is updated.
         if (shape_changed() || !_impl || (!shape_changed() && _impl->is_dynamic())) {
+            need_args_update = true;
+
             if (update_impl()) {
                 auto ev = update_weights();
                 if (ev)
@@ -626,26 +684,27 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
                     dependencies.push_back(ev_reset);
             }
         }
+
+        OPENVINO_ASSERT(_impl_params->get_output_layout().is_static(),
+                        "[GPU] Can't execute ", primitive_id, " primitive as output layout is dynamic in runtime");
     }
     update_shape_done_by_other = false; // reset
-    OPENVINO_ASSERT(_impl_params->get_output_layout().is_static(),
-                    "[GPU] Can't execute ", primitive_id, " primitive as output layout is dynamic in runtime");
-
     OPENVINO_ASSERT(_impl != nullptr, "[GPU] Implementation is nullptr for ", primitive_id,  " primitive");
 
     // Output buffer may be changed under the following conditions, so we need to set args to kernel on each iteration
-    if (is_dynamic() || has_mutable_input() || is_output()) {
+    if ((is_dynamic() && need_args_update) || has_mutable_input() || is_output()) {
         set_arguments();
     }
     on_execute();
-
     GPU_DEBUG_TRACE << id() << ": execute " << _impl->get_kernel_name() << std::endl;
 
     if (_exec_deps.empty() && dependencies.empty()) {
         dependencies = events;
     } else {
         auto queue_type = get_network().get_stream().get_queue_type();
-        if (queue_type == QueueTypes::out_of_order) {
+        // Prepare dependencies events in case of OOO queue, CPU implementation,
+        // or optimized_out impl which has CPU users (needs_completion_event() && !is_output() condition)
+        if (queue_type == QueueTypes::out_of_order || _impl->is_cpu() || (can_be_optimized() && needs_completion_event() && !is_output())) {
             dependencies.reserve(dependencies.size() + _exec_deps.size());
             for (auto& input : _exec_deps) {
                 auto id = input->id();
@@ -700,6 +759,14 @@ void primitive_inst::build_deps() {
     }
 }
 
+void primitive_inst::configure_shape_of_dependencies() {
+    if (dependant_shape_of_insts.empty() && _node != nullptr) {
+        for (auto shape_of : _node->get_dependant_shape_of_nodes()) {
+            dependant_shape_of_insts.push_back(_network.get_primitive(shape_of->id()));
+        }
+    }
+}
+
 void primitive_inst::rebuild_deps(
     std::unordered_map<primitive_id, std::shared_ptr<primitive_inst>> const& primitives) {
 
@@ -750,13 +817,14 @@ primitive_inst::primitive_inst(network& network, program_node const& node, bool 
     , _org_id(node.get_org_primitive_id())
     , _is_input(node.is_input())
     , _is_output(node.is_output())
-    , _inputs_memory_count(node.get_primitive()->input_size())
-    , _outputs_memory_count(node.get_primitive()->output_size())
+    , _inputs_memory_count(node.get_inputs_count())
+    , _outputs_memory_count(node.get_outputs_count())
     , _fused_mem_count(node.get_fused_inputs_count())
     , _fused_mem_offset((_fused_mem_count > 0 && node.has_fused_dep()) ? node.get_first_fused_dep_idx() : 0)
     , _can_be_optimized(node.can_be_optimized())
     , _can_share_buffer(node.can_share_buffer())
-    , _is_constant(node.is_constant()) {
+    , _is_constant(node.is_constant())
+    , _needs_completion_event(is_any_user_cpu(node.get_users()) || node.is_output()) {
     if (allocate_memory) {
         // In case when output is mutable_data primitive, and other users dependencies are only used for
         // suychronization, The output memory of such primitive will be fused with mutable_data
@@ -784,7 +852,7 @@ primitive_inst::primitive_inst(network& network, program_node const& node, bool 
     }
     if (_impl) {
         _impl->set_node_params(node);
-        if (_impl->is_dynamic()) {
+        if (_impl->is_dynamic() && !_impl->is_cpu()) {
             _dynamic_impl = _impl->clone();
             // Actual shape info layout is the following:
             // input_0 -> input_1, ..., fused_dep_0, fused_dep1, ..., output_0, output_1, ...
@@ -948,7 +1016,7 @@ event::ptr primitive_inst::update_weights() {
             memory::ptr weights_memory = nullptr;
             if (_reordered_weights_cache.is_full()) {
                 weights_memory = _reordered_weights_cache.get_lru_element().second;
-                can_reuse = weights_memory->size() <= expected_layout.bytes_count() && weights_memory != original_weights_memory;
+                can_reuse = weights_memory->size() <= expected_layout.bytes_count() && (weights_memory->buffer_ptr() != original_weights_memory->buffer_ptr());
             }
 
             if (can_reuse) {
@@ -1190,7 +1258,7 @@ cldnn::network::ptr primitive_inst::get_unfused_subgraph() {
             ov::intel_gpu::allow_static_input_reorder(true),
             ov::intel_gpu::allow_new_shape_infer(true)
         };
-        auto prog = program::build_program(get_network().get_engine(), t, subgraph_config, true, false);
+        auto prog = program::build_program(get_network().get_engine(), t, subgraph_config, get_network().get_program()->get_task_executor(), true, false);
 
         _unfused_subgraph = network::allocate_network(get_network().get_stream_ptr(), prog, true, get_network().is_primary_stream());
     }
@@ -1227,7 +1295,9 @@ bool primitive_inst::is_valid_fusion() const {
 
         auto outer_dep_pshape = outer_dep.first->_impl_params->get_output_layout().get_partial_shape();
         auto merged_shape = out_pshape;
-        auto can_broadcast = ov::PartialShape::broadcast_merge_into(merged_shape, outer_dep_pshape, fd.typed_desc<eltwise>()->broadcast_spec);
+        bool can_broadcast = true;
+        if (fd.is_type<eltwise>())
+            can_broadcast = ov::PartialShape::broadcast_merge_into(merged_shape, outer_dep_pshape, fd.typed_desc<eltwise>()->broadcast_spec);
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
         // WA for OneDNN binary add fusions: we need to broadcast batch dimension to avoid situation with
@@ -1345,9 +1415,7 @@ void primitive_inst::save(cldnn::BinaryOutputBuffer& ob) const {
     ob << can_be_optimized();
     ob << can_share_buffer();
     ob << is_constant();
-    auto users = get_node().get_users();
-    bool is_output_event = is_any_user_cpu(users) || get_node().is_output();
-    ob << is_output_event;
+    ob << needs_completion_event();
 
     if (type() == cldnn::data::type_id()) {
         return;
@@ -1438,7 +1506,7 @@ void primitive_inst::load(cldnn::BinaryInputBuffer& ib) {
     ib >> _can_be_optimized;
     ib >> _can_share_buffer;
     ib >> _is_constant;
-    ib >> _is_output_event;
+    ib >> _needs_completion_event;
 
     if (type() == cldnn::data::type_id()) {
         return;

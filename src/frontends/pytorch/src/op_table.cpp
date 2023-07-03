@@ -37,6 +37,7 @@ OP_CONVERTER(translate_conv_transposend);
 OP_CONVERTER(translate_convnd);
 OP_CONVERTER(translate_convolution);
 OP_CONVERTER(translate_convolution_mode);
+OP_CONVERTER(translate_copy_);
 OP_CONVERTER(translate_cumsum);
 OP_CONVERTER(translate_deform_conv);
 OP_CONVERTER(translate_derive_index);
@@ -53,7 +54,6 @@ OP_CONVERTER(translate_fill_);
 OP_CONVERTER(translate_flatten);
 OP_CONVERTER(translate_flip);
 OP_CONVERTER(translate_floor_divide);
-OP_CONVERTER(translate_floordiv);
 OP_CONVERTER(translate_frobenius_norm);
 OP_CONVERTER(translate_full);
 OP_CONVERTER(translate_full_like);
@@ -130,6 +130,7 @@ OP_CONVERTER(translate_square);
 OP_CONVERTER(translate_squeeze);
 OP_CONVERTER(translate_sub);
 OP_CONVERTER(translate_sum);
+OP_CONVERTER(translate_t);
 OP_CONVERTER(translate_to);
 OP_CONVERTER(translate_topk);
 OP_CONVERTER(translate_transpose);
@@ -217,6 +218,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::conv3d", op::translate_convnd},
         {"aten::convolution", op::translate_convolution},
         {"aten::copy", op::skip_node},
+        {"aten::copy_", op::translate_copy_},
         {"aten::cos", op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Cos>},
         {"aten::cos_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Cos>>},
         {"aten::cosh", op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Cosh>},
@@ -234,6 +236,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::empty", op::translate_empty},
         {"aten::eq", op::translate_1to1_match_2_inputs_align_types<opset10::Equal>},
         {"aten::exp", op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Exp>},
+        {"aten::exp_", op::inplace_op<op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Exp>>},
         {"aten::expand", op::translate_expand},
         {"aten::expand_as", op::translate_expand_as},
         {"aten::eye", op::translate_eye},
@@ -243,7 +246,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::floor", op::translate_1to1_match_1_inputs<opset10::Floor>},
         {"aten::floor_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Floor>>},
         {"aten::floor_divide", op::translate_floor_divide},
-        {"aten::floordiv", op::translate_floordiv},
+        {"aten::floordiv", op::translate_floor_divide},
         {"aten::frobenius_norm", op::translate_frobenius_norm},
         {"aten::full", op::translate_full},
         {"aten::full_like", op::translate_full_like},
@@ -346,6 +349,8 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::squeeze", op::translate_squeeze},
         {"aten::sub", op::translate_sub},
         {"aten::sum", op::translate_sum},
+        {"aten::t", op::translate_t},
+        {"aten::t_", op::inplace_op<op::translate_t>},
         {"aten::tan", op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Tan>},
         {"aten::tan_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Tan>>},
         {"aten::tanh", op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Tanh>},
@@ -355,7 +360,9 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::topk", op::translate_topk},
         {"aten::transpose", op::translate_transpose},
         {"aten::tril", op::translate_tril},
+        {"aten::tril_", op::inplace_op<op::translate_tril>},
         {"aten::triu", op::translate_triu},
+        {"aten::triu_", op::inplace_op<op::translate_triu>},
         {"aten::type_as",
          op::translate_1to1_match_2_inputs<opset10::ConvertLike>},  // TODO: overflow semantics is different
         {"aten::unflatten", op::translate_unflatten},
@@ -373,6 +380,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::var_mean", op::translate_var_mean},
         {"aten::view", op::translate_reshape},
         {"aten::where", op::translate_where},
+        {"aten::zero_", op::inplace_op<op::translate_zeros_like>},
         {"aten::zeros", op::translate_zeros},
         {"aten::zeros_like", op::translate_zeros_like},
         {"prim::Constant", op::translate_constant},

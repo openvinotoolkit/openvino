@@ -54,16 +54,17 @@ bool ValidateLoops::run(LinearIR& linear_ir) {
             for (size_t i = 0; i < loop_ids.size(); ++i) {
                 const auto id = loop_ids[i];
                 const auto dim_idx = loop_manager->get_loop_info(id)->dim_idx;
-                if (std::find(dim_indexes.cbegin(), dim_indexes.cend(), dim_idx) == dim_indexes.cend()) {
-                    dim_indexes.push_back(dim_idx);
-                } else {
+                if (std::find(dim_indexes.cbegin(), dim_indexes.cend(), dim_idx) != dim_indexes.cend()) {
                     OPENVINO_ASSERT(*dim_indexes.rbegin() == dim_idx,
                                     "Incorrect Loop ID configuration: the Loops with splitted dimension should be successively nested");
+                    OPENVINO_ASSERT(loop_manager->get_loop_info(loop_ids[i - 1])->increment == loop_manager->get_loop_info(id)->work_amount,
+                                    "Incorrect Loop ID configuration: the Loops with splitted dimension should be successively nested");
+                    OPENVINO_ASSERT(loop_manager->get_loop_info(loop_ids[i - 1])->outer_splited_loop,
+                                    "Incorrect Loop ID configuration: the outer Loop with splitted dimension should have `outer_splited_loop=True`");
                 }
-                if (i > 0) {
-                    OPENVINO_ASSERT(loop_manager->get_loop_info(loop_ids[i - 1])->dim_idx >= dim_idx,
-                                    "Incorrect Loop ID configuration: dim_idx should be sorted in accordance with loop nesting");
-                }
+                OPENVINO_ASSERT(i == 0 || loop_manager->get_loop_info(loop_ids[i - 1])->dim_idx >= dim_idx,
+                                "Incorrect Loop ID configuration: dim_idx should be sorted in accordance with loop nesting");
+                dim_indexes.push_back(dim_idx);
             }
             validated_nested_loops.insert(loop_ids);
         }

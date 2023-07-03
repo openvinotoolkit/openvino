@@ -9,10 +9,21 @@
  */
 #pragma once
 
+#if !defined(IN_OV_COMPONENT) && !defined(IE_LEGACY_HEADER_INCLUDED)
+#    define IE_LEGACY_HEADER_INCLUDED
+#    ifdef _MSC_VER
+#        pragma message( \
+            "The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    else
+#        warning("The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    endif
+#endif
+
 #include <string>
 
 #include "ie_parameter.hpp"
 
+IE_SUPPRESS_DEPRECATED_START
 namespace InferenceEngine {
 
 namespace gpu {
@@ -22,7 +33,7 @@ namespace details {
  * @brief This wrapper class is used to obtain low-level handles
  * from remote blob or context object parameters.
  */
-class param_map_obj_getter {
+class INFERENCE_ENGINE_1_0_DEPRECATED param_map_obj_getter {
 protected:
     /**
      * @brief Template function that returns specified
@@ -81,3 +92,4 @@ protected:
 }  // namespace gpu
 
 }  // namespace InferenceEngine
+IE_SUPPRESS_DEPRECATED_END

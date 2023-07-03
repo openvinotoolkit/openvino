@@ -2,6 +2,11 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Heterogeneous execution mode in OpenVINO Runtime enables 
+                 the inference of one model on several computing devices.
+
+
 Heterogeneous execution enables executing inference of one model on several devices. Its purpose is to:
 
 * Utilize the power of accelerators to process the heaviest parts of the model and to execute unsupported operations on fallback devices, like the CPU.
@@ -165,7 +170,7 @@ You can use performance data (in sample applications, it is the option ``-pc``) 
 
 Here is an example of the output for Googlenet v1 running on HDDL (device no longer supported) with fallback to CPU:
 
-.. code-block: sh
+.. code-block:: sh
 
    subgraph1: 1. input preprocessing (mean data/HDDL):EXECUTED layerType:          realTime: 129   cpu: 129  execType:
    subgraph1: 2. input transfer to DDR:EXECUTED                layerType:          realTime: 201   cpu: 0    execType:
@@ -183,7 +188,7 @@ Sample Usage
 
 OpenVINO™ sample programs can use the Heterogeneous execution used with the ``-d`` option:
 
-.. code-block: sh
+.. code-block:: sh
 
    ./hello_classification <path_to_model>/squeezenet1.1.xml <path_to_pictures>/picture.jpg HETERO:GPU,CPU
 

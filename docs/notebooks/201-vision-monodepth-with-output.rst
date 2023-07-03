@@ -3,7 +3,7 @@ Monodepth Estimation with OpenVINO
 
 This tutorial demonstrates Monocular Depth Estimation with MidasNet in
 OpenVINO. Model information can be found
-`here <https://docs.openvino.ai/latest/omz_models_model_midasnet.html>`__.
+`here <https://docs.openvino.ai/2023.0/omz_models_model_midasnet.html>`__.
 
 .. figure:: https://user-images.githubusercontent.com/36741649/127173017-a0bbcf75-db24-4d2c-81b9-616e04ab7cd9.gif
    :alt: monodepth
@@ -56,17 +56,36 @@ Imports
     from openvino.runtime import Core
     
     sys.path.append("../utils")
-    from notebook_utils import load_image
+    from notebook_utils import download_file, load_image
 
-Settings
-~~~~~~~~
+Download the model
+~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
 
-    DEVICE = "CPU"
-    MODEL_FILE = "model/MiDaS_small.xml"
+    model_folder = Path('model')
     
-    model_xml_path = Path(MODEL_FILE)
+    ir_model_url = 'https://storage.openvinotoolkit.org/repositories/openvino_notebooks/models/depth-estimation-midas/FP32/'
+    ir_model_name_xml = 'MiDaS_small.xml'
+    ir_model_name_bin = 'MiDaS_small.bin'
+    
+    download_file(ir_model_url + ir_model_name_xml, filename=ir_model_name_xml, directory=model_folder)
+    download_file(ir_model_url + ir_model_name_bin, filename=ir_model_name_bin, directory=model_folder)
+    
+    model_xml_path = model_folder / ir_model_name_xml
+
+
+
+.. parsed-literal::
+
+    model/MiDaS_small.xml:   0%|          | 0.00/268k [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    model/MiDaS_small.bin:   0%|          | 0.00/31.6M [00:00<?, ?B/s]
+
 
 Functions
 ---------
@@ -110,6 +129,8 @@ keys and the expected input shape for the model.
 
 .. code:: ipython3
 
+    DEVICE = "CPU"
+    
     ie = Core()
     ie.set_property({'CACHE_DIR': '../cache'})
     model = ie.read_model(model_xml_path)
@@ -348,7 +369,7 @@ Do Inference on a Video and Create Monodepth Video
 
 .. parsed-literal::
 
-    Processed 60 frames in 9.17 seconds. Total FPS (including video processing): 6.55.Inference FPS: 56.57 
+    Processed 60 frames in 9.22 seconds. Total FPS (including video processing): 6.51.Inference FPS: 54.82 
     Monodepth Video saved to 'output/Coco Walking in Berkeley_monodepth.mp4'.
 
 
@@ -376,7 +397,7 @@ Display Monodepth Video
 .. parsed-literal::
 
     Showing monodepth video saved at
-    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-416/.workspace/scm/ov-notebook/notebooks/201-vision-monodepth/output/Coco Walking in Berkeley_monodepth.mp4
+    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/notebooks/201-vision-monodepth/output/Coco Walking in Berkeley_monodepth.mp4
     If you cannot see the video in your browser, please click on the following link to download the video 
 
 
