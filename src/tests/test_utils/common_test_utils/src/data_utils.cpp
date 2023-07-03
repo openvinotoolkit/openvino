@@ -56,6 +56,7 @@ void copy_7D(void *src_raw_ptr, std::vector<size_t> &src_str, void *dst_raw_ptr,
 }
 
 void fill_data_with_broadcast(InferenceEngine::Blob::Ptr& blob, InferenceEngine::Blob::Ptr& values) {
+    using InferenceEngine::SizeVector;
     constexpr size_t MAX_N_DIMS = 7;  // Suppose it's enough
 
     IE_ASSERT(blob->getTensorDesc().getPrecision() == values->getTensorDesc().getPrecision());
@@ -66,10 +67,10 @@ void fill_data_with_broadcast(InferenceEngine::Blob::Ptr& blob, InferenceEngine:
     IE_ASSERT(values_dims.size() <= n_dims);
     IE_ASSERT(n_dims <= MAX_N_DIMS);
 
-    SizeVector src_dims(MAX_N_DIMS, 1);
+    ov::Shape src_dims(MAX_N_DIMS, 1);
     std::copy(values_dims.rbegin(), values_dims.rend(), src_dims.rbegin());
 
-    SizeVector dst_dims(MAX_N_DIMS, 1);
+    ov::Shape dst_dims(MAX_N_DIMS, 1);
     std::copy(blob_dims.rbegin(), blob_dims.rend(), dst_dims.rbegin());
 
     bool compatible = true;
@@ -80,8 +81,8 @@ void fill_data_with_broadcast(InferenceEngine::Blob::Ptr& blob, InferenceEngine:
 
     IE_ASSERT(compatible);
 
-    auto fill_strides_like_plain = [] (SizeVector dims) {
-        SizeVector str(dims.size());
+    auto fill_strides_like_plain = [] (ov::Shape dims) {
+        ov::Shape str(dims.size());
         if (str.empty())
             return str;
         else
@@ -211,18 +212,18 @@ OPENVINO_SUPPRESS_DEPRECATED_END
 void fill_data_with_broadcast(ov::Tensor& tensor, ov::Tensor& values) {
     constexpr size_t MAX_N_DIMS = 7;  // Suppose it's enough
 
-    IE_ASSERT(tensor.get_element_type() == values.get_element_type());
+    OPENVINO_ASSERT(tensor.get_element_type() == values.get_element_type());
 
     auto values_dims = values.get_shape();
     auto tensor_dims = tensor.get_shape();
     auto n_dims = tensor_dims.size();
-    IE_ASSERT(values_dims.size() <= n_dims);
-    IE_ASSERT(n_dims <= MAX_N_DIMS);
+    OPENVINO_ASSERT(values_dims.size() <= n_dims);
+    OPENVINO_ASSERT(n_dims <= MAX_N_DIMS);
 
-    SizeVector src_dims(MAX_N_DIMS, 1);
+    ov::Shape src_dims(MAX_N_DIMS, 1);
     std::copy(values_dims.rbegin(), values_dims.rend(), src_dims.rbegin());
 
-    SizeVector dst_dims(MAX_N_DIMS, 1);
+    ov::Shape dst_dims(MAX_N_DIMS, 1);
     std::copy(tensor_dims.rbegin(), tensor_dims.rend(), dst_dims.rbegin());
 
     bool compatible = true;
@@ -233,8 +234,8 @@ void fill_data_with_broadcast(ov::Tensor& tensor, ov::Tensor& values) {
 
     OPENVINO_ASSERT(compatible);
 
-    auto fill_strides_like_plain = [] (SizeVector dims) {
-        SizeVector str(dims.size());
+    auto fill_strides_like_plain = [] (ov::Shape dims) {
+        ov::Shape str(dims.size());
         if (str.empty())
             return str;
         else
@@ -251,8 +252,8 @@ void fill_data_with_broadcast(ov::Tensor& tensor, ov::Tensor& values) {
         return str;
     };
 
-    SizeVector src_strides = fill_strides_like_plain(src_dims);
-    SizeVector dst_strides = fill_strides_like_plain(dst_dims);
+    ov::Shape src_strides = fill_strides_like_plain(src_dims);
+    ov::Shape dst_strides = fill_strides_like_plain(dst_dims);
 
     auto dst_ptr = tensor.data();
     auto src_ptr = values.data();
@@ -303,7 +304,7 @@ ov::Tensor make_with_precision_convert(ov::Tensor& tensor, ov::element::Type_t p
         copy_with_convert<ov::element::Type_t::f32, ov::element::Type_t::_PRC> (tensor, new_tensor); break
     switch (prc) {
         CASE(f32); CASE(f16); CASE(i64); CASE(u64); CASE(i32); CASE(u32); CASE(i16); CASE(u16); CASE(i8); CASE(u8);
-        default: IE_THROW() << "Unsupported precision case";
+        default: OPENVINO_THROW("Unsupported precision case");
     }
 #undef CASE
 
@@ -311,7 +312,7 @@ ov::Tensor make_with_precision_convert(ov::Tensor& tensor, ov::element::Type_t p
 }
 
 void fill_data_with_broadcast(ov::Tensor& tensor, size_t axis, std::vector<float> values) {
-    SizeVector value_dims(tensor.get_shape().size() - axis, 1);
+    ov::Shape value_dims(tensor.get_shape().size() - axis, 1);
     value_dims.front() = values.size();
     auto prc = tensor.get_element_type();
 

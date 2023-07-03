@@ -6,11 +6,11 @@
 
 #include "subgraph_tests/split_concat_memory.hpp"
 
-using namespace SubgraphTestsDefinitions;
+using namespace subgraph_tests_definitions;
 
 namespace {
 
-const std::vector<ov::element::Type_t> netPrecisions = {
+const std::vector<ov::element::Type> netPrecisions = {
         ov::element::Type_t::f32,
         ov::element::Type_t::i32,
         ov::element::Type_t::f16,
@@ -19,7 +19,7 @@ const std::vector<ov::element::Type_t> netPrecisions = {
         ov::element::Type_t::i8,
 };
 
-const std::vector<InferenceEngine::SizeVector> shapes = {
+const std::vector<ov::Shape> shapes = {
     {1, 8, 3, 2},
     {3, 8, 3, 2},
     {3, 8, 3},

@@ -7,7 +7,7 @@
 #include "shared_test_classes/subgraph/split_concat_memory.hpp"
 #include "common_test_utils/data_utils.hpp"
 
-namespace SubgraphTestsDefinitions {
+namespace subgraph_tests_definitions {
 
 TEST_P(SplitConcatMemory, cyclicBufferCorrectness) {
     /*
@@ -59,4 +59,4 @@ TEST_P(SplitConcatMemory, cyclicBufferCorrectness) {
     compare({output_tensor_ref}, {o_tensor});
 }
 
-}  // namespace SubgraphTestsDefinitions
+}  // namespace subgraph_tests_definitions

@@ -8,11 +8,11 @@
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
-namespace SubgraphTestsDefinitions {
+namespace subgraph_tests_definitions {
 
 using SplitConcatMemoryParamsTuple = typename std::tuple<
-    CommonTestUtils::SizeVector, // input shapes
-    ov::element::Type_t,         // precision
+    ov::Shape,                   // input shapes
+    ov::element::Type,           // precision
     int,                         // axis of split
     std::string                  // device name
 >;
@@ -29,4 +29,4 @@ protected:
     int axis;
 };
 
-}  // namespace SubgraphTestsDefinitions
+}  // namespace subgraph_tests_definitions

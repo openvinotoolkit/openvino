@@ -4,11 +4,11 @@
 
 #include "shared_test_classes/subgraph/split_concat_memory.hpp"
 
-namespace SubgraphTestsDefinitions {
+namespace subgraph_tests_definitions {
 
 std::string SplitConcatMemory::getTestCaseName(const testing::TestParamInfo<ParamType>& obj) {
     ov::element::Type_t netPrecision;
-    CommonTestUtils::SizeVector inputShapes;
+    ov::Shape inputShapes;
     int axis;
     std::string targetDevice;
     std::tie(inputShapes, netPrecision, axis, targetDevice) = obj.param;
@@ -23,7 +23,7 @@ std::string SplitConcatMemory::getTestCaseName(const testing::TestParamInfo<Para
 
 void SplitConcatMemory::SetUp() {
     abs_threshold = 0.01;
-    CommonTestUtils::SizeVector shape;
+    ov::Shape shape;
     ov::element::Type_t netPrecision;
 
     std::tie(shape, netPrecision, axis, targetDevice) = this->GetParam();
@@ -84,4 +84,4 @@ void SplitConcatMemory::SetUp() {
             ngraph::ParameterVector {input},
             "CyclicBuffer4");
 }
-}  // namespace SubgraphTestsDefinitions
+}  // namespace subgraph_tests_definitions
