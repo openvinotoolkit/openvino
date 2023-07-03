@@ -1082,8 +1082,9 @@ static bool user_requesting_mem_reuse_false(const program_node& node, const prim
     return false;
 }
 
-memory::ptr primitive_inst::allocate_output(engine& _engine, memory_pool& pool, const program_node& _node, const primitive_inst* prim, const kernel_impl_params& impl_params,
-                        uint32_t net_id, bool is_internal, size_t idx, bool reset, bool is_output_buffer, bool runtime_alloc, memory* curr_memory) {
+memory::ptr primitive_inst::allocate_output(engine& _engine, memory_pool& pool, const program_node& _node, const primitive_inst* prim,
+                        const kernel_impl_params& impl_params, uint32_t net_id, bool is_internal, size_t idx, bool reset, bool is_output_buffer,
+                        bool runtime_alloc, memory* curr_memory) {
     auto get_memory_from_pool = [&](engine& _engine, const layout& layout, const primitive_id id, std::set<primitive_id> dependencies,
             allocation_type type, bool reusable, bool reset = true, memory* curr_memory) {
         OPENVINO_ASSERT(!layout.is_dynamic() || layout.has_upper_bound(), "[GPU] Can't allocate output for dynamic layout without upper bound");
