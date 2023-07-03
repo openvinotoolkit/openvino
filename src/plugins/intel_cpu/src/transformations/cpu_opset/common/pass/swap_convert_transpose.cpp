@@ -32,11 +32,12 @@ ov::intel_cpu::SwapConvertTranspose::SwapConvertTranspose() {
         transposeInputs[0] = convert->input_value(0);
         auto newTranspose = transpose->clone_with_new_inputs(transposeInputs);
         ngraph::copy_runtime_info(transpose, newTranspose);
-        newTranspose->set_friendly_name(transpose->get_friendly_name());
+        newTranspose->set_friendly_name(convert->get_friendly_name());
 
         ngraph::OutputVector convertInputs = convert->input_values();
         convertInputs[0] = newTranspose;
         auto newConvert = convert->clone_with_new_inputs(convertInputs);
+        newConvert->set_friendly_name(transpose->get_friendly_name());
         ngraph::replace_node(transpose, newConvert);
         return true;
     };
