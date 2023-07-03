@@ -93,7 +93,7 @@ pass::BrgemmToBrgemmCPU::BrgemmToBrgemmCPU() {
         } else {
             const auto copy_b_type = with_comp ? BrgemmCopyB::WithCompensations : BrgemmCopyB::OnlyRepacking;
             brgemm_repacking = std::make_shared<BrgemmCopyB>(brgemm->input_value(1), element_type_a, copy_b_type, offset_b, 0, 0,
-                                                             brgemm_in1_desc->get_layout());
+                                                             brgemm_in1_desc->get_layout(), block_size_k, block_size_n);
             set_port_desc(brgemm_repacking->input(0), brgemm_in1_desc->get_shape(), brgemm_in1_desc->get_subtensor(), brgemm_in1_desc->get_layout());
             set_full_port_desc(brgemm_repacking->output(0));
 

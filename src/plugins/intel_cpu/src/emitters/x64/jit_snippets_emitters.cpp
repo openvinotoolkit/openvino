@@ -1218,10 +1218,9 @@ BrgemmCopyBEmitter::BrgemmCopyBEmitter(dnnl::impl::cpu::x64::jit_generator* h, d
     const bool isAMXSupported = mayiuse(avx512_core_amx);
     const auto use_amx = isAMXSupported && m_brgemm_prc_in0 != ov::element::f32 && (m_K % m_brgemmVNNIFactor == 0) && (m_N % m_brgemmVNNIFactor == 0);
 
-    m_N_blk = m_brgemm_prc_in1 == ov::element::f32 ? m_N :
-              m_brgemm_prc_in1 == ov::element::bf16 ? 32 : 64; // TODO: take it from the node
-    m_K_blk = use_amx ? m_brgemm_prc_in0 == ov::element::bf16 ? 32 : 64
-                      : m_K;
+    m_N_blk = brgemm_repack->get_n_block_size();
+    m_K_blk = use_amx ? brgemm_repack->get_k_block_size() : m_K;
+
     m_N_tail = m_N % m_N_blk;
     m_K_tail = m_K % m_K_blk;
     m_LDB = m_brgemm_prc_in1 == ov::element::f32 ? leading_dimension : rnd_up(m_N, m_N_blk);
