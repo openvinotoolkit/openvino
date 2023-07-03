@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: In OpenVINO Runtime, you can enable Instrumentation and Tracing Technology API (ITT API) of Intel® VTune™ 
+                 Profiler to control trace data during execution of AUTO plugin.
+
 Using Debug Log
 ###############
 

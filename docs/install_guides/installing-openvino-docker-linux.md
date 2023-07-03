@@ -2,6 +2,11 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to use a prebuilt Docker image or create an image 
+                 manually to install OpenVINO™ Runtime on Linux and Windows operating systems.
+
+
 Supported operating systems for the Docker Base image:
 
 - Ubuntu 22.04 LTS
