@@ -2,17 +2,20 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+// clang-format off
+#include "evaluate_node.hpp"
+
 #include "ngraph/runtime/reference/group_normalization.hpp"
 
-#include "evaluate_node.hpp"
 #include "openvino/op/group_normalization.hpp"
+// clang-format on
 
 using namespace ov;
 
 template <element::Type_t DATA_ET>
-bool evaluate(const std::shared_ptr<op::v12::GroupNormalization>& node,
-              const HostTensorVector& outputs,
-              const HostTensorVector& inputs) {
+bool evaluate(const std::shared_ptr<ov::op::v12::GroupNormalization>& node,
+              const ov::HostTensorVector& outputs,
+              const ov::HostTensorVector& inputs) {
     ngraph::runtime::reference::group_normalization(inputs[0]->get_data_ptr<DATA_ET>(),
                                                     inputs[1]->get_data_ptr<DATA_ET>(),
                                                     inputs[2]->get_data_ptr<DATA_ET>(),
@@ -24,9 +27,9 @@ bool evaluate(const std::shared_ptr<op::v12::GroupNormalization>& node,
 }
 
 template <>
-bool evaluate_node<op::v12::GroupNormalization>(std::shared_ptr<Node> node,
-                                                const HostTensorVector& outputs,
-                                                const HostTensorVector& inputs) {
+bool evaluate_node<op::v12::GroupNormalization>(std::shared_ptr<ov::Node> node,
+                                                const ov::HostTensorVector& outputs,
+                                                const ov::HostTensorVector& inputs) {
     switch (node->get_input_element_type(0)) {
     case element::Type_t::bf16:
         return evaluate<element::Type_t::bf16>(as_type_ptr<op::v12::GroupNormalization>(node), outputs, inputs);
