@@ -31,7 +31,7 @@ static void CreateSpaceToBatchOp(Program& p, const std::shared_ptr<ngraph::op::v
 
         std::vector<int32_t> sizes = inConst->cast_vector<int32_t>();
         int32_t default_size = i == 1 ? 1 : 0;
-        for (size_t s = sizes.size(); s < rank; s++) {
+        for (size_t s = sizes.size(); s < format.dimension(); s++) {
             sizes.push_back(default_size);
         }
         tensor_inputs.emplace_back(format, sizes, default_size);
@@ -41,14 +41,14 @@ static void CreateSpaceToBatchOp(Program& p, const std::shared_ptr<ngraph::op::v
     // To be removed once we enable internal shape infer for all operations
     auto out_size = output_pshape.is_static() ? tensor_from_dims(output_pshape.to_shape()) : cldnn::tensor();
 
-    auto batchToSpacePrim = cldnn::space_to_batch(layerName,
+    auto spaceToBatchPrim = cldnn::space_to_batch(layerName,
                                                   inputs[0], // input
                                                   tensor_inputs[0],          // block_shape
                                                   tensor_inputs[1],          // crops_begin
                                                   tensor_inputs[2],          // crops_end
                                                   out_size);
 
-    p.add_primitive(*op, batchToSpacePrim);
+    p.add_primitive(*op, spaceToBatchPrim);
 }
 
 REGISTER_FACTORY_IMPL(v1, SpaceToBatch);
