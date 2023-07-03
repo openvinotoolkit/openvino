@@ -67,13 +67,13 @@
 #    endif
 #endif
 
+OPENVINO_SUPPRESS_DEPRECATED_START
+
 typedef struct ie_core ie_core_t;
 typedef struct ie_network ie_network_t;
 typedef struct ie_executable ie_executable_network_t;
 typedef struct ie_infer_request ie_infer_request_t;
 typedef struct ie_blob ie_blob_t;
-
-OPENVINO_SUPPRESS_DEPRECATED_START
 
 /**
  * @struct ie_version
