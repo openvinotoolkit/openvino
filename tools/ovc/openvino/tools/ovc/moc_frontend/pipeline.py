@@ -54,7 +54,6 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
         # frozen format with v1 checkpoints
         input_model = moc_front_end.load([argv.input_model, argv.input_checkpoint])
     elif argv.input_model:
-        # frozen model without v1 checkpoints
         input_model = moc_front_end.load(argv.input_model)
     elif argv.saved_model_dir:
         if argv.saved_model_tags:
