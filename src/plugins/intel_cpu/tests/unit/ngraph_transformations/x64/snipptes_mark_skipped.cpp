@@ -29,7 +29,15 @@ public:
     }
 };
 
-TEST_F(SnippetsMarkSkippedTests, smoke_Snippets_SkipAfterInputsMatMulEltwise) {
+class SnippetsMarkSkippedTests_GTEST_SKIP : public SnippetsMarkSkippedTests {
+public:
+    void SetUp() override {
+        GTEST_SKIP();
+    }
+    void TearDown() override{};
+};
+
+TEST_F(SnippetsMarkSkippedTests_GTEST_SKIP /* CVS-114336 */, smoke_Snippets_SkipAfterInputsMatMulEltwise) {
     const auto &f = MatMulEltwiseBranchesFunction(std::vector<PartialShape> {{1, 3, 4, 4}, {1, 3, 4, 4}});
     function = f.getOriginal();
     // Fully tokenizable, since inputs are followed by MatMul
