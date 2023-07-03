@@ -3,7 +3,7 @@
 @sphinxdirective
 
 .. meta::
-   :description: Learn how to build a plugin, using CMake and OpenVINO Developer Package.
+   :description: Learn how to build a plugin using CMake and OpenVINO Developer Package.
 
 
 OpenVINO build infrastructure provides the OpenVINO Developer Package for plugin development.

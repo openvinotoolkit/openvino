@@ -4,7 +4,7 @@
 
 .. meta::
    :description: Learn how to integrate a deep learning inference in a G-API 
-                 graph that you will run on a video stream to obtain data.
+                 graph that can be run on a video stream to obtain data.
 
 
 Overview

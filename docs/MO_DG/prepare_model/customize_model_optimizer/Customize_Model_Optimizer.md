@@ -2,10 +2,6 @@
 
 @sphinxdirective
 
-.. meta::
-   :description: Explore Model Optimizer extensibility mechanism, which enables 
-                 support of new operations and custom transformations to optimize 
-                 intermediate representation.
 
 .. toctree::
    :maxdepth: 1
