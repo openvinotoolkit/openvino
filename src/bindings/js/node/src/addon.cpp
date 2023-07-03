@@ -9,7 +9,7 @@
 #include "node_output.hpp"
 #include "openvino/openvino.hpp"
 #include "pre_post_process_wrap.hpp"
-#include "shape_lite.hpp"
+#include "shape.hpp"
 #include "tensor.hpp"
 
 Napi::String Method(const Napi::CallbackInfo& info) {
@@ -25,7 +25,7 @@ Napi::Object InitAll(Napi::Env env, Napi::Object exports) {
     CompiledModelWrap::Init(env, exports);
     InferRequestWrap::Init(env, exports);
     TensorWrap::Init(env, exports);
-    ShapeLite::Init(env, exports);
+    Shape::Init(env, exports);
     PrePostProcessorWrap::Init(env, exports);
     Input::Init(env, exports);
     Output<const ov::Node>::Init(env, exports);

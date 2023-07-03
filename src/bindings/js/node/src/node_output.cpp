@@ -1,6 +1,6 @@
 #include "node_output.hpp"
 
-#include "shape_lite.hpp"
+#include "shape.hpp"
 
 Output<ov::Node>::Output(const Napi::CallbackInfo& info) : Napi::ObjectWrap<Output<ov::Node>>(info) {}
 
@@ -40,7 +40,7 @@ Napi::Object Output<ov::Node>::Wrap(Napi::Env env, ov::Output<ov::Node> output) 
 
 Napi::Value Output<ov::Node>::get_shape(const Napi::CallbackInfo& info) {
     auto shape = _output.get_shape();
-    return ShapeLite::Wrap(info.Env(), shape);
+    return Shape::Wrap(info.Env(), shape);
 }
 
 Napi::Value Output<ov::Node>::get_shape_data(const Napi::CallbackInfo& info) {
@@ -105,7 +105,7 @@ Napi::Object Output<const ov::Node>::Wrap(Napi::Env env, ov::Output<const ov::No
 
 Napi::Value Output<const ov::Node>::get_shape(const Napi::CallbackInfo& info) {
     auto shape = _output.get_shape();
-    return ShapeLite::Wrap(info.Env(), shape);
+    return Shape::Wrap(info.Env(), shape);
 }
 
 Napi::Value Output<const ov::Node>::get_shape_data(const Napi::CallbackInfo& info) {
