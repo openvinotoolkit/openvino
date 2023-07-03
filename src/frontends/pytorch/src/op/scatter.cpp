@@ -25,7 +25,6 @@ OutputVector translate_scatter(const NodeContext& context) {
     // "aten::scatter_.src(Tensor(a!) self, int dim, Tensor index, Tensor src) -> Tensor(a!)"
     // "aten::scatter_.value(Tensor(a!) self, int dim, Tensor index, Scalar value) -> Tensor(a!)"
     num_inputs_check(context, 4, 4);
-    auto aaa = context.get_input_type(3);
     auto input = context.get_input(0);
     auto dim = context.get_input(1);
     auto index = context.get_input(2);
