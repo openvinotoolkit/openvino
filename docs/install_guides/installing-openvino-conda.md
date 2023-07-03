@@ -114,7 +114,6 @@ Additional Resources
 
 * `OpenVINO Runtime Conda Forge <https://anaconda.org/conda-forge/openvino>`__
 * :doc:`OpenVINO™ Toolkit Samples Overview <openvino_docs_OV_UG_Samples_Overview>`
-* `OpenVINO Installation Selector Tool <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/download.html>`__
 
 
 @endsphinxdirective

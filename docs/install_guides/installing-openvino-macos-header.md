@@ -20,7 +20,5 @@ If you want to install OpenVINO™ Runtime on macOS, there are a few ways to acc
 * :doc:`Install OpenVINO Runtime via Homebrew <openvino_docs_install_guides_installing_openvino_brew>`
 
 
-For a full selection of distribution channels, 
-see the `OpenVINO Installation Selector Tool <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/download.html>`__
 
 @endsphinxdirective

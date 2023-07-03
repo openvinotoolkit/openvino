@@ -240,11 +240,6 @@ You can also try the following things:
 
 
 
-Additional Resources
-#####################
-
-- `OpenVINO Installation Selector Tool <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/download.html>`__
-
 
 @endsphinxdirective
 

@@ -21,8 +21,9 @@ pre {
     white-space: pre-wrap;
     word-wrap: break-word;
 }
+/* cookie wap requirement */
+a#wap_dns {display: none;}
 /* Sphinx-design tabs override */
-
 .sd-tab-set>input:checked+label {
     border-color: var(--sd-color-tabs-underline-inactive);
     color: var(--sd-color-info-text)!important;
