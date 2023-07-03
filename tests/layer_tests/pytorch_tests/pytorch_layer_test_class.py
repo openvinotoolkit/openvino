@@ -139,7 +139,7 @@ class PytorchLayerTest:
 
     def convert_via_mo(self, model, example_input, trace_model, dynamic_shapes, ov_inputs):
         import torch
-        from openvino.tools.mo import convert_model
+        from openvino.runtime import convert_model
         kwargs = {"example_input": example_input if len(
             example_input) > 1 else example_input[0], "compress_to_fp16": False}
         with torch.no_grad():
@@ -168,8 +168,12 @@ class PytorchLayerTest:
                 model = torch.jit.trace(model, example_input)
             else:
                 model = torch.jit.script(model)
-        print(model.inlined_graph)
-        decoder = TorchScriptPythonDecoder(model, freeze=freeze_model)
+        if freeze_model:
+            _model = torch.jit.freeze(model)
+        else:
+            _model = model
+        print(_model.inlined_graph)
+        decoder = TorchScriptPythonDecoder(_model)
         im = fe.load(decoder)
         om = fe.convert(im)
         self._resolve_input_shape_dtype(om, ov_inputs, dynamic_shapes)
@@ -213,7 +217,7 @@ class PytorchLayerTest:
 
         assert len(flatten_fw_res) == len(
             flatten_ov_res
-        ), f'number of ouptuts are not equal, {len(flatten_fw_res)} != {len(flatten_ov_res)}'
+        ), f'number of outputs are not equal, {len(flatten_fw_res)} != {len(flatten_ov_res)}'
 
 
         # Check if output data types match
