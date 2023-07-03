@@ -17,9 +17,10 @@
 #include <ov_ops/augru_sequence.hpp>
 
 // Common transformations
+#include "transformations/common_optimizations/mark_precision_sensitive_shapeof_subgraphs.hpp"
 #include "transformations/common_optimizations/add_fake_quantize_fusion.hpp"
 #include "transformations/common_optimizations/broadcast_transition.hpp"
-#include "transformations/common_optimizations/convert_compression_only_to_legacy.hpp"
+#include "transformations/fp16_compression/convert_compression_only_to_legacy.hpp"
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
 #include "transformations/common_optimizations/fq_mul_fusion.hpp"
 #include "transformations/common_optimizations/mul_fake_quantize_fusion.hpp"
@@ -30,7 +31,7 @@
 #include "transformations/common_optimizations/common_optimizations.hpp"
 #include "transformations/common_optimizations/wrap_interpolate_into_transposes.hpp"
 #include "transformations/control_flow/unroll_tensor_iterator.hpp"
-#include "transformations/disable_decompression_convert_constant_folding.hpp"
+#include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
 #include "transformations/op_conversions/convert_batch_to_space.hpp"
 #include "transformations/op_conversions/convert_broadcast_to_tiles.hpp"
 #include "transformations/op_conversions/convert_depth_to_space.hpp"
@@ -118,7 +119,6 @@
 #include "nodes/normalize.h"
 #include "nodes/fake_quantize.h"
 #include "nodes/mha.h"
-
 #include "dnnl.hpp"
 #include <cpu/x64/cpu_isa_traits.hpp>
 
@@ -200,6 +200,9 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     ov::pass::Manager manager;
     manager.set_per_pass_validation(false);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::InitNodeInfo);
+    CPU_REGISTER_PASS_COMMON(manager, ov::pass::MarkShapeOfSubgraphs);
+    // todo: uncomment KeepConstAndDecompression when xxx-105060 is ready
+    // CPU_REGISTER_PASS_COMMON(manager, ov::pass::KeepConstAndDecompression);
 
     const bool useLpt = !defaultPrecisions.empty();
     if (useLpt) {
@@ -258,7 +261,9 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     }
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::Validate);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::RefConvertI64ToI32);
+
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertPrecision, precisions, type_to_fuse);
+
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::EliminateConvert);
     CPU_REGISTER_PASS_COMMON(manager, SwapConvertTranspose);
     CPU_REGISTER_PASS_X64(manager, ConvertToInteraction);
@@ -595,7 +600,7 @@ void Transformations::PostLpt() {
             // Vector madd BF16 instruction on SPR has reduced performance on HW level, which results in overall perf degradation
             size_t bf16Factor = 2;
             if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx) &&
-                (n->get_input_element_type(0) == element::bf16 || (n->get_input_element_type(0) == element::f32 && enableBF16)) &&
+                (n->get_input_element_type(0) == element::bf16 || (n->get_input_element_type(0) == element::f32 && inferencePrecision == ov::element::bf16)) &&
                 (n->get_input_shape(0)[3] % bf16Factor != 0 || n->get_input_shape(1)[1] % bf16Factor != 0 || n->get_input_shape(3)[3] % bf16Factor != 0)) {
                 return true;
             }
@@ -605,7 +610,7 @@ void Transformations::PostLpt() {
         MHAFloatFusion, MHAFloatFusion2, MHAQuantFusion, MHAQuantFusion2);
 
     // Float MHA is supported by snippets now
-    if (!enableBF16) {
+    if (inferencePrecision == ov::element::f32) {
         CPU_DISABLE_PASS_X64(postLPTPassManager, MHAFloatFusion);
         CPU_DISABLE_PASS_X64(postLPTPassManager, MHAFloatFusion2);
     }
@@ -626,19 +631,19 @@ void Transformations::MainSnippets(void) {
     // Because of that Transposes won't be fused into Brgemm
     // TODO [111813]: Need to update this pipeline to avoid Converts between Transposes and Brgemm on inputs
     ov::snippets::pass::SnippetsTokenization::Config tokenization_config;
-    tokenization_config.mha_token_enable_transpose = !enableBF16;
+    tokenization_config.mha_token_enable_transpose = (inferencePrecision == ov::element::f32);
 
     ngraph::pass::Manager snippetsManager;
     snippetsManager.set_per_pass_validation(false);
     if (snippetsMode != Config::SnippetsMode::IgnoreCallback)
-        CPU_REGISTER_PASS_X64(snippetsManager, SnippetsMarkSkipped, enableBF16);
+        CPU_REGISTER_PASS_X64(snippetsManager, SnippetsMarkSkipped, inferencePrecision != ov::element::f32);
     CPU_REGISTER_PASS_X64(snippetsManager, snippets::pass::SnippetsTokenization, tokenization_config);
 
     // Tokenize MHA in quantized model or with BF16 only in tests.
     // TODO [106921]: Please enable the tokenization when the ticket 106921 with blocking support for BRGEMM will be implemented
     const bool onlyFloatSupported = snippetsMode != Config::SnippetsMode::IgnoreCallback;
     const bool isMHASupported =
-            IMPLICATION(enableBF16, !onlyFloatSupported) &&
+            IMPLICATION(inferencePrecision != ov::element::f32, !onlyFloatSupported) &&
             dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core);  // MHA has BRGEMM that is supported only on AVX512 platforms
     if (!isMHASupported) {
         CPU_DISABLE_PASS_X64(snippetsManager, snippets::pass::TokenizeMHASnippets);
