@@ -94,30 +94,24 @@ pass::BrgemmToBrgemmCPU::BrgemmToBrgemmCPU() {
             const auto copy_b_type = with_comp ? BrgemmCopyB::WithCompensations : BrgemmCopyB::OnlyRepacking;
             brgemm_repacking = std::make_shared<BrgemmCopyB>(brgemm->input_value(1), element_type_a, copy_b_type, offset_b, 0, 0,
                                                              brgemm_in1_desc->get_layout());
-            const auto buffer = std::make_shared<snippets::op::Buffer>(brgemm_repacking->output(0));
             set_port_desc(brgemm_repacking->input(0), brgemm_in1_desc->get_shape(), brgemm_in1_desc->get_subtensor(), brgemm_in1_desc->get_layout());
             set_full_port_desc(brgemm_repacking->output(0));
-            set_full_port_desc(buffer->input(0));
-            set_full_port_desc(buffer->output(0));
 
             if (with_amx) {
                 const auto scratch = std::make_shared<snippets::op::Buffer>(ov::Shape{BrgemmCPU::SCRATCH_BYTE_SIZE});
-                brgemm_cpu = std::make_shared<BrgemmCPU>(brgemm->input_value(0), buffer, scratch, BrgemmCPU::Type::AMX,
+                brgemm_cpu = std::make_shared<BrgemmCPU>(brgemm->input_value(0), brgemm_repacking->output(0), scratch, BrgemmCPU::Type::AMX,
                                                          offset_a, offset_b, 0, offset_c,
                                                          brgemm_in0_desc->get_layout(), std::vector<size_t>{}, brgemm_out_desc->get_layout());
                 set_full_port_desc(scratch->output(0));
                 set_full_port_desc(brgemm_cpu->input(2));
             } else if (with_comp) {
-                const auto scratch = std::make_shared<snippets::op::Buffer>(brgemm_repacking->output(1));
-                brgemm_cpu = std::make_shared<BrgemmCPU>(brgemm->input_value(0), buffer, scratch, BrgemmCPU::Type::WithCompensations,
-                                                         offset_a, offset_b, 0, offset_c,
+                brgemm_cpu = std::make_shared<BrgemmCPU>(brgemm->input_value(0), brgemm_repacking->output(0), brgemm_repacking->output(1),
+                                                         BrgemmCPU::Type::WithCompensations, offset_a, offset_b, 0, offset_c,
                                                          brgemm_in0_desc->get_layout(), std::vector<size_t>{}, brgemm_out_desc->get_layout());
                 set_full_port_desc(brgemm_repacking->output(1));
-                set_full_port_desc(scratch->input(0));
-                set_full_port_desc(scratch->output(0));
                 set_full_port_desc(brgemm_cpu->input(2));
             } else if (one_of(element_type_a, ov::element::u8, ov::element::bf16)) {
-                brgemm_cpu = std::make_shared<BrgemmCPU>(brgemm->input_value(0), buffer, BrgemmCPU::Type::WithDataRepacking,
+                brgemm_cpu = std::make_shared<BrgemmCPU>(brgemm->input_value(0), brgemm_repacking->output(0), BrgemmCPU::Type::WithDataRepacking,
                                                          offset_a, offset_b, offset_c,
                                                          brgemm_in0_desc->get_layout(), std::vector<size_t>{}, brgemm_out_desc->get_layout());
             } else {

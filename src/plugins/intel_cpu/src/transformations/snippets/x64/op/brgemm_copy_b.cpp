@@ -85,13 +85,9 @@ void intel_cpu::BrgemmCopyB::validate(const ov::PartialShape& pshape, const ov::
         // if the node is already in the graph, we can extract block size from successor BrgemmCPU
         const auto copyb_consumers = get_output_target_inputs(0);
         OPENVINO_ASSERT(copyb_consumers.size() == 1, "BrgemmCopyB must have only one consumer on 0's output");
-        const auto buffer = copyb_consumers.begin()->get_node();
-        OPENVINO_ASSERT(ov::is_type<ov::snippets::op::Buffer>(buffer), "BrgemmCopyB must have Buffer on 0's output", buffer);
-
-        const auto buffer_consumers = buffer->get_output_target_inputs(0);
-        OPENVINO_ASSERT(buffer_consumers.size() == 1, "Buffer after BrgemmCopyB must have only one consumer");
-        const auto brgemm = ov::as_type<BrgemmCPU>(buffer_consumers.begin()->get_node());
-        OPENVINO_ASSERT(brgemm != nullptr, "BrgemmCopyB must have BrgemmCPU on 0's output", buffer);
+        const auto node = copyb_consumers.begin()->get_node();
+        const auto brgemm = ov::as_type<BrgemmCPU>(node);
+        OPENVINO_ASSERT(brgemm != nullptr, "BrgemmCopyB must have BrgemmCPU on 0's output", node);
         N_blk = brgemm->get_n_block_size();
     }
 
