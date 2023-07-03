@@ -7,13 +7,15 @@
 
 #include <iostream>
 
-#include "auto_batch.hpp"
+#include "async_infer_request.hpp"
+#include "compiled_model.hpp"
 #include "ie_icore.hpp"
+#include "plugin.hpp"
+#include "sync_infer_request.hpp"
 
-using namespace MockAutoBatchPlugin;
-namespace MockAutoBatchDevice {
+using namespace ov::mock_autobatch_plugin;
 
-class MockAutoBatchInferencePlugin : public AutoBatchInferencePlugin {
+class MockAutoBatchInferencePlugin : public Plugin {
 public:
     MOCK_METHOD((DeviceInformation),
                 ParseMetaDevices,
@@ -27,10 +29,8 @@ public:
                 (const, override));
 };
 
-class MockAutoBatchExecutableNetwork : public AutoBatchExecutableNetwork {
+class MockAutoBatchExecutableNetwork : public CompiledModel {
 public:
     MOCK_METHOD((InferenceEngine::Parameter), GetConfig, (const std::string&), (const, override));
     MOCK_METHOD((InferenceEngine::Parameter), GetMetric, (const std::string&), (const, override));
 };
-
-}  // namespace MockAutoBatchDevice

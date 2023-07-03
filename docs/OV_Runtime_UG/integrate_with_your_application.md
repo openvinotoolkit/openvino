@@ -12,6 +12,12 @@
    openvino_docs_OV_UG_Python_API_exclusives
    openvino_docs_MO_DG_TensorFlow_Frontend
 
+
+.. meta::
+   :description: Learn how to implement a typical inference pipeline of OpenVINO™ 
+                 Runtime in an application.
+
+
 Following these steps, you can implement a typical OpenVINO™ Runtime inference 
 pipeline in your application. Before proceeding, make sure you have 
 :doc:`installed OpenVINO Runtime <openvino_docs_install_guides_install_runtime>` and set environment variables (run ``<INSTALL_DIR>/setupvars.sh`` for Linux or ``setupvars.bat`` for Windows, otherwise, the ``OpenVINO_DIR`` variable won't be configured properly to pass ``find_package`` calls).
@@ -118,7 +124,7 @@ Compile the model for a specific device using ``ov::Core::compile_model()``:
                 :fragment: [part2_4]
 
           .. tab-item:: TensorFlow Lite
-             :sync: tflite
+             :sync: tf_lite
 
              .. doxygensnippet:: docs/snippets/src/main.cpp
                 :language: cpp
@@ -165,7 +171,7 @@ Compile the model for a specific device using ``ov::Core::compile_model()``:
                 :fragment: [part2_4]
 
           .. tab-item:: TensorFlow Lite
-             :sync: tflite
+             :sync: tf_lite
 
              .. doxygensnippet:: docs/snippets/src/main.py
                 :language: python
@@ -212,7 +218,7 @@ Compile the model for a specific device using ``ov::Core::compile_model()``:
                 :fragment: [part2_4]
 
           .. tab-item:: TensorFlow Lite
-             :sync: tflite
+             :sync: tf_lite
 
              .. doxygensnippet:: docs/snippets/src/main.c
                 :language: cpp
