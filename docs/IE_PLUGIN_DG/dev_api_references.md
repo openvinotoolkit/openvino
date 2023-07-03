@@ -3,7 +3,7 @@
 @sphinxdirective
 
 .. meta::
-   :description: Learn about extra API references required for development of 
+   :description: Learn about extra API references required for the development of 
                  plugins in OpenVINO.
 
 .. toctree::

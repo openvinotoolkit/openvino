@@ -3,7 +3,7 @@
 @sphinxdirective
 
 .. meta::
-   :description: The inference pipeline consists of a series of steps to be 
+   :description: The inference pipeline is a set of steps to be 
                  performed in a specific order to infer models with OpenVINO™ 
                  Runtime.
 

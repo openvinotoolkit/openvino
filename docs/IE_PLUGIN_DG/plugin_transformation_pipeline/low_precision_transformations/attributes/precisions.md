@@ -3,7 +3,7 @@
 @sphinxdirective
 
 .. meta::
-   :description: Learn about Precisions attribute, which describes precision required for input/output port or an operation.
+   :description: Learn about Precisions attribute, which describes the precision required for an input/output port or an operation.
 
 
 :ref:`ngraph::PrecisionsAttribute <doxid-classngraph_1_1_precisions_attribute>`  class represents the ``Precisions`` attribute.
