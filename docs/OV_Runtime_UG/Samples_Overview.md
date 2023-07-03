@@ -4,6 +4,12 @@
 
 .. _code samples:
 
+.. meta::
+   :description: OpenVINO™ samples include a collection of simple console applications 
+                 that explain how to implement the capabilities and features of 
+                 OpenVINO API into an application.
+
+
 .. toctree::
    :maxdepth: 1
    :hidden:

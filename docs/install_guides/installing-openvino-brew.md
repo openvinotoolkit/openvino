@@ -2,6 +2,12 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to install OpenVINO™ Runtime on Linux and macOS 
+                 operating systems, using Homebrew, which is a recommended 
+                 installation method for C++ developers.
+
+
 .. note::
 
    Installing OpenVINO Runtime from Homebrew is recommended for C++ developers. 

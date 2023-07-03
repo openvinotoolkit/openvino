@@ -2,6 +2,11 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to install OpenVINO™ Runtime on Windows, Linux, and 
+                 macOS operating systems, using a PyPi package.
+
+
 Using the PyPI repository, you can install either OpenVINO™ Runtime or OpenVINO Development Tools on Windows, Linux, and macOS systems.
 This article focuses on OpenVINO™ Runtime.
 
