@@ -11,9 +11,7 @@ import torch
 import torch.nn.functional as f
 import torchvision.transforms as transforms
 
-from openvino.runtime import Core
-from openvino.runtime import Tensor
-import openvino.tools.mo as mo
+from openvino.runtime import Core, Tensor, convert_model
 
 from openvino.preprocess.torchvision import PreprocessConverter
 
@@ -33,7 +31,7 @@ class Convnet(torch.nn.Module):
 def _infer_pipelines(test_input, preprocess_pipeline, input_channels=3):
     torch_model = Convnet(input_channels)
     example_input = Tensor(np.expand_dims(test_input, axis=0).astype(np.float32))
-    ov_model = mo.convert_model(torch_model, example_input=example_input)
+    ov_model = convert_model(torch_model, example_input=example_input)
     core = Core()
 
     ov_model = PreprocessConverter.from_torchvision(
