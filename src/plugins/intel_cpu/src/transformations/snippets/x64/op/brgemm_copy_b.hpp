@@ -48,7 +48,7 @@ public:
 
 private:
     void custom_constructor_validate_and_infer_types(std::vector<size_t> layout_input = {});
-    void validate(const ov::PartialShape& pshape, const ov::element::Type& element_type);
+    void validate(const ov::PartialShape& pshape, const ov::element::Type& element_type, const bool creation);
 
     Type m_type = Type::OnlyRepacking;
     element::Type m_src_type = ov::element::undefined;  // src element type of the corresponding BRGEMM

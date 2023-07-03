@@ -4,8 +4,10 @@
 
 #include "snippets/itt.hpp"
 #include "snippets/utils.hpp"
+#include "snippets/op/buffer.hpp"
 
 #include "brgemm_copy_b.hpp"
+#include "brgemm_cpu.hpp"
 
 #include "utils/general_utils.h"
 
@@ -49,7 +51,7 @@ void intel_cpu::BrgemmCopyB::custom_constructor_validate_and_infer_types(std::ve
     // So we use port descs from source inputs
     const auto element_type = get_input_element_type(0);
     const auto pshape = snippets::utils::get_reordered_planar_shape(get_input_partial_shape(0), layout_input);
-    validate(pshape, element_type);
+    validate(pshape, element_type, true);
 }
 
 void intel_cpu::BrgemmCopyB::validate_and_infer_types() {
@@ -57,10 +59,10 @@ void intel_cpu::BrgemmCopyB::validate_and_infer_types() {
 
     const auto element_type = get_input_element_type(0);
     const auto pshape = snippets::utils::get_port_planar_shape(input(0));
-    validate(pshape, element_type);
+    validate(pshape, element_type, false);
 }
 
-void intel_cpu::BrgemmCopyB::validate(const ov::PartialShape& pshape, const ov::element::Type& element_type) {
+void intel_cpu::BrgemmCopyB::validate(const ov::PartialShape& pshape, const ov::element::Type& element_type, const bool creation) {
     NGRAPH_CHECK(one_of(element_type, element::bf16, element::i8),
              "BrgemmCopyB doesn't support element type" + element_type.get_type_name());
 
@@ -75,8 +77,23 @@ void intel_cpu::BrgemmCopyB::validate(const ov::PartialShape& pshape, const ov::
     const auto shape = pshape.get_shape();
     const auto N = *shape.rbegin();
     const auto K = *(shape.rbegin() + 1);
-    const auto N_blk = element_type == element::bf16 ? 32 : 64;
     const auto brgemmVNNIFactor = 4 / m_src_type.size();
+    int N_blk;
+    if (creation) {
+        N_blk = element_type == element::bf16 ? 32 : 64;
+    } else {
+        // if the node is already in the graph, we can extract block size from successor BrgemmCPU
+        const auto copyb_consumers = get_output_target_inputs(0);
+        OPENVINO_ASSERT(copyb_consumers.size() == 1, "BrgemmCopyB must have only one consumer on 0's output");
+        const auto buffer = copyb_consumers.begin()->get_node();
+        OPENVINO_ASSERT(ov::is_type<ov::snippets::op::Buffer>(buffer), "BrgemmCopyB must have Buffer on 0's output", buffer);
+
+        const auto buffer_consumers = buffer->get_output_target_inputs(0);
+        OPENVINO_ASSERT(buffer_consumers.size() == 1, "Buffer after BrgemmCopyB must have only one consumer");
+        const auto brgemm = ov::as_type<BrgemmCPU>(buffer_consumers.begin()->get_node());
+        OPENVINO_ASSERT(brgemm != nullptr, "BrgemmCopyB must have BrgemmCPU on 0's output", buffer);
+        N_blk = brgemm->get_n_block_size();
+    }
 
     set_output_type(0, element_type, ov::PartialShape{ov::Dimension(rnd_up(K, brgemmVNNIFactor)),
                                                       ov::Dimension(rnd_up(N, N_blk))});
