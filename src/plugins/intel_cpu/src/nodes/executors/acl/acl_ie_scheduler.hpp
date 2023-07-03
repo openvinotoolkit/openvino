@@ -16,7 +16,7 @@ using namespace arm_compute;
 class ACLScheduler final : public IScheduler {
 public:
     ACLScheduler();
-    ~ACLScheduler() = default;
+    ~ACLScheduler() override = default;
     std::uint32_t num_threads() const override;
     void set_num_threads(unsigned int num_threads) override;
     void schedule(ICPPKernel *kernel, const Hints &hints) override;

@@ -26,26 +26,7 @@ void ACLScheduler::schedule(ICPPKernel *kernel, const Hints &hints) {
 }
 
 void ACLScheduler::schedule_op(ICPPKernel *kernel, const Hints &hints, const Window &window, ITensorPack &tensors) {
-    const Window &     max_window     = window;
-    const unsigned int num_iterations = max_window.num_iterations(hints.split_dimension());
-    const unsigned int num_threads    = std::min(num_iterations, static_cast<std::uint32_t>(parallel_get_num_threads()));
-
-    if (!kernel->is_parallelisable() || num_threads == 1) {
-        ThreadInfo info;
-        info.cpu_info = &cpu_info();
-        kernel->run_op(tensors, max_window, info);
-    } else {
-        const unsigned int                num_windows = num_threads;
-        std::vector<IScheduler::Workload> workloads(num_windows);
-        for (unsigned int t = 0; t < num_windows; t++) {
-            workloads[t] = [t, &hints, &max_window, &num_windows, &kernel, &tensors](const ThreadInfo &info) {
-                Window win = max_window.split_window(hints.split_dimension(), t, num_windows);
-                win.validate();
-                kernel->run_op(tensors, win, info);
-            };
-        }
-        run_workloads(workloads);
-    }
+    schedule_common(kernel, hints, kernel->window(), tensors);
 }
 
 void ACLScheduler::run_workloads(std::vector<arm_compute::IScheduler::Workload> &workloads) {
@@ -53,7 +34,7 @@ void ACLScheduler::run_workloads(std::vector<arm_compute::IScheduler::Workload> 
         ThreadInfo info;
         info.cpu_info    = &cpu_info();
         info.num_threads = parallel_get_num_threads();
-        info.thread_id   = parallel_get_thread_num();
+        info.thread_id   = wid;
         workloads[wid](info);
     });
 }
