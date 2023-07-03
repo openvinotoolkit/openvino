@@ -3,6 +3,10 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn the details on the process of querying different device 
+                 properties and configuration values at runtime.
+
 
 The OpenVINO™ toolkit supports inference with several types of devices (processors or accelerators).
 This section provides a high-level description of the process of querying of different device properties and configuration values at runtime.

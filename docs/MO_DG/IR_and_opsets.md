@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn the essentials of representing deep learning models in OpenVINO 
+                IR format and the use of supported operation sets.
+
 .. toctree::
    :maxdepth: 1
    :hidden:
@@ -9,7 +13,7 @@
    openvino_docs_ops_opset
    openvino_docs_operations_specifications
    openvino_docs_ops_broadcast_rules
-   
+
 
 This article provides essential information on the format used for representation of deep learning models in OpenVINO toolkit and supported operation sets.  
 

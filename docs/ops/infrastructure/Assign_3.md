@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about Assign-3 - an infrastructure operation, which 
+                can be performed on a single input tensor to set a value to variable_id.
+
 **Versioned name**: *Assign-3*
 
 **Category**: *Infrastructure*
