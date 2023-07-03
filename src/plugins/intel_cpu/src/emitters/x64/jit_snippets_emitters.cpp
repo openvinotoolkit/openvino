@@ -775,9 +775,8 @@ BrgemmEmitter::BrgemmEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl:
     m_with_comp = brgemm_node->is_with_compensations();
     m_with_scratch = brgemm_node->is_with_scratchpad();
 
-    // TODO: get these values from nGraph node
-    const size_t fp32_N_blk = 64;
-    const size_t fp32_K_blk = 1024;
+    const size_t fp32_N_blk = brgemm_node->get_n_block_size();
+    const size_t fp32_K_blk = brgemm_node->get_k_block_size();
     m_N_blk = brg1Prc == Precision::FP32 ? fp32_N_blk : std::max(m_N, fp32_N_blk);
     m_K_blk = brg1Prc == Precision::FP32 ? fp32_K_blk : m_K;
     m_N_tail = m_N % m_N_blk;
@@ -814,18 +813,17 @@ BrgemmEmitter::BrgemmEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl:
             brgemmCtx.M = m_M;
             brgemmCtx.N = N(n);
             brgemmCtx.K = K(k);
+            brgemmCtx.LDA = leading_dimensions[0];
+            brgemmCtx.LDB = brgemm_node->is_with_data_repacking() ? rnd_up(m_N, fp32_N_blk) : leading_dimensions[1];
+            brgemmCtx.LDC = leading_dimensions[2];
+            brgemmCtx.dt_in0 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::IEPrecisionToDataType(brg0Prc));
+            brgemmCtx.dt_in1 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::IEPrecisionToDataType(brg1Prc));
+            brgemmCtx.beta = has_K_kernel ? 1 : 0;
+
             if (brgemmCtx.N == 0 || brgemmCtx.N > m_N ||
                 brgemmCtx.K == 0 || brgemmCtx.K > m_K)
                 continue;
 
-            brgemmCtx.LDA = leading_dimensions[0];
-            brgemmCtx.LDB = brgemm_node->is_with_data_repacking() ? rnd_up(m_N, m_N_blk) : leading_dimensions[1];
-            brgemmCtx.LDC = leading_dimensions[2];
-            brgemmCtx.dt_in0 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::IEPrecisionToDataType(brg0Prc));
-            brgemmCtx.dt_in1 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::IEPrecisionToDataType(brg1Prc));
-
-            // Note: beta must be 1 ony if we need to add the result to the output
-            brgemmCtx.beta = has_K_kernel ? 1 : 0;
             initBrgemm(brgemmCtx, m_brgKernels[kernel_idx], brgWithAMX);
             has_N_kernel = true;
         }
@@ -987,7 +985,7 @@ void BrgemmEmitter::emit_impl(const std::vector<size_t>& in,
                 if (m_with_scratch && m_with_comp)
                     h->sub(input_2, m_N * io_data_size[2]);
                 h->add(input_0, brgemmCtx.K * io_data_size[0]);
-                h->add(input_1, (brgemmCtx.K * m_N) * io_data_size[1]);
+                h->add(input_1, (brgemmCtx.K * brgemmCtx.LDB) * io_data_size[1]);
                 if (m_K_blk_loop && k_blocked_id) {
                     h->sub(work_amount_K, brgemmCtx.K);
                     h->cmp(work_amount_K, brgemmCtx.K);
@@ -1005,7 +1003,7 @@ void BrgemmEmitter::emit_impl(const std::vector<size_t>& in,
         }
 
         h->sub(input_0, m_load_offset_a + (m_K - m_K_tail) * io_data_size[0]);
-        h->sub(input_1, m_load_offset_b + (m_K - m_K_tail) * m_N * io_data_size[1]);
+        h->sub(input_1, m_load_offset_b + (m_K - m_K_tail) * m_brgCtxs[0].LDB * io_data_size[1]);
         if (m_with_scratch)
             h->sub(input_2, m_load_offset_scratch);
         h->sub(output_0, m_store_offset_c);
@@ -1221,7 +1219,7 @@ BrgemmCopyBEmitter::BrgemmCopyBEmitter(dnnl::impl::cpu::x64::jit_generator* h, d
     const auto use_amx = isAMXSupported && m_brgemm_prc_in0 != ov::element::f32 && (m_K % m_brgemmVNNIFactor == 0) && (m_N % m_brgemmVNNIFactor == 0);
 
     m_N_blk = m_brgemm_prc_in1 == ov::element::f32 ? m_N :
-              m_brgemm_prc_in1 == ov::element::bf16 ? 32 : 64;
+              m_brgemm_prc_in1 == ov::element::bf16 ? 32 : 64; // TODO: take it from the node
     m_K_blk = use_amx ? m_brgemm_prc_in0 == ov::element::bf16 ? 32 : 64
                       : m_K;
     m_N_tail = m_N % m_N_blk;
