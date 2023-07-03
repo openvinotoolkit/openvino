@@ -1578,6 +1578,9 @@ def get_placeholder_shapes(argv_input: str, argv_input_shape: str, argv_batch=No
     elif argv_input and (len(shapes) == len(inputs) or len(shapes) == 0):
         # clean inputs from values for freezing
         inputs_without_value = list(map(lambda x: x.split('->')[0], inputs))
+        for shape in shapes:
+            if shape == '':
+                pass
         placeholder_shapes = dict(zip_longest(inputs_without_value,
                                               map(lambda x: PartialShape(x) if (x or x == '') else None, shapes)))
         for inp in inputs:
