@@ -19,26 +19,33 @@ namespace Reduce {
 
 std::vector<std::vector<ov::test::InputShape>> inputShapes = {
     {{{}, {{2, 19, 2, 9}}}},
+    {{{{1, 5}, 19, {1, 5}, {1, 10}}, {{2, 19, 2, 2}, {2, 19, 2, 9}}}},
+    {{{2, 19, {1, 5}, {1, 10}}, {{2, 19, 2, 2}, {2, 19, 2, 9}}}},
 };
 
 std::vector<std::vector<ov::test::InputShape>> inputShapes_5D = {
     {{{}, {{2, 19, 2, 2, 9}}}},
+    {{{{1, 5}, 19, {1, 5}, {1, 5}, {1, 5}}, {{2, 19, 2, 2, 2}, {2, 19, 3, 2, 2}}}},
 };
 
 std::vector<std::vector<ov::test::InputShape>> inputShapes_6D = {
     {{{}, {{2, 19, 2, 2, 2, 2}}}},
+    {{{{1, 5}, 19, {1, 5}, {1, 5}, {1, 5}, {1, 5}}, {{2, 19, 2, 2, 2, 2}, {2, 19, 2, 2, 3, 2}}}},
 };
 
 std::vector<std::vector<ov::test::InputShape>> inputShapes_Int32 = {
     {{{}, {{2, 19, 2, 3}}}},
+    {{{{1, 5}, 19, {1, 5}, {1, 10}}, {{2, 19, 2, 2}, {2, 19, 2, 3}}}},
 };
 
 std::vector<std::vector<ov::test::InputShape>> inputShapes_SmallChannel = {
     {{{}, {{2, 3, 2, 9}}}},
+    {{{{1, 5}, 3, {1, 5}, {1, 10}}, {{2, 3, 2, 2}, {2, 3, 2, 9}}}},
 };
 
 std::vector<std::vector<ov::test::InputShape>> inputShapes_SingleBatch = {
     {{{}, {{1, 19, 2, 9}}}},
+    {{{{1, 5}, 19, {1, 5}, {1, 10}}, {{1, 19, 2, 2}, {1, 19, 2, 9}}}},
 };
 
 std::vector<CPUSpecificParams> cpuParams_4D = {

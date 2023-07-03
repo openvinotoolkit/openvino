@@ -84,6 +84,7 @@ public:
              reduceAttrs.operation == Algorithm::ReduceMin ||
              reduceAttrs.operation == Algorithm::ReduceProd) &&
              reduceAttrs.axes.size() != 1) {
+                DEBUG_LOG("ACL supports single axes reduce only. Number of axes: ", reduceAttrs.axes.size());
                 return false;
              }
 
