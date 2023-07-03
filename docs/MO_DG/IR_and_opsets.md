@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn essentials of representing deep learning models in OpenVINO 
+                IR format and the use of supported operation sets.
+
 .. toctree::
    :maxdepth: 1
    :hidden:
