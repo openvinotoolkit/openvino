@@ -20,7 +20,7 @@ page for instructions on how to install OpenVINO Runtime for Python using PyPI.
    model conversion API, Post-Training Optimization Tool, Model Downloader and other Open Model Zoo tools, 
    Accuracy Checker, and Annotation Converter.
 
-See the `Release Notes <https://software.intel.com/en-us/articles/OpenVINO-RelNotes>`__ for more information on updates in the latest release.
+See the `Release Notes <https://www.intel.com/content/www/us/en/developer/articles/release-notes/openvino/2023-0.html>`__ for more information on updates in the latest release.
 
 .. tab-set::
 

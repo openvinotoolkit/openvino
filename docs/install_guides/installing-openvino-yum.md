@@ -14,7 +14,7 @@ With the OpenVINO™ 2023.0 release, you can install OpenVINO Runtime on Linux u
 OpenVINO™ Development Tools can be installed via PyPI only. See 
 `Installing Additional Components <#step-3-optional-install-additional-components>`__ for more information.
 
-See the `Release Notes <https://www.intel.com/content/www/us/en/developer/articles/release-notes/openvino-2022-3-lts-relnotes.html>`__ 
+See the `Release Notes <https://www.intel.com/content/www/us/en/developer/articles/release-notes/openvino/2023-0.html>`__ 
 for more information on updates in the latest release.
 
 Installing OpenVINO Runtime from YUM is recommended for C++ developers. If you are working with Python, 
