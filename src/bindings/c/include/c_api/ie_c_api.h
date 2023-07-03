@@ -34,8 +34,7 @@
 #endif
 
 #if defined(OPENVINO_STATIC_LIBRARY) || defined(__GNUC__) && (__GNUC__ < 4)
-#    define INFERENCE_ENGINE_C_API(...) \
-        INFERENCE_ENGINE_C_API_EXTERN __VA_ARGS__ IE_1_0_DEPRECATED
+#    define INFERENCE_ENGINE_C_API(...) INFERENCE_ENGINE_C_API_EXTERN __VA_ARGS__ IE_1_0_DEPRECATED
 #    define IE_NODISCARD
 #else
 #    if defined(_WIN32) || defined(__CYGWIN__)
@@ -77,9 +76,9 @@ typedef struct ie_blob ie_blob_t;
 OPENVINO_SUPPRESS_DEPRECATED_START
 
 /**
-* @struct ie_version
-* @brief Represents an API version information that reflects the set of supported features
-*/
+ * @struct ie_version
+ * @brief Represents an API version information that reflects the set of supported features
+ */
 typedef struct ie_version {
     char* api_version;  //!< A string representing Inference Engine version
 } ie_version_t;
