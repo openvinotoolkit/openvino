@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about Transpose-1 - a data movement operation, which can be 
+                performed on two required input tensors.
+
 **Versioned name**: *Transpose-1*
 
 **Category**: *Data movement*

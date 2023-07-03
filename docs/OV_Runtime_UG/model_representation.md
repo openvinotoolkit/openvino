@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: In OpenVINO™ Runtime a model is represented by special classes to work with model data types and shapes.
+
+
 In OpenVINO™ Runtime, a model is represented by the ``:ref:`ov::Model <doxid-classov_1_1_model>```  class.
 
 The ``:ref:`ov::Model <doxid-classov_1_1_model>``` object stores shared pointers to ``:ref:`ov::op::v0::Parameter <doxid-classov_1_1op_1_1v0_1_1_parameter>```, ``:ref:`ov::op::v0::Result <doxid-classov_1_1op_1_1v0_1_1_result>```, and ``:ref:`ov::op::Sink <doxid-classov_1_1op_1_1_sink>``` operations, which are inputs, outputs, and sinks of the graph. Sinks of the graph have no consumers and are not included in the results vector. All other operations hold each other via shared pointers, in which a child operation holds its parent via a hard link. If an operation has no consumers and is neither the ``Result`` nor the ``Sink`` operation whose shared pointer counter is zero, the operation will be destructed and not be accessible anymore.
