@@ -66,12 +66,10 @@ def create_bytes_io():
     return file_like_object, ref_model, {}
 
 
-
 class TestMoConvertONNX(CommonMOConvertTest):
     test_data = [create_bytes_io]
     @pytest.mark.parametrize("create_model", test_data)
     @pytest.mark.nightly
-    @pytest.mark.precommit_tf_fe
     @pytest.mark.precommit
     def test_mo_convert_onnx(self, create_model, ie_device, precision, ir_version,
                                              temp_dir):
