@@ -49,30 +49,25 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
     :param: moc_front_end: Loaded Frontend for converting input model
     :return: converted nGraph function ready for serialization
     """
-    if isinstance(argv.input_model, io.BytesIO):
-        raise Exception("ONNX frontend does not support input model as BytesIO object. "
-                        "Please use use_legacy_frontend=True to convert the model.")
-    else:
-        input_checkpoint = getattr(argv, 'input_checkpoint', None)
-        if argv.input_model and input_checkpoint:
-            # frozen format with v1 checkpoints
-            input_model = moc_front_end.load([argv.input_model, argv.input_checkpoint])
-        elif argv.input_model:
-            # frozen model without v1 checkpoints
-            input_model = moc_front_end.load(argv.input_model)
-        elif argv.saved_model_dir:
-            if argv.saved_model_tags:
-                input_model = moc_front_end.load([argv.saved_model_dir, argv.saved_model_tags])
-            else:
-                input_model = moc_front_end.load(argv.saved_model_dir)
-        elif argv.input_meta_graph:
-            input_model = moc_front_end.load(argv.input_meta_graph)
-            if argv.output:
-                # Simulate original behavior with freezing model
-                # While freezing we do a cutting of model, to keep similar behavior we
-                # need to simulate similar behavior with natively supported model
-                outputs = fe_output_user_data_repack(input_model, argv.output, moc_front_end.get_name())
-                input_model.override_all_outputs([x['node'] for x in outputs])
+    input_checkpoint = getattr(argv, 'input_checkpoint', None)
+    if argv.input_model and input_checkpoint:
+        # frozen format with v1 checkpoints
+        input_model = moc_front_end.load([argv.input_model, argv.input_checkpoint])
+    elif argv.input_model:
+        input_model = moc_front_end.load(argv.input_model)
+    elif argv.saved_model_dir:
+        if argv.saved_model_tags:
+            input_model = moc_front_end.load([argv.saved_model_dir, argv.saved_model_tags])
+        else:
+            input_model = moc_front_end.load(argv.saved_model_dir)
+    elif argv.input_meta_graph:
+        input_model = moc_front_end.load(argv.input_meta_graph)
+        if argv.output:
+            # Simulate original behavior with freezing model
+            # While freezing we do a cutting of model, to keep similar behavior we
+            # need to simulate similar behavior with natively supported model
+            outputs = fe_output_user_data_repack(input_model, argv.output, moc_front_end.get_name())
+            input_model.override_all_outputs([x['node'] for x in outputs])
 
     argv.placeholder_shapes, argv.placeholder_data_types, argv.freeze_placeholder_with_value = convert_params_lists_to_dicts(
         input_model, argv.placeholder_shapes, argv.placeholder_data_types,
