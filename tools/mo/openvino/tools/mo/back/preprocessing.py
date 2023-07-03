@@ -3,7 +3,6 @@
 
 import argparse
 import logging as log
-from copy import copy
 
 from openvino.tools.mo.utils.error import Error
 from openvino.tools.mo.utils.utils import refer_to_faq_msg
@@ -23,7 +22,7 @@ def update_mean_scale_to_dict(input_nodes: list, mean_scale_val, scale):
         if len(mean_scale_val) != len(input_nodes):
             raise Error('Numbers of inputs and mean/scale values do not match. ' + refer_to_faq_msg(61))
 
-        data = copy(mean_scale_val)
+        data = mean_scale_val
         mean_scale_val = {}
         for idx, node in enumerate(input_nodes):
             names_list = list(node.get_tensor().get_names())
