@@ -3,7 +3,7 @@
 @sphinxdirective
 
 .. meta::
-   :description: Learn how to infer acoustic model based on Kaldi 
+   :description: Learn how to infer an acoustic model based on Kaldi 
                  neural networks and speech feature vectors using Asynchronous 
                  Inference Request (Python) API.
 

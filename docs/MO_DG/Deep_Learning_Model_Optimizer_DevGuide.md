@@ -16,7 +16,7 @@
    openvino_docs_MO_DG_prepare_model_Model_Optimizer_FAQ
 
 .. meta::
-   :description: Model conversion (MO) furthers transition between training and 
+   :description: Model conversion (MO) furthers the transition between training and 
                  deployment environments, it adjusts deep learning models for 
                  optimal execution on target devices.
 
