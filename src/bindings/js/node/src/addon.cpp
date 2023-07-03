@@ -27,7 +27,8 @@ Napi::Object InitAll(Napi::Env env, Napi::Object exports) {
     TensorWrap::Init(env, exports);
     Shape::Init(env, exports);
     PrePostProcessorWrap::Init(env, exports);
-    Input::Init(env, exports);
+    Input<const ov::Node>::Init(env, exports);
+    Input<ov::Node>::Init(env, exports);
     Output<const ov::Node>::Init(env, exports);
     Output<ov::Node>::Init(env, exports);
     Napi::PropertyDescriptor element = Napi::PropertyDescriptor::Accessor<enumElementType>("element");
