@@ -9,6 +9,7 @@
 #include <openvino/pass/pattern/op/wrap_type.hpp>
 #include <transformations/rt_info/dequantization_node.hpp>
 #include <transformations/rt_info/disable_constant_folding.hpp>
+#include <transformations/utils/utils.hpp>
 
 ov::pass::MarkDequantizationSubgraph::MarkDequantizationSubgraph(const element::TypeVector& precisions) {
     // Dequantization subgraph may have two forms: with and without Subtract
