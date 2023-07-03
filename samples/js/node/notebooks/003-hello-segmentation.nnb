@@ -45,7 +45,7 @@
         {
             "language": "typescript",
             "source": [
-                "const imgData = await getImageData('../../assets/images/empty_road_mapillary.jpg');\n\nconst originalImage = cv2.matFromImageData(imgData);\nconst { cols: originalWidth, rows: originalHeight } = originalImage;\n\nconst image = new cv2.Mat();\ncv2.cvtColor(originalImage, image, cv2.COLOR_RGBA2RGB);\ncv2.cvtColor(image, image, cv2.COLOR_BGR2RGB);\n\nconst shape = [1, 3, 512, 896];\nconst [B, C, H, W] = shape;\n\ncv2.resize(image, image, new cv2.Size(W, H));\n\nconst inputImage = transform(image.data, { width: W, height: H }, [0, 1, 2]);\n\ndisplayArrayAsImage(originalImage.data, originalWidth, originalHeight);"
+                "const imgData = await getImageData('../../assets/images/empty_road_mapillary.jpg');\n\nconst originalImage = cv2.matFromImageData(imgData);\nconst { cols: originalWidth, rows: originalHeight } = originalImage;\n\nconst image = new cv2.Mat();\ncv2.cvtColor(originalImage, image, cv2.COLOR_RGBA2RGB);\ncv2.cvtColor(image, image, cv2.COLOR_BGR2RGB); \n\nconst shape = [1, 3, 512, 896];\nconst [B, C, H, W] = shape;\n\ncv2.resize(image, image, new cv2.Size(W, H));\n\nconst inputImage = transform(image.data, { width: W, height: H }, [0, 1, 2]); // NHWC to NCHW\n\ndisplayArrayAsImage(originalImage.data, originalWidth, originalHeight);"
             ],
             "outputs": [
                 {
