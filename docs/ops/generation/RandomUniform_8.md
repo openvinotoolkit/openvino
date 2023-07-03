@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about RandomUniform-8 - a generation operation, which can be 
+                performed on three required input tensors.
+
 **Versioned name**: *RandomUniform-8*
 
 **Category**: *Generation*

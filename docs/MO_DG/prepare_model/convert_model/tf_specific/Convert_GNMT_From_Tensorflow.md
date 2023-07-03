@@ -2,6 +2,11 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to convert a GNMT model 
+                 from TensorFlow to the OpenVINO Intermediate Representation.
+
+
 This tutorial explains how to convert Google Neural Machine Translation (GNMT) model to the Intermediate Representation (IR).
 
 There are several public versions of TensorFlow GNMT model implementation available on GitHub. This tutorial explains how to convert the GNMT model from the `TensorFlow Neural Machine Translation (NMT) repository <https://github.com/tensorflow/nmt>`__ to the IR.

@@ -2,6 +2,11 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Heterogeneous execution mode in OpenVINO Runtime enables 
+                 the inference of one model on several computing devices.
+
+
 Heterogeneous execution enables executing inference of one model on several devices. Its purpose is to:
 
 * Utilize the power of accelerators to process the heaviest parts of the model and to execute unsupported operations on fallback devices, like the CPU.

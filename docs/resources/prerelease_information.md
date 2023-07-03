@@ -2,6 +2,11 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Check the pre-release information that includes a general 
+                 changelog for each version of OpenVINO Toolkit published under 
+                 the current cycle.
+
 To ensure you can test OpenVINO's upcoming features even before they are officially released, 
 OpenVINO developers continue to roll out pre-release software. On this page you can find
 a general changelog for each version published under the current cycle.

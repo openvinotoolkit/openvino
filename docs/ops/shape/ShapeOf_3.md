@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about ShapeOf-3 - a shape manipulation operation, which 
+                can be performed on an arbitrary input tensor.
+
 **Versioned name**: *ShapeOf-3*
 
 **Category**: *Shape manipulation*

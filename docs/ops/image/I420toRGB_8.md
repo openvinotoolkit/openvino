@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about I420toRGB-8 - an image processing operation, which 
+                can be performed to convert image from I420 to RGB format.
+
 **Versioned name**: *I420toRGB-8*
 
 **Category**: *Image processing*

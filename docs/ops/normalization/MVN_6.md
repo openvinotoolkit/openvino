@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about MVN-6 - a normalization operation, which can be 
+                performed on two required input tensors.
+
 **Versioned name**: *MVN-6*
 
 **Category**: *Normalization*

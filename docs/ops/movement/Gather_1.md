@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about Gather-1 - a data movement operation, 
+                which can be performed on three required input tensors.
+
 **Versioned name:** *Gather-1*
 
 **Category:** *Data movement*

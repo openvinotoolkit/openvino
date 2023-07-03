@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about RNNSequence-5 - a sequence processing operation, which 
+                can be performed on six required input tensors.
+
 **Versioned name**: *RNNSequence-5*
 
 **Category**: *Sequence processing*

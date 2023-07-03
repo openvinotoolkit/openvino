@@ -2,6 +2,12 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to do inference of object detection 
+                 models using shape inference feature and Synchronous 
+                 Inference Request (Python) API.
+
+
 This sample demonstrates how to do synchronous inference of object detection models using :doc:`Shape Inference feature <openvino_docs_OV_UG_ShapeInference>`.  
 
 Models with only 1 input and output are supported.

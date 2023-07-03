@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about BatchNormInference-5 - a normalization operation, which can be 
+                performed on five required input tensors.
+
 **Versioned name**: *BatchNormInference-5*
 
 **Category**: *Normalization*

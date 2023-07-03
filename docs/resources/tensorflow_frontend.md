@@ -2,6 +2,11 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: TensorFlow Frontend in OpenVINO Runtime is a C++ based frontend used 
+                 by default for converting TensorFlow models to Intermediate Representation (IR).
+
+
 TensorFlow Frontend is a C++ based Frontend for converting TensorFlow models. MO now uses the TensorFlow Frontend as the default path for conversion to IR.
 Also, the frontend allows loading TensorFlow models in SavedModel, MetaGraph, and frozen Protobuf formats directly via the ``read_model()`` method.
 

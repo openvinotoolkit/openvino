@@ -2,6 +2,12 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to use the Benchmark C++ Tool to 
+                 estimate deep learning inference performance on supported 
+                 devices.
+
+
 This page demonstrates how to use the Benchmark C++ Tool to estimate deep learning inference performance on supported devices.
 
 .. note::

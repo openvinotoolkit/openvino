@@ -8,6 +8,11 @@
 
    openvino_docs_OV_UG_supported_plugins_GPU_RemoteTensor_API
 
+.. meta::
+   :description: The GPU plugin in the Intel® Distribution of OpenVINO™ toolkit 
+                 is an OpenCL based plugin for inference of deep neural 
+                 networks on Intel® GPus.
+
 
 The GPU plugin is an OpenCL based plugin for inference of deep neural networks on Intel GPUs, both integrated and discrete ones.
 For an in-depth description of the GPU plugin, see:

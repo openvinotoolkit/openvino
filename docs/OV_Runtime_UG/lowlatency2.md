@@ -2,6 +2,11 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: The LowLatency2 transformation in OpenVINO Runtime enables restructuring 
+                 of stateful networks by inserting Assign/ ReadValue layers.
+
+
 The LowLatency2 transformation changes the structure of the network containing :doc:`TensorIterator <openvino_docs_ops_infrastructure_TensorIterator_1>` and :doc:`Loop <openvino_docs_ops_infrastructure_Loop_5>` by adding the ability to work with the state, inserting the :doc:`Assign <openvino_docs_ops_infrastructure_Assign_3>` / :doc:`ReadValue <openvino_docs_ops_infrastructure_ReadValue_3>` layers as it is shown in the picture below.
 
 The Differences between the LowLatency and the LowLatency2:

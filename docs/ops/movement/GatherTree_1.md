@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about GatherTree-1 - a data movement operation, 
+                which can be performed on four required input tensors.
+
 **Versioned name**: *GatherTree-1*
 
 **Category**: *Data movement*

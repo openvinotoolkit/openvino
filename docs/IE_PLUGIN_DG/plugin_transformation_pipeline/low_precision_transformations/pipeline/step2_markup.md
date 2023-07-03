@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn about markup transformations, which are used to create 
+                 attributes for input and output ports and operations during runtime.
+
 This step defines the optimal ``FakeQuantize`` decomposition precisions for the best inference performance via operations markup with runtime attribute instances. Attributes are created for input and output ports and operations. Transformations do not change the operation output port precisions. A model markup low precision logic is decomposed and implemented into the following common markup transformations. The order of transformations is important:
 
 1. :doc:`MarkupBias <openvino_docs_OV_UG_lpt_MarkupBias>`

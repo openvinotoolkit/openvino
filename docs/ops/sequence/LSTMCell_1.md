@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about LSTMCell-1 - a sequence processing operation, which 
+                can be performed on five required and one optional input tensor.
+
 **Versioned name**: *LSTMCell-1*
 
 **Category**: *Sequence processing*

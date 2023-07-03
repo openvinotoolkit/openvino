@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about Bucketize-3 - an element-wise, condition operation, which 
+                can be performed on two given tensors in OpenVINO.
+
 **Versioned name**: *Bucketize-3*
 
 **Category**: *Condition*

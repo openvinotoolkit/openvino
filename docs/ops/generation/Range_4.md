@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about Range-4 - a generation operation, which can be 
+                performed on three required input tensors.
+
 **Versioned name**: *Range-4*
 
 **Category**: *Generation*

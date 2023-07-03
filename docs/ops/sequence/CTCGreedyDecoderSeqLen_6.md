@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about CTCGreedyDecoderSeqLen-6 - a sequence processing 
+                operation, which can be performed on two required input tensors.
+
 **Versioned name**: *CTCGreedyDecoderSeqLen-6*
 
 **Category**: *Sequence processing*

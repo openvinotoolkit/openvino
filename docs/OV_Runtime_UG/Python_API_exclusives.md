@@ -2,6 +2,12 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: OpenVINO™ Runtime Python API includes additional features to 
+                 improve user experience and provide simple yet powerful tool 
+                 for Python users.
+
+
 OpenVINO™ Runtime Python API offers additional features and helpers to enhance user experience. The main goal of Python API is to provide user-friendly and simple yet powerful tool for Python users.
 
 Easier Model Compilation

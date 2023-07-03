@@ -2,6 +2,12 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: The Automatic Batching Execution mode in OpenVINO Runtime 
+                 performs automatic batching to improve device utilization 
+                 by grouping inference requests.
+
+
 The Automatic Batching Execution mode (or Auto-batching for short) performs automatic batching on-the-fly to improve device utilization by grouping inference requests together, without programming effort from the user.
 With Automatic Batching, gathering the input and scattering the output from the individual inference requests required for the batch happen transparently, without affecting the application code. 
 

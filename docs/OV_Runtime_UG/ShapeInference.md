@@ -8,6 +8,9 @@
 
    troubleshooting_reshape_errors
 
+.. meta::
+   :description: OpenVINO™ allows changing model input shape during the runtime when the provided input has a different size than the model's input shape.
+
 
 OpenVINO™ enables you to change model input shape during the application runtime.
 It may be useful when you want to feed the model an input that has different size than the model input shape.

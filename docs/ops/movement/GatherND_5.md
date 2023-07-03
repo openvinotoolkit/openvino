@@ -3,6 +3,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about GatherND-5 - a data movement operation, 
+                which can be performed on two required input tensors.
+
 **Versioned name**: *GatherND-5*
 
 **Category**: *Data movement*

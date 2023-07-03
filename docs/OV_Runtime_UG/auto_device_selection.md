@@ -8,6 +8,11 @@
 
    Debugging Auto-Device Plugin <openvino_docs_OV_UG_supported_plugins_AUTO_debugging>
 
+.. meta::
+   :description: The Automatic Device Selection mode in OpenVINO™ Runtime 
+                 detects available devices and selects the optimal processing 
+                 unit for inference automatically.
+
 
 This article introduces how Automatic Device Selection works and how to use it for inference.
 

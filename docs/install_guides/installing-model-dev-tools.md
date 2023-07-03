@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to install OpenVINO™ Development Tools on Windows, 
+                 Linux, and macOS operating systems, using a PyPi package.
+
 OpenVINO Development Tools is a set of utilities that make it easy to develop and optimize models and applications for OpenVINO. It provides the following tools:
 
 * Model conversion API

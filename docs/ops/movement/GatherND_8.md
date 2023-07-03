@@ -3,7 +3,9 @@
 
 @sphinxdirective
 
-
+.. meta::
+  :description: Learn about GatherND-8 - a data movement operation, 
+                which can be performed on two required input tensors.
 
 **Versioned name**: *GatherND-8*
 

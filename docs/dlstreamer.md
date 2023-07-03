@@ -2,6 +2,11 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Explore Intel® DL Streamer - a framework used to analyze audio 
+                and video streams to detect, classify, track, identify and count 
+                objects, events and people.
+
 Intel® DL Streamer is a streaming media analytics framework, based on GStreamer* multimedia framework, for creating complex media analytics pipelines.  
 
 Intel® DL Streamer makes Media analytics easy: 

@@ -3,6 +3,11 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn about the support for quantized models with different 
+                 precisions and the FakeQuantize operation used to express 
+                 quantization rules.
+
 One of the feature of OpenVINO is the support of quantized models with different precisions: INT8, INT4, etc.
 However, it is up to the plugin to define what exact precisions are supported by the particular HW.
 All quantized models which can be expressed in IR have a unified representation by means of *FakeQuantize* operation. 

@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about OneHot-1 - a sequence processing operation, which 
+                can be performed on four required input tensors.
+
 **Versioned name**: *OneHot-1*
 
 **Category**: *Sequence processing*

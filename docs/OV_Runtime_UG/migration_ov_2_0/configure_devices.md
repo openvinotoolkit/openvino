@@ -2,6 +2,12 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Openvino Runtime API 2.0 has introduced properties that unify 
+                 metrics and configuration key concepts, which simplifies the 
+                 configuration of inference devices.
+
+
 The Inference Engine API provides the ability to configure devices with configuration keys and obtain device-specific metrics. The values retrived from `InferenceEngine::Core::GetConfig <namespaceInferenceEngine.html#doxid-namespace-inference-engine-1aff2231f886c9f8fc9c226fd343026789>`__ are requested by the string name, while the return type is `InferenceEngine::Parameter <namespaceInferenceEngine.html#doxid-namespace-inference-engine-1aff2231f886c9f8fc9c226fd343026789>`__ , which results in users not knowing what the actual type is stored in this parameter.
 
 API 2.0 solves these issues by introducing :doc:`properties <openvino_docs_OV_UG_query_api>`, which unify metrics and configuration key concepts. The main advantage is that they have the C++ type:

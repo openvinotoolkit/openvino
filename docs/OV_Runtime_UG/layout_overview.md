@@ -2,6 +2,11 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: The layout enables the application to interpret each particular 
+                 dimension of input/ output tensor properly and the input size 
+                 can be resized to fit the model.
+
 
 The concept of layout helps you (and your application) to understand what each particular dimension of input/output tensor means. For example, if your input has the ``{1, 3, 720, 1280}`` shape and the ``NCHW`` layout, it is clear that ``N(batch) = 1``, ``C(channels) = 3``, ``H(height) = 720``, and ``W(width) = 1280``. Without the layout information, the ``{1, 3, 720, 1280}`` tuple does not give any idea to your application on what these numbers mean and how to resize the input image to fit the expectations of the model.
 

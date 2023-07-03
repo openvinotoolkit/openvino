@@ -2,6 +2,11 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to encrypt and optimize a model before its deployment 
+                 to the edge device to ensure inference integrity and 
+                 provide copyright protection.
+
 Deploying deep-learning capabilities to edge devices can present security challenges like ensuring inference integrity, or providing copyright protection of your deep-learning models.
 
 One possible solution is to use cryptography to protect models as they are deployed and stored on edge devices. Model encryption, decryption and authentication are not provided by OpenVINO but can be implemented with third-party tools (i.e., OpenSSL). While implementing encryption, ensure that  the latest versions of tools are used and follow cryptography best practices.

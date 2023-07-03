@@ -2,6 +2,11 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Explore OpenVINO Plugin API, which includes functions and 
+                 helper classes that simplify the development of new plugins.
+
+
 OpenVINO Plugin usually represents a wrapper around a backend. Backends can be:
 
 * OpenCL-like backend (e.g. clDNN library) for GPU devices.

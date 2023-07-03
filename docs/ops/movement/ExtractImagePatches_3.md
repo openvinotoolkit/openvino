@@ -1,5 +1,11 @@
 # ExtractImagePatches {#openvino_docs_ops_movement_ExtractImagePatches_3}
 
+@sphinxdirective
+
+.. meta::
+  :description: Learn about ExtractImagePatches-3 - a data movement operation, 
+                which can be performed on a 4D input tensor.
+
 **Versioned name**: *ExtractImagePatches-3*
 
 **Category**: *Data movement*

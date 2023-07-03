@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about Eye-9 - a generation operation, which can be 
+                performed on three required and one optional input tensors.
+
 **Versioned name**: *Eye-9*
 
 **Category**: *Generation*

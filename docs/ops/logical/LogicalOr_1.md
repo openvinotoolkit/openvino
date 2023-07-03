@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about LogicalOr-1 - an element-wise, logical binary 
+                operation, which can be performed on two required input tensors.
+
 **Versioned name**: *LogicalOr-1*
 
 **Category**: *Logical binary*

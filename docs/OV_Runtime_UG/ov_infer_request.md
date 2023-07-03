@@ -2,6 +2,12 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Infer Request mechanism in OpenVINO™ Runtime allows inferring 
+                 models on different devices in asynchronous or synchronous 
+                 modes of inference.
+
+
 OpenVINO™ Runtime uses Infer Request mechanism which allows running models on different devices in asynchronous or synchronous manners.
 The ``ov::InferRequest`` class is used for this purpose inside the OpenVINO™ Runtime.
 This class allows you to set and get data for model inputs, outputs and run inference for the model.

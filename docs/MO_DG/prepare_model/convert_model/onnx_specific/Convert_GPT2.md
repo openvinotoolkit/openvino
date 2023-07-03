@@ -2,6 +2,11 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to convert a pre-trained GPT-2 
+                 model from ONNX to the OpenVINO Intermediate Representation.
+
+
 `Public pre-trained GPT-2 model <https://github.com/onnx/models/tree/master/text/machine_comprehension/gpt-2>`__ is a large
 transformer-based language model with a simple objective: predict the next word, given all of the previous words within some text.
 

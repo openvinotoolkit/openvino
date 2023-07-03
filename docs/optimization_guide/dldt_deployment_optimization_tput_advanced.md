@@ -2,6 +2,12 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: With OpenVINO streams a device may handle processing multiple 
+                 inference requests and the batching helps to saturate the 
+                 device and leads to higher throughput.
+
+
 OpenVINO Streams
 ####################
 

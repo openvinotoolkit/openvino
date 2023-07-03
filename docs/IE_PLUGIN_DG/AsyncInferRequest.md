@@ -2,6 +2,9 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Use the base ov::IAsyncInferRequest class to implement a custom asynchronous inference request in OpenVINO.
+
 Asynchronous Inference Request runs an inference pipeline asynchronously in one or several task executors depending on a device pipeline structure.
 OpenVINO Runtime Plugin API provides the base ov::IAsyncInferRequest class:
 

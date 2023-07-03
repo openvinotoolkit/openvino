@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about TensorIterator-1 - an infrastructure operation, which 
+                can be performed on multiple input tensors of any supported type and shape.
+
 **Versioned name**: *TensorIterator-1*
 
 **Category**: *Infrastructure*

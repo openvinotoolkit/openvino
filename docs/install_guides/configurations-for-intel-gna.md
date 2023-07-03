@@ -2,6 +2,12 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to provide additional configuration for Intel® 
+                 Gaussian & Neural Accelerator (GNA) to work with Intel® 
+                 Distribution of OpenVINO™ toolkit on your system.
+
+
 .. note::
 
    On platforms where Intel® GNA is not enabled in the BIOS, the driver cannot be installed, so the GNA plugin uses the software emulation mode only.

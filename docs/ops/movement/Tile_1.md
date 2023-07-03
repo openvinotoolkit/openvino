@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about Tile-1 - a data movement operation, which can be 
+                performed on two required input tensors.
+
 **Versioned name**: *Tile-1*
 
 **Category**: *Data movement*

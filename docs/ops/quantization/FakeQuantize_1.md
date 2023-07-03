@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about FakeQuantize-1 - a quantization operation, which can 
+                be performed on five required input tensors.
+
 **Versioned name**: *FakeQuantize-1*
 
 **Category**: *Quantization*

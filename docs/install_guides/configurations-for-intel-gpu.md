@@ -2,6 +2,12 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to provide additional configuration for Intel® 
+                 Processor Graphics (GPU) to work with Intel® Distribution of 
+                 OpenVINO™ toolkit on your system.
+
+
 .. _gpu guide:
 
 To use the OpenVINO™ GPU plug-in and transfer the inference to the graphics of the Intel® processor (GPU), the Intel® graphics driver must be properly configured on the system.

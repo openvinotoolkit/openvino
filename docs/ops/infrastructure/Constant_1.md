@@ -2,6 +2,11 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about Constant-1 - an infrastructure operation, which 
+                can be performed to produce a tensor with content read from 
+                binary file by offset and size.
+
 **Versioned name**: *Constant-1*
 
 **Category**: *Infrastructure*

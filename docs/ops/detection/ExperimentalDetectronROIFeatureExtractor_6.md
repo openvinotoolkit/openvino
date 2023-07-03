@@ -2,6 +2,11 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about ExperimentalDetectronROIFeatureExtractor-6 - 
+                an object detection operation, which can be performed on two 
+                required input tensors.
+
 **Versioned name**: *ExperimentalDetectronROIFeatureExtractor-6*
 
 **Category**: *Object detection*

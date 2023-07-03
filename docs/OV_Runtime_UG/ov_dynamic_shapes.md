@@ -8,6 +8,11 @@
 
    openvino_docs_OV_UG_NoDynamicShapes
 
+.. meta::
+   :description: The Reshape method in OpenVINO Runtime API can handle dynamic 
+                 shapes of models that support changing input shapes before 
+                 model compilation.
+
 
 As it was demonstrated in the :doc:`Changing Input Shapes <openvino_docs_OV_UG_ShapeInference>` article, there are models that support changing input shapes before model compilation in ``Core::compile_model``.
 Reshaping models provides an ability to customize the model input shape for the exact size required in the end application.

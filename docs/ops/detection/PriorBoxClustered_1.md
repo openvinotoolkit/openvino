@@ -2,6 +2,9 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about PriorBoxClustered-1 - an object detection operation, 
+                which can be performed on two 1D input tensors.
 
 **Versioned name**: *PriorBoxClustered-1*
 

@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about ConvertLike-1 - an element-wise, type conversion 
+                operation, which can be performed two required input tensors.
+
 **Versioned name**: *ConvertLike-1*
 
 **Category**: *Type conversion*

@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about DepthToSpace-1 - a data movement operation, 
+                which can be performed on a single input tensor.
+
 **Versioned name**: *DepthToSpace-1*
 
 **Category**: *Data movement*

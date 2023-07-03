@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about ScatterElementsUpdate-3 - a data movement operation, which can be 
+                performed on four required input tensors.
+
 **Versioned name**: *ScatterElementsUpdate-3*
 
 **Category**: *Data movement*

@@ -2,6 +2,12 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: In OpenVINO™ API 2.0 each preprocessing or post-processing 
+                 operation is integrated directly into the model and compiled 
+                 together with the inference graph.
+
+
 This guide introduces how preprocessing works in API 2.0 by a comparison with preprocessing in the previous Inference Engine API. It also demonstrates how to migrate preprocessing scenarios from Inference Engine to API 2.0 via code samples.
 
 How Preprocessing Works in API 2.0

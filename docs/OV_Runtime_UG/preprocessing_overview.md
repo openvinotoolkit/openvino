@@ -10,6 +10,10 @@
    openvino_docs_OV_UG_Layout_Overview
    openvino_docs_OV_UG_Preprocess_Usecase_save
 
+.. meta::
+   :description: The preprocessing entails additional operations to transform 
+                 the input data that does not fit the model input tensor.
+
 
 Introduction
 ####################

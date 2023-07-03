@@ -3,6 +3,10 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Check the list of officially supported models in Intel® 
+                 Distribution of OpenVINO™ toolkit.
+
 
 The OpenVINO runtime can infer various models of different input and output formats. Here, you can find configurations 
 supported by OpenVINO devices, which are CPU, GPU, and GNA (Gaussian Neural Accelerator coprocessor).

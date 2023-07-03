@@ -2,6 +2,11 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to convert a CRNN model 
+                 from TensorFlow to the OpenVINO Intermediate Representation.
+
+
 This tutorial explains how to convert a CRNN model to OpenVINO™ Intermediate Representation (IR).
 
 There are several public versions of TensorFlow CRNN model implementation available on GitHub. This tutorial explains how to convert the model from

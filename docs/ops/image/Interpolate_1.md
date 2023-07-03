@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about I420toRGB-8 - an image processing operation, which 
+                can be performed on two required tensors.
+
 **Versioned name**: *Interpolate-1*
 
 **Category**: *Image processing*

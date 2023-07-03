@@ -2,6 +2,11 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: A detailed information on a new version of OpenVINO™ API 2.0, 
+                 as well as the new OpenVINO IR model format: IR v11.
+
+
 .. toctree::
    :maxdepth: 1
    :hidden:

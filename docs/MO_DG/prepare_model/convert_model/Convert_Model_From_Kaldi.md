@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to convert a model from the 
+                 Kaldi format to the OpenVINO Intermediate Representation.
+
 
 .. warning::
 

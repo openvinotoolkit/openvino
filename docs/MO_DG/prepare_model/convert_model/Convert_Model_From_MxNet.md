@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to convert a model from the
+                 MXNet format to the OpenVINO Intermediate Representation.
+
 
 .. warning::
 
@@ -14,7 +18,7 @@ To convert an MXNet model, run Model Optimizer with the path to the ``.params`` 
   mo --input_model model-file-0000.params
 
 
-Using MXNet-Specific Conversion Parameters 
+Using MXNet-Specific Conversion Parameters
 ##########################################
 
 The following list provides the MXNet-specific parameters.
@@ -40,7 +44,7 @@ The following list provides the MXNet-specific parameters.
               Use only if your topology is one of ssd gluoncv topologies
 
 
-.. note:: 
+.. note::
 
    By default, model conversion API does not use the Apache MXNet loader. It transforms the topology to another format which is compatible with the latest version of Apache MXNet. However, the Apache MXNet loader is required for models trained with lower version of Apache MXNet. If your model was trained with an Apache MXNet version lower than 1.0.0, specify the ``--legacy_mxnet_model`` key to enable the Apache MXNet loader. Note that the loader does not support models with custom layers. In this case, you must manually recompile Apache MXNet with custom layers and install it in your environment.
 
@@ -77,4 +81,3 @@ See the :doc:`Model Conversion Tutorials <openvino_docs_MO_DG_prepare_model_conv
 * :doc:`Convert MXNet Style Transfer Model <openvino_docs_MO_DG_prepare_model_convert_model_mxnet_specific_Convert_Style_Transfer_From_MXNet>`
 
 @endsphinxdirective
-

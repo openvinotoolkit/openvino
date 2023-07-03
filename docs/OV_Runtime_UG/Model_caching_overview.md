@@ -1,7 +1,13 @@
 # Model Caching Overview {#openvino_docs_OV_UG_Model_caching_overview}
 
 @sphinxdirective
- 
+
+.. meta::
+   :description: Enabling model caching to export compiled model 
+                 automatically and reusing it can significantly 
+                 reduce duration of model compilation on application startup.
+
+
 As described in :doc:`Integrate OpenVINO™ with Your Application <openvino_docs_OV_UG_Integrate_OV_with_your_application>`, 
 a common application flow consists of the following steps:
 

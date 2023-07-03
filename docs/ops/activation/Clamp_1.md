@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about Clamp-1 - an element-wise, activation operation, which 
+                can be performed on a single tensor in OpenVINO.
+
 **Versioned name**: *Clamp-1*
 
 **Category**: *Activation function*

@@ -2,6 +2,11 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn about OpenVINO™ telemetry, that with your explicit consent 
+                 collects only usage data to simplify debugging and further development.
+
+
 To facilitate debugging and further development, OpenVINO™ asks its users for 
 a permission to collect telemetry data. It will not be collected 
 without an explicit consent on your part and will cover only OpenVINO™ usage information.

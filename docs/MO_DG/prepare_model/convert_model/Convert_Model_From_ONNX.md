@@ -2,6 +2,11 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to convert a model from the 
+                 ONNX format to the OpenVINO Intermediate Representation.
+
+
 Introduction to ONNX
 ####################
 

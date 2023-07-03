@@ -2,6 +2,11 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn about deprecated extensions, which enable injecting logic 
+                 to the model conversion pipeline without changing the Model 
+                 Optimizer core code.
+
 .. toctree::
    :maxdepth: 1
    :hidden:

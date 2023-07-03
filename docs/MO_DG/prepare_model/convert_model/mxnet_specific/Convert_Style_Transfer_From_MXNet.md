@@ -2,12 +2,14 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to convert a Style Transfer 
+                 model from MXNet to the OpenVINO Intermediate Representation.
+
 
 .. warning::
 
    Note that OpenVINO support for Apache MXNet is currently being deprecated and will be removed entirely in the future.
-
-   
 
 This article provides instructions on how to generate a model for style transfer, using the public MXNet neural style transfer sample.
 

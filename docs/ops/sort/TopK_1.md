@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about TopK-1 - a sorting and maximization operation, which 
+                can be performed on one required and on optional input tensor.
+
 **Versioned name**: *TopK-1*
 
 **Category**: *Sorting and maximization*

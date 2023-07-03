@@ -2,6 +2,12 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: General optimizations include application-level optimization 
+                 methods that improve data pipelining, pre-processing 
+                 acceleration and both latency and throughput.
+
+
 This article covers application-level optimization techniques, such as asynchronous execution, to improve data pipelining, pre-processing acceleration and so on. 
 While the techniques (e.g. pre-processing) can be specific to end-user applications, the associated performance improvements are general and shall improve any target scenario -- both latency and throughput.
 

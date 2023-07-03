@@ -2,6 +2,11 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to convert a BERT model 
+                 from TensorFlow to the OpenVINO Intermediate Representation.
+
+
 Pretrained models for BERT (Bidirectional Encoder Representations from Transformers) are
 `publicly available <https://github.com/google-research/bert>`__.
 

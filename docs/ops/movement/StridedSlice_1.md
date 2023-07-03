@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about StridedSlice-1 - a data movement operation, 
+                which can be performed on three required and one optional input tensor.
+
 **Versioned name**: *StridedSlice-1*
 
 **Category**: *Data movement*

@@ -2,6 +2,12 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to do inference of image 
+                 classification models with images in NV12 color format using  
+                 Synchronous Inference Request (C++) API.
+
+
 This sample demonstrates how to execute an inference of image classification models with images in NV12 color format using Synchronous Inference Request API.
 
 The following C++ API is used in the application:

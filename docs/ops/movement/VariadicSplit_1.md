@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about VariadicSplit-1 - a data movement operation, which can be 
+                performed on three required input tensors.
+
 **Versioned name**: *VariadicSplit-1*
 
 **Category**: *Data movement*

@@ -2,6 +2,11 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about ExperimentalDetectronGenerateProposalsSingleImage-6 - 
+                an object detection operation, which can be performed on four 
+                required input tensors.
+
 **Versioned name**: *ExperimentalDetectronGenerateProposalsSingleImage-6*
 
 **Category**: *Object detection*

@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about RNNCell-3 - a sequence processing operation, which 
+                can be performed on five required input tensors.
+
 **Versioned name**: *RNNCell-3*
 
 **Category**: *Sequence processing*

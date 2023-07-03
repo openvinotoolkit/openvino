@@ -2,6 +2,12 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Once a model is read, the preprocessing/ postprocessing steps 
+                 can be added and then the resulting model can be saved to 
+                 OpenVINO Intermediate Representation.
+
+
 Previous sections covered the topic of the :doc:`preprocessing steps <openvino_docs_OV_UG_Preprocessing_Details>` 
 and the overview of :doc:`Layout <openvino_docs_OV_UG_Layout_Overview>` API.
 

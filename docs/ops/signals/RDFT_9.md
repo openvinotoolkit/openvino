@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about RDFT-9 - a signal processing operation, which can be 
+                performed on two required and one optional input tensor.
+
 **Versioned name**: *RDFT-9*
 
 **Category**: *Signal processing*

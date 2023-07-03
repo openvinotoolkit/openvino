@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about Unsqueeze-1 - a shape manipulation operation, which 
+                can be performed on two required input tensors.
+
 **Versioned name**: *Unsqueeze-1*
 
 **Category**: *Shape manipulation*

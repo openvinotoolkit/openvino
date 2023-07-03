@@ -1,7 +1,10 @@
 # Floor  {#openvino_docs_ops_arithmetic_Floor_1}
- 
+
 @sphinxdirective
 
+.. meta::
+  :description: Learn about Floor-1 - an element-wise, arithmetic operation, which 
+                can be performed on a single tensor in OpenVINO.
 
 **Versioned name**: *Floor-1*
 

@@ -11,6 +11,11 @@
    openvino_docs_OV_UG_supported_plugins_GPU
    openvino_docs_OV_UG_supported_plugins_GNA
 
+.. meta::
+   :description: The list of types of devices and corresponding plugins which 
+                 are compatible with OpenVINO Runtime and support inference 
+                 of deep learning models.
+
 
 OpenVINO™ Runtime can infer deep learning models using the following device types:
 

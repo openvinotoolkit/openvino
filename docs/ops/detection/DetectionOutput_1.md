@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about DetectionOutput-1 - an object detection operation, which 
+                can be performed on three mandatory and two additional input tensors in OpenVINO.
+
 **Versioned name**: *DetectionOutput-1*
 
 **Category**: *Object detection*

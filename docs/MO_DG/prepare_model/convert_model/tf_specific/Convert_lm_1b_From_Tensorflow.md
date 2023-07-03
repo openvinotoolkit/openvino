@@ -2,6 +2,12 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to convert a TensorFlow Language 
+                 Model on One Billion Word Benchmark to the OpenVINO Intermediate 
+                 Representation.
+
+
 Downloading a Pre-trained Language Model on One Billion Word Benchmark
 ######################################################################
 

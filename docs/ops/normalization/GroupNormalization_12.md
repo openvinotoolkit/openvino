@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about GroupNormalization-12 - a normalization operation, 
+                which can be performed on three required input tensors.
+
 **Versioned name**: *GroupNormalization-12*
 
 **Category**: *Normalization*

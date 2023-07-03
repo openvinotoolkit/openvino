@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about ReduceMin-1 - a reduction operation, which can be 
+                performed on two required input tensors.
+
 **Versioned name**: *ReduceMin-1*
 
 **Category**: *Reduction*

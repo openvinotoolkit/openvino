@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about ScatterNDUpdate-3 - a data movement operation, which can be 
+                performed on three required input tensors.
+
 **Versioned name**: *ScatterNDUpdate-3*
 
 **Category**: *Data movement*

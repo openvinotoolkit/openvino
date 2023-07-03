@@ -2,6 +2,11 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about ExperimentalDetectronDetectionOutput-6 - an object 
+                detection operation, which can be performed on four required 
+                input tensors in OpenVINO.
+
 **Versioned name**: *ExperimentalDetectronDetectionOutput-6*
 
 **Category**: *Object detection*

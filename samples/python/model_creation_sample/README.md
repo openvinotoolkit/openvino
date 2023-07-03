@@ -2,6 +2,12 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to create a model on the fly with a 
+                 provided weights file and infer it later using Synchronous 
+                 Inference Request (Python) API.
+
+
 This sample demonstrates how to run inference using a :doc:`model <openvino_docs_OV_UG_Model_Representation>` built on the fly that uses weights from the LeNet classification model, which is known to work well on digit classification tasks. You do not need an XML file, the model is created from the source code on the fly.
 
 The following OpenVINO Python API is used in the application:

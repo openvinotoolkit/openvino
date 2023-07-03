@@ -2,6 +2,12 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: The inference pipeline is a set of steps to be 
+                 performed in a specific order to infer models with OpenVINO™ 
+                 Runtime.
+
+
 To infer models with OpenVINO™ Runtime, you usually need to perform the following steps in the application pipeline:
 
 1. `Create a Core object <#create-a-core-object>`__.

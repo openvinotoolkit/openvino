@@ -2,6 +2,12 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Develop and implement independent inference solutions for 
+                 different devices with the components of plugin architecture 
+                 of OpenVINO.
+
+
 .. toctree::
    :maxdepth: 1
    :caption: Converting and Preparing Models

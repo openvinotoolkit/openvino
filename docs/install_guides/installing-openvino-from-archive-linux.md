@@ -3,6 +3,12 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to install OpenVINO™ Runtime on Linux operating 
+                 system, using an archive file, which is a recommended 
+                 installation method for C++ developers.
+
+
 Installing OpenVINO Runtime from archive files is recommended for C++ developers. It will contain code samples, 
 as well as pre-built binaries and library files needed for OpenVINO Runtime. If you work with Python, 
 the PyPI package may be a better choice. See the :doc:`Install OpenVINO from PyPI <openvino_docs_install_guides_installing_openvino_pip>` 
