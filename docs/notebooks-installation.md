@@ -1,4 +1,4 @@
-# Installation of OpenVINO™ Notebooks {#notebooks-installation}
+# Installation of OpenVINO™ Notebooks {#notebooks_installation}
 
 
 @sphinxdirective
@@ -9,9 +9,6 @@
    :description: An installation guide for Jupyter notebooks on which Python 
                  tutorials run. The tutorials serve as introduction to the 
                  OpenVINO™ toolkit. 
-   :keywords: OpenVINO™ toolkit, Jupyter notebooks, Jupyter, Python, Python API, 
-              installation guide, tutorials, install notebooks, local 
-              installation, OpenVINO™ Notebooks, run notebooks
 
 
 The notebooks run almost anywhere, from browsers and desktops to even a cloud VM or a Docker container. 
@@ -22,10 +19,10 @@ Follow the guide below in order to run and manage the notebooks on your machine.
 Contents:
 
 - `Installation Guide <#-installation-guide>`__
--  `Run the Notebooks <#-run-the-notebooks>`__
--  `Manage the notebooks <#-manage-the-notebooks>`__
--  `Troubleshooting <#-troubleshooting>`__
--  `FAQ <#-faq>`__
+- `Run the Notebooks <#-run-the-notebooks>`__
+- `Manage the notebooks <#-manage-the-notebooks>`__
+- `Troubleshooting <#-troubleshooting>`__
+- `FAQ <#-faq>`__
 
 --------------------
 

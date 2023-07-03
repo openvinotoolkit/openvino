@@ -5,21 +5,16 @@
 .. _notebook tutorials:
 
 .. meta::
-   :description: A collection of Python tutorials run on Jupyter notebooks. The
-                 tutorials explain how to use OpenVINO™ toolkit for optimized
+   :description: Run Python tutorials on Jupyter notebooks to learn how to use OpenVINO™ toolkit for optimized
                  deep learning inference.
-   :keywords: OpenVINO™ toolkit, Jupyter, Jupyter notebooks, tutorials, Python
-              API, Python, deep learning, inference, model inference, infer a
-              model, Binder, object detection, quantization, image
-              classification, speech recognition, OCR, OpenVINO IR, deep
-              learning model, AI, neural networks
+
 
 .. toctree::
    :maxdepth: 2
    :caption: Notebooks
    :hidden:
 
-   notebooks-installation
+   notebooks_installation
    notebooks/notebooks
 
 This collection of Python tutorials are written for running on Jupyter notebooks.
@@ -36,7 +31,7 @@ see the `Additional Resources <#-additional-resources>`__ section).
 
 .. note::
    For the best performance, more control and resources, you should run the notebooks locally.
-   Follow the `Installation Guide <notebooks-installation.html>`__ in order to get information
+   Follow the :doc:`Installation Guide <notebooks_installation>` in order to get information
    on how to run and manage the notebooks on your machine.
 
 
@@ -328,7 +323,7 @@ The following tutorials are guaranteed to provide a great experience with infere
 -------------------
 
 .. note::
-   If there are any issues while running the notebooks, refer to the **Troubleshooting** and **FAQ** sections in the `Installation Guide <notebooks-installation.html>`__ or start a GitHub
+   If there are any issues while running the notebooks, refer to the **Troubleshooting** and **FAQ** sections in the :doc:`Installation Guide <notebooks_installation>` or start a GitHub
    `discussion <https://github.com/openvinotoolkit/openvino_notebooks/discussions>`__.
 
 
