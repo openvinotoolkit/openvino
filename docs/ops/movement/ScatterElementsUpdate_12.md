@@ -53,7 +53,7 @@ General logic of output values calculations is presented below for 1D tensor cas
 
     output[indices[i]] = max(updates[i], output[indices[i]]) axis = 0
 
-- Update with mean value of the corresponding elements, reduction = "mean"
+- Update with mean value of the corresponding elements, reduction = "mean". For integer types the calculated mean is rounded down (towards negative infinity). This reduction type is not supported for the `boolean` data type.
 
 .. code-block:: cpp
 
@@ -114,11 +114,11 @@ Accordingly for 3D tensor case, the update of the element corresponding to the `
 
 **Types**
 
-* *T*: any numeric type.
+* *T*: any supported type.
 * *T_IND*: any integer numeric type.
 * *T_AXIS*: any integer numeric type.
 
-* For ``boolean`` type of ``data`` input, *reduction* ``sum``, ``prod`` behaves like logical ``OR``, ``AND`` accordingly, but there is no implementation for ``mean``.
+* For ``boolean`` type of ``data`` input, *reduction* ``sum``, ``prod`` behaves like logical ``OR``, ``AND`` accordingly, but there is no implementation for ``boolean`` data type and *reduction* ``mean``.
 
 **Example**
 
