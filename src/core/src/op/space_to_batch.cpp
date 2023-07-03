@@ -102,7 +102,7 @@ bool ngraph::op::v1::SpaceToBatch::evaluate_space_to_batch(const HostTensorVecto
 
     auto data_shape = data->get_shape();
 
-    if (!(data->get_shape().size() == 4 || data->get_shape().size() == 5)) {
+    if (!(data->get_shape().size() == 3 || data->get_shape().size() == 4 || data->get_shape().size() == 5)) {
         return false;
     }
 

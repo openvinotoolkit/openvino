@@ -2,6 +2,11 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn what checks you may perform after encountering problems during 
+                 the installation and configuration of OpenVINO™ on your system.
+
+
 If you run into issues while installing or configuring OpenVINO™, you can try the following methods to do some quick checks first. 
 
 Check the versions of OpenVINO Runtime and Development Tools

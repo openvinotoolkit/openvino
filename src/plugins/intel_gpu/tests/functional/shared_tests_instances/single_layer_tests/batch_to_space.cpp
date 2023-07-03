@@ -11,7 +11,17 @@ using namespace LayerTestsDefinitions;
 
 namespace {
 auto bts_only_test_cases = []() {
-    return std::vector<batchToSpaceParamsTuple>{batchToSpaceParamsTuple({1, 1, 2, 2},
+    return std::vector<batchToSpaceParamsTuple>{batchToSpaceParamsTuple({1, 2, 2},
+                                                                        {0, 0, 0},
+                                                                        {0, 0, 0},
+                                                                        {4, 1, 1},
+                                                                        InferenceEngine::Precision::FP32,
+                                                                        InferenceEngine::Precision::UNSPECIFIED,
+                                                                        InferenceEngine::Precision::UNSPECIFIED,
+                                                                        InferenceEngine::Layout::ANY,
+                                                                        InferenceEngine::Layout::ANY,
+                                                                        CommonTestUtils::DEVICE_GPU),
+                                                batchToSpaceParamsTuple({1, 1, 2, 2},
                                                                         {0, 0, 0, 0},
                                                                         {0, 0, 0, 0},
                                                                         {4, 1, 1, 1},
