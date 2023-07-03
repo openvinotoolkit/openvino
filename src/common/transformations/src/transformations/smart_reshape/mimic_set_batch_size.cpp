@@ -21,7 +21,7 @@ using namespace ngraph;
 bool ov::pass::MimicSetBatchSize::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     RUN_ON_FUNCTION_SCOPE(MimicSetBatchSize);
     // extracting ratio of out to in 0-index dimension value from the folded function
-    auto specialized_function = ngraph::clone_function(*f);
+    auto specialized_function = f->clone();
     ngraph::pass::Manager manager;
     manager.register_pass<ngraph::pass::ConstantFolding>();
     manager.run_passes(specialized_function);

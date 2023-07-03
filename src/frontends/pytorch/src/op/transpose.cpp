@@ -50,6 +50,16 @@ OutputVector translate_transpose(const NodeContext& context) {
     return {context.mark_node(std::make_shared<v1::Transpose>(context.get_input(0), scatter))};
 };
 
+OutputVector translate_t(const NodeContext& context) {
+    num_inputs_check(context, 1, 1);
+    auto input = context.get_input(0);
+    if (input.get_partial_shape().rank().is_dynamic() || input.get_partial_shape().rank().get_length() < 2) {
+        return {input};
+    }
+    auto dims = context.mark_node(v0::Constant::create(element::i32, Shape{2}, {1, 0}));
+    return {context.mark_node(std::make_shared<v1::Transpose>(input, dims))};
+}
+
 }  // namespace op
 }  // namespace pytorch
 }  // namespace frontend

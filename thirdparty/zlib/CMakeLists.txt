@@ -13,7 +13,7 @@ else()
         #266: function "XXX" declared implicitly
         set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -diag-disable=266")
     endif()
-    if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    if(CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
         set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-deprecated-non-prototype")
         set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-unused-variable")
         set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-deprecated-declarations")
@@ -55,8 +55,8 @@ set(zlib_ext_hdrs
     zlib/zconf.h)
 
 add_library(${TARGET_NAME} STATIC ${zlib_srcs} ${zlib_hdrs} ${lib_ext_hdrs})
-add_library(${TARGET_NAME}::${TARGET_NAME} ALIAS ${TARGET_NAME})
+add_library(ZLIB::ZLIB ALIAS ${TARGET_NAME})
 
 target_include_directories(${TARGET_NAME} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/zlib")
 
-set_target_properties(zlib PROPERTIES FOLDER thirdparty)
+set_target_properties(${TARGET_NAME} PROPERTIES FOLDER thirdparty)

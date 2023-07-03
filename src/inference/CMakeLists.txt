@@ -40,7 +40,14 @@ if(WIN32)
     file (GLOB LIBRARY_HEADERS
          ${LIBRARY_HEADERS}
          ${CMAKE_CURRENT_SOURCE_DIR}/src/os/win/*.hpp)
-elseif(NOT (APPLE OR EMSCRIPTEN))
+elseif(APPLE)
+    file (GLOB LIBRARY_SRC
+        ${LIBRARY_SRC}
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/os/mac/*.cpp)
+    file (GLOB LIBRARY_HEADERS
+        ${LIBRARY_HEADERS}
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/os/mac/*.hpp)
+elseif(NOT EMSCRIPTEN)
     file (GLOB LIBRARY_SRC
           ${LIBRARY_SRC}
           ${CMAKE_CURRENT_SOURCE_DIR}/src/os/lin/*.cpp)
@@ -133,7 +140,7 @@ target_include_directories(${TARGET_NAME}_obj SYSTEM PRIVATE
     $<TARGET_PROPERTY:ngraph,INTERFACE_INCLUDE_DIRECTORIES>
     $<TARGET_PROPERTY:openvino::pugixml,INTERFACE_INCLUDE_DIRECTORIES>
     $<TARGET_PROPERTY:frontend_common::static,INTERFACE_INCLUDE_DIRECTORIES>
-    $<TARGET_PROPERTY:xbyak,INTERFACE_INCLUDE_DIRECTORIES>)
+    $<$<TARGET_EXISTS:xbyak::xbyak>:$<TARGET_PROPERTY:xbyak::xbyak,INTERFACE_INCLUDE_DIRECTORIES>>)
 
 target_include_directories(${TARGET_NAME}_obj PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/src"

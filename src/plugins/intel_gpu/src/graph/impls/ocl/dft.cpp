@@ -102,3 +102,4 @@ attach_dft_impl::attach_dft_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::dft_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::dft)

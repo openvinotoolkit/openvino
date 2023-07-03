@@ -2,7 +2,7 @@
 
 @sphinxdirective
 
-This tutorial describes an example of running post-training quantization for **MobileNet v2 model from PyTorch** framework, 
+This tutorial describes an example of running post-training quantization for the **MobileNet v2 model from PyTorch** framework, 
 particularly by the DefaultQuantization algorithm.
 The example covers the following steps:
 
@@ -32,7 +32,7 @@ Model Preparation
       omz_downloader --name mobilenet-v2-pytorch
 
 
-   After that the original full-precision model is located in ``<EXAMPLE_DIR>/public/mobilenet-v2-pytorch/``.
+   After that, the original full-precision model is located in ``<EXAMPLE_DIR>/public/mobilenet-v2-pytorch/``.
 
 3. Convert the model to the OpenVINO™ Intermediate Representation (IR) format using :doc:`Model Converter <omz_tools_downloader>` tool:
 
@@ -41,9 +41,9 @@ Model Preparation
       omz_converter --name mobilenet-v2-pytorch
 
 
-   After that the full-precision model in the IR format is located in ``<EXAMPLE_DIR>/public/mobilenet-v2-pytorch/FP32/``.
+   After that, the full-precision model in the IR format is located in ``<EXAMPLE_DIR>/public/mobilenet-v2-pytorch/FP32/``.
 
-For more information about the Model Optimizer, refer to its :doc:`documentation <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`.
+For more information about Model Conversion API, refer to its :doc:`documentation <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`.
 
 Performance Benchmarking of Full-Precision Models
 #################################################
@@ -54,7 +54,7 @@ Check the performance of the full-precision model in the IR format using :doc:`D
 
    benchmark_app -m <EXAMPLE_DIR>/public/mobilenet-v2-pytorch/FP32/mobilenet-v2-pytorch.xml
 
-Note that the results might be different dependently on characteristics of your machine. On a machine with Intel® Core™ i9-10920X CPU @ 3.50GHz it is like:
+Note that the results might be different depending on the characteristics of your machine. On a machine with Intel® Core™ i9-10920X CPU @ 3.50GHz it is like:
 
 .. code-block:: sh
 
@@ -79,14 +79,14 @@ To download images:
 
 Note that the registration process might be quite long.
 
-Note that the ImageNet size is 50 000 images and takes around 6.5 GB of the disk space.
+Note that the ImageNet size is 50 000 images and takes around 6.5 GB of disk space.
 
 To download the annotation file:
 
 1. Download `archive <http://dl.caffe.berkeleyvision.org/caffe_ilsvrc12.tar.gz>`__.
 2. Unpack ``val.txt`` from the archive into ``<EXAMPLE_DIR>/ImageNet/``.
 
-After that the ``<EXAMPLE_DIR>/ImageNet/`` dataset folder should have a lot of image files like ``ILSVRC2012_val_00000001.JPEG`` and the ``val.txt`` annotation file.
+After that, the ``<EXAMPLE_DIR>/ImageNet/`` dataset folder should have a lot of image files like ``ILSVRC2012_val_00000001.JPEG`` and the ``val.txt`` annotation file.
 
 Accuracy Validation of Full-Precision Model in IR Format
 ########################################################
@@ -134,7 +134,7 @@ Accuracy Validation of Full-Precision Model in IR Format
 
 
    where ``data_source: ./ImageNet`` is the dataset and ``annotation_file: ./ImageNet/val.txt`` 
-   is the annotation file prepared on the previous step. For more information about 
+   is the annotation file prepared in the previous step. For more information about 
    the Accuracy Checker configuration file refer to :doc:`Accuracy Checker Tool documentation <omz_tools_accuracy_checker>`.
 
 3. Evaluate the accuracy of the full-precision model in the IR format by executing the following command in ``<EXAMPLE_DIR>`` :
@@ -144,7 +144,7 @@ Accuracy Validation of Full-Precision Model in IR Format
       accuracy_check -c mobilenet_v2_pytorch.yaml -m ./public/mobilenet-v2-pytorch/FP32/
 
 
-   The actual result should be like **71.81%** of the accuracy top-1 metric on VNNI based CPU.
+   The actual result should be like **71.81%** of the accuracy top-1 metric on VNNI-based CPU.
    Note that the results might be different on CPUs with different instruction sets.
 
 
@@ -195,7 +195,7 @@ Model Quantization
    The quantized model is placed into the subfolder with your current date and time 
    in the name under the ``./results/mobilenetv2_DefaultQuantization/`` directory.
    The accuracy validation of the quantized model is performed right after the quantization. 
-   The actual result should be like **71.556%** of the accuracy top-1 metric on VNNI based CPU.
+   The actual result should be like **71.556%** of the accuracy top-1 metric on VNNI-based CPU.
    Note that the results might be different on CPUs with different instruction sets.
 
 
@@ -210,7 +210,7 @@ Check the performance of the quantized model using :doc:`Deep Learning Benchmark
 
 
 where ``<INT8_MODEL>`` is the path to the quantized model.
-Note that the results might be different dependently on characteristics of your 
+Note that the results might be different depending on the characteristics of your 
 machine. On a machine with Intel® Core™ i9-10920X CPU @ 3.50GHz it is like:
 
 .. code-block:: sh

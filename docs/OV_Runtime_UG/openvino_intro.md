@@ -14,6 +14,7 @@
    openvino_docs_OV_UG_ShapeInference
    openvino_docs_OV_UG_DynamicShapes
    openvino_docs_OV_UG_model_state_intro
+   Optimize Inference <openvino_docs_deployment_optimization_guide_dldt_optimization_guide>
 
 
 OpenVINO Runtime is a set of C++ libraries with C and Python bindings providing a common API to deliver inference solutions on the platform of your choice. Use the OpenVINO Runtime API to read an Intermediate Representation (IR), TensorFlow, TensorFlow Lite, ONNX, or PaddlePaddle model and execute it on preferred devices.

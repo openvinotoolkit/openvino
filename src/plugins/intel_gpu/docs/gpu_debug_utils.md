@@ -249,6 +249,22 @@ If you do not have Gen12 HW, but want to debug the network's accuracy or perform
 
 After that, the plugin will run exactly the same scope of transformations as on Gen12 HW and generate similar kernels (a small difference is possible due to different EUs count).
 
+
+## Checking OpenCL execution
+
+OpenVINO GPU plugin runs on top of opencl. [opencl-intercept-layer](https://github.com/intel/opencl-intercept-layer/) is a very handy tool to check opencl execution.
+
+You can clone the repo and build it, you can use it to profile OpenVINO GPU plugin from various perspective. `cliloader` will be created when you build the repo. Here are some examples:
+
+```
+# See OpenCL call log
+$ CLI_CallLogging=1 /path/to/cliloader /path/to/benchmark_app ...
+
+# Profile device timing for kernel execution
+$ CLI_DevicePerformanceTiming=1 /path/to/cliloader /path/to/benchmark_app ...
+```
+
+
 ## See also
 
  * [OpenVINO™ README](../../../../README.md)

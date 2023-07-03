@@ -162,8 +162,10 @@ void shape_infer(const StridedSlice* op,
 
                 constexpr int64_t inf_bound = -1;
                 const auto is_reverse_stride = stride < 0;
-                const int64_t norm_dim = (input_dim.get_max_length() == inf_bound) ? std::numeric_limits<int64_t>::max()
-                                                                                   : input_dim.get_max_length();
+                const int64_t norm_dim =
+                    (static_cast<int64_t>(input_dim.get_max_length()) == static_cast<int64_t>(inf_bound))
+                        ? std::numeric_limits<int64_t>::max()
+                        : input_dim.get_max_length();
                 const slice::Bounds default_fstart = std::make_pair<int64_t, int64_t>(0, 0);
                 const slice::Bounds default_rstop = std::make_pair(inf_bound - norm_dim, inf_bound - norm_dim);
                 const slice::Bounds norm_dim_bounds = std::make_pair(norm_dim, norm_dim);

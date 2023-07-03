@@ -54,7 +54,7 @@ public:
        }
        result << "Precision=" << netPrecision << "_";
        if (!axes.empty()) {
-           result << "ReductionAccess=" << CommonTestUtils::vec2str(axes.to_vector()) << "_";
+           result << "ReductionAxes=" << CommonTestUtils::vec2str(axes.to_vector()) << "_";
        } else {
            result << "AcrossChannels=" << (acrossChanels ? "TRUE" : "FALSE") << "_";
        }
@@ -102,7 +102,6 @@ protected:
        selectedType = getPrimitiveType();
        selectedType = makeSelectedTypeStr(selectedType, netPrecision);
 
-       rel_threshold = 0.015f;
        function = makeNgraphFunction(netPrecision, param, mvn, "mvn");
    }
 };

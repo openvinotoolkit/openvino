@@ -66,3 +66,4 @@ attach_range_impl::attach_range_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::range_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::range)

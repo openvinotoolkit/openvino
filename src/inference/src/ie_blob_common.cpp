@@ -10,6 +10,7 @@
 #include "system_allocator.hpp"
 
 namespace InferenceEngine {
+IE_SUPPRESS_DEPRECATED_START
 
 void Blob::setShape(const SizeVector& dims) {
     // we don't want to allow setShape for:

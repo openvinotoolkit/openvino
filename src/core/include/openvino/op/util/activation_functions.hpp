@@ -11,9 +11,8 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
 
-#ifdef _WIN32
+#ifdef _MSC_VER
 #    pragma warning(push)
-
 #    pragma warning(disable : 4100)
 #endif
 
@@ -83,6 +82,6 @@ ActivationFunction get_activation_func_by_name(const std::string& func_name);
 
 }  // namespace ov
 
-#ifdef _WIN32
+#ifdef _MSC_VER
 #    pragma warning(pop)
 #endif

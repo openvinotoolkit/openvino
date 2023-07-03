@@ -5,7 +5,7 @@
 The file contains necessary transformations to convert models created with a TensorFlow Object Detection framework from
 the https://github.com/tensorflow/models/blob/master/research/object_detection/ repository. There is a dedicated
 OpenVINO document describing overall procedure of conversion these models with the Model Optimizer:
-https://docs.openvino.ai/latest/openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_Object_Detection_API_Models.html
+https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_Object_Detection_API_Models.html
 
 Conversion of most of the TF OD API models requires execution of several transformations defined in this file. The list
 of transformations to be executed for a particular model type (meta-architecture) is defined in the transformation

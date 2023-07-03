@@ -29,13 +29,20 @@
     "buildPath" : "../../../../../build/",
     "cachePath" : "{workPath}/slider_cache/",
     "logPath" : "{workPath}/log/",
-    "workPath" : "/tmp/commit_slider_tool",
+    "workPath" : "will be defined in runtime",
+    "linWorkPath" : "/tmp/commit_slider_tool",
+    "winWorkPath" : "%tmp%\\commit_slider",
     "clearCache" : false,
     "noCleanInterval" : 10,
-    "checkIfBordersDiffer" : false,
+    "checkIfBordersDiffer" : true,
     "printCSV" : false,
     "usePrevRunCache" : false,
     "serviceConfig" : {
         "comment" : "For inner purpose. Data will be overwritten during script running."
+    },
+    "dlbConfig" : {
+        "launchedAsJob" : false,
+        "toolName" : "{e2e|ac} - specified outside tool, supposed to be downloaded by job",
+        "appPath" : "path, substituted by job"
     }
 }

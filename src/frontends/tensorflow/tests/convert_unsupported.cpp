@@ -11,7 +11,7 @@
 #include <openvino/op/util/framework_node.hpp>
 #include <openvino/opsets/opset10.hpp>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "conversion_with_reference.hpp"
 #include "tf_framework_node.hpp"
 #include "tf_utils.hpp"
 #include "utils.hpp"
@@ -142,7 +142,7 @@ TEST(FrontEndConvertModelTest, test_unsupported_tf1_while) {
     }
 }
 
-TEST_F(TransformationTestsF, ModelWithDynamicType) {
+TEST_F(FrontEndConversionWithReferenceTestsF, ModelWithDynamicType) {
     { model = convert_model_partially("dynamic_type_model/dynamic_type_model.pb"); }
     {
         auto x = make_shared<Parameter>(f32, Shape{2, 3});
@@ -223,5 +223,21 @@ TEST(FrontEndConvertModelTest, test_unsupported_resource_gather_translator) {
         ASSERT_EQ(model, nullptr);
     } catch (...) {
         FAIL() << "Conversion of the model with ResourceGather failed by wrong reason.";
+    }
+}
+
+TEST(FrontEndConvertModelTest, test_unsupported_operation_conversion_with_reason) {
+    shared_ptr<Model> model = nullptr;
+    try {
+        model = convert_model("gather_with_string_table/gather_with_string_table.pb");
+        FAIL() << "The model with Const of string type must not be converted.";
+    } catch (const OpConversionFailure& error) {
+        string error_message = error.what();
+        string ref_message =
+            "[TensorFlow Frontend] Internal error, no translator found for operation(s): Const of string type";
+        ASSERT_TRUE(error_message.find(ref_message) != string::npos);
+        ASSERT_EQ(model, nullptr);
+    } catch (...) {
+        FAIL() << "Conversion of the model with Const of string type failed by wrong reason.";
     }
 }

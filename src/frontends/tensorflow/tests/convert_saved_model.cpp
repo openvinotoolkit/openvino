@@ -4,7 +4,7 @@
 
 #include <openvino/opsets/opset10.hpp>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "conversion_with_reference.hpp"
 #include "gtest/gtest.h"
 #include "test_common.hpp"
 #include "tf_utils.hpp"
@@ -14,7 +14,7 @@ using namespace ov;
 using namespace ov::opset10;
 using namespace ov::frontend::tensorflow::tests;
 
-TEST_F(TransformationTestsF, SavedModelProgramOnly) {
+TEST_F(FrontEndConversionWithReferenceTestsF, SavedModelProgramOnly) {
     {
         model = convert_model("saved_model_program-only");
 
@@ -40,7 +40,7 @@ TEST_F(TransformationTestsF, SavedModelProgramOnly) {
     }
 }
 
-TEST_F(TransformationTestsF, SavedModelVariables) {
+TEST_F(FrontEndConversionWithReferenceTestsF, SavedModelVariables) {
     { model = convert_model("saved_model_variables"); }
     {
         // create a reference graph
@@ -52,7 +52,7 @@ TEST_F(TransformationTestsF, SavedModelVariables) {
     }
 }
 
-TEST_F(TransformationTestsF, SavedModelWithInputIntegerType) {
+TEST_F(FrontEndConversionWithReferenceTestsF, SavedModelWithInputIntegerType) {
     {
         model = convert_model("saved_model_with_gather",
                               nullptr,
@@ -89,7 +89,7 @@ TEST_F(TransformationTestsF, SavedModelWithInputIntegerType) {
     }
 }
 
-TEST_F(TransformationTestsF, SavedModelMultipleTensorNames) {
+TEST_F(FrontEndConversionWithReferenceTestsF, SavedModelMultipleTensorNames) {
     // The test aims to check tensor names of input and output tensors
     // it checks that TF FE preserved user specific names for input and output tensor
     // and exclude internal names
@@ -112,5 +112,29 @@ TEST_F(TransformationTestsF, SavedModelMultipleTensorNames) {
         auto x = make_shared<Parameter>(element::f32, Shape{20, 5});
         auto result = make_shared<Result>(x);
         model_ref = make_shared<Model>(OutputVector{result}, ParameterVector{x});
+    }
+}
+
+TEST_F(FrontEndConversionWithReferenceTestsF, SavedModelBroadcastIssue) {
+    { model = convert_model("saved_model_broadcast_issue"); }
+    {
+        // create a reference graph
+        auto x = make_shared<Constant>(element::i64, Shape{2, 2}, vector<int64_t>{1, 2, -1, -1});
+
+        model_ref = make_shared<Model>(OutputVector{x}, ParameterVector{});
+    }
+}
+
+TEST_F(FrontEndConversionWithReferenceTestsF, SavedModelMultiGraph) {
+    // The test verifies loading of MetaGraph with empty tags as default
+    // And verifies loading variables with no corresponding RestoreV2
+    { model = convert_model("saved_model_multi-graph"); }
+    {
+        // create a reference graph
+        auto x = make_shared<Constant>(element::f32, Shape{2, 3}, vector<float>{1, 2, 3, 3, 2, 1});
+        auto y = make_shared<Parameter>(element::f32, Shape{1});
+        auto add = make_shared<Add>(x, y);
+
+        model_ref = make_shared<Model>(OutputVector{add}, ParameterVector{y});
     }
 }

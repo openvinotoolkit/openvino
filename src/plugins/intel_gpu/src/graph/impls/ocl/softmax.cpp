@@ -88,3 +88,4 @@ attach_softmax_impl::attach_softmax_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::softmax_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::softmax)

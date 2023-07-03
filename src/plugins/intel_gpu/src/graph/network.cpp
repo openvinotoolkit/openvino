@@ -337,18 +337,14 @@ network::network(program::ptr program, const ExecutionConfig& config, stream::pt
     build_exec_order();
     validate_primitives();
     add_default_output_chains();
-
-    if (is_dynamic()) {
-        GPU_DEBUG_DEFINE_MEM_LOGGER("dynamic_network_initialization");
-        _in_mem_kernels_cache = std::unique_ptr<KernelsCache>(new KernelsCache(_in_mem_kernels_cache_capacity));
-    }
 }
 
 network::network(engine& engine,
                  const topology& topo,
                  const ExecutionConfig& config,
-                 bool is_internal)
-    : network(program::build_program(engine, topo, config, is_internal), config, engine.create_stream(config), is_internal) {}
+                 bool is_internal,
+                 InferenceEngine::CPUStreamsExecutor::Ptr task_executor)
+    : network(program::build_program(engine, topo, config, task_executor, is_internal), config, engine.create_stream(config), is_internal) {}
 
 network::network(engine& engine,
                  const std::set<std::shared_ptr<program_node>>& nodes,
@@ -376,6 +372,8 @@ network::network(cldnn::BinaryInputBuffer& ib, const ExecutionConfig& config, st
     , _is_primary_stream(is_primary_stream)
     , _reset_arguments(true) {
     net_id = get_unique_net_id();
+    if (is_primary_stream)
+        ib.new_network_added();
 
     kernels_cache kernels_cache(get_engine(), config, 0, nullptr, {""});
     ib >> kernels_cache;
@@ -537,7 +535,8 @@ void network::save(cldnn::BinaryOutputBuffer& ob) {
     kernels_cache.reset();
     for (const auto& p_inst : _exec_order) {
         if (p_inst->get_impl() != nullptr) {
-            kernels_cache.add_to_cached_kernels(p_inst->get_impl()->get_kernels());
+            auto const_impl = static_cast<const primitive_impl*>(p_inst->get_impl());
+            kernels_cache.add_to_cached_kernels(const_impl->get_kernels());
         }
     }
     ob << kernels_cache;
@@ -655,8 +654,9 @@ network::ptr network::allocate_network(engine& engine, program::ptr program, boo
 network::ptr network::build_network(engine& engine,
                                     const topology& topology,
                                     const ExecutionConfig& config,
+                                    std::shared_ptr<InferenceEngine::CPUStreamsExecutor> task_executor,
                                     bool is_internal) {
-    return std::make_shared<network>(engine, topology, config, is_internal);
+    return std::make_shared<network>(engine, topology, config, is_internal, task_executor);
 }
 
 network::ptr network::build_network(engine& engine,
@@ -1080,14 +1080,41 @@ void network::build_insts_deps() {
     GPU_DEBUG_DEFINE_MEM_LOGGER("build_insts_deps");
     for (auto& inst : _primitives) {
         inst.second->build_deps();
+        inst.second->configure_shape_of_dependencies();
     }
 }
 
 void network::build_exec_order() {
     GPU_DEBUG_DEFINE_MEM_LOGGER("build_exec_order");
-    for (auto& node : _program->get_processing_order()) {
-        if (!node->is_type<data>() && !(node->is_type<mutable_data>() && node->get_dependencies().empty())) {
-            add_to_exec_order(node->id());
+    if (!_is_dynamic) {
+        for (auto& node : _program->get_processing_order()) {
+            if (!node->is_type<data>() && !(node->is_type<mutable_data>() && node->get_dependencies().empty())) {
+                add_to_exec_order(node->id());
+            }
+        }
+    } else {
+        auto is_runtime_optimized_concat = [&](const program_node* node) {
+            return (node->is_dynamic() && node->is_type<concatenation>() && node->can_be_optimized());
+        };
+        auto is_allowed_pred_for_runtime_optimized_concat = [&](const program_node* node) {
+            return (!node->is_type<data>() && !(node->is_type<mutable_data>() && node->get_dependencies().empty()) &&
+                    node->get_users().size() == 1 && is_runtime_optimized_concat(node->get_users().front()));
+        };
+        for (auto& node : _program->get_processing_order()) {
+            if (!node->is_type<data>() && !(node->is_type<mutable_data>() && node->get_dependencies().empty())) {
+                if (is_allowed_pred_for_runtime_optimized_concat(node)) {
+                    continue;
+                } else if (is_runtime_optimized_concat(node)) {
+                    // For in-place concat applied at runtime, we need to do update_shape for all other predecessors of the concat user.
+                    // i.e., We need to make sure that all the preds of them are already updated too.
+                    for (auto dep : node->get_dependencies()) {
+                        if (!dep.first->is_type<data>()) {
+                            add_to_exec_order(dep.first->id());
+                        }
+                    }
+                }
+                add_to_exec_order(node->id());
+            }
         }
     }
 }
@@ -1371,8 +1398,11 @@ void network::execute_primitive(const std::shared_ptr<primitive_inst>& primitive
                                 const std::vector<event::ptr>& events) {
     event::ptr ev = primitive->execute(events);
 
-    // Collect events only for OOO queue and Profiling mode
-    if (get_stream().get_queue_type() == QueueTypes::out_of_order || _enable_profiling) {
+    // Collect events under any of the following conditions:
+    // 1) OOO queue execution
+    // 2) Profiling mode is enabled
+    // 3) Primitive has CPU user or primitive is output
+    if (get_stream().get_queue_type() == QueueTypes::out_of_order || _enable_profiling || primitive->needs_completion_event()) {
         auto id = primitive->id();
         _events.insert({id, ev});
     }
@@ -1421,8 +1451,16 @@ void network::allocate_primitive_instance(program_node const& node) {
         if (node.is_type<data>())
             _data_outputs.push_back(inst);
     }
-    if (std::dynamic_pointer_cast<assign_inst>(inst) || std::dynamic_pointer_cast<read_value_inst>(inst))
+    if (node.is_type<assign>() || node.is_type<read_value>()) {
+        if (node.is_type<assign>()) {
+            auto assign_prim = node.as<assign>().get_primitive();
+            set_variables_state_info(assign_prim->variable_id, assign_prim->output_layout);
+        } else {
+            auto read_value_prim = node.as<read_value>().get_primitive();
+            set_variables_state_info(read_value_prim->variable_id, read_value_prim->output_layout);
+        }
         _variable_state_primitives.push_back(inst);
+    }
     if (node.is_constant())
         transfer_memory_to_device(inst, node);
 }
@@ -1477,6 +1515,55 @@ void network::assign_variables_memories(variables_states_map &&variables_memorie
             else
                 CLDNN_ERROR_MESSAGE(memory_state_primitive->variable_id(), "Memory state not found");
         }
+    }
+}
+
+void network::assign_variables_memories() {
+    for (auto primitive : _variable_state_primitives) {
+        if (const auto& memory_state_primitive = std::dynamic_pointer_cast<memory_state::variable>(primitive)) {
+            auto it = _variables_states.find(memory_state_primitive->variable_id());
+            if (it != _variables_states.end()) {
+                primitive->set_output_memory(it->second->memory, false);
+            }
+        }
+    }
+}
+
+void network::update_variable_memory(const std::string& variable_id, const cldnn::layout& layout) {
+    auto it = _variables_states.find(variable_id);
+    if (it == _variables_states.end()) {
+        cldnn::network::VariableState::Ptr variable_state = std::make_shared<cldnn::network::VariableState>(get_engine().allocate_memory(layout, false));
+        _variables_states.insert({variable_id, variable_state});
+    } else {
+        bool can_reuse = it->second->memory && layout.count() <= it->second->memory->get_layout().count();
+        if (can_reuse)
+            it->second->set_memory(get_engine().reinterpret_buffer(*it->second->memory, layout));
+        else
+            it->second->set_memory(get_engine().allocate_memory(layout, false));
+    }
+    for (auto primitive : _variable_state_primitives) {
+        if (const auto& memory_state_primitive = std::dynamic_pointer_cast<memory_state::variable>(primitive)) {
+            if (!variable_id.compare(memory_state_primitive->variable_id())) {
+                auto& variable_state = get_variable_memory(variable_id);
+                primitive->set_output_memory(variable_state.memory, false);
+            }
+        }
+    }
+}
+
+void network::allocate_variables_memories() {
+    for (const auto& info : _variables_state_info) {
+        auto variable_layout = info.second;
+        if (variable_layout.is_static()) {
+            _variables_states.insert({info.first, std::make_shared<cldnn::network::VariableState>(get_engine().allocate_memory(variable_layout, false))});
+        }
+    }
+}
+
+void network::set_variables_state_info(const std::string& variable_id, const cldnn::layout& layout) {
+    auto it = _variables_state_info.find(variable_id);
+    if (it == _variables_state_info.end()) {
+        _variables_state_info.insert({variable_id, layout});
     }
 }
 

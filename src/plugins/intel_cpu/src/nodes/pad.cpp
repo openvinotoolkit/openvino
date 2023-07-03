@@ -13,6 +13,7 @@
 #include "utils/bfloat16.hpp"
 #include <selective_build.h>
 #include <ngraph/opsets/opset1.hpp>
+#include <openvino/core/type/float16.hpp>
 
 using namespace dnnl;
 using namespace InferenceEngine;
@@ -119,8 +120,8 @@ void Pad::initSupportedPrimitiveDescriptors() {
         return;
 
     std::vector<InferenceEngine::Precision> supportedPrecisions = {InferenceEngine::Precision::FP32, InferenceEngine::Precision::I32,
-                                                                   InferenceEngine::Precision::BF16, InferenceEngine::Precision::I8,
-                                                                   InferenceEngine::Precision::U8};
+                                                                   InferenceEngine::Precision::BF16, InferenceEngine::Precision::FP16,
+                                                                   InferenceEngine::Precision::I8, InferenceEngine::Precision::U8};
     InferenceEngine::Precision precision = getOriginalInputPrecisionAtPort(DATA_ID);
     if (std::find(supportedPrecisions.begin(), supportedPrecisions.end(), precision) == supportedPrecisions.end())
         precision = precision.is_float() ? InferenceEngine::Precision::FP32 : InferenceEngine::Precision::I32;
@@ -180,7 +181,7 @@ bool Pad::needPrepareParams() const {
 
 void Pad::createPrimitive() {
     if (srcMemory.empty()) {
-        for (int i = 0; i < getOriginalInputsNumber(); i++) {
+        for (size_t i = 0; i < getOriginalInputsNumber(); i++) {
             srcMemory.push_back(getParentEdgeAt(i)->getMemoryPtr());
         }
     }
@@ -276,7 +277,7 @@ void Pad::PadExecutor::paramsInitialization(const PadAttrs& attrs,
     params.attrs.beginPadIdx = 0;
     params.attrs.endPadIdx = params.attrs.padsBegin.size() - 1;
 
-    for (int i = 0; i < params.attrs.padsBegin.size(); ++i) {
+    for (size_t i = 0; i < params.attrs.padsBegin.size(); ++i) {
         if (params.attrs.padsBegin[i] != 0 || params.attrs.padsEnd[i] != 0) {
             params.attrs.beginPadIdx = i - 1;
             break;
@@ -411,7 +412,7 @@ static inline size_t parallel_init(size_t start, size_t nDims, const VectorDims&
 static inline void parallel_step(size_t nDims, const VectorDims& dims, std::vector<int32_t>& indexes) {
     for (int j = nDims - 1; j >= 0; --j) {
         ++indexes[j];
-        if (indexes[j] < dims[j])
+        if (static_cast<size_t>(indexes[j]) < dims[j])
             break;
         else
             indexes[j] = 0;
@@ -432,6 +433,7 @@ void Pad::PadExecutor::padConstant(MemoryPtr& srcMemPtr, MemoryPtr& dstMemPtr) {
               OV_CASE(InferenceEngine::Precision::FP32, float),
               OV_CASE(InferenceEngine::Precision::I32, int32_t),
               OV_CASE(InferenceEngine::Precision::BF16, bfloat16_t),
+              OV_CASE(InferenceEngine::Precision::FP16, ov::float16),
               OV_CASE(InferenceEngine::Precision::I8, int8_t),
               OV_CASE(InferenceEngine::Precision::U8, uint8_t));
 }
@@ -463,7 +465,7 @@ void Pad::PadExecutor::padConstantCommon(MemoryPtr& srcMemPtr, MemoryPtr& dstMem
         for (size_t iwork = start; iwork < end; ++iwork, dstIdx += params.lastDstDim) {
             size_t j = 0;
             for (; j < params.nDimsForWork; ++j) {
-                if (indexes[j] < params.attrs.padsBegin[j] || indexes[j] >= params.srcODims[j])
+                if (indexes[j] < params.attrs.padsBegin[j] || static_cast<size_t>(indexes[j]) >= params.srcODims[j])
                     break;
             }
 
@@ -503,7 +505,7 @@ void Pad::PadExecutor::padConstantZero(MemoryPtr& srcMemPtr, MemoryPtr& dstMemPt
         for (size_t iwork = start; iwork < end; ++iwork, dstIdx += params.lastDstDim) {
             size_t j = 0;
             for (; j < params.nDimsForWork; ++j) {
-                if (indexes[j] < params.attrs.padsBegin[j] || indexes[j] >= params.srcODims[j])
+                if (indexes[j] < params.attrs.padsBegin[j] || static_cast<size_t>(indexes[j]) >= params.srcODims[j])
                     break;
             }
 
@@ -544,11 +546,11 @@ void Pad::PadExecutor::padEdge(MemoryPtr& srcMemPtr, MemoryPtr& dstMemPtr) {
         for (size_t iwork = start; iwork < end; ++iwork, dstIdx += params.lastDstDim) {
             size_t srcIdx = 0;
             for (size_t idx = 0; idx < params.nDimsForWork; ++idx) {
-                size_t shift =
-                    (indexes[idx] < params.attrs.padsBegin[idx])
-                        ? 0
-                        : ((indexes[idx] >= params.srcODims[idx]) ? (params.srcDims[idx] - 1)
-                                                                  : (indexes[idx] - params.attrs.padsBegin[idx]));
+                size_t shift = (indexes[idx] < params.attrs.padsBegin[idx])
+                                   ? 0
+                                   : ((static_cast<size_t>(indexes[idx]) >= params.srcODims[idx])
+                                          ? (params.srcDims[idx] - 1)
+                                          : (indexes[idx] - params.attrs.padsBegin[idx]));
                 srcIdx += shift * params.srcStrides[idx];
             }
             srcIdx *= params.dataSize;
@@ -587,11 +589,11 @@ void Pad::PadExecutor::padReflectOrSymmetric(MemoryPtr& srcMemPtr, MemoryPtr& ds
         for (size_t iwork = start; iwork < end; ++iwork, dstIdx += params.lastDstDim) {
             size_t srcIdx = 0;
             for (size_t i = 0; i < params.nDimsForWork; ++i) {
-                size_t idx =
-                    (indexes[i] < params.attrs.padsBegin[i])
-                        ? (params.attrs.padsBegin[i] - indexes[i] - shift)
-                        : ((indexes[i] >= params.srcODims[i]) ? (params.srcDimsForReflectOrSymmetric[i] - indexes[i])
-                                                              : (indexes[i] - params.attrs.padsBegin[i]));
+                size_t idx = (indexes[i] < params.attrs.padsBegin[i])
+                                 ? (params.attrs.padsBegin[i] - indexes[i] - shift)
+                                 : ((static_cast<size_t>(indexes[i]) >= params.srcODims[i])
+                                        ? (params.srcDimsForReflectOrSymmetric[i] - indexes[i])
+                                        : (indexes[i] - params.attrs.padsBegin[i]));
                 srcIdx += idx * params.srcStrides[i];
             }
             srcIdx *= params.dataSize;

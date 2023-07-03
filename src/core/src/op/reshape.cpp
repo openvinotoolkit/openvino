@@ -184,7 +184,9 @@ bool op::v1::Reshape::evaluate_reshape(const HostTensorVector& outputs, const Ho
     NGRAPH_CHECK(ov::PartialShape(output_shape).is_static());
     outputs[0]->set_shape(ov::PartialShape(output_shape).to_shape());
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const AxisVector order = get_default_order(inputs[0]->get_shape());
+    OPENVINO_SUPPRESS_DEPRECATED_END
     return reshapeop::evaluate_reshape(inputs[0], outputs[0], order);
 }
 

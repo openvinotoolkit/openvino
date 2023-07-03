@@ -4,10 +4,10 @@
 
 #pragma once
 
-#include <ngraph/op/op.hpp>
+#include "openvino/op/op.hpp"
 #include "snippets/op/memory_access.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace snippets {
 namespace op {
 
@@ -33,6 +33,9 @@ public:
 
     void validate_and_infer_types() override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
+
+protected:
+    void validate_memory_access_params() const;
 };
 
 /**
@@ -60,4 +63,4 @@ private:
 };
 } // namespace op
 } // namespace snippets
-} // namespace ngraph
+} // namespace ov

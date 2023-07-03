@@ -37,6 +37,8 @@ class WorkerPool;
 class Worker;
 }  // namespace request
 
+using namespace ov::intel_gna::pre_post_processing;
+
 class GNAPlugin : public InferenceEngine::IInferencePlugin {
 protected:
     std::string _pluginName = "GNA";
@@ -47,8 +49,7 @@ protected:
     std::shared_ptr<gna_memory_type> gnamem;
     std::shared_ptr<GnaInputs> inputs_ptr_;
     GnaOutputs outputs_;
-
-    GNAGraphCompiler graphCompiler;
+    std::shared_ptr<GNAGraphCompiler> m_graph_compiler;
 
     uint32_t activeLayerIndex = 0xffffffff;
     // TODO: transpose_inputs_info and transpose_outputs_info should be moved to GNAModelSerial class when ngraph
@@ -67,7 +68,7 @@ protected:
     /**
      * @brief size of RW segment without extra memory for parallel execution
      */
-    uint32_t rwSegmentSize = 0;
+    size_t rwSegmentSize = 0;
 
     InferenceEngine::InputsDataMap inputs_data_map_;    //!< Holds information about network inputs info
     InferenceEngine::OutputsDataMap outputs_data_map_;  //!< Holds information about network outputs data
@@ -189,6 +190,8 @@ protected:
     void Init();
 
     void InitGNADevice();
+    void InitGNAMemory();
+    void InitGraphCompiler();
 
     void DumpXNNToFile() const;
     /**
@@ -202,6 +205,13 @@ protected:
     void PrePostProcess(InferenceEngine::Blob::Ptr input_blob,
                         InferenceEngine::Blob::Ptr output_blob,
                         std::shared_ptr<ov::Model> model);
+
+    /**
+     * Run ngraph model on CPU to modify inputs/outputs
+     */
+    void pre_post_process(InferenceEngine::Blob::Ptr input_blob,
+                          InferenceEngine::Blob::Ptr output_blob,
+                          std::shared_ptr<ov::Model> model);
 
     void ImportFrames(void* ptr_dst,
                       const void* ptr_src,
@@ -245,14 +255,6 @@ protected:
      * @return true if the output is initiated, false otherwise
      */
     bool TryToInitOutput(const std::string& portName, InferenceEngine::CNNLayerPtr layer);
-
-    /**
-     * @brief Fills inputs and outputs transposition info for model convertion from NCHW to NHWC.
-     *        Information for transposition is found from convolution/pooling input or output dimensions.
-     * @param layers model sorted layers
-     */
-    void FillInputsAndOutputsTranspositionInfo(const InferenceEngine::CNNNetwork& net);
-
     bool isFP32ModeActive() const;
     std::shared_ptr<request::ModelWrapper> createModelWrapperForLoadNetwork(bool trivial);
     std::shared_ptr<request::ModelWrapper> createModelWrapperForImportNetwork(uint32_t numberOfOperations);

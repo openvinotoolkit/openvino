@@ -31,6 +31,9 @@
 #    endif
 
 #    if defined(_WIN32) || defined(_WIN64)
+#        ifndef NOMINMAX
+#            define NOMINMAX
+#        endif
 #        include <windows.h>
 #    endif
 
@@ -161,7 +164,7 @@ public:
 
 private:
     int get_processors_group_num() const {
-#    if defined(_WIN32) || defined(_WIN64)
+#    if defined(_WIN32)
         SYSTEM_INFO si;
         GetNativeSystemInfo(&si);
 

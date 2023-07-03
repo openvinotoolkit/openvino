@@ -242,7 +242,14 @@ bool evaluate_interpolate(const std::shared_ptr<ov::op::v11::Interpolate>& op,
 
     PartialShape input_shape{inputs[data_port]->get_shape()};
     auto m_attrs = op->get_attrs();
-    op::util::correct_pads_attr(op.get(), m_attrs.pads_begin, m_attrs.pads_end, std::vector<PartialShape>{input_shape});
+
+    const auto ta = make_tensor_accessor(inputs);
+    auto input_shapes = std::vector<PartialShape>();
+    std::transform(inputs.cbegin(), inputs.cend(), std::back_inserter(input_shapes), [](const HostTensorPtr& ht) {
+        return ht->get_shape();
+    });
+    const auto output_shape =
+        ov::op::v11::shape_infer(op.get(), input_shapes, m_attrs.pads_begin, m_attrs.pads_end, ta).front();
 
     Shape padded_input_shape;
     for (size_t i = 0; i < input_shape.size(); ++i) {
@@ -251,16 +258,6 @@ bool evaluate_interpolate(const std::shared_ptr<ov::op::v11::Interpolate>& op,
 
     auto axes = get_axes_vector(inputs, inputs[1]->get_shape()[0], axes_port, max_num_of_ports);
     auto scales = get_scales_vector(inputs, padded_input_shape, m_attrs, axes, scales_sizes_port);
-
-    PartialShape output_shape{padded_input_shape};
-    if (m_attrs.shape_calculation_mode == op::util::InterpolateBase::ShapeCalcMode::SCALES) {
-        op::util::infer_using_scales(output_shape, axes, scales);
-    } else {
-        auto sizes = get_target_shape_vector(inputs, axes.size(), scales_sizes_port);
-        for (size_t i = 0; i < sizes.size(); ++i) {
-            output_shape[axes[i]] = Dimension(sizes[i]);
-        }
-    }
 
     Shape out_shape = output_shape.to_shape();
     outputs[0]->set_shape(out_shape);

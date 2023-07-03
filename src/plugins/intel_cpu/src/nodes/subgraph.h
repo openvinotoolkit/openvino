@@ -69,12 +69,12 @@ private:
     void schedule_nt();
 
     // Original subgraph node
-    std::shared_ptr<ngraph::snippets::op::Subgraph> original_snippet;
+    std::shared_ptr<snippets::op::Subgraph> original_snippet;
     // Local copy of subgraph node for canonization & code generation
-    std::shared_ptr<ngraph::snippets::op::Subgraph> snippet;
+    std::shared_ptr<snippets::op::Subgraph> snippet;
 
     // Holds generated snippet with information about how to schedule it
-    ngraph::snippets::Schedule schedule;
+    snippets::Schedule schedule;
 
     // Holds ISA version used is codeGeneration target
     dnnl::impl::cpu::x64::cpu_isa_t host_isa;

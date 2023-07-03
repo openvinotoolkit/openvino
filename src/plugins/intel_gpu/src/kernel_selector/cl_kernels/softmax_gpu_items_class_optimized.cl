@@ -3,11 +3,36 @@
 //
 
 #include "include/batch_headers/common.cl"
+#include "include/batch_headers/fetch_data.cl"
+#include "include/batch_headers/sub_group_block_read.cl"
+#include "include/batch_headers/sub_group_block_write.cl"
 
 #define DATA_PER_WORKITEM ( (INPUT0_CLASS_NUM + (WORKITEMS_PER_CLASSES - 1) ) / WORKITEMS_PER_CLASSES)
 #define FULL_ITERATIONS_NUM (INPUT0_CLASS_NUM / WORKITEMS_PER_CLASSES)
 
-REQD_SUB_GROUP_SIZE(16)
+#if FULL_ITERATIONS_NUM / 8 > 0
+#define BLOCK_SIZE 8
+#elif FULL_ITERATIONS_NUM / 4 > 0
+#define BLOCK_SIZE 4
+#elif FULL_ITERATIONS_NUM / 2 > 0
+#define BLOCK_SIZE 2
+#else
+#define BLOCK_SIZE 1
+#endif
+
+#if BLOCK_SIZE == 1
+#define BLOCK_READ(ptr, offset) DT_INPUT_BLOCK_READ(ptr, offset)
+#define BLOCK_WRITE(ptr, offset, val) DT_OUTPUT_BLOCK_WRITE(ptr, offset, val)
+#define BLOCK_TYPE INPUT0_TYPE
+#else
+#define BLOCK_READ(ptr, offset) CAT(DT_INPUT_BLOCK_READ, BLOCK_SIZE)(ptr, offset)
+#define BLOCK_WRITE(ptr, offset, val) CAT(DT_OUTPUT_BLOCK_WRITE, BLOCK_SIZE)(ptr, offset, val)
+#define BLOCK_TYPE MAKE_VECTOR_TYPE(INPUT0_TYPE, BLOCK_SIZE)
+#endif
+
+#define SUB_GROUP_SIZE 16
+
+REQD_SUB_GROUP_SIZE(SUB_GROUP_SIZE)
 KERNEL(softmax_items_class_optimized)(
     __global INPUT0_TYPE* input,
     __global OUTPUT_TYPE* output
@@ -33,14 +58,37 @@ KERNEL(softmax_items_class_optimized)(
     ACCUMULATOR_TYPE data[DATA_PER_WORKITEM];
 
     // PART 1. Calculate MAX value
-    uint input_idx = in_depth_offset + simd_lane * INPUT0_CLASS_PITCH;
-    for (uint cls = 0; cls < FULL_ITERATIONS_NUM; cls++)
+    uint input_idx = in_depth_offset;
+
+    uint cls = 0;
+#if FULL_ITERATIONS_NUM >= SUB_GROUP_SIZE && IS_SUBGROUP_BLOCK_IO_ENABLED
+    for (; cls < FULL_ITERATIONS_NUM - (FULL_ITERATIONS_NUM % BLOCK_SIZE); cls += BLOCK_SIZE)
+    {
+        BLOCK_TYPE vec = BLOCK_READ(input, input_idx);
+#if BLOCK_SIZE > 1
+        for (int i = 0; i < BLOCK_SIZE; i++)
+        {
+            ACCUMULATOR_TYPE in = vec[i];
+            max_value = max(max_value, in);
+            data[cls + i] = in;
+        }
+#else
+        ACCUMULATOR_TYPE in = vec;
+        max_value = max(max_value, in);
+        data[cls] = in;
+#endif
+        input_idx += BLOCK_SIZE * WORKITEMS_PER_CLASSES * INPUT0_CLASS_PITCH;
+    }
+#endif
+    input_idx += simd_lane * INPUT0_CLASS_PITCH;
+    for (; cls < FULL_ITERATIONS_NUM; cls++)
     {
         ACCUMULATOR_TYPE in = input[input_idx];
         max_value = max(max_value, in);
         data[cls] = in;
         input_idx += WORKITEMS_PER_CLASSES*INPUT0_CLASS_PITCH;
     }
+
     if(simd_lane < LEFTOVERS)
     {
         ACCUMULATOR_TYPE in = input[input_idx];
@@ -78,8 +126,38 @@ KERNEL(softmax_items_class_optimized)(
     denominator = sub_group_reduce_add(denominator);
 
     // PART 3. Write out results
-    uint output_idx = out_depth_offset + simd_lane * OUTPUT_CLASS_PITCH;
-    for (uint cls = 0; cls < FULL_ITERATIONS_NUM; cls++)
+    uint output_idx = out_depth_offset;
+    cls = 0;
+#if FULL_ITERATIONS_NUM >= SUB_GROUP_SIZE && IS_SUBGROUP_BLOCK_IO_ENABLED
+    for (; cls < FULL_ITERATIONS_NUM - (FULL_ITERATIONS_NUM % BLOCK_SIZE); cls += BLOCK_SIZE)
+    {
+        BLOCK_TYPE vec;
+#if BLOCK_SIZE > 1
+        for (int i = 0; i < BLOCK_SIZE; i++)
+        {
+            const ACCUMULATOR_TYPE res = data[cls + i] / denominator;
+#if HAS_FUSED_OPS
+            FUSED_OPS;
+            vec[i] = FUSED_OPS_RESULT;
+#else
+            vec[i] = ACTIVATION(res, ACTIVATION_PARAMS);
+#endif
+        }
+#else
+        const ACCUMULATOR_TYPE res = data[cls] / denominator;
+#if HAS_FUSED_OPS
+        FUSED_OPS;
+        vec = FUSED_OPS_RESULT;
+#else
+        vec = ACTIVATION(res, ACTIVATION_PARAMS);
+#endif
+#endif
+        BLOCK_WRITE(output, output_idx, vec);
+        output_idx += BLOCK_SIZE * WORKITEMS_PER_CLASSES;
+    }
+#endif
+    output_idx += simd_lane * OUTPUT_CLASS_PITCH;
+    for (; cls < FULL_ITERATIONS_NUM; cls++)
     {
         const ACCUMULATOR_TYPE res = data[cls] / denominator;
 #if HAS_FUSED_OPS
@@ -104,3 +182,7 @@ KERNEL(softmax_items_class_optimized)(
 
 #undef FULL_ITERATIONS_NUM
 #undef DATA_PER_WORKITEM
+#undef BLOCK_READ
+#undef BLOCK_WRITE
+#undef BLOCK_TYPE
+#undef SUB_GROUP_SIZE

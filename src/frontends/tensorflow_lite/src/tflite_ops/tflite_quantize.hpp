@@ -23,7 +23,7 @@ public:
                 std::shared_ptr<ov::frontend::tensorflow_lite::QuantizationInfo> info,
                 const element::Type& type,
                 const std::shared_ptr<DecoderBase>& decoder = nullptr)
-        : ov::frontend::tensorflow::InternalOperation(decoder, OutputVector{data}, 1),
+        : ov::frontend::tensorflow::InternalOperation(decoder, OutputVector{data}, 1, "TFLQuantize"),
           m_info(info),
           m_type(type),
           m_original_type(type) {

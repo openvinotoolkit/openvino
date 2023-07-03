@@ -38,6 +38,7 @@
 #include "openvino/util/shared_object.hpp"
 #include "ov_plugins.hpp"
 #include "preprocessing/preprocessing.hpp"
+#include "so_extension.hpp"
 #include "xml_parse_utils.h"
 
 ov::ICore::~ICore() = default;
@@ -243,7 +244,9 @@ bool ov::is_config_applicable(const std::string& user_device_name, const std::st
     return false;
 }
 
-ov::Parsed ov::parseDeviceNameIntoConfig(const std::string& deviceName, const AnyMap& config) {
+ov::Parsed ov::parseDeviceNameIntoConfig(const std::string& deviceName,
+                                         const AnyMap& config,
+                                         const bool keep_core_property) {
     auto updated_config = config;
     auto updated_device_name = deviceName;
 
@@ -289,9 +292,11 @@ ov::Parsed ov::parseDeviceNameIntoConfig(const std::string& deviceName, const An
         }
     };
 
-    // clean-up auto-batch related properties
-    clean_batch_properties(updated_device_name, updated_config, ov::hint::allow_auto_batching);
-    clean_batch_properties(updated_device_name, updated_config, ov::auto_batch_timeout);
+    // keep batch property only when called from query_supported_property
+    if (!keep_core_property) {
+        clean_batch_properties(updated_device_name, updated_config, ov::hint::allow_auto_batching);
+        clean_batch_properties(updated_device_name, updated_config, ov::auto_batch_timeout);
+    }
 
     return {updated_device_name, updated_config};
 }
@@ -523,6 +528,7 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
             }
         } else {
             TryToRegisterLibraryAsExtensionUnsafe(desc.libraryLocation);
+            try_to_register_plugin_extensions(desc.libraryLocation);
         }
 
         return plugins.emplace(deviceName, plugin).first->second;
@@ -534,14 +540,14 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
     }
 }
 
-ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<const ov::Model>& model,
+ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<const ov::Model>& model_,
                                                           const std::string& device_name,
                                                           const ov::AnyMap& config) const {
     OV_ITT_SCOPE(FIRST_INFERENCE, ie::itt::domains::IE_LT, "Core::compile_model::model");
     std::string deviceName = device_name;
     ov::AnyMap config_with_batch = config;
     // if auto-batching is applicable, the below function will patch the device name and config accordingly:
-    apply_auto_batching(model, deviceName, config_with_batch);
+    auto model = apply_auto_batching(model_, deviceName, config_with_batch);
 
     auto parsed = parseDeviceNameIntoConfig(deviceName, config_with_batch);
     auto plugin = get_plugin(parsed._deviceName);
@@ -560,17 +566,17 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
     return res;
 }
 
-ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<const ov::Model>& model,
+ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<const ov::Model>& model_,
                                                           const ov::RemoteContext& context,
                                                           const ov::AnyMap& config) const {
     OV_ITT_SCOPE(FIRST_INFERENCE, ie::itt::domains::IE_LT, "Core::compile_model::RemoteContext");
-    if (context._impl == nullptr) {
+    if (!context) {
         IE_THROW() << "Remote context is null";
     }
     std::string deviceName = context.get_device_name();
     ov::AnyMap config_with_batch = config;
     // if auto-batching is applicable, the below function will patch the device name and config accordingly:
-    apply_auto_batching(model, deviceName, config_with_batch);
+    auto model = apply_auto_batching(model_, deviceName, config_with_batch);
 
     auto parsed = parseDeviceNameIntoConfig(deviceName, config_with_batch);
     auto plugin = get_plugin(parsed._deviceName);
@@ -595,7 +601,8 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model_with_preprocess(ov::Pl
                                                                           const ov::AnyMap& config) const {
     std::shared_ptr<const ov::Model> preprocessed_model = model;
 
-    if (!is_new_api() && !std::dynamic_pointer_cast<InferenceEngine::IPluginWrapper>(plugin.m_ptr)) {
+    if (!is_new_api() && !std::dynamic_pointer_cast<InferenceEngine::IPluginWrapper>(plugin.m_ptr) &&
+        !is_virtual_device(plugin.get_name())) {
         ov::pass::Manager manager;
         manager.register_pass<ov::pass::AddPreprocessing>();
 
@@ -604,8 +611,8 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model_with_preprocess(ov::Pl
         preprocessed_model = cloned_model;
     }
 
-    return context._impl ? plugin.compile_model(preprocessed_model, context, config)
-                         : plugin.compile_model(preprocessed_model, config);
+    return context ? plugin.compile_model(preprocessed_model, context, config)
+                   : plugin.compile_model(preprocessed_model, config);
 }
 
 ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& model_path,
@@ -678,6 +685,19 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::import_model(std::istream& model,
     return compiled_model;
 }
 
+ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::import_model(std::istream& modelStream,
+                                                         const ov::RemoteContext& context,
+                                                         const ov::AnyMap& config) const {
+    OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Core::import_model");
+    auto parsed = parseDeviceNameIntoConfig(context.get_device_name(), config);
+    auto compiled_model = get_plugin(parsed._deviceName).import_model(modelStream, context, parsed._config);
+    if (auto wrapper = std::dynamic_pointer_cast<InferenceEngine::ICompiledModelWrapper>(compiled_model._ptr)) {
+        wrapper->get_executable_network()->loadedFromCache();
+    }
+
+    return compiled_model;
+}
+
 ov::SupportedOpsMap ov::CoreImpl::query_model(const std::shared_ptr<const ov::Model>& model,
                                               const std::string& device_name,
                                               const ov::AnyMap& config) const {
@@ -732,13 +752,13 @@ ov::AnyMap ov::CoreImpl::get_supported_property(const std::string& full_device_n
         // Considerations:
         // 1. in case of virtual devices all the magic will happen on the level when
         // virtual device calls ICore::get_supported_property for real HW devices
-        // so, for now we can returns user properties almost as is without any
+        // so, for now we can return user properties almost as is without any
         // filtering / flattening
         // 2. The only exception here: while common properties like ov::num::streams or
         // ov::hint::performance_mode are shared across all the devices, the
         // ov::device::priority cannot be shared, because it's specific for current virtual
         // plugin. So, we need to remove ov::device::priorities from the list, because it's
-        // supposed to be set for current virtual plugin and cannot be propogated down
+        // supposed to be set for current virtual plugin and cannot be propagated down
         ov::AnyMap return_properties = user_properties;
         auto device_priorities_it = return_properties.find(ov::device::priorities.name());
         if (device_priorities_it != return_properties.end()) {
@@ -756,7 +776,7 @@ ov::AnyMap ov::CoreImpl::get_supported_property(const std::string& full_device_n
         ov::hint::allow_auto_batching.name(),
     };
 
-    const auto flattened = ov::parseDeviceNameIntoConfig(full_device_name, user_properties);
+    const auto flattened = ov::parseDeviceNameIntoConfig(full_device_name, user_properties, true);
     const std::string& device_name = flattened._deviceName;
     const auto& flattened_config = flattened._config;
 
@@ -804,9 +824,9 @@ ov::RemoteContext ov::CoreImpl::get_default_context(const std::string& device_na
     return get_plugin(parsed._deviceName).get_default_context(parsed._config);
 }
 
-void ov::CoreImpl::apply_auto_batching(const std::shared_ptr<const ov::Model>& model,
-                                       std::string& deviceName,
-                                       ov::AnyMap& config) const {
+std::shared_ptr<const ov::Model> ov::CoreImpl::apply_auto_batching(const std::shared_ptr<const ov::Model>& model,
+                                                                   std::string& deviceName,
+                                                                   ov::AnyMap& config) const {
     std::string deviceNameWithBatchSize, deviceNameWithoutBatch;
     // fully strict dims tracking by default (Auto-Batching is enabled implicitly)
     bool strictly_check_dims = true;
@@ -814,7 +834,7 @@ void ov::CoreImpl::apply_auto_batching(const std::shared_ptr<const ov::Model>& m
         // explicitly enabled Auto-Batching
         auto pos = deviceName.find_first_of(":");
         if (pos == std::string::npos)
-            return;  // BATCH device is already configured via the config
+            return model;  // BATCH device is already configured via the config
         deviceNameWithBatchSize = deviceName.substr(pos + 1);
         deviceNameWithoutBatch = ov::DeviceIDParser::get_batch_device(deviceNameWithBatchSize);
         // when user sets the BATCH device explicitly, we may check the dims less strictly
@@ -825,7 +845,7 @@ void ov::CoreImpl::apply_auto_batching(const std::shared_ptr<const ov::Model>& m
         try {
             get_plugin("BATCH");
         } catch (const std::runtime_error&) {
-            return;
+            return model;
         }
 
         // check whether the Auto-Batching is disabled explicitly
@@ -833,12 +853,12 @@ void ov::CoreImpl::apply_auto_batching(const std::shared_ptr<const ov::Model>& m
         if (batch_mode != config.end()) {
             const auto disabled = batch_mode->second.as<std::string>() == CONFIG_VALUE(NO);
             // virtual plugins like AUTO/MULTI will need the config
-            // e.g to deduce the #requests correctly
+            // e.g. to deduce the #requests correctly
             // otherwise, no need for this config key in the rest of loading
             if (!is_virtual_device(deviceName))
                 config.erase(batch_mode);
             if (disabled)
-                return;
+                return model;
         }
 
         // check whether if the Auto-Batching is applicable to the device
@@ -849,7 +869,7 @@ void ov::CoreImpl::apply_auto_batching(const std::shared_ptr<const ov::Model>& m
                                                .as<std::vector<std::string>>();
         auto it = std::find(metrics.begin(), metrics.end(), METRIC_KEY(OPTIMAL_BATCH_SIZE));
         if (metrics.end() == it)
-            return;
+            return model;
 
         // if applicable, the Auto-Batching is implicitly enabled via the performance hints
         bool bTputInPlg =
@@ -859,13 +879,13 @@ void ov::CoreImpl::apply_auto_batching(const std::shared_ptr<const ov::Model>& m
         const auto& excl = config.find(CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS));
         bool bExclReqsEnabled = (excl != config.end() && excl->second.as<std::string>() == CONFIG_VALUE(YES));
         if (bExclReqsEnabled || (!bTputInPlg && !bTputInLoadCfg))
-            return;
+            return model;
     }
     auto batchConfig = deviceNameWithBatchSize.empty() ? deviceNameWithoutBatch : deviceNameWithBatchSize;
     auto res = ov::details::is_model_batchable(model, deviceNameWithoutBatch, strictly_check_dims);
     switch (res) {
     case ov::details::NetworkBatchAbility::NO:
-        return;
+        return model;
     case ov::details::NetworkBatchAbility::AS_IS:
         deviceName = "BATCH:" + batchConfig;
         break;
@@ -874,6 +894,7 @@ void ov::CoreImpl::apply_auto_batching(const std::shared_ptr<const ov::Model>& m
         config[CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG)] = batchConfig;
         break;
     }
+    return ov::details::apply_batch_affinity(model, deviceNameWithoutBatch);
 }
 
 void ov::CoreImpl::set_property(const std::string& device_name, const AnyMap& properties) {
@@ -1084,17 +1105,23 @@ void ov::CoreImpl::set_property_for_device(const ov::AnyMap& configMap, const st
         });
     }
 }
-
-void ov::CoreImpl::add_extension(const std::vector<ov::Extension::Ptr>& extensions) {
-    std::lock_guard<std::mutex> lock(get_mutex());
+void ov::CoreImpl::add_extensions_unsafe(const std::vector<ov::Extension::Ptr>& extensions) const {
     for (const auto& ext : extensions) {
         ov_extensions.emplace_back(ext);
-        if (auto op_base_ext = std::dynamic_pointer_cast<ov::BaseOpExtension>(ext)) {
+        auto ext_obj = ext;
+        if (auto so_ext = std::dynamic_pointer_cast<ov::detail::SOExtension>(ext_obj))
+            ext_obj = so_ext->extension();
+        if (auto op_base_ext = std::dynamic_pointer_cast<ov::BaseOpExtension>(ext_obj)) {
             for (const auto& attached_ext : op_base_ext->get_attached_extensions()) {
                 ov_extensions.emplace_back(attached_ext);
             }
         }
     }
+}
+
+void ov::CoreImpl::add_extension(const std::vector<ov::Extension::Ptr>& extensions) {
+    std::lock_guard<std::mutex> lock(get_mutex());
+    add_extensions_unsafe(extensions);
 }
 
 const std::vector<InferenceEngine::IExtensionPtr>& ov::CoreImpl::GetExtensions() const {
@@ -1126,7 +1153,13 @@ bool ov::CoreImpl::device_supports_model_caching(const ov::Plugin& plugin) const
 }
 
 bool ov::CoreImpl::device_supports_cache_dir(const ov::Plugin& plugin) const {
-    return util::contains(plugin.get_property(ov::supported_properties), ov::cache_dir);
+    try {
+        return util::contains(plugin.get_property(ov::supported_properties), ov::cache_dir);
+    } catch (const InferenceEngine::NotImplemented&) {
+        return false;
+    } catch (const ov::NotImplemented&) {
+        return false;
+    }
 }
 
 ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model_and_cache(const std::shared_ptr<const ov::Model>& model,
@@ -1184,8 +1217,8 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
                 throw HeaderException();
             }
 
-            compiled_model = context._impl ? plugin.import_model(networkStream, context, config)
-                                           : plugin.import_model(networkStream, config);
+            compiled_model = context ? plugin.import_model(networkStream, context, config)
+                                     : plugin.import_model(networkStream, config);
             if (auto wrapper = std::dynamic_pointer_cast<InferenceEngine::ICompiledModelWrapper>(compiled_model._ptr)) {
                 wrapper->get_executable_network()->loadedFromCache();
             }

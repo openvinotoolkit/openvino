@@ -101,3 +101,4 @@ attach_gather_elements_impl::attach_gather_elements_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::gather_elements_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::gather_elements)

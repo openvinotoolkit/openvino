@@ -9,6 +9,8 @@
 #include <openvino/pass/pass.hpp>
 #include <string>
 
+#include "pyopenvino/core/common.hpp"
+
 namespace py = pybind11;
 
 class PyModelPass : public ov::pass::ModelPass {
@@ -44,4 +46,7 @@ void regclass_passes_ModelPass(py::module m) {
                    :return: True in case if Model was changed and False otherwise.
                    :rtype: bool
     )");
+    model_pass.def("__repr__", [](const ov::pass::ModelPass& self) {
+        return Common::get_simple_repr(self);
+    });
 }

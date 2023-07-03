@@ -64,11 +64,14 @@ public:
     struct VariableState {
         using Ptr = std::shared_ptr<VariableState>;
 
-        cldnn::memory_ptr memory;
-        bool is_set;
         VariableState(cldnn::memory_ptr mem = nullptr) :
             memory { mem }, is_set { false } {
         }
+        void set_memory(cldnn::memory_ptr new_mem) {
+            memory = new_mem;
+        }
+        cldnn::memory_ptr memory;
+        bool is_set;
     };
     using variables_states_map = std::map<std::string, VariableState::Ptr>;
 
@@ -76,7 +79,9 @@ public:
     network(engine& engine,
             const topology& topo,
             const ExecutionConfig& config = {},
-            bool is_internal = false);
+            bool is_internal = false,
+            InferenceEngine::CPUStreamsExecutor::Ptr task_executor = nullptr);
+
     network(engine& engine,
             const std::set<std::shared_ptr<program_node>>& nodes,
             const ExecutionConfig& config,
@@ -97,7 +102,9 @@ public:
     static ptr build_network(engine& engine,
                              const topology& topology,
                              const ExecutionConfig& config = {},
+                             std::shared_ptr<InferenceEngine::CPUStreamsExecutor> task_executor = nullptr,
                              bool is_internal = false);
+
     static ptr build_network(engine& engine,
                              const std::set<std::shared_ptr<program_node>>& nodes,
                              const ExecutionConfig& config,
@@ -219,15 +226,18 @@ public:
         return *_memory_pool;
     }
 
+    void allocate_variables_memories();
+    void assign_variables_memories();
     /// Assigns memory state locations
     void assign_variables_memories(variables_states_map &&variables_memories);
+    void update_variable_memory(const std::string& variable_id, const cldnn::layout& layout);
 
     /// Returns memory state @p variable_id of stateful network
     VariableState& get_variable_memory(const std::string &variable_id);
+    const variables_states_map& get_variable_memories() const { return _variables_states; }
 
-    /// Return in_mem_kernels_cache
-    KernelsCache& get_in_mem_kernels_cache() const { return *_in_mem_kernels_cache; }
-    std::mutex& get_impl_cache_mutex() const { return _in_mem_cache_mutex; }
+    using variables_state_info_map = std::map<std::string, cldnn::layout>;
+    void set_variables_state_info(const std::string& variable_id, const cldnn::layout& layout);
 
     const ExecutionConfig& get_config() const { return _config; }
 
@@ -253,14 +263,13 @@ private:
     std::list<std::shared_ptr<primitive_inst>> _data_outputs;
     variables_states_map _variables_states;
     std::vector<std::shared_ptr<primitive_inst>> _variable_state_primitives;
+    variables_state_info_map _variables_state_info;
     program::primitives_info _prims_info;
     std::map<primitive_id, primitive_id> _ext_id_mapping;
     size_t _weights_cache_capacity = 1;
 
     std::unordered_map<primitive_id, event::ptr> _events;
     output_chains_map _output_chains;
-
-    mutable std::mutex _in_mem_cache_mutex;
 
     void build_exec_order();
     void allocate_primitive_instance(program_node const& node);
@@ -272,10 +281,6 @@ private:
     void add_default_output_chains();
     void calculate_weights_cache_capacity();
     output_chains_map::iterator add_output_chain(std::shared_ptr<primitive_inst>& p_inst);
-
-    // Move from cldnn::program to cldnn::network for multi-threads issue.
-    std::unique_ptr<KernelsCache> _in_mem_kernels_cache;
-    const size_t _in_mem_kernels_cache_capacity = 10000;
 
 #ifdef GPU_DEBUG_CONFIG
     int64_t iteration = 0;

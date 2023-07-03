@@ -2,14 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <algorithm>
 
 #include "pass_manager.h"
 #include "program_node.h"
 #include "mutable_data_inst.h"
 #include "convert_color_inst.h"
+#include "fully_connected_inst.h"
 #include "assign_inst.h"
 #include "tensor_type.h"
+
+#include <algorithm>
 #include <memory>
 #include <vector>
 #include <stdexcept>

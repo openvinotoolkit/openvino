@@ -54,6 +54,10 @@ namespace cldnn {
 struct broadcast : public primitive_base<broadcast> {
     CLDNN_DECLARE_PRIMITIVE(broadcast)
 
+    broadcast() : primitive_base("", {}) {}
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     /// @brief Constructs broadcast primitive / layer.
     ///
     /// @param id              An identifier of new primitive.
@@ -145,6 +149,24 @@ struct broadcast : public primitive_base<broadcast> {
         return axes_mapping == rhs_casted.axes_mapping &&
                broadcast_mode == rhs_casted.broadcast_mode &&
                broadcast_sizes == rhs_casted.broadcast_sizes;
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<broadcast>::save(ob);
+        ob << target_shape;
+        ob << axes_mapping;
+        ob << make_data(&broadcast_mode, sizeof(ov::op::BroadcastModeSpec));
+        ob << broadcast_sizes;
+        ob << broadcast_axes;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<broadcast>::load(ib);
+        ib >> target_shape;
+        ib >> axes_mapping;
+        ib >> make_data(&broadcast_mode, sizeof(ov::op::BroadcastModeSpec));
+        ib >> broadcast_sizes;
+        ib >> broadcast_axes;
     }
 };
 }  // namespace cldnn

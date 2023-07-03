@@ -12,6 +12,10 @@ namespace cldnn {
 struct embedding_bag : public primitive_base<embedding_bag> {
     CLDNN_DECLARE_PRIMITIVE(embedding_bag)
 
+    embedding_bag() : primitive_base("", {}) {}
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     /// @brief Select type of embedding_bag operation
     enum embedding_bag_type {
         packed_sum,
@@ -54,6 +58,20 @@ struct embedding_bag : public primitive_base<embedding_bag> {
 
         return type == rhs_casted.type &&
                default_index == rhs_casted.default_index;
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<embedding_bag>::save(ob);
+        ob << make_data(&type, sizeof(embedding_bag_type));
+        ob << output_shape;
+        ob << default_index;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<embedding_bag>::load(ib);
+        ib >> make_data(&type, sizeof(embedding_bag_type));
+        ib >> output_shape;
+        ib >> default_index;
     }
 };
 }  // namespace cldnn

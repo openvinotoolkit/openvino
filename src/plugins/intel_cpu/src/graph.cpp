@@ -170,7 +170,7 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &subgraph) {
                 ngraph::op::v0::Result::get_type_info_static(),
                 ngraph::op::v3::Assign::get_type_info_static(),
                 ngraph::op::v6::Assign::get_type_info_static())) {
-            for (int oi = 0; oi < op->get_output_size(); oi++) {
+            for (size_t oi = 0; oi < op->get_output_size(); oi++) {
                 if (op->get_output_target_inputs(oi).empty()) {
                     unusedOutputs.push_back(op->output(oi));
                 }
@@ -192,8 +192,7 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &subgraph) {
         graphNodes.push_back(outNode);
     }
 
-    if (getConfig().enforceBF16)
-        EnforceBF16();
+    EnforceInferencePrecision();
 }
 
 void Graph::Replicate(const CNNNetwork &network) {
@@ -269,7 +268,7 @@ void Graph::Replicate(const CNNNetwork &network) {
                 ngraph::op::v0::Result::get_type_info_static(),
                 ngraph::op::v3::Assign::get_type_info_static(),
                 ngraph::op::v6::Assign::get_type_info_static())) {
-            for (int oi = 0; oi < op->get_output_size(); oi++) {
+            for (size_t oi = 0; oi < op->get_output_size(); oi++) {
                 if (op->get_output_target_inputs(oi).empty()) {
                     unusedOutputs.push_back(op->output(oi));
                 }
@@ -291,8 +290,7 @@ void Graph::Replicate(const CNNNetwork &network) {
         graphNodes.push_back(outNode);
     }
 
-    if (getConfig().enforceBF16)
-        EnforceBF16();
+    EnforceInferencePrecision();
 
     auto hasSubgraphConsumers = [] (const NodePtr& node) -> bool {
         const auto & childEdges = node->getChildEdges();
@@ -419,6 +417,7 @@ void Graph::InitDescriptors() {
             if (inputNode)
                 inputNode->withMeanImage();
         }
+
         OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, node->profiling.getSupportedDescriptors);
         DEBUG_LOG("Get supported primitive descriptors for node: ", node->getName());
         node->getSupportedDescriptors();
@@ -433,7 +432,7 @@ void Graph::InitDescriptors() {
 
 #ifdef CPU_DEBUG_CAPS
         const auto& SPDs = node->getSupportedPrimitiveDescriptors();
-        for (int i = 0; i < SPDs.size(); i++) {
+        for (size_t i = 0; i < SPDs.size(); i++) {
             DEBUG_LOG("#",
                       node->getExecIndex(),
                       " ",
@@ -560,7 +559,7 @@ static bool isReorderAvailable(const MemoryDescPtr& parentDesc, const MemoryDesc
 void Graph::InitEdges() {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "Graph::InitEdges");
 
-    size_t numberOfEdges = graphEdges.size();
+    ptrdiff_t numberOfEdges = static_cast<ptrdiff_t>(graphEdges.size());
 
     std::unordered_set<std::string> uniqueLayerNames;
     for (auto node : graphNodes) {
@@ -583,13 +582,13 @@ void Graph::InitEdges() {
         InsertReorder(edge, layerName, edge->getInputDesc(), edge->getOutputDesc(), isOptimized);
     };
 
-    auto updateEdge = [&](int& i) {
+    auto updateEdge = [&](ptrdiff_t& i) {
         graphEdges.erase(graphEdges.begin() + i);
         i--;
         numberOfEdges--;
     };
 
-    for (auto i = 0; i < numberOfEdges; i++) {
+    for (ptrdiff_t i = 0; i < numberOfEdges; i++) {
         auto edge = graphEdges[i];
         auto reorderStatus = graphEdges[i]->needReorder();
         DEBUG_LOG(graphEdges[i]->name(), " reorderStatus = ", reorderStatus);
@@ -712,8 +711,8 @@ void Graph::AllocateWithReuse() {
 
     std::vector<MemorySolver::Box> definedBoxes;
     std::vector<MemorySolver::Box> undefinedBoxes;
-    for (int i = 0; i < edge_clusters.size(); i++) {
-        MemorySolver::Box box = { std::numeric_limits<int>::max(), 0, 0, i };
+    for (size_t i = 0; i < edge_clusters.size(); i++) {
+        MemorySolver::Box box = {std::numeric_limits<int>::max(), 0, 0, static_cast<int64_t>(i)};
         int64_t boxSize = 0;
         for (auto &edge : edge_clusters[i]) {
             int e_start = edge->getParent()->execIndex;
@@ -961,9 +960,9 @@ void Graph::PullOutputData(BlobMap &out) {
         auto srcPrec = actualDesc.getPrecision();
         auto dstPrec = expectedDesc.getPrecision();
 
-        if (getConfig().isNewApi && srcPrec == dstPrec && ext_blob->byteSize() != intr_blob.GetSize())
-                IE_THROW() << "Output blob byte size is not equal network output byte size ("
-                                   << ext_blob->byteSize() << "!=" << intr_blob.GetSize() << ").";
+        if (!getConfig().isLegacyApi && srcPrec == dstPrec && ext_blob->byteSize() != intr_blob.GetSize())
+            IE_THROW() << "Output blob byte size is not equal network output byte size (" << ext_blob->byteSize()
+                       << "!=" << intr_blob.GetSize() << ").";
 
         void *ext_blob_ptr = ext_blob->buffer();
         void *intr_blob_ptr = intr_blob.GetData();
@@ -983,14 +982,6 @@ void Graph::PullOutputData(BlobMap &out) {
             outBloMem.SetData(intr_blob, false);
         } else {
             size_t size_to_copy = intr_blob.GetDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
-            // used only for backward compatibility with the legacy API
-            if (getConfig().batchLimit && dynBatch > 0) {
-                if (node->isDynamicNode() && !getConfig().isNewApi) {
-                    IE_THROW(NotImplemented) << "[DS] not implemented dynamic batch for node with dynamic shape";
-                }
-
-                size_to_copy = std::accumulate(outDims.begin() + 1, outDims.end(), (size_t)1, std::multiplies<size_t>()) * static_cast<size_t>(dynBatch);
-            }
 
             cpu_convert(intr_blob_ptr, ext_blob_ptr, srcPrec, dstPrec, size_to_copy);
         }
@@ -1296,7 +1287,7 @@ void Graph::SortTopologically() {
     std::vector<NodePtr> unsorted;
     std::vector<NodePtr> sorted;
 
-    for (int i = 0; i < graphNodes.size(); i++) {
+    for (size_t i = 0; i < graphNodes.size(); i++) {
         NodePtr node = graphNodes[i];
 
         node->permanent = false;
@@ -1312,7 +1303,8 @@ void Graph::SortTopologically() {
         VisitNode(node, sorted);
     }
 
-    for (int i = 0; i < sorted.size(); i++) sorted[i]->execIndex = i;
+    for (size_t i = 0; i < sorted.size(); i++)
+        sorted[i]->execIndex = static_cast<int>(i);
 
     graphNodes.erase(graphNodes.begin(), graphNodes.end());
     graphNodes.assign(sorted.begin(), sorted.end());
@@ -1328,7 +1320,7 @@ void Graph::SortTopologically() {
             int port_num = node->inputShapes.size();
             std::vector<EdgePtr> res(port_num);
 
-            for (int i = 0; i < node->parentEdges.size(); i++) {
+            for (size_t i = 0; i < node->parentEdges.size(); i++) {
                 auto edge = node->getParentEdgeAt(i);
                 int port = edge->getOutputNum();
                 if (port < port_num && !res[port])
@@ -1342,7 +1334,7 @@ void Graph::SortTopologically() {
             int port_num = node->outputShapes.size();
             std::vector<EdgePtr> res(port_num);
 
-            for (int i = 0; i < node->childEdges.size(); i++) {
+            for (size_t i = 0; i < node->childEdges.size(); i++) {
                 auto edge = node->getChildEdgeAt(i);
                 int port = edge->getInputNum();
                 if (port < port_num && !res[port])
@@ -1380,7 +1372,7 @@ void Graph::GetPerfData(std::map<std::string, InferenceEngine::InferenceEnginePr
         }
     };
 
-    for (int i = 0; i < graphNodes.size(); i++) {
+    for (size_t i = 0; i < graphNodes.size(); i++) {
         if (graphNodes[i]->isConstant())
             continue;
         getPerfMapFor(perfMap, graphNodes[i]);
@@ -1407,27 +1399,20 @@ void Graph::DropNode(const NodePtr &node) {
         auto parent = p_edge->getParent();
         if (!parent) continue;
 
-        for (size_t j = 0; j < children.size(); j++) {
-            if (!children[j].lock())
-                continue;
-            auto child = children[j].lock()->getChild();
-            if (!child)
-                continue;
+        const int inNum = p_edge->getInputNum();
+        p_edge->drop();
+        RemoveEdge(p_edge);
 
-            EdgePtr &remEdge = p_edge;
-            int inNum = 0;
-            if (remEdge) {
-                inNum = remEdge->getInputNum();
-                remEdge->drop();
-                RemoveEdge(remEdge);
-            }
-            remEdge = children[j].lock();
-            int outNum = 0;
-            if (remEdge) {
-                outNum = remEdge->getOutputNum();
-                remEdge->drop();
-                RemoveEdge(remEdge);
-            }
+        for (size_t j = 0; j < children.size(); j++) {
+            auto c_edge = children[j].lock();
+            if (!c_edge) continue;
+            auto child = c_edge->getChild();
+            if (!child) continue;
+
+            const int outNum = c_edge->getOutputNum();
+            c_edge->drop();
+            RemoveEdge(c_edge);
+
             EdgePtr newEdge(new Edge(parent, child, inNum, outNum));
             graphEdges.push_back(newEdge);
             parent->addEdge(newEdge);
@@ -1452,27 +1437,20 @@ void Graph::DropDWConvNode(const NodePtr &node) {
         auto parent = p_edge->getParent();
         if (!parent) continue;
 
-        for (size_t j = 0; j < children.size(); j++) {
-            if (!children[j].lock())
-                continue;
-            auto child = children[j].lock()->getChild();
-            if (!child)
-                continue;
+        const int inNum = p_edge->getInputNum();
+        p_edge->drop();
+        RemoveEdge(p_edge);
 
-            EdgePtr &remEdge = p_edge;
-            int inNum = 0;
-            if (remEdge) {
-                inNum = remEdge->getInputNum();
-                remEdge->drop();
-                RemoveEdge(remEdge);
-            }
-            remEdge = children[j].lock();
-            int outNum = 0;
-            if (remEdge) {
-                outNum = remEdge->getOutputNum();
-                remEdge->drop();
-                RemoveEdge(remEdge);
-            }
+        for (size_t j = 0; j < children.size(); j++) {
+            auto c_edge = children[j].lock();
+            if (!c_edge) continue;
+            auto child = c_edge->getChild();
+            if (!child) continue;
+
+            const int outNum = c_edge->getOutputNum();
+            c_edge->drop();
+            RemoveEdge(c_edge);
+
             EdgePtr newEdge(new Edge(parent, child, inNum, outNum));
             graphEdges.push_back(newEdge);
             parent->addEdge(newEdge);
@@ -1485,16 +1463,11 @@ void Graph::DropDWConvNode(const NodePtr &node) {
         auto parent = p_edge->getParent();
         if (!parent) continue;
 
-        EdgePtr &remEdge = p_edge;
-        int inNum = 0;
-        int portCandidate = 0;
-        if (remEdge) {
-            inNum = remEdge->getInputNum();
-            portCandidate = remEdge->getOutputNum();
-            remEdge->drop();
-            RemoveEdge(remEdge);
-        }
-        int outNum = parentConv->parentEdges.size();
+        const int inNum = p_edge->getInputNum();
+        const int portCandidate = p_edge->getOutputNum();
+        p_edge->drop();
+        RemoveEdge(p_edge);
+        const int outNum = parentConv->parentEdges.size();
 
         EdgePtr newEdge(new Edge(parent, parentConv, inNum, outNum));
         graphEdges.push_back(newEdge);
@@ -1599,23 +1572,50 @@ bool Graph::InsertNode(NodePtr parent, NodePtr child, NodePtr node, int parentPo
 }
 
 // Set all non const data paths precision to BF16
-void Graph::EnforceBF16() {
+void Graph::EnforceInferencePrecision() {
+    CPU_DEBUG_CAP_ENABLE(static EnforceInferPrcDebug inferPrecDebug);
+    auto inferPrec = InferenceEngine::Precision::FP32;
+    switch (getConfig().inferencePrecision) {
+    case ov::element::bf16:
+        inferPrec = InferenceEngine::Precision::BF16;
+        break;
+    case ov::element::f16:
+        inferPrec = InferenceEngine::Precision::FP16;
+        break;
+    default:
+        return;
+        break;
+    }
+
     std::function<void(const NodePtr&, std::unordered_set<NodePtr>& skipNodes)> searchForNodesToSkip;
     searchForNodesToSkip = [&](const NodePtr& node, std::unordered_set<NodePtr>& skipNodes) -> void {
         for (size_t i = 0; i < node->getParentEdges().size(); i++) {
             const auto& parent = node->getParentEdgeAt(i)->getParent();
 
-            /* list of node types that must be forced to be executed in BF16 precision
-             * because of performance gains */
-            if (one_of(parent->getType(),
-                    Type::Convolution,    // conv nets
-                    Type::FullyConnected, // conv / bert nets
-                    Type::RNNCell,        // recurent nets
-                    Type::RNNSeq,         // recurent nets
-                    Type::MatMul,         // bert nets
-                    Type::ROIPooling,     // object detection nets
-                    Type::Interpolate))    // super resolution nets
-                continue;   // stop at significant nodes
+            if (inferPrec == InferenceEngine::Precision::BF16) {
+                /* list of node types that must be forced to be executed in BF16 precision
+                * because of performance gains */
+                if (one_of(parent->getType(),
+                        Type::Convolution,    // conv nets
+                        Type::FullyConnected, // conv / bert nets
+                        Type::RNNCell,        // recurent nets
+                        Type::RNNSeq,         // recurent nets
+                        Type::MatMul,         // bert nets
+                        Type::ROIPooling,     // object detection nets
+                        Type::Interpolate))    // super resolution nets
+                    continue;   // stop at significant nodes
+            } else if (inferPrec == InferenceEngine::Precision::FP16) {
+                /* list of node types that must be forced to be executed in FP16 precision
+                * because of performance gains */
+                if (one_of(parent->getType(),
+                        Type::Convolution,    // conv nets
+                        Type::Deconvolution,  // deconv
+                        Type::FullyConnected, // conv / bert nets
+                        Type::MatMul,         // bert nets
+                        Type::Pooling,
+                        Type::MVN))
+                    continue;   // stop at significant nodes
+            }
 
             const auto res = skipNodes.insert(parent);
             if (res.second) // node not visited yet
@@ -1623,14 +1623,14 @@ void Graph::EnforceBF16() {
         }
     };
 
-    /* Skip BF16 enforcement for tail of the graph by forming set of nodes to skip.
+    /* Skip low-precision float point enforcement for tail of the graph by forming set of nodes to skip.
      * Necessary to maintain accuracy.
      * Experiments show zero peformance impact on average */
     std::unordered_set<NodePtr> nodesToSkip;
     // starting from output nodes
     for (const auto& entry : outputNodesMap) {
         const auto& node = entry.second;
-        if (node->getOriginalInputPrecisionAtPort(0) == Precision::BF16)
+        if (node->getOriginalInputPrecisionAtPort(0) == inferPrec)
             continue;
         searchForNodesToSkip(node, nodesToSkip);
     }
@@ -1640,26 +1640,32 @@ void Graph::EnforceBF16() {
             continue;
 
         if (node->getType() != Type::Input && node->getType() != Type::Output) {
+#ifdef CPU_DEBUG_CAPS
+            if (!inferPrecDebug.enabled(NameFromType(node->getType()), node->getName()))
+                continue;
+#endif
+
             DEBUG_LOG("#", node->getExecIndex(),
                       " ", node->getName(),
-                      " is enforced to use BF16\n");
+                      " is enforced to use", inferPrec);
+
             for (size_t i = 0; i < node->getOriginalInputsNumber(); i++) {
                 const auto &parent = node->getParentEdgesAtPort(i)[0]->getParent();
                 /* Skip BF16 enforcement for nodes after Constant Inputs for maintaining precision for fusing.
-                 * Precision conversion to BF16 does automatically, if convolution follows up after Constant Inputs
-                 * and if activation is BF16 */
+                * Precision conversion to BF16 does automatically, if convolution follows up after Constant Inputs
+                * and if activation is BF16 */
                 if (!(parent->getType() == Type::Input && parent->isConstant() &&
                     // Concatenation node is exception because it doesn't change an accuracy for BF16 activation
-                      node->getType() != Type::Concatenation) &&
+                    node->getType() != Type::Concatenation) &&
                     // exclude Eltwise after Input since it supports conversion to BF16
                     !(parent->getType() == Type::Input && (node->getType() == Type::Eltwise || node->getType() == Type::Subgraph)) &&
                     node->getOriginalInputPrecisionAtPort(i) == Precision::FP32)
-                    node->setOriginalInputPrecisionAtPort(i, Precision::BF16);
+                    node->setOriginalInputPrecisionAtPort(i, inferPrec);
             }
 
             for (size_t i = 0; i < node->getOriginalOutputsNumber(); i++) {
                 if (node->getOriginalOutputPrecisionAtPort(i) == Precision::FP32)
-                    node->setOriginalOutputPrecisionAtPort(i, Precision::BF16);
+                    node->setOriginalOutputPrecisionAtPort(i, inferPrec);
             }
         }
     }

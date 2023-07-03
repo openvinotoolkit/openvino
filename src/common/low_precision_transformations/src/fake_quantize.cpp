@@ -21,7 +21,7 @@ FakeQuantizeTransformation::FakeQuantizeTransformation(const Params& params) : L
     MATCHER_SCOPE(FakeQuantizeTransformation);
     auto matcher = pattern::wrap_type<opset1::FakeQuantize>();
 
-    ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+    ov::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
         if (transformation_callback(op)) {
             return false;
@@ -220,7 +220,7 @@ std::shared_ptr<opset1::FakeQuantize> FakeQuantizeTransformation::fuseElementwis
     matcherPass->register_new_node(newFakeQuantize);
 
     replace_node(fakeQuantize, newFakeQuantize);
-    ngraph::copy_runtime_info({ fakeQuantize, eltwise }, newFakeQuantize);
+    ov::copy_runtime_info({ fakeQuantize, eltwise }, newFakeQuantize);
     newFakeQuantize->set_friendly_name(fakeQuantize->get_friendly_name());
     return newFakeQuantize;
 }

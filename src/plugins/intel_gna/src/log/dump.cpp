@@ -15,10 +15,13 @@
 #include <string>
 #include <vector>
 
+#include "backend/gna_limitations.hpp"
 #include "gna2-model-api.h"
 #include "gna2_model_helper.hpp"
 #include "gna_device.hpp"
 #include "log.hpp"
+
+using namespace ov::intel_gna::limitations;
 
 namespace ov {
 namespace intel_gna {
@@ -160,6 +163,9 @@ void WriteInputAndOutputTextGNAImpl(const Gna2Model& gnaModel,
                                     const std::string refFolderName) {
     for (uint32_t i = 0; i < gnaModel.NumberOfOperations; i++) {
         const auto& operation = gnaModel.Operations[i];
+        if (operation.Type == Gna2OperationTypeNone) {
+            continue;
+        }
         std::stringstream out_file_name;
         const auto& outputTensor = *operation.Operands[OutOpIdx];
         const auto& intputTensor = *operation.Operands[InOpIdx];
@@ -426,7 +432,7 @@ inline void DumpCompoundBias(std::ostream& dumpFile, const Gna2Tensor& tensor) {
 }
 
 inline void DumpCharArray(std::ostream& dumpFile, const char* carray, size_t count) {
-    auto i = 0;
+    size_t i = 0;
     while (*(carray + i) != 0 && i < count) {
         dumpFile << *(carray + i) << " ";
         i++;
@@ -486,8 +492,9 @@ void DumpGna2Model(const Gna2Model& gnaModel,
             }
             dumpFile << "\tOperand " << j << " (" << GetOperandName(operation.Type, j) << ")"
                      << " type: " << GetOperandType(operand.Type) << " shape: " << GetSimpleString(operand.Shape)
-                     << " tag: " << foundName << " offset: " << offset
-                     << " size: " << Gna2RoundUpTo64(GetGnaShapeSize(operand.Shape, GetTypeByteSize(operand.Type)))
+                     << " tag: " << foundName << " offset: " << offset << " size: "
+                     << Gna2RoundUp(GetGnaShapeSize(operand.Shape, GetTypeByteSize(operand.Type)),
+                                    static_cast<uint32_t>(Limitations::get_instance()->get_memory_alignment()))
                      << " data: " << operand.Data << " baseAlloc: " << foundPtr << " layout: ";
 
             DumpCharArray(dumpFile, operand.Layout, GNA2_SHAPE_MAXIMUM_NUMBER_OF_DIMENSIONS);

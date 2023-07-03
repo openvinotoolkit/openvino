@@ -102,11 +102,19 @@ const std::shared_ptr<ov::threading::ITaskExecutor> ov::ICompiledModel::get_call
     return m_callback_executor;
 }
 
+void ov::ICompiledModel::set_task_executor(const std::shared_ptr<ov::threading::ITaskExecutor> task_executor) {
+    m_task_executor = task_executor;
+}
+
+void ov::ICompiledModel::set_callback_executor(const std::shared_ptr<ov::threading::ITaskExecutor> callback_executor) {
+    m_callback_executor = callback_executor;
+}
+
 std::shared_ptr<ov::IRemoteContext> ov::ICompiledModel::get_context() const {
     if (auto wrapper = dynamic_cast<const InferenceEngine::ICompiledModelWrapper*>(this)) {
         return ov::legacy_convert::convert_remote_context(wrapper->get_executable_network()->GetContext());
     }
-    if (m_context._impl)
+    if (m_context)
         return m_context._impl;
     return m_plugin->get_default_context({});
 }
