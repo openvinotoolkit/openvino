@@ -36,9 +36,7 @@
    openvino_docs_MO_DG_prepare_model_convert_model_kaldi_specific_Aspire_Tdnn_Model
 
 .. meta::
-   :description: Get to know conversion methods for 
-                 specific TensorFlow, ONNX, PyTorch, MXNet, and Kaldi models, 
-                 that unnecessarily cover your case.
+   :description: Get to know conversion methods for specific TensorFlow, ONNX, PyTorch, MXNet, and Kaldi models.
 
 
 This section provides a set of tutorials that demonstrate conversion methods for specific 

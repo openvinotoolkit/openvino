@@ -10,7 +10,7 @@
 
 .. meta::
    :description: The GPU plugin in the Intel® Distribution of OpenVINO™ toolkit 
-                 is is an OpenCL based plugin for inference of deep neural 
+                 is an OpenCL based plugin for inference of deep neural 
                  networks on Intel® GPus.
 
 
