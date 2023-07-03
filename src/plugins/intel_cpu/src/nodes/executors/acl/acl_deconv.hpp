@@ -21,7 +21,9 @@ public:
               const dnnl::primitive_attr &attr) override;
     void exec(const std::vector<MemoryCPtr>& src,
               const std::vector<MemoryPtr>& dst,
-              const void *post_ops_data_) override;
+              const void *post_ops_data_,
+              dnnl::stream strm,
+              std::vector<MemoryPtr> internalBlobMemory = std::vector<MemoryPtr>()) override;
 
     impl_desc_type getImplType() const override {
         return implType;

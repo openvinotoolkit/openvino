@@ -56,6 +56,11 @@ struct DeconvAttrs {
     DeconvKey key;
     std::unordered_map<int, dnnl::memory> primArgs;
     MultiCachePtr cache;
+    std::function<void()> deconvAppendPostOpArgs;
+    std::function<MemoryPtr(DnnlMemoryDescPtr)> deconvGetScratchPadMem;
+    MemoryPtr biasMemPtr = nullptr;
+    std::vector<MemoryPtr> *deconvInternalBlobMemory;
+    std::string layerName;
 };
 
 class DeconvExecutor {
@@ -66,7 +71,11 @@ public:
                       const std::vector<MemoryDescPtr>& dstDescs,
                       const dnnl::primitive_attr &attr) = 0;
 
-    virtual void exec(const std::vector<MemoryCPtr>& src, const std::vector<MemoryPtr>& dst, const void *post_ops_data_) = 0;
+    virtual void exec(const std::vector<MemoryCPtr>& src,
+                      const std::vector<MemoryPtr>& dst,
+                      const void *post_ops_data_,
+                      dnnl::stream strm,
+                      std::vector<MemoryPtr> internalBlobMemory = std::vector<MemoryPtr>()) = 0;
     virtual ~DeconvExecutor() = default;
 
     virtual impl_desc_type getImplType() const = 0;

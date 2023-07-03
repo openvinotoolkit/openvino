@@ -11,6 +11,55 @@
 namespace ov {
 namespace intel_cpu {
 
+using DefaultDeconvDescs = std::pair<dnnl::convolution_backward_data::primitive_desc,
+        dnnl::convolution_forward::primitive_desc>;
+
+DefaultDeconvDescs createDescriptorInternalDefault(const dnnl::memory::desc& in_candidate,
+                                                   const dnnl::memory::desc& wgh_candidate,
+                                                   const dnnl::memory::desc& out_candidate,
+                                                   const dnnl::algorithm alg,
+                                                   const std::vector<ptrdiff_t>& stride,
+                                                   const std::vector<ptrdiff_t>& dilation,
+                                                   const ov::CoordinateDiff& paddingL,
+                                                   const ov::CoordinateDiff& paddingR,
+                                                   const dnnl::primitive_attr& attr,
+                                                   const dnnl::engine& engine);
+
+dnnl::primitive_desc createDescriptorInternalInt8(const dnnl::memory::desc& in_candidate,
+                                                  const dnnl::memory::desc& wgh_candidate,
+                                                  const dnnl::memory::desc& bias_candidate,
+                                                  const dnnl::memory::desc& out_candidate,
+                                                  const bool with_bias,
+                                                  const std::vector<ptrdiff_t>& stride,
+                                                  const std::vector<ptrdiff_t>& dilation,
+                                                  const ov::CoordinateDiff& paddingL,
+                                                  const ov::CoordinateDiff& paddingR,
+                                                  const dnnl::primitive_attr& attr,
+                                                  const dnnl::engine& engine);
+
+DefaultDeconvDescs createDefaultMkldnnDeconvDesc(const dnnl::memory::desc& srcDesc,
+                                                 const dnnl::memory::desc& wghDesc,
+                                                 const dnnl::memory::desc& dstDesc,
+                                                 bool isWinograd,
+                                                 const std::vector<ptrdiff_t>& stride,
+                                                 const std::vector<ptrdiff_t>& dilation,
+                                                 const ov::CoordinateDiff& paddingL,
+                                                 const ov::CoordinateDiff& paddingR,
+                                                 const dnnl::primitive_attr& attr,
+                                                 const dnnl::engine& engine);
+
+dnnl::primitive_desc createInt8MkldnnDeconvDesc(const dnnl::memory::desc& srcDesc,
+                                                const dnnl::memory::desc& wghDesc,
+                                                const dnnl::memory::desc& biasDesc,
+                                                const dnnl::memory::desc& dstDesc,
+                                                const bool withBias,
+                                                const std::vector<ptrdiff_t>& stride,
+                                                const std::vector<ptrdiff_t>& dilation,
+                                                const ov::CoordinateDiff& paddingL,
+                                                const ov::CoordinateDiff& paddingR,
+                                                const dnnl::primitive_attr& attr,
+                                                const dnnl::engine& engine);
+
 class DNNLDeconvExecutor : public DeconvExecutor {
 public:
     using executorPtr = std::shared_ptr<DnnlExecutor>;
@@ -24,14 +73,16 @@ public:
               const dnnl::primitive_attr &attr) override;
     void exec(const std::vector<MemoryCPtr>& src,
               const std::vector<MemoryPtr>& dst,
-              const void *post_ops_data_) override;
+              const void *post_ops_data_,
+              dnnl::stream strm,
+              std::vector<MemoryPtr> internalBlobMemory = std::vector<MemoryPtr>()) override;
     impl_desc_type getImplType() const override { return implType; }
 
 private:
     DeconvAttrs deconvAttrs;
     impl_desc_type implType = impl_desc_type::any;
     executorPtr execPtr = nullptr;
-
+    bool lookUpStatus;
 
     class DeconvExecutorDefault : public DnnlExecutor {
     public:
