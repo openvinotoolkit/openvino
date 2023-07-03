@@ -17,7 +17,7 @@ Installing OpenVINO Runtime from archive files is recommended for C++ developers
    Since the OpenVINO™ 2022.1 release, the following development tools: Model Optimizer, Post-Training Optimization Tool, Model Downloader and other Open Model Zoo tools, Accuracy Checker, and Annotation Converter can be installed via `pypi.org <https://pypi.org/project/openvino-dev/>`__ only.
 
 
-See the `Release Notes <https://software.intel.com/en-us/articles/OpenVINO-RelNotes>`__ for more information on updates in the latest release.
+See the `Release Notes <https://www.intel.com/content/www/us/en/developer/articles/release-notes/openvino/2023-0.html>`__ for more information on updates in the latest release.
 
 System Requirements
 ####################
@@ -81,30 +81,30 @@ Step 1: Download and Install OpenVINO Core Components
       ``C:\Program Files (x86)\Intel`` is the recommended folder. You may also use a different path if desired or if you don't have administrator privileges on your computer.
 
 
-2. Download the `OpenVINO Runtime archive file for Windows <https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.0/windows/>`__ to your local ``Downloads`` folder.
+2. Download the `OpenVINO Runtime archive file for Windows <https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.0.1/windows/>`__ to your local ``Downloads`` folder.
 
    If you prefer using command-lines, run the following commands in the command prompt window you opened:
 
    .. code-block:: sh
 
       cd <user_home>/Downloads
-      curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.0/windows/w_openvino_toolkit_windows_2023.0.0.10926.b4452d56304_x86_64.zip --output openvino_2023.0.0.zip
+      curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.0.1/windows/w_openvino_toolkit_windows_2023.0.1.11005.fa1c41994f3_x86_64.zip --output openvino_2023.0.1.zip
 
 
    .. note::
 
-      A ``.sha256`` file is provided together with the archive file to validate your download process. To do that, download the ``.sha256`` file from the same repository and run ``CertUtil -hashfile openvino_2023.0.0.zip SHA256``. Compare the returned value in the output with what's in the ``.sha256`` file: if the values are the same, you have downloaded the correct file successfully; if not, create a Support ticket `here <https://www.intel.com/content/www/us/en/support/contact-intel.html>`__.
+      A ``.sha256`` file is provided together with the archive file to validate your download process. To do that, download the ``.sha256`` file from the same repository and run ``CertUtil -hashfile openvino_2023.0.1.zip SHA256``. Compare the returned value in the output with what's in the ``.sha256`` file: if the values are the same, you have downloaded the correct file successfully; if not, create a Support ticket `here <https://www.intel.com/content/www/us/en/support/contact-intel.html>`__.
 
 
 3. Use your favorite tool to extract the archive file, rename the extracted folder, and move it to the ``C:\Program Files (x86)\Intel`` directory.
 
-   To do this step using command-lines, run the following commands in the command prompt window you opened:
+   To do this step using command-line, run the following commands in the command prompt window you opened:
 
    .. code-block:: sh
 
-      tar -xf openvino_2023.0.0.zip
-      ren w_openvino_toolkit_windows_2023.0.0.10926.b4452d56304_x86_64 openvino_2023.0.0
-      move openvino_2023.0.0 "C:\Program Files (x86)\Intel"
+      tar -xf openvino_2023.0.1.zip
+      ren w_openvino_toolkit_windows_2023.0.0.10926.b4452d56304_x86_64 openvino_2023.0.1
+      move openvino_2023.0.1 "C:\Program Files (x86)\Intel"
 
 
 4. For simplicity, it is useful to create a symbolic link. Open a command prompt window as administrator (see Step 1 for how to do this) and run the following commands:
@@ -112,7 +112,7 @@ Step 1: Download and Install OpenVINO Core Components
    .. code-block:: sh
 
       cd C:\Program Files (x86)\Intel
-      mklink /D openvino_2023 openvino_2023.0.0
+      mklink /D openvino_2023 openvino_2023.0.1
 
 
    .. note::
