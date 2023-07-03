@@ -13,6 +13,8 @@
 
 namespace LayerTestsDefinitions {
 
+using ngraph::helpers::InputLayerType;
+
 class GRUSequenceGNATest : public GRUSequenceTest {
 protected:
     void SetUp() override {
@@ -27,6 +29,7 @@ protected:
         std::vector<float> activations_beta;
         float clip;
         bool linear_before_reset;
+        InputLayerType WRBType;
         ngraph::op::RecurrentSequenceDirection direction;
         InferenceEngine::Precision netPrecision;
         std::tie(m_mode,
@@ -37,8 +40,11 @@ protected:
                  clip,
                  linear_before_reset,
                  direction,
+                 WRBType,
                  netPrecision,
                  targetDevice) = this->GetParam();
+
+        ASSERT_EQ(InputLayerType::CONSTANT, WRBType);
 
         size_t num_directions = direction == ngraph::op::RecurrentSequenceDirection::BIDIRECTIONAL ? 2 : 1;
         std::vector<std::vector<size_t>> inputShapes = {
@@ -160,6 +166,7 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::ValuesIn(clip),
                        ::testing::ValuesIn(linear_before_reset),
                        ::testing::ValuesIn(direction),
+                       ::testing::Values(InputLayerType::CONSTANT),
                        ::testing::ValuesIn(netPrecisions),
                        ::testing::Values(CommonTestUtils::DEVICE_GNA)),
     GRUSequenceTest::getTestCaseName);
@@ -176,6 +183,7 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::ValuesIn(clip_non_zeros),
                        ::testing::ValuesIn(linear_before_reset),
                        ::testing::ValuesIn(direction),
+                       ::testing::Values(InputLayerType::CONSTANT),
                        ::testing::ValuesIn(netPrecisions),
                        ::testing::Values(CommonTestUtils::DEVICE_GNA)),
     GRUSequenceTest::getTestCaseName);
