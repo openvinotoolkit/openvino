@@ -4,7 +4,7 @@
 
 .. meta::
    :description: Learn how to encrypt and optimize a model before its deployment 
-                 to the edge device, in order to ensure inference integrity and 
+                 to the edge device to ensure inference integrity and 
                  provide copyright protection.
 
 Deploying deep-learning capabilities to edge devices can present security challenges like ensuring inference integrity, or providing copyright protection of your deep-learning models.
