@@ -11,6 +11,7 @@ import numpy as np
 from typing import List, Dict
 from abc import ABCMeta, abstractmethod
 from typing import Callable, Any, Union, Tuple
+from typing import Sequence as SequenceType
 from collections.abc import Sequence
 from PIL import Image
 
@@ -45,7 +46,7 @@ TORCHTYPE_TO_OVTYPE = {
 }
 
 
-def _setup_size(size: Any, error_msg: str) -> Union[Tuple[Any, Any], Sequence[Any]]:
+def _setup_size(size: Any, error_msg: str) -> SequenceType[int]:
     # TODO: refactor into @singledispatch once Python 3.7 support is dropped
     if isinstance(size, numbers.Number):
         return int(size), int(size)  # type: ignore
