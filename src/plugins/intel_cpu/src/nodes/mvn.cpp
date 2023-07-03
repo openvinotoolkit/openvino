@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <string>
 #include <vector>
+#include <memory>
 
 #include "fake_quantize.h"
 #include "eltwise.h"
@@ -103,14 +104,14 @@ struct jit_uni_mvn_mean_variance_kernel_f32 : public jit_uni_mvn_mean_variance_k
 
     void generate() override {
         Precision dst_prc = isFloatCompatible(jcp_.src_prc) ? Precision::FP32 : Precision::I32;
-        load_vector_emitter.reset(new jit_load_emitter(this, isa, jcp_.src_prc, dst_prc, vector_step));
-        load_tail8_emitter.reset(new jit_load_emitter(this, isa, jcp_.src_prc, dst_prc, 8));
-        load_tail4_emitter.reset(new jit_load_emitter(this, isa, jcp_.src_prc, dst_prc, 4));
-        load_tail2_emitter.reset(new jit_load_emitter(this, isa, jcp_.src_prc, dst_prc, 2));
-        load_tail1_emitter.reset(new jit_load_emitter(this, isa, jcp_.src_prc, dst_prc, 1));
-        load_tail8_with_fill_emitter.reset(new jit_load_emitter(this, isa, jcp_.src_prc, dst_prc, 8, Precision::FP32, true, "zero"));
-        load_tail4_with_fill_emitter.reset(new jit_load_emitter(this, isa, jcp_.src_prc, dst_prc, 4, Precision::FP32, true, "zero"));
-        load_tail1_with_fill_emitter.reset(new jit_load_emitter(this, isa, jcp_.src_prc, dst_prc, 1, Precision::FP32, true, "zero"));
+        load_emitter[VECTOR] = std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.src_prc, dst_prc, vector_step));
+        load_emitter[TAIL8] = std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.src_prc, dst_prc, 8));
+        load_emitter[TAIL4] = std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.src_prc, dst_prc, 4));
+        load_emitter[TAIL2] = std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.src_prc, dst_prc, 2));
+        load_emitter[TAIL1] = std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.src_prc, dst_prc, 1));
+        load_emitter[TAIL8_FILL] = std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.src_prc, dst_prc, 8, Precision::FP32, true, "zero"));
+        load_emitter[TAIL4_FILL] = std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.src_prc, dst_prc, 4, Precision::FP32, true, "zero"));
+        load_emitter[TAIL1_FILL] = std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.src_prc, dst_prc, 1, Precision::FP32, true, "zero"));
 
         this->preamble();
         mov(reg_table, l_table);
@@ -159,14 +160,9 @@ struct jit_uni_mvn_mean_variance_kernel_f32 : public jit_uni_mvn_mean_variance_k
 
         this->postamble();
 
-        load_vector_emitter->emit_data();
-        load_tail8_emitter->emit_data();
-        load_tail4_emitter->emit_data();
-        load_tail2_emitter->emit_data();
-        load_tail1_emitter->emit_data();
-        load_tail8_with_fill_emitter->emit_data();
-        load_tail4_with_fill_emitter->emit_data();
-        load_tail1_with_fill_emitter->emit_data();
+        for (size_t i = 0; i < LOAD_EMITTERS_NUM; i++)
+            load_emitter[i]->emit_data();
+
         prepare_table();
     }
 
@@ -205,15 +201,8 @@ private:
 
     size_t src_stride = 0;
 
-    std::unique_ptr<jit_load_emitter> load_vector_emitter = nullptr;
-    std::unique_ptr<jit_load_emitter> load_tail8_emitter = nullptr;
-    std::unique_ptr<jit_load_emitter> load_tail4_emitter = nullptr;
-    std::unique_ptr<jit_load_emitter> load_tail2_emitter = nullptr;
-    std::unique_ptr<jit_load_emitter> load_tail1_emitter = nullptr;
-    std::unique_ptr<jit_load_emitter> load_tail8_with_fill_emitter = nullptr;
-    std::unique_ptr<jit_load_emitter> load_tail4_with_fill_emitter = nullptr;
-    std::unique_ptr<jit_load_emitter> load_tail1_with_fill_emitter = nullptr;
-
+    enum { VECTOR, TAIL8, TAIL4, TAIL2, TAIL1, TAIL8_FILL, TAIL4_FILL, TAIL1_FILL, LOAD_EMITTERS_NUM };
+    std::unique_ptr<jit_load_emitter> load_emitter[LOAD_EMITTERS_NUM];
     std::vector<size_t> load_pool_gpr_idxs;
 
     // nspc across channel
@@ -257,7 +246,7 @@ private:
         mov(rax, reg_rt_shape);
         mov(reg_vector_num, vector_step);
         xor_(rdx, rdx);
-        div(reg_vector_num);    // reg_rt_shape / vector_step, rax is result, rdx is tails(yushu)
+        div(reg_vector_num);    // reg_rt_shape / vector_step, rax is result, rdx is tails(remainder)
         mov(reg_vector_num, rax);
         mov(reg_tail_num, rdx);
 
@@ -349,19 +338,19 @@ private:
                 // vector part
                 // load unroll
                 Xbyak::Label label_load_end;
-                load_vector_emitter->emit_code({static_cast<size_t>(reg_src_aux.getIdx())}, {static_cast<size_t>(ur_base + 0)}, {}, {load_pool_gpr_idxs});
+                load_emitter[VECTOR]->emit_code({static_cast<size_t>(reg_src_aux.getIdx())}, {static_cast<size_t>(ur_base + 0)}, {}, {load_pool_gpr_idxs});
                 add(reg_src_aux, vector_step * jcp_.src_data_size);
                 cmp(reg_unroll_size, 1);
                 jle(label_load_end, T_NEAR);
-                load_vector_emitter->emit_code({static_cast<size_t>(reg_src_aux.getIdx())}, {static_cast<size_t>(ur_base + 1)}, {}, {load_pool_gpr_idxs});
+                load_emitter[VECTOR]->emit_code({static_cast<size_t>(reg_src_aux.getIdx())}, {static_cast<size_t>(ur_base + 1)}, {}, {load_pool_gpr_idxs});
                 add(reg_src_aux, vector_step * jcp_.src_data_size);
                 cmp(reg_unroll_size, 2);
                 jle(label_load_end, T_NEAR);
-                load_vector_emitter->emit_code({static_cast<size_t>(reg_src_aux.getIdx())}, {static_cast<size_t>(ur_base + 2)}, {}, {load_pool_gpr_idxs});
+                load_emitter[VECTOR]->emit_code({static_cast<size_t>(reg_src_aux.getIdx())}, {static_cast<size_t>(ur_base + 2)}, {}, {load_pool_gpr_idxs});
                 add(reg_src_aux, vector_step * jcp_.src_data_size);
                 cmp(reg_unroll_size, 3);
                 jle(label_load_end, T_NEAR);
-                load_vector_emitter->emit_code({static_cast<size_t>(reg_src_aux.getIdx())}, {static_cast<size_t>(ur_base + 3)}, {}, {load_pool_gpr_idxs});
+                load_emitter[VECTOR]->emit_code({static_cast<size_t>(reg_src_aux.getIdx())}, {static_cast<size_t>(ur_base + 3)}, {}, {load_pool_gpr_idxs});
                 add(reg_src_aux, vector_step * jcp_.src_data_size);
                 L(label_load_end);
 
@@ -480,7 +469,7 @@ private:
             auto worker_block = [&](int block_num) {
                 switch (block_num) {
                 case 8:
-                    load_tail8_emitter->emit_code({static_cast<size_t>(reg_src_aux.getIdx())}, {static_cast<size_t>(4)},
+                    load_emitter[TAIL8]->emit_code({static_cast<size_t>(reg_src_aux.getIdx())}, {static_cast<size_t>(4)},
                                                {}, {load_pool_gpr_idxs});
                     if (jcp_.normalize_variance) {
                         if (!isFloatCompatible(jcp_.src_prc)) {
@@ -497,7 +486,7 @@ private:
                     }
                     break;
                 case 4:
-                    load_tail4_emitter->emit_code({static_cast<size_t>(reg_src_aux.getIdx())}, {static_cast<size_t>(5)},
+                    load_emitter[TAIL4]->emit_code({static_cast<size_t>(reg_src_aux.getIdx())}, {static_cast<size_t>(5)},
                                                {}, {load_pool_gpr_idxs});
                     if (jcp_.normalize_variance) {
                         if (!isFloatCompatible(jcp_.src_prc)) {
@@ -514,7 +503,7 @@ private:
                     }
                     break;
                 case 2:
-                    load_tail2_emitter->emit_code({static_cast<size_t>(reg_src_aux.getIdx())}, {static_cast<size_t>(6)},
+                    load_emitter[TAIL2]->emit_code({static_cast<size_t>(reg_src_aux.getIdx())}, {static_cast<size_t>(6)},
                                                {}, {load_pool_gpr_idxs});
                     if (jcp_.normalize_variance) {
                         if (!isFloatCompatible(jcp_.src_prc)) {
@@ -531,7 +520,7 @@ private:
                     }
                     break;
                 case 1:
-                    load_tail1_emitter->emit_code({static_cast<size_t>(reg_src_aux.getIdx())}, {static_cast<size_t>(7)},
+                    load_emitter[TAIL1]->emit_code({static_cast<size_t>(reg_src_aux.getIdx())}, {static_cast<size_t>(7)},
                                                {}, {load_pool_gpr_idxs});
                     if (jcp_.normalize_variance) {
                         if (!isFloatCompatible(jcp_.src_prc)) {
@@ -921,7 +910,7 @@ private:
     }
 
     inline void worker_full_size() {
-        load_vector_emitter->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val.getIdx())},
+        load_emitter[VECTOR]->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val.getIdx())},
                                        {}, {load_pool_gpr_idxs});
 
         if (jcp_.normalize_variance) {
@@ -992,15 +981,15 @@ private:
         if (is_zero_pad) {
             switch (block_num) {
             case 8:
-                load_tail8_with_fill_emitter->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val.getIdx())},
+                load_emitter[TAIL8_FILL]->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val.getIdx())},
                                            {}, {load_pool_gpr_idxs});
                 break;
             case 4:
-                load_tail4_with_fill_emitter->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val.getIdx())},
+                load_emitter[TAIL4_FILL]->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val.getIdx())},
                                            {}, {load_pool_gpr_idxs});
                 break;
             case 1:
-                load_tail1_with_fill_emitter->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val.getIdx())},
+                load_emitter[TAIL1_FILL]->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val.getIdx())},
                                            {}, {load_pool_gpr_idxs});
                 break;
             default:
@@ -1010,15 +999,15 @@ private:
         } else {
             switch (block_num) {
             case 8:
-                load_tail8_emitter->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val.getIdx())},
+                load_emitter[TAIL8]->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val.getIdx())},
                                            {}, {load_pool_gpr_idxs});
                 break;
             case 4:
-                load_tail4_emitter->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val.getIdx())},
+                load_emitter[TAIL4]->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val.getIdx())},
                                            {}, {load_pool_gpr_idxs});
                 break;
             case 1:
-                load_tail1_emitter->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val.getIdx())},
+                load_emitter[TAIL1]->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val.getIdx())},
                                            {}, {load_pool_gpr_idxs});
                 break;
             default:
@@ -1157,16 +1146,17 @@ struct jit_uni_mvn_kernel_f32 : public jit_uni_mvn_kernel, public jit_generator 
             }
         }
 
-        load_vector_emitter.reset(new jit_load_emitter(this, isa, jcp_.src_prc, Precision::FP32, vector_step));
-        load_tail8_emitter.reset(new jit_load_emitter(this, isa, jcp_.src_prc, Precision::FP32, 8));
-        load_tail4_emitter.reset(new jit_load_emitter(this, isa, jcp_.src_prc, Precision::FP32, 4));
-        load_tail2_emitter.reset(new jit_load_emitter(this, isa, jcp_.src_prc, Precision::FP32, 2));
-        load_tail1_emitter.reset(new jit_load_emitter(this, isa, jcp_.src_prc, Precision::FP32, 1));
-        store_vector_emitter.reset(new jit_store_emitter(this, isa, Precision::FP32, jcp_.dst_prc, vector_step));
-        store_tail8_emitter.reset(new jit_store_emitter(this, isa, Precision::FP32, jcp_.dst_prc, 8));
-        store_tail4_emitter.reset(new jit_store_emitter(this, isa, Precision::FP32, jcp_.dst_prc, 4));
-        store_tail2_emitter.reset(new jit_store_emitter(this, isa, Precision::FP32, jcp_.dst_prc, 2));
-        store_tail1_emitter.reset(new jit_store_emitter(this, isa, Precision::FP32, jcp_.dst_prc, 1));
+        load_emitter[VECTOR] = std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.src_prc, Precision::FP32, vector_step));
+        load_emitter[TAIL8] = std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.src_prc, Precision::FP32, 8));
+        load_emitter[TAIL4] = std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.src_prc, Precision::FP32, 4));
+        load_emitter[TAIL2] = std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.src_prc, Precision::FP32, 2));
+        load_emitter[TAIL1] = std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.src_prc, Precision::FP32, 1));
+        store_emitter[VECTOR] = std::unique_ptr<jit_store_emitter>(new jit_store_emitter(this, isa, Precision::FP32, jcp_.dst_prc, vector_step));
+        store_emitter[TAIL8] = std::unique_ptr<jit_store_emitter>(new jit_store_emitter(this, isa, Precision::FP32, jcp_.dst_prc, 8));
+        store_emitter[TAIL4] = std::unique_ptr<jit_store_emitter>(new jit_store_emitter(this, isa, Precision::FP32, jcp_.dst_prc, 4));
+        store_emitter[TAIL2] = std::unique_ptr<jit_store_emitter>(new jit_store_emitter(this, isa, Precision::FP32, jcp_.dst_prc, 2));
+        store_emitter[TAIL1] = std::unique_ptr<jit_store_emitter>(new jit_store_emitter(this, isa, Precision::FP32, jcp_.dst_prc, 1));
+
         this->preamble();
 
         mov(reg_post_ops_data, ptr[reg_params + GET_OFF(post_op_data)]);
@@ -1213,16 +1203,10 @@ struct jit_uni_mvn_kernel_f32 : public jit_uni_mvn_kernel, public jit_generator 
 
         this->postamble();
 
-        load_vector_emitter->emit_data();
-        load_tail8_emitter->emit_data();
-        load_tail4_emitter->emit_data();
-        load_tail2_emitter->emit_data();
-        load_tail1_emitter->emit_data();
-        store_vector_emitter->emit_data();
-        store_tail8_emitter->emit_data();
-        store_tail4_emitter->emit_data();
-        store_tail2_emitter->emit_data();
-        store_tail1_emitter->emit_data();
+        for (size_t i = 0; i < EMITTERS_NUM; i++)
+            load_emitter[i]->emit_data();
+        for (size_t i = 0; i < EMITTERS_NUM; i++)
+            store_emitter[i]->emit_data();
 
         for (auto& inj : eltwise_injectors)
             inj->prepare_table();
@@ -1262,24 +1246,16 @@ private:
     Vmm vmm_d_weights = Vmm(0);
     Vmm vmm_d_bias = Vmm(1);
 
-    std::unique_ptr<jit_load_emitter> load_vector_emitter = nullptr;
-    std::unique_ptr<jit_load_emitter> load_tail8_emitter = nullptr;
-    std::unique_ptr<jit_load_emitter> load_tail4_emitter = nullptr;
-    std::unique_ptr<jit_load_emitter> load_tail2_emitter = nullptr;
-    std::unique_ptr<jit_load_emitter> load_tail1_emitter = nullptr;
-    std::unique_ptr<jit_store_emitter> store_vector_emitter = nullptr;
-    std::unique_ptr<jit_store_emitter> store_tail8_emitter = nullptr;
-    std::unique_ptr<jit_store_emitter> store_tail4_emitter = nullptr;
-    std::unique_ptr<jit_store_emitter> store_tail2_emitter = nullptr;
-    std::unique_ptr<jit_store_emitter> store_tail1_emitter = nullptr;
+    enum { VECTOR, TAIL8, TAIL4, TAIL2, TAIL1, EMITTERS_NUM };
+    std::unique_ptr<jit_load_emitter> load_emitter[EMITTERS_NUM];
+    std::unique_ptr<jit_store_emitter> store_emitter[EMITTERS_NUM];
+    std::vector<size_t> store_pool_gpr_idxs;
+    std::vector<size_t> store_pool_vec_idxs;
+    std::vector<size_t> load_pool_gpr_idxs;
 
     std::vector<std::shared_ptr<jit_uni_eltwise_injector_f32<isa>>> eltwise_injectors;
     std::vector<std::shared_ptr<jit_uni_depthwise_injector_f32<isa>>> depthwise_injectors;
     std::vector<std::shared_ptr<jit_uni_quantization_injector_f32<isa>>> quantization_injectors;
-
-    std::vector<size_t> store_pool_gpr_idxs;
-    std::vector<size_t> store_pool_vec_idxs;
-    std::vector<size_t> load_pool_gpr_idxs;
 
     inline void norm_block_ker() {
         Xbyak::Reg64 reg_src_bk = rax;
@@ -1578,7 +1554,7 @@ private:
 
                 // load
                 auto load_src = [&](int offset) {
-                    load_vector_emitter->emit_code({static_cast<size_t>(reg_src_aux.getIdx())},
+                    load_emitter[VECTOR]->emit_code({static_cast<size_t>(reg_src_aux.getIdx())},
                                                    {static_cast<size_t>(ur_base + offset)}, {}, {load_pool_gpr_idxs});
                     add(reg_src_aux, vector_step * jcp_.src_data_size);
                 };
@@ -1656,7 +1632,7 @@ private:
 
                 // store
                 auto store_dst = [&](int offset) {
-                    store_vector_emitter->emit_code({static_cast<size_t>(ur_base + offset)}, {static_cast<size_t>(reg_dst_aux.getIdx())},
+                    store_emitter[VECTOR]->emit_code({static_cast<size_t>(ur_base + offset)}, {static_cast<size_t>(reg_dst_aux.getIdx())},
                         {store_pool_vec_idxs}, {store_pool_gpr_idxs});
                     add(reg_dst_aux, vector_step * jcp_.dst_data_size);
                 };
@@ -1802,25 +1778,25 @@ private:
             Label tail_blk1_load_exit_label;
             cmp(reg_tails_num_active, 8);
             jl(tail_blk8_load_exit_label, T_NEAR);
-            load_tail8_emitter->emit_code({static_cast<size_t>(reg_src_aux.getIdx())}, {static_cast<size_t>(4)}, {}, {load_pool_gpr_idxs});
+            load_emitter[TAIL8]->emit_code({static_cast<size_t>(reg_src_aux.getIdx())}, {static_cast<size_t>(4)}, {}, {load_pool_gpr_idxs});
             add(reg_src_aux, 8 * jcp_.src_data_size);
             sub(reg_tails_num_active, 8);
             L(tail_blk8_load_exit_label);
             cmp(reg_tails_num_active, 4);
             jl(tail_blk4_load_exit_label, T_NEAR);
-            load_tail4_emitter->emit_code({static_cast<size_t>(reg_src_aux.getIdx())}, {static_cast<size_t>(5)}, {}, {load_pool_gpr_idxs});
+            load_emitter[TAIL4]->emit_code({static_cast<size_t>(reg_src_aux.getIdx())}, {static_cast<size_t>(5)}, {}, {load_pool_gpr_idxs});
             add(reg_src_aux, 4 * jcp_.src_data_size);
             sub(reg_tails_num_active, 4);
             L(tail_blk4_load_exit_label);
             cmp(reg_tails_num_active, 2);
             jl(tail_blk2_load_exit_label, T_NEAR);
-            load_tail2_emitter->emit_code({static_cast<size_t>(reg_src_aux.getIdx())}, {static_cast<size_t>(6)}, {}, {load_pool_gpr_idxs});
+            load_emitter[TAIL2]->emit_code({static_cast<size_t>(reg_src_aux.getIdx())}, {static_cast<size_t>(6)}, {}, {load_pool_gpr_idxs});
             add(reg_src_aux, 2 * jcp_.src_data_size);
             sub(reg_tails_num_active, 2);
             L(tail_blk2_load_exit_label);
             cmp(reg_tails_num_active, 1);
             jl(tail_blk1_load_exit_label, T_NEAR);
-            load_tail1_emitter->emit_code({static_cast<size_t>(reg_src_aux.getIdx())}, {static_cast<size_t>(7)}, {}, {load_pool_gpr_idxs});
+            load_emitter[TAIL1]->emit_code({static_cast<size_t>(reg_src_aux.getIdx())}, {static_cast<size_t>(7)}, {}, {load_pool_gpr_idxs});
             add(reg_src_aux, 1 * jcp_.src_data_size);
             sub(reg_tails_num_active, 1);
             L(tail_blk1_load_exit_label);
@@ -1927,28 +1903,28 @@ private:
             Label tail_blk1_store_exit_label;
             cmp(reg_tails_num_active, 8);
             jl(tail_blk8_store_exit_label, T_NEAR);
-            store_tail8_emitter->emit_code({static_cast<size_t>(4)}, {static_cast<size_t>(reg_dst_aux.getIdx())},
+            store_emitter[TAIL8]->emit_code({static_cast<size_t>(4)}, {static_cast<size_t>(reg_dst_aux.getIdx())},
                                            {store_pool_vec_idxs}, {store_pool_gpr_idxs});
             add(reg_dst_aux, 8 * jcp_.dst_data_size);
             sub(reg_tails_num_active, 8);
             L(tail_blk8_store_exit_label);
             cmp(reg_tails_num_active, 4);
             jl(tail_blk4_store_exit_label, T_NEAR);
-            store_tail4_emitter->emit_code({static_cast<size_t>(5)}, {static_cast<size_t>(reg_dst_aux.getIdx())},
+            store_emitter[TAIL4]->emit_code({static_cast<size_t>(5)}, {static_cast<size_t>(reg_dst_aux.getIdx())},
                                            {store_pool_vec_idxs}, {store_pool_gpr_idxs});
             add(reg_dst_aux, 4 * jcp_.dst_data_size);
             sub(reg_tails_num_active, 4);
             L(tail_blk4_store_exit_label);
             cmp(reg_tails_num_active, 2);
             jl(tail_blk2_store_exit_label, T_NEAR);
-            store_tail2_emitter->emit_code({static_cast<size_t>(6)}, {static_cast<size_t>(reg_dst_aux.getIdx())},
+            store_emitter[TAIL2]->emit_code({static_cast<size_t>(6)}, {static_cast<size_t>(reg_dst_aux.getIdx())},
                                            {store_pool_vec_idxs}, {store_pool_gpr_idxs});
             add(reg_dst_aux, 2 * jcp_.dst_data_size);
             sub(reg_tails_num_active, 2);
             L(tail_blk2_store_exit_label);
             cmp(reg_tails_num_active, 1);
             jl(tail_blk1_store_exit_label, T_NEAR);
-            store_tail1_emitter->emit_code({static_cast<size_t>(7)}, {static_cast<size_t>(reg_dst_aux.getIdx())},
+            store_emitter[TAIL1]->emit_code({static_cast<size_t>(7)}, {static_cast<size_t>(reg_dst_aux.getIdx())},
                                            {store_pool_vec_idxs}, {store_pool_gpr_idxs});
             add(reg_dst_aux, 1 * jcp_.dst_data_size);
             sub(reg_tails_num_active, 1);
@@ -2029,7 +2005,7 @@ private:
     }
 
     inline void worker_mvn_vector() {
-        load_vector_emitter->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val.getIdx())},
+        load_emitter[VECTOR]->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val.getIdx())},
             {}, {load_pool_gpr_idxs});
 
         uni_vsubps(vmm_val, vmm_val, vmm_mean);
@@ -2038,7 +2014,7 @@ private:
 
         apply_post_ops(jcp_.dst_prc, vmm_val.getIdx(), jcp_.layout == MVNLayoutType::mvn_planar);
 
-        store_vector_emitter->emit_code({static_cast<size_t>(vmm_val.getIdx())}, {static_cast<size_t>(reg_dst.getIdx())},
+        store_emitter[VECTOR]->emit_code({static_cast<size_t>(vmm_val.getIdx())}, {static_cast<size_t>(reg_dst.getIdx())},
             {store_pool_vec_idxs}, {store_pool_gpr_idxs});
     }
 
@@ -2101,15 +2077,15 @@ private:
     inline void worker_mvn_block(int block_num) {
         switch (block_num) {
         case 8:
-            load_tail8_emitter->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val.getIdx())},
+            load_emitter[TAIL8]->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val.getIdx())},
                 {}, {load_pool_gpr_idxs});
             break;
         case 4:
-            load_tail4_emitter->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val.getIdx())},
+            load_emitter[TAIL4]->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val.getIdx())},
                 {}, {load_pool_gpr_idxs});
             break;
         case 1:
-            load_tail1_emitter->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val.getIdx())},
+            load_emitter[TAIL1]->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val.getIdx())},
                 {}, {load_pool_gpr_idxs});
             break;
         default:
@@ -2125,15 +2101,15 @@ private:
 
         switch (block_num) {
         case 8:
-            store_tail8_emitter->emit_code({static_cast<size_t>(vmm_val.getIdx())}, {static_cast<size_t>(reg_dst.getIdx())},
+            store_emitter[TAIL8]->emit_code({static_cast<size_t>(vmm_val.getIdx())}, {static_cast<size_t>(reg_dst.getIdx())},
                 {store_pool_vec_idxs}, {store_pool_gpr_idxs});
             break;
         case 4:
-            store_tail4_emitter->emit_code({static_cast<size_t>(vmm_val.getIdx())}, {static_cast<size_t>(reg_dst.getIdx())},
+            store_emitter[TAIL4]->emit_code({static_cast<size_t>(vmm_val.getIdx())}, {static_cast<size_t>(reg_dst.getIdx())},
                 {store_pool_vec_idxs}, {store_pool_gpr_idxs});
             break;
         case 1:
-            store_tail1_emitter->emit_code({static_cast<size_t>(vmm_val.getIdx())}, {static_cast<size_t>(reg_dst.getIdx())},
+            store_emitter[TAIL1]->emit_code({static_cast<size_t>(vmm_val.getIdx())}, {static_cast<size_t>(reg_dst.getIdx())},
                 {store_pool_vec_idxs}, {store_pool_gpr_idxs});
             break;
         default:
