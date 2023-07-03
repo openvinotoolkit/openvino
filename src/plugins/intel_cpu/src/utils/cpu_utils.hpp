@@ -122,7 +122,7 @@ inline InferenceEngine::Precision normalizeToSupportedPrecision(InferenceEngine:
             break;
         }
         case InferenceEngine::Precision::FP16: {
-            precision = InferenceEngine::Precision::FP32;
+            //precision = InferenceEngine::Precision::FP32;
             break;
         }
         default: {
