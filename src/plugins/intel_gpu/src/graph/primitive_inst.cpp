@@ -1086,7 +1086,7 @@ memory::ptr primitive_inst::allocate_output(engine& _engine, memory_pool& pool, 
                         const kernel_impl_params& impl_params, uint32_t net_id, bool is_internal, size_t idx, bool reset, bool is_output_buffer,
                         bool runtime_alloc, memory* curr_memory) {
     auto get_memory_from_pool = [&](engine& _engine, const layout& layout, const primitive_id id, std::set<primitive_id> dependencies,
-            allocation_type type, bool reusable, bool reset = true, memory* curr_memory) {
+            allocation_type type, bool reusable, bool reset = true, memory* curr_memory = nullptr) {
         OPENVINO_ASSERT(!layout.is_dynamic() || layout.has_upper_bound(), "[GPU] Can't allocate output for dynamic layout without upper bound");
         // Use layout with max tensor for dynamic shape with upper bound
         auto static_layout = cldnn::layout(layout.get_partial_shape().get_max_shape(), layout.data_type, layout.format, layout.data_padding);
