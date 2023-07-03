@@ -69,7 +69,8 @@ std::shared_ptr<ngraph::Function> RecurrentCellFunction::get(
                                                                        converts[3],
                                                                        dequantizations[3]);
     auto B = ngraph::opset1::Constant::create(inputPrecision, inputWeightsShapes[2], {1});
-    auto seq_lengths = ngraph::opset1::Constant::create(element::i32, Shape{1}, {3});
+    auto max_seq_length = inputActivationsShapes[0][1].get_max_length();
+    auto seq_lengths = ngraph::opset1::Constant::create(element::i32, Shape{1}, {max_seq_length});
 
     std::shared_ptr<ov::op::util::RNNCellBase> rnn_layer;
     switch (type) {

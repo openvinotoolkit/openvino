@@ -91,7 +91,7 @@ bool MVNKey::operator==(const MVNKey& rhs) const {
 
 // some utility functions
 static inline bool isFloatCompatible(Precision prc) {
-    return Precision::FP32 == prc || Precision::BF16 == prc;
+    return one_of(prc, Precision::FP32, Precision::BF16, Precision::FP16);
 }
 
 // normalize_variance = false : src->mean
@@ -1219,7 +1219,7 @@ void MVN::initSupportedPrimitiveDescriptors() {
             }
 
             auto factory = std::make_shared<MVNExecutorFactory>(mvnAttrs, srcMemoryDescs, dstMemoryDescs,
-                                                                        std::make_shared<ExecutorContext>(context, getPrimitivesPriority()));
+                                                                        std::make_shared<ExecutorContext>(context, getImplPriority()));
             if (!factory->isEmpty()) {
                 supportedPrimitiveDescriptors.push_back({config, impl_type, factory});
             }

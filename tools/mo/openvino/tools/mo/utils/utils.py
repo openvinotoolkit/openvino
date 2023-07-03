@@ -10,24 +10,7 @@ from typing import Callable
 import numpy as np
 
 from openvino.tools.mo.front.common.partial_infer.utils import dynamic_dimension
-
-try:
-    import openvino_telemetry as tm
-except ImportError:
-    import openvino.tools.mo.utils.telemetry_stub as tm
-
-
-def refer_to_faq_msg(question_num: int):
-    try:
-        t = tm.Telemetry()
-        t.send_event('mo', 'error_info', "faq:" + str(question_num))
-    except Exception:
-        # Telemetry can be not initialized if it is used in MO IR Reader
-        pass
-
-    return '\n For more information please refer to Model Optimizer FAQ, question #{0}. ' \
-           '(https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_prepare_model_Model_Optimizer_FAQ.html' \
-           '?question={0}#question-{0})'.format(question_num)
+from openvino.tools.ovc.utils import refer_to_faq_msg, check_values_equal  # pylint: disable=no-name-in-module,import-error
 
 
 class NamedAttrsClass:

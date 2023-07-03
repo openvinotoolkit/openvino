@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about ConvolutionBackpropData-1 - a 1D, 2D or 3D convolution operation, which 
+                can be performed on input and kernel tensors in OpenVINO.
+
 **Versioned name**: *ConvolutionBackpropData-1*
 
 **Category**: *Convolution*

@@ -25,6 +25,7 @@
 #include "utils/cpu_utils.hpp"
 #include "emitters/x64/cpu_generator.hpp"
 #include "transformations/snippets/x64/pass/lowered/fuse_load_store_and_convert.hpp"
+#include "transformations/snippets/x64/pass/lowered/brgemm_blocking.hpp"
 #include "transformations/snippets/x64/pass/mul_add_to_fma.hpp"
 #include "transformations/snippets/x64/pass/brgemm_to_brgemm_cpu.hpp"
 #include "transformations/snippets/x64/pass/remove_converts.hpp"
@@ -107,7 +108,7 @@ void Snippet::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    const std::set<Precision> supportedPrecisions = { Precision::FP32, Precision::I32, Precision::BF16, Precision::I8, Precision::U8 };
+    const std::set<Precision> supportedPrecisions = { Precision::FP32, Precision::I32, Precision::BF16, Precision::FP16, Precision::I8, Precision::U8 };
 
     bool dimRanksAreEqual = true;
     for (size_t i = 0; dimRanksAreEqual && i < inputShapes.size(); i++) {
@@ -181,7 +182,7 @@ void Snippet::initSupportedPrimitiveDescriptors() {
         for (size_t i = 0; i < inputShapes.size(); i++) {
             const auto originalInputPrecision = getOriginalInputPrecisionAtPort(i);
             const auto precision = ((originalInputPrecision == InferenceEngine::Precision::FP32) &&
-                                     context->getConfig().enforceBF16 &&
+                                     context->getConfig().inferencePrecision == ov::element::bf16 &&
                                      snippet->has_domain_sensitive_ops()) ?
                 static_cast<InferenceEngine::Precision>(InferenceEngine::Precision::BF16) :
                 originalInputPrecision;
@@ -191,7 +192,7 @@ void Snippet::initSupportedPrimitiveDescriptors() {
             const auto equalPrecisions = getOriginalOutputPrecisions().size() == 1 &&
                     precision == getOriginalOutputPrecisionAtPort(0);
 
-            BlockedMemoryDesc::CmpMask inputMask = BLOCKED_DESC_SKIP_OFFSET_MASK;
+            BlockedMemoryDesc::CmpMask inputMask = BlockedMemoryDesc::SKIP_OFFSET_MASK;
             PortConfig portConfig;
             portConfig.inPlace((!i && canBeInPlace() && equalPrecisions) ? 0 : -1);
             portConfig.constant(false);
@@ -207,7 +208,7 @@ void Snippet::initSupportedPrimitiveDescriptors() {
             if (supportedPrecisions.count(precision) == 0)
                 IE_THROW() << "Subgraph node with name `" << getName() << "` doesn't support " << precision << " precision.";
 
-            BlockedMemoryDesc::CmpMask outputMask = BLOCKED_DESC_SKIP_OFFSET_MASK;
+            BlockedMemoryDesc::CmpMask outputMask = BlockedMemoryDesc::SKIP_OFFSET_MASK;
             PortConfig portConfig;
             portConfig.inPlace(-1);
             portConfig.constant(false);
@@ -235,7 +236,7 @@ void Snippet::initSupportedPrimitiveDescriptors() {
 }
 
 void Snippet::selectOptimalPrimitiveDescriptor() {
-    selectPreferPrimitiveDescriptor(getPrimitivesPriority(), true);
+    selectPreferPrimitiveDescriptor(getImplPriority(), true);
 }
 InferenceEngine::Precision Snippet::getRuntimePrecision() const {
     std::vector<InferenceEngine::Precision> inputPrecisions;
@@ -549,7 +550,7 @@ bool Snippet::created() const {
 void Snippet::generate(const jit_snippets_compile_args* jcp) {
     ov::pass::Manager pre_dialect;
     pre_dialect.register_pass<ConvertToSwishCPU>();
-    if (context->getConfig().enforceBF16 && snippet->has_domain_sensitive_ops()) {
+    if (context->getConfig().inferencePrecision == ov::element::bf16 && snippet->has_domain_sensitive_ops()) {
         // enforce BF16 precisions to supported operations
         // MatMul has to be decomposed to Brgemm operations before enforcement
         // Note, MatMul decomposition will be ran later again for case if BF16 enforcement is not happened
@@ -564,6 +565,9 @@ void Snippet::generate(const jit_snippets_compile_args* jcp) {
     CPU_REGISTER_PASS_X64(post_precision, ov::intel_cpu::pass::RemoveConverts);
     CPU_REGISTER_PASS_X64(post_precision, ov::intel_cpu::pass::MulAddToFMA);
 
+    ov::snippets::lowered::pass::PassPipeline control_flow_markup_pipeline;
+    CPU_REGISTER_PASS_X64(control_flow_markup_pipeline, ov::intel_cpu::pass::BrgemmBlocking);
+
     ov::snippets::lowered::pass::PassPipeline control_flow_pipeline;
     CPU_REGISTER_PASS_X64(control_flow_pipeline, ov::intel_cpu::pass::FuseLoadStoreConvert);
 
@@ -571,6 +575,7 @@ void Snippet::generate(const jit_snippets_compile_args* jcp) {
         pre_dialect,
         post_dialect,
         post_precision,
+        control_flow_markup_pipeline,
         control_flow_pipeline,
         reinterpret_cast<const void*>(jcp));
 }
