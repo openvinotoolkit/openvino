@@ -7,6 +7,10 @@
 #include "common_test_utils/test_assertions.hpp"
 #include <ngraph/opsets/opset8.hpp>
 #include "custom_shape_infer.hpp"
+namespace ov {
+namespace intel_cpu {
+namespace unit_test {
+namespace cpu_shape_infer {
 
 using namespace ov;
 using namespace ov::intel_cpu;
@@ -100,4 +104,9 @@ REGISTER_TYPED_TEST_SUITE_P(CpuShapeInferenceTest_ColorConvertI420,
 
 INSTANTIATE_TYPED_TEST_SUITE_P(CpuShapeInfer_I420toBGR, CpuShapeInferenceTest_ColorConvertI420, ::testing::Types<op::v8::I420toBGR>);
 INSTANTIATE_TYPED_TEST_SUITE_P(CpuShapeInfer_I420toRGB, CpuShapeInferenceTest_ColorConvertI420, ::testing::Types<op::v8::I420toRGB>);
+
+} // namespace cpu_shape_infer
+} // namespace unit_test
+} // namespace intel_cpu
+} // namespace ov
 

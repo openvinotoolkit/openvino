@@ -5,6 +5,10 @@
 #include "gtest/gtest.h"
 #include "custom_shape_infer.hpp"
 #include <ngraph/opsets/opset6.hpp>
+namespace ov {
+namespace intel_cpu {
+namespace unit_test {
+namespace cpu_shape_infer {
 
 using namespace ov;
 using namespace ov::intel_cpu;
@@ -93,4 +97,9 @@ INSTANTIATE_TEST_SUITE_P(
     Values(make_tuple(unit_test::ShapeVector{{3}, {1}}, std::vector<int64_t>{0}, StaticShape({3})),
            make_tuple(unit_test::ShapeVector{{1}, {0}}, std::vector<int64_t>{}, StaticShape({1}))),
     TransposeCpuShapeInferenceThrowExceptionTest::getTestCaseName);
+
+} // namespace cpu_shape_infer
+} // namespace unit_test
+} // namespace intel_cpu
+} // namespace ov
 

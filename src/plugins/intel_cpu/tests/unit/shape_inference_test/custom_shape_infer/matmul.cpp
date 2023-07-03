@@ -5,6 +5,12 @@
 
 #include "custom_shape_infer.hpp"
 #include <ngraph/opsets/opset1.hpp>
+namespace ov {
+namespace intel_cpu {
+namespace unit_test {
+namespace cpu_shape_infer {
+
+
 using namespace ov;
 using namespace ov::intel_cpu;
 using namespace testing;
@@ -135,4 +141,9 @@ INSTANTIATE_TEST_SUITE_P(CpuShapeInfer,
                                 make_tuple(StaticShape({10, 8, 9, 2}), StaticShape({10, 8, 2, 8})),
                                 make_tuple(StaticShape({3, 1, 4, 3, 4}), StaticShape({3, 2, 1, 4, 1}))),
                          CPUMatMulTest::getTestCaseName);
+
+} // namespace cpu_shape_infer
+} // namespace unit_test
+} // namespace intel_cpu
+} // namespace ov
 

@@ -7,6 +7,10 @@
 #include "common_test_utils/test_assertions.hpp"
 #include "custom_shape_infer.hpp"
 #include <ngraph/opsets/opset1.hpp>
+namespace ov {
+namespace intel_cpu {
+namespace unit_test {
+namespace cpu_shape_infer {
 
 using namespace ov;
 using namespace ov::intel_cpu;
@@ -120,4 +124,9 @@ INSTANTIATE_TEST_SUITE_P(
     OneHotCpuShapeInferenceThrowExceptionTest,
     Values(make_tuple(unit_test::ShapeVector{{3}, {}, {}, {}}, -2, 1, 0, StaticShape({}))),
     OneHotCpuShapeInferenceThrowExceptionTest::getTestCaseName);
+
+} // namespace cpu_shape_infer
+} // namespace unit_test
+} // namespace intel_cpu
+} // namespace ov
 

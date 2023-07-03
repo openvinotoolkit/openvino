@@ -6,6 +6,10 @@
 #include <ngraph/opsets/opset1.hpp>
 #include "common_test_utils/test_assertions.hpp"
 #include "custom_shape_infer.hpp"
+namespace ov {
+namespace intel_cpu {
+namespace unit_test {
+namespace cpu_shape_infer {
 
 using namespace ov;
 using namespace ov::intel_cpu;
@@ -112,3 +116,9 @@ INSTANTIATE_TYPED_TEST_SUITE_P(CpuShapeInfer_multiply, CpuShapeInferenceTest_BEA
 INSTANTIATE_TYPED_TEST_SUITE_P(CpuShapeInfer_power, CpuShapeInferenceTest_BEA, ::testing::Types<op::v1::Power>);
 INSTANTIATE_TYPED_TEST_SUITE_P(CpuShapeInfer_squared_difference, CpuShapeInferenceTest_BEA, ::testing::Types<op::v0::SquaredDifference>);
 INSTANTIATE_TYPED_TEST_SUITE_P(CpuShapeInfer_subtract, CpuShapeInferenceTest_BEA, ::testing::Types<op::v1::Subtract>);
+
+} // namespace cpu_shape_infer
+} // namespace unit_test
+} // namespace intel_cpu
+} // namespace ov
+

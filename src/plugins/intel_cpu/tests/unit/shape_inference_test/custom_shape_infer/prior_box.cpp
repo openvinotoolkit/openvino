@@ -8,6 +8,11 @@
 #include "custom_shape_infer.hpp"
 #include <ngraph/opsets/opset8.hpp>
 #include <vector>
+namespace ov {
+namespace intel_cpu {
+namespace unit_test {
+namespace cpu_shape_infer {
+
 
 using namespace ov;
 using namespace ov::intel_cpu;
@@ -60,7 +65,7 @@ protected:
     std::vector<std::vector<int32_t>> data;
 };
 
-namespace {
+namespace prior_box {
 const op::v0::PriorBox::Attributes createAttrs(
     std::vector<float> min_size,
     std::vector<float> max_size,
@@ -149,7 +154,7 @@ const op::v0::PriorBox::Attributes attrs4 = createAttrs(
     true      // scale_all_sizes  Scale all sizes
 );
 
-} // namespace
+} // namespace prior_box
 
 TEST_P(PriorBoxV0CpuShapeInferenceTest , shape_inference_empty_const_map) {
     const auto layer_const = std::make_shared<op::v0::Constant>(element::i32, ov::Shape{2}, data[0]);
@@ -176,12 +181,19 @@ TEST_P(PriorBoxV0CpuShapeInferenceTest , shape_inference_with_const_map) {
 INSTANTIATE_TEST_SUITE_P(
     CpuShapeInfer,
     PriorBoxV0CpuShapeInferenceTest ,
-    Values(make_tuple(unit_test::ShapeVector{{2}, {2}}, attrs1,
+    Values(make_tuple(unit_test::ShapeVector{{2}, {2}}, prior_box::attrs1,
                         std::vector<std::vector<int32_t>>{{24, 42}, {384, 672}}, StaticShape({2, 16128})),
-           make_tuple(unit_test::ShapeVector{{2}, {2}}, attrs2,
+           make_tuple(unit_test::ShapeVector{{2}, {2}}, prior_box::attrs2,
                         std::vector<std::vector<int32_t>>{{32, 32}, {384, 672}}, StaticShape({2, 20480})),
-           make_tuple(unit_test::ShapeVector{{2}, {2}}, attrs3,
+           make_tuple(unit_test::ShapeVector{{2}, {2}}, prior_box::attrs3,
                         std::vector<std::vector<int32_t>>{{32, 32}, {300, 300}}, StaticShape({2, 32768})),
-           make_tuple(unit_test::ShapeVector{{2}, {2}}, attrs4,
+           make_tuple(unit_test::ShapeVector{{2}, {2}}, prior_box::attrs4,
                         std::vector<std::vector<int32_t>>{{1, 1}, {300, 300}}, StaticShape({2, 16}))),
     PriorBoxV0CpuShapeInferenceTest::getTestCaseName);
+
+} // namespace cpu_shape_infer
+} // namespace unit_test
+} // namespace intel_cpu
+} // namespace ov
+
+

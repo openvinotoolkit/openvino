@@ -8,6 +8,10 @@
 #include "common_test_utils/test_assertions.hpp"
 #include "custom_shape_infer.hpp"
 #include <ngraph/opsets/opset1.hpp>
+namespace ov {
+namespace intel_cpu {
+namespace unit_test {
+namespace cpu_shape_infer {
 
 using namespace ov;
 using namespace ov::intel_cpu;
@@ -127,4 +131,8 @@ INSTANTIATE_TEST_SUITE_P(
            make_tuple(unit_test::ShapeVector{{0, 2, 2}, {2}}, std::vector<int64_t>{3, 3}, StaticShape({}), false)),
         ReshapeCpuShapeInferenceThrowExceptionTest::getTestCaseName);
 
+} // namespace cpu_shape_infer
+} // namespace unit_test
+} // namespace intel_cpu
+} // namespace ov
 

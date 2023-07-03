@@ -5,6 +5,10 @@
 #include <gtest/gtest.h>
 #include "custom_shape_infer.hpp"
 #include <ngraph/opsets/opset1.hpp>
+namespace ov {
+namespace intel_cpu {
+namespace unit_test {
+namespace cpu_shape_infer {
 
 using namespace ov;
 using namespace ov::intel_cpu;
@@ -74,3 +78,9 @@ TYPED_TEST_P(CpuShapeInferenceGatherTest, axis_in_const_map) {
 REGISTER_TYPED_TEST_SUITE_P(CpuShapeInferenceGatherTest, axis_const, axis_in_const_map);
 using GatherTypes = Types<op::v1::Gather, op::v7::Gather, op::v8::Gather>;
 INSTANTIATE_TYPED_TEST_SUITE_P(CpuShapeInfer, CpuShapeInferenceGatherTest, GatherTypes);
+
+} // namespace cpu_shape_infer
+} // namespace unit_test
+} // namespace intel_cpu
+} // namespace ov
+

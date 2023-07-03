@@ -9,6 +9,10 @@
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/prior_box_clustered.hpp"
 #include <ngraph/opsets/opset1.hpp>
+namespace ov {
+namespace intel_cpu {
+namespace unit_test {
+namespace cpu_shape_infer {
 
 using namespace ov;
 using namespace ov::intel_cpu;
@@ -57,7 +61,7 @@ protected:
     unit_test::ShapeVector input_shapes;
 };
 
-namespace {
+namespace prior_box_cluster {
 const op::v0::PriorBoxClustered::Attributes createAttrs(
     std::vector<float> widths,
     std::vector<float> heights,
@@ -111,7 +115,7 @@ const op::v0::PriorBoxClustered::Attributes attrs3 = createAttrs(
     {}                   // variances      Values to adjust prior boxes with
 );
 
-} // namespace
+} // namespace prior_box_cluster
 
 TEST_P(PriorBoxClusteredV0CpuShapeInferenceTest , shape_inference_empty_const_map) {
     const auto layer_const = std::make_shared<op::v0::Constant>(element::i32, ov::Shape{2}, data[0]);
@@ -143,12 +147,18 @@ TEST_P(PriorBoxClusteredV0CpuShapeInferenceTest , shape_inference_with_const_map
 INSTANTIATE_TEST_SUITE_P(
     CpuShapeInfer,
     PriorBoxClusteredV0CpuShapeInferenceTest ,
-    Values(make_tuple(unit_test::ShapeVector{{2}}, attrs1,
+    Values(make_tuple(unit_test::ShapeVector{{2}}, prior_box_cluster::attrs1,
                         std::vector<std::vector<int32_t>>{{2, 5}}, StaticShape({2, 80})),
-           make_tuple(unit_test::ShapeVector{{2}, {2}}, attrs1,
+           make_tuple(unit_test::ShapeVector{{2}, {2}}, prior_box_cluster::attrs1,
                         std::vector<std::vector<int32_t>>{{12, 16}, {50, 50}}, StaticShape({2, 1536})),
-           make_tuple(unit_test::ShapeVector{{2}, {2}}, attrs2,
+           make_tuple(unit_test::ShapeVector{{2}, {2}}, prior_box_cluster::attrs2,
                         std::vector<std::vector<int32_t>>{{10, 19}, {180, 300}}, StaticShape({2, 6840})),
-           make_tuple(unit_test::ShapeVector{{2}, {2}}, attrs3,
+           make_tuple(unit_test::ShapeVector{{2}, {2}}, prior_box_cluster::attrs3,
                         std::vector<std::vector<int32_t>>{{19, 19}, {300, 300}}, StaticShape({2, 4332}))),
     PriorBoxClusteredV0CpuShapeInferenceTest::getTestCaseName);
+
+} // namespace cpu_shape_infer
+} // namespace unit_test
+} // namespace intel_cpu
+} // namespace ov
+

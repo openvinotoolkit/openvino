@@ -7,6 +7,10 @@
 #include "common_test_utils/test_assertions.hpp"
 #include "custom_shape_infer.hpp"
 #include <ngraph/opsets/opset8.hpp>
+namespace ov {
+namespace intel_cpu {
+namespace unit_test {
+namespace cpu_shape_infer {
 
 using namespace ov;
 using namespace ov::intel_cpu;
@@ -70,4 +74,8 @@ INSTANTIATE_TEST_SUITE_P(
     Values(make_tuple(unit_test::ShapeVector{{1, 3, 1, 2}, {2}}, std::vector<int32_t>{10, 20}, StaticShape({1, 3, 10, 20})),
            make_tuple(unit_test::ShapeVector{{1, 2, 10}, {1}}, std::vector<int32_t>{17}, StaticShape({1, 2, 17}))),
     AdaptiveMaxPoolV8CpuShapeInferenceTest::getTestCaseName);
+} // namespace cpu_shape_infer
+} // namespace unit_test
+} // namespace intel_cpu
+} // namespace ov
 

@@ -6,11 +6,14 @@
 #include "gmock/gmock.h"
 #include "custom_shape_infer.hpp"
 #include <ngraph/opsets/opset1.hpp>
+namespace ov {
+namespace intel_cpu {
+namespace unit_test {
+namespace cpu_shape_infer {
 
 using namespace ov;
 using namespace ov::intel_cpu;
 using namespace testing;
-
 using UnsqueezeTestParams = std::tuple<unit_test::ShapeVector, // Input shapes
                                        std::vector<int64_t>,   // Unsqueeze axes
                                        StaticShape             // Expected shape
@@ -127,4 +130,9 @@ INSTANTIATE_TEST_SUITE_P(
            make_tuple(unit_test::ShapeVector{{1, 2}, {2}}, std::vector<int64_t>{3, -1}, StaticShape({})),
            make_tuple(unit_test::ShapeVector{{1, 2}, {1}}, std::vector<int64_t>{-4}, StaticShape({}))),
     UnsqueezeCpuShapeInferenceThrowExceptionTest::getTestCaseName);
+
+} // namespace cpu_shape_infer
+} // namespace unit_test
+} // namespace intel_cpu
+} // namespace ov
 

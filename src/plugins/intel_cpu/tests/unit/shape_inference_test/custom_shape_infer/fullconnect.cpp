@@ -5,6 +5,10 @@
 #include <gtest/gtest.h>
 #include "transformations/cpu_opset/common/op/fully_connected.hpp"
 #include "custom_shape_infer.hpp"
+namespace ov {
+namespace intel_cpu {
+namespace unit_test {
+namespace cpu_shape_infer {
 
 using namespace ov;
 using namespace ov::intel_cpu;
@@ -27,4 +31,8 @@ TEST(CpuShapeInfer, FC_InputSize_3) {
     std::vector<StaticShape> static_output_shapes = {StaticShape{1, 1, 1, 720, 5}};
     unit_test::cpu_test_shape_infer(op.get(), static_input_shapes, static_output_shapes);
 }
+} // namespace cpu_shape_infer
+} // namespace unit_test
+} // namespace intel_cpu
+} // namespace ov
 

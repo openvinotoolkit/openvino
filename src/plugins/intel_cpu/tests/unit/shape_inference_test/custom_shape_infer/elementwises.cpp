@@ -7,6 +7,11 @@
 #include "custom_shape_infer.hpp"
 #include <ngraph/opsets/opset1.hpp>
 
+namespace ov {
+namespace intel_cpu {
+namespace unit_test {
+namespace cpu_shape_infer {
+
 using namespace ov;
 using namespace ov::intel_cpu;
 
@@ -19,4 +24,8 @@ TEST(CpuShapeInfer, UnaryEltwiseTest) {
 
     unit_test::cpu_test_shape_infer(node.get(), static_input_shapes, static_output_shapes);
 }
+} // namespace cpu_shape_infer
+} // namespace unit_test
+} // namespace intel_cpu
+} // namespace ov
 

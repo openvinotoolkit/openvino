@@ -5,6 +5,10 @@
 #include "custom_shape_infer.hpp"
 #include <memory>
 #include <ngraph/opsets/opset1.hpp>
+namespace ov {
+namespace intel_cpu {
+namespace unit_test {
+namespace cpu_shape_infer {
 
 using namespace ov;
 using namespace ov::intel_cpu;
@@ -124,4 +128,8 @@ TEST(CpuShapeInfer, StridedSliceDefault_stride) {
     // TODO 108946,there is some issue in implementation, this test case can't pass
     unit_test::cpu_test_shape_infer(op.get(), static_input_shapes, static_output_shapes);
 }
+} // namespace cpu_shape_infer
+} // namespace unit_test
+} // namespace intel_cpu
+} // namespace ov
 
