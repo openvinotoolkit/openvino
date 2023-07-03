@@ -34,7 +34,8 @@
 #endif
 
 #if defined(OPENVINO_STATIC_LIBRARY) || defined(__GNUC__) && (__GNUC__ < 4)
-#    define INFERENCE_ENGINE_C_API(...) INFERENCE_ENGINE_C_API_EXTERN __VA_ARGS__
+#    define INFERENCE_ENGINE_C_API(...) \
+        INFERENCE_ENGINE_C_API_EXTERN __VA_ARGS__ OPENVINO_DEPRECATED("The Inference Engine API is deprecated.")
 #    define IE_NODISCARD
 #else
 #    if defined(_WIN32) || defined(__CYGWIN__)
@@ -42,12 +43,15 @@
 #        ifdef openvino_c_EXPORTS
 #            define INFERENCE_ENGINE_C_API(...) INFERENCE_ENGINE_C_API_EXTERN __declspec(dllexport) __VA_ARGS__ __cdecl
 #        else
-#            define INFERENCE_ENGINE_C_API(...) INFERENCE_ENGINE_C_API_EXTERN __declspec(dllimport) __VA_ARGS__ __cdecl
+#            define INFERENCE_ENGINE_C_API(...)                     \
+                INFERENCE_ENGINE_C_API_EXTERN __declspec(dllimport) \
+                    __VA_ARGS__ __cdecl OPENVINO_DEPRECATED("The Inference Engine API is deprecated.")
 #        endif
 #        define IE_NODISCARD
 #    else
-#        define INFERENCE_ENGINE_C_API(...) \
-            INFERENCE_ENGINE_C_API_EXTERN __attribute__((visibility("default"))) __VA_ARGS__
+#        define INFERENCE_ENGINE_C_API(...)                                      \
+            INFERENCE_ENGINE_C_API_EXTERN __attribute__((visibility("default"))) \
+            __VA_ARGS__ OPENVINO_DEPRECATED("The Inference Engine API is deprecated.")
 #        define IE_NODISCARD __attribute__((warn_unused_result))
 #    endif
 #endif
@@ -67,19 +71,19 @@
 #endif
 
 typedef struct ie_core ie_core_t;
-            typedef struct ie_network ie_network_t;
-            typedef struct ie_executable ie_executable_network_t;
-            typedef struct ie_infer_request ie_infer_request_t;
-            typedef struct ie_blob ie_blob_t;
+typedef struct ie_network ie_network_t;
+typedef struct ie_executable ie_executable_network_t;
+typedef struct ie_infer_request ie_infer_request_t;
+typedef struct ie_blob ie_blob_t;
 
-            OPENVINO_SUPPRESS_DEPRECATED_START
+OPENVINO_SUPPRESS_DEPRECATED_START
 
-            /**
-             * @struct ie_version
-             * @brief Represents an API version information that reflects the set of supported features
-             */
-            typedef struct ie_version {
-                char* api_version;  //!< A string representing Inference Engine version
+/**
+* @struct ie_version
+* @brief Represents an API version information that reflects the set of supported features
+*/
+typedef struct ie_version {
+    char* api_version;  //!< A string representing Inference Engine version
 } ie_version_t;
 
 /**
