@@ -73,4 +73,4 @@ TYPED_TEST_P(CpuShapeInferenceGatherTest, axis_in_const_map) {
 
 REGISTER_TYPED_TEST_SUITE_P(CpuShapeInferenceGatherTest, axis_const, axis_in_const_map);
 using GatherTypes = Types<op::v1::Gather, op::v7::Gather, op::v8::Gather>;
-INSTANTIATE_TYPED_TEST_SUITE_P(shape_infer, CpuShapeInferenceGatherTest, GatherTypes);
+INSTANTIATE_TYPED_TEST_SUITE_P(CpuShapeInfer, CpuShapeInferenceGatherTest, GatherTypes);
