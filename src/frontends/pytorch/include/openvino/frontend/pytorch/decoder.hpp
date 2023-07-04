@@ -64,8 +64,6 @@ public:
     // TODO: required? can be implemented in the context of a single node?
     virtual bool input_is_none(size_t index) const = 0;
 
-    virtual OutputVector try_decode_quantized_params() const = 0;
-
     virtual OutputVector try_decode_get_attr() const = 0;
 
     // Work for natural constant nodes, e.g. for prim::Constant; don't know other nodes kinds that fit
