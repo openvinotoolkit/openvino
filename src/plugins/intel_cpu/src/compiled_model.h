@@ -50,7 +50,7 @@ public:
     };
 
     const std::shared_ptr<const ov::Model>& get_orig_model() const {
-        return _original_model;
+        return m_original_model;
     }
 
 protected:
@@ -59,20 +59,20 @@ protected:
 protected:
     friend class SyncInferRequest;
 
-    const std::shared_ptr<ov::Model> _model;
-    const std::shared_ptr<const ov::Model> _original_model;
-    std::vector<std::shared_ptr<ov::IVariableState>> _memory_states;
-    const std::shared_ptr<const ov::IPlugin> _plugin;
-    std::shared_ptr<ov::threading::ITaskExecutor> _taskExecutor = nullptr;      //!< Holds a task executor
-    std::shared_ptr<ov::threading::ITaskExecutor> _callbackExecutor = nullptr;  //!< Holds a callback executor
+    const std::shared_ptr<ov::Model> m_model;
+    const std::shared_ptr<const ov::Model> m_original_model;
+    std::vector<std::shared_ptr<ov::IVariableState>> m_memory_states;
+    const std::shared_ptr<const ov::IPlugin> m_plugin;
+    std::shared_ptr<ov::threading::ITaskExecutor> m_task_executor = nullptr;      //!< Holds a task executor
+    std::shared_ptr<ov::threading::ITaskExecutor> m_callback_executor = nullptr;  //!< Holds a callback executor
 
     // Generic synchronization primitive on CompiledModel level.
     // Usage example: helps to avoid data races during CPU Graph initialization in multi-streams scenario
-    mutable std::shared_ptr<std::mutex> _mutex;
-    Config _cfg;
+    mutable std::shared_ptr<std::mutex> m_mutex;
+    Config m_cfg;
     ExtensionManager::Ptr extensionManager;
-    mutable std::atomic_int _numRequests = {0};
-    std::string _name;
+    mutable std::atomic_int m_numRequests = {0};
+    std::string m_name;
     struct GraphGuard : public Graph {
         std::mutex _mutex;
         struct Lock : public std::unique_lock<std::mutex> {
@@ -81,10 +81,10 @@ protected:
         };
     };
 
-    const bool _loaded_from_cache;
-    // WARNING: Do not use _graphs directly.
-    mutable std::deque<GraphGuard> _graphs;
-    mutable NumaNodesWeights _numaNodesWeights;
+    const bool m_loaded_from_cache;
+    // WARNING: Do not use m_graphs directly.
+    mutable std::deque<GraphGuard> m_graphs;
+    mutable NumaNodesWeights numaNodesWeights;
 
     /* WARNING: Use GetGraph() function to get access to graph in current stream.
      * NOTE: Main thread is interpreted as master thread of external stream so use this function to get access to graphs

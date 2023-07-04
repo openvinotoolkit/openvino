@@ -104,6 +104,7 @@ def main():
         log.info(f'{class_id}{probability_indent}{probs[class_id]:.7f}')
 
     log.info('')
+
 # ----------------------------------------------------------------------------------------------------------------------
     log.info('This sample is an API example, for any performance measurements please use the dedicated benchmark_app tool\n')
     return 0

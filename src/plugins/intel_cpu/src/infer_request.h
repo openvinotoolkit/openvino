@@ -43,7 +43,7 @@ public:
     void set_async_request(AsyncInferRequest* asyncRequest);
 
     /**
-     * @brief If `_asyncRequest` is initialized throw exception with `ov::Cancelled` status if inference request is
+     * @brief If `m_asyncRequest` is initialized throw exception with `ov::Cancelled` status if inference request is
      * canceled
      */
     void throw_if_canceled() const;
@@ -57,7 +57,7 @@ protected:
     void PushInputData();
 
     Graph* graph = nullptr;
-    mutable std::unordered_map<std::string, void*> _external_ptr;
+    mutable std::unordered_map<std::string, void*> m_external_ptr;
 
 private:
     void PushStates();
@@ -67,27 +67,26 @@ private:
     // Check port is original port or compiled port, return true for compiled port
     bool check_compiled_port(const ov::Output<const ov::Node>& port) const;
     void update_external_inputs();
-    // bool check_precision_changed(const ov::Output<const ov::Node>& port) const;
     InferenceEngine::TensorDesc create_tensor_desc(const ov::Tensor& tensor);
 
     // Transformation shouldn't change model's input/output's precision, but actually it does.
     // Some additional methods will handle it.
     const ov::Output<const ov::Node>& get_compiled_port(const ov::Output<const ov::Node>& port) const;
-    ov::Tensor get_compiled_tensor(const ov::Output<const ov::Node>& _port) const;
-    mutable std::unordered_map<std::string, ov::Output<const ov::Node>> _orig_ports_map;
+    ov::Tensor get_compiled_tensor(const ov::Output<const ov::Node>& port) const;
+    mutable std::unordered_map<std::string, ov::Output<const ov::Node>> m_orig_ports_map;
     // Store external tensor due to precision changes
-    mutable std::unordered_map<std::string, ov::Tensor> _aux_tensors;
-    mutable std::unordered_map<std::string, bool> _port_precision_changed;
-    bool _is_legacy_api = false;
+    mutable std::unordered_map<std::string, ov::Tensor> m_aux_tensors;
+    mutable std::unordered_map<std::string, bool> m_port_precision_changed;
+    bool m_is_legacy_api = false;
 
-    std::shared_ptr<const CompiledModel> _compiled_model;
-    openvino::itt::handle_t _profiling_task;
-    std::vector<std::shared_ptr<ov::IVariableState>> _memory_states;
-    AsyncInferRequest* _asyncRequest = nullptr;
+    std::shared_ptr<const CompiledModel> m_compiled_model;
+    openvino::itt::handle_t m_profiling_task;
+    std::vector<std::shared_ptr<ov::IVariableState>> m_memory_states;
+    AsyncInferRequest* m_asyncRequest = nullptr;
 
-    mutable std::unordered_map<std::string, ov::Output<const ov::Node>> _input_ports_map;
-    mutable std::unordered_map<std::string, ov::Output<const ov::Node>> _output_ports_map;
-    std::unordered_map<std::string, ov::Tensor> _outputs;
+    mutable std::unordered_map<std::string, ov::Output<const ov::Node>> m_input_ports_map;
+    mutable std::unordered_map<std::string, ov::Output<const ov::Node>> m_output_ports_map;
+    std::unordered_map<std::string, ov::Tensor> m_outputs;
 
 protected:
     virtual void changeDefaultPtr();

@@ -223,7 +223,6 @@ protected:
 
     bool graphHasDynamicInput = false;
 
-    void Replicate(const InferenceEngine::CNNNetwork &network);
     void Replicate(const std::shared_ptr<const ov::Model> &subgraph);
     void InitGraph();
     void InitNodes();

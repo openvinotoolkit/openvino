@@ -53,62 +53,62 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                              const ExtensionManager::Ptr& extMgr,
                              const bool loaded_from_cache)
     : ov::ICompiledModel::ICompiledModel(model, plugin),
-      _model(model),
-      _original_model(orig_model),
-      _plugin(plugin),
-      _cfg{cfg},
+      m_model(model),
+      m_original_model(orig_model),
+      m_plugin(plugin),
+      m_cfg{cfg},
       extensionManager(extMgr),
-      _name{model->get_name()},
-      _loaded_from_cache(loaded_from_cache) {
-    bool isFloatModel = !ov::op::util::has_op_with_type<ngraph::op::FakeQuantize>(_model);
+      m_name{model->get_name()},
+      m_loaded_from_cache(loaded_from_cache) {
+    bool isFloatModel = !ov::op::util::has_op_with_type<ngraph::op::FakeQuantize>(m_model);
 
-    _mutex = std::make_shared<std::mutex>();
-    const auto& core = _plugin->get_core();
+    m_mutex = std::make_shared<std::mutex>();
+    const auto& core = m_plugin->get_core();
     if (!core)
         IE_THROW() << "Unable to get API version. Core is unavailable";
-    _cfg.isLegacyApi = !core->is_new_api();
+    m_cfg.isLegacyApi = !core->is_new_api();
 
 
     if (cfg.exclusiveAsyncRequests) {
         // special case when all InferRequests are muxed into a single queue
-        _taskExecutor = _plugin->get_executor_manager()->get_executor("CPU");
+        m_task_executor = m_plugin->get_executor_manager()->get_executor("CPU");
     } else {
         auto streamsExecutorConfig =
             is_cpu_map_available()
-                ? _cfg.streamExecutorConfig
-                : IStreamsExecutor::Config::make_default_multi_threaded(_cfg.streamExecutorConfig, isFloatModel);
+                ? m_cfg.streamExecutorConfig
+                : IStreamsExecutor::Config::make_default_multi_threaded(m_cfg.streamExecutorConfig, isFloatModel);
         streamsExecutorConfig._name = "CPUStreamsExecutor";
-        _cfg.streamExecutorConfig._threads = streamsExecutorConfig._threads;
+        m_cfg.streamExecutorConfig._threads = streamsExecutorConfig._threads;
 #if FIX_62820 && (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
-        _taskExecutor = std::make_shared<TBBStreamsExecutor>(streamsExecutorConfig);
+        m_task_executor = std::make_shared<TBBStreamsExecutor>(streamsExecutorConfig);
 #else
-        _taskExecutor = _plugin->get_executor_manager()->get_idle_cpu_streams_executor(streamsExecutorConfig);
+        m_task_executor = m_plugin->get_executor_manager()->get_idle_cpu_streams_executor(streamsExecutorConfig);
 #endif
     }
     if (0 != cfg.streamExecutorConfig._streams) {
 #if FIX_62820 && (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
         // There is no additional threads but we still need serialize callback execution to preserve legacy behaviour
-        _callbackExecutor = std::make_shared<ImmediateSerialExecutor>();
+        m_callback_executor = std::make_shared<ImmediateSerialExecutor>();
 #else
-        _callbackExecutor = _plugin->get_executor_manager()->get_idle_cpu_streams_executor(
+        m_callback_executor = m_plugin->get_executor_manager()->get_idle_cpu_streams_executor(
             IStreamsExecutor::Config{"CPUCallbackExecutor", 1, 0, IStreamsExecutor::ThreadBindingType::NONE});
 #endif
     } else {
-        _callbackExecutor = _taskExecutor;
+        m_callback_executor = m_task_executor;
     }
 
-    if (_taskExecutor)
-        set_task_executor(_taskExecutor);
-    if (_callbackExecutor)
-        set_callback_executor(_callbackExecutor);
+    if (m_task_executor)
+        set_task_executor(m_task_executor);
+    if (m_callback_executor)
+        set_callback_executor(m_callback_executor);
 
-    int streams = std::max(1, _cfg.streamExecutorConfig._streams);
+    int streams = std::max(1, m_cfg.streamExecutorConfig._streams);
     std::vector<Task> tasks;
     tasks.resize(streams);
-    _graphs.resize(streams);
-    if (_cfg.streamExecutorConfig._streams != 0) {
+    m_graphs.resize(streams);
+    if (m_cfg.streamExecutorConfig._streams != 0) {
         auto all_graphs_ready = [&] {
-            return std::all_of(_graphs.begin(), _graphs.end(), [&](Graph& graph) {
+            return std::all_of(m_graphs.begin(), m_graphs.end(), [&](Graph& graph) {
                 return graph.IsReady();
             });
         };
@@ -118,7 +118,7 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                     CompiledModel::GetGraph();
                 };
             }
-            _taskExecutor->run_and_wait(tasks);
+            m_task_executor->run_and_wait(tasks);
         } while (!all_graphs_ready());
     } else {
         CompiledModel::GetGraph();
@@ -127,7 +127,7 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     // Save all MemoryLayer data tensors. Will use insight about mechanics
     // of MemoryLayer implementation. It uses output edge of MemoryLayer
     // producer as storage for tensor to keep it between infer calls.
-    if (_graphs.size() == 1) {
+    if (m_graphs.size() == 1) {
         for (auto& node : GetGraph()._graph.GetNodes()) {
             if (node->getType() == Type::MemoryInput) {
                 auto memoryNode = dynamic_cast<node::MemoryInput*>(node.get());
@@ -142,7 +142,7 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                 if (suffix_idx != std::string::npos)
                     state_name = state_name.substr(0, suffix_idx);
 
-                _memory_states.emplace_back(new VariableState(state_name, state_store));
+                m_memory_states.emplace_back(new VariableState(state_name, state_store));
             }
         }
     }
@@ -151,29 +151,29 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
 CompiledModel::GraphGuard::Lock CompiledModel::GetGraph() const {
     int streamId = 0;
     int numaNodeId = 0;
-    auto streamsExecutor = dynamic_cast<IStreamsExecutor*>(_taskExecutor.get());
+    auto streamsExecutor = dynamic_cast<IStreamsExecutor*>(m_task_executor.get());
     if (nullptr != streamsExecutor) {
         streamId = streamsExecutor->get_stream_id();
         numaNodeId = streamsExecutor->get_numa_node_id();
     }
-    auto graphLock = GraphGuard::Lock(_graphs[streamId % _graphs.size()]);
+    auto graphLock = GraphGuard::Lock(m_graphs[streamId % m_graphs.size()]);
     if (!graphLock._graph.IsReady()) {
         std::exception_ptr exception;
         auto makeGraph = [&] {
             try {
                 GraphContext::Ptr ctx;
                 {
-                    std::lock_guard<std::mutex> lock{*_mutex.get()};
+                    std::lock_guard<std::mutex> lock{*m_mutex.get()};
                     // disable weights caching if graph was created only once
                     auto weightsCache =
-                        _cfg.streamExecutorConfig._streams != 1 ? _numaNodesWeights[numaNodeId] : nullptr;
+                        m_cfg.streamExecutorConfig._streams != 1 ? numaNodesWeights[numaNodeId] : nullptr;
 
-                    auto isQuantizedFlag = (_cfg.lpTransformsMode == Config::On) &&
-                                           ngraph::pass::low_precision::LowPrecision::isFunctionQuantized(_model);
+                    auto isQuantizedFlag = (m_cfg.lpTransformsMode == Config::On) &&
+                                           ngraph::pass::low_precision::LowPrecision::isFunctionQuantized(m_model);
 
-                    ctx = std::make_shared<GraphContext>(_cfg, extensionManager, weightsCache, isQuantizedFlag);
+                    ctx = std::make_shared<GraphContext>(m_cfg, extensionManager, weightsCache, isQuantizedFlag);
                 }
-                const std::shared_ptr<const ov::Model> model = _model;
+                const std::shared_ptr<const ov::Model> model = m_model;
                 graphLock._graph.CreateGraph(model, ctx);
             } catch (...) {
                 exception = std::current_exception();
@@ -192,7 +192,7 @@ CompiledModel::GraphGuard::Lock CompiledModel::GetGraph() const {
 }
 
 std::shared_ptr<ov::ISyncInferRequest> CompiledModel::create_sync_infer_request() const {
-    _numRequests++;
+    m_numRequests++;
     return std::make_shared<SyncInferRequest>(std::static_pointer_cast<const CompiledModel>(shared_from_this()));
 }
 
@@ -206,18 +206,18 @@ std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() co
 }
 
 std::shared_ptr<const ov::Model> CompiledModel::get_runtime_model() const {
-    if (_graphs.empty())
-        IE_THROW() << "No graph was found";
+    if (m_graphs.empty())
+        OPENVINO_THROW("No graph was found");
 
     return GetGraph()._graph.dump();
 }
 
 ov::Any CompiledModel::get_property(const std::string& name) const {
-    if (_graphs.empty())
-        IE_THROW() << "No graph was found";
+    if (m_graphs.empty())
+        OPENVINO_THROW("No graph was found");
 
     if (name == ov::loaded_from_cache) {
-        return _loaded_from_cache;
+        return m_loaded_from_cache;
     }
 
     Config engConfig = GetGraph()._graph.getConfig();
@@ -252,13 +252,13 @@ ov::Any CompiledModel::GetMetricLegacy(const std::string& name, const GraphGuard
         auto streams = std::stoi(option->second);
         IE_SET_METRIC_RETURN(OPTIMAL_NUMBER_OF_INFER_REQUESTS, static_cast<unsigned int>(streams ? streams : 1));
     } else {
-        IE_THROW() << "Unsupported property: " << name;
+        OPENVINO_THROW("Unsupported property: ", name);
     }
 }
 
 ov::Any CompiledModel::GetMetric(const std::string& name) const {
-    if (_graphs.empty())
-        IE_THROW() << "No graph was found";
+    if (m_graphs.empty())
+        OPENVINO_THROW("No graph was found");
     // @todo Can't we just use local copy (_cfg) instead?
     auto graphLock = GetGraph();
     const auto& graph = graphLock._graph;
@@ -341,7 +341,7 @@ ov::Any CompiledModel::GetMetric(const std::string& name) const {
         const auto perfHintNumRequests = config.perfHintsConfig.ovPerfHintNumRequests;
         return decltype(ov::hint::num_requests)::value_type(perfHintNumRequests);
     } else if (name == ov::execution_devices) {
-        return decltype(ov::execution_devices)::value_type{_plugin->get_device_name()};
+        return decltype(ov::execution_devices)::value_type{m_plugin->get_device_name()};
     } else if (name == ov::intel_cpu::denormals_optimization) {
         return decltype(ov::intel_cpu::denormals_optimization)::value_type(config.denormalsOptMode ==
                                                                            Config::DenormalsOptMode::DO_On);
@@ -357,7 +357,7 @@ ov::Any CompiledModel::GetMetric(const std::string& name) const {
 void CompiledModel::export_model(std::ostream& modelStream) const {
     ModelSerializer serializer(modelStream, extensionManager);
     std::pair<const std::shared_ptr<ov::Model>, const std::shared_ptr<const ov::Model>> models =
-        std::make_pair(_model, _original_model);
+        std::make_pair(m_model, m_original_model);
     serializer << models;
 }
 
