@@ -46,8 +46,7 @@ def parse_and_check_command_line():
 
     if is_network_compiled and is_precisiton_set:
         raise Exception("Cannot set precision for a compiled model. " \
-                        "Please re-compile your model with required precision " \
-                        "using compile_tool")
+                        "Please re-compile your model with required precision.")
 
     return args, is_network_compiled
 

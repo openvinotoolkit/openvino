@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to create additional configurations for your devices 
+                 to work with Intel® Distribution of OpenVINO™ toolkit.
+
 .. _additional configurations:
 
 .. toctree::
