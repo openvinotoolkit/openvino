@@ -10,7 +10,7 @@
         {
             "language": "markdown",
             "source": [
-                "# Imports"
+                "## Imports"
             ],
             "outputs": []
         },
@@ -24,28 +24,28 @@
         {
             "language": "markdown",
             "source": [
-                "# Load the Model"
+                "## Load the Model"
             ],
             "outputs": []
         },
         {
             "language": "typescript",
             "source": [
-                "const modelPath = '../../assets/models/road-segmentation-adas/road-segmentation-adas-0001.xml';\nconst core = new ov.Core();\nconst model = core.read_model(modelPath);\nconst compiledModel = core.compile_model(model, 'CPU');\n\nconst outputLayer = compiledModel.outputs[0];\n// FIXME: not implemented yet\n// const inputLayer = compiledModel.inputs[0];"
+                "const modelXMLPath = '../../assets/models/road-segmentation-adas/road-segmentation-adas-0001.xml';\n\nconst core = new ov.Core();\nconst model = core.read_model(modelXMLPath);\nconst compiledModel = core.compile_model(model, 'CPU');\n\nconst outputLayer = compiledModel.outputs[0];\n// FIXME: not implemented yet\n// const inputLayer = compiledModel.inputs[0];"
             ],
             "outputs": []
         },
         {
             "language": "markdown",
             "source": [
-                "# Load an Image\n\nA sample image from the [Mapillary Vistas](https://www.mapillary.com/dataset/vistas) dataset is provided. "
+                "## Load an Image\n\nA sample image from the [Mapillary Vistas](https://www.mapillary.com/dataset/vistas) dataset is provided. "
             ],
             "outputs": []
         },
         {
             "language": "typescript",
             "source": [
-                "const imgData = await getImageData('../../assets/images/empty_road_mapillary.jpg');\n\nconst originalImage = cv2.matFromImageData(imgData);\nconst { cols: originalWidth, rows: originalHeight } = originalImage;\n\nconst image = new cv2.Mat();\ncv2.cvtColor(originalImage, image, cv2.COLOR_RGBA2RGB);\ncv2.cvtColor(image, image, cv2.COLOR_BGR2RGB);\n\nconst shape = [1, 3, 512, 896];\nconst [B, C, H, W] = shape;\n\ncv2.resize(image, image, new cv2.Size(W, H));\n\nconst inputImage = transform(image.data, { width: W, height: H }, [0, 1, 2]);\n\ndisplayArrayAsImage(originalImage.data, originalWidth, originalHeight);"
+                "const imgData = await getImageData('../../assets/images/empty_road_mapillary.jpg');\n\nconst originalImage = cv2.matFromImageData(imgData);\nconst { cols: originalWidth, rows: originalHeight } = originalImage;\n\nconst image = new cv2.Mat();\ncv2.cvtColor(originalImage, image, cv2.COLOR_RGBA2RGB);\ncv2.cvtColor(image, image, cv2.COLOR_BGR2RGB); \n\nconst shape = [1, 3, 512, 896];\nconst [B, C, H, W] = shape;\n\ncv2.resize(image, image, new cv2.Size(W, H));\n\nconst inputImage = transform(image.data, { width: W, height: H }, [0, 1, 2]); // NHWC to NCHW\n\ndisplayArrayAsImage(originalImage.data, originalWidth, originalHeight);"
             ],
             "outputs": [
                 {
@@ -61,7 +61,7 @@
         {
             "language": "markdown",
             "source": [
-                "# Do Inference"
+                "## Do Inference"
             ],
             "outputs": []
         },
@@ -84,7 +84,7 @@
         {
             "language": "markdown",
             "source": [
-                "# Visualize data"
+                "## Visualize data"
             ],
             "outputs": []
         },
