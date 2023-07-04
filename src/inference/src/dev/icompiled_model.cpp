@@ -63,8 +63,10 @@ ov::ICompiledModel::ICompiledModel(const std::shared_ptr<const ov::Model>& model
             new_param->set_layout(param->get_layout());
             new_param->output(0).get_rt_info() = param->output(0).get_rt_info();
             new_param->validate_and_infer_types();
-            m_inputs.emplace_back(
-                ov::Output<const ov::Node>{new_param->output(0).get_node(), param->output(0).get_index()});
+            auto input = new_param->output(0);
+            auto& rt_info = input.get_rt_info();
+            rt_info = param->output(0).get_rt_info();
+            m_inputs.emplace_back(input);
         }
         for (const auto& result : model->get_results()) {
             auto fake_param = std::make_shared<ov::op::v0::Parameter>(result->get_output_element_type(0),
@@ -84,8 +86,10 @@ ov::ICompiledModel::ICompiledModel(const std::shared_ptr<const ov::Model>& model
             }
             auto r = std::dynamic_pointer_cast<ov::op::v0::Result>(new_result);
             r->set_layout(result->get_layout());
-            m_outputs.emplace_back(
-                ov::Output<const ov::Node>{new_result->output(0).get_node(), result->output(0).get_index()});
+            auto output = new_result->output(0);
+            auto& rt_info = output.get_rt_info();
+            rt_info = result->output(0).get_rt_info();
+            m_outputs.emplace_back(output);
         }
     }
 }
