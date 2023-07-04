@@ -4,22 +4,18 @@
 
 #pragma once
 
-#include <cpp/ie_cnn_network.h>
+#include "openvino/core/partial_shape.hpp"
 
 #include <algorithm>
 #include <chrono>
 #include <iterator>
 #include <memory>
-#include <ngraph/function.hpp>
 #include <ostream>
 #include <set>
 #include <sstream>
+#include <fstream>
 #include <string>
 #include <vector>
-
-namespace InferenceEngine {
-class CNNLayer;
-}
 
 namespace CommonTestUtils {
 
@@ -45,7 +41,7 @@ inline void replaceSubstringInString(std::string& str, const std::string& from, 
     }
 }
 
-inline std::string partialShape2str(const std::vector<ngraph::PartialShape>& partialShapes) {
+inline std::string partialShape2str(const std::vector<ov::PartialShape>& partialShapes) {
     std::ostringstream result;
     for (const auto& partialShape : partialShapes) {
         result << partialShape;
@@ -93,6 +89,16 @@ inline std::string vec2str(const std::vector<std::vector<std::vector<vecElementT
         result << vec2str<vecElementType>(v);
     }
     return result.str();
+}
+
+template <typename ElementType>
+inline void vec2File(const std::vector<ElementType>& vec, const std::string& output_file_path) {
+    std::ofstream output_file;
+    output_file.open(output_file_path, std::ios::out | std::ios::trunc);
+    for (const auto& element : vec) {
+        output_file << element << std::endl;
+    }
+    output_file.close();
 }
 
 template <typename vecElementType>

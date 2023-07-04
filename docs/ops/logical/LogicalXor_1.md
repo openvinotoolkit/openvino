@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about LogicalXor-1 - an element-wise, logical binary 
+                operation, which can be performed on two required input tensors.
+
 **Versioned name**: *LogicalXor-1*
 
 **Category**: *Logical binary*

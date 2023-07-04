@@ -67,6 +67,13 @@ from openvino.runtime.ie_api import tensor_from_file
 from openvino.runtime.ie_api import compile_model
 
 
+# Model Conversion API
+try:
+    from openvino.tools.ovc import convert_model, InputCutInfo, LayoutMap
+except ImportError:
+    pass
+
+
 # Extend Node class to support binary operators
 Node.__add__ = opset11.add
 Node.__sub__ = opset11.subtract
