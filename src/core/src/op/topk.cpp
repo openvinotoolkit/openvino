@@ -7,7 +7,6 @@
 #include <memory>
 #include <topk_shape_inference.hpp>
 
-#include "dimension_tracker.hpp"
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/axis_vector.hpp"
@@ -17,6 +16,7 @@
 #include "ngraph/runtime/reference/topk.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/validation_util.hpp"
+#include "openvino/core/dimension_tracker.hpp"
 
 using namespace std;
 using namespace ngraph;

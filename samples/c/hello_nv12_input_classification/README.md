@@ -2,6 +2,12 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to do inference of an image 
+                 classification model with images in NV12 color format using  
+                 Synchronous Inference Request (C) API.
+
+
 This sample demonstrates how to execute an inference of image classification networks like AlexNet with images in NV12 color format using Synchronous Inference Request API.
 
 Hello NV12 Input Classification C Sample demonstrates how to use the NV12 automatic input pre-processing API in your applications:
