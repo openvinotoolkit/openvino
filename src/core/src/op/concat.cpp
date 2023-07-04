@@ -11,8 +11,8 @@
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/runtime/reference/concat.hpp"
-#include "validation_util.hpp"
 #include "openvino/core/dimension_tracker.hpp"
+#include "validation_util.hpp"
 
 using namespace std;
 using namespace ngraph;
