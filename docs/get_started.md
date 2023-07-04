@@ -1,11 +1,16 @@
-# Get Started {#get_started}
+# GET STARTED {#get_started}
 
 @sphinxdirective
+
+.. meta::
+   :description: Learn how to install Intel® Distribution of OpenVINO™ toolkit 
+                 on Windows, macOS, and Linux operating systems, using various 
+                 installation methods.
 
 .. toctree::
    :maxdepth: 1
    :hidden:
-   
+
    Installing OpenVINO <openvino_docs_install_guides_overview>
    Additional Configurations <openvino_docs_install_guides_configurations_header>
    Uninstalling <openvino_docs_install_guides_uninstalling_openvino>
@@ -15,7 +20,7 @@
 .. raw:: html
 
    <link rel="stylesheet" type="text/css" href="_static/css/getstarted_style.css">
-   
+
    <p id="GSG_introtext">Welcome to OpenVINO! This guide introduces installation and learning materials for Intel® Distribution of OpenVINO™ toolkit. The guide walks through the following steps:<br />
      <a href="https://mybinder.org/v2/gh/openvinotoolkit/openvino_notebooks/HEAD?filepath=notebooks%2F201-vision-monodepth%2F201-vision-monodepth.ipynb" >Quick Start Example</a>
      <a href="openvino_docs_install_guides_overview.html" >Install OpenVINO</a>

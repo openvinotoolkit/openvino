@@ -235,6 +235,7 @@ REGISTER_FACTORY(v8, AdaptiveAvgPool);
 REGISTER_FACTORY(v8, AdaptiveMaxPool);
 REGISTER_FACTORY(v8, Softmax);
 REGISTER_FACTORY(v8, PriorBox);
+REGISTER_FACTORY(v8, If);
 
 // ------------------------------ Supported v9 ops ------------------------------ //
 REGISTER_FACTORY(v9, GridSample)
