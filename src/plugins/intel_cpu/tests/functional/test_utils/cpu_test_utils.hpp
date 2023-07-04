@@ -173,6 +173,8 @@ const std::map<std::string, std::string> cpuFP32PluginConfig =
         { { InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::NO } };
 const std::map<std::string, std::string> cpuBF16PluginConfig =
         { { InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::YES } };
+const std::map<std::string, std::string> cpuF16PluginConfig =
+        { { "INFERENCE_PRECISION_HINT", "f16" } };
 
 
 // utility functions
