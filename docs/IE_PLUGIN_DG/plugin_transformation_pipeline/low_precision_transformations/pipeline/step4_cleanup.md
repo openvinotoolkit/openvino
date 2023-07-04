@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Check the list of transformations used to clean up the 
+                 resulting model to avoid unhandled dequantization operations.
+
 * :doc:`EliminateFakeQuantizeTransformation <openvino_docs_OV_UG_lpt_EliminateFakeQuantizeTransformation>`
 * :doc:`FoldConvertTransformation <openvino_docs_OV_UG_lpt_FoldConvertTransformation>`
 * :doc:`FoldFakeQuantizeTransformation <openvino_docs_OV_UG_lpt_FoldFakeQuantizeTransformation>`

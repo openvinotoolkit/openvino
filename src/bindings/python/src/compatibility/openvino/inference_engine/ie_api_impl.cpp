@@ -511,10 +511,8 @@ void InferenceEnginePython::IEExecNetwork::createInferRequests(int num_requests)
                     if (code != InferenceEngine::StatusCode::OK) {
                         IE_EXCEPTION_SWITCH(code,
                                             ExceptionType,
-                                            InferenceEngine::details::ThrowNow<ExceptionType>{} <<=
-                                            std::stringstream{}
-                                            << IE_LOCATION
-                                            << InferenceEngine::details::ExceptionTraits<ExceptionType>::string());
+                                            InferenceEngine::details::ThrowNow<ExceptionType>{IE_LOCATION_PARAM} <<=
+                                            std::stringstream{});
                     }
 
                     auto end_time = Time::now();
