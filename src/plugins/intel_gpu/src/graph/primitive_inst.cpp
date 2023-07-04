@@ -1070,7 +1070,7 @@ static bool user_requesting_mem_reuse_false(const program_node& node) {
 }
 
 memory::ptr primitive_inst::allocate_output(engine& _engine, memory_pool& pool, const program_node& _node, const kernel_impl_params& impl_params,
-                                            uint32_t net_id, bool is_internal, size_t idx, bool reset, bool is_output_buffer, memory* curr_memory) {
+                                uint32_t net_id, bool is_internal, size_t idx, bool reset, bool is_output_buffer, memory* curr_memory, bool runtime_alloc) {
     auto get_memory_from_pool = [&](engine& _engine, const layout& layout, const primitive_id id, std::set<primitive_id> dependencies,
             allocation_type type, bool reusable, bool reset = true, memory* curr_memory = nullptr) {
         OPENVINO_ASSERT(!layout.is_dynamic() || layout.has_upper_bound(), "[GPU] Can't allocate output for dynamic layout without upper bound");
@@ -1100,7 +1100,7 @@ memory::ptr primitive_inst::allocate_output(engine& _engine, memory_pool& pool, 
     if (total_device_input_mem_size > _engine.get_device_info().max_global_mem_size)
         usm_device_allocatable = false;
 
-    bool memory_reuse_by_user = _node.is_dynamic_output_layout() ? !reset : !user_requesting_mem_reuse_false(_node);
+    bool memory_reuse_by_user = (runtime_alloc && _node.is_dynamic_output_layout()) ? !reset : !user_requesting_mem_reuse_false(_node);
 
     // For outputs, cpu prim we want to have lockable alloc type
     // Also if the successor of a node is an cpu, then memory needs to be lockable.
@@ -1155,7 +1155,7 @@ std::vector<memory::ptr> primitive_inst::allocate_outputs(kernel_impl_params* up
         outputs.push_back(allocate_output(get_network().get_engine(), _network.get_memory_pool(),
                          *_node, (updated_params != nullptr) ? *updated_params : *_impl_params,
                          get_network_id(), _network.is_internal(), i, reset_mem, is_output_buffer(this, runtime_alloc),
-                         (_outputs.size() > i) ? output_memory_ptr(i).get() : nullptr));
+                         (_outputs.size() > i) ? output_memory_ptr(i).get() : nullptr, runtime_alloc));
     }
     return outputs;
 }
