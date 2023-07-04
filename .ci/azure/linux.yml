@@ -442,6 +442,7 @@ jobs:
         --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_utils/test_utils.py
     displayName: 'Python API 2.0 Tests'
   
+  # Skip test_onnx/test_zoo_models and test_onnx/test_backend due to long execution time
   - script: |
       python3 -m pytest -sv $(REPO_DIR)/src/frontends/onnx/tests $(PYTHON_STATIC_ARGS) \
         --ignore=$(REPO_DIR)/src/frontends/onnx/tests/test_python/test_zoo_models.py \
