@@ -36,7 +36,7 @@ Result EltwiseShapeInfer::infer(
 
         auto& input_shape = input_shapes[i].get();
         if (input_shape.size() > output_shape.size()) {
-            IE_THROW() << "Eltwise shape infer input and output shapes rank mismatch";
+            OPENVINO_THROW("Eltwise shape infer input and output shapes rank mismatch");
         }
         size_t offset = output_shape.size() - input_shape.size();
         for (size_t j = 0; j < input_shape.size(); ++j) {
@@ -44,7 +44,7 @@ Result EltwiseShapeInfer::infer(
                 if (output_shape[offset + j] == 1) {
                     output_shape[offset + j] = input_shape[j];
                 } else {
-                    if (input_shape[j] != 1) IE_THROW() << "Eltwise shape infer input shapes dim index: " << j << " mismatch";
+                    if (input_shape[j] != 1) OPENVINO_THROW("Eltwise shape infer input shapes dim index: ", j, " mismatch");
                 }
             }
         }

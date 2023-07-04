@@ -22,7 +22,7 @@ Result NgramShapeInfer::infer(
 ShapeInferPtr NgramShapeInferFactory::makeShapeInfer() const {
     auto ngram = ov::as_type_ptr<NgramNode>(m_op);
     if (!ngram) {
-        IE_THROW(Unexpected) << "Wrong operation type";
+        OPENVINO_THROW("Wrong operation type");
     }
     return std::make_shared<NgramShapeInfer>(ngram->get_k());
 }

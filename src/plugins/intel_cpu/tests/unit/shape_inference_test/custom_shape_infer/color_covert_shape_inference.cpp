@@ -46,7 +46,7 @@ TYPED_TEST_P(CpuShapeInferenceTest_ColorConvertNV12, novalid_input) {
     std::vector<StaticShape> static_output_shapes = {StaticShape{}};
 
     OV_EXPECT_THROW(unit_test::cpu_test_shape_infer(op.get(), static_input_shapes, static_output_shapes),
-                    InferenceEngine::GeneralError,
+                    ov::Exception,
                     testing::HasSubstr("NV12Converter node has incorrect input dimensions"));
 }
 
@@ -92,7 +92,7 @@ TYPED_TEST_P(CpuShapeInferenceTest_ColorConvertI420, novalid_input) {
     std::vector<StaticShape> static_output_shapes = {StaticShape{}};
 
     OV_EXPECT_THROW(unit_test::cpu_test_shape_infer(op.get(), static_input_shapes, static_output_shapes),
-                    InferenceEngine::GeneralError,
+                    ov::Exception,
                     testing::HasSubstr("NV12Converter node has incorrect input dimensions"));
 }
 

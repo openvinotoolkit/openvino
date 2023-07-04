@@ -30,7 +30,7 @@ Result PriorBoxShapeInfer::infer(
 ShapeInferPtr  PriorBoxShapeInferFactory::makeShapeInfer() const {
     auto priorBox = ov::as_type_ptr<const ngraph::opset1::PriorBox>(m_op);
     if (!priorBox) {
-        IE_THROW() << "Unexpected op type in PriorBox shape inference factory: " << m_op->get_type_name();
+        OPENVINO_THROW("Unexpected op type in PriorBox shape inference factory: ", m_op->get_type_name());
     }
     const auto& attrs = priorBox->get_attrs();
     auto number_of_priors = ngraph::opset1::PriorBox::number_of_priors(attrs);

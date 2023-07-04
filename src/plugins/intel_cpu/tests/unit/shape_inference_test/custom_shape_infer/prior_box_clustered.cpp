@@ -70,6 +70,16 @@ const op::v0::PriorBoxClustered::Attributes createAttrs(
     float step_heights,
     float step,
     float offset,
+    std::vector<float> variances);
+
+const op::v0::PriorBoxClustered::Attributes createAttrs(
+    std::vector<float> widths,
+    std::vector<float> heights,
+    bool clip,
+    float step_widths,
+    float step_heights,
+    float step,
+    float offset,
     std::vector<float> variances) {
     op::v0::PriorBoxClustered::Attributes attrs;
     attrs.widths = widths;

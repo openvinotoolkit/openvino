@@ -21,7 +21,7 @@ Result ColorConvertShapeInfer::infer(const std::vector<std::reference_wrapper<co
                                      const std::unordered_map<size_t, MemoryPtr>& data_dependency) {
     const auto& dims = input_shapes.front().get();
     if (dims.size() != 4) {
-        IE_THROW() << "NV12Converter node has incorrect input dimensions";
+        OPENVINO_THROW("NV12Converter node has incorrect input dimensions");
     }
     return { m_singlePlain
     ? std::vector<VectorDims>{ { dims[ColorConvert::Converter::N_DIM], dims[ColorConvert::Converter::H_DIM] * 2 / 3, dims[ColorConvert::Converter::W_DIM], 3 } }

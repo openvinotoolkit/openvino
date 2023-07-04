@@ -78,6 +78,19 @@ const op::v0::PriorBox::Attributes createAttrs(
     float step,
     float offset,
     std::vector<float> variance,
+    bool scale_all_sizes);
+const op::v0::PriorBox::Attributes createAttrs(
+    std::vector<float> min_size,
+    std::vector<float> max_size,
+    std::vector<float> aspect_ratio,
+    std::vector<float> density,
+    std::vector<float> fixed_ratio,
+    std::vector<float> fixed_size,
+    bool clip,
+    bool flip,
+    float step,
+    float offset,
+    std::vector<float> variance,
     bool scale_all_sizes) {
     op::v0::PriorBox::Attributes attrs;
     attrs.min_size = min_size;

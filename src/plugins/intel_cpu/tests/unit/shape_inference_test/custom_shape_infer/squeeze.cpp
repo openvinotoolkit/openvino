@@ -99,26 +99,26 @@ TEST_P(SqueezeCpuShapeInferenceThrowExceptionTest, wrong_pattern) {
     const std::map<size_t, std::shared_ptr<ov::HostTensor>>& constant_data = {{1, axes_tensor}};
     std::ostringstream os;
     os << "[cpu]squeeze: the shape of input data ";
-    os << "[";
+    os << "(";
     for (size_t i = 0; i < input_shapes[0].size(); i++) {
         os << input_shapes[0][i];
         if (i < input_shapes[0].size() - 1) {
-            os << ",";
+            os << ".";
         }
     }
-    os << "]";
+    os << ")";
     os << " conflicts with the squeeze pattern ";
-    os << "[";
+    os << "(";
     for (size_t i = 0; i < axes.size(); i++) {
         os << axes[i];
         if (i < axes.size() - 1) {
-            os << ",";
+            os << ".";
         }
     }
-    os << "]";
+    os << ")";
 
     OV_EXPECT_THROW(unit_test::cpu_test_shape_infer(op.get(), input_shapes, output_shapes, constant_data),
-                    InferenceEngine::Unexpected,
+                    ov::Exception,
                     HasSubstr(os.str()));
 }
 

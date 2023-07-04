@@ -87,7 +87,7 @@ TEST_P(TransposeCpuShapeInferenceThrowExceptionTest, shape_inference_in_const_ma
     const std::map<size_t, std::shared_ptr<ov::HostTensor>> const_map = {{1, const_tensor}};
 
     OV_EXPECT_THROW(unit_test::cpu_test_shape_infer(op.get(), input_shapes, output_shapes, const_map),
-                    InferenceEngine::NotImplemented,
+                    ov::Exception,
                     HasSubstr("TODO: Support parameterized Order input for dynamic shapes."));
 }
 

@@ -66,7 +66,7 @@ TYPED_TEST_P(CpuShapeInferenceTest_BEA, shape_inference_autob_numpy_incompatible
             static_output_shapes = {StaticShape{}};
 
     OV_EXPECT_THROW(unit_test::cpu_test_shape_infer(node.get(), static_input_shapes, static_output_shapes),
-                    InferenceEngine::GeneralError,
+                    ov::Exception,
                     testing::HasSubstr("Eltwise shape infer input shapes dim index:"));
 }
 
@@ -94,7 +94,7 @@ TYPED_TEST_P(CpuShapeInferenceTest_BEA, shape_inference_aubtob_none_incompatible
     GTEST_SKIP() << "Skipping test, please check CVS-108946";
     //TODO  cvs-108946, below test can't pass.
     OV_EXPECT_THROW(unit_test::cpu_test_shape_infer(node.get(), static_input_shapes, static_output_shapes),
-                    InferenceEngine::GeneralError,
+                    ov::Exception,
                     testing::HasSubstr("Eltwise shape infer input shapes dim index:"));
 }
 

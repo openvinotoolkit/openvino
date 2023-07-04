@@ -116,7 +116,7 @@ TEST_P(OneHotCpuShapeInferenceThrowExceptionTest, wrong_pattern) {
     GTEST_SKIP() << "Skipping test, please check CVS-108946";
     // TODO , implementation should throw exception
     ASSERT_THROW(unit_test::cpu_test_shape_infer(op.get(), input_shapes, output_shapes, constant_data),
-                 InferenceEngine::GeneralError);
+                 ov::Exception);
 }
 
 INSTANTIATE_TEST_SUITE_P(

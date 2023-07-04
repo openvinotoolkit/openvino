@@ -31,7 +31,7 @@ Result OneHotShapeInfer::infer(
 ShapeInferPtr OneHotShapeInferFactory::makeShapeInfer() const {
     auto oneHot = ov::as_type_ptr<const ngraph::opset1::OneHot>(m_op);
     if (!oneHot) {
-        IE_THROW() << "Unexpected op type in OneHot shape inference factory: " << m_op->get_type_name();
+        OPENVINO_THROW("Unexpected op type in OneHot shape inference factory: ", m_op->get_type_name());
     }
     auto axis = oneHot->get_axis();
     auto dstShape = oneHot->get_output_partial_shape(0);

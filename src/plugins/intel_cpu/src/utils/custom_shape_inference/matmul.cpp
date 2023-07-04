@@ -39,8 +39,8 @@ Result MMShapeInfer::infer(
                 m_shapeY[i] = shapeA[i];
                 continue;
             } else if (shapeA[i] != 1) {
-                IE_THROW() << "Incompatible MatMul batch dimension. Cant merge the first input dimension=" <<
-                    shapeA[i] << " with second input dimension=" << shapeB[i] << " at index=" << i;
+                OPENVINO_THROW("Incompatible MatMul batch dimension. Cant merge the first input dimension=",
+                    shapeA[i], " with second input dimension=", shapeB[i], " at index=", i);
             }
         }
         m_shapeY[i] = shapeB[i];
@@ -56,7 +56,7 @@ ShapeInferPtr MMShapeInferFactory::makeShapeInfer() const {
         const bool transpose_b = matmul->get_transpose_b();
         return std::make_shared<MMShapeInfer>(output_rank, transpose_a, transpose_b);
     } else {
-        IE_THROW() << "Unexpected operation type in the MatMul shape inference factory";
+        OPENVINO_THROW("Unexpected operation type in the MatMul shape inference factory");
     }
 }
 } // namespace node

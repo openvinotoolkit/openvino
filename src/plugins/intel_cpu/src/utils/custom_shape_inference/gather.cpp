@@ -19,8 +19,8 @@ Result GatherShapeInfer::infer(const std::vector<std::reference_wrapper<const Ve
                                 input_shapes[GATHER_INDICES].get();
     if (!m_isAxisInputConst) {
         if (data_dependency.at(GATHER_AXIS)->getDesc().getPrecision() != Precision::I32) {
-            IE_THROW() << "Unsupported precision " << data_dependency.at(GATHER_AXIS)->getDesc().getPrecision()
-                       << " for axis tensor.";
+            OPENVINO_THROW("Unsupported precision ", data_dependency.at(GATHER_AXIS)->getDesc().getPrecision(),
+                    " for axis tensor.");
         }
         m_axis = reinterpret_cast<const int32_t*>(data_dependency.at(GATHER_AXIS)->GetPtr())[0];
     }
@@ -44,7 +44,7 @@ ShapeInferPtr GatherShapeInferFactory::makeShapeInfer() const {
     bool isAxisInputConst = ov::is_type<ov::op::v0::Constant>(m_op->get_input_node_ptr(GATHER_AXIS));
     const auto& indicesShape = m_op->get_input_partial_shape(GATHER_INDICES);
     if (!indicesShape.rank().is_static()) {
-        IE_THROW() << "indicesShape do not support dynamic rank.";
+        OPENVINO_THROW("indicesShape do not support dynamic rank.");
     }
     bool isIndicesScalar = indicesShape.rank().get_length() == 0;
     int axis = isAxisInputConst ? ov::as_type<ov::op::v0::Constant>(m_op->get_input_node_ptr(

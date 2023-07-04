@@ -33,7 +33,7 @@ Result StridedSliceShapeInfer::infer(
     if (data_dependency.at(BEGIN_ID)->getDesc().getPrecision() != Precision::I32 ||
             data_dependency.at(END_ID)->getDesc().getPrecision() != Precision::I32 ||
             data_dependency.at(STRIDE_ID)->getDesc().getPrecision() != Precision::I32) {
-        IE_THROW(Unexpected) << "The data type of begin/end/stride is NOT I32, which is unexpected!";
+        OPENVINO_THROW("The data type of begin/end/stride is NOT I32, which is unexpected!");
     }
     auto beginPtr = reinterpret_cast<int32_t *>(data_dependency.at(BEGIN_ID)->GetPtr());
     auto endPtr = reinterpret_cast<int32_t *>(data_dependency.at(END_ID)->GetPtr());
@@ -86,7 +86,7 @@ ShapeInferPtr StridedSliceShapeInferFactory::makeShapeInfer() const {
                     vec_to_set(StridedSlice_op->get_shrink_axis_mask()));
         }
     } else {
-        IE_THROW(NotImplemented) << "not Slice or StridedSlice";
+        OPENVINO_THROW("not Slice or StridedSlice");
     }
 }
 

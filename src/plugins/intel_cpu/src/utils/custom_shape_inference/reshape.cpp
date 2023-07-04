@@ -6,25 +6,11 @@
 #include <vector>
 #include "utils.hpp"
 #include "ie_ngraph_utils.hpp"
+#include <utils/general_utils.h>
 
 namespace ov {
 namespace intel_cpu {
 namespace node {
-
-namespace {
-template <typename T>
-std::ostream& operator << (std::ostream& os, const std::vector<T>& dims) {
-    os << "[";
-    for (size_t i = 0; i < dims.size(); i++) {
-        os << dims[i];
-        if (i < dims.size() - 1) {
-            os << ",";
-        }
-    }
-    os << "]";
-    return os;
-}
-} // namespace
 
 Result ReshapeShapeInfer::infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
                                 const std::unordered_map<size_t, MemoryPtr>& data_dependency) {
@@ -71,8 +57,8 @@ Result ReshapeShapeInfer::infer(const std::vector<std::reference_wrapper<const V
         }
     }
     if (minusOneCount > 1  || inputProduct != outputProduct) {
-        IE_THROW(Unexpected) << "[cpu]reshape: the shape of input data " << inputShape
-            << " conflicts with the reshape pattern " << outPattern;
+        OPENVINO_THROW("[cpu]reshape: the shape of input data ", ov::intel_cpu::vec2str(inputShape),
+                    " conflicts with the reshape pattern ", ov::intel_cpu::vec2str(outPattern));
     }
     return {{std::move(outputShape)}, ShapeInferStatus::success};
 }
@@ -96,7 +82,7 @@ Result SqueezeShapeInfer::infer(const std::vector<std::reference_wrapper<const V
                                                   data,
                                                   outputPatternSize,
                                                   ov::util::Cast<int64_t>());
-            std::vector<int64_t> OriginOutPattern = outPattern;
+            std::vector<int64_t> originOutPattern = outPattern;
             std::vector<bool> removeMask(inputShapeSize, false);
             bool existError = false;
             for (size_t i = 0; i < outputPatternSize; i++) {
@@ -119,8 +105,8 @@ Result SqueezeShapeInfer::infer(const std::vector<std::reference_wrapper<const V
                 }
             }
             if (existError) {
-                IE_THROW(Unexpected) << "[cpu]squeeze: the shape of input data " << inputShape
-                    << " conflicts with the squeeze pattern " << OriginOutPattern;
+                OPENVINO_THROW("[cpu]squeeze: the shape of input data ", ov::intel_cpu::vec2str(inputShape),
+                        " conflicts with the squeeze pattern ", ov::intel_cpu::vec2str(originOutPattern));
             }
         } else {
             for (size_t i = 0; i < inputShapeSize; i++) {
@@ -183,8 +169,8 @@ Result UnsqueezeShapeInfer::infer(const std::vector<std::reference_wrapper<const
         }
     }
     if (existError) {
-        IE_THROW(Unexpected) << "[cpu]unsqueeze: the shape of input data " << inputShape
-           << " conflicts with the unsqueeze pattern " << originOutPattern;
+        OPENVINO_THROW("[cpu]unsqueeze: the shape of input data ", ov::intel_cpu::vec2str(inputShape),
+                " conflicts with the unsqueeze pattern ", ov::intel_cpu::vec2str(originOutPattern));
     }
     return {{std::move(outputShape)}, ShapeInferStatus::success};
 }
@@ -197,7 +183,7 @@ ShapeInferPtr ReshapeShapeInferFactory::makeShapeInfer() const {
     } else if (ov::is_type<ov::op::v0::Unsqueeze>(m_op)) {
         return std::make_shared<UnsqueezeShapeInfer>();
     } else {
-        IE_THROW(Unexpected) << "[cpu]reshape: " << m_op->get_type_name() << "is not implemented";
+        OPENVINO_THROW("[cpu]reshape: ", m_op->get_type_name(), " is not implemented");
     }
 }
 

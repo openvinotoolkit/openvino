@@ -17,7 +17,7 @@ public:
     Result infer(
         const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
         const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
-        IE_THROW(NotImplemented) << "TODO: Support parameterized Order input for dynamic shapes.";
+        OPENVINO_THROW("TODO: Support parameterized Order input for dynamic shapes.");
     }
     port_mask_t get_port_mask() const override {
         return EMPTY_PORT_MASK;
