@@ -877,6 +877,7 @@ std::vector<PadParams> generateParams() {
             reference_tests::Tensor(ET, {3, 3}, std::vector<T>{
                 1, 2, 3,
                 4, 5, 6,
+                7, 8, 9,
             }),
             reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{-1, -1}),
             reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{-1, -1}),
@@ -1075,7 +1076,8 @@ std::vector<PadParams> generateParams() {
             reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{-1, 0}),
             reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{0, -2}),
             reference_tests::Tensor(ET, {2, 2}, std::vector<T>{
-                5, 6, 9, 10
+                5, 6,
+                9, 10
             }),
             op::PadMode::CONSTANT,
             reference_tests::Tensor(ET, {}, std::vector<T>{0}),
@@ -1170,7 +1172,8 @@ std::vector<PadParams> generateParams() {
             reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{-1, 0}),
             reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{0, -2}),
             reference_tests::Tensor(ET, {2, 2}, std::vector<T>{
-                5, 6, 9, 10
+                5, 6,
+                9, 10
             }),
             op::PadMode::EDGE,
             "pad_neg_mix_cross_3x4_mode_edge"),
@@ -1183,7 +1186,8 @@ std::vector<PadParams> generateParams() {
             reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{-1, 0}),
             reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{0, -2}),
             reference_tests::Tensor(ET, {2, 2}, std::vector<T>{
-                5, 6, 9, 10
+                5, 6,
+                9, 10
             }),
             op::PadMode::REFLECT,
             "pad_neg_mix_cross_3x4_mode_reflect"),
@@ -1196,7 +1200,8 @@ std::vector<PadParams> generateParams() {
             reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{-1, 0}),
             reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{0, -2}),
             reference_tests::Tensor(ET, {2, 2}, std::vector<T>{
-                5, 6, 9, 10
+                5, 6,
+                9, 10
             }),
             op::PadMode::SYMMETRIC,
             "pad_neg_mix_cross_3x4_mode_symmetric"),
