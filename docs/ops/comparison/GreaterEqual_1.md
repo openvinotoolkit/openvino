@@ -2,6 +2,9 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about GreaterEqual-1 - an element-wise, comparison operation, which 
+                can be performed on two given tensors in OpenVINO.
 
 **Versioned name**: *GreaterEqual-1*
 

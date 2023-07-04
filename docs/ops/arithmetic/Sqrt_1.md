@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about Sqrt-1 - an element-wise, arithmetic operation, which 
+                can be performed on a single tensor in OpenVINO.
+
 **Versioned name**: *Sqrt-1*
 
 **Category**: *Arithmetic unary*

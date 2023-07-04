@@ -353,7 +353,7 @@ private:
         float beta;
     };
     void initBrgemm(brgemmCtx& ctx, std::unique_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t>& brgKernel, bool use_amx) const;
-    size_t getBrgIdx(size_t mIdx, size_t kIdx, size_t nIdx) const;
+    size_t getBrgIdx(size_t kIdx, size_t nIdx) const;
 
     void emit_brgemm_kernel_call(const dnnl::impl::cpu::x64::brgemm_kernel_t* brg_kernel, const brgemmCtx& ctx,
                                  Xbyak::Reg64 addr_A, Xbyak::Reg64 addr_B, Xbyak::Reg64 scratch, Xbyak::Reg64 addr_C,
@@ -362,11 +362,10 @@ private:
     static void kernel_execute(const dnnl::impl::cpu::x64::brgemm_kernel_t *brg_kernel, const void *A, const void *B, void *C, void *scratch, int with_comp);
 
     static constexpr size_t BRGEMM_KERNELS_NUM = 8;
-    static constexpr size_t matmulOptimalM = 32;
     brgemmCtx m_brgCtxs0[BRGEMM_KERNELS_NUM];
     std::unique_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t> m_brgKernels0[BRGEMM_KERNELS_NUM];
 
-    size_t m_M, m_M_blk, m_M_tail;
+    size_t m_M;
     size_t m_K, m_K_blk, m_K_tail;
     size_t m_N, m_N_blk, m_N_tail;
     size_t m_brg0VnniFactor;

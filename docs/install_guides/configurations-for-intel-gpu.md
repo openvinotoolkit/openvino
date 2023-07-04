@@ -2,6 +2,12 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to provide additional configuration for Intel® 
+                 Processor Graphics (GPU) to work with Intel® Distribution of 
+                 OpenVINO™ toolkit on your system.
+
+
 .. _gpu guide:
 
 To use the OpenVINO™ GPU plug-in and transfer the inference to the graphics of the Intel® processor (GPU), the Intel® graphics driver must be properly configured on the system.
@@ -19,8 +25,6 @@ To use a GPU device for OpenVINO inference, you must meet the following prerequi
   - `Intel Graphics Memory Management Library <https://github.com/intel/gmmlib>`__
   - `Intel® Graphics Compiler for OpenCL™ <https://github.com/intel/intel-graphics-compiler>`__
   - `OpenCL ICD loader package <https://github.com/KhronosGroup/OpenCL-ICD-Loader>`__
-
-.. _wsl-instal:
 
 Depending on your operating system, there may be different methods to install the above packages. Below are the instructions on how to install the packages on supported Linux distributions.
 
@@ -91,6 +95,8 @@ To check if the driver has been installed:
       :width: 400
 
 Your device driver has been updated and is now ready to use your GPU.
+
+.. _wsl-install:
 
 Windows Subsystem for Linux (WSL)
 #################################
