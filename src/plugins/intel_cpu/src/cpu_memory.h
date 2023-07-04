@@ -116,21 +116,6 @@ private:
     std::unique_ptr<IMemoryMngr> m_pMemMngr;
 };
 
-class LockBasedMemoryMngr : public IMemoryMngrObserver {
-public:
-    explicit LockBasedMemoryMngr(std::unique_ptr<IMemoryMngrObserver> mngr) : m_pMemMngr(std::move(mngr)) {}
-    void* getRawPtr() const noexcept override;
-    void setExtBuff(void* ptr, size_t size) override;
-    bool resize(size_t size) override;
-    bool hasExtBuffer() const noexcept override;
-    void registerMemory(Memory* memPtr) override;
-    void unregisterMemory(Memory* memPtr) override;
-
-private:
-    std::unique_ptr<IMemoryMngrObserver> m_pMemMngr;
-    mutable std::mutex m_lock;
-};
-
 using MemoryMngrPtr = std::shared_ptr<IMemoryMngrObserver>;
 using MemoryMngrCPtr = std::shared_ptr<const IMemoryMngrObserver>;
 
@@ -194,13 +179,15 @@ public:
     // Caution!!! This action invalidates the previous data layout. The old data may become unreachable.
     virtual void redefineDesc(MemoryDescPtr desc) = 0;
 
-    virtual void load(const IMemory& memory, bool ftz = true) const = 0;
+    virtual void load(const IMemory& src, bool ftz = true) const = 0;
 
     virtual MemoryMngrPtr getMemoryMngr() const = 0;
 
     //oneDNN specifics for backward compatibility
     virtual dnnl::memory getPrimitive() const = 0;
-    virtual dnnl::memory::data_type getDataType() const = 0;
+    dnnl::memory::data_type getDataType() const {
+        return DnnlExtensionUtils::IEPrecisionToDataType(getDesc().getPrecision());
+    }
 
     virtual void nullify() = 0;
 
@@ -208,6 +195,67 @@ public:
             typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
             typename std::enable_if<std::is_base_of<MemoryDesc, T>::value, int>::type = 0>
     std::shared_ptr<T> getDescWithType() const;
+};
+
+class StaticMemory final : public IMemory {
+public:
+    class StaticMemoryMngr : public IMemoryMngrObserver {
+    public:
+        explicit StaticMemoryMngr(size_t size);
+        StaticMemoryMngr(void* data, size_t size);
+        void* getRawPtr() const noexcept override;
+        void setExtBuff(void* ptr, size_t size) override;
+        bool resize(size_t size) override;
+        bool hasExtBuffer() const noexcept override;
+        void registerMemory(Memory* memPtr) override;
+        void unregisterMemory(Memory* memPtr) override;
+
+    private:
+        size_t m_size = 0;
+        MemoryMngrWithReuse memMngrImpl;
+    };
+
+    using MemMngrPtr = std::shared_ptr<StaticMemoryMngr>;
+
+public:
+    StaticMemory(const dnnl::engine& eng, MemoryDescPtr desc, const void* data = nullptr, bool pads_zeroing = true);
+    StaticMemory(const dnnl::engine& eng, const MemoryDesc& desc, const void* data = nullptr, bool pads_zeroing = true);
+
+    StaticMemory(const StaticMemory&) = delete;
+    StaticMemory& operator= (const StaticMemory&) = delete;
+
+    StaticMemory(Memory&&) = delete;
+    StaticMemory& operator= (StaticMemory&&) = delete;
+
+    bool isAllocated() const noexcept override;
+
+    const MemoryDesc& getDesc() const override;
+    MemoryDescPtr getDescPtr() const override;
+
+    void* getData() const override; // pointer to the actual memory
+
+    size_t getSize() const override; // in bytes
+    const Shape& getShape() const override;
+    const VectorDims& getStaticDims() const override;
+
+    // Always throws since a static memory descriptor should not be modified
+    void redefineDesc(MemoryDescPtr desc) override;
+
+    void load(const IMemory& src, bool ftz = true) const override;
+
+    MemoryMngrPtr getMemoryMngr() const override;
+
+    //oneDNN specifics for backward compatibility
+    dnnl::memory getPrimitive() const override;
+
+    void nullify() override;
+
+private:
+    dnnl::engine m_eng;
+    MemoryDescPtr m_pMemDesc;
+    size_t m_size;
+    dnnl::memory m_prim;
+    MemMngrPtr m_pMemMngr;
 };
 
 class Memory : public IMemory {
@@ -237,10 +285,6 @@ public:
 
     void* getData() const override;
 
-    dnnl::memory::data_type getDataType() const override {
-        return DnnlExtensionUtils::IEPrecisionToDataType(getDesc().getPrecision());
-    }
-
     size_t getSize() const override;
 
     const Shape& getShape() const override {
@@ -256,7 +300,7 @@ public:
     // Caution!!! This action invalidates the previous data layout. The old data may become unreachable.
     void redefineDesc(MemoryDescPtr desc) override;
 
-    void load(const IMemory& memory, bool ftz = true) const override;
+    void load(const IMemory& src, bool ftz = true) const override;
     void nullify() override;
 
     dnnl::engine getEngine() const {
@@ -277,8 +321,8 @@ private:
     void create(MemoryDescPtr desc, const void* data = nullptr, bool pads_zeroing = true);
 
 private:
-    MemoryDescPtr m_pMemDesc;
     dnnl::engine m_eng;
+    MemoryDescPtr m_pMemDesc;
     DnnlMemMngrHandle m_mgrHandle;
     bool m_padsZeroing = true;
     class DnnlMemPrimHandle {

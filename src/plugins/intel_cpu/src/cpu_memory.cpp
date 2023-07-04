@@ -32,11 +32,32 @@ namespace {
             }
         }
     }
+
+    void transferData(const IMemory& src, const IMemory& dst, bool ftz) {
+        node::Reorder::reorderData(src, dst);
+
+        auto localPrim = dst.getPrimitive();
+        auto desc = localPrim.get_desc();
+        dnnl::impl::memory_desc_wrapper wrapper(desc.get());
+
+        if (ftz
+            && src.getDataType() == memory::data_type::f32
+            && !wrapper.is_wino_desc()
+            // WA: to avoid zero filling auxiliary information
+            && !wrapper.is_rnn_packed_desc()
+            && dst.getDataType() != memory::data_type::bf16) {
+            // Internal blobs don't have strides yet.
+            auto *memData = static_cast<float *>(dst.getData());
+            memData += wrapper.offset0();
+            setSubnormalsToZero(memData, dst.getSize() / sizeof(float));
+        }
+    }
+
 }   // namespace
 
 Memory::Memory(const dnnl::engine& eng, MemoryDescPtr desc, const void* data, bool pads_zeroing) :
-    m_pMemDesc(desc),
     m_eng(eng),
+    m_pMemDesc(desc),
     m_mgrHandle(std::make_shared<DnnlMemoryMngr>(make_unique<MemoryMngrWithReuse>()), this),
     dnnlMemHandle(this) {
         create(m_pMemDesc, data, pads_zeroing);
@@ -46,7 +67,7 @@ Memory::Memory(const dnnl::engine& eng, const MemoryDesc& desc, const void* data
     Memory::Memory(eng, desc.clone(), data, pads_zeroing) {}
 
 Memory::Memory(const dnnl::engine& eng, MemoryDescPtr desc, MemoryMngrPtr mngr) :
-    m_pMemDesc(desc), m_eng(eng), m_mgrHandle(mngr, this), dnnlMemHandle(this) {
+    m_eng(eng), m_pMemDesc(desc), m_mgrHandle(mngr, this), dnnlMemHandle(this) {
         bool memAllocated = m_mgrHandle->getRawPtr();
 
         create(desc, nullptr, !memAllocated);
@@ -83,23 +104,7 @@ void Memory::create(MemoryDescPtr desc, const void* data, bool pads_zeroing) {
 }
 
 void Memory::load(const IMemory& src, bool ftz) const {
-    node::Reorder::reorderData(src, *this);
-
-    auto localPrim = getPrimitive();
-    auto desc = localPrim.get_desc();
-    dnnl::impl::memory_desc_wrapper wrapper(desc.get());
-
-    if (ftz
-        && src.getDataType() == memory::data_type::f32
-        && !wrapper.is_wino_desc()
-        // WA: to avoid zero filling auxiliary information
-        && !wrapper.is_rnn_packed_desc()
-        && getDataType() != memory::data_type::bf16) {
-        // Internal blobs haven't strides yet.
-        auto *memData = static_cast<float *>(getData());
-        memData += wrapper.offset0();
-        setSubnormalsToZero(memData, getSize() / sizeof(float));
-    }
+    transferData(src, *this, ftz);
 }
 
 void Memory::nullify() {
@@ -274,29 +279,121 @@ void DnnlMemoryMngr::notifyUpdate() {
     }
 }
 
-void* LockBasedMemoryMngr::getRawPtr() const noexcept {
-    std::lock_guard<std::mutex> guard(m_lock);
+StaticMemory::StaticMemory(const dnnl::engine& eng, MemoryDescPtr desc, const void* data, bool pads_zeroing) :
+    m_eng(eng), m_pMemDesc(desc) {
+    if (!m_pMemDesc->isDefined()) {
+        IE_THROW() << "Can not create StaticMemory object. The memory desc is undefined";
+    }
+
+    m_size = m_pMemDesc->getCurrentMemSize();
+
+    auto dnnl_desc = MemoryDescUtils::convertToDnnlMemoryDesc(m_pMemDesc);
+
+    if (data) {
+        m_pMemMngr = std::make_shared<StaticMemoryMngr>(const_cast<void*>(data), m_size);
+    } else {
+        m_pMemMngr = std::make_shared<StaticMemoryMngr>(m_size);
+    }
+
+    // ========================
+    // Equivalent of constructor memory(const primitive_desc &desc, void *hdl)
+    // but with ability to skip pads zeroing.
+    m_prim = memory(dnnl_desc->getDnnlDesc(), m_eng, DNNL_MEMORY_NONE);
+    //
+    // ========================
+    if (pads_zeroing)
+        m_prim.set_data_handle(m_pMemMngr->getRawPtr());
+    else
+        m_prim.set_data_handle_no_pads_proc(m_pMemMngr->getRawPtr());
+}
+
+StaticMemory::StaticMemory(const dnnl::engine& eng, const MemoryDesc& desc, const void* data, bool pads_zeroing) :
+    StaticMemory::StaticMemory(eng, desc.clone(), data, pads_zeroing) {}
+
+bool StaticMemory::isAllocated() const noexcept {
+    return 0 == m_size || getData() != nullptr;
+}
+
+const MemoryDesc& StaticMemory::getDesc() const {
+    return *m_pMemDesc;
+}
+
+MemoryDescPtr StaticMemory::getDescPtr() const {
+    return m_pMemDesc;
+}
+
+void* StaticMemory::getData() const {
     return m_pMemMngr->getRawPtr();
 }
-void LockBasedMemoryMngr::setExtBuff(void* ptr, size_t size) {
-    std::lock_guard<std::mutex> guard(m_lock);
-    m_pMemMngr->setExtBuff(ptr, size);
+
+size_t StaticMemory::getSize() const {
+    return m_size;
 }
-bool LockBasedMemoryMngr::resize(size_t size) {
-    std::lock_guard<std::mutex> guard(m_lock);
-    return m_pMemMngr->resize(size);
+
+const Shape& StaticMemory::getShape() const {
+    return m_pMemDesc->getShape();
 }
-bool LockBasedMemoryMngr::hasExtBuffer() const noexcept {
-    std::lock_guard<std::mutex> guard(m_lock);
-    return m_pMemMngr->hasExtBuffer();
+
+const VectorDims& StaticMemory::getStaticDims() const {
+    return getShape().getStaticDims();
 }
-void LockBasedMemoryMngr::registerMemory(Memory* memPtr) {
-    std::lock_guard<std::mutex> guard(m_lock);
-    m_pMemMngr->registerMemory(memPtr);
+
+void StaticMemory::redefineDesc(MemoryDescPtr desc) {
+    IE_THROW(Unexpected) << "Memory descriptor may not be modified in StaticMemory object";
 }
-void LockBasedMemoryMngr::unregisterMemory(Memory* memPtr) {
-    std::lock_guard<std::mutex> guard(m_lock);
-    m_pMemMngr->unregisterMemory(memPtr);
+
+void StaticMemory::load(const IMemory& src, bool ftz) const {
+    transferData(src, *this, ftz);
+}
+
+MemoryMngrPtr StaticMemory::getMemoryMngr() const {
+    return m_pMemMngr;
+}
+
+//oneDNN specifics for backward compatibility
+dnnl::memory StaticMemory::getPrimitive() const {
+    return m_prim;
+}
+
+void StaticMemory::nullify() {
+    void* dataPtr = getData();
+    if (dataPtr != nullptr)
+        memset(dataPtr, 0, getSize());
+}
+
+StaticMemory::StaticMemoryMngr::StaticMemoryMngr(size_t size) : m_size(size) {
+    memMngrImpl.resize(m_size);
+}
+
+StaticMemory::StaticMemoryMngr::StaticMemoryMngr(void* data, size_t size) : m_size(size) {
+    memMngrImpl.setExtBuff(data, m_size);
+}
+
+void* StaticMemory::StaticMemoryMngr::getRawPtr() const noexcept {
+    return memMngrImpl.getRawPtr();
+}
+
+void StaticMemory::StaticMemoryMngr::setExtBuff(void* ptr, size_t size) {
+    IE_THROW(Unexpected) << "StaticMemoryMngr may not be modified";
+}
+
+bool StaticMemory::StaticMemoryMngr::resize(size_t size) {
+    if (size != m_size) {
+        IE_THROW(Unexpected) << "StaticMemoryMngr may not resize the memory";
+    }
+    return false;
+}
+
+bool StaticMemory::StaticMemoryMngr::hasExtBuffer() const noexcept {
+    return memMngrImpl.hasExtBuffer();
+}
+
+void StaticMemory::StaticMemoryMngr::registerMemory(Memory* memPtr) {
+    //do nothing
+}
+
+void StaticMemory::StaticMemoryMngr::unregisterMemory(Memory* memPtr) {
+    //do nothing
 }
 }   // namespace intel_cpu
 }   // namespace ov

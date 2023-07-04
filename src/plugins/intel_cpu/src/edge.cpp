@@ -304,9 +304,12 @@ void Edge::externalAllocate(WeightsSharing::Ptr weightsCache) {
 
     if (weightsCache) {
         auto alloc = [this] () {
-            auto threadSafeMngr =
-                std::make_shared<LockBasedMemoryMngr>(make_unique<DnnlMemoryMngr>(make_unique<MemoryMngrWithReuse>()));
-            allocate(threadSafeMngr);
+            auto allocateFunc = [this](const MemoryDesc& inputDesc) -> MemoryPtr {
+                auto parentPtr = getParent();
+                return std::make_shared<StaticMemory>(parentPtr->getEngine(), inputDesc, nullptr, false);  // no pads zeroing
+            };
+
+            allocateCommon(allocateFunc);
             return memoryPtr;
         };
 
