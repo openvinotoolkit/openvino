@@ -202,6 +202,36 @@ def fetchAppOutput(cfg):
             envKey = env["name"]
             envVal = env["val"]
             newEnv[envKey] = envVal
+    fullOutput = "appPath="
+    # pwd
+    appCmd = "pwd"
+    appPath = cfg["appPath"]
+    fullOutput = fullOutput + appPath
+    fullOutput = fullOutput + "\n"
+    p = subprocess.Popen(
+        appCmd.split(),
+        cwd=appPath,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        env=newEnv,
+    )
+    output, err = p.communicate()
+    output = output.decode("utf-8")
+    fullOutput = fullOutput + output
+    # ls -la
+    appCmd = "ls -la"
+    appPath = cfg["appPath"]
+    p = subprocess.Popen(
+        appCmd.split(),
+        cwd=appPath,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        env=newEnv,
+    )
+    output, err = p.communicate()
+    output = output.decode("utf-8")
+    fullOutput = fullOutput + output
+    # app
     appCmd = cfg["appCmd"]
     appPath = cfg["appPath"]
     p = subprocess.Popen(
@@ -213,7 +243,8 @@ def fetchAppOutput(cfg):
     )
     output, err = p.communicate()
     output = output.decode("utf-8")
-    return output
+    fullOutput = fullOutput + output
+    return fullOutput
 
 
 def handleCommit(commit, cfgData):
