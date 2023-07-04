@@ -9,7 +9,7 @@
 namespace ov {
 namespace autobatch_plugin {
 
-AsyncInferRequest::AsyncInferRequest(const std::shared_ptr<ov::autobatch_plugin::SyncInferRequest>& request,
+AsyncInferRequest::AsyncInferRequest(const std::shared_ptr<SyncInferRequest>& request,
                                      std::shared_ptr<ov::IAsyncInferRequest> request_without_batch,
                                      const std::shared_ptr<ov::threading::ITaskExecutor>& callback_executor)
     : ov::IAsyncInferRequest(request, nullptr, callback_executor),
@@ -52,8 +52,7 @@ AsyncInferRequest::AsyncInferRequest(const std::shared_ptr<ov::autobatch_plugin:
 
 std::vector<ov::ProfilingInfo> AsyncInferRequest::get_profiling_info() const {
     check_state();
-    if (ov::autobatch_plugin::SyncInferRequest::eExecutionFlavor::BATCH_EXECUTED ==
-        m_sync_request->m_batched_request_used)
+    if (SyncInferRequest::eExecutionFlavor::BATCH_EXECUTED == m_sync_request->m_batched_request_used)
         return m_sync_request->m_batched_request_wrapper->_infer_request_batched->get_profiling_info();
     else
         return m_request_without_batch->get_profiling_info();
