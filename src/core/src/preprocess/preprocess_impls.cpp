@@ -377,6 +377,13 @@ void OutputInfo::OutputInfoImpl::build(ov::ResultVector& results) {
                                                       std::to_string(result->get_input_source_output(0).get_index()));
     }
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    const auto tensor_name = ov::descriptor::get_ov_tensor_legacy_name(result->get_input_tensor(0));
+    if (!tensor_name.empty()) {
+        ov::descriptor::set_ov_tensor_legacy_name(node.get_tensor(), tensor_name);
+    }
+    OPENVINO_SUPPRESS_DEPRECATED_END
+
     // Reset friendly name of input node to avoid names collision
     // when there is at a new node inserted by post-processing steps
     // If no new nodes are inserted by post-processing, then we need to preserve friendly name of input
