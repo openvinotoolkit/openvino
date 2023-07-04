@@ -17,6 +17,7 @@
 #include "transformations/convert_precision.hpp"
 #include "transformations/rt_info/disable_fp16_compression.hpp"
 #include "transformations/utils/utils.hpp"
+#include <openvino/op/util/pad_base.hpp>
 
 using namespace std;
 using namespace ov::opset10;
@@ -343,7 +344,7 @@ public:
                                                                                   opset11::Interpolate,
                                                                                   opset2::MaxPool,
                                                                                   MaxPool,
-                                                                                  Pad,
+                                                                                  op::util::PadBase,
                                                                                   ReduceMax,
                                                                                   ReduceMin,
                                                                                   Relu,
