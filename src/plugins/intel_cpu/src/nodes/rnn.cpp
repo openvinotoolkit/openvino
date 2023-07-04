@@ -276,7 +276,7 @@ bool RNN::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::s
         }
 
         ov::op::RecurrentSequenceDirection direction = ov::op::RecurrentSequenceDirection::FORWARD;
-        ssize_t seqLenIdx = -1;
+        int64_t seqLenIdx = -1;
         if (auto gru_seq = ov::as_type_ptr<const ov::op::v5::GRUSequence>(op)) {
             direction = gru_seq->get_direction();
             seqLenIdx = 2;
