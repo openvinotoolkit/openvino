@@ -2,6 +2,11 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn how to generate a Low Precision IR - Intermediate 
+                Representation suitable for INT8 low precision inference on CPU 
+                and GPU devices.
+
 Introduction
 ############
 
