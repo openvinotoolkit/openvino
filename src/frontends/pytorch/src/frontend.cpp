@@ -36,6 +36,7 @@
 #include "transforms/prim_list_unpack_replacer.hpp"
 #include "transforms/rfftn_complex_replacer.hpp"
 #include "transforms/string_equality_replacer.hpp"
+#include "transforms/quantize_dequantize_replacer.hpp"
 #include "translate_session.hpp"
 
 namespace ov {
@@ -180,6 +181,7 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     manager.register_pass<ov::frontend::pytorch::pass::DecomposeListTupleResults>();
     manager.register_pass<ov::frontend::pytorch::pass::DictResolver>();
     manager.register_pass<ov::frontend::pytorch::pass::IndexLoopGetitemReplacer>();
+    manager.register_pass<ov::frontend::pytorch::pass::QuantizeDequantizeReplacer>();
     manager.register_pass<ov::pass::RemoveMultiSubGraphOpDanglingParamsResults>();
     manager.register_pass<ov::pass::ReverseShapeAndTypeInfer>();
 

@@ -2,10 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/core/coordinate_diff.hpp"
 #include "openvino/frontend/pytorch/node_context.hpp"
-#include "openvino/op/pad.hpp"
-#include "openvino/opsets/opset10.hpp"
 #include "utils_quantize.hpp"
 
 namespace ov {

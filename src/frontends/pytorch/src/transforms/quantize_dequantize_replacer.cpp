@@ -42,27 +42,27 @@ QuantizeDequantizeReplacer::QuantizeDequantizeReplacer() {
             dtype = quantize_per_tensor->input_value(3).get_node_shared_ptr();
 
             // Quantize
-            const auto scale_convert = context.mark_node(std::make_shared<opset10::ConvertLike>(scale, quantize_input));
-            const auto zero_point_convert = context.mark_node(std::make_shared<opset10::ConvertLike>(zero_point, quantize_input));
-            const auto scaled_input = context.mark_node(std::make_shared<opset10::Divide>(quantize_input, scale_convert));
+            const auto scale_convert = rg.make<opset10::ConvertLike>(scale, quantize_input);
+            const auto zero_point_convert = rg.make<opset10::ConvertLike>(zero_point, quantize_input);
+            const auto scaled_input = rg.make<opset10::Divide>(quantize_input, scale_convert);
             const auto scaled_input_with_zero_pt =
-                context.mark_node(std::make_shared<opset10::Add>(scaled_input, zero_point_convert));
+                rg.make<opset10::Add>(scaled_input, zero_point_convert);
             const auto quantized_input = context.mark_node(
                 std::make_shared<opset10::Round>(scaled_input_with_zero_pt, opset10::Round::RoundMode::HALF_TO_EVEN));
 
             if (dtype == element::u8) {
                 const auto clamp =
-                    context.mark_node(std::make_shared<opset10::Clamp>(quantized_input,
-                                                                    std::numeric_limits<unsigned char>::lowest(),
-                                                                    std::numeric_limits<unsigned char>::max()));
-                dequantize_input = context.mark_node(std::make_shared<opset10::Convert>(clamp, element::u8));
+                    rg.make<opset10::Clamp>(quantized_input,
+                                            std::numeric_limits<unsigned char>::lowest(),
+                                            std::numeric_limits<unsigned char>::max());
+                dequantize_input = rg.make<opset10::Convert>(clamp, element::u8);
             } else if (dtype == element::i8) {
-                const auto clamp = context.mark_node(std::make_shared<opset10::Clamp>(quantized_input,
-                                                                                    std::numeric_limits<char>::lowest(),
-                                                                                    std::numeric_limits<char>::max()));
-                dequantize_input = context.mark_node(std::make_shared<opset10::Convert>(clamp, element::i8));
+                const auto clamp = rg.make<opset10::Clamp>(quantized_input,
+                                                            std::numeric_limits<char>::lowest(),
+                                                            std::numeric_limits<char>::max());
+                dequantize_input = rg.make<opset10::Convert>(clamp, element::i8);
             } else {
-                dequantize_input = context.mark_node(std::make_shared<opset10::Convert>(quantized_input, element::i32));
+                dequantize_input = rg.make<opset10::Convert>(quantized_input, element::i32);
             }
 
         } else if (auto quantize_per_channel = cast_quantized_fw_node(quantized_input_node, ov::op::util::QuantizedPtNodeType::QUANTIZE_PER_CHANNEL)) {
