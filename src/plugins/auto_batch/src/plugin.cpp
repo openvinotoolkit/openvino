@@ -170,6 +170,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     if (device_batch == full_properties.end()) {
         OPENVINO_THROW("MULTI_DEVICE_PRIORITIES key for AUTO NATCH is not set for BATCH device");
     }
+    m_plugin_config[device_batch->first] = device_batch->second;
     OPENVINO_SUPPRESS_DEPRECATED_END
     auto meta_device = parse_meta_device(device_batch->second.as<std::string>(), properties);
 
@@ -371,16 +372,17 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
 }
 
 std::shared_ptr<ov::IRemoteContext> Plugin::get_default_context(const ov::AnyMap& remote_properties) const {
-    auto cfg = remote_properties;
-OPENVINO_SUPPRESS_DEPRECATED_START
-    auto it = cfg.find(CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG));
-OPENVINO_SUPPRESS_DEPRECATED_END
-    if (it == cfg.end())
-        it = cfg.find(ov::device::priorities.name());
-    if (it == cfg.end())
-        OPENVINO_THROW("Value for MULTI_DEVICE_PRIORITIES is not set");
+    auto full_properties = merge_properties(m_plugin_config, remote_properties);
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    auto device_batch = full_properties.find(CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG));
+    if (device_batch == full_properties.end())
+        device_batch = full_properties.find(ov::device::priorities.name());
+    if (device_batch == full_properties.end()) {
+        OPENVINO_THROW("MULTI_DEVICE_PRIORITIES key for AUTO NATCH is not set for BATCH device");
+    }
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
-    auto val = it->second.as<std::string>();
+    auto val = device_batch->second.as<std::string>();
     auto core = get_core();
     if (!core)
         return nullptr;

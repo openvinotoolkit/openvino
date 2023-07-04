@@ -66,7 +66,7 @@ protected:
     static DeviceInformation parse_batch_device(const std::string& device_with_Batch);
 
 private:
-    ov::AnyMap m_plugin_config;
+    mutable ov::AnyMap m_plugin_config;
 };
 }  // namespace autobatch_plugin
 }  // namespace ov
