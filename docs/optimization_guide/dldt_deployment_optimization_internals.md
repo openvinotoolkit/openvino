@@ -2,6 +2,12 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Automatic Batching moves asynchronicity from individual 
+                 requests to groups of requests, and the CPU streams are 
+                 inference threads grouped by CPU cores.
+
+
 Throughput on the CPU: Internals
 ################################
 

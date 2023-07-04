@@ -4,6 +4,12 @@
 
 .. _code samples:
 
+.. meta::
+   :description: OpenVINO™ samples include a collection of simple console applications 
+                 that explain how to implement the capabilities and features of 
+                 OpenVINO API into an application.
+
+
 .. toctree::
    :maxdepth: 1
    :hidden:
@@ -320,7 +326,7 @@ The OpenVINO environment variables are removed when you close the shell. As an o
 
    .. code-block:: sh
    
-      source /opt/intel/openvino_2022/setupvars.sh
+      source /opt/intel/openvino_2023/setupvars.sh
 
 3. Save and close the file: press the **Esc** key, type ``:wq`` and press the **Enter** key.
 4. To test your change, open a new terminal. You will see ``[setupvars.sh] OpenVINO environment initialized``.

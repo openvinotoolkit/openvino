@@ -82,7 +82,6 @@
 #include "ngraph/op/grid_sample.hpp"
 #include "ngraph/op/grn.hpp"
 #include "ngraph/op/group_conv.hpp"
-#include "ngraph/op/group_normalization.hpp"
 #include "ngraph/op/gru_cell.hpp"
 #include "ngraph/op/gru_sequence.hpp"
 #include "ngraph/op/hard_sigmoid.hpp"
