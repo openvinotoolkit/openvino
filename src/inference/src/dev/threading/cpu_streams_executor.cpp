@@ -134,7 +134,7 @@ struct CPUStreamsExecutor::Impl {
                                    const int core_type,
                                    const int numa_node_id) {
             _numaNodeId = (_impl->_usedNumaNodes.size() == 1 && _impl->_usedNumaNodes.at(0) == -1)
-                              ? numa_node_id
+                              ? -1
                               : std::max(0, numa_node_id);
             _socketId = get_socket_by_numa_node(_numaNodeId);
             if (stream_type == STREAM_WITHOUT_PARAM) {
