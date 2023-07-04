@@ -49,7 +49,8 @@ protected:
         actualFunction = ngraph::builder::subgraph::MarkupBiasFunction::get(precision,
                                                                             test_values.input_shape,
                                                                             test_values.bias_shape,
-                                                                            layer_type);
+                                                                            layer_type,
+                                                                            false);
         SimpleLowPrecisionTransformer transformer;
         transformer.transform(actualFunction);
     }

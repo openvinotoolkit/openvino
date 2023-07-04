@@ -248,7 +248,7 @@ void GraphOptimizer::FuseConvMatmulFCDeconvAndDQScales(Graph &graph) {
         auto scalesDims = getNormalizedDimsBySize(scales->getOutputShapeAtPort(0).getDims(),
                                                 node->getOutputShapeAtPort(0).getDims().size());
         auto scaleSize = std::accumulate(scalesDims.begin(), scalesDims.end(), 1, std::multiplies<size_t>());
-        node->initializeDQScales(scalesData, scaleSize);
+        node->fuseDQScales(scalesData, scaleSize);
         return true;
     };
 
