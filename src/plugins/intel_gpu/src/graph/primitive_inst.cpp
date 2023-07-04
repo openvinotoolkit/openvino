@@ -1100,7 +1100,7 @@ memory::ptr primitive_inst::allocate_output(engine& _engine, memory_pool& pool, 
     if (total_device_input_mem_size > _engine.get_device_info().max_global_mem_size)
         usm_device_allocatable = false;
 
-    bool memory_reuse_by_user = _node.is_dynamic() ? !reset : !user_requesting_mem_reuse_false(_node);
+    bool memory_reuse_by_user = _node.is_dynamic_output_layout() ? !reset : !user_requesting_mem_reuse_false(_node);
 
     // For outputs, cpu prim we want to have lockable alloc type
     // Also if the successor of a node is an cpu, then memory needs to be lockable.
