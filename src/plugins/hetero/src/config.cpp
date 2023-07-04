@@ -12,25 +12,23 @@ using namespace ov::hetero;
 
 Configuration::Configuration() {}
 
-Configuration::Configuration(ov::AnyMap& config, const Configuration& defaultCfg, bool throwOnUnsupported) {
+Configuration::Configuration(const ov::AnyMap& config, const Configuration& defaultCfg, bool throwOnUnsupported) {
     *this = defaultCfg;
 
-    for (auto conf_it = config.begin(); conf_it != config.end();) {
-        auto it = conf_it++;
-        const auto& key = it->first;
-        const auto& value = it->second;
+    for (const auto& it : config) {
+        const auto& key = it.first;
+        const auto& value = it.second;
 
         if (HETERO_CONFIG_KEY(DUMP_GRAPH_DOT) == key) {
             dump_graph = value.as<bool>();
-            config.erase(it);
         } else if ("TARGET_FALLBACK" == key || ov::device::priorities == key) {
             device_priorities = value.as<std::string>();
-            config.erase(it);
         } else if (ov::exclusive_async_requests == key) {
             exclusive_async_requests = value.as<bool>();
         } else {
             if (throwOnUnsupported)
                 OPENVINO_THROW("Property was not found: ", key);
+            device_config.emplace(key, value);
         }
     }
 }
@@ -56,9 +54,10 @@ ov::AnyMap Configuration::GetHeteroConfig() const {
         {HETERO_CONFIG_KEY(DUMP_GRAPH_DOT), dump_graph},
         {"TARGET_FALLBACK", device_priorities},
         {ov::device::priorities.name(), device_priorities},
+        {ov::exclusive_async_requests.name(), exclusive_async_requests}
     };
 }
 
 ov::AnyMap Configuration::GetDeviceConfig() const {
-    return {{ov::exclusive_async_requests.name(), exclusive_async_requests}};
+    return device_config;
 }

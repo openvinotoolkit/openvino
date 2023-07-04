@@ -465,14 +465,7 @@ ov::hetero::CompiledModel::CompiledModel(std::istream& model,
         properties.emplace(GetStrAttr(heteroConfigNode, "key"), GetStrAttr(heteroConfigNode, "value"));
     }
 
-    auto deviceConfigsNode = heteroNode.child("device_config");
-    FOREACH_CHILD (deviceConfigNode, deviceConfigsNode, "config") {
-        properties.emplace(GetStrAttr(deviceConfigNode, "key"), GetStrAttr(deviceConfigNode, "value"));
-    }
 
-    // Erase all "hetero" properties from `properties`
-    // to fill `m_cfg` and leave only properties for
-    // underlying devices
     m_cfg = ov::hetero::Configuration(properties, m_cfg);
 
     // TODO: REQUIRED FOR OLD HETERO INFER REQUEST
@@ -485,7 +478,7 @@ ov::hetero::CompiledModel::CompiledModel(std::istream& model,
     FOREACH_CHILD (subnetworkNode, subnetworksNode, "subnetwork") {
         auto deviceName = GetStrAttr(subnetworkNode, "device");
 
-        auto metaDevices = get_hetero_plugin()->get_properties_per_device(deviceName, properties);
+        auto metaDevices = get_hetero_plugin()->get_properties_per_device(deviceName, m_cfg.GetHeteroConfig());
         assert(metaDevices.size() == 1);
         auto& loadConfig = metaDevices[deviceName];
 
@@ -586,8 +579,7 @@ std::shared_ptr<ov::IAsyncInferRequest> ov::hetero::CompiledModel::create_infer_
 }
 
 void ov::hetero::CompiledModel::set_property(const ov::AnyMap& properties) {
-    auto temp_properties(properties);
-    m_cfg = Configuration{temp_properties, m_cfg};
+    m_cfg = Configuration{properties, m_cfg};
 }
 
 std::shared_ptr<const ov::Model> ov::hetero::CompiledModel::get_runtime_model() const {
@@ -737,12 +729,6 @@ void ov::hetero::CompiledModel::export_model(std::ostream& model_stream) const {
         heteroConfigNode.append_attribute("value").set_value(config.second.as<std::string>().c_str());
     }
 
-    auto deviceConfigsNode = heteroNode.append_child("device_config");
-    for (auto&& config : m_cfg.GetDeviceConfig()) {
-        auto deviceConfigNode = deviceConfigsNode.append_child("config");
-        deviceConfigNode.append_attribute("key").set_value(config.first.c_str());
-        deviceConfigNode.append_attribute("value").set_value(config.second.as<std::string>().c_str());
-    }
 
     auto blobNamesNode = heteroNode.append_child("blob_names_map");
     for (auto&& kvp : _blobNameMap) {

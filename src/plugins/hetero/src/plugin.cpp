@@ -37,8 +37,7 @@ std::shared_ptr<ov::ICompiledModel> ov::hetero::Plugin::compile_model(
     const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::Hetero, "Plugin::compile_model");
     
-    auto temp_properties(properties);
-    auto config = Configuration{temp_properties, m_cfg};
+    auto config = Configuration{properties, m_cfg};
     auto compiled_model = std::make_shared<CompiledModel>(
         model->clone(),
         shared_from_this(),
@@ -62,8 +61,7 @@ std::shared_ptr<ov::ICompiledModel> ov::hetero::Plugin::import_model(std::istrea
                                                                      const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::Hetero, "Plugin::import_model");
     
-    auto temp_properties(properties);
-    auto config = Configuration{temp_properties, m_cfg};
+    auto config = Configuration{properties, m_cfg};
     auto compiled_model = std::make_shared<CompiledModel>(
         model,
         shared_from_this(),
@@ -91,9 +89,8 @@ ov::SupportedOpsMap ov::hetero::Plugin::query_model(const std::shared_ptr<const 
 
     OPENVINO_ASSERT(model, "OpenVINO Model is empty!");
 
-    auto device_properties = properties;
-    Configuration config{device_properties, m_cfg};    
-    DeviceProperties properties_per_device = get_properties_per_device(config.device_priorities, device_properties);
+    Configuration config{properties, m_cfg};    
+    DeviceProperties properties_per_device = get_properties_per_device(config.device_priorities, config.GetDeviceConfig());
 
     std::map<std::string, ov::SupportedOpsMap> query_results;
     for (auto&& it : properties_per_device) {
@@ -116,8 +113,7 @@ ov::SupportedOpsMap ov::hetero::Plugin::query_model(const std::shared_ptr<const 
 }
 
 void ov::hetero::Plugin::set_property(const ov::AnyMap& properties) {
-    auto temp_properties(properties);
-    m_cfg = Configuration{temp_properties, m_cfg, true};
+    m_cfg = Configuration{properties, m_cfg, true};
 }
 
 ov::Any ov::hetero::Plugin::get_property(const std::string& name, const ov::AnyMap& properties) const {
@@ -145,8 +141,7 @@ ov::Any ov::hetero::Plugin::get_property(const std::string& name, const ov::AnyM
         return ret;
     };
 
-    auto temp_properties(properties);
-    Configuration config{temp_properties, m_cfg};
+    Configuration config{properties, m_cfg};
     if (METRIC_KEY(SUPPORTED_METRICS) == name) {
         auto metrics = default_ro_properties();
 
