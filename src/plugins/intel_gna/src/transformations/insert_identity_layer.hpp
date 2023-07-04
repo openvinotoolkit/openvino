@@ -72,17 +72,17 @@ public:
  * @brief Inserts identity for precision agnostic (or FQ) concat inputs
  * Example model:
  *
- *                      Parameter
- *                          |
- *   Functional      Prec-Agnostic or FQ
- *              \       /
+ *                         Parameter
+ *                             |
+ *   Functional   ...   Prec-Agnostic or FQ
+ *              \  |      /
  *               Concat
  *                  |
  *               Result
  *
- * For the above model, during scale factors propagation, when left Concat input
+ * For the above model, during scale factors propagation, when one Concat input
  * will be selected as a scale factors source, then algorithm will not be able to
- * apply the scale factors to the right Concat input and will throw exception.
+ * apply the scale factors to the second Concat input and will throw exception.
  * InsertIdentityForPrecAgnosticConcatInput pass adds Identity layer, which
  * is capable of storing scale factors, so the scale factors propagation can proceed:
  *
@@ -90,13 +90,21 @@ public:
  *                        |
  *                  Prec-Agnostic or FQ
  *                        |
- *      Functional     Identity
- *              \       /
+ *      Functional ... Identity
+ *              \   |   /
  *               Concat
  *                  |
  *               Result
+ *
+ * Note: Identity will be added to all affected inputs.
+ * Note: Algorighm does not depend on inputs order.
  */
 class InsertIdentityForPrecAgnosticConcatInput : public ov::pass::ModelPass {
+public:
+    OPENVINO_RTTI("InsertIdentityForPrecAgnosticConcatInput", "0");
+    bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
+
+private:
     /**
      * @brief Check if FakeQuantize exists on any input
      */
@@ -105,7 +113,7 @@ class InsertIdentityForPrecAgnosticConcatInput : public ov::pass::ModelPass {
     /**
      * @brief Check if at least two inputs are not identical
      */
-    bool all_inputs_point_the_same_node(const std::shared_ptr<Node>& node);
+    bool are_all_inputs_pointing_the_same_node(const std::shared_ptr<Node>& node);
 
     /**
      * @brief Return vector of nodes for Identity insertion
@@ -129,10 +137,6 @@ class InsertIdentityForPrecAgnosticConcatInput : public ov::pass::ModelPass {
      * @brief Find the output index of 'prev' layer, on which it is connected to 'next' layer
      */
     size_t find_prev_layer_output_index(std::shared_ptr<ov::Node> prev, std::shared_ptr<ov::Node> next);
-
-public:
-    OPENVINO_RTTI("InsertIdentityForPrecAgnosticConcatInput", "0");
-    bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };
 
 }  // namespace pass

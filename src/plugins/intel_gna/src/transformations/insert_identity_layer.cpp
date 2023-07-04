@@ -233,7 +233,7 @@ bool IdentityCandidatesCleanup::run_on_model(const shared_ptr<ov::Model>& f) {
     return false;
 }
 
-bool InsertIdentityForPrecAgnosticConcatInput::all_inputs_point_the_same_node(const shared_ptr<ov::Node>& node) {
+bool InsertIdentityForPrecAgnosticConcatInput::are_all_inputs_pointing_the_same_node(const shared_ptr<ov::Node>& node) {
     const auto& inputs = node->inputs();
     const auto& input0 = inputs[0].get_tensor_ptr();
     return all_of(inputs.begin(), inputs.end(), [&](const ov::Input<ov::Node>& in) {
@@ -250,18 +250,16 @@ size_t InsertIdentityForPrecAgnosticConcatInput::find_prev_layer_output_index(sh
             }
         }
     }
-    return 0;
+    THROW_GNA_EXCEPTION << "Output not found";
 }
 
 bool InsertIdentityForPrecAgnosticConcatInput::insert_identity_after_nodes(const vector<shared_ptr<ov::Node>>& nodes,
                                                                            const shared_ptr<ov::Node>& next) {
-    bool is_graph_modified = false;
     for (auto node : nodes) {
         size_t index = find_prev_layer_output_index(node, next);
         insert_identity_layer_after(node, index);
-        is_graph_modified = true;
     }
-    return is_graph_modified;
+    return nodes.size() > 0;
 }
 
 bool InsertIdentityForPrecAgnosticConcatInput::has_fq_on_any_input(const shared_ptr<ov::Node> concat_node) {
@@ -297,7 +295,7 @@ vector<shared_ptr<ov::Node>> InsertIdentityForPrecAgnosticConcatInput::get_nodes
 
 bool InsertIdentityForPrecAgnosticConcatInput::insert_identity_for_prec_agnostic_concat_inputs(
     const shared_ptr<ov::Node>& concat_node) {
-    if (all_inputs_point_the_same_node(concat_node)) {
+    if (are_all_inputs_pointing_the_same_node(concat_node)) {
         return false;
     }
 
@@ -322,7 +320,6 @@ bool InsertIdentityForPrecAgnosticConcatInput::run_on_model(const shared_ptr<ov:
     for (auto& node : m->get_ordered_ops()) {
         if (is_concat(node)) {
             is_graph_modified |= insert_identity_for_prec_agnostic_concat_inputs(node);
-            continue;
         }
     }
     return is_graph_modified;
