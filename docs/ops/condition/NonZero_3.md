@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about NonZero-3 - an element-wise, condition operation, which 
+                can be performed on a single tensor in OpenVINO.
+
 **Versioned name**: *NonZero-3*
 
 **Category**: *Condition*
