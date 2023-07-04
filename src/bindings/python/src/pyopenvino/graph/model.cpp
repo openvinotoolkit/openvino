@@ -744,7 +744,7 @@ void regclass_graph_Model(py::module m) {
                 auto sink = std::dynamic_pointer_cast<ov::op::Sink>(node.cast<std::shared_ptr<ov::Node>>());
                 self.remove_sink(sink);
             } else {
-                throw py::type_error("Incorrect argument type.");
+                throw py::type_error("Incorrect argument type. Sink node is expected as an argument.");
             }
         },
         py::arg("sink"),
