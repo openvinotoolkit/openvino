@@ -339,7 +339,7 @@ void FullyConnected::prepareParams() {
                 return std::make_shared<DnnlExecutor>(prim_desc);
         }
 
-        // fallback to normal convolution primitive
+        // fallback to normal inner product primitive
         auto inDesc = key.inp0->getDnnlDesc();
         const auto& inDims = inDesc.get_dims(); // @TODO query + copy might be slow
         if (inDims.size() == 3) {
@@ -353,14 +353,15 @@ void FullyConnected::prepareParams() {
             auto normalizedOutDims = { outDims[0] * outDims[1], outDims[2] };
             outDesc = outDesc.reshape(normalizedOutDims);
         }
-
+        auto wghDescAny = dnnl::memory::desc(DnnlExtensionUtils::convertToDnnlDims(key.inp1->getShape().getStaticDims()),
+                        key.inp1->getDataType(), memory::format_tag::any);
         dnnl::inner_product_forward::primitive_desc prim_desc;
         if (key.bias) {
             prim_desc = dnnl::inner_product_forward::primitive_desc(
                 engine,
                 dnnl::prop_kind::forward_inference,
                 inDesc,
-                key.inp1->getDnnlDesc(),
+                wghDescAny,
                 key.bias->getDnnlDesc(),
                 outDesc,
                 key.attr);
@@ -369,17 +370,20 @@ void FullyConnected::prepareParams() {
                 engine,
                 dnnl::prop_kind::forward_inference,
                 inDesc,
-                key.inp1->getDnnlDesc(),
+                wghDescAny,
                 outDesc,
                 key.attr);
         }
-
+        auto first_desc = dnnl::inner_product_forward::primitive_desc(prim_desc.get());
         const bool found = DnnlExtensionUtils::find_implementation(prim_desc, key.implType);
 
-        if (!found)
-            return nullptr;
+        if (found)
+            return std::make_shared<DnnlExecutor>(prim_desc);
 
-        return std::make_shared<DnnlExecutor>(prim_desc);;
+        // For dynamic shape, the expected implement type kernel can support with dummy shape but
+        // not the run time inference shape. In this case, the implementation type will be
+        // ignored and the first available primitive descriptor will be chosen
+        return std::make_shared<DnnlExecutor>(first_desc);
     };
 
     auto cache = context->getParamsCache();
@@ -704,7 +708,9 @@ void FullyConnected::initSupportedPrimitiveDescriptors() {
 std::shared_ptr<MemoryDesc> FullyConnected::getSrcMemDesc(const dnnl::primitive_desc &prim_desc, size_t idx) const {
     auto desc = idx > 0 ? prim_desc.weights_desc(idx - 1) : prim_desc.src_desc(idx);
 
-    if (getInputShapeAtPort(idx).getRank() == 3) {
+    if (getInputShapeAtPort(idx).getRank() == 3
+        // report original plain layout for weight since it needs to be reordered dynamically at runtime
+        || idx == 1) {
         return std::make_shared<CpuBlockedMemoryDesc>(
             DnnlExtensionUtils::DataTypeToIEPrecision(desc.get_data_type()), getInputShapeAtPort(idx));
     }
