@@ -2,6 +2,11 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: OpenVINO IR, known as Intermediate Representation, is the result 
+                of model conversion in OpenVINO and is represented by two files: 
+                an XML and a binary file.
+
 .. toctree::
    :maxdepth: 1
    :hidden:
