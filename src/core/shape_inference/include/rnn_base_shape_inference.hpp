@@ -71,17 +71,18 @@ std::vector<TShape> rnn_cell_base_shape_infer(const op::util::RNNCellBase* op,
     // `hidden_size` attribute is not used for backward compatibility
     DimType merged_hidden_size = ht_pshape.rank().is_static() ? ht_pshape[1] : DimType();
     for (size_t i = 2; i <= num_state_nodes; ++i) {
-        NODE_VALIDATION_CHECK(op,
-                              DimType::merge(merged_hidden_size,
-                                             merged_hidden_size,
-                                             input_shapes[i].rank().is_static() ? input_shapes[i][1] : DimType()),
-                              "Dimension `hidden_size` is not matched between inputs.");
+        if (input_shapes[i].rank().is_static()) {
+            NODE_VALIDATION_CHECK(op,
+                                  DimType::merge(merged_hidden_size, merged_hidden_size, input_shapes[i][1]),
+                                  "Dimension `hidden_size` is not matched between inputs.");
+        }
     }
 
-    NODE_VALIDATION_CHECK(
-        op,
-        DimType::merge(merged_hidden_size, merged_hidden_size, r_pshape.rank().is_static() ? r_pshape[1] : DimType()),
-        "Dimension `hidden_size` is not matched between inputs.");
+    if (r_pshape.rank().is_static()) {
+        NODE_VALIDATION_CHECK(op,
+                              DimType::merge(merged_hidden_size, merged_hidden_size, r_pshape[1]),
+                              "Dimension `hidden_size` is not matched between inputs.");
+    }
 
     // Validate dimensions related to hidden_size for W, R, B inputs
     if (merged_hidden_size.is_static()) {
@@ -168,28 +169,29 @@ std::vector<TShape> rnn_seq_base_shape_infer(const op::util::RNNCellBase* op,
     // Merge batch_size dimension across all inputs to evaluate output[0] dimension
     DimType merged_batch_size = x_pshape.rank().is_static() ? x_pshape[0] : DimType();
     for (size_t i = 1; i <= 1 + num_state_nodes; ++i) {
-        NODE_VALIDATION_CHECK(op,
-                              DimType::merge(merged_batch_size,
-                                             merged_batch_size,
-                                             input_shapes[i].rank().is_static() ? input_shapes[i][0] : DimType()),
-                              "Dimension `batch_size` is not matched between inputs.");
+        if (input_shapes[i].rank().is_static()) {
+            NODE_VALIDATION_CHECK(op,
+                                  DimType::merge(merged_batch_size, merged_batch_size, input_shapes[i][0]),
+                                  "Dimension `batch_size` is not matched between inputs.");
+        }
     }
 
     // Merge hidden_size dimension across all inputs to evaluate output dimension
     // `hidden_size` attribute is not used for backward compatibility
     DimType merged_hidden_size = ht_pshape.rank().is_static() ? ht_pshape[2] : DimType();
     for (size_t i = 2; i <= num_state_nodes; ++i) {
-        NODE_VALIDATION_CHECK(op,
-                              DimType::merge(merged_hidden_size,
-                                             merged_hidden_size,
-                                             input_shapes[i].rank().is_static() ? input_shapes[i][2] : DimType()),
-                              "Dimension `hidden_size` is not matched between inputs.");
+        if (input_shapes[i].rank().is_static()) {
+            NODE_VALIDATION_CHECK(op,
+                                  DimType::merge(merged_hidden_size, merged_hidden_size, input_shapes[i][2]),
+                                  "Dimension `hidden_size` is not matched between inputs.");
+        }
     }
 
-    NODE_VALIDATION_CHECK(
-        op,
-        DimType::merge(merged_hidden_size, merged_hidden_size, r_pshape.rank().is_static() ? r_pshape[2] : DimType()),
-        "Dimension `hidden_size` is not matched between inputs.");
+    if (r_pshape.rank().is_static()) {
+        NODE_VALIDATION_CHECK(op,
+                              DimType::merge(merged_hidden_size, merged_hidden_size, r_pshape[2]),
+                              "Dimension `hidden_size` is not matched between inputs.");
+    }
 
     // Validate num_directions dimension across all inputs
     size_t valid_num_directions;
