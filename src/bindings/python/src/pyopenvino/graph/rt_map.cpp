@@ -10,7 +10,7 @@
 #include <pybind11/stl_bind.h>
 
 #include "dict_attribute_visitor.hpp"
-#include "meta_data.hpp"
+#include "openvino/core/meta_data.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/runtime_attribute.hpp"
 #include "openvino/op/add.hpp"

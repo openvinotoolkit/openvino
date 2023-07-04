@@ -9,9 +9,9 @@
 #include "common_test_utils/file_utils.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/op_extension.hpp"
+#include "openvino/core/so_extension.hpp"
 #include "openvino/opsets/opset9.hpp"
 #include "openvino/util/file_util.hpp"
-#include "so_extension.hpp"
 
 inline std::string get_extension_path() {
     return ov::util::make_plugin_library_name<char>(CommonTestUtils::getExecutableDirectory(),

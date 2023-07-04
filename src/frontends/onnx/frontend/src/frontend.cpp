@@ -26,9 +26,9 @@
 
 #include "legacy_op_extension.hpp"
 #include "onnx_common/onnx_model_validator.hpp"
+#include "openvino/core/so_extension.hpp"
 #include "openvino/frontend/extension/telemetry.hpp"
 #include "ops_bridge.hpp"
-#include "so_extension.hpp"
 
 using namespace ov;
 using namespace ov::frontend::onnx;

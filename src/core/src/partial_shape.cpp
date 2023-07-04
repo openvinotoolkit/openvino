@@ -8,9 +8,9 @@
 #include <iostream>
 #include <vector>
 
-#include "dimension_tracker.hpp"
 #include "ngraph/check.hpp"
 #include "ngraph/util.hpp"
+#include "openvino/core/dimension_tracker.hpp"
 
 namespace {
 static constexpr char dim_out_range_access_txt[] = "Accessing out-of-range dimension in Dimension[]";

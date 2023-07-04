@@ -3,9 +3,9 @@
 //
 
 #include "common_test_utils/test_assertions.hpp"
-#include "dimension_tracker.hpp"
 #include "gmock/gmock.h"
 #include "ngraph/ngraph.hpp"
+#include "openvino/core/dimension_tracker.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 #include "util/type_prop.hpp"
 

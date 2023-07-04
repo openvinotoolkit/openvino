@@ -5,7 +5,6 @@
 #include "ngraph/op/shape_of.hpp"
 
 #include <algorithm>
-#include <dimension_tracker.hpp>
 #include <ngraph/validation_util.hpp>
 #include <vector>
 
@@ -17,6 +16,7 @@
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/shape_of.hpp"
 #include "ngraph/type/element_type_traits.hpp"
+#include "openvino/core/dimension_tracker.hpp"
 
 using namespace std;
 using namespace ngraph;

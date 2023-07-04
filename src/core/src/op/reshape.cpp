@@ -5,7 +5,6 @@
 #include "ngraph/op/reshape.hpp"
 
 #include <algorithm>
-#include <dimension_tracker.hpp>
 #include <ngraph/validation_util.hpp>
 
 #include "bound_evaluate.hpp"
@@ -14,6 +13,7 @@
 #include "ngraph/op/constant.hpp"
 #include "ngraph/runtime/opt_kernel/reshape.hpp"
 #include "ngraph/runtime/reference/reshape.hpp"
+#include "openvino/core/dimension_tracker.hpp"
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
 
 using namespace std;

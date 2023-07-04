@@ -4,7 +4,6 @@
 
 #include <gtest/gtest.h>
 
-#include <dimension_tracker.hpp>
 #include <memory>
 #include <ngraph/function.hpp>
 #include <ngraph/pass/manager.hpp>
@@ -18,6 +17,7 @@
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "ngraph_functions/subgraph_builders.hpp"
+#include "openvino/core/dimension_tracker.hpp"
 
 using namespace testing;
 

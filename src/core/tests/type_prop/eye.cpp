@@ -3,9 +3,9 @@
 //
 
 #include "common_test_utils/test_assertions.hpp"
-#include "dimension_tracker.hpp"
 #include "eye_shape_inference.hpp"
 #include "gtest/gtest.h"
+#include "openvino/core/dimension_tracker.hpp"
 #include "openvino/opsets/opset10.hpp"
 #include "type_prop.hpp"
 

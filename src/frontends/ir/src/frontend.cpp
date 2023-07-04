@@ -12,8 +12,8 @@
 #include "ngraph/runtime/aligned_buffer.hpp"
 #include "ngraph/runtime/shared_buffer.hpp"
 #include "openvino/core/any.hpp"
+#include "openvino/core/so_extension.hpp"
 #include "openvino/util/file_util.hpp"
-#include "so_extension.hpp"
 #include "xml_parse_utils.h"
 
 using namespace ov;

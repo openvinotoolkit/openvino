@@ -36,7 +36,7 @@
 #include "openvino/runtime/device_id_parser.hpp"
 #include "ie_icore.hpp"
 
-#include "dimension_tracker.hpp"
+#include "openvino/core/dimension_tracker.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/common_optimizations/dimension_tracking.hpp"
 #include <transformations/rt_info/fused_names_attribute.hpp>

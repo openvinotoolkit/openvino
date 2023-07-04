@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include "dimension_tracker.hpp"
 #include "gmock/gmock.h"
+#include "openvino/core/dimension_tracker.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/op/parameter.hpp"
 

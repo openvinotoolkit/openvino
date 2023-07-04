@@ -11,8 +11,8 @@
 #include <openvino/opsets/opset8.hpp>
 #include <vector>
 
-#include "dimension_tracker.hpp"
 #include "itt.hpp"
+#include "openvino/core/dimension_tracker.hpp"
 
 void ov::batch_util::mark_with_unique_dimension_labels(const std::shared_ptr<ov::Model>& f,
                                                        const ov::DimensionTracker& dt) {
