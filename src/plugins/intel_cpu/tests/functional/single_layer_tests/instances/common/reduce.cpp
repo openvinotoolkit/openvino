@@ -15,37 +15,36 @@ using namespace ov::test;
 namespace CPULayerTestsDefinitions {
 namespace Reduce {
 
-
-
 std::vector<std::vector<ov::test::InputShape>> inputShapes = {
     {{{}, {{2, 19, 2, 9}}}},
+};
+
+std::vector<std::vector<ov::test::InputShape>> inputShapes_dynamic_3dims = {
     {{{{1, 5}, 19, {1, 5}, {1, 10}}, {{2, 19, 2, 2}, {2, 19, 2, 9}}}},
+};
+
+std::vector<std::vector<ov::test::InputShape>> inputShapes_dynamic_2dims = {
     {{{2, 19, {1, 5}, {1, 10}}, {{2, 19, 2, 2}, {2, 19, 2, 9}}}},
 };
 
 std::vector<std::vector<ov::test::InputShape>> inputShapes_5D = {
     {{{}, {{2, 19, 2, 2, 9}}}},
-    {{{{1, 5}, 19, {1, 5}, {1, 5}, {1, 5}}, {{2, 19, 2, 2, 2}, {2, 19, 3, 2, 2}}}},
 };
 
 std::vector<std::vector<ov::test::InputShape>> inputShapes_6D = {
     {{{}, {{2, 19, 2, 2, 2, 2}}}},
-    {{{{1, 5}, 19, {1, 5}, {1, 5}, {1, 5}, {1, 5}}, {{2, 19, 2, 2, 2, 2}, {2, 19, 2, 2, 3, 2}}}},
 };
 
 std::vector<std::vector<ov::test::InputShape>> inputShapes_Int32 = {
     {{{}, {{2, 19, 2, 3}}}},
-    {{{{1, 5}, 19, {1, 5}, {1, 10}}, {{2, 19, 2, 2}, {2, 19, 2, 3}}}},
 };
 
 std::vector<std::vector<ov::test::InputShape>> inputShapes_SmallChannel = {
     {{{}, {{2, 3, 2, 9}}}},
-    {{{{1, 5}, 3, {1, 5}, {1, 10}}, {{2, 3, 2, 2}, {2, 3, 2, 9}}}},
 };
 
 std::vector<std::vector<ov::test::InputShape>> inputShapes_SingleBatch = {
     {{{}, {{1, 19, 2, 9}}}},
-    {{{{1, 5}, 19, {1, 5}, {1, 10}}, {{1, 19, 2, 2}, {1, 19, 2, 9}}}},
 };
 
 std::vector<CPUSpecificParams> cpuParams_4D = {
@@ -70,6 +69,19 @@ const auto params_OneAxis = testing::Combine(
         testing::Values(emptyCPUSpec),
         testing::Values(emptyFusingSpec));
 
+const auto params_OneAxis_dynamic = testing::Combine(
+        testing::Combine(
+            testing::Values(1),                                 // ACL supports reduce against static dims only
+            testing::ValuesIn(opTypes()),
+            testing::ValuesIn(keepDims()),
+            testing::ValuesIn(reductionTypes()),
+            testing::ValuesIn(inpOutPrc()),
+            testing::Values(ElementType::undefined),
+            testing::Values(ElementType::undefined),
+            testing::ValuesIn(inputShapes_dynamic_3dims)),
+        testing::Values(emptyCPUSpec),
+        testing::Values(emptyFusingSpec));
+
 const auto params_MultiAxis_4D = testing::Combine(
         testing::Combine(
                 testing::ValuesIn(axesND()),
@@ -80,6 +92,19 @@ const auto params_MultiAxis_4D = testing::Combine(
                 testing::Values(ElementType::undefined),
                 testing::Values(ElementType::undefined),
                 testing::ValuesIn(inputShapes)),
+        testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D)),
+        testing::Values(emptyFusingSpec));
+
+const auto params_MultiAxis_4D_dynamic = testing::Combine(
+        testing::Combine(
+                testing::Values(std::vector<int>{0, 1}),           // ACL supports reduce against static dims only
+                testing::Values(CommonTestUtils::OpType::VECTOR),
+                testing::Values(true),
+                testing::ValuesIn(reductionTypes()),
+                testing::ValuesIn(inpOutPrc()),
+                testing::Values(ElementType::undefined),
+                testing::Values(ElementType::undefined),
+                testing::ValuesIn(inputShapes_dynamic_2dims)),
         testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D)),
         testing::Values(emptyFusingSpec));
 
@@ -104,9 +129,23 @@ INSTANTIATE_TEST_SUITE_P(
 );
 
 INSTANTIATE_TEST_SUITE_P(
+        smoke_Reduce_OneAxis_dynamic_CPU,
+        ReduceCPULayerTest,
+        params_OneAxis_dynamic,
+        ReduceCPULayerTest::getTestCaseName
+);
+
+INSTANTIATE_TEST_SUITE_P(
         smoke_Reduce_MultiAxis_4D_CPU,
         ReduceCPULayerTest,
         params_MultiAxis_4D,
+        ReduceCPULayerTest::getTestCaseName
+);
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_Reduce_MultiAxis_4D_dynamic_CPU,
+        ReduceCPULayerTest,
+        params_MultiAxis_4D_dynamic,
         ReduceCPULayerTest::getTestCaseName
 );
 

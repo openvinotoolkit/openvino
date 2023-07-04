@@ -12,8 +12,8 @@
 template <class T>
 ngraph::matcher_pass_callback ov::intel_cpu::ConvertReduceMultiAxisBase::convert_reduce() {
     return [&](ngraph::pattern::Matcher& m) {
-        auto reduce = m.get_match_root();
-        if (!std::dynamic_pointer_cast<T>(reduce)) {
+        auto reduce = std::dynamic_pointer_cast<T>(m.get_match_root());
+        if (!reduce) {
             return false;
         }
 
@@ -24,40 +24,30 @@ ngraph::matcher_pass_callback ov::intel_cpu::ConvertReduceMultiAxisBase::convert
         if (!reduction_axes) {
             return false;
         }
-        auto axes = reduction_axes->cast_vector<int64_t>();
-
-        for (auto axis : axes) {
-            if (data_shape0[axis].is_dynamic()) {
-                std::cout << "Transformation is not applied because axis " << axis << " is dynamic" << std::endl;
-                return false;
-            }
-        }
-
         if (ngraph::shape_size(input1.get_shape()) <= 1) {
             return false;
         }
 
+        auto axes = reduction_axes->template cast_vector<int64_t>();
+        for (auto axis : axes) {
+            if (data_shape0[axis].is_dynamic()) {
+                return false;
+            }
+        }
+
+
         ngraph::NodeVector new_ops;
         std::shared_ptr<ngraph::Node> node = input0.get_node_shared_ptr();
-        bool keepDims = std::dynamic_pointer_cast<T>(reduce)->get_keep_dims();
+        bool keepDims = reduce->get_keep_dims();
         for (auto axis : axes) {
             auto reduction_axis = ov::opset8::Constant::create<int64_t>(ngraph::element::i64, ngraph::Shape{}, {axis});
             node = std::make_shared<T>(node, reduction_axis, keepDims);
             new_ops.push_back(node);
         }
 
-        /*if (reduce->get_output_partial_shape(0).is_dynamic()) {
-            return false;
-        }*/
-
-        //auto out_shape = reduce->get_output_partial_shape(0);
-        /*auto dst_shape = std::make_shared<ov::opset8::Constant>(ngraph::element::i64, ngraph::Shape{out_shape.size()},
-                    std::vector<int64_t>(out_shape.begin(), out_shape.end()));
-        auto reshape = std::make_shared<ov::opset8::Reshape>(node, dst_shape, true);
-
-        reshape->set_friendly_name(reduce->get_friendly_name());*/
+        node->set_friendly_name(reduce->get_friendly_name());
         ngraph::copy_runtime_info(reduce, new_ops);
-        ngraph::replace_node(reduce, node/*reshape*/);
+        ngraph::replace_node(reduce, node);
         return true;
     };
 }
