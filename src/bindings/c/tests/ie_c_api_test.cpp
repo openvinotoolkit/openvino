@@ -5,18 +5,21 @@
 #include <gtest/gtest.h>
 #include <stdio.h>
 #include <stdlib.h>
+
 #include <condition_variable>
-#include <mutex>
-#include <c_api/ie_c_api.h>
-#include <inference_engine.hpp>
-#include "test_model_repo.hpp"
 #include <fstream>
+#include <inference_engine.hpp>
+#include <mutex>
+
+#include "test_model_repo.hpp"
 
 #define IE_EXPECT_OK(...) EXPECT_EQ(IEStatusCode::OK, __VA_ARGS__)
 #define IE_ASSERT_OK(...) ASSERT_EQ(IEStatusCode::OK, __VA_ARGS__)
 #define IE_EXPECT_NOT_OK(...) EXPECT_NE(IEStatusCode::OK, __VA_ARGS__)
 
 OPENVINO_SUPPRESS_DEPRECATED_START
+
+#include <c_api/ie_c_api.h>
 
 static std::mutex m;
 static bool ready = false;
