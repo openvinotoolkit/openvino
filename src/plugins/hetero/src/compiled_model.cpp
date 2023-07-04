@@ -537,15 +537,13 @@ ov::hetero::CompiledModel::CompiledModel(std::istream& model,
     for (const auto& it : m_inputs_to_submodel_inputs) {
         const auto& submodel_idx = it.first;
         const auto& input_idx = it.second;
-        if (!m_networks[submodel_idx]._network->inputs().empty()) // TODO: TEMP FIX FOR MOCK PLUGIN TEST FIX (TO PASS PRECOMMIT)
-            m_inputs.emplace_back(m_networks[submodel_idx]._network->inputs()[input_idx]);
+        m_inputs.emplace_back(m_networks[submodel_idx]._network->inputs()[input_idx]);
     }
     m_outputs.reserve(m_outputs_to_submodel_outputs.size());
     for (const auto& it : m_outputs_to_submodel_outputs) {
         const auto& submodel_idx = it.first;
         const auto& output_idx = it.second;
-        if (!m_networks[submodel_idx]._network->outputs().empty()) // TODO: TEMP FIX FOR MOCK PLUGIN TEST FIX (TO PASS PRECOMMIT)
-            m_outputs.emplace_back(m_networks[submodel_idx]._network->outputs()[output_idx]);
+        m_outputs.emplace_back(m_networks[submodel_idx]._network->outputs()[output_idx]);
     }
 }
 
