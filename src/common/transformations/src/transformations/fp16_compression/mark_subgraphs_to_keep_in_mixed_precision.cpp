@@ -4,6 +4,8 @@
 
 #include "transformations/fp16_compression/mark_subgraphs_to_keep_in_mixed_precision.hpp"
 
+#include <openvino/op/util/pad_base.hpp>
+
 #include "itt.hpp"
 #include "openvino/op/util/broadcast_base.hpp"
 #include "openvino/op/util/gather_base.hpp"
@@ -17,7 +19,6 @@
 #include "transformations/convert_precision.hpp"
 #include "transformations/rt_info/disable_fp16_compression.hpp"
 #include "transformations/utils/utils.hpp"
-#include <openvino/op/util/pad_base.hpp>
 
 using namespace std;
 using namespace ov::opset10;
