@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about Concat-1 - a data movement operation, 
+                which can be performed on arbitrary number of input tensors.
+
 **Versioned name**: *Concat-1*
 
 **Category**: *Data movement*
