@@ -8,11 +8,11 @@
 
 #include "bound_evaluate.hpp"
 #include "concat_shape_inference.hpp"
-#include "dimension_tracker.hpp"
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/runtime/reference/concat.hpp"
 #include "validation_util.hpp"
+#include "openvino/core/dimension_tracker.hpp"
 
 using namespace std;
 using namespace ngraph;
