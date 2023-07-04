@@ -114,7 +114,8 @@ TYPED_TEST_P(RNNCellTest, interval_labels_dims_shape_infer) {
     for (size_t i = 0; i < params.outputs_size; ++i) {
         if (ov::is_type<v0::LSTMCell>(op) || ov::is_type<v4::LSTMCell>(op)) {
             // For backward compatibility, if hidden_size dim is dynamic, set the value based on attribute
-            EXPECT_EQ(op->get_output_partial_shape(i), (PartialShape{params.batch_size, op->get_hidden_size()}));
+            EXPECT_EQ(op->get_output_partial_shape(i),
+                      (PartialShape{params.batch_size, static_cast<int64_t>(op->get_hidden_size())}));
             EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(i)), ElementsAre(10, 0));
         } else {
             // For backward compatibility, hidden_size attribute is ignored

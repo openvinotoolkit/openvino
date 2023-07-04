@@ -320,7 +320,7 @@ TEST(type_prop, rnn_sequence_input_dynamic_rank) {
 
     const auto direction = op::RecurrentSequenceDirection::FORWARD;
 
-    auto check_dynamic_rnn = [](const shared_ptr<opset5::RNNSequence>& rnn) -> bool {
+    auto check_dynamic_rnn = [=](const shared_ptr<opset5::RNNSequence>& rnn) -> bool {
         return rnn->output(0).get_partial_shape() ==
                    PartialShape{batch_size, num_directions, seq_length, hidden_size} &&
                rnn->output(0).get_element_type() == rnn->input(0).get_element_type() &&

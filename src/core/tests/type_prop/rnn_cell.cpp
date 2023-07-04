@@ -189,11 +189,11 @@ TEST(type_prop, rnn_cell_input_dynamic_rank) {
     const size_t input_size = 3;
     const size_t hidden_size = 3;
 
-    auto X = make_shared<opset4::Parameter>(element::f32, Shape{batch_size, input_size});
-    auto R = make_shared<opset4::Parameter>(element::f32, Shape{hidden_size, hidden_size});
-    auto H_t = make_shared<opset4::Parameter>(element::f32, Shape{batch_size, hidden_size});
+    auto X = make_shared<opset4::Parameter>(element::f32, PartialShape{batch_size, input_size});
+    auto R = make_shared<opset4::Parameter>(element::f32, PartialShape{hidden_size, hidden_size});
+    auto H_t = make_shared<opset4::Parameter>(element::f32, PartialShape{batch_size, hidden_size});
 
-    auto check_dynamic_rnn = [](const shared_ptr<opset4::RNNCell>& rnn) -> bool {
+    auto check_dynamic_rnn = [=](const shared_ptr<opset4::RNNCell>& rnn) -> bool {
         return rnn->output(0).get_partial_shape() == PartialShape{batch_size, hidden_size} &&
                rnn->output(0).get_element_type() == rnn->input(0).get_element_type();
     };
@@ -209,13 +209,13 @@ TEST(type_prop, rnn_cell_input_dynamic_rank) {
     EXPECT_EQ(check_dynamic_rnn(rnn_x), true);
 
     // Invalid dynamic rank for H_t tensor.
-    X = make_shared<opset4::Parameter>(element::f32, Shape{batch_size, input_size});
+    X = make_shared<opset4::Parameter>(element::f32, PartialShape{batch_size, input_size});
     H_t = make_shared<opset4::Parameter>(element::f32, PartialShape::dynamic(Rank::dynamic()));
     auto rnn_h = make_shared<opset4::RNNCell>(X, H_t, W, R, hidden_size);
     EXPECT_EQ(check_dynamic_rnn(rnn_h), true);
 
     // Invalid dynamic rank for R tensor.
-    H_t = make_shared<opset4::Parameter>(element::f32, Shape{batch_size, hidden_size});
+    H_t = make_shared<opset4::Parameter>(element::f32, PartialShape{batch_size, hidden_size});
     R = make_shared<opset4::Parameter>(element::f32, PartialShape::dynamic(Rank::dynamic()));
     auto rnn_r = make_shared<opset4::RNNCell>(X, H_t, W, R, hidden_size);
     EXPECT_EQ(check_dynamic_rnn(rnn_r), true);
