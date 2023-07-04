@@ -160,7 +160,11 @@ def runCommandList(commit, cfgData, enforceClean=False):
             with open("sh.sh", "w+") as tf:
                 tf.write(strCommand)
                 tf.seek(0)
-            checkOut = subprocess.call(['sh', 'sh.sh'])
+            checkOut = subprocess.check_output(['sh', 'sh.sh'])
+            checkOut = checkOut.decode("utf-8")
+            shellOutput = "Launched shell script:\n{code}\nwith result:\n{res}".format(code=strCommand, res=checkOut)
+            commitLogger.info(shellOutput)
+            sys.stdout.write(shellOutput)
             os.remove("sh.sh")
         else:
             proc = subprocess.Popen(
