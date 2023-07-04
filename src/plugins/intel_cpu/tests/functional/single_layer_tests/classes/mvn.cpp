@@ -53,6 +53,17 @@ std::string MvnLayerCPUTest::getTestCaseName(testing::TestParamInfo<MvnLayerCPUT
     return result.str();
 }
 
+bool MvnLayerCPUTest::isSupportedTestCase() {
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+    // "initAcrossChannels = false" is not supported by ACL for NHWC layout
+    if (!inFmts.empty() && (inFmts.front() == nwc ||
+                            inFmts.front() == nhwc ||
+                            inFmts.front() == ndhwc) &&
+        !acrossChanels) return false;
+#endif
+    return true;
+}
+
 void MvnLayerCPUTest::SetUp() {
     targetDevice = CommonTestUtils::DEVICE_CPU;
 
@@ -69,9 +80,13 @@ void MvnLayerCPUTest::SetUp() {
     InputShape inputShapes;
     ElementType netPrecision;
     ngraph::AxisSet axes;
-    bool acrossChanels, normalizeVariance;
+    bool normalizeVariance;
     double eps;
     std::tie(inputShapes, netPrecision, axes, acrossChanels, normalizeVariance, eps) = basicParamsSet;
+
+    if (!isSupportedTestCase()) {
+        GTEST_SKIP() << "Skip MVN test since such combination of parameters is not supported." << std::endl;
+    }
 
     init_input_shapes({inputShapes});
 

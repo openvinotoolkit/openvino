@@ -73,36 +73,6 @@ const auto Mvn3D = ::testing::Combine(
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Mvn3D, MvnLayerCPUTest, Mvn3D, MvnLayerCPUTest::getTestCaseName);
 
-const auto Mvn4D = ::testing::Combine(
-       ::testing::Combine(
-               ::testing::ValuesIn(inputShapes_4D()),
-               ::testing::Values(ElementType::f32),
-               ::testing::ValuesIn(emptyReductionAxes()),
-               ::testing::Values(false),
-               ::testing::ValuesIn(normalizeVariance),
-               ::testing::ValuesIn(epsilon())),
-       ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D)),
-       ::testing::ValuesIn(fusingParamsSet),
-       ::testing::ValuesIn(inpPrc),
-       ::testing::ValuesIn(outPrc));
-
-INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Mvn4D, MvnLayerCPUTest, Mvn4D, MvnLayerCPUTest::getTestCaseName);
-
-const auto Mvn5D = ::testing::Combine(
-       ::testing::Combine(
-               ::testing::ValuesIn(inputShapes_5D()),
-               ::testing::Values(ElementType::f32),
-               ::testing::ValuesIn(emptyReductionAxes()),
-               ::testing::Values(false),
-               ::testing::ValuesIn(normalizeVariance),
-               ::testing::ValuesIn(epsilon())),
-       ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D)),
-       ::testing::ValuesIn(fusingParamsSet),
-       ::testing::ValuesIn(inpPrc),
-       ::testing::ValuesIn(outPrc));
-
-INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Mvn5D, MvnLayerCPUTest, Mvn5D, MvnLayerCPUTest::getTestCaseName);
-
 // 1D 2D case
 std::vector<fusingSpecificParams> fusingUnaryEltwiseParamsSet {
        /* activations */

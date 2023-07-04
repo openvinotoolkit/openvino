@@ -38,8 +38,11 @@ class MvnLayerCPUTest : public testing::WithParamInterface<MvnLayerCPUTestParamS
                        virtual public SubgraphBaseTest, public CpuTestWithFusing {
 public:
    static std::string getTestCaseName(testing::TestParamInfo<MvnLayerCPUTestParamSet> obj);
+   bool isSupportedTestCase();
 protected:
    void SetUp() override;
+private:
+   bool acrossChanels;
 };
 
 namespace MVN {
