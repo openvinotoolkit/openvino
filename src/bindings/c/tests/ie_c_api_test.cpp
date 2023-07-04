@@ -1505,3 +1505,5 @@ TEST_P(ie_c_api_test, ie_infer_set_completion_callback) {
     ie_network_free(&network);
     ie_core_free(&core);
 }
+
+OPENVINO_SUPPRESS_DEPRECATED_END
