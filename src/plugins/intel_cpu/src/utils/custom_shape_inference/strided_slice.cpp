@@ -39,7 +39,7 @@ Result StridedSliceShapeInfer::infer(
     auto endPtr = reinterpret_cast<int32_t *>(data_dependency.at(END_ID)->GetPtr());
     auto stridePtr = reinterpret_cast<int32_t *>(data_dependency.at(STRIDE_ID)->GetPtr());
 
-    for (auto i = 0, new_idx = 0; i < shapeIn.size(); ++i) {
+    for (size_t i = 0, new_idx = 0; i < shapeIn.size(); ++i) {
         if (m_new_axis_mask_set.count(i)) {
             // deal with new_axis_mask
             m_outputShape[new_idx] = 1;
@@ -71,7 +71,7 @@ ShapeInferPtr StridedSliceShapeInferFactory::makeShapeInfer() const {
         } else {
             auto vec_to_set = [](const std::vector<int64_t>& vec){
                 std::unordered_set<int64_t> to_set;
-                for (auto i = 0; i < vec.size(); ++i) {
+                for (size_t i = 0; i < vec.size(); ++i) {
                     if (vec[i] == 1) {
                         to_set.emplace(i);
                     }
