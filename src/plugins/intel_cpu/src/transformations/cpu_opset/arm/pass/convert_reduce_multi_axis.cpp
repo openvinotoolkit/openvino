@@ -35,10 +35,13 @@ ngraph::matcher_pass_callback ov::intel_cpu::ConvertReduceMultiAxisBase::convert
             }
         }
 
-
         ngraph::NodeVector new_ops;
         std::shared_ptr<ngraph::Node> node = input0.get_node_shared_ptr();
         bool keepDims = reduce->get_keep_dims();
+        //axes should be sorted in descending order if keepDims is false to be keep axis within data shape
+        if (!keepDims) {
+            sort(axes.begin(), axes.end(), std::greater<int64_t>());
+        }
         for (auto axis : axes) {
             auto reduction_axis = ov::opset8::Constant::create<int64_t>(ngraph::element::i64, ngraph::Shape{}, {axis});
             node = std::make_shared<T>(node, reduction_axis, keepDims);
