@@ -348,6 +348,7 @@ jobs:
       PYTHONPATH: $(INSTALL_TEST_DIR)
     displayName: 'Python API 2.0 Tests'
 
+  # Skip test_onnx/test_zoo_models and test_onnx/test_backend due to long execution time
   - script: |
       /usr/bin/python3 -m pytest -s $(REPO_DIR)/src/frontends/onnx/tests \
         --ignore=$(REPO_DIR)/src/frontends/onnx/tests/test_python/test_zoo_models.py \
