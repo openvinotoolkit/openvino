@@ -234,6 +234,7 @@ void ReadIRTest::SetUp() {
     // Updating data in runtime. Should be set before possible call of a first GTEST status
     auto pgLink = this->GetPGLink();
     if (pgLink) {
+        // @TODO: Use FULL_DEVICE_NAME as a targetDevice
         if (this->targetDevice == "CPU") {
             auto devName = core->get_property(this->targetDevice, "FULL_DEVICE_NAME").as<std::string>();
             pgLink->set_custom_field("targetDevice", this->targetDevice, true);
