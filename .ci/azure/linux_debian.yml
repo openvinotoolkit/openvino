@@ -397,7 +397,7 @@ jobs:
       $(TEST_VENV)/bin/python3 -m pip install -r $(LAYER_TESTS_DIR)/requirements.txt
       $(RUN_PREFIX) $(TEST_VENV)/bin/python3 -m pytest $(LAYER_TESTS_DIR)/tensorflow_lite_tests/ --junitxml=$(INSTALL_TEST_DIR)/TEST-tfl_fe.xmlTEST
     env:
-      PYTHONPATH: $(REPO_DIR)/tools/mo/:$(LAYER_TESTS_DIR)
+      PYTHONPATH: $(REPO_DIR)/tools/ovc/:$(REPO_DIR)/tools/mo/:$(LAYER_TESTS_DIR)
       TEST_DEVICE: CPU
     displayName: 'TensorFlow Lite Layer Tests - TFL FE'
 
