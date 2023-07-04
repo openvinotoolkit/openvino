@@ -369,6 +369,20 @@ class TorchScriptPythonDecoder (Decoder):
             return ops.multiply(sub, scale).outputs()
         assert False, "Unsupported qscheme"
 
+    def try_decode_quantized_params(self):
+        # node_name = self.graph_element.s("name")
+        # raise Exception(help(self.graph_element))
+        # inputs = self.graph_element.inputs()
+        # attrs = []
+        # for i in inputs:
+        #     attrs.extend(i.attributeNames())
+        # raise Exception(attrs)
+        self.graph_element
+        qtensor = self.graph_element # self.pt_module.unpack() # getattr(self.pt_module, node_name)
+        scale = qtensor.q_per_channel_scales().numpy().astype(np.float32)  # (weight.q_scale() for per_tensor)
+        zero_point = qtensor.q_per_channel_zero_points().numpy().astype(np.float32)  # (weight.q_zero_point() for per_tensor)
+        return [op.Constant(scale), op.Constant(zero_point)]
+
     def try_decode_get_attr(self):
         pt_value = get_value_from_getattr(self.graph_element, self.pt_module)
         assert pt_value is not None, "Couldn't retrieve value from prim::GetAttr"

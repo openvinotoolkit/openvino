@@ -4,7 +4,6 @@
 import numpy as np
 import pytest
 import torch
-from torch import dtype
 
 from pytorch_layer_test_class import PytorchLayerTest
 
@@ -25,10 +24,10 @@ class TestQuantizePerTensorDequantize(PytorchLayerTest):
         return (np.array(5.00 * np.random.randn(4, 4) + 5.00, dtype=np.float32),) # N(5,5)
 
     @pytest.mark.parametrize("scale", [
-        1.0, # 0.21, 0.62
+        1.0, 0.21, 0.62
     ])
     @pytest.mark.parametrize("zero_point", [
-        0, # 4, -7
+        0, 4, -7
     ])
     @pytest.mark.parametrize("dtype", [
         torch.quint8, torch.qint8, torch.qint32
