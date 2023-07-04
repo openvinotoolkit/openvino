@@ -2,7 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <google/protobuf/stubs/logging.h>
+#include <google/protobuf/port_def.inc>
+#if PROTOBUF_VERSION >= 4022000  // protobuf 4.22
+#    define OV_PROTOBUF_ABSL_IS_USED
+#endif
+#include <google/protobuf/port_undef.inc>
+
+#ifndef OV_PROTOBUF_ABSL_IS_USED
+#    include <google/protobuf/stubs/logging.h>
+#endif
 
 #include <fstream>
 #include <input_model.hpp>
@@ -37,7 +45,9 @@ ONNX_FRONTEND_C_API void* get_front_end_data() {
     };
 #ifndef OPENVINO_DEBUG_ENABLE
     // disable protobuf logging
+#    ifndef OV_PROTOBUF_ABSL_IS_USED
     google::protobuf::SetLogHandler(nullptr);
+#    endif
 #endif
     return res;
 }

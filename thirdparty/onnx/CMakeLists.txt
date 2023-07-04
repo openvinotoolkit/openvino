@@ -49,7 +49,6 @@ endforeach()
 if(WIN32)
     # from onnx==1.13.1 it requires C++17 when compiling on Windows
     target_compile_features(onnx PRIVATE cxx_std_17)
-    set_target_properties(onnx PROPERTIES CXX_STANDARD 17)
     # OPTIONAL is a reserved word for mingw at least
     if(MINGW)
         target_compile_definitions(onnx PRIVATE OPTIONAL=OPTIONAL_PLACEHOLDER)
