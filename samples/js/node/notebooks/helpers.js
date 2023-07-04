@@ -1,3 +1,5 @@
+const fs = require('fs');
+const https = require('https');
 const { display } = require('node-kernel');
 const { createCanvas, createImageData, loadImage, Image, ImageData } = require('canvas');
 
@@ -6,6 +8,7 @@ exports.displayImage = displayImage;
 exports.getImageData = getImageData;
 exports.displayArrayAsImage = displayArrayAsImage;
 exports.transform = transform;
+exports.downloadFile = downloadFile;
 
 function arrayToImageData(array, width, height) {
   return createImageData(new Uint8ClampedArray(array), width, height);
@@ -82,4 +85,23 @@ function transform(arr, { width, height }, order) {
   const val = order.map(num => [...channels.get(num).data]);
 
   return [].concat(...val);
+}
+
+function downloadFile(url, filename, destination) {
+  const file = fs.createWriteStream(destination + '/' + filename);
+
+  return new Promise((resolve, reject) => {
+    try {
+      https.get(url, res => {
+        res.pipe(file);
+
+        file.on('finish', () => {
+          file.close();
+          resolve();
+        });
+      });
+    } catch(e) {
+      reject(e);
+    }
+  });
 }

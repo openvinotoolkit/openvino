@@ -10,35 +10,49 @@
         {
             "language": "markdown",
             "source": [
-                "# Imports"
+                "## Imports"
             ],
             "outputs": []
         },
         {
             "language": "typescript",
             "source": [
-                "const { \n  displayImage, \n  getImageData, \n  displayArrayAsImage, \n  arrayToImageData,\n  transform,\n} = require('./helpers');\n\nconst cv2 = require('opencv.js');\nconst { display } = require('node-kernel');\n\nconst ov = require('../node_modules/openvinojs-node/build/Release/ov_node_addon.node');  // Later user would be able to download ov_node_addon using npm"
+                "const { \n  displayImage, \n  getImageData, \n  displayArrayAsImage, \n  arrayToImageData,\n  transform,\n  downloadFile,\n} = require('./helpers');\n\nconst cv2 = require('opencv.js');\nconst { display } = require('node-kernel');\n\nconst ov = require('../node_modules/openvinojs-node/build/Release/ov_node_addon.node');  // Later user would be able to download ov_node_addon using npm"
             ],
             "outputs": []
         },
         {
             "language": "markdown",
             "source": [
-                "# Load the Model"
+                "## Download the Model"
             ],
             "outputs": []
         },
         {
             "language": "typescript",
             "source": [
-                "const modelPath = '../../assets/models/road-segmentation-adas/road-segmentation-adas-0001.xml';\nconst core = new ov.Core();\nconst model = core.read_model(modelPath);\nconst compiledModel = core.compile_model(model, 'CPU');\n\nconst outputLayer = compiledModel.outputs[0];\n// FIXME: not implemented yet\n// const inputLayer = compiledModel.inputs[0];"
+                "const baseArtifactsDir = '../../assets/models';\n\nconst modelName = 'road-segmentation-adas-0001';\nconst modelXMLName = `${modelName}.xml`;\nconst modelBINName = `${modelName}.bin`;\n\nconst modelXMLPath = baseArtifactsDir + '/' + modelXMLName;\n\nconst baseURL = 'https://storage.openvinotoolkit.org/repositories/open_model_zoo/2023.0/models_bin/1/road-segmentation-adas-0001/FP32/';\n\ndownloadFile(baseURL + modelXMLName, modelXMLName, baseArtifactsDir);\ndownloadFile(baseURL + modelBINName, modelBINName, baseArtifactsDir);"
             ],
             "outputs": []
         },
         {
             "language": "markdown",
             "source": [
-                "# Load an Image\n\nA sample image from the [Mapillary Vistas](https://www.mapillary.com/dataset/vistas) dataset is provided. "
+                "## Load the Model"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "typescript",
+            "source": [
+                "const core = new ov.Core();\nconst model = core.read_model(modelXMLPath);\nconst compiledModel = core.compile_model(model, 'CPU');\n\nconst outputLayer = compiledModel.outputs[0];\n// FIXME: not implemented yet\n// const inputLayer = compiledModel.inputs[0];"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "## Load an Image\n\nA sample image from the [Mapillary Vistas](https://www.mapillary.com/dataset/vistas) dataset is provided. "
             ],
             "outputs": []
         },
@@ -61,7 +75,7 @@
         {
             "language": "markdown",
             "source": [
-                "# Do Inference"
+                "## Do Inference"
             ],
             "outputs": []
         },
@@ -84,7 +98,7 @@
         {
             "language": "markdown",
             "source": [
-                "# Visualize data"
+                "## Visualize data"
             ],
             "outputs": []
         },
