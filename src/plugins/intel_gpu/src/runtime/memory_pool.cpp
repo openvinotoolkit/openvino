@@ -60,7 +60,7 @@ void memory_pool::release_memory(memory* mem, const primitive_id& id, uint32_t n
         while (it != _non_padded_pool.end()) {
             if (it->second._network_id == network_id &&
                 it->second._type == type &&
-                it->second._memory->buffer_ptr() == mem->buffer_ptr()) {
+                it->second._memory->get_internal_params().mem == mem->get_internal_params().mem) {
                 auto user_it = it->second._users.find({ id, network_id });
 
                 // normally there should be only one entry
