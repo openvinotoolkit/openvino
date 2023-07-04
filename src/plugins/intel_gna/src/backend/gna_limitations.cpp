@@ -753,13 +753,23 @@ bool Limitations::is_transpose_supported(const ov::Shape& shape) {
             max_input_dim <= kTransposeMaxSize) {
             return true;
         }
+    } else if (squeezed_shape.size() == 1) {
+        // it means that transpose has only one valuable dimension (!=1)
+        return true;
     }
     return false;
 }
 
-bool Limitations::is_transpose_supported(const std::shared_ptr<const ov::Node>& node) {
+bool Limitations::is_transpose_supported(const std::shared_ptr<const ov::Node>& node, bool is_exception_allowed) {
     OPENVINO_ASSERT(node, "Transpose node is empty!");
-    return is_transpose_supported(node->get_input_shape(0));
+    bool result = is_transpose_supported(node->get_input_shape(0));
+    if (is_exception_allowed && !result) {
+        THROW_GNA_EXCEPTION << "topology with layer: " + node->get_friendly_name() +
+                                   ", type: " + node->get_type_name() + ", and input shape: "
+                            << node->get_input_shape(0) << ", and output shape: " << node->get_output_shape(0)
+                            << ") not supported";
+    }
+    return result;
 }
 
 bool Limitations::is_conv_supported(const std::shared_ptr<ov::intel_gna::op::GNAConvolution>& conv_gna,
@@ -965,6 +975,8 @@ bool Limitations::is_op_supported(const std::shared_ptr<ov::Node>& node,
         return SupportedElementTypes::IsParameterTypeSupported(node->get_element_type(), is_exception_allowed);
     } else if (ov::op::util::is_constant(node)) {
         return SupportedElementTypes::IsConstantTypeSupported(node->get_element_type(), is_exception_allowed);
+    } else if (auto transpose = std::dynamic_pointer_cast<Transpose>(node)) {
+        return is_transpose_supported(transpose, is_exception_allowed);
     } else if (auto conv = std::dynamic_pointer_cast<ov::intel_gna::op::GNAConvolution>(node)) {
         return is_conv_supported(conv, gna_precision, is_exception_allowed);
     } else if (auto fully_connected = std::dynamic_pointer_cast<ngraph::op::FullyConnected>(node)) {
@@ -999,9 +1011,13 @@ void Limitations::check_all_ops_supported(const std::shared_ptr<ov::Model>& mode
     std::stringstream error;
     // Walk through the transformed model
     for (auto& op : model->get_ops()) {
-        if (!is_op_supported(op, gna_precision, true)) {
-            error << "The plugin does not support layer " << op->get_friendly_name() << " (type " << op->get_type_name()
-                  << ")!" << std::endl;
+        try {
+            if (!is_op_supported(op, gna_precision, true)) {
+                error << "The plugin does not support layer " << op->get_friendly_name() << " (type "
+                      << op->get_type_name() << ")!" << std::endl;
+            }
+        } catch (InferenceEngine::Exception e) {
+            std::cout << e.what();
         }
     }
     if (!error.str().empty()) {
@@ -1024,23 +1040,6 @@ bool Limitations::validate_concat_axis(const InferenceEngine::CNNLayerPtr layer,
 
     if (dims_size >= 2) {
         InferenceEngine::CNNLayerPtr prev_layer, pre_prev_layer;
-        // Skip all convolutions in this check, they will be handled during concat primitive creation
-        auto isFusableWithConv = [](InferenceEngine::CNNLayerPtr ptr) {
-            return (LayerInfo(ptr).isFusableWithConv() || LayerInfo(ptr).isNonFunctional() ||
-                    (LayerInfo(ptr).isPermute() &&
-                     ((ptr->input()->getLayout() == InferenceEngine::Layout::NCHW &&
-                       ptr->GetParamAsInts("order") ==
-                           permute::GetPermuteOrder(InferenceEngine::Layout::NCHW, InferenceEngine::Layout::NHWC)) ||
-                      (ptr->input()->getLayout() == InferenceEngine::Layout::CHW &&
-                       ptr->GetParamAsInts("order") == std::vector<int32_t>{0, 2, 1} /* NCW to NWC */))));
-        };
-
-        for (size_t input_idx = 0; input_idx != concat_layer->insData.size(); input_idx++) {
-            prev_layer =
-                InferenceEngine::CNNNetPrevLayerSkipCertain(layer, static_cast<int>(input_idx), isFusableWithConv);
-            if (prev_layer && LayerInfo(prev_layer).isConvolution())
-                return true;
-        }
 
         // Look for trivial cases which will be flattened later
         // for explanation of what is meant by trivial case,
@@ -1055,20 +1054,16 @@ bool Limitations::validate_concat_axis(const InferenceEngine::CNNLayerPtr layer,
         bool concat_all_const_or_inputs = false;
 
         // If concat axis > 0, detect any dimension > 1 before the concat axis
-        if (concat_axis > 0) {
-            for (unsigned int axis = 0; axis < concat_axis; axis++) {
-                if (in_dims[axis] > 1) {
-                    is_not_trivial_concat = true;
-                    break;
-                }
-            }
+        if (concat_axis > graph_utils::get_first_valuable_dim_id(in_dims)) {
+            is_not_trivial_concat = true;
+        } else {
             // If concat axis == 0, detect any preceding functional layer's input
             // with 0'th dimension > 1, but take into account that some layers need to be skipped
-        } else {
             concat_all_const_or_inputs = true;
 
-            for (size_t input_idx = 0; input_idx != concat_layer->insData.size(); input_idx++) {
-                if (concat_layer->insData[input_idx].lock()->getDims()[0] != 1) {
+            for (auto input_idx = 0; input_idx != concat_layer->insData.size(); input_idx++) {
+                std::vector<size_t> concat_in_dims = concat_layer->insData[input_idx].lock()->getDims();
+                if (concat_axis > graph_utils::get_first_valuable_dim_id(concat_in_dims)) {
                     // First we're checking concat input layers
                     prev_layer = InferenceEngine::CNNNetPrevLayerSkipCertain(
                         concat_layer,
@@ -1079,10 +1074,11 @@ bool Limitations::validate_concat_axis(const InferenceEngine::CNNLayerPtr layer,
 
                     IE_ASSERT(prev_layer);
 
-                    if ((LayerInfo(prev_layer).isInput() && prev_layer->outData[0]->getDims()[0] == 1) ||
+                    std::vector<size_t> prev_dims = prev_layer->outData[0]->getDims();
+                    if ((LayerInfo(prev_layer).isInput() && graph_utils::get_first_valuable_dim_id(prev_dims) == concat_axis) ||
                         LayerInfo(prev_layer).isConst()) {
                         continue;
-                    } else if ((LayerInfo(prev_layer).isInput() && prev_layer->outData[0]->getDims()[0] != 1)) {
+                    } else if ((LayerInfo(prev_layer).isInput() && graph_utils::get_first_valuable_dim_id(prev_dims) != concat_axis)) {
                         is_not_trivial_concat = true;
                         break;
                     }

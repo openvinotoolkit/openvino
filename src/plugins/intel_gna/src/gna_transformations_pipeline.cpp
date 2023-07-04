@@ -11,6 +11,7 @@
 #include "ngraph/opsets/opset2.hpp"
 #include "ngraph/opsets/opset7.hpp"
 #include "openvino/pass/manager.hpp"
+
 #include "optimizer/gna_pass_manager.hpp"
 #include "transformations/broadcast_const.hpp"
 #include "transformations/common_optimizations/add_fake_quantize_fusion.hpp"
@@ -30,10 +31,11 @@
 #include "transformations/convert_precision.hpp"
 #include "transformations/decompose_2d_convolution.hpp"
 #include "transformations/decompose_mvn.hpp"
-#include "transformations/fp16_compression/convert_compression_only_to_legacy.hpp"
-#include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
-#include "transformations/fuse_conv_bias_activation.hpp"
+#include "transformations/disable_decompression_convert_constant_folding.hpp"
+#include "transformations/fuse_conv_biasadd_activation.hpp"
 #include "transformations/gather_sinking.hpp"
+#include "transformations/gather_sinking_transpose.hpp"
+#include "transformations/gather_sinking_transpose_reshape.hpp"
 #include "transformations/handle_transposes_around_matmul.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/insert_copy_layer.hpp"
@@ -58,6 +60,8 @@
 #include "transformations/replace_gna_nhwc_layers.hpp"
 #include "transformations/reshape_transpose_substitute.hpp"
 #include "transformations/rotate_inputs.hpp"
+#include "transformations/reshape_to_squeeze.hpp"
+#include "transformations/rt_info/transpose_sinking_attr.hpp"
 #include "transformations/split_convolution_with_large_buffer_size.hpp"
 #include "transformations/split_eltwise.hpp"
 #include "transformations/substitute_softsign.hpp"
@@ -68,9 +72,15 @@
 #include "transformations/transpose_sinking/ts_split.hpp"
 #include "transformations/ts_concat_forward.hpp"
 #include "transformations/ts_split_backward.hpp"
+#include "transformations/transpose_2d.hpp"
+#include "transformations/transpose_sinking/ts_slice.hpp"
 #include "transformations/unfuse_reshape_and_transpose.hpp"
 #include "transformations/utils/transformation_helper.hpp"
 #include "transformations/utils/utils.hpp"
+#include "transformations/big_transpose.hpp"
+
+using namespace ov::intel_gna::limitations;
+
 
 using namespace ov;
 using namespace ov::opset8;
@@ -95,6 +105,7 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
     manager.register_pass<ov::pass::InitNodeInfo>();
     // In OV API 2.0(IRv10) default convertion to fp32 (inputs, outputs and weights) is disabled
     // and we need to run the ConvertPrecision transformation to support old networks.
+    manager.register_pass<ov::pass::Serialize>("model.xml", "model.bin");
     manager.register_pass<ov::pass::ConvertPrecision>(precisions_map{{ngraph::element::f16, ngraph::element::f32}});
     manager.register_pass<ov::pass::ConvertMVN1ToMVN6>();
     manager.register_pass<ov::intel_gna::pass::DecomposeMVN>();
@@ -109,11 +120,6 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
     manager.register_pass<ov::intel_gna::pass::Decompose2DConvTransposedWithBiasAF>(config.gnaPrecision);
     manager.register_pass<ov::intel_gna::pass::Decompose2DConvTransposedWithBias>(config.gnaPrecision);
     manager.register_pass<ov::intel_gna::pass::Decompose2DConv>(config.gnaPrecision);
-    if (!has_convolution) {
-        manager.register_pass<ov::intel_gna::pass::ConvertMatmulWithFqToPointWiseConvolution>();
-        manager.register_pass<ov::intel_gna::pass::ConvertMatmulWithBiasToPointWiseConvolution>();
-        manager.register_pass<ov::intel_gna::pass::ConvertMatmulToPointWiseConvolution>();
-    }
     manager.register_pass<ov::intel_gna::pass::SplitConvolutionWithFq>();
     manager.register_pass<ov::intel_gna::pass::SplitConvolutionWithBias>();
     manager.register_pass<ov::intel_gna::pass::SplitConvolution>();
@@ -121,6 +127,14 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
     manager.register_pass<ov::intel_gna::pass::InsertReshapeAroundMatmulWithFq>();
     manager.register_pass<ov::intel_gna::pass::InsertReshapeAroundMatmulWithAdd>();
     manager.register_pass<ov::intel_gna::pass::InsertReshapeAroundMatmul>();
+    // if (!has_convolution) {
+        manager.register_pass<ov::intel_gna::pass::ReshapeFuse>();
+        manager.register_pass<ov::intel_gna::pass::ReshapeToSqueeze>();
+        manager.register_pass<ov::intel_gna::pass::ReshapeToUnsqueeze>();
+        manager.register_pass<ov::intel_gna::pass::ConvertMatmulWithFqToPointWiseConvolution>();
+        manager.register_pass<ov::intel_gna::pass::ConvertMatmulWithBiasToPointWiseConvolution>();
+        manager.register_pass<ov::intel_gna::pass::ConvertMatmulToPointWiseConvolution>();
+    // }
     manager.register_pass<ov::intel_gna::pass::SwapInputMatMulWithTrailingTranspose>();
     manager.register_pass<ov::intel_gna::pass::SwapInputMatMulWithAct>();
     manager.register_pass<ov::intel_gna::pass::SwapInputMatMulWithFq>();
@@ -138,15 +152,26 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
     if (has_convolution || has_maxpool || has_mvn || has_matmul) {
         manager.register_pass<ov::intel_gna::pass::ReplaceGnaNHWCLayers>();
         manager.register_pass<ov::intel_gna::pass::InsertConvolutionTransposeHW>();
+        manager.register_pass<ov::intel_gna::pass::ReshapeFuse>();
+        manager.register_pass<ov::intel_gna::pass::ReshapeToSqueeze>();
+        manager.register_pass<ov::intel_gna::pass::ReshapeToUnsqueeze>();
         manager.register_pass<ov::pass::TransposeSinkingGeneral>();
-        manager.register_pass<ov::intel_gna::pass::GatherSinkingGeneral>();
-        manager.register_pass<ov::pass::ReshapeSequenceFusion>();
-        manager.register_pass<ov::pass::TransposeToReshape>();
-        manager.register_pass<ov::intel_gna::pass::GnaConvolutionFusion>();
-        manager.register_pass<ov::intel_gna::pass::TSConcatForward>();
-        manager.register_pass<ov::intel_gna::pass::TSSplitBackward>();
+        manager.register_pass<ov::intel_gna::pass::Transpose2D>();
+        manager.register_pass<ov::intel_gna::pass::ReplaceBigTranspose>();
+        manager.register_pass<ov::intel_gna::pass::ReshapeFuse>();
         manager.register_pass<ov::pass::transpose_sinking::TSFuse>();
+        // rare cases when we can replace unsupported transpose by gather
+        // manager.register_pass<ov::intel_gna::pass::TSConcatForward>();
+        // manager.register_pass<ov::intel_gna::pass::TSSplitBackward>();
+        // manager.register_pass<ov::intel_gna::pass::GatherSinkingTransposeReshapeForward>();
+        // manager.register_pass<ov::intel_gna::pass::GatherSinkingTransposeReshapeBackward>();
+        // manager.register_pass<ov::intel_gna::pass::GatherSinkingTranspose>();
+        manager.register_pass<ov::intel_gna::pass::ReshapeFuse>();
+        manager.register_pass<ov::intel_gna::pass::GatherSinkingGeneral>();
+        manager.register_pass<ov::pass::TransposeToReshape>();
+        // manager.register_pass<ov::intel_gna::pass::GnaConvolutionFusion>();
     }
+    manager.register_pass<ov::intel_gna::pass::ReplaceBigTranspose>();
     manager.register_pass<ov::intel_gna::pass::RemoveInputsProcessing>(input_output_subgraphs);
     manager.register_pass<ov::intel_gna::pass::RemoveOutputsProcessing>(input_output_subgraphs);
     manager.register_pass<ov::pass::ConvertOpSet3ToOpSet2>();
@@ -238,6 +263,25 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
                 transpose_info.transpose_const->get_axis_vector_val());
         });
 
+    pass_config->set_callback<ov::pass::transpose_sinking::TSSliceForward>(
+        [](const std::shared_ptr<const ov::Node>& node) -> bool {
+            const TransposeInfo transpose_info = GetFirstInputTranspose(node);
+            if (transpose_info.isEmpty())
+                return false;
+            const bool is_supported = Limitations::is_transpose_supported(node);
+            if (is_supported)
+                MarkInputTransposesAsNoSinking(node);
+            return is_supported;
+        });
+
+    pass_config->set_callback<ov::pass::transpose_sinking::TSSliceBackward>(
+        [](const std::shared_ptr<const ov::Node>& node) -> bool {
+            const TransposeInfo transpose_info = GetFirstOutputTranspose(node);
+            if (transpose_info.isEmpty())
+                return false;
+            return Limitations::is_transpose_supported(node);
+        });
+
     /**
      * TransposeSinking doesn't currently support StridedSlice. We disable SliceToStridedSlice
      * transformation to prevent convert Slice to StridedSlice. This allows us to work with
@@ -290,7 +334,7 @@ void TransformationsPipeline::apply_legacy(const InferenceEngine::CNNNetwork& ne
     OV_ITT_SCOPED_TASK(itt::domains::GNAPlugin, "TransformationsPipeline::apply_legacy");
     auto passes =
         std::make_shared<PassManager>(PassManagerSettings{runBeforeCopy, config.gnaFlags.input_low_precision}, network);
-    passes->registerPass<RemoveConstPass>();
+    // passes->registerPass<RemoveConstPass>();
     if (!is_ngraph_passes_used) {
         passes->registerPass<UnrollTIPass>();
         passes->registerPass<RemoveConstPass>();
@@ -330,7 +374,7 @@ void TransformationsPipeline::apply_legacy(const InferenceEngine::CNNNetwork& ne
     passes->registerPass<InsertDiagonalLayerPass>();
     passes->registerPass<HandleMultipleActivationsForTheLayerPass>();
     passes->registerPass<ForbidActivationFusingPass>();
-    passes->registerPass<FuseMultipleIdentitiesPass>();
+    // passes->registerPass<FuseMultipleIdentitiesPass>();
     passes->registerPass<FuseFullyConnectedWithEltwisePass>();
     legacy_pass_index = passes->run(legacy_pass_index);
 }

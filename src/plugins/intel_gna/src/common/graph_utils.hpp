@@ -349,7 +349,7 @@ inline std::vector<size_t> make_gather_indexes_from_transpose_axes(const Shape& 
     }
 
     ov::Shape input_shape_4d = input_shape;
-    ov::Shape order_4d = order;
+    ov::AxisVector order_4d = order;
     // Just to simplify the code we transform all shapes to 4d by adding dimension(s) equal to 1 at the end
     while (input_shape_4d.size() < 4) {
         input_shape_4d.push_back(1);
@@ -379,7 +379,24 @@ inline std::vector<size_t> make_gather_indexes_from_transpose_axes(const Shape& 
     return gather_order;
 }
 
-inline int64_t get_first_valuable_dim_id(const ov::Shape& shape) {
+/**
+ * @brief Merge gather indexes.
+ * @param ids_in vector with indexes to 1st gather
+ * @param ids_out vector with indexes to 2bd gather
+ * @return vector with indexes to merged gather
+ */
+inline std::vector<size_t> combine_gather_indexes(const std::vector<size_t>& ids_in,
+                                                  const std::vector<size_t>& ids_out) {
+    if (ids_in.size() != ids_out.size())
+        return {};
+    std::vector<size_t> result(ids_in.size());
+    for (size_t i = 0; i < result.size(); ++i) {
+        result[i] = ids_in[ids_out[i]];
+    }
+    return result;
+}
+
+inline size_t get_first_valuable_dim_id(const ov::Shape& shape) {
     for (size_t i = 0; i < shape.size(); ++i) {
         if (shape[i] != 1) {
             return i;

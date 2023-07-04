@@ -55,7 +55,11 @@ inline std::shared_ptr<ov::Model> copy_single_input_node(std::shared_ptr<ov::Nod
 }
 
 inline bool is_skip_operation(const std::shared_ptr<ov::Node>& node) {
-    return std::dynamic_pointer_cast<Reshape>(node) != nullptr;
+    return (std::dynamic_pointer_cast<Reshape>(node) != nullptr ||
+            std::dynamic_pointer_cast<Unsqueeze>(node) != nullptr ||
+            std::dynamic_pointer_cast<Squeeze>(node) != nullptr ||
+            std::dynamic_pointer_cast<FakeQuantize>(node) != nullptr) &&
+           node->output(0).get_target_inputs().size() == 1;
 }
 
 }  // namespace
@@ -66,16 +70,31 @@ bool RemoveInputsProcessing::run_on_model(const std::shared_ptr<ov::Model>& mode
 
     for (const auto& param_node : model->inputs()) {
         for (auto& param_target : param_node.get_target_inputs()) {
-            auto target_node = graph_utils::get_next_node_skipping_certain(param_target.get_node()->shared_from_this(),
-                                                                           is_skip_operation);
-            // Parameter -> Transpose, Parameter -> Gather
-            if (is_preprocessing_layer_not_supported(target_node)) {
-                if (m_input_subgraphs) {
-                    m_input_subgraphs->emplace(param_node.get_node_shared_ptr()->get_friendly_name(),
-                                               copy_single_input_node(target_node));
+            std::shared_ptr<ov::Node> target_node =
+                graph_utils::get_next_node_skipping_certain(param_target.get_node()->shared_from_this(),
+                                                            is_skip_operation);
+            std::set<std::shared_ptr<ov::Node>> target_nodes = {};
+            if (target_node->output(0).get_target_inputs().size() > 1) {
+                for (auto node : target_node->output(0).get_target_inputs()) {
+                    std::shared_ptr<ov::Node> target =
+                        graph_utils::get_next_node_skipping_certain(node.get_node()->shared_from_this(),
+                                                                    is_skip_operation);
+                    target_nodes.insert(target);
                 }
-                pass::helper::remove_single_input_node(target_node);
-                result = true;
+            } else {
+                target_nodes.insert(target_node);
+            }
+
+            for (auto target : target_nodes) {
+                // Parameter -> Transpose, Parameter -> Gather
+                if (is_preprocessing_layer_not_supported(target)) {
+                    if (m_input_subgraphs) {
+                        m_input_subgraphs->emplace(param_node.get_node_shared_ptr()->get_friendly_name(),
+                                                   copy_single_input_node(target));
+                    }
+                    pass::helper::remove_single_input_node(target);
+                    result = true;
+                }
             }
         }
     }

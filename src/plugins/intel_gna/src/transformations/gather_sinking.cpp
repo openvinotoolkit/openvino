@@ -27,7 +27,6 @@ GatherSinkingGeneralForward::GatherSinkingGeneralForward() {
     MATCHER_SCOPE(GatherSinkingGeneralForward);
     add_matcher<GatherSinkingUnaryForward>();
     add_matcher<GatherSinkingBinaryForward>();
-    add_matcher<GatherSinkingTransposeReshapeForward>();
     add_matcher<GatherSinkingMatmulForward>();
     add_matcher<GatherSinkingFuse>();
 }
@@ -36,7 +35,6 @@ GatherSinkingGeneralBackward::GatherSinkingGeneralBackward() {
     MATCHER_SCOPE(GatherSinkingGeneralBackward);
     add_matcher<GatherSinkingUnaryBackward>();
     add_matcher<GatherSinkingBinaryBackward>();
-    add_matcher<GatherSinkingTransposeReshapeBackward>();
     add_matcher<GatherSinkingReshapeBackward>();
     add_matcher<GatherSinkingSplitBackward>();
     add_matcher<GatherSinkingMatmulBackward>();

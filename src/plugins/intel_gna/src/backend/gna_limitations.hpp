@@ -214,7 +214,7 @@ public:
      * @param node transpose
      * @return true if supported
      */
-    static bool is_transpose_supported(const std::shared_ptr<const ov::Node>& node);
+    static bool is_transpose_supported(const std::shared_ptr<const ov::Node>& node, bool is_exception_allowed = false);
     /**
      * @brief Validates if convolution is supported by GNA
      * @param conv_gna GNA convolution
