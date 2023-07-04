@@ -6,6 +6,7 @@
 
 #include "ie_parallel.hpp"
 #include <openvino/op/unique.hpp>
+#include "common/cpu_memcpy.h"
 #include <utils/shape_inference/shape_inference_internal_dyn.hpp>
 
 using namespace InferenceEngine;
@@ -180,7 +181,7 @@ void Unique::flattenTensorExec() {
     uniqueLen = inputLen;
 
     if (sorted) {
-        std::memcpy(uniDataTmpPtr, srcDataPtr, inputLen * sizeof(T));
+        cpu_parallel_memcpy(uniDataTmpPtr, srcDataPtr, inputLen * sizeof(T));
         std::sort(uniDataTmpPtr, uniDataTmpPtr + inputLen);
         auto last = std::unique(uniDataTmpPtr, uniDataTmpPtr + inputLen);
         uniqueLen = last - uniDataTmpPtr;
@@ -263,18 +264,18 @@ void Unique::flattenTensorExec() {
     redefineOutputMemory({ {uniqueLen}, {uniqueLen}, {inputLen}, {uniqueLen}});
 
     T* uniDataPtr = reinterpret_cast<T*>(getChildEdgesAtPort(UNIQUE_DATA)[0]->getMemoryPtr()->GetPtr());
-    memcpy(uniDataPtr, uniDataTmpPtr, uniqueLen * sizeof(T));
+    cpu_parallel_memcpy(uniDataPtr, uniDataTmpPtr, uniqueLen * sizeof(T));
     if (definedOutputs[FIRST_UNIQUE_IDX]) {
         int *firstPtr = reinterpret_cast<int*>(getChildEdgesAtPort(FIRST_UNIQUE_IDX)[0]->getMemoryPtr()->GetPtr());
-        memcpy(firstPtr, firstUniTmp.data(), uniqueLen * sizeof(int));
+        cpu_parallel_memcpy(firstPtr, firstUniTmp.data(), uniqueLen * sizeof(int));
     }
     if (definedOutputs[INPUT_TO_UNIQ_IDX]) {
         auto inToOutPtr = reinterpret_cast<int*>(getChildEdgesAtPort(INPUT_TO_UNIQ_IDX)[0]->getMemoryPtr()->GetPtr());
-        memcpy(inToOutPtr, inToOutTmp.data(), inputLen * sizeof(int));
+        cpu_parallel_memcpy(inToOutPtr, inToOutTmp.data(), inputLen * sizeof(int));
     }
     if (definedOutputs[OCCURRENCES_NUM]) {
         auto occurPtr = reinterpret_cast<int*>(getChildEdgesAtPort(OCCURRENCES_NUM)[0]->getMemoryPtr()->GetPtr());
-        memcpy(occurPtr, occurTmp.data(), uniqueLen * sizeof(int));
+        cpu_parallel_memcpy(occurPtr, occurTmp.data(), uniqueLen * sizeof(int));
     }
 }
 
@@ -383,7 +384,7 @@ void Unique::slicedTensorExec() {
             auto first1 = srcDataPtr + uniqIdx[u] * innerLen;
             auto first2 = dstDataPtr + u * innerLen;
             for (int64_t p = 0lu; p < outerLen; p++) {
-                memcpy(first2, first1, innerSizeB);
+                cpu_memcpy(first2, first1, innerSizeB);
                 first1 += srcOuterStep;
                 first2 += dstOuterStep;
             }
@@ -425,7 +426,7 @@ void Unique::slicedTensorExec() {
                     auto src = dst1 + ot * dstOuterStep + colToSort[u].idx * innerLen;
                     auto dst = dst2 + ot * dstOuterStep + u * innerLen;
 
-                    memcpy(dst, src, innerSizeB);
+                    cpu_memcpy(dst, src, innerSizeB);
                 });
 
                 if (defined3outputs) {
@@ -460,26 +461,26 @@ void Unique::slicedTensorExec() {
         }
 
         if (definedOutputs[UNIQUE_DATA] && dst1 != dstDataPtr) {
-            memcpy(dstDataPtr, dst1, dstUniDataLen * sizeof(T));
+            cpu_parallel_memcpy(dstDataPtr, dst1, dstUniDataLen * sizeof(T));
         }
         if (definedOutputs[FIRST_UNIQUE_IDX] && first2 != firstPtr) {
-            memcpy(firstPtr, first2, uniqueLenIB);
+            cpu_parallel_memcpy(firstPtr, first2, uniqueLenIB);
         }
         if (definedOutputs[INPUT_TO_UNIQ_IDX] && inToOut2 != inToOutPtr) {
-            memcpy(inToOutPtr, inToOut2, axisDim * sizeof(int));
+            cpu_parallel_memcpy(inToOutPtr, inToOut2, axisDim * sizeof(int));
         }
         if (definedOutputs[OCCURRENCES_NUM] && occurN2 != occurNPtr) {
-            memcpy(occurNPtr, occurN2, uniqueLenIB);
+            cpu_parallel_memcpy(occurNPtr, occurN2, uniqueLenIB);
         }
     } else {
         if (definedOutputs[FIRST_UNIQUE_IDX]) {
-            memcpy(firstPtr, firstUniTmp.data(), uniqueLenIB);
+            cpu_parallel_memcpy(firstPtr, firstUniTmp.data(), uniqueLenIB);
         }
         if (definedOutputs[INPUT_TO_UNIQ_IDX]) {
-            memcpy(inToOutPtr, inToOutTmp.data(), axisDim * sizeof(int));
+            cpu_parallel_memcpy(inToOutPtr, inToOutTmp.data(), axisDim * sizeof(int));
         }
         if (definedOutputs[OCCURRENCES_NUM]) {
-            memcpy(occurNPtr, occurTmp.data(), uniqueLenIB);
+            cpu_parallel_memcpy(occurNPtr, occurTmp.data(), uniqueLenIB);
         }
     }
 }
