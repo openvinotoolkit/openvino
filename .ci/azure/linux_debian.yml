@@ -390,7 +390,7 @@ jobs:
       $(TEST_VENV)/bin/python3 -m pip install -r $(LAYER_TESTS_DIR)/requirements.txt
       $(TEST_VENV)/bin/python3 -m pytest $(LAYER_TESTS_DIR)/tensorflow_tests/test_tf_Roll.py --ir_version=10 --junitxml=$(INSTALL_TEST_DIR)/TEST-tf_Roll.xmlTEST
     env:
-      PYTHONPATH: $(LAYER_TESTS_DIR)
+      PYTHONPATH: $(REPO_DIR)/tools/ovc/:$(LAYER_TESTS_DIR)
     displayName: 'TensorFlow 1 Layer Tests - Legacy FE'
 
   - script: |
