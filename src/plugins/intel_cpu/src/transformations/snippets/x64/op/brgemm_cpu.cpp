@@ -107,9 +107,9 @@ void BrgemmCPU::validate_with_scratchpad(const ov::Shape& shape_b) const {
         if (is_with_compensations()) {
             const auto expected_type = ov::element::f32;
             NGRAPH_CHECK(expected_type == type, "BRGEMM Scratch with compensations must have FP32 element type");
-            // If N block size is not set, there is no meaning in validationg the scratchpad shape
-            if (m_N_blk != 0) {
-                const auto N = *shape_b.rbegin();
+            const auto N = *shape_b.rbegin();
+            // If N block size is not set, there is no meaning in validating the scratchpad shape
+            if (m_N_blk != N) {
                 const auto expected_shape = ov::Shape{rnd_up(N, m_N_blk)};
                 NGRAPH_CHECK(expected_shape == shape, "BRGEMM Scratch with compensations must have shape {rnd_up(N, m_N_blk)}");
             }

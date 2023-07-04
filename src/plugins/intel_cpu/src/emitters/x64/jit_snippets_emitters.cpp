@@ -775,10 +775,8 @@ BrgemmEmitter::BrgemmEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl:
     m_with_comp = brgemm_node->is_with_compensations();
     m_with_scratch = brgemm_node->is_with_scratchpad();
 
-    const size_t fp32_N_blk = brgemm_node->get_n_block_size();
-    const size_t fp32_K_blk = brgemm_node->get_k_block_size();
-    m_N_blk = brg1Prc == Precision::FP32 ? fp32_N_blk : m_N;
-    m_K_blk = brg1Prc == Precision::FP32 ? fp32_K_blk : m_K;
+    m_N_blk = brgemm_node->get_n_block_size();
+    m_K_blk = brgemm_node->get_k_block_size();
     m_N_tail = m_N % m_N_blk;
     m_K_tail = m_K % m_K_blk;
 
@@ -814,7 +812,7 @@ BrgemmEmitter::BrgemmEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl:
             brgemmCtx.N = N(n);
             brgemmCtx.K = K(k);
             brgemmCtx.LDA = leading_dimensions[0];
-            brgemmCtx.LDB = brgemm_node->is_with_data_repacking() ? rnd_up(m_N, fp32_N_blk) : leading_dimensions[1];
+            brgemmCtx.LDB = brgemm_node->is_with_data_repacking() ? rnd_up(m_N, brgemm_copy->get_n_block_size()) : leading_dimensions[1];
             brgemmCtx.LDC = leading_dimensions[2];
             brgemmCtx.dt_in0 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::IEPrecisionToDataType(brg0Prc));
             brgemmCtx.dt_in1 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::IEPrecisionToDataType(brg1Prc));
@@ -1215,11 +1213,8 @@ BrgemmCopyBEmitter::BrgemmCopyBEmitter(dnnl::impl::cpu::x64::jit_generator* h, d
     m_N = *(transposed_shape.rbegin());
     m_K = *(transposed_shape.rbegin() + 1);
 
-    const bool isAMXSupported = mayiuse(avx512_core_amx);
-    const auto use_amx = isAMXSupported && m_brgemm_prc_in0 != ov::element::f32 && (m_K % m_brgemmVNNIFactor == 0) && (m_N % m_brgemmVNNIFactor == 0);
-
     m_N_blk = brgemm_repack->get_n_block_size();
-    m_K_blk = use_amx ? brgemm_repack->get_k_block_size() : m_K;
+    m_K_blk = brgemm_repack->get_k_block_size();
 
     m_N_tail = m_N % m_N_blk;
     m_K_tail = m_K % m_K_blk;
@@ -1227,6 +1222,9 @@ BrgemmCopyBEmitter::BrgemmCopyBEmitter(dnnl::impl::cpu::x64::jit_generator* h, d
 
     const auto dt_in0 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::IEPrecisionToDataType(InferenceEngine::details::convertPrecision(m_brgemm_prc_in0)));
     const auto dt_in1 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::IEPrecisionToDataType(InferenceEngine::details::convertPrecision(m_brgemm_prc_in1)));
+
+    const bool isAMXSupported = mayiuse(avx512_core_amx);
+    const auto use_amx = isAMXSupported && m_brgemm_prc_in0 != ov::element::f32 && (m_K % m_brgemmVNNIFactor == 0) && (m_N % m_brgemmVNNIFactor == 0);
     init_brgemm_copy(m_kernel, leading_dimension, m_N_blk, m_N_tail, m_LDB, m_K - m_K_tail, use_amx, dt_in0, dt_in1);
 }
 
