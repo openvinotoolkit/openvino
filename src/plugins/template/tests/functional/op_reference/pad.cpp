@@ -1068,6 +1068,42 @@ std::vector<PadParams> generateParams() {
             reference_tests::Tensor(ET, {}, std::vector<T>{0}),
             "pad_neg_2x2x3_mode_const_remove_first"),
         PadParams(
+            reference_tests::Tensor(ET, {2, 2, 3}, std::vector<T>{
+                1, 2, 3,
+                4, 5, 6,
+
+                7, 8, 9,
+                10, 11, 12
+            }),
+            reference_tests::Tensor(ET_INT, {3}, std::vector<T_INT>{0, -1, 0}),
+            reference_tests::Tensor(ET_INT, {3}, std::vector<T_INT>{0, 0, 0}),
+            reference_tests::Tensor(ET, {2, 1, 3}, std::vector<T>{
+                4, 5, 6,
+
+                10, 11, 12
+            }),
+            op::PadMode::CONSTANT,
+            reference_tests::Tensor(ET, {}, std::vector<T>{0}),
+            "pad_neg_2x2x3_mode_const_remove_middle_begin"),
+        PadParams(
+            reference_tests::Tensor(ET, {2, 2, 3}, std::vector<T>{
+                1, 2, 3,
+                4, 5, 6,
+
+                7, 8, 9,
+                10, 11, 12
+            }),
+            reference_tests::Tensor(ET_INT, {3}, std::vector<T_INT>{0, 0, 0}),
+            reference_tests::Tensor(ET_INT, {3}, std::vector<T_INT>{0, -1, 0}),
+            reference_tests::Tensor(ET, {2, 1, 3}, std::vector<T>{
+                1, 2, 3,
+
+                7, 8, 9,
+            }),
+            op::PadMode::CONSTANT,
+            reference_tests::Tensor(ET, {}, std::vector<T>{0}),
+            "pad_neg_2x2x3_mode_const_remove_middle_end"),
+        PadParams(
             reference_tests::Tensor(ET, {3, 4}, std::vector<T>{
                 1, 2, 3, 4,
                 5, 6, 7, 8,
