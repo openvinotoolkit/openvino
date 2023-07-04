@@ -52,7 +52,6 @@ def base_args_config():
     args.layout = None
     args.source_layout = None
     args.target_layout = None
-    args.disable_mmap = False
     return args
 
 

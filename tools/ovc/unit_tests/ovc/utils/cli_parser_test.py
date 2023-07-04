@@ -2040,7 +2040,7 @@ class TestConvertModelParamsParsing(unittest.TestCase):
                                                'log_level', 'input', 'output', 'mean_values', 'scale_values', 'source_layout',
                                                'target_layout', 'layout', 'compress_to_fp16', 'transform', 'extensions',
                                                'batch', 'silent', 'version', 'progress', 'stream_output',
-                                               'transformations_config', 'example_input', 'disable_mmap'},
+                                               'transformations_config', 'example_input', 'enable_mmap'},
             'Caffe*-specific parameters:': {'input_proto', 'caffe_parser_path', 'k', 'disable_omitting_optional',
                                             'enable_flattening_nested_params'},
             'TensorFlow*-specific parameters:': {'input_model_is_text', 'input_checkpoint', 'input_meta_graph',

@@ -47,7 +47,6 @@ def base_args_config(use_legacy_fe: bool = None, use_new_fe: bool = None):
     args.layout = None
     args.source_layout = None
     args.target_layout = None
-    args.disable_mmap = False
     return args
 
 

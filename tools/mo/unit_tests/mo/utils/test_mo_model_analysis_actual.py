@@ -50,7 +50,6 @@ def base_args_config():
         'onnx': 'legacy',
         'tf': 'legacy'
     }
-    args.disable_mmap = False
     return args
 
 
