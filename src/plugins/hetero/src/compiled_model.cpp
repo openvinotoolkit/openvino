@@ -35,7 +35,7 @@ ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model
     : ov::ICompiledModel(model, plugin),
       m_cfg(cfg),
       m_model(model),
-      m_name(model->get_name()),
+      m_name(model->get_friendly_name()),
       m_loaded_from_cache(loaded_from_cache) {
     try {
         bool dumpDotFile = m_cfg.dump_graph;
