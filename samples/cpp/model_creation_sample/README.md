@@ -2,6 +2,12 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to create a model on the fly with a 
+                 provided weights file and infer it later using Synchronous 
+                 Inference Request (C++) API.
+
+
 This sample demonstrates how to execute an synchronous inference using :doc:`model <openvino_docs_OV_UG_Model_Representation>` built on the fly which uses weights from LeNet classification model, which is known to work well on digit classification tasks.
 
 You do not need an XML file to create a model. The API of ov::Model allows creating a model on the fly from the source code.

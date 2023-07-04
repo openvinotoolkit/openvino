@@ -2,6 +2,11 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about ExperimentalDetectronTopKROIs-6 - a sorting and 
+                maximization operation, which can be performed on two required 
+                input tensors.
+
 **Versioned name**: *ExperimentalDetectronTopKROIs-6*
 
 **Category**: *Sorting and maximization*
