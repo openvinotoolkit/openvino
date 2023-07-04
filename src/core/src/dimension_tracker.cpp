@@ -4,7 +4,7 @@
 
 #include "dimension_tracker.hpp"
 
-void ov::TableOfEquivalence::set_as_equal(const ov::Dimension &lhs, const ov::Dimension &rhs) {
+void ov::TableOfEquivalence::set_as_equal(const ov::Dimension& lhs, const ov::Dimension& rhs) {
     const auto &l_label = ov::DimensionTracker::get_label(lhs), r_label = ov::DimensionTracker::get_label(rhs);
     dimension_table_of_equivalence[l_label].insert(r_label);
     dimension_table_of_equivalence[r_label].insert(l_label);

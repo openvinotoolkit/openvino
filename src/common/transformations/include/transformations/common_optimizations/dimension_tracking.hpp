@@ -46,7 +46,6 @@ public:
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };
 
-
 class ov::pass::SymbolicPOC : public ov::pass::ModelPass {
 public:
     OPENVINO_RTTI("SymbolicPOC");

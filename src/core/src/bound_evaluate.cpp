@@ -123,7 +123,8 @@ ov::Tensor evaluate_bound(const Output<Node>& output, bool is_upper, bool invali
                     if (labels_evaluated)
                         node->get_output_tensor(i).set_value_label(output_labels[i]);
                     else if (outputs[i])
-                        node->get_output_tensor(i).set_value_label(std::vector<ov::label_t>(shape_size(outputs[i].get_shape()), 0));
+                        node->get_output_tensor(i).set_value_label(
+                            std::vector<ov::label_t>(shape_size(outputs[i].get_shape()), 0));
                 }
 
                 for (const auto& input : input_values) {

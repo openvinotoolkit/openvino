@@ -374,43 +374,45 @@ static std::string pretty_value(const vector<T>& values, size_t max_elements, bo
     return ss.str();
 }
 
-std::string get_value(const shared_ptr<ov::op::v0::Constant>& constant, size_t max_elements, bool allow_obfuscate = false) {
+std::string get_value(const shared_ptr<ov::op::v0::Constant>& constant,
+                      size_t max_elements,
+                      bool allow_obfuscate = false) {
     std::stringstream ss;
     switch (constant->get_output_element_type(0)) {
-        case element::Type_t::undefined:
-            ss << "[ undefined value ]";
-            break;
-        case element::Type_t::dynamic:
-            ss << "[ dynamic value ]";
-            break;
-        case element::Type_t::u1:
-            ss << "[ u1 value ]";
-            break;
-        case element::Type_t::u4:
-            ss << "[ u4 value ]";
-            break;
-        case element::Type_t::i4:
-            ss << "[ i4 value ]";
-            break;
-        case element::Type_t::bf16:
-        case element::Type_t::f16:
-        case element::Type_t::f32:
-        case element::Type_t::f64:
-            ss << "[" << pretty_value(constant->cast_vector<double>(), max_elements, allow_obfuscate) << "]";
-            break;
-        case element::Type_t::i8:
-        case element::Type_t::i16:
-        case element::Type_t::i32:
-        case element::Type_t::i64:
-            ss << "[" << pretty_value(constant->cast_vector<int64_t>(), max_elements, allow_obfuscate) << "]";
-            break;
-        case element::Type_t::boolean:
-        case element::Type_t::u8:
-        case element::Type_t::u16:
-        case element::Type_t::u32:
-        case element::Type_t::u64:
-            ss << "[" << pretty_value(constant->cast_vector<uint64_t>(), max_elements, allow_obfuscate) << "]";
-            break;
+    case element::Type_t::undefined:
+        ss << "[ undefined value ]";
+        break;
+    case element::Type_t::dynamic:
+        ss << "[ dynamic value ]";
+        break;
+    case element::Type_t::u1:
+        ss << "[ u1 value ]";
+        break;
+    case element::Type_t::u4:
+        ss << "[ u4 value ]";
+        break;
+    case element::Type_t::i4:
+        ss << "[ i4 value ]";
+        break;
+    case element::Type_t::bf16:
+    case element::Type_t::f16:
+    case element::Type_t::f32:
+    case element::Type_t::f64:
+        ss << "[" << pretty_value(constant->cast_vector<double>(), max_elements, allow_obfuscate) << "]";
+        break;
+    case element::Type_t::i8:
+    case element::Type_t::i16:
+    case element::Type_t::i32:
+    case element::Type_t::i64:
+        ss << "[" << pretty_value(constant->cast_vector<int64_t>(), max_elements, allow_obfuscate) << "]";
+        break;
+    case element::Type_t::boolean:
+    case element::Type_t::u8:
+    case element::Type_t::u16:
+    case element::Type_t::u32:
+    case element::Type_t::u64:
+        ss << "[" << pretty_value(constant->cast_vector<uint64_t>(), max_elements, allow_obfuscate) << "]";
+        break;
     }
     return ss.str();
 }
@@ -493,9 +495,18 @@ string pass::VisualizeTree::get_attributes(shared_ptr<Node> node) {
                         OPENVINO_SUPPRESS_DEPRECATED_START
                         static const int const_max_elements = getenv_int("OV_VISUALIZE_TREE_CONST_MAX_ELEMENTS", 7);
                         OPENVINO_SUPPRESS_DEPRECATED_END
-                        label << " lower: " << (lower ? get_value(std::make_shared<ov::op::v0::Constant>(lower), const_max_elements, true) : "NONE");
-                        label << " upper: " << (upper ? get_value(std::make_shared<ov::op::v0::Constant>(upper), const_max_elements, true) : "NONE");
-                        label << " label: " << (value_label.empty() ? "NONE" : pretty_value(value_label, const_max_elements));
+                        label << " lower: "
+                              << (lower ? get_value(std::make_shared<ov::op::v0::Constant>(lower),
+                                                    const_max_elements,
+                                                    true)
+                                        : "NONE");
+                        label << " upper: "
+                              << (upper ? get_value(std::make_shared<ov::op::v0::Constant>(upper),
+                                                    const_max_elements,
+                                                    true)
+                                        : "NONE");
+                        label << " label: "
+                              << (value_label.empty() ? "NONE" : pretty_value(value_label, const_max_elements));
                     }
                 }
             }

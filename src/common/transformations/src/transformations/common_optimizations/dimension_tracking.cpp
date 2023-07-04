@@ -14,8 +14,8 @@
 #include "dimension_tracker.hpp"
 #include "itt.hpp"
 #include "openvino/pass/manager.hpp"
-#include "openvino/pass/visualize_tree.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/pass/visualize_tree.hpp"
 
 void ov::batch_util::mark_with_unique_dimension_labels(const std::shared_ptr<ov::Model>& f,
                                                        const ov::DimensionTracker& dt) {
@@ -302,8 +302,7 @@ bool ov::pass::FindBatch::run_on_model(const std::shared_ptr<ov::Model>& m) {
 // count the number of Operation that would be needed to be shape-inference-ed to get all the dimensions
 //
 
-void shape_work(ov::DimensionTracker& dt,
-                ov::PartialShape& shape) {
+void shape_work(ov::DimensionTracker& dt, ov::PartialShape& shape) {
     if (shape.rank().is_dynamic())
         return;
     for (auto& d : shape) {
@@ -313,8 +312,8 @@ void shape_work(ov::DimensionTracker& dt,
     }
 }
 
-bool ov::pass::SymbolicPOC::run_on_model(const std::shared_ptr<ov::Model> &m) {
-//    size_t curr_label = 1; // must be a field in this class to pass to the body
+bool ov::pass::SymbolicPOC::run_on_model(const std::shared_ptr<ov::Model>& m) {
+    //    size_t curr_label = 1; // must be a field in this class to pass to the body
     auto te = std::make_shared<ov::TableOfEquivalence>();
     ov::DimensionTracker dt(te);
 
@@ -323,7 +322,7 @@ bool ov::pass::SymbolicPOC::run_on_model(const std::shared_ptr<ov::Model> &m) {
     for (const auto& op : m->get_ordered_ops()) {
         bool shape_infer_op = false;
         op->invalidate_values();
-        for (auto &output: op->outputs()) {
+        for (auto& output : op->outputs()) {
             output.get_rt_info()["SKIP_INVALIDATION"] = true;
             output.get_rt_info()["TABLE_OF_EQUIVALENCE"] = te;
         }
@@ -347,8 +346,8 @@ bool ov::pass::SymbolicPOC::run_on_model(const std::shared_ptr<ov::Model> &m) {
     for (const auto& op : m->get_ordered_ops()) {
         bool shape_infer_op = false;
         for (auto& output : op->outputs()) {
-//            if (output.get_rt_info().count("SKIP_INVALIDATION"))
-//                output.get_rt_info().erase("SKIP_INVALIDATION");
+            //            if (output.get_rt_info().count("SKIP_INVALIDATION"))
+            //                output.get_rt_info().erase("SKIP_INVALIDATION");
             for (const auto& dim : output.get_partial_shape()) {
                 if (dim.is_static())
                     continue;
@@ -364,10 +363,10 @@ bool ov::pass::SymbolicPOC::run_on_model(const std::shared_ptr<ov::Model> &m) {
         new_num_ops_to_shape_infer += size_t(shape_infer_op);
     }
     std::cout << "new_num_ops_to_shape_infer = " << new_num_ops_to_shape_infer << std::endl;
-    std::cout << "Percent: " << size_t(float(new_num_ops_to_shape_infer) / float(num_ops_to_shape_infer) * 100) << "%" << std::endl;
+    std::cout << "Percent: " << size_t(float(new_num_ops_to_shape_infer) / float(num_ops_to_shape_infer) * 100) << "%"
+              << std::endl;
     return false;
 }
-
 
 ov::pass::ChainedMaximumOptimization::ChainedMaximumOptimization() {
     MATCHER_SCOPE(ChainedMaximumOptimization);
@@ -384,7 +383,9 @@ ov::pass::ChainedMaximumOptimization::ChainedMaximumOptimization() {
         auto third_labels = pattern_to_output.at(third_input).get_tensor().get_value_label();
 
         auto valid_labels = [](const ov::TensorLabel& labels) {
-            return !labels.empty() && std::all_of(labels.begin(), labels.end(), [](const label_t& l){ return l != 0;});
+            return !labels.empty() && std::all_of(labels.begin(), labels.end(), [](const label_t& l) {
+                return l != 0;
+            });
         };
         bool replaced = false;
         auto intermidiate = pattern_to_output.at(upper_max_label);
@@ -418,7 +419,9 @@ ov::pass::NopBroadcast::NopBroadcast() {
         if (!constant)
             return false;
         auto valid_labels = [](const ov::TensorLabel& labels) {
-            return !labels.empty() && std::all_of(labels.begin(), labels.end(), [](const label_t& l){ return l != 0;});
+            return !labels.empty() && std::all_of(labels.begin(), labels.end(), [](const label_t& l) {
+                return l != 0;
+            });
         };
         auto shape_of_labels = pattern_to_output.at(shape_of).get_tensor().get_value_label();
         if (!valid_labels(shape_of_labels))
@@ -433,7 +436,9 @@ ov::pass::NopBroadcast::NopBroadcast() {
         if (!valid_labels(input_labels))
             return false;
         auto constant_content = constant->cast_vector<int64_t>();
-        bool all_ones = std::all_of(constant_content.begin(), constant_content.end(), [](const int64_t& i){ return i == 1; });
+        bool all_ones = std::all_of(constant_content.begin(), constant_content.end(), [](const int64_t& i) {
+            return i == 1;
+        });
         if (constant_content.size() > input.get_partial_shape().size() || !all_ones)
             return false;
         auto output = pattern_to_output.at(broadcast);
@@ -461,7 +466,7 @@ bool reshape_keeps_last_two_dims(const std::shared_ptr<ov::Node>& op) {
         return false;
     if (after.rank().is_dynamic() || after.size() < 2)
         return false;
-    for (size_t i = 2; i > 0 ; --i)
+    for (size_t i = 2; i > 0; --i)
         if (!labels_eq_or_eq_static_dims(before[before.size() - i], after[after.size() - i]))
             return false;
     return true;
@@ -470,12 +475,12 @@ bool reshape_keeps_last_two_dims(const std::shared_ptr<ov::Node>& op) {
 bool batches_are_equal(const std::shared_ptr<ov::Node>& op_0, const std::shared_ptr<ov::Node>& op_1) {
     auto input_0 = op_0->get_input_partial_shape(0);
     auto input_1 = op_1->get_input_partial_shape(0);
-    for (size_t i = 0; i < input_0.size() - 2; ++i) // we are sure of its rank
+    for (size_t i = 0; i < input_0.size() - 2; ++i)  // we are sure of its rank
         if (!labels_eq_or_eq_static_dims(input_0[i], input_1[i]))
             return false;
     auto output_0 = op_0->get_output_partial_shape(0);
     auto output_1 = op_1->get_output_partial_shape(0);
-    for (size_t i = 0; i < output_0.size() - 2; ++i) // we are sure of its rank
+    for (size_t i = 0; i < output_0.size() - 2; ++i)  // we are sure of its rank
         if (!labels_eq_or_eq_static_dims(output_0[i], output_1[i]))
             return false;
     return true;
@@ -493,7 +498,8 @@ bool pass_labels_through(const ov::Output<ov::Node>& input, const ov::Output<ov:
     return true;
 }
 
-bool output_has_single_target_input_and_its_bea_node_has_only_one_output_on_zero_port(const ov::Output<ov::Node>& output) {
+bool output_has_single_target_input_and_its_bea_node_has_only_one_output_on_zero_port(
+    const ov::Output<ov::Node>& output) {
     auto target_inputs = output.get_target_inputs();
     if (target_inputs.size() != 1)
         return false;
@@ -507,13 +513,12 @@ bool output_has_single_target_input_and_its_bea_node_has_only_one_output_on_zero
     return true;
 }
 
-
 ov::pass::DeReshapeMatMul::DeReshapeMatMul() {
     MATCHER_SCOPE(DeReshapeMatMul);
     auto reshape_0 = pattern::wrap_type<opset1::Reshape>(pattern::has_static_rank());
     auto reshape_1 = pattern::wrap_type<opset1::Reshape>(pattern::has_static_rank());
     auto matmul = pattern::wrap_type<opset1::MatMul>({reshape_0, reshape_1});
-5
+
     ov::matcher_pass_callback matcher_pass_callback = [=](pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
 
@@ -524,9 +529,11 @@ ov::pass::DeReshapeMatMul::DeReshapeMatMul() {
         auto reshape_1_node = pattern_to_output.at(reshape_1).get_node_shared_ptr();
         auto matmul_node = pattern_to_output.at(matmul).get_node_shared_ptr();
         std::cout << "MM matched" << std::endl;
-        if (reshape_0_node->get_input_partial_shape(0).rank().is_dynamic() || reshape_0_node->get_output_partial_shape(0).rank().is_dynamic())
+        if (reshape_0_node->get_input_partial_shape(0).rank().is_dynamic() ||
+            reshape_0_node->get_output_partial_shape(0).rank().is_dynamic())
             return false;
-        if (reshape_1_node->get_input_partial_shape(0).rank().is_dynamic() || reshape_1_node->get_output_partial_shape(0).rank().is_dynamic())
+        if (reshape_1_node->get_input_partial_shape(0).rank().is_dynamic() ||
+            reshape_1_node->get_output_partial_shape(0).rank().is_dynamic())
             return false;
         if (reshape_0_node->get_input_partial_shape(0).size() != reshape_1_node->get_input_partial_shape(0).size())
             return false;
@@ -547,13 +554,14 @@ ov::pass::DeReshapeMatMul::DeReshapeMatMul() {
             output = next_output;
             nodes_for_revalidation.push_back(output.get_node());
         }
-        // to reduce number of Reshapes -- searching for Reshape on the output of the MatMul skipping nodes which don't influence output
+        // to reduce number of Reshapes -- searching for Reshape on the output of the MatMul skipping nodes which don't
+        // influence output
         std::cout << output.get_node_shared_ptr() << std::endl;
         if (output.get_target_inputs().size() == 1)
             return false;
         auto reshape_output = ov::as_type<opset1::Reshape>(output.get_target_inputs().begin()->get_node());
         if (!reshape_output)
-            return false; // we didn't find Reshape back on the output of the MatMul
+            return false;  // we didn't find Reshape back on the output of the MatMul
 
         matmul_node->input(0).replace_source_output(reshape_0_node->input_value(0));
         matmul_node->input(1).replace_source_output(reshape_1_node->input_value(0));
@@ -568,7 +576,7 @@ ov::pass::DeReshapeMatMul::DeReshapeMatMul() {
     register_matcher(m, matcher_pass_callback);
 }
 
-bool ov::pass::SymbolicOptimizations::run_on_model(const std::shared_ptr<ov::Model> &m) {
+bool ov::pass::SymbolicOptimizations::run_on_model(const std::shared_ptr<ov::Model>& m) {
     RUN_ON_FUNCTION_SCOPE(SymbolicOptimizations);
     ov::pass::Manager manager(get_pass_config());
     manager.set_per_pass_validation(false);

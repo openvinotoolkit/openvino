@@ -4,9 +4,9 @@
 
 #include "openvino/core/descriptor/tensor.hpp"
 
+#include "dimension_tracker.hpp"
 #include "ngraph/node.hpp"
 #include "openvino/core/except.hpp"
-#include "dimension_tracker.hpp"
 
 using namespace std;
 
@@ -82,7 +82,8 @@ void ov::descriptor::Tensor::set_value_label(const TensorLabel& value_label) {
         m_value_label = value_label;
 
         if (m_rt_info.count("TABLE_OF_EQUIVALENCE")) {
-            std::shared_ptr<ov::TableOfEquivalence> table = m_rt_info["TABLE_OF_EQUIVALENCE"].as<std::shared_ptr<ov::TableOfEquivalence>>();
+            std::shared_ptr<ov::TableOfEquivalence> table =
+                m_rt_info["TABLE_OF_EQUIVALENCE"].as<std::shared_ptr<ov::TableOfEquivalence>>();
             if (table) {
                 for (auto& label : m_value_label) {
                     if (!label)
