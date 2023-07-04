@@ -28,6 +28,12 @@ public:
     ReshapeToUnsqueeze();
 };
 
+class ReshapeReduction : public ov::pass::ModelPass {
+public:
+    OPENVINO_RTTI("ReshapeReduction", "0");
+    bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
+};
+
 }  // namespace pass
 }  // namespace intel_gna
 }  // namespace ov

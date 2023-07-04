@@ -9,6 +9,7 @@
 #include "openvino/opsets/opset11.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/transformation_helper.hpp"
+#include "openvino/pass/manager.hpp"
 
 using namespace ov::opset11;
 using namespace ov::pass;
@@ -151,4 +152,15 @@ ReshapeFuse::ReshapeFuse() {
 
     auto m = std::make_shared<pattern::Matcher>(reshape_out_pattern, matcher_name);
     this->register_matcher(m, callback);
+}
+
+bool ReshapeReduction::run_on_model(const std::shared_ptr<ov::Model>& m) {
+    RUN_ON_MODEL_SCOPE(ReshapeReduction);
+
+    ov::pass::Manager manager(get_pass_config());
+    manager.register_pass<ReshapeFuse>();
+    manager.register_pass<ReshapeToSqueeze>();
+    manager.register_pass<ReshapeToUnsqueeze>();
+
+    return manager.run_passes(m);
 }

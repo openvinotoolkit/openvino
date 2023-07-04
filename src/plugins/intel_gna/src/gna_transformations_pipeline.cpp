@@ -33,6 +33,7 @@
 #include "transformations/decompose_mvn.hpp"
 #include "transformations/fp16_compression/convert_compression_only_to_legacy.hpp"
 #include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
+#include "transformations/fuse_conv_bias_activation.hpp"
 #include "transformations/gather_sinking.hpp"
 #include "transformations/gather_sinking_transpose.hpp"
 #include "transformations/gather_sinking_transpose_reshape.hpp"
@@ -127,10 +128,9 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
     manager.register_pass<ov::intel_gna::pass::InsertReshapeAroundMatmulWithFq>();
     manager.register_pass<ov::intel_gna::pass::InsertReshapeAroundMatmulWithAdd>();
     manager.register_pass<ov::intel_gna::pass::InsertReshapeAroundMatmul>();
+    // TODO:: fm network contains convolutions
     // if (!has_convolution) {
-        manager.register_pass<ov::intel_gna::pass::ReshapeFuse>();
-        manager.register_pass<ov::intel_gna::pass::ReshapeToSqueeze>();
-        manager.register_pass<ov::intel_gna::pass::ReshapeToUnsqueeze>();
+        manager.register_pass<ov::intel_gna::pass::ReshapeReduction>();
         manager.register_pass<ov::intel_gna::pass::ConvertMatmulWithFqToPointWiseConvolution>();
         manager.register_pass<ov::intel_gna::pass::ConvertMatmulWithBiasToPointWiseConvolution>();
         manager.register_pass<ov::intel_gna::pass::ConvertMatmulToPointWiseConvolution>();
@@ -152,24 +152,23 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
     if (has_convolution || has_maxpool || has_mvn || has_matmul) {
         manager.register_pass<ov::intel_gna::pass::ReplaceGnaNHWCLayers>();
         manager.register_pass<ov::intel_gna::pass::InsertConvolutionTransposeHW>();
-        manager.register_pass<ov::intel_gna::pass::ReshapeFuse>();
-        manager.register_pass<ov::intel_gna::pass::ReshapeToSqueeze>();
-        manager.register_pass<ov::intel_gna::pass::ReshapeToUnsqueeze>();
+        manager.register_pass<ov::intel_gna::pass::ReshapeReduction>();
         manager.register_pass<ov::pass::TransposeSinkingGeneral>();
         manager.register_pass<ov::intel_gna::pass::Transpose2D>();
         manager.register_pass<ov::intel_gna::pass::ReplaceBigTranspose>();
-        manager.register_pass<ov::intel_gna::pass::ReshapeFuse>();
+        manager.register_pass<ov::intel_gna::pass::ReshapeReduction>();
         manager.register_pass<ov::pass::transpose_sinking::TSFuse>();
         // rare cases when we can replace unsupported transpose by gather
-        // manager.register_pass<ov::intel_gna::pass::TSConcatForward>();
-        // manager.register_pass<ov::intel_gna::pass::TSSplitBackward>();
-        // manager.register_pass<ov::intel_gna::pass::GatherSinkingTransposeReshapeForward>();
-        // manager.register_pass<ov::intel_gna::pass::GatherSinkingTransposeReshapeBackward>();
-        // manager.register_pass<ov::intel_gna::pass::GatherSinkingTranspose>();
-        manager.register_pass<ov::intel_gna::pass::ReshapeFuse>();
+        manager.register_pass<ov::intel_gna::pass::TSConcatForward>();
+        manager.register_pass<ov::intel_gna::pass::TSSplitBackward>();
+        manager.register_pass<ov::intel_gna::pass::GatherSinkingTransposeReshapeForward>();
+        manager.register_pass<ov::intel_gna::pass::GatherSinkingTransposeReshapeBackward>();
+        manager.register_pass<ov::intel_gna::pass::GatherSinkingTranspose>();
+        manager.register_pass<ov::intel_gna::pass::ReshapeReduction>();
         manager.register_pass<ov::intel_gna::pass::GatherSinkingGeneral>();
         manager.register_pass<ov::pass::TransposeToReshape>();
-        // manager.register_pass<ov::intel_gna::pass::GnaConvolutionFusion>();
+        // TODO: crashes with fm network
+        manager.register_pass<ov::intel_gna::pass::GnaConvolutionFusion>();
     }
     manager.register_pass<ov::intel_gna::pass::ReplaceBigTranspose>();
     manager.register_pass<ov::intel_gna::pass::RemoveInputsProcessing>(input_output_subgraphs);
@@ -374,6 +373,7 @@ void TransformationsPipeline::apply_legacy(const InferenceEngine::CNNNetwork& ne
     passes->registerPass<InsertDiagonalLayerPass>();
     passes->registerPass<HandleMultipleActivationsForTheLayerPass>();
     passes->registerPass<ForbidActivationFusingPass>();
+    //TODO: crashes with fm network
     // passes->registerPass<FuseMultipleIdentitiesPass>();
     passes->registerPass<FuseFullyConnectedWithEltwisePass>();
     legacy_pass_index = passes->run(legacy_pass_index);
