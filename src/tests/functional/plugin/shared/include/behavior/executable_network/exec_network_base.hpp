@@ -334,13 +334,13 @@ TEST_P(ExecutableNetworkBaseTest, loadIncorrectV10Model) {
 
     // Create simple function
     {
-        auto param1 = std::make_shared<ov::opset8::Parameter>(ov::element::Type_t::f32, ov::Shape({1, 3, 24, 24}));
+        auto param1 = std::make_shared<ov::op::v0::Parameter>(ov::element::Type_t::f32, ov::Shape({1, 3, 24, 24}));
         param1->set_friendly_name("param1");
         param1->output(0).get_tensor().set_names({"data1"});
-        auto relu = std::make_shared<ov::opset8::Relu>(param1);
+        auto relu = std::make_shared<ov::op::v0::Relu>(param1);
         relu->set_friendly_name("data1");
         relu->output(0).get_tensor().set_names({"relu"});
-        auto result = std::make_shared<ov::opset8::Result>(relu);
+        auto result = std::make_shared<ov::op::v0::Result>(relu);
         result->set_friendly_name("result");
         function = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param1});
         function->get_rt_info()["version"] = int64_t(10);
@@ -357,13 +357,13 @@ TEST_P(ExecutableNetworkBaseTest, loadIncorrectV11Model) {
 
     // Create simple function
     {
-        auto param1 = std::make_shared<ov::opset8::Parameter>(ov::element::Type_t::f32, ov::Shape({1, 3, 24, 24}));
+        auto param1 = std::make_shared<ov::op::v0::Parameter>(ov::element::Type_t::f32, ov::Shape({1, 3, 24, 24}));
         param1->set_friendly_name("param1");
         param1->output(0).get_tensor().set_names({"data1"});
-        auto relu = std::make_shared<ov::opset8::Relu>(param1);
+        auto relu = std::make_shared<ov::op::v0::Relu>(param1);
         relu->set_friendly_name("data1");
         relu->output(0).get_tensor().set_names({"relu"});
-        auto result = std::make_shared<ov::opset8::Result>(relu);
+        auto result = std::make_shared<ov::op::v0::Result>(relu);
         result->set_friendly_name("result");
         function = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param1});
         function->get_rt_info()["version"] = int64_t(11);

@@ -342,8 +342,9 @@ network::network(program::ptr program, const ExecutionConfig& config, stream::pt
 network::network(engine& engine,
                  const topology& topo,
                  const ExecutionConfig& config,
-                 bool is_internal)
-    : network(program::build_program(engine, topo, config, is_internal), config, engine.create_stream(config), is_internal) {}
+                 bool is_internal,
+                 InferenceEngine::CPUStreamsExecutor::Ptr task_executor)
+    : network(program::build_program(engine, topo, config, task_executor, is_internal), config, engine.create_stream(config), is_internal) {}
 
 network::network(engine& engine,
                  const std::set<std::shared_ptr<program_node>>& nodes,
@@ -653,8 +654,9 @@ network::ptr network::allocate_network(engine& engine, program::ptr program, boo
 network::ptr network::build_network(engine& engine,
                                     const topology& topology,
                                     const ExecutionConfig& config,
+                                    std::shared_ptr<InferenceEngine::CPUStreamsExecutor> task_executor,
                                     bool is_internal) {
-    return std::make_shared<network>(engine, topology, config, is_internal);
+    return std::make_shared<network>(engine, topology, config, is_internal, task_executor);
 }
 
 network::ptr network::build_network(engine& engine,
@@ -1449,8 +1451,16 @@ void network::allocate_primitive_instance(program_node const& node) {
         if (node.is_type<data>())
             _data_outputs.push_back(inst);
     }
-    if (std::dynamic_pointer_cast<assign_inst>(inst) || std::dynamic_pointer_cast<read_value_inst>(inst))
+    if (node.is_type<assign>() || node.is_type<read_value>()) {
+        if (node.is_type<assign>()) {
+            auto assign_prim = node.as<assign>().get_primitive();
+            set_variables_state_info(assign_prim->variable_id, assign_prim->output_layout);
+        } else {
+            auto read_value_prim = node.as<read_value>().get_primitive();
+            set_variables_state_info(read_value_prim->variable_id, read_value_prim->output_layout);
+        }
         _variable_state_primitives.push_back(inst);
+    }
     if (node.is_constant())
         transfer_memory_to_device(inst, node);
 }
@@ -1505,6 +1515,55 @@ void network::assign_variables_memories(variables_states_map &&variables_memorie
             else
                 CLDNN_ERROR_MESSAGE(memory_state_primitive->variable_id(), "Memory state not found");
         }
+    }
+}
+
+void network::assign_variables_memories() {
+    for (auto primitive : _variable_state_primitives) {
+        if (const auto& memory_state_primitive = std::dynamic_pointer_cast<memory_state::variable>(primitive)) {
+            auto it = _variables_states.find(memory_state_primitive->variable_id());
+            if (it != _variables_states.end()) {
+                primitive->set_output_memory(it->second->memory, false);
+            }
+        }
+    }
+}
+
+void network::update_variable_memory(const std::string& variable_id, const cldnn::layout& layout) {
+    auto it = _variables_states.find(variable_id);
+    if (it == _variables_states.end()) {
+        cldnn::network::VariableState::Ptr variable_state = std::make_shared<cldnn::network::VariableState>(get_engine().allocate_memory(layout, false));
+        _variables_states.insert({variable_id, variable_state});
+    } else {
+        bool can_reuse = it->second->memory && layout.count() <= it->second->memory->get_layout().count();
+        if (can_reuse)
+            it->second->set_memory(get_engine().reinterpret_buffer(*it->second->memory, layout));
+        else
+            it->second->set_memory(get_engine().allocate_memory(layout, false));
+    }
+    for (auto primitive : _variable_state_primitives) {
+        if (const auto& memory_state_primitive = std::dynamic_pointer_cast<memory_state::variable>(primitive)) {
+            if (!variable_id.compare(memory_state_primitive->variable_id())) {
+                auto& variable_state = get_variable_memory(variable_id);
+                primitive->set_output_memory(variable_state.memory, false);
+            }
+        }
+    }
+}
+
+void network::allocate_variables_memories() {
+    for (const auto& info : _variables_state_info) {
+        auto variable_layout = info.second;
+        if (variable_layout.is_static()) {
+            _variables_states.insert({info.first, std::make_shared<cldnn::network::VariableState>(get_engine().allocate_memory(variable_layout, false))});
+        }
+    }
+}
+
+void network::set_variables_state_info(const std::string& variable_id, const cldnn::layout& layout) {
+    auto it = _variables_state_info.find(variable_id);
+    if (it == _variables_state_info.end()) {
+        _variables_state_info.insert({variable_id, layout});
     }
 }
 

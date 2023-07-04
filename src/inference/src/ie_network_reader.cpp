@@ -181,6 +181,10 @@ CNNNetwork load_ir_v7_network(const std::string& modelPath,
     std::string model_path = modelPath;
 #    endif
 
+    if (ov::util::directory_exists(modelPath)) {
+        return {};
+    }
+
     // Try to open model file
     std::ifstream modelStream(model_path.c_str(), std::ios::binary);
     if (!modelStream.is_open())
