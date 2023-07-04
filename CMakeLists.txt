@@ -124,7 +124,7 @@ endif()
 include(thirdparty/dependencies.cmake)
 add_subdirectory(src)
 
-if(ENABLE_SAMPLES OR ENABLE_TESTS OR ENABLE_COMPILE_TOOL)
+if(ENABLE_SAMPLES OR ENABLE_TESTS)
     add_subdirectory(samples)
 endif()
 

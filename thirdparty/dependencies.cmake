@@ -362,7 +362,7 @@ endif()
 # Gflags
 #
 
-if(ENABLE_SAMPLES OR ENABLE_COMPILE_TOOL OR ENABLE_TESTS)
+if(ENABLE_SAMPLES OR ENABLE_TESTS)
     if(CMAKE_TOOLCHAIN_FILE MATCHES "vcpkg          " OR DEFINED VCPKG_VERBOSE OR
        CMAKE_TOOLCHAIN_FILE MATCHES "conan_toolchain" OR DEFINED CONAN_EXPORTED)
         # vcpkg contains only libs compiled with threads
@@ -628,7 +628,7 @@ endif()
 
 if(CPACK_GENERATOR MATCHES "^(DEB|RPM|CONDA-FORGE|BREW|CONAN|VCPKG)$")
     # These libraries are dependencies for openvino-samples package
-    if(ENABLE_SAMPLES OR ENABLE_COMPILE_TOOL OR ENABLE_TESTS)
+    if(ENABLE_SAMPLES OR ENABLE_TESTS)
         if(NOT gflags_FOUND AND CPACK_GENERATOR MATCHES "^(DEB|RPM)$")
             message(FATAL_ERROR "gflags must be used as a ${CPACK_GENERATOR} package. Install libgflags-dev / gflags-devel")
         endif()

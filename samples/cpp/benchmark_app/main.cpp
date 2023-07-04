@@ -95,8 +95,7 @@ bool parse_and_check_command_line(int argc, char* argv[]) {
     bool isPrecisionSet = !(FLAGS_ip.empty() && FLAGS_op.empty() && FLAGS_iop.empty());
     if (isNetworkCompiled && isPrecisionSet) {
         std::string err = std::string("Cannot set precision for a compiled model. ") +
-                          std::string("Please re-compile your model with required precision "
-                                      "using compile_tool");
+                          std::string("Please re-compile your model with required precision.");
 
         throw std::logic_error(err);
     }
