@@ -60,8 +60,6 @@ ov::ICompiledModel::ICompiledModel(const std::shared_ptr<const ov::Model>& model
                 leaf_names.insert(param_name);
                 param->output(0).get_tensor().add_names({param_name});
                 new_param->output(0).get_tensor().add_names({param_name});
-            } else {
-                new_param->output(0).get_tensor().set_names({param_name});
             }
             new_param->set_element_type(param->get_element_type());
             new_param->set_layout(param->get_layout());
@@ -86,8 +84,6 @@ ov::ICompiledModel::ICompiledModel(const std::shared_ptr<const ov::Model>& model
                 leaf_names.insert(res_name);
                 result->output(0).get_tensor().add_names({res_name});
                 new_result->output(0).get_tensor().add_names({res_name});
-            } else {
-                new_result->output(0).get_tensor().set_names({res_name});
             }
             auto r = std::dynamic_pointer_cast<ov::op::v0::Result>(new_result);
             r->set_layout(result->get_layout());
