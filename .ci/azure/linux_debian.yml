@@ -355,6 +355,7 @@ jobs:
       # TODO: fix 'No mock frontend API available'
       $(TEST_VENV)/bin/python3 -m pip install openvino-dev --find-links=$(INSTALL_DIR)/tools
       $(TEST_VENV)/bin/python3 -m pytest -s $(INSTALL_TEST_DIR)/mo/unit_tests --junitxml=$(INSTALL_TEST_DIR)/TEST-ModelOptimizer.xml
+      PYTHONPATH: $(REPO_DIR)/tools/ovc/
     displayName: 'Model Optimizer UT'
 
   # run not all smoke filter to save time in post-commit
