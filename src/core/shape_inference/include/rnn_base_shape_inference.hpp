@@ -205,15 +205,15 @@ std::vector<TShape> rnn_seq_base_shape_infer(const op::util::RNNCellBase* op,
     bool is_num_dir_valid = true;
     DimType merged_num_directions = DimType(valid_num_directions);
     for (size_t i = 1; i <= num_state_nodes; ++i) {
-        is_num_dir_valid = DimType::merge(merged_num_directions,
-                                          merged_num_directions,
-                                          input_shapes[i].rank().is_static() ? input_shapes[i][1] : DimType());
+        is_num_dir_valid &= DimType::merge(merged_num_directions,
+                                           merged_num_directions,
+                                           input_shapes[i].rank().is_static() ? input_shapes[i][1] : DimType());
     }
 
     for (size_t i = 2 + num_state_nodes; i < num_inputs; ++i) {
-        is_num_dir_valid = DimType::merge(merged_num_directions,
-                                          merged_num_directions,
-                                          input_shapes[i].rank().is_static() ? input_shapes[i][0] : DimType());
+        is_num_dir_valid &= DimType::merge(merged_num_directions,
+                                           merged_num_directions,
+                                           input_shapes[i].rank().is_static() ? input_shapes[i][0] : DimType());
     }
 
     NODE_VALIDATION_CHECK(op,
