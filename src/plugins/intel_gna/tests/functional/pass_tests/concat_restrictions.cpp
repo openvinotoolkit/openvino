@@ -506,7 +506,7 @@ using TransposeTransposeConcatPos = ConcatRestrictions<TransposeTransposeConcat>
 //     ExpectLoadNetworkToThrow(getMatch());
 // };
 //
-//TEST_P(ReLUConcatRestrictionsPos, CompareWithRefImpl) {
+// TEST_P(ReLUConcatRestrictionsPos, CompareWithRefImpl) {
 //    Run();
 //};
 
