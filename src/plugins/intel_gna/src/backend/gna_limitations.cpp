@@ -871,7 +871,8 @@ bool Limitations::is_concat_supported(const std::shared_ptr<const ov::Node>& nod
     auto axis = concat_node->get_axis();
 
     std::function<bool(std::shared_ptr<ov::Node>)> is_skipped_layer = [](std::shared_ptr<ov::Node> node) {
-        return graph_utils::is_non_functional(node) || graph_utils::is_copy(node) || graph_utils::is_identity(node);
+        return graph_utils::is_non_functional(node) || graph_utils::is_split(node) || graph_utils::is_copy(node) ||
+               graph_utils::is_activation(node);
     };
 
     size_t skipped_ops_count = 0;
@@ -892,6 +893,7 @@ bool Limitations::is_concat_supported(const std::shared_ptr<const ov::Node>& nod
     if (skipped_ops_count == concat_node->inputs().size()) {
         is_supported = true;
     } else if (is_interleaved) {
+        // TODO: need to extend interleaved layers detection patterns when migration to ngraph is finished.
         // make interleaved shape
         ov::Shape tr_shape(concat_shape_out);
         std::rotate(tr_shape.begin(), tr_shape.begin() + 1, tr_shape.end());

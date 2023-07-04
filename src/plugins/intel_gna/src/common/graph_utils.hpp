@@ -279,8 +279,13 @@ inline bool is_fully_connected(const std::shared_ptr<ov::Node>& node) {
     return std::dynamic_pointer_cast<ngraph::op::FullyConnected>(node) != nullptr;
 }
 
+inline bool is_split(const std::shared_ptr<ov::Node>& node) {
+    return std::dynamic_pointer_cast<ov::opset12::Split>(node) != nullptr ||
+           std::dynamic_pointer_cast<ov::opset12::VariadicSplit>(node) != nullptr;
+}
+
 inline bool is_interleaved(const std::shared_ptr<ov::Node>& node) {
-    return is_relu(node) || is_matmul(node) || is_fully_connected(node);
+    return is_matmul(node) || is_fully_connected(node);
 }
 
 inline bool is_gna_precision_agnostic(std::shared_ptr<ngraph::Node> node) {
