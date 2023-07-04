@@ -81,7 +81,7 @@ pass::BrgemmToBrgemmCPU::BrgemmToBrgemmCPU() {
         // Ticket: 113745
         // TODO: make the block size configurable
         const size_t block_size_m = 32;
-        const size_t block_size_k = 64;
+        const size_t block_size_k = K > 1024 ? 1024 : K > 512 ? 512 : K;
         const size_t block_size_n = 64;
 
         std::shared_ptr<BrgemmCPU> brgemm_cpu = nullptr;

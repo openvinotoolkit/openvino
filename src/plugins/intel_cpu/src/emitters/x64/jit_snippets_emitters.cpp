@@ -777,7 +777,7 @@ BrgemmEmitter::BrgemmEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl:
 
     const size_t fp32_N_blk = brgemm_node->get_n_block_size();
     const size_t fp32_K_blk = brgemm_node->get_k_block_size();
-    m_N_blk = brg1Prc == Precision::FP32 ? fp32_N_blk : std::max(m_N, fp32_N_blk);
+    m_N_blk = brg1Prc == Precision::FP32 ? fp32_N_blk : m_N;
     m_K_blk = brg1Prc == Precision::FP32 ? fp32_K_blk : m_K;
     m_N_tail = m_N % m_N_blk;
     m_K_tail = m_K % m_K_blk;
