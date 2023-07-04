@@ -13,6 +13,7 @@
 #include "reshape_inst.h"
 #include "arg_max_min_inst.h"
 #include "shape_of_inst.h"
+#include "condition_inst.h"
 #include <sstream>
 
 #include "gemm_inst.h"
@@ -1263,7 +1264,7 @@ bool layout_optimizer::are_data_types_suitable_for_onednn(program_node& node) {
         return onednn_check_data_types_for_deconvolution(in_dt, wei_dt, out_dt);
     } else if (node.is_type<fully_connected>() || node.is_type<gemm>()) {
         bool is_fc = node.is_type<fully_connected>();
-        auto wei_dt = is_fc ? node.as<fully_connected>().weights().get_output_layout().data_type :
+        auto wei_dt = is_fc ? node.as<fully_connected>().weights().get_output_layout(false).data_type :
                               node.as<gemm>().get_input_layout(1).data_type;
         return onednn_check_data_types_for_fc_gemm(in_dt, wei_dt, out_dt);
     } else if (node.is_type<reorder>()) {
@@ -1410,6 +1411,8 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
 
     if (!_forcing_map.empty() && _forcing_map.count(node.id()) != 0) {
         preferred_impl = _forcing_map.at(node.id()).second;
+    } else if (node.is_type<condition>()) {
+        preferred_impl = impl_types::common;
     } else if (node.is_type<detection_output>()) {
         const auto& program = node.get_program();
         const auto& device_info = program.get_engine().get_device_info();
@@ -1688,7 +1691,8 @@ format layout_optimizer::get_preferred_format(program_node& node) {
     } else if (node.is_type<resample>()) {
         // if the resample is in the last part of the network and there are no users using blocked format,
         // it is better to reorder to bfyx before resample is done.
-        if (all_users_simple_format_until_output(node, node, 0, 10)) {
+        // Skip all user format check when node is dynamic. It could cause endless recursive call in get_preferred_foramt()
+        if (!node.is_dynamic() && all_users_simple_format_until_output(node, node, 0, 10)) {
             const auto& dim = format::dimension(node.get_output_layout().format);
             expected = format::get_default_format(dim, false, false);
         } else {

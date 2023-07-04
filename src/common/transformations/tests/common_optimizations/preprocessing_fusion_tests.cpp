@@ -691,10 +691,10 @@ TEST_F(TransformationTestsF, RICFusionSplitConcatDetectionNegative3) {
 
 TEST_F(TransformationTestsF, FuseConvertLayout) {
     {
-        auto input = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 64});
-        auto order = ngraph::opset6::Constant::create(ngraph::element::i64, ngraph::Shape{3}, {1, 2, 0});
-        auto transpose = std::make_shared<ngraph::opset6::Transpose>(input, order);
-        auto relu = std::make_shared<ngraph::opset6::Relu>(transpose);
+        auto input = std::make_shared<ov::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 64});
+        auto order = ov::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{3}, {1, 2, 0});
+        auto transpose = std::make_shared<ov::op::v1::Transpose>(input, order);
+        auto relu = std::make_shared<ov::op::v0::Relu>(transpose);
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{relu}, ngraph::ParameterVector{input});
 
@@ -708,9 +708,9 @@ TEST_F(TransformationTestsF, FuseConvertLayout) {
     }
 
     {
-        auto input = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f16, ngraph::Shape{3, 64, 1});
-        auto convert = std::make_shared<ngraph::opset6::Convert>(input, element::f32);
-        auto relu = std::make_shared<ngraph::opset6::Relu>(convert);
+        auto input = std::make_shared<ov::op::v0::Parameter>(ngraph::element::f16, ngraph::Shape{3, 64, 1});
+        auto convert = std::make_shared<ov::op::v0::Convert>(input, element::f32);
+        auto relu = std::make_shared<ov::op::v0::Relu>(convert);
 
         function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{relu}, ngraph::ParameterVector{input});
     }
@@ -719,8 +719,8 @@ TEST_F(TransformationTestsF, FuseConvertLayout) {
 TEST_F(TransformationTestsF, FuseScaleValue) {
     {
         auto input = create_param({1, 64, 64, 3});
-        auto order = ngraph::opset6::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {0, 3, 1, 2});
-        auto transpose = std::make_shared<ngraph::opset6::Transpose>(input, order);
+        auto order = ov::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {0, 3, 1, 2});
+        auto transpose = std::make_shared<ov::op::v1::Transpose>(input, order);
         auto conv = create_conv(transpose, {6, 3, 3, 3});
 
         function = std::make_shared<Function>(NodeVector{conv}, ParameterVector{input});
@@ -736,8 +736,8 @@ TEST_F(TransformationTestsF, FuseScaleValue) {
 
     {
         auto input = create_param({1, 64, 64, 3});
-        auto order = ngraph::opset6::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {0, 3, 1, 2});
-        auto transpose = std::make_shared<ngraph::opset6::Transpose>(input, order);
+        auto order = ov::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {0, 3, 1, 2});
+        auto transpose = std::make_shared<ov::op::v1::Transpose>(input, order);
         auto conv = create_conv(transpose, {6, 3, 3, 3});
         function_ref = std::make_shared<Function>(NodeVector{conv}, ParameterVector{input});
     }
@@ -748,8 +748,8 @@ TEST_F(TransformationTestsF, FuseScaleValue) {
 TEST_F(TransformationTestsF, FuseScaleValues) {
     {
         auto input = create_param({1, 64, 64, 3});
-        auto order = ngraph::opset6::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {0, 3, 1, 2});
-        auto transpose = std::make_shared<ngraph::opset6::Transpose>(input, order);
+        auto order = ov::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {0, 3, 1, 2});
+        auto transpose = std::make_shared<ov::op::v1::Transpose>(input, order);
         auto conv = create_conv(transpose, {6, 3, 3, 3});
 
         function = std::make_shared<Function>(NodeVector{conv}, ParameterVector{input});
@@ -765,8 +765,8 @@ TEST_F(TransformationTestsF, FuseScaleValues) {
 
     {
         auto input = create_param({1, 64, 64, 3});
-        auto order = ngraph::opset6::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {0, 3, 1, 2});
-        auto transpose = std::make_shared<ngraph::opset6::Transpose>(input, order);
+        auto order = ov::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {0, 3, 1, 2});
+        auto transpose = std::make_shared<ov::op::v1::Transpose>(input, order);
         auto conv = create_conv(transpose, {6, 3, 3, 3});
         function_ref = std::make_shared<Function>(NodeVector{conv}, ParameterVector{input});
     }

@@ -27,13 +27,9 @@ public:
     bool run(LinearIR& linear_ir) override;
 
 private:
+    size_t get_count(const PortDescriptorPtr& port_desc) const;
     bool insert_load(LinearIR& linear_ir, const LinearIR::constExprIt& data_expr_it);
     bool insert_store(LinearIR& linear_ir, const LinearIR::constExprIt& data_expr_it);
-    void update_loops(const LinearIR::LoopManagerPtr& loop_manager, const std::vector<size_t>& loop_ids,
-                      const ExpressionPort& actual_port, const std::vector<ExpressionPort>& target_ports, bool is_entry = true);
-    void update_loop(const LinearIR::LoopManager::LoopInfoPtr& loop_info,
-                     const ExpressionPort& actual_port, const std::vector<ExpressionPort>& target_ports, bool is_entry = true);
-    size_t get_count(const PortDescriptorPtr& port_desc) const;
 
     size_t m_vector_size;
 };

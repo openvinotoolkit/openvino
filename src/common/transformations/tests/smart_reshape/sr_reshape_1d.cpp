@@ -27,7 +27,7 @@ TEST(SmartReshapeTests, Reshape1d) {
         ngraph::PartialShape::dynamic()));
     ASSERT_TRUE(network.getFunction()->get_parameters()[0]->get_partial_shape().compatible({5}));
 
-    auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
+    auto unh = std::make_shared<ov::pass::UniqueNamesHolder>();
     init_unique_names(f, unh);
     ASSERT_NO_THROW(network.reshape(
         InferenceEngine::ICNNNetwork::InputShapes{{f->get_parameters()[0]->get_friendly_name(), {1, 3, 300, 300}}}));
@@ -52,7 +52,7 @@ TEST(SmartReshapeTests, Reshape1d_negative) {
         ngraph::PartialShape::dynamic()));
     ASSERT_TRUE(network.getFunction()->get_parameters()[0]->get_partial_shape().is_dynamic());
 
-    auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
+    auto unh = std::make_shared<ov::pass::UniqueNamesHolder>();
     init_unique_names(f, unh);
     ASSERT_NO_THROW(network.reshape(
         InferenceEngine::ICNNNetwork::InputShapes{{f->get_parameters()[0]->get_friendly_name(), {1, 3, 300, 300}}}));

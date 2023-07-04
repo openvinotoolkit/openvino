@@ -20,8 +20,7 @@ using ::testing::ReturnRef;
 using ::testing::StrEq;
 using ::testing::StrNe;
 using ::testing::Throw;
-using namespace MockAutoBatchPlugin;
-using namespace MockAutoBatchDevice;
+using namespace ov::mock_autobatch_plugin;
 using BatchDeviceConfigParams = std::tuple<std::string,  // Batch devices
                                            std::string,  // Expected device name
                                            int,          // Expected batch size
@@ -82,7 +81,7 @@ public:
         plugin->SetCore(core);
 
         ON_CALL(*plugin, ParseBatchDevice).WillByDefault([this](const std::string& batchDevice) {
-            return plugin->AutoBatchInferencePlugin::ParseBatchDevice(batchDevice);
+            return plugin->Plugin::ParseBatchDevice(batchDevice);
         });
     }
 };
@@ -192,7 +191,7 @@ public:
             });
 
         ON_CALL(*plugin, ParseBatchDevice).WillByDefault([this](const std::string& batchDevice) {
-            return plugin->AutoBatchInferencePlugin::ParseBatchDevice(batchDevice);
+            return plugin->Plugin::ParseBatchDevice(batchDevice);
         });
     }
 
@@ -223,8 +222,8 @@ TEST_P(ParseMetaDeviceTest, ParseMetaDeviceTestCase) {
         ASSERT_ANY_THROW(plugin->ParseMetaDevice(batch_cfg, config));
     } else {
         auto result = plugin->ParseMetaDevice(batch_cfg, config);
-        EXPECT_EQ(result.deviceName, expected.deviceName);
-        EXPECT_EQ(result.batchForDevice, expected.batchForDevice);
+        EXPECT_EQ(result.device_name, expected.device_name);
+        EXPECT_EQ(result.batch_for_device, expected.batch_for_device);
         EXPECT_TRUE(compare(result.config, expected.config));
     }
 }
@@ -255,7 +254,7 @@ public:
         plugin->SetCore(core);
 
         ON_CALL(*plugin, ParseBatchDevice).WillByDefault([this](const std::string& batchDevice) {
-            return plugin->AutoBatchInferencePlugin::ParseBatchDevice(batchDevice);
+            return plugin->Plugin::ParseBatchDevice(batchDevice);
         });
     }
 };
@@ -271,8 +270,8 @@ TEST_P(ParseBatchDeviceTest, ParseBatchDeviceTestCase) {
         ASSERT_ANY_THROW(plugin->ParseBatchDevice(batchDevice));
     } else {
         auto result = plugin->ParseBatchDevice(batchDevice);
-        EXPECT_EQ(result.deviceName, deviceName);
-        EXPECT_EQ(result.batchForDevice, batchSize);
+        EXPECT_EQ(result.device_name, deviceName);
+        EXPECT_EQ(result.batch_for_device, batchSize);
     }
 }
 
@@ -303,7 +302,7 @@ public:
         ON_CALL(*plugin, GetMetric)
             .WillByDefault(
                 [this](const std::string& name, const std::map<std::string, InferenceEngine::Parameter>& options) {
-                    return plugin->AutoBatchInferencePlugin::GetMetric(name, options);
+                    return plugin->Plugin::GetMetric(name, options);
                 });
     }
 };

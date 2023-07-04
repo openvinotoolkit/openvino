@@ -2214,9 +2214,9 @@ struct dynamic_fully_connected_gpu : ::testing::TestWithParam<fully_connected_dy
         };
 
         if (fc_3d)
-            topology.add(fully_connected("fc", input_info("input"), "weights", "bias", padding(), 3));
+            topology.add(fully_connected("fc", input_info("input"), "weights", "bias", output_dt, padding(), 3));
         else
-            topology.add(fully_connected("fc", input_info("input"), "weights", "bias"));
+            topology.add(fully_connected("fc", input_info("input"), "weights", "bias", output_dt));
 
         ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::optimize_data(true));
@@ -2537,7 +2537,7 @@ public:
         fc_prim.output_data_types = {type_to_data_type<WeightsT>::value};
         topo.add(fc_prim);
 
-        ExecutionConfig config;
+        ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::optimize_data(true));
 
         network net(engine, topo, config);
