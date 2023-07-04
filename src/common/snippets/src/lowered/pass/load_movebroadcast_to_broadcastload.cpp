@@ -19,7 +19,7 @@ bool LoadMoveBroadcastToBroadcastLoad::run(LinearIR& linear_ir) {
     const auto& loop_manager = linear_ir.get_loop_manager();
     bool modified = false;
 
-    for (auto expr_it = linear_ir.begin(); expr_it != linear_ir.end(); expr_it++) {
+    for (auto expr_it = linear_ir.cbegin(); expr_it != linear_ir.cend(); expr_it++) {
         const auto& expr = *expr_it;
         const auto& op = expr->get_node();
         // Match on MoveBroadcast because MoveBroadcast is rare node in bodies

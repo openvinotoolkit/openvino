@@ -86,20 +86,13 @@ public:
     exprIt erase(exprIt pos);
     exprIt erase(constExprIt pos);
 
-    template<typename iterator>
-    iterator find(iterator begin, iterator end, const ExpressionPtr& target);
-    template<typename const_iterator>
-    const_iterator find(const_iterator begin, const_iterator end, const ExpressionPtr& target) const;
-    exprIt find(const ExpressionPtr& target);
     constExprIt find(const ExpressionPtr& target) const;
     template<typename iterator>
-    iterator find_before(iterator it, const ExpressionPtr& target);
-    template<typename const_iterator>
-    const_iterator find_before(const_iterator it, const ExpressionPtr& target) const;
+    iterator find(iterator begin, iterator end, const ExpressionPtr& target) const;
     template<typename iterator>
-    iterator find_after(iterator it, const ExpressionPtr& target);
-    template<typename const_iterator>
-    const_iterator find_after(const_iterator it, const ExpressionPtr& target) const;
+    iterator find_before(iterator it, const ExpressionPtr& target) const;
+    template<typename iterator>
+    iterator find_after(iterator it, const ExpressionPtr& target) const;
 
     void init_emitters(const std::shared_ptr<TargetMachine>& target);
     void serialize(const std::string& xml, const std::string& bin);
@@ -125,13 +118,7 @@ private:
 };
 
 template<typename iterator>
-iterator LinearIR::find(iterator begin, iterator end, const ExpressionPtr& target) {
-    auto found = std::find(begin, end, target);
-    OPENVINO_ASSERT(found != end, "Expression has not been found");
-    return found;
-}
-template<typename const_iterator>
-const_iterator LinearIR::find(const_iterator begin, const_iterator end, const ExpressionPtr& target) const {
+iterator LinearIR::find(iterator begin, iterator end, const ExpressionPtr& target) const {
     auto found = std::find(begin, end, target);
     OPENVINO_ASSERT(found != end, "Expression has not been found");
     return found;
