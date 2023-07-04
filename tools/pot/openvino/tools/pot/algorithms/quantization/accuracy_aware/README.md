@@ -17,7 +17,7 @@ Since the :doc:`Default Quantization <pot_compression_algorithms_quantization_de
 algorithm is used as an initialization, all its parameters are also valid and can be specified. 
 Here is an example of the definition of the Accuracy-aware Quantization method and its parameters:
 
-.. code-block:: js
+.. code-block:: javascript
 
    {
        "name": "AccuracyAwareQuantization", // the name of the optimization algorithm 
