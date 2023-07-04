@@ -7,9 +7,9 @@
 #include "common/graph_utils.hpp"
 #include "openvino/cc/ngraph/itt.hpp"
 #include "openvino/opsets/opset11.hpp"
+#include "openvino/pass/manager.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/transformation_helper.hpp"
-#include "openvino/pass/manager.hpp"
 
 using namespace ov::opset11;
 using namespace ov::pass;
@@ -133,7 +133,8 @@ ReshapeFuse::ReshapeFuse() {
     MATCHER_SCOPE(ReshapeFuse);
 
     auto reshape_in_pattern = pattern::wrap_type<Reshape>({pattern::any_input(), pattern::any_input()});
-    auto reshape_out_pattern = pattern::wrap_type<Reshape, Squeeze, Unsqueeze>({reshape_in_pattern, pattern::any_input()});
+    auto reshape_out_pattern =
+        pattern::wrap_type<Reshape, Squeeze, Unsqueeze>({reshape_in_pattern, pattern::any_input()});
 
     ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();

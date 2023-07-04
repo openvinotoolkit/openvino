@@ -27,7 +27,7 @@ typedef std::tuple<ov::element::Type,                   // Net precision
     UnsupportedTransposeTestParams;
 
 class UnsupportedTransposeTest : public testing::WithParamInterface<UnsupportedTransposeTestParams>,
-                             virtual public SubgraphBaseTest {
+                                 virtual public SubgraphBaseTest {
 public:
     static std::string get_test_case_name(const testing::TestParamInfo<UnsupportedTransposeTestParams>& obj) {
         ov::element::Type net_type, in_type, out_type;
@@ -78,14 +78,17 @@ protected:
         auto concat_node = std::make_shared<Concat>(ov::OutputVector{params[0], params[1]}, concat_axis);
 
         std::vector<size_t> transpose_order = {1, 0};
-        auto transpose_const = std::make_shared<Constant>(ov::element::u8, ov::Shape{transpose_order.size()}, transpose_order);
+        auto transpose_const =
+            std::make_shared<Constant>(ov::element::u8, ov::Shape{transpose_order.size()}, transpose_order);
         auto transpose_node = std::make_shared<Transpose>(concat_node, transpose_const);
 
         auto split_axis = std::make_shared<Constant>(ov::element::u8, ov::Shape{1}, std::vector<uint8_t>{0});
-        auto split_slices = std::make_shared<Constant>(ov::element::u32, ov::Shape{2}, std::vector<uint32_t>{m_test_shape[1] - 1, 1});
+        auto split_slices =
+            std::make_shared<Constant>(ov::element::u32, ov::Shape{2}, std::vector<uint32_t>{m_test_shape[1] - 1, 1});
         auto split_node = std::make_shared<VariadicSplit>(transpose_node, split_axis, split_slices);
 
-        ov::ResultVector results{std::make_shared<Result>(split_node->output(0)), std::make_shared<Result>(split_node->output(1))};
+        ov::ResultVector results{std::make_shared<Result>(split_node->output(0)),
+                                 std::make_shared<Result>(split_node->output(1))};
         function = std::make_shared<ov::Model>(results, params, "unsupported_transpose");
     }
 

@@ -11,8 +11,8 @@
 #include "ngraph/opsets/opset2.hpp"
 #include "ngraph/opsets/opset7.hpp"
 #include "openvino/pass/manager.hpp"
-
 #include "optimizer/gna_pass_manager.hpp"
+#include "transformations/big_transpose.hpp"
 #include "transformations/broadcast_const.hpp"
 #include "transformations/common_optimizations/add_fake_quantize_fusion.hpp"
 #include "transformations/common_optimizations/common_optimizations.hpp"
@@ -59,29 +59,27 @@
 #include "transformations/remove_single_input_concat.hpp"
 #include "transformations/reorder_activation_and_pooling.hpp"
 #include "transformations/replace_gna_nhwc_layers.hpp"
+#include "transformations/reshape_to_squeeze.hpp"
 #include "transformations/reshape_transpose_substitute.hpp"
 #include "transformations/rotate_inputs.hpp"
-#include "transformations/reshape_to_squeeze.hpp"
 #include "transformations/rt_info/transpose_sinking_attr.hpp"
 #include "transformations/split_convolution_with_large_buffer_size.hpp"
 #include "transformations/split_eltwise.hpp"
 #include "transformations/substitute_softsign.hpp"
 #include "transformations/swap_input_matmul_gna.hpp"
+#include "transformations/transpose_2d.hpp"
 #include "transformations/transpose_sinking/ts_concat.hpp"
 #include "transformations/transpose_sinking/ts_fuse.hpp"
 #include "transformations/transpose_sinking/ts_general.hpp"
+#include "transformations/transpose_sinking/ts_slice.hpp"
 #include "transformations/transpose_sinking/ts_split.hpp"
 #include "transformations/ts_concat_forward.hpp"
 #include "transformations/ts_split_backward.hpp"
-#include "transformations/transpose_2d.hpp"
-#include "transformations/transpose_sinking/ts_slice.hpp"
 #include "transformations/unfuse_reshape_and_transpose.hpp"
 #include "transformations/utils/transformation_helper.hpp"
 #include "transformations/utils/utils.hpp"
-#include "transformations/big_transpose.hpp"
 
 using namespace ov::intel_gna::limitations;
-
 
 using namespace ov;
 using namespace ov::opset8;
@@ -130,10 +128,10 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
     manager.register_pass<ov::intel_gna::pass::InsertReshapeAroundMatmul>();
     // TODO:: fm network contains convolutions
     // if (!has_convolution) {
-        manager.register_pass<ov::intel_gna::pass::ReshapeReduction>();
-        manager.register_pass<ov::intel_gna::pass::ConvertMatmulWithFqToPointWiseConvolution>();
-        manager.register_pass<ov::intel_gna::pass::ConvertMatmulWithBiasToPointWiseConvolution>();
-        manager.register_pass<ov::intel_gna::pass::ConvertMatmulToPointWiseConvolution>();
+    manager.register_pass<ov::intel_gna::pass::ReshapeReduction>();
+    manager.register_pass<ov::intel_gna::pass::ConvertMatmulWithFqToPointWiseConvolution>();
+    manager.register_pass<ov::intel_gna::pass::ConvertMatmulWithBiasToPointWiseConvolution>();
+    manager.register_pass<ov::intel_gna::pass::ConvertMatmulToPointWiseConvolution>();
     // }
     manager.register_pass<ov::intel_gna::pass::SwapInputMatMulWithTrailingTranspose>();
     manager.register_pass<ov::intel_gna::pass::SwapInputMatMulWithAct>();
@@ -373,7 +371,7 @@ void TransformationsPipeline::apply_legacy(const InferenceEngine::CNNNetwork& ne
     passes->registerPass<InsertDiagonalLayerPass>();
     passes->registerPass<HandleMultipleActivationsForTheLayerPass>();
     passes->registerPass<ForbidActivationFusingPass>();
-    //TODO: crashes with fm network
+    // TODO: crashes with fm network
     // passes->registerPass<FuseMultipleIdentitiesPass>();
     passes->registerPass<FuseFullyConnectedWithEltwisePass>();
     legacy_pass_index = passes->run(legacy_pass_index);

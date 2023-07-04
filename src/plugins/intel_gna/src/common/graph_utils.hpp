@@ -386,8 +386,7 @@ inline std::vector<size_t> make_gather_indexes_from_transpose_axes(const Shape& 
  * @return vector with indexes to merged gather
  */
 template <typename T>
-inline std::vector<T> combine_gather_indexes(const std::vector<T>& ids_in,
-                                                  const std::vector<T>& ids_out) {
+inline std::vector<T> combine_gather_indexes(const std::vector<T>& ids_in, const std::vector<T>& ids_out) {
     if (ids_in.size() != ids_out.size())
         return {};
     std::vector<T> result(ids_in.size());

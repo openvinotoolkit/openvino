@@ -46,7 +46,8 @@ struct TransformationInfo {
 std::shared_ptr<Gather> fuse_gather_nodes(TransformationInfo& info) {
     const std::vector<int64_t> input_gather_indices = get_normalized_gather_indices(info.input_indices_const);
     const std::vector<int64_t> output_gather_indices = get_normalized_gather_indices(info.output_indices_const);
-    const std::vector<int64_t> result_gather_indices = combine_gather_indexes(input_gather_indices, output_gather_indices);
+    const std::vector<int64_t> result_gather_indices =
+        combine_gather_indexes(input_gather_indices, output_gather_indices);
     if (is_pointless_permutation(result_gather_indices)) {
         ov::replace_output_update_name(info.output_gather->output(0), info.input_gather->input_value(0));
         return {};
@@ -76,7 +77,6 @@ inline bool is_skip_operation(const std::shared_ptr<ov::Node>& node) {
            has_one_consumer(node);
 }
 
-
 }  // namespace
 
 GatherSinkingFuse::GatherSinkingFuse() {
@@ -84,8 +84,7 @@ GatherSinkingFuse::GatherSinkingFuse() {
 
     auto indices_in_const_label = wrap_type<Constant>(is_constant_1d);
     auto axis_in_const_label = wrap_type<Constant>(is_constant_1d);
-    auto gather_in_label =
-        wrap_type<Gather>({any_input(), indices_in_const_label, axis_in_const_label});
+    auto gather_in_label = wrap_type<Gather>({any_input(), indices_in_const_label, axis_in_const_label});
 
     ov::matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
@@ -94,12 +93,12 @@ GatherSinkingFuse::GatherSinkingFuse() {
         TransformationInfo info;
         info.output_indices_const =
             as_type_ptr<Constant>(pattern_to_output.at(indices_in_const_label).get_node_shared_ptr());
-        info.output_axis_const =
-            as_type_ptr<Constant>(pattern_to_output.at(axis_in_const_label).get_node_shared_ptr());
+        info.output_axis_const = as_type_ptr<Constant>(pattern_to_output.at(axis_in_const_label).get_node_shared_ptr());
         info.output_gather = gather_in;
 
-         // skip all the non-functional layers
-        std::shared_ptr<ov::Node> non_reshape_node = graph_utils::get_prev_node_skipping_certain(gather_in->get_input_node_shared_ptr(0), is_skip_operation);
+        // skip all the non-functional layers
+        std::shared_ptr<ov::Node> non_reshape_node =
+            graph_utils::get_prev_node_skipping_certain(gather_in->get_input_node_shared_ptr(0), is_skip_operation);
         auto gather_out = std::dynamic_pointer_cast<Gather>(non_reshape_node);
         if (!gather_out) {
             return false;

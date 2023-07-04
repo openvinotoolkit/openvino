@@ -34,7 +34,7 @@ inline std::vector<size_t> find_primes(size_t n) {
     return factors;
 }
 
-inline bool is_factored_transpose_feasible(const std::vector<size_t> &factors) {
+inline bool is_factored_transpose_feasible(const std::vector<size_t>& factors) {
     // check if there are any factors too large for GNA transpose
     for (size_t i = 0; i < factors.size(); i++) {
         if (factors[i] > 8) {
@@ -71,7 +71,7 @@ ReplaceBigTranspose::ReplaceBigTranspose() {
     auto transpose =
         pattern::wrap_type<Transpose>({pattern::any_input(), transpose_const}, [](const ov::Output<ov::Node>& node) {
             return !limitations::Limitations::is_transpose_supported(node.get_node_shared_ptr()) &&
-                    graph_utils::is_shape_2d(node.get_shape());
+                   graph_utils::is_shape_2d(node.get_shape());
         });
 
     ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
@@ -103,7 +103,6 @@ ReplaceBigTranspose::ReplaceBigTranspose() {
 
         std::vector<size_t> factors_combined = combine_factors(factors);
 
-
         // generate transpose transformation
         ov::NodeVector new_nodes = ov::NodeVector{transpose_node->get_input_node_shared_ptr(0)};
         for (const size_t& factor : factors_combined) {
@@ -116,13 +115,15 @@ ReplaceBigTranspose::ReplaceBigTranspose() {
             if (!limitations::Limitations::is_transpose_supported(shape_new))
                 return false;
 
-            auto reshape_new_const = std::make_shared<Constant>(ov::element::i32, ov::Shape{shape_new.size()}, shape_new);
-            auto reshape_new = std::make_shared<Reshape>(new_nodes.back(), reshape_new_const ,false);
+            auto reshape_new_const =
+                std::make_shared<Constant>(ov::element::i32, ov::Shape{shape_new.size()}, shape_new);
+            auto reshape_new = std::make_shared<Reshape>(new_nodes.back(), reshape_new_const, false);
 
             // New Transpose
             ov::AxisVector transpose_order = {1, 0};
-            auto transpose_const = std::make_shared<Constant>(ov::element::i8, ov::Shape{transpose_order.size()}, transpose_order);
-            auto transpose_new  = std::make_shared<Transpose>(reshape_new, transpose_const);
+            auto transpose_const =
+                std::make_shared<Constant>(ov::element::i8, ov::Shape{transpose_order.size()}, transpose_order);
+            auto transpose_new = std::make_shared<Transpose>(reshape_new, transpose_const);
 
             new_nodes.push_back(transpose_new);
         }
