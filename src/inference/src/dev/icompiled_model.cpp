@@ -58,15 +58,16 @@ ov::ICompiledModel::ICompiledModel(const std::shared_ptr<const ov::Model>& model
                                 "Model operation names have collisions with tensor names.",
                                 " Please use MO to generate new IR version, it should allow to avoid the issue");
                 leaf_names.insert(param_name);
+                param->output(0).get_tensor().add_names({param_name});
+                new_param->output(0).get_tensor().add_names({param_name});
+            } else {
+                new_param->output(0).get_tensor().set_names({param_name});
             }
             new_param->set_element_type(param->get_element_type());
             new_param->set_layout(param->get_layout());
             new_param->output(0).get_rt_info() = param->output(0).get_rt_info();
             new_param->validate_and_infer_types();
-            auto input = new_param->output(0);
-            auto& rt_info = input.get_rt_info();
-            rt_info = param->output(0).get_rt_info();
-            m_inputs.emplace_back(input);
+            m_inputs.emplace_back(new_param->output(0));
         }
         for (const auto& result : model->get_results()) {
             auto fake_param = std::make_shared<ov::op::v0::Parameter>(result->get_output_element_type(0),
@@ -83,13 +84,15 @@ ov::ICompiledModel::ICompiledModel(const std::shared_ptr<const ov::Model>& model
                                 "Model operation names have collisions with tensor names.",
                                 " Please use MO to generate new IR version, it should allow to avoid the issue");
                 leaf_names.insert(res_name);
+                result->output(0).get_tensor().add_names({res_name});
+                new_result->output(0).get_tensor().add_names({res_name});
+            } else {
+                new_result->output(0).get_tensor().set_names({res_name});
             }
             auto r = std::dynamic_pointer_cast<ov::op::v0::Result>(new_result);
             r->set_layout(result->get_layout());
-            auto output = new_result->output(0);
-            auto& rt_info = output.get_rt_info();
-            rt_info = result->output(0).get_rt_info();
-            m_outputs.emplace_back(output);
+            new_result->output(0).get_rt_info() = result->output(0).get_rt_info();
+            m_outputs.emplace_back(new_result->output(0));
         }
     }
 }
