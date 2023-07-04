@@ -1112,7 +1112,6 @@ std::vector<PadParams> generateParams() {
                 0, 0, 0, 0, 0,
                 0, 0, 0, 1, 2,
                 0, 0, 0, 5, 6,
-                0, 0, 0, 9, 10,
             }),
             op::PadMode::CONSTANT,
             reference_tests::Tensor(ET, {}, std::vector<T>{0}),
