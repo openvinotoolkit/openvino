@@ -43,24 +43,11 @@ struct TransformationInfo {
     std::shared_ptr<Gather> output_gather;
 };
 
-std::vector<int64_t> combine_gather_permutations(const std::vector<int64_t>& input_gather_indices,
-                                                 const std::vector<int64_t>& output_gather_indices) {
-    if (input_gather_indices.size() != output_gather_indices.size())
-        return {};
-    std::vector<int64_t> result(input_gather_indices.size());
-    for (size_t i = 0; i < result.size(); ++i) {
-        result[i] = input_gather_indices[output_gather_indices[i]];
-    }
-
-    return result;
-}
-
 std::shared_ptr<Gather> fuse_gather_nodes(TransformationInfo& info) {
-    const std::vector<int64_t> input_gather_indices = GetNormalizedGatherIndices(info.input_indices_const);
-    const std::vector<int64_t> output_gather_indices = GetNormalizedGatherIndices(info.output_indices_const);
-    const std::vector<int64_t> result_gather_indices =
-        CombineGatherPermutations(input_gather_indices, output_gather_indices);
-    if (IsPointlessPermutation(result_gather_indices)) {
+    const std::vector<int64_t> input_gather_indices = get_normalized_gather_indices(info.input_indices_const);
+    const std::vector<int64_t> output_gather_indices = get_normalized_gather_indices(info.output_indices_const);
+    const std::vector<int64_t> result_gather_indices = combine_gather_indexes(input_gather_indices, output_gather_indices);
+    if (is_pointless_permutation(result_gather_indices)) {
         ov::replace_output_update_name(info.output_gather->output(0), info.input_gather->input_value(0));
         return {};
     }
@@ -95,11 +82,8 @@ inline bool is_skip_operation(const std::shared_ptr<ov::Node>& node) {
 GatherSinkingFuse::GatherSinkingFuse() {
     MATCHER_SCOPE(GatherSinkingFuse);
 
-    // auto input_indices_const_label = wrap_type<Constant>(IsConstant1D);
-    // auto input_axis_const_label = wrap_type<Constant>(IsConstant1D);
-    // auto input_gather_label = wrap_type<Gather>({any_input(), input_indices_const_label, input_axis_const_label});
-    auto indices_in_const_label = wrap_type<Constant>(IsConstant1D);
-    auto axis_in_const_label = wrap_type<Constant>(IsConstant1D);
+    auto indices_in_const_label = wrap_type<Constant>(is_constant_1d);
+    auto axis_in_const_label = wrap_type<Constant>(is_constant_1d);
     auto gather_in_label =
         wrap_type<Gather>({any_input(), indices_in_const_label, axis_in_const_label});
 
@@ -125,7 +109,7 @@ GatherSinkingFuse::GatherSinkingFuse() {
         info.input_axis_const = as_type_ptr<Constant>(gather_out->get_input_node_shared_ptr(2));
         info.input_gather = gather_out;
 
-        auto new_node = FuseGatherNodes(info);
+        auto new_node = fuse_gather_nodes(info);
         if (new_node)
             register_new_node(new_node);
 

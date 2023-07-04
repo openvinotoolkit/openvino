@@ -31,8 +31,8 @@
 #include "transformations/convert_precision.hpp"
 #include "transformations/decompose_2d_convolution.hpp"
 #include "transformations/decompose_mvn.hpp"
-#include "transformations/disable_decompression_convert_constant_folding.hpp"
-#include "transformations/fuse_conv_biasadd_activation.hpp"
+#include "transformations/fp16_compression/convert_compression_only_to_legacy.hpp"
+#include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
 #include "transformations/gather_sinking.hpp"
 #include "transformations/gather_sinking_transpose.hpp"
 #include "transformations/gather_sinking_transpose_reshape.hpp"
@@ -265,18 +265,18 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
 
     pass_config->set_callback<ov::pass::transpose_sinking::TSSliceForward>(
         [](const std::shared_ptr<const ov::Node>& node) -> bool {
-            const TransposeInfo transpose_info = GetFirstInputTranspose(node);
+            const TransposeInfo transpose_info = get_first_input_transpose(node);
             if (transpose_info.isEmpty())
                 return false;
             const bool is_supported = Limitations::is_transpose_supported(node);
             if (is_supported)
-                MarkInputTransposesAsNoSinking(node);
+                mark_input_transposes_as_nosinking(node);
             return is_supported;
         });
 
     pass_config->set_callback<ov::pass::transpose_sinking::TSSliceBackward>(
         [](const std::shared_ptr<const ov::Node>& node) -> bool {
-            const TransposeInfo transpose_info = GetFirstOutputTranspose(node);
+            const TransposeInfo transpose_info = get_first_output_transpose(node);
             if (transpose_info.isEmpty())
                 return false;
             return Limitations::is_transpose_supported(node);

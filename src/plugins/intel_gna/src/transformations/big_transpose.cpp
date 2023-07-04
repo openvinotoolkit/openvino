@@ -71,7 +71,7 @@ ReplaceBigTranspose::ReplaceBigTranspose() {
     auto transpose =
         pattern::wrap_type<Transpose>({pattern::any_input(), transpose_const}, [](const ov::Output<ov::Node>& node) {
             return !limitations::Limitations::is_transpose_supported(node.get_node_shared_ptr()) &&
-                    limitations::Limitations::is_shape_2d(node.get_shape());
+                    graph_utils::is_shape_2d(node.get_shape());
         });
 
     ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
@@ -105,7 +105,7 @@ ReplaceBigTranspose::ReplaceBigTranspose() {
 
 
         // generate transpose transformation
-        ov::NodeVector new_nodes = {transpose_node->get_input_node_shared_ptr(0)};
+        ov::NodeVector new_nodes = ov::NodeVector{transpose_node->get_input_node_shared_ptr(0)};
         for (const size_t& factor : factors_combined) {
             // New Reshape
             ov::Shape shape_new = {h * w / factor, factor};

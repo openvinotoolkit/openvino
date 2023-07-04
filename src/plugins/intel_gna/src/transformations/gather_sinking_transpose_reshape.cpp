@@ -19,7 +19,7 @@
 using namespace ov::intel_gna;
 using namespace ov::intel_gna::pass;
 using namespace ov::intel_gna::limitations;
-using namespace ov::opset9;
+using namespace ov::opset12;
 using namespace ov::pass::pattern;
 using namespace gather_sinking;
 
@@ -29,7 +29,7 @@ std::vector<std::shared_ptr<ov::Node>> SinkForward(std::shared_ptr<ov::Node> tra
                                                    std::shared_ptr<ov::Node> reshape) {
     auto transpose_const = ov::as_type_ptr<Constant>(transpose->get_input_node_shared_ptr(1));
     const auto gather_indices_value =
-        graph_utils::make_gather_indices_from_transpose_axes(transpose->get_input_shape(0),
+        graph_utils::make_gather_indexes_from_transpose_axes(transpose->get_input_shape(0),
                                                              transpose_const->get_axis_vector_val());
 
     // reshape
@@ -64,7 +64,7 @@ std::vector<std::shared_ptr<ov::Node>> SinkBackward(std::shared_ptr<ov::Node> re
 
     const int64_t gather_axis_value = graph_utils::get_first_valuable_dim_id(reshape_in->get_output_shape(0));
     const auto gather_indices_value =
-        graph_utils::make_gather_indices_from_transpose_axes(transpose->get_input_shape(0),
+        graph_utils::make_gather_indexes_from_transpose_axes(transpose->get_input_shape(0),
                                                              transpose_const->get_axis_vector_val());
 
     auto gather_axis = std::make_shared<Constant>(ov::element::i64, ov::Shape{}, gather_axis_value);
