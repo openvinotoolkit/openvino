@@ -1,4 +1,4 @@
-var ov = require('bindings')('ov_node_addon');
+var ov = require('../build/Release/ov_node_addon.node');
 
 test('Test for number of arguments in tensor', () => {
     expect(() => new ov.Tensor(ov.element.f32, [1,3,224,224])).toThrow('Invalid number of arguments for Tensor constructor.');
@@ -66,13 +66,13 @@ describe('Tensor shape', () => {
 
     test('ov::Shape from array object', () => {
         var tensor = new ov.Tensor(ov.element.f32, [1,3,224,224], data)
-        expect(tensor.get_shape()).toEqual([1,3,224,224])
+        expect(tensor.getShape().data).toEqual([1,3,224,224])
     });
       
       
     test('ov::Shape from array object with floating point nums', () => {
         var tensor = new ov.Tensor(ov.element.f32, [1, 3.0, 224.8, 224.4], data)
-        expect(tensor.get_shape()).toEqual([1, 3, 224, 224])
+        expect(tensor.getShape().data).toEqual([1, 3, 224, 224])
     });
 
 
@@ -83,7 +83,7 @@ describe('Tensor shape', () => {
     
     test('ov::Shape from TypedArray -> Int32Array', () => {
         var tensor = new ov.Tensor(ov.element.f32, Int32Array.from([1, 224, 224, 3]), data);
-        expect(tensor.get_shape()).toEqual([1, 224, 224, 3]);
+        expect(tensor.getShape().data).toEqual([1, 224, 224, 3]);
     });
     
     test('Cannot create ov::Shape from Float32Array', () => {
@@ -111,7 +111,7 @@ describe('Tensor element type', () => {
         [ov.element.u32],
     ])('compares ov.element %p', (ov_elem) => {
         var tensor = new ov.Tensor(ov_elem, Int32Array.from([1, 224, 224, 3]), new Float32Array(150528));
-        expect(tensor.get_element_type()).toEqual(ov_elem);
+        expect(tensor.getPrecision()).toEqual(ov_elem);
     });
 });
 

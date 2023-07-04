@@ -40,7 +40,7 @@ Napi::Object Shape::Wrap(Napi::Env env, ov::Shape shape) {
 }
 
 Napi::Value Shape::get_data(const Napi::CallbackInfo& info) {
-    auto arr = Napi::Uint32Array::New(info.Env(), _shape.size());
+    auto arr = Napi::Array::New(info.Env(), _shape.size());
     for (size_t i = 0; i < _shape.size(); i++)
         arr[i] = _shape[i];
 
