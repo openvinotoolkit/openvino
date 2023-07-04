@@ -1,11 +1,10 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import pytest
-
-from pytorch_layer_test_class import PytorchLayerTest
-import torch
 import numpy as np
+import pytest
+import torch
+from pytorch_layer_test_class import PytorchLayerTest
 
 
 class TestScatter(PytorchLayerTest):
@@ -18,7 +17,13 @@ class TestScatter(PytorchLayerTest):
             def __init__(self, dim, index, src, inplace):
                 super(aten_scatter, self).__init__()
                 self.dim = dim
-                self.index = index
+                self.use_empty_index = False
+                if index is None:
+                    self.use_empty_index = True
+                    # Placeholder
+                    self.index = torch.empty([1])
+                else:
+                    self.index = index
                 self.src = src
                 if inplace:
                     self.forward = self._forward_inplace
@@ -26,10 +31,18 @@ class TestScatter(PytorchLayerTest):
                     self.forward = self._forward_out_of_place
 
             def _forward_out_of_place(self, x: torch.Tensor):
-                return torch.scatter(x, self.dim, self.index, self.src)
+                if self.use_empty_index:
+                    index = torch.empty([0, 0])
+                else:
+                    index = self.index
+                return torch.scatter(x, self.dim, index, self.src)
 
             def _forward_inplace(self, x: torch.Tensor):
-                return x.scatter_(self.dim, self.index, self.src)
+                if self.use_empty_index:
+                    index = torch.empty([0, 0])
+                else:
+                    index = self.index
+                return x.scatter_(self.dim, index, self.src)
 
         ref_net = None
         if inplace:
@@ -45,6 +58,7 @@ class TestScatter(PytorchLayerTest):
     @pytest.mark.parametrize(
         "index",
         [
+            None,  # Empty tensor scenario.
             torch.tensor([[0, 1, 2, 3]]),
             torch.tensor([[0, 1, 2], [3, 4, 5]]),
             torch.tensor([[0, 1, 2, 3, 4]]),
@@ -57,10 +71,15 @@ class TestScatter(PytorchLayerTest):
     def test_scatter(self, dim, index, src, dtype, inplace, ie_device, precision, ir_version):
         if isinstance(src, torch.Tensor):
             src = src.to(getattr(torch, dtype))
+        freeze = True
+        if index is None:
+            # Freeze creates empty constant tensor which isn't supported by OV.
+            freeze = False
         self._test(
             *self.create_model(dim, index, src, inplace),
             ie_device,
             precision,
             ir_version,
-            kwargs_to_prepare_input={"dtype": dtype}
+            kwargs_to_prepare_input={"dtype": dtype},
+            freeze_model=freeze
         )

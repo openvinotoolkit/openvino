@@ -4,6 +4,7 @@
 
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/broadcast.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/convert_like.hpp"
 #include "openvino/op/scatter_elements_update.hpp"
 #include "openvino/op/slice.hpp"
@@ -27,7 +28,7 @@ OutputVector translate_scatter(const NodeContext& context) {
     num_inputs_check(context, 4, 4);
     auto input = context.get_input(0);
     auto dim = context.get_input(1);
-    auto index = context.get_input(2);
+    auto index = context.mark_node(std::make_shared<v0::Convert>(context.get_input(2), element::i32));
     auto src = context.get_input(3);
     auto src_partial_shape = src.get_partial_shape();
     auto index_shape_rank = get_shape_rank(context, index);
