@@ -408,10 +408,10 @@ void reserve_cpu_by_streams_info(const std::vector<std::vector<int>> _streams_in
     }
 
     for (size_t i = 0; i < _cpu_mapping_table.size(); i++) {
+        std::string cpu_string = std::to_string(_cpu_mapping_table[i][CPU_MAP_CORE_TYPE]) +
+                                 std::to_string(_cpu_mapping_table[i][CPU_MAP_NUMA_NODE_ID]) +
+                                 std::to_string(_cpu_mapping_table[i][CPU_MAP_SOCKET_ID]);
         for (size_t j = 0; j < stream_conditions.size(); j++) {
-            std::string cpu_string = std::to_string(_cpu_mapping_table[i][CPU_MAP_CORE_TYPE]) +
-                                     std::to_string(_cpu_mapping_table[i][CPU_MAP_NUMA_NODE_ID]) +
-                                     std::to_string(_cpu_mapping_table[i][CPU_MAP_SOCKET_ID]);
             if (std::find(stream_conditions[j].begin(), stream_conditions[j].end(), cpu_string) !=
                 stream_conditions[j].end()) {
                 _stream_processors[stream_pos[j]].push_back(_cpu_mapping_table[i][CPU_MAP_PROCESSOR_ID]);
