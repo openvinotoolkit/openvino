@@ -78,12 +78,6 @@ pass::BrgemmToBrgemmCPU::BrgemmToBrgemmCPU() {
         const auto offset_b = brgemm->get_offset_b();
         const auto offset_c = brgemm->get_offset_c();
 
-        // Ticket: 113745
-        // TODO: make the block size configurable
-        const size_t block_size_m = 32;
-        const size_t block_size_k = K > 1024 ? 1024 : K > 512 ? 512 : K;
-        const size_t block_size_n = 64;
-
         std::shared_ptr<BrgemmCPU> brgemm_cpu = nullptr;
         std::shared_ptr<BrgemmCopyB> brgemm_repacking = nullptr;
         if (element_type_a == ov::element::f32) {
@@ -93,7 +87,7 @@ pass::BrgemmToBrgemmCPU::BrgemmToBrgemmCPU() {
         } else {
             const auto copy_b_type = with_comp ? BrgemmCopyB::WithCompensations : BrgemmCopyB::OnlyRepacking;
             brgemm_repacking = std::make_shared<BrgemmCopyB>(brgemm->input_value(1), element_type_a, copy_b_type, offset_b, 0, 0,
-                                                             brgemm_in1_desc->get_layout(), block_size_k, block_size_n);
+                                                             brgemm_in1_desc->get_layout());
             set_port_desc(brgemm_repacking->input(0), brgemm_in1_desc->get_shape(), brgemm_in1_desc->get_subtensor(), brgemm_in1_desc->get_layout());
             set_full_port_desc(brgemm_repacking->output(0));
 
@@ -131,9 +125,6 @@ pass::BrgemmToBrgemmCPU::BrgemmToBrgemmCPU() {
         }
         set_port_desc(brgemm_cpu->output(0), brgemm_out_desc->get_shape(), brgemm_out_desc->get_subtensor(), brgemm_out_desc->get_layout());
 
-        brgemm_cpu->set_m_block_size(block_size_m);
-        brgemm_cpu->set_k_block_size(block_size_k);
-        brgemm_cpu->set_n_block_size(block_size_n);
         // need to run validate_and_infer_types manually: either input shapes were updated or
         // output Layout was updated (out shape will be updated in validate_and_infer_types())
         if (brgemm_repacking)

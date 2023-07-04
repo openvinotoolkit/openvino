@@ -15,8 +15,8 @@ namespace intel_cpu {
 BrgemmCPU::BrgemmCPU(const Output<Node>& A, const Output<Node>& B, const Type type,
                      const size_t offset_a, const size_t offset_b, const size_t offset_c,
                      std::vector<size_t> layout_a, std::vector<size_t> layout_b, std::vector<size_t> layout_c,
-                     const size_t m_block_size, const size_t k_block_size, const size_t n_block_size)
-    : Brgemm(), m_type(type), m_M_blk(m_block_size), m_K_blk(k_block_size), m_N_blk(n_block_size) {
+                     const size_t blk_size_m, const size_t blk_size_k, const size_t blk_size_n)
+    : Brgemm(), m_type(type), m_M_blk(blk_size_m), m_K_blk(blk_size_k), m_N_blk(blk_size_n) {
     // We call default ctor of Brgemm class to avoid incorrect shape infer in constructor_validate_and_type_infer() call
     set_arguments({A, B});
     set_output_size(1);
@@ -30,8 +30,8 @@ BrgemmCPU::BrgemmCPU(const Output<Node>& A, const Output<Node>& B, const Type ty
 BrgemmCPU::BrgemmCPU(const Output<Node>& A, const Output<Node>& B, const Output<Node>& scratch, const Type type,
                      const size_t offset_a, const size_t offset_b, const size_t offset_scratch, const size_t offset_c,
                      std::vector<size_t> layout_a, std::vector<size_t> layout_b, std::vector<size_t> layout_c,
-                     const size_t m_block_size, const size_t k_block_size, const size_t n_block_size)
-    : Brgemm(), m_type(type), m_M_blk(m_block_size), m_K_blk(k_block_size), m_N_blk(n_block_size) {
+                     const size_t blk_size_m, const size_t blk_size_k, const size_t blk_size_n)
+    : Brgemm(), m_type(type), m_M_blk(blk_size_m), m_K_blk(blk_size_k), m_N_blk(blk_size_n) {
     set_arguments({A, B, scratch});
     set_output_size(1);
     ctor_initialize(std::set<size_t>{0, 1, 2}, std::set<size_t>{0});
@@ -45,8 +45,8 @@ BrgemmCPU::BrgemmCPU(const Output<Node>& A, const Output<Node>& B, const Output<
 BrgemmCPU::BrgemmCPU(const Output<Node>& A, const Output<Node>& B, const Type type,
                      const PortDescriptor& desc_a, const PortDescriptor& desc_b, const PortDescriptor& desc_c,
                      std::vector<size_t> layout_a, std::vector<size_t> layout_b, std::vector<size_t> layout_c,
-                     const size_t m_block_size, const size_t k_block_size, const size_t n_block_size)
-    : Brgemm(), m_type(type), m_M_blk(m_block_size), m_K_blk(k_block_size), m_N_blk(n_block_size) {
+                     const size_t blk_size_m, const size_t blk_size_k, const size_t blk_size_n)
+    : Brgemm(), m_type(type), m_M_blk(blk_size_m), m_K_blk(blk_size_k), m_N_blk(blk_size_n) {
     set_arguments({A, B});
     set_output_size(1);
     m_input_ports = {{0, desc_a}, {1, desc_b}};
@@ -57,8 +57,8 @@ BrgemmCPU::BrgemmCPU(const Output<Node>& A, const Output<Node>& B, const Type ty
 BrgemmCPU::BrgemmCPU(const Output<Node>& A, const Output<Node>& B, const Output<Node>& scratch, const Type type,
                      const PortDescriptor& desc_a, const PortDescriptor& desc_b, const PortDescriptor& desc_scratch, const PortDescriptor& desc_c,
                      std::vector<size_t> layout_a, std::vector<size_t> layout_b, std::vector<size_t> layout_c,
-                     const size_t m_block_size, const size_t k_block_size, const size_t n_block_size)
-    : Brgemm(), m_type(type), m_M_blk(m_block_size), m_K_blk(k_block_size), m_N_blk(n_block_size) {
+                     const size_t blk_size_m, const size_t blk_size_k, const size_t blk_size_n)
+    : Brgemm(), m_type(type), m_M_blk(blk_size_m), m_K_blk(blk_size_k), m_N_blk(blk_size_n) {
     set_arguments({A, B, scratch});
     set_output_size(1);
     m_input_ports = {{0, desc_a}, {1, desc_b}, {2, desc_scratch}};
@@ -115,7 +115,7 @@ void BrgemmCPU::validate_with_scratchpad(const ov::Shape& shape_b) const {
             }
         } else {
             NGRAPH_CHECK(ov::shape_size(shape) == SCRATCH_BYTE_SIZE && type == ov::element::u8,
-                         "BRGEMM Scratch for space workplace must be static, have U8 element type and size equal to ", SCRATCH_BYTE_SIZE);
+                         "BRGEMM Scratch for space workplace must be static, have U8 element type and size equal to " + std::to_string(SCRATCH_BYTE_SIZE));
         }
     }
 }
@@ -139,22 +139,22 @@ std::shared_ptr<Node> BrgemmCPU::clone_with_new_inputs(const OutputVector& new_a
                                            snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(input(0))->get_layout(),
                                            snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(input(1))->get_layout(),
                                            snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(output(0))->get_layout(),
-                                           get_m_block_size(), get_k_block_size(), get_n_block_size());
+                                           m_M_blk, m_K_blk, m_N_blk);
     }
     return std::make_shared<BrgemmCPU>(new_args.at(0), new_args.at(1), new_args.at(2), m_type,
                                        get_input_port_descriptor(0), get_input_port_descriptor(1), get_input_port_descriptor(2), get_output_port_descriptor(0),
                                        snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(input(0))->get_layout(),
                                        snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(input(1))->get_layout(),
                                        snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(output(0))->get_layout(),
-                                       get_m_block_size(), get_k_block_size(), get_n_block_size());
+                                       m_M_blk, m_K_blk, m_N_blk);
 }
 
 std::shared_ptr<BrgemmCopyB> BrgemmCPU::get_brgemm_copy() const {
     OPENVINO_ASSERT(one_of(m_type, Type::WithDataRepacking, Type::WithCompensations, Type::AMX), "Brgemm doesn't need BrgemmCopyB");
-    auto brgemm_copy_b = get_input_node_shared_ptr(1);
-    if (ov::is_type<BrgemmCopyB>(brgemm_copy_b)) {
-        return ov::as_type_ptr<BrgemmCopyB>(brgemm_copy_b);
-    } else if (const auto buffer = ov::as_type_ptr<snippets::op::Buffer>(brgemm_copy_b)) {
+    auto b_input_node = get_input_node_shared_ptr(1);
+    if (const auto brgemm_copy_b = ov::as_type_ptr<BrgemmCopyB>(b_input_node)) {
+        return brgemm_copy_b;
+    } else if (const auto buffer = ov::as_type_ptr<snippets::op::Buffer>(b_input_node)) {
         return ov::as_type_ptr<BrgemmCopyB>(buffer->get_input_node_shared_ptr(0));
     }
     OPENVINO_THROW("BrgemmCopyB hasn't been found!");
