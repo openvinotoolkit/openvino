@@ -68,7 +68,7 @@ protected:
     mutable std::mutex m_worker_requests_mutex;
 
     mutable std::atomic_size_t m_num_requests_created = {0};
-    std::atomic<std::uint32_t> m_timeOut = {0};  // in ms
+    std::atomic<std::uint32_t> m_time_out = {0};  // in ms
 
     const std::set<std::string> m_batched_inputs;
     const std::set<std::string> m_batched_outputs;

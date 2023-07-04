@@ -63,7 +63,7 @@ protected:
 #endif
     DeviceInformation parse_meta_device(const std::string& devices_batch_config, const ov::AnyMap& user_config) const;
 
-    static DeviceInformation parse_batch_device(const std::string& device_with_Batch);
+    static DeviceInformation parse_batch_device(const std::string& device_with_batch);
 
 private:
     mutable ov::AnyMap m_plugin_config;

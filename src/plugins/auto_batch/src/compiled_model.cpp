@@ -27,7 +27,7 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     m_device_info = device_info;
     auto time_out = config.find(ov::auto_batch_timeout.name());
     OPENVINO_ASSERT(time_out != config.end());
-    m_timeOut = time_out->second.as<std::uint32_t>();
+    m_time_out = time_out->second.as<std::uint32_t>();
 }
 
 CompiledModel::~CompiledModel() {
@@ -43,8 +43,6 @@ std::shared_ptr<ov::IRemoteContext> CompiledModel::get_context() const {
 }
 
 std::shared_ptr<ov::ISyncInferRequest> CompiledModel::create_sync_infer_request() const {
-    if (!get_plugin())
-        return nullptr;
     auto workerRequestPtrAndId = GetWorkerInferRequest();
     auto async_infer_request = std::make_shared<ov::autobatch_plugin::SyncInferRequest>(
         std::static_pointer_cast<const ov::autobatch_plugin::CompiledModel>(shared_from_this()),
@@ -86,7 +84,7 @@ CompiledModel::GetWorkerInferRequest() const {
                 std::cv_status status;
                 {
                     std::unique_lock<std::mutex> lock(workerRequestPtr->_mutex);
-                    status = workerRequestPtr->_cond.wait_for(lock, std::chrono::milliseconds(m_timeOut));
+                    status = workerRequestPtr->_cond.wait_for(lock, std::chrono::milliseconds(m_time_out));
                 }
                 if (m_terminate) {
                     break;
@@ -160,7 +158,7 @@ void CompiledModel::set_property(const ov::AnyMap& properties) {
         OPENVINO_THROW("The only config that can be changed on the fly for the AutoBatching is the ",
                        ov::auto_batch_timeout.name());
     } else {
-        m_timeOut = time_out->second.as<std::uint32_t>();
+        m_time_out = time_out->second.as<std::uint32_t>();
     }
 }
 
