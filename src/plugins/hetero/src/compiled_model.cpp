@@ -263,8 +263,7 @@ ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model
                         subgraphParameterToPrevResult.emplace(parameter.get(), result.get());
                         _mapOutputToInput.emplace(  // TODO: reuse subgraphParameterToPrevResult
                             result,
-                            parameter
-                        );
+                            parameter);
                         _blobNameMap.emplace(
                             parameter->get_friendly_name(),
                             output.get_node()->get_friendly_name() + ((output.get_node()->get_output_size() != 1)
@@ -372,16 +371,20 @@ ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model
 
         // Prepare mapping between manually splitted inputs/outputs
         // to connect tensors between compiled submodels
-        for (const auto& kvp: _mapOutputToInput) {
+        for (const auto& kvp : _mapOutputToInput) {
             const auto& intermed_output = kvp.first;
             const auto& intermed_input = kvp.second;
             for (size_t id = 0; id < orderedSubgraphs.size(); id++) {
-                const auto& out_it = std::find(orderedSubgraphs[id]._results.begin(), orderedSubgraphs[id]._results.end(), intermed_output);
+                const auto& out_it = std::find(orderedSubgraphs[id]._results.begin(),
+                                               orderedSubgraphs[id]._results.end(),
+                                               intermed_output);
                 if (out_it != orderedSubgraphs[id]._results.end()) {
                     for (size_t id2 = 0; id2 < orderedSubgraphs.size(); id2++) {
                         if (id2 == id)
                             continue;
-                        const auto& in_it = std::find(orderedSubgraphs[id2]._parameters.begin(), orderedSubgraphs[id2]._parameters.end(), intermed_input);
+                        const auto& in_it = std::find(orderedSubgraphs[id2]._parameters.begin(),
+                                                      orderedSubgraphs[id2]._parameters.end(),
+                                                      intermed_input);
                         if (in_it != orderedSubgraphs[id2]._parameters.end()) {
                             auto out_idx = std::distance(orderedSubgraphs[id]._results.begin(), out_it);
                             auto in_idx = std::distance(orderedSubgraphs[id2]._parameters.begin(), in_it);
@@ -405,7 +408,8 @@ ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model
             ++id;
         }
         for (auto&& network : m_networks) {
-            auto metaDevices = get_hetero_plugin()->get_properties_per_device(network._device, m_cfg.GetDeviceProperties());
+            auto metaDevices =
+                get_hetero_plugin()->get_properties_per_device(network._device, m_cfg.GetDeviceProperties());
 
             // disable caching for subgraphs, because the whole HETERO model is cached
             auto device_config = metaDevices[network._device];
@@ -521,11 +525,13 @@ ov::hetero::CompiledModel::CompiledModel(std::istream& model,
 
     auto inputs_map_node = heteroNode.child("inputs_to_submodel_inputs");
     FOREACH_CHILD (xml_node, inputs_map_node, "pair") {
-        m_inputs_to_submodel_inputs.emplace_back(GetUInt64Attr(xml_node, "submodel_idx"), GetUInt64Attr(xml_node, "tensor_idx"));
+        m_inputs_to_submodel_inputs.emplace_back(GetUInt64Attr(xml_node, "submodel_idx"),
+                                                 GetUInt64Attr(xml_node, "tensor_idx"));
     }
     auto outputs_map_node = heteroNode.child("outputs_to_submodel_outputs");
     FOREACH_CHILD (xml_node, outputs_map_node, "pair") {
-        m_outputs_to_submodel_outputs.emplace_back(GetUInt64Attr(xml_node, "submodel_idx"), GetUInt64Attr(xml_node, "tensor_idx"));
+        m_outputs_to_submodel_outputs.emplace_back(GetUInt64Attr(xml_node, "submodel_idx"),
+                                                   GetUInt64Attr(xml_node, "tensor_idx"));
     }
 
     // Restore inputs/outputs from compiled models
@@ -640,7 +646,7 @@ ov::Any ov::hetero::CompiledModel::get_property(const std::string& name) const {
         }
         return ret;
     };
-    
+
     if (ov::supported_properties == name) {
         auto supported_properties = default_ro_properties();
         add_ro_properties(ov::supported_properties.name(), supported_properties);
@@ -678,8 +684,9 @@ ov::Any ov::hetero::CompiledModel::get_property(const std::string& name) const {
     } else if (ov::optimal_number_of_infer_requests == name) {
         unsigned int value = 0u;
         for (auto&& desc : m_networks) {
-            value = std::max(value,
-                             desc._network->get_property(ov::optimal_number_of_infer_requests.name()).as<unsigned int>());
+            value =
+                std::max(value,
+                         desc._network->get_property(ov::optimal_number_of_infer_requests.name()).as<unsigned int>());
         }
         return decltype(ov::optimal_number_of_infer_requests)::value_type{value};
     } else if (ov::execution_devices == name) {
@@ -739,7 +746,6 @@ void ov::hetero::CompiledModel::export_model(std::ostream& model_stream) const {
         heteroConfigNode.append_attribute("key").set_value(config.first.c_str());
         heteroConfigNode.append_attribute("value").set_value(config.second.as<std::string>().c_str());
     }
-
 
     auto blobNamesNode = heteroNode.append_child("blob_names_map");
     for (auto&& kvp : _blobNameMap) {
