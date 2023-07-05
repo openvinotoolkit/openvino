@@ -33,8 +33,23 @@
 #    define INFERENCE_ENGINE_C_API_EXTERN
 #endif
 
+#define IE_1_0_DEPRECATED                                                                                    \
+    OPENVINO_DEPRECATED("The Inference Engine API is deprecated and will be removed in the 2024.0 release. " \
+                        "For instructions on transitioning to the new API, please refer to "                 \
+                        "https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+
+#if !defined(IN_OV_COMPONENT) && !defined(C_API_LEGACY_HEADER_INCLUDED)
+#    define C_API_LEGACY_HEADER_INCLUDED
+#    ifdef _MSC_VER
+#        pragma message(
+            "The legacy C API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    else
+#        warning("The legacy C API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    endif
+#endif
+
 #if defined(OPENVINO_STATIC_LIBRARY) || defined(__GNUC__) && (__GNUC__ < 4)
-#    define INFERENCE_ENGINE_C_API(...) INFERENCE_ENGINE_C_API_EXTERN __VA_ARGS__
+#    define INFERENCE_ENGINE_C_API(...) INFERENCE_ENGINE_C_API_EXTERN __VA_ARGS__ IE_1_0_DEPRECATED
 #    define IE_NODISCARD
 #else
 #    if defined(_WIN32) || defined(__CYGWIN__)
@@ -42,12 +57,13 @@
 #        ifdef openvino_c_EXPORTS
 #            define INFERENCE_ENGINE_C_API(...) INFERENCE_ENGINE_C_API_EXTERN __declspec(dllexport) __VA_ARGS__ __cdecl
 #        else
-#            define INFERENCE_ENGINE_C_API(...) INFERENCE_ENGINE_C_API_EXTERN __declspec(dllimport) __VA_ARGS__ __cdecl
+#            define INFERENCE_ENGINE_C_API(...) \
+                INFERENCE_ENGINE_C_API_EXTERN __declspec(dllimport) __VA_ARGS__ IE_1_0_DEPRECATED __cdecl
 #        endif
 #        define IE_NODISCARD
 #    else
 #        define INFERENCE_ENGINE_C_API(...) \
-            INFERENCE_ENGINE_C_API_EXTERN __attribute__((visibility("default"))) __VA_ARGS__
+            INFERENCE_ENGINE_C_API_EXTERN __attribute__((visibility("default"))) __VA_ARGS__ IE_1_0_DEPRECATED
 #        define IE_NODISCARD __attribute__((warn_unused_result))
 #    endif
 #endif
@@ -55,6 +71,8 @@
 #ifndef INFERENCE_ENGINE_C_API_CALLBACK
 #    define INFERENCE_ENGINE_C_API_CALLBACK
 #endif
+
+OPENVINO_SUPPRESS_DEPRECATED_START
 
 typedef struct ie_core ie_core_t;
 typedef struct ie_network ie_network_t;
@@ -1144,5 +1162,7 @@ INFERENCE_ENGINE_C_API(void) ie_blob_free(ie_blob_t** blob);
  * resources after itself when the library is unloaded.
  */
 INFERENCE_ENGINE_C_API(void) ie_shutdown();
+
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 #endif  // IE_C_API_H
