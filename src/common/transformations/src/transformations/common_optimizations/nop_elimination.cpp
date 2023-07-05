@@ -9,6 +9,7 @@
 #include <ngraph/util.hpp>
 #include <numeric>
 #include <openvino/core/validation_util.hpp>
+#include <openvino/op/util/pad_base.hpp>
 #include <openvino/opsets/opset3.hpp>
 #include <openvino/opsets/opset7.hpp>
 #include <openvino/opsets/opset8.hpp>
@@ -315,7 +316,7 @@ SIMPLE_MATCHER_PASS_DEFINITION(EliminateGather, simplify_gather, opset3::Gather,
 
 pass::EliminatePad::EliminatePad() {
     MATCHER_SCOPE(EliminatePad);
-    auto pad_node_pattern = pattern::wrap_type<opset8::Pad>();
+    auto pad_node_pattern = pattern::wrap_type<op::util::PadBase>();
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto pad = m.get_match_root();
