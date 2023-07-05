@@ -13,6 +13,7 @@
 #include "dft_inst.h"
 #include "gather_inst.h"
 #include "border_inst.h"
+#include "reshape_inst.h"
 #include "pass_manager.h"
 #include "to_string_utils.h"
 
@@ -253,6 +254,45 @@ TEST(reorder_inputs, impl_forcing_basic_format_kernel) {
     ASSERT_EQ(out_mem_ptr[5], 0.f);
     ASSERT_EQ(out_mem_ptr[6], 0.5f);
     ASSERT_EQ(out_mem_ptr[7], 0.f);
+}
+
+TEST(reorder_inputs, no_add_reorder_infront_of_reshape) {
+    auto& engine = get_test_engine();
+
+    auto in_layout = layout{ ov::PartialShape{-1, -1, 2, 7, 7, 384}, data_types::f32, format::bfwzyx };
+    auto in_memory = engine.allocate_memory(layout{ ov::PartialShape{1, 2, 2, 7, 7, 384}, data_types::f32, format::bfwzyx });
+
+    auto in = generate_random_1d<float>(in_memory->count(), -10, 10);
+
+    set_values<float>(in_memory, in);
+
+    topology topology;
+    topology.add(input_layout("input0", in_layout));
+    topology.add(permute("permute", input_info("input0"), {0, 1, 3, 2, 4, 5}));
+    topology.add(reshape("reshape", input_info("permute"), true, {1, 14, 14, 384}, {1, 14, 14, 384}));
+    topology.add(eltwise("eltw", input_info("reshape"), input_info("reshape"), eltwise_mode::sum));
+    topology.add(reorder("reorder", input_info("eltw"), format::bfyx, data_types::f32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    auto prog = program::build_program(engine, topology, config);
+
+    ASSERT_NE(prog, nullptr);
+    ASSERT_TRUE(has_node_with_type<reshape>(*prog));
+
+    ASSERT_TRUE(prog->get_node("reshape").can_be_optimized());
+    auto reshape_layout_in = prog->get_node("reshape").get_input_layouts()[0];
+    auto reshape_layout_out = prog->get_node("reshape").get_output_layout();
+
+    ASSERT_EQ(reshape_layout_in.format, format::bfwzyx);
+    ASSERT_EQ(reshape_layout_out.format, format::bfyx);
+
+    auto dep_id_of_reshape = prog->get_node("reshape").get_dependencies_ids()[0];
+    ASSERT_EQ(dep_id_of_reshape, "permute");
+
+    ov::PartialShape expected_out_shape{1, 14, 14, 384};
+    ASSERT_EQ(reshape_layout_out.get_partial_shape(), expected_out_shape);
 }
 
 // TODO Not yet implemented
