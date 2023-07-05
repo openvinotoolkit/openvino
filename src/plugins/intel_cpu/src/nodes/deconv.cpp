@@ -86,6 +86,7 @@ bool Deconvolution::isSupportedOperation(const std::shared_ptr<const ngraph::Nod
 
 Deconvolution::Deconvolution(const std::shared_ptr<ngraph::Node>& op,
                              const GraphContext::CPtr context) : Node(op, context, DeconfolutionShapeInferFactory(op)) {
+    dnnlDeconvExecutor = std::make_shared<DNNLDeconvExecutor>();
     std::string errorMessage;
     errorPrefix = "Deconvolution node with name '" + getName() + "' ";
     if (!isSupportedOperation(op, errorMessage))
