@@ -9,8 +9,8 @@
 #include "dev/converter_utils.hpp"
 #include "dev/core_impl.hpp"
 #include "ie_itt.hpp"
+#include "openvino/core/so_extension.hpp"
 #include "openvino/runtime/device_id_parser.hpp"
-#include "so_extension.hpp"
 
 namespace {
 std::string resolve_extension_path(const std::string& path) {

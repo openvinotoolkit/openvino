@@ -10,8 +10,8 @@
 #include <openvino/opsets/opset8.hpp>
 #include <vector>
 
-#include "bound_evaluation_util.hpp"
 #include "itt.hpp"
+#include "openvino/core/bound_evaluation_util.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace {

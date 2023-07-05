@@ -18,11 +18,11 @@
 #include "multi-device/multi_device_config.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/extension.hpp"
+#include "openvino/core/so_extension.hpp"
 #include "openvino/core/version.hpp"
 #include "openvino/runtime/common.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/threading/executor_manager.hpp"
-#include "so_extension.hpp"
 
 namespace ov {
 
@@ -33,7 +33,9 @@ struct Parsed {
     AnyMap _config;
 };
 
-Parsed parseDeviceNameIntoConfig(const std::string& deviceName, const AnyMap& config = {}, const bool keep_core_property = false);
+Parsed parseDeviceNameIntoConfig(const std::string& deviceName,
+                                 const AnyMap& config = {},
+                                 const bool keep_core_property = false);
 
 /**
  * @brief Checks whether config is applicable for device with 'device_name'
