@@ -72,7 +72,6 @@ public:
      */
     virtual void set_port_mask(port_mask_t) {}
 
-
     /**
      * @brief this function is only used temporarily, after all implementations use accessor, will remove it.
      *
