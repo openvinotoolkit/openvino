@@ -12,20 +12,7 @@
             "source": [
                 "## Imports"
             ],
-            "outputs": [
-                {
-                    "items": [
-                        {
-                            "mime": "application/vnd.code.notebook.error",
-                            "value": {
-                                "name": "Error",
-                                "message": "Failed to generate code object, \nImports;\n ^\n\nUnexpected character ';'",
-                                "stack": ""
-                            }
-                        }
-                    ]
-                }
-            ]
+            "outputs": []
         },
         {
             "language": "typescript",
@@ -58,7 +45,7 @@
         {
             "language": "typescript",
             "source": [
-                "const modelPath = '../../assets/models/horizontal-text-detection/horizontal-text-detection-0001.xml';\nconst ie = new ov.Core();\nconst model = ie.read_model(modelPath);\nconst compiledModel = ie.compile_model(model, 'CPU');\n\nconst outputLayer = compiledModel.outputs[0];"
+                "const modelPath = '../../assets/models/horizontal-text-detection/horizontal-text-detection-0001.xml';\nconst core = new ov.Core();\nconst model = core.read_model(modelPath);\nconst compiledModel = core.compile_model(model, 'CPU');\n\nconst outputLayer = compiledModel.outputs[0];"
             ],
             "outputs": []
         },
