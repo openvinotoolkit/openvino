@@ -13,6 +13,8 @@
 #include "fully_connected_inst.h"
 #include "permute_inst.h"
 #include "reorder_inst.h"
+#include "shape_of_inst.h"
+#include "gather_inst.h"
 #include "intel_gpu/graph/network.hpp"
 #include "pass_manager.h"
 #include "to_string_utils.h"
@@ -518,6 +520,61 @@ TEST(prepare_buffer_fusing, crop_b_axis) {
             }
         }
     }
+}
+
+TEST(prepare_buffer_fusing, skip_in_place_concat_inside_shape_of_subgraph) {
+    auto& engine = get_test_engine();
+    auto input_layout_dynamic = layout{ov::PartialShape{1, 32, ov::Dimension::dynamic(), ov::Dimension::dynamic()},
+                                       data_types::f16, format::bfyx};
+    auto input = engine.allocate_memory({ov::PartialShape{1, 32, 32, 32}, data_types::f16, format::bfyx});
+    auto data_0 = engine.allocate_memory({ ov::PartialShape{}, data_types::i32, format::bfyx });
+    auto data_1 = engine.allocate_memory({ ov::PartialShape{}, data_types::f32, format::bfyx });
+    auto data_2 = engine.allocate_memory({ ov::PartialShape{4}, data_types::i32, format::bfyx });
+
+    const ov::op::AutoBroadcastSpec& broadcast_spec = ov::op::AutoBroadcastSpec(ov::op::AutoBroadcastType::NUMPY);
+
+    topology topology;
+    topology.add(input_layout("input", input_layout_dynamic));
+    topology.add(data("data_0", data_0));
+    topology.add(data("data_1", data_1));
+    topology.add(data("data_2", data_2));
+    topology.add(shape_of("shape_of", input_info("input"), 4, data_types::i32));
+    topology.add(gather("gather0", input_info("shape_of"), input_info("data_0"), 0, {}, 0, true));
+    topology.add(reorder("reorder0", input_info("gather0"), format::any, data_types::f32,
+                         std::vector<float>(), reorder_mean_mode::subtract, padding(), true));
+    topology.add(eltwise("eltwise0", input_info("reorder0"), input_info("data_1"), eltwise_mode::prod, broadcast_spec));
+    topology.add(reshape("reshape0", input_info("eltwise0"), false, {},
+                         ov::PartialShape{1}, reshape::reshape_mode::unsqueeze));
+    topology.add(gather("gather1", input_info("shape_of"), input_info("data_0"), 0, {}, 0, true));
+    topology.add(reorder("reorder1", input_info("gather1"), format::any, data_types::f32,
+                         std::vector<float>(), reorder_mean_mode::subtract, padding(), true));
+    topology.add(eltwise("eltwise1", input_info("reorder1"), input_info("data_1"), eltwise_mode::prod, broadcast_spec));
+    topology.add(reshape("reshape1", input_info("eltwise1"), false, {},
+                         ov::PartialShape{1}, reshape::reshape_mode::unsqueeze));
+    topology.add(crop("crop", input_info("shape_of"), tensor({2,1,1,1,1,1,1,1,1}), tensor({0,0,0,0,1,1,1,1,1})));
+    topology.add(concatenation("concat0", {input_info("reshape0"), input_info("reshape1")}, 0, data_types::f32));
+    topology.add(reorder("reorder3", input_info("concat0"), format::any, data_types::i32,
+                         std::vector<float>(), reorder_mean_mode::subtract, padding(), true));
+    topology.add(concatenation("concat1", {input_info("reorder3"), input_info("crop")}, 0, data_types::i32));
+    topology.add(eltwise("eltwise2", input_info("concat1"), input_info("data_2"), eltwise_mode::prod, broadcast_spec));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
+    network.set_input_data("input", input);
+
+    network.execute();
+
+    auto prog = network.get_program();
+    ASSERT_NE(prog, nullptr);
+
+    auto& crop_node = prog->get_node("crop");
+    auto impl_param = crop_node.get_kernel_impl_params();
+    auto crop_mem = network.get_output_memory("crop");
+    ASSERT_EQ(impl_param->get_output_layout(), crop_mem->get_layout());
+    auto in_place = engine.is_the_same_buffer(*network.get_output_memory("crop"), *network.get_output_memory("concat1"));
+    ASSERT_FALSE(in_place);
 }
 
 #ifdef ENABLE_ONEDNN_FOR_GPU

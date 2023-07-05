@@ -19,6 +19,8 @@
 #include "activation_inst.h"
 #include "mvn_inst.h"
 #include "concatenation_inst.h"
+#include "shape_of_inst.h"
+#include "gather_inst.h"
 #include "pass_manager.h"
 #include "to_string_utils.h"
 
@@ -319,6 +321,58 @@ TEST(remove_redundant_reorders, fuse_reorder_to_prev_concat_dyn) {
     EXPECT_NO_THROW(network.execute());
 
     auto& concat_node = prog->get_node("concat");
+    auto concat_layout = concat_node.get_output_layout();
+
+    ASSERT_EQ(concat_layout.data_type, data_types::f32);
+}
+
+TEST(remove_redundant_reorders, not_to_fuse_concat_with_reorder_inside_shape_of_subgraph) {
+    auto& engine = get_test_engine();
+    auto input_layout_dynamic = layout{ov::PartialShape{1, 32, ov::Dimension::dynamic(), ov::Dimension::dynamic()},
+                                       data_types::f16, format::bfyx};
+    auto input = engine.allocate_memory({ov::PartialShape{1, 32, 32, 32}, data_types::f16, format::bfyx});
+    auto data_0 = engine.allocate_memory({ ov::PartialShape{}, data_types::i32, format::bfyx });
+    auto data_1 = engine.allocate_memory({ ov::PartialShape{}, data_types::f32, format::bfyx });
+    auto data_2 = engine.allocate_memory({ ov::PartialShape{2}, data_types::i32, format::bfyx });
+
+    const ov::op::AutoBroadcastSpec& broadcast_spec = ov::op::AutoBroadcastSpec(ov::op::AutoBroadcastType::NUMPY);
+
+    topology topology;
+    topology.add(input_layout("input", input_layout_dynamic));
+    topology.add(data("data_0", data_0));
+    topology.add(data("data_1", data_1));
+    topology.add(data("data_2", data_2));
+    topology.add(shape_of("shape_of", input_info("input"), 4, data_types::i32));
+    topology.add(gather("gather0", input_info("shape_of"), input_info("data_0"), 0, {}, 0, true));
+    topology.add(reorder("reorder0", input_info("gather0"), format::any, data_types::f32,
+                         std::vector<float>(), reorder_mean_mode::subtract, padding(), true));
+    topology.add(eltwise("eltwise0", input_info("reorder0"), input_info("data_1"), eltwise_mode::prod, broadcast_spec));
+    topology.add(reshape("reshape0", input_info("eltwise0"), false, {},
+                         ov::PartialShape{1}, reshape::reshape_mode::unsqueeze));
+    topology.add(gather("gather1", input_info("shape_of"), input_info("data_0"), 0, {}, 0, true));
+    topology.add(reorder("reorder1", input_info("gather1"), format::any, data_types::f32,
+                         std::vector<float>(), reorder_mean_mode::subtract, padding(), true));
+    topology.add(eltwise("eltwise1", input_info("reorder1"), input_info("data_1"), eltwise_mode::prod, broadcast_spec));
+    topology.add(reshape("reshape1", input_info("eltwise1"), false, {},
+                         ov::PartialShape{1}, reshape::reshape_mode::unsqueeze));
+    topology.add(concatenation("concat0", {input_info("reshape0"), input_info("reshape1")}, 0, data_types::f32));
+    topology.add(reorder("reorder3", input_info("concat0"), format::any, data_types::i32,
+                         std::vector<float>(), reorder_mean_mode::subtract, padding(), true));
+    topology.add(concatenation("concat1", {input_info("reorder3"), input_info("data_2")}, 0, data_types::i32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
+    network.set_input_data("input", input);
+
+    network.execute();
+
+    auto prog = network.get_program();
+    ASSERT_NE(prog, nullptr);
+
+    ASSERT_TRUE(has_node(*prog, "reorder3"));
+    auto& concat_node = prog->get_node("concat0");
     auto concat_layout = concat_node.get_output_layout();
 
     ASSERT_EQ(concat_layout.data_type, data_types::f32);
