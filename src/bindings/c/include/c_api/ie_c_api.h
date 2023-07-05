@@ -34,9 +34,7 @@
 #endif
 
 #define IE_1_0_DEPRECATED                                                                                    \
-    OPENVINO_DEPRECATED("The Inference Engine API is deprecated and will be removed in the 2024.0 release. " \
-                        "For instructions on transitioning to the new API, please refer to "                 \
-                        "https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+    OPENVINO_DEPRECATED("The Inference Engine API is deprecated and will be removed in the 2024.0 release. ")
 
 #if !defined(IN_OV_COMPONENT) && !defined(C_API_LEGACY_HEADER_INCLUDED)
 #    define C_API_LEGACY_HEADER_INCLUDED
@@ -75,62 +73,63 @@
 OPENVINO_SUPPRESS_DEPRECATED_START
 
 typedef struct ie_core ie_core_t;
-typedef struct ie_network ie_network_t;
-typedef struct ie_executable ie_executable_network_t;
-typedef struct ie_infer_request ie_infer_request_t;
-typedef struct ie_blob ie_blob_t;
+            typedef struct ie_network ie_network_t;
+            typedef struct ie_executable ie_executable_network_t;
+            typedef struct ie_infer_request ie_infer_request_t;
+            typedef struct ie_blob ie_blob_t;
 
-/**
- * @struct ie_version
- * @brief Represents an API version information that reflects the set of supported features
- */
-typedef struct ie_version {
-    char* api_version;  //!< A string representing Inference Engine version
-} ie_version_t;
+            /**
+             * @struct ie_version
+             * @brief Represents an API version information that reflects the set of supported features
+             */
+            typedef struct ie_version {
+                char* api_version;  //!< A string representing Inference Engine version
+            } ie_version_t;
 
-/**
- * @struct ie_core_version
- * @brief  Represents version information that describes devices and the inference engine runtime library
- */
-typedef struct ie_core_version {
-    size_t major;              //!< A major version
-    size_t minor;              //!< A minor version
-    const char* device_name;   //!< A device name
-    const char* build_number;  //!< A build number
-    const char* description;   //!< A device description
-} ie_core_version_t;
+            /**
+             * @struct ie_core_version
+             * @brief  Represents version information that describes devices and the inference engine runtime library
+             */
+            typedef struct ie_core_version {
+                size_t major;              //!< A major version
+                size_t minor;              //!< A minor version
+                const char* device_name;   //!< A device name
+                const char* build_number;  //!< A build number
+                const char* description;   //!< A device description
+            } ie_core_version_t;
 
-/**
- * @struct ie_core_versions
- * @brief Represents all versions information that describes all devices and the inference engine runtime library
- */
-typedef struct ie_core_versions {
-    ie_core_version_t* versions;  //!< An array of device versions
-    size_t num_vers;              //!< A number of versions in the array
-} ie_core_versions_t;
+            /**
+             * @struct ie_core_versions
+             * @brief Represents all versions information that describes all devices and the inference engine runtime
+             * library
+             */
+            typedef struct ie_core_versions {
+                ie_core_version_t* versions;  //!< An array of device versions
+                size_t num_vers;              //!< A number of versions in the array
+            } ie_core_versions_t;
 
-/**
- * @struct ie_config
- * @brief Represents configuration information that describes devices
- */
-typedef struct ie_config {
-    const char* name;        //!< A configuration key
-    const char* value;       //!< A configuration value
-    struct ie_config* next;  //!< A pointer to the next configuration value
-} ie_config_t;
+            /**
+             * @struct ie_config
+             * @brief Represents configuration information that describes devices
+             */
+            typedef struct ie_config {
+                const char* name;        //!< A configuration key
+                const char* value;       //!< A configuration value
+                struct ie_config* next;  //!< A pointer to the next configuration value
+            } ie_config_t;
 
-/**
- * @struct ie_param
- * @brief metric and config parameters.
- */
-typedef struct ie_param {
-    union {
-        char* params;
-        unsigned int number;
-        unsigned int range_for_async_infer_request[3];
-        unsigned int range_for_streams[2];
-    };
-} ie_param_t;
+            /**
+             * @struct ie_param
+             * @brief metric and config parameters.
+             */
+            typedef struct ie_param {
+                union {
+                    char* params;
+                    unsigned int number;
+                    unsigned int range_for_async_infer_request[3];
+                    unsigned int range_for_streams[2];
+                };
+            } ie_param_t;
 
 /**
  * @struct ie_param_config
