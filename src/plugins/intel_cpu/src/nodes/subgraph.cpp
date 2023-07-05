@@ -441,7 +441,7 @@ void Snippet::prepareParams() {
 
     auto builder = [this](const SnippetKey& key) -> std::shared_ptr<SnippetExecutor> {
         std::shared_ptr<SnippetExecutor> executor = std::make_shared<SnippetJitExecutor>(key.attrs, is_canonicalized,
-            is_dynamic, context->getConfig().inferencePrecision == ov::element::bf16);
+            is_dynamic, context->getConfig().enforceBF16);
         is_canonicalized = true;
         return executor;
     };

@@ -115,7 +115,8 @@ public:
                                 lowered::pass::PassPipeline& target_lowered_pipeline,
                                 const void* compile_params = nullptr);
     snippets::Schedule generate(const void* compile_params = nullptr);
-    ov::PartialShape canonicalize(const BlockedShapeVector& output_shapes, const BlockedShapeVector& input_shapes, bool reshape = false);
+    ov::PartialShape canonicalize(const BlockedShapeVector& output_shapes, const BlockedShapeVector& input_shapes);
+    ov::PartialShape canonicalized_body_shape_infer(const BlockedShapeVector& input_shapes);
     std::vector<PartialShape> reshape_body(const std::vector<PartialShape>& input_shapes);
     std::vector<Shape> reshape_body(const std::vector<Shape>& input_shapes);
 

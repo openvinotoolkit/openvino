@@ -14,12 +14,12 @@ namespace test {
 namespace snippets {
 namespace {
 std::vector<InputShape> inShapes0{
-    {{}, {{1, 384, 4096}}},
-    {{}, {{1, 1, 4096}}},
+    {{}, {{1, 38, 130}}},
+    {{}, {{1, 1, 130}}},
 };
 std::vector<InputShape> inShapes1{
-    {{}, {{1, 384, 4096}}},
-    {{}, {{1, 384, 1}}},
+    {{}, {{1, 38, 130}}},
+    {{}, {{1, 38, 1}}},
 };
 
 INSTANTIATE_TEST_SUITE_P(NoReshapeAndReshape, CodegenGelu,
@@ -33,10 +33,10 @@ INSTANTIATE_TEST_SUITE_P(NoReshapeAndReshape, CodegenGelu,
 
 // DS
 std::vector<InputShape> inShapesDynamic0{
-    {{-1, -1, -1}, {{1, 384, 4096}, {1, 384, 1}, {1, 384, 4096}}},
+    {{-1, -1, -1}, {{1, 12, 128}, {1, 12, 1}, {1, 12, 128}}},
 };
 std::vector<InputShape> inShapesDynamic1{
-    {{-1, -1, -1}, {{1, 384, 4096}, {1, 1, 4096}, {1, 384, 4096}}},
+    {{-1, -1, -1}, {{1, 12, 128}, {1, 1, 128}, {1, 12, 128}}},
 };
 
 INSTANTIATE_TEST_SUITE_P(NoReshapeAndReshapeDynamic, CodegenGelu,
