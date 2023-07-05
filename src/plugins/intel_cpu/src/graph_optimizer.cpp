@@ -699,14 +699,11 @@ void GraphOptimizer::MergeConvertAndScaleShift(Graph& graph) {
 void GraphOptimizer::RemoveConvertF16ToF32(Graph& graph) {
     auto& graphNodes = graph.GetNodes();
 
-    auto parent = graphNodes.begin();
-    while (parent != graphNodes.end()) {
-        auto parentNode = *parent;
-        if (parentNode->getType() == Type::Convert && parentNode->getOriginalInputPrecisionAtPort(0) == Precision::FP16
-                && parentNode->getOriginalOutputPrecisionAtPort(0) == Precision::FP32) {
-            graph.DropNode(parentNode);
+    for (auto parent : graphNodes) {
+        if (parent->getType() == Type::Convert && parent->isConstant() && parent->getOriginalInputPrecisionAtPort(0) == Precision::FP16
+                && parent->getOriginalOutputPrecisionAtPort(0) == Precision::FP32) {
+            graph.DropNode(parent);
         }
-        parent++;
     }
 }
 
