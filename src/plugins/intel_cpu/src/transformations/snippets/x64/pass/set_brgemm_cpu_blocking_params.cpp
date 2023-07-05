@@ -24,19 +24,12 @@ namespace ov {
 namespace intel_cpu {
 using namespace snippets::lowered;
 namespace {
-void change_in_desc_shape(const std::shared_ptr<ov::Node>& node, const size_t in_idx) {
-    const auto in_desc = PortDescriptorUtils::get_port_descriptor_ptr(node->input(in_idx));
-    const auto& in_shape = node->get_input_shape(in_idx);
-    if (in_desc->get_shape() != in_shape) {
-        in_desc->set_shape(in_shape);
-    }
-}
-
-void change_out_desc_shape(const std::shared_ptr<ov::Node>& node, const size_t out_idx) {
-    const auto out_desc = PortDescriptorUtils::get_port_descriptor_ptr(node->output(out_idx));
-    const auto& out_shape = node->get_output_shape(out_idx);
-    if (out_desc->get_shape() != out_shape) {
-        out_desc->set_shape(out_shape);
+template <typename T>
+void change_desc_shape(const T& port) {
+    const auto desc = PortDescriptorUtils::get_port_descriptor_ptr(port);
+    const auto& shape = port.get_shape();
+    if (desc->get_shape() != shape) {
+        desc->set_shape(shape);
     }
 }
 } // namespace
@@ -90,15 +83,15 @@ pass::SetBrgemmCPUBlockingParams::SetBrgemmCPUBlockingParams() {
             brgemm_copy_b->set_n_block_size(copy_b_block_size_n);
             // since N block size affects output shapes, the validation must be called explicitly right after the block size changing
             brgemm_copy_b->validate_and_infer_types();
-            change_out_desc_shape(brgemm_copy_b, 0);
+            change_desc_shape(brgemm_copy_b->output(0));
             if (brgemm_copy_b->is_with_compensations())
-                change_out_desc_shape(brgemm_copy_b, 1);
+                change_desc_shape(brgemm_copy_b->output(1));
         }
 
         brgemm->validate_and_infer_types();
-        change_in_desc_shape(brgemm, 1);
+        change_desc_shape(brgemm->input(1));
         if (brgemm->is_with_scratchpad())
-            change_in_desc_shape(brgemm, 2);
+            change_desc_shape(brgemm->input(2));
 
         return false;
     };

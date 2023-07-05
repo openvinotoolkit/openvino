@@ -210,8 +210,10 @@ ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const SnippetsToken
         // Note: If the pass is updated, need to check the new possible branches for potential non-inplace Buffers!
         // Default value is 2 because
         //  - Firstly, Softmax always needs Buffers
-        //  - Secondly, Softmax needs 2 Buffers but they can be inplace - One virtual port is enough for Softmax
-        //  - Thirdly, blocking MatMul requires unique Buffers on inputs and outputs, but all of them except 1 can be reused => buffer_count increments by 1
+        //  - Secondly, Softmax needs 2 Buffers but they can be inplace - One virtual port is enough for Softmax => buffer_count = 1
+        //  - Thirdly, MatMul requires unique Buffers on inputs and outputs because blocking implementation increments input/output pointers during computations
+        //    However, all of the Buffers are usually reused by the next MatMul and Softmax.
+        //    So on sufficiently large subgraphs we use only one additional unique buffer => buffer_count increments by 1
         size_t buffer_count = 2;
         std::string fused_names;
         ov::NodeVector ordered_ops;

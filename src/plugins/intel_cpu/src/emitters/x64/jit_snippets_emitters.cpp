@@ -917,7 +917,12 @@ void BrgemmEmitter::emit_N_blocking_loops(size_t k_kernel_id,
     // N loop tail
     kernel_idx = getBrgIdx(k_kernel_id, 1);
     if (m_brgKernels[kernel_idx])
-        emit_and_shift_pointers(kernel_idx);
+        emit_brgemm_kernel_call(m_brgKernels[kernel_idx].get(), m_brgCtxs[kernel_idx], input_0, input_1, input_2, output_0);
+
+    h->sub(input_1, (m_N - m_N_tail) * io_data_size[1]);
+    h->sub(output_0, (m_N - m_N_tail) * io_data_size.back());
+    if (m_with_scratch && m_with_comp)
+        h->sub(input_2, (m_N - m_N_tail) * io_data_size[2]);
 }
 
 void BrgemmEmitter::emit_impl(const std::vector<size_t>& in,
@@ -929,13 +934,23 @@ void BrgemmEmitter::emit_impl(const std::vector<size_t>& in,
         Xbyak::Reg64 output_0(static_cast<int>(out[0]));
         Xbyak::Reg64 work_amount_N(static_cast<int>(0));
         Xbyak::Reg64 work_amount_K(static_cast<int>(0));
+
+        std::set<int> unique_ids{input_0.getIdx(), input_1.getIdx(), output_0.getIdx()};
+        size_t unique_ids_count = 3;
+
         if (m_N_blk_loop || m_K_blk_loop) {
             if (aux_gpr_idxs.size() < static_cast<size_t>(m_N_blk_loop) + static_cast<size_t>(m_K_blk_loop))
                 IE_THROW() << "BRGEMM Emitter requires extra gpr which was not allocated";
-            if (m_N_blk_loop)
+            if (m_N_blk_loop) {
                 work_amount_N = Xbyak::Reg64(static_cast<int>(aux_gpr_idxs[0]));
-            if (m_K_blk_loop)
+                unique_ids.insert(work_amount_N.getIdx());
+                unique_ids_count++;
+            }
+            if (m_K_blk_loop) {
                 work_amount_K = Xbyak::Reg64(static_cast<int>(aux_gpr_idxs[m_N_blk_loop]));
+                unique_ids.insert(work_amount_K.getIdx());
+                unique_ids_count++;
+            }
         }
 
         h->add(input_0, m_load_offset_a);
@@ -946,7 +961,12 @@ void BrgemmEmitter::emit_impl(const std::vector<size_t>& in,
                 IE_THROW() << "BRGEMM Emitter expects 3 inputs if there are compensations/wsp";
             }
             input_2 = Xbyak::Reg64(static_cast<int>(in[2]));
+            unique_ids.insert(input_2.getIdx());
+            unique_ids_count++;
             h->add(input_2, m_load_offset_scratch);
+        }
+        if (unique_ids.size() != unique_ids_count) {
+            IE_THROW() << "BRGEMM Emitter expects that all input/output registers are unique";
         }
 
         // fills kernel_idx with the first idx of non-empty K kernel or returns false
@@ -978,10 +998,6 @@ void BrgemmEmitter::emit_impl(const std::vector<size_t>& in,
                 }
 
                 emit_N_blocking_loops(k_blocked_id, input_0, input_1, input_2, output_0, work_amount_N);
-                h->sub(input_1, m_N * io_data_size[1]);
-                h->sub(output_0, m_N * io_data_size.back());
-                if (m_with_scratch && m_with_comp)
-                    h->sub(input_2, m_N * io_data_size[2]);
                 h->add(input_0, brgemmCtx.K * io_data_size[0]);
                 h->add(input_1, (brgemmCtx.K * brgemmCtx.LDB) * io_data_size[1]);
                 if (m_K_blk_loop && k_blocked_id) {

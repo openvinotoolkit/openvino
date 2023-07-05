@@ -154,8 +154,11 @@ std::shared_ptr<BrgemmCopyB> BrgemmCPU::get_brgemm_copy() const {
     auto b_input_node = get_input_node_shared_ptr(1);
     if (const auto brgemm_copy_b = ov::as_type_ptr<BrgemmCopyB>(b_input_node)) {
         return brgemm_copy_b;
-    } else if (const auto buffer = ov::as_type_ptr<snippets::op::Buffer>(b_input_node)) {
-        return ov::as_type_ptr<BrgemmCopyB>(buffer->get_input_node_shared_ptr(0));
+    }
+    if (ov::is_type<snippets::op::Buffer>(b_input_node)) {
+        if (const auto brgemm_copy_b = ov::as_type_ptr<BrgemmCopyB>(b_input_node->get_input_node_shared_ptr(0))) {
+            return brgemm_copy_b;
+        }
     }
     OPENVINO_THROW("BrgemmCopyB hasn't been found!");
 }
