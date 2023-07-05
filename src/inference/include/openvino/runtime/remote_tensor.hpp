@@ -15,7 +15,7 @@
 namespace ov {
 
 namespace autobatch_plugin {
-    class RemoteTensor;
+class RemoteTensor;
 }
 
 class RemoteContext;
