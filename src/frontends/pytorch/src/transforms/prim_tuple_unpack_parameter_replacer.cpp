@@ -69,7 +69,7 @@ bool DecomposeTupleParameters::run_on_model(const std::shared_ptr<Model>& model)
                 std::stringstream message;
                 message << "Not prim::TupleUnpack operations exist except this one: " << consumer
                         << " found as one of the consumers of a tuple, which is introduced by parameter "
-                        << parameter->output(0) << ". ";
+                        << parameter->output(0) << ".";
                 add_exception_to_fw_node(consumer, message.str());
             }
             continue;
