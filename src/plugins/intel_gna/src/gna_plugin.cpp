@@ -47,7 +47,7 @@
 #include "log/log.hpp"
 #include "memory/gna_memory_state.hpp"
 #include "orientation_helper.hpp"
-#include "pre_post_process/avx2.hpp"
+#include "pre_post_process/converter_factory.hpp"
 #include "pre_post_process/preprocessing.hpp"
 #include "pre_post_process/transposition_info.hpp"
 #include "request/model_wrapper_factory.hpp"
@@ -115,6 +115,8 @@ GNAPlugin::GNAPlugin() {
     Limitations::init(config.target->get_effective_compile_target());
     InitGNAMemory();
     InitGraphCompiler();
+    ConverterFactory converter_factory;
+    m_input_output_handler = InputOutputDataHandler(converter_factory.create_converter());
 }
 
 GNAPlugin::GNAPlugin(const std::map<std::string, std::string>& configMap) {
@@ -125,6 +127,8 @@ GNAPlugin::GNAPlugin(const std::map<std::string, std::string>& configMap) {
     Limitations::init(config.target->get_effective_compile_target());
     InitGNAMemory();
     InitGraphCompiler();
+    ConverterFactory converter_factory;
+    m_input_output_handler = InputOutputDataHandler(converter_factory.create_converter());
 }
 
 void GNAPlugin::Init() {
@@ -134,8 +138,6 @@ void GNAPlugin::Init() {
     inputs_ptr_ = std::make_shared<GnaInputs>(GnaInputs());
     outputs_ = GnaOutputs();
     requestWorkerPool_ = std::make_shared<request::WorkerPoolImpl>();
-
-    isAvx2Supported = ov::intel_gna::isAvx2Supported();
 }
 
 void GNAPlugin::InitGNADevice() {
@@ -962,18 +964,18 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap& inputs, Infer
             buff_blob = make_blob_with_precision(buff_tensor_desc, inputs_ptr_->at(input_name).ptrs[index]);
         }
 
-        import_frames(buff_blob->buffer(),
-                      input.second->cbuffer().as<float*>(),
-                      input.second->getTensorDesc().getPrecision(),
-                      gnaFlags->sw_fp32 ? kScaleFactorDefault : inputs_ptr_->at(input_name).scale_factor,
-                      inputOrientation,
-                      importedFrames,
-                      targetGroups,
-                      importedElements,
-                      importedElements,
-                      gnaFlags->input_low_precision,
-                      gnadevice.get() != nullptr,
-                      isAvx2Supported);
+        m_input_output_handler.import_frames(
+            buff_blob->buffer(),
+            input.second->cbuffer().as<float*>(),
+            input.second->getTensorDesc().getPrecision(),
+            gnaFlags->sw_fp32 ? kScaleFactorDefault : inputs_ptr_->at(input_name).scale_factor,
+            inputOrientation,
+            importedFrames,
+            targetGroups,
+            importedElements,
+            importedElements,
+            gnaFlags->input_low_precision,
+            gnadevice.get() != nullptr);
 
         if (model) {
             Precision output_prc = buff_blob->getTensorDesc().getPrecision();
@@ -1099,31 +1101,29 @@ RequestStatus GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
         }
 
         if (!gnadevice) {
-            export_scores(output_blob->buffer(),
-                          gna_output_blob->cbuffer(),
-                          gna_output_desc.orientation,
-                          batchSize,
-                          batchSize,
-                          elementsPerBatch,
-                          elementsPerBatch,
-                          elementsPerBatch,
-                          gna_output_desc.tensor_precision,
-                          Precision::I32,
-                          1.0f,
-                          isAvx2Supported);
+            m_input_output_handler.export_scores(output_blob->buffer(),
+                                                 gna_output_blob->cbuffer(),
+                                                 gna_output_desc.orientation,
+                                                 batchSize,
+                                                 batchSize,
+                                                 elementsPerBatch,
+                                                 elementsPerBatch,
+                                                 elementsPerBatch,
+                                                 gna_output_desc.tensor_precision,
+                                                 Precision::I32,
+                                                 1.0f);
         } else {
-            export_scores(output_blob->buffer(),
-                          gna_output_blob->cbuffer(),
-                          gna_output_desc.orientation,
-                          batchSize,
-                          batchSize,
-                          elementsPerBatch,
-                          elementsPerBatch,
-                          elementsPerBatch,
-                          gna_output_desc.tensor_precision,
-                          gna_output_desc.model_precision,
-                          gna_output_desc.scale_factor,
-                          isAvx2Supported);
+            m_input_output_handler.export_scores(output_blob->buffer(),
+                                                 gna_output_blob->cbuffer(),
+                                                 gna_output_desc.orientation,
+                                                 batchSize,
+                                                 batchSize,
+                                                 elementsPerBatch,
+                                                 elementsPerBatch,
+                                                 elementsPerBatch,
+                                                 gna_output_desc.tensor_precision,
+                                                 gna_output_desc.model_precision,
+                                                 gna_output_desc.scale_factor);
 
 #ifdef PLOT
             FILE* f = nullptr;

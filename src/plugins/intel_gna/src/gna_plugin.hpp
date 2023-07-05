@@ -27,7 +27,7 @@
 #include "gna_plugin_config.hpp"
 #include "log/debug.hpp"
 #include "log/log.hpp"
-#include "pre_post_process/avx2.hpp"
+#include "pre_post_process/input_output_data_handler.hpp"
 #include "pre_post_process/transposition_info.hpp"
 
 namespace ov {
@@ -49,7 +49,7 @@ protected:
     std::shared_ptr<GnaInputs> inputs_ptr_;
     GnaOutputs outputs_;
     std::shared_ptr<GNAGraphCompiler> m_graph_compiler;
-    bool isAvx2Supported;
+    pre_post_processing::InputOutputDataHandler m_input_output_handler;
 
     uint32_t activeLayerIndex = 0xffffffff;
     // TODO: transpose_inputs_info and transpose_outputs_info should be moved to GNAModelSerial class when ngraph
