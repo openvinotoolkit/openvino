@@ -4,6 +4,7 @@
 #include "prim_tuple_unpack_parameter_replacer.hpp"
 
 #include <deque>
+#include <sstream>
 
 #include "openvino/frontend/pytorch/decoder.hpp"
 #include "openvino/op/result.hpp"
@@ -31,20 +32,27 @@ bool DecomposeTupleParameters::run_on_model(const std::shared_ptr<Model>& model)
         // collects all outputs per each consumer operation for this tuple Parameter
         std::vector<OutputVector> consumer_outputs;
 
+        // The following vector track consumer nodes having prim::TupleUnpack type to form a detailed
+        // error message in case when parameter replacement is required but not possible.
+        std::vector<std::shared_ptr<Node>> consumer_unpacks;
+
         for (const auto& consumer : consumers) {
             auto node = consumer.get_node()->shared_from_this();
             auto tuple_unpack = cast_fw_node(node, "prim::TupleUnpack");
             if (!tuple_unpack) {
                 all_unpacks = false;
-                break;
+                continue;  // need to look at all consumers to form good diagnostics
             }
+            consumer_unpacks.push_back(node);
             if (num_outputs == 0) {
                 num_outputs = node->get_output_size();
             } else if (num_outputs != node->get_output_size()) {
-                std::cerr << "[ PT FE WARNING ] Unpack node " << node
-                          << " as one of the consumers of tuple object has number of outputs "
-                          << node->get_output_size() << " not matching number of outputs " << num_outputs
-                          << " for other consumer.\n";
+                std::stringstream message;
+                message << "Unpack node " << node
+                        << " as one of the consumers of a tuple, which is introduced by parameter "
+                        << parameter->output(0) << ", has number of outputs " << node->get_output_size()
+                        << " not matching number of outputs " << num_outputs << " for other consumer(s) found earlier.";
+                add_exception_to_fw_node(node, message.str());
                 all_unpacks = false;
                 break;
             }
@@ -52,9 +60,18 @@ bool DecomposeTupleParameters::run_on_model(const std::shared_ptr<Model>& model)
         }
 
         if (!all_unpacks || consumer_outputs.empty()) {
-            updated_parameters.push_back(parameter);
             // if at least one consumer is not an unpack-like op or there are not matching number of unpacked objects,
             // we cannot replace other unpacks even if they exist, leaving Unpack-op(s) in the graph for this Parameter
+
+            updated_parameters.push_back(parameter);
+            // In case if at least one Unpack exists there is an opportinity to attach diagnostics
+            for (const auto& consumer : consumer_unpacks) {
+                std::stringstream message;
+                message << "Not prim::TupleUnpack operations exist except this one: " << consumer
+                        << " found as one of the consumers of a tuple, which is introduced by parameter "
+                        << parameter->output(0) << ". ";
+                add_exception_to_fw_node(consumer, message.str());
+            }
             continue;
         }
 
