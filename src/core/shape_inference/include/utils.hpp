@@ -8,7 +8,7 @@
 #include <openvino/opsets/opset1.hpp>
 #include <type_traits>
 
-#include "bound_evaluation_util.hpp"
+#include "openvino/core/bound_evaluation_util.hpp"
 #include "shape_infer_type_utils.hpp"
 #include "tensor_data_accessor.hpp"
 

@@ -2,6 +2,11 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn the details on the workflow of Intel® Distribution of OpenVINO™ 
+                 toolkit, and how to run inference, using provided code samples.
+
+
 The guide presents a basic workflow for building and running C++ code samples in OpenVINO. Note that these steps will not work with the Python samples. 
 
 To get started, you must first install OpenVINO Runtime, install OpenVINO Development tools, and build the sample applications. See the :ref:`Prerequisites <prerequisites-samples>` section for instructions.

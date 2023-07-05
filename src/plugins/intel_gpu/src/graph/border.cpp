@@ -46,12 +46,22 @@ std::vector<layout> border_inst::calc_output_layouts(border_node const& /*node*/
 
     const bool is_begin_mem = (desc->non_constant_input_mask & border::PAD_NON_CONST_INPUT::BEGIN);
     const bool is_end_mem = (desc->non_constant_input_mask & border::PAD_NON_CONST_INPUT::END);
-    ShapeType pads_shape = is_begin_mem ? impl_param.get_input_layout(1).get<ShapeType>() : ov::Shape{ desc->pads_begin.size() };
+
+    layout pads_begin_layout, pads_end_layout;
+    if (is_begin_mem) {
+        pads_begin_layout = impl_param.get_input_layout(1);
+    }
+    if (is_end_mem) {
+        pads_end_layout = is_begin_mem ? impl_param.get_input_layout(2) : impl_param.get_input_layout(1);
+    }
+
+    ShapeType pads_begin_shape = is_begin_mem ? pads_begin_layout.get<ShapeType>() : ov::Shape{ desc->pads_begin.size() };
+    ShapeType pads_end_shape = is_end_mem ? pads_end_layout.get<ShapeType>() : ov::Shape{ desc->pads_end.size() };
     std::vector<ShapeType> output_shapes = {ShapeType{}};
     std::vector<ShapeType> input_shapes = {
         input0_layout.get<ShapeType>(),
-        pads_shape,
-        pads_shape,
+        pads_begin_shape,
+        pads_end_shape,
     };
 
     auto& memory_deps = impl_param.memory_deps;
@@ -74,13 +84,13 @@ std::vector<layout> border_inst::calc_output_layouts(border_node const& /*node*/
             const_data.emplace(1, make_host_tensor(pads_begin_mem->get_layout(), pads_begin_lock.data()));
 
             auto pads_end_data = desc->pads_end;
-            auto pads_end_tensor = make_host_tensor({pads_shape, data_types::i64, format::bfyx}, static_cast<void*>(pads_end_data.data()));
+            auto pads_end_tensor = make_host_tensor({pads_end_shape, data_types::i64, format::bfyx}, static_cast<void*>(pads_end_data.data()));
             const_data.emplace(2, pads_end_tensor);
 
             ov::op::v1::shape_infer(&op, input_shapes, output_shapes, const_data);
         } else {
             auto pads_begin_data = desc->pads_begin;
-            auto pads_begin_tensor = make_host_tensor({pads_shape, data_types::i64, format::bfyx}, static_cast<void*>(pads_begin_data.data()));
+            auto pads_begin_tensor = make_host_tensor({pads_begin_shape, data_types::i64, format::bfyx}, static_cast<void*>(pads_begin_data.data()));
             const_data.emplace(1, pads_begin_tensor);
 
             auto pads_end_mem = memory_deps.at(1);
@@ -90,12 +100,20 @@ std::vector<layout> border_inst::calc_output_layouts(border_node const& /*node*/
             ov::op::v1::shape_infer(&op, input_shapes, output_shapes, const_data);
         }
     } else {
+        std::ptrdiff_t val = desc->pad_value;
+
         auto pads_begin_data = desc->pads_begin;
-        auto pads_begin_tensor = make_host_tensor({pads_shape, data_types::i64, format::bfyx}, static_cast<void*>(pads_begin_data.data()));
+        if (is_begin_mem && desc->pad_mode == ov::op::PadMode::CONSTANT) {
+            pads_begin_data = {val, val, val, val};
+        }
+        auto pads_begin_tensor = make_host_tensor({pads_begin_shape, data_types::i64, format::bfyx}, static_cast<void*>(pads_begin_data.data()));
         const_data.emplace(1, pads_begin_tensor);
 
         auto pads_end_data = desc->pads_end;
-        auto pads_end_tensor = make_host_tensor({pads_shape, data_types::i64, format::bfyx}, static_cast<void*>(pads_end_data.data()));
+        if (is_end_mem && desc->pad_mode == ov::op::PadMode::CONSTANT) {
+            pads_end_data = {val, val, val, val};
+        }
+        auto pads_end_tensor = make_host_tensor({pads_end_shape, data_types::i64, format::bfyx}, static_cast<void*>(pads_end_data.data()));
         const_data.emplace(2, pads_end_tensor);
 
         ov::op::v1::shape_infer(&op, input_shapes, output_shapes, const_data);
