@@ -1002,7 +1002,8 @@ bool FullyConnected::tryExtractParamForLLMFc(llmdnn::fc_create_param& param) {
     if (data_type == Precision::BF16) {
         if (one_of(outputDataType, memory::data_type::f32, memory::data_type::bf16) &&
             (fusedWith.empty() ||
-            (fusedWith.size() == 1 && fusedWith[0]->getAlgorithm() == Algorithm::EltwiseGeluErf))) {
+            (fusedWith.size() == 1 && (fusedWith[0]->getAlgorithm() == Algorithm::EltwiseGeluErf ||
+                                       fusedWith[0]->getAlgorithm() == Algorithm::EltwiseGeluTanh)))) {
             param.dt_a = llmdnn::dnnl_bf16;
             param.dt_b = llmdnn::dnnl_bf16;
             param.dt_c = static_cast<llmdnn::data_type_t>(outputDataType);
@@ -1012,8 +1013,12 @@ bool FullyConnected::tryExtractParamForLLMFc(llmdnn::fc_create_param& param) {
                 param.postops_type = static_cast<llmdnn::postops_types>(param.postops_type | llmdnn::BIAS);
                 tryExtractBias();
             }
-            if (fusedWith.size() == 1 && fusedWith[0]->getAlgorithm() == Algorithm::EltwiseGeluErf)
-                param.postops_type = static_cast<llmdnn::postops_types>(param.postops_type | llmdnn::GELU);
+            if (fusedWith.size() == 1) {
+                if (fusedWith[0]->getAlgorithm() == Algorithm::EltwiseGeluErf)
+                    param.postops_type = static_cast<llmdnn::postops_types>(param.postops_type | llmdnn::GELU);
+                else
+                    param.postops_type = static_cast<llmdnn::postops_types>(param.postops_type | llmdnn::GELU_TANH);
+            }
 
             // compute q/dq
             auto p = getenv("USE_INT8_WEIGHT");
@@ -1049,9 +1054,13 @@ bool FullyConnected::tryExtractParamForLLMFc(llmdnn::fc_create_param& param) {
                 bool isLastPostOp = (i == (fusedWith.size() - 1));
 
                 if (auto* eltwiseNode = dynamic_cast<Eltwise*>(node.get())) {
-                    if (eltwiseNode->getAlgorithm() == Algorithm::EltwiseGeluErf && firstGelu) {
+                    if (firstGelu && (eltwiseNode->getAlgorithm() == Algorithm::EltwiseGeluErf ||
+                                      eltwiseNode->getAlgorithm() == Algorithm::EltwiseGeluTanh)) {
                         firstGelu = false;
-                        param.postops_type = static_cast<llmdnn::postops_types>(param.postops_type | llmdnn::GELU);
+                        if (eltwiseNode->getAlgorithm() == Algorithm::EltwiseGeluErf)
+                            param.postops_type = static_cast<llmdnn::postops_types>(param.postops_type | llmdnn::GELU);
+                        else
+                            param.postops_type = static_cast<llmdnn::postops_types>(param.postops_type | llmdnn::GELU_TANH);
                     } else if (eltwiseNode->getAlgorithm() == Algorithm::EltwiseMultiply && firstDQ) {
                         firstDQ = false;
                         const auto& quant = eltwiseNode->getScales();
