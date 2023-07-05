@@ -8,6 +8,7 @@
 #include "onednn/iml_type_mapper.h"
 #include "executor.hpp"
 #include <common/primitive_hashing_utils.hpp>
+#include "nodes/common/dnnl_executor.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -57,7 +58,8 @@ struct DeconvAttrs {
     MultiCachePtr cache;
     std::function<std::vector<int32_t>()> readOutputSpatialDimsFunc;
     std::string layerName;
-    std::function<void(std::shared_ptr<std::unordered_map<int, dnnl::memory>>)> updatePrimArgs;
+    std::function<void(std::shared_ptr<std::unordered_map<int, dnnl::memory>>,
+            std::shared_ptr<DnnlExecutor>)> updatePrimArgs;
 };
 
 class DeconvExecutor {

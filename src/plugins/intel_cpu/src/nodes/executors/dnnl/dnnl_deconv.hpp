@@ -6,7 +6,6 @@
 
 #include "nodes/executors/deconv.hpp"
 #include "utils/debug_capabilities.h"
-#include "nodes/common/dnnl_executor.h"
 
 namespace ov {
 namespace intel_cpu {
