@@ -28,13 +28,13 @@
 #include "internal/pass/transform_tensorarray.hpp"
 #include "internal/pass/transform_while.hpp"
 #include "op_table.hpp"
+#include "openvino/core/so_extension.hpp"
 #include "openvino/frontend/extension/conversion.hpp"
 #include "openvino/frontend/paddle/node_context.hpp"
 #include "openvino/util/common_util.hpp"
 #include "paddle_fw_node.hpp"
 #include "paddle_utils.hpp"
 #include "place.hpp"
-#include "so_extension.hpp"
 
 using namespace ov::frontend::paddle::op::default_opset;
 using namespace ov;

@@ -26,6 +26,7 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/op_extension.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
+#include "openvino/core/so_extension.hpp"
 #include "openvino/core/version.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/runtime/device_id_parser.hpp"
@@ -38,7 +39,6 @@
 #include "openvino/util/shared_object.hpp"
 #include "ov_plugins.hpp"
 #include "preprocessing/preprocessing.hpp"
-#include "so_extension.hpp"
 #include "xml_parse_utils.h"
 
 ov::ICore::~ICore() = default;
