@@ -43,7 +43,7 @@ Napi::Value CompiledModelWrap::create_infer_request(const Napi::CallbackInfo& in
 Napi::Value CompiledModelWrap::get_output(const Napi::CallbackInfo& info) {
     if (info.Length() == 0) {
         try {
-            return Output::Wrap(info.Env(), _compiled_model.output());
+            return Output<const ov::Node>::Wrap(info.Env(), _compiled_model.output());
         } catch (std::exception& e) {
             reportError(info.Env(), e.what());
             return Napi::Value();
@@ -53,10 +53,10 @@ Napi::Value CompiledModelWrap::get_output(const Napi::CallbackInfo& info) {
         return Napi::Value();
     } else if (info[0].IsString()) {
         auto tensor_name = info[0].ToString();
-        return Output::Wrap(info.Env(), _compiled_model.output(tensor_name));
+        return Output<const ov::Node>::Wrap(info.Env(), _compiled_model.output(tensor_name));
     } else if (info[0].IsNumber()) {
         auto idx = info[0].As<Napi::Number>().Int32Value();
-        return Output::Wrap(info.Env(), _compiled_model.output(idx));
+        return Output<const ov::Node>::Wrap(info.Env(), _compiled_model.output(idx));
     } else {
         reportError(info.Env(), "Error while getting compiled model outputs.");
         return Napi::Value();
@@ -69,7 +69,7 @@ Napi::Value CompiledModelWrap::get_outputs(const Napi::CallbackInfo& info) {
 
     size_t i = 0;
     for (auto& out : cm_outputs)
-        js_outputs[i++] = Output::Wrap(info.Env(), out);
+        js_outputs[i++] = Output<const ov::Node>::Wrap(info.Env(), out);
 
     return js_outputs;
 }
@@ -77,7 +77,7 @@ Napi::Value CompiledModelWrap::get_outputs(const Napi::CallbackInfo& info) {
 Napi::Value CompiledModelWrap::get_input(const Napi::CallbackInfo& info) {
     if (info.Length() == 0) {
         try {
-            return Output::Wrap(info.Env(), _compiled_model.input());
+            return Output<const ov::Node>::Wrap(info.Env(), _compiled_model.input());
         } catch (std::exception& e) {
             reportError(info.Env(), e.what());
             return Napi::Value();
@@ -87,10 +87,10 @@ Napi::Value CompiledModelWrap::get_input(const Napi::CallbackInfo& info) {
         return Napi::Value();
     } else if (info[0].IsString()) {
         auto tensor_name = info[0].ToString();
-        return Output::Wrap(info.Env(), _compiled_model.input(tensor_name));
+        return Output<const ov::Node>::Wrap(info.Env(), _compiled_model.input(tensor_name));
     } else if (info[0].IsNumber()) {
         auto idx = info[0].As<Napi::Number>().Int32Value();
-        return Output::Wrap(info.Env(), _compiled_model.input(idx));
+        return Output<const ov::Node>::Wrap(info.Env(), _compiled_model.input(idx));
     } else {
         reportError(info.Env(), "Error while getting compiled model inputs.");
         return Napi::Value();
@@ -103,7 +103,7 @@ Napi::Value CompiledModelWrap::get_inputs(const Napi::CallbackInfo& info) {
 
     size_t i = 0;
     for (auto& out : cm_inputs)
-        js_inputs[i++] = Output::Wrap(info.Env(), out);
+        js_inputs[i++] = Output<const ov::Node>::Wrap(info.Env(), out);
 
     return js_inputs;
 }

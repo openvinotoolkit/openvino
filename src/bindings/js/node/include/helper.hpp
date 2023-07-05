@@ -13,6 +13,7 @@
 #include <map>
 #include <openvino/core/type/element_type.hpp>
 #include <openvino/openvino.hpp>
+#include <unordered_set>
 #include <variant>
 
 #include "element_type.hpp"
@@ -50,6 +51,13 @@ template <>
 std::vector<size_t> js_to_cpp<std::vector<size_t>>(const Napi::CallbackInfo& info,
                                                    const size_t idx,
                                                    const std::vector<napi_types>& acceptable_types);
+
+/// @brief  A template specialization for TargetType std::unordered_set<std::string>
+template <>
+std::unordered_set<std::string> js_to_cpp<std::unordered_set<std::string>>(
+    const Napi::CallbackInfo& info,
+    const size_t idx,
+    const std::vector<napi_types>& acceptable_types);
 
 /// @brief  A template specialization for TargetType std::string
 template <>

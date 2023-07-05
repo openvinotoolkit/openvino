@@ -10,9 +10,9 @@
 #include "errors.hpp"
 #include "napi.h"
 
-class ShapeLite : public Napi::ObjectWrap<ShapeLite> {
+class Shape : public Napi::ObjectWrap<Shape> {
 public:
-    ShapeLite(const Napi::CallbackInfo& info);
+    Shape(const Napi::CallbackInfo& info);
 
     ov::Shape get_original();
 
