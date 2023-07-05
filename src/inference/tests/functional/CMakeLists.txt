@@ -21,21 +21,6 @@ if(ENABLE_OV_IR_FRONTEND)
     list(APPEND COMPILE_DEFINITIONS ENABLE_OV_IR_FRONTEND)
 endif()
 
-if(ENABLE_HETERO)
-    list(APPEND DEPENDENCIES openvino_hetero_plugin)
-    list(APPEND COMPILE_DEFINITIONS ENABLE_HETERO)
-endif()
-
-if(ENABLE_AUTO AND ENABLE_MULTI)
-    list(APPEND DEPENDENCIES openvino_auto_plugin)
-    list(APPEND COMPILE_DEFINITIONS ENABLE_AUTO)
-endif()
-
-if(ENABLE_AUTO_BATCH)
-    list(APPEND DEPENDENCIES openvino_auto_batch_plugin)
-    list(APPEND COMPILE_DEFINITIONS ENABLE_AUTO_BATCH)
-endif()
-
 ov_add_test_target(
         NAME ${TARGET_NAME}
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
@@ -43,8 +28,7 @@ ov_add_test_target(
             ${DEPENDENCIES}
         LINK_LIBRARIES
             gmock
-            funcTestUtils
-            common_test_utils
+            func_test_utils
         INCLUDES
             $<TARGET_PROPERTY:inference_engine_obj,SOURCE_DIR>/src
             ${CMAKE_CURRENT_SOURCE_DIR}
@@ -54,4 +38,3 @@ ov_add_test_target(
 )
 
 add_compile_definitions(${TARGET_NAME} ${COMPILE_DEFINITIONS})
-

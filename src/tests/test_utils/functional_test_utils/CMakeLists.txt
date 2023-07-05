@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(TARGET_NAME funcTestUtils)
+set(TARGET_NAME func_test_utils)
 
 addIeTarget(
     NAME ${TARGET_NAME}
