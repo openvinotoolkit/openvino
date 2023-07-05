@@ -18,19 +18,22 @@ struct Configuration {
     Configuration& operator=(const Configuration&) = default;
     Configuration& operator=(Configuration&&) = default;
 
-    explicit Configuration(ov::AnyMap& config, const Configuration& defaultCfg = {}, bool throwOnUnsupported = false);
+    explicit Configuration(const ov::AnyMap& config,
+                           const Configuration& defaultCfg = {},
+                           bool throwOnUnsupported = false);
 
     ov::Any Get(const std::string& name) const;
     std::vector<ov::PropertyName> GetSupported() const;
 
-    ov::AnyMap GetHeteroConfig() const;
-    ov::AnyMap GetDeviceConfig() const;
+    ov::AnyMap GetHeteroProperties() const;
+    ov::AnyMap GetDeviceProperties() const;
 
     // Plugin configuration parameters
 
     bool dump_graph = false;
     bool exclusive_async_requests = true;
     std::string device_priorities;
+    ov::AnyMap device_properties;
 };
 }  // namespace hetero
 }  // namespace ov
