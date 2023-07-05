@@ -263,10 +263,10 @@ void ov::ISyncInferRequest::allocate_tensor(const ov::Output<const ov::Node>& po
 void ov::ISyncInferRequest::check_tensors() const {
     const auto& inputs = m_compiled_model->inputs();
     for (size_t i = 0; i < inputs.size(); i++) {
-        check_tensor(inputs[i], m_tensors.at(inputs[i].get_tensor_ptr()));
+        check_tensor(inputs[i], get_ref_tensor(inputs[i]));
     }
     const auto& outputs = m_compiled_model->outputs();
     for (size_t i = 0; i < outputs.size(); i++) {
-        check_tensor(outputs[i], m_tensors.at(outputs[i].get_tensor_ptr()));
+        check_tensor(outputs[i], get_ref_tensor(outputs[i]));
     }
 }
