@@ -274,7 +274,7 @@ bool DNNLDeconvExecutor::init(const DeconvAttrs& deconvAttrs,
 
     dnnlExecPtr = result.first;
     primArgsPtr = std::make_shared<std::unordered_map<int, dnnl::memory>>();
-    dnnlDeconvAttrs.updatePrimArgs(primArgsPtr);
+    dnnlDeconvAttrs.updatePrimArgs(primArgsPtr, dnnlExecPtr);
     return true;
 }
 

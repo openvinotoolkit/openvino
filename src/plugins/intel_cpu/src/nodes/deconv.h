@@ -61,23 +61,6 @@ private:
     using executorPtr = std::shared_ptr<DnnlExecutor>;
     std::shared_ptr<DeconvExecutor> execPtrDeconv = nullptr;
 
-    class DeconvExecutorDefault : public DnnlExecutor {
-        public:
-            DeconvExecutorDefault(const dnnl::convolution_backward_data::primitive_desc& pd,
-                                  const dnnl::memory::desc& inMemDesc,
-                                  const dnnl::memory::desc& weightMemDesc,
-                                  const dnnl::memory::desc& outMemDesc,
-                                  const dnnl::engine& engine);
-    };
-
-    class DeconvExecutorInt8 : public DnnlExecutor {
-        public:
-            DeconvExecutorInt8(const dnnl::deconvolution_forward::primitive_desc& pd,
-                               const dnnl::memory::desc& inMemDesc,
-                               const dnnl::memory::desc& weightMemDesc,
-                               const dnnl::memory::desc& outMemDesc,
-                               const dnnl::engine& engine);
-    };
     // have to hold reference (shared_ptr) to forward convolution primitive_desc
     // since backward one uses the reference to it as a hint
     std::vector<dnnl::convolution_forward::primitive_desc> fwdConvPD;

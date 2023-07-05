@@ -733,8 +733,9 @@ void Deconvolution::prepareParams() {
     deconvAttrs.cache = context->getParamsCache();
 
     deconvAttrs.updatePrimArgs = [this, &srcMemPtr, &dstMemPtr, &biasMemPtr, &wghMemPtr, &pAttrLocal](
-            std::shared_ptr<std::unordered_map<int, dnnl::memory>> primArgsPtr) {
-        if (dnnlDeconvExecutor->dnnlExecPtr) {
+            std::shared_ptr<std::unordered_map<int, dnnl::memory>> primArgsPtr,
+            std::shared_ptr<DnnlExecutor> dnnlExecPtr) {
+        if (dnnlExecPtr) {
             if (deconvAttrs.key.isInt8) {
                 (*primArgsPtr)[DNNL_ARG_SRC] = srcMemPtr->GetPrimitive();
                 (*primArgsPtr)[DNNL_ARG_WEIGHTS] = internalBlobMemory.front()->GetPrimitive();
@@ -748,7 +749,7 @@ void Deconvolution::prepareParams() {
             }
             Node::appendPostOpArgs(*pAttrLocal, (*primArgsPtr), postOpsArgs);
 
-            auto scratchpadMem = getScratchPadMem(dnnlDeconvExecutor->dnnlExecPtr->getScratchPadDesc());
+            auto scratchpadMem = getScratchPadMem(dnnlExecPtr->getScratchPadDesc());
             (*primArgsPtr)[DNNL_ARG_SCRATCHPAD] = scratchpadMem->GetPrimitive();
 //#ifdef CPU_DEBUG_CAPS
 //            if (result.second == CacheEntryBase::LookUpStatus::Miss) {
@@ -901,42 +902,6 @@ InferenceEngine::Precision Deconvolution::getRuntimePrecision() const {
     }
 
     return getMaxPrecision(inputPrecisions);
-}
-
-Deconvolution::DeconvExecutorDefault::DeconvExecutorDefault(const dnnl::convolution_backward_data::primitive_desc& pd,
-                                                                      const dnnl::memory::desc& inMemDesc,
-                                                                      const dnnl::memory::desc& weightMemDesc,
-                                                                      const dnnl::memory::desc& outMemDesc,
-                                                                      const dnnl::engine& engine) : DnnlExecutor(pd) {
-    if (inMemDesc != pd.diff_dst_desc()) {
-        inputReorders.insert({DNNL_ARG_DIFF_DST, IntermReorder(inMemDesc, pd.diff_dst_desc(), engine)});
-    }
-
-    if (weightMemDesc != pd.weights_desc()) {
-        inputReorders.insert({DNNL_ARG_WEIGHTS, IntermReorder(weightMemDesc, pd.weights_desc(), engine)});
-    }
-
-    if (outMemDesc != pd.diff_src_desc()) {
-        outputReorders.insert({DNNL_ARG_DIFF_SRC, IntermReorder(pd.diff_src_desc(), outMemDesc, engine)});
-    }
-}
-
-Deconvolution::DeconvExecutorInt8::DeconvExecutorInt8(const dnnl::deconvolution_forward::primitive_desc& pd,
-                                                                const dnnl::memory::desc& inMemDesc,
-                                                                const dnnl::memory::desc& weightMemDesc,
-                                                                const dnnl::memory::desc& outMemDesc,
-                                                                const dnnl::engine& engine) : DnnlExecutor(pd) {
-    if (inMemDesc != getDnnlSrcDesc()) {
-        inputReorders.insert({DNNL_ARG_SRC, IntermReorder(inMemDesc, getDnnlSrcDesc(), engine)});
-    }
-
-    if (weightMemDesc != getDnnlWeightDesc()) {
-        inputReorders.insert({DNNL_ARG_WEIGHTS, IntermReorder(weightMemDesc, getDnnlWeightDesc(), engine)});
-    }
-
-    if (outMemDesc != getDnnlDstDesc()) {
-        outputReorders.insert({DNNL_ARG_DST, IntermReorder(getDnnlDstDesc(), outMemDesc, engine)});
-    }
 }
 
 std::vector<int32_t> Deconvolution::readOutputSpatialDims() const {
