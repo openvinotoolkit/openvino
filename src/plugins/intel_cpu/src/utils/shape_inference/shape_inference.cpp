@@ -298,6 +298,7 @@ public:
     // denpend on constant_data, need to reimplemented
     IShapeInferCommon::Result
     infer(const std::vector<StaticShape>& input_shapes, const ov::ITensorAccessor& tensor_accessor) override {
+        // TODO 101252
         OPENVINO_THROW("entryFallback has not implemented ITensorAccessor interface");
     }
 };
@@ -613,8 +614,8 @@ template <>
 const IStaticShapeInferFactory::TRegistry IStaticShapeInferFactory::registry{
     // Default opset
     _OV_OP_SHAPE_INFER_MASK_REG(ExperimentalDetectronROIFeatureExtractor, ShapeInferTA, util::bit::mask()),
-    _OV_OP_SHAPE_INFER_MASK_REG(Interpolate, ShapeInferPaddingTA, util::bit::mask(1, 2, 3)),
     _OV_OP_SHAPE_INFER_MASK_REG(Proposal, ShapeInferTA, util::bit::mask()),
+    _OV_OP_SHAPE_INFER_MASK_REG(Tile, ShapeInferenceTA, util::bit::mask(1)),
     _OV_OP_SHAPE_INFER_VA_REG(ReduceL1, ShapeInferTA, op::util::ArithmeticReductionKeepDims, util::bit::mask(1)),
     _OV_OP_SHAPE_INFER_VA_REG(ReduceL2, ShapeInferTA, op::util::ArithmeticReductionKeepDims, util::bit::mask(1)),
     _OV_OP_SHAPE_INFER_VA_REG(ReduceLogicalAnd, ShapeInferTA, op::util::LogicalReductionKeepDims, util::bit::mask(1)),
@@ -624,14 +625,17 @@ const IStaticShapeInferFactory::TRegistry IStaticShapeInferFactory::registry{
     _OV_OP_SHAPE_INFER_VA_REG(ReduceMin, ShapeInferTA, op::util::ArithmeticReductionKeepDims, util::bit::mask(1)),
     _OV_OP_SHAPE_INFER_VA_REG(ReduceProd, ShapeInferTA, op::util::ArithmeticReductionKeepDims, util::bit::mask(1)),
     _OV_OP_SHAPE_INFER_VA_REG(ReduceSum, ShapeInferTA, op::util::ArithmeticReductionKeepDims, util::bit::mask(1)),
-    _OV_OP_SHAPE_INFER_MASK_REG(Tile, ShapeInferTA, util::bit::mask(1)),
     // Operators shape inferences for specific opset version should be specified below
+    // opset11
+    _OV_OP_SHAPE_INFER_MASK_REG(opset11::Interpolate, ShapeInferPaddingTA, util::bit::mask(1, 2, 3)),
+    // opset4
+    _OV_OP_SHAPE_INFER_MASK_REG(opset4::Interpolate, ShapeInferPaddingTA, util::bit::mask(1, 2)),
     // opset1
     _OV_OP_SHAPE_INFER_MASK_REG(opset1::Interpolate, ShapeInferTA, util::bit::mask(1)),
     _OV_OP_SHAPE_INFER_MASK_REG(opset1::Proposal, ShapeInferTA, util::bit::mask()),
     _OV_OP_SHAPE_INFER_MASK_REG(opset1::Reverse, ShapeInferTA, util::bit::mask(1)),
 
-    // Default opset
+    // Default opset(old code)
     _OV_OP_NON_TEMPLATE_SHAPE_INFER_REG(BatchNormInference, entryFirstPassthrough),
     _OV_OP_NON_TEMPLATE_SHAPE_INFER_REG(Convert, entryCopy),
     _OV_OP_NON_TEMPLATE_SHAPE_INFER_REG(CumSum, entryFirstPassthrough),

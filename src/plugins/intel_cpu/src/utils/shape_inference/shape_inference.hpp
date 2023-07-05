@@ -43,7 +43,7 @@ public:
     virtual Result infer(const std::vector<StaticShape>& input_shapes, const ov::ITensorAccessor& tensor_accessor) = 0;
     Result infer(const std::vector<StaticShape>& input_shapes,
                      const std::map<size_t, HostTensorPtr>& constant_data) override {
-        IE_THROW(Unexpected)  << "should not get here, this function should not be called or should be overridden";
+        OPENVINO_THROW("should not get here, this function should not be called or should be overridden");
     }
 
     /**
