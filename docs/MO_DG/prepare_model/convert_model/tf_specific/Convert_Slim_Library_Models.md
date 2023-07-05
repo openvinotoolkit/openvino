@@ -2,6 +2,12 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to convert a Slim Image 
+                 Classification model from TensorFlow to the OpenVINO 
+                 Intermediate Representation.
+
+
 `TensorFlow-Slim Image Classification Model Library <https://github.com/tensorflow/models/tree/master/research/slim/README.md>`__ is a library to define, train and evaluate classification models in TensorFlow. The library contains Python scripts defining the classification topologies together with checkpoint files for several pre-trained classification topologies. To convert a TensorFlow-Slim library model, complete the following steps:
 
 1. Download the TensorFlow-Slim models `git repository <https://github.com/tensorflow/models>`__.

@@ -2,6 +2,11 @@
 
 @sphinxdirective
 
+.. meta:: 
+   :description: Learn how to convert a model from the 
+                 PyTorch format to the OpenVINO Intermediate Representation. 
+
+
 This page provides instructions on how to convert a model from the PyTorch format to the OpenVINO IR format using Model Optimizer.
 Model Optimizer Python API allows the conversion of PyTorch models using the ``convert_model()`` method.
 

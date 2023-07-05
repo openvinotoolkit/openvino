@@ -1,6 +1,12 @@
 # OpenVINO™ Training Extensions {#ote_documentation}
 
-@sphinxdirective 
+@sphinxdirective
+
+.. meta::
+   :description: OpenVINO™ Training Extensions include advanced algorithms used 
+                 to create, train and convert deep learning models with OpenVINO 
+                 Toolkit for optimized inference.
+
 
 OpenVINO™ Training Extensions provide a suite of advanced algorithms to train
 Deep Learning models and convert them using the `OpenVINO™
