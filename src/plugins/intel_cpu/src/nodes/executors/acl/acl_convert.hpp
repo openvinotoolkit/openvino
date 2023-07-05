@@ -45,7 +45,7 @@ public:
                                               InferenceEngine::Precision::FP16,
                                               InferenceEngine::Precision::I32,
                                               InferenceEngine::Precision::FP32)) {
-                DEBUG_LOG("NECast does not support source precision: ", convertParams.srcPrc.name());
+                DEBUG_LOG("NECopy does not support source precision: ", convertParams.srcPrc.name());
                 return false;
             }
             if ((convertParams.srcPrc == InferenceEngine::Precision::I8 &&
@@ -80,7 +80,7 @@ public:
                 !one_of(convertParams.dstPrc, InferenceEngine::Precision::BF16,
                                               InferenceEngine::Precision::FP16,
                                               InferenceEngine::Precision::I32))) {
-                DEBUG_LOG("NECast does not support passed combination of source and destination precisions. ",
+                DEBUG_LOG("NECopy does not support passed combination of source and destination precisions. ",
                           "source precision: ", convertParams.srcPrc.name(), " destination precsion: " , convertParams.dstPrc.name());
                 return false;
             }
