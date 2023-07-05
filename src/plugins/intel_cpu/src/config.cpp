@@ -179,7 +179,7 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
                     inferencePrecisionSetExplicitly = true;
                 }
             } else if (val == "f16") {
-                if (mayiuse(avx512_core_fp16) || mayiuse(avx512_core_amx_fp16)) {
+                if (mayiuse(avx2)) {
                     inferencePrecision = ov::element::f16;
                     inferencePrecisionSetExplicitly = true;
                 }

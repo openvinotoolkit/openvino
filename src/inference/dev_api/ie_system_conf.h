@@ -122,13 +122,6 @@ using ov::with_cpu_x86_avx512_core_vnni;
 using ov::with_cpu_x86_bfloat16;
 
 /**
- * @brief      Checks whether CPU supports fp16 capability
- * @ingroup    ie_dev_api_system_conf
- * @return     `True` is tAVX512_FP16 instructions are available, `false` otherwise
- */
-using ov::with_cpu_x86_fp16;
-
-/**
  * @brief      Checks whether CPU supports AMX int8 capability
  * @ingroup    ie_dev_api_system_conf
  * @return     `True` is tAMX_INT8 instructions are available, `false` otherwise

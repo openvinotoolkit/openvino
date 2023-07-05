@@ -211,9 +211,6 @@ private:
     Xmm xmm_aux3 = Xmm(7);
     Vmm vmm_idx = Vmm(8);
     Vmm vmm_mask = Vmm(9);
-    Vmm vmm_dst_fp16 = Vmm(10);
-    Ymm ymm_dst_fp16 = Ymm(10);
-    Xmm xmm_dst_fp16 = Xmm(10);
 
     const Xbyak::Opmask k_mask = Xbyak::Opmask(1);
 
@@ -618,12 +615,9 @@ private:
                     mov(ptr[rsp + i * sizeof(int)], reg_tmp_64.cvt32());
                     break;
                 case memory::data_type::bf16:
-                    mov(reg_tmp_64.cvt16(), table_idx);
-                    mov(ptr[rsp + i * sizeof(ov::intel_cpu::bfloat16_t)], reg_tmp_64.cvt16());
-                    break;
                 case memory::data_type::f16:
                     mov(reg_tmp_64.cvt16(), table_idx);
-                    mov(ptr[rsp + i * sizeof(ov::float16)], reg_tmp_64.cvt16());
+                    mov(ptr[rsp + i * 2], reg_tmp_64.cvt16());
                     break;
                 case memory::data_type::s8:
                 case memory::data_type::u8:
@@ -966,8 +960,7 @@ private:
                 vmovdqu16(op, ymm_dst);
                 break;
             case memory::data_type::f16:
-                vcvtps2ph(ymm_dst_fp16, vmm_dst, 0x4);
-                vmovdqu16(op, ymm_dst_fp16);
+                vcvtps2ph(op, vmm_dst, 0x4);
                 break;
             case memory::data_type::s8:
                 if (isa == cpu::x64::avx512_core) {
@@ -1018,8 +1011,7 @@ private:
                 uni_vpextrw(op, xmm_dst, 0x0);
                 break;
             case memory::data_type::f16:
-                vcvtps2ph(xmm_dst_fp16, xmm_dst, 0x4);
-                vmovdqu16(op, xmm_dst_fp16);
+                vcvtps2ph(op, xmm_dst, 0x4);
                 break;
             case memory::data_type::s8:
                 uni_vpackssdw(xmm_dst, xmm_dst, xmm_dst);
@@ -1266,10 +1258,6 @@ private:
 
     Vmm vmm_d_weights = Vmm(7);
     Vmm vmm_d_bias = Vmm(8);
-
-    Vmm vmm_dst_fp16 = Vmm(9);
-    Ymm ymm_dst_fp16 = Ymm(9);
-    Xmm xmm_dst_fp16 = Xmm(9);
 
     std::shared_ptr<jit_uni_vcvtneps2bf16> uni_vcvtneps2bf16;
     std::shared_ptr<jit_uni_eltwise_injector_f32<isa>> log_injector;
@@ -1634,8 +1622,7 @@ private:
                 vmovdqu16(op, ymm_dst);
                 break;
             case memory::data_type::f16:
-                vcvtps2ph(ymm_dst_fp16, vmm_dst, 0x4);
-                vmovdqu16(op, ymm_dst_fp16);
+                vcvtps2ph(op, vmm_dst, 0x4);
                 break;
             case memory::data_type::s8:
                 if (isa == cpu::x64::avx512_core) {
@@ -1686,8 +1673,7 @@ private:
                 uni_vpextrw(op, xmm_dst, 0x0);
                 break;
             case memory::data_type::f16:
-                vcvtps2ph(xmm_dst_fp16, xmm_dst, 0x4);
-                vmovdqu16(op, xmm_dst_fp16);
+                vcvtps2ph(op, xmm_dst, 0x4);
                 break;
             case memory::data_type::s8:
                 uni_vpackssdw(xmm_dst, xmm_dst, xmm_dst);
@@ -1921,16 +1907,20 @@ void Reduce::initSupportedPrimitiveDescriptors() {
 
     jit_mode = canApplyJIT(input_prec, output_prec);
 
+    auto is_precision_sensitive_reduce = [](const Algorithm &algorithm) {
+        return algorithm != Algorithm::ReduceAnd && algorithm != Algorithm::ReduceOr &&
+               algorithm != Algorithm::ReduceMin && algorithm != Algorithm::ReduceMax;
+    };
+
     if (jit_mode) {
         // Since in jit mode we use the output memory as an intermediate accumulator for certain reduce modes, we can't use BF16/FP16 output precision due to
         // the possible accuracy loss. Therefore, for such mods, we will change the output precision to FP32.
-        if (Precision::BF16 == output_prec || Precision::FP16 == output_prec) {
-            if (!mayiuse(avx512_core)) {
-                    output_prec = Precision::FP32;
-            } else if (algorithm != Algorithm::ReduceAnd && algorithm != Algorithm::ReduceOr &&
-                       algorithm != Algorithm::ReduceMin && algorithm != Algorithm::ReduceMax) {
-                            output_prec = Precision::FP32;
-            }
+        if (Precision::BF16 == output_prec) {
+            if (!mayiuse(avx512_core) || is_precision_sensitive_reduce(algorithm))
+                output_prec = Precision::FP32;
+        } else if (Precision::FP16 == output_prec) {
+            if (!mayiuse(cpu::x64::avx2) || is_precision_sensitive_reduce(algorithm))
+                output_prec = Precision::FP32;
         }
     }
 
