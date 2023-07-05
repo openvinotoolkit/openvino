@@ -640,6 +640,13 @@ inline bool has_n_consumers(const std::shared_ptr<ov::Node>& node, size_t n_cons
     return node->output(0).get_target_inputs().size() == n_consumers;
 }
 
+/**
+ * @brief Checks if 2 shapes are the same
+ */
+inline bool are_shapes_equal(const ov::Shape& shape_1, const ov::Shape& shape_2) {
+    return (shape_1.size() == shape_2.size()) && std::equal(shape_1.begin(), shape_1.end(), shape_2.begin());
+}
+
 }  // namespace graph_utils
 }  // namespace intel_gna
 }  // namespace ov
