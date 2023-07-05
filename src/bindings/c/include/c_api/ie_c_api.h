@@ -38,6 +38,16 @@
                         "For instructions on transitioning to the new API, please refer to "                 \
                         "https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
 
+#if !defined(IN_OV_COMPONENT) && !defined(C_API_LEGACY_HEADER_INCLUDED)
+#    define C_API_LEGACY_HEADER_INCLUDED
+#    ifdef _MSC_VER
+#        pragma message(
+            "The legacy C API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    else
+#        warning("The legacy C API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    endif
+#endif
+
 #if defined(OPENVINO_STATIC_LIBRARY) || defined(__GNUC__) && (__GNUC__ < 4)
 #    define INFERENCE_ENGINE_C_API(...) INFERENCE_ENGINE_C_API_EXTERN __VA_ARGS__ IE_1_0_DEPRECATED
 #    define IE_NODISCARD
@@ -60,16 +70,6 @@
 
 #ifndef INFERENCE_ENGINE_C_API_CALLBACK
 #    define INFERENCE_ENGINE_C_API_CALLBACK
-#endif
-
-#if !defined(IN_OV_COMPONENT) && !defined(C_API_LEGACY_HEADER_INCLUDED)
-#    define C_API_LEGACY_HEADER_INCLUDED
-#    ifdef _MSC_VER
-#        pragma message(
-            "The legacy C API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
-#    else
-#        warning("The legacy C API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
-#    endif
 #endif
 
 typedef struct ie_core ie_core_t;
