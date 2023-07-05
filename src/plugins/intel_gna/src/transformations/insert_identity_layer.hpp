@@ -123,6 +123,7 @@ private:
 
     /**
      * @brief Invokes Identity layer insertion after each node in vector
+     * returns true if any Identity layer was inserted
      */
     bool insert_identity_after_nodes(const std::vector<std::shared_ptr<ov::Node>>& nodes,
                                      const std::shared_ptr<ov::Node>& next);
@@ -130,13 +131,14 @@ private:
     /**
      * @brief Invoke Identity layer insertion in case the Concat input is unable
      * to store scale factors
+     * returns true if any Identity layer was inserted
      */
     bool insert_identity_for_prec_agnostic_concat_inputs(const std::shared_ptr<ov::Node>& node);
 
     /**
      * @brief Find the output index of 'prev' layer, on which it is connected to 'next' layer
      */
-    size_t find_prev_layer_output_index(std::shared_ptr<ov::Node> prev, std::shared_ptr<ov::Node> next);
+    size_t find_prev_layer_output_index(const std::shared_ptr<ov::Node>& prev, const std::shared_ptr<ov::Node>& next);
 };
 
 }  // namespace pass
