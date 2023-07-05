@@ -30,6 +30,11 @@ void regclass_frontend_FrontEnd(py::module m) {
     py::class_<FrontEnd, std::shared_ptr<FrontEnd>> fem(m, "FrontEnd", py::dynamic_attr(), py::module_local());
     fem.doc() = "openvino.frontend.FrontEnd wraps ov::frontend::FrontEnd";
 
+    fem.def(py::init([](const std::shared_ptr<FrontEnd>& other) {
+                return other;
+            }),
+            py::arg("other"));
+
     fem.def(
         "load",
         [](FrontEnd& self, const py::object& py_obj) {

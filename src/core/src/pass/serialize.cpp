@@ -12,11 +12,11 @@
 #include <unordered_map>
 #include <unordered_set>
 
-#include "meta_data.hpp"
 #include "ngraph/ops.hpp"
 #include "ngraph/opsets/opset.hpp"
 #include "openvino/core/coordinate_diff.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/core/meta_data.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/op/util/framework_node.hpp"
 #include "openvino/opsets/opset1.hpp"
