@@ -795,7 +795,7 @@ class TestShapesParsing(UnitTestWithMockedTelemetry):
         for shape, ref_shape in zip(result, ref_result):
             assert np.array_equal(shape, ref_shape)
 
-    def test_get_shapes_two_input_shapes_with_scalar(self):
+    def test_get_shapes_two_named_input_shapes_with_scalar(self):
         argv_input = "inp1,inp2"
         input_shapes = "[12,4,1],[]"
         inputs_list, result, _ = get_placeholder_shapes(argv_input, input_shapes)

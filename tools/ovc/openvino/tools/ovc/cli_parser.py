@@ -1581,7 +1581,7 @@ def get_placeholder_shapes(argv_input: str, argv_input_shape: str, argv_batch=No
         # clean inputs from values for freezing
         inputs_without_value = list(map(lambda x: x.split('->')[0], inputs))
         placeholder_shapes = dict(zip_longest(inputs_without_value,
-                                              map(lambda x: PartialShape(x) if (x or x == '') else None, shapes)))
+                                              map(lambda x: PartialShape(x) if x is not None else None, shapes)))
         for inp in inputs:
             if '->' not in inp:
                 inputs_list.append(inp)
