@@ -48,6 +48,20 @@ ov::ICompiledModel::ICompiledModel(const std::shared_ptr<const ov::Model>& model
             }
         }
 
+        auto find_tensor_desc =
+            [&](const std::vector<ov::Output<const ov::Node>> ports,
+                std::shared_ptr<ov::descriptor::Tensor> in_tensor_desc) -> std::shared_ptr<ov::descriptor::Tensor> {
+            for (auto& it : ports) {
+                auto tensor_desc = it.get_tensor_ptr();
+                if (tensor_desc == in_tensor_desc ||
+                    (tensor_desc->get_element_type() == in_tensor_desc->get_element_type() &&
+                     tensor_desc->get_partial_shape() == in_tensor_desc->get_partial_shape() &&
+                     tensor_desc->get_names() == in_tensor_desc->get_names())) {
+                    return tensor_desc;
+                }
+            }
+            return in_tensor_desc;
+        };
         for (const auto& param : model->get_parameters()) {
             const auto& param_name = param->get_friendly_name();
             auto new_param = ov::as_type_ptr<ov::op::v0::Parameter>(param->copy_with_new_inputs({}));
@@ -65,6 +79,11 @@ ov::ICompiledModel::ICompiledModel(const std::shared_ptr<const ov::Model>& model
             new_param->set_layout(param->get_layout());
             new_param->output(0).get_rt_info() = param->output(0).get_rt_info();
             new_param->validate_and_infer_types();
+            auto tensor_desc = std::make_shared<ov::descriptor::Tensor>(param->get_element_type(),
+                                                                        param->get_partial_shape(),
+                                                                        new_param->output(0).get_tensor().get_names());
+            tensor_desc = find_tensor_desc(m_inputs, tensor_desc);
+            new_param->output(0).set_tensor_ptr(tensor_desc);
             m_inputs.emplace_back(new_param->output(0));
         }
         for (const auto& result : model->get_results()) {
@@ -88,6 +107,11 @@ ov::ICompiledModel::ICompiledModel(const std::shared_ptr<const ov::Model>& model
             auto r = std::dynamic_pointer_cast<ov::op::v0::Result>(new_result);
             r->set_layout(result->get_layout());
             new_result->output(0).get_rt_info() = result->output(0).get_rt_info();
+            auto tensor_desc = std::make_shared<ov::descriptor::Tensor>(result->get_output_element_type(0),
+                                                                        result->get_output_partial_shape(0),
+                                                                        new_result->output(0).get_tensor().get_names());
+            tensor_desc = find_tensor_desc(m_outputs, tensor_desc);
+            new_result->output(0).set_tensor_ptr(tensor_desc);
             m_outputs.emplace_back(new_result->output(0));
         }
     }
