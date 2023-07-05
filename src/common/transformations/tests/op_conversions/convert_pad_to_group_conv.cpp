@@ -16,107 +16,18 @@
 #include "openvino/core/model.hpp"
 #include "openvino/opsets/opset12.hpp"
 #include "openvino/pass/manager.hpp"
+#include "pad_test_utils.hpp"
 
 using namespace testing;
 using namespace ov;
 using namespace ov::opset12;
 
 using NodePtr = std::shared_ptr<ov::Node>;
-
-class IPadFactory {
-public:
-    explicit IPadFactory(const std::string& type_name) : type_name_(type_name) {}
-    virtual ~IPadFactory() = default;
-    virtual std::shared_ptr<ov::Node> create(const Output<Node>& arg,
-                                             const Output<Node>& pads_begin,
-                                             const Output<Node>& pads_end,
-                                             ov::op::PadMode pad_mode) const = 0;
-    virtual std::shared_ptr<ov::Node> create(const Output<Node>& arg,
-                                             const Output<Node>& pads_begin,
-                                             const Output<Node>& pads_end,
-                                             const Output<Node>& arg_pad_value,
-                                             ov::op::PadMode pad_mode) const = 0;
-
-    const std::string& getTypeName() const {
-        return type_name_;
-    }
-
-private:
-    const std::string type_name_;
-};
 using PadFactoryPtr = std::shared_ptr<IPadFactory>;
-
-template <typename PadT>
-class PadFactory : public IPadFactory {
-public:
-    explicit PadFactory(const std::string& type_name) : IPadFactory(type_name) {}
-    NodePtr create(const Output<Node>& arg,
-                   const Output<Node>& pads_begin,
-                   const Output<Node>& pads_end,
-                   ov::op::PadMode pad_mode) const override {
-        return std::make_shared<PadT>(arg, pads_begin, pads_end, pad_mode);
-    }
-    NodePtr create(const Output<Node>& arg,
-                   const Output<Node>& pads_begin,
-                   const Output<Node>& pads_end,
-                   const Output<Node>& arg_pad_value,
-                   ov::op::PadMode pad_mode) const override {
-        return std::make_shared<PadT>(arg, pads_begin, pads_end, arg_pad_value, pad_mode);
-    }
-};
-
-template <typename PadT>
-PadFactoryPtr CreatePadFactory(const std::string& type_name) {
-    return std::make_shared<PadFactory<PadT>>(type_name);
-}
-
-struct ITestModelFactory {
-    explicit ITestModelFactory(const std::string& a_test_name) : test_name(a_test_name) {}
-    virtual ~ITestModelFactory() = default;
-    virtual void setup(PadFactoryPtr pad_factory, ov::pass::Manager& manager) = 0;
-    std::string test_name;
-    std::shared_ptr<ov::Model> function;
-    std::shared_ptr<ov::Model> function_ref;
-};
 using TestModelFactoryPtr = std::shared_ptr<ITestModelFactory>;
-
 using TestParams = std::tuple<PadFactoryPtr, TestModelFactoryPtr>;
 
-class ConvertPadGroupConvTestFixture : public ::testing::WithParamInterface<TestParams>, public TransformationTestsF {
-public:
-    static std::string get_test_name(const ::testing::TestParamInfo<TestParams>& obj) {
-        PadFactoryPtr pad_factory;
-        TestModelFactoryPtr model_factory;
-        std::tie(pad_factory, model_factory) = obj.param;
-
-        std::ostringstream test_name;
-        test_name << "pad_factory=" << pad_factory->getTypeName() << "/";
-        test_name << "model_factory=" << model_factory->test_name;
-
-        return test_name.str();
-    }
-};
-
-TEST_P(ConvertPadGroupConvTestFixture, CompareFunctions) {
-    PadFactoryPtr pad_factory;
-    TestModelFactoryPtr model_factory;
-    std::tie(pad_factory, model_factory) = this->GetParam();
-
-    model_factory->setup(pad_factory, manager);
-    model = model_factory->function;
-    model_ref = model_factory->function_ref;
-    if (!model_ref)
-        model_ref = model->clone();
-}
-
-#define TEST_BODY(TestName)                                                         \
-    struct TestName : public ITestModelFactory {                                    \
-        TestName() : ITestModelFactory(#TestName) {}                                \
-        void setup(PadFactoryPtr pad_factory, ov::pass::Manager& manager) override; \
-    };                                                                              \
-    void TestName::setup(PadFactoryPtr pad_factory, ov::pass::Manager& manager)
-
-TEST_BODY(ConvertPadToConv) {
+PAD_TEST_BODY(ConvertPadToConv) {
     {
         auto input = std::make_shared<Parameter>(element::f32, Shape{1, 3, 64, 64});
         auto pad_begin = Constant::create(element::i64, Shape{4}, {0, 0, 1, 0});
@@ -140,7 +51,7 @@ TEST_BODY(ConvertPadToConv) {
     }
 }
 
-TEST_BODY(NegativeConvertPadToConv) {
+PAD_TEST_BODY(NegativeConvertPadToConv) {
     {
         auto input = std::make_shared<Parameter>(element::f32, Shape{1, 3, 64, 64});
         auto pad_begin = Constant::create(element::i64, Shape{4}, {0, 0, -1, 0});
@@ -153,7 +64,7 @@ TEST_BODY(NegativeConvertPadToConv) {
     manager.register_pass<ov::pass::ConvertPadToGroupConvolution>();
 }
 
-TEST_BODY(ConvertPadToConvNeg1) {
+PAD_TEST_BODY(ConvertPadToConvNeg1) {
     {
         auto input = std::make_shared<Parameter>(element::f32, Shape{1, 3, 64, 64});
         auto pad_begin = Constant::create(element::i64, Shape{4}, {1, 0, 1, 0});  // Batch dim padding
@@ -167,7 +78,7 @@ TEST_BODY(ConvertPadToConvNeg1) {
     manager.register_pass<ov::pass::ConvertPadToGroupConvolution>();
 }
 
-TEST_BODY(ConvertPadToConvNeg2) {
+PAD_TEST_BODY(ConvertPadToConvNeg2) {
     {
         auto input = std::make_shared<Parameter>(element::f32, Shape{1, 3, 64, 64});
         auto pad_begin = Constant::create(element::i64, Shape{4}, {0, 0, 1, 0});
@@ -181,7 +92,7 @@ TEST_BODY(ConvertPadToConvNeg2) {
     manager.register_pass<ov::pass::ConvertPadToGroupConvolution>();
 }
 
-TEST_BODY(ConvertPadToConvNeg3) {
+PAD_TEST_BODY(ConvertPadToConvNeg3) {
     {
         auto input = std::make_shared<Parameter>(element::f32, Shape{1, 3, 64, 64});
         auto pad_begin = Constant::create(element::i64, Shape{4}, {0, 0, 1, 0});
@@ -195,7 +106,7 @@ TEST_BODY(ConvertPadToConvNeg3) {
     manager.register_pass<ov::pass::ConvertPadToGroupConvolution>();
 }
 
-TEST_BODY(ConvertPadToConvNeg4) {
+PAD_TEST_BODY(ConvertPadToConvNeg4) {
     {
         auto input = std::make_shared<Parameter>(element::f32, Shape{1, 3, 64, 64});
         auto pad_begin = Constant::create(element::i64, Shape{4}, {0, 0, 1, 0});
@@ -230,6 +141,6 @@ std::vector<PadFactoryPtr> pad_factories = {CREATE_PAD_FACTORY(ov::op::v1::Pad, 
 }  // namespace
 
 INSTANTIATE_TEST_SUITE_P(ConvertPadToGroupConvolutionTestSuite,
-                         ConvertPadGroupConvTestFixture,
+                         PadTestFixture,
                          ::testing::Combine(::testing::ValuesIn(pad_factories), ::testing::ValuesIn(model_factories)),
-                         ConvertPadGroupConvTestFixture::get_test_name);
+                         PadTestFixture::get_test_name);

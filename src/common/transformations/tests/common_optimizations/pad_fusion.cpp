@@ -18,107 +18,18 @@
 #include "openvino/core/model.hpp"
 #include "openvino/opsets/opset12.hpp"
 #include "openvino/pass/manager.hpp"
+#include "pad_test_utils.hpp"
 
 using namespace testing;
 using namespace ov;
 using namespace ov::opset12;
 
 using NodePtr = std::shared_ptr<ov::Node>;
-
-class IPadFactory {
-public:
-    explicit IPadFactory(const std::string& type_name) : type_name_(type_name) {}
-    virtual ~IPadFactory() = default;
-    virtual std::shared_ptr<ov::Node> create(const Output<Node>& arg,
-                                             const Output<Node>& pads_begin,
-                                             const Output<Node>& pads_end,
-                                             ov::op::PadMode pad_mode) const = 0;
-    virtual std::shared_ptr<ov::Node> create(const Output<Node>& arg,
-                                             const Output<Node>& pads_begin,
-                                             const Output<Node>& pads_end,
-                                             const Output<Node>& arg_pad_value,
-                                             ov::op::PadMode pad_mode) const = 0;
-
-    const std::string& getTypeName() const {
-        return type_name_;
-    }
-
-private:
-    const std::string type_name_;
-};
 using PadFactoryPtr = std::shared_ptr<IPadFactory>;
-
-template <typename PadT>
-class PadFactory : public IPadFactory {
-public:
-    explicit PadFactory(const std::string& type_name) : IPadFactory(type_name) {}
-    NodePtr create(const Output<Node>& arg,
-                   const Output<Node>& pads_begin,
-                   const Output<Node>& pads_end,
-                   ov::op::PadMode pad_mode) const override {
-        return std::make_shared<PadT>(arg, pads_begin, pads_end, pad_mode);
-    }
-    NodePtr create(const Output<Node>& arg,
-                   const Output<Node>& pads_begin,
-                   const Output<Node>& pads_end,
-                   const Output<Node>& arg_pad_value,
-                   ov::op::PadMode pad_mode) const override {
-        return std::make_shared<PadT>(arg, pads_begin, pads_end, arg_pad_value, pad_mode);
-    }
-};
-
-template <typename PadT>
-PadFactoryPtr CreatePadFactory(const std::string& type_name) {
-    return std::make_shared<PadFactory<PadT>>(type_name);
-}
-
-struct ITestModelFactory {
-    explicit ITestModelFactory(const std::string& a_test_name) : test_name(a_test_name) {}
-    virtual ~ITestModelFactory() = default;
-    virtual void setup(PadFactoryPtr pad_factory, ov::pass::Manager& manager) = 0;
-    std::string test_name;
-    std::shared_ptr<ov::Model> function;
-    std::shared_ptr<ov::Model> function_ref;
-};
 using TestModelFactoryPtr = std::shared_ptr<ITestModelFactory>;
-
 using TestParams = std::tuple<PadFactoryPtr, TestModelFactoryPtr>;
 
-class PadFusionTestFixture : public ::testing::WithParamInterface<TestParams>, public TransformationTestsF {
-public:
-    static std::string get_test_name(const ::testing::TestParamInfo<TestParams>& obj) {
-        PadFactoryPtr pad_factory;
-        TestModelFactoryPtr model_factory;
-        std::tie(pad_factory, model_factory) = obj.param;
-
-        std::ostringstream test_name;
-        test_name << "pad_factory=" << pad_factory->getTypeName() << "/";
-        test_name << "model_factory=" << model_factory->test_name;
-
-        return test_name.str();
-    }
-};
-
-TEST_P(PadFusionTestFixture, CompareFunctions) {
-    PadFactoryPtr pad_factory;
-    TestModelFactoryPtr model_factory;
-    std::tie(pad_factory, model_factory) = this->GetParam();
-
-    model_factory->setup(pad_factory, manager);
-    model = model_factory->function;
-    model_ref = model_factory->function_ref;
-    if (!model_ref)
-        model_ref = model->clone();
-}
-
-#define TEST_BODY(TestName)                                                         \
-    struct TestName : public ITestModelFactory {                                    \
-        TestName() : ITestModelFactory(#TestName) {}                                \
-        void setup(PadFactoryPtr pad_factory, ov::pass::Manager& manager) override; \
-    };                                                                              \
-    void TestName::setup(PadFactoryPtr pad_factory, ov::pass::Manager& manager)
-
-TEST_BODY(PadElimination) {
+PAD_TEST_BODY(PadElimination) {
     Shape data_shape{1, 3, 14, 14};
     {
         auto data = std::make_shared<Parameter>(element::i32, data_shape);
@@ -149,7 +60,7 @@ TEST_BODY(PadElimination) {
     }
 }
 
-TEST_BODY(NegativePadElimination) {
+PAD_TEST_BODY(NegativePadElimination) {
     Shape data_shape{1, 3, 14, 14};
     {
         auto data = std::make_shared<Parameter>(element::i32, data_shape);
@@ -169,7 +80,7 @@ TEST_BODY(NegativePadElimination) {
     // Reference function is equal to function
 }
 
-TEST_BODY(PadFusionAvgPoolExcludePad) {
+PAD_TEST_BODY(PadFusionAvgPoolExcludePad) {
     Shape data_shape{1, 3, 14, 14};
     {
         auto data = std::make_shared<Parameter>(element::i32, data_shape);
@@ -200,7 +111,7 @@ TEST_BODY(PadFusionAvgPoolExcludePad) {
     }
 }
 
-TEST_BODY(NegativePadFusionAvgPoolExcludePad) {
+PAD_TEST_BODY(NegativePadFusionAvgPoolExcludePad) {
     Shape data_shape{1, 3, 14, 14};
     {
         auto data = std::make_shared<Parameter>(element::i32, data_shape);
@@ -220,7 +131,7 @@ TEST_BODY(NegativePadFusionAvgPoolExcludePad) {
     // Reference function is equal to function
 }
 
-TEST_BODY(PadFusionAvgPoolDontExcludePad) {
+PAD_TEST_BODY(PadFusionAvgPoolDontExcludePad) {
     Shape data_shape{1, 3, 14, 14};
     {
         auto data = std::make_shared<Parameter>(element::i32, data_shape);
@@ -251,7 +162,7 @@ TEST_BODY(PadFusionAvgPoolDontExcludePad) {
     }
 }
 
-TEST_BODY(NegativePadFusionAvgPoolDontExcludePad) {
+PAD_TEST_BODY(NegativePadFusionAvgPoolDontExcludePad) {
     Shape data_shape{1, 3, 14, 14};
     {
         auto data = std::make_shared<Parameter>(element::i32, data_shape);
@@ -271,7 +182,7 @@ TEST_BODY(NegativePadFusionAvgPoolDontExcludePad) {
     // Reference function is equal to function
 }
 
-TEST_BODY(PadFusionConvolution) {
+PAD_TEST_BODY(PadFusionConvolution) {
     Shape data_shape{1, 3, 14, 14};
     {
         auto data = std::make_shared<Parameter>(element::i32, data_shape);
@@ -302,7 +213,7 @@ TEST_BODY(PadFusionConvolution) {
     }
 }
 
-TEST_BODY(NegativePadFusionConvolution) {
+PAD_TEST_BODY(NegativePadFusionConvolution) {
     Shape data_shape{1, 3, 14, 14};
     {
         auto data = std::make_shared<Parameter>(element::i32, data_shape);
@@ -322,7 +233,7 @@ TEST_BODY(NegativePadFusionConvolution) {
     // Reference function is equal to function
 }
 
-TEST_BODY(PadFusionConvolutionBackpropData) {
+PAD_TEST_BODY(PadFusionConvolutionBackpropData) {
     Shape data_shape{1, 3, 14, 14};
     {
         auto data = std::make_shared<Parameter>(element::f32, data_shape);
@@ -355,7 +266,7 @@ TEST_BODY(PadFusionConvolutionBackpropData) {
     }
 }
 
-TEST_BODY(PadFusionGroupConvolution) {
+PAD_TEST_BODY(PadFusionGroupConvolution) {
     Shape data_shape{1, 4, 14, 14};
     {
         auto data = std::make_shared<Parameter>(element::f32, data_shape);
@@ -387,7 +298,7 @@ TEST_BODY(PadFusionGroupConvolution) {
     }
 }
 
-TEST_BODY(NegativePadFusionGroupConvolution) {
+PAD_TEST_BODY(NegativePadFusionGroupConvolution) {
     Shape data_shape{1, 4, 14, 14};
     {
         auto data = std::make_shared<Parameter>(element::f32, data_shape);
@@ -408,7 +319,7 @@ TEST_BODY(NegativePadFusionGroupConvolution) {
     // Reference function is equal to function
 }
 
-TEST_BODY(PadFusionGroupConvolutionBackpropData) {
+PAD_TEST_BODY(PadFusionGroupConvolutionBackpropData) {
     Shape data_shape{1, 4, 14, 14};
     {
         auto data = std::make_shared<Parameter>(element::f32, data_shape);
@@ -438,7 +349,7 @@ TEST_BODY(PadFusionGroupConvolutionBackpropData) {
     }
 }
 
-TEST_BODY(PadFusionAvgPoolNonConstPadValue) {
+PAD_TEST_BODY(PadFusionAvgPoolNonConstPadValue) {
     Shape data_shape{1, 3, 14, 14};
     {
         auto data = std::make_shared<Parameter>(element::f32, data_shape);
@@ -471,7 +382,7 @@ TEST_BODY(PadFusionAvgPoolNonConstPadValue) {
     }
 }
 
-TEST_BODY(PadFusionConvolutionNonConstPadValue) {
+PAD_TEST_BODY(PadFusionConvolutionNonConstPadValue) {
     Shape data_shape{1, 3, 14, 14};
     {
         auto data = std::make_shared<Parameter>(element::f32, data_shape);
@@ -504,7 +415,7 @@ TEST_BODY(PadFusionConvolutionNonConstPadValue) {
     }
 }
 
-TEST_BODY(PadFusionConvolutionBackpropDataNonConstPadValue) {
+PAD_TEST_BODY(PadFusionConvolutionBackpropDataNonConstPadValue) {
     Shape data_shape{1, 3, 14, 14};
     {
         auto data = std::make_shared<Parameter>(element::f32, data_shape);
@@ -539,7 +450,7 @@ TEST_BODY(PadFusionConvolutionBackpropDataNonConstPadValue) {
     }
 }
 
-TEST_BODY(PadFusionGroupConvolutionNonConstPadValue) {
+PAD_TEST_BODY(PadFusionGroupConvolutionNonConstPadValue) {
     Shape data_shape{1, 4, 14, 14};
     {
         auto data = std::make_shared<Parameter>(element::f32, data_shape);
@@ -573,7 +484,7 @@ TEST_BODY(PadFusionGroupConvolutionNonConstPadValue) {
     }
 }
 
-TEST_BODY(PadFusionGroupConvolutionBackpropDataNonConstPadValue) {
+PAD_TEST_BODY(PadFusionGroupConvolutionBackpropDataNonConstPadValue) {
     Shape data_shape{1, 4, 14, 14};
     {
         auto data = std::make_shared<Parameter>(element::f32, data_shape);
@@ -605,7 +516,7 @@ TEST_BODY(PadFusionGroupConvolutionBackpropDataNonConstPadValue) {
     }
 }
 
-TEST_BODY(NegativePadFusionNonConstantPadMode) {
+PAD_TEST_BODY(NegativePadFusionNonConstantPadMode) {
     Shape data_shape{1, 3, 14, 14};
     {
         auto data = std::make_shared<Parameter>(element::i32, data_shape);
@@ -638,7 +549,7 @@ TEST_BODY(NegativePadFusionNonConstantPadMode) {
     }
 }
 
-TEST_BODY(NegativePadFusionNonZeroPadValue) {
+PAD_TEST_BODY(NegativePadFusionNonZeroPadValue) {
     Shape data_shape{1, 3, 14, 14};
     {
         auto data = std::make_shared<Parameter>(element::i32, data_shape);
@@ -673,7 +584,7 @@ TEST_BODY(NegativePadFusionNonZeroPadValue) {
     }
 }
 
-TEST_BODY(NegativePadFusionPadForBatchSize) {
+PAD_TEST_BODY(NegativePadFusionPadForBatchSize) {
     Shape data_shape{1, 3, 14, 14};
     {
         auto data = std::make_shared<Parameter>(element::i32, data_shape);
@@ -708,7 +619,7 @@ TEST_BODY(NegativePadFusionPadForBatchSize) {
     }
 }
 
-TEST_BODY(NegativePadFusionAvgPoolExcludePadNonZeroPads) {
+PAD_TEST_BODY(NegativePadFusionAvgPoolExcludePadNonZeroPads) {
     Shape data_shape{1, 3, 14, 14};
     {
         auto data = std::make_shared<Parameter>(element::i32, data_shape);
@@ -741,7 +652,7 @@ TEST_BODY(NegativePadFusionAvgPoolExcludePadNonZeroPads) {
     }
 }
 
-TEST_BODY(NegativePadFusionConvolutionBackpropDataTooSmallPad) {
+PAD_TEST_BODY(NegativePadFusionConvolutionBackpropDataTooSmallPad) {
     Shape data_shape{1, 3, 14, 14};
     {
         auto data = std::make_shared<Parameter>(element::f32, data_shape);
@@ -780,7 +691,7 @@ TEST_BODY(NegativePadFusionConvolutionBackpropDataTooSmallPad) {
     }
 }
 
-TEST_BODY(NegativePadPreservation) {
+PAD_TEST_BODY(NegativePadPreservation) {
     Shape data_shape{1, 3, 14, 14};
     {
         auto data = std::make_shared<Parameter>(element::i32, data_shape);
@@ -839,6 +750,6 @@ std::vector<PadFactoryPtr> pad_factories = {CREATE_PAD_FACTORY(ov::op::v1::Pad, 
 }  // namespace
 
 INSTANTIATE_TEST_SUITE_P(PadTestSuite,
-                         PadFusionTestFixture,
+                         PadTestFixture,
                          ::testing::Combine(::testing::ValuesIn(pad_factories), ::testing::ValuesIn(model_factories)),
-                         PadFusionTestFixture::get_test_name);
+                         PadTestFixture::get_test_name);
