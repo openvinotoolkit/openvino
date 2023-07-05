@@ -126,6 +126,8 @@ public:
     MOCK_METHOD0(CreateInferRequest, IInferRequestInternal::Ptr());
     MOCK_CONST_METHOD0(GetInputsInfo, ConstInputsDataMap());
     MOCK_CONST_METHOD0(GetOutputsInfo, ConstOutputsDataMap());
+    MOCK_CONST_METHOD0(getInputs, const std::vector<std::shared_ptr<const ov::Node>>&());
+    MOCK_CONST_METHOD0(getOutputs, const std::vector<std::shared_ptr<const ov::Node>>&());
     MOCK_CONST_METHOD1(GetConfig, Parameter(const std::string& name));
     MOCK_CONST_METHOD1(GetMetric, Parameter(const std::string& name));
     MOCK_METHOD2(CreateInferRequestImpl, IInferRequestInternal::Ptr(InputsDataMap, OutputsDataMap));
@@ -198,6 +200,8 @@ public:
     CNNCallback m_cnnCallback = nullptr;
     std::map<std::string, InputsDataMap> m_inputs_map;
     std::map<std::string, OutputsDataMap> m_outputs_map;
+    std::map<std::string, std::vector<std::shared_ptr<const ov::Node>>> m_inputs;
+    std::map<std::string, std::vector<std::shared_ptr<const ov::Node>>> m_outputs;
     using CheckConfigCb = std::function<void(const std::map<std::string, std::string>&)>;
     CheckConfigCb m_checkConfigCb = nullptr;
 
@@ -222,7 +226,9 @@ public:
 
     static std::shared_ptr<MockExecutableNetwork> createMockIExecutableNet(const std::string& name,
                                                                            const InputsDataMap& inputs_map,
-                                                                           const OutputsDataMap& outputs_map) {
+                                                                           const OutputsDataMap& outputs_map,
+                                                                           const std::vector<std::shared_ptr<const ov::Node>>& inputs,
+                                                                           const std::vector<std::shared_ptr<const ov::Node>>& outputs) {
         auto mock = std::make_shared<MockExecutableNetwork>();
         ConstInputsDataMap inputMap;
         for (const auto& input_item : inputs_map) {
@@ -234,6 +240,8 @@ public:
         }
         EXPECT_CALL(*mock, GetInputsInfo()).Times(AnyNumber()).WillRepeatedly(Return(inputMap));
         EXPECT_CALL(*mock, GetOutputsInfo()).Times(AnyNumber()).WillRepeatedly(Return(outputMap));
+        EXPECT_CALL(*mock, getInputs()).Times(AnyNumber()).WillRepeatedly(ReturnRef(inputs));
+        EXPECT_CALL(*mock, getOutputs()).Times(AnyNumber()).WillRepeatedly(ReturnRef(outputs));
         EXPECT_CALL(*mock, GetConfig(ov::enable_profiling.name()))
             .Times(AnyNumber())
             .WillRepeatedly(Return(Parameter{PluginConfigParams::NO}));
@@ -291,6 +299,8 @@ public:
     void TearDown() override {
         m_inputs_map = {};
         m_outputs_map = {};
+        m_inputs = {};
+        m_outputs = {};
         for (const auto& net : networks) {
             EXPECT_TRUE(Mock::VerifyAndClearExpectations(net.get()));
         }
@@ -423,7 +433,9 @@ private:
                     char space;
                     istr.read(&space, 1);
                     std::lock_guard<std::mutex> lock(mock_creation_mutex);
-                    return createMockIExecutableNet({}, m_inputs_map[name], m_outputs_map[name]);
+                    return createMockIExecutableNet({}, m_inputs_map[name], m_outputs_map[name],
+                                                        m_inputs[name],
+                                                        m_outputs[name]);
                 }));
 
         ON_CALL(plugin, ImportNetwork(_, _))
@@ -436,7 +448,9 @@ private:
                 char space;
                 istr.read(&space, 1);
                 std::lock_guard<std::mutex> lock(mock_creation_mutex);
-                return createMockIExecutableNet({}, m_inputs_map[name], m_outputs_map[name]);
+                return createMockIExecutableNet({}, m_inputs_map[name], m_outputs_map[name],
+                                                        m_inputs[name],
+                                                        m_outputs[name]);
             }));
 
         ON_CALL(plugin, LoadExeNetworkImpl(_, _, _))
@@ -450,9 +464,18 @@ private:
                 std::string name = cnn.getFunction()->get_friendly_name();
                 m_inputs_map[name] = cnn.getInputsInfo();
                 m_outputs_map[name] = cnn.getOutputsInfo();
+                std::vector<std::shared_ptr<const ov::Node>> inputs_, outputs_;
+                for (const auto& input: cnn.getFunction()->inputs())
+                    inputs_.emplace_back(input.get_node_shared_ptr());
+                for (const auto& output: cnn.getFunction()->outputs())
+                    outputs_.emplace_back(output.get_node_shared_ptr());
+                m_inputs[name] = inputs_;
+                m_outputs[name] = outputs_;
                 auto exe_net = createMockIExecutableNet(cnn.getFunction()->get_friendly_name(),
                                                         m_inputs_map[name],
-                                                        m_outputs_map[name]);
+                                                        m_outputs_map[name],
+                                                        m_inputs[name],
+                                                        m_outputs[name]);
                 exe_net->set_model(cnn.getFunction());
                 for (const auto& cb : m_post_mock_net_callbacks) {
                     cb(*exe_net);
@@ -470,9 +493,19 @@ private:
                 std::lock_guard<std::mutex> lock(mock_creation_mutex);
                 m_inputs_map[name] = cnn.getInputsInfo();
                 m_outputs_map[name] = cnn.getOutputsInfo();
+                cnn.getFunction()->inputs();
+                std::vector<std::shared_ptr<const ov::Node>> inputs_, outputs_;
+                for (const auto& input: cnn.getFunction()->inputs())
+                    inputs_.emplace_back(input.get_node_shared_ptr());
+                for (const auto& output: cnn.getFunction()->outputs())
+                    outputs_.emplace_back(output.get_node_shared_ptr());
+                m_inputs[name] = inputs_;
+                m_outputs[name] = outputs_;
                 auto exe_net = createMockIExecutableNet(cnn.getFunction()->get_friendly_name(),
                                                         m_inputs_map[name],
-                                                        m_outputs_map[name]);
+                                                        m_outputs_map[name],
+                                                        m_inputs[name],
+                                                        m_outputs[name]);
                 exe_net->set_model(cnn.getFunction());
                 for (const auto& cb : m_post_mock_net_callbacks) {
                     cb(*exe_net);
@@ -599,7 +632,9 @@ TEST_P(CachingTest, TestLoadCustomImportExport) {
                 std::string name;
                 s >> name;
                 std::lock_guard<std::mutex> lock(mock_creation_mutex);
-                return createMockIExecutableNet({}, m_inputs_map[name], m_outputs_map[name]);
+                return createMockIExecutableNet({}, m_inputs_map[name], m_outputs_map[name],
+                                                        m_inputs[name],
+                                                        m_outputs[name]);
             }));
 
     ON_CALL(*mockPlugin, ImportNetwork(_, _))
@@ -610,7 +645,9 @@ TEST_P(CachingTest, TestLoadCustomImportExport) {
             std::string name;
             s >> name;
             std::lock_guard<std::mutex> lock(mock_creation_mutex);
-            return createMockIExecutableNet({}, m_inputs_map[name], m_outputs_map[name]);
+            return createMockIExecutableNet({}, m_inputs_map[name], m_outputs_map[name],
+                                                        m_inputs[name],
+                                                        m_outputs[name]);
         }));
 
     m_post_mock_net_callbacks.emplace_back([&](MockExecutableNetwork& net) {
@@ -2284,7 +2321,9 @@ TEST_P(CachingTest, LoadMulti_Archs) {
                 std::string name;
                 s >> name;
                 std::lock_guard<std::mutex> lock(mock_creation_mutex);
-                return createMockIExecutableNet({}, m_inputs_map[name], m_outputs_map[name]);
+                return createMockIExecutableNet({}, m_inputs_map[name], m_outputs_map[name],
+                                                        m_inputs[name],
+                                                        m_outputs[name]);
             }));
         m_post_mock_net_callbacks.emplace_back([&](MockExecutableNetwork& net) {
             EXPECT_CALL(net, Export(_)).Times(1);  // each net will be exported once
