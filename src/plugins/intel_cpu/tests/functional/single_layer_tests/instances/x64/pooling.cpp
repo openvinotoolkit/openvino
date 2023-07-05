@@ -38,44 +38,6 @@ const std::vector<LayerTestsDefinitions::maxPoolV8SpecificParams> paramsMaxV84D_
                                                         ngraph::op::RoundingType::CEIL, ngraph::op::PadType::EXPLICIT },
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_MaxPool_CPU_3D, PoolingLayerCPUTest,
-                         ::testing::Combine(
-                                 ::testing::ValuesIn(paramsMax3D()),
-                                 ::testing::ValuesIn(inputShapes3D()),
-                                 ::testing::ValuesIn(inpOutPrecision()),
-                                 ::testing::Values(false),
-                                 ::testing::ValuesIn(filterCPUInfoForDevice(vecCpuConfigs)),
-                                 ::testing::Values(emptyFusingSpec)),
-                         PoolingLayerCPUTest::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_CPU_3D, PoolingLayerCPUTest,
-                         ::testing::Combine(
-                                 ::testing::ValuesIn(paramsAvg3D()),
-                                 ::testing::ValuesIn(inputShapes3D()),
-                                 ::testing::ValuesIn(inpOutPrecision()),
-                                 ::testing::Values(false),
-                                 ::testing::ValuesIn(filterCPUInfoForDevice(vecCpuConfigs)),
-                                 ::testing::Values(emptyFusingSpec)),
-                         PoolingLayerCPUTest::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_MaxPool_CPU_4D, PoolingLayerCPUTest,
-                            ::testing::Combine(
-                            ::testing::ValuesIn(paramsMax4D()),
-                            ::testing::ValuesIn(inputShapes4D()),
-                            ::testing::ValuesIn(inpOutPrecision()),
-                            ::testing::Values(false),
-                            ::testing::ValuesIn(filterCPUInfoForDevice(vecCpuConfigs)),
-                            ::testing::Values(emptyFusingSpec)),
-                        PoolingLayerCPUTest::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_MaxPoolV8_CPU_4D, MaxPoolingV8LayerCPUTest,
-                         ::testing::Combine(
-                                 ::testing::ValuesIn(paramsMaxV84D()),
-                                 ::testing::ValuesIn(inputShapes4D()),
-                                 ::testing::ValuesIn(inpOutPrecision()),
-                                 ::testing::ValuesIn(filterCPUInfoForDevice(vecCpuConfigs))),
-                         MaxPoolingV8LayerCPUTest::getTestCaseName);
-
 INSTANTIATE_TEST_SUITE_P(smoke_MaxPoolV8_CPU_4D_ref, MaxPoolingV8LayerCPUTest,
                          ::testing::Combine(
                                  ::testing::ValuesIn(paramsMaxV84D_ref),
@@ -83,55 +45,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_MaxPoolV8_CPU_4D_ref, MaxPoolingV8LayerCPUTest,
                                  ::testing::ValuesIn((inpOutPrecision())),
                                  ::testing::Values(ref)),
                          MaxPoolingV8LayerCPUTest::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_CPU_4D, PoolingLayerCPUTest,
-                        ::testing::Combine(
-                            ::testing::ValuesIn(paramsAvg4D()),
-                            ::testing::ValuesIn(inputShapes4D()),
-                            ::testing::ValuesIn(inpOutPrecision()),
-                            ::testing::Values(false),
-                            ::testing::ValuesIn(filterCPUInfoForDevice(vecCpuConfigs)),
-                            ::testing::Values(emptyFusingSpec)),
-                        PoolingLayerCPUTest::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_CPU_Large, PoolingLayerCPUTest,
-                        ::testing::Combine(
-                            ::testing::ValuesIn(paramsAvg4D_Large()),
-                            ::testing::ValuesIn(inputShapes4D_Large()),
-                            ::testing::ValuesIn(inpOutPrecision()),
-                            ::testing::Values(false),
-                            ::testing::ValuesIn(filterCPUInfoForDevice(vecCpuConfigs)),
-                            ::testing::Values(emptyFusingSpec)),
-                        PoolingLayerCPUTest::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_MaxPool_CPU_5D, PoolingLayerCPUTest,
-                         ::testing::Combine(
-                             ::testing::ValuesIn(paramsMax5D()),
-                             ::testing::ValuesIn(inputShapes5D()),
-                             ::testing::ValuesIn(inpOutPrecision()),
-                             ::testing::Values(false),
-                             ::testing::ValuesIn(filterCPUInfoForDevice(vecCpuConfigs)),
-                             ::testing::Values(emptyFusingSpec)),
-                         PoolingLayerCPUTest::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_MaxPoolV8_CPU_5D, MaxPoolingV8LayerCPUTest,
-                         ::testing::Combine(
-                                 ::testing::ValuesIn(paramsMaxV85D()),
-                                 ::testing::ValuesIn(inputShapes5D()),
-                                 ::testing::ValuesIn(inpOutPrecision()),
-                                 ::testing::ValuesIn(filterCPUInfoForDevice(vecCpuConfigs))),
-                         MaxPoolingV8LayerCPUTest::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_CPU_5D, PoolingLayerCPUTest,
-                         ::testing::Combine(
-                              ::testing::ValuesIn(paramsAvg5D()),
-                              ::testing::ValuesIn(inputShapes5D()),
-                              ::testing::ValuesIn(inpOutPrecision()),
-                              ::testing::Values(false),
-                              ::testing::ValuesIn(filterCPUInfoForDevice(vecCpuConfigs)),
-                              ::testing::Values(emptyFusingSpec)),
-                          PoolingLayerCPUTest::getTestCaseName);
-
 
 const auto avx512_nhwc = CPUSpecificParams{{nhwc}, {nhwc}, {"jit_avx512"}, "jit_avx512"};
 const auto avx512_ndhwc = CPUSpecificParams{{ndhwc}, {ndhwc}, {"jit_avx512"}, "jit_avx512"};
