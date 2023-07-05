@@ -33,7 +33,7 @@
 #    define INFERENCE_ENGINE_C_API_EXTERN
 #endif
 
-#define IE_1_0_DEPRECATED \
+#define IE_1_0_DEPRECATED                                                                                    \
     OPENVINO_DEPRECATED("The Inference Engine API is deprecated and will be removed in the 2024.0 release. ")
 
 #if !defined(IN_OV_COMPONENT) && !defined(C_API_LEGACY_HEADER_INCLUDED)
@@ -1151,17 +1151,17 @@ INFERENCE_ENGINE_C_API(void) ie_blob_free(ie_blob_t** blob);
 
 /** @} */  // end of Blob
 
-            /**
-            * @brief Shut down the OpenVINO by deleting all static-duration objects allocated by the library and releasing
-            * dependent resources
-            *
-            * @note This function should be used by advanced user to control unload the resources.
-            *
-            * You might want to use this function if you are developing a dynamically-loaded library which should clean up all
-            * resources after itself when the library is unloaded.
-            */
-            INFERENCE_ENGINE_C_API(void) ie_shutdown();
+/**
+ * @brief Shut down the OpenVINO by deleting all static-duration objects allocated by the library and releasing
+ * dependent resources
+ *
+ * @note This function should be used by advanced user to control unload the resources.
+ *
+ * You might want to use this function if you are developing a dynamically-loaded library which should clean up all
+ * resources after itself when the library is unloaded.
+ */
+INFERENCE_ENGINE_C_API(void) ie_shutdown();
 
-            OPENVINO_SUPPRESS_DEPRECATED_END
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 #endif  // IE_C_API_H
