@@ -89,7 +89,7 @@
 #include "transformations/op_conversions/convert_reduce_to_pooling.hpp"
 #include "transformations/op_conversions/convert_roi_align_v3_to_v9.hpp"
 #include "transformations/op_conversions/convert_roi_align_v9_to_v3.hpp"
-#include "transformations/op_conversions/convert_scatter_elements_to_scatter.hpp"
+#include "transformations/op_conversions/convert_scatter_elements_update12_downgrade.hpp"
 #include "transformations/op_conversions/convert_softmax_downgrade.hpp"
 #include "transformations/op_conversions/convert_softmax_upgrade.hpp"
 #include "transformations/op_conversions/convert_space_to_depth.hpp"
@@ -215,6 +215,7 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     REGISTER_PASS(manager, ConvertTopK11ToTopK3)
     REGISTER_PASS(manager, ConvertInterpolate11ToInterpolate4)
     REGISTER_PASS(manager, ConvertPad12ToPad1)
+    REGISTER_PASS(manager, ConvertScatterElementsUpdate12ToScatterElementsUpdate3)
 
     auto fq_fusions = manager.register_pass<GraphRewrite>();
     ADD_MATCHER(fq_fusions, FakeQuantizeMulFusion)

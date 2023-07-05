@@ -2,6 +2,11 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Use the ov::Property class to define access rights and 
+                 specific properties of an OpenVINO plugin.
+
+
 Plugin can provide own device-specific properties.
 
 Property Class

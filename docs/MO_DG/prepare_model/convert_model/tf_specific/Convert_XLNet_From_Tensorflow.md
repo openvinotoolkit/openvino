@@ -2,6 +2,11 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to convert an XLNet model from 
+                 TensorFlow to the OpenVINO Intermediate Representation.
+
+
 Pretrained models for XLNet (Bidirectional Encoder Representations from Transformers) are
 `publicly available <https://github.com/zihangdai/xlnet>`__.
 
