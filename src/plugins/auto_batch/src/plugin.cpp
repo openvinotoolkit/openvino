@@ -7,7 +7,7 @@
 #include "plugin.hpp"
 
 #include "compiled_model.hpp"
-#include "dimension_tracker.hpp"
+#include "openvino/core/dimension_tracker.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
 #include "openvino/util/common_util.hpp"

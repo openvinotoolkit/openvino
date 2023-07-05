@@ -15,6 +15,11 @@
    openvino_docs_MO_DG_Python_API
    openvino_docs_MO_DG_prepare_model_Model_Optimizer_FAQ
 
+.. meta::
+   :description: Model conversion (MO) furthers the transition between training and 
+                 deployment environments, it adjusts deep learning models for 
+                 optimal execution on target devices.
+
 
 To convert a model to OpenVINO model format (``ov.Model``), you can use the following command:
 
