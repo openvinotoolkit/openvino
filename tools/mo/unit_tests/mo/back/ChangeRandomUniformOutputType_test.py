@@ -5,7 +5,6 @@ import unittest
 from argparse import Namespace
 
 import numpy as np
-from generator import generator, generate
 
 from openvino.tools.mo.back.ChangeRandomUniformOutputType import ChangeRandomUniformOutputType
 from openvino.tools.mo.graph.graph import Node
@@ -95,4 +94,4 @@ class ChangeRandomUniformOutputTypeTest(unittest.TestCase):
         if dst_type is not None:
             convert_node = Node(graph, 'random_uniform').out_port(0).get_destination().node
             self.assertTrue(convert_node['dst_type'] == dst_type)
-   
+            
