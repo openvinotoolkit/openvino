@@ -457,11 +457,10 @@ private:
 #    pragma warning(disable : 4018)
 #    pragma warning(disable : 4804)
 #endif
-        if (!std::is_same<OUT_T, IN_T>::value) {
-            OPENVINO_ASSERT(!std::numeric_limits<IN_T>::is_signed ||
-                            std::numeric_limits<OUT_T>::lowest() <= c);
-            OPENVINO_ASSERT(std::numeric_limits<OUT_T>::max() >= c);
-        }
+            if (!std::is_same<OUT_T, IN_T>::value) {
+                OPENVINO_ASSERT(!std::numeric_limits<IN_T>::is_signed || std::numeric_limits<OUT_T>::lowest() <= c);
+                OPENVINO_ASSERT(std::numeric_limits<OUT_T>::max() >= c);
+            }
 #if defined(__clang__)
 #    pragma clang diagnostic pop
 #elif defined(__GNUC__)
