@@ -130,7 +130,7 @@ std::vector<std::shared_ptr<ov::IVariableState>> SyncInferRequest::query_state()
 }
 
 std::vector<ov::ProfilingInfo> SyncInferRequest::get_profiling_info() const {
-    OPENVINO_NOT_IMPLEMENTED;
+    return m_batched_request_wrapper->_infer_request_batched->get_profiling_info();
 }
 }  // namespace autobatch_plugin
 }  // namespace ov

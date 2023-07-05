@@ -53,7 +53,7 @@ AsyncInferRequest::AsyncInferRequest(const std::shared_ptr<SyncInferRequest>& re
 std::vector<ov::ProfilingInfo> AsyncInferRequest::get_profiling_info() const {
     check_state();
     if (SyncInferRequest::eExecutionFlavor::BATCH_EXECUTED == m_sync_request->m_batched_request_used)
-        return m_sync_request->m_batched_request_wrapper->_infer_request_batched->get_profiling_info();
+        return m_sync_request->get_profiling_info();
     else
         return m_request_without_batch->get_profiling_info();
 }
