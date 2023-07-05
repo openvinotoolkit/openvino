@@ -50,6 +50,10 @@ void RemoteContext::type_check(const RemoteContext& context,
     }
 }
 
+RemoteContext::operator bool() const noexcept {
+    return (!!_impl);
+}
+
 RemoteContext::~RemoteContext() {
     _impl = {};
 }

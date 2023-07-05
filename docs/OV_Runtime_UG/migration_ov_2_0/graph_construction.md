@@ -2,6 +2,12 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Model creation in OpenVINO™ Runtime API 2.0 is performed with 
+                 nGraph engine that has been preserved in the new API and its 
+                 namespace has been changed to 'ov'.
+
+
 OpenVINO™ Runtime with API 2.0 includes the nGraph engine as a common part. The ``ngraph`` namespace has been changed to ``ov``, but all other parts of the ngraph API have been preserved.
 
 The code snippets below show how to change the application code for migration to API 2.0.
