@@ -278,6 +278,8 @@ bool convert_function_precision(
                 auto result_input = result->input_value(0);
                 const auto convert = std::make_shared<ov::op::v0::Convert>(result_input, orig_result_types[i]);
                 convert->output(0).set_names(result_input.get_names());
+                convert->set_friendly_name(ov::op::util::get_ie_output_name(result_input));
+                result_input.get_node()->set_friendly_name("");
                 result_input.set_names({});
                 result->input(0).replace_source_output(convert->output(0));
                 result->revalidate_and_infer_types();
