@@ -12,6 +12,7 @@
 #include "openvino/op/space_to_batch.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/util/op_types.hpp"
+#include "openvino/op/util/pad_base.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/common_util.hpp"
 #include "transformations/rt_info/transpose_sinking_attr.hpp"
@@ -25,7 +26,7 @@ using namespace ov::pass::transpose_sinking::utils;
 namespace {
 
 std::vector<size_t> get_indices_by_op_type(const std::shared_ptr<Node>& main_node) {
-    if (as_type_ptr<ov::op::v1::Pad>(main_node)) {
+    if (as_type_ptr<ov::op::util::PadBase>(main_node)) {
         return {1, 2};
     } else if (as_type_ptr<ov::op::v1::BatchToSpace>(main_node) || as_type_ptr<ov::op::v1::SpaceToBatch>(main_node)) {
         return {1, 2, 3};
@@ -38,7 +39,7 @@ std::vector<size_t> get_indices_by_op_type(const std::shared_ptr<Node>& main_nod
 
 TSDataMovementForward::TSDataMovementForward() {
     MATCHER_SCOPE(TSDataMovementForward);
-    create_pattern<ov::op::v1::Pad, ov::op::v1::BatchToSpace, ov::op::v1::SpaceToBatch, ov::op::v0::ReverseSequence>(
+    create_pattern<op::util::PadBase, ov::op::v1::BatchToSpace, ov::op::v1::SpaceToBatch, ov::op::v0::ReverseSequence>(
         true,
         {0});
 
@@ -74,7 +75,7 @@ TSDataMovementBackward::TSDataMovementBackward() {
     MATCHER_SCOPE(TSDataMovementBackward);
 
     auto main_node_label =
-        wrap_type<ov::op::v1::Pad, ov::op::v1::BatchToSpace, ov::op::v1::SpaceToBatch, ov::op::v0::ReverseSequence>(
+        wrap_type<op::util::PadBase, ov::op::v1::BatchToSpace, ov::op::v1::SpaceToBatch, ov::op::v0::ReverseSequence>(
             [](const Output<Node>& output) -> bool {
                 return has_static_rank()(output) && CheckTransposeConsumers(output);
             });

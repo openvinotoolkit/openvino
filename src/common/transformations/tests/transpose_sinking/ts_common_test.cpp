@@ -114,11 +114,28 @@ class PadFactory : public IFactory {
 public:
     explicit PadFactory(const std::string& type_name) : IFactory(type_name) {}
     NodePtr create(const OutputVector& parent_nodes) const override {
-        return std::make_shared<Pad>(parent_nodes[0], parent_nodes[1], parent_nodes[2], ov::op::PadMode::CONSTANT);
+        return std::make_shared<ov::op::v1::Pad>(parent_nodes[0],
+                                                 parent_nodes[1],
+                                                 parent_nodes[2],
+                                                 ov::op::PadMode::CONSTANT);
     }
 };
 FactoryPtr CreatePadFactory(const std::string& type_name) {
     return std::make_shared<PadFactory>(type_name);
+}
+
+class Pad12Factory : public IFactory {
+public:
+    explicit Pad12Factory(const std::string& type_name) : IFactory(type_name) {}
+    NodePtr create(const OutputVector& parent_nodes) const override {
+        return std::make_shared<ov::op::v12::Pad>(parent_nodes[0],
+                                                  parent_nodes[1],
+                                                  parent_nodes[2],
+                                                  ov::op::PadMode::CONSTANT);
+    }
+};
+FactoryPtr CreatePad12Factory(const std::string& type_name) {
+    return std::make_shared<Pad12Factory>(type_name);
 }
 
 class BatchToSpaceFactory : public IFactory {
@@ -252,6 +269,9 @@ FactoryPtr CreateFakeQuantizeFactory(const std::string& type_name) {
 
 #undef CREATE_PAD_FACTORY
 #define CREATE_PAD_FACTORY(type_name) CreatePadFactory(#type_name)
+
+#undef CREATE_PAD12_FACTORY
+#define CREATE_PAD12_FACTORY(type_name) CreatePad12Factory(#type_name)
 
 #undef CREATE_BATCH_TO_SPACE_FACTORY
 #define CREATE_BATCH_TO_SPACE_FACTORY(type_name) CreateBatchToSpaceFactory(#type_name)
@@ -537,6 +557,34 @@ auto test_forward_pad = []() {
 };
 
 INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonPadForward, TSTestFixture, test_forward_pad());
+
+auto test_negative_forward_pad = []() {
+    TestCase test_case;
+
+    // Initialize common attributes
+    test_case.transformation = CREATE_PASS_FACTORY(TSDataMovementForward);
+    test_case.num_main_ops = {1, 2};
+    test_case.inputs_to_main = {
+        parameter(element::f32, {1, 3, 55, 55}),
+        constant<int64_t>(element::i32, {4}, {1, -2, -3, -4}),
+        constant<int64_t>(element::i32, {4}, {1, -2, -3, -4}),
+    };
+
+    // Test model description:
+    test_case.model.preprocess_inputs_to_main = {{set_transpose_for}, {{0}}};
+    test_case.model.main_op = {CREATE_PAD12_FACTORY(Pad12)};
+    test_case.model.model_template = create_model;
+
+    // Reference model description:
+    test_case.model_ref.preprocess_inputs_to_main = {{set_gather_for}, {{1, 2}}};
+    test_case.model_ref.main_op = {CREATE_PAD12_FACTORY(Pad12)};
+    test_case.model_ref.preprocess_outputs_of_main = {{set_transpose_for}, {{0}}};
+    test_case.model_ref.model_template = create_model;
+
+    return wrapper(test_case);
+};
+
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonNegativePad12Forward, TSTestFixture, test_negative_forward_pad());
 
 auto test_forward_batch_to_space = []() {
     TestCase test_case;
