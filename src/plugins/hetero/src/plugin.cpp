@@ -94,9 +94,8 @@ ov::SupportedOpsMap ov::hetero::Plugin::query_model(const std::shared_ptr<const 
 
     OPENVINO_ASSERT(model, "OpenVINO Model is empty!");
 
-    auto device_properties = properties;
-    Configuration config{device_properties, m_cfg};    
-    DeviceProperties properties_per_device = get_properties_per_device(config.device_priorities, device_properties);
+    Configuration full_config{properties, m_cfg};    
+    DeviceProperties properties_per_device = get_properties_per_device(full_config.device_priorities, full_config.GetDeviceProperties());
 
     std::map<std::string, ov::SupportedOpsMap> query_results;
     for (auto&& it : properties_per_device) {
@@ -106,7 +105,7 @@ ov::SupportedOpsMap ov::hetero::Plugin::query_model(const std::shared_ptr<const 
     }
 
     //  WARNING: Here is devices with user set priority
-    auto device_names = ov::DeviceIDParser::get_hetero_devices(config.device_priorities);
+    auto device_names = ov::DeviceIDParser::get_hetero_devices(full_config.device_priorities);
 
     ov::SupportedOpsMap res;
     for (auto&& device_name : device_names) {
@@ -119,8 +118,7 @@ ov::SupportedOpsMap ov::hetero::Plugin::query_model(const std::shared_ptr<const 
 }
 
 void ov::hetero::Plugin::set_property(const ov::AnyMap& properties) {
-    auto temp_properties(properties);
-    m_cfg = Configuration{temp_properties, m_cfg, true};
+    m_cfg = Configuration{properties, m_cfg, true};
 }
 
 ov::Any ov::hetero::Plugin::get_property(const std::string& name, const ov::AnyMap& properties) const {
@@ -148,8 +146,7 @@ ov::Any ov::hetero::Plugin::get_property(const std::string& name, const ov::AnyM
         return ret;
     };
 
-    auto temp_properties(properties);
-    Configuration config{temp_properties, m_cfg};
+    Configuration full_config{properties, m_cfg};
     if (METRIC_KEY(SUPPORTED_METRICS) == name) {
         auto metrics = default_ro_properties();
 
@@ -158,7 +155,7 @@ ov::Any ov::hetero::Plugin::get_property(const std::string& name, const ov::AnyM
         add_ro_properties(METRIC_KEY(IMPORT_EXPORT_SUPPORT), metrics);
         return to_string_vector(metrics);
     } else if (METRIC_KEY(SUPPORTED_CONFIG_KEYS) == name) {
-        return to_string_vector(config.GetSupported());
+        return to_string_vector(full_config.GetSupported());
     } else if (ov::supported_properties == name) {
         auto ro_properties = default_ro_properties();
         auto rw_properties = default_rw_properties();
@@ -175,11 +172,11 @@ ov::Any ov::hetero::Plugin::get_property(const std::string& name, const ov::AnyM
     } else if (ov::caching_properties == name) {
         return decltype(ov::caching_properties)::value_type{ov::hetero::caching_device_properties.name()};
     } else if (ov::hetero::caching_device_properties == name) {
-        return caching_device_properties(config.device_priorities);
+        return caching_device_properties(full_config.device_priorities);
     } else if (ov::device::capabilities == name) {
         return decltype(ov::device::capabilities)::value_type{{ov::device::capability::EXPORT_IMPORT}};
     } else {
-        return config.Get(name);
+        return full_config.Get(name);
     }
 }
 

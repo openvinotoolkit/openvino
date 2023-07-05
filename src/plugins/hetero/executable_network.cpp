@@ -72,17 +72,11 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
     auto function = network.getFunction();
     auto clonedFunction = ngraph::clone_function(*function);
 
-    // Split `user_config` on `device_config` (with properties for underlying devices)
-    // and `_cfg` (hetero config with properties for hetero plugin only)
-    auto device_config = user_config;
-    _cfg = ov::hetero::Configuration{device_config, plugin->m_cfg};
+    _cfg = ov::hetero::Configuration{user_config, plugin->m_cfg};
 
-    bool dumpDotFile = false;
-    if (std::getenv("OPENVINO_HETERO_VISUALIZE")) {
+    bool dumpDotFile = _cfg.dump_graph;
+    if (std::getenv("OPENVINO_HETERO_VISUALIZE"))
         dumpDotFile = true;
-    } else {
-        dumpDotFile = _cfg.dump_graph;
-    }
 
     QueryNetworkResult queryNetworkResult;
     auto orderedOps = clonedFunction->get_ordered_ops();
@@ -444,7 +438,7 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
         ++id;
     }
     for (auto&& network : _networks) {
-        auto metaDevices = plugin->get_properties_per_device(network._device, device_config);
+        auto metaDevices = plugin->get_properties_per_device(network._device, _cfg.GetDeviceProperties());
 
         // disable caching for subgraphs, because the whole HETERO model is cached
         auto device_config = metaDevices[network._device];
@@ -513,7 +507,7 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream& heteroModel,
     FOREACH_CHILD (subnetworkNode, subnetworksNode, "subnetwork") {
         auto deviceName = GetStrAttr(subnetworkNode, "device");
 
-        auto metaDevices = plugin->get_properties_per_device(deviceName, config);
+        auto metaDevices = plugin->get_properties_per_device(deviceName, _cfg.GetDeviceProperties());
         assert(metaDevices.size() == 1);
         auto& loadConfig = metaDevices[deviceName];
 
@@ -705,14 +699,14 @@ void HeteroExecutableNetwork::Export(std::ostream& heteroModel) {
     }
 
     auto heteroConfigsNode = heteroNode.append_child("hetero_config");
-    for (auto&& config : _cfg.GetHeteroConfig()) {
+    for (auto&& config : _cfg.GetHeteroProperties()) {
         auto heteroConfigNode = heteroConfigsNode.append_child("config");
         heteroConfigNode.append_attribute("key").set_value(config.first.c_str());
         heteroConfigNode.append_attribute("value").set_value(config.second.as<std::string>().c_str());
     }
 
     auto deviceConfigsNode = heteroNode.append_child("device_config");
-    for (auto&& config : _cfg.GetDeviceConfig()) {
+    for (auto&& config : _cfg.GetDeviceProperties()) {
         auto deviceConfigNode = deviceConfigsNode.append_child("config");
         deviceConfigNode.append_attribute("key").set_value(config.first.c_str());
         deviceConfigNode.append_attribute("value").set_value(config.second.as<std::string>().c_str());
