@@ -133,7 +133,9 @@ TEST(type_prop, range_some_const_minus_inf_start_fails) {
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), "'start' cannot be nan or infinite.");
     } catch (const ov::Exception& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), "Check '!std::numeric_limits<IN_T>::is_signed || std::numeric_limits<OUT_T>::lowest() <= c");
+        EXPECT_HAS_SUBSTRING(
+            error.what(),
+            "Check '!std::numeric_limits<IN_T>::is_signed || std::numeric_limits<OUT_T>::lowest() <= c");
     } catch (...) {
         FAIL() << "Test failed for unexpected reason";
     }
@@ -150,7 +152,9 @@ TEST(type_prop, range_some_const_nan_start_fails) {
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), "'start' cannot be nan or infinite.");
     } catch (const ov::Exception& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), "Check '!std::numeric_limits<IN_T>::is_signed || std::numeric_limits<OUT_T>::lowest() <= c");
+        EXPECT_HAS_SUBSTRING(
+            error.what(),
+            "Check '!std::numeric_limits<IN_T>::is_signed || std::numeric_limits<OUT_T>::lowest() <= c");
     } catch (...) {
         FAIL() << "Test failed for unexpected reason";
     }
@@ -186,7 +190,9 @@ TEST(type_prop, range_some_const_minus_inf_stop_fails) {
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), "'stop' cannot be nan or infinite.");
     } catch (const ov::Exception& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), "Check '!std::numeric_limits<IN_T>::is_signed || std::numeric_limits<OUT_T>::lowest() <= c");
+        EXPECT_HAS_SUBSTRING(
+            error.what(),
+            "Check '!std::numeric_limits<IN_T>::is_signed || std::numeric_limits<OUT_T>::lowest() <= c");
     } catch (...) {
         FAIL() << "Test failed for unexpected reason";
     }
@@ -203,7 +209,9 @@ TEST(type_prop, range_some_const_nan_stio_fails) {
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), "'stop' cannot be nan or infinite.");
     } catch (const ov::Exception& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), "Check '!std::numeric_limits<IN_T>::is_signed || std::numeric_limits<OUT_T>::lowest() <= c");
+        EXPECT_HAS_SUBSTRING(
+            error.what(),
+            "Check '!std::numeric_limits<IN_T>::is_signed || std::numeric_limits<OUT_T>::lowest() <= c");
     } catch (...) {
         FAIL() << "Test failed for unexpected reason";
     }
@@ -239,7 +247,9 @@ TEST(type_prop, range_some_const_minus_inf_stride_fails) {
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), "'step' cannot be zero, nan, or infinite.");
     } catch (const ov::Exception& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), "Check '!std::numeric_limits<IN_T>::is_signed || std::numeric_limits<OUT_T>::lowest() <= c");
+        EXPECT_HAS_SUBSTRING(
+            error.what(),
+            "Check '!std::numeric_limits<IN_T>::is_signed || std::numeric_limits<OUT_T>::lowest() <= c");
     } catch (...) {
         FAIL() << "Test failed for unexpected reason";
     }
@@ -256,7 +266,9 @@ TEST(type_prop, range_some_const_nan_stride_fails) {
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), "'step' cannot be zero, nan, or infinite.");
     } catch (const ov::Exception& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), "Check '!std::numeric_limits<IN_T>::is_signed || std::numeric_limits<OUT_T>::lowest() <= c");
+        EXPECT_HAS_SUBSTRING(
+            error.what(),
+            "Check '!std::numeric_limits<IN_T>::is_signed || std::numeric_limits<OUT_T>::lowest() <= c");
     } catch (...) {
         FAIL() << "Test failed for unexpected reason";
     }
@@ -620,7 +632,9 @@ TEST(type_prop, range_v4_invalid_inputs_minus_inf) {
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), "'start' cannot be nan or infinite.");
     } catch (const ov::Exception& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), "Check '!std::numeric_limits<IN_T>::is_signed || std::numeric_limits<OUT_T>::lowest() <= c");
+        EXPECT_HAS_SUBSTRING(
+            error.what(),
+            "Check '!std::numeric_limits<IN_T>::is_signed || std::numeric_limits<OUT_T>::lowest() <= c");
     } catch (...) {
         FAIL() << "Test failed for unexpected reason";
     }
@@ -637,7 +651,9 @@ TEST(type_prop, range_v4_invalid_inputs_minus_inf) {
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), "'stop' cannot be nan or infinite.");
     } catch (const ov::Exception& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), "Check '!std::numeric_limits<IN_T>::is_signed || std::numeric_limits<OUT_T>::lowest() <= c");
+        EXPECT_HAS_SUBSTRING(
+            error.what(),
+            "Check '!std::numeric_limits<IN_T>::is_signed || std::numeric_limits<OUT_T>::lowest() <= c");
     } catch (...) {
         FAIL() << "Test failed for unexpected reason";
     }
@@ -654,7 +670,9 @@ TEST(type_prop, range_v4_invalid_inputs_minus_inf) {
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), "'step' cannot be nan or infinite.");
     } catch (const ov::Exception& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), "Check '!std::numeric_limits<IN_T>::is_signed || std::numeric_limits<OUT_T>::lowest() <= c");
+        EXPECT_HAS_SUBSTRING(
+            error.what(),
+            "Check '!std::numeric_limits<IN_T>::is_signed || std::numeric_limits<OUT_T>::lowest() <= c");
     } catch (...) {
         FAIL() << "Test failed for unexpected reason";
     }
@@ -671,7 +689,9 @@ TEST(type_prop, range_v4_invalid_inputs_nan) {
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), "'start' cannot be nan or infinite.");
     } catch (const ov::Exception& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), "Check '!std::numeric_limits<IN_T>::is_signed || std::numeric_limits<OUT_T>::lowest() <= c");
+        EXPECT_HAS_SUBSTRING(
+            error.what(),
+            "Check '!std::numeric_limits<IN_T>::is_signed || std::numeric_limits<OUT_T>::lowest() <= c");
     } catch (...) {
         FAIL() << "Test failed for unexpected reason";
     }
@@ -686,7 +706,9 @@ TEST(type_prop, range_v4_invalid_inputs_nan) {
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), "'stop' cannot be nan or infinite.");
     } catch (const ov::Exception& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), "Check '!std::numeric_limits<IN_T>::is_signed || std::numeric_limits<OUT_T>::lowest() <= c");
+        EXPECT_HAS_SUBSTRING(
+            error.what(),
+            "Check '!std::numeric_limits<IN_T>::is_signed || std::numeric_limits<OUT_T>::lowest() <= c");
     } catch (...) {
         FAIL() << "Test failed for unexpected reason";
     }
@@ -701,7 +723,9 @@ TEST(type_prop, range_v4_invalid_inputs_nan) {
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), "'step' cannot be nan or infinite.");
     } catch (const ov::Exception& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), "Check '!std::numeric_limits<IN_T>::is_signed || std::numeric_limits<OUT_T>::lowest() <= c");
+        EXPECT_HAS_SUBSTRING(
+            error.what(),
+            "Check '!std::numeric_limits<IN_T>::is_signed || std::numeric_limits<OUT_T>::lowest() <= c");
     } catch (...) {
         FAIL() << "Test failed for unexpected reason";
     }
