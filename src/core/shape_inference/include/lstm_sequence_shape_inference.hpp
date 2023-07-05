@@ -13,7 +13,7 @@ std::vector<TShape> shape_infer(const LSTMSequence* op, const std::vector<TShape
     constexpr auto num_gates = 4;
     constexpr auto num_state_nodes = 2;
     const auto output_shapes =
-        rnn::rnn_seq_base_shape_infer(op, input_shapes, num_gates, num_state_nodes, op->get_direction());
+        rnn::seq_base_shape_infer(op, input_shapes, num_gates, num_state_nodes, op->get_direction());
     // Validate rank and dimension for P input (the input doesn't exists in the next version of LSTM or other RNN based
     // ops) The checks are compatible with the original restrictions of the v0::LSTMSequence
     const auto& hidden_size = output_shapes[0][3];
@@ -36,7 +36,7 @@ template <class TShape>
 std::vector<TShape> shape_infer(const LSTMSequence* op, const std::vector<TShape>& input_shapes) {
     constexpr auto num_gates = 4;
     constexpr auto num_state_nodes = 2;
-    return rnn::rnn_seq_base_shape_infer(op, input_shapes, num_gates, num_state_nodes, op->get_direction());
+    return rnn::seq_base_shape_infer(op, input_shapes, num_gates, num_state_nodes, op->get_direction());
 }
 }  // namespace v5
 }  // namespace op

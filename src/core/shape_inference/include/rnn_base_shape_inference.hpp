@@ -30,11 +30,11 @@ void validate_inputs_rank(const op::util::RNNCellBase* op,
 // Output shape layout:
 // output_shapes[0...num_state_nodes]: [batch_size, hidden_size] // Rank always 2
 template <class TShape>
-std::vector<TShape> rnn_cell_base_shape_infer(const op::util::RNNCellBase* op,
-                                              const std::vector<TShape>& input_shapes,
-                                              size_t num_gates,
-                                              size_t num_state_nodes,
-                                              bool linear_before_reset = false) {
+std::vector<TShape> cell_base_shape_infer(const op::util::RNNCellBase* op,
+                                          const std::vector<TShape>& input_shapes,
+                                          size_t num_gates,
+                                          size_t num_state_nodes,
+                                          bool linear_before_reset = false) {
     const auto num_inputs = 4 + num_state_nodes;
     NODE_VALIDATION_CHECK(op, input_shapes.size() >= num_inputs, "Incorrect number of shapes has been provided.");
 
@@ -135,12 +135,12 @@ std::vector<TShape> rnn_cell_base_shape_infer(const op::util::RNNCellBase* op,
 // output_shapes[0]: [batch_size, num_directions, seq_length, hidden_size] // Rank always 4
 // output_shapes[1... num_state_nodes]: [batch_size, num_directions, hidden_size] // Rank always 3
 template <class TShape>
-std::vector<TShape> rnn_seq_base_shape_infer(const op::util::RNNCellBase* op,
-                                             const std::vector<TShape>& input_shapes,
-                                             size_t num_gates,
-                                             size_t num_state_nodes,
-                                             op::RecurrentSequenceDirection direction,
-                                             bool linear_before_reset = false) {
+std::vector<TShape> seq_base_shape_infer(const op::util::RNNCellBase* op,
+                                         const std::vector<TShape>& input_shapes,
+                                         size_t num_gates,
+                                         size_t num_state_nodes,
+                                         op::RecurrentSequenceDirection direction,
+                                         bool linear_before_reset = false) {
     const auto num_inputs = 5 + num_state_nodes;
     NODE_VALIDATION_CHECK(op, input_shapes.size() >= num_inputs, "Incorrect number of shapes has been provided.");
 

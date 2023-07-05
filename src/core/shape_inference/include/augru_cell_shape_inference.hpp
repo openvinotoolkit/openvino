@@ -27,7 +27,7 @@ void shape_infer(const ov::op::internal::AUGRUCell* op,
 
     constexpr auto num_gates = 3;
     constexpr auto num_state_nodes = 1;
-    output_shapes = rnn::rnn_cell_base_shape_infer(op, input_shapes, num_gates, num_state_nodes);
+    output_shapes = rnn::cell_base_shape_infer(op, input_shapes, num_gates, num_state_nodes);
 
     // `A` input shape validation // [batch_size, 1]
     const auto& a_shape = input_shapes.back();
