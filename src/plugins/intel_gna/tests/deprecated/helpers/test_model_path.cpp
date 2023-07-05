@@ -6,7 +6,7 @@
 // Created by user on 19.10.18.
 //
 
-#include "test_model_repo.hpp"
+#include "helpers/test_model_repo.hpp"
 #include "test_model_path.hpp"
 
 #ifndef _WIN32
@@ -39,7 +39,7 @@ static std::string getDirname(std::string filePath) {
 #endif
 
 static std::string get_models_path() {
-    const char* models_path = TestDataHelpers::getModelPathNonFatal();
+    const char* models_path = TestDataHelpers::get_model_path_non_fatal();
 
     if (nullptr == models_path) {
         ::testing::AssertionFailure() << "MODELS_PATH not defined";

@@ -1,7 +1,6 @@
-.. OpenVINO Toolkit documentation master file, created by
-   sphinx-quickstart on Wed Jul  7 10:46:56 2021.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
+============================
+OpenVINO 2023.0
+============================
 
 .. meta::
    :google-site-verification: _YqumYQ98cmXUTwtzM_0WIIadtDc6r_TMYGbmGgNvrk
@@ -32,8 +31,6 @@
 
    .. image:: _static/images/ov_homepage_diagram.png
       :align: center
-
-
 
 
 .. grid:: 2 2 3 3
@@ -75,11 +72,8 @@
       Reach for performance with post-training and training-time compression with NNCF
 
 
-
-
-
 Feature Overview
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##############################
 
 .. grid:: 1 2 2 2
    :class-container: ov-homepage-feature-grid
@@ -109,9 +103,6 @@ Feature Overview
 
 
 
-
-
-
 .. toctree::
    :maxdepth: 2
    :hidden:
@@ -122,4 +113,5 @@ Feature Overview
    DOCUMENTATION <documentation>
    MODEL ZOO <model_zoo>
    RESOURCES <resources>
-   RELEASE NOTES <https://software.intel.com/content/www/us/en/develop/articles/openvino-relnotes.html>
+   RELEASE NOTES <release_notes>
+
