@@ -75,7 +75,7 @@ Napi::Value TensorWrap::get_data(const Napi::CallbackInfo& info) {
 
 Napi::Value TensorWrap::get_shape(const Napi::CallbackInfo& info){
     auto shape = _tensor.get_shape();
-    return ShapeLite::Wrap(info.Env(), shape);
+    return Shape::Wrap(info.Env(), shape);
 }
 
 Napi::Value TensorWrap::get_precision(const Napi::CallbackInfo& info){
