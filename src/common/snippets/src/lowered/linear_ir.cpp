@@ -260,6 +260,27 @@ void LinearIR::move(LinearIR::constExprIt from, LinearIR::constExprIt to) {
     m_expressions.splice(to, m_expressions, from);
 }
 
+LinearIR::constExprIt LinearIR::find(const ExpressionPtr& target) const {
+    return find(cbegin(), cend(), target);
+}
+template<>
+LinearIR::constExprIt LinearIR::find_before(LinearIR::constExprIt it, const ExpressionPtr& target) const {
+    return find(cbegin(), it, target);
+}
+template<>
+LinearIR::constExprReverseIt LinearIR::find_before(LinearIR::constExprReverseIt it, const ExpressionPtr& target) const {
+    return find(crbegin(), it, target);
+}
+template<>
+LinearIR::constExprIt LinearIR::find_after(LinearIR::constExprIt it, const ExpressionPtr& target) const {
+    return find(it, cend(), target);
+}
+template<>
+LinearIR::constExprReverseIt LinearIR::find_after(LinearIR::constExprReverseIt it, const ExpressionPtr& target) const {
+    return find(it, crend(), target);
+}
+
+
 }// namespace lowered
 }// namespace snippets
 }// namespace ov
