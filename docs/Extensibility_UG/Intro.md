@@ -2,6 +2,11 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Explore OpenVINO™ Extensibility API, which allows adding 
+                 support for models with custom operations and their further implementation 
+                 in applications.
+
 .. toctree::
    :maxdepth: 1
    :hidden:

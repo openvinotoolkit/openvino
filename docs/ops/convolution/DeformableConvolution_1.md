@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about DeformableConvolution-1 - a 2D, deformable, convolution operation, which 
+                can be performed on input and kernel tensors in OpenVINO.
+
 **Versioned name**: *DeformableConvolution-1*
 
 **Category**: *Convolution*

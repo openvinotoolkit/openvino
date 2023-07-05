@@ -11,7 +11,7 @@
 #include <openvino/util/common_util.hpp>
 #include <sstream>
 
-#include "dimension_tracker.hpp"
+#include "openvino/core/dimension_tracker.hpp"
 
 using namespace ngraph;
 
