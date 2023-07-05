@@ -12,25 +12,25 @@ using namespace ov::hetero;
 
 Configuration::Configuration() {}
 
-Configuration::Configuration(ov::AnyMap& config, const Configuration& defaultCfg, bool throwOnUnsupported) {
+Configuration::Configuration(const ov::AnyMap& config, const Configuration& defaultCfg, bool throwOnUnsupported) {
     *this = defaultCfg;
 
-    for (auto conf_it = config.begin(); conf_it != config.end();) {
-        auto it = conf_it++;
-        const auto& key = it->first;
-        const auto& value = it->second;
+    for (const auto& it : config) {
+        const auto& key = it.first;
+        const auto& value = it.second;
 
         if (HETERO_CONFIG_KEY(DUMP_GRAPH_DOT) == key) {
             dump_graph = value.as<bool>();
-            config.erase(it);
         } else if ("TARGET_FALLBACK" == key || ov::device::priorities == key) {
             device_priorities = value.as<std::string>();
-            config.erase(it);
         } else if (ov::exclusive_async_requests == key) {
             exclusive_async_requests = value.as<bool>();
+            // property should be passed to underlying devices as part of `GetDeviceConfig()`
+            device_properties.emplace(key, value);
         } else {
             if (throwOnUnsupported)
                 OPENVINO_THROW("Property was not found: ", key);
+            device_properties.emplace(key, value);
         }
     }
 }
@@ -51,15 +51,13 @@ std::vector<ov::PropertyName> Configuration::GetSupported() const {
     return {HETERO_CONFIG_KEY(DUMP_GRAPH_DOT), "TARGET_FALLBACK", ov::device::priorities, ov::exclusive_async_requests};
 }
 
-ov::AnyMap Configuration::GetHeteroConfig() const {
-    static const ov::AnyMap conf = {
-        {HETERO_CONFIG_KEY(DUMP_GRAPH_DOT), dump_graph},
-        {"TARGET_FALLBACK", device_priorities},
-        {ov::device::priorities.name(), device_priorities},
-    };
-    return conf;
+ov::AnyMap Configuration::GetHeteroProperties() const {
+    return {{HETERO_CONFIG_KEY(DUMP_GRAPH_DOT), dump_graph},
+            {"TARGET_FALLBACK", device_priorities},
+            {ov::device::priorities.name(), device_priorities},
+            {ov::exclusive_async_requests.name(), exclusive_async_requests}};
 }
 
-ov::AnyMap Configuration::GetDeviceConfig() const {
-    return {{ov::exclusive_async_requests.name(), exclusive_async_requests}};
+ov::AnyMap Configuration::GetDeviceProperties() const {
+    return device_properties;
 }
