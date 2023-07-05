@@ -237,7 +237,7 @@ public:
             bool has_value;
             ib >> has_value;
             if (has_value) {
-                data_types data_type;
+                data_types data_type = data_types();
                 ib >> make_data(&data_type, sizeof(data_types));
                 output_data_types.emplace_back(optional_data_type(data_type));
             } else {
