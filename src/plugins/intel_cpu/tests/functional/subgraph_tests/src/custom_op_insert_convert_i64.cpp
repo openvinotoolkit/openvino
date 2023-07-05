@@ -7,17 +7,20 @@
 #include <shared_test_classes/base/ov_subgraph.hpp>
 #include <ngraph_functions/builders.hpp>
 #include <common_test_utils/ov_tensor_utils.hpp>
+#include "test_utils/cpu_test_utils.hpp"
 
 using namespace ov::test;
+using namespace CPUTestUtils;
 
 namespace CPULayerTestsDefinitions {
+using CustomOpI64CPUTestParams = std::tuple<ElementType, InputShape>;
 
-class CustomOp : public ov::op::Op {
+class CustomOpI64 : public ov::op::Op {
 public:
-    OPENVINO_OP("CustomOp");
+    OPENVINO_OP("CustomOpI64");
 
-    CustomOp() = default;
-    CustomOp(const ov::OutputVector& args) : Op(args) {
+    CustomOpI64() = default;
+    CustomOpI64(const ov::OutputVector& args) : Op(args) {
         constructor_validate_and_infer_types();
     }
 
@@ -39,7 +42,7 @@ public:
     std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override {
         OPENVINO_ASSERT(new_args.size() == 1, "Incorrect number of new arguments");
 
-        return std::make_shared<CustomOp>(new_args);
+        return std::make_shared<CustomOpI64>(new_args);
     }
 
     bool visit_attributes(ov::AttributeVisitor& visitor) override {
@@ -74,18 +77,33 @@ public:
     }
 };
 
-class CustomOpCPUTest : public SubgraphBaseTest {
+class CustomOpConvertI64CPUTest : public testing::WithParamInterface<CustomOpI64CPUTestParams>,
+                                  virtual public SubgraphBaseTest,
+                                  public CPUTestsBase {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<CustomOpI64CPUTestParams>& obj) {
+        ElementType inType;
+        InputShape inputShape;
+        std::tie(inType, inputShape) = obj.param;
+
+        std::ostringstream result;
+        result << "IS=" << inputShape << "_";
+        result << "Prc=" << inType;
+        return result.str();
+    }
+
 protected:
     void SetUp() override {
         targetDevice = CommonTestUtils::DEVICE_CPU;
 
-        InputShape inputShapes{{}, {{2, 3, 64}}};
+        ElementType inType;
+        InputShape inputShape;
+        std::tie(inType, inputShape) = this->GetParam();
 
-        init_input_shapes({inputShapes});
-        auto inPrc = ov::element::i32;
-        auto inputParams = ngraph::builder::makeDynamicParams(inPrc, inputDynamicShapes);
+        init_input_shapes({inputShape});
+        auto inputParams = ngraph::builder::makeDynamicParams(inType, inputDynamicShapes);
         auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ov::op::v0::Parameter>(inputParams));
-        auto customOp = std::make_shared<CustomOp>(paramOuts);
+        auto customOp = std::make_shared<CustomOpI64>(paramOuts);
 
         ov::ResultVector results{std::make_shared<ov::op::v0::Result>(customOp)};
         function = std::make_shared<ov::Model>(results, inputParams, "customOpTest");
@@ -94,7 +112,7 @@ protected:
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
         inputs.clear();
         const auto& funcInputs = function->inputs();
-        for (int i = 0; i < funcInputs.size(); ++i) {
+        for (size_t i = 0; i < funcInputs.size(); ++i) {
             const auto& funcInput = funcInputs[i];
             auto tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
             inputs.insert({funcInput.get_node_shared_ptr(), tensor});
@@ -114,8 +132,19 @@ protected:
     }
 };
 
-TEST_F(CustomOpCPUTest, smoke_CustomOpInsertConvertCPUTest) {
+TEST_P(CustomOpConvertI64CPUTest, CompareWithRefs) {
     run();
+    // TODO: Graph could not be dumped with int64 for now. Swith on this in scope of int64 enabling.
+    // CPUTestUtils::CheckNumberOfNodesWithType(compiledModel, "Convert", 1);
 }
+
+const InputShape inputShapes = {
+    {}, {{2, 3, 64}}
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_CustomOp,
+                         CustomOpConvertI64CPUTest,
+                         ::testing::Combine(::testing::Values(ElementType::i32), ::testing::Values(inputShapes)),
+                         CustomOpConvertI64CPUTest::getTestCaseName);
 
 } // namespace CPULayerTestsDefinitions
