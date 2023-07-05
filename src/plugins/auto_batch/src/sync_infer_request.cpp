@@ -51,7 +51,7 @@ void SyncInferRequest::share_tensors_with_batched_req(const std::set<std::string
                                                      batched_inputs,
                                                      m_batch_id,
                                                      m_batch_size);
-        set_tensor(it, res);
+        set_tensor(it, ov::Tensor(res, m_batched_request_wrapper->_infer_request_batched._so));
     }
 
     for (const auto& it : get_outputs()) {
@@ -62,7 +62,7 @@ void SyncInferRequest::share_tensors_with_batched_req(const std::set<std::string
                                                      batched_outputs,
                                                      m_batch_id,
                                                      m_batch_size);
-        set_tensor(it, res);
+        set_tensor(it, ov::Tensor(res, m_batched_request_wrapper->_infer_request_batched._so));
     }
 }
 

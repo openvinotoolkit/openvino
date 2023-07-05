@@ -137,7 +137,16 @@ CompiledModel::GetWorkerInferRequest() const {
 
 std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() const {
     if (!m_compiled_model_with_batch) {
-        return m_compiled_model_without_batch->create_infer_request();
+        auto res = m_compiled_model_without_batch->create_infer_request();
+        for (auto &iter : res->get_inputs()) {
+            auto temptensor = res->get_tensor(iter);
+            res->set_tensor(iter, ov::Tensor(temptensor, m_compiled_model_without_batch._so));
+        }
+        for (auto &iter : res->get_outputs()) {
+            auto temptensor = res->get_tensor(iter);
+            res->set_tensor(iter, ov::Tensor(temptensor, m_compiled_model_without_batch._so));
+        }
+        return res;
     }
 
     auto sync_res = create_sync_infer_request();
