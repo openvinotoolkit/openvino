@@ -30,7 +30,7 @@ layout space_to_depth_inst::calc_output_layout(space_to_depth_node const& node, 
         CLDNN_ERROR_MESSAGE(desc->id,
                             "Invalid mode for spaceToDepth: must be \"blocks_first\" or \"depth_first\" only");
 
-    if (block_size < 1)
+    if (block_size == 0)
         CLDNN_ERROR_MESSAGE(desc->id,
                             "Invalid spaceToDepth block_size value (should be >= 1). Actual block size is" +
                                 std::to_string(block_size));
