@@ -35,5 +35,6 @@ class TestQuantizePerTensorDequantize(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_quantize_per_tensor_dequantize(self, scale, zero_point, dtype, ie_device, precision, ir_version):
+        if dtype == torch.quint8: zero_point = abs(zero_point)
         self._test(aten_quantize_per_tensor_aten_dequantize(scale, zero_point, dtype), None, ["aten::quantize_per_tensor", "aten::dequantize"], 
                 ie_device, precision, ir_version, )
