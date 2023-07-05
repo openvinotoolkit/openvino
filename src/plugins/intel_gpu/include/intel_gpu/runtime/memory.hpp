@@ -69,6 +69,7 @@ struct memory {
 
         return true;
     }
+    void set_reused(bool reused = true) { _reused = reused; }
 
     virtual event::ptr copy_from(stream& /* stream */, const memory& /* other */, bool blocking = true) = 0;
     virtual event::ptr copy_from(stream& /* stream */, const void* /* host_ptr */, bool blocking = true) = 0;

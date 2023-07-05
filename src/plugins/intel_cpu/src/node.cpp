@@ -1650,18 +1650,23 @@ void Node::addSupportedPrimDesc(const std::vector<PortConfigurator>& inPortConfi
     supportedPrimitiveDescriptors.emplace_back(config, implType);
 }
 
-void Node::initializeDQScales(const float* scaleData, const size_t scaleSize) {
-    if (!DQScales.empty() || !scaleSize)
-        IE_THROW() << "DQ scales is preset or scale size is 0, ##" << getName();
-    DQScales.reserve(scaleSize);
-
-    bool scalePerTensor = true;
-    for (size_t i = 0; i < scaleSize; i++) {
-        DQScales.push_back(scaleData[i]);
-        if (scaleData[i] != scaleData[0])
-            scalePerTensor = false;
-    }
-    if (scalePerTensor)
+void Node::fuseDQScales(const float* scaleData, const size_t scaleSize) {
+    if (DQScales.empty())
+        DQScales.resize(scaleSize, 1.0);
+   IE_ASSERT(scaleSize == 1 || DQScales.size() == 1 || DQScales.size() == scaleSize)
+        << "set invalid scales size , DQScales vector size: " << DQScales.size()
+        << ", scale data size: " << scaleSize
+        << "Node: ##" << getName();
+    if (scaleSize > DQScales.size())
+        DQScales.resize(scaleSize, DQScales[0]);
+    if (1 == scaleSize) {
+        std::transform(DQScales.begin(), DQScales.end(),  DQScales.begin(), [=](float val){ return (scaleData[0] * val); });
+     } else {
+         for (size_t i = 0; i < DQScales.size(); i++) {
+             DQScales[i] *= scaleData[i];
+         }
+     }
+     if (std::all_of(DQScales.begin(), DQScales.end(), [=](float val){ return (val == DQScales[0]);}))
         DQScales.resize(1);
 }
 
