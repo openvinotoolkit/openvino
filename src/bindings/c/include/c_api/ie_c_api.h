@@ -131,22 +131,22 @@ typedef struct ie_core ie_core_t;
                 };
             } ie_param_t;
 
-            /**
-             * @struct ie_param_config
-             * @brief Represents configuration parameter information
-             */
-            typedef struct ie_param_config {
-                char* name;
-                ie_param_t* param;
-            } ie_param_config_t;
+/**
+ * @struct ie_param_config
+ * @brief Represents configuration parameter information
+ */
+typedef struct ie_param_config {
+    char* name;
+    ie_param_t* param;
+} ie_param_config_t;
 
-            /**
-             * @struct desc
-             * @brief Represents detailed information for an error
-             */
-            typedef struct desc {
-                char msg[256];  //!< A description message
-            } desc_t;
+/**
+ * @struct desc
+ * @brief Represents detailed information for an error
+ */
+typedef struct desc {
+    char msg[256];  //!< A description message
+} desc_t;
 
 /**
  * @struct dimensions
