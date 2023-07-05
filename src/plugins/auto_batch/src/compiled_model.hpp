@@ -39,15 +39,14 @@ public:
                   const std::set<std::string>& batched_inputs,
                   const std::set<std::string>& batched_outputs,
                   const ov::SoPtr<ov::ICompiledModel>& compiled_model_with_batch,
-                  const ov::SoPtr<ov::ICompiledModel>& compiled_model_without_batch);
+                  const ov::SoPtr<ov::ICompiledModel>& compiled_model_without_batch,
+                  const ov::RemoteContext& context);
 
     void set_property(const ov::AnyMap& properties) override;
 
     ov::Any get_property(const std::string& name) const override;
 
     std::shared_ptr<ov::IAsyncInferRequest> create_infer_request() const override;
-
-    std::shared_ptr<ov::IRemoteContext> get_context() const;
 
     std::shared_ptr<const ov::Model> get_runtime_model() const override;
 

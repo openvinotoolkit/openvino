@@ -16,8 +16,9 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                              const std::set<std::string>& batched_inputs,
                              const std::set<std::string>& batched_outputs,
                              const ov::SoPtr<ov::ICompiledModel>& compiled_model_with_batch,
-                             const ov::SoPtr<ov::ICompiledModel>& compiled_model_without_batch)
-    : ov::ICompiledModel(model, plugin),
+                             const ov::SoPtr<ov::ICompiledModel>& compiled_model_without_batch,
+                             const ov::RemoteContext& context)
+    : ov::ICompiledModel(model, plugin, context),
       m_config(config),
       m_batched_inputs(batched_inputs),
       m_batched_outputs(batched_outputs),
@@ -36,10 +37,6 @@ CompiledModel::~CompiledModel() {
         w->_thread.join();
     }
     m_worker_requests.clear();
-}
-
-std::shared_ptr<ov::IRemoteContext> CompiledModel::get_context() const {
-    return m_compiled_model_without_batch->get_context();
 }
 
 std::shared_ptr<ov::ISyncInferRequest> CompiledModel::create_sync_infer_request() const {

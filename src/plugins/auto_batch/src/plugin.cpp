@@ -349,7 +349,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
                                            batched_inputs,
                                            batched_outputs,
                                            compiled_model_with_batch,
-                                           compiled_model_without_batch);
+                                           compiled_model_without_batch,
+                                           context);
 }
 
 ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& model,
