@@ -6,13 +6,31 @@
 
 #include <stdint.h>
 
+#include "helper_ops/merge.hpp"
+#include "helper_ops/switch.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/runtime/tensor.hpp"
 
 using namespace ov;
+using namespace std;
 
 namespace {
+const std::string cf_marker_tag = "tf_cf_marker_tag";
+
+void copy_conditional_flow_marker(const ov::frontend::tensorflow::CfMarkerType& copy_from,
+                                  unordered_map<uint32_t, unordered_set<uint32_t>>& copy_to) {
+    for (const auto& marker : copy_from.existing_markers) {
+        const auto& switch_marker = marker.first;
+        const auto& branch_markers = marker.second;
+        if (copy_to.count(switch_marker) > 0) {
+            // combine two sets of branch markers
+            copy_to[switch_marker].insert(branch_markers.begin(), branch_markers.end());
+        } else {
+            copy_to[switch_marker] = marker.second;
+        }
+    }
+}
 
 template <typename T>
 void extract_tensor_content(const std::string& tensor_content, ov::Tensor* values) {
@@ -189,4 +207,147 @@ ov::Any ov::frontend::tensorflow::unpack_tensor_proto(const ::tensorflow::Tensor
         }
     }
     return res;
+}
+
+bool ov::frontend::tensorflow::cf_marker_exists(const shared_ptr<const Node>& node) {
+    const auto& rt_info = node->get_rt_info();
+    if (rt_info.count(cf_marker_tag) > 0) {
+        return true;
+    }
+    return false;
+}
+
+ov::frontend::tensorflow::CfMarkerType ov::frontend::tensorflow::get_cf_marker(const shared_ptr<const Node>& node) {
+    auto rt_info = node->get_rt_info();
+    FRONT_END_GENERAL_CHECK(rt_info.count(cf_marker_tag) > 0,
+                            "[TensorFlow Frontend] internal error: node does not contain conditional flow marker");
+    auto& ov_any_cf_marker = rt_info[cf_marker_tag];
+    FRONT_END_GENERAL_CHECK(ov_any_cf_marker.is<CfMarkerType>(),
+                            "[TensorFlow Frontend] internal error: incorrect type of conditional flow marker");
+    return ov_any_cf_marker.as<CfMarkerType>();
+}
+
+void ov::frontend::tensorflow::set_cf_marker(const ov::frontend::tensorflow::CfMarkerType& cf_marker,
+                                             const std::shared_ptr<ov::Node>& node) {
+    node->get_rt_info()[cf_marker_tag] = cf_marker;
+}
+
+uint32_t ov::frontend::tensorflow::generate_cf_marker() {
+    static int32_t marker = 0;
+    return marker++;
+}
+
+bool ov::frontend::tensorflow::propogate_conditional_flow(const ov::OutputVector& ov_inputs,
+                                                          const ov::frontend::NamedOutputVector& ov_outputs,
+                                                          const std::set<ov::Output<ov::Node>>& input_control_deps,
+                                                          std::set<ov::Output<ov::Node>>& output_control_deps) {
+    // returns if there is conditional flow to propagate
+    // it checks all producer-nodes connected via data edges and control dependencies
+
+    // compute combined markers
+    // it is a map from conditional flow marker to a set of branch markers
+    std::unordered_map<uint32_t, std::unordered_set<uint32_t>> combined_markers;
+    for (const auto& ov_input : ov_inputs) {
+        // walk through all data producer and collect conditional flow markers
+        const shared_ptr<const Node>& producer_node = ov_input.get_node_shared_ptr();
+        uint32_t branch_index = static_cast<uint32_t>(ov_input.get_index());
+        if (!ov::frontend::tensorflow::cf_marker_exists(producer_node)) {
+            continue;
+        }
+        auto producer_markers = ov::frontend::tensorflow::get_cf_marker(producer_node);
+        copy_conditional_flow_marker(producer_markers, combined_markers);
+        // if data goes from Switch node, it needs to create a new marker and branch marker
+        for (auto new_marker : producer_markers.new_markers) {
+            if (combined_markers.count(new_marker) > 0) {
+                // combine two sets of branch markers
+                combined_markers[new_marker].insert(branch_index);
+            } else {
+                combined_markers[new_marker] = {branch_index};
+            }
+        }
+    }
+    for (const auto& input_control_dep : input_control_deps) {
+        // walk through all control dependencies and collect conditional flow markers
+        const shared_ptr<const Node>& producer_node = input_control_dep.get_node_shared_ptr();
+        uint32_t branch_index = static_cast<uint32_t>(input_control_dep.get_index());
+        if (!ov::frontend::tensorflow::cf_marker_exists(producer_node)) {
+            continue;
+        }
+        auto producer_markers = ov::frontend::tensorflow::get_cf_marker(producer_node);
+        copy_conditional_flow_marker(producer_markers, combined_markers);
+        // if data goes from Switch node, it needs to create a new marker and branch marker
+        for (auto new_marker : producer_markers.new_markers) {
+            if (combined_markers.count(new_marker) > 0) {
+                // combine two sets of branch markers
+                combined_markers[new_marker].insert(branch_index);
+            } else {
+                combined_markers[new_marker] = {branch_index};
+            }
+        }
+    }
+
+    // walk through all nodes and mark them if needed
+    bool to_propagate = false;
+    for (const auto& ov_output : ov_outputs) {
+        const auto& node = ov_output.port.get_node_shared_ptr();
+
+        // skip already marked node
+        // it can be a case of Identity node that the conversion rule skips
+        if (ov::frontend::tensorflow::cf_marker_exists(node)) {
+            to_propagate = true;
+            continue;
+        }
+
+        // if this is Merge node, it needs to eliminate markers with multiple branch markers
+        // and put such markers into eliminated list
+        ov::frontend::tensorflow::CfMarkerType resulted_cf_marker;
+        if (ov::as_type_ptr<ov::frontend::tensorflow::Merge>(node)) {
+            for (const auto& marker : combined_markers) {
+                auto switch_marker = marker.first;
+                auto branch_markers = marker.second;
+                if (branch_markers.size() > 1) {
+                    resulted_cf_marker.eliminated_markers.push_back(switch_marker);
+                } else {
+                    resulted_cf_marker.existing_markers.insert(marker);
+                }
+            }
+        } else if (const auto& switch_node = ov::as_type_ptr<ov::frontend::tensorflow::Switch>(node)) {
+            // update conditional flow marker with new marker for the current Switch node
+            auto switch_marker = switch_node->get_switch_marker();
+            resulted_cf_marker.new_markers.push_back(switch_marker);
+            resulted_cf_marker.existing_markers = combined_markers;
+        } else {
+            // check that non-Merge node does not expect data/flow from different Switch branches
+            // it means inconsistent model
+            for (const auto& marker : combined_markers) {
+                auto branch_markers = marker.second;
+                FRONT_END_GENERAL_CHECK(
+                    branch_markers.size() < 2,
+                    "[TensorFlow Frontend] inconsistent input model: non-Merge node expects data or "
+                    "flow from different branches of one Switch node");
+                resulted_cf_marker.existing_markers.insert(marker);
+            }
+        }
+
+        // set conditional flow marker only if one of the fields is not empty
+        // check if any input or input control dependency contain control flow
+        // if yes, it makes sense to continue
+        if (resulted_cf_marker.new_markers.size() > 0 || resulted_cf_marker.existing_markers.size() > 0 ||
+            resulted_cf_marker.eliminated_markers.size() > 0) {
+            set_cf_marker(resulted_cf_marker, node);
+            to_propagate = true;
+        }
+    }
+
+    // compute output control dependencies
+    // logically, the next nodes will dependend on outputs and input control dependencies
+    output_control_deps.clear();
+    if (to_propagate) {
+        output_control_deps = input_control_deps;
+        for (const auto ov_output : ov_outputs) {
+            output_control_deps.insert(ov_output.port);
+        }
+    }
+
+    return to_propagate;
 }
