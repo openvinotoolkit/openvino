@@ -27,6 +27,7 @@ namespace ov {
 namespace test {
 namespace utils {
 
+// todo: remove w/a to generate correct constant data (replace parameter to const) in conformance with defined range
 struct ConstRanges {
     static double max, min;
     static bool is_defined;
@@ -44,40 +45,22 @@ struct ConstRanges {
     }
 };
 
-inline int32_t get_new_resolution(int32_t resolution) {
-    if (ConstRanges::min == ConstRanges::max) {
-        return 1;
-    }
-    auto a = static_cast<int32_t>(ConstRanges::min * resolution);
-    auto b = static_cast<int32_t>(ConstRanges::max * resolution);
-    if (resolution <= 1) {
-        resolution = 10;
-    }
-    while (abs(a) < 10 && abs(b) < 10) {
-        a *= resolution;
-        b *= resolution;
-    }
-    return resolution;
-}
-
 struct InputGenerateData {
-    int32_t start_from;
+    double_t start_from;
     uint32_t range;
     int32_t resolution;
     int seed;
 
-    InputGenerateData(int32_t _start_from = 0, uint32_t _range = 10, int32_t _resolution = 1, int _seed = 1)
-            : start_from(_start_from * _resolution), range(_range), resolution(_resolution), seed(_seed) {
+    InputGenerateData(double_t _start_from = 0, uint32_t _range = 10, int32_t _resolution = 1, int _seed = 1)
+            : start_from(_start_from), range(_range), resolution(_resolution), seed(_seed) {
         if (ConstRanges::is_defined) {
-            auto new_resolution = get_new_resolution(resolution);
-            auto min_orig = start_from * resolution;
-            auto max_orig = (start_from + range) * resolution;
-            auto min_ref = ConstRanges::min * new_resolution;
-            auto max_ref = ConstRanges::max * new_resolution;
+            auto min_orig = start_from;
+            auto max_orig = start_from + range * resolution;
+            auto min_ref = ConstRanges::min;
+            auto max_ref = ConstRanges::max;
             if (min_orig < min_ref || min_orig == 0)
                 start_from = min_ref;
             range = (max_orig > max_ref || max_orig == 10 ? max_ref : max_orig - start_from) - start_from;
-            resolution = new_resolution;
         }
     }
 };
