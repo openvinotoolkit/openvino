@@ -2,6 +2,12 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to install OpenVINO™ Runtime on Windows, Linux, and 
+                 macOS operating systems, using Conda Forge - a recommended 
+                 installation method for C++ developers.
+
+
 .. note::
 
    Installing OpenVINO Runtime from Conda Forge is recommended for C++ developers, as it provides only the C++ Runtime API.
@@ -55,7 +61,7 @@ Installing OpenVINO Runtime with Anaconda Package Manager
 
    .. code-block:: sh
 
-      conda install -c conda-forge openvino=2023.0.0
+      conda install -c conda-forge openvino=2023.0.1
 
    Congratulations! You have finished installing OpenVINO Runtime.
 
@@ -88,7 +94,7 @@ with the proper OpenVINO version number:
 
 .. code-block:: sh
    
-   conda remove openvino=2023.0.0
+   conda remove openvino=2023.0.1
 
 
 What's Next?
