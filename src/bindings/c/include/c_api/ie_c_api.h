@@ -72,8 +72,6 @@
 #    define INFERENCE_ENGINE_C_API_CALLBACK
 #endif
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-
 typedef struct ie_core ie_core_t;
 typedef struct ie_network ie_network_t;
 typedef struct ie_executable ie_executable_network_t;
@@ -1162,7 +1160,5 @@ INFERENCE_ENGINE_C_API(void) ie_blob_free(ie_blob_t** blob);
  * resources after itself when the library is unloaded.
  */
 INFERENCE_ENGINE_C_API(void) ie_shutdown();
-
-OPENVINO_SUPPRESS_DEPRECATED_END
 
 #endif  // IE_C_API_H
