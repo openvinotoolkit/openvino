@@ -18,78 +18,45 @@ function getModelPath(is_fp16=false){
 var test_xml, test_bin = getModelPath();
 
 
-describe('Output class for ov::Output<ov::Node> ', () => {
+describe('Output class', () => {
     
-    const core = new ov.Core();
-    const model = core.read_model(test_xml);
-
-    test('Model.output() method', () => {
-        // TO_DO check if object is an instance of a value/class
-        expect(model.output() && typeof model.output() === 'object').toBe(true)
-    });
-
-    test('Model.outputs property', () => {
-        expect(model.outputs.length).toEqual(1);     
-    });
-
-    test('Model.output().ToString() method', () => {
-        //test for a model with one output
-        expect(model.output().toString()).toEqual("fc_out");
-    });
-
-    test('Model.output(idx: number).ToString() method', () => {
-        expect(model.output(0).toString()).toEqual("fc_out");
-    });
-
-    test('Model.output(tensorName: string).ToString() method', () => {
-        expect(model.output("fc_out").toString()).toEqual("fc_out");
-    });
-
-    test('Ouput.shape property with dimensions', () => {
-        expect(model.output(0).shape).toEqual([1, 10]);
-    });
-
-    test('Ouput.getShape() method', () => {
-        expect(model.output(0).getShape().getData()).toEqual([1, 10]);
-    });
-
-});
-
-
-describe('Output class for ov::Output<const ov::Node>', () => {
     const core = new ov.Core();
     const model = core.read_model(test_xml);
     const compiledModel = core.compile_model(model, 'CPU');
 
-    test('CompiledModel.output() method', () => {
-        // TO_DO check if object is an instance of a value/class
-        expect(compiledModel.output() && typeof compiledModel.output() === 'object').toBe(true)
+    it.each([
+        [model],
+        [compiledModel]
+    ])('Mutual tests', (obj) => {
+        expect(obj.output() && typeof obj.output() === 'object').toBe(true);
+        expect(obj.outputs.length).toEqual(1);  
+        //test for a obj with one output
+        expect(obj.output().toString()).toEqual("fc_out");
+        expect(obj.output(0).toString()).toEqual("fc_out");
+        expect(obj.output("fc_out").toString()).toEqual("fc_out");
+        expect(obj.output(0).shape).toEqual([1, 10]);
+        expect(obj.output(0).getShape().getData()).toEqual([1, 10]);
+        expect(obj.output().getAnyName()).toEqual("fc_out");
     });
 
-    test('CompiledModel.outputs property', () => {
-        expect(compiledModel.outputs.length).toEqual(1);     
+    test('Ouput<ov::Node>.setNames() method', () => {
+        model.output().setNames(["bTestName", "cTestName"]);
+        expect(model.output().getAnyName()).toEqual("bTestName");
     });
 
-    test('CompiledModel.output().ToString() method', () => {
-        //test for a model with one output
-        expect(compiledModel.output().toString()).toEqual("fc_out");
+    test('Ouput<ov::Node>.addNames() method', () => {
+        model.output().addNames(["aTestName"]);
+        expect(model.output().getAnyName()).toEqual("aTestName");
     });
 
-    test('CompiledModel.output(idx: number).ToString() method', () => {
-        expect(compiledModel.output(0).toString()).toEqual("fc_out");
+    test('Ouput<const ov::Node>.setNames() method', () => {
+        expect(() => compiledModel.output().setNames(["bTestName", "cTestName"])).toThrow(TypeError);
     });
 
-    test('CompiledModel.output(tensorName: string).ToString() method', () => {
-        expect(compiledModel.output("fc_out").toString()).toEqual("fc_out");
+    test('Ouput<const ov::Node>.addNames() method', () => {
+        expect(() => compiledModel.output().addNames(["aTestName"])).toThrow(TypeError);
     });
 
-    test('Ouput.shape property with dimensions', () => {
-        expect(compiledModel.output(0).shape).toEqual([1, 10]);
-    });
-
-    test('Ouput.getShape() method', () => {
-        expect(compiledModel.output(0).getShape().getData()).toEqual([1, 10]);
-    });
 });
 
 describe('Input class for ov::Input<const ov::Node>', () => {
