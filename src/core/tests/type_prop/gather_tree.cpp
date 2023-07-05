@@ -5,9 +5,9 @@
 #include <array>
 #include <utility>
 
-#include "dimension_tracker.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
+#include "openvino/core/dimension_tracker.hpp"
 #include "openvino/op/ops.hpp"
 #include "util/type_prop.hpp"
 
