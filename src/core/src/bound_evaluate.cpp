@@ -114,10 +114,6 @@ ov::Tensor evaluate_bound(const Output<Node>& output, bool is_upper, bool invali
 
                 bool labels_evaluated = node->evaluate_label(output_labels);
                 for (size_t i = 0; i < outputs.size(); ++i) {
-                    if (node->get_friendly_name() == "/gpt_neox/layers.0/attention/Mul_4") {
-                        std::cout << "Empty? " << node->get_output_tensor(i).get_value_label().empty() << std::endl;
-                    }
-
                     if (!node->get_output_tensor(i).get_value_label().empty())
                         continue;
                     if (labels_evaluated)

@@ -19,7 +19,12 @@ class TRANSFORMATIONS_API SymbolicOptimizations;
 class TRANSFORMATIONS_API SymbolicPOC;
 class TRANSFORMATIONS_API ChainedMaximumOptimization;
 class TRANSFORMATIONS_API NopBroadcast;
+class TRANSFORMATIONS_API BroadcastOnes;
 class TRANSFORMATIONS_API DeReshapeMatMul;
+class TRANSFORMATIONS_API RemoveSliceBeforeGatherElements;
+class TRANSFORMATIONS_API SharedTileOptimization;
+class TRANSFORMATIONS_API SharedGatherElementsOptimization;
+class TRANSFORMATIONS_API ChainedReshapeOptimization;
 
 }  // namespace pass
 }  // namespace ov
@@ -64,10 +69,40 @@ public:
     NopBroadcast();
 };
 
+class ov::pass::BroadcastOnes : public ov::pass::MatcherPass {
+public:
+    OPENVINO_RTTI("BroadcastOnes", "0");
+    BroadcastOnes();
+};
+
 class ov::pass::DeReshapeMatMul : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("DeReshapeMatMul", "0");
     DeReshapeMatMul();
+};
+
+class ov::pass::RemoveSliceBeforeGatherElements : public ov::pass::MatcherPass {
+public:
+    OPENVINO_RTTI("RemoveSliceBeforeGatherElements", "0");
+    RemoveSliceBeforeGatherElements();
+};
+
+class ov::pass::ChainedReshapeOptimization : public ov::pass::MatcherPass {
+public:
+    OPENVINO_RTTI("ChainedReshapeOptimization", "0");
+    ChainedReshapeOptimization();
+};
+
+class ov::pass::SharedTileOptimization : public ov::pass::ModelPass {
+public:
+    OPENVINO_RTTI("SharedTileOptimization", "0");
+    bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
+};
+
+class ov::pass::SharedGatherElementsOptimization : public ov::pass::ModelPass {
+public:
+    OPENVINO_RTTI("SharedGatherElementsOptimization", "0");
+    bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };
 
 namespace ov {

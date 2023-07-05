@@ -349,7 +349,10 @@ static std::string pretty_value(const vector<T>& values, size_t max_elements, bo
                 ss << std::endl;
             }
         } else {
-            ss << "...";
+            bool all_same = std::all_of(values.begin(), values.end(), [&](const T& el) {
+                return el == values[0];
+            });
+            ss << "..." << (all_same ? " same" : "");
             break;
         }
 
@@ -602,7 +605,7 @@ void pass::VisualizeTree::render() const {
     }
     ofstream out(dot_file);
     if (out) {
-        out << "digraph ngraph\n{\n";
+        out << "digraph ov_graph\n{\n";
         out << m_ss.str();
         out << "}\n";
         out.close();
