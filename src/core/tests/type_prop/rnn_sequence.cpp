@@ -304,11 +304,11 @@ TEST(type_prop, rnn_sequence_dynamic_invalid_input_rank0) {
 }
 
 TEST(type_prop, rnn_sequence_input_dynamic_rank) {
-    const size_t batch_size = 8;
-    const size_t num_directions = 1;
-    const size_t seq_length = 6;
-    const size_t input_size = 4;
-    const size_t hidden_size = 128;
+    const int64_t batch_size = 8;
+    const int64_t num_directions = 1;
+    const int64_t seq_length = 6;
+    const int64_t input_size = 4;
+    const int64_t hidden_size = 128;
 
     auto X = make_shared<opset5::Parameter>(element::f32, PartialShape{batch_size, seq_length, input_size});
     auto H_t = make_shared<opset5::Parameter>(element::f32, PartialShape{batch_size, num_directions, hidden_size});
@@ -329,27 +329,62 @@ TEST(type_prop, rnn_sequence_input_dynamic_rank) {
     };
 
     X = make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic(Rank::dynamic()));
-    auto rnn_x = make_shared<opset5::RNNSequence>(X, H_t, sequence_lengths, W, R, B, hidden_size, direction);
+    auto rnn_x = make_shared<opset5::RNNSequence>(X,
+                                                  H_t,
+                                                  sequence_lengths,
+                                                  W,
+                                                  R,
+                                                  B,
+                                                  static_cast<size_t>(hidden_size),
+                                                  direction);
     EXPECT_EQ(rnn_x->get_output_partial_shape(0), (PartialShape{batch_size, num_directions, -1, hidden_size}));
     EXPECT_EQ(rnn_x->get_output_partial_shape(1), (PartialShape{batch_size, num_directions, hidden_size}));
 
     X = make_shared<opset5::Parameter>(element::f32, PartialShape{batch_size, seq_length, input_size});
     H_t = make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic(Rank::dynamic()));
-    auto rnn_h = make_shared<opset5::RNNSequence>(X, H_t, sequence_lengths, W, R, B, hidden_size, direction);
+    auto rnn_h = make_shared<opset5::RNNSequence>(X,
+                                                  H_t,
+                                                  sequence_lengths,
+                                                  W,
+                                                  R,
+                                                  B,
+                                                  static_cast<size_t>(hidden_size),
+                                                  direction);
     EXPECT_EQ(check_dynamic_rnn(rnn_h), true);
 
     H_t = make_shared<opset5::Parameter>(element::f32, PartialShape{batch_size, num_directions, hidden_size});
     W = make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic(Rank::dynamic()));
-    auto rnn_w = make_shared<opset5::RNNSequence>(X, H_t, sequence_lengths, W, R, B, hidden_size, direction);
+    auto rnn_w = make_shared<opset5::RNNSequence>(X,
+                                                  H_t,
+                                                  sequence_lengths,
+                                                  W,
+                                                  R,
+                                                  B,
+                                                  static_cast<size_t>(hidden_size),
+                                                  direction);
     EXPECT_EQ(check_dynamic_rnn(rnn_w), true);
 
     W = make_shared<opset5::Parameter>(element::f32, PartialShape{num_directions, hidden_size, input_size});
     R = make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic(Rank::dynamic()));
-    auto rnn_r = make_shared<opset5::RNNSequence>(X, H_t, sequence_lengths, W, R, B, hidden_size, direction);
+    auto rnn_r = make_shared<opset5::RNNSequence>(X,
+                                                  H_t,
+                                                  sequence_lengths,
+                                                  W,
+                                                  R,
+                                                  B,
+                                                  static_cast<size_t>(hidden_size),
+                                                  direction);
     EXPECT_EQ(check_dynamic_rnn(rnn_r), true);
 
     R = make_shared<opset5::Parameter>(element::f32, PartialShape{num_directions, hidden_size, hidden_size});
     B = make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic(Rank::dynamic()));
-    auto rnn_b = make_shared<opset5::RNNSequence>(X, H_t, sequence_lengths, W, R, B, hidden_size, direction);
+    auto rnn_b = make_shared<opset5::RNNSequence>(X,
+                                                  H_t,
+                                                  sequence_lengths,
+                                                  W,
+                                                  R,
+                                                  B,
+                                                  static_cast<size_t>(hidden_size),
+                                                  direction);
     EXPECT_EQ(check_dynamic_rnn(rnn_b), true);
 }
