@@ -312,14 +312,13 @@ void Graph::Replicate(const CNNNetwork &network) {
         for (size_t i = 0; i < childEdges.size(); i++) {
             const auto child = childEdges[i]->getChild();
             if (child->getOriginalInputPrecisionAtPort(childEdges[i]->getOutputNum()) != Precision::BF16 &&
-            child->getOriginalInputPrecisionAtPort(childEdges[i]->getOutputNum()) != Precision::FP16 &&
                 // remove this WA when #78939 is resolved
                 !hasSubgraphConsumers(child))
                 child->setOriginalInputPrecisionAtPort(childEdges[i]->getOutputNum(), precToSet);
         }
     }
 
-    /*for (auto &output : outputNodesMap) {
+    for (auto &output : outputNodesMap) {
         const auto precToSet = normalizeToSupportedPrecision(outputsInfo.at(output.first)->getPrecision());
         output.second->setOriginalInputPrecisionAtPort(0, precToSet);
         const auto parentEdges = output.second->getParentEdgesAtPort(0);
@@ -327,7 +326,7 @@ void Graph::Replicate(const CNNNetwork &network) {
             const auto parent = parentEdges[i]->getParent();
             parent->setOriginalOutputPrecisionAtPort(parentEdges[i]->getInputNum(), precToSet);
         }
-    }*/
+    }
 
     // Loading mean images
     for (const auto& input : inputsInfo) {
