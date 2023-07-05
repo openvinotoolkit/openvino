@@ -40,8 +40,6 @@ struct shape_of_impl : public typed_primitive_impl<shape_of> {
         OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "shape_of::execute_impl");
         auto& stream = instance.get_network().get_stream();
 
-        auto ev = stream.create_user_event(false);
-
         auto output_mem_ptr = instance.output_memory_ptr();
 
         auto output_dt = instance.get_impl_params()->get_output_layout().data_type;
@@ -60,9 +58,13 @@ struct shape_of_impl : public typed_primitive_impl<shape_of> {
             OPENVINO_THROW("[GPU] Couldn't execute shape_of operation: unsupported output data type (", output_dt , ")");
         }
 
-        ev->set();
-
-        return ev;
+        if (events.size() > 1) {
+            return stream.group_events(events);
+        } else if (events.size() == 1) {
+            return events[0];
+        } else {
+            return stream.create_user_event(true);
+        }
     }
 
     void init_kernels(const kernels_cache& , const kernel_impl_params&) override {}
