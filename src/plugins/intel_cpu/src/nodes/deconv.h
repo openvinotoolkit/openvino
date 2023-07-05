@@ -59,7 +59,6 @@ protected:
 
 private:
     using executorPtr = std::shared_ptr<DnnlExecutor>;
-    executorPtr execPtr = nullptr;
     std::shared_ptr<DeconvExecutor> execPtrDeconv = nullptr;
 
     class DeconvExecutorDefault : public DnnlExecutor {
@@ -99,7 +98,6 @@ private:
     void initPaddingR(const Shape &inShape, const Shape &outShape);
     std::vector<int32_t> readOutputSpatialDims() const;
     std::pair<VectorDims, VectorDims> makeDummyInOutShape();
-    bool withBiases = false;
     size_t biasPort;
 
     std::string errorPrefix;
