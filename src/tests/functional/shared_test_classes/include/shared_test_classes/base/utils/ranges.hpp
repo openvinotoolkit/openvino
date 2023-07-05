@@ -43,43 +43,24 @@ struct ConstRanges {
         max = std::numeric_limits<double>::min();
         is_defined = false;
     }
-
-    // function which provide new resolution allowed to generate correct data instead of round to size_t
-    static int32_t get_new_resolution(int32_t resolution) {
-        if (ConstRanges::min == ConstRanges::max) {
-                return 1;
-        }
-        auto updated_min = static_cast<int32_t>(min * resolution);
-        auto updated_max = static_cast<int32_t>(max * resolution);
-        if (resolution <= 1) {
-                resolution = 10;
-        }
-        while (std::abs(updated_min) < 10 && std::abs(updated_max) < 10) {
-                updated_min *= resolution;
-                updated_max *= resolution;
-        }
-        return resolution;
-   }
 };
 
 struct InputGenerateData {
-    int32_t start_from;
+    double_t start_from;
     uint32_t range;
     int32_t resolution;
     int seed;
 
-    InputGenerateData(int32_t _start_from = 0, uint32_t _range = 10, int32_t _resolution = 1, int _seed = 1)
-            : start_from(_start_from * _resolution), range(_range), resolution(_resolution), seed(_seed) {
+    InputGenerateData(double_t _start_from = 0, uint32_t _range = 10, int32_t _resolution = 1, int _seed = 1)
+            : start_from(_start_from), range(_range), resolution(_resolution), seed(_seed) {
         if (ConstRanges::is_defined) {
-            auto new_resolution = ConstRanges::get_new_resolution(resolution);
-            auto min_orig = start_from * resolution;
-            auto max_orig = (start_from + range) * resolution;
-            auto min_ref = ConstRanges::min * new_resolution;
-            auto max_ref = ConstRanges::max * new_resolution;
+            auto min_orig = start_from;
+            auto max_orig = start_from + range * resolution;
+            auto min_ref = ConstRanges::min;
+            auto max_ref = ConstRanges::max;
             if (min_orig < min_ref || min_orig == 0)
                 start_from = min_ref;
             range = (max_orig > max_ref || max_orig == 10 ? max_ref : max_orig - start_from) - start_from;
-            resolution = new_resolution;
         }
     }
 };
