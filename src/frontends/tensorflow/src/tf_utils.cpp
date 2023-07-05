@@ -233,7 +233,7 @@ void ov::frontend::tensorflow::set_cf_marker(const ov::frontend::tensorflow::CfM
 }
 
 uint32_t ov::frontend::tensorflow::generate_cf_marker() {
-    static int32_t marker = 0;
+    static uint32_t marker = 0;
     return marker++;
 }
 
@@ -344,7 +344,7 @@ bool ov::frontend::tensorflow::propogate_conditional_flow(const ov::OutputVector
     output_control_deps.clear();
     if (to_propagate) {
         output_control_deps = input_control_deps;
-        for (const auto ov_output : ov_outputs) {
+        for (const auto& ov_output : ov_outputs) {
             output_control_deps.insert(ov_output.port);
         }
     }
