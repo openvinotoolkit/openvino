@@ -9,8 +9,14 @@
 using namespace ov;
 using namespace ov::intel_cpu;
 
+class LSTMSequenceV0StaticShapeInferenceTest : public OpStaticShapeInferenceTest<op::v0::LSTMSequence> {
+protected:
+    void SetUp() override {
+        this->output_shapes = ShapeVector(3);
+    }
+};
 
-TEST(StaticShapeInferenceTest, v0_LSTMSequence_default_ctor) {
+TEST_F(LSTMSequenceV0StaticShapeInferenceTest, default_ctor) {
     constexpr size_t batch_size = 2;
     constexpr size_t input_size = 3;
     constexpr size_t hidden_size = 5;
@@ -18,29 +24,26 @@ TEST(StaticShapeInferenceTest, v0_LSTMSequence_default_ctor) {
     constexpr size_t num_directions = 1;
     constexpr size_t gates_count = 4;
 
-    const auto op =
-        std::make_shared<op::v0::LSTMSequence>();
+    const auto op = make_op();
 
-    std::vector<StaticShape> static_input_shapes{
-        StaticShape{batch_size, seq_len, input_size},                         // X
-        StaticShape{batch_size, num_directions, hidden_size},                 // H_t
-        StaticShape{batch_size, num_directions, hidden_size},                 // C_t
-        StaticShape{batch_size},                                              // seq_lengths
-        StaticShape{num_directions, gates_count * hidden_size, input_size},   // W
-        StaticShape{num_directions, gates_count * hidden_size, hidden_size},  // R
-        StaticShape{num_directions, gates_count * hidden_size},               // B
-        StaticShape{num_directions, (gates_count - 1) * hidden_size}};        // P
+    input_shapes = {StaticShape{batch_size, seq_len, input_size},                         // X
+                    StaticShape{batch_size, num_directions, hidden_size},                 // H_t
+                    StaticShape{batch_size, num_directions, hidden_size},                 // C_t
+                    StaticShape{batch_size},                                              // seq_lengths
+                    StaticShape{num_directions, gates_count * hidden_size, input_size},   // W
+                    StaticShape{num_directions, gates_count * hidden_size, hidden_size},  // R
+                    StaticShape{num_directions, gates_count * hidden_size},               // B
+                    StaticShape{num_directions, (gates_count - 1) * hidden_size}};        // P
 
-    std::vector<StaticShape> static_output_shapes;
-    shape_inference(op.get(), static_input_shapes, static_output_shapes);
+    shape_inference(op.get(), input_shapes, output_shapes);
 
-    EXPECT_EQ(static_output_shapes.size(), 3);
-    EXPECT_EQ(static_output_shapes[0], StaticShape({batch_size, num_directions, seq_len, hidden_size}));
-    EXPECT_EQ(static_output_shapes[1], StaticShape({batch_size, num_directions, hidden_size}));
-    EXPECT_EQ(static_output_shapes[2], StaticShape({batch_size, num_directions, hidden_size}));
+    EXPECT_EQ(output_shapes.size(), 3);
+    EXPECT_EQ(output_shapes[0], StaticShape({batch_size, num_directions, seq_len, hidden_size}));
+    EXPECT_EQ(output_shapes[1], StaticShape({batch_size, num_directions, hidden_size}));
+    EXPECT_EQ(output_shapes[2], StaticShape({batch_size, num_directions, hidden_size}));
 }
 
-TEST(StaticShapeInferenceTest, v0_LSTMSequence_FORWARD_without_P) {
+TEST_F(LSTMSequenceV0StaticShapeInferenceTest, FORWARD_without_P) {
     constexpr size_t batch_size = 2;
     constexpr size_t input_size = 3;
     constexpr size_t hidden_size = 5;
@@ -58,28 +61,25 @@ TEST(StaticShapeInferenceTest, v0_LSTMSequence_FORWARD_without_P) {
     const auto R = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic(3));
     const auto B = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic(2));
 
-    const auto op =
-        std::make_shared<op::v0::LSTMSequence>(X, H_t, C_t, seq_lengths, W, R, B, hidden_size, direction);
+    const auto op = make_op(X, H_t, C_t, seq_lengths, W, R, B, hidden_size, direction);
 
-    std::vector<StaticShape> static_input_shapes{
-        StaticShape{batch_size, seq_len, input_size},                         // X
-        StaticShape{batch_size, num_directions, hidden_size},                 // H_t
-        StaticShape{batch_size, num_directions, hidden_size},                 // C_t
-        StaticShape{batch_size},                                              // seq_lengths
-        StaticShape{num_directions, gates_count * hidden_size, input_size},   // W
-        StaticShape{num_directions, gates_count * hidden_size, hidden_size},  // R
-        StaticShape{num_directions, gates_count * hidden_size}};              // B
+    input_shapes = {StaticShape{batch_size, seq_len, input_size},                         // X
+                    StaticShape{batch_size, num_directions, hidden_size},                 // H_t
+                    StaticShape{batch_size, num_directions, hidden_size},                 // C_t
+                    StaticShape{batch_size},                                              // seq_lengths
+                    StaticShape{num_directions, gates_count * hidden_size, input_size},   // W
+                    StaticShape{num_directions, gates_count * hidden_size, hidden_size},  // R
+                    StaticShape{num_directions, gates_count * hidden_size}};              // B
 
-    std::vector<StaticShape> static_output_shapes;
-    shape_inference(op.get(), static_input_shapes, static_output_shapes);
+    shape_inference(op.get(), input_shapes, output_shapes);
 
-    EXPECT_EQ(static_output_shapes.size(), 3);
-    EXPECT_EQ(static_output_shapes[0], StaticShape({batch_size, num_directions, seq_len, hidden_size}));
-    EXPECT_EQ(static_output_shapes[1], StaticShape({batch_size, num_directions, hidden_size}));
-    EXPECT_EQ(static_output_shapes[2], StaticShape({batch_size, num_directions, hidden_size}));
+    EXPECT_EQ(output_shapes.size(), 3);
+    EXPECT_EQ(output_shapes[0], StaticShape({batch_size, num_directions, seq_len, hidden_size}));
+    EXPECT_EQ(output_shapes[1], StaticShape({batch_size, num_directions, hidden_size}));
+    EXPECT_EQ(output_shapes[2], StaticShape({batch_size, num_directions, hidden_size}));
 }
 
-TEST(StaticShapeInferenceTest, v0_LSTMSequence_FORWARD_with_P) {
+TEST_F(LSTMSequenceV0StaticShapeInferenceTest, FORWARD_with_P) {
     constexpr size_t batch_size = 2;
     constexpr size_t input_size = 3;
     constexpr size_t hidden_size = 5;
@@ -98,29 +98,26 @@ TEST(StaticShapeInferenceTest, v0_LSTMSequence_FORWARD_with_P) {
     const auto B = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic(2));
     const auto P = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic(2));
 
-    const auto op =
-        std::make_shared<op::v0::LSTMSequence>(X, H_t, C_t, seq_lengths, W, R, B, P, hidden_size, direction);
+    const auto op = make_op(X, H_t, C_t, seq_lengths, W, R, B, P, hidden_size, direction);
 
-    std::vector<StaticShape> static_input_shapes{
-        StaticShape{batch_size, seq_len, input_size},                         // X
-        StaticShape{batch_size, num_directions, hidden_size},                 // H_t
-        StaticShape{batch_size, num_directions, hidden_size},                 // C_t
-        StaticShape{batch_size},                                              // seq_lengths
-        StaticShape{num_directions, gates_count * hidden_size, input_size},   // W
-        StaticShape{num_directions, gates_count * hidden_size, hidden_size},  // R
-        StaticShape{num_directions, gates_count * hidden_size},               // B
-        StaticShape{num_directions, (gates_count - 1) * hidden_size}};        // P
+    input_shapes = {StaticShape{batch_size, seq_len, input_size},                         // X
+                    StaticShape{batch_size, num_directions, hidden_size},                 // H_t
+                    StaticShape{batch_size, num_directions, hidden_size},                 // C_t
+                    StaticShape{batch_size},                                              // seq_lengths
+                    StaticShape{num_directions, gates_count * hidden_size, input_size},   // W
+                    StaticShape{num_directions, gates_count * hidden_size, hidden_size},  // R
+                    StaticShape{num_directions, gates_count * hidden_size},               // B
+                    StaticShape{num_directions, (gates_count - 1) * hidden_size}};        // P
 
-    std::vector<StaticShape> static_output_shapes;
-    shape_inference(op.get(), static_input_shapes, static_output_shapes);
+    shape_inference(op.get(), input_shapes, output_shapes);
 
-    EXPECT_EQ(static_output_shapes.size(), 3);
-    EXPECT_EQ(static_output_shapes[0], StaticShape({batch_size, num_directions, seq_len, hidden_size}));
-    EXPECT_EQ(static_output_shapes[1], StaticShape({batch_size, num_directions, hidden_size}));
-    EXPECT_EQ(static_output_shapes[2], StaticShape({batch_size, num_directions, hidden_size}));
+    EXPECT_EQ(output_shapes.size(), 3);
+    EXPECT_EQ(output_shapes[0], StaticShape({batch_size, num_directions, seq_len, hidden_size}));
+    EXPECT_EQ(output_shapes[1], StaticShape({batch_size, num_directions, hidden_size}));
+    EXPECT_EQ(output_shapes[2], StaticShape({batch_size, num_directions, hidden_size}));
 }
 
-TEST(StaticShapeInferenceTest, v0_LSTMSequence_REVERSE) {
+TEST_F(LSTMSequenceV0StaticShapeInferenceTest, REVERSE) {
     constexpr size_t batch_size = 2;
     constexpr size_t input_size = 3;
     constexpr size_t hidden_size = 5;
@@ -138,27 +135,24 @@ TEST(StaticShapeInferenceTest, v0_LSTMSequence_REVERSE) {
     const auto R = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic(3));
     const auto B = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic(2));
 
-    const auto op =
-        std::make_shared<op::v0::LSTMSequence>(X, H_t, C_t, seq_lengths, W, R, B, hidden_size, direction);
+    const auto op = make_op(X, H_t, C_t, seq_lengths, W, R, B, hidden_size, direction);
 
-    std::vector<StaticShape> static_input_shapes{
-        StaticShape{batch_size, seq_len, input_size},                         // X
-        StaticShape{batch_size, num_directions, hidden_size},                 // H_t
-        StaticShape{batch_size, num_directions, hidden_size},                 // C_t
-        StaticShape{batch_size},                                              // seq_lengths
-        StaticShape{num_directions, gates_count * hidden_size, input_size},   // W
-        StaticShape{num_directions, gates_count * hidden_size, hidden_size},  // R
-        StaticShape{num_directions, gates_count * hidden_size}};              // B
+    input_shapes = {StaticShape{batch_size, seq_len, input_size},                         // X
+                    StaticShape{batch_size, num_directions, hidden_size},                 // H_t
+                    StaticShape{batch_size, num_directions, hidden_size},                 // C_t
+                    StaticShape{batch_size},                                              // seq_lengths
+                    StaticShape{num_directions, gates_count * hidden_size, input_size},   // W
+                    StaticShape{num_directions, gates_count * hidden_size, hidden_size},  // R
+                    StaticShape{num_directions, gates_count * hidden_size}};              // B
 
-    std::vector<StaticShape> static_output_shapes;
-    shape_inference(op.get(), static_input_shapes, static_output_shapes);
-    EXPECT_EQ(static_output_shapes.size(), 3);
-    EXPECT_EQ(static_output_shapes[0], StaticShape({batch_size, num_directions, seq_len, hidden_size}));
-    EXPECT_EQ(static_output_shapes[1], StaticShape({batch_size, num_directions, hidden_size}));
-    EXPECT_EQ(static_output_shapes[2], StaticShape({batch_size, num_directions, hidden_size}));
+    shape_inference(op.get(), input_shapes, output_shapes);
+    EXPECT_EQ(output_shapes.size(), 3);
+    EXPECT_EQ(output_shapes[0], StaticShape({batch_size, num_directions, seq_len, hidden_size}));
+    EXPECT_EQ(output_shapes[1], StaticShape({batch_size, num_directions, hidden_size}));
+    EXPECT_EQ(output_shapes[2], StaticShape({batch_size, num_directions, hidden_size}));
 }
 
-TEST(StaticShapeInferenceTest, v0_LSTMSequence_BIDIRECTIONAL) {
+TEST_F(LSTMSequenceV0StaticShapeInferenceTest, BIDIRECTIONAL) {
     constexpr size_t batch_size = 2;
     constexpr size_t input_size = 3;
     constexpr size_t hidden_size = 5;
@@ -176,27 +170,31 @@ TEST(StaticShapeInferenceTest, v0_LSTMSequence_BIDIRECTIONAL) {
     const auto R = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic(3));
     const auto B = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic(2));
 
-    const auto op =
-        std::make_shared<op::v0::LSTMSequence>(X, H_t, C_t, seq_lengths, W, R, B, hidden_size, direction);
+    const auto op = make_op(X, H_t, C_t, seq_lengths, W, R, B, hidden_size, direction);
 
-    std::vector<StaticShape> static_input_shapes{
-        StaticShape{batch_size, seq_len, input_size},                         // X
-        StaticShape{batch_size, num_directions, hidden_size},                 // H_t
-        StaticShape{batch_size, num_directions, hidden_size},                 // C_t
-        StaticShape{batch_size},                                              // seq_lengths
-        StaticShape{num_directions, gates_count * hidden_size, input_size},   // W
-        StaticShape{num_directions, gates_count * hidden_size, hidden_size},  // R
-        StaticShape{num_directions, gates_count * hidden_size}};              // B
+    input_shapes = {StaticShape{batch_size, seq_len, input_size},                         // X
+                    StaticShape{batch_size, num_directions, hidden_size},                 // H_t
+                    StaticShape{batch_size, num_directions, hidden_size},                 // C_t
+                    StaticShape{batch_size},                                              // seq_lengths
+                    StaticShape{num_directions, gates_count * hidden_size, input_size},   // W
+                    StaticShape{num_directions, gates_count * hidden_size, hidden_size},  // R
+                    StaticShape{num_directions, gates_count * hidden_size}};              // B
 
-    std::vector<StaticShape> static_output_shapes;
-    shape_inference(op.get(), static_input_shapes, static_output_shapes);
-    EXPECT_EQ(static_output_shapes.size(), 3);
-    EXPECT_EQ(static_output_shapes[0], StaticShape({batch_size, num_directions, seq_len, hidden_size}));
-    EXPECT_EQ(static_output_shapes[1], StaticShape({batch_size, num_directions, hidden_size}));
-    EXPECT_EQ(static_output_shapes[2], StaticShape({batch_size, num_directions, hidden_size}));
+    shape_inference(op.get(), input_shapes, output_shapes);
+    EXPECT_EQ(output_shapes.size(), 3);
+    EXPECT_EQ(output_shapes[0], StaticShape({batch_size, num_directions, seq_len, hidden_size}));
+    EXPECT_EQ(output_shapes[1], StaticShape({batch_size, num_directions, hidden_size}));
+    EXPECT_EQ(output_shapes[2], StaticShape({batch_size, num_directions, hidden_size}));
 }
 
-TEST(StaticShapeInferenceTest, v5_LSTMSequence_default_ctor) {
+class LSTMSequenceV5StaticShapeInferenceTest : public OpStaticShapeInferenceTest<op::v5::LSTMSequence> {
+protected:
+    void SetUp() override {
+        this->output_shapes = ShapeVector(3);
+    }
+};
+
+TEST_F(LSTMSequenceV5StaticShapeInferenceTest, default_ctor) {
     constexpr size_t batch_size = 2;
     constexpr size_t input_size = 3;
     constexpr size_t hidden_size = 5;
@@ -204,28 +202,25 @@ TEST(StaticShapeInferenceTest, v5_LSTMSequence_default_ctor) {
     constexpr size_t num_directions = 1;
     constexpr size_t gates_count = 4;
 
-    const auto op =
-        std::make_shared<op::v5::LSTMSequence>();
+    const auto op = std::make_shared<op::v5::LSTMSequence>();
 
-    std::vector<StaticShape> static_input_shapes{
-        StaticShape{batch_size, seq_len, input_size},                         // X
-        StaticShape{batch_size, num_directions, hidden_size},                 // H_t
-        StaticShape{batch_size, num_directions, hidden_size},                 // C_t
-        StaticShape{batch_size},                                              // seq_lengths
-        StaticShape{num_directions, gates_count * hidden_size, input_size},   // W
-        StaticShape{num_directions, gates_count * hidden_size, hidden_size},  // R
-        StaticShape{num_directions, gates_count * hidden_size}};              // B
+    input_shapes = {StaticShape{batch_size, seq_len, input_size},                         // X
+                    StaticShape{batch_size, num_directions, hidden_size},                 // H_t
+                    StaticShape{batch_size, num_directions, hidden_size},                 // C_t
+                    StaticShape{batch_size},                                              // seq_lengths
+                    StaticShape{num_directions, gates_count * hidden_size, input_size},   // W
+                    StaticShape{num_directions, gates_count * hidden_size, hidden_size},  // R
+                    StaticShape{num_directions, gates_count * hidden_size}};              // B
 
-    std::vector<StaticShape> static_output_shapes;
-    shape_inference(op.get(), static_input_shapes, static_output_shapes);
+    shape_inference(op.get(), input_shapes, output_shapes);
 
-    EXPECT_EQ(static_output_shapes.size(), 3);
-    EXPECT_EQ(static_output_shapes[0], StaticShape({batch_size, num_directions, seq_len, hidden_size}));
-    EXPECT_EQ(static_output_shapes[1], StaticShape({batch_size, num_directions, hidden_size}));
-    EXPECT_EQ(static_output_shapes[2], StaticShape({batch_size, num_directions, hidden_size}));
+    EXPECT_EQ(output_shapes.size(), 3);
+    EXPECT_EQ(output_shapes[0], StaticShape({batch_size, num_directions, seq_len, hidden_size}));
+    EXPECT_EQ(output_shapes[1], StaticShape({batch_size, num_directions, hidden_size}));
+    EXPECT_EQ(output_shapes[2], StaticShape({batch_size, num_directions, hidden_size}));
 }
 
-TEST(StaticShapeInferenceTest, v5_LSTMSequence_FORWARD) {
+TEST_F(LSTMSequenceV5StaticShapeInferenceTest, FORWARD) {
     constexpr size_t batch_size = 2;
     constexpr size_t input_size = 3;
     constexpr size_t hidden_size = 5;
@@ -243,28 +238,25 @@ TEST(StaticShapeInferenceTest, v5_LSTMSequence_FORWARD) {
     const auto R = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic(3));
     const auto B = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic(2));
 
-    const auto op =
-        std::make_shared<op::v5::LSTMSequence>(X, H_t, C_t, seq_lengths, W, R, B, hidden_size, direction);
+    const auto op = std::make_shared<op::v5::LSTMSequence>(X, H_t, C_t, seq_lengths, W, R, B, hidden_size, direction);
 
-    std::vector<StaticShape> static_input_shapes{
-        StaticShape{batch_size, seq_len, input_size},                         // X
-        StaticShape{batch_size, num_directions, hidden_size},                 // H_t
-        StaticShape{batch_size, num_directions, hidden_size},                 // C_t
-        StaticShape{batch_size},                                              // seq_lengths
-        StaticShape{num_directions, gates_count * hidden_size, input_size},   // W
-        StaticShape{num_directions, gates_count * hidden_size, hidden_size},  // R
-        StaticShape{num_directions, gates_count * hidden_size}};              // B
+    input_shapes = {StaticShape{batch_size, seq_len, input_size},                         // X
+                    StaticShape{batch_size, num_directions, hidden_size},                 // H_t
+                    StaticShape{batch_size, num_directions, hidden_size},                 // C_t
+                    StaticShape{batch_size},                                              // seq_lengths
+                    StaticShape{num_directions, gates_count * hidden_size, input_size},   // W
+                    StaticShape{num_directions, gates_count * hidden_size, hidden_size},  // R
+                    StaticShape{num_directions, gates_count * hidden_size}};              // B
 
-    std::vector<StaticShape> static_output_shapes;
-    shape_inference(op.get(), static_input_shapes, static_output_shapes);
+    shape_inference(op.get(), input_shapes, output_shapes);
 
-    EXPECT_EQ(static_output_shapes.size(), 3);
-    EXPECT_EQ(static_output_shapes[0], StaticShape({batch_size, num_directions, seq_len, hidden_size}));
-    EXPECT_EQ(static_output_shapes[1], StaticShape({batch_size, num_directions, hidden_size}));
-    EXPECT_EQ(static_output_shapes[2], StaticShape({batch_size, num_directions, hidden_size}));
+    EXPECT_EQ(output_shapes.size(), 3);
+    EXPECT_EQ(output_shapes[0], StaticShape({batch_size, num_directions, seq_len, hidden_size}));
+    EXPECT_EQ(output_shapes[1], StaticShape({batch_size, num_directions, hidden_size}));
+    EXPECT_EQ(output_shapes[2], StaticShape({batch_size, num_directions, hidden_size}));
 }
 
-TEST(StaticShapeInferenceTest, v5_LSTMSequence_REVERSE) {
+TEST_F(LSTMSequenceV5StaticShapeInferenceTest, REVERSE) {
     constexpr size_t batch_size = 2;
     constexpr size_t input_size = 3;
     constexpr size_t hidden_size = 5;
@@ -282,27 +274,24 @@ TEST(StaticShapeInferenceTest, v5_LSTMSequence_REVERSE) {
     const auto R = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic(3));
     const auto B = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic(2));
 
-    const auto op =
-        std::make_shared<op::v5::LSTMSequence>(X, H_t, C_t, seq_lengths, W, R, B, hidden_size, direction);
+    const auto op = std::make_shared<op::v5::LSTMSequence>(X, H_t, C_t, seq_lengths, W, R, B, hidden_size, direction);
 
-    std::vector<StaticShape> static_input_shapes{
-        StaticShape{batch_size, seq_len, input_size},                         // X
-        StaticShape{batch_size, num_directions, hidden_size},                 // H_t
-        StaticShape{batch_size, num_directions, hidden_size},                 // C_t
-        StaticShape{batch_size},                                              // seq_lengths
-        StaticShape{num_directions, gates_count * hidden_size, input_size},   // W
-        StaticShape{num_directions, gates_count * hidden_size, hidden_size},  // R
-        StaticShape{num_directions, gates_count * hidden_size}};              // B
+    input_shapes = {StaticShape{batch_size, seq_len, input_size},                         // X
+                    StaticShape{batch_size, num_directions, hidden_size},                 // H_t
+                    StaticShape{batch_size, num_directions, hidden_size},                 // C_t
+                    StaticShape{batch_size},                                              // seq_lengths
+                    StaticShape{num_directions, gates_count * hidden_size, input_size},   // W
+                    StaticShape{num_directions, gates_count * hidden_size, hidden_size},  // R
+                    StaticShape{num_directions, gates_count * hidden_size}};              // B
 
-    std::vector<StaticShape> static_output_shapes;
-    shape_inference(op.get(), static_input_shapes, static_output_shapes);
-    EXPECT_EQ(static_output_shapes.size(), 3);
-    EXPECT_EQ(static_output_shapes[0], StaticShape({batch_size, num_directions, seq_len, hidden_size}));
-    EXPECT_EQ(static_output_shapes[1], StaticShape({batch_size, num_directions, hidden_size}));
-    EXPECT_EQ(static_output_shapes[2], StaticShape({batch_size, num_directions, hidden_size}));
+    shape_inference(op.get(), input_shapes, output_shapes);
+    EXPECT_EQ(output_shapes.size(), 3);
+    EXPECT_EQ(output_shapes[0], StaticShape({batch_size, num_directions, seq_len, hidden_size}));
+    EXPECT_EQ(output_shapes[1], StaticShape({batch_size, num_directions, hidden_size}));
+    EXPECT_EQ(output_shapes[2], StaticShape({batch_size, num_directions, hidden_size}));
 }
 
-TEST(StaticShapeInferenceTest, v5_LSTMSequence_BIDIRECTIONAL) {
+TEST_F(LSTMSequenceV5StaticShapeInferenceTest, BIDIRECTIONAL) {
     constexpr size_t batch_size = 2;
     constexpr size_t input_size = 3;
     constexpr size_t hidden_size = 5;
@@ -320,22 +309,19 @@ TEST(StaticShapeInferenceTest, v5_LSTMSequence_BIDIRECTIONAL) {
     const auto R = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic(3));
     const auto B = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic(2));
 
-    const auto op =
-        std::make_shared<op::v5::LSTMSequence>(X, H_t, C_t, seq_lengths, W, R, B, hidden_size, direction);
+    const auto op = std::make_shared<op::v5::LSTMSequence>(X, H_t, C_t, seq_lengths, W, R, B, hidden_size, direction);
 
-    std::vector<StaticShape> static_input_shapes{
-        StaticShape{batch_size, seq_len, input_size},                         // X
-        StaticShape{batch_size, num_directions, hidden_size},                 // H_t
-        StaticShape{batch_size, num_directions, hidden_size},                 // C_t
-        StaticShape{batch_size},                                              // seq_lengths
-        StaticShape{num_directions, gates_count * hidden_size, input_size},   // W
-        StaticShape{num_directions, gates_count * hidden_size, hidden_size},  // R
-        StaticShape{num_directions, gates_count * hidden_size}};              // B
+    input_shapes = {StaticShape{batch_size, seq_len, input_size},                         // X
+                    StaticShape{batch_size, num_directions, hidden_size},                 // H_t
+                    StaticShape{batch_size, num_directions, hidden_size},                 // C_t
+                    StaticShape{batch_size},                                              // seq_lengths
+                    StaticShape{num_directions, gates_count * hidden_size, input_size},   // W
+                    StaticShape{num_directions, gates_count * hidden_size, hidden_size},  // R
+                    StaticShape{num_directions, gates_count * hidden_size}};              // B
 
-    std::vector<StaticShape> static_output_shapes;
-    shape_inference(op.get(), static_input_shapes, static_output_shapes);
-    EXPECT_EQ(static_output_shapes.size(), 3);
-    EXPECT_EQ(static_output_shapes[0], StaticShape({batch_size, num_directions, seq_len, hidden_size}));
-    EXPECT_EQ(static_output_shapes[1], StaticShape({batch_size, num_directions, hidden_size}));
-    EXPECT_EQ(static_output_shapes[2], StaticShape({batch_size, num_directions, hidden_size}));
+    shape_inference(op.get(), input_shapes, output_shapes);
+    EXPECT_EQ(output_shapes.size(), 3);
+    EXPECT_EQ(output_shapes[0], StaticShape({batch_size, num_directions, seq_len, hidden_size}));
+    EXPECT_EQ(output_shapes[1], StaticShape({batch_size, num_directions, hidden_size}));
+    EXPECT_EQ(output_shapes[2], StaticShape({batch_size, num_directions, hidden_size}));
 }
