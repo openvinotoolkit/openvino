@@ -1151,7 +1151,7 @@ INFERENCE_ENGINE_C_API(void) ie_blob_free(ie_blob_t** blob);
 
 /** @} */  // end of Blob
 
-            /**
+            /*
             * @brief Shut down the OpenVINO by deleting all static-duration objects allocated by the library and releasing
             * dependent resources
             *
