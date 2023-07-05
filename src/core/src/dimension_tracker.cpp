@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "dimension_tracker.hpp"
+#include "openvino/core/dimension_tracker.hpp"
 
 void ov::TableOfEquivalence::set_as_equal(const ov::Dimension& lhs, const ov::Dimension& rhs) {
     const auto &l_label = ov::DimensionTracker::get_label(lhs), r_label = ov::DimensionTracker::get_label(rhs);

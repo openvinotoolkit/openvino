@@ -13,8 +13,8 @@
 #include <openvino/opsets/opset8.hpp>
 #include <vector>
 
-#include "dimension_tracker.hpp"
 #include "itt.hpp"
+#include "openvino/core/dimension_tracker.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
