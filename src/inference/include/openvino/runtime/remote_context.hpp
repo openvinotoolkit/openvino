@@ -25,12 +25,10 @@ class Core;
 }  // namespace InferenceEngine
 
 namespace ov {
-namespace autobatch_plugin {
-class Plugin;
-}
-}  // namespace ov
 
-namespace ov {
+namespace autobatch_plugin {
+class RemoteContext;
+}
 
 class Core;
 class CoreImpl;
@@ -74,7 +72,7 @@ protected:
     friend class ov::IExecutableNetworkWrapper;
     friend class ov::ICompiledModel;
     friend class ov::CompiledModel;
-    friend class ov::autobatch_plugin::Plugin;
+    friend class ov::autobatch_plugin::RemoteContext;
 
 public:
     /**

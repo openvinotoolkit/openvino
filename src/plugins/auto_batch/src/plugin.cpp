@@ -11,6 +11,7 @@
 #include "openvino/pass/manager.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
 #include "openvino/util/common_util.hpp"
+#include "remote_context.hpp"
 #include "transformations/common_optimizations/dimension_tracking.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/utils/utils.hpp"
@@ -67,23 +68,22 @@ DeviceInformation Plugin::parse_meta_device(const std::string& devices_batch_con
 }
 
 std::shared_ptr<ov::IRemoteContext> Plugin::create_context(const ov::AnyMap& remote_properties) const {
-    auto cfg = remote_properties;
-OPENVINO_SUPPRESS_DEPRECATED_START
-    auto it = cfg.find(CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG));
-OPENVINO_SUPPRESS_DEPRECATED_END
-    if (it == cfg.end())
-        it = cfg.find(ov::device::priorities.name());
-    if (it == cfg.end())
+    auto full_properties = merge_properties(m_plugin_config, remote_properties);
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    auto it = full_properties.find(CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG));
+    OPENVINO_SUPPRESS_DEPRECATED_END
+    if (it == full_properties.end())
+        it = full_properties.find(ov::device::priorities.name());
+    if (it == full_properties.end())
         OPENVINO_THROW("Value for ov::device::priorities is not set");
 
     auto val = it->second.as<std::string>();
-    auto core = get_core();
-    if (!core)
-        return nullptr;
     auto metaDevice = parse_meta_device(val, ov::AnyMap());
-    cfg.erase(it);
-    auto remote_context = core->create_context(metaDevice.device_name, cfg);
-    return remote_context._impl;
+    full_properties.erase(it);
+    auto remote_context = std::make_shared<ov::autobatch_plugin::RemoteContext>(
+        get_core()->create_context(metaDevice.device_name, full_properties),
+        get_device_name());
+    return std::dynamic_pointer_cast<ov::IRemoteContext>(remote_context);
 }
 
 ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& arguments) const {
@@ -374,21 +374,20 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
 std::shared_ptr<ov::IRemoteContext> Plugin::get_default_context(const ov::AnyMap& remote_properties) const {
     auto full_properties = merge_properties(m_plugin_config, remote_properties);
     OPENVINO_SUPPRESS_DEPRECATED_START
-    auto device_batch = full_properties.find(CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG));
-    if (device_batch == full_properties.end())
-        device_batch = full_properties.find(ov::device::priorities.name());
-    if (device_batch == full_properties.end()) {
-        OPENVINO_THROW("ov::device::priorities key for AUTO NATCH is not set for BATCH device");
-    }
+    auto it = full_properties.find(CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG));
     OPENVINO_SUPPRESS_DEPRECATED_END
+    if (it == full_properties.end())
+        it = full_properties.find(ov::device::priorities.name());
+    if (it == full_properties.end())
+        OPENVINO_THROW("Value for ov::device::priorities is not set");
 
-    auto val = device_batch->second.as<std::string>();
-    auto core = get_core();
-    if (!core)
-        return nullptr;
+    auto val = it->second.as<std::string>();
     auto metaDevice = parse_meta_device(val, ov::AnyMap());
-    auto remote_context = core->get_default_context(metaDevice.device_name);
-    return remote_context._impl;
+    full_properties.erase(it);
+    auto remote_context =
+        std::make_shared<ov::autobatch_plugin::RemoteContext>(get_core()->get_default_context(metaDevice.device_name),
+                                                              get_device_name());
+    return std::dynamic_pointer_cast<ov::IRemoteContext>(remote_context);
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model, const ov::AnyMap& properties) const {
