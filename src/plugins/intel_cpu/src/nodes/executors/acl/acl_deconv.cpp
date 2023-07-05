@@ -100,7 +100,8 @@ static void transpose_to_1023(const MemoryCPtr& srcMemPtr, std::vector<float>& d
     });
 }
 
-void AclDeconvExecutor::exec(const std::vector<MemoryCPtr>& src, const std::vector<MemoryPtr>& dst, const void *post_ops_data_) {
+void AclDeconvExecutor::exec(const std::vector<MemoryCPtr>& src, const std::vector<MemoryPtr>& dst,
+                             const void *post_ops_data_, const dnnl::stream &strm) {
     //weights tensor shape is changed because ACL expects [W, H, I, O] tensor while OV uses [I, O, H, W] tensor
     std::vector<float> weiBuffer(src[1]->getStaticDims()[0] *
                                  src[1]->getStaticDims()[1] *

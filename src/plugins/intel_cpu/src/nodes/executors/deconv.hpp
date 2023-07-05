@@ -54,8 +54,10 @@ struct DeconvAttrs {
     size_t OC;
     dnnl::engine engine;
     DeconvKey key;
-    std::unordered_map<int, dnnl::memory> primArgs;
     MultiCachePtr cache;
+    std::function<std::vector<int32_t>()> readOutputSpatialDimsFunc;
+    std::string layerName;
+    std::function<void(std::shared_ptr<std::unordered_map<int, dnnl::memory>>)> updatePrimArgs;
 };
 
 class DeconvExecutor {
@@ -66,7 +68,10 @@ public:
                       const std::vector<MemoryDescPtr>& dstDescs,
                       const dnnl::primitive_attr &attr) = 0;
 
-    virtual void exec(const std::vector<MemoryCPtr>& src, const std::vector<MemoryPtr>& dst, const void *post_ops_data_) = 0;
+    virtual void exec(const std::vector<MemoryCPtr>& src,
+                      const std::vector<MemoryPtr>& dst,
+                      const void *post_ops_data_,
+                      const dnnl::stream &strm) = 0;
     virtual ~DeconvExecutor() = default;
 
     virtual impl_desc_type getImplType() const = 0;
