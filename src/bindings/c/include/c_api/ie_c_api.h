@@ -48,7 +48,7 @@
 #            define INFERENCE_ENGINE_C_API(...) INFERENCE_ENGINE_C_API_EXTERN __declspec(dllexport) __VA_ARGS__ __cdecl
 #        else
 #            define INFERENCE_ENGINE_C_API(...) \
-                INFERENCE_ENGINE_C_API_EXTERN __declspec(dllimport) IE_1_0_DEPRECATED __cdecl
+                INFERENCE_ENGINE_C_API_EXTERN __declspec(dllimport) __VA_ARGS__ IE_1_0_DEPRECATED __cdecl
 #        endif
 #        define IE_NODISCARD
 #    else
