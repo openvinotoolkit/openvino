@@ -137,4 +137,179 @@ INSTANTIATE_TEST_SUITE_P(smoke, pad_test_single_input,
         }
     }));
 
+
+class pad_test_non_constant_input_begin : public testing::TestWithParam<pad_test_params> { };
+
+TEST_P(pad_test_non_constant_input_begin, shape_infer) {
+    auto p = GetParam();
+
+    auto& engine = get_test_engine();
+
+    auto input0_prim = std::make_shared<input_layout>("input0", p.in_layout);
+    auto input1_prim = std::make_shared<input_layout>("input1", p.pads_begin_layout);
+
+    auto border_prim = std::make_shared<border>("output",
+                                                std::vector<input_info>({input_info("input0"), input_info("input1")}),
+                                                border::PAD_NON_CONST_INPUT::BEGIN,
+                                                p.pads_begin_data,
+                                                p.pads_end_data,
+                                                p.pad_mode,
+                                                p.pad_value);
+    cldnn::program prog(engine);
+
+    auto& input0_node = prog.get_or_create(input0_prim);
+    auto& input1_node = prog.get_or_create(input1_prim);
+    auto& border_node = prog.get_or_create(border_prim);
+
+    program_wrapper::add_connection(prog, input0_node, border_node);
+    program_wrapper::add_connection(prog, input1_node, border_node);
+
+    auto res = border_inst::calc_output_layouts<ov::PartialShape>(border_node, *border_node.get_kernel_impl_params());
+
+    ASSERT_EQ(res.size(), 1);
+    ASSERT_EQ(res[0], p.expected_layout);
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke, pad_test_non_constant_input_begin,
+    testing::ValuesIn(std::vector<pad_test_params>{
+        {
+            layout{ov::PartialShape{1, 3, 32, 40}, data_types::f32, format::bfyx},
+            layout{ov::PartialShape{4}, data_types::i64, format::bfyx}, {},
+            layout{ov::PartialShape{4}, data_types::i64, format::bfyx}, {1, 0, 3, 7},
+            ov::op::PadMode::CONSTANT, 1.f,
+            layout{ov::PartialShape{3, 4, 36, 48}, data_types::f32, format::bfyx}
+        },
+        {
+            layout{ov::PartialShape::dynamic(4), data_types::f32, format::bfyx},
+            layout{ov::PartialShape{4}, data_types::i64, format::bfyx}, {},
+            layout{ov::PartialShape{4}, data_types::i64, format::bfyx}, {1, 0, 3, 7},
+            ov::op::PadMode::CONSTANT, 1.f,
+            layout{ov::PartialShape{{2, -1}, {1, -1}, {4, -1}, {8, -1}}, data_types::f32, format::bfyx}
+        },
+        {
+            layout{ov::PartialShape::dynamic(2), data_types::f32, format::bfyx},
+            layout{ov::PartialShape{2}, data_types::i64, format::bfyx}, {},
+            layout{ov::PartialShape{2}, data_types::i64, format::bfyx}, {1, 0},
+            ov::op::PadMode::CONSTANT, 1.f,
+            layout{ov::PartialShape{{2, -1}, {1, -1}}, data_types::f32, format::bfyx}
+        }
+    }));
+
+class pad_test_non_constant_input_end : public testing::TestWithParam<pad_test_params> { };
+
+TEST_P(pad_test_non_constant_input_end, shape_infer) {
+    auto p = GetParam();
+
+    auto& engine = get_test_engine();
+
+    auto input0_prim = std::make_shared<input_layout>("input0", p.in_layout);
+    auto input1_prim = std::make_shared<input_layout>("input1", p.pads_end_layout);
+
+    auto border_prim = std::make_shared<border>("output",
+                                                std::vector<input_info>({input_info("input0"), input_info("input1")}),
+                                                border::PAD_NON_CONST_INPUT::END,
+                                                p.pads_begin_data,
+                                                p.pads_end_data,
+                                                p.pad_mode,
+                                                p.pad_value);
+    cldnn::program prog(engine);
+
+    auto& input0_node = prog.get_or_create(input0_prim);
+    auto& input1_node = prog.get_or_create(input1_prim);
+    auto& border_node = prog.get_or_create(border_prim);
+
+    program_wrapper::add_connection(prog, input0_node, border_node);
+    program_wrapper::add_connection(prog, input1_node, border_node);
+
+    auto res = border_inst::calc_output_layouts<ov::PartialShape>(border_node, *border_node.get_kernel_impl_params());
+
+    ASSERT_EQ(res.size(), 1);
+    ASSERT_EQ(res[0], p.expected_layout);
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke, pad_test_non_constant_input_end,
+    testing::ValuesIn(std::vector<pad_test_params>{
+        {
+            layout{ov::PartialShape{1, 3, 32, 40}, data_types::f32, format::bfyx},
+            layout{ov::PartialShape{4}, data_types::i64, format::bfyx}, {1, 0, 3, 7},
+            layout{ov::PartialShape{4}, data_types::i64, format::bfyx}, {},
+            ov::op::PadMode::CONSTANT, 1.f,
+            layout{ov::PartialShape{3, 4, 36, 48}, data_types::f32, format::bfyx}
+        },
+        {
+            layout{ov::PartialShape::dynamic(4), data_types::f32, format::bfyx},
+            layout{ov::PartialShape{4}, data_types::i64, format::bfyx}, {1, 0, 3, 7},
+            layout{ov::PartialShape{4}, data_types::i64, format::bfyx}, {},
+            ov::op::PadMode::CONSTANT, 1.f,
+            layout{ov::PartialShape{{2, -1}, {1, -1}, {4, -1}, {8, -1}}, data_types::f32, format::bfyx}
+        },
+        {
+            layout{ov::PartialShape::dynamic(2), data_types::f32, format::bfyx},
+            layout{ov::PartialShape{2}, data_types::i64, format::bfyx}, {1, 0},
+            layout{ov::PartialShape{2}, data_types::i64, format::bfyx}, {},
+            ov::op::PadMode::CONSTANT, 1.f,
+            layout{ov::PartialShape{{2, -1}, {1, -1}}, data_types::f32, format::bfyx}
+        }
+    }));
+
+class pad_test_non_constant_input_begin_end : public testing::TestWithParam<pad_test_params> { };
+
+TEST_P(pad_test_non_constant_input_begin_end, shape_infer) {
+    auto p = GetParam();
+
+    auto& engine = get_test_engine();
+
+    auto input0_prim = std::make_shared<input_layout>("input0", p.in_layout);
+    auto input1_prim = std::make_shared<input_layout>("input1", p.pads_begin_layout);
+    auto input2_prim = std::make_shared<input_layout>("input2", p.pads_end_layout);
+
+    auto border_prim = std::make_shared<border>("output",
+                                                std::vector<input_info>({input_info("input0"), input_info("input1"), input_info("input2")}),
+                                                border::PAD_NON_CONST_INPUT::BEGIN | border::PAD_NON_CONST_INPUT::END,
+                                                p.pads_begin_data,
+                                                p.pads_end_data,
+                                                p.pad_mode,
+                                                p.pad_value);
+    cldnn::program prog(engine);
+
+    auto& input0_node = prog.get_or_create(input0_prim);
+    auto& input1_node = prog.get_or_create(input1_prim);
+    auto& input2_node = prog.get_or_create(input2_prim);
+    auto& border_node = prog.get_or_create(border_prim);
+
+    program_wrapper::add_connection(prog, input0_node, border_node);
+    program_wrapper::add_connection(prog, input1_node, border_node);
+    program_wrapper::add_connection(prog, input2_node, border_node);
+
+    auto res = border_inst::calc_output_layouts<ov::PartialShape>(border_node, *border_node.get_kernel_impl_params());
+
+    ASSERT_EQ(res.size(), 1);
+    ASSERT_EQ(res[0], p.expected_layout);
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke, pad_test_non_constant_input_begin_end,
+    testing::ValuesIn(std::vector<pad_test_params>{
+        {
+            layout{ov::PartialShape{1, 3, 32, 40}, data_types::f32, format::bfyx},
+            layout{ov::PartialShape{4}, data_types::i64, format::bfyx}, {},
+            layout{ov::PartialShape{4}, data_types::i64, format::bfyx}, {},
+            ov::op::PadMode::CONSTANT, 1.f,
+            layout{ov::PartialShape{3, 5, 34, 42}, data_types::f32, format::bfyx}
+        },
+        {
+            layout{ov::PartialShape::dynamic(4), data_types::f32, format::bfyx},
+            layout{ov::PartialShape{4}, data_types::i64, format::bfyx}, {},
+            layout{ov::PartialShape{4}, data_types::i64, format::bfyx}, {},
+            ov::op::PadMode::CONSTANT, 1.f,
+            layout{ov::PartialShape{{2, -1}, {2, -1}, {2, -1}, {2, -1}}, data_types::f32, format::bfyx}
+        },
+        {
+            layout{ov::PartialShape::dynamic(2), data_types::f32, format::bfyx},
+            layout{ov::PartialShape{2}, data_types::i64, format::bfyx}, {},
+            layout{ov::PartialShape{2}, data_types::i64, format::bfyx}, {},
+            ov::op::PadMode::CONSTANT, 1.f,
+            layout{ov::PartialShape{{2, -1}, {2, -1}}, data_types::f32, format::bfyx}
+        }
+    }));
+
 }  // namespace shape_infer_tests
