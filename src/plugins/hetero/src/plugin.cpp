@@ -5,6 +5,7 @@
 
 #include "itt.hpp"
 #include "plugin.hpp"
+#include "compiled_model.hpp"
 
 #include <memory>
 #include <vector>
@@ -25,9 +26,7 @@
 // TODO (vurusovs) required for conversion to legacy API 1.0
 #include "converter_utils.hpp"
 #include "plugin.hpp"
-#include "executable_network.hpp"
 // TODO (vurusovs) required for conversion to legacy API 1.0
-
 
 ov::hetero::Plugin::Plugin() {
     set_device_name("HETERO");
@@ -38,17 +37,12 @@ std::shared_ptr<ov::ICompiledModel> ov::hetero::Plugin::compile_model(
     const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::Hetero, "Plugin::compile_model");
     
-    auto shared_this = std::const_pointer_cast<ov::IPlugin>(shared_from_this());
-    auto plugin_p = ov::legacy_convert::convert_plugin(shared_this);
-    auto network = ov::legacy_convert::convert_model(model, this->is_new_api());
-    auto legacy_compiled_model = std::make_shared<HeteroPlugin::HeteroExecutableNetwork>(network, properties, std::dynamic_pointer_cast<ov::hetero::Plugin>(shared_this));
-    legacy_compiled_model->SetPointerToPlugin(plugin_p);
-    legacy_compiled_model->setNetworkInputs(InferenceEngine::copyInfo(network.getInputsInfo()));
-    legacy_compiled_model->setNetworkOutputs(InferenceEngine::copyInfo(network.getOutputsInfo()));
-    InferenceEngine::SetExeNetworkInfo(legacy_compiled_model, model, this->is_new_api());
-    auto compiled_model = ov::legacy_convert::convert_compiled_model(legacy_compiled_model);
+    auto config = Configuration{properties, m_cfg};
+    auto compiled_model = std::make_shared<CompiledModel>(
+        model->clone(),
+        shared_from_this(),
+        config);
     return compiled_model;
-
 }
 
 std::shared_ptr<ov::ICompiledModel> ov::hetero::Plugin::compile_model(const std::shared_ptr<const ov::Model>& model,
@@ -66,12 +60,13 @@ std::shared_ptr<ov::ICompiledModel> ov::hetero::Plugin::import_model(std::istrea
 std::shared_ptr<ov::ICompiledModel> ov::hetero::Plugin::import_model(std::istream& model,
                                                                      const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::Hetero, "Plugin::import_model");
-
-    auto shared_this = std::const_pointer_cast<ov::IPlugin>(shared_from_this());
-    auto plugin_p = ov::legacy_convert::convert_plugin(shared_this);
-    auto legacy_compiled_model = std::make_shared<HeteroPlugin::HeteroExecutableNetwork>(model, properties, std::dynamic_pointer_cast<ov::hetero::Plugin>(shared_this), true);
-    legacy_compiled_model->SetPointerToPlugin(plugin_p);
-    auto compiled_model = ov::legacy_convert::convert_compiled_model(legacy_compiled_model);
+    
+    auto config = Configuration{properties, m_cfg};
+    auto compiled_model = std::make_shared<CompiledModel>(
+        model,
+        shared_from_this(),
+        config,
+        true);
     return compiled_model;
 }
 
