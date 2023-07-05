@@ -44,9 +44,9 @@ See the `Release Notes <https://www.intel.com/content/www/us/en/developer/articl
       .. tab-set::
 
          .. tab-item:: Ubuntu 20.04
-         :sync: ubuntu-20
-      
-         * GCC 9.3.0
+            :sync: ubuntu-20
+         
+            * GCC 9.3.0
 
          .. tab-item:: Ubuntu 18.04
             :sync: ubuntu-18
