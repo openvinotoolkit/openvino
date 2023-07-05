@@ -160,6 +160,26 @@ std::vector<CPUSpecificParams> getCPUInfo() {
     return resCPUParams;
 }
 
+std::vector<std::vector<InputShape>> statShapes1D = {
+        {{{}, {{1}}}},     // Static shapes
+        {{{}, {{5}}}},     // Static shapes
+        {{{}, {{8}}}},     // Static shapes
+        {{{}, {{16}}}},    // Static shapes
+        {{{}, {{32}}}},    // Static shapes
+        {{{}, {{64}}}},    // Static shapes
+        {{{}, {{99}}}},    // Static shapes
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_static_1D, UniqueLayerTestCPU,
+             ::testing::Combine(
+                     ::testing::ValuesIn(statShapes1D),
+                     ::testing::ValuesIn(std::vector<std::tuple<bool, int>>{{true, 0}, {false, 0}}),
+                     ::testing::ValuesIn(sorted),
+                     ::testing::ValuesIn(dataPrecisionSmoke),
+                     ::testing::ValuesIn(getCPUInfo()),
+                     ::testing::Values(additionalConfig[0])),
+             UniqueLayerTestCPU::getTestCaseName);
+
 std::vector<std::vector<InputShape>> getStaticShapes() {
     std::vector<std::vector<InputShape>> result = {
         { { {}, { {1, 1, 1} } } },    // Static shapes

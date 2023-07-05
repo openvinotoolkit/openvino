@@ -36,8 +36,6 @@ xfail_issue_33488 = xfail_test(reason="RuntimeError: OV does not support the fol
                                       "MaxUnpool")
 skip_issue_38084 = pytest.mark.skip(reason="Aborted (core dumped) Assertion "
                                            "`(layer->get_output_partial_shape(i).is_static())' failed.")
-xfail_issue_33595 = xfail_test(reason="RuntimeError: OV does not support the following ONNX operations: "
-                                      "Unique")
 xfail_issue_33596 = xfail_test(reason="RuntimeError: OV does not support different sequence operations: "
                                       "ConcatFromSequence, SequenceConstruct, SequenceAt, SplitToSequence, "
                                       "SequenceEmpty, SequenceInsert, SequenceErase, SequenceLength ")
