@@ -580,39 +580,18 @@ VectorDims Deconvolution::shapeInferInternal(const VectorDims &inDims, std::vect
 }
 
 void Deconvolution::execute(dnnl::stream strm) {
+    std::vector<MemoryCPtr> srcMemory;
+    for (int i = 0; i < getOriginalInputsNumber(); i++) {
+        srcMemory.push_back(getParentEdgesAtPort(i)[0]->getMemoryPtr());
+    }
+    std::vector<MemoryPtr> dstMemory;
+    for (int i = 0; i < getOriginalOutputsNumber(); i++) {
+        dstMemory.push_back(getChildEdgesAtPort(i)[0]->getMemoryPtr());
+    }
+
     if (!useACL) {
-//        if (!dnnlDeconvExecutor->dnnlExecPtr) {
-//            IE_THROW() << "Can't execute Deconvolution node with name: " << deconvAttrs.layerName
-//                       << ", because executor is not compiled";
-//        }
-//
-//        dnnlDeconvExecutor->dnnlExecPtr->exec(deconvAttrs.primArgs, strm);
-
-
-
-        std::vector<MemoryCPtr> srcMemory;
-        for (int i = 0; i < getOriginalInputsNumber(); i++) {
-            srcMemory.push_back(getParentEdgesAtPort(i)[0]->getMemoryPtr());
-        }
-        std::vector<MemoryPtr> dstMemory;
-        for (int i = 0; i < getOriginalOutputsNumber(); i++) {
-            dstMemory.push_back(getChildEdgesAtPort(i)[0]->getMemoryPtr());
-        }
         dnnlDeconvExecutor->exec(srcMemory, dstMemory, nullptr, strm);
-
-
-        if (deconvAttrs.externOutShape) {
-            deconvAttrs.lastOutputSpatialDims = readOutputSpatialDims();
-        }
     } else {
-        std::vector<MemoryCPtr> srcMemory;
-        for (int i = 0; i < getOriginalInputsNumber(); i++) {
-            srcMemory.push_back(getParentEdgeAt(i)->getMemoryPtr());
-        }
-        std::vector<MemoryPtr> dstMemory;
-        for (int i = 0; i < getOriginalOutputsNumber(); i++) {
-            dstMemory.push_back(getChildEdgeAt(i)->getMemoryPtr());
-        }
         //TODO: need to pass post ops data
         execPtrDeconv->exec(srcMemory, dstMemory, nullptr, strm);
     }
