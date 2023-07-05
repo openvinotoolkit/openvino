@@ -2573,7 +2573,7 @@ public:
         std::tie(b, in_f, in_x, in_y, out_f, in_fmt) = GetParam();
 
         quantization_t quant_data;
-        quant_data.output_low  = std::numeric_limits<WeightsT>::min();
+        quant_data.output_low  = std::numeric_limits<WeightsT>::lowest();
         quant_data.output_high = std::numeric_limits<WeightsT>::max();
 
         VVVVF<InputT> input_data = generate_random_4d<InputT>(b, in_f, in_y, in_x, 0, 127);
