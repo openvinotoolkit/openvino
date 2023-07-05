@@ -166,7 +166,7 @@ bool pass::SwitchMergeResolver::run_on_model(const shared_ptr<Model>& m) {
         FRONT_END_GENERAL_CHECK(
             input_size == else_params.size(),
             "[TensorFlow Frontend] internal error: number of Switch inputs does not match a number of outputs");
-        for (int ind = 0; ind < input_size; ++ind) {
+        for (size_t ind = 0; ind < input_size; ++ind) {
             auto curr_input = if_inputs[ind];
             auto then_param = then_params[ind];
             auto else_param = else_params[ind];
@@ -177,8 +177,8 @@ bool pass::SwitchMergeResolver::run_on_model(const shared_ptr<Model>& m) {
         FRONT_END_GENERAL_CHECK(then_results.size() == else_results.size(),
                                 "[TensorFlow Frontend] internal error: number of result nodes in "
                                 "then and else branches do not match.");
-        int output_size = static_cast<int>(then_results.size());
-        for (int ind = 0; ind < output_size; ++ind) {
+        size_t output_size = then_results.size();
+        for (size_t ind = 0; ind < output_size; ++ind) {
             if_op->set_output(then_results[ind], else_results[ind]);
         }
 

@@ -22,7 +22,7 @@ OutputVector translate_merge_op(const NodeContext& node) {
     // Merge can have multiple inputs, one is minimum
     auto node_name = node.get_name();
     default_op_checks(node, 1, {"Merge"});
-    size_t input_size = static_cast<int>(node.get_input_size());
+    int input_size = static_cast<int>(node.get_input_size());
     ov::OutputVector inputs;
     for (int input_ind = 0; input_ind < input_size; ++input_ind) {
         inputs.push_back(node.get_input(input_ind));
