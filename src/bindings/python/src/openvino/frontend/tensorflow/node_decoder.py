@@ -51,10 +51,26 @@ class TFGraphNodeDecoder(DecoderBase):
                                                     "Expected tf.Operation, got {}".format(type(operation))
         self.m_operation = operation
         self.m_inner_graph = inner_graph
+        self.m_shared_memory = True
         if self.m_operation.type == "Const":
+            # Copies tensor value to parsed TensorProto
             value = self.m_operation.node_def.attr["value"].tensor
-            # copies tensor value from node_def
-            self.m_parsed_content = tf.make_ndarray(value)
+
+            # As the tensor was copied, shared memory may be lost
+            # after destruction of GraphIteratorTFGraph() when convert_model() finishes its work.
+            # To prevent it we need to turn off sharing.
+            self.m_shared_memory = False
+
+            if value.tensor_content:
+                shape = [d.size for d in value.tensor_shape.dim]
+                tensor_dtype = tf.dtypes.as_dtype(value.dtype)
+                dtype = tensor_dtype.as_numpy_dtype
+                # no copy of content
+                self.m_parsed_content = (np.frombuffer(value.tensor_content,
+                          dtype=dtype).reshape(shape))
+            else:
+                # TODO: remove copy of content for cases when tensor value is not in tensor_content field
+                self.m_parsed_content = tf.make_ndarray(value)
 
         if self.m_operation.type == "Placeholder":
             data_type = self.m_operation.node_def.attr["dtype"].type
@@ -118,7 +134,7 @@ class TFGraphNodeDecoder(DecoderBase):
                 if isinstance(self.m_parsed_content, np.ndarray):
                     return OVAny(Tensor(self.m_parsed_content))
                 return OVAny(Tensor(np.array([self.m_parsed_content]), shape=[1]))
-            ov_tensor = Tensor(self.m_parsed_content, shared_memory=True)
+            ov_tensor = Tensor(self.m_parsed_content, shared_memory=self.m_shared_memory)
             ov_tensor = OVAny(ov_tensor)
             return ov_tensor
         attr_value = self.m_operation.node_def.attr[name]
