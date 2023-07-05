@@ -25,56 +25,57 @@ struct RNNCellParams {
     int64_t gates_count = 1;
 };
 
-template <typename T, typename std::enable_if<std::is_same<T, v0::RNNCell>::value, bool>::type = true>
-static std::shared_ptr<T> make_rnn_cell_based_op(RNNCellParams& p) {
-    const auto X = make_shared<v0::Parameter>(p.et, PartialShape{p.batch_size, p.input_size});
-    const auto H_t = make_shared<v0::Parameter>(p.et, PartialShape{p.batch_size, p.hidden_size});
-    const auto W = make_shared<v0::Parameter>(p.et, PartialShape{p.hidden_size, p.input_size});
-    const auto R = make_shared<v0::Parameter>(p.et, PartialShape{p.hidden_size, p.hidden_size});
-    const auto B = make_shared<v0::Parameter>(p.et, PartialShape{p.hidden_size});
+template <class TOp>
+class RNNCellTest : public TypePropOpTest<TOp> {
+public:
+    template <typename T = TOp, typename std::enable_if<std::is_same<T, v0::RNNCell>::value, bool>::type = true>
+    std::shared_ptr<T> make_rnn_cell_based_op(RNNCellParams& p) {
+        const auto X = make_shared<v0::Parameter>(p.et, PartialShape{p.batch_size, p.input_size});
+        const auto H_t = make_shared<v0::Parameter>(p.et, PartialShape{p.batch_size, p.hidden_size});
+        const auto W = make_shared<v0::Parameter>(p.et, PartialShape{p.hidden_size, p.input_size});
+        const auto R = make_shared<v0::Parameter>(p.et, PartialShape{p.hidden_size, p.hidden_size});
+        const auto B = make_shared<v0::Parameter>(p.et, PartialShape{p.hidden_size});
 
-    return std::make_shared<T>(X, H_t, W, R, B, p.hidden_size.get_max_length());
-}
+        return std::make_shared<T>(X, H_t, W, R, B, p.hidden_size.get_max_length());
+    }
 
-template <typename T, typename std::enable_if<std::is_same<T, v3::GRUCell>::value, bool>::type = true>
-static std::shared_ptr<T> make_rnn_cell_based_op(RNNCellParams& p) {
-    p.gates_count = 3;
+    template <typename T = TOp, typename std::enable_if<std::is_same<T, v3::GRUCell>::value, bool>::type = true>
+    std::shared_ptr<T> make_rnn_cell_based_op(RNNCellParams& p) {
+        p.gates_count = 3;
 
-    const auto X = make_shared<v0::Parameter>(p.et, PartialShape{p.batch_size, p.input_size});
-    const auto H_t = make_shared<v0::Parameter>(p.et, PartialShape{p.batch_size, p.hidden_size});
-    const auto W = make_shared<v0::Parameter>(p.et, PartialShape{p.hidden_size * p.gates_count, p.input_size});
-    const auto R = make_shared<v0::Parameter>(p.et, PartialShape{p.hidden_size * p.gates_count, p.hidden_size});
-    const auto B = make_shared<v0::Parameter>(p.et, PartialShape{p.hidden_size * p.gates_count});
+        const auto X = make_shared<v0::Parameter>(p.et, PartialShape{p.batch_size, p.input_size});
+        const auto H_t = make_shared<v0::Parameter>(p.et, PartialShape{p.batch_size, p.hidden_size});
+        const auto W = make_shared<v0::Parameter>(p.et, PartialShape{p.hidden_size * p.gates_count, p.input_size});
+        const auto R = make_shared<v0::Parameter>(p.et, PartialShape{p.hidden_size * p.gates_count, p.hidden_size});
+        const auto B = make_shared<v0::Parameter>(p.et, PartialShape{p.hidden_size * p.gates_count});
 
-    return std::make_shared<T>(X, H_t, W, R, B, p.hidden_size.get_max_length());
-}
+        return std::make_shared<T>(X, H_t, W, R, B, p.hidden_size.get_max_length());
+    }
 
-template <typename T,
-          typename std::enable_if<std::is_same<T, v0::LSTMCell>::value || std::is_same<T, v4::LSTMCell>::value,
-                                  bool>::type = true>
-static std::shared_ptr<T> make_rnn_cell_based_op(RNNCellParams& p) {
-    p.gates_count = 4;
-    p.outputs_size = 2;
+    template <typename T = TOp,
+              typename std::enable_if<std::is_same<T, v0::LSTMCell>::value || std::is_same<T, v4::LSTMCell>::value,
+                                      bool>::type = true>
+    std::shared_ptr<T> make_rnn_cell_based_op(RNNCellParams& p) {
+        p.gates_count = 4;
+        p.outputs_size = 2;
 
-    const auto X = make_shared<v0::Parameter>(p.et, PartialShape{p.batch_size, p.input_size});
-    const auto H_t = make_shared<v0::Parameter>(p.et, PartialShape{p.batch_size, p.hidden_size});
-    const auto C_t = make_shared<v0::Parameter>(p.et, PartialShape{p.batch_size, p.hidden_size});
-    const auto W = make_shared<v0::Parameter>(p.et, PartialShape{p.hidden_size * p.gates_count, p.input_size});
-    const auto R = make_shared<v0::Parameter>(p.et, PartialShape{p.hidden_size * p.gates_count, p.hidden_size});
-    const auto B = make_shared<v0::Parameter>(p.et, PartialShape{p.hidden_size * p.gates_count});
+        const auto X = make_shared<v0::Parameter>(p.et, PartialShape{p.batch_size, p.input_size});
+        const auto H_t = make_shared<v0::Parameter>(p.et, PartialShape{p.batch_size, p.hidden_size});
+        const auto C_t = make_shared<v0::Parameter>(p.et, PartialShape{p.batch_size, p.hidden_size});
+        const auto W = make_shared<v0::Parameter>(p.et, PartialShape{p.hidden_size * p.gates_count, p.input_size});
+        const auto R = make_shared<v0::Parameter>(p.et, PartialShape{p.hidden_size * p.gates_count, p.hidden_size});
+        const auto B = make_shared<v0::Parameter>(p.et, PartialShape{p.hidden_size * p.gates_count});
 
-    return std::make_shared<T>(X, H_t, C_t, W, R, B, p.hidden_size.get_max_length());
-}
-
-template <class T>
-class RNNCellTest : public testing::Test {};
+        return std::make_shared<T>(X, H_t, C_t, W, R, B, p.hidden_size.get_max_length());
+    }
+};
 
 TYPED_TEST_SUITE_P(RNNCellTest);
 
 TYPED_TEST_P(RNNCellTest, basic_shape_infer) {
     RNNCellParams params;
 
-    auto op = make_rnn_cell_based_op<TypeParam>(params);
+    auto op = this->make_rnn_cell_based_op(params);
     EXPECT_EQ(op->get_output_size(), params.outputs_size);
     for (size_t i = 0; i < params.outputs_size; ++i) {
         EXPECT_EQ(op->get_output_partial_shape(i), (PartialShape{params.batch_size, params.hidden_size}));
@@ -90,7 +91,7 @@ TYPED_TEST_P(RNNCellTest, static_labels_dims_shape_infer) {
     params.hidden_size = Dimension(128);
     ov::DimensionTracker::set_label(params.hidden_size, 12);
 
-    auto op = make_rnn_cell_based_op<TypeParam>(params);
+    auto op = this->make_rnn_cell_based_op(params);
     EXPECT_EQ(op->get_output_size(), params.outputs_size);
 
     for (size_t i = 0; i < params.outputs_size; ++i) {
@@ -108,7 +109,7 @@ TYPED_TEST_P(RNNCellTest, interval_labels_dims_shape_infer) {
     params.hidden_size = Dimension(128, 256);
     ov::DimensionTracker::set_label(params.hidden_size, 12);
 
-    auto op = make_rnn_cell_based_op<TypeParam>(params);
+    auto op = this->make_rnn_cell_based_op(params);
     EXPECT_EQ(op->get_output_size(), params.outputs_size);
 
     for (size_t i = 0; i < params.outputs_size; ++i) {
