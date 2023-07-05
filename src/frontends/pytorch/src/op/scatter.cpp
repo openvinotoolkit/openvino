@@ -19,17 +19,32 @@ using namespace ov::op;
 
 OutputVector translate_scatter(const NodeContext& context) {
     // Out-of-place schema
-    // "aten::scatter.src(Tensor self, int dim, Tensor index, Tensor src) -> Tensor"
-    // "aten::scatter.value(Tensor self, int dim, Tensor index, Scalar value) -> Tensor"
+    // aten::scatter.value(Tensor self, int dim, Tensor index, Scalar value) -> Tensor:
+    // aten::scatter.src(Tensor self, int dim, Tensor index, Tensor src) -> Tensor:
+    // aten::scatter.reduce(Tensor self, int dim, Tensor index, Tensor src, *, str reduce) -> Tensor:
+    // aten::scatter.value_reduce(Tensor self, int dim, Tensor index, Scalar value, *, str reduce) -> Tensor:
 
     // Inplace schema
-    // "aten::scatter_.src(Tensor(a!) self, int dim, Tensor index, Tensor src) -> Tensor(a!)"
-    // "aten::scatter_.value(Tensor(a!) self, int dim, Tensor index, Scalar value) -> Tensor(a!)"
-    num_inputs_check(context, 4, 4);
+    // aten::scatter_.value(Tensor(a!) self, int dim, Tensor index, Scalar value) -> Tensor(a!):
+    // aten::scatter_.src(Tensor(a!) self, int dim, Tensor index, Tensor src) -> Tensor(a!):
+    // aten::scatter_.reduce(Tensor(a!) self, int dim, Tensor index, Tensor src, *, str reduce) -> Tensor(a!):
+    // aten::scatter_.value_reduce(Tensor(a!) self, int dim, Tensor index, Scalar value, *, str reduce) -> Tensor(a!):
+    num_inputs_check(context, 4, 5);
     auto input = context.get_input(0);
     auto dim = context.get_input(1);
     auto index = context.mark_node(std::make_shared<v0::Convert>(context.get_input(2), element::i32));
     auto src = context.get_input(3);
+
+    auto reduction = v12::ScatterElementsUpdate::Reduction::NONE;
+    auto input_num = context.get_input_size();
+    if (input_num > 4 && !context.input_is_none(input_num - 1)) {
+        auto reduce_mode = context.const_input<std::string>(input_num - 1);
+        if (reduce_mode == "add") {
+            reduction = v12::ScatterElementsUpdate::Reduction::SUM;
+        } else if (reduce_mode == "multiply") {
+            reduction = v12::ScatterElementsUpdate::Reduction::PROD;
+        }
+    }
     auto src_partial_shape = src.get_partial_shape();
     auto index_shape_rank = get_shape_rank(context, index);
     auto index_shape = std::get<0>(index_shape_rank);
@@ -52,7 +67,8 @@ OutputVector translate_scatter(const NodeContext& context) {
     auto src_pruned = context.mark_node(std::make_shared<v8::Slice>(src, zeros, index_shape, ones));
 
     auto src_input_dtype = context.mark_node(std::make_shared<v1::ConvertLike>(src_pruned, input));
-    return {context.mark_node(std::make_shared<v3::ScatterElementsUpdate>(input, index, src_input_dtype, dim))};
+    return {
+        context.mark_node(std::make_shared<v12::ScatterElementsUpdate>(input, index, src_input_dtype, dim, reduction))};
 };
 
 }  // namespace op
