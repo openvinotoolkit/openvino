@@ -38,6 +38,8 @@ ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model
       m_name(model->get_friendly_name()),
       m_loaded_from_cache(loaded_from_cache) {
     try {
+        std::unordered_map<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> _mapOutputToInput;
+
         bool dumpDotFile = m_cfg.dump_graph;
         if (std::getenv("OPENVINO_HETERO_VISUALIZE"))
             dumpDotFile = true;
@@ -351,19 +353,19 @@ ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model
         // Mapping is required only because before compilation
         // submodel may be preprocessed (if legacy API used),
         // so original inputs/outputs != submodels inputs/outputs
-        m_inputs_to_submodel_inputs.resize(m_inputs.size());
-        m_outputs_to_submodel_outputs.resize(m_outputs.size());
+        m_inputs_to_submodel_inputs.resize(ICompiledModel::inputs().size());
+        m_outputs_to_submodel_outputs.resize(ICompiledModel::outputs().size());
         for (size_t id = 0; id < orderedSubgraphs.size(); id++) {
             for (size_t i = 0; i < orderedSubgraphs[id]._parameters.size(); i++) {
                 const auto& input_node = std::dynamic_pointer_cast<ov::Node>(orderedSubgraphs[id]._parameters[i]);
-                for (size_t j = 0; j < m_inputs.size(); j++)
-                    if (input_node == m_inputs[j].get_node_shared_ptr())
+                for (size_t j = 0; j < ICompiledModel::inputs().size(); j++)
+                    if (input_node == ICompiledModel::inputs()[j].get_node_shared_ptr())
                         m_inputs_to_submodel_inputs[j] = {id, i};
             }
             for (size_t i = 0; i < orderedSubgraphs[id]._results.size(); i++) {
                 const auto& input_node = std::dynamic_pointer_cast<ov::Node>(orderedSubgraphs[id]._results[i]);
-                for (size_t j = 0; j < m_outputs.size(); j++)
-                    if (input_node == m_outputs[j].get_node_shared_ptr())
+                for (size_t j = 0; j < ICompiledModel::outputs().size(); j++)
+                    if (input_node == ICompiledModel::outputs()[j].get_node_shared_ptr())
                         m_outputs_to_submodel_outputs[j] = {id, i};
             }
         }
@@ -417,12 +419,12 @@ ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model
         for (size_t i = 0; i < m_inputs_to_submodel_inputs.size(); i++) {
             const auto& submodel_idx = m_inputs_to_submodel_inputs[i].first;
             const auto& input_idx = m_inputs_to_submodel_inputs[i].second;
-            m_inputs[i] = m_networks[submodel_idx]._network->inputs()[input_idx];
+            m_compiled_inputs[i] = m_networks[submodel_idx]._network->inputs()[input_idx];
         }
         for (size_t i = 0; i < m_outputs_to_submodel_outputs.size(); i++) {
             const auto& submodel_idx = m_outputs_to_submodel_outputs[i].first;
             const auto& output_idx = m_outputs_to_submodel_outputs[i].second;
-            m_outputs[i] = m_networks[submodel_idx]._network->outputs()[output_idx];
+            m_compiled_outputs[i] = m_networks[submodel_idx]._network->outputs()[output_idx];
         }
 
     } catch (const InferenceEngine::Exception& e) {
@@ -526,17 +528,17 @@ ov::hetero::CompiledModel::CompiledModel(std::istream& model,
     }
 
     // Restore inputs/outputs from compiled models
-    m_inputs.reserve(m_inputs_to_submodel_inputs.size());
+    m_compiled_inputs.reserve(m_inputs_to_submodel_inputs.size());
     for (const auto& it : m_inputs_to_submodel_inputs) {
         const auto& submodel_idx = it.first;
         const auto& input_idx = it.second;
-        m_inputs.emplace_back(m_networks[submodel_idx]._network->inputs()[input_idx]);
+        m_compiled_inputs.emplace_back(m_networks[submodel_idx]._network->inputs()[input_idx]);
     }
-    m_outputs.reserve(m_outputs_to_submodel_outputs.size());
+    m_compiled_outputs.reserve(m_outputs_to_submodel_outputs.size());
     for (const auto& it : m_outputs_to_submodel_outputs) {
         const auto& submodel_idx = it.first;
         const auto& output_idx = it.second;
-        m_outputs.emplace_back(m_networks[submodel_idx]._network->outputs()[output_idx]);
+        m_compiled_outputs.emplace_back(m_networks[submodel_idx]._network->outputs()[output_idx]);
     }
 }
 
@@ -691,6 +693,14 @@ ov::Any ov::hetero::CompiledModel::get_property(const std::string& name) const {
         return decltype(ov::execution_devices)::value_type{device_names};
     }
     return m_cfg.Get(name);
+}
+
+const std::vector<ov::Output<const ov::Node>>& ov::hetero::CompiledModel::inputs() const {
+    return m_compiled_inputs;
+}
+
+const std::vector<ov::Output<const ov::Node>>& ov::hetero::CompiledModel::outputs() const {
+    return m_compiled_outputs;
 }
 
 void ov::hetero::CompiledModel::export_model(std::ostream& model_stream) const {
