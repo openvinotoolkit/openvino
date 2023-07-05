@@ -34,9 +34,9 @@
 #include "transforms/prim_list_construct_pad.hpp"
 #include "transforms/prim_list_tuple_construct_replacer.hpp"
 #include "transforms/prim_list_unpack_replacer.hpp"
+#include "transforms/quantize_dequantize_replacer.hpp"
 #include "transforms/rfftn_complex_replacer.hpp"
 #include "transforms/string_equality_replacer.hpp"
-#include "transforms/quantize_dequantize_replacer.hpp"
 #include "translate_session.hpp"
 
 namespace ov {

@@ -14,7 +14,6 @@
 #include "utils.hpp"
 #include "utils_quantize.hpp"
 
-
 namespace ov {
 namespace frontend {
 namespace pytorch {
@@ -46,27 +45,26 @@ QuantizeDequantizeReplacer::QuantizeDequantizeReplacer() {
             const auto scale_convert = rg.make<opset10::ConvertLike>(scale, quantize_input);
             const auto zero_point_convert = rg.make<opset10::ConvertLike>(zero_point, quantize_input);
             const auto scaled_input = rg.make<opset10::Divide>(quantize_input, scale_convert);
-            const auto scaled_input_with_zero_pt =
-                rg.make<opset10::Add>(scaled_input, zero_point_convert);
-            const auto quantized_input = rg.make<opset10::Round>(scaled_input_with_zero_pt, opset10::Round::RoundMode::HALF_TO_EVEN);
+            const auto scaled_input_with_zero_pt = rg.make<opset10::Add>(scaled_input, zero_point_convert);
+            const auto quantized_input =
+                rg.make<opset10::Round>(scaled_input_with_zero_pt, opset10::Round::RoundMode::HALF_TO_EVEN);
 
             if (dtype == element::u8) {
-                const auto clamp =
-                    rg.make<opset10::Clamp>(quantized_input,
-                                            std::numeric_limits<unsigned char>::lowest(),
-                                            std::numeric_limits<unsigned char>::max());
+                const auto clamp = rg.make<opset10::Clamp>(quantized_input,
+                                                           std::numeric_limits<unsigned char>::lowest(),
+                                                           std::numeric_limits<unsigned char>::max());
                 dequantize_input = rg.make<opset10::Convert>(clamp, element::u8);
             } else if (dtype == element::i8) {
                 const auto clamp = rg.make<opset10::Clamp>(quantized_input,
-                                                            std::numeric_limits<char>::lowest(),
-                                                            std::numeric_limits<char>::max());
+                                                           std::numeric_limits<char>::lowest(),
+                                                           std::numeric_limits<char>::max());
                 dequantize_input = rg.make<opset10::Convert>(clamp, element::i8);
             } else {
                 dequantize_input = rg.make<opset10::Convert>(quantized_input, element::i32);
             }
 
         } else if (auto quantize_per_channel = cast_quantized_fw_node(quantize_node, "aten::quantize_per_channel")) {
-            return false; // TODO if needed
+            return false;  // TODO if needed
         } else {
             return false;
         }
@@ -76,8 +74,7 @@ QuantizeDequantizeReplacer::QuantizeDequantizeReplacer() {
         const auto scale_convert_f32 = rg.make<opset10::Convert>(scale, element::f32);
         const auto zero_point_convert_f32 = rg.make<opset10::Convert>(zero_point, element::f32);
 
-        const auto input_sub_zero_pt =
-            rg.make<opset10::Subtract>(input_convert_f32, zero_point_convert_f32);
+        const auto input_sub_zero_pt = rg.make<opset10::Subtract>(input_convert_f32, zero_point_convert_f32);
         const auto dequantized_input = rg.make<opset10::Multiply>(input_sub_zero_pt, scale_convert_f32);
 
         copy_runtime_info_and_name(dequantize_node, rg.get(), {dequantize_input});
@@ -88,7 +85,8 @@ QuantizeDequantizeReplacer::QuantizeDequantizeReplacer() {
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(dequantize_node, "ov::frontend::pytorch::pass::QuantizeDequantizeReplacer");
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(dequantize_node,
+                                                          "ov::frontend::pytorch::pass::QuantizeDequantizeReplacer");
     this->register_matcher(m, callback);
 };
 

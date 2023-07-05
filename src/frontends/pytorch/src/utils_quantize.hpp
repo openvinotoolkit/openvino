@@ -11,11 +11,7 @@ namespace ov {
 namespace frontend {
 namespace pytorch {
 
-enum QuantizedPtNodeType{
-    QUANTIZE_PER_TENSOR,
-    QUANTIZE_PER_CHANNEL,
-    DEQUANTIZE
-};
+enum QuantizedPtNodeType { QUANTIZE_PER_TENSOR, QUANTIZE_PER_CHANNEL, DEQUANTIZE };
 
 class QuantizedPtNode : public PtFrameworkNode {
 public:
@@ -29,8 +25,8 @@ public:
                     const std::shared_ptr<TorchDecoder>& decoder,
                     const OutputVector& inputs,
                     size_t output_size,
-                    bool is_backprop = false
-    ):PtFrameworkNode(decoder, inputs, output_size, is_backprop) {
+                    bool is_backprop = false)
+        : PtFrameworkNode(decoder, inputs, output_size, is_backprop) {
         ov::op::util::FrameworkNodeAttrs attrs = get_attrs();
         if (type == QuantizedPtNodeType::QUANTIZE_PER_TENSOR) {
             attrs[quantized_node_type_key] = quantize_per_tensor_op_type_value;
