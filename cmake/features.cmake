@@ -12,8 +12,6 @@ ie_dependent_option (ENABLE_ARM_COMPUTE_CMAKE "Enable ARM Compute build via cmak
 
 ie_option (ENABLE_TESTS "unit, behavior and functional tests" OFF)
 
-ie_option (ENABLE_COMPILE_TOOL "Enables compile_tool" ON)
-
 ie_option (ENABLE_STRICT_DEPENDENCIES "Skip configuring \"convinient\" dependencies for efficient parallel builds" ON)
 
 if(X86_64)

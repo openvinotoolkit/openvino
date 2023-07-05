@@ -282,8 +282,7 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
         auto ret = m_plugin_config.supported_properties(get_device_name());
         return ret;
     } else if (name == ov::device::full_name) {
-        std::string device_name = { get_device_name() };
-        return decltype(ov::device::full_name)::value_type {device_name};
+        return decltype(ov::device::full_name)::value_type {get_device_name()};
     } else if (name == ov::device::capabilities.name()) {
         auto device_list = get_core()->get_available_devices();
         std::vector<std::string> capabilities;
@@ -538,7 +537,7 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     queryconfig.apply_user_properties();
     auto full_property = queryconfig.get_full_properties();
     auto priorities = full_property.find(ov::device::priorities.name());
-    if (!priorities->second.empty()) {
+    if (priorities!= full_property.end() && !priorities->second.empty()) {
         auto meta_devices = parse_meta_devices(priorities->second.as<std::string>(), full_property);
         std::unordered_set<std::string> supported_layers;
         for (auto&& value : meta_devices) {

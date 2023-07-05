@@ -175,30 +175,30 @@ PY_INSTALL_CFG = {
         "install_dir": PY_PACKAGES_DIR,
         "binary_dir": OPENVINO_PYTHON_BINARY_DIR,
     },
-    "benchmark_app": {
+    "ovc": {
         "entry_point": {
             "console_scripts": [
-                "benchmark_app = openvino.tools.benchmark.main:main",
+                "ovc = openvino.tools.ovc.main:main",
             ],
         },
         "name": f"pyopenvino_{PYTHON_VERSION}",
         "prefix": f"{BUILD_BASE}/site-packages",
-        "source_dir": f"{OPENVINO_SOURCE_DIR}/tools/benchmark_tool",
+        "source_dir": f"{OPENVINO_SOURCE_DIR}/tools/ovc",
         "install_dir": PY_PACKAGES_DIR,
-        "binary_dir": "benchmark_app",
+        "binary_dir": "ovc",
     },
-    # "model_optimizer": {                                  # noqa: E731
-    #     "entry_point": {                                  # noqa: E731
-    #         "console_scripts": [                          # noqa: E731
-    #             "mo = openvino.tools.mo.main:main",       # noqa: E731
-    #         ],                                            # noqa: E731
-    #     },                                                # noqa: E731
-    #     "name": f"pyopenvino_{PYTHON_VERSION}",           # noqa: E731
-    #     "prefix": f"{BUILD_BASE}/site-packages",          # noqa: E731
-    #     "source_dir": f"{OPENVINO_SOURCE_DIR}/tools/mo",  # noqa: E731
-    #     "install_dir": PY_PACKAGES_DIR,                   # noqa: E731
-    #     "binary_dir": "model_optimizer",                  # noqa: E731
-    # },                                                    # noqa: E731
+    # "benchmark_app": {                                                 # noqa: E731
+    #     "entry_point": {                                               # noqa: E731
+    #         "console_scripts": [                                       # noqa: E731
+    #             "benchmark_app = openvino.tools.benchmark.main:main",  # noqa: E731
+    #         ],                                                         # noqa: E731
+    #     },                                                             # noqa: E731
+    #     "name": f"pyopenvino_{PYTHON_VERSION}",                        # noqa: E731
+    #     "prefix": f"{BUILD_BASE}/site-packages",                       # noqa: E731
+    #     "source_dir": f"{OPENVINO_SOURCE_DIR}/tools/benchmark_tool",   # noqa: E731
+    #     "install_dir": PY_PACKAGES_DIR,                                # noqa: E731
+    #     "binary_dir": "benchmark_app",                                 # noqa: E731
+    # },                                                                 # noqa: E731
 }
 
 
@@ -220,7 +220,7 @@ class CustomBuild(build):
         ("cmake-args=", None, "Additional options to be passed to CMake."),
         ("python-extensions-only", None, "Install Python extensions without C++ libraries."),
     ]
-    boolean_options = build.boolean_options + ['python-extensions-only']
+    boolean_options = build.boolean_options + ["python-extensions-only"]
 
     def initialize_options(self):
         """Set default values for all the options that this command supports."""
@@ -266,6 +266,7 @@ class CustomBuild(build):
                     binary_dir = os.path.join(self.build_temp, binary_dir)
                     self.announce(f"Configuring {comp} cmake project", level=3)
                     self.spawn(["cmake", f"-DOpenVINODeveloperPackage_DIR={OPENVINO_BINARY_DIR}",
+                                         f"-DPYTHON_EXECUTABLE={sys.executable}",
                                          "-DCMAKE_BUILD_TYPE=Release",
                                          "-DENABLE_WHEEL=OFF",
                                          self.cmake_args,
@@ -436,7 +437,7 @@ class CopyExt(build_ext):
     user_options = [
         ("skip-rpath", None, "Skips RPATH for Python extensions."),
     ]
-    boolean_options = ['skip_rpath']
+    boolean_options = ["skip_rpath"]
 
     def initialize_options(self):
         """Set default values for all the options that this command supports."""
