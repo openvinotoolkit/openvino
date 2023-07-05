@@ -251,28 +251,12 @@ inline bool is_non_functional(const std::shared_ptr<ov::Node>& node) {
            std::dynamic_pointer_cast<ov::opset12::FakeQuantize>(node) != nullptr;
 }
 
-inline bool is_parameter(const std::shared_ptr<ov::Node>& node) {
-    return std::dynamic_pointer_cast<ov::opset12::Parameter>(node) != nullptr;
-}
-
 inline bool is_copy(const std::shared_ptr<ov::Node>& node) {
     return std::dynamic_pointer_cast<ov::intel_gna::op::Copy>(node) != nullptr;
 }
 
-inline bool is_relu(const std::shared_ptr<ov::Node>& node) {
-    return std::dynamic_pointer_cast<ov::opset12::Relu>(node) != nullptr;
-}
-
 inline bool is_matmul(const std::shared_ptr<ov::Node>& node) {
     return std::dynamic_pointer_cast<ov::opset12::MatMul>(node) != nullptr;
-}
-
-inline bool is_constant(const std::shared_ptr<ov::Node>& node) {
-    return std::dynamic_pointer_cast<ov::opset12::Constant>(node) != nullptr;
-}
-
-inline bool is_identity(const std::shared_ptr<ov::Node>& node) {
-    return std::dynamic_pointer_cast<ov::intel_gna::op::Identity>(node) != nullptr;
 }
 
 inline bool is_fully_connected(const std::shared_ptr<ov::Node>& node) {

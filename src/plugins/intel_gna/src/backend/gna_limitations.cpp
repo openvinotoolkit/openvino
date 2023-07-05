@@ -880,7 +880,7 @@ bool Limitations::is_concat_supported(const std::shared_ptr<const ov::Node>& nod
     for (size_t i = 0; i < concat_node->inputs().size(); ++i) {
         auto concat_input =
             graph_utils::get_prev_node_skipping_certain(concat_node->get_input_node_shared_ptr(i), is_skipped_layer);
-        if (graph_utils::is_parameter(concat_input) || graph_utils::is_constant(concat_input)) {
+        if (ov::op::util::is_parameter(concat_input) || ov::op::util::is_constant(concat_input)) {
             skipped_ops_count++;
         }
         const ov::Shape concat_input_shape = concat_input->get_output_shape(0);
