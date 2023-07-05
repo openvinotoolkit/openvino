@@ -139,10 +139,10 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*UniqueLayerDynamicGPUTest.*\(\d*\.\d*\.\d*\.\d*\.\d*\).*axis.*)",
             // Plugin version was changed to ov::Version
             R"(.*VersionTest.*pluginCurrentVersionIsCorrect.*)",
-#ifndef NO_PROXY_PLUGIN
-            // Issue because meta plugins use OLD API and wrap proxy which work with new API
             R"(.*OVHoldersTest.*LoadedTensor.*AUTO.*)",
             R"(.*OVHoldersTest.*LoadedTensor.*MULTI.*)",
+#ifndef NO_PROXY_PLUGIN
+            // Issue because meta plugins use OLD API and wrap proxy which work with new API
             R"(.*OVHoldersTest.*LoadedTensor.*HETERO.*)",
 #endif
     };

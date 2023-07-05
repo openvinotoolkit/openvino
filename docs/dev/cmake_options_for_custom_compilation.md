@@ -15,8 +15,6 @@ This document provides description and default values for CMake options that can
 ## Disable / enable plugins build and other components
 
 * Inference plugins:
-    * `ENABLE_PROXY` enables Proxy plugin compilation:
-        * `ON` is default.
     * `ENABLE_INTEL_CPU` enables CPU plugin compilation:
         * `ON` is default for x86 platforms; `OFF`, otherwise.
     * `ENABLE_INTEL_GPU` enables Intel GPU plugin compilation:
@@ -32,6 +30,8 @@ This document provides description and default values for CMake options that can
     * `ENABLE_TEMPLATE` enables TEMPLATE plugin build:
         * `ON` is default.
     * `ENABLE_AUTO_BATCH` enables Auto Batch plugin build:
+        * `ON` is default.
+    * `ENABLE_PROXY` enables Proxy plugin compilation:
         * `ON` is default.
 * Frontends to work with models from frameworks:
     * `ENABLE_OV_ONNX_FRONTEND` enables [ONNX] frontend plugin for OpenVINO Runtime:

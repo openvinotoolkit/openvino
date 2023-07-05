@@ -143,16 +143,16 @@ public:
     virtual ParamMap getParams() const = 0;
 
     /**
-     * @brief Unwrap hardware plugin
+     * @brief Unwrap hardware remote context
      *
-     * @return shared pointer to remote context
+     * @return shared pointer to plugin specific remote context
      */
     const std::shared_ptr<InferenceEngine::RemoteContext> GetHardwareContext();
 
     /**
-     * @brief Unwrap hardware plugin
+     * @brief Unwrap hardware remote context
      *
-     * @return shared pointer to remote context
+     * @return shared pointer to plugin specific remote context
      */
     const std::shared_ptr<const InferenceEngine::RemoteContext> GetHardwareContext() const;
 };

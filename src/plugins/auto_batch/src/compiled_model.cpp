@@ -243,12 +243,5 @@ InferenceEngine::Parameter CompiledModel::GetMetric(const std::string& name) con
     }
 }
 
-void CompiledModel::Export(const std::string& modelFileName) {
-    m_model_with_batch ? m_model_with_batch->Export(modelFileName) : m_model_without_batch->Export(modelFileName);
-}
-void CompiledModel::Export(std::ostream& networkModel) {
-    m_model_with_batch ? m_model_with_batch->Export(networkModel) : m_model_without_batch->Export(networkModel);
-}
-
 }  // namespace autobatch_plugin
 }  // namespace ov
