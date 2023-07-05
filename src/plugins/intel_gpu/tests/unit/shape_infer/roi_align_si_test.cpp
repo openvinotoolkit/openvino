@@ -23,8 +23,8 @@ namespace shape_infer_tests {
 struct roi_align_test_params {
     layout input_layout;
     int num_roi;
-    size_t pooled_h;
-    size_t pooled_w;
+    int pooled_h;
+    int pooled_w;
     layout expected_layout;
 };
 
