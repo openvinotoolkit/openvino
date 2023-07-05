@@ -6,12 +6,12 @@
 
 #include "input_model.hpp"
 #include "op_table.hpp"
+#include "openvino/core/so_extension.hpp"
 #include "openvino/frontend/pytorch/extension/conversion.hpp"
 #include "openvino/op/util/multi_subgraph_base.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/util/log.hpp"
 #include "pt_framework_node.hpp"
-#include "so_extension.hpp"
 #include "transformations/common_optimizations/push_constant_to_subgraph.hpp"
 #include "transformations/common_optimizations/remove_multi_subgraph_op_dangling_params.hpp"
 #include "transformations/common_optimizations/reverse_shape_and_type_infer.hpp"
