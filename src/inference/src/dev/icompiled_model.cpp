@@ -79,11 +79,6 @@ ov::ICompiledModel::ICompiledModel(const std::shared_ptr<const ov::Model>& model
             new_param->set_layout(param->get_layout());
             new_param->output(0).get_rt_info() = param->output(0).get_rt_info();
             new_param->validate_and_infer_types();
-            auto tensor_desc = std::make_shared<ov::descriptor::Tensor>(param->get_element_type(),
-                                                                        param->get_partial_shape(),
-                                                                        new_param->output(0).get_tensor().get_names());
-            tensor_desc = find_tensor_desc(m_inputs, tensor_desc);
-            new_param->output(0).set_tensor_ptr(tensor_desc);
             m_inputs.emplace_back(new_param->output(0));
         }
         for (const auto& result : model->get_results()) {
@@ -110,6 +105,7 @@ ov::ICompiledModel::ICompiledModel(const std::shared_ptr<const ov::Model>& model
             auto tensor_desc = std::make_shared<ov::descriptor::Tensor>(result->get_output_element_type(0),
                                                                         result->get_output_partial_shape(0),
                                                                         new_result->output(0).get_tensor().get_names());
+            tensor_desc->clone_from(result->output(0).get_tensor());
             tensor_desc = find_tensor_desc(m_outputs, tensor_desc);
             new_result->output(0).set_tensor_ptr(tensor_desc);
             m_outputs.emplace_back(new_result->output(0));
