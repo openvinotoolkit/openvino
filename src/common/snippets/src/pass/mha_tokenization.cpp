@@ -208,10 +208,11 @@ ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const SnippetsToken
         //  - Between MatMul0 and Transpose1 - At the moment operations after Transpose1 cannot be fused in Transpose Loop (to avoid performance regressions).
         //                                     But operations after Transpose1 and before MatMul0  will be fused into one loop as well (look at first point)
         // Note: If the pass is updated, need to check the new possible branches for potential non-inplace Buffers!
-        // Default value is 1 because
-        //  - Firstly Softmax always need to have Buffers
-        //  - Secondly Softmax need 2 Buffer but they can be inplace - One virtual port is enough for Softmax
-        size_t buffer_count = 1;
+        // Default value is 2 because
+        //  - Firstly, Softmax always needs Buffers
+        //  - Secondly, Softmax needs 2 Buffers but they can be inplace - One virtual port is enough for Softmax
+        //  - Thirdly, blocking MatMul requires unique Buffers on inputs and outputs, but all of them except 1 can be reused => buffer_count increments by 1
+        size_t buffer_count = 2;
         std::string fused_names;
         ov::NodeVector ordered_ops;
 
