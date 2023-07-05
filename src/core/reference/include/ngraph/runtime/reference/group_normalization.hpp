@@ -43,8 +43,8 @@ void group_normalization(const T* const data,
             const auto standard_deviation = sqrt(variance + static_cast<T>(epsilon));
 
             for (size_t s = 0; s < num_channels_in_group; ++s) {
-                const auto c = n * num_groups + g * num_channels_in_group + s;
-                const auto channel_offset = c * channel_size;
+                const auto c = g * num_channels_in_group + s;
+                const auto channel_offset = n * batch_size + c * channel_size;
                 for (size_t i = channel_offset; i < channel_offset + channel_size; ++i)
                     out[i] = ((data[i] - mean) / standard_deviation) * scale[c] + bias[c];
             }
