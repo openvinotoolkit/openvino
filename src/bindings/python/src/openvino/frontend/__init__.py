@@ -17,8 +17,8 @@ from openvino._pyopenvino import get_version
 __version__ = get_version()
 
 # main classes
-from openvino._pyopenvino import FrontEndManager
-from openvino._pyopenvino import FrontEnd
+from openvino.frontend.frontend import FrontEndManager
+from openvino.frontend.frontend import FrontEnd
 from openvino._pyopenvino import InputModel
 from openvino._pyopenvino import NodeContext
 from openvino._pyopenvino import Place
