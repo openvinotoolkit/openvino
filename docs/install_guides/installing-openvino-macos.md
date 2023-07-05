@@ -12,6 +12,5 @@ Currently only the following ways are provided to install OpenVINO™ on macOS:
 
 The other installation methods are temporarily unavailable.
 
-For a full selection of distribution channels, see the [OpenVINO Installation Selector Tool](https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/download.html)
 
 @endsphinxdirective

@@ -84,7 +84,7 @@ private:
                          size_t num_vector_elements,
                          size_t num_vector_stride,
                          intel_dnn_orientation_t orientation,
-                         float scaleFactor,
+                         float scale_factor,
                          bool input_low_precision) {
         if (!dst || !src) {
             return;
@@ -93,7 +93,7 @@ private:
             for (size_t i = 0; i < num_frames; i++) {
                 for (size_t j = 0; j < num_vector_elements; j++) {
                     if (!std::is_same<T, U>::value) {
-                        dst[j * num_group + i] = FloatToInt<T>(src[i * num_vector_elements + j] * scaleFactor);
+                        dst[j * num_group + i] = FloatToInt<T>(src[i * num_vector_elements + j] * scale_factor);
                     } else {
                         dst[j * num_group + i] = static_cast<T>(src[i * num_vector_elements + j]);
                     }
@@ -116,7 +116,7 @@ private:
                     const U* ptr_src_vec = reinterpret_cast<const U*>(src) + i * num_vector_elements;
                     std::memset(ptr_dst_vec, 0, num_vector_stride * sizeof(T));
                     for (size_t j = 0; j < num_vector_elements; j++) {
-                        ptr_dst_vec[j] = FloatToInt<T>(ptr_src_vec[j] * scaleFactor);
+                        ptr_dst_vec[j] = FloatToInt<T>(ptr_src_vec[j] * scale_factor);
                     }
                 }
             } else {

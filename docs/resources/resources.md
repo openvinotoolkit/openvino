@@ -3,12 +3,15 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn more about OpenVINO from benchmark results, case studies 
+                 and lists of supported models, operations and devices.
+
 .. toctree::
    :maxdepth: 1
    :hidden:
 
    openvino_docs_performance_benchmarks
-   prerelease_information
 
 .. toctree::
    :maxdepth: 1

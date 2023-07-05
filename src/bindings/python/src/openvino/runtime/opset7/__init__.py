@@ -9,7 +9,7 @@ from openvino.runtime.opset4.ops import acosh
 from openvino.runtime.opset1.ops import add
 from openvino.runtime.opset1.ops import asin
 from openvino.runtime.opset4.ops import asinh
-from openvino.runtime.opset3.ops import assign
+from openvino.runtime.opset6.ops import assign
 from openvino.runtime.opset1.ops import atan
 from openvino.runtime.opset4.ops import atanh
 from openvino.runtime.opset1.ops import avg_pool

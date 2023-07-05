@@ -2,6 +2,12 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: In OpenVINO™, you can use several methods to address the issues 
+                 of non-reshape-able models and shape collision, which prevent 
+                 normal shape propagation.
+
+
 How To Avoid Shape Collision
 ############################
 

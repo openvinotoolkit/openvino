@@ -38,6 +38,8 @@ class WorkerPool;
 class Worker;
 }  // namespace request
 
+using namespace ov::intel_gna::pre_post_processing;
+
 class GNAPlugin : public InferenceEngine::IInferencePlugin {
 protected:
     std::string _pluginName = "GNA";
@@ -206,6 +208,12 @@ protected:
                         InferenceEngine::Blob::Ptr output_blob,
                         std::shared_ptr<ov::Model> model);
 
+    /**
+     * Run ngraph model on CPU to modify inputs/outputs
+     */
+    void pre_post_process(InferenceEngine::Blob::Ptr input_blob,
+                          InferenceEngine::Blob::Ptr output_blob,
+                          std::shared_ptr<ov::Model> model);
     void UpdateFieldsFromConfig();
     void UpdateInputScaleFromNetwork(InferenceEngine::CNNNetwork& network);
     void UpdateInputsAndOutputsInfoFromNetwork(InferenceEngine::CNNNetwork&);
@@ -217,14 +225,6 @@ protected:
      * @return true if the output is initiated, false otherwise
      */
     bool TryToInitOutput(const std::string& portName, InferenceEngine::CNNLayerPtr layer);
-
-    /**
-     * @brief Fills inputs and outputs transposition info for model convertion from NCHW to NHWC.
-     *        Information for transposition is found from convolution/pooling input or output dimensions.
-     * @param layers model sorted layers
-     */
-    void FillInputsAndOutputsTranspositionInfo(const InferenceEngine::CNNNetwork& net);
-
     bool isFP32ModeActive() const;
     std::shared_ptr<request::ModelWrapper> createModelWrapperForLoadNetwork(bool trivial);
     std::shared_ptr<request::ModelWrapper> createModelWrapperForImportNetwork(uint32_t numberOfOperations);
