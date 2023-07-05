@@ -28,7 +28,6 @@
 
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/constant_folding.hpp"
-// #include "openvino/src/common/transformations/include/transformations/init_node_info.hpp"
 #include "openvino/runtime/common.hpp"
 
 namespace ov {

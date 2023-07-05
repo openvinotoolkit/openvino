@@ -26,7 +26,6 @@ protected:
     // { model_name: model_paths, this_op/graph_cnt, total_op_cnt, model_priority}
     std::map<std::string, ModelInfo> model_info;
 
-
     // to store model priority ranges to normilize graph_priority
     static unsigned long MAX_MODEL_PRIORITY;
     static unsigned long MIN_MODEL_PRIORITY;
