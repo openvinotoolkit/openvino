@@ -19,12 +19,14 @@ There are two options for using the custom operation configuration file:
 .. tab-set::
 
    .. tab-item:: Python
+      :sync: py
  
       .. doxygensnippet:: docs/snippets/gpu/custom_kernels_api.py
         :language: python
         :fragment: [part0]
 
    .. tab-item:: C++
+      :sync: cpp
  
       .. doxygensnippet:: docs/snippets/gpu/custom_kernels_api.cpp
         :language: cpp
