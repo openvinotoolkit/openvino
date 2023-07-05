@@ -95,7 +95,6 @@ public:
                     auto pos = ib.tellg();
                     network0 = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine, true);
                     ib.seekg(pos);
-                    ib.set_stream_id(1);
                     network1 = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine, false);
                 }
             }
@@ -198,7 +197,6 @@ public:
                 {
                     std::istream in_mem1(&mem_buf1);
                     BinaryInputBuffer ib1 = BinaryInputBuffer(in_mem1, engine);
-                    ib1.set_stream_id(1);
                     network1 = std::make_shared<cldnn::network>(ib1, get_test_stream_ptr(), engine, true);
                 }
             }
