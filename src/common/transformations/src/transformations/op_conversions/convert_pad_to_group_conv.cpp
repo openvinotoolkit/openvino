@@ -8,6 +8,7 @@
 #include <ngraph/pattern/op/pattern.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
+#include <openvino/op/util/pad_base.hpp>
 #include <openvino/opsets/opset4.hpp>
 #include <vector>
 
@@ -15,10 +16,10 @@
 
 ov::pass::ConvertPadToGroupConvolution::ConvertPadToGroupConvolution() {
     MATCHER_SCOPE(ConvertPadToGroupConvolution);
-    auto neg = ngraph::pattern::wrap_type<opset4::Pad>(pattern::has_static_dim(1));
+    auto neg = ngraph::pattern::wrap_type<op::util::PadBase>(pattern::has_static_dim(1));
 
     matcher_pass_callback callback = [](pattern::Matcher& m) {
-        auto pad = std::dynamic_pointer_cast<ov::opset4::Pad>(m.get_match_root());
+        auto pad = std::dynamic_pointer_cast<ov::op::util::PadBase>(m.get_match_root());
         if (!pad) {
             return false;
         }
@@ -54,6 +55,15 @@ ov::pass::ConvertPadToGroupConvolution::ConvertPadToGroupConvolution() {
 
         if (pad_begin.empty() || pad_end.empty()) {
             // pads will be empty if inputs are not constants
+            return false;
+        }
+
+        // check that Pad has non-negative values
+        auto pred = [](int64_t a) {
+            return a < 0;
+        };
+        if (std::any_of(pad_begin.begin(), pad_begin.end(), pred) ||
+            std::any_of(pad_begin.begin(), pad_begin.end(), pred)) {
             return false;
         }
 
