@@ -39,28 +39,6 @@ bool evaluate_node<op::v12::GroupNormalization>(std::shared_ptr<ov::Node> node,
         return evaluate<element::Type_t::f64>(as_type_ptr<op::v12::GroupNormalization>(node), outputs, inputs);
     case element::Type_t::f32:
         return evaluate<element::Type_t::f32>(as_type_ptr<op::v12::GroupNormalization>(node), outputs, inputs);
-    case element::Type_t::i4:
-        return evaluate<element::Type_t::i4>(as_type_ptr<op::v12::GroupNormalization>(node), outputs, inputs);
-    case element::Type_t::i8:
-        return evaluate<element::Type_t::i8>(as_type_ptr<op::v12::GroupNormalization>(node), outputs, inputs);
-    case element::Type_t::i16:
-        return evaluate<element::Type_t::i16>(as_type_ptr<op::v12::GroupNormalization>(node), outputs, inputs);
-    case element::Type_t::i32:
-        return evaluate<element::Type_t::i32>(as_type_ptr<op::v12::GroupNormalization>(node), outputs, inputs);
-    case element::Type_t::i64:
-        return evaluate<element::Type_t::i64>(as_type_ptr<op::v12::GroupNormalization>(node), outputs, inputs);
-    case element::Type_t::u1:
-        return evaluate<element::Type_t::u1>(as_type_ptr<op::v12::GroupNormalization>(node), outputs, inputs);
-    case element::Type_t::u4:
-        return evaluate<element::Type_t::u4>(as_type_ptr<op::v12::GroupNormalization>(node), outputs, inputs);
-    case element::Type_t::u8:
-        return evaluate<element::Type_t::u8>(as_type_ptr<op::v12::GroupNormalization>(node), outputs, inputs);
-    case element::Type_t::u16:
-        return evaluate<element::Type_t::u16>(as_type_ptr<op::v12::GroupNormalization>(node), outputs, inputs);
-    case element::Type_t::u32:
-        return evaluate<element::Type_t::u32>(as_type_ptr<op::v12::GroupNormalization>(node), outputs, inputs);
-    case element::Type_t::u64:
-        return evaluate<element::Type_t::u64>(as_type_ptr<op::v12::GroupNormalization>(node), outputs, inputs);
     default:
         OPENVINO_THROW(std::string("Unhandled data type ") + node->get_element_type().get_type_name() +
                        std::string("in evaluate_node()"));
