@@ -1,5 +1,7 @@
 #include "model_wrap.hpp"
 
+#include "node_output.hpp"
+
 ModelWrap::ModelWrap(const Napi::CallbackInfo& info) : Napi::ObjectWrap<ModelWrap>(info) {}
 
 Napi::Function ModelWrap::GetClassConstructor(Napi::Env env) {
@@ -8,7 +10,9 @@ Napi::Function ModelWrap::GetClassConstructor(Napi::Env env) {
                        {InstanceMethod("get_name", &ModelWrap::get_name),
                         InstanceMethod("read_model", &ModelWrap::read_model),
                         InstanceMethod("compile", &ModelWrap::compile_model),
-                        InstanceMethod("infer", &ModelWrap::infer)});
+                        InstanceMethod("infer", &ModelWrap::infer),
+                        InstanceMethod("output", &ModelWrap::get_output),
+                        InstanceAccessor<&ModelWrap::get_outputs>("outputs")});
 }
 
 Napi::Object ModelWrap::Init(Napi::Env env, Napi::Object exports) {
@@ -95,4 +99,38 @@ Napi::Value ModelWrap::infer(const Napi::CallbackInfo& info) {
     _infer_request.infer();
     ov::Tensor tensor = _infer_request.get_output_tensor();
     return TensorWrap::Wrap(info.Env(), tensor);
+}
+
+Napi::Value ModelWrap::get_output(const Napi::CallbackInfo& info) {
+    if (info.Length() == 0) {
+        try {
+            return Output<ov::Node>::Wrap(info.Env(), _model->output());
+        } catch (std::exception& e) {
+            reportError(info.Env(), e.what());
+            return Napi::Value();
+        }
+    } else if (info.Length() != 1) {
+        reportError(info.Env(), "Invalid number of arguments -> " + std::to_string(info.Length()));
+        return Napi::Value();
+    } else if (info[0].IsString()) {
+        auto tensor_name = info[0].ToString();
+        return Output<ov::Node>::Wrap(info.Env(), _model->output(tensor_name));
+    } else if (info[0].IsNumber()) {
+        auto idx = info[0].As<Napi::Number>().Int32Value();
+        return Output<ov::Node>::Wrap(info.Env(), _model->output(idx));
+    } else {
+        reportError(info.Env(), "Error while getting model outputs.");
+        return Napi::Value();
+    }
+}
+
+Napi::Value ModelWrap::get_outputs(const Napi::CallbackInfo& info) {
+    auto cm_outputs = _model->outputs();  // Output<Node>
+    Napi::Array js_outputs = Napi::Array::New(info.Env(), cm_outputs.size());
+
+    size_t i = 0;
+    for (auto& out : cm_outputs)
+        js_outputs[i++] = Output<ov::Node>::Wrap(info.Env(), out);
+
+    return js_outputs;
 }

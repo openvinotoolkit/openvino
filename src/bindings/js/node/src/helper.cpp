@@ -84,6 +84,32 @@ std::vector<size_t> js_to_cpp<std::vector<size_t>>(const Napi::CallbackInfo& inf
 }
 
 template <>
+std::unordered_set<std::string> js_to_cpp<std::unordered_set<std::string>>(
+    const Napi::CallbackInfo& info,
+    const size_t idx,
+    const std::vector<napi_types>& acceptable_types) {
+    const auto elem = info[idx];
+    if (!elem.IsArray()) {
+        throw std::invalid_argument(std::string("Passed argument must be of type Array."));
+    } else {
+        auto array = elem.As<Napi::Array>();
+        size_t arrayLength = array.Length();
+
+        std::unordered_set<std::string> nativeArray;
+
+        for (size_t i = 0; i < arrayLength; i++) {
+            Napi::Value arrayItem = array[i];
+            if (!arrayItem.IsString()) {
+                throw std::invalid_argument(std::string("Passed array must contain only strings."));
+            }
+            Napi::String num = arrayItem.As<Napi::String>();
+            nativeArray.insert(num.Utf8Value());
+        }
+        return nativeArray;
+    }
+}
+
+template <>
 ov::element::Type_t js_to_cpp<ov::element::Type_t>(const Napi::CallbackInfo& info,
                                                    const size_t idx,
                                                    const std::vector<napi_types>& acceptable_types) {
