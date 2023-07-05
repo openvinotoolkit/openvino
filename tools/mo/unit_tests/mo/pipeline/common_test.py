@@ -2,9 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import unittest
-
-from generator import generator, generate
-
 from openvino.tools.mo.graph.graph import Node
 from openvino.tools.mo.pipeline.common import determined_sort, get_fw_tensor_debug_info, get_sorted_outputs
 from unit_tests.utils.graph import build_graph_with_edge_attrs
