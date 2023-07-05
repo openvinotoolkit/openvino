@@ -1063,11 +1063,6 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                 auto eltw_in_size = peer_node->get_output_layout();
                 if (eltw_in_size.is_dynamic())
                     return;
-                // When input rank > 4, fused eltwise to gemm should be converted to 4 dim in init_onednn_primitive_attribute()
-                // But current init_onednn_primitive_attribute() cannot handle dynamic shape case.
-                auto eltw_in_rank = fused_node->get_output_layout().get_rank();
-                if ((fused_node->is_type<gemm>()) && (eltw_in_rank > 4))
-                    return;
             }
             if (parent1.first->is_type<convolution>() && !conv_supports_fusings(parent1.first->as<convolution>()))
                 return;
