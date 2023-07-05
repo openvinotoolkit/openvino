@@ -60,11 +60,6 @@ if exist %INTEL_OPENVINO_DIR%\runtime\3rdparty\tbb (
    )
 )
 
-:: Compile tool
-if exist %INTEL_OPENVINO_DIR%\tools\compile_tool (
-   set "PATH=%INTEL_OPENVINO_DIR%\tools\compile_tool;%PATH%"
-)
-
 :: Add libs dirs to the PATH
 set "PATH=%OPENVINO_LIB_PATHS%;%PATH%"
 

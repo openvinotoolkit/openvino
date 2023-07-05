@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about GenerateProposals-9 - an object detection operation, 
+                which can be performed on four required input tensors.
+
 **Versioned name**: *GenerateProposals-9*
 
 **Category**: *Object detection*
