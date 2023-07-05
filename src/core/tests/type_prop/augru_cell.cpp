@@ -7,7 +7,7 @@
 #include "gtest/gtest.h"
 #include "openvino/core/attribute_visitor.hpp"
 #include "openvino/opsets/opset9.hpp"
-#include "util/type_prop.hpp"
+#include "common_test_utils/type_prop.hpp"
 
 using namespace std;
 using namespace ov;

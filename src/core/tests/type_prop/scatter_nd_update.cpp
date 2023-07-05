@@ -5,7 +5,7 @@
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
 #include "openvino/opsets/opset10.hpp"
-#include "util/type_prop.hpp"
+#include "common_test_utils/type_prop.hpp"
 
 using namespace std;
 using namespace ngraph;

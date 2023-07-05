@@ -7,7 +7,7 @@
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
 #include "ngraph/op/util/attr_types.hpp"
-#include "util/visitor.hpp"
+#include "common_test_utils/visitor.hpp"
 
 using namespace ov;
 using ngraph::test::NodeBuilder;

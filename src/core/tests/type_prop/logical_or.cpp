@@ -3,7 +3,7 @@
 //
 
 #include "logical_ops.hpp"
-#include "util/type_prop.hpp"
+#include "common_test_utils/type_prop.hpp"
 
 using Type = ::testing::Types<LogicalOperatorType<ngraph::op::v1::LogicalOr, ngraph::element::boolean>>;
 

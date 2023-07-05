@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "util/all_close_f.hpp"
+#include "common_test_utils/all_close_f.hpp"
 
 #include <algorithm>
 #include <bitset>
@@ -13,7 +13,7 @@
 #include "gtest/gtest.h"
 #include "ngraph/env_util.hpp"
 #include "ngraph/ngraph.hpp"
-#include "util/float_util.hpp"
+#include "common_test_utils/float_util.hpp"
 
 using namespace std;
 using namespace ngraph;

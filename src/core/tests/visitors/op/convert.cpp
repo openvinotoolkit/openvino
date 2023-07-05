@@ -4,7 +4,7 @@
 
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
-#include "util/visitor.hpp"
+#include "common_test_utils/visitor.hpp"
 
 using namespace ngraph;
 using ngraph::test::NodeBuilder;

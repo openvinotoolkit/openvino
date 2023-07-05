@@ -9,7 +9,7 @@
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "read_ir.hpp"
-#include "util/test_common.hpp"
+#include "common_test_utils/test_common.hpp"
 
 class TensorNameSerializationTest : public ov::test::TestsCommon {
 protected:

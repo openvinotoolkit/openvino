@@ -5,7 +5,7 @@
 #include "common_test_utils/test_assertions.hpp"
 #include "gmock/gmock.h"
 #include "ngraph/ngraph.hpp"
-#include "util/type_prop.hpp"
+#include "common_test_utils/type_prop.hpp"
 
 using namespace std;
 using namespace ngraph;

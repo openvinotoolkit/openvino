@@ -4,7 +4,7 @@
 
 #include "gmock/gmock.h"
 #include "openvino/opsets/opset7.hpp"
-#include "util/type_prop.hpp"
+#include "common_test_utils/type_prop.hpp"
 
 using namespace std;
 using namespace ov;

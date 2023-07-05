@@ -6,7 +6,7 @@
 #include "ngraph/op/util/attr_types.hpp"
 #include "openvino/op/i420_to_bgr.hpp"
 #include "openvino/op/i420_to_rgb.hpp"
-#include "util/visitor.hpp"
+#include "common_test_utils/visitor.hpp"
 
 using namespace std;
 using namespace ov;

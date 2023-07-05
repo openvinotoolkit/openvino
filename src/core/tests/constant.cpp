@@ -8,7 +8,7 @@
 
 #include "ngraph/ngraph.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "util/type_prop.hpp"
+#include "common_test_utils/type_prop.hpp"
 
 using namespace ngraph;
 using namespace std;

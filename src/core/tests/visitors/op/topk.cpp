@@ -9,7 +9,7 @@
 #include "ngraph/opsets/opset3.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/opsets/opset11.hpp"
-#include "util/visitor.hpp"
+#include "common_test_utils/visitor.hpp"
 
 using namespace std;
 using namespace ngraph;

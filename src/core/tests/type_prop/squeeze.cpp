@@ -7,7 +7,7 @@
 #include "ngraph/ngraph.hpp"
 #include "openvino/core/dimension_tracker.hpp"
 #include "sequnce_generator.hpp"
-#include "util/type_prop.hpp"
+#include "common_test_utils/type_prop.hpp"
 
 using namespace std;
 using namespace ngraph;

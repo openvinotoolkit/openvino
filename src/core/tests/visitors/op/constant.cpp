@@ -10,7 +10,7 @@
 #include "ngraph/opsets/opset4.hpp"
 #include "ngraph/opsets/opset5.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "util/visitor.hpp"
+#include "common_test_utils/visitor.hpp"
 
 using namespace std;
 using namespace ngraph;
