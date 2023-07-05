@@ -8,7 +8,7 @@
 
 #include <condition_variable>
 #include <fstream>
-#include <inference_engine.hpp>
+#include "inference_engine.hpp"
 #include <mutex>
 
 #include "test_model_repo.hpp"
