@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about AvgPool-1 - a pooling operation, which can 
+                be performed on a 3D, 4D or 5D input tensor.
+
 **Versioned name**: *AvgPool-1*
 
 **Category**: *Pooling*

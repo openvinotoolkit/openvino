@@ -369,7 +369,7 @@ public:
      * @brief Filters supportedPrimitiveDescriptors according to the input layouts specified in inputMemoryFormatsFilter
      * and output layouts specified in outputMemoryFormatsFilter
      */
-    virtual void filterSupportedPrimitiveDescriptors();
+    void filterSupportedPrimitiveDescriptors();
 
     virtual void createPrimitive();
 
@@ -535,7 +535,7 @@ public:
     */
     std::pair<std::vector<float>, std::vector<float>> getScalesAndShifts(const Node *parentNode) const;
 
-    void initializeDQScales(const float* scaleData, const size_t scaleSize);
+    void fuseDQScales(const float* scaleData, const size_t scaleSize);
     const std::vector<float>& getDQScales() const {
         return DQScales;
     }
@@ -546,6 +546,10 @@ public:
      */
     virtual void appendPostOps(dnnl::post_ops& ops, const VectorDims& postOpDims, std::unordered_map<int, MemoryPtr>& postOpsMem, const int channelAxis = 1);
     virtual void appendPostOps(dnnl::post_ops& ops, const VectorDims& postOpDims, std::vector<const void*>& postOpsMem, const int channelAxis = 1);
+    virtual bool canBeExecutedInInt8() const {
+        IE_THROW(NotImplemented) << "canBeExecutedInInt8 not implemented for node with type " << NameFromType(getType());
+        return false;
+    }
 
 protected:
     bool canFuseSimpleOperation(const NodePtr& node) const;

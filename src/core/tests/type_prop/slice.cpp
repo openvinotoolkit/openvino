@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <dimension_tracker.hpp>
 #include <numeric>
 
 #include "common_test_utils/test_assertions.hpp"
 #include "ngraph/ngraph.hpp"
+#include "openvino/core/dimension_tracker.hpp"
 #include "openvino/opsets/opset9.hpp"
 #include "sequnce_generator.hpp"
 #include "util/type_prop.hpp"
