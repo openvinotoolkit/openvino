@@ -255,7 +255,8 @@ private:
     bool _is_dynamic = false;
     bool _enable_profiling = false;
     bool _reset_arguments;
-    uint32_t _local_net_id = 0;
+    uint32_t _local_net_id = 0;     // This is for thread-safe deserialization. 'net_id' is globally unique,
+                                    // but '_local_net_id' is unique only in each intel_gpu::Graph.
 
     std::unordered_map<primitive_id, std::shared_ptr<primitive_inst>> _primitives;
     std::vector<shared_mem_type> _in_out_shared_mem_types;
