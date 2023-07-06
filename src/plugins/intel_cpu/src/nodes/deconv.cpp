@@ -84,7 +84,7 @@ bool Deconvolution::isSupportedOperation(const std::shared_ptr<const ngraph::Nod
 
 Deconvolution::Deconvolution(const std::shared_ptr<ngraph::Node>& op,
                              const GraphContext::CPtr context) : Node(op, context, DeconfolutionShapeInferFactory(op)) {
-    dnnlDeconvExecutor = std::make_shared<DNNLDeconvExecutor>();
+//    dnnlDeconvExecutor = std::make_shared<DNNLDeconvExecutor>();
     deconvAttrs.layerName = getName();
     std::string errorMessage;
     errorPrefix = "Deconvolution node with name '" + deconvAttrs.layerName + "' ";
@@ -356,62 +356,62 @@ void Deconvolution::getSupportedDescriptors() {
     InferenceEngine::Precision weiPrecision = getOriginalInputPrecisionAtPort(1);
     InferenceEngine::Precision outPrecision = getOriginalOutputPrecisionAtPort(0);
 
-#if defined(OV_CPU_WITH_ACL)
-    const auto &srcShape = getInputShapeAtPort(0);
-    const auto &weiShape = getInputShapeAtPort(1);
-    const auto &dstShape = getOutputShapeAtPort(0);
-    VectorDims swappedWeiShape = weiShape.getDims();
-    std::swap(swappedWeiShape[0], swappedWeiShape[1]);
-
-    arm_compute::DataLayout dataLayout = (srcShape.getDims().size() == 5) ? arm_compute::DataLayout::NDHWC : arm_compute::DataLayout::NCHW;
-    arm_compute::TensorInfo srcTensorInfo = arm_compute::TensorInfo(shapeCast(srcShape.getDims()),
-                                                                    1,
-                                                                    precisionToAclDataType(inPrecision),
-                                                                    dataLayout);
-    arm_compute::TensorInfo weiTensorInfo = arm_compute::TensorInfo(shapeCast(swappedWeiShape),
-                                                                    1,
-                                                                    precisionToAclDataType(weiPrecision),
-                                                                    dataLayout);
-    arm_compute::TensorInfo dstTensorInfo = arm_compute::TensorInfo(shapeCast(dstShape.getDims()),
-                                                                    1,
-                                                                    precisionToAclDataType(outPrecision),
-                                                                    dataLayout);
-    arm_compute::TensorInfo biasTensorInfo;
-    if (deconvAttrs.withBiases) {
-        const auto &biasShape = getInputShapeAtPort(1);
-        InferenceEngine::Precision biasPrecision = getOriginalInputPrecisionAtPort(1);
-        biasTensorInfo = arm_compute::TensorInfo(shapeCast(biasShape.getDims()), 1, precisionToAclDataType(biasPrecision), dataLayout);
-    }
-    unsigned int pad_l = deconvAttrs.paddingL.at(1);
-    unsigned int pad_r = deconvAttrs.paddingR.at(1);
-    unsigned int pad_t = deconvAttrs.paddingL.at(0);
-    unsigned int pad_b = deconvAttrs.paddingR.at(0);
-    unsigned int stride_x = deconvAttrs.stride.at(1);
-    unsigned int stride_y = deconvAttrs.stride.at(0);
-    unsigned int dilation_x = deconvAttrs.dilation.at(1) + 1;
-    unsigned int dilation_y = deconvAttrs.dilation.at(0) + 1;
-
-    arm_compute::PadStrideInfo deconv_info(stride_x, stride_y, pad_l, pad_r, pad_t, pad_b, arm_compute::DimensionRoundingType::FLOOR);
-    arm_compute::Size2D dilation(dilation_x, dilation_y);
-    arm_compute::Status status = arm_compute::NEDeconvolutionLayer::validate(&srcTensorInfo,
-                                                                             &weiTensorInfo,
-                                                                             deconvAttrs.withBiases ? &biasTensorInfo : nullptr,
-                                                                             &dstTensorInfo,
-                                                                             deconv_info);
-    if (!status) {
-        std::cout << "Deconvolution::getSupportedDescriptors() useACL = false: " << status.error_description() << std::endl;
-        useACL = false;
-    } else {
-        std::cout << "Deconvolution::getSupportedDescriptors() useACL = true" << std::endl;
-        useACL = true;
-    }
-#endif
+//#if defined(OV_CPU_WITH_ACL)
+//    const auto &srcShape = getInputShapeAtPort(0);
+//    const auto &weiShape = getInputShapeAtPort(1);
+//    const auto &dstShape = getOutputShapeAtPort(0);
+//    VectorDims swappedWeiShape = weiShape.getDims();
+//    std::swap(swappedWeiShape[0], swappedWeiShape[1]);
+//
+//    arm_compute::DataLayout dataLayout = (srcShape.getDims().size() == 5) ? arm_compute::DataLayout::NDHWC : arm_compute::DataLayout::NCHW;
+//    arm_compute::TensorInfo srcTensorInfo = arm_compute::TensorInfo(shapeCast(srcShape.getDims()),
+//                                                                    1,
+//                                                                    precisionToAclDataType(inPrecision),
+//                                                                    dataLayout);
+//    arm_compute::TensorInfo weiTensorInfo = arm_compute::TensorInfo(shapeCast(swappedWeiShape),
+//                                                                    1,
+//                                                                    precisionToAclDataType(weiPrecision),
+//                                                                    dataLayout);
+//    arm_compute::TensorInfo dstTensorInfo = arm_compute::TensorInfo(shapeCast(dstShape.getDims()),
+//                                                                    1,
+//                                                                    precisionToAclDataType(outPrecision),
+//                                                                    dataLayout);
+//    arm_compute::TensorInfo biasTensorInfo;
+//    if (deconvAttrs.withBiases) {
+//        const auto &biasShape = getInputShapeAtPort(1);
+//        InferenceEngine::Precision biasPrecision = getOriginalInputPrecisionAtPort(1);
+//        biasTensorInfo = arm_compute::TensorInfo(shapeCast(biasShape.getDims()), 1, precisionToAclDataType(biasPrecision), dataLayout);
+//    }
+//    unsigned int pad_l = deconvAttrs.paddingL.at(1);
+//    unsigned int pad_r = deconvAttrs.paddingR.at(1);
+//    unsigned int pad_t = deconvAttrs.paddingL.at(0);
+//    unsigned int pad_b = deconvAttrs.paddingR.at(0);
+//    unsigned int stride_x = deconvAttrs.stride.at(1);
+//    unsigned int stride_y = deconvAttrs.stride.at(0);
+//    unsigned int dilation_x = deconvAttrs.dilation.at(1) + 1;
+//    unsigned int dilation_y = deconvAttrs.dilation.at(0) + 1;
+//
+//    arm_compute::PadStrideInfo deconv_info(stride_x, stride_y, pad_l, pad_r, pad_t, pad_b, arm_compute::DimensionRoundingType::FLOOR);
+//    arm_compute::Size2D dilation(dilation_x, dilation_y);
+//    arm_compute::Status status = arm_compute::NEDeconvolutionLayer::validate(&srcTensorInfo,
+//                                                                             &weiTensorInfo,
+//                                                                             deconvAttrs.withBiases ? &biasTensorInfo : nullptr,
+//                                                                             &dstTensorInfo,
+//                                                                             deconv_info);
+//    if (!status) {
+//        std::cout << "Deconvolution::getSupportedDescriptors() useACL = false: " << status.error_description() << std::endl;
+//        useACL = false;
+//    } else {
+//        std::cout << "Deconvolution::getSupportedDescriptors() useACL = true" << std::endl;
+//        useACL = true;
+//    }
+//#endif
     VectorDims inDims, outDims;
     std::tie(inDims, outDims) = makeDummyInOutShape();
     inShape = Shape(inDims);
     Shape outShape(outDims);
     initPaddingR(inShape, outShape);
-    if (useACL) return;
+//    if (useACL) return;
     //ONEDNN deconvolution_fwd_t primitive can support bias fusing.
     //ONEDNN convolution_data_bwd_t can't support bias fusing.
     //Current only int8 precision choose deconvolution_fwd_t.
@@ -589,12 +589,12 @@ void Deconvolution::execute(dnnl::stream strm) {
         dstMemory.push_back(getChildEdgesAtPort(i)[0]->getMemoryPtr());
     }
 
-    if (!useACL) {
-        dnnlDeconvExecutor->exec(srcMemory, dstMemory, nullptr, strm);
-    } else {
+//    if (!useACL) {
+//        dnnlDeconvExecutor->exec(srcMemory, dstMemory, nullptr, strm);
+//    } else {
         //TODO: need to pass post ops data
         execPtrDeconv->exec(srcMemory, dstMemory, nullptr, strm);
-    }
+//    }
 
     if (deconvAttrs.externOutShape) {
         deconvAttrs.lastOutputSpatialDims = readOutputSpatialDims();
@@ -771,48 +771,76 @@ void Deconvolution::prepareParams() {
         dstMemoryDescs.push_back(getChildEdgesAtPort(i).front()->getMemory().GetDescWithType<DnnlMemoryDesc>());
     }
 
-    if (!useACL) {
-        dnnlDeconvExecutor->init(deconvAttrs, srcMemoryDescs, dstMemoryDescs, *attr);
-    } else {
+//    if (!useACL) {
+//        dnnlDeconvExecutor->init(deconvAttrs, srcMemoryDescs, dstMemoryDescs, *attr);
+//    } else {
         execPtrDeconv = selected_pd->getExecutorFactoryAs<DeconvExecutorFactory>()->makeExecutor(deconvAttrs, srcMemoryDescs,
                                                                                                  dstMemoryDescs, *attr);
         selected_pd->setImplementationType(execPtrDeconv->getImplType());
-    }
+//    }
 }
 
 void Deconvolution::initSupportedPrimitiveDescriptors() {
-    auto& creatorsMap = BlockedDescCreator::getCommonCreators();
-    auto pushDesc = [&](LayoutType format) {
-        NodeConfig config;
-        config.inConfs.resize(getParentEdges().size());
-        config.outConfs.resize(getOriginalOutputsNumber());
+    if (!supportedPrimitiveDescriptors.empty())
+        return;
 
-        for (size_t i = 0; i < getParentEdges().size(); ++i) {
-            config.inConfs[i].setMemDesc(
-                    creatorsMap.at(format)->createSharedDesc(getOriginalInputPrecisionAtPort(i), getInputShapeAtPort(i)));
+    auto addSupportedPrimitiveDescriptor = [&](const dnnl::primitive_desc& prim_desc) {
+        std::vector<PortConfig> inConfs, outConfs;
+        const int inPlaceOutPort = canBeInPlace() ? 0 : -1;
+
+        for (size_t i = 0; i < descInputNumbers(); i++) {
+            auto desc = getSrcMemDesc(prim_desc, i);
+
+            inConfs.emplace_back(desc, BlockedMemoryDesc::EMPTY_MASK);
         }
-        config.outConfs[0].setMemDesc(
-                creatorsMap.at(format)->createSharedDesc(getOriginalOutputPrecisionAtPort(0), getOutputShapeAtPort(0)));
+
+        for (size_t i = 0; i < descOutputNumbers(); i++) {
+            auto desc = getDstMemDesc(prim_desc, i);
+
+            outConfs.emplace_back(desc, BlockedMemoryDesc::EMPTY_MASK, inPlaceOutPort);
+        }
+
+        const NodeConfig config(inConfs, outConfs);
+        const impl_desc_type impl_type = parse_impl_name(prim_desc.impl_info_str());
 
         std::vector<MemoryDescPtr> srcMemoryDescs;
-        for (int i = 0; i < config.inConfs.size(); i++) {
+        for (size_t i = 0; i < config.inConfs.size(); i++) {
             srcMemoryDescs.push_back(config.inConfs[i].getMemDesc());
         }
         std::vector<MemoryDescPtr> dstMemoryDescs;
-        for (int i = 0; i < config.outConfs.size(); i++) {
+        for (size_t i = 0; i < config.outConfs.size(); i++) {
             dstMemoryDescs.push_back(config.outConfs[i].getMemDesc());
         }
 
         auto factory = std::make_shared<DeconvExecutorFactory>(deconvAttrs, srcMemoryDescs, dstMemoryDescs,
                                                                std::make_shared<ExecutorContext>(context, getImplPriority()));
 
-        supportedPrimitiveDescriptors.emplace_back(config, gemm_ref, factory);
+        supportedPrimitiveDescriptors.emplace_back(config, impl_type, factory);
     };
 
-    if (!useACL) {
-        Node::initSupportedPrimitiveDescriptors();
-    } else {
-        pushDesc(LayoutType::ncsp);
+    /* When custom implementation priorities are NOT defined it is enough to
+     * just use the first implementation from the priority list.
+     * When custom implementation priorities are defined, all the implementations should be considered,
+     * since custom implementations can be not available at all, so a fallback to the default ones must happen
+     * To achive the fallback, it is necessary to create a supported primitive descriptor for each implementation
+     * since oneDNN primitive is mutating while iterating */
+
+    for (auto& desc : descs) {
+        auto first_desc = dnnl::primitive_desc(DnnlExtensionUtils::clone_primitive_desc(desc.get()));
+        const bool first_match = customImplPriorities.empty();
+        DnnlExtensionUtils::for_each_implementation(desc,
+                                                    first_match,
+                                                    [&](impl_desc_type implType) {
+                                                        return contains(getImplPriority(), implType);
+                                                    },
+                                                    [&](dnnl::primitive_desc& desc) {
+                                                        addSupportedPrimitiveDescriptor(desc);
+                                                    });
+
+        // fallback. if none of the primitive types is present in the priority list just add first implementation
+        // @todo this fallback is not necessary if primitive priority list is filled correctly
+        if (supportedPrimitiveDescriptors.empty())
+            addSupportedPrimitiveDescriptor(first_desc);
     }
 }
 

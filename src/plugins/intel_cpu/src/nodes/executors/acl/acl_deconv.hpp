@@ -44,6 +44,15 @@ public:
     bool isSupported(const DeconvAttrs& deconvAttrs,
                      const std::vector<MemoryDescPtr>& srcDescs,
                      const std::vector<MemoryDescPtr>& dstDescs) const override {
+        if (srcDescs[0]->getShape().getDims().size() != 2 &&
+            srcDescs[1]->getShape().getDims().size() != 2 &&
+            dstDescs[0]->getShape().getDims().size() != 2) {
+            DEBUG_LOG("AclDeconvExecutor does not support dimension:",
+                      " src[0]=", srcDescs[0]->getPrecision(),
+                      " src[1]=", srcDescs[1]->getPrecision(),
+                      " dst[0]=", dstDescs[0]->getPrecision());
+            return false;
+        }
         if ((srcDescs[0]->getPrecision() != InferenceEngine::Precision::FP32 &&
              srcDescs[1]->getPrecision() != InferenceEngine::Precision::FP32 &&
              dstDescs[0]->getPrecision() != InferenceEngine::Precision::FP32) &&
