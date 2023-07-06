@@ -316,11 +316,7 @@ ov::CoreImpl::CoreImpl(bool _newAPI) : m_new_api(_newAPI) {
 }
 
 bool ov::CoreImpl::is_proxy_device(const ov::Plugin& plugin) const {
-#ifdef PROXY_PLUGIN_ENABLED
-    return std::dynamic_pointer_cast<ov::proxy::Plugin>(plugin.m_ptr) != nullptr;
-#else
-    return false;
-#endif
+    return is_proxy_device(plugin.get_name());
 }
 bool ov::CoreImpl::is_proxy_device(const std::string& dev_name) const {
 #ifdef PROXY_PLUGIN_ENABLED

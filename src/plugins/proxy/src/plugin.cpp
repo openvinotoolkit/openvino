@@ -15,6 +15,7 @@
 #include "openvino/runtime/iinfer_request.hpp"
 #include "openvino/runtime/iremote_context.hpp"
 #include "openvino/util/common_util.hpp"
+#include "plugin.hpp"
 #include "remote_context.hpp"
 
 namespace {
