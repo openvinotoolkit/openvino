@@ -14,10 +14,6 @@
 
 namespace ov {
 
-namespace autobatch_plugin {
-class RemoteTensor;
-}
-
 class RemoteContext;
 
 /**
@@ -27,7 +23,6 @@ class RemoteContext;
 class OPENVINO_RUNTIME_API RemoteTensor : public Tensor {
     using Tensor::Tensor;
     friend class ov::RemoteContext;
-    friend class ov::autobatch_plugin::RemoteTensor;
 
 public:
     /**

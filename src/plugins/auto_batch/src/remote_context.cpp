@@ -7,27 +7,31 @@
 #include <memory>
 
 #include "openvino/runtime/iremote_context.hpp"
-#include "remote_tensor.hpp"
 
-ov::autobatch_plugin::RemoteContext::RemoteContext(ov::RemoteContext&& ctx, const std::string& dev_name)
-    : m_context(std::move(ctx)),
-      m_name(dev_name) {}
+ov::autobatch_plugin::RemoteContext::RemoteContext(ov::RemoteContext&& ctx) : m_context(std::move(ctx)) {}
 
 const std::string& ov::autobatch_plugin::RemoteContext::get_device_name() const {
-    return m_name;
+    OPENVINO_NOT_IMPLEMENTED;
 }
 
 const ov::AnyMap& ov::autobatch_plugin::RemoteContext::get_property() const {
-    return m_context._impl->get_property();
+    OPENVINO_NOT_IMPLEMENTED;
 }
 
 std::shared_ptr<ov::IRemoteTensor> ov::autobatch_plugin::RemoteContext::create_tensor(const ov::element::Type& type,
                                                                                       const ov::Shape& shape,
                                                                                       const ov::AnyMap& params) {
-    return std::make_shared<ov::autobatch_plugin::RemoteTensor>(m_context.create_tensor(type, shape, params), m_name);
+    OPENVINO_NOT_IMPLEMENTED;
 }
 
 std::shared_ptr<ov::ITensor> ov::autobatch_plugin::RemoteContext::create_host_tensor(const ov::element::Type type,
                                                                                      const ov::Shape& shape) {
-    return m_context._impl->create_host_tensor(type, shape);
+    OPENVINO_NOT_IMPLEMENTED;
+}
+
+const std::shared_ptr<ov::IRemoteContext>& ov::autobatch_plugin::RemoteContext::get_hardware_context() {
+    if (m_context) {
+        return m_context._impl;
+    } else
+        OPENVINO_THROW("Get hardware context failed, the remotext is NULL!");
 }

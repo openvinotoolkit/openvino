@@ -14,7 +14,7 @@ namespace autobatch_plugin {
 
 class RemoteContext : public ov::IRemoteContext {
 public:
-    explicit RemoteContext(ov::RemoteContext&& ctx, const std::string& dev_name);
+    explicit RemoteContext(ov::RemoteContext&& ctx);
 
     const std::string& get_device_name() const override;
 
@@ -26,9 +26,10 @@ public:
 
     std::shared_ptr<ov::ITensor> create_host_tensor(const ov::element::Type type, const ov::Shape& shape) override;
 
+    const std::shared_ptr<ov::IRemoteContext>& get_hardware_context();
+
 private:
     ov::RemoteContext m_context;
-    std::string m_name;
 };
 
 }  // namespace autobatch_plugin
