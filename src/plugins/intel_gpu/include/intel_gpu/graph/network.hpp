@@ -125,7 +125,7 @@ public:
     engine& get_engine() const { return _engine; }
 
     void reset_execution(bool wait = true);
-    void set_input_data(const primitive_id& id, memory::ptr data, bool need_reset_execution = true);
+    void set_input_data(const primitive_id& id, memory::ptr data);
     void set_output_memory(const primitive_id& id, memory::ptr mem);
 
     std::vector<std::shared_ptr<primitive_inst>> const& get_outputs() { return _outputs; }
@@ -243,8 +243,6 @@ public:
     const ExecutionConfig& get_config() const { return _config; }
 
     std::shared_ptr<MemoryUsageTracker> get_memory_usage_tracker() { return _memory_usage_tracker; }
-    bool can_use_buffers_preallocation() { return _allow_buffers_preallocation; }
-    bool set_use_buffers_preallocation(bool val) { return _allow_buffers_preallocation = val; }
 
 private:
     using output_chains_map = std::map<primitive_id, std::vector<std::shared_ptr<primitive_inst>>>;
@@ -279,7 +277,6 @@ private:
     output_chains_map _output_chains;
 
     std::shared_ptr<MemoryUsageTracker> _memory_usage_tracker;
-    bool _allow_buffers_preallocation = false;
 
     void build_exec_order();
     void allocate_primitive_instance(program_node const& node);

@@ -457,12 +457,10 @@ void InferRequest::enqueue() {
         }
     }
 
-    bool is_first_input = true;
     for (auto& item : _inputs) {
         std::string inputName = item.first;
         Blob::Ptr& inputBlob = item.second;
-        prepare_input(inputName, inputBlob, dependencies, is_first_input);
-        is_first_input = false;
+        prepare_input(inputName, inputBlob, dependencies);
     }
 
     auto networkPtr = m_graph->GetNetwork();
@@ -875,7 +873,7 @@ void InferRequest::allocate_dev_mem_if_needed(InferenceEngine::BlobMap& device_m
 }
 
 void InferRequest::prepare_input(const cldnn::primitive_id& inputName, Blob::Ptr& inputBlob,
-                                 std::vector<cldnn::event::ptr>& dependencies, bool is_first_input) {
+                                 std::vector<cldnn::event::ptr>& dependencies) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "InferRequest::prepare_input");
     auto inputLayoutItr = m_graph->GetInputLayouts().find(inputName);
     OPENVINO_ASSERT(inputLayoutItr != m_graph->GetInputLayouts().end(), "[GPU] Input name mismatch");
@@ -919,11 +917,9 @@ void InferRequest::prepare_input(const cldnn::primitive_id& inputName, Blob::Ptr
         if (should_allocate_device_blob) {
             const auto& tensor_desc = inputBlob->getTensorDesc();
             auto preallocation_shape = prealloc_info.second;
+            auto dt_size = cldnn::data_type_traits::size_of(DataTypeFromPrecision(tensor_desc.getPrecision()));
             auto can_preallocate_buffer = prealloc_info.first &&
-                                          mem_tracker->can_preallocate(ov::shape_size(current_shape), ov::shape_size(preallocation_shape));
-
-            if (can_preallocate_buffer)
-                _nw_ptr->set_use_buffers_preallocation(true);
+                                          mem_tracker->can_preallocate(ov::shape_size(preallocation_shape) * dt_size);
 
             if (can_preallocate_buffer) {
                 auto new_tensor_desc = tensor_desc;
@@ -1001,7 +997,7 @@ void InferRequest::prepare_input(const cldnn::primitive_id& inputName, Blob::Ptr
                     }
                 }
             }
-            _nw_ptr->set_input_data(internalName, inputMem, is_first_input);
+            _nw_ptr->set_input_data(internalName, inputMem);
             break;
         }
         default:
