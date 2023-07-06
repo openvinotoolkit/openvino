@@ -41,16 +41,13 @@ public:
     }
 };
 
-std::shared_ptr<QuantizedPtNode> quantize_per_tensor(
-    std::shared_ptr<TorchDecoder> decoder,
-    ov::Output<ov::Node> input,
-    ov::Output<ov::Node> scale,
-    ov::Output<ov::Node> zero_point,
-    ov::Output<ov::Node> dtype);
+std::shared_ptr<QuantizedPtNode> quantize_per_tensor(std::shared_ptr<TorchDecoder> decoder,
+                                                     ov::Output<ov::Node> input,
+                                                     ov::Output<ov::Node> scale,
+                                                     ov::Output<ov::Node> zero_point,
+                                                     ov::Output<ov::Node> dtype);
 
-std::shared_ptr<QuantizedPtNode> dequantize(
-    std::shared_ptr<TorchDecoder> decoder,
-    ov::Output<ov::Node> input);
+std::shared_ptr<QuantizedPtNode> dequantize(std::shared_ptr<TorchDecoder> decoder, ov::Output<ov::Node> input);
 
 std::shared_ptr<QuantizedPtNode> cast_quantized_fw_node(std::shared_ptr<Node> node);
 std::shared_ptr<QuantizedPtNode> cast_quantized_fw_node(std::shared_ptr<Node> node, const std::string& type);
