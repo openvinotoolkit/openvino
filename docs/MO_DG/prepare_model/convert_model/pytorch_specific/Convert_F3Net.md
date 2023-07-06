@@ -2,6 +2,11 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to convert a F3Net model
+                 from Pytorch to the OpenVINO Intermediate Representation.
+
+
 `F3Net <https://github.com/weijun88/F3Net>`__ : Fusion, Feedback and Focus for Salient Object Detection
 
 Cloning the F3Net Repository
