@@ -153,6 +153,23 @@ static void CreateConstantOp(Program& p, const std::shared_ptr<ngraph::op::v0::C
             if (constDims.size() == 4 && input_shape.size() == 3) { // In case of weight dim 4 and input dim 3,
                 constDims.push_back(1);                             // The weight cldnn tensor adds 1d to the end as the input cldnn tensor does
             }
+        } else if (ngraph::is_type<ngraph::op::v0::Convert>(outOp)) {
+            auto convertUsers = outOp->get_output_target_inputs(0);
+            for (auto& user : convertUsers) {
+                auto node = user.get_node();
+                if (ngraph::op::is_binary_elementwise_arithmetic(node) ||
+                   ngraph::op::is_binary_elementwise_logical(node) ||
+                   ngraph::op::is_binary_elementwise_comparison(node) ||
+                   ngraph::is_type<ngraph::op::v0::SquaredDifference>(node)) {
+                    bool all_inputs_1d = true;
+                    for (size_t j = 0; j < outOp->get_input_size(); j++) {
+                        auto& in_shape = outOp->get_input_partial_shape(j);
+                        if (in_shape.size() > 1)
+                            all_inputs_1d = false;
+                    }
+                    consts[op].needsBatchInterpretation = all_inputs_1d && constDims.size() == 1;
+                }
+            }
         }
     }
 
