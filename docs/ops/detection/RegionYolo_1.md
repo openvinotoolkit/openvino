@@ -98,45 +98,45 @@
 .. code-block:: xml
    :force:
 
-  < !-- YOLO V3 example -->
-  <layer type="RegionYolo" ... >
-      <data anchors="10,14,23,27,37,58,81,82,135,169,344,319" axis="1" classes="80" coords="4" do_softmax="0" end_axis="3" mask="0,1,2" num="6"/>
-      <input>
-          <port id="0">
-              <dim>1</dim>
-              <dim>255</dim>
-              <dim>26</dim>
-              <dim>26</dim>
-          </port>
-      </input>
-      <output>
-          <port id="0">
-              <dim>1</dim>
-              <dim>255</dim>
-              <dim>26</dim>
-              <dim>26</dim>
-          </port>
-      </output>
-  </layer>
-
-  < !-- YOLO V2 Example -->
-  <layer type="RegionYolo" ... >
-      <data anchors="1.08,1.19,3.42,4.41,6.63,11.38,9.42,5.11,16.62,10.52" axis="1" classes="20" coords="4" do_softmax="1" end_axis="3" num="5"/>
-      <input>
-          <port id="0">
-              <dim>1</dim>
-              <dim>125</dim>
-              <dim>13</dim>
-              <dim>13</dim>
-          </port>
-      </input>
-      <output>
-          <port id="0">
-              <dim>1</dim>
-              <dim>21125</dim>
-          </port>
-      </output>
-  </layer>
+   < !-- YOLO V3 example -->
+   <layer type="RegionYolo" ... >
+       <data anchors="10,14,23,27,37,58,81,82,135,169,344,319" axis="1" classes="80" coords="4" do_softmax="0" end_axis="3" mask="0,1,2" num="6"/>
+       <input>
+           <port id="0">
+               <dim>1</dim>
+               <dim>255</dim>
+               <dim>26</dim>
+               <dim>26</dim>
+           </port>
+       </input>
+       <output>
+           <port id="0">
+               <dim>1</dim>
+               <dim>255</dim>
+               <dim>26</dim>
+               <dim>26</dim>
+           </port>
+       </output>
+   </layer>
+ 
+   < !-- YOLO V2 Example -->
+   <layer type="RegionYolo" ... >
+       <data anchors="1.08,1.19,3.42,4.41,6.63,11.38,9.42,5.11,16.62,10.52" axis="1" classes="20" coords="4" do_softmax="1" end_axis="3" num="5"/>
+       <input>
+           <port id="0">
+               <dim>1</dim>
+               <dim>125</dim>
+               <dim>13</dim>
+               <dim>13</dim>
+           </port>
+       </input>
+       <output>
+           <port id="0">
+               <dim>1</dim>
+               <dim>21125</dim>
+           </port>
+       </output>
+   </layer>
 
 @endsphinxdirective
 

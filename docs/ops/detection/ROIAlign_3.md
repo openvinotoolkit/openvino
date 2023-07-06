@@ -84,32 +84,32 @@
 .. code-block:: xml
    :force:
 
-  <layer ... type="ROIAlign" ... >
-      <data pooled_h="6" pooled_w="6" spatial_scale="16.0" sampling_ratio="2" mode="avg"/>
-      <input>
-          <port id="0">
-              <dim>7</dim>
-              <dim>256</dim>
-              <dim>200</dim>
-              <dim>200</dim>
-          </port>
-          <port id="1">
-              <dim>1000</dim>
-              <dim>4</dim>
-          </port>
-          <port id="2">
-              <dim>1000</dim>
-          </port>
-      </input>
-      <output>
-          <port id="3" precision="FP32">
-              <dim>1000</dim>
-              <dim>256</dim>
-              <dim>6</dim>
-              <dim>6</dim>
-          </port>
-      </output>
-  </layer>
+   <layer ... type="ROIAlign" ... >
+       <data pooled_h="6" pooled_w="6" spatial_scale="16.0" sampling_ratio="2" mode="avg"/>
+       <input>
+           <port id="0">
+               <dim>7</dim>
+               <dim>256</dim>
+               <dim>200</dim>
+               <dim>200</dim>
+           </port>
+           <port id="1">
+               <dim>1000</dim>
+               <dim>4</dim>
+           </port>
+           <port id="2">
+               <dim>1000</dim>
+           </port>
+       </input>
+       <output>
+           <port id="3" precision="FP32">
+               <dim>1000</dim>
+               <dim>256</dim>
+               <dim>6</dim>
+               <dim>6</dim>
+           </port>
+       </output>
+   </layer>
 
 @endsphinxdirective
 

@@ -144,11 +144,11 @@ Keeping Aspect Ratio Resizer Replacement
   .. code-block:: py
      :force:
 
-    def calculate_shape_keeping_aspect_ratio(H: int, W: int, min_dimension: int, max_dimension: int):
-        ratio_min = min_dimension / min(H, W)
-        ratio_max = max_dimension / max(H, W)
-        ratio = min(ratio_min, ratio_max)
-        return int(round(H * ratio)), int(round(W * ratio))
+     def calculate_shape_keeping_aspect_ratio(H: int, W: int, min_dimension: int, max_dimension: int):
+         ratio_min = min_dimension / min(H, W)
+         ratio_max = max_dimension / max(H, W)
+         ratio = min(ratio_min, ratio_max)
+         return int(round(H * ratio)), int(round(W * ratio))
 
 The ``input_shape`` command line parameter should be specified only if the "pad_to_max_dimension" does not exist of is set to "false" in the ``keep_aspect_ratio_resizer``.
 
