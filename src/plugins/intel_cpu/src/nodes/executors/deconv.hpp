@@ -59,7 +59,7 @@ struct DeconvAttrs {
     std::function<std::vector<int32_t>()> readOutputSpatialDimsFunc;
     std::string layerName;
     std::function<void(std::shared_ptr<std::unordered_map<int, dnnl::memory>>,
-            std::shared_ptr<DnnlExecutor>)> updatePrimArgs;
+            std::shared_ptr<DnnlExecutor>, CacheEntryBase::LookUpStatus lookUpStatus)> initPrimArgs;
 };
 
 class DeconvExecutor {

@@ -22,11 +22,6 @@
 #include <common/primitive_desc_iface.hpp>
 #include <utils/shape_inference/shape_inference_ngraph.hpp>
 
-#if defined(OV_CPU_WITH_ACL)
-#include "executors/acl/acl_utils.hpp"
-#include "utils/debug_capabilities.h"
-#endif
-
 #include <string>
 #include <vector>
 
@@ -84,7 +79,6 @@ bool Deconvolution::isSupportedOperation(const std::shared_ptr<const ngraph::Nod
 
 Deconvolution::Deconvolution(const std::shared_ptr<ngraph::Node>& op,
                              const GraphContext::CPtr context) : Node(op, context, DeconfolutionShapeInferFactory(op)) {
-//    dnnlDeconvExecutor = std::make_shared<DNNLDeconvExecutor>();
     deconvAttrs.layerName = getName();
     std::string errorMessage;
     errorPrefix = "Deconvolution node with name '" + deconvAttrs.layerName + "' ";
@@ -356,62 +350,12 @@ void Deconvolution::getSupportedDescriptors() {
     InferenceEngine::Precision weiPrecision = getOriginalInputPrecisionAtPort(1);
     InferenceEngine::Precision outPrecision = getOriginalOutputPrecisionAtPort(0);
 
-//#if defined(OV_CPU_WITH_ACL)
-//    const auto &srcShape = getInputShapeAtPort(0);
-//    const auto &weiShape = getInputShapeAtPort(1);
-//    const auto &dstShape = getOutputShapeAtPort(0);
-//    VectorDims swappedWeiShape = weiShape.getDims();
-//    std::swap(swappedWeiShape[0], swappedWeiShape[1]);
-//
-//    arm_compute::DataLayout dataLayout = (srcShape.getDims().size() == 5) ? arm_compute::DataLayout::NDHWC : arm_compute::DataLayout::NCHW;
-//    arm_compute::TensorInfo srcTensorInfo = arm_compute::TensorInfo(shapeCast(srcShape.getDims()),
-//                                                                    1,
-//                                                                    precisionToAclDataType(inPrecision),
-//                                                                    dataLayout);
-//    arm_compute::TensorInfo weiTensorInfo = arm_compute::TensorInfo(shapeCast(swappedWeiShape),
-//                                                                    1,
-//                                                                    precisionToAclDataType(weiPrecision),
-//                                                                    dataLayout);
-//    arm_compute::TensorInfo dstTensorInfo = arm_compute::TensorInfo(shapeCast(dstShape.getDims()),
-//                                                                    1,
-//                                                                    precisionToAclDataType(outPrecision),
-//                                                                    dataLayout);
-//    arm_compute::TensorInfo biasTensorInfo;
-//    if (deconvAttrs.withBiases) {
-//        const auto &biasShape = getInputShapeAtPort(1);
-//        InferenceEngine::Precision biasPrecision = getOriginalInputPrecisionAtPort(1);
-//        biasTensorInfo = arm_compute::TensorInfo(shapeCast(biasShape.getDims()), 1, precisionToAclDataType(biasPrecision), dataLayout);
-//    }
-//    unsigned int pad_l = deconvAttrs.paddingL.at(1);
-//    unsigned int pad_r = deconvAttrs.paddingR.at(1);
-//    unsigned int pad_t = deconvAttrs.paddingL.at(0);
-//    unsigned int pad_b = deconvAttrs.paddingR.at(0);
-//    unsigned int stride_x = deconvAttrs.stride.at(1);
-//    unsigned int stride_y = deconvAttrs.stride.at(0);
-//    unsigned int dilation_x = deconvAttrs.dilation.at(1) + 1;
-//    unsigned int dilation_y = deconvAttrs.dilation.at(0) + 1;
-//
-//    arm_compute::PadStrideInfo deconv_info(stride_x, stride_y, pad_l, pad_r, pad_t, pad_b, arm_compute::DimensionRoundingType::FLOOR);
-//    arm_compute::Size2D dilation(dilation_x, dilation_y);
-//    arm_compute::Status status = arm_compute::NEDeconvolutionLayer::validate(&srcTensorInfo,
-//                                                                             &weiTensorInfo,
-//                                                                             deconvAttrs.withBiases ? &biasTensorInfo : nullptr,
-//                                                                             &dstTensorInfo,
-//                                                                             deconv_info);
-//    if (!status) {
-//        std::cout << "Deconvolution::getSupportedDescriptors() useACL = false: " << status.error_description() << std::endl;
-//        useACL = false;
-//    } else {
-//        std::cout << "Deconvolution::getSupportedDescriptors() useACL = true" << std::endl;
-//        useACL = true;
-//    }
-//#endif
     VectorDims inDims, outDims;
     std::tie(inDims, outDims) = makeDummyInOutShape();
     inShape = Shape(inDims);
     Shape outShape(outDims);
     initPaddingR(inShape, outShape);
-//    if (useACL) return;
+
     //ONEDNN deconvolution_fwd_t primitive can support bias fusing.
     //ONEDNN convolution_data_bwd_t can't support bias fusing.
     //Current only int8 precision choose deconvolution_fwd_t.
@@ -589,12 +533,8 @@ void Deconvolution::execute(dnnl::stream strm) {
         dstMemory.push_back(getChildEdgesAtPort(i)[0]->getMemoryPtr());
     }
 
-//    if (!useACL) {
-//        dnnlDeconvExecutor->exec(srcMemory, dstMemory, nullptr, strm);
-//    } else {
-        //TODO: need to pass post ops data
-        execPtrDeconv->exec(srcMemory, dstMemory, nullptr, strm);
-//    }
+    //TODO: need to pass post ops data
+    execPtrDeconv->exec(srcMemory, dstMemory, nullptr, strm);
 
     if (deconvAttrs.externOutShape) {
         deconvAttrs.lastOutputSpatialDims = readOutputSpatialDims();
@@ -732,9 +672,9 @@ void Deconvolution::prepareParams() {
     deconvAttrs.engine = getEngine();
     deconvAttrs.cache = context->getParamsCache();
 
-    deconvAttrs.updatePrimArgs = [this, &srcMemPtr, &dstMemPtr, &biasMemPtr, &wghMemPtr, &pAttrLocal](
+    deconvAttrs.initPrimArgs = [this, &srcMemPtr, &dstMemPtr, &biasMemPtr, &wghMemPtr, &pAttrLocal](
             std::shared_ptr<std::unordered_map<int, dnnl::memory>> primArgsPtr,
-            std::shared_ptr<DnnlExecutor> dnnlExecPtr) {
+            std::shared_ptr<DnnlExecutor> dnnlExecPtr, CacheEntryBase::LookUpStatus lookUpStatus) {
         if (dnnlExecPtr) {
             if (deconvAttrs.key.isInt8) {
                 (*primArgsPtr)[DNNL_ARG_SRC] = srcMemPtr->GetPrimitive();
@@ -751,12 +691,12 @@ void Deconvolution::prepareParams() {
 
             auto scratchpadMem = getScratchPadMem(dnnlExecPtr->getScratchPadDesc());
             (*primArgsPtr)[DNNL_ARG_SCRATCHPAD] = scratchpadMem->GetPrimitive();
-//#ifdef CPU_DEBUG_CAPS
-//            if (result.second == CacheEntryBase::LookUpStatus::Miss) {
-//                auto pd = execPtr->getPrimitiveDesc();
-//                DEBUG_LOG("verbose##", deconvAttrs.layerName, "##", DnnlExtensionUtils::query_pd_info(pd), "\n");
-//            }
-//#endif
+#ifdef CPU_DEBUG_CAPS
+            if (lookUpStatus == CacheEntryBase::LookUpStatus::Miss) {
+                auto pd = dnnlExecPtr->getPrimitiveDesc();
+                DEBUG_LOG("verbose##", deconvAttrs.layerName, "##", DnnlExtensionUtils::query_pd_info(pd), "\n");
+            }
+#endif
         } else {
             IE_THROW() << "Primitive descriptor was not found for node " << deconvAttrs.layerName << ".";
         }
@@ -771,13 +711,9 @@ void Deconvolution::prepareParams() {
         dstMemoryDescs.push_back(getChildEdgesAtPort(i).front()->getMemory().GetDescWithType<DnnlMemoryDesc>());
     }
 
-//    if (!useACL) {
-//        dnnlDeconvExecutor->init(deconvAttrs, srcMemoryDescs, dstMemoryDescs, *attr);
-//    } else {
-        execPtrDeconv = selected_pd->getExecutorFactoryAs<DeconvExecutorFactory>()->makeExecutor(deconvAttrs, srcMemoryDescs,
-                                                                                                 dstMemoryDescs, *attr);
-        selected_pd->setImplementationType(execPtrDeconv->getImplType());
-//    }
+    execPtrDeconv = selected_pd->getExecutorFactoryAs<DeconvExecutorFactory>()->makeExecutor(deconvAttrs, srcMemoryDescs,
+                                                                                             dstMemoryDescs, *attr);
+    selected_pd->setImplementationType(execPtrDeconv->getImplType());
 }
 
 void Deconvolution::initSupportedPrimitiveDescriptors() {
