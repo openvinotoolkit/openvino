@@ -142,7 +142,7 @@ static std::string label_edge(const std::shared_ptr<Node>& /* src */,
     if (getenv_bool("OV_VISUALIZE_TREE_EDGE_LABELS")) {
         size_t output = 0;
         stringstream label_edge;
-        label_edge << "[label=\" " << output << " -> " << arg_index << " \"]";
+        label_edge << "[label=\" " << dst->input_value(arg_index).get_index() << " -> " << arg_index << " \"]";
         ss << label_edge.str();
     } else if (getenv_bool("OV_VISUALIZE_TREE_EDGE_JUMP_DISTANCE")) {
         if (jump_distance > 1) {

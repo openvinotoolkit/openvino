@@ -4,8 +4,8 @@
 
 #include "openvino/core/descriptor/tensor.hpp"
 
-#include "openvino/core/dimension_tracker.hpp"
 #include "ngraph/node.hpp"
+#include "openvino/core/dimension_tracker.hpp"
 #include "openvino/core/except.hpp"
 
 using namespace std;

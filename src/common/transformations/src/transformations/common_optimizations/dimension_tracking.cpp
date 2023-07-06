@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "transformations/transpose_sinking/ts_slice.hpp"
 #include "transformations/common_optimizations/dimension_tracking.hpp"
 
 #include <memory>
@@ -601,6 +602,18 @@ bool output_has_single_target_input_and_its_bea_node_has_only_one_output_on_zero
     return true;
 }
 
+bool are_equal_int_constants(const ov::Output<ov::Node>& lhs, const ov::Output<ov::Node>& rhs) {
+    if (lhs == rhs)
+        return true;
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    auto lhs_constant = ov::get_constant_from_source(lhs);
+    auto rhs_constant = ov::get_constant_from_source(rhs);
+    OPENVINO_SUPPRESS_DEPRECATED_END
+    if (!lhs_constant || !rhs_constant)
+        return false;
+    return lhs_constant->template cast_vector<int64_t>() == rhs_constant->template cast_vector<int64_t>();
+}
+
 ov::pass::DeReshapeMatMul::DeReshapeMatMul() {
     MATCHER_SCOPE(DeReshapeMatMul);
 
@@ -698,37 +711,99 @@ ov::pass::RemoveSliceBeforeGatherElements::RemoveSliceBeforeGatherElements() {
     register_matcher(m, matcher_pass_callback);
 }
 
-ov::pass::ChainedReshapeOptimization::ChainedReshapeOptimization() {
-    MATCHER_SCOPE(ChainedReshapeOptimization);
+bool check_constant_is_non_negative_get_int_value(const ov::Output<ov::Node>& output, std::vector<int64_t>& data) {
+    const auto& node = output.get_node_shared_ptr();
+    const auto& constant = ov::as_type_ptr<ov::opset1::Constant>(node);
+    if (!constant)
+        return false;
+    data = constant->cast_vector<int64_t>();
+    return std::all_of(data.begin(), data.end(), [](const int64_t& i){ return i >= 0; });
+}
 
-    auto first_reshape =
-        pattern::wrap_type<opset1::Reshape, opset1::Squeeze, opset1::Unsqueeze>(pattern::has_static_rank());
-    auto second_reshape =
-        pattern::wrap_type<opset1::Reshape, opset1::Squeeze, opset1::Unsqueeze>({first_reshape, pattern::any_input()},
-                                                                                pattern::has_static_rank());
+ov::pass::ChainedVariadicSplitOptimization::ChainedVariadicSplitOptimization() {
+    MATCHER_SCOPE(ChainedVariadicSplitOptimization);
+
+    auto first_vsplit = pattern::any_input();
+    auto axis = pattern::wrap_type<opset1::Constant>();
+    auto length = pattern::wrap_type<opset1::Constant>();
+    auto second_vsplit = pattern::wrap_type<opset1::VariadicSplit>({first_vsplit, axis, length});
 
     ov::matcher_pass_callback matcher_pass_callback = [=](pattern::Matcher& m) {
         const auto& pattern_to_node = m.get_pattern_map();
-        auto first = pattern_to_node.at(first_reshape);
-        auto second = pattern_to_node.at(first_reshape);
+        auto first = pattern_to_node.at(first_vsplit);
+        if (!ov::as_type_ptr<opset1::VariadicSplit>(first))
+            return false;
+        auto second = pattern_to_node.at(second_vsplit);
+        if (!are_equal_int_constants(first->input_value(1), second->input_value(1)))
+            return false;
+        std::vector<int64_t> split_length_1, split_length_2;
+        if (!check_constant_is_non_negative_get_int_value(first->input_value(2), split_length_1))
+            return false;
+        if (!check_constant_is_non_negative_get_int_value(second->input_value(2), split_length_2))
+            return false;
+
+        auto output_index = second->input_value(0).get_index();
+        if (first->output(output_index).get_target_inputs().size() != 1)
+            return false;
+        std::cout << "Output index: " << output_index << std::endl;
+        std::cout << "First : " << first << std::endl;
+        std::cout << PartialShape{split_length_1} << std::endl;
+        std::cout << "Second: " << second << std::endl;
+        std::cout << PartialShape{split_length_2} << std::endl;
+
+        int64_t summ_first = 0;
+        for (const auto& i : split_length_1)
+            summ_first += i;
+        std::cout << "Summ of dim before: " << summ_first << std::endl;
+
+        // first split info collection
+        split_length_1.erase(split_length_1.begin() + output_index);
+        split_length_1.insert(split_length_1.begin() + output_index, split_length_2.begin(), split_length_2.end());
+        summ_first = 0;
+        for (const auto& i : split_length_1)
+            summ_first += i;
+        std::cout << "Summ of dim after: " << summ_first << std::endl;
+
+        std::cout << "Resulting length: " << PartialShape{split_length_1} << std::endl;
+        auto outputs_1 = first->outputs();
+        auto outputs_2 = second->outputs();
+        outputs_1.erase(outputs_1.begin() + output_index);
+        outputs_1.insert(outputs_1.begin() + output_index, outputs_2.begin(), outputs_2.end());
+
+        auto new_split_length = std::make_shared<opset1::Constant>(element::i64, Shape{split_length_1.size()}, split_length_1);
+        first->input(2).replace_source_output(new_split_length->output(0));
+        first->validate_and_infer_types();
+        for (size_t i = 0; i < outputs_1.size(); ++i)
+            for (auto& input : outputs_1[i].get_target_inputs())
+                input.replace_source_output(first->output(i));
+        std::cout << "Resulting VSplit" << std::endl;
+        std::cout << first << std::endl;
         return true;
     };
 
-    auto m = std::make_shared<pattern::Matcher>(second_reshape, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(second_vsplit, matcher_name);
     register_matcher(m, matcher_pass_callback);
 }
 
-bool tiles_perform_same(const std::shared_ptr<ov::opset1::Tile>& lhs, const std::shared_ptr<ov::opset1::Tile>& rhs) {
-    // 0 input value is already checked -- it is the same, we only need to check input with idx 1
-    if (lhs->input_value(1) == rhs->input_value(1))
-        return true;
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    auto lhs_constant = ov::get_constant_from_source(lhs->input_value(1));
-    auto rhs_constant = ov::get_constant_from_source(rhs->input_value(1));
-    OPENVINO_SUPPRESS_DEPRECATED_END
-    if (!lhs_constant || !rhs_constant)
+
+template <class T>
+bool all_secondary_inputs_from_same_source_or_equal_int_constants(const std::shared_ptr<T>& lhs, const std::shared_ptr<T>& rhs) {
+    if (lhs->get_input_size() != rhs->get_input_size())
         return false;
-    return lhs_constant->cast_vector<int64_t>() == rhs_constant->cast_vector<int64_t>();
+    size_t input_size = lhs->get_input_size();
+    for (size_t i = 1; i < input_size; ++i) {
+        if (lhs->input_value(i) == rhs->input_value(i))
+            continue;
+        OPENVINO_SUPPRESS_DEPRECATED_START
+        auto lhs_constant = ov::get_constant_from_source(lhs->input_value(i));
+        auto rhs_constant = ov::get_constant_from_source(rhs->input_value(i));
+        OPENVINO_SUPPRESS_DEPRECATED_END
+        if (!lhs_constant || !rhs_constant)
+            return false;
+        if (lhs_constant->template cast_vector<int64_t>() != rhs_constant->template cast_vector<int64_t>())
+            return false;
+    }
+    return true;
 }
 
 bool gather_elements_perform_same(const std::shared_ptr<ov::opset6::GatherElements>& lhs,
@@ -736,6 +811,7 @@ bool gather_elements_perform_same(const std::shared_ptr<ov::opset6::GatherElemen
     // 0 input value is already checked -- it is the same, we only need to check input with idx 1 and axis value
     return lhs->get_axis() == rhs->get_axis() && lhs->input_value(1) == rhs->input_value(1);
 }
+
 
 template <class T>
 bool shared_node_optimization_helper(const std::shared_ptr<ov::Model>& model,
@@ -770,12 +846,153 @@ bool shared_node_optimization_helper(const std::shared_ptr<ov::Model>& model,
 
 bool ov::pass::SharedTileOptimization::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_FUNCTION_SCOPE(SharedTileOptimization);
-    return shared_node_optimization_helper<ov::opset1::Tile>(model, tiles_perform_same);
+    return shared_node_optimization_helper<ov::opset1::Tile>(
+            model, all_secondary_inputs_from_same_source_or_equal_int_constants);
 }
 
 bool ov::pass::SharedGatherElementsOptimization::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_FUNCTION_SCOPE(SharedGatherElementsOptimization);
     return shared_node_optimization_helper<ov::opset6::GatherElements>(model, gather_elements_perform_same);
+}
+
+bool ov::pass::SharedTransposeOptimization::run_on_model(const std::shared_ptr<ov::Model>& model) {
+    RUN_ON_FUNCTION_SCOPE(SharedTransposeOptimization);
+    return shared_node_optimization_helper<ov::opset1::Transpose>(
+            model, all_secondary_inputs_from_same_source_or_equal_int_constants);
+}
+
+bool ov::pass::SharedSliceOptimization::run_on_model(const std::shared_ptr<ov::Model>& model) {
+    RUN_ON_FUNCTION_SCOPE(SharedSliceOptimization);
+    return shared_node_optimization_helper<ov::opset8::Slice>(
+            model, all_secondary_inputs_from_same_source_or_equal_int_constants);
+}
+
+struct SliceAttrs {
+    int64_t start, stop, axis;
+};
+
+bool slice_is_suitable_for_optimization(const std::shared_ptr<ov::opset8::Slice>& op, SliceAttrs& attrs) {
+    if (op->get_input_size() != 5 || op->get_input_partial_shape(0).rank().is_dynamic())
+        return false;
+
+    const auto& data_rank = op->get_input_partial_shape(0).rank().get_length();
+    for (size_t i = 1; i < 5; ++i) {
+        auto input_as_constant = ov::as_type_ptr<ov::opset1::Constant>(op->get_input_node_shared_ptr(i));
+        if (!input_as_constant)
+            return false;
+        if (shape_size(input_as_constant->get_shape()) != 1)
+            return false;
+
+        int64_t value = input_as_constant->cast_vector<int64_t>()[0];
+
+        if ((i == 1 || i == 2) && value < 0)
+            return false;
+        if (i == 1)
+            attrs.start = value;
+        if (i == 2)
+            attrs.stop = value;
+        if (i == 3 && input_as_constant->cast_vector<int64_t>()[0] != 1)
+            return false; // step should be equal 1 for this optimization
+        if (i == 4)
+            attrs.axis = value >= 0 ? value : value + data_rank;
+    }
+    if (op->get_input_partial_shape(0)[attrs.axis].is_dynamic())
+        return false;
+    return true;
+}
+
+bool ov::pass::GroupedSliceToVSplitOptimization::run_on_model(const std::shared_ptr<ov::Model>& model) {
+    RUN_ON_FUNCTION_SCOPE(GroupedSliceToVSplitOptimization);
+    bool graph_rewritten = false;
+
+    struct SliceWithAttrs {
+        std::shared_ptr<opset8::Slice> slice;
+        SliceAttrs attrs;
+    };
+
+    using OutputWithAxis = std::pair<ov::Output<ov::Node>, int64_t>;
+
+    std::map<OutputWithAxis, std::vector<SliceWithAttrs>> source_to_typed_op;
+    std::vector<OutputWithAxis> ordered_outputs;
+    for (const auto& node : model->get_ordered_ops()) {
+        // Recursively apply transformation for sub-graph based operations
+        if (auto sub_graph_node = std::dynamic_pointer_cast<ov::op::util::SubGraphOp>(node)) {
+            if (auto sub_graph = sub_graph_node->get_function()) {
+                graph_rewritten |= run_on_model(sub_graph);
+            }
+        }
+        if (auto op = ov::as_type_ptr<opset8::Slice>(node)) {
+            SliceAttrs attributes{};
+            if (slice_is_suitable_for_optimization(op, attributes)) {
+                OutputWithAxis current_output = {op->input_value(0), attributes.axis};
+                source_to_typed_op[current_output].push_back({op, attributes});
+                if (std::find(ordered_outputs.begin(), ordered_outputs.end(), current_output) == ordered_outputs.end())
+                    ordered_outputs.push_back(current_output);
+            }
+        }
+    }
+    std::reverse(ordered_outputs.begin(), ordered_outputs.end());
+    for (const auto& output_with_axis : ordered_outputs) {
+        const auto& axis = output_with_axis.second;
+        const auto& output = output_with_axis.first;
+        auto attributes = source_to_typed_op[output_with_axis];
+
+        std::sort(attributes.begin(), attributes.end(), [](const SliceWithAttrs& lhs, const SliceWithAttrs& rhs) {
+            return lhs.attrs.start < rhs.attrs.start;
+        });
+        int64_t prev_stop = 0;
+        bool valid_for_replacement = true;
+        for (auto& slice_with_attrs : attributes) {
+            // they shouldn't overlap and no holes while slicing
+            if (prev_stop != slice_with_attrs.attrs.start)
+                valid_for_replacement = false;
+            prev_stop = slice_with_attrs.attrs.stop;
+        }
+        if (!valid_for_replacement)
+            continue;
+
+        std::vector<int64_t> split_lengths;
+        // we made sure that dimension is static before
+        const int64_t& dimension = output.get_partial_shape()[axis].get_length();
+        int64_t dimension_length_left = dimension;
+        for (auto& slice_with_attrs : attributes) {
+            int64_t sliced = slice_with_attrs.attrs.stop - slice_with_attrs.attrs.start;
+            if (sliced > dimension_length_left)
+                split_lengths.push_back(-1);
+            else
+                split_lengths.push_back(sliced);
+            dimension_length_left -= sliced;
+        }
+        if (std::count(split_lengths.begin(), split_lengths.end(), -1) > 1)
+            continue;
+
+        int64_t current_sum = 0;
+        for (const auto& i : split_lengths)
+            if (i != -1)
+                current_sum += i;
+        for (auto& i : split_lengths)
+            if (i == -1) {
+                i = dimension - current_sum;
+                current_sum = dimension;
+            }
+        if (current_sum != dimension)
+            continue; // there are some l
+        auto split_lengths_const =
+                opset1::Constant::create(ngraph::element::i64, ngraph::Shape{split_lengths.size()}, split_lengths);
+        auto axis_const = opset1::Constant::create(ngraph::element::i64, ngraph::Shape{}, {axis});
+        auto variadic_split = std::make_shared<opset1::VariadicSplit>(output, axis_const, split_lengths_const);
+
+        auto i = 0;
+        NodeVector ops_to_replace;
+        for (auto& slice_with_attrs : attributes) {
+            slice_with_attrs.slice->output(0).replace(variadic_split->output(i));
+            ops_to_replace.push_back(slice_with_attrs.slice);
+            ++i;
+        }
+        copy_runtime_info(ops_to_replace, variadic_split);
+        graph_rewritten = true;
+    }
+    return graph_rewritten;
 }
 
 bool ov::pass::SymbolicOptimizations::run_on_model(const std::shared_ptr<ov::Model>& m) {
@@ -784,12 +1001,19 @@ bool ov::pass::SymbolicOptimizations::run_on_model(const std::shared_ptr<ov::Mod
     pre_symbolic_manager.set_per_pass_validation(false);
     REGISTER_PASS(pre_symbolic_manager, BroadcastOnes)
     REGISTER_PASS(pre_symbolic_manager, SharedTileOptimization)
+    auto pre_optimizations_0 = pre_symbolic_manager.register_pass<ov::pass::GraphRewrite>();
+    ADD_MATCHER(pre_optimizations_0, transpose_sinking::TSSliceBackward)
+    REGISTER_PASS(pre_symbolic_manager, SharedTransposeOptimization)
+    REGISTER_PASS(pre_symbolic_manager, SharedSliceOptimization)
+    REGISTER_PASS(pre_symbolic_manager, VisualizeTree, "before_grouped_model.svg")
+    REGISTER_PASS(pre_symbolic_manager, GroupedSliceToVSplitOptimization)
     pre_symbolic_manager.run_passes(m);
 
     ov::pass::Manager manager(get_pass_config());
     manager.set_per_pass_validation(false);
     REGISTER_PASS(manager, SymbolicPOC)
-    auto optimizations_0 = manager.register_pass<ov::pass::GraphRewrite>();
+    auto optimizations_0 = manager.register_pass<ov::pass::GraphRewrite>() ;
+//    ADD_MATCHER(optimizations_0, ChainedVariadicSplitOptimization)
     ADD_MATCHER(optimizations_0, ChainedMaximumOptimization)
     ADD_MATCHER(optimizations_0, NopBroadcast)
     REGISTER_PASS(manager, BroadcastOnes)
