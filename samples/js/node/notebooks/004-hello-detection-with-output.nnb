@@ -82,7 +82,7 @@
         {
             "language": "typescript",
             "source": [
-                "const tensorData = new Float32Array(inputImage);\nconst tensor = new ov.Tensor(ov.element.f32, Int32Array.from(shape), tensorData);\n\nconst inferRequest = compiledModel.create_infer_request();\ninferRequest.set_input_tensor(tensor);\ninferRequest.infer();\n\nconst output = inferRequest.getTensor(outputLayer);\n\nconsole.log(output.data);"
+                "const tensorData = new Float32Array();\nconst tensor = new ov.Tensor(ov.element.f32, Int32Array.from(inputLayer.shape), tensorData);\n\nconst inferRequest = compiledModel.create_infer_request();\ninferRequest.set_input_tensor(tensor);\ninferRequest.infer();\n\nconst output = inferRequest.getTensor(outputLayer);\n\nconsole.log(output.data);"
             ],
             "outputs": [
                 {
