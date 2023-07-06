@@ -139,8 +139,13 @@ public:
 
     ov::optional<std::vector<StaticShapeCon>> infer(const std::vector<StaticShapeRef>& input_shapes,
             const ov::ITensorAccessor& tensor_accessor) override {
-            OPENVINO_NOT_IMPLEMENTED;
+            OPENVINO_THROW("Not implemented by base class");
     };
+
+    IShapeInferCommon::Result
+    infer(const std::vector<StaticShape>& input_shapes, const ov::ITensorAccessor& tensor_accessor) override {
+            OPENVINO_THROW("Not implemented by base class");
+    }
 
 protected:
     std::vector<int64_t> input_ranks;
@@ -159,6 +164,10 @@ public:
         shape_infer(static_cast<OP*>(node.get()), input_shapes, output_shapes);
         return {std::move(output_shapes), ShapeInferStatus::success};
     }
+    ov::optional<std::vector<StaticShapeCon>> infer(const std::vector<StaticShapeRef>& input_shapes,
+            const ov::ITensorAccessor& tensor_accessor) override {
+        OPENVINO_NOT_IMPLEMENTED;
+    };
 };
 
 template <typename OP>
@@ -173,6 +182,11 @@ public:
         shape_infer(op, input_shapes, output_shapes, constant_data);
         return {std::move(output_shapes), ShapeInferStatus::success};
     }
+
+    ov::optional<std::vector<StaticShapeCon>> infer(const std::vector<StaticShapeRef>& input_shapes,
+            const ov::ITensorAccessor& tensor_accessor) override {
+        OPENVINO_NOT_IMPLEMENTED;
+    };
 
     bool has_implemented_accessor(void) override {
         return false;
@@ -195,6 +209,11 @@ public:
         copy_shape_infer(op, input_shapes, output_shapes);
         return {std::move(output_shapes), ShapeInferStatus::success};
     }
+
+    ov::optional<std::vector<StaticShapeCon>> infer(const std::vector<StaticShapeRef>& input_shapes,
+            const ov::ITensorAccessor& tensor_accessor) override {
+        OPENVINO_NOT_IMPLEMENTED;
+    };
 };
 
 class entryFirstPassthrough : public entryBase {
@@ -208,6 +227,11 @@ public:
         first_input_passthrough_infer(op, input_shapes, output_shapes);
         return {std::move(output_shapes), ShapeInferStatus::success};
     }
+
+    ov::optional<std::vector<StaticShapeCon>> infer(const std::vector<StaticShapeRef>& input_shapes,
+            const ov::ITensorAccessor& tensor_accessor) override {
+        OPENVINO_NOT_IMPLEMENTED;
+    };
 };
 
 class entryEltwise : public entryBase {
@@ -221,6 +245,11 @@ public:
         eltwise_shape_infer(op, input_shapes, output_shapes);
         return {std::move(output_shapes), ShapeInferStatus::success};
     }
+
+    ov::optional<std::vector<StaticShapeCon>> infer(const std::vector<StaticShapeRef>& input_shapes,
+            const ov::ITensorAccessor& tensor_accessor) override {
+        OPENVINO_NOT_IMPLEMENTED;
+    };
 };
 
 class entryFallback : public entryBase {
@@ -301,6 +330,11 @@ public:
         // TODO 101252
         OPENVINO_THROW("entryFallback has not implemented ITensorAccessor interface");
     }
+
+    ov::optional<std::vector<StaticShapeCon>> infer(const std::vector<StaticShapeRef>& input_shapes,
+            const ov::ITensorAccessor& tensor_accessor) override {
+        OPENVINO_NOT_IMPLEMENTED;
+    };
 };
 
 template <class TOp>
@@ -319,11 +353,16 @@ public:
         return false;
     }
 
-    // denpend on constant_data, need ngraph op to implement shape_infer(op, input_shapes, m_pads_begin, m_pads_end, constant_data);
+    // denpend on constant_data, need ngraph op to implement shape_infer(op, input_shapes, m_pads_begin, m_pads_end, tensor_accessor);
     IShapeInferCommon::Result
     infer(const std::vector<StaticShape>& input_shapes, const ov::ITensorAccessor& tensor_accessor) override {
         OPENVINO_THROW("ShapeInferWithPadding has not implemented ITensorAccessor interface");
     }
+
+    ov::optional<std::vector<StaticShapeCon>> infer(const std::vector<StaticShapeRef>& input_shapes,
+            const ov::ITensorAccessor& tensor_accessor) override {
+        OPENVINO_NOT_IMPLEMENTED;
+    };
 
     const ov::CoordinateDiff& get_pads_begin() override {
         return m_pads_begin;
