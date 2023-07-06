@@ -3,7 +3,7 @@
 Currently only the following ways are provided to install OpenVINO™ on macOS:
 
 * [Install OpenVINO Runtime using an Archive File](installing-openvino-from-archive-macos.md)
-* [Install OpenVINO Runtime using HomeBrew](installing-openvino-brew.md)
+* [Install OpenVINO Runtime using Homebrew](installing-openvino-brew.md)
 * [Install OpenVINO using PyPI](installing-openvino-pip.md)
 * [Build From Source](https://github.com/openvinotoolkit/openvino/wiki/BuildingCode)
 

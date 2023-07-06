@@ -26,11 +26,11 @@ This guide provides steps on creating a Docker image with Intel® Distribution o
   To launch a Linux image on WSL2 when trying to run inferences on a GPU, make sure that the following requirements are met:
 
   - Only Windows 10 with 21H2 update or above installed and Windows 11 are supported.
-  - Intel GPU driver on Windows host with version 30.0.100.9684 or above need be installed. Please see `this article`_ for more details.
-  - From 2022.1 release, the Docker images contain preinstalled recommended version of OpenCL Runtime with WSL2 support.
+  - Intel GPU driver for Windows, version 30.0.100.9684 or newer needs to be installed. For more details, refer to
+     `this article at intel.com <https://www.intel.com/content/www/us/en/artificial-intelligence/harness-the-power-of-intel-igpu-on-your-machine.html#articleparagraph_983312434>`__.
+  - Currently, the Docker images contain preinstalled recommended version of OpenCL Runtime with WSL2 support.
 
-  .. _this article: https://www.intel.com/content/www/us/en/artificial-intelligence/harness-the-power-of-intel-igpu-on-your-machine.html#articleparagraph_983312434
-
+ 
 @endsphinxdirective
 
 ## Installation Flow
@@ -63,60 +63,20 @@ You can also try our [Tutorials](https://github.com/openvinotoolkit/docker_ci/tr
 
 ## <a name="configure-image-docker-linux"></a>Configuring the Image for Different Devices
 
-If you want to run inferences on a CPU or Intel® Neural Compute Stick 2, no extra configuration is needed. Go to <a href="#run-image-docker-linux">Running the image on different devices</a> for the next step.
+If you want to run inference on a CPU or Intel® Neural Compute Stick 2, no extra configuration is needed. Go to <a href="#run-image-docker-linux">Running the image on different devices</a> for the next step.
 
 ### Configuring Docker Image for GPU
 
-By default, the distributed Docker image for OpenVINO has the recommended version of Intel® Graphics Compute Runtime for oneAPI Level Zero and OpenCL Driver for the operating system installed inside. If you want to build an image with a custom version of OpenCL Runtime included, you need to modify the Dockerfile using the lines below (the 19.41.14441 version is used as an example) and build the image manually:
-
-**Ubuntu 18.04/20.04**:
-
-```sh
-WORKDIR /tmp/opencl
-RUN useradd -ms /bin/bash -G video,users openvino && \
-    chown openvino -R /home/openvino
-
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends ocl-icd-libopencl1 && \
-    rm -rf /var/lib/apt/lists/* && \
-    curl -L "https://github.com/intel/compute-runtime/releases/download/19.41.14441/intel-gmmlib_19.3.2_amd64.deb" --output "intel-gmmlib_19.3.2_amd64.deb" && \
-    curl -L "https://github.com/intel/compute-runtime/releases/download/19.41.14441/intel-igc-core_1.0.2597_amd64.deb" --output "intel-igc-core_1.0.2597_amd64.deb" && \
-    curl -L "https://github.com/intel/compute-runtime/releases/download/19.41.14441/intel-igc-opencl_1.0.2597_amd64.deb" --output "intel-igc-opencl_1.0.2597_amd64.deb" && \
-    curl -L "https://github.com/intel/compute-runtime/releases/download/19.41.14441/intel-opencl_19.41.14441_amd64.deb" --output "intel-opencl_19.41.14441_amd64.deb" && \
-    curl -L "https://github.com/intel/compute-runtime/releases/download/19.41.14441/intel-ocloc_19.41.14441_amd64.deb" --output "intel-ocloc_19.04.12237_amd64.deb" && \
-    dpkg -i /tmp/opencl/*.deb && \
-    ldconfig && \
-    rm /tmp/opencl
-```
-
-**RHEL 8**:
-
-```sh
-WORKDIR /tmp/opencl
-RUN useradd -ms /bin/bash -G video,users openvino && \
-    chown openvino -R /home/openvino
-RUN groupmod -g 44 video
-
-RUN yum update -y && yum install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm && \
-    yum update -y && yum install -y ocl-icd ocl-icd-devel && \
-    yum clean all && rm -rf /var/cache/yum && \
-    curl -L https://sourceforge.net/projects/intel-compute-runtime/files/19.41.14441/centos-7/intel-gmmlib-19.3.2-1.el7.x86_64.rpm/download -o intel-gmmlib-19.3.2-1.el7.x86_64.rpm && \
-    curl -L https://sourceforge.net/projects/intel-compute-runtime/files/19.41.14441/centos-7/intel-gmmlib-devel-19.3.2-1.el7.x86_64.rpm/download -o intel-gmmlib-devel-19.3.2-1.el7.x86_64.rpm && \
-    curl -L https://sourceforge.net/projects/intel-compute-runtime/files/19.41.14441/centos-7/intel-igc-core-1.0.2597-1.el7.x86_64.rpm/download -o intel-igc-core-1.0.2597-1.el7.x86_64.rpm && \
-    curl -L https://sourceforge.net/projects/intel-compute-runtime/files/19.41.14441/centos-7/intel-igc-opencl-1.0.2597-1.el7.x86_64.rpm/download -o intel-igc-opencl-1.0.2597-1.el7.x86_64.rpm && \
-    curl -L https://sourceforge.net/projects/intel-compute-runtime/files/19.41.14441/centos-7/intel-igc-opencl-devel-1.0.2597-1.el7.x86_64.rpm/download -o  intel-igc-opencl-devel-1.0.2597-1.el7.x86_64.rpm && \
-    curl -L https://sourceforge.net/projects/intel-compute-runtime/files/19.41.14441/centos-7/intel-opencl-19.41.14441-1.el7.x86_64.rpm/download -o intel-opencl-19.41.14441-1.el7.x86_64.rpm \
-    rpm -ivh ${TEMP_DIR}/*.rpm && \
-    ldconfig && \
-    rm -rf ${TEMP_DIR} && \
-    yum remove -y epel-release
-```
+@sphinxdirective
+If you want to run inference on a GPU, follow the instructions provided in the guide on 
+:doc:`Configuration for Intel GPU <openvino_docs_install_guides_configurations_for_intel_gpu>`
+@endsphinxdirective
 
 ### <a name="set-up-hddldaemon"></a>Configuring Docker Image for Intel® Vision Accelerator Design with Intel® Movidius™ VPUs
 
 > **NOTE**: When building the Docker image, create a user in the Dockerfile that has the same UID (User Identifier) and GID (Group Identifier) as the user which that runs hddldaemon on the host, and then run the application in the Docker image with this user. This step is necessary to run the container as a non-root user.
 
-To use the Docker container for inference on Intel® Vision Accelerator Design with Intel® Movidius™ VPUs, do the following steps:
+To s:use the Docker container for inference on Intel® Vision Accelerator Design with Intel® Movidius™ VPUs, do the following:
 
 1. Set up the environment on the host machine to be used for running Docker. It is required to execute `hddldaemon`, which is responsible for communication between the HDDL plugin and the board. To learn how to set up the environment (the OpenVINO package or HDDL package must be pre-installed), see [Configuration guide for HDDL device](https://github.com/openvinotoolkit/docker_ci/blob/master/install_guide_vpu_hddl.md) or [Configurations for Intel® Vision Accelerator Design with Intel® Movidius™ VPUs on Linux](configurations-for-ivad-vpu.md).
 2. Run `hddldaemon` on the host in a separate terminal session using the following command:
