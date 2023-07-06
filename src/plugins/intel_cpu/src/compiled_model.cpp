@@ -4,14 +4,13 @@
 #include "ie_metric_helpers.hpp"  // must be included first
 
 #include "compiled_model.h"
-
 #include "async_infer_request.h"
 #include "infer_request.h"
 #include "itt.h"
 #include "low_precision/low_precision.hpp"
 #include "memory_state.h"
-#include "ngraph/type/element_type.hpp"
 #include "nodes/memory.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
 #include "precision_utils.h"
 #include "serialize.h"
@@ -27,7 +26,7 @@
 
 #include "ie_ngraph_utils.hpp"
 #include "ie_system_conf.h"
-#include "ngraph/opsets/opset1.hpp"
+#include "openvino/opsets/opset1.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/util/common_util.hpp"
 #include "threading/ie_cpu_streams_executor.hpp"
@@ -226,10 +225,11 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
         return option->second;
     }
 
-    return GetMetric(name);
+    return get_metric(name);
 }
 
-ov::Any CompiledModel::GetMetricLegacy(const std::string& name, const GraphGuard& graph) const {
+ov::Any CompiledModel::get_metric_legacy(const std::string& name, const GraphGuard& graph) const {
+    OPENVINO_SUPPRESS_DEPRECATED_START
     if (name == METRIC_KEY(NETWORK_NAME)) {
         IE_SET_METRIC_RETURN(NETWORK_NAME, graph.dump()->get_friendly_name());
     } else if (name == METRIC_KEY(SUPPORTED_METRICS)) {
@@ -254,9 +254,10 @@ ov::Any CompiledModel::GetMetricLegacy(const std::string& name, const GraphGuard
     } else {
         OPENVINO_THROW("Unsupported property: ", name);
     }
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
-ov::Any CompiledModel::GetMetric(const std::string& name) const {
+ov::Any CompiledModel::get_metric(const std::string& name) const {
     if (m_graphs.empty())
         OPENVINO_THROW("No graph was found");
     // @todo Can't we just use local copy (_cfg) instead?
@@ -351,7 +352,7 @@ ov::Any CompiledModel::GetMetric(const std::string& name) const {
     }
     /* Internally legacy parameters are used with new API as part of migration procedure.
      * This fallback can be removed as soon as migration completed */
-    return GetMetricLegacy(name, graph);
+    return get_metric_legacy(name, graph);
 }
 
 void CompiledModel::export_model(std::ostream& modelStream) const {

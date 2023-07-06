@@ -16,7 +16,6 @@
 #include <utility>
 #include <vector>
 
-#include "blob_factory.hpp"
 #include "common/primitive_desc.hpp"
 #include "common/primitive_desc_iface.hpp"
 #include "dnnl_extension_utils.h"
@@ -24,16 +23,12 @@
 #include "graph_dumper.h"
 #include "graph_optimizer.h"
 #include "ie_algorithm.hpp"
-#include "ie_plugin_config.hpp"
 #include "infer_request.h"
 #include "itt.h"
 #include "low_precision/low_precision.hpp"
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "memory_solver.hpp"
-#include "ngraph/function.hpp"
-#include "ngraph/node.hpp"
-#include "ngraph/ops.hpp"
 #include "nodes/common/cpu_convert.h"
 #include "nodes/common/cpu_memcpy.h"
 #include "nodes/convert.h"
@@ -41,6 +36,8 @@
 #include "nodes/input.h"
 #include "nodes/reorder.h"
 #include "nodes/subgraph.h"
+#include "openvino/core/node.hpp"
+#include "openvino/op/ops.hpp"
 #include "precision_utils.h"
 #include "transformations/utils/utils.hpp"
 #include "utils/cpu_utils.hpp"
@@ -111,7 +108,7 @@ void Graph::CreateGraph(const std::vector<NodePtr>& graphNodes,
     CPU_DEBUG_CAP_ENABLE(serialize(*this));
 }
 
-template void Graph::CreateGraph(const std::shared_ptr<const ngraph::Function>&, const GraphContext::CPtr);
+template void Graph::CreateGraph(const std::shared_ptr<const ov::Model>&, const GraphContext::CPtr);
 
 void Graph::Replicate(const std::shared_ptr<const ov::Model> &subgraph) {
     this->_name = subgraph->get_friendly_name();
@@ -122,9 +119,10 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &subgraph) {
 
     // nodes which has no consumers (output or just unused). But doesn't marked as graph output.
     // Will be stored as fake output separately.
-    std::deque<ngraph::Output<ngraph::Node>> unusedOutputs;
+    std::deque<ov::Output<ov::Node>> unusedOutputs;
 
-    auto getParentOutputPort = [](const std::shared_ptr<ngraph::Node> childOp, const std::shared_ptr<ngraph::Node> parentOp,
+    auto getParentOutputPort = [](const std::shared_ptr<ov::Node> childOp,
+                                  const std::shared_ptr<ov::Node> parentOp,
                                   const size_t childInputPort) -> int {
         for (size_t parentPort = 0; parentPort < parentOp->get_output_size(); parentPort++) {
             if (childOp->input(childInputPort).get_tensor_ptr() == parentOp->output(parentPort).get_tensor_ptr()) {
@@ -141,14 +139,14 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &subgraph) {
 
         graphNodes.push_back(node);
 
-        if (op->get_type_info() == ngraph::op::v0::Parameter::get_type_info_static()) {
+        if (op->get_type_info() == ov::op::v0::Parameter::get_type_info_static()) {
             inputNodesMap[node->getName()] = node;
             if (node->isDynamicNode()) {
                 graphHasDynamicInput = true;
             }
         }
 
-        if (op->get_type_info() == ngraph::op::v0::Result::get_type_info_static()) {
+        if (op->get_type_info() == ov::op::v0::Result::get_type_info_static()) {
             const std::string inputID = get_port_name(op->output(0), is_legacy_api);
 
             outputNodesMap[inputID] = node;
@@ -166,9 +164,9 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &subgraph) {
         }
 
         if (!one_of(op->get_type_info(),
-                ngraph::op::v0::Result::get_type_info_static(),
-                ngraph::op::v3::Assign::get_type_info_static(),
-                ngraph::op::v6::Assign::get_type_info_static())) {
+                    ov::op::v0::Result::get_type_info_static(),
+                    ov::op::v3::Assign::get_type_info_static(),
+                    ov::op::v6::Assign::get_type_info_static())) {
             for (size_t oi = 0; oi < op->get_output_size(); oi++) {
                 if (op->get_output_target_inputs(oi).empty()) {
                     unusedOutputs.push_back(op->output(oi));
@@ -1636,7 +1634,7 @@ void Graph::EnforceInferencePrecision() {
     }
 }
 
-std::shared_ptr<ngraph::Function> Graph::dump() const {
+std::shared_ptr<ov::Model> Graph::dump() const {
     return dump_graph_as_ie_ngraph_net(*this);
 }
 

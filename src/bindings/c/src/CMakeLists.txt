@@ -6,6 +6,7 @@ set(TARGET_NAME openvino_c)
 
 # Suppress warnings due to catch macro with legacy exception types
 ov_deprecated_no_errors()
+add_definitions(-DIN_OV_COMPONENT)
 
 file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
 file(GLOB_RECURSE HEADERS ${OpenVINO_C_API_SOURCE_DIR}/include/*.h)
