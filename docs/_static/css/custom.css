@@ -100,22 +100,26 @@ ul#navbar-main-elements > li:hover {
     transform: rotate(0deg);
 }
 
-
-/* Footer links */
+/* Footer */
 /* =================================================== */
-footer div.container div.footer-item p a {
-    float: left;
-    margin-right: 30px;
+footer iframe {
+    background-color: white;
+    width: 100%;
+    border: none;
+    height: 60px;
 }
 
-footer div.container div.footer-item p a:nth-child(1) {
-    margin-right: 50px;
+@media screen and (min-width: 860px) {
+    footer iframe {
+        height: 45px;
+    }
 }
 
-footer div.container div.footer-item p:nth-child(2) {
-    clear: both;
+@media screen and (max-width: 520px) {
+    footer iframe {
+        height: 85px;
+    }
 }
-
 
 /* Doc version dropdown formatting override */
 /* =================================================== */
