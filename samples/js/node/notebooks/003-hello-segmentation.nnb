@@ -38,7 +38,7 @@
         {
             "language": "typescript",
             "source": [
-                "const core = new ov.Core();\nconst model = core.read_model(modelXMLPath);\nconst compiledModel = core.compile_model(model, 'CPU');\n\nconst outputLayer = compiledModel.outputs[0];\nconst inputLayer = compiledModel.inputs[0];"
+                "const core = new ov.Core();\nconst model = core.read_model(modelXMLPath);\nconst compiledModel = core.compile_model(model, 'CPU');\n\nconst inputLayer = compiledModel.input(0);\nconst outputLayer = compiledModel.output(0);"
             ],
             "outputs": []
         },

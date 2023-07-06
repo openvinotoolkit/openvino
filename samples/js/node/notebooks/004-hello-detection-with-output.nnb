@@ -45,7 +45,7 @@
         {
             "language": "typescript",
             "source": [
-                "const core = new ov.Core();\nconst model = core.read_model(modelXMLPath);\nconst compiledModel = core.compile_model(model, 'CPU');\n\nconst outputLayer = compiledModel.outputs[0];\nconst inputLayer = compiledModel.inputs[0];"
+                "const core = new ov.Core();\nconst model = core.read_model(modelXMLPath);\nconst compiledModel = core.compile_model(model, 'CPU');\n\nconst inputLayer = compiledModel.input(0);\nconst outputLayer = compiledModel.output('boxes');"
             ],
             "outputs": []
         },
@@ -82,7 +82,7 @@
         {
             "language": "typescript",
             "source": [
-                "const tensorData = new Float32Array(inputImage);\nconst tensor = new ov.Tensor(ov.element.f32, Int32Array.from(inputLayer.shape), tensorData);\n\nconst inferRequest = compiledModel.create_infer_request();\ninferRequest.set_input_tensor(tensor);\ninferRequest.infer();\n\nconst output = inferRequest.getTensor(outputLayer);\nconst boxes = output.data;\n"
+                "const tensorData = new Float32Array(inputImage);\nconst tensor = new ov.Tensor(ov.element.f32, Int32Array.from(inputLayer.shape), tensorData);\n\nconst inferRequest = compiledModel.create_infer_request();\ninferRequest.set_input_tensor(tensor);\ninferRequest.infer();\n\nconst output = inferRequest.getTensor(outputLayer);\nconst { data: boxes } = output;\n"
             ],
             "outputs": []
         },
