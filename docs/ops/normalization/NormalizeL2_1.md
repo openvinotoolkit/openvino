@@ -2,6 +2,9 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about MVN-1 - a normalization operation, which can be 
+                performed on two required input tensors.
 
 **Versioned name**: *NormalizeL2-1*
 

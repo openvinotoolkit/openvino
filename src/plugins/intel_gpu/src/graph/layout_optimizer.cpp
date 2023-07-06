@@ -418,8 +418,8 @@ bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, reorder_node
     // Because mvn and concatenation kernel can work cross-layout, if reorder only performs type conversion,
     // fusing reorder to the previous node can be done even if it is a dynamic shape case
     if ((prev.is_type<mvn>() || prev.is_type<concatenation>()) &&
-        (format::is_simple_data_format(fmt_prev) && format::is_simple_data_format(fmt_next)) &&
-        node.is_type_conversion_only())
+        !prev.is_in_shape_of_subgraph() && node.is_type_conversion_only() &&
+        (format::is_simple_data_format(fmt_prev) && format::is_simple_data_format(fmt_next)))
         return true;
 
     if (prev.is_dynamic() || (!node.get_users().empty() && node.get_users().front()->is_dynamic()))
@@ -1647,12 +1647,12 @@ format layout_optimizer::get_preferred_format(program_node& node) {
                 node.set_preferred_input_fmt(i, fmt);
             } else if (in_lay_rank != out_lay_rank) {
                 auto fmt = get_preferred_format(node.get_dependency(i));
-                // Check if selected format can be adjusted to the required output rank
+                // Check if selected format can be adjusted to the required input rank
                 // If no, use default fotmat instead
                 try {
-                    format::adjust_to_rank(fmt, out_lay_rank);
+                    format::adjust_to_rank(fmt, in_lay_rank);
                 } catch (ov::Exception&) {
-                    fmt = format::get_default_format(out_lay_rank);
+                    fmt = format::get_default_format(in_lay_rank);
                 }
                 node.set_preferred_input_fmt(i, fmt);
             }
