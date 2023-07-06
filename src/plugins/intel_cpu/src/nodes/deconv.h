@@ -86,8 +86,6 @@ private:
     std::string errorPrefix;
 
     InferenceEngine::Blob::Ptr createWeiBlobAsIO(InferenceEngine::SizeVector dims);
-//    std::shared_ptr<DNNLDeconvExecutor> dnnlDeconvExecutor;
-    void customInitSupportedPrimitiveDescriptors();
 };
 
 }   // namespace node
