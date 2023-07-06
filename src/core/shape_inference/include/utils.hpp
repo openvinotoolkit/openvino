@@ -8,6 +8,7 @@
 #include <openvino/opsets/opset1.hpp>
 #include <type_traits>
 
+#include "element_visitor.hpp"
 #include "openvino/core/bound_evaluation_util.hpp"
 #include "shape_infer_type_utils.hpp"
 #include "tensor_data_accessor.hpp"
@@ -50,6 +51,20 @@ void eltwise_shape_infer(const OpType* op, const std::vector<T>& input_shapes, s
 }
 
 namespace ov {
+
+struct TensorTransform : element::NotSupported<void> {
+    using element::NotSupported<void>::visit;
+
+    template <element::Type_t ET, class Iterator, class UnaryOperation>
+    static result_type visit(const void* const ptr, const size_t size, Iterator out_it, UnaryOperation&& func) {
+        using T = fundamental_type_for<ET>;
+        std::transform(static_cast<const T*>(ptr),
+                       static_cast<const T*>(ptr) + size,
+                       out_it,
+                       std::forward<UnaryOperation>(func));
+    }
+};
+
 /**
  * \brief Get the raw data as TResult object.
  *
@@ -71,94 +86,13 @@ TResult get_raw_data_as(const element::Type_t et, const void* const ptr, const s
     TResult out;
     auto out_it = std::inserter(out, out.end());
 
-    switch (et) {
-    case element::Type_t::i4: {
-        using dtype = fundamental_type_for<element::Type_t::i4>;
-        std::transform(static_cast<const dtype*>(ptr),
-                       static_cast<const dtype*>(ptr) + size,
-                       out_it,
-                       std::forward<UnaryOperation>(func));
-    } break;
-    case element::Type_t::i8: {
-        using dtype = fundamental_type_for<element::Type_t::i8>;
-        std::transform(static_cast<const dtype*>(ptr),
-                       static_cast<const dtype*>(ptr) + size,
-                       out_it,
-                       std::forward<UnaryOperation>(func));
-    } break;
-    case element::Type_t::i16: {
-        using dtype = fundamental_type_for<element::Type_t::i16>;
-        std::transform(static_cast<const dtype*>(ptr),
-                       static_cast<const dtype*>(ptr) + size,
-                       out_it,
-                       std::forward<UnaryOperation>(func));
-    } break;
-    case element::Type_t::i32: {
-        using dtype = fundamental_type_for<element::Type_t::i32>;
-        std::transform(static_cast<const dtype*>(ptr),
-                       static_cast<const dtype*>(ptr) + size,
-                       out_it,
-                       std::forward<UnaryOperation>(func));
-    } break;
-    case element::Type_t::i64: {
-        using dtype = fundamental_type_for<element::Type_t::i64>;
-        std::transform(static_cast<const dtype*>(ptr),
-                       static_cast<const dtype*>(ptr) + size,
-                       out_it,
-                       std::forward<UnaryOperation>(func));
-    } break;
-    case element::Type_t::u4: {
-        using dtype = fundamental_type_for<element::Type_t::u4>;
-        std::transform(static_cast<const dtype*>(ptr),
-                       static_cast<const dtype*>(ptr) + size,
-                       out_it,
-                       std::forward<UnaryOperation>(func));
-    } break;
-    case element::Type_t::u8: {
-        using dtype = fundamental_type_for<element::Type_t::u8>;
-        std::transform(static_cast<const dtype*>(ptr),
-                       static_cast<const dtype*>(ptr) + size,
-                       out_it,
-                       std::forward<UnaryOperation>(func));
-    } break;
-    case element::Type_t::u16: {
-        using dtype = fundamental_type_for<element::Type_t::u16>;
-        std::transform(static_cast<const dtype*>(ptr),
-                       static_cast<const dtype*>(ptr) + size,
-                       out_it,
-                       std::forward<UnaryOperation>(func));
-    } break;
-    case element::Type_t::u32: {
-        using dtype = fundamental_type_for<element::Type_t::u32>;
-        std::transform(static_cast<const dtype*>(ptr),
-                       static_cast<const dtype*>(ptr) + size,
-                       out_it,
-                       std::forward<UnaryOperation>(func));
-    } break;
-    case element::Type_t::u64: {
-        using dtype = fundamental_type_for<element::Type_t::u64>;
-        std::transform(static_cast<const dtype*>(ptr),
-                       static_cast<const dtype*>(ptr) + size,
-                       out_it,
-                       std::forward<UnaryOperation>(func));
-    } break;
-    case element::Type_t::f16: {
-        using dtype = fundamental_type_for<element::Type_t::f16>;
-        std::transform(static_cast<const dtype*>(ptr),
-                       static_cast<const dtype*>(ptr) + size,
-                       out_it,
-                       std::forward<UnaryOperation>(func));
-    } break;
-    case element::Type_t::f32: {
-        using dtype = fundamental_type_for<element::Type_t::f32>;
-        std::transform(static_cast<const dtype*>(ptr),
-                       static_cast<const dtype*>(ptr) + size,
-                       out_it,
-                       std::forward<UnaryOperation>(func));
-    } break;
-    default:
-        OPENVINO_ASSERT(false, "Get raw data from tensor is not supported for element type: ", et);
-    };
+    using namespace ov::element;
+    IfTypeOf<i4, i8, i16, i32, i64, u4, u8, u16, u32, u64, f16, f32>::apply<TensorTransform>(
+        et,
+        ptr,
+        size,
+        out_it,
+        std::forward<UnaryOperation>(func));
     return out;
 }
 
