@@ -45,6 +45,38 @@ SyncInferRequest::SyncInferRequest(std::shared_ptr<const CompiledModel> compiled
     }
 
     auto orig_model = m_compiled_model->get_orig_model();
+
+    std::cout << "Original model:" << std::endl;
+    for (const auto& in : orig_model->inputs()) {
+        auto port_name = get_port_name(in, m_is_legacy_api);
+        std::cout << "   input  - name = " << port_name << ", precision = " << in.get_element_type()
+                  << ", shape = " << in.get_partial_shape().to_string() << std::endl;
+    }
+    for (const auto& out : orig_model->outputs()) {
+        auto port_name = get_port_name(out, m_is_legacy_api);
+        std::cout << "   output - name = " << port_name << ", precision = " << out.get_element_type()
+                  << ", shape = " << out.get_partial_shape().to_string() << std::endl;
+    }
+    std::cout << std::endl;
+    std::cout << "Compiled model:"<< std::endl;
+    for (const auto& in : get_inputs()) {
+        auto port_name = get_port_name(in, m_is_legacy_api);
+        std::cout << "   input  - name = " << port_name << ", precision = " << in.get_element_type()
+                  << ", shape = " << in.get_partial_shape().to_string() << std::endl;
+    }
+    for (const auto& out : get_outputs()) {
+        auto port_name = get_port_name(out, m_is_legacy_api);
+        std::cout << "   output - name = " << port_name << ", precision = " << out.get_element_type()
+                  << ", shape = " << out.get_partial_shape().to_string() << std::endl;
+    }
+    std::cout << std::endl;
+    if (m_port_precision_changed.size() > 0) {
+        std::cout << "port_precision_changed:" << std::endl;
+        for (auto it : m_port_precision_changed) {
+            std::cout << "    port_name = " << it.first << ", precision_change = " << it.second << std::endl;
+        }
+    }
+
     for (const auto& in : orig_model->inputs()) {
         auto port_name = get_port_name(in, m_is_legacy_api);
         m_orig_ports_map[port_name] = in;
@@ -376,17 +408,17 @@ void SyncInferRequest::throw_if_canceled() const {
 InferenceEngine::Precision SyncInferRequest::normToInputSupportedPrec(
     const std::pair<const std::string, ov::Tensor>& input) const {
     auto inPrec = InferenceEngine::details::convertPrecision(input.second.get_element_type());
+#if 0
     if (graph->hasMeanImageFor(input.first) &&
         one_of(inPrec, InferenceEngine::Precision::U8, InferenceEngine::Precision::BOOL)) {
         inPrec = InferenceEngine::Precision::FP32;
     } else {
         inPrec = normalizeToSupportedPrecision(inPrec);
     }
-
+#endif
     if (inPrec == InferenceEngine::Precision::UNSPECIFIED) {
         OPENVINO_THROW("Unsupported input precision ", input.second.get_element_type());
     }
-
     return inPrec;
 }
 
