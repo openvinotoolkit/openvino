@@ -51,15 +51,19 @@ std::vector<bool> IdentifyBuffers::create_adjacency_matrix(const LinearIR& linea
         }
     };
 
+    auto is_buffer = [](const ExpressionPort& port) {
+        return ov::is_type<op::Buffer>(port.get_expr()->get_node());
+    };
+
     for (auto expr_it = linear_ir.cbegin(); expr_it != linear_ir.cend(); expr_it++) {
         const auto &expr = *expr_it;
         if (const auto brgemm = ov::as_type_ptr<op::Brgemm>(expr->get_node())) {
             const auto consumers = expr->get_output_port_connector(0)->get_consumers();
-            auto buffer_it = std::find_if(consumers.begin(), consumers.end(), [](const ExpressionPort& p) {
-                return ov::is_type<op::Buffer>(p.get_expr()->get_node());
-            });
+
+            auto buffer_it = std::find_if(consumers.begin(), consumers.end(), is_buffer);
             if (buffer_it == consumers.end())
                 continue;
+            OPENVINO_ASSERT(std::count_if(consumers.begin(), consumers.end(), is_buffer) == 1, "Brgemm mustn't have more than 1 consumer buffer");
 
             std::vector<std::shared_ptr<op::Buffer>> adjacency_buffers;
             adjacency_buffers.push_back(ov::as_type_ptr<op::Buffer>(buffer_it->get_expr()->get_node()));

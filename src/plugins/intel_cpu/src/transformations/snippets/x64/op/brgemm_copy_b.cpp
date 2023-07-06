@@ -16,13 +16,14 @@ intel_cpu::BrgemmCopyB::BrgemmCopyB(const Output<Node>& x, const element::Type s
                                     const size_t offset_in, const size_t offset_out0, const size_t offset_out1,
                                     std::vector<size_t> layout_input, const size_t blk_size_k, const size_t blk_size_n)
     : snippets::op::MemoryAccess({x}, 1, type == Type::WithCompensations ? 2 : 1),
-      m_type(type), m_src_type(src_type), m_K_blk(blk_size_k), m_N_blk(blk_size_n) {
+      m_type(type), m_src_type(src_type) {
     set_output_size(type == Type::WithCompensations ? 2 : 1);
     set_input_port_descriptor({0, offset_in}, 0);
     set_output_port_descriptor({0, offset_out0}, 0);
     if (is_with_compensations()) {
         set_output_port_descriptor({0, offset_out1}, 1);
     }
+    compute_block_size_values(blk_size_k, blk_size_n);
     custom_constructor_validate_and_infer_types(std::move(layout_input));
 }
 
@@ -30,13 +31,14 @@ intel_cpu::BrgemmCopyB::BrgemmCopyB(const Output<Node>& x, const element::Type s
                                     const PortDescriptor& desc_in0, const PortDescriptor& desc_out0, const PortDescriptor& desc_out1,
                                     std::vector<size_t> layout_input, const size_t blk_size_k, const size_t blk_size_n)
     : snippets::op::MemoryAccess({x}, 1, type == Type::WithCompensations ? 2 : 1),
-      m_type(type), m_src_type(src_type), m_K_blk(blk_size_k), m_N_blk(blk_size_n) {
+      m_type(type), m_src_type(src_type) {
     set_output_size(type == Type::WithCompensations ? 2 : 1);
     set_input_port_descriptor(desc_in0, 0);
     set_output_port_descriptor(desc_out0, 0);
     if (is_with_compensations()) {
         set_output_port_descriptor(desc_out1, 1);
     }
+    compute_block_size_values(blk_size_k, blk_size_n);
     custom_constructor_validate_and_infer_types(std::move(layout_input));
 }
 
@@ -86,6 +88,12 @@ void intel_cpu::BrgemmCopyB::validate(const ov::PartialShape& pshape, const ov::
     if (is_with_compensations()) {
         set_output_type(1, ov::element::f32, ov::PartialShape{ov::Dimension(rnd_up(N, m_N_blk))});
     }
+}
+
+void intel_cpu::BrgemmCopyB::compute_block_size_values(const size_t blk_size_k, const size_t blk_size_n) {
+    const auto input_shape = snippets::utils::get_port_planar_shape(input(0)).get_shape();
+    m_K_blk = blk_size_k != 0 ? blk_size_k : *(input_shape.rbegin() + 1);
+    m_N_blk = blk_size_n != 0 ? blk_size_n : *input_shape.rbegin();
 }
 
 std::shared_ptr<Node> intel_cpu::BrgemmCopyB::clone_with_new_inputs(const OutputVector& new_args) const {

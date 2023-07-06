@@ -766,11 +766,13 @@ BrgemmEmitter::BrgemmEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl:
 
     auto brg0Prc = InferenceEngine::details::convertPrecision(brgemm_node->get_input_element_type(0));
     auto brg1Prc = InferenceEngine::details::convertPrecision(brgemm_node->get_input_element_type(1));
-    io_data_size = {brg0Prc.size(), brg1Prc.size(), brgemm_node->get_output_element_type(0).size()};
-    if (brgemm_node->get_input_size() > 2)
-        io_data_size.insert(io_data_size.begin() + 2, brgemm_node->get_input_element_type(2).size());
     m_brg0VnniFactor = 4 / brg0Prc.size();
     bool brgWithAMX = brgemm_node->is_amx();
+
+    io_data_size = {brg0Prc.size(), brg1Prc.size()};
+    if (brgemm_node->get_input_size() == 3)
+        io_data_size.push_back(brgemm_node->get_input_element_type(2).size());
+    io_data_size.push_back(brgemm_node->get_output_element_type(0).size());
 
     m_with_comp = brgemm_node->is_with_compensations();
     m_with_scratch = brgemm_node->is_with_scratchpad();
@@ -856,6 +858,32 @@ std::set<std::vector<element::Type>> BrgemmEmitter::get_supported_precisions(con
     }
 }
 
+void BrgemmEmitter::validate_arguments(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
+    std::set<size_t> unique_ids{in[0], in[1], out[0]};
+    size_t unique_ids_count = 3;
+    auto add_reg_to_unique_ids = [&](const size_t reg_number) {
+        unique_ids.insert(reg_number);
+        unique_ids_count++;
+    };
+
+    if (m_N_blk_loop || m_K_blk_loop) {
+        if (aux_gpr_idxs.size() < static_cast<size_t>(m_N_blk_loop) + static_cast<size_t>(m_K_blk_loop))
+            IE_THROW() << "BRGEMM Emitter requires extra gpr which was not allocated";
+        if (m_N_blk_loop)
+            add_reg_to_unique_ids(aux_gpr_idxs[0]);
+        if (m_K_blk_loop)
+            add_reg_to_unique_ids(aux_gpr_idxs[m_N_blk_loop]);
+    }
+    if (m_with_scratch) {
+        if (in.size() != 3)
+            IE_THROW() << "BRGEMM Emitter expects 3 inputs if there are compensations/wsp";
+        add_reg_to_unique_ids(in[2]);
+    }
+    if (unique_ids.size() != unique_ids_count) {
+        IE_THROW() << "BRGEMM Emitter expects that all input/output registers are unique";
+    }
+}
+
 void BrgemmEmitter::initBrgemm(brgemmCtx& ctx, std::unique_ptr<brgemm_kernel_t>& brgKernel, bool use_amx) {
     brgemm_t brgDesc;
     const bool is_int8 = utils::one_of(ctx.dt_in0, data_type::u8, data_type::s8) && utils::one_of(ctx.dt_in1, data_type::u8, data_type::s8);
@@ -928,47 +956,20 @@ void BrgemmEmitter::emit_N_blocking_loops(size_t k_kernel_id,
 
 void BrgemmEmitter::emit_impl(const std::vector<size_t>& in,
                               const std::vector<size_t>& out) const {
+    validate_arguments(in, out);
     if (host_isa_ == cpu::x64::avx512_core) {
         Xbyak::Reg64 input_0(static_cast<int>(in[0]));
         Xbyak::Reg64 input_1(static_cast<int>(in[1]));
         Xbyak::Reg64 input_2(static_cast<int>(0));  // scratch. Default reg index is 0 if there isn't scratch
         Xbyak::Reg64 output_0(static_cast<int>(out[0]));
-        Xbyak::Reg64 work_amount_N(static_cast<int>(0));
-        Xbyak::Reg64 work_amount_K(static_cast<int>(0));
-
-        std::set<int> unique_ids{input_0.getIdx(), input_1.getIdx(), output_0.getIdx()};
-        size_t unique_ids_count = 3;
-        auto add_reg_to_unique_ids = [&](const Xbyak::Reg64& reg) {
-            unique_ids.insert(reg.getIdx());
-            unique_ids_count++;
-        };
-
-        if (m_N_blk_loop || m_K_blk_loop) {
-            if (aux_gpr_idxs.size() < static_cast<size_t>(m_N_blk_loop) + static_cast<size_t>(m_K_blk_loop))
-                IE_THROW() << "BRGEMM Emitter requires extra gpr which was not allocated";
-            if (m_N_blk_loop) {
-                work_amount_N = Xbyak::Reg64(static_cast<int>(aux_gpr_idxs[0]));
-                add_reg_to_unique_ids(work_amount_N);
-            }
-            if (m_K_blk_loop) {
-                work_amount_K = Xbyak::Reg64(static_cast<int>(aux_gpr_idxs[m_N_blk_loop]));
-                add_reg_to_unique_ids(work_amount_K);
-            }
-        }
-
+        Xbyak::Reg64 work_amount_N(m_N_blk_loop ? static_cast<int>(aux_gpr_idxs[0]) : 0);
+        Xbyak::Reg64 work_amount_K(m_K_blk_loop ? static_cast<int>(aux_gpr_idxs[m_N_blk_loop]) : 0);
         h->add(input_0, m_load_offset_a);
         h->add(input_1, m_load_offset_b);
         h->add(output_0, m_store_offset_c);
         if (m_with_scratch) {
-            if (in.size() != 3) {
-                IE_THROW() << "BRGEMM Emitter expects 3 inputs if there are compensations/wsp";
-            }
             input_2 = Xbyak::Reg64(static_cast<int>(in[2]));
-            add_reg_to_unique_ids(input_2);
             h->add(input_2, m_load_offset_scratch);
-        }
-        if (unique_ids.size() != unique_ids_count) {
-            IE_THROW() << "BRGEMM Emitter expects that all input/output registers are unique";
         }
 
         // fills kernel_idx with the first idx of non-empty K kernel or returns false

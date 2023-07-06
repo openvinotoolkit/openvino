@@ -341,6 +341,7 @@ public:
     size_t aux_gprs_count() const override;
 
 private:
+    void validate_arguments(const std::vector<size_t> &in, const std::vector<size_t> &out) const override;
     void emit_impl(const std::vector<size_t>& in,
                    const std::vector<size_t>& out) const override;
     struct brgemmCtx {

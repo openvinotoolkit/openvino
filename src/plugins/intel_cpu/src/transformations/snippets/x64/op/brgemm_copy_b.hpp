@@ -27,10 +27,10 @@ public:
 
     BrgemmCopyB(const Output<Node>& x, const element::Type src_type, const Type type = Type::OnlyRepacking,
                 const size_t offset_in = 0lu, const size_t offset_out0 = 0lu, const size_t offset_out1 = 0lu,
-                std::vector<size_t> layout_input = {}, const size_t blk_size_k = 1, const size_t blk_size_n = 1);
+                std::vector<size_t> layout_input = {}, const size_t blk_size_k = 0, const size_t blk_size_n = 0);
     BrgemmCopyB(const Output<Node>& x, const element::Type src_type, const Type type = Type::OnlyRepacking,
                 const PortDescriptor& desc_in0 = {}, const PortDescriptor& desc_out0 = {}, const PortDescriptor& desc_out1 = {},
-                std::vector<size_t> layout_input = {}, const size_t blk_size_k = 1, const size_t blk_size_n = 1);
+                std::vector<size_t> layout_input = {}, const size_t blk_size_k = 0, const size_t blk_size_n = 0);
     BrgemmCopyB() = default;
 
     size_t get_offset_in() const { return get_input_offset(0); }
@@ -54,12 +54,13 @@ public:
 private:
     void custom_constructor_validate_and_infer_types(std::vector<size_t> layout_input = {});
     void validate(const ov::PartialShape& pshape, const ov::element::Type& element_type);
+    void compute_block_size_values(const size_t blk_size_k, const size_t blk_size_n);
 
     Type m_type = Type::OnlyRepacking;
     element::Type m_src_type = ov::element::undefined;  // src element type of the corresponding BRGEMM
 
-    size_t m_K_blk;
-    size_t m_N_blk;
+    size_t m_K_blk = 0;
+    size_t m_N_blk = 0;
 };
 
 } // namespace intel_cpu

@@ -32,19 +32,19 @@ public:
     BrgemmCPU(const Output<Node>& A, const Output<Node>& B, const Type type,
               const size_t offset_a = 0, const size_t offset_b = 0, const size_t offset_c = 0,
               std::vector<size_t> layout_a = {}, std::vector<size_t> layout_b = {}, std::vector<size_t> layout_c = {},
-              const size_t blk_size_m = 1, const size_t blk_size_k = 1, const size_t blk_size_n = 1);
+              const size_t blk_size_m = 0, const size_t blk_size_k = 0, const size_t blk_size_n = 0);
     BrgemmCPU(const Output<Node>& A, const Output<Node>& B, const Output<Node>& scratch, const Type type,
               const size_t offset_a = 0, const size_t offset_b = 0, const size_t offset_scratch = 0, const size_t offset_c = 0,
               std::vector<size_t> layout_a = {}, std::vector<size_t> layout_b = {}, std::vector<size_t> layout_c = {},
-              const size_t blk_size_m = 1, const size_t blk_size_k = 1, const size_t blk_size_n = 1);
+              const size_t blk_size_m = 0, const size_t blk_size_k = 0, const size_t blk_size_n = 0);
     BrgemmCPU(const Output<Node>& A, const Output<Node>& B, const Type type,
               const PortDescriptor& desc_a, const PortDescriptor& desc_b, const PortDescriptor& desc_c,
               std::vector<size_t> layout_a = {}, std::vector<size_t> layout_b = {}, std::vector<size_t> layout_c = {},
-              const size_t blk_size_m = 1, const size_t blk_size_k = 1, const size_t blk_size_n = 1);
+              const size_t blk_size_m = 0, const size_t blk_size_k = 0, const size_t blk_size_n = 0);
     BrgemmCPU(const Output<Node>& A, const Output<Node>& B, const Output<Node>& scratch, const Type type,
               const PortDescriptor& desc_a, const PortDescriptor& desc_b, const PortDescriptor& desc_scratch, const PortDescriptor& desc_c,
               std::vector<size_t> layout_a = {}, std::vector<size_t> layout_b = {}, std::vector<size_t> layout_c = {},
-              const size_t blk_size_m = 1, const size_t blk_size_k = 1, const size_t blk_size_n = 1);
+              const size_t blk_size_m = 0, const size_t blk_size_k = 0, const size_t blk_size_n = 0);
     BrgemmCPU() = default;
 
     void validate_and_infer_types() override;
@@ -71,13 +71,14 @@ public:
 
 private:
     void custom_constructor_validate_and_infer_types(std::vector<size_t> layout_a, std::vector<size_t> layout_b, std::vector<size_t> layout_c);
+    void compute_block_size_values(const size_t blk_size_m, const size_t blk_size_k, const size_t blk_size_n);
     void validate_with_scratchpad(const ov::Shape& shape_b) const;
     void validate_inputs() const;
 
     Type m_type = Type::Floating;
-    size_t m_M_blk;
-    size_t m_K_blk;
-    size_t m_N_blk;
+    size_t m_M_blk = 0;
+    size_t m_K_blk = 0;
+    size_t m_N_blk = 0;
 };
 
 } // namespace intel_cpu
