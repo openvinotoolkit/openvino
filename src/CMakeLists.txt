@@ -5,6 +5,25 @@
 add_definitions(-DIN_OV_COMPONENT)
 add_definitions(-DPROJECT_ROOT_DIR="${OpenVINO_SOURCE_DIR}")
 
+cmake_path(NATIVE_PATH OpenVINO_SOURCE_DIR NATIVE_PROJECT_ROOT_DIR)
+string(LENGTH "${NATIVE_PROJECT_ROOT_DIR}/" PROJECT_ROOT_DIR_LENGTH)
+
+add_compile_definitions(
+
+    # Compiler not support to trim __FILE__ to have got relative path, use offset instead
+    $<$<NOT:$<COMPILE_LANG_AND_ID:CXX,AppleClang,Clang,GNU,MSVC>>:PROJECT_ROOT_DIR_LENGTH=${PROJECT_ROOT_DIR_LENGTH}>)
+
+add_compile_options(
+
+    # Enable __FILE__ trimming by compiler for:
+    # AppleClang, Clang, GNU
+    $<$<COMPILE_LANG_AND_ID:C,AppleClang,Clang,GNU>:-ffile-prefix-map=${NATIVE_PROJECT_ROOT_DIR}/=>
+    $<$<COMPILE_LANG_AND_ID:CXX,AppleClang,Clang,GNU>:-ffile-prefix-map=${NATIVE_PROJECT_ROOT_DIR}/=>
+
+    # MSVC
+    $<$<COMPILE_LANG_AND_ID:C,MSVC>:/d1trimfile:${NATIVE_PROJECT_ROOT_DIR}\\>
+    $<$<COMPILE_LANG_AND_ID:CXX,MSVC>:/d1trimfile:${NATIVE_PROJECT_ROOT_DIR}\\>)
+
 include(cmake/install_tbb.cmake)
 
 # CC library should be registered before other cc targets

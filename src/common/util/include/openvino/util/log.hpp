@@ -9,6 +9,7 @@
 #include <sstream>
 #include <vector>
 
+#include "openvino/util/file_util.hpp"
 namespace ov {
 namespace util {
 class ConstString {
@@ -42,9 +43,6 @@ constexpr const char* find_last(ConstString s, char ch) {
 
 constexpr const char* get_file_name(ConstString s) {
     return find_last(s, '/');
-}
-constexpr const char* trim_file_name(ConstString root, ConstString s) {
-    return s.get_ptr(root.size());
 }
 enum class LOG_TYPE {
     _LOG_TYPE_ERROR,
@@ -85,36 +83,32 @@ private:
 
 void default_logger_handler_func(const std::string& s);
 
-#ifndef PROJECT_ROOT_DIR
-#    define PROJECT_ROOT_DIR ""
-#endif
-
-#define OPENVINO_ERR                                                              \
-    ::ov::util::LogHelper(::ov::util::LOG_TYPE::_LOG_TYPE_ERROR,                  \
-                          ::ov::util::trim_file_name(PROJECT_ROOT_DIR, __FILE__), \
-                          __LINE__,                                               \
-                          ::ov::util::default_logger_handler_func)                \
+#define OPENVINO_ERR                                               \
+    ::ov::util::LogHelper(::ov::util::LOG_TYPE::_LOG_TYPE_ERROR,   \
+                          ::ov::util::trim_file_name(__FILE__),    \
+                          __LINE__,                                \
+                          ::ov::util::default_logger_handler_func) \
         .stream()
 
-#define OPENVINO_WARN                                                             \
-    ::ov::util::LogHelper(::ov::util::LOG_TYPE::_LOG_TYPE_WARNING,                \
-                          ::ov::util::trim_file_name(PROJECT_ROOT_DIR, __FILE__), \
-                          __LINE__,                                               \
-                          ::ov::util::default_logger_handler_func)                \
+#define OPENVINO_WARN                                              \
+    ::ov::util::LogHelper(::ov::util::LOG_TYPE::_LOG_TYPE_WARNING, \
+                          ::ov::util::trim_file_name(__FILE__),    \
+                          __LINE__,                                \
+                          ::ov::util::default_logger_handler_func) \
         .stream()
 
-#define OPENVINO_INFO                                                             \
-    ::ov::util::LogHelper(::ov::util::LOG_TYPE::_LOG_TYPE_INFO,                   \
-                          ::ov::util::trim_file_name(PROJECT_ROOT_DIR, __FILE__), \
-                          __LINE__,                                               \
-                          ::ov::util::default_logger_handler_func)                \
+#define OPENVINO_INFO                                              \
+    ::ov::util::LogHelper(::ov::util::LOG_TYPE::_LOG_TYPE_INFO,    \
+                          ::ov::util::trim_file_name(__FILE__),    \
+                          __LINE__,                                \
+                          ::ov::util::default_logger_handler_func) \
         .stream()
 
-#define OPENVINO_DEBUG                                                            \
-    ::ov::util::LogHelper(::ov::util::LOG_TYPE::_LOG_TYPE_DEBUG,                  \
-                          ::ov::util::trim_file_name(PROJECT_ROOT_DIR, __FILE__), \
-                          __LINE__,                                               \
-                          ::ov::util::default_logger_handler_func)                \
+#define OPENVINO_DEBUG                                             \
+    ::ov::util::LogHelper(::ov::util::LOG_TYPE::_LOG_TYPE_DEBUG,   \
+                          ::ov::util::trim_file_name(__FILE__),    \
+                          __LINE__,                                \
+                          ::ov::util::default_logger_handler_func) \
         .stream()
 }  // namespace util
 }  // namespace ov

@@ -338,5 +338,22 @@ std::vector<uint8_t> load_binary(const std::string& path);
  */
 void save_binary(const std::string& path, std::vector<uint8_t> binary);
 
+/**
+ * @brief Trim OpenVINO project file name path by OpenVINO project root directory.
+ *
+ * If PROJECT_ROOT_DIR_LENGTH is defined then return pointer is shifted by length of OpenVINO project root directory
+ * otherwise the origin pointer is returned.
+ *
+ * @param name Pointer to OpenVINO file name path.
+ * @return Pointer to trimmed file name path.
+ */
+constexpr const char* trim_file_name(const char* const name) {
+#ifdef PROJECT_ROOT_DIR_LENGTH
+    return name + PROJECT_ROOT_DIR_LENGTH;
+#else
+    return name;
+#endif
+}
+
 }  // namespace util
 }  // namespace ov

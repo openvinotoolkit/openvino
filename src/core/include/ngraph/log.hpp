@@ -70,7 +70,11 @@ constexpr const char* get_file_name(ConstString s) {
 }
 NGRAPH_API_DEPRECATED
 constexpr const char* trim_file_name(ConstString root, ConstString s) {
+#ifdef PROJECT_ROOT_DIR_LENGTH
     return s.get_ptr(root.size());
+#else
+    return s.get_ptr(0);
+#endif
 }
 enum class LOG_TYPE {
     _LOG_TYPE_ERROR,
