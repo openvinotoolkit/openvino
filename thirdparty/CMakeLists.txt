@@ -2,18 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-<<<<<<< HEAD:thirdparty/CMakeLists.txt
-=======
 if(CMAKE_TOOLCHAIN_FILE MATCHES "vcpkg" OR DEFINED VCPKG_VERBOSE)
     set(OV_VCPKG_BUILD ON)
 elseif(CMAKE_TOOLCHAIN_FILE MATCHES "conan_toolchain" OR DEFINED CONAN_EXPORTED)
     set(OV_CONAN_BUILD)
 endif()
 
-set(_old_CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
-set(_old_CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ${CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE})
-
->>>>>>> 14292b8da5 (Allow to find protobuf via MODULE (#18395)):thirdparty/dependencies.cmake
 # Android toolchain does not provide pkg-config file. So, cmake mistakenly uses
 # build system pkg-config executable, which finds packages on build system. Such
 # libraries cannot be linked into Android binaries.
