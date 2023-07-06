@@ -354,12 +354,7 @@ void Graph::InitGraph() {
 
     InitDescriptors();
 
-    //TODO: move in a separate method
-    {
-        for (auto& node : graphNodes) {
-            resolveInPlaceDirection(node);
-        }
-    }
+    ResolveInplaceDirections();
 
     InitOptimalPrimitiveDescriptors();
 
@@ -460,6 +455,15 @@ void Graph::InitDescriptors() {
         node->selectOptimalPrimitiveDescriptor();
     }
 }
+
+void Graph::ResolveInplaceDirections() {
+     OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, "Graph::ResolveInplaceDirections");
+
+    for (auto& node : graphNodes) {
+        resolveInPlaceDirection(node);
+    }
+}
+
 
 void Graph::InitOptimalPrimitiveDescriptors() {
     OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, "Graph::InitOptimalPrimitiveDescriptors");
