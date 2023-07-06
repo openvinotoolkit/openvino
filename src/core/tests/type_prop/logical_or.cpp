@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "logical_ops.hpp"
 #include "common_test_utils/type_prop.hpp"
+#include "logical_ops.hpp"
 
 using Type = ::testing::Types<LogicalOperatorType<ngraph::op::v1::LogicalOr, ngraph::element::boolean>>;
 

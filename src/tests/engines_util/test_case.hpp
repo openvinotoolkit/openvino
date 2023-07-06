@@ -8,13 +8,13 @@
 
 #include "common_test_utils/all_close.hpp"
 #include "common_test_utils/all_close_f.hpp"
+#include "common_test_utils/test_tools.hpp"
 #include "engine_factory.hpp"
 #include "ngraph/file_util.hpp"
 #include "ngraph/function.hpp"
 #include "ngraph/ngraph.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/util/file_util.hpp"
-#include "common_test_utils/test_tools.hpp"
 
 namespace ngraph {
 namespace test {

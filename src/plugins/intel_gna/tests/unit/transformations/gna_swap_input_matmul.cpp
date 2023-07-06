@@ -150,8 +150,7 @@ static void transposeInputShapes(std::vector<ngraph::Shape>& shapes) {
 }
 
 template <MatmulInputType E>
-class SwapInputMatmul : public ov::test::TestsCommon,
-                        public ::testing::WithParamInterface<SwapInputMatmulParams> {
+class SwapInputMatmul : public ov::test::TestsCommon, public ::testing::WithParamInterface<SwapInputMatmulParams> {
 public:
     void SetUp() override {
         std::vector<ngraph::Shape> shapes;

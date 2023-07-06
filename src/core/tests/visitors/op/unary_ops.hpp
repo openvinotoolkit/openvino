@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include "gtest/gtest.h"
 #include "common_test_utils/visitor.hpp"
+#include "gtest/gtest.h"
 
 template <typename T, ngraph::element::Type_t ELEMENT_TYPE>
 class UnaryOperatorType {

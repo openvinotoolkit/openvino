@@ -10,10 +10,10 @@
 #include <limits>
 #include <sstream>
 
+#include "common_test_utils/float_util.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/env_util.hpp"
 #include "ngraph/ngraph.hpp"
-#include "common_test_utils/float_util.hpp"
 
 using namespace std;
 using namespace ngraph;
