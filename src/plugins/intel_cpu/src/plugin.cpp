@@ -221,6 +221,7 @@ void Engine::apply_performance_hints(ov::AnyMap& config, const std::shared_ptr<o
         return std::pair<std::string, StreamCfg>(std::to_string(streams_info.num_streams), streams_info);
     };
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     auto getPerfHintName = [&]() {
         const bool streamsExplicitlySetForModel = streamsSet(config);
         // checking streams (to avoid overriding what user might explicitly set in the incoming config or previously via
@@ -269,6 +270,7 @@ void Engine::apply_performance_hints(ov::AnyMap& config, const std::shared_ptr<o
             std::to_string(tput_hints.second.threads_per_stream_small);
         config[CONFIG_KEY_INTERNAL(SMALL_CORE_OFFSET)] = std::to_string(tput_hints.second.small_core_offset);
     }
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 void Engine::get_performance_streams(Config& config, const std::shared_ptr<ov::Model>& model) const{
@@ -278,6 +280,7 @@ void Engine::get_performance_streams(Config& config, const std::shared_ptr<ov::M
     std::string hint_name;
     const int latency_streams = get_num_numa_nodes();
     int streams;
+    OPENVINO_SUPPRESS_DEPRECATED_START
     if (config.streamExecutorConfig._streams_changed) {
         streams = config.streamExecutorConfig._streams;
     } else if (perf_hint_name == CONFIG_VALUE(LATENCY)) {
@@ -302,6 +305,7 @@ void Engine::get_performance_streams(Config& config, const std::shared_ptr<ov::M
     hints_props.insert({tput_name, std::to_string(config.streamExecutorConfig._streams)});
     model->set_rt_info(hints_props, "intel_cpu_hints_config");
     config._config[CONFIG_KEY(CPU_THROUGHPUT_STREAMS)] = std::to_string(config.streamExecutorConfig._streams);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 StreamCfg Engine::get_streams_num(InferenceEngine::IStreamsExecutor::ThreadBindingType thread_binding_type,
@@ -588,6 +592,7 @@ ov::Any Engine::get_property(const std::string& name, const ov::AnyMap& options)
 }
 
 ov::Any Engine::get_metric_legacy(const std::string& name, const ov::AnyMap& options) const {
+    OPENVINO_SUPPRESS_DEPRECATED_START
     if (name == METRIC_KEY(SUPPORTED_METRICS)) {
         std::vector<std::string> metrics = {
             METRIC_KEY(AVAILABLE_DEVICES),
@@ -636,6 +641,7 @@ ov::Any Engine::get_metric_legacy(const std::string& name, const ov::AnyMap& opt
     }
 
     IE_CPU_PLUGIN_THROW() << "Unsupported metric key: " << name;
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 ov::Any Engine::get_metric(const std::string& name, const ov::AnyMap& options) const {

@@ -111,7 +111,9 @@ SyncInferRequest::~SyncInferRequest() {
 }
 
 void SyncInferRequest::pushInput(const std::string& inputName, ov::Tensor& tensor, InferenceEngine::Precision inPrec) {
+    OPENVINO_SUPPRESS_DEPRECATED_START
     auto tensor_prec = InferenceEngine::details::convertPrecision(tensor.get_element_type());
+    OPENVINO_SUPPRESS_DEPRECATED_END
     bool needConvert = inPrec != tensor_prec;
 
     if (tensor.data() == nullptr) {
@@ -386,7 +388,6 @@ InferenceEngine::Precision SyncInferRequest::norm_to_input_supported_prec(
     if (inPrec == InferenceEngine::Precision::UNSPECIFIED) {
         OPENVINO_THROW("Unsupported input precision ", input.second.get_element_type());
     }
-
     return inPrec;
 }
 
@@ -445,9 +446,11 @@ InferenceEngine::TensorDesc SyncInferRequest::create_tensor_desc(const ov::Tenso
                            return byte_stride / element_type.size();
                        });
     }
+    OPENVINO_SUPPRESS_DEPRECATED_START
     return ie::TensorDesc{ie::details::convertPrecision(element_type),
                           shape,
                           ie::BlockingDesc{shape, blk_order, 0, dim_offset, blk_strides}};
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 ov::Tensor SyncInferRequest::get_port_tensor(const ov::Output<const ov::Node>& in_port) const {
@@ -604,9 +607,11 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& in_port, con
             // we must define desc for dynamic case
             // otherwise we got incorrect check on shape compatibility inside isCompatible
             // because lower and upper bound will be compared
+            OPENVINO_SUPPRESS_DEPRECATED_START
             actualDesc = actualDesc->cloneWithNewDims(tensor_desc.getLayout() == InferenceEngine::Layout::SCALAR
                                                           ? InferenceEngine::SizeVector{1}
                                                           : tensor_desc.getDims());
+            OPENVINO_SUPPRESS_DEPRECATED_END
         }
         if (actualDesc->isCompatible(MemoryDescUtils::convertToCpuBlockedMemoryDesc(tensor_desc)) &&
             graph->_normalizePreprocMap.find(name) == graph->_normalizePreprocMap.end()) {

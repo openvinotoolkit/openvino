@@ -229,6 +229,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
 }
 
 ov::Any CompiledModel::get_metric_legacy(const std::string& name, const GraphGuard& graph) const {
+    OPENVINO_SUPPRESS_DEPRECATED_START
     if (name == METRIC_KEY(NETWORK_NAME)) {
         IE_SET_METRIC_RETURN(NETWORK_NAME, graph.dump()->get_friendly_name());
     } else if (name == METRIC_KEY(SUPPORTED_METRICS)) {
@@ -253,6 +254,7 @@ ov::Any CompiledModel::get_metric_legacy(const std::string& name, const GraphGua
     } else {
         OPENVINO_THROW("Unsupported property: ", name);
     }
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 ov::Any CompiledModel::get_metric(const std::string& name) const {
