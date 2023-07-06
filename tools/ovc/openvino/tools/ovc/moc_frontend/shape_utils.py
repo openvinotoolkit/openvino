@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
-from openvino.runtime import PartialShape, Dimension
+from openvino.runtime import PartialShape, Dimension # pylint: disable=no-name-in-module,import-error
 from openvino.tools.ovc.error import Error
 from openvino.tools.ovc.cli_parser import get_placeholder_shapes, split_shapes
 
@@ -94,7 +94,7 @@ def parse_input_shapes(argv):
         else:
             try:
                 import torch
-                if isinstance(shapes, torch.Size):
+                if isinstance(shapes, torch.Size): # pylint: disable=no-member
                     return [shapes]
             except ImportError:
                 raise Error("Unknown type of input shape {}.".format(type(shapes)))

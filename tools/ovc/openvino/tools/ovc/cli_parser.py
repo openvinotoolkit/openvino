@@ -16,7 +16,7 @@ import numbers
 import inspect
 
 import numpy as np
-from openvino.runtime import Layout, PartialShape, Dimension, Shape, Type
+from openvino.runtime import Layout, PartialShape, Dimension, Shape, Type # pylint: disable=no-name-in-module,import-error
 
 import openvino
 from openvino.tools.ovc.convert_data_type import destination_type_to_np_data_type
@@ -147,12 +147,14 @@ def single_input_to_input_cut_info(input: [str, tuple, list, PartialShape, Type,
     if isinstance(input, str):
         # Parse params from string
         node_name, shape, value, data_type = parse_input_value(input)
+        # pylint: disable=no-member
         return openvino.runtime.InputCutInfo(node_name,
                                               PartialShape(shape) if shape is not None else None,
                                               data_type,
                                               value)
-    if isinstance(input, openvino.runtime.InputCutInfo):
+    if isinstance(input, openvino.runtime.InputCutInfo): # pylint: disable=no-member
         # Wrap input.shape to PartialShape if possible and wrap to InputCutInfo
+        # pylint: disable=no-member
         return openvino.runtime.InputCutInfo(input.name,
                                               PartialShape(input.shape) if input.shape is not None else None,
                                               input.type,
@@ -183,13 +185,14 @@ def single_input_to_input_cut_info(input: [str, tuple, list, PartialShape, Type,
             else:
                 raise Exception("Incorrect input parameters provided. Expected tuple with input name, "
                                 "input type or input shape. Got unknown object: {}".format(val))
+        # pylint: disable=no-member
         return openvino.runtime.InputCutInfo(name,
                                               PartialShape(shape) if shape is not None else None,
                                               inp_type,
                                               None)
     # Case when only type is set
     if isinstance(input, (type, Type)):
-        return openvino.runtime.InputCutInfo(None, None, input, None)
+        return openvino.runtime.InputCutInfo(None, None, input, None) # pylint: disable=no-member
 
     # We don't expect here single unnamed value. If list of int is set it is considered as shape.
     # Setting of value is expected only using InputCutInfo or string analog.
@@ -213,11 +216,13 @@ def input_to_input_cut_info(input: [str, tuple, list]):
 
             # Parse string with parameters for single input
             node_name, shape, value, data_type = parse_input_value(input_value)
+            # pylint: disable=no-member
             inputs.append(openvino.runtime.InputCutInfo(node_name,
                                                          PartialShape(shape) if shape is not None else None,
                                                          data_type,
                                                          value))
         return inputs
+    # pylint: disable=no-member
     if isinstance(input, openvino.runtime.InputCutInfo):
         # Wrap to list and return
         return [input]
@@ -269,10 +274,12 @@ def input_shape_to_input_cut_info(input_shape: [str, Shape, PartialShape, list, 
                 shape = PartialShape(shape)
                 assert inputs[idx].shape is None, "Shape was set in both \"input\" and in \"input_shape\" parameter." \
                                                   "Please use either \"input\" or \"input_shape\" for shape setting."
+                # pylint: disable=no-member
                 inputs[idx] = openvino.runtime.InputCutInfo(inputs[idx].name, shape, inputs[idx].type, inputs[idx].value)
 
         else:
             for shape in input_shape:
+                # pylint: disable=no-member
                 inputs.append(openvino.runtime.InputCutInfo(None, PartialShape(shape), None, None))
         return
 
@@ -375,7 +382,7 @@ def source_target_layout_to_str(value):
 def layoutmap_to_str(value):
     if isinstance(value, str):
         return value
-    if isinstance(value, openvino.runtime.LayoutMap):
+    if isinstance(value, openvino.runtime.LayoutMap): # pylint: disable=no-member
         assert value.source_layout is not None, "Incorrect layout map. 'source_layout' should be set."
         source_layout = layout_to_str(value.source_layout)
         if value.target_layout is not None:
@@ -400,7 +407,7 @@ def layout_param_to_str(value):
                 raise Exception("Incorrect operation name type. Expected string, got {}".format(type(op_name)))
             values_str.append(op_name + "(" + layoutmap_to_str(layout) + ")")
         return ",".join(values_str)
-    if isinstance(value, openvino.runtime.LayoutMap):
+    if isinstance(value, openvino.runtime.LayoutMap): # pylint: disable=no-member
         return layoutmap_to_str(value)
     if isinstance(value, list) or isinstance(value, tuple):
         values_str = []
@@ -490,7 +497,7 @@ ParamDescription = namedtuple("ParamData",
 
 
 def get_mo_convert_params():
-    mo_convert_docs = openvino.runtime.convert_model.__doc__
+    mo_convert_docs = openvino.runtime.convert_model.__doc__ # pylint: disable=no-member
     mo_convert_params = {}
     group = "Optional parameters:"
     mo_convert_params[group] = {}
@@ -784,7 +791,7 @@ def writable_dir(path: str):
 
 
 def add_args_by_description(args_group, params_description):
-    signature = inspect.signature(openvino.runtime.convert_model)
+    signature = inspect.signature(openvino.runtime.convert_model) # pylint: disable=no-member
     filepath_args = get_params_with_paths_list()
     cli_tool_specific_descriptions = get_convert_model_help_specifics()
     for param_name, param_description in params_description.items():

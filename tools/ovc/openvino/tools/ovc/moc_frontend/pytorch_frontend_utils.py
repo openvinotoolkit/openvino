@@ -2,13 +2,15 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
-import numpy as np
-from openvino.tools.ovc.moc_frontend.shape_utils import get_static_shape
-from openvino.tools.ovc.error import Error
-from openvino.runtime import Tensor, Type, PartialShape # pylint: disable=no-name-in-module,import-error
-from openvino.tools.ovc.types import get_element_type_str
-from openvino.tools.ovc.cli_parser import input_to_input_cut_info, input_shape_to_input_cut_info
 
+import numpy as np
+# pylint: disable=no-name-in-module,import-error
+from openvino.runtime import Tensor, Type, PartialShape
+from openvino.runtime.utils.types import get_element_type_str
+
+from openvino.tools.ovc.cli_parser import input_to_input_cut_info, input_shape_to_input_cut_info
+from openvino.tools.ovc.error import Error
+from openvino.tools.ovc.moc_frontend.shape_utils import get_static_shape
 
 
 def get_pytorch_decoder(model, input_shape, example_inputs, args):
@@ -55,7 +57,7 @@ def get_value_from_list_or_dict(container, name, idx):
 
 def extract_input_info_from_example(args, inputs):
     try:
-        from openvino.frontend.pytorch.decoder import pt_to_ov_type_map
+        from openvino.frontend.pytorch.decoder import pt_to_ov_type_map # pylint: disable=no-name-in-module,import-error
     except Exception as e:
         log.error("PyTorch frontend loading failed")
         raise e
@@ -112,9 +114,9 @@ def extract_input_info_from_example(args, inputs):
         args.input_list = input_names
         args.input = ",".join(input_names)
 
-
+# pylint: disable=no-member
 def to_torch_tensor(tensor):
-    import torch # pylint: import-error
+    import torch # pylint: disable=import-error
     if isinstance(tensor, torch.Tensor):
         return tensor
     if isinstance(tensor, np.ndarray):
@@ -195,7 +197,7 @@ def prepare_torch_inputs(example_inputs, input_shape, input_info=None, allow_non
                 break
             dtype = get_torch_dtype(inp.type)
             static_shape = get_static_shape(shape, dynamic_value=1)
-            input_tensor = torch.zeros(static_shape, dtype=dtype)  # pylint: import-error,no-member
+            input_tensor = torch.zeros(static_shape, dtype=dtype)  # pylint: disable=no-member
             if inp.name is not None:
                 inputs_with_names[inp.name] = input_tensor
             inputs.append(input_tensor)
