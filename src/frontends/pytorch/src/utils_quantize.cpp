@@ -10,20 +10,26 @@ namespace ov {
 namespace frontend {
 namespace pytorch {
 
-std::shared_ptr<QuantizedPtNode> quantize(const NodeContext& context, QuantizedPtNodeType type) {
-    FRONT_END_OP_CONVERSION_CHECK(type != QuantizedPtNodeType::DEQUANTIZE, "Quantize called with DEQUANTIZE type");
-    return std::make_shared<QuantizedPtNode>(type,
-                                             context.get_decoder(),
-                                             context.inputs(),
-                                             context.get_decoder()->num_of_outputs(),
+std::shared_ptr<QuantizedPtNode> quantize_per_tensor(
+    std::shared_ptr<TorchDecoder> decoder,
+    ov::Output<ov::Node> input,
+    ov::Output<ov::Node> scale,
+    ov::Output<ov::Node> zero_point,
+    ov::Output<ov::Node> dtype) {
+    return std::make_shared<QuantizedPtNode>(QuantizedPtNodeType::QUANTIZE_PER_TENSOR,
+                                             decoder,
+                                             OutputVector{input, scale, zero_point, dtype},
+                                             decoder->num_of_outputs(),
                                              false);
 }
 
-std::shared_ptr<QuantizedPtNode> dequantize(const NodeContext& context) {
+std::shared_ptr<QuantizedPtNode> dequantize(
+    std::shared_ptr<TorchDecoder> decoder,
+    ov::Output<ov::Node> input) {
     return std::make_shared<QuantizedPtNode>(QuantizedPtNodeType::DEQUANTIZE,
-                                             context.get_decoder(),
-                                             context.inputs(),
-                                             context.get_decoder()->num_of_outputs(),
+                                             decoder,
+                                             OutputVector{input},
+                                             decoder->num_of_outputs(),
                                              false);
 }
 
