@@ -37,7 +37,7 @@ public:
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {
         const auto& primitive = impl_param.typed_desc<fully_connected>();
 
-        auto get_fc_input_layouts = [primitive](const std::vector<layout>& input_layouts) {
+        auto get_fc_input_layouts = [primitive](const std::vector<layout>& input_layouts, bool allow_new_shape_infer) {
             auto reshape_to_2d = [](const ov::PartialShape& shape, const ov::Dimension& feature, size_t rank) {
                 if (shape.is_static()) {
                     auto static_shape = shape.to_shape();
@@ -56,15 +56,21 @@ public:
             auto input1_pshape = input1_layout.get_partial_shape();
 
             ov::Dimension feature = input0_pshape[std::min(primitive->input_size, static_cast<size_t>(4)) - 1ul];
+            if (allow_new_shape_infer) {
+                feature = input0_pshape[primitive->input_size - 1ul];
+            }
 
             if (primitive->input_size > 3) {
                 input0_layout.set_partial_shape(reshape_to_2d(input0_pshape, feature, primitive->input_size));
+                input0_layout.format = format::bfyx;
             }
             if (input1_pshape.size() != 2) {
                 input1_layout.set_partial_shape(reshape_to_2d(input1_pshape, feature, primitive->weights_rank));
+                input1_layout.format = format::bfyx;
             }
 
             std::vector<layout> layouts{input0_layout, input1_layout};
+
             return layouts;
         };
 
@@ -83,9 +89,10 @@ public:
             return updated_out_layout;
         };
 
+        bool allow_new_shape_infer = impl_param.get_program().get_config().get_property(ov::intel_gpu::allow_new_shape_infer);
         auto updated_impl_param = impl_param;
 
-        const auto input_layouts = get_fc_input_layouts(impl_param.input_layouts);
+        const auto input_layouts = get_fc_input_layouts(impl_param.input_layouts, allow_new_shape_infer);
         updated_impl_param.input_layouts[0] = input_layouts[0];
         updated_impl_param.input_layouts[1] = input_layouts[1];
         updated_impl_param.weights_layout = input_layouts[1];
@@ -137,6 +144,10 @@ attach_fully_connected_impl::attach_fully_connected_impl() {
         std::make_tuple(data_types::f16, format::yxfb),
         std::make_tuple(data_types::f32, format::bfyx),
         std::make_tuple(data_types::f16, format::bfyx),
+        std::make_tuple(data_types::f32, format::bfzyx),
+        std::make_tuple(data_types::f16, format::bfzyx),
+        std::make_tuple(data_types::f32, format::bfwzyx),
+        std::make_tuple(data_types::f16, format::bfwzyx),
         std::make_tuple(data_types::f32, format::byxf),
         std::make_tuple(data_types::f16, format::byxf),
         std::make_tuple(data_types::i8, format::bfyx),
