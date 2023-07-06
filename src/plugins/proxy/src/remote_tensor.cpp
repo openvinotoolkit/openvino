@@ -53,7 +53,7 @@ size_t ov::proxy::RemoteTensor::get_byte_size() const {
 }
 
 const ov::Strides& ov::proxy::RemoteTensor::get_strides() const {
-    return m_tensor.get_strides();
+    return cast_tensor(m_tensor._impl)->get_strides();
 }
 
 const std::shared_ptr<ov::ITensor>& ov::proxy::RemoteTensor::get_hardware_tensor(
