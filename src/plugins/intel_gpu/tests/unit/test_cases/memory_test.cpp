@@ -9,9 +9,11 @@
 #include <intel_gpu/primitives/pooling.hpp>
 #include <intel_gpu/primitives/concatenation.hpp>
 #include <intel_gpu/primitives/data.hpp>
+#include "intel_gpu/primitives/fully_connected.hpp"
 #include <intel_gpu/primitives/reshape.hpp>
 #include <intel_gpu/primitives/crop.hpp>
 #include <intel_gpu/primitives/eltwise.hpp>
+#include <fully_connected_inst.h>
 
 using namespace cldnn;
 using namespace ::tests;
@@ -537,6 +539,60 @@ public:
         ASSERT_EQ(out2_ptr[2], 7.0f);
         ASSERT_EQ(out2_ptr[3], 8.0f);
     }
+
+    void test_dynamic_mem_reuse() {
+        auto& engine = get_test_engine();
+
+        const int32_t input_f = 3, weight_b = 4;
+
+        auto input_dyn_layout = layout{ ov::PartialShape{ ov::Dimension(), input_f }, data_types::f32,format::bfyx };
+        auto input_actual_layout1 = layout{ ov::PartialShape{ 2, input_f }, data_types::f32,format::bfyx};
+        auto input_actual_layout2 = layout{ ov::PartialShape{ 1, input_f }, data_types::f32,format::bfyx};
+        auto input_data1 = engine.allocate_memory(input_actual_layout1);
+        auto input_data2 = engine.allocate_memory(input_actual_layout2);
+        auto fc_weights_data = engine.allocate_memory({ ov::PartialShape{ weight_b, input_f }, data_types::f32,format::bfyx});
+
+        set_values(input_data1, { -0.5f, 2.0f, 0.5f });
+        set_values(input_data2, { 0.5f, -2.0f, -0.5f,
+                                -0.5f, 2.0f, 0.5f });
+        set_values(fc_weights_data, { 1.5f, 1.0f, 0.5f,
+                                -1.0f, 0.0f, 0.5f,
+                                0.5f, -0.5f, -2.0f,
+                                -0.5f, 1.0f, 1.5f });
+
+        cldnn::topology topology{
+            input_layout("input", input_dyn_layout),
+            activation("relu1", input_info("input"), activation_func::relu),
+            eltwise("elt1", { input_info("input"), input_info("relu1") }, eltwise_mode::prod),
+            activation("relu2", input_info("elt1"), activation_func::sqrt),
+            eltwise("elt2", { input_info("elt1"), input_info("relu2") }, eltwise_mode::prod),
+            data("fc_weights", fc_weights_data),
+            fully_connected("fc", input_info("elt2"), "fc_weights")
+        };
+
+        ExecutionConfig config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::optimize_data(true));
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        network network(engine, topology, config);
+
+        {
+            network.set_input_data("input", input_data1);
+
+            auto outputs = network.execute();
+
+            ASSERT_EQ(std::static_pointer_cast<fully_connected_inst>(network.get_primitive("relu1"))->output_memory_ptr()->buffer_ptr(), 
+                      std::static_pointer_cast<fully_connected_inst>(network.get_primitive("relu2"))->output_memory_ptr()->buffer_ptr());
+        }
+
+        {
+            network.set_input_data("input", input_data2);
+
+            auto outputs = network.execute();
+
+            ASSERT_EQ(std::static_pointer_cast<fully_connected_inst>(network.get_primitive("relu1"))->output_memory_ptr()->buffer_ptr(), 
+                      std::static_pointer_cast<fully_connected_inst>(network.get_primitive("relu2"))->output_memory_ptr()->buffer_ptr());
+        }
+    }
 };
 
 TEST_F(memory_pool, basic_non_padded_relu_pipe) {
@@ -577,6 +633,10 @@ TEST_F(memory_pool, non_opt_intermidate_opt_after) {
 
 TEST_F(memory_pool, add_mem_dep_test) {
     this->test_add_mem_dep(false);
+}
+
+TEST_F(memory_pool, dynamic_mem_reuse) {
+    this->test_dynamic_mem_reuse();
 }
 
 #ifdef RUN_ALL_MODEL_CACHING_TESTS
