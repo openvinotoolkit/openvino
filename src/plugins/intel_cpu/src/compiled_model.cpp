@@ -4,14 +4,13 @@
 #include "ie_metric_helpers.hpp"  // must be included first
 
 #include "compiled_model.h"
-
 #include "async_infer_request.h"
 #include "infer_request.h"
 #include "itt.h"
 #include "low_precision/low_precision.hpp"
 #include "memory_state.h"
-#include "ngraph/type/element_type.hpp"
 #include "nodes/memory.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
 #include "precision_utils.h"
 #include "serialize.h"
@@ -27,7 +26,7 @@
 
 #include "ie_ngraph_utils.hpp"
 #include "ie_system_conf.h"
-#include "ngraph/opsets/opset1.hpp"
+#include "openvino/opsets/opset1.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/util/common_util.hpp"
 #include "threading/ie_cpu_streams_executor.hpp"

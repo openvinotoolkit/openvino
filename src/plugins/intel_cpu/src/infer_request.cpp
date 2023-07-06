@@ -9,7 +9,6 @@
 #include <vector>
 
 #include "async_infer_request.h"
-#include "blob_factory.hpp"
 #include "compiled_model.h"
 #include "debug.h"
 #include "dnnl_extension_utils.h"
@@ -590,11 +589,11 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& in_port, con
                            ") are incompatible");
         }
 
-        if (!isDynamic && ngraph::shape_size(shape.to_shape()) != tensor.get_size()) {
+        if (!isDynamic && ov::shape_size(shape.to_shape()) != tensor.get_size()) {
             OPENVINO_THROW("Can't set input tensor with name: ",
                            name,
                            ", because model input size = ",
-                           ngraph::shape_size(shape.to_shape()),
+                           ov::shape_size(shape.to_shape()),
                            " and tensor size = ",
                            tensor.get_size(),
                            " are different.");
@@ -635,11 +634,11 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& in_port, con
                            ") are incompatible");
         }
 
-        if (!isDynamic && ngraph::shape_size(shape.to_shape()) != tensor.get_size()) {
+        if (!isDynamic && ov::shape_size(shape.to_shape()) != tensor.get_size()) {
             OPENVINO_THROW("Can't set output tensor with name: ",
                            name,
                            ", because model output size = ",
-                           ngraph::shape_size(shape.to_shape()),
+                           ov::shape_size(shape.to_shape()),
                            " and blob size = ",
                            tensor.get_size(),
                            " are different.");

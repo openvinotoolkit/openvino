@@ -182,7 +182,7 @@ public:
      */
     bool InsertNode(NodePtr parent, NodePtr child, NodePtr node, int parentPort, int childPort, bool initNode = false);
 
-    std::shared_ptr<ngraph::Function> dump() const;
+    std::shared_ptr<ov::Model> dump() const;
 
     void ResetInferCount() { infer_count = 0; }
 
@@ -238,7 +238,7 @@ protected:
     void InferDynamic(SyncInferRequest* request);
 
     friend class intel_cpu::SyncInferRequest;
-    friend std::shared_ptr<ngraph::Function> dump_graph_as_ie_ngraph_net(const Graph &graph);
+    friend std::shared_ptr<ov::Model> dump_graph_as_ie_ngraph_net(const Graph &graph);
 
 private:
     // TODO: change std::map to std::unordered_map

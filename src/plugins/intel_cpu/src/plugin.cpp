@@ -739,7 +739,7 @@ ov::SupportedOpsMap Engine::query_model(const std::shared_ptr<const ov::Model>& 
             transformation.UpToCpuSpecificOpSet();
             transformation.CpuSpecificOpSet();
         },
-        [&](const std::shared_ptr<ngraph::Node>& op) {
+        [&](const std::shared_ptr<ov::Node>& op) {
             std::unique_ptr<Node> ptr;
             try {
                 ptr.reset(Node::factory().create(op, context));
