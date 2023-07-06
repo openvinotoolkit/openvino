@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/transpose_sinking/ts_slice.hpp"
 #include "transformations/common_optimizations/dimension_tracking.hpp"
 
 #include <memory>
@@ -22,6 +21,7 @@
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/visualize_tree.hpp"
+#include "transformations/transpose_sinking/ts_slice.hpp"
 
 void ov::batch_util::mark_with_unique_dimension_labels(const std::shared_ptr<ov::Model>& f,
                                                        const ov::DimensionTracker& dt) {
@@ -717,7 +717,9 @@ bool check_constant_is_non_negative_get_int_value(const ov::Output<ov::Node>& ou
     if (!constant)
         return false;
     data = constant->cast_vector<int64_t>();
-    return std::all_of(data.begin(), data.end(), [](const int64_t& i){ return i >= 0; });
+    return std::all_of(data.begin(), data.end(), [](const int64_t& i) {
+        return i >= 0;
+    });
 }
 
 ov::pass::ChainedVariadicSplitOptimization::ChainedVariadicSplitOptimization() {
@@ -770,7 +772,8 @@ ov::pass::ChainedVariadicSplitOptimization::ChainedVariadicSplitOptimization() {
         outputs_1.erase(outputs_1.begin() + output_index);
         outputs_1.insert(outputs_1.begin() + output_index, outputs_2.begin(), outputs_2.end());
 
-        auto new_split_length = std::make_shared<opset1::Constant>(element::i64, Shape{split_length_1.size()}, split_length_1);
+        auto new_split_length =
+            std::make_shared<opset1::Constant>(element::i64, Shape{split_length_1.size()}, split_length_1);
         first->input(2).replace_source_output(new_split_length->output(0));
         first->validate_and_infer_types();
         for (size_t i = 0; i < outputs_1.size(); ++i)
@@ -785,9 +788,9 @@ ov::pass::ChainedVariadicSplitOptimization::ChainedVariadicSplitOptimization() {
     register_matcher(m, matcher_pass_callback);
 }
 
-
 template <class T>
-bool all_secondary_inputs_from_same_source_or_equal_int_constants(const std::shared_ptr<T>& lhs, const std::shared_ptr<T>& rhs) {
+bool all_secondary_inputs_from_same_source_or_equal_int_constants(const std::shared_ptr<T>& lhs,
+                                                                  const std::shared_ptr<T>& rhs) {
     if (lhs->get_input_size() != rhs->get_input_size())
         return false;
     size_t input_size = lhs->get_input_size();
@@ -811,7 +814,6 @@ bool gather_elements_perform_same(const std::shared_ptr<ov::opset6::GatherElemen
     // 0 input value is already checked -- it is the same, we only need to check input with idx 1 and axis value
     return lhs->get_axis() == rhs->get_axis() && lhs->input_value(1) == rhs->input_value(1);
 }
-
 
 template <class T>
 bool shared_node_optimization_helper(const std::shared_ptr<ov::Model>& model,
@@ -847,7 +849,8 @@ bool shared_node_optimization_helper(const std::shared_ptr<ov::Model>& model,
 bool ov::pass::SharedTileOptimization::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_FUNCTION_SCOPE(SharedTileOptimization);
     return shared_node_optimization_helper<ov::opset1::Tile>(
-            model, all_secondary_inputs_from_same_source_or_equal_int_constants);
+        model,
+        all_secondary_inputs_from_same_source_or_equal_int_constants);
 }
 
 bool ov::pass::SharedGatherElementsOptimization::run_on_model(const std::shared_ptr<ov::Model>& model) {
@@ -858,13 +861,15 @@ bool ov::pass::SharedGatherElementsOptimization::run_on_model(const std::shared_
 bool ov::pass::SharedTransposeOptimization::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_FUNCTION_SCOPE(SharedTransposeOptimization);
     return shared_node_optimization_helper<ov::opset1::Transpose>(
-            model, all_secondary_inputs_from_same_source_or_equal_int_constants);
+        model,
+        all_secondary_inputs_from_same_source_or_equal_int_constants);
 }
 
 bool ov::pass::SharedSliceOptimization::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_FUNCTION_SCOPE(SharedSliceOptimization);
     return shared_node_optimization_helper<ov::opset8::Slice>(
-            model, all_secondary_inputs_from_same_source_or_equal_int_constants);
+        model,
+        all_secondary_inputs_from_same_source_or_equal_int_constants);
 }
 
 struct SliceAttrs {
@@ -892,7 +897,7 @@ bool slice_is_suitable_for_optimization(const std::shared_ptr<ov::opset8::Slice>
         if (i == 2)
             attrs.stop = value;
         if (i == 3 && input_as_constant->cast_vector<int64_t>()[0] != 1)
-            return false; // step should be equal 1 for this optimization
+            return false;  // step should be equal 1 for this optimization
         if (i == 4)
             attrs.axis = value >= 0 ? value : value + data_rank;
     }
@@ -976,9 +981,9 @@ bool ov::pass::GroupedSliceToVSplitOptimization::run_on_model(const std::shared_
                 current_sum = dimension;
             }
         if (current_sum != dimension)
-            continue; // there are some l
+            continue;  // there are some l
         auto split_lengths_const =
-                opset1::Constant::create(ngraph::element::i64, ngraph::Shape{split_lengths.size()}, split_lengths);
+            opset1::Constant::create(ngraph::element::i64, ngraph::Shape{split_lengths.size()}, split_lengths);
         auto axis_const = opset1::Constant::create(ngraph::element::i64, ngraph::Shape{}, {axis});
         auto variadic_split = std::make_shared<opset1::VariadicSplit>(output, axis_const, split_lengths_const);
 
@@ -1012,8 +1017,8 @@ bool ov::pass::SymbolicOptimizations::run_on_model(const std::shared_ptr<ov::Mod
     ov::pass::Manager manager(get_pass_config());
     manager.set_per_pass_validation(false);
     REGISTER_PASS(manager, SymbolicPOC)
-    auto optimizations_0 = manager.register_pass<ov::pass::GraphRewrite>() ;
-//    ADD_MATCHER(optimizations_0, ChainedVariadicSplitOptimization)
+    auto optimizations_0 = manager.register_pass<ov::pass::GraphRewrite>();
+    //    ADD_MATCHER(optimizations_0, ChainedVariadicSplitOptimization)
     ADD_MATCHER(optimizations_0, ChainedMaximumOptimization)
     ADD_MATCHER(optimizations_0, NopBroadcast)
     REGISTER_PASS(manager, BroadcastOnes)
