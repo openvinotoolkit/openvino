@@ -7,26 +7,23 @@
 #include <memory>
 
 #include "async_infer_request.hpp"
-#include "infer_request.hpp"
-#include "itt.hpp"
-#include "plugin.hpp"
-
-// #include "perf_counter.hpp"
 #include "converter_utils.hpp"
 #include "graph_debug_dump.hpp"
 #include "ie_algorithm.hpp"
-#include "ie_ngraph_utils.hpp"
 #include "ie_plugin_config.hpp"
+#include "infer_request.hpp"
+#include "itt.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/runtime/exec_model_info.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/util/common_util.hpp"
+#include "plugin.hpp"
 #include "transformations/rt_info/fused_names_attribute.hpp"
 #include "transformations/utils/utils.hpp"
 #include "xml_parse_utils.h"
 
 template <typename T>
-using NodeMap = std::unordered_map<ngraph::Node*, T>;
+using NodeMap = std::unordered_map<ov::Node*, T>;
 
 ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                                          const std::shared_ptr<const ov::IPlugin>& plugin,
@@ -79,18 +76,22 @@ ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model
                 affinities[node.get()] = itAffinity->second;
                 devices.emplace(itAffinity->second);
             } else if (allEmpty) {
-                IE_THROW() << "Hetero device used default fallback policy, but some layers eg: \n(Name:"
-                           << node->get_friendly_name() << ", Type: " << node->get_type_name()
-                           << ") were not able to be assigned on any pointed device.\n"
-                           << "It happened because these layers are not supported in plugins by default.\n"
-                           << "You need to implement custom layers to support them.";
+                OPENVINO_THROW("Hetero device used default fallback policy, but some layers eg: \n(Name:",
+                               node->get_friendly_name(),
+                               ", Type: ",
+                               node->get_type_name(),
+                               ") were not able to be assigned on any pointed device.\n",
+                               "It happened because these layers are not supported in plugins by default.\n",
+                               "You need to implement custom layers to support them.");
             } else {
-                IE_THROW() << "Network passed to LoadNetwork has affinity assigned, but some layers eg: \n(Name:"
-                           << node->get_friendly_name() << ", Type: " << node->get_type_name()
-                           << ") were not assigned to any device.\n"
-                           << "It might happen if you assigned layers manually and missed some layers or\n"
-                           << "if you used some automatic assigning mode which decided that these layers are not\n"
-                           << "supported by any plugin";
+                OPENVINO_THROW("Network passed to CompiledModel has affinity assigned, but some layers eg: \n(Name:",
+                               node->get_friendly_name(),
+                               ", Type: ",
+                               node->get_type_name(),
+                               ") were not assigned to any device.\n",
+                               "It might happen if you assigned layers manually and missed some layers or\n",
+                               "if you used some automatic assigning mode which decided that these layers are not\n",
+                               "supported by any plugin");
             }
         }
 
@@ -222,10 +223,10 @@ ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model
         }
 
         // Break graph using insertion of result parameter split
-        NodeMap<ngraph::Node*> subgraphParameterToPrevResult;
-        std::vector<std::shared_ptr<ngraph::op::Result>> results;
+        NodeMap<ov::Node*> subgraphParameterToPrevResult;
+        std::vector<std::shared_ptr<ov::op::v0::Result>> results;
         {
-            std::set<ngraph::Output<ngraph::Node>> subgraphOutputs;
+            std::set<ov::Output<ov::Node>> subgraphOutputs;
             for (auto&& input : subgraphInputs) {
                 if (!ov::op::util::is_parameter(input.get_node()) && !ov::op::util::is_constant(input.get_node())) {
                     subgraphOutputs.insert(input.get_source_output());
@@ -235,7 +236,7 @@ ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model
                 auto output_subgraph_id = subgraphIds.at(output.get_node());
                 auto inputs = output.get_target_inputs();
                 // Collect input subsets from other subgraphs. Each subset of inputs belongs to the same subgraph
-                std::map<int, std::set<ngraph::Input<ngraph::Node>>> input_subsets;
+                std::map<int, std::set<ov::Input<ov::Node>>> input_subsets;
                 for (auto&& input : inputs) {
                     auto input_subgraph_id = subgraphIds.at(input.get_node());
                     if (output_subgraph_id != input_subgraph_id) {
@@ -244,7 +245,7 @@ ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model
                 }
                 // for each subset of inputs create separate Result operation if subset belongs to other
                 for (auto&& input_subset : input_subsets) {
-                    auto result = std::make_shared<ngraph::op::Result>(output);
+                    auto result = std::make_shared<ov::op::v0::Result>(output);
                     result->set_friendly_name(output.get_node()->get_friendly_name() + "_" +
                                               std::to_string(output.get_index()) + "_" +
                                               std::to_string(input_subset.first) + "_result");
@@ -253,7 +254,7 @@ ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model
                     results.push_back(result);
                     for (auto&& input : input_subset.second) {
                         output.remove_target_input(input);
-                        auto parameter = std::make_shared<ngraph::op::Parameter>(output.get_element_type(),
+                        auto parameter = std::make_shared<ov::op::v0::Parameter>(output.get_element_type(),
                                                                                  output.get_partial_shape());
                         parameter->set_friendly_name(input.get_node()->get_friendly_name() + "_" +
                                                      std::to_string(input.get_index()) + "_parameter");
@@ -275,9 +276,9 @@ ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model
         }
 
         struct Subgraph {
-            ngraph::ResultVector _results;
-            ngraph::ParameterVector _parameters;
-            ngraph::SinkVector _sinks;
+            ov::ResultVector _results;
+            ov::ParameterVector _parameters;
+            ov::SinkVector _sinks;
             std::string _affinity;
         };
         std::unordered_map<int, Subgraph> subgraphs;
@@ -286,13 +287,12 @@ ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model
             auto node = subgraphIdPtrValue.first;
             auto& subgraph = subgraphs[subgraphIdPtrValue.second];
             if (ov::op::util::is_output(node)) {
-                subgraph._results.emplace_back(
-                    std::dynamic_pointer_cast<ngraph::op::v0::Result>(node->shared_from_this()));
+                subgraph._results.emplace_back(std::dynamic_pointer_cast<ov::op::v0::Result>(node->shared_from_this()));
             } else if (ov::op::util::is_parameter(node)) {
                 subgraph._parameters.emplace_back(
-                    std::dynamic_pointer_cast<ngraph::op::v0::Parameter>(node->shared_from_this()));
+                    std::dynamic_pointer_cast<ov::op::v0::Parameter>(node->shared_from_this()));
             } else if (ov::op::util::is_sink(node)) {
-                subgraph._sinks.emplace_back(std::dynamic_pointer_cast<ngraph::op::Sink>(node->shared_from_this()));
+                subgraph._sinks.emplace_back(std::dynamic_pointer_cast<ov::op::Sink>(node->shared_from_this()));
             }
             auto itAffinity = affinities.find(node);
             if (itAffinity != affinities.end()) {
@@ -318,7 +318,7 @@ ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model
                 auto& parameters = subgraph._parameters;
                 return std::all_of(parameters.begin(),
                                    parameters.end(),
-                                   [&](const ngraph::ParameterVector::value_type& parameter) {
+                                   [&](const ov::ParameterVector::value_type& parameter) {
                                        return InferenceEngine::details::contains(graphInputNodes, parameter.get()) ||
                                               InferenceEngine::details::contains(
                                                   prevResults,
@@ -459,7 +459,7 @@ ov::hetero::CompiledModel::CompiledModel(std::istream& model,
     pugi::xml_parse_result res = heteroXmlDoc.load_string(heteroXmlStr.c_str());
 
     if (res.status != pugi::status_ok) {
-        IE_THROW(NetworkNotRead) << "Error reading HETERO device xml header";
+        OPENVINO_THROW("Error reading HETERO device xml header");
     }
 
     using namespace pugixml::utils;
@@ -739,10 +739,9 @@ void ov::hetero::CompiledModel::export_model(std::ostream& model_stream) const {
         } else {
             auto subnet = subnetwork._clonedNetwork;
             if (!subnet) {
-                IE_THROW() << "Hetero device supports only ngraph function representation";
+                OPENVINO_THROW("Hetero device supports only OpenVINO Modle representation");
             }
 
-            // Note: custom ngraph extensions are not supported
             std::stringstream xmlFile, binFile;
             // ov::pass::Serialize serializer(xmlFile, binFile, ov::pass::Serialize::Version::IR_V10);
             ov::pass::Serialize serializer(xmlFile, binFile);
