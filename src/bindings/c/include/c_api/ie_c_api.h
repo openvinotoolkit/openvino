@@ -33,8 +33,10 @@
 #    define INFERENCE_ENGINE_C_API_EXTERN
 #endif
 
-#define IE_1_0_DEPRECATED \
-    OPENVINO_DEPRECATED("The Inference Engine API is deprecated and will be removed in the 2024.0 release. ")
+#define IE_1_0_DEPRECATED                                                                                    \
+    OPENVINO_DEPRECATED("The Inference Engine API is deprecated and will be removed in the 2024.0 release. " \
+                        "For instructions on transitioning to the new API, please refer to "                 \
+                        "https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
 
 #if !defined(IN_OV_COMPONENT) && !defined(C_API_LEGACY_HEADER_INCLUDED)
 #    define C_API_LEGACY_HEADER_INCLUDED
