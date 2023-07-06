@@ -5,7 +5,6 @@
 #include "ngraph/runtime/reference/group_normalization.hpp"
 
 #include "evaluate_node.hpp"
-#include "group_normalization_shape_inference.hpp"
 #include "openvino/op/group_normalization.hpp"
 
 using namespace ov;
