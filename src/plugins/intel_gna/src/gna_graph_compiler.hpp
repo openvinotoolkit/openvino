@@ -53,6 +53,10 @@ private:
                                                 size_t element_size,
                                                 uint32_t num_rows,
                                                 uint32_t num_cols);
+    std::vector<uint8_t> static copy_matrix(uint8_t* ptr_matrix,
+                                            size_t element_size,
+                                            uint32_t num_rows,
+                                            uint32_t num_cols);
 
     bool ShouldUseOnlyConv2DGnaIface() const;
 

@@ -2,27 +2,40 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to install OpenVINO™ Runtime on Windows, Linux, and 
+                 macOS operating systems, using Conda Forge - a recommended 
+                 installation method for C++ developers.
+
+
 .. note::
 
    Installing OpenVINO Runtime from Conda Forge is recommended for C++ developers, as it provides only the C++ Runtime API.
    If you work with Python, consider :doc:`installing OpenVINO from PyPI <openvino_docs_install_guides_installing_openvino_pip>`
 
-.. tab:: System Requirements
+.. tab-set::
 
-   | Full requirement listing is available in:
-   | `System Requirements Page <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html>`__
+   .. tab-item:: System Requirements
+      :sync: sys-req
 
-   .. comment to publish in the future, when gpu support comes back:
+      | Full requirement listing is available in:
+      | `System Requirements Page <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html>`__
    
-      .. tab:: Processor Notes
+      .. comment to publish in the future, when gpu support comes back:
       
-           | Not all Intel CPUs include integrated graphics processors.  
-           | See `Product Specifications <https://ark.intel.com/>`__ for information about your hardware.
+      .. tab-set::
 
-.. tab:: Software
+         .. tab-item:: Processor Notes
+            :sync: processor-notes
+         
+            | Not all Intel CPUs include integrated graphics processors.  
+            | See `Product Specifications <https://ark.intel.com/>`__ for information about your hardware.
+   
+   .. tab-item:: Software
+      :sync: software
 
-   There are many ways to work with Conda. Before you proceed, learn more about it on the
-   `Anaconda distribution page <https://www.anaconda.com/products/individual/>`__
+      There are many ways to work with Conda. Before you proceed, learn more about it on the
+      `Anaconda distribution page <https://www.anaconda.com/products/individual/>`__
 
 
 Installing OpenVINO Runtime with Anaconda Package Manager
@@ -48,7 +61,7 @@ Installing OpenVINO Runtime with Anaconda Package Manager
 
    .. code-block:: sh
 
-      conda install -c conda-forge openvino=2023.0.0
+      conda install -c conda-forge openvino=2023.0.1
 
    Congratulations! You have finished installing OpenVINO Runtime.
 
@@ -81,7 +94,7 @@ with the proper OpenVINO version number:
 
 .. code-block:: sh
    
-   conda remove openvino=2023.0.0
+   conda remove openvino=2023.0.1
 
 
 What's Next?
@@ -107,7 +120,6 @@ Additional Resources
 
 * `OpenVINO Runtime Conda Forge <https://anaconda.org/conda-forge/openvino>`__
 * :doc:`OpenVINO™ Toolkit Samples Overview <openvino_docs_OV_UG_Samples_Overview>`
-* `OpenVINO Installation Selector Tool <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/download.html>`__
 
 
 @endsphinxdirective

@@ -2,6 +2,9 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn about low precision transformations used to infer a quantized model in low precision with the maximum performance on Intel CPU, GPU, and ARM platforms.
+
 .. toctree::
    :maxdepth: 1
    :caption: Low Precision Transformations
