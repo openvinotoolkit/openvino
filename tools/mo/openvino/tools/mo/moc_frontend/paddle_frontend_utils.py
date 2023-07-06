@@ -34,7 +34,7 @@ class paddle_frontend_converter:
         # remove the *.pdiparams.info
         if os.path.exists(self.pdiparams_info):
             os.remove(self.pdiparams_info)
-        
+
     def convert_paddle_to_pdmodel(self):
         '''
             There are three paddle model categories:
@@ -49,7 +49,7 @@ class paddle_frontend_converter:
             self.pdiparams = "{}.pdiparams".format(self.model_name)
             self.pdiparams_info = "{}.pdiparams.info".format(self.model_name)
 
-            import paddle
+            import paddle  # pylint: disable=import-error
             if isinstance(self.model, paddle.hapi.model.Model):
                 self.model.save(self.model_name, False)
             else:
