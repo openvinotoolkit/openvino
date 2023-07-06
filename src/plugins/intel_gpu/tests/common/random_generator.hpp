@@ -38,7 +38,7 @@ public:
     ReturnType generate_random_val(int min, int max, int k = 8) {
         // 1/k is the resolution of the floating point numbers
         std::uniform_int_distribution<int> distribution(k * min, k * max);
-        ReturnType val = (ReturnType)distribution(this->generator);
+        ReturnType val = static_cast<ReturnType>distribution(this->generator);
         val /= k;
 
         return val;
@@ -51,7 +51,7 @@ public:
         std::vector<ReturnType> v(a);
 
         for (size_t i = 0; i < a; ++i) {
-            v[i] = (ReturnType)distribution(this->generator);
+            v[i] = static_cast<ReturnType>distribution(this->generator);
             v[i] /= k;
         }
         return v;
@@ -84,7 +84,8 @@ public:
 
     // parameters order is assumed to be sbfyx for filters when split > 1
     template<typename ReturnType>
-    std::vector<std::vector<std::vector<std::vector<std::vector<ReturnType>>>>> generate_random_5d(size_t a, size_t b, size_t c, size_t d, size_t e, int min, int max, int k = 8) {
+    std::vector<std::vector<std::vector<std::vector<std::vector<ReturnType>>>>> generate_random_5d(size_t a, size_t b, size_t c, size_t d, size_t e,
+                                                                                                   int min, int max, int k = 8) {
         std::vector<std::vector<std::vector<std::vector<std::vector<ReturnType>>>>> v(a);
         for (size_t i = 0; i < a; ++i)
             v[i] = generate_random_4d<ReturnType>(b, c, d, e, min, max, k);
@@ -92,7 +93,8 @@ public:
     }
 
     template<typename ReturnType>
-    std::vector<std::vector<std::vector<std::vector<std::vector<std::vector<ReturnType>>>>>> generate_random_6d(size_t a, size_t b, size_t c, size_t d, size_t e, size_t f, int min, int max, int k = 8) {
+    std::vector<std::vector<std::vector<std::vector<std::vector<std::vector<ReturnType>>>>>> generate_random_6d(size_t a, size_t b, size_t c, size_t d,
+                                                                                                    size_t e, size_t f, int min, int max, int k = 8) {
         std::vector<std::vector<std::vector<std::vector<std::vector<std::vector<ReturnType>>>>>> v(a);
         for (size_t i = 0; i < a; ++i)
             v[i] = generate_random_5d<ReturnType>(b, c, d, e, f, min, max, k);
@@ -109,12 +111,12 @@ public:
         std::vector<ReturnType> res(size);
         int i = 0;
         int temp;
-        if (max - min >= int(size) - 1){
+        if (max - min >= static_cast<int>(size) - 1) {
             while (repeatless.size() < size) {
                 temp = distribution(this->generator);
                 if (repeatless.find(temp) == repeatless.end()) {
                     repeatless.insert(temp);
-                    v[i] = (float)temp;
+                    v[i] = static_cast<float>(temp);
                     i++;
                 }
             }
