@@ -8,6 +8,8 @@ function(add_common_utils ADD_TARGET_NAME)
             NAME ${ADD_TARGET_NAME}
             TYPE STATIC
             ROOT ${CMAKE_CURRENT_SOURCE_DIR}
+            EXCLUDED_SOURCE_PATHS
+                ${CMAKE_CURRENT_SOURCE_DIR}/tests
             ADD_CPPLINT
             DEVELOPER_PACKAGE
                 tests
@@ -73,3 +75,5 @@ add_common_utils(${TARGET_NAME}_s USE_STATIC_IE)
 # Add new names to use them from openvino repo
 add_library(${NEW_TARGET_NAME} ALIAS ${TARGET_NAME})
 add_library(${NEW_TARGET_NAME}_s ALIAS ${TARGET_NAME}_s)
+
+add_subdirectory(tests)
