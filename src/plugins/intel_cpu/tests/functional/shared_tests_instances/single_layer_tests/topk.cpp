@@ -30,19 +30,14 @@ const std::vector<int64_t> k = {
         21
 };
 
-const std::vector<ov::op::TopKMode> modes = {
-        ov::op::TopKMode::MIN,
-        ov::op::TopKMode::MAX
+const std::vector<ngraph::opset4::TopK::Mode> modes = {
+        ngraph::opset4::TopK::Mode::MIN,
+        ngraph::opset4::TopK::Mode::MAX
 };
 
-const std::vector<ov::op::TopKSortType> sortTypes = {
-        ov::op::TopKSortType::SORT_INDICES,
-        ov::op::TopKSortType::SORT_VALUES,
-};
-
-const std::vector<bool> stable = {
-        false,
-        // true,
+const std::vector<ngraph::opset4::TopK::SortType> sortTypes = {
+        ngraph::opset4::TopK::SortType::SORT_INDICES,
+        ngraph::opset4::TopK::SortType::SORT_VALUES,
 };
 
 
@@ -52,7 +47,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_TopK, TopKLayerTest,
                 ::testing::ValuesIn(axes),
                 ::testing::ValuesIn(modes),
                 ::testing::ValuesIn(sortTypes),
-                ::testing::ValuesIn(stable),
                 ::testing::ValuesIn(netPrecisions),
                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
