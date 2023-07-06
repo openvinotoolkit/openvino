@@ -524,41 +524,41 @@ void Split::SplitOptimizedExecutor::exec(const uint8_t* srcData, const std::vect
 }
 
 void Split::resolveInPlaceEdges(Edge::LOOK look) {
-    if ((look & Edge::LOOK_UP) && isInPlace()) {
-        auto selected_pd = getSelectedPrimitiveDescriptor();
-        if (selected_pd == nullptr)
-            IE_THROW() << "Preferable primitive descriptor is not set.";
-        auto& config = selected_pd->getConfig();
-        size_t numberOfOutputs = config.outConfs.size();
-        size_t inplaceInpIndx = selected_pd->getConfig().outConfs[0].inPlace();
-        auto baseDim = inputShapes.front().getDims()[axis];
-        IE_ASSERT(baseDim != Shape::UNDEFINED_DIM) << " Split node: " << getName() << " can not use inPlace memory with splitting on dynamic dimension";
-        auto baseMemMngr = getParentEdgesAtPort(inplaceInpIndx).front()->getMemory().getMemoryMngr();
-        ptrdiff_t offset = 0;
-        for (size_t i = 0; i < numberOfOutputs; ++i) {
-            auto partDim = outputShapes[i].getDims()[axis];
-            IE_ASSERT(partDim != Shape::UNDEFINED_DIM) << " Split node: " << getName() << " can not use inPlace memory with splitting on dynamic dimension";
-            const auto& childEdges = getChildEdgesAtPort(i);
-            for (auto& childEdge : childEdges) {
-                IE_ASSERT(childEdge->getStatus() == Edge::Status::NotAllocated) << " Unexpected edge status in node: " <<
-                    getName() << " with type " << getTypeStr();
-
-                auto memDesc = selected_pd->getConfig().outConfs[i].getMemDesc();
-                MemoryPtr newMem;
-                if (partDim != 0) {
-                    auto memMngr = std::make_shared<PartitionedMemoryMngr>(baseMemMngr, baseDim, offset, partDim);
-                    newMem = std::make_shared<Memory>(getEngine(), memDesc, memMngr);
-                } else {
-                    // empty tensor, no need to reference a part, default memory is enough
-                    newMem = std::make_shared<Memory>(getEngine(), memDesc);
-                }
-
-                childEdge->reuse(newMem);
-            }
-            offset += partDim;
-        }
-    } else {
+    if (!(look & Edge::LOOK_UP) || !isInPlace()) {
         Node::resolveInPlaceEdges(look);
+        return;
+    }
+    auto selected_pd = getSelectedPrimitiveDescriptor();
+    if (selected_pd == nullptr)
+        IE_THROW() << "Preferable primitive descriptor is not set.";
+    auto& config = selected_pd->getConfig();
+    size_t numberOfOutputs = config.outConfs.size();
+    size_t inplaceInpIndx = selected_pd->getConfig().outConfs[0].inPlace();
+    auto baseDim = inputShapes.front().getDims()[axis];
+    IE_ASSERT(baseDim != Shape::UNDEFINED_DIM) << " Split node: " << getName() << " can not use inPlace memory with splitting on dynamic dimension";
+    auto baseMemMngr = getParentEdgesAtPort(inplaceInpIndx).front()->getMemory().getMemoryMngr();
+    ptrdiff_t offset = 0;
+    for (size_t i = 0; i < numberOfOutputs; ++i) {
+        auto partDim = outputShapes[i].getDims()[axis];
+        IE_ASSERT(partDim != Shape::UNDEFINED_DIM) << " Split node: " << getName() << " can not use inPlace memory with splitting on dynamic dimension";
+        const auto& childEdges = getChildEdgesAtPort(i);
+        for (auto& childEdge : childEdges) {
+            IE_ASSERT(childEdge->getStatus() == Edge::Status::NotAllocated) << " Unexpected edge status in node: " <<
+                getName() << " with type " << getTypeStr();
+
+            auto memDesc = selected_pd->getConfig().outConfs[i].getMemDesc();
+            MemoryPtr newMem;
+            if (partDim != 0) {
+                auto memMngr = std::make_shared<PartitionedMemoryMngr>(baseMemMngr, baseDim, offset, partDim);
+                newMem = std::make_shared<Memory>(getEngine(), memDesc, memMngr);
+            } else {
+                // empty tensor, no need to reference a part, default memory is enough
+                newMem = std::make_shared<Memory>(getEngine(), memDesc);
+            }
+
+            childEdge->reuse(newMem);
+        }
+        offset += partDim;
     }
 }
 

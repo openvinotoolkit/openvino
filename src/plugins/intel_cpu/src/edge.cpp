@@ -105,7 +105,7 @@ bool Edge::enforceReorder() {
             for (auto& p_edge_peer : portChildEdges) {
                 if (p_edge_peer.get() == this)
                     continue;
-                if (p_edge_peer->inPlace(LOOK_DOWN)) { //p_edge_peer->getChild()->getType() != Type::Reorder &&
+                if (p_edge_peer->inPlace(LOOK_DOWN)) {
                     return true;
                 }
             }
@@ -472,22 +472,6 @@ void Edge::init() {
         }
         sharedMemFrom(edgePtr);
     }
-//
-    // auto port = getInputNum();
-    // if (port < 0)
-    //     return;
-    // auto edges_at_same_port = getParent()->getChildEdgesAtPort(static_cast<size_t>(port));
-    // for (auto edge : edges_at_same_port) {
-    //     if (edge->getStatus() != Status::NeedAllocation && edge->getStatus() != Status::Uninitialized) {
-    //         if (edge->getSharedEdge() != edgePtr)
-    //             IE_THROW() << "Unsupported behavior. Cannot mark edge "
-    //                                << getParent()->getChildEdgeAt(0)->getParent()->getName() << "->"
-    //                                << getParent()->getChildEdgeAt(0)->getChild()->getName() << " as not allocated!";
-    //     } else {
-    //         if (edge != edgePtr)
-    //             edge->sharedMemFrom(edgePtr);
-    //     }
-    // }
 }
 
 /**
@@ -550,42 +534,45 @@ bool Edge::inPlace(LOOK look) const {
 
 NodePtr Edge::modifiedInPlace() const {
     auto childNode = getChild();
-    if (childNode && childNode->isInPlace()) {
-        // check if the children nodes are able to modify the memory
-        auto childPort = getOutputNum();
-        auto inPlaceInputPort = childNode->inPlaceInputPort(childPort);
-        if (inPlaceInputPort >= 0) {
+    if (!childNode || !childNode->isInPlace()) {
+        return nullptr;
+    }
+    // check if the children nodes are able to modify the memory
+    auto childPort = getOutputNum();
+    auto inPlaceInputPort = childNode->inPlaceInputPort(childPort);
+    if (inPlaceInputPort >= 0) {
+        if (childNode->isExecutable()) {
+            // Node can modify the memory
+            return childNode;
+        }
+        for (auto&& edge : childNode->getChildEdgesAtPort(inPlaceInputPort)) {
+            // continue searching
+            if (auto result = edge->modifiedInPlace()) {
+                return result;
+            }
+        }
+    }
+    // check backward dependency
+    if (auto childSPD = childNode->getSelectedPrimitiveDescriptor()) {
+        auto& outConfs = childSPD->getConfig().outConfs;
+        for (size_t i = 0; i < outConfs.size(); ++i) {
+            const auto& conf = outConfs[i];
+            if (childPort < 0 || conf.inPlace() != childPort) {
+                continue;
+            }
             if (childNode->isExecutable()) {
                 // Node can modify the memory
                 return childNode;
             }
-            for (auto&& edge : childNode->getChildEdgesAtPort(inPlaceInputPort)) {
+            for (auto&& edge : childNode->getChildEdgesAtPort(i)) {
                 // continue searching
                 if (auto result = edge->modifiedInPlace()) {
                     return result;
                 }
             }
         }
-        // check backward dependency
-        if (auto childSPD = childNode->getSelectedPrimitiveDescriptor()) {
-            auto& outConfs = childSPD->getConfig().outConfs;
-            for (size_t i = 0; i < outConfs.size(); ++i) {
-                const auto& conf = outConfs[i];
-                if (childPort >= 0 && conf.inPlace() == childPort) {
-                    if (childNode->isExecutable()) {
-                        // Node can modify the memory
-                        return childNode;
-                    }
-                    for (auto&& edge : childNode->getChildEdgesAtPort(i)) {
-                        // continue searching
-                        if (auto result = edge->modifiedInPlace()) {
-                            return result;
-                        }
-                    }
-                }
-            }
-        }
     }
+
     // nothing has been found
     return nullptr;
 }

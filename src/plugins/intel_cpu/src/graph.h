@@ -229,6 +229,7 @@ protected:
     void ResolveInplaceDirections();
     void InitOptimalPrimitiveDescriptors();
     void InitEdges();
+    bool ProcessDynNodes();
     void Allocate();
     void AllocateWithReuse();
     void ExtractExecutableNodes();

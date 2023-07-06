@@ -363,30 +363,7 @@ void Graph::InitGraph() {
     optimizer.ApplyImplSpecificGraphOptimizations(*this);
     SortTopologically();
 
-    bool haveDynNodes = false;
-    for (size_t i = 0; i < graphNodes.size(); ++i) {
-        const auto& node = graphNodes[i];
-        if (node->isDynamicNode()) {
-            haveDynNodes = true;
-            if (node->outputShapeDataDependency() ||
-                // WA: for convolution plus sum(broadcast). Due to the fact that a convolution with sum use the same memory for second sum term and the output
-                // tensors (inPlace) resizing the output tensor, may lead to reallocation of this second term memory and possible data lost. The reallocation
-                // may happen when the second term shape is broadcasted to the output tensor shape. To avoid the data loss, we have a special processing for
-                // such cases inside the convolution node, but it works properly only when dynamic shapes inference, preparation and execution a called
-                // for this node sequentially.
-                (node->getType() == Type::Convolution && node->isInPlace())) {
-                syncNodesInds.insert({node.get(), i});
-            }
-        }
-    }
-
-    // In case of dynamic shapes, tensors may be resized due to the shapes variations.
-    // If the input tensor is included to memory reuse, it means that its memory manager is shared with other tensors in the graph, which in turn may cause data
-    // loss when one of the tensors down the graph requests mem resize, while the input data have not been yet read by the consumers. To avoid such situations
-    // we disable io mem reuse for the case of dynamic shapes.
-    if (haveDynNodes) {
-        this->reuse_io_tensors = false;
-    }
+    const bool hasDynNodes = ProcessDynNodes();
 
     Allocate();
 
@@ -400,7 +377,7 @@ void Graph::InitGraph() {
 
     ExtractExecutableNodes();
 
-    status = haveDynNodes ? Status::ReadyDynamic : Status::ReadyStatic;
+    status = hasDynNodes ? Status::ReadyDynamic : Status::ReadyStatic;
 }
 
 void Graph::InitNodes() {
@@ -731,16 +708,16 @@ void Graph::AllocateWithReuse() {
         auto &cluster = edge_clusters[i];
         bool erase = false;
         for (auto &edge : cluster) {
-            if (edge->getStatus() == Edge::Status::NeedAllocation
-                && edge->getParent()->isConstant()) {
-                if (edge->getParent()->getType() == Type::Input) {
-                    auto constNode = std::static_pointer_cast<node::Input>(edge->getParent());
-                    edge->reuse(std::const_pointer_cast<IMemory>(constNode->getMemoryPtr()));
-                } else {
-                    edge->externalAllocate(context->getWeightsCache());
-                }
-                erase = true;
+            if (edge->getStatus() != Edge::Status::NeedAllocation || !edge->getParent()->isConstant()) {
+                continue;
             }
+            if (edge->getParent()->getType() == Type::Input) {
+                auto constNode = std::static_pointer_cast<node::Input>(edge->getParent());
+                edge->reuse(std::const_pointer_cast<IMemory>(constNode->getMemoryPtr()));
+            } else {
+                edge->externalAllocate(context->getWeightsCache());
+            }
+            erase = true;
         }
 
         if (erase) {
@@ -901,29 +878,30 @@ void Graph::AllocateWithReuse() {
     // Resolve all other edges with status NotAllocated and in-place
     for (auto& cluster : edge_clusters) {
         for (auto& edge : cluster) {
-            if (edge->getStatus() == Edge::Status::NotAllocated) {
-                std::vector<EdgePtr> edges_to_process;
-                edges_to_process.push_back(edge);
-                for (auto next_edge = edge->getSharedEdge(std::nothrow);
-                    next_edge;
-                    next_edge = next_edge->getSharedEdge(std::nothrow)) {
-                    edges_to_process.push_back(next_edge);
-                }
-                std::for_each(edges_to_process.rbegin(), edges_to_process.rend(), [](const EdgePtr& edge){
-                    if (edge->getStatus() == Edge::Status::NotAllocated) {
-                        if (edge->inPlace(Edge::LOOK_DOWN)) {
-                            edge->getChild()->resolveInPlaceEdges(Edge::LOOK_DOWN);
-                        } else if (edge->inPlace(Edge::LOOK_UP)) {
-                            edge->getParent()->resolveInPlaceEdges(Edge::LOOK_UP);
-                        } else {
-                            auto sharedEdge = edge->getSharedEdge();
-                            auto sharedEdgeParent = sharedEdge->getParent();
-                            edge->allocate(sharedEdge->getMemoryPtr()->getMemoryMngr());
-                            DEBUG_LOG(*edge, " sharedEdge with ", *sharedEdge);
-                        }
-                    }
-                });
+            if (edge->getStatus() != Edge::Status::NotAllocated) {
+                continue;
             }
+            std::vector<EdgePtr> edges_to_process;
+            edges_to_process.push_back(edge);
+            for (auto next_edge = edge->getSharedEdge(std::nothrow);
+                next_edge;
+                next_edge = next_edge->getSharedEdge(std::nothrow)) {
+                edges_to_process.push_back(next_edge);
+            }
+            std::for_each(edges_to_process.rbegin(), edges_to_process.rend(), [](const EdgePtr& edge) {
+                if (edge->getStatus() == Edge::Status::NotAllocated) {
+                    if (edge->inPlace(Edge::LOOK_DOWN)) {
+                        edge->getChild()->resolveInPlaceEdges(Edge::LOOK_DOWN);
+                    } else if (edge->inPlace(Edge::LOOK_UP)) {
+                        edge->getParent()->resolveInPlaceEdges(Edge::LOOK_UP);
+                    } else {
+                        auto sharedEdge = edge->getSharedEdge();
+                        auto sharedEdgeParent = sharedEdge->getParent();
+                        edge->allocate(sharedEdge->getMemoryPtr()->getMemoryMngr());
+                        DEBUG_LOG(*edge, " sharedEdge with ", *sharedEdge);
+                    }
+                }
+            });
         }
     }
 }
@@ -944,6 +922,36 @@ void Graph::Allocate() {
 
     // Check all getters. Should work.
     for (auto& edge : graphEdges) edge->validate();
+}
+
+bool Graph::ProcessDynNodes() {
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "Graph::ProcessDynNodes");
+
+    bool result = false;
+    for (size_t i = 0; i < graphNodes.size(); ++i) {
+        const auto& node = graphNodes[i];
+        if (node->isDynamicNode()) {
+            result = true;
+            if (node->outputShapeDataDependency() ||
+                // WA: for convolution plus sum(broadcast). Due to the fact that a convolution with sum use the same memory for second sum term and the output
+                // tensors (inPlace) resizing the output tensor, may lead to reallocation of this second term memory and possible data lost. The reallocation
+                // may happen when the second term shape is broadcasted to the output tensor shape. To avoid the data loss, we have a special processing for
+                // such cases inside the convolution node, but it works properly only when dynamic shapes inference, preparation and execution a called
+                // for this node sequentially.
+                (node->getType() == Type::Convolution && node->isInPlace())) {
+                syncNodesInds.insert({node.get(), i});
+            }
+        }
+    }
+
+    // In case of dynamic shapes, tensors may be resized due to the shapes variations.
+    // If the input tensor is included to memory reuse, it means that its memory manager is shared with other tensors in the graph, which in turn may cause data
+    // loss when one of the tensors down the graph requests mem resize, while the input data have not been yet read by the consumers. To avoid such situations
+    // we disable io mem reuse for the case of dynamic shapes.
+    if (result) {
+        this->reuse_io_tensors = false;
+    }
+    return result;
 }
 
 void Graph::PushInputData(const std::string& name, const InferenceEngine::Blob::Ptr &in) {
@@ -1797,66 +1805,67 @@ void Graph::resolveInPlaceDirection(const NodePtr& node) const {
         if (auto pEdge = wEdge.lock()) {
             auto inpPort = pEdge->getOutputNum();
             auto inPlaceInpPort = node->inPlaceInputPort(inpPort);
-            if (inPlaceInpPort >= 0 && inPlaceDirection(node, PortType::INPUT, inpPort) == InplaceDirectionType::CYCLIC) {
-                // inPlace memory cyclic dependency detected, need to resolve
-                // let's check the parent node first
-                auto pParent = pEdge->getParent();
-                auto parentInPlaceDirection = inPlaceDirection(pParent, PortType::OUTPUT, pEdge->getInputNum());
-                if (parentInPlaceDirection == InplaceDirectionType::UP) {
+            if (inPlaceInpPort < 0 || inPlaceDirection(node, PortType::INPUT, inpPort) != InplaceDirectionType::CYCLIC) {
+                continue;
+            }
+            // inPlace memory cyclic dependency detected, need to resolve
+            // let's check the parent node first
+            auto pParent = pEdge->getParent();
+            auto parentInPlaceDirection = inPlaceDirection(pParent, PortType::OUTPUT, pEdge->getInputNum());
+            if (parentInPlaceDirection == InplaceDirectionType::UP) {
+                auto config = node->getSelectedPrimitiveDescriptor()->getConfig();
+                config.inConfs[inpPort].inPlace(-1);
+                node->initDescriptor(config);
+            } else if (parentInPlaceDirection == InplaceDirectionType::DOWN) {
+                //search if siblings already have downstream direction
+                auto downstreamPeers = [&] {
+                    for (auto& peerEdge : pParent->getChildEdgesAtPort(pEdge->getInputNum())) {
+                        auto peerNode = peerEdge->getChild();
+                        if (peerNode == node) continue;
+                        if (inPlaceDirection(peerNode, PortType::INPUT, peerEdge->getOutputNum()) == InplaceDirectionType::DOWN) {
+                            return true;
+                        }
+                    }
+                    return false;
+                }();
+                if (downstreamPeers) {
+                    // when there is an downstream peer we have to resolve upstream inplace for the node
+                    // to avoid inplace conflict
                     auto config = node->getSelectedPrimitiveDescriptor()->getConfig();
                     config.inConfs[inpPort].inPlace(-1);
                     node->initDescriptor(config);
-                } else if (parentInPlaceDirection == InplaceDirectionType::DOWN) {
-                    //search if siblings already have downstream direction
-                    auto downstreamPeers = [&] {
-                        for (auto& peerEdge : pParent->getChildEdgesAtPort(pEdge->getInputNum())) {
-                            auto peerNode = peerEdge->getChild();
-                            if (peerNode == node) continue;
-                            if (inPlaceDirection(peerNode, PortType::INPUT, peerEdge->getOutputNum()) == InplaceDirectionType::DOWN) {
-                                return true;
-                            }
-                        }
-                        return false;
-                    }();
-                    if (downstreamPeers) {
-                        // when there is an downstream peer we have to resolve upstream inplace for the node
-                        // to avoid inplace conflict
-                        auto config = node->getSelectedPrimitiveDescriptor()->getConfig();
-                        config.inConfs[inpPort].inPlace(-1);
-                        node->initDescriptor(config);
-                    } else {
-                        auto config = node->getSelectedPrimitiveDescriptor()->getConfig();
-                        config.outConfs[inPlaceInpPort].inPlace(-1);
-                        node->initDescriptor(config);
-                    }
                 } else {
-                    // the parent node does not use inPlace memory, let's check children
-                    std::function<InplaceDirectionType(const NodePtr& node, int portIdx)> searchNonCyclicDirection;
-                    searchNonCyclicDirection = [&](const NodePtr& node, int portIdx) -> InplaceDirectionType {
-                        auto& childEdges = node->getChildEdgesAtPort(portIdx);
-                        for (auto& edge : childEdges) {
-                            auto pChild = edge->getChild();
-                            auto result = inPlaceDirection(pChild, PortType::INPUT, edge->getOutputNum());
-                            if (InplaceDirectionType::UP == result || InplaceDirectionType::DOWN == result) {
-                                return result;
-                            } else if (InplaceDirectionType::CYCLIC == result) {
-                                return searchNonCyclicDirection(pChild, pChild->inPlaceInputPort(edge->getOutputNum()));
-                            }
+                    auto config = node->getSelectedPrimitiveDescriptor()->getConfig();
+                    config.outConfs[inPlaceInpPort].inPlace(-1);
+                    node->initDescriptor(config);
+                }
+            } else {
+                // the parent node does not use inPlace memory, let's check children
+                std::function<InplaceDirectionType(const NodePtr& node, int portIdx)> searchNonCyclicDirection;
+                searchNonCyclicDirection = [&](const NodePtr& node, int portIdx) -> InplaceDirectionType {
+                    auto& childEdges = node->getChildEdgesAtPort(portIdx);
+                    for (auto& edge : childEdges) {
+                        auto pChild = edge->getChild();
+                        auto result = inPlaceDirection(pChild, PortType::INPUT, edge->getOutputNum());
+                        if (InplaceDirectionType::UP == result || InplaceDirectionType::DOWN == result) {
+                            return result;
+                        } else if (InplaceDirectionType::CYCLIC == result) {
+                            return searchNonCyclicDirection(pChild, pChild->inPlaceInputPort(edge->getOutputNum()));
                         }
-                        return InplaceDirectionType::NONE;
-                    };
-                    auto result = searchNonCyclicDirection(node, inPlaceInpPort);
-                    if (one_of(result, InplaceDirectionType::UP, InplaceDirectionType::NONE)) {
-                        auto config = node->getSelectedPrimitiveDescriptor()->getConfig();
-                        config.inConfs[inpPort].inPlace(-1);
-                        node->initDescriptor(config);
-                    } else if (InplaceDirectionType::DOWN == result) {
-                        auto config = node->getSelectedPrimitiveDescriptor()->getConfig();
-                        config.outConfs[inPlaceInpPort].inPlace(-1);
-                        node->initDescriptor(config);
-                    } else {
-                        IE_THROW() << "A node without an inPlace memory cyclic dependency has not been found";
                     }
+                    return InplaceDirectionType::NONE;
+                };
+                auto result = searchNonCyclicDirection(node, inPlaceInpPort);
+                if (one_of(result, InplaceDirectionType::UP, InplaceDirectionType::NONE)) {
+                    auto config = node->getSelectedPrimitiveDescriptor()->getConfig();
+                    config.inConfs[inpPort].inPlace(-1);
+                    node->initDescriptor(config);
+                } else if (InplaceDirectionType::DOWN == result) {
+                    auto config = node->getSelectedPrimitiveDescriptor()->getConfig();
+                    config.outConfs[inPlaceInpPort].inPlace(-1);
+                    node->initDescriptor(config);
+                } else {
+                    IE_THROW() << "A node without an inPlace memory cyclic dependency has not been found";
                 }
             }
         }

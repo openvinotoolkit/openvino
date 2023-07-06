@@ -588,31 +588,32 @@ bool Gather::isExecutable() const {
 }
 
 void Gather::resolveInPlaceEdges(Edge::LOOK look) {
-    if ((look & Edge::LOOK_UP) && isInPlace()) {
-        auto selected_pd = getSelectedPrimitiveDescriptor();
-        if (selected_pd == nullptr)
-            IE_THROW() << "Preferable primitive descriptor is not set.";
-        constexpr size_t outputPort = 0;
-
-        auto& config = selected_pd->getConfig();
-        size_t inplaceInpIndx = selected_pd->getConfig().outConfs[outputPort].inPlace();
-        auto baseDim = inputShapes.front().getDims()[axis];
-        IE_ASSERT(baseDim != Shape::UNDEFINED_DIM) << "Gather node: " << getName() << " can not use inPlace memory with splitting on dynamic dimention";
-        auto baseMemMngr = getParentEdgesAtPort(inplaceInpIndx).front()->getMemory().getMemoryMngr();
-        auto index = constIndices.at(0);
-        ptrdiff_t offset = index < 0 ? baseDim + index : index;
-        const auto& childEdges = getChildEdgesAtPort(outputPort);
-        for (auto& childEdge : childEdges) {
-            IE_ASSERT(childEdge->getStatus() == Edge::Status::NotAllocated) << " Unexpected edge status in node: " <<
-                getName() << " with type " << getTypeStr();
-
-            auto memMngr = std::make_shared<PartitionedMemoryMngr>(baseMemMngr, baseDim, offset);
-            auto newMem = std::make_shared<Memory>(getEngine(), config.outConfs[outputPort].getMemDesc(), memMngr);
-
-            childEdge->reuse(newMem);
-        }
-    } else {
+    if (!(look & Edge::LOOK_UP) || !isInPlace()) {
         Node::resolveInPlaceEdges(look);
+        return;
+    }
+
+    auto selected_pd = getSelectedPrimitiveDescriptor();
+    if (selected_pd == nullptr)
+        IE_THROW() << "Preferable primitive descriptor is not set.";
+    constexpr size_t outputPort = 0;
+
+    auto& config = selected_pd->getConfig();
+    size_t inplaceInpIndx = selected_pd->getConfig().outConfs[outputPort].inPlace();
+    auto baseDim = inputShapes.front().getDims()[axis];
+    IE_ASSERT(baseDim != Shape::UNDEFINED_DIM) << "Gather node: " << getName() << " can not use inPlace memory with splitting on dynamic dimention";
+    auto baseMemMngr = getParentEdgesAtPort(inplaceInpIndx).front()->getMemory().getMemoryMngr();
+    auto index = constIndices.at(0);
+    ptrdiff_t offset = index < 0 ? baseDim + index : index;
+    const auto& childEdges = getChildEdgesAtPort(outputPort);
+    for (auto& childEdge : childEdges) {
+        IE_ASSERT(childEdge->getStatus() == Edge::Status::NotAllocated) << " Unexpected edge status in node: " <<
+            getName() << " with type " << getTypeStr();
+
+        auto memMngr = std::make_shared<PartitionedMemoryMngr>(baseMemMngr, baseDim, offset);
+        auto newMem = std::make_shared<Memory>(getEngine(), config.outConfs[outputPort].getMemDesc(), memMngr);
+
+        childEdge->reuse(newMem);
     }
 }
 

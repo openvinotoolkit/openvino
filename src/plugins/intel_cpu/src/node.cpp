@@ -377,7 +377,7 @@ void Node::resolveInPlaceEdges(Edge::LOOK look) {
         for (size_t i = 0; i < getParentEdges().size() && i < selected_pd->getConfig().inConfs.size(); i++) {
             auto inplaceOutIndx = selected_pd->getConfig().inConfs[i].inPlace();
 
-            if (inplaceOutIndx < 0) //parentEdge->getStatus() != Edge::Status::NotAllocated ||
+            if (inplaceOutIndx < 0)
                 continue;
 
             auto parentEdge = getParentEdgeAt(i);
@@ -398,7 +398,7 @@ void Node::resolveInPlaceEdges(Edge::LOOK look) {
         for (size_t i = 0; i < getChildEdges().size() && i < selected_pd->getConfig().outConfs.size(); i++) {
             auto inplaceInpIndx = selected_pd->getConfig().outConfs[i].inPlace();
 
-            if (inplaceInpIndx < 0) //childEdge->getStatus() != Edge::Status::NotAllocated ||
+            if (inplaceInpIndx < 0)
                 continue;
 
             auto baseMemMngr = getParentEdgesAtPort(inplaceInpIndx).front()->getMemory().getMemoryMngr();
@@ -1473,13 +1473,12 @@ bool Node::isInputTensorAtPortEmpty(size_t port) const {
 
     if (inputShapes[port].hasZeroDims()) {
         return true;
-    } else {
-        auto edge = getParentEdgesAtPort(port)[0];
-        if (one_of(edge->getStatus(), Edge::Status::Allocated, Edge::Status::Validated)) {
-            auto&& mem = edge->getMemory();
-            if (mem.isAllocated()) {
-                return mem.getShape().hasZeroDims();
-            }
+    }
+    auto edge = getParentEdgesAtPort(port)[0];
+    if (one_of(edge->getStatus(), Edge::Status::Allocated, Edge::Status::Validated)) {
+        auto&& mem = edge->getMemory();
+        if (mem.isAllocated()) {
+            return mem.getShape().hasZeroDims();
         }
     }
     return false;
@@ -1491,11 +1490,10 @@ bool Node::isOutputTensorAtPortEmpty(size_t port) const {
     }
     if (outputShapes[port].isStatic()) {
         return outputShapes[port].hasZeroDims();
-    } else {
-        auto& mem = getChildEdgesAtPort(port)[0]->getMemory();
-        if (mem.isAllocated()) {
-            return mem.getShape().hasZeroDims();
-        }
+    }
+    auto&& mem = getChildEdgesAtPort(port)[0]->getMemory();
+    if (mem.isAllocated()) {
+        return mem.getShape().hasZeroDims();
     }
     return false;
 }
