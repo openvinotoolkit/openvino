@@ -1,3 +1,6 @@
+const fs = require('fs');
+const http = require('http');
+const https = require('https');
 const { display } = require('node-kernel');
 const { createCanvas, createImageData, loadImage, Image, ImageData } = require('canvas');
 
@@ -6,6 +9,7 @@ exports.displayImage = displayImage;
 exports.getImageData = getImageData;
 exports.displayArrayAsImage = displayArrayAsImage;
 exports.transform = transform;
+exports.downloadFile = downloadFile;
 
 function arrayToImageData(array, width, height) {
   return createImageData(new Uint8ClampedArray(array), width, height);
@@ -82,4 +86,41 @@ function transform(arr, { width, height }, order) {
   const val = order.map(num => [...channels.get(num).data]);
 
   return [].concat(...val);
+}
+
+function downloadFile(url, filename, destination) {
+  const timeout = 5000;
+  const fullPath = destination + '/' + filename;
+  const file = fs.createWriteStream(fullPath);
+  const module = new URL(url).protocol === 'https:' ? https : http;
+
+  return new Promise((resolve, reject) => {
+    file.on('error', e => {
+      reject(`Error oppening file stream: ${e}`);
+    });
+
+    const getRequest = module.get(url, res => {
+      const { statusCode } = res;
+
+      if (statusCode !== 200)
+        return reject(`Server returns status code: ${statusCode}`);
+
+      res.pipe(file);
+
+      file.on('finish', () => {
+        file.close();
+        console.log(`File successfully stored at '${fullPath}'`);
+        resolve();
+      });
+    });
+
+    getRequest.on('error', e => {
+      reject(`Error sending request: ${e}`);
+    });
+
+    getRequest.setTimeout(timeout, () => {
+      getRequest.destroy();
+      reject(`Request timed out after ${timeout}`);
+    });
+  });
 }
