@@ -11,7 +11,7 @@
 #include "dev/converter_utils.hpp"
 #include "dev/remote_context_wrapper.hpp"
 #include "openvino/runtime/remote_context.hpp"
-#ifndef NO_PROXY_PLUGIN
+#ifdef PROXY_PLUGIN_ENABLED
 #    include "openvino/proxy/plugin.hpp"
 #endif
 
@@ -27,7 +27,7 @@ MemoryBlob::Ptr RemoteContext::CreateHostBlob(const TensorDesc& tensorDesc) {
 }
 
 const std::shared_ptr<InferenceEngine::RemoteContext> RemoteContext::GetHardwareContext() {
-#ifndef NO_PROXY_PLUGIN
+#ifdef PROXY_PLUGIN_ENABLED
     if (auto wrapper = dynamic_cast<ov::RemoteContextWrapper*>(this)) {
         auto ov_context = wrapper->get_context();
         auto hw_context = ov::proxy::get_hardware_context(ov_context);
@@ -38,7 +38,7 @@ const std::shared_ptr<InferenceEngine::RemoteContext> RemoteContext::GetHardware
 }
 
 const std::shared_ptr<const InferenceEngine::RemoteContext> RemoteContext::GetHardwareContext() const {
-#ifndef NO_PROXY_PLUGIN
+#ifdef PROXY_PLUGIN_ENABLED
     if (auto wrapper = dynamic_cast<const ov::RemoteContextWrapper*>(this)) {
         auto ov_context = wrapper->get_context();
         auto hw_context = ov::proxy::get_hardware_context(ov_context);

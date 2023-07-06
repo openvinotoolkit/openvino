@@ -7,7 +7,6 @@ set(TARGET_NAME ov_proxy_plugin_tests)
 ov_add_test_target(
         NAME ${TARGET_NAME}
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
-        EXCLUDED_SOURCE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/mock_plugins
         DEPENDENCIES
             openvino::runtime
             mock_engine

@@ -39,7 +39,7 @@
 #include "openvino/util/shared_object.hpp"
 #include "ov_plugins.hpp"
 #include "preprocessing/preprocessing.hpp"
-#ifndef NO_PROXY_PLUGIN
+#ifdef PROXY_PLUGIN_ENABLED
 #    include "openvino/proxy/plugin.hpp"
 #    include "openvino/proxy/properties.hpp"
 #endif
@@ -314,14 +314,14 @@ ov::CoreImpl::CoreImpl(bool _newAPI) : m_new_api(_newAPI) {
 }
 
 bool ov::CoreImpl::is_proxy_device(const ov::Plugin& plugin) const {
-#ifndef NO_PROXY_PLUGIN
+#ifdef PROXY_PLUGIN_ENABLED
     return std::dynamic_pointer_cast<ov::proxy::Plugin>(plugin.m_ptr) != nullptr;
 #else
     return false;
 #endif
 }
 bool ov::CoreImpl::is_proxy_device(const std::string& dev_name) const {
-#ifndef NO_PROXY_PLUGIN
+#ifdef PROXY_PLUGIN_ENABLED
     return pluginRegistry.find(dev_name) != pluginRegistry.end() &&
            pluginRegistry.at(dev_name).pluginCreateFunc == ov::proxy::create_plugin;
 #else
@@ -330,7 +330,7 @@ bool ov::CoreImpl::is_proxy_device(const std::string& dev_name) const {
 }
 
 void ov::CoreImpl::register_plugin_in_registry_unsafe(const std::string& device_name, PluginDescriptor& desc) {
-#ifndef NO_PROXY_PLUGIN
+#ifdef PROXY_PLUGIN_ENABLED
     // Update proxy plugin config
     const auto& fill_config = [](ov::AnyMap& defaultConfig, const ov::AnyMap& config, const std::string& dev_name) {
         // Configure aliases for proxy plugin
@@ -393,7 +393,7 @@ void ov::CoreImpl::register_plugin_in_registry_unsafe(const std::string& device_
     std::string dev_name = device_name;
     // Register proxy plugin
     if (config.find(ov::proxy::configuration::alias.name()) != config.end()) {
-#ifdef NO_PROXY_PLUGIN
+#ifndef PROXY_PLUGIN_ENABLED
         OPENVINO_THROW("Cannot register plugin under the proxy. Proxy plugin is disabled.");
 #else
         // Create proxy plugin for alias
@@ -419,7 +419,7 @@ void ov::CoreImpl::register_plugin_in_registry_unsafe(const std::string& device_
         }
 #endif
     } else if (config.find(ov::proxy::configuration::fallback.name()) != config.end()) {
-#ifdef NO_PROXY_PLUGIN
+#ifndef PROXY_PLUGIN_ENABLED
         OPENVINO_THROW("Cannot register plugin under the proxy. Proxy plugin is disabled.");
 #else
         // Fallback without alias means that we need to replace original plugin to proxy
@@ -601,7 +601,7 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
 
         // configuring
         {
-#ifndef NO_PROXY_PLUGIN
+#ifdef PROXY_PLUGIN_ENABLED
             // Initial setup for proxy plugin.
             // It is needed for future initialization to initialize low level plugin
             if (desc.pluginCreateFunc == ov::proxy::create_plugin) {
@@ -875,7 +875,7 @@ ov::SupportedOpsMap ov::CoreImpl::query_model(const std::shared_ptr<const ov::Mo
 }
 
 bool ov::CoreImpl::is_hidden_device(const std::string& device_name) const {
-#ifndef NO_PROXY_PLUGIN
+#ifdef PROXY_PLUGIN_ENABLED
     std::lock_guard<std::mutex> lock(get_mutex());
     if (device_name.find("_ov_internal") != std::string::npos)
         return true;
@@ -1107,7 +1107,7 @@ void ov::CoreImpl::set_property(const std::string& device_name, const AnyMap& pr
     auto devices = get_registered_devices();
     for (auto&& config : properties) {
         const auto is_secondary_property = config.first.find(ov::device::properties.name()) != std::string::npos;
-        // It is valid change for proxy plugin
+        // It is valid change for proxy plugin, proxy plugin allows to set properties for low level fallback devices
         const auto is_proxy = is_proxy_device(ov::parseDeviceNameIntoConfig(device_name)._deviceName);
         OPENVINO_ASSERT(!is_secondary_property || is_proxy,
                         "set_property do not support ov::device::propreties. "

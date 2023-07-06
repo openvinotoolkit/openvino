@@ -141,7 +141,7 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*VersionTest.*pluginCurrentVersionIsCorrect.*)",
             R"(.*OVHoldersTest.*LoadedTensor.*AUTO.*)",
             R"(.*OVHoldersTest.*LoadedTensor.*MULTI.*)",
-#ifndef NO_PROXY_PLUGIN
+#ifdef PROXY_PLUGIN_ENABLED
             // Issue because meta plugins use OLD API and wrap proxy which work with new API
             R"(.*OVHoldersTest.*LoadedTensor.*HETERO.*)",
 #endif

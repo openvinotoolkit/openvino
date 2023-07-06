@@ -353,17 +353,8 @@ std::shared_ptr<ov::IRemoteContext> ov::proxy::Plugin::create_context(const ov::
         } catch (const ov::Exception&) {
         }
     }
-    std::string properties_str = "{";
-    bool has_elements = false;
-    for (const auto& it : remote_properties) {
-        if (has_elements)
-            properties_str += ", ";
-        else
-            has_elements = true;
-        properties_str += it.first + ": " + it.second.as<std::string>();
-    }
-    properties_str += "}";
-    OPENVINO_THROW("Cannot create remote context for provided properties: ", properties_str);
+    OPENVINO_THROW("Cannot create remote context for provided properties: ",
+                   ov::Any(remote_properties).as<std::string>());
 }
 
 std::shared_ptr<ov::IRemoteContext> ov::proxy::Plugin::get_default_context(const ov::AnyMap& remote_properties) const {

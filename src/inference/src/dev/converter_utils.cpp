@@ -43,7 +43,7 @@
 #include "threading/ie_executor_manager.hpp"
 #include "transformations/utils/utils.hpp"
 
-#ifndef NO_PROXY_PLUGIN
+#ifdef PROXY_PLUGIN_ENABLED
 #    include "openvino/proxy/infer_request.hpp"
 #endif
 
@@ -547,7 +547,7 @@ public:
     }
 
     const InferenceEngine::PreProcessInfo& GetPreProcess(const std::string& name) const override {
-#ifndef NO_PROXY_PLUGIN
+#ifdef PROXY_PLUGIN_ENABLED
         if (auto proxy_request = std::dynamic_pointer_cast<ov::proxy::InferRequest>(m_request)) {
             return ov::legacy_convert::convert_infer_request(proxy_request->get_hardware_request()._ptr)
                 ->GetPreProcess(name);

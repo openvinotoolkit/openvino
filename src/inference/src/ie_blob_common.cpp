@@ -14,7 +14,7 @@ namespace InferenceEngine {
 IE_SUPPRESS_DEPRECATED_START
 
 Blob* Blob::getHardwareBlob() {
-#ifndef NO_PROXY_PLUGIN
+#ifdef PROXY_PLUGIN_ENABLED
     return ov::get_hardware_blob(this);
 #else
     return this;
@@ -22,7 +22,7 @@ Blob* Blob::getHardwareBlob() {
 }
 
 const Blob* Blob::getHardwareBlob() const {
-#ifndef NO_PROXY_PLUGIN
+#ifdef PROXY_PLUGIN_ENABLED
     return ov::get_hardware_blob(this);
 #else
     return this;

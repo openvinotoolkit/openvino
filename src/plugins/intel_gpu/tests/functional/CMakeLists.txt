@@ -31,8 +31,8 @@ addIeTargetTest(
             GPU
 )
 
-if(NOT ENABLE_PROXY)
-    target_compile_definitions(${TARGET_NAME} PUBLIC NO_PROXY_PLUGIN)
+if(ENABLE_PROXY)
+    target_compile_definitions(${TARGET_NAME} PUBLIC PROXY_PLUGIN_ENABLED)
 endif()
 
 # try to find VA libraries
