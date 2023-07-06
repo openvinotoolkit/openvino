@@ -390,9 +390,11 @@ endmacro()
 
 macro(_ov_find_protobuf_frontend_dependency)
     set(_OV_ENABLE_SYSTEM_PROTOBUF "@ENABLE_SYSTEM_PROTOBUF@")
+    set(_OV_PROTOBUF_PACKAGE_CONFIG "@protobuf_config@")
     if(_OV_ENABLE_SYSTEM_PROTOBUF)
-        _ov_find_dependency(Protobuf @Protobuf_VERSION@ EXACT NAMES Protobuf protobuf)
+        _ov_find_dependency(Protobuf @Protobuf_VERSION@ EXACT ${_OV_PROTOBUF_PACKAGE_CONFIG})
     endif()
+    unset(_OV_PROTOBUF_PACKAGE_CONFIG)
     unset(_OV_ENABLE_SYSTEM_PROTOBUF)
 endmacro()
 
