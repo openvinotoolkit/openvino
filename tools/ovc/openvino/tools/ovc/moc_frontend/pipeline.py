@@ -1,11 +1,7 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-# flake8: noqa
-# mypy: ignore-errors
-
 import argparse
-import io
 import logging as log
 import sys
 from copy import copy

@@ -1,8 +1,5 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2018-2023 Intel Corporation
-# SPDX-License-Identifier: Apache-2.0
-
 import sys
 
 if __name__ == "__main__":

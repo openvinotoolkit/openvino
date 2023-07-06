@@ -1,14 +1,11 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-# flake8: noqa
-# mypy: ignore-errors
-
 import re
 from enum import Enum
 
 import numpy as np
-from openvino._pyopenvino import Place, PartialShape
+from openvino.runtime import Place, PartialShape # pylint: disable=no-name-in-module,import-error
 
 from openvino.frontend import InputModel  # pylint: disable=no-name-in-module,import-error
 from openvino.tools.ovc.error import Error

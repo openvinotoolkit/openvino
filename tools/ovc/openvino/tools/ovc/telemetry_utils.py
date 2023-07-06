@@ -1,13 +1,10 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-# flake8: noqa
-# mypy: ignore-errors
-
 import argparse
 import numbers
 
-from openvino.runtime import get_version as get_rt_version
+from openvino.runtime import get_version as get_rt_version # pylint: disable=no-name-in-module,import-error
 from openvino.tools.ovc.cli_parser import get_params_with_paths_list
 from openvino.tools.ovc.telemetry_params import telemetry_params
 from openvino.tools.ovc.utils import check_values_equal

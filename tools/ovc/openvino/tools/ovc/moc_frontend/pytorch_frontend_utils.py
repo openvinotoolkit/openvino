@@ -1,14 +1,11 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-# flake8: noqa
-# mypy: ignore-errors
-
 import logging as log
 import numpy as np
 from openvino.tools.ovc.moc_frontend.shape_utils import get_static_shape
 from openvino.tools.ovc.error import Error
-from openvino.runtime import Tensor, Type, PartialShape
+from openvino.runtime import Tensor, Type, PartialShape # pylint: disable=no-name-in-module,import-error
 from openvino.tools.ovc.types import get_element_type_str
 from openvino.tools.ovc.cli_parser import input_to_input_cut_info, input_shape_to_input_cut_info
 
@@ -117,7 +114,7 @@ def extract_input_info_from_example(args, inputs):
 
 
 def to_torch_tensor(tensor):
-    import torch
+    import torch # pylint: import-error
     if isinstance(tensor, torch.Tensor):
         return tensor
     if isinstance(tensor, np.ndarray):
@@ -198,7 +195,7 @@ def prepare_torch_inputs(example_inputs, input_shape, input_info=None, allow_non
                 break
             dtype = get_torch_dtype(inp.type)
             static_shape = get_static_shape(shape, dynamic_value=1)
-            input_tensor = torch.zeros(static_shape, dtype=dtype)
+            input_tensor = torch.zeros(static_shape, dtype=dtype)  # pylint: import-error,no-member
             if inp.name is not None:
                 inputs_with_names[inp.name] = input_tensor
             inputs.append(input_tensor)
