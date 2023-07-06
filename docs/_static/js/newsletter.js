@@ -1,4 +1,4 @@
-const eloquaUrl = 'https://httpbin.org/status/200'
+const eloquaUrl = 'https://httpbingo.org/post'
 
 
 $(document).ready(function () {
@@ -26,7 +26,14 @@ $(document).ready(function () {
                 $(this).animate({opacity: 0}, 200, 'linear', () => {
                     $.post(eloquaUrl, $(this).serialize())
                     .done(function(data) {
-                        console.log(data);
+                        // ---------- debug request data
+                        // console.log(data);
+                        console.log('#############');
+                        console.log('Form data:');
+                        for (key in data.form) {
+                            console.log(`-- ${key}: ${data.form[key]}`);
+                        }
+                        // ----------
                         displayMessage(formHeight, 'pass');
                     })
                     .fail(function(error) {

@@ -191,4 +191,3 @@ def setup(app):
     app.add_js_file('js/newsletter.js')
     app.add_js_file('js/graphs_ov_tf.js')
     app.add_js_file('js/open_sidebar.js')
-    
