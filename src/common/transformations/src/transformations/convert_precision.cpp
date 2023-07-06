@@ -31,7 +31,9 @@
 
 using namespace ov;
 
-bool fuse_type_to_parameter(const std::shared_ptr<ngraph::Node>& node, const precisions_map& precisions, bool convert_input_precision);
+bool fuse_type_to_parameter(const std::shared_ptr<ngraph::Node>& node,
+                            const precisions_map& precisions,
+                            bool convert_input_precision);
 
 bool fuse_type_to_constant(const std::shared_ptr<ngraph::Node>& node,
                            const precisions_map& precisions,
@@ -181,10 +183,6 @@ bool convert_function_precision(
     bool convert_input_output_precision) {
     bool is_output_precision_changed = false;
 
-    for (const auto& param : f->get_parameters()) {
-        is_changed |= fuse_type_to_parameter(param, precisions, convert_input_output_precision);
-    }
-
     ov::element::TypeVector orig_result_types;
     if (!convert_input_output_precision) {
         const auto& results = f->get_results();
@@ -202,6 +200,10 @@ bool convert_function_precision(
         if (skip_precision_sensitive && fp16_compression_is_disabled(node) && has_fp16_compression)
             continue;
         is_changed |= convert_node_input_precision(node, precisions, type_to_extend);
+    }
+
+    for (const auto& param : f->get_parameters()) {
+        is_changed |= fuse_type_to_parameter(param, precisions, convert_input_output_precision);
     }
 
     if (is_changed)
@@ -277,9 +279,22 @@ bool convert_function_precision(
             if (result->get_input_element_type(0) != orig_result_types[i]) {
                 auto result_input = result->input_value(0);
                 const auto convert = std::make_shared<ov::op::v0::Convert>(result_input, orig_result_types[i]);
-                convert->output(0).set_names(result_input.get_names());
-                convert->set_friendly_name(ov::op::util::get_ie_output_name(result_input));
-                result_input.get_node()->set_friendly_name("");
+                if (result_input.get_node()->get_output_size() > 1) {
+                    convert->set_friendly_name(result_input.get_node()->get_friendly_name() + "." +
+                                               std::to_string(result_input.get_index()));
+                } else {
+                    convert->set_friendly_name(result_input.get_node()->get_friendly_name());
+                    result_input.get_node()->set_friendly_name("");
+                }
+
+                auto& convert_output_tensor = convert->get_output_tensor(0);
+                convert_output_tensor.set_names(result_input.get_names());
+                OPENVINO_SUPPRESS_DEPRECATED_START
+                const auto& legacy_name = ov::descriptor::get_ov_tensor_legacy_name(result_input.get_tensor());
+                if (!legacy_name.empty()) {
+                    ov::descriptor::set_ov_tensor_legacy_name(convert_output_tensor, legacy_name);
+                }
+                OPENVINO_SUPPRESS_DEPRECATED_END
                 result_input.set_names({});
                 result->input(0).replace_source_output(convert->output(0));
                 result->revalidate_and_infer_types();
@@ -507,31 +522,33 @@ bool fuse_type_to_eye_v9(const std::shared_ptr<ngraph::Node>& node, const precis
     return false;
 }
 
-bool fuse_type_to_parameter(const std::shared_ptr<ngraph::Node>& node, const precisions_map& precisions, bool convert_input_precision) {
+bool fuse_type_to_parameter(const std::shared_ptr<ngraph::Node>& node,
+                            const precisions_map& precisions,
+                            bool convert_input_precision) {
     auto it = precisions.find(node->get_output_element_type(0));
     if (it == precisions.end())
         return false;
+    bool changed = false;
     const auto& to = it->second;
     if (auto param = ov::as_type_ptr<opset4::Parameter>(node)) {
         if (convert_input_precision) {
             param->set_element_type(to);
             param->validate_and_infer_types();
+            changed = true;
         } else {
             auto param_consumers = param->output(0).get_target_inputs();
             auto convert = std::make_shared<opset4::Convert>(param, to);
             for (auto& input : param_consumers) {
                 const auto consumer = input.get_node();
-                if (ov::is_type<ov::op::v0::Result>(consumer) ||
-                    (ov::is_type<ov::op::v0::Convert>(consumer) &&
-                     consumer->get_output_element_type(0) == to)) {
+                if (ov::is_type<ov::op::v0::Result>(consumer) || ov::is_type<ov::op::v0::Convert>(consumer)) {
                     continue;
                 }
                 input.replace_source_output(convert);
+                changed = true;
             }
         }
-        return true;
     }
-    return false;
+    return changed;
 }
 
 bool fuse_type_to_convert(const std::shared_ptr<ngraph::Node>& node, const precisions_map& precisions) {
