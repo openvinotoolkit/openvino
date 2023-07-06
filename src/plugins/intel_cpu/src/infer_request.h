@@ -50,29 +50,30 @@ public:
 
 protected:
     void create_infer_request();
-    InferenceEngine::Precision normToInputSupportedPrec(const std::pair<const std::string, ov::Tensor>& input) const;
+    InferenceEngine::Precision norm_to_input_supported_prec(const std::pair<const std::string, ov::Tensor>& input) const;
     void pushInput(const std::string& inputName, ov::Tensor& inputBlob, InferenceEngine::Precision dataType);
 
     void init_tensor(const std::string& name);
-    void PushInputData();
+    void push_input_data();
 
     Graph* graph = nullptr;
     mutable std::unordered_map<std::string, void*> m_external_ptr;
 
 private:
-    void PushStates();
-    void PullStates();
-    void redefineMemoryForInputNodes();
+    void push_states();
+    void pull_states();
+    void redefine_memory_for_input_nodes();
 
-    // Check port is original port or compiled port, return true for compiled port
-    bool check_compiled_port(const ov::Output<const ov::Node>& port) const;
     void update_external_inputs();
     InferenceEngine::TensorDesc create_tensor_desc(const ov::Tensor& tensor);
 
     // Transformation shouldn't change model's input/output's precision, but actually it does.
     // Some additional methods will handle it.
-    const ov::Output<const ov::Node>& get_compiled_port(const ov::Output<const ov::Node>& port) const;
-    ov::Tensor get_compiled_tensor(const ov::Output<const ov::Node>& port) const;
+    const ov::Output<const ov::Node>& get_internal_port(const ov::Output<const ov::Node>& port) const;
+    ov::Tensor get_port_tensor(const ov::Output<const ov::Node>& port) const;
+    // Check this port is original model port or compiled model's port, return true for compiled model's port
+    // This is because if precision has been changed in compiled model, it need distinguish them
+    bool check_compiled_model_port(const ov::Output<const ov::Node>& port) const;
     mutable std::unordered_map<std::string, ov::Output<const ov::Node>> m_orig_ports_map;
     // Store external tensor due to precision changes
     mutable std::unordered_map<std::string, ov::Tensor> m_aux_tensors;
@@ -89,7 +90,7 @@ private:
     std::unordered_map<std::string, ov::Tensor> m_outputs;
 
 protected:
-    virtual void changeDefaultPtr();
+    virtual void change_default_ptr();
 };
 
 }  // namespace intel_cpu

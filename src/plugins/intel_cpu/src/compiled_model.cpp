@@ -226,10 +226,10 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
         return option->second;
     }
 
-    return GetMetric(name);
+    return get_metric(name);
 }
 
-ov::Any CompiledModel::GetMetricLegacy(const std::string& name, const GraphGuard& graph) const {
+ov::Any CompiledModel::get_metric_legacy(const std::string& name, const GraphGuard& graph) const {
     if (name == METRIC_KEY(NETWORK_NAME)) {
         IE_SET_METRIC_RETURN(NETWORK_NAME, graph.dump()->get_friendly_name());
     } else if (name == METRIC_KEY(SUPPORTED_METRICS)) {
@@ -256,7 +256,7 @@ ov::Any CompiledModel::GetMetricLegacy(const std::string& name, const GraphGuard
     }
 }
 
-ov::Any CompiledModel::GetMetric(const std::string& name) const {
+ov::Any CompiledModel::get_metric(const std::string& name) const {
     if (m_graphs.empty())
         OPENVINO_THROW("No graph was found");
     // @todo Can't we just use local copy (_cfg) instead?
@@ -351,7 +351,7 @@ ov::Any CompiledModel::GetMetric(const std::string& name) const {
     }
     /* Internally legacy parameters are used with new API as part of migration procedure.
      * This fallback can be removed as soon as migration completed */
-    return GetMetricLegacy(name, graph);
+    return get_metric_legacy(name, graph);
 }
 
 void CompiledModel::export_model(std::ostream& modelStream) const {
