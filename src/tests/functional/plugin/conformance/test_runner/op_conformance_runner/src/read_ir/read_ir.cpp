@@ -234,14 +234,13 @@ void ReadIRTest::SetUp() {
     // Updating data in runtime. Should be set before possible call of a first GTEST status
     auto pgLink = this->GetPGLink();
     if (pgLink) {
-        // @TODO: Use FULL_DEVICE_NAME as a targetDevice
+        auto devNameProperty = core->get_property(this->targetDevice, "FULL_DEVICE_NAME");
+        auto devName = devNameProperty.is<std::string>() ?  devNameProperty.as<std::string>() : "";
+        pgLink->set_custom_field("targetDeviceName", devName, true);
         if (this->targetDevice == "CPU") {
-            auto devName = core->get_property(this->targetDevice, "FULL_DEVICE_NAME").as<std::string>();
             pgLink->set_custom_field("targetDevice", this->targetDevice, true);
             pgLink->set_custom_field("targetDeviceArch", devName.find("ARM") != std::string::npos ? "arm" : "", true);
         } else if (this->targetDevice == "GPU") {
-            auto devName = core->get_property("GPU", "FULL_DEVICE_NAME").as<std::string>();
-            std::cerr << "GPU Device: " << devName << std::endl;
             if (devName.find("dGPU") != std::string::npos) {
                 pgLink->set_custom_field("targetDevice", "DGPU", true);
             } else {

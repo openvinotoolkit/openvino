@@ -99,11 +99,17 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
         if (isTransactionalQuery) {
             query += selectPos;
         }
+#ifdef PGQL_DEBUG
+        std::cout << "Query: " << query << std::endl;
+#endif
         auto pgresult = connectionKeeper->query(query);
         CHECK_PGRESULT(pgresult, "Cannot retrieve a correct " << fieldName, return false);
 
         bool isNull = PQgetisnull(pgresult.get(), 0, 0) != 0;
         if (isNull && isTransactionalQuery) {
+#ifdef PGQL_DEBUG
+            std::cout << "Transactional query: " << query << std::endl;
+#endif
             pgresult = connectionKeeper->query(query_start, PGRES_TUPLES_OK, true);
             CHECK_PGRESULT(pgresult, "Cannot retrieve a correct transactional " << fieldName, return false);
             isNull = PQgetisnull(pgresult.get(), 0, 0) != 0;
@@ -255,7 +261,8 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
     /// TestCase start into the table
     void _internal_start(void) {
         // In case of results will be refused - do not do anything
-        if (isRefusedResult) {
+        if (!this->isPostgresEnabled || !this->testRunId || !this->sessionId || !this->testSuiteNameId ||
+            !this->testSuiteId || isRefusedResult) {
             return;
         }
 
@@ -667,7 +674,11 @@ public:
         if (rewrite || field == this->testDictionary.end()) {
             isFieldsUpdated |= (field == this->testDictionary.end()) ||
                                (field->second != fieldValue);  // Signals only in case value not equal with existing
-            this->testDictionary[fieldName] = fieldValue;
+            // Some plugins may return corrupted strings with zero-character at the end, it may
+            // corrupt queries
+            size_t zero_pos = fieldValue.find_first_of('\0');
+            this->testDictionary[fieldName] =
+                zero_pos == std::string::npos ? fieldValue : fieldValue.substr(0, zero_pos);
             return true;
         }
         return false;
