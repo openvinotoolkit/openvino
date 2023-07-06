@@ -35,9 +35,6 @@ public:
     static std::string getTestCaseName(const testing::TestParamInfo<OpImplParams> &obj);
 };
 
-using OpImplCheckCompileModelTest = OpImplCheckTest;
-using OpImplCheckQueryModelTest = OpImplCheckTest;
-
 }   // namespace subgraph
 }   // namespace test
 }   // namespace ov

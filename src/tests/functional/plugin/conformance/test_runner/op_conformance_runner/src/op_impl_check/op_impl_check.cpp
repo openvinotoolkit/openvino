@@ -1,38 +1,44 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include <signal.h>
+#ifdef _WIN32
+#include <process.h>
+#endif
 
-#include "single_layer_tests/op_impl_check/op_impl_check_compile_model.hpp"
-#include "single_layer_tests/op_impl_check/op_impl_check_query_model.hpp"
-#include "single_layer_tests/op_impl_check/single_op_graph.hpp"
-#include "conformance.hpp"
+#include "op_impl_check/op_impl_check.hpp"
+#include "functional_test_utils/crash_handler.hpp"
 
 namespace ov {
 namespace test {
-namespace conformance {
-namespace op {
+namespace subgraph {
 
-using namespace ov::test::subgraph;
+void OpImplCheckTest::SetUp() {
+    std::pair<ov::DiscreteTypeInfo, std::shared_ptr<ov::Model>> funcInfo;
+    std::tie(funcInfo, targetDevice, configuration) = this->GetParam();
+    function = funcInfo.second;
+}
 
-namespace {
-INSTANTIATE_TEST_SUITE_P(conformance_compile_model,
-                         OpImplCheckCompileModelTest,
-                         ::testing::Combine(
-                                 ::testing::ValuesIn(createFunctions()),
-                                 ::testing::Values(targetDevice),
-                                 ::testing::Values(pluginConfig)),
-                         OpImplCheckCompileModelTest::getTestCaseName);
+std::string OpImplCheckTest::getTestCaseName(const testing::TestParamInfo<OpImplParams> &obj) {
+    std::pair<ov::DiscreteTypeInfo, std::shared_ptr<ov::Model>> funcInfo;
+    std::string targetDevice;
+    ov::AnyMap config;
+    std::tie(funcInfo, targetDevice, config) = obj.param;
 
-INSTANTIATE_TEST_SUITE_P(conformance_query_model,
-                         OpImplCheckQueryModelTest,
-                         ::testing::Combine(
-                                 ::testing::ValuesIn(createFunctions()),
-                                 ::testing::Values(targetDevice),
-                                 ::testing::Values(pluginConfig)),
-                         OpImplCheckQueryModelTest::getTestCaseName);
-} // namespace
+    std::ostringstream result;
+    std::string friendlyName = funcInfo.first.name + std::string("_") + funcInfo.first.get_version();
+    result << "Function=" << friendlyName << "_";
+    result << "Device=" << targetDevice << "_";
+    result << "Config=(";
+    for (const auto& configItem : config) {
+        result << configItem.first << "=";
+        configItem.second.print(result);
+        result << "_";
+    }
+    result << ")";
+    return result.str();
+}
 
-}  // namespace op
-}  // namespace conformance
-}  // namespace test
-}  // namespace ov
+}   // namespace subgraph
+}   // namespace test
+}   // namespace ov
