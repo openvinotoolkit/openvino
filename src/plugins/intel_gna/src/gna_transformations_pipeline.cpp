@@ -168,7 +168,7 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
         // TODO: crashes with fm network
         manager.register_pass<ov::intel_gna::pass::GnaConvolutionFusion>();
     }
-    manager.register_pass<ov::intel_gna::pass::ReplaceBigTranspose>();
+    // manager.register_pass<ov::intel_gna::pass::ReplaceBigTranspose>();
     manager.register_pass<ov::intel_gna::pass::RemoveInputsProcessing>(input_output_subgraphs);
     manager.register_pass<ov::intel_gna::pass::RemoveOutputsProcessing>(input_output_subgraphs);
     manager.register_pass<ov::pass::ConvertOpSet3ToOpSet2>();
@@ -331,7 +331,7 @@ void TransformationsPipeline::apply_legacy(const InferenceEngine::CNNNetwork& ne
     OV_ITT_SCOPED_TASK(itt::domains::GNAPlugin, "TransformationsPipeline::apply_legacy");
     auto passes =
         std::make_shared<PassManager>(PassManagerSettings{runBeforeCopy, config.gnaFlags.input_low_precision}, network);
-    // passes->registerPass<RemoveConstPass>();
+    passes->registerPass<RemoveConstPass>();
     if (!is_ngraph_passes_used) {
         passes->registerPass<UnrollTIPass>();
         passes->registerPass<RemoveConstPass>();
@@ -372,7 +372,7 @@ void TransformationsPipeline::apply_legacy(const InferenceEngine::CNNNetwork& ne
     passes->registerPass<HandleMultipleActivationsForTheLayerPass>();
     passes->registerPass<ForbidActivationFusingPass>();
     // TODO: crashes with fm network
-    // passes->registerPass<FuseMultipleIdentitiesPass>();
+    passes->registerPass<FuseMultipleIdentitiesPass>();
     passes->registerPass<FuseFullyConnectedWithEltwisePass>();
     legacy_pass_index = passes->run(legacy_pass_index);
 }
