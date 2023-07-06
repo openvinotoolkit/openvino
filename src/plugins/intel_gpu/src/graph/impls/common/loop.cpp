@@ -62,9 +62,10 @@ struct loop_impl : typed_primitive_impl<loop> {
                 if (input_layout_prim == nullptr) {
                     CLDNN_ERROR_MESSAGE(instance.id(), "current_iteration primitive is not input_layout");
                 }
-
-                const auto& backedge_mapping = instance.get_current_iteration_backedge_mapping();
-                input_layout_prim->set_data(backedge_mapping.initial_mem);
+                else {
+                    const auto& backedge_mapping = instance.get_current_iteration_backedge_mapping();
+                    input_layout_prim->set_data(backedge_mapping.initial_mem);
+                }
             }
             instance.preproc_memories_done = true;
         }
