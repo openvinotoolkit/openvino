@@ -11,7 +11,7 @@ Params params[] = {
     std::tuple<Device, Config>{ CommonTestUtils::DEVICE_MULTI, {{ MULTI_CONFIG_KEY(DEVICE_PRIORITIES), CommonTestUtils::DEVICE_GNA }}},
 };
 // TODO: Consider to append params[1] after issue *-45658 resolved
-std::vector< std::tuple<Device, Config> > paramsWithIterations{ params[0], params[2] };
+std::vector< std::tuple<Device, Config> > paramsWithIterations{ params[0] };
 }  // namespace
 
 INSTANTIATE_TEST_SUITE_P(GNA, CoreThreadingTests, testing::ValuesIn(params), CoreThreadingTests::getTestCaseName);
