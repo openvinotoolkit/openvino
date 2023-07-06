@@ -22,13 +22,6 @@
             "outputs": []
         },
         {
-            "language": "markdown",
-            "source": [
-                ""
-            ],
-            "outputs": []
-        },
-        {
             "language": "typescript",
             "source": [
                 "const baseArtifactsDir = '../../assets/models';\n\nconst modelName = 'road-segmentation-adas-0001';\nconst modelXMLName = `${modelName}.xml`;\nconst modelBINName = `${modelName}.bin`;\n\nconst modelXMLPath = baseArtifactsDir + '/' + modelXMLName;\n\nconst baseURL = 'https://storage.openvinotoolkit.org/repositories/open_model_zoo/2022.3/models_bin/1/road-segmentation-adas-0001/FP32/';\n\nawait downloadFile(baseURL + modelXMLName, modelXMLName, baseArtifactsDir);\nawait downloadFile(baseURL + modelBINName, modelBINName, baseArtifactsDir);"
@@ -45,7 +38,7 @@
         {
             "language": "typescript",
             "source": [
-                "const modelXMLPath = '../../assets/models/road-segmentation-adas-0001.xml';\n\nconst core = new ov.Core();\nconst model = core.read_model(modelXMLPath);\nconst compiledModel = core.compile_model(model, 'CPU');\n\nconst outputLayer = compiledModel.outputs[0];\nconst inputLayer = compiledModel.inputs[0];"
+                "const core = new ov.Core();\nconst model = core.read_model(modelXMLPath);\nconst compiledModel = core.compile_model(model, 'CPU');\n\nconst outputLayer = compiledModel.outputs[0];\nconst inputLayer = compiledModel.inputs[0];"
             ],
             "outputs": []
         },
