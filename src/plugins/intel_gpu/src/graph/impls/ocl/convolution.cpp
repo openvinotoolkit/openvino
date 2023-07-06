@@ -102,14 +102,12 @@ public:
             pads_begin = ov::CoordinateDiff(pads_begin.size(), 0);
             pads_end = ov::CoordinateDiff(pads_end.size(), 0);
         }
-
-        kernel.resize(std::max<size_t>(2, kernel.size()), 1);
         pads_begin.resize(std::max<size_t>(2, pads_begin.size()), 0);
         pads_end.resize(std::max<size_t>(2, pads_end.size()), 0);
 
-        uint32_t kx = kernel.size() >= 3 ? static_cast<uint32_t>(kernel[kernel.size() - 3]) : 1;
-        uint32_t ky = kernel.size() >= 2 ? static_cast<uint32_t>(kernel[kernel.size() - 2]) : 1;
-        uint32_t kz = kernel.size() >= 1 ? static_cast<uint32_t>(kernel[kernel.size() - 1]) : 1;
+        uint32_t kx = weights_layout.spatial(0);
+        uint32_t ky = weights_layout.spatial(1);
+        uint32_t kz = weights_layout.spatial(2);
         conv_params.filterSize = { kx, ky, kz };
 
         uint32_t pad_z = std::max<std::ptrdiff_t>(pads_begin.size() >= 3 ? pads_begin[pads_begin.size() - 3] : 0, 0);
