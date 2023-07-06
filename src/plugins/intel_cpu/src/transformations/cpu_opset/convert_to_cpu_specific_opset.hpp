@@ -45,6 +45,12 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ngraph::Function> &nGraphF
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ReshapeSequenceFusion);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConstantFolding);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertPrecision, precisions_map {{ ngraph::element::i64, ngraph::element::i32 }});
+    CPU_REGISTER_PASS_COMMON(manager,
+                             ov::pass::ConvertPrecision,
+                             precisions_map{{ngraph::element::i64, ngraph::element::i32}},
+                             type_to_fuse_map{{}},
+                             false,
+                             false);
     CPU_REGISTER_PASS_COMMON(manager, NgramFusion);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::Validate);
 

@@ -151,7 +151,7 @@ static bool streamsSet(const ov::AnyMap& config) {
            config.count(ov::num_streams.name());
 }
 
-void Engine::ApplyPerformanceHints(ov::AnyMap& config, const std::shared_ptr<ov::Model>& model) const {
+void Engine::apply_performance_hints(ov::AnyMap& config, const std::shared_ptr<ov::Model>& model) const {
     auto getNumStreamsLatency = [&]() {
         return std::pair<std::string, std::string>(CONFIG_VALUE(CPU_THROUGHPUT_NUMA),
                                                    ov::util::to_string(ov::streams::NUMA));
@@ -183,7 +183,7 @@ void Engine::ApplyPerformanceHints(ov::AnyMap& config, const std::shared_ptr<ov:
         const float L2_cache_size = dnnl::utils::get_cache_size(2 /*level*/, true /*per core */);
         ov::MemBandwidthPressure networkToleranceForLowCache =
             ov::MemBandwidthPressureTolerance(model, L2_cache_size, memThresholdAssumeLimitedForISA);
-        const auto default_streams = GetNumStreams(engConfig.streamExecutorConfig._threadBindingType,
+        const auto default_streams = get_streams_num(engConfig.streamExecutorConfig._threadBindingType,
                                                    IStreamsExecutor::Config::StreamMode::DEFAULT,
                                                    engConfig.streamExecutorConfig._enable_hyper_thread);
         auto streams_info = default_streams;
@@ -191,18 +191,18 @@ void Engine::ApplyPerformanceHints(ov::AnyMap& config, const std::shared_ptr<ov:
             if ((networkToleranceForLowCache.ratio_compute_convs == ov::MemBandwidthPressure::ALL) ||
                 (networkToleranceForLowCache.ratio_compute_deconvs == ov::MemBandwidthPressure::ALL)) {
                 // all relevant layers (convs, etc) are compute-limited, the most aggressive val for #streams
-                streams_info = GetNumStreams(engConfig.streamExecutorConfig._threadBindingType,
+                streams_info = get_streams_num(engConfig.streamExecutorConfig._threadBindingType,
                                              IStreamsExecutor::Config::StreamMode::AGGRESSIVE,
                                              engConfig.streamExecutorConfig._enable_hyper_thread);
             }  //  otherwise (no recognized layers) falling back to the default value
         } else if (networkToleranceForLowCache.max_mem_tolerance > memThresholdAssumeLimitedForISA) {
             // network is below the ISA-specific threshold
-            streams_info = GetNumStreams(engConfig.streamExecutorConfig._threadBindingType,
+            streams_info = get_streams_num(engConfig.streamExecutorConfig._threadBindingType,
                                          IStreamsExecutor::Config::StreamMode::AGGRESSIVE,
                                          engConfig.streamExecutorConfig._enable_hyper_thread);
         } else if (networkToleranceForLowCache.max_mem_tolerance > ov::MemBandwidthPressure::LIMITED) {
             // network is below general threshold
-            streams_info = GetNumStreams(engConfig.streamExecutorConfig._threadBindingType,
+            streams_info = get_streams_num(engConfig.streamExecutorConfig._threadBindingType,
                                          IStreamsExecutor::Config::StreamMode::LESSAGGRESSIVE,
                                          engConfig.streamExecutorConfig._enable_hyper_thread);
             streams_info.num_streams = std::max(default_streams.num_streams, streams_info.num_streams);
@@ -221,6 +221,7 @@ void Engine::ApplyPerformanceHints(ov::AnyMap& config, const std::shared_ptr<ov:
         return std::pair<std::string, StreamCfg>(std::to_string(streams_info.num_streams), streams_info);
     };
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     auto getPerfHintName = [&]() {
         const bool streamsExplicitlySetForModel = streamsSet(config);
         // checking streams (to avoid overriding what user might explicitly set in the incoming config or previously via
@@ -269,15 +270,17 @@ void Engine::ApplyPerformanceHints(ov::AnyMap& config, const std::shared_ptr<ov:
             std::to_string(tput_hints.second.threads_per_stream_small);
         config[CONFIG_KEY_INTERNAL(SMALL_CORE_OFFSET)] = std::to_string(tput_hints.second.small_core_offset);
     }
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
-void Engine::GetPerformanceStreams(Config& config, const std::shared_ptr<ov::Model>& model) const{
+void Engine::get_performance_streams(Config& config, const std::shared_ptr<ov::Model>& model) const{
     const auto perf_hint_name = config.perfHintsConfig.ovPerfHint;
     // save hints parameters to model rt_info
     ov::AnyMap hints_props;
     std::string hint_name;
     const int latency_streams = get_num_numa_nodes();
     int streams;
+    OPENVINO_SUPPRESS_DEPRECATED_START
     if (config.streamExecutorConfig._streams_changed) {
         streams = config.streamExecutorConfig._streams;
     } else if (perf_hint_name == CONFIG_VALUE(LATENCY)) {
@@ -302,9 +305,10 @@ void Engine::GetPerformanceStreams(Config& config, const std::shared_ptr<ov::Mod
     hints_props.insert({tput_name, std::to_string(config.streamExecutorConfig._streams)});
     model->set_rt_info(hints_props, "intel_cpu_hints_config");
     config._config[CONFIG_KEY(CPU_THROUGHPUT_STREAMS)] = std::to_string(config.streamExecutorConfig._streams);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
-StreamCfg Engine::GetNumStreams(InferenceEngine::IStreamsExecutor::ThreadBindingType thread_binding_type,
+StreamCfg Engine::get_streams_num(InferenceEngine::IStreamsExecutor::ThreadBindingType thread_binding_type,
                                         int stream_mode,
                                         const bool enable_hyper_thread) const {
     const int sockets = static_cast<int>(getAvailableNUMANodes().size());
@@ -470,7 +474,7 @@ Engine::compile_model(const std::shared_ptr<const ov::Model>& model, const ov::A
     }
 
     if (!is_cpu_map_available()) {
-        ApplyPerformanceHints(config, cloned_model);
+        apply_performance_hints(config, cloned_model);
     }
     transformations.CpuSpecificOpSet();
 
@@ -482,7 +486,7 @@ Engine::compile_model(const std::shared_ptr<const ov::Model>& model, const ov::A
 
     conf.readProperties(config);
     if (is_cpu_map_available()) {
-        GetPerformanceStreams(conf, cloned_model);
+        get_performance_streams(conf, cloned_model);
     }
 
     if ((cloned_model->inputs().size() != model->inputs().size()) ||
@@ -528,7 +532,7 @@ ov::Any Engine::get_property_legacy(const std::string& name, const ov::AnyMap& o
     if (option != engConfig._config.end()) {
         result = option->second;
     } else {
-        return GetMetricLegacy(name, options);
+        return get_metric_legacy(name, options);
     }
     return result;
 }
@@ -584,10 +588,11 @@ ov::Any Engine::get_property(const std::string& name, const ov::AnyMap& options)
     } else if (name == ov::hint::execution_mode) {
         return engConfig.executionMode;
     }
-    return GetMetric(name, options);
+    return get_metric(name, options);
 }
 
-ov::Any Engine::GetMetricLegacy(const std::string& name, const ov::AnyMap& options) const {
+ov::Any Engine::get_metric_legacy(const std::string& name, const ov::AnyMap& options) const {
+    OPENVINO_SUPPRESS_DEPRECATED_START
     if (name == METRIC_KEY(SUPPORTED_METRICS)) {
         std::vector<std::string> metrics = {
             METRIC_KEY(AVAILABLE_DEVICES),
@@ -636,11 +641,12 @@ ov::Any Engine::GetMetricLegacy(const std::string& name, const ov::AnyMap& optio
     }
 
     IE_CPU_PLUGIN_THROW() << "Unsupported metric key: " << name;
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
-ov::Any Engine::GetMetric(const std::string& name, const ov::AnyMap& options) const {
+ov::Any Engine::get_metric(const std::string& name, const ov::AnyMap& options) const {
     if (is_legacy_api())
-        return GetMetricLegacy(name, options);
+        return get_metric_legacy(name, options);
 
     auto RO_property = [](const std::string& propertyName) {
         return ov::PropertyName(propertyName, ov::PropertyMutability::RO);
@@ -714,7 +720,7 @@ ov::Any Engine::GetMetric(const std::string& name, const ov::AnyMap& options) co
     }
     /* Internally legacy parameters are used with new API as part of migration procedure.
      * This fallback can be removed as soon as migration completed */
-    return GetMetricLegacy(name, options);
+    return get_metric_legacy(name, options);
 }
 
 ov::SupportedOpsMap Engine::query_model(const std::shared_ptr<const ov::Model>& model, const ov::AnyMap& config) const {
@@ -739,7 +745,7 @@ ov::SupportedOpsMap Engine::query_model(const std::shared_ptr<const ov::Model>& 
             transformation.UpToCpuSpecificOpSet();
             transformation.CpuSpecificOpSet();
         },
-        [&](const std::shared_ptr<ngraph::Node>& op) {
+        [&](const std::shared_ptr<ov::Node>& op) {
             std::unique_ptr<Node> ptr;
             try {
                 ptr.reset(Node::factory().create(op, context));

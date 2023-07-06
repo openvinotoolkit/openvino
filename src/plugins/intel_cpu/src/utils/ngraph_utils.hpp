@@ -55,6 +55,10 @@ inline std::string get_port_name(const ov::Output<const ov::Node>& port, const b
     // plus sometimes it will get empty tensor name.
     if (!is_legacy_api) {
         name = {};
+        // auto tensor_ptr = port.get_tensor_ptr();
+        // if (tensor_ptr->get_names().size() >= 1) {
+        //     name = port.get_tensor_ptr()->get_any_name();
+        // }
     }
     if (name.empty()) {
         bool is_input = ov::op::util::is_parameter(port.get_node());

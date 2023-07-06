@@ -69,13 +69,7 @@ ov::ICompiledModel::ICompiledModel(const std::shared_ptr<const ov::Model>& model
             if (tensor_map.count(old_tensor)) {
                 new_param->output(0).set_tensor_ptr(tensor_map[old_tensor]);
             } else {
-                auto tensor_desc =
-                    std::make_shared<ov::descriptor::Tensor>(param->get_output_element_type(0),
-                                                             param->get_output_partial_shape(0),
-                                                             new_param->output(0).get_tensor().get_names());
-                tensor_desc->clone_from(param->output(0).get_tensor());
-                new_param->output(0).set_tensor_ptr(tensor_desc);
-                tensor_map[old_tensor] = tensor_desc;
+                tensor_map[old_tensor] = new_param->output(0).get_tensor_ptr();
             }
             new_param->validate_and_infer_types();
             m_inputs.emplace_back(new_param->output(0));
@@ -101,18 +95,11 @@ ov::ICompiledModel::ICompiledModel(const std::shared_ptr<const ov::Model>& model
             auto r = std::dynamic_pointer_cast<ov::op::v0::Result>(new_result);
             r->set_layout(result->get_layout());
             new_result->output(0).get_rt_info() = result->output(0).get_rt_info();
-
             auto old_tensor = result->output(0).get_tensor_ptr();
             if (tensor_map.count(old_tensor)) {
                 new_result->output(0).set_tensor_ptr(tensor_map[old_tensor]);
             } else {
-                auto tensor_desc =
-                    std::make_shared<ov::descriptor::Tensor>(result->get_output_element_type(0),
-                                                             result->get_output_partial_shape(0),
-                                                             new_result->output(0).get_tensor().get_names());
-                tensor_desc->clone_from(result->output(0).get_tensor());
-                new_result->output(0).set_tensor_ptr(tensor_desc);
-                tensor_map[old_tensor] = tensor_desc;
+                tensor_map[old_tensor] = new_result->output(0).get_tensor_ptr();
             }
             m_outputs.emplace_back(new_result->output(0));
         }
