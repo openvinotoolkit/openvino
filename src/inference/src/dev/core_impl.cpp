@@ -49,6 +49,8 @@ ov::ICore::~ICore() = default;
 
 namespace {
 
+static constexpr const char* internal_plugin_suffix = "_ov_internal";
+
 template <typename F>
 void allowNotImplemented(F&& f) {
     try {
@@ -363,7 +365,7 @@ void ov::CoreImpl::register_plugin_in_registry_unsafe(const std::string& device_
             auto fallback = it->second.as<std::string>();
             // Change fallback name if fallback is configured to the HW plugin under the proxy with the same name
             if (alias == fallback)
-                fallback += "_ov_internal";
+                fallback += internal_plugin_suffix;
             if (defaultConfig.find(ov::device::priorities.name()) == defaultConfig.end()) {
                 defaultConfig[ov::device::priorities.name()] = std::vector<std::string>{dev_name, fallback};
             } else {
@@ -399,7 +401,7 @@ void ov::CoreImpl::register_plugin_in_registry_unsafe(const std::string& device_
         // Create proxy plugin for alias
         auto alias = config.at(ov::proxy::configuration::alias.name()).as<std::string>();
         if (alias == device_name)
-            dev_name += "_ov_internal";
+            dev_name += internal_plugin_suffix;
         // Alias can be registered by several plugins
         if (pluginRegistry.find(alias) == pluginRegistry.end()) {
             // Register new plugin
@@ -423,7 +425,7 @@ void ov::CoreImpl::register_plugin_in_registry_unsafe(const std::string& device_
         OPENVINO_THROW("Cannot register plugin under the proxy. Proxy plugin is disabled.");
 #else
         // Fallback without alias means that we need to replace original plugin to proxy
-        dev_name += "_ov_internal";
+        dev_name += internal_plugin_suffix;
         PluginDescriptor desc = PluginDescriptor(ov::proxy::create_plugin);
         fill_config(desc.defaultConfig, config, dev_name);
         pluginRegistry[device_name] = desc;
@@ -877,7 +879,7 @@ ov::SupportedOpsMap ov::CoreImpl::query_model(const std::shared_ptr<const ov::Mo
 bool ov::CoreImpl::is_hidden_device(const std::string& device_name) const {
 #ifdef PROXY_PLUGIN_ENABLED
     std::lock_guard<std::mutex> lock(get_mutex());
-    if (device_name.find("_ov_internal") != std::string::npos)
+    if (device_name.find(internal_plugin_suffix) != std::string::npos)
         return true;
 
     // Alias hides the device
@@ -1055,6 +1057,9 @@ std::shared_ptr<const ov::Model> ov::CoreImpl::apply_auto_batching(const std::sh
 
         // check whether if the Auto-Batching is applicable to the device
         auto parsed = ov::parseDeviceNameIntoConfig(deviceName);
+        // Do not apply auto batch for proxy device
+        if (is_proxy_device(parsed._deviceName))
+            return model;
         deviceNameWithoutBatch = deviceName;
         std::vector<std::string> metrics = get_plugin(parsed._deviceName)
                                                .get_property(METRIC_KEY(SUPPORTED_METRICS), parsed._config)
