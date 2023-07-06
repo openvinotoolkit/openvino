@@ -93,7 +93,7 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
     if (proc_type_table.size() == 1) {
         proc_socket_table.push_back(proc_type_table[0]);
     } else {
-        std::unordered_set<int> socket_id_list;
+        std::unordered_set<int> socket_id_list(proc_type_table.size());
         for (size_t i = 1; i < proc_type_table.size(); i++) {
             if (socket_id_list.find(proc_type_table[i][PROC_SOCKET_ID]) == socket_id_list.end()) {
                 proc_socket_table.push_back(proc_type_table[i]);
