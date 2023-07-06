@@ -45,7 +45,7 @@
         {
             "language": "typescript",
             "source": [
-                "const modelPath = '../../assets/models/horizontal-text-detection/horizontal-text-detection-0001.xml';\nconst core = new ov.Core();\nconst model = core.read_model(modelPath);\nconst compiledModel = core.compile_model(model, 'CPU');\n\nconst outputLayer = compiledModel.outputs[0];"
+                "const modelPath = '../../assets/models/horizontal-text-detection-0001.xml';\nconst core = new ov.Core();\nconst model = core.read_model(modelPath);\nconst compiledModel = core.compile_model(model, 'CPU');\n\nconst outputLayer = compiledModel.outputs[0];"
             ],
             "outputs": []
         },
