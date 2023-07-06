@@ -61,9 +61,9 @@ public:
                                            const ov::RemoteContext& context,
                                            const ov::AnyMap& config) const;
 
-    ov::RemoteContext create_context(const AnyMap& params) const;
+    ov::SoPtr<ov::IRemoteContext> create_context(const AnyMap& params) const;
 
-    ov::RemoteContext get_default_context(const AnyMap& params) const;
+    ov::SoPtr<ov::IRemoteContext> get_default_context(const AnyMap& params) const;
 
     Any get_property(const std::string& name, const AnyMap& arguments) const;
 

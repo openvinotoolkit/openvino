@@ -395,13 +395,13 @@ public:
 
     std::vector<std::string> get_available_devices() const override;
 
-    ov::RemoteContext create_context(const std::string& device_name, const AnyMap& args) const override;
+    ov::SoPtr<ov::IRemoteContext> create_context(const std::string& device_name, const AnyMap& args) const override;
 
     ov::AnyMap get_supported_property(const std::string& device_name, const ov::AnyMap& config) const override;
 
     bool is_new_api() const override;
 
-    ov::RemoteContext get_default_context(const std::string& device_name) const override;
+    ov::SoPtr<ov::IRemoteContext> get_default_context(const std::string& device_name) const override;
 
     /**
      * @brief Sets properties for a device, acceptable keys can be found in openvino/runtime/properties.hpp.

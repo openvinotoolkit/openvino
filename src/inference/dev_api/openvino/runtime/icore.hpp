@@ -162,7 +162,8 @@ public:
      * @param params Map of device-specific shared context parameters.
      * @return A shared pointer to a created remote context.
      */
-    virtual ov::RemoteContext create_context(const std::string& device_name, const AnyMap& args) const = 0;
+    virtual ov::SoPtr<ov::IRemoteContext> create_context(const std::string& device_name,
+                                                         const ov::AnyMap& args) const = 0;
 
     virtual bool is_new_api() const = 0;
 
@@ -171,7 +172,7 @@ public:
      * @param device_name  - A name of a device to get create shared context from.
      * @return A shared pointer to a default remote context.
      */
-    virtual ov::RemoteContext get_default_context(const std::string& device_name) const = 0;
+    virtual ov::SoPtr<ov::IRemoteContext> get_default_context(const std::string& device_name) const = 0;
 
     /**
      * @brief Gets properties related to device behaviour.

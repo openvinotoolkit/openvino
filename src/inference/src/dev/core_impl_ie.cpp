@@ -44,7 +44,7 @@ ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::LoadNetwork
 }
 
 InferenceEngine::RemoteContext::Ptr ov::CoreImpl::GetDefaultContext(const std::string& deviceName) {
-    return ov::legacy_convert::convert_remote_context(get_default_context(deviceName)._impl);
+    return ov::legacy_convert::convert_remote_context(get_default_context(deviceName)._ptr);
 }
 
 InferenceEngine::CNNNetwork ov::CoreImpl::ReadNetwork(const std::string& modelPath, const std::string& binPath) const {
@@ -207,7 +207,7 @@ std::vector<std::string> ov::CoreImpl::GetAvailableDevices() const {
 
 InferenceEngine::RemoteContext::Ptr ov::CoreImpl::CreateContext(const std::string& deviceName,
                                                                 const InferenceEngine::ParamMap& params) {
-    return ov::legacy_convert::convert_remote_context(create_context(deviceName, params)._impl);
+    return ov::legacy_convert::convert_remote_context(create_context(deviceName, params)._ptr);
 }
 
 /**
