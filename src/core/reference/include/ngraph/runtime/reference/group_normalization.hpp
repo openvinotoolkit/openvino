@@ -27,6 +27,7 @@ void group_normalization(const T* const data,
     const auto batch_size = data_size / num_batches;
     const auto channel_size = batch_size / num_channels;
     const auto group_size = num_channels_in_group * channel_size;
+    const auto eps = static_cast<T>(epsilon);
 
     for (size_t n = 0; n < num_batches; ++n) {
         for (size_t g = 0; g < num_groups; ++g) {
@@ -40,7 +41,7 @@ void group_normalization(const T* const data,
                                                  return acc + pow(d - mean, 2);
                                              }) /
                                   group_size;
-            const auto standard_deviation = sqrt(variance + static_cast<T>(epsilon));
+            const auto standard_deviation = sqrt(variance + eps);
 
             for (size_t s = 0; s < num_channels_in_group; ++s) {
                 const auto c = g * num_channels_in_group + s;

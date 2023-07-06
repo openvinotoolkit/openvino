@@ -2,13 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-// clang-format off
-#include "evaluate_node.hpp"
-
 #include "ngraph/runtime/reference/group_normalization.hpp"
 
+#include "evaluate_node.hpp"
+#include "group_normalization_shape_inference.hpp"
 #include "openvino/op/group_normalization.hpp"
-// clang-format on
 
 using namespace ov;
 
@@ -16,6 +14,7 @@ template <element::Type_t DATA_ET>
 bool evaluate(const std::shared_ptr<ov::op::v12::GroupNormalization>& node,
               const ov::HostTensorVector& outputs,
               const ov::HostTensorVector& inputs) {
+    outputs[0]->set_shape(inputs[0]->get_shape());
     ngraph::runtime::reference::group_normalization(inputs[0]->get_data_ptr<DATA_ET>(),
                                                     inputs[1]->get_data_ptr<DATA_ET>(),
                                                     inputs[2]->get_data_ptr<DATA_ET>(),
