@@ -2,6 +2,11 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about MatrixNonMaxSuppression-8 - a sorting and 
+                maximization operation, which can be performed on two required 
+                input tensors.
+
 **Versioned name**: *MatrixNonMaxSuppression-8*
 
 **Category**: *Sorting and maximization*

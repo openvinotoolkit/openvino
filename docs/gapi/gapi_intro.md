@@ -2,6 +2,11 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn about OpenCV Graph API (G-API) which is used to accelerate 
+                 regular image and video processing and ensure its portability.
+
+
 .. toctree::
    :maxdepth: 1
    :hidden:
