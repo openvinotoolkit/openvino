@@ -196,9 +196,9 @@ void SyncInferRequest::update_external_inputs() {
             OPENVINO_THROW("Input tensor map contains not registered during IPlugin::compile_model tensor with name ",
                            input_name);
         }
-        if (m_external_ptr.find(input_name) != m_external_ptr.end()) {
+        if (external_ptr.find(input_name) != external_ptr.end()) {
             auto tensor = get_port_tensor(input);
-            m_external_ptr[input_name] = tensor.data();
+            external_ptr[input_name] = tensor.data();
         }
     }
 }
@@ -251,7 +251,7 @@ static inline void change_edge_ptr(const EdgePtr& edge, void* newPtr) {
 }
 
 void SyncInferRequest::change_default_ptr() {
-    for (auto& it : m_external_ptr) {
+    for (auto& it : external_ptr) {
         const auto& inputNodesMap = graph->GetInputNodesMap();
         auto input = inputNodesMap.find(it.first);
         if (input != inputNodesMap.end()) {
@@ -610,9 +610,9 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& in_port, con
         }
         if (actualDesc->isCompatible(MemoryDescUtils::convertToCpuBlockedMemoryDesc(tensor_desc)) &&
             graph->_normalizePreprocMap.find(name) == graph->_normalizePreprocMap.end()) {
-            m_external_ptr[name] = tensor.data();
-        } else if (m_external_ptr.find(name) != m_external_ptr.end()) {
-            m_external_ptr.erase(name);
+            external_ptr[name] = tensor.data();
+        } else if (external_ptr.find(name) != external_ptr.end()) {
+            external_ptr.erase(name);
         }
     } else {
         const auto netOutPrc = port.get_element_type();
@@ -646,9 +646,9 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& in_port, con
 
         const auto& desc = graph->getOutputNodeByName(name)->getParentEdgesAtPort(0)[0]->getMemory().getDesc();
         if (!isDynamic && tensor_desc == MemoryDescUtils::convertToTensorDesc(desc)) {
-            m_external_ptr[name] = tensor.data();
-        } else if (m_external_ptr.find(name) != m_external_ptr.end()) {
-            m_external_ptr.erase(name);
+            external_ptr[name] = tensor.data();
+        } else if (external_ptr.find(name) != external_ptr.end()) {
+            external_ptr.erase(name);
         }
         m_outputs[name] = tensor;
     }
@@ -701,7 +701,7 @@ void SyncInferRequest::init_tensor(const std::string& name) {
                     desc == MemoryDescUtils::convertToTensorDesc(
                                 graph->getInputNodeByName(name)->getChildEdgesAtPort(0)[0]->getMemory().getDesc()) &&
                     graph->_normalizePreprocMap.find(name) == graph->_normalizePreprocMap.end()) {
-                    m_external_ptr[name] = tensor.data();
+                    external_ptr[name] = tensor.data();
                 }
             }
         } else {
@@ -755,10 +755,10 @@ void SyncInferRequest::init_tensor(const std::string& name) {
             }
             m_outputs[name] = tensor;
             auto desc = create_tensor_desc(tensor);
-            if (!isDynamic && !m_external_ptr.count(name) &&
+            if (!isDynamic && !external_ptr.count(name) &&
                 desc == MemoryDescUtils::convertToTensorDesc(
                             output->second->getParentEdgesAtPort(0)[0]->getMemory().getDesc())) {
-                m_external_ptr[name] = tensor.data();
+                external_ptr[name] = tensor.data();
             }
         } else {
             OPENVINO_THROW("Tensor with name: ", name, " exists in CPU plugin graph, but absents in network outputs");

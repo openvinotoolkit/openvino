@@ -57,7 +57,7 @@ protected:
     void push_input_data();
 
     Graph* graph = nullptr;
-    mutable std::unordered_map<std::string, void*> m_external_ptr;
+    mutable std::unordered_map<std::string, void*> external_ptr;
 
 private:
     void push_states();
