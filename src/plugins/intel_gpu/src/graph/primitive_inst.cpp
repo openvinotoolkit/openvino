@@ -800,7 +800,8 @@ primitive_inst::primitive_inst(network& network)
     , _outputs({memory::ptr()})
     , _reordered_weights_cache(network.get_weights_cache_capacity())
     , _output_changed(false)
-    , _mem_allocated(false) {}
+    , _mem_allocated(false)
+    , _type(nullptr) {}
 
 primitive_inst::primitive_inst(network& network, program_node const& node, bool allocate_memory)
     : _network(network)
