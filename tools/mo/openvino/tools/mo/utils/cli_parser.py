@@ -444,7 +444,7 @@ def transform_param_value_to_str(value):
 
 
 def transform_to_str(value):
-    from openvino.tools.ovc.moc_frontend.offline_transformations import get_available_transformations
+    from openvino.tools.ovc.moc_frontend.offline_transformations import get_available_transformations   # pylint: disable=no-name-in-module,import-error
 
     if isinstance(value, str):
         return value
@@ -1972,7 +1972,7 @@ def check_available_transforms(transforms: list):
     :param transforms: list of user specified transformations
     :return: raises an Error if transformation is not available
     """
-    from openvino.tools.ovc.moc_frontend.offline_transformations import get_available_transformations
+    from openvino.tools.ovc.moc_frontend.offline_transformations import get_available_transformations   # pylint: disable=no-name-in-module,import-error
     available_transforms = get_available_transformations()
 
     missing_transformations = []
