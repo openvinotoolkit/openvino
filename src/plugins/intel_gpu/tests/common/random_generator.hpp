@@ -38,7 +38,7 @@ public:
     ReturnType generate_random_val(int min, int max, int k = 8) {
         // 1/k is the resolution of the floating point numbers
         std::uniform_int_distribution<int> distribution(k * min, k * max);
-        ReturnType val = static_cast<ReturnType>distribution(this->generator);
+        ReturnType val = static_cast<ReturnType>(distribution(this->generator));
         val /= k;
 
         return val;
@@ -51,7 +51,7 @@ public:
         std::vector<ReturnType> v(a);
 
         for (size_t i = 0; i < a; ++i) {
-            v[i] = static_cast<ReturnType>distribution(this->generator);
+            v[i] = static_cast<ReturnType>(distribution(this->generator));
             v[i] /= k;
         }
         return v;
