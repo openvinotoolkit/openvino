@@ -42,17 +42,17 @@
 .. code-block:: xml
    :force:
 
-  <layer ... type="Parameter" ...>
-      <data>element_type="f32" shape="1,3,224,224"</data>
-      <output>
-          <port id="0">
-              <dim>1</dim>
-              <dim>3</dim>
-              <dim>224</dim>
-              <dim>224</dim>
-          </port>
-      </output>
-  </layer>
+   <layer ... type="Parameter" ...>
+       <data>element_type="f32" shape="1,3,224,224"</data>
+       <output>
+           <port id="0">
+               <dim>1</dim>
+               <dim>3</dim>
+               <dim>224</dim>
+               <dim>224</dim>
+           </port>
+       </output>
+   </layer>
 
 @endsphinxdirective
 

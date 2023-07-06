@@ -160,11 +160,11 @@
 .. code-block:: xml
    :force:
 
-  <layer ... type="Proposal" ... >
-      <data base_size="16" feat_stride="16" min_size="16" nms_thresh="0.6" post_nms_topn="200" pre_nms_topn="6000"
-      ratio="2.67" scale="4.0,6.0,9.0,16.0,24.0,32.0"/>
-      <input> ... </input>
-      <output> ... </output>
-  </layer>
+   <layer ... type="Proposal" ... >
+       <data base_size="16" feat_stride="16" min_size="16" nms_thresh="0.6" post_nms_topn="200" pre_nms_topn="6000"
+       ratio="2.67" scale="4.0,6.0,9.0,16.0,24.0,32.0"/>
+       <input> ... </input>
+       <output> ... </output>
+   </layer>
 
 @endsphinxdirective

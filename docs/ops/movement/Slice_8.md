@@ -78,30 +78,30 @@ Example 1: basic slicing
 .. code-block:: xml
    :force:
 
-  <layer id="1" type="Slice" ...>
-      <input>
-          <port id="0">       < !-- data: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] -->
-            <dim>10</dim>
-          </port>
-          <port id="1">       < !-- start: [1] -->
-            <dim>1</dim>
-          </port>
-          <port id="2">       < !-- stop: [8] -->
-            <dim>1</dim>
-          </port>
-          <port id="3">       < !-- step: [1] -->
-            <dim>1</dim>
-          </port>
-          <port id="4">       < !-- axes: [0] -->
-            <dim>1</dim>
-          </port>
-      </input>
-      <output>
-          <port id="5">       < !-- output: [1, 2, 3, 4, 5, 6, 7] -->
-              <dim>7</dim>
-          </port>
-      </output>
-  </layer>
+   <layer id="1" type="Slice" ...>
+       <input>
+           <port id="0">       < !-- data: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] -->
+             <dim>10</dim>
+           </port>
+           <port id="1">       < !-- start: [1] -->
+             <dim>1</dim>
+           </port>
+           <port id="2">       < !-- stop: [8] -->
+             <dim>1</dim>
+           </port>
+           <port id="3">       < !-- step: [1] -->
+             <dim>1</dim>
+           </port>
+           <port id="4">       < !-- axes: [0] -->
+             <dim>1</dim>
+           </port>
+       </input>
+       <output>
+           <port id="5">       < !-- output: [1, 2, 3, 4, 5, 6, 7] -->
+               <dim>7</dim>
+           </port>
+       </output>
+   </layer>
 
 
 Example 2: basic slicing, ``axes`` default

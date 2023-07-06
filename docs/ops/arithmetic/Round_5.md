@@ -50,20 +50,20 @@
 .. code-block:: xml
    :force:
 
-    <layer ... type="Round">
-        <data mode="half_to_even"/>
-        <input>
-            <port id="0">
-                <dim>256</dim>
-                <dim>56</dim>
-            </port>
-        </input>
-        <output>
-            <port id="1">
-                <dim>256</dim>
-                <dim>56</dim>
-            </port>
-        </output>
-    </layer>
+   <layer ... type="Round">
+       <data mode="half_to_even"/>
+       <input>
+           <port id="0">
+               <dim>256</dim>
+               <dim>56</dim>
+           </port>
+       </input>
+       <output>
+           <port id="1">
+               <dim>256</dim>
+               <dim>56</dim>
+           </port>
+       </output>
+   </layer>
 
 @endsphinxdirective
