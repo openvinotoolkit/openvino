@@ -2,6 +2,18 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+<<<<<<< HEAD:thirdparty/CMakeLists.txt
+=======
+if(CMAKE_TOOLCHAIN_FILE MATCHES "vcpkg" OR DEFINED VCPKG_VERBOSE)
+    set(OV_VCPKG_BUILD ON)
+elseif(CMAKE_TOOLCHAIN_FILE MATCHES "conan_toolchain" OR DEFINED CONAN_EXPORTED)
+    set(OV_CONAN_BUILD)
+endif()
+
+set(_old_CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
+set(_old_CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ${CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE})
+
+>>>>>>> 14292b8da5 (Allow to find protobuf via MODULE (#18395)):thirdparty/dependencies.cmake
 # Android toolchain does not provide pkg-config file. So, cmake mistakenly uses
 # build system pkg-config executable, which finds packages on build system. Such
 # libraries cannot be linked into Android binaries.
@@ -351,8 +363,13 @@ endif()
 #
 
 if(ENABLE_SAMPLES OR ENABLE_COMPILE_TOOL OR ENABLE_TESTS)
-    # on Windows and macOS we don't use gflags, because will be dynamically linked
-    if(CMAKE_HOST_LINUX AND LINUX)
+    if(OV_VCPKG_BUILD OR OV_CONAN_BUILD)
+        # vcpkg contains only libs compiled with threads
+        # conan case
+        find_package(gflags QUIET)
+    elseif(APPLE OR WIN32)
+        # on Windows and macOS we don't use gflags, because will be dynamically linked
+    elseif(CMAKE_HOST_LINUX AND LINUX)
         if(OV_OS_RHEL)
             set(gflag_component nothreads_shared)
         elseif(OV_OS_DEBIAN)
@@ -423,15 +440,16 @@ if(ENABLE_OV_PADDLE_FRONTEND OR ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_TF_FRONTEND
         if(CMAKE_VERBOSE_MAKEFILE)
             set(Protobuf_DEBUG ON)
         endif()
-        # Note: we also specify 'protobuf' in NAMES because of vcpkg
-        set(find_package_protobuf_names Protobuf protobuf)
+        if(OV_VCPKG_BUILD)
+            set(protobuf_config CONFIG)
+        endif()
         # try to find newer version first (major is changed)
         # see https://protobuf.dev/support/version-support/ and
         # https://github.com/protocolbuffers/protobuf/commit/d61f75ff6db36b4f9c0765f131f8edc2f86310fa
-        find_package(Protobuf 4.22.0 QUIET NAMES ${find_package_protobuf_names})
+        find_package(Protobuf 4.22.0 QUIET ${protobuf_config})
         if(NOT Protobuf_FOUND)
             # otherwise, fallback to existing default
-            find_package(Protobuf 3.20.3 REQUIRED NAMES ${find_package_protobuf_names})
+            find_package(Protobuf 3.20.3 REQUIRED ${protobuf_config})
         endif()
         set(PROTOC_EXECUTABLE protobuf::protoc)
 
