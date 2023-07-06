@@ -352,19 +352,19 @@ ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model
         // Mapping is required only because before compilation
         // submodel may be preprocessed (if legacy API used),
         // so original inputs/outputs != submodels inputs/outputs
-        m_inputs_to_submodel_inputs.resize(ICompiledModel::inputs().size());
-        m_outputs_to_submodel_outputs.resize(ICompiledModel::outputs().size());
+        const auto& orig_parameters = model->get_parameters();
+        const auto& orig_results = model->get_results();
+        m_inputs_to_submodel_inputs.resize(orig_parameters.size());
+        m_outputs_to_submodel_outputs.resize(orig_results.size());
         for (size_t id = 0; id < orderedSubgraphs.size(); id++) {
             for (size_t i = 0; i < orderedSubgraphs[id]._parameters.size(); i++) {
-                const auto& input_node = std::dynamic_pointer_cast<ov::Node>(orderedSubgraphs[id]._parameters[i]);
-                for (size_t j = 0; j < ICompiledModel::inputs().size(); j++)
-                    if (input_node == ICompiledModel::inputs()[j].get_node_shared_ptr())
+                for (size_t j = 0; j < orig_parameters.size(); j++)
+                    if (orderedSubgraphs[id]._parameters[i] == orig_parameters[j])
                         m_inputs_to_submodel_inputs[j] = {id, i};
             }
             for (size_t i = 0; i < orderedSubgraphs[id]._results.size(); i++) {
-                const auto& input_node = std::dynamic_pointer_cast<ov::Node>(orderedSubgraphs[id]._results[i]);
                 for (size_t j = 0; j < ICompiledModel::outputs().size(); j++)
-                    if (input_node == ICompiledModel::outputs()[j].get_node_shared_ptr())
+                    if (orderedSubgraphs[id]._results[i] == orig_results[j])
                         m_outputs_to_submodel_outputs[j] = {id, i};
             }
         }
