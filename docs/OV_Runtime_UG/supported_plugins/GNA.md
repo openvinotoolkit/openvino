@@ -47,7 +47,7 @@ exported for GNA 2.0 runs on GNA 3.0 or vice versa.
 
    In most cases, a network compiled for GNA 2.0 runs as expected on GNA 3.0. However, performance may be worse 
    compared to when a network is compiled specifically for the latter. The exception is a network with convolutions 
-   with the number of filters greater than 8192 (see the :ref:`Model and Operation Limitations <#model-and-operation-limitations>` section).
+   with the number of filters greater than 8192 (see the `Model and Operation Limitations <#model-and-operation-limitations>`__ section).
 
 
 For optimal work with POT quantized models, which include 2D convolutions on GNA 3.0 hardware, the following requirements should be satisfied:
@@ -136,7 +136,7 @@ quantization hints based on statistics for the provided dataset.
 * Performance (i8 weights)
 
 For POT quantized models, the ``ov::hint::inference_precision`` property has no effect except in cases described in the
-:ref:`Model and Operation Limitations section <#model-and-operation-limitations>`.
+`Model and Operation Limitations section <#model-and-operation-limitations>`__.
 
 
 Supported Features
