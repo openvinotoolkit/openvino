@@ -36,7 +36,7 @@ namespace intel_cpu {
  *               - input "0" indicates that the function generates the optimal number of threads per stream based on
  * processors type information.
  * @param[in]  input_perf_hint is performance hint set by user via ov::hint::performance_mode or the default value.
- * @param[in]  scopeOflatencyCandidate is the scope of candidate processors per stream for latency hint
+ * @param[in]  latencyThreadingMode is the scope of candidate processors per stream for latency hint
  *               - user can select all processors per numa node, per socket, or per platform.
  * @param[in]  proc_type_table is currently available candidate processors.
  *               - candidate processors have benn updated based on user input hints like ov::hint::scheduling_core_type
@@ -49,7 +49,7 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
                                                      const int input_infer_requests,
                                                      const int model_prefer_threads,
                                                      const std::string input_perf_hint,
-                                                     const Config::LatencyThreadingMode scopeOflatencyCandidate,
+                                                     const Config::LatencyThreadingMode latencyThreadingMode,
                                                      const std::vector<std::vector<int>> proc_type_table);
 /**
  * @brief      Get model_prefer_threads
