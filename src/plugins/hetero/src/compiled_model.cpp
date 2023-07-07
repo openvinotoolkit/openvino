@@ -11,7 +11,6 @@
 #include "graph_debug_dump.hpp"
 #include "ie_algorithm.hpp"
 #include "ie_plugin_config.hpp"
-#include "infer_request.hpp"
 #include "itt.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/runtime/exec_model_info.hpp"
@@ -265,11 +264,6 @@ ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model
                         _mapOutputToInput.emplace(  // TODO: reuse subgraphParameterToPrevResult
                             result,
                             parameter);
-                        _blobNameMap.emplace(
-                            parameter->get_friendly_name(),
-                            output.get_node()->get_friendly_name() + ((output.get_node()->get_output_size() != 1)
-                                                                          ? ("." + std::to_string(output.get_index()))
-                                                                          : std::string{}));
                     }
                 }
             }
@@ -475,12 +469,6 @@ ov::hetero::CompiledModel::CompiledModel(std::istream& model,
 
     m_cfg = ov::hetero::Configuration(properties, m_cfg);
 
-    // TODO: REQUIRED FOR OLD HETERO INFER REQUEST
-    auto blobNamesNode = heteroNode.child("blob_names_map");
-    FOREACH_CHILD (blobNameNode, blobNamesNode, "blob_name_map") {
-        _blobNameMap.emplace(GetStrAttr(blobNameNode, "key"), GetStrAttr(blobNameNode, "value"));
-    }
-
     pugi::xml_node subnetworksNode = heteroNode.child("subnetworks");
     FOREACH_CHILD (subnetworkNode, subnetworksNode, "subnetwork") {
         auto deviceName = GetStrAttr(subnetworkNode, "device");
@@ -550,41 +538,18 @@ ov::hetero::CompiledModel::CompiledModel(std::istream& model,
 }
 
 std::shared_ptr<ov::ISyncInferRequest> ov::hetero::CompiledModel::create_sync_infer_request() const {
-    OPENVINO_NOT_IMPLEMENTED;
+    return std::make_shared<ov::hetero::InferRequest>(
+        std::static_pointer_cast<const ov::hetero::CompiledModel>(shared_from_this()));
 }
 
 std::shared_ptr<ov::IAsyncInferRequest> ov::hetero::CompiledModel::create_infer_request() const {
-    auto convert = [](const std::vector<ov::Output<const ov::Node>>& vec) {
-        std::vector<std::shared_ptr<const ov::Node>> new_vec;
-        for (const auto& node : vec) {
-            new_vec.emplace_back(node.get_node_shared_ptr());
-        }
-        return new_vec;
-    };
+    auto internal_request = create_sync_infer_request();
+    auto async_infer_request = std::make_shared<ov::hetero::AsyncInferRequest>(
+        std::static_pointer_cast<ov::hetero::InferRequest>(internal_request),
+        get_task_executor(),
+        get_callback_executor());
 
-    const std::vector<std::shared_ptr<const ov::Node>> net_inputs = convert(inputs());
-    const std::vector<std::shared_ptr<const ov::Node>> net_outputs = convert(outputs());
-
-    HeteroPlugin::HeteroInferRequest::SubRequestsList inferRequests;
-    int index = 0;
-    for (auto&& subnetwork : m_networks) {
-        HeteroPlugin::HeteroInferRequest::SubRequestDesc desc;
-        auto legacy_exe_net = ov::legacy_convert::convert_compiled_model(subnetwork._network._ptr);
-        desc._network = {legacy_exe_net, subnetwork._network._so};
-        desc._profilingTask = openvino::itt::handle("Infer" + std::to_string(index++));
-        inferRequests.push_back(desc);
-    }
-    auto legacy_sync_infer_req =
-        std::make_shared<HeteroPlugin::HeteroInferRequest>(net_inputs, net_outputs, inferRequests, _blobNameMap);
-    auto exe_ptr =
-        ov::legacy_convert::convert_compiled_model(std::const_pointer_cast<ov::ICompiledModel>(shared_from_this()));
-    legacy_sync_infer_req->setPointerToExecutableNetworkInternal(exe_ptr);
-    auto legacy_async_infer_req = std::make_shared<HeteroPlugin::HeteroAsyncInferRequest>(
-        legacy_sync_infer_req,
-        std::dynamic_pointer_cast<InferenceEngine::ITaskExecutor>(get_task_executor()),
-        std::dynamic_pointer_cast<InferenceEngine::ITaskExecutor>(get_callback_executor()));
-    auto req = ov::legacy_convert::convert_infer_request(legacy_async_infer_req);
-    return req;
+    return async_infer_request;
 }
 
 void ov::hetero::CompiledModel::set_property(const ov::AnyMap& properties) {
@@ -720,13 +685,6 @@ void ov::hetero::CompiledModel::export_model(std::ostream& model_stream) const {
         auto heteroConfigNode = heteroConfigsNode.append_child("config");
         heteroConfigNode.append_attribute("key").set_value(config.first.c_str());
         heteroConfigNode.append_attribute("value").set_value(config.second.as<std::string>().c_str());
-    }
-
-    auto blobNamesNode = heteroNode.append_child("blob_names_map");
-    for (auto&& kvp : _blobNameMap) {
-        auto blobNameNode = blobNamesNode.append_child("blob_name_map");
-        blobNameNode.append_attribute("key").set_value(kvp.first.c_str());
-        blobNameNode.append_attribute("value").set_value(kvp.second.c_str());
     }
 
     doc.save(model_stream, nullptr, pugi::format_raw);
