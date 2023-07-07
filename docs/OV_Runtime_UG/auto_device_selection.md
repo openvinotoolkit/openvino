@@ -186,19 +186,19 @@ See the following code for using AUTO and specifying devices:
 
 .. tab-set::
 
-    .. tab-item:: C++
-        :sync: cpp
-
-        .. doxygensnippet:: docs/snippets/AUTO0.cpp
-            :language: cpp
-            :fragment: [part0]
-
     .. tab-item:: Python
         :sync: py
 
         .. doxygensnippet:: docs/snippets/ov_auto.py
            :language: python
            :fragment: [part0]
+
+    .. tab-item:: C++
+        :sync: cpp
+
+        .. doxygensnippet:: docs/snippets/AUTO0.cpp
+            :language: cpp
+            :fragment: [part0]
     
 
 
@@ -211,15 +211,6 @@ To check what devices are present in the system, you can use Device API, as list
 
 .. tab-set::
 
-    .. tab-item:: C++
-        :sync: cpp
-        
-        .. code-block:: sh
-           
-           ov::runtime::Core::get_available_devices()
-        
-        See the Hello Query Device C++ Sample for reference.
-
     .. tab-item:: Python
         :sync: py
          
@@ -229,6 +220,15 @@ To check what devices are present in the system, you can use Device API, as list
         
         See the Hello Query Device Python Sample for reference.
 
+    .. tab-item:: C++
+        :sync: cpp
+        
+        .. code-block:: sh
+           
+           ov::runtime::Core::get_available_devices()
+        
+        See the Hello Query Device C++ Sample for reference.
+
 
 Excluding Devices from Device Candidate List
 --------------------------------------------
@@ -237,19 +237,19 @@ You can also exclude hardware devices from AUTO, for example, to reserve CPU for
 
 .. tab-set::
 
-    .. tab-item:: C++
-        :sync: cpp
-        
-        .. code-block:: sh
-           
-           ov::CompiledModel compiled_model = core.compile_model(model, "AUTO:-CPU");
-
     .. tab-item:: Python
         :sync: py
         
         .. code-block:: sh
            
            compiled_model = core.compile_model(model=model, device_name="AUTO:-CPU")
+
+    .. tab-item:: C++
+        :sync: cpp
+        
+        .. code-block:: sh
+           
+           ov::CompiledModel compiled_model = core.compile_model(model, "AUTO:-CPU");
 
 
 AUTO will then query all available devices and remove CPU from the candidate list.
@@ -298,13 +298,6 @@ If device priority is specified when using CUMULATIVE_THROUGHPUT, AUTO will run 
 
 .. tab-set::
    
-    .. tab-item:: C++
-        :sync: cpp
-
-        .. code-block:: sh
-   
-           ov::CompiledModel compiled_model = core.compile_model(model, "AUTO:GPU,CPU", ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT));
-   
     .. tab-item:: Python
         :sync: py
 
@@ -312,18 +305,17 @@ If device priority is specified when using CUMULATIVE_THROUGHPUT, AUTO will run 
          
            compiled_model = core.compile_model(model, "AUTO:GPU,CPU", {"PERFORMANCE_HINT" : {"CUMULATIVE_THROUGHPUT"}})
 
-
-If AUTO is used without specifying any device names, and if there are multiple GPUs in the system, CUMULATIVE_THROUGHPUT mode will use all of the GPUs by default. If the system has more than two GPU devices, AUTO will remove CPU from the device candidate list to keep the GPUs running at full capacity. A full list of system devices and their unique identifiers can be queried using ov::Core::get_available_devices (for more information, see :doc:`Query Device Properties <openvino_docs_OV_UG_query_api>`). To explicitly specify which GPUs to use, set their priority when compiling with AUTO:
-
-.. tab-set::
-   
     .. tab-item:: C++
         :sync: cpp
 
         .. code-block:: sh
    
-           ov::CompiledModel compiled_model = core.compile_model(model, "AUTO:GPU.1,GPU.0", ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT));
+           ov::CompiledModel compiled_model = core.compile_model(model, "AUTO:GPU,CPU", ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT));
+   
 
+If AUTO is used without specifying any device names, and if there are multiple GPUs in the system, CUMULATIVE_THROUGHPUT mode will use all of the GPUs by default. If the system has more than two GPU devices, AUTO will remove CPU from the device candidate list to keep the GPUs running at full capacity. A full list of system devices and their unique identifiers can be queried using ov::Core::get_available_devices (for more information, see :doc:`Query Device Properties <openvino_docs_OV_UG_query_api>`). To explicitly specify which GPUs to use, set their priority when compiling with AUTO:
+
+.. tab-set::
    
     .. tab-item:: Python
         :sync: py
@@ -331,6 +323,14 @@ If AUTO is used without specifying any device names, and if there are multiple G
         .. code-block:: sh
          
            compiled_model = core.compile_model(model, "AUTO:GPU.1,GPU.0", {"PERFORMANCE_HINT" : {"CUMULATIVE_THROUGHPUT"})
+
+    .. tab-item:: C++
+        :sync: cpp
+
+        .. code-block:: sh
+   
+           ov::CompiledModel compiled_model = core.compile_model(model, "AUTO:GPU.1,GPU.0", ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT));
+
 
 Code Examples
 --------------------
@@ -340,19 +340,19 @@ To enable performance hints for your application, use the following code:
 
 .. tab-set::
 
-    .. tab-item:: C++
-        :sync: cpp
-
-        .. doxygensnippet:: docs/snippets/AUTO3.cpp
-            :language: cpp
-            :fragment: [part3]
-
     .. tab-item:: Python
         :sync: py
 
         .. doxygensnippet:: docs/snippets/ov_auto.py
            :language: python
            :fragment: [part3]
+
+    .. tab-item:: C++
+        :sync: cpp
+
+        .. doxygensnippet:: docs/snippets/AUTO3.cpp
+            :language: cpp
+            :fragment: [part3]
 
 
 Disabling Auto-Batching for THROUGHPUT and CUMULATIVE_THROUGHPUT
@@ -368,19 +368,19 @@ The ``ov::hint::model_priority`` property enables you to control the priorities 
 
 .. tab-set::
 
-    .. tab-item:: C++
-        :sync: cpp
-
-        .. doxygensnippet:: docs/snippets/AUTO4.cpp
-            :language: cpp
-            :fragment: [part4]
-
     .. tab-item:: Python
         :sync: py
 
         .. doxygensnippet:: docs/snippets/ov_auto.py
            :language: python
            :fragment: [part4]
+
+    .. tab-item:: C++
+        :sync: cpp
+
+        .. doxygensnippet:: docs/snippets/AUTO4.cpp
+            :language: cpp
+            :fragment: [part4]
 
 
 Checking Target Runtime Devices
@@ -391,13 +391,6 @@ To query the runtime target devices on which the inferences are being executed u
 
 .. tab-set::
 
-    .. tab-item:: C++
-        :sync: cpp
-
-        .. doxygensnippet:: docs/snippets/AUTO7.cpp
-            :language: cpp
-            :fragment: [part7]
-
     .. tab-item:: Python
         :sync: py
 
@@ -405,6 +398,12 @@ To query the runtime target devices on which the inferences are being executed u
            :language: python
            :fragment: [part7]
 
+    .. tab-item:: C++
+        :sync: cpp
+
+        .. doxygensnippet:: docs/snippets/AUTO7.cpp
+            :language: cpp
+            :fragment: [part7]
 
 
 Configuring Individual Devices and Creating the Auto-Device plugin on Top
@@ -414,19 +413,19 @@ Although the methods described above are currently the preferred way to execute 
 
 .. tab-set::
 
-    .. tab-item:: C++
-        :sync: cpp
-
-        .. doxygensnippet:: docs/snippets/AUTO5.cpp
-            :language: cpp
-            :fragment: [part5]
-
     .. tab-item:: Python
         :sync: py
 
         .. doxygensnippet:: docs/snippets/ov_auto.py
            :language: python
            :fragment: [part5]
+
+    .. tab-item:: C++
+        :sync: cpp
+
+        .. doxygensnippet:: docs/snippets/AUTO5.cpp
+            :language: cpp
+            :fragment: [part5]
 
 
 .. _using-auto-with-openvino-samples-and-benchmark-app:
