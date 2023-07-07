@@ -369,7 +369,7 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
         }
         // register output control dependencies in control dependencies map
         std::set<ov::Output<ov::Node>> output_control_deps;
-        if (propogate_conditional_flow(ov_inputs, ov_outputs, input_control_deps, output_control_deps)) {
+        if (propagate_conditional_flow(ov_inputs, ov_outputs, input_control_deps, output_control_deps)) {
             control_deps_map[operation_name] = output_control_deps;
         }
 
