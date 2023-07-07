@@ -97,7 +97,9 @@ inline std::map<std::string, InputInfo> get_input_info_by_node(const std::shared
             }
             }
         }
-        input_info.insert({ input_name, in_info });
+        if (ov::op::util::is_parameter(input_node) || ov::op::util::is_constant(input_node)) {
+            input_info.insert({ input_name, in_info });
+        }
     }
     return input_info;
 }
@@ -107,7 +109,8 @@ inline std::map<std::string, InputInfo> get_input_info_by_node(const std::shared
 // if `!is_copy_const_node` do not create new node with constants only as inputs 
 inline std::shared_ptr<ov::Node> clone_node(std::shared_ptr<ov::Node> node,
                                             bool is_save_const = false,
-                                            bool is_copy_const_node = false) {
+                                            bool is_copy_const_node = false,
+                                            std::string node_name = "") {
     // pass::Manager pass_manager;
     // pass_manager.register_pass<pass::ConstantFolding>();
     // auto model = std::make_shared<ov::Model>(node);
@@ -116,9 +119,11 @@ inline std::shared_ptr<ov::Node> clone_node(std::shared_ptr<ov::Node> node,
     bool has_parameters = false;
     ov::OutputVector inputs;
     inputs.resize(node->get_input_size());
-    std::string in_name_base = ov::test::functional::get_node_version(node);
     for (size_t i = 0; i < node->get_input_size(); ++i) {
-        std::string node_name = in_name_base + "_" + std::to_string(i);
+        if (node_name.empty()) {
+            std::string in_name_base = ov::test::functional::get_node_version(node);
+            node_name = in_name_base + "_" + std::to_string(i);
+        }
         // todo: replace deprecated code && remove this w/a for constant size
         OPENVINO_SUPPRESS_DEPRECATED_START
         const auto constant_input = ov::get_constant_from_source(node->input(i).get_source_output());
@@ -141,17 +146,17 @@ inline std::shared_ptr<ov::Node> clone_node(std::shared_ptr<ov::Node> node,
     }
     if (!has_parameters && !is_copy_const_node) {
         auto cloned_node = clone_node(node, true, true);
-        std::cout << "The operation: " + node->get_friendly_name() + " does not have parameters! Replave first input to parameter!" << std::endl;
+        std::cout << "The operation: " + node->get_friendly_name() + " does not have parameters! Replace first input to parameter!" << std::endl;
         auto param =
             std::make_shared<ov::op::v0::Parameter>(cloned_node->get_input_element_type(0), cloned_node->get_input_partial_shape(0));
-        std::string node_name = in_name_base + "_0";
+        std::string node_name = node_name + "_0";
         param->set_friendly_name(node_name);
         auto node_to_replace = cloned_node->get_input_node_shared_ptr(0);
         ov::replace_node(node_to_replace, param);
         return cloned_node;
     }
     std::shared_ptr<ov::Node> cloned_node = node->clone_with_new_inputs(inputs);
-    cloned_node->set_friendly_name(in_name_base);
+    cloned_node->set_friendly_name(node_name);
     return cloned_node;
 }
 
