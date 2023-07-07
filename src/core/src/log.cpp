@@ -62,11 +62,10 @@ LogHelper::~LogHelper() {
 }
 
 NGRAPH_SUPPRESS_DEPRECATED_START
-const char* ngraph::trim_file_name(ConstString root, ConstString s) {
-#ifdef OV_PROJECT_ROOT_DIR_LENGTH
-    return s.get_ptr(root.size());
-#else
-    return s.get_ptr(0);
-#endif
+const char* ngraph::trim_file_name(const char* const fname) {
+    static constexpr auto pattern = ConstString(OV_NATIVE_PARENT_PROJECT_ROOT_DIR);
+
+    const auto has_pattern_ptr = std::strstr(fname, pattern.get_ptr(0));
+    return has_pattern_ptr ? has_pattern_ptr + pattern.size() - 1 : fname;
 }
 NGRAPH_SUPPRESS_DEPRECATED_END

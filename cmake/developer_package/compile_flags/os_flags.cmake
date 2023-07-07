@@ -328,10 +328,7 @@ else()
     cmake_path(NATIVE_PATH OV_RELATIVE_BIN_PATH NATIVE_OV_RELATIVE_BIN_PATH)
 endif()
 
-string(LENGTH "${OV_NATIVE_PROJECT_ROOT_DIR}/" OV_PROJECT_ROOT_DIR_LENGTH)
-
-message("DDDD ${OV_NATIVE_PROJECT_ROOT_DIR}")
-message("DDDD ${NATIVE_OV_RELATIVE_BIN_PATH}")
+file(RELATIVE_PATH OV_NATIVE_PARENT_PROJECT_ROOT_DIR "${OpenVINO_SOURCE_DIR}/.." ${OpenVINO_SOURCE_DIR})
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     #
@@ -383,7 +380,6 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
 
     # Enable __FILE__ trim
     add_compile_options(/d1trimfile:${OV_NATIVE_PROJECT_ROOT_DIR}\\)
-    set(TRIMMING_FILE_MACRO_SUPPORTED TRUE)
 
     #
     # Debug information flags, by default CMake adds /Zi option
@@ -453,7 +449,6 @@ else()
             # Enable __FILE__ trim
             ie_add_compiler_flags(-ffile-prefix-map=${OV_NATIVE_PROJECT_ROOT_DIR}/=)
             ie_add_compiler_flags(-ffile-prefix-map=${OV_RELATIVE_BIN_PATH}/=)
-            set(TRIMMING_FILE_MACRO_SUPPORTED TRUE)
         endif()
         # set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wabi=11")
     endif()
@@ -463,7 +458,6 @@ else()
             # Enable __FILE__ trim
             ie_add_compiler_flags(-ffile-prefix-map=${OV_NATIVE_PROJECT_ROOT_DIR}/=)
             ie_add_compiler_flags(-ffile-prefix-map=${OV_RELATIVE_BIN_PATH}/=)
-            set(TRIMMING_FILE_MACRO_SUPPORTED TRUE)
         endif()
     endif()
 
@@ -512,8 +506,9 @@ endif()
 
 add_compile_definitions(
 
-    # Compiler not support to trim __FILE__ to have got relative path, use offset instead
-    $<$<NOT:$<BOOL:${TRIMMING_FILE_MACRO_SUPPORTED}>>:OV_PROJECT_ROOT_DIR_LENGTH=${OV_PROJECT_ROOT_DIR_LENGTH}>)
+    # Defines to trim check of __FILE__ macro in case if not done by compiler.
+    OV_NATIVE_PROJECT_ROOT_DIR="${OV_NATIVE_PROJECT_ROOT_DIR}"
+    OV_NATIVE_PARENT_PROJECT_ROOT_DIR="${OV_NATIVE_PARENT_PROJECT_ROOT_DIR}")
 
 check_cxx_compiler_flag("-Wsuggest-override" SUGGEST_OVERRIDE_SUPPORTED)
 if(SUGGEST_OVERRIDE_SUPPORTED)
