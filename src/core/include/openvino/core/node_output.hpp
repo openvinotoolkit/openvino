@@ -64,6 +64,8 @@ public:
     descriptor::Tensor& get_tensor() const;
     /// \return A shared point to the tensor ptr for this output.
     std::shared_ptr<descriptor::Tensor> get_tensor_ptr() const;
+    /// \return Set new tensor desc shared pointer to this output
+    void set_tensor_ptr(std::shared_ptr<descriptor::Tensor> tensor_ptr);
     /// \return The element type of the output referred to by this output handle.
     const element::Type& get_element_type() const;
     /// \return The shape of the output referred to by this output handle.
