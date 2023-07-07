@@ -378,14 +378,6 @@ void Convolution::getSupportedDescriptors() {
     attrs.reserve(2);
     withBiases = getOriginalInputsNumber() == 3;
 
-    if (!customImplPriorities.empty()) {
-        isPrimitivesPriorityDefined = true;
-        // winograd support only constant weights and bias
-        isWino = std::find(customImplPriorities.begin(), customImplPriorities.end(), impl_desc_type::jit_avx512_winograd) != customImplPriorities.end() &&
-            dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) && !canBeExecutedInInt8() &&
-            getParentEdgeAt(1)->getParent()->isConstant() && getParentEdgeAt(1)->getParent()->getType() == Type::Input;
-    }
-
     int expectedInputEdgesNum = static_cast<int>(getOriginalInputsNumber());
     for (size_t i = 0; i < fusedWith.size(); i++) {
         if (fusedWith[i]->getType() == Type::Convolution) {
@@ -890,8 +882,6 @@ void Convolution::createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
 
     std::vector<dnnl::algorithm> algorithms;
 
-    if (isWinograd())
-        algorithms.push_back(dnnl::algorithm::convolution_winograd);
     algorithms.push_back(baseConvAlgorithm);
 
     updatePadding();
@@ -1319,7 +1309,6 @@ void Convolution::prepareParams() {
                 attr);
         };
 
-        const auto alg = (key.implType & impl_desc_type::winograd) ? dnnl::algorithm::convolution_winograd : convAlg;
         dnnl::primitive_desc prim_desc = createDnnlConvDesc(
             engine,
             key.inp0->getDnnlDesc(),
@@ -1330,7 +1319,7 @@ void Convolution::prepareParams() {
             key.dilation,
             key.paddingL,
             key.paddingR,
-            alg,
+            convAlg,
             key.attr);
 
         const bool found = DnnlExtensionUtils::find_implementation(prim_desc, key.implType);
@@ -1584,6 +1573,8 @@ void Convolution::initializeInputZeroPoints(const uint8_t* inputZpData, const si
     if (inputZeroPointType == zpType::PerTensor &&
         (impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core_amx) || impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core_vnni)))
         inputZeroPoints.push_back(static_cast<int32_t>(inputZpData[0]));
+    else
+        inputZeroPointType = zpType::PerChannel;
 }
 
 VectorDims Convolution::makeInputDummyShape(const Shape& inpShape) const {
