@@ -19,16 +19,8 @@
 
 namespace ov {
 
-class Core;
-class CoreImpl;
-class InferRequest;
-class RemoteContext;
-class VariableState;
-class ISyncInferRequest;
-class ITensor;
-class RemoteTensor;
-
 class Tensor;
+class ITensor;
 
 namespace util {
 ov::Tensor make_tensor(const std::shared_ptr<ov::ITensor>& tensor, const std::shared_ptr<void>& so);
@@ -59,13 +51,6 @@ protected:
      */
     Tensor(const std::shared_ptr<ITensor>& impl, const std::shared_ptr<void>& so);
 
-    friend class ov::Core;
-    friend class ov::CoreImpl;
-    friend class ov::InferRequest;
-    friend class ov::RemoteTensor;
-    friend class ov::RemoteContext;
-    friend class ov::VariableState;
-    friend class ov::ISyncInferRequest;
     friend class ov::op::util::VariableValue;
     friend ov::Tensor ov::util::make_tensor(const std::shared_ptr<ov::ITensor>& tensor,
                                             const std::shared_ptr<void>& so);

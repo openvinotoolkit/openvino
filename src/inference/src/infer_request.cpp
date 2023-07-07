@@ -14,6 +14,7 @@
 #include "openvino/runtime/compiled_model.hpp"
 #include "openvino/runtime/exception.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
+#include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -63,7 +64,7 @@ InferRequest::InferRequest(const std::shared_ptr<ov::IAsyncInferRequest>& impl, 
 }
 
 void InferRequest::set_tensor(const ov::Output<const ov::Node>& port, const Tensor& tensor) {
-    OV_INFER_REQ_CALL_STATEMENT({ _impl->set_tensor(port, ov::SoPtr<ov::ITensor>(tensor._impl, tensor._so)); });
+    OV_INFER_REQ_CALL_STATEMENT({ _impl->set_tensor(port, get_tensor_impl(tensor)); });
 }
 
 void InferRequest::set_tensor(const ov::Output<ov::Node>& port, const Tensor& tensor) {
@@ -94,7 +95,7 @@ void InferRequest::set_tensors(const ov::Output<const ov::Node>& port, const std
     std::vector<ov::SoPtr<ov::ITensor>> tensor_ptrs;
     tensor_ptrs.reserve(tensors.size());
     for (const auto& tensor : tensors) {
-        tensor_ptrs.emplace_back(ov::SoPtr<ov::ITensor>{tensor._impl, tensor._so});
+        tensor_ptrs.emplace_back(get_tensor_impl(tensor));
     }
     OV_INFER_REQ_CALL_STATEMENT({ _impl->set_tensors(port, tensor_ptrs); })
 }
@@ -176,7 +177,7 @@ Tensor InferRequest::get_tensor(const ov::Output<const ov::Node>& port) {
         if (!tensor._so)
             tensor._so = _so;
 
-        return ov::Tensor(tensor._ptr, tensor._so);
+        return make_tensor(tensor);
     });
 }
 
