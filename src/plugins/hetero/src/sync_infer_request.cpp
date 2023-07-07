@@ -93,6 +93,15 @@ void ov::hetero::InferRequest::set_tensor(const ov::Output<const ov::Node>& port
     get_request(port)->set_tensor(port, tensor);
 }
 
+std::vector<ov::Tensor> ov::hetero::InferRequest::get_tensors(const ov::Output<const ov::Node>& port) const {
+    return get_request(port)->get_tensors(port);
+}
+
+void ov::hetero::InferRequest::set_tensors(const ov::Output<const ov::Node>& port,
+                                        const std::vector<ov::Tensor>& tensors) {
+    return get_request(port)->set_tensors(port, tensors);
+}
+
 void ov::hetero::InferRequest::check_tensors() const {
     // Ignore `check_tensor` of inputs and outputs of Hetero Compiled Model because
     // `m_tensors` are not allocated

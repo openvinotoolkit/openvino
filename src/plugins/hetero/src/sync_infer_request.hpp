@@ -37,9 +37,10 @@ public:
     void wait_pipeline();
     void cancel();
 
-    void set_tensor(const ov::Output<const ov::Node>& port, const ov::Tensor& tensor) override;
-
     ov::Tensor get_tensor(const ov::Output<const ov::Node>& port) const override;
+    void set_tensor(const ov::Output<const ov::Node>& port, const ov::Tensor& tensor) override;
+    std::vector<ov::Tensor>  get_tensors(const ov::Output<const ov::Node>& port) const override;
+    void set_tensors(const ov::Output<const ov::Node>& port, const std::vector<ov::Tensor>& tensors) override;
 
     void check_tensors() const override;
 
