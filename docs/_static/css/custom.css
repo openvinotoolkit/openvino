@@ -21,7 +21,41 @@ pre {
     white-space: pre-wrap;
     word-wrap: break-word;
 }
-
+/* cookie wap requirement */
+a#wap_dns {display: none;}
+/* Sphinx-design tabs override */
+.sd-tab-set>input:checked+label {
+    border-color: var(--sd-color-tabs-underline-inactive);
+    color: var(--sd-color-info-text)!important;
+    background-color: rgb(0 104 181)!important;
+}
+.sd-tab-set>input:checked+label:hover {
+    color: --sd-color-info-text;
+    background-color: rgb(0,74,134)!important;
+}
+.sd-tab-set>input:not(:checked)+label:hover {
+    color: var(--sd-color-black)!important;
+    background-color: rgb(245, 245, 245)!important;
+    border-color: var(--sd-color-card-header)!important;
+}
+.sd-tab-set>label {
+    border-bottom: 0.125rem solid transparent;
+    margin-right: 10px!important;
+    margin-bottom: 8px;
+    color: var(--sd-color-black)!important;
+    border-color: var(--sd-color-tabs-underline-inactive);
+    cursor: pointer;
+    font-size: var(--sd-fontsize-tabs-label);
+    font-weight: 400!important;
+    padding: 5px 16px 2px!important;
+    transition: color 250ms;
+    width: auto;
+    z-index: 1;
+}
+.sd-tab-content {
+    box-shadow:none!important;
+    border-top: solid 2px var(--sd-color-tabs-overline)!important;
+}
 
 /* Navigation panels override */
 /* =================================================== */
@@ -66,22 +100,26 @@ ul#navbar-main-elements > li:hover {
     transform: rotate(0deg);
 }
 
-
-/* Footer links */
+/* Footer */
 /* =================================================== */
-footer div.container div.footer-item p a {
-    float: left;
-    margin-right: 30px;
+footer iframe {
+    background-color: white;
+    width: 100%;
+    border: none;
+    height: 60px;
 }
 
-footer div.container div.footer-item p a:nth-child(1) {
-    margin-right: 50px;
+@media screen and (min-width: 860px) {
+    footer iframe {
+        height: 45px;
+    }
 }
 
-footer div.container div.footer-item p:nth-child(2) {
-    clear: both;
+@media screen and (max-width: 520px) {
+    footer iframe {
+        height: 85px;
+    }
 }
-
 
 /* Doc version dropdown formatting override */
 /* =================================================== */
