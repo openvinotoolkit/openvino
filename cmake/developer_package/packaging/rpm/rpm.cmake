@@ -159,6 +159,9 @@ macro(ov_rpm_specific_settings)
             set(CPACK_DEBIAN_PACKAGE_ARCHITECTURE i386)
         endif()
     endif()
+
+    # we don't need RPATHs, because libraries are search by standard paths
+    set(CMAKE_SKIP_INSTALL_RPATH ON)
 endmacro()
 
 ov_rpm_specific_settings()

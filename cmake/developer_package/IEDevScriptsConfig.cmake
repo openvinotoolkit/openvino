@@ -170,8 +170,6 @@ endif()
 
 include(packaging/packaging)
 
-set(CMAKE_SKIP_INSTALL_RPATH ON)
-
 if(APPLE)
     set(CMAKE_INSTALL_RPATH_USE_LINK_PATH ON)
 
