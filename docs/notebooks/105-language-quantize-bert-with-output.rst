@@ -56,10 +56,10 @@ Imports
 
 .. parsed-literal::
 
-    2023-06-21 22:27:49.466196: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2023-06-21 22:27:49.499821: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2023-07-06 22:30:31.755782: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2023-07-06 22:30:31.789809: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2023-06-21 22:27:50.040301: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2023-07-06 22:30:32.352426: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 .. parsed-literal::
@@ -141,7 +141,7 @@ PyTorch model formats are supported:
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/jit/annotations.py:309: UserWarning: TorchScript will treat type annotations of Tensor dtype-specific subtypes as if they are normal Tensors. dtype constraints are not enforced in compilation either.
+    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-444/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/jit/annotations.py:309: UserWarning: TorchScript will treat type annotations of Tensor dtype-specific subtypes as if they are normal Tensors. dtype constraints are not enforced in compilation either.
       warnings.warn("TorchScript will treat type annotations of Tensor "
 
 
@@ -169,12 +169,6 @@ tokenizer from HuggingFace.
         return processed_dataset
     
     data_source = create_data_source()
-
-
-
-.. parsed-literal::
-
-    Downloading readme: 0.00B [00:00, ?B/s]
 
 
 .. parsed-literal::
@@ -392,8 +386,8 @@ The optimization process contains the following steps:
 
 .. parsed-literal::
 
-    Statistics collection: 100%|██████████| 300/300 [00:24<00:00, 12.11it/s]
-    Biases correction: 100%|██████████| 74/74 [00:25<00:00,  2.93it/s]
+    Statistics collection: 100%|██████████| 300/300 [00:25<00:00, 11.96it/s]
+    Biases correction: 100%|██████████| 74/74 [00:25<00:00,  2.96it/s]
 
 
 .. code:: ipython3
@@ -537,9 +531,9 @@ Frames Per Second (FPS) for images.
 
 .. parsed-literal::
 
-    PyTorch model on CPU: 0.071 seconds per sentence, SPS: 14.07
-    IR FP32 model in OpenVINO Runtime/CPU: 0.021 seconds per sentence, SPS: 48.22
-    OpenVINO IR INT8 model in OpenVINO Runtime/CPU: 0.010 seconds per sentence, SPS: 97.87
+    PyTorch model on CPU: 0.075 seconds per sentence, SPS: 13.32
+    IR FP32 model in OpenVINO Runtime/CPU: 0.022 seconds per sentence, SPS: 45.68
+    OpenVINO IR INT8 model in OpenVINO Runtime/CPU: 0.010 seconds per sentence, SPS: 97.95
 
 
 Finally, measure the inference performance of OpenVINO ``FP32`` and
@@ -579,27 +573,27 @@ in OpenVINO.
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(CPU) performance hint will be set to PerformanceMode.LATENCY.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 56.68 ms
+    [ INFO ] Read model took 66.93 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     1 , input_ids (node: Parameter_2) : i64 / [...] / [1,?]
-    [ INFO ]     2 , attention_mask , attention_mask.1 (node: Parameter_3) : i64 / [...] / [1,?]
+    [ INFO ]     attention_mask.1 , attention_mask , 2 (node: Parameter_3) : i64 / [...] / [1,?]
     [ INFO ]     token_type_ids , 3 (node: Parameter_4) : i64 / [...] / [1,?]
     [ INFO ] Model outputs:
-    [ INFO ]     logits , 707 (node: aten::linear_1192) : f32 / [...] / [1,2]
+    [ INFO ]     707 , logits (node: aten::linear_1192) : f32 / [...] / [1,2]
     [Step 5/11] Resizing model to match image sizes and given batch
     [ INFO ] Model batch size: 1
     [ INFO ] Reshaping model: '1': [1,128], '2': [1,128], '3': [1,128]
-    [ INFO ] Reshape model took 57.63 ms
+    [ INFO ] Reshape model took 78.32 ms
     [Step 6/11] Configuring input of the model
     [ INFO ] Model inputs:
     [ INFO ]     1 , input_ids (node: Parameter_2) : i64 / [...] / [1,128]
-    [ INFO ]     2 , attention_mask , attention_mask.1 (node: Parameter_3) : i64 / [...] / [1,128]
+    [ INFO ]     attention_mask.1 , attention_mask , 2 (node: Parameter_3) : i64 / [...] / [1,128]
     [ INFO ]     token_type_ids , 3 (node: Parameter_4) : i64 / [...] / [1,128]
     [ INFO ] Model outputs:
-    [ INFO ]     logits , 707 (node: aten::linear_1192) : f32 / [...] / [1,2]
+    [ INFO ]     707 , logits (node: aten::linear_1192) : f32 / [...] / [1,2]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 266.53 ms
+    [ INFO ] Compile model took 269.21 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: Model0
@@ -625,17 +619,17 @@ in OpenVINO.
     [ INFO ] Fill input '3' with random values 
     [Step 10/11] Measuring performance (Start inference synchronously, limits: 60000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 33.80 ms
+    [ INFO ] First inference took 31.65 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            3293 iterations
-    [ INFO ] Duration:         60005.54 ms
+    [ INFO ] Count:            3259 iterations
+    [ INFO ] Duration:         60000.06 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        18.09 ms
-    [ INFO ]    Average:       18.12 ms
-    [ INFO ]    Min:           17.73 ms
-    [ INFO ]    Max:           22.74 ms
-    [ INFO ] Throughput:   55.27 FPS
+    [ INFO ]    Median:        18.28 ms
+    [ INFO ]    Average:       18.31 ms
+    [ INFO ]    Min:           17.84 ms
+    [ INFO ]    Max:           22.91 ms
+    [ INFO ] Throughput:   54.71 FPS
 
 
 .. code:: ipython3
@@ -661,27 +655,27 @@ in OpenVINO.
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(CPU) performance hint will be set to PerformanceMode.LATENCY.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 53.69 ms
+    [ INFO ] Read model took 68.87 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
-    [ INFO ]     input_ids , 1 (node: Parameter_2) : i64 / [...] / [1,?]
-    [ INFO ]     attention_mask.1 , 2 , attention_mask (node: Parameter_3) : i64 / [...] / [1,?]
+    [ INFO ]     1 , input_ids (node: Parameter_2) : i64 / [...] / [1,?]
+    [ INFO ]     attention_mask.1 , attention_mask , 2 (node: Parameter_3) : i64 / [...] / [1,?]
     [ INFO ]     3 , token_type_ids (node: Parameter_4) : i64 / [...] / [1,?]
     [ INFO ] Model outputs:
     [ INFO ]     logits , 707 (node: aten::linear_1192) : f32 / [...] / [1,2]
     [Step 5/11] Resizing model to match image sizes and given batch
     [ INFO ] Model batch size: 1
     [ INFO ] Reshaping model: '1': [1,128], '2': [1,128], '3': [1,128]
-    [ INFO ] Reshape model took 61.50 ms
+    [ INFO ] Reshape model took 61.17 ms
     [Step 6/11] Configuring input of the model
     [ INFO ] Model inputs:
-    [ INFO ]     input_ids , 1 (node: Parameter_2) : i64 / [...] / [1,128]
-    [ INFO ]     attention_mask.1 , 2 , attention_mask (node: Parameter_3) : i64 / [...] / [1,128]
+    [ INFO ]     1 , input_ids (node: Parameter_2) : i64 / [...] / [1,128]
+    [ INFO ]     attention_mask.1 , attention_mask , 2 (node: Parameter_3) : i64 / [...] / [1,128]
     [ INFO ]     3 , token_type_ids (node: Parameter_4) : i64 / [...] / [1,128]
     [ INFO ] Model outputs:
     [ INFO ]     logits , 707 (node: aten::linear_1192) : f32 / [...] / [1,2]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 473.56 ms
+    [ INFO ] Compile model took 472.45 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: Model0
@@ -707,15 +701,15 @@ in OpenVINO.
     [ INFO ] Fill input '3' with random values 
     [Step 10/11] Measuring performance (Start inference synchronously, limits: 60000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 17.89 ms
+    [ INFO ] First inference took 18.14 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            6496 iterations
-    [ INFO ] Duration:         60002.09 ms
+    [ INFO ] Count:            6579 iterations
+    [ INFO ] Duration:         60000.04 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        9.09 ms
-    [ INFO ]    Average:       9.13 ms
-    [ INFO ]    Min:           8.45 ms
-    [ INFO ]    Max:           12.68 ms
-    [ INFO ] Throughput:   109.96 FPS
+    [ INFO ]    Median:        9.00 ms
+    [ INFO ]    Average:       9.02 ms
+    [ INFO ]    Min:           8.34 ms
+    [ INFO ]    Max:           11.42 ms
+    [ INFO ] Throughput:   111.15 FPS
 

@@ -69,11 +69,13 @@ Prerequisites
 .. parsed-literal::
 
     Cloning into 'yolov7'...
-    remote: Enumerating objects: 1185, done.[K
-    remote: Total 1185 (delta 0), reused 0 (delta 0), pack-reused 1185[K
-    Receiving objects: 100% (1185/1185), 74.23 MiB | 3.87 MiB/s, done.
-    Resolving deltas: 100% (509/509), done.
-    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/notebooks/226-yolov7-optimization/yolov7
+    remote: Enumerating objects: 1191, done.[K
+    remote: Counting objects: 100% (6/6), done.[K
+    remote: Compressing objects: 100% (4/4), done.[K
+    remote: Total 1191 (delta 2), reused 6 (delta 2), pack-reused 1185[K
+    Receiving objects: 100% (1191/1191), 74.23 MiB | 3.43 MiB/s, done.
+    Resolving deltas: 100% (511/511), done.
+    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-444/.workspace/scm/ov-notebook/notebooks/226-yolov7-optimization/yolov7
 
 
 .. code:: ipython3
@@ -98,7 +100,7 @@ Prerequisites
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/notebooks/226-yolov7-optimization/yolov7/model/yolov7-tiny.pt')
+    PosixPath('/opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-444/.workspace/scm/ov-notebook/notebooks/226-yolov7-optimization/yolov7/model/yolov7-tiny.pt')
 
 
 
@@ -124,9 +126,9 @@ result,
      traced_script_module saved! 
      model is traced! 
     
-    5 horses, Done. (71.7ms) Inference, (0.8ms) NMS
+    5 horses, Done. (72.0ms) Inference, (0.8ms) NMS
      The image with the result is saved in: runs/detect/exp/horses.jpg
-    Done. (0.085s)
+    Done. (0.086s)
 
 
 .. code:: ipython3
@@ -508,7 +510,7 @@ Create dataloader
 
 .. parsed-literal::
 
-    val: Scanning 'coco/val2017' images and labels... 4952 found, 48 missing, 0 empty, 0 corrupted: 100%|██████████| 5000/5000 [00:01<00:00, 2973.19it/s]
+    val: Scanning 'coco/val2017' images and labels... 4952 found, 48 missing, 0 empty, 0 corrupted: 100%|██████████| 5000/5000 [00:01<00:00, 2913.78it/s]
 
 
 Define validation function
@@ -746,8 +748,8 @@ asymmetric quantization of activations.
 
 .. parsed-literal::
 
-    Statistics collection: 100%|██████████| 300/300 [00:38<00:00,  7.89it/s]
-    Biases correction: 100%|██████████| 58/58 [00:03<00:00, 14.50it/s]
+    Statistics collection: 100%|██████████| 300/300 [00:38<00:00,  7.87it/s]
+    Biases correction: 100%|██████████| 58/58 [00:04<00:00, 14.08it/s]
 
 
 Validate Quantized model inference
@@ -839,7 +841,7 @@ models.
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(CPU) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 31.19 ms
+    [ INFO ] Read model took 31.26 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     images (node: images) : f32 / [...] / [1,3,640,640]
@@ -853,7 +855,7 @@ models.
     [ INFO ] Model outputs:
     [ INFO ]     output (node: output) : f32 / [...] / [1,25200,85]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 203.32 ms
+    [ INFO ] Compile model took 205.60 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: torch_jit
@@ -875,17 +877,17 @@ models.
     [ INFO ] Fill input 'images' with random values 
     [Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 60000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 45.65 ms
+    [ INFO ] First inference took 44.74 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            5730 iterations
-    [ INFO ] Duration:         60058.97 ms
+    [ INFO ] Count:            5772 iterations
+    [ INFO ] Duration:         60086.85 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        62.63 ms
-    [ INFO ]    Average:       62.72 ms
-    [ INFO ]    Min:           50.31 ms
-    [ INFO ]    Max:           86.54 ms
-    [ INFO ] Throughput:   95.41 FPS
+    [ INFO ]    Median:        62.21 ms
+    [ INFO ]    Average:       62.30 ms
+    [ INFO ]    Min:           55.00 ms
+    [ INFO ]    Max:           84.70 ms
+    [ INFO ] Throughput:   96.06 FPS
 
 
 .. code:: ipython3
@@ -911,7 +913,7 @@ models.
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(CPU) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 40.31 ms
+    [ INFO ] Read model took 36.38 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     images (node: images) : f32 / [...] / [1,3,640,640]
@@ -925,7 +927,7 @@ models.
     [ INFO ] Model outputs:
     [ INFO ]     output (node: output) : f32 / [...] / [1,25200,85]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 382.47 ms
+    [ INFO ] Compile model took 403.86 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: torch_jit
@@ -947,15 +949,15 @@ models.
     [ INFO ] Fill input 'images' with random values 
     [Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 60000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 24.59 ms
+    [ INFO ] First inference took 25.31 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            15786 iterations
-    [ INFO ] Duration:         60038.82 ms
+    [ INFO ] Count:            15744 iterations
+    [ INFO ] Duration:         60033.90 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        22.62 ms
-    [ INFO ]    Average:       22.69 ms
-    [ INFO ]    Min:           17.16 ms
-    [ INFO ]    Max:           42.82 ms
-    [ INFO ] Throughput:   262.93 FPS
+    [ INFO ]    Median:        22.71 ms
+    [ INFO ]    Average:       22.75 ms
+    [ INFO ]    Min:           16.89 ms
+    [ INFO ]    Max:           41.55 ms
+    [ INFO ] Throughput:   262.25 FPS
 

@@ -138,7 +138,7 @@ Download Model Checkpoint
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/notebooks/219-knowledge-graphs-conve/models/conve.pt')
+    PosixPath('/opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-444/.workspace/scm/ov-notebook/notebooks/219-knowledge-graphs-conve/models/conve.pt')
 
 
 
@@ -294,7 +294,7 @@ typical to use metrics such as Mean Reciprocal Rank, Hits@10 etc.
 
 .. parsed-literal::
 
-    Average time taken for inference: 0.7399320602416992 ms
+    Average time taken for inference: 0.6917417049407959 ms
     Mean accuracy of the model on the test dataset: 0.875
 
 
@@ -396,7 +396,7 @@ Then, the model can be inferred on by using the
 
 .. parsed-literal::
 
-    Average time taken for inference: 1.2975235780080159 ms
+    Average time taken for inference: 1.4818112055460613 ms
     Mean accuracy of the model on the test dataset: 0.10416666666666667
 
 
@@ -410,7 +410,7 @@ Determine the platform specific speedup obtained through OpenVINO graph optimiza
 
 .. parsed-literal::
 
-    Speedup with OpenVINO optimizations: 0.57 X
+    Speedup with OpenVINO optimizations: 0.47 X
 
 
 Benchmark the converted OpenVINO model using benchmark app
@@ -453,7 +453,7 @@ inference can also be obtained by looking at the benchmark app results.
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(CPU) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 18.84 ms
+    [ INFO ] Read model took 19.38 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     input.1 (node: input.1) : i64 / [...] / []
@@ -463,7 +463,7 @@ inference can also be obtained by looking at the benchmark app results.
     [Step 5/11] Resizing model to match image sizes and given batch
     [ INFO ] Model batch size: 1
     [ INFO ] Reshaping model: 'input.1': [1], 'input.2': [1]
-    [ INFO ] Reshape model took 0.95 ms
+    [ INFO ] Reshape model took 0.97 ms
     [Step 6/11] Configuring input of the model
     [ INFO ] Model inputs:
     [ INFO ]     input.1 (node: input.1) : i64 / [...] / [1]
@@ -471,7 +471,7 @@ inference can also be obtained by looking at the benchmark app results.
     [ INFO ] Model outputs:
     [ INFO ]     51 (node: 51) : f32 / [...] / [1,271]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 58.69 ms
+    [ INFO ] Compile model took 58.26 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: torch_jit
@@ -495,17 +495,17 @@ inference can also be obtained by looking at the benchmark app results.
     [ INFO ] Fill input 'input.2' with random values 
     [Step 10/11] Measuring performance (Start inference asynchronously, 12 inference requests, limits: 10000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 4.26 ms
+    [ INFO ] First inference took 4.17 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            96156 iterations
-    [ INFO ] Duration:         10001.50 ms
+    [ INFO ] Count:            95136 iterations
+    [ INFO ] Duration:         10001.79 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        1.03 ms
-    [ INFO ]    Average:       1.05 ms
-    [ INFO ]    Min:           0.60 ms
-    [ INFO ]    Max:           2.62 ms
-    [ INFO ] Throughput:   9614.16 FPS
+    [ INFO ]    Median:        1.04 ms
+    [ INFO ]    Average:       1.06 ms
+    [ INFO ]    Min:           0.61 ms
+    [ INFO ]    Max:           3.56 ms
+    [ INFO ] Throughput:   9511.90 FPS
 
 
 Conclusions

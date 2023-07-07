@@ -226,8 +226,8 @@ lines of the output will include:
     [ INFO ] The model was converted to IR v11, the latest model format that corresponds to the source DL framework input/output format. While IR v11 is backwards compatible with OpenVINO Inference Engine API v1.0, please use API v2.0 (as of 2022.1) to take advantage of the latest improvements in IR v11.
     Find more information about API v2.0 and IR v11 at https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html
     [ SUCCESS ] Generated IR version 11 model.
-    [ SUCCESS ] XML file: /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/notebooks/102-pytorch-onnx-to-openvino/model/lraspp_mobilenet_v3_large.xml
-    [ SUCCESS ] BIN file: /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/notebooks/102-pytorch-onnx-to-openvino/model/lraspp_mobilenet_v3_large.bin
+    [ SUCCESS ] XML file: /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-444/.workspace/scm/ov-notebook/notebooks/102-pytorch-to-openvino/model/lraspp_mobilenet_v3_large.xml
+    [ SUCCESS ] BIN file: /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-444/.workspace/scm/ov-notebook/notebooks/102-pytorch-to-openvino/model/lraspp_mobilenet_v3_large.bin
 
 
 Show Results
@@ -468,9 +468,9 @@ performance.
 
 .. parsed-literal::
 
-    PyTorch model on CPU: 0.037 seconds per image, FPS: 27.22
-    ONNX model in OpenVINO Runtime/CPU: 0.025 seconds per image, FPS: 39.64
-    OpenVINO IR model in OpenVINO Runtime/CPU: 0.031 seconds per image, FPS: 31.95
+    PyTorch model on CPU: 0.035 seconds per image, FPS: 28.96
+    ONNX model in OpenVINO Runtime/CPU: 0.025 seconds per image, FPS: 39.72
+    OpenVINO IR model in OpenVINO Runtime/CPU: 0.031 seconds per image, FPS: 31.99
 
 
 **Show Device Information**

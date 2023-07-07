@@ -66,10 +66,10 @@ Imports
 
 .. parsed-literal::
 
-    2023-06-21 23:13:35.137764: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2023-06-21 23:13:35.171412: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2023-07-06 23:16:27.952781: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2023-07-06 23:16:27.987349: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2023-06-21 23:13:35.709438: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2023-07-06 23:16:28.555701: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 Download the attention-center model
@@ -92,7 +92,7 @@ include model in folder ``./model``.
     remote: Counting objects: 100% (168/168), done.[K
     remote: Compressing objects: 100% (132/132), done.[K
     remote: Total 168 (delta 73), reused 114 (delta 28), pack-reused 0[K
-    Receiving objects: 100% (168/168), 26.22 MiB | 4.68 MiB/s, done.
+    Receiving objects: 100% (168/168), 26.22 MiB | 3.37 MiB/s, done.
     Resolving deltas: 100% (73/73), done.
 
 
@@ -226,7 +226,7 @@ Upload input image using file loading button
 
 .. parsed-literal::
 
-    2023-06-21 23:13:46.531940: W tensorflow/core/common_runtime/gpu/gpu_device.cc:1956] Cannot dlopen some GPU libraries. Please make sure the missing libraries mentioned above are installed properly if you would like to use GPU. Follow the guide at https://www.tensorflow.org/install/gpu for how to download and setup the required libraries for your platform.
+    2023-07-06 23:16:41.938501: W tensorflow/core/common_runtime/gpu/gpu_device.cc:1956] Cannot dlopen some GPU libraries. Please make sure the missing libraries mentioned above are installed properly if you would like to use GPU. Follow the guide at https://www.tensorflow.org/install/gpu for how to download and setup the required libraries for your platform.
     Skipping registering GPU devices...
 
 

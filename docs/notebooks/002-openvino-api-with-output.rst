@@ -28,20 +28,39 @@ covers:
 
 -  `Caching a Model <#Caching-a-Model>`__
 
-The notebook is divided into sections with headers. Each section is
-standalone and does not depend on any previous sections except for the
-next cell with imports. A segmentation and classification OpenVINO IR
-model and a segmentation ONNX model are provided as examples. These
-model files can be replaced with your own models. The exact outputs will
-be different, but the process is the same.
+The notebook is divided into sections with headers. The next cell
+contains global requirements installation and imports. Each section is
+standalone and does not depend on any previous sections. A segmentation
+and classification OpenVINO IR model and a segmentation ONNX model are
+provided as examples. These model files can be replaced with your own
+models. The exact outputs will be different, but the process is the
+same.
 
 .. code:: ipython3
 
     # Required imports. Please execute this cell first.
-    import sys
+    !pip install -q "openvino>=2023.0.0"
+    !pip install requests tqdm
     
-    sys.path.append('../utils')
+    # Fetch `notebook_utils` module
+    import urllib.request
+    urllib.request.urlretrieve(
+        url='https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/main/notebooks/utils/notebook_utils.py',
+        filename='notebook_utils.py'
+    )
+    
     from notebook_utils import download_file
+
+
+.. parsed-literal::
+
+    Requirement already satisfied: requests in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-444/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (2.31.0)
+    Requirement already satisfied: tqdm in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-444/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (4.65.0)
+    Requirement already satisfied: charset-normalizer<4,>=2 in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-444/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from requests) (3.1.0)
+    Requirement already satisfied: idna<4,>=2.5 in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-444/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from requests) (3.4)
+    Requirement already satisfied: urllib3<3,>=1.21.1 in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-444/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from requests) (1.26.16)
+    Requirement already satisfied: certifi>=2017.4.17 in /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-444/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from requests) (2023.5.7)
+
 
 Loading OpenVINO Runtime and Showing Info
 -----------------------------------------
@@ -115,7 +134,7 @@ suitable for inference, for example, by alternating input shapes,
 embedding preprocessing and cutting training parts off. For information
 on how to convert your existing TensorFlow, PyTorch or ONNX model to
 OpenVINO IR format with Model Optimizer, refer to the
-`tensorflow-to-openvino <101-tensorflow-to-openvino-with-output.html>`__
+`tensorflow-to-openvino <101-tensorflow-classification-to-openvino-with-output.html>`__
 and
 `pytorch-onnx-to-openvino <102-pytorch-onnx-to-openvino-with-output.html>`__
 notebooks.
@@ -146,7 +165,7 @@ notebooks.
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/notebooks/002-openvino-api/model/classification.bin')
+    PosixPath('/opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-444/.workspace/scm/ov-notebook/notebooks/002-openvino-api/model/classification.bin')
 
 
 
@@ -193,7 +212,7 @@ points to the filename of an ONNX model.
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/notebooks/002-openvino-api/model/segmentation.onnx')
+    PosixPath('/opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-444/.workspace/scm/ov-notebook/notebooks/002-openvino-api/model/segmentation.onnx')
 
 
 
@@ -249,7 +268,7 @@ without any conversion step. Pass the filename with extension to
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/notebooks/002-openvino-api/model/inference.pdiparams')
+    PosixPath('/opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-444/.workspace/scm/ov-notebook/notebooks/002-openvino-api/model/inference.pdiparams')
 
 
 
@@ -299,7 +318,7 @@ Optimizer <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_prepare_model_con
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/notebooks/002-openvino-api/model/classification.pb')
+    PosixPath('/opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-444/.workspace/scm/ov-notebook/notebooks/002-openvino-api/model/classification.pb')
 
 
 
@@ -351,7 +370,7 @@ It is pre-trained model optimized to work with TensorFlow Lite.
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/notebooks/002-openvino-api/model/classification.tflite')
+    PosixPath('/opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-444/.workspace/scm/ov-notebook/notebooks/002-openvino-api/model/classification.tflite')
 
 
 
@@ -400,7 +419,7 @@ CompiledModel instance. While using ``model.inputs`` and
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/notebooks/002-openvino-api/model/classification.bin')
+    PosixPath('/opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-444/.workspace/scm/ov-notebook/notebooks/002-openvino-api/model/classification.bin')
 
 
 
@@ -566,6 +585,11 @@ data or list of input data in np.ndarray format, where the position of
 the input tensor corresponds to input index. If a model has a single
 input, wrapping to a dictionary or list can be omitted.
 
+.. code:: ipython3
+
+    # Install opencv package for image handling
+    !pip install -q opencv-python
+
 **Load the network**
 
 .. code:: ipython3
@@ -588,7 +612,7 @@ input, wrapping to a dictionary or list can be omitted.
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/notebooks/002-openvino-api/model/classification.bin')
+    PosixPath('/opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-444/.workspace/scm/ov-notebook/notebooks/002-openvino-api/model/classification.bin')
 
 
 
@@ -613,9 +637,18 @@ the input layout of the network.
 
     import cv2
     
-    image_filename = "../data/image/coco_hollywood.jpg"
-    image = cv2.imread(image_filename)
+    image_filename = download_file(
+        "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/coco_hollywood.jpg",
+        directory="data"
+    )
+    image = cv2.imread(str(image_filename))
     image.shape
+
+
+
+.. parsed-literal::
+
+    data/coco_hollywood.jpg:   0%|          | 0.00/485k [00:00<?, ?B/s]
 
 
 
@@ -764,7 +797,7 @@ input shape.
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/notebooks/002-openvino-api/model/segmentation.bin')
+    PosixPath('/opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-444/.workspace/scm/ov-notebook/notebooks/002-openvino-api/model/segmentation.bin')
 
 
 
@@ -913,7 +946,7 @@ the cache.
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/notebooks/002-openvino-api/model/classification.bin')
+    PosixPath('/opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-444/.workspace/scm/ov-notebook/notebooks/002-openvino-api/model/classification.bin')
 
 
 

@@ -10,7 +10,7 @@ from `Open Model
 Zoo <https://github.com/openvinotoolkit/open_model_zoo/>`__ is used in
 this tutorial. For more information about how OpenVINO IR models are
 created, refer to the `TensorFlow to
-OpenVINO <101-tensorflow-to-openvino-with-output.html>`__
+OpenVINO <101-tensorflow-classification-to-openvino-with-output.html>`__
 tutorial.
 
 Imports

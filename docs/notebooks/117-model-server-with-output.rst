@@ -834,7 +834,7 @@ Visualization
 
 
 
-.. image:: 117-model-server-with-output_files/117-model-server-with-output_25_1.png
+.. image:: 117-model-server-with-output_files/117-model-server-with-output_20_1.png
 
 
 To stop and remove the model server container, you can use the following

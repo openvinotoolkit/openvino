@@ -109,7 +109,7 @@ weight. \* ``{MODEL_NAME}.onnx`` - the Open Neural Network Exchange
     YOLOv5 🚀 v7.0-0-g915bbf2 Python-3.8.10 torch-1.13.1+cpu CPU
     
     Downloading https://github.com/ultralytics/yolov5/releases/download/v7.0/yolov5m.pt to yolov5m/yolov5m.pt...
-    100%|██████████████████████████████████████| 40.8M/40.8M [00:10<00:00, 4.09MB/s]
+    100%|██████████████████████████████████████| 40.8M/40.8M [00:11<00:00, 3.74MB/s]
     
     Fusing layers... 
     YOLOv5m summary: 290 layers, 21172173 parameters, 0 gradients
@@ -117,10 +117,10 @@ weight. \* ``{MODEL_NAME}.onnx`` - the Open Neural Network Exchange
     PyTorch: starting from yolov5m/yolov5m.pt with output shape (1, 25200, 85) (40.8 MB)
     
     ONNX: starting export with onnx 1.14.0...
-    ONNX: export success ✅ 1.2s, saved as yolov5m/yolov5m.onnx (81.2 MB)
+    ONNX: export success ✅ 1.3s, saved as yolov5m/yolov5m.onnx (81.2 MB)
     
-    Export complete (13.4s)
-    Results saved to /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/notebooks/111-yolov5-quantization-migration/yolov5/yolov5m
+    Export complete (14.5s)
+    Results saved to /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-444/.workspace/scm/ov-notebook/notebooks/111-yolov5-quantization-migration/yolov5/yolov5m
     Detect:          python detect.py --weights yolov5m/yolov5m.onnx 
     Validate:        python val.py --weights yolov5m/yolov5m.onnx 
     PyTorch Hub:     model = torch.hub.load('ultralytics/yolov5', 'custom', 'yolov5m/yolov5m.onnx')  
@@ -229,8 +229,8 @@ first.
 .. parsed-literal::
 
     Unzipping datasets/coco128.zip...
-    Scanning /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/notebooks/111-yolov5-quantization-migration/datasets/coco128/labels/train2017... 126 images, 2 backgrounds, 0 corrupt: 100%|██████████| 128/128 00:00
-    New cache created: /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/notebooks/111-yolov5-quantization-migration/datasets/coco128/labels/train2017.cache
+    Scanning /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-444/.workspace/scm/ov-notebook/notebooks/111-yolov5-quantization-migration/datasets/coco128/labels/train2017... 126 images, 2 backgrounds, 0 corrupt: 100%|██████████| 128/128 00:00
+    New cache created: /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-444/.workspace/scm/ov-notebook/notebooks/111-yolov5-quantization-migration/datasets/coco128/labels/train2017.cache
 
 
 Create YOLOv5 DataLoader class for POT
@@ -304,7 +304,7 @@ index. Any implementation should override the following methods:
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/offline_transformations/__init__.py:10: FutureWarning: The module is private and following namespace `offline_transformations` will be removed in the future.
+    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-444/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/offline_transformations/__init__.py:10: FutureWarning: The module is private and following namespace `offline_transformations` will be removed in the future.
       warnings.warn(
 
 
@@ -483,8 +483,8 @@ device for inferece and can be saved on disk using
 
 .. parsed-literal::
 
-    Statistics collection:  43%|████▎     | 128/300 [00:30<00:41,  4.18it/s]
-    Biases correction: 100%|██████████| 82/82 [00:10<00:00,  7.71it/s]
+    Statistics collection:  43%|████▎     | 128/300 [00:30<00:41,  4.14it/s]
+    Biases correction: 100%|██████████| 82/82 [00:10<00:00,  7.88it/s]
 
 
 Compare accuracy FP32 and INT8 models
@@ -551,10 +551,10 @@ same directory, where model located.
 .. parsed-literal::
 
     Forcing --batch-size 1 square inference (1,3,640,640) for non-PyTorch models
-    val: Scanning /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/notebooks/111-yolov5-quantization-migration/datasets/coco128/labels/train2017.cache... 126 images, 2 backgrounds, 0 corrupt: 100%|██████████| 128/128 00:00
+    val: Scanning /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-444/.workspace/scm/ov-notebook/notebooks/111-yolov5-quantization-migration/datasets/coco128/labels/train2017.cache... 126 images, 2 backgrounds, 0 corrupt: 100%|██████████| 128/128 00:00
                      Class     Images  Instances          P          R      mAP50   mAP50-95: 100%|██████████| 128/128 00:05
                        all        128        929      0.726      0.687      0.769      0.554
-    Speed: 0.2ms pre-process, 35.3ms inference, 3.1ms NMS per image at shape (1, 3, 640, 640)
+    Speed: 0.2ms pre-process, 35.5ms inference, 3.1ms NMS per image at shape (1, 3, 640, 640)
     Results saved to yolov5/runs/val/exp
 
 
@@ -598,10 +598,10 @@ same directory, where model located.
 .. parsed-literal::
 
     Forcing --batch-size 1 square inference (1,3,640,640) for non-PyTorch models
-    val: Scanning /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/notebooks/111-yolov5-quantization-migration/datasets/coco128/labels/train2017.cache... 126 images, 2 backgrounds, 0 corrupt: 100%|██████████| 128/128 00:00
+    val: Scanning /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-444/.workspace/scm/ov-notebook/notebooks/111-yolov5-quantization-migration/datasets/coco128/labels/train2017.cache... 126 images, 2 backgrounds, 0 corrupt: 100%|██████████| 128/128 00:00
                      Class     Images  Instances          P          R      mAP50   mAP50-95: 100%|██████████| 128/128 00:03
                        all        128        929      0.761      0.677      0.773      0.548
-    Speed: 0.2ms pre-process, 17.1ms inference, 3.3ms NMS per image at shape (1, 3, 640, 640)
+    Speed: 0.2ms pre-process, 17.3ms inference, 3.6ms NMS per image at shape (1, 3, 640, 640)
     Results saved to yolov5/runs/val/exp2
 
 
@@ -645,10 +645,10 @@ same directory, where model located.
 .. parsed-literal::
 
     Forcing --batch-size 1 square inference (1,3,640,640) for non-PyTorch models
-    val: Scanning /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/notebooks/111-yolov5-quantization-migration/datasets/coco128/labels/train2017.cache... 126 images, 2 backgrounds, 0 corrupt: 100%|██████████| 128/128 00:00
+    val: Scanning /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-444/.workspace/scm/ov-notebook/notebooks/111-yolov5-quantization-migration/datasets/coco128/labels/train2017.cache... 126 images, 2 backgrounds, 0 corrupt: 100%|██████████| 128/128 00:00
                      Class     Images  Instances          P          R      mAP50   mAP50-95: 100%|██████████| 128/128 00:03
                        all        128        929      0.742      0.684      0.766      0.546
-    Speed: 0.2ms pre-process, 17.0ms inference, 3.2ms NMS per image at shape (1, 3, 640, 640)
+    Speed: 0.2ms pre-process, 16.7ms inference, 3.1ms NMS per image at shape (1, 3, 640, 640)
     Results saved to yolov5/runs/val/exp3
 
 
@@ -744,9 +744,9 @@ images.
      'YOLOv5 🚀 v7.0-0-g915bbf2 Python-3.8.10 torch-1.13.1+cpu CPU',
      '',
      'Loading yolov5m/FP32_openvino_model for OpenVINO inference...',
-     'image 1/2 /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/notebooks/111-yolov5-quantization-migration/yolov5/data/images/bus.jpg: 640x640 4 persons, 1 bus, 64.1ms',
-     'image 2/2 /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/notebooks/111-yolov5-quantization-migration/yolov5/data/images/zidane.jpg: 640x640 3 persons, 2 ties, 60.5ms',
-     'Speed: 1.6ms pre-process, 62.3ms inference, 1.4ms NMS per image at shape (1, 3, 640, 640)',
+     'image 1/2 /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-444/.workspace/scm/ov-notebook/notebooks/111-yolov5-quantization-migration/yolov5/data/images/bus.jpg: 640x640 4 persons, 1 bus, 65.9ms',
+     'image 2/2 /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-444/.workspace/scm/ov-notebook/notebooks/111-yolov5-quantization-migration/yolov5/data/images/zidane.jpg: 640x640 3 persons, 2 ties, 51.6ms',
+     'Speed: 1.7ms pre-process, 58.8ms inference, 1.3ms NMS per image at shape (1, 3, 640, 640)',
      'Results saved to \x1b[1mruns/detect/exp\x1b[0m']
 
 
@@ -771,9 +771,9 @@ images.
      'YOLOv5 🚀 v7.0-0-g915bbf2 Python-3.8.10 torch-1.13.1+cpu CPU',
      '',
      'Loading yolov5m/POT_INT8_openvino_model for OpenVINO inference...',
-     'image 1/2 /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/notebooks/111-yolov5-quantization-migration/yolov5/data/images/bus.jpg: 640x640 4 persons, 1 bus, 36.4ms',
-     'image 2/2 /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/notebooks/111-yolov5-quantization-migration/yolov5/data/images/zidane.jpg: 640x640 3 persons, 1 tie, 30.9ms',
-     'Speed: 1.6ms pre-process, 33.6ms inference, 1.5ms NMS per image at shape (1, 3, 640, 640)',
+     'image 1/2 /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-444/.workspace/scm/ov-notebook/notebooks/111-yolov5-quantization-migration/yolov5/data/images/bus.jpg: 640x640 4 persons, 1 bus, 37.3ms',
+     'image 2/2 /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-444/.workspace/scm/ov-notebook/notebooks/111-yolov5-quantization-migration/yolov5/data/images/zidane.jpg: 640x640 3 persons, 1 tie, 31.5ms',
+     'Speed: 1.5ms pre-process, 34.4ms inference, 1.2ms NMS per image at shape (1, 3, 640, 640)',
      'Results saved to \x1b[1mruns/detect/exp2\x1b[0m']
 
 
@@ -798,9 +798,9 @@ images.
      'YOLOv5 🚀 v7.0-0-g915bbf2 Python-3.8.10 torch-1.13.1+cpu CPU',
      '',
      'Loading yolov5m/NNCF_INT8_openvino_model for OpenVINO inference...',
-     'image 1/2 /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/notebooks/111-yolov5-quantization-migration/yolov5/data/images/bus.jpg: 640x640 4 persons, 1 bus, 44.1ms',
-     'image 2/2 /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/notebooks/111-yolov5-quantization-migration/yolov5/data/images/zidane.jpg: 640x640 3 persons, 2 ties, 35.7ms',
-     'Speed: 1.6ms pre-process, 39.9ms inference, 1.8ms NMS per image at shape (1, 3, 640, 640)',
+     'image 1/2 /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-444/.workspace/scm/ov-notebook/notebooks/111-yolov5-quantization-migration/yolov5/data/images/bus.jpg: 640x640 4 persons, 1 bus, 39.3ms',
+     'image 2/2 /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-444/.workspace/scm/ov-notebook/notebooks/111-yolov5-quantization-migration/yolov5/data/images/zidane.jpg: 640x640 3 persons, 2 ties, 31.2ms',
+     'Speed: 1.5ms pre-process, 35.2ms inference, 1.3ms NMS per image at shape (1, 3, 640, 640)',
      'Results saved to \x1b[1mruns/detect/exp3\x1b[0m']
 
 
@@ -864,7 +864,7 @@ Benchmark
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(CPU) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 34.71 ms
+    [ INFO ] Read model took 30.02 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     images (node: images) : f32 / [...] / [1,3,640,640]
@@ -878,7 +878,7 @@ Benchmark
     [ INFO ] Model outputs:
     [ INFO ]     output0 (node: output0) : f32 / [...] / [1,25200,85]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 364.66 ms
+    [ INFO ] Compile model took 356.15 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: torch_jit
@@ -900,17 +900,17 @@ Benchmark
     [ INFO ] Fill input 'images' with random values 
     [Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 15000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 103.67 ms
+    [ INFO ] First inference took 101.63 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            456 iterations
-    [ INFO ] Duration:         15243.71 ms
+    [ INFO ] Count:            450 iterations
+    [ INFO ] Duration:         15262.98 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        200.52 ms
-    [ INFO ]    Average:       199.48 ms
-    [ INFO ]    Min:           167.24 ms
-    [ INFO ]    Max:           219.12 ms
-    [ INFO ] Throughput:   29.91 FPS
+    [ INFO ]    Median:        204.67 ms
+    [ INFO ]    Average:       202.69 ms
+    [ INFO ]    Min:           94.79 ms
+    [ INFO ]    Max:           222.74 ms
+    [ INFO ] Throughput:   29.48 FPS
 
 
 .. code:: ipython3
@@ -941,7 +941,7 @@ Benchmark
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(CPU) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 34.33 ms
+    [ INFO ] Read model took 41.68 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     images (node: images) : f32 / [...] / [1,3,640,640]
@@ -955,7 +955,7 @@ Benchmark
     [ INFO ] Model outputs:
     [ INFO ]     output0 (node: output0) : f32 / [...] / [1,25200,85]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 388.69 ms
+    [ INFO ] Compile model took 395.69 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: torch_jit
@@ -977,17 +977,17 @@ Benchmark
     [ INFO ] Fill input 'images' with random values 
     [Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 15000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 104.81 ms
+    [ INFO ] First inference took 101.65 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            462 iterations
-    [ INFO ] Duration:         15265.35 ms
+    [ INFO ] Count:            456 iterations
+    [ INFO ] Duration:         15300.79 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        198.22 ms
-    [ INFO ]    Average:       197.86 ms
-    [ INFO ]    Min:           167.44 ms
-    [ INFO ]    Max:           229.61 ms
-    [ INFO ] Throughput:   30.26 FPS
+    [ INFO ]    Median:        201.07 ms
+    [ INFO ]    Average:       199.94 ms
+    [ INFO ]    Min:           120.79 ms
+    [ INFO ]    Max:           216.17 ms
+    [ INFO ] Throughput:   29.80 FPS
 
 
 .. code:: ipython3
@@ -1018,7 +1018,7 @@ Benchmark
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(CPU) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 68.51 ms
+    [ INFO ] Read model took 61.00 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     images (node: images) : f32 / [...] / [1,3,640,640]
@@ -1032,7 +1032,7 @@ Benchmark
     [ INFO ] Model outputs:
     [ INFO ]     output0 (node: output0) : f32 / [...] / [1,25200,85]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 706.48 ms
+    [ INFO ] Compile model took 707.66 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: torch_jit
@@ -1054,17 +1054,17 @@ Benchmark
     [ INFO ] Fill input 'images' with random values 
     [Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 15000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 49.42 ms
+    [ INFO ] First inference took 51.38 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
     [ INFO ] Count:            1416 iterations
-    [ INFO ] Duration:         15057.61 ms
+    [ INFO ] Duration:         15055.58 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        63.81 ms
-    [ INFO ]    Average:       63.58 ms
-    [ INFO ]    Min:           47.42 ms
-    [ INFO ]    Max:           84.90 ms
-    [ INFO ] Throughput:   94.04 FPS
+    [ INFO ]    Median:        63.79 ms
+    [ INFO ]    Average:       63.64 ms
+    [ INFO ]    Min:           49.28 ms
+    [ INFO ]    Max:           86.76 ms
+    [ INFO ] Throughput:   94.05 FPS
 
 
 .. code:: ipython3
@@ -1095,7 +1095,7 @@ Benchmark
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(CPU) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 60.65 ms
+    [ INFO ] Read model took 54.24 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     images (node: images) : f32 / [...] / [1,3,640,640]
@@ -1109,7 +1109,7 @@ Benchmark
     [ INFO ] Model outputs:
     [ INFO ]     output0 (node: output0) : f32 / [...] / [1,25200,85]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 715.09 ms
+    [ INFO ] Compile model took 708.86 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: torch_jit
@@ -1131,16 +1131,16 @@ Benchmark
     [ INFO ] Fill input 'images' with random values 
     [Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 15000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 50.63 ms
+    [ INFO ] First inference took 52.91 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
     [ INFO ] Count:            1422 iterations
-    [ INFO ] Duration:         15094.14 ms
+    [ INFO ] Duration:         15093.33 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        63.67 ms
-    [ INFO ]    Average:       63.52 ms
-    [ INFO ]    Min:           47.40 ms
-    [ INFO ]    Max:           86.32 ms
+    [ INFO ]    Median:        63.68 ms
+    [ INFO ]    Average:       63.49 ms
+    [ INFO ]    Min:           45.90 ms
+    [ INFO ]    Max:           84.59 ms
     [ INFO ] Throughput:   94.21 FPS
 
 

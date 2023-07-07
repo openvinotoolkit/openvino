@@ -81,7 +81,7 @@ used for text generation wheras PersonaGPT is used for Conversation.
     # Install Gradio for Interactive Inference and other requirements
     !pip install -q 'openvino-dev>=2023.0.0'
     !pip install -q gradio
-    !pip install -q transformers onnx
+    !pip install -q transformers[torch] onnx
 
 
 .. parsed-literal::
@@ -202,7 +202,7 @@ function) for optimization of memory consumption.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/gpt2/modeling_gpt2.py:810: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-444/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/gpt2/modeling_gpt2.py:810: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if batch_size <= 0:
 
 
@@ -601,23 +601,23 @@ The style of inference can be selected in the next cell.
 .. parsed-literal::
 
     Person: Hi,How are you?
-    PersonaGPT: good, how are you?
+    PersonaGPT: good and you? are you a fan of sports?
     Person: What are you doing?
-    PersonaGPT: good, just watching tv. what are you up to?
+    PersonaGPT: watching the nfl and eating food
     Person: I like to dance,do you?
-    PersonaGPT: sometimes! i prefer dancing in my living room.
+    PersonaGPT: i just got done watching a nfl game
     Person: Can you recommend me some books?
-    PersonaGPT: probably, what kind of music you like?
+    PersonaGPT: do you like sports. i love soccer. do you like music?
     Person: Hi,How are you?
-    PersonaGPT: i'm good. are you into dancing?
+    PersonaGPT: good and you?
     Person: What are you doing?
-    PersonaGPT: watching television.
+    PersonaGPT: watching some nfl game and eating food. what do you like to eat?
     Person: I like to dance,do you?
-    PersonaGPT: yes i love it. do you like books?
+    PersonaGPT: i like to eat pizza. do you have any children?
     Person: Can you recommend me some books?
-    PersonaGPT: i think i can. what do you like about dancing?
+    PersonaGPT: i like to read. do you like food?
     Person: Hi,How are you?
-    PersonaGPT: i'm great. i like to listen to music while i am doing it.
+    PersonaGPT: good and you?
     Person: What are you doing?
-    PersonaGPT: watching show right now.
+    PersonaGPT: watching some nfl game and eating food.
 

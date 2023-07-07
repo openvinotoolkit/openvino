@@ -39,6 +39,30 @@ instructions <https://docs.openvino.ai/2023.0/openvino_docs_install_guides_confi
 to configure OpenVINO to work with your GPU. Then, read on to learn how
 to accelerate inference with GPUs in OpenVINO!
 
+Install required packages
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. code:: ipython3
+
+    !pip install -q "openvino-dev>=2023.0.0"
+    !pip install -q tensorflow
+    
+    # Fetch `notebook_utils` module
+    import urllib.request
+    urllib.request.urlretrieve(
+        url='https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/main/notebooks/utils/notebook_utils.py',
+        filename='notebook_utils.py'
+    )
+
+
+
+
+.. parsed-literal::
+
+    ('notebook_utils.py', <http.client.HTTPMessage at 0x7f2d0c5baa40>)
+
+
+
 Checking GPUs with Query Device
 -------------------------------
 
@@ -1050,7 +1074,7 @@ Load and Preprocess Video Frames
 .. code:: ipython3
 
     # Load video
-    video_file = "../data/video/Coco Walking in Berkeley.mp4"
+    video_file = "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/video/Coco%20Walking%20in%20Berkeley.mp4"
     video = cv2.VideoCapture(video_file)
     framebuf = []
     

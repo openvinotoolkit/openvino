@@ -88,10 +88,10 @@ Imports
 
 .. parsed-literal::
 
-    2023-06-21 22:46:53.036679: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2023-06-21 22:46:53.070884: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2023-07-06 22:50:04.422048: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2023-07-06 22:50:04.456198: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2023-06-21 22:46:53.615742: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2023-07-06 22:50:05.007357: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 .. parsed-literal::
@@ -142,7 +142,7 @@ Settings
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/notebooks/112-pytorch-post-training-quantization-nncf/model/resnet50_fp32.pth')
+    PosixPath('/opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-444/.workspace/scm/ov-notebook/notebooks/112-pytorch-post-training-quantization-nncf/model/resnet50_fp32.pth')
 
 
 
@@ -421,15 +421,15 @@ I. Evaluate the loaded model
 
 .. parsed-literal::
 
-    Test: [ 0/79]	Time 0.292 (0.292)	Acc@1 81.25 (81.25)	Acc@5 92.19 (92.19)
-    Test: [10/79]	Time 0.234 (0.243)	Acc@1 56.25 (66.97)	Acc@5 86.72 (87.50)
-    Test: [20/79]	Time 0.235 (0.239)	Acc@1 67.97 (64.29)	Acc@5 85.16 (87.35)
-    Test: [30/79]	Time 0.233 (0.239)	Acc@1 53.12 (62.37)	Acc@5 77.34 (85.33)
-    Test: [40/79]	Time 0.233 (0.238)	Acc@1 67.19 (60.86)	Acc@5 90.62 (84.51)
-    Test: [50/79]	Time 0.284 (0.239)	Acc@1 60.16 (60.80)	Acc@5 88.28 (84.42)
-    Test: [60/79]	Time 0.236 (0.240)	Acc@1 66.41 (60.46)	Acc@5 86.72 (83.79)
-    Test: [70/79]	Time 0.233 (0.239)	Acc@1 52.34 (60.21)	Acc@5 80.47 (83.33)
-     * Acc@1 60.740 Acc@5 83.960 Total time: 18.662
+    Test: [ 0/79]	Time 0.277 (0.277)	Acc@1 81.25 (81.25)	Acc@5 92.19 (92.19)
+    Test: [10/79]	Time 0.240 (0.244)	Acc@1 56.25 (66.97)	Acc@5 86.72 (87.50)
+    Test: [20/79]	Time 0.303 (0.246)	Acc@1 67.97 (64.29)	Acc@5 85.16 (87.35)
+    Test: [30/79]	Time 0.243 (0.246)	Acc@1 53.12 (62.37)	Acc@5 77.34 (85.33)
+    Test: [40/79]	Time 0.241 (0.245)	Acc@1 67.19 (60.86)	Acc@5 90.62 (84.51)
+    Test: [50/79]	Time 0.278 (0.246)	Acc@1 60.16 (60.80)	Acc@5 88.28 (84.42)
+    Test: [60/79]	Time 0.238 (0.247)	Acc@1 66.41 (60.46)	Acc@5 86.72 (83.79)
+    Test: [70/79]	Time 0.243 (0.246)	Acc@1 52.34 (60.21)	Acc@5 80.47 (83.33)
+     * Acc@1 60.740 Acc@5 83.960 Total time: 19.218
     Test accuracy of FP32 model: 60.740
 
 
@@ -498,16 +498,16 @@ Guide <https://docs.openvino.ai/2023.0/basic_qauntization_flow.html#doxid-basic-
 
 .. parsed-literal::
 
-    Test: [ 0/79]	Time 0.427 (0.427)	Acc@1 81.25 (81.25)	Acc@5 92.19 (92.19)
-    Test: [10/79]	Time 0.420 (0.421)	Acc@1 55.47 (67.33)	Acc@5 87.50 (87.86)
-    Test: [20/79]	Time 0.417 (0.419)	Acc@1 67.97 (64.32)	Acc@5 88.28 (87.69)
-    Test: [30/79]	Time 0.421 (0.420)	Acc@1 52.34 (62.53)	Acc@5 78.91 (85.56)
-    Test: [40/79]	Time 0.422 (0.420)	Acc@1 67.97 (61.01)	Acc@5 90.62 (84.76)
-    Test: [50/79]	Time 0.421 (0.421)	Acc@1 58.59 (60.85)	Acc@5 87.50 (84.60)
-    Test: [60/79]	Time 0.423 (0.421)	Acc@1 66.41 (60.50)	Acc@5 87.50 (83.94)
-    Test: [70/79]	Time 0.422 (0.421)	Acc@1 50.00 (60.22)	Acc@5 78.12 (83.45)
-     * Acc@1 60.730 Acc@5 84.060 Total time: 32.959
-    Accuracy of initialized INT8 model: 60.730
+    Test: [ 0/79]	Time 0.480 (0.480)	Acc@1 79.69 (79.69)	Acc@5 89.84 (89.84)
+    Test: [10/79]	Time 0.465 (0.467)	Acc@1 58.59 (67.68)	Acc@5 86.72 (88.07)
+    Test: [20/79]	Time 0.458 (0.465)	Acc@1 69.53 (64.55)	Acc@5 85.94 (87.76)
+    Test: [30/79]	Time 0.467 (0.464)	Acc@1 53.12 (62.65)	Acc@5 77.34 (85.48)
+    Test: [40/79]	Time 0.466 (0.464)	Acc@1 67.19 (61.24)	Acc@5 89.06 (84.62)
+    Test: [50/79]	Time 0.464 (0.464)	Acc@1 64.06 (61.15)	Acc@5 85.94 (84.47)
+    Test: [60/79]	Time 0.469 (0.464)	Acc@1 66.41 (60.67)	Acc@5 86.72 (83.77)
+    Test: [70/79]	Time 0.473 (0.464)	Acc@1 53.12 (60.31)	Acc@5 79.69 (83.31)
+     * Acc@1 60.860 Acc@5 83.930 Total time: 36.336
+    Accuracy of initialized INT8 model: 60.860
 
 
 It should be noted that the inference time for the quantized PyTorch
@@ -549,17 +549,17 @@ command may take a while.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/nncf/torch/quantization/layers.py:338: TracerWarning: Converting a tensor to a Python number might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-444/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/nncf/torch/quantization/layers.py:338: TracerWarning: Converting a tensor to a Python number might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       return self._level_low.item()
-    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/nncf/torch/quantization/layers.py:346: TracerWarning: Converting a tensor to a Python number might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-444/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/nncf/torch/quantization/layers.py:346: TracerWarning: Converting a tensor to a Python number might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       return self._level_high.item()
-    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/nncf/torch/quantization/quantize_functions.py:140: FutureWarning: 'torch.onnx._patch_torch._graph_op' is deprecated in version 1.13 and will be removed in version 1.14. Please note 'g.op()' is to be removed from torch.Graph. Please open a GitHub issue if you need this functionality..
+    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-444/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/nncf/torch/quantization/quantize_functions.py:140: FutureWarning: 'torch.onnx._patch_torch._graph_op' is deprecated in version 1.13 and will be removed in version 1.14. Please note 'g.op()' is to be removed from torch.Graph. Please open a GitHub issue if you need this functionality..
       output = g.op(
-    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/onnx/_patch_torch.py:81: UserWarning: The shape inference of org.openvinotoolkit::FakeQuantize type is missing, so it may result in wrong shape inference for the exported graph. Please consider adding it in symbolic function. (Triggered internally at ../torch/csrc/jit/passes/onnx/shape_type_inference.cpp:1884.)
+    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-444/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/onnx/_patch_torch.py:81: UserWarning: The shape inference of org.openvinotoolkit::FakeQuantize type is missing, so it may result in wrong shape inference for the exported graph. Please consider adding it in symbolic function. (Triggered internally at ../torch/csrc/jit/passes/onnx/shape_type_inference.cpp:1884.)
       _C._jit_pass_onnx_node_shape_type_inference(
-    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/onnx/utils.py:687: UserWarning: The shape inference of org.openvinotoolkit::FakeQuantize type is missing, so it may result in wrong shape inference for the exported graph. Please consider adding it in symbolic function. (Triggered internally at ../torch/csrc/jit/passes/onnx/shape_type_inference.cpp:1884.)
+    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-444/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/onnx/utils.py:687: UserWarning: The shape inference of org.openvinotoolkit::FakeQuantize type is missing, so it may result in wrong shape inference for the exported graph. Please consider adding it in symbolic function. (Triggered internally at ../torch/csrc/jit/passes/onnx/shape_type_inference.cpp:1884.)
       _C._jit_pass_onnx_graph_shape_type_inference(
-    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-433/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/onnx/utils.py:1178: UserWarning: The shape inference of org.openvinotoolkit::FakeQuantize type is missing, so it may result in wrong shape inference for the exported graph. Please consider adding it in symbolic function. (Triggered internally at ../torch/csrc/jit/passes/onnx/shape_type_inference.cpp:1884.)
+    /opt/home/k8sworker/cibuilds/ov-notebook/OVNotebookOps-444/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/onnx/utils.py:1178: UserWarning: The shape inference of org.openvinotoolkit::FakeQuantize type is missing, so it may result in wrong shape inference for the exported graph. Please consider adding it in symbolic function. (Triggered internally at ../torch/csrc/jit/passes/onnx/shape_type_inference.cpp:1884.)
       _C._jit_pass_onnx_graph_shape_type_inference(
 
 
@@ -575,15 +575,15 @@ Evaluate the FP32 and INT8 models.
 
 .. parsed-literal::
 
-    Test: [ 0/79]	Time 0.200 (0.200)	Acc@1 81.25 (81.25)	Acc@5 92.19 (92.19)
-    Test: [10/79]	Time 0.140 (0.145)	Acc@1 56.25 (66.97)	Acc@5 86.72 (87.50)
-    Test: [20/79]	Time 0.140 (0.143)	Acc@1 67.97 (64.29)	Acc@5 85.16 (87.35)
+    Test: [ 0/79]	Time 0.194 (0.194)	Acc@1 81.25 (81.25)	Acc@5 92.19 (92.19)
+    Test: [10/79]	Time 0.139 (0.145)	Acc@1 56.25 (66.97)	Acc@5 86.72 (87.50)
+    Test: [20/79]	Time 0.140 (0.142)	Acc@1 67.97 (64.29)	Acc@5 85.16 (87.35)
     Test: [30/79]	Time 0.140 (0.142)	Acc@1 53.12 (62.37)	Acc@5 77.34 (85.33)
-    Test: [40/79]	Time 0.138 (0.141)	Acc@1 67.19 (60.86)	Acc@5 90.62 (84.51)
-    Test: [50/79]	Time 0.140 (0.141)	Acc@1 60.16 (60.80)	Acc@5 88.28 (84.42)
-    Test: [60/79]	Time 0.140 (0.141)	Acc@1 66.41 (60.46)	Acc@5 86.72 (83.79)
-    Test: [70/79]	Time 0.138 (0.141)	Acc@1 52.34 (60.21)	Acc@5 80.47 (83.33)
-     * Acc@1 60.740 Acc@5 83.960 Total time: 11.002
+    Test: [40/79]	Time 0.139 (0.141)	Acc@1 67.19 (60.86)	Acc@5 90.62 (84.51)
+    Test: [50/79]	Time 0.141 (0.141)	Acc@1 60.16 (60.80)	Acc@5 88.28 (84.42)
+    Test: [60/79]	Time 0.138 (0.141)	Acc@1 66.41 (60.46)	Acc@5 86.72 (83.79)
+    Test: [70/79]	Time 0.136 (0.141)	Acc@1 52.34 (60.21)	Acc@5 80.47 (83.33)
+     * Acc@1 60.740 Acc@5 83.960 Total time: 10.993
     Accuracy of FP32 IR model: 60.740
 
 
@@ -596,16 +596,16 @@ Evaluate the FP32 and INT8 models.
 
 .. parsed-literal::
 
-    Test: [ 0/79]	Time 0.186 (0.186)	Acc@1 82.03 (82.03)	Acc@5 92.97 (92.97)
-    Test: [10/79]	Time 0.083 (0.095)	Acc@1 57.81 (67.90)	Acc@5 86.72 (88.28)
-    Test: [20/79]	Time 0.079 (0.088)	Acc@1 67.19 (64.88)	Acc@5 85.16 (87.72)
-    Test: [30/79]	Time 0.081 (0.085)	Acc@1 52.34 (62.80)	Acc@5 78.12 (85.61)
-    Test: [40/79]	Time 0.082 (0.084)	Acc@1 67.97 (61.32)	Acc@5 89.84 (84.60)
-    Test: [50/79]	Time 0.081 (0.084)	Acc@1 60.16 (61.09)	Acc@5 87.50 (84.47)
-    Test: [60/79]	Time 0.079 (0.083)	Acc@1 67.97 (60.71)	Acc@5 88.28 (83.80)
-    Test: [70/79]	Time 0.079 (0.082)	Acc@1 53.12 (60.35)	Acc@5 80.47 (83.37)
-     * Acc@1 60.880 Acc@5 83.950 Total time: 6.438
-    Accuracy of INT8 IR model: 60.880
+    Test: [ 0/79]	Time 0.188 (0.188)	Acc@1 81.25 (81.25)	Acc@5 89.84 (89.84)
+    Test: [10/79]	Time 0.079 (0.091)	Acc@1 57.03 (67.47)	Acc@5 87.50 (87.78)
+    Test: [20/79]	Time 0.078 (0.086)	Acc@1 68.75 (64.40)	Acc@5 85.16 (87.69)
+    Test: [30/79]	Time 0.079 (0.083)	Acc@1 52.34 (62.45)	Acc@5 75.00 (85.23)
+    Test: [40/79]	Time 0.083 (0.083)	Acc@1 67.19 (60.94)	Acc@5 89.84 (84.41)
+    Test: [50/79]	Time 0.079 (0.082)	Acc@1 60.16 (60.83)	Acc@5 88.28 (84.34)
+    Test: [60/79]	Time 0.081 (0.082)	Acc@1 64.06 (60.39)	Acc@5 87.50 (83.72)
+    Test: [70/79]	Time 0.079 (0.081)	Acc@1 53.12 (60.08)	Acc@5 81.25 (83.29)
+     * Acc@1 60.740 Acc@5 83.900 Total time: 6.361
+    Accuracy of INT8 IR model: 60.740
 
 
 IV. Compare performance of INT8 model and FP32 model in OpenVINO
@@ -655,13 +655,13 @@ throughput (frames per second) values.
 .. parsed-literal::
 
     Benchmark FP32 model (OpenVINO IR)
-    [ INFO ] Throughput:   37.97 FPS
+    [ INFO ] Throughput:   37.28 FPS
     Benchmark INT8 model (OpenVINO IR)
-    [ INFO ] Throughput:   157.50 FPS
+    [ INFO ] Throughput:   159.04 FPS
     Benchmark FP32 model (OpenVINO IR) synchronously
-    [ INFO ] Throughput:   39.17 FPS
+    [ INFO ] Throughput:   39.06 FPS
     Benchmark INT8 model (OpenVINO IR) synchronously
-    [ INFO ] Throughput:   140.62 FPS
+    [ INFO ] Throughput:   139.48 FPS
 
 
 Show CPU Information for reference:

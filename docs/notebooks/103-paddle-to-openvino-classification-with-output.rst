@@ -61,8 +61,8 @@ Imports
 
 .. parsed-literal::
 
-    2023-06-21 22:26:35 INFO: Loading faiss with AVX2 support.
-    2023-06-21 22:26:35 INFO: Successfully loaded faiss with AVX2 support.
+    2023-07-06 22:29:24 INFO: Loading faiss with AVX2 support.
+    2023-07-06 22:29:24 INFO: Successfully loaded faiss with AVX2 support.
 
 
 Settings
@@ -130,12 +130,12 @@ inference on that image, and then show the top three prediction results.
 
 .. parsed-literal::
 
-    [2023/06/21 22:27:03] ppcls WARNING: The current running environment does not support the use of GPU. CPU has been used instead.
+    [2023/07/06 22:29:45] ppcls WARNING: The current running environment does not support the use of GPU. CPU has been used instead.
 
 
 .. parsed-literal::
 
-    W0621 22:27:03.734274 1205526 analysis_config.cc:971] It is detected that mkldnn and memory_optimize_pass are enabled at the same time, but they are not supported yet. Currently, memory_optimize_pass is explicitly disabled
+    W0706 22:29:45.294909 2827595 analysis_config.cc:971] It is detected that mkldnn and memory_optimize_pass are enabled at the same time, but they are not supported yet. Currently, memory_optimize_pass is explicitly disabled
 
 
 .. parsed-literal::
@@ -205,7 +205,7 @@ values.
 
 .. parsed-literal::
 
-    2023-06-21 22:27:04 WARNING: Clipping input data to the valid range for imshow with RGB data ([0..1] for floats or [0..255] for integers).
+    2023-07-06 22:29:45 WARNING: Clipping input data to the valid range for imshow with RGB data ([0..1] for floats or [0..255] for integers).
 
 
 .. parsed-literal::
@@ -217,7 +217,7 @@ values.
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7fedb78da400>
+    <matplotlib.image.AxesImage at 0x7f17b84c99a0>
 
 
 
@@ -363,7 +363,7 @@ Note that many optimizations are possible to improve the performance.
 
 .. parsed-literal::
 
-    PaddlePaddle model on CPU: 0.0073 seconds per image, FPS: 137.70
+    PaddlePaddle model on CPU: 0.0071 seconds per image, FPS: 141.29
     
     PaddlePaddle result:
     Labrador retriever, 0.75138
@@ -407,7 +407,7 @@ Note that many optimizations are possible to improve the performance.
 
 .. parsed-literal::
 
-    OpenVINO IR model in OpenVINO Runtime (CPU): 0.0027 seconds per image, FPS: 364.96
+    OpenVINO IR model in OpenVINO Runtime (CPU): 0.0029 seconds per image, FPS: 347.72
     
     OpenVINO result:
     Labrador retriever, 0.75138

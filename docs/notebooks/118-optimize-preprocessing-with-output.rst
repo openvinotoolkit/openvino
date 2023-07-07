@@ -41,10 +41,10 @@ Imports
 
 .. parsed-literal::
 
-    2023-06-21 22:56:19.365436: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2023-06-21 22:56:19.399309: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2023-07-06 22:59:44.696397: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2023-07-06 22:59:44.730239: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2023-06-21 22:56:19.937411: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2023-07-06 22:59:45.271233: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 Setup image and device
@@ -88,7 +88,7 @@ and save it to the disk.
 
 .. parsed-literal::
 
-    2023-06-21 22:56:21.198595: W tensorflow/core/common_runtime/gpu/gpu_device.cc:1956] Cannot dlopen some GPU libraries. Please make sure the missing libraries mentioned above are installed properly if you would like to use GPU. Follow the guide at https://www.tensorflow.org/install/gpu for how to download and setup the required libraries for your platform.
+    2023-07-06 22:59:46.523417: W tensorflow/core/common_runtime/gpu/gpu_device.cc:1956] Cannot dlopen some GPU libraries. Please make sure the missing libraries mentioned above are installed properly if you would like to use GPU. Follow the guide at https://www.tensorflow.org/install/gpu for how to download and setup the required libraries for your platform.
     Skipping registering GPU devices...
 
 
@@ -322,7 +322,7 @@ for mean/scale normalization.
 
 .. parsed-literal::
 
-    <openvino._pyopenvino.preprocess.InputTensorInfo at 0x7f97f45dc730>
+    <openvino._pyopenvino.preprocess.InputTensorInfo at 0x7fcb946227b0>
 
 
 
@@ -351,7 +351,7 @@ may be specified is input data
 
 .. parsed-literal::
 
-    <openvino._pyopenvino.preprocess.InputModelInfo at 0x7f97f462f770>
+    <openvino._pyopenvino.preprocess.InputModelInfo at 0x7fcb945bd2b0>
 
 
 
@@ -388,7 +388,7 @@ then such conversion will be added explicitly.
 
 .. parsed-literal::
 
-    <openvino._pyopenvino.preprocess.PreProcessSteps at 0x7f97b8346af0>
+    <openvino._pyopenvino.preprocess.PreProcessSteps at 0x7fcb946120b0>
 
 
 
@@ -600,7 +600,7 @@ Compare performance
 
 .. parsed-literal::
 
-    IR model in OpenVINO Runtime/CPU with preprocessing API: 0.0189 seconds per image, FPS: 52.77
-    IR model in OpenVINO Runtime/CPU with preprocessing API: 0.0153 seconds per image, FPS: 65.26
-    IR model in OpenVINO Runtime/CPU with preprocessing API: 0.0175 seconds per image, FPS: 57.09
+    IR model in OpenVINO Runtime/CPU with preprocessing API: 0.0189 seconds per image, FPS: 52.79
+    IR model in OpenVINO Runtime/CPU with preprocessing API: 0.0146 seconds per image, FPS: 68.31
+    IR model in OpenVINO Runtime/CPU with preprocessing API: 0.0176 seconds per image, FPS: 56.81
 

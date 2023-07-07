@@ -16,7 +16,11 @@ Imports
 
 .. code:: ipython3
 
-    import sys
+    !pip install -q 'openvino-dev>=2023.0.0'
+    !pip install -q opencv-python matplotlib
+
+.. code:: ipython3
+
     import cv2
     import time
     import numpy as np
@@ -24,7 +28,14 @@ Imports
     import openvino.runtime as ov
     from IPython import display
     import matplotlib.pyplot as plt
-    sys.path.append("../utils")
+    
+    # Fetch the notebook utils script from the openvino_notebooks repo
+    import urllib.request
+    urllib.request.urlretrieve(
+        url='https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/main/notebooks/utils/notebook_utils.py',
+        filename='notebook_utils.py'
+    )
+    
     import notebook_utils as utils
 
 Prepare model and data processing
@@ -136,7 +147,7 @@ Get the test video
 
 .. code:: ipython3
 
-    video_path = "../data/video/CEO Pat Gelsinger on Leading Intel.mp4"
+    video_path = 'https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/video/CEO%20Pat%20Gelsinger%20on%20Leading%20Intel.mp4'
 
 How to improve the throughput of video processing
 -------------------------------------------------
@@ -237,13 +248,13 @@ Test performance in Sync Mode
 
 
 
-.. image:: 115-async-api-with-output_files/115-async-api-with-output_14_0.png
+.. image:: 115-async-api-with-output_files/115-async-api-with-output_15_0.png
 
 
 .. parsed-literal::
 
     Source ended
-    average throuput in sync mode: 36.81 fps
+    average throuput in sync mode: 39.07 fps
 
 
 Async Mode
@@ -366,13 +377,13 @@ Test the performance in Async Mode
 
 
 
-.. image:: 115-async-api-with-output_files/115-async-api-with-output_18_0.png
+.. image:: 115-async-api-with-output_files/115-async-api-with-output_19_0.png
 
 
 .. parsed-literal::
 
     Source ended
-    average throuput in async mode: 72.96 fps
+    average throuput in async mode: 71.96 fps
 
 
 Compare the performance
@@ -400,7 +411,7 @@ Compare the performance
 
 
 
-.. image:: 115-async-api-with-output_files/115-async-api-with-output_20_0.png
+.. image:: 115-async-api-with-output_files/115-async-api-with-output_21_0.png
 
 
 AsyncInferQueue
@@ -502,10 +513,10 @@ Test the performance with AsyncInferQueue
 
 
 
-.. image:: 115-async-api-with-output_files/115-async-api-with-output_26_0.png
+.. image:: 115-async-api-with-output_files/115-async-api-with-output_27_0.png
 
 
 .. parsed-literal::
 
-    average throughput in async mode with async infer queue: 102.11 fps
+    average throughput in async mode with async infer queue: 102.80 fps
 

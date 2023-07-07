@@ -141,7 +141,7 @@ is a command-line application that can be run in the notebook with
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(CPU) performance hint will be set to PerformanceMode.LATENCY.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 13.79 ms
+    [ INFO ] Read model took 31.85 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     input.1 (node: input.1) : f32 / [...] / [1,1,512,512]
@@ -155,7 +155,7 @@ is a command-line application that can be run in the notebook with
     [ INFO ] Model outputs:
     [ INFO ]     153 (node: 153) : f32 / [...] / [1,1,512,512]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 163.85 ms
+    [ INFO ] Compile model took 183.29 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: pretrained_unet_kits19
@@ -177,17 +177,17 @@ is a command-line application that can be run in the notebook with
     [ INFO ] Fill input 'input.1' with random values 
     [Step 10/11] Measuring performance (Start inference synchronously, limits: 15000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 25.59 ms
+    [ INFO ] First inference took 28.32 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            1419 iterations
-    [ INFO ] Duration:         15009.20 ms
+    [ INFO ] Count:            1427 iterations
+    [ INFO ] Duration:         15000.79 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        10.34 ms
-    [ INFO ]    Average:       10.38 ms
-    [ INFO ]    Min:           10.13 ms
-    [ INFO ]    Max:           14.24 ms
-    [ INFO ] Throughput:   96.71 FPS
+    [ INFO ]    Median:        10.26 ms
+    [ INFO ]    Average:       10.31 ms
+    [ INFO ]    Min:           10.03 ms
+    [ INFO ]    Max:           14.65 ms
+    [ INFO ] Throughput:   97.47 FPS
 
 
 Download and Prepare Data
@@ -404,6 +404,6 @@ Create asynchronous inference queue and perform it
 .. parsed-literal::
 
     Loaded model to CPU in 0.17 seconds.
-    Total time to infer all frames: 3.412s
-    Time per frame: 0.050177s (19.929 FPS)
+    Total time to infer all frames: 3.433s
+    Time per frame: 0.050482s (19.809 FPS)
 

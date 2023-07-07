@@ -53,7 +53,7 @@ disk
     remote: Counting objects: 100% (281/281), done.[K
     remote: Compressing objects: 100% (96/96), done.[K
     remote: Total 282 (delta 135), reused 269 (delta 128), pack-reused 1[K
-    Receiving objects: 100% (282/282), 9.22 MiB | 4.20 MiB/s, done.
+    Receiving objects: 100% (282/282), 9.22 MiB | 3.53 MiB/s, done.
     Resolving deltas: 100% (135/135), done.
 
 
@@ -184,8 +184,8 @@ about supported parameters can be found on this
 
 .. parsed-literal::
 
-    Statistics collection: 100%|██████████| 300/300 [00:08<00:00, 35.76it/s]
-    Biases correction: 100%|██████████| 36/36 [00:01<00:00, 20.36it/s]
+    Statistics collection: 100%|██████████| 300/300 [00:08<00:00, 35.54it/s]
+    Biases correction: 100%|██████████| 36/36 [00:01<00:00, 20.45it/s]
 
 
 Serialize an OpenVINO IR model
@@ -291,21 +291,21 @@ Tool <https://docs.openvino.ai/2023.0/openvino_inference_engine_tools_benchmark_
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(CPU) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 25.72 ms
+    [ INFO ] Read model took 26.49 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
-    [ INFO ]     x.1 , x , 1 (node: Parameter_2) : f32 / [...] / [1,3,32,32]
+    [ INFO ]     x , 1 , x.1 (node: Parameter_2) : f32 / [...] / [1,3,32,32]
     [ INFO ] Model outputs:
     [ INFO ]     223 (node: aten::linear_928) : f32 / [...] / [1,10]
     [Step 5/11] Resizing model to match image sizes and given batch
     [ INFO ] Model batch size: 1
     [Step 6/11] Configuring input of the model
     [ INFO ] Model inputs:
-    [ INFO ]     x.1 , x , 1 (node: Parameter_2) : u8 / [N,C,H,W] / [1,3,32,32]
+    [ INFO ]     x , 1 , x.1 (node: Parameter_2) : u8 / [N,C,H,W] / [1,3,32,32]
     [ INFO ] Model outputs:
     [ INFO ]     223 (node: aten::linear_928) : f32 / [...] / [1,10]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 144.38 ms
+    [ INFO ] Compile model took 141.97 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: Model0
@@ -327,17 +327,17 @@ Tool <https://docs.openvino.ai/2023.0/openvino_inference_engine_tools_benchmark_
     [ INFO ] Fill input '1' with random values 
     [Step 10/11] Measuring performance (Start inference asynchronously, 12 inference requests, limits: 15000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 3.09 ms
+    [ INFO ] First inference took 3.20 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            90984 iterations
-    [ INFO ] Duration:         15002.82 ms
+    [ INFO ] Count:            90420 iterations
+    [ INFO ] Duration:         15003.58 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        1.78 ms
-    [ INFO ]    Average:       1.80 ms
-    [ INFO ]    Min:           1.10 ms
-    [ INFO ]    Max:           6.27 ms
-    [ INFO ] Throughput:   6064.46 FPS
+    [ INFO ]    Median:        1.80 ms
+    [ INFO ]    Average:       1.81 ms
+    [ INFO ]    Min:           1.17 ms
+    [ INFO ]    Max:           6.20 ms
+    [ INFO ] Throughput:   6026.56 FPS
 
 
 .. code:: ipython3
@@ -363,21 +363,21 @@ Tool <https://docs.openvino.ai/2023.0/openvino_inference_engine_tools_benchmark_
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(CPU) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 34.93 ms
+    [ INFO ] Read model took 44.27 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
-    [ INFO ]     x , 1 , x.1 (node: Parameter_2) : f32 / [...] / [1,3,32,32]
+    [ INFO ]     x.1 , 1 , x (node: Parameter_2) : f32 / [...] / [1,3,32,32]
     [ INFO ] Model outputs:
     [ INFO ]     223 (node: aten::linear_928) : f32 / [...] / [1,10]
     [Step 5/11] Resizing model to match image sizes and given batch
     [ INFO ] Model batch size: 1
     [Step 6/11] Configuring input of the model
     [ INFO ] Model inputs:
-    [ INFO ]     x , 1 , x.1 (node: Parameter_2) : u8 / [N,C,H,W] / [1,3,32,32]
+    [ INFO ]     x.1 , 1 , x (node: Parameter_2) : u8 / [N,C,H,W] / [1,3,32,32]
     [ INFO ] Model outputs:
     [ INFO ]     223 (node: aten::linear_928) : f32 / [...] / [1,10]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 247.66 ms
+    [ INFO ] Compile model took 237.58 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: Model0
@@ -399,17 +399,17 @@ Tool <https://docs.openvino.ai/2023.0/openvino_inference_engine_tools_benchmark_
     [ INFO ] Fill input '1' with random values 
     [Step 10/11] Measuring performance (Start inference asynchronously, 12 inference requests, limits: 15000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 1.68 ms
+    [ INFO ] First inference took 1.82 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            183924 iterations
-    [ INFO ] Duration:         15000.75 ms
+    [ INFO ] Count:            183912 iterations
+    [ INFO ] Duration:         15001.43 ms
     [ INFO ] Latency:
     [ INFO ]    Median:        0.92 ms
     [ INFO ]    Average:       0.94 ms
-    [ INFO ]    Min:           0.64 ms
+    [ INFO ]    Min:           0.63 ms
     [ INFO ]    Max:           3.03 ms
-    [ INFO ] Throughput:   12260.99 FPS
+    [ INFO ] Throughput:   12259.63 FPS
 
 
 Compare results on four pictures

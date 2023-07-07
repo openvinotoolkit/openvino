@@ -266,7 +266,7 @@ executed on CPU until GPU is ready.
 
 .. parsed-literal::
 
-    Time to load model using AUTO device and get first inference: 0.19 seconds.
+    Time to load model using AUTO device and get first inference: 0.21 seconds.
 
 
 .. code:: ipython3
@@ -430,12 +430,12 @@ Loop for inference and update the FPS/Latency every
 
     Compiling Model for AUTO device with THROUGHPUT hint
     Start inference,  6 groups of FPS/latency will be measured over  10s intervals
-    throughput:  190.61fps, latency:  29.81ms, time interval: 10.00s
-    throughput:  194.35fps, latency:  30.08ms, time interval: 10.00s
-    throughput:  194.90fps, latency:  30.02ms, time interval: 10.01s
-    throughput:  192.30fps, latency:  30.47ms, time interval: 10.00s
-    throughput:  192.76fps, latency:  30.38ms, time interval: 10.02s
-    throughput:  194.26fps, latency:  30.10ms, time interval: 10.00s
+    throughput:  189.15fps, latency:  30.02ms, time interval: 10.00s
+    throughput:  192.50fps, latency:  30.46ms, time interval: 10.00s
+    throughput:  190.30fps, latency:  30.70ms, time interval: 10.01s
+    throughput:  192.52fps, latency:  30.36ms, time interval: 10.01s
+    throughput:  190.50fps, latency:  30.74ms, time interval: 10.02s
+    throughput:  192.30fps, latency:  30.43ms, time interval: 10.00s
     Done
 
 
@@ -479,12 +479,12 @@ Loop for inference and update the FPS/Latency for each
 
     Compiling Model for AUTO Device with LATENCY hint
     Start inference,  6 groups fps/latency will be out with  10s interval
-    throughput:  138.65fps, latency:  6.69ms, time interval: 10.00s
-    throughput:  142.09fps, latency:  6.68ms, time interval: 10.00s
-    throughput:  142.03fps, latency:  6.68ms, time interval: 10.00s
-    throughput:  142.07fps, latency:  6.68ms, time interval: 10.00s
-    throughput:  141.79fps, latency:  6.69ms, time interval: 10.00s
-    throughput:  142.19fps, latency:  6.67ms, time interval: 10.00s
+    throughput:  138.44fps, latency:  6.70ms, time interval: 10.00s
+    throughput:  141.88fps, latency:  6.69ms, time interval: 10.00s
+    throughput:  141.73fps, latency:  6.70ms, time interval: 10.00s
+    throughput:  141.71fps, latency:  6.70ms, time interval: 10.01s
+    throughput:  141.70fps, latency:  6.70ms, time interval: 10.00s
+    throughput:  141.75fps, latency:  6.70ms, time interval: 10.00s
     Done
 
 
