@@ -38,7 +38,7 @@ shared_ptr<Model> gen_model(std::vector<PartialShape> input_shapes,
 shared_ptr<Model> gen_model_ref(std::vector<PartialShape> input_shapes,
                                 element::Type elem_type,
                                 int64_t num_groups,
-                                double eps) {
+                                float eps) {
     const auto data = std::make_shared<opset12::Parameter>(elem_type, input_shapes[0]);
     const auto scale = std::make_shared<opset12::Parameter>(elem_type, input_shapes[1]);
     const auto bias = std::make_shared<opset12::Parameter>(elem_type, input_shapes[2]);
@@ -67,7 +67,11 @@ shared_ptr<Model> gen_model_ref(std::vector<PartialShape> input_shapes,
     std::iota(reduction_axes_val.begin(), reduction_axes_val.end(), int64_t(1));
     const auto reduction_axes = Constant::create(element::i64, {reduction_axes_val.size()}, reduction_axes_val);
 
-    auto mvn = std::make_shared<MVN>(data_reshaped, reduction_axes, true, eps, op::MVNEpsMode::INSIDE_SQRT);
+    auto mvn = std::make_shared<MVN>(data_reshaped,
+                                     reduction_axes,
+                                     true,
+                                     eps,
+                                     op::MVNEpsMode::INSIDE_SQRT);
     std::shared_ptr<Node> result = std::make_shared<Reshape>(mvn, data_shape_node, true);
 
     std::vector<int64_t> unsqueeze_axes_val(data_rank_size - 2);
@@ -84,10 +88,9 @@ shared_ptr<Model> gen_model_ref(std::vector<PartialShape> input_shapes,
 
 TEST_F(TransformationTestsF, GroupNormalizationDecompositionF32) {
     const int64_t num_groups = 4;
-    const double eps = 0.00001;
     {
         function =
-            gen_model({PartialShape{1, 12, 6, 8}, PartialShape{12}, PartialShape{12}}, element::f32, num_groups, eps);
+            gen_model({PartialShape{1, 12, 6, 8}, PartialShape{12}, PartialShape{12}}, element::f32, num_groups, 1e-3);
         manager.register_pass<ov::pass::GroupNormalizationDecomposition>();
         manager.register_pass<ov::pass::VisualizeTree>("GroupNormalizationDecomp.svg");
     }
@@ -95,97 +98,90 @@ TEST_F(TransformationTestsF, GroupNormalizationDecompositionF32) {
         function_ref = gen_model_ref({PartialShape{1, 12, 6, 8}, PartialShape{12}, PartialShape{12}},
                                      element::f32,
                                      num_groups,
-                                     eps);
+                                     1e-3);
     }
 }
 
 TEST_F(TransformationTestsF, GroupNormalizationDecompositionF16) {
     const int64_t num_groups = 4;
-    const double eps = 0.00001;
     {
         function =
-            gen_model({PartialShape{1, 12, 6, 8}, PartialShape{12}, PartialShape{12}}, element::f16, num_groups, eps);
+            gen_model({PartialShape{1, 12, 6, 8}, PartialShape{12}, PartialShape{12}}, element::f16, num_groups, 1e-3);
         manager.register_pass<ov::pass::GroupNormalizationDecomposition>();
     }
     {
         function_ref = gen_model_ref({PartialShape{1, 12, 6, 8}, PartialShape{12}, PartialShape{12}},
                                      element::f16,
                                      num_groups,
-                                     eps);
+                                     1e-3);
     }
 }
 
 TEST_F(TransformationTestsF, GroupNormalizationDecomposition_num_groups) {
     const int64_t num_groups = 2;
-    const double eps = 0.00001;
     {
         function =
-            gen_model({PartialShape{1, 12, 6, 8}, PartialShape{12}, PartialShape{12}}, element::f32, num_groups, eps);
+            gen_model({PartialShape{1, 12, 6, 8}, PartialShape{12}, PartialShape{12}}, element::f32, num_groups, 1e-3);
         manager.register_pass<ov::pass::GroupNormalizationDecomposition>();
     }
     {
         function_ref = gen_model_ref({PartialShape{1, 12, 6, 8}, PartialShape{12}, PartialShape{12}},
                                      element::f32,
                                      num_groups,
-                                     eps);
+                                     1e-3);
     }
 }
 
 TEST_F(TransformationTestsF, GroupNormalizationDecomposition_eps) {
     const int64_t num_groups = 2;
-    const double eps = 0.001;
     {
         function =
-            gen_model({PartialShape{1, 12, 6, 8}, PartialShape{12}, PartialShape{12}}, element::f32, num_groups, eps);
+            gen_model({PartialShape{1, 12, 6, 8}, PartialShape{12}, PartialShape{12}}, element::f32, num_groups, 1e-39);
         manager.register_pass<ov::pass::GroupNormalizationDecomposition>();
     }
     {
         function_ref = gen_model_ref({PartialShape{1, 12, 6, 8}, PartialShape{12}, PartialShape{12}},
                                      element::f32,
                                      num_groups,
-                                     eps);
+                                     std::numeric_limits<float>::min());
     }
 }
 
 TEST_F(TransformationTestsF, GroupNormalizationDecomposition_3D) {
     const int64_t num_groups = 4;
-    const double eps = 0.00001;
     {
         function =
-            gen_model({PartialShape{1, 12, 6}, PartialShape{12}, PartialShape{12}}, element::f32, num_groups, eps);
+            gen_model({PartialShape{1, 12, 6}, PartialShape{12}, PartialShape{12}}, element::f32, num_groups, 1e-3);
         manager.register_pass<ov::pass::GroupNormalizationDecomposition>();
-        manager.register_pass<ov::pass::VisualizeTree>("GroupNormalizationDecomp.svg");
     }
     {
         function_ref =
-            gen_model_ref({PartialShape{1, 12, 6}, PartialShape{12}, PartialShape{12}}, element::f32, num_groups, eps);
+            gen_model_ref({PartialShape{1, 12, 6}, PartialShape{12}, PartialShape{12}}, element::f32, num_groups, 1e-3);
     }
 }
 
 TEST_F(TransformationTestsF, GroupNormalizationDecomposition_5D) {
     const int64_t num_groups = 4;
-    const double eps = 0.00001;
     {
         function = gen_model({PartialShape{1, 12, 4, 6, 8}, PartialShape{12}, PartialShape{12}},
                              element::f32,
                              num_groups,
-                             eps);
+                             1e-3);
         manager.register_pass<ov::pass::GroupNormalizationDecomposition>();
     }
     {
         function_ref = gen_model_ref({PartialShape{1, 12, 4, 6, 8}, PartialShape{12}, PartialShape{12}},
                                      element::f32,
                                      num_groups,
-                                     eps);
+                                     1e-3);
     }
 }
 
 TEST_F(TransformationTestsF, GroupNormalizationDecomposition_data_dynamic_rank) {
     const int64_t num_groups = 4;
-    const double eps = 0.00001;
     {
         function =
-            gen_model({PartialShape::dynamic(), PartialShape{12}, PartialShape{12}}, element::f32, num_groups, eps);
+            gen_model({PartialShape::dynamic(), PartialShape{12}, PartialShape{12}}, element::f32, num_groups, 1e-3);
         manager.register_pass<ov::pass::GroupNormalizationDecomposition>();
     }
     // no decomposition
@@ -193,9 +189,8 @@ TEST_F(TransformationTestsF, GroupNormalizationDecomposition_data_dynamic_rank) 
 
 TEST_F(TransformationTestsF, GroupNormalizationDecomposition_data_rank_2D) {
     const int64_t num_groups = 4;
-    const double eps = 0.00001;
     {
-        function = gen_model({PartialShape{2, 12}, PartialShape{12}, PartialShape{12}}, element::f32, num_groups, eps);
+        function = gen_model({PartialShape{2, 12}, PartialShape{12}, PartialShape{12}}, element::f32, num_groups, 1e-3);
         manager.register_pass<ov::pass::GroupNormalizationDecomposition>();
     }
     // no decomposition
@@ -203,36 +198,34 @@ TEST_F(TransformationTestsF, GroupNormalizationDecomposition_data_rank_2D) {
 
 TEST_F(TransformationTestsF, GroupNormalizationDecomposition_bias_scale_dynamic_rank) {
     const int64_t num_groups = 4;
-    const double eps = 0.00001;
     {
         function = gen_model({PartialShape{1, 12, 6, 8}, PartialShape::dynamic(), PartialShape::dynamic()},
                              element::f32,
                              num_groups,
-                             eps);
+                             1e-3);
         manager.register_pass<ov::pass::GroupNormalizationDecomposition>();
     }
     {
         function_ref = gen_model_ref({PartialShape{1, 12, 6, 8}, PartialShape::dynamic(), PartialShape::dynamic()},
                                      element::f32,
                                      num_groups,
-                                     eps);
+                                     1e-3);
     }
 }
 
 TEST_F(TransformationTestsF, GroupNormalizationDecomposition_dynamic_dims) {
     const int64_t num_groups = 4;
-    const double eps = 0.00001;
     {
         function = gen_model({PartialShape{-1, -1, -1, -1}, PartialShape{-1}, PartialShape{-1}},
                              element::f32,
                              num_groups,
-                             eps);
+                             1e-3);
         manager.register_pass<ov::pass::GroupNormalizationDecomposition>();
     }
     {
         function_ref = gen_model_ref({PartialShape{-1, -1, -1, -1}, PartialShape{-1}, PartialShape{-1}},
                                      element::f32,
                                      num_groups,
-                                     eps);
+                                     1e-3);
     }
 }

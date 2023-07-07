@@ -87,6 +87,8 @@ inline std::string get_ie_output_name(const Output<Node>& output) {
     return get_ie_output_name(ov::Output<const Node>(output.get_node(), output.get_index()));
 }
 
+float cast_eps_to_float(double eps_d);
+
 template <typename T>
 bool has_constant_value(const std::shared_ptr<Node>& node,
                         const T value,

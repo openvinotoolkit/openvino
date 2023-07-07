@@ -3,6 +3,7 @@
 //
 
 #include "transformations/op_conversions/group_normalization_decomposition.hpp"
+#include "transformations/utils/utils.hpp"
 
 #include <memory>
 #include <vector>
@@ -13,7 +14,6 @@
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "utils.hpp"
 
 using namespace std;
 using namespace ov;
@@ -71,7 +71,7 @@ ov::pass::GroupNormalizationDecomposition::GroupNormalizationDecomposition() {
 
         size_t num_groups =
             static_cast<size_t>(group_norm_node->get_num_groups());  // Negative values are checked by op validation
-        auto eps = group_norm_node->get_epsilon();
+        const auto eps = op::util::cast_eps_to_float(group_norm_node->get_epsilon());
 
         const auto& data_rank = data.get_partial_shape().rank();
         if (data_rank.is_dynamic() || data_rank.get_length() < 3) {
