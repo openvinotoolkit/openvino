@@ -179,6 +179,16 @@ macro(ov_cpack_settings)
         _ov_add_plugin(gpu OFF)
         set(gpu_copyright "generic")
     endif()
+    
+    # openvino-nvidia-gpu
+    if(ENABLE_NVIDIA)
+        set(CPACK_COMPONENT_NVIDIA_DESCRIPTION "OpenVINO™ NVIDIA GPU plugin is developed in order to enable deep neural networks inference on NVIDIA GPUs, using OpenVINO™ API") 
+        set(CPACK_COMPONENT_NVIDIA_DEPENDS "${OV_CPACK_COMP_CORE}")
+        set(CPACK_DEBIAN_NVIDIA_PACKAGE_NAME "openvino-nvidia-gpu-plugin-${cpack_name_ver}")
+        set(CPACK_DEBIAN_NVIDIA_PACKAGE_CONTROL_EXTRA "${def_postinst};${def_postrm}")
+        
+        set(nvidia_copyright "generic")
+    endif()
 
     # intel-gna
     if(ENABLE_INTEL_GNA AND "gna" IN_LIST CPACK_COMPONENTS_ALL)
