@@ -21,6 +21,8 @@
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/visualize_tree.hpp"
+#include "ov_ops/fused_MHA_with_RPE.hpp"
+#include "ov_ops/rotary_positional_embeddings.hpp"
 #include "transformations/transpose_sinking/ts_slice.hpp"
 
 void ov::batch_util::mark_with_unique_dimension_labels(const std::shared_ptr<ov::Model>& f,
@@ -788,6 +790,146 @@ ov::pass::ChainedVariadicSplitOptimization::ChainedVariadicSplitOptimization() {
     register_matcher(m, matcher_pass_callback);
 }
 
+ov::pass::RoPE_Optimization::RoPE_Optimization() {
+    MATCHER_SCOPE(RoPE_Optimization);
+
+    auto sin = pattern::wrap_type<opset6::GatherElements>();  // any_input doesn't work here
+    auto cos = pattern::wrap_type<opset6::GatherElements>();  // any_input doesn't work here
+
+    auto source = pattern::any_input(pattern::has_static_rank());
+
+    // rotate_half begin
+    auto split_length =
+        pattern::wrap_type<opset1::Constant>(pattern::op::as_value_predicate([](std::shared_ptr<Node> n) -> bool {
+            const auto& constant = ov::as_type_ptr<opset1::Constant>(n);
+            if (!constant)
+                return false;
+            const auto& value = constant->cast_vector<int64_t>();
+            return value.size() == 2 && value[0] == value[1];
+        }));  // make sure constant contains 2 elements with same content; it may be -1, but we fix it earlier
+    auto axis = pattern::any_input();
+    auto vsplit = pattern::wrap_type<opset1::VariadicSplit>({source, axis, split_length});
+    vsplit->set_output_size(2);
+    auto minus_1 =
+        pattern::wrap_type<opset1::Constant>(pattern::op::as_value_predicate([](std::shared_ptr<Node> n) -> bool {
+            const auto& constant = ov::as_type_ptr<opset1::Constant>(n);
+            if (!constant)
+                return false;
+            const auto& value = constant->cast_vector<int64_t>();
+            return value.size() == 1 && value[0] == -1;
+        }));  // make sure it is == -1
+    auto neg = pattern::wrap_type<opset1::Multiply>({vsplit->output(1), minus_1});
+    auto concat = pattern::wrap_type<opset1::Concat>({neg, vsplit->output(0)});  // make sure axis eq to vsplit eq -1
+    // rotate half end
+    auto mul_sin = pattern::wrap_type<opset1::Multiply>({concat, sin});
+    auto mul_cos = pattern::wrap_type<opset1::Multiply>({source, cos});
+    auto add = pattern::wrap_type<opset1::Add>({mul_cos, mul_sin});
+
+    ov::matcher_pass_callback matcher_pass_callback = [=](pattern::Matcher& m) {
+        auto value_map = m.get_pattern_value_map();
+
+        auto input = value_map.at(source);
+        auto concat_node = ov::as_type_ptr<opset1::Concat>(value_map.at(concat).get_node_shared_ptr());
+        if (!concat_node)
+            return false;
+        OPENVINO_SUPPRESS_DEPRECATED_START
+        auto split_axis_node = ov::get_constant_from_source(value_map.at(axis));
+        OPENVINO_SUPPRESS_DEPRECATED_END
+        if (!split_axis_node)
+            return false;
+        auto value = split_axis_node->cast_vector<int64_t>();
+        if (value.size() != 1)
+            return false;
+        auto concat_axis = concat_node->get_concatenation_axis();
+        concat_axis = concat_axis < 0 ? concat_axis + input.get_partial_shape().size() : concat_axis;
+        auto split_axis = value[0];
+        split_axis = split_axis < 0 ? split_axis + input.get_partial_shape().size() : split_axis;
+        if (concat_axis != split_axis)
+            return false;
+        auto rope = std::make_shared<ov::op::internal::RPE>(input,
+                                                            value_map.at(sin),
+                                                            value_map.at(cos),
+                                                            concat_node->get_axis());
+        value_map.at(add).replace(rope->output(0));  // TODO: update fused names
+        return true;
+    };
+    auto m = std::make_shared<pattern::Matcher>(add, matcher_name);
+    register_matcher(m, matcher_pass_callback);
+}
+
+ov::pass::AttentionReplacer::AttentionReplacer() {
+    MATCHER_SCOPE(AttentionReplacer);
+    auto source = pattern::any_input(pattern::has_static_rank());
+
+    auto parameter_values = pattern::wrap_type<opset1::Parameter>();
+    auto parameter_keys = pattern::wrap_type<opset1::Parameter>();
+
+    auto sin = pattern::wrap_type<opset6::GatherElements>();  // any_input doesn't work here
+    auto cos = pattern::wrap_type<opset6::GatherElements>();  // any_input doesn't work here
+
+    auto bool_mask = pattern::any_input();
+    auto attention_mask = pattern::any_input();
+
+    auto vsplit_1 = pattern::wrap_type<opset1::VariadicSplit>({source, pattern::any_input(), pattern::any_input()});
+    vsplit_1->set_output_size(3);
+
+    auto vsplit_2 =
+        pattern::wrap_type<opset1::VariadicSplit>({vsplit_1->output(0), pattern::any_input(), pattern::any_input()});
+    vsplit_2->set_output_size(2);
+    auto rope_1 = pattern::wrap_type<op::internal::RPE>({vsplit_2->output(0), sin, cos});
+    auto concat_1 = pattern::wrap_type<opset1::Concat>({rope_1, vsplit_2->output(1)});
+
+    auto vsplit_3 =
+        pattern::wrap_type<opset1::VariadicSplit>({vsplit_1->output(1), pattern::any_input(), pattern::any_input()});
+    vsplit_3->set_output_size(2);
+    auto rope_2 = pattern::wrap_type<op::internal::RPE>({vsplit_3->output(0), sin, cos});
+    auto concat_2 = pattern::wrap_type<opset1::Concat>({rope_2, vsplit_3->output(1)});
+
+    auto concat_with_prev_k = pattern::wrap_type<opset1::Concat>({parameter_keys, concat_2});
+    auto some_constant = pattern::wrap_type<opset1::Constant>();
+    auto multiply = pattern::wrap_type<opset1::Multiply>({concat_with_prev_k, some_constant});
+
+    auto matmul_1 = pattern::wrap_type<opset1::MatMul>({concat_1, multiply});
+
+    auto inf_constant = pattern::wrap_type<opset1::Constant>();
+    auto select = pattern::wrap_type<opset1::Select>({bool_mask, matmul_1, inf_constant});
+
+    auto add = pattern::wrap_type<opset1::Add>({select, attention_mask});
+    auto softmax = pattern::wrap_type<opset1::Softmax>({add});
+
+    auto concat_3 = pattern::wrap_type<opset1::Concat>({parameter_values, vsplit_1->output(2)});
+    auto matmul_2 = pattern::wrap_type<opset1::MatMul>({softmax, concat_3});
+
+    auto transpose = pattern::wrap_type<opset1::Transpose>({matmul_2, pattern::any_input()});
+    auto reshape = pattern::wrap_type<opset1::Reshape>({transpose, pattern::any_input()});
+
+    ov::matcher_pass_callback matcher_pass_callback = [=](pattern::Matcher& m) {
+        auto value_map = m.get_pattern_value_map();
+        OPENVINO_SUPPRESS_DEPRECATED_START
+        auto split_d_head = ov::get_constant_from_source(value_map.at(vsplit_1).get_node_shared_ptr()->input_value(2));
+        OPENVINO_SUPPRESS_DEPRECATED_END
+        if (!split_d_head)
+            return false;
+        auto d_head_value = split_d_head->cast_vector<int64_t>()[1];
+        if (d_head_value < 0)
+            return false;  // being extra cautious -- it may be -1, but we converted it earlier
+        auto node = std::make_shared<ov::op::internal::FusedMHA_RPE>(value_map.at(source),
+                                                                     value_map.at(sin),
+                                                                     value_map.at(cos),
+                                                                     value_map.at(parameter_keys),
+                                                                     value_map.at(parameter_values),
+                                                                     value_map.at(bool_mask),
+                                                                     value_map.at(attention_mask),
+                                                                     value_map.at(some_constant),
+                                                                     d_head_value);
+        std::cout << m.get_match_root() << std::endl;
+        value_map.at(reshape).replace(node->output(0));  // TODO: update fused names
+        return true;
+    };
+    auto m = std::make_shared<pattern::Matcher>(reshape, matcher_name);
+    register_matcher(m, matcher_pass_callback);
+}
+
 template <class T>
 bool all_secondary_inputs_from_same_source_or_equal_int_constants(const std::shared_ptr<T>& lhs,
                                                                   const std::shared_ptr<T>& rhs) {
@@ -1032,6 +1174,8 @@ bool ov::pass::SymbolicOptimizations::run_on_model(const std::shared_ptr<ov::Mod
     ADD_MATCHER(optimizations_1, RemoveSliceBeforeGatherElements)
     REGISTER_PASS(manager_1, SharedGatherElementsOptimization)
     optimizations_1->set_name("ov::pass::GraphRewrite::SymbolicOptimizations::1");
+    REGISTER_PASS(manager_1, RoPE_Optimization)
+    REGISTER_PASS(manager_1, AttentionReplacer)
     // cleanup labels, erase SKIP_INVALIDATION
     REGISTER_PASS(manager_1, VisualizeTree, "model.svg")
     manager_1.run_passes(m);

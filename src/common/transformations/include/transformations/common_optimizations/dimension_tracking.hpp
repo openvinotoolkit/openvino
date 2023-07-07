@@ -29,6 +29,8 @@ class TRANSFORMATIONS_API SharedSliceOptimization;
 class TRANSFORMATIONS_API GroupedSliceToVSplitOptimization;
 class TRANSFORMATIONS_API ChainedReshapeOptimization;
 class TRANSFORMATIONS_API ChainedVariadicSplitOptimization;
+class TRANSFORMATIONS_API RoPE_Optimization;
+class TRANSFORMATIONS_API AttentionReplacer;
 
 }  // namespace pass
 }  // namespace ov
@@ -101,6 +103,18 @@ class ov::pass::ChainedVariadicSplitOptimization : public ov::pass::MatcherPass 
 public:
     OPENVINO_RTTI("ChainedVariadicSplitOptimization", "0");
     ChainedVariadicSplitOptimization();
+};
+
+class ov::pass::RoPE_Optimization : public ov::pass::MatcherPass {
+public:
+    OPENVINO_RTTI("RoEP_Optimization", "0");
+    RoPE_Optimization();
+};
+
+class ov::pass::AttentionReplacer : public ov::pass::MatcherPass {
+public:
+    OPENVINO_RTTI("AttentionReplacer", "0");
+    AttentionReplacer();
 };
 
 class ov::pass::SharedTileOptimization : public ov::pass::ModelPass {
