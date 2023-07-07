@@ -3,6 +3,7 @@
 //
 
 #include "openvino/core/except.hpp"
+
 #include "openvino/util/file_util.hpp"
 
 ov::Exception::Exception(const std::string& what_arg) : std::runtime_error(what_arg) {}

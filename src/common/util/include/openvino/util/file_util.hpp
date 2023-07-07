@@ -348,8 +348,8 @@ void save_binary(const std::string& path, std::vector<uint8_t> binary);
  * @return Pointer to trimmed file name path.
  */
 constexpr const char* trim_file_name(const char* const name) {
-#ifdef PROJECT_ROOT_DIR_LENGTH
-    return name + PROJECT_ROOT_DIR_LENGTH;
+#ifdef OV_PROJECT_ROOT_DIR_LENGTH
+    return name + OV_PROJECT_ROOT_DIR_LENGTH;
 #else
     return name;
 #endif

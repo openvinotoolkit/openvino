@@ -266,7 +266,7 @@ function(ov_abi_free_target target)
     endif()
 endfunction()
 
-# 
+#
 # ie_python_minimal_api(<target>)
 #
 # Set options to use only Python Limited API
@@ -318,6 +318,21 @@ elseif(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
     ie_add_compiler_flags(-fsigned-char)
 endif()
 
+file(RELATIVE_PATH OV_RELATIVE_BIN_PATH ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_SOURCE_DIR})
+
+if(${CMAKE_VERSION} VERSION_LESS "3.20")
+    file(TO_NATIVE_PATH ${OpenVINO_SOURCE_DIR} OV_NATIVE_PROJECT_ROOT_DIR)
+    file(TO_NATIVE_PATH ${OV_RELATIVE_BIN_PATH} NATIVE_OV_RELATIVE_BIN_PATH)
+else()
+    cmake_path(NATIVE_PATH OpenVINO_SOURCE_DIR OV_NATIVE_PROJECT_ROOT_DIR)
+    cmake_path(NATIVE_PATH OV_RELATIVE_BIN_PATH NATIVE_OV_RELATIVE_BIN_PATH)
+endif()
+
+string(LENGTH "${OV_NATIVE_PROJECT_ROOT_DIR}/" OV_PROJECT_ROOT_DIR_LENGTH)
+
+message("DDDD ${OV_NATIVE_PROJECT_ROOT_DIR}")
+message("DDDD ${NATIVE_OV_RELATIVE_BIN_PATH}")
+
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     #
     # Common options / warnings enabled
@@ -366,6 +381,10 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     # C4275 non dll-interface class used as base for dll-interface class
     ie_add_compiler_flags(/wd4275)
 
+    # Enable __FILE__ trim
+    ie_add_compiler_flags(/d1trimfile:${OV_NATIVE_PROJECT_ROOT_DIR}\\)
+    set(TRIMMING_FILE_MACRO_SUPPORTED TRUE)
+
     #
     # Debug information flags, by default CMake adds /Zi option
     # but provides no way to specify CMAKE_COMPILE_PDB_NAME on root level
@@ -408,7 +427,7 @@ elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Intel" AND WIN32)
     ie_add_compiler_flags(/Qdiag-disable:3180)
     # 11075: To get full report use -Qopt-report:4 -Qopt-report-phase ipo
     ie_add_compiler_flags(/Qdiag-disable:11075)
-    # 15335: was not vectorized: vectorization possible but seems inefficient. 
+    # 15335: was not vectorized: vectorization possible but seems inefficient.
     # Use vector always directive or /Qvec-threshold0 to override
     ie_add_compiler_flags(/Qdiag-disable:15335)
 else()
@@ -430,7 +449,22 @@ else()
     # - https://gcc.gnu.org/onlinedocs/gcc/C_002b_002b-Dialect-Options.html
     # - https://gcc.gnu.org/onlinedocs/libstdc++/manual/abi.html
     if(CMAKE_COMPILER_IS_GNUCXX)
+        if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL "8")
+            # Enable __FILE__ trim
+            ie_add_compiler_flags(-ffile-prefix-map=${OV_NATIVE_PROJECT_ROOT_DIR}/=)
+            ie_add_compiler_flags(-ffile-prefix-map=${OV_RELATIVE_BIN_PATH}/=)
+            set(TRIMMING_FILE_MACRO_SUPPORTED TRUE)
+        endif()
         # set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wabi=11")
+    endif()
+
+    if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+        if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL "10")
+            # Enable __FILE__ trim
+            ie_add_compiler_flags(-ffile-prefix-map=${OV_NATIVE_PROJECT_ROOT_DIR}/=)
+            ie_add_compiler_flags(-ffile-prefix-map=${OV_RELATIVE_BIN_PATH}/=)
+            set(TRIMMING_FILE_MACRO_SUPPORTED TRUE)
+        endif()
     endif()
 
     #
@@ -475,6 +509,11 @@ else()
         set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--gc-sections")
     endif()
 endif()
+
+add_compile_definitions(
+
+    # Compiler not support to trim __FILE__ to have got relative path, use offset instead
+    $<$<NOT:$<BOOL:${TRIMMING_FILE_MACRO_SUPPORTED}>>:OV_PROJECT_ROOT_DIR_LENGTH=${OV_PROJECT_ROOT_DIR_LENGTH}>)
 
 check_cxx_compiler_flag("-Wsuggest-override" SUGGEST_OVERRIDE_SUPPORTED)
 if(SUGGEST_OVERRIDE_SUPPORTED)

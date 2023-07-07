@@ -69,13 +69,9 @@ constexpr const char* get_file_name(ConstString s) {
     return find_last(s, '/');
 }
 NGRAPH_API_DEPRECATED
-constexpr const char* trim_file_name(ConstString root, ConstString s) {
-#ifdef PROJECT_ROOT_DIR_LENGTH
-    return s.get_ptr(root.size());
-#else
-    return s.get_ptr(0);
-#endif
-}
+NGRAPH_API
+const char* trim_file_name(ConstString root, ConstString s);
+
 enum class LOG_TYPE {
     _LOG_TYPE_ERROR,
     _LOG_TYPE_WARNING,
