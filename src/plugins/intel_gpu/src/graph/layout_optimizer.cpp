@@ -1727,6 +1727,15 @@ format layout_optimizer::get_preferred_format(program_node& node) {
         if (use_onednn_impls) {
             expected = node.get_preferred_output_fmt();
         }
+
+        if (!allow_new_shape_infer && node.is_type<fully_connected>()) {
+            auto& fc_node = node.as<fully_connected>();
+            auto input_layout = fc_node.input().get_output_layout();
+            if (input_layout.format.dimension() > 4) {
+                expected = format::bfyx;
+                node.set_preferred_input_fmt(0, format::bfyx);
+            }
+        }
     }
 
     if (allow_new_shape_infer && node.get_preferred_input_fmt() != format::any) {
