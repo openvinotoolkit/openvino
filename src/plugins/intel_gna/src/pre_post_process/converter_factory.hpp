@@ -6,7 +6,7 @@
 
 #include <memory>
 
-#include "data_storage_converter.hpp"
+#include "hw_accelerated_converter.hpp"
 
 namespace ov {
 namespace intel_gna {
@@ -14,7 +14,7 @@ namespace pre_post_processing {
 
 class ConverterFactory {
 public:
-    std::shared_ptr<DataStorageConverter> create_converter();
+    std::shared_ptr<HwAcceleratedDataConverter> create_converter();
 };
 }  // namespace pre_post_processing
 }  // namespace intel_gna

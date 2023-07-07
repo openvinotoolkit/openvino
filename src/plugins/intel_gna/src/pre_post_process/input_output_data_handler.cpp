@@ -10,12 +10,8 @@ namespace pre_post_processing {
 
 using InferenceEngine::Precision;
 
-InputOutputDataHandler::InputOutputDataHandler(std::shared_ptr<DataStorageConverter> converter)
-    : m_converter(converter) {}
-
-void InputOutputDataHandler::set_data_converter(std::shared_ptr<DataStorageConverter> converter) {
-    m_converter = converter;
-}
+InputOutputDataHandler::InputOutputDataHandler(std::shared_ptr<HwAcceleratedDataConverter> converter)
+    : m_hw_accelerated_converter(converter) {}
 
 void InputOutputDataHandler::import_frames(void* ptr_dst,
                                            const void* ptr_src,
@@ -41,8 +37,7 @@ void InputOutputDataHandler::import_frames(void* ptr_dst,
                             num_vector_elements,
                             num_vector_stride,
                             orientation,
-                            scale_factor,
-                            input_low_precision);
+                            scale_factor);
         } else {
             auto dst = reinterpret_cast<int8_t*>(ptr_dst);
             copy_input_data(dst,
@@ -52,8 +47,7 @@ void InputOutputDataHandler::import_frames(void* ptr_dst,
                             num_vector_elements,
                             num_vector_stride,
                             orientation,
-                            scale_factor,
-                            input_low_precision);
+                            scale_factor);
         }
         break;
     }
@@ -68,8 +62,7 @@ void InputOutputDataHandler::import_frames(void* ptr_dst,
                             num_vector_elements,
                             num_vector_stride,
                             orientation,
-                            scale_factor,
-                            input_low_precision);
+                            scale_factor);
         } else {
             auto dst = reinterpret_cast<int8_t*>(ptr_dst);
             copy_input_data(dst,
@@ -79,8 +72,7 @@ void InputOutputDataHandler::import_frames(void* ptr_dst,
                             num_vector_elements,
                             num_vector_stride,
                             orientation,
-                            scale_factor,
-                            input_low_precision);
+                            scale_factor);
         }
         break;
     }
@@ -95,24 +87,21 @@ void InputOutputDataHandler::import_frames(void* ptr_dst,
                             num_vector_elements,
                             num_vector_stride,
                             orientation,
-                            scale_factor,
-                            input_low_precision);
+                            scale_factor);
         } else {
             bool transpose = (orientation == kDnnInterleavedOrientation) && (num_group > 1) && (num_vector_stride > 1);
-            // TODO: AVX2 support for zero-padding isn't implemented yet;
-            // fall back to the non-vectorized version when it's necessary
             bool needs_zero_padding = (num_vector_elements != num_vector_stride) || (num_frames != num_group);
 
             if (!input_low_precision) {
                 auto dst = reinterpret_cast<int16_t*>(ptr_dst);
 
-                if (m_converter && !needs_zero_padding) {
-                    m_converter->convert_matrix_fp32_to_int16_avx(dst,
-                                                                  src,
-                                                                  num_group,
-                                                                  num_vector_stride,
-                                                                  scale_factor,
-                                                                  transpose);
+                if (m_hw_accelerated_converter && !needs_zero_padding) {
+                    m_hw_accelerated_converter->convert_matrix_fp32_to_int16_no_zero_padding(dst,
+                                                                                             src,
+                                                                                             num_group,
+                                                                                             num_vector_stride,
+                                                                                             scale_factor,
+                                                                                             transpose);
                 } else {
                     copy_input_data(dst,
                                     src,
@@ -121,19 +110,18 @@ void InputOutputDataHandler::import_frames(void* ptr_dst,
                                     num_vector_elements,
                                     num_vector_stride,
                                     orientation,
-                                    scale_factor,
-                                    input_low_precision);
+                                    scale_factor);
                 }
             } else {
                 auto dst = reinterpret_cast<int8_t*>(ptr_dst);
 
-                if (m_converter && !needs_zero_padding) {
-                    m_converter->convert_matrix_fp32_to_int8_avx(dst,
-                                                                 src,
-                                                                 num_group,
-                                                                 num_vector_stride,
-                                                                 scale_factor,
-                                                                 transpose);
+                if (m_hw_accelerated_converter && !needs_zero_padding) {
+                    m_hw_accelerated_converter->convert_matrix_fp32_to_int8_no_zero_padding(dst,
+                                                                                            src,
+                                                                                            num_group,
+                                                                                            num_vector_stride,
+                                                                                            scale_factor,
+                                                                                            transpose);
                 } else {
                     copy_input_data(dst,
                                     src,
@@ -142,8 +130,7 @@ void InputOutputDataHandler::import_frames(void* ptr_dst,
                                     num_vector_elements,
                                     num_vector_stride,
                                     orientation,
-                                    scale_factor,
-                                    input_low_precision);
+                                    scale_factor);
                 }
             }
         }
@@ -160,8 +147,7 @@ void InputOutputDataHandler::import_frames(void* ptr_dst,
                             num_vector_elements,
                             num_vector_stride,
                             orientation,
-                            scale_factor,
-                            input_low_precision);
+                            scale_factor);
         } else {
             if (!input_low_precision) {
                 auto dst = reinterpret_cast<int16_t*>(ptr_dst);
@@ -172,8 +158,7 @@ void InputOutputDataHandler::import_frames(void* ptr_dst,
                                 num_vector_elements,
                                 num_vector_stride,
                                 orientation,
-                                scale_factor,
-                                input_low_precision);
+                                scale_factor);
             } else {
                 auto dst = reinterpret_cast<int8_t*>(ptr_dst);
                 copy_input_data(dst,
@@ -183,8 +168,7 @@ void InputOutputDataHandler::import_frames(void* ptr_dst,
                                 num_vector_elements,
                                 num_vector_stride,
                                 orientation,
-                                scale_factor,
-                                input_low_precision);
+                                scale_factor);
             }
         }
         break;
@@ -221,13 +205,14 @@ void InputOutputDataHandler::export_scores(void* ptr_dst,
     case Precision::FP32:
         switch (precision_in) {
         case Precision::I8:
-            if (m_converter && !needs_zero_padding) {
-                m_converter->convert_matrix_int8_to_fp32_avx(reinterpret_cast<float*>(ptr_dst),
-                                                             reinterpret_cast<const int8_t*>(ptr_src),
-                                                             num_vector_stride,
-                                                             num_frames,
-                                                             scale_factor,
-                                                             transpose);
+            if (m_hw_accelerated_converter && !needs_zero_padding) {
+                m_hw_accelerated_converter->convert_matrix_int8_to_fp32_no_zero_padding(
+                    reinterpret_cast<float*>(ptr_dst),
+                    reinterpret_cast<const int8_t*>(ptr_src),
+                    num_vector_stride,
+                    num_frames,
+                    scale_factor,
+                    transpose);
             } else {
                 unscale_transpose_and_cast(reinterpret_cast<float*>(ptr_dst),
                                            reinterpret_cast<const int8_t*>(ptr_src),
@@ -241,13 +226,14 @@ void InputOutputDataHandler::export_scores(void* ptr_dst,
             }
             break;
         case Precision::I16:
-            if (m_converter && !needs_zero_padding) {
-                m_converter->convert_matrix_int16_to_fp32_avx(reinterpret_cast<float*>(ptr_dst),
-                                                              reinterpret_cast<const int16_t*>(ptr_src),
-                                                              num_vector_stride,
-                                                              num_frames,
-                                                              scale_factor,
-                                                              transpose);
+            if (m_hw_accelerated_converter && !needs_zero_padding) {
+                m_hw_accelerated_converter->convert_matrix_int16_to_fp32_no_zero_padding(
+                    reinterpret_cast<float*>(ptr_dst),
+                    reinterpret_cast<const int16_t*>(ptr_src),
+                    num_vector_stride,
+                    num_frames,
+                    scale_factor,
+                    transpose);
             } else {
                 unscale_transpose_and_cast(reinterpret_cast<float*>(ptr_dst),
                                            reinterpret_cast<const int16_t*>(ptr_src),
@@ -261,13 +247,14 @@ void InputOutputDataHandler::export_scores(void* ptr_dst,
             }
             break;
         case Precision::I32:
-            if (m_converter && !needs_zero_padding) {
-                m_converter->convert_matrix_int32_to_fp32_avx(reinterpret_cast<float*>(ptr_dst),
-                                                              reinterpret_cast<const int32_t*>(ptr_src),
-                                                              num_vector_stride,
-                                                              num_frames,
-                                                              scale_factor,
-                                                              transpose);
+            if (m_hw_accelerated_converter && !needs_zero_padding) {
+                m_hw_accelerated_converter->convert_matrix_int32_to_fp32_no_zero_padding(
+                    reinterpret_cast<float*>(ptr_dst),
+                    reinterpret_cast<const int32_t*>(ptr_src),
+                    num_vector_stride,
+                    num_frames,
+                    scale_factor,
+                    transpose);
             } else {
                 unscale_transpose_and_cast(reinterpret_cast<float*>(ptr_dst),
                                            reinterpret_cast<const int32_t*>(ptr_src),

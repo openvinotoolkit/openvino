@@ -7,15 +7,18 @@
 #include <ie_system_conf.h>
 
 #include <memory>
+#ifdef HAVE_AVX2
+#    include "hw_accelerated_converter_avx2.hpp"
+#endif
 
 namespace ov {
 namespace intel_gna {
 namespace pre_post_processing {
 
-std::shared_ptr<DataStorageConverter> ConverterFactory::create_converter() {
+std::shared_ptr<HwAcceleratedDataConverter> ConverterFactory::create_converter() {
 #ifdef HAVE_AVX2
     if (InferenceEngine::with_cpu_x86_avx2()) {
-        return std::make_shared<DataStorageConverterAvx>();
+        return std::make_shared<HwAcceleratedDataConverterAvx>();
     } else {
         return nullptr;
     }

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "preprocessing.hpp"
+#include "data_conversion_helpers.hpp"
 
 namespace ov {
 namespace intel_gna {

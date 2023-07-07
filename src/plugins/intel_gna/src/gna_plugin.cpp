@@ -48,7 +48,6 @@
 #include "memory/gna_memory_state.hpp"
 #include "orientation_helper.hpp"
 #include "pre_post_process/converter_factory.hpp"
-#include "pre_post_process/preprocessing.hpp"
 #include "pre_post_process/transposition_info.hpp"
 #include "request/model_wrapper_factory.hpp"
 #include "request/worker_factory.hpp"

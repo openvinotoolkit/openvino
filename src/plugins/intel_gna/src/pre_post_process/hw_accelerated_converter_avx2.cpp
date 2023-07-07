@@ -2,15 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "data_storage_converter.hpp"
-
 #ifdef HAVE_AVX2
+
+#    include "hw_accelerated_converter_avx2.hpp"
 
 #    include <immintrin.h>
 
 #    include <limits>
 
-#    include "preprocessing.hpp"
+#    include "data_conversion_helpers.hpp"
 
 namespace ov {
 namespace intel_gna {
@@ -80,21 +80,21 @@ void convert_matrix_fp32_to_int_avx(T* ptr_dst,
     }
 }
 
-void DataStorageConverterAvx::convert_matrix_fp32_to_int16_avx(int16_t* ptr_dst,
-                                                               const float* ptr_src,
-                                                               const size_t num_rows,
-                                                               const size_t num_columns,
-                                                               const float scale_factor,
-                                                               bool transpose) {
+void HwAcceleratedDataConverterAvx::convert_matrix_fp32_to_int16_no_zero_padding(int16_t* ptr_dst,
+                                                                                 const float* ptr_src,
+                                                                                 const size_t num_rows,
+                                                                                 const size_t num_columns,
+                                                                                 const float scale_factor,
+                                                                                 bool transpose) const {
     convert_matrix_fp32_to_int_avx(ptr_dst, ptr_src, num_rows, num_columns, scale_factor, transpose);
 }
 
-void DataStorageConverterAvx::convert_matrix_fp32_to_int8_avx(int8_t* ptr_dst,
-                                                              const float* ptr_src,
-                                                              const size_t num_rows,
-                                                              const size_t num_columns,
-                                                              const float scale_factor,
-                                                              bool transpose) {
+void HwAcceleratedDataConverterAvx::convert_matrix_fp32_to_int8_no_zero_padding(int8_t* ptr_dst,
+                                                                                const float* ptr_src,
+                                                                                const size_t num_rows,
+                                                                                const size_t num_columns,
+                                                                                const float scale_factor,
+                                                                                bool transpose) const {
     convert_matrix_fp32_to_int_avx(ptr_dst, ptr_src, num_rows, num_columns, scale_factor, transpose);
 }
 
@@ -151,30 +151,30 @@ void convert_matrix_int_to_fp32_avx(float* ptr_dst,
     }
 }
 
-void DataStorageConverterAvx::convert_matrix_int32_to_fp32_avx(float* ptr_dst,
-                                                               const int32_t* ptr_src,
-                                                               size_t num_rows,
-                                                               size_t num_columns,
-                                                               float scale_factor,
-                                                               bool transpose) {
+void HwAcceleratedDataConverterAvx::convert_matrix_int32_to_fp32_no_zero_padding(float* ptr_dst,
+                                                                                 const int32_t* ptr_src,
+                                                                                 size_t num_rows,
+                                                                                 size_t num_columns,
+                                                                                 float scale_factor,
+                                                                                 bool transpose) const {
     convert_matrix_int_to_fp32_avx(ptr_dst, ptr_src, num_rows, num_columns, scale_factor, transpose);
 }
 
-void DataStorageConverterAvx::convert_matrix_int16_to_fp32_avx(float* ptr_dst,
-                                                               const int16_t* ptr_src,
-                                                               size_t num_rows,
-                                                               size_t num_columns,
-                                                               float scale_factor,
-                                                               bool transpose) {
+void HwAcceleratedDataConverterAvx::convert_matrix_int16_to_fp32_no_zero_padding(float* ptr_dst,
+                                                                                 const int16_t* ptr_src,
+                                                                                 size_t num_rows,
+                                                                                 size_t num_columns,
+                                                                                 float scale_factor,
+                                                                                 bool transpose) const {
     convert_matrix_int_to_fp32_avx(ptr_dst, ptr_src, num_rows, num_columns, scale_factor, transpose);
 }
 
-void DataStorageConverterAvx::convert_matrix_int8_to_fp32_avx(float* ptr_dst,
-                                                              const int8_t* ptr_src,
-                                                              size_t num_rows,
-                                                              size_t num_columns,
-                                                              float scale_factor,
-                                                              bool transpose) {
+void HwAcceleratedDataConverterAvx::convert_matrix_int8_to_fp32_no_zero_padding(float* ptr_dst,
+                                                                                const int8_t* ptr_src,
+                                                                                size_t num_rows,
+                                                                                size_t num_columns,
+                                                                                float scale_factor,
+                                                                                bool transpose) const {
     convert_matrix_int_to_fp32_avx(ptr_dst, ptr_src, num_rows, num_columns, scale_factor, transpose);
 }
 }  // namespace pre_post_processing
