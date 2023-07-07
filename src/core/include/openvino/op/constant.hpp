@@ -458,8 +458,10 @@ private:
 #    pragma warning(disable : 4804)
 #endif
             if (!std::is_same<OUT_T, IN_T>::value) {
-                OPENVINO_ASSERT(!std::numeric_limits<IN_T>::is_signed || std::numeric_limits<OUT_T>::lowest() <= c, "Cannot cast vector from constant. Some values are outside the range.");
-                OPENVINO_ASSERT(std::numeric_limits<OUT_T>::max() >= c, "Cannot cast vector from constant. Some values are outside the range.");
+                OPENVINO_ASSERT(!std::numeric_limits<IN_T>::is_signed || std::numeric_limits<OUT_T>::lowest() <= c,
+                                "Cannot cast vector from constant. Some values are outside the range.");
+                OPENVINO_ASSERT(std::numeric_limits<OUT_T>::max() >= c,
+                                "Cannot cast vector from constant. Some values are outside the range.");
             }
 #if defined(__clang__)
 #    pragma clang diagnostic pop
@@ -556,9 +558,11 @@ private:
 #    pragma warning(disable : 4804)
 #endif
         if (!std::is_same<T, StorageDataType>::value) {
-            OPENVINO_ASSERT(!std::numeric_limits<T>::is_signed ||
-                            std::numeric_limits<StorageDataType>::lowest() <= value, "Cannot fill constant data. Values is outside the range.");
-            OPENVINO_ASSERT(std::numeric_limits<StorageDataType>::max() >= value, "Cannot fill constant data. Values is outside the range.");
+            OPENVINO_ASSERT(
+                !std::numeric_limits<T>::is_signed || std::numeric_limits<StorageDataType>::lowest() <= value,
+                "Cannot fill constant data. Values is outside the range.");
+            OPENVINO_ASSERT(std::numeric_limits<StorageDataType>::max() >= value,
+                            "Cannot fill constant data. Values is outside the range.");
         }
 #if defined(__clang__)
 #    pragma clang diagnostic pop
