@@ -157,13 +157,9 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
 
         // Create new Convert
         if (is_convert) {
-            auto old_convert = pattern_map.at(weights_m).get_node_shared_ptr();
-            fc_input_b = old_convert->clone_with_new_inputs({fc_input_b});
-            auto new_convert = fc_input_b.get_node_shared_ptr();
-            new_convert->set_friendly_name(old_convert->get_friendly_name());
-            ngraph::copy_runtime_info(old_convert, new_convert);
-            disable_constant_folding(new_convert);
-            mark_as_decompression(new_convert);
+            auto convert = pattern_map.at(weights_m).get_node_shared_ptr();
+            convert->input(0).replace_source_output(fc_input_b);
+            fc_input_b = convert;
         }
         // Create FullyConnected
         auto output_rank = matmul->get_output_partial_shape(0).rank();
