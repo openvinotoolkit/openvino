@@ -93,10 +93,9 @@ public:
                     std::istream in_mem(&mem_buf);
                     BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
                     auto pos = ib.tellg();
-                    network0 = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine, true);
+                    network0 = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine, true, 0);
                     ib.seekg(pos);
-                    ib.set_stream_id(1);
-                    network1 = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine, false);
+                    network1 = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine, false, 0);
                 }
             }
         } else {
@@ -193,13 +192,12 @@ public:
                 {
                     std::istream in_mem0(&mem_buf0);
                     BinaryInputBuffer ib0 = BinaryInputBuffer(in_mem0, engine);
-                    network0 = std::make_shared<cldnn::network>(ib0, get_test_stream_ptr(), engine, false);
+                    network0 = std::make_shared<cldnn::network>(ib0, get_test_stream_ptr(), engine, false, 0);
                 }
                 {
                     std::istream in_mem1(&mem_buf1);
                     BinaryInputBuffer ib1 = BinaryInputBuffer(in_mem1, engine);
-                    ib1.set_stream_id(1);
-                    network1 = std::make_shared<cldnn::network>(ib1, get_test_stream_ptr(), engine, true);
+                    network1 = std::make_shared<cldnn::network>(ib1, get_test_stream_ptr(), engine, true, 0);
                 }
             }
         } else {
