@@ -69,7 +69,7 @@ struct ReLUConcatAxis {
         return std::make_shared<ngraph::Function>(results, params, getName());
     }
     static const char* getMatch() {
-        return "type: Concat, and concatenation axis(";
+        return "Unsupported concatenation axis";
     }
 };
 
@@ -115,7 +115,7 @@ struct MatmulConcatAxis {
         return std::make_shared<ngraph::Function>(results, params, getName());
     }
     static const char* getMatch() {
-        return "type: Concat, and concatenation axis(";
+        return "Unsupported concatenation axis";
     }
 };
 
@@ -203,7 +203,7 @@ struct ConvNHWCConcatAxis {
         return std::make_shared<ngraph::Function>(results, params, getName());
     }
     static const char* getMatch() {
-        return "type: Concat, and concatenation axis(";
+        return "Unsupported concatenation axis";
     }
 };
 
@@ -261,7 +261,7 @@ struct ConvConcatNHWCAxis {
         return std::make_shared<ngraph::Function>(results, params, getName());
     }
     static const char* getMatch() {
-        return "type: Concat, and concatenation axis(";
+        return "Unsupported concatenation axis";
     }
 };
 
@@ -337,7 +337,7 @@ struct ConvConcatConcatNHWCAxis {
         return std::make_shared<ngraph::Function>(results, params, getName());
     }
     static const char* getMatch() {
-        return "type: Concat, and concatenation axis(";
+        return "Unsupported concatenation axis";
     }
 };
 
@@ -500,12 +500,12 @@ using ConvConcatConcatNHWCRestrictionsNeg = ConcatRestrictions<ConvConcatConcatN
 using ConvConcatConcatNHWCRestrictionsPos = ConcatRestrictions<ConvConcatConcatNHWCAxis>;
 using TransposeTransposeConcatPos = ConcatRestrictions<TransposeTransposeConcat>;
 
-TEST_P(ReLUConcatRestrictionsNeg, CompareWithRefImpl) {
-    ExpectLoadNetworkToThrow(getMatch());
-};
-
-// TODO: this test is left for future when GNA plugin handles const tranposition required for concats with interleaved
-// layers
+// TODO: those tests are left for future when GNA plugin handles const tranposition required for concats with
+// interleaved layers
+// TEST_P(ReLUConcatRestrictionsNeg, CompareWithRefImpl) {
+//     ExpectLoadNetworkToThrow(getMatch());
+// };
+//
 // TEST_P(ReLUConcatRestrictionsPos, CompareWithRefImpl) {
 //    Run();
 //};

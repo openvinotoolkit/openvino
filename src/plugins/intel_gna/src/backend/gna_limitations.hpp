@@ -234,7 +234,7 @@ public:
     bool is_pooling_supported(const std::shared_ptr<ov::intel_gna::op::GNAMaxPool> max_pool,
                               bool is_exception_allowed = false);
 
-    static bool is_concat_supported(const std::shared_ptr<const ov::Node>& node);
+    static bool is_concat_supported(const std::shared_ptr<const ov::Node>& node, bool is_exception_allowed);
     static bool is_forward_transposed_concat_supported(const std::shared_ptr<const ov::Node>& node,
                                                        const AxisVector& order);
     static bool is_backward_transposed_concat_supported(const std::shared_ptr<const ov::Node>& node,
@@ -305,10 +305,6 @@ private:
     Limitations& operator=(const Limitations&) = delete;
 
     size_t get_memory_alignment_bytes(const target::DeviceVersion& target) const;
-
-    IE_SUPPRESS_DEPRECATED_START
-    static bool validate_concat_axis(const InferenceEngine::CNNLayerPtr layer, std::string& errMessage);
-    IE_SUPPRESS_DEPRECATED_END
 
     bool m_use_only_16bit_conv_weights = false;
     size_t m_mem_alignment = 0;

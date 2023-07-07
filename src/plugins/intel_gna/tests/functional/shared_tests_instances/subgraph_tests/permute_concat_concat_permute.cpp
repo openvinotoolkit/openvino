@@ -9,8 +9,7 @@
 using namespace SubgraphTestsDefinitions;
 
 namespace {
-std::vector<std::vector<size_t>> inputs1{{{1, 8}}, {{8, 1}}};
-std::vector<std::vector<size_t>> inputs2{{{16, 2}}, {{8, 2}}};
+std::vector<std::vector<size_t>> inputs1{{{1, 8}}, {{8, 1}}, {{16, 2}}, {{8, 2}}};
 
 std::vector<InferenceEngine::Precision> netPrecisions = {
     InferenceEngine::Precision::FP32,
@@ -24,10 +23,4 @@ INSTANTIATE_TEST_SUITE_P(smoke_permute_concat_concat_permute,
                                             ::testing::Values(CommonTestUtils::DEVICE_GNA)),
                          PermuteConcatConcatPermute::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_permute_concat_concat_permute,
-                         PermuteConcatConcatPermuteNeg,
-                         ::testing::Combine(::testing::ValuesIn(inputs2),
-                                            ::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA)),
-                         PermuteConcatConcatPermute::getTestCaseName);
 }  // namespace
