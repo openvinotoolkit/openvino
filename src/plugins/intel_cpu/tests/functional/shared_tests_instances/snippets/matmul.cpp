@@ -17,7 +17,9 @@ std::vector<std::vector<ov::PartialShape>> input_shapes{
         {{3, 1, 32, 14}, {1, 2, 14, 32}},
         {{1, 2, 37, 23}, {2, 1, 23, 37}},
         {{1, 1, 37, 23}, {1, 2, 23, 33}},
-        {{1, 16, 384, 64}, {1, 16, 64, 384}}
+        {{1, 1, 32, 23}, {1, 1, 23, 68}},
+        {{1, 16, 384, 64}, {1, 16, 64, 384}},
+        {{1, 1, 100, 700}, {1, 1, 700, 100}},
 };
 
 static inline std::vector<std::vector<element::Type>> quantized_precisions() {

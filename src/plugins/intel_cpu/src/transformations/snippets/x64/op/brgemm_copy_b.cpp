@@ -4,6 +4,7 @@
 
 #include "snippets/itt.hpp"
 #include "snippets/utils.hpp"
+#include "snippets/op/buffer.hpp"
 
 #include "brgemm_copy_b.hpp"
 
@@ -12,27 +13,32 @@
 using namespace ov;
 
 intel_cpu::BrgemmCopyB::BrgemmCopyB(const Output<Node>& x, const element::Type src_type, const Type type,
-                                    const size_t offset_in, const size_t offset_out0, const size_t offset_out1, std::vector<size_t> layout_input)
-    : snippets::op::MemoryAccess({x}, 1, type == Type::WithCompensations ? 2 : 1), m_type(type), m_src_type(src_type) {
+                                    const size_t offset_in, const size_t offset_out0, const size_t offset_out1,
+                                    std::vector<size_t> layout_input, const size_t blk_size_k, const size_t blk_size_n)
+    : snippets::op::MemoryAccess({x}, 1, type == Type::WithCompensations ? 2 : 1),
+      m_type(type), m_src_type(src_type) {
     set_output_size(type == Type::WithCompensations ? 2 : 1);
     set_input_port_descriptor({0, offset_in}, 0);
     set_output_port_descriptor({0, offset_out0}, 0);
     if (is_with_compensations()) {
         set_output_port_descriptor({0, offset_out1}, 1);
     }
+    compute_block_size_values(blk_size_k, blk_size_n);
     custom_constructor_validate_and_infer_types(std::move(layout_input));
 }
 
 intel_cpu::BrgemmCopyB::BrgemmCopyB(const Output<Node>& x, const element::Type src_type, const Type type,
                                     const PortDescriptor& desc_in0, const PortDescriptor& desc_out0, const PortDescriptor& desc_out1,
-                                    std::vector<size_t> layout_input)
-    : snippets::op::MemoryAccess({x}, 1, type == Type::WithCompensations ? 2 : 1), m_type(type), m_src_type(src_type) {
+                                    std::vector<size_t> layout_input, const size_t blk_size_k, const size_t blk_size_n)
+    : snippets::op::MemoryAccess({x}, 1, type == Type::WithCompensations ? 2 : 1),
+      m_type(type), m_src_type(src_type) {
     set_output_size(type == Type::WithCompensations ? 2 : 1);
     set_input_port_descriptor(desc_in0, 0);
     set_output_port_descriptor(desc_out0, 0);
     if (is_with_compensations()) {
         set_output_port_descriptor(desc_out1, 1);
     }
+    compute_block_size_values(blk_size_k, blk_size_n);
     custom_constructor_validate_and_infer_types(std::move(layout_input));
 }
 
@@ -75,14 +81,19 @@ void intel_cpu::BrgemmCopyB::validate(const ov::PartialShape& pshape, const ov::
     const auto shape = pshape.get_shape();
     const auto N = *shape.rbegin();
     const auto K = *(shape.rbegin() + 1);
-    const auto N_blk = element_type == element::bf16 ? 32 : 64;
     const auto brgemmVNNIFactor = 4 / m_src_type.size();
 
     set_output_type(0, element_type, ov::PartialShape{ov::Dimension(rnd_up(K, brgemmVNNIFactor)),
-                                                      ov::Dimension(rnd_up(N, N_blk))});
+                                                      ov::Dimension(rnd_up(N, m_N_blk))});
     if (is_with_compensations()) {
-        set_output_type(1, ov::element::f32, ov::PartialShape{ov::Dimension(rnd_up(N, N_blk))});
+        set_output_type(1, ov::element::f32, ov::PartialShape{ov::Dimension(rnd_up(N, m_N_blk))});
     }
+}
+
+void intel_cpu::BrgemmCopyB::compute_block_size_values(const size_t blk_size_k, const size_t blk_size_n) {
+    const auto input_shape = snippets::utils::get_port_planar_shape(input(0)).get_shape();
+    m_K_blk = blk_size_k != 0 ? blk_size_k : *(input_shape.rbegin() + 1);
+    m_N_blk = blk_size_n != 0 ? blk_size_n : *input_shape.rbegin();
 }
 
 std::shared_ptr<Node> intel_cpu::BrgemmCopyB::clone_with_new_inputs(const OutputVector& new_args) const {
@@ -92,7 +103,8 @@ std::shared_ptr<Node> intel_cpu::BrgemmCopyB::clone_with_new_inputs(const Output
                                          get_input_port_descriptor(0),
                                          get_output_port_descriptor(0),
                                          is_with_compensations() ? get_output_port_descriptor(1) : PortDescriptor{},
-                                         snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(input(0))->get_layout());
+                                         snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(input(0))->get_layout(),
+                                         m_K_blk, m_N_blk);
 }
 
 size_t intel_cpu::BrgemmCopyB::get_offset_compensations() const {
