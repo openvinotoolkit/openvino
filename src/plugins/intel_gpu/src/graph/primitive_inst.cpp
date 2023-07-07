@@ -800,7 +800,8 @@ primitive_inst::primitive_inst(network& network)
     , _outputs({memory::ptr()})
     , _reordered_weights_cache(network.get_weights_cache_capacity())
     , _output_changed(false)
-    , _mem_allocated(false) {}
+    , _mem_allocated(false)
+    , _type(nullptr) {}
 
 primitive_inst::primitive_inst(network& network, program_node const& node, bool allocate_memory)
     : _network(network)
@@ -973,7 +974,7 @@ event::ptr primitive_inst::update_weights() {
         _impl_params->weights_layout = optional_layout(original_layout);
     } else {
         auto expected_layout = reorder_kernel_params->get_output_layout();
-        // Set original patrial shape, because it may be lost during kernel_selector::weights_tensor -> layout conversion
+        // Set original partial shape, because it may be lost during kernel_selector::weights_tensor -> layout conversion
         expected_layout.set_partial_shape(original_layout.get_partial_shape());
         _impl_params->weights_layout = optional_layout(expected_layout);
 
