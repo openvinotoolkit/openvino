@@ -4,10 +4,10 @@
 
 #include <memory>
 
-#include "dev/make_tensor.hpp"
 #include "ie_ngraph_utils.hpp"
 #include "ie_remote_context.hpp"
 #include "openvino/runtime/iremote_context.hpp"
+#include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 
 namespace ov {

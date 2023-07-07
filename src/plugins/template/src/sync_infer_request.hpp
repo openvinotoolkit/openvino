@@ -41,7 +41,8 @@ public:
     void infer_postprocess();
     void cancel();
 
-    void set_tensors_impl(const ov::Output<const ov::Node> port, const std::vector<ov::Tensor>& tensors) override;
+    void set_tensors_impl(const ov::Output<const ov::Node> port,
+                          const std::vector<ov::SoPtr<ov::ITensor>>& tensors) override;
 
 private:
     std::shared_ptr<const CompiledModel> get_template_model() const;

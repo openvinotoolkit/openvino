@@ -81,11 +81,14 @@ std::string VariableState::get_name() const {
 }
 
 Tensor VariableState::get_state() const {
-    OV_VARIABLE_CALL_STATEMENT(return _impl->get_state());
+    OV_VARIABLE_CALL_STATEMENT({
+        auto tensor = _impl->get_state();
+        return ov::Tensor{tensor._ptr, tensor._so};
+    });
 }
 
 void VariableState::set_state(const Tensor& state) {
-    OV_VARIABLE_CALL_STATEMENT(_impl->set_state(state));
+    OV_VARIABLE_CALL_STATEMENT(_impl->set_state(ov::SoPtr<ov::ITensor>{state._impl, state._so}));
 }
 
 }  // namespace ov

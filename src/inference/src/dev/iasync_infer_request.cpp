@@ -206,23 +206,23 @@ std::vector<ov::ProfilingInfo> ov::IAsyncInferRequest::get_profiling_info() cons
     return m_sync_request->get_profiling_info();
 }
 
-ov::Tensor ov::IAsyncInferRequest::get_tensor(const ov::Output<const ov::Node>& port) const {
+ov::SoPtr<ov::ITensor> ov::IAsyncInferRequest::get_tensor(const ov::Output<const ov::Node>& port) const {
     check_state();
     return m_sync_request->get_tensor(port);
 }
 
-void ov::IAsyncInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const ov::Tensor& tensor) {
+void ov::IAsyncInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) {
     check_state();
     return m_sync_request->set_tensor(port, tensor);
 }
 
-std::vector<ov::Tensor> ov::IAsyncInferRequest::get_tensors(const ov::Output<const ov::Node>& port) const {
+std::vector<ov::SoPtr<ov::ITensor>> ov::IAsyncInferRequest::get_tensors(const ov::Output<const ov::Node>& port) const {
     check_state();
     return m_sync_request->get_tensors(port);
 }
 
 void ov::IAsyncInferRequest::set_tensors(const ov::Output<const ov::Node>& port,
-                                         const std::vector<ov::Tensor>& tensors) {
+                                         const std::vector<ov::SoPtr<ov::ITensor>>& tensors) {
     check_state();
     return m_sync_request->set_tensors(port, tensors);
 }

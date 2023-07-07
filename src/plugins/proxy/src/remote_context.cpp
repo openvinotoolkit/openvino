@@ -8,6 +8,7 @@
 
 #include "openvino/proxy/plugin.hpp"
 #include "openvino/runtime/iremote_context.hpp"
+#include "openvino/runtime/so_ptr.hpp"
 #include "remote_tensor.hpp"
 
 ov::proxy::RemoteContext::RemoteContext(ov::SoPtr<ov::IRemoteContext>&& ctx,
@@ -32,18 +33,21 @@ const ov::AnyMap& ov::proxy::RemoteContext::get_property() const {
     return m_context->get_property();
 }
 
-ov::Tensor ov::proxy::RemoteContext::wrap_tensor(const ov::RemoteTensor& tensor) {
-    return ov::Tensor(std::make_shared<ov::proxy::RemoteTensor>(tensor._impl, m_tensor_name), {});
+ov::SoPtr<ov::ITensor> ov::proxy::RemoteContext::wrap_tensor(const ov::SoPtr<ov::ITensor>& tensor) {
+    auto proxy_tensor = std::make_shared<ov::proxy::RemoteTensor>(tensor, m_tensor_name);
+    return ov::SoPtr<ov::ITensor>(std::dynamic_pointer_cast<ov::ITensor>(proxy_tensor), nullptr);
 }
 
-std::shared_ptr<ov::IRemoteTensor> ov::proxy::RemoteContext::create_tensor(const ov::element::Type& type,
-                                                                           const ov::Shape& shape,
-                                                                           const ov::AnyMap& params) {
-    return std::make_shared<ov::proxy::RemoteTensor>(m_context->create_tensor(type, shape, params), m_tensor_name);
+ov::SoPtr<ov::IRemoteTensor> ov::proxy::RemoteContext::create_tensor(const ov::element::Type& type,
+                                                                     const ov::Shape& shape,
+                                                                     const ov::AnyMap& params) {
+    auto proxy_tensor =
+        std::make_shared<ov::proxy::RemoteTensor>(m_context->create_tensor(type, shape, params), m_tensor_name);
+    return ov::SoPtr<ov::IRemoteTensor>(std::dynamic_pointer_cast<ov::IRemoteTensor>(proxy_tensor), nullptr);
 }
 
-std::shared_ptr<ov::ITensor> ov::proxy::RemoteContext::create_host_tensor(const ov::element::Type type,
-                                                                          const ov::Shape& shape) {
+ov::SoPtr<ov::ITensor> ov::proxy::RemoteContext::create_host_tensor(const ov::element::Type type,
+                                                                    const ov::Shape& shape) {
     return m_context->create_host_tensor(type, shape);
 }
 

@@ -17,11 +17,6 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/allocator.hpp"
 
-namespace InferenceEngine {
-class IAsyncInferRequestWrapper;
-class IVariableStateWrapper;
-}  // namespace InferenceEngine
-
 namespace ov {
 
 class Core;
@@ -30,19 +25,20 @@ class InferRequest;
 class RemoteContext;
 class VariableState;
 class ISyncInferRequest;
-class IInferRequestInternalWrapper;
-class IVariableStateInternalWrapper;
 class ITensor;
 class RemoteTensor;
 
-namespace proxy {
-class RemoteContext;
-}
+class Tensor;
+
+namespace util {
+ov::Tensor make_tensor(const std::shared_ptr<ov::ITensor>& tensor, const std::shared_ptr<void>& so);
+void get_tensor_impl(const ov::Tensor& tensor, std::shared_ptr<ov::ITensor>& tensor_impl, std::shared_ptr<void>& so);
+}  // namespace util
 
 namespace op {
 namespace util {
 class VariableValue;
-}
+}  // namespace util
 }  // namespace op
 
 /**
@@ -70,12 +66,12 @@ protected:
     friend class ov::RemoteContext;
     friend class ov::VariableState;
     friend class ov::ISyncInferRequest;
-    friend class ov::IInferRequestInternalWrapper;
-    friend class ov::IVariableStateInternalWrapper;
-    friend class ov::proxy::RemoteContext;
-    friend class InferenceEngine::IAsyncInferRequestWrapper;
-    friend class InferenceEngine::IVariableStateWrapper;
     friend class ov::op::util::VariableValue;
+    friend ov::Tensor ov::util::make_tensor(const std::shared_ptr<ov::ITensor>& tensor,
+                                            const std::shared_ptr<void>& so);
+    friend void ov::util::get_tensor_impl(const ov::Tensor& tensor,
+                                          std::shared_ptr<ov::ITensor>& tensor_impl,
+                                          std::shared_ptr<void>& so);
 
 public:
     /// @brief Default constructor

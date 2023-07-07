@@ -13,7 +13,6 @@
 #include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include "cpp_interfaces/interface/ie_ivariable_state_internal.hpp"
-#include "dev/make_tensor.hpp"
 #include "icompiled_model_wrapper.hpp"
 #include "ie_blob.h"
 #include "ie_common.h"
@@ -34,6 +33,7 @@
 #include "openvino/runtime/iremote_context.hpp"
 #include "openvino/runtime/itensor.hpp"
 #include "openvino/runtime/ivariable_state.hpp"
+#include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/profiling_info.hpp"
 #include "openvino/runtime/remote_context.hpp"
 #include "openvino/runtime/so_ptr.hpp"
@@ -214,11 +214,11 @@ public:
     }
 
     void SetState(const InferenceEngine::Blob::Ptr& newState) override {
-        m_state->set_state(ov::Tensor(ov::make_tensor(newState), {}));
+        m_state->set_state(ov::make_tensor(newState));
     }
 
     InferenceEngine::Blob::CPtr GetState() const override {
-        return tensor_to_blob(m_state->get_state()._impl);
+        return tensor_to_blob(m_state->get_state());
     }
 };
 
@@ -512,7 +512,7 @@ public:
 
     void SetBlob(const std::string& name, const InferenceEngine::Blob::Ptr& data) override {
         try {
-            m_request->set_tensor(find_port(name), ov::Tensor{ov::make_tensor(data), {}});
+            m_request->set_tensor(find_port(name), ov::make_tensor(data));
         } catch (const ov::Exception& ex) {
             const std::string what = ex.what();
             if (what.find("Failed to set tensor") != std::string::npos) {
@@ -524,9 +524,9 @@ public:
 
     void SetBlobs(const std::string& name, const std::vector<InferenceEngine::Blob::Ptr>& blobs) override {
         try {
-            std::vector<ov::Tensor> tensors;
+            std::vector<ov::SoPtr<ov::ITensor>> tensors;
             for (const auto& blob : blobs) {
-                tensors.emplace_back(ov::Tensor{ov::make_tensor(blob), {}});
+                tensors.emplace_back(ov::make_tensor(blob));
             }
             m_request->set_tensors(find_port(name), tensors);
         } catch (const ov::Exception& ex) {
@@ -535,14 +535,14 @@ public:
     }
 
     InferenceEngine::Blob::Ptr GetBlob(const std::string& name) override {
-        return tensor_to_blob(m_request->get_tensor(find_port(name))._impl);
+        return tensor_to_blob(m_request->get_tensor(find_port(name)));
     }
 
     InferenceEngine::BatchedBlob::Ptr GetBlobs(const std::string& name) override {
         auto tensors = m_request->get_tensors(find_port(name));
         std::vector<InferenceEngine::Blob::Ptr> blobs;
         for (const auto& tensor : tensors) {
-            blobs.emplace_back(tensor_to_blob(tensor._impl));
+            blobs.emplace_back(tensor_to_blob(tensor));
         }
         return std::make_shared<InferenceEngine::BatchedBlob>(blobs);
     }
@@ -601,7 +601,7 @@ namespace InferenceEngine {
 class IVariableStateWrapper : public ov::IVariableState {
 private:
     std::shared_ptr<InferenceEngine::IVariableStateInternal> m_state;
-    mutable ov::Tensor m_converted_state;
+    mutable ov::SoPtr<ov::ITensor> m_converted_state;
 
 public:
     explicit IVariableStateWrapper(const std::shared_ptr<InferenceEngine::IVariableStateInternal>& state)
@@ -612,13 +612,13 @@ public:
         m_state->Reset();
     }
 
-    void set_state(const ov::Tensor& state) override {
-        m_state->SetState(ov::tensor_to_blob(state._impl));
+    void set_state(const ov::SoPtr<ov::ITensor>& state) override {
+        m_state->SetState(ov::tensor_to_blob(state));
     }
 
-    const ov::Tensor& get_state() const override {
-        m_converted_state =
-            ov::Tensor(ov::make_tensor(std::const_pointer_cast<InferenceEngine::Blob>(m_state->GetState())), {});
+    const ov::SoPtr<ov::ITensor>& get_state() const override {
+        m_converted_state = ov::make_tensor(std::const_pointer_cast<InferenceEngine::Blob>(m_state->GetState()));
+
         return m_converted_state;
     }
 };
@@ -711,7 +711,7 @@ public:
         return infos;
     }
 
-    ov::Tensor get_tensor(const ov::Output<const ov::Node>& port) const override {
+    ov::SoPtr<ov::ITensor> get_tensor(const ov::Output<const ov::Node>& port) const override {
         const auto& name = get_legacy_name_from_port(port);
         OPENVINO_ASSERT(!m_request->GetBlobs(name),
                         "get_tensor shall not be used together with batched "
@@ -719,27 +719,33 @@ public:
                         name,
                         "'");
         auto blob = m_request->GetBlob(name);
-        ov::Tensor tensor = {ov::make_tensor(blob), {m_request->getPointerToSo()}};
+        ov::SoPtr<ov::ITensor> tensor = ov::make_tensor(blob);
+        if (!tensor._so)
+            tensor._so = m_request->getPointerToSo();
         return tensor;
     }
-    void set_tensor(const ov::Output<const ov::Node>& port, const ov::Tensor& tensor) override {
-        m_request->SetBlob(get_legacy_name_from_port(port), ov::tensor_to_blob(tensor._impl, m_unwrap_tensor));
+    void set_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) override {
+        m_request->SetBlob(get_legacy_name_from_port(port), ov::tensor_to_blob(tensor, m_unwrap_tensor));
     }
 
-    std::vector<ov::Tensor> get_tensors(const ov::Output<const ov::Node>& port) const override {
+    std::vector<ov::SoPtr<ov::ITensor>> get_tensors(const ov::Output<const ov::Node>& port) const override {
         auto blobs = m_request->GetBlobs(get_legacy_name_from_port(port));
-        std::vector<ov::Tensor> ret;
+        std::vector<ov::SoPtr<ov::ITensor>> ret;
         if (!blobs)
             return ret;
         for (size_t i = 0; i < blobs->size(); i++) {
-            ret.emplace_back(ov::Tensor{ov::make_tensor(blobs->getBlob(i)), {m_request->getPointerToSo()}});
+            ov::SoPtr<ov::ITensor> tensor = ov::make_tensor(blobs->getBlob(i));
+            if (!tensor._so)
+                tensor._so = m_request->getPointerToSo();
+            ret.emplace_back(tensor);
         }
         return ret;
     }
-    void set_tensors(const ov::Output<const ov::Node>& port, const std::vector<ov::Tensor>& tensors) override {
+    void set_tensors(const ov::Output<const ov::Node>& port,
+                     const std::vector<ov::SoPtr<ov::ITensor>>& tensors) override {
         std::vector<InferenceEngine::Blob::Ptr> blobs;
         for (const auto& tensor : tensors) {
-            blobs.emplace_back(ov::tensor_to_blob(tensor._impl, m_unwrap_tensor));
+            blobs.emplace_back(ov::tensor_to_blob(tensor, m_unwrap_tensor));
         }
         m_request->SetBlobs(get_legacy_name_from_port(port), blobs);
     }
@@ -825,18 +831,19 @@ public:
         return m_params;
     }
 
-    std::shared_ptr<ov::IRemoteTensor> create_tensor(const ov::element::Type& type,
-                                                     const ov::Shape& shape,
-                                                     const ov::AnyMap& params = {}) override {
+    ov::SoPtr<ov::IRemoteTensor> create_tensor(const ov::element::Type& type,
+                                               const ov::Shape& shape,
+                                               const ov::AnyMap& params = {}) override {
         InferenceEngine::TensorDesc desc(InferenceEngine::details::convertPrecision(type),
                                          shape,
                                          InferenceEngine::TensorDesc::getLayoutByDims(shape));
         auto blob = m_context->CreateBlob(desc, params);
         blob->allocate();
-        return std::dynamic_pointer_cast<ov::IRemoteTensor>(ov::make_tensor(blob));
+        auto tensor = ov::make_tensor(blob);
+        return {std::dynamic_pointer_cast<ov::IRemoteTensor>(tensor._ptr), tensor._so};
     }
 
-    std::shared_ptr<ov::ITensor> create_host_tensor(const ov::element::Type type, const ov::Shape& shape) override {
+    ov::SoPtr<ov::ITensor> create_host_tensor(const ov::element::Type type, const ov::Shape& shape) override {
         InferenceEngine::TensorDesc desc(InferenceEngine::details::convertPrecision(type),
                                          shape,
                                          InferenceEngine::TensorDesc::getLayoutByDims(shape));

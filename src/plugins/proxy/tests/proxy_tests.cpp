@@ -18,6 +18,7 @@
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/iremote_context.hpp"
 #include "openvino/runtime/iremote_tensor.hpp"
+#include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
@@ -212,7 +213,7 @@ public:
         m_model = compiled_model->get_model();
         // Allocate input/output tensors
         for (const auto& input : get_inputs()) {
-            allocate_tensor(input, [this, input, compiled_model](ov::Tensor& tensor) {
+            allocate_tensor(input, [this, input, compiled_model](ov::SoPtr<ov::ITensor>& tensor) {
                 // Can add a check to avoid double work in case of shared tensors
                 allocate_tensor_impl(tensor,
                                      input.get_element_type(),
@@ -222,7 +223,7 @@ public:
             });
         }
         for (const auto& output : get_outputs()) {
-            allocate_tensor(output, [this, output, compiled_model](ov::Tensor& tensor) {
+            allocate_tensor(output, [this, output, compiled_model](ov::SoPtr<ov::ITensor>& tensor) {
                 // Can add a check to avoid double work in case of shared tensors
                 allocate_tensor_impl(tensor,
                                      output.get_element_type(),
@@ -237,11 +238,11 @@ public:
     void infer() override {
         ov::TensorVector input_tensors;
         for (const auto& input : get_inputs()) {
-            input_tensors.emplace_back(get_tensor(input));
+            input_tensors.emplace_back(ov::make_tensor(get_tensor(input)));
         }
         ov::TensorVector output_tensors;
         for (const auto& output : get_outputs()) {
-            output_tensors.emplace_back(get_tensor(output));
+            output_tensors.emplace_back(ov::make_tensor(get_tensor(output)));
         }
         m_model->evaluate(output_tensors, input_tensors);
     }
@@ -253,19 +254,19 @@ public:
     }
 
 private:
-    void allocate_tensor_impl(ov::Tensor& tensor,
+    void allocate_tensor_impl(ov::SoPtr<ov::ITensor>& tensor,
                               const ov::element::Type& element_type,
                               const ov::Shape& shape,
                               bool has_context,
                               ov::SoPtr<ov::IRemoteContext> context) {
-        if (!tensor || tensor.get_element_type() != element_type) {
+        if (!tensor || tensor->get_element_type() != element_type) {
             if (has_context) {
                 tensor = context->create_tensor(element_type, shape, {});
             } else {
-                tensor = ov::Tensor(element_type, shape);
+                tensor = ov::SoPtr<ov::ITensor>(ov::make_tensor(element_type, shape), nullptr);
             }
         } else {
-            tensor.set_shape(shape);
+            tensor->set_shape(shape);
         }
     }
     std::shared_ptr<const ov::Model> m_model;
@@ -318,11 +319,11 @@ public:
         return m_property;
     }
 
-    std::shared_ptr<ov::IRemoteTensor> create_tensor(const ov::element::Type& type,
-                                                     const ov::Shape& shape,
-                                                     const ov::AnyMap& params = {}) override {
+    ov::SoPtr<ov::IRemoteTensor> create_tensor(const ov::element::Type& type,
+                                               const ov::Shape& shape,
+                                               const ov::AnyMap& params = {}) override {
         auto remote_tensor = std::make_shared<MockRemoteTensor>(m_dev_name, m_property);
-        return remote_tensor;
+        return {remote_tensor, nullptr};
     }
 };
 
@@ -340,11 +341,11 @@ public:
         return m_property;
     }
 
-    std::shared_ptr<ov::IRemoteTensor> create_tensor(const ov::element::Type& type,
-                                                     const ov::Shape& shape,
-                                                     const ov::AnyMap& params = {}) override {
+    ov::SoPtr<ov::IRemoteTensor> create_tensor(const ov::element::Type& type,
+                                               const ov::Shape& shape,
+                                               const ov::AnyMap& params = {}) override {
         auto remote_tensor = std::make_shared<MockRemoteTensor>(m_dev_name, m_property);
-        return remote_tensor;
+        return {remote_tensor, nullptr};
     }
 };
 
@@ -385,12 +386,12 @@ public:
 
     ov::SoPtr<ov::IRemoteContext> create_context(const ov::AnyMap& remote_properties) const override {
         if (remote_properties.find("CUSTOM_CTX") == remote_properties.end())
-            return std::make_shared<MockRemoteContext>(get_device_name());
-        return std::make_shared<MockCustomRemoteContext>(get_device_name());
+            return {std::make_shared<MockRemoteContext>(get_device_name()), nullptr};
+        return {std::make_shared<MockCustomRemoteContext>(get_device_name()), nullptr};
     }
 
     ov::SoPtr<ov::IRemoteContext> get_default_context(const ov::AnyMap& remote_properties) const override {
-        return std::make_shared<MockRemoteContext>(get_device_name());
+        return {std::make_shared<MockRemoteContext>(get_device_name()), nullptr};
     }
 
     std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model, const ov::AnyMap& properties) const override {

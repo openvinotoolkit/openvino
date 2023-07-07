@@ -24,13 +24,13 @@ public:
 
     const ov::AnyMap& get_property() const override;
 
-    std::shared_ptr<ov::IRemoteTensor> create_tensor(const ov::element::Type& type,
-                                                     const ov::Shape& shape,
-                                                     const ov::AnyMap& params = {}) override;
+    ov::SoPtr<ov::IRemoteTensor> create_tensor(const ov::element::Type& type,
+                                               const ov::Shape& shape,
+                                               const ov::AnyMap& params = {}) override;
 
-    std::shared_ptr<ov::ITensor> create_host_tensor(const ov::element::Type type, const ov::Shape& shape) override;
+    ov::SoPtr<ov::ITensor> create_host_tensor(const ov::element::Type type, const ov::Shape& shape) override;
 
-    ov::Tensor wrap_tensor(const ov::RemoteTensor& tensor);
+    ov::SoPtr<ov::ITensor> wrap_tensor(const ov::SoPtr<ov::ITensor>& tensor);
 
     static const ov::SoPtr<ov::IRemoteContext>& get_hardware_context(const ov::SoPtr<ov::IRemoteContext>& context);
 

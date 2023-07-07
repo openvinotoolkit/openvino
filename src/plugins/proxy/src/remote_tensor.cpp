@@ -9,19 +9,19 @@
 #include "openvino/proxy/plugin.hpp"
 
 namespace {
-std::shared_ptr<ov::IRemoteTensor> cast_tensor(const std::shared_ptr<ov::ITensor>& tensor) {
-    auto rem_tensor = std::dynamic_pointer_cast<ov::IRemoteTensor>(tensor);
+std::shared_ptr<ov::IRemoteTensor> cast_tensor(const ov::SoPtr<ov::ITensor>& tensor) {
+    auto rem_tensor = std::dynamic_pointer_cast<ov::IRemoteTensor>(tensor._ptr);
     OPENVINO_ASSERT(rem_tensor);
     return rem_tensor;
 }
 }  // namespace
 
-ov::proxy::RemoteTensor::RemoteTensor(const std::shared_ptr<ov::ITensor>& tensor, const std::string& dev_name)
+ov::proxy::RemoteTensor::RemoteTensor(const ov::SoPtr<ov::ITensor>& tensor, const std::string& dev_name)
     : m_name(dev_name),
-      m_tensor(std::dynamic_pointer_cast<ov::IRemoteTensor>(tensor)) {
-    OPENVINO_ASSERT(m_tensor);
+      m_tensor(tensor) {
+    OPENVINO_ASSERT(std::dynamic_pointer_cast<ov::IRemoteTensor>(m_tensor._ptr));
 }
-ov::proxy::RemoteTensor::RemoteTensor(std::shared_ptr<ov::IRemoteTensor>&& tensor, const std::string& dev_name)
+ov::proxy::RemoteTensor::RemoteTensor(ov::SoPtr<ov::ITensor>&& tensor, const std::string& dev_name)
     : m_name(dev_name),
       m_tensor(std::move(tensor)) {
     OPENVINO_ASSERT(m_tensor);
@@ -59,13 +59,12 @@ const ov::Strides& ov::proxy::RemoteTensor::get_strides() const {
     return m_tensor->get_strides();
 }
 
-const std::shared_ptr<ov::ITensor>& ov::proxy::RemoteTensor::get_hardware_tensor(
-    const std::shared_ptr<ov::ITensor>& tensor) {
-    if (auto remote_tensor = std::dynamic_pointer_cast<ov::proxy::RemoteTensor>(tensor))
+const ov::SoPtr<ov::ITensor>& ov::proxy::RemoteTensor::get_hardware_tensor(const ov::SoPtr<ov::ITensor>& tensor) {
+    if (auto remote_tensor = std::dynamic_pointer_cast<ov::proxy::RemoteTensor>(tensor._ptr))
         return remote_tensor->m_tensor;
     return tensor;
 }
 
-const std::shared_ptr<ov::ITensor>& ov::proxy::get_hardware_tensor(const std::shared_ptr<ov::ITensor>& tensor) {
+const ov::SoPtr<ov::ITensor>& ov::proxy::get_hardware_tensor(const ov::SoPtr<ov::ITensor>& tensor) {
     return ov::proxy::RemoteTensor::get_hardware_tensor(tensor);
 }
