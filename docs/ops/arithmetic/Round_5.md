@@ -17,11 +17,11 @@
 .. code-block:: xml
    :force:
 
-  Input = [-4.5, -1.9, -1.5, 0.5, 0.9, 1.5, 2.3, 2.5]
-
-  round(Input, mode = `half_to_even`) = [-4.0, -2.0, -2.0, 0.0, 1.0, 2.0, 2.0, 2.0]
-
-  round(Input, mode = `half_away_from_zero`) = [-5.0, -2.0, -2.0, 1.0, 1.0, 2.0, 2.0, 3.0]
+   Input = [-4.5, -1.9, -1.5, 0.5, 0.9, 1.5, 2.3, 2.5]
+ 
+   round(Input, mode = `half_to_even`) = [-4.0, -2.0, -2.0, 0.0, 1.0, 2.0, 2.0, 2.0]
+ 
+   round(Input, mode = `half_away_from_zero`) = [-5.0, -2.0, -2.0, 1.0, 1.0, 2.0, 2.0, 3.0]
 
 **Attributes**:
 
