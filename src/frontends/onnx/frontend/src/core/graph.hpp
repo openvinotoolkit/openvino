@@ -16,6 +16,7 @@
 #include "ngraph/op/parameter.hpp"
 #include "onnx_import/core/operator_set.hpp"
 #include "openvino/frontend/extension/holder.hpp"
+#include "ops_bridge.hpp"
 
 namespace ngraph {
 namespace onnx_import {
@@ -77,6 +78,7 @@ protected:
 private:
     std::vector<Node> m_nodes;
     std::string m_model_dir;
+    OperatorsBridge m_ops_bridge;
 };
 
 /// \brief      Representation of ONNX subgraph. It is used for example by ONNX Loop op.

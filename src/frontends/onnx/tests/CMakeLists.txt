@@ -74,6 +74,8 @@ set(MULTI_TEST_SRC
     onnx_import_with_editor.in.cpp)
 set(SRC
     conversion.cpp
+    convert_tests.cpp
+    convert_partially_tests.cpp
     library_extension.cpp
     load_from.cpp
     onnx_editor.cpp

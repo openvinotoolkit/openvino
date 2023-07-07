@@ -29,6 +29,7 @@
 #include "openvino/core/so_extension.hpp"
 #include "openvino/frontend/extension/telemetry.hpp"
 #include "ops_bridge.hpp"
+#include "utils/common.hpp"
 
 using namespace ov;
 using namespace ov::frontend::onnx;
@@ -83,7 +84,7 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
     return nullptr;
 }
 
-std::shared_ptr<ngraph::Function> FrontEnd::convert(const InputModel::Ptr& model) const {
+std::shared_ptr<ngraph::Function> FrontEnd::convert_partially(const InputModel::Ptr& model) const {
     auto model_onnx = std::dynamic_pointer_cast<InputModel>(model);
     NGRAPH_CHECK(model_onnx != nullptr, "Invalid input model");
 
@@ -100,6 +101,15 @@ std::shared_ptr<ngraph::Function> FrontEnd::convert(const InputModel::Ptr& model
     }
 
     return model_onnx->convert();
+}
+
+std::shared_ptr<ngraph::Function> FrontEnd::convert(const InputModel::Ptr& model) const {
+    const auto partially_converted = convert_partially(model);
+
+    const auto error_message = ngraph::onnx_import::common::collect_translation_exceptions(partially_converted);
+    NGRAPH_CHECK(error_message.empty(), error_message);
+
+    return partially_converted;
 }
 
 void FrontEnd::convert(const std::shared_ptr<ov::Model>& partially_converted) const {

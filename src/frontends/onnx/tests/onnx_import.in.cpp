@@ -280,7 +280,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_custom_op_register_unregister) {
         FAIL() << "Expected ngraph::ngraph_error";
     } catch (ngraph::ngraph_error const& err) {
         std::string what{err.what()};
-        EXPECT_NE(what.find("Check 'unknown_operators.empty()' failed"), std::string::npos);
+        EXPECT_NE(what.find("OpenVINO does not support the following ONNX operations:"), std::string::npos);
     } catch (...) {
         FAIL() << "Expected ngraph::ngraph_error";
     }

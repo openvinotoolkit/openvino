@@ -38,13 +38,16 @@ class ONNXFrameworkNode : public ov::op::util::FrameworkNode {
 public:
     OPENVINO_RTTI("ONNXFrameworkNode", "0");
 
-    ONNXFrameworkNode(const onnx_import::Node& node)
-        : ov::op::util::FrameworkNode(node.get_ng_inputs(), node.get_outputs_size()),
-          m_node(node) {}
+    ONNXFrameworkNode(const onnx_import::Node& node) : ONNXFrameworkNode(node, node.get_ng_inputs()) {}
 
     ONNXFrameworkNode(const onnx_import::Node& node, const OutputVector& inputs)
         : ov::op::util::FrameworkNode(inputs, node.get_outputs_size()),
-          m_node(node) {}
+          m_node(node) {
+        ov::op::util::FrameworkNodeAttrs attrs;
+        attrs.set_type_name(node.op_type());
+        attrs.set_opset_name(node.domain());
+        set_attrs(attrs);
+    }
 
     OutputVector get_ng_nodes(const std::shared_ptr<onnx_import::Graph>& graph) const {
         OutputVector ng_nodes{graph->make_ng_nodes(m_node)};
@@ -92,6 +95,28 @@ public:
 
 private:
     std::vector<std::shared_ptr<Function>> m_functions;
+};
+
+class NotSupportedONNXNode : public ONNXFrameworkNode {
+public:
+    OPENVINO_RTTI("NotSupportedONNXNode", "0");
+
+    NotSupportedONNXNode(const onnx_import::Node& node, const std::string& additional_error_message)
+        : ONNXFrameworkNode(node),
+          m_additional_error_message{additional_error_message} {}
+
+    NotSupportedONNXNode(const onnx_import::Node& node,
+                         const OutputVector& inputs,
+                         const std::string& additional_error_message)
+        : ONNXFrameworkNode(node, inputs),
+          m_additional_error_message{additional_error_message} {}
+
+    std::string additional_error_message() const {
+        return m_additional_error_message;
+    }
+
+private:
+    const std::string m_additional_error_message;
 };
 
 }  // namespace frontend
