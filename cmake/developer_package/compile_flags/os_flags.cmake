@@ -382,7 +382,7 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     ie_add_compiler_flags(/wd4275)
 
     # Enable __FILE__ trim
-    ie_add_compiler_flags(/d1trimfile:${OV_NATIVE_PROJECT_ROOT_DIR}\\)
+    add_compile_options(/d1trimfile:${OV_NATIVE_PROJECT_ROOT_DIR}\\)
     set(TRIMMING_FILE_MACRO_SUPPORTED TRUE)
 
     #

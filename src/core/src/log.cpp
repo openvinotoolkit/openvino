@@ -61,6 +61,7 @@ LogHelper::~LogHelper() {
 #endif
 }
 
+NGRAPH_SUPPRESS_DEPRECATED_START
 const char* ngraph::trim_file_name(ConstString root, ConstString s) {
 #ifdef OV_PROJECT_ROOT_DIR_LENGTH
     return s.get_ptr(root.size());
@@ -68,3 +69,4 @@ const char* ngraph::trim_file_name(ConstString root, ConstString s) {
     return s.get_ptr(0);
 #endif
 }
+NGRAPH_SUPPRESS_DEPRECATED_END
