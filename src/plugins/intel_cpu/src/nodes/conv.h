@@ -97,7 +97,7 @@ private:
     void prepareParams() override;
     void execute(dnnl::stream strm) override;
     void executeDynamicImpl(dnnl::stream strm) override;
-    void addLegacyZeroPoints(dnnl::primitive_attr& attr);
+    // void addLegacyZeroPoints(dnnl::primitive_attr& attr);
     void addZeroPoints(dnnl::primitive_attr& attr);
     void setPostOps(dnnl::primitive_attr &attr, const VectorDims &dims, bool useLegacyPostOps, bool initWeights = false);
     void SetPostOpsAndZeroPoints(std::vector<dnnl::primitive_attr> &attrs);
@@ -110,7 +110,7 @@ private:
     MemoryPtr getOutputMemory() const;
     VectorDims makeInputDummyShape(const Shape& inpShape) const;
     VectorDims outputStaticShape() const;
-    void appendLegacyZeroPointsArgs();
+    // void appendLegacyZeroPointsArgs();
     void appendZeroPointsArgs();
 
     bool withBiases;
