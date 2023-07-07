@@ -6,6 +6,7 @@
 #include "snippets/three_inputs_eltwise.hpp"
 #include "subgraph_simple.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
+#include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 
 namespace ov {
 namespace test {
@@ -48,6 +49,10 @@ void ThreeInputsEltwise::SetUp() {
 
     auto f = ov::test::snippets::EltwiseThreeInputsFunction(inputDynamicShapes);
     function = f.getOriginal();
+    if (!configuration.count(InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE)) {
+        configuration.insert({InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE,
+                              InferenceEngine::PluginConfigInternalParams::IGNORE_CALLBACK});
+    }
 }
 
 TEST_P(ThreeInputsEltwise, CompareWithRefImpl) {

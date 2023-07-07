@@ -7,6 +7,7 @@
 #include "common_test_utils/common_utils.hpp"
 #include "subgraph_converts.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
+#include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 
 namespace ov {
 namespace test {
@@ -83,6 +84,10 @@ void CheckBroadcast::SetUp() {
         inputDynamicShapes[1],
         input_type,
         test_case_params.broadcast);
+    if (!configuration.count(InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE)) {
+        configuration.insert({InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE,
+                              InferenceEngine::PluginConfigInternalParams::IGNORE_CALLBACK});
+    }
 }
 
 TEST_P(CheckBroadcast, CompareWithRefImpl) {

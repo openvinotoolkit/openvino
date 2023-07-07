@@ -7,6 +7,7 @@
 #include "subgraph_simple.hpp"
 #include "ngraph_functions/builders.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
+#include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 
 namespace ov {
 namespace test {
@@ -45,6 +46,10 @@ void Add::SetUp() {
     auto f = ov::test::snippets::AddFunction(inputDynamicShapes);
     function = f.getOriginal();
     setInferenceType(type);
+    if (!configuration.count(InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE)) {
+        configuration.insert({InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE,
+                              InferenceEngine::PluginConfigInternalParams::IGNORE_CALLBACK});
+    }
 }
 
 std::string AddConst::getTestCaseName(testing::TestParamInfo<ov::test::snippets::AddConstParams> obj) {
@@ -78,6 +83,10 @@ void AddConst::SetUp() {
     auto f = ov::test::snippets::AddConstFunction({inputDynamicShapes}, constShape);
     function = f.getOriginal();
     setInferenceType(type);
+    if (!configuration.count(InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE)) {
+        configuration.insert({InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE,
+                              InferenceEngine::PluginConfigInternalParams::IGNORE_CALLBACK});
+    }
 }
 
 void AddRollConst::SetUp() {
@@ -89,6 +98,10 @@ void AddRollConst::SetUp() {
     auto f = ov::test::snippets::AddRollConstFunction({inputDynamicShapes}, constShape);
     function = f.getOriginal();
     setInferenceType(type);
+    if (!configuration.count(InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE)) {
+        configuration.insert({InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE,
+                              InferenceEngine::PluginConfigInternalParams::IGNORE_CALLBACK});
+    }
 }
 
 std::string AddPair::getTestCaseName(testing::TestParamInfo<ov::test::snippets::AddParamsPair> obj) {
@@ -125,6 +138,10 @@ void AddPair::SetUp() {
     auto f = ov::test::snippets::AddFunction(inputDynamicShapes);
     function = f.getOriginal();
     setInferenceType(type);
+    if (!configuration.count(InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE)) {
+        configuration.insert({InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE,
+                              InferenceEngine::PluginConfigInternalParams::IGNORE_CALLBACK});
+    }
 }
 
 TEST_P(Add, CompareWithRefImpl) {
