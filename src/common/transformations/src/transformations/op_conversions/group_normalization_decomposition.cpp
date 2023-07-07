@@ -45,26 +45,10 @@ std::shared_ptr<Node> create_group_norm_shape(NodeRegistry& reg,
     return reg.make<Concat>(new_shape, 0);
 }
 
-template <typename T>
-std::vector<T> get_monotonic_range(T start_value, T end_value, T step = T{1}) {
-    auto value_count = static_cast<std::size_t>(std::floor((end_value - start_value) / step));
-    std::vector<T> range(value_count);
-    // Calculate initial value (one step below starting value)
-    size_t n = start_value - step;
-    // Generate a vector of values by adding step to previous value
-    std::generate(std::begin(range), std::end(range), [&n, &step]() -> T {
-        return n += step;
-    });
-
-    return range;
-}
-
-std::shared_ptr<Node> get_monotonic_range_along_node_rank(NodeRegistry& reg,
-                                                          int64_t start,
-                                                          int64_t stop,
-                                                          int64_t step) {
-    const auto range_value = get_monotonic_range<int64_t>(start, stop, step);
-    return reg.add(Constant::create(element::i64, {range_value.size()}, range_value));
+std::shared_ptr<Node> get_range(NodeRegistry& reg, int64_t start, int64_t stop) {
+    std::vector<int64_t> range_values(stop - start);
+    std::iota(range_values.begin(), range_values.end(), start);
+    return reg.add(Constant::create(element::i64, {range_values.size()}, range_values));
 }
 }  // namespace
 
@@ -99,13 +83,13 @@ ov::pass::GroupNormalizationDecomposition::GroupNormalizationDecomposition() {
             data,
             create_group_norm_shape(reg, data_shape_node, num_groups, static_cast<size_t>(data_rank_size)),
             true);
-        const auto reduction_axes = get_monotonic_range_along_node_rank(reg, 1, data_rank_size + 1, 1);
+        const auto reduction_axes = get_range(reg, 1, data_rank_size + 1);
 
         auto mvn = reg.make<MVN>(data_reshaped, reduction_axes, true, eps, op::MVNEpsMode::INSIDE_SQRT);
         std::shared_ptr<Node> result = reg.make<Reshape>(mvn, data_shape_node, true);
 
         // Unsqueeze scale and bias to shape: [C, 1, 1, ... ]
-        const auto unsqueeze_axes = get_monotonic_range_along_node_rank(reg, 1, data_rank_size - 1, 1);
+        const auto unsqueeze_axes = get_range(reg, 1, data_rank_size - 1);
         result = reg.make<Multiply>(result, reg.make<Unsqueeze>(scale, unsqueeze_axes));
         result = reg.make<Add>(result, reg.make<Unsqueeze>(bias, unsqueeze_axes));
 
