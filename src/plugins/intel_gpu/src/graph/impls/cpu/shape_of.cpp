@@ -58,13 +58,15 @@ struct shape_of_impl : public typed_primitive_impl<shape_of> {
             OPENVINO_THROW("[GPU] Couldn't execute shape_of operation: unsupported output data type (", output_dt , ")");
         }
 
-        if (events.size() > 1) {
-            return stream.group_events(events);
-        } else if (events.size() == 1) {
-            return events[0];
-        } else {
-            return stream.create_user_event(true);
+        if (stream.get_queue_type() == QueueTypes::out_of_order) {
+            if (events.size() > 1) {
+                return stream.group_events(events);
+            } else if (events.size() == 1) {
+                return events[0];
+            }
         }
+
+        return stream.create_user_event(true);
     }
 
     void init_kernels(const kernels_cache& , const kernel_impl_params&) override {}
