@@ -51,6 +51,7 @@ As shown in the picture above, some plugin libraries may have OS-specific depend
 .. tab-set::
 
    .. tab-item:: Windows
+      :sync: windows
 
       +--------------+-------------------------+-------------------------------------------------------+
       |    Device    |       Dependency        |                      Location                         |
@@ -67,7 +68,8 @@ As shown in the picture above, some plugin libraries may have OS-specific depend
       |  Arm® CPU    |            —            |                          —                            |
       +--------------+-------------------------+-------------------------------------------------------+
 
-   .. tab-item:: Linux arm64 
+   .. tab-item:: Linux arm64
+      :sync: linux-arm-64
 
       +--------------+-------------------------+-------------------------------------------------------+
       |    Device    |       Dependency        |                      Location                         |
@@ -76,6 +78,7 @@ As shown in the picture above, some plugin libraries may have OS-specific depend
       +--------------+-------------------------+-------------------------------------------------------+
 
    .. tab-item:: Linux x86_64
+      :sync: linux-x86-64
 
       +--------------+-------------------------+-------------------------------------------------------+
       |    Device    |       Dependency        |                      Location                         |
@@ -88,8 +91,8 @@ As shown in the picture above, some plugin libraries may have OS-specific depend
       |     GNA      |      libgna.so          | ``./runtime/lib/intel64/libgna.so.3``                 |
       +--------------+-------------------------+-------------------------------------------------------+
 
-
-   .. tab-item:: macOS arm64 
+   .. tab-item:: macOS arm64
+      :sync: macos-arm-64
 
       +--------------+-------------------------+-------------------------------------------------------+
       |    Device    |       Dependency        |                      Location                         |
@@ -98,6 +101,7 @@ As shown in the picture above, some plugin libraries may have OS-specific depend
       +--------------+-------------------------+-------------------------------------------------------+
 
    .. tab-item:: macOS x86_64
+      :sync: macos-x86-64
 
       +--------------+-------------------------+-------------------------------------------------------+
       |    Device    |       Dependency        |                      Location                         |
