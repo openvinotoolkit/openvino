@@ -87,6 +87,7 @@
 
 'category: MO':
 - 'tools/mo/**/*'
+- 'tools/ovc/**/*'
 
 'category: ONNX FE':
 - 'src/frontends/onnx/**/*'

@@ -2,7 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <google/protobuf/stubs/logging.h>
+#include <google/protobuf/port_def.inc>
+#if PROTOBUF_VERSION >= 4022000  // protobuf 4.22
+#    define OV_PROTOBUF_ABSL_IS_USED
+#endif
+#include <google/protobuf/port_undef.inc>
+
+#ifndef OV_PROTOBUF_ABSL_IS_USED
+#    include <google/protobuf/stubs/logging.h>
+#endif
 
 #include <fstream>
 #include <input_model.hpp>
@@ -18,10 +26,9 @@
 
 #include "legacy_op_extension.hpp"
 #include "onnx_common/onnx_model_validator.hpp"
+#include "openvino/core/so_extension.hpp"
 #include "openvino/frontend/extension/telemetry.hpp"
 #include "ops_bridge.hpp"
-#include "so_extension.hpp"
-#include "transformations/resolve_names_collisions.hpp"
 
 using namespace ov;
 using namespace ov::frontend::onnx;
@@ -38,7 +45,9 @@ ONNX_FRONTEND_C_API void* get_front_end_data() {
     };
 #ifndef OPENVINO_DEBUG_ENABLE
     // disable protobuf logging
+#    ifndef OV_PROTOBUF_ABSL_IS_USED
     google::protobuf::SetLogHandler(nullptr);
+#    endif
 #endif
     return res;
 }
@@ -90,14 +99,11 @@ std::shared_ptr<ngraph::Function> FrontEnd::convert(const InputModel::Ptr& model
         return function;
     }
 
-    const auto& converted_model = model_onnx->convert();
-    normalize(converted_model);
-    return converted_model;
+    return model_onnx->convert();
 }
 
 void FrontEnd::convert(const std::shared_ptr<ov::Model>& partially_converted) const {
     ngraph::onnx_import::detail::convert_decoded_function(partially_converted);
-    normalize(partially_converted);
 }
 
 std::shared_ptr<ngraph::Function> FrontEnd::decode(const InputModel::Ptr& model) const {
@@ -182,10 +188,4 @@ void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
             m_extensions.conversions.push_back(ngraph::onnx_import::detail::get_legacy_conversion_extension());
         });
     }
-}
-
-void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
-    ov::pass::Manager manager;
-    manager.register_pass<pass::ResolveNameCollisions>();
-    manager.run_passes(model);
 }

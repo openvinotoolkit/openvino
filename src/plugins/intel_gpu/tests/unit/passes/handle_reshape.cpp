@@ -220,7 +220,8 @@ TEST(handle_reshape, reshape_input_reorder) {
     // converts tensor to default format with rank = reshape_out_rank
     // Likely in the future we'll update that reorder so it will use reshape_input_rank
     // After that expected in format will be bfzyx
-    ASSERT_EQ(reshape_layout_in.format, format::bfyx);
+    // [Updated] get_preferred_format() updated to use 'in_lay_rank' instead of 'out_lay_rank' for preferred input format
+    ASSERT_EQ(reshape_layout_in.format, format::bfzyx);
     ASSERT_EQ(reshape_layout_out.format, format::bfyx);
 
     ov::PartialShape expected_out_shape{-1, 16, 64, 64};

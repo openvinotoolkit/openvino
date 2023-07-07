@@ -6,19 +6,18 @@
 
 #include "input_model.hpp"
 #include "op_table.hpp"
+#include "openvino/core/so_extension.hpp"
 #include "openvino/frontend/pytorch/extension/conversion.hpp"
 #include "openvino/op/util/multi_subgraph_base.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/util/log.hpp"
 #include "pt_framework_node.hpp"
-#include "so_extension.hpp"
 #include "transformations/common_optimizations/push_constant_to_subgraph.hpp"
 #include "transformations/common_optimizations/remove_multi_subgraph_op_dangling_params.hpp"
 #include "transformations/common_optimizations/reverse_shape_and_type_infer.hpp"
 #include "transformations/control_flow/unroll_if.hpp"
 #include "transformations/low_precision/mark_dequantization_subgraph.hpp"
 #include "transformations/op_conversions/convert_convertlike.hpp"
-#include "transformations/resolve_names_collisions.hpp"
 #include "transforms.hpp"
 #include "transforms/append_list_unpack_replacer.hpp"
 #include "transforms/aten_cat_replacer.hpp"
@@ -35,6 +34,7 @@
 #include "transforms/prim_list_construct_pad.hpp"
 #include "transforms/prim_list_tuple_construct_replacer.hpp"
 #include "transforms/prim_list_unpack_replacer.hpp"
+#include "transforms/prim_tuple_unpack_parameter_replacer.hpp"
 #include "transforms/rfftn_complex_replacer.hpp"
 #include "transforms/string_equality_replacer.hpp"
 #include "transforms/tuple_unpack_replacer.hpp"
@@ -175,6 +175,7 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     manager.register_pass<ov::frontend::pytorch::pass::AtenEinsumListConstructReplacer>();
     manager.register_pass<ov::frontend::pytorch::pass::MinMaxPrimListConstructReplacer>();
     manager.register_pass<ov::frontend::pytorch::pass::StringEqualityReplacer>();
+    manager.register_pass<ov::frontend::pytorch::pass::DecomposeTupleParameters>();
     manager.register_pass<ov::frontend::pytorch::pass::RFFTNComplexReplacer>();
     manager.register_pass<ov::frontend::pytorch::pass::IRFFTNComplexReplacer>();
     manager.register_pass<ov::frontend::pytorch::pass::PrimTupleUnpackReplacer>();
@@ -183,7 +184,7 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     manager.register_pass<ov::frontend::pytorch::pass::IndexLoopGetitemReplacer>();
     manager.register_pass<ov::pass::RemoveMultiSubGraphOpDanglingParamsResults>();
     manager.register_pass<ov::pass::ReverseShapeAndTypeInfer>();
-    manager.register_pass<ov::pass::ResolveNameCollisions>();
+
     manager.run_passes(model);
 
     apply_pytorch_conversion_transforms(model);

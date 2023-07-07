@@ -12,8 +12,8 @@
 #include <vector>
 
 #include "Python.h"
-#include "meta_data.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/core/meta_data.hpp"
 #include "openvino/frontend/decoder.hpp"
 #include "openvino/frontend/graph_iterator.hpp"
 

@@ -5,11 +5,10 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include <dimension_tracker.hpp>
-
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include "mock_auto_batch_plugin.hpp"
 #include "ngraph_functions/subgraph_builders.hpp"
+#include "openvino/core/dimension_tracker.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/impl/mock_inference_plugin_internal.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_icore.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iexecutable_network_internal.hpp"

@@ -7,16 +7,16 @@
 #include "kernel_selector.h"
 
 namespace kernel_selector {
-class ReorderWeightsKernelSelector : public kernel_selector_base {
+class ReorderWeightsKernelSelctor : public kernel_selector_base {
 public:
-    static ReorderWeightsKernelSelector& Instance() {
-        static ReorderWeightsKernelSelector instance_;
+    static ReorderWeightsKernelSelctor& Instance() {
+        static ReorderWeightsKernelSelctor instance_;
         return instance_;
     }
 
-    ReorderWeightsKernelSelector();
+    ReorderWeightsKernelSelctor();
 
-    virtual ~ReorderWeightsKernelSelector() {}
+    virtual ~ReorderWeightsKernelSelctor() {}
 
     KernelsData GetBestKernels(const Params& params, const optional_params& options) const override;
 };
