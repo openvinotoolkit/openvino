@@ -138,7 +138,7 @@ std::vector<std::string> disabledTestPatterns() {
             // because it crashes in some random places during "reorder_inputs" pass.
             R"(.*UniqueLayerDynamicGPUTest.*\(\d*\.\d*\.\d*\.\d*\.\d*\).*axis.*)",
             // CVS-106625
-            R"(.*smoke_Auto_BehaviorTests.*OVInferRequestDynamicTests.*)"
+            R"(.*smoke_Auto_BehaviorTests.*OVInferRequestDynamicTests.*)",
 #ifdef PROXY_PLUGIN_ENABLED
             // Plugin version was changed to ov::Version
             R"(.*VersionTest.*pluginCurrentVersionIsCorrect.*)",
