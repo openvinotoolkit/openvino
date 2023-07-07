@@ -713,23 +713,27 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
         // Proxy plugin fallback to lowlevel device
         if (!is_proxy_device(plugin))
             lock = cacheGuard.get_hash_lock(cacheContent.blobId);
-        res = load_model_from_cache(cacheContent, plugin, parsed._config, ov::RemoteContext{}, [&]() {
-            return compile_model_and_cache(model, plugin, parsed._config, ov::RemoteContext{}, cacheContent);
+        res = load_model_from_cache(cacheContent, plugin, parsed._config, ov::SoPtr<ov::IRemoteContext>{}, [&]() {
+            return compile_model_and_cache(model,
+                                           plugin,
+                                           parsed._config,
+                                           ov::SoPtr<ov::IRemoteContext>{},
+                                           cacheContent);
         });
     } else {
-        res = compile_model_with_preprocess(plugin, model, ov::RemoteContext{}, parsed._config);
+        res = compile_model_with_preprocess(plugin, model, ov::SoPtr<ov::IRemoteContext>{}, parsed._config);
     }
     return res;
 }
 
 ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<const ov::Model>& model_,
-                                                          const ov::RemoteContext& context,
+                                                          const ov::SoPtr<ov::IRemoteContext>& context,
                                                           const ov::AnyMap& config) const {
     OV_ITT_SCOPE(FIRST_INFERENCE, ie::itt::domains::IE_LT, "Core::compile_model::RemoteContext");
     if (!context) {
         IE_THROW() << "Remote context is null";
     }
-    std::string deviceName = context.get_device_name();
+    std::string deviceName = context->get_device_name();
     ov::AnyMap config_with_batch = config;
     // if auto-batching is applicable, the below function will patch the device name and config accordingly:
     auto model = apply_auto_batching(model_, deviceName, config_with_batch);
@@ -756,7 +760,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
 
 ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model_with_preprocess(ov::Plugin& plugin,
                                                                           const std::shared_ptr<const ov::Model>& model,
-                                                                          const ov::RemoteContext& context,
+                                                                          const ov::SoPtr<ov::IRemoteContext>& context,
                                                                           const ov::AnyMap& config) const {
     std::shared_ptr<const ov::Model> preprocessed_model = model;
 
@@ -792,18 +796,21 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& mod
         // Proxy plugin fallback to lowlevel device
         if (!is_proxy_device(plugin))
             lock = cacheGuard.get_hash_lock(cacheContent.blobId);
-        compiled_model = load_model_from_cache(cacheContent, plugin, parsed._config, ov::RemoteContext{}, [&]() {
-            auto cnnNetwork = ReadNetwork(model_path, std::string());
-            return compile_model_and_cache(cnnNetwork.getFunction(), plugin, parsed._config, {}, cacheContent);
-        });
+        compiled_model =
+            load_model_from_cache(cacheContent, plugin, parsed._config, ov::SoPtr<ov::IRemoteContext>{}, [&]() {
+                auto cnnNetwork = ReadNetwork(model_path, std::string());
+                return compile_model_and_cache(cnnNetwork.getFunction(), plugin, parsed._config, {}, cacheContent);
+            });
     } else if (cacheManager) {
         // this code path is enabled for AUTO / MULTI / BATCH devices which don't support
         // import / export explicitly, but can redirect this functionality to actual HW plugin
         compiled_model = plugin.compile_model(model_path, parsed._config);
     } else {
         auto cnnNetwork = ReadNetwork(model_path, std::string());
-        compiled_model =
-            compile_model_with_preprocess(plugin, cnnNetwork.getFunction(), ov::RemoteContext{}, parsed._config);
+        compiled_model = compile_model_with_preprocess(plugin,
+                                                       cnnNetwork.getFunction(),
+                                                       ov::SoPtr<ov::IRemoteContext>{},
+                                                       parsed._config);
     }
     return compiled_model;
 }
@@ -827,13 +834,18 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& mod
         // Proxy plugin fallback to lowlevel device
         if (!is_proxy_device(plugin))
             lock = cacheGuard.get_hash_lock(cacheContent.blobId);
-        compiled_model = load_model_from_cache(cacheContent, plugin, parsed._config, ov::RemoteContext{}, [&]() {
-            auto cnnNetwork = read_model(model_str, weights);
-            return compile_model_and_cache(cnnNetwork, plugin, parsed._config, ov::RemoteContext{}, cacheContent);
-        });
+        compiled_model =
+            load_model_from_cache(cacheContent, plugin, parsed._config, ov::SoPtr<ov::IRemoteContext>{}, [&]() {
+                auto cnnNetwork = read_model(model_str, weights);
+                return compile_model_and_cache(cnnNetwork,
+                                               plugin,
+                                               parsed._config,
+                                               ov::SoPtr<ov::IRemoteContext>{},
+                                               cacheContent);
+            });
     } else {
         auto model = read_model(model_str, weights);
-        compiled_model = compile_model_with_preprocess(plugin, model, ov::RemoteContext{}, parsed._config);
+        compiled_model = compile_model_with_preprocess(plugin, model, ov::SoPtr<ov::IRemoteContext>{}, parsed._config);
     }
     return compiled_model;
 }
@@ -852,10 +864,10 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::import_model(std::istream& model,
 }
 
 ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::import_model(std::istream& modelStream,
-                                                         const ov::RemoteContext& context,
+                                                         const ov::SoPtr<ov::IRemoteContext>& context,
                                                          const ov::AnyMap& config) const {
     OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Core::import_model");
-    auto parsed = parseDeviceNameIntoConfig(context.get_device_name(), config);
+    auto parsed = parseDeviceNameIntoConfig(context->get_device_name(), config);
     auto compiled_model = get_plugin(parsed._deviceName).import_model(modelStream, context, parsed._config);
     if (auto wrapper = std::dynamic_pointer_cast<InferenceEngine::ICompiledModelWrapper>(compiled_model._ptr)) {
         wrapper->get_executable_network()->loadedFromCache();
@@ -931,7 +943,7 @@ std::vector<std::string> ov::CoreImpl::get_available_devices() const {
     return devices;
 }
 
-ov::RemoteContext ov::CoreImpl::create_context(const std::string& device_name, const AnyMap& params) const {
+ov::SoPtr<ov::IRemoteContext> ov::CoreImpl::create_context(const std::string& device_name, const AnyMap& params) const {
     auto parsed = ov::parseDeviceNameIntoConfig(device_name, params);
     return get_plugin(parsed._deviceName).create_context(parsed._config);
 }
@@ -1009,7 +1021,7 @@ bool ov::CoreImpl::is_new_api() const {
     return m_new_api;
 }
 
-ov::RemoteContext ov::CoreImpl::get_default_context(const std::string& device_name) const {
+ov::SoPtr<ov::IRemoteContext> ov::CoreImpl::get_default_context(const std::string& device_name) const {
     auto parsed = ov::parseDeviceNameIntoConfig(device_name);
     return get_plugin(parsed._deviceName).get_default_context(parsed._config);
 }
@@ -1361,7 +1373,7 @@ bool ov::CoreImpl::device_supports_cache_dir(const ov::Plugin& plugin) const {
 ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model_and_cache(const std::shared_ptr<const ov::Model>& model,
                                                                     ov::Plugin& plugin,
                                                                     const ov::AnyMap& parsedConfig,
-                                                                    const ov::RemoteContext& context,
+                                                                    const ov::SoPtr<ov::IRemoteContext>& context,
                                                                     const CacheContent& cacheContent) const {
     OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "CoreImpl::compile_model_and_cache");
     ov::SoPtr<ov::ICompiledModel> execNetwork;
@@ -1387,7 +1399,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
     const CacheContent& cacheContent,
     ov::Plugin& plugin,
     const ov::AnyMap& config,
-    const ov::RemoteContext& context,
+    const ov::SoPtr<ov::IRemoteContext>& context,
     std::function<ov::SoPtr<ov::ICompiledModel>()> compile_model_lambda) {
     ov::SoPtr<ov::ICompiledModel> compiled_model;
     struct HeaderException {};

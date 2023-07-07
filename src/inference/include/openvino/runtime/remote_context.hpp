@@ -37,10 +37,6 @@ class IExecutableNetworkWrapper;
 class ICompiledModel;
 class CompiledModel;
 
-namespace proxy {
-class RemoteContext;
-}
-
 /**
  * @brief This class represents an abstraction
  * @ingroup ov_runtime_cpp_api
@@ -72,7 +68,6 @@ protected:
     friend class ov::IExecutableNetworkWrapper;
     friend class ov::ICompiledModel;
     friend class ov::CompiledModel;
-    friend class ov::proxy::RemoteContext;
 
 public:
     /**

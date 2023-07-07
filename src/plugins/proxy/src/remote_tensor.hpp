@@ -13,8 +13,8 @@ namespace proxy {
 
 class RemoteTensor : public ov::IRemoteTensor {
 public:
-    RemoteTensor(ov::RemoteTensor&& ctx, const std::string& dev_name);
-    RemoteTensor(const ov::RemoteTensor& ctx, const std::string& dev_name);
+    RemoteTensor(const std::shared_ptr<ov::ITensor>& ctx, const std::string& dev_name);
+    RemoteTensor(std::shared_ptr<ov::IRemoteTensor>&& ctx, const std::string& dev_name);
 
     const AnyMap& get_properties() const override;
     const std::string& get_device_name() const override;
@@ -35,7 +35,7 @@ public:
 
 private:
     mutable std::string m_name;
-    ov::RemoteTensor m_tensor;
+    std::shared_ptr<ov::ITensor> m_tensor;
 };
 
 }  // namespace proxy

@@ -8,13 +8,14 @@
 #include "openvino/runtime/iremote_context.hpp"
 #include "openvino/runtime/iremote_tensor.hpp"
 #include "openvino/runtime/remote_context.hpp"
+#include "openvino/runtime/so_ptr.hpp"
 
 namespace ov {
 namespace proxy {
 
 class RemoteContext : public ov::IRemoteContext {
 public:
-    RemoteContext(ov::RemoteContext&& ctx,
+    RemoteContext(ov::SoPtr<ov::IRemoteContext>&& ctx,
                   const std::string& dev_name,
                   size_t dev_index,
                   bool has_index,
@@ -31,12 +32,10 @@ public:
 
     ov::Tensor wrap_tensor(const ov::RemoteTensor& tensor);
 
-    static const ov::RemoteContext& get_hardware_context(const ov::RemoteContext& context);
-    static const std::shared_ptr<ov::IRemoteContext>& get_hardware_context(
-        const std::shared_ptr<ov::IRemoteContext>& context);
+    static const ov::SoPtr<ov::IRemoteContext>& get_hardware_context(const ov::SoPtr<ov::IRemoteContext>& context);
 
 private:
-    ov::RemoteContext m_context;
+    ov::SoPtr<ov::IRemoteContext> m_context;
     std::string m_name;
     std::string m_tensor_name;
 

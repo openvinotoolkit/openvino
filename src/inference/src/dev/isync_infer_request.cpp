@@ -137,7 +137,7 @@ void ov::ISyncInferRequest::convert_batched_tensors() {
         auto tmp_shape = item.second.at(0).get_shape();
         auto tmp_et = item.second.at(0).get_element_type();
         tmp_shape[0] = item.second.size();
-        std::shared_ptr<ov::IRemoteContext> remote_context;
+        ov::SoPtr<ov::IRemoteContext> remote_context;
         ov::Tensor input_tensor;
         try {
             auto net = get_compiled_model();

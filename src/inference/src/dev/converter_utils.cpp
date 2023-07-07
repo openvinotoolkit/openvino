@@ -31,6 +31,7 @@
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/iinfer_request.hpp"
 #include "openvino/runtime/iplugin.hpp"
+#include "openvino/runtime/iremote_context.hpp"
 #include "openvino/runtime/itensor.hpp"
 #include "openvino/runtime/ivariable_state.hpp"
 #include "openvino/runtime/profiling_info.hpp"
@@ -258,7 +259,7 @@ public:
         return ov::legacy_convert::convert_compiled_model(
             m_plugin->compile_model(ov::legacy_convert::convert_model(network, m_plugin->is_new_api()),
                                     ov::any_copy(config),
-                                    ov::RemoteContext{ov::legacy_convert::convert_remote_context(context), {}}));
+                                    ov::legacy_convert::convert_remote_context(context)));
     }
 
     ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> LoadNetwork(
@@ -321,7 +322,7 @@ public:
         const std::map<std::string, std::string>& config) override {
         return ov::legacy_convert::convert_compiled_model(
             m_plugin->import_model(networkModel,
-                                   ov::RemoteContext{ov::legacy_convert::convert_remote_context(context), {}},
+                                   ov::legacy_convert::convert_remote_context(context),
                                    ov::any_copy(config)));
     }
 
@@ -848,16 +849,22 @@ public:
 }  // namespace InferenceEngine
 
 std::shared_ptr<InferenceEngine::RemoteContext> ov::legacy_convert::convert_remote_context(
-    const std::shared_ptr<ov::IRemoteContext>& context) {
-    if (auto ctx = std::dynamic_pointer_cast<InferenceEngine::IRemoteContextWrapper>(context)) {
+    const ov::SoPtr<ov::IRemoteContext>& context) {
+    if (auto ctx = std::dynamic_pointer_cast<InferenceEngine::IRemoteContextWrapper>(context._ptr)) {
         return ctx->get_context();
     }
     return std::make_shared<ov::RemoteContextWrapper>(context);
 }
-std::shared_ptr<ov::IRemoteContext> ov::legacy_convert::convert_remote_context(
+
+std::shared_ptr<InferenceEngine::RemoteContext> ov::legacy_convert::convert_remote_context(
+    const std::shared_ptr<ov::IRemoteContext>& context) {
+    return convert_remote_context(ov::SoPtr<ov::IRemoteContext>{context, nullptr});
+}
+
+ov::SoPtr<ov::IRemoteContext> ov::legacy_convert::convert_remote_context(
     const std::shared_ptr<InferenceEngine::RemoteContext>& context) {
     if (auto ctx = std::dynamic_pointer_cast<ov::RemoteContextWrapper>(context)) {
         return ctx->get_context();
     }
-    return std::make_shared<InferenceEngine::IRemoteContextWrapper>(context);
+    return ov::SoPtr<ov::IRemoteContext>(std::make_shared<InferenceEngine::IRemoteContextWrapper>(context), nullptr);
 }

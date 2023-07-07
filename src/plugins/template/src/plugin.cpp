@@ -14,8 +14,8 @@
 #include "remote_context.hpp"
 #include "template/properties.hpp"
 #include "transformations/common_optimizations/common_optimizations.hpp"
-#include "transformations/fp16_compression/convert_compression_only_to_legacy.hpp"
 #include "transformations/control_flow/unroll_if.hpp"
+#include "transformations/fp16_compression/convert_compression_only_to_legacy.hpp"
 #include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
 #include "transformations/op_conversions/convert_reduce_to_pooling.hpp"
 
@@ -97,7 +97,7 @@ std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::compile_model(
 std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::compile_model(
     const std::shared_ptr<const ov::Model>& model,
     const ov::AnyMap& properties,
-    const ov::RemoteContext& context) const {
+    const ov::SoPtr<ov::IRemoteContext>& context) const {
     OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, "Plugin::compile_model");
 
     auto fullConfig = Configuration{properties, m_cfg};
@@ -124,9 +124,10 @@ std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::import_model(st
 // ! [plugin:import_model]
 
 // ! [plugin:import_model_with_remote]
-std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::import_model(std::istream& model,
-                                                                              const ov::RemoteContext& context,
-                                                                              const ov::AnyMap& properties) const {
+std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::import_model(
+    std::istream& model,
+    const ov::SoPtr<ov::IRemoteContext>& context,
+    const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, "Plugin::import_model");
 
     auto fullConfig = Configuration{properties, m_cfg};

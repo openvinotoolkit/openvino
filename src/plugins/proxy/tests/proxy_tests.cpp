@@ -158,7 +158,7 @@ public:
     MockCompiledModel(const std::shared_ptr<const ov::Model>& model,
                       const std::shared_ptr<const ov::IPlugin>& plugin,
                       const ov::AnyMap& config,
-                      const ov::RemoteContext& context)
+                      const ov::SoPtr<ov::IRemoteContext>& context)
         : ov::ICompiledModel(model, plugin),
           m_config(config),
           m_model(model),
@@ -189,7 +189,7 @@ public:
         return m_model;
     }
 
-    ov::RemoteContext get_context() const {
+    ov::SoPtr<ov::IRemoteContext> get_context() const {
         return m_context;
     }
 
@@ -201,7 +201,7 @@ private:
     ov::AnyMap m_config;
     std::shared_ptr<const ov::Model> m_model;
     bool m_has_context;
-    ov::RemoteContext m_context;
+    ov::SoPtr<ov::IRemoteContext> m_context;
 };
 
 class MockInferRequest : public ov::ISyncInferRequest {
@@ -257,10 +257,10 @@ private:
                               const ov::element::Type& element_type,
                               const ov::Shape& shape,
                               bool has_context,
-                              ov::RemoteContext context) {
+                              ov::SoPtr<ov::IRemoteContext> context) {
         if (!tensor || tensor.get_element_type() != element_type) {
             if (has_context) {
-                tensor = context.create_tensor(element_type, shape, {});
+                tensor = context->create_tensor(element_type, shape, {});
             } else {
                 tensor = ov::Tensor(element_type, shape);
             }
@@ -368,7 +368,7 @@ public:
 
     std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
                                                       const ov::AnyMap& properties,
-                                                      const ov::RemoteContext& context) const override {
+                                                      const ov::SoPtr<ov::IRemoteContext>& context) const override {
         if (!support_model(model, query_model(model, properties)))
             OPENVINO_THROW("Unsupported model");
 
@@ -383,13 +383,13 @@ public:
         OPENVINO_NOT_IMPLEMENTED;
     }
 
-    std::shared_ptr<ov::IRemoteContext> create_context(const ov::AnyMap& remote_properties) const override {
+    ov::SoPtr<ov::IRemoteContext> create_context(const ov::AnyMap& remote_properties) const override {
         if (remote_properties.find("CUSTOM_CTX") == remote_properties.end())
             return std::make_shared<MockRemoteContext>(get_device_name());
         return std::make_shared<MockCustomRemoteContext>(get_device_name());
     }
 
-    std::shared_ptr<ov::IRemoteContext> get_default_context(const ov::AnyMap& remote_properties) const override {
+    ov::SoPtr<ov::IRemoteContext> get_default_context(const ov::AnyMap& remote_properties) const override {
         return std::make_shared<MockRemoteContext>(get_device_name());
     }
 
@@ -424,7 +424,7 @@ public:
     }
 
     std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model,
-                                                     const ov::RemoteContext& context,
+                                                     const ov::SoPtr<ov::IRemoteContext>& context,
                                                      const ov::AnyMap& properties) const override {
         std::string xmlString, xmlInOutString;
         ov::Tensor weights;

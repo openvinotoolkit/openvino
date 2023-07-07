@@ -133,7 +133,7 @@ public:
      */
     virtual std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
                                                               const ov::AnyMap& properties,
-                                                              const ov::RemoteContext& context) const = 0;
+                                                              const ov::SoPtr<ov::IRemoteContext>& context) const = 0;
 
     /**
      * @brief Sets properties for plugin, acceptable keys can be found in openvino/runtime/properties.hpp
@@ -187,7 +187,7 @@ public:
      * @return An Compiled model
      */
     virtual std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model,
-                                                             const ov::RemoteContext& context,
+                                                             const ov::SoPtr<ov::IRemoteContext>& context,
                                                              const ov::AnyMap& properties) const = 0;
 
     /**

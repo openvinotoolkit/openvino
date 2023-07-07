@@ -27,7 +27,7 @@ public:
 
     std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
                                                       const ov::AnyMap& properties,
-                                                      const ov::RemoteContext& context) const override;
+                                                      const ov::SoPtr<ov::IRemoteContext>& context) const override;
 
     std::shared_ptr<ov::IRemoteContext> create_context(const ov::AnyMap& remote_properties) const override;
 
@@ -36,7 +36,7 @@ public:
     std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model, const ov::AnyMap& properties) const override;
 
     std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model,
-                                                     const ov::RemoteContext& context,
+                                                     const ov::SoPtr<ov::IRemoteContext>& context,
                                                      const ov::AnyMap& properties) const override;
 
 private:

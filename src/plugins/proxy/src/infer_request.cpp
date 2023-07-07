@@ -45,7 +45,7 @@ std::vector<ov::ProfilingInfo> ov::proxy::InferRequest::get_profiling_info() con
 ov::Tensor ov::proxy::InferRequest::get_tensor(const ov::Output<const ov::Node>& port) const {
     auto tensor = m_infer_request->get_tensor(port);
     if (tensor.is<ov::RemoteTensor>()) {
-        auto remote_context = std::dynamic_pointer_cast<ov::proxy::RemoteContext>(m_compiled_model->get_context());
+        auto remote_context = std::dynamic_pointer_cast<ov::proxy::RemoteContext>(m_compiled_model->get_context()._ptr);
         OPENVINO_ASSERT(remote_context);
         tensor = remote_context->wrap_tensor(tensor.as<ov::RemoteTensor>());
     }
@@ -60,7 +60,8 @@ std::vector<ov::Tensor> ov::proxy::InferRequest::get_tensors(const ov::Output<co
     auto tensors = m_infer_request->get_tensors(port);
     for (auto&& tensor : tensors) {
         if (tensor.is<ov::RemoteTensor>()) {
-            auto remote_context = std::dynamic_pointer_cast<ov::proxy::RemoteContext>(m_compiled_model->get_context());
+            auto remote_context =
+                std::dynamic_pointer_cast<ov::proxy::RemoteContext>(m_compiled_model->get_context()._ptr);
             OPENVINO_ASSERT(remote_context);
             tensor = remote_context->wrap_tensor(tensor.as<ov::RemoteTensor>());
         }

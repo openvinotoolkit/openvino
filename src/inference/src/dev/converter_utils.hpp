@@ -37,10 +37,10 @@ std::shared_ptr<::ov::IAsyncInferRequest> convert_infer_request(
     const std::shared_ptr<::InferenceEngine::IInferRequestInternal>& request,
     const std::string& plugin_name = "");
 
+std::shared_ptr<InferenceEngine::RemoteContext> convert_remote_context(const ov::SoPtr<ov::IRemoteContext>& context);
 std::shared_ptr<InferenceEngine::RemoteContext> convert_remote_context(
     const std::shared_ptr<ov::IRemoteContext>& context);
-std::shared_ptr<ov::IRemoteContext> convert_remote_context(
-    const std::shared_ptr<InferenceEngine::RemoteContext>& context);
+ov::SoPtr<ov::IRemoteContext> convert_remote_context(const std::shared_ptr<InferenceEngine::RemoteContext>& context);
 
 }  // namespace legacy_convert
 }  // namespace ov
