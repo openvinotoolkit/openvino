@@ -16,14 +16,14 @@ class quantized_mul(torch.nn.Module):
     def forward(self, input_tensor1, input_tensor2):
         quantized_tensor1 =  torch.quantize_per_tensor(input_tensor1, self.scale, self.zero_point, torch.qint8)
         quantized_tensor2 =  torch.quantize_per_tensor(input_tensor2, self.scale, self.zero_point, torch.qint8)
-        quantized_mul = torch.mul(quantized_tensor1 + quantized_tensor2)
+        quantized_mul = torch.ops.quantized.mul(quantized_tensor1, quantized_tensor2, self.scale, self.zero_point)
         dequantized_tensor = torch.dequantize(quantized_mul)
         return dequantized_tensor
 
 class TestQuantizedMul(PytorchLayerTest):
     def _prepare_input(self):
-        return (np.array(5.00 * np.random.randn(4, 4) + 5.00, dtype=np.float32),
-                np.array(5.00 * np.random.randn(4, 4) + 5.00, dtype=np.float32)) # N(5,5)
+        return (np.array(5.00 * np.random.randn(4, 4), dtype=np.float32),
+                np.array(5.00 * np.random.randn(4, 4), dtype=np.float32))
 
     @pytest.mark.parametrize("scale", [
         1.0, 0.21, 0.62

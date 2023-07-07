@@ -16,8 +16,7 @@ class quantized_add_relu(torch.nn.Module):
     def forward(self, input_tensor1, input_tensor2):
         quantized_tensor1 =  torch.quantize_per_tensor(input_tensor1, self.scale, self.zero_point, torch.qint8)
         quantized_tensor2 =  torch.quantize_per_tensor(input_tensor2, self.scale, self.zero_point, torch.qint8)
-        quantized_add = torch.add(quantized_tensor1 + quantized_tensor2)
-        quantized_add_relu = torch.relu(quantized_add)
+        quantized_add_relu = torch.ops.quantized.add_relu(quantized_tensor1, quantized_tensor2, self.scale, self.zero_point)
         dequantized_tensor = torch.dequantize(quantized_add_relu)
         return dequantized_tensor
 
