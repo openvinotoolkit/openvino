@@ -8,9 +8,9 @@ import numpy as np
 from openvino.runtime import Tensor, Type, PartialShape
 from openvino.runtime.utils.types import get_element_type_str
 
-from openvino.tools.ovc.cli_parser import input_to_input_cut_info, input_shape_to_input_cut_info
-from openvino.tools.ovc.error import Error
-from openvino.tools.ovc.moc_frontend.shape_utils import get_static_shape
+from openvino.tools.mo.utils.cli_parser import input_to_input_cut_info, input_shape_to_input_cut_info
+from openvino.tools.mo.utils.error import Error
+from openvino.tools.mo.moc_frontend.shape_utils import get_static_shape
 
 
 def get_pytorch_decoder(model, input_shape, example_inputs, args):
