@@ -5,9 +5,19 @@
 add_definitions(-DIN_OV_COMPONENT)
 add_definitions(-DPROJECT_ROOT_DIR="${OpenVINO_SOURCE_DIR}")
 
-cmake_path(NATIVE_PATH OpenVINO_SOURCE_DIR NATIVE_PROJECT_ROOT_DIR)
+if(${CMAKE_VERSION} VERSION_LESS "3.20")
+    file(TO_NATIVE_PATH ${OpenVINO_SOURCE_DIR} NATIVE_PROJECT_ROOT_DIR)
+else()
+    cmake_path(NATIVE_PATH OpenVINO_SOURCE_DIR NATIVE_PROJECT_ROOT_DIR)
+endif()
+
+file(RELATIVE_PATH REL_PATH ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_SOURCE_DIR})
+file(RELATIVE_PATH REL_BIN_PATH ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_SOURCE_DIR})
+
 string(LENGTH "${NATIVE_PROJECT_ROOT_DIR}/" PROJECT_ROOT_DIR_LENGTH)
 
+message("TTTT  ${NATIVE_PROJECT_ROOT_DIR}, ${CMAKE_SOURCE_DIR}, ${CMAKE_CURRENT_SOURCE_DIR}")
+message("TTTT  ${REL_PATH} : ${REL_BIN_PATH}")
 add_compile_definitions(
 
     # Compiler not support to trim __FILE__ to have got relative path, use offset instead
@@ -17,8 +27,8 @@ add_compile_options(
 
     # Enable __FILE__ trimming by compiler for:
     # AppleClang, Clang, GNU
-    $<$<COMPILE_LANG_AND_ID:C,AppleClang,Clang,GNU>:-ffile-prefix-map=${NATIVE_PROJECT_ROOT_DIR}/=>
-    $<$<COMPILE_LANG_AND_ID:CXX,AppleClang,Clang,GNU>:-ffile-prefix-map=${NATIVE_PROJECT_ROOT_DIR}/=>
+    "$<$<COMPILE_LANG_AND_ID:C,AppleClang,Clang,GNU>:-ffile-prefix-map=${NATIVE_PROJECT_ROOT_DIR}/=;-ffile-prefix-map=../../=>"
+    "$<$<COMPILE_LANG_AND_ID:CXX,AppleClang,Clang,GNU>:-ffile-prefix-map=${NATIVE_PROJECT_ROOT_DIR}/=;-ffile-prefix-map=../../=>"
 
     # MSVC
     $<$<COMPILE_LANG_AND_ID:C,MSVC>:/d1trimfile:${NATIVE_PROJECT_ROOT_DIR}\\>
