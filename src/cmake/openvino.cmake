@@ -25,7 +25,8 @@ add_library(${TARGET_NAME}
     $<TARGET_OBJECTS:inference_engine_obj>
     $<TARGET_OBJECTS:inference_engine_obj_version>
     $<TARGET_OBJECTS:inference_engine_transformations_obj>
-    $<TARGET_OBJECTS:inference_engine_lp_transformations_obj>)
+    $<TARGET_OBJECTS:inference_engine_lp_transformations_obj>
+    $<$<TARGET_EXISTS:openvino_proxy_plugin_obj>:$<TARGET_OBJECTS:openvino_proxy_plugin_obj>>)
 
 add_library(openvino::runtime ALIAS ${TARGET_NAME})
 set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME runtime)
