@@ -111,7 +111,7 @@ It is possible to build applications without the CMake interface by using: MSVC 
 .. tab-set::
 
    .. tab-item:: Include dirs
-      :sync: inc-dirs
+      :sync: include-dirs
    
       .. code-block:: sh
    
@@ -150,7 +150,7 @@ It is possible to build applications without the CMake interface by using: MSVC 
 .. tab-set::
 
    .. tab-item:: Include dirs
-      :sync: inc-dirs
+      :sync: include-dirs
    
       .. code-block:: sh
    
