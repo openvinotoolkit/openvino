@@ -106,9 +106,8 @@ Graph::Graph(cldnn::BinaryInputBuffer &ib, RemoteContextImpl::Ptr context, const
 
     size_t num_networks;
     ib >> num_networks;
-    for (size_t i = 0; i < num_networks; ++i) {
-        ib.set_stream_id(m_stream_id);
-        m_networks.emplace_back(std::make_shared<cldnn::network>(ib, get_engine().create_stream(config), get_engine(), m_stream_id == 0));
+    for (uint32_t i = 0; i < num_networks; ++i) {
+        m_networks.emplace_back(std::make_shared<cldnn::network>(ib, get_engine().create_stream(config), get_engine(), m_stream_id == 0, i));
     }
 }
 

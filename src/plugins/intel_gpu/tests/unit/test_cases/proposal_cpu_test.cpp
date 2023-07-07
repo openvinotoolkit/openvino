@@ -101,7 +101,7 @@ TestRunnerProposal<Dtype, ImInfoType>::TestRunnerProposal(cldnn::tensor image_in
         {
             std::istream in_mem(&mem_buf);
             BinaryInputBuffer ib = BinaryInputBuffer(in_mem, get_test_engine());
-            _network.reset(new network(ib, get_test_stream_ptr(), get_test_engine()));
+            _network.reset(new network(ib, get_test_stream_ptr(), get_test_engine(), true, 0));
         }
     } else {
         _network.reset(new network(get_test_engine(), _topology));

@@ -771,7 +771,7 @@ inline cldnn::network::ptr get_network(cldnn::engine& engine,
         {
             std::istream in_mem(&mem_buf);
             cldnn::BinaryInputBuffer ib = cldnn::BinaryInputBuffer(in_mem, engine);
-            network = std::make_shared<cldnn::network>(ib, config, stream, engine);
+            network = std::make_shared<cldnn::network>(ib, config, stream, engine, true, 0);
         }
     } else {
         network = std::make_shared<cldnn::network>(engine, topology, config);
