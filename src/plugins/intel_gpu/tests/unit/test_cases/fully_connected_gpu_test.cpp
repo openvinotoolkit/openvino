@@ -1892,6 +1892,111 @@ TEST(fully_connected_gpu, dynamic) {
     ASSERT_EQ(3.0f, output_ptr[3]);
 }
 
+TEST(fully_connected_gpu, dynamic_6d_input) {
+    auto& engine = get_test_engine();
+
+    const int32_t input_b = 1, input_f = 3, input_w = 2, input_z = 1, input_y = 1, input_x = 4;
+    const int32_t weight_b = 2;
+
+    auto input_dyn_layout = layout{ov::PartialShape{ov::Dimension(-1), input_f, input_w, input_z, input_y, input_x}, data_types::f32, format::bfwzyx};
+    auto input_data = engine.allocate_memory(layout{ov::PartialShape{input_b, input_f, input_w, input_z, input_y, input_x}, data_types::f32, format::bfwzyx});
+    auto weights_data = engine.allocate_memory({ov::PartialShape{weight_b, input_x}, data_types::f32, format::bfyx });
+
+    set_values(input_data, {-0.5f, 2.0f, 0.5f, 1.f,  -1.5f, 2.0f, 0.5f, 1.f,
+                            -0.5f, 2.5f, 0.5f, 1.f,  -0.5f, 3.0f, 0.5f, 1.f,
+                            -0.5f, 2.0f, 0.5f, 1.f,  -0.5f, 2.0f, 2.5f, 1.f});
+    set_values(weights_data, {1.5f, 1.0f, -1.0f, 0.0f,
+                              0.5f, -0.5f, -0.5f, 1.0f, });
+
+    cldnn::topology topology{
+        input_layout("input", input_dyn_layout),
+        data("weights", weights_data),
+        fully_connected("fc", input_info("input"), "weights", "", cldnn::padding(), input_dyn_layout.get_rank())
+    };
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, config);
+    network.set_input_data("input", input_data);
+
+    auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "fc");
+
+    auto output_prim_mem = outputs.begin()->second.get_memory();
+
+    auto out_l = network.get_output_layout(outputs.begin()->first);
+    ASSERT_EQ(output_prim_mem->get_layout().batch(), 1);
+    ASSERT_EQ(out_l.batch(), 1);
+    ASSERT_EQ(out_l.feature(), 3);
+    ASSERT_EQ(out_l.spatial(0), 2);
+    ASSERT_EQ(out_l.spatial(1), 1);
+    ASSERT_EQ(out_l.spatial(2), 1);
+    ASSERT_EQ(out_l.spatial(3), 2);
+
+    std::vector<float> expected_output = {
+        0.75, -0.5, -0.75, -1, 1.25, -0.75, 1.75, -1, 0.75, -0.5, -1.25, -1.5
+    };
+
+    cldnn::mem_lock<float> output_ptr(output_prim_mem, get_test_stream());
+
+    for (size_t i = 0 ; i < out_l.get_linear_size(); i++) {
+        ASSERT_EQ(expected_output[i], output_ptr[i]);
+    }
+}
+
+TEST(fully_connected_gpu, static_6d_input) {
+    auto& engine = get_test_engine();
+
+    const int32_t input_b = 1, input_f = 3, input_w = 2, input_z = 1, input_y = 1, input_x = 4;
+    const int32_t weight_b = 2;
+
+    auto input_dyn_layout = layout{ov::PartialShape{input_b, input_f, input_w, input_z, input_y, input_x}, data_types::f32, format::bfwzyx};
+    auto input_data = engine.allocate_memory(input_dyn_layout);
+    auto weights_data = engine.allocate_memory({ov::PartialShape{weight_b, input_x}, data_types::f32, format::bfyx });
+
+    set_values(input_data, {-0.5f, 2.0f, 0.5f, 1.f,  -1.5f, 2.0f, 0.5f, 1.f,
+                            -0.5f, 2.5f, 0.5f, 1.f,  -0.5f, 3.0f, 0.5f, 1.f,
+                            -0.5f, 2.0f, 0.5f, 1.f,  -0.5f, 2.0f, 2.5f, 1.f});
+    set_values(weights_data, {1.5f, 1.0f, -1.0f, 0.0f,
+                              0.5f, -0.5f, -0.5f, 1.0f, });
+
+    cldnn::topology topology{
+        input_layout("input", input_dyn_layout),
+        data("weights", weights_data),
+        fully_connected("fc", input_info("input"), "weights", "", cldnn::padding(), input_dyn_layout.get_rank()),
+    };
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
+    network.set_input_data("input", input_data);
+
+    auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "fc");
+
+    auto output_prim_mem = outputs.begin()->second.get_memory();
+
+    auto out_l = network.get_output_layout(outputs.begin()->first);
+    ASSERT_EQ(output_prim_mem->get_layout().batch(), 6);
+    ASSERT_EQ(out_l.batch(), 6);
+    ASSERT_EQ(out_l.feature(), 2);
+    ASSERT_EQ(out_l.spatial(0), 1);
+    ASSERT_EQ(out_l.spatial(1), 1);
+
+    std::vector<float> expected_output = {
+        0.75, -0.5, -0.75, -1, 1.25, -0.75, 1.75, -1, 0.75, -0.5, -1.25, -1.5
+    };
+
+    cldnn::mem_lock<float> output_ptr(output_prim_mem, get_test_stream());
+
+    for (size_t i = 0 ; i < out_l.get_linear_size(); i++) {
+        ASSERT_EQ(expected_output[i], output_ptr[i]);
+    }
+}
+
 TEST(fully_connected_gpu, dynamic_multi_inference_same_shape) {
     auto& engine = get_test_engine();
     const int32_t input_f = 3, input_b = 1, weight_b = 4;
