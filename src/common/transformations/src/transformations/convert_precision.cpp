@@ -348,6 +348,8 @@ bool ov::pass::ConvertPrecision::run_on_model(const std::shared_ptr<ngraph::Func
         {opset4::GreaterEqual::get_type_info_static(), fuse_type_to_binary_comparision<opset4::GreaterEqual>},
         {opset4::Less::get_type_info_static(), fuse_type_to_binary_comparision<opset4::Less>},
         {opset4::LessEqual::get_type_info_static(), fuse_type_to_binary_comparision<opset4::LessEqual>},
+        {ov::opset10::IsFinite::get_type_info_static(), fuse_type_to_binary_comparision<ov::opset10::IsFinite>},
+        {ov::opset10::IsNaN::get_type_info_static(), fuse_type_to_binary_comparision<ov::opset10::IsNaN>},
         {opset4::LogicalAnd::get_type_info_static(), fuse_type_to_logical<opset4::LogicalAnd>},
         {opset4::LogicalOr::get_type_info_static(), fuse_type_to_logical<opset4::LogicalOr>},
         {opset4::LogicalXor::get_type_info_static(), fuse_type_to_logical<opset4::LogicalXor>},
