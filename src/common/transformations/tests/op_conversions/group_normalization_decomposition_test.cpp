@@ -93,7 +93,7 @@ TEST_F(TransformationTestsF, GroupNormalizationDecompositionF32) {
         function_ref = gen_model_ref({PartialShape{1, 12, 6, 8}, PartialShape{12}, PartialShape{12}},
                                      element::f32,
                                      num_groups,
-                                     1e-3);
+                                     1e-3f);
     }
 }
 
@@ -108,7 +108,7 @@ TEST_F(TransformationTestsF, GroupNormalizationDecompositionF16) {
         function_ref = gen_model_ref({PartialShape{1, 12, 6, 8}, PartialShape{12}, PartialShape{12}},
                                      element::f16,
                                      num_groups,
-                                     1e-3);
+                                     1e-3f);
     }
 }
 
@@ -123,7 +123,7 @@ TEST_F(TransformationTestsF, GroupNormalizationDecomposition_num_groups) {
         function_ref = gen_model_ref({PartialShape{1, 12, 6, 8}, PartialShape{12}, PartialShape{12}},
                                      element::f32,
                                      num_groups,
-                                     1e-3);
+                                     1e-3f);
     }
 }
 
@@ -150,8 +150,10 @@ TEST_F(TransformationTestsF, GroupNormalizationDecomposition_3D) {
         manager.register_pass<ov::pass::GroupNormalizationDecomposition>();
     }
     {
-        function_ref =
-            gen_model_ref({PartialShape{1, 12, 6}, PartialShape{12}, PartialShape{12}}, element::f32, num_groups, 1e-3);
+        function_ref = gen_model_ref({PartialShape{1, 12, 6}, PartialShape{12}, PartialShape{12}},
+                                     element::f32,
+                                     num_groups,
+                                     1e-3f);
     }
 }
 
@@ -168,7 +170,7 @@ TEST_F(TransformationTestsF, GroupNormalizationDecomposition_5D) {
         function_ref = gen_model_ref({PartialShape{1, 12, 4, 6, 8}, PartialShape{12}, PartialShape{12}},
                                      element::f32,
                                      num_groups,
-                                     1e-3);
+                                     1e-3f);
     }
 }
 
@@ -204,7 +206,7 @@ TEST_F(TransformationTestsF, GroupNormalizationDecomposition_bias_scale_dynamic_
         function_ref = gen_model_ref({PartialShape{1, 12, 6, 8}, PartialShape::dynamic(), PartialShape::dynamic()},
                                      element::f32,
                                      num_groups,
-                                     1e-3);
+                                     1e-3f);
     }
 }
 
@@ -221,6 +223,6 @@ TEST_F(TransformationTestsF, GroupNormalizationDecomposition_dynamic_dims) {
         function_ref = gen_model_ref({PartialShape{-1, -1, -1, -1}, PartialShape{-1}, PartialShape{-1}},
                                      element::f32,
                                      num_groups,
-                                     1e-3);
+                                     1e-3f);
     }
 }
