@@ -11,10 +11,19 @@
 
 namespace ov {
 namespace proxy {
+/**
+ * @brief Simple wrapper for hardware variable states which holds plugin shared object
+ */
 class VariableState : public ov::IVariableState {
     std::shared_ptr<ov::IVariableState> m_state;
     std::shared_ptr<void> m_so;
 public:
+    /**
+     * @brief Constructor of proxy VariableState
+     *
+     * @param state hardware state
+     * @param so shared object
+     */
     VariableState(const std::shared_ptr<ov::IVariableState>& state, const std::shared_ptr<void>& so): IVariableState(""), m_state(state), m_so(so) {
         OPENVINO_ASSERT(m_state);
     }
