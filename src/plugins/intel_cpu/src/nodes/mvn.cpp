@@ -290,7 +290,56 @@ private:
         xor_(rdx, rdx);
         div(reg_unroll_size);  // result is in rax, that is reg_unroll_num, no mov need.
 
+        // 4-15 for unroll. 4-7 for src, 8-11 for m/v sum, 12-15 for mean, 4 vector for 4 unroll
         int ur_base = 4;
+        auto init = [&](int vmm_id) {
+            uni_vpxor(Vmm(ur_base + 4 + vmm_id), Vmm(ur_base + 4 + vmm_id), Vmm(ur_base + 4 + vmm_id));
+            if (jcp_.normalize_variance)
+                uni_vmovups(Vmm(ur_base + 8 + vmm_id), ptr[reg_mean + vmm_id * vlen]);
+        };
+        auto load_src = [&](int vmm_id) {
+            load_emitter[VECTOR]->emit_code({static_cast<size_t>(reg_src_aux.getIdx())}, {static_cast<size_t>(ur_base + vmm_id)}, {}, {load_pool_gpr_idxs});
+            add(reg_src_aux, vector_step * jcp_.src_data_size);
+        };
+        auto mv = [&](int vmm_id) {
+            if (jcp_.normalize_variance) {
+                if (!isFloatCompatible(jcp_.src_prc)) {
+                    uni_vcvtdq2ps(Vmm(ur_base + vmm_id), Vmm(ur_base + vmm_id));
+                }
+                uni_vsubps(Vmm(ur_base + vmm_id), Vmm(ur_base + vmm_id), Vmm(ur_base + 8 + vmm_id));
+                uni_vfmadd231ps(Vmm(ur_base + 4 + vmm_id), Vmm(ur_base + vmm_id), Vmm(ur_base + vmm_id));
+            } else {
+                if (!isFloatCompatible(jcp_.src_prc))
+                    uni_vpaddd(Vmm(ur_base + 4 + vmm_id), Vmm(ur_base + 4 + vmm_id), Vmm(ur_base + vmm_id));
+                else
+                    uni_vaddps(Vmm(ur_base + 4 + vmm_id), Vmm(ur_base + 4 + vmm_id), Vmm(ur_base + vmm_id));
+            }
+        };
+        auto store = [&](int vmm_id) {
+            if (jcp_.normalize_variance) {
+                uni_vmovups(ptr[reg_variance + vmm_id * vector_step * sizeof(float)], Vmm(ur_base + 4 + vmm_id));
+            } else {
+                if (!isFloatCompatible(jcp_.src_prc))
+                    uni_vcvtdq2ps(Vmm(ur_base + 4 + vmm_id), Vmm(ur_base + 4 + vmm_id));
+                uni_vmovups(ptr[reg_sum + vmm_id * vector_step * sizeof(float)], Vmm(ur_base + 4 + vmm_id));
+            }
+        };
+
+        auto vector_worker = [&](std::function<void(int)> func) {
+            Xbyak::Label label_end;
+            func(0);
+            cmp(reg_unroll_size, 1);
+            jle(label_end, T_NEAR);
+            func(1);
+            cmp(reg_unroll_size, 2);
+            jle(label_end, T_NEAR);
+            func(2);
+            cmp(reg_unroll_size, 3);
+            jle(label_end, T_NEAR);
+            func(3);
+            L(label_end);
+        };
+
         Xbyak::Label label_unroll_num;
         Xbyak::Label label_unroll_num_end;
         L(label_unroll_num);
@@ -304,27 +353,7 @@ private:
             mov(reg_unroll_size, last_unroll_size);
             L(label_not_last);
 
-            // 4-15 for unroll. 4-7 for src, 8-11 for m/v sum, 12-15 for mean
-            Xbyak::Label label_init_end;
-            uni_vpxor(Vmm(ur_base + 4), Vmm(ur_base + 4), Vmm(ur_base + 4));
-            if (jcp_.normalize_variance)
-                uni_vmovups(Vmm(ur_base + 8), ptr[reg_mean]);
-            cmp(reg_unroll_size, 1);
-            jle(label_init_end, T_NEAR);
-            uni_vpxor(Vmm(ur_base + 5), Vmm(ur_base + 5), Vmm(ur_base + 5));
-            if (jcp_.normalize_variance)
-                uni_vmovups(Vmm(ur_base + 9), ptr[reg_mean + vlen]);
-            cmp(reg_unroll_size, 2);
-            jle(label_init_end, T_NEAR);
-            uni_vpxor(Vmm(ur_base + 6), Vmm(ur_base + 6), Vmm(ur_base + 6));
-            if (jcp_.normalize_variance)
-                uni_vmovups(Vmm(ur_base + 10), ptr[reg_mean + 2 * vlen]);
-            cmp(reg_unroll_size, 3);
-            jle(label_init_end, T_NEAR);
-            uni_vpxor(Vmm(ur_base + 7), Vmm(ur_base + 7), Vmm(ur_base + 7));
-            if (jcp_.normalize_variance)
-                uni_vmovups(Vmm(ur_base + 11), ptr[reg_mean + 3 * vlen]);
-            L(label_init_end);
+            vector_worker(init);
 
             mov(reg_src_aux, reg_src);
             mov(reg_work_amount, reg_work_amount_bk);
@@ -335,24 +364,8 @@ private:
                 cmp(reg_work_amount, 0);
                 jle(loop_end_label, T_NEAR);
 
-                // vector part
                 // load unroll
-                Xbyak::Label label_load_end;
-                load_emitter[VECTOR]->emit_code({static_cast<size_t>(reg_src_aux.getIdx())}, {static_cast<size_t>(ur_base + 0)}, {}, {load_pool_gpr_idxs});
-                add(reg_src_aux, vector_step * jcp_.src_data_size);
-                cmp(reg_unroll_size, 1);
-                jle(label_load_end, T_NEAR);
-                load_emitter[VECTOR]->emit_code({static_cast<size_t>(reg_src_aux.getIdx())}, {static_cast<size_t>(ur_base + 1)}, {}, {load_pool_gpr_idxs});
-                add(reg_src_aux, vector_step * jcp_.src_data_size);
-                cmp(reg_unroll_size, 2);
-                jle(label_load_end, T_NEAR);
-                load_emitter[VECTOR]->emit_code({static_cast<size_t>(reg_src_aux.getIdx())}, {static_cast<size_t>(ur_base + 2)}, {}, {load_pool_gpr_idxs});
-                add(reg_src_aux, vector_step * jcp_.src_data_size);
-                cmp(reg_unroll_size, 3);
-                jle(label_load_end, T_NEAR);
-                load_emitter[VECTOR]->emit_code({static_cast<size_t>(reg_src_aux.getIdx())}, {static_cast<size_t>(ur_base + 3)}, {}, {load_pool_gpr_idxs});
-                add(reg_src_aux, vector_step * jcp_.src_data_size);
-                L(label_load_end);
+                vector_worker(load_src);
 
                 // advance src and prefetch
                 mov(rdi, reg_unroll_size);
@@ -363,33 +376,8 @@ private:
                 add(reg_src_aux, rdi);
                 prefetcht0(ptr[reg_src_aux]);
 
-                // mv unroll to vector
-                auto mv_worker = [&](int offset) {
-                    if (jcp_.normalize_variance) {
-                        if (!isFloatCompatible(jcp_.src_prc)) {
-                            uni_vcvtdq2ps(Vmm(ur_base + offset), Vmm(ur_base + offset));
-                        }
-                        uni_vsubps(Vmm(ur_base + offset), Vmm(ur_base + offset), Vmm(ur_base + 8 + offset));
-                        uni_vfmadd231ps(Vmm(ur_base + 4 + offset), Vmm(ur_base + offset), Vmm(ur_base + offset));
-                    } else {
-                        if (!isFloatCompatible(jcp_.src_prc))
-                            uni_vpaddd(Vmm(ur_base + 4 + offset), Vmm(ur_base + 4 + offset), Vmm(ur_base + offset));
-                        else
-                            uni_vaddps(Vmm(ur_base + 4 + offset), Vmm(ur_base + 4 + offset), Vmm(ur_base + offset));
-                    }
-                };
-                Xbyak::Label label_mv_end;
-                mv_worker(0);
-                cmp(reg_unroll_size, 1);
-                jle(label_mv_end, T_NEAR);
-                mv_worker(1);
-                cmp(reg_unroll_size, 2);
-                jle(label_mv_end, T_NEAR);
-                mv_worker(2);
-                cmp(reg_unroll_size, 3);
-                jle(label_mv_end, T_NEAR);
-                mv_worker(3);
-                L(label_mv_end);
+                // mv compute
+                vector_worker(mv);
 
                 sub(reg_work_amount, 1);
                 jmp(loop_label, T_NEAR);
@@ -397,27 +385,7 @@ private:
             L(loop_end_label);
 
             // store mv vector to memory
-            auto store_mv = [&](int offset) {
-                if (jcp_.normalize_variance) {
-                    uni_vmovups(ptr[reg_variance + offset * vector_step * sizeof(float)], Vmm(ur_base + 4 + offset));
-                } else {
-                    if (!isFloatCompatible(jcp_.src_prc))
-                        uni_vcvtdq2ps(Vmm(ur_base + 4 + offset), Vmm(ur_base + 4 + offset));
-                    uni_vmovups(ptr[reg_sum + offset * vector_step * sizeof(float)], Vmm(ur_base + 4 + offset));
-                }
-            };
-            Xbyak::Label label_store_end;
-            store_mv(0);
-            cmp(reg_unroll_size, 1);
-            jle(label_store_end, T_NEAR);
-            store_mv(1);
-            cmp(reg_unroll_size, 2);
-            jle(label_store_end, T_NEAR);
-            store_mv(2);
-            cmp(reg_unroll_size, 3);
-            jle(label_store_end, T_NEAR);
-            store_mv(3);
-            L(label_store_end);
+            vector_worker(store);
 
             // src advance
             mov(rdi, reg_unroll_size);
@@ -444,17 +412,88 @@ private:
         cmp(reg_tail_num, 0);
         je(label_exit, T_NEAR);
 
-        // 4-7 for src for 8/4/2/1, 8-11 for sum, 12-15 for mean
-        uni_vpxor(Vmm(8), Vmm(8), Vmm(8));
-        uni_vpxor(Vmm(9), Vmm(9), Vmm(9));
-        uni_vpxor(Vmm(10), Vmm(10), Vmm(10));
-        uni_vpxor(Vmm(11), Vmm(11), Vmm(11));
-
         Xbyak::Reg64 reg_tails_num_active = reg_unroll_size;
-        Xbyak::Reg64 reg_mean_active = reg_unroll_num;
-
         mov(reg_src_aux, reg_src);
         mov(reg_work_amount, reg_work_amount_bk);
+
+        // 4-7 for src, 8-11 for sum, 12-15 for mean. 4 vector for 8/4/2/1 tiles
+        auto init_tails = [&](int vmm_id, int step) {
+            uni_vpxor(Vmm(ur_base + 4 + vmm_id), Vmm(ur_base + 4 + vmm_id), Vmm(ur_base + 4 + vmm_id));
+            if (jcp_.normalize_variance) {
+                uni_vmovups(Vmm(ur_base + 8 + vmm_id), ptr[reg_mean]);
+                add(reg_mean, step * sizeof(float));
+            }
+        };
+        auto load_src_tails = [&](int vmm_id, int step) {
+            int emitter_id = 4;
+            if (step == 8) {
+                emitter_id = 1;
+            } else if (step == 4) {
+                emitter_id = 2;
+            } else if (step == 2) {
+                emitter_id = 3;
+            }
+            load_emitter[emitter_id]->emit_code({static_cast<size_t>(reg_src_aux.getIdx())}, {static_cast<size_t>(ur_base + vmm_id)},
+                                                {}, {load_pool_gpr_idxs});
+            add(reg_src_aux, step * jcp_.src_data_size);
+        };
+        auto mv_tails = [&](int vmm_id, int step) {
+            if (jcp_.normalize_variance) {
+                if (!isFloatCompatible(jcp_.src_prc)) {
+                    uni_vcvtdq2ps(Vmm(ur_base + vmm_id), Vmm(ur_base + vmm_id));
+                }
+                uni_vsubps(Vmm(ur_base + vmm_id), Vmm(ur_base + vmm_id), Vmm(ur_base + 8 + vmm_id));
+                uni_vfmadd231ps(Vmm(ur_base + 4 + vmm_id), Vmm(ur_base + vmm_id), Vmm(ur_base + vmm_id));
+            } else {
+                if (!isFloatCompatible(jcp_.src_prc))
+                    uni_vpaddd(Vmm(ur_base + 4 + vmm_id), Vmm(ur_base + 4 + vmm_id), Vmm(ur_base + vmm_id));
+                else
+                    uni_vaddps(Vmm(ur_base + 4 + vmm_id), Vmm(ur_base + 4 + vmm_id), Vmm(ur_base + vmm_id));
+            }
+        };
+        auto store_tails = [&](int vmm_id, size_t step) {
+            if (jcp_.normalize_variance) {
+                uni_vmovups(ptr[reg_variance], Vmm(ur_base + 4 + vmm_id));
+                add(reg_variance, step * sizeof(float));
+            } else {
+                if (!isFloatCompatible(jcp_.src_prc))
+                    uni_vcvtdq2ps(Vmm(ur_base + 4 + vmm_id), Vmm(ur_base + 4 + vmm_id));
+                uni_vmovups(ptr[reg_sum], Vmm(ur_base + 4 + vmm_id));
+                add(reg_sum, step * sizeof(float));
+            }
+        };
+
+        auto tails_worker = [&](std::function<void(int, int)> func) {
+            Label tail_blk8_exit_label;
+            Label tail_blk4_exit_label;
+            Label tail_blk2_exit_label;
+            Label tail_blk1_exit_label;
+            cmp(reg_tails_num_active, 8);
+            jl(tail_blk8_exit_label, T_NEAR);
+            func(0, 8);
+            sub(reg_tails_num_active, 8);
+            L(tail_blk8_exit_label);
+            cmp(reg_tails_num_active, 4);
+            jl(tail_blk4_exit_label, T_NEAR);
+            func(1, 4);
+            sub(reg_tails_num_active, 4);
+            L(tail_blk4_exit_label);
+            cmp(reg_tails_num_active, 2);
+            jl(tail_blk2_exit_label, T_NEAR);
+            func(2, 2);
+            sub(reg_tails_num_active, 2);
+            L(tail_blk2_exit_label);
+            cmp(reg_tails_num_active, 1);
+            jl(tail_blk1_exit_label, T_NEAR);
+            func(3, 1);
+            sub(reg_tails_num_active, 1);
+            L(tail_blk1_exit_label);
+        };
+
+        // init
+        mov(reg_tails_num_active, reg_tail_num);
+        tails_worker(init_tails);
+
         Xbyak::Label loop_tail_label;
         Xbyak::Label label_tails_end;
 
@@ -463,144 +502,13 @@ private:
             cmp(reg_work_amount, 0);
             jle(label_tails_end, T_NEAR);
 
+            // load src
             mov(reg_tails_num_active, reg_tail_num);
-            mov(reg_mean_active, reg_mean);
+            tails_worker(load_src_tails);
 
-            auto worker_block = [&](int block_num) {
-                switch (block_num) {
-                case 8:
-                    load_emitter[TAIL8]->emit_code({static_cast<size_t>(reg_src_aux.getIdx())}, {static_cast<size_t>(4)},
-                                               {}, {load_pool_gpr_idxs});
-                    if (jcp_.normalize_variance) {
-                        if (!isFloatCompatible(jcp_.src_prc)) {
-                            uni_vcvtdq2ps(Vmm(4), Vmm(4));
-                        }
-                        uni_vsubps(Vmm(4), Vmm(4), ptr[reg_mean_active]);
-                        uni_vfmadd231ps(Vmm(8), Vmm(4), Vmm(4));
-                        add(reg_mean_active, 8 * sizeof(float));
-                    } else {
-                        if (!isFloatCompatible(jcp_.src_prc))
-                            uni_vpaddd(Vmm(8), Vmm(8), Vmm(4));
-                        else
-                            uni_vaddps(Vmm(8), Vmm(8), Vmm(4));
-                    }
-                    break;
-                case 4:
-                    load_emitter[TAIL4]->emit_code({static_cast<size_t>(reg_src_aux.getIdx())}, {static_cast<size_t>(5)},
-                                               {}, {load_pool_gpr_idxs});
-                    if (jcp_.normalize_variance) {
-                        if (!isFloatCompatible(jcp_.src_prc)) {
-                            uni_vcvtdq2ps(Vmm(5), Vmm(5));
-                        }
-                        uni_vsubps(Vmm(5), Vmm(5), ptr[reg_mean_active]);
-                        uni_vfmadd231ps(Vmm(9), Vmm(5), Vmm(5));
-                        add(reg_mean_active, 4 * sizeof(float));
-                    } else {
-                        if (!isFloatCompatible(jcp_.src_prc))
-                            uni_vpaddd(Vmm(9), Vmm(9), Vmm(5));
-                        else
-                            uni_vaddps(Vmm(9), Vmm(9), Vmm(5));
-                    }
-                    break;
-                case 2:
-                    load_emitter[TAIL2]->emit_code({static_cast<size_t>(reg_src_aux.getIdx())}, {static_cast<size_t>(6)},
-                                               {}, {load_pool_gpr_idxs});
-                    if (jcp_.normalize_variance) {
-                        if (!isFloatCompatible(jcp_.src_prc)) {
-                            uni_vcvtdq2ps(Vmm(6), Vmm(6));
-                        }
-                        uni_vsubps(Vmm(6), Vmm(6), ptr[reg_mean_active]);
-                        uni_vfmadd231ps(Vmm(10), Vmm(6), Vmm(6));
-                        add(reg_mean_active, 2 * sizeof(float));
-                    } else {
-                        if (!isFloatCompatible(jcp_.src_prc))
-                            uni_vpaddd(Vmm(10), Vmm(10), Vmm(6));
-                        else
-                            uni_vaddps(Vmm(10), Vmm(10), Vmm(6));
-                    }
-                    break;
-                case 1:
-                    load_emitter[TAIL1]->emit_code({static_cast<size_t>(reg_src_aux.getIdx())}, {static_cast<size_t>(7)},
-                                               {}, {load_pool_gpr_idxs});
-                    if (jcp_.normalize_variance) {
-                        if (!isFloatCompatible(jcp_.src_prc)) {
-                            uni_vcvtdq2ps(Vmm(7), Vmm(7));
-                        }
-                        uni_vsubps(Vmm(7), Vmm(7), ptr[reg_mean_active]);
-                        uni_vfmadd231ps(Vmm(11), Vmm(7), Vmm(7));
-                        add(reg_mean_active, 1 * sizeof(float));
-                    } else {
-                        if (!isFloatCompatible(jcp_.src_prc))
-                            uni_vpaddd(Vmm(11), Vmm(11), Vmm(7));
-                        else
-                            uni_vaddps(Vmm(11), Vmm(11), Vmm(7));
-                    }
-                    break;
-                default:
-                    assert(!"MVN layer tails is processed only with 8/4/2/1 blocks.");
-                    break;
-                }
-            };
-
-            Label tail_blk8_label;
-            Label tail_blk8_exit_label;
-            Label tail_blk4_label;
-            Label tail_blk4_exit_label;
-            Label tail_blk2_label;
-            Label tail_blk2_exit_label;
-            Label tail_blk1_label;
-            Label tail_blk1_exit_label;
-            L(tail_blk8_label);
-            {
-                cmp(reg_tails_num_active, 8);
-                jl(tail_blk8_exit_label, T_NEAR);
-
-                worker_block(8);
-                add(reg_src_aux, 8 * jcp_.src_data_size);
-
-                sub(reg_tails_num_active, 8);
-                jmp(tail_blk8_label, T_NEAR);
-            }
-            L(tail_blk8_exit_label);
-
-            L(tail_blk4_label);
-            {
-                cmp(reg_tails_num_active, 4);
-                jl(tail_blk4_exit_label, T_NEAR);
-
-                worker_block(4);
-                add(reg_src_aux, 4 * jcp_.src_data_size);
-
-                sub(reg_tails_num_active, 4);
-                jmp(tail_blk4_label, T_NEAR);
-            }
-            L(tail_blk4_exit_label);
-
-            L(tail_blk2_label);
-            {
-                cmp(reg_tails_num_active, 2);
-                jl(tail_blk2_exit_label, T_NEAR);
-
-                worker_block(2);
-                add(reg_src_aux, 2 * jcp_.src_data_size);
-
-                sub(reg_tails_num_active, 2);
-                jmp(tail_blk2_label, T_NEAR);
-            }
-            L(tail_blk2_exit_label);
-
-            L(tail_blk1_label);
-            {
-                cmp(reg_tails_num_active, 1);
-                jl(tail_blk1_exit_label, T_NEAR);
-
-                worker_block(1);
-                add(reg_src_aux, 1 * jcp_.src_data_size);
-
-                sub(reg_tails_num_active, 1);
-                jmp(tail_blk1_label, T_NEAR);
-            }
-            L(tail_blk1_exit_label);
+            // m/v compute
+            mov(reg_tails_num_active, reg_tail_num);
+            tails_worker(mv_tails);
 
             mov(rdi, reg_vector_num);
             imul(rdi, rdi, vector_step * jcp_.src_data_size);
@@ -612,72 +520,7 @@ private:
 
         // store tails
         mov(reg_tails_num_active, reg_tail_num);
-        auto store_tails_mv = [&](int vmm_id, size_t block_size) {
-            if (jcp_.normalize_variance) {
-                uni_vmovups(ptr[reg_variance], Vmm(vmm_id));
-                add(reg_variance, block_size * sizeof(float));
-            } else {
-                if (!isFloatCompatible(jcp_.src_prc))
-                    uni_vcvtdq2ps(Vmm(vmm_id), Vmm(vmm_id));
-                uni_vmovups(ptr[reg_sum], Vmm(vmm_id));
-                add(reg_sum, block_size * sizeof(float));
-            }
-        };
-        Label tail_blk8_store_label;
-        Label tail_blk8_exit_store_label;
-        Label tail_blk4_store_label;
-        Label tail_blk4_exit_store_label;
-        Label tail_blk2_store_label;
-        Label tail_blk2_exit_store_label;
-        Label tail_blk1_store_label;
-        Label tail_blk1_exit_store_label;
-        L(tail_blk8_store_label);
-        {
-            cmp(reg_tails_num_active, 8);
-            jl(tail_blk8_exit_store_label, T_NEAR);
-
-            store_tails_mv(8, 8);
-
-            sub(reg_tails_num_active, 8);
-            jmp(tail_blk8_store_label, T_NEAR);
-        }
-        L(tail_blk8_exit_store_label);
-
-        L(tail_blk4_store_label);
-        {
-            cmp(reg_tails_num_active, 4);
-            jl(tail_blk4_exit_store_label, T_NEAR);
-
-            store_tails_mv(9, 4);
-
-            sub(reg_tails_num_active, 4);
-            jmp(tail_blk4_store_label, T_NEAR);
-        }
-        L(tail_blk4_exit_store_label);
-
-        L(tail_blk2_store_label);
-        {
-            cmp(reg_tails_num_active, 2);
-            jl(tail_blk2_exit_store_label, T_NEAR);
-
-            store_tails_mv(10, 2);
-
-            sub(reg_tails_num_active, 2);
-            jmp(tail_blk2_store_label, T_NEAR);
-        }
-        L(tail_blk2_exit_store_label);
-
-        L(tail_blk1_store_label);
-        {
-            cmp(reg_tails_num_active, 1);
-            jl(tail_blk1_exit_store_label, T_NEAR);
-
-            store_tails_mv(11, 1);
-
-            sub(reg_tails_num_active, 1);
-            jmp(tail_blk1_store_label, T_NEAR);
-        }
-        L(tail_blk1_exit_store_label);
+        tails_worker(store_tails);
 
         L(label_exit);
     }
@@ -1450,7 +1293,7 @@ private:
         }
         L(label_reset_last_unroll_size_end);
 
-        // size_t unroll_number = div_up(vec_num, unroll_size) --> (vec_num + unroll_size - 1) / unroll_size;
+        // unroll_number = div_up(vec_num, unroll_size) --> (vec_num + unroll_size - 1) / unroll_size;
         mov(rax, addr_vector_num);
         add(rax, addr_unroll_size);
         sub(rax, 1);
@@ -1458,29 +1301,67 @@ private:
         div(addr_unroll_size);
         mov(addr_unroll_num, rax);
 
-        // reuse
         int ur_base = 4;
-        auto load_mv = [&](int offset, int step) {
-            uni_vmovups(Vmm(ur_base + 4 + offset), ptr[reg_mean]);
+        auto load_mv = [&](int vmm_id, int step) {
+            uni_vmovups(Vmm(ur_base + 4 + vmm_id), ptr[reg_mean]);
             add(reg_mean, step * sizeof(float));
             if (jcp_.normalize_variance) {
-                uni_vmovups(Vmm(ur_base + 8 + offset), ptr[reg_variance_inv]);
+                uni_vmovups(Vmm(ur_base + 8 + vmm_id), ptr[reg_variance_inv]);
                 add(reg_variance_inv, step * sizeof(float));
             }
         };
 
-        auto load_weight_bias = [&](int offset, int step, int repeat_num) {
-            uni_vmovups(Vmm(16 + repeat_num * 4 + offset), ptr[reg_d_weights]);
+        // optimized scaleshift fusion data init
+        int ss_repeat_id = 0;
+        auto load_weight_bias = [&](int vmm_id, int step) {
+            uni_vmovups(Vmm(16 + ss_repeat_id * 4 + vmm_id), ptr[reg_d_weights]);
             add(reg_d_weights, step * sizeof(float));
-            uni_vmovups(Vmm(24 + repeat_num * 4 + offset), ptr[reg_d_bias]);
+            uni_vmovups(Vmm(24 + ss_repeat_id * 4 + vmm_id), ptr[reg_d_bias]);
             add(reg_d_bias, step * sizeof(float));
         };
 
-        auto norm = [&](int offset) {
-            uni_vsubps(Vmm(ur_base + offset), Vmm(ur_base + offset), Vmm(ur_base + 4 + offset));
+        auto load_src = [&](int vmm_id, int step) {
+            load_emitter[VECTOR]->emit_code({static_cast<size_t>(reg_src_aux.getIdx())},
+                                           {static_cast<size_t>(ur_base + vmm_id)}, {}, {load_pool_gpr_idxs});
+            add(reg_src_aux, step * jcp_.src_data_size);
+        };
+
+        auto norm = [&](int vmm_id, int step) {
+            uni_vsubps(Vmm(ur_base + vmm_id), Vmm(ur_base + vmm_id), Vmm(ur_base + 4 + vmm_id));
             if (jcp_.normalize_variance) {
-                uni_vmulps(Vmm(ur_base + offset), Vmm(ur_base + offset), Vmm(ur_base + 8 + offset));
+                uni_vmulps(Vmm(ur_base + vmm_id), Vmm(ur_base + vmm_id), Vmm(ur_base + 8 + vmm_id));
             }
+        };
+
+        // optimized scaleshift fusion
+        auto optimized_ss = [&](int vmm_id, int step) {
+            uni_vfmadd132ps(Vmm(ur_base + vmm_id), Vmm(24 + ss_repeat_id * 4 + vmm_id), Vmm(16 + ss_repeat_id * 4 + vmm_id));
+        };
+
+        auto post_ops = [&](int vmm_id, int step) {
+            apply_post_ops(jcp_.dst_prc, ur_base + vmm_id, false);
+            add(reg_oc_off, step * sizeof(float));
+        };
+
+        auto store_dst = [&](int vmm_id, int step) {
+            store_emitter[VECTOR]->emit_code({static_cast<size_t>(ur_base + vmm_id)}, {static_cast<size_t>(reg_dst_aux.getIdx())},
+                {store_pool_vec_idxs}, {store_pool_gpr_idxs});
+            add(reg_dst_aux, step * jcp_.dst_data_size);
+        };
+
+        auto vector_worker = [&](std::function<void(int, int)> func) {
+            Xbyak::Label label_end;
+            func(0, vector_step);
+            cmp(addr_unroll_size, 1);
+            jle(label_end, T_NEAR);
+            func(1, vector_step);
+            cmp(addr_unroll_size, 2);
+            jle(label_end, T_NEAR);
+            func(2, vector_step);
+            cmp(addr_unroll_size, 3);
+            jle(label_end, T_NEAR);
+            func(3, vector_step);
+            L(label_end);
         };
 
         Xbyak::Label label_unroll_num;
@@ -1503,23 +1384,13 @@ private:
 
             // 4-15 for unroll. 4-7 for src, 8-11 for m, 12-15 for v
             // load m/v
-            Xbyak::Label label_load_mv_end;
-            load_mv(0, vector_step);
-            cmp(addr_unroll_size, 1);
-            jle(label_load_mv_end, T_NEAR);
-            load_mv(1, vector_step);
-            cmp(addr_unroll_size, 2);
-            jle(label_load_mv_end, T_NEAR);
-            load_mv(2, vector_step);
-            cmp(addr_unroll_size, 3);
-            jle(label_load_mv_end, T_NEAR);
-            load_mv(3, vector_step);
-            L(label_load_mv_end);
+            vector_worker(load_mv);
 
-            // optimized scaleshift. 16-23 for weight, 24-31 for bias.
+            // optimized scaleshift fusion arg init. 16-23 for weight, 24-31 for bias.
             // reg_post_ops_data[0]:----w0---- ----b0---- reg_post_ops_data[1]:----w1---- ----b1----
             mov(reg_oc_off, addr_oc_off_bk);
             size_t post_ops_data_offset = 0;
+            ss_repeat_id = 0;
             for (int i = 0; i < optimized_scaleshift_num; i++) {
                 mov(reg_d_weights, ptr[reg_post_ops_data + post_ops_data_offset]);
                 add(reg_d_weights, reg_oc_off);
@@ -1529,20 +1400,10 @@ private:
                 imul(rax, rax, sizeof(float));
                 add(reg_d_bias, rax);
 
-                Xbyak::Label label_load_weight_bias_end;
-                load_weight_bias(0, vector_step, i);
-                cmp(addr_unroll_size, 1);
-                jle(label_load_weight_bias_end, T_NEAR);
-                load_weight_bias(1, vector_step, i);
-                cmp(addr_unroll_size, 2);
-                jle(label_load_weight_bias_end, T_NEAR);
-                load_weight_bias(2, vector_step, i);
-                cmp(addr_unroll_size, 3);
-                jle(label_load_weight_bias_end, T_NEAR);
-                load_weight_bias(3, vector_step, i);
-                L(label_load_weight_bias_end);
+                vector_worker(load_weight_bias);
 
                 post_ops_data_offset += sizeof(float*);
+                ss_repeat_id++;
             }
 
             Xbyak::Label loop_label;
@@ -1553,23 +1414,7 @@ private:
                 jle(loop_end_label, T_NEAR);
 
                 // load
-                auto load_src = [&](int offset) {
-                    load_emitter[VECTOR]->emit_code({static_cast<size_t>(reg_src_aux.getIdx())},
-                                                   {static_cast<size_t>(ur_base + offset)}, {}, {load_pool_gpr_idxs});
-                    add(reg_src_aux, vector_step * jcp_.src_data_size);
-                };
-                Xbyak::Label label_load_src_end;
-                load_src(0);
-                cmp(addr_unroll_size, 1);
-                jle(label_load_src_end, T_NEAR);
-                load_src(1);
-                cmp(addr_unroll_size, 2);
-                jle(label_load_src_end, T_NEAR);
-                load_src(2);
-                cmp(addr_unroll_size, 3);
-                jle(label_load_src_end, T_NEAR);
-                load_src(3);
-                L(label_load_src_end);
+                vector_worker(load_src);
 
                 // to next iteration(next work_amount)
                 mov(rax, addr_unroll_size);
@@ -1581,73 +1426,22 @@ private:
                 prefetcht0(ptr[reg_src_aux]);
 
                 // norm
-                Xbyak::Label label_norm_end;
-                norm(0);
-                cmp(addr_unroll_size, 1);
-                jle(label_norm_end, T_NEAR);
-                norm(1);
-                cmp(addr_unroll_size, 2);
-                jle(label_norm_end, T_NEAR);
-                norm(2);
-                cmp(addr_unroll_size, 3);
-                jle(label_norm_end, T_NEAR);
-                norm(3);
-                L(label_norm_end);
+                vector_worker(norm);
 
-                // optimized scaleshift
+                // optimized ss fusion
+                ss_repeat_id = 0;
                 for (int i = 0; i < optimized_scaleshift_num; i++) {
-                    Xbyak::Label label_scaleshift_end;
-                    uni_vfmadd132ps(Vmm(ur_base + 0), Vmm(24 + i * 4 + 0), Vmm(16 + i * 4 + 0));
-                    cmp(addr_unroll_size, 1);
-                    jle(label_scaleshift_end, T_NEAR);
-                    uni_vfmadd132ps(Vmm(ur_base + 1), Vmm(24 + i * 4 + 1), Vmm(16 + i * 4 + 1));
-                    cmp(addr_unroll_size, 2);
-                    jle(label_scaleshift_end, T_NEAR);
-                    uni_vfmadd132ps(Vmm(ur_base + 2), Vmm(24 + i * 4 + 2), Vmm(16 + i * 4 + 2));
-                    cmp(addr_unroll_size, 3);
-                    jle(label_scaleshift_end, T_NEAR);
-                    uni_vfmadd132ps(Vmm(ur_base + 3), Vmm(24 + i * 4 + 3), Vmm(16 + i * 4 + 3));
-                    L(label_scaleshift_end);
+                    vector_worker(optimized_ss);
+                    ss_repeat_id++;
                 }
 
                 // post-ops
                 if (attr_.post_ops_.len() != 0) {
-                    auto post_ops = [&](int offset) {
-                        apply_post_ops(jcp_.dst_prc, ur_base + offset, false);
-                        add(reg_oc_off, vector_step * sizeof(float));
-                    };
-                    Xbyak::Label label_post_ops_end;
-                    post_ops(0);
-                    cmp(addr_unroll_size, 1);
-                    jle(label_post_ops_end, T_NEAR);
-                    post_ops(1);
-                    cmp(addr_unroll_size, 2);
-                    jle(label_post_ops_end, T_NEAR);
-                    post_ops(2);
-                    cmp(addr_unroll_size, 3);
-                    jle(label_post_ops_end, T_NEAR);
-                    post_ops(3);
-                    L(label_post_ops_end);
+                    vector_worker(post_ops);
                 }
 
                 // store
-                auto store_dst = [&](int offset) {
-                    store_emitter[VECTOR]->emit_code({static_cast<size_t>(ur_base + offset)}, {static_cast<size_t>(reg_dst_aux.getIdx())},
-                        {store_pool_vec_idxs}, {store_pool_gpr_idxs});
-                    add(reg_dst_aux, vector_step * jcp_.dst_data_size);
-                };
-                Xbyak::Label label_store_dst_end;
-                store_dst(0);
-                cmp(addr_unroll_size, 1);
-                jle(label_store_dst_end, T_NEAR);
-                store_dst(1);
-                cmp(addr_unroll_size, 2);
-                jle(label_store_dst_end, T_NEAR);
-                store_dst(2);
-                cmp(addr_unroll_size, 3);
-                jle(label_store_dst_end, T_NEAR);
-                store_dst(3);
-                L(label_store_dst_end);
+                vector_worker(store_dst);
 
                 // dst advance
                 mov(rax, addr_unroll_size);
@@ -1695,36 +1489,64 @@ private:
         Xbyak::Reg64 reg_tails_num_active = rdx;
         mov(reg_tails_num_active, addr_tail_num);
 
+        auto get_tile_emitter_id = [&](const int& step) -> int {
+            int emitter_id = 4;
+            if (step == 8) {
+                emitter_id = 1;
+            } else if (step == 4) {
+                emitter_id = 2;
+            } else if (step == 2) {
+                emitter_id = 3;
+            }
+            return emitter_id;
+        };
+        auto load_src_tails = [&](int vmm_id, int step) {
+            int emitter_id = get_tile_emitter_id(step);
+            load_emitter[emitter_id]->emit_code({static_cast<size_t>(reg_src_aux.getIdx())},
+                                                {static_cast<size_t>(ur_base + vmm_id)}, {}, {load_pool_gpr_idxs});
+            add(reg_src_aux, step * jcp_.src_data_size);
+        };
+        auto store_tails = [&](int vmm_id, int step) {
+            int emitter_id = get_tile_emitter_id(step);
+            store_emitter[emitter_id]->emit_code({static_cast<size_t>(ur_base + vmm_id)}, {static_cast<size_t>(reg_dst_aux.getIdx())},
+                                       {store_pool_vec_idxs}, {store_pool_gpr_idxs});
+            add(reg_dst_aux, step * jcp_.dst_data_size);
+        };
+        auto tails_worker = [&](std::function<void(int, int)> func) {
+            Label tail_blk8_exit_label;
+            Label tail_blk4_exit_label;
+            Label tail_blk2_exit_label;
+            Label tail_blk1_exit_label;
+            cmp(reg_tails_num_active, 8);
+            jl(tail_blk8_exit_label, T_NEAR);
+            func(0, 8);
+            sub(reg_tails_num_active, 8);
+            L(tail_blk8_exit_label);
+            cmp(reg_tails_num_active, 4);
+            jl(tail_blk4_exit_label, T_NEAR);
+            func(1, 4);
+            sub(reg_tails_num_active, 4);
+            L(tail_blk4_exit_label);
+            cmp(reg_tails_num_active, 2);
+            jl(tail_blk2_exit_label, T_NEAR);
+            func(2, 2);
+            sub(reg_tails_num_active, 2);
+            L(tail_blk2_exit_label);
+            cmp(reg_tails_num_active, 1);
+            jl(tail_blk1_exit_label, T_NEAR);
+            func(3, 1);
+            sub(reg_tails_num_active, 1);
+            L(tail_blk1_exit_label);
+        };
+
         // load m/v m:8-11, v:12-15
-        Label tail_blk8_mv_exit_label;
-        Label tail_blk4_mv_exit_label;
-        Label tail_blk2_mv_exit_label;
-        Label tail_blk1_mv_exit_label;
-        cmp(reg_tails_num_active, 8);
-        jl(tail_blk8_mv_exit_label, T_NEAR);
-        load_mv(0, 8);
-        sub(reg_tails_num_active, 8);
-        L(tail_blk8_mv_exit_label);
-        cmp(reg_tails_num_active, 4);
-        jl(tail_blk4_mv_exit_label, T_NEAR);
-        load_mv(1, 4);
-        sub(reg_tails_num_active, 4);
-        L(tail_blk4_mv_exit_label);
-        cmp(reg_tails_num_active, 2);
-        jl(tail_blk2_mv_exit_label, T_NEAR);
-        load_mv(2, 2);
-        sub(reg_tails_num_active, 2);
-        L(tail_blk2_mv_exit_label);
-        cmp(reg_tails_num_active, 1);
-        jl(tail_blk1_mv_exit_label, T_NEAR);
-        load_mv(3, 1);
-        sub(reg_tails_num_active, 1);
-        L(tail_blk1_mv_exit_label);
+        tails_worker(load_mv);
 
         // optimized scaleshift. 16-23 for weight, 24-31 for bias.
         // reg_post_ops_data[0]:----w0---- ----b0---- reg_post_ops_data[1]:----w1---- ----b1----
         mov(reg_oc_off, addr_oc_off_bk);
         size_t post_ops_data_offset = 0;
+        ss_repeat_id = 0;
         for (int i = 0; i < optimized_scaleshift_num; i++) {
             mov(reg_tails_num_active, addr_tail_num);
             mov(reg_d_weights, ptr[reg_post_ops_data + post_ops_data_offset]);
@@ -1735,32 +1557,10 @@ private:
             imul(rax, rax, sizeof(float));
             add(reg_d_bias, rax);
 
-            Label tail_blk8_load_weight_bias_exit_label;
-            Label tail_blk4_load_weight_bias_exit_label;
-            Label tail_blk2_load_weight_bias_exit_label;
-            Label tail_blk1_load_weight_bias_exit_label;
-            cmp(reg_tails_num_active, 8);
-            jl(tail_blk8_load_weight_bias_exit_label, T_NEAR);
-            load_weight_bias(0, 8, i);
-            sub(reg_tails_num_active, 8);
-            L(tail_blk8_load_weight_bias_exit_label);
-            cmp(reg_tails_num_active, 4);
-            jl(tail_blk4_load_weight_bias_exit_label, T_NEAR);
-            load_weight_bias(1, 4, i);
-            sub(reg_tails_num_active, 4);
-            L(tail_blk4_load_weight_bias_exit_label);
-            cmp(reg_tails_num_active, 2);
-            jl(tail_blk2_load_weight_bias_exit_label, T_NEAR);
-            load_weight_bias(2, 2, i);
-            sub(reg_tails_num_active, 2);
-            L(tail_blk2_load_weight_bias_exit_label);
-            cmp(reg_tails_num_active, 1);
-            jl(tail_blk1_load_weight_bias_exit_label, T_NEAR);
-            load_weight_bias(3, 1, i);
-            sub(reg_tails_num_active, 1);
-            L(tail_blk1_load_weight_bias_exit_label);
+            tails_worker(load_weight_bias);
 
             post_ops_data_offset += sizeof(float*);
+            ss_repeat_id++;
         }
 
         Xbyak::Label loop_tails_label;
@@ -1771,35 +1571,7 @@ private:
             jle(loop_tails_end_label, T_NEAR);
             mov(reg_tails_num_active, addr_tail_num);
 
-            // load to 4-7
-            Label tail_blk8_load_exit_label;
-            Label tail_blk4_load_exit_label;
-            Label tail_blk2_load_exit_label;
-            Label tail_blk1_load_exit_label;
-            cmp(reg_tails_num_active, 8);
-            jl(tail_blk8_load_exit_label, T_NEAR);
-            load_emitter[TAIL8]->emit_code({static_cast<size_t>(reg_src_aux.getIdx())}, {static_cast<size_t>(4)}, {}, {load_pool_gpr_idxs});
-            add(reg_src_aux, 8 * jcp_.src_data_size);
-            sub(reg_tails_num_active, 8);
-            L(tail_blk8_load_exit_label);
-            cmp(reg_tails_num_active, 4);
-            jl(tail_blk4_load_exit_label, T_NEAR);
-            load_emitter[TAIL4]->emit_code({static_cast<size_t>(reg_src_aux.getIdx())}, {static_cast<size_t>(5)}, {}, {load_pool_gpr_idxs});
-            add(reg_src_aux, 4 * jcp_.src_data_size);
-            sub(reg_tails_num_active, 4);
-            L(tail_blk4_load_exit_label);
-            cmp(reg_tails_num_active, 2);
-            jl(tail_blk2_load_exit_label, T_NEAR);
-            load_emitter[TAIL2]->emit_code({static_cast<size_t>(reg_src_aux.getIdx())}, {static_cast<size_t>(6)}, {}, {load_pool_gpr_idxs});
-            add(reg_src_aux, 2 * jcp_.src_data_size);
-            sub(reg_tails_num_active, 2);
-            L(tail_blk2_load_exit_label);
-            cmp(reg_tails_num_active, 1);
-            jl(tail_blk1_load_exit_label, T_NEAR);
-            load_emitter[TAIL1]->emit_code({static_cast<size_t>(reg_src_aux.getIdx())}, {static_cast<size_t>(7)}, {}, {load_pool_gpr_idxs});
-            add(reg_src_aux, 1 * jcp_.src_data_size);
-            sub(reg_tails_num_active, 1);
-            L(tail_blk1_load_exit_label);
+            tails_worker(load_src_tails);
 
             // to next iteration(next work_amount)
             mov(rax, addr_vector_num);
@@ -1808,127 +1580,25 @@ private:
 
             // norm
             mov(reg_tails_num_active, addr_tail_num);
-            Label tail_blk8_norm_exit_label;
-            Label tail_blk4_norm_exit_label;
-            Label tail_blk2_norm_exit_label;
-            Label tail_blk1_norm_exit_label;
-            cmp(reg_tails_num_active, 8);
-            jl(tail_blk8_norm_exit_label, T_NEAR);
-            norm(0);
-            sub(reg_tails_num_active, 8);
-            L(tail_blk8_norm_exit_label);
-            cmp(reg_tails_num_active, 4);
-            jl(tail_blk4_norm_exit_label, T_NEAR);
-            norm(1);
-            sub(reg_tails_num_active, 4);
-            L(tail_blk4_norm_exit_label);
-            cmp(reg_tails_num_active, 2);
-            jl(tail_blk2_norm_exit_label, T_NEAR);
-            norm(2);
-            sub(reg_tails_num_active, 2);
-            L(tail_blk2_norm_exit_label);
-            cmp(reg_tails_num_active, 1);
-            jl(tail_blk1_norm_exit_label, T_NEAR);
-            norm(3);
-            sub(reg_tails_num_active, 1);
-            L(tail_blk1_norm_exit_label);
+            tails_worker(norm);
 
-            // optimized scaleshift
+            // optimized scaleShift
+            ss_repeat_id = 0;
             for (int i = 0; i < optimized_scaleshift_num; i++) {
                 mov(reg_tails_num_active, addr_tail_num);
-                Label tail_blk8_ss_exit_label;
-                Label tail_blk4_ss_exit_label;
-                Label tail_blk2_ss_exit_label;
-                Label tail_blk1_ss_exit_label;
-                cmp(reg_tails_num_active, 8);
-                jl(tail_blk8_ss_exit_label, T_NEAR);
-                uni_vfmadd132ps(Vmm(ur_base + 0), Vmm(24 + i * 4 + 0), Vmm(16 + i * 4 + 0));
-                sub(reg_tails_num_active, 8);
-                L(tail_blk8_ss_exit_label);
-                cmp(reg_tails_num_active, 4);
-                jl(tail_blk4_ss_exit_label, T_NEAR);
-                uni_vfmadd132ps(Vmm(ur_base + 1), Vmm(24 + i * 4 + 1), Vmm(16 + i * 4 + 1));
-                sub(reg_tails_num_active, 4);
-                L(tail_blk4_ss_exit_label);
-                cmp(reg_tails_num_active, 2);
-                jl(tail_blk2_ss_exit_label, T_NEAR);
-                uni_vfmadd132ps(Vmm(ur_base + 2), Vmm(24 + i * 4 + 2), Vmm(16 + i * 4 + 2));
-                sub(reg_tails_num_active, 2);
-                L(tail_blk2_ss_exit_label);
-                cmp(reg_tails_num_active, 1);
-                jl(tail_blk1_ss_exit_label, T_NEAR);
-                uni_vfmadd132ps(Vmm(ur_base + 3), Vmm(24 + i * 4 + 3), Vmm(16 + i * 4 + 3));
-                sub(reg_tails_num_active, 1);
-                L(tail_blk1_ss_exit_label);
+                tails_worker(optimized_ss);
+                ss_repeat_id++;
             }
 
             // post-ops
             if (attr_.post_ops_.len() != 0) {
-                auto post_ops = [&](int offset, int step) {
-                    apply_post_ops(jcp_.dst_prc, ur_base + offset, false);
-                    add(reg_oc_off, step * sizeof(float));
-                };
                 mov(reg_tails_num_active, addr_tail_num);
-                Label tail_blk8_post_ops_exit_label;
-                Label tail_blk4_post_ops_exit_label;
-                Label tail_blk2_post_ops_exit_label;
-                Label tail_blk1_post_ops_exit_label;
-                cmp(reg_tails_num_active, 8);
-                jl(tail_blk8_post_ops_exit_label, T_NEAR);
-                post_ops(0, 8);
-                sub(reg_tails_num_active, 8);
-                L(tail_blk8_post_ops_exit_label);
-                cmp(reg_tails_num_active, 4);
-                jl(tail_blk4_post_ops_exit_label, T_NEAR);
-                post_ops(1, 4);
-                sub(reg_tails_num_active, 4);
-                L(tail_blk4_post_ops_exit_label);
-                cmp(reg_tails_num_active, 2);
-                jl(tail_blk2_post_ops_exit_label, T_NEAR);
-                post_ops(2, 2);
-                sub(reg_tails_num_active, 2);
-                L(tail_blk2_post_ops_exit_label);
-                cmp(reg_tails_num_active, 1);
-                jl(tail_blk1_post_ops_exit_label, T_NEAR);
-                post_ops(3, 1);
-                sub(reg_tails_num_active, 1);
-                L(tail_blk1_post_ops_exit_label);
+                tails_worker(post_ops);
             }
 
             // store
             mov(reg_tails_num_active, addr_tail_num);
-            Label tail_blk8_store_exit_label;
-            Label tail_blk4_store_exit_label;
-            Label tail_blk2_store_exit_label;
-            Label tail_blk1_store_exit_label;
-            cmp(reg_tails_num_active, 8);
-            jl(tail_blk8_store_exit_label, T_NEAR);
-            store_emitter[TAIL8]->emit_code({static_cast<size_t>(4)}, {static_cast<size_t>(reg_dst_aux.getIdx())},
-                                           {store_pool_vec_idxs}, {store_pool_gpr_idxs});
-            add(reg_dst_aux, 8 * jcp_.dst_data_size);
-            sub(reg_tails_num_active, 8);
-            L(tail_blk8_store_exit_label);
-            cmp(reg_tails_num_active, 4);
-            jl(tail_blk4_store_exit_label, T_NEAR);
-            store_emitter[TAIL4]->emit_code({static_cast<size_t>(5)}, {static_cast<size_t>(reg_dst_aux.getIdx())},
-                                           {store_pool_vec_idxs}, {store_pool_gpr_idxs});
-            add(reg_dst_aux, 4 * jcp_.dst_data_size);
-            sub(reg_tails_num_active, 4);
-            L(tail_blk4_store_exit_label);
-            cmp(reg_tails_num_active, 2);
-            jl(tail_blk2_store_exit_label, T_NEAR);
-            store_emitter[TAIL2]->emit_code({static_cast<size_t>(6)}, {static_cast<size_t>(reg_dst_aux.getIdx())},
-                                           {store_pool_vec_idxs}, {store_pool_gpr_idxs});
-            add(reg_dst_aux, 2 * jcp_.dst_data_size);
-            sub(reg_tails_num_active, 2);
-            L(tail_blk2_store_exit_label);
-            cmp(reg_tails_num_active, 1);
-            jl(tail_blk1_store_exit_label, T_NEAR);
-            store_emitter[TAIL1]->emit_code({static_cast<size_t>(7)}, {static_cast<size_t>(reg_dst_aux.getIdx())},
-                                           {store_pool_vec_idxs}, {store_pool_gpr_idxs});
-            add(reg_dst_aux, 1 * jcp_.dst_data_size);
-            sub(reg_tails_num_active, 1);
-            L(tail_blk1_store_exit_label);
+            tails_worker(store_tails);
 
             // dst advance
             mov(rax, reg_rt_shape);
