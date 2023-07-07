@@ -34,7 +34,8 @@ std::shared_ptr<::ov::ICompiledModel> convert_compiled_model(
 std::shared_ptr<::InferenceEngine::IInferRequestInternal> convert_infer_request(
     const std::shared_ptr<::ov::IAsyncInferRequest>& request);
 std::shared_ptr<::ov::IAsyncInferRequest> convert_infer_request(
-    const std::shared_ptr<::InferenceEngine::IInferRequestInternal>& request);
+    const std::shared_ptr<::InferenceEngine::IInferRequestInternal>& request,
+    const std::string& plugin_name = "");
 
 std::shared_ptr<InferenceEngine::RemoteContext> convert_remote_context(
     const std::shared_ptr<ov::IRemoteContext>& context);

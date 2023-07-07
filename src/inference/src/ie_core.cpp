@@ -338,7 +338,7 @@ std::vector<std::string> Core::GetAvailableDevices() const {
 }
 
 void Core::RegisterPlugin(const std::string& pluginName, const std::string& deviceName) {
-    _impl->register_plugin(pluginName, deviceName);
+    _impl->register_plugin(pluginName, deviceName, {});
 }
 
 void Core::RegisterPlugins(const std::string& xmlConfigFile) {

@@ -31,6 +31,8 @@ This document provides description and default values for CMake options that can
         * `ON` is default.
     * `ENABLE_AUTO_BATCH` enables Auto Batch plugin build:
         * `ON` is default.
+    * `ENABLE_PROXY` enables Proxy plugin compilation:
+        * `ON` is default.
 * Frontends to work with models from frameworks:
     * `ENABLE_OV_ONNX_FRONTEND` enables [ONNX] frontend plugin for OpenVINO Runtime:
         * `ON` is default.

@@ -93,6 +93,7 @@ public:
     MOCK_CONST_METHOD1(get_default_context, ov::RemoteContext(const std::string&));
     MOCK_CONST_METHOD3(import_model,
                        ov::SoPtr<ov::ICompiledModel>(std::istream&, const ov::RemoteContext&, const ov::AnyMap&));
+    MOCK_METHOD2(set_property, void(const std::string& device_name, const ov::AnyMap& properties));
 
     ~MockICore() = default;
 };

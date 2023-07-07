@@ -39,8 +39,13 @@
 #include "openvino/runtime/tensor.hpp"
 #include "openvino/runtime/threading/executor_manager.hpp"
 #include "openvino/runtime/variable_state.hpp"
+#include "remote_context_wrapper.hpp"
 #include "threading/ie_executor_manager.hpp"
 #include "transformations/utils/utils.hpp"
+
+#ifdef PROXY_PLUGIN_ENABLED
+#    include "openvino/proxy/infer_request.hpp"
+#endif
 
 namespace {
 
@@ -542,6 +547,12 @@ public:
     }
 
     const InferenceEngine::PreProcessInfo& GetPreProcess(const std::string& name) const override {
+#ifdef PROXY_PLUGIN_ENABLED
+        if (auto proxy_request = std::dynamic_pointer_cast<ov::proxy::InferRequest>(m_request)) {
+            return ov::legacy_convert::convert_infer_request(proxy_request->get_hardware_request()._ptr)
+                ->GetPreProcess(name);
+        }
+#endif
         OPENVINO_NOT_IMPLEMENTED;
     }
 
@@ -613,9 +624,12 @@ public:
 
 class IAsyncInferRequestWrapper : public ov::IAsyncInferRequest {
 public:
-    IAsyncInferRequestWrapper(const std::shared_ptr<InferenceEngine::IInferRequestInternal>& request)
+    IAsyncInferRequestWrapper(const std::shared_ptr<InferenceEngine::IInferRequestInternal>& request,
+                              const std::string& plugin_name)
         : ov::IAsyncInferRequest(nullptr, nullptr, nullptr),
-          m_request(request) {
+          m_request(request),
+          m_unwrap_tensor(plugin_name != "AUTO" && plugin_name != "MULTI" && plugin_name != "BATCH" &&
+                          plugin_name != "HETERO") {
         if (m_request->getPointerToExecutableNetworkInternal())
             m_compiled_model =
                 ov::legacy_convert::convert_compiled_model(m_request->getPointerToExecutableNetworkInternal());
@@ -708,7 +722,7 @@ public:
         return tensor;
     }
     void set_tensor(const ov::Output<const ov::Node>& port, const ov::Tensor& tensor) override {
-        m_request->SetBlob(get_legacy_name_from_port(port), ov::tensor_to_blob(tensor._impl));
+        m_request->SetBlob(get_legacy_name_from_port(port), ov::tensor_to_blob(tensor._impl, m_unwrap_tensor));
     }
 
     std::vector<ov::Tensor> get_tensors(const ov::Output<const ov::Node>& port) const override {
@@ -724,7 +738,7 @@ public:
     void set_tensors(const ov::Output<const ov::Node>& port, const std::vector<ov::Tensor>& tensors) override {
         std::vector<InferenceEngine::Blob::Ptr> blobs;
         for (const auto& tensor : tensors) {
-            blobs.emplace_back(ov::tensor_to_blob(tensor._impl));
+            blobs.emplace_back(ov::tensor_to_blob(tensor._impl, m_unwrap_tensor));
         }
         m_request->SetBlobs(get_legacy_name_from_port(port), blobs);
     }
@@ -766,6 +780,7 @@ private:
     std::shared_ptr<InferenceEngine::IInferRequestInternal> m_request;
     mutable std::shared_ptr<const ov::ICompiledModel> m_compiled_model;
     mutable std::mutex m_mutex;
+    const bool m_unwrap_tensor;
 };
 
 }  // namespace InferenceEngine
@@ -778,50 +793,13 @@ std::shared_ptr<::InferenceEngine::IInferRequestInternal> ov::legacy_convert::co
     return std::make_shared<ov::IInferRequestInternalWrapper>(request);
 }
 std::shared_ptr<::ov::IAsyncInferRequest> ov::legacy_convert::convert_infer_request(
-    const std::shared_ptr<::InferenceEngine::IInferRequestInternal>& request) {
+    const std::shared_ptr<::InferenceEngine::IInferRequestInternal>& request,
+    const std::string& plugin_name) {
     if (auto comp_model = std::dynamic_pointer_cast<ov::IInferRequestInternalWrapper>(request)) {
         return comp_model->get_infer_request();
     }
-    return std::make_shared<InferenceEngine::IAsyncInferRequestWrapper>(request);
+    return std::make_shared<InferenceEngine::IAsyncInferRequestWrapper>(request, plugin_name);
 }
-
-namespace ov {
-
-class RemoteContextWrapper : public InferenceEngine::RemoteContext {
-private:
-    std::shared_ptr<ov::IRemoteContext> m_context;
-
-public:
-    RemoteContextWrapper(const std::shared_ptr<ov::IRemoteContext>& context) : m_context(context) {}
-
-    const std::shared_ptr<ov::IRemoteContext>& get_context() {
-        return m_context;
-    }
-
-    std::string getDeviceName() const noexcept override {
-        return m_context->get_device_name();
-    }
-
-    InferenceEngine::RemoteBlob::Ptr CreateBlob(const InferenceEngine::TensorDesc& tensorDesc,
-                                                const InferenceEngine::ParamMap& params = {}) override {
-        return std::dynamic_pointer_cast<InferenceEngine::RemoteBlob>(ov::tensor_to_blob(
-            m_context->create_tensor(InferenceEngine::details::convertPrecision(tensorDesc.getPrecision()),
-                                     tensorDesc.getBlockingDesc().getBlockDims(),
-                                     params)));
-    }
-
-    InferenceEngine::MemoryBlob::Ptr CreateHostBlob(const InferenceEngine::TensorDesc& tensorDesc) override {
-        return std::dynamic_pointer_cast<InferenceEngine::MemoryBlob>(ov::tensor_to_blob(
-            m_context->create_host_tensor(InferenceEngine::details::convertPrecision(tensorDesc.getPrecision()),
-                                          tensorDesc.getBlockingDesc().getBlockDims())));
-    }
-
-    InferenceEngine::ParamMap getParams() const override {
-        return m_context->get_property();
-    }
-};
-
-}  // namespace ov
 
 namespace InferenceEngine {
 

@@ -253,8 +253,8 @@ std::vector<std::string> Core::get_available_devices() const {
     OV_CORE_CALL_STATEMENT(return _impl->GetAvailableDevices(););
 }
 
-void Core::register_plugin(const std::string& plugin, const std::string& device_name) {
-    OV_CORE_CALL_STATEMENT(_impl->register_plugin(plugin, device_name););
+void Core::register_plugin(const std::string& plugin, const std::string& device_name, const ov::AnyMap& properties) {
+    OV_CORE_CALL_STATEMENT(_impl->register_plugin(plugin, device_name, properties););
 }
 
 void Core::unload_plugin(const std::string& device_name) {

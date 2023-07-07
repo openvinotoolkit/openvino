@@ -688,8 +688,9 @@ public:
      * @note For security purposes it suggested to specify absolute path to register plugin.
      *
      * @param device_name Device name to register a plugin for.
+     * @param config Plugin configuration options
      */
-    void register_plugin(const std::string& plugin, const std::string& device_name);
+    void register_plugin(const std::string& plugin, const std::string& device_name, const ov::AnyMap& config = {});
 
     /**
      * @brief Unloads the previously loaded plugin identified by @p device_name from OpenVINO Runtime.

@@ -485,11 +485,14 @@ void regclass_Core(py::module m) {
                 new_compiled = core.import_model(user_stream, "CPU")
         )");
 
-    cls.def("register_plugin",
-            &ov::Core::register_plugin,
-            py::arg("plugin_name"),
-            py::arg("device_name"),
-            R"(
+    cls.def(
+        "register_plugin",
+        [](ov::Core& self, const std::string& plugin_name, const std::string& device_name) {
+            self.register_plugin(plugin_name, device_name);
+        },
+        py::arg("plugin_name"),
+        py::arg("device_name"),
+        R"(
                 Register a new device and plugin which enable this device inside OpenVINO Runtime.
 
                 :param plugin_name: A path (absolute or relative) or name of a plugin. Depending on platform,
@@ -499,6 +502,32 @@ void regclass_Core(py::module m) {
                 :type plugin_name: str
                 :param device_name: A device name to register plugin for.
                 :type device_name: str
+            )");
+
+    cls.def(
+        "register_plugin",
+        [](ov::Core& self,
+           const std::string& plugin_name,
+           const std::string& device_name,
+           const std::map<std::string, py::object>& config) {
+            auto properties = Common::utils::properties_to_any_map(config);
+            self.register_plugin(plugin_name, device_name, properties);
+        },
+        py::arg("plugin_name"),
+        py::arg("device_name"),
+        py::arg("config"),
+        R"(
+                Register a new device and plugin which enable this device inside OpenVINO Runtime.
+
+                :param plugin_name: A path (absolute or relative) or name of a plugin. Depending on platform,
+                                    `plugin_name` is wrapped with shared library suffix and prefix to identify
+                                    library full name E.g. on Linux platform plugin name specified as `plugin_name`
+                                    will be wrapped as `libplugin_name.so`.
+                :type plugin_name: str
+                :param device_name: A device name to register plugin for.
+                :type device_name: str
+                :param config: Plugin default configuration
+                :type config: dict, optional
             )");
 
     cls.def("register_plugins",

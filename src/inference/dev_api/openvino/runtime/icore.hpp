@@ -18,6 +18,12 @@
 
 namespace ov {
 
+namespace proxy {
+
+class Plugin;
+
+}
+
 /**
  * @interface ICore
  * @brief Minimal ICore interface to allow plugin to get information from Core OpenVINO class.
@@ -227,6 +233,10 @@ public:
      * @brief Default virtual destructor
      */
     virtual ~ICore();
+
+private:
+    virtual void set_property(const std::string& device_name, const AnyMap& properties) = 0;
+    friend class ov::proxy::Plugin;
 };
 
 }  // namespace ov
