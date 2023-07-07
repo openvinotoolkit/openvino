@@ -65,8 +65,11 @@ struct concatenation_impl : public typed_primitive_impl<concatenation> {
                             "[GPU] Couldn't create concat operation: unsupported mixed inputs/output data types");
 
         std::vector<memory::ptr> input_mem_ptrs;
-        for (size_t i = 0; i < instance.dependencies().size(); i++)
-            input_mem_ptrs.push_back(instance.dep_memory_ptr(i));
+        for (size_t i = 0; i < instance.dependencies().size(); i++) {
+            auto& dep = instance.dependencies().at(i);
+            if (dep.first->get_output_layout().count() > 0)
+                input_mem_ptrs.push_back(instance.dep_memory_ptr(i));
+        }
 
         auto output_mem_ptr = instance.output_memory_ptr();
 
