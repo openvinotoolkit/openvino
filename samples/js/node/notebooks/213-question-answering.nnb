@@ -1,0 +1,141 @@
+{
+    "cells": [
+        {
+            "language": "markdown",
+            "source": [
+                "# Interactive question answering with OpenVINO™\n\nThis demo shows interactive question answering with OpenVINO, using [small BERT-large-like model](https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/intel/bert-small-uncased-whole-word-masking-squad-int8-0002) distilled and quantized to `INT8` on SQuAD v1.1 training set from larger BERT-large model. The model comes from [Open Model Zoo](https://github.com/openvinotoolkit/open_model_zoo/). Final part of this notebook provides live inference results from your inputs."
+            ],
+            "outputs": []
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "## Imports"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "javascript",
+            "source": [
+                "const lib = require('./tokens_bert.js');\n\nconst vocab = lib.loadVocabFile('../../assets/text/vocab.txt');\nconst text = 'Hello world, do not blame me. Please!'.toLowerCase();\n\ntry {\n  const result = lib.textToTokens(text, vocab);\n\n  console.log(result);\n} catch(e) {\n  console.log(`error: ${e}`);\n}"
+            ],
+            "outputs": [
+                {
+                    "items": [
+                        {
+                            "mime": "application/vnd.code.notebook.stdout",
+                            "value": [
+                                "[",
+                                "  [",
+                                "    7592, 2088, 1010,",
+                                "    2079, 2025, 7499,",
+                                "    2033, 1012, 3531,",
+                                "     999",
+                                "  ],",
+                                "  [",
+                                "    [ 0, 5 ],   [ 6, 11 ],",
+                                "    [ 11, 12 ], [ 13, 15 ],",
+                                "    [ 16, 19 ], [ 20, 25 ],",
+                                "    [ 26, 28 ], [ 28, 29 ],",
+                                "    [ 30, 36 ], [ 36, 37 ]",
+                                "  ]",
+                                "]",
+                                ""
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "language": "javascript",
+            "source": [
+                "const { downloadFile } = require('./helpers.js');\nconst ov = require('../node_modules/openvinojs-node/build/Release/ov_node_addon.node');"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "## Download the Model"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "typescript",
+            "source": [
+                "const baseArtifactsDir = '../../assets/models';\n\nconst modelName = 'bert-small-uncased-whole-word-masking-squad-int8-0002';\nconst modelXMLName = `${modelName}.xml`;\nconst modelBINName = `${modelName}.bin`;\n\nconst modelXMLPath = baseArtifactsDir + '/' + modelXMLName;\n\nconst baseURL = 'https://storage.openvinotoolkit.org/repositories/open_model_zoo/2022.3/models_bin/1/bert-small-uncased-whole-word-masking-squad-int8-0002/FP16-INT8/';\n\nawait downloadFile(baseURL + modelXMLName, modelXMLName, baseArtifactsDir);\nawait downloadFile(baseURL + modelBINName, modelBINName, baseArtifactsDir);"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "### Load the model\n\nDownloaded models are located in a fixed structure, which indicates a vendor, a model name and a precision. Only a few lines of code are required to run the model. First, create an OpenVINO Runtime object. Then, read the network architecture and model weights from the `.xml` and `.bin` files. Finally, compile the network for the desired device. You can choose `CPU` or `GPU` for this model."
+            ],
+            "outputs": []
+        },
+        {
+            "language": "typescript",
+            "source": [
+                "const core = new ov.Core();\nconst model = core.read_model(modelXMLPath);\nconst compiledModel = core.compile_model(model, 'CPU');\n\nconst inputs = compiledModel.inputs;\nconst outputs = compiledModel.outputs;\n\nconst inputSize = compiledModel.input(0).shape[1];"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "javascript",
+            "source": [
+                "inputs.forEach(i => console.log(`${i}`));\nconsole.log('===')\noutputs.forEach(o => console.log(`${o}`));"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "## Processing\n\nNLP models usually take a list of tokens as a standard input. A token is a single word converted to some integer. To provide the proper input, you need the vocabulary for such mapping. You also need to define some special tokens, such as separators or padding and a function to load the content from provided URLs."
+            ],
+            "outputs": []
+        },
+        {
+            "language": "javascript",
+            "source": [
+                "// The path to the vocabulary file.\nconst vocabFilePath = \"../data/text/bert-uncased/vocab.txt\";\n\n// Create a dictionary with words and their indices.\nconst vocab = tokens.load_vocab_file(vocabFilePath);\n\n// Define special tokens.\nconst clsToken = vocab[\"[CLS]\"];\nconst padToken = vocab[\"[PAD]\"];\nconst sepToken = vocab[\"[SEP]\"];\n\n// A function to load text from given urls.\nfunction load_context(sources) {\n  const input_urls = [];\n  const paragraphs = [];\n    \n  for (source of sources) {\n    paragraphs.append(source);\n    // TODO: Add opportunity to parse content by URL\n\n    // Produce one big context string.\n    return \"\\n\".join(paragraphs);\n  }\n}"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "### Preprocessing\n\nThe input size in this case is 384 tokens long. The main input (`input_ids`) to used BERT model consists of two parts: question tokens and context tokens separated by some special tokens. \n\nIf `question + context` are shorter than 384 tokens, padding tokens are added. If `question + context` is longer than 384 tokens, the context must be split into parts and the question with different parts of context must be fed to the network many times. \n\nUse overlapping, so neighbor parts of the context are overlapped by half size of the context part (if the context part equals 300 tokens, neighbor context parts overlap with 150 tokens). You also need to provide the following sequences of integer values: \n\n- `attention_mask` - a sequence of integer values representing the mask of valid values in the input. \n- `token_type_ids` - a sequence of integer values representing the segmentation of `input_ids` into question and context. \n- `position_ids` - a sequence of integer values from 0 to 383 representing the position index for each input token. \n\nFor more information, refer to the **Input** section of [BERT model documentation](https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/intel/bert-small-uncased-whole-word-masking-squad-int8-0002#input)."
+            ],
+            "outputs": []
+        },
+        {
+            "language": "javascript",
+            "source": [
+                "# A generator of a sequence of inputs.\ndef prepare_input(question_tokens, context_tokens):\n    # A length of question in tokens.\n    question_len = len(question_tokens)\n    # The context part size.\n    context_len = input_size - question_len - 3\n\n    if context_len < 16:\n        raise RuntimeError(\"Question is too long in comparison to input size. No space for context\")\n\n    # Take parts of the context with overlapping by 0.5.\n    for start in range(0, max(1, len(context_tokens) - context_len), context_len // 2):\n        # A part of the context.\n        part_context_tokens = context_tokens[start:start + context_len]\n        # The input: a question and the context separated by special tokens.\n        input_ids = [cls_token] + question_tokens + [sep_token] + part_context_tokens + [sep_token]\n        # 1 for any index if there is no padding token, 0 otherwise.\n        attention_mask = [1] * len(input_ids)\n        # 0 for question tokens, 1 for context part.\n        token_type_ids = [0] * (question_len + 2) + [1] * (len(part_context_tokens) + 1)\n\n        # Add padding at the end.\n        (input_ids, attention_mask, token_type_ids), pad_number = pad(input_ids=input_ids,\n                                                                      attention_mask=attention_mask,\n                                                                      token_type_ids=token_type_ids)\n\n        # Create an input to feed the model.\n        input_dict = {\n            \"input_ids\": np.array([input_ids], dtype=np.int32),\n            \"attention_mask\": np.array([attention_mask], dtype=np.int32),\n            \"token_type_ids\": np.array([token_type_ids], dtype=np.int32),\n        }\n\n        # Some models require additional position_ids.\n        if \"position_ids\" in [i_key.any_name for i_key in input_keys]:\n            position_ids = np.arange(len(input_ids))\n            input_dict[\"position_ids\"] = np.array([position_ids], dtype=np.int32)\n\n        yield input_dict, pad_number, start\n        "
+            ],
+            "outputs": [
+                {
+                    "items": [
+                        {
+                            "mime": "application/vnd.code.notebook.error",
+                            "value": {
+                                "name": "Error",
+                                "message": "Failed to generate code object, \ngenerator;\n ^\n\nUnexpected character ';'",
+                                "stack": ""
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "language": "javascript",
+            "source": [
+                "// A function to add padding.\nfunction pad(inputIds, attentionMask, tokenTypeIds) {\n  // How many padding tokens.\n  const diffInputSize = inputSize - inputIds.length;\n\n  if (diffInputSize > 0) {\n    // Add padding to all the inputs.\n    inputIds = inputIds.concat(Array(diffInputSize).fill(padToken));\n    attentionMask = attentionMask.concat(Array(diffInputSize).fill(0));\n    tokenTypeIds = tokenTypeIds.concat(Array(diffInputSize).fill(0));\n  }\n\n  return [[inputIds, attentionMask, tokenTypeIds], diffInputSize];\n}"
+            ],
+            "outputs": []
+        }
+    ]
+}
