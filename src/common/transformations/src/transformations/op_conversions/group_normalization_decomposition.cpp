@@ -120,7 +120,7 @@ ov::pass::GroupNormalizationDecomposition::GroupNormalizationDecomposition() {
 
         size_t num_groups =
             static_cast<size_t>(group_norm_node->get_num_groups());  // Negative values are checked by op validation
-        float eps = group_norm_node->get_epsilon();
+        auto eps = group_norm_node->get_epsilon();
 
         auto data_shape_node = reg.make<ShapeOf>(data);
         auto data_reshaped = reg.make<Reshape>(data, create_group_norm_shape(reg, data, num_groups), true);
