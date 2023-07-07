@@ -35,6 +35,10 @@ class IVariableStateInternalWrapper;
 class ITensor;
 class RemoteTensor;
 
+namespace proxy {
+class RemoteContext;
+}
+
 namespace op {
 namespace util {
 class VariableValue;
@@ -68,6 +72,7 @@ protected:
     friend class ov::ISyncInferRequest;
     friend class ov::IInferRequestInternalWrapper;
     friend class ov::IVariableStateInternalWrapper;
+    friend class ov::proxy::RemoteContext;
     friend class InferenceEngine::IAsyncInferRequestWrapper;
     friend class InferenceEngine::IVariableStateWrapper;
     friend class ov::op::util::VariableValue;
