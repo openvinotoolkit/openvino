@@ -17,6 +17,7 @@ namespace proxy {
 class VariableState : public ov::IVariableState {
     std::shared_ptr<ov::IVariableState> m_state;
     std::shared_ptr<void> m_so;
+
 public:
     /**
      * @brief Constructor of proxy VariableState
@@ -24,7 +25,10 @@ public:
      * @param state hardware state
      * @param so shared object
      */
-    VariableState(const std::shared_ptr<ov::IVariableState>& state, const std::shared_ptr<void>& so): IVariableState(""), m_state(state), m_so(so) {
+    VariableState(const std::shared_ptr<ov::IVariableState>& state, const std::shared_ptr<void>& so)
+        : IVariableState(""),
+          m_state(state),
+          m_so(so) {
         OPENVINO_ASSERT(m_state);
     }
     const std::string& get_name() const override {
