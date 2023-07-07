@@ -19,6 +19,7 @@
 namespace ov {
 namespace frontend {
 namespace tensorflow {
+#define CF_MARKER_TAG "tf_cf_marker_tag"
 
 ov::element::Type get_ov_type(const ::tensorflow::DataType& type);
 
@@ -52,21 +53,32 @@ struct CfMarkerType {
 using ControlDepsMap = std::unordered_map<std::string, std::set<ov::Output<ov::Node>>>;
 
 // check if the given node contains conditional flow marker in run-time info
-bool cf_marker_exists(const std::shared_ptr<const ov::Node>& node);
+inline bool cf_marker_exists(const std::shared_ptr<const ov::Node>& node) {
+    const auto& rt_info = node->get_rt_info();
+    if (rt_info.count(CF_MARKER_TAG) > 0) {
+        return true;
+    }
+    return false;
+}
 
 // retrieves conditional flow marker in run-time info for the given node
 CfMarkerType get_cf_marker(const std::shared_ptr<const ov::Node>& node);
 
 // sets conditional flow marker for the given node in run-time info
-void set_cf_marker(const CfMarkerType& cf_marker, const std::shared_ptr<ov::Node>& node);
+// inline void set_cf_marker(const CfMarkerType& cf_marker, const std::shared_ptr<ov::Node>& node);
+inline void set_cf_marker(const CfMarkerType& cf_marker, const std::shared_ptr<ov::Node>& node) {
+    node->get_rt_info()[CF_MARKER_TAG] = cf_marker;
+}
 
 // generates unique conditional flow marker index
+// Note: the next TranslateSession (for conversion in parallel) does not reset initial marker
+// and it must not affect conversion of models in different sessions
 uint32_t generate_cf_marker();
 
 // propagate conditional flow markers to nodes generating ov_outputs
 // based on conditional flow presence in input nodes
 // also, it creates a vector of tensor/edges output_control_deps from which the current node(s) is dependent
-bool propogate_conditional_flow(const ov::OutputVector& ov_inputs,
+bool propagate_conditional_flow(const ov::OutputVector& ov_inputs,
                                 const ov::frontend::NamedOutputVector& ov_outputs,
                                 const std::set<ov::Output<ov::Node>>& input_control_deps,
                                 std::set<ov::Output<ov::Node>>& output_control_deps);

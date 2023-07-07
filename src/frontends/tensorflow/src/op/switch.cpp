@@ -25,6 +25,7 @@ OutputVector translate_switch_op(const NodeContext& node) {
     auto data = node.get_input(0);
     auto pred = node.get_input(1);
 
+    auto data_producer = data.get_node();
     // check if the condition goes to another Switch node
     // and re-use its conditional flow marker for further grouping multiple Switch and Merge nodes
     // walk through all consumers for pred and find Switch nodes
@@ -32,14 +33,18 @@ OutputVector translate_switch_op(const NodeContext& node) {
     int32_t switch_marker = 0;
     auto pred_node = pred.get_node_shared_ptr();
     auto pred_index = pred.get_index();
-    pred_node->get_output_target_inputs(pred_index);
+    bool to_skip_switch = false;
     for (const auto& target_input : pred_node->get_output_target_inputs(pred_index)) {
-        auto another_producer = target_input.get_node()->shared_from_this();
-        if (auto another_switch = ov::as_type_ptr<Switch>(another_producer)) {
+        auto another_producer = target_input.get_node();
+        if (const auto& another_switch = as_type<Switch>(another_producer)) {
             if (another_switch->is_cond_flow_marker_set()) {
                 switch_marker = another_switch->get_cond_flow_marker();
                 another_switch_found = true;
-                break;
+            }
+            // in case two consecutive Switch nodes with the common predicate
+            // the successor can be skipped
+            if (another_switch == data_producer) {
+                to_skip_switch = true;
             }
         }
     }
@@ -48,12 +53,27 @@ OutputVector translate_switch_op(const NodeContext& node) {
         // generate marker for new conditioning flow
         switch_marker = generate_cf_marker();
     }
-
     auto switch_node = make_shared<Switch>(data, pred, switch_marker, node.get_decoder());
 
-    // set the same marker as for other Switch nodes with the same predicate
-    set_node_name(switch_name, switch_node);
+    // in case two consecutive Switch nodes with the common predicate
+    // it skips successive Switch node
+    if (to_skip_switch) {
+        auto data_output_index = data.get_index();
+        FRONT_END_GENERAL_CHECK(data_output_index == 0 || data_output_index == 1,
+                                "[TensorFlow Frontend] internal error: Switch node must have two outputs");
+        size_t other_output_index = 1 - data_output_index;
+        data.add_names({switch_name + ":" + to_string(data_output_index)});
+        auto other_switch_output = switch_node->output(other_output_index);
+        other_switch_output.add_names({switch_name + ":" + to_string(other_output_index)});
+        if (data_output_index == 0) {
+            return OutputVector{data, other_switch_output};
+        } else {
+            return OutputVector{other_switch_output, data};
+        }
+    }
 
+    // set output tensor names and move the node name
+    set_node_name(switch_name, switch_node);
     return switch_node->outputs();
 }
 

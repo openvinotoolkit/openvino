@@ -13,12 +13,12 @@
 #include "openvino/runtime/tensor.hpp"
 
 using namespace ov;
+using namespace ov::element;
+using namespace ov::frontend::tensorflow;
 using namespace std;
 
 namespace {
-const std::string cf_marker_tag = "tf_cf_marker_tag";
-
-void copy_conditional_flow_marker(const ov::frontend::tensorflow::CfMarkerType& copy_from,
+void copy_conditional_flow_marker(const CfMarkerType& copy_from,
                                   unordered_map<uint32_t, unordered_set<uint32_t>>& copy_to) {
     for (const auto& marker : copy_from.existing_markers) {
         const auto& switch_marker = marker.first;
@@ -32,8 +32,29 @@ void copy_conditional_flow_marker(const ov::frontend::tensorflow::CfMarkerType& 
     }
 }
 
+void copy_conditional_flow_markers_for_producer(unordered_map<uint32_t, unordered_set<uint32_t>>& combined_markers,
+                                                const Output<Node>& ov_output) {
+    // walk through all data producer and collect conditional flow markers
+    const shared_ptr<const Node>& producer_node = ov_output.get_node_shared_ptr();
+    uint32_t branch_index = static_cast<uint32_t>(ov_output.get_index());
+    if (!cf_marker_exists(producer_node)) {
+        return;
+    }
+    auto producer_markers = get_cf_marker(producer_node);
+    copy_conditional_flow_marker(producer_markers, combined_markers);
+    // if data goes from Switch node, it needs to create a new marker and branch marker
+    for (auto new_marker : producer_markers.new_markers) {
+        if (combined_markers.count(new_marker) > 0) {
+            // combine two sets of branch markers
+            combined_markers[new_marker].insert(branch_index);
+        } else {
+            combined_markers[new_marker] = {branch_index};
+        }
+    }
+}
+
 template <typename T>
-void extract_tensor_content(const std::string& tensor_content, ov::Tensor* values) {
+void extract_tensor_content(const string& tensor_content, Tensor* values) {
     const auto tensor_content_size = tensor_content.size();
     FRONT_END_GENERAL_CHECK(tensor_content_size % sizeof(T) == 0,
                             "Size of tensor_content (",
@@ -44,7 +65,7 @@ void extract_tensor_content(const std::string& tensor_content, ov::Tensor* value
     const T* tensor_values = reinterpret_cast<const T*>(tensor_content.data());
     FRONT_END_GENERAL_CHECK(values->get_size() == tensor_content_size / sizeof(T),
                             "Size of tensor is not equal to tensor_content size.");
-    std::copy(tensor_values, tensor_values + tensor_content_size / sizeof(T), values->data<T>());
+    copy(tensor_values, tensor_values + tensor_content_size / sizeof(T), values->data<T>());
 }
 
 #if defined(_MSC_VER)
@@ -55,7 +76,7 @@ void extract_tensor_content(const std::string& tensor_content, ov::Tensor* value
 template <typename T>
 void extract_compressed_tensor_content(const ::tensorflow::TensorProto& tensor_proto,
                                        int64_t val_size,
-                                       ov::Tensor* values) {
+                                       Tensor* values) {
     auto val_lastsaved = static_cast<T>(0);
     auto values_data = values->data<T>();
     for (size_t i = 0; i < values->get_size(); i++) {
@@ -65,22 +86,22 @@ void extract_compressed_tensor_content(const ::tensorflow::TensorProto& tensor_p
             auto val_i = static_cast<T>(0);
             switch (values->get_element_type()) {
             // TODO: there are more element types to support here
-            case ov::element::boolean:
+            case boolean:
                 val_i = tensor_proto.bool_val()[i];
                 break;
-            case ov::element::i32:
+            case i32:
                 val_i = tensor_proto.int_val()[i];
                 break;
-            case ov::element::i64:
+            case i64:
                 val_i = tensor_proto.int64_val()[i];
                 break;
-            case ov::element::f16:
+            case f16:
                 val_i = float16::from_bits(tensor_proto.half_val()[i]);
                 break;
-            case ov::element::f32:
+            case f32:
                 val_i = tensor_proto.float_val()[i];
                 break;
-            case ov::element::f64:
+            case f64:
                 val_i = tensor_proto.double_val()[i];
                 break;
             default:
@@ -98,78 +119,81 @@ void extract_compressed_tensor_content(const ::tensorflow::TensorProto& tensor_p
 #endif
 }  // namespace
 
-ov::element::Type ov::frontend::tensorflow::get_ov_type(const ::tensorflow::DataType& type) {
-    static const std::map<::tensorflow::DataType, ov::element::Type> type_map{
-        {::tensorflow::DataType::DT_BOOL, ov::element::boolean},
-        {::tensorflow::DataType::DT_INT16, ov::element::i16},
-        {::tensorflow::DataType::DT_INT32, ov::element::i32},
-        {::tensorflow::DataType::DT_INT64, ov::element::i64},
-        {::tensorflow::DataType::DT_HALF, ov::element::f16},
-        {::tensorflow::DataType::DT_FLOAT, ov::element::f32},
-        {::tensorflow::DataType::DT_DOUBLE, ov::element::f64},
-        {::tensorflow::DataType::DT_UINT8, ov::element::u8},
-        {::tensorflow::DataType::DT_INT8, ov::element::i8},
-        {::tensorflow::DataType::DT_BFLOAT16, ov::element::bf16}};
+namespace ov {
+namespace frontend {
+namespace tensorflow {
+
+Type get_ov_type(const ::tensorflow::DataType& type) {
+    static const map<::tensorflow::DataType, Type> type_map{{::tensorflow::DataType::DT_BOOL, boolean},
+                                                            {::tensorflow::DataType::DT_INT16, i16},
+                                                            {::tensorflow::DataType::DT_INT32, i32},
+                                                            {::tensorflow::DataType::DT_INT64, i64},
+                                                            {::tensorflow::DataType::DT_HALF, f16},
+                                                            {::tensorflow::DataType::DT_FLOAT, f32},
+                                                            {::tensorflow::DataType::DT_DOUBLE, f64},
+                                                            {::tensorflow::DataType::DT_UINT8, u8},
+                                                            {::tensorflow::DataType::DT_INT8, i8},
+                                                            {::tensorflow::DataType::DT_BFLOAT16, bf16}};
 
     auto it = type_map.find(type);
     // for all unsupported types return dynamic type
-    return it == type_map.end() ? ov::element::dynamic : it->second;
+    return it == type_map.end() ? dynamic : it->second;
 }
 
-ov::Any ov::frontend::tensorflow::unpack_tensor_proto(const ::tensorflow::TensorProto& tensor_proto) {
+Any unpack_tensor_proto(const ::tensorflow::TensorProto& tensor_proto) {
     return unpack_tensor_proto(tensor_proto, tensor_proto.tensor_shape(), tensor_proto.dtype());
 }
 
-ov::Any ov::frontend::tensorflow::unpack_tensor_proto(const ::tensorflow::TensorProto& tensor_proto,
-                                                      const ::tensorflow::TensorShapeProto& tensor_shape,
-                                                      const ::tensorflow::DataType& tensor_type) {
-    ov::PartialShape pshape;
+Any unpack_tensor_proto(const ::tensorflow::TensorProto& tensor_proto,
+                        const ::tensorflow::TensorShapeProto& tensor_shape,
+                        const ::tensorflow::DataType& tensor_type) {
+    PartialShape pshape;
     for (int i = 0; i < tensor_shape.dim_size(); i++) {
         pshape.push_back(tensor_shape.dim(i).size());
     }
     FRONT_END_GENERAL_CHECK(pshape.is_static(), "Dynamic shapes are not supported for Tensor attribute.");
-    ov::element::Type ov_type = get_ov_type(tensor_type);
+    Type ov_type = get_ov_type(tensor_type);
 
     if (tensor_type != ::tensorflow::DataType::DT_STRING) {
         FRONT_END_GENERAL_CHECK(
             ov_type.is_static(),
             "Encountered unknown element type " + DataType_Name(tensor_type) + " on an empty tensor_proto");
     } else {
-        auto data = std::vector<std::string>();
+        auto data = vector<string>();
         for (const auto& item : tensor_proto.string_val()) {
             data.push_back(item);
         }
         return data;
     }
-    ov::Tensor res(ov_type, pshape.get_shape());
+    Tensor res(ov_type, pshape.get_shape());
     auto tensor_content = tensor_proto.tensor_content();
     if (!tensor_content.empty() && tensor_proto.has_tensor_shape()) {
         switch (ov_type) {
-        case ov::element::u8:
+        case u8:
             extract_tensor_content<uint8_t>(tensor_content, &res);
             break;
-        case ov::element::i8:
+        case i8:
             extract_tensor_content<int8_t>(tensor_content, &res);
             break;
-        case ov::element::i16:
+        case i16:
             extract_tensor_content<int16_t>(tensor_content, &res);
             break;
-        case ov::element::i32:
+        case i32:
             extract_tensor_content<int32_t>(tensor_content, &res);
             break;
-        case ov::element::i64:
+        case i64:
             extract_tensor_content<int64_t>(tensor_content, &res);
             break;
-        case ov::element::f16:
+        case f16:
             extract_tensor_content<float16>(tensor_content, &res);
             break;
-        case ov::element::f32:
+        case f32:
             extract_tensor_content<float>(tensor_content, &res);
             break;
-        case ov::element::f64:
+        case f64:
             extract_tensor_content<double>(tensor_content, &res);
             break;
-        case ov::element::bf16:
+        case bf16:
             extract_tensor_content<bfloat16>(tensor_content, &res);
             break;
         default:
@@ -178,27 +202,27 @@ ov::Any ov::frontend::tensorflow::unpack_tensor_proto(const ::tensorflow::Tensor
     } else {
         int64_t val_size = 0;
         switch (ov_type) {
-        case ov::element::boolean:
+        case boolean:
             val_size = tensor_proto.bool_val_size();
             extract_compressed_tensor_content<bool>(tensor_proto, val_size, &res);
             break;
-        case ov::element::i32:
+        case i32:
             val_size = tensor_proto.int_val_size();
             extract_compressed_tensor_content<int32_t>(tensor_proto, val_size, &res);
             break;
-        case ov::element::i64:
+        case i64:
             val_size = tensor_proto.int64_val_size();
             extract_compressed_tensor_content<int64_t>(tensor_proto, val_size, &res);
             break;
-        case ov::element::f16:
+        case f16:
             val_size = tensor_proto.half_val_size();
             extract_compressed_tensor_content<float16>(tensor_proto, val_size, &res);
             break;
-        case ov::element::f32:
+        case f32:
             val_size = tensor_proto.float_val_size();
             extract_compressed_tensor_content<float>(tensor_proto, val_size, &res);
             break;
-        case ov::element::f64:
+        case f64:
             val_size = tensor_proto.double_val_size();
             extract_compressed_tensor_content<double>(tensor_proto, val_size, &res);
             break;
@@ -209,81 +233,39 @@ ov::Any ov::frontend::tensorflow::unpack_tensor_proto(const ::tensorflow::Tensor
     return res;
 }
 
-bool ov::frontend::tensorflow::cf_marker_exists(const shared_ptr<const Node>& node) {
-    const auto& rt_info = node->get_rt_info();
-    if (rt_info.count(cf_marker_tag) > 0) {
-        return true;
-    }
-    return false;
-}
-
-ov::frontend::tensorflow::CfMarkerType ov::frontend::tensorflow::get_cf_marker(const shared_ptr<const Node>& node) {
+CfMarkerType get_cf_marker(const shared_ptr<const Node>& node) {
     auto rt_info = node->get_rt_info();
-    FRONT_END_GENERAL_CHECK(rt_info.count(cf_marker_tag) > 0,
+    FRONT_END_GENERAL_CHECK(rt_info.count(CF_MARKER_TAG) > 0,
                             "[TensorFlow Frontend] internal error: node does not contain conditional flow marker");
-    auto& ov_any_cf_marker = rt_info[cf_marker_tag];
+    auto& ov_any_cf_marker = rt_info[CF_MARKER_TAG];
     FRONT_END_GENERAL_CHECK(ov_any_cf_marker.is<CfMarkerType>(),
                             "[TensorFlow Frontend] internal error: incorrect type of conditional flow marker");
     return ov_any_cf_marker.as<CfMarkerType>();
 }
 
-void ov::frontend::tensorflow::set_cf_marker(const ov::frontend::tensorflow::CfMarkerType& cf_marker,
-                                             const std::shared_ptr<ov::Node>& node) {
-    node->get_rt_info()[cf_marker_tag] = cf_marker;
-}
-
-uint32_t ov::frontend::tensorflow::generate_cf_marker() {
+uint32_t generate_cf_marker() {
     static uint32_t marker = 0;
     return marker++;
 }
 
-bool ov::frontend::tensorflow::propogate_conditional_flow(const ov::OutputVector& ov_inputs,
-                                                          const ov::frontend::NamedOutputVector& ov_outputs,
-                                                          const std::set<ov::Output<ov::Node>>& input_control_deps,
-                                                          std::set<ov::Output<ov::Node>>& output_control_deps) {
+bool propagate_conditional_flow(const OutputVector& ov_inputs,
+                                const frontend::NamedOutputVector& ov_outputs,
+                                const set<Output<Node>>& input_control_deps,
+                                set<Output<Node>>& output_control_deps) {
     // returns if there is conditional flow to propagate
     // it checks all producer-nodes connected via data edges and control dependencies
 
     // compute combined markers
     // it is a map from conditional flow marker to a set of branch markers
-    std::unordered_map<uint32_t, std::unordered_set<uint32_t>> combined_markers;
+    unordered_map<uint32_t, unordered_set<uint32_t>> combined_markers;
     for (const auto& ov_input : ov_inputs) {
-        // walk through all data producer and collect conditional flow markers
-        const shared_ptr<const Node>& producer_node = ov_input.get_node_shared_ptr();
-        uint32_t branch_index = static_cast<uint32_t>(ov_input.get_index());
-        if (!ov::frontend::tensorflow::cf_marker_exists(producer_node)) {
-            continue;
-        }
-        auto producer_markers = ov::frontend::tensorflow::get_cf_marker(producer_node);
-        copy_conditional_flow_marker(producer_markers, combined_markers);
-        // if data goes from Switch node, it needs to create a new marker and branch marker
-        for (auto new_marker : producer_markers.new_markers) {
-            if (combined_markers.count(new_marker) > 0) {
-                // combine two sets of branch markers
-                combined_markers[new_marker].insert(branch_index);
-            } else {
-                combined_markers[new_marker] = {branch_index};
-            }
-        }
+        // walk through all input producers and propagate CF marker
+        copy_conditional_flow_markers_for_producer(combined_markers, ov_input);
     }
+    // walk through all control dependencies and collect conditional flow markers
     for (const auto& input_control_dep : input_control_deps) {
         // walk through all control dependencies and collect conditional flow markers
-        const shared_ptr<const Node>& producer_node = input_control_dep.get_node_shared_ptr();
-        uint32_t branch_index = static_cast<uint32_t>(input_control_dep.get_index());
-        if (!ov::frontend::tensorflow::cf_marker_exists(producer_node)) {
-            continue;
-        }
-        auto producer_markers = ov::frontend::tensorflow::get_cf_marker(producer_node);
-        copy_conditional_flow_marker(producer_markers, combined_markers);
-        // if data goes from Switch node, it needs to create a new marker and branch marker
-        for (auto new_marker : producer_markers.new_markers) {
-            if (combined_markers.count(new_marker) > 0) {
-                // combine two sets of branch markers
-                combined_markers[new_marker].insert(branch_index);
-            } else {
-                combined_markers[new_marker] = {branch_index};
-            }
-        }
+        copy_conditional_flow_markers_for_producer(combined_markers, input_control_dep);
     }
 
     // walk through all nodes and mark them if needed
@@ -293,15 +275,15 @@ bool ov::frontend::tensorflow::propogate_conditional_flow(const ov::OutputVector
 
         // skip already marked node
         // it can be a case of Identity node that the conversion rule skips
-        if (ov::frontend::tensorflow::cf_marker_exists(node)) {
+        if (cf_marker_exists(node)) {
             to_propagate = true;
             continue;
         }
 
         // if this is Merge node, it needs to eliminate markers with multiple branch markers
         // and put such markers into eliminated list
-        ov::frontend::tensorflow::CfMarkerType resulted_cf_marker;
-        if (ov::as_type_ptr<ov::frontend::tensorflow::Merge>(node)) {
+        CfMarkerType resulted_cf_marker;
+        if (as_type_ptr<Merge>(node)) {
             for (const auto& marker : combined_markers) {
                 auto switch_marker = marker.first;
                 auto branch_markers = marker.second;
@@ -311,7 +293,7 @@ bool ov::frontend::tensorflow::propogate_conditional_flow(const ov::OutputVector
                     resulted_cf_marker.existing_markers.insert(marker);
                 }
             }
-        } else if (const auto& switch_node = ov::as_type_ptr<ov::frontend::tensorflow::Switch>(node)) {
+        } else if (const auto& switch_node = as_type_ptr<Switch>(node)) {
             // update conditional flow marker with new marker for the current Switch node
             auto switch_marker = switch_node->get_switch_marker();
             resulted_cf_marker.new_markers.push_back(switch_marker);
@@ -351,3 +333,7 @@ bool ov::frontend::tensorflow::propogate_conditional_flow(const ov::OutputVector
 
     return to_propagate;
 }
+
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ov
