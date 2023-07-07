@@ -154,6 +154,7 @@ Running the application with the ``-h`` or ``--help`` option yields the followin
 .. scrollbox::
 
    .. code-block:: sh
+      :force:
 
       [Step 1/11] Parsing and validating input arguments
       [ INFO ] Parsing input parameters
