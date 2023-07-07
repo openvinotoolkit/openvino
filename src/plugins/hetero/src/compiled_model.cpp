@@ -520,6 +520,14 @@ ov::hetero::CompiledModel::CompiledModel(std::istream& model,
         m_outputs_to_submodel_outputs.emplace_back(GetUInt64Attr(xml_node, "submodel_idx"),
                                                    GetUInt64Attr(xml_node, "tensor_idx"));
     }
+    auto submodels_output_to_input_node = heteroNode.child("submodels_output_to_input");
+    FOREACH_CHILD (xml_node, outputs_map_node, "record") {
+        std::pair<uint64_t, uint64_t> out_pair = {GetUInt64Attr(xml_node, "out_submodel_idx"),
+                                                  GetUInt64Attr(xml_node, "out_tensor_idx")};
+        std::pair<uint64_t, uint64_t> in_pair = {GetUInt64Attr(xml_node, "in_submodel_idx"),
+                                                  GetUInt64Attr(xml_node, "in_tensor_idx")};
+        m_submodels_output_to_input.emplace(out_pair, in_pair);
+    }
 
     // Restore inputs/outputs from compiled models
     m_compiled_inputs.reserve(m_inputs_to_submodel_inputs.size());
@@ -668,6 +676,15 @@ void ov::hetero::CompiledModel::export_model(std::ostream& model_stream) const {
         auto xml_node = outputs_map_node.append_child("pair");
         xml_node.append_attribute("submodel_idx").set_value(it.first);
         xml_node.append_attribute("tensor_idx").set_value(it.second);
+    }
+    
+    auto submodels_output_to_input_node = heteroNode.append_child("submodels_output_to_input");
+    for (auto&& it : m_submodels_output_to_input) {
+        auto xml_node = outputs_map_node.append_child("record");
+        xml_node.append_attribute("out_submodel_idx").set_value(it.first.first);
+        xml_node.append_attribute("out_tensor_idx").set_value(it.first.second);
+        xml_node.append_attribute("in_submodel_idx").set_value(it.second.first);
+        xml_node.append_attribute("in_tensor_idx").set_value(it.second.second);
     }
 
     auto subnetworksNode = heteroNode.append_child("subnetworks");
