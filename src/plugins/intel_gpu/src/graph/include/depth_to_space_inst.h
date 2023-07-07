@@ -21,6 +21,7 @@ public:
     std::shared_ptr<NodeFuseParams> get_fuse_params() const override {
         return std::make_shared<NodeFuseParams>(depth_to_space::type_id());
     }
+    std::vector<size_t> get_shape_infer_dependencies() const override { return {}; }
 };
 
 using depth_to_space_node = typed_program_node<depth_to_space>;

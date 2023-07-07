@@ -21,11 +21,6 @@ layout depth_to_space_inst::calc_output_layout(depth_to_space_node const& node, 
 
     const size_t block_size = desc->block_size;
 
-    if (block_size < 2)
-        CLDNN_ERROR_MESSAGE(desc->id,
-                            "Invalid depthToSpace block_size value (should equal at least two). Actual block size is" +
-                                std::to_string(block_size));
-
     if (input_layout.feature() % (block_size * block_size) != 0)
         CLDNN_ERROR_MESSAGE(
             desc->id,
