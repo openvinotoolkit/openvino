@@ -7,12 +7,11 @@
 #include <cmath>
 #include <numeric>
 
-#include "ngraph/coordinate_transform.hpp"
+#include "openvino/core/shape.hpp"
 
 using namespace std;
 
-namespace ngraph {
-namespace runtime {
+namespace ov {
 namespace reference {
 
 template <typename T>
@@ -20,7 +19,7 @@ void group_normalization(const T* const data,
                          const T* const scale,
                          const T* const bias,
                          T* const out,
-                         const ov::Shape& data_shape,
+                         const Shape& data_shape,
                          const size_t num_groups,
                          const double epsilon) {
     const auto num_batches = data_shape[0];
@@ -56,5 +55,4 @@ void group_normalization(const T* const data,
     }
 }
 }  // namespace reference
-}  // namespace runtime
-}  // namespace ngraph
+}  // namespace ov
