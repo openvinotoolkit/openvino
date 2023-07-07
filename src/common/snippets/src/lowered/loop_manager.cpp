@@ -87,8 +87,7 @@ void LinearIR::LoopManager::get_loop_bounds(const LinearIR &linear_ir,
     OPENVINO_ASSERT(!entries.empty(), "Loop must have entry points");
     OPENVINO_ASSERT(!exits.empty(), "Loop must have entry points");
     const auto& entry_expr = entries.front().expr_port->get_expr();
-    loop_begin_pos = std::find(linear_ir.begin(), linear_ir.end(), entry_expr);
-    OPENVINO_ASSERT(loop_begin_pos != linear_ir.end(), "Loop begin hasn't been found!");
+    loop_begin_pos = linear_ir.find(entry_expr);
 
     // Some operations in Loop can be before first entry points: Scalars, VectorBuffer.
     // We should iterate by them till the expr is in the corresponding Loop
@@ -104,12 +103,11 @@ void LinearIR::LoopManager::get_loop_bounds(const LinearIR &linear_ir,
         const auto loop_end = loop_begin->get_loop_end();
         OPENVINO_ASSERT(loop_end->get_id() == loop_id, "Failed explicit loop bounds getting: Loop bounds with correct ID have not been found");
         loop_begin_pos = std::prev(loop_begin_pos);
-        loop_end_pos = std::find(loop_begin_pos, linear_ir.end(), linear_ir.get_expr_by_node(loop_end));
+        loop_end_pos = linear_ir.find_after(loop_begin_pos, linear_ir.get_expr_by_node(loop_end));
     } else {
         // At the moment all Loops must have exit points
         const auto& exit_expr = exits.back().expr_port->get_expr();
-        loop_end_pos = std::next(std::find(loop_begin_pos, linear_ir.end(), exit_expr));
-        OPENVINO_ASSERT(loop_end_pos != linear_ir.end(), "Loop end hasn't been found!");
+        loop_end_pos = std::next(linear_ir.find_after(loop_begin_pos, exit_expr));
     }
 }
 
