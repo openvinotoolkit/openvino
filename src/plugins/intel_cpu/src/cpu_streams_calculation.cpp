@@ -8,6 +8,7 @@
 #include <cstdio>
 #include <numeric>
 #include <transformations/utils/utils.hpp>
+#include <unordered_set>
 
 #include "cpu_map_scheduling.hpp"
 #include "graph.h"
@@ -19,6 +20,8 @@
 using namespace InferenceEngine;
 using namespace ov;
 
+#define INIT_VAL -100
+
 namespace ov {
 namespace intel_cpu {
 
@@ -28,12 +31,16 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
                                                      const int input_infer_requests,
                                                      const int model_prefer_threads,
                                                      const std::string input_perf_hint,
-                                                     const Config::LatencyThreadingMode scopeOflatencyCandidate,
+                                                     const Config::LatencyThreadingMode latencyThreadingMode,
                                                      const std::vector<std::vector<int>> proc_type_table) {
-    std::vector<int> stream_info(CPU_STREAMS_TABLE_SIZE);
+    std::vector<int> stream_info(CPU_STREAMS_TABLE_SIZE, INIT_VAL);
     std::vector<std::vector<int>> streams_info_table;
+    std::vector<std::vector<int>> proc_socket_table;
 
-    auto UpdateMixStreamInfo = [&]() {
+    int n_streams = 0;
+    int n_threads_per_stream = 0;
+
+    auto update_mix_stream_info = [&]() {
         stream_info[NUMBER_OF_STREAMS] = 0;
         int n_threads = stream_info[THREADS_PER_STREAM];
         for (int n = MAIN_CORE_PROC; n <= HYPER_THREADING_PROC; n++) {
@@ -52,8 +59,61 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
         }
     };
 
+    auto update_ids_method = [&](const std::vector<int>& one_proc_info) {
+        stream_info[STREAM_NUMA_NODE_ID] = one_proc_info[PROC_NUMA_NODE_ID];
+        stream_info[STREAM_SOCKET_ID] = one_proc_info[PROC_SOCKET_ID];
+    };
+
+    auto update_streams_per_node = [&](const int& proc_type, const std::vector<int>& one_proc_info) {
+        if (0 != one_proc_info[proc_type]) {
+            if (n_threads_per_stream == -1) {
+                stream_info[THREADS_PER_STREAM] = (proc_type == EFFICIENT_CORE_PROC) ? 2 : 1;
+            }
+            stream_info[PROC_TYPE] = proc_type;
+            update_ids_method(one_proc_info);
+            stream_info[NUMBER_OF_STREAMS] =
+                static_cast<int>(one_proc_info[proc_type] / stream_info[THREADS_PER_STREAM]);
+            if ((stream_info[NUMBER_OF_STREAMS] == 0) && (proc_type == MAIN_CORE_PROC)) {
+                stream_info[NUMBER_OF_STREAMS] =
+                    static_cast<int>((one_proc_info[MAIN_CORE_PROC] + one_proc_info[HYPER_THREADING_PROC]) /
+                                     stream_info[THREADS_PER_STREAM]);
+            }
+            if (n_streams < stream_info[NUMBER_OF_STREAMS]) {
+                stream_info[NUMBER_OF_STREAMS] = n_streams;
+            }
+            streams_info_table.push_back(stream_info);
+
+            n_streams -= stream_info[NUMBER_OF_STREAMS];
+            proc_socket_table[one_proc_info[PROC_SOCKET_ID]][proc_type] -=
+                stream_info[NUMBER_OF_STREAMS] * stream_info[THREADS_PER_STREAM];
+        }
+    };
+
+    if (proc_type_table.size() == 1) {
+        proc_socket_table.push_back(proc_type_table[0]);
+    } else {
+        std::unordered_set<int> socket_id_list(proc_type_table.size());
+        for (size_t i = 1; i < proc_type_table.size(); i++) {
+            if (!socket_id_list.count(proc_type_table[i][PROC_SOCKET_ID])) {
+                proc_socket_table.push_back(proc_type_table[i]);
+                socket_id_list.insert(proc_type_table[i][PROC_SOCKET_ID]);
+            } else {
+                for (auto& row : proc_socket_table) {
+                    if (row[PROC_SOCKET_ID] == proc_type_table[i][PROC_SOCKET_ID]) {
+                        for (int n = 0; n <= HYPER_THREADING_PROC; n++) {
+                            row[n] += proc_type_table[i][n];
+                        }
+                        if (row[PROC_NUMA_NODE_ID] != proc_type_table[i][PROC_NUMA_NODE_ID]) {
+                            row[PROC_NUMA_NODE_ID] = -1;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     if (((input_streams_changed == false) && (input_perf_hint == CONFIG_VALUE(LATENCY)) &&
-         ((scopeOflatencyCandidate == Config::LatencyThreadingMode::PER_PLATFORM) || (proc_type_table.size() == 1))) ||
+         ((latencyThreadingMode == Config::LatencyThreadingMode::PER_PLATFORM) || (proc_type_table.size() == 1))) ||
         ((input_streams_changed == true) && (input_streams == 1))) {
         stream_info[NUMBER_OF_STREAMS] = 1;
         if (input_threads > 0) {
@@ -61,14 +121,40 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
             if ((stream_info[THREADS_PER_STREAM] > proc_type_table[0][MAIN_CORE_PROC]) &&
                 (proc_type_table[0][MAIN_CORE_PROC] > 0) && (proc_type_table[0][EFFICIENT_CORE_PROC] > 0)) {
                 stream_info[PROC_TYPE] = ALL_PROC;
+                update_ids_method(proc_type_table[0]);
                 streams_info_table.push_back(stream_info);
-                UpdateMixStreamInfo();
-            } else if ((stream_info[THREADS_PER_STREAM] <= proc_type_table[0][MAIN_CORE_PROC]) ||
-                       (proc_type_table[0][EFFICIENT_CORE_PROC] == 0)) {
-                stream_info[PROC_TYPE] = MAIN_CORE_PROC;
-                streams_info_table.push_back(stream_info);
+                update_mix_stream_info();
             } else {
-                stream_info[PROC_TYPE] = EFFICIENT_CORE_PROC;
+                if ((stream_info[THREADS_PER_STREAM] <= proc_type_table[0][MAIN_CORE_PROC]) ||
+                    (proc_type_table[0][EFFICIENT_CORE_PROC] == 0)) {
+                    stream_info[PROC_TYPE] = MAIN_CORE_PROC;
+                } else {
+                    stream_info[PROC_TYPE] = EFFICIENT_CORE_PROC;
+                }
+                if (proc_type_table.size() == 1) {
+                    update_ids_method(proc_type_table[0]);
+                } else {
+                    size_t i = 0;
+                    for (i = 1; i < proc_type_table.size(); i++) {
+                        if (proc_type_table[i][stream_info[PROC_TYPE]] >= stream_info[THREADS_PER_STREAM]) {
+                            update_ids_method(proc_type_table[i]);
+                            i = proc_type_table.size() + 1;
+                            break;
+                        }
+                    }
+                    if (i <= proc_type_table.size()) {
+                        for (i = 0; i < proc_socket_table.size(); i++) {
+                            if (proc_socket_table[i][stream_info[PROC_TYPE]] >= stream_info[THREADS_PER_STREAM]) {
+                                update_ids_method(proc_socket_table[i]);
+                                i = proc_socket_table.size() + 1;
+                                break;
+                            }
+                        }
+                        if (i <= proc_socket_table.size()) {
+                            update_ids_method(proc_type_table[0]);
+                        }
+                    }
+                }
                 streams_info_table.push_back(stream_info);
             }
         } else {
@@ -78,6 +164,7 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
                     (model_prefer_threads == 0)
                         ? proc_type_table[0][EFFICIENT_CORE_PROC]
                         : std::min(proc_type_table[0][EFFICIENT_CORE_PROC], model_prefer_threads);
+                update_ids_method(proc_type_table[0]);
                 streams_info_table.push_back(stream_info);
             } else if ((proc_type_table[0][EFFICIENT_CORE_PROC] > 0) &&
                        ((model_prefer_threads == 0) || (model_prefer_threads > proc_type_table[0][MAIN_CORE_PROC]))) {
@@ -86,54 +173,61 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
                     (model_prefer_threads == 0 || model_prefer_threads > proc_type_table[0][MAIN_CORE_PROC])
                         ? proc_type_table[0][ALL_PROC]
                         : proc_type_table[0][MAIN_CORE_PROC] + proc_type_table[0][HYPER_THREADING_PROC];
+                update_ids_method(proc_type_table[0]);
                 streams_info_table.push_back(stream_info);
-                UpdateMixStreamInfo();
+                update_mix_stream_info();
             } else {
                 stream_info[PROC_TYPE] = MAIN_CORE_PROC;
                 stream_info[THREADS_PER_STREAM] =
                     proc_type_table[0][MAIN_CORE_PROC] + proc_type_table[0][HYPER_THREADING_PROC];
+                update_ids_method(proc_type_table[0]);
                 streams_info_table.push_back(stream_info);
             }
         }
         return streams_info_table;
     } else if ((input_streams_changed == false) && (input_perf_hint == CONFIG_VALUE(LATENCY))) {
-        stream_info[PROC_TYPE] = MAIN_CORE_PROC;
-        int max_per_numa_node = 0;
-        int numa_node_cnt = 0;
-        std::vector<int> proc_per_socket;
-        proc_per_socket.resize(proc_type_table.size(), 0);
-        for (long unsigned int i = 1; i < proc_type_table.size(); i++) {
-            if (max_per_numa_node < proc_type_table[i][ALL_PROC]) {
-                max_per_numa_node = proc_type_table[i][ALL_PROC];
-                numa_node_cnt = 1;
-            } else if (max_per_numa_node == proc_type_table[i][ALL_PROC]) {
-                numa_node_cnt++;
-            }
-            proc_per_socket[proc_type_table[i][PROC_SOCKET_ID]] += proc_type_table[i][ALL_PROC];
-        }
-        if (scopeOflatencyCandidate == Config::LatencyThreadingMode::PER_NUMA_NODE) {
-            stream_info[NUMBER_OF_STREAMS] = numa_node_cnt;
-            stream_info[THREADS_PER_STREAM] = max_per_numa_node;
-        } else {
-            int max_per_socket = 0;
-            int socket_cnt = 0;
-            for (long unsigned int i = 0; i < proc_per_socket.size(); i++) {
-                if (max_per_socket < proc_per_socket[i]) {
-                    max_per_socket = proc_per_socket[i];
-                    socket_cnt = 1;
-                } else if (max_per_socket == proc_per_socket[i]) {
-                    socket_cnt++;
+        if (latencyThreadingMode == Config::LatencyThreadingMode::PER_NUMA_NODE) {
+            if (proc_type_table.size() == 1) {
+                stream_info[NUMBER_OF_STREAMS] = 1;
+                stream_info[PROC_TYPE] = MAIN_CORE_PROC;
+                stream_info[THREADS_PER_STREAM] = proc_type_table[0][ALL_PROC];
+                update_ids_method(proc_type_table[0]);
+                streams_info_table.push_back(stream_info);
+            } else {
+                for (size_t i = 1; i < proc_type_table.size(); i++) {
+                    if (i != 1) {
+                        if (proc_type_table[i][ALL_PROC] < streams_info_table[0][THREADS_PER_STREAM]) {
+                            continue;
+                        } else if (proc_type_table[i][ALL_PROC] < streams_info_table[0][THREADS_PER_STREAM]) {
+                            streams_info_table.clear();
+                        }
+                    }
+                    stream_info[NUMBER_OF_STREAMS] = 1;
+                    stream_info[PROC_TYPE] = MAIN_CORE_PROC;
+                    stream_info[THREADS_PER_STREAM] = proc_type_table[i][ALL_PROC];
+                    update_ids_method(proc_type_table[i]);
+                    streams_info_table.push_back(stream_info);
                 }
             }
-            stream_info[NUMBER_OF_STREAMS] = socket_cnt;
-            stream_info[THREADS_PER_STREAM] = max_per_socket;
+        } else {
+            for (size_t i = 0; i < proc_socket_table.size(); i++) {
+                if (streams_info_table.size() != 0) {
+                    if (streams_info_table[0][THREADS_PER_STREAM] > proc_socket_table[i][ALL_PROC]) {
+                        continue;
+                    } else if (streams_info_table[0][THREADS_PER_STREAM] < proc_socket_table[i][ALL_PROC]) {
+                        streams_info_table.clear();
+                    }
+                }
+                stream_info[NUMBER_OF_STREAMS] = 1;
+                stream_info[PROC_TYPE] = MAIN_CORE_PROC;
+                stream_info[THREADS_PER_STREAM] = proc_socket_table[i][ALL_PROC];
+                update_ids_method(proc_socket_table[i]);
+                streams_info_table.push_back(stream_info);
+            }
         }
-        streams_info_table.push_back(stream_info);
         return streams_info_table;
     } else {
-        int n_streams = 0;
         int n_threads = 0;
-        int n_threads_per_stream = 0;
         int base_type = MAIN_CORE_PROC;
 
         n_threads =
@@ -205,40 +299,56 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
 
         stream_info[THREADS_PER_STREAM] = n_threads_per_stream;
 
-        if (proc_type_table.size() == 1) {
-            while (1) {
-                for (int n = MAIN_CORE_PROC; n < PROC_TYPE_TABLE_SIZE; n++) {
-                    if (0 != proc_type_table[0][n]) {
-                        if (n_threads_per_stream == -1) {
-                            stream_info[THREADS_PER_STREAM] = (n == EFFICIENT_CORE_PROC) ? 2 : 1;
-                        }
-                        stream_info[PROC_TYPE] = n;
-                        stream_info[NUMBER_OF_STREAMS] =
-                            static_cast<int>(proc_type_table[0][n] / stream_info[THREADS_PER_STREAM]);
-                        if (n_streams <= stream_info[NUMBER_OF_STREAMS]) {
-                            stream_info[NUMBER_OF_STREAMS] = n_streams;
-                            streams_info_table.push_back(stream_info);
-                            return streams_info_table;
-                        } else {
-                            streams_info_table.push_back(stream_info);
-                            n_streams -= stream_info[NUMBER_OF_STREAMS];
-                        }
+        for (int n_type = MAIN_CORE_PROC; (n_type <= HYPER_THREADING_PROC) && (n_streams > 0); n_type++) {
+            if (proc_type_table[0][n_type] > 0) {
+                if (proc_type_table.size() == 1) {
+                    update_streams_per_node(n_type, proc_type_table[0]);
+                } else {
+                    for (size_t n_node = 1; (n_node < proc_type_table.size()) && (n_streams > 0); n_node++) {
+                        update_streams_per_node(n_type, proc_type_table[n_node]);
                     }
                 }
-                if (1 == stream_info[THREADS_PER_STREAM]) {
-                    return streams_info_table;
-                } else {
-                    stream_info[THREADS_PER_STREAM] -= 1;
-                    std::vector<std::vector<int>>().swap(streams_info_table);
+            }
+        }
+
+        if (n_streams > 0) {
+            for (int n_type = MAIN_CORE_PROC; n_type <= HYPER_THREADING_PROC; n_type++) {
+                int proc_sum = 0;
+                for (size_t n_socket = 0; n_socket < proc_socket_table.size(); n_socket++) {
+                    if (proc_socket_table[n_socket][n_type] >= stream_info[THREADS_PER_STREAM]) {
+                        stream_info[PROC_TYPE] = n_type;
+                        stream_info[NUMBER_OF_STREAMS] =
+                            static_cast<int>(proc_socket_table[n_socket][n_type] / stream_info[THREADS_PER_STREAM]);
+                        stream_info[STREAM_NUMA_NODE_ID] = -1;
+                        stream_info[STREAM_SOCKET_ID] = n_socket;
+                        streams_info_table.push_back(stream_info);
+                        n_streams -= stream_info[NUMBER_OF_STREAMS];
+                        proc_socket_table[n_socket][n_type] -=
+                            stream_info[THREADS_PER_STREAM] * stream_info[NUMBER_OF_STREAMS];
+                        if (n_streams <= 0) {
+                            break;
+                        }
+                    }
+                    proc_sum += proc_socket_table[n_socket][n_type];
+                }
+                if (n_streams <= 0) {
+                    break;
+                }
+                if (proc_sum >= stream_info[THREADS_PER_STREAM]) {
+                    stream_info[PROC_TYPE] = n_type;
+                    stream_info[NUMBER_OF_STREAMS] = static_cast<int>(proc_sum / stream_info[THREADS_PER_STREAM]);
+                    stream_info[STREAM_NUMA_NODE_ID] = -1;
+                    stream_info[STREAM_SOCKET_ID] = -1;
+                    streams_info_table.push_back(stream_info);
+                    n_streams -= stream_info[NUMBER_OF_STREAMS];
+                    if (n_streams <= 0) {
+                        break;
+                    }
                 }
             }
-        } else {
-            stream_info[NUMBER_OF_STREAMS] = n_streams;
-            stream_info[PROC_TYPE] = MAIN_CORE_PROC;
-            stream_info[THREADS_PER_STREAM] = n_threads_per_stream;
-            streams_info_table.push_back(stream_info);
-            return streams_info_table;
         }
+
+        return streams_info_table;
     }
 }
 
@@ -337,7 +447,7 @@ void generate_stream_info(const int streams,
                                                                  config.perfHintsConfig.ovPerfHintNumRequests,
                                                                  model_prefer_threads,
                                                                  config.perfHintsConfig.ovPerfHint,
-                                                                 config.scopeOflatencyCandidate,
+                                                                 config.latencyThreadingMode,
                                                                  proc_type_table);
 }
 
