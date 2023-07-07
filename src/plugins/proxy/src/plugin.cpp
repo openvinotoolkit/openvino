@@ -283,9 +283,13 @@ ov::Any ov::proxy::Plugin::get_property(const std::string& name, const ov::AnyMa
         // ov::device::id changes the default proxy device
         if (std::find(supported_prop.begin(), supported_prop.end(), ov::device::id) == supported_prop.end())
             supported_prop.emplace_back(ov::device::id);
-        if (std::find(supported_prop.begin(), supported_prop.end(), CONFIG_KEY_INTERNAL(CONFIG_DEVICE_ID)) ==
+        return supported_prop;
+    } else if (name == ov::internal::supported_properties) {
+        auto supported_prop =
+            get_core()->get_property(get_primary_device(device_id), name, {}).as<std::vector<ov::PropertyName>>();
+        if (std::find(supported_prop.begin(), supported_prop.end(), ov::internal::config_device_id) ==
             supported_prop.end())
-            supported_prop.emplace_back(ov::PropertyName(CONFIG_KEY_INTERNAL(CONFIG_DEVICE_ID)));
+            supported_prop.emplace_back(ov::internal::config_device_id);
         return supported_prop;
     }
 
