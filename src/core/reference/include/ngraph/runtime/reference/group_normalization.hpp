@@ -4,6 +4,9 @@
 
 #pragma once
 
+#include <cmath>
+#include <numeric>
+
 #include "ngraph/coordinate_transform.hpp"
 
 using namespace std;
