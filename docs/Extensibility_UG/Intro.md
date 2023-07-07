@@ -95,6 +95,13 @@ Extensions can be loaded from a code with the  ``:ref:`ov::Core::add_extension <
 
 .. tab-set::
 
+   .. tab-item:: Python
+      :sync: py
+ 
+      .. doxygensnippet:: docs/snippets/ov_extensions.py
+         :language: python
+         :fragment: [add_extension]
+
    .. tab-item:: C++
       :sync: cpp
  
@@ -102,30 +109,23 @@ Extensions can be loaded from a code with the  ``:ref:`ov::Core::add_extension <
          :language: cpp
          :fragment: [add_extension]
    
-   .. tab-item:: Python
-      :sync: py
- 
-      .. doxygensnippet:: docs/snippets/ov_extensions.py
-         :language: python
-         :fragment: [add_extension]
-
 
 The ``Identity`` is a custom operation class defined in :doc:`Custom Operation Guide <openvino_docs_Extensibility_UG_add_openvino_ops>`. This is sufficient to enable reading OpenVINO IR which uses the ``Identity`` extension operation emitted by Model Optimizer. In order to load original model directly to the runtime, add a mapping extension:
 
 .. tab-set::
+
+   .. tab-item:: Python
+      :sync: py
+
+      .. doxygensnippet:: docs/snippets/ov_extensions.py
+         :language: python
+         :fragment: [add_frontend_extension]
 
    .. tab-item:: C++
       :sync: cpp
 
       .. doxygensnippet:: docs/snippets/ov_extensions.cpp
          :language: cpp
-         :fragment: [add_frontend_extension]
-
-   .. tab-item:: Python
-      :sync: py
-
-      .. doxygensnippet:: docs/snippets/ov_extensions.py
-         :language: python
          :fragment: [add_frontend_extension]
 
 When Python API is used, there is no way to implement a custom OpenVINO operation. Even if custom OpenVINO operation is implemented in C++ and loaded into the runtime by a shared library, there is still no way to add a frontend mapping extension that refers to this custom operation. In this case, use C++ shared library approach to implement both operations semantics and framework mapping.
@@ -177,18 +177,18 @@ This CMake script finds OpenVINO, using the ``find_package`` CMake command.
 
 .. tab-set::
    
-   .. tab-item:: C++
-      :sync: cpp 
-
-      .. doxygensnippet:: docs/snippets/ov_extensions.cpp
-         :language: cpp
-         :fragment: [add_extension_lib]
-
    .. tab-item:: Python
       :sync: py
  
       .. doxygensnippet:: docs/snippets/ov_extensions.py
          :language: python
+         :fragment: [add_extension_lib]
+
+   .. tab-item:: C++
+      :sync: cpp 
+
+      .. doxygensnippet:: docs/snippets/ov_extensions.cpp
+         :language: cpp
          :fragment: [add_extension_lib]
 
 

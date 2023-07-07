@@ -33,19 +33,19 @@ The easiest way is to fully specify each dimension with one alphabet letter.
 
 .. tab-set::
 
-    .. tab-item:: C++
-        :sync: cpp
-
-        .. doxygensnippet:: docs/snippets/ov_layout.cpp
-            :language: cpp
-            :fragment: ov:layout:simple
-
     .. tab-item:: Python
         :sync: py
 
         .. doxygensnippet:: docs/snippets/ov_layout.py
            :language: python
            :fragment: ov:layout:simple
+
+    .. tab-item:: C++
+        :sync: cpp
+
+        .. doxygensnippet:: docs/snippets/ov_layout.cpp
+            :language: cpp
+            :fragment: ov:layout:simple
 
 
 This assigns ``N`` to the first dimension, ``C`` to the second, ``H`` to the third, and ``W`` to the fourth.
@@ -58,19 +58,19 @@ The advanced syntax allows assigning a word to a dimension. To do this, wrap a l
 
 .. tab-set::
 
-    .. tab-item:: C++
-        :sync: cpp
-
-        .. doxygensnippet:: docs/snippets/ov_layout.cpp
-            :language: cpp
-            :fragment: ov:layout:complex
-
     .. tab-item:: Python
         :sync: py
 
         .. doxygensnippet:: docs/snippets/ov_layout.py
            :language: python
            :fragment: ov:layout:complex
+
+    .. tab-item:: C++
+        :sync: cpp
+
+        .. doxygensnippet:: docs/snippets/ov_layout.cpp
+            :language: cpp
+            :fragment: ov:layout:complex
 
 
 Partially Defined Layout
@@ -81,19 +81,19 @@ If a certain dimension is not important, its name can be set to ``?``.
 
 .. tab-set::
 
-    .. tab-item:: C++
-        :sync: cpp
-
-        .. doxygensnippet:: docs/snippets/ov_layout.cpp
-            :language: cpp
-            :fragment: ov:layout:partially_defined
-
     .. tab-item:: Python
         :sync: py
 
         .. doxygensnippet:: docs/snippets/ov_layout.py
            :language: python
            :fragment: ov:layout:partially_defined
+
+    .. tab-item:: C++
+        :sync: cpp
+
+        .. doxygensnippet:: docs/snippets/ov_layout.cpp
+            :language: cpp
+            :fragment: ov:layout:partially_defined
 
 
 Dynamic Layout
@@ -104,19 +104,19 @@ If several dimensions are not important, an ellipsis ``...`` can be used to spec
 
 .. tab-set::
 
-    .. tab-item:: C++
-        :sync: cpp
-
-        .. doxygensnippet:: docs/snippets/ov_layout.cpp
-            :language: cpp
-            :fragment: ov:layout:dynamic
-
     .. tab-item:: Python
         :sync: py
 
         .. doxygensnippet:: docs/snippets/ov_layout.py
            :language: python
            :fragment: ov:layout:dynamic
+
+    .. tab-item:: C++
+        :sync: cpp
+
+        .. doxygensnippet:: docs/snippets/ov_layout.cpp
+            :language: cpp
+            :fragment: ov:layout:dynamic
 
 
 Predefined Names
@@ -135,19 +135,19 @@ These names are used in :doc:`PreProcessing API <openvino_docs_OV_UG_Preprocessi
 
 .. tab-set::
 
-    .. tab-item:: C++
-        :sync: cpp
-
-        .. doxygensnippet:: docs/snippets/ov_layout.cpp
-            :language: cpp
-            :fragment: ov:layout:predefined
-
     .. tab-item:: Python
         :sync: py
 
         .. doxygensnippet:: docs/snippets/ov_layout.py
            :language: python
            :fragment: ov:layout:predefined
+
+    .. tab-item:: C++
+        :sync: cpp
+
+        .. doxygensnippet:: docs/snippets/ov_layout.cpp
+            :language: cpp
+            :fragment: ov:layout:predefined
 
 
 Equality
@@ -163,19 +163,19 @@ A layout can be converted to a string in the advanced syntax format. It can be u
 
 .. tab-set::
 
-    .. tab-item:: C++
-        :sync: cpp
-
-        .. doxygensnippet:: docs/snippets/ov_layout.cpp
-            :language: cpp
-            :fragment: ov:layout:dump
-
     .. tab-item:: Python
         :sync: py
 
         .. doxygensnippet:: docs/snippets/ov_layout.py
            :language: python
            :fragment: ov:layout:dump
+
+    .. tab-item:: C++
+        :sync: cpp
+
+        .. doxygensnippet:: docs/snippets/ov_layout.cpp
+            :language: cpp
+            :fragment: ov:layout:dump
 
 
 Get layout from Model Input/Output
@@ -186,19 +186,19 @@ OpenVINO provides helpers which provide a simple interface to get layout from Mo
 
 .. tab-set::
 
-    .. tab-item:: C++
-        :sync: cpp
-
-        .. doxygensnippet:: docs/snippets/ov_layout.cpp
-            :language: cpp
-            :fragment: ov:layout:get_from_model
-
     .. tab-item:: Python
         :sync: py
 
         .. doxygensnippet:: docs/snippets/ov_layout.py
            :language: python
            :fragment: ov:layout:get_from_model
+
+    .. tab-item:: C++
+        :sync: cpp
+
+        .. doxygensnippet:: docs/snippets/ov_layout.cpp
+            :language: cpp
+            :fragment: ov:layout:get_from_model
 
 
 See also

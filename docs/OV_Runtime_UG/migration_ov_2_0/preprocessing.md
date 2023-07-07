@@ -67,19 +67,19 @@ Using Mean and Scale Values
 
 .. tab-set::
 
-    .. tab-item:: C++
-        :sync: cpp
-
-        .. doxygensnippet:: docs/snippets/ov_preprocessing_migration.cpp
-            :language: cpp
-            :fragment: mean_scale
-
     .. tab-item:: Python
         :sync: py
 
         .. doxygensnippet:: docs/snippets/ov_preprocessing_migration.py
            :language: python
            :fragment: mean_scale
+
+    .. tab-item:: C++
+        :sync: cpp
+
+        .. doxygensnippet:: docs/snippets/ov_preprocessing_migration.cpp
+            :language: cpp
+            :fragment: mean_scale
 
     .. tab-item:: C
         :sync: c
@@ -94,19 +94,19 @@ Using Mean and Scale Values
 
 .. tab-set::
 
-    .. tab-item:: C++
-        :sync: cpp
-
-        .. doxygensnippet:: docs/snippets/ov_preprocessing_migration.cpp
-            :language: cpp
-            :fragment: ov_mean_scale
-
     .. tab-item:: Python
         :sync: py
 
         .. doxygensnippet:: docs/snippets/ov_preprocessing_migration.py
            :language: python
            :fragment: ov_mean_scale
+
+    .. tab-item:: C++
+        :sync: cpp
+
+        .. doxygensnippet:: docs/snippets/ov_preprocessing_migration.cpp
+            :language: cpp
+            :fragment: ov_mean_scale
 
     .. tab-item:: C
         :sync: c
@@ -124,19 +124,19 @@ Converting Precision and Layout
 
 .. tab-set::
 
-    .. tab-item:: C++
-        :sync: cpp
-
-        .. doxygensnippet:: docs/snippets/ov_preprocessing_migration.cpp
-            :language: cpp
-            :fragment: conversions
-
     .. tab-item:: Python
         :sync: py
 
         .. doxygensnippet:: docs/snippets/ov_preprocessing_migration.py
            :language: python
            :fragment: conversions
+
+    .. tab-item:: C++
+        :sync: cpp
+
+        .. doxygensnippet:: docs/snippets/ov_preprocessing_migration.cpp
+            :language: cpp
+            :fragment: conversions
 
     .. tab-item:: C
         :sync: c
@@ -151,19 +151,19 @@ Converting Precision and Layout
 
 .. tab-set::
 
-    .. tab-item:: C++
-        :sync: cpp
-
-        .. doxygensnippet:: docs/snippets/ov_preprocessing_migration.cpp
-            :language: cpp
-            :fragment: ov_conversions
-
     .. tab-item:: Python
         :sync: py
 
         .. doxygensnippet:: docs/snippets/ov_preprocessing_migration.py
            :language: python
            :fragment: ov_conversions
+
+    .. tab-item:: C++
+        :sync: cpp
+
+        .. doxygensnippet:: docs/snippets/ov_preprocessing_migration.cpp
+            :language: cpp
+            :fragment: ov_conversions
 
     .. tab-item:: C
         :sync: c
@@ -181,19 +181,19 @@ Using Image Scaling
 
 .. tab-set::
 
-    .. tab-item:: C++
-        :sync: cpp
-
-        .. doxygensnippet:: docs/snippets/ov_preprocessing_migration.cpp
-            :language: cpp
-            :fragment: image_scale
-
     .. tab-item:: Python
         :sync: py
 
         .. doxygensnippet:: docs/snippets/ov_preprocessing_migration.py
            :language: python
            :fragment: image_scale
+
+    .. tab-item:: C++
+        :sync: cpp
+
+        .. doxygensnippet:: docs/snippets/ov_preprocessing_migration.cpp
+            :language: cpp
+            :fragment: image_scale
 
     .. tab-item:: C
         :sync: c
@@ -208,19 +208,19 @@ Using Image Scaling
 
 .. tab-set::
 
-    .. tab-item:: C++
-        :sync: cpp
-
-        .. doxygensnippet:: docs/snippets/ov_preprocessing_migration.cpp
-            :language: cpp
-            :fragment: ov_image_scale
-
     .. tab-item:: Python
         :sync: py
 
         .. doxygensnippet:: docs/snippets/ov_preprocessing_migration.py
            :language: python
            :fragment: ov_image_scale
+
+    .. tab-item:: C++
+        :sync: cpp
+
+        .. doxygensnippet:: docs/snippets/ov_preprocessing_migration.cpp
+            :language: cpp
+            :fragment: ov_image_scale
 
     .. tab-item:: C
         :sync: c
@@ -238,19 +238,19 @@ Converting Color Space
 
 .. tab-set::
 
-    .. tab-item:: C++
-        :sync: cpp
-
-        .. doxygensnippet:: docs/snippets/ov_preprocessing_migration.cpp
-            :language: cpp
-            :fragment: ov_color_space
-
     .. tab-item:: Python
         :sync: py
 
         .. doxygensnippet:: docs/snippets/ov_preprocessing_migration.py
            :language: python
            :fragment: ov_color_space
+
+    .. tab-item:: C++
+        :sync: cpp
+
+        .. doxygensnippet:: docs/snippets/ov_preprocessing_migration.cpp
+            :language: cpp
+            :fragment: ov_color_space
 
     .. tab-item:: C
         :sync: c

@@ -31,7 +31,7 @@ and specify the input shape of ``[2,300,300,3]``:
 .. tab-set::
 
    .. tab-item:: Python
-      :sync: mo-python-api
+      :sync: py
 
       .. code-block:: python
 
@@ -39,7 +39,7 @@ and specify the input shape of ``[2,300,300,3]``:
          ov_model = convert_model("MobileNet.pb", input_shape=[2,300,300,3])
 
    .. tab-item:: CLI
-      :sync: cli-tool
+      :sync: cli
 
       .. code-block:: sh
 
@@ -54,7 +54,7 @@ and specify shapes ``[3,150,200,1]`` and ``[3]`` for them:
 .. tab-set::
 
    .. tab-item:: Python
-      :sync: mo-python-api
+      :sync: py
 
       .. code-block:: python
 
@@ -62,7 +62,7 @@ and specify shapes ``[3,150,200,1]`` and ``[3]`` for them:
          ov_model = convert_model("ocr.onnx", input=["data","seq_len"], input_shape=[[3,150,200,1],[3]])
 
    .. tab-item:: CLI
-      :sync: cli-tool
+      :sync: cli
 
       .. code-block:: sh
 
@@ -74,7 +74,7 @@ Alternatively, specify input shapes, using the ``input`` parameter as follows:
 .. tab-set::
 
    .. tab-item:: Python
-      :sync: mo-python-api
+      :sync: py
 
       .. code-block:: python
 
@@ -82,7 +82,7 @@ Alternatively, specify input shapes, using the ``input`` parameter as follows:
          ov_model = convert_model("ocr.onnx", input=[("data",[3,150,200,1]),("seq_len",[3])])
 
    .. tab-item:: CLI
-      :sync: cli-tool
+      :sync: cli
 
       .. code-block:: sh
 
@@ -97,7 +97,7 @@ For example, launch model conversion for the ONNX OCR model and specify dynamic 
 .. tab-set::
 
    .. tab-item:: Python
-      :sync: mo-python-api
+      :sync: py
 
       .. code-block:: python
 
@@ -105,7 +105,7 @@ For example, launch model conversion for the ONNX OCR model and specify dynamic 
          ov_model = convert_model("ocr.onnx", input=["data","seq_len"], input_shape=[[-1,150,200,1],[-1]]
 
    .. tab-item:: CLI
-      :sync: cli-tool
+      :sync: cli
 
       .. code-block:: sh
 
@@ -119,7 +119,7 @@ For example, launch model conversion for the ONNX OCR model and specify a bounda
 .. tab-set::
 
    .. tab-item:: Python
-      :sync: mo-python-api
+      :sync: py
 
       .. code-block:: python
 
@@ -128,7 +128,7 @@ For example, launch model conversion for the ONNX OCR model and specify a bounda
          ov_model = convert_model("ocr.onnx", input=["data","seq_len"], input_shape=[[Dimension(1,3),150,200,1],[Dimension(1,3)]]
 
    .. tab-item:: CLI
-      :sync: cli-tool
+      :sync: cli
 
       .. code-block:: sh
 

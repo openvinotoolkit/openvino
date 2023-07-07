@@ -32,10 +32,10 @@ If you have installed OpenVINO Runtime from archive files, you can uninstall it 
     
           rmdir /s <extracted_folder>
           del <path_to_archive>
-   
-   
+
+
    .. tab-item:: Linux & macOS
-      :sync: lin-mac
+      :sync: linux-and-macos
    
       If you have created the symbolic link, remove the link first:
     
@@ -48,7 +48,6 @@ If you have installed OpenVINO Runtime from archive files, you can uninstall it 
       .. code-block:: sh
     
         rm -r <extracted_folder> && rm <path_to_archive>
-
 
 @endsphinxdirective
 

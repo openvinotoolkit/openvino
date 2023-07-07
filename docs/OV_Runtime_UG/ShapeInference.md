@@ -34,18 +34,18 @@ to set a new batch size with the ``reshape`` method:
 
 .. tab-set::
 
-   .. tab-item:: C++
-      :sync: cpp
-
-      .. doxygensnippet:: docs/snippets/ShapeInference.cpp
-         :language: cpp
-         :fragment: picture_snippet
-
    .. tab-item:: Python
       :sync: py
 
       .. doxygensnippet:: docs/snippets/ShapeInference.py
          :language: Python
+         :fragment: picture_snippet
+
+   .. tab-item:: C++
+      :sync: cpp
+
+      .. doxygensnippet:: docs/snippets/ShapeInference.cpp
+         :language: cpp
          :fragment: picture_snippet
 
 The diagram below presents the results of using the method, where the size of
@@ -63,19 +63,19 @@ When using the ``reshape`` method, you may take one of the approaches:
 
    .. tab-set::
 
-      .. tab-item:: C++
-         :sync: cpp
-
-         .. doxygensnippet:: docs/snippets/ShapeInference.cpp
-            :language: cpp
-            :fragment: spatial_reshape
-
       .. tab-item:: Python
          :sync: py
 
          .. doxygensnippet:: docs/snippets/ShapeInference.py
             :language: python
             :fragment: simple_spatials_change
+
+      .. tab-item:: C++
+         :sync: cpp
+
+         .. doxygensnippet:: docs/snippets/ShapeInference.cpp
+            :language: cpp
+            :fragment: spatial_reshape
 
 
    To do the opposite - to resize input image to match the input shapes of the model,
@@ -90,15 +90,6 @@ When using the ``reshape`` method, you may take one of the approaches:
 
          .. tab-set::
 
-            .. tab-item:: C++
-               :sync: cpp
-
-               ``map<ov::Output<ov::Node>, ov::PartialShape`` specifies input by passing actual input port:
-
-               .. doxygensnippet:: docs/snippets/ShapeInference.cpp
-                  :language: cpp
-                  :fragment: [obj_to_shape]
-
             .. tab-item:: Python
                :sync: py
 
@@ -109,18 +100,18 @@ When using the ``reshape`` method, you may take one of the approaches:
                   :language: python
                   :fragment: [obj_to_shape]
 
-      .. tab-item:: Index
-
-         .. tab-set::
-
             .. tab-item:: C++
                :sync: cpp
 
-               ``map<size_t, ov::PartialShape>`` specifies input by its index:
+               ``map<ov::Output<ov::Node>, ov::PartialShape`` specifies input by passing actual input port:
 
                .. doxygensnippet:: docs/snippets/ShapeInference.cpp
                   :language: cpp
-                  :fragment: [idx_to_shape]
+                  :fragment: [obj_to_shape]
+
+      .. tab-item:: Index
+
+         .. tab-set::
 
             .. tab-item:: Python
                :sync: py
@@ -132,18 +123,18 @@ When using the ``reshape`` method, you may take one of the approaches:
                   :language: python
                   :fragment: [idx_to_shape]
 
-      .. tab-item:: Tensor Name
-
-         .. tab-set::
-
             .. tab-item:: C++
                :sync: cpp
 
-               ``map<string, ov::PartialShape>`` specifies input by its name:
+               ``map<size_t, ov::PartialShape>`` specifies input by its index:
 
                .. doxygensnippet:: docs/snippets/ShapeInference.cpp
                   :language: cpp
-                  :fragment: [name_to_shape]
+                  :fragment: [idx_to_shape]
+
+      .. tab-item:: Tensor Name
+
+         .. tab-set::
 
             .. tab-item:: Python
                :sync: py
@@ -153,6 +144,15 @@ When using the ``reshape`` method, you may take one of the approaches:
 
                .. doxygensnippet:: docs/snippets/ShapeInference.py
                   :language: python
+                  :fragment: [name_to_shape]
+
+            .. tab-item:: C++
+               :sync: cpp
+
+               ``map<string, ov::PartialShape>`` specifies input by its name:
+
+               .. doxygensnippet:: docs/snippets/ShapeInference.cpp
+                  :language: cpp
                   :fragment: [name_to_shape]
 
 
@@ -173,18 +173,18 @@ To change the batch dimension of the model, :ref:`set the layout <declare_model_
 
 .. tab-set::
 
-   .. tab-item:: C++
-      :sync: cpp
-
-      .. doxygensnippet:: docs/snippets/ShapeInference.cpp
-         :language: cpp
-         :fragment: set_batch
-
    .. tab-item:: Python
       :sync: py
 
       .. doxygensnippet:: docs/snippets/ShapeInference.py
          :language: Python
+         :fragment: set_batch
+
+   .. tab-item:: C++
+      :sync: cpp
+
+      .. doxygensnippet:: docs/snippets/ShapeInference.cpp
+         :language: cpp
          :fragment: set_batch
 
 

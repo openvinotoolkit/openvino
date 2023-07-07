@@ -105,6 +105,13 @@ This guide used the following model to run the Image Classification Sample:
 
    .. tab-set::
 
+      .. tab-item:: Windows
+         :sync: windows
+
+         .. code-block:: bat
+   
+            omz_downloader --name googlenet-v1 --output_dir %USERPROFILE%\Documents\models
+
       .. tab-item:: Linux
          :sync: linux
 
@@ -112,15 +119,8 @@ This guide used the following model to run the Image Classification Sample:
    
             omz_downloader --name googlenet-v1 --output_dir ~/models
    
-      .. tab-item:: Windows
-         :sync: windows
-
-         .. code-block:: bat
-   
-            omz_downloader --name googlenet-v1 --output_dir %USERPROFILE%\Documents\models
-   
       .. tab-item:: macOS
-         :sync: mac
+         :sync: macos
    
          .. code-block:: sh
    
@@ -130,6 +130,23 @@ This guide used the following model to run the Image Classification Sample:
    Your screen will look similar to this after the download and show the paths of downloaded files:
 
    .. tab-set::
+
+      .. tab-item:: Windows
+         :sync: windows
+   
+         .. code-block:: bat
+   
+            ################|| Downloading models ||################
+   
+            ========== Downloading C:\Users\username\Documents\models\public\googlenet-v1\googlenet-v1.prototxt
+            ... 100%, 9 KB, ? KB/s, 0 seconds passed
+   
+            ========== Downloading C:\Users\username\Documents\models\public\googlenet-v1\googlenet-v1.caffemodel
+            ... 100%, 4834 KB, 571 KB/s, 8 seconds passed
+   
+            ################|| Post-processing ||################
+   
+            ========== Replacing text in C:\Users\username\Documents\models\public\googlenet-v1\googlenet-v1.prototxt
 
       .. tab-item:: Linux
          :sync: linux
@@ -147,25 +164,8 @@ This guide used the following model to run the Image Classification Sample:
    
             ========= Replacing text in /home/username/models/public/googlenet-v1/googlenet-v1.prototxt =========
    
-      .. tab-item:: Windows
-         :sync: windows
-   
-         .. code-block:: bat
-   
-            ################|| Downloading models ||################
-   
-            ========== Downloading C:\Users\username\Documents\models\public\googlenet-v1\googlenet-v1.prototxt
-            ... 100%, 9 KB, ? KB/s, 0 seconds passed
-   
-            ========== Downloading C:\Users\username\Documents\models\public\googlenet-v1\googlenet-v1.caffemodel
-            ... 100%, 4834 KB, 571 KB/s, 8 seconds passed
-   
-            ################|| Post-processing ||################
-   
-            ========== Replacing text in C:\Users\username\Documents\models\public\googlenet-v1\googlenet-v1.prototxt
-   
       .. tab-item:: macOS
-         :sync: mac
+         :sync: macos
    
          .. code-block:: sh
    
@@ -202,6 +202,13 @@ Create an ``<ir_dir>`` directory to contain the model's Intermediate Representat
 
 .. tab-set::
 
+   .. tab-item:: Windows
+      :sync: windows
+   
+      .. code-block:: bat
+   
+         mkdir %USERPROFILE%\Documents\ir
+
    .. tab-item:: Linux
       :sync: linux
    
@@ -209,15 +216,8 @@ Create an ``<ir_dir>`` directory to contain the model's Intermediate Representat
    
          mkdir ~/ir
    
-   .. tab-item:: Windows
-      :sync: windows
-   
-      .. code-block:: bat
-   
-         mkdir %USERPROFILE%\Documents\ir
-   
    .. tab-item:: macOS
-      :sync: mac
+      :sync: macos
    
       .. code-block:: sh
    
@@ -238,6 +238,13 @@ The command with most placeholders filled in and FP16 precision:
 
 .. tab-set::
 
+   .. tab-item:: Windows
+      :sync: windows
+   
+      .. code-block:: bat
+   
+         mo --input_model %USERPROFILE%\Documents\models\public\googlenet-v1\googlenet-v1.caffemodel --compress_to_fp16 --output_dir %USERPROFILE%\Documents\ir
+
    .. tab-item:: Linux
       :sync: linux
    
@@ -245,15 +252,8 @@ The command with most placeholders filled in and FP16 precision:
    
          mo --input_model ~/models/public/googlenet-v1/googlenet-v1.caffemodel --compress_to_fp16 --output_dir ~/ir
    
-   .. tab-item:: Windows
-      :sync: windows
-   
-      .. code-block:: bat
-   
-         mo --input_model %USERPROFILE%\Documents\models\public\googlenet-v1\googlenet-v1.caffemodel --compress_to_fp16 --output_dir %USERPROFILE%\Documents\ir
-   
    .. tab-item:: macOS
-      :sync: mac
+      :sync: macos
    
       .. code-block:: sh
    
@@ -282,6 +282,13 @@ To run the **Image Classification** code sample with an input image using the IR
 
    .. tab-set::
 
+      .. tab-item:: Windows
+         :sync: windows
+      
+         .. code-block:: bat
+      
+            <INSTALL_DIR>\setupvars.bat
+
       .. tab-item:: Linux
          :sync: linux
       
@@ -289,15 +296,8 @@ To run the **Image Classification** code sample with an input image using the IR
       
             source  <INSTALL_DIR>/setupvars.sh
       
-      .. tab-item:: Windows
-         :sync: windows
-      
-         .. code-block:: bat
-      
-            <INSTALL_DIR>\setupvars.bat
-      
       .. tab-item:: macOS
-         :sync: mac
+         :sync: macos
       
          .. code-block:: sh
       
@@ -307,6 +307,13 @@ To run the **Image Classification** code sample with an input image using the IR
 
    .. tab-set::
 
+      .. tab-item:: Windows
+         :sync: windows
+      
+         .. code-block:: bat
+      
+            cd  %USERPROFILE%\Documents\Intel\OpenVINO\openvino_samples_build\intel64\Release
+
       .. tab-item:: Linux
          :sync: linux
       
@@ -314,15 +321,8 @@ To run the **Image Classification** code sample with an input image using the IR
       
             cd ~/openvino_cpp_samples_build/intel64/Release
       
-      .. tab-item:: Windows
-         :sync: windows
-      
-         .. code-block:: bat
-      
-            cd  %USERPROFILE%\Documents\Intel\OpenVINO\openvino_samples_build\intel64\Release
-      
       .. tab-item:: macOS
-         :sync: mac
+         :sync: macos
       
          .. code-block:: sh
       
@@ -332,6 +332,13 @@ To run the **Image Classification** code sample with an input image using the IR
 
    .. tab-set::
 
+      .. tab-item:: Windows
+         :sync: windows
+      
+         .. code-block:: bat
+      
+            classification_sample_async.exe -i <path_to_media> -m <path_to_model> -d <target_device>
+
       .. tab-item:: Linux
          :sync: linux
       
@@ -339,15 +346,8 @@ To run the **Image Classification** code sample with an input image using the IR
       
             classification_sample_async -i <path_to_media> -m <path_to_model> -d <target_device>
       
-      .. tab-item:: Windows
-         :sync: windows
-      
-         .. code-block:: bat
-      
-            classification_sample_async.exe -i <path_to_media> -m <path_to_model> -d <target_device>
-      
       .. tab-item:: macOS
-         :sync: mac
+         :sync: macos
       
          .. code-block:: sh
       
@@ -363,6 +363,13 @@ The following command shows how to run the Image Classification Code Sample usin
 
 .. tab-set::
 
+   .. tab-item:: Windows
+      :sync: windows
+   
+      .. code-block:: bat
+   
+         .\classification_sample_async.exe -i %USERPROFILE%\Downloads\dog.bmp -m %USERPROFILE%\Documents\ir\googlenet-v1.xml -d CPU
+
    .. tab-item:: Linux
       :sync: linux
    
@@ -370,15 +377,8 @@ The following command shows how to run the Image Classification Code Sample usin
    
          ./classification_sample_async -i ~/Downloads/dog.bmp -m ~/ir/googlenet-v1.xml -d CPU
    
-   .. tab-item:: Windows
-      :sync: windows
-   
-      .. code-block:: bat
-   
-         .\classification_sample_async.exe -i %USERPROFILE%\Downloads\dog.bmp -m %USERPROFILE%\Documents\ir\googlenet-v1.xml -d CPU
-   
    .. tab-item:: macOS
-      :sync: mac
+      :sync: macos
    
       .. code-block:: sh
    
@@ -418,19 +418,19 @@ Running Inference on GPU
 
 .. tab-set::
 
-   .. tab-item:: Linux
-      :sync: linux
-   
-      .. code-block:: sh
-   
-         ./classification_sample_async -i ~/Downloads/dog.bmp -m ~/ir/googlenet-v1.xml -d GPU
-   
    .. tab-item:: Windows
       :sync: windows
    
       .. code-block:: bat
    
          .\classification_sample_async.exe -i %USERPROFILE%\Downloads\dog.bmp -m %USERPROFILE%\Documents\ir\googlenet-v1.xml -d GPU
+
+   .. tab-item:: Linux
+      :sync: linux
+   
+      .. code-block:: sh
+   
+         ./classification_sample_async -i ~/Downloads/dog.bmp -m ~/ir/googlenet-v1.xml -d GPU
 
 
 Other Demos and Samples

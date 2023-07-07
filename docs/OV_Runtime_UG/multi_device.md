@@ -53,19 +53,19 @@ The following commands are accepted by the API:
 
 .. tab-set::
 
-   .. tab-item:: C++
-      :sync: cpp
-   
-      .. doxygensnippet:: docs/snippets/MULTI0.cpp
-         :language: cpp
-         :fragment: [part0]
-
    .. tab-item:: Python
       :sync: py
    
       .. doxygensnippet:: docs/snippets/ov_multi.py
          :language: python
          :fragment: [MULTI_0]
+
+   .. tab-item:: C++
+      :sync: cpp
+   
+      .. doxygensnippet:: docs/snippets/MULTI0.cpp
+         :language: cpp
+         :fragment: [part0]
 
 
 To check what devices are present in the system, you can use the Device API. For information on how to do it, check :doc:`Query device properties and configuration <openvino_docs_OV_UG_query_api>`.
@@ -78,19 +78,19 @@ As mentioned previously, executing inference with MULTI may be set up by configu
 
 .. tab-set::
 
-   .. tab-item:: C++
-      :sync: cpp
-   
-      .. doxygensnippet:: docs/snippets/MULTI4.cpp
-         :language: cpp
-         :fragment: [part4]
-   
    .. tab-item:: Python
       :sync: py
    
       .. doxygensnippet:: docs/snippets/ov_multi.py
          :language: python
          :fragment: [MULTI_4]
+
+   .. tab-item:: C++
+      :sync: cpp
+   
+      .. doxygensnippet:: docs/snippets/MULTI4.cpp
+         :language: cpp
+         :fragment: [part4]
 
 
 Alternatively, you can combine all the individual device settings into a single config file and load it for MULTI to parse. See the code example in the next section.

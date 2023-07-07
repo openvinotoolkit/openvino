@@ -31,7 +31,7 @@ Depending on your operating system, there may be different methods to install th
 .. tab-set::
 
    .. tab-item:: Ubuntu 22.04 LTS
-      :sync: ubuntu22
+      :sync: ubuntu-22
 
       Download and install the `deb` packages published `here <https://github.com/intel/compute-runtime/releases/latest>`__ and install the apt package `ocl-icd-libopencl1` with the OpenCl ICD loader.
       
@@ -42,7 +42,7 @@ Depending on your operating system, there may be different methods to install th
          apt-get install -y ocl-icd-libopencl1 intel-opencl-icd intel-level-zero-gpu level-zero
 
    .. tab-item:: Ubuntu 20.04 LTS
-      :sync: ubuntu20
+      :sync: ubuntu-20
 
       Ubuntu 20.04 LTS is not updated with the latest driver versions. You can install the updated versions up to the version 22.43 from apt:
       
@@ -57,7 +57,7 @@ Depending on your operating system, there may be different methods to install th
       Alternatively, download older `deb` version from `here <https://github.com/intel/compute-runtime/releases>`__. Note that older driver version might not include some of the bug fixes and might be not supported on some latest platforms. Check the supported hardware for the versions you are installing.
 
    .. tab-item:: RedHat UBI 8
-      :sync: redhat8
+      :sync: redhat-8
 
       Follow the `guide <https://dgpu-docs.intel.com/driver/installation.html#rhel-install-steps>`__ to add Yum repository.
       

@@ -16,7 +16,7 @@
 .. tab-set::
 
    .. tab-item:: System Requirements
-      :sync: sys-req
+      :sync: system-requirements
 
       | Full requirement listing is available in:
       | `System Requirements Page <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html>`__

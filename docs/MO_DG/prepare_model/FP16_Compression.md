@@ -12,7 +12,7 @@ To compress the model, use the ``compress_to_fp16=True`` option:
 .. tab-set::
 
     .. tab-item:: Python
-       :sync: mo-python-api
+       :sync: py
 
        .. code-block:: python
 
@@ -20,7 +20,7 @@ To compress the model, use the ``compress_to_fp16=True`` option:
           ov_model = convert_model(INPUT_MODEL, compress_to_fp16=False)
 
     .. tab-item:: CLI
-       :sync: cli-tool
+       :sync: cli
 
        .. code-block:: sh
 

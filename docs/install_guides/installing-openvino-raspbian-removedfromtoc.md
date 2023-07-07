@@ -14,13 +14,13 @@ Development and Target Systems
 .. tab-set::
 
    .. tab-item:: System Requirements
-      :sync: sys-req
+      :sync: system-requirements
    
       | Full requirement listing is available in:
       | `System Requirements Page <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html>`_
    
    .. tab-item:: Software Requirements
-      :sync: soft-req
+      :sync: software-requirements
     
       * CMake 3.10 or higher
       * Python 3.7 - 3.11

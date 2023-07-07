@@ -57,18 +57,18 @@ In the example code snippet below, ``ov::hint::PerformanceMode::THROUGHPUT`` is 
 
 .. tab-set::
 
-   .. tab-item:: C++
-      :sync: cpp
-   
-      .. doxygensnippet:: docs/snippets/ov_auto_batching.cpp
-         :language: cpp
-         :fragment: [compile_model]
-   
    .. tab-item:: Python
       :sync: py
    
       .. doxygensnippet:: docs/snippets/ov_auto_batching.py
          :language: python
+         :fragment: [compile_model]
+
+   .. tab-item:: C++
+      :sync: cpp
+   
+      .. doxygensnippet:: docs/snippets/ov_auto_batching.cpp
+         :language: cpp
          :fragment: [compile_model]
 
 
@@ -80,18 +80,18 @@ As mentioned earlier, this will limit the batch size for the GPU and the number 
 
 .. tab-set::
 
-   .. tab-item:: C++
-      :sync: cpp
-   
-      .. doxygensnippet:: docs/snippets/ov_auto_batching.cpp
-         :language: cpp
-         :fragment: [hint_num_requests]
-   
    .. tab-item:: Python
       :sync: py
    
       .. doxygensnippet:: docs/snippets/ov_auto_batching.py
          :language: python
+         :fragment: [hint_num_requests]
+
+   .. tab-item:: C++
+      :sync: cpp
+   
+      .. doxygensnippet:: docs/snippets/ov_auto_batching.cpp
+         :language: cpp
          :fragment: [hint_num_requests]
 
 
@@ -102,18 +102,18 @@ The hints are used on the presumption that the application queries ``ov::optimal
 
 .. tab-set::
 
-   .. tab-item:: C++
-      :sync: cpp
-   
-      .. doxygensnippet:: docs/snippets/ov_auto_batching.cpp
-         :language: cpp
-         :fragment: [query_optimal_num_requests]
-   
    .. tab-item:: Python
       :sync: py
    
       .. doxygensnippet:: docs/snippets/ov_auto_batching.py
          :language: python
+         :fragment: [query_optimal_num_requests]
+
+   .. tab-item:: C++
+      :sync: cpp
+   
+      .. doxygensnippet:: docs/snippets/ov_auto_batching.cpp
+         :language: cpp
          :fragment: [query_optimal_num_requests]
 
 
@@ -143,18 +143,18 @@ For example, use ``ov::hint::PerformanceMode::THROUGHPUT`` to prepare a general 
 
 .. tab-set::
 
-   .. tab-item:: C++
-      :sync: cpp
-   
-      .. doxygensnippet:: docs/snippets/ov_auto_batching.cpp
-         :language: cpp
-         :fragment: [hint_plus_low_level]
-
    .. tab-item:: Python
       :sync: py
    
       .. doxygensnippet:: docs/snippets/ov_auto_batching.py
          :language: python
+         :fragment: [hint_plus_low_level]
+
+   .. tab-item:: C++
+      :sync: cpp
+   
+      .. doxygensnippet:: docs/snippets/ov_auto_batching.cpp
+         :language: cpp
          :fragment: [hint_plus_low_level]
 
 
