@@ -166,6 +166,12 @@ void BlobDumper::dumpAsTxt(std::ostream &stream) const {
     const void *ptr = memory->GetData();
 
     switch (desc.getPrecision()) {
+        case Precision::FP16: {
+            auto *blob_ptr = reinterpret_cast<const float16*>(ptr);
+            for (size_t i = 0; i < data_size; i++)
+                stream << blob_ptr[desc.getElementOffset(i)] << std::endl;
+            break;
+        }
         case Precision::FP32 : {
             auto *blob_ptr = reinterpret_cast<const float*>(ptr);
             for (size_t i = 0; i < data_size; i++)
