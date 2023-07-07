@@ -242,5 +242,6 @@ InferenceEngine::Parameter CompiledModel::GetMetric(const std::string& name) con
         IE_THROW() << "Unsupported Network metric: " << name;
     }
 }
+
 }  // namespace autobatch_plugin
 }  // namespace ov

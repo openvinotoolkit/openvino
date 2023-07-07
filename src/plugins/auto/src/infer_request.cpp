@@ -105,7 +105,7 @@ std::vector<ov::ProfilingInfo> ov::auto_plugin::InferRequest::get_profiling_info
     if (m_shared_request)
         return m_shared_request->get_profiling_info();
     if (m_scheduled_request)
-        return m_shared_request->get_profiling_info();
+        return m_scheduled_request->get_profiling_info();
     OPENVINO_NOT_IMPLEMENTED;
 }
 
