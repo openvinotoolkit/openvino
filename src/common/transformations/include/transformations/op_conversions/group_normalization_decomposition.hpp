@@ -4,9 +4,6 @@
 
 #pragma once
 
-#include <memory>
-#include <vector>
-
 #include "openvino/pass/graph_rewrite.hpp"
 #include "transformations_visibility.hpp"
 

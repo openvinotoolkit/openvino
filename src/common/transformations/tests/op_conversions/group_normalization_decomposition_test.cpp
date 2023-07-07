@@ -67,11 +67,7 @@ shared_ptr<Model> gen_model_ref(std::vector<PartialShape> input_shapes,
     std::iota(reduction_axes_val.begin(), reduction_axes_val.end(), int64_t(1));
     const auto reduction_axes = Constant::create(element::i64, {reduction_axes_val.size()}, reduction_axes_val);
 
-    auto mvn = std::make_shared<MVN>(data_reshaped,
-                                     reduction_axes,
-                                     true,
-                                     eps,
-                                     op::MVNEpsMode::INSIDE_SQRT);
+    auto mvn = std::make_shared<MVN>(data_reshaped, reduction_axes, true, eps, op::MVNEpsMode::INSIDE_SQRT);
     std::shared_ptr<Node> result = std::make_shared<Reshape>(mvn, data_shape_node, true);
 
     std::vector<int64_t> unsqueeze_axes_val(data_rank_size - 2);
@@ -92,7 +88,6 @@ TEST_F(TransformationTestsF, GroupNormalizationDecompositionF32) {
         function =
             gen_model({PartialShape{1, 12, 6, 8}, PartialShape{12}, PartialShape{12}}, element::f32, num_groups, 1e-3);
         manager.register_pass<ov::pass::GroupNormalizationDecomposition>();
-        manager.register_pass<ov::pass::VisualizeTree>("GroupNormalizationDecomp.svg");
     }
     {
         function_ref = gen_model_ref({PartialShape{1, 12, 6, 8}, PartialShape{12}, PartialShape{12}},

@@ -3,7 +3,6 @@
 //
 
 #include "transformations/op_conversions/group_normalization_decomposition.hpp"
-#include "transformations/utils/utils.hpp"
 
 #include <memory>
 #include <vector>
@@ -14,6 +13,7 @@
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "transformations/utils/utils.hpp"
 
 using namespace std;
 using namespace ov;
