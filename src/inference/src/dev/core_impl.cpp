@@ -389,11 +389,9 @@ void ov::CoreImpl::register_plugin_in_registry_unsafe(const std::string& device_
 
     auto&& config = desc.defaultConfig;
     std::string dev_name = device_name;
+#ifdef PROXY_PLUGIN_ENABLED
     // Register proxy plugin
     if (config.find(ov::proxy::configuration::alias.name()) != config.end()) {
-#ifndef PROXY_PLUGIN_ENABLED
-        OPENVINO_THROW("Cannot register plugin under the proxy. Proxy plugin is disabled.");
-#else
         // Create proxy plugin for alias
         auto alias = config.at(ov::proxy::configuration::alias.name()).as<std::string>();
         if (alias == device_name)
@@ -415,18 +413,13 @@ void ov::CoreImpl::register_plugin_in_registry_unsafe(const std::string& device_
                             " plugin with the same name already registered!");
             fill_config(plugin.defaultConfig, config, dev_name);
         }
-#endif
     } else if (config.find(ov::proxy::configuration::fallback.name()) != config.end()) {
-#ifndef PROXY_PLUGIN_ENABLED
-        OPENVINO_THROW("Cannot register plugin under the proxy. Proxy plugin is disabled.");
-#else
         // Fallback without alias means that we need to replace original plugin to proxy
         dev_name += internal_plugin_suffix;
         PluginDescriptor desc = PluginDescriptor(ov::proxy::create_plugin);
         fill_config(desc.defaultConfig, config, dev_name);
         pluginRegistry[device_name] = desc;
         add_mutex(device_name);
-#endif
     }
 
     const static std::vector<ov::PropertyName> proxy_conf_properties = {ov::proxy::configuration::alias,
@@ -440,6 +433,7 @@ void ov::CoreImpl::register_plugin_in_registry_unsafe(const std::string& device_
             desc.defaultConfig.erase(it);
         }
     }
+#endif
 
     pluginRegistry[dev_name] = desc;
     add_mutex(dev_name);
