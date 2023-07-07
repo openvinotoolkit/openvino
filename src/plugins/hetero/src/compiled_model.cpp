@@ -7,7 +7,6 @@
 #include <memory>
 
 #include "async_infer_request.hpp"
-#include "converter_utils.hpp"
 #include "graph_debug_dump.hpp"
 #include "ie_algorithm.hpp"
 #include "ie_plugin_config.hpp"

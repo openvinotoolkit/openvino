@@ -26,16 +26,16 @@ std::shared_ptr<const ov::Model> convert_model(const InferenceEngine::CNNNetwork
 std::shared_ptr<::InferenceEngine::IInferencePlugin> convert_plugin(const std::shared_ptr<::ov::IPlugin>& plugin);
 std::shared_ptr<::ov::IPlugin> convert_plugin(const std::shared_ptr<::InferenceEngine::IInferencePlugin>& plugin);
 
-OPENVINO_RUNTIME_API std::shared_ptr<::InferenceEngine::IExecutableNetworkInternal> convert_compiled_model(
+std::shared_ptr<::InferenceEngine::IExecutableNetworkInternal> convert_compiled_model(
     const std::shared_ptr<::ov::ICompiledModel>& model);
-OPENVINO_RUNTIME_API std::shared_ptr<::ov::ICompiledModel> convert_compiled_model(
+std::shared_ptr<::ov::ICompiledModel> convert_compiled_model(
     const std::shared_ptr<::InferenceEngine::IExecutableNetworkInternal>& model);
 
-// TODO (vurusovs) revert after changes in Hetero plugin
-OPENVINO_RUNTIME_API std::shared_ptr<::InferenceEngine::IInferRequestInternal> convert_infer_request(
+std::shared_ptr<::InferenceEngine::IInferRequestInternal> convert_infer_request(
     const std::shared_ptr<::ov::IAsyncInferRequest>& request);
-OPENVINO_RUNTIME_API std::shared_ptr<::ov::IAsyncInferRequest> convert_infer_request(
-    const std::shared_ptr<::InferenceEngine::IInferRequestInternal>& request);
+std::shared_ptr<::ov::IAsyncInferRequest> convert_infer_request(
+    const std::shared_ptr<::InferenceEngine::IInferRequestInternal>& request,
+    const std::string& plugin_name = "");
 
 std::shared_ptr<InferenceEngine::RemoteContext> convert_remote_context(
     const std::shared_ptr<ov::IRemoteContext>& context);
@@ -44,3 +44,4 @@ std::shared_ptr<ov::IRemoteContext> convert_remote_context(
 
 }  // namespace legacy_convert
 }  // namespace ov
+

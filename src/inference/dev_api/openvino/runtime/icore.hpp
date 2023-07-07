@@ -237,8 +237,6 @@ public:
     virtual ~ICore();
 
 private:
-    virtual bool device_supports_model_caching(const std::string& deviceName) const = 0;
-
     virtual void set_property(const std::string& device_name, const AnyMap& properties) = 0;
     friend class ov::proxy::Plugin;
 };

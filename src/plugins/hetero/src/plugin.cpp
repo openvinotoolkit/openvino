@@ -21,12 +21,7 @@
 #include "openvino/util/common_util.hpp"
 #include "ie/ie_plugin_config.hpp"
 
-#include "internal_properties.hpp"
-
-// TODO (vurusovs) required for conversion to legacy API 1.0
-#include "converter_utils.hpp"
-#include "plugin.hpp"
-// TODO (vurusovs) required for conversion to legacy API 1.0
+#include "hetero/properties.hpp"
 
 ov::hetero::Plugin::Plugin() {
     set_device_name("HETERO");

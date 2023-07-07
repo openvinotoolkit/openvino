@@ -9,8 +9,8 @@ endif()
 set (TARGET_NAME "openvino_hetero_plugin")
 
 # TODO (vurusovs) revert after finish of porting Hetero plugin to API 2.0
-file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
-file(GLOB_RECURSE HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp)
+file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
+file(GLOB HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp)
 
 ov_add_plugin(NAME ${TARGET_NAME}
               DEVICE_NAME "HETERO"
@@ -24,10 +24,7 @@ ie_faster_build(${TARGET_NAME}
 )
 
 target_include_directories(${TARGET_NAME} PRIVATE
-    "${CMAKE_CURRENT_SOURCE_DIR}/"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/"
-    # TODO (vurusovs) revert after finish of porting Hetero plugin to API 2.0
-    "${OpenVINO_SOURCE_DIR}/src/inference/src/dev"
+    "${CMAKE_CURRENT_SOURCE_DIR}/include/"
     )
 
 target_link_libraries(${TARGET_NAME} PRIVATE openvino::pugixml)
