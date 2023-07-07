@@ -52,12 +52,12 @@ void compile_graph::run(program& p) {
         // TODO: Remove this WA once we have shape agnostic reshape kernel
         if (node->is_type<reshape>() && node->is_dynamic() && !node->can_be_optimized())
             can_select_impl = false;
-        
+
         // TODO: Remove this WA once we have shape agnostic conv kernl with specified auto_pad attributes
         if (node->is_type<convolution>() && node->is_dynamic() && !node->as<convolution>().use_explicit_padding()) {
             can_select_impl = false;
         }
-        
+
         // TODO: need to come up with better handling of unsupported shape agnostic cases
         // e.g. process exceptions from choose_impl() and ignore those for dynamic parameters
         if (node->is_type<fully_connected>() && node->is_dynamic() && node->get_output_pshape().size() > 3)
