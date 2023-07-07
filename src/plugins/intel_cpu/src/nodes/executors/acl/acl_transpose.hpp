@@ -11,7 +11,8 @@ namespace intel_cpu {
 
 class ACLTransposeExecutor : public TransposeExecutor {
 public:
-    explicit ACLTransposeExecutor(const ExecutorContext::CPtr context);
+    using TransposeExecutor::TransposeExecutor;
+
     bool init(const TransposeParams& transposeParams,
               const std::vector<MemoryDescPtr>& srcDescs,
               const std::vector<MemoryDescPtr>& dstDescs,

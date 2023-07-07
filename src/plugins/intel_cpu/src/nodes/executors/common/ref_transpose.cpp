@@ -5,8 +5,17 @@
 #include "ref_transpose.hpp"
 #include "ie_parallel.hpp"
 
+namespace ov {
+namespace intel_cpu {
+
+struct TransposeContext {
+    MemoryCPtr srcMemPtr;
+    MemoryPtr dstMemPtr;
+    int MB;
+};
+
 template <typename T>
-static void ov::intel_cpu::transpose_to_0312(const int MB, const MemoryCPtr& srcMemPtr, MemoryPtr& dstMemPtr) {
+static void transpose_to_0312(const int MB, const MemoryCPtr& srcMemPtr, MemoryPtr& dstMemPtr) {
     const auto src_data = reinterpret_cast<const T*>(srcMemPtr->GetPtr());
     auto dst_data = reinterpret_cast<T*>(dstMemPtr->GetPtr());
 
@@ -31,7 +40,7 @@ static void ov::intel_cpu::transpose_to_0312(const int MB, const MemoryCPtr& src
 }
 
 template<typename T>
-static void ov::intel_cpu::transpose_to_04123(const int MB, const MemoryCPtr& srcMemPtr, MemoryPtr& dstMemPtr) {
+static void transpose_to_04123(const int MB, const MemoryCPtr& srcMemPtr, MemoryPtr& dstMemPtr) {
     const auto src_data = reinterpret_cast<const T*>(srcMemPtr->GetPtr());
     auto dst_data = reinterpret_cast<T*>(dstMemPtr->GetPtr());
 
@@ -59,7 +68,7 @@ static void ov::intel_cpu::transpose_to_04123(const int MB, const MemoryCPtr& sr
 }
 
 template<typename T>
-static void ov::intel_cpu::transpose_to_051234(const int MB, const MemoryCPtr& srcMemPtr, MemoryPtr& dstMemPtr) {
+static void transpose_to_051234(const int MB, const MemoryCPtr& srcMemPtr, MemoryPtr& dstMemPtr) {
     const auto src_data = reinterpret_cast<const T*>(srcMemPtr->GetPtr());
     auto dst_data = reinterpret_cast<T*>(dstMemPtr->GetPtr());
 
@@ -89,7 +98,26 @@ static void ov::intel_cpu::transpose_to_051234(const int MB, const MemoryCPtr& s
     });
 }
 
-void ov::intel_cpu::RefTransposeExecutor::exec(const std::vector<MemoryCPtr>& src, const std::vector<MemoryPtr>& dst, const int MB) {
+template<typename T>
+struct TransposeOptimizedEmitter {
+    void operator()(TransposeContext& ctx) {
+        switch (ctx.srcMemPtr->getStaticDims().size()) {
+            case 4:
+                transpose_to_0312<T>(ctx.MB, ctx.srcMemPtr, ctx.dstMemPtr);
+                break;
+            case 5:
+                transpose_to_04123<T>(ctx.MB, ctx.srcMemPtr, ctx.dstMemPtr);
+                break;
+            case 6:
+                transpose_to_051234<T>(ctx.MB, ctx.srcMemPtr, ctx.dstMemPtr);
+                break;
+            default:
+                IE_THROW() << "Transpose supports optimized execution with only 4D, 5D and 6D shapes";
+        }
+    }
+};
+
+void RefTransposeExecutor::exec(const std::vector<MemoryCPtr>& src, const std::vector<MemoryPtr>& dst, const int MB) {
     const size_t dataSize = src[0]->getDesc().getPrecision().size();
     TransposeContext ctx = {src[0], dst[0], MB};
     OV_SWITCH(intel_cpu, TransposeOptimizedEmitter, ctx, dataSize,
@@ -98,12 +126,13 @@ void ov::intel_cpu::RefTransposeExecutor::exec(const std::vector<MemoryCPtr>& sr
               OV_CASE(4u, InferenceEngine::PrecisionTrait<InferenceEngine::Precision::I32>::value_type));
 }
 
-ov::intel_cpu::RefTransposeExecutor::RefTransposeExecutor(const ExecutorContext::CPtr context) : TransposeExecutor(context) {}
-
-bool ov::intel_cpu::RefTransposeExecutor::init(const ov::intel_cpu::TransposeParams &transposeParams,
-                                               const std::vector<MemoryDescPtr> &srcDescs,
-                                               const std::vector<MemoryDescPtr> &dstDescs,
-                                               const dnnl::primitive_attr &attr) {
+bool RefTransposeExecutor::init(const TransposeParams &transposeParams,
+                                const std::vector<MemoryDescPtr> &srcDescs,
+                                const std::vector<MemoryDescPtr> &dstDescs,
+                                const dnnl::primitive_attr &attr) {
     if (transposeParams.transposeExecution != TransposeParams::REF) { return false; }
     return true;
 }
+
+}   // namespace intel_cpu
+}   // namespace ov

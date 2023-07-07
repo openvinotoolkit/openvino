@@ -5,8 +5,6 @@
 #include "acl_transpose.hpp"
 #include "acl_utils.hpp"
 
-ov::intel_cpu::ACLTransposeExecutor::ACLTransposeExecutor(const ExecutorContext::CPtr context) : TransposeExecutor(context) {}
-
 bool ov::intel_cpu::ACLTransposeExecutor::init(const ov::intel_cpu::TransposeParams &transposeParams,
                                                const std::vector<MemoryDescPtr> &srcDescs,
                                                const std::vector<MemoryDescPtr> &dstDescs,

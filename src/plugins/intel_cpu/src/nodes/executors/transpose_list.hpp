@@ -44,32 +44,7 @@ TransposeExecutorFactory(const TransposeParams& transposeParams,
 virtual TransposeExecutorPtr makeExecutor(const TransposeParams& transposeParams,
                                           const std::vector<MemoryDescPtr>& srcDescs,
                                           const std::vector<MemoryDescPtr>& dstDescs,
-                                          const dnnl::primitive_attr &attr) {
-    auto build = [&](const TransposeExecutorDesc* desc) {
-        auto executor = desc->builder->makeExecutor(context);
-        if (executor->init(transposeParams, srcDescs, dstDescs, attr)) {
-            return executor;
-        }
-        TransposeExecutorPtr ptr = nullptr;
-        return ptr;
-    };
-
-
-    if (chosenDesc) {
-        if (auto executor = build(chosenDesc)) {
-            return executor;
-        }
-    }
-
-    for (const auto& sd : supportedDescs) {
-        if (auto executor = build(&sd)) {
-            chosenDesc = &sd;
-            return executor;
-        }
-    }
-
-    IE_THROW() << "Supported executor is not found";
-}
+                                          const dnnl::primitive_attr &attr);
 
 private:
     std::vector<TransposeExecutorDesc> supportedDescs;

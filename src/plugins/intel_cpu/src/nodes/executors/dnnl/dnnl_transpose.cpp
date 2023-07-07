@@ -14,8 +14,6 @@ void ov::intel_cpu::DNNLTransposeExecutor::exec(const std::vector<MemoryCPtr>& s
     pKernel->execute(srcData, dstData, MB);
 }
 
-ov::intel_cpu::DNNLTransposeExecutor::DNNLTransposeExecutor(const ExecutorContext::CPtr context) : TransposeExecutor(context) {}
-
 bool ov::intel_cpu::DNNLTransposeExecutor::init(const TransposeParams &transposeParams,
                                                 const std::vector<MemoryDescPtr> &srcDescs,
                                                 const std::vector<MemoryDescPtr> &dstDescs, const dnnl::primitive_attr &attr) {
