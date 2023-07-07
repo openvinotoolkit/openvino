@@ -63,7 +63,7 @@ shared_ptr<Model> gen_model_ref(std::vector<PartialShape> input_shapes,
     auto target_shape = std::make_shared<Concat>(new_shape, 0);
     auto data_reshaped = std::make_shared<Reshape>(data, target_shape, true);
 
-    std::vector<int64_t> reduction_axes_val(data_rank_size);
+    std::vector<int64_t> reduction_axes_val(data_rank_size - 1);
     std::iota(reduction_axes_val.begin(), reduction_axes_val.end(), int64_t(1));
     const auto reduction_axes = Constant::create(element::i64, {reduction_axes_val.size()}, reduction_axes_val);
 

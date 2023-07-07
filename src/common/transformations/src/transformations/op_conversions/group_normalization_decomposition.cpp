@@ -83,7 +83,7 @@ ov::pass::GroupNormalizationDecomposition::GroupNormalizationDecomposition() {
             data,
             create_group_norm_shape(reg, data_shape_node, num_groups, static_cast<size_t>(data_rank_size)),
             true);
-        const auto reduction_axes = get_range(reg, 1, data_rank_size + 1);
+        const auto reduction_axes = get_range(reg, 1, data_rank_size);
 
         auto mvn = reg.make<MVN>(data_reshaped, reduction_axes, true, eps, op::MVNEpsMode::INSIDE_SQRT);
         std::shared_ptr<Node> result = reg.make<Reshape>(mvn, data_shape_node, true);
