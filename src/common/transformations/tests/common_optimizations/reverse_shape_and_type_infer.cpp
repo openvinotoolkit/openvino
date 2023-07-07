@@ -8,6 +8,7 @@
 #include <transformations/common_optimizations/reverse_shape_and_type_infer.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
+#include "openvino/opsets/opset12.hpp"
 
 using namespace testing;
 using namespace ov;
@@ -189,6 +190,28 @@ TEST_F(TransformationTestsF, PadReverseInfer) {
         auto pads_end = opset10::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0});
         auto value = opset10::Constant::create(element::f32, Shape{}, {0});
         auto pad = std::make_shared<opset10::Pad>(data, pads_begin, pads_end, value, op::PadMode::CONSTANT);
+        auto result = std::make_shared<opset10::Result>(pad);
+        model_ref = std::make_shared<Model>(ResultVector{result}, ParameterVector{data});
+    }
+}
+
+TEST_F(TransformationTestsF, NegativePad12ReverseInfer) {
+    {
+        auto data = std::make_shared<opset10::Parameter>(element::dynamic, PartialShape::dynamic());
+        auto pads_begin = opset10::Constant::create(element::i64, Shape{4}, {0, 0, 0, -1});
+        auto pads_end = opset10::Constant::create(element::i64, Shape{4}, {0, 0, 0, -1});
+        auto value = opset10::Constant::create(element::f32, Shape{}, {0});
+        auto pad = std::make_shared<ov::op::v12::Pad>(data, pads_begin, pads_end, value, op::PadMode::CONSTANT);
+        auto result = std::make_shared<opset10::Result>(pad);
+        model = std::make_shared<Model>(ResultVector{result}, ParameterVector{data});
+        manager.register_pass<pass::ReverseShapeAndTypeInfer>();
+    }
+    {
+        auto data = std::make_shared<opset10::Parameter>(element::f32, PartialShape::dynamic(4));
+        auto pads_begin = opset10::Constant::create(element::i64, Shape{4}, {0, 0, 0, -1});
+        auto pads_end = opset10::Constant::create(element::i64, Shape{4}, {0, 0, 0, -1});
+        auto value = opset10::Constant::create(element::f32, Shape{}, {0});
+        auto pad = std::make_shared<ov::op::v12::Pad>(data, pads_begin, pads_end, value, op::PadMode::CONSTANT);
         auto result = std::make_shared<opset10::Result>(pad);
         model_ref = std::make_shared<Model>(ResultVector{result}, ParameterVector{data});
     }
