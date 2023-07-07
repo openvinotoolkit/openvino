@@ -46,8 +46,10 @@ std::shared_ptr<ITensor> make_tensor(const std::shared_ptr<ITensor>& other,
 IE_SUPPRESS_DEPRECATED_START
 /** @cond INTERNAL */
 std::shared_ptr<ITensor> make_tensor(const std::shared_ptr<InferenceEngine::Blob>& tensor);
+const InferenceEngine::Blob* get_hardware_blob(const InferenceEngine::Blob* blob);
+InferenceEngine::Blob* get_hardware_blob(InferenceEngine::Blob* blob);
 
-std::shared_ptr<InferenceEngine::Blob> tensor_to_blob(const std::shared_ptr<ITensor>& tensor);
+std::shared_ptr<InferenceEngine::Blob> tensor_to_blob(const std::shared_ptr<ITensor>& tensor, bool unwrap = true);
 /** @endcond */
 
 IE_SUPPRESS_DEPRECATED_END
