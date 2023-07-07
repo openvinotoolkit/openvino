@@ -38,6 +38,6 @@ ov::Coordinate& ov::Coordinate::operator=(const Coordinate& v) {
 }
 
 ov::Coordinate& ov::Coordinate::operator=(Coordinate&& v) noexcept {
-    static_cast<std::vector<size_t>*>(this)->operator=(v);
+    static_cast<std::vector<size_t>*>(this)->operator=(std::move(v));
     return *this;
 }
