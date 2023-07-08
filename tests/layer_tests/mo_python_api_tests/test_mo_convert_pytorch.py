@@ -160,6 +160,18 @@ def create_pytorch_nn_module_case2(tmp_dir):
                                  'example_input': sample_input}
 
 
+def create_pytorch_nn_module_with_scalar_input(tmp_dir):
+    pt_model = make_pt_model_two_inputs()
+    ref_model = make_ref_pt_model_two_inputs([[], [-1, 3, -1, -1]])
+
+    sample_input1 = torch.tensor(0.66)
+    sample_input2 = torch.zeros(1, 3, 10, 10)
+    sample_input = sample_input1, sample_input2
+
+    return pt_model, ref_model, {'input_shape': ["[]", PartialShape([-1, 3, -1, -1])],
+                                 'example_input': sample_input}
+
+
 def create_pytorch_nn_module_case3(tmp_dir):
     pt_model = make_pt_model_two_inputs()
     ref_model = make_ref_pt_model_two_inputs([-1, 3, -1, -1])
@@ -710,7 +722,8 @@ class TestMoConvertPyTorch(CommonMOConvertTest):
         create_pytorch_module_with_optional_inputs_case2,
         create_pytorch_module_with_optional_inputs_case3,
         create_pytorch_module_with_optional_inputs_case4,
-        create_pytorch_module_with_optional_inputs_case5
+        create_pytorch_module_with_optional_inputs_case5,
+        create_pytorch_nn_module_with_scalar_input,
     ]
 
     @ pytest.mark.parametrize("create_model", test_data)
