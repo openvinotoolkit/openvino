@@ -31,7 +31,7 @@ static void CreateBatchToSpaceOp(Program& p, const std::shared_ptr<ngraph::op::v
 
         std::vector<int32_t> sizes = inConst->cast_vector<int32_t>();
         int32_t default_size = i == 1 ? 1 : 0;
-        for (size_t s = sizes.size(); s < rank; s++) {
+        for (size_t s = sizes.size(); s < format.dimension(); s++) {
             sizes.push_back(default_size);
         }
         tensor_inputs.emplace_back(format, sizes, default_size);

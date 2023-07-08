@@ -15,13 +15,18 @@
    openvino_docs_MO_DG_Python_API
    openvino_docs_MO_DG_prepare_model_Model_Optimizer_FAQ
 
+.. meta::
+   :description: Model conversion (MO) furthers the transition between training and 
+                 deployment environments, it adjusts deep learning models for 
+                 optimal execution on target devices.
+
 
 To convert a model to OpenVINO model format (``ov.Model``), you can use the following command:
 
 .. tab-set::
 
     .. tab-item:: Python
-       :sync: mo-python-api
+       :sync: py
 
        .. code-block:: python
 
@@ -29,7 +34,7 @@ To convert a model to OpenVINO model format (``ov.Model``), you can use the foll
           ov_model = convert_model(INPUT_MODEL)
 
     .. tab-item:: CLI
-       :sync: cli-tool
+       :sync: cli
 
        .. code-block:: sh
 
@@ -56,7 +61,7 @@ To get the full list of conversion parameters, run the following command:
 .. tab-set::
 
     .. tab-item:: Python
-       :sync: mo-python-api
+       :sync: py
 
        .. code-block:: python
 
@@ -64,7 +69,7 @@ To get the full list of conversion parameters, run the following command:
           ov_model = convert_model(help=True)
 
     .. tab-item:: CLI
-       :sync: cli-tool
+       :sync: cli
 
        .. code-block:: sh
 
@@ -81,7 +86,7 @@ Below is a list of separate examples for different frameworks and model conversi
    .. tab-set::
 
        .. tab-item:: Python
-          :sync: mo-python-api
+          :sync: py
 
           .. code-block:: python
 
@@ -89,7 +94,7 @@ Below is a list of separate examples for different frameworks and model conversi
              ov_model = convert_model("MobileNet.pb")
 
        .. tab-item:: CLI
-          :sync: cli-tool
+          :sync: cli
 
           .. code-block:: sh
 
@@ -101,7 +106,7 @@ Below is a list of separate examples for different frameworks and model conversi
    .. tab-set::
 
        .. tab-item:: Python
-          :sync: mo-python-api
+          :sync: py
 
           .. code-block:: python
 
@@ -109,7 +114,7 @@ Below is a list of separate examples for different frameworks and model conversi
              ov_model = convert_model("BERT", input_shape=[[2,30],[2,30],[2,30]])
 
        .. tab-item:: CLI
-          :sync: cli-tool
+          :sync: cli
 
           .. code-block:: sh
 
@@ -123,7 +128,7 @@ Below is a list of separate examples for different frameworks and model conversi
    .. tab-set::
 
        .. tab-item:: Python
-          :sync: mo-python-api
+          :sync: py
 
           .. code-block:: python
 
@@ -131,7 +136,7 @@ Below is a list of separate examples for different frameworks and model conversi
              ov_model = convert_model("ocr.onnx", output="probabilities")
 
        .. tab-item:: CLI
-          :sync: cli-tool
+          :sync: cli
 
           .. code-block:: sh
 
@@ -149,7 +154,7 @@ Below is a list of separate examples for different frameworks and model conversi
    .. tab-set::
 
        .. tab-item:: Python
-          :sync: mo-python-api
+          :sync: py
 
           .. code-block:: python
 
@@ -157,7 +162,7 @@ Below is a list of separate examples for different frameworks and model conversi
              ov_model = convert_model("unet.pdmodel", mean_values=[123,117,104], scale=255)
 
        .. tab-item:: CLI
-          :sync: cli-tool
+          :sync: cli
 
           .. code-block:: sh
 
