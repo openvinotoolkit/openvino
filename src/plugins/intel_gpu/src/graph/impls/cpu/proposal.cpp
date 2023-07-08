@@ -414,6 +414,15 @@ struct proposal_impl : typed_primitive_impl<proposal> {
                 mem_lock<data_type_to_type<data_types::f32>::type, mem_lock_type::read> proposal_prob_ptr{proposal_probabilities, stream};
                 execute<data_type_to_type<data_types::f32>::type>(stream, instance, im_info, proposal_prob_ptr.data());
             }
+        } else if (instance.outputs_memory_count() == 2) {
+            auto proposal_probabilities = instance.output_memory_ptr(1);
+            if (instance.dep_memory(proposal_inst::cls_scores_index).get_layout().data_type == data_types::f16) {
+                mem_lock<data_type_to_type<data_types::f16>::type, mem_lock_type::write> proposal_prob_ptr{proposal_probabilities, stream};
+                execute<data_type_to_type<data_types::f16>::type>(stream, instance, im_info, proposal_prob_ptr.data());
+            } else {
+                mem_lock<data_type_to_type<data_types::f32>::type, mem_lock_type::write> proposal_prob_ptr{proposal_probabilities, stream};
+                execute<data_type_to_type<data_types::f32>::type>(stream, instance, im_info, proposal_prob_ptr.data());
+            }
         } else {
             if (instance.dep_memory(proposal_inst::cls_scores_index).get_layout().data_type == data_types::f16) {
                 execute<data_type_to_type<data_types::f16>::type>(stream, instance, im_info);
