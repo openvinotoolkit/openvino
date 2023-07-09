@@ -96,6 +96,16 @@ static void CreateConstantOp(Program& p, const std::shared_ptr<ngraph::op::v0::C
                                  }
                              };
 
+    auto is_binary_eltwise = [&] (ov::Node* op) -> bool {
+        if (ngraph::op::is_binary_elementwise_arithmetic(op) ||
+            ngraph::op::is_binary_elementwise_logical(op) ||
+            ngraph::op::is_binary_elementwise_comparison(op)) {
+            return true;
+        } else {
+            return false;
+        }
+    };
+
     // WA to inconsistency between input and const 1d tensors
     // For Concat along batch we go with batch interpretation
     // For Gather input we go with batch interpretation
@@ -106,11 +116,9 @@ static void CreateConstantOp(Program& p, const std::shared_ptr<ngraph::op::v0::C
             if (castedOp->get_axis() == 0) {
                 consts[op].needsBatchInterpretation = constDims.size() == 1;
             }
-        } else if (ngraph::op::is_binary_elementwise_arithmetic(outOp) ||
-                   ngraph::op::is_binary_elementwise_logical(outOp) ||
-                   ngraph::op::is_binary_elementwise_comparison(outOp) ||
+        } else if (is_binary_eltwise(outOp) ||
                    ngraph::is_type<ngraph::op::v0::SquaredDifference>(outOp) ||
-                   ngraph::is_type<ngraph::op::v0::Convert>(outOp)) {
+                   (ngraph::is_type<ngraph::op::v0::Convert>(outOp) && is_binary_eltwise(outOp->get_output_target_inputs(0).begin()->get_node()))) {
             bool all_inputs_1d = true;
             for (size_t j = 0; j < outOp->get_input_size(); j++) {
                 auto& in_shape = outOp->get_input_partial_shape(j);
@@ -152,23 +160,6 @@ static void CreateConstantOp(Program& p, const std::shared_ptr<ngraph::op::v0::C
             auto input_shape = outOp->get_input_partial_shape(0);
             if (constDims.size() == 4 && input_shape.size() == 3) { // In case of weight dim 4 and input dim 3,
                 constDims.push_back(1);                             // The weight cldnn tensor adds 1d to the end as the input cldnn tensor does
-            }
-        } else if (ngraph::is_type<ngraph::op::v0::Convert>(outOp)) {
-            auto convertUsers = outOp->get_output_target_inputs(0);
-            for (auto& user : convertUsers) {
-                auto node = user.get_node();
-                if (ngraph::op::is_binary_elementwise_arithmetic(node) ||
-                   ngraph::op::is_binary_elementwise_logical(node) ||
-                   ngraph::op::is_binary_elementwise_comparison(node) ||
-                   ngraph::is_type<ngraph::op::v0::SquaredDifference>(node)) {
-                    bool all_inputs_1d = true;
-                    for (size_t j = 0; j < outOp->get_input_size(); j++) {
-                        auto& in_shape = outOp->get_input_partial_shape(j);
-                        if (in_shape.size() > 1)
-                            all_inputs_1d = false;
-                    }
-                    consts[op].needsBatchInterpretation = all_inputs_1d && constDims.size() == 1;
-                }
             }
         }
     }
