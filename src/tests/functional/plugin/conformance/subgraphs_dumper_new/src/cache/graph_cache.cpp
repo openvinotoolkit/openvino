@@ -31,51 +31,42 @@ void GraphCache::update_cache(const std::shared_ptr<ov::Model>& model, const std
 
     for (const auto& op : model->get_ordered_ops()) {
         auto op_name = op->get_friendly_name();
-        // std::cout << op_name << std::endl;
         if (ov::op::util::is_parameter(op) || ov::op::util::is_constant(op)) {
             continue;
-        }
-        if (op_name == "Multiply_8749") {
-            auto h = 0;
         }
         auto cloned_op = clone_node(op, true, false, "Op_" + std::to_string(model_vector.size()));
         if (model_vector.empty()) {
             model_vector.insert({ op->get_friendly_name(), cloned_op });
         } else {
-            ov::OutputVector out;
-            out.resize(op->inputs().size());
-            // std::cout << "DEBUG: " << out.size() << std::endl;
-            for (size_t i = 0; i < op->inputs().size(); ++i) {
-                auto in_node = op->get_input_node_ptr(i)->shared_from_this();
-                auto in_node_cloned = cloned_op->get_input_node_ptr(i)->shared_from_this();
-                for (size_t j = 0; j < in_node->outputs().size(); ++j) {
-                    for (const auto& target_input : in_node->output(j).get_target_inputs()) {
+            size_t inputs_size = op->inputs().size();
+            ov::OutputVector in_out_vector(inputs_size);
+            for (size_t in_idx = 0; in_idx < inputs_size; ++in_idx) {
+                auto in_node = op->get_input_node_ptr(in_idx)->shared_from_this();
+                for (size_t in_out_idx = 0; in_out_idx < in_node->outputs().size(); ++in_out_idx) {
+                    bool is_input_filled = false;
+                    for (const auto& target_input : in_node->output(in_out_idx).get_target_inputs()) {
                         auto out_in_node = target_input.get_node()->shared_from_this();
-                        std::cout << op->get_friendly_name() << " " << in_node->get_friendly_name() << " " << out_in_node->get_friendly_name() << std::endl;
                         if (out_in_node == op) {
-                            // std::cout << "DEBUG 2: " << in_node->get_friendly_name() << std::endl;
-                            if (model_vector.count(in_node->get_friendly_name())) {
-                                // std::cout << "DEBUG_1: " << j << std::endl;
-                                // out[j] = out_in_node->output(j);
-                                out[i] = model_vector.at(in_node->get_friendly_name())->output(j);
-                            } else {
-                                out[i] = cloned_op->get_input_node_ptr(i)->output(j);
-                                auto g = 0;
-                            }
+                            auto in_node_name = in_node->get_friendly_name();
+                            in_out_vector[in_idx] = model_vector.count(in_node_name) ?
+                                               model_vector.at(in_node_name)->output(in_out_idx) :
+                                               cloned_op->get_input_node_ptr(in_idx)->output(in_out_idx);
+                            is_input_filled = true;
                             break;
                         }
                     }
+                    if (is_input_filled) {
+                        break;
+                    }
                 }
             }
-            model_vector.insert({ op->get_friendly_name(), cloned_op->clone_with_new_inputs(out)});
+            model_vector.insert({ op_name, cloned_op->clone_with_new_inputs(in_out_vector) });
         }
-        if (!compiled_op_name.count(op_name)) {
+        if (!compiled_op_name.count(op_name) || ov::op::util::is_output(op)) {
             if (model_vector.size() > 1) {
                 ov::OutputVector results;
                 std::map<std::string, InputInfo> input_info;
                 for (const auto& op : model_vector) {
-                    // auto a = op.second->outputs().begin()->get_target_inputs().begin()->get_node()->shared_from_this();
-                    // std::cout << "DEBUG " << op.second->get_friendly_name() << " " << a->get_friendly_name() << std::endl;
                     auto this_input_info = get_input_info_by_node(op.second);
                     input_info.insert(this_input_info.begin(), this_input_info.end());
                     for (size_t j = 0; j < op.second->outputs().size(); ++j) {
@@ -103,21 +94,17 @@ void GraphCache::update_cache(const std::shared_ptr<ov::Model>& model, const std
                     if (orig_model_size < ref_model_size) {
                         auto meta = c->second;
                         meta.update(model_meta_data, input_info,
-                        model->get_ops().size() - model->get_output_size() - model->inputs().size());
+                                    model->get_ops().size() - model->get_output_size() - model->inputs().size());
                         m_graph_cache.erase(c->first);
                         m_graph_cache.insert({model, meta});
                     } else {
                         c->second.update(model_meta_data, input_info,
-                        model->get_ops().size() - model->get_output_size() - model->inputs().size());
+                                         model->get_ops().size() - model->get_output_size() - model->inputs().size());
                     }
                 } else {
                     auto meta = MetaInfo(model_meta_data, input_info,
                                          model->get_ops().size() - model->get_output_size() - model->inputs().size());
-                    // graph comparation
-                    // add to cache smaller graph
-                    std::cout << "DEBUG: " << model->get_ops().size() << std::endl;
                     m_graph_cache.insert({model, meta});
-                    // serialize_model({model, meta}, "/Users/iefode/repo/temp/output_test/subgraph");
                     break;
                 }
             }

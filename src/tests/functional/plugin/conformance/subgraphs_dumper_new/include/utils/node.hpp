@@ -29,7 +29,7 @@ inline std::map<std::string, InputInfo> get_input_info_by_node(const std::shared
     std::map<std::string, InputInfo> input_info;
     for (size_t port_id = 0; port_id < node->get_input_size(); ++port_id) {
         InputInfo in_info;
-        std::shared_ptr<ov::Node> input_node = node->input_value(port_id).get_node_shared_ptr();
+        std::shared_ptr<ov::Node> input_node = node->get_input_node_shared_ptr(port_id);
         std::string input_name = input_node->get_friendly_name();
         if (std::dynamic_pointer_cast<ov::op::v0::Constant>(input_node)) {
             auto const_node =
@@ -94,8 +94,7 @@ inline std::map<std::string, InputInfo> get_input_info_by_node(const std::shared
             default: {
                 std::cout << "Can't get ranges.. Unsupported data type" << std::endl;
                 break;
-            }
-            }
+            }}
         }
         if (ov::op::util::is_parameter(input_node) || ov::op::util::is_constant(input_node)) {
             input_info.insert({ input_name, in_info });
