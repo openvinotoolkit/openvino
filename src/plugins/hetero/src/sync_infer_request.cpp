@@ -53,16 +53,16 @@ ov::hetero::InferRequest::InferRequest(const std::shared_ptr<const ov::hetero::C
         m_port_to_request_idx_map[port] = submodel_idx;
     }
 
-    for (const auto& kvp : compiled_model->m_submodels_output_to_input) {
-        const auto& submodel_idx1 = kvp.first.first;
-        const auto& tensor_idx1 = kvp.first.second;
-        const auto& submodel_idx2 = kvp.second.first;
-        const auto& tensor_idx2 = kvp.second.second;
+    for (const auto& kvp : compiled_model->m_submodels_input_to_prev_output) {
+        const auto& submodel_idx_in = kvp.first.first;
+        const auto& tensor_idx_in = kvp.first.second;
+        const auto& submodel_idx_out = kvp.second.first;
+        const auto& tensor_idx_out = kvp.second.second;
 
-        const auto& output_port = m_infer_requests[submodel_idx1]._network->outputs()[tensor_idx1];
-        const auto& input_port = m_infer_requests[submodel_idx2]._network->inputs()[tensor_idx2];
-        const auto& tensor = m_infer_requests[submodel_idx1]._request->get_tensor(output_port);
-        m_infer_requests[submodel_idx2]._request->set_tensor(input_port, tensor);
+        const auto& output_port = m_infer_requests[submodel_idx_out]._network->outputs()[tensor_idx_out];
+        const auto& output_tensor = m_infer_requests[submodel_idx_out]._request->get_tensor(output_port);
+        const auto& input_port = m_infer_requests[submodel_idx_in]._network->inputs()[tensor_idx_in];
+        m_infer_requests[submodel_idx_in]._request->set_tensor(input_port, output_tensor);
     }
 }
 

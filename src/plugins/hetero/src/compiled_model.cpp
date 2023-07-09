@@ -260,9 +260,13 @@ ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model
                         input.replace_source_output(parameter->output(0));
                         subgraphIds.emplace(parameter.get(), input_subset.first);
                         subgraphParameterToPrevResult.emplace(parameter.get(), result.get());
+                        // TODO VURUSOVS
+                        // Из-за того, что на 1 result приходится 2 Parameter, хранить такое в std::map не удается из-за коллизии
+                        // При хранении в обратном формате тесты работают. Убедиться, что аналогичная история не достижима для случая
+                        // 2 Parameters -> 1 Result (Пример - Parameter1 + Parameter2 -> Add)
                         _mapOutputToInput.emplace(  // TODO: reuse subgraphParameterToPrevResult
-                            result,
-                            parameter);
+                            parameter,
+                            result);
                     }
                 }
             }
@@ -365,8 +369,8 @@ ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model
         // Prepare mapping between manually splitted inputs/outputs
         // to connect tensors between compiled submodels
         for (const auto& kvp : _mapOutputToInput) {
-            const auto& intermed_output = kvp.first;
-            const auto& intermed_input = kvp.second;
+            const auto& intermed_output = kvp.second;
+            const auto& intermed_input = kvp.first;
             for (size_t id = 0; id < orderedSubgraphs.size(); id++) {
                 const auto& out_it = std::find(orderedSubgraphs[id]._results.begin(),
                                                orderedSubgraphs[id]._results.end(),
@@ -381,7 +385,7 @@ ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model
                         if (in_it != orderedSubgraphs[id2]._parameters.end()) {
                             auto out_idx = std::distance(orderedSubgraphs[id]._results.begin(), out_it);
                             auto in_idx = std::distance(orderedSubgraphs[id2]._parameters.begin(), in_it);
-                            m_submodels_output_to_input[{id, out_idx}] = {id2, in_idx};
+                            m_submodels_input_to_prev_output[{id2, in_idx}] = {id, out_idx};
                         }
                     }
                 }
@@ -520,13 +524,13 @@ ov::hetero::CompiledModel::CompiledModel(std::istream& model,
         m_outputs_to_submodel_outputs.emplace_back(GetUInt64Attr(xml_node, "submodel_idx"),
                                                    GetUInt64Attr(xml_node, "tensor_idx"));
     }
-    auto submodels_output_to_input_node = heteroNode.child("submodels_output_to_input");
-    FOREACH_CHILD (xml_node, outputs_map_node, "record") {
-        std::pair<uint64_t, uint64_t> out_pair = {GetUInt64Attr(xml_node, "out_submodel_idx"),
-                                                  GetUInt64Attr(xml_node, "out_tensor_idx")};
+    auto submodels_input_to_prev_output_node = heteroNode.child("submodels_input_to_prev_output");
+    FOREACH_CHILD (xml_node, submodels_input_to_prev_output_node, "record") {
         std::pair<uint64_t, uint64_t> in_pair = {GetUInt64Attr(xml_node, "in_submodel_idx"),
                                                   GetUInt64Attr(xml_node, "in_tensor_idx")};
-        m_submodels_output_to_input.emplace(out_pair, in_pair);
+        std::pair<uint64_t, uint64_t> out_pair = {GetUInt64Attr(xml_node, "out_submodel_idx"),
+                                                  GetUInt64Attr(xml_node, "out_tensor_idx")};
+        m_submodels_input_to_prev_output.emplace(in_pair, out_pair);
     }
 
     // Restore inputs/outputs from compiled models
@@ -678,13 +682,13 @@ void ov::hetero::CompiledModel::export_model(std::ostream& model_stream) const {
         xml_node.append_attribute("tensor_idx").set_value(it.second);
     }
     
-    auto submodels_output_to_input_node = heteroNode.append_child("submodels_output_to_input");
-    for (auto&& it : m_submodels_output_to_input) {
-        auto xml_node = outputs_map_node.append_child("record");
-        xml_node.append_attribute("out_submodel_idx").set_value(it.first.first);
-        xml_node.append_attribute("out_tensor_idx").set_value(it.first.second);
-        xml_node.append_attribute("in_submodel_idx").set_value(it.second.first);
-        xml_node.append_attribute("in_tensor_idx").set_value(it.second.second);
+    auto submodels_input_to_prev_output_node = heteroNode.append_child("submodels_input_to_prev_output");
+    for (auto&& it : m_submodels_input_to_prev_output) {
+        auto xml_node = submodels_input_to_prev_output_node.append_child("record");
+        xml_node.append_attribute("in_submodel_idx").set_value(it.first.first);
+        xml_node.append_attribute("in_tensor_idx").set_value(it.first.second);
+        xml_node.append_attribute("out_submodel_idx").set_value(it.second.first);
+        xml_node.append_attribute("out_tensor_idx").set_value(it.second.second);
     }
 
     auto subnetworksNode = heteroNode.append_child("subnetworks");

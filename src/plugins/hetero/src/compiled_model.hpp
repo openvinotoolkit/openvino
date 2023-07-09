@@ -50,7 +50,7 @@ public:
         m_outputs_to_submodel_outputs;
     std::map<std::pair<uint64_t /*submodel_idx*/, uint64_t /*tensor_idx*/>,
              std::pair<uint64_t /*submodel_idx*/, uint64_t /*tensor_idx*/>>
-        m_submodels_output_to_input;
+        m_submodels_input_to_prev_output;
 
 protected:
     std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override;
