@@ -30,8 +30,8 @@ struct Configuration {
 
     // Plugin configuration parameters
 
-    bool dump_graph = false;
-    bool exclusive_async_requests = true;
+    bool dump_graph;
+    bool exclusive_async_requests;
     std::string device_priorities;
     ov::AnyMap device_properties;
 };

@@ -10,7 +10,10 @@
 
 using namespace ov::hetero;
 
-Configuration::Configuration() {}
+Configuration::Configuration() : 
+    dump_graph(false),
+    exclusive_async_requests(true),
+    device_properties({ov::exclusive_async_requests(exclusive_async_requests)}) {}
 
 Configuration::Configuration(const ov::AnyMap& config, const Configuration& defaultCfg, bool throwOnUnsupported) {
     *this = defaultCfg;
