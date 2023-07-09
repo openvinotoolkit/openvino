@@ -34,6 +34,8 @@ private:
     impl_desc_type implType = impl_desc_type::acl;
     std::vector<arm_compute::Tensor> srcTensors, dstTensors;
     std::function<void()> exec_func;
+    static std::mutex aclArithmeticLock;
+    static std::mutex aclComparisonLock;
 };
 
 class AclEltwiseExecutorBuilder : public EltwiseExecutorBuilder {

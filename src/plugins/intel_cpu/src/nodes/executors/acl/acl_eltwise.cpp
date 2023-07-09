@@ -10,6 +10,9 @@ namespace intel_cpu {
 
 using namespace arm_compute;
 
+std::mutex AclEltwiseExecutor::aclArithmeticLock;
+std::mutex AclEltwiseExecutor::aclComparisonLock;
+
 inline VectorDims reshape_sizes(VectorDims dims) {
     const size_t MAX_NUM_SHAPE = arm_compute::MAX_DIMS;
     VectorDims result_dims(MAX_NUM_SHAPE - 1);
@@ -226,7 +229,10 @@ bool AclEltwiseExecutor::init(const EltwiseAttrs &eltwiseAttrs, const std::vecto
                 return false;
             exec_func = [this]{
                 auto acl_op = std::make_unique<NEElementwiseDivision>();
-                acl_op->configure(&srcTensors[0], &srcTensors[1], &dstTensors[0]);
+                {
+                    std::unique_lock<std::mutex> lock(aclArithmeticLock);
+                    acl_op->configure(&srcTensors[0], &srcTensors[1], &dstTensors[0]);
+                }
                 acl_op->run();
             };
             break;
@@ -235,7 +241,10 @@ bool AclEltwiseExecutor::init(const EltwiseAttrs &eltwiseAttrs, const std::vecto
                 return false;
             exec_func = [this]{
                 auto acl_op = std::make_unique<NEElementwiseMax>();
-                acl_op->configure(&srcTensors[0], &srcTensors[1], &dstTensors[0]);
+                {
+                    std::unique_lock<std::mutex> lock(aclArithmeticLock);
+                    acl_op->configure(&srcTensors[0], &srcTensors[1], &dstTensors[0]);
+                }
                 acl_op->run();
             };
             break;
@@ -244,7 +253,10 @@ bool AclEltwiseExecutor::init(const EltwiseAttrs &eltwiseAttrs, const std::vecto
                 return false;
             exec_func = [this]{
                 auto acl_op = std::make_unique<NEElementwiseMin>();
-                acl_op->configure(&srcTensors[0], &srcTensors[1], &dstTensors[0]);
+                {
+                    std::unique_lock<std::mutex> lock(aclArithmeticLock);
+                    acl_op->configure(&srcTensors[0], &srcTensors[1], &dstTensors[0]);
+                }
                 acl_op->run();
             };
             break;
@@ -253,7 +265,10 @@ bool AclEltwiseExecutor::init(const EltwiseAttrs &eltwiseAttrs, const std::vecto
                 return false;
             exec_func = [this]{
                 auto acl_op = std::make_unique<NEElementwiseSquaredDiff>();
-                acl_op->configure(&srcTensors[0], &srcTensors[1], &dstTensors[0]);
+                {
+                    std::unique_lock<std::mutex> lock(aclArithmeticLock);
+                    acl_op->configure(&srcTensors[0], &srcTensors[1], &dstTensors[0]);
+                }
                 acl_op->run();
             };
             break;
@@ -262,7 +277,10 @@ bool AclEltwiseExecutor::init(const EltwiseAttrs &eltwiseAttrs, const std::vecto
                 return false;
             exec_func = [this]{
                 auto acl_op = std::make_unique<NEElementwiseComparison>();
-                acl_op->configure(&srcTensors[0], &srcTensors[1], &dstTensors[0], ComparisonOperation::Equal);
+                {
+                    std::unique_lock<std::mutex> lock(aclComparisonLock);
+                    acl_op->configure(&srcTensors[0], &srcTensors[1], &dstTensors[0], ComparisonOperation::Equal);
+                }
                 acl_op->run();
             };
             break;
@@ -271,7 +289,10 @@ bool AclEltwiseExecutor::init(const EltwiseAttrs &eltwiseAttrs, const std::vecto
                 return false;
             exec_func = [this]{
                 auto acl_op = std::make_unique<NEElementwiseComparison>();
-                acl_op->configure(&srcTensors[0], &srcTensors[1], &dstTensors[0], ComparisonOperation::NotEqual);
+                {
+                    std::unique_lock<std::mutex> lock(aclComparisonLock);
+                    acl_op->configure(&srcTensors[0], &srcTensors[1], &dstTensors[0], ComparisonOperation::NotEqual);
+                }
                 acl_op->run();
             };
             break;
@@ -280,7 +301,10 @@ bool AclEltwiseExecutor::init(const EltwiseAttrs &eltwiseAttrs, const std::vecto
                 return false;
             exec_func = [this]{
                 auto acl_op = std::make_unique<NEElementwiseComparison>();
-                acl_op->configure(&srcTensors[0], &srcTensors[1], &dstTensors[0], ComparisonOperation::Greater);
+                {
+                    std::unique_lock<std::mutex> lock(aclComparisonLock);
+                    acl_op->configure(&srcTensors[0], &srcTensors[1], &dstTensors[0], ComparisonOperation::Greater);
+                }
                 acl_op->run();
             };
             break;
@@ -289,7 +313,13 @@ bool AclEltwiseExecutor::init(const EltwiseAttrs &eltwiseAttrs, const std::vecto
                 return false;
             exec_func = [this]{
                 auto acl_op = std::make_unique<NEElementwiseComparison>();
-                acl_op->configure(&srcTensors[0], &srcTensors[1], &dstTensors[0], ComparisonOperation::GreaterEqual);
+                {
+                    std::unique_lock<std::mutex> lock(aclComparisonLock);
+                    acl_op->configure(&srcTensors[0],
+                                      &srcTensors[1],
+                                      &dstTensors[0],
+                                      ComparisonOperation::GreaterEqual);
+                }
                 acl_op->run();
             };
             break;
@@ -298,7 +328,10 @@ bool AclEltwiseExecutor::init(const EltwiseAttrs &eltwiseAttrs, const std::vecto
                 return false;
             exec_func = [this]{
                 auto acl_op = std::make_unique<NEElementwiseComparison>();
-                acl_op->configure(&srcTensors[0], &srcTensors[1], &dstTensors[0], ComparisonOperation::Less);
+                {
+                    std::unique_lock<std::mutex> lock(aclComparisonLock);
+                    acl_op->configure(&srcTensors[0], &srcTensors[1], &dstTensors[0], ComparisonOperation::Less);
+                }
                 acl_op->run();
             };
             break;
@@ -307,7 +340,10 @@ bool AclEltwiseExecutor::init(const EltwiseAttrs &eltwiseAttrs, const std::vecto
                 return false;
             exec_func = [this]{
                 auto acl_op = std::make_unique<NEElementwiseComparison>();
-                acl_op->configure(&srcTensors[0], &srcTensors[1], &dstTensors[0], ComparisonOperation::LessEqual);
+                {
+                    std::unique_lock<std::mutex> lock(aclComparisonLock);
+                    acl_op->configure(&srcTensors[0], &srcTensors[1], &dstTensors[0], ComparisonOperation::LessEqual);
+                }
                 acl_op->run();
             };
             break;
@@ -434,7 +470,10 @@ bool AclEltwiseExecutor::init(const EltwiseAttrs &eltwiseAttrs, const std::vecto
                 return false;
             exec_func = [this]{
                 auto acl_op = std::make_unique<NEPReluLayer>();
-                acl_op->configure(&srcTensors[0], &srcTensors[1], &dstTensors[0]);
+                {
+                    std::unique_lock<std::mutex> lock(aclArithmeticLock);
+                    acl_op->configure(&srcTensors[0], &srcTensors[1], &dstTensors[0]);
+                }
                 acl_op->run();
             };
             break;
