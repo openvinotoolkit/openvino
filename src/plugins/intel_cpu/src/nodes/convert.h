@@ -42,7 +42,7 @@ public:
     const MemoryDesc& getInput() const { return *input; }
     const MemoryDesc& getOutput() const { return *output; }
 
-    bool needPrepareParams() const override { return true; }
+    bool needPrepareParams() const override { return inputShapesModified(); }
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 

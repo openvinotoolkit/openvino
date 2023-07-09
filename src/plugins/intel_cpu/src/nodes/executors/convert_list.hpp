@@ -43,32 +43,7 @@ public:
     virtual ConvertExecutorPtr makeExecutor(const ConvertParams& convertParams,
                                               const std::vector<MemoryDescPtr>& srcDescs,
                                               const std::vector<MemoryDescPtr>& dstDescs,
-                                              const dnnl::primitive_attr &attr) {
-        auto build = [&](const ConvertExecutorDesc* desc) {
-            auto executor = desc->builder->makeExecutor(context);
-            if (executor->init(convertParams, srcDescs, dstDescs, attr)) {
-                return executor;
-            }
-            ConvertExecutorPtr ptr = nullptr;
-            return ptr;
-        };
-
-
-        if (chosenDesc) {
-            if (auto executor = build(chosenDesc)) {
-                return executor;
-            }
-        }
-
-        for (const auto& sd : supportedDescs) {
-            if (auto executor = build(&sd)) {
-                chosenDesc = &sd;
-                return executor;
-            }
-        }
-
-        IE_THROW() << "Supported executor is not found";
-    }
+                                              const dnnl::primitive_attr &attr);
 
 private:
     std::vector<ConvertExecutorDesc> supportedDescs;

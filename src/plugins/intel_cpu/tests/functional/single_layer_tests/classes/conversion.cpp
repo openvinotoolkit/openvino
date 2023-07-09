@@ -64,7 +64,7 @@ void ConvertCPULayerTest::SetUp() {
     if (primitive.empty())
         primitive = getPrimitiveType();
     if (!isInOutPrecisionSupported(inPrc, outPrc))
-        primitive = "unknown";
+        primitive = "ref";
 
     auto exec_type_precision = inPrc != InferenceEngine::Precision::U8
                                     ? inPrc

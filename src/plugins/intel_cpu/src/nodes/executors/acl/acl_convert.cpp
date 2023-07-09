@@ -1,23 +1,20 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "acl_convert.hpp"
 #include "acl_utils.hpp"
 
-ov::intel_cpu::ACLConvertExecutor::ACLConvertExecutor(const ov::intel_cpu::ExecutorContext::CPtr context)
-        : ConvertExecutor(context) {}
-
-bool ov::intel_cpu::ACLConvertExecutor::init(const ov::intel_cpu::ConvertParams &convertParams,
-                                             const std::vector<MemoryDescPtr> &srcDescs,
-                                             const std::vector<MemoryDescPtr> &dstDescs,
-                                             const dnnl::primitive_attr &attr) {
+bool ov::intel_cpu::ACLConvertExecutor::init(const ov::intel_cpu::ConvertParams& convertParams,
+                                             const std::vector<MemoryDescPtr>& srcDescs,
+                                             const std::vector<MemoryDescPtr>& dstDescs,
+                                             const dnnl::primitive_attr& attr) {
     aclConvertParams = convertParams;
 
     auto srcPrecision = precisionToAclDataType(aclConvertParams.srcPrc);
     auto dstPrecision = precisionToAclDataType(aclConvertParams.dstPrc);
     isCopyOp = aclConvertParams.srcPrc == aclConvertParams.dstPrc;
-    //NECast does not support S8. It could be replaced with QASYMM8_SIGNED
+    // NECast does not support S8. It could be replaced with QASYMM8_SIGNED
     if (!isCopyOp && srcPrecision == arm_compute::DataType::S8) {
         srcPrecision = arm_compute::DataType::QASYMM8_SIGNED;
     }
@@ -39,7 +36,6 @@ bool ov::intel_cpu::ACLConvertExecutor::init(const ov::intel_cpu::ConvertParams 
     } else {
         arm_compute::Status s = arm_compute::NECast::validate(&srcTensorInfo, &dstTensorInfo, arm_compute::ConvertPolicy::SATURATE);
         if (!s) {
-            std::cout << "NECast validation failed: " <<  s.error_description() << std::endl;
             DEBUG_LOG("NECast validation failed: ", s.error_description());
             return false;
         }
@@ -58,7 +54,7 @@ bool ov::intel_cpu::ACLConvertExecutor::init(const ov::intel_cpu::ConvertParams 
     return true;
 }
 
-void ov::intel_cpu::ACLConvertExecutor::exec(const std::vector<MemoryCPtr> &src, const std::vector<MemoryPtr> &dst) {
+void ov::intel_cpu::ACLConvertExecutor::exec(const std::vector<MemoryCPtr>& src, const std::vector<MemoryPtr>& dst) {
     srcTensor.allocator()->import_memory(src[0]->GetPtr());
     dstTensor.allocator()->import_memory(dst[0]->GetPtr());
 
@@ -70,4 +66,59 @@ void ov::intel_cpu::ACLConvertExecutor::exec(const std::vector<MemoryCPtr> &src,
 
     srcTensor.allocator()->free();
     dstTensor.allocator()->free();
+}
+
+bool ov::intel_cpu::ACLConvertExecutorBuilder::isSupported(const ConvertParams& convertParams,
+                 const std::vector<MemoryDescPtr>& srcDescs,
+                 const std::vector<MemoryDescPtr>& dstDescs) const {
+    if (convertParams.srcPrc != convertParams.dstPrc) {
+        if (!one_of(convertParams.srcPrc,
+                    InferenceEngine::Precision::I8,
+                    InferenceEngine::Precision::U8,
+                    InferenceEngine::Precision::U16,
+                    InferenceEngine::Precision::I16,
+                    InferenceEngine::Precision::FP16,
+                    InferenceEngine::Precision::I32,
+                    InferenceEngine::Precision::FP32)) {
+            DEBUG_LOG("NECopy does not support source precision: ", convertParams.srcPrc.name());
+            return false;
+        }
+        if ((convertParams.srcPrc == InferenceEngine::Precision::I8 && !one_of(convertParams.dstPrc,
+                                                                               InferenceEngine::Precision::I16,
+                                                                               InferenceEngine::Precision::I32,
+                                                                               InferenceEngine::Precision::FP16,
+                                                                               InferenceEngine::Precision::FP32)) ||
+            (convertParams.srcPrc == InferenceEngine::Precision::U8 && !one_of(convertParams.dstPrc,
+                                                                               InferenceEngine::Precision::U16,
+                                                                               InferenceEngine::Precision::I16,
+                                                                               InferenceEngine::Precision::I32,
+                                                                               InferenceEngine::Precision::FP16,
+                                                                               InferenceEngine::Precision::FP32)) ||
+            (convertParams.srcPrc == InferenceEngine::Precision::U16 && !one_of(convertParams.dstPrc,
+                                                                                InferenceEngine::Precision::U8,
+                                                                                InferenceEngine::Precision::U32)) ||
+            (convertParams.srcPrc == InferenceEngine::Precision::I16 && !one_of(convertParams.dstPrc,
+                                                                                InferenceEngine::Precision::I8,
+                                                                                InferenceEngine::Precision::U8,
+                                                                                InferenceEngine::Precision::I32)) ||
+            (convertParams.srcPrc == InferenceEngine::Precision::FP16 && !one_of(convertParams.dstPrc,
+                                                                                 InferenceEngine::Precision::I8,
+                                                                                 InferenceEngine::Precision::FP32,
+                                                                                 InferenceEngine::Precision::I32,
+                                                                                 InferenceEngine::Precision::U8)) ||
+            (convertParams.srcPrc == InferenceEngine::Precision::I32 && !one_of(convertParams.dstPrc,
+                                                                                InferenceEngine::Precision::I8,
+                                                                                InferenceEngine::Precision::FP16,
+                                                                                InferenceEngine::Precision::FP32,
+                                                                                InferenceEngine::Precision::U8)) ||
+            (convertParams.srcPrc == InferenceEngine::Precision::FP32 && !one_of(convertParams.dstPrc,
+                                                                                 InferenceEngine::Precision::BF16,
+                                                                                 InferenceEngine::Precision::FP16,
+                                                                                 InferenceEngine::Precision::I32))) {
+            DEBUG_LOG("NECopy does not support passed combination of source and destination precisions. ",
+                      "source precision: ", convertParams.srcPrc.name(), " destination precsion: ", convertParams.dstPrc.name());
+            return false;
+        }
+    }
+    return true;
 }

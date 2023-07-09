@@ -1,11 +1,9 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "ref_convert.hpp"
 #include "nodes/common/cpu_convert.h"
-
-ov::intel_cpu::CommonConvertExecutor::CommonConvertExecutor(const ExecutorContext::CPtr context) : ConvertExecutor(context) {}
 
 bool ov::intel_cpu::CommonConvertExecutor::init(const ov::intel_cpu::ConvertParams &convertParams,
                                                 const std::vector<MemoryDescPtr> &srcDescs,

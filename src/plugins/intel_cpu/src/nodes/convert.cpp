@@ -140,17 +140,21 @@ void Convert::initSupportedPrimitiveDescriptors() {
 
 void Convert::prepareParams() {
     auto& parentMem = getParentEdgeAt(0)->getMemory();
-    auto& childMem = getChildEdgeAt(0)->getMemory();
     convertParams.size = parentMem.GetDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
 
-    dnnl::primitive_attr attr;
     auto selectedPD = getSelectedPrimitiveDescriptor();
-    std::vector<MemoryDescPtr> srcDescs = {parentMem.getDescPtr()};
-    std::vector<MemoryDescPtr> dstDescs = {childMem.getDescPtr()};
+    std::vector<MemoryDescPtr> srcDescs;
+    for (size_t i = 0; i < getOriginalInputsNumber(); i++) {
+        srcDescs.push_back(getParentEdgeAt(i)->getMemoryPtr()->getDescPtr());
+    }
+    std::vector<MemoryDescPtr> dstDescs;
+    for (size_t i = 0; i < getOriginalOutputsNumber(); i++) {
+        dstDescs.push_back(getChildEdgeAt(i)->getMemoryPtr()->getDescPtr());
+    }
     execPtr = selectedPD->getExecutorFactoryAs<ConvertExecutorFactory>()->makeExecutor(convertParams,
                                                                                        srcDescs,
                                                                                        dstDescs,
-                                                                                       attr);
+                                                                                       {});
     selectedPD->setImplementationType(execPtr->getImplType());
 }
 
