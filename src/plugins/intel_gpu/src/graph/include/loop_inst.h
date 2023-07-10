@@ -513,7 +513,7 @@ private:
     };
 
     static layout calc_output_layout(const loop_node& node, kernel_impl_params const& impl_param);
-    bool preproc_memories_done;
+    bool preproc_memories_done = false;
     std::vector<backedge_memory_mapping> backedge_memory_mappings;
     std::vector<concatenated_memory_mapping> concatenated_input_mem_mappings;
     std::vector<concatenated_memory_mapping> concatenated_output_mem_mappings;
@@ -548,7 +548,7 @@ private:
     primitive_id _current_iteration_id;
     primitive_id _condition_id;
     primitive_id _num_iteration_id;
-    int64_t _max_iteration;
+    int64_t _max_iteration = 0;
 };
 
 using loop_inst = typed_primitive_inst<loop>;
