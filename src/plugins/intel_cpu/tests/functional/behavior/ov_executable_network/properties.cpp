@@ -40,7 +40,7 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkSupportedPropertiesAreAvailable
         RO_property(ov::execution_devices.name()),
         RO_property(ov::intel_cpu::denormals_optimization.name()),
         RO_property(ov::intel_cpu::sparse_weights_decompression_rate.name()),
-        RO_property(ov::intel_cpu::latency_threading_mode.name()),        
+        RO_property(ov::intel_cpu::latency_threading_mode.name()),
     };
 
     ov::Core ie;
