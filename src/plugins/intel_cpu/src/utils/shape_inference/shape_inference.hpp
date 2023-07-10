@@ -12,7 +12,6 @@
 #include "shape_inference_status.hpp"
 #include "static_shape.hpp"
 #include "tensor_data_accessor.hpp"
-#include <ie_common.h>
 
 namespace ov {
 namespace intel_cpu {
@@ -41,10 +40,6 @@ public:
     using IShapeInferCommon::infer;
 
     virtual Result infer(const std::vector<StaticShape>& input_shapes, const ov::ITensorAccessor& tensor_accessor) = 0;
-    Result infer(const std::vector<StaticShape>& input_shapes,
-                     const std::map<size_t, HostTensorPtr>& constant_data) override {
-        OPENVINO_THROW("should not get here, this function should not be called or should be overridden");
-    }
 
     /**
      * @brief Do shape inference.
@@ -64,25 +59,9 @@ public:
      * @return port_mask_t a bit mask where each bit corresponds to an input port number.
      */
     virtual port_mask_t get_port_mask() const = 0;
-
-    /**
-     * @brief For backward compatibility, IShapeInferCommon didn't have fucntion get_port_mask()
-     *
-     * @param port_mask_t  a bit mask where each bit corresponds to an input port number.
-     */
-    virtual void set_port_mask(port_mask_t) {}
-
-    /**
-     * @brief this function is only used temporarily, after all implementations use accessor, will remove it.
-     *
-     * @returns if implement ITensorAccess return true, otherwise return false.
-     */
-    virtual bool has_implemented_accessor(void) {
-        return true;
-    }
 };
 
-template <class TShapeInferIface = IStaticShapeInfer>
+template <class TShapeInferIface = IShapeInferCommon>
 std::shared_ptr<TShapeInferIface> make_shape_inference(std::shared_ptr<ov::Node> op);
 
 template <>

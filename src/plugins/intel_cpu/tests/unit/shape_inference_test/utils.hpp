@@ -15,15 +15,15 @@
 
 namespace ov {
 namespace intel_cpu {
-template <class TIface = IStaticShapeInfer, class TTensorPtr = HostTensorPtr>
+template <class TIface = IShapeInferCommon, class TTensorPtr = HostTensorPtr>
 void shape_inference(ov::Node* op,
                      const std::vector<StaticShape>& input_shapes,
                      std::vector<StaticShape>& output_shapes,
                      const std::map<size_t, TTensorPtr>& constant_data = {}) {
     const auto shape_infer = make_shape_inference<TIface>(op->shared_from_this());
     IShapeInferCommon::Result result;
-    if (shape_infer->has_implemented_accessor()) {
-        result = shape_infer->infer(input_shapes,  make_tensor_accessor(constant_data));
+    if (auto static_shape_infer = dynamic_cast<IStaticShapeInfer*>(shape_infer.get())) {
+        result = static_shape_infer->infer(input_shapes,  make_tensor_accessor(constant_data));
     } else {
         result = shape_infer->infer(input_shapes,  constant_data);
     }

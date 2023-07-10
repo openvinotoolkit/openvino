@@ -21,10 +21,6 @@ public:
     MemoryAccessor(const container_type& ptrs, const std::vector<int64_t>& ranks)
         : m_ptrs{ptrs}, m_ranks(ranks) {}
 
-    MemoryAccessor(const container_type&& ptrs, const std::vector<int64_t>&& ranks) = delete;
-    MemoryAccessor(const container_type&& ptrs, const std::vector<int64_t>& ranks) = delete;
-    MemoryAccessor(const container_type& ptrs, const std::vector<int64_t>&& ranks) = delete;
-
     ~MemoryAccessor() = default;
 
     ov::Tensor operator()(size_t port) const override {

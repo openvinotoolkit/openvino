@@ -102,9 +102,9 @@
 namespace ov {
 namespace intel_cpu {
 
-class entryBase : public IStaticShapeInfer {
+class entryBase : public IShapeInferCommon {
 public:
-    using iface_type = IStaticShapeInfer;
+    using iface_type = IShapeInferCommon;
 
     entryBase(std::shared_ptr<ov::Node> node) : node{node} {
         for (size_t i = 0; i < node->get_input_size(); i++) {
@@ -129,28 +129,9 @@ public:
         return input_ranks;
     }
 
-    void set_port_mask(port_mask_t mask) override {
-         m_mask = mask;
-    }
-
-    port_mask_t get_port_mask() const override {
-        return m_mask;
-    };
-
-    ov::optional<std::vector<StaticShapeCon>> infer(const std::vector<StaticShapeRef>& input_shapes,
-            const ov::ITensorAccessor& tensor_accessor) override {
-            OPENVINO_THROW("Not implemented by base class");
-    };
-
-    IShapeInferCommon::Result
-    infer(const std::vector<StaticShape>& input_shapes, const ov::ITensorAccessor& tensor_accessor) override {
-            OPENVINO_THROW("Not implemented by base class");
-    }
-
 protected:
     std::vector<int64_t> input_ranks;
     std::shared_ptr<ov::Node> node;
-    IStaticShapeInfer::port_mask_t m_mask;
 };
 
 template <typename OP>
@@ -159,15 +140,11 @@ public:
     using entryBase::entryBase;
 
     IShapeInferCommon::Result
-    infer(const std::vector<StaticShape>& input_shapes, const ov::ITensorAccessor& tensor_accessor) override {
+    infer(const std::vector<StaticShape>& input_shapes, const std::map<size_t, HostTensorPtr>& constant_data) override {
         std::vector<StaticShape> output_shapes(node->get_output_size());
         shape_infer(static_cast<OP*>(node.get()), input_shapes, output_shapes);
         return {std::move(output_shapes), ShapeInferStatus::success};
     }
-    ov::optional<std::vector<StaticShapeCon>> infer(const std::vector<StaticShapeRef>& input_shapes,
-            const ov::ITensorAccessor& tensor_accessor) override {
-        OPENVINO_NOT_IMPLEMENTED;
-    };
 };
 
 template <typename OP>
@@ -182,20 +159,6 @@ public:
         shape_infer(op, input_shapes, output_shapes, constant_data);
         return {std::move(output_shapes), ShapeInferStatus::success};
     }
-
-    ov::optional<std::vector<StaticShapeCon>> infer(const std::vector<StaticShapeRef>& input_shapes,
-            const ov::ITensorAccessor& tensor_accessor) override {
-        OPENVINO_NOT_IMPLEMENTED;
-    };
-
-    bool has_implemented_accessor(void) override {
-        return false;
-    }
-    // denpend on constant_data, need ngraph op to implement shape_infer(op, input_shapes, output_shapes, tensor_accessor)
-    IShapeInferCommon::Result
-    infer(const std::vector<StaticShape>& input_shapes, const ov::ITensorAccessor& tensor_accessor) override {
-        OPENVINO_THROW("entryIOC not has not implemented ITensorAccessor interface");
-    }
 };
 
 class entryCopy : public entryBase {
@@ -203,17 +166,12 @@ public:
     using entryBase::entryBase;
 
     IShapeInferCommon::Result
-    infer(const std::vector<StaticShape>& input_shapes, const ov::ITensorAccessor& tensor_accessor) override {
+    infer(const std::vector<StaticShape>& input_shapes, const std::map<size_t, HostTensorPtr>& constant_data) override {
         auto op = node.get();
         std::vector<StaticShape> output_shapes(op->get_output_size());
         copy_shape_infer(op, input_shapes, output_shapes);
         return {std::move(output_shapes), ShapeInferStatus::success};
     }
-
-    ov::optional<std::vector<StaticShapeCon>> infer(const std::vector<StaticShapeRef>& input_shapes,
-            const ov::ITensorAccessor& tensor_accessor) override {
-        OPENVINO_NOT_IMPLEMENTED;
-    };
 };
 
 class entryFirstPassthrough : public entryBase {
@@ -221,17 +179,12 @@ public:
     using entryBase::entryBase;
 
     IShapeInferCommon::Result
-    infer(const std::vector<StaticShape>& input_shapes, const ov::ITensorAccessor& tensor_accessor) override {
+    infer(const std::vector<StaticShape>& input_shapes, const std::map<size_t, HostTensorPtr>& constant_data) override {
         auto op = node.get();
         std::vector<StaticShape> output_shapes(op->get_output_size());
         first_input_passthrough_infer(op, input_shapes, output_shapes);
         return {std::move(output_shapes), ShapeInferStatus::success};
     }
-
-    ov::optional<std::vector<StaticShapeCon>> infer(const std::vector<StaticShapeRef>& input_shapes,
-            const ov::ITensorAccessor& tensor_accessor) override {
-        OPENVINO_NOT_IMPLEMENTED;
-    };
 };
 
 class entryEltwise : public entryBase {
@@ -239,17 +192,12 @@ public:
     using entryBase::entryBase;
 
     IShapeInferCommon::Result
-    infer(const std::vector<StaticShape>& input_shapes, const ov::ITensorAccessor& tensor_accessor) override {
+    infer(const std::vector<StaticShape>& input_shapes, const std::map<size_t, HostTensorPtr>& constant_data) override {
         auto op = node.get();
         std::vector<StaticShape> output_shapes(op->get_output_size());
         eltwise_shape_infer(op, input_shapes, output_shapes);
         return {std::move(output_shapes), ShapeInferStatus::success};
     }
-
-    ov::optional<std::vector<StaticShapeCon>> infer(const std::vector<StaticShapeRef>& input_shapes,
-            const ov::ITensorAccessor& tensor_accessor) override {
-        OPENVINO_NOT_IMPLEMENTED;
-    };
 };
 
 class entryFallback : public entryBase {
@@ -319,22 +267,6 @@ public:
 
         return {std::move(output_shapes), ShapeInferStatus::success};
     }
-
-    bool has_implemented_accessor(void) override {
-        return false;
-    }
-
-    // denpend on constant_data, need to reimplemented
-    IShapeInferCommon::Result
-    infer(const std::vector<StaticShape>& input_shapes, const ov::ITensorAccessor& tensor_accessor) override {
-        // TODO 101252
-        OPENVINO_THROW("entryFallback has not implemented ITensorAccessor interface");
-    }
-
-    ov::optional<std::vector<StaticShapeCon>> infer(const std::vector<StaticShapeRef>& input_shapes,
-            const ov::ITensorAccessor& tensor_accessor) override {
-        OPENVINO_NOT_IMPLEMENTED;
-    };
 };
 
 template <class TOp>
@@ -348,21 +280,6 @@ public:
         auto out_shapes = shape_infer(op, input_shapes, m_pads_begin, m_pads_end, constant_data);
         return {std::move(out_shapes), ShapeInferStatus::success};
     }
-
-    bool has_implemented_accessor(void) override {
-        return false;
-    }
-
-    // denpend on constant_data, need ngraph op to implement shape_infer(op, input_shapes, m_pads_begin, m_pads_end, tensor_accessor);
-    IShapeInferCommon::Result
-    infer(const std::vector<StaticShape>& input_shapes, const ov::ITensorAccessor& tensor_accessor) override {
-        OPENVINO_THROW("ShapeInferWithPadding has not implemented ITensorAccessor interface");
-    }
-
-    ov::optional<std::vector<StaticShapeCon>> infer(const std::vector<StaticShapeRef>& input_shapes,
-            const ov::ITensorAccessor& tensor_accessor) override {
-        OPENVINO_NOT_IMPLEMENTED;
-    };
 
     const ov::CoordinateDiff& get_pads_begin() override {
         return m_pads_begin;
@@ -640,41 +557,7 @@ using IShapeInferCommonFactory =
 // const IShapeInferCommonMapType IShapeInferCommonFactory::Makers::map{};
 template <>
 const IShapeInferCommonFactory::TRegistry IShapeInferCommonFactory::registry{
-};
-
-// Helper types for IStaticShapeInfer makers.
-using IStaticShapeInferFactory =
-    ShapeInferFactory<ShapeInferKey, std::shared_ptr<IStaticShapeInfer>, std::shared_ptr<ov::Node>>;
-
-// Initialization map for operators supporting IStaticShapeInfer objects.
-// First group in map is 'default' opset defined by alias above.
-// To use other version of operators, explicitly specify operator with opset version namespace.
-template <>
-const IStaticShapeInferFactory::TRegistry IStaticShapeInferFactory::registry{
     // Default opset
-    _OV_OP_SHAPE_INFER_MASK_REG(ExperimentalDetectronROIFeatureExtractor, ShapeInferTA, util::bit::mask()),
-    _OV_OP_SHAPE_INFER_MASK_REG(Proposal, ShapeInferTA, util::bit::mask()),
-    _OV_OP_SHAPE_INFER_MASK_REG(Tile, ShapeInferenceTA, util::bit::mask(1)),
-    _OV_OP_SHAPE_INFER_VA_REG(ReduceL1, ShapeInferTA, op::util::ArithmeticReductionKeepDims, util::bit::mask(1)),
-    _OV_OP_SHAPE_INFER_VA_REG(ReduceL2, ShapeInferTA, op::util::ArithmeticReductionKeepDims, util::bit::mask(1)),
-    _OV_OP_SHAPE_INFER_VA_REG(ReduceLogicalAnd, ShapeInferTA, op::util::LogicalReductionKeepDims, util::bit::mask(1)),
-    _OV_OP_SHAPE_INFER_VA_REG(ReduceLogicalOr, ShapeInferTA, op::util::LogicalReductionKeepDims, util::bit::mask(1)),
-    _OV_OP_SHAPE_INFER_VA_REG(ReduceMax, ShapeInferTA, op::util::ArithmeticReductionKeepDims, util::bit::mask(1)),
-    _OV_OP_SHAPE_INFER_VA_REG(ReduceMean, ShapeInferTA, op::util::ArithmeticReductionKeepDims, util::bit::mask(1)),
-    _OV_OP_SHAPE_INFER_VA_REG(ReduceMin, ShapeInferTA, op::util::ArithmeticReductionKeepDims, util::bit::mask(1)),
-    _OV_OP_SHAPE_INFER_VA_REG(ReduceProd, ShapeInferTA, op::util::ArithmeticReductionKeepDims, util::bit::mask(1)),
-    _OV_OP_SHAPE_INFER_VA_REG(ReduceSum, ShapeInferTA, op::util::ArithmeticReductionKeepDims, util::bit::mask(1)),
-    // Operators shape inferences for specific opset version should be specified below
-    // opset11
-    _OV_OP_SHAPE_INFER_MASK_REG(opset11::Interpolate, ShapeInferPaddingTA, util::bit::mask(1, 2, 3)),
-    // opset4
-    _OV_OP_SHAPE_INFER_MASK_REG(opset4::Interpolate, ShapeInferPaddingTA, util::bit::mask(1, 2)),
-    // opset1
-    _OV_OP_SHAPE_INFER_MASK_REG(opset1::Interpolate, ShapeInferTA, util::bit::mask(1)),
-    _OV_OP_SHAPE_INFER_MASK_REG(opset1::Proposal, ShapeInferTA, util::bit::mask()),
-    _OV_OP_SHAPE_INFER_MASK_REG(opset1::Reverse, ShapeInferTA, util::bit::mask(1)),
-
-    // Default opset(old code)
     _OV_OP_NON_TEMPLATE_SHAPE_INFER_REG(BatchNormInference, entryFirstPassthrough),
     _OV_OP_NON_TEMPLATE_SHAPE_INFER_REG(Convert, entryCopy),
     _OV_OP_NON_TEMPLATE_SHAPE_INFER_REG(CumSum, entryFirstPassthrough),
@@ -790,18 +673,48 @@ const IStaticShapeInferFactory::TRegistry IStaticShapeInferFactory::registry{
     _OV_OP_SHAPE_INFER_VA_REG(opset1::Gather, entryIOC, ov::op::util::GatherBase),
 };
 
+// Helper types for IStaticShapeInfer makers.
+using IStaticShapeInferFactory =
+    ShapeInferFactory<ShapeInferKey, std::shared_ptr<IStaticShapeInfer>, std::shared_ptr<ov::Node>>;
+
+// Initialization map for operators supporting IStaticShapeInfer objects.
+// First group in map is 'default' opset defined by alias above.
+// To use other version of operators, explicitly specify operator with opset version namespace.
+template <>
+const IStaticShapeInferFactory::TRegistry IStaticShapeInferFactory::registry{
+    // Default opset
+    _OV_OP_SHAPE_INFER_MASK_REG(ExperimentalDetectronROIFeatureExtractor, ShapeInferTA, util::bit::mask()),
+    _OV_OP_SHAPE_INFER_MASK_REG(Proposal, ShapeInferTA, util::bit::mask()),
+    _OV_OP_SHAPE_INFER_MASK_REG(Tile, ShapeInferenceTA, util::bit::mask(1)),
+    _OV_OP_SHAPE_INFER_VA_REG(ReduceL1, ShapeInferTA, op::util::ArithmeticReductionKeepDims, util::bit::mask(1)),
+    _OV_OP_SHAPE_INFER_VA_REG(ReduceL2, ShapeInferTA, op::util::ArithmeticReductionKeepDims, util::bit::mask(1)),
+    _OV_OP_SHAPE_INFER_VA_REG(ReduceLogicalAnd, ShapeInferTA, op::util::LogicalReductionKeepDims, util::bit::mask(1)),
+    _OV_OP_SHAPE_INFER_VA_REG(ReduceLogicalOr, ShapeInferTA, op::util::LogicalReductionKeepDims, util::bit::mask(1)),
+    _OV_OP_SHAPE_INFER_VA_REG(ReduceMax, ShapeInferTA, op::util::ArithmeticReductionKeepDims, util::bit::mask(1)),
+    _OV_OP_SHAPE_INFER_VA_REG(ReduceMean, ShapeInferTA, op::util::ArithmeticReductionKeepDims, util::bit::mask(1)),
+    _OV_OP_SHAPE_INFER_VA_REG(ReduceMin, ShapeInferTA, op::util::ArithmeticReductionKeepDims, util::bit::mask(1)),
+    _OV_OP_SHAPE_INFER_VA_REG(ReduceProd, ShapeInferTA, op::util::ArithmeticReductionKeepDims, util::bit::mask(1)),
+    _OV_OP_SHAPE_INFER_VA_REG(ReduceSum, ShapeInferTA, op::util::ArithmeticReductionKeepDims, util::bit::mask(1)),
+    // Operators shape inferences for specific opset version should be specified below
+    // opset11
+    _OV_OP_SHAPE_INFER_MASK_REG(opset11::Interpolate, ShapeInferPaddingTA, util::bit::mask(1, 2, 3)),
+    // opset4
+    _OV_OP_SHAPE_INFER_MASK_REG(opset4::Interpolate, ShapeInferPaddingTA, util::bit::mask(1, 2)),
+    // opset1
+    _OV_OP_SHAPE_INFER_MASK_REG(opset1::Interpolate, ShapeInferTA, util::bit::mask(1)),
+    _OV_OP_SHAPE_INFER_MASK_REG(opset1::Proposal, ShapeInferTA, util::bit::mask()),
+    _OV_OP_SHAPE_INFER_MASK_REG(opset1::Reverse, ShapeInferTA, util::bit::mask(1)),
+};
+
 #undef _OV_OP_NON_TEMPLATE_SHAPE_INFER_REG
 #undef _OV_OP_SHAPE_INFER_MASK_REG
 #undef _OV_OP_SHAPE_INFER_REG
 #undef _OV_OP_SHAPE_INFER_VA_REG
 template <>
 std::shared_ptr<IShapeInferCommon> make_shape_inference<IShapeInferCommon>(std::shared_ptr<ov::Node> op) {
-     OPENVINO_THROW("should not create shape infer base on IShapeInferCommon now");
-}
-
-template <>
-std::shared_ptr<IStaticShapeInfer> make_shape_inference<IStaticShapeInfer>(std::shared_ptr<ov::Node> op) {
-    if (auto shape_infer = IStaticShapeInferFactory::make(op->get_type_info(), op)) {
+    if (auto shape_infer = IShapeInferCommonFactory::make(op->get_type_info(), op)) {
+        return shape_infer;
+    } else if (auto shape_infer = make_shape_inference<IStaticShapeInfer>(op)) {
         return shape_infer;
     } else if (ov::is_type<op::util::UnaryElementwiseArithmetic>(op)) {
         // The unary nad binary elementwise ops can be moved to map but it is easier to handle them by these statements.
@@ -812,6 +725,16 @@ std::shared_ptr<IStaticShapeInfer> make_shape_inference<IStaticShapeInfer>(std::
         return std::make_shared<entryEltwise>(op);
     } else {
         return std::make_shared<entryFallback>(op);
+    }
+}
+
+template <>
+std::shared_ptr<IStaticShapeInfer> make_shape_inference<IStaticShapeInfer>(std::shared_ptr<ov::Node> op) {
+    if (auto shape_infer = IStaticShapeInferFactory::make(op->get_type_info(), op)) {
+        return shape_infer;
+    } else {
+        // TODO 101252: It should return equivalent of entryFallback which supports new interface.
+        return {};
     }
 }
 }  // namespace intel_cpu

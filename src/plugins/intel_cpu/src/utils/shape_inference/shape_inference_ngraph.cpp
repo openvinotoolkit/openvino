@@ -18,7 +18,7 @@ NgraphShapeInfer::infer(
 
     input_static_shapes.reserve(input_shapes.size());
     IShapeInferCommon::Result shape_infer_result;
-    if (m_shape_infer->has_implemented_accessor()) {
+    if (auto static_shape_infer = dynamic_cast<IStaticShapeInfer*>(m_shape_infer.get())) {
         for (size_t port = 0; port < iranks.size(); port++) {
             if (iranks[port] == 0) {
                 input_static_shapes.emplace_back();
@@ -27,7 +27,7 @@ NgraphShapeInfer::infer(
             }
         }
         // call shape inference API
-        shape_infer_result = m_shape_infer->infer(input_static_shapes, MemoryAccessor(data_dependency, iranks));
+        shape_infer_result = static_shape_infer->infer(input_static_shapes, MemoryAccessor(data_dependency, iranks));
     } else {
         for (size_t port = 0; port < iranks.size(); port++) {
             if (iranks[port] == 0) {
