@@ -4,7 +4,6 @@
 import unittest
 
 import numpy as np
-from generator import generator, generate
 
 from openvino.tools.mo.front.interpolate_reshape import InterpolateWithConcat
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array
@@ -39,7 +38,6 @@ nodes = {
 }
 
 
-@generator
 class TestInterpolateConcat(unittest.TestCase):
     def test_interpolate_concat_reshape_graph_comparison(self):
         graph = build_graph(nodes, [
@@ -121,34 +119,35 @@ class TestInterpolateConcat(unittest.TestCase):
         ], nodes_with_edges_only=True)
         (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=True)
         self.assertTrue(flag, resp)
-
-    @generate(*[
+    def test_negative_axes_conditions(self):
+        test_cases=[
         {'concat': {'axis': None}},
 
         {'concat': {'axis': -1}},
         {'interpolate': {'axes': None}},
         {'interpolate': {'axes': np.array([1])}},
         {'interpolate': {'axes': np.array([2, -1])}},
-    ])
-    def test_negative_axes_conditions(self, update_attrs):
-        graph = build_graph(nodes, [
-            *connect('placeholder', '0:interpolate'),
-            *connect('out_shape', '1:interpolate'),
-            *connect('interpolate', '0:concat'),
-            *connect('placeholder_1', '1:concat'),
-            *connect('concat', 'output'),
-        ], update_attributes=update_attrs, nodes_with_edges_only=True)
-        InterpolateWithConcat().find_and_replace_pattern(graph)
-        graph_ref = build_graph(nodes, [
-            *connect('placeholder', '0:interpolate'),
-            *connect('out_shape', '1:interpolate'),
-            *connect('interpolate', '0:concat'),
-            *connect('placeholder_1', '1:concat'),
-            *connect('concat', 'output'),
-        ], update_attributes=update_attrs, nodes_with_edges_only=True)
+    ]
+        for idx, (update_attrs) in enumerate(test_cases):
+            with self.subTest(test_cases=idx):
+                graph = build_graph(nodes, [
+                    *connect('placeholder', '0:interpolate'),
+                    *connect('out_shape', '1:interpolate'),
+                    *connect('interpolate', '0:concat'),
+                    *connect('placeholder_1', '1:concat'),
+                    *connect('concat', 'output'),
+                ], update_attributes=update_attrs, nodes_with_edges_only=True)
+                InterpolateWithConcat().find_and_replace_pattern(graph)
+                graph_ref = build_graph(nodes, [
+                    *connect('placeholder', '0:interpolate'),
+                    *connect('out_shape', '1:interpolate'),
+                    *connect('interpolate', '0:concat'),
+                    *connect('placeholder_1', '1:concat'),
+                    *connect('concat', 'output'),
+                ], update_attributes=update_attrs, nodes_with_edges_only=True)
 
-        (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=True)
-        self.assertTrue(flag, resp)
+                (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=True)
+                self.assertTrue(flag, resp)
 
     def test_interpolate_tf_style_concat(self):
         graph = build_graph(nodes, [
