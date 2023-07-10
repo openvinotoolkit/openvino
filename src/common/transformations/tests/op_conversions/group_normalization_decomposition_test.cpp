@@ -95,13 +95,14 @@ TEST_F(TransformationTestsF, GroupNormalizationDecompositionF32) {
                                      num_groups,
                                      1e-3f);
     }
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
 TEST_F(TransformationTestsF, GroupNormalizationDecompositionF16) {
     const int64_t num_groups = 4;
     {
         function =
-            gen_model({PartialShape{1, 12, 6, 8}, PartialShape{12}, PartialShape{12}}, element::f16, num_groups, 1e-3);
+            gen_model({PartialShape{1, 12, 6, 8}, PartialShape{12}, PartialShape{12}}, element::f16, num_groups, 1e-3f);
         manager.register_pass<ov::pass::GroupNormalizationDecomposition>();
     }
     {
@@ -110,6 +111,13 @@ TEST_F(TransformationTestsF, GroupNormalizationDecompositionF16) {
                                      num_groups,
                                      1e-3f);
     }
+    // Ticket number: TBD
+    // abs_max < abs_threshold && rel_max < rel_threshold
+    //         abs_max: 0.03125
+    //                 coordinate 220; abs errors count 384; abs mean 0.00505998; abs threshold 0.0005
+    //         rel_max: 0.0220588
+    //                 coordinate 434; rel errors count 232; rel mean 0.0027481; rel threshold 0.001
+    // comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
 TEST_F(TransformationTestsF, GroupNormalizationDecomposition_num_groups) {
@@ -125,6 +133,7 @@ TEST_F(TransformationTestsF, GroupNormalizationDecomposition_num_groups) {
                                      num_groups,
                                      1e-3f);
     }
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
 TEST_F(TransformationTestsF, GroupNormalizationDecomposition_eps) {
@@ -140,6 +149,7 @@ TEST_F(TransformationTestsF, GroupNormalizationDecomposition_eps) {
                                      num_groups,
                                      std::numeric_limits<float>::min());
     }
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
 TEST_F(TransformationTestsF, GroupNormalizationDecomposition_3D) {
@@ -155,6 +165,7 @@ TEST_F(TransformationTestsF, GroupNormalizationDecomposition_3D) {
                                      num_groups,
                                      1e-3f);
     }
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
 TEST_F(TransformationTestsF, GroupNormalizationDecomposition_5D) {
@@ -172,6 +183,7 @@ TEST_F(TransformationTestsF, GroupNormalizationDecomposition_5D) {
                                      num_groups,
                                      1e-3f);
     }
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
 TEST_F(TransformationTestsF, GroupNormalizationDecomposition_data_dynamic_rank) {
@@ -208,6 +220,7 @@ TEST_F(TransformationTestsF, GroupNormalizationDecomposition_bias_scale_dynamic_
                                      num_groups,
                                      1e-3f);
     }
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
 TEST_F(TransformationTestsF, GroupNormalizationDecomposition_dynamic_dims) {
@@ -225,4 +238,5 @@ TEST_F(TransformationTestsF, GroupNormalizationDecomposition_dynamic_dims) {
                                      num_groups,
                                      1e-3f);
     }
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
