@@ -4,9 +4,6 @@
 
 #pragma once
 
-#include <map>
-#include <string>
-
 #include "infer_request.h"
 #include "openvino/runtime/iasync_infer_request.hpp"
 

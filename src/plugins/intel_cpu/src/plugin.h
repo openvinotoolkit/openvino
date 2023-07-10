@@ -7,11 +7,6 @@
 #include "compiled_model.h"
 #include "cpu_streams_calculation.hpp"
 
-#include <string>
-#include <map>
-#include <memory>
-#include <functional>
-
 namespace ov {
 namespace intel_cpu {
 

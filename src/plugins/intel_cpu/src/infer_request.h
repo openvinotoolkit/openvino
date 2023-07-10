@@ -4,10 +4,6 @@
 
 #pragma once
 
-#include <map>
-#include <memory>
-#include <string>
-
 #include "graph.h"
 #include "openvino/runtime/iinfer_request.hpp"
 #include "openvino/runtime/isync_infer_request.hpp"

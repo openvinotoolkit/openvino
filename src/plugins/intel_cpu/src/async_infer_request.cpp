@@ -4,8 +4,6 @@
 
 #include "async_infer_request.h"
 
-#include <memory>
-
 ov::intel_cpu::AsyncInferRequest::AsyncInferRequest(
     const std::shared_ptr<IInferRequest>& request,
     const std::shared_ptr<ov::threading::ITaskExecutor>& task_executor,

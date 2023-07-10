@@ -32,7 +32,6 @@
 
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include <itt.h>
-#include <unordered_set>
 
 using namespace InferenceEngine;
 

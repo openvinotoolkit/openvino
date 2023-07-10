@@ -4,10 +4,6 @@
 
 #include "infer_request.h"
 
-#include <map>
-#include <string>
-#include <vector>
-
 #include "async_infer_request.h"
 #include "compiled_model.h"
 #include "debug.h"

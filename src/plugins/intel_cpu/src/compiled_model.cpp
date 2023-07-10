@@ -19,9 +19,7 @@
 #if FIX_62820 && ((IE_THREAD == IE_THREAD_TBB) || (IE_THREAD == IE_THREAD_TBB_AUTO))
 #    include <threading/ie_tbb_streams_executor.hpp>
 #endif
-#include <algorithm>
 #include <cstring>
-#include <unordered_set>
 #include <utility>
 
 #include "ie_ngraph_utils.hpp"
