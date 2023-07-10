@@ -6,7 +6,7 @@
 #include <gtest/gtest.h>
 #include "gemm/ov_cpu_gemm.h"
 
-
+// This test is used to test whether gemm lib compiles successfully
 TEST(GemmTests, getPackedSize) {
     int N = 51864;
     int K = 384;
