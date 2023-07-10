@@ -94,7 +94,7 @@ public:
      * State control essential for recurrent models.
      * @return Vector of Variable State objects.
      */
-    virtual std::vector<std::shared_ptr<ov::IVariableState>> query_state() const = 0;
+    virtual std::vector<ov::SoPtr<ov::IVariableState>> query_state() const = 0;
 
     /**
      * @brief Gets pointer to compiled model (usually synchronous request holds the compiled model)

@@ -43,7 +43,7 @@ public:
     void set_tensors(const ov::Output<const ov::Node>& port,
                      const std::vector<ov::SoPtr<ov::ITensor>>& tensors) override;
 
-    std::vector<std::shared_ptr<ov::IVariableState>> query_state() const override;
+    std::vector<ov::SoPtr<ov::IVariableState>> query_state() const override;
 
     const std::shared_ptr<const ov::ICompiledModel>& get_compiled_model() const override;
 

@@ -92,7 +92,7 @@ ov::template_plugin::InferRequest::InferRequest(const std::shared_ptr<const ov::
         auto state = std::make_shared<VariableState>(
             variable->get_info().variable_id,
             get_tensor_impl(variable_context.get_variable_value(variable)->get_state()));
-        m_variable_states.emplace_back(state);
+        m_variable_states.emplace_back(ov::SoPtr<ov::IVariableState>{state, nullptr});
     }
     m_eval_context.emplace("VariableContext", variable_context);
 }
@@ -116,7 +116,7 @@ void ov::template_plugin::InferRequest::set_tensors_impl(const ov::Output<const 
 // ! [infer_request:set_tensors_impl]
 
 // ! [infer_request:query_state]
-std::vector<std::shared_ptr<ov::IVariableState>> ov::template_plugin::InferRequest::query_state() const {
+std::vector<ov::SoPtr<ov::IVariableState>> ov::template_plugin::InferRequest::query_state() const {
     return m_variable_states;
 }
 // ! [infer_request:query_state]

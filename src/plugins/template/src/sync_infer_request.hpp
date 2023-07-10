@@ -31,7 +31,7 @@ public:
     ~InferRequest();
 
     void infer() override;
-    std::vector<std::shared_ptr<ov::IVariableState>> query_state() const override;
+    std::vector<ov::SoPtr<ov::IVariableState>> query_state() const override;
     std::vector<ov::ProfilingInfo> get_profiling_info() const override;
 
     // pipeline methods-stages which are used in async infer request implementation and assigned to particular executor
@@ -57,7 +57,7 @@ private:
     std::vector<ov::Tensor> m_backend_output_tensors;
     std::shared_ptr<ov::runtime::Executable> m_executable;
     ov::EvaluationContext m_eval_context;
-    std::vector<std::shared_ptr<ov::IVariableState>> m_variable_states;
+    std::vector<ov::SoPtr<ov::IVariableState>> m_variable_states;
 };
 // ! [infer_request:header]
 

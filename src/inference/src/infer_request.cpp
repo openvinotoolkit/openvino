@@ -276,7 +276,7 @@ std::vector<VariableState> InferRequest::query_state() {
     std::vector<VariableState> variable_states;
     OV_INFER_REQ_CALL_STATEMENT({
         for (auto&& state : _impl->query_state()) {
-            variable_states.emplace_back(ov::VariableState{state, {_so}});
+            variable_states.emplace_back(ov::VariableState{state._ptr, state._so});
         }
     })
     return variable_states;
