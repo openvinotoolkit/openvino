@@ -60,16 +60,16 @@ ov::pass::GroupNormalizationDecomposition::GroupNormalizationDecomposition() {
     matcher_pass_callback callback = [=](pattern::Matcher& matcher) {
         NodeRegistry reg;
 
-        auto group_norm_node = std::dynamic_pointer_cast<GroupNormalization>(matcher.get_match_root());
+        const auto group_norm_node = std::dynamic_pointer_cast<GroupNormalization>(matcher.get_match_root());
         if (!group_norm_node || transformation_callback(group_norm_node) || group_norm_node->get_input_size() != 3) {
             return false;
         }
 
-        auto data = group_norm_node->input_value(0);
-        auto scale = group_norm_node->input_value(1);
-        auto bias = group_norm_node->input_value(2);
+        const auto data = group_norm_node->input_value(0);
+        const auto scale = group_norm_node->input_value(1);
+        const auto bias = group_norm_node->input_value(2);
 
-        size_t num_groups =
+        const auto num_groups =
             static_cast<size_t>(group_norm_node->get_num_groups());  // Negative values are checked by op validation
         const auto eps = op::util::cast_eps_to_float(group_norm_node->get_epsilon());
 
@@ -78,14 +78,14 @@ ov::pass::GroupNormalizationDecomposition::GroupNormalizationDecomposition() {
             return false;
         }
         const auto data_rank_size = data_rank.get_length();
-        auto data_shape_node = reg.make<ShapeOf>(data);
-        auto data_reshaped = reg.make<Reshape>(
+        const auto data_shape_node = reg.make<ShapeOf>(data);
+        const auto data_reshaped = reg.make<Reshape>(
             data,
             create_group_norm_shape(reg, data_shape_node, num_groups, static_cast<size_t>(data_rank_size)),
             true);
         const auto reduction_axes = get_range(reg, 1, data_rank_size);
 
-        auto mvn = reg.make<MVN>(data_reshaped, reduction_axes, true, eps, op::MVNEpsMode::INSIDE_SQRT);
+        const auto mvn = reg.make<MVN>(data_reshaped, reduction_axes, true, eps, op::MVNEpsMode::INSIDE_SQRT);
         std::shared_ptr<Node> result = reg.make<Reshape>(mvn, data_shape_node, true);
 
         // Unsqueeze scale and bias to shape: [C, 1, 1, ... ]
