@@ -129,8 +129,7 @@ ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model
                 auto allNodeInputs = node->inputs();
                 std::vector<Input> inputs;
                 for (auto&& input : allNodeInputs) {
-                    if (!InferenceEngine::details::contains(subgraphInputs,
-                                                            input)) {  // TODO vurusovs REPLACE with ov::util::contains
+                    if (subgraphInputs.find(input) == subgraphInputs.end()) {
                         inputs.emplace_back(std::move(input));
                     }
                 }
@@ -310,10 +309,8 @@ ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model
                 return std::all_of(parameters.begin(),
                                    parameters.end(),
                                    [&](const ov::ParameterVector::value_type& parameter) {
-                                       return InferenceEngine::details::contains(graphInputNodes, parameter) ||
-                                              InferenceEngine::details::contains(
-                                                  prevResults,
-                                                  subgraphParameterToPrevResult[parameter]);
+                                       return (graphInputNodes.find(parameter) != graphInputNodes.end()) ||
+                                              (prevResults.find(subgraphParameterToPrevResult[parameter]) != prevResults.end());
                                    });
             };
             std::remove_copy_if(std::begin(allSubgraphs),
