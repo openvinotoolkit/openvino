@@ -53,7 +53,7 @@ Convert this model to ``ov.Model``:
 .. tab-set::
 
    .. tab-item:: Python
-      :sync: mo-python-api
+      :sync: py
 
       .. code-block:: python
 
@@ -61,7 +61,7 @@ Convert this model to ``ov.Model``:
          ov_model = convert_model("inception_v1.pb", batch=1)
 
    .. tab-item:: CLI
-      :sync: cli-tool
+      :sync: cli
 
       .. code-block:: sh
 
@@ -115,7 +115,7 @@ Due to automatic identification of inputs and outputs, providing the ``input`` a
 .. tab-set::
 
    .. tab-item:: Python
-      :sync: mo-python-api
+      :sync: py
 
       .. code-block:: python
 
@@ -125,7 +125,7 @@ Due to automatic identification of inputs and outputs, providing the ``input`` a
          ov_model = convert_model("inception_v1.pb", batch=1, input="input", output="InceptionV1/Logits/Predictions/Reshape_1")
 
    .. tab-item:: CLI
-      :sync: cli-tool
+      :sync: cli
 
       .. code-block:: sh
 
@@ -154,7 +154,7 @@ If you want to cut your model at the end, you have the following options:
    .. tab-set::
 
       .. tab-item:: Python
-         :sync: mo-python-api
+         :sync: py
 
          .. code-block:: python
 
@@ -162,7 +162,7 @@ If you want to cut your model at the end, you have the following options:
             ov_model = convert_model("inception_v1.pb", batch=1, output="InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu")
 
       .. tab-item:: CLI
-         :sync: cli-tool
+         :sync: cli
 
          .. code-block:: sh
 
@@ -217,7 +217,7 @@ If you want to cut your model at the end, you have the following options:
    .. tab-set::
 
       .. tab-item:: Python
-         :sync: mo-python-api
+         :sync: py
 
          .. code-block:: python
 
@@ -225,7 +225,7 @@ If you want to cut your model at the end, you have the following options:
             ov_model = convert_model("inception_v1.pb", batch=1, output="InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu:0")
 
       .. tab-item:: CLI
-         :sync: cli-tool
+         :sync: cli
 
          .. code-block:: sh
 
@@ -280,7 +280,7 @@ If you want to cut your model at the end, you have the following options:
    .. tab-set::
 
       .. tab-item:: Python
-         :sync: mo-python-api
+         :sync: py
 
          .. code-block:: python
 
@@ -288,7 +288,7 @@ If you want to cut your model at the end, you have the following options:
             ov_model = convert_model("inception_v1.pb", batch=1, output="0:InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu")
 
       .. tab-item:: CLI
-         :sync: cli-tool
+         :sync: cli
 
          .. code-block:: sh
 
@@ -337,7 +337,7 @@ If you want to go further and cut the beginning of the model, leaving only the `
    .. tab-set::
 
       .. tab-item:: Python
-         :sync: mo-python-api
+         :sync: py
 
          .. code-block:: python
 
@@ -345,7 +345,7 @@ If you want to go further and cut the beginning of the model, leaving only the `
             ov_model = convert_model("inception_v1.pb", batch=1, output="InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu", input="InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu")
 
       .. tab-item:: CLI
-         :sync: cli-tool
+         :sync: cli
 
          .. code-block:: sh
 
@@ -388,7 +388,7 @@ If you want to go further and cut the beginning of the model, leaving only the `
    .. tab-set::
 
       .. tab-item:: Python
-         :sync: mo-python-api
+         :sync: py
 
          .. code-block:: python
 
@@ -396,7 +396,7 @@ If you want to go further and cut the beginning of the model, leaving only the `
             ov_model = convert_model("inception_v1.pb", batch=1, input="0:InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu", output="InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu")
 
       .. tab-item:: CLI
-         :sync: cli-tool
+         :sync: cli
 
          .. code-block:: sh
 
@@ -439,7 +439,7 @@ If you want to go further and cut the beginning of the model, leaving only the `
    .. tab-set::
 
       .. tab-item:: Python
-         :sync: mo-python-api
+         :sync: py
 
          .. code-block:: python
 
@@ -447,7 +447,7 @@ If you want to go further and cut the beginning of the model, leaving only the `
             ov_model = convert_model("inception_v1.pb", batch=1, input="InceptionV1/InceptionV1/Conv2d_1a_7x7/BatchNorm/batchnorm/add_1:0", output="InceptionV1/InceptionV1/Conv2d_1a_7x7/Relu")
 
       .. tab-item:: CLI
-         :sync: cli-tool
+         :sync: cli
 
          .. code-block:: sh
 
@@ -494,7 +494,7 @@ Following this behavior, ``convert_model()`` creates an ``Input`` layer for port
 .. tab-set::
 
    .. tab-item:: Python
-      :sync: mo-python-api
+      :sync: py
 
       .. code-block:: python
 
@@ -502,7 +502,7 @@ Following this behavior, ``convert_model()`` creates an ``Input`` layer for port
          ov_model = convert_model("inception_v1.pb", batch=1, input="InceptionV1/InceptionV1/Conv2d_1a_7x7/convolution")
 
    .. tab-item:: CLI
-      :sync: cli-tool
+      :sync: cli
 
       .. code-block:: sh
 
@@ -516,7 +516,7 @@ Different behavior occurs when ``input_shape`` is also used as an attempt to ove
 .. tab-set::
 
    .. tab-item:: Python
-      :sync: mo-python-api
+      :sync: py
 
       .. code-block:: python
 
@@ -524,7 +524,7 @@ Different behavior occurs when ``input_shape`` is also used as an attempt to ove
          ov_model = convert_model("inception_v1.pb", input="InceptionV1/InceptionV1/Conv2d_1a_7x7/convolution", input_shape=[1,224,224,3])
 
    .. tab-item:: CLI
-      :sync: cli-tool
+      :sync: cli
 
       .. code-block:: sh
 
@@ -546,7 +546,7 @@ The correct command line is:
 .. tab-set::
 
    .. tab-item:: Python
-      :sync: mo-python-api
+      :sync: py
 
       .. code-block:: python
 
@@ -554,7 +554,7 @@ The correct command line is:
          ov_model = convert_model("inception_v1.pb", input="0:InceptionV1/InceptionV1/Conv2d_1a_7x7/convolution", input_shape=[1,224,224,3])
 
    .. tab-item:: CLI
-      :sync: cli-tool
+      :sync: cli
 
       .. code-block:: sh
 
