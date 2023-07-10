@@ -11,11 +11,8 @@
 #include <string>
 #include <vector>
 
-#include "ngraph/runtime/tensor.hpp"
-#include "openvino/core/node.hpp"
 #include "openvino/itt.hpp"
 #include "openvino/runtime/isync_infer_request.hpp"
-#include "openvino/runtime/ivariable_state.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 
 namespace ov {

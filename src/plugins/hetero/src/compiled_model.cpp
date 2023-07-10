@@ -12,12 +12,9 @@
 #include "ie_plugin_config.hpp"
 #include "itt.hpp"
 #include "openvino/op/util/op_types.hpp"
-#include "openvino/runtime/exec_model_info.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/util/common_util.hpp"
 #include "plugin.hpp"
-#include "transformations/rt_info/fused_names_attribute.hpp"
-#include "transformations/utils/utils.hpp"
 #include "xml_parse_utils.h"
 
 template <typename T>
@@ -42,7 +39,7 @@ ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model
 
         bool allEmpty = true;
         // Get user defined affinity
-        for (auto&& node : orderedOps) {
+        for (const auto& node : orderedOps) {
             auto& nodeInfo = node->get_rt_info();
             auto itInfo = nodeInfo.find("affinity");
             if (itInfo != nodeInfo.end()) {

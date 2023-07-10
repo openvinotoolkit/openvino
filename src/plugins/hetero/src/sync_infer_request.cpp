@@ -13,12 +13,6 @@
 #include "compiled_model.hpp"
 #include "itt.hpp"
 #include "openvino/core/except.hpp"
-#include "openvino/op/util/variable_context.hpp"
-#include "openvino/runtime/iasync_infer_request.hpp"
-#include "openvino/runtime/ivariable_state.hpp"
-#include "openvino/runtime/profiling_info.hpp"
-#include "openvino/runtime/tensor.hpp"
-#include "openvino/util/common_util.hpp"
 #include "plugin.hpp"
 
 using Time = std::chrono::high_resolution_clock;

@@ -4,10 +4,6 @@
 
 #include "async_infer_request.hpp"
 
-// #include "itt.hpp"
-#include "openvino/runtime/iinfer_request.hpp"
-#include "sync_infer_request.hpp"
-
 struct RequestExecutor : ov::threading::ITaskExecutor {
     explicit RequestExecutor(ov::SoPtr<ov::IAsyncInferRequest>& request) : m_request(request) {
         m_request->set_callback([this](std::exception_ptr exception_ptr) mutable {
