@@ -439,6 +439,37 @@ private:
         output_vector.reserve(source_vector.size());
 
         std::transform(source_vector.begin(), source_vector.end(), std::back_inserter(output_vector), [](IN_T c) {
+#ifdef __clang__
+#    pragma clang diagnostic push
+#    ifdef __has_warning
+#        if __has_warning("-Wimplicit-const-int-float-conversion")
+#            pragma clang diagnostic ignored "-Wimplicit-const-int-float-conversion"
+#        elif __has_warning("-Wimplicit-int-float-conversion")
+#            pragma clang diagnostic ignored "-Wimplicit-int-float-conversion"
+#        endif
+#    endif
+#elif defined(__GNUC__)
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wsign-compare"
+#    pragma GCC diagnostic ignored "-Wbool-compare"
+#elif defined(_MSC_VER)
+#    pragma warning(push)
+#    pragma warning(disable : 4018)
+#    pragma warning(disable : 4804)
+#endif
+            if (!std::is_same<OUT_T, IN_T>::value) {
+                OPENVINO_ASSERT(!std::numeric_limits<IN_T>::is_signed || std::numeric_limits<OUT_T>::lowest() <= c,
+                                "Cannot cast vector from constant. Some values are outside the range.");
+                OPENVINO_ASSERT(std::numeric_limits<OUT_T>::max() >= c,
+                                "Cannot cast vector from constant. Some values are outside the range.");
+            }
+#if defined(__clang__)
+#    pragma clang diagnostic pop
+#elif defined(__GNUC__)
+#    pragma GCC diagnostic pop
+#elif defined(_MSC_VER)
+#    pragma warning(pop)
+#endif
             return static_cast<OUT_T>(c);
         });
     }
@@ -527,9 +558,11 @@ private:
 #    pragma warning(disable : 4804)
 #endif
         if (!std::is_same<T, StorageDataType>::value) {
-            OPENVINO_ASSERT(!std::numeric_limits<T>::is_signed ||
-                            std::numeric_limits<StorageDataType>::lowest() <= value);
-            OPENVINO_ASSERT(std::numeric_limits<StorageDataType>::max() >= value);
+            OPENVINO_ASSERT(
+                !std::numeric_limits<T>::is_signed || std::numeric_limits<StorageDataType>::lowest() <= value,
+                "Cannot fill constant data. Values is outside the range.");
+            OPENVINO_ASSERT(std::numeric_limits<StorageDataType>::max() >= value,
+                            "Cannot fill constant data. Values is outside the range.");
         }
 #if defined(__clang__)
 #    pragma clang diagnostic pop
