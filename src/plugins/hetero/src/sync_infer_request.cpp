@@ -15,20 +15,11 @@
 #include "openvino/core/except.hpp"
 #include "plugin.hpp"
 
-using Time = std::chrono::high_resolution_clock;
-
 ov::hetero::InferRequest::InferRequest(const std::shared_ptr<const ov::hetero::CompiledModel>& compiled_model)
     : ov::ISyncInferRequest(compiled_model) {
-    int index = 0;
     for (auto&& comp_model_desc : compiled_model->m_compiled_submodels) {
         InferRequest::InferRequestDesc desc;
         desc.compiled_model = comp_model_desc.compiled_model;
-
-        std::string prof_task_name = compiled_model->m_name + "_Req" + std::to_string(index++);
-        desc._profilingTask = {
-            openvino::itt::handle("Hetero_" + prof_task_name + "_StartPipeline"),
-            openvino::itt::handle("Hetero_" + prof_task_name + "_WaitPipline"),
-        };
         desc.request = {desc.compiled_model->create_infer_request(), desc.compiled_model._so};
         m_subrequests.push_back(desc);
     }
@@ -102,60 +93,29 @@ void ov::hetero::InferRequest::check_tensors() const {
 std::vector<std::shared_ptr<ov::IVariableState>> ov::hetero::InferRequest::query_state() const {
     std::vector<std::shared_ptr<ov::IVariableState>> variable_states = {};
     for (auto&& desc : m_subrequests) {
-        auto& r = desc.request;
-        OPENVINO_ASSERT(r);
-        for (auto&& state : r->query_state()) {
+        auto& request = desc.request;
+        OPENVINO_ASSERT(request);
+        for (auto&& state : request->query_state()) {
             variable_states.emplace_back(state);
         }
     }
     return variable_states;
 }
 
-std::shared_ptr<const ov::hetero::CompiledModel> ov::hetero::InferRequest::get_hetero_model() const {
-    auto& compiled_model = get_compiled_model();
-    auto hetero_model = std::dynamic_pointer_cast<const ov::hetero::CompiledModel>(compiled_model);
-    OPENVINO_ASSERT(hetero_model);
-    return hetero_model;
-}
-
 void ov::hetero::InferRequest::infer() {
-    start_pipeline();
-    wait_pipeline();
-}
-
-void ov::hetero::InferRequest::start_pipeline() {
-    auto start = Time::now();
     for (auto&& desc : m_subrequests) {
-        OV_ITT_SCOPED_TASK(itt::domains::Hetero, desc._profilingTask[StartPipeline])
         auto& request = desc.request;
         OPENVINO_ASSERT(request);
         request->infer();
     }
-    m_durations[StartPipeline] = Time::now() - start;
-}
-
-void ov::hetero::InferRequest::wait_pipeline() {
-    auto start = Time::now();
-    for (auto&& desc : m_subrequests) {
-        OV_ITT_SCOPED_TASK(itt::domains::Hetero, desc._profilingTask[WaitPipeline])
-        auto& request = desc.request;
-        OPENVINO_ASSERT(request);
-        request->wait();
-    }
-    m_durations[WaitPipeline] = Time::now() - start;
 }
 
 std::vector<ov::ProfilingInfo> ov::hetero::InferRequest::get_profiling_info() const {
     std::vector<ov::ProfilingInfo> info;
-    const auto fill_profiling_info = [](const std::string& name,
-                                        const std::chrono::duration<float, std::micro>& time) -> ov::ProfilingInfo {
-        ov::ProfilingInfo p_info;
-        p_info.status = ov::ProfilingInfo::Status::EXECUTED;
-        p_info.node_name = name;
-        p_info.cpu_time = p_info.real_time = std::chrono::duration_cast<std::chrono::milliseconds>(time);
-        return p_info;
-    };
-    info.emplace_back(fill_profiling_info("execution time", m_durations[StartPipeline]));
+    for (auto&& desc : m_subrequests) {
+        const auto& subreq_info = desc.request->get_profiling_info();
+        info.insert(info.end(), subreq_info.begin(), subreq_info.end());
+    }
     return info;
 }
 

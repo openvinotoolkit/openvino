@@ -31,8 +31,6 @@ public:
     std::vector<std::shared_ptr<ov::IVariableState>> query_state() const override;
     std::vector<ov::ProfilingInfo> get_profiling_info() const override;
 
-    void start_pipeline();
-    void wait_pipeline();
     void cancel();
 
     ov::Tensor get_tensor(const ov::Output<const ov::Node>& port) const override;
@@ -45,7 +43,6 @@ public:
 private:
     friend class AsyncInferRequest;
 
-    std::shared_ptr<const CompiledModel> get_hetero_model() const;
     ov::SoPtr<ov::IAsyncInferRequest> get_request(const ov::Output<const ov::Node>& port) const;
 
     enum { StartPipeline, WaitPipeline, numOfStages };
@@ -53,14 +50,10 @@ private:
     struct InferRequestDesc {
         ov::SoPtr<ov::ICompiledModel> compiled_model;
         ov::SoPtr<ov::IAsyncInferRequest> request;
-        std::array<openvino::itt::handle_t, numOfStages> _profilingTask;
     };
 
     std::vector<InferRequestDesc> m_subrequests;
     std::map<ov::Output<const ov::Node>, size_t> m_port_to_subrequest_idx;
-
-    // for performance counters
-    std::array<std::chrono::duration<float, std::micro>, numOfStages> m_durations;
 };
 
 }  // namespace hetero
