@@ -31,7 +31,7 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
                                                      const int input_infer_requests,
                                                      const int model_prefer_threads,
                                                      const std::string input_perf_hint,
-                                                     const Config::LatencyThreadingMode latencyThreadingMode,
+                                                     const ov::intel_cpu::LatencyThreadingMode latencyThreadingMode,
                                                      const std::vector<std::vector<int>> proc_type_table) {
     std::vector<int> stream_info(CPU_STREAMS_TABLE_SIZE, INIT_VAL);
     std::vector<std::vector<int>> streams_info_table;
@@ -113,7 +113,7 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
     }
 
     if (((input_streams_changed == false) && (input_perf_hint == CONFIG_VALUE(LATENCY)) &&
-         ((latencyThreadingMode == Config::LatencyThreadingMode::PER_PLATFORM) || (proc_type_table.size() == 1))) ||
+         ((latencyThreadingMode == ov::intel_cpu::LatencyThreadingMode::PER_PLATFORM) || (proc_type_table.size() == 1))) ||
         ((input_streams_changed == true) && (input_streams == 1))) {
         stream_info[NUMBER_OF_STREAMS] = 1;
         if (input_threads > 0) {
@@ -186,7 +186,7 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
         }
         return streams_info_table;
     } else if ((input_streams_changed == false) && (input_perf_hint == CONFIG_VALUE(LATENCY))) {
-        if (latencyThreadingMode == Config::LatencyThreadingMode::PER_NUMA_NODE) {
+        if (latencyThreadingMode == ov::intel_cpu::LatencyThreadingMode::PER_NUMA_NODE) {
             if (proc_type_table.size() == 1) {
                 stream_info[NUMBER_OF_STREAMS] = 1;
                 stream_info[PROC_TYPE] = MAIN_CORE_PROC;

@@ -86,11 +86,17 @@ void regmodule_properties(py::module m) {
         m_properties.def_submodule("intel_cpu",
                                    "openvino.runtime.properties.intel_cpu submodule that simulates ov::intel_cpu");
 
+    py::enum_<ov::intel_cpu::LatencyThreadingMode>(m_intel_cpu, "LatencyThreadingMode", py::arithmetic())
+        .value("PER_NUMA_NODE", ov::intel_cpu::LatencyThreadingMode::PER_NUMA_NODE)
+        .value("PER_SOCKET", ov::intel_cpu::LatencyThreadingMode::PER_SOCKET)
+        .value("PER_PLATFORM", ov::intel_cpu::LatencyThreadingMode::PER_PLATFORM);
+
     // Submodule intel_cpu property
     wrap_property_RW(m_intel_cpu, ov::intel_cpu::denormals_optimization, "denormals_optimization");
     wrap_property_RW(m_intel_cpu,
                      ov::intel_cpu::sparse_weights_decompression_rate,
                      "sparse_weights_decompression_rate");
+    wrap_property_RW(m_intel_cpu, ov::intel_cpu::latency_threading_mode, "latency_threading_mode");
 
     // Submodule intel_gpu
     py::module m_intel_gpu =

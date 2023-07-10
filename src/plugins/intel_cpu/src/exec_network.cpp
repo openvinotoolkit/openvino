@@ -302,6 +302,7 @@ InferenceEngine::Parameter ExecNetwork::GetMetric(const std::string &name) const
             RO_property(ov::execution_devices.name()),
             RO_property(ov::intel_cpu::denormals_optimization.name()),
             RO_property(ov::intel_cpu::sparse_weights_decompression_rate.name()),
+            RO_property(ov::intel_cpu::latency_threading_mode.name()),
         };
     }
 
@@ -359,6 +360,9 @@ InferenceEngine::Parameter ExecNetwork::GetMetric(const std::string &name) const
         return decltype(ov::intel_cpu::denormals_optimization)::value_type(config.denormalsOptMode == Config::DenormalsOptMode::DO_On);
     } else if (name == ov::intel_cpu::sparse_weights_decompression_rate) {
         return decltype(ov::intel_cpu::sparse_weights_decompression_rate)::value_type(config.fcSparseWeiDecompressionRate);
+    } else if (name == ov::intel_cpu::latency_threading_mode) {
+        const auto threading_mode = config.latencyThreadingMode;
+        return threading_mode;
     }
     /* Internally legacy parameters are used with new API as part of migration procedure.
      * This fallback can be removed as soon as migration completed */

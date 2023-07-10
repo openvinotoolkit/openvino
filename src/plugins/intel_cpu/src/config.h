@@ -7,7 +7,7 @@
 #include <threading/ie_istreams_executor.hpp>
 #include <ie_performance_hints.hpp>
 #include <ie/ie_common.h>
-#include <openvino/runtime/properties.hpp>
+#include <openvino/runtime/intel_cpu/properties.hpp>
 #include <openvino/util/common_util.hpp>
 #include "utils/debug_caps_config.h"
 #include <openvino/core/type/element_type.hpp>
@@ -39,12 +39,6 @@ struct Config {
         Disable,
     };
 
-    enum class LatencyThreadingMode {
-        PER_NUMA_NODE,
-        PER_SOCKET,
-        PER_PLATFORM,
-    };
-
     bool collectPerfCounters = false;
     bool exclusiveAsyncRequests = false;
     SnippetsMode snippetsMode = SnippetsMode::Enable;
@@ -64,7 +58,7 @@ struct Config {
     ov::hint::SchedulingCoreType schedulingCoreType = ov::hint::SchedulingCoreType::ANY_CORE;
     bool enableHyperThreading = true;
     bool changedHyperThreading = false;
-    Config::LatencyThreadingMode latencyThreadingMode = Config::LatencyThreadingMode::PER_SOCKET;
+    ov::intel_cpu::LatencyThreadingMode latencyThreadingMode = ov::intel_cpu::LatencyThreadingMode::PER_SOCKET;
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
     LPTransformsMode lpTransformsMode = LPTransformsMode::On;
 #else

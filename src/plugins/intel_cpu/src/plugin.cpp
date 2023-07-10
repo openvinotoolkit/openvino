@@ -25,7 +25,7 @@
 #include <ie_ngraph_utils.hpp>
 
 #include "performance_heuristics.hpp"
-#include "openvino/runtime/properties.hpp"
+#include "openvino/runtime/intel_cpu/properties.hpp"
 #include "weights_cache.hpp"
 #include "utils/denormals.hpp"
 
@@ -575,6 +575,9 @@ Parameter Engine::GetConfig(const std::string& name, const std::map<std::string,
         return decltype(ov::hint::num_requests)::value_type(perfHintNumRequests);
     } else if (name == ov::hint::execution_mode) {
         return engConfig.executionMode;
+    } else if (name == ov::intel_cpu::latency_threading_mode) {
+        const auto threading_model = engConfig.latencyThreadingMode;
+        return threading_model;
     }
     /* Internally legacy parameters are used with new API as part of migration procedure.
      * This fallback can be removed as soon as migration completed */
@@ -667,6 +670,7 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
                                                     RW_property(ov::device::id.name()),
                                                     RW_property(ov::intel_cpu::denormals_optimization.name()),
                                                     RW_property(ov::intel_cpu::sparse_weights_decompression_rate.name()),
+                                                    RW_property(ov::intel_cpu::latency_threading_mode.name()),
         };
 
         std::vector<ov::PropertyName> supportedProperties;

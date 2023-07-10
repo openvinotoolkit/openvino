@@ -115,6 +115,19 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
                 IE_THROW() << "Wrong value " << val << "for property key " << ov::hint::enable_hyper_threading.name()
                            << ". Expected only true/false." << std::endl;
             }
+        } else if (key == ov::intel_cpu::latency_threading_mode.name()) {
+            const auto core_type = ov::util::from_string(val, ov::intel_cpu::latency_threading_mode);
+            if (core_type == ov::intel_cpu::LatencyThreadingMode::PER_NUMA_NODE ||
+                core_type == ov::intel_cpu::LatencyThreadingMode::PER_SOCKET ||
+                core_type == ov::intel_cpu::LatencyThreadingMode::PER_PLATFORM) {
+                latencyThreadingMode = core_type;
+            } else {
+                IE_THROW() << "Wrong value " << val << "for property key "
+                           << ov::intel_cpu::latency_threading_mode.name() << ". Expected only "
+                           << ov::intel_cpu::LatencyThreadingMode::PER_NUMA_NODE << "/"
+                           << ov::intel_cpu::LatencyThreadingMode::PER_SOCKET << "/"
+                           << ov::intel_cpu::LatencyThreadingMode::PER_PLATFORM << std::endl;
+            }
         } else if (key == CPUConfigParams::KEY_CPU_SPARSE_WEIGHTS_DECOMPRESSION_RATE) {
             float val_f = 0.0f;
             try {

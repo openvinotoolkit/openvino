@@ -63,5 +63,57 @@ static constexpr Property<bool> denormals_optimization{"CPU_DENORMALS_OPTIMIZATI
  */
 static constexpr Property<float> sparse_weights_decompression_rate{"CPU_SPARSE_WEIGHTS_DECOMPRESSION_RATE"};
 
+/**
+ * @enum       LatencyThreadingMode
+ * @brief      This enum contains definition of threading mode can be used for CPU inference with latency hint.
+ */
+enum class LatencyThreadingMode {
+    PER_NUMA_NODE = 0,  //!<  create stream per numa node for latency hint.
+    PER_SOCKET = 1,     //!<  create stream per socket for latency hint.
+    PER_PLATFORM = 2,   //!<  create stream per platform for latency hint.
+};
+
+/** @cond INTERNAL */
+inline std::ostream& operator<<(std::ostream& os, const LatencyThreadingMode& threading_mode) {
+    switch (threading_mode) {
+    case LatencyThreadingMode::PER_NUMA_NODE:
+        return os << "PER_NUMA_NODE";
+    case LatencyThreadingMode::PER_SOCKET:
+        return os << "PER_SOCKET";
+    case LatencyThreadingMode::PER_PLATFORM:
+        return os << "PER_PLATFORM";
+    default:
+        throw ov::Exception{"Unsupported threading mode for latency hint!"};
+    }
+}
+
+inline std::istream& operator>>(std::istream& is, LatencyThreadingMode& threading_mode) {
+    std::string str;
+    is >> str;
+    if (str == "PER_NUMA_NODE") {
+        threading_mode = LatencyThreadingMode::PER_NUMA_NODE;
+    } else if (str == "PER_SOCKET") {
+        threading_mode = LatencyThreadingMode::PER_SOCKET;
+    } else if (str == "PER_PLATFORM") {
+        threading_mode = LatencyThreadingMode::PER_PLATFORM;
+    } else {
+        throw ov::Exception{"Unsupported threading mode for latency hint: " + str};
+    }
+    return is;
+}
+/** @endcond */
+
+/**
+ * @brief This property defines threading mode of latency hint on CPU plugin
+ * @ingroup ov_runtime_cpu_prop_cpp_api
+ *
+ * For latency hint, user can set this property to create inference stream per numa node, per socket or per platfrom.
+ * The following code allows to set the value of threading mode. The default value is per socket.
+ *
+ * @code
+ * core.set_property(ov::intel_cpu::latency_threading_mode(ov::intel_cpu::LatencyThreadingMode::PER_SOCKET));
+ * @endcode
+ */
+static constexpr Property<LatencyThreadingMode> latency_threading_mode{"LATENCY_THREADING_MODE"};
 }  // namespace intel_cpu
 }  // namespace ov
