@@ -53,8 +53,8 @@ void compile_graph::run(program& p) {
         if (node->is_type<reshape>() && node->is_dynamic() && !node->can_be_optimized())
             can_select_impl = false;
 
-        // TODO: Remove this WA once we have shape agnostic quantize_scale_shift kernel
-        if (node->is_type<quantize>() && node->is_dynamic() && node->as<quantize>().get_scale_shift_opt()) {
+        // TODO: Remove this WA once we have shape agnostic conv kernl with specified auto_pad attributes
+        if (node->is_type<convolution>() && node->is_dynamic() && !node->as<convolution>().use_explicit_padding()) {
             can_select_impl = false;
         }
 

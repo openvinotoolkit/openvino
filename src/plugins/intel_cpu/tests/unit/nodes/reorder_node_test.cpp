@@ -15,7 +15,7 @@
 #include <dnnl.hpp>
 #include <utility>
 
-#include "../../../ie_test_utils/common_test_utils/common_utils.hpp"
+#include "common_test_utils/common_utils.hpp"
 #include "cache/multi_cache.h"
 #include "nodes/input.h"
 
