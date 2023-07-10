@@ -482,12 +482,12 @@ Made with `contributors-img <https://contrib.rocks>`__.
    :target: https://user-images.githubusercontent.com/29454499/224541412-9d13443e-0e42-43f2-8210-aa31820c5b44.png
 .. |n236-img1| image:: https://user-images.githubusercontent.com/29454499/228882108-25c1f65d-4c23-4e1d-8ba4-f6164280a3e3.gif
    :target: https://user-images.githubusercontent.com/29454499/228882108-25c1f65d-4c23-4e1d-8ba4-f6164280a3e3.gif
-.. |n236-img2| image:: notebooks/236-stable-diffusion-v2-optimum-demo-comparison-with-output_files/236-stable-diffusion-v2-optimum-demo-comparison-with-output_7_5.png
-   :target: notebooks/236-stable-diffusion-v2-optimum-demo-comparison-with-output_files/236-stable-diffusion-v2-optimum-demo-comparison-with-output_7_5.png
-.. |n236-img3| image:: notebooks/236-stable-diffusion-v2-optimum-demo-with-output_files/236-stable-diffusion-v2-optimum-demo-with-output_13_1.png
-   :target: notebooks/236-stable-diffusion-v2-optimum-demo-with-output_files/236-stable-diffusion-v2-optimum-demo-with-output_13_1.png
-.. |n236-img4| image:: notebooks/236-stable-diffusion-v2-text-to-image-demo-with-output_files/236-stable-diffusion-v2-text-to-image-demo-with-output_23_0.png
-   :target: notebooks/236-stable-diffusion-v2-text-to-image-demo-with-output_files/236-stable-diffusion-v2-text-to-image-demo-with-output_23_0.png
+.. |n236-img2| image:: ./notebooks/236-stable-diffusion-v2-optimum-demo-comparison-with-output_files/236-stable-diffusion-v2-optimum-demo-comparison-with-output_7_5.png
+   :target: ./notebooks/236-stable-diffusion-v2-optimum-demo-comparison-with-output_files/236-stable-diffusion-v2-optimum-demo-comparison-with-output_7_5.png
+.. |n236-img3| image:: ./notebooks/236-stable-diffusion-v2-optimum-demo-with-output_files/236-stable-diffusion-v2-optimum-demo-with-output_13_1.png
+   :target: ./notebooks/236-stable-diffusion-v2-optimum-demo-with-output_files/236-stable-diffusion-v2-optimum-demo-with-output_13_1.png
+.. |n236-img4| image:: ./notebooks/236-stable-diffusion-v2-text-to-image-demo-with-output_files/236-stable-diffusion-v2-text-to-image-demo-with-output_23_0.png
+   :target: ./notebooks/236-stable-diffusion-v2-text-to-image-demo-with-output_files/236-stable-diffusion-v2-text-to-image-demo-with-output_23_0.png
 .. |n237-img1| image:: https://user-images.githubusercontent.com/29454499/231468849-1cd11e68-21e2-44ed-8088-b792ef50c32d.png
    :target: https://user-images.githubusercontent.com/29454499/231468849-1cd11e68-21e2-44ed-8088-b792ef50c32d.png
 .. |n238-img1| image:: https://user-images.githubusercontent.com/29454499/241643886-dfcf3c48-8d50-4730-ae28-a21595d9504f.png
