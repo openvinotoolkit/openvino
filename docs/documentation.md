@@ -2,6 +2,11 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Explore the OpenVINO toolkit workflow that entails preparing, 
+                 optimizing and deploying models in deep learning applications.
+
+
 .. toctree::
    :maxdepth: 1
    :hidden:

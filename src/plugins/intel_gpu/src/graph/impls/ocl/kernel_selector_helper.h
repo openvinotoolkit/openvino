@@ -133,7 +133,7 @@ void set_weight_bias_zero_point_default_params(const kernel_impl_params& param_i
 
 template <typename params_t>
 inline params_t get_default_params(const kernel_impl_params& param_info, bool is_shape_agnostic = false) {
-    params_t params;
+    params_t params = params_t();
     set_default_params(param_info, params, is_shape_agnostic);
     return params;
 }

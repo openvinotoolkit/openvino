@@ -34,7 +34,7 @@ For example, the following command specifies the ``NHWC`` layout for a Tensorflo
 .. tab-set::
 
     .. tab-item:: Python
-       :sync: mo-python-api
+       :sync: py
 
        .. code-block:: python
 
@@ -42,7 +42,7 @@ For example, the following command specifies the ``NHWC`` layout for a Tensorflo
           ov_model = convert_model("tf_nasnet_large.onnx", layout="nhwc")
 
     .. tab-item:: CLI
-       :sync: cli-tool
+       :sync: cli
 
        .. code-block:: sh
 
@@ -59,7 +59,7 @@ having two dimensions: batch and size of the image expressed as the ``N?`` layou
 .. tab-set::
 
     .. tab-item:: Python
-       :sync: mo-python-api
+       :sync: py
 
        .. code-block:: python
 
@@ -67,7 +67,7 @@ having two dimensions: batch and size of the image expressed as the ``N?`` layou
           ov_model = convert_model("yolov3-tiny.onnx", layout={"input_1": "nchw", "image_shape": "n?"})
 
     .. tab-item:: CLI
-       :sync: cli-tool
+       :sync: cli
 
        .. code-block:: sh
 
@@ -87,7 +87,7 @@ the following commands to provide data in the ``NCHW`` layout:
 .. tab-set::
 
     .. tab-item:: Python
-       :sync: mo-python-api
+       :sync: py
 
        .. code-block:: python
 
@@ -97,7 +97,7 @@ the following commands to provide data in the ``NCHW`` layout:
           ov_model = convert_model("tf_nasnet_large.onnx", layout="nhwc->nchw")
 
     .. tab-item:: CLI
-       :sync: cli-tool
+       :sync: cli
 
        .. code-block:: sh
 
@@ -115,7 +115,7 @@ mentioned earlier, use the following commands:
 .. tab-set::
 
     .. tab-item:: Python
-       :sync: mo-python-api
+       :sync: py
 
        .. code-block:: python
 
@@ -125,7 +125,7 @@ mentioned earlier, use the following commands:
           ov_model = convert_model("yolov3-tiny.onnx", layout={"input_1": "nchw->nhwc", "image_shape": "n?"}
 
     .. tab-item:: CLI
-       :sync: cli-tool
+       :sync: cli
 
        .. code-block:: sh
 
@@ -168,7 +168,7 @@ model and applies mean-scale normalization to the input data:
 .. tab-set::
 
     .. tab-item:: Python
-       :sync: mo-python-api
+       :sync: py
 
        .. code-block:: python
 
@@ -176,7 +176,7 @@ model and applies mean-scale normalization to the input data:
           ov_model = convert_model("unet.pdmodel", mean_values=[123,117,104], scale=255)
 
     .. tab-item:: CLI
-       :sync: cli-tool
+       :sync: cli
 
        .. code-block:: sh
 
@@ -211,7 +211,7 @@ model and embeds the ``reverse_input_channel`` preprocessing block into OpenVINO
 .. tab-set::
 
     .. tab-item:: Python
-       :sync: mo-python-api
+       :sync: py
 
        .. code-block:: python
 
@@ -219,7 +219,7 @@ model and embeds the ``reverse_input_channel`` preprocessing block into OpenVINO
           ov_model = convert_model("alexnet.pb", reverse_input_channels=True)
 
     .. tab-item:: CLI
-       :sync: cli-tool
+       :sync: cli
 
        .. code-block:: sh
 

@@ -25,10 +25,12 @@
 #include "utils/cpu_utils.hpp"
 #include "emitters/x64/cpu_generator.hpp"
 #include "transformations/snippets/x64/pass/lowered/fuse_load_store_and_convert.hpp"
+#include "transformations/snippets/x64/pass/lowered/brgemm_blocking.hpp"
 #include "transformations/snippets/x64/pass/mul_add_to_fma.hpp"
 #include "transformations/snippets/x64/pass/brgemm_to_brgemm_cpu.hpp"
 #include "transformations/snippets/x64/pass/remove_converts.hpp"
 #include "transformations/snippets/x64/pass/enforce_precision.hpp"
+#include "transformations/snippets/x64/pass/set_brgemm_cpu_blocking_params.hpp"
 #include "transformations/cpu_opset/common/pass/convert_to_swish_cpu.hpp"
 #include "transformations/defs.hpp"
 
@@ -559,10 +561,14 @@ void Snippet::generate(const jit_snippets_compile_args* jcp) {
 
     ov::pass::Manager post_dialect;
     CPU_REGISTER_PASS_X64(post_dialect, ov::intel_cpu::pass::BrgemmToBrgemmCPU);
+    CPU_REGISTER_PASS_X64(post_dialect, ov::intel_cpu::pass::SetBrgemmCPUBlockingParams);
 
     ov::pass::Manager post_precision;
     CPU_REGISTER_PASS_X64(post_precision, ov::intel_cpu::pass::RemoveConverts);
     CPU_REGISTER_PASS_X64(post_precision, ov::intel_cpu::pass::MulAddToFMA);
+
+    ov::snippets::lowered::pass::PassPipeline control_flow_markup_pipeline;
+    CPU_REGISTER_PASS_X64(control_flow_markup_pipeline, ov::intel_cpu::pass::BrgemmBlocking);
 
     ov::snippets::lowered::pass::PassPipeline control_flow_pipeline;
     CPU_REGISTER_PASS_X64(control_flow_pipeline, ov::intel_cpu::pass::FuseLoadStoreConvert);
@@ -571,6 +577,7 @@ void Snippet::generate(const jit_snippets_compile_args* jcp) {
         pre_dialect,
         post_dialect,
         post_precision,
+        control_flow_markup_pipeline,
         control_flow_pipeline,
         reinterpret_cast<const void*>(jcp));
 }
