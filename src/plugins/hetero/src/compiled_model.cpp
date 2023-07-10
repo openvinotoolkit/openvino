@@ -342,18 +342,18 @@ ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model
         // so original inputs/outputs != submodels inputs/outputs
         const auto& orig_parameters = model->get_parameters();
         const auto& orig_results = model->get_results();
-        m_inputs_to_submodel_inputs.resize(orig_parameters.size());
-        m_outputs_to_submodel_outputs.resize(orig_results.size());
+        m_inputs_to_submodels_inputs.resize(orig_parameters.size());
+        m_outputs_to_submodels_outputs.resize(orig_results.size());
         for (size_t id = 0; id < orderedSubgraphs.size(); id++) {
             for (size_t i = 0; i < orderedSubgraphs[id]._parameters.size(); i++) {
                 for (size_t j = 0; j < orig_parameters.size(); j++)
                     if (orderedSubgraphs[id]._parameters[i] == orig_parameters[j])
-                        m_inputs_to_submodel_inputs[j] = {id, i};
+                        m_inputs_to_submodels_inputs[j] = {id, i};
             }
             for (size_t i = 0; i < orderedSubgraphs[id]._results.size(); i++) {
                 for (size_t j = 0; j < ICompiledModel::outputs().size(); j++)
                     if (orderedSubgraphs[id]._results[i] == orig_results[j])
-                        m_outputs_to_submodel_outputs[j] = {id, i};
+                        m_outputs_to_submodels_outputs[j] = {id, i};
             }
         }
 
@@ -383,42 +383,42 @@ ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model
             }
         }
 
-        m_networks.resize(orderedSubgraphs.size());
+        m_compiled_submodels.resize(orderedSubgraphs.size());
         std::vector<std::shared_ptr<ov::Model>> subFunctions(orderedSubgraphs.size());
         int id = 0;
         for (auto&& subgraph : orderedSubgraphs) {
-            m_networks[id]._device = subgraph._affinity;
+            m_compiled_submodels[id].device = subgraph._affinity;
             subFunctions[id] = std::make_shared<ov::Model>(subgraph._results,
                                                            subgraph._sinks,
                                                            subgraph._parameters,
                                                            m_name + '_' + std::to_string(id));
-            m_networks[id]._clonedNetwork = subFunctions[id]->clone();  // TODO vurusovs IS CLONE REQUIRED?
-            ++id;
-        }
-        for (auto&& network : m_networks) {
-            auto metaDevices =
-                get_hetero_plugin()->get_properties_per_device(network._device, m_cfg.GetDeviceProperties());
+            m_compiled_submodels[id].model = subFunctions[id]->clone();  // TODO vurusovs IS CLONE REQUIRED?
+
+            auto metaDevices = get_hetero_plugin()->get_properties_per_device(m_compiled_submodels[id].device,
+                                                                              m_cfg.GetDeviceProperties());
 
             // disable caching for subgraphs, because the whole HETERO model is cached
-            auto device_config = metaDevices[network._device];
+            auto device_config = metaDevices[m_compiled_submodels[id].device];
             device_config[ov::cache_dir.name()] = "";
 
-            network._network =
-                plugin->get_core()->compile_model(network._clonedNetwork, network._device, device_config);
+            m_compiled_submodels[id].compiled_model = plugin->get_core()->compile_model(m_compiled_submodels[id].model,
+                                                                                        m_compiled_submodels[id].device,
+                                                                                        device_config);
+            ++id;
         }
 
         // Restore inputs/outputs from compiled models
-        m_compiled_inputs.reserve(m_inputs_to_submodel_inputs.size());
-        for (const auto& it : m_inputs_to_submodel_inputs) {
+        m_compiled_inputs.reserve(m_inputs_to_submodels_inputs.size());
+        for (const auto& it : m_inputs_to_submodels_inputs) {
             const auto& submodel_idx = it.first;
             const auto& input_idx = it.second;
-            m_compiled_inputs.emplace_back(m_networks[submodel_idx]._network->inputs()[input_idx]);
+            m_compiled_inputs.emplace_back(m_compiled_submodels[submodel_idx].compiled_model->inputs()[input_idx]);
         }
-        m_compiled_outputs.reserve(m_outputs_to_submodel_outputs.size());
-        for (const auto& it : m_outputs_to_submodel_outputs) {
+        m_compiled_outputs.reserve(m_outputs_to_submodels_outputs.size());
+        for (const auto& it : m_outputs_to_submodels_outputs) {
             const auto& submodel_idx = it.first;
             const auto& output_idx = it.second;
-            m_compiled_outputs.emplace_back(m_networks[submodel_idx]._network->outputs()[output_idx]);
+            m_compiled_outputs.emplace_back(m_compiled_submodels[submodel_idx].compiled_model->outputs()[output_idx]);
         }
 
     } catch (const InferenceEngine::Exception& e) {
@@ -447,7 +447,7 @@ ov::hetero::CompiledModel::CompiledModel(std::istream& model,
     pugi::xml_parse_result res = heteroXmlDoc.load_string(heteroXmlStr.c_str());
 
     if (res.status != pugi::status_ok) {
-        OPENVINO_THROW("Error reading HETERO device xml header");
+        OPENVINO_THROW("Fail to read Hetero device xml header");
     }
 
     using namespace pugixml::utils;
@@ -463,20 +463,19 @@ ov::hetero::CompiledModel::CompiledModel(std::istream& model,
 
     m_cfg = ov::hetero::Configuration(properties, m_cfg);
 
-    pugi::xml_node subnetworksNode = heteroNode.child("subnetworks");
-    FOREACH_CHILD (subnetworkNode, subnetworksNode, "subnetwork") {
-        auto deviceName = GetStrAttr(subnetworkNode, "device");
+    pugi::xml_node subnetworksNode = heteroNode.child("compiled_submodels");
+    FOREACH_CHILD (subnetworkNode, subnetworksNode, "compiled_submodel") {
+        auto device = GetStrAttr(subnetworkNode, "device");
 
-        auto metaDevices = get_hetero_plugin()->get_properties_per_device(deviceName, m_cfg.GetHeteroProperties());
+        auto metaDevices = get_hetero_plugin()->get_properties_per_device(device, m_cfg.GetHeteroProperties());
         assert(metaDevices.size() == 1);
-        auto& loadConfig = metaDevices[deviceName];
+        auto& loadConfig = metaDevices[device];
 
         ov::SoPtr<ov::ICompiledModel> compiled_model;
         std::shared_ptr<ov::Model> ov_model;
 
-        bool loaded = false;
-        if (get_plugin()->get_core()->device_supports_model_caching(deviceName)) {
-            compiled_model = plugin->get_core()->import_model(model, deviceName, loadConfig);
+        if (get_plugin()->get_core()->device_supports_model_caching(device)) {
+            compiled_model = plugin->get_core()->import_model(model, device, loadConfig);
         } else {
             // read XML content
             std::string xmlString;
@@ -493,49 +492,48 @@ ov::hetero::CompiledModel::CompiledModel(std::istream& model,
                 model.read(weights.data<char>(), dataSize);
             }
 
-            auto ov_model = plugin->get_core()->read_model(xmlString, weights);
-            compiled_model = plugin->get_core()->compile_model(ov_model, deviceName, loadConfig);
-            loaded = true;
+            ov_model = plugin->get_core()->read_model(xmlString, weights);
+            compiled_model = plugin->get_core()->compile_model(ov_model, device, loadConfig);
         }
 
-        m_networks.emplace_back(ov::hetero::CompiledModel::NetworkDesc{
-            deviceName,
-            loaded ? ov_model : std::shared_ptr<ov::Model>{},
+        m_compiled_submodels.emplace_back(ov::hetero::CompiledModel::CompiledModelDesc{
+            device,
+            ov_model,
             compiled_model,
         });
     }
 
-    auto inputs_map_node = heteroNode.child("inputs_to_submodel_inputs");
+    auto inputs_map_node = heteroNode.child("inputs_to_submodels_inputs");
     FOREACH_CHILD (xml_node, inputs_map_node, "pair") {
-        m_inputs_to_submodel_inputs.emplace_back(GetUInt64Attr(xml_node, "submodel_idx"),
-                                                 GetUInt64Attr(xml_node, "tensor_idx"));
+        m_inputs_to_submodels_inputs.emplace_back(GetUInt64Attr(xml_node, "submodel_idx"),
+                                                  GetUInt64Attr(xml_node, "node_idx"));
     }
-    auto outputs_map_node = heteroNode.child("outputs_to_submodel_outputs");
+    auto outputs_map_node = heteroNode.child("outputs_to_submodels_outputs");
     FOREACH_CHILD (xml_node, outputs_map_node, "pair") {
-        m_outputs_to_submodel_outputs.emplace_back(GetUInt64Attr(xml_node, "submodel_idx"),
-                                                   GetUInt64Attr(xml_node, "tensor_idx"));
+        m_outputs_to_submodels_outputs.emplace_back(GetUInt64Attr(xml_node, "submodel_idx"),
+                                                    GetUInt64Attr(xml_node, "node_idx"));
     }
     auto submodels_input_to_prev_output_node = heteroNode.child("submodels_input_to_prev_output");
     FOREACH_CHILD (xml_node, submodels_input_to_prev_output_node, "record") {
         std::pair<uint64_t, uint64_t> in_pair = {GetUInt64Attr(xml_node, "in_submodel_idx"),
-                                                  GetUInt64Attr(xml_node, "in_tensor_idx")};
+                                                 GetUInt64Attr(xml_node, "in_node_idx")};
         std::pair<uint64_t, uint64_t> out_pair = {GetUInt64Attr(xml_node, "out_submodel_idx"),
-                                                  GetUInt64Attr(xml_node, "out_tensor_idx")};
+                                                  GetUInt64Attr(xml_node, "out_node_idx")};
         m_submodels_input_to_prev_output.emplace(in_pair, out_pair);
     }
 
     // Restore inputs/outputs from compiled models
-    m_compiled_inputs.reserve(m_inputs_to_submodel_inputs.size());
-    for (const auto& it : m_inputs_to_submodel_inputs) {
+    m_compiled_inputs.reserve(m_inputs_to_submodels_inputs.size());
+    for (const auto& it : m_inputs_to_submodels_inputs) {
         const auto& submodel_idx = it.first;
         const auto& input_idx = it.second;
-        m_compiled_inputs.emplace_back(m_networks[submodel_idx]._network->inputs()[input_idx]);
+        m_compiled_inputs.emplace_back(m_compiled_submodels[submodel_idx].compiled_model->inputs()[input_idx]);
     }
-    m_compiled_outputs.reserve(m_outputs_to_submodel_outputs.size());
-    for (const auto& it : m_outputs_to_submodel_outputs) {
+    m_compiled_outputs.reserve(m_outputs_to_submodels_outputs.size());
+    for (const auto& it : m_outputs_to_submodels_outputs) {
         const auto& submodel_idx = it.first;
         const auto& output_idx = it.second;
-        m_compiled_outputs.emplace_back(m_networks[submodel_idx]._network->outputs()[output_idx]);
+        m_compiled_outputs.emplace_back(m_compiled_submodels[submodel_idx].compiled_model->outputs()[output_idx]);
     }
 }
 
@@ -604,18 +602,20 @@ ov::Any ov::hetero::CompiledModel::get_property(const std::string& name) const {
         return to_string_vector(m_cfg.GetSupported());
     } else if (ov::device::properties == name) {
         ov::AnyMap all_devices = {};
-        for (auto&& subnetwork : m_networks) {
+        for (auto&& comp_model_desc : m_compiled_submodels) {
             ov::AnyMap device_properties = {};
-            if (all_devices.count(subnetwork._device) == 0) {
-                auto device_supported_metrics = subnetwork._network->get_property(METRIC_KEY(SUPPORTED_METRICS));
+            if (all_devices.count(comp_model_desc.device) == 0) {
+                auto device_supported_metrics =
+                    comp_model_desc.compiled_model->get_property(METRIC_KEY(SUPPORTED_METRICS));
                 for (auto&& property_name : device_supported_metrics.as<std::vector<std::string>>()) {
-                    device_properties[property_name] = subnetwork._network->get_property(property_name);
+                    device_properties[property_name] = comp_model_desc.compiled_model->get_property(property_name);
                 }
-                auto device_supported_configs = subnetwork._network->get_property(METRIC_KEY(SUPPORTED_CONFIG_KEYS));
+                auto device_supported_configs =
+                    comp_model_desc.compiled_model->get_property(METRIC_KEY(SUPPORTED_CONFIG_KEYS));
                 for (auto&& property_name : device_supported_configs.as<std::vector<std::string>>()) {
-                    device_properties[property_name] = subnetwork._network->get_property(property_name);
+                    device_properties[property_name] = comp_model_desc.compiled_model->get_property(property_name);
                 }
-                all_devices[subnetwork._device] = device_properties;
+                all_devices[comp_model_desc.device] = device_properties;
             }
         }
         return all_devices;
@@ -625,20 +625,20 @@ ov::Any ov::hetero::CompiledModel::get_property(const std::string& name) const {
         return decltype(ov::loaded_from_cache)::value_type{m_loaded_from_cache};
     } else if (ov::optimal_number_of_infer_requests == name) {
         unsigned int value = 0u;
-        for (auto&& desc : m_networks) {
-            value =
-                std::max(value,
-                         desc._network->get_property(ov::optimal_number_of_infer_requests.name()).as<unsigned int>());
+        for (auto&& comp_model_desc : m_compiled_submodels) {
+            value = std::max(value,
+                             comp_model_desc.compiled_model->get_property(ov::optimal_number_of_infer_requests.name())
+                                 .as<unsigned int>());
         }
         return decltype(ov::optimal_number_of_infer_requests)::value_type{value};
     } else if (ov::execution_devices == name) {
         std::vector<std::string> device_names;
         std::set<std::string> s;
-        for (auto&& subnetwork : m_networks) {
-            if (s.count(subnetwork._device) != 0)
+        for (auto&& comp_model_desc : m_compiled_submodels) {
+            if (s.count(comp_model_desc.device) != 0)
                 continue;
-            s.insert(subnetwork._device);
-            device_names.push_back(subnetwork._device);
+            s.insert(comp_model_desc.device);
+            device_names.push_back(comp_model_desc.device);
         }
         return decltype(ov::execution_devices)::value_type{device_names};
     }
@@ -660,35 +660,35 @@ void ov::hetero::CompiledModel::export_model(std::ostream& model_stream) const {
     auto heteroNode = doc.append_child("hetero");
     heteroNode.append_attribute("name").set_value(m_name.c_str());
 
-    auto inputs_map_node = heteroNode.append_child("inputs_to_submodel_inputs");
-    for (auto&& it : m_inputs_to_submodel_inputs) {
+    auto inputs_map_node = heteroNode.append_child("inputs_to_submodels_inputs");
+    for (auto&& it : m_inputs_to_submodels_inputs) {
         auto xml_node = inputs_map_node.append_child("pair");
         xml_node.append_attribute("submodel_idx").set_value(it.first);
-        xml_node.append_attribute("tensor_idx").set_value(it.second);
+        xml_node.append_attribute("node_idx").set_value(it.second);
     }
-    auto outputs_map_node = heteroNode.append_child("outputs_to_submodel_outputs");
-    for (auto&& it : m_outputs_to_submodel_outputs) {
+    auto outputs_map_node = heteroNode.append_child("outputs_to_submodels_outputs");
+    for (auto&& it : m_outputs_to_submodels_outputs) {
         auto xml_node = outputs_map_node.append_child("pair");
         xml_node.append_attribute("submodel_idx").set_value(it.first);
-        xml_node.append_attribute("tensor_idx").set_value(it.second);
+        xml_node.append_attribute("node_idx").set_value(it.second);
     }
-    
+
     auto submodels_input_to_prev_output_node = heteroNode.append_child("submodels_input_to_prev_output");
     for (auto&& it : m_submodels_input_to_prev_output) {
         auto xml_node = submodels_input_to_prev_output_node.append_child("record");
         xml_node.append_attribute("in_submodel_idx").set_value(it.first.first);
-        xml_node.append_attribute("in_tensor_idx").set_value(it.first.second);
+        xml_node.append_attribute("in_node_idx").set_value(it.first.second);
         xml_node.append_attribute("out_submodel_idx").set_value(it.second.first);
-        xml_node.append_attribute("out_tensor_idx").set_value(it.second.second);
+        xml_node.append_attribute("out_node_idx").set_value(it.second.second);
     }
 
-    auto subnetworksNode = heteroNode.append_child("subnetworks");
-    for (auto&& subnetwork : m_networks) {
-        auto subnet = subnetwork._clonedNetwork;
-        OPENVINO_ASSERT(subnet);
+    auto subnetworksNode = heteroNode.append_child("compiled_submodels");
+    for (auto&& comp_model_desc : m_compiled_submodels) {
+        auto sub_comp_model = comp_model_desc.compiled_model;
+        OPENVINO_ASSERT(sub_comp_model);
 
-        auto subnetworkNode = subnetworksNode.append_child("subnetwork");
-        subnetworkNode.append_attribute("device").set_value(subnetwork._device.c_str());
+        auto subnetworkNode = subnetworksNode.append_child("compiled_submodel");
+        subnetworkNode.append_attribute("device").set_value(comp_model_desc.device.c_str());
     }
 
     auto heteroConfigsNode = heteroNode.append_child("hetero_config");
@@ -702,26 +702,24 @@ void ov::hetero::CompiledModel::export_model(std::ostream& model_stream) const {
     doc.reset();
     model_stream << std::endl;
 
-    for (auto&& subnetwork : m_networks) {
-        if (get_plugin()->get_core()->device_supports_model_caching(subnetwork._device)) {
-            subnetwork._network->export_model(model_stream);
+    for (auto&& comp_model_desc : m_compiled_submodels) {
+        if (get_plugin()->get_core()->device_supports_model_caching(comp_model_desc.device)) {
+            comp_model_desc.compiled_model->export_model(model_stream);
         } else {
-            auto subnet = subnetwork._clonedNetwork;
-            if (!subnet) {
-                OPENVINO_THROW("Hetero device supports only OpenVINO Modle representation");
-            }
+            auto model = comp_model_desc.model;
+            if (!model)
+                OPENVINO_THROW("Hetero device supports only OpenVINO Model representation");
 
             std::stringstream xmlFile, binFile;
-            // ov::pass::Serialize serializer(xmlFile, binFile, ov::pass::Serialize::Version::IR_V10);
             ov::pass::Serialize serializer(xmlFile, binFile);
-            serializer.run_on_model(subnet);
+            serializer.run_on_model(model);
 
             auto constants = binFile.str();
-            auto model = xmlFile.str();
+            auto model_str = xmlFile.str();
 
-            auto dataSize = static_cast<std::uint64_t>(model.size());
+            auto dataSize = static_cast<std::uint64_t>(model_str.size());
             model_stream.write(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
-            model_stream.write(model.c_str(), dataSize);
+            model_stream.write(model_str.c_str(), dataSize);
 
             dataSize = static_cast<std::uint64_t>(constants.size());
             model_stream.write(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));

@@ -21,48 +21,45 @@
 #include "openvino/util/common_util.hpp"
 #include "plugin.hpp"
 
-// #include "template/remote_tensor.hpp"
-// #include "variable_state.hpp"
-
 using Time = std::chrono::high_resolution_clock;
 
 ov::hetero::InferRequest::InferRequest(const std::shared_ptr<const ov::hetero::CompiledModel>& compiled_model)
     : ov::ISyncInferRequest(compiled_model) {
     int index = 0;
-    for (auto&& subnetwork : compiled_model->m_networks) {
-        InferRequest::SubRequestDesc desc;
-        desc._network = subnetwork._network;
+    for (auto&& comp_model_desc : compiled_model->m_compiled_submodels) {
+        InferRequest::InferRequestDesc desc;
+        desc.compiled_model = comp_model_desc.compiled_model;
 
         std::string prof_task_name = compiled_model->m_name + "_Req" + std::to_string(index++);
         desc._profilingTask = {
             openvino::itt::handle("Hetero_" + prof_task_name + "_StartPipeline"),
             openvino::itt::handle("Hetero_" + prof_task_name + "_WaitPipline"),
         };
-        desc._request = {desc._network->create_infer_request(), desc._network._so};
-        m_infer_requests.push_back(desc);
+        desc.request = {desc.compiled_model->create_infer_request(), desc.compiled_model._so};
+        m_subrequests.push_back(desc);
     }
 
     for (size_t i = 0; i < compiled_model->inputs().size(); i++) {
         const auto& port = compiled_model->inputs()[i];
-        const auto& submodel_idx = compiled_model->m_inputs_to_submodel_inputs[i].first;
-        m_port_to_request_idx_map[port] = submodel_idx;
+        const auto& submodel_idx = compiled_model->m_inputs_to_submodels_inputs[i].first;
+        m_port_to_subrequest_idx[port] = submodel_idx;
     }
     for (size_t i = 0; i < compiled_model->outputs().size(); i++) {
         const auto& port = compiled_model->outputs()[i];
-        const auto& submodel_idx = compiled_model->m_outputs_to_submodel_outputs[i].first;
-        m_port_to_request_idx_map[port] = submodel_idx;
+        const auto& submodel_idx = compiled_model->m_outputs_to_submodels_outputs[i].first;
+        m_port_to_subrequest_idx[port] = submodel_idx;
     }
 
     for (const auto& kvp : compiled_model->m_submodels_input_to_prev_output) {
         const auto& submodel_idx_in = kvp.first.first;
-        const auto& tensor_idx_in = kvp.first.second;
+        const auto& port_idx_in = kvp.first.second;
         const auto& submodel_idx_out = kvp.second.first;
-        const auto& tensor_idx_out = kvp.second.second;
+        const auto& port_idx_out = kvp.second.second;
 
-        const auto& output_port = m_infer_requests[submodel_idx_out]._network->outputs()[tensor_idx_out];
-        const auto& output_tensor = m_infer_requests[submodel_idx_out]._request->get_tensor(output_port);
-        const auto& input_port = m_infer_requests[submodel_idx_in]._network->inputs()[tensor_idx_in];
-        m_infer_requests[submodel_idx_in]._request->set_tensor(input_port, output_tensor);
+        const auto& output_port = m_subrequests[submodel_idx_out].compiled_model->outputs()[port_idx_out];
+        const auto& output_tensor = m_subrequests[submodel_idx_out].request->get_tensor(output_port);
+        const auto& input_port = m_subrequests[submodel_idx_in].compiled_model->inputs()[port_idx_in];
+        m_subrequests[submodel_idx_in].request->set_tensor(input_port, output_tensor);
     }
 }
 
@@ -76,10 +73,10 @@ ov::SoPtr<ov::IAsyncInferRequest> ov::hetero::InferRequest::get_request(const ov
                 node1->outputs().size() == node2->outputs().size() && node1->inputs().size() == node2->inputs().size());
     };
 
-    for (const auto& kvp : m_port_to_request_idx_map) {
+    for (const auto& kvp : m_port_to_subrequest_idx) {
         if (kvp.first.get_index() == port.get_index() && kvp.first.get_names() == port.get_names() &&
             check_nodes(kvp.first.get_node(), port.get_node())) {
-            return m_infer_requests[kvp.second]._request;
+            return m_subrequests[kvp.second].request;
         }
     }
     OPENVINO_THROW("Cannot find infer request for port ", port);
@@ -98,7 +95,7 @@ std::vector<ov::Tensor> ov::hetero::InferRequest::get_tensors(const ov::Output<c
 }
 
 void ov::hetero::InferRequest::set_tensors(const ov::Output<const ov::Node>& port,
-                                        const std::vector<ov::Tensor>& tensors) {
+                                           const std::vector<ov::Tensor>& tensors) {
     return get_request(port)->set_tensors(port, tensors);
 }
 
@@ -110,9 +107,9 @@ void ov::hetero::InferRequest::check_tensors() const {
 
 std::vector<std::shared_ptr<ov::IVariableState>> ov::hetero::InferRequest::query_state() const {
     std::vector<std::shared_ptr<ov::IVariableState>> variable_states = {};
-    for (auto&& desc : m_infer_requests) {
-        auto& r = desc._request;
-        assert(r);
+    for (auto&& desc : m_subrequests) {
+        auto& r = desc.request;
+        OPENVINO_ASSERT(r);
         for (auto&& state : r->query_state()) {
             variable_states.emplace_back(state);
         }
@@ -134,9 +131,9 @@ void ov::hetero::InferRequest::infer() {
 
 void ov::hetero::InferRequest::start_pipeline() {
     auto start = Time::now();
-    for (auto&& desc : m_infer_requests) {
+    for (auto&& desc : m_subrequests) {
         OV_ITT_SCOPED_TASK(itt::domains::Hetero, desc._profilingTask[StartPipeline])
-        auto& request = desc._request;
+        auto& request = desc.request;
         OPENVINO_ASSERT(request);
         request->infer();
     }
@@ -145,9 +142,9 @@ void ov::hetero::InferRequest::start_pipeline() {
 
 void ov::hetero::InferRequest::wait_pipeline() {
     auto start = Time::now();
-    for (auto&& desc : m_infer_requests) {
+    for (auto&& desc : m_subrequests) {
         OV_ITT_SCOPED_TASK(itt::domains::Hetero, desc._profilingTask[WaitPipeline])
-        auto& request = desc._request;
+        auto& request = desc.request;
         OPENVINO_ASSERT(request);
         request->wait();
     }
@@ -169,7 +166,7 @@ std::vector<ov::ProfilingInfo> ov::hetero::InferRequest::get_profiling_info() co
 }
 
 void ov::hetero::InferRequest::cancel() {
-    for (auto&& desc : m_infer_requests) {
-        desc._request->cancel();
+    for (auto&& desc : m_subrequests) {
+        desc.request->cancel();
     }
 }

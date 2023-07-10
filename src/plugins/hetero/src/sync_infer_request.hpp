@@ -11,7 +11,6 @@
 #include <string>
 #include <vector>
 
-// #include "executable.hpp"
 #include "ngraph/runtime/tensor.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/itt.hpp"
@@ -39,13 +38,12 @@ public:
 
     ov::Tensor get_tensor(const ov::Output<const ov::Node>& port) const override;
     void set_tensor(const ov::Output<const ov::Node>& port, const ov::Tensor& tensor) override;
-    std::vector<ov::Tensor>  get_tensors(const ov::Output<const ov::Node>& port) const override;
+    std::vector<ov::Tensor> get_tensors(const ov::Output<const ov::Node>& port) const override;
     void set_tensors(const ov::Output<const ov::Node>& port, const std::vector<ov::Tensor>& tensors) override;
 
     void check_tensors() const override;
 
 private:
-    // friend class CompiledModel;
     friend class AsyncInferRequest;
 
     std::shared_ptr<const CompiledModel> get_hetero_model() const;
@@ -53,14 +51,14 @@ private:
 
     enum { StartPipeline, WaitPipeline, numOfStages };
 
-    struct SubRequestDesc {
-        ov::SoPtr<ov::ICompiledModel> _network;
-        ov::SoPtr<ov::IAsyncInferRequest> _request;
+    struct InferRequestDesc {
+        ov::SoPtr<ov::ICompiledModel> compiled_model;
+        ov::SoPtr<ov::IAsyncInferRequest> request;
         std::array<openvino::itt::handle_t, numOfStages> _profilingTask;
     };
 
-    std::vector<SubRequestDesc> m_infer_requests;
-    std::map<ov::Output<const ov::Node>, size_t> m_port_to_request_idx_map;
+    std::vector<InferRequestDesc> m_subrequests;
+    std::map<ov::Output<const ov::Node>, size_t> m_port_to_subrequest_idx;
 
     // for performance counters
     std::array<std::chrono::duration<float, std::micro>, numOfStages> m_durations;

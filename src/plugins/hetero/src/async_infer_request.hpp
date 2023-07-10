@@ -24,9 +24,8 @@ public:
 
 private:
     std::function<void()> m_cancel_callback;
-    // std::shared_ptr<ov::threading::ITaskExecutor> m_wait_executor;
 
-    std::shared_ptr<InferRequest> _heteroInferRequest;
+    std::shared_ptr<InferRequest> m_infer_request;
 };
 
 }  // namespace hetero

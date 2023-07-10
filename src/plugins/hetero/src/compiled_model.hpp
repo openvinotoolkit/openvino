@@ -59,19 +59,19 @@ private:
     const bool m_loaded_from_cache;
     std::vector<ov::Output<const ov::Node>> m_compiled_inputs;
     std::vector<ov::Output<const ov::Node>> m_compiled_outputs;
-    std::vector<std::pair<uint64_t /*submodel_idx*/, uint64_t /*tensor_idx*/>> m_inputs_to_submodel_inputs,
-        m_outputs_to_submodel_outputs;
-    std::map<std::pair<uint64_t /*submodel_idx*/, uint64_t /*tensor_idx*/>,
-             std::pair<uint64_t /*submodel_idx*/, uint64_t /*tensor_idx*/>>
+    std::vector<std::pair<uint64_t /*submodel_idx*/, uint64_t /*node_idx*/>> m_inputs_to_submodels_inputs,
+        m_outputs_to_submodels_outputs;
+    std::map<std::pair<uint64_t /*submodel_idx*/, uint64_t /*node_idx*/>,
+             std::pair<uint64_t /*submodel_idx*/, uint64_t /*node_idx*/>>
         m_submodels_input_to_prev_output;
 
-    struct NetworkDesc {
-        std::string _device;
-        std::shared_ptr<ov::Model> _clonedNetwork;
-        ov::SoPtr<ov::ICompiledModel> _network;
+    struct CompiledModelDesc {
+        std::string device;
+        std::shared_ptr<ov::Model> model;
+        ov::SoPtr<ov::ICompiledModel> compiled_model;
     };
 
-    std::vector<NetworkDesc> m_networks;
+    std::vector<CompiledModelDesc> m_compiled_submodels;
 };
 }  // namespace hetero
 }  // namespace ov
