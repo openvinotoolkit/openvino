@@ -70,6 +70,14 @@ public:
 
 /**
  * @brief Inserts identity for precision agnostic (or FQ) concat inputs
+ * Scale factor propagation requires unified scale factors for each Concat input.
+ * If some input does not contain any layer, which is capable of storing scale factors,
+ * additional layer must be introduced.
+ * InsertIdentityForPrecAgnosticConcatInput pass adds Identity layer, which
+ * is capable of storing scale factors, so the scale factors propagation can proceed.
+ * Note: Identity will be added to all affected inputs.
+ * Note: Algorighm does not depend on inputs order.
+ *
  * Example model:
  *
  *                         Parameter
@@ -80,11 +88,7 @@ public:
  *                  |
  *               Result
  *
- * For the above model, during scale factors propagation, when one Concat input
- * will be selected as a scale factors source, then algorithm will not be able to
- * apply the scale factors to the second Concat input and will throw exception.
- * InsertIdentityForPrecAgnosticConcatInput pass adds Identity layer, which
- * is capable of storing scale factors, so the scale factors propagation can proceed:
+ * After execution:
  *
  *                    Parameter
  *                        |
@@ -96,8 +100,6 @@ public:
  *                  |
  *               Result
  *
- * Note: Identity will be added to all affected inputs.
- * Note: Algorighm does not depend on inputs order.
  */
 class InsertIdentityForPrecAgnosticConcatInput : public ov::pass::ModelPass {
 public:
