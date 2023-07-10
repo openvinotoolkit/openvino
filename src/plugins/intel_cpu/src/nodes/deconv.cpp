@@ -815,7 +815,8 @@ void Deconvolution::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc
         convolution_backward_data::primitive_desc deconv_desc;
         convolution_forward::primitive_desc fwd_conv_pd;
         std::tie(deconv_desc, fwd_conv_pd) = createDescriptorInternalDefault(in_candidate, wgh_candidate, out_candidate, dnnl::algorithm::convolution_direct,
-                                                                                stride, dilation, paddingL, paddingR, *attr, getEngine());
+                                                                             deconvAttrs.stride, deconvAttrs.dilation, deconvAttrs.paddingL,
+                                                                             deconvAttrs.paddingR, *attr, getEngine());
         IE_ASSERT(fwd_conv_pd &&  deconv_desc && deconv_desc.get(true) != nullptr)
                 << "Failed to create convolution_backward_data::primitive_desc: " << "Node: ##" << getName();
         fwdConvPD.push_back(fwd_conv_pd); // oneDNN requires forward pd to exists until primitive is created

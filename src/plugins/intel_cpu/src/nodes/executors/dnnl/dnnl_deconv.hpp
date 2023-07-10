@@ -73,13 +73,12 @@ public:
               const std::vector<MemoryPtr>& dst,
               const void *post_ops_data_,
               const dnnl::stream &strm) override;
-    impl_desc_type getImplType() const override { return implType; }
-    std::shared_ptr<DnnlExecutor> dnnlExecPtr = nullptr;
+    impl_desc_type getImplType() const override { return dnnlExecPtr->getImplementationType(); }
 
 private:
     DeconvAttrs dnnlDeconvAttrs;
-    impl_desc_type implType = impl_desc_type::any;
     std::shared_ptr<std::unordered_map<int, dnnl::memory>> primArgsPtr;
+    std::shared_ptr<DnnlExecutor> dnnlExecPtr = nullptr;
 
     class DeconvExecutorDefault : public DnnlExecutor {
     public:
