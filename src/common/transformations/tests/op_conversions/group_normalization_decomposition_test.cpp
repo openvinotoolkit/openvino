@@ -21,7 +21,7 @@ using namespace opset12;
 using namespace element;
 
 namespace {
-std::shared_ptr<Model> gen_model(std::vector<PartialShape> input_shapes,
+std::shared_ptr<Model> gen_model(const std::vector<PartialShape>& input_shapes,
                                  element::Type elem_type,
                                  int64_t num_groups,
                                  double eps) {
@@ -34,7 +34,7 @@ std::shared_ptr<Model> gen_model(std::vector<PartialShape> input_shapes,
     return std::make_shared<Model>(OutputVector{group_norm->output(0)}, ParameterVector{data, scale, bias});
 }
 
-std::shared_ptr<Model> gen_model_ref(std::vector<PartialShape> input_shapes,
+std::shared_ptr<Model> gen_model_ref(const std::vector<PartialShape>& input_shapes,
                                      element::Type elem_type,
                                      int64_t num_groups,
                                      float eps) {
