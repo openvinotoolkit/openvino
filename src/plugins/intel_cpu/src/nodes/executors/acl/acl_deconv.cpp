@@ -48,17 +48,13 @@ bool AclDeconvExecutor::init(const DeconvAttrs& deconvAttrs,
     unsigned int pad_b = deconvAttrs.paddingR.at(0);
     unsigned int stride_x = deconvAttrs.stride.at(1);
     unsigned int stride_y = deconvAttrs.stride.at(0);
-    unsigned int dilation_x = deconvAttrs.dilation.at(1) + 1;
-    unsigned int dilation_y = deconvAttrs.dilation.at(0) + 1;
 
     arm_compute::PadStrideInfo deconv_info(stride_x, stride_y, pad_l, pad_r, pad_t, pad_b, arm_compute::DimensionRoundingType::FLOOR);
-    arm_compute::Size2D dilation(dilation_x, dilation_y);
-
     arm_compute::Status status = arm_compute::NEDeconvolutionLayer::validate(&srcTensorInfo,
-                                                                           &weiTensorInfo,
-                                                                           deconvAttrs.withBiases ? &biasTensorInfo : nullptr,
-                                                                           &dstTensorInfo,
-                                                                           deconv_info);
+                                                                             &weiTensorInfo,
+                                                                             deconvAttrs.withBiases ? &biasTensorInfo : nullptr,
+                                                                             &dstTensorInfo,
+                                                                             deconv_info);
     if (!status) {
         DEBUG_LOG("NEDeconvolutionLayer validation failed: ", status.error_description());
         return false;
@@ -77,7 +73,7 @@ bool AclDeconvExecutor::init(const DeconvAttrs& deconvAttrs,
 }
 
 static void transpose_to_1023(const MemoryCPtr& srcMemPtr, std::vector<float>& dst_data) {
-    const auto src_data = reinterpret_cast<float*>(srcMemPtr->GetPtr());
+    const auto src_data = reinterpret_cast<float*>(srcMemPtr->getData());
 
     const int DIM0 = srcMemPtr->getStaticDims()[0];
     const int DIM1 = srcMemPtr->getStaticDims()[1];
@@ -109,12 +105,11 @@ void AclDeconvExecutor::exec(const std::vector<MemoryCPtr>& src, const std::vect
                                  src[1]->getStaticDims()[3]);
     transpose_to_1023(src[1], weiBuffer);
 
-    srcTensor.allocator()->import_memory(src[0]->GetPtr());
-    dstTensor.allocator()->import_memory(dst[0]->GetPtr());
+    srcTensor.allocator()->import_memory(src[0]->getData());
+    dstTensor.allocator()->import_memory(dst[0]->getData());
     weiTensor.allocator()->import_memory(weiBuffer.data());
     if (deconvAttrs.withBiases)
-        biasTensor.allocator()->import_memory(src[2]->GetPtr());
-
+        biasTensor.allocator()->import_memory(src[2]->getData());
     deconv->run();
 
     srcTensor.allocator()->free();

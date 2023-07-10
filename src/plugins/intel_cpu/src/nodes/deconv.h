@@ -9,7 +9,7 @@
 #include <memory>
 #include <string>
 #include <vector>
-#include "executors/deconv_list.hpp"
+#include "common/dnnl_executor.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -20,7 +20,6 @@ public:
     Deconvolution(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
 
     void getSupportedDescriptors() override;
-    void initSupportedPrimitiveDescriptors() override;
     void createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
                           const std::vector<MemoryDescPtr>& outputDesc) override;
     void createPrimitive() override;
@@ -42,7 +41,7 @@ public:
     bool canFuse(const NodePtr& node) const override;
 
     const VectorDims& getWeightDims() const { return getInputShapeAtPort(1).getStaticDims(); }
-    const std::vector<ptrdiff_t>& getStride() const { return deconvAttrs.stride; }
+    const std::vector<ptrdiff_t>& getStride() const { return stride; }
 
     void prepareParams() override;
     void execute(dnnl::stream strm) override;
@@ -59,14 +58,46 @@ protected:
 
 private:
     using executorPtr = std::shared_ptr<DnnlExecutor>;
-    std::shared_ptr<DeconvExecutor> execPtrDeconv = nullptr;
+    executorPtr execPtr = nullptr;
 
+    class DeconvExecutorDefault : public DnnlExecutor {
+        public:
+            DeconvExecutorDefault(const dnnl::convolution_backward_data::primitive_desc& pd,
+                                  const dnnl::memory::desc& inMemDesc,
+                                  const dnnl::memory::desc& weightMemDesc,
+                                  const dnnl::memory::desc& outMemDesc,
+                                  const dnnl::engine& engine);
+    };
+
+    class DeconvExecutorInt8 : public DnnlExecutor {
+        public:
+            DeconvExecutorInt8(const dnnl::deconvolution_forward::primitive_desc& pd,
+                               const dnnl::memory::desc& inMemDesc,
+                               const dnnl::memory::desc& weightMemDesc,
+                               const dnnl::memory::desc& outMemDesc,
+                               const dnnl::engine& engine);
+    };
     // have to hold reference (shared_ptr) to forward convolution primitive_desc
     // since backward one uses the reference to it as a hint
     std::vector<dnnl::convolution_forward::primitive_desc> fwdConvPD;
 
-    bool useACL = false;
-    DeconvAttrs deconvAttrs;
+    bool withGroups = false;
+    bool isDW = false;
+    bool isInt8 = false;
+    bool autoPad = false;
+    bool externOutShape = false;
+    size_t groupNum = 1;
+    size_t IC = 0;
+    size_t OC = 0;
+    std::vector<ptrdiff_t> kernel;
+    std::vector<ptrdiff_t> stride;
+    std::vector<ptrdiff_t> dilation;
+    ov::CoordinateDiff paddingL;
+    ov::CoordinateDiff paddingR;
+    ov::CoordinateDiff outputPadding;
+    std::vector<int32_t> lastOutputSpatialDims;
+    VectorDims int8WeightDims;
+    VectorDims expectedBiasDims {};
 
     Shape inShape;
 
@@ -81,6 +112,7 @@ private:
     void initPaddingR(const Shape &inShape, const Shape &outShape);
     std::vector<int32_t> readOutputSpatialDims() const;
     std::pair<VectorDims, VectorDims> makeDummyInOutShape();
+    bool withBiases = false;
     size_t biasPort;
 
     std::string errorPrefix;

@@ -13,17 +13,18 @@
 namespace ov {
 namespace intel_cpu {
 
-DefaultDeconvDescs createDescriptorInternalDefault(const dnnl::memory::desc& in_candidate,
-                                                   const dnnl::memory::desc& wgh_candidate,
-                                                   const dnnl::memory::desc& out_candidate,
+namespace {
+DefaultDeconvDescs createDescriptorInternalDefault(const dnnl::memory::desc &in_candidate,
+                                                   const dnnl::memory::desc &wgh_candidate,
+                                                   const dnnl::memory::desc &out_candidate,
                                                    const dnnl::algorithm alg,
-                                                   const std::vector<ptrdiff_t>& stride,
-                                                   const std::vector<ptrdiff_t>& dilation,
-                                                   const ov::CoordinateDiff& paddingL,
-                                                   const ov::CoordinateDiff& paddingR,
-                                                   const dnnl::primitive_attr& attr,
-                                                   const dnnl::engine& engine) {
-    auto convertDims = [] (const std::vector<ptrdiff_t>& orig_dims) {
+                                                   const std::vector<ptrdiff_t> &stride,
+                                                   const std::vector<ptrdiff_t> &dilation,
+                                                   const ov::CoordinateDiff &paddingL,
+                                                   const ov::CoordinateDiff &paddingR,
+                                                   const dnnl::primitive_attr &attr,
+                                                   const dnnl::engine &engine) {
+    auto convertDims = [](const std::vector<ptrdiff_t> &orig_dims) {
         return dnnl::memory::dims(orig_dims.begin(), orig_dims.end());
     };
 
@@ -60,18 +61,18 @@ DefaultDeconvDescs createDescriptorInternalDefault(const dnnl::memory::desc& in_
     return {deconv_desc, conv_desc};
 }
 
-dnnl::primitive_desc createDescriptorInternalInt8(const dnnl::memory::desc& in_candidate,
-                                                  const dnnl::memory::desc& wgh_candidate,
-                                                  const dnnl::memory::desc& bias_candidate,
-                                                  const dnnl::memory::desc& out_candidate,
+dnnl::primitive_desc createDescriptorInternalInt8(const dnnl::memory::desc &in_candidate,
+                                                  const dnnl::memory::desc &wgh_candidate,
+                                                  const dnnl::memory::desc &bias_candidate,
+                                                  const dnnl::memory::desc &out_candidate,
                                                   const bool with_bias,
-                                                  const std::vector<ptrdiff_t>& stride,
-                                                  const std::vector<ptrdiff_t>& dilation,
-                                                  const ov::CoordinateDiff& paddingL,
-                                                  const ov::CoordinateDiff& paddingR,
-                                                  const dnnl::primitive_attr& attr,
-                                                  const dnnl::engine& engine) {
-    auto convertDims = [] (const std::vector<ptrdiff_t>& orig_dims) {
+                                                  const std::vector<ptrdiff_t> &stride,
+                                                  const std::vector<ptrdiff_t> &dilation,
+                                                  const ov::CoordinateDiff &paddingL,
+                                                  const ov::CoordinateDiff &paddingR,
+                                                  const dnnl::primitive_attr &attr,
+                                                  const dnnl::engine &engine) {
+    auto convertDims = [](const std::vector<ptrdiff_t> &orig_dims) {
         return dnnl::memory::dims(orig_dims.begin(), orig_dims.end());
     };
 
@@ -96,20 +97,22 @@ dnnl::primitive_desc createDescriptorInternalInt8(const dnnl::memory::desc& in_c
     }
 }
 
-DefaultDeconvDescs createDefaultMkldnnDeconvDesc(const dnnl::memory::desc& srcDesc,
-                                                 const dnnl::memory::desc& wghDesc,
-                                                 const dnnl::memory::desc& dstDesc,
+DefaultDeconvDescs createDefaultMkldnnDeconvDesc(const dnnl::memory::desc &srcDesc,
+                                                 const dnnl::memory::desc &wghDesc,
+                                                 const dnnl::memory::desc &dstDesc,
                                                  bool isWinograd,
-                                                 const std::vector<ptrdiff_t>& stride,
-                                                 const std::vector<ptrdiff_t>& dilation,
-                                                 const ov::CoordinateDiff& paddingL,
-                                                 const ov::CoordinateDiff& paddingR,
-                                                 const dnnl::primitive_attr& attr,
-                                                 const dnnl::engine& engine) {
+                                                 const std::vector<ptrdiff_t> &stride,
+                                                 const std::vector<ptrdiff_t> &dilation,
+                                                 const ov::CoordinateDiff &paddingL,
+                                                 const ov::CoordinateDiff &paddingR,
+                                                 const dnnl::primitive_attr &attr,
+                                                 const dnnl::engine &engine) {
     dnnl::algorithm alg = isWinograd ? dnnl::algorithm::convolution_winograd : dnnl::algorithm::convolution_direct;
     dnnl::convolution_backward_data::primitive_desc deconv_desc;
     dnnl::convolution_forward::primitive_desc fwd_conv_pd;
-    std::tie(deconv_desc, fwd_conv_pd) = createDescriptorInternalDefault(srcDesc, wghDesc, dstDesc, alg, stride, dilation, paddingL, paddingR, attr, engine);
+    std::tie(deconv_desc, fwd_conv_pd) = createDescriptorInternalDefault(srcDesc, wghDesc, dstDesc, alg, stride,
+                                                                         dilation, paddingL, paddingR, attr,
+                                                                         engine);
     if (fwd_conv_pd.get(true) == nullptr) {
         IE_THROW() << "Forward convolution primitive descriptor is nullable";
     }
@@ -117,20 +120,22 @@ DefaultDeconvDescs createDefaultMkldnnDeconvDesc(const dnnl::memory::desc& srcDe
     return {deconv_desc, fwd_conv_pd};
 }
 
-dnnl::primitive_desc createInt8MkldnnDeconvDesc(const dnnl::memory::desc& srcDesc,
-                                                const dnnl::memory::desc& wghDesc,
-                                                const dnnl::memory::desc& biasDesc,
-                                                const dnnl::memory::desc& dstDesc,
+dnnl::primitive_desc createInt8MkldnnDeconvDesc(const dnnl::memory::desc &srcDesc,
+                                                const dnnl::memory::desc &wghDesc,
+                                                const dnnl::memory::desc &biasDesc,
+                                                const dnnl::memory::desc &dstDesc,
                                                 const bool withBias,
-                                                const std::vector<ptrdiff_t>& stride,
-                                                const std::vector<ptrdiff_t>& dilation,
-                                                const ov::CoordinateDiff& paddingL,
-                                                const ov::CoordinateDiff& paddingR,
-                                                const dnnl::primitive_attr& attr,
-                                                const dnnl::engine& engine) {
+                                                const std::vector<ptrdiff_t> &stride,
+                                                const std::vector<ptrdiff_t> &dilation,
+                                                const ov::CoordinateDiff &paddingL,
+                                                const ov::CoordinateDiff &paddingR,
+                                                const dnnl::primitive_attr &attr,
+                                                const dnnl::engine &engine) {
     return createDescriptorInternalInt8(
             srcDesc, wghDesc, biasDesc, dstDesc, withBias, stride, dilation, paddingL, paddingR, attr, engine);
 }
+
+} // namespace
 
 DNNLDeconvExecutor::DeconvExecutorDefault::DeconvExecutorDefault(const dnnl::convolution_backward_data::primitive_desc& pd,
                                                             const dnnl::memory::desc& inMemDesc,
