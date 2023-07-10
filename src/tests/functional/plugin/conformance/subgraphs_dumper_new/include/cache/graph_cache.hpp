@@ -5,6 +5,8 @@
 #pragma once
 
 #include "cache/cache.hpp"
+
+#include "cache/meta/input_info.hpp"
 #include "matchers/subgraph/subgraph.hpp"
 #include "matchers/subgraph/fused_names.hpp"
 #include "matchers/subgraph/repeat_pattern.hpp"
@@ -42,6 +44,9 @@ private:
         };
         m_manager.set_matchers(matchers);
     }
+
+    void update_cache(const std::shared_ptr<ov::Model>& model, const std::string& model_path,
+                      const std::map<std::string, InputInfo>& input_info, size_t model_op_cnt);
 };
 
 }  // namespace subgraph_dumper

@@ -37,9 +37,9 @@ bool MatchersManager::match(const std::shared_ptr<ov::Model> &model,
     return false;
 }
 
-std::list<BaseMatcher::ExtractedPattern>
+std::list<ExtractedPattern>
 MatchersManager::run_extractors(const std::shared_ptr<ov::Model> &model) {
-    std::list<BaseMatcher::ExtractedPattern> result;
+    std::list<ExtractedPattern> result;
     for (const auto &it : m_matchers) {
         auto extracted_patterns = it.second->extract(model);
         result.insert(result.end(), extracted_patterns.begin(), extracted_patterns.end());

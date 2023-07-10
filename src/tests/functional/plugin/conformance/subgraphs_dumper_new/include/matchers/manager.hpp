@@ -22,7 +22,7 @@ public:
     bool match(const std::shared_ptr<ov::Model> &model,
                const std::shared_ptr<ov::Model> &ref_model);
 
-    std::list<BaseMatcher::ExtractedPattern> run_extractors(const std::shared_ptr<ov::Model> &model);
+    std::list<ExtractedPattern> run_extractors(const std::shared_ptr<ov::Model> &model);
 
     void set_matchers(const MatchersMap& matchers = {}) { m_matchers = matchers; }
     const MatchersMap& get_matchers() { return m_matchers; }

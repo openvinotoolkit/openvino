@@ -13,12 +13,11 @@
 
 using namespace ov::tools::subgraph_dumper;
 
-std::list<BaseMatcher::ExtractedPattern>
+std::list<ExtractedPattern>
 FusedNamesMatcher::extract(const std::shared_ptr<ov::Model> &model) {
-    std::list<BaseMatcher::ExtractedPattern> matched_patterns;
+    std::list<ExtractedPattern> matched_patterns;
     auto core = ov::test::utils::PluginCache::get().core();
     auto compiled_model = core->compile_model(model);
-    bool is_graph_started = false;
     std::map<std::string, std::shared_ptr<ov::Node>> model_map;
     std::unordered_set<std::string> compiled_op_name;
     for (const auto& compiled_op : compiled_model.get_runtime_model()->get_ordered_ops()) {

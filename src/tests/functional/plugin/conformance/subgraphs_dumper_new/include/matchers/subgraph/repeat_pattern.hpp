@@ -14,7 +14,7 @@ namespace subgraph_dumper {
 
 class RepeatPatternMatcher : public SubgraphMatcher {
 public:
-    std::list<BaseMatcher::ExtractedPattern> extract(const std::shared_ptr<ov::Model> &model) override;
+    std::list<ExtractedPattern> extract(const std::shared_ptr<ov::Model> &model) override;
 };
 
 }  // namespace subgraph_dumper

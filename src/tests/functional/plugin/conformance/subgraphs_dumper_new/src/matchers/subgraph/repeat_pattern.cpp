@@ -6,7 +6,7 @@
 
 using namespace ov::tools::subgraph_dumper;
 
-std::list<BaseMatcher::ExtractedPattern>
+std::list<ExtractedPattern>
 RepeatPatternMatcher::extract(const std::shared_ptr<ov::Model> &model) {
     return {};
 }

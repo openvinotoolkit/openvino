@@ -22,35 +22,38 @@ void GraphCache::update_cache(const std::shared_ptr<ov::Model>& model, const std
     if (extracted_patterns.empty()) {
         return;
     }
-    for (const auto& cached_pattern : m_graph_cache) {
+    while (!extracted_patterns.empty()) {
         auto it = extracted_patterns.begin();
-        while (it != extracted_patterns.end()) {
-            if (m_manager.match(cached_pattern.first, it->first)) {
-                break;
-            }
-            ++it;
-        }
-        if (it == extracted_patterns.end()) {
-            continue;
-        }
-        auto cached_model_size = cached_pattern.first->get_graph_size();
-        auto pattern_model_size = it->first->get_graph_size();
-        if (pattern_model_size < cached_model_size) {
-            auto meta = cached_pattern.second;
-            meta.update(model_meta_data, it->second, model_total_op);
-            m_graph_cache.erase(cached_pattern.first);
-            m_graph_cache.insert({it->first, meta});
-        } else {
-            m_graph_cache[cached_pattern.first].update(model_meta_data, it->second, model_total_op);
-        }
-        extracted_patterns.erase(it);
-    }
-
-    for (const auto& extracted_pattern : extracted_patterns) {
-        auto meta = MetaInfo(model_meta_data, extracted_pattern.second, model_total_op);
-        m_graph_cache.insert({model, meta});
+        update_cache(it->first, model_meta_data, it->second, model_total_op);
+        extracted_patterns.pop_front();
     }
     return;
+}
+
+void GraphCache::update_cache(const std::shared_ptr<ov::Model>& extracted_model, const std::string& model_path,
+                              const std::map<std::string, InputInfo>& input_info, size_t model_op_cnt) {
+    std::shared_ptr<ov::Model> model_to_update = nullptr;
+    for (const auto& cached_model : m_graph_cache) {
+        if (m_manager.match(cached_model.first, extracted_model)) {
+            model_to_update = cached_model.first;
+            break;
+        }
+    }
+    if (model_to_update == nullptr) {
+        auto meta = MetaInfo(model_path, input_info, model_op_cnt);
+        m_graph_cache.insert({ extracted_model, meta });
+        return;
+    }
+    auto cached_model_size = model_to_update->get_graph_size();
+    auto pattern_model_size = extracted_model->get_graph_size();
+    if (pattern_model_size < cached_model_size) {
+        auto meta = m_graph_cache[model_to_update];
+        meta.update(model_path, input_info, model_op_cnt);
+        m_graph_cache.erase(model_to_update);
+        m_graph_cache.insert({extracted_model, meta});
+    } else {
+        m_graph_cache[model_to_update].update(model_path, input_info, model_op_cnt);
+    }
 }
 
 void GraphCache::serialize_cache() {

@@ -18,7 +18,6 @@ namespace subgraph_dumper {
 class BaseMatcher {
 public:
     using Ptr = std::shared_ptr<BaseMatcher>;
-    using ExtractedPattern = std::pair<std::shared_ptr<ov::Model>, std::map<std::string, InputInfo>>;
 
     BaseMatcher() = default;
 
