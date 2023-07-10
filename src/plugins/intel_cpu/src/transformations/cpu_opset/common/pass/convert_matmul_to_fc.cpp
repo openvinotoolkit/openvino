@@ -159,6 +159,7 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
         if (is_convert) {
             auto convert = pattern_map.at(weights_m).get_node_shared_ptr();
             convert->input(0).replace_source_output(fc_input_b);
+            convert->validate_and_infer_types();
             fc_input_b = convert;
         }
         // Create FullyConnected
