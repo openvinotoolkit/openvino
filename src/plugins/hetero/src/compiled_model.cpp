@@ -649,23 +649,23 @@ void ov::hetero::CompiledModel::export_model(std::ostream& model_stream) const {
     auto inputs_map_node = heteroNode.append_child("inputs_to_submodels_inputs");
     for (const auto& it : m_inputs_to_submodels_inputs) {
         auto xml_node = inputs_map_node.append_child("pair");
-        xml_node.append_attribute("submodel_idx").set_value(it.first);
-        xml_node.append_attribute("node_idx").set_value(it.second);
+        xml_node.append_attribute("submodel_idx").set_value(static_cast<unsigned long>(it.first));
+        xml_node.append_attribute("node_idx").set_value(static_cast<unsigned long>(it.second));
     }
     auto outputs_map_node = heteroNode.append_child("outputs_to_submodels_outputs");
     for (const auto& it : m_outputs_to_submodels_outputs) {
         auto xml_node = outputs_map_node.append_child("pair");
-        xml_node.append_attribute("submodel_idx").set_value(it.first);
-        xml_node.append_attribute("node_idx").set_value(it.second);
+        xml_node.append_attribute("submodel_idx").set_value(static_cast<unsigned long>(it.first));
+        xml_node.append_attribute("node_idx").set_value(static_cast<unsigned long>(it.second));
     }
 
     auto submodels_input_to_prev_output_node = heteroNode.append_child("submodels_input_to_prev_output");
     for (const auto& it : m_submodels_input_to_prev_output) {
         auto xml_node = submodels_input_to_prev_output_node.append_child("record");
-        xml_node.append_attribute("in_submodel_idx").set_value(it.first.first);
-        xml_node.append_attribute("in_node_idx").set_value(it.first.second);
-        xml_node.append_attribute("out_submodel_idx").set_value(it.second.first);
-        xml_node.append_attribute("out_node_idx").set_value(it.second.second);
+        xml_node.append_attribute("in_submodel_idx").set_value(static_cast<unsigned long>(it.first.first));
+        xml_node.append_attribute("in_node_idx").set_value(static_cast<unsigned long>(it.first.second));
+        xml_node.append_attribute("out_submodel_idx").set_value(static_cast<unsigned long>(it.second.first));
+        xml_node.append_attribute("out_node_idx").set_value(static_cast<unsigned long>(it.second.second));
     }
 
     auto subnetworksNode = heteroNode.append_child("compiled_submodels");

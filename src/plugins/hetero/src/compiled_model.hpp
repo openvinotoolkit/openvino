@@ -57,10 +57,10 @@ private:
     const bool m_loaded_from_cache;
     std::vector<ov::Output<const ov::Node>> m_compiled_inputs;
     std::vector<ov::Output<const ov::Node>> m_compiled_outputs;
-    std::vector<std::pair<uint64_t /*submodel_idx*/, uint64_t /*node_idx*/>> m_inputs_to_submodels_inputs,
+    std::vector<std::pair<size_t /*submodel_idx*/, size_t /*node_idx*/>> m_inputs_to_submodels_inputs,
         m_outputs_to_submodels_outputs;
-    std::map<std::pair<uint64_t /*submodel_idx*/, uint64_t /*node_idx*/>,
-             std::pair<uint64_t /*submodel_idx*/, uint64_t /*node_idx*/>>
+    std::map<std::pair<size_t /*submodel_idx*/, size_t /*node_idx*/>,
+             std::pair<size_t /*submodel_idx*/, size_t /*node_idx*/>>
         m_submodels_input_to_prev_output;
 
     struct CompiledModelDesc {
