@@ -150,7 +150,7 @@ INFERENCE_ENGINE_1_0_DEPRECATED static inline D3DContext::Ptr make_shared_contex
         {GPU_PARAM_KEY(TILE_ID), target_tile_id}
     };
     // clang-format on
-    return std::dynamic_pointer_cast<D3DContext>(core.CreateContext(deviceName, contextParams));
+    return std::dynamic_pointer_cast<D3DContext>(core.CreateContext(deviceName, contextParams)->GetHardwareContext());
 }
 
 /**
@@ -163,7 +163,7 @@ INFERENCE_ENGINE_1_0_DEPRECATED static inline D3DContext::Ptr make_shared_contex
 INFERENCE_ENGINE_1_0_DEPRECATED static inline Blob::Ptr make_shared_blob(const TensorDesc& desc,
                                                                          RemoteContext::Ptr ctx,
                                                                          ID3D11Buffer* buffer) {
-    auto casted = std::dynamic_pointer_cast<D3DContext>(ctx);
+    auto casted = ctx->as<D3DContext>();
     if (nullptr == casted) {
         IE_THROW() << "Invalid remote context passed";
     }
@@ -186,7 +186,7 @@ INFERENCE_ENGINE_1_0_DEPRECATED static inline Blob::Ptr make_shared_blob(const T
                                                                          RemoteContext::Ptr ctx,
                                                                          ID3D11Texture2D* surface,
                                                                          uint32_t plane = 0) {
-    auto casted = std::dynamic_pointer_cast<D3DContext>(ctx);
+    auto casted = ctx->as<D3DContext>();
     if (nullptr == casted) {
         IE_THROW() << "Invalid remote context passed";
     }

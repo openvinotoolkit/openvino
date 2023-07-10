@@ -27,12 +27,9 @@ bool BrgemmBlocking::run(snippets::lowered::LinearIR& linear_ir) {
     if (linear_ir.empty())
         return false;
 
-    // Ticket: 113745
-    // TODO: make the block size configurable
-    const auto block_size = 32;
-    const auto dim_idx = 1;
 
     const auto& loop_manager = linear_ir.get_loop_manager();
+    const auto dim_idx = 1;
 
     auto blocking_loop_exists = [&](const ov::snippets::lowered::ExpressionPtr& expr,
                                     const std::shared_ptr<ov::intel_cpu::BrgemmCPU>& brgemm) {
@@ -61,6 +58,7 @@ bool BrgemmBlocking::run(snippets::lowered::LinearIR& linear_ir) {
         const auto& dim = *(input_layout_0.rbegin() + dim_idx);
         const auto& m = input_shape_0[dim];
 
+        const auto block_size = brgemm->get_m_block_size();
         brgemm->set_input_count(block_size);
 
         const auto work_amount = m;
