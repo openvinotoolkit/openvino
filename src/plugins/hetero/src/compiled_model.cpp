@@ -21,7 +21,7 @@
 #include "xml_parse_utils.h"
 
 template <typename T>
-using NodeMap = std::unordered_map<ov::Node*, T>;
+using NodeMap = std::unordered_map<std::shared_ptr<ov::Node>, T>;
 
 ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                                          const std::shared_ptr<const ov::IPlugin>& plugin,
@@ -33,8 +33,6 @@ ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model
       m_name(model->get_friendly_name()),
       m_loaded_from_cache(loaded_from_cache) {
     try {
-        std::unordered_map<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> _mapOutputToInput;
-
         bool dumpDotFile = m_cfg.dump_graph;
         if (std::getenv("OPENVINO_HETERO_VISUALIZE"))
             dumpDotFile = true;
@@ -58,11 +56,11 @@ ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model
             queryNetworkResult = plugin->query_model(model, m_cfg.GetHeteroProperties());
 
         using Input = ov::Input<ov::Node>;
-        using NodeSet = std::unordered_set<ov::Node*>;
+        using NodeSet = std::unordered_set<std::shared_ptr<ov::Node>>;
         using InputSet = std::set<Input>;
 
         auto InputNode = [](const Input& input) {
-            return input.get_source_output().get_node();
+            return input.get_source_output().get_node_shared_ptr();
         };
 
         std::unordered_set<std::string> devices;
@@ -71,7 +69,7 @@ ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model
         for (auto&& node : orderedOps) {
             auto itAffinity = queryNetworkResult.find(node->get_friendly_name());
             if (itAffinity != queryNetworkResult.end()) {
-                affinities[node.get()] = itAffinity->second;
+                affinities[node] = itAffinity->second;
                 devices.emplace(itAffinity->second);
             } else if (allEmpty) {
                 OPENVINO_THROW("Hetero device used default fallback policy, but some layers eg: \n(Name:",
@@ -103,17 +101,17 @@ ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model
         // Get all subgraph inputs using just node affinities. Also collect transitive closure
         for (auto&& node : orderedOps) {
             if (ov::op::util::is_parameter(node) || ov::op::util::is_constant(node)) {
-                graphInputNodes.insert(node.get());
+                graphInputNodes.insert(node);
                 subgraphInputs.insert(Input{node.get(), 0});
-                nodeInputDependencies[node.get()].insert(Input{node.get(), 0});
+                nodeInputDependencies[node].insert(Input{node.get(), 0});
             } else {
                 auto inputs = node->inputs();
-                auto& nodeInputDependency = nodeInputDependencies[node.get()];
+                auto& nodeInputDependency = nodeInputDependencies[node];
                 for (auto&& input : inputs) {
                     nodeInputDependency.insert(input);
                     auto& inputDependency = nodeInputDependencies[InputNode(input)];
                     nodeInputDependency.insert(inputDependency.begin(), inputDependency.end());
-                    if (affinities[node.get()] != affinities[InputNode(input)]) {
+                    if (affinities[node] != affinities[InputNode(input)]) {
                         subgraphInputs.insert(input);
                     }
                 }
@@ -135,7 +133,7 @@ ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model
                 }
                 if (inputs.empty()) {
                     subgraphIds.push_back(static_cast<int>(subgraphIds.size()));
-                    subgraphIdPtrs.emplace(node.get(), &(subgraphIds.back()));
+                    subgraphIdPtrs.emplace(node, &(subgraphIds.back()));
                 } else {
                     auto firstInputSubgraphIdPtr = subgraphIdPtrs[InputNode(inputs.front())];
                     for (auto&& input : inputs) {
@@ -146,7 +144,7 @@ ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model
                             }
                         }
                     }
-                    subgraphIdPtrs.emplace(node.get(), firstInputSubgraphIdPtr);
+                    subgraphIdPtrs.emplace(node, firstInputSubgraphIdPtr);
                 }
             }
             NodeMap<int> result;
@@ -163,30 +161,30 @@ ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model
             prevSubgraphs = subgraphInputs.size();
             auto subgraphIds = CollectSubgraphs();
             // All inputs that belong to the same subgraph as node
-            std::unordered_map<ov::Node*, InputSet> nodeSubgraphInputDependencies;
+            std::unordered_map<std::shared_ptr<ov::Node>, InputSet> nodeSubgraphInputDependencies;
             // All inputs that depends on the same subgraph as node
-            std::unordered_map<ov::Node*, InputSet> nodeSubgraphCyclicInputDependencies;
+            std::unordered_map<std::shared_ptr<ov::Node>, InputSet> nodeSubgraphCyclicInputDependencies;
             for (auto&& node : orderedOps) {
-                auto& nodeSubgraphInputDependency = nodeSubgraphInputDependencies[node.get()];
+                auto& nodeSubgraphInputDependency = nodeSubgraphInputDependencies[node];
                 auto allNodeSubgraphInputs =
-                    InferenceEngine::details::Intersection(nodeInputDependencies[node.get()], subgraphInputs);
+                    InferenceEngine::details::Intersection(nodeInputDependencies[node], subgraphInputs);
                 for (auto&& subgraphInput : allNodeSubgraphInputs) {
-                    if (subgraphIds[node.get()] == subgraphIds[subgraphInput.get_node()]) {
+                    if (subgraphIds[node] == subgraphIds[subgraphInput.get_node()->shared_from_this()]) {
                         nodeSubgraphInputDependency.emplace(subgraphInput);
                     }
                 }
-                auto& nodeSubgraphCyclicInputDependency = nodeSubgraphCyclicInputDependencies[node.get()];
+                auto& nodeSubgraphCyclicInputDependency = nodeSubgraphCyclicInputDependencies[node];
                 for (auto&& subgraphInput : allNodeSubgraphInputs) {
                     if (!ov::op::util::is_parameter(subgraphInput.get_node()) &&
                         !ov::op::util::is_constant(subgraphInput.get_node()) &&
-                        subgraphIds[node.get()] == subgraphIds[InputNode(subgraphInput)]) {
+                        subgraphIds[node] == subgraphIds[InputNode(subgraphInput)]) {
                         nodeSubgraphCyclicInputDependency.emplace(subgraphInput);
                     }
                 }
             }
 
             for (auto&& node : orderedOps) {
-                auto& nodeSubgraphCyclicInputDependency = nodeSubgraphCyclicInputDependencies[node.get()];
+                auto& nodeSubgraphCyclicInputDependency = nodeSubgraphCyclicInputDependencies[node];
                 if (!nodeSubgraphCyclicInputDependency.empty()) {
                     // Collect all subgraph inputs that cyclic subgraph output depends on
                     InputSet cyclicInputsDependencies;
@@ -221,7 +219,7 @@ ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model
         }
 
         // Break graph using insertion of result parameter split
-        NodeMap<ov::Node*> subgraphParameterToPrevResult;
+        NodeMap<std::shared_ptr<ov::Node>> subgraphParameterToPrevResult;
         std::vector<std::shared_ptr<ov::op::v0::Result>> results;
         {
             std::set<ov::Output<ov::Node>> subgraphOutputs;
@@ -231,12 +229,12 @@ ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model
                 }
             }
             for (auto&& output : subgraphOutputs) {
-                auto output_subgraph_id = subgraphIds.at(output.get_node());
+                auto output_subgraph_id = subgraphIds.at(output.get_node_shared_ptr());
                 auto inputs = output.get_target_inputs();
                 // Collect input subsets from other subgraphs. Each subset of inputs belongs to the same subgraph
                 std::map<int, std::set<ov::Input<ov::Node>>> input_subsets;
                 for (auto&& input : inputs) {
-                    auto input_subgraph_id = subgraphIds.at(input.get_node());
+                    auto input_subgraph_id = subgraphIds.at(input.get_node()->shared_from_this());
                     if (output_subgraph_id != input_subgraph_id) {
                         input_subsets[input_subgraph_id].emplace(input);
                     }
@@ -248,7 +246,7 @@ ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model
                                               std::to_string(output.get_index()) + "_" +
                                               std::to_string(input_subset.first) + "_result");
                     ov::copy_runtime_info(output.get_node_shared_ptr(), result);
-                    subgraphIds.emplace(result.get(), output_subgraph_id);
+                    subgraphIds.emplace(result, output_subgraph_id);
                     results.push_back(result);
                     for (auto&& input : input_subset.second) {
                         output.remove_target_input(input);
@@ -258,15 +256,8 @@ ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model
                                                      std::to_string(input.get_index()) + "_parameter");
                         ov::copy_runtime_info(input.get_node()->shared_from_this(), parameter);
                         input.replace_source_output(parameter->output(0));
-                        subgraphIds.emplace(parameter.get(), input_subset.first);
-                        subgraphParameterToPrevResult.emplace(parameter.get(), result.get());
-                        // TODO VURUSOVS
-                        // Из-за того, что на 1 result приходится 2 Parameter, хранить такое в std::map не удается из-за коллизии
-                        // При хранении в обратном формате тесты работают. Убедиться, что аналогичная история не достижима для случая
-                        // 2 Parameters -> 1 Result (Пример - Parameter1 + Parameter2 -> Add)
-                        _mapOutputToInput.emplace(  // TODO: reuse subgraphParameterToPrevResult
-                            parameter,
-                            result);
+                        subgraphIds.emplace(parameter, input_subset.first);
+                        subgraphParameterToPrevResult.emplace(parameter, result);
                     }
                 }
             }
@@ -316,10 +307,10 @@ ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model
                 return std::all_of(parameters.begin(),
                                    parameters.end(),
                                    [&](const ov::ParameterVector::value_type& parameter) {
-                                       return InferenceEngine::details::contains(graphInputNodes, parameter.get()) ||
+                                       return InferenceEngine::details::contains(graphInputNodes, parameter) ||
                                               InferenceEngine::details::contains(
                                                   prevResults,
-                                                  subgraphParameterToPrevResult[parameter.get()]);
+                                                  subgraphParameterToPrevResult[parameter]);
                                    });
             };
             std::remove_copy_if(std::begin(allSubgraphs),
@@ -332,7 +323,7 @@ ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model
                                std::end(allSubgraphs));
             for (auto&& subgraph : newOrderedSubgraphs) {
                 for (auto&& result : subgraph._results) {
-                    prevResults.insert(result.get());
+                    prevResults.insert(result);
                 }
             }
             std::move(std::begin(newOrderedSubgraphs),
@@ -368,7 +359,7 @@ ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model
 
         // Prepare mapping between manually splitted inputs/outputs
         // to connect tensors between compiled submodels
-        for (const auto& kvp : _mapOutputToInput) {
+        for (const auto& kvp : subgraphParameterToPrevResult) {
             const auto& intermed_output = kvp.second;
             const auto& intermed_input = kvp.first;
             for (size_t id = 0; id < orderedSubgraphs.size(); id++) {
