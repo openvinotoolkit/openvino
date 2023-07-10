@@ -930,6 +930,12 @@ void Graph::PullOutputData(std::unordered_map<std::string, ov::Tensor>& out,
                         srcPrec,
                         InferenceEngine::details::convertPrecision(aux_tensor.get_element_type()),
                         intr_blob.GetDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount());
+
+            if (actualDesc.getBlockingDesc() != expectedDesc.getBlockingDesc() && !isScalarOutput) {
+                // Reorder if shape or stride has been changed, but it will impact performance
+                // Add assert here to capture this performance issue.
+                OPENVINO_ASSERT("Precision changes and reorder occurred at the same time.");
+            }
             continue;
         }
 
@@ -940,11 +946,10 @@ void Graph::PullOutputData(std::unordered_map<std::string, ov::Tensor>& out,
             // User can initialize output via SetOutput API using tensorDesc with ANY layout.
             // For these cases we create planar memory descriptor.
             auto outBlobDesc = expectedDesc.getLayout() == InferenceEngine::Layout::ANY
-                                ? DnnlBlockedMemoryDesc(expectedDesc.getPrecision(), Shape(expectedDesc.getDims()))
-                                : MemoryDescUtils::convertToDnnlBlockedMemoryDesc(expectedDesc);
+                                   ? DnnlBlockedMemoryDesc(expectedDesc.getPrecision(), Shape(expectedDesc.getDims()))
+                                   : MemoryDescUtils::convertToDnnlBlockedMemoryDesc(expectedDesc);
             Memory outBloMem(getEngine());
             outBloMem.Create(outBlobDesc, ext_blob_ptr, false);
-
             outBloMem.SetData(intr_blob, false);
         } else {
             size_t size_to_copy = intr_blob.GetDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
