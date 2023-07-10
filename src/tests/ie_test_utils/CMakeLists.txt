@@ -3,7 +3,6 @@
 #
 
 if(ENABLE_TESTS)
-    add_subdirectory(common_test_utils)
     add_subdirectory(unit_test_utils)
 endif()
 

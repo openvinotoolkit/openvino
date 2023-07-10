@@ -2,6 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+if(CMAKE_TOOLCHAIN_FILE MATCHES "vcpkg" OR DEFINED VCPKG_VERBOSE)
+    set(OV_VCPKG_BUILD ON)
+elseif(CMAKE_TOOLCHAIN_FILE MATCHES "conan_toolchain" OR DEFINED CONAN_EXPORTED)
+    set(OV_CONAN_BUILD)
+endif()
+
 set(_old_CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
 set(_old_CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ${CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE})
 
@@ -362,9 +368,8 @@ endif()
 # Gflags
 #
 
-if(ENABLE_SAMPLES OR ENABLE_COMPILE_TOOL OR ENABLE_TESTS)
-    if(CMAKE_TOOLCHAIN_FILE MATCHES "vcpkg          " OR DEFINED VCPKG_VERBOSE OR
-       CMAKE_TOOLCHAIN_FILE MATCHES "conan_toolchain" OR DEFINED CONAN_EXPORTED)
+if(ENABLE_SAMPLES OR ENABLE_TESTS)
+    if(OV_VCPKG_BUILD OR OV_CONAN_BUILD)
         # vcpkg contains only libs compiled with threads
         # conan case
         find_package(gflags QUIET)
@@ -446,8 +451,17 @@ if(ENABLE_OV_PADDLE_FRONTEND OR ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_TF_FRONTEND
         if(CMAKE_VERBOSE_MAKEFILE)
             set(Protobuf_DEBUG ON)
         endif()
-        # Note: we also specify 'protobuf' in NAMES because vcpkg
-        find_package(Protobuf 3.20.3 REQUIRED NAMES Protobuf protobuf)
+        if(OV_VCPKG_BUILD)
+            set(protobuf_config CONFIG)
+        endif()
+        # try to find newer version first (major is changed)
+        # see https://protobuf.dev/support/version-support/ and
+        # https://github.com/protocolbuffers/protobuf/commit/d61f75ff6db36b4f9c0765f131f8edc2f86310fa
+        find_package(Protobuf 4.22.0 QUIET ${protobuf_config})
+        if(NOT Protobuf_FOUND)
+            # otherwise, fallback to existing default
+            find_package(Protobuf 3.20.3 REQUIRED ${protobuf_config})
+        endif()
         set(PROTOC_EXECUTABLE protobuf::protoc)
     else()
         add_subdirectory(thirdparty/protobuf EXCLUDE_FROM_ALL)
@@ -620,7 +634,7 @@ endif()
 
 if(CPACK_GENERATOR MATCHES "^(DEB|RPM|CONDA-FORGE|BREW|CONAN|VCPKG)$")
     # These libraries are dependencies for openvino-samples package
-    if(ENABLE_SAMPLES OR ENABLE_COMPILE_TOOL OR ENABLE_TESTS)
+    if(ENABLE_SAMPLES OR ENABLE_TESTS)
         if(NOT gflags_FOUND AND CPACK_GENERATOR MATCHES "^(DEB|RPM)$")
             message(FATAL_ERROR "gflags must be used as a ${CPACK_GENERATOR} package. Install libgflags-dev / gflags-devel")
         endif()
