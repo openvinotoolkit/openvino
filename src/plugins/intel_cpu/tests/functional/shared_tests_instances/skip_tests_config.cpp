@@ -204,7 +204,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*smoke_IsOp/ComparisonLayerTest.*)",
         // Issue: 113703 - input/output port's name maybe changed after transformation in plugin api 2.0
         R"(.*smoke_If/SimpleIfTest.*Cond=0.*)",
-        R"(.*smoke_Transpose(2|4|5|6)D/TransposeLayerTest.CompareWithRefs.*)",
         // Issue: 113704 - Layout information maybe incorrect when covert tensor to blob
         R"(.*smoke_.*BehaviorTests/InferRequestPreprocessConversionTest.*)",
         // Issue: JIT choose error issue, don't know why not choose jit_avx512_BF16
