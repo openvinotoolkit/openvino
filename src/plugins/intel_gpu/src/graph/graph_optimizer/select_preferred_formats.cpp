@@ -32,7 +32,6 @@ void select_preferred_formats::run(program& p) {
         return;
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
-    bool allow_new_shape_infer = p.get_config().get_property(ov::intel_gpu::allow_new_shape_infer);
     engine.create_onednn_engine(p.get_config());
     for (auto n : p.get_processing_order()) {
         if (n->is_input() || !_lo.are_data_types_suitable_for_onednn(*n)) {
@@ -42,12 +41,12 @@ void select_preferred_formats::run(program& p) {
         try {
             // Do not call select_preferred_formats_for_onednn for dynamic shape
             // because currently gpu plugin doesn't fully support blocked format for dynamic shape
-            if (n->is_type<convolution>() && !allow_new_shape_infer) {
+            if (n->is_type<convolution>()) {
                 auto prim_desc = onednn::get_convolution_primitive_descriptor(*n->get_kernel_impl_params(),
                                                                               dnnl::primitive_attr(),
                                                                               dnnl::memory::format_tag::any);
                 _lo.select_preferred_formats_for_onednn(*n, *prim_desc);
-            } else if (n->is_type<deconvolution>() && !allow_new_shape_infer) {
+            } else if (n->is_type<deconvolution>()) {
                 auto prim_desc = onednn::get_deconvolution_primitive_descriptor(*n->get_kernel_impl_params(),
                                                                                 dnnl::primitive_attr(),
                                                                                 dnnl::memory::format_tag::any);
