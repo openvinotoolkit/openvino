@@ -12,8 +12,8 @@
 #include <vector>
 
 #include "openvino/itt.hpp"
-#include "openvino/runtime/isync_infer_request.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
+#include "openvino/runtime/isync_infer_request.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 
 namespace ov {
