@@ -155,7 +155,7 @@ void IInferRequestInternal::SetBlob(const std::string& name, const Blob::Ptr& us
                                    ? InferenceEngine::details::product(foundInput->getTensorDesc().getDims())
                                    : 1;
             if (!isInputDynamic && dataSize != inputSize) {
-                IE_THROW() << "Input blob size is not equal network input size (" << dataSize << "!=" << inputSize
+                IE_THROW() << "Input tensor size is not equal network input size (" << dataSize << "!=" << inputSize
                            << ").";
             }
             _inputs[name] = userBlob;

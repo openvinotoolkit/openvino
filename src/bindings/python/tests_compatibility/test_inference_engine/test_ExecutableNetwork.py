@@ -122,7 +122,6 @@ def test_async_infer_many_req_get_idle(device):
     del ie_core
 
 
-@pytest.mark.skip(reason="Plugin API 2.0 has the different behavior.")
 def test_wait_before_start(device):
   ie_core = ie.IECore()
   net = generate_relu_model([1, 3, 32, 32])
@@ -132,7 +131,8 @@ def test_wait_before_start(device):
   requests = exec_net.requests
   for id in range(num_requests):
       status = requests[id].wait()
-      assert status == ie.StatusCode.INFER_NOT_STARTED
+      # Plugin API 2.0 has the different behavior will not return this status
+      # assert status == ie.StatusCode.INFER_NOT_STARTED
       request_handler = exec_net.start_async(request_id=id, inputs={'parameter': img})
       status = requests[id].wait()
       assert status == ie.StatusCode.OK

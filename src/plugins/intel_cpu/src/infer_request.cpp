@@ -563,7 +563,7 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& in_port, con
         const auto shape = port.get_partial_shape();
         const bool isDynamic = shape.is_dynamic();
         if (!shape.compatible(ov::PartialShape(tensor.get_shape()))) {
-            OPENVINO_THROW("Can't set input tensor with name: ",
+            OPENVINO_THROW("The tensor size is not equal to model, can't set input tensor with name: ",
                            name,
                            ", because model input (shape=",
                            shape,
@@ -610,7 +610,7 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& in_port, con
         const bool isDynamic = shape.is_dynamic();
 
         if (!shape.compatible(ov::PartialShape(tensor.get_shape()))) {
-            OPENVINO_THROW("Can't set output tensor with name: ",
+            OPENVINO_THROW("The tensor size is not equal to model, can't set output tensor with name: ",
                            name,
                            ", because model output (shape=",
                            shape,
