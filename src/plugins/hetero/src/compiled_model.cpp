@@ -429,8 +429,6 @@ ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model
         OPENVINO_THROW(e.what());
     } catch (const std::exception& e) {
         OPENVINO_THROW("Standard exception from compilation library: ", e.what());
-    } catch (...) {
-        OPENVINO_THROW("Generic exception is thrown");
     }
 }
 
