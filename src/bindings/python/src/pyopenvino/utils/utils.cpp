@@ -16,7 +16,7 @@
 #include "openvino/core/meta_data.hpp"
 #include "openvino/frontend/decoder.hpp"
 #include "openvino/frontend/graph_iterator.hpp"
-#include "pyopenvino/core/properties/properties.hpp"
+#include "openvino/runtime/intel_cpu/properties.hpp"
 
 using Version = ov::pass::Serialize::Version;
 
