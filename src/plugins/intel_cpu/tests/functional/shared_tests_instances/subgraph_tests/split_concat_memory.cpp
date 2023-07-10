@@ -6,7 +6,7 @@
 
 #include "subgraph_tests/split_concat_memory.hpp"
 
-using namespace subgraph_tests_definitions;
+using namespace ov::test::subgraph;
 
 namespace {
 

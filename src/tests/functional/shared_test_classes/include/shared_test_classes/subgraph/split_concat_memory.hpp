@@ -8,7 +8,9 @@
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
-namespace subgraph_tests_definitions {
+namespace ov {
+namespace test {
+namespace subgraph {
 
 using SplitConcatMemoryParamsTuple = typename std::tuple<
     ov::Shape,                   // input shapes
@@ -24,9 +26,9 @@ public:
 
 protected:
     void SetUp() override;
-
-    ov::element::Type_t netPrecision;
     int axis;
 };
 
-}  // namespace subgraph_tests_definitions
+}  // namespace subgraph
+}  // namespace test
+}  // namespace ov

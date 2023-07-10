@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "data_utils.hpp"
+#include "common_test_utils/data_utils.hpp"
 
 #include <cmath>
 
@@ -331,61 +331,6 @@ ov::Tensor make_reshape_view(const ov::Tensor &tensor, std::vector<size_t> new_s
     OPENVINO_ASSERT(new_size == tensor.get_size());
 
     return ov::Tensor(tensor.get_element_type(), new_shape, tensor.data());
-}
-/**
- * repeated filling tensor with data.
- *
- * @tparam PRC
- * @param data
- * @param size
- * @param values
- */
-template<ov::element::Type_t PRC = ov::element::Type_t::f32>
-static void fill_data_const(void *data, size_t size, const std::vector<float> &values) {
-    auto t_data = static_cast<typename ov::fundamental_type_for<PRC> *>(data);
-    auto val_size = values.size();
-    for (size_t i = 0, j = 0; i < size; i++) {
-        t_data[i] = values[j++];
-        if (j == val_size) j = 0;
-    }
-}
-
-
-void fill_data_const(const ov::Tensor& tensor, const std::vector<float> &val) {
-    auto prc = tensor.get_element_type();
-    auto raw_data_ptr = tensor.data();
-    auto raw_data_size = tensor.get_size();
-
-    using ov::element::Type_t;
-    switch (prc) {
-        case Type_t::f32:
-            fill_data_const<Type_t::f32>(raw_data_ptr, raw_data_size, val);
-            break;
-        case Type_t::f16:
-            fill_data_const<Type_t::f16>(raw_data_ptr, raw_data_size, val);
-            break;
-        case Type_t::i32:
-            fill_data_const<Type_t::i32>(raw_data_ptr, raw_data_size, val);
-            break;
-        case Type_t::u8:
-            fill_data_const<Type_t::u8>(raw_data_ptr, raw_data_size, val);
-            break;
-        case Type_t::i8:
-            fill_data_const<Type_t::i8>(raw_data_ptr, raw_data_size, val);
-            break;
-        case Type_t::u16:
-            fill_data_const<Type_t::u16>(raw_data_ptr, raw_data_size, val);
-            break;
-        case Type_t::i16:
-            fill_data_const<Type_t::i16>(raw_data_ptr, raw_data_size, val);
-            break;
-        default:
-            OPENVINO_THROW("Unsupported precision by fill_data_const() function");
-    }
-}
-
-void fill_data_const(const ov::Tensor& tensor, float val) {
-    fill_data_const(tensor, std::vector<float> {val});
 }
 
 }  // namespace CommonTestUtils

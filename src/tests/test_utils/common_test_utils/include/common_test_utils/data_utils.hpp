@@ -81,18 +81,6 @@ InferenceEngine::Blob::Ptr
 make_reshape_view(const InferenceEngine::Blob::Ptr &blob, InferenceEngine::SizeVector new_shape);
 
 /**
- * Fill blob with single value for all elements
- *
- * like:
- *     fill_data_with_broadcast(blob, 0, {val});
- *
- * @param blob tensor to fill in
- * @param val value to set into each element
- */
-void fill_data_const(const ov::Tensor& tensor, float val);
-
-
-/**
  * Calculate size of buffer required for provided tensor descriptor.
  * @param tdesc provided tensor descriptor
  * @return size in bytes

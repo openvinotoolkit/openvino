@@ -4,10 +4,12 @@
 
 #include "shared_test_classes/subgraph/split_concat_memory.hpp"
 
-namespace subgraph_tests_definitions {
+namespace ov {
+namespace test {
+namespace subgraph {
 
 std::string SplitConcatMemory::getTestCaseName(const testing::TestParamInfo<ParamType>& obj) {
-    ov::element::Type_t netPrecision;
+    ov::element::Type netPrecision;
     ov::Shape inputShapes;
     int axis;
     std::string targetDevice;
@@ -15,7 +17,7 @@ std::string SplitConcatMemory::getTestCaseName(const testing::TestParamInfo<Para
 
     std::ostringstream result;
     result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
-    result << "PRC=" << ov::element::Type(netPrecision).get_type_name() << "_";
+    result << "PRC=" << netPrecision.get_type_name() << "_";
     result << "axis=" << axis << "_";
     result << "dev=" << targetDevice;
     return result.str();
@@ -24,9 +26,8 @@ std::string SplitConcatMemory::getTestCaseName(const testing::TestParamInfo<Para
 void SplitConcatMemory::SetUp() {
     abs_threshold = 0.01;
     ov::Shape shape;
-    ov::element::Type_t netPrecision;
 
-    std::tie(shape, netPrecision, axis, targetDevice) = this->GetParam();
+    std::tie(shape, inType, axis, targetDevice) = this->GetParam();
 
     auto shape_14 = shape;
     shape_14[axis] /= 4;
@@ -49,13 +50,13 @@ void SplitConcatMemory::SetUp() {
     ngraph::Shape ng_share_14(shape_14);
     ngraph::Shape ng_share_34(shape_34);
 
-    auto input = std::make_shared<ov::op::v0::Parameter>(netPrecision, ng_share_14);
+    auto input = std::make_shared<ov::op::v0::Parameter>(inType, ng_share_14);
     input->set_friendly_name("input");
     auto& tensor = input->get_output_tensor(0);
     tensor.set_names({"input_t"});
     //input->output(0).set_names({"input"});
 
-    auto mem_c = std::make_shared<ov::op::v0::Constant>(netPrecision, ng_share_34, 0);
+    auto mem_c = std::make_shared<ov::op::v0::Constant>(inType, ng_share_34, 0);
     auto mem_r = std::make_shared<ov::op::v3::ReadValue>(mem_c, "id");
     auto cnc = std::make_shared<ov::op::v0::Concat>(ngraph::NodeVector{mem_r, input}, axis);
 
@@ -64,7 +65,7 @@ void SplitConcatMemory::SetUp() {
     auto axis_c = std::make_shared<ov::op::v0::Constant>(::ngraph::element::i64, ngraph::Shape{}, axis);
     auto spl = std::make_shared<ov::op::v1::VariadicSplit>(cnc, axis_c, chunk_c);
 
-    auto one = std::make_shared<ov::op::v0::Constant>(netPrecision, ngraph::Shape{}, 1);
+    auto one = std::make_shared<ov::op::v0::Constant>(inType, ngraph::Shape{}, 1);
     auto plus = std::make_shared<ov::op::v1::Add>(cnc, one, ngraph::op::AutoBroadcastType::NUMPY);
     plus->set_friendly_name("plus_one");
 
@@ -84,4 +85,8 @@ void SplitConcatMemory::SetUp() {
             ngraph::ParameterVector {input},
             "CyclicBuffer4");
 }
-}  // namespace subgraph_tests_definitions
+
+}  // namespace subgraph
+}  // namespace test
+}  // namespace ov
+

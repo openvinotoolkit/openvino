@@ -7,7 +7,9 @@
 #include "shared_test_classes/subgraph/split_concat_memory.hpp"
 #include "common_test_utils/data_utils.hpp"
 
-namespace subgraph_tests_definitions {
+namespace ov {
+namespace test {
+namespace subgraph {
 
 TEST_P(SplitConcatMemory, cyclicBufferCorrectness) {
     /*
@@ -41,22 +43,25 @@ TEST_P(SplitConcatMemory, cyclicBufferCorrectness) {
 
     // iteration 1
 
-    CommonTestUtils::fill_data_const(i_tensor, 1);
+    CommonTestUtils::fill_data_with_broadcast(i_tensor, 0, {1});
     fill_by_quarter(output_tensor_ref, {1, 1, 1, 2});
     inferRequest.infer();
     compare({output_tensor_ref}, {o_tensor});
 
     // iteration 2
-    CommonTestUtils::fill_data_const(i_tensor, 2);
+    CommonTestUtils::fill_data_with_broadcast(i_tensor, 0, {2});
     fill_by_quarter(output_tensor_ref, {1, 1, 2, 3});
     inferRequest.infer();
     compare({output_tensor_ref}, {o_tensor});
 
     // iteration 3
-    CommonTestUtils::fill_data_const(i_tensor, 3);
+    CommonTestUtils::fill_data_with_broadcast(i_tensor, 0, {3});
     fill_by_quarter(output_tensor_ref, {1, 2, 3, 4});
     inferRequest.infer();
     compare({output_tensor_ref}, {o_tensor});
 }
 
-}  // namespace subgraph_tests_definitions
+}  // namespace subgraph
+}  // namespace test
+}  // namespace ov
+
