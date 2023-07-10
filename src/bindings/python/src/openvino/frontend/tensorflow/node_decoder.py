@@ -46,11 +46,12 @@ def tf_attr_to_ov(attr):
     return OVAny(tf_attr_to_numpy(attr))
 
 
-def try_decode_utf8(str):
+def try_decode(line: bytes):
+    assert isinstance(line, bytes), "Expected bytes, got object of type {}".format(type(line))
     try:
-        return True, str.decode('utf-8')
-    except UnicodeError:
-        return False, str
+        return True, line.decode()
+    except ValueError:
+        return False, line
 
 
 class TFGraphNodeDecoder(DecoderBase):
@@ -67,7 +68,7 @@ class TFGraphNodeDecoder(DecoderBase):
             # copies tensor value from node_def
             value = self.m_operation.node_def.attr["value"].tensor
             if data_type == "string":
-                self.m_parsed_content = [try_decode_utf8(val)[1] for val in value.string_val]
+                self.m_parsed_content = [try_decode(val)[1] for val in value.string_val]
             else:
                 self.m_parsed_content = tf.make_ndarray(value)
 
@@ -79,8 +80,9 @@ class TFGraphNodeDecoder(DecoderBase):
                 if variable_value is not None:
                     # does not copy data
                     self.m_parsed_content = variable_value.value().__array__()
+
                     if isinstance(self.m_parsed_content, bytes):
-                        is_utf8, decoded_str = try_decode_utf8(self.m_parsed_content)
+                        is_utf8, decoded_str = try_decode(self.m_parsed_content)
                         if is_utf8:
                             self.m_data_type = "string"
                             self.m_parsed_content = [decoded_str]
