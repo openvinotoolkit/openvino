@@ -32,7 +32,7 @@ ov::hetero::AsyncInferRequest::AsyncInferRequest(const std::shared_ptr<ov::heter
 
     m_pipeline.clear();
     for (size_t i = 0; i < m_infer_request->m_subrequests.size(); ++i) {
-        auto request_executor = std::make_shared<RequestExecutor>(m_infer_request->m_subrequests[i].request);
+        auto request_executor = std::make_shared<RequestExecutor>(m_infer_request->m_subrequests[i]);
         m_pipeline.emplace_back(request_executor, [request_executor] {
             if (nullptr != request_executor->m_exception_ptr) {
                 std::rethrow_exception(request_executor->m_exception_ptr);

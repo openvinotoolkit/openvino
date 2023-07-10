@@ -45,14 +45,7 @@ private:
 
     ov::SoPtr<ov::IAsyncInferRequest> get_request(const ov::Output<const ov::Node>& port) const;
 
-    enum { StartPipeline, WaitPipeline, numOfStages };
-
-    struct InferRequestDesc {
-        ov::SoPtr<ov::ICompiledModel> compiled_model;
-        ov::SoPtr<ov::IAsyncInferRequest> request;
-    };
-
-    std::vector<InferRequestDesc> m_subrequests;
+    std::vector<ov::SoPtr<ov::IAsyncInferRequest>> m_subrequests;
     std::map<ov::Output<const ov::Node>, size_t> m_port_to_subrequest_idx;
 };
 

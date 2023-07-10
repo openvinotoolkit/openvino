@@ -18,10 +18,8 @@
 ov::hetero::InferRequest::InferRequest(const std::shared_ptr<const ov::hetero::CompiledModel>& compiled_model)
     : ov::ISyncInferRequest(compiled_model) {
     for (auto&& comp_model_desc : compiled_model->m_compiled_submodels) {
-        InferRequest::InferRequestDesc desc;
-        desc.compiled_model = comp_model_desc.compiled_model;
-        desc.request = {desc.compiled_model->create_infer_request(), desc.compiled_model._so};
-        m_subrequests.push_back(desc);
+        auto& comp_model = comp_model_desc.compiled_model;
+        m_subrequests.push_back({comp_model->create_infer_request(), comp_model._so});
     }
 
     for (size_t i = 0; i < compiled_model->inputs().size(); i++) {
@@ -41,10 +39,10 @@ ov::hetero::InferRequest::InferRequest(const std::shared_ptr<const ov::hetero::C
         const auto& submodel_idx_out = kvp.second.first;
         const auto& port_idx_out = kvp.second.second;
 
-        const auto& output_port = m_subrequests[submodel_idx_out].compiled_model->outputs()[port_idx_out];
-        const auto& output_tensor = m_subrequests[submodel_idx_out].request->get_tensor(output_port);
-        const auto& input_port = m_subrequests[submodel_idx_in].compiled_model->inputs()[port_idx_in];
-        m_subrequests[submodel_idx_in].request->set_tensor(input_port, output_tensor);
+        const auto& output_port = m_subrequests[submodel_idx_out]->get_compiled_model()->outputs()[port_idx_out];
+        const auto& output_tensor = m_subrequests[submodel_idx_out]->get_tensor(output_port);
+        const auto& input_port = m_subrequests[submodel_idx_in]->get_compiled_model()->inputs()[port_idx_in];
+        m_subrequests[submodel_idx_in]->set_tensor(input_port, output_tensor);
     }
 }
 
@@ -61,7 +59,7 @@ ov::SoPtr<ov::IAsyncInferRequest> ov::hetero::InferRequest::get_request(const ov
     for (const auto& kvp : m_port_to_subrequest_idx) {
         if (kvp.first.get_index() == port.get_index() && kvp.first.get_names() == port.get_names() &&
             check_nodes(kvp.first.get_node(), port.get_node())) {
-            return m_subrequests[kvp.second].request;
+            return m_subrequests[kvp.second];
         }
     }
     OPENVINO_THROW("Cannot find infer request for port ", port);
@@ -92,8 +90,7 @@ void ov::hetero::InferRequest::check_tensors() const {
 
 std::vector<std::shared_ptr<ov::IVariableState>> ov::hetero::InferRequest::query_state() const {
     std::vector<std::shared_ptr<ov::IVariableState>> variable_states = {};
-    for (auto&& desc : m_subrequests) {
-        auto& request = desc.request;
+    for (auto&& request : m_subrequests) {
         OPENVINO_ASSERT(request);
         for (auto&& state : request->query_state()) {
             variable_states.emplace_back(state);
@@ -103,8 +100,7 @@ std::vector<std::shared_ptr<ov::IVariableState>> ov::hetero::InferRequest::query
 }
 
 void ov::hetero::InferRequest::infer() {
-    for (auto&& desc : m_subrequests) {
-        auto& request = desc.request;
+    for (auto&& request : m_subrequests) {
         OPENVINO_ASSERT(request);
         request->infer();
     }
@@ -112,15 +108,15 @@ void ov::hetero::InferRequest::infer() {
 
 std::vector<ov::ProfilingInfo> ov::hetero::InferRequest::get_profiling_info() const {
     std::vector<ov::ProfilingInfo> info;
-    for (auto&& desc : m_subrequests) {
-        const auto& subreq_info = desc.request->get_profiling_info();
+    for (auto&& request : m_subrequests) {
+        const auto& subreq_info = request->get_profiling_info();
         info.insert(info.end(), subreq_info.begin(), subreq_info.end());
     }
     return info;
 }
 
 void ov::hetero::InferRequest::cancel() {
-    for (auto&& desc : m_subrequests) {
-        desc.request->cancel();
+    for (auto&& request : m_subrequests) {
+        request->cancel();
     }
 }
