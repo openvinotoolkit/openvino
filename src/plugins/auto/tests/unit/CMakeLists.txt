@@ -18,6 +18,7 @@ addIeTargetTest(
             unitTestUtils
         ADD_CPPLINT
         DEPENDENCIES
+            openvino_auto_plugin
             template_extension
             mock_engine
             ngraphFunctions
