@@ -8,25 +8,36 @@
 
 #include "default_opset.hpp"
 #include "exceptions.hpp"
-#include "ngraph/opsets/opset3.hpp"
+#include "openvino/opsets/opset12.hpp"
 
 namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
 OutputVector scatter_elements(const Node& node) {
+    using namespace ov::opset12;
     const auto data = node.get_ng_inputs().at(0);
     const auto indices = node.get_ng_inputs().at(1);
     const auto updates = node.get_ng_inputs().at(2);
     const auto axis_node = node.get_attribute_as_constant<std::int64_t>("axis", 0);
+    auto reduction_ov = ScatterElementsUpdate::Reduction::NONE;
+    std::string reduction_onnx = "none";
     if (node.has_attribute("reduction")) {
-        const auto reduction = node.get_attribute_value<std::string>("reduction", "none");
-        CHECK_VALID_NODE(node,
-                         reduction == "none",
-                         "Unsupported value of attribute: `reduction`. Only `none` is supported, got:",
-                         reduction);
+        reduction_onnx = node.get_attribute_value<std::string>("reduction", "none");
     }
-    return {std::make_shared<ngraph::opset3::ScatterElementsUpdate>(data, indices, updates, axis_node)};
+
+    if (reduction_onnx == "none") {
+        reduction_ov = ScatterElementsUpdate::Reduction::NONE;
+    } else if (reduction_onnx == "add") {
+        reduction_ov = ScatterElementsUpdate::Reduction::SUM;
+    } else if (reduction_onnx == "mul") {
+        reduction_ov = ScatterElementsUpdate::Reduction::PROD;
+    } else if (reduction_onnx == "min") {
+        reduction_ov = ScatterElementsUpdate::Reduction::MIN;
+    } else if (reduction_onnx == "max") {
+        reduction_ov = ScatterElementsUpdate::Reduction::MAX;
+    }
+    return {std::make_shared<ScatterElementsUpdate>(data, indices, updates, axis_node, reduction_ov)};
 }
 }  // namespace set_1
 
