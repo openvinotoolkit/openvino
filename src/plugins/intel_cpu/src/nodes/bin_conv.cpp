@@ -636,6 +636,8 @@ private:
         if (jcp_.with_binarization) {
             int binarization_idx = p.find(primitive_kind::binarization);
 
+            IE_ASSERT(binarization_idx >= 0) << "postops don't contain binarization";
+
             pop(reg_oc_off);
 
             mov(reg_b_weights, reinterpret_cast<size_t>(p.entry_[binarization_idx].binarization.weights_data));
