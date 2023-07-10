@@ -83,7 +83,7 @@ inline std::ostream& operator<<(std::ostream& os, const LatencyThreadingMode& th
     case LatencyThreadingMode::PER_PLATFORM:
         return os << "PER_PLATFORM";
     default:
-        throw ov::Exception{"Unsupported threading mode for latency hint!"};
+        OPENVINO_THROW("Unsupported threading mode for latency hint!");
     }
 }
 
@@ -97,7 +97,7 @@ inline std::istream& operator>>(std::istream& is, LatencyThreadingMode& threadin
     } else if (str == "PER_PLATFORM") {
         threading_mode = LatencyThreadingMode::PER_PLATFORM;
     } else {
-        throw ov::Exception{"Unsupported threading mode for latency hint: " + str};
+        OPENVINO_THROW("Unsupported threading mode for latency hint: " + str);
     }
     return is;
 }
