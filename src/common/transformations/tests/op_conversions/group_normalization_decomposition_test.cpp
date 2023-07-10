@@ -83,33 +83,27 @@ std::shared_ptr<Model> gen_model_ref(const std::vector<PartialShape>& input_shap
 
 TEST_F(TransformationTestsF, GroupNormalizationDecompositionF32) {
     const int64_t num_groups = 4;
-    {
-        function =
-            gen_model({PartialShape{1, 12, 6, 8}, PartialShape{12}, PartialShape{12}}, element::f32, num_groups, 1e-3);
-        manager.register_pass<pass::GroupNormalizationDecomposition>();
-    }
-    {
-        function_ref = gen_model_ref({PartialShape{1, 12, 6, 8}, PartialShape{12}, PartialShape{12}},
-                                     element::f32,
-                                     num_groups,
-                                     1e-3f);
-    }
+
+    function =
+        gen_model({PartialShape{1, 12, 6, 8}, PartialShape{12}, PartialShape{12}}, element::f32, num_groups, 1e-3);
+    manager.register_pass<pass::GroupNormalizationDecomposition>();
+
+    function_ref =
+        gen_model_ref({PartialShape{1, 12, 6, 8}, PartialShape{12}, PartialShape{12}}, element::f32, num_groups, 1e-3f);
+
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
 TEST_F(TransformationTestsF, GroupNormalizationDecompositionF16) {
     const int64_t num_groups = 4;
-    {
-        function =
-            gen_model({PartialShape{1, 12, 6, 8}, PartialShape{12}, PartialShape{12}}, element::f16, num_groups, 1e-3f);
-        manager.register_pass<pass::GroupNormalizationDecomposition>();
-    }
-    {
-        function_ref = gen_model_ref({PartialShape{1, 12, 6, 8}, PartialShape{12}, PartialShape{12}},
-                                     element::f16,
-                                     num_groups,
-                                     1e-3f);
-    }
+
+    function =
+        gen_model({PartialShape{1, 12, 6, 8}, PartialShape{12}, PartialShape{12}}, element::f16, num_groups, 1e-3f);
+    manager.register_pass<pass::GroupNormalizationDecomposition>();
+
+    function_ref =
+        gen_model_ref({PartialShape{1, 12, 6, 8}, PartialShape{12}, PartialShape{12}}, element::f16, num_groups, 1e-3f);
+
     // Ticket number: TBD
     // abs_max < abs_threshold && rel_max < rel_threshold
     //         abs_max: 0.03125
@@ -121,121 +115,105 @@ TEST_F(TransformationTestsF, GroupNormalizationDecompositionF16) {
 
 TEST_F(TransformationTestsF, GroupNormalizationDecomposition_num_groups) {
     const int64_t num_groups = 2;
-    {
-        function =
-            gen_model({PartialShape{1, 12, 6, 8}, PartialShape{12}, PartialShape{12}}, element::f32, num_groups, 1e-3);
-        manager.register_pass<pass::GroupNormalizationDecomposition>();
-    }
-    {
-        function_ref = gen_model_ref({PartialShape{1, 12, 6, 8}, PartialShape{12}, PartialShape{12}},
-                                     element::f32,
-                                     num_groups,
-                                     1e-3f);
-    }
+
+    function =
+        gen_model({PartialShape{1, 12, 6, 8}, PartialShape{12}, PartialShape{12}}, element::f32, num_groups, 1e-3);
+    manager.register_pass<pass::GroupNormalizationDecomposition>();
+
+    function_ref =
+        gen_model_ref({PartialShape{1, 12, 6, 8}, PartialShape{12}, PartialShape{12}}, element::f32, num_groups, 1e-3f);
+
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
 TEST_F(TransformationTestsF, GroupNormalizationDecomposition_eps) {
     const int64_t num_groups = 2;
-    {
-        function =
-            gen_model({PartialShape{1, 12, 6, 8}, PartialShape{12}, PartialShape{12}}, element::f32, num_groups, 1e-39);
-        manager.register_pass<pass::GroupNormalizationDecomposition>();
-    }
-    {
-        function_ref = gen_model_ref({PartialShape{1, 12, 6, 8}, PartialShape{12}, PartialShape{12}},
-                                     element::f32,
-                                     num_groups,
-                                     std::numeric_limits<float>::min());
-    }
+
+    function =
+        gen_model({PartialShape{1, 12, 6, 8}, PartialShape{12}, PartialShape{12}}, element::f32, num_groups, 1e-39);
+    manager.register_pass<pass::GroupNormalizationDecomposition>();
+
+    function_ref = gen_model_ref({PartialShape{1, 12, 6, 8}, PartialShape{12}, PartialShape{12}},
+                                 element::f32,
+                                 num_groups,
+                                 std::numeric_limits<float>::min());
+
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
 TEST_F(TransformationTestsF, GroupNormalizationDecomposition_3D) {
     const int64_t num_groups = 4;
-    {
-        function =
-            gen_model({PartialShape{1, 12, 6}, PartialShape{12}, PartialShape{12}}, element::f32, num_groups, 1e-3);
-        manager.register_pass<pass::GroupNormalizationDecomposition>();
-    }
-    {
-        function_ref = gen_model_ref({PartialShape{1, 12, 6}, PartialShape{12}, PartialShape{12}},
-                                     element::f32,
-                                     num_groups,
-                                     1e-3f);
-    }
+
+    function = gen_model({PartialShape{1, 12, 6}, PartialShape{12}, PartialShape{12}}, element::f32, num_groups, 1e-3);
+    manager.register_pass<pass::GroupNormalizationDecomposition>();
+
+    function_ref =
+        gen_model_ref({PartialShape{1, 12, 6}, PartialShape{12}, PartialShape{12}}, element::f32, num_groups, 1e-3f);
+
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
 TEST_F(TransformationTestsF, GroupNormalizationDecomposition_5D) {
     const int64_t num_groups = 4;
-    {
-        function = gen_model({PartialShape{1, 12, 4, 6, 8}, PartialShape{12}, PartialShape{12}},
-                             element::f32,
-                             num_groups,
-                             1e-3);
-        manager.register_pass<pass::GroupNormalizationDecomposition>();
-    }
-    {
-        function_ref = gen_model_ref({PartialShape{1, 12, 4, 6, 8}, PartialShape{12}, PartialShape{12}},
-                                     element::f32,
-                                     num_groups,
-                                     1e-3f);
-    }
+
+    function =
+        gen_model({PartialShape{1, 12, 4, 6, 8}, PartialShape{12}, PartialShape{12}}, element::f32, num_groups, 1e-3);
+    manager.register_pass<pass::GroupNormalizationDecomposition>();
+
+    function_ref = gen_model_ref({PartialShape{1, 12, 4, 6, 8}, PartialShape{12}, PartialShape{12}},
+                                 element::f32,
+                                 num_groups,
+                                 1e-3f);
+
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
 TEST_F(TransformationTestsF, GroupNormalizationDecomposition_data_dynamic_rank) {
     const int64_t num_groups = 4;
-    {
-        function =
-            gen_model({PartialShape::dynamic(), PartialShape{12}, PartialShape{12}}, element::f32, num_groups, 1e-3);
-        manager.register_pass<pass::GroupNormalizationDecomposition>();
-    }
+
+    function = gen_model({PartialShape::dynamic(), PartialShape{12}, PartialShape{12}}, element::f32, num_groups, 1e-3);
+    manager.register_pass<pass::GroupNormalizationDecomposition>();
+
     // no decomposition
 }
 
 TEST_F(TransformationTestsF, GroupNormalizationDecomposition_data_rank_2D) {
     const int64_t num_groups = 4;
-    {
-        function = gen_model({PartialShape{2, 12}, PartialShape{12}, PartialShape{12}}, element::f32, num_groups, 1e-3);
-        manager.register_pass<pass::GroupNormalizationDecomposition>();
-    }
+
+    function = gen_model({PartialShape{2, 12}, PartialShape{12}, PartialShape{12}}, element::f32, num_groups, 1e-3);
+    manager.register_pass<pass::GroupNormalizationDecomposition>();
+
     // no decomposition
 }
 
 TEST_F(TransformationTestsF, GroupNormalizationDecomposition_bias_scale_dynamic_rank) {
     const int64_t num_groups = 4;
-    {
-        function = gen_model({PartialShape{1, 12, 6, 8}, PartialShape::dynamic(), PartialShape::dynamic()},
-                             element::f32,
-                             num_groups,
-                             1e-3);
-        manager.register_pass<pass::GroupNormalizationDecomposition>();
-    }
-    {
-        function_ref = gen_model_ref({PartialShape{1, 12, 6, 8}, PartialShape::dynamic(), PartialShape::dynamic()},
-                                     element::f32,
-                                     num_groups,
-                                     1e-3f);
-    }
+
+    function = gen_model({PartialShape{1, 12, 6, 8}, PartialShape::dynamic(), PartialShape::dynamic()},
+                         element::f32,
+                         num_groups,
+                         1e-3);
+    manager.register_pass<pass::GroupNormalizationDecomposition>();
+
+    function_ref = gen_model_ref({PartialShape{1, 12, 6, 8}, PartialShape::dynamic(), PartialShape::dynamic()},
+                                 element::f32,
+                                 num_groups,
+                                 1e-3f);
+
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
 TEST_F(TransformationTestsF, GroupNormalizationDecomposition_dynamic_dims) {
     const int64_t num_groups = 4;
-    {
-        function = gen_model({PartialShape{-1, -1, -1, -1}, PartialShape{-1}, PartialShape{-1}},
-                             element::f32,
-                             num_groups,
-                             1e-3);
-        manager.register_pass<pass::GroupNormalizationDecomposition>();
-    }
-    {
-        function_ref = gen_model_ref({PartialShape{-1, -1, -1, -1}, PartialShape{-1}, PartialShape{-1}},
-                                     element::f32,
-                                     num_groups,
-                                     1e-3f);
-    }
+
+    function =
+        gen_model({PartialShape{-1, -1, -1, -1}, PartialShape{-1}, PartialShape{-1}}, element::f32, num_groups, 1e-3);
+    manager.register_pass<pass::GroupNormalizationDecomposition>();
+
+    function_ref = gen_model_ref({PartialShape{-1, -1, -1, -1}, PartialShape{-1}, PartialShape{-1}},
+                                 element::f32,
+                                 num_groups,
+                                 1e-3f);
+
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
