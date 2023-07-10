@@ -100,18 +100,19 @@ layout loop_inst::calc_output_layout(loop_node const & node, kernel_impl_params 
     auto target = std::find_if(body_outputs.begin(), body_outputs.end(), [&](const cldnn::program_node * output) {
         return output->id() == output_internal_id;
     });
+    layout loop_output_layout;
     if (target == body_outputs.end()) {
         CLDNN_ERROR_MESSAGE(impl_param.desc->id, "output not found");
-    }
-
-    // set body output layout
-    layout loop_output_layout = (*target)->get_output_layout();
-    const int64_t axis_to_iterate_throgh = output_mapping.axis;
-    if (axis_to_iterate_throgh != -1) {
-        const size_t ndim = loop_output_layout.get_rank();
-        auto shape = loop_output_layout.get_dims();
-        shape[axis_to_iterate_throgh] = static_cast<int32_t>(node.get_max_iteration());
-        loop_output_layout.set_tensor(tensor(format::get_default_format(ndim), shape));
+    } else {
+        // set body output layout
+        loop_output_layout = (*target)->get_output_layout();
+        const int64_t axis_to_iterate_throgh = output_mapping.axis;
+        if (axis_to_iterate_throgh != -1) {
+            const size_t ndim = loop_output_layout.get_rank();
+            auto shape = loop_output_layout.get_dims();
+            shape[axis_to_iterate_throgh] = static_cast<int32_t>(node.get_max_iteration());
+            loop_output_layout.set_tensor(tensor(format::get_default_format(ndim), shape));
+        }
     }
     return loop_output_layout;
 }

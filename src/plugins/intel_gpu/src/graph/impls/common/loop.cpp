@@ -61,10 +61,10 @@ struct loop_impl : typed_primitive_impl<loop> {
                 auto input_layout_prim = std::dynamic_pointer_cast<input_layout_inst>(current_iteration_prim);
                 if (input_layout_prim == nullptr) {
                     CLDNN_ERROR_MESSAGE(instance.id(), "current_iteration primitive is not input_layout");
+                } else {
+                    const auto& backedge_mapping = instance.get_current_iteration_backedge_mapping();
+                    input_layout_prim->set_data(backedge_mapping.initial_mem);
                 }
-
-                const auto& backedge_mapping = instance.get_current_iteration_backedge_mapping();
-                input_layout_prim->set_data(backedge_mapping.initial_mem);
             }
             instance.preproc_memories_done = true;
         }

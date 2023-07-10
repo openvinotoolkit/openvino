@@ -193,7 +193,7 @@ public:
     void load(cldnn::BinaryInputBuffer& ib) override;
 
 private:
-    int32_t _deform_conv_dep_offset;
+    int32_t _deform_conv_dep_offset = 0;
 };
 
 using convolution_inst = typed_primitive_inst<convolution>;
