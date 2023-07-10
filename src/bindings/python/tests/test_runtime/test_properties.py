@@ -76,14 +76,6 @@ def test_deprecation():
             ),
         ),
         (
-            properties.intel_cpu.latency_threading_mode,
-            (
-                (properties.intel_cpu.LatencyThreadingMode.PER_NUMA_NODE, "LatencyThreadingMode.PER_NUMA_NODE", 0),
-                (properties.intel_cpu.LatencyThreadingMode.PER_SOCKET, "LatencyThreadingMode.PER_SOCKET", 1),
-                (properties.intel_cpu.LatencyThreadingMode.PER_PLATFORM, "LatencyThreadingMode.PER_PLATFORM", 2),
-            ),
-        ),
-        (
             properties.hint.ExecutionMode,
             (
                 (properties.hint.ExecutionMode.PERFORMANCE, "ExecutionMode.PERFORMANCE", 1),
@@ -297,9 +289,7 @@ def test_properties_ro(ov_property_ro, expected_value):
         (
             properties.intel_cpu.latency_threading_mode,
             "LATENCY_THREADING_MODE",
-            (
-                (properties.intel_cpu.LatencyThreadingMode.PER_SOCKET, properties.intel_cpu.LatencyThreadingMode.PER_SOCKET),
-            ),
+            ((properties.intel_cpu.LatencyThreadingMode.PER_SOCKET, properties.intel_cpu.LatencyThreadingMode.PER_SOCKET),),
         ),
         (
             properties.intel_auto.device_bind_buffer,
