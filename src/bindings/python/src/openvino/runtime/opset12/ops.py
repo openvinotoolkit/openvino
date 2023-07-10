@@ -5,7 +5,6 @@
 from functools import partial
 from typing import Optional
 
-import numpy as np
 from openvino.runtime import Node
 from openvino.runtime.opset_utils import _get_node_factory
 from openvino.runtime.utils.decorators import nameable_op
@@ -46,3 +45,45 @@ def pad(
 
     pad_mode = pad_mode.upper()
     return _get_node_factory_opset12().create("Pad", input_nodes, {"pad_mode": pad_mode})
+
+
+@nameable_op
+def scatter_elements_update(
+    data: NodeInput,
+    indices: NodeInput,
+    updates: NodeInput,
+    axis: NodeInput,
+    reduction: Optional[str] = None,
+    use_init_val: Optional[bool] = True,
+    name: Optional[str] = None,
+) -> Node:
+    """Return a node which produces a ScatterElementsUpdate operation.
+
+    :param data:    The input tensor to be updated.
+    :param indices: The tensor with indexes which will be updated. Negative indices are supported.
+    :param updates: The tensor with update values.
+    :param axis:    The axis for scatter.
+    :param reduction: The type of operation to perform on the inputs. One of "none", "sum",
+                      "prod", "min", "max", "mean".
+    :param: use_init_val: Controls whether the elements in the data input tensor are used as
+                          initial value for reduce operations.
+    :return: ScatterElementsUpdate node
+
+    ScatterElementsUpdate creates a copy of the first input tensor with updated elements
+    specified with second and third input tensors.
+
+    For each entry in `updates`, the target index in `data` is obtained by combining
+    the corresponding entry in `indices` with the index of the entry itself: the
+    index-value for dimension equal to `axis` is obtained from the value of the
+    corresponding entry in `indices` and the index-value for dimension not equal
+    to `axis` is obtained from the index of the entry itself.
+    """
+    input_nodes = as_nodes(data, indices, updates, axis)
+    return _get_node_factory_opset12().create(
+        "ScatterElementsUpdate",
+        input_nodes,
+        {
+            "reduction": reduction,
+            "use_init_val": use_init_val,
+        }
+    )

@@ -143,7 +143,7 @@ from ngraph.opset9.ops import roi_align
 from ngraph.opset2.ops import roi_pooling
 from ngraph.opset7.ops import roll
 from ngraph.opset5.ops import round
-from ngraph.opset3.ops import scatter_elements_update
+from ngraph.opset12.ops import scatter_elements_update
 from ngraph.opset3.ops import scatter_update
 from ngraph.opset1.ops import select
 from ngraph.opset1.ops import selu
