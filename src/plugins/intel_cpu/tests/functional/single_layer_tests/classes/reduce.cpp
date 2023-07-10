@@ -53,7 +53,7 @@ std::string ReduceCPULayerTest::getTestCaseName(testing::TestParamInfo<ReduceLay
     result << "outPRC=" << outPrc << "_";
 
     if (!additionalConfig.empty()) {
-        result << "_PluginConf";
+        result << "PluginConf";
         for (auto& item : additionalConfig) {
             result << "_" << item.first << "=" << item.second.get_type_name();
         }
