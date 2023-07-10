@@ -341,11 +341,11 @@ void save_binary(const std::string& path, std::vector<uint8_t> binary);
 /**
  * @brief Trim OpenVINO project file name path if OpenVINO project directory found.
  *
- * Function use `OV_NATIVE_PARENT_PROJECT_ROOT_DIR` definition with project directory name definedas
- * 'openvino_dir_name + path_path_separator'. The input file name is scanned for OV_NATIVE_PARENT_PROJECT_ROOT_DIR,
+ * Function use `OV_NATIVE_PARENT_PROJECT_ROOT_DIR` definition with project directory name defines
+ * 'openvino_dir_name'. The input file name is scanned for OV_NATIVE_PARENT_PROJECT_ROOT_DIR,
  * if found returns pointer to trimmed name otherwise returns input pointer.
  *
- * e.g: OV_NATIVE_PARENT_PROJECT_ROOT_DIR = openvino/
+ * e.g: OV_NATIVE_PARENT_PROJECT_ROOT_DIR = openvino
  * - /home/user/openvino/src/example.cpp -> src/example.cpp
  * - ../../../../openvino/src/example.cpp -> src/example.cpp
  *
