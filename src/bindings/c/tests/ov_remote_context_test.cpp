@@ -27,7 +27,7 @@ protected:
         char* info = nullptr;
         const char* key = ov_property_key_available_devices;
         EXPECT_EQ(ov_core_get_property(core, "GPU", key, &info), ov_status_e::OK);
-        EXPECT_STRNE(info, nullptr);
+        ASSERT_STRNE(info, nullptr);
 
         if (strlen(info) == 0) {
             ov_free(info);

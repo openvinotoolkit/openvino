@@ -23,7 +23,7 @@ InferenceEngine::ICompiledModelWrapper::ICompiledModelWrapper(
 }
 
 std::shared_ptr<ov::IAsyncInferRequest> InferenceEngine::ICompiledModelWrapper::create_infer_request() const {
-    return ov::legacy_convert::convert_infer_request(m_model->CreateInferRequest());
+    return ov::legacy_convert::convert_infer_request(m_model->CreateInferRequest(), m_model->_plugin->GetName());
 }
 
 void InferenceEngine::ICompiledModelWrapper::export_model(std::ostream& model) const {
