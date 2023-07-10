@@ -57,7 +57,7 @@ protected:
     void push_input_data();
 
     Graph* graph = nullptr;
-    mutable std::unordered_map<std::string, void*> external_ptr;
+    std::unordered_map<std::string, void*> external_ptr;
 
 private:
     void push_states();
@@ -72,7 +72,7 @@ private:
     const ov::Output<const ov::Node>& get_internal_port(const ov::Output<const ov::Node>& port) const;
     ov::Tensor get_port_tensor(const ov::Output<const ov::Node>& port) const;
     // Check this port is original model port or compiled model's port, return true for compiled model's port
-    // This is because if precision has been changed in compiled model, it need distinguish them
+    // This is because if precision has been changed in compiled model, it needs distinguish them
     bool check_compiled_model_port(const ov::Output<const ov::Node>& port) const;
     mutable std::unordered_map<std::string, ov::Output<const ov::Node>> m_orig_ports_map;
     // Store external tensor due to precision changes

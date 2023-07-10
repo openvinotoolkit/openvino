@@ -523,7 +523,7 @@ void Engine::set_property(const ov::AnyMap &config) {
 }
 
 bool Engine::is_legacy_api() const {
-    return !this->get_core()->is_new_api();
+    return !get_core()->is_new_api();
 }
 
 ov::Any Engine::get_property_legacy(const std::string& name, const ov::AnyMap& options) const {
