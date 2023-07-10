@@ -611,6 +611,18 @@ void regclass_InferRequest(py::module m) {
             :rtype: List[openvino.runtime.VariableState]
         )");
 
+    cls.def(
+        "get_compiled_model",
+        [](InferRequestWrapper& self) {
+            return self.m_request.get_compiled_model();
+        },
+        R"(
+            Returns the compiled model.
+
+            :return: Compiled model object.
+            :rtype: openvino.runtime.CompiledModel
+        )");
+
     cls.def_property_readonly(
         "userdata",
         [](InferRequestWrapper& self) {

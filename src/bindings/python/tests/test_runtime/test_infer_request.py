@@ -11,7 +11,7 @@ import datetime
 import time
 
 import openvino.runtime.opset8 as ops
-from openvino.runtime import Core, AsyncInferQueue, Tensor, ProfilingInfo, Model, InferRequest
+from openvino.runtime import Core, AsyncInferQueue, Tensor, ProfilingInfo, Model, InferRequest, CompiledModel
 from openvino.runtime import Type, PartialShape, Shape, Layout
 from openvino.preprocess import PrePostProcessor
 
@@ -512,6 +512,22 @@ def test_infer_queue_iteration(device):
     assert infer_request.userdata is None
     with pytest.raises(StopIteration):
         next(it)
+
+
+def test_get_compiled_model(device):
+    core = Core()
+    param = ops.parameter([10])
+    data = np.random.rand((10))
+    model = Model(ops.relu(param), [param])
+    compiled_model_1 = core.compile_model(model, device)
+    infer_request = compiled_model_1.create_infer_request()
+    compiled_model_2 = infer_request.get_compiled_model()
+
+    ref = infer_request.infer({0: data})
+    test = compiled_model_2.create_infer_request().infer({0: data})
+
+    assert isinstance(compiled_model_2, CompiledModel)
+    assert np.allclose(ref[0], test[0])
 
 
 def test_infer_queue_userdata_is_empty(device):
