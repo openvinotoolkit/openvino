@@ -26,6 +26,7 @@
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "default_opset.hpp"
+#include "openvino/opsets/opset12.hpp"
 #include "engines_util/test_case.hpp"
 #include "engines_util/test_engines.hpp"
 #include "gtest/gtest.h"
@@ -3592,7 +3593,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_round_half_nearest_even) {
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_scatter10_import_only) {
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_scatter10) {
     const auto scatter_fn = onnx_import::import_onnx_model(
         file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/scatter_opset10.onnx"));
 
@@ -3600,11 +3601,15 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_scatter10_import_only) {
 
     EXPECT_EQ(scatter_fn->get_output_size(), 1);
     EXPECT_EQ(scatter_fn->get_output_shape(0), data_shape);
-    EXPECT_EQ(count_ops_of_type<op::v3::ScatterElementsUpdate>(scatter_fn), 1);
+    EXPECT_EQ(count_ops_of_type<ov::op::v12::ScatterElementsUpdate>(scatter_fn), 1);
     EXPECT_EQ(count_ops_of_type<op::v0::Constant>(scatter_fn), 4);
+
+    auto test_case = test::TestCase(scatter_fn, s_device);
+    test_case.add_expected_output<float>({12.01f, 3.f, 4.f, 13.99f});
+    test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_scatter_elements_import_only) {
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_scatter_elements_opset11) {
     const auto scatter_fn =
         onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
@@ -3614,8 +3619,12 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_scatter_elements_import_only) {
 
     EXPECT_EQ(scatter_fn->get_output_size(), 1);
     EXPECT_EQ(scatter_fn->get_output_shape(0), data_shape);
-    EXPECT_EQ(count_ops_of_type<op::v3::ScatterElementsUpdate>(scatter_fn), 1);
+    EXPECT_EQ(count_ops_of_type<ov::op::v12::ScatterElementsUpdate>(scatter_fn), 1);
     EXPECT_EQ(count_ops_of_type<op::v0::Constant>(scatter_fn), 4);
+
+    auto test_case = test::TestCase(scatter_fn, s_device);
+    test_case.add_expected_output<float>({1., 1.1, 3., 2.1, 5.});
+    test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_scatter_elements_opset16_reduction_none) {
@@ -3628,16 +3637,23 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_scatter_elements_opset16_reduction_none)
 
     EXPECT_EQ(scatter_fn->get_output_size(), 1);
     EXPECT_EQ(scatter_fn->get_output_shape(0), data_shape);
-    EXPECT_EQ(count_ops_of_type<op::v3::ScatterElementsUpdate>(scatter_fn), 1);
+    EXPECT_EQ(count_ops_of_type<ov::op::v12::ScatterElementsUpdate>(scatter_fn), 1);
     EXPECT_EQ(count_ops_of_type<op::v0::Constant>(scatter_fn), 4);
+
+    auto test_case = test::TestCase(scatter_fn, s_device);
+    test_case.add_expected_output<float>({1.f, 1.1f, 3.f, 2.1f, 5.f});
+    test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_scatter_elements_opset16_reduction_add) {
-    const auto path = file_util::path_join(CommonTestUtils::getExecutableDirectory(),
-                                           SERIALIZED_ZOO,
-                                           "onnx/scatter_elements_opset16_reduction_add.onnx");
-    EXPECT_THROW(onnx_import::import_onnx_model(path), ngraph_error)
-        << "Unsupported type of attribute: `reduction`. Only `none` is supported";
+    const auto scatter_fn =
+        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                            SERIALIZED_ZOO,
+                                                            "onnx/scatter_elements_opset16_reduction_add.onnx"));
+
+    auto test_case = test::TestCase(scatter_fn, s_device);
+    test_case.add_expected_output<float>({1.f, 3.1f, 3.f, 6.1f, 5.f});
+    test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_upsample6_nearest_infer) {
