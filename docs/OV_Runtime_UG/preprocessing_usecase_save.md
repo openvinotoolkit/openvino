@@ -43,18 +43,18 @@ in the model preparation script for such a case.
 
 .. tab-set::
 
-   .. tab-item:: C++
-      :sync: cpp
-
-      .. doxygensnippet:: docs/snippets/ov_preprocessing.cpp
-         :language: cpp
-         :fragment: ov:preprocess:save_headers
-
    .. tab-item:: Python
       :sync: py
 
       .. doxygensnippet:: docs/snippets/ov_preprocessing.py
          :language: Python
+         :fragment: ov:preprocess:save_headers
+
+   .. tab-item:: C++
+      :sync: cpp
+
+      .. doxygensnippet:: docs/snippets/ov_preprocessing.cpp
+         :language: cpp
          :fragment: ov:preprocess:save_headers
 
 
@@ -63,18 +63,18 @@ in the model preparation script for such a case.
 
 .. tab-set::
 
-   .. tab-item:: C++
-      :sync: cpp
-
-      .. doxygensnippet:: docs/snippets/ov_preprocessing.cpp
-         :language: cpp
-         :fragment: ov:preprocess:save
-
    .. tab-item:: Python
       :sync: py
 
       .. doxygensnippet:: docs/snippets/ov_preprocessing.py
          :language: Python
+         :fragment: ov:preprocess:save
+
+   .. tab-item:: C++
+      :sync: cpp
+
+      .. doxygensnippet:: docs/snippets/ov_preprocessing.cpp
+         :language: cpp
          :fragment: ov:preprocess:save
 
 
@@ -88,18 +88,18 @@ time when the cached model is available.
 
 .. tab-set::
 
-   .. tab-item:: C++
-      :sync: cpp
-
-      .. doxygensnippet:: docs/snippets/ov_preprocessing.cpp
-         :language: cpp
-         :fragment: ov:preprocess:save_load
-
    .. tab-item:: Python
       :sync: py
 
       .. doxygensnippet:: docs/snippets/ov_preprocessing.py
          :language: Python
+         :fragment: ov:preprocess:save_load
+
+   .. tab-item:: C++
+      :sync: cpp
+
+      .. doxygensnippet:: docs/snippets/ov_preprocessing.cpp
+         :language: cpp
          :fragment: ov:preprocess:save_load
 
 

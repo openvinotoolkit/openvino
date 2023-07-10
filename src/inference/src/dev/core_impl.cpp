@@ -39,11 +39,17 @@
 #include "openvino/util/shared_object.hpp"
 #include "ov_plugins.hpp"
 #include "preprocessing/preprocessing.hpp"
+#ifdef PROXY_PLUGIN_ENABLED
+#    include "openvino/proxy/plugin.hpp"
+#    include "openvino/proxy/properties.hpp"
+#endif
 #include "xml_parse_utils.h"
 
 ov::ICore::~ICore() = default;
 
 namespace {
+
+static constexpr const char* internal_plugin_suffix = "_ov_internal";
 
 template <typename F>
 void allowNotImplemented(F&& f) {
@@ -309,6 +315,136 @@ ov::CoreImpl::CoreImpl(bool _newAPI) : m_new_api(_newAPI) {
     }
 }
 
+bool ov::CoreImpl::is_proxy_device(const ov::Plugin& plugin) const {
+    return is_proxy_device(plugin.get_name());
+}
+bool ov::CoreImpl::is_proxy_device(const std::string& dev_name) const {
+#ifdef PROXY_PLUGIN_ENABLED
+    return pluginRegistry.find(dev_name) != pluginRegistry.end() &&
+           pluginRegistry.at(dev_name).pluginCreateFunc == ov::proxy::create_plugin;
+#else
+    return false;
+#endif
+}
+
+void ov::CoreImpl::register_plugin_in_registry_unsafe(const std::string& device_name, PluginDescriptor& desc) {
+#ifdef PROXY_PLUGIN_ENABLED
+    // Update proxy plugin config
+    const auto& fill_config = [](ov::AnyMap& defaultConfig, const ov::AnyMap& config, const std::string& dev_name) {
+        // Configure aliases for proxy plugin
+        auto it = config.find(ov::proxy::configuration::alias.name());
+        std::string alias;
+        if (it != config.end()) {
+            alias = it->second.as<std::string>();
+            if (defaultConfig.find(ov::proxy::alias_for.name()) == defaultConfig.end()) {
+                defaultConfig[ov::proxy::alias_for.name()] = std::vector<std::string>();
+            }
+            defaultConfig[ov::proxy::alias_for.name()].as<std::vector<std::string>>().emplace_back(dev_name);
+        }
+
+        // Configure device order for proxy_plugin
+        it = config.find(ov::proxy::configuration::priority.name());
+        if (it != config.end()) {
+            if (defaultConfig.find(ov::proxy::device_priorities.name()) == defaultConfig.end()) {
+                defaultConfig[ov::proxy::device_priorities.name()] = std::vector<std::string>();
+            }
+            defaultConfig[ov::proxy::device_priorities.name()].as<std::vector<std::string>>().emplace_back(
+                dev_name + ":" + it->second.as<std::string>());
+        }
+
+        // Configure devices fallback order for proxy_plugin
+        // Can use substring to configure the order
+        // CUDA iGPU : CUDA iGPU      // just create a new elememnt
+        // CPU iGPU : CUDA CPU iGPU   // use substring to find the right place
+        it = config.find(ov::proxy::configuration::fallback.name());
+        if (it != config.end()) {
+            auto fallback = it->second.as<std::string>();
+            // Change fallback name if fallback is configured to the HW plugin under the proxy with the same name
+            if (alias == fallback)
+                fallback += internal_plugin_suffix;
+            if (defaultConfig.find(ov::device::priorities.name()) == defaultConfig.end()) {
+                defaultConfig[ov::device::priorities.name()] = std::vector<std::string>{dev_name, fallback};
+            } else {
+                auto dev_order = defaultConfig[ov::device::priorities.name()].as<std::vector<std::string>>();
+                auto begin_it = std::find(dev_order.begin(), dev_order.end(), dev_name);
+                auto end_it = std::find(dev_order.begin(), dev_order.end(), fallback);
+                OPENVINO_ASSERT(begin_it == dev_order.end() && end_it == dev_order.end(),
+                                "Cannot restore the fallback order for proxy plugin.");
+                if (begin_it != dev_order.end() && end_it != dev_order.end()) {
+                    // Nothing to do. Just check that devices have the right order
+                    OPENVINO_ASSERT(std::distance(begin_it, end_it) > 0,
+                                    "Incorrect order of proxy plugin fallback priority.");
+                } else if (begin_it != dev_order.end()) {
+                    // Insert fallback device after the primary device
+                    dev_order.insert(begin_it + 1, fallback);
+                } else if (end_it != dev_order.end()) {
+                    // Insert primary device before the fallback device
+                    dev_order.insert(end_it, dev_name);
+                }
+                defaultConfig[ov::device::priorities.name()] = dev_order;
+            }
+        }
+    };
+#endif
+
+    auto&& config = desc.defaultConfig;
+    std::string dev_name = device_name;
+    // Register proxy plugin
+    if (config.find(ov::proxy::configuration::alias.name()) != config.end()) {
+#ifndef PROXY_PLUGIN_ENABLED
+        OPENVINO_THROW("Cannot register plugin under the proxy. Proxy plugin is disabled.");
+#else
+        // Create proxy plugin for alias
+        auto alias = config.at(ov::proxy::configuration::alias.name()).as<std::string>();
+        if (alias == device_name)
+            dev_name += internal_plugin_suffix;
+        // Alias can be registered by several plugins
+        if (pluginRegistry.find(alias) == pluginRegistry.end()) {
+            // Register new plugin
+            PluginDescriptor desc = PluginDescriptor(ov::proxy::create_plugin);
+            fill_config(desc.defaultConfig, config, dev_name);
+            pluginRegistry[alias] = desc;
+            add_mutex(alias);
+        } else {
+            // Update registered plugin
+            auto& plugin = pluginRegistry.at(alias);
+            // Error if we have an alias for HW plugin
+            OPENVINO_ASSERT(plugin.pluginCreateFunc == ov::proxy::create_plugin,
+                            "Cannot register plugin for ",
+                            dev_name,
+                            " plugin with the same name already registered!");
+            fill_config(plugin.defaultConfig, config, dev_name);
+        }
+#endif
+    } else if (config.find(ov::proxy::configuration::fallback.name()) != config.end()) {
+#ifndef PROXY_PLUGIN_ENABLED
+        OPENVINO_THROW("Cannot register plugin under the proxy. Proxy plugin is disabled.");
+#else
+        // Fallback without alias means that we need to replace original plugin to proxy
+        dev_name += internal_plugin_suffix;
+        PluginDescriptor desc = PluginDescriptor(ov::proxy::create_plugin);
+        fill_config(desc.defaultConfig, config, dev_name);
+        pluginRegistry[device_name] = desc;
+        add_mutex(device_name);
+#endif
+    }
+
+    const static std::vector<ov::PropertyName> proxy_conf_properties = {ov::proxy::configuration::alias,
+                                                                        ov::proxy::configuration::fallback,
+                                                                        ov::proxy::configuration::priority};
+
+    // Register real plugin
+    for (const auto& proxy_prop : proxy_conf_properties) {
+        auto it = desc.defaultConfig.find(proxy_prop);
+        if (it != desc.defaultConfig.end()) {
+            desc.defaultConfig.erase(it);
+        }
+    }
+
+    pluginRegistry[dev_name] = desc;
+    add_mutex(dev_name);
+}
+
 void ov::CoreImpl::register_compile_time_plugins() {
     std::lock_guard<std::mutex> lock(get_mutex());
 
@@ -323,16 +459,14 @@ void ov::CoreImpl::register_compile_time_plugins() {
             const auto& value = plugin.second;
             ov::AnyMap config = any_copy(value.m_default_config);
             PluginDescriptor desc{value.m_create_plugin_func, config, value.m_create_extension_func};
-            pluginRegistry[deviceName] = desc;
-            add_mutex(deviceName);
+            register_plugin_in_registry_unsafe(deviceName, desc);
         }
 #else
         const auto& pluginPath = ov::util::get_compiled_plugin_path(plugin.second.m_plugin_path);
         if (pluginRegistry.find(deviceName) == pluginRegistry.end() && ov::util::file_exists(pluginPath)) {
             ov::AnyMap config = any_copy(plugin.second.m_default_config);
             PluginDescriptor desc{pluginPath, config};
-            pluginRegistry[deviceName] = desc;
-            add_mutex(deviceName);
+            register_plugin_in_registry_unsafe(deviceName, desc);
         }
 #endif
     }
@@ -391,8 +525,7 @@ void ov::CoreImpl::register_plugins_in_registry(const std::string& xml_config_fi
         // fill value in plugin registry for later lazy initialization
         {
             PluginDescriptor desc{pluginPath, config, listOfExtentions};
-            pluginRegistry[deviceName] = desc;
-            add_mutex(deviceName);
+            register_plugin_in_registry_unsafe(deviceName, desc);
         }
     }
 }
@@ -437,7 +570,7 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
     try {
         ov::Plugin plugin;
 
-        if (desc.pluginCreateFunc) {  // static OpenVINO case
+        if (desc.pluginCreateFunc) {  // static OpenVINO case or proxy plugin
             std::shared_ptr<ov::IPlugin> plugin_impl;
             desc.pluginCreateFunc(plugin_impl);
             plugin = Plugin{plugin_impl, {}};
@@ -466,6 +599,26 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
 
         // configuring
         {
+#ifdef PROXY_PLUGIN_ENABLED
+            // Initial setup for proxy plugin.
+            // It is needed for future initialization to initialize low level plugin
+            if (desc.pluginCreateFunc == ov::proxy::create_plugin) {
+                ov::AnyMap initial_config;
+                auto it = desc.defaultConfig.find(ov::proxy::alias_for.name());
+                if (it != desc.defaultConfig.end()) {
+                    initial_config[it->first] = it->second;
+                }
+                it = desc.defaultConfig.find(ov::proxy::device_priorities.name());
+                if (it != desc.defaultConfig.end()) {
+                    initial_config[it->first] = it->second;
+                }
+                it = desc.defaultConfig.find(ov::device::priorities.name());
+                if (it != desc.defaultConfig.end()) {
+                    initial_config[ov::device::priorities.name()] = it->second;
+                }
+                plugin.set_property(initial_config);
+            }
+#endif
             // TODO: remove this block of code once GPU removes support of ov::cache_dir
             // also, remove device_supports_cache_dir at all
             {
@@ -556,7 +709,10 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
     if (cacheManager && device_supports_model_caching(plugin)) {
         CacheContent cacheContent{cacheManager};
         cacheContent.blobId = ov::ModelCache::compute_hash(model, create_compile_config(plugin, parsed._config));
-        auto lock = cacheGuard.get_hash_lock(cacheContent.blobId);
+        std::unique_ptr<CacheGuardEntry> lock;
+        // Proxy plugin fallback to lowlevel device
+        if (!is_proxy_device(plugin))
+            lock = cacheGuard.get_hash_lock(cacheContent.blobId);
         res = load_model_from_cache(cacheContent, plugin, parsed._config, ov::RemoteContext{}, [&]() {
             return compile_model_and_cache(model, plugin, parsed._config, ov::RemoteContext{}, cacheContent);
         });
@@ -585,7 +741,10 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
     if (cacheManager && device_supports_model_caching(plugin)) {
         CacheContent cacheContent{cacheManager};
         cacheContent.blobId = ov::ModelCache::compute_hash(model, create_compile_config(plugin, parsed._config));
-        auto lock = cacheGuard.get_hash_lock(cacheContent.blobId);
+        std::unique_ptr<CacheGuardEntry> lock;
+        // Proxy plugin fallback to lowlevel device
+        if (!is_proxy_device(plugin))
+            lock = cacheGuard.get_hash_lock(cacheContent.blobId);
         res = load_model_from_cache(cacheContent, plugin, parsed._config, context, [&]() {
             return compile_model_and_cache(model, plugin, parsed._config, context, cacheContent);
         });
@@ -601,8 +760,9 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model_with_preprocess(ov::Pl
                                                                           const ov::AnyMap& config) const {
     std::shared_ptr<const ov::Model> preprocessed_model = model;
 
+    // Disable conversion for proxy plugin and virtual devices to add pre-processing based on API of internal plugins
     if (!is_new_api() && !std::dynamic_pointer_cast<InferenceEngine::IPluginWrapper>(plugin.m_ptr) &&
-        !is_virtual_device(plugin.get_name())) {
+        !is_virtual_device(plugin.get_name()) && !is_proxy_device(plugin)) {
         ov::pass::Manager manager;
         manager.register_pass<ov::pass::AddPreprocessing>();
 
@@ -628,7 +788,10 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& mod
     if (cacheManager && device_supports_model_caching(plugin)) {
         CacheContent cacheContent{cacheManager, model_path};
         cacheContent.blobId = ov::ModelCache::compute_hash(model_path, create_compile_config(plugin, parsed._config));
-        auto lock = cacheGuard.get_hash_lock(cacheContent.blobId);
+        std::unique_ptr<CacheGuardEntry> lock;
+        // Proxy plugin fallback to lowlevel device
+        if (!is_proxy_device(plugin))
+            lock = cacheGuard.get_hash_lock(cacheContent.blobId);
         compiled_model = load_model_from_cache(cacheContent, plugin, parsed._config, ov::RemoteContext{}, [&]() {
             auto cnnNetwork = ReadNetwork(model_path, std::string());
             return compile_model_and_cache(cnnNetwork.getFunction(), plugin, parsed._config, {}, cacheContent);
@@ -660,7 +823,10 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& mod
         CacheContent cacheContent{cacheManager};
         cacheContent.blobId =
             ov::ModelCache::compute_hash(model_str, weights, create_compile_config(plugin, parsed._config));
-        auto lock = cacheGuard.get_hash_lock(cacheContent.blobId);
+        std::unique_ptr<CacheGuardEntry> lock;
+        // Proxy plugin fallback to lowlevel device
+        if (!is_proxy_device(plugin))
+            lock = cacheGuard.get_hash_lock(cacheContent.blobId);
         compiled_model = load_model_from_cache(cacheContent, plugin, parsed._config, ov::RemoteContext{}, [&]() {
             auto cnnNetwork = read_model(model_str, weights);
             return compile_model_and_cache(cnnNetwork, plugin, parsed._config, ov::RemoteContext{}, cacheContent);
@@ -706,12 +872,36 @@ ov::SupportedOpsMap ov::CoreImpl::query_model(const std::shared_ptr<const ov::Mo
     return get_plugin(parsed._deviceName).query_model(model, parsed._config);
 }
 
+bool ov::CoreImpl::is_hidden_device(const std::string& device_name) const {
+#ifdef PROXY_PLUGIN_ENABLED
+    std::lock_guard<std::mutex> lock(get_mutex());
+    if (device_name.find(internal_plugin_suffix) != std::string::npos)
+        return true;
+
+    // Alias hides the device
+    for (auto&& it : pluginRegistry) {
+        auto it_priority = it.second.defaultConfig.find(ov::proxy::alias_for.name());
+        if (it.first == device_name || it_priority == it.second.defaultConfig.end())
+            continue;
+        auto devices = it_priority->second.as<std::vector<std::string>>();
+        for (const auto& dev : devices) {
+            if (dev == device_name)
+                return true;
+        }
+    }
+#endif
+    return false;
+}
+
 std::vector<std::string> ov::CoreImpl::get_available_devices() const {
     std::vector<std::string> devices;
     const std::string propertyName = METRIC_KEY(AVAILABLE_DEVICES);
 
     for (auto&& deviceName : get_registered_devices()) {
         std::vector<std::string> devicesIDs;
+        // Skip hidden devices
+        if (is_hidden_device(deviceName))
+            continue;
         try {
             const ie::Parameter p = GetMetric(deviceName, propertyName);
             devicesIDs = p.as<std::vector<std::string>>();
@@ -863,6 +1053,9 @@ std::shared_ptr<const ov::Model> ov::CoreImpl::apply_auto_batching(const std::sh
 
         // check whether if the Auto-Batching is applicable to the device
         auto parsed = ov::parseDeviceNameIntoConfig(deviceName);
+        // Do not apply auto batch for proxy device
+        if (is_proxy_device(parsed._deviceName))
+            return model;
         deviceNameWithoutBatch = deviceName;
         std::vector<std::string> metrics = get_plugin(parsed._deviceName)
                                                .get_property(METRIC_KEY(SUPPORTED_METRICS), parsed._config)
@@ -915,7 +1108,9 @@ void ov::CoreImpl::set_property(const std::string& device_name, const AnyMap& pr
     auto devices = get_registered_devices();
     for (auto&& config : properties) {
         const auto is_secondary_property = config.first.find(ov::device::properties.name()) != std::string::npos;
-        OPENVINO_ASSERT(!is_secondary_property,
+        // It is valid change for proxy plugin, proxy plugin allows to set properties for low level fallback devices
+        const auto is_proxy = is_proxy_device(ov::parseDeviceNameIntoConfig(device_name)._deviceName);
+        OPENVINO_ASSERT(!is_secondary_property || is_proxy,
                         "set_property do not support ov::device::propreties. "
                         "You can configure the devices through the compile_model()/query_model() API.");
     }
@@ -974,7 +1169,9 @@ void ov::CoreImpl::unload_plugin(const std::string& deviceName) {
     plugins.erase(deviceName);
 }
 
-void ov::CoreImpl::register_plugin(const std::string& plugin, const std::string& device_name) {
+void ov::CoreImpl::register_plugin(const std::string& plugin,
+                                   const std::string& device_name,
+                                   const ov::AnyMap& properties) {
     std::lock_guard<std::mutex> lock(get_mutex());
 
     auto it = pluginRegistry.find(device_name);
@@ -986,9 +1183,8 @@ void ov::CoreImpl::register_plugin(const std::string& plugin, const std::string&
         IE_THROW() << "Device name must not contain dot '.' symbol";
     }
 
-    PluginDescriptor desc{ov::util::get_plugin_path(plugin)};
-    pluginRegistry[device_name] = desc;
-    add_mutex(device_name);
+    PluginDescriptor desc{ov::util::get_plugin_path(plugin), properties};
+    register_plugin_in_registry_unsafe(device_name, desc);
 }
 
 /**
