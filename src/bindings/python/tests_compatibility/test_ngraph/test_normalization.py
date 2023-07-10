@@ -69,3 +69,18 @@ def test_mvn():
     assert node.get_output_size() == 1
     assert list(node.get_output_shape(0)) == [1, 3, 3, 3]
     assert node.get_output_element_type(0) == Type.f32
+
+
+def test_group_normalization():
+    data = ng.parameter((1, 3, 3, 3), name="data", dtype=np.float32)
+    scale = np.array([3], dtype=np.float32)
+    bias = np.array([3], dtype=np.float32)
+    num_groups = 2
+    epsilon = 1e-6
+
+    node = ng.group_normalization(data, scale, bias, num_groups, epsilon)
+
+    assert node.get_type_name() == "GroupNormalization"
+    assert node.get_output_size() == 1
+    assert list(node.get_output_shape(0)) == [1, 3, 3, 3]
+    assert node.get_output_element_type(0) == Type.f32

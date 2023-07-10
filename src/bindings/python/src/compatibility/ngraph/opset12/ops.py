@@ -88,3 +88,32 @@ def scatter_elements_update(
         }
     )
 
+
+@nameable_op
+def group_normalization(
+    data: NodeInput,
+    scale: NodeInput,
+    bias: NodeInput,
+    num_groups: int,
+    epsilon: float,
+    name: Optional[str] = None,
+) -> Node:
+    """Return a node which produces a GroupNormalization operation.
+
+    :param data:    The input tensor to be normalized.
+    :param scale:   The tensor containing the scale values for each channel.
+    :param bias:    The tensor containing the bias values for each channel.
+    :param num_groups: Specifies the number of groups that the channel dimension will be divided into.
+    :param epsilon: A very small value added to the variance for numerical stability.
+                    Ensures that division by zero does not occur for any normalized element.
+    :return: GroupNormalization node
+    """
+    input_nodes = as_nodes(data, scale, bias)
+    return _get_node_factory_opset12().create(
+        "GroupNormalization",
+        input_nodes,
+        {
+            "num_groups": num_groups,
+            "epsilon": epsilon,
+        }
+    )

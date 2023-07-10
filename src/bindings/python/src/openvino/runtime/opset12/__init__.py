@@ -67,6 +67,7 @@ from openvino.runtime.opset9.ops import grid_sample
 from openvino.runtime.opset1.ops import grn
 from openvino.runtime.opset1.ops import group_convolution
 from openvino.runtime.opset1.ops import group_convolution_backprop_data
+from openvino.runtime.opset12.ops import group_normalization
 from openvino.runtime.opset3.ops import gru_cell
 from openvino.runtime.opset5.ops import gru_sequence
 from openvino.runtime.opset1.ops import hard_sigmoid

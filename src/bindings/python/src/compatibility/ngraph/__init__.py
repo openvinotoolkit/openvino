@@ -83,6 +83,7 @@ from ngraph.opset12 import grid_sample
 from ngraph.opset12 import grn
 from ngraph.opset12 import group_convolution
 from ngraph.opset12 import group_convolution_backprop_data
+from ngraph.opset12 import group_normalization
 from ngraph.opset12 import gru_cell
 from ngraph.opset12 import gru_sequence
 from ngraph.opset12 import hard_sigmoid

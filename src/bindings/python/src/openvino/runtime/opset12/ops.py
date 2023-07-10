@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
@@ -11,7 +12,7 @@ from openvino.runtime.utils.decorators import nameable_op
 from openvino.runtime.utils.types import (
     NodeInput,
     as_nodes,
-    as_node
+    as_node,
 )
 
 _get_node_factory_opset12 = partial(_get_node_factory, "opset12")
@@ -85,5 +86,35 @@ def scatter_elements_update(
         {
             "reduction": reduction,
             "use_init_val": use_init_val,
-        }
+        },
+    )
+
+
+@nameable_op
+def group_normalization(
+    data: NodeInput,
+    scale: NodeInput,
+    bias: NodeInput,
+    num_groups: int,
+    epsilon: float,
+    name: Optional[str] = None,
+) -> Node:
+    """Return a node which produces a GroupNormalization operation.
+
+    :param data:    The input tensor to be normalized.
+    :param scale:   The tensor containing the scale values for each channel.
+    :param bias:    The tensor containing the bias values for each channel.
+    :param num_groups: Specifies the number of groups that the channel dimension will be divided into.
+    :param epsilon: A very small value added to the variance for numerical stability.
+                    Ensures that division by zero does not occur for any normalized element.
+    :return: GroupNormalization node
+    """
+    input_nodes = as_nodes(data, scale, bias)
+    return _get_node_factory_opset12().create(
+        "GroupNormalization",
+        input_nodes,
+        {
+            "num_groups": num_groups,
+            "epsilon": epsilon,
+        },
     )
