@@ -403,7 +403,6 @@ def test_blob_setter(device):
     assert np.allclose(res_1, res_2, atol=1e-2, rtol=1e-2)
 
 
-@pytest.mark.skip(reason="Plugin API 2.0 doesn't support GetPreProcess.")
 def test_getting_preprocess(device):
     ie_core = ie.IECore()
     net = ie_core.read_network(test_net_xml, test_net_bin)
@@ -414,7 +413,6 @@ def test_getting_preprocess(device):
     assert preprocess_info.mean_variant == ie.MeanVariant.NONE
 
 
-@pytest.mark.skip(reason="Plugin API 2.0 doesn't support GetPreProcess.")
 def test_resize_algorithm_work(device):
     ie_core = ie.IECore()
     net = generate_relu_model([1, 3, 32, 32])
