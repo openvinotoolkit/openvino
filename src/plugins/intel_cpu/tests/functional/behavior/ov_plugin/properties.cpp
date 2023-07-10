@@ -48,6 +48,7 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginAllSupportedPropertiesAreAvailable) {
         RW_property(ov::device::id.name()),
         RW_property(ov::intel_cpu::denormals_optimization.name()),
         RW_property(ov::intel_cpu::sparse_weights_decompression_rate.name()),
+        RW_property(ov::intel_cpu::latency_threading_mode.name()),
     };
 
     ov::Core ie;
@@ -99,6 +100,33 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigInferenceNumThreads) {
     ASSERT_NO_THROW(ie.set_property("CPU", ov::inference_num_threads(num_threads)));
     ASSERT_NO_THROW(value = ie.get_property("CPU", ov::inference_num_threads));
     ASSERT_EQ(num_threads, value);
+}
+
+TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigLatencyThreadingMode) {
+    ov::Core ie;
+    ov::intel_cpu::LatencyThreadingMode value = ov::intel_cpu::LatencyThreadingMode::PER_PLATFORM;
+    ov::intel_cpu::LatencyThreadingMode threading_mode = ov::intel_cpu::LatencyThreadingMode::PER_SOCKET;
+
+    ASSERT_NO_THROW(value = ie.get_property("CPU", ov::intel_cpu::latency_threading_mode));
+    ASSERT_EQ(threading_mode, value);
+
+    threading_mode = ov::intel_cpu::LatencyThreadingMode::PER_NUMA_NODE;
+
+    ASSERT_NO_THROW(ie.set_property("CPU", ov::intel_cpu::latency_threading_mode(threading_mode)));
+    ASSERT_NO_THROW(value = ie.get_property("CPU", ov::intel_cpu::latency_threading_mode));
+    ASSERT_EQ(threading_mode, value);
+
+    threading_mode = ov::intel_cpu::LatencyThreadingMode::PER_SOCKET;
+
+    ASSERT_NO_THROW(ie.set_property("CPU", ov::intel_cpu::latency_threading_mode(threading_mode)));
+    ASSERT_NO_THROW(value = ie.get_property("CPU", ov::intel_cpu::latency_threading_mode));
+    ASSERT_EQ(threading_mode, value);
+
+    threading_mode = ov::intel_cpu::LatencyThreadingMode::PER_PLATFORM;
+
+    ASSERT_NO_THROW(ie.set_property("CPU", ov::intel_cpu::latency_threading_mode(threading_mode)));
+    ASSERT_NO_THROW(value = ie.get_property("CPU", ov::intel_cpu::latency_threading_mode));
+    ASSERT_EQ(threading_mode, value);
 }
 
 TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigStreamsNum) {
