@@ -29,11 +29,11 @@ const std::vector<ConvertExecutorDesc>& getConvertExecutorsList();
 class ConvertExecutorFactory : public ExecutorFactory {
 public:
     ConvertExecutorFactory(const ConvertParams& convertParams,
-                             const std::vector<MemoryDescPtr>& srcDescs,
-                             const std::vector<MemoryDescPtr>& dstDescs,
-                             const ExecutorContext::CPtr context) : ExecutorFactory(context) {
+                           const MemoryDescPtr& srcDesc,
+                           const MemoryDescPtr& dstDesc,
+                           const ExecutorContext::CPtr context) : ExecutorFactory(context) {
         for (auto& desc : getConvertExecutorsList()) {
-            if (desc.builder->isSupported(convertParams, srcDescs, dstDescs)) {
+            if (desc.builder->isSupported(convertParams, srcDesc, dstDesc)) {
                 supportedDescs.push_back(desc);
             }
         }
@@ -41,9 +41,9 @@ public:
 
     ~ConvertExecutorFactory() = default;
     virtual ConvertExecutorPtr makeExecutor(const ConvertParams& convertParams,
-                                              const std::vector<MemoryDescPtr>& srcDescs,
-                                              const std::vector<MemoryDescPtr>& dstDescs,
-                                              const dnnl::primitive_attr &attr);
+                                            const MemoryDescPtr& srcDesc,
+                                            const MemoryDescPtr& dstDesc,
+                                            const dnnl::primitive_attr &attr);
 
 private:
     std::vector<ConvertExecutorDesc> supportedDescs;

@@ -96,10 +96,11 @@ void Convert::initSupportedPrimitiveDescriptors() {
     }
 
     auto supportedPrimitiveDescriptorsBuilder = [this](NodeConfig config) {
-        std::vector<MemoryDescPtr> srcMemoryDescs = {config.inConfs[0].getMemDesc()}, dstMemoryDescs = {config.outConfs[0].getMemDesc()};
-        convertParams.srcPrc = srcMemoryDescs.front()->getPrecision();
-        convertParams.dstPrc = dstMemoryDescs.front()->getPrecision();
-        auto factory = std::make_shared<ConvertExecutorFactory>(convertParams, srcMemoryDescs, dstMemoryDescs,
+        MemoryDescPtr srcMemoryDesc = config.inConfs[0].getMemDesc();
+        MemoryDescPtr dstMemoryDesc = config.outConfs[0].getMemDesc();
+        convertParams.srcPrc = srcMemoryDesc->getPrecision();
+        convertParams.dstPrc = dstMemoryDesc->getPrecision();
+        auto factory = std::make_shared<ConvertExecutorFactory>(convertParams, srcMemoryDesc, dstMemoryDesc,
                                                                 std::make_shared<ExecutorContext>(context, getImplPriority()));
         supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown, factory);
     };
@@ -143,17 +144,11 @@ void Convert::prepareParams() {
     convertParams.size = parentMem.GetDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
 
     auto selectedPD = getSelectedPrimitiveDescriptor();
-    std::vector<MemoryDescPtr> srcDescs;
-    for (size_t i = 0; i < getOriginalInputsNumber(); i++) {
-        srcDescs.push_back(getParentEdgeAt(i)->getMemoryPtr()->getDescPtr());
-    }
-    std::vector<MemoryDescPtr> dstDescs;
-    for (size_t i = 0; i < getOriginalOutputsNumber(); i++) {
-        dstDescs.push_back(getChildEdgeAt(i)->getMemoryPtr()->getDescPtr());
-    }
+    MemoryDescPtr srcDesc = getParentEdgeAt(0)->getMemoryPtr()->getDescPtr();
+    MemoryDescPtr dstDesc = getChildEdgeAt(0)->getMemoryPtr()->getDescPtr();
     execPtr = selectedPD->getExecutorFactoryAs<ConvertExecutorFactory>()->makeExecutor(convertParams,
-                                                                                       srcDescs,
-                                                                                       dstDescs,
+                                                                                       srcDesc,
+                                                                                       dstDesc,
                                                                                        {});
     selectedPD->setImplementationType(execPtr->getImplType());
 }
@@ -172,15 +167,8 @@ void Convert::execute(dnnl::stream strm) {
     if (parentPaddElemCount != childPaddElemCount)
         IE_THROW() << errorPrefix << " has different elements number in input and output buffers";
 
-    std::vector<MemoryCPtr> srcMemory;
-    for (size_t i = 0; i < getOriginalInputsNumber(); i++) {
-        srcMemory.push_back(getParentEdgeAt(i)->getMemoryPtr());
-    }
-    std::vector<MemoryPtr> dstMemory;
-    for (size_t i = 0; i < getOriginalOutputsNumber(); i++) {
-        dstMemory.push_back(getChildEdgeAt(i)->getMemoryPtr());
-    }
-
+    MemoryCPtr srcMemory = getParentEdgeAt(0)->getMemoryPtr();
+    MemoryPtr dstMemory = getChildEdgeAt(0)->getMemoryPtr();
     execPtr->exec(srcMemory, dstMemory);
 }
 

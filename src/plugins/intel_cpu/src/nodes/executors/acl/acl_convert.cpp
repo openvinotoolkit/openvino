@@ -6,8 +6,8 @@
 #include "acl_utils.hpp"
 
 bool ov::intel_cpu::ACLConvertExecutor::init(const ov::intel_cpu::ConvertParams& convertParams,
-                                             const std::vector<MemoryDescPtr>& srcDescs,
-                                             const std::vector<MemoryDescPtr>& dstDescs,
+                                             const MemoryDescPtr& srcDesc,
+                                             const MemoryDescPtr& dstDesc,
                                              const dnnl::primitive_attr& attr) {
     aclConvertParams = convertParams;
 
@@ -21,10 +21,10 @@ bool ov::intel_cpu::ACLConvertExecutor::init(const ov::intel_cpu::ConvertParams&
     if (!isCopyOp && dstPrecision == arm_compute::DataType::S8) {
         dstPrecision = arm_compute::DataType::QASYMM8_SIGNED;
     }
-    auto srcDims = srcDescs[0]->getShape().getStaticDims();
-    auto dstDims = dstDescs[0]->getShape().getStaticDims();
-    auto srcDataLayout = getAclDataLayoutByMemoryDesc(srcDescs[0]);
-    auto dstDataLayout = getAclDataLayoutByMemoryDesc(dstDescs[0]);
+    auto srcDims = srcDesc->getShape().getStaticDims();
+    auto dstDims = dstDesc->getShape().getStaticDims();
+    auto srcDataLayout = getAclDataLayoutByMemoryDesc(srcDesc);
+    auto dstDataLayout = getAclDataLayoutByMemoryDesc(dstDesc);
     auto srcTensorInfo = arm_compute::TensorInfo(shapeCast(srcDims), 1, srcPrecision, srcDataLayout);
     auto dstTensorInfo = arm_compute::TensorInfo(shapeCast(dstDims), 1, dstPrecision, dstDataLayout);
     if (isCopyOp) {
@@ -54,9 +54,9 @@ bool ov::intel_cpu::ACLConvertExecutor::init(const ov::intel_cpu::ConvertParams&
     return true;
 }
 
-void ov::intel_cpu::ACLConvertExecutor::exec(const std::vector<MemoryCPtr>& src, const std::vector<MemoryPtr>& dst) {
-    srcTensor.allocator()->import_memory(src[0]->GetPtr());
-    dstTensor.allocator()->import_memory(dst[0]->GetPtr());
+void ov::intel_cpu::ACLConvertExecutor::exec(const MemoryCPtr& src, const MemoryPtr& dst) {
+    srcTensor.allocator()->import_memory(src->GetPtr());
+    dstTensor.allocator()->import_memory(dst->GetPtr());
 
     if (isCopyOp) {
         acl_copy->run();
@@ -69,8 +69,8 @@ void ov::intel_cpu::ACLConvertExecutor::exec(const std::vector<MemoryCPtr>& src,
 }
 
 bool ov::intel_cpu::ACLConvertExecutorBuilder::isSupported(const ConvertParams& convertParams,
-                 const std::vector<MemoryDescPtr>& srcDescs,
-                 const std::vector<MemoryDescPtr>& dstDescs) const {
+                                                           const MemoryDescPtr& srcDesc,
+                                                           const MemoryDescPtr& dstDesc) const {
     if (convertParams.srcPrc != convertParams.dstPrc) {
         if (!one_of(convertParams.srcPrc,
                     InferenceEngine::Precision::I8,

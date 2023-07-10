@@ -13,14 +13,14 @@ class CommonConvertExecutor : public ConvertExecutor {
 public:
     using ConvertExecutor::ConvertExecutor;
     bool init(const ConvertParams& convertParams,
-              const std::vector<MemoryDescPtr>& srcDescs,
-              const std::vector<MemoryDescPtr>& dstDescs,
+              const MemoryDescPtr& srcDesc,
+              const MemoryDescPtr& dstDesc,
               const dnnl::primitive_attr &attr) override;
-    void exec(const std::vector<MemoryCPtr>& src, const std::vector<MemoryPtr>& dst) override;
+    void exec(const MemoryCPtr& src, const MemoryPtr& dst) override;
     impl_desc_type getImplType() const override { return implDescType; };
 protected:
     ConvertParams commonConvertParams;
-    impl_desc_type implDescType = impl_desc_type::ref;
+    static const impl_desc_type implDescType = impl_desc_type::ref;
     const ExecutorContext::CPtr convertContext;
 };
 
@@ -29,8 +29,8 @@ class CommonConvertExecutorBuilder : public ConvertExecutorBuilder {
 public:
     ~CommonConvertExecutorBuilder() = default;
     bool isSupported(const ConvertParams& convertParams,
-                     const std::vector<MemoryDescPtr>& srcDescs,
-                     const std::vector<MemoryDescPtr>& dstDescs) const override {
+                     const MemoryDescPtr& srcDesc,
+                     const MemoryDescPtr& dstDesc) const override {
         return true;
     }
     ConvertExecutorPtr makeExecutor(const ExecutorContext::CPtr context) const override {

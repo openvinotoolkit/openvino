@@ -22,10 +22,10 @@ class ConvertExecutor {
 public:
     explicit ConvertExecutor(const ExecutorContext::CPtr context);
     virtual bool init(const ConvertParams& convertParams,
-                      const std::vector<MemoryDescPtr>& srcDescs,
-                      const std::vector<MemoryDescPtr>& dstDescs,
+                      const MemoryDescPtr& srcDesc,
+                      const MemoryDescPtr& dstDesc,
                       const dnnl::primitive_attr &attr) = 0;
-    virtual void exec(const std::vector<MemoryCPtr>& src, const std::vector<MemoryPtr>& dst) = 0;
+    virtual void exec(const MemoryCPtr& src, const MemoryPtr& dst) = 0;
     virtual impl_desc_type getImplType() const = 0;
     virtual ~ConvertExecutor() = default;
 protected:
@@ -37,10 +37,10 @@ using ConvertExecutorCPtr = std::shared_ptr<const ConvertExecutor>;
 
 class ConvertExecutorBuilder {
 public:
-    ~ConvertExecutorBuilder() = default;
+    virtual ~ConvertExecutorBuilder() = default;
     virtual bool isSupported(const ConvertParams& convertParams,
-                             const std::vector<MemoryDescPtr>& srcDescs,
-                             const std::vector<MemoryDescPtr>& dstDescs) const = 0;
+                             const MemoryDescPtr& srcDesc,
+                             const MemoryDescPtr& dstDesc) const = 0;
     virtual ConvertExecutorPtr makeExecutor(const ExecutorContext::CPtr context) const = 0;
 };
 

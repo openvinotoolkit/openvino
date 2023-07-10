@@ -17,12 +17,12 @@ const std::vector<ConvertExecutorDesc>& getConvertExecutorsList() {
 }
 
 ConvertExecutorPtr ConvertExecutorFactory::makeExecutor(const ConvertParams& convertParams,
-                                                        const std::vector<MemoryDescPtr>& srcDescs,
-                                                        const std::vector<MemoryDescPtr>& dstDescs,
+                                                        const MemoryDescPtr& srcDesc,
+                                                        const MemoryDescPtr& dstDesc,
                                                         const dnnl::primitive_attr& attr) {
     auto build = [&](const ConvertExecutorDesc* desc) {
         auto executor = desc->builder->makeExecutor(context);
-        if (executor->init(convertParams, srcDescs, dstDescs, attr)) {
+        if (executor->init(convertParams, srcDesc, dstDesc, attr)) {
             return executor;
         }
         ConvertExecutorPtr ptr = nullptr;
