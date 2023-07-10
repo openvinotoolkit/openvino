@@ -15,8 +15,9 @@
 #include "openvino/pass/serialize.hpp"
 #include "ie_ngraph_utils.hpp"
 
-namespace FuncTestUtils {
-namespace TestModel {
+namespace ov {
+namespace test {
+namespace utils {
 
 /**
  * @brief generates IR files (XML and BIN files) with the test model.
@@ -36,5 +37,6 @@ void generateTestModel(const std::string &modelPath,
             inputDims, InferenceEngine::details::convertPrecision(netPrc)));
 }
 
-}  // namespace TestModel
-}  // namespace FuncTestUtils
+}  // namespace utils
+}  // namespace test
+}  // namespace ov

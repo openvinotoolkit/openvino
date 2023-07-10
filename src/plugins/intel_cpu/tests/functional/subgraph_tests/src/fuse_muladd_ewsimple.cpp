@@ -39,7 +39,7 @@ const auto mulAddAndEwSimpleCommonParams = ::testing::Combine(
 
 // Fused EltwiseAndSimple comes on the 3rd port into MulAdd
 void FuseMulAddAndEwSimpleTest1::CreateGraph() {
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inPrec);
+    auto ngPrc = ov::test::utils::convertIe2OvPrc(inPrec);
     auto mulSecondInput = inputShape;
     mulSecondInput[0] = 1;
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape, inputShape, mulSecondInput});
@@ -62,7 +62,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Basic, FuseMulAddAndEwSimpleTest1, mulAddAndEwSim
 
 // Fused EltwiseAndSimple comes on the 2nd input into MulAdd
 void FuseMulAddAndEwSimpleTest2::CreateGraph() {
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inPrec);
+    auto ngPrc = ov::test::utils::convertIe2OvPrc(inPrec);
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape, inputShape, inputShape});
 
     auto clamp1 = ngraph::builder::makeActivation(params[0], ngPrc, ActivationTypes::Clamp, inputShape, {0, 100});
@@ -85,7 +85,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Basic, FuseMulAddAndEwSimpleTest2, mulAddAndEwSim
 
 // Fused MulAdd with more than 3 inputs
 void FuseMulAddAndEwSimpleTest3::CreateGraph() {
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inPrec);
+    auto ngPrc = ov::test::utils::convertIe2OvPrc(inPrec);
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape, inputShape, inputShape, inputShape, inputShape});
 
     auto mul1 = ngraph::builder::makeEltwise(params[0], params[1], EltwiseTypes::MULTIPLY);

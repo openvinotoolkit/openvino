@@ -8,7 +8,7 @@
 
 namespace ov {
 namespace test {
-namespace functional {
+namespace utils {
 
 // todo: reuse in summary
 inline std::string get_node_version(const std::shared_ptr<ov::Node>& node, const std::string& postfix = "") {
@@ -25,12 +25,9 @@ inline std::string get_node_version(const std::shared_ptr<ov::Node>& node, const
     return op_name;
 }
 
-}  // namespace functional
-}  // namespace test
-}  // namespace ov
+namespace layer {
 
-namespace LayerTestsUtils {
-
+namespace {
 struct ModelInfo {
     size_t unique_op_cnt;
     // model_path, op_cnt
@@ -41,6 +38,7 @@ struct ModelInfo {
         : unique_op_cnt(_op_cnt),
           model_paths(_model_paths) {}
 };
+} //namespace
 
 struct PortInfo {
     double min;
@@ -67,4 +65,8 @@ struct OPInfo {
 
     OPInfo() = default;
 };
-} // namespace LayerTestsUtils
+
+} // namespace layer
+}  // namespace utils
+}  // namespace test
+}  // namespace ov

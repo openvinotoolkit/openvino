@@ -49,7 +49,7 @@ std::vector<InputShapesTuple> LogicalLayerTest::combineShapes(const std::map<std
 }
 
 InferenceEngine::Blob::Ptr LogicalLayerTest::GenerateInput(const InferenceEngine::InputInfo &info) const {
-    return FuncTestUtils::createAndFillBlob(info.getTensorDesc(), 2, 0);
+    return ov::test::utils::createAndFillBlob(info.getTensorDesc(), 2, 0);
 }
 
 void LogicalLayerTest::SetupParams() {
@@ -63,7 +63,7 @@ void LogicalLayerTest::SetupParams() {
 void LogicalLayerTest::SetUp() {
     SetupParams();
 
-    auto ngInputsPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inPrc);
+    auto ngInputsPrc = ov::test::utils::convertIe2OvPrc(inPrc);
     auto inputs = ngraph::builder::makeParams(ngInputsPrc, {inputShapes.first});
 
     std::shared_ptr<ngraph::Node> logicalNode;

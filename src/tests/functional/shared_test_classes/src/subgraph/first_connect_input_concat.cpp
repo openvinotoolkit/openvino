@@ -29,7 +29,7 @@ void ConcatFirstInputTest::SetUp() {
     InferenceEngine::Precision netPrecision;
     std::map<std::string, std::string> additional_config;
     std::tie(inputShapes, netPrecision, targetDevice, configuration) = this->GetParam();
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+    auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, inputShapes);
     auto const_second_param = ngraph::builder::makeConstant(ngPrc, {1, 8}, std::vector<float>{-1.0f});
     auto concat = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{params[0], const_second_param}, 1);

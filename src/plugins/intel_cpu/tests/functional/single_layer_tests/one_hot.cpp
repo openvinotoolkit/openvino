@@ -92,7 +92,7 @@ protected:
 
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
         selectedType = std::string("ref_any_I32");
-        outType = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(outPrc);
+        outType = ov::test::utils::convertIe2OvPrc(outPrc);
 
         init_input_shapes({inputShape});
         if (inputType.second) {

@@ -60,7 +60,7 @@ std::shared_ptr<ngraph::Function> Basic_LSTM_S::GetNetwork(size_t thirdDimOut,
                                                            const InferenceEngine::Precision& netPrecission,
                                                            std::vector<float>* hidden_memory_init_out,
                                                            std::vector<float>* cell_memory_init_out) {
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecission);
+    auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecission);
 
     auto params = ngraph::builder::makeParams(ngPrc, { {1, num_cells * thirdDimOut} });
 
@@ -153,7 +153,7 @@ void Basic_LSTM_S::Run() {
 }
 
 InferenceEngine::Blob::Ptr Basic_LSTM_S::GenerateInput(const InferenceEngine::InputInfo& info) const {
-    return FuncTestUtils::createAndFillBlob(info.getTensorDesc(), weights_range.second, weights_range.first, 1);
+    return ov::test::utils::createAndFillBlob(info.getTensorDesc(), weights_range.second, weights_range.first, 1);
 }
 
 }  // namespace SubgraphTestsDefinitions

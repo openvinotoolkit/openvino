@@ -41,8 +41,8 @@ void GatherNDLayerTest::SetUp() {
     std::tie(gatherArgsSubset, dPrecision, iPrecision, targetDevice, configuration) = this->GetParam();
     std::tie(dataShape, indicesShape, batchDims) = gatherArgsSubset;
 
-    auto ngDPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(dPrecision);
-    auto ngIPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(iPrecision);
+    auto ngDPrc = ov::test::utils::convertIe2OvPrc(dPrecision);
+    auto ngIPrc = ov::test::utils::convertIe2OvPrc(iPrecision);
 
     auto params = ngraph::builder::makeParams(ngDPrc, {dataShape});
     auto paramOuts = ngraph::helpers::convert2OutputVector(
@@ -67,8 +67,8 @@ void GatherND8LayerTest::SetUp() {
     std::tie(gatherArgsSubset, dPrecision, iPrecision, targetDevice, configuration) = this->GetParam();
     std::tie(dataShape, indicesShape, batchDims) = gatherArgsSubset;
 
-    auto ngDPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(dPrecision);
-    auto ngIPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(iPrecision);
+    auto ngDPrc = ov::test::utils::convertIe2OvPrc(dPrecision);
+    auto ngIPrc = ov::test::utils::convertIe2OvPrc(iPrecision);
 
     auto params = ngraph::builder::makeParams(ngDPrc, { dataShape });
     auto paramOuts = ngraph::helpers::convert2OutputVector(

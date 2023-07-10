@@ -47,8 +47,8 @@ void CTCLossLayerTest::SetUp() {
     std::tie(logitsShapes, logitsLength, labels, labelsLength, blankIndex, preprocessCollapseRepeated,
         ctcMergeRepeated, unique) = ctcLossArgsSubset;
 
-    auto ngFpPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(fpPrecision);
-    auto ngIntPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(intPrecision);
+    auto ngFpPrc = ov::test::utils::convertIe2OvPrc(fpPrecision);
+    auto ngIntPrc = ov::test::utils::convertIe2OvPrc(intPrecision);
 
     auto params = ngraph::builder::makeParams(ngFpPrc, {logitsShapes});
     auto paramOuts = ngraph::helpers::convert2OutputVector(

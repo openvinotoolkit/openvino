@@ -27,7 +27,7 @@ std::string BatchNormLayerTest::getTestCaseName(const testing::TestParamInfo<Bat
 }
 
 InferenceEngine::Blob::Ptr BatchNormLayerTest::GenerateInput(const InferenceEngine::InputInfo &info) const {
-    return FuncTestUtils::createAndFillBlobConsistently(info.getTensorDesc(), 3, 0, 1);
+    return ov::test::utils::createAndFillBlobConsistently(info.getTensorDesc(), 3, 0, 1);
 }
 
 void BatchNormLayerTest::SetUp() {
@@ -35,7 +35,7 @@ void BatchNormLayerTest::SetUp() {
     InferenceEngine::SizeVector inputShapes;
     double epsilon;
     std::tie(epsilon, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShapes, targetDevice) = this->GetParam();
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+    auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
 
     auto params = ngraph::builder::makeParams(ngPrc, {inputShapes});
     auto paramOuts = ngraph::helpers::convert2OutputVector(

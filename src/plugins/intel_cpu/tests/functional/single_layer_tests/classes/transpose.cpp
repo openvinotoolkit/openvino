@@ -45,8 +45,8 @@ void TransposeLayerCPUTest::SetUp() {
     std::tie(inputShapes, inputOrder, netPrecision, targetDevice, additionalConfig, cpuParams) = this->GetParam();
     configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
-    inType = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    outType = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+    inType = ov::test::utils::convertIe2OvPrc(netPrecision);
+    outType = ov::test::utils::convertIe2OvPrc(netPrecision);
 
     std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
 

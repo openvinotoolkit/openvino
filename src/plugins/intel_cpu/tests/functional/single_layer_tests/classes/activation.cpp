@@ -100,8 +100,8 @@ void ActivationLayerCPUTest::SetUp() {
     activationType = activationTypeAndConstValue.first;
     auto constantsValue = activationTypeAndConstValue.second;
 
-    inType  = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inPrecision);
-    outType = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(outPrecision);
+    inType  = ov::test::utils::convertIe2OvPrc(inPrecision);
+    outType = ov::test::utils::convertIe2OvPrc(outPrecision);
     selectedType = getPrimitiveType() + "_" + netPrecision.name();
 
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
@@ -120,7 +120,7 @@ void ActivationLayerCPUTest::SetUp() {
 
     init_input_shapes(inputShapes);
 
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+    auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
     auto params = ngraph::builder::makeDynamicParams(ngPrc, {inputDynamicShapes.front()});
     auto activation = ngraph::builder::makeActivation(params[0], ngPrc, activationType, activationShapes, constantsValue);
     activation->get_rt_info() = getCPUInfo();

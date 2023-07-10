@@ -8,8 +8,8 @@
 #include <vector>
 
 #include "common_test_utils/common_utils.hpp"
-#include "functional_test_utils/blob_utils.hpp"
-#include "functional_test_utils/plugin_cache.hpp"
+#include "functional_test_utils/legacy/blob_utils.hpp"
+#include "functional_test_utils/legacy/plugin_cache.hpp"
 #include "ngraph_functions/builders.hpp"
 #include "ngraph_functions/pass/convert_prc.hpp"
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
@@ -54,7 +54,7 @@ protected:
         std::vector<size_t> inputShape1;
         std::vector<size_t> inputShape2;
         std::tie(netPrecision, inputShape1, inputShape2, level, configuration, targetDevice) = this->GetParam();
-        auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+        auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
         auto params = ngraph::builder::makeParams(ngPrc, {inputShape1});
         auto fakeQuantize1 =
             ngraph::builder::makeFakeQuantize(params[0], ngPrc, level, {}, {-0.5}, {0.5}, {-0.5}, {0.5});

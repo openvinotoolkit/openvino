@@ -24,7 +24,7 @@ protected:
         const std::vector<size_t> inputDims{1, inputDim};
         activationType = activationDecl.first;
         const auto& constantsValue = activationDecl.second;
-        const auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+        const auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
         auto params = ngraph::builder::makeParams(ngPrc, {inputDims});
         params[0]->set_friendly_name("Input");
 
@@ -87,7 +87,7 @@ protected:
             resolution = 1;
         }
 
-        return FuncTestUtils::createAndFillBlob(info.getTensorDesc(), data_range, data_start_from, resolution);
+        return ov::test::utils::createAndFillBlob(info.getTensorDesc(), data_range, data_start_from, resolution);
     }
 };
 

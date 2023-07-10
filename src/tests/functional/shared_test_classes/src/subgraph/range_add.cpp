@@ -30,7 +30,7 @@ void RangeAddSubgraphTest::SetUp() {
     InferenceEngine::Precision netPrecision;
     float start, stop, step;
     std::tie(start, stop, step, netPrecision, inPrc, outPrc, inLayout, outLayout, targetDevice) = GetParam();
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+    auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
 
     auto startConstant = std::make_shared<ngraph::opset1::Constant>(ngPrc, ngraph::Shape{}, start);
     auto stopConstant = std::make_shared<ngraph::opset1::Constant>(ngPrc, ngraph::Shape{}, stop);
@@ -70,8 +70,8 @@ void RangeNumpyAddSubgraphTest::SetUp() {
     InferenceEngine::Precision constPrc;
     float start, stop, step;
     std::tie(start, stop, step, constPrc, netPrc, outPrc, inLayout, outLayout, targetDevice) = GetParam();
-    auto ngConstPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(constPrc);
-    auto ngNetPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrc);
+    auto ngConstPrc = ov::test::utils::convertIe2OvPrc(constPrc);
+    auto ngNetPrc = ov::test::utils::convertIe2OvPrc(netPrc);
 
     auto startConstant = std::make_shared<ngraph::opset1::Constant>(ngConstPrc, ngraph::Shape{}, start);
     auto stopConstant = std::make_shared<ngraph::opset1::Constant>(ngConstPrc, ngraph::Shape{}, stop);

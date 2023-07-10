@@ -9,7 +9,7 @@
 #include "ngraph_functions/builders.hpp"
 
 using namespace InferenceEngine;
-using namespace FuncTestUtils::PrecisionUtils;
+using namespace ov::test::utils;
 
 namespace LayerTestsDefinitions {
 
@@ -38,7 +38,7 @@ void ReverseLayerTest::SetUp() {
     InferenceEngine::Precision netPrecision;
     std::tie(inputShape, axes, mode, netPrecision, targetDevice) = GetParam();
 
-    const auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+    const auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
     ngraph::ParameterVector paramsVector;
     const auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
     std::shared_ptr<ov::op::v0::Constant> axes_constant;

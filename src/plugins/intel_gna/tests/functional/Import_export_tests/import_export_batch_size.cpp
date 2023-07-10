@@ -19,7 +19,7 @@ namespace LayerTestsDefinitions {
 class ImportBatchTest : public FuncTestUtils::ImportNetworkTestBase {
 protected:
     InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo& info) const override {
-        return FuncTestUtils::createAndFillBlob(info.getTensorDesc(), 0.2f, -0.1f);
+        return ov::test::utils::createAndFillBlob(info.getTensorDesc(), 0.2f, -0.1f);
     }
 
     void SetUp() override {
@@ -28,7 +28,7 @@ protected:
         std::string _;
         std::tie(inputShape, netPrecision, targetDevice, exportConfiguration, importConfiguration, _) =
             this->GetParam();
-        auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+        auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
 
         auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
 

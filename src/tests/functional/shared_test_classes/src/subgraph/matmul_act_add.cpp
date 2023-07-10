@@ -28,7 +28,7 @@ void MatMulActAddTest::SetUp() {
     std::map<std::string, std::string> config;
     std::tie(inputSize, netPrecision, targetDevice, config) = this->GetParam();
     configuration.insert(config.begin(), config.end());
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+    auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
 
     std::vector<size_t> outFormShapes = {1,  2 * inputSize};
 

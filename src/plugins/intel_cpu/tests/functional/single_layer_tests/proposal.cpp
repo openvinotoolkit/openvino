@@ -138,7 +138,7 @@ protected:
         selectedType = std::string("ref_any_") + netPrecision.name();
         init_input_shapes(inputShapes);
 
-        auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+        auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
         auto params = ngraph::builder::makeDynamicParams(ngPrc, {inputDynamicShapes[0], inputDynamicShapes[1], inputDynamicShapes[2]});
         auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
 

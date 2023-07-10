@@ -80,7 +80,7 @@ void ConstStridedSliceConcatTest::SetUp() {
 
     std::vector<size_t> inputShape;
     const size_t totalInputSize = static_cast<size_t>(inputSlices) * inputSliceSize;
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+    auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, { std::vector<size_t>{ 1, totalInputSize } });
 
     const auto totalConstantSize = constSlices * constSliceSize;

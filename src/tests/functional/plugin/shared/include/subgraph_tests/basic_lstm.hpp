@@ -50,11 +50,11 @@ TEST_P(Basic_LSTM_S, CompareWithRefImpl_LowLatencyTransformation) {
     for (auto& state : states) {
         auto name = state.GetName();
         if (name.find("cell_state_1") != std::string::npos) {
-            auto blob = FuncTestUtils::createAndFillBlobWithFloatArray(state_description,
+            auto blob = ov::test::utils::createAndFillBlobWithFloatArray(state_description,
                                                                        cell_memory_init.data(), cell_memory_init.size());
             state.SetState(blob);
         } else if (name.find("hidden_state_1") != std::string::npos) {
-            auto blob = FuncTestUtils::createAndFillBlobWithFloatArray(state_description,
+            auto blob = ov::test::utils::createAndFillBlobWithFloatArray(state_description,
                                                                        hidden_memory_init.data(), hidden_memory_init.size());
             state.SetState(blob);
         } else {

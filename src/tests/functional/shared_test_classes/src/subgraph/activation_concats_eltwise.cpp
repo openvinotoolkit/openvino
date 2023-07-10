@@ -36,7 +36,7 @@ void ActivationConcatsEltwise::SetUp() {
     std::map<std::string, std::string> config;
     std::tie(inputSize, concatSize, netPrecision, targetDevice, config) = this->GetParam();
     configuration.insert(config.begin(), config.end());
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+    auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
 
     auto input = ngraph::builder::makeParams(ngPrc, { {1, inputSize} });
 

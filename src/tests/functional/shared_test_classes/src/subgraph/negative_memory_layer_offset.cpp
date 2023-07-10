@@ -27,7 +27,7 @@ namespace SubgraphTestsDefinitions {
         std::map<std::string, std::string> config;
         std::tie(netPrecision, targetDevice, inputSize, hiddenSize, config) = this->GetParam();
         configuration.insert(config.begin(), config.end());
-        auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+        auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
 
         const int seed = 0;
         std::mt19937 gen(seed);
@@ -57,7 +57,7 @@ namespace SubgraphTestsDefinitions {
         size_t inputSize;
         size_t hiddenSize;
         std::tie(netPrecision, targetDevice, inputSize, hiddenSize, std::ignore) = this->GetParam();
-        auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+        auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
         auto input = ngraph::builder::makeParams(ngPrc, { {1, inputSize} });
 
         auto mem_c = std::make_shared<ngraph::op::Constant>(ngPrc, ngraph::Shape{ 1, hiddenSize }, memory_init);
@@ -86,7 +86,7 @@ namespace SubgraphTestsDefinitions {
         for (auto& state : states) {
             auto name = state.GetName();
             if (name == "memory") {
-                auto blob = FuncTestUtils::createAndFillBlobWithFloatArray(state.GetState()->getTensorDesc(),
+                auto blob = ov::test::utils::createAndFillBlobWithFloatArray(state.GetState()->getTensorDesc(),
                                                                            memory_init.data(), memory_init.size());
                 state.SetState(blob);
             } else {

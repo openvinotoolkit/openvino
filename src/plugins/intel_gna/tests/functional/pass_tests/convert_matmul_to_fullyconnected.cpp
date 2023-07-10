@@ -8,7 +8,7 @@
 #include <tuple>
 #include <vector>
 
-#include "functional_test_utils/blob_utils.hpp"
+#include "functional_test_utils/legacy/blob_utils.hpp"
 #include "ngraph_functions/builders.hpp"
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
@@ -59,7 +59,7 @@ protected:
         InferenceEngine::Precision netPrecision;
         std::vector<std::vector<size_t>> inputShape;
         std::tie(inputShape, netPrecision, targetDevice, configuration) = this->GetParam();
-        auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+        auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
 
         auto params = ngraph::builder::makeParams(ngPrc, {inputShape[1]});
         std::vector<float> weights =
@@ -112,7 +112,7 @@ protected:
         InferenceEngine::Precision netPrecision;
         std::vector<std::vector<size_t>> inputShape;
         std::tie(inputShape, netPrecision, targetDevice, configuration) = this->GetParam();
-        auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+        auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
 
         auto params = ngraph::builder::makeParams(ngPrc, {{1, inputShape[1][0] * inputShape[1][1]}});
 

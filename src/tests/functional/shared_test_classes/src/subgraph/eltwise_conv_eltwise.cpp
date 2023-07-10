@@ -60,7 +60,7 @@ void EltwiseAfterConvTest::SetUp() {
     size_t stride;
     std::tie(inputShape, kernelShape, stride) = convolutionParams;
 
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+    auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, { inputShape });
 
     std::vector<size_t> convInputShape = {1, inputChannels, 1, inputShape[0] * inputShape[1] / inputChannels};
@@ -145,7 +145,7 @@ void EltwiseBeforeConvTest::SetUp() {
     size_t stride;
     std::tie(inputShape, kernelShape, stride) = convolutionParams;
 
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+    auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, { inputShape });
 
     auto scale = CommonTestUtils::generate_float_numbers(inputShape[1], -2.0f, 2.0f);
@@ -229,7 +229,7 @@ void EltwiseWithTwoConvsAsInputsTest::SetUp() {
     size_t stride;
     std::tie(inputShape, kernelShape, stride) = convolutionParams;
 
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+    auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, { inputShape, inputShape });
 
     std::vector<size_t> convInputShape = {1, inputChannels, 1, inputShape[0] * inputShape[1] / inputChannels};

@@ -55,7 +55,7 @@ public:
         std::vector<float> weightValuesFP32(12);
         ngraph::Shape convFilterShape = { 1, 12, 1, 1 };
 //        weightValuesFP32.resize(12);
-        FuncTestUtils::fillInputsBySinValues(weightValuesFP32.data(), weightValuesFP32.size());
+        ov::test::utils::fillInputsBySinValues(weightValuesFP32.data(), weightValuesFP32.size());
         auto weightsNode = std::make_shared<ngraph::opset1::Constant>(ngraph::element::f32, convFilterShape, weightValuesFP32);
         std::shared_ptr<ngraph::Node> conv = std::make_shared<ngraph::opset1::Convolution>(
             concat, weightsNode, ngraph::Strides({ 1, 1 }), ngraph::CoordinateDiff({ 0, 0 }),

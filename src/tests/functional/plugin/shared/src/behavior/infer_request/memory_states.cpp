@@ -4,7 +4,7 @@
 
 #include <base/behavior_test_utils.hpp>
 #include "behavior/infer_request/memory_states.hpp"
-#include "functional_test_utils/plugin_cache.hpp"
+#include "functional_test_utils/legacy/plugin_cache.hpp"
 #include "blob_factory.hpp"
 
 namespace BehaviorTestsDefinitions {

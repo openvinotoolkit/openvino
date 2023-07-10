@@ -13,7 +13,7 @@ TEST_P(InferRequestWaitTests, CorrectOneAsyncInferWithGetInOutWithInfWait) {
     // Create InferRequest
     InferenceEngine::InferRequest req;
     InferenceEngine::Blob::Ptr blob =
-        FuncTestUtils::createAndFillBlob(cnnNet.getOutputsInfo().begin()->second->getTensorDesc());
+        ov::test::utils::createAndFillBlob(cnnNet.getOutputsInfo().begin()->second->getTensorDesc());
     ASSERT_NO_THROW(req = execNet.CreateInferRequest());
     ASSERT_NO_THROW(blob = req.GetBlob(cnnNet.getInputsInfo().begin()->first));
     req.Infer();
@@ -29,7 +29,7 @@ TEST_P(InferRequestWaitTests, canStartAsyncInferWithGetInOutWithStatusOnlyWait) 
     // Create InferRequest
     InferenceEngine::InferRequest req;
     InferenceEngine::Blob::Ptr blob =
-        FuncTestUtils::createAndFillBlob(cnnNet.getOutputsInfo().begin()->second->getTensorDesc());
+        ov::test::utils::createAndFillBlob(cnnNet.getOutputsInfo().begin()->second->getTensorDesc());
     ASSERT_NO_THROW(req = execNet.CreateInferRequest());
     ASSERT_NO_THROW(blob = req.GetBlob(cnnNet.getInputsInfo().begin()->first));
     req.Infer();
@@ -44,7 +44,7 @@ TEST_P(InferRequestWaitTests, FailedAsyncInferWithNegativeTimeForWait) {
     // Create InferRequest
     InferenceEngine::InferRequest req;
     InferenceEngine::Blob::Ptr blob =
-        FuncTestUtils::createAndFillBlob(cnnNet.getOutputsInfo().begin()->second->getTensorDesc());
+        ov::test::utils::createAndFillBlob(cnnNet.getOutputsInfo().begin()->second->getTensorDesc());
     ASSERT_NO_THROW(req = execNet.CreateInferRequest());
     ASSERT_NO_THROW(blob = req.GetBlob(cnnNet.getInputsInfo().begin()->first));
     req.Infer();

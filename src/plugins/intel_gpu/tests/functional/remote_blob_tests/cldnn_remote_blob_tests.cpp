@@ -13,11 +13,11 @@
 #include <gpu/gpu_config.hpp>
 #include <remote_blob_tests/remote_blob_helpers.hpp>
 #include <common_test_utils/test_common.hpp>
-#include <functional_test_utils/plugin_cache.hpp>
+#include <functional_test_utils/legacy/plugin_cache.hpp>
 
 #include "base/ov_behavior_test_utils.hpp"
 #include "ngraph_functions/subgraph_builders.hpp"
-#include "functional_test_utils/blob_utils.hpp"
+#include "functional_test_utils/legacy/blob_utils.hpp"
 
 using namespace ::testing;
 using namespace InferenceEngine;
@@ -64,7 +64,7 @@ TEST_P(RemoteBlob_Test, smoke_canInputUserBlob) {
 
     // regular inference
     auto inf_req_regular = exec_net.CreateInferRequest();
-    InferenceEngine::Blob::Ptr fakeImageData = FuncTestUtils::createAndFillBlob(
+    InferenceEngine::Blob::Ptr fakeImageData = ov::test::utils::createAndFillBlob(
             net.getInputsInfo().begin()->second->getTensorDesc());
     inf_req_regular.SetBlob(net.getInputsInfo().begin()->first, fakeImageData);
 
@@ -101,8 +101,8 @@ TEST_P(RemoteBlob_Test, smoke_canInputUserBlob) {
     {
         ASSERT_EQ(net.getOutputsInfo().begin()->second->getPrecision(), InferenceEngine::Precision::FP32);
         ASSERT_EQ(outputBlob_regular->size(), outputBlob_shared->size());
-        auto thr = FuncTestUtils::GetComparisonThreshold(InferenceEngine::Precision::FP32);
-        FuncTestUtils::compareBlobs(outputBlob_regular, outputBlob_shared, thr);
+        auto thr = ov::test::utils::GetComparisonThreshold(InferenceEngine::Precision::FP32);
+        ov::test::utils::compareBlobs(outputBlob_regular, outputBlob_shared, thr);
     }
 }
 
@@ -121,7 +121,7 @@ TEST_P(RemoteBlob_Test, smoke_canUseRemoteBlobSimultaneously) {
                                                   {batch, channels, height, width},
                                                   InferenceEngine::Layout::NHWC};
 
-    InferenceEngine::Blob::Ptr ref_blob = FuncTestUtils::createAndFillBlob(tensor_desc);
+    InferenceEngine::Blob::Ptr ref_blob = ov::test::utils::createAndFillBlob(tensor_desc);
 
     auto ie = PluginCache::get().ie();
     auto ocl_instance = std::make_shared<OpenCL>();
@@ -180,7 +180,7 @@ TEST_P(RemoteBlob_Test, smoke_canInputPluginRemoteBlob) {
 
     // regular inference
     auto inf_req_regular = exec_net.CreateInferRequest();
-    InferenceEngine::Blob::Ptr fakeImageData = FuncTestUtils::createAndFillBlob(
+    InferenceEngine::Blob::Ptr fakeImageData = ov::test::utils::createAndFillBlob(
             net.getInputsInfo().begin()->second->getTensorDesc());
     inf_req_regular.SetBlob(net.getInputsInfo().begin()->first, fakeImageData);
 
@@ -215,8 +215,8 @@ TEST_P(RemoteBlob_Test, smoke_canInputPluginRemoteBlob) {
     {
         ASSERT_EQ(net.getOutputsInfo().begin()->second->getPrecision(), InferenceEngine::Precision::FP32);
         ASSERT_EQ(outputBlob_regular->size(), outputBlob_shared->size());
-        auto thr = FuncTestUtils::GetComparisonThreshold(InferenceEngine::Precision::FP32);
-        FuncTestUtils::compareBlobs(outputBlob_regular, outputBlob_shared, thr);
+        auto thr = ov::test::utils::GetComparisonThreshold(InferenceEngine::Precision::FP32);
+        ov::test::utils::compareBlobs(outputBlob_regular, outputBlob_shared, thr);
     }
 }
 
@@ -227,14 +227,14 @@ TEST_P(RemoteBlob_Test, smoke_canInferOnUserContext) {
     net.getInputsInfo().begin()->second->setLayout(Layout::NCHW);
     net.getInputsInfo().begin()->second->setPrecision(Precision::U8);
 
-    auto blob = FuncTestUtils::createAndFillBlob(net.getInputsInfo().begin()->second->getTensorDesc());
+    auto blob = ov::test::utils::createAndFillBlob(net.getInputsInfo().begin()->second->getTensorDesc());
 
     auto ie = PluginCache::get().ie();
     auto exec_net_regular = ie->LoadNetwork(net, deviceName, {{ov::hint::inference_precision.name(), "f32"}});
 
     // regular inference
     auto inf_req_regular = exec_net_regular.CreateInferRequest();
-    auto fakeImageData = FuncTestUtils::createAndFillBlob(net.getInputsInfo().begin()->second->getTensorDesc());
+    auto fakeImageData = ov::test::utils::createAndFillBlob(net.getInputsInfo().begin()->second->getTensorDesc());
     inf_req_regular.SetBlob(net.getInputsInfo().begin()->first, fakeImageData);
 
     inf_req_regular.Infer();
@@ -257,8 +257,8 @@ TEST_P(RemoteBlob_Test, smoke_canInferOnUserContext) {
     {
         ASSERT_EQ(net.getOutputsInfo().begin()->second->getPrecision(), InferenceEngine::Precision::FP32);
         ASSERT_EQ(outputBlob_regular->size(), outputBlob_shared->size());
-        auto thr = FuncTestUtils::GetComparisonThreshold(InferenceEngine::Precision::FP32);
-        FuncTestUtils::compareBlobs(outputBlob_regular, outputBlob_shared, thr);
+        auto thr = ov::test::utils::GetComparisonThreshold(InferenceEngine::Precision::FP32);
+        ov::test::utils::compareBlobs(outputBlob_regular, outputBlob_shared, thr);
     }
 }
 
@@ -274,14 +274,14 @@ TEST_P(RemoteBlob_Test, smoke_canInferOnUserQueue_out_of_order) {
     net.getInputsInfo().begin()->second->setLayout(Layout::NCHW);
     net.getInputsInfo().begin()->second->setPrecision(Precision::U8);
 
-    auto blob = FuncTestUtils::createAndFillBlob(net.getInputsInfo().begin()->second->getTensorDesc());
+    auto blob = ov::test::utils::createAndFillBlob(net.getInputsInfo().begin()->second->getTensorDesc());
 
     auto ie = PluginCache::get().ie();
     auto exec_net_regular = ie->LoadNetwork(net, deviceName, {{ov::hint::inference_precision.name(), "f32"}});
 
     // regular inference
     auto inf_req_regular = exec_net_regular.CreateInferRequest();
-    auto fakeImageData = FuncTestUtils::createAndFillBlob(net.getInputsInfo().begin()->second->getTensorDesc());
+    auto fakeImageData = ov::test::utils::createAndFillBlob(net.getInputsInfo().begin()->second->getTensorDesc());
     inf_req_regular.SetBlob(net.getInputsInfo().begin()->first, fakeImageData);
 
     inf_req_regular.Infer();
@@ -355,8 +355,8 @@ TEST_P(RemoteBlob_Test, smoke_canInferOnUserQueue_out_of_order) {
     {
         ASSERT_EQ(net.getOutputsInfo().begin()->second->getPrecision(), InferenceEngine::Precision::FP32);
         ASSERT_EQ(outputBlob_regular->size(), output_blob->size());
-        auto thr = FuncTestUtils::GetComparisonThreshold(InferenceEngine::Precision::FP32);
-        FuncTestUtils::compareBlobs(outputBlob_regular, output_blob, thr);
+        auto thr = ov::test::utils::GetComparisonThreshold(InferenceEngine::Precision::FP32);
+        ov::test::utils::compareBlobs(outputBlob_regular, output_blob, thr);
     }
 }
 
@@ -372,14 +372,14 @@ TEST_P(RemoteBlob_Test, smoke_canInferOnUserQueue_in_order) {
     net.getInputsInfo().begin()->second->setLayout(Layout::NCHW);
     net.getInputsInfo().begin()->second->setPrecision(Precision::U8);
 
-    auto blob = FuncTestUtils::createAndFillBlob(net.getInputsInfo().begin()->second->getTensorDesc());
+    auto blob = ov::test::utils::createAndFillBlob(net.getInputsInfo().begin()->second->getTensorDesc());
 
     auto ie = PluginCache::get().ie();
     auto exec_net_regular = ie->LoadNetwork(net, deviceName, {{ov::hint::inference_precision.name(), "f32"}});
 
     // regular inference
     auto inf_req_regular = exec_net_regular.CreateInferRequest();
-    auto fakeImageData = FuncTestUtils::createAndFillBlob(net.getInputsInfo().begin()->second->getTensorDesc());
+    auto fakeImageData = ov::test::utils::createAndFillBlob(net.getInputsInfo().begin()->second->getTensorDesc());
     inf_req_regular.SetBlob(net.getInputsInfo().begin()->first, fakeImageData);
 
     inf_req_regular.Infer();
@@ -449,8 +449,8 @@ TEST_P(RemoteBlob_Test, smoke_canInferOnUserQueue_in_order) {
     {
         ASSERT_EQ(net.getOutputsInfo().begin()->second->getPrecision(), InferenceEngine::Precision::FP32);
         ASSERT_EQ(outputBlob_regular->size(), output_blob->size());
-        auto thr = FuncTestUtils::GetComparisonThreshold(InferenceEngine::Precision::FP32);
-        FuncTestUtils::compareBlobs(outputBlob_regular, output_blob, thr);
+        auto thr = ov::test::utils::GetComparisonThreshold(InferenceEngine::Precision::FP32);
+        ov::test::utils::compareBlobs(outputBlob_regular, output_blob, thr);
     }
 }
 
@@ -466,14 +466,14 @@ TEST_P(RemoteBlob_Test, smoke_canInferOnUserQueue_infer_call_many_times) {
     net.getInputsInfo().begin()->second->setLayout(Layout::NCHW);
     net.getInputsInfo().begin()->second->setPrecision(Precision::U8);
 
-    auto blob = FuncTestUtils::createAndFillBlob(net.getInputsInfo().begin()->second->getTensorDesc());
+    auto blob = ov::test::utils::createAndFillBlob(net.getInputsInfo().begin()->second->getTensorDesc());
 
     auto ie = PluginCache::get().ie();
     auto exec_net_regular = ie->LoadNetwork(net, deviceName, {{ov::hint::inference_precision.name(), "f32"}});
 
     // regular inference
     auto inf_req_regular = exec_net_regular.CreateInferRequest();
-    auto fakeImageData = FuncTestUtils::createAndFillBlob(net.getInputsInfo().begin()->second->getTensorDesc());
+    auto fakeImageData = ov::test::utils::createAndFillBlob(net.getInputsInfo().begin()->second->getTensorDesc());
     inf_req_regular.SetBlob(net.getInputsInfo().begin()->first, fakeImageData);
 
     inf_req_regular.Infer();
@@ -544,8 +544,8 @@ TEST_P(RemoteBlob_Test, smoke_canInferOnUserQueue_infer_call_many_times) {
     {
         ASSERT_EQ(net.getOutputsInfo().begin()->second->getPrecision(), InferenceEngine::Precision::FP32);
         ASSERT_EQ(outputBlob_regular->size(), output_blob->size());
-        auto thr = FuncTestUtils::GetComparisonThreshold(InferenceEngine::Precision::FP32);
-        FuncTestUtils::compareBlobs(outputBlob_regular, output_blob, thr);
+        auto thr = ov::test::utils::GetComparisonThreshold(InferenceEngine::Precision::FP32);
+        ov::test::utils::compareBlobs(outputBlob_regular, output_blob, thr);
     }
 }
 
@@ -624,7 +624,7 @@ TEST_P(TwoNets_Test, canInferTwoExecNets) {
             auto inf_req = exec_net.CreateInferRequest();
             irs.push_back(inf_req);
 
-            auto blob = FuncTestUtils::createAndFillBlob(net.getInputsInfo().begin()->second->getTensorDesc());
+            auto blob = ov::test::utils::createAndFillBlob(net.getInputsInfo().begin()->second->getTensorDesc());
             inf_req.SetBlob(net.getInputsInfo().begin()->first, blob);
 
             outElementsCount.push_back(
@@ -653,11 +653,11 @@ TEST_P(TwoNets_Test, canInferTwoExecNets) {
     for (auto &net : nets) {
         ASSERT_EQ(net.getOutputsInfo().begin()->second->getPrecision(), InferenceEngine::Precision::FP32);
     }
-    auto thr = FuncTestUtils::GetComparisonThreshold(InferenceEngine::Precision::FP32);
+    auto thr = ov::test::utils::GetComparisonThreshold(InferenceEngine::Precision::FP32);
     for (size_t i = 0; i < irs.size(); ++i) {
         const auto &refBuffer = ref[i].data();
         ASSERT_EQ(outElementsCount[i], irs[i].GetBlob(outputs[i])->size());
-        FuncTestUtils::compareRawBuffers(irs[i].GetBlob(outputs[i])->buffer().as<float *>(),
+        ov::test::utils::compareRawBuffers(irs[i].GetBlob(outputs[i])->buffer().as<float *>(),
                                          reinterpret_cast<const float *>(refBuffer), outElementsCount[i],
                                          outElementsCount[i],
                                          thr);

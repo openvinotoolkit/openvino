@@ -7,7 +7,7 @@
 #include <ie_ngraph_utils.hpp>
 #include <string>
 
-#include "functional_test_utils/blob_utils.hpp"
+#include "functional_test_utils/legacy/blob_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
 void CoreConfiguration(LayerTestsUtils::LayerTestsCommon* test) {

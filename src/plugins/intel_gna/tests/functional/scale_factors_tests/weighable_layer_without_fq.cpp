@@ -53,7 +53,7 @@ protected:
         std::tie(netPrecision, constantShape, inputShape, targetDevice, config) = this->GetParam();
         configuration.insert(config.begin(), config.end());
 
-        auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+        auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
         auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
         auto relu = std::make_shared<ngraph::opset8::Relu>(params[0]);
         auto fq1 = std::make_shared<ngraph::opset8::FakeQuantize>(

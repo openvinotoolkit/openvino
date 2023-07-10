@@ -457,7 +457,7 @@ protected:
         TestModelGenerator::PredicateTypes pred;
         std::tie(data_shape, data_prc, pred, targetDevice) = GetParam();
         const auto ngShape = ov::PartialShape{data_shape};
-        const auto prc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(data_prc);
+        const auto prc = ov::test::utils::convertIe2OvPrc(data_prc);
         TestModelGenerator model_generator(InnerBodyGenerator::InnerBodyType::Type02,
                                             InnerBodyGenerator::InnerBodyType::Type03,
                                             pred,
@@ -578,7 +578,7 @@ protected:
         auto condShapes = ov::test::InputShape(ov::PartialShape({}), condSecondVec);
         init_input_shapes({condShapes, inputShapes});
 
-        const auto prc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(dataPrc);
+        const auto prc = ov::test::utils::convertIe2OvPrc(dataPrc);
         TestModelGenerator model_generator(bodyParams.then_body_type,
                                             bodyParams.else_body_type,
                                             condType,

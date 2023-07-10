@@ -30,7 +30,7 @@ protected:
         size_t inputSize;
         std::tie(targetDevice, netPrecision, levelFq, minMaxFq, inputSize, config) = this->GetParam();
         configuration.insert(config.begin(), config.end());
-        auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+        auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
 
         auto input = ngraph::builder::makeParams(ngPrc, {{1, inputSize}});
         auto constant = ngraph::builder::makeConstant(ngPrc, {1, inputSize}, std::vector<size_t>{1});

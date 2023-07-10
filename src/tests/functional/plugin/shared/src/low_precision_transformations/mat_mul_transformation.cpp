@@ -55,7 +55,7 @@ InferenceEngine::Blob::Ptr MatMulTransformation::GenerateInput(const InferenceEn
         IE_THROW() << "unexpected input name " << info.name();
     }
 
-    return FuncTestUtils::createAndFillBlobConsistently(info.getTensorDesc(), high - low, low, 1ul);
+    return ov::test::utils::createAndFillBlobConsistently(info.getTensorDesc(), high - low, low, 1ul);
 }
 
 void MatMulTransformation::SetUp() {

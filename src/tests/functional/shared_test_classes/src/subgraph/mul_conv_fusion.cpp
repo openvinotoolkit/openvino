@@ -6,6 +6,7 @@
 #include "ngraph/pass/constant_folding.hpp"
 #include "shared_test_classes/subgraph/mul_conv_fusion.hpp"
 #include "ngraph_functions/builders.hpp"
+#include "openvino/core/validation_util.hpp"
 
 namespace SubgraphTestsDefinitions {
 
@@ -72,7 +73,7 @@ void MulConvFusion::SetUp() {
         if (conv_type == ngraph::opset8::Convolution::get_type_info_static()) {
             weights = std::make_shared<ngraph::opset8::Multiply>(weights, mul_const);
             OPENVINO_SUPPRESS_DEPRECATED_START
-            weights = ngraph::get_constant_from_source(weights);
+            weights = ov::get_constant_from_source(weights);
             OPENVINO_SUPPRESS_DEPRECATED_END
             ASSERT_NE(nullptr, weights);
             conv = std::make_shared<ngraph::opset8::Convolution>(param, weights, strides, pad_begin, pad_end, strides);
@@ -85,7 +86,7 @@ void MulConvFusion::SetUp() {
                     ngraph::op::Constant::create(ngraph::element::u64, ngraph::Shape{const_shape.size()}, const_shape), false);
             weights = std::make_shared<ngraph::opset8::Multiply>(weights, reshape);
             OPENVINO_SUPPRESS_DEPRECATED_START
-            weights = ngraph::get_constant_from_source(weights);
+            weights = ov::get_constant_from_source(weights);
             OPENVINO_SUPPRESS_DEPRECATED_END
             ASSERT_NE(nullptr, weights);
             conv = std::make_shared<ngraph::opset8::GroupConvolution>(param, weights, strides, pad_begin, pad_end, strides);
@@ -97,7 +98,7 @@ void MulConvFusion::SetUp() {
                     ngraph::op::Constant::create(ngraph::element::u64, ngraph::Shape{const_shape.size()}, const_shape), false);
             weights = std::make_shared<ngraph::opset8::Multiply>(weights, reshape);
             OPENVINO_SUPPRESS_DEPRECATED_START
-            weights = ngraph::get_constant_from_source(weights);
+            weights = ov::get_constant_from_source(weights);
             OPENVINO_SUPPRESS_DEPRECATED_END
             ASSERT_NE(nullptr, weights);
             conv = std::make_shared<ngraph::opset8::ConvolutionBackpropData>(param, weights, strides, pad_begin, pad_end, strides);
@@ -111,7 +112,7 @@ void MulConvFusion::SetUp() {
                     ngraph::op::Constant::create(ngraph::element::u64, ngraph::Shape{const_shape.size()}, const_shape), false);
             weights = std::make_shared<ngraph::opset8::Multiply>(weights, reshape);
             OPENVINO_SUPPRESS_DEPRECATED_START
-            weights = ngraph::get_constant_from_source(weights);
+            weights = ov::get_constant_from_source(weights);
             OPENVINO_SUPPRESS_DEPRECATED_END
             ASSERT_NE(nullptr, weights);
             conv = std::make_shared<ngraph::opset8::GroupConvolutionBackpropData>(param, weights, strides, pad_begin, pad_end, strides);

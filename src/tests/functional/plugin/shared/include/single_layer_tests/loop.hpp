@@ -43,7 +43,7 @@ TEST_P(TrivialLoopTest, PassThroughBody) {
     InferenceEngine::SizeVector ieShape;
     std::tie(iePrc, ieShape, targetDevice) = GetParam();
 
-    const auto prc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(iePrc);
+    const auto prc = ov::test::utils::convertIe2OvPrc(iePrc);
     const auto shape = ngraph::Shape{ieShape};
     const auto scalarShape = ngraph::Shape{};
 
@@ -87,7 +87,7 @@ TEST_P(TrivialLoopTest, UnusedInputBody) {
     InferenceEngine::SizeVector ieShape;
     std::tie(iePrc, ieShape, targetDevice) = GetParam();
 
-    const auto prc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(iePrc);
+    const auto prc = ov::test::utils::convertIe2OvPrc(iePrc);
     const auto shape = ngraph::Shape{ieShape};
     const auto scalarShape = ngraph::Shape{};
 

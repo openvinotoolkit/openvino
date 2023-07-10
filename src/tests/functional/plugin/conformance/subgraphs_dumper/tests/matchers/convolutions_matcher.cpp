@@ -11,11 +11,11 @@ class ConvolutionMatcherTest : public ::testing::Test {
 protected:
     void SetUp() override {
         matcher = SubgraphsDumper::ConvolutionsMatcher();
-        op_info = LayerTestsUtils::OPInfo();
+        op_info = ov::test::utils::layer::OPInfo();
     }
 
     SubgraphsDumper::ConvolutionsMatcher matcher;
-    LayerTestsUtils::OPInfo op_info;
+    ov::test::utils::layer::OPInfo op_info;
 };
 
 

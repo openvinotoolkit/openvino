@@ -12,9 +12,9 @@
 #include <ie_core.hpp>
 
 #include "common_test_utils/common_utils.hpp"
-#include "functional_test_utils/plugin_cache.hpp"
+#include "functional_test_utils/legacy/plugin_cache.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
-#include "functional_test_utils/blob_utils.hpp"
+#include "functional_test_utils/legacy/blob_utils.hpp"
 
 #include "ngraph_functions/pass/convert_prc.hpp"
 #include "ngraph_functions/builders.hpp"
@@ -45,7 +45,7 @@ InferenceEngine::Blob::Ptr OutputLayersConcat::GenerateInput(const InferenceEngi
 
     const float low = 0.f / k;
     const float hight = 255.f / k;
-    InferenceEngine::Blob::Ptr input = FuncTestUtils::createAndFillBlobConsistently(info.getTensorDesc(), hight - low, static_cast<int32_t>(low), 1ul);
+    InferenceEngine::Blob::Ptr input = ov::test::utils::createAndFillBlobConsistently(info.getTensorDesc(), hight - low, static_cast<int32_t>(low), 1ul);
     return input;
 }
 
@@ -68,7 +68,7 @@ void OutputLayersConcat::SetUp() {
     ngraph::pass::low_precision::LayerTransformation::Params params;
     std::tie(netPrecision, inputShape1, targetDevice, params) = this->GetParam();
 
-    auto ngPrecision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+    auto ngPrecision = ov::test::utils::convertIe2OvPrc(netPrecision);
 
     const auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngPrecision, ngraph::Shape(inputShape1));
     input1->set_friendly_name("input1");

@@ -7,9 +7,9 @@
 #include <ie_core.hpp>
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/common_utils.hpp"
-#include "functional_test_utils/plugin_cache.hpp"
+#include "functional_test_utils/legacy/plugin_cache.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
-#include "functional_test_utils/blob_utils.hpp"
+#include "functional_test_utils/legacy/blob_utils.hpp"
 #include "ie_preprocess.hpp"
 #include "base/behavior_test_utils.hpp"
 
@@ -85,7 +85,7 @@ public:
         std::vector<size_t> inputShape(channels, 4);
 
         auto make_ngraph = [&](bool with_extra_conv) {
-            auto in_prec = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(with_extra_conv ? inPrc : decltype(inPrc)(InferenceEngine::Precision::FP32));
+            auto in_prec = ov::test::utils::convertIe2OvPrc(with_extra_conv ? inPrc : decltype(inPrc)(InferenceEngine::Precision::FP32));
             auto paramsIn = ngraph::builder::makeParams(in_prec, {inputShape});
             auto paramIn = ngraph::helpers::convert2OutputVector(
                     ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(paramsIn));

@@ -40,7 +40,7 @@ void MultipleLSTMCellTest::SetUp() {
     size_t inputSize;
     std::tie(transformation, targetDevice, netPrecision, inputSize, hiddenSize, config) = this->GetParam();
     configuration.insert(config.begin(), config.end());
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+    auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
 
     std::vector<size_t> input_dims { 1, inputSize };
     std::vector<size_t> squeeze_axes {0};
@@ -200,7 +200,7 @@ void MultipleLSTMCellTest::switchToNgraphFriendlyModel() {
     std::map<std::string, std::string> config;
     size_t inputSize;
     std::tie(transformation, targetDevice, netPrecision, inputSize, hiddenSize, config) = this->GetParam();
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+    auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
 
     std::vector<size_t> input_dims { 1, inputSize };
     std::vector<size_t> squeeze_axes {0};
@@ -273,7 +273,7 @@ void MultipleLSTMCellTest::CreatePureTensorIteratorModel() {
     std::map<std::string, std::string> config;
     size_t inputSize;
     std::tie(transformation, targetDevice, netPrecision, inputSize, hiddenSize, config) = this->GetParam();
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+    auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
 
     std::vector<size_t> input_dims { 1, inputSize };
     std::vector<size_t> squeeze_axes {0};
@@ -401,19 +401,19 @@ void MultipleLSTMCellTest::InitMemory() {
     for (auto& state : states) {
         auto name = state.GetName();
         if (name.find("cell_state_1") != std::string::npos) {
-            auto blob = FuncTestUtils::createAndFillBlobWithFloatArray(state_description,
+            auto blob = ov::test::utils::createAndFillBlobWithFloatArray(state_description,
                                                                        cell_memory_init.data(), cell_memory_init.size());
             state.SetState(blob);
         } else if (name.find("hidden_state_1") != std::string::npos) {
-            auto blob = FuncTestUtils::createAndFillBlobWithFloatArray(state_description,
+            auto blob = ov::test::utils::createAndFillBlobWithFloatArray(state_description,
                                                                        hidden_memory_init.data(), hidden_memory_init.size());
             state.SetState(blob);
         } else if (name.find("cell_state_2") != std::string::npos) {
-            auto blob = FuncTestUtils::createAndFillBlobWithFloatArray(state_description,
+            auto blob = ov::test::utils::createAndFillBlobWithFloatArray(state_description,
                                                                        cell_memory_init.data(), cell_memory_init.size());
             state.SetState(blob);
         } else if (name.find("hidden_state_2") != std::string::npos) {
-            auto blob = FuncTestUtils::createAndFillBlobWithFloatArray(state_description,
+            auto blob = ov::test::utils::createAndFillBlobWithFloatArray(state_description,
                                                                        hidden_memory_init.data(), hidden_memory_init.size());
             state.SetState(blob);
         } else {

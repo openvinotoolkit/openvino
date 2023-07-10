@@ -24,8 +24,8 @@
 
 #include "functional_test_utils/crash_handler.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
-#include "functional_test_utils/plugin_cache.hpp"
-#include "functional_test_utils/blob_utils.hpp"
+#include "functional_test_utils/legacy/plugin_cache.hpp"
+#include "functional_test_utils/legacy/blob_utils.hpp"
 #include "functional_test_utils/precision_utils.hpp"
 #include "functional_test_utils/summary/op_summary.hpp"
 #include "functional_test_utils/summary/environment.hpp"

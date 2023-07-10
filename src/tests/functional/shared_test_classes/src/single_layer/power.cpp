@@ -33,7 +33,7 @@ namespace LayerTestsDefinitions {
         InferenceEngine::Precision netPrecision;
         std::vector<float> power;
         std::tie(inputShapes, netPrecision, inPrc, outPrc, inLayout, outLayout, targetDevice, power) = this->GetParam();
-        auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+        auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
         auto paramsIn = ngraph::builder::makeParams(ngPrc, {inputShapes[0]});
 
         auto power_const = std::make_shared<ngraph::op::Constant>(ngPrc, ngraph::Shape{ 1 }, power);

@@ -24,8 +24,8 @@
 #include <thread>
 #include <base/behavior_test_utils.hpp>
 #include "common_test_utils/common_utils.hpp"
-#include "functional_test_utils/plugin_cache.hpp"
-#include "functional_test_utils/blob_utils.hpp"
+#include "functional_test_utils/legacy/plugin_cache.hpp"
+#include "functional_test_utils/legacy/blob_utils.hpp"
 #include "ngraph_functions/subgraph_builders.hpp"
 #include "shared_test_classes/subgraph/basic_lstm.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"

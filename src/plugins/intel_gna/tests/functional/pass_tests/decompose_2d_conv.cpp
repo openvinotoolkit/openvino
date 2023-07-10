@@ -122,7 +122,7 @@ protected:
         size_t numOutChannels;
         std::tie(kernel, stride, padBegin, padEnd, dilation, numOutChannels, padType) = convParams;
         std::tie(bias, transpBias, maxpoolPool, maxpoolStride) = miscParams;
-        auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+        auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
 
         Shape biasShape{bias};
         Shape transpBiasShape{transpBias};

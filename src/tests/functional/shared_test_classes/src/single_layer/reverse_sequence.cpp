@@ -37,7 +37,7 @@ void ReverseSequenceLayerTest::SetUp() {
 
     std::tie(batchAxisIndx, seqAxisIndx, inputShape, secondInputShape, secondaryInputType, netPrecision, targetDevice) = GetParam();
 
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+    auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
     auto paramsIn = ngraph::builder::makeParams(ngPrc, {inputShape});
 
     auto secondPrc = ngraph::element::Type_t::i32; //according to the specification

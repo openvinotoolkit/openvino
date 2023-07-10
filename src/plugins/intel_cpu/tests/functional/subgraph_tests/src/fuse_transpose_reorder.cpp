@@ -76,7 +76,7 @@ const auto fuseTransposeAndReorderCommonParams = ::testing::Combine(
 */
 
 void FuseTransposeAndReorderTest::CreateGraph() {
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inPrec);
+    auto ngPrc = ov::test::utils::convertIe2OvPrc(inPrec);
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
 
     auto order = inputShape.size() == 5 ? std::vector<int64_t>{0, 2, 3, 4, 1} : std::vector<int64_t>{0, 2, 3, 1};
@@ -135,7 +135,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Basic, FuseTransposeAndReorderTest, fuseTranspose
 */
 
 void FuseTransposeAndReorderTest1::CreateGraph() {
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inPrec);
+    auto ngPrc = ov::test::utils::convertIe2OvPrc(inPrec);
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
 
     auto order = inputShape.size() == 5 ? std::vector<int64_t>{0, 2, 3, 4, 1} : std::vector<int64_t>{0, 2, 3, 1};
@@ -200,7 +200,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Basic, FuseTransposeAndReorderTest1, fuseTranspos
 */
 
 void FuseTransposeAndReorderTest2::CreateGraph() {
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inPrec);
+    auto ngPrc = ov::test::utils::convertIe2OvPrc(inPrec);
 
     auto inputShape2(inputShape);
     inputShape2[inputShape2.size() - 1] *= 2;
@@ -250,7 +250,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Basic, FuseTransposeAndReorderTest2, fuseTranspos
 void FuseTransposeAndReorderTest3::CreateGraph() {
     IE_ASSERT(inputShape.size() == 4);
 
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inPrec);
+    auto ngPrc = ov::test::utils::convertIe2OvPrc(inPrec);
 
     auto memFmt = nhwc;
     ngraph::op::PadType padType = ngraph::op::PadType::SAME_UPPER;
@@ -314,7 +314,7 @@ void FuseTransposeAndReorderTest4::CreateGraph() {
     const std::vector<ptrdiff_t> padBegin = {0, 0};
     const std::vector<ptrdiff_t> padEnd = {0, 0};
     const size_t convOutChannels = 4;
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inPrec);
+    auto ngPrc = ov::test::utils::convertIe2OvPrc(inPrec);
     auto memFmt = nhwc;
 
     auto inputParams = ngraph::builder::makeParams(ngPrc, {inputShape});

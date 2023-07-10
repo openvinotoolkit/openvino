@@ -11,8 +11,8 @@
 #include <vector>
 
 #include "common_test_utils/common_utils.hpp"
-#include "functional_test_utils/blob_utils.hpp"
-#include "functional_test_utils/plugin_cache.hpp"
+#include "functional_test_utils/legacy/blob_utils.hpp"
+#include "functional_test_utils/legacy/plugin_cache.hpp"
 #include "ngraph_functions/builders.hpp"
 #include "ngraph_functions/pass/convert_prc.hpp"
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
@@ -61,7 +61,7 @@ class DiagonalInsertionTest : public testing::WithParamInterface<DiagonalInserti
     const int32_t seed = 7235346;
 
     InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo& info) const override {
-        return FuncTestUtils::createAndFillBlobFloatNormalDistribution(info.getTensorDesc(), 0.0f, 0.2f, seed);
+        return ov::test::utils::createAndFillBlobFloatNormalDistribution(info.getTensorDesc(), 0.0f, 0.2f, seed);
     }
 
     ParameterVector CreateInputVector(const Type& type, const vector<std::size_t>& shapes) {

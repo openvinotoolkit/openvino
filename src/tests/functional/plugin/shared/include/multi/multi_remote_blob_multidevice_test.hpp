@@ -28,7 +28,7 @@ TEST_P(MultiDeviceMultipleGPU_Test, canCreateRemoteTensorThenInferWithAffinity) 
     std::vector<ov::InferRequest> inf_req_shared = {};
     auto input = function->get_parameters().at(0);
     auto output = function->get_results().at(0);
-    auto fakeImageData = FuncTestUtils::create_and_fill_tensor(input->get_element_type(), input->get_shape());
+    auto fakeImageData = ov::test::utils::create_and_fill_tensor(input->get_element_type(), input->get_shape());
     auto inf_req_regular = exec_net.create_infer_request();
     inf_req_regular.set_tensor(input, fakeImageData);
     // infer using system memory
@@ -72,10 +72,10 @@ TEST_P(MultiDeviceMultipleGPU_Test, canCreateRemoteTensorThenInferWithAffinity) 
         {
             ASSERT_EQ(output->get_element_type(), ov::element::f32);
             ASSERT_EQ(output_tensor_regular.get_size(), output_tensor_shared.get_size());
-            auto thr = FuncTestUtils::GetComparisonThreshold(InferenceEngine::Precision::FP32);
+            auto thr = ov::test::utils::GetComparisonThreshold(InferenceEngine::Precision::FP32);
             ASSERT_NO_THROW(output_tensor_regular.data());
             ASSERT_NO_THROW(output_tensor_shared.data());
-            FuncTestUtils::compare_tensor(output_tensor_regular, output_tensor_shared, thr);
+            ov::test::utils::compare_tensor(output_tensor_regular, output_tensor_shared, thr);
         }
     }
 }

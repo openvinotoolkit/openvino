@@ -11,7 +11,7 @@
 #include <tuple>
 #include <vector>
 
-#include "functional_test_utils/blob_utils.hpp"
+#include "functional_test_utils/legacy/blob_utils.hpp"
 #include "ngraph_functions/builders.hpp"
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
@@ -99,7 +99,7 @@ protected:
     void SetUp() override {
         InferenceEngine::Precision netPrecision;
         std::tie(netPrecision, targetDevice, exportConfiguration, importConfiguration, withReset) = this->GetParam();
-        auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+        auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
 
         auto params = ngraph::builder::makeParams(ngPrc, {{1, 336}});
         auto mem_c = ngraph::builder::makeConstant(ngPrc, {1, 336}, std::vector<size_t>{1});

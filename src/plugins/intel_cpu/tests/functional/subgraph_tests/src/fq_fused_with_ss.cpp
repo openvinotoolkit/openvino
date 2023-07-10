@@ -31,7 +31,7 @@ protected:
         targetDevice = CommonTestUtils::DEVICE_CPU;
         Precision netPrecision;
         netPrecision = this->GetParam();
-        const auto ngPrec = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+        const auto ngPrec = ov::test::utils::convertIe2OvPrc(netPrecision);
 
         std::vector<SizeVector> mmShape{{25, 14, 14, 768}};
         SizeVector mmShape2{768, 2304};

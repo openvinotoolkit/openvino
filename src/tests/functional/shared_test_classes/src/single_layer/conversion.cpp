@@ -28,7 +28,7 @@ std::string ConversionLayerTest::getTestCaseName(const testing::TestParamInfo<Co
 }
 
 void ConversionLayerTest::SetUp() {
-    if (FuncTestUtils::SkipTestsConfig::currentTestIsDisabled()) {
+    if (ov::test::utils::currentTestIsDisabled()) {
         GTEST_SKIP() << "Disabled test due to configuration" << std::endl;
     }
     ngraph::helpers::ConversionTypes conversionOpType;
@@ -37,8 +37,8 @@ void ConversionLayerTest::SetUp() {
     std::tie(conversionOpType, inputShape, inputPrecision, targetPrecision, inLayout, outLayout, targetDevice) =
         GetParam();
 
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inputPrecision);
-    auto targetPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(targetPrecision);
+    auto ngPrc = ov::test::utils::convertIe2OvPrc(inputPrecision);
+    auto targetPrc = ov::test::utils::convertIe2OvPrc(targetPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, inputShape);
     auto conversion = ngraph::builder::makeConversion(params.front(), targetPrc, conversionOpType);
 

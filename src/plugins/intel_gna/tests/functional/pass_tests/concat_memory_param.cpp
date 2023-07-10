@@ -9,8 +9,8 @@
 #include <vector>
 
 #include "common_test_utils/common_utils.hpp"
-#include "functional_test_utils/blob_utils.hpp"
-#include "functional_test_utils/plugin_cache.hpp"
+#include "functional_test_utils/legacy/blob_utils.hpp"
+#include "functional_test_utils/legacy/plugin_cache.hpp"
 #include "ngraph_functions/builders.hpp"
 #include "ngraph_functions/pass/convert_prc.hpp"
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
@@ -63,7 +63,7 @@ protected:
         std::vector<size_t> input_shape;
         std::tie(net_prc, targetDevice, configuration, input_shape) = this->GetParam();
 
-        auto ng_prc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(net_prc);
+        auto ng_prc = ov::test::utils::convertIe2OvPrc(net_prc);
 
         size_t in_total_dims_size = ov::shape_size(input_shape);
         auto params = ngraph::builder::makeParams(ng_prc, {{1, in_total_dims_size}});

@@ -83,11 +83,11 @@
 //                                                      info->getTensorDesc().getLayout()));
 //                    InferenceEngine::InputInfo infoNew;
 //                    infoNew.setInputData(dataNew);
-//                    blob = FuncTestUtils::createAndFillBlob(infoNew.getTensorDesc(), blobFillingRange, scalarVal);
+//                    blob = ov::test::utils::createAndFillBlob(infoNew.getTensorDesc(), blobFillingRange, scalarVal);
 //                }
 //            }
 //            if (blob == nullptr) {
-//                blob = FuncTestUtils::createAndFillBlob((*info).getTensorDesc(), blobFillingRange, scalarVal);
+//                blob = ov::test::utils::createAndFillBlob((*info).getTensorDesc(), blobFillingRange, scalarVal);
 //            }
 //            inputs.push_back(blob);
 //        }
@@ -110,8 +110,8 @@
 //        start = std::get<0>(rangeInputs);
 //        stop = std::get<1>(rangeInputs);
 //        step = std::get<2>(rangeInputs);
-//        auto ngOutPr = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(outPrc);
-//        auto ngNetPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inPrc);
+//        auto ngOutPr = ov::test::utils::convertIe2OvPrc(outPrc);
+//        auto ngNetPrc = ov::test::utils::convertIe2OvPrc(inPrc);
 //        auto startPar = std::make_shared<ngraph::opset5::Parameter>(ngNetPrc, ngraph::Shape{});
 //        auto stopPar = std::make_shared<ngraph::opset5::Parameter>(ngNetPrc, ngraph::Shape{});
 //        auto stepPar = std::make_shared<ngraph::opset5::Parameter>(ngNetPrc, ngraph::Shape{});

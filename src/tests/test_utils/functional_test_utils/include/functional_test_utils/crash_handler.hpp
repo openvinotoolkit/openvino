@@ -11,7 +11,9 @@
 #include <signal.h>
 #include <setjmp.h>
 
-namespace CommonTestUtils {
+namespace ov {
+namespace test {
+namespace utils {
 
 extern jmp_buf env;
 
@@ -30,4 +32,6 @@ public:
     void StartTimer();
 };
 
-}  // namespace CommonTestUtils
+}  // namespace utils
+}  // namespace test
+}  // namespace ov

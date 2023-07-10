@@ -27,7 +27,7 @@ void ResultLayerTest::SetUp() {
     ConfigMap additionalConfig;
     std::tie(inputShape, inputPrecision, targetDevice, additionalConfig) = GetParam();
 
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inputPrecision);
+    auto ngPrc = ov::test::utils::convertIe2OvPrc(inputPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
     const ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(params[0])};
     function = std::make_shared<ngraph::Function>(results, params, "result");

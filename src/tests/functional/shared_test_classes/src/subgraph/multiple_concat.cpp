@@ -33,7 +33,7 @@ void MultipleConcatTest::SetUp() {
     size_t constantSize;
     std::tie(targetDevice, netPrecision, inputSize, constantSize, config) = this->GetParam();
     configuration.insert(config.begin(), config.end());
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+    auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
 
     std::vector<size_t> input_dims { 1, inputSize };
     std::vector<size_t> constant_dims {1, constantSize};

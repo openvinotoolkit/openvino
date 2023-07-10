@@ -35,7 +35,7 @@ void ExtractImagePatchesTest::SetUp() {
     ngraph::op::PadType pad_type;
     InferenceEngine::Precision netPrecision;
     std::tie(inputShape, kernel, strides, rates, pad_type, netPrecision, inPrc, outPrc, inLayout, targetDevice) = this->GetParam();
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+    auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
 
     auto inputNode = std::make_shared<ngraph::opset1::Parameter>(ngPrc, ngraph::Shape(inputShape));
     ngraph::ParameterVector params = {inputNode};

@@ -155,7 +155,7 @@ protected:
             (inputShape[2].second[0].at(2) * inputShape[2].second[0].at(3) * 2);
         bool withBilinearInterpolationPad, withModulation;
         std::tie(withBilinearInterpolationPad, withModulation, offsetType) = dcSpecificParams;
-        auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+        auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
         auto inputParams = ngraph::builder::makeDynamicParams(ngPrc, inputDynamicShapes);
 
         auto data = inputParams[0];

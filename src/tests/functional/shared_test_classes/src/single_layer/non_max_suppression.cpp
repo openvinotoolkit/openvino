@@ -10,7 +10,7 @@ namespace LayerTestsDefinitions {
 
 using namespace ngraph;
 using namespace InferenceEngine;
-using namespace FuncTestUtils::PrecisionUtils;
+using namespace ov::test::utils;
 
 std::string NmsLayerTest::getTestCaseName(const testing::TestParamInfo<NmsParams>& obj) {
     InputShapeParams inShapeParams;
@@ -309,14 +309,14 @@ void NmsLayerTest::SetUp() {
     std::tie(paramsPrec, maxBoxPrec, thrPrec) = inPrecisions;
 
     const std::vector<size_t> boxesShape{numBatches, numBoxes, 4}, scoresShape{numBatches, numClasses, numBoxes};
-    auto ngPrc = convertIE2nGraphPrc(paramsPrec);
+    auto ngPrc = convertIe2OvPrc(paramsPrec);
     auto params = builder::makeParams(ngPrc, {boxesShape, scoresShape});
     auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<op::Parameter>(params));
 
     auto nms = builder::makeNms(paramOuts[0],
                                 paramOuts[1],
-                                convertIE2nGraphPrc(maxBoxPrec),
-                                convertIE2nGraphPrc(thrPrec),
+                                convertIe2OvPrc(maxBoxPrec),
+                                convertIe2OvPrc(thrPrec),
                                 maxOutBoxesPerClass,
                                 iouThr,
                                 scoreThr,
@@ -366,14 +366,14 @@ void Nms9LayerTest::SetUp() {
     std::tie(paramsPrec, maxBoxPrec, thrPrec) = inPrecisions;
 
     const std::vector<size_t> boxesShape{numBatches, numBoxes, 4}, scoresShape{numBatches, numClasses, numBoxes};
-    auto ngPrc = convertIE2nGraphPrc(paramsPrec);
+    auto ngPrc = convertIe2OvPrc(paramsPrec);
     auto params = builder::makeParams(ngPrc, {boxesShape, scoresShape});
     auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<op::Parameter>(params));
 
     auto nms = builder::makeNms(paramOuts[0],
                                 paramOuts[1],
-                                convertIE2nGraphPrc(maxBoxPrec),
-                                convertIE2nGraphPrc(thrPrec),
+                                convertIe2OvPrc(maxBoxPrec),
+                                convertIe2OvPrc(thrPrec),
                                 maxOutBoxesPerClass,
                                 iouThr,
                                 scoreThr,

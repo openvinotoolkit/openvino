@@ -38,7 +38,7 @@ void ActivationLayerTest::SetUp() {
 
     activationType = activationDecl.first;
     auto constantsValue = activationDecl.second;
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+    auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, {shapes.first});
     params[0]->set_friendly_name("Input");
 
@@ -144,7 +144,7 @@ InferenceEngine::Blob::Ptr ActivationLayerTest::GenerateInput(const InferenceEng
         data_start_from = 0;
     }
 
-    return FuncTestUtils::createAndFillBlob(info.getTensorDesc(), data_range,
+    return ov::test::utils::createAndFillBlob(info.getTensorDesc(), data_range,
                                             data_start_from,
                                             resolution);
 }
@@ -185,17 +185,17 @@ InferenceEngine::Blob::Ptr ActivationParamLayerTest::GenerateInput(const Inferen
         const auto elemnts_count = ngraph::shape_size(function->get_parameters()[1]->get_shape());
         std::vector<float> param_data(elemnts_count);
         std::iota(param_data.begin(), param_data.end(), -10);
-        blobPtr = FuncTestUtils::createAndFillBlobWithFloatArray(info.getTensorDesc(), &param_data[0], elemnts_count);
+        blobPtr = ov::test::utils::createAndFillBlobWithFloatArray(info.getTensorDesc(), &param_data[0], elemnts_count);
     } else if (name == "leakySlope") {
         const auto elemnts_count = ngraph::shape_size(function->get_parameters()[1]->get_shape());
         std::vector<float> param_data(elemnts_count, constantsValue[0]);
-        blobPtr = FuncTestUtils::createAndFillBlobWithFloatArray(info.getTensorDesc(), &param_data[0], elemnts_count);
+        blobPtr = ov::test::utils::createAndFillBlobWithFloatArray(info.getTensorDesc(), &param_data[0], elemnts_count);
     } else if (name == "alpha") {
-         blobPtr = FuncTestUtils::createAndFillBlobWithFloatArray(info.getTensorDesc(), &constantsValue[0], 1);
+         blobPtr = ov::test::utils::createAndFillBlobWithFloatArray(info.getTensorDesc(), &constantsValue[0], 1);
     } else if (name == "beta" || name == "lambda") {
-        blobPtr = FuncTestUtils::createAndFillBlobWithFloatArray(info.getTensorDesc(), &constantsValue[1], 1);
+        blobPtr = ov::test::utils::createAndFillBlobWithFloatArray(info.getTensorDesc(), &constantsValue[1], 1);
     } else {
-        blobPtr = FuncTestUtils::createAndFillBlob(info.getTensorDesc(), 20, -10, 1);
+        blobPtr = ov::test::utils::createAndFillBlob(info.getTensorDesc(), 20, -10, 1);
     }
     return blobPtr;
 }
@@ -208,7 +208,7 @@ void ActivationParamLayerTest::SetUp() {
 
     activationType = activationDecl.first;
     constantsValue = activationDecl.second;
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+    auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, {shapes.first});
     auto activationParams = createActivationParams(ngPrc, shapes.second);
 

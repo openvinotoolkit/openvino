@@ -11,11 +11,11 @@ class SingleOpMatcherTest : public ::testing::Test {
 protected:
     void SetUp() override {
         matcher = SubgraphsDumper::SingleOpMatcher();
-        op_info = LayerTestsUtils::OPInfo();
+        op_info = ov::test::utils::layer::OPInfo();
     }
 
     SubgraphsDumper::SingleOpMatcher matcher;
-    LayerTestsUtils::OPInfo op_info;
+    ov::test::utils::layer::OPInfo op_info;
 };
 
 

@@ -32,7 +32,7 @@ namespace SubgraphTestsDefinitions {
         std::map<std::string, std::string> config;
         std::tie(netPrecision, targetDevice, inputShape, splitAxis, concatAxis, config) = this->GetParam();
         configuration.insert(config.begin(), config.end());
-        auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+        auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
         auto input = ngraph::builder::makeParams(ngPrc, { inputShape });
         auto split = ngraph::builder::makeSplit(input[0], ngPrc, 2, splitAxis);
 

@@ -68,7 +68,7 @@ class Matcher {
 public:
     virtual bool match(const std::shared_ptr<ov::Node> &node,
                        const std::shared_ptr<ov::Node> &ref,
-                       const LayerTestsUtils::OPInfo &op_info) const = 0;
+                       const ov::test::utils::layer::OPInfo &op_info) const = 0;
 
     virtual ~Matcher() = default;
 

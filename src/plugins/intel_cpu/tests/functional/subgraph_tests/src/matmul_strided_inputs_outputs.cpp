@@ -32,7 +32,7 @@ protected:
         targetDevice = CommonTestUtils::DEVICE_CPU;
         Precision netPrecision;
         netPrecision = this->GetParam();
-        const auto ngPrec = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+        const auto ngPrec = ov::test::utils::convertIe2OvPrc(netPrecision);
 
         SizeVector splitShape{1, 2, 1, 16};
         auto splitInputParams = builder::makeParams(ngPrec, {splitShape});

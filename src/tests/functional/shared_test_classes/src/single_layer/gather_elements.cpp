@@ -37,8 +37,8 @@ void GatherElementsLayerTest::SetUp() {
     std::tie(dataShape, indicesShape, axis, dPrecision, iPrecision, targetDevice) = this->GetParam();
     outPrc = dPrecision;
 
-    auto ngDPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(dPrecision);
-    auto ngIPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(iPrecision);
+    auto ngDPrc = ov::test::utils::convertIe2OvPrc(dPrecision);
+    auto ngIPrc = ov::test::utils::convertIe2OvPrc(iPrecision);
 
     auto params = ngraph::builder::makeParams(ngDPrc, {dataShape});
     auto paramOuts = ngraph::helpers::convert2OutputVector(

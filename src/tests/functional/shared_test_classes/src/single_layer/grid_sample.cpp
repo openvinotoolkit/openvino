@@ -42,8 +42,8 @@ void GridSampleLayerTest::SetUp() {
     std::tie(dataShape, gridShape, alignCorners, mode, paddingMode, inDataPrc, inGridPrc, targetDevice) =
         this->GetParam();
 
-    auto ngInDataPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inDataPrc);
-    auto ngInGridPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inGridPrc);
+    auto ngInDataPrc = ov::test::utils::convertIe2OvPrc(inDataPrc);
+    auto ngInGridPrc = ov::test::utils::convertIe2OvPrc(inGridPrc);
     auto data = std::make_shared<ngraph::op::Parameter>(ngInDataPrc, ngraph::Shape(dataShape));
     auto grid = std::make_shared<ngraph::op::Parameter>(ngInGridPrc, ngraph::Shape(gridShape));
     auto gridSample = std::make_shared<ngraph::op::v9::GridSample>(

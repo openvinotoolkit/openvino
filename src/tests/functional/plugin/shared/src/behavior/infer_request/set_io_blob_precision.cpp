@@ -103,7 +103,7 @@ void SetBlobTest::SetUp() {
     if (type == setType::OUTPUT || type == setType::BOTH)
         outPrc = precNet;
 
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(precNg);
+    auto ngPrc = ov::test::utils::convertIe2OvPrc(precNg);
     auto params = ngraph::builder::makeParams(ngPrc, {IS});
     auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
     auto axisNode = std::make_shared<ngraph::op::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{}, std::vector<int64_t>{-1})->output(0);

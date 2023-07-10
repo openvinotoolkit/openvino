@@ -15,7 +15,7 @@ namespace SubgraphsDumper {
 
 struct ClonersMap {
     using clone_fn = std::function<const std::shared_ptr<ov::Node>(const std::shared_ptr<ov::Node> &,
-                                                                       LayerTestsUtils::OPInfo &meta)>;
+                                                                       ov::test::utils::layer::OPInfo &meta)>;
     using cloners_map_type = std::map<ov::NodeTypeInfo, clone_fn>;
 
     static float constant_size_threshold_mb;

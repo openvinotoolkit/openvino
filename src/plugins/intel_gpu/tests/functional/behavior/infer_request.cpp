@@ -11,7 +11,7 @@
 
 #include <common_test_utils/test_common.hpp>
 #include "ngraph_functions/subgraph_builders.hpp"
-#include "functional_test_utils/blob_utils.hpp"
+#include "functional_test_utils/legacy/blob_utils.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include "transformations/utils/utils.hpp"
 #include "common_test_utils/common_utils.hpp"
@@ -77,7 +77,7 @@ void InferRequestIOPrecision::SetUp() {
     float clamp_min = netPrecision.isSigned() ? -5.f : 0.0f;
     float clamp_max = 5.0f;
 
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+    auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, {shape});
     params[0]->set_friendly_name("Input");
 
@@ -98,7 +98,7 @@ InferenceEngine::Blob::Ptr InferRequestIOPrecision::GenerateInput(const Inferenc
     uint32_t data_range = 20;
     int32_t resolution = inPrcReal ? 32768 : 1;
 
-    return FuncTestUtils::createAndFillBlob(info.getTensorDesc(), data_range,
+    return ov::test::utils::createAndFillBlob(info.getTensorDesc(), data_range,
                                             data_start_from,
                                             resolution);
 }

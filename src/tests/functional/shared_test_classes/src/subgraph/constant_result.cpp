@@ -39,7 +39,7 @@ std::string ConstantResultSubgraphTest::getTestCaseName(const testing::TestParam
 }
 
 void ConstantResultSubgraphTest::createGraph(const ConstantSubgraphType& type, const SizeVector &inputShape, const Precision &inputPrecision) {
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inputPrecision);
+    auto ngPrc = ov::test::utils::convertIe2OvPrc(inputPrecision);
 
     ParameterVector params;
     ResultVector results;

@@ -3,7 +3,7 @@
 //
 
 #include "common_test_utils/test_constants.hpp"
-#include "functional_test_utils/plugin_cache.hpp"
+#include "functional_test_utils/legacy/plugin_cache.hpp"
 #include "functional_test_utils/ov_plugin_cache.hpp"
 #include "common_test_utils/file_utils.hpp"
 

@@ -8,8 +8,9 @@
 #include "common_test_utils/file_utils.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 
-namespace FuncTestUtils {
-namespace SkipTestsConfig {
+namespace ov {
+namespace test {
+namespace utils {
 
 bool disable_tests_skipping = false;
 
@@ -28,5 +29,7 @@ bool currentTestIsDisabled() {
 
     return false;
 }
-}  // namespace SkipTestsConfig
-}  // namespace FuncTestUtils
+
+}  // namespace utils
+}  // namespace test
+}  // namespace ov

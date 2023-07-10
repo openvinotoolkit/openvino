@@ -38,7 +38,7 @@ InferenceEngine::Blob::Ptr SplitTransformation::GenerateInput(const InferenceEng
     std::tie(precision, inputShape, targetDevice, params, param) = this->GetParam();
     const auto& fqOnData = param.fakeQuantize;
 
-    return FuncTestUtils::createAndFillBlobConsistently(
+    return ov::test::utils::createAndFillBlobConsistently(
         info.getTensorDesc(),
         static_cast<uint32_t>(fqOnData.empty() ? 25.f : fqOnData.outputHighValues[0] - fqOnData.outputLowValues[0]),
         static_cast<int32_t>(fqOnData.empty() ? -12.5f : fqOnData.outputLowValues[0]),

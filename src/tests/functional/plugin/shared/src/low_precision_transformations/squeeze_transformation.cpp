@@ -39,7 +39,7 @@ InferenceEngine::Blob::Ptr SqueezeTransformation::GenerateInput(const InferenceE
 
     const ngraph::builder::subgraph::FakeQuantizeOnData& fqOnData = squeezeParam.fakeQuantize;
 
-    return FuncTestUtils::createAndFillBlobConsistently(
+    return ov::test::utils::createAndFillBlobConsistently(
         info.getTensorDesc(),
         static_cast<uint32_t>(fqOnData.empty() ? 25.f : fqOnData.outputHighValues[0] - fqOnData.outputLowValues[0]),
         static_cast<int32_t>(fqOnData.empty() ? -12.5f : fqOnData.outputLowValues[0]),

@@ -32,7 +32,7 @@ void ReluSplitReshape::SetUp() {
     std::map<std::string, std::string> additional_config;
     std::tie(inputShape, splitAxis, splitNum, netPrecision, targetDevice, additional_config) = this->GetParam();
     configuration.insert(additional_config.begin(), additional_config.end());
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+    auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
 
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
     auto relu = std::make_shared<ngraph::opset1::Relu>(params[0]);

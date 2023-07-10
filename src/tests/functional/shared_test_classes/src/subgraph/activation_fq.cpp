@@ -61,7 +61,7 @@ namespace SubgraphTestsDefinitions {
             inputDataResolution = inputArg[2];
         }
 
-        auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+        auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
         auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
 
         auto act = ngraph::builder::makeActivation(params[0], ngPrc, activationType);
@@ -76,7 +76,7 @@ namespace SubgraphTestsDefinitions {
     }
 
 InferenceEngine::Blob::Ptr ActivationFakeQuantizeSubgraphTest::GenerateInput(const InferenceEngine::InputInfo &info) const {
-    return FuncTestUtils::createAndFillBlob(info.getTensorDesc(), inputDataMax - inputDataMin, inputDataMin, 1 / inputDataResolution,
+    return ov::test::utils::createAndFillBlob(info.getTensorDesc(), inputDataMax - inputDataMin, inputDataMin, 1 / inputDataResolution,
                                             seed);
 }
 } // namespace SubgraphTestsDefinitions

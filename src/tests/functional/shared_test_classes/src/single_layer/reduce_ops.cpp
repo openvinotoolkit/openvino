@@ -40,7 +40,7 @@ void ReduceOpsLayerTest::SetUp() {
     CommonTestUtils::OpType opType;
     std::tie(axes, opType, keepDims, reductionType, netPrecision, inPrc, outPrc, inLayout, inputShape, targetDevice) = GetParam();
 
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+    auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
     auto paramOuts = ngraph::helpers::convert2OutputVector(
             ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
@@ -71,9 +71,9 @@ InferenceEngine::Blob::Ptr ReduceOpsLayerTest::GenerateInput(const InferenceEngi
     InferenceEngine::Precision netPrecision = std::get<4>(GetParam());
     if (reductionType == ngraph::helpers::ReductionType::LogicalOr ||
         reductionType == ngraph::helpers::ReductionType::LogicalAnd) {
-        return FuncTestUtils::createAndFillBlob(info.getTensorDesc(), 2, 0);
+        return ov::test::utils::createAndFillBlob(info.getTensorDesc(), 2, 0);
     } else if (!netPrecision.is_float()) {
-        return FuncTestUtils::createAndFillBlob(info.getTensorDesc(), 5, 0);
+        return ov::test::utils::createAndFillBlob(info.getTensorDesc(), 5, 0);
     }
     auto td = info.getTensorDesc();
     auto blob = make_blob_with_precision(td);

@@ -36,7 +36,7 @@ void Mvn1LayerTest::SetUp() {
     bool acrossChanels, normalizeVariance;
     double eps;
     std::tie(inputShapes, inputPrecision, axes, acrossChanels, normalizeVariance, eps, targetDevice) = this->GetParam();
-    auto inType = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inputPrecision);
+    auto inType = ov::test::utils::convertIe2OvPrc(inputPrecision);
     auto param = ngraph::builder::makeParams(inType, {inputShapes});
     auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(param));
     auto mvn = std::dynamic_pointer_cast<ngraph::op::MVN>(ngraph::builder::makeMVN(paramOuts[0], acrossChanels, normalizeVariance, eps));
@@ -78,8 +78,8 @@ void Mvn6LayerTest::SetUp() {
     std::string epsMode;
     std::tie(inputShapes, dataPrecision, axesPrecision, axes, normalizeVariance, eps, epsMode, targetDevice) = this->GetParam();
 
-    auto dataType = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(dataPrecision);
-    auto axesType = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(axesPrecision);
+    auto dataType = ov::test::utils::convertIe2OvPrc(dataPrecision);
+    auto axesType = ov::test::utils::convertIe2OvPrc(axesPrecision);
 
     auto param = ngraph::builder::makeParams(dataType, {inputShapes});
     auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(param));

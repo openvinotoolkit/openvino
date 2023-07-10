@@ -36,7 +36,7 @@ void ConstantLayerTest::SetUp() {
 
     std::tie(data_shape, data_precision, data_elements, targetDevice) = this->GetParam();
 
-    const auto precision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(data_precision);
+    const auto precision = ov::test::utils::convertIe2OvPrc(data_precision);
     auto constant = ngraph::op::Constant::create(precision, data_shape, data_elements);
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(constant)};
 

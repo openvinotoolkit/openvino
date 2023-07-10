@@ -24,8 +24,8 @@ namespace LayerTestsDefinitions {
         InferenceEngine::SizeVector inputShapes;
         InferenceEngine::Precision inputPrecision;
         std::tie(inputPrecision, outPrc, inputShapes, targetDevice) = this->GetParam();
-        auto inType = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inputPrecision);
-        auto outType = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(outPrc);
+        auto inType = ov::test::utils::convertIe2OvPrc(inputPrecision);
+        auto outType = ov::test::utils::convertIe2OvPrc(outPrc);
         auto param = ngraph::builder::makeParams(inType, {inputShapes});
         auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::opset3::Parameter>(param));
         auto shapeOf = std::make_shared<ngraph::opset3::ShapeOf>(paramOuts[0], outType);

@@ -27,7 +27,7 @@ void ConcatQuantization::SetUp() {
     std::vector<size_t> inputShape;
     InferenceEngine::Precision netPrecision;
     std::tie(netPrecision, targetDevice, configuration) = this->GetParam();
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+    auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
 
     auto params = ngraph::builder::makeParams(ngPrc, {{1, 160}});
 

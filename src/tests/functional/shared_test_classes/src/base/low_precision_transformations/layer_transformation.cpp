@@ -9,7 +9,7 @@
 
 #include <ie_core.hpp>
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
-#include "functional_test_utils/blob_utils.hpp"
+#include "functional_test_utils/legacy/blob_utils.hpp"
 
 #include "ngraph_functions/pass/convert_prc.hpp"
 
@@ -47,7 +47,7 @@ InferenceEngine::Blob::Ptr LayerTransformation::GenerateInput(
     const float low = interval.first / k;
     const float hight = interval.second / k;
 
-    return FuncTestUtils::createAndFillBlobConsistently(tensorDesc, hight - low, static_cast<int32_t>(low), 1ul);
+    return ov::test::utils::createAndFillBlobConsistently(tensorDesc, hight - low, static_cast<int32_t>(low), 1ul);
 }
 
 std::pair<float, float> LayerTransformation::getQuantizationInterval(const ngraph::element::Type precision) {

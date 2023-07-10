@@ -65,7 +65,7 @@ void PriorBoxLayerTest::SetUp() {
              flip, step, offset, variance, scale_all_sizes,
              min_max_aspect_ratios_order) = specParams;
 
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+    auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, {inputShapes, imageShapes});
 
     ngraph::op::v8::PriorBox::Attributes attributes;

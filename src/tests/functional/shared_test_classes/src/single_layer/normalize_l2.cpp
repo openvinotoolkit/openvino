@@ -29,7 +29,7 @@ InferenceEngine::Blob::Ptr NormalizeL2LayerTest::GenerateInput(const InferenceEn
     InferenceEngine::Blob::Ptr blobPtr;
     const std::string& name = info.name();
     if (name == "data") {
-        blobPtr = FuncTestUtils::createAndFillBlobFloat(info.getTensorDesc(), 10, -5, 7, 222);
+        blobPtr = ov::test::utils::createAndFillBlobFloat(info.getTensorDesc(), 10, -5, 7, 222);
     } else {
         blobPtr = LayerTestsUtils::LayerTestsCommon::GenerateInput(info);
     }
@@ -43,7 +43,7 @@ void NormalizeL2LayerTest::SetUp() {
     ngraph::op::EpsMode epsMode;
     InferenceEngine::Precision netPrecision;
     std::tie(axes, eps, epsMode, inputShape, netPrecision, targetDevice) = this->GetParam();
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+    auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
     auto data_input = params[0];
     data_input->set_friendly_name("data");

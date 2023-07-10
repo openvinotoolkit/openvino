@@ -12,8 +12,8 @@
 
 #include "../../shared_tests_instances/skip_tests_check.hpp"
 #include "common_test_utils/common_utils.hpp"
-#include "functional_test_utils/blob_utils.hpp"
-#include "functional_test_utils/plugin_cache.hpp"
+#include "functional_test_utils/legacy/blob_utils.hpp"
+#include "functional_test_utils/legacy/plugin_cache.hpp"
 #include "ngraph_functions/builders.hpp"
 #include "ngraph_functions/pass/convert_prc.hpp"
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
@@ -67,7 +67,7 @@ public:
     }
 
     InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo& info) const override {
-        return FuncTestUtils::createAndFillBlobFloatNormalDistribution(info.getTensorDesc(), 0.0f, 0.2f, 7235346);
+        return ov::test::utils::createAndFillBlobFloatNormalDistribution(info.getTensorDesc(), 0.0f, 0.2f, 7235346);
     }
 
     ParameterVector createInputVector(const Type& type, const vector<std::size_t>& shapes) {
@@ -100,7 +100,7 @@ protected:
         std::size_t levels = 0;
         tie(netPrecision, targetDevice, configuration, inputShape, fqMinMax, levels) = this->GetParam();
         tie(fqMin, fqMax) = fqMinMax;
-        auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+        auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
         size_t kernelHeight = inputShape[2] == 1 ? 1 : 2;
 
         // Create network

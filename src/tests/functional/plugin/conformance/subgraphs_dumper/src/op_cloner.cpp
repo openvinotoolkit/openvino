@@ -11,7 +11,7 @@ namespace {
 
 
 template<typename dType>
-void get_port_range(const std::shared_ptr<ov::op::v0::Constant> &const_node, LayerTestsUtils::PortInfo &port_info) {
+void get_port_range(const std::shared_ptr<ov::op::v0::Constant> &const_node, ov::test::utils::layer::PortInfo &port_info) {
     std::vector<dType> data = const_node->cast_vector<dType>();
     if (!data.empty()) {
         auto min_max = std::minmax_element(data.begin(), data.end());
@@ -21,7 +21,7 @@ void get_port_range(const std::shared_ptr<ov::op::v0::Constant> &const_node, Lay
 }
 
 
-void get_port_range(const std::shared_ptr<ov::op::v0::Constant> &constant_input, LayerTestsUtils::PortInfo &port_info) {
+void get_port_range(const std::shared_ptr<ov::op::v0::Constant> &constant_input, ov::test::utils::layer::PortInfo &port_info) {
     switch (constant_input->get_element_type()) {
         case ov::element::Type_t::boolean:
             get_port_range<char>(constant_input, port_info);
@@ -70,13 +70,13 @@ void get_port_range(const std::shared_ptr<ov::op::v0::Constant> &constant_input,
     }
 }
 
-std::shared_ptr<ov::Node> clone(const std::shared_ptr<ov::Node> &node, LayerTestsUtils::OPInfo &meta) {
+std::shared_ptr<ov::Node> clone(const std::shared_ptr<ov::Node> &node, ov::test::utils::layer::OPInfo &meta) {
     ov::OutputVector op_inputs;
     bool has_parameters = false;
 
     auto add_input_func = [&](size_t index) {
         const auto input = node->input(index).get_source_output();
-        auto port_info = LayerTestsUtils::PortInfo();
+        auto port_info = ov::test::utils::layer::PortInfo();
         OPENVINO_SUPPRESS_DEPRECATED_START
         const auto constant = ov::get_constant_from_source(input);
         OPENVINO_SUPPRESS_DEPRECATED_END
@@ -139,7 +139,7 @@ std::shared_ptr<ov::Node> clone(const std::shared_ptr<ov::Node> &node, LayerTest
 
 std::shared_ptr<ov::Node> clone_weightable_node(const std::shared_ptr<ov::Node> &node,
                                                 const std::vector<size_t> &weight_ports,
-                                                LayerTestsUtils::OPInfo &meta) {
+                                                ov::test::utils::layer::OPInfo &meta) {
     ov::OutputVector op_inputs;
     bool has_parameters = false;
     for (size_t i = 0; i < node->get_input_size(); ++i) {
@@ -147,7 +147,7 @@ std::shared_ptr<ov::Node> clone_weightable_node(const std::shared_ptr<ov::Node> 
         OPENVINO_SUPPRESS_DEPRECATED_START
         const auto constant_input = ov::get_constant_from_source(input);
         OPENVINO_SUPPRESS_DEPRECATED_END
-        auto port_info = LayerTestsUtils::PortInfo();
+        auto port_info = ov::test::utils::layer::PortInfo();
         // Input is Parameter or dynamic data pass
         if (!constant_input) {
             has_parameters = true;
@@ -198,50 +198,50 @@ std::shared_ptr<ov::Node> clone_weightable_node(const std::shared_ptr<ov::Node> 
 
 // Clone nodes requiring weights randomization
 std::shared_ptr<ov::Node>
-clone(const std::shared_ptr<ov::op::v1::Convolution> &node, LayerTestsUtils::OPInfo &meta) {
+clone(const std::shared_ptr<ov::op::v1::Convolution> &node, ov::test::utils::layer::OPInfo &meta) {
     return clone_weightable_node(node, {1}, meta);
 }
 
 std::shared_ptr<ov::Node>
-clone(const std::shared_ptr<ov::op::v1::GroupConvolution> &node, LayerTestsUtils::OPInfo &meta) {
+clone(const std::shared_ptr<ov::op::v1::GroupConvolution> &node, ov::test::utils::layer::OPInfo &meta) {
     return clone_weightable_node(node, {1}, meta);
 }
 
 std::shared_ptr<ov::Node>
-clone(const std::shared_ptr<ov::op::v1::ConvolutionBackpropData> &node, LayerTestsUtils::OPInfo &meta) {
+clone(const std::shared_ptr<ov::op::v1::ConvolutionBackpropData> &node, ov::test::utils::layer::OPInfo &meta) {
     return clone_weightable_node(node, {1}, meta);
 }
 
 std::shared_ptr<ov::Node>
-clone(const std::shared_ptr<ov::op::v1::GroupConvolutionBackpropData> &node, LayerTestsUtils::OPInfo &meta) {
+clone(const std::shared_ptr<ov::op::v1::GroupConvolutionBackpropData> &node, ov::test::utils::layer::OPInfo &meta) {
     return clone_weightable_node(node, {1}, meta);
 }
 
 std::shared_ptr<ov::Node>
-clone(const std::shared_ptr<ov::op::v0::MatMul> &node, LayerTestsUtils::OPInfo &meta) {
+clone(const std::shared_ptr<ov::op::v0::MatMul> &node, ov::test::utils::layer::OPInfo &meta) {
     return clone_weightable_node(node, {0, 1}, meta);
 }
 
-std::shared_ptr<ov::Node> clone(const std::shared_ptr<ov::op::v1::Add> &node, LayerTestsUtils::OPInfo &meta) {
-    return clone_weightable_node(node, {0, 1}, meta);
-}
-
-std::shared_ptr<ov::Node>
-clone(const std::shared_ptr<ov::op::v1::Multiply> &node, LayerTestsUtils::OPInfo &meta) {
+std::shared_ptr<ov::Node> clone(const std::shared_ptr<ov::op::v1::Add> &node, ov::test::utils::layer::OPInfo &meta) {
     return clone_weightable_node(node, {0, 1}, meta);
 }
 
 std::shared_ptr<ov::Node>
-clone(const std::shared_ptr<ov::op::v1::Subtract> &node, LayerTestsUtils::OPInfo &meta) {
+clone(const std::shared_ptr<ov::op::v1::Multiply> &node, ov::test::utils::layer::OPInfo &meta) {
     return clone_weightable_node(node, {0, 1}, meta);
 }
 
-std::shared_ptr<ov::Node> clone(const std::shared_ptr<ov::op::v1::Power> &node, LayerTestsUtils::OPInfo &meta) {
+std::shared_ptr<ov::Node>
+clone(const std::shared_ptr<ov::op::v1::Subtract> &node, ov::test::utils::layer::OPInfo &meta) {
+    return clone_weightable_node(node, {0, 1}, meta);
+}
+
+std::shared_ptr<ov::Node> clone(const std::shared_ptr<ov::op::v1::Power> &node, ov::test::utils::layer::OPInfo &meta) {
     return clone_weightable_node(node, {0, 1}, meta);
 }
 
 template<typename opType>
-std::shared_ptr<ov::Node> clone_node(const std::shared_ptr<ov::Node> &node, LayerTestsUtils::OPInfo &meta) {
+std::shared_ptr<ov::Node> clone_node(const std::shared_ptr<ov::Node> &node, ov::test::utils::layer::OPInfo &meta) {
     return clone(ov::as_type_ptr<opType>(node), meta);
 }
 }  // namespace

@@ -30,7 +30,7 @@ namespace SubgraphTestsDefinitions {
         auto paramsShape = ngraph::Shape{1};
         if (inputShapes.size() > 1)
             paramsShape = ngraph::Shape(inputShapes[1]);
-        auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+        auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
         auto paramsIn = ngraph::builder::makeParams(ngPrc, {inputShapes[0]});
         auto mul_const = std::make_shared<ngraph::op::Constant>(ngPrc, paramsShape, scale);
         auto mul = std::make_shared<ngraph::opset1::Multiply>(paramsIn[0], mul_const);

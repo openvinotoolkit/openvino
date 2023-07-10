@@ -110,7 +110,7 @@ protected:
         rangesBounds[1] = inputRangesValues.second;
         std::tie(inDataLowBounds, inDataHighBounds, rangesBounds[2], rangesBounds[3], levels) = fqParams;
 
-        auto ngInPrec = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inPrec);
+        auto ngInPrec = ov::test::utils::convertIe2OvPrc(inPrec);
         ParameterVector params = builder::makeDynamicParams(ngInPrec, inputDynamicShapes);
         auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<opset5::Parameter>(params));
 

@@ -24,7 +24,7 @@ std::string MultipleInputScaleTest::getTestCaseName(const testing::TestParamInfo
 }
 
 InferenceEngine::Blob::Ptr MultipleInputScaleTest::GenerateInput(const InferenceEngine::InputInfo &info) const {
-    return FuncTestUtils::createAndFillBlob(info.getTensorDesc(), inputDataMin, range, 1 / inputDataResolution, seed);
+    return ov::test::utils::createAndFillBlob(info.getTensorDesc(), inputDataMin, range, 1 / inputDataResolution, seed);
 }
 
 void MultipleInputScaleTest::SetUp() {
@@ -33,7 +33,7 @@ void MultipleInputScaleTest::SetUp() {
     size_t inputSize;
     std::tie(targetDevice, netPrecision, inputSize, config) = this->GetParam();
     configuration.insert(config.begin(), config.end());
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+    auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
     std::vector<size_t> inputShape = {1, inputSize};
     auto input = ngraph::builder::makeParams(ngPrc, {inputShape, inputShape});
 

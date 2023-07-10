@@ -28,7 +28,7 @@ void ParamReshapeResult::SetUp() {
     std::map<std::string, std::string> additional_config;
     std::tie(inputShape, netPrecision, targetDevice, additional_config) = this->GetParam();
     configuration.insert(additional_config.begin(), additional_config.end());
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+    auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
 
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
 

@@ -69,13 +69,13 @@ bool compare_constants_data(const std::shared_ptr<ov::op::v0::Constant> &op,
 
 bool SingleOpMatcher::same_op_type(const std::shared_ptr<ov::Node> &node,
                                    const std::shared_ptr<ov::Node> &ref,
-                                   const LayerTestsUtils::OPInfo &op_info) const {
+                                   const ov::test::utils::layer::OPInfo &op_info) const {
     return node->get_type_info() == ref->get_type_info();
 }
 
 bool SingleOpMatcher::match_inputs(const std::shared_ptr<ov::Node> &node,
                                    const std::shared_ptr<ov::Node> &ref,
-                                   const LayerTestsUtils::OPInfo &op_info) const {
+                                   const ov::test::utils::layer::OPInfo &op_info) const {
     if (node->get_input_size() != ref->get_input_size()) {
         return false;
     }
@@ -97,7 +97,7 @@ bool SingleOpMatcher::match_inputs(const std::shared_ptr<ov::Node> &node,
 bool
 SingleOpMatcher::match_outputs(const std::shared_ptr<ov::Node> &node,
                                const std::shared_ptr<ov::Node> &ref,
-                               const LayerTestsUtils::OPInfo &op_info) const {
+                               const ov::test::utils::layer::OPInfo &op_info) const {
     if (node->get_output_size() != ref->get_output_size()) {
         return false;
     }
@@ -122,13 +122,13 @@ SingleOpMatcher::match_outputs(const std::shared_ptr<ov::Node> &node,
 
 bool SingleOpMatcher::same_attrs(const std::shared_ptr<ov::Node> &node,
                                  const std::shared_ptr<ov::Node> &ref,
-                                 const LayerTestsUtils::OPInfo &op_info) const {
+                                 const ov::test::utils::layer::OPInfo &op_info) const {
     return attributes::compare(node.get(), ref.get(), Comparator::CmpValues::ATTRIBUTES).valid;
 }
 
 bool SingleOpMatcher::match_ports(const std::shared_ptr<ov::Node> &node,
                                   const std::shared_ptr<ov::Node> &ref,
-                                  const LayerTestsUtils::OPInfo &op_info) const {
+                                  const ov::test::utils::layer::OPInfo &op_info) const {
     const auto &cfg = get_config(node);
     const std::vector<size_t> &ignored_ports = cfg->ignored_ports;
 
@@ -158,7 +158,7 @@ bool SingleOpMatcher::match_ports(const std::shared_ptr<ov::Node> &node,
 
 bool SingleOpMatcher::match(const std::shared_ptr<ov::Node> &node,
                             const std::shared_ptr<ov::Node> &ref,
-                            const LayerTestsUtils::OPInfo &op_info) const {
+                            const ov::test::utils::layer::OPInfo &op_info) const {
     for (const auto& input_node : node->inputs()) {
         if (input_node.get_partial_shape().is_dynamic()) {
             break;

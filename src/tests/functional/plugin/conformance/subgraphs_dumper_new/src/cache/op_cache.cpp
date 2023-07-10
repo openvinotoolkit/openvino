@@ -60,7 +60,7 @@ void OpCache::update_cache(const std::shared_ptr<ov::Node>& node,
     auto cloned_node = clone_node(node, true);
     if (cloned_node == nullptr)
         return;
-    cloned_node->set_friendly_name(ov::test::functional::get_node_version(cloned_node));
+    cloned_node->set_friendly_name(ov::test::utils::get_node_version(cloned_node));
     for (auto &&it : m_ops_cache) {
         if (m_manager.match(it.first, cloned_node)) {
             std::cout << "Match " << cloned_node->get_type_info().name <<  " " << cloned_node->get_friendly_name() <<
@@ -110,7 +110,7 @@ bool OpCache::serialize_op(const std::pair<std::shared_ptr<ov::Node>, MetaInfo> 
 }
 
 std::string OpCache::get_rel_serilization_dir(const std::shared_ptr<ov::Node>& node) {
-    std::string op_folder_name = ov::test::functional::get_node_version(node);
+    std::string op_folder_name = ov::test::utils::get_node_version(node);
     auto op_el_type = node->get_output_element_type(0).get_type_name();
 
     return ov::util::path_join({"operation", get_node_type(node), op_folder_name, op_el_type});

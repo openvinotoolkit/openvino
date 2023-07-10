@@ -8,10 +8,10 @@
 using namespace BehaviorTestsDefinitions;
 using namespace InferenceEngine;
 
-const std::vector<FuncTestUtils::BlobType> BlobTypes = {
-    FuncTestUtils::BlobType::Compound,
-    FuncTestUtils::BlobType::Batched,
-    FuncTestUtils::BlobType::Memory,
+const std::vector<ov::test::utils::BlobType> BlobTypes = {
+    ov::test::utils::BlobType::Compound,
+    ov::test::utils::BlobType::Batched,
+    ov::test::utils::BlobType::Memory,
 };
 
 const std::map<std::string, std::string> cpuConfig{}; //nothing special

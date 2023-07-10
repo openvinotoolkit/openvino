@@ -40,7 +40,7 @@ namespace SubgraphTestsDefinitions {
         configuration.insert(additional_config.begin(), additional_config.end());
 
         const std::size_t input_dim = std::accumulate(input_shape.begin(), input_shape.end(), 1, std::multiplies<size_t>());
-        auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+        auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
 
         std::vector<size_t> input_dims { 1, input_dim };
         std::vector<size_t> reshape_in_dims = std::vector<size_t>(input_shape.begin(), input_shape.end());
@@ -91,9 +91,9 @@ namespace SubgraphTestsDefinitions {
             const auto &info = input.second;
             auto tensorDesc = info->getTensorDesc();
 
-            auto blob = FuncTestUtils::createAndFillBlobFloat(tensorDesc, 2, -1, 100, 111);
+            auto blob = ov::test::utils::createAndFillBlobFloat(tensorDesc, 2, -1, 100, 111);
 
-            FuncTestUtils::fillInputsBySinValues(blob);
+            ov::test::utils::fillInputsBySinValues(blob);
             inferRequest.SetBlob(info->name(), blob);
             inputs.push_back(blob);
         }

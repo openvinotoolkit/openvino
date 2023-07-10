@@ -21,7 +21,7 @@ protected:
         std::tie(inputShape, netPrecision, targetDevice, exportConfiguration, importConfiguration, applicationHeader) =
             this->GetParam();
 
-        auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+        auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
         auto input = ngraph::builder::makeParams(ngPrc, {inputShape, inputShape});
         auto mul1 = ngraph::builder::makeEltwise(input[0], input[1], ngraph::helpers::EltwiseTypes::ADD);
         auto result = std::make_shared<ngraph::opset7::Result>(mul1);

@@ -34,7 +34,7 @@ void GatherTreeLayerTest::SetUp() {
 
     std::tie(inputShape, secondaryInputType, netPrecision, inPrc, outPrc, inLayout, outLayout, targetDevice) = GetParam();
 
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+    auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
 
     std::shared_ptr<ngraph::Node> inp2;
     std::shared_ptr<ngraph::Node> inp3;
@@ -71,9 +71,9 @@ InferenceEngine::Blob::Ptr GatherTreeLayerTest::GenerateInput(const InferenceEng
     auto maxBeamIndx = shape.at(2) - 1;
 
     if (vecDims.size() == 1 || vecDims.size() == 0) { //max_seq_len vector || end_token
-        return FuncTestUtils::createAndFillBlob(info.getTensorDesc(), maxBeamIndx, maxBeamIndx / 2);
+        return ov::test::utils::createAndFillBlob(info.getTensorDesc(), maxBeamIndx, maxBeamIndx / 2);
     }
 
-    return FuncTestUtils::createAndFillBlob(info.getTensorDesc(), maxBeamIndx);
+    return ov::test::utils::createAndFillBlob(info.getTensorDesc(), maxBeamIndx);
 }
 } // namespace LayerTestsDefinitions

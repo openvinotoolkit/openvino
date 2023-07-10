@@ -23,7 +23,7 @@ void SplitConvConcat::SetUp() {
     std::vector<size_t> inputShape;
     InferenceEngine::Precision netPrecision;
     std::tie(netPrecision, inputShape, targetDevice) = this->GetParam();
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+    auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
 
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
 

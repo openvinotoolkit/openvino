@@ -65,7 +65,7 @@ protected:
         std::tie(precision, targetDevice, configuration, input_shape, input_eltwise_type, input_eltwise_order) =
             this->GetParam();
 
-        auto ng_precision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(precision);
+        auto ng_precision = ov::test::utils::convertIe2OvPrc(precision);
 
         auto input = std::make_shared<Parameter>(ng_precision, ov::Shape{input_shape});
 

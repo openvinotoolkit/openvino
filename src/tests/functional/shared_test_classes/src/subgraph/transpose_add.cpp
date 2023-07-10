@@ -30,7 +30,7 @@ void TransposeAdd::SetUp() {
 
     configuration.insert(additional_config.begin(), additional_config.end());
 
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+    auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, {input_shape});
 
     ngraph::Shape permute_order(input_shape.size());

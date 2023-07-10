@@ -37,7 +37,7 @@ protected:
         Precision netPrecision;
         size_t rank;
         std::tie(netPrecision, rank) = this->GetParam();
-        const auto ngPrec = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+        const auto ngPrec = ov::test::utils::convertIe2OvPrc(netPrecision);
 
         auto bcastTo3D = [](SizeVector& shape) {
             shape.insert(shape.begin(), 1);

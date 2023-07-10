@@ -40,7 +40,7 @@ void SliceConcatTest::SetUp() {
     std::vector<int64_t> inputShape, begin, end, strides, beginMask, endMask;
     std::tie(inputShape, begin, end, strides, beginMask, endMask) = sliceParams;
 
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+    auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
     size_t input_size = std::accumulate(std::begin(inputShape), std::end(inputShape), 1, std::multiplies<size_t>());
     auto params = ngraph::builder::makeParams(ngPrc, {{1, input_size}});
 

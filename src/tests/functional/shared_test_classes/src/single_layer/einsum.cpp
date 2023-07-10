@@ -32,7 +32,7 @@ void EinsumLayerTest::SetUp() {
     std::vector<InferenceEngine::SizeVector> inputShapes;
     std::tie(equation, inputShapes) = equationWithInput;
 
-    const auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(precision);
+    const auto ngPrc = ov::test::utils::convertIe2OvPrc(precision);
     const auto params = ngraph::builder::makeParams(ngPrc, inputShapes);
     const auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
 

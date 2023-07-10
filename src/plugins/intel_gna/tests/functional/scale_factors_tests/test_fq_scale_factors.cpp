@@ -9,8 +9,8 @@
 #include <vector>
 
 #include "common_test_utils/common_utils.hpp"
-#include "functional_test_utils/blob_utils.hpp"
-#include "functional_test_utils/plugin_cache.hpp"
+#include "functional_test_utils/legacy/blob_utils.hpp"
+#include "functional_test_utils/legacy/plugin_cache.hpp"
 #include "ngraph_functions/builders.hpp"
 #include "ngraph_functions/pass/convert_prc.hpp"
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
@@ -87,7 +87,7 @@ protected:
 
         std::tie(netPrecision, targetDevice, configuration, inputValues, m_non_func_layer) = this->GetParam();
         std::tie(inputDataMin, inputDataMax) = inputValues;
-        auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+        auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
 
         const ngraph::Shape shape = {1, 1, 128};
         auto params = ngraph::builder::makeParams(ngPrc, {shape});

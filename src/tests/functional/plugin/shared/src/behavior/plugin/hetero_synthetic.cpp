@@ -151,7 +151,7 @@ void HeteroSyntheticTest::SetUp() {
 }
 
 void HeteroSyntheticTest::TearDown() {
-    if (!FuncTestUtils::SkipTestsConfig::currentTestIsDisabled()) {
+    if (!ov::test::utils::currentTestIsDisabled()) {
         for (auto&& pluginName : _registredPlugins) {
             PluginCache::get().ie()->UnregisterPlugin(pluginName);
         }
@@ -194,7 +194,7 @@ TEST_P(HeteroSyntheticTest, someLayersToMajorPluginOthersToFallback) {
     auto affinities = SetUpAffinity();
     SCOPED_TRACE(affinities);
     Run();
-    if (!FuncTestUtils::SkipTestsConfig::currentTestIsDisabled()) {
+    if (!ov::test::utils::currentTestIsDisabled()) {
         ASSERT_NE(nullptr, cnnNetwork.getFunction());
     }
 }

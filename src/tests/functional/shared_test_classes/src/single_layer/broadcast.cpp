@@ -31,7 +31,7 @@ void BroadcastLayerTest::SetUp() {
     InferenceEngine::SizeVector inputShape;
     InferenceEngine::Precision networkPrecision;
     std::tie(targetShape, axesMapping, mode, inputShape, networkPrecision, targetDevice) = this->GetParam();
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(networkPrecision);
+    auto ngPrc = ov::test::utils::convertIe2OvPrc(networkPrecision);
 
     auto target_shape_const = ov::op::v0::Constant::create(ov::element::i64, {targetShape.size()}, targetShape);
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});

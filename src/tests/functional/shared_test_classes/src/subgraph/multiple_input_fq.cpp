@@ -29,7 +29,7 @@ void MultipleInputTest::SetUp() {
     size_t inputSize;
     std::tie(targetDevice, netPrecision, inputSize, config) = this->GetParam();
     configuration.insert(config.begin(), config.end());
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+    auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
 
     const float minInput = -10.0;
     const float maxInput = 10.0;

@@ -21,10 +21,10 @@
 #include "functional_test_utils/crash_handler.hpp"
 #include "common_test_utils/file_utils.hpp"
 
-#include "functional_test_utils/plugin_cache.hpp"
+#include "functional_test_utils/legacy/plugin_cache.hpp"
 #include "functional_test_utils/ov_plugin_cache.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
-#include "functional_test_utils/blob_utils.hpp"
+#include "functional_test_utils/legacy/blob_utils.hpp"
 #include "functional_test_utils/summary/api_summary.hpp"
 #include "openvino/util/file_util.hpp"
 
@@ -45,8 +45,8 @@ inline bool sw_plugin_in_target_device(std::string targetDevice) {
 class APIBaseTest : public ov::test::TestsCommon {
 private:
     // in case of crash jump will be made and work will be continued
-    const std::unique_ptr<CommonTestUtils::CrashHandler> crashHandler = std::unique_ptr<CommonTestUtils::CrashHandler>(
-                                                                        new CommonTestUtils::CrashHandler(CommonTestUtils::CONFORMANCE_TYPE::api));
+    const std::unique_ptr<ov::test::utils::CrashHandler> crashHandler = std::unique_ptr<ov::test::utils::CrashHandler>(
+                                                                        new ov::test::utils::CrashHandler(ov::test::utils::CONFORMANCE_TYPE::api));
 
 protected:
     double k = 1.0;

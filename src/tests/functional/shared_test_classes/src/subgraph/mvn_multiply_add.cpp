@@ -41,8 +41,8 @@ void MVNMultiplyAdd::SetUp() {
     std::tie(shapes, dataPrecision, axesPrecision, axes, normalizeVariance, eps, epsMode, targetDevice) = this->GetParam();
     std::tie(inputShapes, constantShapes) = shapes;
 
-    auto dataType = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(dataPrecision);
-    auto axesType = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(axesPrecision);
+    auto dataType = ov::test::utils::convertIe2OvPrc(dataPrecision);
+    auto axesType = ov::test::utils::convertIe2OvPrc(axesPrecision);
 
     auto param = ngraph::builder::makeParams(dataType, {inputShapes});
     auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(param));

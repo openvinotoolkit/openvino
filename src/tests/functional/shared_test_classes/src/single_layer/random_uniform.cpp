@@ -33,7 +33,7 @@ namespace {
 template<InferenceEngine::Precision::ePrecision p>
 std::shared_ptr<ov::op::v0::Constant>
 createRangeConst(const typename InferenceEngine::PrecisionTrait<p>::value_type &value) {
-    return std::make_shared<ov::op::v0::Constant>(FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(p), ov::Shape{1},
+    return std::make_shared<ov::op::v0::Constant>(ov::test::utils::convertIe2OvPrc(p), ov::Shape{1},
                                                   std::vector<typename InferenceEngine::PrecisionTrait<p>::value_type>{
                                                           value});
 }
@@ -62,7 +62,7 @@ void RandomUniformLayerTest::SetUp() {
     ov::Shape output_shape;
     std::string targetName;
     std::tie(output_shape, randomUniformParams, global_seed, op_seed, targetDevice) = this->GetParam();
-    const auto precision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(randomUniformParams.precision);
+    const auto precision = ov::test::utils::convertIe2OvPrc(randomUniformParams.precision);
     auto out_shape_ = std::make_shared<ov::op::v0::Constant>(ov::element::i64,
                                                              ov::Shape{output_shape.size()},
                                                              output_shape);

@@ -67,7 +67,7 @@ namespace LayerTestsDefinitions {
                  {num_directions, hidden_size}},
         };
         m_max_seq_len = seq_lengths;
-        auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+        auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
         auto params = ngraph::builder::makeParams(ngPrc, {inputShapes[0], inputShapes[1]});
         std::shared_ptr<ov::Node> seq_lengths_node;
         if (m_mode == SequenceTestsMode::CONVERT_TO_TI_MAX_SEQ_LEN_PARAM ||
@@ -134,7 +134,7 @@ namespace LayerTestsDefinitions {
             const auto &info = input.second;
             auto blob = GenerateInput(*info);
             if (input.first == "seq_lengths") {
-                blob = FuncTestUtils::createAndFillBlob(info->getTensorDesc(), m_max_seq_len, 0);
+                blob = ov::test::utils::createAndFillBlob(info->getTensorDesc(), m_max_seq_len, 0);
             }
 
             inputs.push_back(blob);

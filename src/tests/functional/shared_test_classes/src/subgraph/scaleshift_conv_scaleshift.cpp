@@ -60,7 +60,7 @@ void ScaleShiftAfterConvTest::SetUp() {
     size_t stride;
     std::tie(inputShape, kernelShape, stride) = convolutionParams;
 
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+    auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, { inputShape });
 
     std::vector<size_t> convInputShape = {1, inputChannels, 1, inputShape[0] * inputShape[1] / inputChannels};
@@ -149,7 +149,7 @@ void ScaleShiftBeforeConvTest::SetUp() {
     size_t stride;
     std::tie(inputShape, kernelShape, stride) = convolutionParams;
 
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+    auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, { inputShape });
 
     std::vector<size_t> convInputShape = {1, inputShape[1], 1, 1};

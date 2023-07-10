@@ -37,7 +37,7 @@ void SplitConcatMultiInputsTest::SetUp() {
     configuration.insert(tempConfig.begin(), tempConfig.end());
 
     inputShape[1] *= splitsNum;
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+    auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
 
     auto split = ngraph::builder::makeSplit(params[0], ngPrc, splitsNum, 1);
@@ -56,7 +56,7 @@ void SplitConcatMultiInputsTest::SetUp() {
 }
 
 InferenceEngine::Blob::Ptr SplitConcatMultiInputsTest::GenerateInput(const InferenceEngine::InputInfo &info) const {
-    return FuncTestUtils::createAndFillBlob(info.getTensorDesc(), inputDataMax - inputDataMin, inputDataMin, 1 / inputDataResolution,
+    return ov::test::utils::createAndFillBlob(info.getTensorDesc(), inputDataMax - inputDataMin, inputDataMin, 1 / inputDataResolution,
                                             seed);
 }
 }  // namespace SubgraphTestsDefinitions

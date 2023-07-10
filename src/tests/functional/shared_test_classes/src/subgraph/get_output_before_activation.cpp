@@ -45,7 +45,7 @@ void OutputBeforeActivation::SetUp() {
     midOutputType outputType;
     std::tie(targetDevice, netPrecision, inputSize, outputType, config) = this->GetParam();
     configuration.insert(config.begin(), config.end());
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+    auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
 
     std::vector<size_t> input_dims { 1, inputSize };
 
@@ -78,6 +78,6 @@ void OutputBeforeActivation::SetUp() {
 }
 
 InferenceEngine::Blob::Ptr OutputBeforeActivation::GenerateInput(const InferenceEngine::InputInfo &info) const {
-    return FuncTestUtils::createAndFillBlob(info.getTensorDesc(), 2, -1, 100);
+    return ov::test::utils::createAndFillBlob(info.getTensorDesc(), 2, -1, 100);
 }
 } // namespace SubgraphTestsDefinitions

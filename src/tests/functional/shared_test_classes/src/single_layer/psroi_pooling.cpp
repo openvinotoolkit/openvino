@@ -106,7 +106,7 @@ void PSROIPoolingLayerTest::SetUp() {
     std::tie(inputShape, coordsShape, outputDim, groupSize_, spatialScale_,
              spatialBinsX_, spatialBinsY_, mode_, netPrecision, targetDevice) = this->GetParam();
 
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+    auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape, coordsShape});
     auto paramOuts = ngraph::helpers::convert2OutputVector(
             ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));

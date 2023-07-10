@@ -13,7 +13,7 @@ namespace BehaviorTestsDefinitions {
 using namespace CommonTestUtils;
 
 using InferRequestSetBlobByTypeParams = std::tuple<
-        FuncTestUtils::BlobType,           // Blob type
+        ov::test::utils::BlobType,           // Blob type
         std::string,                       // Device name
         std::map<std::string, std::string> // Device config
 >;
@@ -22,7 +22,7 @@ class InferRequestSetBlobByType : public testing::WithParamInterface<InferReques
                                   public BehaviorTestsUtils::IEInferRequestTestBase {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<InferRequestSetBlobByTypeParams> obj) {
-        FuncTestUtils::BlobType BlobType;
+        ov::test::utils::BlobType BlobType;
         std::string targetDevice;
         std::map<std::string, std::string> configuration;
         std::tie(BlobType, targetDevice, configuration) = obj.param;
@@ -50,12 +50,12 @@ public:
 protected:
     bool blobTypeIsSupportedByDevice() {
         switch (blobType) {
-            case FuncTestUtils::BlobType::Memory:
+            case ov::test::utils::BlobType::Memory:
                 return true;
-            case FuncTestUtils::BlobType::Compound:
-            case FuncTestUtils::BlobType::Remote:
+            case ov::test::utils::BlobType::Compound:
+            case ov::test::utils::BlobType::Remote:
                 return false;
-            case FuncTestUtils::BlobType::Batched: {
+            case ov::test::utils::BlobType::Batched: {
                 auto supported_metrics = ie->GetMetric(target_device, METRIC_KEY(SUPPORTED_METRICS)).as<std::vector<std::string>>();
                 if (std::find(supported_metrics.begin(), supported_metrics.end(),
                               METRIC_KEY(OPTIMIZATION_CAPABILITIES)) == supported_metrics.end()) {
@@ -72,7 +72,7 @@ protected:
         }
     }
 
-    FuncTestUtils::BlobType blobType;
+    ov::test::utils::BlobType blobType;
     InferenceEngine::ExecutableNetwork executableNetwork;
     std::shared_ptr<InferenceEngine::Core> ie = PluginCache::get().ie();
 };
@@ -82,7 +82,7 @@ TEST_P(InferRequestSetBlobByType, setInputBlobsByType) {
     auto req = executableNetwork.CreateInferRequest();
     for (const auto &input : executableNetwork.GetInputsInfo()) {
         const auto &info = input.second;
-        auto blob = FuncTestUtils::createBlobByType(info->getTensorDesc(), blobType);
+        auto blob = ov::test::utils::createBlobByType(info->getTensorDesc(), blobType);
         if (blobTypeIsSupportedByDevice()) {
             EXPECT_NO_THROW(req.SetBlob(info->name(), blob));
         } else {

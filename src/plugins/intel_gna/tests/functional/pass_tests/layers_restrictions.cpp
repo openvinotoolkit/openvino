@@ -8,8 +8,8 @@
 #include <vector>
 
 #include "common_test_utils/common_utils.hpp"
-#include "functional_test_utils/blob_utils.hpp"
-#include "functional_test_utils/plugin_cache.hpp"
+#include "functional_test_utils/legacy/blob_utils.hpp"
+#include "functional_test_utils/legacy/plugin_cache.hpp"
 #include "ngraph_functions/builders.hpp"
 #include "ngraph_functions/pass/convert_prc.hpp"
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
@@ -26,7 +26,7 @@ struct FullyConnectedBatchSizeMoreThan8 {
         return "FullyConnectedBatchSizeMoreThan8";
     }
     static std::shared_ptr<ngraph::Function> createTopology(const InferenceEngine::Precision& netPrecision) {
-        auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+        auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
         std::vector<size_t> inputShape = {9, 1};
         auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
         auto weights = CommonTestUtils::generate_float_numbers(inputShape[1] * inputShape[1], -0.0001f, 0.0001f);
@@ -44,7 +44,7 @@ struct FullyConnectedBatchSizeLessThanOrEqual8 {
         return "FullyConnectedBatchSizeLessThanOrEqual8";
     }
     static std::shared_ptr<ngraph::Function> createTopology(const InferenceEngine::Precision& netPrecision) {
-        auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+        auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
         std::vector<size_t> inputShape = {7, 1};
         auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
         auto weights = CommonTestUtils::generate_float_numbers(inputShape[1] * inputShape[1], -0.0001f, 0.0001f);

@@ -290,7 +290,7 @@ std::string BroadcastTileIssue::getTestCaseName(const testing::TestParamInfo<Tes
     bool axes_mapping;
     std::tie(function_creator, shapes, net_precision, axes_mapping) = obj.param;
 
-    auto precision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(net_precision);
+    auto precision = ov::test::utils::convertIe2OvPrc(net_precision);
     FunctionConfig func_config = {shapes.first, shapes.second, precision, axes_mapping};
 
     std::stringstream test_name;
@@ -314,7 +314,7 @@ void BroadcastTileIssue::SetUp() {
     std::vector<size_t> input_shape = shapes.first;
     std::vector<size_t> extra_arg = shapes.second;
 
-    auto ngraph_precision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(net_precision);
+    auto ngraph_precision = ov::test::utils::convertIe2OvPrc(net_precision);
 
     FunctionConfig func_config = {input_shape, extra_arg, ngraph_precision, axes_mapping};
 

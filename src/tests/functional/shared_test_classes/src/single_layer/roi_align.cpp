@@ -11,7 +11,7 @@
 #include "openvino/core/enum_names.hpp"
 
 using namespace InferenceEngine;
-using namespace FuncTestUtils::PrecisionUtils;
+using namespace ov::test::utils;
 
 namespace LayerTestsDefinitions {
 
@@ -90,7 +90,7 @@ void ROIAlignLayerTest::SetUp() {
              netPrecision,
              targetDevice) = this->GetParam();
 
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+    auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
     auto paramOuts =
         ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
@@ -171,7 +171,7 @@ void ROIAlignV9LayerTest::SetUp() {
              netPrecision,
              targetDevice) = this->GetParam();
 
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+    auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
     auto paramOuts =
         ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));

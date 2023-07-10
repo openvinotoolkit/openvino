@@ -53,7 +53,7 @@ protected:
 
         selectedType = getPrimitiveType() + "_" + inPrc.name();
 
-        auto ngInputsPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(Precision::BOOL); // Because ngraph supports only boolean input for logical ops
+        auto ngInputsPrc = ov::test::utils::convertIe2OvPrc(Precision::BOOL); // Because ngraph supports only boolean input for logical ops
         configuration.insert(additional_config.begin(), additional_config.end());
 
         auto inputs = ngraph::builder::makeParams(ngInputsPrc, {inputShapes.first});

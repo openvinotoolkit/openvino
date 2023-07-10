@@ -19,7 +19,7 @@ namespace SubgraphsDumper {
 class OPCache {
 public:
     OPCache() : num_neighbours_to_cache(0), manager(MatchersManager()),
-                m_ops_cache(std::map<std::shared_ptr<ov::Node>, LayerTestsUtils::OPInfo>()) {}
+                m_ops_cache(std::map<std::shared_ptr<ov::Node>, ov::test::utils::layer::OPInfo>()) {}
 
     static std::unique_ptr<OPCache> make_cache() {
         return std::unique_ptr<OPCache>(new OPCache());
@@ -33,12 +33,12 @@ public:
 
     void set_num_neighbours_to_cache(size_t num) { num_neighbours_to_cache = num; }
 
-    void serialize_meta_info(const LayerTestsUtils::OPInfo &info, const std::string &path);
+    void serialize_meta_info(const ov::test::utils::layer::OPInfo &info, const std::string &path);
 
     float get_size_of_cached_ops();
 
 protected:
-    std::map<std::shared_ptr<ov::Node>, LayerTestsUtils::OPInfo> m_ops_cache;
+    std::map<std::shared_ptr<ov::Node>, ov::test::utils::layer::OPInfo> m_ops_cache;
     MatchersManager manager;
     size_t num_neighbours_to_cache = 0;
     enum SerializationStatus {
@@ -46,7 +46,7 @@ protected:
         FAILED = 1,
         RETRY = 2,
     };
-    SerializationStatus serialize_function(const std::pair<std::shared_ptr<ov::Node>, LayerTestsUtils::OPInfo> &op_info,
+    SerializationStatus serialize_function(const std::pair<std::shared_ptr<ov::Node>, ov::test::utils::layer::OPInfo> &op_info,
                             const std::string &serialization_dir);
 };
 }  // namespace SubgraphsDumper

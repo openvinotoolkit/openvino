@@ -89,7 +89,7 @@ namespace LayerTestsDefinitions {
         trans_std, part_size) = opParams;
 
 
-        auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+        auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
         ngraph::ParameterVector params;
         ngraph::OutputVector inputs;
         std::shared_ptr<ngraph::Node> defomablePSROIPooling;

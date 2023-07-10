@@ -31,7 +31,7 @@ namespace SubgraphTestsDefinitions {
         std::map<std::string, std::string> config;
         std::tie(netPrecision, targetDevice, inputSize, hiddenSize, config) = this->GetParam();
         configuration.insert(config.begin(), config.end());
-        auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+        auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
 
         memory_1_init = CommonTestUtils::generate_float_numbers(hiddenSize, -0.2f, 0.0f);
         memory_2_init = CommonTestUtils::generate_float_numbers(hiddenSize, -0.2f, 0.0f);
@@ -76,7 +76,7 @@ namespace SubgraphTestsDefinitions {
         std::map<std::string, std::string> config;
         std::tie(netPrecision, targetDevice, inputSize, hiddenSize, config) = this->GetParam();
         configuration.insert(config.begin(), config.end());
-        auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+        auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
 
         memory_1_init = CommonTestUtils::generate_float_numbers(hiddenSize, -0.2f, 0.0f);
         memory_2_init = CommonTestUtils::generate_float_numbers(hiddenSize, -0.2f, 0.0f);
@@ -118,11 +118,11 @@ namespace SubgraphTestsDefinitions {
         for (auto& state : states) {
             auto name = state.GetName();
             if (name == "memory_1") {
-                auto blob = FuncTestUtils::createAndFillBlobWithFloatArray(state.GetState()->getTensorDesc(),
+                auto blob = ov::test::utils::createAndFillBlobWithFloatArray(state.GetState()->getTensorDesc(),
                                                                            memory_1_init.data(), memory_1_init.size());
                 state.SetState(blob);
             } else if (name == "memory_2") {
-                auto blob = FuncTestUtils::createAndFillBlobWithFloatArray(state.GetState()->getTensorDesc(),
+                auto blob = ov::test::utils::createAndFillBlobWithFloatArray(state.GetState()->getTensorDesc(),
                                                                            memory_2_init.data(), memory_2_init.size());
                 state.SetState(blob);
             } else {

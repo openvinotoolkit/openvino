@@ -35,13 +35,13 @@ void RangeLayerTest::Infer() {
     inputs.clear();
 
     auto blobStart = inferRequest.GetBlob("start");
-    blobStart = FuncTestUtils::createAndFillBlobWithFloatArray(blobStart->getTensorDesc(), &start, 1);
+    blobStart = ov::test::utils::createAndFillBlobWithFloatArray(blobStart->getTensorDesc(), &start, 1);
 
     auto blobStop = inferRequest.GetBlob("stop");
-    blobStop = FuncTestUtils::createAndFillBlobWithFloatArray(blobStop->getTensorDesc(), &stop, 1);
+    blobStop = ov::test::utils::createAndFillBlobWithFloatArray(blobStop->getTensorDesc(), &stop, 1);
 
     auto blobStep = inferRequest.GetBlob("step");
-    blobStep = FuncTestUtils::createAndFillBlobWithFloatArray(blobStep->getTensorDesc(), &step, 1);
+    blobStep = ov::test::utils::createAndFillBlobWithFloatArray(blobStep->getTensorDesc(), &step, 1);
 
     inferRequest.Infer();
 }
@@ -49,7 +49,7 @@ void RangeLayerTest::Infer() {
 void RangeLayerTest::SetUp() {
     InferenceEngine::Precision netPrecision;
     tie(start, stop, step, netPrecision, inPrc, outPrc, inLayout, outLayout, targetDevice) = GetParam();
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+    auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
     std::vector<std::pair<std::string, std::vector<size_t>>> inputs {{"start", {}}, {"stop", {}}, {"step", {}}};
     auto params = ngraph::builder::makeParams(ngPrc, inputs);
     auto range = std::make_shared<ngraph::opset4::Range>(params[0], params[1], params[2], ngPrc);
@@ -87,13 +87,13 @@ void RangeNumpyLayerTest::Infer() {
     inputs.clear();
 
     auto blobStart = inferRequest.GetBlob("start");
-    blobStart = FuncTestUtils::createAndFillBlobWithFloatArray(blobStart->getTensorDesc(), &start, 1);
+    blobStart = ov::test::utils::createAndFillBlobWithFloatArray(blobStart->getTensorDesc(), &start, 1);
 
     auto blobStop = inferRequest.GetBlob("stop");
-    blobStop = FuncTestUtils::createAndFillBlobWithFloatArray(blobStop->getTensorDesc(), &stop, 1);
+    blobStop = ov::test::utils::createAndFillBlobWithFloatArray(blobStop->getTensorDesc(), &stop, 1);
 
     auto blobStep = inferRequest.GetBlob("step");
-    blobStep = FuncTestUtils::createAndFillBlobWithFloatArray(blobStep->getTensorDesc(), &step, 1);
+    blobStep = ov::test::utils::createAndFillBlobWithFloatArray(blobStep->getTensorDesc(), &step, 1);
 
     inferRequest.Infer();
 }
@@ -102,8 +102,8 @@ void RangeNumpyLayerTest::SetUp() {
     InferenceEngine::Precision netPrc;
     InferenceEngine::Precision paramPrc;
     std::tie(start, stop, step, paramPrc, netPrc, outPrc, inLayout, outLayout, targetDevice) = GetParam();
-    auto ngNetPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrc);
-    auto ngParamPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(paramPrc);
+    auto ngNetPrc = ov::test::utils::convertIe2OvPrc(netPrc);
+    auto ngParamPrc = ov::test::utils::convertIe2OvPrc(paramPrc);
 
     auto params = ngraph::builder::makeParams(ngParamPrc, {std::vector<size_t>(), std::vector<size_t>(), std::vector<size_t>()});
     params[0]->set_friendly_name("start");

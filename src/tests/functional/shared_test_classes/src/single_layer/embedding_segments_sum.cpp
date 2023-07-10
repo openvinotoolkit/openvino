@@ -41,8 +41,8 @@ void EmbeddingSegmentsSumLayerTest::SetUp() {
     bool withWeights, withDefIndex;
     size_t numSegments, defaultIndex;
     std::tie(embTableShape, indices, segmentIds, numSegments, defaultIndex, withWeights, withDefIndex) = embParams;
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto ngIdxPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(indPrecision);
+    auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
+    auto ngIdxPrc = ov::test::utils::convertIe2OvPrc(indPrecision);
 
     auto emb_table_node = std::make_shared<ngraph::opset1::Parameter>(ngPrc, ngraph::Shape(embTableShape));
     ngraph::ParameterVector params = {emb_table_node};

@@ -9,8 +9,8 @@
 #include <vector>
 
 #include "common_test_utils/common_utils.hpp"
-#include "functional_test_utils/blob_utils.hpp"
-#include "functional_test_utils/plugin_cache.hpp"
+#include "functional_test_utils/legacy/blob_utils.hpp"
+#include "functional_test_utils/legacy/plugin_cache.hpp"
 #include "ngraph_functions/builders.hpp"
 #include "ngraph_functions/pass/convert_prc.hpp"
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
@@ -49,7 +49,7 @@ public:
     }
 
     InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo& info) const override {
-        return FuncTestUtils::createAndFillBlob(info.getTensorDesc(),
+        return ov::test::utils::createAndFillBlob(info.getTensorDesc(),
                                                 inputMax - inputMin,
                                                 inputMin,
                                                 (inputMax - inputMin) / 10);
@@ -61,7 +61,7 @@ protected:
         std::pair<float, float> inputRange;
         std::pair<float, float> constRange;
         std::tie(netPrecision, targetDevice, configuration, inputRange, constRange) = this->GetParam();
-        auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+        auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
         std::tie(inputMin, inputMax) = inputRange;
 
         ngraph::Shape shape = {1, 72};

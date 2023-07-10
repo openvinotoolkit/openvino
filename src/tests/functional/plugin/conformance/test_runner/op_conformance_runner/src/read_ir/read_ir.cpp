@@ -95,17 +95,17 @@ std::string ReadIRTest::getTestCaseName(const testing::TestParamInfo<ReadIRParam
 
 void ReadIRTest::query_model() {
     // in case of crash jump will be made and work will be continued
-    auto crashHandler = std::unique_ptr<CommonTestUtils::CrashHandler>(new CommonTestUtils::CrashHandler());
+    auto crashHandler = std::unique_ptr<ov::test::utils::CrashHandler>(new ov::test::utils::CrashHandler());
     auto &s = ov::test::utils::OpSummary::getInstance();
 
     // place to jump in case of a crash
     int jmpRes = 0;
 #ifdef _WIN32
-    jmpRes = setjmp(CommonTestUtils::env);
+    jmpRes = setjmp(ov::test::utils::env);
 #else
-    jmpRes = sigsetjmp(CommonTestUtils::env, 1);
+    jmpRes = sigsetjmp(ov::test::utils::env, 1);
 #endif
-    if (jmpRes == CommonTestUtils::JMP_STATUS::ok) {
+    if (jmpRes == ov::test::utils::JMP_STATUS::ok) {
         crashHandler->StartTimer();
         if (functionRefs == nullptr) {
             functionRefs = ngraph::clone_function(*function);
@@ -113,7 +113,7 @@ void ReadIRTest::query_model() {
         }
         s.setDeviceName(targetDevice);
 
-        if (FuncTestUtils::SkipTestsConfig::currentTestIsDisabled()) {
+        if (ov::test::utils::currentTestIsDisabled()) {
             s.updateOPsStats(functionRefs, ov::test::utils::PassRate::Statuses::SKIPPED, rel_influence_coef);
             GTEST_SKIP() << "Disabled test due to configuration" << std::endl;
         } else {
@@ -129,10 +129,10 @@ void ReadIRTest::query_model() {
             s.updateOPsStats(functionRefs, ov::test::utils::PassRate::Statuses::FAILED, rel_influence_coef);
             GTEST_FAIL() << "Something is wrong in Query model! Please check";
         }
-    } else if (jmpRes == CommonTestUtils::JMP_STATUS::alarmErr) {
+    } else if (jmpRes == ov::test::utils::JMP_STATUS::alarmErr) {
         s.updateOPsStats(functionRefs, ov::test::utils::PassRate::Statuses::HANGED, rel_influence_coef);
         IE_THROW() << "Crash happens";
-    } else if (jmpRes == CommonTestUtils::JMP_STATUS::anyError) {
+    } else if (jmpRes == ov::test::utils::JMP_STATUS::anyError) {
         IE_THROW() << "Crash happens";
     }
 }
@@ -213,7 +213,7 @@ void ReadIRTest::SetUp() {
         }
         auto portsInfo = doc.child("meta_info").child("ports_info");
         auto getPortInfo = [&](size_t id) {
-            LayerTestsUtils::PortInfo info;
+            ov::test::utils::layer::PortInfo info;
             for (const auto &p : portsInfo.children()) {
                 if (p.attribute("id").as_uint() == id) {
                     info.convert_to_const = p.attribute("convert_to_const").as_bool();

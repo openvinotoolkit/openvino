@@ -96,7 +96,7 @@ protected:
         std::vector<ptrdiff_t> padBegin, padEnd;
         size_t numOutChannels, numGroups;
         std::tie(filter, stride, padBegin, padEnd, dilation, padType, numOutChannels, numGroups, bias) = params;
-        auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+        auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
 
         auto input = builder::makeParams(ngPrc, {inputShape});
         auto transposeInOrder = op::Constant::create(element::i64, Shape{4}, {0, 3, 1, 2});

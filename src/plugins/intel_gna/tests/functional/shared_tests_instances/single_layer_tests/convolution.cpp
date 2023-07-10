@@ -101,7 +101,7 @@ void ConvolutionLayerTestFixture::SetUp() {
     std::vector<ptrdiff_t> padBegin, padEnd;
     size_t convOutChannels;
     std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType) = convParams;
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+    auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
     auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<Parameter>(params));
     std::vector<float> filter_weights;

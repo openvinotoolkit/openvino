@@ -46,7 +46,7 @@ void TransposeConvTest::SetUp() {
     std::vector<size_t> kernel_shape, strides;
     size_t input_channels, output_channels;
     std::tie(kernel_shape, strides, input_channels, output_channels) = conv_params;
-    auto ng_prc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(net_precision);
+    auto ng_prc = ov::test::utils::convertIe2OvPrc(net_precision);
     auto params = ngraph::builder::makeParams(ng_prc, {input_shape});
 
     std::vector<size_t> nchw_order = { 0, 3, 1, 2 };
@@ -80,7 +80,7 @@ void TransposeConvTest::SetUp() {
 }
 
 InferenceEngine::Blob::Ptr TransposeConvTest::GenerateInput(const InferenceEngine::InputInfo &info) const {
-    return FuncTestUtils::createAndFillBlob(info.getTensorDesc(), inputDataMax - inputDataMin, inputDataMin, 1 / inputDataResolution,
+    return ov::test::utils::createAndFillBlob(info.getTensorDesc(), inputDataMax - inputDataMin, inputDataMin, 1 / inputDataResolution,
                                             seed);
 }
 }  // namespace SubgraphTestsDefinitions

@@ -7,7 +7,7 @@
 #include "ngraph_functions/builders.hpp"
 
 using namespace ngraph;
-using FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc;
+using ov::test::utils::convertIe2OvPrc;
 
 namespace CPUSubgraphTestsDefinitions {
 typedef std::tuple<

@@ -14,7 +14,7 @@ protected:
         InferenceEngine::Precision netPrecision;
         std::tie(inputShape, netPrecision, targetDevice, exportConfiguration, importConfiguration, applicationHeader) =
             this->GetParam();
-        auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+        auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
 
         auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
 

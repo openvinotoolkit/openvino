@@ -24,10 +24,11 @@
 #include "ie_ngraph_utils.hpp"
 
 
-namespace FuncTestUtils {
-namespace Bf16TestUtils {
+namespace ov {
+namespace test {
+namespace utils {
+
 inline short reducePrecisionBitwiseS(const float in);
-}  // namespace Bf16TestUtils
 
 enum CompareType{
     ABS,
@@ -284,7 +285,7 @@ compare_tensor(const ov::Tensor& res_tensor, const ov::Tensor& ref_tensor, float
 
     switch (res->getTensorDesc().getPrecision()) {
 #define COMPARE_WITH_REF(TYPE) case TYPE: { \
-                                          FuncTestUtils::compareBlobData<TYPE>(res, \
+                                          ov::test::utils::compareBlobData<TYPE>(res, \
                                                                                  ref, \
                                                                                  max_diff, \
                                                                                  assertDetails, \
@@ -295,7 +296,7 @@ compare_tensor(const ov::Tensor& res_tensor, const ov::Tensor& ref_tensor, float
 #undef COMPARE_WITH_REF
         default:
             IE_THROW() << "Precision " << res->getTensorDesc().getPrecision().name()
-                               << " is not covered by FuncTestUtils::compareBlobs() method";
+                               << " is not covered by ov::test::utils::compareBlobs() method";
     }
 }
 
@@ -309,7 +310,7 @@ compareBlobs(const InferenceEngine::Blob::Ptr &res, const InferenceEngine::Blob:
 
     switch (res->getTensorDesc().getPrecision()) {
 #define COMPARE_WITH_REF(TYPE) case TYPE: { \
-                                          FuncTestUtils::compareBlobData<TYPE>(res, \
+                                          ov::test::utils::compareBlobData<TYPE>(res, \
                                                                                  ref, \
                                                                                  max_diff, \
                                                                                  assertDetails, \
@@ -320,7 +321,7 @@ compareBlobs(const InferenceEngine::Blob::Ptr &res, const InferenceEngine::Blob:
 #undef COMPARE_WITH_REF
         default:
             IE_THROW() << "Precision " << res->getTensorDesc().getPrecision().name()
-                               << " is not covered by FuncTestUtils::compareBlobs() method";
+                               << " is not covered by ov::test::utils::compareBlobs() method";
     }
 }
 
@@ -399,25 +400,25 @@ inline InferenceEngine::Blob::Ptr copyBlobWithCast(const InferenceEngine::Blob::
     InferenceEngine::Blob::Ptr newBlob;
     switch (blob->getTensorDesc().getPrecision()) {
         case InferenceEngine::Precision::FP32:
-            newBlob = FuncTestUtils::convertBlobPrecision<InferenceEngine::Precision::FP32, targetPRC>(blob);
+            newBlob = ov::test::utils::convertBlobPrecision<InferenceEngine::Precision::FP32, targetPRC>(blob);
             break;
         case InferenceEngine::Precision::FP16:
-            newBlob = FuncTestUtils::convertBlobPrecision<InferenceEngine::Precision::FP16, targetPRC>(blob);
+            newBlob = ov::test::utils::convertBlobPrecision<InferenceEngine::Precision::FP16, targetPRC>(blob);
             break;
         case InferenceEngine::Precision::I16:
-            newBlob = FuncTestUtils::convertBlobPrecision<InferenceEngine::Precision::I16, targetPRC>(blob);
+            newBlob = ov::test::utils::convertBlobPrecision<InferenceEngine::Precision::I16, targetPRC>(blob);
             break;
         case InferenceEngine::Precision::I8:
-            newBlob = FuncTestUtils::convertBlobPrecision<InferenceEngine::Precision::I8, targetPRC>(blob);
+            newBlob = ov::test::utils::convertBlobPrecision<InferenceEngine::Precision::I8, targetPRC>(blob);
             break;
         case InferenceEngine::Precision::U8:
-            newBlob = FuncTestUtils::convertBlobPrecision<InferenceEngine::Precision::U8, targetPRC>(blob);
+            newBlob = ov::test::utils::convertBlobPrecision<InferenceEngine::Precision::U8, targetPRC>(blob);
             break;
         case InferenceEngine::Precision::I32:
-            newBlob = FuncTestUtils::convertBlobPrecision<InferenceEngine::Precision::I32, targetPRC>(blob);
+            newBlob = ov::test::utils::convertBlobPrecision<InferenceEngine::Precision::I32, targetPRC>(blob);
             break;
         case InferenceEngine::Precision::BOOL:
-            newBlob = FuncTestUtils::convertBlobPrecision<InferenceEngine::Precision::BOOL, targetPRC>(blob);
+            newBlob = ov::test::utils::convertBlobPrecision<InferenceEngine::Precision::BOOL, targetPRC>(blob);
             break;
         default:
             IE_THROW() << "Conversion from blob with precision " << blob->getTensorDesc().getPrecision().name()
@@ -683,7 +684,7 @@ inline void fillInputsBySinValues(dType* data, size_t size) {
         }
     } else if (std::is_same<dType, short>::value) {
         for (size_t i = 0; i < size; i++) {
-            data[i] = FuncTestUtils::Bf16TestUtils::reducePrecisionBitwiseS(sin(static_cast<float>(i)));
+            data[i] = ov::test::utils::reducePrecisionBitwiseS(sin(static_cast<float>(i)));
         }
     }
 }
@@ -696,7 +697,7 @@ inline void fillInputsByCosValues(dType* data, size_t size) {
         }
     } else if (std::is_same<dType, short>::value) {
         for (size_t i = 0; i < size; i++) {
-            data[i] = FuncTestUtils::Bf16TestUtils::reducePrecisionBitwiseS(sin(static_cast<float>(i)));
+            data[i] = ov::test::utils::reducePrecisionBitwiseS(sin(static_cast<float>(i)));
         }
     }
 }
@@ -851,4 +852,6 @@ inline bool checkLayout(InferenceEngine::Layout layout, const std::vector<size_t
     }
     return check;
 }
-}  // namespace FuncTestUtils
+}  // namespace utils
+}  // namespace test
+}  // namespace ov

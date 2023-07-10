@@ -9,10 +9,10 @@
 
 #include <gpu/gpu_config.hpp>
 #include <common_test_utils/test_common.hpp>
-#include <functional_test_utils/plugin_cache.hpp>
+#include <functional_test_utils/legacy/plugin_cache.hpp>
 
 #include "ngraph_functions/subgraph_builders.hpp"
-#include "functional_test_utils/blob_utils.hpp"
+#include "functional_test_utils/legacy/blob_utils.hpp"
 #include "base/behavior_test_utils.hpp"
 
 using namespace ::testing;
@@ -99,7 +99,7 @@ protected:
 
                 std::vector<std::vector<uint8_t>> inData;
                 for (auto n : inputs) {
-                    auto blob = FuncTestUtils::createAndFillBlob(n.second->getTensorDesc());
+                    auto blob = ov::test::utils::createAndFillBlob(n.second->getTensorDesc());
                     if (use_get_blob)
                         memcpy(reinterpret_cast<void *>(inf_req.GetBlob(n.first)->buffer().as<uint8_t*>()),
                                reinterpret_cast<const void *>(blob->cbuffer().as<uint8_t*>()), blob->byteSize());
@@ -112,7 +112,7 @@ protected:
                     inData.push_back(std::vector<uint8_t>(inBlobBuf, inBlobBuf + blobSize));
                 }
                 if (!use_get_blob) {
-                    auto blob = FuncTestUtils::createAndFillBlob(output->second->getTensorDesc());
+                    auto blob = ov::test::utils::createAndFillBlob(output->second->getTensorDesc());
                     inf_req.SetBlob(output->first, blob);
                 }
 
@@ -132,11 +132,11 @@ protected:
             }
         }
 
-        auto thr = FuncTestUtils::GetComparisonThreshold(InferenceEngine::Precision::FP32);
+        auto thr = ov::test::utils::GetComparisonThreshold(InferenceEngine::Precision::FP32);
         for (size_t i = 0; i < irs.size(); ++i) {
             const auto &refBuffer = ref[i].data();
             ASSERT_EQ(outElementsCount[i], irs[i].GetBlob(outputs[i])->size());
-            FuncTestUtils::compareRawBuffers(irs[i].GetBlob(outputs[i])->buffer().as<float *>(),
+            ov::test::utils::compareRawBuffers(irs[i].GetBlob(outputs[i])->buffer().as<float *>(),
                                              reinterpret_cast<const float *>(refBuffer), outElementsCount[i],
                                              outElementsCount[i],
                                              thr);

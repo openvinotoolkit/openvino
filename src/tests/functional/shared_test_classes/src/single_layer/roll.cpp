@@ -29,7 +29,7 @@ void RollLayerTest::SetUp() {
     std::vector<int64_t> shift;
     std::vector<int64_t> axes;
     std::tie(inputShapes, inputPrecision, shift, axes, targetDevice) = this->GetParam();
-    auto inType = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inputPrecision);
+    auto inType = ov::test::utils::convertIe2OvPrc(inputPrecision);
     ngraph::ParameterVector paramVector;
     auto paramData = std::make_shared<ngraph::opset1::Parameter>(inType, ngraph::Shape(inputShapes));
     paramVector.push_back(paramData);

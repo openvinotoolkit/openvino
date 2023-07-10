@@ -24,7 +24,7 @@ LayerTestsCommon::LayerTestsCommon() : threshold(1e-2f), abs_threshold(-1.f) {
 }
 
 void LayerTestsCommon::Run() {
-    bool isCurrentTestDisabled = FuncTestUtils::SkipTestsConfig::currentTestIsDisabled();
+    bool isCurrentTestDisabled = ov::test::utils::currentTestIsDisabled();
 
     ov::test::utils::PassRate::Statuses status = isCurrentTestDisabled ?
          ov::test::utils::PassRate::Statuses::SKIPPED :
@@ -43,16 +43,16 @@ void LayerTestsCommon::Run() {
     }
 
     // in case of crash jump will be made and work will be continued
-    auto crashHandler = std::unique_ptr<CommonTestUtils::CrashHandler>(new CommonTestUtils::CrashHandler());
+    auto crashHandler = std::unique_ptr<ov::test::utils::CrashHandler>(new ov::test::utils::CrashHandler());
 
     // place to jump in case of a crash
     int jmpRes = 0;
 #ifdef _WIN32
-    jmpRes = setjmp(CommonTestUtils::env);
+    jmpRes = setjmp(ov::test::utils::env);
 #else
-    jmpRes = sigsetjmp(CommonTestUtils::env, 1);
+    jmpRes = sigsetjmp(ov::test::utils::env, 1);
 #endif
-    if (jmpRes == CommonTestUtils::JMP_STATUS::ok) {
+    if (jmpRes == ov::test::utils::JMP_STATUS::ok) {
         crashHandler->StartTimer();
         try {
             LoadNetwork();
@@ -71,9 +71,9 @@ void LayerTestsCommon::Run() {
             s.updateOPsStats(functionRefs, ov::test::utils::PassRate::Statuses::FAILED);
             GTEST_FATAL_FAILURE_("Unknown failure occurred.");
         }
-    } else if (jmpRes == CommonTestUtils::JMP_STATUS::anyError) {
+    } else if (jmpRes == ov::test::utils::JMP_STATUS::anyError) {
         IE_THROW() << "Crash happens";
-    } else if (jmpRes == CommonTestUtils::JMP_STATUS::alarmErr) {
+    } else if (jmpRes == ov::test::utils::JMP_STATUS::alarmErr) {
         s.updateOPsStats(functionRefs, ov::test::utils::PassRate::Statuses::HANGED);
         IE_THROW() << "Crash happens";
     }
@@ -134,7 +134,7 @@ void LayerTestsCommon::QueryNetwork() {
 }
 
 InferenceEngine::Blob::Ptr LayerTestsCommon::GenerateInput(const InferenceEngine::InputInfo& info) const {
-    return FuncTestUtils::createAndFillBlob(info.getTensorDesc());
+    return ov::test::utils::createAndFillBlob(info.getTensorDesc());
 }
 
 void LayerTestsCommon::Compare(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> &expectedOutputs,
@@ -440,7 +440,7 @@ std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> LayerTe
         const auto buffer = lockedMemory.as<const std::uint8_t *>();
         std::copy(buffer, buffer + inputSize, referenceInput.data());
 
-        refInputsTypes[i] = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(memory->getTensorDesc().getPrecision());
+        refInputsTypes[i] = ov::test::utils::convertIe2OvPrc(memory->getTensorDesc().getPrecision());
     }
 
     const auto &&outputsInfo = executableNetwork.GetOutputsInfo();
@@ -448,7 +448,7 @@ std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> LayerTe
     convertType.reserve(outputsInfo.size());
     for (const auto &output : outputsInfo) {
         convertType.push_back(
-            FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(
+            ov::test::utils::convertIe2OvPrc(
                 output.second->getTensorDesc().getPrecision()));
     }
 

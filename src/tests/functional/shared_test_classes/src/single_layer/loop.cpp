@@ -49,7 +49,7 @@ namespace LayerTestsDefinitions {
         std::tie(execute_first_iteration, is_body_condition_const, body_condition, trip_count, inputs, netPrecision,
                  targetDevice) = this->GetParam();
 
-        auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+        auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
 
         // That which we iterate over
         std::vector<std::vector<size_t>> inputs_separate;
@@ -194,7 +194,7 @@ namespace LayerTestsDefinitions {
             targetDevice,
             configuration) = GetParam();
 
-        const auto prc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(data_prc);
+        const auto prc = ov::test::utils::convertIe2OvPrc(data_prc);
         const auto ngShape = ngraph::Shape{data_shape};
         const auto scalarShape = ngraph::Shape{};
 
@@ -320,7 +320,7 @@ namespace LayerTestsDefinitions {
 
     void TrivialLoopTest::CreateSlicedLoop(size_t batch_size, size_t num_iteration, InferenceEngine::Precision iePrc,
                                            InferenceEngine::SizeVector& ieShape) {
-        const auto prc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(iePrc);
+        const auto prc = ov::test::utils::convertIe2OvPrc(iePrc);
         const auto scalarShape = ngraph::Shape{};
 
         auto shape = ngraph::Shape{ieShape};
@@ -360,7 +360,7 @@ namespace LayerTestsDefinitions {
         auto to_slice_shape = ngraph::Shape{ieShape};
         to_slice_shape[0] = batch_size;
 
-        const auto prc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(iePrc);
+        const auto prc = ov::test::utils::convertIe2OvPrc(iePrc);
         const auto scalarShape = ngraph::Shape{};
 
         auto to_slice = std::make_shared<ngraph::opset5::Parameter>(prc, to_slice_shape);

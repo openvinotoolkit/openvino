@@ -32,7 +32,7 @@ void DFTLayerTest::SetUp() {
     std::vector<int64_t> signalSize;
     ngraph::helpers::DFTOpType opType;
     std::tie(inputShapes, inputPrecision, axes, signalSize, opType, targetDevice) = this->GetParam();
-    auto inType = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inputPrecision);
+    auto inType = ov::test::utils::convertIe2OvPrc(inputPrecision);
     ngraph::ParameterVector paramVector;
     auto paramData = std::make_shared<ngraph::opset1::Parameter>(inType, ngraph::Shape(inputShapes));
     paramVector.push_back(paramData);

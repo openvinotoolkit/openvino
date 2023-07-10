@@ -9,11 +9,11 @@ namespace {
 using namespace ov::test::conformance;
 using namespace BehaviorTestsDefinitions;
 
-const std::vector<FuncTestUtils::BlobType> setBlobTypes = {
-        FuncTestUtils::BlobType::Compound,
-        FuncTestUtils::BlobType::Batched,
-        FuncTestUtils::BlobType::Memory,
-        FuncTestUtils::BlobType::Remote,
+const std::vector<ov::test::utils::BlobType> setBlobTypes = {
+        ov::test::utils::BlobType::Compound,
+        ov::test::utils::BlobType::Batched,
+        ov::test::utils::BlobType::Memory,
+        ov::test::utils::BlobType::Remote,
 };
 
 INSTANTIATE_TEST_SUITE_P(ie_infer_request, InferRequestSetBlobByType,

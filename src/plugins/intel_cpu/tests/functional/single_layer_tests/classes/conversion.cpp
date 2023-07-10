@@ -77,8 +77,8 @@ void ConvertCPULayerTest::SetUp() {
 
     inputDynamicShapes.push_back(shapes.first);
 
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inPrc);
-    auto targetPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(outPrc);
+    auto ngPrc = ov::test::utils::convertIe2OvPrc(inPrc);
+    auto targetPrc = ov::test::utils::convertIe2OvPrc(outPrc);
     ParameterVector params = builder::makeDynamicParams(ngPrc, inputDynamicShapes);
     auto conversion = ngraph::builder::makeConversion(params.front(), targetPrc, helpers::ConversionTypes::CONVERT);
 

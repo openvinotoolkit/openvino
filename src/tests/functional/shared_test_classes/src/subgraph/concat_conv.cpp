@@ -60,7 +60,7 @@ void ConcatConvTest::SetUp() {
     size_t stride;
     std::tie(inputShape, kernelShape, stride) = convolutionParams;
 
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+    auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, { inputShape });
     auto relu1 = std::make_shared<ngraph::opset1::Relu>(params[0]);
 

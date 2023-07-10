@@ -60,7 +60,7 @@ void ComparisonLayerTest::SetUp() {
              targetDevice,
              additional_config) = this->GetParam();
 
-    auto ngInputsPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(ngInputsPrecision);
+    auto ngInputsPrc = ov::test::utils::convertIe2OvPrc(ngInputsPrecision);
     configuration.insert(additional_config.begin(), additional_config.end());
 
     inPrc = ieInPrecision;

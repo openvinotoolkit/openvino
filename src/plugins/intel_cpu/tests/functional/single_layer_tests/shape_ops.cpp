@@ -158,7 +158,7 @@ protected:
                                                 std::vector<Shape>(inpDesc.inputShape.second.size(), {inpDesc.data[0].size()})}};
         init_input_shapes(inputShapes);
 
-        auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(prc);
+        auto ngPrc = ov::test::utils::convertIe2OvPrc(prc);
         auto inputs = ngraph::builder::makeDynamicParams(ngPrc, {inputDynamicShapes.front()});
         auto dataInput = inputs.front();
         dataInput->set_friendly_name("param_1");

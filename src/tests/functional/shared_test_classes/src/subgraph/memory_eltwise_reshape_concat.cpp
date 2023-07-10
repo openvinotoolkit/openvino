@@ -30,7 +30,7 @@ void MemoryEltwiseReshapeConcatTest::SetUp() {
     std::map<std::string, std::string> config;
     std::tie(targetDevice, netPrecision, inputSize, concatSize, config) = this->GetParam();
     configuration.insert(config.begin(), config.end());
-    ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+    ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
 
     const int seed = 0;
     std::mt19937 gen(seed);
@@ -133,7 +133,7 @@ void MemoryEltwiseReshapeConcatTest::Run() {
 
     IE_SUPPRESS_DEPRECATED_START
     auto states = inferRequest.QueryState();
-    auto state_values_blob = FuncTestUtils::createAndFillBlobWithFloatArray(state_description,
+    auto state_values_blob = ov::test::utils::createAndFillBlobWithFloatArray(state_description,
                                                                             memory_init.data(), memory_init.size());
     states[0].SetState(state_values_blob);
     IE_SUPPRESS_DEPRECATED_END

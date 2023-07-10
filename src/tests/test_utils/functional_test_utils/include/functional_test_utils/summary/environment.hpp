@@ -6,8 +6,6 @@
 
 #include <gtest/gtest.h>
 
-#include "ngraph/ngraph.hpp"
-
 #include "functional_test_utils/summary/op_summary.hpp"
 #include "functional_test_utils/summary/api_summary.hpp"
 

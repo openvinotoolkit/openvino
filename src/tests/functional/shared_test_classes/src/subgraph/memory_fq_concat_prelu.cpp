@@ -91,7 +91,7 @@ void MemoryFqConcatPrelu::SetUp() {
         std::vector<float>> fake_quantize_params;
     std::tie(inputs, netPrecision, targetDevice, additional_config, strided_slice_params, fake_quantize_params) = this->GetParam();
     configuration.insert(additional_config.begin(), additional_config.end());
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+    auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
 
     auto input = ngraph::builder::makeParams(ngPrc, {inputs});
     auto memory_read = ngraph::builder::makeConstant<size_t>(ngPrc, {inputs[0]}, {0});

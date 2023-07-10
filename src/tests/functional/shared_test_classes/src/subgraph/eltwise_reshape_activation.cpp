@@ -33,7 +33,7 @@ void EltwiseReshapeActivation::SetUp() {
     std::map<std::string, std::string> config;
     std::tie(shapes, netPrecision, targetDevice, config) = this->GetParam();
     configuration.insert(config.begin(), config.end());
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+    auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
 
     auto input = ngraph::builder::makeParams(ngPrc, { shapes[0], shapes[0] });
     auto eltw = ngraph::builder::makeEltwise(input[0], input[1], ngraph::helpers::EltwiseTypes::ADD);

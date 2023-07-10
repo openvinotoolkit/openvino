@@ -11,7 +11,7 @@
 
 #include <file_utils.h>
 #include <ngraph_functions/subgraph_builders.hpp>
-#include <functional_test_utils/blob_utils.hpp>
+#include <functional_test_utils/legacy/blob_utils.hpp>
 #include <common_test_utils/file_utils.hpp>
 #include <common_test_utils/test_assertions.hpp>
 #include <common_test_utils/test_constants.hpp>
@@ -266,7 +266,7 @@ TEST_P(CoreThreadingTestsWithIterations, smoke_LoadNetworkAccuracy_SingleIECore)
 
         InferenceEngine::BlobMap blobs;
         for (const auto & info : network.getInputsInfo()) {
-            auto input = FuncTestUtils::createAndFillBlobFloatNormalDistribution(
+            auto input = ov::test::utils::createAndFillBlobFloatNormalDistribution(
                 info.second->getTensorDesc(), 0.0f, 0.2f, 7235346);
             blobs[info.first] = input;
         }
@@ -290,7 +290,7 @@ TEST_P(CoreThreadingTestsWithIterations, smoke_LoadNetworkAccuracy_SingleIECore)
 
         // compare actual value using the same Core
         auto outputRef = getOutputBlob(ie);
-        FuncTestUtils::compareBlobs(outputActual, outputRef);
+        ov::test::utils::compareBlobs(outputActual, outputRef);
     }, numIterations, numThreads);
 }
 
@@ -308,7 +308,7 @@ TEST_P(CoreThreadingTestsWithIterations, smoke_LoadNetworkAccuracy) {
 
         InferenceEngine::BlobMap blobs;
         for (const auto & info : network.getInputsInfo()) {
-            auto input = FuncTestUtils::createAndFillBlobFloatNormalDistribution(
+            auto input = ov::test::utils::createAndFillBlobFloatNormalDistribution(
                 info.second->getTensorDesc(), 0.0f, 0.2f, 7235346);
             blobs[info.first] = input;
         }
@@ -336,7 +336,7 @@ TEST_P(CoreThreadingTestsWithIterations, smoke_LoadNetworkAccuracy) {
             ie2.SetConfig(config, target_device);
             auto outputRef = getOutputBlob(ie2);
 
-            FuncTestUtils::compareBlobs(outputActual, outputRef);
+            ov::test::utils::compareBlobs(outputActual, outputRef);
         }
     }, numIterations, numThreads);
 }

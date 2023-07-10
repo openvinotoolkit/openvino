@@ -28,7 +28,7 @@ void FqWithMixedLevelsTest::SetUp() {
     std::tie(netPrecision, targetDevice, tempConfig) = this->GetParam();
     configuration.insert(tempConfig.begin(), tempConfig.end());
 
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+    auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
     auto unit = [=](const std::shared_ptr<ngraph::Node>& input,
             const std::vector<std::vector<size_t>>& shapes,
             float weights_min, float weights_max,

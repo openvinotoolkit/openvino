@@ -9,7 +9,7 @@
 namespace ov {
 namespace test {
 void SnippetsTestsCommon::validateNumSubgraphs() {
-    bool isCurrentTestDisabled = FuncTestUtils::SkipTestsConfig::currentTestIsDisabled();
+    bool isCurrentTestDisabled = ov::test::utils::currentTestIsDisabled();
     if (isCurrentTestDisabled)
         GTEST_SKIP() << "Disabled test due to configuration" << std::endl;
 

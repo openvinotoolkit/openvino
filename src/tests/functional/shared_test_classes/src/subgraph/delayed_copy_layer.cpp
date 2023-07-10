@@ -10,7 +10,7 @@ namespace SubgraphTestsDefinitions {
         for (auto& state : states) {
             auto name = state.GetName();
             if (name.find("id") != std::string::npos) {
-                auto blob = FuncTestUtils::createAndFillBlobWithFloatArray(state.GetState()->getTensorDesc(),
+                auto blob = ov::test::utils::createAndFillBlobWithFloatArray(state.GetState()->getTensorDesc(),
                                                                            memory_init.data(), memory_init.size());
                 state.SetState(blob);
             } else {
@@ -67,7 +67,7 @@ namespace SubgraphTestsDefinitions {
 
         ASSERT_EQ(memory_size % 2, 0);
 
-        auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+        auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
         auto input = ngraph::builder::makeParams(ngPrc, {{1, 3 * memory_size}});
 
         memory_init = CommonTestUtils::generate_float_numbers(memory_size, -0.2f, 0.2f);
@@ -98,7 +98,7 @@ namespace SubgraphTestsDefinitions {
 
         ASSERT_EQ(memory_size % 2, 0);
 
-        auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+        auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
         auto input = ngraph::builder::makeParams(ngPrc, {{1, 3 * memory_size}});
 
         auto mem_c = std::make_shared<ngraph::op::Constant>(ngPrc, ngraph::Shape{1, memory_size}, memory_init);
@@ -120,7 +120,7 @@ namespace SubgraphTestsDefinitions {
 
         ASSERT_EQ(memory_size % 8, 0);
 
-        auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+        auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
         auto input = ngraph::builder::makeParams(ngPrc, {{1, memory_size / 2}});
 
         memory_init = CommonTestUtils::generate_float_numbers(memory_size, -0.2f, 0.2f);
@@ -156,7 +156,7 @@ namespace SubgraphTestsDefinitions {
 
         ASSERT_EQ(memory_size % 8, 0);
 
-        auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+        auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
         auto input = ngraph::builder::makeParams(ngPrc, {{1, memory_size / 2}});
 
         auto mem_c = ngraph::builder::makeConstant(ngPrc, ngraph::Shape{1, memory_size}, memory_init);

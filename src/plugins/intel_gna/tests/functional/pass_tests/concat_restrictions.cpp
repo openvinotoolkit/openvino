@@ -8,8 +8,8 @@
 #include <vector>
 
 #include "common_test_utils/common_utils.hpp"
-#include "functional_test_utils/blob_utils.hpp"
-#include "functional_test_utils/plugin_cache.hpp"
+#include "functional_test_utils/legacy/blob_utils.hpp"
+#include "functional_test_utils/legacy/plugin_cache.hpp"
 #include "ngraph_functions/builders.hpp"
 #include "ngraph_functions/pass/convert_prc.hpp"
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
@@ -53,7 +53,7 @@ struct ReLUConcatAxis {
     static std::shared_ptr<ngraph::Function> createTopology(const InferenceEngine::SizeVector& inputShape,
                                                             const unsigned int& axis,
                                                             const InferenceEngine::Precision& netPrecision) {
-        auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+        auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
         ov::OutputVector concatInputs;
 
         ov::ParameterVector params = ngraph::builder::makeParams(ngPrc, {inputShape});
@@ -80,7 +80,7 @@ struct MatmulConcatAxis {
     static std::shared_ptr<ngraph::Function> createTopology(const InferenceEngine::SizeVector& inputShape,
                                                             const unsigned int& axis,
                                                             const InferenceEngine::Precision& netPrecision) {
-        auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+        auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
         ov::OutputVector concatInputs;
         ov::ParameterVector params = ngraph::builder::makeParams(ngPrc, {inputShape});
         ov::Shape mulConstShape;
@@ -126,7 +126,7 @@ struct ConvNCHWConcatAxis {
     static std::shared_ptr<ngraph::Function> createTopology(const InferenceEngine::SizeVector& inputShape,
                                                             const unsigned int& axis,
                                                             const InferenceEngine::Precision& netPrecision) {
-        auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+        auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
         ov::OutputVector concatInputs;
         ov::ParameterVector params = ngraph::builder::makeParams(ngPrc, {inputShape});
 
@@ -168,7 +168,7 @@ struct ConvNHWCConcatAxis {
     static std::shared_ptr<ngraph::Function> createTopology(const InferenceEngine::SizeVector& inputShape,
                                                             const unsigned int& axis,
                                                             const InferenceEngine::Precision& netPrecision) {
-        auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+        auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
         ov::OutputVector concatInputs;
         ov::ParameterVector params = ngraph::builder::makeParams(ngPrc, {inputShape});
 
@@ -214,7 +214,7 @@ struct ConvConcatNHWCAxis {
     static std::shared_ptr<ngraph::Function> createTopology(const InferenceEngine::SizeVector& inputShape,
                                                             const unsigned int& axis,
                                                             const InferenceEngine::Precision& netPrecision) {
-        auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+        auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
         ov::OutputVector concatInputs;
         ov::ParameterVector params = ngraph::builder::makeParams(ngPrc, {inputShape});
 
@@ -272,7 +272,7 @@ struct ConvConcatConcatNHWCAxis {
     static std::shared_ptr<ngraph::Function> createTopology(const InferenceEngine::SizeVector& inputShape,
                                                             const unsigned int& axis,
                                                             const InferenceEngine::Precision& netPrecision) {
-        auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+        auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
         ov::OutputVector concat1Inputs, concat2Inputs;
         ov::ParameterVector params = ngraph::builder::makeParams(ngPrc, {inputShape});
 
@@ -385,7 +385,7 @@ struct TransposeTransposeConcat {
         vector<size_t> concat_input_shape = {input_shapes[1] / input_shapes[0], input_shapes[0]};
         vector<size_t> conv_input_shape = {1, input_channels, 1, input_shapes[0] / input_channels};
 
-        auto ng_prc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(net_precision);
+        auto ng_prc = ov::test::utils::convertIe2OvPrc(net_precision);
         auto inputs = makeParams(ng_prc, {{1, input_shapes[0]}, {1, input_shapes[1]}});
 
         // 1st concat input

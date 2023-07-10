@@ -97,7 +97,7 @@ protected:
         std::tie(inputShapes, blockShape, padsBegin, padsEnd, netPrecision, cpuParams) = this->GetParam();
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
 
-        auto ngPrec = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+        auto ngPrec = ov::test::utils::convertIe2OvPrc(netPrecision);
         const std::vector<InputShape> inputShapesVec{inputShapes};
         init_input_shapes(inputShapesVec);
 

@@ -184,7 +184,7 @@ protected:
         targetDevice = CommonTestUtils::DEVICE_GPU;
         init_input_shapes(inputShapes);
 
-        auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+        auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
         auto params = ngraph::builder::makeDynamicParams(ngPrc, inputDynamicShapes);
         auto paramOuts = ngraph::helpers::convert2OutputVector(
             ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));

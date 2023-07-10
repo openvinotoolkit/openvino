@@ -37,7 +37,7 @@ void LogSoftmaxLayerTest::SetUp() {
     std::tie(netPrecision, inPrc, outPrc, inLayout, outLayout, inputShape, axis, targetDevice, configuration) = GetParam();
     outLayout = inLayout;
 
-    const auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+    const auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
 
     const auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
 

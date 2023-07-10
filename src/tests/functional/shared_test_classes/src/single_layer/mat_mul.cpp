@@ -60,7 +60,7 @@ void MatMulTest::SetUp() {
 
     configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+    auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, {shapeRelatedParams.input1.first});
 
     auto secondaryInput = ngraph::builder::makeInputLayer(ngPrc, secondaryInputType, shapeRelatedParams.input2.first);

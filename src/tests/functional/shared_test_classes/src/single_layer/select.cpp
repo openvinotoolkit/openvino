@@ -31,7 +31,7 @@ namespace LayerTestsDefinitions {
         ngraph::ParameterVector paramNodesVector;
         auto paramNode = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::Type_t::boolean, ngraph::Shape(inputShapes[CONDITION]));
         paramNodesVector.push_back(paramNode);
-        auto inType = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inputPrecision);
+        auto inType = ov::test::utils::convertIe2OvPrc(inputPrecision);
         for (size_t i = 1; i < inputShapes.size(); i++) {
             paramNode = std::make_shared<ngraph::opset1::Parameter>(inType, ngraph::Shape(inputShapes[i]));
             paramNodesVector.push_back(paramNode);

@@ -8,9 +8,9 @@
 #include <blob_factory.hpp>
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/common_utils.hpp"
-#include "functional_test_utils/plugin_cache.hpp"
+#include "functional_test_utils/legacy/plugin_cache.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
-#include "functional_test_utils/blob_utils.hpp"
+#include "functional_test_utils/legacy/blob_utils.hpp"
 #include "ie_preprocess.hpp"
 #include "base/behavior_test_utils.hpp"
 #include "ie_ngraph_utils.hpp"
@@ -49,7 +49,7 @@ TEST_P(InferRequestPreprocessTest, SetPreProcessToInferRequest) {
     auto req = execNet.CreateInferRequest();
     InferenceEngine::ConstInputsDataMap inputsMap = execNet.GetInputsInfo();
     const auto &name = inputsMap.begin()->second->name();
-    auto inputBlob = FuncTestUtils::createAndFillBlob(
+    auto inputBlob = ov::test::utils::createAndFillBlob(
             cnnNet.getInputsInfo().begin()->second->getTensorDesc());
     req.SetBlob(cnnNet.getInputsInfo().begin()->first, inputBlob);
     {

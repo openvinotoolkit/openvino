@@ -20,7 +20,7 @@ ConvolutionsMatcher::ConvolutionsMatcher() {
 
 bool ConvolutionsMatcher::match(const std::shared_ptr<ov::Node> &node,
                             const std::shared_ptr<ov::Node> &ref,
-                            const LayerTestsUtils::OPInfo &op_info) const {
+                            const ov::test::utils::layer::OPInfo &op_info) const {
     const auto &cfg = get_config(node);
     if (match_only_configured_ops() && cfg->is_fallback_config) {
         return false;
@@ -36,7 +36,7 @@ bool ConvolutionsMatcher::match(const std::shared_ptr<ov::Node> &node,
 }
 bool ConvolutionsMatcher::match_inputs(const std::shared_ptr<ov::Node> &node,
                                        const std::shared_ptr<ov::Node> &ref,
-                                       const LayerTestsUtils::OPInfo &op_info) const {
+                                       const ov::test::utils::layer::OPInfo &op_info) const {
     if (node->get_input_size() != ref->get_input_size()) {
         return false;
     }

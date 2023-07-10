@@ -26,9 +26,9 @@ InferenceEngine::Blob::Ptr ProposalBehTest::GenerateInput(const InferenceEngine:
 
     const std::string name = info.name();
     if (name == "scores") {
-        blobPtr = FuncTestUtils::createAndFillBlobFloat(info.getTensorDesc(), 1, 0, 1000, 8234231);
+        blobPtr = ov::test::utils::createAndFillBlobFloat(info.getTensorDesc(), 1, 0, 1000, 8234231);
     } else if (name == "boxes") {
-        blobPtr = FuncTestUtils::createAndFillBlobFloatNormalDistribution(info.getTensorDesc(), 0.0f, 0.2f, 7235346);
+        blobPtr = ov::test::utils::createAndFillBlobFloatNormalDistribution(info.getTensorDesc(), 0.0f, 0.2f, 7235346);
     }
 
     return blobPtr;
@@ -68,7 +68,7 @@ void ProposalBehTest::SetUp() {
     std::vector<size_t> boxesShape  = {1, 4 * num_anchors, bottom_h, bottom_w};
     std::vector<size_t> imageInfoShape = {3};
 
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(InferenceEngine::Precision::FP16);
+    auto ngPrc = ov::test::utils::convertIe2OvPrc(InferenceEngine::Precision::FP16);
     auto params = ngraph::builder::makeParams(ngPrc, {{"scores", scoresShape}, {"boxes", boxesShape}});
     auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
 

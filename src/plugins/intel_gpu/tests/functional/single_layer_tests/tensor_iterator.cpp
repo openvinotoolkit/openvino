@@ -113,7 +113,7 @@ protected:
         targetDevice = config.first;
         configuration = config.second;
         std::vector<std::vector<size_t>> inputShapes;
-        auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+        auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
         auto tensor_iterator = std::make_shared<ngraph::opset5::TensorIterator>();
 
         // Each case consist of 3 steps:

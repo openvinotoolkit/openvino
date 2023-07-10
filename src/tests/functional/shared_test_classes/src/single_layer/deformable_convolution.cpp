@@ -50,11 +50,11 @@ InferenceEngine::Blob::Ptr DeformableConvolutionLayerTest::GenerateInput(const I
     if (name == "a_data") {
         blobPtr = LayerTestsUtils::LayerTestsCommon::GenerateInput(info);
     } else if (name == "b_offset_vals") {
-        blobPtr = FuncTestUtils::createAndFillBlobFloat(info.getTensorDesc(), 2, 0, 10);
+        blobPtr = ov::test::utils::createAndFillBlobFloat(info.getTensorDesc(), 2, 0, 10);
     } else if (name == "c_filter_vals") {
         blobPtr = LayerTestsUtils::LayerTestsCommon::GenerateInput(info);
     } else if (name == "c_modulation_scalars") {
-        blobPtr = FuncTestUtils::createAndFillBlobFloat(info.getTensorDesc(), 1, 0, 20);
+        blobPtr = ov::test::utils::createAndFillBlobFloat(info.getTensorDesc(), 1, 0, 20);
     }
     return blobPtr;
 }
@@ -71,7 +71,7 @@ void DeformableConvolutionLayerTest::SetUp() {
     bool with_bilinear_interpolation_pad, with_modulation;
     std::tie(offsets, filter, stride, padBegin, padEnd, dilation, groups, deformable_groups, convOutChannels, padType,
              with_bilinear_interpolation_pad, with_modulation) = convParams;
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+    auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape, offsets, filter});
     auto paramOuts = ngraph::helpers::convert2OutputVector(
             ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));

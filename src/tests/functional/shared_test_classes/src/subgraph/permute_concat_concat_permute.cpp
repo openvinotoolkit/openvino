@@ -31,7 +31,7 @@ void PermuteConcatConcatPermute::SetUp() {
     InferenceEngine::Precision net_precision;
     std::tie(input_shape, net_precision, targetDevice) = this->GetParam();
 
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(net_precision);
+    auto ngPrc = ov::test::utils::convertIe2OvPrc(net_precision);
 
     auto input_param = std::make_shared<ngraph::opset9::Parameter>(ngPrc, ngraph::Shape{input_shape});
     std::vector<size_t> permute_param = {1, 0};
@@ -121,7 +121,7 @@ void PermuteConcatConcatPermute::Validate() {
 
 InferenceEngine::Blob::Ptr PermuteConcatConcatPermute::GenerateInput(
     const InferenceEngine::InputInfo& inputInfo) const {
-    return FuncTestUtils::createAndFillBlobConsistently(inputInfo.getTensorDesc(), range_, start_, step_);
+    return ov::test::utils::createAndFillBlobConsistently(inputInfo.getTensorDesc(), range_, start_, step_);
 }
 
 }  // namespace SubgraphTestsDefinitions

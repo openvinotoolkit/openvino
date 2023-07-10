@@ -22,7 +22,7 @@ namespace SubgraphTestsDefinitions {
         InferenceEngine::SizeVector inputShapes;
         InferenceEngine::Precision inputPrecision;
         std::tie(inputPrecision, inputShapes, targetDevice) = this->GetParam();
-        auto inType = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inputPrecision);
+        auto inType = ov::test::utils::convertIe2OvPrc(inputPrecision);
         auto param = ngraph::builder::makeParams(inType, {inputShapes});
         auto relu = std::make_shared<ngraph::opset3::Relu>(param[0]);
         auto shapeOf = std::make_shared<ngraph::opset3::ShapeOf>(relu, inType);

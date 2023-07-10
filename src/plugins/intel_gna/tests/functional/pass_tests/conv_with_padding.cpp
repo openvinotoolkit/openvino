@@ -69,7 +69,7 @@ protected:
 
         GnaLayerTestCheck::SetUp(targetDevice);
 
-        auto ng_precision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(precision);
+        auto ng_precision = ov::test::utils::convertIe2OvPrc(precision);
         auto input = std::make_shared<ngraph::opset8::Parameter>(ng_precision, ngraph::Shape{input_shape});
         auto filter = ngraph::builder::makeConstant<float>(ng_precision, filter_shape, {1.f});
         auto conv = std::make_shared<ngraph::opset8::Convolution>(input,

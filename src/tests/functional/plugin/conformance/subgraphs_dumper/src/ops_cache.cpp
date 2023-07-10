@@ -29,7 +29,7 @@ void OPCache::update_ops_cache(const std::shared_ptr<ov::Node> &op,
     auto saveOpToCash = [&] {
         try {
             const auto& clone_fn = SubgraphsDumper::ClonersMap::cloners.at(op->get_type_info());
-            LayerTestsUtils::OPInfo meta(source_model.name, source_model.path, source_model.op_cnt);
+            ov::test::utils::layer::OPInfo meta(source_model.name, source_model.path, source_model.op_cnt);
             const std::shared_ptr<ov::Node> op_clone = clone_fn(op, meta);
             if (!op_clone) {
                 return;
@@ -119,7 +119,7 @@ void OPCache::serialize_cached_ops(const std::string &serialization_dir) {
     }
 }
 
-void OPCache::serialize_meta_info(const LayerTestsUtils::OPInfo &info, const std::string &path) {
+void OPCache::serialize_meta_info(const ov::test::utils::layer::OPInfo &info, const std::string &path) {
     pugi::xml_document doc;
     pugi::xml_node root = doc.append_child("meta_info");
     pugi::xml_node models = root.append_child("models");
@@ -174,7 +174,7 @@ float OPCache::get_size_of_cached_ops() {
 }
 
 OPCache::SerializationStatus
-OPCache::serialize_function(const std::pair<std::shared_ptr<ov::Node>, LayerTestsUtils::OPInfo> &op,
+OPCache::serialize_function(const std::pair<std::shared_ptr<ov::Node>, ov::test::utils::layer::OPInfo> &op,
                             const std::string &serialization_dir) {
     try {
         std::cout << "Serializing function wrapping op " << op.first << std::endl;

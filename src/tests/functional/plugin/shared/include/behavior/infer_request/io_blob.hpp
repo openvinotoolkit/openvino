@@ -61,7 +61,7 @@ TEST_P(InferRequestIOBBlobTest, setNotAllocatedInput) {
     InferenceEngine::InferRequest req;
     ASSERT_NO_THROW(req = execNet.CreateInferRequest());
     InferenceEngine::Blob::Ptr blob =
-            FuncTestUtils::createAndFillBlob(cnnNet.getInputsInfo().begin()->second->getTensorDesc());
+            ov::test::utils::createAndFillBlob(cnnNet.getInputsInfo().begin()->second->getTensorDesc());
     ASSERT_NO_THROW(req.SetBlob(cnnNet.getInputsInfo().begin()->first, blob));
 }
 
@@ -70,14 +70,14 @@ TEST_P(InferRequestIOBBlobTest, setNotAllocatedOutput) {
     InferenceEngine::InferRequest req;
     ASSERT_NO_THROW(req = execNet.CreateInferRequest());
     InferenceEngine::Blob::Ptr blob =
-            FuncTestUtils::createAndFillBlob(cnnNet.getOutputsInfo().begin()->second->getTensorDesc());
+            ov::test::utils::createAndFillBlob(cnnNet.getOutputsInfo().begin()->second->getTensorDesc());
     ASSERT_NO_THROW(req.SetBlob(cnnNet.getOutputsInfo().begin()->first, blob));
 }
 
 TEST_P(InferRequestIOBBlobTest, getAfterSetInputDoNotChangeInput) {
     // Create InferRequest
     InferenceEngine::InferRequest req = execNet.CreateInferRequest();
-    std::shared_ptr<InferenceEngine::Blob> inputBlob = FuncTestUtils::createAndFillBlob(
+    std::shared_ptr<InferenceEngine::Blob> inputBlob = ov::test::utils::createAndFillBlob(
             cnnNet.getInputsInfo().begin()->second->getTensorDesc());
     ASSERT_NO_THROW(req.SetBlob(cnnNet.getInputsInfo().begin()->first, inputBlob));
     std::shared_ptr<InferenceEngine::Blob> actualBlob = nullptr;
@@ -93,7 +93,7 @@ TEST_P(InferRequestIOBBlobTest, getAfterSetInputDoNotChangeInput) {
 TEST_P(InferRequestIOBBlobTest, getAfterSetInputDoNotChangeOutput) {
     // Create InferRequest
     InferenceEngine::InferRequest req = execNet.CreateInferRequest();
-    std::shared_ptr<InferenceEngine::Blob> inputBlob = FuncTestUtils::createAndFillBlob(
+    std::shared_ptr<InferenceEngine::Blob> inputBlob = ov::test::utils::createAndFillBlob(
             cnnNet.getOutputsInfo().begin()->second->getTensorDesc());
     ASSERT_NO_THROW(req.SetBlob(cnnNet.getOutputsInfo().begin()->first, inputBlob));
     std::shared_ptr<InferenceEngine::Blob> actualBlob;
@@ -113,7 +113,7 @@ TEST_P(InferRequestIOBBlobTest, failToSetBlobWithIncorrectName) {
     const char incorrect_input_name[] = "incorrect_input_name";
     ASSERT_NO_THROW(req = execNet.CreateInferRequest());
     InferenceEngine::Blob::Ptr blob =
-            FuncTestUtils::createAndFillBlob(cnnNet.getInputsInfo().begin()->second->getTensorDesc());
+            ov::test::utils::createAndFillBlob(cnnNet.getInputsInfo().begin()->second->getTensorDesc());
     blob->allocate();
     ASSERT_THROW(req.SetBlob(incorrect_input_name, blob), InferenceEngine::Exception);
 }
@@ -128,7 +128,7 @@ TEST_P(InferRequestIOBBlobTest, failToSetInputWithIncorrectSizes) {
     td.reshape(dims);
 
     InferenceEngine::Blob::Ptr blob =
-            FuncTestUtils::createAndFillBlob(td);
+            ov::test::utils::createAndFillBlob(td);
     blob->allocate();
     ASSERT_THROW(req.SetBlob(cnnNet.getInputsInfo().begin()->first, blob), InferenceEngine::Exception);
 }
@@ -143,7 +143,7 @@ TEST_P(InferRequestIOBBlobTest, failToSetOutputWithIncorrectSizes) {
     td.reshape(dims);
 
     InferenceEngine::Blob::Ptr blob =
-            FuncTestUtils::createAndFillBlob(td);
+            ov::test::utils::createAndFillBlob(td);
     blob->allocate();
     ASSERT_THROW(req.SetBlob(cnnNet.getOutputsInfo().begin()->first, blob), InferenceEngine::Exception);
 }
@@ -188,7 +188,7 @@ TEST_P(InferRequestIOBBlobTest, canProcessDeallocatedInputBlobAfterSetBlobSync) 
     // Create InferRequest
     InferenceEngine::InferRequest req;
     InferenceEngine::Blob::Ptr blob =
-            FuncTestUtils::createAndFillBlob(cnnNet.getInputsInfo().begin()->second->getTensorDesc());
+            ov::test::utils::createAndFillBlob(cnnNet.getInputsInfo().begin()->second->getTensorDesc());
     ASSERT_NO_THROW(req = execNet.CreateInferRequest());
     blob->allocate();
     ASSERT_NO_THROW(req.SetBlob(cnnNet.getInputsInfo().begin()->first, blob));
@@ -200,7 +200,7 @@ TEST_P(InferRequestIOBBlobTest, canProcessDeallocatedInputBlobAfterSetBlobAsync)
     // Create InferRequest
     InferenceEngine::InferRequest req;
     InferenceEngine::Blob::Ptr blob =
-            FuncTestUtils::createAndFillBlob(cnnNet.getInputsInfo().begin()->second->getTensorDesc());
+            ov::test::utils::createAndFillBlob(cnnNet.getInputsInfo().begin()->second->getTensorDesc());
     ASSERT_NO_THROW(req = execNet.CreateInferRequest());
     blob->allocate();
     ASSERT_NO_THROW(req.SetBlob(cnnNet.getInputsInfo().begin()->first, blob));
@@ -212,7 +212,7 @@ TEST_P(InferRequestIOBBlobTest, canProcessDeallocatedOutputBlobAfterSetBlob) {
     // Create InferRequest
     InferenceEngine::InferRequest req;
     InferenceEngine::Blob::Ptr blob =
-            FuncTestUtils::createAndFillBlob(cnnNet.getOutputsInfo().begin()->second->getTensorDesc());
+            ov::test::utils::createAndFillBlob(cnnNet.getOutputsInfo().begin()->second->getTensorDesc());
     ASSERT_NO_THROW(req = execNet.CreateInferRequest());
     blob->allocate();
     ASSERT_NO_THROW(req.SetBlob(cnnNet.getOutputsInfo().begin()->first, blob));
@@ -225,7 +225,7 @@ TEST_P(InferRequestIOBBlobTest, canProcessDeallocatedOutputBlobAfterGetAndSetBlo
     // Create InferRequest
     InferenceEngine::InferRequest req;
     InferenceEngine::Blob::Ptr blob =
-            FuncTestUtils::createAndFillBlob(cnnNet.getOutputsInfo().begin()->second->getTensorDesc());
+            ov::test::utils::createAndFillBlob(cnnNet.getOutputsInfo().begin()->second->getTensorDesc());
     ASSERT_NO_THROW(req = execNet.CreateInferRequest());
     blob->allocate();
     ASSERT_NO_THROW(blob = req.GetBlob(cnnNet.getOutputsInfo().begin()->first));
@@ -284,7 +284,7 @@ TEST_P(InferRequestIOBBlobTest, canSetInputBlobForInferRequest) {
     InferenceEngine::InferRequest req;
     ASSERT_NO_THROW(req = execNet.CreateInferRequest());
     InferenceEngine::Blob::Ptr inputBlob =
-            FuncTestUtils::createAndFillBlob(cnnNet.getInputsInfo().begin()->second->getTensorDesc());
+            ov::test::utils::createAndFillBlob(cnnNet.getInputsInfo().begin()->second->getTensorDesc());
     ASSERT_NO_THROW(req.SetBlob(cnnNet.getInputsInfo().begin()->first, inputBlob));
     InferenceEngine::Blob::Ptr actualBlob;
     ASSERT_NO_THROW(actualBlob = req.GetBlob(cnnNet.getInputsInfo().begin()->first));
@@ -294,7 +294,7 @@ TEST_P(InferRequestIOBBlobTest, canSetInputBlobForInferRequest) {
 TEST_P(InferRequestIOBBlobTest, canSetOutputBlobForInferRequest) {
     // Create InferRequest
     InferenceEngine::InferRequest req = execNet.CreateInferRequest();
-    std::shared_ptr<InferenceEngine::Blob> outputBlob = FuncTestUtils::createAndFillBlob(
+    std::shared_ptr<InferenceEngine::Blob> outputBlob = ov::test::utils::createAndFillBlob(
             cnnNet.getOutputsInfo().begin()->second->getTensorDesc());
     ASSERT_NO_THROW(req.SetBlob(cnnNet.getOutputsInfo().begin()->first, outputBlob));
     std::shared_ptr<InferenceEngine::Blob> actualBlob;
@@ -307,10 +307,10 @@ TEST_P(InferRequestIOBBlobTest, canInferWithSetInOutBlobs) {
     InferenceEngine::InferRequest req;
     ASSERT_NO_THROW(req = execNet.CreateInferRequest());
     InferenceEngine::Blob::Ptr inputBlob =
-            FuncTestUtils::createAndFillBlob(cnnNet.getInputsInfo().begin()->second->getTensorDesc());
+            ov::test::utils::createAndFillBlob(cnnNet.getInputsInfo().begin()->second->getTensorDesc());
     req.SetBlob(cnnNet.getInputsInfo().begin()->first, inputBlob);
     InferenceEngine::Blob::Ptr outputBlob =
-            FuncTestUtils::createAndFillBlob(cnnNet.getInputsInfo().begin()->second->getTensorDesc());
+            ov::test::utils::createAndFillBlob(cnnNet.getInputsInfo().begin()->second->getTensorDesc());
     req.SetBlob(cnnNet.getInputsInfo().begin()->first, outputBlob);
     ASSERT_NO_THROW(req.Infer());
 }
@@ -403,7 +403,7 @@ TEST_P(InferRequestIOBBlobSetPrecisionTest, CanSetOutBlobWithDifferentPrecision)
     ASSERT_NO_THROW(req = execNet.CreateInferRequest());
     for (auto& outputInfo : cnnNet.getOutputsInfo()) {
         InferenceEngine::TensorDesc td(netPrecision, outputInfo.second->getTensorDesc().getDims(), outputInfo.second->getTensorDesc().getLayout());
-        InferenceEngine::Blob::Ptr blob = FuncTestUtils::createAndFillBlob(td);
+        InferenceEngine::Blob::Ptr blob = ov::test::utils::createAndFillBlob(td);
         if (outputInfo.second->getTensorDesc().getPrecision() == netPrecision) {
             ASSERT_NO_THROW(req.SetBlob(outputInfo.first, blob));
         } else {
@@ -420,7 +420,7 @@ TEST_P(InferRequestIOBBlobSetPrecisionTest, CanSetInBlobWithDifferentPrecision) 
 
     for (auto& inputInfo : cnnNet.getInputsInfo()) {
         InferenceEngine::TensorDesc td(netPrecision, inputInfo.second->getTensorDesc().getDims(), inputInfo.second->getTensorDesc().getLayout());
-        InferenceEngine::Blob::Ptr blob = FuncTestUtils::createAndFillBlob(td);
+        InferenceEngine::Blob::Ptr blob = ov::test::utils::createAndFillBlob(td);
         if (inputInfo.second->getTensorDesc().getPrecision() == netPrecision) {
             ASSERT_NO_THROW(req.SetBlob(inputInfo.first, blob));
         } else {
@@ -483,10 +483,10 @@ TEST_P(InferRequestIOBBlobSetLayoutTest, CanSetInBlobWithDifferentLayouts) {
     for (auto& inputInfo : cnnNet.getInputsInfo()) {
         InferenceEngine::TensorDesc td;
         InferenceEngine::Blob::Ptr blob;
-        if (FuncTestUtils::checkLayout(layout, inputInfo.second->getTensorDesc().getDims())) {
+        if (ov::test::utils::checkLayout(layout, inputInfo.second->getTensorDesc().getDims())) {
             ASSERT_NO_THROW(td = InferenceEngine::TensorDesc(inputInfo.second->getTensorDesc().getPrecision(),
                                                                        inputInfo.second->getTensorDesc().getDims(), layout));
-            ASSERT_NO_THROW(blob = FuncTestUtils::createAndFillBlob(td));
+            ASSERT_NO_THROW(blob = ov::test::utils::createAndFillBlob(td));
             if (inputInfo.second->getLayout() == layout || layout == InferenceEngine::Layout::ANY ||
                 layout == InferenceEngine::Layout::BLOCKED || layout == InferenceEngine::Layout::SCALAR) {
                 ASSERT_NO_THROW(req.SetBlob(inputInfo.first, blob));
@@ -496,7 +496,7 @@ TEST_P(InferRequestIOBBlobSetLayoutTest, CanSetInBlobWithDifferentLayouts) {
         } else {
             ASSERT_THROW(td = InferenceEngine::TensorDesc(inputInfo.second->getTensorDesc().getPrecision(),
                                                           inputInfo.second->getTensorDesc().getDims(), layout), InferenceEngine::Exception);
-            ASSERT_THROW(blob = FuncTestUtils::createAndFillBlob(td), InferenceEngine::Exception);
+            ASSERT_THROW(blob = ov::test::utils::createAndFillBlob(td), InferenceEngine::Exception);
         }
     }
 }
@@ -508,10 +508,10 @@ TEST_P(InferRequestIOBBlobSetLayoutTest, CanSetOutBlobWithDifferentLayouts) {
     for (auto& outputInfo : cnnNet.getOutputsInfo()) {
         InferenceEngine::TensorDesc td;
         InferenceEngine::Blob::Ptr blob;
-        if (FuncTestUtils::checkLayout(layout, outputInfo.second->getTensorDesc().getDims())) {
+        if (ov::test::utils::checkLayout(layout, outputInfo.second->getTensorDesc().getDims())) {
             ASSERT_NO_THROW(td = InferenceEngine::TensorDesc(outputInfo.second->getTensorDesc().getPrecision(),
                                                              outputInfo.second->getTensorDesc().getDims(), layout));
-            ASSERT_NO_THROW(blob = FuncTestUtils::createAndFillBlob(td));
+            ASSERT_NO_THROW(blob = ov::test::utils::createAndFillBlob(td));
             if (outputInfo.second->getLayout() == layout || layout == InferenceEngine::Layout::ANY ||
                 layout == InferenceEngine::Layout::BLOCKED || layout == InferenceEngine::Layout::SCALAR) {
                 ASSERT_NO_THROW(req.SetBlob(outputInfo.first, blob));
@@ -521,7 +521,7 @@ TEST_P(InferRequestIOBBlobSetLayoutTest, CanSetOutBlobWithDifferentLayouts) {
         } else {
             ASSERT_THROW(td = InferenceEngine::TensorDesc(outputInfo.second->getTensorDesc().getPrecision(),
                                                           outputInfo.second->getTensorDesc().getDims(), layout), InferenceEngine::Exception);
-            ASSERT_THROW(blob = FuncTestUtils::createAndFillBlob(td), InferenceEngine::Exception);
+            ASSERT_THROW(blob = ov::test::utils::createAndFillBlob(td), InferenceEngine::Exception);
         }
     }
 }

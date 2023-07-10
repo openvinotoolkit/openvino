@@ -32,7 +32,7 @@ void SoftsignTest::SetUp() {
     std::tie(netPrecision, targetDevice, tempConfig, inputShape) = this->GetParam();
     configuration.insert(tempConfig.begin(), tempConfig.end());
 
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+    auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
 
     auto params = ngraph::builder::makeParams(ngPrc, { inputShape });
 
@@ -63,7 +63,7 @@ void SoftsignTest::Run() {
 std::shared_ptr<ngraph::Function> SoftsignTest::GenerateNgraphFriendlySoftSign() {
     InferenceEngine::Precision netPrecision = std::get<0>(this->GetParam());
     std::vector<size_t> inputShape = std::get<3>(this->GetParam());
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+    auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
 
     auto params = ngraph::builder::makeParams(ngPrc, { inputShape });
     auto abs = std::make_shared<ngraph::op::Abs>(params[0]);

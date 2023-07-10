@@ -24,7 +24,7 @@ namespace SubgraphTestsDefinitions {
         InferenceEngine::Precision netPrecision;
         std::tie(inputs, netPrecision, targetDevice) = this->GetParam();
         const std::size_t input_dim = InferenceEngine::details::product(inputs[0]);
-        auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+        auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
         std::vector<size_t> shape_input{1, input_dim};
         auto input = ngraph::builder::makeParams(ngPrc, {shape_input});
         auto reshape1_pattern = std::make_shared<ngraph::op::Constant>(ngraph::element::i64,

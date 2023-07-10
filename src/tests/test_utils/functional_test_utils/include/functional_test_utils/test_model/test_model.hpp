@@ -9,8 +9,10 @@
 
 #include "inference_engine.hpp"
 
-namespace FuncTestUtils {
-namespace TestModel {
+
+namespace ov {
+namespace test {
+namespace utils {
 
 /**
  * @brief generates IR files (XML and BIN files) with the test model.
@@ -27,5 +29,6 @@ void generateTestModel(const std::string &modelPath,
 
 const char incorrect_input_name[] = "incorrect_input_name";
 
-}  // namespace TestModel
-}  // namespace FuncTestUtils
+}  // namespace utils
+}  // namespace test
+}  // namespace ov

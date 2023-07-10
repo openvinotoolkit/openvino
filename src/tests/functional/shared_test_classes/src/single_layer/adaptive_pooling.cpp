@@ -8,7 +8,7 @@
 #include "shared_test_classes/single_layer/adaptive_pooling.hpp"
 
 using namespace InferenceEngine;
-using namespace FuncTestUtils::PrecisionUtils;
+using namespace ov::test::utils;
 
 namespace LayerTestsDefinitions {
 
@@ -38,7 +38,7 @@ void AdaPoolLayerTest::SetUp() {
     InferenceEngine::Precision netPrecision;
     std::tie(inputShape, pooledSpatialShape, poolingMode, netPrecision, targetDevice) = this->GetParam();
 
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+    auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
 
     ngraph::Shape pooledShape = {pooledSpatialShape.size() };

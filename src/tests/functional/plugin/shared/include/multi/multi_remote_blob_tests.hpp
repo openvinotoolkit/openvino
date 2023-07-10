@@ -6,7 +6,7 @@
 #include <vector>
 #include "ie_core.hpp"
 #include "base/multi/multi_helpers.hpp"
-#include "functional_test_utils/plugin_cache.hpp"
+#include "functional_test_utils/legacy/plugin_cache.hpp"
 
 TEST_P(MultiDevice_SupportTest, canCreateContextThenRequestThenBlobsAndInfer) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();

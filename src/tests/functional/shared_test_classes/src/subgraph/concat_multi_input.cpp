@@ -30,7 +30,7 @@ void ConcatMultiInput::SetUp() {
     std::tie(inputShapes, netPrecision, targetDevice, additional_config) = this->GetParam();
     configuration.insert(additional_config.begin(), additional_config.end());
 
-    ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+    ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
     paramSize = { 1, 0 };
     for (const auto& val : inputShapes) {
         paramSize[1] += val[1];

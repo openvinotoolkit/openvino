@@ -9,6 +9,7 @@
 #include "ngraph/opsets/opset7.hpp"
 #include "ngraph_functions/builders.hpp"
 #include "ngraph/pass/low_latency.hpp"
+#include "openvino/op/util/variable_context.hpp"
 #include "shared_test_classes/single_layer/memory.hpp"
 
 using namespace ngraph;
@@ -36,7 +37,7 @@ namespace LayerTestsDefinitions {
 
     void MemoryTest::SetUp() {
         std::tie(transformation, iteration_count, inputShape, netPrecision, targetDevice) = this->GetParam();
-        ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+        ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
 
         if (transformation == ngraph::helpers::MemoryTransformation::NONE) {
             CreateCommonFunc();
@@ -46,7 +47,7 @@ namespace LayerTestsDefinitions {
         }
 
         auto hostTensor = std::make_shared<HostTensor>(ngPrc, inputShape);
-        auto variable_context = VariableContext();
+        auto variable_context = ov::op::util::VariableContext();
         auto variable_value = std::make_shared<VariableValue>(hostTensor);
         variable_context.set_variable_value(function->get_variable_by_id("v0"), variable_value);
         eval_context["VariableContext"] = variable_context;
@@ -66,7 +67,7 @@ namespace LayerTestsDefinitions {
 
         auto &s = ov::test::utils::OpSummary::getInstance();
         s.setDeviceName(targetDevice);
-        if (FuncTestUtils::SkipTestsConfig::currentTestIsDisabled()) {
+        if (ov::test::utils::currentTestIsDisabled()) {
             s.updateOPsStats(function, ov::test::utils::PassRate::Statuses::SKIPPED);
             GTEST_SKIP() << "Disabled test due to configuration" << std::endl;
         } else {
@@ -122,7 +123,7 @@ namespace LayerTestsDefinitions {
             const auto lockedMemory = memory->wmap();
             const auto buffer = lockedMemory.as<const std::uint8_t *>();
 
-            auto hostTensor = std::make_shared<HostTensor>(FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(tensorDesc.getPrecision()),
+            auto hostTensor = std::make_shared<HostTensor>(ov::test::utils::convertIe2OvPrc(tensorDesc.getPrecision()),
                                                                    tensorDesc.getDims());
             hostTensor->write(buffer, dataSize);
             inputTensors.push_back(hostTensor);

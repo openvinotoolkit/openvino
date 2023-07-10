@@ -59,8 +59,8 @@ void ScatterNDUpdateLayerTest::SetUp() {
     InferenceEngine::Precision indicesPrecision;
     std::tie(shapeDescript, inputPrecision, indicesPrecision, targetDevice) = this->GetParam();
     std::tie(inShape, indicesShape, indicesValue, updateShape) = shapeDescript;
-    auto inPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inputPrecision);
-    auto idxPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(indicesPrecision);
+    auto inPrc = ov::test::utils::convertIe2OvPrc(inputPrecision);
+    auto idxPrc = ov::test::utils::convertIe2OvPrc(indicesPrecision);
     ngraph::ParameterVector paramVector;
     auto inputParams = std::make_shared<ngraph::opset1::Parameter>(inPrc, ngraph::Shape(inShape));
     paramVector.push_back(inputParams);

@@ -21,11 +21,11 @@ public:
 
     bool match_all(const std::shared_ptr<ov::Node> &node,
                    const std::shared_ptr<ov::Node> &ref,
-                   const LayerTestsUtils::OPInfo &op_info);
+                   const ov::test::utils::layer::OPInfo &op_info);
 
     bool match_any(const std::shared_ptr<ov::Node> &node,
                    const std::shared_ptr<ov::Node> &ref,
-                   const LayerTestsUtils::OPInfo &op_info);
+                   const ov::test::utils::layer::OPInfo &op_info);
 
     // TODO: Implement default xml config file generation by Matchers
     void generate_config() {}
@@ -33,7 +33,7 @@ public:
 private:
     std::vector<bool> run_matchers(const std::shared_ptr<ov::Node> &node,
                                    const std::shared_ptr<ov::Node> &ref,
-                                   const LayerTestsUtils::OPInfo &op_info);
+                                   const ov::test::utils::layer::OPInfo &op_info);
 // TODO: No copy constructor for xml_document
 //    pugi::xml_document m_cfg;
     RegistryMap m_registry = {

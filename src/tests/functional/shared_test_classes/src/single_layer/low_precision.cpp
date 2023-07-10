@@ -26,7 +26,7 @@ void LowPrecisionTest::SetUp() {
     InferenceEngine::Precision netPrecision;
     std::pair<std::string, std::map<std::string, std::string>> config;
     std::tie(netPrecision, targetDevice, config) = this->GetParam();
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+    auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
     auto inputShape = ngraph::Shape{ 1, 16 };
     auto weights1Shape = ngraph::Shape{ 16, 16 };
     auto weights2Shape = ngraph::Shape{ 128, 32 };

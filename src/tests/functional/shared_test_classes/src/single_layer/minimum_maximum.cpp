@@ -37,7 +37,7 @@ namespace LayerTestsDefinitions {
         if (inputShapes.size() != 2) {
             IE_THROW() << "Unsupported inputs number for Minimum/Maximum operaton";
         }
-        auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+        auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
         auto input = ngraph::builder::makeParams(ngPrc, {inputShapes[0]});
         auto secondaryInput = ngraph::builder::makeInputLayer(ngPrc, inputType, {inputShapes[1]});
         if (inputType == ngraph::helpers::InputLayerType::PARAMETER) {

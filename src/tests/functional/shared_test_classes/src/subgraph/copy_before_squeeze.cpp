@@ -24,7 +24,7 @@ namespace SubgraphTestsDefinitions {
         std::map<std::string, std::string> config;
         std::tie(netPrecision, targetDevice, inputShape, config) = this->GetParam();
         configuration.insert(config.begin(), config.end());
-        auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+        auto ngPrc = ov::test::utils::convertIe2OvPrc(netPrecision);
 
         auto input = ngraph::builder::makeParams(ngPrc, {inputShape});
         auto reshape_0_pattern = std::make_shared<ngraph::op::Constant>(ngraph::element::i64,

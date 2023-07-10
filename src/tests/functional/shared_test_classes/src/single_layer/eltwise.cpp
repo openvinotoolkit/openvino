@@ -6,7 +6,7 @@
 #include <common_test_utils/ov_tensor_utils.hpp>
 #include "shared_test_classes/single_layer/eltwise.hpp"
 
-#include "functional_test_utils/plugin_cache.hpp"
+#include "functional_test_utils/legacy/plugin_cache.hpp"
 
 namespace ov {
 namespace test {
