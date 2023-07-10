@@ -116,6 +116,7 @@ inline std::map<ModelCacheStatus, std::vector<std::string>> cache_models(
             cache_status[model_status].push_back(model);
         }
     }
+    
     return cache_status;
 }
 

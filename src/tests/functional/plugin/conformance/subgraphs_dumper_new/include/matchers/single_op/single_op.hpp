@@ -8,21 +8,20 @@
 
 #include "pugixml.hpp"
 
-#include "single_op_matchers/config.hpp"
+#include "matchers/config.hpp"
+#include "matchers/base_matcher.hpp"
+
 
 namespace ov {
 namespace tools {
 namespace subgraph_dumper {
 
-class BaseMatcher {
+class SingleOpMatcher : public BaseMatcher {
 public:
-    using Ptr = std::shared_ptr<BaseMatcher>;
-    BaseMatcher();
+    SingleOpMatcher();
 
-    virtual bool match(const std::shared_ptr<ov::Node> &node,
-                       const std::shared_ptr<ov::Node> &ref) const;
-
-    iMatcherConfig::Ptr get_config(const std::shared_ptr<ov::Node> &node) const;
+    bool match(const std::shared_ptr<ov::Node> &node,
+               const std::shared_ptr<ov::Node> &ref) const override;
 
 protected:
     virtual void configure(const pugi::xml_document &cfg) {};
@@ -35,8 +34,6 @@ protected:
                                const std::shared_ptr<ov::Node> &ref) const;
     virtual bool match_attrs(const std::shared_ptr<ov::Node> &node,
                              const std::shared_ptr<ov::Node> &ref) const;
-
-    std::vector<iMatcherConfig::Ptr> default_configs;
 };
 
 }  // namespace subgraph_dumper

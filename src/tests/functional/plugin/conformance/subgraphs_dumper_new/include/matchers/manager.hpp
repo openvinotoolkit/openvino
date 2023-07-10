@@ -4,18 +4,12 @@
 
 #pragma once
 
-// #include "pugixml.hpp"
-// #include "ngraph/node.hpp"
-// #include "single_op_matchers/single_op.hpp"
-// #include "single_op_matchers/convolutions.hpp"
-
-#include "single_op_matchers/base.hpp"
+#include "matchers/base_matcher.hpp"
+#include "cache/meta/input_info.hpp"
 
 namespace ov {
 namespace tools {
 namespace subgraph_dumper {
-
-class Matcher;
 
 class MatchersManager {
 public:
@@ -23,17 +17,18 @@ public:
 
     explicit MatchersManager(const MatchersMap& matchers = {}) : m_matchers(matchers) {}
 
-    bool match_all(const std::shared_ptr<ov::Node> &node,
-                   const std::shared_ptr<ov::Node> &ref);
-    bool match_any(const std::shared_ptr<ov::Node> &node,
-                   const std::shared_ptr<ov::Node> &ref);
+    bool match(const std::shared_ptr<ov::Node> &node,
+               const std::shared_ptr<ov::Node> &ref);
+    bool match(const std::shared_ptr<ov::Model> &model,
+               const std::shared_ptr<ov::Model> &ref_model);
+
+    std::list<BaseMatcher::ExtractedPattern> run_extractors(const std::shared_ptr<ov::Model> &model);
+
     void set_matchers(const MatchersMap& matchers = {}) { m_matchers = matchers; }
+    const MatchersMap& get_matchers() { return m_matchers; }
     iMatcherConfig::Ptr get_config(const std::shared_ptr<ov::Node> &node) const;
 
 private:
-    std::vector<bool> run_matchers(const std::shared_ptr<ov::Node> &node,
-                                   const std::shared_ptr<ov::Node> &ref);
-
     MatchersMap m_matchers = {};
 };
 

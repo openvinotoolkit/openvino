@@ -5,27 +5,14 @@
 #include "openvino/op/convolution.hpp"
 #include "openvino/op/group_conv.hpp"
 
-#include "single_op_matchers/base.hpp"
 #include "common_test_utils/graph_comparator.hpp"
+
+#include "matchers/single_op/single_op.hpp"
 
 using namespace ov::tools::subgraph_dumper;
 
-iMatcherConfig::Ptr BaseMatcher::get_config(const std::shared_ptr<ov::Node> &node) const {
-    for (const auto &cfg : default_configs) {
-        if (cfg->op_in_config(node)) {
-            return cfg;
-        }
-    }
-    for (const auto &cfg : default_configs) {
-        if (cfg->is_fallback_config) {\
-            return cfg;
-        }
-    }
-    return std::make_shared<MatcherConfig<>>();
-}
-
-bool BaseMatcher::match_inputs(const std::shared_ptr<ov::Node> &node,
-                               const std::shared_ptr<ov::Node> &ref) const {
+bool SingleOpMatcher::match_inputs(const std::shared_ptr<ov::Node> &node,
+                                   const std::shared_ptr<ov::Node> &ref) const {
     if (node->get_input_size() != ref->get_input_size()) {
         return false;
     }
@@ -54,8 +41,8 @@ bool BaseMatcher::match_inputs(const std::shared_ptr<ov::Node> &node,
 }
 
 bool
-BaseMatcher::match_outputs(const std::shared_ptr<ov::Node> &node,
-                           const std::shared_ptr<ov::Node> &ref) const {
+SingleOpMatcher::match_outputs(const std::shared_ptr<ov::Node> &node,
+                               const std::shared_ptr<ov::Node> &ref) const {
     if (node->get_output_size() != ref->get_output_size()) {
         return false;
     }
@@ -73,14 +60,14 @@ BaseMatcher::match_outputs(const std::shared_ptr<ov::Node> &node,
     return true;
 }
 
-bool BaseMatcher::match_attrs(const std::shared_ptr<ov::Node> &node,
-                             const std::shared_ptr<ov::Node> &ref) const {
+bool SingleOpMatcher::match_attrs(const std::shared_ptr<ov::Node> &node,
+                                  const std::shared_ptr<ov::Node> &ref) const {
     // todo: iefode: to provide correct with ingored attributes
     return attributes::compare(node.get(), ref.get(), Comparator::CmpValues::ATTRIBUTES).valid;
 }
 
-bool BaseMatcher::match(const std::shared_ptr<ov::Node> &node,
-                        const std::shared_ptr<ov::Node> &ref) const {
+bool SingleOpMatcher::match(const std::shared_ptr<ov::Node> &node,
+                            const std::shared_ptr<ov::Node> &ref) const {
     const auto &cfg = get_config(node);
     if (match_only_configured_ops() && cfg->is_fallback_config) {
         return false;
@@ -104,12 +91,12 @@ bool BaseMatcher::match(const std::shared_ptr<ov::Node> &node,
     return true;
 }
 
-bool BaseMatcher::same_op_type(const std::shared_ptr<ov::Node> &node,
+bool SingleOpMatcher::same_op_type(const std::shared_ptr<ov::Node> &node,
                                const std::shared_ptr<ov::Node> &ref) const {
     return node->get_type_info() == ref->get_type_info();
 }
 
-BaseMatcher::BaseMatcher() {
+SingleOpMatcher::SingleOpMatcher() {
     default_configs = {
             // std::make_shared<MatcherConfig<>>(std::vector<std::string>{}, std::vector<size_t>{0}),
             // std::make_shared<MatcherConfig<ov::opset8::FakeQuantize>>(std::vector<std::string>{},
