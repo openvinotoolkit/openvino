@@ -42,6 +42,7 @@ TEST(CpuShapeInfer, v3ShapeOf5DTest) {
 
 
 TEST(CpuShapeInfer, ShapeOf0DTest) {
+    GTEST_SKIP() << "Skipping test, please check CVS-108946";
     auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{});
 
     auto shapeof =
@@ -49,7 +50,6 @@ TEST(CpuShapeInfer, ShapeOf0DTest) {
 
     std::vector<StaticShape> static_input_shapes = {StaticShape{}},
             static_output_shapes = {StaticShape{}};
-    GTEST_SKIP() << "Skipping test, please check CVS-108946";
     // TODO , can't pass implementation don't support 0D shape input
     unit_test::cpu_test_shape_infer(shapeof.get(), static_input_shapes, static_output_shapes);
 }

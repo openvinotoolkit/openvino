@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <gmock/gmock.h>
+#include <gtest/gtest.h>
 
 #include "common_test_utils/test_assertions.hpp"
 #include "custom_shape_infer.hpp"

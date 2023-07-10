@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <gtest/gtest.h>
 #include "custom_shape_infer.hpp"
 #include <memory>
 #include <ngraph/opsets/opset1.hpp>
@@ -112,6 +113,7 @@ INSTANTIATE_TEST_SUITE_P(
     StridedSliceCpuShapeInferenceTest::getTestCaseName);
 
 TEST(CpuShapeInfer, StridedSliceDefault_stride) {
+    GTEST_SKIP() << "Skipping test, please check CVS-108946";
     const auto mask = std::vector<int64_t>{0, 1, 0};
 
     const auto data = std::make_shared<op::v0::Parameter>(element::f32, ov::PartialShape::dynamic());
@@ -124,7 +126,6 @@ TEST(CpuShapeInfer, StridedSliceDefault_stride) {
     std::vector<StaticShape> static_output_shapes = {StaticShape{1, 2, 2}};
     //  implementation depends on some output information of the op
     op->set_output_type(0, element::i32, {-1, -1, -1});
-    GTEST_SKIP() << "Skipping test, please check CVS-108946";
     // TODO 108946,there is some issue in implementation, this test case can't pass
     unit_test::cpu_test_shape_infer(op.get(), static_input_shapes, static_output_shapes);
 }

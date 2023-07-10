@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <gmock/gmock.h>
+#include <gtest/gtest.h>
 
 #include "common_test_utils/test_assertions.hpp"
 #include "custom_shape_infer.hpp"
@@ -96,6 +96,7 @@ INSTANTIATE_TEST_SUITE_P(
 
 using OneHotCpuShapeInferenceThrowExceptionTest = OneHotCpuShapeInferenceTest;
 TEST_P(OneHotCpuShapeInferenceThrowExceptionTest, wrong_pattern) {
+    GTEST_SKIP() << "Skipping test, please check CVS-108946";
     const auto depth = std::make_shared<op::v0::Parameter>(element::i64, ov::Shape{});
     const auto on = std::make_shared<op::v0::Parameter>(element::i32, ov::Shape{});
     const auto off = std::make_shared<op::v0::Parameter>(element::i32, ov::Shape{});
@@ -112,8 +113,6 @@ TEST_P(OneHotCpuShapeInferenceThrowExceptionTest, wrong_pattern) {
                                                                                            {2, on_tensor},
                                                                                            {3, off_tensor}};
 
-
-    GTEST_SKIP() << "Skipping test, please check CVS-108946";
     // TODO , implementation should throw exception
     ASSERT_THROW(unit_test::cpu_test_shape_infer(op.get(), input_shapes, output_shapes, constant_data),
                  ov::Exception);

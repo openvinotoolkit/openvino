@@ -6,7 +6,7 @@
 #include <utils/shape_inference/shape_inference_cpu.hpp>
 #include <utils/shape_inference/static_shape.hpp>
 #include <common_test_utils/common_utils.hpp>
-#include <gmock/gmock.h>
+#include <gtest/gtest.h>
 
 #pragma once
 

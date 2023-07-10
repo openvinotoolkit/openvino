@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "common_test_utils/test_assertions.hpp"
-#include "gtest/gtest.h"
+#include <gtest/gtest.h>
 #include "custom_shape_infer.hpp"
 #include <ngraph/opsets/opset6.hpp>
 namespace ov {

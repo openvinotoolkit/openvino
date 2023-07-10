@@ -72,11 +72,11 @@ public:
 };
 
 void compare_result(const std::vector<StaticShape>& ref, const std::vector<VectorDims>& cus) {
-    ASSERT_TRUE(ref.size() == cus.size());
+    ASSERT_EQ(ref.size(), cus.size());
     for (size_t i = 0; i < ref.size(); i++) {
-        ASSERT_TRUE(ref[i].size() == cus[i].size());
+        ASSERT_EQ(ref[i].size(), cus[i].size());
         for (size_t y = 0; y < ref[i].size(); y++) {
-            ASSERT_TRUE(ref[i][y].get_length() == cus[i][y]);
+            ASSERT_EQ(ref[i][y].get_length(), cus[i][y]);
         }
     }
 }

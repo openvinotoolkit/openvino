@@ -3,7 +3,7 @@
 //
 
 #include "common_test_utils/test_assertions.hpp"
-#include "gmock/gmock.h"
+#include <gtest/gtest.h>
 #include "custom_shape_infer.hpp"
 #include <ngraph/opsets/opset1.hpp>
 namespace ov {

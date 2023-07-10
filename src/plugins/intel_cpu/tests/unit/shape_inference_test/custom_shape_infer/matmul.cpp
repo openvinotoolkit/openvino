@@ -83,38 +83,39 @@ protected:
 };
 
 TEST_P(CPUMatMulTest, no_input_transpose) {
+    GTEST_SKIP() << "Skipping test, please check CVS-108946";
     const auto matmul = make_matmul(a_shape.size(), b_shape.size(), false, false);
 
     std::vector<StaticShape> static_input_shapes = {a_shape, b_shape};
 
-    GTEST_SKIP() << "Skipping test, please check CVS-108946";
     // TODO  108946,below test case can't pass
     unit_test::cpu_test_shape_infer(matmul.get(), static_input_shapes, output_shapes);
 }
 
 TEST_P(CPUMatMulTest, transpose_input_a) {
+    GTEST_SKIP() << "Skipping test, please check CVS-108946";
     const auto matmul = make_matmul(a_shape.size(), b_shape.size(), true, false);
 
     const auto a_transpose = make_transpose_input(a_shape);
     std::vector<StaticShape> static_input_shapes = {a_transpose, b_shape};
 
-    GTEST_SKIP() << "Skipping test, please check CVS-108946";
     // TODO 108946,below test case can't pass
     unit_test::cpu_test_shape_infer(matmul.get(), static_input_shapes, output_shapes);
 }
 
 TEST_P(CPUMatMulTest, transpose_input_b) {
+    GTEST_SKIP() << "Skipping test, please check CVS-108946";
     const auto matmul = make_matmul(a_shape.size(), b_shape.size(), false, true);
 
     const auto b_transpose = make_transpose_input(b_shape);
     std::vector<StaticShape> static_input_shapes = {a_shape, b_transpose};
 
-    GTEST_SKIP() << "Skipping test, please check CVS-108946";
     // TODO 108946,below test case can't pass
     unit_test::cpu_test_shape_infer(matmul.get(), static_input_shapes, output_shapes);
 }
 
 TEST_P(CPUMatMulTest, transpose_inputs_a_b) {
+    GTEST_SKIP() << "Skipping test, please check CVS-108946";
     const auto matmul = make_matmul(a_shape.size(), b_shape.size(), true, true);
 
     const auto a_transpose = make_transpose_input(a_shape);
@@ -122,7 +123,6 @@ TEST_P(CPUMatMulTest, transpose_inputs_a_b) {
 
     std::vector<StaticShape> static_input_shapes = {a_transpose, b_transpose};
 
-    GTEST_SKIP() << "Skipping test, please check CVS-108946";
     // TODO 108946,below test case can't pass
     unit_test::cpu_test_shape_infer(matmul.get(), static_input_shapes, output_shapes);
 }
