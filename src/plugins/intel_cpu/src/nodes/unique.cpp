@@ -367,16 +367,16 @@ void Unique::slicedTensorExec() {
 
     int *firstPtr = nullptr, *inToOutPtr = nullptr, *occurNPtr = nullptr;
     if (definedOutputs[FIRST_UNIQUE_IDX]) {
-        firstPtr = reinterpret_cast<int*>(getChildEdgesAtPort(FIRST_UNIQUE_IDX)[0]->getMemoryPtr()->GetPtr());
+        firstPtr = reinterpret_cast<int*>(getChildEdgesAtPort(FIRST_UNIQUE_IDX)[0]->getMemoryPtr()->getData());
     }
     if (definedOutputs[INPUT_TO_UNIQ_IDX]) {
-        inToOutPtr = reinterpret_cast<int*>(getChildEdgesAtPort(INPUT_TO_UNIQ_IDX)[0]->getMemoryPtr()->GetPtr());
+        inToOutPtr = reinterpret_cast<int*>(getChildEdgesAtPort(INPUT_TO_UNIQ_IDX)[0]->getMemoryPtr()->getData());
     }
     if (definedOutputs[OCCURRENCES_NUM]) {
-        occurNPtr = reinterpret_cast<int*>(getChildEdgesAtPort(OCCURRENCES_NUM)[0]->getMemoryPtr()->GetPtr());
+        occurNPtr = reinterpret_cast<int*>(getChildEdgesAtPort(OCCURRENCES_NUM)[0]->getMemoryPtr()->getData());
     }
 
-    T* dstDataPtr = reinterpret_cast<T*>(getChildEdgesAtPort(UNIQUE_DATA)[0]->getMemoryPtr()->GetPtr());
+    T* dstDataPtr = reinterpret_cast<T*>(getChildEdgesAtPort(UNIQUE_DATA)[0]->getMemoryPtr()->getData());
     const auto dstOuterStep = innerLen * uniqueLen;
     // Filling of the first output if needed.
     if (sorted || definedOutputs[UNIQUE_DATA]) {
