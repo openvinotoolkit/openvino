@@ -668,8 +668,8 @@ class TestMoConvertTF(CommonMOConvertTest):
         class LayerModel(tf.Module):
             def __init__(self):
                 super(LayerModel, self).__init__()
-                self.var1 = tf.Variable(np.random.rand(3).astype(np.float32), name='var1')
-                self.var2 = tf.Variable(np.random.rand(3).astype(np.float32), name='var2')
+                self.var1 = tf.Variable([7.5, 5.2, 6.7], name='var1')
+                self.var2 = tf.Variable([5.1, 7.7, 3.9], name='var2')
 
 
             @tf.function
@@ -687,7 +687,7 @@ class TestMoConvertTF(CommonMOConvertTest):
 
         # Create TF model with variables
         keras_model = LayerModel()
-        test_input = np.random.rand(1).astype(np.float32)
+        test_input = np.array(7.65).astype(np.float32)
 
         # Convert model to OV
         ov_model = convert_model(keras_model, input_shape=[1])
@@ -695,9 +695,10 @@ class TestMoConvertTF(CommonMOConvertTest):
 
         # Check model inference
         ov_infer1 = cmp_model(test_input, ie_device)
-        wf_infer1 = keras_model(test_input).numpy()
+        fw_infer1 = keras_model(test_input).numpy()
 
-        CommonLayerTest().compare_ie_results_with_framework(ov_infer1, {"Identity:0": wf_infer1}, eps)
+        assert CommonLayerTest().compare_ie_results_with_framework(ov_infer1, {"Identity:0": fw_infer1}, eps)
+        assert CommonLayerTest().compare_ie_results_with_framework(ov_infer1, {"Identity:0": [62.475, 47.48, 55.155003]}, eps)
 
         # Change value of variables in original model
         for val in keras_model.variables:
@@ -708,12 +709,63 @@ class TestMoConvertTF(CommonMOConvertTest):
 
         # Check model inference
         ov_infer2 = cmp_model(test_input)
-        wf_infer2 = keras_model(test_input).numpy()
+        fw_infer2 = keras_model(test_input).numpy()
 
-        CommonLayerTest().compare_ie_results_with_framework(ov_infer2, {"Identity:0": wf_infer2}, eps)
+        assert CommonLayerTest().compare_ie_results_with_framework(ov_infer2, {"Identity:0": fw_infer2}, eps)
+        assert CommonLayerTest().compare_ie_results_with_framework(ov_infer2, {"Identity:0": [ 0., 8.65, 17.3]}, eps)
 
-        # Check that first and second inference produce different results
-        assert np.max(np.abs(ov_infer1['Identity:0']-ov_infer2['Identity:0'])) > 1.0
+
+
+    def test_memory_loss(self, ie_device, precision, ir_version, temp_dir):
+        import tensorflow as tf
+        tf.compat.v1.reset_default_graph()
+
+        from openvino.tools.mo import convert_model
+        from openvino.runtime import compile_model
+        import gc
+
+        with tf.compat.v1.Session() as sess:
+            inp1 = tf.compat.v1.placeholder(tf.float32, [3], 'Input')
+            const = tf.constant([0.5, 2.3, 7.8], dtype=tf.float32)
+            res = inp1 + const
+
+            tf.compat.v1.global_variables_initializer()
+            tf_graph = sess.graph  # tf.Graph
+
+        if precision == 'FP32':
+            eps = 1e-4
+        else:
+            eps = 5e-2
+
+
+        test_input = np.array([2.1, 7.3, 4.6]).astype(np.float32)
+
+        # Convert model to OV
+        ov_model = convert_model(tf_graph)
+        cmp_model = compile_model(ov_model)
+
+        # Check model inference
+        ov_infer1 = cmp_model(test_input, ie_device)
+
+        feed_dict = {"Input:0": test_input}
+        with tf.compat.v1.Session(graph=tf_graph) as sess:
+            fw_infer1 = sess.run('add:0', feed_dict=feed_dict)
+
+        assert CommonLayerTest().compare_ie_results_with_framework(ov_infer1, {"add:0": fw_infer1}, eps)
+        assert CommonLayerTest().compare_ie_results_with_framework(ov_infer1, {"add:0": [2.6, 9.6, 12.4]}, eps)
+
+        # run Garbage collector
+        gc.collect()
+
+        # Check model inference
+        ov_infer2 = cmp_model(test_input, ie_device)
+
+        feed_dict = {"Input:0": test_input}
+        with tf.compat.v1.Session(graph=tf_graph) as sess:
+            fw_infer2 = sess.run('add:0', feed_dict=feed_dict)
+
+        assert CommonLayerTest().compare_ie_results_with_framework(ov_infer2, {"add:0": fw_infer2}, eps)
+        assert CommonLayerTest().compare_ie_results_with_framework(ov_infer1, {"add:0": [2.6, 9.6, 12.4]}, eps)
 
 
 class TFConvertTest(unittest.TestCase):

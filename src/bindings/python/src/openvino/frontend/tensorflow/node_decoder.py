@@ -51,10 +51,15 @@ class TFGraphNodeDecoder(DecoderBase):
                                                     "Expected tf.Operation, got {}".format(type(operation))
         self.m_operation = operation
         self.m_inner_graph = inner_graph
+
+        # Copies value from inner buffer of TF_Operation to NodeDef class.
+        self.m_node_def = self.m_operation.node_def
+
+        # TODO: Create parameter in convert_model() for turing on/off shared memory, ticket: 114971
         self.m_shared_memory = True
         if self.m_operation.type == "Const":
             # Copies tensor value to parsed TensorProto
-            value = self.m_operation.node_def.attr["value"].tensor
+            value = self.m_node_def.attr["value"].tensor
 
             # As the tensor was copied, shared memory may be lost
             # after destruction of GraphIteratorTFGraph() when convert_model() finishes its work.
@@ -69,11 +74,11 @@ class TFGraphNodeDecoder(DecoderBase):
                 self.m_parsed_content = (np.frombuffer(value.tensor_content,
                           dtype=dtype).reshape(shape))
             else:
-                # TODO: remove copy of content for cases when tensor value is not in tensor_content field
+                # TODO: remove copy of content for cases when tensor value is not in tensor_content field, ticket: 114797
                 self.m_parsed_content = tf.make_ndarray(value)
 
         if self.m_operation.type == "Placeholder":
-            data_type = self.m_operation.node_def.attr["dtype"].type
+            data_type = self.m_node_def.attr["dtype"].type
             if tf.dtypes.DType(data_type).name == "resource" and not self.m_inner_graph:
                 variable_value = TFGraphNodeDecoder.get_variable(self.m_operation)
                 if variable_value is not None:
@@ -85,7 +90,7 @@ class TFGraphNodeDecoder(DecoderBase):
 
     def get_op_type(self) -> str:
         if self.m_operation.type == "Placeholder":
-            type_attr = tf.dtypes.DType(self.m_operation.node_def.attr["dtype"].type)
+            type_attr = tf.dtypes.DType(self.m_node_def.attr["dtype"].type)
             if type_attr.name == "resource" and not self.m_inner_graph:
                 if TFGraphNodeDecoder.get_variable(self.m_operation) is not None:
                     return "Const"
@@ -108,11 +113,11 @@ class TFGraphNodeDecoder(DecoderBase):
 
     def get_attribute(self, name):
         if name == "shape" or name == "_output_shapes":
-            if self.m_operation.node_def.attr["shape"].shape.unknown_rank:
+            if self.m_node_def.attr["shape"].shape.unknown_rank:
                 return OVAny(PartialShape.dynamic())
-            shape_dims = self.m_operation.node_def.attr["shape"].shape.dim
+            shape_dims = self.m_node_def.attr["shape"].shape.dim
             shape = [dim.size for dim in shape_dims]
-            type_num = self.m_operation.node_def.attr["dtype"].type
+            type_num = self.m_node_def.attr["dtype"].type
             if type_num is not None and tf.dtypes.DType(type_num).name == "resource":
                 if self.m_inner_graph:
                     return OVAny(PartialShape.dynamic())
@@ -120,7 +125,7 @@ class TFGraphNodeDecoder(DecoderBase):
                 return OVAny(PartialShape(list(variable_value.shape)))
             return OVAny(PartialShape(shape))
         if name == "dtype":
-            type_num = self.m_operation.node_def.attr["dtype"].type
+            type_num = self.m_node_def.attr["dtype"].type
             if tf.dtypes.DType(type_num).name == "resource":
                 if not self.m_inner_graph:
                     variable_value = TFGraphNodeDecoder.get_variable(self.m_operation)
@@ -137,7 +142,7 @@ class TFGraphNodeDecoder(DecoderBase):
             ov_tensor = Tensor(self.m_parsed_content, shared_memory=self.m_shared_memory)
             ov_tensor = OVAny(ov_tensor)
             return ov_tensor
-        attr_value = self.m_operation.node_def.attr[name]
+        attr_value = self.m_node_def.attr[name]
 
         return tf_attr_to_ov(attr_value)
 
