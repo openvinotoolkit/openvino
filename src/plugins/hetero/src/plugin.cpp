@@ -85,7 +85,7 @@ ov::SupportedOpsMap ov::hetero::Plugin::query_model(const std::shared_ptr<const 
     OPENVINO_ASSERT(model, "OpenVINO Model is empty!");
 
     Configuration full_config{properties, m_cfg};    
-    DeviceProperties properties_per_device = get_properties_per_device(full_config.device_priorities, full_config.GetDeviceProperties());
+    DeviceProperties properties_per_device = get_properties_per_device(full_config.device_priorities, full_config.get_device_properties());
 
     std::map<std::string, ov::SupportedOpsMap> query_results;
     for (auto&& it : properties_per_device) {
@@ -145,7 +145,7 @@ ov::Any ov::hetero::Plugin::get_property(const std::string& name, const ov::AnyM
         add_ro_properties(METRIC_KEY(IMPORT_EXPORT_SUPPORT), metrics);
         return to_string_vector(metrics);
     } else if (METRIC_KEY(SUPPORTED_CONFIG_KEYS) == name) {
-        return to_string_vector(full_config.GetSupported());
+        return to_string_vector(full_config.get_supported());
     } else if (ov::supported_properties == name) {
         auto ro_properties = default_ro_properties();
         auto rw_properties = default_rw_properties();
@@ -166,7 +166,7 @@ ov::Any ov::hetero::Plugin::get_property(const std::string& name, const ov::AnyM
     } else if (ov::device::capabilities == name) {
         return decltype(ov::device::capabilities)::value_type{{ov::device::capability::EXPORT_IMPORT}};
     } else {
-        return full_config.Get(name);
+        return full_config.get(name);
     }
 }
 

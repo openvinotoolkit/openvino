@@ -22,11 +22,11 @@ struct Configuration {
                            const Configuration& defaultCfg = {},
                            bool throwOnUnsupported = false);
 
-    ov::Any Get(const std::string& name) const;
-    std::vector<ov::PropertyName> GetSupported() const;
+    ov::Any get(const std::string& name) const;
+    std::vector<ov::PropertyName> get_supported() const;
 
-    ov::AnyMap GetHeteroProperties() const;
-    ov::AnyMap GetDeviceProperties() const;
+    ov::AnyMap get_hetero_properties() const;
+    ov::AnyMap get_device_properties() const;
 
     // Plugin configuration parameters
 

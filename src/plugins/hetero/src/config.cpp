@@ -28,7 +28,7 @@ Configuration::Configuration(const ov::AnyMap& config, const Configuration& defa
             device_priorities = value.as<std::string>();
         } else if (ov::exclusive_async_requests == key) {
             exclusive_async_requests = value.as<bool>();
-            // property should be passed to underlying devices as part of `GetDeviceConfig()`
+            // property should be passed to underlying devices as part of `GetDeviceProperties()`
             device_properties.emplace(key, value);
         } else {
             if (throwOnUnsupported)
@@ -38,7 +38,7 @@ Configuration::Configuration(const ov::AnyMap& config, const Configuration& defa
     }
 }
 
-ov::Any Configuration::Get(const std::string& name) const {
+ov::Any Configuration::get(const std::string& name) const {
     if (name == HETERO_CONFIG_KEY(DUMP_GRAPH_DOT)) {
         return {dump_graph};
     } else if (name == "TARGET_FALLBACK" || name == ov::device::priorities) {
@@ -50,7 +50,7 @@ ov::Any Configuration::Get(const std::string& name) const {
     }
 }
 
-std::vector<ov::PropertyName> Configuration::GetSupported() const {
+std::vector<ov::PropertyName> Configuration::get_supported() const {
     static const std::vector<ov::PropertyName> names = {HETERO_CONFIG_KEY(DUMP_GRAPH_DOT),
                                                         "TARGET_FALLBACK",
                                                         ov::device::priorities,
@@ -58,13 +58,13 @@ std::vector<ov::PropertyName> Configuration::GetSupported() const {
     return names;
 }
 
-ov::AnyMap Configuration::GetHeteroProperties() const {
+ov::AnyMap Configuration::get_hetero_properties() const {
     return {{HETERO_CONFIG_KEY(DUMP_GRAPH_DOT), dump_graph},
             {"TARGET_FALLBACK", device_priorities},
             {ov::device::priorities.name(), device_priorities},
             {ov::exclusive_async_requests.name(), exclusive_async_requests}};
 }
 
-ov::AnyMap Configuration::GetDeviceProperties() const {
+ov::AnyMap Configuration::get_device_properties() const {
     return device_properties;
 }

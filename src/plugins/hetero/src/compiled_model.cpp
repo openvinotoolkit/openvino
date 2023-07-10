@@ -52,8 +52,9 @@ ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model
         if (queryNetworkResult.empty()) {
             // Restore properties in order to pass "device priorities" together
             // with devices properties
-            auto full_properties = m_cfg.GetHeteroProperties();
-            full_properties.insert(m_cfg.GetDeviceProperties().begin(), m_cfg.GetDeviceProperties().end());
+            auto full_properties = m_cfg.get_hetero_properties();
+            for (const auto& property : m_cfg.get_device_properties())
+                full_properties[property.first] = property.second;
             queryNetworkResult = plugin->query_model(model, full_properties);
         }
 
@@ -397,7 +398,7 @@ ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model
             m_compiled_submodels[id].model = subFunctions[id]->clone();  // TODO vurusovs IS CLONE REQUIRED?
 
             auto metaDevices = get_hetero_plugin()->get_properties_per_device(m_compiled_submodels[id].device,
-                                                                              m_cfg.GetDeviceProperties());
+                                                                              m_cfg.get_device_properties());
 
             // disable caching for subgraphs, because the whole HETERO model is cached
             auto device_config = metaDevices[m_compiled_submodels[id].device];
@@ -469,7 +470,7 @@ ov::hetero::CompiledModel::CompiledModel(std::istream& model,
     FOREACH_CHILD (subnetworkNode, subnetworksNode, "compiled_submodel") {
         auto device = GetStrAttr(subnetworkNode, "device");
 
-        auto metaDevices = get_hetero_plugin()->get_properties_per_device(device, m_cfg.GetHeteroProperties());
+        auto metaDevices = get_hetero_plugin()->get_properties_per_device(device, m_cfg.get_device_properties());
         assert(metaDevices.size() == 1);
         auto& loadConfig = metaDevices[device];
 
@@ -601,7 +602,7 @@ ov::Any ov::hetero::CompiledModel::get_property(const std::string& name) const {
         add_ro_properties(METRIC_KEY(SUPPORTED_CONFIG_KEYS), metrics);
         return to_string_vector(metrics);
     } else if (EXEC_NETWORK_METRIC_KEY(SUPPORTED_CONFIG_KEYS) == name) {
-        return to_string_vector(m_cfg.GetSupported());
+        return to_string_vector(m_cfg.get_supported());
     } else if (ov::device::properties == name) {
         ov::AnyMap all_devices = {};
         for (auto&& comp_model_desc : m_compiled_submodels) {
@@ -644,7 +645,7 @@ ov::Any ov::hetero::CompiledModel::get_property(const std::string& name) const {
         }
         return decltype(ov::execution_devices)::value_type{device_names};
     }
-    return m_cfg.Get(name);
+    return m_cfg.get(name);
 }
 
 const std::vector<ov::Output<const ov::Node>>& ov::hetero::CompiledModel::inputs() const {
@@ -694,7 +695,7 @@ void ov::hetero::CompiledModel::export_model(std::ostream& model_stream) const {
     }
 
     auto heteroConfigsNode = heteroNode.append_child("hetero_config");
-    for (auto&& config : m_cfg.GetHeteroProperties()) {
+    for (auto&& config : m_cfg.get_hetero_properties()) {
         auto heteroConfigNode = heteroConfigsNode.append_child("config");
         heteroConfigNode.append_attribute("key").set_value(config.first.c_str());
         heteroConfigNode.append_attribute("value").set_value(config.second.as<std::string>().c_str());
