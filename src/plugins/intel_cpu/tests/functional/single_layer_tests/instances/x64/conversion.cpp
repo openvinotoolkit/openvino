@@ -16,11 +16,11 @@ namespace Conversion {
 namespace {
 
 std::vector<CPUSpecificParams> memForm4D_dynamic = {
-    CPUSpecificParams({nChw8c}, {nChw8c}, {}, "unknown"),
-    CPUSpecificParams({nChw16c}, {nChw16c}, {}, "unknown")
+    CPUSpecificParams({nChw8c}, {nChw8c}, {}, "ref"),
+    CPUSpecificParams({nChw16c}, {nChw16c}, {}, "ref")
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_ConvertCPULayerTest_Dynamic, ConvertCPULayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_ConvertCPULayerTest_blocked_Dynamic, ConvertCPULayerTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(inShapes_4D_dynamic()),
                                 ::testing::ValuesIn(precisions()),
@@ -62,7 +62,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvertCPULayerTest_BOOL_Dynamic, ConvertCPULayer
                                 ::testing::ValuesIn(inShapes_4D_dynamic()),
                                 ::testing::ValuesIn(precisions_floating_point),
                                 ::testing::Values(Precision::BOOL),
-                                ::testing::Values(CPUSpecificParams({nchw}, {nchw}, {}, "unknown"))),
+                                ::testing::Values(CPUSpecificParams({nchw}, {nchw}, {}, "ref"))),
                         ConvertCPULayerTest::getTestCaseName);
 
 }  // namespace
