@@ -7,15 +7,9 @@
 
 namespace ov {
 namespace intel_cpu {
-
-struct TransposeContext {
-    MemoryCPtr srcMemPtr;
-    MemoryPtr dstMemPtr;
-    int MB;
-};
-
+namespace {
 template <typename T>
-static void transpose_to_0312(const int MB, const MemoryCPtr& srcMemPtr, MemoryPtr& dstMemPtr) {
+void transpose_to_0312(const int MB, const MemoryCPtr& srcMemPtr, MemoryPtr& dstMemPtr) {
     const auto src_data = reinterpret_cast<const T*>(srcMemPtr->GetPtr());
     auto dst_data = reinterpret_cast<T*>(dstMemPtr->GetPtr());
 
@@ -40,7 +34,7 @@ static void transpose_to_0312(const int MB, const MemoryCPtr& srcMemPtr, MemoryP
 }
 
 template<typename T>
-static void transpose_to_04123(const int MB, const MemoryCPtr& srcMemPtr, MemoryPtr& dstMemPtr) {
+void transpose_to_04123(const int MB, const MemoryCPtr& srcMemPtr, MemoryPtr& dstMemPtr) {
     const auto src_data = reinterpret_cast<const T*>(srcMemPtr->GetPtr());
     auto dst_data = reinterpret_cast<T*>(dstMemPtr->GetPtr());
 
@@ -68,7 +62,7 @@ static void transpose_to_04123(const int MB, const MemoryCPtr& srcMemPtr, Memory
 }
 
 template<typename T>
-static void transpose_to_051234(const int MB, const MemoryCPtr& srcMemPtr, MemoryPtr& dstMemPtr) {
+void transpose_to_051234(const int MB, const MemoryCPtr& srcMemPtr, MemoryPtr& dstMemPtr) {
     const auto src_data = reinterpret_cast<const T*>(srcMemPtr->GetPtr());
     auto dst_data = reinterpret_cast<T*>(dstMemPtr->GetPtr());
 
@@ -98,6 +92,12 @@ static void transpose_to_051234(const int MB, const MemoryCPtr& srcMemPtr, Memor
     });
 }
 
+struct TransposeContext {
+    MemoryCPtr srcMemPtr;
+    MemoryPtr dstMemPtr;
+    int MB;
+};
+
 template<typename T>
 struct TransposeOptimizedEmitter {
     void operator()(TransposeContext& ctx) {
@@ -116,6 +116,7 @@ struct TransposeOptimizedEmitter {
         }
     }
 };
+}   // namespace
 
 void RefTransposeExecutor::exec(const std::vector<MemoryCPtr>& src, const std::vector<MemoryPtr>& dst, const int MB) {
     const size_t dataSize = src[0]->getDesc().getPrecision().size();

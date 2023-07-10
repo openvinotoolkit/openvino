@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "dnnl_transpose.hpp"
+#include "jit_transpose.hpp"
 
-void ov::intel_cpu::DNNLTransposeExecutor::exec(const std::vector<MemoryCPtr>& src, const std::vector<MemoryPtr>& dst, const int MB) {
+void ov::intel_cpu::JitTransposeExecutor::exec(const std::vector<MemoryCPtr>& src, const std::vector<MemoryPtr>& dst, const int MB) {
     if (!pKernel)
         IE_THROW() << "Could not execute. Kernel for Transpose node was not compiled.";
 
@@ -14,7 +14,7 @@ void ov::intel_cpu::DNNLTransposeExecutor::exec(const std::vector<MemoryCPtr>& s
     pKernel->execute(srcData, dstData, MB);
 }
 
-bool ov::intel_cpu::DNNLTransposeExecutor::init(const TransposeParams &transposeParams,
+bool ov::intel_cpu::JitTransposeExecutor::init(const TransposeParams &transposeParams,
                                                 const std::vector<MemoryDescPtr> &srcDescs,
                                                 const std::vector<MemoryDescPtr> &dstDescs, const dnnl::primitive_attr &attr) {
     if (transposeParams.transposeExecution != TransposeParams::NOT_REF) { return false; }

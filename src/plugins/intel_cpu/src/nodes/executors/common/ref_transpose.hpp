@@ -8,6 +8,7 @@
 
 namespace ov {
 namespace intel_cpu {
+//namespace {
 class RefTransposeExecutor : public TransposeExecutor {
 public:
     using TransposeExecutor::TransposeExecutor;
@@ -19,7 +20,7 @@ public:
     void exec(const std::vector<MemoryCPtr> &src, const std::vector<MemoryPtr> &dst, const int MB) override;
     impl_desc_type getImplType() const override { return implType; }
 private:
-    impl_desc_type implType = impl_desc_type::ref;
+    static const impl_desc_type implType = impl_desc_type::ref;
 };
 
 class RefTransposeExecutorBuilder : public TransposeExecutorBuilder {
@@ -35,5 +36,6 @@ public:
     }
 };
 
+//} // namespace
 } // namespace intel_cpu
 } // namespace ov

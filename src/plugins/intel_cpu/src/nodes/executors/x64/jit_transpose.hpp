@@ -9,7 +9,7 @@
 namespace ov {
 namespace intel_cpu {
 
-class DNNLTransposeExecutor : public TransposeExecutor {
+class JitTransposeExecutor : public TransposeExecutor {
 public:
     using TransposeExecutor::TransposeExecutor;
 
@@ -24,7 +24,7 @@ private:
     impl_desc_type implType = impl_desc_type::jit;
 };
 
-class DNNLTransposeExecutorBuilder : public TransposeExecutorBuilder {
+class JitTransposeExecutorBuilder : public TransposeExecutorBuilder {
 public:
     bool isSupported(const TransposeParams& transposeParams,
                      const std::vector<MemoryDescPtr>& srcDescs,
@@ -33,7 +33,7 @@ public:
     }
 
     TransposeExecutorPtr makeExecutor(const ExecutorContext::CPtr context) const override {
-        return std::make_shared<DNNLTransposeExecutor>(context);
+        return std::make_shared<JitTransposeExecutor>(context);
     }
 };
 

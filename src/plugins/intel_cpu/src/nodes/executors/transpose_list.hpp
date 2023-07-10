@@ -12,7 +12,7 @@
 #endif
 
 #include "common/ref_transpose.hpp"
-#include "dnnl/dnnl_transpose.hpp"
+#include "x64/jit_transpose.hpp"
 
 #include "onednn/iml_type_mapper.h"
 #include "common/primitive_cache.hpp"

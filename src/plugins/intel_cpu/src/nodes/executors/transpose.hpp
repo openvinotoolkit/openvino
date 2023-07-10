@@ -36,7 +36,7 @@ using TransposeExecutorCPtr = std::shared_ptr<const TransposeExecutor>;
 
 class TransposeExecutorBuilder {
 public:
-    ~TransposeExecutorBuilder() = default;
+    virtual ~TransposeExecutorBuilder() = default;
     virtual bool isSupported(const TransposeParams& transposeParams,
                              const std::vector<MemoryDescPtr>& srcDescs,
                              const std::vector<MemoryDescPtr>& dstDescs) const = 0;
