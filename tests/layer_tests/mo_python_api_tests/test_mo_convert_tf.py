@@ -589,34 +589,21 @@ def create_keras_layer_with_tf_function_call_no_signature_single_input(tmp_dir):
 
 def create_keras_layer_with_string_tensor(tmp_dir):
     import tensorflow as tf
-    # class LayerModel(tf.Module):
-    #     def __init__(self):
-    #         super(LayerModel, self).__init__()
-    #         self.var = tf.Variable("Text_1")
-    #         self.const = tf.constant("Text_2")
-    #
-    #     @tf.function
-    #     def __call__(self, input):
-    #         #out_dict = {'a': self.var, 'b': self.const, 'c': input}
-    #         out = tf.strings.join([self.var, self.const, input['input']])
-    #
-    #         return out
-    # model = LayerModel()
 
-    x = tf.keras.Input(shape=[1],name="input", dtype=tf.dtypes.string)
+    x = tf.keras.Input(shape=[1], name="input", dtype=tf.dtypes.int64)
     var = tf.Variable("Text_1")
     const = tf.constant("Text_2")
-    y =  tf.strings.join([x, var, const])
-    model = tf.keras.Model(inputs=[x], outputs=[y])
+    hash = tf.strings.to_hash_bucket([const, var], 3)
 
-    example_input = tf.constant("Input_text")
+    model = tf.keras.Model(inputs=[x], outputs=[hash + x])
+    example_input = tf.constant(3)
 
-    param1 = ov.opset8.parameter([1,2,3], dtype=np.float32)
-    const = ov.opset8.constant([0.5], dtype=np.float32)
-    sigm = ov.opset8.sigmoid(param1)
-    mul = ov.opset8.multiply(sigm, const)
-    parameter_list = [param1]
-    model_ref = Model([mul], parameter_list, "test")
+    param = ov.opset8.parameter([], dtype=np.int32)
+    conv = ov.opset8.convert(param, np.int64)
+    const = ov.opset8.constant([0, 2], dtype=np.int64)
+    add = ov.opset8.add(const, conv)
+    parameter_list = [param]
+    model_ref = Model([add], parameter_list, "test")
 
     return model, model_ref, {'example_input': example_input}
 
@@ -624,24 +611,24 @@ def create_keras_layer_with_string_tensor(tmp_dir):
 class TestMoConvertTF(CommonMOConvertTest):
     test_data = [
         # TF2
-        # create_keras_model,
-        # create_keras_layer,
-        # create_tf_function,
-        # create_tf_module,
-        # create_tf_checkpoint,
-        # create_keras_layer_dynamic,
-        # create_tf_module_dynamic,
-        # create_tf_module_layout_list,
-        # create_tf_stateful_partioned_call_net,
-        # create_keras_layer_with_example_input_1,
-        # create_keras_layer_with_example_input_2,
-        # create_keras_layer_with_input_shapes_case1,
-        # create_keras_layer_with_input_shapes_case2,
-        # create_keras_layer_with_input_shapes_case3,
-        # create_keras_layer_with_input_shapes_case4,
-        # create_keras_layer_with_tf_function_call,
-        # create_keras_layer_with_tf_function_call_no_signature,
-        # create_keras_layer_with_tf_function_call_no_signature_single_input,
+        create_keras_model,
+        create_keras_layer,
+        create_tf_function,
+        create_tf_module,
+        create_tf_checkpoint,
+        create_keras_layer_dynamic,
+        create_tf_module_dynamic,
+        create_tf_module_layout_list,
+        create_tf_stateful_partioned_call_net,
+        create_keras_layer_with_example_input_1,
+        create_keras_layer_with_example_input_2,
+        create_keras_layer_with_input_shapes_case1,
+        create_keras_layer_with_input_shapes_case2,
+        create_keras_layer_with_input_shapes_case3,
+        create_keras_layer_with_input_shapes_case4,
+        create_keras_layer_with_tf_function_call,
+        create_keras_layer_with_tf_function_call_no_signature,
+        create_keras_layer_with_tf_function_call_no_signature_single_input,
         create_keras_layer_with_string_tensor,
 
         # TF1
@@ -658,18 +645,18 @@ class TestMoConvertTF(CommonMOConvertTest):
         create_tf_checkpoint,
     ]
 
-    # @pytest.mark.parametrize("create_model", test_data_legacy)
-    # @pytest.mark.nightly
-    # @pytest.mark.precommit_tf_fe
-    # @pytest.mark.precommit
-    # def test_mo_import_from_memory_legacy_fe(self, create_model, ie_device, precision, ir_version,
-    #                                          temp_dir):
-    #     fw_model, graph_ref, mo_params = create_model(temp_dir)
-    #
-    #     test_params = {'input_model': fw_model, 'use_legacy_frontend': True}
-    #     if mo_params is not None:
-    #         test_params.update(mo_params)
-    #     self._test_by_ref_graph(temp_dir, test_params, graph_ref, compare_tensor_names=False)
+    @pytest.mark.parametrize("create_model", test_data_legacy)
+    @pytest.mark.nightly
+    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
+    def test_mo_import_from_memory_legacy_fe(self, create_model, ie_device, precision, ir_version,
+                                             temp_dir):
+        fw_model, graph_ref, mo_params = create_model(temp_dir)
+
+        test_params = {'input_model': fw_model, 'use_legacy_frontend': True}
+        if mo_params is not None:
+            test_params.update(mo_params)
+        self._test_by_ref_graph(temp_dir, test_params, graph_ref, compare_tensor_names=False)
 
     @pytest.mark.parametrize("create_model", test_data)
     @pytest.mark.nightly
