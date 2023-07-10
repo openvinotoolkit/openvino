@@ -13,8 +13,25 @@
 namespace ov {
 namespace proxy {
 
+/**
+ * @brief Proxy remote context implementation
+ * This class wraps hardware specific remote context and replace the context name
+ */
 class RemoteContext : public ov::IRemoteContext {
 public:
+    /**
+     * @brief Constructs the proxy remote context
+     *
+     * @param ctx hardware context
+     * @param dev_name device name without index
+     * @param dev_index device index if exists else 0
+     * @param has_index flag is true if device has an index and false in another case
+     * @param is_new_api flag reports which API is used
+     *
+     * These arguments are needed to support the difference between legacy and 2.0 APIs.
+     * In legacy API remote context doesn't contain the index in the name but Blob contains.
+     * In 2.0 API Tensor and Context always contain device index
+     */
     RemoteContext(ov::SoPtr<ov::IRemoteContext>&& ctx,
                   const std::string& dev_name,
                   size_t dev_index,

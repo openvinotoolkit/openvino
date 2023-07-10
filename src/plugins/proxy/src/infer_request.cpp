@@ -12,6 +12,7 @@
 #include "openvino/runtime/remote_context.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 #include "remote_context.hpp"
+#include "variable_state.hpp"
 
 ov::proxy::InferRequest::InferRequest(ov::SoPtr<ov::IAsyncInferRequest>&& request,
                                       const std::shared_ptr<const ov::ICompiledModel>& compiled_model)
@@ -79,7 +80,11 @@ void ov::proxy::InferRequest::set_tensors(const ov::Output<const ov::Node>& port
 }
 
 std::vector<std::shared_ptr<ov::IVariableState>> ov::proxy::InferRequest::query_state() const {
-    return m_infer_request->query_state();
+    auto states = m_infer_request->query_state();
+    for (auto&& state : states) {
+        state = std::make_shared<ov::proxy::VariableState>(state, m_infer_request._so);
+    }
+    return states;
 }
 
 const std::shared_ptr<const ov::ICompiledModel>& ov::proxy::InferRequest::get_compiled_model() const {

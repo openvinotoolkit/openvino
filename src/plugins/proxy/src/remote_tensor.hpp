@@ -12,6 +12,10 @@
 namespace ov {
 namespace proxy {
 
+/**
+ * @brief Proxy remote tensor class.
+ * This class wraps the original remote tensor and change the name of RemoteTensor
+ */
 class RemoteTensor : public ov::IRemoteTensor {
 public:
     RemoteTensor(const ov::SoPtr<ov::ITensor>& ctx, const std::string& dev_name);
