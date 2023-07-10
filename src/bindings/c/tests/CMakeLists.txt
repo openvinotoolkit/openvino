@@ -7,7 +7,7 @@ set(TARGET_NAME "InferenceEngineCAPITests")
 
 add_executable(${TARGET_NAME} ie_c_api_test.cpp test_model_repo.hpp test_model_repo.cpp)
 
-target_link_libraries(${TARGET_NAME} PRIVATE openvino_c commonTestUtils gtest_main)
+target_link_libraries(${TARGET_NAME} PRIVATE openvino_c common_test_utils gtest_main)
 
 if(ENABLE_AUTO OR ENABLE_MULTI)
     add_dependencies(${TARGET_NAME} openvino_auto_plugin)
@@ -34,7 +34,7 @@ endif()
 
 add_executable(${TARGET_NAME} ${SOURCES} ${HEADERS})
 target_link_libraries(${TARGET_NAME} PRIVATE openvino_c openvino::util
-    commonTestUtils gtest_main)
+    common_test_utils gtest_main)
 
 target_include_directories(${TARGET_NAME} PUBLIC
     $<BUILD_INTERFACE:${OPENVINO_API_SOURCE_DIR}/include>)

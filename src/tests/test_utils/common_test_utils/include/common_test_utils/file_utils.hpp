@@ -10,9 +10,9 @@
 #include <vector>
 #include <sys/stat.h>
 
-#include "test_constants.hpp"
-#include "w_dirent.h"
-#include "common_utils.hpp"
+#include "common_test_utils/test_constants.hpp"
+#include "common_test_utils/w_dirent.h"
+#include "common_test_utils/common_utils.hpp"
 
 #ifdef _WIN32
 #include <direct.h>
@@ -247,7 +247,7 @@ inline std::vector<std::string> splitStringByDelimiter(std::string paths, const 
     return splitPath;
 }
 
-inline std::string getModelFromTestModelZoo(const std::string& relModelPath);
+std::string getModelFromTestModelZoo(const std::string& relModelPath);
 
 inline std::vector<std::string> readListFiles(const std::vector<std::string>& filePaths) {
     std::vector<std::string> res;

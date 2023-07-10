@@ -18,7 +18,7 @@ addIeTarget(
         ${CMAKE_CURRENT_SOURCE_DIR}/src
     LINK_LIBRARIES
         PUBLIC
-            commonTestUtils
+            common_test_utils
             openvino::runtime
             openvino::runtime::dev
         PRIVATE

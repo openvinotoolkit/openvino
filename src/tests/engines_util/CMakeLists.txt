@@ -15,7 +15,7 @@ target_include_directories(engines_test_util
         "${CMAKE_CURRENT_SOURCE_DIR}"
         "${CMAKE_CURRENT_SOURCE_DIR}/.."
     PRIVATE
-        $<TARGET_PROPERTY:commonTestUtils,INTERFACE_INCLUDE_DIRECTORIES>)
+        $<TARGET_PROPERTY:common_test_utils,INTERFACE_INCLUDE_DIRECTORIES>)
 
 
 add_clang_format_target(engines_test_util_clang FOR_SOURCES ${ENGINES_UTIL_SRC})

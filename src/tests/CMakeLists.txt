@@ -28,6 +28,7 @@ ov_deprecated_no_errors()
 
 add_subdirectory(ngraph_helpers)
 add_subdirectory(ie_test_utils)
+add_subdirectory(test_utils)
 add_subdirectory(util)
 add_subdirectory(engines_util)
 

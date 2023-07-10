@@ -10,7 +10,7 @@
 #include <memory>
 #include <ngraph/ngraph.hpp>
 #include "matchers/matchers_manager.hpp"
-#include "functional_test_utils/include/functional_test_utils/summary/op_info.hpp"
+#include "functional_test_utils/summary/op_info.hpp"
 
 #include "utils/model_wrap_struct.hpp"
 

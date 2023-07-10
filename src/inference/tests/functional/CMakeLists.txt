@@ -44,6 +44,7 @@ ov_add_test_target(
         LINK_LIBRARIES
             gmock
             funcTestUtils
+            common_test_utils
         INCLUDES
             $<TARGET_PROPERTY:inference_engine_obj,SOURCE_DIR>/src
             ${CMAKE_CURRENT_SOURCE_DIR}

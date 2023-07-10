@@ -3,7 +3,7 @@
 //
 
 #include <gtest/gtest.h>
-#include "unicode_utils.hpp"
+#include "common_test_utils/unicode_utils.hpp"
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
