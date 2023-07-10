@@ -14,6 +14,7 @@
 
 #include "ngraph/distributed.hpp"
 #include "ngraph/env_util.hpp"
+#include "openvino/util/file_util.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -63,9 +64,6 @@ LogHelper::~LogHelper() {
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 const char* ngraph::trim_file_name(const char* const fname) {
-    static constexpr auto pattern = ConstString(OV_NATIVE_PARENT_PROJECT_ROOT_DIR);
-
-    const auto has_pattern_ptr = std::strstr(fname, pattern.get_ptr(0));
-    return has_pattern_ptr ? has_pattern_ptr + pattern.size() - 1 : fname;
+    return ov::util::trim_file_name(fname);
 }
 NGRAPH_SUPPRESS_DEPRECATED_END
