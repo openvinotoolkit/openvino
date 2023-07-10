@@ -296,7 +296,7 @@ def test_properties_ro(ov_property_ro, expected_value):
         ),
         (
             properties.intel_cpu.latency_threading_mode,
-            "CPU_LATENCY_THREADING_MODE",
+            "LATENCY_THREADING_MODE",
             (
                 (properties.intel_cpu.LatencyThreadingMode.PER_SOCKET, properties.intel_cpu.LatencyThreadingMode.PER_SOCKET),
             ),
