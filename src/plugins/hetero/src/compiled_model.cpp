@@ -49,8 +49,13 @@ ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model
             }
         }
 
-        if (queryNetworkResult.empty())
-            queryNetworkResult = plugin->query_model(model, m_cfg.GetHeteroProperties());
+        if (queryNetworkResult.empty()) {
+            // Restore properties in order to pass "device priorities" together
+            // with devices properties
+            auto full_properties = m_cfg.GetHeteroProperties();
+            full_properties.insert(m_cfg.GetDeviceProperties().begin(), m_cfg.GetDeviceProperties().end());
+            queryNetworkResult = plugin->query_model(model, full_properties);
+        }
 
         using Input = ov::Input<ov::Node>;
         using NodeSet = std::unordered_set<std::shared_ptr<ov::Node>>;
