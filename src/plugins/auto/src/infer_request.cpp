@@ -98,12 +98,7 @@ void ov::auto_plugin::InferRequest::set_tensor(const ov::Output<const ov::Node>&
 
 
 void ov::auto_plugin::InferRequest::infer() {
-    if (!m_shared_request && !m_scheduled_request)
-        OPENVINO_NOT_IMPLEMENTED;
-    if (m_shared_request)
-        m_shared_request->infer();
-    else
-        m_scheduled_request->infer();
+    OPENVINO_NOT_IMPLEMENTED;
 }
 
 std::vector<ov::ProfilingInfo> ov::auto_plugin::InferRequest::get_profiling_info() const {

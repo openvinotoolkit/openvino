@@ -29,3 +29,8 @@ void ov::auto_plugin::AsyncInferRequest::infer_thread_unsafe() {
 ov::auto_plugin::AsyncInferRequest::~AsyncInferRequest() {
     stop_and_wait();
 }
+
+void ov::auto_plugin::AsyncInferRequest::infer() {
+    start_async();
+    wait();
+}

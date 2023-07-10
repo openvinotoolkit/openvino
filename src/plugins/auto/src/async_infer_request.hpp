@@ -18,6 +18,7 @@ public:
                       const std::shared_ptr<ov::threading::ITaskExecutor>& callback_executor);
 
     ~AsyncInferRequest();
+    void infer() override;
     void infer_thread_unsafe() override;
     std::vector<ov::ProfilingInfo> get_profiling_info() const override;
 private:
