@@ -605,22 +605,10 @@ ov::Any ov::hetero::CompiledModel::get_property(const std::string& name) const {
         return to_string_vector(m_cfg.get_supported());
     } else if (ov::device::properties == name) {
         ov::AnyMap all_devices = {};
-        for (auto&& comp_model_desc : m_compiled_submodels) {
-            ov::AnyMap device_properties = {};
-            if (all_devices.count(comp_model_desc.device) == 0) {
-                auto device_supported_metrics =
-                    comp_model_desc.compiled_model->get_property(METRIC_KEY(SUPPORTED_METRICS));
-                for (auto&& property_name : device_supported_metrics.as<std::vector<std::string>>()) {
-                    device_properties[property_name] = comp_model_desc.compiled_model->get_property(property_name);
-                }
-                auto device_supported_configs =
-                    comp_model_desc.compiled_model->get_property(METRIC_KEY(SUPPORTED_CONFIG_KEYS));
-                for (auto&& property_name : device_supported_configs.as<std::vector<std::string>>()) {
-                    device_properties[property_name] = comp_model_desc.compiled_model->get_property(property_name);
-                }
-                all_devices[comp_model_desc.device] = device_properties;
-            }
-        }
+        for (auto&& comp_model_desc : m_compiled_submodels)
+            if (all_devices.count(comp_model_desc.device) == 0)
+                all_devices[comp_model_desc.device] =
+                    comp_model_desc.compiled_model->get_property(ov::supported_properties.name());
         return all_devices;
     } else if (ov::model_name == name) {
         return decltype(ov::model_name)::value_type(m_name);
