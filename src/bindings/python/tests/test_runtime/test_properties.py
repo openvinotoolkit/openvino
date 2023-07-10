@@ -289,7 +289,11 @@ def test_properties_ro(ov_property_ro, expected_value):
         (
             properties.intel_cpu.latency_threading_mode,
             "LATENCY_THREADING_MODE",
-            ((properties.intel_cpu.LatencyThreadingMode.PER_SOCKET, properties.intel_cpu.LatencyThreadingMode.PER_SOCKET),),
+            (
+                (properties.intel_cpu.LatencyThreadingMode.PER_NUMA_NODE, properties.intel_cpu.LatencyThreadingMode.PER_NUMA_NODE),
+                (properties.intel_cpu.LatencyThreadingMode.PER_SOCKET, properties.intel_cpu.LatencyThreadingMode.PER_SOCKET),
+                (properties.intel_cpu.LatencyThreadingMode.PER_PLATFORM, properties.intel_cpu.LatencyThreadingMode.PER_PLATFORM),
+            ),
         ),
         (
             properties.intel_auto.device_bind_buffer,
