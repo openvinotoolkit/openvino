@@ -111,7 +111,7 @@ from openvino.runtime.opset1.ops import not_equal
 from openvino.runtime.opset8.ops import nv12_to_bgr
 from openvino.runtime.opset8.ops import nv12_to_rgb
 from openvino.runtime.opset1.ops import one_hot
-from openvino.runtime.opset1.ops import pad
+from openvino.runtime.opset12.ops import pad
 from openvino.runtime.opset1.ops import parameter
 from openvino.runtime.opset1.ops import power
 from openvino.runtime.opset1.ops import prelu
