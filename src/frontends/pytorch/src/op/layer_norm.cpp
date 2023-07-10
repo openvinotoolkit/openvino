@@ -3,6 +3,7 @@
 //
 
 #include "openvino/frontend/pytorch/node_context.hpp"
+#include "openvino/op/util/framework_node.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/multiply.hpp"
@@ -36,6 +37,11 @@ OutputVector translate_layer_norm(const NodeContext& context) {
     // Input with index 5 is flag "cudnn_enabled" we can ignore it
     return {out_node};
 };
+
+OutputVector translate_layer_norm_fx(const NodeContext& context) {
+    auto output = translate_layer_norm(context);
+    return {context.mark_node(make_list_construct(output))};
+}
 
 }  // namespace op
 }  // namespace pytorch

@@ -94,22 +94,14 @@ class OpenVINOGraphModule(torch.nn.Module):
     def __call__(self, *args):
         if self.perm_fallback:
             return self.gm(*args)
-        tmp_fallback = False
-        for idx, input_data in enumerate(args): #subgraph.example_inputs):
-            if len(input_data.shape) == 0:
-                tmp_fallback = True;
-                break;
 
-        if tmp_fallback:
+        try:
+            result = openvino_execute(self.gm, *args, executor_parameters=self.executor_parameters, partition_id=self.partition_id)
+        except Exception as e:
+            self.perm_fallback = True
             return self.gm(*args)
-        else:
-            try:
-                result = openvino_execute(self.gm, *args, executor_parameters=self.executor_parameters, partition_id=self.partition_id)
-            except Exception as e:
-                self.perm_fallback = True
-                return self.gm(*args)
 
-            return result
+        return result
 
 
 def partition_graph(gm: GraphModule, use_python_fusion_cache: bool):
