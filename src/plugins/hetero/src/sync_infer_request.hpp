@@ -13,12 +13,14 @@
 
 #include "openvino/itt.hpp"
 #include "openvino/runtime/isync_infer_request.hpp"
+#include "openvino/runtime/iasync_infer_request.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 
 namespace ov {
 namespace hetero {
 
 class CompiledModel;
+class AsyncInferRequest;
 
 class InferRequest : public ov::ISyncInferRequest {
 public:
