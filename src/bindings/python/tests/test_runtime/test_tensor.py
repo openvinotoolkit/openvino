@@ -151,9 +151,21 @@ def test_init_with_numpy_copy_memory(ov_type, numpy_dtype):
 
 def test_init_with_node_port():
     param1 = ops.parameter(ov.Shape([1, 3, 2, 2]), dtype=np.float64)
-    t1 = Tensor(param1.output(0))
-    assert t1.shape == param1.shape
-    assert t1.element_type == param1.get_element_type()
+    param2 = ops.parameter(ov.Shape([1, 3]), dtype=np.float64)
+    param3 = ops.parameter(ov.PartialShape.dynamic(), dtype=np.float64)
+    ones_arr = np.ones(shape=(1, 3, 32, 32), dtype=np.float32)
+    tensor1 = Tensor(param1.output(0))
+    tensor2 = Tensor(param2.output(0), ones_arr)
+    tensor3 = Tensor(param3.output(0))
+    tensor4 = Tensor(param3.output(0), ones_arr)
+    assert tensor1.shape == param1.shape
+    assert tensor1.element_type == param1.get_element_type()
+    assert tensor2.shape == param2.shape
+    assert tensor2.element_type == param2.get_element_type()
+    assert tensor3.shape == ov.Shape([0])
+    assert tensor3.element_type == param3.get_element_type()
+    assert tensor4.shape == ov.Shape([0])
+    assert tensor4.element_type == param3.get_element_type()
 
 
 def test_init_with_roi_tensor():

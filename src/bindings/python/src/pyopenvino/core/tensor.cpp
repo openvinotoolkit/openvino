@@ -135,6 +135,12 @@ void regclass_Tensor(py::module m) {
 
     cls.def(py::init<ov::Output<ov::Node>>(), py::arg("node_port"));
 
+    cls.def(py::init([](ov::Output<ov::Node>& port, py::array& array) {
+                return ov::Tensor(port, const_cast<void*>(array.data(0)));
+            }),
+            py::arg("node_port"),
+            py::arg("array"));
+
     cls.def(py::init<ov::Tensor, ov::Coordinate, ov::Coordinate>(), py::arg("other"), py::arg("begin"), py::arg("end"));
 
     cls.def(py::init<ov::Tensor, std::vector<size_t>, std::vector<size_t>>(),
