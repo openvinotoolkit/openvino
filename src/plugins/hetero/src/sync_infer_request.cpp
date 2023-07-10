@@ -114,9 +114,3 @@ std::vector<ov::ProfilingInfo> ov::hetero::InferRequest::get_profiling_info() co
     }
     return info;
 }
-
-void ov::hetero::InferRequest::cancel() {
-    for (auto&& request : m_subrequests) {
-        request->cancel();
-    }
-}

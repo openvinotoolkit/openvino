@@ -22,8 +22,6 @@ public:
     void cancel() override;
 
 private:
-    std::function<void()> m_cancel_callback;
-
     std::shared_ptr<InferRequest> m_infer_request;
 };
 
