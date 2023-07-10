@@ -51,7 +51,11 @@ ov::Any Configuration::Get(const std::string& name) const {
 }
 
 std::vector<ov::PropertyName> Configuration::GetSupported() const {
-    return {HETERO_CONFIG_KEY(DUMP_GRAPH_DOT), "TARGET_FALLBACK", ov::device::priorities, ov::exclusive_async_requests};
+    static const std::vector<ov::PropertyName> names = {HETERO_CONFIG_KEY(DUMP_GRAPH_DOT),
+                                                        "TARGET_FALLBACK",
+                                                        ov::device::priorities,
+                                                        ov::exclusive_async_requests};
+    return names;
 }
 
 ov::AnyMap Configuration::GetHeteroProperties() const {
