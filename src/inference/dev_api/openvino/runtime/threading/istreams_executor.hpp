@@ -83,6 +83,7 @@ public:
             const bool enable_hyper_thread = true);  // no network specifics considered (only CPU's caps);
         static int get_hybrid_num_streams(std::map<std::string, std::string>& config, const int stream_mode);
         static void update_hybrid_custom_threads(Config& config);
+        static Config reserve_cpu_threads(const Config& initial);
 
         std::string _name;          //!< Used by `ITT` to name executor threads
         int _streams = 1;           //!< Number of streams.
@@ -102,13 +103,6 @@ public:
         int _small_core_offset = 0;         //!< Calculate small core start offset when binding cpu cores
         bool _enable_hyper_thread = true;   //!< enable hyper thread
         int _plugin_task = NOT_USED;
-        std::vector<std::vector<int>> _orig_proc_type_table;
-        std::vector<std::vector<int>> _proc_type_table;
-        std::vector<std::vector<int>> _streams_info_table;
-        std::vector<std::vector<int>> _stream_core_ids;
-        std::vector<int> _stream_ids;
-        bool _cpu_pinning = false;
-        bool _streams_changed = false;
         enum StreamMode { DEFAULT, AGGRESSIVE, LESSAGGRESSIVE };
         enum PreferredCoreType {
             ANY,
@@ -118,6 +112,12 @@ public:
                          // (for large #streams)
         } _threadPreferredCoreType =
             PreferredCoreType::ANY;  //!< In case of @ref HYBRID_AWARE hints the TBB to affinitize
+
+        std::vector<std::vector<int>> _streams_info_table = {};
+        std::vector<std::vector<int>> _stream_processor_ids;
+        std::vector<int> _stream_numa_node_ids;
+        bool _cpu_reservation = false;
+        bool _streams_changed = false;
 
         /**
          * @brief      A constructor with arguments
@@ -138,7 +138,9 @@ public:
                int threadBindingStep = 1,
                int threadBindingOffset = 0,
                int threads = 0,
-               PreferredCoreType threadPreferredCoreType = PreferredCoreType::ANY)
+               PreferredCoreType threadPreferredCoreType = PreferredCoreType::ANY,
+               std::vector<std::vector<int>> streamsInfoTable = {},
+               bool cpuReservation = false)
             : _name{name},
               _streams{streams},
               _threadsPerStream{threadsPerStream},
@@ -146,7 +148,9 @@ public:
               _threadBindingStep{threadBindingStep},
               _threadBindingOffset{threadBindingOffset},
               _threads{threads},
-              _threadPreferredCoreType(threadPreferredCoreType) {}
+              _threadPreferredCoreType(threadPreferredCoreType),
+              _streams_info_table{streamsInfoTable},
+              _cpu_reservation{cpuReservation} {}
     };
 
     /**
@@ -167,11 +171,46 @@ public:
     virtual int get_numa_node_id() = 0;
 
     /**
+     * @brief Return the id of current socket
+     * @return `ID` of current socket, or throws exceptions if called not from stream thread
+     */
+    virtual int get_socket_id() = 0;
+
+    /**
      * @brief Execute the task in the current thread using streams executor configuration and constraints
      * @param task A task to start
      */
     virtual void execute(Task task) = 0;
 };
+
+enum StreamCreateType {
+    STREAM_WITHOUT_PARAM = 0,  // new task_arena with no parameters, no threads binding
+    STREAM_WITH_CORE_TYPE,     // new task_arena with core type, threads binding with core type
+    STREAM_WITH_NUMA_ID,       // new task_arena with numa node id, threads bingding with numa node id
+    STREAM_WITH_OBSERVE        // new task_arena with no parameters, threads binding with observe
+};
+
+/**
+ * @brief      Get current stream information
+ * @param[in]  stream_id stream id
+ * @param[in]  cpu_reservation cpu reservation
+ * @param[in]  org_proc_type_table available processors in the platform
+ * @param[in]  streams_info_table streams information table
+ * @param[in]  stream_numa_node_ids numa_node_ids sorted by stream id
+ * @param[in,out]  stream_nums the list of number of streams which is used to access streams_info_table
+ * @param[out]  stream_type stream create type
+ * @param[out]  concurrency the number of threads created at the same time
+ * @param[out]  core_type core type
+ * @param[out]  numa_node_id numa node id
+ */
+void get_cur_stream_info(const int stream_id,
+                         const bool cpu_reservation,
+                         const std::vector<std::vector<int>> org_proc_type_table,
+                         const std::vector<std::vector<int>> streams_info_table,
+                         StreamCreateType& stream_type,
+                         int& concurrency,
+                         int& core_type,
+                         int& numa_node_id);
 
 }  // namespace threading
 }  // namespace ov

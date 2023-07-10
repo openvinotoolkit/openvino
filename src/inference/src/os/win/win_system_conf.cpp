@@ -38,6 +38,7 @@ CPU::CPU() {
                              _cores,
                              _proc_type_table,
                              _cpu_mapping_table);
+    _org_proc_type_table = _proc_type_table;
 }
 
 void parse_processor_info_win(const char* base_ptr,

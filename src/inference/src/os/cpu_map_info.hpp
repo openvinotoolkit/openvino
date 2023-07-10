@@ -24,15 +24,23 @@ public:
     int _numa_nodes = 0;
     int _sockets = 0;
     int _cores = 0;
+    std::vector<std::vector<int>> _org_proc_type_table;
     std::vector<std::vector<int>> _proc_type_table;
     std::vector<std::vector<int>> _cpu_mapping_table;
     std::mutex _cpu_mutex;
-    int _plugin_status = PLUGIN_USED_START;
+    std::mutex _plugin_mutex;
     int _socket_idx = 0;
     int _num_threads = 0;
 };
 
 CPU& cpu_info();
+
+void reserve_cpu_by_streams_info(const std::vector<std::vector<int>> _streams_info_table,
+                                 const std::vector<std::vector<int>> _cpu_mapping_table,
+                                 const std::vector<std::vector<int>> _proc_type_table,
+                                 const int _numa_nodes,
+                                 std::vector<std::vector<int>>& _stream_processors,
+                                 const int _cpu_status);
 
 #ifdef __linux__
 /**

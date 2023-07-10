@@ -17,7 +17,7 @@
 #include "ie_icore.hpp"
 #include "ie_plugin_config.hpp"
 #include "ie_system_conf.h"
-#include "threading/ie_cpu_streams_info.hpp"
+#include "openvino/runtime/threading/cpu_streams_info.hpp"
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
 

@@ -52,7 +52,6 @@ void make_config(StreamGenerateionTestCase& test_data, ov::intel_cpu::Config& co
     config.streamExecutorConfig._streams_changed = test_data.input_stream_changed;
     config.streamExecutorConfig._threads = test_data.input_thread;
     config.streamExecutorConfig._threadBindingType = test_data.input_binding_type;
-    config.streamExecutorConfig._orig_proc_type_table = test_data.input_proc_type_table;
 }
 
 class StreamGenerationTests : public CommonTestUtils::TestsCommon,
@@ -63,11 +62,15 @@ public:
         ov::intel_cpu::Config config;
         make_config(test_data, config);
 
-        ov::intel_cpu::generate_stream_info(test_data.input_stream, nullptr, config, test_data.input_model_prefer);
+        auto proc_type_table = ov::intel_cpu::generate_stream_info(test_data.input_stream,
+                                                                   nullptr,
+                                                                   config,
+                                                                   test_data.input_proc_type_table,
+                                                                   test_data.input_model_prefer);
 
         ASSERT_EQ(test_data.output_stream_info_table, config.streamExecutorConfig._streams_info_table);
-        ASSERT_EQ(test_data.output_proc_type_table, config.streamExecutorConfig._proc_type_table);
-        ASSERT_EQ(test_data.output_cpu_value, config.streamExecutorConfig._cpu_pinning);
+        ASSERT_EQ(test_data.output_proc_type_table, proc_type_table);
+        ASSERT_EQ(test_data.output_cpu_value, config.streamExecutorConfig._cpu_reservation);
         ASSERT_EQ(test_data.output_ht_value, config.enableHyperThreading);
         ASSERT_EQ(test_data.output_type, config.schedulingCoreType);
         ASSERT_EQ(test_data.output_pm_hint,

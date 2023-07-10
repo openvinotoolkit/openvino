@@ -13,12 +13,12 @@
 #include "cpu_map_scheduling.hpp"
 #include "graph.h"
 #include "ie_system_conf.h"
+#include "openvino/runtime/threading/cpu_streams_info.hpp"
 #include "openvino/runtime/threading/istreams_executor.hpp"
 #include "performance_heuristics.hpp"
-#include "threading/ie_cpu_streams_info.hpp"
 
-using namespace InferenceEngine;
 using namespace ov;
+using namespace threading;
 
 #define INIT_VAL -100
 
@@ -355,12 +355,12 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
 int get_model_prefer_threads(const int num_streams,
                              const std::vector<std::vector<int>> proc_type_table,
                              const std::shared_ptr<ngraph::Function>& ngraphFunc,
-                             const InferenceEngine::IStreamsExecutor::Config streamExecutorConfig) {
+                             const ov::threading::IStreamsExecutor::Config streamExecutorConfig) {
     const int sockets = get_num_numa_nodes();
     auto model_prefer = 0;
     // latency
     if (num_streams <= sockets && num_streams > 0) {
-        if (streamExecutorConfig._threadBindingType == IStreamsExecutor::ThreadBindingType::HYBRID_AWARE) {
+        if (proc_type_table[0][EFFICIENT_CORE_PROC] > 0 && proc_type_table[0][MAIN_CORE_PROC] > 0) {
             bool fp_intesive = !ov::op::util::has_op_with_type<ngraph::op::FakeQuantize>(ngraphFunc);
             const int int8_threshold = 4;  // ~relative efficiency of the VNNI-intensive code for Big vs Little cores;
             const int fp32_threshold = 2;  // ~relative efficiency of the AVX2 fp32 code for Big vs Little cores;
@@ -396,7 +396,7 @@ int get_model_prefer_threads(const int num_streams,
         const float L2_cache_size = dnnl::utils::get_cache_size(2 /*level*/, true /*per core */);
         ov::MemBandwidthPressure networkToleranceForLowCache =
             ov::MemBandwidthPressureTolerance(ngraphFunc, L2_cache_size, memThresholdAssumeLimitedForISA);
-        model_prefer = IStreamsExecutor::Config::StreamMode::DEFAULT;
+        model_prefer = ov::threading::IStreamsExecutor::Config::StreamMode::DEFAULT;
         if (networkToleranceForLowCache.max_mem_tolerance == ov::MemBandwidthPressure::UNKNOWN) {
             if ((networkToleranceForLowCache.ratio_compute_convs == ov::MemBandwidthPressure::ALL) ||
                 (networkToleranceForLowCache.ratio_compute_deconvs == ov::MemBandwidthPressure::ALL)) {
@@ -418,25 +418,24 @@ int get_model_prefer_threads(const int num_streams,
     return model_prefer;
 }
 
-void generate_stream_info(const int streams,
-                          const std::shared_ptr<ngraph::Function>& ngraphFunc,
-                          Config& config,
-                          int preferred_nthreads_per_stream) {
+std::vector<std::vector<int>> generate_stream_info(const int streams,
+                                                   const std::shared_ptr<ngraph::Function>& ngraphFunc,
+                                                   Config& config,
+                                                   std::vector<std::vector<int>>& proc_type_table,
+                                                   int preferred_nthreads_per_stream) {
     int model_prefer_threads = preferred_nthreads_per_stream;
     InferenceEngine::IStreamsExecutor::Config& executor_config = config.streamExecutorConfig;
-    auto& orig_proc_type_table = executor_config._orig_proc_type_table;
-    std::vector<std::vector<int>> proc_type_table =
-        apply_scheduling_core_type(config.schedulingCoreType, orig_proc_type_table);
+
+    proc_type_table = apply_scheduling_core_type(config.schedulingCoreType, proc_type_table);
     proc_type_table = apply_hyper_threading(config.enableHyperThreading,
                                             config.changedHyperThreading,
                                             config.perfHintsConfig.ovPerfHint,
                                             proc_type_table);
-    executor_config._proc_type_table = proc_type_table;
-    executor_config._cpu_pinning = get_cpu_pinning(config.enableCpuPinning,
-                                                   config.changedCpuPinning,
-                                                   streams,
-                                                   executor_config._threadBindingType,
-                                                   proc_type_table);
+    executor_config._cpu_reservation = get_cpu_pinning(config.enableCpuPinning,
+                                                       config.changedCpuPinning,
+                                                       streams,
+                                                       executor_config._threadBindingType,
+                                                       proc_type_table);
     if (-1 == preferred_nthreads_per_stream) {
         model_prefer_threads = get_model_prefer_threads(streams, proc_type_table, ngraphFunc, executor_config);
     }
@@ -449,37 +448,17 @@ void generate_stream_info(const int streams,
                                                                  config.perfHintsConfig.ovPerfHint,
                                                                  config.latencyThreadingMode,
                                                                  proc_type_table);
+    return proc_type_table;
 }
 
-void get_num_streams(const int streams,
-                     const std::shared_ptr<ngraph::Function>& ngraphFunc,
-                     Config& config) {
+void get_num_streams(const int streams, const std::shared_ptr<ngraph::Function>& ngraphFunc, Config& config) {
     InferenceEngine::IStreamsExecutor::Config& executor_config = config.streamExecutorConfig;
-    std::vector<int> stream_ids;
-    std::string log = "[ streams info ]";
-    std::vector<std::string> core_type_str = {" Any core: ", " PCore: ", " ECore: ", " Logical core: "};
+    std::vector<std::vector<int>> proc_type_table = get_proc_type_table();
 
-    std::vector<std::vector<int>> orig_proc_type_table = get_proc_type_table();
+    generate_stream_info(streams, ngraphFunc, config, proc_type_table);
 
-    executor_config._orig_proc_type_table = orig_proc_type_table;
-    generate_stream_info(streams, ngraphFunc, config);
-
-    executor_config._stream_core_ids = reserve_available_cpus(executor_config._streams_info_table);
+    executor_config = InferenceEngine::IStreamsExecutor::Config::reserve_cpu_threads(executor_config);
     executor_config._threadsPerStream = executor_config._streams_info_table[0][THREADS_PER_STREAM];
-    executor_config._streams = 0;
-    executor_config._threads = 0;
-    for (size_t i = 0; i < executor_config._streams_info_table.size(); i++) {
-        executor_config._streams += executor_config._streams_info_table[i][NUMBER_OF_STREAMS];
-        executor_config._threads += executor_config._streams_info_table[i][NUMBER_OF_STREAMS] *
-                                    executor_config._streams_info_table[i][THREADS_PER_STREAM];
-        stream_ids.insert(stream_ids.end(), executor_config._streams_info_table[i][NUMBER_OF_STREAMS], i);
-        log += core_type_str[executor_config._streams_info_table[i][PROC_TYPE]] +
-               std::to_string(executor_config._streams_info_table[i][NUMBER_OF_STREAMS]) + "(" +
-               std::to_string(executor_config._streams_info_table[i][THREADS_PER_STREAM]) + ")";
-    }
-    executor_config._stream_ids = stream_ids;
-    log += " Total: " + std::to_string(executor_config._streams) + "(" + std::to_string(executor_config._threads) + ")";
-    DEBUG_LOG(log);
 }
 }  // namespace intel_cpu
 }  // namespace ov

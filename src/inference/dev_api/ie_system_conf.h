@@ -13,6 +13,7 @@
 #include <vector>
 
 #include "openvino/runtime/system_conf.hpp"
+#include "openvino/runtime/threading/cpu_streams_info.hpp"
 
 namespace InferenceEngine {
 
@@ -157,14 +158,6 @@ using ov::is_cpu_map_available;
 using ov::get_num_numa_nodes;
 
 /**
- * @brief      Set flag bit 'Used' of CPU
- * @ingroup    ie_dev_api_system_conf
- * @param[in]  cpu_ids cpus in cup_mapping.
- * @param[in]  used flag bit
- */
-using ov::set_cpu_used;
-
-/**
  * @brief      Returns number of CPU cores on Linux/Windows
  * @ingroup    ie_dev_api_system_conf
  * @param[in]  plugin_task plugin task.
@@ -173,12 +166,38 @@ using ov::set_cpu_used;
 using ov::get_proc_type_table;
 
 /**
+ * @brief      Returns original number of CPU cores on Linux/Windows
+ * @ingroup    ie_dev_api_system_conf
+ * @param[in]  plugin_task plugin task.
+ * @return     Number of original CPU cores with core_type.
+ */
+using ov::get_org_proc_type_table;
+
+/**
  * @brief      Get and reserve available cpu ids
  * @ingroup    ie_dev_api_system_conf
  * @param[in]  streams_info_table streams information table.
- * @return     Array of available cpu ids.
+ * @param[in]  stream_processors processors grouped in stream
+ * @param[in]  stream_numa_node_ids numa_node_ids sorted in stream
+ * @param[in]  cpu_status set cpu status
  */
 using ov::reserve_available_cpus;
+
+/**
+ * @brief      Set flag bit 'Used' of CPU
+ * @ingroup    ie_dev_api_system_conf
+ * @param[in]  cpu_ids cpus in cup_mapping.
+ * @param[in]  used flag bit
+ */
+using ov::set_cpu_used;
+
+/**
+ * @brief      Get socket id by current numa node id
+ * @ingroup    ie_dev_api_system_conf
+ * @param[in]  numa_node_id numa node id
+ * @return     socket id
+ */
+using ov::get_socket_by_numa_node;
 
 /**
  * @brief      This enum contains definition of each columns in processor type table which bases on cpu core types. Will

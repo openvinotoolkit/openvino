@@ -163,6 +163,13 @@ OPENVINO_RUNTIME_API int get_num_numa_nodes();
 OPENVINO_RUNTIME_API std::vector<std::vector<int>> get_proc_type_table();
 
 /**
+ * @brief      Returns a table of original number of processor types on Linux/Windows
+ * @ingroup    ie_dev_api_system_conf
+ * @return     A table about number of CPU cores of different types defined with ColumnOfProcessorTypeTable
+ */
+OPENVINO_RUNTIME_API std::vector<std::vector<int>> get_org_proc_type_table();
+
+/**
  * @enum       ColumnOfProcessorTypeTable
  * @brief      This enum contains definition of each columns in processor type table which bases on cpu core types. Will
  * extend to support other CPU core type like ARM.
@@ -192,25 +199,29 @@ enum ColumnOfProcessorTypeTable {
     PROC_TYPE_TABLE_SIZE = 6   //!< Size of processor type table
 };
 
+#define NUMA_ALL -1
+
 /**
  * @enum       ProcessorUseStatus
  * @brief      Definition of CPU_MAP_USED_FLAG column in CPU mapping table.
  */
 enum ProcessorUseStatus {
-    NOT_USED = -1,           //!< Processor is not bound to thread
-    CPU_USED = 1,            //!< CPU is in using
-    PLUGIN_USED_START = 100  //!< Plugin other than CPU needs to use. If more GPUs use CPUs, the CPU_MAP_USED_FLAG is
-                             //!< accumulated from PLUGIN_USED_START. For example: GPU.0:100, GPU.1:101
+    NOT_USED = -1,  //!< Processor is not bound to thread
+    CPU_USED = 1,   //!< CPU is in using
 };
 
 /**
  * @brief      Get and reserve available cpu ids
  * @ingroup    ie_dev_api_system_conf
  * @param[in]  streams_info_table streams information table.
- * @return     Array of available cpu ids.
+ * @param[in]  stream_processors processors grouped in stream
+ * @param[in]  stream_numa_node_ids numa_node_ids sorted in stream
+ * @param[in]  cpu_status set cpu status
  */
-OPENVINO_RUNTIME_API std::vector<std::vector<int>> reserve_available_cpus(
-    const std::vector<std::vector<int>> streams_info_table);
+OPENVINO_RUNTIME_API void reserve_available_cpus(const std::vector<std::vector<int>> streams_info_table,
+                                                 std::vector<std::vector<int>>& stream_processors,
+                                                 std::vector<int>& stream_numa_node_ids,
+                                                 const int cpu_status = NOT_USED);
 
 /**
  * @brief      Set CPU_MAP_USED_FLAG of cpu_mapping
@@ -219,6 +230,14 @@ OPENVINO_RUNTIME_API std::vector<std::vector<int>> reserve_available_cpus(
  * @param[in]  used update CPU_MAP_USED_FLAG of cpu_mapping with this flag bit
  */
 OPENVINO_RUNTIME_API void set_cpu_used(const std::vector<int>& cpu_ids, const int used);
+
+/**
+ * @brief      Get socket id by current numa node id
+ * @ingroup    ie_dev_api_system_conf
+ * @param[in]  numa_node_id numa node id
+ * @return     socket id
+ */
+OPENVINO_RUNTIME_API int get_socket_by_numa_node(int numa_node_id);
 
 /**
  * @enum       ColumnOfCPUMappingTable
