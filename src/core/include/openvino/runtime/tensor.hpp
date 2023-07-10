@@ -52,8 +52,8 @@ class VariableValue;
  */
 class OPENVINO_API Tensor {
 protected:
-    std::shared_ptr<ITensor> _impl;          //!< Shared pointer to internal tensor representation
-    std::vector<std::shared_ptr<void>> _so;  //!< Reference to dynamically loaded library
+    std::shared_ptr<ITensor> _impl;  //!< Shared pointer to internal tensor representation
+    std::shared_ptr<void> _so;       //!< Reference to dynamically loaded library
 
     /**
      * @brief Constructs Tensor from the initialized std::shared_ptr
@@ -61,7 +61,7 @@ protected:
      * @param so Plugin to use. This is required to ensure that Tensor can work properly even if plugin object is
      * destroyed.
      */
-    Tensor(const std::shared_ptr<ITensor>& impl, const std::vector<std::shared_ptr<void>>& so);
+    Tensor(const std::shared_ptr<ITensor>& impl, const std::shared_ptr<void>& so);
 
     friend class ov::Core;
     friend class ov::CoreImpl;

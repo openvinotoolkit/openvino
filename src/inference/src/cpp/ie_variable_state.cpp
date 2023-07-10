@@ -66,8 +66,7 @@ VariableState::~VariableState() {
     _impl = {};
 }
 
-VariableState::VariableState(const std::shared_ptr<ov::IVariableState>& impl,
-                             const std::vector<std::shared_ptr<void>>& so)
+VariableState::VariableState(const std::shared_ptr<ov::IVariableState>& impl, const std::shared_ptr<void>& so)
     : _impl{impl},
       _so{so} {
     OPENVINO_ASSERT(_impl != nullptr, "VariableState was not initialized.");
