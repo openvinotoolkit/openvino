@@ -46,19 +46,12 @@ public:
 
     std::shared_ptr<ov::IAsyncInferRequest> create_infer_request() const override;
 
-    std::vector<std::pair<uint64_t /*submodel_idx*/, uint64_t /*tensor_idx*/>> m_inputs_to_submodel_inputs,
-        m_outputs_to_submodel_outputs;
-    std::map<std::pair<uint64_t /*submodel_idx*/, uint64_t /*tensor_idx*/>,
-             std::pair<uint64_t /*submodel_idx*/, uint64_t /*tensor_idx*/>>
-        m_submodels_input_to_prev_output;
-
-protected:
-    std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override;
-
 private:
     friend class InferRequest;
 
     std::shared_ptr<const Plugin> get_hetero_plugin() const;
+
+    std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override;
 
     Configuration m_cfg;
     std::shared_ptr<ov::Model> m_model;
@@ -66,6 +59,11 @@ private:
     const bool m_loaded_from_cache;
     std::vector<ov::Output<const ov::Node>> m_compiled_inputs;
     std::vector<ov::Output<const ov::Node>> m_compiled_outputs;
+    std::vector<std::pair<uint64_t /*submodel_idx*/, uint64_t /*tensor_idx*/>> m_inputs_to_submodel_inputs,
+        m_outputs_to_submodel_outputs;
+    std::map<std::pair<uint64_t /*submodel_idx*/, uint64_t /*tensor_idx*/>,
+             std::pair<uint64_t /*submodel_idx*/, uint64_t /*tensor_idx*/>>
+        m_submodels_input_to_prev_output;
 
     struct NetworkDesc {
         std::string _device;
