@@ -647,20 +647,20 @@ void ov::hetero::CompiledModel::export_model(std::ostream& model_stream) const {
     heteroNode.append_attribute("name").set_value(m_name.c_str());
 
     auto inputs_map_node = heteroNode.append_child("inputs_to_submodels_inputs");
-    for (auto&& it : m_inputs_to_submodels_inputs) {
+    for (const auto& it : m_inputs_to_submodels_inputs) {
         auto xml_node = inputs_map_node.append_child("pair");
         xml_node.append_attribute("submodel_idx").set_value(it.first);
         xml_node.append_attribute("node_idx").set_value(it.second);
     }
     auto outputs_map_node = heteroNode.append_child("outputs_to_submodels_outputs");
-    for (auto&& it : m_outputs_to_submodels_outputs) {
+    for (const auto& it : m_outputs_to_submodels_outputs) {
         auto xml_node = outputs_map_node.append_child("pair");
         xml_node.append_attribute("submodel_idx").set_value(it.first);
         xml_node.append_attribute("node_idx").set_value(it.second);
     }
 
     auto submodels_input_to_prev_output_node = heteroNode.append_child("submodels_input_to_prev_output");
-    for (auto&& it : m_submodels_input_to_prev_output) {
+    for (const auto& it : m_submodels_input_to_prev_output) {
         auto xml_node = submodels_input_to_prev_output_node.append_child("record");
         xml_node.append_attribute("in_submodel_idx").set_value(it.first.first);
         xml_node.append_attribute("in_node_idx").set_value(it.first.second);
@@ -669,7 +669,7 @@ void ov::hetero::CompiledModel::export_model(std::ostream& model_stream) const {
     }
 
     auto subnetworksNode = heteroNode.append_child("compiled_submodels");
-    for (auto&& comp_model_desc : m_compiled_submodels) {
+    for (const auto& comp_model_desc : m_compiled_submodels) {
         auto sub_comp_model = comp_model_desc.compiled_model;
         OPENVINO_ASSERT(sub_comp_model);
 
@@ -678,7 +678,7 @@ void ov::hetero::CompiledModel::export_model(std::ostream& model_stream) const {
     }
 
     auto heteroConfigsNode = heteroNode.append_child("hetero_config");
-    for (auto&& config : m_cfg.get_hetero_properties()) {
+    for (const auto& config : m_cfg.get_hetero_properties()) {
         auto heteroConfigNode = heteroConfigsNode.append_child("config");
         heteroConfigNode.append_attribute("key").set_value(config.first.c_str());
         heteroConfigNode.append_attribute("value").set_value(config.second.as<std::string>().c_str());
@@ -688,7 +688,7 @@ void ov::hetero::CompiledModel::export_model(std::ostream& model_stream) const {
     doc.reset();
     model_stream << std::endl;
 
-    for (auto&& comp_model_desc : m_compiled_submodels) {
+    for (const auto& comp_model_desc : m_compiled_submodels) {
         if (get_plugin()->get_core()->device_supports_model_caching(comp_model_desc.device)) {
             comp_model_desc.compiled_model->export_model(model_stream);
         } else {
