@@ -9,6 +9,7 @@ import sys
 import numpy as np
 
 import openvino.runtime as ov
+import openvino.runtime.opset11 as ops
 from openvino.runtime import Tensor
 from openvino.helpers import pack_data, unpack_data
 
@@ -146,6 +147,13 @@ def test_init_with_numpy_copy_memory(ov_type, numpy_dtype):
     assert np.array_equal(ov_tensor.data, arr)
     assert ov_tensor.size == arr.size
     assert ov_tensor.byte_size == arr.nbytes
+
+
+def test_init_with_node_port():
+    param1 = ops.parameter(ov.Shape([1, 3, 2, 2]), dtype=np.float64)
+    t1 = Tensor(param1.output(0))
+    assert t1.shape == param1.shape
+    assert t1.element_type == param1.get_element_type()
 
 
 def test_init_with_roi_tensor():
@@ -378,3 +386,43 @@ def test_stride_calculation():
 
     elements = (ov_tensor.shape[1] * ov_tensor.shape[2] * ov_tensor.shape[3])
     assert ov_tensor.strides[0] == elements * ov_tensor.get_element_type().size
+
+
+@pytest.mark.parametrize("dtype", [
+    (np.uint8),
+    (np.int8),
+    (np.int16),
+    (np.uint16),
+    (np.int32),
+    (np.uint32),
+    (np.int64),
+    (np.uint64),
+    (np.float16),
+    (np.float32),
+    (np.float64),
+])
+@pytest.mark.parametrize("element_type", [
+    (ov.Type.u8),
+    (ov.Type.i8),
+    (ov.Type.i16),
+    (ov.Type.u16),
+    (ov.Type.i32),
+    (ov.Type.u32),
+    (ov.Type.i64),
+    (ov.Type.u64),
+])
+def test_copy_to(dtype, element_type):
+    tensor = ov.Tensor(shape=ov.Shape([3, 2, 2]), type=element_type)
+    target_tensor = ov.Tensor(shape=ov.Shape([3, 2, 2]), type=element_type)
+
+    ones_arr = np.ones(list(tensor.shape), dtype)
+    tensor.data[:] = ones_arr
+
+    zeros = np.zeros(list(target_tensor.shape), dtype)
+    target_tensor.data[:] = zeros
+
+    tensor.copy_to(target_tensor)
+    assert tensor.shape == target_tensor.shape
+    assert tensor.element_type == target_tensor.element_type
+    assert tensor.byte_size == target_tensor.byte_size
+    assert np.array_equal(tensor.data, target_tensor.data)

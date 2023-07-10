@@ -133,6 +133,8 @@ void regclass_Tensor(py::module m) {
             py::arg("type"),
             py::arg("shape"));
 
+    cls.def(py::init<ov::Output<ov::Node>>(), py::arg("node_port"));
+
     cls.def(py::init<ov::Tensor, ov::Coordinate, ov::Coordinate>(), py::arg("other"), py::arg("begin"), py::arg("end"));
 
     cls.def(py::init<ov::Tensor, std::vector<size_t>, std::vector<size_t>>(),
@@ -246,6 +248,25 @@ void regclass_Tensor(py::module m) {
         R"(
             Sets Tensor's shape.
         )");
+
+    cls.def("is_continuous",
+            &ov::Tensor::is_continuous,
+            R"(
+            Reports whether the tensor is continuous or not.
+
+            :return: true if tensor is continuous 
+            :rtype: bool
+        )");
+
+    cls.def(
+        "copy_to",
+        [](ov::Tensor& self, ov::Tensor& dst) {
+            return self.copy_to(dst);
+        },
+        py::arg("target_tensor"),
+        R"(
+        Copy tensor, destination tensor should have the same element type and shape
+    )");
 
     cls.def_property("shape",
                      &ov::Tensor::get_shape,
