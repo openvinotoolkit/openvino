@@ -263,6 +263,9 @@ jobs:
   - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_inference_unit_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-InferenceUnit.xml
     displayName: 'Inference Unit Tests'
 
+  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_proxy_plugin_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-OVProxyTests.xml
+    displayName: 'OV Proxy Plugin Tests'
+
   - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_conditional_compilation_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-ConditionalCompilation.xml
     displayName: 'Conditional Compilation Tests'
 

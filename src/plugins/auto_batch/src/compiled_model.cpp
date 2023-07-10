@@ -219,5 +219,6 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
 void CompiledModel::export_model(std::ostream& model) const {
     OPENVINO_NOT_IMPLEMENTED;
 }
+
 }  // namespace autobatch_plugin
 }  // namespace ov

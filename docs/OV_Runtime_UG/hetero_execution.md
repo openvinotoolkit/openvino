@@ -48,18 +48,18 @@ Randomly selecting operations and setting affinities may lead to decrease in mod
 
 .. tab-set::
 
-   .. tab-item:: C++
-      :sync: cpp
-
-      .. doxygensnippet:: docs/snippets/ov_hetero.cpp
-         :language: cpp
-         :fragment: [set_manual_affinities]
-
    .. tab-item:: Python
       :sync: py
 
       .. doxygensnippet:: docs/snippets/ov_hetero.py
          :language: Python
+         :fragment: [set_manual_affinities]
+
+   .. tab-item:: C++
+      :sync: cpp
+
+      .. doxygensnippet:: docs/snippets/ov_hetero.cpp
+         :language: cpp
          :fragment: [set_manual_affinities]
 
 
@@ -74,18 +74,18 @@ It does not take into account device peculiarities such as the inability to infe
 
 .. tab-set::
 
-   .. tab-item:: C++
-      :sync: cpp
-
-      .. doxygensnippet:: docs/snippets/ov_hetero.cpp
-         :language: cpp
-         :fragment: [compile_model]
-
    .. tab-item:: Python
       :sync: py
 
       .. doxygensnippet:: docs/snippets/ov_hetero.py
          :language: Python
+         :fragment: [compile_model]
+
+   .. tab-item:: C++
+      :sync: cpp
+
+      .. doxygensnippet:: docs/snippets/ov_hetero.cpp
+         :language: cpp
          :fragment: [compile_model]
 
 
@@ -97,18 +97,18 @@ In some cases you may need to consider manually adjusting affinities which were 
 
 .. tab-set::
 
-   .. tab-item:: C++
-      :sync: cpp
-
-      .. doxygensnippet:: docs/snippets/ov_hetero.cpp
-         :language: cpp
-         :fragment: [fix_automatic_affinities]
-
    .. tab-item:: Python
       :sync: py
 
       .. doxygensnippet:: docs/snippets/ov_hetero.py
          :language: Python
+         :fragment: [fix_automatic_affinities]
+
+   .. tab-item:: C++
+      :sync: cpp
+
+      .. doxygensnippet:: docs/snippets/ov_hetero.cpp
+         :language: cpp
          :fragment: [fix_automatic_affinities]
 
 
@@ -126,18 +126,18 @@ If you want different devices in Hetero execution to have different device-speci
 
 .. tab-set::
 
-   .. tab-item:: C++
-      :sync: cpp
-
-      .. doxygensnippet:: docs/snippets/ov_hetero.cpp
-         :language: cpp
-         :fragment: [configure_fallback_devices]
-
    .. tab-item:: Python
       :sync: py
 
       .. doxygensnippet:: docs/snippets/ov_hetero.py
          :language: Python
+         :fragment: [configure_fallback_devices]
+
+   .. tab-item:: C++
+      :sync: cpp
+
+      .. doxygensnippet:: docs/snippets/ov_hetero.cpp
+         :language: cpp
          :fragment: [configure_fallback_devices]
 
 

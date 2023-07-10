@@ -6,6 +6,7 @@
 
 #include "itt.hpp"
 #include "openvino/core/validation_util.hpp"
+#include "openvino/op/util/pad_base.hpp"
 #include "openvino/opsets/opset10.hpp"
 
 using namespace ov::opset10;
@@ -108,7 +109,7 @@ bool ov::pass::ReverseShapeAndTypeInfer::run_on_model(const std::shared_ptr<ov::
         } else if (std::dynamic_pointer_cast<DeformableConvolution>(op)) {
             is_changed |= inherit_output_rank(op, {0, 1, 2, 3});
             is_changed |= inherit_output_type(op, {0, 1, 2, 3});
-        } else if (std::dynamic_pointer_cast<Pad>(op)) {
+        } else if (std::dynamic_pointer_cast<ov::op::util::PadBase>(op)) {
             // Shape of pads_begin and pads_end must match rank of input
             if (op->get_input_partial_shape(0).rank().is_dynamic()) {
                 auto pads_begin_shape = op->get_input_partial_shape(1);
