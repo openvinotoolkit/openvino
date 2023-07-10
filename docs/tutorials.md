@@ -235,9 +235,9 @@ Demos that demonstrate inference on a particular model.
    +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
    | `236-stable-diffusion-v2 <notebooks/236-stable-diffusion-v2-infinite-zoom-with-output.html>`__                                | Text-to-image generation and Infinite Zoom with Stable Diffusion v2 and OpenVINO™.                                                         | |n236-img1|                               |
    +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
-   | `236-stable-diffusion-v2 <notebooks/236-stable-diffusion-v2-optimum-demo-comparison-with-output.html>`__                      | Stable Diffusion v2.1 using Optimum-Intel OpenVINO and multiple Intel Hardware.                                                            | |n236-img2|                               |
+   | `236-stable-diffusion-v2 <notebooks/236-stable-diffusion-v2-optimum-demo-comparison-with-output.html>`__                      | Stable Diffusion v2.1 using Optimum-Intel OpenVINO and multiple Intel Hardware.                                                            | |n236-img4|                               |
    +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
-   | `236-stable-diffusion-v2 <notebooks/236-stable-diffusion-v2-optimum-demo-with-output.html>`__                                 | Stable Diffusion v2.1 using Optimum-Intel OpenVINO.                                                                                        | |n236-img3|                               |
+   | `236-stable-diffusion-v2 <notebooks/236-stable-diffusion-v2-optimum-demo-with-output.html>`__                                 | Stable Diffusion v2.1 using Optimum-Intel OpenVINO.                                                                                        | |n236-img4|                               |
    +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
    | `236-stable-diffusion-v2 <notebooks/236-stable-diffusion-v2-text-to-image-demo-with-output.html>`__                           | Stable Diffusion Text-to-Image Demo.                                                                                                       | |n236-img4|                               |
    +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
@@ -482,12 +482,8 @@ Made with `contributors-img <https://contrib.rocks>`__.
    :target: https://user-images.githubusercontent.com/29454499/224541412-9d13443e-0e42-43f2-8210-aa31820c5b44.png
 .. |n236-img1| image:: https://user-images.githubusercontent.com/29454499/228882108-25c1f65d-4c23-4e1d-8ba4-f6164280a3e3.gif
    :target: https://user-images.githubusercontent.com/29454499/228882108-25c1f65d-4c23-4e1d-8ba4-f6164280a3e3.gif
-.. |n236-img2| image:: ./notebooks/236-stable-diffusion-v2-optimum-demo-comparison-with-output_files/236-stable-diffusion-v2-optimum-demo-comparison-with-output_7_5.png
-   :target: ./notebooks/236-stable-diffusion-v2-optimum-demo-comparison-with-output_files/236-stable-diffusion-v2-optimum-demo-comparison-with-output_7_5.png
-.. |n236-img3| image:: ./notebooks/236-stable-diffusion-v2-optimum-demo-with-output_files/236-stable-diffusion-v2-optimum-demo-with-output_13_1.png
-   :target: ./notebooks/236-stable-diffusion-v2-optimum-demo-with-output_files/236-stable-diffusion-v2-optimum-demo-with-output_13_1.png
-.. |n236-img4| image:: ./notebooks/236-stable-diffusion-v2-text-to-image-demo-with-output_files/236-stable-diffusion-v2-text-to-image-demo-with-output_23_0.png
-   :target: ./notebooks/236-stable-diffusion-v2-text-to-image-demo-with-output_files/236-stable-diffusion-v2-text-to-image-demo-with-output_23_0.png
+.. |n236-img4| image:: https://user-images.githubusercontent.com/1720147/229231281-065641fd-53ea-4940-8c52-b1eebfbaa7fa.png
+   :target: https://user-images.githubusercontent.com/1720147/229231281-065641fd-53ea-4940-8c52-b1eebfbaa7fa.png
 .. |n237-img1| image:: https://user-images.githubusercontent.com/29454499/231468849-1cd11e68-21e2-44ed-8088-b792ef50c32d.png
    :target: https://user-images.githubusercontent.com/29454499/231468849-1cd11e68-21e2-44ed-8088-b792ef50c32d.png
 .. |n238-img1| image:: https://user-images.githubusercontent.com/29454499/241643886-dfcf3c48-8d50-4730-ae28-a21595d9504f.png
@@ -532,6 +528,7 @@ Made with `contributors-img <https://contrib.rocks>`__.
 .. |n002| image:: https://mybinder.org/badge_logo.svg
    :target: https://mybinder.org/v2/gh/openvinotoolkit/openvino_notebooks/HEAD?filepath=notebooks%2F002-openvino-api%2F002-openvino-api.ipynb
 .. |c002| image:: https://camo.githubusercontent.com/84f0493939e0c4de4e6dbe113251b4bfb5353e57134ffd9fcab6b8714514d4d1/68747470733a2f2f636f6c61622e72657365617263682e676f6f676c652e636f6d2f6173736574732f636f6c61622d62616467652e737667
+   :width: 109
    :target: https://colab.research.google.com/github/openvinotoolkit/openvino_notebooks/blob/main/notebooks/002-openvino-api/002-openvino-api.ipynb
 .. |n003| image:: https://mybinder.org/badge_logo.svg
    :target: https://mybinder.org/v2/gh/openvinotoolkit/openvino_notebooks/HEAD?filepath=notebooks%2F003-hello-segmentation%2F003-hello-segmentation.ipynb
@@ -540,6 +537,7 @@ Made with `contributors-img <https://contrib.rocks>`__.
 .. |n101| image:: https://mybinder.org/badge_logo.svg
    :target: https://mybinder.org/v2/gh/openvinotoolkit/openvino_notebooks/HEAD?filepath=notebooks%2F101-tensorflow-to-openvino%2F101-tensorflow-to-openvino.ipynb
 .. |c102| image:: https://camo.githubusercontent.com/84f0493939e0c4de4e6dbe113251b4bfb5353e57134ffd9fcab6b8714514d4d1/68747470733a2f2f636f6c61622e72657365617263682e676f6f676c652e636f6d2f6173736574732f636f6c61622d62616467652e737667
+   :width: 109
    :target: https://colab.research.google.com/github/eaidova/openvino_notebooks/blob/ea/pt_tutorial/notebooks/102-pytorch-to-openvino/102-pytorch-to-openvino.ipynb
 .. |n103| image:: https://mybinder.org/badge_logo.svg
    :target: https://mybinder.org/v2/gh/openvinotoolkit/openvino_notebooks/HEAD?filepath=notebooks%2F103-paddle-onnx-to-openvino-classification%2F103-paddle-onnx-to-openvino-classification.ipynb
@@ -548,48 +546,60 @@ Made with `contributors-img <https://contrib.rocks>`__.
 .. |n106| image:: https://mybinder.org/badge_logo.svg
    :target: https://mybinder.org/v2/gh/openvinotoolkit/openvino_notebooks/HEAD?labpath=notebooks%2F106-auto-device%2F106-auto-device.ipynb
 .. |c107| image:: https://camo.githubusercontent.com/84f0493939e0c4de4e6dbe113251b4bfb5353e57134ffd9fcab6b8714514d4d1/68747470733a2f2f636f6c61622e72657365617263682e676f6f676c652e636f6d2f6173736574732f636f6c61622d62616467652e737667
+   :width: 109
    :target: https://colab.research.google.com/github/openvinotoolkit/openvino_notebooks/blob/main/notebooks/107-speech-recognition-quantization/107-speech-recognition-quantization-data2vec.ipynb
 .. |n110| image:: https://mybinder.org/badge_logo.svg
    :target: https://mybinder.org/v2/gh/openvinotoolkit/openvino_notebooks/HEAD?filepath=notebooks%2F110-ct-segmentation-quantize%2F110-ct-scan-live-inference.ipynb
 .. |c111| image:: https://camo.githubusercontent.com/84f0493939e0c4de4e6dbe113251b4bfb5353e57134ffd9fcab6b8714514d4d1/68747470733a2f2f636f6c61622e72657365617263682e676f6f676c652e636f6d2f6173736574732f636f6c61622d62616467652e737667
+   :width: 109
    :target: https://colab.research.google.com/github/openvinotoolkit/openvino_notebooks/blob/main/notebooks/111-yolov5-quantization-migration/111-yolov5-quantization-migration.ipynb
 .. |n113| image:: https://mybinder.org/badge_logo.svg
    :target: https://mybinder.org/v2/gh/openvinotoolkit/openvino_notebooks/HEAD?labpath=notebooks%2F113-image-classification-quantization%2F113-image-classification-quantization.ipynb
 .. |n115| image:: https://mybinder.org/badge_logo.svg
    :target: https://mybinder.org/v2/gh/openvinotoolkit/openvino_notebooks/HEAD?labpath=notebooks%2F115-async-api%2F115-async-api.ipynb
 .. |c115| image:: https://camo.githubusercontent.com/84f0493939e0c4de4e6dbe113251b4bfb5353e57134ffd9fcab6b8714514d4d1/68747470733a2f2f636f6c61622e72657365617263682e676f6f676c652e636f6d2f6173736574732f636f6c61622d62616467652e737667
+   :width: 109
    :target: https://colab.research.google.com/github/openvinotoolkit/openvino_notebooks/blob/main/notebooks/115-async-api/115-async-api.ipynb
 .. |c116| image:: https://camo.githubusercontent.com/84f0493939e0c4de4e6dbe113251b4bfb5353e57134ffd9fcab6b8714514d4d1/68747470733a2f2f636f6c61622e72657365617263682e676f6f676c652e636f6d2f6173736574732f636f6c61622d62616467652e737667
+   :width: 109
    :target: https://colab.research.google.com/github/openvinotoolkit/openvino_notebooks/blob/main/notebooks/116-sparsity-optimization/116-sparsity-optimization.ipynb
 .. |c119| image:: https://camo.githubusercontent.com/84f0493939e0c4de4e6dbe113251b4bfb5353e57134ffd9fcab6b8714514d4d1/68747470733a2f2f636f6c61622e72657365617263682e676f6f676c652e636f6d2f6173736574732f636f6c61622d62616467652e737667
+   :width: 109
    :target: https://colab.research.google.com/github/openvinotoolkit/openvino_notebooks/blob/main/notebooks/119-tflite-to-openvino/119-tflite-to-openvino.ipynb
 .. |n120| image:: https://mybinder.org/badge_logo.svg
    :target: https://mybinder.org/v2/gh/openvinotoolkit/openvino_notebooks/HEAD?filepath=notebooks%2F120-tensorflow-object-detection-to-openvino%2F120-tensorflow-object-detection-to-openvino.ipynb
 .. |c120| image:: https://camo.githubusercontent.com/84f0493939e0c4de4e6dbe113251b4bfb5353e57134ffd9fcab6b8714514d4d1/68747470733a2f2f636f6c61622e72657365617263682e676f6f676c652e636f6d2f6173736574732f636f6c61622d62616467652e737667
+   :width: 109
    :target: https://colab.research.google.com/github/openvinotoolkit/openvino_notebooks/blob/main/notebooks/120-tensorflow-object-detection-to-openvino/120-tensorflow-object-detection-to-openvino.ipynb
 .. |n209| image:: https://mybinder.org/badge_logo.svg
    :target: https://mybinder.org/v2/gh/openvinotoolkit/openvino_notebooks/HEAD?filepath=notebooks%2F209-handwritten-ocr%2F209-handwritten-ocr.ipynb
 .. |n201| image:: https://mybinder.org/badge_logo.svg
    :target: https://mybinder.org/v2/gh/openvinotoolkit/openvino_notebooks/HEAD?filepath=notebooks%2F201-vision-monodepth%2F201-vision-monodepth.ipynb
 .. |c201| image:: https://camo.githubusercontent.com/84f0493939e0c4de4e6dbe113251b4bfb5353e57134ffd9fcab6b8714514d4d1/68747470733a2f2f636f6c61622e72657365617263682e676f6f676c652e636f6d2f6173736574732f636f6c61622d62616467652e737667
+   :width: 109
    :target: https://colab.research.google.com/github/openvinotoolkit/openvino_notebooks/blob/main/notebooks/201-vision-monodepth/201-vision-monodepth.ipynb
 .. |n202i| image:: https://mybinder.org/badge_logo.svg
    :target: https://mybinder.org/v2/gh/openvinotoolkit/openvino_notebooks/HEAD?filepath=notebooks%2F202-vision-superresolution%2F202-vision-superresolution-image.ipynb
 .. |c202i| image:: https://camo.githubusercontent.com/84f0493939e0c4de4e6dbe113251b4bfb5353e57134ffd9fcab6b8714514d4d1/68747470733a2f2f636f6c61622e72657365617263682e676f6f676c652e636f6d2f6173736574732f636f6c61622d62616467652e737667
+   :width: 109
    :target: https://colab.research.google.com/github/openvinotoolkit/openvino_notebooks/blob/main/notebooks/202-vision-superresolution/202-vision-superresolution-image.ipynb
 .. |n202v| image:: https://mybinder.org/badge_logo.svg
    :target: https://mybinder.org/v2/gh/openvinotoolkit/openvino_notebooks/HEAD?filepath=notebooks%2F202-vision-superresolution%2F202-vision-superresolution-video.ipynb
 .. |c202v| image:: https://camo.githubusercontent.com/84f0493939e0c4de4e6dbe113251b4bfb5353e57134ffd9fcab6b8714514d4d1/68747470733a2f2f636f6c61622e72657365617263682e676f6f676c652e636f6d2f6173736574732f636f6c61622d62616467652e737667
+   :width: 109
    :target: https://colab.research.google.com/github/openvinotoolkit/openvino_notebooks/blob/main/notebooks/202-vision-superresolution/202-vision-superresolution-video.ipynb
 .. |n203| image:: https://mybinder.org/badge_logo.svg
    :target: https://mybinder.org/v2/gh/openvinotoolkit/openvino_notebooks/HEAD?labpath=notebooks%2F203-meter-reader%2F203-meter-reader.ipynb
 .. |c204| image:: https://camo.githubusercontent.com/84f0493939e0c4de4e6dbe113251b4bfb5353e57134ffd9fcab6b8714514d4d1/68747470733a2f2f636f6c61622e72657365617263682e676f6f676c652e636f6d2f6173736574732f636f6c61622d62616467652e737667
+   :width: 109
    :target: https://colab.research.google.com/github/openvinotoolkit/openvino_notebooks/blob/main/204-segmenter-semantic-segmentation/204-segmenter-semantic-segmentation.ipynb
 .. |n205| image:: https://mybinder.org/badge_logo.svg
    :target: https://mybinder.org/v2/gh/openvinotoolkit/openvino_notebooks/HEAD?filepath=notebooks%2F205-vision-background-removal%2F205-vision-background-removal.ipynb
 .. |c205| image:: https://camo.githubusercontent.com/84f0493939e0c4de4e6dbe113251b4bfb5353e57134ffd9fcab6b8714514d4d1/68747470733a2f2f636f6c61622e72657365617263682e676f6f676c652e636f6d2f6173736574732f636f6c61622d62616467652e737667
+   :width: 109
    :target: https://colab.research.google.com/github/openvinotoolkit/openvino_notebooks/blob/main/notebooks/205-vision-background-removal/205-vision-background-removal.ipynb
 .. |c206| image:: https://camo.githubusercontent.com/84f0493939e0c4de4e6dbe113251b4bfb5353e57134ffd9fcab6b8714514d4d1/68747470733a2f2f636f6c61622e72657365617263682e676f6f676c652e636f6d2f6173736574732f636f6c61622d62616467652e737667
+   :width: 109
    :target: https://colab.research.google.com/github/openvinotoolkit/openvino_notebooks/blob/main/notebooks/206-vision-paddlegan-anime/206-vision-paddlegan-anime.ipynb
 .. |n210| image:: https://mybinder.org/badge_logo.svg
    :target: https://mybinder.org/v2/gh/openvinotoolkit/openvino_notebooks/HEAD?filepath=notebooks%2F210-slowfast-video-recognition%2F210-slowfast-video-recognition.ipynb
@@ -610,28 +620,35 @@ Made with `contributors-img <https://contrib.rocks>`__.
 .. |n221| image:: https://mybinder.org/badge_logo.svg
    :target: https://mybinder.org/v2/gh/openvinotoolkit/openvino_notebooks/HEAD?labpath=notebooks%2F221-machine-translation%2F221-machine-translation.ipynb
 .. |c221| image:: https://camo.githubusercontent.com/84f0493939e0c4de4e6dbe113251b4bfb5353e57134ffd9fcab6b8714514d4d1/68747470733a2f2f636f6c61622e72657365617263682e676f6f676c652e636f6d2f6173736574732f636f6c61622d62616467652e737667
+   :width: 109
    :target: https://colab.research.google.com/github/openvinotoolkit/openvino_notebooks/blob/main/notebooks/221-machine-translation/221-machine-translation.ipynb
 .. |n222| image:: https://mybinder.org/badge_logo.svg
    :target: https://mybinder.org/v2/gh/openvinotoolkit/openvino_notebooks/HEAD?labpath=notebooks%2F222-vision-image-colorization%2F222-vision-image-colorization.ipynb
 .. |c223| image:: https://camo.githubusercontent.com/84f0493939e0c4de4e6dbe113251b4bfb5353e57134ffd9fcab6b8714514d4d1/68747470733a2f2f636f6c61622e72657365617263682e676f6f676c652e636f6d2f6173736574732f636f6c61622d62616467652e737667
+   :width: 109
    :target: https://colab.research.google.com/github/openvinotoolkit/openvino_notebooks/blob/main/notebooks/223-text-prediction/223-text-prediction.ipynb
 .. |c227| image:: https://camo.githubusercontent.com/84f0493939e0c4de4e6dbe113251b4bfb5353e57134ffd9fcab6b8714514d4d1/68747470733a2f2f636f6c61622e72657365617263682e676f6f676c652e636f6d2f6173736574732f636f6c61622d62616467652e737667
+   :width: 109
    :target: https://colab.research.google.com/github/openvinotoolkit/openvino_notebooks/blob/main/notebooks/227-whisper-subtitles-generation/227-whisper-subtitles-generation.ipynb
 .. |n229| image:: https://mybinder.org/badge_logo.svg
    :target: https://mybinder.org/v2/gh/openvinotoolkit/openvino_notebooks/HEAD?labpath=notebooks%2F229-distilbert-sequence-classification%2F229-distilbert-sequence-classification.ipynb
 .. |c230| image:: https://camo.githubusercontent.com/84f0493939e0c4de4e6dbe113251b4bfb5353e57134ffd9fcab6b8714514d4d1/68747470733a2f2f636f6c61622e72657365617263682e676f6f676c652e636f6d2f6173736574732f636f6c61622d62616467652e737667
+   :width: 109
    :target: https://colab.research.google.com/github/openvinotoolkit/openvino_notebooks/blob/main/notebooks/230-yolov8-optimization/230-yolov8-optimization.ipynb
 .. |c232| image:: https://camo.githubusercontent.com/84f0493939e0c4de4e6dbe113251b4bfb5353e57134ffd9fcab6b8714514d4d1/68747470733a2f2f636f6c61622e72657365617263682e676f6f676c652e636f6d2f6173736574732f636f6c61622d62616467652e737667
+   :width: 109
    :target: https://colab.research.google.com/github/openvinotoolkit/openvino_notebooks/blob/main/notebooks/232-clip-language-saliency-map/232-clip-language-saliency-map.ipynb
 .. |n243| image:: https://mybinder.org/badge_logo.svg
    :target: https://mybinder.org/v2/gh/openvinotoolkit/openvino_notebooks/HEAD?filepath=notebooks%2F243-tflite-selfie-segmentation%2F243-tflite-selfie-segmentation.ipynb
 .. |c243| image:: https://camo.githubusercontent.com/84f0493939e0c4de4e6dbe113251b4bfb5353e57134ffd9fcab6b8714514d4d1/68747470733a2f2f636f6c61622e72657365617263682e676f6f676c652e636f6d2f6173736574732f636f6c61622d62616467652e737667
    :target: https://colab.research.google.com/github/openvinotoolkit/openvino_notebooks/blob/main/notebooks/243-tflite-selfie-segmentation/243-tflite-selfie-segmentation.ipynb
 .. |c305| image:: https://camo.githubusercontent.com/84f0493939e0c4de4e6dbe113251b4bfb5353e57134ffd9fcab6b8714514d4d1/68747470733a2f2f636f6c61622e72657365617263682e676f6f676c652e636f6d2f6173736574732f636f6c61622d62616467652e737667
+   :width: 109
    :target: https://colab.research.google.com/github/openvinotoolkit/openvino_notebooks/blob/main/notebooks/305-tensorflow-quantization-aware-training/305-tensorflow-quantization-aware-training.ipynb
 .. |n401| image:: https://mybinder.org/badge_logo.svg
    :target: https://mybinder.org/v2/gh/openvinotoolkit/openvino_notebooks/HEAD?filepath=notebooks%2F401-object-detection-webcam%2F401-object-detection.ipynb
 .. |c401| image:: https://camo.githubusercontent.com/84f0493939e0c4de4e6dbe113251b4bfb5353e57134ffd9fcab6b8714514d4d1/68747470733a2f2f636f6c61622e72657365617263682e676f6f676c652e636f6d2f6173736574732f636f6c61622d62616467652e737667
+   :width: 109
    :target: https://colab.research.google.com/github/openvinotoolkit/openvino_notebooks/blob/main/notebooks/401-object-detection-webcam/401-object-detection.ipynb
 .. |n402| image:: https://mybinder.org/badge_logo.svg
    :target: https://mybinder.org/v2/gh/openvinotoolkit/openvino_notebooks/HEAD?filepath=notebooks%2F402-pose-estimation-webcam%2F402-pose-estimation.ipynb
@@ -640,16 +657,19 @@ Made with `contributors-img <https://contrib.rocks>`__.
 .. |n404| image:: https://mybinder.org/badge_logo.svg
    :target: https://mybinder.org/v2/gh/openvinotoolkit/openvino_notebooks/HEAD?filepath=notebooks%2F404-style-transfer-webcam%2F404-style-transfer.ipynb
 .. |c404| image:: https://camo.githubusercontent.com/84f0493939e0c4de4e6dbe113251b4bfb5353e57134ffd9fcab6b8714514d4d1/68747470733a2f2f636f6c61622e72657365617263682e676f6f676c652e636f6d2f6173736574732f636f6c61622d62616467652e737667
+   :width: 109
    :target: https://colab.research.google.com/github/openvinotoolkit/openvino_notebooks/blob/main/notebooks/404-style-transfer-webcam/404-style-transfer.ipynb
 .. |n405| image:: https://mybinder.org/badge_logo.svg
    :target: https://mybinder.org/v2/gh/openvinotoolkit/openvino_notebooks/HEAD?filepath=notebooks%2F405-paddle-ocr-webcam%2F405-paddle-ocr-webcam.ipynb
 .. |c405| image:: https://camo.githubusercontent.com/84f0493939e0c4de4e6dbe113251b4bfb5353e57134ffd9fcab6b8714514d4d1/68747470733a2f2f636f6c61622e72657365617263682e676f6f676c652e636f6d2f6173736574732f636f6c61622d62616467652e737667
+   :width: 109
    :target: https://colab.research.google.com/github/openvinotoolkit/openvino_notebooks/blob/main/notebooks/405-paddle-ocr-webcam/405-paddle-ocr-webcam.ipynb
 .. |n406| image:: https://mybinder.org/badge_logo.svg
    :target: https://mybinder.org/v2/gh/openvinotoolkit/openvino_notebooks.git/main?labpath=notebooks%2F406-3D-pose-estimation-webcam%2F406-3D-pose-estimation.ipynb
 .. |n407| image:: https://mybinder.org/badge_logo.svg
    :target: https://mybinder.org/v2/gh/openvinotoolkit/openvino_notebooks/HEAD?filepath=notebooks%2F407-person-tracking-webcam%2F407-person-tracking.ipynb
 .. |c407| image:: https://camo.githubusercontent.com/84f0493939e0c4de4e6dbe113251b4bfb5353e57134ffd9fcab6b8714514d4d1/68747470733a2f2f636f6c61622e72657365617263682e676f6f676c652e636f6d2f6173736574732f636f6c61622d62616467652e737667
+   :width: 109
    :target: https://colab.research.google.com/github/openvinotoolkit/openvino_notebooks/blob/main/notebooks/407-person-tracking-webcam/407-person-tracking.ipynb
 
 .. |binder logo| image:: https://mybinder.org/badge_logo.svg
