@@ -100,14 +100,16 @@ Follow these steps to make a pretrained TensorFlow BERT model reshapable over ba
 
 7. Open the file ``modeling.py`` in the text editor and delete lines 923-924. They should look like this:
 
-   .. code-block:: python
+   .. code-block:: py
+      :force:
 
        if not non_static_indexes:
            return shape
 
 8. Open the file ``run_classifier.py`` and insert the following code after the line 645:
 
-   .. code-block:: python
+   .. code-block:: py
+      :force:
 
        import os, sys
        import tensorflow as tf
@@ -124,7 +126,8 @@ Follow these steps to make a pretrained TensorFlow BERT model reshapable over ba
 
    Lines before the inserted code should look like this:
 
-   .. code-block:: python
+   .. code-block:: py
+      :force:
 
        (total_loss, per_example_loss, logits, probabilities) = create_model(
            bert_config, is_training, input_ids, input_mask, segment_ids, label_ids,

@@ -2,7 +2,7 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from typing import Any, Iterable, Union, Dict, Optional
+from typing import Any, Iterable, Union, Optional
 from pathlib import Path
 
 import numpy as np
@@ -152,6 +152,14 @@ class InferRequest(_InferRequestWrapper):
             ),
             userdata,
         )
+
+    def get_compiled_model(self) -> "CompiledModel":
+        """Gets the compiled model this InferRequest is using.
+
+        :return: a CompiledModel object
+        :rtype: openvino.runtime.ie_api.CompiledModel
+        """
+        return CompiledModel(super().get_compiled_model())
 
     @property
     def results(self) -> OVDict:

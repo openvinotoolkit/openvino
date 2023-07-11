@@ -38,7 +38,8 @@ The HSigmoid operation is introduced in the following `article <https://arxiv.or
 
 **Examples**
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
    <layer ... type="HSigmoid">
        <input>
