@@ -346,10 +346,10 @@ protected:
 /* Graph:
  *           input0   input1
  *              \     /
- *              MatMul0
- *                 |
- *              Reshape  input2
- *                 |     /
+ *              MatMul0   input2
+ *                 |        | 
+ *              Reshape  Reshape (optional)
+ *                 |    /
  *              Eltwise1  input3
  *                 |     /
  *              Eltwise2
