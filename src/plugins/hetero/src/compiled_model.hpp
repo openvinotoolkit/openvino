@@ -13,10 +13,6 @@ namespace hetero {
 class Plugin;
 class InferRequest;
 
-/**
- * @class CompiledModel
- * @brief Implementation of compiled model
- */
 class CompiledModel : public ov::ICompiledModel {
 public:
     CompiledModel(const std::shared_ptr<ov::Model>& model,
@@ -29,7 +25,6 @@ public:
                   const Configuration& cfg,
                   bool loaded_from_cache = false);
 
-    // Methods from a base class ov::ICompiledModel
     void export_model(std::ostream& model) const override;
 
     std::shared_ptr<const ov::Model> get_runtime_model() const override;
@@ -52,7 +47,6 @@ private:
     std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override;
 
     Configuration m_cfg;
-    std::shared_ptr<ov::Model> m_model;
     std::string m_name;
     const bool m_loaded_from_cache;
     std::vector<ov::Output<const ov::Node>> m_compiled_inputs;
@@ -68,7 +62,6 @@ private:
         std::shared_ptr<ov::Model> model;
         ov::SoPtr<ov::ICompiledModel> compiled_model;
     };
-
     std::vector<CompiledModelDesc> m_compiled_submodels;
 };
 }  // namespace hetero

@@ -26,7 +26,6 @@ ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model
                                          bool loaded_from_cache)
     : ov::ICompiledModel(model, plugin),
       m_cfg(cfg),
-      m_model(model),
       m_name(model->get_friendly_name()),
       m_loaded_from_cache(loaded_from_cache) {
     try {
@@ -430,7 +429,6 @@ ov::hetero::CompiledModel::CompiledModel(std::istream& model,
                                          bool loaded_from_cache)
     : ov::ICompiledModel(nullptr, plugin),
       m_cfg(cfg),
-      m_model(nullptr),
       m_name(),
       m_loaded_from_cache(loaded_from_cache) {
     std::string heteroXmlStr;
