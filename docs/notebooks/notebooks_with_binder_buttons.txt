@@ -27,10 +27,10 @@
 222-vision-image-colorization
 229-distilbert-sequence-classification
 243-tflite-selfie-segmentation
-401-object-detection-webcam
-402-pose-estimation-webcam
+401-object-detection
+402-pose-estimation
 403-action-recognition-webcam
-404-style-transfer-webcam
+404-style-transfer
 405-paddle-ocr-webcam
-406-3D-pose-estimation-webcam
-407-person-tracking-webcam
+406-3D-pose-estimation
+407-person-tracking

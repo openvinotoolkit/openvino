@@ -191,7 +191,7 @@ def main():
         shutil.copytree(sourcedir, outdir)
     # Step 3. Run processing on downloaded file
     nbp = NbProcessor(outdir)
-    buttons_list = nbp.fetch_binder_list('notebooks_with_buttons.txt')
+    buttons_list = nbp.fetch_binder_list('notebooks_with_binder_buttons.txt')
     cbuttons_list = nbp.fetch_colab_list('notebooks_with_colab_buttons.txt')
     nbp.add_binder(buttons_list, cbuttons_list)
     nbp.render_rst(outdir.joinpath(notebooks_docs))
