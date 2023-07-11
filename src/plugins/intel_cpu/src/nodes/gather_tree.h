@@ -38,7 +38,7 @@ private:
                   const MemoryPtr& parentIdxMemPtr,
                   const MemoryPtr& maxSeqLenMemPtr,
                   const MemoryPtr& endTokenMemPtr,
-                  MemoryPtr& dstMemPtr);
+                  const MemoryPtr& dstMemPtr);
 
     private:
         const int32_t maxTime;
