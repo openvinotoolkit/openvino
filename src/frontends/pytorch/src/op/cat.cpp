@@ -4,7 +4,6 @@
 
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/concat.hpp"
-#include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/parameter.hpp"
 #include "pt_framework_node.hpp"
 #include "utils.hpp"
