@@ -29,10 +29,10 @@ OutputVector group_norm(const Node& node) {
     size_t num_groups = static_cast<size_t>(node.get_attribute_value<int64_t>("num_groups"));
     float eps = node.get_attribute_value<float>("eps", 1e-6f);
 
-    if (scale.get_partial_shape().rank().is_static() && scale.get_partial_shape().size() != 1) {
+    if (!scale.get_partial_shape().rank().compatible(1)) {
         scale = std::make_shared<default_opset::Squeeze>(scale);
     }
-    if (bias.get_partial_shape().rank().is_static() && bias.get_partial_shape().size() != 1) {
+    if (!bias.get_partial_shape().rank().compatible(1)) {
         bias = std::make_shared<default_opset::Squeeze>(bias);
     }
 
