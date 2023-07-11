@@ -475,7 +475,7 @@ std::vector<std::vector<std::string>> ov::proxy::Plugin::get_hidden_devices() co
             std::vector<std::string> supported_device_ids;
             try {
                 supported_device_ids = core->get_property(device, ov::available_devices);
-            } catch (const std::runtime_error& ex) {
+            } catch (const std::runtime_error&) {
                 // Device cannot be loaded
                 continue;
             }
@@ -543,7 +543,7 @@ std::vector<std::vector<std::string>> ov::proxy::Plugin::get_hidden_devices() co
                 std::vector<std::string> supported_device_ids;
                 try {
                     supported_device_ids = core->get_property(fallback_dev, ov::available_devices);
-                } catch (const std::runtime_error& ex) {
+                } catch (const std::runtime_error&) {
                     // Device cannot be loaded, so skipp this device
                     continue;
                 }
