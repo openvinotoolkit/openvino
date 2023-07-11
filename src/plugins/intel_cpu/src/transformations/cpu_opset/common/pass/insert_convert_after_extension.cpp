@@ -2,16 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "insert_convert_after_extension.hpp"
 
-#include "ref_convert_i64_i32.hpp"
-#include <openvino/opsets/opset10.hpp>
+#include <openvino/op/convert.hpp>
 #include "cpu_types.h"
-#include <openvino/pass/pattern/op/wrap_type.hpp>
-
 #include "itt.hpp"
+#include <transformations/utils/utils.hpp>
 
-ov::pass::RefConvertI64ToI32::RefConvertI64ToI32() {
-    MATCHER_SCOPE(RefConvertI64ToI32);
+ov::pass::InsertConvertAfterExtension::InsertConvertAfterExtension() {
+    MATCHER_SCOPE(InsertConvertAfterExtension);
 
     auto i64_extension = [](const ov::Output<ov::Node>& output) -> bool {
         auto node = output.get_node_shared_ptr();
@@ -27,13 +26,17 @@ ov::pass::RefConvertI64ToI32::RefConvertI64ToI32() {
         for (auto& output : ref->outputs()) {
             if (output.get_element_type() == ov::element::i64 || output.get_element_type() == ov::element::u64) {
                 auto targetInputs = output.get_target_inputs();
-                auto convert = std::make_shared<ov::opset10::Convert>(output, ov::element::i32);
+                auto convert = std::make_shared<op::v0::Convert>(output, ov::element::i32);
 
                 for (const auto& targetInput : targetInputs) {
                     targetInput.replace_source_output(convert);
                 }
 
                 auto& convertTensor = convert->output(0).get_tensor();
+
+                auto legacy_name = op::util::create_ie_output_name(output);
+                descriptor::set_ov_tensor_legacy_name(convertTensor, legacy_name);
+
                 if (!output.get_names().empty()) {
                     convertTensor.set_names(output.get_names());
                 }

@@ -108,7 +108,7 @@ Running
 
 Run the application with the ``-h`` option to see the usage message:
 
-.. code-block:: bash
+.. code-block:: sh
    
    python speech_sample.py -h
 
