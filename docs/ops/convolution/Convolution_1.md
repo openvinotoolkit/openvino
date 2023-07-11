@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about Convolution-1 - a 1D, 2D or 3D convolution operation, which 
+                can be performed on input and kernel tensors in OpenVINO.
+
 **Versioned name**: *Convolution-1*
 
 **Category**: *Convolution*

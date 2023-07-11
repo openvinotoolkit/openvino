@@ -2,6 +2,12 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to provide additional configuration for Intel® 
+                 Processor Graphics (GPU) to work with Intel® Distribution of 
+                 OpenVINO™ toolkit on your system.
+
+
 .. _gpu guide:
 
 To use the OpenVINO™ GPU plug-in and transfer the inference to the graphics of the Intel® processor (GPU), the Intel® graphics driver must be properly configured on the system.
@@ -20,14 +26,12 @@ To use a GPU device for OpenVINO inference, you must meet the following prerequi
   - `Intel® Graphics Compiler for OpenCL™ <https://github.com/intel/intel-graphics-compiler>`__
   - `OpenCL ICD loader package <https://github.com/KhronosGroup/OpenCL-ICD-Loader>`__
 
-.. _wsl-instal:
-
 Depending on your operating system, there may be different methods to install the above packages. Below are the instructions on how to install the packages on supported Linux distributions.
 
 .. tab-set::
 
    .. tab-item:: Ubuntu 22.04 LTS
-      :sync: ubuntu22
+      :sync: ubuntu-22
 
       Download and install the `deb` packages published `here <https://github.com/intel/compute-runtime/releases/latest>`__ and install the apt package `ocl-icd-libopencl1` with the OpenCl ICD loader.
       
@@ -38,7 +42,7 @@ Depending on your operating system, there may be different methods to install th
          apt-get install -y ocl-icd-libopencl1 intel-opencl-icd intel-level-zero-gpu level-zero
 
    .. tab-item:: Ubuntu 20.04 LTS
-      :sync: ubuntu20
+      :sync: ubuntu-20
 
       Ubuntu 20.04 LTS is not updated with the latest driver versions. You can install the updated versions up to the version 22.43 from apt:
       
@@ -53,7 +57,7 @@ Depending on your operating system, there may be different methods to install th
       Alternatively, download older `deb` version from `here <https://github.com/intel/compute-runtime/releases>`__. Note that older driver version might not include some of the bug fixes and might be not supported on some latest platforms. Check the supported hardware for the versions you are installing.
 
    .. tab-item:: RedHat UBI 8
-      :sync: redhat8
+      :sync: redhat-8
 
       Follow the `guide <https://dgpu-docs.intel.com/driver/installation.html#rhel-install-steps>`__ to add Yum repository.
       
@@ -91,6 +95,8 @@ To check if the driver has been installed:
       :width: 400
 
 Your device driver has been updated and is now ready to use your GPU.
+
+.. _wsl-install:
 
 Windows Subsystem for Linux (WSL)
 #################################

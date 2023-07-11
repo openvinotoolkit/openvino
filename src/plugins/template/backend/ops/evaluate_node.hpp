@@ -5,6 +5,7 @@
 #pragma once
 #include "ngraph/ops.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/op/ops.hpp"
 
 template <ngraph::element::Type_t ET>
 bool evaluate(std::shared_ptr<ngraph::Node> op,

@@ -138,7 +138,7 @@ public:
             {
                 std::istream in_mem(&mem_buf);
                 BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
-                network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
+                network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine, true, 0);
             }
         } else {
             network = std::make_shared<cldnn::network>(engine, tp, get_test_default_config(engine));
