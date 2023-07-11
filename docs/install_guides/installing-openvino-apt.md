@@ -82,7 +82,7 @@ Step 1: Set Up the OpenVINO Toolkit APT Repository
 
          You might need to install GnuPG:
 
-         .. code-block::
+         .. code-block:: sh
 
             sudo apt-get install gnupg
 

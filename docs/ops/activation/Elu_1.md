@@ -52,7 +52,8 @@ where α corresponds to *alpha* attribute.
 
 **Example**
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
    
    <layer ... type="Elu">
        <data alpha="1.0"/>
