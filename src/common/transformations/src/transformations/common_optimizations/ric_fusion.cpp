@@ -18,6 +18,7 @@
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/op/util/pad_base.hpp"
 #include "openvino/util/log.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -515,8 +516,8 @@ class PassThrough : public ov::pass::MatcherPass {
 public:
     PassThrough() {
         MATCHER_SCOPE(PassThrough);
-        auto pattern_root =
-            pattern::wrap_type<op::util::UnaryElementwiseArithmetic, opset8::Convert, opset8::Pad, opset8::PRelu>();
+        auto pattern_root = pattern::
+            wrap_type<op::util::UnaryElementwiseArithmetic, opset8::Convert, op::util::PadBase, opset8::PRelu>();
 
         auto callback = [=](pattern::Matcher& m) {
             auto root = m.get_match_root();
