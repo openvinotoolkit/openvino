@@ -461,10 +461,9 @@ ov::Tensor SyncInferRequest::get_tensor(const ov::Output<const ov::Node>& in_por
     // If precision has been changed, it need return original precision tensor.
     // Port's data will be stored in m_aux_tensors, and need converted to compiled tensor
     //     input  tensor: will be copied to compiled tensor before do graph inference
-    //     output tensor: has be copied from graph's memory to aux tensor
-
+    //     output tensor: has been copied from graph's memory to aux tensor when inference done
     if (m_orig_ports_map.find(port_name) == m_orig_ports_map.end()) {
-        OPENVINO_THROW("Cannot find original port, name: ", port_name);
+        OPENVINO_THROW("get_tensor: cannot find model port, name: ", port_name);
     }
 
     // Find aux tensor, will create one if cannot find
@@ -517,35 +516,37 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& in_port, con
     // Precision has been changed
     if (is_precision_changed) {
         if (!is_compiled_model_port) {
-            // Orig port
+            // Original port
             auto _orig_port = m_orig_ports_map[name];
             if (_orig_port.get_element_type() == in_tensor.get_element_type()) {
-                // Orig port + orig port's tensor
+                // Original port + original port's tensor
                 m_aux_tensors[name] = in_tensor;
                 tensor = ov::ISyncInferRequest::get_tensor(port);
                 tensor.set_shape(in_tensor.get_shape());
             } else if (port.get_element_type() == in_tensor.get_element_type()) {
-                // Orig port + compiled port's tensor
+                // Original port + compiled model port's tensor
                 tensor = in_tensor;
             } else {
-                OPENVINO_THROW("Failed to set input tensor with precision: ",
-                               in_tensor.get_element_type(), ", if model input tensor precision is: ",
+                OPENVINO_THROW("ParameterMismatch: failed to set input tensor with precision ",
+                               in_tensor.get_element_type(),
+                               ", if model input tensor precision is: ",
                                port.get_element_type(),
                                " or ",
                                _orig_port.get_element_type());
             }
         } else {
-            // Compiled port
+            // Compiled model's port
             if (in_port.get_element_type() != in_tensor.get_element_type()) {
                 if (m_orig_ports_map[name].get_element_type() == in_tensor.get_element_type()) {
-                    // origina_port precision tensor
+                    // Original port precision tensor, likely reach here
                     m_aux_tensors[name] = in_tensor;
                     tensor = ov::ISyncInferRequest::get_tensor(port);
                     tensor.set_shape(in_tensor.get_shape());
                 } else {
-                    IE_THROW(ParameterMismatch)
-                        << "Failed to set input tensor with precision: " << in_tensor.get_element_type()
-                        << ", if model input tensor precision is: " << in_port.get_element_type();
+                    OPENVINO_THROW("ParameterMismatch: failed to set input tensor with precision ",
+                                   in_tensor.get_element_type(),
+                                   ", if model input tensor precision is: ",
+                                   in_port.get_element_type());
                 }
             }
         }
