@@ -16,7 +16,7 @@ ov::Tensor create_and_fill_tensor(
         const ov::element::Type element_type,
         const ov::Shape& shape,
         const uint32_t range,
-        const int32_t start_from,
+        const double_t start_from,
         const int32_t resolution,
         const int seed) {
     auto tensor = ov::Tensor{element_type, shape};

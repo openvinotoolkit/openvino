@@ -202,6 +202,18 @@ inline bool is_pooling(const std::shared_ptr<ngraph::Node>& node) {
             std::dynamic_pointer_cast<ov::intel_gna::op::GNAMaxPool>(node) != nullptr);
 }
 
+inline bool is_concat(const std::shared_ptr<ngraph::Node>& node) {
+    return (std::dynamic_pointer_cast<ov::opset12::Concat>(node) != nullptr);
+}
+
+inline bool is_fake_quantize(const std::shared_ptr<ngraph::Node>& node) {
+    return (std::dynamic_pointer_cast<ov::opset12::FakeQuantize>(node) != nullptr);
+}
+
+inline bool is_read_value(const std::shared_ptr<ngraph::Node>& node) {
+    return (std::dynamic_pointer_cast<ov::opset12::ReadValue>(node) != nullptr);
+}
+
 template <typename T>
 inline bool is_Tbit_fq(const std::shared_ptr<ngraph::Node>& node) {
     auto fq_node = std::dynamic_pointer_cast<ngraph::opset9::FakeQuantize>(node);
@@ -275,8 +287,7 @@ inline bool is_interleaved(const std::shared_ptr<ov::Node>& node) {
 inline bool is_gna_precision_agnostic(std::shared_ptr<ngraph::Node> node) {
     return ((std::dynamic_pointer_cast<ngraph::opset9::VariadicSplit>(node) != nullptr) ||
             (std::dynamic_pointer_cast<ngraph::opset9::Split>(node) != nullptr) ||
-            (std::dynamic_pointer_cast<ngraph::opset9::Slice>(node) != nullptr) ||
-            (std::dynamic_pointer_cast<ngraph::opset9::Concat>(node) != nullptr) ||
+            (std::dynamic_pointer_cast<ngraph::opset9::Slice>(node) != nullptr) || is_concat(node) ||
             (std::dynamic_pointer_cast<ngraph::opset9::Reshape>(node) != nullptr) ||
             (std::dynamic_pointer_cast<ngraph::opset9::Squeeze>(node) != nullptr) ||
             (std::dynamic_pointer_cast<ngraph::opset9::Unsqueeze>(node) != nullptr) ||

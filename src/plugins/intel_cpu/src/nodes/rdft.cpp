@@ -157,13 +157,13 @@ void RDFT::execute(dnnl::stream strm) {
     const auto& inputShape = inputMem.getStaticDims();
     const auto& outputShape = outputMem.getStaticDims();
 
-    auto inputPtr = reinterpret_cast<float*>(inputMem.GetPtr());
-    auto outputPtr = reinterpret_cast<float*>(outputMem.GetPtr());
+    auto inputPtr = reinterpret_cast<float*>(inputMem.getData());
+    auto outputPtr = reinterpret_cast<float*>(outputMem.getData());
 
     auto rank = inputShape.size() - inverse;
 
-    const auto& inputStrides = inputMem.GetDescWithType<BlockedMemoryDesc>()->getStrides();
-    const auto& outputStrides = outputMem.GetDescWithType<BlockedMemoryDesc>()->getStrides();
+    const auto& inputStrides = inputMem.getDescWithType<BlockedMemoryDesc>()->getStrides();
+    const auto& outputStrides = outputMem.getDescWithType<BlockedMemoryDesc>()->getStrides();
 
     executor->execute(inputPtr, outputPtr,
                       twiddles, rank,
@@ -187,7 +187,7 @@ void RDFT::prepareParams() {
         if (axes.size() != newAxesSize) {
             axes.resize(newAxesSize);
         }
-        auto axesPtr = reinterpret_cast<const int*>(axesMem->GetPtr());
+        auto axesPtr = reinterpret_cast<const int*>(axesMem->getData());
         auto inputRank = inputShapes[DATA_INDEX].getRank() - inverse;
         for (size_t i = 0; i < axes.size(); i++) {
             axes[i] = axesPtr[i] < 0 ? axesPtr[i] + inputRank : axesPtr[i];
@@ -213,7 +213,7 @@ void RDFT::prepareParams() {
             if (signalSizes.size() != newSize) {
                 signalSizes.resize(newSize);
             }
-            const auto& signalSizesPtr = reinterpret_cast<const int*>(signalSizesMem->GetPtr());
+            const auto& signalSizesPtr = reinterpret_cast<const int*>(signalSizesMem->getData());
             for (size_t i = 0; i < newSize; i++) {
                 signalSizes[i] = signalSizesPtr[i];
             }
@@ -232,7 +232,7 @@ bool RDFT::axesChanged() const {
     if (axes.size() != axesMem->getStaticDims()[0]) {
         return true;
     }
-    auto axesPtr = reinterpret_cast<const int*>(axesMem->GetPtr());
+    auto axesPtr = reinterpret_cast<const int*>(axesMem->getData());
     auto inputRank = inputShapes[DATA_INDEX].getRank() - inverse;
     for (size_t i = 0; i < axes.size(); i++) {
         auto newAxis = axesPtr[i] < 0 ? axesPtr[i] + inputRank : axesPtr[i];
@@ -267,7 +267,7 @@ bool RDFT::signalSizesChanged() const {
         if (signalSizes.size() != newSize || signalSizes.size() != axes.size()) {
             return true;
         }
-        const auto& signalSizesPtr = reinterpret_cast<const int*>(signalSizesMem->GetPtr());
+        const auto& signalSizesPtr = reinterpret_cast<const int*>(signalSizesMem->getData());
         for (size_t i = 0; i < newSize; i++) {
             if (signalSizesPtr[i] != signalSizes[i]) {
                 return true;
