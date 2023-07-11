@@ -37,6 +37,10 @@ class IExecutableNetworkWrapper;
 class ICompiledModel;
 class CompiledModel;
 
+namespace proxy {
+class RemoteContext;
+}
+
 /**
  * @brief This class represents an abstraction
  * @ingroup ov_runtime_cpp_api
@@ -46,8 +50,8 @@ class CompiledModel;
  */
 class OPENVINO_RUNTIME_API RemoteContext {
 protected:
-    std::shared_ptr<IRemoteContext> _impl;   //!< Pointer to the remote context implementation.
-    std::vector<std::shared_ptr<void>> _so;  //!< Reference to the shared object that loaded implementation.
+    std::shared_ptr<IRemoteContext> _impl;  //!< Pointer to the remote context implementation.
+    std::shared_ptr<void> _so;              //!< Reference to the shared object that loaded implementation.
 
     /**
      * @brief Constructs RemoteContext from the initialized std::shared_ptr.
@@ -55,7 +59,7 @@ protected:
      * @param so Plugin to use. This is required to ensure that RemoteContext can work properly even if a plugin
      * object is destroyed.
      */
-    RemoteContext(const std::shared_ptr<IRemoteContext>& impl, const std::vector<std::shared_ptr<void>>& so);
+    RemoteContext(const std::shared_ptr<IRemoteContext>& impl, const std::shared_ptr<void>& so);
     friend class InferenceEngine::Core;
     friend class InferenceEngine::IPluginWrapper;
     friend class InferenceEngine::ICompiledModelWrapper;
@@ -68,6 +72,7 @@ protected:
     friend class ov::IExecutableNetworkWrapper;
     friend class ov::ICompiledModel;
     friend class ov::CompiledModel;
+    friend class ov::proxy::RemoteContext;
 
 public:
     /**

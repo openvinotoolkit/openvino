@@ -37,10 +37,11 @@ ov::Shape compute_allocation_shape(const LinearIR::LoopManagerPtr& loop_manager,
                                    const std::vector<size_t>& parent_loop_ids,
                                    const ov::Output<ov::Node>& parent_output,
                                    const int allocation_rank) {
-    const size_t rank = allocation_rank >= 0 ? allocation_rank : parent_output.get_shape().size();
-    ov::Shape allocation_shape(rank);
     const auto port = lowered::PortDescriptorUtils::get_port_descriptor_ptr(parent_output);
     const auto planar_shape = utils::get_reordered_planar_shape(ov::Shape{port->get_shape()}, port->get_layout());
+
+    const size_t rank = allocation_rank >= 0 ? std::min(static_cast<size_t>(allocation_rank), planar_shape.size()) : planar_shape.size();
+    ov::Shape allocation_shape(rank);
     for (size_t i = 0; i < rank; ++i) {
         *(allocation_shape.rbegin() + i) = (planar_shape.rbegin() + i)->get_length();
     }
@@ -83,15 +84,11 @@ LinearIR::constExprIt InsertBuffers::insertion_position(const LinearIR& linear_i
     const auto down_loops = down_expr->get_loop_ids();
     // If upper expression is out of Loop, we can insert Buffer implicitly after him
     if (up_loops.empty()) {
-        const auto it = std::find(linear_ir.cbegin(), linear_ir.cend(), up_expr);
-        OPENVINO_ASSERT(it != linear_ir.cend(), "Upper expression hasn't been found to insert Buffer after him!");
-        return std::next(it);
+        return std::next(linear_ir.find(up_expr));
     }
     // If lower expression is out of Loop, we can insert Buffer implicitly before him
     if (down_loops.empty()) {
-        const auto it = std::find(linear_ir.cbegin(), linear_ir.cend(), down_expr);
-        OPENVINO_ASSERT(it != linear_ir.cend(), "Lower expression hasn't been found to insert Buffer after him!");
-        return it;
+        return linear_ir.find(down_expr);
     }
 
     const auto up_loop_count = up_loops.size();
@@ -120,7 +117,7 @@ LinearIR::constExprIt InsertBuffers::insertion_position(const LinearIR& linear_i
     OPENVINO_THROW("Incorrect configuration for Buffer insertion!");
 }
 
-void InsertBuffers::insertion(LinearIR& linear_ir, const LinearIR::LoopManagerPtr& loop_manager,
+void InsertBuffers::insertion(LinearIR& linear_ir, const LinearIR::constExprIt& expr_it, const LinearIR::LoopManagerPtr& loop_manager,
                               const std::vector<LinearIR::LoopManager::LoopPort>& loop_entries,
                               const std::vector<LinearIR::LoopManager::LoopPort>& loop_exits) {
     for (const auto& entry_point : loop_entries) {
@@ -221,8 +218,23 @@ void InsertBuffers::insertion(LinearIR& linear_ir, const LinearIR::LoopManagerPt
                     const auto buffer_consumers_inputs = buffer_out->get_consumers();
                     linear_ir.replace_input(buffer_consumers_inputs, output_connector);
                     potential_consumers.insert(buffer_consumers_inputs.begin(), buffer_consumers_inputs.end());
-                    linear_ir.erase(std::find(linear_ir.begin(), linear_ir.end(), buffer));
+                    linear_ir.erase(linear_ir.find_after(expr_it, buffer));
                 }
+            }
+
+            // potential_consumers is unsorted by linear IR set.
+            // We have to find first expr in Linear IR from the set to insert Buffer before *all* consumers
+            // [113536]: Remove this logic with `std::find` using, when expression numeration will be supported
+            OPENVINO_ASSERT(!potential_consumers.empty(), "Buffer should have one consumer at least");
+            auto consumer_expr = potential_consumers.begin()->get_expr();
+            if (potential_consumers.size() > 1) {
+                std::set<ExpressionPtr> consumers;
+                for (const auto& port : potential_consumers)
+                    consumers.insert(port.get_expr());
+                const auto it = std::find_if(expr_it, linear_ir.cend(),
+                                             [&consumers](const ExpressionPtr& expr) { return consumers.count(expr) > 0; });
+                OPENVINO_ASSERT(it != linear_ir.cend(), "Consumer of Buffer has not been found in Linear IR");
+                consumer_expr = *it;
             }
 
             // We should insert Buffer between first different Loops.
@@ -230,7 +242,7 @@ void InsertBuffers::insertion(LinearIR& linear_ir, const LinearIR::LoopManagerPt
             //          Target consumers Loop identifies:  3, 4, 6
             //          Need to insert after 2nd Loops
             // Note: All potential consumers must have the same count of first equal Loop identifies and the same count of different last identifies
-            const auto pos = insertion_position(linear_ir, loop_manager, expr, (*potential_consumers.begin()).get_expr());
+            const auto pos = insertion_position(linear_ir, loop_manager, expr, consumer_expr);
 
             const auto allocation_shape = compute_allocation_shape(loop_manager,
                                                                    buffer_loop_ids,
@@ -266,10 +278,11 @@ bool InsertBuffers::run(LinearIR& linear_ir) {
         const auto loop_info = loop_data.second;
         const auto loop_entries = loop_info->entry_points;
         const auto loop_exits = loop_info->exit_points;
-        insertion(linear_ir, loop_manager, loop_entries, loop_exits);
+        // using begin() as expr_it because we work with LoopInfo, not expressions in Linear IR
+        insertion(linear_ir, linear_ir.cbegin(), loop_manager, loop_entries, loop_exits);
     }
 
-    for (auto expr_it = linear_ir.begin(); expr_it != linear_ir.end(); expr_it++) {
+    for (auto expr_it = linear_ir.cbegin(); expr_it != linear_ir.cend(); expr_it++) {
         const auto expr = *expr_it;
         const auto node = (*expr_it)->get_node();
         const auto ma = ov::as_type_ptr<op::MemoryAccess>(node);
@@ -286,7 +299,7 @@ bool InsertBuffers::run(LinearIR& linear_ir) {
             loop_exits[p.first] = expr->get_output_port(p.first);
         }
 
-        insertion(linear_ir, loop_manager, loop_entries, loop_exits);
+        insertion(linear_ir, expr_it, loop_manager, loop_entries, loop_exits);
     }
 
     return true;
