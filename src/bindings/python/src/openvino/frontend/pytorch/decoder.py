@@ -13,6 +13,19 @@ from packaging.version import parse
 import torch
 import numpy as np
 
+wrapper_template="""
+import torch
+from typing import *
+
+class ModelWrapper(torch.nn.Module):
+    def __init__(self, model):
+        super().__init__()
+        self.model = model
+    
+    def forward(self, {input_sign}):
+        return self.model({example_input})
+"""
+
 
 def get_type_from_py_type(value):
     if isinstance(value, float):
@@ -139,38 +152,53 @@ class TorchScriptPythonDecoder (Decoder):
         import torch
         import inspect
 
-        def prepare_example_inputs(inputs, input_signature):
-            is_torch_2 = parse(torch.__version__) >= parse("2.0.0")
+        def process_dict_inputs(inputs, input_signature, model):
+            ordered_inputs = []
+            for input_name in input_signature:
+                if input_name in inputs:
+                    ordered_inputs.append(input_name)
+            
+            if ordered_inputs == input_signature[:len(ordered_inputs)]:
+                example_inputs = [inputs[input_name] for input_name in ordered_inputs]
+                if all([isinstance(inp, torch.Tensor) for inp in example_inputs]):
+                    return {"example_inputs": [inputs[name] for name in ordered_inputs]}, ordered_inputs, model
+                return {"example_inputs": example_inputs}, ordered_inputs, model
+
+            input_params = inspect.signature(model.forward if hasattr(model, "forward") else model.__call__).parameters
+
+            input_sign_str = []
+            input_params_str = []
+
+            for input_name in ordered_inputs:
+                input_sign_str.append(str(input_params[input_name]).replace("NoneType", "None"))
+                input_params_str.append(f"{input_name}={input_name}")
+
+            wrapper_class = wrapper_template.format(input_sign=', '.join(input_sign_str), example_input=', '.join(input_params_str))
+            result = {}
+            exec(wrapper_class, result)
+
+            wrapped_model = result["ModelWrapper"](model)
+            wrapped_model.eval()
+
+            return {"example_inputs": [inputs[name] for name in ordered_inputs]}, ordered_inputs, wrapped_model
+
+        def prepare_example_inputs_and_model(inputs, input_signature, model):
             if isinstance(inputs, dict):
-                ordered_inputs = []
-                if input_signature is not None:
-                    used_sign = []
-                    for key in input_signature:
-                        if key not in inputs:
-                            continue
-                        ordered_inputs.append(inputs[key])
-                        used_sign.append(key)
-                    input_signature = used_sign
-                else:
-                    ordered_inputs = list(inputs.values())
-                if is_torch_2:
-                    return {"example_kwarg_inputs": inputs}, input_signature
-                else:
-                    inputs = ordered_inputs
+                return process_dict_inputs(inputs, input_signature, model)
             if isinstance(inputs, torch.Tensor):
                 inputs = [inputs]
-
-            return {"example_inputs": inputs}, input_signature
+            input_signature = input_signature[:len(inputs)]
+            return {"example_inputs": inputs}, input_signature, model
 
         if isinstance(pt_module, torch.nn.Module):
             pt_module.eval()
         input_signature = None
         if isinstance(pt_module, torch.nn.Module) and not isinstance(pt_module, (torch.jit._trace.TopLevelTracedModule, torch.jit._script.RecursiveScriptModule)):
-            input_signature = list(inspect.signature(pt_module.forward).parameters.keys())
+            input_signature = list(inspect.signature(pt_module.forward if hasattr(pt_module, "forward") else pt_module.__call__).parameters.keys())
             if example_inputs is None:
                 scripted = torch.jit.script(pt_module)
             else:
-                input_parameters, input_signature = prepare_example_inputs(example_inputs, input_signature)
+                input_parameters, input_signature, pt_module = prepare_example_inputs_and_model(example_inputs, input_signature, pt_module)
                 try:
                     scripted = torch.jit.trace(pt_module, **input_parameters)
                 except Exception:
