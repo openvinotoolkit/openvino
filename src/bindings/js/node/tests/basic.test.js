@@ -1,9 +1,9 @@
 const ov = require('../build/Release/ov_node_addon.node');
 const path = require('path');
 
-function getModelPath(is_fp16=false){
+function getModelPath(isFP16=false){
     basePath = "../../python/tests/"
-    if (is_fp16){
+    if (isFP16){
         test_xml = path.join(basePath, "test_utils", "utils", "test_model_fp16.xml")
         test_bin = path.join(basePath, "test_utils", "utils", "test_model_fp16.bin")
     } else {
