@@ -202,4 +202,104 @@ const auto noneCases = ::testing::Combine(::testing::ValuesIn(inShapesDynamicNon
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefsNone_dynamic, SelectLayerCPUTest, noneCases, SelectLayerCPUTest::getTestCaseName);
 
+
+class SelectLayerCPUStaticTest : public testing::WithParamInterface<selectParams>,
+                           virtual public SubgraphBaseTest,
+                           public CpuTestWithFusing {
+public:
+   static std::string getTestCaseName(testing::TestParamInfo<selectParams> obj) {
+        return "EltwiseSelectStaticTest";
+   }
+
+protected:
+   void SetUp() override {
+        abs_threshold = 0;
+        targetDevice = CommonTestUtils::DEVICE_CPU;
+        std::vector<InputShape> shapes;
+        ElementType precision;
+        ngraph::op::AutoBroadcastSpec broadcast;
+        fusingSpecificParams fusingParams;
+        std::tie(shapes, precision, broadcast, fusingParams) = this->GetParam();
+        init_input_shapes(shapes);
+        std::tie(inFmts, outFmts, priority, selectedType) = emptyCPUSpec;
+        selectedType = makeSelectedTypeStr(getPrimitiveType(), ov::element::i8);
+
+        auto parameters = ngraph::builder::makeDynamicParams(ov::element::TypeVector{ov::element::boolean, precision, precision}, inputDynamicShapes);
+        auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(parameters));
+        auto select = ngraph::builder::makeSelect(paramOuts, broadcast);
+
+        function = makeNgraphFunction(precision, parameters, select, "Eltwise");
+   }
+
+    ov::Tensor create_and_fill_tensor_static(
+            const ov::element::Type element_type,
+            const ov::Shape& shape,
+            const size_t port) {
+        auto tensor = ov::Tensor{element_type, shape};
+        if (port == 0) {
+            static_cast<bool*>(tensor.data())[0] = false;
+            static_cast<bool*>(tensor.data())[1] = true;
+        } else if (port == 1) {
+            //static_cast<int64_t*>(tensor.data())[0] = -2147483648;
+            static_cast<int64_t*>(tensor.data())[0] = -1073741824;
+            static_cast<int64_t*>(tensor.data())[1] = 18;
+        } else if (port == 2) {
+            static_cast<int64_t*>(tensor.data())[0] = 2147483648;
+            //static_cast<int64_t*>(tensor.data())[0] = 1073741824;
+            static_cast<int64_t*>(tensor.data())[1] = -1;
+        }
+        return tensor;
+    }
+
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
+        inputs.clear();
+        const auto& modelInputs = function->inputs();
+        auto condTensor = create_and_fill_tensor_static(modelInputs[0].get_element_type(), targetInputStaticShapes[0], 0);
+        auto thenTensor = create_and_fill_tensor_static(modelInputs[1].get_element_type(), targetInputStaticShapes[1], 1);
+        auto elseTensor = create_and_fill_tensor_static(modelInputs[2].get_element_type(), targetInputStaticShapes[2], 2);
+        inputs.insert({modelInputs[0].get_node_shared_ptr(), condTensor});
+        inputs.insert({modelInputs[1].get_node_shared_ptr(), thenTensor});
+        inputs.insert({modelInputs[2].get_node_shared_ptr(), elseTensor});
+    }
+};
+
+TEST_P(SelectLayerCPUStaticTest, CompareWithRefsStatic) {
+    run();
+    CheckPluginRelatedResults(compiledModel, "Eltwise");
+}
+
+const std::vector<std::vector<InputShape>> inShapesStatic = {
+    {
+        // Condition
+        {
+            {-1},
+            {{2}}
+        },
+        // Then
+        {
+            {-1},
+            {{2}}
+        },
+        // Else
+        {
+            {-1},
+            {{2}}
+        },
+    },
+};
+
+const std::vector<fusingSpecificParams> fusingParamsSetStatic{
+    emptyFusingSpec
+};
+
+const std::vector<ElementType> precisionsStatic = {
+    ElementType::i64
+};
+
+const auto staticCases = ::testing::Combine(::testing::ValuesIn(inShapesStatic),
+                                          ::testing::ValuesIn(precisionsStatic),
+                                          ::testing::Values(ngraph::op::AutoBroadcastType::NONE),
+                                          ::testing::ValuesIn(fusingParamsSetStatic));
+
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefsNone_static, SelectLayerCPUStaticTest, staticCases, SelectLayerCPUStaticTest::getTestCaseName);
 } // namespace CPULayerTestsDefinitions
