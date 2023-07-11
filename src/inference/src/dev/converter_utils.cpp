@@ -723,8 +723,8 @@ public:
     }
     void set_tensor(const ov::Output<const ov::Node>& port, const ov::Tensor& tensor) override {
         m_request->SetBlob(get_legacy_name_from_port(port), ov::tensor_to_blob(tensor._impl, m_unwrap_tensor));
-        if (tensor._so.size())
-            m_request->setPointerToSo(tensor._so.back());
+        if (tensor._so)
+            m_request->setPointerToSo(tensor._so);
     }
 
     std::vector<ov::Tensor> get_tensors(const ov::Output<const ov::Node>& port) const override {
