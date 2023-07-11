@@ -39,9 +39,7 @@ std::shared_ptr<Node> create_group_norm_shape(NodeRegistry& reg,
     OutputVector new_shape{reg.make<Multiply>(splits[0], num_groups_const),
                            reg.make<Divide>(splits[1], num_groups_const)};
 
-    for (size_t i = 2; i < rank_size; ++i) {
-        new_shape.push_back(splits[i]);
-    }
+    std::move(splits.begin() + 2, splits.end(), std::back_inserter(new_shape));
     return reg.make<Concat>(new_shape, 0);
 }
 
