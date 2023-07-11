@@ -321,7 +321,7 @@ std::shared_ptr<ov::ICompiledModel> ov::proxy::Plugin::compile_model(
     return std::dynamic_pointer_cast<ov::ICompiledModel>(compiled_model);
 }
 
-ov::SoPtr<ov::IRemoteContext> ov::proxy::Plugin::create_context(const ov::AnyMap& remote_properties) const {
+std::shared_ptr<ov::IRemoteContext> ov::proxy::Plugin::create_context(const ov::AnyMap& remote_properties) const {
     // TODO: if no device id, try to create context for each plugin
     auto dev_name = get_device_name();
     auto dev_idx = get_device_from_config(remote_properties);
@@ -338,7 +338,7 @@ ov::SoPtr<ov::IRemoteContext> ov::proxy::Plugin::create_context(const ov::AnyMap
             dev_idx,
             has_dev_idx,
             is_new_api);
-        return ov::SoPtr<ov::IRemoteContext>(remote_context, nullptr);
+        return remote_context;
     }
     // Properties doesn't have device id, so try to create context for all devices
     const auto hidden_devices = get_hidden_devices();
@@ -351,7 +351,7 @@ ov::SoPtr<ov::IRemoteContext> ov::proxy::Plugin::create_context(const ov::AnyMap
                 i,
                 has_dev_idx,
                 is_new_api);
-            return ov::SoPtr<ov::IRemoteContext>(remote_context, nullptr);
+            return remote_context;
         } catch (const ov::Exception&) {
         }
     }
@@ -359,7 +359,7 @@ ov::SoPtr<ov::IRemoteContext> ov::proxy::Plugin::create_context(const ov::AnyMap
                    ov::Any(remote_properties).as<std::string>());
 }
 
-ov::SoPtr<ov::IRemoteContext> ov::proxy::Plugin::get_default_context(const ov::AnyMap& remote_properties) const {
+std::shared_ptr<ov::IRemoteContext> ov::proxy::Plugin::get_default_context(const ov::AnyMap& remote_properties) const {
     auto dev_name = get_device_name();
     auto dev_idx = get_device_from_config(remote_properties);
     auto has_dev_idx = is_device_in_config(remote_properties);
@@ -374,7 +374,7 @@ ov::SoPtr<ov::IRemoteContext> ov::proxy::Plugin::get_default_context(const ov::A
         dev_idx,
         has_dev_idx,
         is_new_api);
-    return ov::SoPtr<ov::IRemoteContext>(remote_context, nullptr);
+    return remote_context;
 }
 
 std::shared_ptr<ov::ICompiledModel> ov::proxy::Plugin::import_model(std::istream& model,

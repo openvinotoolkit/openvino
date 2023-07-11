@@ -157,7 +157,7 @@ public:
      *
      * @return A remote context object
      */
-    virtual ov::SoPtr<ov::IRemoteContext> create_context(const ov::AnyMap& remote_properties) const = 0;
+    virtual std::shared_ptr<ov::IRemoteContext> create_context(const ov::AnyMap& remote_properties) const = 0;
 
     /**
      * @brief Provides a default remote context instance if supported by a plugin
@@ -165,7 +165,7 @@ public:
      *
      * @return The default context.
      */
-    virtual ov::SoPtr<ov::IRemoteContext> get_default_context(const ov::AnyMap& remote_properties) const = 0;
+    virtual std::shared_ptr<ov::IRemoteContext> get_default_context(const ov::AnyMap& remote_properties) const = 0;
 
     /**
      * @brief Creates an compiled model from an previously exported model using plugin implementation

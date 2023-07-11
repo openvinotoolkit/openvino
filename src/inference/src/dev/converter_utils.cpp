@@ -561,7 +561,7 @@ public:
         auto res = m_request->query_state();
         std::vector<std::shared_ptr<InferenceEngine::IVariableStateInternal>> ret;
         for (const auto& state : res) {
-            ret.emplace_back(std::make_shared<ov::IVariableStateInternalWrapper>(state._ptr));
+            ret.emplace_back(std::make_shared<ov::IVariableStateInternalWrapper>(state));
         }
         return ret;
     }
@@ -750,12 +750,10 @@ public:
         m_request->SetBlobs(get_legacy_name_from_port(port), blobs);
     }
 
-    std::vector<ov::SoPtr<ov::IVariableState>> query_state() const override {
-        std::vector<ov::SoPtr<ov::IVariableState>> variable_states;
+    std::vector<std::shared_ptr<ov::IVariableState>> query_state() const override {
+        std::vector<std::shared_ptr<ov::IVariableState>> variable_states;
         for (auto&& state : m_request->QueryState()) {
-            variable_states.emplace_back(
-                ov::SoPtr<ov::IVariableState>{std::make_shared<InferenceEngine::IVariableStateWrapper>(state),
-                                              nullptr});
+            variable_states.emplace_back(std::make_shared<InferenceEngine::IVariableStateWrapper>(state));
         }
         return variable_states;
     }

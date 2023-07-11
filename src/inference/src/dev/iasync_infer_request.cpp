@@ -102,7 +102,7 @@ void ov::IAsyncInferRequest::set_callback(std::function<void(std::exception_ptr)
     m_callback = std::move(callback);
 }
 
-std::vector<ov::SoPtr<ov::IVariableState>> ov::IAsyncInferRequest::query_state() const {
+std::vector<std::shared_ptr<ov::IVariableState>> ov::IAsyncInferRequest::query_state() const {
     check_state();
     return m_sync_request->query_state();
 }
