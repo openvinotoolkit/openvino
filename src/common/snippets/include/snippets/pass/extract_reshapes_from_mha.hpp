@@ -14,6 +14,20 @@ namespace pass {
 /**
  * @interface ExtractReshapesFromMHA
  * @brief This pass tries to extract unsupported reshape pairs around eltwise ops from MHA body
+ * Subgraph inside the MHA body:
+ *
+ *               input0
+ *                 |
+ *              Reshape1                      input1      input2
+ *                 |   input1                       \     /
+ *                 |  /                           ExtractedAdd
+ *                Add1            =>                   |
+ *                 |   input2                   ExtractedReshape
+ *                 |  /                input0      /
+ *                Add2                       \    /
+ *                 |                          Add
+ *              Reshape2
+ *
  * @ingroup snippets
  */
 class ExtractReshapesFromMHA: public ov::pass::MatcherPass {
