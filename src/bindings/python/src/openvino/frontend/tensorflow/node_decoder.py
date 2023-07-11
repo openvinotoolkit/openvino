@@ -55,7 +55,7 @@ class TFGraphNodeDecoder(DecoderBase):
         # Copies value from inner buffer of TF_Operation to NodeDef class.
         self.m_node_def = self.m_operation.node_def
 
-        # TODO: Create parameter in convert_model() for turing on/off shared memory, ticket: 114971
+        # TODO: Create parameter in convert_model() for turning on/off shared memory, ticket: 114971
         self.m_shared_memory = True
         if self.m_operation.type == "Const":
             # Copies tensor value to parsed TensorProto
