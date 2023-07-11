@@ -81,17 +81,21 @@ public:
     ConvertPrecision(ov::element::Type_t from,
                      ov::element::Type_t to,
                      type_to_fuse_map additional_type_to_fuse_map = {},
-                     bool keep_precision_sensitive_in_fp32 = false)
+                     bool keep_precision_sensitive_in_fp32 = false,
+                     bool convert_input_output_precision = true)
         : m_precisions(precisions_map{{from, to}}),
           m_additional_type_to_fuse_map(additional_type_to_fuse_map),
-          m_keep_precision_sensitive_in_fp32(keep_precision_sensitive_in_fp32) {}
+          m_keep_precision_sensitive_in_fp32(keep_precision_sensitive_in_fp32),
+          m_convert_input_output_precision(convert_input_output_precision) {}
 
     ConvertPrecision(const precisions_map& precisions,
                      const type_to_fuse_map& additional_type_to_fuse_map = {},
-                     bool keep_precision_sensitive_in_fp32 = false)
+                     bool keep_precision_sensitive_in_fp32 = false,
+                     bool convert_input_output_precision = true)
         : m_precisions(precisions),
           m_additional_type_to_fuse_map(additional_type_to_fuse_map),
-          m_keep_precision_sensitive_in_fp32(keep_precision_sensitive_in_fp32) {}
+          m_keep_precision_sensitive_in_fp32(keep_precision_sensitive_in_fp32),
+          m_convert_input_output_precision(convert_input_output_precision) {}
 
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 
@@ -99,4 +103,5 @@ private:
     precisions_map m_precisions;
     type_to_fuse_map m_additional_type_to_fuse_map;
     bool m_keep_precision_sensitive_in_fp32;
+    bool m_convert_input_output_precision;
 };
