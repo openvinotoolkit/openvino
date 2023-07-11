@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about Range-1 - a generation operation, which can be 
+                performed on three required input tensors.
+
 **Versioned name**: *Range-1*
 
 **Category**: *Generation*
@@ -55,7 +59,8 @@ where
 
 *Example 1: positive step*
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
     <layer ... type="Range">
         <input>
@@ -76,7 +81,8 @@ where
 
 *Example 2: negative step*
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
     <layer ... type="Range">
         <input>

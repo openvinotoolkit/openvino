@@ -2,6 +2,11 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to convert GluonCV models
+                 from MXNet to the OpenVINO Intermediate Representation.
+
+
 .. warning::
 
    Note that OpenVINO support for Apache MXNet is currently being deprecated and will be removed entirely in the future.
@@ -10,7 +15,8 @@ This article provides the instructions and examples on how to convert `GluonCV S
 
 1. Choose the topology available from the `GluonCV Model Zoo <https://gluon-cv.mxnet.io/model_zoo/detection.html>`__ and export to the MXNet format using the GluonCV API. For example, for the ``ssd_512_mobilenet1.0`` topology:
 
-   .. code-block:: python
+   .. code-block:: py
+      :force:
 
       from gluoncv import model_zoo, data, utils
       from gluoncv.utils import export_block

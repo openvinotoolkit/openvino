@@ -375,7 +375,7 @@ def create_tf_stateful_partioned_call_net(temp_dir):
 
     param1 = ov.opset8.parameter(data_shape, dtype=np.float32)
     param2 = ov.opset8.parameter(filters_shape, dtype=np.float32)
-    transpose2 = ov.opset8.transpose(param2, np.array([3, 2, 0, 1]))
+    transpose2 = ov.opset8.transpose(param2, np.array([3, 2, 0, 1], dtype=np.int64))
     conv = ov.opset11.convolution(param1, transpose2, strides, pads_begin, pads_end, dilations, auto_pad="same_upper")
 
     parameter_list = [param1, param2]
@@ -666,7 +666,7 @@ class TFConvertTest(unittest.TestCase):
     @pytest.mark.precommit
     def test_tf_function_no_signature(self):
         import tensorflow as tf
-        from openvino.tools.mo import convert_model
+        from openvino.runtime import convert_model
 
         @tf.function()
         def function(x1, x2):

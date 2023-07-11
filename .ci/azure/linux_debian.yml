@@ -276,6 +276,12 @@ jobs:
       LD_LIBRARY_PATH: $(INSTALL_TEST_DIR)
     displayName: 'OV Core UT'
 
+  - script: |
+      $(INSTALL_TEST_DIR)/ov_proxy_plugin_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-OVProxyTests.xml
+    env:
+      LD_LIBRARY_PATH: $(INSTALL_TEST_DIR)
+    displayName: 'OV Proxy Tests'
+
   - script: $(INSTALL_TEST_DIR)/ov_onnx_frontend_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ONNXFrontend.xml
     env:
       LD_LIBRARY_PATH: $(INSTALL_TEST_DIR)
@@ -355,6 +361,8 @@ jobs:
       # TODO: fix 'No mock frontend API available'
       $(TEST_VENV)/bin/python3 -m pip install openvino-dev --find-links=$(INSTALL_DIR)/tools
       $(TEST_VENV)/bin/python3 -m pytest -s $(INSTALL_TEST_DIR)/mo/unit_tests --junitxml=$(INSTALL_TEST_DIR)/TEST-ModelOptimizer.xml
+    env:
+      PYTHONPATH: $(REPO_DIR)/tools/ovc/
     displayName: 'Model Optimizer UT'
 
   # run not all smoke filter to save time in post-commit
@@ -388,14 +396,14 @@ jobs:
       $(TEST_VENV)/bin/python3 -m pip install -r $(LAYER_TESTS_DIR)/requirements.txt
       $(TEST_VENV)/bin/python3 -m pytest $(LAYER_TESTS_DIR)/tensorflow_tests/test_tf_Roll.py --ir_version=10 --junitxml=$(INSTALL_TEST_DIR)/TEST-tf_Roll.xmlTEST
     env:
-      PYTHONPATH: $(LAYER_TESTS_DIR)
+      PYTHONPATH: $(REPO_DIR)/tools/ovc/:$(LAYER_TESTS_DIR)
     displayName: 'TensorFlow 1 Layer Tests - Legacy FE'
 
   - script: |
       $(TEST_VENV)/bin/python3 -m pip install -r $(LAYER_TESTS_DIR)/requirements.txt
       $(RUN_PREFIX) $(TEST_VENV)/bin/python3 -m pytest $(LAYER_TESTS_DIR)/tensorflow_lite_tests/ --junitxml=$(INSTALL_TEST_DIR)/TEST-tfl_fe.xmlTEST
     env:
-      PYTHONPATH: $(REPO_DIR)/tools/mo/:$(LAYER_TESTS_DIR)
+      PYTHONPATH: $(REPO_DIR)/tools/ovc/:$(REPO_DIR)/tools/mo/:$(LAYER_TESTS_DIR)
       TEST_DEVICE: CPU
     displayName: 'TensorFlow Lite Layer Tests - TFL FE'
 

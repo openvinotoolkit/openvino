@@ -2,6 +2,12 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: OpenVINO™ API 2.0 focuses on the use of development tools and 
+                 deployment of applications, it also simplifies migration from 
+                 different frameworks to OpenVINO.
+
+
 One of the main concepts for OpenVINO™ API 2.0 is being "easy to use", which includes:
 
 * Simplification of migration from different frameworks to OpenVINO.
@@ -105,7 +111,7 @@ It is possible to build applications without the CMake interface by using: MSVC 
 .. tab-set::
 
    .. tab-item:: Include dirs
-      :sync: inc-dirs
+      :sync: include-dirs
    
       .. code-block:: sh
    
@@ -144,7 +150,7 @@ It is possible to build applications without the CMake interface by using: MSVC 
 .. tab-set::
 
    .. tab-item:: Include dirs
-      :sync: inc-dirs
+      :sync: include-dirs
    
       .. code-block:: sh
    

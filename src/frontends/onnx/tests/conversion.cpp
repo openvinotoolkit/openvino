@@ -7,9 +7,9 @@
 #include "common_test_utils/file_utils.hpp"
 #include "conversion_extension.hpp"
 #include "onnx_utils.hpp"
+#include "openvino/core/so_extension.hpp"
 #include "openvino/frontend/onnx/frontend.hpp"
 #include "openvino/op/add.hpp"
-#include "so_extension.hpp"
 
 using namespace ov::frontend;
 

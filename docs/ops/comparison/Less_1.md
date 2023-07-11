@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about Less-1 - an element-wise, comparison operation, which 
+                can be performed on two given tensors in OpenVINO.
+
 **Versioned name**: *Less-1*
 
 **Category**: *Comparison binary*
@@ -50,7 +54,8 @@ After broadcasting *Less* does the following with the input tensors *a* and *b*:
 
 *Example 1*
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
    <layer ... type="Less">
        <input>
@@ -74,7 +79,8 @@ After broadcasting *Less* does the following with the input tensors *a* and *b*:
 
 *Example 2: broadcast*
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
    <layer ... type="Less">
        <input>

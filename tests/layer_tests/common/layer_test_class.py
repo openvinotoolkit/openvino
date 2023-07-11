@@ -11,8 +11,7 @@ from pathlib import Path
 import numpy as np
 from common.constants import test_device, test_precision
 from common.layer_utils import IEInfer, InferAPI20
-from common.utils.common_utils import generate_ir
-from common.utils.parsers import mapping_parser
+from common.utils.common_utils import generate_ir_python_api
 
 
 class CommonLayerTest:
@@ -60,7 +59,7 @@ class CommonLayerTest:
         else:
             mo_params["use_legacy_frontend"] = True
 
-        exit_code, stderr = generate_ir(**mo_params)
+        exit_code, stderr = generate_ir_python_api(**mo_params)
 
         del os.environ['MO_ENABLED_TRANSFORMS']
         del os.environ['MO_DISABLED_TRANSFORMS']

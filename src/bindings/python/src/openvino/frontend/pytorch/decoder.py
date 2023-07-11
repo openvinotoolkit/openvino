@@ -131,7 +131,7 @@ pt_to_ov_type_map = {
 ov_to_c_type_map = {
     OVType.f32: ctypes.c_float,
     OVType.i32: ctypes.c_int,
-    OVType.i64: ctypes.c_int,
+    OVType.i64: ctypes.c_int64,
 }
 
 class TorchScriptPythonDecoder (Decoder):

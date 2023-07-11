@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about ShapeOf-1 - a shape manipulation operation, which 
+                can be performed on an arbitrary input tensor.
+
 **Versioned name**: *ShapeOf-1*
 
 **Category**: *Shape manipulation*
@@ -20,7 +24,8 @@
 
 **Example**
 
-.. code-block:: cpp 
+.. code-block:: xml
+   :force:
 
     <layer ... type="ShapeOf">
         <input>
