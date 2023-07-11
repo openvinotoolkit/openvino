@@ -104,8 +104,8 @@
 #include "transformations/cpu_opset/arm/pass/mish_decomposition.hpp"
 #include "transformations/cpu_opset/common/pass/decompose_integer_divide.hpp"
 #include "transformations/cpu_opset/common/pass/convert_fq_rnn_to_quantized_rnn.hpp"
+#include "transformations/cpu_opset/common/pass/insert_convert_after_extension.hpp"
 #include "transformations/cpu_opset/common/pass/move_eltwise_up_data_movement.hpp"
-#include "transformations/cpu_opset/common/pass/ref_convert_i64_i32.hpp"
 #include "transformations/cpu_opset/common/pass/swap_convert_transpose.hpp"
 
 // Snippets
@@ -260,8 +260,10 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
         CPU_REGISTER_PASS_COMMON(manager, ngraph::pass::low_precision::ConvertSubtractConstant, defaultPrecisions);
     }
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::Validate);
-    CPU_REGISTER_PASS_COMMON(manager, ov::pass::RefConvertI64ToI32);
-
+    // Common ConvertPrecision pass handles only a limited set of opevino operations to match the list of precisions supported by the plugin.
+    // However, if the extension operation produces an output precision that is not natively supported, this may lead to inconsistency during
+    // element type propagation. This transformation is called before the ConvertPrecision pass to align the actual precisions with the list of supported ones.
+    CPU_REGISTER_PASS_COMMON(manager, ov::pass::InsertConvertAfterExtension);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertPrecision, precisions, type_to_fuse);
 
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::EliminateConvert);
