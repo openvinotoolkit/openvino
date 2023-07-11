@@ -507,7 +507,6 @@ endif()
 add_compile_definitions(
 
     # Defines to trim check of __FILE__ macro in case if not done by compiler.
-    OV_NATIVE_PROJECT_ROOT_DIR="${OV_NATIVE_PROJECT_ROOT_DIR}"
     OV_NATIVE_PARENT_PROJECT_ROOT_DIR="${OV_NATIVE_PARENT_PROJECT_ROOT_DIR}")
 
 check_cxx_compiler_flag("-Wsuggest-override" SUGGEST_OVERRIDE_SUPPORTED)
