@@ -144,7 +144,8 @@ def getting_samples_data_zip(url, samples_path, size_of_chunk=128):
             print("\nRemoving samples_smoke_tests_data.zip...")
             os.remove(samples_path)	
 
-    except Exception:
+    except Exception as error:
+        print(error)
         print(f"Exception during downloading samples_smoke_tests_data.zip")
 
 class SamplesCommonTestClass():

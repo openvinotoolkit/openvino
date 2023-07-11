@@ -51,6 +51,23 @@ static std::string vector_to_string(const std::vector<T>& values) {
     s << ")";
     return s.str();
 }
+namespace {
+std::shared_ptr<ov::Node> grey_from_yuv_single_plane(const std::vector<Output<Node>>& nodes) {
+    using namespace ov::opset8;
+    const auto axis = Constant::create(element::i32, {1}, {1});
+    const auto yuv_shape_of = std::make_shared<ShapeOf>(nodes[0]);
+    const auto get_height = std::make_shared<Gather>(yuv_shape_of, axis, Constant::create(element::i32, {}, {0}));
+
+    const auto start = Constant::create(element::i32, {1}, {0});
+    // slice stop is input height * (2/3)
+    auto mul_height =
+        std::make_shared<Multiply>(get_height, Constant::create(get_height->get_element_type(), {1}, {2}));
+    auto stop = std::make_shared<Divide>(mul_height, Constant::create(get_height->get_element_type(), {1}, {3}));
+    const auto step = Constant::create(element::i32, {1}, {1});
+    //
+    return std::make_shared<ov::op::v8::Slice>(nodes[0], start, stop, step, axis);
+}
+}  // namespace
 
 void PreStepsList::add_scale_impl(const std::vector<float>& values) {
     m_actions.emplace_back(
@@ -361,6 +378,9 @@ void PreStepsList::add_convert_color_impl(const ColorFormat& dst_format) {
                 case ColorFormat::BGR:
                     convert = std::make_shared<op::v8::NV12toBGR>(nodes[0]);
                     break;
+                case ColorFormat::GRAY:
+                    convert = grey_from_yuv_single_plane(nodes);
+                    break;
                 default:
                     OPENVINO_ASSERT(false,
                                     "Unsupported conversion from NV12 to '",
@@ -378,6 +398,9 @@ void PreStepsList::add_convert_color_impl(const ColorFormat& dst_format) {
                     break;
                 case ColorFormat::BGR:
                     convert = std::make_shared<op::v8::NV12toBGR>(nodes[0], nodes[1]);
+                    break;
+                case ColorFormat::GRAY:
+                    convert = nodes[0].get_node_shared_ptr();
                     break;
                 default:
                     OPENVINO_ASSERT(false,
@@ -398,6 +421,9 @@ void PreStepsList::add_convert_color_impl(const ColorFormat& dst_format) {
                 case ColorFormat::BGR:
                     convert = std::make_shared<op::v8::I420toBGR>(nodes[0]);
                     break;
+                case ColorFormat::GRAY:
+                    convert = grey_from_yuv_single_plane(nodes);
+                    break;
                 default:
                     OPENVINO_ASSERT(false,
                                     "Unsupported conversion from I420 to '",
@@ -416,6 +442,9 @@ void PreStepsList::add_convert_color_impl(const ColorFormat& dst_format) {
                     break;
                 case ColorFormat::BGR:
                     convert = std::make_shared<op::v8::I420toBGR>(nodes[0], nodes[1], nodes[2]);
+                    break;
+                case ColorFormat::GRAY:
+                    convert = nodes[0].get_node_shared_ptr();
                     break;
                 default:
                     OPENVINO_ASSERT(false,
