@@ -517,7 +517,9 @@ void DumpGna2Model(const Gna2Model& gnaModel,
                 foundName = found->GetTagName();
                 offset = found->getOffset(operand.Data).second;
             }
-            const uint32_t size = Gna2RoundUp(GetGnaShapeSize(operand.Shape, GetTypeByteSize(operand.Type)), static_cast<uint32_t>(Limitations::get_instance()->get_memory_alignment()));
+            const uint32_t size =
+                Gna2RoundUp(GetGnaShapeSize(operand.Shape, GetTypeByteSize(operand.Type)),
+                            static_cast<uint32_t>(Limitations::get_instance()->get_memory_alignment()));
             dumpFile << "\tOperand " << j << " (" << GetOperandName(operation.Type, j) << ")"
                      << " type: " << GetOperandType(operand.Type) << " shape: " << GetSimpleString(operand.Shape)
                      << " tag: " << foundName << " offset: " << offset << " size: " << size << " data: " << operand.Data
