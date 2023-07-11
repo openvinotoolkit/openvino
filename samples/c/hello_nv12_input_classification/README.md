@@ -64,8 +64,8 @@ To run the sample, you need specify a model and image:
 
 The sample accepts an uncompressed image in the NV12 color format. To run the sample, you need to convert your BGR/RGB image to NV12. To do this, you can use one of the widely available tools such as FFmpeg\* or GStreamer\*. The following command shows how to convert an ordinary image into an uncompressed NV12 image using FFmpeg:
 
-.. code-block:: bash
-
+.. code-block:: sh
+   
    ffmpeg -i cat.jpg -pix_fmt nv12 cat.yuv
 
 .. note::

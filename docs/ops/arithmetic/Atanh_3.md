@@ -49,7 +49,8 @@ Unsigned Intragral type put:
 
 **Examples**
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
    
    <layer ... type="Atanh">
        <input>

@@ -60,7 +60,7 @@ devices enabled by OpenVINO plugins and returns information, using the ``ov::Cor
 
 The function returns a list of available devices, for example:
 
-.. code-block::
+.. code-block:: sh
 
    CPU
    GPU.0

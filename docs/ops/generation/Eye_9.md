@@ -19,7 +19,8 @@
 
 Example 1. *Eye* output with ``output_type`` = ``i32``:
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
    
    num_rows = 3
    
@@ -33,7 +34,8 @@ Example 1. *Eye* output with ``output_type`` = ``i32``:
 
 Example 2. *Eye* output with ``output_type`` = ``i32``:
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
    
    num_rows = 3
    
@@ -47,7 +49,8 @@ Example 2. *Eye* output with ``output_type`` = ``i32``:
 
 Example 3. *Eye* output with ``output_type`` = ``f16``:
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
    
    num_rows = 2
    
@@ -90,7 +93,8 @@ Example 3. *Eye* output with ``output_type`` = ``f16``:
 
 *Example 1*
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
    
    <layer ... name="Eye" type="Eye">
        <data output_type="i8"/>
@@ -109,7 +113,8 @@ Example 3. *Eye* output with ``output_type`` = ``f16``:
 
 *Example 2*
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
    
    <layer ... name="Eye" type="Eye">
        <data output_type="f32"/>
