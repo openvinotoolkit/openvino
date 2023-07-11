@@ -40,7 +40,7 @@ AsyncInferRequest::AsyncInferRequest(const std::shared_ptr<SyncInferRequest>& re
                            std::rethrow_exception(batchReq->_exception_ptr);
                        // in the case of non-batched execution the tensors were set explicitly
                        if (SyncInferRequest::eExecutionFlavor::BATCH_EXECUTED ==
-                           this->m_sync_request->m_batched_request_used) {
+                           this->m_sync_request->m_batched_request_status) {
                            this->m_sync_request->copy_outputs_if_needed();
                        }
                    }}};
@@ -48,7 +48,7 @@ AsyncInferRequest::AsyncInferRequest(const std::shared_ptr<SyncInferRequest>& re
 
 std::vector<ov::ProfilingInfo> AsyncInferRequest::get_profiling_info() const {
     check_state();
-    if (SyncInferRequest::eExecutionFlavor::BATCH_EXECUTED == m_sync_request->m_batched_request_used)
+    if (SyncInferRequest::eExecutionFlavor::BATCH_EXECUTED == m_sync_request->m_batched_request_status)
         return m_sync_request->get_profiling_info();
     else
         return m_request_without_batch->get_profiling_info();

@@ -95,7 +95,7 @@ CompiledModel::GetWorkerInferRequest() const {
                             OPENVINO_ASSERT(workerRequestPtr->_tasks.try_pop(t));
                             workerRequestPtr->_completion_tasks[n] = std::move(t.second);
                             t.first->m_sync_request->copy_inputs_if_needed();
-                            t.first->m_sync_request->m_batched_request_used =
+                            t.first->m_sync_request->m_batched_request_status =
                                 ov::autobatch_plugin::SyncInferRequest::eExecutionFlavor::BATCH_EXECUTED;
                         }
                         workerRequestPtr->_infer_request_batched->start_async();
@@ -117,7 +117,7 @@ CompiledModel::GetWorkerInferRequest() const {
                                         all_completed.set_value();
                                     }
                                 });
-                            t.first->m_sync_request->m_batched_request_used =
+                            t.first->m_sync_request->m_batched_request_status =
                                 ov::autobatch_plugin::SyncInferRequest::eExecutionFlavor::TIMEOUT_EXECUTED;
                             t.first->m_sync_request->set_tensors_to_another_request(t.first->m_request_without_batch);
                             t.first->m_request_without_batch->start_async();

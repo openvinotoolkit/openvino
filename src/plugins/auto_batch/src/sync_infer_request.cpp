@@ -93,7 +93,7 @@ void SyncInferRequest::copy_inputs_if_needed() {
     }
 }
 
-void SyncInferRequest::copy_tensor_if_needed(const ov::Tensor& src, ov::Tensor& dst, bool bInput) {
+void SyncInferRequest::copy_tensor_if_needed(const ov::Tensor& src, ov::Tensor& dst, const bool bInput) {
     auto ptrDst = static_cast<char*>(dst.data());
     auto ptrSrc = static_cast<char*>(src.data());
     ptrdiff_t szDst = dst.get_byte_size();

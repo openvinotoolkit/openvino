@@ -5,8 +5,6 @@
 
 #include <memory>
 
-#include "openvino/runtime/iremote_context.hpp"
-#include "openvino/runtime/iremote_tensor.hpp"
 #include "openvino/runtime/remote_context.hpp"
 
 namespace ov {
