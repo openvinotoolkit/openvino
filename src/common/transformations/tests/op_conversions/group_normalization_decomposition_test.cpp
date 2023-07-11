@@ -125,7 +125,7 @@ TEST_F(TransformationTestsF, GroupNormalizationDecomposition_num_groups) {
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
-TEST_F(TransformationTestsF, GroupNormalizationDecomposition_eps) {
+TEST_F(TransformationTestsF, GroupNormalizationDecomposition_eps_cast_to_float_min) {
     std::vector<PartialShape> input_shapes{PartialShape{1, 12, 6, 8}, PartialShape{12}, PartialShape{12}};
     const int64_t num_groups = 2;
     element::Type elem_type = element::f32;
@@ -134,6 +134,19 @@ TEST_F(TransformationTestsF, GroupNormalizationDecomposition_eps) {
     manager.register_pass<pass::GroupNormalizationDecomposition>();
 
     model_ref = gen_model_ref(input_shapes, elem_type, num_groups, std::numeric_limits<float>::min());
+
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
+}
+
+TEST_F(TransformationTestsF, GroupNormalizationDecomposition_eps_cast_to_float_max) {
+    std::vector<PartialShape> input_shapes{PartialShape{1, 12, 6, 8}, PartialShape{12}, PartialShape{12}};
+    const int64_t num_groups = 2;
+    element::Type elem_type = element::f32;
+
+    model = gen_model(input_shapes, elem_type, num_groups, 1e+39);
+    manager.register_pass<pass::GroupNormalizationDecomposition>();
+
+    model_ref = gen_model_ref(input_shapes, elem_type, num_groups, std::numeric_limits<float>::max());
 
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
