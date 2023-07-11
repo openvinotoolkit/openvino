@@ -9,7 +9,33 @@
 using namespace ov;
 using namespace ov::intel_cpu;
 
-TEST(StaticShapeInferenceTest, LstmCellTest) {
+class LSTMCellV4StaticShapeInferenceTest : public OpStaticShapeInferenceTest<op::v4::LSTMCell> {
+protected:
+    void SetUp() override {
+        this->output_shapes = ShapeVector(2);
+    }
+};
+
+TEST_F(LSTMCellV4StaticShapeInferenceTest, default_ctor) {
+    const size_t batch_size = 2;
+    const size_t input_size = 3;
+    const size_t hidden_size = 3;
+    const size_t gates_count = 4;
+
+    const auto lstm_cell = make_op();
+
+    input_shapes = {StaticShape{batch_size, input_size},
+                    StaticShape{batch_size, hidden_size},
+                    StaticShape{batch_size, hidden_size},
+                    StaticShape{gates_count * hidden_size, input_size},
+                    StaticShape{gates_count * hidden_size, hidden_size},
+                    StaticShape{gates_count * hidden_size}},
+    shape_inference(lstm_cell.get(), input_shapes, output_shapes);
+    EXPECT_EQ(output_shapes[0], StaticShape({batch_size, hidden_size}));
+    EXPECT_EQ(output_shapes[1], StaticShape({batch_size, hidden_size}));
+}
+
+TEST_F(LSTMCellV4StaticShapeInferenceTest, basic_shape_infer) {
     const size_t batch_size = 2;
     const size_t input_size = 3;
     const size_t hidden_size = 3;
@@ -21,21 +47,20 @@ TEST(StaticShapeInferenceTest, LstmCellTest) {
     const auto H_t = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, -1});
     const auto C_t = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, -1});
     const auto Bias = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1});
-    const auto lstm_cell = std::make_shared<op::v4::LSTMCell>(X, H_t, C_t, W, R, Bias, hidden_size);
+    const auto lstm_cell = make_op(X, H_t, C_t, W, R, Bias, hidden_size);
 
-    std::vector<StaticShape> static_input_shapes = {StaticShape{batch_size, input_size},
-                                                    StaticShape{batch_size, hidden_size},
-                                                    StaticShape{batch_size, hidden_size},
-                                                    StaticShape{gates_count * hidden_size, input_size},
-                                                    StaticShape{gates_count * hidden_size, hidden_size},
-                                                    StaticShape{gates_count * hidden_size}},
-                             static_output_shapes = {StaticShape{}, StaticShape{}};
-    shape_inference(lstm_cell.get(), static_input_shapes, static_output_shapes);
-    ASSERT_EQ(static_output_shapes[0], StaticShape({batch_size, hidden_size}));
-    ASSERT_EQ(static_output_shapes[1], StaticShape({batch_size, hidden_size}));
+    input_shapes = {StaticShape{batch_size, input_size},
+                    StaticShape{batch_size, hidden_size},
+                    StaticShape{batch_size, hidden_size},
+                    StaticShape{gates_count * hidden_size, input_size},
+                    StaticShape{gates_count * hidden_size, hidden_size},
+                    StaticShape{gates_count * hidden_size}},
+    shape_inference(lstm_cell.get(), input_shapes, output_shapes);
+    EXPECT_EQ(output_shapes[0], StaticShape({batch_size, hidden_size}));
+    EXPECT_EQ(output_shapes[1], StaticShape({batch_size, hidden_size}));
 }
 
-TEST(StaticShapeInferenceTest, LstmCellV1Test) {
+TEST(StaticShapeInferenceTest, LSTMCellV0Test) {
     const size_t batch_size = 2;
     const size_t input_size = 3;
     const size_t hidden_size = 3;
