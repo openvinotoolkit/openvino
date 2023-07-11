@@ -29,11 +29,11 @@ bert-base-cased,OV-2023.0,core-iGPU,Intel® Core™  i7-1185GRE iGPU-only,69.65,
 bert-base-cased,OV-2023.0,core-iGPU,Intel®  Core™ i9-12900HK GPU-only,88.24,60.90,46.38,0.127,1.961,697,45,1,697,45,44.864
 bert-base-cased,OV-2023.0,core-iGPU,Intel®  Processor N200 GPU-only,3.31,2.36,1.49,0.017,0.551,193,6,1,193,6,1207.72
 bert-base-cased,OV-2023.0,core-iGPU,Intel®  Core™  i7-1185G7 GPU-only,82.48,59.66,41.79,0.194,2.946,426,28,1,426,28,48.15
-bert-base-cased,OV-2023.0,core-CPU+GPU,Intel®  Celeron™  6305E GPU-only,53.07,,24.80,0.496,3.538,107,15,1,107,15,
-bert-base-cased,OV-2023.0,core-CPU+GPU,Intel® Core™  i7-1185GRE iGPU-only,71.87,,27.99,0.147,2.567,490,28,1,490,28,
-bert-base-cased,OV-2023.0,core-CPU+GPU,Intel®  Core™ i9-12900HK GPU-only,127.08,,55.39,0.182,2.824,697,45,1,697,45,
-bert-base-cased,OV-2023.0,core-CPU+GPU,Intel®  Processor N200 GPU-only,4.21,,2.08,0.022,0.701,193,6,1,193,6,
-bert-base-cased,OV-2023.0,core-CPU+GPU,Intel®  Core™  i7-1185G7 GPU-only,83.41,,39.13,0.196,2.979,426,28,1,426,28,
+bert-base-cased,OV-2023.0,core-CPU+iGPU,Intel®  Celeron™  6305E GPU-only,53.07,,24.80,0.496,3.538,107,15,1,107,15,
+bert-base-cased,OV-2023.0,core-CPU+iGPU,Intel® Core™  i7-1185GRE iGPU-only,71.87,,27.99,0.147,2.567,490,28,1,490,28,
+bert-base-cased,OV-2023.0,core-CPU+iGPU,Intel®  Core™ i9-12900HK GPU-only,127.08,,55.39,0.182,2.824,697,45,1,697,45,
+bert-base-cased,OV-2023.0,core-CPU+iGPU,Intel®  Processor N200 GPU-only,4.21,,2.08,0.022,0.701,193,6,1,193,6,
+bert-base-cased,OV-2023.0,core-CPU+iGPU,Intel®  Core™  i7-1185G7 GPU-only,83.41,,39.13,0.196,2.979,426,28,1,426,28,
 end_rec,,,,,,,,,,,,,,
 begin_rec,,,,,,,,,,,,,,
 bert-large-uncased-whole-word-masking-squad-0001,OV-2023.0,core,Intel® Core™  i9-12900HK CPU-only,6.79,,2.68,0.010,0.151,697,45,1,697,45,181.851
@@ -65,11 +65,11 @@ bert-large-uncased-whole-word-masking-squad-0001,OV-2023.0,core-iGPU,Intel® Cor
 bert-large-uncased-whole-word-masking-squad-0001,OV-2023.0,core-iGPU,Intel®  Core™ i9-12900HK GPU-only,11.39,8.22,5.15,0.016,0.253,697,45,1,697,45,350.737
 bert-large-uncased-whole-word-masking-squad-0001,OV-2023.0,core-iGPU,Intel®  Processor N200 GPU-only,0.35,0.24,0.14,0.002,0.058,193,6,1,193,6,11593.101
 bert-large-uncased-whole-word-masking-squad-0001,OV-2023.0,core-iGPU,Intel®  Core™  i7-1185G7 GPU-only,9.16,7.22,4.24,0.021,0.327,426,28,1,426,28,445.659
-bert-large-uncased-whole-word-masking-squad-0001,OV-2023.0,core-CPU+GPU,Intel®  Celeron™  6305E GPU-only,4.87,,2.19,0.046,0.325,107,15,1,107,15,
-bert-large-uncased-whole-word-masking-squad-0001,OV-2023.0,core-CPU+GPU,Intel® Core™  i7-1185GRE iGPU-only,3.38,,2.09,0.007,0.121,490,28,1,490,28,
-bert-large-uncased-whole-word-masking-squad-0001,OV-2023.0,core-CPU+GPU,Intel®  Core™ i9-12900HK GPU-only,11.78,,4.86,0.017,0.262,697,45,1,697,45,
-bert-large-uncased-whole-word-masking-squad-0001,OV-2023.0,core-CPU+GPU,Intel®  Processor N200 GPU-only,0.44,,0.18,0.002,0.073,193,6,1,193,6,
-bert-large-uncased-whole-word-masking-squad-0001,OV-2023.0,core-CPU+GPU,Intel®  Core™  i7-1185G7 GPU-only,7.98,,3.42,0.019,0.285,426,28,1,426,28,
+bert-large-uncased-whole-word-masking-squad-0001,OV-2023.0,core-CPU+iGPU,Intel®  Celeron™  6305E GPU-only,4.87,,2.19,0.046,0.325,107,15,1,107,15,
+bert-large-uncased-whole-word-masking-squad-0001,OV-2023.0,core-CPU+iGPU,Intel® Core™  i7-1185GRE iGPU-only,3.38,,2.09,0.007,0.121,490,28,1,490,28,
+bert-large-uncased-whole-word-masking-squad-0001,OV-2023.0,core-CPU+iGPU,Intel®  Core™ i9-12900HK GPU-only,11.78,,4.86,0.017,0.262,697,45,1,697,45,
+bert-large-uncased-whole-word-masking-squad-0001,OV-2023.0,core-CPU+iGPU,Intel®  Processor N200 GPU-only,0.44,,0.18,0.002,0.073,193,6,1,193,6,
+bert-large-uncased-whole-word-masking-squad-0001,OV-2023.0,core-CPU+iGPU,Intel®  Core™  i7-1185G7 GPU-only,7.98,,3.42,0.019,0.285,426,28,1,426,28,
 end_rec,,,,,,,,,,,,,,
 begin_rec,,,,,,,,,,,,,,
 deeplabv3,OV-2023.0,core,Intel® Core™  i9-12900HK CPU-only,74.12,,31.22,0.106,1.647,697,45,1,697,45,18.344
@@ -101,11 +101,11 @@ deeplabv3,OV-2023.0,core-iGPU,Intel® Core™  i7-1185GRE iGPU-only,76.73,36.90,
 deeplabv3,OV-2023.0,core-iGPU,Intel®  Core™ i9-12900HK GPU-only,121.55,55.55,36.78,0.174,2.701,697,45,1,697,45,32.538
 deeplabv3,OV-2023.0,core-iGPU,Intel®  Processor N200 GPU-only,3.85,2.01,1.36,0.020,0.641,193,6,1,193,6,1038.839
 deeplabv3,OV-2023.0,core-iGPU,Intel®  Core™  i7-1185G7 GPU-only,109.22,50.67,28.82,0.256,3.901,426,28,1,426,28,36.378
-deeplabv3,OV-2023.0,core-CPU+GPU,Intel®  Celeron™  6305E GPU-only,62.77,,16.96,0.587,4.184,107,15,1,107,15,
-deeplabv3,OV-2023.0,core-CPU+GPU,Intel® Core™  i7-1185GRE iGPU-only,51.34,,8.91,0.105,1.834,490,28,1,490,28,
-deeplabv3,OV-2023.0,core-CPU+GPU,Intel®  Core™ i9-12900HK GPU-only,139.61,,40.39,0.200,3.103,697,45,1,697,45,
-deeplabv3,OV-2023.0,core-CPU+GPU,Intel®  Processor N200 GPU-only,4.81,,1.97,0.025,0.802,193,6,1,193,6,
-deeplabv3,OV-2023.0,core-CPU+GPU,Intel®  Core™  i7-1185G7 GPU-only,92.48,,24.81,0.217,3.303,426,28,1,426,28,
+deeplabv3,OV-2023.0,core-CPU+iGPU,Intel®  Celeron™  6305E GPU-only,62.77,,16.96,0.587,4.184,107,15,1,107,15,
+deeplabv3,OV-2023.0,core-CPU+iGPU,Intel® Core™  i7-1185GRE iGPU-only,51.34,,8.91,0.105,1.834,490,28,1,490,28,
+deeplabv3,OV-2023.0,core-CPU+iGPU,Intel®  Core™ i9-12900HK GPU-only,139.61,,40.39,0.200,3.103,697,45,1,697,45,
+deeplabv3,OV-2023.0,core-CPU+iGPU,Intel®  Processor N200 GPU-only,4.81,,1.97,0.025,0.802,193,6,1,193,6,
+deeplabv3,OV-2023.0,core-CPU+iGPU,Intel®  Core™  i7-1185G7 GPU-only,92.48,,24.81,0.217,3.303,426,28,1,426,28,
 end_rec,,,,,,,,,,,,,,
 begin_rec,,,,,,,,,,,,,,
 efficientdet-d0,OV-2023.0,core,Intel® Core™  i9-12900HK CPU-only,97.01,,57.69,0.139,2.156,697,45,1,697,45,14.749
@@ -137,11 +137,11 @@ efficientdet-d0,OV-2023.0,core-iGPU,Intel® Core™  i7-1185GRE iGPU-only,61.69,
 efficientdet-d0,OV-2023.0,core-iGPU,Intel®  Core™ i9-12900HK GPU-only,123.77,105.73,60.06,0.178,2.751,697,45,1,697,45,31.947
 efficientdet-d0,OV-2023.0,core-iGPU,Intel®  Processor N200 GPU-only,5.64,5.03,3.02,0.029,0.940,193,6,1,193,6,707.252
 efficientdet-d0,OV-2023.0,core-iGPU,Intel®  Core™  i7-1185G7 GPU-only,108.15,90.40,51.00,0.254,3.862,426,28,1,426,28,36.641
-efficientdet-d0,OV-2023.0,core-CPU+GPU,Intel®  Celeron™  6305E GPU-only,56.00,,33.11,0.523,3.733,107,15,1,107,15,
-efficientdet-d0,OV-2023.0,core-CPU+GPU,Intel® Core™  i7-1185GRE iGPU-only,50.72,,18.56,0.104,1.811,490,28,1,490,28,
-efficientdet-d0,OV-2023.0,core-CPU+GPU,Intel®  Core™ i9-12900HK GPU-only,144.59,,69.25,0.207,3.213,697,45,1,697,45,
-efficientdet-d0,OV-2023.0,core-CPU+GPU,Intel®  Processor N200 GPU-only,6.03,,3.81,0.031,1.005,193,6,1,193,6,
-efficientdet-d0,OV-2023.0,core-CPU+GPU,Intel®  Core™  i7-1185G7 GPU-only,97.10,,49.20,0.228,3.468,426,28,1,426,28,
+efficientdet-d0,OV-2023.0,core-CPU+iGPU,Intel®  Celeron™  6305E GPU-only,56.00,,33.11,0.523,3.733,107,15,1,107,15,
+efficientdet-d0,OV-2023.0,core-CPU+iGPU,Intel® Core™  i7-1185GRE iGPU-only,50.72,,18.56,0.104,1.811,490,28,1,490,28,
+efficientdet-d0,OV-2023.0,core-CPU+iGPU,Intel®  Core™ i9-12900HK GPU-only,144.59,,69.25,0.207,3.213,697,45,1,697,45,
+efficientdet-d0,OV-2023.0,core-CPU+iGPU,Intel®  Processor N200 GPU-only,6.03,,3.81,0.031,1.005,193,6,1,193,6,
+efficientdet-d0,OV-2023.0,core-CPU+iGPU,Intel®  Core™  i7-1185G7 GPU-only,97.10,,49.20,0.228,3.468,426,28,1,426,28,
 end_rec,,,,,,,,,,,,,,
 begin_rec,,,,,,,,,,,,,,
 faster_rcnn_resnet50_coco,OV-2023.0,core,Intel® Core™  i9-12900HK CPU-only,10.07,,3.25,0.014,0.224,697,45,1,697,45,173.007
@@ -173,11 +173,11 @@ faster_rcnn_resnet50_coco,OV-2023.0,core-iGPU,Intel® Core™  i7-1185GRE iGPU-o
 faster_rcnn_resnet50_coco,OV-2023.0,core-iGPU,Intel®  Core™ i9-12900HK GPU-only,17.32,9.61,4.50,0.025,0.385,697,45,1,697,45,230.593
 faster_rcnn_resnet50_coco,OV-2023.0,core-iGPU,Intel®  Processor N200 GPU-only,0.48,0.28,0.14,0.002,0.080,193,6,1,193,6,8322.584
 faster_rcnn_resnet50_coco,OV-2023.0,core-iGPU,Intel®  Core™  i7-1185G7 GPU-only,15.37,8.20,3.72,0.036,0.549,426,28,1,426,28,266.287
-faster_rcnn_resnet50_coco,OV-2023.0,core-CPU+GPU,Intel®  Celeron™  6305E GPU-only,8.58,,1.99,0.080,0.572,107,15,1,107,15,
-faster_rcnn_resnet50_coco,OV-2023.0,core-CPU+GPU,Intel® Core™  i7-1185GRE iGPU-only,11.83,,1.81,0.024,0.423,490,28,1,490,28,
-faster_rcnn_resnet50_coco,OV-2023.0,core-CPU+GPU,Intel®  Core™ i9-12900HK GPU-only,20.10,,5.54,0.029,0.447,697,45,1,697,45,
-faster_rcnn_resnet50_coco,OV-2023.0,core-CPU+GPU,Intel®  Processor N200 GPU-only,0.60,,0.19,0.003,0.099,193,6,1,193,6,
-faster_rcnn_resnet50_coco,OV-2023.0,core-CPU+GPU,Intel®  Core™  i7-1185G7 GPU-only,13.39,,3.31,0.031,0.478,426,28,1,426,28,
+faster_rcnn_resnet50_coco,OV-2023.0,core-CPU+iGPU,Intel®  Celeron™  6305E GPU-only,8.58,,1.99,0.080,0.572,107,15,1,107,15,
+faster_rcnn_resnet50_coco,OV-2023.0,core-CPU+iGPU,Intel® Core™  i7-1185GRE iGPU-only,11.83,,1.81,0.024,0.423,490,28,1,490,28,
+faster_rcnn_resnet50_coco,OV-2023.0,core-CPU+iGPU,Intel®  Core™ i9-12900HK GPU-only,20.10,,5.54,0.029,0.447,697,45,1,697,45,
+faster_rcnn_resnet50_coco,OV-2023.0,core-CPU+iGPU,Intel®  Processor N200 GPU-only,0.60,,0.19,0.003,0.099,193,6,1,193,6,
+faster_rcnn_resnet50_coco,OV-2023.0,core-CPU+iGPU,Intel®  Core™  i7-1185G7 GPU-only,13.39,,3.31,0.031,0.478,426,28,1,426,28,
 end_rec,,,,,,,,,,,,,,
 begin_rec,,,,,,,,,,,,,,
 googlenet-v4,OV-2023.0,core,Intel® Core™  i9-12900HK CPU-only,111.78,,31.98,0.160,2.484,697,45,1,697,45,16.401
@@ -209,11 +209,11 @@ googlenet-v4,OV-2023.0,core-iGPU,Intel® Core™  i7-1185GRE iGPU-only,106.60,55
 googlenet-v4,OV-2023.0,core-iGPU,Intel®  Core™ i9-12900HK GPU-only,126.94,64.60,41.28,0.182,2.821,697,45,1,697,45,31.129
 googlenet-v4,OV-2023.0,core-iGPU,Intel®  Processor N200 GPU-only,4.27,1.99,1.14,0.022,0.712,193,6,1,193,6,934.853
 googlenet-v4,OV-2023.0,core-iGPU,Intel®  Core™  i7-1185G7 GPU-only,120.74,59.65,36.70,0.283,4.312,426,28,1,426,28,32.7
-googlenet-v4,OV-2023.0,core-CPU+GPU,Intel®  Celeron™  6305E GPU-only,86.46,,20.87,0.808,5.764,107,15,1,107,15,
-googlenet-v4,OV-2023.0,core-CPU+GPU,Intel® Core™  i7-1185GRE iGPU-only,134.97,,32.38,0.275,4.820,490,28,1,490,28,
-googlenet-v4,OV-2023.0,core-CPU+GPU,Intel®  Core™ i9-12900HK GPU-only,203.09,,55.43,0.291,4.513,697,45,1,697,45,
-googlenet-v4,OV-2023.0,core-CPU+GPU,Intel®  Processor N200 GPU-only,6.00,,1.59,0.031,1.001,193,6,1,193,6,
-googlenet-v4,OV-2023.0,core-CPU+GPU,Intel®  Core™  i7-1185G7 GPU-only,125.28,,33.33,0.294,4.474,426,28,1,426,28,
+googlenet-v4,OV-2023.0,core-CPU+iGPU,Intel®  Celeron™  6305E GPU-only,86.46,,20.87,0.808,5.764,107,15,1,107,15,
+googlenet-v4,OV-2023.0,core-CPU+iGPU,Intel® Core™  i7-1185GRE iGPU-only,134.97,,32.38,0.275,4.820,490,28,1,490,28,
+googlenet-v4,OV-2023.0,core-CPU+iGPU,Intel®  Core™ i9-12900HK GPU-only,203.09,,55.43,0.291,4.513,697,45,1,697,45,
+googlenet-v4,OV-2023.0,core-CPU+iGPU,Intel®  Processor N200 GPU-only,6.00,,1.59,0.031,1.001,193,6,1,193,6,
+googlenet-v4,OV-2023.0,core-CPU+iGPU,Intel®  Core™  i7-1185G7 GPU-only,125.28,,33.33,0.294,4.474,426,28,1,426,28,
 end_rec,,,,,,,,,,,,,,
 begin_rec,,,,,,,,,,,,,,
 GPT-2,OV-2023.0,core,Intel® Core™  i9-12900HK CPU-only,3.76,,2.02,0.005,0.083,697,45,1,697,45,296.881
@@ -245,11 +245,11 @@ GPT-2,OV-2023.0,core-iGPU,Intel® Core™  i7-1185GRE iGPU-only,2.00,2.74,1.57,0
 GPT-2,OV-2023.0,core-iGPU,Intel®  Core™ i9-12900HK GPU-only,5.68,4.85,3.22,0.008,0.126,697,45,1,697,45,703.429
 GPT-2,OV-2023.0,core-iGPU,Intel®  Processor N200 GPU-only,0.23,0.16,0.11,0.001,0.038,193,6,1,193,6,17533.595
 GPT-2,OV-2023.0,core-iGPU,Intel®  Core™  i7-1185G7 GPU-only,4.16,4.13,2.69,0.010,0.148,426,28,1,426,28,960.778
-GPT-2,OV-2023.0,core-CPU+GPU,Intel®  Celeron™  6305E GPU-only,3.00,,1.49,0.028,0.200,107,15,1,107,15,
-GPT-2,OV-2023.0,core-CPU+GPU,Intel® Core™  i7-1185GRE iGPU-only,1.68,,1.09,0.003,0.060,490,28,1,490,28,
-GPT-2,OV-2023.0,core-CPU+GPU,Intel®  Core™ i9-12900HK GPU-only,5.09,,3.28,0.007,0.113,697,45,1,697,45,
-GPT-2,OV-2023.0,core-CPU+GPU,Intel®  Processor N200 GPU-only,0.28,,0.13,0.001,0.046,193,6,1,193,6,
-GPT-2,OV-2023.0,core-CPU+GPU,Intel®  Core™  i7-1185G7 GPU-only,4.27,,2.26,0.010,0.153,426,28,1,426,28,
+GPT-2,OV-2023.0,core-CPU+iGPU,Intel®  Celeron™  6305E GPU-only,3.00,,1.49,0.028,0.200,107,15,1,107,15,
+GPT-2,OV-2023.0,core-CPU+iGPU,Intel® Core™  i7-1185GRE iGPU-only,1.68,,1.09,0.003,0.060,490,28,1,490,28,
+GPT-2,OV-2023.0,core-CPU+iGPU,Intel®  Core™ i9-12900HK GPU-only,5.09,,3.28,0.007,0.113,697,45,1,697,45,
+GPT-2,OV-2023.0,core-CPU+iGPU,Intel®  Processor N200 GPU-only,0.28,,0.13,0.001,0.046,193,6,1,193,6,
+GPT-2,OV-2023.0,core-CPU+iGPU,Intel®  Core™  i7-1185G7 GPU-only,4.27,,2.26,0.010,0.153,426,28,1,426,28,
 end_rec,,,,,,,,,,,,,,
 begin_rec,,,,,,,,,,,,,,
 mobilenet-ssd,OV-2023.0,core,Intel® Core™  i9-12900HK CPU-only,789.36,,299.79,1.133,17.541,697,45,1,697,45,2.072
@@ -281,11 +281,11 @@ mobilenet-ssd,OV-2023.0,core-iGPU,Intel® Core™  i7-1185GRE iGPU-only,619.19,3
 mobilenet-ssd,OV-2023.0,core-iGPU,Intel®  Core™ i9-12900HK GPU-only,816.41,453.27,310.53,1.171,18.142,697,45,1,697,45,4.657
 mobilenet-ssd,OV-2023.0,core-iGPU,Intel®  Processor N200 GPU-only,32.42,16.84,10.65,0.168,5.403,193,6,1,193,6,121.698
 mobilenet-ssd,OV-2023.0,core-iGPU,Intel®  Core™  i7-1185G7 GPU-only,702.15,407.81,276.23,1.648,25.077,426,28,1,426,28,5.535
-mobilenet-ssd,OV-2023.0,core-CPU+GPU,Intel®  Celeron™  6305E GPU-only,326.89,,144.12,3.055,21.793,107,15,1,107,15,
-mobilenet-ssd,OV-2023.0,core-CPU+GPU,Intel® Core™  i7-1185GRE iGPU-only,569.19,,143.17,1.162,20.328,490,28,1,490,28,
-mobilenet-ssd,OV-2023.0,core-CPU+GPU,Intel®  Core™ i9-12900HK GPU-only,1042.75,,416.99,1.496,23.172,697,45,1,697,45,
-mobilenet-ssd,OV-2023.0,core-CPU+GPU,Intel®  Processor N200 GPU-only,37.18,,15.37,0.193,6.197,193,6,1,193,6,
-mobilenet-ssd,OV-2023.0,core-CPU+GPU,Intel®  Core™  i7-1185G7 GPU-only,748.60,,253.99,1.757,26.736,426,28,1,426,28,
+mobilenet-ssd,OV-2023.0,core-CPU+iGPU,Intel®  Celeron™  6305E GPU-only,326.89,,144.12,3.055,21.793,107,15,1,107,15,
+mobilenet-ssd,OV-2023.0,core-CPU+iGPU,Intel® Core™  i7-1185GRE iGPU-only,569.19,,143.17,1.162,20.328,490,28,1,490,28,
+mobilenet-ssd,OV-2023.0,core-CPU+iGPU,Intel®  Core™ i9-12900HK GPU-only,1042.75,,416.99,1.496,23.172,697,45,1,697,45,
+mobilenet-ssd,OV-2023.0,core-CPU+iGPU,Intel®  Processor N200 GPU-only,37.18,,15.37,0.193,6.197,193,6,1,193,6,
+mobilenet-ssd,OV-2023.0,core-CPU+iGPU,Intel®  Core™  i7-1185G7 GPU-only,748.60,,253.99,1.757,26.736,426,28,1,426,28,
 end_rec,,,,,,,,,,,,,,
 begin_rec,,,,,,,,,,,,,,
 mobilenet-v2,OV-2023.0,core,Intel® Core™  i9-12900HK CPU-only,1726.00,,932.73,2.476,38.356,697,45,1,697,45,1.085
@@ -317,11 +317,11 @@ mobilenet-v2,OV-2023.0,core-iGPU,Intel® Core™  i7-1185GRE iGPU-only,909.69,58
 mobilenet-v2,OV-2023.0,core-iGPU,Intel®  Core™ i9-12900HK GPU-only,1205.84,894.32,586.79,1.730,26.796,697,45,1,697,45,3.127
 mobilenet-v2,OV-2023.0,core-iGPU,Intel®  Processor N200 GPU-only,60.97,41.27,26.90,0.316,10.162,193,6,1,193,6,64.669
 mobilenet-v2,OV-2023.0,core-iGPU,Intel®  Core™  i7-1185G7 GPU-only,1000.97,740.36,523.20,2.350,35.749,426,28,1,426,28,3.855
-mobilenet-v2,OV-2023.0,core-CPU+GPU,Intel®  Celeron™  6305E GPU-only,1468.05,,394.16,13.720,97.870,107,15,1,107,15,
-mobilenet-v2,OV-2023.0,core-CPU+GPU,Intel® Core™  i7-1185GRE iGPU-only,1168.44,,216.48,2.385,41.730,490,28,1,490,28,
-mobilenet-v2,OV-2023.0,core-CPU+GPU,Intel®  Core™ i9-12900HK GPU-only,3183.48,,1119.78,4.567,70.744,697,45,1,697,45,
-mobilenet-v2,OV-2023.0,core-CPU+GPU,Intel®  Processor N200 GPU-only,117.36,,49.87,0.608,19.560,193,6,1,193,6,
-mobilenet-v2,OV-2023.0,core-CPU+GPU,Intel®  Core™  i7-1185G7 GPU-only,2238.11,,597.27,5.254,79.933,426,28,1,426,28,
+mobilenet-v2,OV-2023.0,core-CPU+iGPU,Intel®  Celeron™  6305E GPU-only,1468.05,,394.16,13.720,97.870,107,15,1,107,15,
+mobilenet-v2,OV-2023.0,core-CPU+iGPU,Intel® Core™  i7-1185GRE iGPU-only,1168.44,,216.48,2.385,41.730,490,28,1,490,28,
+mobilenet-v2,OV-2023.0,core-CPU+iGPU,Intel®  Core™ i9-12900HK GPU-only,3183.48,,1119.78,4.567,70.744,697,45,1,697,45,
+mobilenet-v2,OV-2023.0,core-CPU+iGPU,Intel®  Processor N200 GPU-only,117.36,,49.87,0.608,19.560,193,6,1,193,6,
+mobilenet-v2,OV-2023.0,core-CPU+iGPU,Intel®  Core™  i7-1185G7 GPU-only,2238.11,,597.27,5.254,79.933,426,28,1,426,28,
 end_rec,,,,,,,,,,,,,,
 begin_rec,,,,,,,,,,,,,,
 resnet-50,OV-2023.0,core,Intel® Core™  i9-12900HK CPU-only,372.55,,103.20,0.535,8.279,697,45,1,697,45,4.778
@@ -353,11 +353,11 @@ resnet-50,OV-2023.0,core-iGPU,Intel® Core™  i7-1185GRE iGPU-only,296.02,166.1
 resnet-50,OV-2023.0,core-iGPU,Intel®  Core™ i9-12900HK GPU-only,380.98,229.42,143.43,0.547,8.466,697,45,1,697,45,10.195
 resnet-50,OV-2023.0,core-iGPU,Intel®  Processor N200 GPU-only,15.19,7.96,4.35,0.079,2.532,193,6,1,193,6,262.333
 resnet-50,OV-2023.0,core-iGPU,Intel®  Core™  i7-1185G7 GPU-only,351.93,210.88,120.40,0.826,12.569,426,28,1,426,28,11.145
-resnet-50,OV-2023.0,core-CPU+GPU,Intel®  Celeron™  6305E GPU-only,298.19,,75.45,2.787,19.880,107,15,1,107,15,
-resnet-50,OV-2023.0,core-CPU+GPU,Intel® Core™  i7-1185GRE iGPU-only,440.34,,87.84,0.899,15.726,490,28,1,490,28,
-resnet-50,OV-2023.0,core-CPU+GPU,Intel®  Core™ i9-12900HK GPU-only,714.02,,187.03,1.024,15.867,697,45,1,697,45,
-resnet-50,OV-2023.0,core-CPU+GPU,Intel®  Processor N200 GPU-only,21.28,,6.36,0.110,3.546,193,6,1,193,6,
-resnet-50,OV-2023.0,core-CPU+GPU,Intel®  Core™  i7-1185G7 GPU-only,469.96,,122.38,1.103,16.784,426,28,1,426,28,
+resnet-50,OV-2023.0,core-CPU+iGPU,Intel®  Celeron™  6305E GPU-only,298.19,,75.45,2.787,19.880,107,15,1,107,15,
+resnet-50,OV-2023.0,core-CPU+iGPU,Intel® Core™  i7-1185GRE iGPU-only,440.34,,87.84,0.899,15.726,490,28,1,490,28,
+resnet-50,OV-2023.0,core-CPU+iGPU,Intel®  Core™ i9-12900HK GPU-only,714.02,,187.03,1.024,15.867,697,45,1,697,45,
+resnet-50,OV-2023.0,core-CPU+iGPU,Intel®  Processor N200 GPU-only,21.28,,6.36,0.110,3.546,193,6,1,193,6,
+resnet-50,OV-2023.0,core-CPU+iGPU,Intel®  Core™  i7-1185G7 GPU-only,469.96,,122.38,1.103,16.784,426,28,1,426,28,
 end_rec,,,,,,,,,,,,,,
 begin_rec,,,,,,,,,,,,,,
 ssd-resnet34-1200,OV-2023.0,core,Intel® Core™  i9-12900HK CPU-only,6.00,,1.85,0.009,0.133,697,45,1,697,45,241.005
@@ -389,11 +389,11 @@ ssd-resnet34-1200,OV-2023.0,core-iGPU,Intel® Core™  i7-1185GRE iGPU-only,8.74
 ssd-resnet34-1200,OV-2023.0,core-iGPU,Intel®  Core™ i9-12900HK GPU-only,10.88,6.26,3.42,0.016,0.242,697,45,1,697,45,367.297
 ssd-resnet34-1200,OV-2023.0,core-iGPU,Intel®  Processor N200 GPU-only,0.29,0.17,,0.002,0.049,193,6,1,193,6,13690.681
 ssd-resnet34-1200,OV-2023.0,core-iGPU,Intel®  Core™  i7-1185G7 GPU-only,9.70,5.42,2.84,0.023,0.347,426,28,1,426,28,422.084
-ssd-resnet34-1200,OV-2023.0,core-CPU+GPU,Intel®  Celeron™  6305E GPU-only,0.90,,0.23,0.008,0.060,107,15,1,107,15,
-ssd-resnet34-1200,OV-2023.0,core-CPU+GPU,Intel® Core™  i7-1185GRE iGPU-only,3.15,,0.82,0.006,0.112,490,28,1,490,28,
-ssd-resnet34-1200,OV-2023.0,core-CPU+GPU,Intel®  Core™ i9-12900HK GPU-only,5.93,,1.87,0.009,0.132,697,45,1,697,45,
-ssd-resnet34-1200,OV-2023.0,core-CPU+GPU,Intel®  Processor N200 GPU-only,0.11,,0.05,0.001,0.018,193,6,1,193,6,
-ssd-resnet34-1200,OV-2023.0,core-CPU+GPU,Intel®  Core™  i7-1185G7 GPU-only,3.91,,1.00,0.009,0.140,426,28,1,426,28,
+ssd-resnet34-1200,OV-2023.0,core-CPU+iGPU,Intel®  Celeron™  6305E GPU-only,0.90,,0.23,0.008,0.060,107,15,1,107,15,
+ssd-resnet34-1200,OV-2023.0,core-CPU+iGPU,Intel® Core™  i7-1185GRE iGPU-only,3.15,,0.82,0.006,0.112,490,28,1,490,28,
+ssd-resnet34-1200,OV-2023.0,core-CPU+iGPU,Intel®  Core™ i9-12900HK GPU-only,5.93,,1.87,0.009,0.132,697,45,1,697,45,
+ssd-resnet34-1200,OV-2023.0,core-CPU+iGPU,Intel®  Processor N200 GPU-only,0.11,,0.05,0.001,0.018,193,6,1,193,6,
+ssd-resnet34-1200,OV-2023.0,core-CPU+iGPU,Intel®  Core™  i7-1185G7 GPU-only,3.91,,1.00,0.009,0.140,426,28,1,426,28,
 end_rec,,,,,,,,,,,,,,
 begin_rec,,,,,,,,,,,,,,
 unet-camvid-onnx-0001,OV-2023.0,core,Intel® Core™  i9-12900HK CPU-only,8.65,,3.05,0.012,0.192,697,45,1,697,45,156.161
@@ -425,11 +425,11 @@ unet-camvid-onnx-0001,OV-2023.0,core-iGPU,Intel® Core™  i7-1185GRE iGPU-only,
 unet-camvid-onnx-0001,OV-2023.0,core-iGPU,Intel®  Core™ i9-12900HK GPU-only,19.13,10.06,5.58,0.027,0.425,697,45,1,697,45,208.318
 unet-camvid-onnx-0001,OV-2023.0,core-iGPU,Intel®  Processor N200 GPU-only,0.47,0.27,0.14,0.002,0.078,193,6,1,193,6,8545.949
 unet-camvid-onnx-0001,OV-2023.0,core-iGPU,Intel®  Core™  i7-1185G7 GPU-only,17.31,8.85,4.83,0.041,0.618,426,28,1,426,28,227.453
-unet-camvid-onnx-0001,OV-2023.0,core-CPU+GPU,Intel®  Celeron™  6305E GPU-only,8.90,,2.45,0.083,0.593,107,15,1,107,15,
-unet-camvid-onnx-0001,OV-2023.0,core-CPU+GPU,Intel® Core™  i7-1185GRE iGPU-only,14.81,,3.73,0.030,0.529,490,28,1,490,28,
-unet-camvid-onnx-0001,OV-2023.0,core-CPU+GPU,Intel®  Core™ i9-12900HK GPU-only,19.83,,6.12,0.028,0.441,697,45,1,697,45,
-unet-camvid-onnx-0001,OV-2023.0,core-CPU+GPU,Intel®  Processor N200 GPU-only,0.57,,0.20,0.003,0.096,193,6,1,193,6,
-unet-camvid-onnx-0001,OV-2023.0,core-CPU+GPU,Intel®  Core™  i7-1185G7 GPU-only,14.14,,3.75,0.033,0.505,426,28,1,426,28,
+unet-camvid-onnx-0001,OV-2023.0,core-CPU+iGPU,Intel®  Celeron™  6305E GPU-only,8.90,,2.45,0.083,0.593,107,15,1,107,15,
+unet-camvid-onnx-0001,OV-2023.0,core-CPU+iGPU,Intel® Core™  i7-1185GRE iGPU-only,14.81,,3.73,0.030,0.529,490,28,1,490,28,
+unet-camvid-onnx-0001,OV-2023.0,core-CPU+iGPU,Intel®  Core™ i9-12900HK GPU-only,19.83,,6.12,0.028,0.441,697,45,1,697,45,
+unet-camvid-onnx-0001,OV-2023.0,core-CPU+iGPU,Intel®  Processor N200 GPU-only,0.57,,0.20,0.003,0.096,193,6,1,193,6,
+unet-camvid-onnx-0001,OV-2023.0,core-CPU+iGPU,Intel®  Core™  i7-1185G7 GPU-only,14.14,,3.75,0.033,0.505,426,28,1,426,28,
 end_rec,,,,,,,,,,,,,,
 begin_rec,,,,,,,,,,,,,,
 yolo_v3,OV-2023.0,core,Intel® Core™  i9-12900HK CPU-only,39.77,,11.97,0.057,0.884,697,45,1,697,45,34.872
@@ -461,11 +461,11 @@ yolo_v3,OV-2023.0,core-iGPU,Intel® Core™  i7-1185GRE iGPU-only,59.08,26.50,13
 yolo_v3,OV-2023.0,core-iGPU,Intel®  Core™ i9-12900HK GPU-only,69.33,34.30,18.80,0.099,1.541,697,45,1,697,45,57.179
 yolo_v3,OV-2023.0,core-iGPU,Intel®  Processor N200 GPU-only,1.82,0.94,0.51,0.009,0.304,193,6,1,193,6,2193.513
 yolo_v3,OV-2023.0,core-iGPU,Intel®  Core™  i7-1185G7 GPU-only,62.39,29.62,16.26,0.146,2.228,426,28,1,426,28,64.935
-yolo_v3,OV-2023.0,core-CPU+GPU,Intel®  Celeron™  6305E GPU-only,33.33,,8.57,0.311,2.222,107,15,1,107,15,
-yolo_v3,OV-2023.0,core-CPU+GPU,Intel® Core™  i7-1185GRE iGPU-only,54.94,,12.76,0.112,1.962,490,28,1,490,28,
-yolo_v3,OV-2023.0,core-CPU+GPU,Intel®  Core™ i9-12900HK GPU-only,79.34,,21.62,0.114,1.763,697,45,1,697,45,
-yolo_v3,OV-2023.0,core-CPU+GPU,Intel®  Processor N200 GPU-only,2.18,,0.72,0.011,0.363,193,6,1,193,6,
-yolo_v3,OV-2023.0,core-CPU+GPU,Intel®  Core™  i7-1185G7 GPU-only,50.76,,13.72,0.119,1.813,426,28,1,426,28,
+yolo_v3,OV-2023.0,core-CPU+iGPU,Intel®  Celeron™  6305E GPU-only,33.33,,8.57,0.311,2.222,107,15,1,107,15,
+yolo_v3,OV-2023.0,core-CPU+iGPU,Intel® Core™  i7-1185GRE iGPU-only,54.94,,12.76,0.112,1.962,490,28,1,490,28,
+yolo_v3,OV-2023.0,core-CPU+iGPU,Intel®  Core™ i9-12900HK GPU-only,79.34,,21.62,0.114,1.763,697,45,1,697,45,
+yolo_v3,OV-2023.0,core-CPU+iGPU,Intel®  Processor N200 GPU-only,2.18,,0.72,0.011,0.363,193,6,1,193,6,
+yolo_v3,OV-2023.0,core-CPU+iGPU,Intel®  Core™  i7-1185G7 GPU-only,50.76,,13.72,0.119,1.813,426,28,1,426,28,
 end_rec,,,,,,,,,,,,,,
 begin_rec,,,,,,,,,,,,,,
 yolo_v3_tiny,OV-2023.0,core,Intel® Core™  i9-12900HK CPU-only,433.83,,136.36,0.622,9.641,697,45,1,697,45,3.411
@@ -497,11 +497,11 @@ yolo_v3_tiny,OV-2023.0,core-iGPU,Intel® Core™  i7-1185GRE iGPU-only,505.41,25
 yolo_v3_tiny,OV-2023.0,core-iGPU,Intel®  Core™ i9-12900HK GPU-only,616.60,331.25,206.56,0.885,13.702,697,45,1,697,45,6.288
 yolo_v3_tiny,OV-2023.0,core-iGPU,Intel®  Processor N200 GPU-only,17.57,9.95,5.67,0.091,2.928,193,6,1,193,6,226.048
 yolo_v3_tiny,OV-2023.0,core-iGPU,Intel®  Core™  i7-1185G7 GPU-only,547.67,291.75,171.00,1.286,19.560,426,28,1,426,28,7.089
-yolo_v3_tiny,OV-2023.0,core-CPU+GPU,Intel®  Celeron™  6305E GPU-only,321.12,,92.81,3.001,21.408,107,15,1,107,15,
-yolo_v3_tiny,OV-2023.0,core-CPU+GPU,Intel® Core™  i7-1185GRE iGPU-only,324.93,,98.38,0.663,11.605,490,28,1,490,28,
-yolo_v3_tiny,OV-2023.0,core-CPU+GPU,Intel®  Core™ i9-12900HK GPU-only,755.15,,230.16,1.083,16.781,697,45,1,697,45,
-yolo_v3_tiny,OV-2023.0,core-CPU+GPU,Intel®  Processor N200 GPU-only,24.02,,7.84,0.124,4.003,193,6,1,193,6,
-yolo_v3_tiny,OV-2023.0,core-CPU+GPU,Intel®  Core™  i7-1185G7 GPU-only,487.88,,144.54,1.145,17.424,426,28,1,426,28,
+yolo_v3_tiny,OV-2023.0,core-CPU+iGPU,Intel®  Celeron™  6305E GPU-only,321.12,,92.81,3.001,21.408,107,15,1,107,15,
+yolo_v3_tiny,OV-2023.0,core-CPU+iGPU,Intel® Core™  i7-1185GRE iGPU-only,324.93,,98.38,0.663,11.605,490,28,1,490,28,
+yolo_v3_tiny,OV-2023.0,core-CPU+iGPU,Intel®  Core™ i9-12900HK GPU-only,755.15,,230.16,1.083,16.781,697,45,1,697,45,
+yolo_v3_tiny,OV-2023.0,core-CPU+iGPU,Intel®  Processor N200 GPU-only,24.02,,7.84,0.124,4.003,193,6,1,193,6,
+yolo_v3_tiny,OV-2023.0,core-CPU+iGPU,Intel®  Core™  i7-1185G7 GPU-only,487.88,,144.54,1.145,17.424,426,28,1,426,28,
 end_rec,,,,,,,,,,,,,,
 begin_rec,,,,,,,,,,,,,,
 yolo_v8n,OV-2023.0,core,Intel® Core™  i9-12900HK CPU-only,184.70,,72.61,0.265,4.104,697,45,1,697,45,7.542
@@ -533,9 +533,9 @@ yolo_v8n,OV-2023.0,core-iGPU,Intel® Core™  i7-1185GRE iGPU-only,154.20,106.82
 yolo_v8n,OV-2023.0,core-iGPU,Intel®  Core™ i9-12900HK GPU-only,218.28,155.96,102.82,0.313,4.851,697,45,1,697,45,17.971
 yolo_v8n,OV-2023.0,core-iGPU,Intel®  Processor N200 GPU-only,8.78,5.75,3.36,0.045,1.463,193,6,1,193,6,454.508
 yolo_v8n,OV-2023.0,core-iGPU,Intel®  Core™  i7-1185G7 GPU-only,201.27,141.88,88.88,0.472,7.188,426,28,1,426,28,19.643
-yolo_v8n,OV-2023.0,core-CPU+GPU,Intel®  Celeron™  6305E GPU-only,111.94,,48.30,1.046,7.462,107,15,1,107,15,
-yolo_v8n,OV-2023.0,core-CPU+GPU,Intel® Core™  i7-1185GRE iGPU-only,116.95,,45.54,0.239,4.177,490,28,1,490,28,
-yolo_v8n,OV-2023.0,core-CPU+GPU,Intel®  Core™ i9-12900HK GPU-only,283.25,,118.51,0.406,6.294,697,45,1,697,45,
-yolo_v8n,OV-2023.0,core-CPU+GPU,Intel®  Processor N200 GPU-only,10.11,,4.49,0.052,1.685,193,6,1,193,6,
-yolo_v8n,OV-2023.0,core-CPU+GPU,Intel®  Core™  i7-1185G7 GPU-only,175.79,,75.16,0.413,6.278,426,28,1,426,28,
+yolo_v8n,OV-2023.0,core-CPU+iGPU,Intel®  Celeron™  6305E GPU-only,111.94,,48.30,1.046,7.462,107,15,1,107,15,
+yolo_v8n,OV-2023.0,core-CPU+iGPU,Intel® Core™  i7-1185GRE iGPU-only,116.95,,45.54,0.239,4.177,490,28,1,490,28,
+yolo_v8n,OV-2023.0,core-CPU+iGPU,Intel®  Core™ i9-12900HK GPU-only,283.25,,118.51,0.406,6.294,697,45,1,697,45,
+yolo_v8n,OV-2023.0,core-CPU+iGPU,Intel®  Processor N200 GPU-only,10.11,,4.49,0.052,1.685,193,6,1,193,6,
+yolo_v8n,OV-2023.0,core-CPU+iGPU,Intel®  Core™  i7-1185G7 GPU-only,175.79,,75.16,0.413,6.278,426,28,1,426,28,
 end_rec,,,,,,,,,,,,,,
