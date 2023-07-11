@@ -911,32 +911,31 @@ std::shared_ptr<ov::Model> MHAWithExtractedReshapeFunction::initOriginal() const
 }
 
 std::shared_ptr<ov::Model> MHAWithExtractedReshapeFunction::initReference() const {
-    const auto data0 = std::make_shared<ngraph::opset1::Parameter>(precision, input_shapes[0]);
-    const auto data1 = std::make_shared<ngraph::opset1::Parameter>(precision, input_shapes[1]);
-    const auto data2 = std::make_shared<ngraph::opset1::Parameter>(precision, input_shapes[2]);
-    const auto data3 = std::make_shared<ngraph::opset1::Parameter>(precision, input_shapes[3]);
-    const auto data4 = std::make_shared<ngraph::opset1::Parameter>(precision, input_shapes[4]);
-    ngraph::ParameterVector ngraphParam = {data0, data1, data2, data3, data4};
+    const auto data_0 = std::make_shared<ngraph::opset1::Parameter>(precision, input_shapes[0]);
+    const auto data_1 = std::make_shared<ngraph::opset1::Parameter>(precision, input_shapes[1]);
+    const auto data_2 = std::make_shared<ngraph::opset1::Parameter>(precision, input_shapes[2]);
+    const auto data_3 = std::make_shared<ngraph::opset1::Parameter>(precision, input_shapes[3]);
+    const auto data_4 = std::make_shared<ngraph::opset1::Parameter>(precision, input_shapes[4]);
+    ngraph::ParameterVector ngraphParam = {data_0, data_1, data_2, data_3, data_4};
 
-    const auto external_add = std::make_shared<ov::opset1::Add>(data2, data3);
+    const auto external_add = std::make_shared<ov::opset1::Add>(data_2, data_3);
     ov::Shape mm_out_shape = input_shapes[0].to_shape();
     mm_out_shape.back() = input_shapes[1].to_shape().back();
     const auto target_shape = ov::opset1::Constant::create(ov::element::i32, {mm_out_shape.size()}, mm_out_shape);
     const auto reshape = std::make_shared<ov::opset1::Reshape>(external_add, target_shape, false);
 
-    const auto param0 = std::make_shared<ngraph::opset1::Parameter>(precision, data0->get_shape());
-    const auto param1 = std::make_shared<ngraph::opset1::Parameter>(precision, data1->get_shape());
-    const auto param2 = std::make_shared<ngraph::opset1::Parameter>(precision, reshape->get_shape());
-    const auto param3 = std::make_shared<ngraph::opset1::Parameter>(precision, data4->get_shape());
+    const auto param_0 = std::make_shared<ngraph::opset1::Parameter>(precision, data_0->get_shape());
+    const auto param_1 = std::make_shared<ngraph::opset1::Parameter>(precision, data_1->get_shape());
+    const auto param_2 = std::make_shared<ngraph::opset1::Parameter>(precision, reshape->get_shape());
+    const auto param_3 = std::make_shared<ngraph::opset1::Parameter>(precision, data_4->get_shape());
 
-    const auto matMul0 = std::make_shared<ngraph::opset3::MatMul>(param0, param1);
-    const auto add_internal = std::make_shared<ov::opset1::Add>(matMul0, param2);
+    const auto matmul_0 = std::make_shared<ngraph::opset3::MatMul>(param_0, param_1);
+    const auto add_internal = std::make_shared<ov::opset1::Add>(matmul_0, param_2);
     const auto softmax = std::make_shared<ngraph::opset8::Softmax>(add_internal, -1);
-    const auto matMul1 = std::make_shared<ngraph::opset3::MatMul>(softmax, param3);
+    const auto matmul_1 = std::make_shared<ngraph::opset3::MatMul>(softmax, param_3);
 
-    auto subgraph_model = std::make_shared<ov::Model>(NodeVector{matMul1}, ov::ParameterVector{param0, param1, param2, param3});
-    auto subgraph = std::make_shared<ov::snippets::op::Subgraph>(ov::NodeVector{data0, data1, reshape, data4}, subgraph_model);
-    ov::pass::Serialize("/home/vgolubev/models/body_ref.xml", "").run_on_model(subgraph_model);
+    auto subgraph_model = std::make_shared<ov::Model>(NodeVector{matmul_1}, ov::ParameterVector{param_0, param_1, param_2, param_3});
+    auto subgraph = std::make_shared<ov::snippets::op::Subgraph>(ov::NodeVector{data_0, data_1, reshape, data_4}, subgraph_model);
 
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(subgraph)};
     return std::make_shared<ov::Model>(results, ngraphParam, "mha");
