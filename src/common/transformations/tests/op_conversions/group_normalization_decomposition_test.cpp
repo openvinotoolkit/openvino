@@ -104,7 +104,7 @@ TEST_F(TransformationTestsF, GroupNormalizationDecompositionF16) {
 
     model_ref = gen_model_ref(input_shapes, elem_type, num_groups, 1e-3f);
 
-    // Ticket number: TBD
+    // Ticket number: 115063
     // abs_max < abs_threshold && rel_max < rel_threshold
     //         abs_max: 0.03125
     //                 coordinate 220; abs errors count 384; abs mean 0.00505998; abs threshold 0.0005
