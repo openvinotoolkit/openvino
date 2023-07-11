@@ -2,6 +2,11 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn what checks you may perform after encountering problems during 
+                 the installation and configuration of OpenVINO™ on your system.
+
+
 If you run into issues while installing or configuring OpenVINO™, you can try the following methods to do some quick checks first. 
 
 Check the versions of OpenVINO Runtime and Development Tools
@@ -13,7 +18,7 @@ Check the versions of OpenVINO Runtime and Development Tools
   .. tab-set::
 
       .. tab-item:: Python
-          :sync: mo-python-api
+          :sync: py
 
           .. code-block:: python
 
@@ -21,7 +26,7 @@ Check the versions of OpenVINO Runtime and Development Tools
              ov_model = convert_model(version=True)
 
       .. tab-item:: CLI
-          :sync: cli-tool
+          :sync: cli
 
           .. code-block:: sh
 

@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about Equal-1 - an element-wise, comparison operation, which 
+                can be performed on two given tensors in OpenVINO.
+
 **Versioned name**: *Equal-1*
 
 **Category**: *Comparison binary*

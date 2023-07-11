@@ -4,6 +4,8 @@
 
 #include "transformations/fp16_compression/mark_subgraphs_to_keep_in_mixed_precision.hpp"
 
+#include <openvino/op/util/pad_base.hpp>
+
 #include "itt.hpp"
 #include "openvino/op/util/broadcast_base.hpp"
 #include "openvino/op/util/gather_base.hpp"
@@ -343,7 +345,7 @@ public:
                                                                                   opset11::Interpolate,
                                                                                   opset2::MaxPool,
                                                                                   MaxPool,
-                                                                                  Pad,
+                                                                                  op::util::PadBase,
                                                                                   ReduceMax,
                                                                                   ReduceMin,
                                                                                   Relu,
