@@ -244,8 +244,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHATransposedB, MHATransposedB,
                          MHA::getTestCaseName);
 
 const std::vector<std::vector<ov::PartialShape>> inputShapesExtractedReshape = {
-//     {{400, 196, 80}, {400, 80, 196}, {400, 14, 14, 14, 1}, {400, 14, 14, 1, 14}, {400, 196, 80}},
-    {{20, 16, 10}, {20, 10, 16}, {20, 4, 4, 4, 1}, {20, 4, 4, 1, 4}, {20, 16, 10}}
+    {{2, 196, 64}, {2, 64, 196}, {2, 14, 14, 14, 1}, {2, 14, 14, 1, 14}, {2, 196, 64}},
+    {{1, 16, 10}, {1, 10, 16}, {1, 4, 4, 4, 1}, {1, 4, 4, 1, 4}, {1, 16, 10}},
+    {{1, 16, 10}, {1, 10, 16}, {1, 1, 1, 1, 1}, {1, 4, 4, 4, 4}, {1, 16, 10}},
+    {{1, 16, 10}, {1, 10, 16}, {1, 4, 4, 4, 4}, {1, 1, 1, 1, 1}, {1, 16, 10}},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHAWithExtractedReshape, MHAWithExtractedReshape,
