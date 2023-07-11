@@ -416,7 +416,6 @@ ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model
         }
 
     } catch (const InferenceEngine::Exception& e) {
-        // Some transformations can throw legacy exception
         OPENVINO_THROW(e.what());
     } catch (const std::exception& e) {
         OPENVINO_THROW("Standard exception from compilation library: ", e.what());
@@ -437,9 +436,8 @@ ov::hetero::CompiledModel::CompiledModel(std::istream& model,
     pugi::xml_document heteroXmlDoc;
     pugi::xml_parse_result res = heteroXmlDoc.load_string(heteroXmlStr.c_str());
 
-    if (res.status != pugi::status_ok) {
-        OPENVINO_THROW("Fail to read Hetero device xml header");
-    }
+    if (res.status != pugi::status_ok)
+        OPENVINO_THROW("Failed to read Hetero device xml header");
 
     using namespace pugixml::utils;
 
