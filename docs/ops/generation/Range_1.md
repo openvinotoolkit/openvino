@@ -59,7 +59,8 @@ where
 
 *Example 1: positive step*
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
     <layer ... type="Range">
         <input>
@@ -80,7 +81,8 @@ where
 
 *Example 2: negative step*
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
     <layer ... type="Range">
         <input>
