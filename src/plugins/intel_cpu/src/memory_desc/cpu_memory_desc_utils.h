@@ -19,7 +19,7 @@ class DnnlMemoryDesc;
 class BlockedMemoryDesc;
 class DnnlBlockedMemoryDesc;
 class CpuBlockedMemoryDesc;
-class Memory;
+class IMemory;
 
 class MemoryDescUtils {
 public:
@@ -65,14 +65,14 @@ public:
      * @param desc Memory from which will be created InferenceEngine::Blob
      * @return pointer to InferenceEngine::Blob
      */
-    static InferenceEngine::Blob::Ptr interpretAsBlob(const Memory& mem);
+    static InferenceEngine::Blob::Ptr interpretAsBlob(const IMemory& mem);
 
     /**
      * @brief Creates InferenceEngine::TensorDesc from Memory with the memory reuse
      * @param desc Memory from which will be created InferenceEngine::Blob
      * @return InferenceEngine::TensorDesc
      */
-    static InferenceEngine::TensorDesc interpretAsBlobDesc(const Memory& mem);
+    static InferenceEngine::TensorDesc interpretAsBlobDesc(const IMemory& mem);
 
     /**
      * @brief Converts MemoryDesc to InferenceEngine::TensorDesc
