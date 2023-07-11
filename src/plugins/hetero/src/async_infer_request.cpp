@@ -27,8 +27,8 @@ ov::hetero::AsyncInferRequest::AsyncInferRequest(const std::shared_ptr<ov::heter
     : ov::IAsyncInferRequest(request, task_executor, callback_executor),
       m_infer_request(std::static_pointer_cast<ov::hetero::InferRequest>(request)) {
     m_pipeline.clear();
-    for (size_t i = 0; i < m_infer_request->m_subrequests.size(); ++i) {
-        auto request_executor = std::make_shared<RequestExecutor>(m_infer_request->m_subrequests[i]);
+    for (auto&& request : m_infer_request->m_subrequests) {
+        auto request_executor = std::make_shared<RequestExecutor>(request);
         m_pipeline.emplace_back(request_executor, [request_executor] {
             if (nullptr != request_executor->m_exception_ptr) {
                 std::rethrow_exception(request_executor->m_exception_ptr);

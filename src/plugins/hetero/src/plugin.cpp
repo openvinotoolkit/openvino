@@ -69,7 +69,7 @@ ov::hetero::Plugin::DeviceProperties ov::hetero::Plugin::get_properties_per_devi
                                                                                    const ov::AnyMap& properties) const {
     auto device_names = ov::DeviceIDParser::get_hetero_devices(device_priorities);
     DeviceProperties device_properties;
-    for (auto&& device_name : device_names) {
+    for (const auto& device_name : device_names) {
         auto properties_it = device_properties.find(device_name);
         if (device_properties.end() == properties_it) {
             device_properties[device_name] = get_core()->get_supported_property(device_name, properties);
@@ -88,7 +88,7 @@ ov::SupportedOpsMap ov::hetero::Plugin::query_model(const std::shared_ptr<const 
     DeviceProperties properties_per_device = get_properties_per_device(full_config.device_priorities, full_config.get_device_properties());
 
     std::map<std::string, ov::SupportedOpsMap> query_results;
-    for (auto&& it : properties_per_device) {
+    for (const auto& it : properties_per_device) {
         const auto& device_name = it.first;
         const auto& device_config = it.second;
         query_results[device_name] = get_core()->query_model(model, device_name, device_config);
@@ -98,7 +98,7 @@ ov::SupportedOpsMap ov::hetero::Plugin::query_model(const std::shared_ptr<const 
     auto device_names = ov::DeviceIDParser::get_hetero_devices(full_config.device_priorities);
 
     ov::SupportedOpsMap res;
-    for (auto&& device_name : device_names) {
+    for (const auto& device_name : device_names) {
         for (auto&& layer_query_result : query_results[device_name]) {
             res.emplace(layer_query_result);
         }

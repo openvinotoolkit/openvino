@@ -90,7 +90,7 @@ void ov::hetero::InferRequest::check_tensors() const {
 
 std::vector<std::shared_ptr<ov::IVariableState>> ov::hetero::InferRequest::query_state() const {
     std::vector<std::shared_ptr<ov::IVariableState>> variable_states = {};
-    for (auto&& request : m_subrequests) {
+    for (const auto& request : m_subrequests) {
         OPENVINO_ASSERT(request);
         for (auto&& state : request->query_state()) {
             variable_states.emplace_back(state);
