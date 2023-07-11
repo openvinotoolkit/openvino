@@ -56,6 +56,10 @@ bool with_cpu_x86_avx2() {
     return get_cpu_info().has(Xbyak::util::Cpu::tAVX2);
 }
 
+bool with_cpu_x86_avx2_vnni() {
+    return get_cpu_info().has(Xbyak::util::Cpu::tAVX2 | Xbyak::util::Cpu::tAVX_VNNI);
+}
+
 bool with_cpu_x86_avx512f() {
     return get_cpu_info().has(Xbyak::util::Cpu::tAVX512F);
 }
