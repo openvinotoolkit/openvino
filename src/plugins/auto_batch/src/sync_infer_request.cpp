@@ -100,15 +100,15 @@ void SyncInferRequest::copy_tensor_if_needed(const ov::Tensor& src, ov::Tensor& 
     ptrdiff_t szSrc = src.get_byte_size();
     if (bInput) {
         ptrdiff_t offset = szSrc != szDst ? m_batch_id * szDst / m_batch_size : 0;
-        if ((ptrDst + offset) == ptrSrc) {
+        if ((ptrDst + offset) == ptrSrc)
             return;
-        } else
+        else
             memcpy(ptrDst + offset, ptrSrc, szSrc);
     } else {
         ptrdiff_t offset = szSrc != szDst ? m_batch_id * szSrc / m_batch_size : 0;
-        if ((ptrSrc + offset) == ptrDst) {
+        if ((ptrSrc + offset) == ptrDst)
             return;
-        } else
+        else
             memcpy(ptrDst, ptrSrc + offset, szDst);
     }
 }
