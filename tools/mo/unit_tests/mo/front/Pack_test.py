@@ -4,7 +4,6 @@
 import unittest
 
 import numpy as np
-from generator import generator, generate
 
 from openvino.tools.mo.front.Pack import Pack
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array
@@ -34,49 +33,50 @@ nodes_attributes = {
 }
 
 
-@generator
 class PackTest(unittest.TestCase):
 
-    @generate(*[(2, 2, 0), (3, 3, 0), (4, 4, 0), (4, 4, 1), (4, 1, 0), (4, 1, 1)])
-    def test_pack_test_all(self, num_inputs: int, num_placeholders: int, axis: list):
+    def test_pack_test_all(self):
+        test_cases = [(2, 2, 0), (3, 3, 0), (4, 4, 0), (4, 4, 1), (4, 1, 0), (4, 1, 1)]
+        for idx, (num_inputs, num_placeholders, axis) in enumerate(test_cases):
+            with self.subTest(test_case=idx):
 
-        graph_edges = []
-        for i in range(num_inputs - num_placeholders + 1):
-            for j in range(num_placeholders):
-                graph_edges.append(('placeholder_{}'.format(j), 'pack'))
-        graph_edges.append(('pack', 'last'))
+                graph_edges = []
+                for i in range(num_inputs - num_placeholders + 1):
+                    for j in range(num_placeholders):
+                        graph_edges.append(('placeholder_{}'.format(j), 'pack'))
+                graph_edges.append(('pack', 'last'))
 
-        update_graph_attributes = {}
-        for i in range(num_placeholders):
-            update_graph_attributes['placeholder_{}'.format(i)] = {'shape': np.array([1, 227, 227, 3])}
-        update_graph_attributes['pack'] = {'axis': axis}
+                update_graph_attributes = {}
+                for i in range(num_placeholders):
+                    update_graph_attributes['placeholder_{}'.format(i)] = {'shape': np.array([1, 227, 227, 3])}
+                update_graph_attributes['pack'] = {'axis': axis}
 
-        graph = build_graph(nodes_attributes, graph_edges, update_graph_attributes,
-                            nodes_with_edges_only=True)
+                graph = build_graph(nodes_attributes, graph_edges, update_graph_attributes,
+                                    nodes_with_edges_only=True)
 
-        graph_ref_edges = []
-        for i in range(num_inputs - num_placeholders + 1):
-            for j in range(num_placeholders):
-                graph_ref_edges.append(('placeholder_{}'.format(j), 'Unsqueeze_{}'.format(i + j)))
-                graph_ref_edges.append(('Unsqueeze_{}'.format(i + j), 'concat_1'))
-        graph_ref_edges.append(('concat_1', 'last'))
+                graph_ref_edges = []
+                for i in range(num_inputs - num_placeholders + 1):
+                    for j in range(num_placeholders):
+                        graph_ref_edges.append(('placeholder_{}'.format(j), 'Unsqueeze_{}'.format(i + j)))
+                        graph_ref_edges.append(('Unsqueeze_{}'.format(i + j), 'concat_1'))
+                graph_ref_edges.append(('concat_1', 'last'))
 
-        update_graph_ref_attributes = {}
-        for i in range(num_placeholders):
-            update_graph_ref_attributes['placeholder_{}'.format(i)] = {'shape': np.array([1, 227, 227, 3])}
-        for i in range(num_inputs):
-            graph_ref_edges.append(('Unsqueeze_{}_axis'.format(i), 'Unsqueeze_{}'.format(i)))
-            update_graph_ref_attributes['Unsqueeze_{}_axis'.format(i)] = {'shape': int64_array([1]),
-                                                                          'value': int64_array([axis])}
-        update_graph_ref_attributes['concat_1'] = {'axis': axis}
+                update_graph_ref_attributes = {}
+                for i in range(num_placeholders):
+                    update_graph_ref_attributes['placeholder_{}'.format(i)] = {'shape': np.array([1, 227, 227, 3])}
+                for i in range(num_inputs):
+                    graph_ref_edges.append(('Unsqueeze_{}_axis'.format(i), 'Unsqueeze_{}'.format(i)))
+                    update_graph_ref_attributes['Unsqueeze_{}_axis'.format(i)] = {'shape': int64_array([1]),
+                                                                                'value': int64_array([axis])}
+                update_graph_ref_attributes['concat_1'] = {'axis': axis}
 
-        graph_ref = build_graph(nodes_attributes, graph_ref_edges, update_graph_ref_attributes,
-                                nodes_with_edges_only=True)
+                graph_ref = build_graph(nodes_attributes, graph_ref_edges, update_graph_ref_attributes,
+                                        nodes_with_edges_only=True)
 
-        graph.stage = 'front'
+                graph.stage = 'front'
 
-        replacer = Pack()
-        replacer.find_and_replace_pattern(graph)
+                replacer = Pack()
+                replacer.find_and_replace_pattern(graph)
 
-        (flag, resp) = compare_graphs(graph, graph_ref, 'last', check_op_attrs=True)
-        self.assertTrue(flag, resp)
+                (flag, resp) = compare_graphs(graph, graph_ref, 'last', check_op_attrs=True)
+                self.assertTrue(flag, resp)
