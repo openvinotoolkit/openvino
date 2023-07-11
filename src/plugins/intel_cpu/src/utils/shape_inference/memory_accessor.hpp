@@ -7,7 +7,6 @@
 #include "cpu_memory.h"
 #include "openvino/core/shape.hpp"
 #include "tensor_data_accessor.hpp"
-#include <ie_ngraph_utils.hpp>
 
 namespace ov {
 namespace intel_cpu {
