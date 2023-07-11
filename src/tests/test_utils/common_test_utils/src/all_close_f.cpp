@@ -10,8 +10,9 @@
 
 using namespace std;
 
-namespace ngraph {
+namespace ov {
 namespace test {
+namespace utils {
 
 constexpr uint32_t FLOAT_BELOW_MIN_SIGNAL = UINT_MAX;
 constexpr uint32_t FLOAT_MAX_DIFF = UINT_MAX - 1;
@@ -542,5 +543,7 @@ template<typename T>
     }
     return ::testing::AssertionSuccess();
 }
+
+}  // namespace utils
 }  // namespace test
-}  // namespace ngraph
+}  // namespace ov
