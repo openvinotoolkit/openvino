@@ -42,7 +42,7 @@ TEST_F(OVTensorTest, canCreateTensor) {
     ASSERT_EQ(byteStrides(ov::Strides({6, 2, 1}), t.get_element_type()), t.get_strides());
     ASSERT_EQ(ov::element::f32.size() * totalSize, t.get_byte_size());
     ASSERT_THROW(t.data(ov::element::i64), ov::Exception);
-    ASSERT_THROW(t.data<std::int32_t>(), ov::Exception);
+    ASSERT_NO_THROW(t.data<std::int32_t>());
 }
 
 TEST_F(OVTensorTest, createTensorFromPort) {
@@ -71,9 +71,9 @@ TEST_F(OVTensorTest, canAccessF16Tensor) {
     EXPECT_NE(nullptr, t.data());
     EXPECT_NO_THROW(t.data(ov::element::f16));
     EXPECT_NO_THROW(t.data<ov::float16>());
-    EXPECT_THROW(t.data<ov::bfloat16>(), ov::Exception);
-    EXPECT_THROW(t.data<std::uint16_t>(), ov::Exception);
-    EXPECT_THROW(t.data<std::int16_t>(), ov::Exception);
+    EXPECT_NO_THROW(t.data<ov::bfloat16>());
+    EXPECT_NO_THROW(t.data<std::uint16_t>());
+    EXPECT_NO_THROW(t.data<std::int16_t>());
 }
 
 TEST_F(OVTensorTest, emptySize) {

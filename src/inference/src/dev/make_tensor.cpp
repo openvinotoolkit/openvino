@@ -37,7 +37,7 @@ public:
 
     void* data(const element::Type& element_type) const override {
         if (element_type != element::undefined && element_type != element::dynamic) {
-            OPENVINO_ASSERT(element_type == get_element_type(),
+            OPENVINO_ASSERT(element_type.bitwidth() == get_element_type().bitwidth(),
                             "Tensor data with element type ",
                             get_element_type(),
                             ", is not representable as pointer to ",
