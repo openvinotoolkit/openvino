@@ -92,8 +92,8 @@ bool AclReduceExecutor::init(const ReduceAttrs& reduceAttrs,
 }
 
 void AclReduceExecutor::exec(const std::vector<MemoryCPtr>& src, const std::vector<MemoryPtr>& dst, const void *post_ops_data_) {
-    srcTensor.allocator()->import_memory(src[0]->GetPtr());
-    dstTensor.allocator()->import_memory(dst[0]->GetPtr());
+    srcTensor.allocator()->import_memory(src[0]->getData());
+    dstTensor.allocator()->import_memory(dst[0]->getData());
 
     exec_func();
 

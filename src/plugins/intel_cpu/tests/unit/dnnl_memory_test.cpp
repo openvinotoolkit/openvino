@@ -26,26 +26,25 @@ TEST(MemoryTest, ConcurrentGetPrimitive) {
     dnnl::memory dnnl_mem1;
     dnnl::memory dnnl_mem2;
     auto desc = std::make_shared<CpuBlockedMemoryDesc>(Precision::FP32, Shape{10, 2});
-    Memory cpu_mem1(eng);
-    cpu_mem1.Create(desc);
+    Memory cpu_mem1(eng, desc);
 
     std::atomic<bool> lock{true};
 
     std::thread worker1([&](){
         while (lock.load()) {}
-        dnnl_mem1 = cpu_mem1.GetPrimitive();
+        dnnl_mem1 = cpu_mem1.getPrimitive();
     });
 
     std::thread worker2([&](){
         while (lock.load()) {}
-        dnnl_mem2 = cpu_mem1.GetPrimitive();
+        dnnl_mem2 = cpu_mem1.getPrimitive();
     });
 
     lock.store(false);
 
     worker1.join();
     worker2.join();
-    ASSERT_EQ(dnnl_mem1.get_data_handle(), cpu_mem1.GetData());
+    ASSERT_EQ(dnnl_mem1.get_data_handle(), cpu_mem1.getData());
     ASSERT_EQ(dnnl_mem1, dnnl_mem2);
 }
 
@@ -55,17 +54,15 @@ TEST(MemoryTest, ConcurrentResizeGetPrimitive) {
     for (size_t i = 0; i < number_of_attempts; ++i) {
         dnnl::memory dnnl_mem;
         auto desc = std::make_shared<CpuBlockedMemoryDesc>(Precision::FP32, Shape{10, 2});
-        Memory cpu_mem1(eng);
-        cpu_mem1.Create(desc);
-        Memory cpu_mem2(eng);
-        cpu_mem2.Create(desc, cpu_mem1.getDnnlMemoryMngr()); // tie two memory objects (memory reuse)
+        Memory cpu_mem1(eng, desc);
+        Memory cpu_mem2(eng, desc, cpu_mem1.getMemoryMngr());
         auto desc2 = std::make_shared<CpuBlockedMemoryDesc>(Precision::FP32, Shape{10, 20});
 
         std::atomic<bool> lock{true};
 
         std::thread worker1([&](){
             while (lock.load()) {}
-            dnnl_mem = cpu_mem1.GetPrimitive();
+            dnnl_mem = cpu_mem1.getPrimitive();
         });
 
         std::thread worker2([&](){
@@ -77,6 +74,6 @@ TEST(MemoryTest, ConcurrentResizeGetPrimitive) {
 
         worker1.join();
         worker2.join();
-        ASSERT_EQ(dnnl_mem.get_data_handle(), cpu_mem2.GetData());
+        ASSERT_EQ(dnnl_mem.get_data_handle(), cpu_mem2.getData());
     }
 }
