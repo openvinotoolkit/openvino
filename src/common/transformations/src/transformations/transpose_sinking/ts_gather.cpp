@@ -67,6 +67,17 @@ TSGatherForward::TSGatherForward() {
         } else {
             axis = static_cast<size_t>(axes[0]);
         }
+        /*  From https://www.tensorflow.org/api_docs/python/tf/gather
+            The Gather output shape has the same shape as the input,
+            with the indexed-axis replaced by the shape of the indices
+            Gather input shape | Gather indexes shape | axis | Gather output shape
+                {1, 2, 3}      |        {}            |   1  |      {1, 3}
+                {1, 2, 3}      |        {7}           |   1  |      {1, 7, 3}
+                {1, 2, 3}      |        {7,5}         |   1  |      {1, 7, 5, 3}
+
+            New Transpose order length equals to output Gather shape size.
+        */
+
         const auto& indices_rank_val = indices_rank.get_length();
         std::vector<size_t> new_transpose_order(order_val.size() + indices_rank_val - 1);
         for (size_t i = 0, j = 0; i < new_transpose_order.size(); ++i) {
