@@ -100,6 +100,9 @@ public:
     std::size_t get_hidden_size() const {
         return m_hidden_size;
     }
+    void set_hidden_size(size_t hidden_size) {
+        m_hidden_size = hidden_size;
+    }
     float get_clip() const {
         return m_clip;
     }
