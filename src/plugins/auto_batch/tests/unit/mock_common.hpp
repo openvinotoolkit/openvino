@@ -131,7 +131,6 @@ public:
                            const std::shared_ptr<ov::threading::ITaskExecutor>& callback_executor)
         : IAsyncInferRequest(request, task_executor, callback_executor) {
         m_pipeline = {};
-        m_pipeline.push_back({task_executor, [this] {}});
     }
     MOCK_METHOD(void, start_async, (), (override));
 };
