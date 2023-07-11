@@ -495,6 +495,8 @@ protected:
             }
 
             if (_enable_profiling) {
+                // Call wait() function here instead of finish() to prevent cache flushing,
+                // this synchronization point is needed for correct OneDNN's profiling process
                 stream.wait();
 
                 std::vector<uint64_t> duration = dnnl::get_profiling_data(stream.get_onednn_stream(), dnnl::profiling_data_kind::time);
