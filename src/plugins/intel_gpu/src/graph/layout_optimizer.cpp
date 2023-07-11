@@ -1196,7 +1196,7 @@ format layout_optimizer::get_expected_format(quantize_node const& node) {
 
     if (use_onednn_impls) {
         auto& user = node.get_users().front();
-        if (user->get_preferred_input_fmt(user->get_dependency_index(node)) != format::any) {
+        if (user != nullptr && user->get_preferred_input_fmt(user->get_dependency_index(node)) != format::any) {
             expected = user->get_preferred_input_fmt(user->get_dependency_index(node));
         } else {
             expected = format::any;
@@ -1726,6 +1726,15 @@ format layout_optimizer::get_preferred_format(program_node& node) {
     } else if (node.is_type<fully_connected>() || node.is_type<gemm>()) {
         if (use_onednn_impls) {
             expected = node.get_preferred_output_fmt();
+        }
+
+        if (!allow_new_shape_infer && node.is_type<fully_connected>()) {
+            auto& fc_node = node.as<fully_connected>();
+            auto input_layout = fc_node.input().get_output_layout();
+            if (input_layout.format.dimension() > 4) {
+                expected = format::bfyx;
+                node.set_preferred_input_fmt(0, format::bfyx);
+            }
         }
     }
 

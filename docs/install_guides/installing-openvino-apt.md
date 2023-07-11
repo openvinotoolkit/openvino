@@ -35,7 +35,7 @@ Prerequisites
 .. tab-set::
 
    .. tab-item:: System Requirements
-      :sync: sys-req
+      :sync: system-requirements
    
       | Full requirement listing is available in:
       | `System Requirements Page <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html>`__
@@ -47,7 +47,7 @@ Prerequisites
       See `Product Specifications <https://ark.intel.com/>`__ for information about your processor.
    
    .. tab-item:: Software Requirements
-      :sync: soft-req
+      :sync: software-requirements
    
       * `CMake 3.13 or higher, 64-bit <https://cmake.org/download/>`__
       * GCC 7.5.0 (for Ubuntu 18.04), GCC 9.3.0 (for Ubuntu 20.04) or GCC 11.3.0 (for Ubuntu 22.04)
@@ -91,21 +91,21 @@ Step 1: Set Up the OpenVINO Toolkit APT Repository
    .. tab-set::
 
       .. tab-item:: Ubuntu 22
-         :sync: ubuntu22
+         :sync: ubuntu-22
    
          .. code-block:: sh
    
             echo "deb https://apt.repos.intel.com/openvino/2023 ubuntu22 main" | sudo tee /etc/apt/sources.list.d/intel-openvino-2023.list
    
       .. tab-item:: Ubuntu 20
-         :sync: ubuntu20
+         :sync: ubuntu-20
    
          .. code-block:: sh
    
             echo "deb https://apt.repos.intel.com/openvino/2023 ubuntu20 main" | sudo tee /etc/apt/sources.list.d/intel-openvino-2023.list
    
       .. tab-item:: Ubuntu 18
-         :sync: ubuntu18
+         :sync: ubuntu-18
    
          .. code-block:: sh
    
@@ -136,7 +136,7 @@ Install OpenVINO Runtime
 .. tab-set::
 
    .. tab-item:: The Latest Version
-      :sync: latest
+      :sync: latest-version
    
       Run the following command:
    
