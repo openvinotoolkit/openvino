@@ -14,6 +14,7 @@
 #include "openvino/runtime/device_id_parser.hpp"
 #include "openvino/runtime/iinfer_request.hpp"
 #include "openvino/runtime/iremote_context.hpp"
+#include "openvino/runtime/so_ptr.hpp"
 #include "openvino/util/common_util.hpp"
 #include "plugin.hpp"
 #include "remote_context.hpp"
@@ -296,12 +297,25 @@ ov::Any ov::proxy::Plugin::get_property(const std::string& name, const ov::AnyMa
 
 std::shared_ptr<ov::ICompiledModel> ov::proxy::Plugin::compile_model(const std::shared_ptr<const ov::Model>& model,
                                                                      const ov::AnyMap& properties) const {
-    auto dev_name = get_fallback_device(get_device_from_config(properties));
-    auto device_config = construct_device_config(dev_name, m_configs, properties);
+    auto dev_name = get_device_name();
+    auto dev_idx = get_device_from_config(properties);
+    auto has_dev_idx = is_device_in_config(properties);
+    auto is_new_api = get_core()->is_new_api();
+
+    auto device = get_fallback_device(get_device_from_config(properties));
+    auto device_config = construct_device_config(device, m_configs, properties);
     std::shared_ptr<const ov::IPlugin> plugin = shared_from_this();
 
-    auto compiled_model =
-        std::make_shared<ov::proxy::CompiledModel>(get_core()->compile_model(model, dev_name, device_config), plugin);
+    auto device_model = get_core()->compile_model(model, device, device_config);
+    ov::SoPtr<ov::IRemoteContext> device_context;
+    ov::RemoteContext remote_context;
+    try {
+        device_context = {device_model->get_context(), device_model._so};
+        remote_context = ov::proxy::RemoteContext::make_context(
+            std::make_shared<ov::proxy::RemoteContext>(device_context, dev_name, dev_idx, has_dev_idx, is_new_api));
+    } catch (const ov::NotImplemented&) {
+    }
+    auto compiled_model = std::make_shared<ov::proxy::CompiledModel>(device_model, plugin, remote_context);
     return std::dynamic_pointer_cast<ov::ICompiledModel>(compiled_model);
 }
 
@@ -378,11 +392,24 @@ std::shared_ptr<ov::IRemoteContext> ov::proxy::Plugin::get_default_context(const
 
 std::shared_ptr<ov::ICompiledModel> ov::proxy::Plugin::import_model(std::istream& model,
                                                                     const ov::AnyMap& properties) const {
-    auto dev_name = get_fallback_device(get_device_from_config(properties));
-    auto device_config = construct_device_config(dev_name, m_configs, properties);
+    auto dev_name = get_device_name();
+    auto dev_idx = get_device_from_config(properties);
+    auto has_dev_idx = is_device_in_config(properties);
+    auto is_new_api = get_core()->is_new_api();
 
-    return std::make_shared<ov::proxy::CompiledModel>(get_core()->import_model(model, dev_name, device_config),
-                                                      shared_from_this());
+    auto device = get_fallback_device(get_device_from_config(properties));
+    auto device_config = construct_device_config(device, m_configs, properties);
+    auto device_model = get_core()->import_model(model, device, device_config);
+    ov::SoPtr<ov::IRemoteContext> device_context;
+    ov::RemoteContext remote_context;
+    try {
+        device_context = {device_model->get_context(), device_model._so};
+        remote_context = ov::proxy::RemoteContext::make_context(
+            std::make_shared<ov::proxy::RemoteContext>(device_context, dev_name, dev_idx, has_dev_idx, is_new_api));
+    } catch (const ov::NotImplemented&) {
+    }
+
+    return std::make_shared<ov::proxy::CompiledModel>(device_model, shared_from_this(), remote_context);
 }
 
 std::shared_ptr<ov::ICompiledModel> ov::proxy::Plugin::import_model(std::istream& model,

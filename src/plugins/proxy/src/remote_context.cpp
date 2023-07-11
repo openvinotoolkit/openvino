@@ -24,6 +24,13 @@ ov::proxy::RemoteContext::RemoteContext(ov::RemoteContext&& ctx,
         m_name = dev_name;
 }
 
+ov::proxy::RemoteContext::RemoteContext(const ov::SoPtr<ov::IRemoteContext>& ctx,
+                                        const std::string& dev_name,
+                                        size_t dev_index,
+                                        bool has_index,
+                                        bool is_new_api)
+    : ov::proxy::RemoteContext(ov::RemoteContext{ctx._ptr, ctx._so}, dev_name, dev_index, has_index, is_new_api) {}
+
 const std::string& ov::proxy::RemoteContext::get_device_name() const {
     return m_name;
 }
@@ -60,6 +67,10 @@ const std::shared_ptr<ov::IRemoteContext>& ov::proxy::RemoteContext::get_hardwar
         return proxy_context->m_context._impl;
     }
     return context;
+}
+
+ov::RemoteContext ov::proxy::RemoteContext::make_context(const std::shared_ptr<ov::IRemoteContext>& ctx) {
+    return ov::RemoteContext(ctx, nullptr);
 }
 
 const std::shared_ptr<ov::IRemoteContext>& ov::proxy::get_hardware_context(

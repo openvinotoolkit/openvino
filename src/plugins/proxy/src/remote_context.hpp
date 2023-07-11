@@ -8,6 +8,7 @@
 #include "openvino/runtime/iremote_context.hpp"
 #include "openvino/runtime/iremote_tensor.hpp"
 #include "openvino/runtime/remote_context.hpp"
+#include "openvino/runtime/so_ptr.hpp"
 
 namespace ov {
 namespace proxy {
@@ -36,6 +37,11 @@ public:
                   size_t dev_index,
                   bool has_index,
                   bool is_new_api);
+    RemoteContext(const ov::SoPtr<ov::IRemoteContext>& ctx,
+                  const std::string& dev_name,
+                  size_t dev_index,
+                  bool has_index,
+                  bool is_new_api);
     const std::string& get_device_name() const override;
 
     const ov::AnyMap& get_property() const override;
@@ -51,6 +57,8 @@ public:
     static const ov::RemoteContext& get_hardware_context(const ov::RemoteContext& context);
     static const std::shared_ptr<ov::IRemoteContext>& get_hardware_context(
         const std::shared_ptr<ov::IRemoteContext>& context);
+
+    static ov::RemoteContext make_context(const std::shared_ptr<ov::IRemoteContext>& ctx);
 
 private:
     ov::RemoteContext m_context;
