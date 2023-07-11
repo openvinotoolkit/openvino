@@ -58,7 +58,7 @@ std::vector<size_t> get_strides(const py::array& array);
 
 py::array as_contiguous(py::array& array, ov::element::Type type);
 
-py::array array_from_tensor(ov::Tensor&& t);
+py::array array_from_tensor(ov::Tensor&& t, bool is_shared);
 
 }; // namespace array_helpers
 
@@ -92,7 +92,7 @@ void set_request_tensors(ov::InferRequest& request, const py::dict& inputs);
 
 uint32_t get_optimal_number_of_requests(const ov::CompiledModel& actual);
 
-py::dict outputs_to_dict(InferRequestWrapper& request);
+py::dict outputs_to_dict(InferRequestWrapper& request, bool share_outputs);
 
 ov::pass::Serialize::Version convert_to_version(const std::string& version);
 
