@@ -3,14 +3,14 @@
 //
 
 #include "openvino/frontend/pytorch/node_context.hpp"
-#include "openvino/op/convert_like.hpp"
-#include "openvino/op/convert.hpp"
-#include "openvino/op/divide.hpp"
 #include "openvino/op/add.hpp"
-#include "openvino/op/multiply.hpp"
-#include "openvino/op/subtract.hpp"
-#include "openvino/op/round.hpp"
 #include "openvino/op/clamp.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/convert_like.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/round.hpp"
+#include "openvino/op/subtract.hpp"
 #include "utils_quantize.hpp"
 
 namespace ov {
@@ -25,15 +25,21 @@ OutputVector translate_dequantize(const NodeContext& context) {
     const auto input = context.get_input(0);
 
     std::shared_ptr<ov::Node> output;
-    std::shared_ptr<QuantizedPtNode> quantized_pt_node; 
-    if((quantized_pt_node = cast_quantized_fw_node(input.get_node_shared_ptr(), QuantizedPtNode::quantize_per_tensor))) {
-        const auto input_convert_f32 = context.mark_node(std::make_shared<v0::Convert>(quantized_pt_node->get_input_tensor(0), element::f32));
-        const auto scale_convert_f32 = context.mark_node(std::make_shared<v0::Convert>(quantized_pt_node->get_scale(), element::f32));
-        const auto zero_point_convert_f32 = context.mark_node(std::make_shared<v0::Convert>(quantized_pt_node->get_zero_point(), element::f32));
+    std::shared_ptr<QuantizedPtNode> quantized_pt_node;
+    if ((quantized_pt_node =
+             cast_quantized_fw_node(input.get_node_shared_ptr(), QuantizedPtNode::quantize_per_tensor))) {
+        const auto input_convert_f32 =
+            context.mark_node(std::make_shared<v0::Convert>(quantized_pt_node->get_input_tensor(0), element::f32));
+        const auto scale_convert_f32 =
+            context.mark_node(std::make_shared<v0::Convert>(quantized_pt_node->get_scale(), element::f32));
+        const auto zero_point_convert_f32 =
+            context.mark_node(std::make_shared<v0::Convert>(quantized_pt_node->get_zero_point(), element::f32));
 
-        const auto input_sub_zero_pt = context.mark_node(std::make_shared<v1::Subtract>(input_convert_f32, zero_point_convert_f32));
+        const auto input_sub_zero_pt =
+            context.mark_node(std::make_shared<v1::Subtract>(input_convert_f32, zero_point_convert_f32));
         output = context.mark_node(std::make_shared<v1::Multiply>(input_sub_zero_pt, scale_convert_f32));
-    } else if ((quantized_pt_node = cast_quantized_fw_node(input.get_node_shared_ptr(), QuantizedPtNode::quantize_per_channel))) {
+    } else if ((quantized_pt_node =
+                    cast_quantized_fw_node(input.get_node_shared_ptr(), QuantizedPtNode::quantize_per_channel))) {
         // TODO
     } else {
         FRONT_END_OP_CONVERSION_CHECK(false, "Got unknown quantization method in dequantize.");
