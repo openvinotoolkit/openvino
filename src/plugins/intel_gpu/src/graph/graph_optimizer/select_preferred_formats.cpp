@@ -39,8 +39,6 @@ void select_preferred_formats::run(program& p) {
         }
         // Onednn primitive descriptor creation may fail, for example, due to asymmetric weight.
         try {
-            // Do not call select_preferred_formats_for_onednn for dynamic shape
-            // because currently gpu plugin doesn't fully support blocked format for dynamic shape
             if (n->is_type<convolution>()) {
                 auto prim_desc = onednn::get_convolution_primitive_descriptor(*n->get_kernel_impl_params(),
                                                                               dnnl::primitive_attr(),
