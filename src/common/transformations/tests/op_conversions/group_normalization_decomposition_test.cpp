@@ -7,14 +7,13 @@
 #include <gtest/gtest.h>
 
 #include <memory>
-#include <openvino/opsets/opset12.hpp>
-#include <openvino/pass/manager.hpp>
-#include <openvino/pass/visualize_tree.hpp>
 #include <string>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
-#include "gtest/gtest.h"
 #include "openvino/core/model.hpp"
+#include "openvino/opsets/opset12.hpp"
+#include "openvino/pass/manager.hpp"
+#include "openvino/pass/visualize_tree.hpp"
 
 using namespace ov;
 using namespace opset12;
@@ -165,7 +164,7 @@ TEST_F(TransformationTestsF, GroupNormalizationDecomposition_5D) {
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
-TEST_F(TransformationTestsF, GroupNormalizationDecomposition_data_dynamic_rank) {
+TEST_F(TransformationTestsF, GroupNormalizationDecomposition_data_dynamic_rank_no_decomposition) {
     std::vector<PartialShape> input_shapes{PartialShape::dynamic(), PartialShape{12}, PartialShape{12}};
     const int64_t num_groups = 4;
     element::Type elem_type = element::f32;
@@ -176,7 +175,7 @@ TEST_F(TransformationTestsF, GroupNormalizationDecomposition_data_dynamic_rank) 
     // no decomposition
 }
 
-TEST_F(TransformationTestsF, GroupNormalizationDecomposition_data_rank_2D) {
+TEST_F(TransformationTestsF, GroupNormalizationDecomposition_data_rank_2D_no_decomposition) {
     std::vector<PartialShape> input_shapes{PartialShape{2, 12}, PartialShape{12}, PartialShape{12}};
     const int64_t num_groups = 4;
     element::Type elem_type = element::f32;
