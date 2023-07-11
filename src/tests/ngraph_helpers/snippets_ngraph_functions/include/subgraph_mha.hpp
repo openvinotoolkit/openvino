@@ -361,9 +361,9 @@ protected:
  *                  \      /
  *                   MatMul1
  */
-class MHAWithReshapeAroundEltwisesFunction : public SnippetsFunctionBase {
+class MHAWithExtractedReshapeFunction : public SnippetsFunctionBase {
 public:
-    explicit MHAWithReshapeAroundEltwisesFunction(const std::vector<PartialShape>& inputShapes)
+    explicit MHAWithExtractedReshapeFunction(const std::vector<PartialShape>& inputShapes)
         : SnippetsFunctionBase(inputShapes) {
         NGRAPH_CHECK(input_shapes.size() == 5, "Got invalid number of input shapes");
     }

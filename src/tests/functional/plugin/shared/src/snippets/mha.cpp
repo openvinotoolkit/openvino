@@ -132,7 +132,7 @@ std::shared_ptr<SnippetsFunctionBase> MHATransposedB::get_subgraph() {
 }
 
 std::shared_ptr<SnippetsFunctionBase> MHAWithExtractedReshape::get_subgraph() {
-    return std::make_shared<ov::test::snippets::MHAWithReshapeAroundEltwisesFunction>(inputDynamicShapes);
+    return std::make_shared<ov::test::snippets::MHAWithExtractedReshapeFunction>(inputDynamicShapes);
 }
 
 TEST_P(MHA, CompareWithRefImpl) {

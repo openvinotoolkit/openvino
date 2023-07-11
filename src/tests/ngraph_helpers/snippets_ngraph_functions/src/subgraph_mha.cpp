@@ -881,7 +881,7 @@ std::shared_ptr<ov::Model> MHATransposedInputFunction::initReference() const {
     return std::make_shared<ov::Model>(results, ngraphParam, "mha");
 }
 
-std::shared_ptr<ov::Model> MHAWithReshapeAroundEltwisesFunction::initOriginal() const {
+std::shared_ptr<ov::Model> MHAWithExtractedReshapeFunction::initOriginal() const {
     const auto param_0 = std::make_shared<ov::opset1::Parameter>(precision, input_shapes[0]);
     const auto param_1 = std::make_shared<ov::opset1::Parameter>(precision, input_shapes[1]);
     const auto param_2 = std::make_shared<ov::opset1::Parameter>(precision, input_shapes[2]);
@@ -910,7 +910,7 @@ std::shared_ptr<ov::Model> MHAWithReshapeAroundEltwisesFunction::initOriginal() 
     return std::make_shared<ov::Model>(results, parameters, "mha");
 }
 
-std::shared_ptr<ov::Model> MHAWithReshapeAroundEltwisesFunction::initReference() const {
+std::shared_ptr<ov::Model> MHAWithExtractedReshapeFunction::initReference() const {
     const auto data0 = std::make_shared<ngraph::opset1::Parameter>(precision, input_shapes[0]);
     const auto data1 = std::make_shared<ngraph::opset1::Parameter>(precision, input_shapes[1]);
     const auto data2 = std::make_shared<ngraph::opset1::Parameter>(precision, input_shapes[2]);
