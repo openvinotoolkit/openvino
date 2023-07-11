@@ -35,7 +35,6 @@
 #include "transforms/prim_list_tuple_construct_replacer.hpp"
 #include "transforms/prim_list_unpack_replacer.hpp"
 #include "transforms/prim_tuple_unpack_parameter_replacer.hpp"
-#include "transforms/quantize_dequantize_replacer.hpp"
 #include "transforms/rfftn_complex_replacer.hpp"
 #include "transforms/string_equality_replacer.hpp"
 #include "transforms/tuple_unpack_replacer.hpp"
@@ -154,10 +153,6 @@ std::shared_ptr<Model> FrontEnd::decode(const InputModel::Ptr& model) const {
 void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     ov::pass::Manager manager;
 
-    // Protect quantization subgraph from ConstantFolding
-    manager.register_pass<ov::pass::MarkDequantizationSubgraph>(
-        element::TypeVector{element::i8, element::u8, element::i4, element::u4});
-
     // the following 2 transformations are needed for keypoint detectron2 models to work.
     // AtenIndexToSelect will be called twice
     manager.register_pass<ov::pass::ConvertConvertLike>();
@@ -187,7 +182,6 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     manager.register_pass<ov::frontend::pytorch::pass::DecomposeListTupleResults>();
     manager.register_pass<ov::frontend::pytorch::pass::DictResolver>();
     manager.register_pass<ov::frontend::pytorch::pass::IndexLoopGetitemReplacer>();
-    manager.register_pass<ov::frontend::pytorch::pass::QuantizeDequantizeReplacer>();
     manager.register_pass<ov::pass::RemoveMultiSubGraphOpDanglingParamsResults>();
     manager.register_pass<ov::pass::ReverseShapeAndTypeInfer>();
 
