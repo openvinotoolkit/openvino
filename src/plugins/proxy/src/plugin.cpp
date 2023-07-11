@@ -21,6 +21,23 @@
 
 namespace {
 
+ov::RemoteContext create_proxy_context(const ov::SoPtr<ov::ICompiledModel>& compiled_model,
+                                       const std::string dev_name,
+                                       size_t dev_idx,
+                                       bool has_dev_idx,
+                                       bool is_new_api) {
+    ov::SoPtr<ov::IRemoteContext> device_context;
+    ov::RemoteContext remote_context;
+    try {
+        device_context = {compiled_model->get_context(), compiled_model._so};
+        remote_context = ov::proxy::RemoteContext::make_context(ov::SoPtr<ov::IRemoteContext>(
+            std::make_shared<ov::proxy::RemoteContext>(device_context, dev_name, dev_idx, has_dev_idx, is_new_api),
+            compiled_model._so));
+    } catch (const ov::NotImplemented&) {
+    }
+    return remote_context;
+}
+
 size_t string_to_size_t(const std::string& s) {
     std::stringstream sstream(s);
     size_t idx;
@@ -307,15 +324,7 @@ std::shared_ptr<ov::ICompiledModel> ov::proxy::Plugin::compile_model(const std::
     std::shared_ptr<const ov::IPlugin> plugin = shared_from_this();
 
     auto device_model = get_core()->compile_model(model, device, device_config);
-    ov::SoPtr<ov::IRemoteContext> device_context;
-    ov::RemoteContext remote_context;
-    try {
-        device_context = {device_model->get_context(), device_model._so};
-        remote_context = ov::proxy::RemoteContext::make_context(ov::SoPtr<ov::IRemoteContext>(
-            std::make_shared<ov::proxy::RemoteContext>(device_context, dev_name, dev_idx, has_dev_idx, is_new_api),
-            device_model._so));
-    } catch (const ov::NotImplemented&) {
-    }
+    ov::RemoteContext remote_context = create_proxy_context(device_model, dev_name, dev_idx, has_dev_idx, is_new_api);
     auto compiled_model = std::make_shared<ov::proxy::CompiledModel>(device_model, plugin, remote_context);
     return std::dynamic_pointer_cast<ov::ICompiledModel>(compiled_model);
 }
@@ -401,15 +410,7 @@ std::shared_ptr<ov::ICompiledModel> ov::proxy::Plugin::import_model(std::istream
     auto device = get_fallback_device(get_device_from_config(properties));
     auto device_config = construct_device_config(device, m_configs, properties);
     auto device_model = get_core()->import_model(model, device, device_config);
-    ov::SoPtr<ov::IRemoteContext> device_context;
-    ov::RemoteContext remote_context;
-    try {
-        device_context = {device_model->get_context(), device_model._so};
-        remote_context = ov::proxy::RemoteContext::make_context(ov::SoPtr<ov::IRemoteContext>(
-            std::make_shared<ov::proxy::RemoteContext>(device_context, dev_name, dev_idx, has_dev_idx, is_new_api),
-            device_model._so));
-    } catch (const ov::NotImplemented&) {
-    }
+    ov::RemoteContext remote_context = create_proxy_context(device_model, dev_name, dev_idx, has_dev_idx, is_new_api);
 
     return std::make_shared<ov::proxy::CompiledModel>(device_model, shared_from_this(), remote_context);
 }
