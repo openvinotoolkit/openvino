@@ -2,6 +2,11 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to convert a model from a 
+                 TensorFlow format to the OpenVINO Intermediate Representation.
+
+
 This page provides general instructions on how to run model conversion from a TensorFlow format to the OpenVINO IR format. The instructions are different depending on whether your model was created with TensorFlow v1.X or TensorFlow v2.X.
 
 .. note:: TensorFlow models are supported via :doc:`FrontEnd API <openvino_docs_MO_DG_TensorFlow_Frontend>`. You may skip conversion to IR and read models directly by OpenVINO runtime API. Refer to the :doc:`inference example <openvino_docs_OV_UG_Integrate_OV_with_your_application>` for more details. Using ``convert_model`` is still necessary in more complex cases, such as new custom inputs/outputs in model pruning, adding pre-processing, or using Python conversion extensions.
@@ -71,7 +76,8 @@ When a network is defined in Python code, you have to create an inference graph 
 that allows model training. That means all trainable parameters are represented as variables in the graph.
 To be able to use such graph with model conversion API, it should be frozen and dumped to a file with the following code:
 
-.. code-block:: python
+.. code-block:: py
+   :force:
 
    import tensorflow as tf
    from tensorflow.python.framework import graph_io
@@ -116,7 +122,8 @@ pruning, find custom input nodes in the ``StatefulPartitionedCall/*`` subgraph.
 Since the 2023.0 release, direct pruning of models in SavedModel format is not supported.
 It is essential to freeze the model before pruning. Use the following code snippet for model freezing: 
 
-.. code-block:: python
+.. code-block:: py
+   :force:
 
    import tensorflow as tf
    from tensorflow.python.framework.convert_to_constants import convert_variables_to_constants_v2
@@ -137,7 +144,8 @@ Keras H5
 If you have a model in the HDF5 format, load the model using TensorFlow 2 and serialize it in the
 SavedModel format. Here is an example of how to do it:
 
-.. code-block:: python
+.. code-block:: py
+   :force:
 
    import tensorflow as tf
    model = tf.keras.models.load_model('model.h5')
@@ -147,7 +155,8 @@ SavedModel format. Here is an example of how to do it:
 The Keras H5 model with a custom layer has specifics to be converted into SavedModel format.
 For example, the model with a custom layer ``CustomLayer`` from ``custom_layer.py`` is converted as follows:
 
-.. code-block:: python
+.. code-block:: py
+   :force:
 
    import tensorflow as tf
    from custom_layer import CustomLayer
@@ -191,7 +200,8 @@ Model conversion API supports passing TensorFlow/TensorFlow2 models directly fro
 
 * ``tf.keras.Model``
 
-  .. code-block:: python
+  .. code-block:: py
+     :force:
 
      model = tf.keras.applications.ResNet50(weights="imagenet")
      ov_model = convert_model(model)
@@ -199,7 +209,8 @@ Model conversion API supports passing TensorFlow/TensorFlow2 models directly fro
 
 * ``tf.keras.layers.Layer``. Requires setting the "input_shape".
 
-  .. code-block:: python
+  .. code-block:: py
+     :force:
 
      import tensorflow_hub as hub
 
@@ -208,7 +219,8 @@ Model conversion API supports passing TensorFlow/TensorFlow2 models directly fro
 
 * ``tf.Module``. Requires setting the "input_shape".
 
-  .. code-block:: python
+  .. code-block:: py
+     :force:
 
      class MyModule(tf.Module):
         def __init__(self, name=None):
@@ -223,7 +235,8 @@ Model conversion API supports passing TensorFlow/TensorFlow2 models directly fro
 
 * ``tf.compat.v1.Graph``
 
-  .. code-block:: python
+  .. code-block:: py
+     :force:
 
      with tf.compat.v1.Session() as sess:
         inp1 = tf.compat.v1.placeholder(tf.float32, [100], 'Input1')
@@ -236,7 +249,8 @@ Model conversion API supports passing TensorFlow/TensorFlow2 models directly fro
 
 * ``tf.compat.v1.GraphDef``
 
-  .. code-block:: python
+  .. code-block:: py
+     :force:
 
      with tf.compat.v1.Session() as sess:
         inp1 = tf.compat.v1.placeholder(tf.float32, [100], 'Input1')
@@ -249,7 +263,8 @@ Model conversion API supports passing TensorFlow/TensorFlow2 models directly fro
 
 * ``tf.function``
 
-  .. code-block:: python
+  .. code-block:: py
+     :force:
 
      @tf.function(
         input_signature=[tf.TensorSpec(shape=[1, 2, 3], dtype=tf.float32),
@@ -261,7 +276,8 @@ Model conversion API supports passing TensorFlow/TensorFlow2 models directly fro
 
 * ``tf.compat.v1.session``
 
-  .. code-block:: python
+  .. code-block:: py
+     :force:
 
      with tf.compat.v1.Session() as sess:
         inp1 = tf.compat.v1.placeholder(tf.float32, [100], 'Input1')
@@ -273,7 +289,8 @@ Model conversion API supports passing TensorFlow/TensorFlow2 models directly fro
 
 * ``tf.train.checkpoint``
 
-  .. code-block:: python
+  .. code-block:: py
+     :force:
 
      model = tf.keras.Model(...)
      checkpoint = tf.train.Checkpoint(model)

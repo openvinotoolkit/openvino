@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about Swish-4 - an element-wise, activation operation, which 
+                can be performed on a single tensor in OpenVINO.
+
 **Versioned name**: *Swish-4*
 
 **Category**: *Activation function*
@@ -40,7 +44,8 @@ where β corresponds to ``beta`` scalar input.
 
 Example: Second input ``beta`` provided
 
-.. code-block:: cpp 
+.. code-block:: xml
+   :force:
 
     <layer ... type="Swish">
         <input>
@@ -62,7 +67,8 @@ Example: Second input ``beta`` provided
 
 Example: Second input ``beta`` not provided
 
-.. code-block:: cpp 
+.. code-block:: xml
+   :force:
 
     <layer ... type="Swish">
         <input>

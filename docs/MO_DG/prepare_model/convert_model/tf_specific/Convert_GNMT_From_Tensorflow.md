@@ -2,6 +2,11 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to convert a GNMT model 
+                 from TensorFlow to the OpenVINO Intermediate Representation.
+
+
 This tutorial explains how to convert Google Neural Machine Translation (GNMT) model to the Intermediate Representation (IR).
 
 There are several public versions of TensorFlow GNMT model implementation available on GitHub. This tutorial explains how to convert the GNMT model from the `TensorFlow Neural Machine Translation (NMT) repository <https://github.com/tensorflow/nmt>`__ to the IR.
@@ -203,6 +208,7 @@ Inference checkpoint ``inference_GNMT_graph`` and frozen inference graph ``froze
 To generate ``vocab.bpe.32000``, execute the ``nmt/scripts/wmt16_en_de.sh`` script. If you face an issue of a size mismatch between the checkpoint graph's embedding layer and vocabulary (both src and target), make sure you add the following code to the ``nmt.py`` file to the ``extend_hparams`` function after the line 508 (after initialization of the ``src_vocab_size`` and ``tgt_vocab_size`` variables):
 
 .. code-block:: py
+   :force:
 
    src_vocab_size -= 1
    tgt_vocab_size -= 1
@@ -273,6 +279,7 @@ Running GNMT IR
       Before running the example, insert a path to your GNMT ``.xml`` and ``.bin`` files into ``MODEL_PATH`` and ``WEIGHTS_PATH``, and fill ``input_data_tensor`` and    ``seq_lengths`` tensors according to your input data.
 
    .. code-block:: py
+      :force:
 
       from openvino.inference_engine import IENetwork, IECore
 

@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn about legal information and policies related to the use 
+                 of Intel® Distribution of OpenVINO™ toolkit.
+
 
 Performance varies by use, configuration and other factors. Learn more at [www.intel.com/PerformanceIndex](https://www.intel.com/PerformanceIndex).
  

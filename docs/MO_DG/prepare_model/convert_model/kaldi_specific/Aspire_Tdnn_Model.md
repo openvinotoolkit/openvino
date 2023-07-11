@@ -2,10 +2,14 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to convert an ASpIRE Chain TDNN
+                 model from Kaldi to the OpenVINO Intermediate Representation.
+
+
 .. warning::
 
    Note that OpenVINO support for Kaldi is currently being deprecated and will be removed entirely in the future.
-
 
 At the beginning, you should `download a pre-trained model <https://kaldi-asr.org/models/1/0001_aspire_chain_model.tar.gz>`__
 for the ASpIRE Chain Time Delay Neural Network (TDNN) from the Kaldi project official website.
@@ -103,7 +107,8 @@ Prepare ivectors for the Speech Recognition sample:
 
 5. For the Speech Recognition sample, the ``.ark`` file must contain an ivector for each frame. Copy the ivector ``frame_count`` times by running the below script in the Python command prompt:
 
-   .. code-block:: python
+   .. code-block:: py
+      :force:
 
       import subprocess
 

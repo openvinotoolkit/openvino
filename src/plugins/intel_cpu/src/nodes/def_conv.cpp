@@ -1160,10 +1160,10 @@ void DeformableConvolution::DefConvRefExecutor::exec(const float* src, const flo
 }
 
 void DeformableConvolution::prepareParams() {
-    auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
-    auto& srcMemPtr = getParentEdgeAt(DATA_ID)->getMemoryPtr();
-    auto& offMemPtr = getParentEdgeAt(OFF_ID)->getMemoryPtr();
-    auto& weiMemPtr = getParentEdgeAt(WEI_ID)->getMemoryPtr();
+    auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+    auto srcMemPtr = getParentEdgeAt(DATA_ID)->getMemoryPtr();
+    auto offMemPtr = getParentEdgeAt(OFF_ID)->getMemoryPtr();
+    auto weiMemPtr = getParentEdgeAt(WEI_ID)->getMemoryPtr();
 
     if (!dstMemPtr || !dstMemPtr->isAllocated())
         IE_THROW() << errorPrefix << " did not allocate destination memory";
@@ -1175,7 +1175,7 @@ void DeformableConvolution::prepareParams() {
         IE_THROW() << errorPrefix << " did not allocate weights memory";
 
     if (getOriginalInputsNumber() > 3) {
-        auto& modMemPtr = getParentEdgeAt(MOD_ID)->getMemoryPtr();
+        auto modMemPtr = getParentEdgeAt(MOD_ID)->getMemoryPtr();
         if (!modMemPtr || !modMemPtr->isAllocated())
             IE_THROW() << errorPrefix << " did not allocate modulations memory";
     }
@@ -1190,15 +1190,15 @@ void DeformableConvolution::prepareParams() {
     updatePadding();
 
     std::vector<std::shared_ptr<BlockedMemoryDesc>> descVector {
-        getParentEdgeAt(DATA_ID)->getMemory().GetDescWithType<BlockedMemoryDesc>(),
-        getParentEdgeAt(OFF_ID)->getMemory().GetDescWithType<BlockedMemoryDesc>(),
-        getParentEdgeAt(WEI_ID)->getMemory().GetDescWithType<BlockedMemoryDesc>()
+        getParentEdgeAt(DATA_ID)->getMemory().getDescWithType<BlockedMemoryDesc>(),
+        getParentEdgeAt(OFF_ID)->getMemory().getDescWithType<BlockedMemoryDesc>(),
+        getParentEdgeAt(WEI_ID)->getMemory().getDescWithType<BlockedMemoryDesc>()
     };
 
     if (withModulation) {
-        descVector.push_back(getParentEdgeAt(MOD_ID)->getMemory().GetDescWithType<BlockedMemoryDesc>());
+        descVector.push_back(getParentEdgeAt(MOD_ID)->getMemory().getDescWithType<BlockedMemoryDesc>());
     }
-    descVector.push_back(getChildEdgesAtPort(0)[0]->getMemory().GetDescWithType<BlockedMemoryDesc>());
+    descVector.push_back(getChildEdgesAtPort(0)[0]->getMemory().getDescWithType<BlockedMemoryDesc>());
 
     DefConvKey key = {
         descVector,
@@ -1278,15 +1278,15 @@ void DeformableConvolution::execute(dnnl::stream strm) {
     auto &srcMemory2 = getParentEdgeAt(2)->getMemory();
     auto &dstMemory = getChildEdgeAt(0)->getMemory();
 
-    const auto *src = reinterpret_cast<const float *>(srcMemory0.GetPtr());
-    const auto *offsets = reinterpret_cast<const float *>(srcMemory1.GetPtr());
-    const auto *weights = reinterpret_cast<const float *>(srcMemory2.GetPtr());
+    const auto *src = reinterpret_cast<const float *>(srcMemory0.getData());
+    const auto *offsets = reinterpret_cast<const float *>(srcMemory1.getData());
+    const auto *weights = reinterpret_cast<const float *>(srcMemory2.getData());
     float* modulation = nullptr;
     if (inputsNumber > 3) {
-        modulation = reinterpret_cast<float *>(getParentEdgeAt(3)->getMemory().GetPtr());
+        modulation = reinterpret_cast<float *>(getParentEdgeAt(3)->getMemory().getData());
     }
 
-    float *dst = reinterpret_cast<float *>(dstMemory.GetPtr());
+    float *dst = reinterpret_cast<float *>(dstMemory.getData());
 
     auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
     if (!selectedPrimitiveDescriptor)

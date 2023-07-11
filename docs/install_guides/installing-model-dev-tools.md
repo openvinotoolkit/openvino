@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to install OpenVINO™ Development Tools on Windows, 
+                 Linux, and macOS operating systems, using a PyPi package.
+
 OpenVINO Development Tools is a set of utilities that make it easy to develop and optimize models and applications for OpenVINO. It provides the following tools:
 
 * Model conversion API
@@ -66,19 +70,19 @@ Create a virtual Python environment to avoid dependency conflicts. To create a v
 
 .. tab-set::
 
-   .. tab-item:: Linux and macOS
-      :sync: lin-mac
-   
-      .. code-block:: sh
-      
-         python3 -m venv openvino_env
-      
    .. tab-item:: Windows
       :sync: windows
    
       .. code-block:: sh
       
          python -m venv openvino_env
+
+   .. tab-item:: Linux and macOS
+      :sync: linux-and-macos
+   
+      .. code-block:: sh
+      
+         python3 -m venv openvino_env
      
      
 
@@ -89,19 +93,19 @@ Activate the newly created Python virtual environment by issuing this command:
 
 .. tab-set::
 
-   .. tab-item:: Linux and macOS
-      :sync: lin-mac
-
-      .. code-block:: sh
-   
-         source openvino_env/bin/activate
-
    .. tab-item:: Windows
       :sync: windows
    
       .. code-block:: sh
    
          openvino_env\Scripts\activate
+
+   .. tab-item:: Linux and macOS
+      :sync: linux-and-macos
+
+      .. code-block:: sh
+   
+         source openvino_env/bin/activate
 
 .. important::
 
@@ -144,7 +148,7 @@ For example, to install and configure dependencies required for working with Ten
 
    Model conversion API support for TensorFlow 1.x environment has been deprecated. Use the ``tensorflow2`` parameter to install a TensorFlow 2.x environment that can convert both TensorFlow 1.x and 2.x models. If your model isn't compatible with the TensorFlow 2.x environment, use the `tensorflow` parameter to install the TensorFlow 1.x environment. The TF 1.x environment is provided only for legacy compatibility reasons.
 
-For more details on the openvino-dev PyPI package, see `pypi.org <https://pypi.org/project/openvino-dev/>`__ .
+For more details on the openvino-dev PyPI package, see `pypi.org <https://pypi.org/project/openvino-dev/2023.0.1>`__ .
 
 Step 5. Test the Installation
 +++++++++++++++++++++++++++++
@@ -205,7 +209,7 @@ Additional Resources
 
 - `Intel® Distribution of OpenVINO™ toolkit home page <https://software.intel.com/en-us/openvino-toolkit>`__
 - For IoT Libraries & Code Samples, see `Intel® IoT Developer Kit <https://github.com/intel-iot-devkit>`__ .
-- `OpenVINO Installation Selector Tool <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/download.html>`__
+
 
 @endsphinxdirective
 

@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about RNNCell-3 - a sequence processing operation, which 
+                can be performed on five required input tensors.
+
 **Versioned name**: *RNNCell-3*
 
 **Category**: *Sequence processing*
@@ -76,37 +80,38 @@
 
 **Example**
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
-  <layer ... type="RNNCell" ...>
-      <data hidden_size="128"/>
-      <input>
-          <port id="0">
-              <dim>1</dim>
-              <dim>16</dim>
-          </port>
-          <port id="1">
-              <dim>1</dim>
-              <dim>128</dim>
-          </port>
-          <port id="2">
-              <dim>128</dim>
-              <dim>16</dim>
-          </port>
-          <port id="3">
-              <dim>128</dim>
-              <dim>128</dim>
-          </port>
-          <port id="4">
-              <dim>128</dim>
-          </port>
-      </input>
-      <output>
-          <port id="5">
-              <dim>1</dim>
-              <dim>128</dim>
-          </port>
-      </output>
-  </layer>
+   <layer ... type="RNNCell" ...>
+       <data hidden_size="128"/>
+       <input>
+           <port id="0">
+               <dim>1</dim>
+               <dim>16</dim>
+           </port>
+           <port id="1">
+               <dim>1</dim>
+               <dim>128</dim>
+           </port>
+           <port id="2">
+               <dim>128</dim>
+               <dim>16</dim>
+           </port>
+           <port id="3">
+               <dim>128</dim>
+               <dim>128</dim>
+           </port>
+           <port id="4">
+               <dim>128</dim>
+           </port>
+       </input>
+       <output>
+           <port id="5">
+               <dim>1</dim>
+               <dim>128</dim>
+           </port>
+       </output>
+   </layer>
 
 @endsphinxdirective
