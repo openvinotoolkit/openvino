@@ -36,6 +36,7 @@
 #include "nodes/input.h"
 #include "nodes/reorder.h"
 #include "nodes/subgraph.h"
+#include "openvino/core/model.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/op/ops.hpp"
 #include "precision_utils.h"
@@ -46,6 +47,8 @@
 #include "utils/ngraph_utils.hpp"
 #include "utils/node_dumper.h"
 #include "utils/verbose.h"
+#include "memory_desc/cpu_memory_desc_utils.h"
+
 #if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
 #    include <tbb/task.h>
 #endif
@@ -109,7 +112,6 @@ void Graph::CreateGraph(const std::vector<NodePtr>& graphNodes,
 }
 
 template void Graph::CreateGraph(const std::shared_ptr<const ov::Model>&, const GraphContext::CPtr);
-
 void Graph::Replicate(const std::shared_ptr<const ov::Model> &subgraph) {
     this->_name = subgraph->get_friendly_name();
     this->reuse_io_tensors = false;
@@ -138,17 +140,15 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &subgraph) {
         const NodePtr node {Node::factory().create(op, context)};
 
         graphNodes.push_back(node);
-
-        if (op->get_type_info() == ov::op::v0::Parameter::get_type_info_static()) {
+        if (op->get_type_info() == op::v0::Parameter::get_type_info_static()) {
             inputNodesMap[node->getName()] = node;
             if (node->isDynamicNode()) {
                 graphHasDynamicInput = true;
             }
         }
 
-        if (op->get_type_info() == ov::op::v0::Result::get_type_info_static()) {
+        if (op->get_type_info() == op::v0::Result::get_type_info_static()) {
             const std::string inputID = get_port_name(op->output(0), is_legacy_api);
-
             outputNodesMap[inputID] = node;
         }
 
@@ -164,9 +164,9 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &subgraph) {
         }
 
         if (!one_of(op->get_type_info(),
-                    ov::op::v0::Result::get_type_info_static(),
-                    ov::op::v3::Assign::get_type_info_static(),
-                    ov::op::v6::Assign::get_type_info_static())) {
+                op::v0::Result::get_type_info_static(),
+                op::v3::Assign::get_type_info_static(),
+                op::v6::Assign::get_type_info_static())) {
             for (size_t oi = 0; oi < op->get_output_size(); oi++) {
                 if (op->get_output_target_inputs(oi).empty()) {
                     unusedOutputs.push_back(op->output(oi));
@@ -1676,7 +1676,7 @@ void Graph::EnforceInferencePrecision() {
     // starting from output nodes
     for (const auto& entry : outputNodesMap) {
         const auto& node = entry.second;
-        if (node->getOriginalInputPrecisionAtPort(0) == inferPrec)
+        if (node->getOriginalInputPrecisionAtPort(0) == Precision::BF16)
             continue;
         searchForNodesToSkip(node, nodesToSkip);
     }
