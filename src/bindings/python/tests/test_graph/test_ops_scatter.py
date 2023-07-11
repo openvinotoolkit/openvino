@@ -24,15 +24,15 @@ def test_scatter_update_props():
 
 
 @pytest.mark.parametrize(
-        "reduction",
-        [
-            "none",
-            "sum",
-            "prod",
-            "min",
-            "max",
-            "mean",
-        ]
+    "reduction",
+    [
+        "none",
+        "sum",
+        "prod",
+        "min",
+        "max",
+        "mean",
+    ],
 )
 def test_scatter_update_elements_props(reduction):
     dtype = np.int8
