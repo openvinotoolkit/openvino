@@ -22,9 +22,13 @@ public:
     BaseMatcher() = default;
 
     virtual bool match(const std::shared_ptr<ov::Node> &node,
-                       const std::shared_ptr<ov::Node> &ref) const {};
+                       const std::shared_ptr<ov::Node> &ref) const {
+        return false;
+    };
     virtual bool match(const std::shared_ptr<ov::Model> &model,
-                       const std::shared_ptr<ov::Model> &ref_model) const {};
+                       const std::shared_ptr<ov::Model> &ref_model) const {
+        return false;
+    };
 
     virtual std::list<ExtractedPattern> extract(const std::shared_ptr<ov::Model> &model) {};
 

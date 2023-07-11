@@ -37,7 +37,7 @@ protected:
 
     OpCache() {
         MatchersManager::MatchersMap matchers = {
-            { "generic_single_op", BaseMatcher::Ptr(new BaseMatcher) },
+            { "generic_single_op", SingleOpMatcher::Ptr(new SingleOpMatcher) },
             { "convolutions", ConvolutionsMatcher::Ptr(new ConvolutionsMatcher) },
         };
         m_manager.set_matchers(matchers);

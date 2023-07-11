@@ -131,8 +131,8 @@ inline std::shared_ptr<ov::Node> clone_node(std::shared_ptr<ov::Node> node,
         if (constant_input) {
             if (is_save_const || constant_input->get_byte_size() <= 1024) {
                 auto in_const = std::make_shared<ov::op::v0::Constant>(constant_input->get_element_type(),
-                                                                        constant_input->get_shape(),
-                                                                        constant_input->get_data_ptr());
+                                                                       constant_input->get_shape(),
+                                                                       constant_input->get_data_ptr());
                 in_const->set_friendly_name(input_name);
                 inputs[i] = in_const;
                 continue;
