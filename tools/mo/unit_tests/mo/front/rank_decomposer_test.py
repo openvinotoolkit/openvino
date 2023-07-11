@@ -4,7 +4,6 @@
 import unittest
 
 import numpy as np
-from generator import generator, generate
 
 from openvino.tools.mo.front.rank_decomposer import RankDecomposer
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array
@@ -24,30 +23,30 @@ nodes = lambda output_type: {
 }
 
 
-@generator
 class RankDecomposerTest(unittest.TestCase):
+    def test_rank_decomposer(self):
+        test_cases= [np.int32, np.int64]
+        for idx, (output_type) in enumerate(test_cases):
+            with self.subTest(test_cases=idx):
+                graph = build_graph(nodes_attrs=nodes(output_type), edges=[
+                    *connect('input', 'rank'),
+                    *connect('rank', 'output'),
+                ], nodes_with_edges_only=True)
+                RankDecomposer().find_and_replace_pattern(graph)
 
-    @generate(np.int32, np.int64)
-    def test_rank_decomposer(self, output_type):
-        graph = build_graph(nodes_attrs=nodes(output_type), edges=[
-            *connect('input', 'rank'),
-            *connect('rank', 'output'),
-        ], nodes_with_edges_only=True)
-        RankDecomposer().find_and_replace_pattern(graph)
+                graph_ref = build_graph(nodes_attrs=nodes(output_type), edges=[
+                    *connect('input', 'shape'),
+                    *connect('shape', 'rank_1D'),
+                    *connect('rank_1D', '0:rank_0D'),
+                    *connect('zero', '1:rank_0D'),
+                    *connect('rank_0D', 'output'),
+                ], nodes_with_edges_only=True)
 
-        graph_ref = build_graph(nodes_attrs=nodes(output_type), edges=[
-            *connect('input', 'shape'),
-            *connect('shape', 'rank_1D'),
-            *connect('rank_1D', '0:rank_0D'),
-            *connect('zero', '1:rank_0D'),
-            *connect('rank_0D', 'output'),
-        ], nodes_with_edges_only=True)
-
-        (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=True)
-        self.assertTrue(flag, resp)
-        self.assertEqual(graph.get_op_nodes(type='Squeeze')[0]['name'], 'my_rank',
-                         'Name is not inherited from original node for RankDecomposer')
-        print(output_type)
+                (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=True)
+                self.assertTrue(flag, resp)
+                self.assertEqual(graph.get_op_nodes(type='Squeeze')[0]['name'], 'my_rank',
+                                'Name is not inherited from original node for RankDecomposer')
+                print(output_type)
 
     def test_rank_decomposer_assertion(self):
         graph = build_graph(nodes_attrs=nodes(None), edges=[
