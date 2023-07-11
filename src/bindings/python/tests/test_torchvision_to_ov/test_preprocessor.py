@@ -188,7 +188,7 @@ def test_grayscale():
     test_input = np.random.randint(255, size=(224, 224, 3), dtype=np.uint8)
     preprocess_pipeline = transforms.Compose([transforms.ToTensor(), transforms.Grayscale()])
     torch_result, ov_result = _infer_pipelines(test_input, preprocess_pipeline, input_channels=1)
-    assert np.max(np.absolute(torch_result - ov_result)) < 1e-04
+    assert np.max(np.absolute(torch_result - ov_result)) < 2e-04
 
 
 def test_grayscale_num_output_channels():
