@@ -58,7 +58,7 @@ public:
     static const std::shared_ptr<ov::IRemoteContext>& get_hardware_context(
         const std::shared_ptr<ov::IRemoteContext>& context);
 
-    static ov::RemoteContext make_context(const std::shared_ptr<ov::IRemoteContext>& ctx);
+    static ov::RemoteContext make_context(const ov::SoPtr<ov::IRemoteContext>& ctx);
 
 private:
     ov::RemoteContext m_context;

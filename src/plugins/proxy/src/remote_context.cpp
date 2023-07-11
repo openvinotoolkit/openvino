@@ -69,8 +69,8 @@ const std::shared_ptr<ov::IRemoteContext>& ov::proxy::RemoteContext::get_hardwar
     return context;
 }
 
-ov::RemoteContext ov::proxy::RemoteContext::make_context(const std::shared_ptr<ov::IRemoteContext>& ctx) {
-    return ov::RemoteContext(ctx, nullptr);
+ov::RemoteContext ov::proxy::RemoteContext::make_context(const ov::SoPtr<ov::IRemoteContext>& ctx) {
+    return ov::RemoteContext(ctx._ptr, ctx._so);
 }
 
 const std::shared_ptr<ov::IRemoteContext>& ov::proxy::get_hardware_context(
