@@ -387,7 +387,7 @@ ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model
                                                            subgraph._sinks,
                                                            subgraph._parameters,
                                                            m_name + '_' + std::to_string(id));
-            m_compiled_submodels[id].model = subFunctions[id]->clone();  // TODO vurusovs IS CLONE REQUIRED?
+            m_compiled_submodels[id].model = subFunctions[id]->clone();
 
             auto metaDevices = get_hetero_plugin()->get_properties_per_device(m_compiled_submodels[id].device,
                                                                               m_cfg.get_device_properties());
