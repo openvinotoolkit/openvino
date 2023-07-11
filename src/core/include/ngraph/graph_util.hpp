@@ -124,9 +124,11 @@ NGRAPH_API_DEPRECATED std::vector<std::shared_ptr<Node>> subgraph_topological_so
 
 template <typename T>
 NGRAPH_API_DEPRECATED void validate_nodes_and_infer_types(const T& nodes) {
+    OPENVINO_SUPPRESS_DEPRECATED_START
     for (auto& node : subgraph_topological_sort(nodes)) {
         node->revalidate_and_infer_types();
     }
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 // Check if all paths from X to a result go through Y
