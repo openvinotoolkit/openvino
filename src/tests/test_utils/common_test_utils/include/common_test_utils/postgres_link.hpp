@@ -63,23 +63,37 @@ public:
     /// \brief Sets waste result flag which means do not store results
     /// \param[in] value Value should be set, true is default
     void set_refuse_result(bool value = true) const;
-    /// \brief Returns pointer on a global map which contains pairs of Extended Test Queries
-    /// Each pair has test name as a key and SQL-query as a value.
-    /// Query can contain a variables started with $ and be replaced by an actual values
-    /// Variables are parsed from test name.
-    static std::map<std::string, std::string>* get_ext_test_queries(void);
-    /// \brief Returns pointer on a global map which contains pairs of Extended Test Names
-    /// Each pair has test name as a key and string as a value.
-    /// Query can contain a variables started with $ and be replaced by an actual values
-    /// Variables are parsed from test name.
-    static std::map<std::string, std::string>* get_ext_test_names(void);
+    /// \brief Sets manual start flag which allows initiate storing results manually
+    /// IMPORTANT: It cannot change workflow of current execution, only for
+    /// further calls.
+    /// \param[in] value Value should be set, true is default
+    void set_manual_start(bool value = true) const;
+    /// \brief Initiate a TestCase start procedure which puts information into the table
+    /// Works only if previously called set_manual_start()
+    void manual_start(void) const;
 };
 
 }  // namespace CommonTestUtils
 
 #ifdef ENABLE_CONFORMANCE_PGQL
 namespace PostgreSQLLink {
+/// \brief Returns pointer on a global map which contains pairs of Extended Test Queries
+/// Each pair has test name as a key and SQL-query as a value.
+/// Query can contain a variables started with $ and be replaced by an actual values
+/// Variables are parsed from test name.
 extern std::map<std::string, std::string>* get_ext_test_queries(void);
+/// \brief Returns pointer on a global map which contains pairs of Extended Test Names
+/// Each pair has test name as a key and string as a value.
+/// Query can contain a variables started with $ and be replaced by an actual values
+/// Variables are parsed from test name.
 extern std::map<std::string, std::string>* get_ext_test_names(void);
+/// \brief Sets manual start flag which allows initiate storing results manually.
+/// It may affect workflow of further execution if called before OnStartTestCase event
+/// will be called.
+/// \param[in] value Value should be set, true is default
+extern void set_manual_start(bool value = true);
+/// \brief Initiate a TestCase start procedure which puts information into the table
+/// Works only if previously called set_manual_start()
+void manual_start(void);
 };  // namespace PostgreSQLLink
 #endif

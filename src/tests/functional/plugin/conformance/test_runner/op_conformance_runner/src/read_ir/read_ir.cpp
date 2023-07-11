@@ -302,6 +302,7 @@ void ReadIRTest::SetUp() {
                 }
             }
         }
+        pgLink->manual_start();
     }
 #endif
 

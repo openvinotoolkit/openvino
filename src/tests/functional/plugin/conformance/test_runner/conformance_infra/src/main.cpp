@@ -25,19 +25,16 @@ void RegisterTestCustomQueries(void) {
     std::string testName("checkPluginImplementation");
     extTestQueries[testName + "_ON_START"] = "OpImplCheck_CheckPluginImpl($__test_id, '$opName', '$opSet', "
                                              "'$targetDevice', '$targetDeviceArch', '$config', $__is_temp)";
-    extTestQueries[testName + "_ON_END"] =
-        "OpImplCheck_CheckPluginImpl('$targetDevice', '$targetDeviceArch', $__test_ext_id, $__test_id)";
+    extTestQueries[testName + "_ON_END"] = "OpImplCheck_CheckPluginImpl($__test_ext_id, $__test_id)";
     extTestQueries[testName + "_ON_REFUSE"] =
         "OpImplCheck_CheckPluginImpl($__test_id)";  // Query expected in case of a refused results
     extTestNames[testName] = "$opName";
 
     testName = "ReadIR";
-    extTestQueries[testName + "_ON_START"] =
-        "ReadIRTest_ReadIR($__test_id, '$opName', '$opSet', '$Type', "
-        "'$targetDevice', '$hashXml', '$pathXml', '$config', '$caseType', '$irWeight', $__is_temp)";
-    extTestQueries[testName + "_ON_END"] =
-        "ReadIRTest_ReadIR($__test_ext_id, '$opName', '$opSet', '$Type', "
-        "'$targetDevice', '$targetDeviceArch', '$caseType', '$irWeight', $__test_id)";
+    extTestQueries[testName + "_ON_START"] = "ReadIRTest_ReadIR($__test_id, '$opName', '$opSet', '$Type', "
+                                             "'$targetDevice', '$targetDeviceArch', '$hashXml', '$pathXml', '$config', "
+                                             "'$caseType', '$irWeight', $__is_temp)";
+    extTestQueries[testName + "_ON_END"] = "ReadIRTest_ReadIR($__test_ext_id, $__test_id)";
     extTestQueries[testName + "_ON_REFUSE"] =
         "ReadIRTest_ReadIR($__test_id)";  // Query expected in case of a refused results
     extTestNames[testName] = "$opName";
@@ -49,6 +46,7 @@ using namespace ov::test::conformance;
 
 int main(int argc, char* argv[]) {
 #ifdef ENABLE_CONFORMANCE_PGQL
+    ::PostgreSQLLink::set_manual_start(true);
     RegisterTestCustomQueries();
 #endif
 

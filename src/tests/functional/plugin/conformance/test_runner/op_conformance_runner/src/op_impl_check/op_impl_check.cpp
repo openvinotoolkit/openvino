@@ -48,6 +48,7 @@ void OpImplCheckTest::SetUp() {
         } else {
             pgLink->set_custom_field("targetDevice", this->targetDevice, true);
         }
+        pgLink->manual_start();
     }
 #endif
 }

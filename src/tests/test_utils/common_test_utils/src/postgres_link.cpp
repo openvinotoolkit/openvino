@@ -3,12 +3,13 @@
 //
 
 #include "common_test_utils/postgres_link.hpp"
-#include "common_test_utils/postgres_helpers.hpp"
 
+#include "common_test_utils/postgres_helpers.hpp"
 #include "openvino/core/version.hpp"
-std::map<std::string, std::string>
+
+static std::map<std::string, std::string>
     ExtTestQueries;  // Map of extended test queries. It is used for do a custom query after inserting mandatory row
-std::map<std::string, std::string>
+static std::map<std::string, std::string>
     ExtTestNames;  // Map of extended test name convertors. It is used to change a test name automatically.
 
 namespace CommonTestUtils {
@@ -26,7 +27,7 @@ using namespace PostgreSQLHelpers;
     bool funcDefinition {                                               \
         std::stringstream sstr;                                         \
         sstr << sqlQuery;                                               \
-        return _internal_request_id(sstr.str(), #fieldName, varName);     \
+        return _internal_request_id(sstr.str(), #fieldName, varName);   \
     }
 
 /// \brief Class which handles gtest keypoints and send data to PostgreSQL database.
@@ -57,11 +58,13 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
     size_t jqLastCommandOffset;  // Stores offset of beginning of a last command, to be able to rewind
     std::stringstream joinedQuery;
     bool isRefusedResult = false;  // Signals test result is a waste and shouldn't be stored in DB
+    bool isManualStart = false;    // Signals test case start will be called manually
 
     /* Test name parsing */
     std::map<std::string, std::string>
         testDictionary;  // Contains key=value pairs which should be used while constructing queries and names
-    std::string testName;
+    std::map<std::string, std::string>::iterator grpName;
+    std::string testName, fullTestName;
     bool isTestNameParsed = false;  // Signals test name was successfully parsed to the testDictionary pairs
     bool isFieldsUpdated = false;   // Signals testDictionary was updated between OnTestStart and OnTestEnd
 
@@ -248,6 +251,50 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
         }
     }
 
+    /// \brief Internal call of delayed start process which puts information about
+    /// TestCase start into the table
+    void _internal_start(void) {
+        // In case of results will be refused - do not do anything
+        if (isRefusedResult) {
+            return;
+        }
+
+        std::stringstream sstr;
+
+        if (!isManualStart) {
+            // Creates temporary record
+            sstr << "INSERT INTO test_results_temp (tr_id, session_id, suite_id, run_id, test_id, test_result) "
+                 << "VALUES (DEFAULT, " << this->sessionId << ", " << this->testSuiteId << ", " << this->testRunId
+                 << ", " << this->testNameId << ", 0::smallint) RETURNING tr_id";
+        } else {
+            // Creates record
+            sstr << "INSERT INTO test_results (tr_id, session_id, suite_id, run_id, test_id, test_result) "
+                 << "VALUES (DEFAULT, " << this->sessionId << ", " << this->testSuiteId << ", " << this->testRunId
+                 << ", " << this->testNameId << ", 0::smallint) RETURNING tr_id";
+        }
+
+        if (!request_test_id(sstr.str()))
+            return;
+
+        if (grpName != testDictionary.end()) {
+            // Looks query with GroupName + "_ON_START", "ReadIR_ON_START" as example
+            auto extQuery = ExtTestQueries.find(grpName->second + "_ON_START");
+            if (extQuery != ExtTestQueries.end()) {
+                std::string query;
+                testDictionary["__test_id"] = std::to_string(this->testId);
+                if (compile_string(extQuery->second, testDictionary, query)) {
+                    if (!request_test_ext_id(query)) {
+                        std::cerr << PG_WRN << "Failed extended query: " << query << std::endl;
+                    } else {
+                        testDictionary["__test_ext_id"] = std::to_string(this->testExtId);
+                    }
+                } else {
+                    std::cerr << PG_WRN << "Preparing extended query is failed: " << fullTestName << std::endl;
+                }
+            }
+        }
+    }
+
     void OnTestSuiteStart(const ::testing::TestSuite& test_suite) override {
         if (!this->isPostgresEnabled || !this->testRunId || !this->sessionId)
             return;
@@ -295,25 +342,28 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
             return;
         }
 
+        this->testId = 0;
+        this->testExtId = 0;
         isRefusedResult = false;
         testDictionary.clear();
 
-        auto grpName = testDictionary.end();
-        testName = test_info.name();
+        grpName = testDictionary.end();
+        testName = test_info.name();  // Could be changed later
+        fullTestName = testName;      // Shouldn't be changed, used as global identifier
 
-        if ((isTestNameParsed = parse_test_name(test_info.name(), testDictionary)) == true &&
+        if ((isTestNameParsed = parse_test_name(fullTestName.c_str(), testDictionary)) == true &&
             (grpName = testDictionary.find("__groupName__")) != testDictionary.end()) {
             auto nameConvertStr = ExtTestNames.find(grpName->second);
             if (nameConvertStr != ExtTestNames.end()) {
                 if (!compile_string(nameConvertStr->second, testDictionary, testName)) {
-                    std::cerr << PG_WRN << "Error compiling test name: " << test_info.name() << std::endl;
+                    std::cerr << PG_WRN << "Error compiling test name: " << fullTestName << std::endl;
                     testName = grpName->second;
                 }
             } else {
                 testName = grpName->second;
             }
         } else {
-            std::cerr << PG_WRN << "Error parsing test name: " << test_info.name() << std::endl;
+            std::cerr << PG_WRN << "Error parsing test name: " << fullTestName << std::endl;
         }
 
         std::stringstream sstr;
@@ -337,9 +387,10 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
 
         testDictionary["__suite_id"] = std::to_string(this->testSuiteId);
         testDictionary["__suite_name_id"] = std::to_string(this->testSuiteNameId);
-        testDictionary["__session_id"] = std::to_string(this->testId);
-        testDictionary["__run_id"] = std::to_string(this->testId);
-        testDictionary["__is_temp"] = (reportingLevel == REPORT_LVL_DEFAULT ? "1::boolean" : "0::boolean");
+        testDictionary["__session_id"] = std::to_string(this->sessionId);
+        testDictionary["__run_id"] = std::to_string(this->testRunId);
+        testDictionary["__is_temp"] =
+            (reportingLevel == REPORT_LVL_DEFAULT && !isManualStart ? "1::boolean" : "0::boolean");
         isFieldsUpdated = false;
 
         if (reportingLevel == REPORT_LVL_DEFAULT) {
@@ -360,33 +411,9 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
         if (!request_test_name_id(sstr.str()))
             return;
 
-        sstr.str("");
-        sstr.clear();
-        // Creates temporary record
-        sstr << "INSERT INTO test_results_temp (tr_id, session_id, suite_id, run_id, test_id, test_result) "
-             << "VALUES (DEFAULT, " << this->sessionId << ", " << this->testSuiteId << ", " << this->testRunId << ", "
-             << this->testNameId << ", 0::smallint) RETURNING tr_id";
-
-        if (!request_test_id(sstr.str()))
-            return;
-
-        if (grpName != testDictionary.end()) {
-            // Looks query with GroupName + "_ON_START", "ReadIR_ON_START" as example
-            auto extQuery = ExtTestQueries.find(grpName->second + "_ON_START");
-            if (extQuery != ExtTestQueries.end()) {
-                std::string query;
-                testDictionary["__test_id"] = std::to_string(this->testId);
-                if (compile_string(extQuery->second, testDictionary, query)) {
-                    if (!request_test_ext_id(query)) {
-                        std::cerr << PG_WRN << "Failed extended query: " << query << std::endl;
-                    } else {
-                        testDictionary["__test_ext_id"] = std::to_string(this->testExtId);
-                    }
-                } else {
-                    std::cerr << PG_WRN << "Preparing extended query is failed: " << test_info.name() << std::endl;
-                }
-            }
-        }
+        // If manual start isn't requested - push information immediately to the table
+        if (!isManualStart)
+            _internal_start();
     }
 
     void OnTestPartResult(const ::testing::TestPartResult& test_part_result) override {
@@ -462,23 +489,37 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
         if (reportingLevel == REPORT_LVL_DEFAULT) {
             std::stringstream sstr;
             uint64_t testTempId = this->testId;
-            sstr << "INSERT INTO test_results (session_id, suite_id, run_id, test_id, started_at, finished_at, "
-                    "duration, test_result) "
-                 << "(SELECT session_id, suite_id, run_id, test_id, started_at, NOW(), "
-                 << test_info.result()->elapsed_time() << ", " << testResult << "::smallint FROM test_results_temp "
-                 << "WHERE tr_id=" << this->testId << ") RETURNING tr_id";
-            if (!request_test_id(sstr.str())) {
-                return;
+            if (!isManualStart) {
+                sstr << "INSERT INTO test_results (session_id, suite_id, run_id, test_id, started_at, finished_at, "
+                        "duration, test_result) "
+                     << "(SELECT session_id, suite_id, run_id, test_id, started_at, NOW(), "
+                     << test_info.result()->elapsed_time() << ", " << testResult << "::smallint FROM test_results_temp "
+                     << "WHERE tr_id=" << this->testId << ") RETURNING tr_id";
+                if (!request_test_id(sstr.str())) {
+                    return;
+                } else {
+                    sstr.str("");
+                    sstr.clear();
+                    sstr << "DELETE FROM test_results_temp WHERE tr_id=" << testTempId;
+                    auto pgresult = connectionKeeper->query(sstr.str().c_str(), PGRES_COMMAND_OK);
+                    CHECK_PGRESULT(pgresult, "Cannot remove temporary test results", /* no return */);
+
+                    // Set correct information about
+                    set_custom_field("__test_ext_id", std::to_string(this->testId), true);
+                    set_custom_field("__test_id", std::to_string(testTempId), true);
+                    // Force updating fields because in some conditions IDs might be equal
+                    isFieldsUpdated = true;
+                }
             } else {
-                sstr.str("");
-                sstr.clear();
-                sstr << "DELETE FROM test_results_temp WHERE tr_id=" << testTempId;
+                sstr << "UPDATE test_results SET duration = " << test_info.result()->elapsed_time()
+                     << ", test_result = " << testResult << "::smallint, finished_at = NOW() "
+                     << "WHERE tr_id=" << this->testId;
                 auto pgresult = connectionKeeper->query(sstr.str().c_str(), PGRES_COMMAND_OK);
-                CHECK_PGRESULT(pgresult, "Cannot remove temporary test results", /* no return */);
+                CHECK_PGRESULT(pgresult, "Cannot update test results", /* no return */);
 
                 // Set correct information about
                 set_custom_field("__test_ext_id", std::to_string(this->testId), true);
-                set_custom_field("__test_id", std::to_string(testTempId), true);
+                set_custom_field("__test_id", std::to_string(this->testId), true);
                 // Force updating fields because in some conditions IDs might be equal
                 isFieldsUpdated = true;
             }
@@ -607,8 +648,18 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
     friend class PostgreSQLEnvironment;
 
 public:
+    void manual_start(void) {
+        if (isManualStart && this->testId == 0 && reportingLevel == REPORT_LVL_DEFAULT) {
+            _internal_start();
+        }
+    }
+
     void set_refuse_result(bool value = true) {
         isRefusedResult = value;
+    }
+
+    void set_manual_start(bool value = true) {
+        isManualStart = value;
     }
 
     bool set_custom_field(const std::string fieldName, const std::string fieldValue, const bool rewrite) {
@@ -644,6 +695,8 @@ public:
 /// \brief Global variable (scoped only to this file) which contains pointer to PostgreSQLEventListener
 ///        Might be replaced by a bool, but left as is for possible future use.
 static PostgreSQLEventListener* pgEventListener = nullptr;
+/// \brief Used for lazy set_manual_start call
+static bool pgEventListenerInitialManualStart = false;
 
 /// \brief Class is used for registering environment handler in gtest. It prepares in-time set up
 ///        for registering PostgreSQLEventListener
@@ -656,6 +709,7 @@ public:
             if (pgEventListener == nullptr) {
                 pgEventListener = new PostgreSQLEventListener();
                 ::testing::UnitTest::GetInstance()->listeners().Append(pgEventListener);
+                pgEventListener->set_manual_start(pgEventListenerInitialManualStart);
             }
         } else {
             std::cerr << PG_INF << "PostgreSQL Reporting is disabled due to missing environment settings\n";
@@ -702,23 +756,27 @@ PostgreSQLLink::~PostgreSQLLink(void) {
 #endif
 }
 
-std::map<std::string, std::string>* PostgreSQLLink::get_ext_test_queries(void) {
-    return &ExtTestQueries;
-}
-
-std::map<std::string, std::string>* PostgreSQLLink::get_ext_test_names(void) {
-    return &ExtTestNames;
-}
-
 void PostgreSQLLink::set_refuse_result(bool value) const {
     if (pgEventListener) {
         pgEventListener->set_refuse_result(value);
     }
 }
 
+void PostgreSQLLink::set_manual_start(bool value) const {
+    if (pgEventListener) {
+        pgEventListener->set_manual_start(value);
+    }
+}
+
+void PostgreSQLLink::manual_start(void) const {
+    if (pgEventListener) {
+        pgEventListener->manual_start();
+    }
+}
+
 bool PostgreSQLLink::set_custom_field(const std::string fieldName,
-                                    const std::string fieldValue,
-                                    const bool rewrite) const {
+                                      const std::string fieldValue,
+                                      const bool rewrite) const {
     if (pgEventListener) {
         return pgEventListener->set_custom_field(fieldName, fieldValue, rewrite);
     }
@@ -742,10 +800,24 @@ bool PostgreSQLLink::remove_custom_field(const std::string fieldName) const {
 }  // namespace CommonTestUtils
 namespace PostgreSQLLink {
 std::map<std::string, std::string>* get_ext_test_queries(void) {
-    return ::CommonTestUtils::PostgreSQLLink::get_ext_test_queries();
+    return &ExtTestQueries;
 }
 
 std::map<std::string, std::string>* get_ext_test_names(void) {
-    return ::CommonTestUtils::PostgreSQLLink::get_ext_test_names();
+    return &ExtTestNames;
+}
+
+void set_manual_start(bool value) {
+    if (::CommonTestUtils::pgEventListener) {
+        ::CommonTestUtils::pgEventListener->set_manual_start(value);
+    } else {
+        ::CommonTestUtils::pgEventListenerInitialManualStart = value;
+    }
+}
+
+void manual_start(void) {
+    if (::CommonTestUtils::pgEventListener) {
+        ::CommonTestUtils::pgEventListener->manual_start();
+    }
 }
 }  // namespace PostgreSQLLink
