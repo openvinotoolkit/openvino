@@ -259,29 +259,4 @@ inline ov::Tensor make_tensor(layout l, void* memory_pointer) {
     return ov::Tensor(et, l.get_shape(), memory_pointer);
 }
 
-struct MemoryUsageTracker {
-public:
-    MemoryUsageTracker(const engine* engine, float buffers_preallocation_ratio)
-        : _engine(engine)
-        , _buffers_preallocation_ratio(buffers_preallocation_ratio) {
-        static_assert(_max_deque_size >= 2, "[GPU] Deque is supposed to contain at least 2 elements for prediction");
-    }
-
-    std::pair<bool, ov::Shape> predict_preallocated_shape_size(const std::string& id, const ov::Shape& current_shape, bool can_reuse_buffer);
-    bool can_preallocate(size_t desired_buffer_size);
-
-private:
-    enum class math_op { SUM, SUB, MUL };
-    ov::Shape shapes_math(const ov::Shape& shape1, const ov::Shape& shape2, math_op op);
-    void add_shape(const std::string& id, const ov::Shape& shape);
-
-    std::map<std::string, std::deque<ov::Shape>> _shapes_info;
-    const engine* _engine;
-
-    const float _buffers_preallocation_ratio = 1.0f;
-    static constexpr size_t _max_deque_size = 3;
-    static constexpr size_t _next_iters_preallocation_count = 10;
-    static constexpr size_t _max_per_dim_diff = 2;
-};
-
 }  // namespace cldnn

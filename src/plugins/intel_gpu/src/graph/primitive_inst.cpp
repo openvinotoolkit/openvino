@@ -372,10 +372,10 @@ event::ptr primitive_inst::realloc_if_needed() {
     }
 
     auto current_shape = actual_layout.get_shape();
-    auto mem_tracker = get_network().get_memory_usage_tracker();
-    auto prealloc_info = mem_tracker->predict_preallocated_shape_size(id(), current_shape, can_reuse_buffer);
+    auto& sp = get_network().get_shape_predictor();
     auto dt_size = data_type_traits::size_of(actual_layout.data_type);
-    if (prealloc_info.first && mem_tracker->can_preallocate(ov::shape_size(prealloc_info.second) * dt_size)) {
+    auto prealloc_info = sp.predict_preallocation_shape(id(), current_shape, dt_size, can_reuse_buffer);
+    if (prealloc_info.first && sp.can_preallocate(ov::shape_size(prealloc_info.second) * dt_size)) {
         auto new_layout = actual_layout;
         new_layout.set_partial_shape(prealloc_info.second);
         updated_params.output_layouts[0] = new_layout;

@@ -910,16 +910,16 @@ void InferRequest::prepare_input(const cldnn::primitive_id& inputName, Blob::Ptr
             }
         }
 
-        auto mem_tracker = _nw_ptr->get_memory_usage_tracker();
-        auto current_shape = ov::Shape(inputBlob->getTensorDesc().getDims());
-        auto prealloc_info = mem_tracker->predict_preallocated_shape_size(inputName, current_shape, !should_allocate_device_blob);
+        auto& sp = _nw_ptr->get_shape_predictor();
+        const auto& tensor_desc = inputBlob->getTensorDesc();
+        auto dt_size = cldnn::data_type_traits::size_of(DataTypeFromPrecision(tensor_desc.getPrecision()));
+        auto current_shape = ov::Shape(tensor_desc.getDims());
+        auto prealloc_info = sp.predict_preallocation_shape(inputName, current_shape, dt_size, !should_allocate_device_blob);
 
         if (should_allocate_device_blob) {
-            const auto& tensor_desc = inputBlob->getTensorDesc();
             auto preallocation_shape = prealloc_info.second;
-            auto dt_size = cldnn::data_type_traits::size_of(DataTypeFromPrecision(tensor_desc.getPrecision()));
             auto can_preallocate_buffer = prealloc_info.first &&
-                                          mem_tracker->can_preallocate(ov::shape_size(preallocation_shape) * dt_size);
+                                          sp.can_preallocate(ov::shape_size(preallocation_shape) * dt_size);
 
             if (can_preallocate_buffer) {
                 auto new_tensor_desc = tensor_desc;

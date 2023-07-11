@@ -4,37 +4,38 @@
 
 #include "test_utils.h"
 
-#include "intel_gpu/runtime/memory.hpp"
+#include "intel_gpu/runtime/shape_predictor.hpp"
 
 using namespace cldnn;
 using namespace ::tests;
 
-struct mem_tracker_test_params {
+struct shape_predictor_test_params {
     std::vector<ov::Shape> in_shapes;
     ov::Shape expected_predicted_shape;
     float buffers_preallocation_ratio;
     bool can_reuse_buffer;
 };
 
-class memory_tracker_test : public testing::TestWithParam<mem_tracker_test_params> {};
-TEST_P(memory_tracker_test, preallocation) {
+class shape_predictor_tests : public testing::TestWithParam<shape_predictor_test_params> {};
+TEST_P(shape_predictor_tests, prediction) {
     auto p = GetParam();
     auto& in_shapes = p.in_shapes;
     auto& expected_predicted_shape = p.expected_predicted_shape;
     auto& engine = get_test_engine();
 
-    MemoryUsageTracker memory_tracker(&engine, p.buffers_preallocation_ratio);
+    ShapePredictor sp(&engine, p.buffers_preallocation_ratio);
     std::pair<bool, ov::Shape> result;
+    const auto dt_size = 4;
 
     for (auto& shape : in_shapes)
-        result = memory_tracker.predict_preallocated_shape_size("dummy_name", shape, p.can_reuse_buffer);
+        result = sp.predict_preallocation_shape("dummy_name", shape, dt_size, p.can_reuse_buffer);
 
     ASSERT_TRUE(result.first == !expected_predicted_shape.empty());
     ASSERT_EQ(result.second, expected_predicted_shape);
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke, memory_tracker_test,
-    testing::ValuesIn(std::vector<mem_tracker_test_params>{
+INSTANTIATE_TEST_SUITE_P(smoke, shape_predictor_tests,
+    testing::ValuesIn(std::vector<shape_predictor_test_params>{
         // Preallocation for next N iterations tests
         {{{1,1}, {1,1}, {1,1}}, {}, 1.0f, false},
         {{{1,1}, {1,21}, {1,31}}, {}, 1.0f, false},
@@ -51,6 +52,7 @@ INSTANTIATE_TEST_SUITE_P(smoke, memory_tracker_test,
         {{{1,1}, {1,1}, {1,1}, {1,1}, {1,1}, {1,1}}, {}, 1.0f, false},
         {{{1,10}, {1,1}, {1,2}, {1,3}}, {1,13}, 1.0f, false},
         {{{1,10}, {1,1}, {1,2}, {1,3}}, {1,13}, 1.1f, false},
+        {{{1,3,480,720}, {3,3,480,720}, {5,3,480,720}}, {}, 1.0f, false},
         {{{1,1}, {1,1}, {1,1}}, {}, 1.0f, true},
         {{{1,1}, {1,2}, {1,3}}, {}, 1.0f, true},
 

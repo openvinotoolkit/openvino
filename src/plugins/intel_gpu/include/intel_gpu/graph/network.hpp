@@ -13,6 +13,7 @@
 #include "intel_gpu/runtime/event.hpp"
 #include "intel_gpu/runtime/stream.hpp"
 #include "intel_gpu/runtime/lru_cache.hpp"
+#include "intel_gpu/runtime/shape_predictor.hpp"
 
 #include <map>
 #include <vector>
@@ -242,7 +243,7 @@ public:
 
     const ExecutionConfig& get_config() const { return _config; }
 
-    std::shared_ptr<MemoryUsageTracker> get_memory_usage_tracker() { return _memory_usage_tracker; }
+    ShapePredictor& get_shape_predictor() { return *_shape_predictor; }
 
 private:
     using output_chains_map = std::map<primitive_id, std::vector<std::shared_ptr<primitive_inst>>>;
@@ -276,7 +277,7 @@ private:
     std::unordered_map<primitive_id, event::ptr> _events;
     output_chains_map _output_chains;
 
-    std::shared_ptr<MemoryUsageTracker> _memory_usage_tracker;
+    std::unique_ptr<ShapePredictor> _shape_predictor;
 
     void build_exec_order();
     void allocate_primitive_instance(program_node const& node);
