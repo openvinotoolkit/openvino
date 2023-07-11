@@ -52,7 +52,8 @@ private:
     std::shared_ptr<TableOfEquivalence> m_table_of_equivalence;
 };
 
-using EqTable = std::unordered_map<label_t, std::unordered_set<label_t>>;
+using EqualitySoup = std::shared_ptr<std::set<label_t>>;
+using EqTable = std::unordered_map<label_t, EqualitySoup>;
 using ValTable = std::unordered_map<label_t, ov::Dimension>;
 
 class TableOfEquivalence {
@@ -64,6 +65,7 @@ public:
     }
     const ValTable& get_value_equivalence_table() const;
     label_t get_next_label();
+    bool are_equal(const ov::Dimension& lhs, const ov::Dimension& rhs);
 private:
     label_t current_label;
     EqTable dimension_table_of_equivalence;

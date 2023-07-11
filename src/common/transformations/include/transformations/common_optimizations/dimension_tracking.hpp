@@ -30,7 +30,9 @@ class TRANSFORMATIONS_API GroupedSliceToVSplitOptimization;
 class TRANSFORMATIONS_API ChainedReshapeOptimization;
 class TRANSFORMATIONS_API ChainedVariadicSplitOptimization;
 class TRANSFORMATIONS_API RoPE_Optimization;
-class TRANSFORMATIONS_API AttentionReplacer;
+class TRANSFORMATIONS_API Fused_RPE_MHA_Replacer;
+class TRANSFORMATIONS_API ApplyTableOfEquivalence;
+class TRANSFORMATIONS_API OptimizeLabelsUsedAsValues;
 
 }  // namespace pass
 }  // namespace ov
@@ -111,10 +113,10 @@ public:
     RoPE_Optimization();
 };
 
-class ov::pass::AttentionReplacer : public ov::pass::MatcherPass {
+class ov::pass::Fused_RPE_MHA_Replacer : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("AttentionReplacer", "0");
-    AttentionReplacer();
+    OPENVINO_RTTI("Fused_RPE_MHA_Replacer", "0");
+    Fused_RPE_MHA_Replacer();
 };
 
 class ov::pass::SharedTileOptimization : public ov::pass::ModelPass {
@@ -144,6 +146,18 @@ public:
 class ov::pass::GroupedSliceToVSplitOptimization : public ov::pass::ModelPass {
 public:
     OPENVINO_RTTI("GroupedSliceToVSplitOptimization", "0");
+    bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
+};
+
+class ov::pass::ApplyTableOfEquivalence : public ov::pass::ModelPass {
+public:
+    OPENVINO_RTTI("ApplyTableOfEquivalence", "0");
+    bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
+};
+
+class ov::pass::OptimizeLabelsUsedAsValues : public ov::pass::ModelPass {
+public:
+    OPENVINO_RTTI("OptimizeLabelsUsedAsValues", "0");
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };
 

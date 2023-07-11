@@ -26,12 +26,28 @@ FusedMHA_RPE::FusedMHA_RPE(const Output<Node>& data,
 void FusedMHA_RPE::validate_and_infer_types() {
     INTERNAL_OP_SCOPE(internal_FusedMHA_RPE_validate_and_infer_types);
     const auto& input_shape = get_input_partial_shape(0);
+    const auto& p_keys_shape = get_input_partial_shape(3);
+    const auto& p_values_shape = get_input_partial_shape(4);
     OPENVINO_ASSERT(input_shape.rank().is_static() && input_shape.size() == 4);
-    auto output_shape = PartialShape::dynamic(3);
-    output_shape[0] = input_shape[0];
-    output_shape[1] = input_shape[2];
-    output_shape[2] = input_shape[1] * d_head;
-    set_output_type(0, get_input_element_type(0), output_shape);
+    OPENVINO_ASSERT(p_keys_shape.rank().is_static() && p_keys_shape.size() == 4);
+    OPENVINO_ASSERT(p_values_shape.rank().is_static() && p_values_shape.size() == 4);
+    auto output_shape_0 = PartialShape::dynamic(3);
+    output_shape_0[0] = input_shape[0];
+    output_shape_0[1] = input_shape[2];
+    output_shape_0[2] = input_shape[1] * d_head;
+
+    auto output_shape_1 = PartialShape::dynamic(4);
+    output_shape_1[0] = input_shape[0];
+    output_shape_1[1] = input_shape[1];
+    output_shape_1[2] = input_shape[2] + p_keys_shape[2];
+    output_shape_1[3] = Dimension(d_head);
+
+    auto output_shape_2 = output_shape_1;
+    output_shape_2[2] = input_shape[2] + p_values_shape[2];
+
+    set_output_type(0, get_input_element_type(0), output_shape_0);
+    set_output_type(1, get_input_element_type(0), output_shape_1);
+    set_output_type(2, get_input_element_type(0), output_shape_2);
 }
 
 bool FusedMHA_RPE::visit_attributes(ov::AttributeVisitor& visitor) {
