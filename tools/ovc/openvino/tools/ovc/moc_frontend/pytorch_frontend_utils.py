@@ -92,7 +92,7 @@ def extract_input_info_from_example(args, inputs):
             dtype = getattr(example_input, "dtype", type(example_input))
             example_dtype = pt_to_ov_type_map.get(str(dtype))
             user_dtype = get_value_from_list_or_dict(data_types, input_name, input_id)
-            if user_dtype is not None and example_dtype != Type.dynamic and example_dtype.to_dtype() != user_dtype:
+            if user_dtype is not None and example_dtype is not None and example_dtype.to_dtype() != user_dtype:
                 raise Error(f"Defined input type {user_dtype} is not equal to provided example_input type {example_dtype.to_dtype()}")
 
             data_rank = getattr(example_input, "ndim", 0)
