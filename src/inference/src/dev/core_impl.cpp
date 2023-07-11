@@ -49,7 +49,9 @@ ov::ICore::~ICore() = default;
 
 namespace {
 
+#ifdef PROXY_PLUGIN_ENABLED
 static constexpr const char* internal_plugin_suffix = "_ov_internal";
+#endif
 
 template <typename F>
 void allowNotImplemented(F&& f) {
@@ -387,9 +389,9 @@ void ov::CoreImpl::register_plugin_in_registry_unsafe(const std::string& device_
     };
 #endif
 
-    auto&& config = desc.defaultConfig;
     std::string dev_name = device_name;
 #ifdef PROXY_PLUGIN_ENABLED
+    auto&& config = desc.defaultConfig;
     // Register proxy plugin
     if (config.find(ov::proxy::configuration::alias.name()) != config.end()) {
         // Create proxy plugin for alias
