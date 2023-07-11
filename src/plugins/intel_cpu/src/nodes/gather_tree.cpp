@@ -140,12 +140,12 @@ GatherTree::GatherTreeExecutor::GatherTreeExecutor(const VectorDims& stepIdxDims
 
 template<typename DATA_T>
 void GatherTree::GatherTreeExecutor::exec(const MemoryPtr& stepIdxMemPtr, const MemoryPtr& parentIdxMemPtr,
-    const MemoryPtr& maxSeqLenMemPtr, const MemoryPtr& endTokenMemPtr, MemoryPtr& dstMemPtr) {
-    const auto *stepIdx = reinterpret_cast<DATA_T *>(stepIdxMemPtr->GetPtr());
-    const auto *parentIdx = reinterpret_cast<DATA_T *>(parentIdxMemPtr->GetPtr());
-    const auto *maxSeqLen = reinterpret_cast<DATA_T *>(maxSeqLenMemPtr->GetPtr());
-    const auto endToken = (reinterpret_cast<DATA_T *>(endTokenMemPtr->GetPtr()))[0];
-    auto *finalIdx = reinterpret_cast<DATA_T *>(dstMemPtr->GetPtr());
+    const MemoryPtr& maxSeqLenMemPtr, const MemoryPtr& endTokenMemPtr, const MemoryPtr& dstMemPtr) {
+    const auto *stepIdx = reinterpret_cast<DATA_T *>(stepIdxMemPtr->getData());
+    const auto *parentIdx = reinterpret_cast<DATA_T *>(parentIdxMemPtr->getData());
+    const auto *maxSeqLen = reinterpret_cast<DATA_T *>(maxSeqLenMemPtr->getData());
+    const auto endToken = (reinterpret_cast<DATA_T *>(endTokenMemPtr->getData()))[0];
+    auto *finalIdx = reinterpret_cast<DATA_T *>(dstMemPtr->getData());
 
     bool incorrectResult = false;
     parallel_for2d(batchSize, beamWidth, [&](size_t batch, size_t beam) {

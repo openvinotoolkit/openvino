@@ -44,7 +44,8 @@ where β corresponds to ``beta`` scalar input.
 
 Example: Second input ``beta`` provided
 
-.. code-block:: cpp 
+.. code-block:: xml
+   :force:
 
     <layer ... type="Swish">
         <input>
@@ -66,7 +67,8 @@ Example: Second input ``beta`` provided
 
 Example: Second input ``beta`` not provided
 
-.. code-block:: cpp 
+.. code-block:: xml
+   :force:
 
     <layer ... type="Swish">
         <input>

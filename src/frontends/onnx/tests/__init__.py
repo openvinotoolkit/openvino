@@ -23,11 +23,6 @@ def xfail_test(reason="Mark the test as expected to fail", strict=True):
     return pytest.mark.xfail(reason=reason, strict=strict)
 
 
-skip_segfault = pytest.mark.skip(reason="Segmentation fault error")
-xfail_dynamic_rank = xfail_test(reason="Dynamic rank")
-skip_devtest = pytest.mark.skip(reason="Test might depend on machine, should be run by developers"
-                                       "or advanced users for debug/testing purposes.")
-skip_need_mock_op = pytest.mark.skip(reason="Test need to be rewritten with mock operation. Issue #101215")
 xfail_accuracy = xfail_test(reason="Accuracy")
 xfail_issue_69444 = xfail_test(reason="ONNX Resize - AssertionError: Mismatched elements.")
 skip_issue_67415 = pytest.mark.skip(reason="RuntimeError: Unsupported data type for when filling blob!")
@@ -36,8 +31,6 @@ xfail_issue_33488 = xfail_test(reason="RuntimeError: OV does not support the fol
                                       "MaxUnpool")
 skip_issue_38084 = pytest.mark.skip(reason="Aborted (core dumped) Assertion "
                                            "`(layer->get_output_partial_shape(i).is_static())' failed.")
-xfail_issue_33595 = xfail_test(reason="RuntimeError: OV does not support the following ONNX operations: "
-                                      "Unique")
 xfail_issue_33596 = xfail_test(reason="RuntimeError: OV does not support different sequence operations: "
                                       "ConcatFromSequence, SequenceConstruct, SequenceAt, SplitToSequence, "
                                       "SequenceEmpty, SequenceInsert, SequenceErase, SequenceLength ")
