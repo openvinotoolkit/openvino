@@ -11,43 +11,71 @@ namespace ov {
 namespace frontend {
 namespace pytorch {
 
-enum QuantizedPtNodeType { QUANTIZE_PER_TENSOR, QUANTIZE_PER_CHANNEL, DEQUANTIZE };
+enum QuantizedPtNodeType { QUANTIZE_PER_TENSOR, QUANTIZE_PER_CHANNEL };
 
 class QuantizedPtNode : public PtFrameworkNode {
 public:
     OPENVINO_OP("QuantizedPtNode", "util", ::ov::frontend::pytorch::PtFrameworkNode);
     static constexpr const char* quantized_node_type_key = "QuantizedPtTypeName";
-    static constexpr const char* quantize_per_tensor_op_type_value = "aten::quantize_per_tensor";
-    static constexpr const char* quantize_per_channel_op_type_value = "aten::quantize_per_channel";
-    static constexpr const char* dequantize_op_type_value = "aten::dequantize";
+    static constexpr const char* quantize_per_tensor = "quantize_per_tensor";
+    static constexpr const char* quantize_per_channel = "quantize_per_channel";
 
     QuantizedPtNode(const QuantizedPtNodeType type,
-                    const std::shared_ptr<TorchDecoder>& decoder,
-                    const OutputVector& inputs,
-                    size_t output_size,
-                    bool is_backprop = false)
-        : PtFrameworkNode(decoder, inputs, output_size, is_backprop) {
+                    const NodeContext& context,
+                    const ov::Output<ov::Node> input,
+                    const ov::Output<ov::Node> scale,
+                    const ov::Output<ov::Node> zero_point,
+                    const element::Type dtype)
+        : PtFrameworkNode(context.get_decoder(), {input}, 1, false), type(type), scale(scale), zero_point(zero_point) {
         ov::op::util::FrameworkNodeAttrs attrs = get_attrs();
         if (type == QuantizedPtNodeType::QUANTIZE_PER_TENSOR) {
-            attrs[quantized_node_type_key] = quantize_per_tensor_op_type_value;
+            attrs[quantized_node_type_key] = quantize_per_tensor;
         } else if (type == QuantizedPtNodeType::QUANTIZE_PER_CHANNEL) {
-            attrs[quantized_node_type_key] = quantize_per_channel_op_type_value;
-        } else if (type == QuantizedPtNodeType::DEQUANTIZE) {
-            attrs[quantized_node_type_key] = dequantize_op_type_value;
+            attrs[quantized_node_type_key] = quantize_per_channel;
         } else {
             FRONT_END_OP_CONVERSION_CHECK(false, "Unknown QuantizedPtNodeType: ", type);
         }
         set_attrs(attrs);
     }
+
+    QuantizedPtNode(const QuantizedPtNodeType type,
+                    const NodeContext& context,
+                    const ov::Output<ov::Node>& input,
+                    const ov::Output<ov::Node>& scale,
+                    const ov::Output<ov::Node>& zero_point,
+                    const ov::Output<ov::Node>& axis_,
+                    const element::Type dtype)
+        : QuantizedPtNode(type, context, input, scale, zero_point, dtype) {
+            axis = axis_;
+        }
+
+    const ov::Output<ov::Node> get_scale() {
+        return scale;
+    }
+    const ov::Output<ov::Node> get_zero_point() {
+        return scale;
+    }
+    const ov::Output<ov::Node> get_axis() {
+        FRONT_END_OP_CONVERSION_CHECK(type == QuantizedPtNodeType::QUANTIZE_PER_CHANNEL, "Accessing axis from a node quantized using a method other than 'per channel' is disallowed.");
+        return axis;
+    }
+    const QuantizedPtNodeType get_type() {
+        return type;
+    }
+
+private:
+    const QuantizedPtNodeType type;
+    ov::Output<ov::Node> scale;
+    ov::Output<ov::Node> zero_point;
+    ov::Output<ov::Node> axis;
 };
 
-std::shared_ptr<QuantizedPtNode> quantize_per_tensor(std::shared_ptr<TorchDecoder> decoder,
-                                                     ov::Output<ov::Node> input,
-                                                     ov::Output<ov::Node> scale,
-                                                     ov::Output<ov::Node> zero_point,
-                                                     ov::Output<ov::Node> dtype);
+std::shared_ptr<ov::Node> quantize(const NodeContext& context,
+                                    std::shared_ptr<ov::Node>& input,
+                                    std::shared_ptr<ov::Node>& quantized_node);
 
-std::shared_ptr<QuantizedPtNode> dequantize(std::shared_ptr<TorchDecoder> decoder, ov::Output<ov::Node> input);
+std::shared_ptr<ov::Node> dequantize(const NodeContext& context, 
+                                    std::shared_ptr<ov::Node>& quantized_node);
 
 std::shared_ptr<QuantizedPtNode> cast_quantized_fw_node(std::shared_ptr<Node> node);
 std::shared_ptr<QuantizedPtNode> cast_quantized_fw_node(std::shared_ptr<Node> node, const std::string& type);
