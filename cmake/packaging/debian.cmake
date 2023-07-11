@@ -53,6 +53,8 @@ macro(ov_cpack_settings)
            (NOT item MATCHES "^${OV_CPACK_COMP_PYTHON_OPENVINO_PACKAGE}_python.*" OR ENABLE_PYTHON_PACKAGING) AND
            # see ticket # 82605
            NOT item STREQUAL "gna" AND
+           # temporary block nvidia
+           NOT item STREQUAL "nvidia" AND
            # don't install Intel OpenMP
            NOT item STREQUAL "omp" AND
            # even for case of system TBB we have installation rules for wheels packages

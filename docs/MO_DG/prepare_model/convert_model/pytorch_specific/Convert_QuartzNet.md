@@ -2,6 +2,11 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to convert a QuartzNet model
+                 from Pytorch to the OpenVINO Intermediate Representation.
+
+
 `NeMo project <https://github.com/NVIDIA/NeMo>`__ provides the QuartzNet model.
 
 Downloading the Pre-trained QuartzNet Model
@@ -14,7 +19,8 @@ Here are the instructions on how to obtain QuartzNet in ONNX format.
 
 2. Run the following code:
 
-   .. code-block:: python
+   .. code-block:: py
+      :force:
    
       import nemo
       import nemo.collections.asr as nemo_asr

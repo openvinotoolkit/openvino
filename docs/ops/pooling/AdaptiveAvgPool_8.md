@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about AdaptiveAvgPool-8 - a pooling operation, which can 
+                be performed on two required input tensors.
+
 **Versioned name**: *AdaptiveAvgPool-8*
 
 **Category**: *Pooling*
@@ -44,7 +48,8 @@ The output is calculated with the following formula:
 
 **Examples**
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
    
    <layer ... type="AdaptiveAvgPool" ... >
        <data output_type="i64"/>

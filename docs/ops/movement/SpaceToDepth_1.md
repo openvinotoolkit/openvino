@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about SpaceToDepth-1 - a data movement operation, 
+                which can be performed on a single input tensor.
+
 **Versioned name**: *SpaceToDepth-1*
 
 **Category**: *Data movement*
@@ -67,7 +71,8 @@ If ``mode = depth_first``:
 
 **Example**
 
-.. code-block:: cpp 
+.. code-block:: xml
+   :force:
 
     <layer type="SpaceToDepth" ...>
         <data block_size="2" mode="blocks_first"/>

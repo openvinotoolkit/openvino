@@ -12,6 +12,9 @@
 #include "ie_remote_blob.hpp"
 #include "openvino/runtime/iremote_tensor.hpp"
 #include "openvino/runtime/properties.hpp"
+#ifdef PROXY_PLUGIN_ENABLED
+#    include "openvino/proxy/plugin.hpp"
+#endif
 
 namespace ov {
 
@@ -541,7 +544,12 @@ public:
 
     void setShape(const ie::SizeVector& dims) override {
         tensor->set_shape(dims);
-        ie::TBlob<T>::setShape(dims);
+        ie::TBlob<T>::getTensorDesc().setDims(dims);
+        if (ie::TBlob<T>::buffer() != tensor->data()) {
+            ie::TBlob<T>::_allocator =
+                ie::details::make_pre_allocator(static_cast<T*>(tensor->data()), tensor->get_byte_size());
+            ie::TBlob<T>::allocate();
+        }
     }
 
     std::shared_ptr<ITensor> tensor;
@@ -578,7 +586,42 @@ std::shared_ptr<ITensor> make_tensor(const std::shared_ptr<ie::Blob>& blob) {
 #undef IF
 }
 
-ie::Blob::Ptr tensor_to_blob(const std::shared_ptr<ITensor>& tensor) {
+ie::Blob* get_hardware_blob(ie::Blob* blob) {
+#ifdef PROXY_PLUGIN_ENABLED
+    if (auto remote_blob = dynamic_cast<TensorRemoteBlob*>(blob)) {
+        const auto& tensor = ov::proxy::get_hardware_tensor(remote_blob->tensor);
+        if (auto blob_tensor = std::dynamic_pointer_cast<BlobTensor>(tensor)) {
+            return blob_tensor->blob.get();
+        } else if (auto blob_tensor = std::dynamic_pointer_cast<RemoteBlobTensor>(tensor)) {
+            return blob_tensor->blob.get();
+        }
+        OPENVINO_NOT_IMPLEMENTED;
+    }
+#endif
+    return blob;
+}
+
+const ie::Blob* get_hardware_blob(const ie::Blob* blob) {
+#ifdef PROXY_PLUGIN_ENABLED
+    if (auto remote_blob = dynamic_cast<const TensorRemoteBlob*>(blob)) {
+        const auto& tensor = ov::proxy::get_hardware_tensor(remote_blob->tensor);
+        if (auto blob_tensor = std::dynamic_pointer_cast<BlobTensor>(tensor)) {
+            return blob_tensor->blob.get();
+        } else if (auto blob_tensor = std::dynamic_pointer_cast<RemoteBlobTensor>(tensor)) {
+            return blob_tensor->blob.get();
+        }
+        OPENVINO_NOT_IMPLEMENTED;
+    }
+#endif
+    return blob;
+}
+
+ie::Blob::Ptr tensor_to_blob(const std::shared_ptr<ITensor>& orig_tensor, bool unwrap) {
+#ifdef PROXY_PLUGIN_ENABLED
+    const auto& tensor = unwrap ? ov::proxy::get_hardware_tensor(orig_tensor) : orig_tensor;
+#else
+    const auto& tensor = orig_tensor;
+#endif
     if (tensor == nullptr) {
         return {};
     } else if (auto blob_tensor = std::dynamic_pointer_cast<BlobTensor>(tensor)) {

@@ -4,11 +4,17 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to install OpenVINO™ Runtime on Linux operating 
+                 system, using the YUM repository, which is a recommended 
+                 installation method for C++ developers.
+
+
 With the OpenVINO™ 2023.0 release, you can install OpenVINO Runtime on Linux using the YUM repository. 
 OpenVINO™ Development Tools can be installed via PyPI only. See 
 `Installing Additional Components <#step-3-optional-install-additional-components>`__ for more information.
 
-See the `Release Notes <https://www.intel.com/content/www/us/en/developer/articles/release-notes/openvino-2022-3-lts-relnotes.html>`__ 
+See the `Release Notes <https://www.intel.com/content/www/us/en/developer/articles/release-notes/openvino/2023-0.html>`__ 
 for more information on updates in the latest release.
 
 Installing OpenVINO Runtime from YUM is recommended for C++ developers. If you are working with Python, 
@@ -28,7 +34,7 @@ Prerequisites
 .. tab-set::
 
    .. tab-item:: System Requirements
-      :sync: sys-req
+      :sync: system-requirements
    
       | Full requirement listing is available in:
       | `System Requirements Page <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html>`__
@@ -239,11 +245,6 @@ You can also try the following things:
 * Take a glance at the OpenVINO product home page: https://software.intel.com/en-us/openvino-toolkit.
 
 
-
-Additional Resources
-#####################
-
-- `OpenVINO Installation Selector Tool <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/download.html>`__
 
 
 @endsphinxdirective
