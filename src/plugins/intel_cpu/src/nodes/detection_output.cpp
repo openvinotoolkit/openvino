@@ -93,14 +93,14 @@ DetectionOutput::DetectionOutput(const std::shared_ptr<ngraph::Node>& op, const 
 }
 
 void DetectionOutput::prepareParams() {
-    const auto& idPriorDims = getParentEdgeAt(ID_PRIOR)->getMemory().GetShape().getStaticDims();
-    const auto &idConfDims = getParentEdgeAt(ID_CONF)->getMemory().GetShape().getStaticDims();
+    const auto& idPriorDims = getParentEdgeAt(ID_PRIOR)->getMemory().getShape().getStaticDims();
+    const auto &idConfDims = getParentEdgeAt(ID_CONF)->getMemory().getShape().getStaticDims();
     priorsNum = static_cast<int>(idPriorDims.back() / priorSize);
     isPriorsPerImg = idPriorDims.front() != 1;
     classesNum = static_cast<int>(idConfDims.back() / priorsNum);
     locNumForClasses = isShareLoc ? 1 : classesNum;
 
-    const auto& idLocDims = getParentEdgeAt(ID_LOC)->getMemory().GetShape().getStaticDims();
+    const auto& idLocDims = getParentEdgeAt(ID_LOC)->getMemory().getShape().getStaticDims();
     if (priorsNum * locNumForClasses * 4 != static_cast<int>(idLocDims[1]))
         IE_THROW() << errorPrefix << "has incorrect number of priors, which must match number of location predictions ("
         << priorsNum * locNumForClasses * 4 << " vs "
@@ -169,15 +169,15 @@ void DetectionOutput::executeDynamicImpl(dnnl::stream strm) {
 }
 
 void DetectionOutput::execute(dnnl::stream strm) {
-    float *dstData = reinterpret_cast<float *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr());
+    float *dstData = reinterpret_cast<float *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->getData());
 
-    const float *locData     = reinterpret_cast<const float *>(getParentEdgeAt(ID_LOC)->getMemoryPtr()->GetPtr());
-    const float *confData    = reinterpret_cast<const float *>(getParentEdgeAt(ID_CONF)->getMemoryPtr()->GetPtr());
-    const float *priorData   = reinterpret_cast<const float *>(getParentEdgeAt(ID_PRIOR)->getMemoryPtr()->GetPtr());
+    const float *locData     = reinterpret_cast<const float *>(getParentEdgeAt(ID_LOC)->getMemoryPtr()->getData());
+    const float *confData    = reinterpret_cast<const float *>(getParentEdgeAt(ID_CONF)->getMemoryPtr()->getData());
+    const float *priorData   = reinterpret_cast<const float *>(getParentEdgeAt(ID_PRIOR)->getMemoryPtr()->getData());
     const float *ARMConfData = inputShapes.size() > 3 ?
-            reinterpret_cast<const float *>(getParentEdgeAt(ID_ARM_CONF)->getMemoryPtr()->GetPtr()) : nullptr;
+            reinterpret_cast<const float *>(getParentEdgeAt(ID_ARM_CONF)->getMemoryPtr()->getData()) : nullptr;
     const float *ARMLocData = inputShapes.size() > 4 ?
-            reinterpret_cast<const float *>(getParentEdgeAt(ID_ARM_LOC)->getMemoryPtr()->GetPtr()) : nullptr;
+            reinterpret_cast<const float *>(getParentEdgeAt(ID_ARM_LOC)->getMemoryPtr()->getData()) : nullptr;
 
     float *reorderedConfData = reorderedConf.data();
     int *reorderedConfDataIndices = reinterpret_cast<int*>(reorderedConf.data());
@@ -845,7 +845,7 @@ inline void DetectionOutput::generateOutput(float* reorderedConfData, int* indic
     else
         dstDataSize = imgNum * classesNum * priorsNum * DETECTION_SIZE * sizeof(float);
 
-    if (static_cast<size_t>(dstDataSize) > getChildEdgesAtPort(0)[0]->getMemory().GetSize()) {
+    if (static_cast<size_t>(dstDataSize) > getChildEdgesAtPort(0)[0]->getMemory().getSize()) {
         IE_THROW() << errorPrefix << OUT_OF_BOUNDS;
     }
     memset(dstData, 0, dstDataSize);
