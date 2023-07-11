@@ -20,6 +20,30 @@
 template <typename T>
 using NodeMap = std::unordered_map<std::shared_ptr<ov::Node>, T>;
 
+namespace {
+
+template <typename Set>
+static Set intersection(const Set& lhs, const Set& rhs) {
+    Set result;
+    const auto& minSizeSet = (lhs.size() < rhs.size()) ? lhs : rhs;
+    const auto& maxSizeSet = (lhs.size() >= rhs.size()) ? lhs : rhs;
+    for (auto&& val : minSizeSet)
+        if (maxSizeSet.find(val) != maxSizeSet.end())
+            result.insert(val);
+    return result;
+}
+
+template <typename Set>
+static bool intersects(const Set& lhs, const Set& rhs) {
+    const auto& minSizeSet = (lhs.size() < rhs.size()) ? lhs : rhs;
+    const auto& maxSizeSet = (lhs.size() >= rhs.size()) ? lhs : rhs;
+    for (auto&& val : minSizeSet)
+        if (maxSizeSet.find(val) != maxSizeSet.end())
+            return true;
+    return false;
+}
+}  // namespace
+
 ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                                          const std::shared_ptr<const ov::IPlugin>& plugin,
                                          const Configuration& cfg,
@@ -167,8 +191,7 @@ ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model
             std::unordered_map<std::shared_ptr<ov::Node>, InputSet> nodeSubgraphCyclicInputDependencies;
             for (auto&& node : orderedOps) {
                 auto& nodeSubgraphInputDependency = nodeSubgraphInputDependencies[node];
-                auto allNodeSubgraphInputs =
-                    InferenceEngine::details::Intersection(nodeInputDependencies[node], subgraphInputs);
+                auto allNodeSubgraphInputs = intersection(nodeInputDependencies[node], subgraphInputs);
                 for (auto&& subgraphInput : allNodeSubgraphInputs) {
                     if (subgraphIds[node] == subgraphIds[subgraphInput.get_node()->shared_from_this()]) {
                         nodeSubgraphInputDependency.emplace(subgraphInput);
@@ -198,10 +221,8 @@ ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model
                         auto& inputNodeSubgraphCyclicInputDependency =
                             nodeSubgraphCyclicInputDependencies[InputNode(input)];
                         auto& inputNodeSubgraphInputDependency = nodeSubgraphInputDependencies[InputNode(input)];
-                        if (!InferenceEngine::details::Intersects(nodeSubgraphCyclicInputDependency,
-                                                                  inputNodeSubgraphCyclicInputDependency) &&
-                            InferenceEngine::details::Intersects(cyclicInputsDependencies,
-                                                                 inputNodeSubgraphInputDependency)) {
+                        if (!intersects(nodeSubgraphCyclicInputDependency, inputNodeSubgraphCyclicInputDependency) &&
+                            intersects(cyclicInputsDependencies, inputNodeSubgraphInputDependency)) {
                             subgraphInputs.insert(input);
                         }
                     }
@@ -300,12 +321,13 @@ ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model
             std::vector<Subgraph> newOrderedSubgraphs;
             auto IsOrderedSubGraph = [&](const Subgraph& subgraph) {
                 auto& parameters = subgraph._parameters;
-                return std::all_of(parameters.begin(),
-                                   parameters.end(),
-                                   [&](const ov::ParameterVector::value_type& parameter) {
-                                       return (graphInputNodes.find(parameter) != graphInputNodes.end()) ||
-                                              (prevResults.find(subgraphParameterToPrevResult[parameter]) != prevResults.end());
-                                   });
+                return std::all_of(
+                    parameters.begin(),
+                    parameters.end(),
+                    [&](const ov::ParameterVector::value_type& parameter) {
+                        return (graphInputNodes.find(parameter) != graphInputNodes.end()) ||
+                               (prevResults.find(subgraphParameterToPrevResult[parameter]) != prevResults.end());
+                    });
             };
             std::remove_copy_if(std::begin(allSubgraphs),
                                 std::end(allSubgraphs),
