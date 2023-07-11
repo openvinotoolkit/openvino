@@ -139,7 +139,8 @@ The code below demonstrates how to create
 ``StableDiffusionInpaintPipeline`` using
 ``stable-diffusion-2-inpainting``:
 
-.. code:: ipython3
+.. code-block:: py
+   :force:
 
     from diffusers import StableDiffusionInpaintPipeline, DPMSolverMultistepScheduler
     
@@ -161,7 +162,8 @@ The code below demonstrates how to create
       warnings.warn(
 
 
-.. code:: ipython3
+.. code-block:: py
+   :force:
 
     import gc
     
@@ -184,161 +186,163 @@ U-Net now has 9 channels, which now calculated like 4 for U-Net
 generated latents channels + 4 for latent representation of masked image
 + 1 channel resized mask.
 
-.. code:: ipython3
+.. code-block:: py
+   :force:
 
-    from pathlib import Path
-    import torch
-    import numpy as np
-    
-    sd2_inpainting_model_dir = Path("sd2_inpainting")
-    sd2_inpainting_model_dir.mkdir(exist_ok=True)
+   from pathlib import Path
+   import torch
+   import numpy as np
+   
+   sd2_inpainting_model_dir = Path("sd2_inpainting")
+   sd2_inpainting_model_dir.mkdir(exist_ok=True)
 
-.. code:: ipython3
+.. code-block:: py
+   :force:
 
-    def convert_encoder_onnx(text_encoder: torch.nn.Module, onnx_path:Path):
-        """
-        Convert Text Encoder model to ONNX. 
-        Function accepts pipeline, prepares example inputs for ONNX conversion via torch.export, 
-        Parameters: 
-            text_encoder (torch.nn.Module): text encoder PyTorch model
-            onnx_path (Path): File for storing onnx model
-        Returns:
-            None
-        """
-        if not onnx_path.exists():
-            input_ids = torch.ones((1, 77), dtype=torch.long)
-            # switch model to inference mode
-            text_encoder.eval()
-    
-            # disable gradients calculation for reducing memory consumption
-            with torch.no_grad():
-                # export model to ONNX format
-                torch.onnx._export(
-                    text_encoder,  # model instance
-                    input_ids,  # inputs for model tracing
-                    onnx_path,  # output file for saving result
-                    input_names=['tokens'],  # model input name for onnx representation
-                    output_names=['last_hidden_state', 'pooler_out'],  # model output names for onnx representation
-                    opset_version=14,  # onnx opset version for export,
-                    onnx_shape_inference=False
-                )
-            print('Text Encoder successfully converted to ONNX')
-    
-            
-    def convert_unet_onnx(unet:torch.nn.Module, onnx_path:Path, num_channels:int = 4, width:int = 64, height:int = 64):
-        """
-        Convert Unet model to ONNX, then IR format. 
-        Function accepts pipeline, prepares example inputs for ONNX conversion via torch.export, 
-        Parameters: 
-            unet (torch.nn.Module): UNet PyTorch model
-            onnx_path (Path): File for storing onnx model
-            num_channels (int, optional, 4): number of input channels
-            width (int, optional, 64): input width
-            height (int, optional, 64): input height
-        Returns:
-            None
-        """
-        if not onnx_path.exists():
-            # prepare inputs
-            encoder_hidden_state = torch.ones((2, 77, 1024))
-            latents_shape = (2, num_channels, width, height)
-            latents = torch.randn(latents_shape)
-            t = torch.from_numpy(np.array(1, dtype=np.float32))
-    
-            # model size > 2Gb, it will be represented as onnx with external data files, we will store it in separated directory for avoid a lot of files in current directory
-            onnx_path.parent.mkdir(exist_ok=True, parents=True)
-            unet.eval()
-    
-            with torch.no_grad():
-                torch.onnx._export(
-                    unet, 
-                    (latents, t, encoder_hidden_state), str(onnx_path),
-                    input_names=['latent_model_input', 't', 'encoder_hidden_states'],
-                    output_names=['out_sample'],
-                    onnx_shape_inference=False
-                )
-            print('U-Net successfully converted to ONNX')
-    
-    
-    def convert_vae_encoder_onnx(vae: torch.nn.Module, onnx_path: Path, width:int = 512, height:int = 512):
-        """
-        Convert VAE model to ONNX, then IR format. 
-        Function accepts pipeline, creates wrapper class for export only necessary for inference part, 
-        prepares example inputs for ONNX conversion via torch.export, 
-        Parameters: 
-            vae (torch.nn.Module): VAE PyTorch model
-            onnx_path (Path): File for storing onnx model
-            width (int, optional, 512): input width
-            height (int, optional, 512): input height
-        Returns:
-            None
-        """
-        class VAEEncoderWrapper(torch.nn.Module):
-            def __init__(self, vae):
-                super().__init__()
-                self.vae = vae
-    
-            def forward(self, image):
-                h = self.vae.encoder(image)
-                moments = self.vae.quant_conv(h)
-                return moments
-    
-        if not onnx_path.exists():
-            vae_encoder = VAEEncoderWrapper(vae)
-            vae_encoder.eval()
-            image = torch.zeros((1, 3, width, height))
-            with torch.no_grad():
-                torch.onnx.export(vae_encoder, image, onnx_path, input_names=[
-                                  'init_image'], output_names=['image_latent'])
-            print('VAE encoder successfully converted to ONNX')
-    
-    
-    def convert_vae_decoder_onnx(vae: torch.nn.Module, onnx_path: Path, width:int = 64, height:int = 64):
-        """
-        Convert VAE model to ONNX, then IR format. 
-        Function accepts pipeline, creates wrapper class for export only necessary for inference part, 
-        prepares example inputs for ONNX conversion via torch.export, 
-        Parameters: 
-            vae: 
-            onnx_path (Path): File for storing onnx model
-            width (int, optional, 64): input width
-            height (int, optional, 64): input height
-        Returns:
-            None
-        """
-        class VAEDecoderWrapper(torch.nn.Module):
-            def __init__(self, vae):
-                super().__init__()
-                self.vae = vae
-    
-            def forward(self, latents):
-                latents = 1 / 0.18215 * latents 
-                return self.vae.decode(latents)
-    
-        if not onnx_path.exists():
-            vae_decoder = VAEDecoderWrapper(vae)
-            latents = torch.zeros((1, 4, width, height))
-    
-            vae_decoder.eval()
-            with torch.no_grad():
-                torch.onnx.export(vae_decoder, latents, onnx_path, input_names=[
-                                  'latents'], output_names=['sample'])
-            print('VAE decoder successfully converted to ONNX')
+   def convert_encoder_onnx(text_encoder: torch.nn.Module, onnx_path:Path):
+       """
+       Convert Text Encoder model to ONNX. 
+       Function accepts pipeline, prepares example inputs for ONNX conversion via torch.export, 
+       Parameters: 
+           text_encoder (torch.nn.Module): text encoder PyTorch model
+           onnx_path (Path): File for storing onnx model
+       Returns:
+           None
+       """
+       if not onnx_path.exists():
+           input_ids = torch.ones((1, 77), dtype=torch.long)
+           # switch model to inference mode
+           text_encoder.eval()
+   
+           # disable gradients calculation for reducing memory consumption
+           with torch.no_grad():
+               # export model to ONNX format
+               torch.onnx._export(
+                   text_encoder,  # model instance
+                   input_ids,  # inputs for model tracing
+                   onnx_path,  # output file for saving result
+                   input_names=['tokens'],  # model input name for onnx representation
+                   output_names=['last_hidden_state', 'pooler_out'],  # model output names for onnx representation
+                   opset_version=14,  # onnx opset version for export,
+                   onnx_shape_inference=False
+               )
+           print('Text Encoder successfully converted to ONNX')
+   
+           
+   def convert_unet_onnx(unet:torch.nn.Module, onnx_path:Path, num_channels:int = 4, width:int = 64, height:int = 64):
+       """
+       Convert Unet model to ONNX, then IR format. 
+       Function accepts pipeline, prepares example inputs for ONNX conversion via torch.export, 
+       Parameters: 
+           unet (torch.nn.Module): UNet PyTorch model
+           onnx_path (Path): File for storing onnx model
+           num_channels (int, optional, 4): number of input channels
+           width (int, optional, 64): input width
+           height (int, optional, 64): input height
+       Returns:
+           None
+       """
+       if not onnx_path.exists():
+           # prepare inputs
+           encoder_hidden_state = torch.ones((2, 77, 1024))
+           latents_shape = (2, num_channels, width, height)
+           latents = torch.randn(latents_shape)
+           t = torch.from_numpy(np.array(1, dtype=np.float32))
+   
+           # model size > 2Gb, it will be represented as onnx with external data files, we will store it in separated directory for avoid a lot of files in current directory
+           onnx_path.parent.mkdir(exist_ok=True, parents=True)
+           unet.eval()
+   
+           with torch.no_grad():
+               torch.onnx._export(
+                   unet, 
+                   (latents, t, encoder_hidden_state), str(onnx_path),
+                   input_names=['latent_model_input', 't', 'encoder_hidden_states'],
+                   output_names=['out_sample'],
+                   onnx_shape_inference=False
+               )
+           print('U-Net successfully converted to ONNX')
+   
+   
+   def convert_vae_encoder_onnx(vae: torch.nn.Module, onnx_path: Path, width:int = 512, height:int = 512):
+       """
+       Convert VAE model to ONNX, then IR format. 
+       Function accepts pipeline, creates wrapper class for export only necessary for inference part, 
+       prepares example inputs for ONNX conversion via torch.export, 
+       Parameters: 
+           vae (torch.nn.Module): VAE PyTorch model
+           onnx_path (Path): File for storing onnx model
+           width (int, optional, 512): input width
+           height (int, optional, 512): input height
+       Returns:
+           None
+       """
+       class VAEEncoderWrapper(torch.nn.Module):
+           def __init__(self, vae):
+               super().__init__()
+               self.vae = vae
+   
+           def forward(self, image):
+               h = self.vae.encoder(image)
+               moments = self.vae.quant_conv(h)
+               return moments
+   
+       if not onnx_path.exists():
+           vae_encoder = VAEEncoderWrapper(vae)
+           vae_encoder.eval()
+           image = torch.zeros((1, 3, width, height))
+           with torch.no_grad():
+               torch.onnx.export(vae_encoder, image, onnx_path, input_names=[
+                                 'init_image'], output_names=['image_latent'])
+           print('VAE encoder successfully converted to ONNX')
+   
+   
+   def convert_vae_decoder_onnx(vae: torch.nn.Module, onnx_path: Path, width:int = 64, height:int = 64):
+       """
+       Convert VAE model to ONNX, then IR format. 
+       Function accepts pipeline, creates wrapper class for export only necessary for inference part, 
+       prepares example inputs for ONNX conversion via torch.export, 
+       Parameters: 
+           vae: 
+           onnx_path (Path): File for storing onnx model
+           width (int, optional, 64): input width
+           height (int, optional, 64): input height
+       Returns:
+           None
+       """
+       class VAEDecoderWrapper(torch.nn.Module):
+           def __init__(self, vae):
+               super().__init__()
+               self.vae = vae
+   
+           def forward(self, latents):
+               latents = 1 / 0.18215 * latents 
+               return self.vae.decode(latents)
+   
+       if not onnx_path.exists():
+           vae_decoder = VAEDecoderWrapper(vae)
+           latents = torch.zeros((1, 4, width, height))
+   
+           vae_decoder.eval()
+           with torch.no_grad():
+               torch.onnx.export(vae_decoder, latents, onnx_path, input_names=[
+                                 'latents'], output_names=['sample'])
+           print('VAE decoder successfully converted to ONNX')
 
-.. code:: ipython3
+.. code-block:: cpp
 
-    TEXT_ENCODER_ONNX_PATH_INPAINT = sd2_inpainting_model_dir / "text_encoder.onnx"
-    TEXT_ENCODER_OV_PATH_INPAINT = TEXT_ENCODER_ONNX_PATH_INPAINT.with_suffix('.xml')
-    
-    if not TEXT_ENCODER_OV_PATH_INPAINT.exists():
-        convert_encoder_onnx(text_encoder_inpaint, TEXT_ENCODER_ONNX_PATH_INPAINT)
-        !mo --input_model $TEXT_ENCODER_ONNX_PATH_INPAINT --output_dir $sd2_inpainting_model_dir
-        print('Text Encoder successfully converted to IR')
-    else:
-        print(f"Text encoder will be loaded from {TEXT_ENCODER_OV_PATH_INPAINT}")
-    
-    del text_encoder_inpaint
-    gc.collect();
+   TEXT_ENCODER_ONNX_PATH_INPAINT = sd2_inpainting_model_dir / "text_encoder.onnx"
+   TEXT_ENCODER_OV_PATH_INPAINT = TEXT_ENCODER_ONNX_PATH_INPAINT.with_suffix('.xml')
+
+   if not TEXT_ENCODER_OV_PATH_INPAINT.exists():
+       convert_encoder_onnx(text_encoder_inpaint, TEXT_ENCODER_ONNX_PATH_INPAINT)
+       !mo --input_model $TEXT_ENCODER_ONNX_PATH_INPAINT --compress_to_fp16 --output_dir $sd2_inpainting_model_dir
+       print('Text Encoder successfully converted to IR')
+   else:
+       print(f"Text encoder will be loaded from {TEXT_ENCODER_OV_PATH_INPAINT}")
+
+   del text_encoder_inpaint
+   gc.collect();
 
 
 .. parsed-literal::
@@ -491,7 +495,8 @@ on Text-to-Image inference pipeline with addition mask processing step.
 We will reuse ``OVStableDiffusionPipeline`` basic utilities in
 ``OVStableDiffusionInpaintingPipeline`` class.
 
-.. code:: ipython3
+.. code-block:: py
+   :force:
 
     import inspect
     from typing import List, Optional, Union, Dict
@@ -553,7 +558,8 @@ We will reuse ``OVStableDiffusionPipeline`` basic utilities in
     
         return mask, masked_image
 
-.. code:: ipython3
+.. code-block:: py
+   :force:
 
     class OVStableDiffusionInpaintingPipeline(DiffusionPipeline):
         def __init__(
@@ -938,7 +944,8 @@ Zoom In - move closer to object
 Zoom In will be processed in the same way like Zoom Out, but after
 generation is finished, we record frames in reversed order.
 
-.. code:: ipython3
+.. code-block:: py
+   :force:
 
     from tqdm import trange
     def generate_video(
@@ -1053,7 +1060,8 @@ generation is finished, we record frames in reversed order.
         write_video(save_path, all_frames, fps, reversed_order=zoom_in)
         return save_path
 
-.. code:: ipython3
+.. code-block:: py
+   :force:
 
     def shrink_and_paste_on_blank(current_image:PIL.Image.Image, mask_width:int):
         """
@@ -1153,7 +1161,8 @@ Configuration steps: 1. Load models on device 2. Configure tokenizer and
 scheduler 3. Create instance of OvStableDiffusionInpaintingPipeline
 class
 
-.. code:: ipython3
+.. code-block:: py
+   :force:
 
     from openvino.runtime import Core
     
@@ -1178,7 +1187,8 @@ class
 Run Infinite Zoom video generation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-.. code:: ipython3
+.. code-block:: py
+   :force:
 
     import gradio as gr
     from socket import gethostbyname, gethostname
