@@ -18,6 +18,10 @@ namespace ov {
 namespace test {
 namespace utils {
 
+double ConstRanges::max = std::numeric_limits<double>::min();
+double ConstRanges::min = std::numeric_limits<double>::max();
+bool ConstRanges::is_defined = false;
+
 namespace {
 
 /**
