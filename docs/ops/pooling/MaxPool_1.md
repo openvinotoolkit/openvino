@@ -205,7 +205,8 @@ If ``H + pads_begin[i] + pads_end[i] - kernel[i]`` is not divided by ``strides[i
 
 **Examples**
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
    <layer ... type="MaxPool" ... >
        <data auto_pad="same_upper" kernel="2,2" pads_begin="1,1" pads_end="1,1" strides="2,2"/>
