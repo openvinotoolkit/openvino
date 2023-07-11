@@ -12,24 +12,11 @@
 namespace ov {
 namespace autobatch_plugin {
 
-class RemoteContext : public ov::IRemoteContext {
+class Plugin;
+class AutoBatchRemoteContext : public ov::RemoteContext {
 public:
-    explicit RemoteContext(ov::RemoteContext&& ctx);
-
-    const std::string& get_device_name() const override;
-
-    const ov::AnyMap& get_property() const override;
-
-    std::shared_ptr<ov::IRemoteTensor> create_tensor(const ov::element::Type& type,
-                                                     const ov::Shape& shape,
-                                                     const ov::AnyMap& params = {}) override;
-
-    std::shared_ptr<ov::ITensor> create_host_tensor(const ov::element::Type type, const ov::Shape& shape) override;
-
-    const std::shared_ptr<ov::IRemoteContext>& get_hardware_context();
-
-private:
-    ov::RemoteContext m_context;
+    friend class ov::autobatch_plugin::Plugin;
+    AutoBatchRemoteContext(const ov::RemoteContext& remote_context) : ov::RemoteContext(remote_context) {}
 };
 
 }  // namespace autobatch_plugin

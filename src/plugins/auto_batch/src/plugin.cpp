@@ -80,9 +80,9 @@ std::shared_ptr<ov::IRemoteContext> Plugin::create_context(const ov::AnyMap& rem
     auto val = it->second.as<std::string>();
     auto metaDevice = parse_meta_device(val, ov::AnyMap());
     full_properties.erase(it);
-    auto remote_context = std::make_shared<ov::autobatch_plugin::RemoteContext>(
+    auto remote_context = std::make_shared<ov::autobatch_plugin::AutoBatchRemoteContext>(
         get_core()->create_context(metaDevice.device_name, full_properties));
-    return remote_context->get_hardware_context();
+    return remote_context->_impl;
 }
 
 ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& arguments) const {
@@ -383,9 +383,9 @@ std::shared_ptr<ov::IRemoteContext> Plugin::get_default_context(const ov::AnyMap
     auto val = it->second.as<std::string>();
     auto metaDevice = parse_meta_device(val, ov::AnyMap());
     full_properties.erase(it);
-    auto remote_context =
-        std::make_shared<ov::autobatch_plugin::RemoteContext>(get_core()->get_default_context(metaDevice.device_name));
-    return remote_context->get_hardware_context();
+    auto remote_context = std::make_shared<ov::autobatch_plugin::AutoBatchRemoteContext>(
+        get_core()->get_default_context(metaDevice.device_name));
+    return remote_context->_impl;
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model, const ov::AnyMap& properties) const {

@@ -26,10 +26,6 @@ class Core;
 
 namespace ov {
 
-namespace autobatch_plugin {
-class RemoteContext;
-}
-
 class Core;
 class CoreImpl;
 class Plugin;
@@ -76,7 +72,6 @@ protected:
     friend class ov::IExecutableNetworkWrapper;
     friend class ov::ICompiledModel;
     friend class ov::CompiledModel;
-    friend class ov::autobatch_plugin::RemoteContext;
     friend class ov::proxy::RemoteContext;
 
 public:
