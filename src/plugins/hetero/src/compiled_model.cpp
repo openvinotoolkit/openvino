@@ -244,9 +244,6 @@ ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model
                 // for each subset of inputs create separate Result operation if subset belongs to other
                 for (auto&& input_subset : input_subsets) {
                     auto result = std::make_shared<ov::op::v0::Result>(output);
-                    result->set_friendly_name(output.get_node()->get_friendly_name() + "_" +
-                                              std::to_string(output.get_index()) + "_" +
-                                              std::to_string(input_subset.first) + "_result");
                     ov::copy_runtime_info(output.get_node_shared_ptr(), result);
                     subgraphIds.emplace(result, output_subgraph_id);
                     results.push_back(result);
@@ -254,8 +251,6 @@ ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model
                         output.remove_target_input(input);
                         auto parameter = std::make_shared<ov::op::v0::Parameter>(output.get_element_type(),
                                                                                  output.get_partial_shape());
-                        parameter->set_friendly_name(input.get_node()->get_friendly_name() + "_" +
-                                                     std::to_string(input.get_index()) + "_parameter");
                         ov::copy_runtime_info(input.get_node()->shared_from_this(), parameter);
                         input.replace_source_output(parameter->output(0));
                         subgraphIds.emplace(parameter, input_subset.first);
