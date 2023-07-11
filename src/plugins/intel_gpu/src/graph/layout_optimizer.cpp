@@ -1196,7 +1196,7 @@ format layout_optimizer::get_expected_format(quantize_node const& node) {
 
     if (use_onednn_impls) {
         auto& user = node.get_users().front();
-        if (user->get_preferred_input_fmt(user->get_dependency_index(node)) != format::any) {
+        if (user != nullptr && user->get_preferred_input_fmt(user->get_dependency_index(node)) != format::any) {
             expected = user->get_preferred_input_fmt(user->get_dependency_index(node));
         } else {
             expected = format::any;

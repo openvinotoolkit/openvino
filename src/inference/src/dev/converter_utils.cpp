@@ -747,7 +747,6 @@ public:
 
     std::vector<std::shared_ptr<ov::IVariableState>> query_state() const override {
         std::vector<std::shared_ptr<ov::IVariableState>> variable_states;
-        std::vector<std::shared_ptr<void>> soVec;
         for (auto&& state : m_request->QueryState()) {
             variable_states.emplace_back(std::make_shared<InferenceEngine::IVariableStateWrapper>(state));
         }
