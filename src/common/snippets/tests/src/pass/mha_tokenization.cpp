@@ -91,9 +91,9 @@ TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHASelect_SplitM) {
 TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA_Reshape_extraction) {
     const auto& f = MHAWithExtractedReshapeFunction(std::vector<PartialShape>{{400, 196, 80},
                                                                               {400, 80, 196},
-                                                                              {400, 14, 14, 14, 1},
+                                                                              {400, 14, 14, 14},
                                                                               {400, 14, 14, 1, 14},
-                                                                              {400, 196, 80}});
+                                                                              {400, 196, 80}}, true);
     function = f.getOriginal();
     function_ref = f.getReference();
     run();
