@@ -2,16 +2,13 @@
 # SPDX-License-Identifier: Apache-2.0
 import os
 import pathlib
-from collections import namedtuple
 from typing import Any
 
 from openvino.runtime import PartialShape, Shape, Layout, Model
 from openvino.tools.mo.convert_impl import _convert
-from openvino.tools.mo.utils.cli_parser import get_all_cli_parser
-from openvino.tools.mo.utils.logger import get_logger_state, restore_logger_state
-
-InputCutInfo = namedtuple("InputInfo", ["name", "shape", "type", "value"], defaults=[None, None, None, None])
-LayoutMap = namedtuple("LayoutMap", ["source_layout", "target_layout"], defaults=[None, None])
+from openvino.tools.ovc import InputCutInfo, LayoutMap  # pylint: disable=no-name-in-module,import-error
+from openvino.tools.ovc.cli_parser import get_all_cli_parser  # pylint: disable=no-name-in-module,import-error
+from openvino.tools.ovc.logger import get_logger_state, restore_logger_state  # pylint: disable=no-name-in-module,import-error
 
 
 def convert_model(
@@ -68,8 +65,8 @@ def convert_model(
 
         # Caffe*-specific parameters:
         input_proto: [str, pathlib.Path] = None,
-        caffe_parser_path: [str, pathlib.Path] = os.path.join(os.path.dirname(__file__), 'front', 'caffe', 'proto'),
-        k: [str, pathlib.Path] = os.path.join(os.path.dirname(__file__), 'front', 'caffe', 'CustomLayersMapping.xml'),
+        caffe_parser_path: [str, pathlib.Path] = None,
+        k: [str, pathlib.Path] = None,
         disable_omitting_optional: bool = False,
         enable_flattening_nested_params: bool = False,
 

@@ -36,13 +36,13 @@ The transformation function is a function that takes a sample from the dataset a
 .. tab-set::
 
    .. tab-item:: OpenVINO
-      :sync: ov
+      :sync: openvino
       
       .. doxygensnippet:: docs/optimization_guide/nncf/ptq/code/ptq_openvino.py
          :language: python
          :fragment: [dataset]
 
-   .. tab-item::  PyTorch
+   .. tab-item:: PyTorch
       :sync: pytorch
       
       .. doxygensnippet:: docs/optimization_guide/nncf/ptq/code/ptq_torch.py
@@ -74,13 +74,13 @@ Once the dataset is ready and the model object is instantiated, you can apply 8-
 .. tab-set::
 
    .. tab-item:: OpenVINO
-      :sync: ov
+      :sync: openvino
       
       .. doxygensnippet:: docs/optimization_guide/nncf/ptq/code/ptq_openvino.py
          :language: python
          :fragment: [quantization]
 
-   .. tab-item::  PyTorch
+   .. tab-item:: PyTorch
       :sync: pytorch
       
       .. doxygensnippet:: docs/optimization_guide/nncf/ptq/code/ptq_torch.py
@@ -107,13 +107,13 @@ After that the model can be converted into the OpenVINO Intermediate Representat
 .. tab-set::
 
    .. tab-item:: OpenVINO
-      :sync: ov
+      :sync: openvino
       
       .. doxygensnippet:: docs/optimization_guide/nncf/ptq/code/ptq_openvino.py
          :language: python
          :fragment:  [inference]
 
-   .. tab-item::  PyTorch
+   .. tab-item:: PyTorch
       :sync: pytorch
       
       .. doxygensnippet:: docs/optimization_guide/nncf/ptq/code/ptq_torch.py

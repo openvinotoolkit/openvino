@@ -2,6 +2,11 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Explore the examples of operation instances expressed as IR V10 
+                XML snippets in the opset10 operation set, supported in OpenVINO™ 
+                toolkit.
+
 This specification document describes the ``opset10`` operation set supported in OpenVINO™.
 Support for each particular operation from the list below depends on the capabilities of an inference plugin
 and may vary among different hardware platforms and devices. Examples of operation instances are provided as IR V10 xml

@@ -50,12 +50,15 @@ void RemoteContext::type_check(const RemoteContext& context,
     }
 }
 
+RemoteContext::operator bool() const noexcept {
+    return (!!_impl);
+}
+
 RemoteContext::~RemoteContext() {
     _impl = {};
 }
 
-RemoteContext::RemoteContext(const std::shared_ptr<ov::IRemoteContext>& impl,
-                             const std::vector<std::shared_ptr<void>>& so)
+RemoteContext::RemoteContext(const std::shared_ptr<ov::IRemoteContext>& impl, const std::shared_ptr<void>& so)
     : _impl{impl},
       _so{so} {
     OPENVINO_ASSERT(_impl != nullptr, "RemoteContext was not initialized.");

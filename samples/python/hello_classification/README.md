@@ -2,6 +2,11 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to do inference of image classification 
+                 models using Synchronous Inference Request (Python) API.
+
+
 This sample demonstrates how to do inference of image classification models using Synchronous Inference Request API. 
 
 Models with only 1 input and output are supported.

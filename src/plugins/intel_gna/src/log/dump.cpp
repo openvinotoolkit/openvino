@@ -163,6 +163,9 @@ void WriteInputAndOutputTextGNAImpl(const Gna2Model& gnaModel,
                                     const std::string refFolderName) {
     for (uint32_t i = 0; i < gnaModel.NumberOfOperations; i++) {
         const auto& operation = gnaModel.Operations[i];
+        if (operation.Type == Gna2OperationTypeNone) {
+            continue;
+        }
         std::stringstream out_file_name;
         const auto& outputTensor = *operation.Operands[OutOpIdx];
         const auto& intputTensor = *operation.Operands[InOpIdx];
@@ -429,7 +432,7 @@ inline void DumpCompoundBias(std::ostream& dumpFile, const Gna2Tensor& tensor) {
 }
 
 inline void DumpCharArray(std::ostream& dumpFile, const char* carray, size_t count) {
-    auto i = 0;
+    size_t i = 0;
     while (*(carray + i) != 0 && i < count) {
         dumpFile << *(carray + i) << " ";
         i++;
@@ -514,7 +517,7 @@ void DumpGna2Model(const Gna2Model& gnaModel,
                 foundName = found->GetTagName();
                 offset = found->getOffset(operand.Data).second;
             }
-            const uint32_t size = Gna2RoundUpTo64(GetGnaShapeSize(operand.Shape, GetTypeByteSize(operand.Type)));
+            const uint32_t size = Gna2RoundUp(GetGnaShapeSize(operand.Shape, GetTypeByteSize(operand.Type)), static_cast<uint32_t>(Limitations::get_instance()->get_memory_alignment()));
             dumpFile << "\tOperand " << j << " (" << GetOperandName(operation.Type, j) << ")"
                      << " type: " << GetOperandType(operand.Type) << " shape: " << GetSimpleString(operand.Shape)
                      << " tag: " << foundName << " offset: " << offset << " size: " << size << " data: " << operand.Data

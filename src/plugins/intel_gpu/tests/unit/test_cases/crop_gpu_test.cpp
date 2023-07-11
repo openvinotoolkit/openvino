@@ -1576,3 +1576,54 @@ TEST(crop_gpu, optimized_out_crop) {
     ASSERT_TRUE(all_primitives["crop1"] == "_optimized_");
     ASSERT_TRUE(all_primitives["crop2"] == "_optimized_");
 }
+
+TEST(crop_single_axis, simple_Baxis) {
+    auto& engine = get_test_engine();
+
+    auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 3, 2, 1, 2 } });
+
+    set_values(input1, {
+        1.f, 2.f,  3.f,  4.f,
+        5.f, 6.f,  7.f,  8.f,
+        9.f, 10.f, 11.f, 12.f
+    });
+
+    topology topology;
+    topology.add(input_layout("Input", input1->get_layout()));
+    topology.add(crop("crop", input_info("Input"), tensor{1, 2, 1, 2}, tensor(1, 0, 0, 0)));
+    topology.add(reorder("reorder", input_info("crop"), format::bfyx, data_types::i8));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
+
+    network.set_input_data("Input", input1);
+
+
+    auto outputs = network.execute();
+    auto output = outputs.at("reorder").get_memory();
+    cldnn::mem_lock<int8_t> output_ptr(output, get_test_stream());
+
+    std::vector<int8_t> expected_results = {
+        5, 6, 7, 8
+    };
+
+    int crop_batch_num = 1;
+    int crop_feature_num = 2;
+    int crop_y_size = 2;
+    int crop_x_size = 1;
+    for (int b = 0; b < crop_batch_num; ++b) {
+        for (int f = 0; f < crop_feature_num; ++f) {
+            for (int y = 0; y < crop_y_size; ++y) {
+                for (int x = 0; x < crop_x_size; ++x) {
+                    int linear_id = x + y + 2 * f;
+                    int output_linear_id = x + crop_x_size * (y + crop_y_size * (f + crop_feature_num * b));
+                    ASSERT_EQ(output_ptr[output_linear_id], expected_results[linear_id]);
+                }
+            }
+        }
+    }
+
+    auto crop_prim = network.get_primitive("crop");
+    ASSERT_EQ(crop_prim->can_be_optimized(), true);
+}

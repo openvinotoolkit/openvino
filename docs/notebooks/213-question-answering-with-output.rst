@@ -430,7 +430,7 @@ questions in the box.**
     Context: ['Computational complexity theory is a branch of the theory of computation in theoretical computer science that focuses on classifying computational problems according to their inherent difficulty, and relating those classes to each other. A computational problem is understood to be a task that is in principle amenable to being solved by a computer, which is equivalent to stating that the problem may be solved by mechanical application of mathematical steps, such as an algorithm.']
     Question: What is the term for a task that generally lends itself to being solved by a computer?
     Answer: A computational problem
-    Score: 0.52
+    Score: 0.51
     Time: 0.03s
 
 
@@ -468,5 +468,5 @@ questions in the box.**
     Question: What does OpenVINO mean?
     Answer: Open Visual Inference and Neural network Optimization
     Score: 0.92
-    Time: 0.05s
+    Time: 0.06s
 

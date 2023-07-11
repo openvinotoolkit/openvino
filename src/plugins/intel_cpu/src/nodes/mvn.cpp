@@ -91,7 +91,7 @@ bool MVNKey::operator==(const MVNKey& rhs) const {
 
 // some utility functions
 static inline bool isFloatCompatible(Precision prc) {
-    return Precision::FP32 == prc || Precision::BF16 == prc;
+    return one_of(prc, Precision::FP32, Precision::BF16, Precision::FP16);
 }
 
 // normalize_variance = false : src->mean
@@ -1159,6 +1159,8 @@ MVN::MVN(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr conte
         mvnAttrs.normalizeVariance_ = mvnOp->get_normalize_variance();
         mvnAttrs.epsValue_ = mvnOp->get_eps();
         mvnAttrs.initAcrossChannels_ = mvnOp->get_across_channels();
+    } else {
+        IE_THROW(NotImplemented) << "Node is not an instance of MVN from the operation set v0 or v6";
     }
     mvnAttrs.execAcrossChannels_ = mvnAttrs.initAcrossChannels_;
 }

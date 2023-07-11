@@ -4,8 +4,8 @@
 
 #include "bound_evaluate.hpp"
 
-#include "dimension_tracker.hpp"
 #include "ngraph/validation_util.hpp"
+#include "openvino/core/dimension_tracker.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/opsets/opset10.hpp"
 #include "shape_util.hpp"

@@ -4,11 +4,17 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to install OpenVINO™ Runtime on Linux operating 
+                 system, using the YUM repository, which is a recommended 
+                 installation method for C++ developers.
+
+
 With the OpenVINO™ 2023.0 release, you can install OpenVINO Runtime on Linux using the YUM repository. 
 OpenVINO™ Development Tools can be installed via PyPI only. See 
 `Installing Additional Components <#step-3-optional-install-additional-components>`__ for more information.
 
-See the `Release Notes <https://www.intel.com/content/www/us/en/developer/articles/release-notes/openvino-2022-3-lts-relnotes.html>`__ 
+See the `Release Notes <https://www.intel.com/content/www/us/en/developer/articles/release-notes/openvino/2023-0.html>`__ 
 for more information on updates in the latest release.
 
 Installing OpenVINO Runtime from YUM is recommended for C++ developers. If you are working with Python, 
@@ -25,26 +31,30 @@ page for instructions on how to install OpenVINO Runtime for Python using PyPI.
 Prerequisites
 #############
 
+.. tab-set::
 
-.. tab:: System Requirements
-
-   | Full requirement listing is available in:
-   | `System Requirements Page <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html>`__
-
-   .. note::
-
-      Installing OpenVINO from YUM is only supported on RHEL 8.2 and higher versions. CentOS 7 is not supported for this installation method.
-
-.. tab:: Processor Notes
-
-   Processor graphics are not included in all processors.
-   See `Product Specifications <https://ark.intel.com/>`__ for information about your processor.
-
-.. tab:: Software
-
-   * `CMake 3.13 or higher, 64-bit <https://cmake.org/download/>`_
-   * GCC 8.2.0
-   * `Python 3.7 - 3.11, 64-bit <https://www.python.org/downloads/>`_
+   .. tab-item:: System Requirements
+      :sync: system-requirements
+   
+      | Full requirement listing is available in:
+      | `System Requirements Page <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html>`__
+   
+      .. note::
+   
+         Installing OpenVINO from YUM is only supported on RHEL 8.2 and higher versions. CentOS 7 is not supported for this installation method.
+   
+   .. tab-item:: Processor Notes
+      :sync: processor-notes
+   
+      Processor graphics are not included in all processors.
+      See `Product Specifications <https://ark.intel.com/>`__ for information about your processor.
+   
+   .. tab-item:: Software
+      :sync: software
+   
+      * `CMake 3.13 or higher, 64-bit <https://cmake.org/download/>`_
+      * GCC 8.2.0
+      * `Python 3.7 - 3.11, 64-bit <https://www.python.org/downloads/>`_
 
 
 Install OpenVINO Runtime
@@ -97,28 +107,31 @@ Step 2: Install OpenVINO Runtime Using the YUM Package Manager
 Install OpenVINO Runtime
 -------------------------
 
+.. tab-set::
 
-.. tab:: The Latest Version
-
-   Run the following command:
-
-   .. code-block:: sh
-
-      sudo yum install openvino
-
-.. tab:: A Specific Version
-
-   Run the following command:
-
-   .. code-block:: sh
-
-      sudo yum install openvino-<VERSION>.<UPDATE>.<PATCH>
-
-   For example:
-
-   .. code-block:: sh
-
-      sudo yum install openvino-2023.0.0
+   .. tab-item:: The Latest Version
+      :sync: latest-version
+   
+      Run the following command:
+   
+      .. code-block:: sh
+   
+         sudo yum install openvino
+   
+   .. tab-item:: A Specific Version
+      :sync: specific-version
+   
+      Run the following command:
+   
+      .. code-block:: sh
+   
+         sudo yum install openvino-<VERSION>.<UPDATE>.<PATCH>
+   
+      For example:
+   
+      .. code-block:: sh
+   
+         sudo yum install openvino-2023.0.0
 
 
 
@@ -155,17 +168,21 @@ Step 5: Build Samples
 
 To build the C++ or C sample applications for Linux, run the ``build_samples.sh`` script:
 
-.. tab:: C++
+.. tab-set::
 
-   .. code-block:: sh
-
-      /usr/share/openvino/samples/cpp/build_samples.sh
-
-.. tab:: C
-
-   .. code-block:: sh
-
-      /usr/share/openvino/samples/c/build_samples.sh
+   .. tab-item:: C++
+      :sync: cpp
+   
+      .. code-block:: sh
+   
+         /usr/share/openvino/samples/cpp/build_samples.sh
+   
+   .. tab-item:: C
+      :sync: c
+   
+      .. code-block:: sh
+   
+         /usr/share/openvino/samples/c/build_samples.sh
 
 
 For more information, refer to :doc:`Build the Sample Applications on Linux <openvino_docs_OV_UG_Samples_Overview>`.
@@ -176,24 +193,28 @@ Uninstalling OpenVINO Runtime
 
 To uninstall OpenVINO Runtime via YUM, run the following command based on your needs:
 
-.. tab:: The Latest Version
+.. tab-set::
 
-   .. code-block:: sh
-
-      sudo yum autoremove openvino
-
-
-.. tab::  A Specific Version
-
-   .. code-block:: sh
-
-      sudo yum autoremove openvino-<VERSION>.<UPDATE>.<PATCH>
-
-   For example:
-
-   .. code-block:: sh
-
-      sudo yum autoremove openvino-2023.0.0
+   .. tab-item:: The Latest Version
+      :sync: latest-version
+   
+      .. code-block:: sh
+   
+         sudo yum autoremove openvino
+   
+   
+   .. tab-item:: A Specific Version
+      :sync: specific-version
+   
+      .. code-block:: sh
+   
+         sudo yum autoremove openvino-<VERSION>.<UPDATE>.<PATCH>
+   
+      For example:
+   
+      .. code-block:: sh
+   
+         sudo yum autoremove openvino-2023.0.0
 
 
 
@@ -224,11 +245,6 @@ You can also try the following things:
 * Take a glance at the OpenVINO product home page: https://software.intel.com/en-us/openvino-toolkit.
 
 
-
-Additional Resources
-#####################
-
-- `OpenVINO Installation Selector Tool <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/download.html>`__
 
 
 @endsphinxdirective

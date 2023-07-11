@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about DFT-7 - a signal processing operation, which can be 
+                performed on two required and one optional input tensor.
+
 **Versioned name**: *DFT-7*
 
 **Category**: *Signal processing*
