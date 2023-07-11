@@ -10,6 +10,7 @@
 
 namespace ov {
 namespace hetero {
+
 class Plugin;
 class InferRequest;
 

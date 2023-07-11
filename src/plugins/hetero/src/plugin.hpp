@@ -16,6 +16,7 @@
 
 namespace ov {
 namespace hetero {
+
 class CompiledModel;
 
 class Plugin : public ov::IPlugin {
@@ -23,6 +24,7 @@ public:
     using DeviceProperties = std::unordered_map<std::string, ov::AnyMap>;
 
     Plugin();
+
     ~Plugin() = default;
 
     std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,

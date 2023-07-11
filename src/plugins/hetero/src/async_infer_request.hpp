@@ -19,6 +19,7 @@ public:
                       const std::shared_ptr<ov::threading::ITaskExecutor>& callback_executor);
 
     ~AsyncInferRequest();
+
     void cancel() override;
 
 private:

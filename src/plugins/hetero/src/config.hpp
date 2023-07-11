@@ -11,6 +11,7 @@
 
 namespace ov {
 namespace hetero {
+
 struct Configuration {
     Configuration();
     Configuration(const Configuration&) = default;
@@ -23,12 +24,12 @@ struct Configuration {
                            bool throwOnUnsupported = false);
 
     ov::Any get(const std::string& name) const;
+
     std::vector<ov::PropertyName> get_supported() const;
 
     ov::AnyMap get_hetero_properties() const;
-    ov::AnyMap get_device_properties() const;
 
-    // Plugin configuration parameters
+    ov::AnyMap get_device_properties() const;
 
     bool dump_graph;
     bool exclusive_async_requests;
