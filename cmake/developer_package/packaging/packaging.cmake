@@ -4,6 +4,9 @@
 
 include(CPackComponent)
 
+# we don't need RPATHs, because setupvars.sh is used
+set(CMAKE_SKIP_INSTALL_RPATH ON)
+
 #
 # ov_install_static_lib(<target> <comp>)
 #
