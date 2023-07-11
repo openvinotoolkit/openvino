@@ -107,7 +107,8 @@ Prepare ivectors for the Speech Recognition sample:
 
 5. For the Speech Recognition sample, the ``.ark`` file must contain an ivector for each frame. Copy the ivector ``frame_count`` times by running the below script in the Python command prompt:
 
-   .. code-block:: python
+   .. code-block:: py
+      :force:
 
       import subprocess
 

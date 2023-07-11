@@ -20,7 +20,8 @@ ConvolutionBackpropData accepts the same set of attributes as a regular Convolut
 
 When output shape is specified as an input tensor ``output_shape`` then it specifies only spatial dimensions. No batch or channel dimension should be passed along with spatial dimensions. If ``output_shape`` is omitted, then ``pads_begin``, ``pads_end`` or ``auto_pad`` are used to determine output spatial shape ``[O_z, O_y, O_x]`` by input spatial shape ``[I_z, I_y, I_x]`` in the following way:
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
    
    if auto_pads != None:
        pads_begin[i] = 0
@@ -32,7 +33,8 @@ where ``K_i`` filter kernel dimension along spatial axis ``i``.
 
 If ``output_shape`` is specified, ``pads_begin`` and ``pads_end`` are ignored, and ``auto_pad`` defines how to distribute padding amount around the tensor. In this case pads are determined based on the next formulas to correctly align input and output tensors:
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
    
    total_padding[i] = stride[i] * (X_i - 1) + ((K_i - 1) * dilations[i] + 1) - output_shape[i] + output_padding[i]
    if auto_pads != SAME_UPPER:
@@ -119,7 +121,8 @@ If ``output_shape`` is specified, ``pads_begin`` and ``pads_end`` are ignored, a
 
 *Example 1: 2D ConvolutionBackpropData*
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
    
    <layer id="5" name="upsampling_node" type="ConvolutionBackpropData">
        <data dilations="1,1" pads_begin="1,1" pads_end="1,1" strides="2,2" output_padding="0,0" auto_pad="explicit"/>
@@ -149,7 +152,8 @@ If ``output_shape`` is specified, ``pads_begin`` and ``pads_end`` are ignored, a
 
 *Example 2: 2D ConvolutionBackpropData with output_padding*
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
    
    <layer id="5" name="upsampling_node" type="ConvolutionBackpropData">
        <data dilations="1,1" pads_begin="0,0" pads_end="0,0" strides="3,3" output_padding="2,2" auto_pad="explicit"/>
@@ -179,7 +183,8 @@ If ``output_shape`` is specified, ``pads_begin`` and ``pads_end`` are ignored, a
 
 *Example 3: 2D ConvolutionBackpropData with output_shape input*
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
    
    <layer id="5" name="upsampling_node" type="ConvolutionBackpropData">
        <data dilations="1,1" pads_begin="1,1" pads_end="1,1" strides="1,1" output_padding="0,0" auto_pad="valid"/>

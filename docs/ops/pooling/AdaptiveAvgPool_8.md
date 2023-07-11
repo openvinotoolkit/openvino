@@ -48,7 +48,8 @@ The output is calculated with the following formula:
 
 **Examples**
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
    
    <layer ... type="AdaptiveAvgPool" ... >
        <data output_type="i64"/>

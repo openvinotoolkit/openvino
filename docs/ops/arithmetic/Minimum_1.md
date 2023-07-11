@@ -51,7 +51,8 @@ As a first step input tensors *a* and *b* are broadcasted if their shapes differ
 
 *Example 1 - no broadcasting*
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
    <layer ... type="Minimum">
        <data auto_broadcast="none"/>
@@ -76,7 +77,8 @@ As a first step input tensors *a* and *b* are broadcasted if their shapes differ
 
 *Example 2: numpy broadcasting*
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
    <layer ... type="Minimum">
        <data auto_broadcast="numpy"/>

@@ -50,7 +50,8 @@ If ``special_zero`` is set to ``true`` index of ``0`` cannot be larger than the 
 
 *Example 1: reshape empty tensor*
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
     <layer ... type="Reshape" ...>
         <data special_zero="false"/>
@@ -76,7 +77,8 @@ If ``special_zero`` is set to ``true`` index of ``0`` cannot be larger than the 
 
 *Example 2: reshape tensor - preserve first dim, calculate second and fix value for third dim*
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
     <layer ... type="Reshape" ...>
         <data special_zero="true"/>
@@ -103,7 +105,8 @@ If ``special_zero`` is set to ``true`` index of ``0`` cannot be larger than the 
 
 *Example 3: reshape tensor - preserve first two dims, fix value for third dim and calculate fourth*
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
     <layer ... type="Reshape" ...>
         <data special_zero="true"/>
@@ -130,7 +133,8 @@ If ``special_zero`` is set to ``true`` index of ``0`` cannot be larger than the 
 
 *Example 4: reshape tensor - calculate first dim and preserve second dim*
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
     <layer ... type="Reshape" ...>
         <data special_zero="true"/>
@@ -155,7 +159,8 @@ If ``special_zero`` is set to ``true`` index of ``0`` cannot be larger than the 
 
 *Example 5: reshape tensor - preserve first dim and calculate second dim*
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
     <layer ... type="Reshape" ...>
         <data special_zero="true"/>

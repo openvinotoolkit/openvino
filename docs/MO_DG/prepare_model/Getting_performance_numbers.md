@@ -21,7 +21,7 @@ To test performance of your model, make sure you :doc:`prepare the model for use
 For example, if you use :doc:`OpenVINO's automation tools <omz_tools_downloader>`, these two lines of code will download the 
 resnet-50-tf and convert it to OpenVINO IR.
 
-.. code-block:: bash
+.. code-block:: sh
 
    omz_downloader --name resnet-50-tf
    omz_converter --name resnet-50-tf
@@ -36,7 +36,7 @@ For a detailed description, see the dedicated articles:
 
 The benchmark_app includes a lot of device-specific options, but the primary usage is as simple as:
 
-.. code-block:: bash
+.. code-block:: sh
 
    benchmark_app -m <model> -d <device> -i <input>
 
@@ -47,7 +47,7 @@ performance settings that contain command-line equivalents in the Benchmark app.
 While these settings provide really low-level control for the optimal model performance on the *specific* device, 
 it is recommended to always start performance evaluation with the :doc:`OpenVINO High-Level Performance Hints <openvino_docs_OV_UG_Performance_Hints>` first, like so:
 
-.. code-block:: bash
+.. code-block:: sh
 
    # for throughput prioritization
    benchmark_app -hint tput -m <model> -d <device>

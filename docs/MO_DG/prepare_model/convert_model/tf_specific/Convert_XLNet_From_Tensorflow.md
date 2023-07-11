@@ -48,7 +48,8 @@ To get pb-file from the archive contents, you need to do the following.
 
    .. note:: The original model repository has been tested with TensorFlow 1.13.1 under Python2.
 
-   .. code-block:: python
+   .. code-block:: py
+      :force:
 
       from collections import namedtuple
       
@@ -131,7 +132,8 @@ To get ``pb-file`` from the archive contents, follow the instructions below:
 
 2. Save and run the following Python script in ``~/XLNet-Large/xlnet``:
 
-   .. code-block:: python
+   .. code-block:: py
+      :force:
 
       from collections import namedtuple
       

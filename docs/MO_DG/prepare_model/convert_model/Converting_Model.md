@@ -33,7 +33,8 @@ and specify the input shape of ``[2,300,300,3]``:
    .. tab-item:: Python
       :sync: py
 
-      .. code-block:: python
+      .. code-block:: py
+         :force:
 
          from openvino.tools.mo import convert_model
          ov_model = convert_model("MobileNet.pb", input_shape=[2,300,300,3])
@@ -56,7 +57,8 @@ and specify shapes ``[3,150,200,1]`` and ``[3]`` for them:
    .. tab-item:: Python
       :sync: py
 
-      .. code-block:: python
+      .. code-block:: py
+         :force:
 
          from openvino.tools.mo import convert_model
          ov_model = convert_model("ocr.onnx", input=["data","seq_len"], input_shape=[[3,150,200,1],[3]])
@@ -76,7 +78,8 @@ Alternatively, specify input shapes, using the ``input`` parameter as follows:
    .. tab-item:: Python
       :sync: py
 
-      .. code-block:: python
+      .. code-block:: py
+         :force:
 
          from openvino.tools.mo import convert_model
          ov_model = convert_model("ocr.onnx", input=[("data",[3,150,200,1]),("seq_len",[3])])
@@ -99,7 +102,8 @@ For example, launch model conversion for the ONNX OCR model and specify dynamic 
    .. tab-item:: Python
       :sync: py
 
-      .. code-block:: python
+      .. code-block:: py
+         :force:
 
          from openvino.tools.mo import convert_model
          ov_model = convert_model("ocr.onnx", input=["data","seq_len"], input_shape=[[-1,150,200,1],[-1]]
@@ -121,7 +125,8 @@ For example, launch model conversion for the ONNX OCR model and specify a bounda
    .. tab-item:: Python
       :sync: py
 
-      .. code-block:: python
+      .. code-block:: py
+         :force:
 
          from openvino.tools.mo import convert_model
          from openvino.runtime import Dimension

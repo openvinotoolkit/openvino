@@ -110,6 +110,7 @@ The code below demonstrates how to create ``StableDiffusionPipeline``
 using ``stable-diffusion-2-1``:
 
 .. code-block:: py
+   :force:
 
    from diffusers import StableDiffusionPipeline
 
@@ -185,6 +186,7 @@ contains the ``triu`` operation, supported in ONNX only starting from
 this opset.
 
 .. code-block:: py
+   :force:
 
    from pathlib import Path
 
@@ -587,6 +589,7 @@ explanation of how it works can be found in this
 `article <https://stable-diffusion-art.com/how-negative-prompt-work/>`__.
 
 .. code-block:: py
+   :force:
 
    import inspect
    from typing import List, Optional, Union, Dict
@@ -942,6 +945,7 @@ Configure Inference Pipeline
 First, you should create instances of OpenVINO Model.
 
 .. code-block:: py
+   :force:
 
    from openvino.runtime import Core
    core = Core()
@@ -954,6 +958,7 @@ Model tokenizer and scheduler are also important parts of the pipeline.
 Let us define them and put all components together.
 
 .. code-block:: py
+   :force:
 
    from transformers import CLIPTokenizer
 
@@ -979,6 +984,7 @@ Consider increasing ``steps`` to get more precise results. A suggested
 value is ``50``, but it will take longer time to process.
 
 .. code-block:: py
+   :force:
 
    import gradio as gr
    from socket import gethostbyname, gethostname

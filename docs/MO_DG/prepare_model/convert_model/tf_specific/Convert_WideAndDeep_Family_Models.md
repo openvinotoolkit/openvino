@@ -49,7 +49,8 @@ The Wide and Deep model is no longer in the master branch of the repository but 
 As the OpenVINO™ toolkit does not support the categorical with hash and crossed features, such feature types must be switched off in the model
 by changing the ``build_model_columns()`` function in `census_dataset.py` as follows:
 
-.. code-block:: python
+.. code-block:: py
+   :force:
 
     def build_model_columns():
     """Builds a set of wide and deep feature columns."""

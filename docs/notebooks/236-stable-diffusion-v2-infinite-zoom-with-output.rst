@@ -141,6 +141,7 @@ The code below demonstrates how to create
 ``stable-diffusion-2-inpainting``:
 
 .. code-block:: py
+   :force:
 
    from diffusers import StableDiffusionInpaintPipeline, DPMSolverMultistepScheduler
    
@@ -163,6 +164,7 @@ The code below demonstrates how to create
 
 
 .. code-block:: py
+   :force:
 
     import gc
     
@@ -186,6 +188,7 @@ generated latents channels + 4 for latent representation of masked image
 + 1 channel resized mask.
 
 .. code-block:: py
+   :force:
 
    from pathlib import Path
    import torch
@@ -195,6 +198,7 @@ generated latents channels + 4 for latent representation of masked image
    sd2_inpainting_model_dir.mkdir(exist_ok=True)
 
 .. code-block:: py
+   :force:
 
    def convert_encoder_onnx(text_encoder: torch.nn.Module, onnx_path:Path):
        """
@@ -493,6 +497,7 @@ We will reuse ``OVStableDiffusionPipeline`` basic utilities in
 ``OVStableDiffusionInpaintingPipeline`` class.
 
 .. code-block:: py
+   :force:
 
     import inspect
     from typing import List, Optional, Union, Dict
@@ -555,6 +560,7 @@ We will reuse ``OVStableDiffusionPipeline`` basic utilities in
         return mask, masked_image
 
 .. code-block:: py
+   :force:
 
     class OVStableDiffusionInpaintingPipeline(DiffusionPipeline):
         def __init__(
@@ -940,6 +946,7 @@ Zoom In will be processed in the same way like Zoom Out, but after
 generation is finished, we record frames in reversed order.
 
 .. code-block:: py
+   :force:
 
     from tqdm import trange
     def generate_video(
@@ -1055,6 +1062,7 @@ generation is finished, we record frames in reversed order.
         return save_path
 
 .. code-block:: py
+   :force:
 
     def shrink_and_paste_on_blank(current_image:PIL.Image.Image, mask_width:int):
         """
@@ -1155,6 +1163,7 @@ scheduler 3. Create instance of OvStableDiffusionInpaintingPipeline
 class
 
 .. code-block:: py
+   :force:
 
     from openvino.runtime import Core
     
@@ -1180,6 +1189,7 @@ Run Infinite Zoom video generation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: py
+   :force:
 
     import gradio as gr
     

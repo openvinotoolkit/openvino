@@ -70,7 +70,8 @@ Example 2 that shows update of two slices of ``4x4`` shape in ``data``:
 
 **Example**
 
-.. code-block:: cpp  
+.. code-block:: xml
+   :force:
 
     <layer ... type="ScatterNDUpdate">
         <input>

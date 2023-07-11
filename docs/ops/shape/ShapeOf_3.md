@@ -38,7 +38,8 @@
 
 **Example**
 
-.. code-block:: cpp 
+.. code-block:: xml
+   :force:
 
     <layer ... type="ShapeOf">
         <data output_type="i64"/>

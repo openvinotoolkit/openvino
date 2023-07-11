@@ -103,7 +103,8 @@ Computation algorithm for mode *xnor-popcount*:
 
 2D Convolution
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
    
    <layer type="BinaryConvolution" ...>
        <data dilations="1,1" pads_begin="2,2" pads_end="2,2" strides="1,1" mode="xnor-popcount" pad_value="0" auto_pad="explicit"/>

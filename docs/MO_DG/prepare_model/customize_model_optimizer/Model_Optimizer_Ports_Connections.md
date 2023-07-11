@@ -126,6 +126,7 @@ data nodes do not exist, the method creates edge and properly sets ``in`` and ``
 For example, applying the following two methods to the graph above will result in the graph depicted below:
 
 .. code-block:: py
+   :force:
 
    op4.in_port(1).disconnect()
    op3.out_port(0).connect(op4.in_port(1))

@@ -38,7 +38,8 @@ No attributes available.
 
 *Example 1*
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
    
    <layer ... type="Acos">
        <input>

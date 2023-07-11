@@ -47,7 +47,8 @@ Additionally, the *Gelu* function may be approximated as follows:
 
 **Example**
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
    <layer ... type="Gelu">
        <input>

@@ -28,7 +28,7 @@ The shape of the output can be computed as `indices.shape[:-1] + data.shape[indi
 
 Example 1 shows how *GatherND* operates with elements from `data` tensor:
 
-.. code-block::
+.. code-block:: sh
 
    indices = [[0, 0],
               [1, 0]]
@@ -39,7 +39,7 @@ Example 1 shows how *GatherND* operates with elements from `data` tensor:
 
 Example 2 shows how *GatherND* operates with slices from ``data`` tensor:
 
-.. code-block::
+.. code-block:: sh
 
    indices = [[1], [0]]
    data    = [[1, 2],
@@ -50,7 +50,7 @@ Example 2 shows how *GatherND* operates with slices from ``data`` tensor:
 
 Example 3 shows how *GatherND* operates when `indices` tensor has leading dimensions:
 
-.. code-block::
+.. code-block:: sh
 
    indices = [[[1]], [[0]]]
    data    = [[1, 2],
@@ -81,7 +81,7 @@ Example 3 shows how *GatherND* operates when `indices` tensor has leading dimens
 
 Example 4 shows how *GatherND* operates gathering elements for non-default *batch_dims* value:
 
-.. code-block::
+.. code-block:: sh
 
    batch_dims = 1
    indices = [[1],    <--- this is applied to the first batch
@@ -93,7 +93,7 @@ Example 4 shows how *GatherND* operates gathering elements for non-default *batc
 
 Example 5 shows how *GatherND* operates gathering slices for non-default *batch_dims* value:
 
-.. code-block::
+.. code-block:: sh
 
    batch_dims = 1
    indices = [[1], <--- this is applied to the first batch
@@ -106,7 +106,7 @@ Example 5 shows how *GatherND* operates gathering slices for non-default *batch_
 More complex, example 6 shows how *GatherND* operates gathering slices with leading dimensions 
 for non-default *batch_dims* value:
 
-.. code-block::
+.. code-block:: sh
 
    batch_dims = 2
    indices = [[[[1]], <--- this is applied to the first batch
@@ -144,7 +144,8 @@ for non-default *batch_dims* value:
 
 **Examples**
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
    <layer id="1" type="GatherND">
        <data batch_dims=0 />
@@ -171,7 +172,8 @@ for non-default *batch_dims* value:
    </layer>
 
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
    <layer id="1" type="GatherND">
        <data batch_dims=2 />

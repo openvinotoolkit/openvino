@@ -14,7 +14,7 @@
 
 **Detailed description**: *GRUCell* computes the output *Ht* for the current time step based on the followint formula:
 
-.. code-block::
+.. code-block:: sh
 
    Formula:
      *  - matrix multiplication
@@ -90,7 +90,8 @@
 
 **Example**
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
    <layer ... type="GRUCell" ...>
        <data hidden_size="128" linear_before_reset="1"/>

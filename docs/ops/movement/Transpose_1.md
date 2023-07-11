@@ -40,7 +40,8 @@
 
 *Example 1*
 
-.. code-block:: cpp 
+.. code-block:: xml
+   :force:
 
     <layer ... type="Transpose">
         <input>
@@ -65,7 +66,8 @@
 
 *Example 2: input_order = empty 1D tensor of Shape[0]*
 
-.. code-block:: cpp 
+.. code-block:: xml
+   :force:
 
     <layer ... type="Transpose">
         <input>

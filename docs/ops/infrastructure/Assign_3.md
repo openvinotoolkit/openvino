@@ -37,7 +37,8 @@ declared in ``variable_id`` and returns an error otherwise.
 
 **Example**
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
    
    <layer ... type="Assign" ...>
        <data variable_id="lstm_state_1"/>

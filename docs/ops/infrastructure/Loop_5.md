@@ -166,7 +166,8 @@ Loop operation description in the IR also has several special sections: ``body``
 
 *Example 1: a typical Loop structure*
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
    <layer type="Loop" ... >
        <input> ... </input>

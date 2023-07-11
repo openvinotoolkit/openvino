@@ -120,7 +120,8 @@
 **Detailed description**
 Calculations are performed according to the following rules.
 
-.. code-block:: python
+.. code-block:: py
+   :force:
 
    import math
    import numpy as np
@@ -601,7 +602,8 @@ Calculations are performed according to the following rules.
 
 **Example**
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
    <layer ... type="Interpolate" ...>
        <data shape_calculation_mode="scales" pads_begin="0" pads_end="0" mode="linear"/>

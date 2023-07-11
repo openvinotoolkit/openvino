@@ -47,7 +47,8 @@ If no axis specified, that means either the second input is empty if ``index`` m
 
 **Example**
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
     <layer ... type="Reverse">
         <data mode="index"/>

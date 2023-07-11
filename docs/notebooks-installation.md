@@ -270,7 +270,7 @@ operating system or environment.
 
          If you already have installed *openvino-dev*, you may skip this step and proceed with the next one.
    
-         .. code-block::
+         .. code-block:: sh
    
             python -m venv openvino_env
    
@@ -298,7 +298,7 @@ operating system or environment.
 
       5. **Install required packages**
    
-         .. code-block::
+         .. code-block:: sh
    
             pip install -r requirements.txt
 

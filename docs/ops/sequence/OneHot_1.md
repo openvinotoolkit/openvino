@@ -56,7 +56,8 @@ The types of input scalars ``on_value`` and ``off_value`` should match and be eq
 
 **Examples**
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
     <layer ... type="OneHot" ...>
         <data axis="-1"/>
@@ -81,7 +82,8 @@ The types of input scalars ``on_value`` and ``off_value`` should match and be eq
 
 
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
     <layer ... type="OneHot" ...>
         <data axis="1"/>

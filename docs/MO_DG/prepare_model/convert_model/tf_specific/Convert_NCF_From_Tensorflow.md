@@ -19,6 +19,7 @@ This tutorial explains how to convert Neural Collaborative Filtering (NCF) model
    Run the following commands:
 
    .. code-block:: py
+      :force:
 
        import tensorflow as tf
        from tensorflow.python.framework import graph_io

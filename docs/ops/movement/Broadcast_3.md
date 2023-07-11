@@ -57,7 +57,8 @@ For example, ``axes_mapping = [1]`` enables broadcasting of a tensor with shape 
 
 **Example**
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
    
    <layer ... type="Broadcast" ...>
        <data mode="numpy"/>

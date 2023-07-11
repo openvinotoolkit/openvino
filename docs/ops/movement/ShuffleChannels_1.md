@@ -74,7 +74,8 @@ where ``group`` is the layer attribute described below.
 
 **Example**
 
-.. code-block:: cpp  
+.. code-block:: xml
+   :force: 
 
     <layer ... type="ShuffleChannels" ...>
         <data group="3" axis="1"/>

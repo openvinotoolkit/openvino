@@ -64,7 +64,8 @@ The result of division by zero is undefined.
 
 *Example 1*
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
    
    <layer ... type="Divide">
        <data auto_broadcast="none" m_pythondiv="true"/>
@@ -88,7 +89,8 @@ The result of division by zero is undefined.
 
 *Example 2: broadcast*
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
    
    <layer ... type="Divide">
        <data auto_broadcast="numpy" m_pythondiv="false"/>

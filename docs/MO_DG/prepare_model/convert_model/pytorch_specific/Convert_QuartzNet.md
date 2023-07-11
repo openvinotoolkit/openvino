@@ -19,7 +19,8 @@ Here are the instructions on how to obtain QuartzNet in ONNX format.
 
 2. Run the following code:
 
-   .. code-block:: python
+   .. code-block:: py
+      :force:
    
       import nemo
       import nemo.collections.asr as nemo_asr

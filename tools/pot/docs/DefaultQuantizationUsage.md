@@ -75,7 +75,8 @@ Select quantization parameters
 
 Default Quantization algorithm has mandatory and optional parameters which are defined as a dictionary:
 
-.. code-block:: python
+.. code-block:: py
+   :force:
 
    {
        "name": "DefaultQuantization",
@@ -105,7 +106,8 @@ POT API provides methods to load and save model objects from OpenVINO Intermedia
 An example code below shows a basic quantization workflow:
 
 
-.. code-block:: python
+.. code-block:: py
+   :force:
 
    from openvino.tools.pot import IEEngine
    from openvino.tools.pot import load_model, save_model

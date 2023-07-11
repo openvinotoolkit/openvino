@@ -76,7 +76,8 @@ using following formula:
 
 so to obtain float16 values *sign*, *exponent* and *mantissa* are set as follows:
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
    sign = 0
    exponent = 15 - representation of a zero exponent.
@@ -85,7 +86,8 @@ so to obtain float16 values *sign*, *exponent* and *mantissa* are set as follows
 
 So the resulting float16 value is:
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
    x_uint16 = x // Truncate the upper 16 bits.
    val = ((exponent << 10) | x_uint16 & 0x3ffu) - 1.0,
@@ -101,7 +103,8 @@ Float32 is formatted as follows: *sign* (1 bit) *exponent* (8 bits) *mantissa* (
 
 so to obtain float values *sign*, *exponent* and *mantissa* are set as follows:
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
    sign = 0
    exponent = 127 - representation of a zero exponent.
@@ -110,7 +113,8 @@ so to obtain float values *sign*, *exponent* and *mantissa* are set as follows:
 
 So the resulting float value is:
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
    
    val = ((exponent << 23) | x & 0x7fffffu) - 1.0,
 
@@ -125,7 +129,8 @@ Double is formatted as follows: *sign* (1 bit) *exponent* (11 bits) *mantissa* (
 
 so to obtain double values *sign*, *exponent* and *mantissa* are set as follows:
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
      
    sign = 0
    exponent = 1023 - representation of a zero exponent.
@@ -134,7 +139,8 @@ so to obtain double values *sign*, *exponent* and *mantissa* are set as follows:
 
 So the resulting double is obtained as follows:
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
    
    mantissa_h = x0 & 0xfffffu;  // upper 20 bits of mantissa
    mantissa_l = x1;             // lower 32 bits of mantissa
@@ -164,7 +170,8 @@ where *x* is uint32 random value.
 
 Example 1. *RandomUniform* output with ``global_seed`` = 150, ``op_seed`` = 10, ``output_type`` = f32:
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
    
     input_shape    = [ 3, 3 ]
     output  = [[0.7011236  0.30539632 0.93931055]
@@ -174,7 +181,8 @@ Example 1. *RandomUniform* output with ``global_seed`` = 150, ``op_seed`` = 10, 
 
 Example 2. *RandomUniform* output with ``global_seed`` = 80, ``op_seed`` = 100, ``output_type`` = double:
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
     
    input_shape    = [ 2, 2 ]
 
@@ -188,7 +196,8 @@ Example 2. *RandomUniform* output with ``global_seed`` = 80, ``op_seed`` = 100, 
 
 Example 3. *RandomUniform* output with ``global_seed`` = 80, ``op_seed`` = 100, ``output_type`` = i32:
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
      
    input_shape    = [ 2, 3 ]
 
@@ -244,7 +253,8 @@ Example 3. *RandomUniform* output with ``global_seed`` = 80, ``op_seed`` = 100, 
 
 *Example 1: IR example.*
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
     <layer ... name="RandomUniform" type="RandomUniform">
         <data output_type="f32" global_seed="234" op_seed="148"/>

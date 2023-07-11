@@ -56,7 +56,8 @@ where :math:`C` is a size of tensor along *axis* dimension.
 
 **Example**
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
    <layer ... type="LogSoftmax" ... >
        <data axis="1" />
