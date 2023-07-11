@@ -1942,9 +1942,9 @@ void Reduce::prepareParams() {
         reduce_axes = raw_axes;
     }
 
-    auto &dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+    auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     const SizeVector &dst_dims = dstMemPtr->getDesc().getShape().getDims();
-    dst_size = dstMemPtr->GetSize();
+    dst_size = dstMemPtr->getSize();
     calc_process_dst_dims(reduce_axes, dst_dims);
     if (jit_mode) {
         set_reduce_dim_flags();
@@ -1990,8 +1990,8 @@ void Reduce::createPrimitive() {
     if (!isExecutable()) {
         return;
     }
-    auto &dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
-    auto &srcMemPtr = getParentEdgeAt(REDUCE_DATA)->getMemoryPtr();
+    auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+    auto srcMemPtr = getParentEdgeAt(REDUCE_DATA)->getMemoryPtr();
     if (!dstMemPtr || !dstMemPtr->isAllocated())
         IE_THROW() << errorPrefix << " has not allocated destination memory.";
     if (!srcMemPtr || !srcMemPtr->isAllocated())
@@ -2083,11 +2083,11 @@ void Reduce::executeDynamicImpl(dnnl::stream strm) {
 }
 
 void Reduce::execute(dnnl::stream strm) {
-    auto &dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
-    auto &srcMemPtr = getParentEdgeAt(REDUCE_DATA)->getMemoryPtr();
+    auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+    auto srcMemPtr = getParentEdgeAt(REDUCE_DATA)->getMemoryPtr();
 
-    const uint8_t *src_data = reinterpret_cast<const uint8_t *>(srcMemPtr->GetPtr());
-    uint8_t *dst_data = reinterpret_cast<uint8_t *>(dstMemPtr->GetPtr());
+    const uint8_t *src_data = reinterpret_cast<const uint8_t *>(srcMemPtr->getData());
+    uint8_t *dst_data = reinterpret_cast<uint8_t *>(dstMemPtr->getData());
 
     if (jit_mode) {
         if (is_hybrid_layout) {
@@ -2130,8 +2130,8 @@ void Reduce::reduce_type(const uint8_t *in_ptr, uint8_t *out_ptr, size_t dst_siz
 
     if (is_hybrid_layout) {
         uint8_t *proc_ptr = out_ptr;
-        auto &dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
-        out_ptr = reinterpret_cast<uint8_t *>(dstMemPtr->GetPtr());
+        auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+        out_ptr = reinterpret_cast<uint8_t *>(dstMemPtr->getData());
         if (layout == ReduceLayoutType::reduce_nspc) {
             nspc2ncsp(proc_ptr, out_ptr);
         } else {
@@ -2976,7 +2976,7 @@ void Reduce::reduce_ref_process(const float *in_ptr, float *out_ptr, float init_
         reduced_dims_work_amount *= src_dims[i];
     reduced_dims_work_amount /= work_amount_dst;
 
-    SizeVector src_strides = getParentEdgeAt(REDUCE_DATA)->getMemory().GetDescWithType<BlockedMemoryDesc>()->getStrides();
+    SizeVector src_strides = getParentEdgeAt(REDUCE_DATA)->getMemory().getDescWithType<BlockedMemoryDesc>()->getStrides();
     parallel_nt(0, [&](const int ithr, const int nthr) {
         int j;
         size_t i, start = 0, end = 0;
