@@ -30,7 +30,7 @@ public:
             const auto shape = (m_ranks[port] != 0) ? ov::Shape(memPtr->getStaticDims()) : ov::Shape();
             return {InferenceEngine::details::convertPrecision(memPtr->getDesc().getPrecision()),
                     shape,
-                    memPtr->GetPtr()
+                    memPtr->getData()
                    };
         } else {
             return {};
