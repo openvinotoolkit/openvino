@@ -219,6 +219,28 @@ bool PostgreSQLConnection::load_libpq(void) {
             }
         });
     }
+    if (*modLibPQ == (HMODULE)0) {
+        modLibPQ = std::shared_ptr<HMODULE>(new HMODULE(dlopen("libpq.dylib", RTLD_LAZY)), [](HMODULE* ptr) {
+            if (*ptr != (HMODULE)0) {
+                std::cerr << PG_INF << "Freeing libPQ.dylib handle\n";
+                try {
+                    dlclose(*ptr);
+                } catch (...) {
+                }
+            }
+        });
+    }
+    if (*modLibPQ == (HMODULE)0) {
+        modLibPQ = std::shared_ptr<HMODULE>(new HMODULE(dlopen("libpq.5.dylib", RTLD_LAZY)), [](HMODULE* ptr) {
+            if (*ptr != (HMODULE)0) {
+                std::cerr << PG_INF << "Freeing libPQ.5.dylib handle\n";
+                try {
+                    dlclose(*ptr);
+                } catch (...) {
+                }
+            }
+        });
+    }
 #    endif
     if (*modLibPQ == (HMODULE)0) {
         std::cerr << PG_WRN << "Cannot load PostgreSQL client module libPQ, reporting is unavailable\n";
