@@ -56,7 +56,7 @@ protected:
     virtual void PushInputData() = 0;
 
     Graph* graph = nullptr;
-    std::unordered_map<std::string, void*> externalPtr;
+    std::unordered_map<std::string, InferenceEngine::Blob::Ptr> externalPtr;
 
 private:
     void PushStates();
