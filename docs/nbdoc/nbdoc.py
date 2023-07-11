@@ -106,7 +106,7 @@ class NbProcessor:
             "folder": repo_directory,
         }
 
-    def fetch_binder_list(self, file: str = 'notebooks_with_buttons.txt') -> list:
+    def fetch_binder_list(self, file) -> list:
         """Function that fetches list of notebooks with binder buttons
 
         :param file_format: Format of file containing list of notebooks with button. Defaults to 'txt'
@@ -120,7 +120,7 @@ class NbProcessor:
                 list_of_buttons = file.read().splitlines()
             return list_of_buttons
 
-    def fetch_colab_list(self, file: str = 'notebooks_with_colab_buttons.txt') -> list:
+    def fetch_colab_list(self, file) -> list:
         """Function that fetches list of notebooks with colab buttons
 
         :param file_format: Format of file containing list of notebooks with button. Defaults to 'lst'
