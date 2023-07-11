@@ -5,6 +5,7 @@
 #pragma once
 
 #include <map>
+#include "openvino/openvino.hpp"
 
 namespace ov {
 namespace tools {

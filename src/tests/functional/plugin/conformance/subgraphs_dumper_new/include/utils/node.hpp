@@ -11,6 +11,7 @@
 #include "openvino/openvino.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/constant_folding.hpp"
+#include "openvino/op/util/op_types.hpp"
 
 namespace ov {
 namespace tools {
