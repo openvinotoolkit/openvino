@@ -44,8 +44,14 @@ public:
     bool get_linear_before_reset() const {
         return m_linear_before_reset;
     }
+    void set_linear_before_reset(bool linear_before_reset) {
+        m_linear_before_reset = linear_before_reset;
+    }
     op::RecurrentSequenceDirection get_direction() const {
         return m_direction;
+    }
+    void set_direction(const RecurrentSequenceDirection& direction) {
+        m_direction = direction;
     }
 
 protected:
