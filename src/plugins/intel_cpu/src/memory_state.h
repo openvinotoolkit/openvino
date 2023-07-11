@@ -21,7 +21,7 @@ public:
     VariableState(std::string name, MemoryPtr storage) : ov::IVariableState{name} {
         const auto& memDesc = MemoryDescUtils::convertToTensorDesc(storage->getDesc());
         m_state = ov::Tensor(InferenceEngine::details::convertPrecision(memDesc.getPrecision()), memDesc.getDims());
-        cpu_memcpy(m_state.data(), storage->GetData(), storage->GetSize());
+        cpu_memcpy(m_state.data(), storage->getData(), storage->getSize());
     }
 
     void reset() override;

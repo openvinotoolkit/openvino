@@ -227,8 +227,10 @@ protected:
     void InitGraph();
     void InitNodes();
     void InitDescriptors();
+    void ResolveInplaceDirections();
     void InitOptimalPrimitiveDescriptors();
     void InitEdges();
+    bool ProcessDynNodes();
     void Allocate();
     void AllocateWithReuse();
     void ExtractExecutableNodes();
@@ -255,6 +257,8 @@ private:
     GraphContext::CPtr context;
 
     void EnforceInferencePrecision();
+    void EnforceBF16();
+    void resolveInPlaceDirection(const NodePtr& node) const;
 };
 
 }  // namespace intel_cpu

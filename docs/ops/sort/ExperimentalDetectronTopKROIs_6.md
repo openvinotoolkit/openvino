@@ -44,7 +44,8 @@ output tensor elements.
 
 **Example**
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
    
    <layer ... type="ExperimentalDetectronTopKROIs" version="opset6">
        <data max_rois="1000"/>

@@ -53,7 +53,7 @@ protected:
     void push_input_data();
 
     Graph* graph = nullptr;
-    std::unordered_map<std::string, void*> external_ptr;
+    std::unordered_map<std::string, ov::Tensor> external_ptr;
 
 private:
     void push_states();

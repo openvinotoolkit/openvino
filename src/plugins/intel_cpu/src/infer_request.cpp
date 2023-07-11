@@ -120,7 +120,7 @@ void SyncInferRequest::push_states() {
                     auto cur_state_mem = cur_node->getStore();
                     auto data_ptr = state->get_state().data();
                     auto data_size = state->get_state().get_byte_size();
-                    auto cur_state_mem_buf = static_cast<uint8_t*>(cur_state_mem->GetPtr());
+                    auto cur_state_mem_buf = static_cast<uint8_t*>(cur_state_mem->getData());
 
                     cpu_memcpy(cur_state_mem_buf, data_ptr, data_size);
                 }
@@ -142,7 +142,7 @@ void SyncInferRequest::pull_states() {
                     auto cur_state_mem = cur_node->getStore();
                     auto data_ptr = state->get_state().data();
                     auto data_size = state->get_state().get_byte_size();
-                    auto cur_state_mem_buf = static_cast<uint8_t*>(cur_state_mem->GetPtr());
+                    auto cur_state_mem_buf = static_cast<uint8_t*>(cur_state_mem->getData());
 
                     cpu_memcpy(data_ptr, cur_state_mem_buf, data_size);
                 }
@@ -180,7 +180,7 @@ void SyncInferRequest::update_external_inputs() {
         }
         if (external_ptr.find(input_name) != external_ptr.end()) {
             auto tensor = get_port_tensor(input);
-            external_ptr[input_name] = tensor.data();
+            external_ptr[input_name] = tensor;
         }
     }
 }
@@ -228,8 +228,12 @@ std::vector<ov::ProfilingInfo> SyncInferRequest::get_profiling_info() const {
     return perfMap;
 }
 
-static inline void change_edge_ptr(const EdgePtr& edge, void* newPtr) {
-    edge->getMemoryPtr()->setDataHandle(newPtr);
+static inline void change_edge_ptr(const EdgePtr &edge, ov::Tensor& tensor) {
+    auto size = tensor.get_byte_size();//blob->byteSize();
+    auto& mem = edge->getMemory();
+    auto memMngr = mem.getMemoryMngr();
+    IE_ASSERT(memMngr);
+    memMngr->setExtBuff(tensor.data(), size);
 }
 
 void SyncInferRequest::change_default_ptr() {
@@ -238,10 +242,10 @@ void SyncInferRequest::change_default_ptr() {
         auto input = inputNodesMap.find(it.first);
         if (input != inputNodesMap.end()) {
             NodePtr inputNodePtr = input->second;
-            if (inputNodePtr->getChildEdgeAt(0)->getMemory().GetData() == it.second)
+            if (inputNodePtr->getChildEdgeAt(0)->getMemory().getData() == static_cast<void*>(it.second.data()))
                 continue;
             auto& childEdges = inputNodePtr->getChildEdges();
-            // Input cannot be in-place with other primitives
+            // Perform checks that the user's memory will not be modified
             bool canBeInPlace = true;
             for (auto& childEdge : childEdges) {
                 auto ce = childEdge.lock();
@@ -255,39 +259,22 @@ void SyncInferRequest::change_default_ptr() {
                     break;
                 }
 
-                if (child->getType() == Type::Concatenation) {
-                    auto concat = dynamic_cast<node::Concat*>(child.get());
-                    if (concat && concat->isOptimized()) {
-                        canBeInPlace = false;
-                        break;
-                    }
-                }
-
-                // Cannot be in-place before split because split is using different ptrs without offsets
-                if (child->getType() == Type::Split) {
+                // the input memory should be referenced by the children, otherwise it should be written to a
+                // specific location
+                if (ce->inPlace(Edge::LOOK_DOWN)) {
                     canBeInPlace = false;
                     break;
                 }
 
-                if (child->isInPlace()) {
+                if (auto result = ce->modifiedInPlace()) {
                     canBeInPlace = false;
                     break;
                 }
 
-                auto& edges = child->getChildEdges();
-                for (auto& edge : edges) {
-                    auto e = edge.lock();
-                    if (!e)
-                        OPENVINO_THROW("Node ", child->getName(), " contains empty child edge");
-
-                    if (e->getMemory().GetData() == ce->getMemory().GetData()) {
-                        canBeInPlace = false;
-                        break;
-                    }
-                }
-
-                if (!canBeInPlace)
+                if (child->getType() == Type::Concatenation && child->isInPlace()) {
+                    canBeInPlace = false;
                     break;
+                }
             }
             if (canBeInPlace) {
                 for (auto& edge : childEdges) {
@@ -298,7 +285,6 @@ void SyncInferRequest::change_default_ptr() {
                     change_edge_ptr(e, it.second);
                 }
             }
-
             continue;
         }
 
@@ -306,11 +292,11 @@ void SyncInferRequest::change_default_ptr() {
         auto output = outputNodesMap.find(it.first);
         if (output != outputNodesMap.end()) {
             auto parentEdge = output->second->getParentEdgeAt(0);
-            if (parentEdge->getMemory().GetData() == it.second)
+            if (parentEdge->getMemory().getData() == static_cast<void*>(it.second.data()))
                 continue;
 
             bool canBeInPlace = true;
-            void* defaultPtr = parentEdge->getMemory().GetData();
+            void* defaultPtr = parentEdge->getMemory().getData();
             // Cannot be in-place after concat because concat is using different ptrs without offsets
             auto parent = parentEdge->getParent();
             NodePtr previousParent;
@@ -327,7 +313,7 @@ void SyncInferRequest::change_default_ptr() {
                     if (!e)
                         OPENVINO_THROW("Node ", parent->getName(), " contains empty parent edge");
 
-                    if (e->getMemory().GetData() == defaultPtr) {
+                    if (e->getMemory().getData() == defaultPtr) {
                         parent = e->getParent();
                         break;
                     }
@@ -596,7 +582,7 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& in_port, con
         }
         if (actualDesc->isCompatible(MemoryDescUtils::convertToCpuBlockedMemoryDesc(tensor_desc)) &&
             graph->_normalizePreprocMap.find(name) == graph->_normalizePreprocMap.end()) {
-            external_ptr[name] = tensor.data();
+            external_ptr[name] = tensor;
         } else if (external_ptr.find(name) != external_ptr.end()) {
             external_ptr.erase(name);
         }
@@ -632,7 +618,7 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& in_port, con
 
         const auto& desc = graph->getOutputNodeByName(name)->getParentEdgesAtPort(0)[0]->getMemory().getDesc();
         if (!isDynamic && tensor_desc == MemoryDescUtils::convertToTensorDesc(desc)) {
-            external_ptr[name] = tensor.data();
+            external_ptr[name] = tensor;
         } else if (external_ptr.find(name) != external_ptr.end()) {
             external_ptr.erase(name);
         }
@@ -687,7 +673,7 @@ void SyncInferRequest::init_tensor(const std::string& name) {
                     desc == MemoryDescUtils::convertToTensorDesc(
                                 graph->getInputNodeByName(name)->getChildEdgesAtPort(0)[0]->getMemory().getDesc()) &&
                     graph->_normalizePreprocMap.find(name) == graph->_normalizePreprocMap.end()) {
-                    external_ptr[name] = tensor.data();
+                    external_ptr[name] = tensor;
                 }
             }
         } else {
@@ -744,7 +730,7 @@ void SyncInferRequest::init_tensor(const std::string& name) {
             if (!isDynamic && !external_ptr.count(name) &&
                 desc == MemoryDescUtils::convertToTensorDesc(
                             output->second->getParentEdgesAtPort(0)[0]->getMemory().getDesc())) {
-                external_ptr[name] = tensor.data();
+                external_ptr[name] = tensor;
             }
         } else {
             OPENVINO_THROW("Tensor with name: ", name, " exists in CPU plugin graph, but absents in network outputs");
