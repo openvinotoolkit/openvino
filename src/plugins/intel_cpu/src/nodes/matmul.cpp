@@ -575,9 +575,9 @@ InferenceEngine::Precision MatMul::getRuntimePrecision() const {
 }
 
 void MatMul::prepareParams() {
-    auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
-    auto& src0MemPtr = getParentEdgeAt(0)->getMemoryPtr();
-    auto& src1MemPtr = getParentEdgeAt(1)->getMemoryPtr();
+    auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+    auto src0MemPtr = getParentEdgeAt(0)->getMemoryPtr();
+    auto src1MemPtr = getParentEdgeAt(1)->getMemoryPtr();
     if (!dstMemPtr || !dstMemPtr->isAllocated())
         IE_THROW()  << errorPrefix << " did not allocate destination memory";
     if (!src0MemPtr || !src0MemPtr->isAllocated() || !src1MemPtr || !src1MemPtr->isAllocated())
@@ -611,14 +611,14 @@ void MatMul::prepareParams() {
         src1TransposedDesc = inDataDesc[1];
     }
 
-    auto dstDnnlDesc = dstMemPtr->GetDescWithType<DnnlMemoryDesc>();
+    auto dstDnnlDesc = dstMemPtr->getDescWithType<DnnlMemoryDesc>();
 
     DnnlMemoryDescPtr dnnlBiasMemDesc = nullptr;
     if (withBiases) {
-        auto& biasMemory = getParentEdgeAt(2)->getMemoryPtr();
+        auto biasMemory = getParentEdgeAt(2)->getMemoryPtr();
         if (!biasMemory || !biasMemory->isAllocated())
             IE_THROW()  << errorPrefix << " did not allocate bias memory";
-        dnnlBiasMemDesc = biasMemory->GetDescWithType<DnnlMemoryDesc>();
+        dnnlBiasMemDesc = biasMemory->getDescWithType<DnnlMemoryDesc>();
     }
 
     MatMulKey key = {src0TransposedDesc, src1TransposedDesc, dnnlBiasMemDesc,
@@ -669,12 +669,12 @@ void MatMul::prepareParams() {
 
     auto schratchpadMem = getScratchPadMem(execPtr->getScratchPadDesc());
 
-    primArgs[DNNL_ARG_SCRATCHPAD] = schratchpadMem->GetPrimitive();
-    primArgs[DNNL_ARG_SRC_0] = src0MemPtr->GetPrimitive();
-    primArgs[DNNL_ARG_WEIGHTS_0] = src1MemPtr->GetPrimitive();
-    primArgs[DNNL_ARG_DST] = dstMemPtr->GetPrimitive();
+    primArgs[DNNL_ARG_SCRATCHPAD] = schratchpadMem->getPrimitive();
+    primArgs[DNNL_ARG_SRC_0] = src0MemPtr->getPrimitive();
+    primArgs[DNNL_ARG_WEIGHTS_0] = src1MemPtr->getPrimitive();
+    primArgs[DNNL_ARG_DST] = dstMemPtr->getPrimitive();
     if (withBiases)
-        primArgs[DNNL_ARG_BIAS] = getParentEdgeAt(2)->getMemoryPtr()->GetPrimitive();
+        primArgs[DNNL_ARG_BIAS] = getParentEdgeAt(2)->getMemoryPtr()->getPrimitive();
 
     appendPostOpArgs(*attr, primArgs, postOpsArgs);
 #ifdef CPU_DEBUG_CAPS

@@ -254,23 +254,23 @@ static std::vector<size_t> getBlockND(const VectorDims& shape) {
 }
 
 void ScatterUpdate::execute(dnnl::stream strm) {
-    auto &srcMemPtr = getParentEdgeAt(DATA_ID)->getMemoryPtr();
-    auto &dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
-    auto &indicesMemPtr = getParentEdgeAt(INDICES_ID)->getMemoryPtr();
-    auto &updateMemPtr = getParentEdgeAt(UPDATE_ID)->getMemoryPtr();
+    auto srcMemPtr = getParentEdgeAt(DATA_ID)->getMemoryPtr();
+    auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+    auto indicesMemPtr = getParentEdgeAt(INDICES_ID)->getMemoryPtr();
+    auto updateMemPtr = getParentEdgeAt(UPDATE_ID)->getMemoryPtr();
 
-    uint8_t *dstPtr = reinterpret_cast<uint8_t*>(dstMemPtr->GetPtr());
-    uint8_t *srcPtr = reinterpret_cast<uint8_t*>(srcMemPtr->GetPtr());
-    uint8_t *indicesPtr = reinterpret_cast<uint8_t*>(indicesMemPtr->GetPtr());
-    uint8_t *updatePtr = reinterpret_cast<uint8_t*>(updateMemPtr->GetPtr());
+    uint8_t *dstPtr = reinterpret_cast<uint8_t*>(dstMemPtr->getData());
+    uint8_t *srcPtr = reinterpret_cast<uint8_t*>(srcMemPtr->getData());
+    uint8_t *indicesPtr = reinterpret_cast<uint8_t*>(indicesMemPtr->getData());
+    uint8_t *updatePtr = reinterpret_cast<uint8_t*>(updateMemPtr->getData());
 
     const auto& srcDataDim = getParentEdgeAt(DATA_ID)->getMemory().getStaticDims();
     const auto& indicesDim = getParentEdgeAt(INDICES_ID)->getMemory().getStaticDims();
     size_t srcRank = srcDataDim.size();
     int axis = 0;
     if (axisRelaxed) {
-        auto &axisMemPtr = getParentEdgeAt(AXIS_ID)->getMemoryPtr();
-        uint8_t *axisPtr = reinterpret_cast<uint8_t*>(axisMemPtr->GetPtr());
+        auto axisMemPtr = getParentEdgeAt(AXIS_ID)->getMemoryPtr();
+        uint8_t *axisPtr = reinterpret_cast<uint8_t*>(axisMemPtr->getData());
         if (axisSize == 4) {
             auto *axisPtr32 = reinterpret_cast<int32_t*>(axisPtr);
             axis = *axisPtr32;

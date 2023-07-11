@@ -2219,10 +2219,10 @@ void Eltwise::createPrimitive() {
 
     start_offset_in.resize(inputNum);
     for (size_t i = 0; i < inputNum; i++) {
-        const auto desc = getParentEdgeAt(i)->getMemory().GetDescWithType<BlockedMemoryDesc>();
+        const auto desc = getParentEdgeAt(i)->getMemory().getDescWithType<BlockedMemoryDesc>();
         start_offset_in[i] = desc->getOffsetPadding() * desc->getPrecision().size();
     }
-    const auto desc = getChildEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>();
+    const auto desc = getChildEdgeAt(0)->getMemory().getDescWithType<BlockedMemoryDesc>();
     start_offset_out = desc->getOffsetPadding() * desc->getPrecision().size();
 
     for (size_t i = 0; i < inputNum; ++i) {
@@ -2249,7 +2249,7 @@ void Eltwise::prepareParams() {
         return;
     }
 
-    auto outBlockingDesc = getChildEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>();
+    auto outBlockingDesc = getChildEdgeAt(0)->getMemory().getDescWithType<BlockedMemoryDesc>();
     const auto &outOrder = outBlockingDesc->getOrder();
     const auto &currentOutBlkDims = outBlockingDesc->getBlockDims();
 
@@ -2265,7 +2265,7 @@ void Eltwise::prepareParams() {
     size_t outRank = currentOutBlkDims.size();
 
     for (size_t i = 0; i < inputNum; i++) {
-        auto inBlockingDesc = getParentEdgeAt(i)->getMemory().GetDescWithType<BlockedMemoryDesc>();
+        auto inBlockingDesc = getParentEdgeAt(i)->getMemory().getDescWithType<BlockedMemoryDesc>();
         currentInBlkDims[i] = inBlockingDesc->getBlockDims();
         size_t inRank = currentInBlkDims[i].size();
 
@@ -2379,7 +2379,7 @@ void Eltwise::prepareParams() {
 
 bool Eltwise::needPrepareParams() const {
     for (size_t i = 0; i < getParentEdges().size(); i++) {
-        if (getParentEdgesAtPort(i)[0]->getMemory().GetDescWithType<BlockedMemoryDesc>()->getBlockDims() != currentInBlkDims[i])
+        if (getParentEdgesAtPort(i)[0]->getMemory().getDescWithType<BlockedMemoryDesc>()->getBlockDims() != currentInBlkDims[i])
             return true;
     }
     return false;
@@ -2394,8 +2394,8 @@ void Eltwise::execute(dnnl::stream strm) {
         jit_eltwise_call_args_ptrs args_ptrs = {};
         VectorDims dims_out = implType == EltwiseImplType::optimizedShapeAgnostic ? execParams.outDims : execPtr->getOutDims();
         for (size_t i = 0; i < memPtrs.size() - 1; i++)
-            args_ptrs.src_ptr[i] = reinterpret_cast<const uint8_t*>(memPtrs[i]->GetData()) + start_offset_in[i];
-        args_ptrs.dst_ptr = reinterpret_cast<uint8_t*>(memPtrs.back()->GetData()) + start_offset_out;
+            args_ptrs.src_ptr[i] = reinterpret_cast<const uint8_t*>(memPtrs[i]->getData()) + start_offset_in[i];
+        args_ptrs.dst_ptr = reinterpret_cast<uint8_t*>(memPtrs.back()->getData()) + start_offset_out;
 
         args_ptrs.post_op_data = fqDataPtrs.data();
 
@@ -2471,10 +2471,8 @@ void Eltwise::fuseInto(NodePtr& parentNode) {
 
 void Eltwise::appendMemory(const std::vector<float> &data, MemoryPtr &memPtr, std::vector<MemoryPtr>& postOpsMem) {
     if (!memPtr) {
-        memPtr.reset(new Memory(getEngine()));
         DnnlBlockedMemoryDesc memoryDesc(Precision::FP32, {data.size()});
-        memPtr->Create(memoryDesc, data.data());
-
+        memPtr = std::make_shared<Memory>(getEngine(), memoryDesc, data.data());
         postOpsMem.push_back(memPtr);
     }
 }
@@ -2754,7 +2752,7 @@ InferenceEngine::Precision Eltwise::getRuntimePrecision() const {
     for (size_t i = 0; i < getParentEdges().size(); i++) {
         auto parentEdge = getParentEdgeAt(i);
         if (parentEdge && parentEdge->getStatus() == Edge::Status::Validated && !parentEdge->getParent()->isConstant()) {
-            inputPrecisions.emplace_back(DnnlExtensionUtils::DataTypeToIEPrecision((parentEdge->getMemoryPtr()->GetDataType())));
+            inputPrecisions.emplace_back(DnnlExtensionUtils::DataTypeToIEPrecision((parentEdge->getMemoryPtr()->getDataType())));
         }
     }
 

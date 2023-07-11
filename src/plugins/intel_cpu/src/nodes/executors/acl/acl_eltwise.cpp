@@ -465,10 +465,10 @@ bool AclEltwiseExecutor::init(const EltwiseAttrs &eltwiseAttrs, const std::vecto
 void AclEltwiseExecutor::exec(const std::vector<MemoryCPtr> &src, const std::vector<MemoryPtr> &dst,
                               const void *post_ops_data_) {
     for (size_t i = 0; i < src.size(); i++) {
-        srcTensors[i].allocator()->import_memory(src[i]->GetPtr());
+        srcTensors[i].allocator()->import_memory(src[i]->getData());
     }
     for (size_t i = 0; i < dst.size(); i++) {
-        dstTensors[i].allocator()->import_memory(dst[i]->GetPtr());
+        dstTensors[i].allocator()->import_memory(dst[i]->getData());
     }
 
     exec_func();

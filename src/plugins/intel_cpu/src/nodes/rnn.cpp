@@ -715,8 +715,8 @@ void RNN::fillWeights(const int *gate_map, const size_t wIdx, const size_t rIdx)
     auto ie_w_ptr = ie_w_vec.data();
     auto ie_r_ptr = ie_r_vec.data();
 
-    cpu_convert(wConstBlob->GetPtr(), ie_w_ptr, weightPrec, targetWeightPrec, ie_w_vec_size);
-    cpu_convert(rConstBlob->GetPtr(), ie_r_ptr, weightPrec, targetWeightPrec, ie_r_vec_size);
+    cpu_convert(wConstBlob->getData(), ie_w_ptr, weightPrec, targetWeightPrec, ie_w_vec_size);
+    cpu_convert(rConstBlob->getData(), ie_r_ptr, weightPrec, targetWeightPrec, ie_r_vec_size);
 
     const int step = SC * G;
 
@@ -760,12 +760,12 @@ void RNN::fillBiases(const int *gate_map) {
 
     auto *constInputNode = dynamic_cast<Input *>(getParentEdgesAtPort(bIdx)[0]->getParent().get());
     auto constBlob = constInputNode->getMemoryPtr();
-    auto const elementsCount = constBlob->GetSize() / constBlob->getDesc().getPrecision().size();
+    auto const elementsCount = constBlob->getSize() / constBlob->getDesc().getPrecision().size();
 
     std::vector<dataType> ie_b_vec(elementsCount);
-    cpu_convert(constBlob->GetPtr(),
+    cpu_convert(constBlob->getData(),
                 &ie_b_vec[0],
-                DnnlExtensionUtils::DataTypeToIEPrecision(constBlob->GetDataType()),
+                DnnlExtensionUtils::DataTypeToIEPrecision(constBlob->getDataType()),
                 Prec,
                 elementsCount);
 
@@ -1037,8 +1037,8 @@ void RNN::prepareParams() {
             THROW_ERROR << "has incorrect input size value in the first input.";
 
     auto dataMemPtr = getParentEdgesAtPort(0).front()->getMemoryPtr();
-    const size_t B = dataMemPtr->GetShape().getStaticDims()[0];
-    const size_t SL = is_cell ? 1lu : dataMemPtr->GetShape().getStaticDims()[1];
+    const size_t B = dataMemPtr->getShape().getStaticDims()[0];
+    const size_t SL = is_cell ? 1lu : dataMemPtr->getShape().getStaticDims()[1];
     const Shape shapeS_4D{L, D, B, SC};
 
     inDataDescs[0] = std::make_shared<DnnlBlockedMemoryDesc>(Shape{SL, B, DC}, inDataTypes[xIdx], memory::format_tag::tnc);
@@ -1104,23 +1104,23 @@ void RNN::prepareParams() {
     if (!primArgs.count(DNNL_ARG_WEIGHTS_LAYER) || !prevExecPtr ||
         !execPtr->getWeightDesc()->isCompatible(*(prevExecPtr->getWeightDesc()))) {
         prepareMemory(execPtr->getWeightDesc(), 0);
-        primArgs[DNNL_ARG_WEIGHTS_LAYER] = internalBlobMemory[0]->GetPrimitive();
+        primArgs[DNNL_ARG_WEIGHTS_LAYER] = internalBlobMemory[0]->getPrimitive();
     }
 
     if (!primArgs.count(DNNL_ARG_WEIGHTS_ITER) || !prevExecPtr ||
         !execPtr->getWeightIterDesc()->isCompatible(*(prevExecPtr->getWeightIterDesc()))) {
         prepareMemory(execPtr->getWeightIterDesc(), 1);
-        primArgs[DNNL_ARG_WEIGHTS_ITER] = internalBlobMemory[1]->GetPrimitive();
+        primArgs[DNNL_ARG_WEIGHTS_ITER] = internalBlobMemory[1]->getPrimitive();
     }
 
     if (!primArgs.count(DNNL_ARG_BIAS) || !prevExecPtr ||
         !execPtr->getBiasDesc()->isCompatible(*(prevExecPtr->getBiasDesc()))) {
         prepareMemory(execPtr->getBiasDesc(), 2);
-        primArgs[DNNL_ARG_BIAS] = internalBlobMemory[2]->GetPrimitive();
+        primArgs[DNNL_ARG_BIAS] = internalBlobMemory[2]->getPrimitive();
     }
 
     auto scratchpadMem = getScratchPadMem(execPtr->getScratchPadDesc());
-    primArgs[DNNL_ARG_SCRATCHPAD] = scratchpadMem->GetPrimitive();
+    primArgs[DNNL_ARG_SCRATCHPAD] = scratchpadMem->getPrimitive();
 }
 
 std::shared_ptr<MemoryDesc> RNN::getSrcMemDesc(const dnnl::primitive_desc& prim_desc, size_t idx) const {
@@ -1142,28 +1142,28 @@ void RNN::execute(dnnl::stream strm) {
 
     auto args = primArgs;
 
-    args[DNNL_ARG_SRC_LAYER] = src_data_mem->GetPrimitive();
-    args[DNNL_ARG_DST_LAYER] = dst_data_mem->GetPrimitive();
+    args[DNNL_ARG_SRC_LAYER] = src_data_mem->getPrimitive();
+    args[DNNL_ARG_DST_LAYER] = dst_data_mem->getPrimitive();
 
     int state_i_tags[] {DNNL_ARG_SRC_ITER, DNNL_ARG_SRC_ITER_C};
     int state_o_tags[] {DNNL_ARG_DST_ITER, DNNL_ARG_DST_ITER_C};
     for (size_t s = 0; s < S; s++) {
-        args[state_i_tags[s]] = getParentEdgeAt(s+1)->getMemoryPtr()->GetPrimitive();
+        args[state_i_tags[s]] = getParentEdgeAt(s+1)->getMemoryPtr()->getPrimitive();
     }
     if (is_augru) {
         const auto atten_port = is_cell ? 5 : 6;
-        args[DNNL_ARG_AUGRU_ATTENTION] = getParentEdgeAt(atten_port)->getMemoryPtr()->GetPrimitive();
+        args[DNNL_ARG_AUGRU_ATTENTION] = getParentEdgeAt(atten_port)->getMemoryPtr()->getPrimitive();
     }
 
     if (is_cell) {
         for (size_t s = 0; s < S; s++) {
-            args[state_o_tags[s]] = getChildEdgesAtPort(s)[0]->getMemoryPtr()->GetPrimitive();
+            args[state_o_tags[s]] = getChildEdgesAtPort(s)[0]->getMemoryPtr()->getPrimitive();
         }
     } else {
         size_t n_ports_with_init_states = outputShapes.size() - 1; // first is a sequence data
         for (size_t s = 0; s < std::min(S, n_ports_with_init_states); s++) {
             if (s < outputShapes.size()) {
-                args[state_o_tags[s]] = getChildEdgesAtPort(s+1)[0]->getMemoryPtr()->GetPrimitive();
+                args[state_o_tags[s]] = getChildEdgesAtPort(s+1)[0]->getMemoryPtr()->getPrimitive();
             }
         }
     }

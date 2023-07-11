@@ -110,8 +110,7 @@ static void dumpInternalBlobs(const NodePtr& node, const DebugCapsConfig& config
         if (desc.getPrecision() == Precision::BIN)
             continue;
 
-        MemoryPtr memory = std::make_shared<Memory>(node->getEngine());
-        memory->Create(MemoryDescUtils::convertToDnnlBlockedMemoryDesc(desc), blb->buffer());
+        MemoryPtr memory = std::make_shared<Memory>(node->getEngine(), MemoryDescUtils::convertToDnnlBlockedMemoryDesc(desc), blb->buffer());
         BlobDumper dumper(memory);
         dump(dumper, dump_file, config);
     }

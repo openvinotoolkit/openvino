@@ -63,7 +63,7 @@ class WeightsSharing {
         {}
 
         std::mutex guard;
-        std::weak_ptr<Memory> sharedMemory;
+        std::weak_ptr<IMemory> sharedMemory;
         std::atomic<bool> valid;
     };
 

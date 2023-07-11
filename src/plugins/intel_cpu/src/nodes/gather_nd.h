@@ -43,12 +43,12 @@ private:
     struct GatherNDExecutor {
         GatherNDExecutor(const GatherNDAttributes& attrs);
         ~GatherNDExecutor() = default;
-        void exec(const MemoryPtr& srcMemPtr, const MemoryPtr& idxMemPtr, MemoryPtr& dstMemPtr);
+        void exec(const MemoryPtr& srcMemPtr, const MemoryPtr& idxMemPtr, const MemoryPtr& dstMemPtr);
 
     private:
         template <typename dataType>
-        void gatherElementwise(const MemoryPtr& srcMemPtr, const MemoryPtr& idxMemPtr, MemoryPtr& dstMemPtr);
-        void gatherBlocks(const MemoryPtr& srcMemPtr, const MemoryPtr& idxMemPtr, MemoryPtr& dstMemPtr);
+        void gatherElementwise(const MemoryPtr& srcMemPtr, const MemoryPtr& idxMemPtr, const MemoryPtr& dstMemPtr);
+        void gatherBlocks(const MemoryPtr& srcMemPtr, const MemoryPtr& idxMemPtr, const MemoryPtr& dstMemPtr);
 
         size_t batchSize = 1lu;
         size_t cycles = 1lu;

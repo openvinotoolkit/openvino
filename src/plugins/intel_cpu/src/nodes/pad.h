@@ -57,15 +57,15 @@ private:
                     const std::vector<MemoryCPtr>& srcMemory,
                     const std::vector<MemoryCPtr>& dstMemory,
                     const std::string& errorPrefix);
-        void exec(MemoryPtr& srcMemPtr, MemoryPtr& dstMemPtr);
+        void exec(const MemoryPtr& srcMemPtr, const MemoryPtr& dstMemPtr);
         ~PadExecutor() = default;
 
     private:
-        void padConstant(MemoryPtr& srcMemPtr, MemoryPtr& dstMemPtr);
-        template<typename T> void padConstantCommon(MemoryPtr& srcMemPtr, MemoryPtr& dstMemPtr);
-        void padConstantZero(MemoryPtr& srcMemPtr, MemoryPtr& dstMemPtr);
-        void padEdge(MemoryPtr& srcMemPtr, MemoryPtr& dstMemPtr);
-        void padReflectOrSymmetric(MemoryPtr& srcMemPtr, MemoryPtr& dstMemPtr, const bool isSymmetric = false);
+        void padConstant(const MemoryPtr& srcMemPtr, const MemoryPtr& dstMemPtr);
+        template<typename T> void padConstantCommon(const MemoryPtr& srcMemPtr, const MemoryPtr& dstMemPtr);
+        void padConstantZero(const MemoryPtr& srcMemPtr, const MemoryPtr& dstMemPtr);
+        void padEdge(const MemoryPtr& srcMemPtr, const MemoryPtr& dstMemPtr);
+        void padReflectOrSymmetric(const MemoryPtr& srcMemPtr, const MemoryPtr& dstMemPtr, const bool isSymmetric = false);
         void paramsInitialization(const PadAttrs& attrs,
                                   const std::vector<MemoryCPtr>& srcMemory,
                                   const std::vector<MemoryCPtr>& dstMemory);

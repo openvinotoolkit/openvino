@@ -103,11 +103,11 @@ void GatherElements::executeDynamicImpl(dnnl::stream strm) {
 
 template <typename dataType>
 void GatherElements::directExecution() {
-    const auto *srcData = reinterpret_cast<const dataType *>(getParentEdgeAt(dataIndex_)->getMemoryPtr()->GetPtr());
-    const auto *indices = reinterpret_cast<const int *>(getParentEdgeAt(indicesIndex_)->getMemoryPtr()->GetPtr());
-    auto *dstData = reinterpret_cast<dataType *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
+    const auto *srcData = reinterpret_cast<const dataType *>(getParentEdgeAt(dataIndex_)->getMemoryPtr()->getData());
+    const auto *indices = reinterpret_cast<const int *>(getParentEdgeAt(indicesIndex_)->getMemoryPtr()->getData());
+    auto *dstData = reinterpret_cast<dataType *>(getChildEdgeAt(0)->getMemoryPtr()->getData());
 
-    const int outSize = getChildEdgesAtPort(0)[0]->getMemory().GetShape().getElementsCount();
+    const int outSize = getChildEdgesAtPort(0)[0]->getMemory().getShape().getElementsCount();
     auto threadBody = [&](const int ithr, const int nthr) {
         int start(0lu), end(0lu);
         splitter(outSize, nthr, ithr, start, end);

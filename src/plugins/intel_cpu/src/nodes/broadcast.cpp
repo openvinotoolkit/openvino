@@ -117,21 +117,21 @@ bool Broadcast::needPrepareParams() const {
 void Broadcast::prepareParams() {
     if (!constMap[TARGET_SHAPE_IDX]) {
         const auto& targetShapeMem = getParentEdgesAtPort(TARGET_SHAPE_IDX)[0]->getMemory();
-        const int32_t* targetShapeData = reinterpret_cast<const int32_t *>(targetShapeMem.GetPtr());
+        const int32_t* targetShapeData = reinterpret_cast<const int32_t *>(targetShapeMem.getData());
         targetShape.assign(targetShapeData, targetShapeData + targetShapeMem.getStaticDims()[0]);
     }
     if (broadcastType == EXPLICIT && !constMap[AXES_MAPPING_IDX]) {
         const auto& axesMapMem = getParentEdgesAtPort(AXES_MAPPING_IDX)[0]->getMemory();
-        const int32_t* axesMapData = reinterpret_cast<const int32_t *>(axesMapMem.GetPtr());
+        const int32_t* axesMapData = reinterpret_cast<const int32_t *>(axesMapMem.getData());
         axesMapping.assign(axesMapData, axesMapData + axesMapMem.getStaticDims()[0]);
     }
 
-    const auto& srcDims = getParentEdgesAtPort(INPUT_DATA_IDX)[0]->getMemory().GetShape().getStaticDims();
+    const auto& srcDims = getParentEdgesAtPort(INPUT_DATA_IDX)[0]->getMemory().getShape().getStaticDims();
     repeats.assign(targetShape.begin(), targetShape.end());
     const auto ndims = repeats.size();
 
-    auto srcBlockedDims = getParentEdgeAt(INPUT_DATA_IDX)->getMemory().GetDescWithType<BlockedMemoryDesc>()->getBlockDims();
-    auto dstBlockedDims = getChildEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>()->getBlockDims();
+    auto srcBlockedDims = getParentEdgeAt(INPUT_DATA_IDX)->getMemory().getDescWithType<BlockedMemoryDesc>()->getBlockDims();
+    auto dstBlockedDims = getChildEdgeAt(0)->getMemory().getDescWithType<BlockedMemoryDesc>()->getBlockDims();
 
     if (broadcastType == NUMPY) {
         for (size_t i = 0lu; i < srcDims.size(); i++) {
@@ -162,7 +162,7 @@ bool Broadcast::needShapeInfer() const {
         if (targetShape.empty()) {
             return true;
         }
-        const int32_t* targetShapeData = reinterpret_cast<const int32_t *>(getParentEdgesAtPort(TARGET_SHAPE_IDX)[0]->getMemory().GetPtr());
+        const int32_t* targetShapeData = reinterpret_cast<const int32_t *>(getParentEdgesAtPort(TARGET_SHAPE_IDX)[0]->getMemory().getData());
         for (size_t i = 0lu; i < targetShape.size(); i++) {
             if (targetShape[i] != targetShapeData[i]) {
                 return true;
@@ -173,7 +173,7 @@ bool Broadcast::needShapeInfer() const {
         if (axesMapping.empty()) {
             return true;
         }
-        const int32_t* axesMappingData = reinterpret_cast<const int32_t *>(getParentEdgesAtPort(AXES_MAPPING_IDX)[0]->getMemory().GetPtr());
+        const int32_t* axesMappingData = reinterpret_cast<const int32_t *>(getParentEdgesAtPort(AXES_MAPPING_IDX)[0]->getMemory().getData());
         for (size_t i = 0lu; i < axesMapping.size(); i++) {
             if (axesMapping[i] != axesMappingData[i]) {
                 return true;
@@ -203,10 +203,10 @@ void Broadcast::execute(dnnl::stream strm) {
 void Broadcast::plainExecute(dnnl::stream strm) {
     VectorDims srcDims = getParentEdgeAt(INPUT_DATA_IDX)->getMemory().getStaticDims();
     const auto& dstDims = getChildEdgeAt(0)->getMemory().getStaticDims();
-    const auto& dataSrcRank = getParentEdgeAt(INPUT_DATA_IDX)->getMemory().GetShape().getRank();
-    const auto& dataDstRank = getChildEdgeAt(0)->getMemory().GetShape().getRank();
+    const auto& dataSrcRank = getParentEdgeAt(INPUT_DATA_IDX)->getMemory().getShape().getRank();
+    const auto& dataDstRank = getChildEdgeAt(0)->getMemory().getShape().getRank();
 
-    auto srcDesc = getParentEdgeAt(INPUT_DATA_IDX)->getMemory().GetDescWithType<BlockedMemoryDesc>();
+    auto srcDesc = getParentEdgeAt(INPUT_DATA_IDX)->getMemory().getDescWithType<BlockedMemoryDesc>();
     VectorDims srcStrides = srcDesc->getStrides();
     const size_t dataSize = srcDesc->getPrecision().size();
 
@@ -215,7 +215,7 @@ void Broadcast::plainExecute(dnnl::stream strm) {
     if (!srcStrides.size())
         srcStrides = VectorDims(1, 1);
 
-    auto dstDesc = getChildEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>();
+    auto dstDesc = getChildEdgeAt(0)->getMemory().getDescWithType<BlockedMemoryDesc>();
     VectorDims dstStrides = dstDesc->getStrides();
     VectorDims srcAligned(dataDstRank);
     VectorDims srcStridesAligned(dataDstRank);
@@ -231,8 +231,8 @@ void Broadcast::plainExecute(dnnl::stream strm) {
     }
 
     const size_t workAmountDst = dstStrides[0] * dstDims[0];
-    const auto *srcData = reinterpret_cast<const uint8_t *>(getParentEdgeAt(INPUT_DATA_IDX)->getMemoryPtr()->GetPtr());
-    auto *dstData = reinterpret_cast<uint8_t *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
+    const auto *srcData = reinterpret_cast<const uint8_t *>(getParentEdgeAt(INPUT_DATA_IDX)->getMemoryPtr()->getData());
+    auto *dstData = reinterpret_cast<uint8_t *>(getChildEdgeAt(0)->getMemoryPtr()->getData());
 
     parallel_nt(0, [&](const int ithr, const int nthr) {
         size_t i = 0lu, srcIdx = 0lu, start = 0lu, end = 0lu;

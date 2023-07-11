@@ -43,15 +43,18 @@ public:
         No = 2
     };
 
+    enum LOOK { LOOK_UP = 1, LOOK_DOWN = 2, LOOK_BOTH = LOOK_UP | LOOK_DOWN };
+
     inline Status getStatus() const noexcept {
         return status;
     }
 
     void changeStatus(Status state);
+    bool inPlace(LOOK look = LOOK_BOTH) const;
 
     void init();
     void allocate(const void* mem_ptr = nullptr);
-    void allocate(DnnlMemoryMngrPtr memMngr);
+    void allocate(MemoryMngrPtr memMngr);
     void externalAllocate(WeightsSharing::Ptr weightsCache);
     void reuse(MemoryPtr ptr);
     void validate();
@@ -60,10 +63,11 @@ public:
     const std::shared_ptr<Node> getParent() const;
     const std::shared_ptr<Node> getChild() const;
 
-    const Memory& getMemory();
-    MemoryPtr& getMemoryPtr();
+    const IMemory& getMemory();
+    MemoryPtr getMemoryPtr() const;
 
     ReorderStatus needReorder();
+    std::shared_ptr<Node> modifiedInPlace() const;
     bool isDropped() const;
     bool isUseExternalMemory() const;
 
@@ -103,11 +107,8 @@ private:
 
     void collectConsumers(std::vector<std::shared_ptr<Node>>& result) const;
 
-    enum LOOK { LOOK_UP = 1, LOOK_DOWN = 2, LOOK_BOTH = LOOK_UP | LOOK_DOWN, LOOK_NO_RECURRENT = 4 };
-
     EdgePtr getBaseEdge(int look = LOOK_BOTH);
-    bool inPlace(LOOK look = LOOK_BOTH) const;
-    void allocateCommon(const std::function<void(const MemoryPtr&, const MemoryDesc&)>& allocate);
+    void allocateCommon(const std::function<MemoryPtr(const MemoryDesc&)>& allocate);
 
     friend class Graph;
 };

@@ -100,7 +100,7 @@ void ShapeOf::execute(dnnl::stream strm) {
     if (outPtr->getStaticDims().size() != 1 || dimsCount != outPtr->getStaticDims()[0])
         IE_THROW() << errorPrefix << "has inconsistent input shape and output size";
 
-    auto *dst = reinterpret_cast<int *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
+    auto *dst = reinterpret_cast<int *>(getChildEdgeAt(0)->getMemoryPtr()->getData());
 
     for (size_t i = 0; i < dimsCount; i++) {
         dst[i] = inDims[i];

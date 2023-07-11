@@ -163,7 +163,7 @@ void SoftMax::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc,
 }
 
 void SoftMax::prepareParams() {
-    auto inpDesc = getParentEdgeAt(0)->getMemory().GetDescWithType<DnnlMemoryDesc>();
+    auto inpDesc = getParentEdgeAt(0)->getMemory().getDescWithType<DnnlMemoryDesc>();
     const NodeDesc* selected_pd = getSelectedPrimitiveDescriptor();
 
     if (selected_pd == nullptr)
@@ -217,9 +217,9 @@ void SoftMax::prepareParams() {
 
     auto scratchpadMem = getScratchPadMem(execPtr->getScratchPadDesc());
 
-    primArgs[DNNL_ARG_SCRATCHPAD] = scratchpadMem->GetPrimitive();
-    primArgs[DNNL_ARG_SRC] = getParentEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
-    primArgs[DNNL_ARG_DST] = getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
+    primArgs[DNNL_ARG_SCRATCHPAD] = scratchpadMem->getPrimitive();
+    primArgs[DNNL_ARG_SRC] = getParentEdgesAtPort(0)[0]->getMemoryPtr()->getPrimitive();
+    primArgs[DNNL_ARG_DST] = getChildEdgesAtPort(0)[0]->getMemoryPtr()->getPrimitive();
 #ifdef CPU_DEBUG_CAPS
     if (result.second == CacheEntryBase::LookUpStatus::Miss) {
         auto pd = execPtr->getPrimitiveDesc();
