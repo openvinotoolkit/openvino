@@ -1159,6 +1159,8 @@ MVN::MVN(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr conte
         mvnAttrs.normalizeVariance_ = mvnOp->get_normalize_variance();
         mvnAttrs.epsValue_ = mvnOp->get_eps();
         mvnAttrs.initAcrossChannels_ = mvnOp->get_across_channels();
+    } else {
+        IE_THROW(NotImplemented) << "Node is not an instance of MVN from the operation set v0 or v6";
     }
     mvnAttrs.execAcrossChannels_ = mvnAttrs.initAcrossChannels_;
 }
@@ -1345,8 +1347,8 @@ void MVN::MVNRefExecutor::exec(const uint8_t *src_data, uint8_t *dst_data, const
 }
 
 void MVN::prepareParams() {
-    auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
-    auto& srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
+    auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+    auto srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
     if (!dstMemPtr || !dstMemPtr->isAllocated())
         IE_THROW() << "Destination memory didn't allocate.";
     if (!srcMemPtr || !srcMemPtr->isAllocated())
@@ -1458,12 +1460,12 @@ void MVN::executeDynamicImpl(dnnl::stream strm) {
 }
 
 void MVN::execute(dnnl::stream strm) {
-    auto &dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
-    auto &srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
+    auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+    auto srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
 
     if (execPtr) {
-        uint8_t *dst_data = reinterpret_cast<uint8_t*>(dstMemPtr->GetPtr());
-        uint8_t *src_data = reinterpret_cast<uint8_t*>(srcMemPtr->GetPtr());
+        uint8_t *dst_data = reinterpret_cast<uint8_t*>(dstMemPtr->getData());
+        uint8_t *src_data = reinterpret_cast<uint8_t*>(srcMemPtr->getData());
         execPtr->exec(src_data, dst_data, postOpsDataPtrs.data());
     } else if (aclExecPtr) {
         aclExecPtr->exec({srcMemPtr}, {dstMemPtr}, postOpsDataPtrs.data());
