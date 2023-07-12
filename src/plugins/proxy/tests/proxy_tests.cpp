@@ -528,7 +528,6 @@ void ov::proxy::tests::ProxyTests::register_plugin_support_reshape(ov::Core& cor
                 RO_property(ov::available_devices.name()),
                 RO_property(ov::loaded_from_cache.name()),
                 RO_property(ov::device::uuid.name()),
-                RO_property(ov::caching_properties.name()),
                 RO_property(METRIC_KEY(IMPORT_EXPORT_SUPPORT)),
             };
             // the whole config is RW before network is loaded.
@@ -548,6 +547,9 @@ void ov::proxy::tests::ProxyTests::register_plugin_support_reshape(ov::Core& cor
                 supportedProperties.insert(supportedProperties.end(), rwProperties.begin(), rwProperties.end());
 
                 return decltype(ov::supported_properties)::value_type(supportedProperties);
+            } else if (name == ov::internal::supported_properties) {
+                return decltype(ov::internal::supported_properties)::value_type(
+                    {ov::PropertyName{ov::internal::caching_properties.name(), ov::PropertyMutability::RO}});
             } else if (name == ov::device::uuid) {
                 ov::device::UUID uuid;
                 for (size_t i = 0; i < uuid.MAX_UUID_SIZE; i++) {
@@ -573,9 +575,9 @@ void ov::proxy::tests::ProxyTests::register_plugin_support_reshape(ov::Core& cor
                 return configs;
             } else if (METRIC_KEY(IMPORT_EXPORT_SUPPORT) == name) {
                 return true;
-            } else if (ov::caching_properties == name) {
+            } else if (ov::internal::caching_properties == name) {
                 std::vector<ov::PropertyName> caching_properties = {ov::device::uuid};
-                return decltype(ov::caching_properties)::value_type(caching_properties);
+                return decltype(ov::internal::caching_properties)::value_type(caching_properties);
             } else if (name == "SUPPORTED_METRICS") {  // TODO: Remove this key
                 std::vector<std::string> configs;
                 for (const auto& property : roProperties) {
@@ -649,7 +651,6 @@ void ov::proxy::tests::ProxyTests::register_plugin_support_subtract(ov::Core& co
                 RO_property(ov::available_devices.name()),
                 RO_property(ov::loaded_from_cache.name()),
                 RO_property(ov::device::uuid.name()),
-                RO_property(ov::caching_properties.name()),
                 RO_property(METRIC_KEY(IMPORT_EXPORT_SUPPORT)),
             };
             // the whole config is RW before network is loaded.
@@ -667,6 +668,9 @@ void ov::proxy::tests::ProxyTests::register_plugin_support_subtract(ov::Core& co
                 supportedProperties.insert(supportedProperties.end(), rwProperties.begin(), rwProperties.end());
 
                 return decltype(ov::supported_properties)::value_type(supportedProperties);
+            } else if (name == ov::internal::supported_properties) {
+                return decltype(ov::internal::supported_properties)::value_type(
+                    {ov::PropertyName{ov::internal::caching_properties.name(), ov::PropertyMutability::RO}});
             } else if (name == ov::device::uuid) {
                 ov::device::UUID uuid;
                 for (size_t i = 0; i < uuid.MAX_UUID_SIZE; i++) {
@@ -696,9 +700,9 @@ void ov::proxy::tests::ProxyTests::register_plugin_support_subtract(ov::Core& co
                 return configs;
             } else if (METRIC_KEY(IMPORT_EXPORT_SUPPORT) == name) {
                 return true;
-            } else if (ov::caching_properties == name) {
+            } else if (ov::internal::caching_properties == name) {
                 std::vector<ov::PropertyName> caching_properties = {ov::device::uuid};
-                return decltype(ov::caching_properties)::value_type(caching_properties);
+                return decltype(ov::internal::caching_properties)::value_type(caching_properties);
             } else if (name == "SUPPORTED_METRICS") {  // TODO: Remove this key
                 std::vector<std::string> configs;
                 for (const auto& property : roProperties) {
@@ -753,7 +757,6 @@ void ov::proxy::tests::ProxyTests::register_plugin_without_devices(ov::Core& cor
                 RO_property(ov::supported_properties.name()),
                 RO_property(ov::available_devices.name()),
                 RO_property(ov::loaded_from_cache.name()),
-                RO_property(ov::caching_properties.name()),
                 RO_property(METRIC_KEY(IMPORT_EXPORT_SUPPORT)),
             };
             // the whole config is RW before network is loaded.
@@ -771,6 +774,9 @@ void ov::proxy::tests::ProxyTests::register_plugin_without_devices(ov::Core& cor
                 supportedProperties.insert(supportedProperties.end(), rwProperties.begin(), rwProperties.end());
 
                 return decltype(ov::supported_properties)::value_type(supportedProperties);
+            } else if (name == ov::internal::supported_properties) {
+                return decltype(ov::internal::supported_properties)::value_type(
+                    {ov::PropertyName{ov::internal::caching_properties.name(), ov::PropertyMutability::RO}});
             } else if (name == ov::available_devices) {
                 return decltype(ov::available_devices)::value_type(device_ids);
             } else if (name == ov::device::capabilities) {

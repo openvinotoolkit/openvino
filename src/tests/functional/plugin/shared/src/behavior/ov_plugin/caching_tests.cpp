@@ -219,7 +219,7 @@ void CompileModelCacheTestBase::run() {
         GTEST_FAIL() << "Plugin doesn't support import and export - skipping test" << std::endl;
     }
     if (importExportSupported(*core)) {
-        ASSERT_NO_THROW(core->get_property(targetDevice, ov::caching_properties));
+        ASSERT_NO_THROW(core->get_property(targetDevice, ov::internal::caching_properties));
     }
     configure_model();
     try {

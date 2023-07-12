@@ -8,6 +8,7 @@
 
 #include "common_test_utils/file_utils.hpp"
 #include "openvino/openvino.hpp"
+#include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/util/file_util.hpp"
@@ -53,6 +54,8 @@ class MockPlugin : public ov::IPlugin {
                 ov::PropertyName(ov::supported_properties.name(), ov::PropertyMutability::RO),
                 ov::PropertyName(ov::num_streams.name(), ov::PropertyMutability::RW)};
             return decltype(ov::supported_properties)::value_type(supportedProperties);
+        } else if (name == ov::internal::supported_properties) {
+            return decltype(ov::internal::supported_properties)::value_type({});
         } else if (name == ov::num_streams.name()) {
             return decltype(ov::num_streams)::value_type(num_streams);
         }

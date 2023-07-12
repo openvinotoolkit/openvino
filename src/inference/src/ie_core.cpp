@@ -74,7 +74,6 @@ std::tuple<bool, std::string> CheckStatic(const InferenceEngine::CNNNetwork& net
     }
     return {res, errMsg.str()};
 }
-
 }  // namespace
 
 namespace InferenceEngine {

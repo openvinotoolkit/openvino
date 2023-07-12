@@ -54,6 +54,7 @@ struct Config {
     std::vector<std::string> GetSupportedKeys() const;
     static const InferenceEngine::Parameter GetImpactingModelCompilationProperties(bool compiled);
     static const InferenceEngine::Parameter GetSupportedProperties(bool compiled = false);
+    static const InferenceEngine::Parameter GetSupportedInternalProperties();
 
     ov::hint::PerformanceMode performance_mode = ov::hint::PerformanceMode::LATENCY;
 

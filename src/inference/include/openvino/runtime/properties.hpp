@@ -36,6 +36,7 @@ namespace ov {
 enum class PropertyMutability {
     RO,  //!< Read-only property values can not be passed as input parameter
     RW,  //!< Read/Write property key may change readability in runtime
+    WO,  //!< Write-only property can not be read
 };
 
 /** @cond INTERNAL */

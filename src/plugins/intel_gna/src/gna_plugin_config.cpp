@@ -391,7 +391,6 @@ const Parameter Config::GetSupportedProperties(bool compiled) {
         {ov::device::capabilities.name(), ov::PropertyMutability::RO},
         {ov::device::full_name.name(), ov::PropertyMutability::RO},
         {ov::intel_gna::library_full_version.name(), ov::PropertyMutability::RO},
-        {ov::caching_properties.name(), ov::PropertyMutability::RO},
         {ov::intel_gna::execution_mode.name(), ov::PropertyMutability::RW},
         {ov::hint::performance_mode.name(), ov::PropertyMutability::RW},
         {ov::log::level.name(), ov::PropertyMutability::RW},
@@ -405,6 +404,12 @@ const Parameter Config::GetSupportedProperties(bool compiled) {
                                 impacting_model_compilation_properties.begin(),
                                 impacting_model_compilation_properties.end());
     return supported_properties;
+}
+
+const Parameter Config::GetSupportedInternalProperties() {
+    std::vector<ov::PropertyName> supported_internal_properties = {
+        {ov::internal::caching_properties.name(), ov::PropertyMutability::RO}};
+    return supported_internal_properties;
 }
 
 std::vector<std::string> Config::GetSupportedKeys() const {

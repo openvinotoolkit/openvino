@@ -171,6 +171,7 @@ private:
     bool device_supports_model_caching(const ov::Plugin& plugin) const;
 
     bool device_supports_property(const ov::Plugin& plugin, const ov::PropertyName& key) const;
+    bool device_supports_internal_property(const ov::Plugin& plugin, const ov::PropertyName& key) const;
 
     OPENVINO_DEPRECATED("Don't use this method, it will be removed soon")
     bool device_supports_cache_dir(const ov::Plugin& plugin) const;

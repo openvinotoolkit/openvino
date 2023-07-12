@@ -26,7 +26,7 @@ Configuration::Configuration(const ov::AnyMap& config, const Configuration& defa
 
         if (ov::template_plugin::disable_transformations == key) {
             disable_transformations = value.as<bool>();
-        } else if (ov::exclusive_async_requests == key) {
+        } else if (ov::internal::exclusive_async_requests == key) {
             exclusive_async_requests = value.as<bool>();
         } else if (streamExecutorConfigKeys.end() !=
                    std::find(std::begin(streamExecutorConfigKeys), std::end(streamExecutorConfigKeys), key)) {
@@ -55,7 +55,7 @@ ov::Any Configuration::Get(const std::string& name) const {
         return {std::to_string(device_id)};
     } else if (name == ov::enable_profiling) {
         return {perf_count};
-    } else if (name == ov::exclusive_async_requests) {
+    } else if (name == ov::internal::exclusive_async_requests) {
         return {exclusive_async_requests};
     } else if (name == ov::template_plugin::disable_transformations) {
         return {disable_transformations};
