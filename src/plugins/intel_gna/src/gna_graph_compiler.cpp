@@ -2407,8 +2407,17 @@ bool GNAGraphCompiler::should_use_scratch_allocation(const InferenceEngine::CNNL
             if (LayerInfo(next_layer).isFusableWithConv()) {
                 return false;
             }
-        } else if (LayerInfo(layer).isFusableWithConv() && prev_layer && next_layer) {
+        }
+
+        if (LayerInfo(layer).isFusableWithConv() && prev_layer && next_layer) {
             if (LayerInfo(prev_layer).isConvolution() && LayerInfo(next_layer).isFusableWithConv()) {
+                return false;
+            }
+        }
+
+        if ((LayerInfo(layer).isFullyConnected() || LayerInfo(layer).isEltwise() || LayerInfo(layer).isScaleShift()) &&
+            next_layer) {
+            if (LayerInfo(next_layer).isActivation()) {
                 return false;
             }
         }
