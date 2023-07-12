@@ -16,8 +16,10 @@ void ProxyMemoryMngr::setManager(MemoryMngrPtr _pMngr) {
     }
 
     // WA: unconditionally resize to last size
-    if (_validated)
-        m_pMngr->resize(m_Size);
+    if (_validated) {
+        auto res = m_pMngr->resize(m_Size);
+        DEBUG_LOG(this, ", ", m_pMngr, " size ", m_Size, " -> ", m_Size, " resized? ", res, " RawPtr ", getRawPtr());
+    }
 }
 
 void* ProxyMemoryMngr::getRawPtr() const noexcept {
@@ -29,9 +31,10 @@ void ProxyMemoryMngr::setExtBuff(void* ptr, size_t size) {
 }
 
 bool ProxyMemoryMngr::resize(size_t size) {
+    auto res = m_pMngr->resize(size);
+    DEBUG_LOG(this, ", ", m_pMngr, " size ", m_Size, " -> ", size, " resized? ", res, " RawPtr ", getRawPtr());
     m_Size = size;
-    DEBUG_LOG(m_pMngr, ", size ", size);
-    return m_pMngr->resize(size);
+    return res;
 }
 
 bool ProxyMemoryMngr::hasExtBuffer() const noexcept {

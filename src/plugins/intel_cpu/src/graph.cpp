@@ -1031,7 +1031,7 @@ void Graph::PullOutputData(BlobMap &out) {
             IE_THROW(Unexpected) << "The CPU plugin graph doesn't contain output node with name: \"" << name << "\"";
         }
 
-        DEBUG_LOG(name, ", blob ", out[name]);
+        DEBUG_LOG(name, ", blob ", out[name], ", addr ", static_cast<void*>(out[name]->buffer()));
 
         const auto actualDesc = MemoryDescUtils::convertToTensorDesc(intr_blob.getDesc());
         auto &expectedDesc = ext_blob->getTensorDesc();
