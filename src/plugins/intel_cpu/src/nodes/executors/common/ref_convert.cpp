@@ -14,8 +14,8 @@ bool ov::intel_cpu::CommonConvertExecutor::init(const ov::intel_cpu::ConvertPara
 }
 
 void ov::intel_cpu::CommonConvertExecutor::exec(const MemoryCPtr& src, const MemoryPtr& dst) {
-    cpu_convert(src->GetPtr(),
-                dst->GetPtr(),
+    cpu_convert(src->getData(),
+                dst->getData(),
                 commonConvertParams.srcPrc,
                 commonConvertParams.origPrc,
                 commonConvertParams.dstPrc,
