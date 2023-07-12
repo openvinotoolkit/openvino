@@ -3,6 +3,7 @@
 //
 
 #include "openvino/frontend/pytorch/node_context.hpp"
+#include "openvino/op/util/framework_node.hpp"
 #include "openvino/op/max_pool.hpp"
 #include "utils.hpp"
 

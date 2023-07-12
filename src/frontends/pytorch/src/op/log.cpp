@@ -41,7 +41,7 @@ OutputVector translate_log2(const NodeContext& context) {
 };
 
 OutputVector translate_logsumexp(const NodeContext& context) {
-    num_input_check(context, 1, 2);
+    num_inputs_check(context, 1, 2);
     auto input = context.get_input(0);
     ov::Output<ov::Node> dim;
     if (!context.input_is_none(1)) {

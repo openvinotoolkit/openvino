@@ -22,12 +22,13 @@ OutputVector translate_addmm(const NodeContext& context) {
     auto m1 = context.get_input(1);
     auto m2 = context.get_input(2);
     auto mm = context.mark_node(std::make_shared<v0::MatMul>(m1, m2));
-    auto alpha = context.mark_node(v0::Constant::create(element::f32, Shape{}, {1}));
-    auto beta = context.mark_node(v0::Constant::create(element::f32, Shape{}, {1}));
-    if(!context.input_is_none(3) {
+    auto one = context.mark_node(v0::Constant::create(element::f32, Shape{}, {1}));
+    ov::Output<Node> alpha = one;
+    ov::Output<Node> beta = one;
+    if(!context.input_is_none(3)) {
         beta = context.get_input(3);
     }
-    if(!context.input_is_node(4)){
+    if(!context.input_is_none(4)){
         alpha = context.get_input(4);
     }
     auto beta_converted = context.mark_node(std::make_shared<v1::ConvertLike>(beta, input));
