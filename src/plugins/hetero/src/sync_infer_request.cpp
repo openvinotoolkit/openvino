@@ -14,6 +14,7 @@
 #include "itt.hpp"
 #include "openvino/core/except.hpp"
 #include "plugin.hpp"
+#include "variable_state.hpp"
 
 ov::hetero::InferRequest::InferRequest(const std::shared_ptr<const ov::hetero::CompiledModel>& compiled_model)
     : ov::ISyncInferRequest(compiled_model) {
@@ -93,7 +94,7 @@ std::vector<std::shared_ptr<ov::IVariableState>> ov::hetero::InferRequest::query
     for (const auto& request : m_subrequests) {
         OPENVINO_ASSERT(request);
         for (auto&& state : request->query_state()) {
-            variable_states.emplace_back(state);
+            variable_states.emplace_back(std::make_shared<VariableState>(state, request._so));
         }
     }
     return variable_states;
