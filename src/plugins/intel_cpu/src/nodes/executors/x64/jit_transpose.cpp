@@ -15,9 +15,8 @@ void ov::intel_cpu::JitTransposeExecutor::exec(const std::vector<MemoryCPtr>& sr
 }
 
 bool ov::intel_cpu::JitTransposeExecutor::init(const TransposeParams &transposeParams,
-                                                const std::vector<MemoryDescPtr> &srcDescs,
-                                                const std::vector<MemoryDescPtr> &dstDescs, const dnnl::primitive_attr &attr) {
-    if (transposeParams.transposeExecution != TransposeParams::NOT_REF) { return false; }
+                                               const std::vector<MemoryDescPtr> &srcDescs,
+                                               const std::vector<MemoryDescPtr> &dstDescs, const dnnl::primitive_attr &attr) {
     pKernel = std::make_shared<PermuteKernel>(transposeParams.permuteParams);
     return true;
 }

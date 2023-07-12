@@ -29,7 +29,14 @@ public:
     bool isSupported(const TransposeParams& transposeParams,
                      const std::vector<MemoryDescPtr>& srcDescs,
                      const std::vector<MemoryDescPtr>& dstDescs) const override {
-        return true;
+#if defined(OPENVINO_ARCH_X86_64)
+        if (mayiuse(cpu::x64::avx512_core ||
+            mayiuse(cpu::x64::avx2) ||
+            mayiuse(cpu::x64::sse41)) {
+            return true
+        }
+#endif // OPENVINO_ARCH_X86_64
+        return false;
     }
 
     TransposeExecutorPtr makeExecutor(const ExecutorContext::CPtr context) const override {

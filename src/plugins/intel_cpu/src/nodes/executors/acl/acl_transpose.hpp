@@ -5,6 +5,7 @@
 #pragma once
 
 #include "nodes/executors/transpose.hpp"
+#include "utils/debug_capabilities.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -34,6 +35,14 @@ public:
               dstDescs[0]->hasLayoutType(LayoutType::ncsp)) &&
             !(srcDescs[0]->hasLayoutType(LayoutType::nspc) &&
               dstDescs[0]->hasLayoutType(LayoutType::nspc))) {
+            DEBUG_LOG("NEPermute does not support precisions:",
+                      " src: ", srcDescs[0]->serializeFormat(),
+                      " dst: ", dstDescs[0]->serializeFormat());
+            return false;
+        }
+        if (srcDescs[0]->getShape().getRank() > 4) {
+            DEBUG_LOG("NEPermute supports up to 4D input tensor. Passed tensor rank: ",
+                      srcDescs[0]->getShape().getRank());
             return false;
         }
         return true;

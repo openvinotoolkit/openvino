@@ -14,11 +14,11 @@ namespace intel_cpu {
 
 struct TransposeParams {
     PermuteParams permuteParams;
-    enum TransposeExecution {REF, NOT_REF} transposeExecution = NOT_REF;
 };
 
 class TransposeExecutor {
 public:
+    static jit_permute_config_params prepareParams(const PermuteParams& params);
     explicit TransposeExecutor(const ExecutorContext::CPtr context);
     virtual bool init(const TransposeParams& transposeParams,
                       const std::vector<MemoryDescPtr>& srcDescs,

@@ -9,44 +9,42 @@ bool ov::intel_cpu::ACLTransposeExecutor::init(const ov::intel_cpu::TransposePar
                                                const std::vector<MemoryDescPtr> &srcDescs,
                                                const std::vector<MemoryDescPtr> &dstDescs,
                                                const dnnl::primitive_attr &attr) {
-    if (transposeParams.transposeExecution != TransposeParams::NOT_REF &&
-        srcDescs[0]->getShape().getRank() > 4) { return false; }
-
     auto inputOrder = transposeParams.permuteParams.order;
     if (inputOrder.empty()) {
         inputOrder.resize(srcDescs[0]->getShape().getRank());
         std::iota(inputOrder.begin(), inputOrder.end(), 0);
-        std::reverse(inputOrder.begin(), inputOrder.end());
-    }
-    arm_compute::PermutationVector order;
-    const auto maxSupportedNumOfDimensions = (inputOrder.size() < 4) ? 3u : 4u;
-    for (unsigned int i = 0; i < maxSupportedNumOfDimensions; ++i) {
-        order.set(i, i);
-    }
-    for (size_t i = 0; i < inputOrder.size(); ++i) {
-        order.set(i, axisCast(inputOrder[axisCast(i, inputOrder.size())], inputOrder.size()));
     }
 
-    //ACL does not handle NHWC layout properly, so NCHW layout always used
-    //WA: If real layout if NHWC then transpose order should be changed:
-    //NHWC (0, 1, 2, 3) -> NCHW (0, 3, 1, 2)
-    if (getAclDataLayoutByMemoryDesc(srcDescs[0]) == arm_compute::DataLayout::NHWC) {
-        uint32_t tmp = *order.end();
-        for (size_t i = order.num_dimensions() - 1; i > 1; --i) {
-            order[i] = order[i - 1];
-        }
-        order[1] = tmp;
-    }
-
+    std::vector<int> vec;
     auto srcDims = srcDescs[0]->getShape().getStaticDims();
     auto dstDims = dstDescs[0]->getShape().getStaticDims();
+    if (srcDescs[0]->hasLayoutType(LayoutType::nspc)) {
+        changeLayoutToNhwc(srcDims);
+        changeLayoutToNhwc(dstDims);
+        for (int i = inputOrder.size() - 1; i >= 0 ; --i) {
+            auto it = find(srcDims.rbegin(), srcDims.rend(), dstDims[i]);
+            int index = it - srcDims.rbegin();
+            vec.push_back(index);
+        }
+    } else {
+        for (unsigned int i = 0; i < inputOrder.size(); ++i) {
+            vec.push_back(axisCast(inputOrder[i], inputOrder.size()));
+        }
+        std::reverse(vec.begin(), vec.end());
+    }
+    arm_compute::PermutationVector order;
+    for (unsigned int i = 0; i < inputOrder.size(); ++i) {
+        order.set(i, vec[i]);
+    }
     auto srcTensorInfo = arm_compute::TensorInfo(shapeCast(srcDims), 1,
                                                  precisionToAclDataType(srcDescs[0]->getPrecision()),
-                                                 arm_compute::DataLayout::NCHW);
+                                                 getAclDataLayoutByMemoryDesc(srcDescs[0]));
     auto dstTensorInfo = arm_compute::TensorInfo(shapeCast(dstDims), 1,
                                                  precisionToAclDataType(dstDescs[0]->getPrecision()),
                                                  getAclDataLayoutByMemoryDesc(dstDescs[0]));
-    if (!arm_compute::NEPermute::validate(&srcTensorInfo, &dstTensorInfo, order)) {
+    arm_compute::Status status = arm_compute::NEPermute::validate(&srcTensorInfo, &dstTensorInfo, order);
+    if (!status) {
+        DEBUG_LOG("NEPermute validation failed: ", status.error_description());
         return false;
     }
     srcTensor.allocator()->init(srcTensorInfo);

@@ -1,137 +1,81 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "ref_transpose.hpp"
 #include "ie_parallel.hpp"
+#include "nodes/common/cpu_memcpy.h"
+
+using namespace InferenceEngine;
 
 namespace ov {
 namespace intel_cpu {
-namespace {
-template <typename T>
-void transpose_to_0312(const int MB, const MemoryCPtr& srcMemPtr, MemoryPtr& dstMemPtr) {
-    const auto src_data = reinterpret_cast<const T*>(srcMemPtr->GetPtr());
-    auto dst_data = reinterpret_cast<T*>(dstMemPtr->GetPtr());
 
-    const int DIM1 = srcMemPtr->getStaticDims()[1];
-    const int DIM2 = srcMemPtr->getStaticDims()[2];
-    const int DIM3 = srcMemPtr->getStaticDims()[3];
-
-    parallel_for3d(MB, DIM1, DIM2, [&](const int n, const int dim1, const int dim2) {
-        for (int dim3 = 0; dim3 < DIM3; ++dim3) {
-            const int src_off = n * DIM1 * DIM2 * DIM3 +
-                                dim1 * DIM2 * DIM3 +
-                                dim2 * DIM3 +
-                                dim3;
-            const int dst_off = n * DIM1 * DIM2 * DIM3 +
-                                dim3 * DIM1 * DIM2 +
-                                dim1 * DIM2 +
-                                dim2;
-
-            dst_data[dst_off] = src_data[src_off];
-        }
-    });
-}
-
-template<typename T>
-void transpose_to_04123(const int MB, const MemoryCPtr& srcMemPtr, MemoryPtr& dstMemPtr) {
-    const auto src_data = reinterpret_cast<const T*>(srcMemPtr->GetPtr());
-    auto dst_data = reinterpret_cast<T*>(dstMemPtr->GetPtr());
-
-    const int DIM1 = srcMemPtr->getStaticDims()[1];
-    const int DIM2 = srcMemPtr->getStaticDims()[2];
-    const int DIM3 = srcMemPtr->getStaticDims()[3];
-    const int DIM4 = srcMemPtr->getStaticDims()[4];
-
-    parallel_for4d(MB, DIM1, DIM2, DIM3, [&](const int n, const int dim1, const int dim2, const int dim3) {
-        for (int dim4 = 0; dim4 < DIM4; ++dim4) {
-            const int src_off = n * DIM1 * DIM2 * DIM3 * DIM4 +
-                                dim1 * DIM2 * DIM3 * DIM4 +
-                                dim2 * DIM3 * DIM4 +
-                                dim3 * DIM4 +
-                                dim4;
-            const int dst_off = n * DIM1 * DIM2 * DIM3 * DIM4 +
-                                dim4 * DIM1 * DIM2 * DIM3 +
-                                dim1 * DIM2 * DIM3 +
-                                dim2 * DIM3 +
-                                dim3;
-
-            dst_data[dst_off] = src_data[src_off];
-        }
-    });
-}
-
-template<typename T>
-void transpose_to_051234(const int MB, const MemoryCPtr& srcMemPtr, MemoryPtr& dstMemPtr) {
-    const auto src_data = reinterpret_cast<const T*>(srcMemPtr->GetPtr());
-    auto dst_data = reinterpret_cast<T*>(dstMemPtr->GetPtr());
-
-    const int DIM1 = srcMemPtr->getStaticDims()[1];
-    const int DIM2 = srcMemPtr->getStaticDims()[2];
-    const int DIM3 = srcMemPtr->getStaticDims()[3];
-    const int DIM4 = srcMemPtr->getStaticDims()[4];
-    const int DIM5 = srcMemPtr->getStaticDims()[5];
-
-    parallel_for5d(MB, DIM1, DIM2, DIM3, DIM4, [&](const int n, const int dim1, const int dim2, const int dim3, const int dim4) {
-        for (int dim5 = 0; dim5 < DIM5; ++dim5) {
-            const int src_off = n * DIM1 * DIM2 * DIM3 * DIM4 * DIM5 +
-                                dim1 * DIM2 * DIM3 * DIM4 * DIM5 +
-                                dim2 * DIM3 * DIM4 * DIM5 +
-                                dim3 * DIM4 * DIM5 +
-                                dim4 * DIM5 +
-                                dim5;
-            const int dst_off = n * DIM5 * DIM1 * DIM2 * DIM3 * DIM4 +
-                                dim5 * DIM1 * DIM2 * DIM3 * DIM4 +
-                                dim1 * DIM2 * DIM3 * DIM4 +
-                                dim2 * DIM3 * DIM4 +
-                                dim3 * DIM4 +
-                                dim4;
-
-            dst_data[dst_off] = src_data[src_off];
-        }
-    });
-}
-
-struct TransposeContext {
-    MemoryCPtr srcMemPtr;
-    MemoryPtr dstMemPtr;
-    int MB;
-};
-
-template<typename T>
-struct TransposeOptimizedEmitter {
-    void operator()(TransposeContext& ctx) {
-        switch (ctx.srcMemPtr->getStaticDims().size()) {
-            case 4:
-                transpose_to_0312<T>(ctx.MB, ctx.srcMemPtr, ctx.dstMemPtr);
-                break;
-            case 5:
-                transpose_to_04123<T>(ctx.MB, ctx.srcMemPtr, ctx.dstMemPtr);
-                break;
-            case 6:
-                transpose_to_051234<T>(ctx.MB, ctx.srcMemPtr, ctx.dstMemPtr);
-                break;
-            default:
-                IE_THROW() << "Transpose supports optimized execution with only 4D, 5D and 6D shapes";
-        }
+static inline size_t parallel_init(size_t start, size_t nDims, const SizeVector& dims, SizeVector& indexes) {
+    for (int j = nDims - 1; j >= 0; j--) {
+        indexes[j] = start % dims[j];
+        start = start / dims[j];
     }
-};
-}   // namespace
+    return start;
+}
+
+static inline void parallel_step(size_t nDims, const SizeVector& dims, SizeVector& indexes) {
+    for (int j = nDims - 1; j >= 0; --j) {
+        ++indexes[j];
+        if (indexes[j] < dims[j])
+            break;
+        else
+            indexes[j] = 0;
+    }
+}
+
+void RefTransposeExecutor::referenceExecute(const uint8_t* src_data, uint8_t* dst_data, jit_permute_config_params jcp, const int mb) {
+    SizeVector dst_dims = jcp.dst_block_dims;
+    const SizeVector dst_strides = jcp.dst_strides;
+    const SizeVector src_strides = jcp.src_strides;
+    const size_t data_size = jcp.data_size;
+    const size_t ndims = dst_dims.size();
+
+    if (static_cast<int>(dst_dims[0]) != mb)
+        dst_dims[0] = mb;
+
+    size_t work_amount = std::accumulate(dst_dims.begin(), dst_dims.end(), 1, std::multiplies<size_t>());
+
+    auto get_idx = [ndims, data_size](const SizeVector& indexes, const SizeVector& strides) {
+        size_t idx = 0;
+        for (size_t i = 0; i < ndims; ++i)
+            idx += indexes[i] * strides[i];
+        return idx * data_size;
+    };
+
+    parallel_nt(0, [&](const int ithr, const int nthr) {
+        size_t start = 0, end = 0;
+        SizeVector indexes(ndims, 0);
+        splitter(work_amount, nthr, ithr, start, end);
+
+        parallel_init(start, ndims, dst_dims, indexes);
+
+        for (size_t iwork = start; iwork < end; ++iwork) {
+            const size_t dst_idx = get_idx(indexes, dst_strides);
+            const size_t src_idx = get_idx(indexes, src_strides);
+            cpu_memcpy(&dst_data[dst_idx], &src_data[src_idx], data_size);
+
+            parallel_step(ndims, dst_dims, indexes);
+        }
+    });
+}
 
 void RefTransposeExecutor::exec(const std::vector<MemoryCPtr>& src, const std::vector<MemoryPtr>& dst, const int MB) {
-    const size_t dataSize = src[0]->getDesc().getPrecision().size();
-    TransposeContext ctx = {src[0], dst[0], MB};
-    OV_SWITCH(intel_cpu, TransposeOptimizedEmitter, ctx, dataSize,
-              OV_CASE(1u, InferenceEngine::PrecisionTrait<InferenceEngine::Precision::U8>::value_type),
-              OV_CASE(2u, InferenceEngine::PrecisionTrait<InferenceEngine::Precision::U16>::value_type),
-              OV_CASE(4u, InferenceEngine::PrecisionTrait<InferenceEngine::Precision::I32>::value_type));
+    const uint8_t* src_data = reinterpret_cast<const uint8_t*>(src[0]->GetPtr());
+    uint8_t* dst_data = reinterpret_cast<uint8_t*>(dst[0]->GetPtr());
+    referenceExecute(src_data, dst_data, jcp, MB);
 }
 
 bool RefTransposeExecutor::init(const TransposeParams &transposeParams,
                                 const std::vector<MemoryDescPtr> &srcDescs,
                                 const std::vector<MemoryDescPtr> &dstDescs,
                                 const dnnl::primitive_attr &attr) {
-    if (transposeParams.transposeExecution != TransposeParams::REF) { return false; }
+    jcp = TransposeExecutor::prepareParams(transposeParams.permuteParams);
     return true;
 }
 

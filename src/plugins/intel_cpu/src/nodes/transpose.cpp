@@ -273,7 +273,6 @@ void Transpose::createPrimitive() {
     } else if (getParentEdgeAt(INPUT_DATA_IDX)->getMemory().getDesc().hasLayoutType(LayoutType::ncsp) &&
             std::find(optimizedOrders.begin(), optimizedOrders.end(), order) != optimizedOrders.end()) {
         isOptimized = true;
-        transposeParams.transposeExecution = TransposeParams::REF;
         dnnl::primitive_attr attr;
         auto selectedPD = getSelectedPrimitiveDescriptor();
         execPtr = selectedPD->getExecutorFactoryAs<TransposeExecutorFactory>()->makeExecutor(transposeParams,

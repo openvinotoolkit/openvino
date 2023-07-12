@@ -11,6 +11,7 @@
 #include "acl/acl_transpose.hpp"
 #endif
 
+#include "common/ref_opt_transpose.hpp"
 #include "common/ref_transpose.hpp"
 #include "x64/jit_transpose.hpp"
 

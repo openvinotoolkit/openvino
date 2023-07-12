@@ -5,14 +5,14 @@
 #pragma once
 
 #include "../transpose.hpp"
+#include "utils/debug_capabilities.h"
 
 namespace ov {
 namespace intel_cpu {
-//namespace {
-class RefTransposeExecutor : public TransposeExecutor {
+class RefOptimizedTransposeExecutor : public TransposeExecutor {
 public:
     using TransposeExecutor::TransposeExecutor;
-    static void referenceExecute(const uint8_t* src_data, uint8_t* dst_data, jit_permute_config_params jcp, const int mb);
+
     bool init(const TransposeParams &transposeParams,
               const std::vector<MemoryDescPtr> &srcDescs,
               const std::vector<MemoryDescPtr> &dstDescs,
@@ -21,22 +21,30 @@ public:
     impl_desc_type getImplType() const override { return implType; }
 private:
     static const impl_desc_type implType = impl_desc_type::ref;
-    jit_permute_config_params jcp;
 };
 
-class RefTransposeExecutorBuilder : public TransposeExecutorBuilder {
+class RefOptimizedTransposeExecutorBuilder : public TransposeExecutorBuilder {
 public:
     bool isSupported(const TransposeParams& transposeParams,
                      const std::vector<MemoryDescPtr>& srcDescs,
                      const std::vector<MemoryDescPtr>& dstDescs) const override {
-        return true;
+        const std::vector<std::vector<size_t>> optimizedOrders = {
+                std::vector<size_t>{0, 3, 1, 2},
+                std::vector<size_t>{0, 4, 1, 2, 3},
+                std::vector<size_t>{0, 5, 1, 2, 3, 4},
+        };
+        if (srcDescs[0]->hasLayoutType(LayoutType::ncsp) &&
+            std::find(optimizedOrders.begin(), optimizedOrders.end(), transposeParams.permuteParams.order) != optimizedOrders.end()) {
+            return true;
+        }
+        DEBUG_LOG("RefOptimizedTransposeExecutor is not supported, because passed order is not optimized");
+        return false;
     }
 
     TransposeExecutorPtr makeExecutor(const ExecutorContext::CPtr context) const override {
-        return std::make_shared<RefTransposeExecutor>(context);
+        return std::make_shared<RefOptimizedTransposeExecutor>(context);
     }
 };
 
-//} // namespace
 } // namespace intel_cpu
 } // namespace ov
