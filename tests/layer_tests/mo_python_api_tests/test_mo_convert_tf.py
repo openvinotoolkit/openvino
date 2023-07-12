@@ -668,8 +668,8 @@ class TestMoConvertTF(CommonMOConvertTest):
         class LayerModel(tf.Module):
             def __init__(self):
                 super(LayerModel, self).__init__()
-                self.var1 = tf.Variable([7.5, 5.2, 6.7], name='var1')
-                self.var2 = tf.Variable([5.1, 7.7, 3.9], name='var2')
+                self.var1 = tf.Variable([7., 5., 6.], name='var1')
+                self.var2 = tf.Variable([5., 7., 3.], name='var2')
 
 
             @tf.function
@@ -680,14 +680,9 @@ class TestMoConvertTF(CommonMOConvertTest):
             def __call__(self, input):
                 return self.sub_function(input)
 
-        if precision == 'FP32':
-            eps = 1e-4
-        else:
-            eps = 5e-2
-
         # Create TF model with variables
         keras_model = LayerModel()
-        test_input = np.array(7.65).astype(np.float32)
+        test_input = np.array(7.).astype(np.float32)
 
         # Convert model to OV
         ov_model = convert_model(keras_model, input_shape=[1])
@@ -697,8 +692,8 @@ class TestMoConvertTF(CommonMOConvertTest):
         ov_infer1 = cmp_model(test_input, ie_device)
         fw_infer1 = keras_model(test_input).numpy()
 
-        assert CommonLayerTest().compare_ie_results_with_framework(ov_infer1, {"Identity:0": fw_infer1}, eps)
-        assert CommonLayerTest().compare_ie_results_with_framework(ov_infer1, {"Identity:0": [62.475, 47.48, 55.155003]}, eps)
+        assert np.array_equal(ov_infer1['Identity:0'], fw_infer1)
+        assert np.array_equal(ov_infer1['Identity:0'], [54., 42., 45.])
 
         # Change value of variables in original model
         for val in keras_model.variables:
@@ -711,12 +706,14 @@ class TestMoConvertTF(CommonMOConvertTest):
         ov_infer2 = cmp_model(test_input)
         fw_infer2 = keras_model(test_input).numpy()
 
-        assert CommonLayerTest().compare_ie_results_with_framework(ov_infer2, {"Identity:0": fw_infer2}, eps)
-        assert CommonLayerTest().compare_ie_results_with_framework(ov_infer2, {"Identity:0": [ 0., 8.65, 17.3]}, eps)
+        assert np.array_equal(ov_infer2['Identity:0'], fw_infer2)
+        assert np.array_equal(ov_infer2['Identity:0'], [ 0., 8., 16.])
 
 
 
     def test_memory_loss(self, ie_device, precision, ir_version, temp_dir):
+        # This test checks that the memory allocated for constants
+        # is not lost after returning the model from convert_model() methid
         import tensorflow as tf
         tf.compat.v1.reset_default_graph()
 
