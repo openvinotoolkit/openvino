@@ -41,6 +41,7 @@ OutputVector translate_log2(const NodeContext& context) {
 };
 
 OutputVector translate_logsumexp(const NodeContext& context) {
+    num_inputs_check(context, 1, 2);
     auto input = context.get_input(0);
     ov::Output<ov::Node> dim;
     if (!context.input_is_none(1)) {
@@ -48,7 +49,7 @@ OutputVector translate_logsumexp(const NodeContext& context) {
     } else {
         dim = context.mark_node(get_axes_range(context, 0));
     }
-    auto exp = context.mark_node(std::make_shared<v0::Exp>(input));   
+    auto exp = context.mark_node(std::make_shared<v0::Exp>(input));
     auto sum = context.mark_node(std::make_shared<v1::ReduceSum>(exp, dim, false));
     auto log = context.mark_node(std::make_shared<v0::Log>(sum));
     return {log};
