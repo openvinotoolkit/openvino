@@ -157,8 +157,7 @@ InsertCopyBeforeAssignLayer::InsertCopyBeforeAssignLayer() {
 
             // Crop -> Memory, Input -> Split -> Memory, Concat -> Memory
             if ((std::dynamic_pointer_cast<ngraph::op::CropIE>(current_node) && !is_crop_affined(current_node)) ||
-                std::dynamic_pointer_cast<ngraph::opset8::Concat>(current_node) ||
-                std::dynamic_pointer_cast<ngraph::opset8::Split>(current_node) ||
+                is_concat(current_node) || std::dynamic_pointer_cast<ngraph::opset8::Split>(current_node) ||
                 std::dynamic_pointer_cast<ngraph::opset8::VariadicSplit>(current_node)) {
                 insert_copy_layer_between(matched_node_input, node, i);
             }
@@ -281,7 +280,7 @@ bool HandleMultiConnectedLayerToConcatAndMemory::run_on_model(const std::shared_
                 for (const auto& child_info : children_info) {
                     auto child = std::get<1>(child_info);
 
-                    if (std::dynamic_pointer_cast<ngraph::opset8::Concat>(child)) {
+                    if (is_concat(child)) {
                         concat_nodes.push_back(child_info);
                     } else if (std::dynamic_pointer_cast<ngraph::op::ReadValueBase>(child) ||
                                std::dynamic_pointer_cast<ngraph::op::AssignBase>(child)) {
