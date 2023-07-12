@@ -162,6 +162,35 @@ void regclass_Tensor(py::module m) {
                 :type array: numpy.array
              )");
 
+    cls.def(py::init<const ov::Output<const ov::Node>>(),
+            py::arg("port"),
+            R"(
+            Constructs Tensor using port from node.
+            Type and shape will be taken from the port.
+    
+            :param port: Output port from a node.
+            :type param: openvino.runtime.ConstOutput
+            )");
+
+    cls.def(py::init([](const ov::Output<const ov::Node>& port, py::array& array) {
+                return ov::Tensor(port, const_cast<void*>(array.data(0)));
+            }),
+            py::arg("port"),
+            py::arg("array"),
+            R"(
+                Constructs Tensor using port from node.
+                Type and shape will be taken from the port.
+
+                :param port: Output port from a node.
+                :type param: openvino.runtime.ConstOutput
+                :param array: C_CONTIGUOUS numpy array which will be wrapped in
+                              openvino.runtime.Tensor. Array's memory is being shared with
+                              a host, that means the responsibility of keeping host memory is
+                              on the side of a user. Any action performed on the host
+                              memory will be reflected on this Tensor's memory!
+                :type array: numpy.array
+             )");
+
     cls.def(py::init<ov::Tensor, ov::Coordinate, ov::Coordinate>(), py::arg("other"), py::arg("begin"), py::arg("end"));
 
     cls.def(py::init<ov::Tensor, std::vector<size_t>, std::vector<size_t>>(),

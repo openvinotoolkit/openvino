@@ -15,7 +15,7 @@ from openvino.helpers import pack_data, unpack_data
 
 import pytest
 
-from tests.test_utils.test_utils import generate_image
+from tests.test_utils.test_utils import generate_image, generate_relu_compiled_model
 
 
 @pytest.mark.parametrize(("ov_type", "numpy_dtype"), [
@@ -149,7 +149,7 @@ def test_init_with_numpy_copy_memory(ov_type, numpy_dtype):
     assert ov_tensor.byte_size == arr.nbytes
 
 
-def test_init_with_node_port():
+def test_init_with_node_output_port():
     param1 = ops.parameter(ov.Shape([1, 3, 2, 2]), dtype=np.float64)
     param2 = ops.parameter(ov.Shape([1, 3]), dtype=np.float64)
     param3 = ops.parameter(ov.PartialShape.dynamic(), dtype=np.float64)
@@ -166,6 +166,22 @@ def test_init_with_node_port():
     assert tensor3.element_type == param3.get_element_type()
     assert tensor4.shape == ov.Shape([0])
     assert tensor4.element_type == param3.get_element_type()
+
+
+def test_init_with_node_constoutput_port(device):
+    compiled_model = generate_relu_compiled_model(device)
+    output = compiled_model.output(0)
+    ones_arr = np.ones(shape=(1, 3, 32, 32), dtype=np.float32)
+
+    tensor1 = Tensor(output)
+    tensor2 = Tensor(output, ones_arr)
+
+    output_node = output.get_node()
+    assert tensor1.shape == output_node.shape
+    assert tensor1.element_type == output_node.get_element_type()
+    assert tensor2.shape == output_node.shape
+    assert tensor2.element_type == output_node.get_element_type()
+    assert np.array_equal(tensor2.data, ones_arr)
 
 
 def test_init_with_roi_tensor():
