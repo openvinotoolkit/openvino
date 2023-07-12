@@ -2,7 +2,6 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from __future__ import annotations
 from typing import Any, Iterable, Union, Optional, Dict
 from pathlib import Path
 import warnings
@@ -51,10 +50,10 @@ class Model(ModelBase):
         if kwargs and not args:
             super().__init__(**kwargs)
 
-    def clone(self) -> Model:
+    def clone(self) -> "Model":
         return Model(super().clone())
 
-    def __deepcopy__(self, memo: Dict) -> Model:
+    def __deepcopy__(self, memo: Dict) -> "Model":
         return Model(super().clone())
 
 
@@ -215,7 +214,7 @@ class InferRequest(_InferRequestWrapper):
             userdata,
         )
 
-    def get_compiled_model(self) -> CompiledModel:
+    def get_compiled_model(self) -> "CompiledModel":
         """Gets the compiled model this InferRequest is using.
 
         :return: a CompiledModel object
