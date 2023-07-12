@@ -26,7 +26,7 @@ void ACLScheduler::schedule(ICPPKernel *kernel, const Hints &hints) {
 }
 
 void ACLScheduler::schedule_op(ICPPKernel *kernel, const Hints &hints, const Window &window, ITensorPack &tensors) {
-    schedule_common(kernel, hints, kernel->window(), tensors);
+    schedule_common(kernel, hints, window, tensors);
 }
 
 void ACLScheduler::run_workloads(std::vector<arm_compute::IScheduler::Workload> &workloads) {
