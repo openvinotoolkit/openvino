@@ -62,7 +62,7 @@ ov::AnyMap remove_device_properties(ov::AnyMap& config, const std::vector<std::s
 
 ov::AnyMap remove_proxy_properties(ov::AnyMap& config, bool rem_device_properties = false) {
     const static std::vector<ov::PropertyName> proxy_properties = {ov::device::id,
-                                                                   CONFIG_KEY_INTERNAL(CONFIG_DEVICE_ID),
+                                                                   ov::internal::config_device_id,
                                                                    ov::device::priorities,
                                                                    ov::proxy::alias_for,
                                                                    ov::proxy::device_priorities};
@@ -137,7 +137,7 @@ void ov::proxy::Plugin::set_property(const ov::AnyMap& properties) {
     }
 
     // Replace device::id by CONFIG_DEVICE_ID
-    it = hw_config.find(CONFIG_KEY_INTERNAL(CONFIG_DEVICE_ID));
+    it = hw_config.find(ov::internal::config_device_id.name());
     if (it != hw_config.end()) {
         hw_config[ov::device::id.name()] = it->second;
         hw_config.erase(it);
@@ -242,7 +242,7 @@ void ov::proxy::Plugin::set_property(const ov::AnyMap& properties) {
         std::lock_guard<std::mutex> lock(m_plugin_mutex);
         for (const auto& it : hw_config) {
             // Skip proxy and primary device properties
-            if (CONFIG_KEY_INTERNAL(CONFIG_DEVICE_ID) == it.first || ov::device::id.name() == it.first ||
+            if (ov::internal::config_device_id.name() == it.first || ov::device::id.name() == it.first ||
                 it.first == ov::device::priorities.name() || it.first == ov::proxy::device_priorities.name() ||
                 it.first == ov::proxy::alias_for.name() ||
                 // Skip options from config for primaty device
@@ -261,7 +261,7 @@ ov::Any ov::proxy::Plugin::get_property(const std::string& name, const ov::AnyMa
     if (name == ov::device::id)
         return m_default_device;
 
-    if (name == CONFIG_KEY_INTERNAL(CONFIG_DEVICE_ID))
+    if (name == ov::internal::config_device_id)
         return std::to_string(device_id);
 
     if (name == ov::device::priorities) {
@@ -284,9 +284,13 @@ ov::Any ov::proxy::Plugin::get_property(const std::string& name, const ov::AnyMa
         // ov::device::id changes the default proxy device
         if (std::find(supported_prop.begin(), supported_prop.end(), ov::device::id) == supported_prop.end())
             supported_prop.emplace_back(ov::device::id);
-        if (std::find(supported_prop.begin(), supported_prop.end(), CONFIG_KEY_INTERNAL(CONFIG_DEVICE_ID)) ==
+        return supported_prop;
+    } else if (name == ov::internal::supported_properties) {
+        auto supported_prop =
+            get_core()->get_property(get_primary_device(device_id), name, {}).as<std::vector<ov::PropertyName>>();
+        if (std::find(supported_prop.begin(), supported_prop.end(), ov::internal::config_device_id) ==
             supported_prop.end())
-            supported_prop.emplace_back(ov::PropertyName(CONFIG_KEY_INTERNAL(CONFIG_DEVICE_ID)));
+            supported_prop.emplace_back(ov::internal::config_device_id);
         return supported_prop;
     }
 
