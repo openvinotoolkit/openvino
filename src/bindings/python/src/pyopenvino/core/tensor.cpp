@@ -133,13 +133,34 @@ void regclass_Tensor(py::module m) {
             py::arg("type"),
             py::arg("shape"));
 
-    cls.def(py::init<ov::Output<ov::Node>>(), py::arg("node_port"));
+    cls.def(py::init<ov::Output<ov::Node>>(),
+            py::arg("port"),
+            R"(
+                Constructs Tensor using port from node.
+                Type and shape will be taken from the port.
+     
+                :param port: Output port from a node.
+                :type param: openvino.runtime.Output
+             )");
 
     cls.def(py::init([](ov::Output<ov::Node>& port, py::array& array) {
                 return ov::Tensor(port, const_cast<void*>(array.data(0)));
             }),
-            py::arg("node_port"),
-            py::arg("array"));
+            py::arg("port"),
+            py::arg("array"),
+            R"(
+                Constructs Tensor using port from node.
+                Type and shape will be taken from the port.
+
+                :param port: Output port from a node.
+                :type param: openvino.runtime.Output
+                :param array: C_CONTIGUOUS numpy array which will be wrapped in
+                              openvino.runtime.Tensor. Array's memory is being shared with
+                              a host, that means the responsibility of keeping host memory is
+                              on the side of a user. Any action performed on the host
+                              memory will be reflected on this Tensor's memory!
+                :type array: numpy.array
+             )");
 
     cls.def(py::init<ov::Tensor, ov::Coordinate, ov::Coordinate>(), py::arg("other"), py::arg("begin"), py::arg("end"));
 
@@ -255,15 +276,6 @@ void regclass_Tensor(py::module m) {
             Sets Tensor's shape.
         )");
 
-    cls.def("is_continuous",
-            &ov::Tensor::is_continuous,
-            R"(
-            Reports whether the tensor is continuous or not.
-
-            :return: true if tensor is continuous 
-            :rtype: bool
-        )");
-
     cls.def(
         "copy_to",
         [](ov::Tensor& self, ov::Tensor& dst) {
@@ -271,7 +283,7 @@ void regclass_Tensor(py::module m) {
         },
         py::arg("target_tensor"),
         R"(
-        Copy tensor, destination tensor should have the same element type and shape
+        Copy tensor's data to a destination tensor. The destination tensor should have the same element type and shape.
     )");
 
     cls.def_property("shape",
