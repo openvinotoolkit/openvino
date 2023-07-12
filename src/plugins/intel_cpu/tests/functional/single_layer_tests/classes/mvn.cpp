@@ -102,6 +102,10 @@ void MvnLayerCPUTest::SetUp() {
     selectedType = makeSelectedTypeStr(selectedType, netPrecision);
 
     rel_threshold = 0.015f;
+    if (netPrecision == ElementType::f16) {
+        configuration.insert({ov::hint::inference_precision.name(), ov::element::f16});
+        rel_threshold = 5.f;
+    }
     function = makeNgraphFunction(netPrecision, param, mvn, "mvn");
 }
 
