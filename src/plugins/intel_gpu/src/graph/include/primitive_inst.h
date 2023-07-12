@@ -5,6 +5,7 @@
 #pragma once
 #include "intel_gpu/primitives/primitive.hpp"
 #include "intel_gpu/primitives/concatenation.hpp"
+#include "intel_gpu/primitives/generic_layer.hpp"
 #include "intel_gpu/runtime/event.hpp"
 #include "intel_gpu/runtime/memory.hpp"
 #include "intel_gpu/runtime/lru_cache.hpp"
@@ -98,6 +99,7 @@ struct primitive_impl {
 
     bool need_weights_reorder() const { return _weights_reorder_params != nullptr; }
     std::shared_ptr<WeightsReorderParams> get_weights_reorder_params() const { return _weights_reorder_params; }
+    void reset_weights_reorder_params() { _weights_reorder_params = nullptr; }
 
     std::shared_ptr<kernel_impl_params> get_weights_reorder_kernel_params() const;
 
@@ -230,11 +232,10 @@ public:
     bool is_constant() const { return _is_constant; }
     bool needs_completion_event() const { return _needs_completion_event; }
     bool has_unfused_subgraph() const { return (_unfused_subgraph != nullptr); }
-    bool has_node() const { return _node != nullptr; }
-
-    void allocate_internal_buffers();
-    static memory::ptr allocate_output(engine& engine, memory_pool& pool, const program_node& _node,
-            const kernel_impl_params& impl_params, uint32_t net_id, bool is_internal, size_t idx = 0, bool reset_mem = true, bool is_output_buffer = false);
+    bool has_inner_networks() const;
+    void allocate_internal_buffers(bool reset = true);
+    static memory::ptr allocate_output(engine& engine, memory_pool& pool, const program_node& _node, const kernel_impl_params& impl_params, uint32_t net_id,
+            bool is_internal, size_t idx = 0, bool reset_mem = true, bool is_output_buffer = false, memory* curr_memory = nullptr, bool runtime_alloc = false);
 
     std::vector<memory::cptr> get_intermediates_memories() const { return _intermediates_memory; }
 
@@ -255,6 +256,9 @@ public:
     layout get_node_output_layout() const { return _node_output_layout; }
     void set_output_layout(const layout& new_out_lay, size_t idx = 0) {
         _impl_params->output_layouts[idx] = new_out_lay;
+    }
+    void set_inner_networks(const std::vector<network::ptr> inner_nets) {
+        _impl_params->inner_nets = inner_nets;
     }
 #ifdef ENABLE_ONEDNN_FOR_GPU
     std::vector<cldnn::fused_primitive_desc_onednn>& get_fused_primitives_onednn() const { return _impl_params->fused_desc_onednn; }
@@ -335,7 +339,7 @@ protected:
     std::vector<size_t> max_intermediates_memory_sizes;
 
     std::vector<memory::ptr> allocate_outputs(kernel_impl_params* updated_params = nullptr, bool reset_mem = true, bool runtime_alloc = false);
-    memory::ptr allocate_internal_buffer(size_t idx);
+    memory::ptr allocate_internal_buffer(size_t idx, bool reset = true);
     static std::vector<std::shared_ptr<primitive_inst>> build_exec_deps(
         std::vector<std::pair<std::shared_ptr<primitive_inst>, int32_t>> const& mem_deps);
     int32_t get_index_in_deps(memory::cptr arg) const;

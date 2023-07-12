@@ -43,7 +43,6 @@ struct program {
     friend class prepare_conv_eltw_fusing;   // to be removed when possible
     friend class reorder_inputs;             // to be removed when possible
     friend class remove_redundant_reorders;  // to be removed when possible
-    friend class post_optimize_weights;      // to be removed when possible
     friend class program_wrapper;            // this class is intended to extend the interface of program for
                                              // the usage within tests_core_internal project only
     friend class prepare_primitive_fusing_through;   // to be removed when possible
@@ -126,6 +125,7 @@ public:
     program(engine& engine_ref,
             topology const& topology,
             const ExecutionConfig& config,
+            InferenceEngine::CPUStreamsExecutor::Ptr task_executor,
             bool is_internal = false,
             bool no_optimizations = false,
             bool is_body_program = false);
@@ -238,6 +238,13 @@ public:
                              bool no_optimizations = false,
                              bool is_body_program = false);
     static ptr build_program(engine& engine,
+                             const topology& topology,
+                             const ExecutionConfig& config,
+                             InferenceEngine::CPUStreamsExecutor::Ptr task_executor,
+                             bool is_internal = false,
+                             bool no_optimizations = false,
+                             bool is_body_program = false);
+    static ptr build_program(engine& engine,
                              const std::set<std::shared_ptr<program_node>>& nodes,
                              const ExecutionConfig& config,
                              std::shared_ptr<InferenceEngine::CPUStreamsExecutor> task_executor,
@@ -253,6 +260,8 @@ public:
     ImplementationsCache& get_implementations_cache() const { return *_impls_cache; }
     ICompilationContext& get_compilation_context() const { return *_compilation_context; }
     void cancel_compilation_context();
+
+    static std::shared_ptr<InferenceEngine::CPUStreamsExecutor> make_task_executor(const ExecutionConfig& config);
 
 private:
     uint32_t prog_id = 0;
@@ -307,9 +316,6 @@ private:
     void pre_optimize_graph(bool is_internal);
     void post_optimize_graph(bool is_internal);
     void transfer_memory_to_device();
-
-    InferenceEngine::CPUStreamsExecutor::Config make_task_executor_config(const ExecutionConfig& config, std::string tags = "") const;
-    std::shared_ptr<InferenceEngine::CPUStreamsExecutor> make_task_executor(const ExecutionConfig& config) const;
 
     /*
     ** Analysis functions

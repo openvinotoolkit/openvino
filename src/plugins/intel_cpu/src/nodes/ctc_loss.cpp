@@ -67,11 +67,11 @@ void CTCLoss::executeDynamicImpl(dnnl::stream strm) {
 void CTCLoss::execute(dnnl::stream strm) {
     StatusCode returnCode = OK;
 
-    const float* logits = reinterpret_cast<const float *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
-    const int* logitsLength = reinterpret_cast<const int *>(getParentEdgeAt(1)->getMemoryPtr()->GetPtr());
-    const int* labels = reinterpret_cast<const int *>(getParentEdgeAt(2)->getMemoryPtr()->GetPtr());
-    const int* labelsLength = reinterpret_cast<const int *>(getParentEdgeAt(3)->getMemoryPtr()->GetPtr());
-    float* dstData = reinterpret_cast<float *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr());
+    const float* logits = reinterpret_cast<const float *>(getParentEdgeAt(0)->getMemoryPtr()->getData());
+    const int* logitsLength = reinterpret_cast<const int *>(getParentEdgeAt(1)->getMemoryPtr()->getData());
+    const int* labels = reinterpret_cast<const int *>(getParentEdgeAt(2)->getMemoryPtr()->getData());
+    const int* labelsLength = reinterpret_cast<const int *>(getParentEdgeAt(3)->getMemoryPtr()->getData());
+    float* dstData = reinterpret_cast<float *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->getData());
 
     const auto &inDims = getParentEdgeAt(0)->getMemory().getStaticDims();
     const size_t batchNum = inDims[0];
@@ -80,7 +80,7 @@ void CTCLoss::execute(dnnl::stream strm) {
 
     int blankIndex = classesNum - 1;
     if (inputShapes.size() > 4) {
-        blankIndex = reinterpret_cast<const int *>(getParentEdgeAt(4)->getMemoryPtr()->GetPtr())[0];
+        blankIndex = reinterpret_cast<const int *>(getParentEdgeAt(4)->getMemoryPtr()->getData())[0];
     }
 
     std::vector<int> decodedTargetLenB(batchNum, 0);

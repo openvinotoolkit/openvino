@@ -2,6 +2,12 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: A local distribution will have its own copies of OpenVINO 
+                 Runtime binaries along with a set of required libraries 
+                 needed to deploy the application.
+
+
 With local distribution, each C or C++ application/installer has its own copies of OpenVINO Runtime binaries. However, OpenVINO has a scalable plugin-based architecture, which means that some components can be loaded in runtime only when they are really needed. This guide helps you understand what minimal set of libraries is required to deploy the application.
 
 Local distribution is also suitable for OpenVINO binaries built from source using `Build instructions <https://github.com/openvinotoolkit/openvino/wiki#how-to-build>`__, 
@@ -46,6 +52,7 @@ As shown in the picture above, some plugin libraries may have OS-specific depend
 .. tab-set::
 
    .. tab-item:: Windows
+      :sync: windows
 
       +--------------+-------------------------+-------------------------------------------------------+
       |    Device    |       Dependency        |                      Location                         |
@@ -62,7 +69,8 @@ As shown in the picture above, some plugin libraries may have OS-specific depend
       |  Arm® CPU    |            —            |                          —                            |
       +--------------+-------------------------+-------------------------------------------------------+
 
-   .. tab-item:: Linux arm64 
+   .. tab-item:: Linux arm64
+      :sync: linux-arm-64
 
       +--------------+-------------------------+-------------------------------------------------------+
       |    Device    |       Dependency        |                      Location                         |
@@ -71,6 +79,7 @@ As shown in the picture above, some plugin libraries may have OS-specific depend
       +--------------+-------------------------+-------------------------------------------------------+
 
    .. tab-item:: Linux x86_64
+      :sync: linux-x86-64
 
       +--------------+-------------------------+-------------------------------------------------------+
       |    Device    |       Dependency        |                      Location                         |
@@ -83,8 +92,8 @@ As shown in the picture above, some plugin libraries may have OS-specific depend
       |     GNA      |      libgna.so          | ``./runtime/lib/intel64/libgna.so.3``                 |
       +--------------+-------------------------+-------------------------------------------------------+
 
-
-   .. tab-item:: macOS arm64 
+   .. tab-item:: macOS arm64
+      :sync: macos-arm-64
 
       +--------------+-------------------------+-------------------------------------------------------+
       |    Device    |       Dependency        |                      Location                         |
@@ -93,6 +102,7 @@ As shown in the picture above, some plugin libraries may have OS-specific depend
       +--------------+-------------------------+-------------------------------------------------------+
 
    .. tab-item:: macOS x86_64
+      :sync: macos-x86-64
 
       +--------------+-------------------------+-------------------------------------------------------+
       |    Device    |       Dependency        |                      Location                         |

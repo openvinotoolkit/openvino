@@ -2,6 +2,12 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Throughput-oriented approaches in OpenVINO involve 
+                 execution of a large number of inference requests 
+                 simultaneously which improves the device utilization.
+
+
 As described in the section on the :doc:`latency-specific considerations <openvino_docs_deployment_optimization_guide_latency>`, one of the possible use cases is *delivering every single request at the minimal delay*.
 Throughput, on the other hand, is about inference scenarios in which potentially **large number of inference requests are served simultaneously to improve the device utilization**.
 
@@ -31,6 +37,13 @@ In general, most throughput-oriented inference applications should:
   * Setup the configuration for the *device* (for example, as parameters of the ``ov::Core::compile_model``) via either previously introduced :doc:`low-level explicit options <openvino_docs_deployment_optimization_guide_tput_advanced>` or :doc:`OpenVINO performance hints <openvino_docs_OV_UG_Performance_Hints>` (**preferable**):
     
     .. tab-set::
+ 
+       .. tab-item:: Python
+          :sync: py
+    
+          .. doxygensnippet:: docs/snippets/ov_auto_batching.py
+             :language: python
+             :fragment: [compile_model]
     
        .. tab-item:: C++
           :sync: cpp
@@ -38,14 +51,6 @@ In general, most throughput-oriented inference applications should:
           .. doxygensnippet:: docs/snippets/ov_auto_batching.cpp
              :language: cpp
              :fragment: [compile_model]
-    
-       .. tab-item:: Python
-          :sync: py
-    
-          .. doxygensnippet:: docs/snippets/ov_auto_batching.py
-             :language: python
-             :fragment: [compile_model]
-
 
   * Query the ``ov::optimal_number_of_infer_requests`` from the ``ov::CompiledModel`` (resulted from a compilation of the model for the device) to create the number of the requests required to saturate the device.
 

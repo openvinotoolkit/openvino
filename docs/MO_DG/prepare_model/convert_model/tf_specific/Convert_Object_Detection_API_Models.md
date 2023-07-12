@@ -2,6 +2,12 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to convert Object Detection 
+                 API Models from TensorFlow to the OpenVINO Intermediate 
+                 Representation.
+
+
 * Starting with the 2022.1 release, model conversion API can convert the TensorFlow Object Detection API Faster and Mask RCNNs topologies differently. By default, model conversion adds operation "Proposal" to the generated IR. This operation needs an additional input to the model with name "image_info" which should be fed with several values describing the preprocessing applied to the input image (refer to the :doc:`Proposal <openvino_docs_ops_detection_Proposal_4>` operation specification for more information). However, this input is redundant for the models trained and inferred with equal size images. Model conversion API can generate IR for such models and insert operation :doc:`DetectionOutput <openvino_docs_ops_detection_DetectionOutput_1>` instead of ``Proposal``. The `DetectionOutput` operation does not require additional model input "image_info". Moreover, for some models the produced inference results are closer to the original TensorFlow model. In order to trigger new behavior, the attribute "operation_to_add" in the corresponding JSON transformation configuration file should be set to value "DetectionOutput" instead of default one "Proposal".
 * Starting with the 2021.1 release, model conversion API converts the TensorFlow Object Detection API SSDs, Faster and Mask RCNNs topologies keeping shape-calculating sub-graphs by default, so topologies can be re-shaped in the OpenVINO Runtime using dedicated reshape API. Refer to the :doc:`Using Shape Inference <openvino_docs_OV_UG_ShapeInference>` guide for more information on how to use this feature. It is possible to change the both spatial dimensions of the input image and batch size.
 * To generate IRs for TF 1 SSD topologies, model conversion API creates a number of ``PriorBoxClustered`` operations instead of a constant node with prior boxes calculated for the particular input image size. This change allows you to reshape the topology in the OpenVINO Runtime using dedicated API. The reshaping is supported for all SSD topologies except FPNs, which contain hardcoded shapes for some operations preventing from changing topology input shape.
@@ -136,12 +142,13 @@ Keeping Aspect Ratio Resizer Replacement
 * If the ``input_shape [1, H, W, 3]`` command line parameter is specified, model conversion API scales the specified input image height ``H`` and width ``W`` to satisfy the ``min_dimension`` and ``max_dimension`` constraints defined in the ``keep_aspect_ratio_resizer``. The following function calculates the input operation height and width:
 
   .. code-block:: py
+     :force:
 
-    def calculate_shape_keeping_aspect_ratio(H: int, W: int, min_dimension: int, max_dimension: int):
-        ratio_min = min_dimension / min(H, W)
-        ratio_max = max_dimension / max(H, W)
-        ratio = min(ratio_min, ratio_max)
-        return int(round(H * ratio)), int(round(W * ratio))
+     def calculate_shape_keeping_aspect_ratio(H: int, W: int, min_dimension: int, max_dimension: int):
+         ratio_min = min_dimension / min(H, W)
+         ratio_max = max_dimension / max(H, W)
+         ratio = min(ratio_min, ratio_max)
+         return int(round(H * ratio)), int(round(W * ratio))
 
 The ``input_shape`` command line parameter should be specified only if the "pad_to_max_dimension" does not exist of is set to "false" in the ``keep_aspect_ratio_resizer``.
 

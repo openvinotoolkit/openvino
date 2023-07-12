@@ -79,7 +79,9 @@ public:
     network(engine& engine,
             const topology& topo,
             const ExecutionConfig& config = {},
-            bool is_internal = false);
+            bool is_internal = false,
+            InferenceEngine::CPUStreamsExecutor::Ptr task_executor = nullptr);
+
     network(engine& engine,
             const std::set<std::shared_ptr<program_node>>& nodes,
             const ExecutionConfig& config,
@@ -90,8 +92,8 @@ public:
 
     network(program::ptr program, stream::ptr stream, uint16_t stream_id);
 
-    network(cldnn::BinaryInputBuffer& ifs, stream::ptr stream, engine& engine, bool is_primary_stream = true);
-    network(cldnn::BinaryInputBuffer& ifs, const ExecutionConfig& config, stream::ptr stream, engine& engine, bool is_primary_stream = true);
+    network(cldnn::BinaryInputBuffer& ifs, stream::ptr stream, engine& engine, bool is_primary_stream, uint32_t local_net_id);
+    network(cldnn::BinaryInputBuffer& ifs, const ExecutionConfig& config, stream::ptr stream, engine& engine, bool is_primary_stream, uint32_t local_net_id);
 
     ~network();
 
@@ -100,7 +102,9 @@ public:
     static ptr build_network(engine& engine,
                              const topology& topology,
                              const ExecutionConfig& config = {},
+                             std::shared_ptr<InferenceEngine::CPUStreamsExecutor> task_executor = nullptr,
                              bool is_internal = false);
+
     static ptr build_network(engine& engine,
                              const std::set<std::shared_ptr<program_node>>& nodes,
                              const ExecutionConfig& config,
@@ -211,6 +215,7 @@ public:
     void configure_primitives_second_output();
     void build_insts_deps();
     uint32_t get_id() const { return net_id; }
+    uint32_t get_local_id() const { return _local_net_id; }
     stream& get_stream() const { return *_stream; }
     stream::ptr get_stream_ptr() const { return _stream; }
     bool is_internal() const { return _internal; }
@@ -250,6 +255,8 @@ private:
     bool _is_dynamic = false;
     bool _enable_profiling = false;
     bool _reset_arguments;
+    uint32_t _local_net_id = 0;     // This is for thread-safe deserialization. 'net_id' is globally unique,
+                                    // but '_local_net_id' is unique only in each intel_gpu::Graph.
 
     std::unordered_map<primitive_id, std::shared_ptr<primitive_inst>> _primitives;
     std::vector<shared_mem_type> _in_out_shared_mem_types;

@@ -4,11 +4,17 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to install OpenVINO™ Runtime on Linux operating 
+                 system, using the APT repository, which is a recommended 
+                 installation method for C++ developers.
+
+
 With the OpenVINO™ 2023.0 release, you can install OpenVINO Runtime on Linux using the APT repository. 
 OpenVINO™ Development Tools can be installed via PyPI only.
 See `Installing Additional Components <step-3-optional-install-additional-components>`__ for more information. 
 
-See the `Release Notes <https://www.intel.com/content/www/us/en/developer/articles/release-notes/openvino-2022-3-lts-relnotes.html>`__ 
+See the `Release Notes <https://www.intel.com/content/www/us/en/developer/articles/release-notes/openvino/2023-0.html>`__ 
 for more information on updates in the latest release.
 
 Installing OpenVINO Runtime from APT is recommended for C++ developers. If you are working with Python, 
@@ -29,7 +35,7 @@ Prerequisites
 .. tab-set::
 
    .. tab-item:: System Requirements
-      :sync: sys-req
+      :sync: system-requirements
    
       | Full requirement listing is available in:
       | `System Requirements Page <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html>`__
@@ -41,7 +47,7 @@ Prerequisites
       See `Product Specifications <https://ark.intel.com/>`__ for information about your processor.
    
    .. tab-item:: Software Requirements
-      :sync: soft-req
+      :sync: software-requirements
    
       * `CMake 3.13 or higher, 64-bit <https://cmake.org/download/>`__
       * GCC 7.5.0 (for Ubuntu 18.04), GCC 9.3.0 (for Ubuntu 20.04) or GCC 11.3.0 (for Ubuntu 22.04)
@@ -76,7 +82,7 @@ Step 1: Set Up the OpenVINO Toolkit APT Repository
 
          You might need to install GnuPG:
 
-         .. code-block::
+         .. code-block:: sh
 
             sudo apt-get install gnupg
 
@@ -85,21 +91,21 @@ Step 1: Set Up the OpenVINO Toolkit APT Repository
    .. tab-set::
 
       .. tab-item:: Ubuntu 22
-         :sync: ubuntu22
+         :sync: ubuntu-22
    
          .. code-block:: sh
    
             echo "deb https://apt.repos.intel.com/openvino/2023 ubuntu22 main" | sudo tee /etc/apt/sources.list.d/intel-openvino-2023.list
    
       .. tab-item:: Ubuntu 20
-         :sync: ubuntu20
+         :sync: ubuntu-20
    
          .. code-block:: sh
    
             echo "deb https://apt.repos.intel.com/openvino/2023 ubuntu20 main" | sudo tee /etc/apt/sources.list.d/intel-openvino-2023.list
    
       .. tab-item:: Ubuntu 18
-         :sync: ubuntu18
+         :sync: ubuntu-18
    
          .. code-block:: sh
    
@@ -130,7 +136,7 @@ Install OpenVINO Runtime
 .. tab-set::
 
    .. tab-item:: The Latest Version
-      :sync: latest
+      :sync: latest-version
    
       Run the following command:
    
@@ -273,10 +279,7 @@ You can also try the following:
 * Take a glance at the OpenVINO product home page: https://software.intel.com/en-us/openvino-toolkit.
 
 
-Additional Resources
-#######################################
 
-- `OpenVINO Installation Selector Tool <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/download.html>`__
 
 
 

@@ -2,11 +2,16 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to install OpenVINO™ Runtime on macOS operating 
+                 system, using an archive file, which is a recommended 
+                 installation method for C++ developers.
+
 With the OpenVINO™ 2023.0 release, you can download and use archive files to install OpenVINO Runtime. The archive files contain pre-built binaries and library files needed for OpenVINO Runtime, as well as code samples.
 
 Installing OpenVINO Runtime from archive files is recommended for C++ developers. If you are working with Python, the PyPI package has everything needed for Python development and deployment on CPU and GPUs. Visit the :doc:`Install OpenVINO from PyPI <openvino_docs_install_guides_installing_openvino_pip>` page for instructions on how to install OpenVINO Runtime for Python using PyPI.
 
-See the `Release Notes <https://software.intel.com/en-us/articles/OpenVINO-RelNotes>`__ for more information on updates in the latest release.
+See the `Release Notes <https://www.intel.com/content/www/us/en/developer/articles/release-notes/openvino/2023-0.html>`__ for more information on updates in the latest release.
 
 .. note::
 
@@ -15,13 +20,13 @@ See the `Release Notes <https://software.intel.com/en-us/articles/OpenVINO-RelNo
 .. tab-set::
 
    .. tab-item:: System Requirements
-      :sync: sys-req
+      :sync: system-requirements
    
       | Full requirement listing is available in:
       | `System Requirements Page <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html>`__
    
    .. tab-item:: Software Requirements
-      :sync: soft-req
+      :sync: software-requirements
    
       * `CMake 3.13 or higher <https://cmake.org/download/>`__ (choose "macOS 10.13 or later"). Add ``/Applications/CMake.app/Contents/bin`` to path (for default install).
       * `Python 3.7 - 3.11 <https://www.python.org/downloads/mac-osx/>`__ (choose 3.7 - 3.11). Install and add to path.
@@ -56,34 +61,34 @@ Step 1: Install OpenVINO Core Components
       cd <user_home>/Downloads
 
 
-4. Download the `OpenVINO Runtime archive file for macOS <https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.0/macos/>`__, extract the files, rename the extracted folder and move it to the desired path:
+4. Download the `OpenVINO Runtime archive file for macOS <https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.0.1/macos/>`__, extract the files, rename the extracted folder and move it to the desired path:
 
    .. tab-set::
 
       .. tab-item:: x86, 64-bit
-         :sync: x86-64bit
+         :sync: x86-64
    
          .. code-block:: sh
    
-            curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.0/macos/m_openvino_toolkit_macos_10_15_2023.0.0.10926.b4452d56304_x86_64.tgz --output openvino_2023.0.0.tgz
-            tar -xf openvino_2023.0.0.tgz
-            sudo mv m_openvino_toolkit_macos_10_15_2023.0.0.10926.b4452d56304_x86_64 /opt/intel/openvino_2023.0.0
+            curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.0.1/macos/m_openvino_toolkit_macos_10_15_2023.0.1.11005.fa1c41994f3_x86_64.tgz --output openvino_2023.0.1.tgz
+            tar -xf openvino_2023.0.1.tgz
+            sudo mv m_openvino_toolkit_macos_10_15_2023.0.1.11005.fa1c41994f3_x86_64 /opt/intel/openvino_2023.0.1
    
       .. tab-item:: ARM, 64-bit
-         :sync: arm-64bit
+         :sync: arm-64
    
          .. code-block:: sh
    
-            curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.0/macos/m_openvino_toolkit_macos_11_0_2023.0.0.10926.b4452d56304_arm64.tgz --output openvino_2023.0.0.tgz
-            tar -xf openvino_2023.0.0.tgz
-            sudo mv m_openvino_toolkit_macos_11_0_2023.0.0.10926.b4452d56304_arm64 /opt/intel/openvino_2023.0.0
+            curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.0.1/macos/m_openvino_toolkit_macos_11_0_2023.0.1.11005.fa1c41994f3_arm64.tgz --output openvino_2023.0.1.tgz
+            tar -xf openvino_2023.0.1.tgz
+            sudo mv m_openvino_toolkit_macos_11_0_2023.0.1.11005.fa1c41994f3_arm64 /opt/intel/openvino_2023.0.1
 
 
 5. For simplicity, it is useful to create a symbolic link as below:
 
    .. code-block:: sh
 
-      sudo ln -s /opt/intel/openvino_2023.0.0 /opt/intel/openvino_2023 
+      sudo ln -s /opt/intel/openvino_2023.0.1 /opt/intel/openvino_2023 
 
 
    .. note::
@@ -163,7 +168,6 @@ To uninstall the toolkit, follow the steps on the :doc:`Uninstalling page <openv
 Additional Resources
 ####################
 
-* `OpenVINO Installation Selector Tool <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/download.html>`__
 * :ref:`Troubleshooting Guide for OpenVINO Installation & Configuration <troubleshooting guide for install>`
 * Converting models for use with OpenVINO™: :ref:`Model Optimizer User Guide <deep learning model optimizer>`
 * Writing your own OpenVINO™ applications: :ref:`OpenVINO™ Runtime User Guide <deep learning openvino runtime>`
