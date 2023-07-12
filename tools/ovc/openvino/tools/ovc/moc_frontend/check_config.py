@@ -1,9 +1,6 @@
 # Copyright (C) 2022-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-# flake8: noqa
-# mypy: ignore-errors
-
 import argparse
 from pathlib import Path
 
