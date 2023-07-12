@@ -193,8 +193,6 @@ bool Transpose::isExecutable() const {
 }
 
 bool Transpose::needPrepareParams() const {
-    if (isOptimized)
-        return false;
     return inputShapesModified();
 }
 
@@ -270,17 +268,6 @@ void Transpose::createPrimitive() {
         getChildEdgeAt(0)->getMemory().getDesc().hasLayoutType(LayoutType::ncsp) &&
         order == std::vector<size_t>{0, 3, 1, 2}) {
         performAsReorder = true;
-    } else if (getParentEdgeAt(INPUT_DATA_IDX)->getMemory().getDesc().hasLayoutType(LayoutType::ncsp) &&
-            std::find(optimizedOrders.begin(), optimizedOrders.end(), order) != optimizedOrders.end()) {
-        isOptimized = true;
-        dnnl::primitive_attr attr;
-        auto selectedPD = getSelectedPrimitiveDescriptor();
-        execPtr = selectedPD->getExecutorFactoryAs<TransposeExecutorFactory>()->makeExecutor(transposeParams,
-                                                                                             {srcMemPtr->getDescPtr()},
-                                                                                             {dstMemPtr->getDescPtr()},
-                                                                                             attr);
-        selectedPD->setImplementationType(execPtr->getImplType());
-        return;
     }
 
     if (!performAsReorder) {

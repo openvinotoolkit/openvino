@@ -47,13 +47,6 @@ private:
     dnnl::primitive prim;
     InferenceEngine::SizeVector order;
     InferenceEngine::Precision prec;
-    bool isOptimized = false;
-
-    const std::vector<std::vector<size_t>> optimizedOrders = {
-            std::vector<size_t>{0, 3, 1, 2},
-            std::vector<size_t>{0, 4, 1, 2, 3},
-            std::vector<size_t>{0, 5, 1, 2, 3, 4},
-    };
 
     TransposeParams transposeParams;
 
