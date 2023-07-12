@@ -146,5 +146,7 @@ if(ENABLE_CPU_EXTENSIONS)
 
     if(COMPILE_CPU_EXTENSIONS)
         add_subdirectory(cpu_extensions EXCLUDE_FROM_ALL)
+        # install static libraries
+        ov_install_static_lib(cpu_extensions cpu)
     endif()
 endif()
