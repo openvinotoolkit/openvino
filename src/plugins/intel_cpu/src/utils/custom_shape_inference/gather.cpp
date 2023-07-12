@@ -22,7 +22,7 @@ Result GatherShapeInfer::infer(const std::vector<std::reference_wrapper<const Ve
             OPENVINO_THROW("Unsupported precision ", data_dependency.at(GATHER_AXIS)->getDesc().getPrecision(),
                     " for axis tensor.");
         }
-        m_axis = reinterpret_cast<const int32_t*>(data_dependency.at(GATHER_AXIS)->GetPtr())[0];
+        m_axis = reinterpret_cast<const int32_t*>(data_dependency.at(GATHER_AXIS)->getData())[0];
     }
     if (m_axis < 0) {
         m_axis += input_shape.size();

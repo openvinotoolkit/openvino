@@ -18,7 +18,7 @@ Result ReshapeShapeInfer::infer(const std::vector<std::reference_wrapper<const V
     const auto& inputShape = input_shapes[RESHAPE_SRC].get();
     const size_t inputShapeSize = inputShape.size();
     const auto memPtr = data_dependency.at(RESHAPE_PATTERN);
-    const auto data = memPtr->GetPtr();
+    const auto data = memPtr->getData();
     const auto& dims = memPtr->getStaticDims();
     const auto outputPatternSize = std::accumulate(dims.begin(), dims.end(), 1, std::multiplies<Dim>());
     std::vector<int64_t> outPattern = ov::get_raw_data_as<int64_t>(
@@ -73,7 +73,7 @@ Result SqueezeShapeInfer::infer(const std::vector<std::reference_wrapper<const V
     outputShape.reserve(inputShapeSize);
     if (itr != data_dependency.end()) {
         const auto memPtr = data_dependency.at(SQUEEZE_PATTERN);
-        const auto data = memPtr->GetPtr();
+        const auto data = memPtr->getData();
         const auto& dims = memPtr->getStaticDims();
         if (dims.size() != 0) {
             const size_t outputPatternSize = std::accumulate(dims.begin(), dims.end(), 1, std::multiplies<Dim>());
@@ -131,7 +131,7 @@ Result UnsqueezeShapeInfer::infer(const std::vector<std::reference_wrapper<const
     const auto& inputShape = input_shapes[UNSQUEEZE_SRC].get();
     const size_t inputShapeSize = inputShape.size();
     const auto memPtr = data_dependency.at(UNSQUEEZE_PATTERN);
-    const auto data = memPtr->GetPtr();
+    const auto data = memPtr->getData();
     const auto& dims = memPtr->getStaticDims();
     size_t outputPatternSize = std::accumulate(dims.begin(), dims.end(), 1, std::multiplies<Dim>());
     std::vector<int64_t> originOutPattern = ov::get_raw_data_as<int64_t>(

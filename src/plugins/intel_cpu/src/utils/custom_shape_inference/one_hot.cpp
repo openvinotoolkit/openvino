@@ -20,7 +20,7 @@ using namespace InferenceEngine;
 Result OneHotShapeInfer::infer(
         const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
         const std::unordered_map<size_t, MemoryPtr>& data_dependency) {
-    auto depth = reinterpret_cast<int32_t *>(data_dependency.at(1)->GetPtr())[0];
+    auto depth = reinterpret_cast<int32_t *>(data_dependency.at(1)->getData())[0];
 
     auto result = input_shapes.front().get();
     result.insert(result.begin() + m_axis, depth);

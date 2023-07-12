@@ -27,7 +27,7 @@ Result AdaptivePoolingShapeInfer::infer(
     VectorDims outputDims(inputRank);
     outputDims[0] = inputDims[0];
     outputDims[1] = inputDims[1];
-    auto newSpatialDimsPtr = reinterpret_cast<int32_t *>(data_dependency.at(1)->GetPtr());
+    auto newSpatialDimsPtr = reinterpret_cast<int32_t *>(data_dependency.at(1)->getData());
     for (size_t i = 0; i < spatialDimsSize; i++) {
         outputDims[i + 2] = newSpatialDimsPtr[i];
     }
