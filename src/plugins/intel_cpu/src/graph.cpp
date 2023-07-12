@@ -875,7 +875,10 @@ void Graph::PushInputData(const std::string& name, const ov::Tensor &in) {
             std::vector<size_t> dim_offset(shape.size(), 0);
             std::vector<size_t> blk_strides;
             auto byte_strides = element_type.bitwidth() >= 8 ? tensor.get_strides() : Strides{};
-            if (byte_strides.empty()) {
+            Shape mem_shape(shape);
+            if (mem_shape.hasZeroDims()) {
+                blk_strides = std::vector<size_t>(shape.size(), 0);
+            } else if (byte_strides.empty()) {
                 blk_strides = ov::row_major_strides(shape);
             } else {
                 blk_strides.resize(byte_strides.size());
@@ -892,12 +895,12 @@ void Graph::PushInputData(const std::string& name, const ov::Tensor &in) {
                                });
             }
             return CpuBlockedMemoryDesc(ie::details::convertPrecision(element_type),
-                                         Shape(shape),
-                                         shape,
-                                         blk_order,
-                                         0,
-                                         dim_offset,
-                                         blk_strides);
+                                        mem_shape,
+                                        shape,
+                                        blk_order,
+                                        0,
+                                        dim_offset,
+                                        blk_strides);
         };
         auto inTensorDesc = create_mem_desc(in);
         auto node = input->second;
