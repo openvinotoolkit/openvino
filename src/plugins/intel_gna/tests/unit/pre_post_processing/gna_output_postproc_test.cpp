@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -41,12 +41,11 @@ public:
         });
 
         if (test_avx2) {
-            ConverterFactory converter_factory;
-            auto converter = converter_factory.create_converter();
+            auto converter = ConverterFactory::create_converter();
             if (converter == nullptr) {
                 GTEST_SKIP() << "Tests compiled with with AVX2 support, but AVX2 unavailable at runtime";
             }
-            m_input_output_handler = std::make_shared<InputOutputDataHandler>();
+            m_input_output_handler = std::make_shared<InputOutputDataHandler>(converter);
         } else {
             m_input_output_handler = std::make_shared<InputOutputDataHandler>(nullptr);
         }

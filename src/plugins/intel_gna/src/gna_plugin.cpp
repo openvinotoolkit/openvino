@@ -114,8 +114,7 @@ GNAPlugin::GNAPlugin() {
     Limitations::init(config.target->get_effective_compile_target());
     InitGNAMemory();
     InitGraphCompiler();
-    ConverterFactory converter_factory;
-    m_input_output_handler = InputOutputDataHandler(converter_factory.create_converter());
+    m_input_output_handler = InputOutputDataHandler(ConverterFactory::create_converter());
 }
 
 GNAPlugin::GNAPlugin(const std::map<std::string, std::string>& configMap) {
@@ -126,8 +125,7 @@ GNAPlugin::GNAPlugin(const std::map<std::string, std::string>& configMap) {
     Limitations::init(config.target->get_effective_compile_target());
     InitGNAMemory();
     InitGraphCompiler();
-    ConverterFactory converter_factory;
-    m_input_output_handler = InputOutputDataHandler(converter_factory.create_converter());
+    m_input_output_handler = InputOutputDataHandler(ConverterFactory::create_converter());
 }
 
 void GNAPlugin::Init() {

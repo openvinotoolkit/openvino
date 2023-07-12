@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,7 @@ namespace pre_post_processing {
 
 class ConverterFactory {
 public:
-    std::shared_ptr<HwAcceleratedDataConverter> create_converter();
+    static std::shared_ptr<HwAcceleratedDataConverter> create_converter();
 };
 }  // namespace pre_post_processing
 }  // namespace intel_gna

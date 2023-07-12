@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -67,14 +67,16 @@ void convert_matrix_fp32_to_int_avx(T* ptr_dst,
         }
     }
 
-    for (i = 0; i < mod; i++, index++) {
-        if (transpose) {
+    if (transpose) {
+        for (i = 0; i < mod; i++, index++) {
             size_t target_column = index / num_columns;
             size_t target_row = index % num_columns;
             // target number of rows == source number of columns
             size_t target_index = target_row * num_rows + target_column;
             ptr_dst[target_index] = FloatToInt<T>(ptr_src[moves * 8 + i] * scale_factor);
-        } else {
+        }
+    } else {
+        for (i = 0; i < mod; i++, index++) {
             ptr_dst[moves * 8 + i] = FloatToInt<T>(ptr_src[moves * 8 + i] * scale_factor);
         }
     }
@@ -122,6 +124,9 @@ void convert_matrix_int_to_fp32_avx(float* ptr_dst,
             v = _mm256_cvtepi32_ps(int32_values);
         } else if (std::is_same<T, int32_t>::value) {
             v = _mm256_cvtepi32_ps(*reinterpret_cast<const __m256i*>(&ptr_src[i * 8]));
+        } else {
+            THROW_GNA_EXCEPTION
+                << "Type not supported: AVX2 matrix conversion available only for int8, int16 and int32";
         }
 
         // values = v * 1/scale_factors
@@ -138,14 +143,16 @@ void convert_matrix_int_to_fp32_avx(float* ptr_dst,
             _mm256_store_ps(&ptr_dst[i * 8], values);
         }
     }
-    for (i = 0; i < mod; i++, index++) {
-        if (transpose) {
+    if (transpose) {
+        for (i = 0; i < mod; i++, index++) {
             size_t target_column = index / num_columns;
             size_t target_row = index % num_columns;
             // target number of rows == source number of columns
             size_t target_index = target_row * num_rows + target_column;
             ptr_dst[target_index] = static_cast<float>(ptr_src[moves * 8 + i] / scale_factor);
-        } else {
+        }
+    } else {
+        for (i = 0; i < mod; i++, index++) {
             ptr_dst[moves * 8 + i] = static_cast<float>(ptr_src[moves * 8 + i] / scale_factor);
         }
     }
