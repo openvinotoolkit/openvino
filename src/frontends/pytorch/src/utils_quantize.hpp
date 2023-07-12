@@ -22,9 +22,9 @@ public:
 
     QuantizedPtNode(const QuantizedPtNodeType type,
                     const NodeContext& context,
-                    const ov::Output<ov::Node> input,
-                    const ov::Output<ov::Node> scale,
-                    const ov::Output<ov::Node> zero_point)
+                    const std::shared_ptr<ov::Node> input,
+                    const std::shared_ptr<ov::Node> scale,
+                    const std::shared_ptr<ov::Node> zero_point)
         : PtFrameworkNode(context.get_decoder(), {input}, 1, false),
           type(type),
           scale(scale),
@@ -42,21 +42,27 @@ public:
 
     QuantizedPtNode(const QuantizedPtNodeType type,
                     const NodeContext& context,
-                    const ov::Output<ov::Node>& input,
-                    const ov::Output<ov::Node>& scale,
-                    const ov::Output<ov::Node>& zero_point,
-                    const ov::Output<ov::Node>& axis_)
+                    const std::shared_ptr<ov::Node>& input,
+                    const std::shared_ptr<ov::Node>& scale,
+                    const std::shared_ptr<ov::Node>& zero_point,
+                    const std::shared_ptr<ov::Node>& axis_)
         : QuantizedPtNode(type, context, input, scale, zero_point) {
         axis = axis_;
     }
 
-    const ov::Output<ov::Node> get_scale() {
+    const std::shared_ptr<ov::Node> get_scale() {
         return scale;
     }
-    const ov::Output<ov::Node> get_zero_point() {
+    const std::shared_ptr<ov::Node> get_zero_point() {
         return zero_point;
     }
-    const ov::Output<ov::Node> get_axis() {
+    void set_scale(std::shared_ptr<ov::Node>& scale_) {
+        scale = scale_;
+    }
+    void set_zero_point(std::shared_ptr<ov::Node>& zero_point_) {
+        zero_point = zero_point_;
+    }
+    const std::shared_ptr<ov::Node> get_axis() {
         FRONT_END_OP_CONVERSION_CHECK(
             type == QuantizedPtNodeType::QUANTIZE_PER_CHANNEL,
             "Accessing axis from a node quantized using a method other than 'per channel' is disallowed.");
@@ -68,13 +74,19 @@ public:
 
 private:
     const QuantizedPtNodeType type;
-    ov::Output<ov::Node> scale;
-    ov::Output<ov::Node> zero_point;
-    ov::Output<ov::Node> axis;
+    std::shared_ptr<ov::Node> scale;
+    std::shared_ptr<ov::Node> zero_point;
+    std::shared_ptr<ov::Node> axis;
 };
 
 std::shared_ptr<ov::Node> quantize(const NodeContext& context,
                                    std::shared_ptr<ov::Node>& input,
+                                   std::shared_ptr<ov::Node>& quantized_node);
+
+std::shared_ptr<ov::Node> quantize(const NodeContext& context,
+                                   std::shared_ptr<ov::Node>& input,
+                                   std::shared_ptr<ov::Node>& scale,
+                                   std::shared_ptr<ov::Node>& zero_point,
                                    std::shared_ptr<ov::Node>& quantized_node);
 
 std::shared_ptr<ov::Node> dequantize(const NodeContext& context, std::shared_ptr<ov::Node>& quantized_node);
