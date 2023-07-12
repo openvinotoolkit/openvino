@@ -224,14 +224,14 @@ void Transpose::prepareParams() {
         return;
     }
 
-    auto srcDesc = getParentEdgeAt(INPUT_DATA_IDX)->getMemory().GetDescWithType<BlockedMemoryDesc>();
+    auto srcDesc = getParentEdgeAt(INPUT_DATA_IDX)->getMemory().getDescWithType<BlockedMemoryDesc>();
     transposeParams.permuteParams.src_block_dims = srcDesc->getBlockDims();
-    auto dstDesc = getChildEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>();
+    auto dstDesc = getChildEdgeAt(0)->getMemory().getDescWithType<BlockedMemoryDesc>();
     transposeParams.permuteParams.dst_block_dims = dstDesc->getBlockDims();
 
     if (!isInputOrderConst) {
-        auto orderPtr = reinterpret_cast<const int32_t*>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
-        auto orderLen = getParentEdgeAt(0)->getMemoryPtr()->GetSize();
+        auto orderPtr = reinterpret_cast<const int32_t*>(getParentEdgeAt(0)->getMemoryPtr()->getData());
+        auto orderLen = getParentEdgeAt(0)->getMemoryPtr()->getSize();
         transposeParams.permuteParams.order.assign(orderPtr, orderPtr + orderLen);
     }
 

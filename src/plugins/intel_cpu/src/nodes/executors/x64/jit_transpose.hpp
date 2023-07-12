@@ -6,9 +6,6 @@
 
 #include "nodes/executors/transpose.hpp"
 
-using namespace dnnl::impl;
-using namespace dnnl::impl::cpu::x64;
-
 namespace ov {
 namespace intel_cpu {
 
@@ -31,17 +28,7 @@ class JitTransposeExecutorBuilder : public TransposeExecutorBuilder {
 public:
     bool isSupported(const TransposeParams& transposeParams,
                      const std::vector<MemoryDescPtr>& srcDescs,
-                     const std::vector<MemoryDescPtr>& dstDescs) const override {
-#if defined(OPENVINO_ARCH_X86_64)
-        if (mayiuse(cpu::x64::avx512_core) ||
-            mayiuse(cpu::x64::avx2) ||
-            mayiuse(cpu::x64::sse41)) {
-            return true;
-        }
-#endif // OPENVINO_ARCH_X86_64
-        return false;
-    }
-
+                     const std::vector<MemoryDescPtr>& dstDescs) const override;
     TransposeExecutorPtr makeExecutor(const ExecutorContext::CPtr context) const override {
         return std::make_shared<JitTransposeExecutor>(context);
     }

@@ -57,8 +57,8 @@ bool ov::intel_cpu::ACLTransposeExecutor::init(const ov::intel_cpu::TransposePar
 
 void ov::intel_cpu::ACLTransposeExecutor::exec(const std::vector<MemoryCPtr> &src, const std::vector<MemoryPtr> &dst,
                                                const int MB) {
-    srcTensor.allocator()->import_memory(src[0]->GetPtr());
-    dstTensor.allocator()->import_memory(dst[0]->GetPtr());
+    srcTensor.allocator()->import_memory(src[0]->getData());
+    dstTensor.allocator()->import_memory(dst[0]->getData());
 
     acl_permute->run();
 
