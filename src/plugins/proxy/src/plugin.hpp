@@ -47,11 +47,11 @@ private:
     ov::Any get_internal_property(const std::string& property_name, const std::string& conf_name = "") const;
     bool has_internal_property(const std::string& property_name, const std::string& conf_name = "") const;
     size_t get_device_from_config(const ov::AnyMap& config) const;
-    void remove_unsupported_plugins() const;
+    void remove_unavailable_plugins() const;
 
     size_t m_default_device = 0;
     mutable std::vector<std::string> m_device_order;
-    std::unordered_set<std::string> m_alias_for;
+    mutable std::unordered_set<std::string> m_alias_for;
     // Update per device config in get_hidden_devices
     mutable std::unordered_map<std::string, ov::AnyMap> m_configs;
     mutable std::mutex m_plugin_mutex;

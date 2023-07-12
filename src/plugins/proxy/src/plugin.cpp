@@ -433,7 +433,7 @@ std::string ov::proxy::Plugin::get_fallback_device(size_t idx) const {
     }
 }
 
-void ov::proxy::Plugin::remove_unsupported_plugins() const {
+void ov::proxy::Plugin::remove_unavailable_plugins() const {
     const auto core = get_core();
     OPENVINO_ASSERT(core != nullptr);
     std::unordered_set<std::string> unsupported_devices;
@@ -446,6 +446,10 @@ void ov::proxy::Plugin::remove_unsupported_plugins() const {
         }
     }
     for (const auto& device : unsupported_devices) {
+        auto it = m_alias_for.find(device);
+        if (it != m_alias_for.end()) {
+            m_alias_for.erase(it);
+        }
         m_device_order.erase(std::remove(m_device_order.begin(), m_device_order.end(), device), m_device_order.end());
         // Remove unsupported device from fallback order from all configs
         for (auto&& config : m_configs) {
@@ -486,7 +490,7 @@ std::vector<std::vector<std::string>> ov::proxy::Plugin::get_hidden_devices() co
             result.emplace_back(devices);
         }
     } else {
-        remove_unsupported_plugins();
+        remove_unavailable_plugins();
         typedef struct DeviceId {
             ov::device::UUID uuid;
             std::unordered_map<std::string, std::string> device_to_full_name;
