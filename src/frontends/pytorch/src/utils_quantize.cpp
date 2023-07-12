@@ -21,8 +21,8 @@ namespace pytorch {
 using namespace ov::op;
 
 std::shared_ptr<ov::Node> quantize(const NodeContext& context,
-                                   std::shared_ptr<ov::Node>& input,
-                                   std::shared_ptr<ov::Node>& quantized_node) {
+                                   std::shared_ptr<ov::Node> input,
+                                   std::shared_ptr<ov::Node> quantized_node) {
     std::shared_ptr<QuantizedPtNode> quantized_pt_node;
     if ((quantized_pt_node = cast_quantized_fw_node(quantized_node, QuantizedPtNode::quantize_per_tensor))) {
         const auto input = quantized_pt_node->input_value(0).get_node_shared_ptr();
@@ -71,10 +71,10 @@ std::shared_ptr<ov::Node> quantize(const NodeContext& context,
 }
 
 std::shared_ptr<ov::Node> quantize(const NodeContext& context,
-                                   std::shared_ptr<ov::Node>& input,
-                                   std::shared_ptr<ov::Node>& scale,
-                                   std::shared_ptr<ov::Node>& zero_point,
-                                   std::shared_ptr<ov::Node>& quantized_node) {
+                                   std::shared_ptr<ov::Node> input,
+                                   std::shared_ptr<ov::Node> scale,
+                                   std::shared_ptr<ov::Node> zero_point,
+                                   std::shared_ptr<ov::Node> quantized_node) {
     std::shared_ptr<QuantizedPtNode> quantized_pt_node;
     if ((quantized_pt_node = cast_quantized_fw_node(quantized_node))) {
         quantized_pt_node->set_scale(scale);
@@ -84,7 +84,7 @@ std::shared_ptr<ov::Node> quantize(const NodeContext& context,
     FRONT_END_OP_CONVERSION_CHECK(false, "Failed to convert a node to QuantizedPtNode");
 }
 
-std::shared_ptr<ov::Node> dequantize(const NodeContext& context, std::shared_ptr<ov::Node>& quantized_node) {
+std::shared_ptr<ov::Node> dequantize(const NodeContext& context, std::shared_ptr<ov::Node> quantized_node) {
     std::shared_ptr<QuantizedPtNode> quantized_pt_node;
     if ((quantized_pt_node = cast_quantized_fw_node(quantized_node, QuantizedPtNode::quantize_per_tensor))) {
         const auto input = quantized_pt_node->input_value(0).get_node_shared_ptr();
