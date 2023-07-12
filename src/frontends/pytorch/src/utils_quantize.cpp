@@ -25,8 +25,7 @@ std::shared_ptr<ov::Node> quantize(const NodeContext& context,
                                    std::shared_ptr<ov::Node> quantized_node) {
     std::shared_ptr<QuantizedPtNode> quantized_pt_node;
     if ((quantized_pt_node = cast_quantized_fw_node(quantized_node, QuantizedPtNode::quantize_per_tensor))) {
-        const auto input = quantized_pt_node->input_value(0).get_node_shared_ptr();
-        const auto dtype = quantized_node->get_input_element_type(0);
+        const auto dtype = quantized_pt_node->get_input_element_type(0);
         const auto scale = quantized_pt_node->get_scale();
         const auto zero_point = quantized_pt_node->get_zero_point();
 
