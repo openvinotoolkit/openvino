@@ -6,11 +6,11 @@
 
 #include <memory>
 #include <ngraph/pattern/op/wrap_type.hpp>
-#include <openvino/opsets/opset8.hpp>
+#include "openvino/op/random_uniform.hpp"
 #include <transformations/rt_info/disable_constant_folding.hpp>
 
 ov::pass::DisableRandomUniformConstantFolding::DisableRandomUniformConstantFolding() {
-    auto random_uniform = pattern::wrap_type<opset8::RandomUniform>();
+    auto random_uniform = pattern::wrap_type<ov::op::v8::RandomUniform>();
 
     ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         disable_constant_folding(m.get_match_root());
