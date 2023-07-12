@@ -7,7 +7,7 @@
 #include "frontend/quantized_layer_params.hpp"
 #include "gna_graph_tools.hpp"
 #include "ie_layouts.h"
-#include "pre_post_process/preprocessing.hpp"
+#include "pre_post_process/data_conversion_helpers.hpp"
 
 namespace ov {
 namespace intel_gna {
