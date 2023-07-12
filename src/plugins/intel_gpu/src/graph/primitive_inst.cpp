@@ -153,7 +153,7 @@ void primitive_inst::check_memory_to_set(const memory& mem, const layout& layout
         OPENVINO_ASSERT(mem.is_allocated_by(net_engine), "[GPU] Can't set memory due to engines mismatch. ",
                         "Network was created for ", &net_engine, " (",
                         net_engine.get_device_info().dev_name, ") engine",
-                        " while memory object was allocated for ", &mem_engine, "(",
+                        " while memory object was allocated for ", &mem_engine, " (",
                         mem_engine.get_device_info().dev_name, ")");
 
         switch (params.mem_type) {
@@ -379,6 +379,7 @@ event::ptr primitive_inst::realloc_if_needed() {
         // TODO : need to handle multiple outputs
         max_output_layout_size = updated_params.output_layouts[0].count();
     }
+    _mem_allocated = true;
     // intermediate memory allocation is required for primitives consisting of multiple kernels in dynamic case
     {
         if (_impl == nullptr)
@@ -392,12 +393,15 @@ event::ptr primitive_inst::realloc_if_needed() {
                 // can reuse
                 _intermediates_memory[i] = _network.get_engine().reinterpret_buffer(*_intermediates_memory[i], ibuf_layouts[i]);
             } else {
+                // TODO: If there is a kernel which requires reset internal buffer in the future,
+                // we'll need additional handle for that purpose like need_reset_output_memory
+                bool need_reset = false;
                 if (i < _intermediates_memory.size()) {
-                    _intermediates_memory[i] = allocate_internal_buffer(i);
+                    _intermediates_memory[i] = allocate_internal_buffer(i, need_reset);
                     max_intermediates_memory_sizes[i] = _intermediates_memory[i]->size();
                 } else {
                     // i-th layout has not been allocated yet
-                    _intermediates_memory.push_back(allocate_internal_buffer(i));
+                    _intermediates_memory.push_back(allocate_internal_buffer(i, need_reset));
                     max_intermediates_memory_sizes.push_back(_intermediates_memory[i]->size());
                 }
             }
@@ -879,7 +883,7 @@ primitive_inst::primitive_inst(network& network, program_node const& node, bool 
         max_output_layout_size = _outputs[0]->get_layout().get_tensor().count();
 }
 
-memory::ptr primitive_inst::allocate_internal_buffer(size_t idx) {
+memory::ptr primitive_inst::allocate_internal_buffer(size_t idx, bool reset) {
     if (_impl == nullptr || _outputs.empty() || _outputs[0] == nullptr)
         return nullptr;
     const auto& ibuf_layouts = _impl->get_internal_buffer_layouts();
@@ -925,15 +929,20 @@ memory::ptr primitive_inst::allocate_internal_buffer(size_t idx) {
     auto layout = ibuf_layouts[idx];
     GPU_DEBUG_LOG << "[" << _node->id() << ": internal buf " << idx << "]" << std::endl;
     auto alloc_type = allocation_type::unknown;
-    if (input_device_mem && (available_device_mem_size - (int64_t)layout.bytes_count() >= 0)) {
+    if (input_device_mem && ((int64_t) available_device_mem_size - (int64_t)layout.bytes_count() >= 0)) {
+        GPU_DEBUG_LOG << " input is device mem and available device mem size (" << available_device_mem_size
+                      << ") > requested memory (" << layout.bytes_count() << " )" << std::endl;
         alloc_type = engine.get_preferred_memory_allocation_type();
     } else {
+        GPU_DEBUG_LOG << " input is not device mem or available device mem size ("
+                      << available_device_mem_size << ") <= requested memory (" << layout.bytes_count() << " )" << std::endl;
         alloc_type = engine.get_lockable_preferred_memory_allocation_type();
     }
-    return engine.allocate_memory(layout, alloc_type);
+    GPU_DEBUG_LOG << "=> allocate to " << alloc_type << std::endl;
+    return engine.allocate_memory(layout, alloc_type, reset);
 }
 
-void primitive_inst::allocate_internal_buffers(void) {
+void primitive_inst::allocate_internal_buffers(bool reset) {
     if (_impl == nullptr || _outputs.empty() || _outputs[0] == nullptr)
         return;
     const auto& ibuf_layouts = _impl->get_internal_buffer_layouts();
@@ -945,7 +954,7 @@ void primitive_inst::allocate_internal_buffers(void) {
     for (size_t i = 0; i < ibuf_layouts.size(); ++i) {
         if (ibuf_layouts[i].get_linear_size() == 0)
             continue;
-        intermediates_memory.push_back(allocate_internal_buffer(i));
+        intermediates_memory.push_back(allocate_internal_buffer(i, reset));
         max_intermediates_memory_sizes.push_back(intermediates_memory[i]->size());
     }
     _intermediates_memory = intermediates_memory;

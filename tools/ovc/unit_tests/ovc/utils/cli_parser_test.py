@@ -772,6 +772,39 @@ class TestShapesParsing(UnitTestWithMockedTelemetry):
         exp_res = np.array([12, 4, 1])
         assert np.array_equal(result, exp_res)
 
+    def test_get_shapes_for_scalar_inputs(self):
+        argv_input = ""
+        input_shapes = "[]"
+        _, result, _ = get_placeholder_shapes(argv_input, input_shapes)
+        ref_result = np.array([])
+        assert np.array_equal(result, ref_result)
+
+    def test_get_shapes_two_input_shapes_with_scalar(self):
+        argv_input = ""
+        input_shapes = "[12,4,1],[]"
+        _, result, _ = get_placeholder_shapes(argv_input, input_shapes)
+        ref_result = [np.array([12, 4, 1]), np.array([])]
+        for shape, ref_shape in zip(result, ref_result):
+            assert np.array_equal(shape, ref_shape)
+
+    def test_get_shapes_two_input_shapes(self):
+        argv_input = ""
+        input_shapes = "[12,4,1],[10]"
+        _, result, _ = get_placeholder_shapes(argv_input, input_shapes)
+        ref_result = [np.array([12, 4, 1]), np.array([10])]
+        for shape, ref_shape in zip(result, ref_result):
+            assert np.array_equal(shape, ref_shape)
+
+    def test_get_shapes_two_named_input_shapes_with_scalar(self):
+        argv_input = "inp1,inp2"
+        input_shapes = "[12,4,1],[]"
+        inputs_list, result, _ = get_placeholder_shapes(argv_input, input_shapes)
+
+        exp_res = {'inp1': np.array([12, 4, 1]), 'inp2': np.array([])}
+        self.assertEqual(list(exp_res.keys()), list(result.keys()))
+        self.assertEqual(inputs_list, ["inp1","inp2"])
+        for i in exp_res.keys():
+            assert np.array_equal(result[i], exp_res[i])
 
     def test_get_shapes_one_input_no_shape(self):
         argv_input = "inp1"
@@ -1222,12 +1255,12 @@ class PathCheckerFunctions(unittest.TestCase):
     def test_single_writable_dir(self):
         self.assertEqual(__class__.WRITABLE_DIR, writable_dir(__class__.WRITABLE_DIR))
 
-    @unittest.skipIf(sys.platform.startswith("win"), "chmod() on Windows do nor support not writable dir")
+    @unittest.skip("Temporary disabled since chmod() is temporary not working on Linux. (Windows do not support not writable dir at all)")
     def test_single_non_writable_dir(self):
         with self.assertRaises(Error) as cm:
             writable_dir(__class__.NOT_WRITABLE_DIR)
 
-    @unittest.skipIf(sys.platform.startswith("win"), "chmod() on Windows do nor support not writable dir")
+    @unittest.skip("Temporary disabled since chmod() is temporary not working on Linux. (Windows do not support not writable dir at all)")
     def test_single_non_writable_sub_dir(self):
         with self.assertRaises(Error) as cm:
             writable_dir(__class__.NOT_WRITABLE_SUB_DIR)
