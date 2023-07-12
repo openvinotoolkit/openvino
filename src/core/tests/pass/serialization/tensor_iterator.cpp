@@ -20,7 +20,7 @@ protected:
     std::string tmpBinFileName;
 
     void SetUp() override {
-        std::string filePrefix = CommonTestUtils::generateTestFilePrefix();
+        std::string filePrefix = ov::test::utils::generateTestFilePrefix();
         m_out_xml_path = filePrefix + ".xml";
         m_out_bin_path = filePrefix + ".bin";
         tmpXmlFileName = filePrefix + "TestModel.xml";

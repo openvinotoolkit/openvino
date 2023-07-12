@@ -4,7 +4,12 @@
 
 #include "common_test_utils/all_close.hpp"
 
-::testing::AssertionResult ov::test::all_close(const ov::Tensor& a, const ov::Tensor& b, float rtol, float atol) {
+
+namespace ov {
+namespace test {
+namespace utils {
+
+::testing::AssertionResult all_close(const ov::Tensor& a, const ov::Tensor& b, float rtol, float atol) {
     if (a.get_element_type() != b.get_element_type()) {
         return ::testing::AssertionFailure() << "Cannot compare tensors with different element types";
     }
@@ -92,3 +97,6 @@
                << "Cannot compare tensors with unsupported element type: " << a.get_element_type();
     }
 }
+}  // namespace utils
+}  // namespace test
+}  // namespace ov

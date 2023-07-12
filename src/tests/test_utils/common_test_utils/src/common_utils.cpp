@@ -10,7 +10,9 @@
 #include <chrono>
 #include <thread>
 
-namespace CommonTestUtils {
+namespace ov {
+namespace test {
+namespace utils {
 
 std::ostream& operator<<(std::ostream& os, OpType type) {
     switch (type) {
@@ -40,4 +42,6 @@ std::string generateTestFilePrefix() {
     return testName;
 }
 
-}  // namespace CommonTestUtils
+}  // namespace utils
+}  // namespace test
+}  // namespace ov

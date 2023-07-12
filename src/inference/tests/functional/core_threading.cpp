@@ -30,7 +30,7 @@ protected:
 
 public:
     void SetUp() override {
-        auto prefix = CommonTestUtils::generateTestFilePrefix();
+        auto prefix = ov::test::utils::generateTestFilePrefix();
         modelName = prefix + modelName;
         weightsName = prefix + weightsName;
         FuncTestUtils::TestModel::generateTestModel(modelName, weightsName);
