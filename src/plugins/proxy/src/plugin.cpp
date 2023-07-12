@@ -5,6 +5,7 @@
 #include "openvino/proxy/plugin.hpp"
 
 #include <memory>
+#include <stdexcept>
 
 #include "compiled_model.hpp"
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
@@ -440,6 +441,7 @@ std::vector<std::vector<std::string>> ov::proxy::Plugin::get_hidden_devices() co
     // If we have 1 alias we use simple hetero mode
     if (m_alias_for.size() == 1) {
         auto device = *m_alias_for.begin();
+        // Allow to get runtime error, because only one plugin under the alias
         const std::vector<std::string> real_devices_ids = core->get_property(device, ov::available_devices);
         for (const auto& device_id : real_devices_ids) {
             const std::string full_device_name = device_id.empty() ? device : device + '.' + device_id;
@@ -470,7 +472,13 @@ std::vector<std::vector<std::string>> ov::proxy::Plugin::get_hidden_devices() co
         std::vector<DeviceID_t> all_highlevel_devices;
         std::set<std::array<uint8_t, ov::device::UUID::MAX_UUID_SIZE>> unique_devices;
         for (const auto& device : m_device_order) {
-            const std::vector<std::string> supported_device_ids = core->get_property(device, ov::available_devices);
+            std::vector<std::string> supported_device_ids;
+            try {
+                supported_device_ids = core->get_property(device, ov::available_devices);
+            } catch (const std::runtime_error&) {
+                // Device cannot be loaded
+                continue;
+            }
             for (const auto& device_id : supported_device_ids) {
                 const std::string full_device_name = device_id.empty() ? device : device + '.' + device_id;
                 try {
@@ -532,8 +540,13 @@ std::vector<std::vector<std::string>> ov::proxy::Plugin::get_hidden_devices() co
                     continue;
                 }
                 // Try to find unique device
-                const std::vector<std::string> supported_device_ids =
-                    core->get_property(fallback_dev, ov::available_devices);
+                std::vector<std::string> supported_device_ids;
+                try {
+                    supported_device_ids = core->get_property(fallback_dev, ov::available_devices);
+                } catch (const std::runtime_error&) {
+                    // Device cannot be loaded, so skipp this device
+                    continue;
+                }
                 bool found_device = false;
                 bool dev_without_uuid = false;
                 for (const auto& device_id : supported_device_ids) {
