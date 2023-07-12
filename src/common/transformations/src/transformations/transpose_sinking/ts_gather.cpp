@@ -67,7 +67,21 @@ TSGatherForward::TSGatherForward() {
         } else {
             axis = static_cast<size_t>(axes[0]);
         }
-        /*  From https://www.tensorflow.org/api_docs/python/tf/gather
+        /*
+            import tensorflow as tf
+            params1 = tf.random.normal(shape=(4,3))
+            transpose1 = tf.transpose(params1, perm=[1,0]) # output shape [3,4]
+            indices1 = tf.random.uniform(shape=(2,3), maxval=2, dtype=tf.int32)
+            result = tf.gather(transpose1, indices1, axis=0) # output shape [2, 3, 4]
+            print(result)
+
+            params2 = params1 # shape [4,3]
+            indices2 = indices1 # shape [2,3]
+            gather2 = tf.gather(params2, indices2, axis=1) # output shape [2, 4, 3]
+            transpose2 = tf.transpose(gather2, perm=[1,2,0])
+            print(transpose2)
+
+            From https://www.tensorflow.org/api_docs/python/tf/gather
             The Gather output shape has the same shape as the input,
             with the indexed-axis replaced by the shape of the indices
             Gather input shape | Gather indexes shape | axis | Gather output shape
@@ -75,23 +89,53 @@ TSGatherForward::TSGatherForward() {
                 {1, 2, 3}      |        {7}           |   1  |      {1, 7, 3}
                 {1, 2, 3}      |        {7,5}         |   1  |      {1, 7, 5, 3}
 
-            New Transpose order length equals to output Gather shape size.
+            New transpose order length equals to output Gather shape size.
+            As gather modifies input shape within axis dimension, our transpose order
+            will be modified with axis dimension.
+            New transpose order values:
+                - values before axis will be original
+                - values in [axis, axis + indexes_ranks_size - 1] will be original + [0 1 ...]
+                  if indexes_ranks_size == 0, there will be no such items
+                - values after axis with be original + indexes_rank_size - 1
+                  (as one dim[axis] will be substituted with new indexes_rank_size dimesions)
+                  if indexes_ranks_size == 0, values will be original - 1
         */
-
         const auto& indices_rank_val = indices_rank.get_length();
         std::vector<size_t> new_transpose_order(order_val.size() + indices_rank_val - 1);
-        for (size_t i = 0, j = 0; i < new_transpose_order.size(); ++i) {
-            if (i > axis && i < (axis + indices_rank_val)) {
-                new_transpose_order[i] = new_transpose_order[j - 1] + 1;
-            } else if (order_val[i] > axis) {
-                new_transpose_order[i] = order_val[j] + indices_rank_val - 1;
-                j++;
-            } else {
+        const int n_axis_dims = indices_rank_val - 1;
+        /*
+            i - new_transpose_order index
+            j - order_val index
+            k - substituted dims by Gather index
+            - There might be a situation when output Gather shape has one dimension
+                less than input shape. In a such case n_axis_dims < 0 and we should
+                skip order_val[axis] and all the next order_val[j] will be reduced.
+            - On the other hand in a case with multidimentional index Gather output
+                shape has more dimensions than input shape. We need to add this
+                dimensions into the transpose order and increase all next order_val[j]
+        */
+        for (size_t i = 0, j = 0, k = 0; i < new_transpose_order.size(); ++i) {
+            if (order_val[j] == axis && static_cast<int>(k) > n_axis_dims) {
+                /*
+                    We added all new dimensions into the order.
+                    We should go to the next order_val value.
+                */
+                ++j;
+            }
+            if (order_val[j] < axis) {
+                // dimensions before axis
                 new_transpose_order[i] = order_val[j];
-                j++;
+                ++j;
+            } else if (order_val[j] == axis && static_cast<int>(k) <= n_axis_dims) {
+                // new dimensions within axis
+                new_transpose_order[i] = order_val[j] + k;
+                ++k;
+            } else {  // order_val[j] > axis
+                // dimensions after axis
+                new_transpose_order[i] = order_val[j] + indices_rank_val - 1;
+                ++j;
             }
         }
-
         auto new_order_const = ov::op::v0::Constant::create(transpose_order->get_element_type(),
                                                             {new_transpose_order.size()},
                                                             new_transpose_order);
