@@ -7,17 +7,17 @@
 #include <memory>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
-#include "openvino/op/minimum.hpp"
-#include "openvino/op/hsigmoid.hpp"
-#include "openvino/op/relu.hpp"
-#include "openvino/op/clamp.hpp"
-#include "openvino/op/maximum.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/multiply.hpp"
-#include "openvino/op/add.hpp"
-#include "openvino/op/divide.hpp"
 
 #include "itt.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/clamp.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/hsigmoid.hpp"
+#include "openvino/op/maximum.hpp"
+#include "openvino/op/minimum.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/relu.hpp"
 #include "transformations/utils/utils.hpp"
 
 ov::pass::HSigmoidFusionWithReluDiv::HSigmoidFusionWithReluDiv() {
@@ -195,7 +195,8 @@ ov::pass::HSigmoidFusionWithClampMul::HSigmoidFusionWithClampMul() {
             return false;
         }
 
-        auto clamp_node = std::dynamic_pointer_cast<ov::op::v0::Clamp>(pattern_to_output.at(clamp).get_node_shared_ptr());
+        auto clamp_node =
+            std::dynamic_pointer_cast<ov::op::v0::Clamp>(pattern_to_output.at(clamp).get_node_shared_ptr());
         if (!clamp_node || clamp_node->get_min() != 0 || clamp_node->get_max() != 6)
             return false;
 
@@ -240,7 +241,8 @@ ov::pass::HSigmoidFusionWithClampDiv::HSigmoidFusionWithClampDiv() {
             return false;
         }
 
-        auto clamp_node = std::dynamic_pointer_cast<ov::op::v0::Clamp>(pattern_to_output.at(clamp).get_node_shared_ptr());
+        auto clamp_node =
+            std::dynamic_pointer_cast<ov::op::v0::Clamp>(pattern_to_output.at(clamp).get_node_shared_ptr());
         if (!clamp_node || clamp_node->get_min() != 0 || clamp_node->get_max() != 6)
             return false;
 

@@ -7,10 +7,6 @@
 #include <memory>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
-#include "openvino/op/strided_slice.hpp"
-#include "openvino/op/scatter_update.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/slice.hpp"
 #include <vector>
 
 #include "itt.hpp"
@@ -18,6 +14,10 @@
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/util/op_types.hpp"
 #include "ngraph/validation_util.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/scatter_update.hpp"
+#include "openvino/op/slice.hpp"
+#include "openvino/op/strided_slice.hpp"
 #include "transformations/utils/utils.hpp"
 
 using namespace ov;
@@ -87,9 +87,12 @@ ov::pass::SliceToStridedSlice::SliceToStridedSlice(bool use_shapes) {
             step_const = get_constant_from_source(slice_node->input_value(3));
             OPENVINO_SUPPRESS_DEPRECATED_END
         } else {
-            start_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(slice_node->input_value(1).get_node_shared_ptr());
-            stop_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(slice_node->input_value(2).get_node_shared_ptr());
-            step_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(slice_node->input_value(3).get_node_shared_ptr());
+            start_const =
+                std::dynamic_pointer_cast<ov::op::v0::Constant>(slice_node->input_value(1).get_node_shared_ptr());
+            stop_const =
+                std::dynamic_pointer_cast<ov::op::v0::Constant>(slice_node->input_value(2).get_node_shared_ptr());
+            step_const =
+                std::dynamic_pointer_cast<ov::op::v0::Constant>(slice_node->input_value(3).get_node_shared_ptr());
         }
 
         auto start_input = start_const ? start_const : slice_node->input_value(1);
@@ -145,11 +148,11 @@ ov::pass::SliceToStridedSlice::SliceToStridedSlice(bool use_shapes) {
             {start_input.get_node_shared_ptr(), stop_input.get_node_shared_ptr(), step_input.get_node_shared_ptr()});
 
         const auto strided_slice = std::make_shared<ov::op::v1::StridedSlice>(arg,
-                                                                          start_input,
-                                                                          stop_input,
-                                                                          step_input,
-                                                                          begin_end_mask,
-                                                                          begin_end_mask);
+                                                                              start_input,
+                                                                              stop_input,
+                                                                              step_input,
+                                                                              begin_end_mask,
+                                                                              begin_end_mask);
         new_ops.push_back(strided_slice);
 
         strided_slice->set_friendly_name(slice_node->get_friendly_name());

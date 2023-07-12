@@ -6,18 +6,18 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/validation_util.hpp>
 #include <numeric>
-#include "openvino/op/concat.hpp"
-#include "openvino/op/shape_of.hpp"
-#include "openvino/op/max_pool.hpp"
-#include "openvino/op/squeeze.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/convolution.hpp"
-#include "openvino/op/reshape.hpp"
 #include <transformations/common_optimizations/strides_optimization.hpp>
 #include <transformations/rt_info/strides_property.hpp>
 #include <transformations/utils/utils.hpp>
 
 #include "itt.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/max_pool.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/squeeze.hpp"
 
 using namespace std;
 using namespace ov;
@@ -64,13 +64,15 @@ static void insert_pooling(const Output<Node>& first, Input<Node>& second, const
         }
         first_node = rg.make<ov::op::v1::Reshape>(first_node, new_shape, false);
     }
-    shared_ptr<Node> new_node = rg.make<ov::op::v1::MaxPool>(first_node, strides, Shape{}, Shape{}, Shape(strides.size(), 1));
+    shared_ptr<Node> new_node =
+        rg.make<ov::op::v1::MaxPool>(first_node, strides, Shape{}, Shape{}, Shape(strides.size(), 1));
     if (do_reshape) {
         // squeeze dimensions back
         const size_t diff = strides.size() + 2 - static_cast<size_t>(rank.get_length());
         vector<size_t> axes(diff);
         iota(axes.begin(), axes.end(), 0);
-        new_node = rg.make<ov::op::v0::Squeeze>(new_node, rg.make<ov::op::v0::Constant>(element::u64, Shape{diff}, axes));
+        new_node =
+            rg.make<ov::op::v0::Squeeze>(new_node, rg.make<ov::op::v0::Constant>(element::u64, Shape{diff}, axes));
     }
     OPENVINO_SUPPRESS_DEPRECATED_START
     if (const auto constant_new_node = get_constant_from_source(new_node)) {

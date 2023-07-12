@@ -6,17 +6,17 @@
 #include <ngraph/pattern/op/or.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
-#include "openvino/op/subtract.hpp"
-#include "openvino/op/divide.hpp"
-#include "openvino/op/exp.hpp"
-#include "openvino/op/reduce_sum.hpp"
-#include "openvino/op/softmax.hpp"
-#include "openvino/op/reduce_max.hpp"
-#include "openvino/op/constant.hpp"
 #include <transformations/op_conversions/softmax_decomposition.hpp>
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/exp.hpp"
+#include "openvino/op/reduce_max.hpp"
+#include "openvino/op/reduce_sum.hpp"
+#include "openvino/op/softmax.hpp"
+#include "openvino/op/subtract.hpp"
 
 ov::pass::SoftmaxDecomposition::SoftmaxDecomposition() {
     MATCHER_SCOPE(SoftmaxDecomposition);

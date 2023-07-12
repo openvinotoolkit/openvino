@@ -9,22 +9,22 @@
 #include <memory>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
-#include "openvino/op/strided_slice.hpp"
-#include "openvino/op/batch_to_space.hpp"
-#include "openvino/op/subtract.hpp"
-#include "openvino/op/concat.hpp"
-#include "openvino/op/shape_of.hpp"
-#include "openvino/op/reduce_prod.hpp"
-#include "openvino/op/divide.hpp"
-#include "openvino/op/multiply.hpp"
-#include "openvino/op/reshape.hpp"
-#include "openvino/op/slice.hpp"
-#include "openvino/op/transpose.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/gather.hpp"
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/op/batch_to_space.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/reduce_prod.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/slice.hpp"
+#include "openvino/op/strided_slice.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/op/transpose.hpp"
 
 using namespace std;
 using namespace ov::element;
@@ -72,7 +72,8 @@ void ov::pass::ConvertBatchToSpace::convert_batch_to_space() {
         const auto end = rg.make<ov::op::v0::Constant>(i64, Shape{1}, block_length);
         const auto block_tail = rg.make<ov::op::v8::Slice>(block, one, end, one);
         const auto data_shape_tail = rg.make<ov::op::v8::Slice>(shape_of_data, one, end, one);
-        const auto dispersed_shape = rg.make<ov::op::v0::Concat>(OutputVector{block_tail, batch_div, data_shape_tail}, 0);
+        const auto dispersed_shape =
+            rg.make<ov::op::v0::Concat>(OutputVector{block_tail, batch_div, data_shape_tail}, 0);
         const bool special_zero = false;
         shared_ptr<Node> flat_node = rg.make<ov::op::v1::Reshape>(data, dispersed_shape, special_zero);
 
@@ -208,7 +209,10 @@ void ov::pass::ConvertBatchToSpace::convert_batch_to_space_by_elements() {
 
             // dispersed_shape[b_idx + 1] = squeezed_shape[b_idx];
             const auto ds_front = rg.make<ov::op::v8::Slice>(dispersed_shape, zero, block_index_next, one);
-            ds_tail = rg.make<ov::op::v8::Slice>(dispersed_shape, rg.make<ov::op::v0::Constant>(i64, Shape{1}, b_idx + 2), int_max, one);
+            ds_tail = rg.make<ov::op::v8::Slice>(dispersed_shape,
+                                                 rg.make<ov::op::v0::Constant>(i64, Shape{1}, b_idx + 2),
+                                                 int_max,
+                                                 one);
             dispersed_shape = make_concat({ds_front, sq_mul, ds_tail});
         }
 

@@ -9,19 +9,19 @@
 
 #include "itt.hpp"
 #include "openvino/core/rt_info.hpp"
-#include "openvino/op/matmul.hpp"
-#include "openvino/op/tanh.hpp"
-#include "openvino/op/subtract.hpp"
-#include "openvino/op/relu.hpp"
-#include "openvino/op/concat.hpp"
-#include "openvino/op/variadic_split.hpp"
-#include "openvino/op/split.hpp"
-#include "openvino/op/gru_cell.hpp"
-#include "openvino/op/multiply.hpp"
 #include "openvino/op/add.hpp"
-#include "openvino/op/sigmoid.hpp"
-#include "openvino/op/squeeze.hpp"
+#include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/gru_cell.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/relu.hpp"
+#include "openvino/op/sigmoid.hpp"
+#include "openvino/op/split.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/op/tanh.hpp"
+#include "openvino/op/variadic_split.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
@@ -67,10 +67,12 @@ tuple<ov::Output<ov::Node>, ov::Output<ov::Node>> process_weights(NodeRegistry& 
         auto split_WRrz = rg.make<ov::op::v1::VariadicSplit>(WR, axis_1, split_lenghts);
         auto split_W_r_z = rg.make<ov::op::v1::Split>(split_WRrz->output(0), axis_0, 2);
         auto split_R_r_z = rg.make<ov::op::v1::Split>(split_WRrz->output(1), axis_0, 2);
-        auto Wzrh =
-            rg.make<ov::op::v0::Concat>(OutputVector{split_W_r_z->output(1), split_W_r_z->output(0), split_WRh->output(0)}, 0);
-        auto Rzrh =
-            rg.make<ov::op::v0::Concat>(OutputVector{split_R_r_z->output(1), split_R_r_z->output(0), split_WRh->output(1)}, 0);
+        auto Wzrh = rg.make<ov::op::v0::Concat>(
+            OutputVector{split_W_r_z->output(1), split_W_r_z->output(0), split_WRh->output(0)},
+            0);
+        auto Rzrh = rg.make<ov::op::v0::Concat>(
+            OutputVector{split_R_r_z->output(1), split_R_r_z->output(0), split_WRh->output(1)},
+            0);
         return {Wzrh, Rzrh};
     }
 }
@@ -169,7 +171,13 @@ ov::pass::GRUCellFusion::GRUCellFusion() {
         transform(act_name_1.begin(), act_name_1.end(), act_name_1.begin(), to_lower);
         transform(act_name_2.begin(), act_name_2.end(), act_name_2.begin(), to_lower);
 
-        auto cell = rg.make<ov::op::v3::GRUCell>(X, H, Wzrh, Rzrh, squeeze_B, hidden_size, vector<string>{act_name_1, act_name_2});
+        auto cell = rg.make<ov::op::v3::GRUCell>(X,
+                                                 H,
+                                                 Wzrh,
+                                                 Rzrh,
+                                                 squeeze_B,
+                                                 hidden_size,
+                                                 vector<string>{act_name_1, act_name_2});
 
         cell->set_friendly_name(m.get_match_root()->get_friendly_name());
         copy_runtime_info(m.get_matched_nodes(), rg.get());

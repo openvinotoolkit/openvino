@@ -7,12 +7,12 @@
 #include <memory>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
-#include "openvino/op/prelu.hpp"
-#include "openvino/op/maximum.hpp"
-#include "openvino/op/multiply.hpp"
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/op/maximum.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/prelu.hpp"
 #include "transformations/utils/utils.hpp"
 
 ov::pass::LeakyReluFusion::LeakyReluFusion() {

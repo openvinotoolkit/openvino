@@ -7,15 +7,15 @@
 #include <memory>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
-#include "openvino/op/subtract.hpp"
-#include "openvino/op/log_softmax.hpp"
-#include "openvino/op/exp.hpp"
-#include "openvino/op/reduce_sum.hpp"
-#include "openvino/op/log.hpp"
-#include "openvino/op/reduce_max.hpp"
-#include "openvino/op/constant.hpp"
 
 #include "itt.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/exp.hpp"
+#include "openvino/op/log.hpp"
+#include "openvino/op/log_softmax.hpp"
+#include "openvino/op/reduce_max.hpp"
+#include "openvino/op/reduce_sum.hpp"
+#include "openvino/op/subtract.hpp"
 
 ov::pass::LogSoftmaxDecomposition::LogSoftmaxDecomposition() {
     MATCHER_SCOPE(LogSoftmaxDecomposition);

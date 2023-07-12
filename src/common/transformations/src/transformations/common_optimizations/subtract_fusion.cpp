@@ -8,13 +8,13 @@
 #include <ngraph/pattern/op/or.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
-#include "openvino/op/negative.hpp"
-#include "openvino/op/subtract.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/multiply.hpp"
-#include "openvino/op/add.hpp"
 
 #include "itt.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/negative.hpp"
+#include "openvino/op/subtract.hpp"
 #include "transformations/utils/utils.hpp"
 
 ov::pass::SubtractFusion::SubtractFusion() {
@@ -41,8 +41,8 @@ ov::pass::SubtractFusion::SubtractFusion() {
         NodeVector nodes_to_replace{add};
 
         if (pattern_to_output.count(p_mul_const)) {
-            auto minus_one_const =
-                std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output.at(p_mul_const).get_node_shared_ptr());
+            auto minus_one_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(
+                pattern_to_output.at(p_mul_const).get_node_shared_ptr());
             if (!op::util::has_constant_value<float>(minus_one_const, -1.)) {
                 return false;
             }

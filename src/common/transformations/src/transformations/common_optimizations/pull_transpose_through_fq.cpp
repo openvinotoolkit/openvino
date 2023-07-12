@@ -8,24 +8,24 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/validation_util.hpp>
-#include "openvino/op/transpose.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/unsqueeze.hpp"
-#include "openvino/op/fake_quantize.hpp"
 #include <transformations/utils/utils.hpp>
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/op/unsqueeze.hpp"
 
 ov::pass::PullTransposeThroughFQUp::PullTransposeThroughFQUp() {
     MATCHER_SCOPE(PullTransposeThroughFQUp);
     const auto weights = ngraph::pattern::wrap_type<ov::op::v0::Constant>();
     auto m_fq = pattern::wrap_type<ov::op::v0::FakeQuantize>({weights,
-                                                          pattern::any_input(pattern::has_static_shape()),
-                                                          pattern::any_input(pattern::has_static_shape()),
-                                                          pattern::any_input(pattern::has_static_shape()),
-                                                          pattern::any_input(pattern::has_static_shape())},
-                                                         pattern::consumers_count(1));
+                                                              pattern::any_input(pattern::has_static_shape()),
+                                                              pattern::any_input(pattern::has_static_shape()),
+                                                              pattern::any_input(pattern::has_static_shape()),
+                                                              pattern::any_input(pattern::has_static_shape())},
+                                                             pattern::consumers_count(1));
     auto m_transpose_perm = pattern::wrap_type<ov::op::v0::Constant>();
     auto m_transpose = pattern::wrap_type<ov::op::v1::Transpose>({m_fq, m_transpose_perm});
 

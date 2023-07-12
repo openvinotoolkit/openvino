@@ -8,19 +8,19 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 #include <numeric>
-#include "openvino/op/minimum.hpp"
-#include "openvino/op/subtract.hpp"
-#include "openvino/op/round.hpp"
-#include "openvino/op/fake_quantize.hpp"
-#include "openvino/op/maximum.hpp"
-#include "openvino/op/divide.hpp"
-#include "openvino/op/convert.hpp"
-#include "openvino/op/multiply.hpp"
-#include "openvino/op/add.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/greater_eq.hpp"
 
 #include "itt.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/greater_eq.hpp"
+#include "openvino/op/maximum.hpp"
+#include "openvino/op/minimum.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/round.hpp"
+#include "openvino/op/subtract.hpp"
 
 namespace {
 

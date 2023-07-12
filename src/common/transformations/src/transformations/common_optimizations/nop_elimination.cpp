@@ -10,33 +10,33 @@
 #include <numeric>
 #include <openvino/core/validation_util.hpp>
 #include <openvino/op/util/pad_base.hpp>
-#include "openvino/op/subtract.hpp"
-#include "openvino/op/variadic_split.hpp"
-#include "openvino/op/non_zero.hpp"
-#include "openvino/op/scatter_elements_update.hpp"
-#include "openvino/op/rnn_sequence.hpp"
-#include "openvino/op/divide.hpp"
-#include "openvino/op/gather.hpp"
-#include "openvino/op/reshape.hpp"
-#include "openvino/op/transpose.hpp"
-#include "openvino/op/convert.hpp"
-#include "openvino/op/scatter_update.hpp"
-#include "openvino/op/squeeze.hpp"
-#include "openvino/op/add.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/scatter_nd_update.hpp"
-#include "openvino/op/concat.hpp"
-#include "openvino/op/split.hpp"
-#include "openvino/op/multiply.hpp"
-#include "openvino/op/gru_sequence.hpp"
-#include "openvino/op/unsqueeze.hpp"
-#include "openvino/op/lstm_sequence.hpp"
 #include <openvino/pass/pattern/op/or.hpp>
 #include <transformations/common_optimizations/nop_elimination.hpp>
 #include <transformations/utils/utils.hpp>
 
 #include "compare.hpp"
 #include "itt.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/gru_sequence.hpp"
+#include "openvino/op/lstm_sequence.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/non_zero.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/rnn_sequence.hpp"
+#include "openvino/op/scatter_elements_update.hpp"
+#include "openvino/op/scatter_nd_update.hpp"
+#include "openvino/op/scatter_update.hpp"
+#include "openvino/op/split.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/variadic_split.hpp"
 #include "openvino/util/log.hpp"
 
 using namespace std;
@@ -329,7 +329,11 @@ static bool eliminate_unsqueeze(const shared_ptr<Node>& node) {
 SIMPLE_MATCHER_PASS_DEFINITION(EliminateReshape, eliminate_reshape_v1, ov::op::v1::Reshape);
 SIMPLE_MATCHER_PASS_DEFINITION(EliminateUnsqueeze, eliminate_unsqueeze, ov::op::v0::Unsqueeze);
 SIMPLE_MATCHER_PASS_DEFINITION(EliminateBroadcast, eliminate_nop, op::v1::Broadcast, op::v3::Broadcast);
-SIMPLE_MATCHER_PASS_DEFINITION(EliminateGather, simplify_gather, ov::op::v1::Gather, ov::op::v7::Gather, ov::op::v8::Gather);
+SIMPLE_MATCHER_PASS_DEFINITION(EliminateGather,
+                               simplify_gather,
+                               ov::op::v1::Gather,
+                               ov::op::v7::Gather,
+                               ov::op::v8::Gather);
 
 pass::EliminatePad::EliminatePad() {
     MATCHER_SCOPE(EliminatePad);
@@ -738,7 +742,8 @@ pass::EliminateEltwise::EliminateEltwise() {
     auto input = pattern::any_input();
     auto constant_pattern = pattern::wrap_type<ov::op::v0::Constant>();
     auto eltwise_pattern =
-        pattern::wrap_type<ov::op::v1::Add, ov::op::v1::Subtract, ov::op::v1::Multiply, ov::op::v1::Divide>({input, constant_pattern});
+        pattern::wrap_type<ov::op::v1::Add, ov::op::v1::Subtract, ov::op::v1::Multiply, ov::op::v1::Divide>(
+            {input, constant_pattern});
     auto subtract_pattern =
         pattern::wrap_type<ov::op::v1::Subtract>({input, pattern::wrap_type<ov::op::v0::Convert>({constant_pattern})});
     auto root = make_shared<pattern::op::Or>(OutputVector{eltwise_pattern, subtract_pattern});

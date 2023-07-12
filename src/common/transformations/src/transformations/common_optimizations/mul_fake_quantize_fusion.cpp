@@ -8,15 +8,15 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/validation_util.hpp>
-#include "openvino/op/concat.hpp"
-#include "openvino/op/fake_quantize.hpp"
-#include "openvino/op/divide.hpp"
-#include "openvino/op/multiply.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/reshape.hpp"
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/reshape.hpp"
 #include "transformations/utils/utils.hpp"
 
 ov::pass::MulFakeQuantizeFusion::MulFakeQuantizeFusion() {
@@ -26,10 +26,10 @@ ov::pass::MulFakeQuantizeFusion::MulFakeQuantizeFusion() {
     auto mul_pattern =
         ngraph::pattern::wrap_type<ov::op::v1::Multiply>({input_pattern, const_pattern}, pattern::consumers_count(1));
     auto fq_pattern = ngraph::pattern::wrap_type<ov::op::v0::FakeQuantize>({mul_pattern,
-                                                                        pass::pattern::any_input(),
-                                                                        pass::pattern::any_input(),
-                                                                        pass::pattern::any_input(),
-                                                                        pass::pattern::any_input()});
+                                                                            pass::pattern::any_input(),
+                                                                            pass::pattern::any_input(),
+                                                                            pass::pattern::any_input(),
+                                                                            pass::pattern::any_input()});
     ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_value_map = m.get_pattern_value_map();
         const auto& input = pattern_value_map.at(input_pattern);

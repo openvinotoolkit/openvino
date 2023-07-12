@@ -8,15 +8,15 @@
 #include <ngraph/rt_info.hpp>
 #include <ngraph/validation_util.hpp>
 #include <numeric>
-#include "openvino/op/broadcast.hpp"
-#include "openvino/op/scatter_elements_update.hpp"
-#include "openvino/op/scatter_update.hpp"
-#include "openvino/op/squeeze.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/reshape.hpp"
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/scatter_elements_update.hpp"
+#include "openvino/op/scatter_update.hpp"
+#include "openvino/op/squeeze.hpp"
 
 ov::pass::ConvertScatterElementsToScatter::ConvertScatterElementsToScatter() {
     MATCHER_SCOPE(ConvertScatterElementsToScatter);

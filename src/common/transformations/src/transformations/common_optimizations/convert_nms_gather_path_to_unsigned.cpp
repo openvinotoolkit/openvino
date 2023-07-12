@@ -8,19 +8,19 @@
 #include <ngraph/op/util/gather_base.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
-#include "openvino/op/strided_slice.hpp"
-#include "openvino/op/variadic_split.hpp"
-#include "openvino/op/concat.hpp"
-#include "openvino/op/non_max_suppression.hpp"
-#include "openvino/op/convert.hpp"
-#include "openvino/op/unsqueeze.hpp"
-#include "openvino/op/slice.hpp"
-#include "openvino/op/squeeze.hpp"
-#include "openvino/op/reshape.hpp"
 #include <transformations/rt_info/nms_selected_indices.hpp>
 
 #include "itt.hpp"
 #include "ngraph/node.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/non_max_suppression.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/slice.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/strided_slice.hpp"
+#include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/variadic_split.hpp"
 
 using namespace std;
 

@@ -10,19 +10,19 @@
 #include <ngraph/pattern/op/or.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
-#include "openvino/op/strided_slice.hpp"
-#include "openvino/op/concat.hpp"
-#include "openvino/op/shape_of.hpp"
-#include "openvino/op/multiply.hpp"
-#include "openvino/op/interpolate.hpp"
-#include "openvino/op/unsqueeze.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/reshape.hpp"
 #include <tuple>
 #include <utility>
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/interpolate.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/strided_slice.hpp"
+#include "openvino/op/unsqueeze.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace {
@@ -365,7 +365,8 @@ ov::pass::NearestNeighborUpsamplingFusion::NearestNeighborUpsamplingFusion() {
         const auto& input_node = pattern_to_output.at(input);
         const auto& type = input_node.get_element_type();
         const auto scales_node = ov::op::v0::Constant::create(type, {scales.size()}, scales);
-        const auto sizes_node = ov::op::v0::Constant::create(element::i64, {new_spatial_shape.size()}, new_spatial_shape);
+        const auto sizes_node =
+            ov::op::v0::Constant::create(element::i64, {new_spatial_shape.size()}, new_spatial_shape);
 
         std::vector<int64_t> axes(input_rank - 2);
         std::iota(axes.begin(), axes.end(), static_cast<int64_t>(1));

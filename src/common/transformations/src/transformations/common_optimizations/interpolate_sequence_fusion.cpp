@@ -7,19 +7,19 @@
 #include <algorithm>
 #include <memory>
 #include <numeric>
-#include "openvino/op/shape_of.hpp"
-#include "openvino/op/divide.hpp"
-#include "openvino/op/convert.hpp"
-#include "openvino/op/multiply.hpp"
-#include "openvino/op/interpolate.hpp"
-#include "openvino/op/floor.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/gather.hpp"
 #include <tuple>
 #include <utility>
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/floor.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/interpolate.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/shape_of.hpp"
 // #include <ngraph/op/interpolate.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
@@ -42,7 +42,8 @@ bool shape_calculation_mode_can_use_constant_inputs(const std::shared_ptr<ov::op
         return std::dynamic_pointer_cast<ov::op::v0::Constant>(interpolate->input_value(1).get_node_shared_ptr()) !=
                nullptr;
     }
-    return std::dynamic_pointer_cast<ov::op::v0::Constant>(interpolate->input_value(2).get_node_shared_ptr()) != nullptr;
+    return std::dynamic_pointer_cast<ov::op::v0::Constant>(interpolate->input_value(2).get_node_shared_ptr()) !=
+           nullptr;
 }
 
 bool is_candidate_for_fusion(const std::shared_ptr<ov::op::v4::Interpolate>& interpolate) {
@@ -65,7 +66,8 @@ std::vector<int64_t> get_interpolated_axes(const std::shared_ptr<ov::op::v4::Int
         ->cast_vector<int64_t>();
 }
 
-bool can_be_fused(const std::shared_ptr<ov::op::v4::Interpolate>& fst, const std::shared_ptr<ov::op::v4::Interpolate>& snd) {
+bool can_be_fused(const std::shared_ptr<ov::op::v4::Interpolate>& fst,
+                  const std::shared_ptr<ov::op::v4::Interpolate>& snd) {
     // The first Interpolate (fst) must have only one consumer.
     for (const auto& output : fst->outputs()) {
         for (const auto& consumer : output.get_target_inputs()) {
@@ -87,8 +89,10 @@ ngraph::NodeVector subgraph_for_sizes_calculation_mode(const std::shared_ptr<ov:
                                                        pass::MatcherPass* matcherPass) {
     const auto fst_axes = get_interpolated_axes(fst);
     const auto snd_axes = get_interpolated_axes(snd);
-    const auto fst_sizes_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(fst->input_value(1).get_node_shared_ptr());
-    const auto snd_sizes_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(snd->input_value(1).get_node_shared_ptr());
+    const auto fst_sizes_node =
+        std::dynamic_pointer_cast<ov::op::v0::Constant>(fst->input_value(1).get_node_shared_ptr());
+    const auto snd_sizes_node =
+        std::dynamic_pointer_cast<ov::op::v0::Constant>(snd->input_value(1).get_node_shared_ptr());
     if (!fst_sizes_node || !snd_sizes_node)
         return {};
 
@@ -144,8 +148,10 @@ ngraph::NodeVector subgraph_for_scales_calculation_mode(const std::shared_ptr<ov
                                                         pass::MatcherPass* matcherPass) {
     const auto fst_axes = get_interpolated_axes(fst);
     const auto snd_axes = get_interpolated_axes(snd);
-    const auto fst_scales_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(fst->input_value(2).get_node_shared_ptr());
-    const auto snd_scales_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(snd->input_value(2).get_node_shared_ptr());
+    const auto fst_scales_node =
+        std::dynamic_pointer_cast<ov::op::v0::Constant>(fst->input_value(2).get_node_shared_ptr());
+    const auto snd_scales_node =
+        std::dynamic_pointer_cast<ov::op::v0::Constant>(snd->input_value(2).get_node_shared_ptr());
     if (!fst_scales_node || !snd_scales_node)
         return {};
 

@@ -10,15 +10,6 @@
 #include <ngraph/rt_info.hpp>
 #include <numeric>
 #include <openvino/core/validation_util.hpp>
-#include "openvino/op/strided_slice.hpp"
-#include "openvino/op/concat.hpp"
-#include "openvino/op/shape_of.hpp"
-#include "openvino/op/split.hpp"
-#include "openvino/op/convert.hpp"
-#include "openvino/op/multiply.hpp"
-#include "openvino/op/interpolate.hpp"
-#include "openvino/op/floor.hpp"
-#include "openvino/op/constant.hpp"
 #include <transformations/rt_info/disable_constant_folding.hpp>
 #include <tuple>
 #include <unordered_set>
@@ -26,6 +17,15 @@
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/floor.hpp"
+#include "openvino/op/interpolate.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/split.hpp"
+#include "openvino/op/strided_slice.hpp"
 
 using namespace ov;
 
@@ -224,8 +224,11 @@ ov::pass::SplitConcatPairToInterpolateFusion::SplitConcatPairToInterpolateFusion
         if (!sizes_node)
             sizes_node = cast_mul_result_to_int;
 
-        auto interpolate =
-            register_new_node<ov::op::v4::Interpolate>(split->input_value(0), sizes_node, scales_node, axis_node, attrs);
+        auto interpolate = register_new_node<ov::op::v4::Interpolate>(split->input_value(0),
+                                                                      sizes_node,
+                                                                      scales_node,
+                                                                      axis_node,
+                                                                      attrs);
 
         interpolate->set_friendly_name(concat->get_friendly_name());
         copy_runtime_info({split, concat},

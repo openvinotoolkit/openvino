@@ -7,11 +7,11 @@
 #include <memory>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
-#include "openvino/op/convert.hpp"
-#include "openvino/op/shape_of.hpp"
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/shape_of.hpp"
 
 ov::pass::ConvertShapeOf3::ConvertShapeOf3() {
     MATCHER_SCOPE(ConvertShapeOf3);

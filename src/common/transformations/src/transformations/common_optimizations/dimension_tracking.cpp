@@ -6,22 +6,20 @@
 
 #include <memory>
 #include <ngraph/rt_info.hpp>
-#include "openvino/op/deformable_convolution.hpp"
-#include "openvino/op/matmul.hpp"
-#include "openvino/op/shape_of.hpp"
-#include "openvino/op/parameter.hpp"
-
-#include "openvino/op/result.hpp"
-#include "openvino/op/detection_output.hpp"
-#include "openvino/op/convert.hpp"
-
-#include "openvino/op/group_conv.hpp"
-#include "openvino/op/convolution.hpp"
-#include "openvino/op/convert_like.hpp"
 #include <vector>
 
 #include "itt.hpp"
 #include "openvino/core/dimension_tracker.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/convert_like.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/deformable_convolution.hpp"
+#include "openvino/op/detection_output.hpp"
+#include "openvino/op/group_conv.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
+#include "openvino/op/shape_of.hpp"
 
 void ov::batch_util::mark_with_unique_dimension_labels(const std::shared_ptr<ov::Model>& f,
                                                        const ov::DimensionTracker& dt) {

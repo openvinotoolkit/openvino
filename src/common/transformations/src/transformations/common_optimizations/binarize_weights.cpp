@@ -6,15 +6,15 @@
 
 #include <memory>
 #include <ngraph/rt_info.hpp>
-#include "openvino/op/fake_quantize.hpp"
-#include "openvino/op/multiply.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/convolution.hpp"
-#include "openvino/op/reshape.hpp"
 #include <openvino/pass/pattern/op/wrap_type.hpp>
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/reshape.hpp"
 
 using namespace ov;
 
@@ -58,18 +58,19 @@ static std::vector<float> quantize_weights(const Shape& weights_shape,
 
 pass::BinarizeWeights::BinarizeWeights() {
     MATCHER_SCOPE(BinarizeWeights);
-    auto activations_fq_pattern = pattern::wrap_type<ov::op::v0::FakeQuantize>({pattern::any_input(),
+    auto activations_fq_pattern =
+        pattern::wrap_type<ov::op::v0::FakeQuantize>({pattern::any_input(),
+                                                      pattern::wrap_type<ov::op::v0::Constant>(),
+                                                      pattern::wrap_type<ov::op::v0::Constant>(),
+                                                      pattern::wrap_type<ov::op::v0::Constant>(),
+                                                      pattern::wrap_type<ov::op::v0::Constant>()},
+                                                     pattern::consumers_count(1));
+    auto weights_fq_pattern = pattern::wrap_type<ov::op::v0::FakeQuantize>({pattern::wrap_type<ov::op::v0::Constant>(),
                                                                             pattern::wrap_type<ov::op::v0::Constant>(),
                                                                             pattern::wrap_type<ov::op::v0::Constant>(),
                                                                             pattern::wrap_type<ov::op::v0::Constant>(),
                                                                             pattern::wrap_type<ov::op::v0::Constant>()},
                                                                            pattern::consumers_count(1));
-    auto weights_fq_pattern = pattern::wrap_type<ov::op::v0::FakeQuantize>({pattern::wrap_type<ov::op::v0::Constant>(),
-                                                                        pattern::wrap_type<ov::op::v0::Constant>(),
-                                                                        pattern::wrap_type<ov::op::v0::Constant>(),
-                                                                        pattern::wrap_type<ov::op::v0::Constant>(),
-                                                                        pattern::wrap_type<ov::op::v0::Constant>()},
-                                                                       pattern::consumers_count(1));
     auto conv_pattern = pattern::wrap_type<ov::op::v1::Convolution>({activations_fq_pattern, weights_fq_pattern});
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
@@ -80,7 +81,8 @@ pass::BinarizeWeights::BinarizeWeights() {
             std::dynamic_pointer_cast<ov::op::v0::FakeQuantize>(conv->input_value(0).get_node_shared_ptr());
         if (!activations_fq || activations_fq->get_levels() != 2)
             return false;
-        auto weights_fq = std::dynamic_pointer_cast<ov::op::v0::FakeQuantize>(conv->input_value(1).get_node_shared_ptr());
+        auto weights_fq =
+            std::dynamic_pointer_cast<ov::op::v0::FakeQuantize>(conv->input_value(1).get_node_shared_ptr());
         if (!weights_fq || weights_fq->get_levels() != 2)
             return false;
 
@@ -155,11 +157,13 @@ pass::BinarizeWeights::BinarizeWeights() {
         const std::shared_ptr<Node>& weights_norm_factor = weights_output_high_const;
 
         // Create new FQ on activations with new output low/high
-        auto output_low_normalized =
-            ov::op::v0::Constant::create(element::f32, activations_output_low_const->get_shape(), activations_output_low);
+        auto output_low_normalized = ov::op::v0::Constant::create(element::f32,
+                                                                  activations_output_low_const->get_shape(),
+                                                                  activations_output_low);
         output_low_normalized->set_friendly_name(activations_output_low_const->get_friendly_name());
-        auto output_high_normalized =
-            ov::op::v0::Constant::create(element::f32, activations_output_high_const->get_shape(), activations_output_high);
+        auto output_high_normalized = ov::op::v0::Constant::create(element::f32,
+                                                                   activations_output_high_const->get_shape(),
+                                                                   activations_output_high);
         output_high_normalized->set_friendly_name(activations_output_high_const->get_friendly_name());
         auto new_activations_fq = activations_fq->clone_with_new_inputs({activations_fq->input_value(0),
                                                                          activations_fq->input_value(1),

@@ -8,17 +8,17 @@
 
 #include "itt.hpp"
 #include "openvino/core/rt_info.hpp"
-#include "openvino/op/matmul.hpp"
-#include "openvino/op/tanh.hpp"
-#include "openvino/op/subtract.hpp"
-#include "openvino/op/concat.hpp"
-#include "openvino/op/variadic_split.hpp"
-#include "openvino/op/split.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/multiply.hpp"
 #include "openvino/op/add.hpp"
-#include "openvino/op/squeeze.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/multiply.hpp"
 #include "openvino/op/sigmoid.hpp"
+#include "openvino/op/split.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/op/tanh.hpp"
+#include "openvino/op/variadic_split.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ov_ops/augru_cell.hpp"
 
@@ -91,10 +91,12 @@ ov::pass::AUGRUCellFusion::AUGRUCellFusion() {
         auto split_W_r_z = rg.make<ov::op::v1::Split>(split_WRrz->output(0), axis_0, 2);
         auto split_R_r_z = rg.make<ov::op::v1::Split>(split_WRrz->output(1), axis_0, 2);
         auto split_WRh = rg.make<ov::op::v1::VariadicSplit>(WRh, axis_1, split_lenghts);
-        auto Wzrh =
-            rg.make<ov::op::v0::Concat>(OutputVector{split_W_r_z->output(1), split_W_r_z->output(0), split_WRh->output(0)}, 0);
-        auto Rzrh =
-            rg.make<ov::op::v0::Concat>(OutputVector{split_R_r_z->output(1), split_R_r_z->output(0), split_WRh->output(1)}, 0);
+        auto Wzrh = rg.make<ov::op::v0::Concat>(
+            OutputVector{split_W_r_z->output(1), split_W_r_z->output(0), split_WRh->output(0)},
+            0);
+        auto Rzrh = rg.make<ov::op::v0::Concat>(
+            OutputVector{split_R_r_z->output(1), split_R_r_z->output(0), split_WRh->output(1)},
+            0);
 
         auto squeeze_B = rg.make<ov::op::v0::Squeeze>(B, axis_0);
         auto cell =

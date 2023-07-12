@@ -8,14 +8,14 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/validation_util.hpp>
-#include "openvino/op/subtract.hpp"
-#include "openvino/op/fake_quantize.hpp"
-#include "openvino/op/convert.hpp"
-#include "openvino/op/multiply.hpp"
-#include "openvino/op/constant.hpp"
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/subtract.hpp"
 #include "transformations/utils/utils.hpp"
 
 // ConvertQuantizeDequantize converts Quantize/Dequantize pair to a single FakeQuantize.
@@ -71,12 +71,12 @@ ov::pass::ConvertQuantizeDequantize::ConvertQuantizeDequantize() {
         {data_pattern, input_low_pattern, input_high_pattern, output_low_pattern, output_high_pattern});
     auto convert1_pattern =
         ngraph::pattern::wrap_type<ov::op::v0::Convert>({fq_pattern},
-                                                    pattern::type_matches_any({element::i8, element::u8}));
+                                                        pattern::type_matches_any({element::i8, element::u8}));
     auto convert2_pattern =
         ngraph::pattern::wrap_type<ov::op::v0::Convert>({convert1_pattern}, pattern::type_matches(element::f32));
     auto zero_point_pattern = pass::pattern::any_input();
     auto sub_pattern = ngraph::pattern::wrap_type<ov::op::v1::Subtract>({convert2_pattern, zero_point_pattern},
-                                                                    pattern::consumers_count(1));
+                                                                        pattern::consumers_count(1));
     auto scale_pattern = pass::pattern::any_input();
     auto mul_pattern = ngraph::pattern::wrap_type<ov::op::v1::Multiply>({sub_pattern, scale_pattern});
 
@@ -140,9 +140,11 @@ ov::pass::ConvertQuantizeDequantize::ConvertQuantizeDequantize() {
         }
 
         std::shared_ptr<Node> new_out_low =
-            std::make_shared<ov::op::v1::Multiply>(std::make_shared<ov::op::v1::Subtract>(output_low, zero_point), scale);
+            std::make_shared<ov::op::v1::Multiply>(std::make_shared<ov::op::v1::Subtract>(output_low, zero_point),
+                                                   scale);
         std::shared_ptr<Node> new_out_high =
-            std::make_shared<ov::op::v1::Multiply>(std::make_shared<ov::op::v1::Subtract>(output_high, zero_point), scale);
+            std::make_shared<ov::op::v1::Multiply>(std::make_shared<ov::op::v1::Subtract>(output_high, zero_point),
+                                                   scale);
 
         // check if new_out_low/high shapes are broadcastable to FQ's input
         auto data_shape = data.get_partial_shape();

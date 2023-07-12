@@ -7,11 +7,11 @@
 #include <memory>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
-#include "openvino/op/topk.hpp"
-#include "openvino/op/convert.hpp"
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/topk.hpp"
 
 ov::pass::ConvertTopK3::ConvertTopK3() {
     MATCHER_SCOPE(ConvertTopK3);

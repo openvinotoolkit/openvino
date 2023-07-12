@@ -6,11 +6,12 @@
 
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
-#include "openvino/op/normalize_l2.hpp"
+
+#include "openvino/op/constant.hpp"
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/multiply.hpp"
+#include "openvino/op/normalize_l2.hpp"
 #include "openvino/op/squared_difference.hpp"
-#include "openvino/op/constant.hpp"
 #include "openvino/op/util/binary_elementwise_comparison.hpp"
 #include "openvino/op/util/binary_elementwise_logical.hpp"
 

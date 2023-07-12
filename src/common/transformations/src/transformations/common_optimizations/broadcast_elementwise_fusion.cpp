@@ -6,10 +6,10 @@
 
 #include <ngraph/ngraph.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
-#include "openvino/op/broadcast.hpp"
-#include "openvino/op/shape_of.hpp"
 
 #include "itt.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/shape_of.hpp"
 
 namespace {
 

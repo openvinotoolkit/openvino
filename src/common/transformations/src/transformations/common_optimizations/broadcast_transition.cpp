@@ -5,22 +5,23 @@
 #include "transformations/common_optimizations/broadcast_transition.hpp"
 
 #include <memory>
-#include "openvino/op/broadcast.hpp"
-#include "openvino/op/concat.hpp"
-#include "openvino/op/shape_of.hpp"
-#include "openvino/op/maximum.hpp"
-#include "openvino/op/convert.hpp"
-#include "openvino/op/constant.hpp"
 #include <openvino/pass/pattern/op/or.hpp>
 #include <openvino/pass/pattern/op/wrap_type.hpp>
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/maximum.hpp"
+#include "openvino/op/shape_of.hpp"
 #include "transformations/utils/utils.hpp"
 
 ov::pass::BroadcastTransition::BroadcastTransition() {
     MATCHER_SCOPE(BroadcastTransition);
-    auto bcast_m = pass::pattern::wrap_type<ov::op::v1::Broadcast, ov::op::v3::Broadcast>(pass::pattern::consumers_count(1));
+    auto bcast_m =
+        pass::pattern::wrap_type<ov::op::v1::Broadcast, ov::op::v3::Broadcast>(pass::pattern::consumers_count(1));
     auto eltwise_input_m = pass::pattern::any_input(pass::pattern::has_static_rank());
     auto eltwise_1 = pass::pattern::wrap_type<op::util::BinaryElementwiseArithmetic>({eltwise_input_m, bcast_m});
     auto eltwise_2 = pass::pattern::wrap_type<op::util::BinaryElementwiseArithmetic>({bcast_m, eltwise_input_m});

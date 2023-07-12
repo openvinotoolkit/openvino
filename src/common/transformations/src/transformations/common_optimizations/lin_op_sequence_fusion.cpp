@@ -7,13 +7,13 @@
 #include <memory>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
-#include "openvino/op/multiply.hpp"
-#include "openvino/op/add.hpp"
-#include "openvino/op/constant.hpp"
 #include <transformations/utils/utils.hpp>
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/multiply.hpp"
 
 using namespace ov;
 
@@ -52,7 +52,8 @@ ov::pass::AddMultiplyFusion::AddMultiplyFusion() {
 
         // Add two constants using opset3::Add constant folding and create new Add operation
         auto new_add =
-            std::make_shared<ov::op::v1::Add>(new_mul, op::util::eltwise_fold<ov::op::v1::Multiply>(add_const, mul_const));
+            std::make_shared<ov::op::v1::Add>(new_mul,
+                                              op::util::eltwise_fold<ov::op::v1::Multiply>(add_const, mul_const));
 
         copy_runtime_info({add, mul}, {new_mul, new_add});
         new_add->set_friendly_name(mul->get_friendly_name());
@@ -103,7 +104,8 @@ ov::pass::MultiplyMultiplyFusion::MultiplyMultiplyFusion() {
     // Create Multiply->Multiply pattern where first Multiply has exactly one consumer
     auto m_data = pass::pattern::any_input();
     auto m_mul1_constant = ngraph::pattern::wrap_type<ov::op::v0::Constant>();
-    auto m_mul1 = ngraph::pattern::wrap_type<ov::op::v1::Multiply>({m_data, m_mul1_constant}, pattern::consumers_count(1));
+    auto m_mul1 =
+        ngraph::pattern::wrap_type<ov::op::v1::Multiply>({m_data, m_mul1_constant}, pattern::consumers_count(1));
     auto m_mul2_constant = ngraph::pattern::wrap_type<ov::op::v0::Constant>();
     auto m_mul2 = ngraph::pattern::wrap_type<ov::op::v1::Multiply>({m_mul1, m_mul2_constant});
 
@@ -119,9 +121,9 @@ ov::pass::MultiplyMultiplyFusion::MultiplyMultiplyFusion() {
 
         // Replace Multiply->Multiply with single Multiply
         // Multiply operation will be added to the list of ops requested for pattern matching
-        auto new_mul =
-            register_new_node<ov::op::v1::Multiply>(input,
-                                                op::util::eltwise_fold<ov::op::v1::Multiply>(mul1_const, mul2_const));
+        auto new_mul = register_new_node<ov::op::v1::Multiply>(
+            input,
+            op::util::eltwise_fold<ov::op::v1::Multiply>(mul1_const, mul2_const));
 
         copy_runtime_info({mul1, mul2}, new_mul);
         new_mul->set_friendly_name(mul2->get_friendly_name());

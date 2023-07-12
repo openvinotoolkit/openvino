@@ -9,30 +9,30 @@
 #include <ngraph/pattern/op/or.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
-#include "openvino/op/random_uniform.hpp"
-#include "openvino/op/convert.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/multiply.hpp"
-#include "openvino/op/add.hpp"
 
 #include "itt.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/random_uniform.hpp"
 
 ov::pass::RandomUniformFusion::RandomUniformFusion() {
     MATCHER_SCOPE(RandomUniformFusion);
     const auto data_pattern = pass::pattern::any_input();
     const auto ru_min_input_pattern = pass::pattern::any_input();
     const auto ru_max_input_pattern = pass::pattern::any_input();
-    const auto random_uniform_pattern =
-        ngraph::pattern::wrap_type<ov::op::v8::RandomUniform>({data_pattern, ru_min_input_pattern, ru_max_input_pattern},
-                                                          pattern::consumers_count(1));
+    const auto random_uniform_pattern = ngraph::pattern::wrap_type<ov::op::v8::RandomUniform>(
+        {data_pattern, ru_min_input_pattern, ru_max_input_pattern},
+        pattern::consumers_count(1));
     const auto const_pattern = ngraph::pattern::wrap_type<ov::op::v0::Constant>();
 
     const auto convert_pattern = ngraph::pattern::wrap_type<ov::op::v0::Convert>({random_uniform_pattern});
     const auto random_uniform_or_convert_pattern =
         std::make_shared<pattern::op::Or>(OutputVector{random_uniform_pattern, convert_pattern});
 
-    const auto mul_add_pattern =
-        ngraph::pattern::wrap_type<ov::op::v1::Multiply, ov::op::v1::Add>({random_uniform_or_convert_pattern, const_pattern});
+    const auto mul_add_pattern = ngraph::pattern::wrap_type<ov::op::v1::Multiply, ov::op::v1::Add>(
+        {random_uniform_or_convert_pattern, const_pattern});
 
     ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();

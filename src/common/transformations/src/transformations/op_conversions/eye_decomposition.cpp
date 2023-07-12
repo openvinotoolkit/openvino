@@ -8,19 +8,19 @@
 
 #include "itt.hpp"
 #include "openvino/core/rt_info.hpp"
-#include "openvino/op/util/gather_nd_base.hpp"
-#include "openvino/op/util/op_types.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/eye.hpp"
+#include "openvino/op/maximum.hpp"
 #include "openvino/op/minimum.hpp"
 #include "openvino/op/negative.hpp"
-#include "openvino/op/subtract.hpp"
-#include "openvino/op/concat.hpp"
-#include "openvino/op/maximum.hpp"
-#include "openvino/op/tile.hpp"
-#include "openvino/op/reduce_min.hpp"
-#include "openvino/op/eye.hpp"
 #include "openvino/op/pad.hpp"
-#include "openvino/op/constant.hpp"
+#include "openvino/op/reduce_min.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/op/tile.hpp"
+#include "openvino/op/util/gather_nd_base.hpp"
+#include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
@@ -80,9 +80,9 @@ std::shared_ptr<Node> make_eye_model(NodeRegistry& reg,
     const auto zeros = reg.make<ov::op::v0::Tile>(zero, eye_size);
     const auto one_followed_by_zeros = reg.make<ov::op::v0::Concat>(OutputVector{one, zeros}, 0);
     const auto eye_1d = reg.make<ov::op::v1::Pad>(reg.make<ov::op::v0::Tile>(one_followed_by_zeros, eye_size),
-                                              zero_int,
-                                              reg.make<ov::op::v0::Negative>(eye_size),
-                                              op::PadMode::CONSTANT);
+                                                  zero_int,
+                                                  reg.make<ov::op::v0::Negative>(eye_size),
+                                                  op::PadMode::CONSTANT);
     // Reshape 1d-eye to 2d-eye
     const auto eye_2d =
         reg.make<ov::op::v1::Reshape>(eye_1d, reg.make<ov::op::v0::Concat>(OutputVector{eye_size, eye_size}, 0), false);

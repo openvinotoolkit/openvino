@@ -7,12 +7,12 @@
 #include <list>
 #include <memory>
 #include <ngraph/rt_info.hpp>
-#include "openvino/op/non_max_suppression.hpp"
-#include "openvino/op/constant.hpp"
 #include <openvino/pass/pattern/op/wrap_type.hpp>
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/non_max_suppression.hpp"
 
 using namespace ov;
 
@@ -138,13 +138,13 @@ bool callback_func(pass::pattern::Matcher& m, pass::MatcherPass* impl) {
     const auto& arg4 = num_of_args > 4 ? new_args.at(4) : ov::op::v0::Constant::create(element::f32, Shape{}, {.0f});
 
     const auto nms_5 = impl->register_new_node<ov::op::v5::NonMaxSuppression>(new_args.at(0),
-                                                                          new_args.at(1),
-                                                                          arg2,
-                                                                          arg3,
-                                                                          arg4,
-                                                                          attrs.box_encoding,
-                                                                          attrs.sort_result_descending,
-                                                                          attrs.output_type);
+                                                                              new_args.at(1),
+                                                                              arg2,
+                                                                              arg3,
+                                                                              arg4,
+                                                                              attrs.box_encoding,
+                                                                              attrs.sort_result_descending,
+                                                                              attrs.output_type);
 
     nms_5->set_friendly_name(root->get_friendly_name());
     ngraph::copy_runtime_info(root, nms_5);

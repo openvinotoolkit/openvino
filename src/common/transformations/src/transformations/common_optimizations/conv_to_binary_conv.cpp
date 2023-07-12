@@ -8,17 +8,17 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/validation_util.hpp>
-#include "openvino/op/fake_quantize.hpp"
-#include "openvino/op/binary_convolution.hpp"
-#include "openvino/op/reduce_sum.hpp"
-#include "openvino/op/multiply.hpp"
-#include "openvino/op/add.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/convolution.hpp"
-#include "openvino/op/reshape.hpp"
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/binary_convolution.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/reduce_sum.hpp"
+#include "openvino/op/reshape.hpp"
 
 static std::vector<uint8_t> binarize_weights(const std::vector<float>& weights) {
     std::vector<uint8_t> out;
@@ -37,14 +37,15 @@ static std::vector<uint8_t> binarize_weights(const std::vector<float>& weights) 
 
 ov::pass::ConvToBinaryConv::ConvToBinaryConv() {
     MATCHER_SCOPE(ConvToBinaryConv);
-    auto fq_pattern = ngraph::pattern::wrap_type<ov::op::v0::FakeQuantize>({pattern::any_input(),
-                                                                        pattern::any_input(),
-                                                                        pattern::any_input(),
-                                                                        ngraph::pattern::wrap_type<ov::op::v0::Constant>(),
-                                                                        ngraph::pattern::wrap_type<ov::op::v0::Constant>()},
-                                                                       pattern::consumers_count(1));
-    auto conv_pattern =
-        ngraph::pattern::wrap_type<ov::op::v1::Convolution>({fq_pattern, ngraph::pattern::wrap_type<ov::op::v0::Constant>()});
+    auto fq_pattern =
+        ngraph::pattern::wrap_type<ov::op::v0::FakeQuantize>({pattern::any_input(),
+                                                              pattern::any_input(),
+                                                              pattern::any_input(),
+                                                              ngraph::pattern::wrap_type<ov::op::v0::Constant>(),
+                                                              ngraph::pattern::wrap_type<ov::op::v0::Constant>()},
+                                                             pattern::consumers_count(1));
+    auto conv_pattern = ngraph::pattern::wrap_type<ov::op::v1::Convolution>(
+        {fq_pattern, ngraph::pattern::wrap_type<ov::op::v0::Constant>()});
 
     ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto conv = std::dynamic_pointer_cast<ov::op::v1::Convolution>(m.get_match_root());
@@ -77,7 +78,8 @@ ov::pass::ConvToBinaryConv::ConvToBinaryConv() {
         if (!(output_high_is_one && (output_low_is_zero || output_low_is_minus_one)))
             return false;
 
-        auto weights_constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(conv->input_value(1).get_node_shared_ptr());
+        auto weights_constant =
+            std::dynamic_pointer_cast<ov::op::v0::Constant>(conv->input_value(1).get_node_shared_ptr());
         if (!weights_constant)
             return false;
 
@@ -123,23 +125,24 @@ ov::pass::ConvToBinaryConv::ConvToBinaryConv() {
             weights_reduced_reshaped = ngraph::get_constant_from_source(weights_reduced_reshaped);
             OPENVINO_SUPPRESS_DEPRECATED_END
             auto add = std::make_shared<ov::op::v1::Add>(new_conv, weights_reduced_reshaped);
-            auto mul = std::make_shared<ov::op::v1::Multiply>(add, ov::op::v0::Constant::create(element::f32, Shape{}, {0.5}));
+            auto mul =
+                std::make_shared<ov::op::v1::Multiply>(add, ov::op::v0::Constant::create(element::f32, Shape{}, {0.5}));
             copy_runtime_info(conv, {new_conv, add, mul});
             replace_node(conv, mul);
 
             return true;
         }
 
-        auto new_conv =
-            std::make_shared<ov::op::v1::BinaryConvolution>(conv->input_value(0),
-                                                        bin_weights_constant,
-                                                        conv->get_strides(),
-                                                        conv->get_pads_begin(),
-                                                        conv->get_pads_end(),
-                                                        conv->get_dilations(),
-                                                        ov::op::v1::BinaryConvolution::BinaryConvolutionMode::XNOR_POPCOUNT,
-                                                        0.f,
-                                                        conv->get_auto_pad());
+        auto new_conv = std::make_shared<ov::op::v1::BinaryConvolution>(
+            conv->input_value(0),
+            bin_weights_constant,
+            conv->get_strides(),
+            conv->get_pads_begin(),
+            conv->get_pads_end(),
+            conv->get_dilations(),
+            ov::op::v1::BinaryConvolution::BinaryConvolutionMode::XNOR_POPCOUNT,
+            0.f,
+            conv->get_auto_pad());
 
         new_conv->set_friendly_name(conv->get_friendly_name());
         copy_runtime_info(conv, new_conv);

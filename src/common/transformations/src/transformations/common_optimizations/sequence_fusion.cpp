@@ -10,18 +10,18 @@
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
-#include "openvino/op/shape_of.hpp"
-#include "openvino/op/split.hpp"
-#include "openvino/op/rnn_cell.hpp"
-#include "openvino/op/rnn_sequence.hpp"
-#include "openvino/op/gru_cell.hpp"
-#include "openvino/op/lstm_cell.hpp"
-#include "openvino/op/gru_sequence.hpp"
-#include "openvino/op/unsqueeze.hpp"
-#include "openvino/op/lstm_sequence.hpp"
-#include "openvino/op/squeeze.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/gather.hpp"
+#include "openvino/op/gru_cell.hpp"
+#include "openvino/op/gru_sequence.hpp"
+#include "openvino/op/lstm_cell.hpp"
+#include "openvino/op/lstm_sequence.hpp"
+#include "openvino/op/rnn_cell.hpp"
+#include "openvino/op/rnn_sequence.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/split.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ov_ops/augru_cell.hpp"
 #include "ov_ops/augru_sequence.hpp"
@@ -98,7 +98,8 @@ bool is_equal_cells(const shared_ptr<RNNCellBase>& cell_1, const shared_ptr<RNNC
 bool check_lstm_cell(const shared_ptr<RNNCellBase>& prev_cell, const shared_ptr<RNNCellBase>& current_cell) {
     // check intermediate C outputs in case of LSTMCell
     // LSTMCell - C -> LSTMCell
-    if ((dynamic_pointer_cast<ov::op::v4::LSTMCell>(prev_cell) || dynamic_pointer_cast<ov::op::v0::LSTMCell>(prev_cell))) {
+    if ((dynamic_pointer_cast<ov::op::v4::LSTMCell>(prev_cell) ||
+         dynamic_pointer_cast<ov::op::v0::LSTMCell>(prev_cell))) {
         const auto& target_inputs = prev_cell->get_output_target_inputs(1);
         bool valid = target_inputs.empty() ||
                      (target_inputs.size() == 1 &&
@@ -161,7 +162,8 @@ bool create_sequence(ov::pass::NodeRegistry& cp_to,
     int64_t idx_W = 2, idx_R = 3, idx_B = 4;
     // 2nd input is Cell State
     bool is_lstm = false;
-    if (dynamic_pointer_cast<ov::op::v4::LSTMCell>(last_cell) || dynamic_pointer_cast<ov::op::v0::LSTMCell>(last_cell)) {
+    if (dynamic_pointer_cast<ov::op::v4::LSTMCell>(last_cell) ||
+        dynamic_pointer_cast<ov::op::v0::LSTMCell>(last_cell)) {
         is_lstm = true;
         idx_B++;
         idx_R++;
@@ -178,24 +180,25 @@ bool create_sequence(ov::pass::NodeRegistry& cp_to,
     const auto& zero = cp_to.make<ov::op::v0::Constant>(i64, ov::Shape{1}, 0);
     const auto& batch_dimension = cp_to.add(ov::op::util::make_try_fold<ov::op::v8::Gather>(shape_node, zero, axis_0));
     auto seq_lengths_scalar = cp_to.make<ov::op::v0::Constant>(i64, ov::Shape{}, cells_cnt);
-    auto sequence_lengths_in = cp_to.add(ov::op::util::make_try_fold<ov::op::v3::Broadcast>(seq_lengths_scalar, batch_dimension));
+    auto sequence_lengths_in =
+        cp_to.add(ov::op::util::make_try_fold<ov::op::v3::Broadcast>(seq_lengths_scalar, batch_dimension));
     shared_ptr<ov::Node> sequence;
     ov::OutputVector outputs(1);
     if (dynamic_pointer_cast<ov::op::v4::LSTMCell>(first_cell)) {
         const auto Ct_in = cp_to.make<ov::op::v0::Unsqueeze>(first_cell->input_value(2), axis_1);
         sequence = cp_to.make<ov::op::v5::LSTMSequence>(X_in,
-                                            Ht_in,
-                                            Ct_in,
-                                            sequence_lengths_in,
-                                            W_in,
-                                            R_in,
-                                            B_in,
-                                            first_cell->get_hidden_size(),
-                                            ov::op::RecurrentSequenceDirection::FORWARD,
-                                            first_cell->get_activations_alpha(),
-                                            first_cell->get_activations_beta(),
-                                            first_cell->get_activations(),
-                                            first_cell->get_clip());
+                                                        Ht_in,
+                                                        Ct_in,
+                                                        sequence_lengths_in,
+                                                        W_in,
+                                                        R_in,
+                                                        B_in,
+                                                        first_cell->get_hidden_size(),
+                                                        ov::op::RecurrentSequenceDirection::FORWARD,
+                                                        first_cell->get_activations_alpha(),
+                                                        first_cell->get_activations_beta(),
+                                                        first_cell->get_activations(),
+                                                        first_cell->get_clip());
         outputs.resize(2);
         outputs[1] = cp_to.make<ov::op::v0::Squeeze>(sequence->output(2), axis_1);
     } else if (auto lstm_cell_v0 = dynamic_pointer_cast<ov::op::v0::LSTMCell>(first_cell)) {
@@ -212,47 +215,47 @@ bool create_sequence(ov::pass::NodeRegistry& cp_to,
         }
         const auto Ct_in = cp_to.make<ov::op::v0::Unsqueeze>(first_cell->input_value(2), axis_1);
         sequence = cp_to.make<ov::op::v5::LSTMSequence>(X_in,
-                                            Ht_in,
-                                            Ct_in,
-                                            sequence_lengths_in,
-                                            W,
-                                            R,
-                                            B,
-                                            first_cell->get_hidden_size(),
-                                            ov::op::RecurrentSequenceDirection::FORWARD,
-                                            first_cell->get_activations_alpha(),
-                                            first_cell->get_activations_beta(),
-                                            first_cell->get_activations(),
-                                            first_cell->get_clip());
+                                                        Ht_in,
+                                                        Ct_in,
+                                                        sequence_lengths_in,
+                                                        W,
+                                                        R,
+                                                        B,
+                                                        first_cell->get_hidden_size(),
+                                                        ov::op::RecurrentSequenceDirection::FORWARD,
+                                                        first_cell->get_activations_alpha(),
+                                                        first_cell->get_activations_beta(),
+                                                        first_cell->get_activations(),
+                                                        first_cell->get_clip());
         outputs.resize(2);
         outputs[1] = cp_to.make<ov::op::v0::Squeeze>(sequence->output(2), axis_1);
     } else if (auto gru_cell = dynamic_pointer_cast<ov::op::v3::GRUCell>(first_cell)) {
         sequence = cp_to.make<ov::op::v5::GRUSequence>(X_in,
-                                           Ht_in,
-                                           sequence_lengths_in,
-                                           W_in,
-                                           R_in,
-                                           B_in,
-                                           first_cell->get_hidden_size(),
-                                           ov::op::RecurrentSequenceDirection::FORWARD,
-                                           first_cell->get_activations(),
-                                           first_cell->get_activations_alpha(),
-                                           first_cell->get_activations_beta(),
-                                           first_cell->get_clip(),
-                                           gru_cell->get_linear_before_reset());
+                                                       Ht_in,
+                                                       sequence_lengths_in,
+                                                       W_in,
+                                                       R_in,
+                                                       B_in,
+                                                       first_cell->get_hidden_size(),
+                                                       ov::op::RecurrentSequenceDirection::FORWARD,
+                                                       first_cell->get_activations(),
+                                                       first_cell->get_activations_alpha(),
+                                                       first_cell->get_activations_beta(),
+                                                       first_cell->get_clip(),
+                                                       gru_cell->get_linear_before_reset());
     } else if (dynamic_pointer_cast<ov::op::v0::RNNCell>(first_cell)) {
         sequence = cp_to.make<ov::op::v5::RNNSequence>(X_in,
-                                           Ht_in,
-                                           sequence_lengths_in,
-                                           W_in,
-                                           R_in,
-                                           B_in,
-                                           first_cell->get_hidden_size(),
-                                           ov::op::RecurrentSequenceDirection::FORWARD,
-                                           first_cell->get_activations(),
-                                           first_cell->get_activations_alpha(),
-                                           first_cell->get_activations_beta(),
-                                           first_cell->get_clip());
+                                                       Ht_in,
+                                                       sequence_lengths_in,
+                                                       W_in,
+                                                       R_in,
+                                                       B_in,
+                                                       first_cell->get_hidden_size(),
+                                                       ov::op::RecurrentSequenceDirection::FORWARD,
+                                                       first_cell->get_activations(),
+                                                       first_cell->get_activations_alpha(),
+                                                       first_cell->get_activations_beta(),
+                                                       first_cell->get_clip());
     } else if (dynamic_pointer_cast<ov::op::internal::AUGRUCell>(first_cell)) {
         const auto A_in = cp_to.make<ov::op::v0::Concat>(attention_to_concat, 1);
         sequence = cp_to.make<ov::op::internal::AUGRUSequence>(X_in,

@@ -11,10 +11,10 @@
 #include "ngraph/pattern/op/wrap_type.hpp"
 #include "ngraph/rt_info.hpp"
 #include "ngraph/validation_util.hpp"
-#include "openvino/op/transpose.hpp"
-#include "openvino/op/matmul.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/matmul.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/transpose.hpp"
 
 namespace {
 /// \brief      Check for correct Transpose orders which are before and after MatMul. Second Transpose must be back for

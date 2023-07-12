@@ -8,15 +8,15 @@
 #include <ngraph/pattern/op/or.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
-#include "openvino/op/strided_slice.hpp"
-#include "openvino/op/batch_to_space.hpp"
-#include "openvino/op/depth_to_space.hpp"
-#include "openvino/op/transpose.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/reshape.hpp"
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/op/batch_to_space.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/depth_to_space.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/strided_slice.hpp"
+#include "openvino/op/transpose.hpp"
 #include "transformations/utils/utils.hpp"
 
 ov::pass::BatchToSpaceFusion::BatchToSpaceFusion() {
@@ -24,10 +24,10 @@ ov::pass::BatchToSpaceFusion::BatchToSpaceFusion() {
     auto data_pattern = pattern::any_input(pattern::has_static_shape());
     auto reshape_before_pattern =
         pattern::wrap_type<ov::op::v1::Reshape>({data_pattern, pattern::wrap_type<ov::op::v0::Constant>()},
-                                            pattern::rank_equals(4));
+                                                pattern::rank_equals(4));
     auto trans_before_pattern =
         pattern::wrap_type<ov::op::v1::Transpose>({data_pattern, pattern::wrap_type<ov::op::v0::Constant>()},
-                                              pattern::rank_equals(4));
+                                                  pattern::rank_equals(4));
     auto reshape_or_transpose_before_pattern =
         std::make_shared<pattern::op::Or>(OutputVector{reshape_before_pattern, trans_before_pattern});
     auto depth_to_space_pattern = pattern::wrap_type<ov::op::v0::DepthToSpace>({reshape_or_transpose_before_pattern});
@@ -37,10 +37,10 @@ ov::pass::BatchToSpaceFusion::BatchToSpaceFusion() {
         {depth_to_space_pattern, starts_pattern, ends_pattern, pattern::wrap_type<ov::op::v0::Constant>()});
     auto reshape_after_pattern =
         pattern::wrap_type<ov::op::v1::Reshape>({slice_pattern, pattern::wrap_type<ov::op::v0::Constant>()},
-                                            pattern::rank_equals(4));
+                                                pattern::rank_equals(4));
     auto trans_after_pattern =
         pattern::wrap_type<ov::op::v1::Transpose>({slice_pattern, pattern::wrap_type<ov::op::v0::Constant>()},
-                                              pattern::rank_equals(4));
+                                                  pattern::rank_equals(4));
     auto reshape_or_transpose_after_pattern =
         std::make_shared<pattern::op::Or>(OutputVector{reshape_after_pattern, trans_after_pattern});
 
@@ -89,7 +89,8 @@ ov::pass::BatchToSpaceFusion::BatchToSpaceFusion() {
         auto block_size = static_cast<int64_t>(depth_to_space->get_block_size());
         auto block_shape =
             ov::op::v0::Constant::create(element::i64, Shape{4}, std::vector<int64_t>{1, 1, block_size, block_size});
-        auto starts = std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_map.at(starts_pattern).get_node_shared_ptr());
+        auto starts =
+            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_map.at(starts_pattern).get_node_shared_ptr());
         if (!starts)
             return false;
         auto ends = std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_map.at(ends_pattern).get_node_shared_ptr());
@@ -113,8 +114,10 @@ ov::pass::BatchToSpaceFusion::BatchToSpaceFusion() {
         }
         auto crops_begin = ov::op::v0::Constant::create(element::i64, Shape{4}, starts_value);
         auto crops_end = ov::op::v0::Constant::create(element::i64, Shape{4}, ends_value);
-        auto batch_to_space =
-            register_new_node<ov::op::v1::BatchToSpace>(pattern_map.at(data_pattern), block_shape, crops_begin, crops_end);
+        auto batch_to_space = register_new_node<ov::op::v1::BatchToSpace>(pattern_map.at(data_pattern),
+                                                                          block_shape,
+                                                                          crops_begin,
+                                                                          crops_end);
         batch_to_space->set_friendly_name(reshape_or_trans_after->get_friendly_name());
 
         copy_runtime_info({reshape_or_trans_before,

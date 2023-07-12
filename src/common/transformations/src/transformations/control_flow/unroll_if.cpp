@@ -6,14 +6,14 @@
 
 #include <memory>
 #include <ngraph/graph_util.hpp>
-#include "openvino/op/result.hpp"
-#include "openvino/op/if.hpp"
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/validation_util.hpp>
 
 #include "itt.hpp"
 #include "openvino/core/descriptor/tensor.hpp"
+#include "openvino/op/if.hpp"
+#include "openvino/op/result.hpp"
 #include "transformations/utils/utils.hpp"
 
 bool ov::pass::UnrollIf::run_on_model(const std::shared_ptr<ngraph::Function>& f) {

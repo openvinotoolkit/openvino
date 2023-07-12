@@ -6,9 +6,9 @@
 
 #include "itt.hpp"
 #include "openvino/core/rt_info.hpp"
-#include "openvino/op/util/precision_sensitive_attribute.hpp"
-#include "openvino/op/result.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/result.hpp"
+#include "openvino/op/util/precision_sensitive_attribute.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "transformations/rt_info/disable_fp16_compression.hpp"
 
@@ -30,7 +30,8 @@ bool ov::pass::AlignMixedFP32FP16Types::run_on_model(const std::shared_ptr<ov::M
                 if (!incoming_output.get_element_type().is_real())
                     continue;
 
-                auto convert = std::make_shared<ov::op::v0::Convert>(incoming_output, incoming_output.get_element_type());
+                auto convert =
+                    std::make_shared<ov::op::v0::Convert>(incoming_output, incoming_output.get_element_type());
                 convert->set_friendly_name(incoming_node->get_friendly_name() + "_decompressed_to_f32");
                 copy_runtime_info(incoming_node, convert);
                 input.replace_source_output(convert);

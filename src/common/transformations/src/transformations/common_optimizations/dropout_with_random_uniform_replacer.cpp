@@ -8,15 +8,15 @@
 #include <ngraph/pattern/op/or.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
-#include "openvino/op/broadcast.hpp"
-#include "openvino/op/random_uniform.hpp"
-#include "openvino/op/convert.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/floor.hpp"
-#include "openvino/op/add.hpp"
 #include <openvino/pass/pattern/op/or.hpp>
 
 #include "itt.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/floor.hpp"
+#include "openvino/op/random_uniform.hpp"
 #include "transformations/utils/utils.hpp"
 
 ov::pass::DropoutWithRandomUniformReplacer::DropoutWithRandomUniformReplacer() {
@@ -24,9 +24,9 @@ ov::pass::DropoutWithRandomUniformReplacer::DropoutWithRandomUniformReplacer() {
     const auto shape_pattern = pass::pattern::any_input();
     const auto ru_min_const_pattern = ngraph::pattern::wrap_type<ov::op::v0::Constant>();
     const auto ru_max_const_pattern = ngraph::pattern::wrap_type<ov::op::v0::Constant>();
-    const auto random_uniform_pattern =
-        ngraph::pattern::wrap_type<ov::op::v8::RandomUniform>({shape_pattern, ru_min_const_pattern, ru_max_const_pattern},
-                                                          pattern::consumers_count(1));
+    const auto random_uniform_pattern = ngraph::pattern::wrap_type<ov::op::v8::RandomUniform>(
+        {shape_pattern, ru_min_const_pattern, ru_max_const_pattern},
+        pattern::consumers_count(1));
     const auto convert_pattern = ngraph::pattern::wrap_type<ov::op::v0::Convert>({random_uniform_pattern});
     const auto add_const_pattern = ngraph::pattern::wrap_type<ov::op::v0::Constant>();
     const auto convert_or_random_uniform_pattern =

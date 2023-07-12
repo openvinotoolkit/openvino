@@ -7,9 +7,9 @@
 #include <ngraph/op/util/detection_output_base.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
-#include "openvino/op/detection_output.hpp"
 
 #include "itt.hpp"
+#include "openvino/op/detection_output.hpp"
 
 using namespace std;
 using namespace ov;
@@ -45,17 +45,19 @@ pass::ConvertDetectionOutput1ToDetectionOutput8::ConvertDetectionOutput1ToDetect
 
         std::shared_ptr<ov::op::v8::DetectionOutput> detection_output_v8_node = nullptr;
         if (detection_output_v1_node->get_input_size() == 3) {
-            detection_output_v8_node = make_shared<ov::op::v8::DetectionOutput>(detection_output_v1_node->input_value(0),
-                                                                            detection_output_v1_node->input_value(1),
-                                                                            detection_output_v1_node->input_value(2),
-                                                                            attributes_v8);
+            detection_output_v8_node =
+                make_shared<ov::op::v8::DetectionOutput>(detection_output_v1_node->input_value(0),
+                                                         detection_output_v1_node->input_value(1),
+                                                         detection_output_v1_node->input_value(2),
+                                                         attributes_v8);
         } else if (detection_output_v1_node->get_input_size() == 5) {
-            detection_output_v8_node = make_shared<ov::op::v8::DetectionOutput>(detection_output_v1_node->input_value(0),
-                                                                            detection_output_v1_node->input_value(1),
-                                                                            detection_output_v1_node->input_value(2),
-                                                                            detection_output_v1_node->input_value(3),
-                                                                            detection_output_v1_node->input_value(4),
-                                                                            attributes_v8);
+            detection_output_v8_node =
+                make_shared<ov::op::v8::DetectionOutput>(detection_output_v1_node->input_value(0),
+                                                         detection_output_v1_node->input_value(1),
+                                                         detection_output_v1_node->input_value(2),
+                                                         detection_output_v1_node->input_value(3),
+                                                         detection_output_v1_node->input_value(4),
+                                                         attributes_v8);
         }
         if (!detection_output_v8_node)
             return false;

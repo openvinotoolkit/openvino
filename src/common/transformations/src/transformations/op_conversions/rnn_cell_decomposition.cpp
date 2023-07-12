@@ -8,13 +8,13 @@
 #include <ngraph/op/util/activation_functions.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
-#include "openvino/op/matmul.hpp"
-#include "openvino/op/rnn_cell.hpp"
-#include "openvino/op/add.hpp"
-#include "openvino/op/clamp.hpp"
 #include <transformations/utils/utils.hpp>
 
 #include "itt.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/clamp.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/rnn_cell.hpp"
 
 ov::pass::RNNCellDecomposition::RNNCellDecomposition() {
     MATCHER_SCOPE(RNNCellDecomposition);
