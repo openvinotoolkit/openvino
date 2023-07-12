@@ -306,6 +306,15 @@ public:
         auto attr = arg.get_onednn_primitive_attributes();
         auto prim_desc = get_gemm_primitive_descriptor(impl_params, *attr);
 
+        // Query the scratchpad memory descriptor
+        dnnl::memory::desc scratchpad_md = prim_desc->scratchpad_desc();
+
+        // Note, that a primitive does not consume memory in this configuration:
+        static long long total = 0;
+        long long size = prim_desc->query_s64(dnnl::query::memory_consumption_s64) / 1048576;
+        total += size;
+        std::cout << "mingyuki: gemm scratchpad for " << arg.id() << " : " << size << "MB, total " << total << "MB" << std::endl;
+
         return cldnn::make_unique<gemm_onednn>(engine, config, attr, *prim_desc);
     }
 };

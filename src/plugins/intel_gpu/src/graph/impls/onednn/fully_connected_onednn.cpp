@@ -201,6 +201,15 @@ public:
         auto prim_desc = get_fully_connected_primitive_descriptor(impl_params, impl_params.prog->get_engine(),
                                                                   prim->input_size, !prim->bias.empty(), *attr);
 
+        // Query the scratchpad memory descriptor
+        dnnl::memory::desc scratchpad_md = prim_desc->scratchpad_desc();
+
+        // Note, that a primitive does not consume memory in this configuration:
+        static long long total = 0;
+        long long size = prim_desc->query_s64(dnnl::query::memory_consumption_s64) / 1048576;
+        total += size;
+        std::cout << "mingyuki: fc scratchpad for " << arg.id() << " : " << size << "MB, total " << total << "MB" << std::endl;
+
         return cldnn::make_unique<fully_connected_onednn>(engine, config, attr, *prim_desc, get_weights_reorder(impl_params, *prim_desc));
     }
 };
