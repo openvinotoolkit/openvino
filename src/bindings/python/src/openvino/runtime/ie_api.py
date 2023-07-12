@@ -49,6 +49,12 @@ class Model(ModelBase):
             super().__init__(*args, **kwargs)
         if kwargs and not args:
             super().__init__(**kwargs)
+    
+    def clone(self):
+        return Model(super().clone())
+
+    def __deepcopy__(self, memo):
+        return Model(super().clone())
 
 
 class InferRequest(_InferRequestWrapper):
