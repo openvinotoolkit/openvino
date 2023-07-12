@@ -886,9 +886,11 @@ void InferRequest::checkBlobs() {
     }
 
     // won't check output blobs as it is not allocated.
-    // for (auto const& output : _outputs) {
-    //     checkBlob(output.second, output.first, false);
-    // }
+    for (auto const& output : _outputs) {
+        const auto out_node = findOutputByNodeName(output.first);
+        auto isDynamic = out_node && out_node->get_output_partial_shape(0).is_dynamic();
+        if (!isDynamic) checkBlob(output.second, output.first, false);
+    }
 }
 
 void InferRequest::PushInputData() {

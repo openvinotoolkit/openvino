@@ -831,7 +831,8 @@ void Graph::AllocateWithReuse() {
                             count++;
                         }
                     }
-                    IE_ASSERT(count == 1) << "cannot find output node.";
+                    // sometimes there are unused output ports.
+                    IE_ASSERT(count <= 1) << "cannot find output node. count " << count;
                 }
             }
         }
