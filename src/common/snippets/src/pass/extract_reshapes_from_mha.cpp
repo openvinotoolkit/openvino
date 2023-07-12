@@ -16,13 +16,16 @@ using namespace ov::pass;
 
 ov::snippets::pass::ExtractReshapesFromMHA::ExtractReshapesFromMHA() {
     MATCHER_SCOPE(ExtractReshapesFromMHA);
+    auto static_shape_single_consumer = [](const ov::Output<ov::Node>& out) {
+        return pattern::has_static_shape()(out) && pattern::consumers_count(1)(out);
+    };
     auto input_m = pattern::any_input(pattern::has_static_shape());
-    auto reshape_1_m = pattern::wrap_type<opset1::Reshape>({input_m, pattern::wrap_type<opset1::Constant>()});
+    auto reshape_1_m = pattern::wrap_type<opset1::Reshape>({input_m, pattern::wrap_type<opset1::Constant>()}, static_shape_single_consumer);
     auto sparse_input_1_m = pattern::any_input(pattern::has_static_shape());
     auto sparse_input_2_m = pattern::any_input(pattern::has_static_shape());
-    auto add_1_m = pattern::wrap_type<opset1::Add>({reshape_1_m, sparse_input_1_m});
-    auto add_2_m = pattern::wrap_type<opset1::Add>({add_1_m, sparse_input_2_m});
-    auto reshape_2_m = pattern::wrap_type<opset1::Reshape>({add_2_m, pattern::wrap_type<opset1::Constant>()});
+    auto add_1_m = pattern::wrap_type<opset1::Add>({reshape_1_m, sparse_input_1_m}, static_shape_single_consumer);
+    auto add_2_m = pattern::wrap_type<opset1::Add>({add_1_m, sparse_input_2_m}, static_shape_single_consumer);
+    auto reshape_2_m = pattern::wrap_type<opset1::Reshape>({add_2_m, pattern::wrap_type<opset1::Constant>()}, pattern::has_static_shape());
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::op::ExtractReshapesFromMHA")
@@ -48,7 +51,9 @@ ov::snippets::pass::ExtractReshapesFromMHA::ExtractReshapesFromMHA() {
         if (!in_out_shape_are_equal(input)) {
             // In some cases, the 2nd input may also have Reshape. So we have to check it to cover all possible cases
             const auto alternative_reshape = sparse_input_1.get_node_shared_ptr();
-            if (!ov::is_type<ov::opset1::Reshape>(alternative_reshape) || alternative_reshape->get_output_partial_shape(0).is_dynamic()) {
+            if (!ov::is_type<ov::opset1::Reshape>(alternative_reshape) ||
+                alternative_reshape->get_output_partial_shape(0).is_dynamic() ||
+                alternative_reshape->get_output_target_inputs(0).size() > 1) {
                 return false;
             }
             sparse_input_1 = pattern_map.at(reshape_1_m);
@@ -64,13 +69,13 @@ ov::snippets::pass::ExtractReshapesFromMHA::ExtractReshapesFromMHA() {
         if (ov::shape_size(input_shape) != ov::shape_size(broadcasted_shape.to_shape()))
             return false;
 
-        const auto new_add = std::make_shared<ov::opset1::Add>(sparse_input_1, sparse_input_2);
+        const auto extracted_add = std::make_shared<ov::opset1::Add>(sparse_input_1, sparse_input_2);
         const auto target_shape = ov::opset1::Constant::create(ov::element::i32, {input_shape.size()}, input_shape);
-        const auto reshape = std::make_shared<ov::opset1::Reshape>(new_add, target_shape, true);
-        const auto main_add = std::make_shared<ov::opset1::Add>(input, reshape);
+        const auto extracted_reshape = std::make_shared<ov::opset1::Reshape>(extracted_add, target_shape, true);
+        const auto new_add = std::make_shared<ov::opset1::Add>(input, extracted_reshape);
 
         const auto& old_reshape = pattern_map.at(reshape_2_m);
-        return ov::replace_output_update_name(old_reshape, main_add);
+        return ov::replace_output_update_name(old_reshape, new_add);
     };
 
     auto m = std::make_shared<pattern::Matcher>(reshape_2_m, matcher_name);
