@@ -217,7 +217,6 @@ void clean_batch_properties(const std::string& deviceName, ov::AnyMap& config, c
         }
     }
 }
-
 }  // namespace
 
 bool ov::is_config_applicable(const std::string& user_device_name, const std::string& subprop_device_name) {
@@ -635,12 +634,10 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
             allowNotImplemented([&]() {
                 // Add device specific value to support device_name.device_id cases
                 {
-                    auto supportedConfigKeys =
-                        plugin.get_property(METRIC_KEY(SUPPORTED_CONFIG_KEYS), {}).as<std::vector<std::string>>();
-                    const bool supportsConfigDeviceID =
-                        ov::util::contains(supportedConfigKeys, CONFIG_KEY_INTERNAL(CONFIG_DEVICE_ID));
                     const std::string deviceKey =
-                        supportsConfigDeviceID ? CONFIG_KEY_INTERNAL(CONFIG_DEVICE_ID) : CONFIG_KEY(DEVICE_ID);
+                        device_supports_internal_property(plugin, ov::internal::config_device_id.name())
+                            ? ov::internal::config_device_id.name()
+                            : ov::device::id.name();
 
                     // here we can store values like GPU.0, GPU.1 and we need to set properties to plugin
                     // for each such .0, .1, .# device to make sure plugin can handle different settings for different
@@ -1163,7 +1160,6 @@ ov::Any ov::CoreImpl::get_property(const std::string& device_name,
         ov::AnyMap empty_map;
         return coreConfig.get_cache_config_for_device(get_plugin(parsed._deviceName), empty_map)._cacheDir;
     }
-
     return get_plugin(parsed._deviceName).get_property(name, parsed._config);
 }
 
@@ -1299,9 +1295,9 @@ void ov::CoreImpl::set_property_for_device(const ov::AnyMap& configMap, const st
             {
                 if (!parser.get_device_id().empty()) {
                     const std::string deviceKey =
-                        device_supports_property(plugin.second, CONFIG_KEY_INTERNAL(CONFIG_DEVICE_ID))
-                            ? CONFIG_KEY_INTERNAL(CONFIG_DEVICE_ID)
-                            : CONFIG_KEY(DEVICE_ID);
+                        device_supports_internal_property(plugin.second, ov::internal::config_device_id.name())
+                            ? ov::internal::config_device_id.name()
+                            : ov::device::id.name();
                     configCopy[deviceKey] = parser.get_device_id();
                 }
             }
@@ -1341,6 +1337,10 @@ bool ov::CoreImpl::device_supports_property(const ov::Plugin& plugin, const ov::
     return util::contains(plugin.get_property(ov::supported_properties), key);
 }
 
+bool ov::CoreImpl::device_supports_internal_property(const ov::Plugin& plugin, const ov::PropertyName& key) const {
+    return util::contains(plugin.get_property(ov::internal::supported_properties), key);
+}
+
 bool ov::CoreImpl::device_supports_model_caching(const ov::Plugin& plugin) const {
     auto supportedMetricKeys = plugin.get_property(METRIC_KEY(SUPPORTED_METRICS), {}).as<std::vector<std::string>>();
     auto supported = util::contains(supportedMetricKeys, METRIC_KEY(IMPORT_EXPORT_SUPPORT)) &&
@@ -1351,7 +1351,7 @@ bool ov::CoreImpl::device_supports_model_caching(const ov::Plugin& plugin) const
             util::contains(plugin.get_property(ov::device::capabilities), ov::device::capability::EXPORT_IMPORT);
     }
     if (supported) {
-        supported = device_supports_property(plugin, ov::caching_properties);
+        supported = device_supports_internal_property(plugin, ov::internal::caching_properties);
     }
     return supported;
 }
@@ -1465,8 +1465,11 @@ ov::AnyMap ov::CoreImpl::create_compile_config(const ov::Plugin& plugin, const o
     }
 
     // 2. Extract config keys which affect compilation process
-    auto caching_props = plugin.get_property(ov::caching_properties, property_config);
-    OPENVINO_ASSERT(!caching_props.empty(), "ov::caching_properties returned by ", plugin.get_name(), " are empty");
+    auto caching_props = plugin.get_property(ov::internal::caching_properties, property_config);
+    OPENVINO_ASSERT(!caching_props.empty(),
+                    "ov::internal::caching_properties returned by ",
+                    plugin.get_name(),
+                    " are empty");
 
     ov::AnyMap compile_config;
     for (const auto& prop : caching_props) {
