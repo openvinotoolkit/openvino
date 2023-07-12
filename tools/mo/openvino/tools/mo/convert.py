@@ -7,8 +7,8 @@ from typing import Any
 from openvino.runtime import PartialShape, Shape, Layout, Model
 from openvino.tools.mo.convert_impl import _convert
 from openvino.tools.ovc import InputCutInfo, LayoutMap  # pylint: disable=no-name-in-module,import-error
-from openvino.tools.ovc.cli_parser import get_all_cli_parser  # pylint: disable=no-name-in-module,import-error
-from openvino.tools.ovc.logger import get_logger_state, restore_logger_state  # pylint: disable=no-name-in-module,import-error
+from openvino.tools.mo.utils.cli_parser import get_all_cli_parser  # pylint: disable=no-name-in-module,import-error
+from openvino.tools.mo.utils.logger import get_logger_state, restore_logger_state  # pylint: disable=no-name-in-module,import-error
 
 
 def convert_model(

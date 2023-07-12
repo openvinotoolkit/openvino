@@ -6,7 +6,7 @@ from openvino.tools.mo.back.replacement import BackReplacementPattern
 from openvino.tools.mo.front.common.partial_infer.utils import mo_array
 from openvino.tools.mo.graph.graph import Graph
 from openvino.tools.mo.ops.crop import Crop
-from openvino.tools.ovc.logger import log  # pylint: disable=no-name-in-module,import-error
+from openvino.tools.mo.utils.logger import log
 
 
 class CutMemoryInput(BackReplacementPattern):

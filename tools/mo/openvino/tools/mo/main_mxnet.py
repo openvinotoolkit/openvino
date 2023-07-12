@@ -3,7 +3,7 @@
 
 import sys
 
-from openvino.tools.ovc.cli_parser import get_mxnet_cli_parser  # pylint: disable=no-name-in-module,import-error
+from openvino.tools.mo.utils.cli_parser import get_mxnet_cli_parser  # pylint: disable=no-name-in-module,import-error
 
 if __name__ == "__main__":
     from openvino.tools.mo.main import main

@@ -22,7 +22,7 @@ class TestConvertImplTmpIrsCleanup(unittest.TestCase):
         return False
 
     def test_tmp_irs_cleanup_convert_impl_1(self):
-        with patch("openvino.tools.ovc.moc_frontend.offline_transformations.apply_offline_transformations") as emit_ir_func:
+        with patch("openvino.tools.mo.back.offline_transformations.apply_offline_transformations") as emit_ir_func:
             emit_ir_func.side_effect = Error('offline transformations step has failed')
 
             params = {'input_model': self.test_model_file, 'input_model_is_text': True, 'input': 'x[3],y[1 3]',

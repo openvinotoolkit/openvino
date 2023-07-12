@@ -1,7 +1,7 @@
-#!/usr/bin/env python3
-
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
+
+#!/usr/bin/env python3
 
 import sys
 

@@ -1,15 +1,12 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-# flake8: noqa
-# mypy: ignore-errors
-
 import argparse
 from typing import List
 
 from openvino.tools.ovc.cli_parser import parse_transform
 from openvino.tools.ovc.error import Error
-from openvino.runtime import Model
+from openvino.runtime import Model # pylint: disable=no-name-in-module,import-error
 
 
 def get_new_placeholder_name(node_id: str, is_out_port: bool = False, port: int = 0):

@@ -3,6 +3,7 @@
 
 from openvino.tools.ovc.convert import convert_model, InputCutInfo, LayoutMap
 
+# pylint: disable=no-name-in-module,import-error,no-member
 try:
     import openvino.runtime
     openvino.runtime.convert_model = convert_model

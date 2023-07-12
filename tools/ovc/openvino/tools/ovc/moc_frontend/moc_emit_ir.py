@@ -1,9 +1,6 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-# flake8: noqa
-# mypy: ignore-errors
-
 import argparse
 
 from openvino.runtime import Model  # pylint: disable=no-name-in-module,import-error
@@ -21,7 +18,7 @@ def moc_emit_ir(ngraph_function: Model, argv: argparse.Namespace):
         apply_moc_legacy_transformations, apply_fused_names_cleanup
 
     apply_moc_transformations(ngraph_function)
-    from openvino._offline_transformations import compress_quantize_weights_transformation
+    from openvino._offline_transformations import compress_quantize_weights_transformation # pylint: disable=no-name-in-module,import-error
     compress_quantize_weights_transformation(ngraph_function)
 
     if argv.framework == "onnx":

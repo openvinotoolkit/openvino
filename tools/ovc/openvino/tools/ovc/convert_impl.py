@@ -1,9 +1,6 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-# flake8: noqa
-# mypy: ignore-errors
-
 import argparse
 import datetime
 import logging as log
@@ -434,7 +431,7 @@ def driver(argv: argparse.Namespace, non_default_params: dict):
     graph, ngraph_function = prepare_ir(argv)
     legacy_path = False
     if graph is not None:
-        legacy_path_error()
+        legacy_path_error("")
     else:
         res_ngraph_function = moc_emit_ir(ngraph_function, argv)
 
