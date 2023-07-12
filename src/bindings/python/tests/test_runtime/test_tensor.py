@@ -151,13 +151,14 @@ def test_init_with_numpy_copy_memory(ov_type, numpy_dtype):
 
 def test_init_with_node_output_port():
     param1 = ops.parameter(ov.Shape([1, 3, 2, 2]), dtype=np.float64)
-    param2 = ops.parameter(ov.Shape([1, 3]), dtype=np.float64)
+    param2 = ops.parameter(ov.Shape([1, 3, 32, 32]), dtype=np.float64)
     param3 = ops.parameter(ov.PartialShape.dynamic(), dtype=np.float64)
-    ones_arr = np.ones(shape=(1, 3, 32, 32), dtype=np.float32)
+    ones_arr = np.ones(shape=(1, 3, 32, 32), dtype=np.float64)
     tensor1 = Tensor(param1.output(0))
     tensor2 = Tensor(param2.output(0), ones_arr)
     tensor3 = Tensor(param3.output(0))
-    tensor4 = Tensor(param3.output(0), ones_arr)
+    with pytest.warns(RuntimeWarning):
+        tensor4 = Tensor(param3.output(0), ones_arr)
     assert tensor1.shape == param1.shape
     assert tensor1.element_type == param1.get_element_type()
     assert tensor2.shape == param2.shape
@@ -184,7 +185,7 @@ def test_init_with_node_constoutput_port(device):
     assert np.array_equal(tensor2.data, ones_arr)
 
 
-def test_init_with_node_output_port_different_shape():
+def test_init_with_output_port_different_shapes():
     param1 = ops.parameter(ov.Shape([2]), dtype=np.float32)
     param2 = ops.parameter(ov.Shape([5]), dtype=np.float32)
 
@@ -195,6 +196,13 @@ def test_init_with_node_output_port_different_shape():
     with pytest.raises(RuntimeError) as e:
         Tensor(param2.output(0), ones_arr)
     assert "Shape of the port exceeds shape of the array." in str(e.value)
+
+
+def test_init_with_output_port_different_types():
+    param1 = ops.parameter(ov.Shape([2, 2]), dtype=np.int8)
+    data = np.random.rand(2, 2).astype(np.float32)
+    with pytest.warns(RuntimeWarning):
+        Tensor(param1.output(0), data)
 
 
 def test_init_with_roi_tensor():
