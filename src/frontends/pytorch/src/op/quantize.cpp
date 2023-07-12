@@ -53,9 +53,9 @@ OutputVector translate_quantize_per_tensor(const NodeContext& context) {
     const auto quantized_pt_node =
         context.mark_node(std::make_shared<QuantizedPtNode>(QuantizedPtNodeType::QUANTIZE_PER_TENSOR,
                                                             context,
-                                                            output,
-                                                            scale,
-                                                            zero_point));
+                                                            output.get_node_shared_ptr(),
+                                                            scale.get_node_shared_ptr(),
+                                                            zero_point.get_node_shared_ptr()));
     return {quantized_pt_node};
 }
 
@@ -70,10 +70,10 @@ OutputVector translate_quantize_per_channel(const NodeContext& context) {
     const auto quantized_pt_node =
         context.mark_node(std::make_shared<QuantizedPtNode>(QuantizedPtNodeType::QUANTIZE_PER_CHANNEL,
                                                             context,
-                                                            input,
-                                                            scales,
-                                                            zero_points,
-                                                            axis));
+                                                            input.get_node_shared_ptr(),
+                                                            scales.get_node_shared_ptr(),
+                                                            zero_points.get_node_shared_ptr(),
+                                                            axis.get_node_shared_ptr()));
     return {quantized_pt_node};
 }
 
