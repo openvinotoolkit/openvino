@@ -54,6 +54,11 @@ class Model(ModelBase):
         return Model(super().clone())
 
     def __deepcopy__(self, memo: Dict) -> "Model":
+        """Returns a deepcopy of Model.
+
+        :return: A copy of Model.
+        :rtype: openvino.runtime.Model
+        """
         return Model(super().clone())
 
 
