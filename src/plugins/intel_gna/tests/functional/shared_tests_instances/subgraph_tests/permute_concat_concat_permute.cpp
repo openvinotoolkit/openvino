@@ -20,7 +20,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_permute_concat_concat_permute,
                          PermuteConcatConcatPermute,
                          ::testing::Combine(::testing::ValuesIn(inputs1),
                                             ::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA)),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA)),
                          PermuteConcatConcatPermute::getTestCaseName);
 
 }  // namespace

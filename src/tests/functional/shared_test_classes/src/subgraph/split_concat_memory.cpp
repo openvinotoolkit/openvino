@@ -7,7 +7,7 @@
 
 namespace SubgraphTestsDefinitions {
 
-using namespace CommonTestUtils;
+using namespace ov::test::utils;
 using namespace InferenceEngine;
 
 std::string SplitConcatMemory::getTestCaseName(const testing::TestParamInfo<ParamType>& obj) {

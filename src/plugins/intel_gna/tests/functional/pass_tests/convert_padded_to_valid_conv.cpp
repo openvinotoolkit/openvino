@@ -135,7 +135,7 @@ protected:
         auto transposeIn = std::make_shared<Transpose>(input[0], transposeInOrder);
         auto filterSize = std::accumulate(std::begin(kernel), std::end(kernel), 1ull, std::multiplies<size_t>());
         auto filterWeights =
-            CommonTestUtils::generate_float_numbers(numOutChannels * inputShape[3] * filterSize, -0.05f, 0.05f);
+            ov::test::utils::generate_float_numbers(numOutChannels * inputShape[3] * filterSize, -0.05f, 0.05f);
         auto conv = builder::makeConvolution(transposeIn,
                                              ngPrc,
                                              kernel,
@@ -148,7 +148,7 @@ protected:
                                              false,
                                              filterWeights);
         auto transposeOutOrder = op::Constant::create(element::i64, Shape{4}, {0, 2, 3, 1});
-        auto biasWeights = CommonTestUtils::generate_float_numbers(shape_size(biasShape), -1.5f, 1.5f);
+        auto biasWeights = ov::test::utils::generate_float_numbers(shape_size(biasShape), -1.5f, 1.5f);
         Output<Node> biasConst = std::make_shared<Constant>(ngPrc, biasShape, biasWeights);
         Output<Node> lastOp = std::make_shared<Transpose>(conv, transposeOutOrder);
 
@@ -302,7 +302,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_1DPaddedToValid,
                          ::testing::Combine(conv1DParams,
                                             misc1DParams,
                                             ::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs1D),
                                             ::testing::ValuesIn(input1DNHWC),
                                             ::testing::ValuesIn(models)),
@@ -313,7 +313,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_2DPaddedToValid,
                          ::testing::Combine(conv2DParams,
                                             misc2DParams,
                                             ::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs2D),
                                             ::testing::ValuesIn(input2DNHWC),
                                             ::testing::ValuesIn(models)),

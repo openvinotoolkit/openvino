@@ -69,7 +69,7 @@ protected:
             selectedType = getPrimitiveType();
         }
         selectedType = selectedType + "_" + InferenceEngine::details::convertPrecision(inType).name();
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         init_input_shapes({shapes});
 
         auto params = ngraph::builder::makeDynamicParams(inType, inputDynamicShapes);

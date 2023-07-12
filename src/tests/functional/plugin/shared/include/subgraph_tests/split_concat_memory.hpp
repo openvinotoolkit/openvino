@@ -40,24 +40,24 @@ TEST_P(SplitConcatMemory, cyclicBufferCorrectness) {
         quarter_blocked_shape[axis] /= vals.size();
         quarter_blocked_shape.insert(quarter_blocked_shape.begin() + axis, vals.size());
 
-        auto quarter_blocked_view = CommonTestUtils::make_reshape_view(blob, quarter_blocked_shape);
-        CommonTestUtils::fill_data_with_broadcast(quarter_blocked_view, axis, vals);
+        auto quarter_blocked_view = ov::test::utils::make_reshape_view(blob, quarter_blocked_shape);
+        ov::test::utils::fill_data_with_broadcast(quarter_blocked_view, axis, vals);
     };
 
     // iteration 1
-    CommonTestUtils::fill_data_const(i_blob, 1);
+    ov::test::utils::fill_data_const(i_blob, 1);
     fill_by_quarter(o_blob_ref, {1, 1, 1, 2});
     inf_reg.Infer();
     Compare(o_blob_ref, o_blob);
 
     // iteration 2
-    CommonTestUtils::fill_data_const(i_blob, 2);
+    ov::test::utils::fill_data_const(i_blob, 2);
     fill_by_quarter(o_blob_ref, {1, 1, 2, 3});
     inf_reg.Infer();
     Compare(o_blob_ref, o_blob);
 
     // iteration 3
-    CommonTestUtils::fill_data_const(i_blob, 3);
+    ov::test::utils::fill_data_const(i_blob, 3);
     fill_by_quarter(o_blob_ref, {1, 2, 3, 4});
     inf_reg.Infer();
     Compare(o_blob_ref, o_blob);

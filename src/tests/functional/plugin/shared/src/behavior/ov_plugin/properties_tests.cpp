@@ -89,11 +89,11 @@ void OVPropertiesTestsWithCompileModelProps::SetUp() {
         hw_device = temp_device.substr(++pos, std::string::npos);
     }
 
-    if (target_device == std::string(CommonTestUtils::DEVICE_MULTI) ||
-        target_device == std::string(CommonTestUtils::DEVICE_AUTO) ||
-        target_device == std::string(CommonTestUtils::DEVICE_HETERO)) {
+    if (target_device == std::string(ov::test::utils::DEVICE_MULTI) ||
+        target_device == std::string(ov::test::utils::DEVICE_AUTO) ||
+        target_device == std::string(ov::test::utils::DEVICE_HETERO)) {
         compileModelProperties = { ov::device::priorities(hw_device) };
-    } else if (target_device == std::string(CommonTestUtils::DEVICE_BATCH)) {
+    } else if (target_device == std::string(ov::test::utils::DEVICE_BATCH)) {
         compileModelProperties = {{ CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG) , hw_device}};
     }
 

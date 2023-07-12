@@ -336,7 +336,7 @@ void ExecGraphSerializationTest::SetUp() {
 
 void ExecGraphSerializationTest::TearDown() {
     APIBaseTest::TearDown();
-    CommonTestUtils::removeIRFiles(m_out_xml_path, m_out_bin_path);
+    ov::test::utils::removeIRFiles(m_out_xml_path, m_out_bin_path);
 }
 
 bool ExecGraphSerializationTest::exec_graph_walker::for_each(pugi::xml_node &node) {

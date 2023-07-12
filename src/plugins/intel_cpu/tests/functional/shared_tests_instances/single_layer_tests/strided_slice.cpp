@@ -136,7 +136,7 @@ INSTANTIATE_TEST_SUITE_P(
             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
             ::testing::Values(InferenceEngine::Layout::ANY),
             ::testing::Values(InferenceEngine::Layout::ANY),
-            ::testing::Values(CommonTestUtils::DEVICE_CPU),
+            ::testing::Values(ov::test::utils::DEVICE_CPU),
             ::testing::Values(std::map<std::string, std::string>())),
         StridedSliceLayerTest::getTestCaseName);
 

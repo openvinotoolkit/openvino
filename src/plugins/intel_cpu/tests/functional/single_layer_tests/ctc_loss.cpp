@@ -75,7 +75,7 @@ protected:
         ngraph::element::Type iPrecision;
         std::tie(shapes, blank, preprocessCollapseRepeated, ctcMergeRepeated, unique, fPrecision, iPrecision) = GetParam();
 
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         selectedType = std::string("ref_any_FP32");
 
         for (std::vector<ngraph::Shape>& staticShapes : shapes.second) {

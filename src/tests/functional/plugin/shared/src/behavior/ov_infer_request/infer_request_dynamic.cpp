@@ -67,7 +67,7 @@ void OVInferRequestDynamicTests::SetUp() {
 
 bool OVInferRequestDynamicTests::checkOutput(const ov::runtime::Tensor& in, const ov::runtime::Tensor& actual) {
     bool result = true;
-    auto net = ie->compile_model(function, CommonTestUtils::DEVICE_TEMPLATE);
+    auto net = ie->compile_model(function, ov::test::utils::DEVICE_TEMPLATE);
     ov::InferRequest req;
     req = net.create_infer_request();
     auto tensor = req.get_tensor(function->inputs().back().get_any_name());

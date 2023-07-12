@@ -32,7 +32,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_set1,
                                             ::testing::ValuesIn(idxPrecisions),
                                             ::testing::Values(0),
                                             ::testing::ValuesIn(mergeRepeated),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          CTCGreedyDecoderSeqLenLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_set2,
@@ -44,6 +44,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_set2,
                                             ::testing::ValuesIn(idxPrecisions),
                                             ::testing::ValuesIn(std::vector<int>{0, 5, 10}),
                                             ::testing::ValuesIn(mergeRepeated),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          CTCGreedyDecoderSeqLenLayerTest::getTestCaseName);
 }  // namespace

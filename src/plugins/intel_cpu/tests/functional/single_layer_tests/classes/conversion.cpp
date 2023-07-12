@@ -22,10 +22,10 @@ std::string ConvertCPULayerTest::getTestCaseName(testing::TestParamInfo<convertL
 
     std::ostringstream result;
 
-    result << "IS=" << CommonTestUtils::partialShape2str({inputShape.first}) << "_";
+    result << "IS=" << ov::test::utils::partialShape2str({inputShape.first}) << "_";
     result << "TS=";
     for (const auto& shape : inputShape.second) {
-        result << CommonTestUtils::vec2str(shape) << "_";
+        result << ov::test::utils::vec2str(shape) << "_";
     }
     result << "inputPRC=" << inPrc.name() << "_";
     result << "targetPRC=" << outPrc.name() << "_";
@@ -53,7 +53,7 @@ bool ConvertCPULayerTest::isInOutPrecisionSupported(InferenceEngine::Precision i
 }
 
 void ConvertCPULayerTest::SetUp() {
-    targetDevice = CommonTestUtils::DEVICE_CPU;
+    targetDevice = ov::test::utils::DEVICE_CPU;
 
     InputShape shapes;
     CPUSpecificParams cpuParams;

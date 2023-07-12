@@ -9,7 +9,6 @@
 #include "base/behavior_test_utils.hpp"
 
 namespace BehaviorTestsDefinitions {
-using namespace CommonTestUtils;
 
 typedef std::tuple<
         size_t,                             // Stream executor number
@@ -38,6 +37,8 @@ public:
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<InferRequestParams> obj) {
+        using namespace ov::test::utils;
+
         std::string target_device;
         size_t streamExecutorNumber;
         std::map<std::string, std::string> configuration;
@@ -64,10 +65,10 @@ protected:
     inline InferenceEngine::InferRequest createInferRequestWithConfig() {
         // Load config
         configuration.insert({CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS), CONFIG_VALUE(YES)});
-        if (target_device.find(CommonTestUtils::DEVICE_AUTO) == std::string::npos &&
-            target_device.find(CommonTestUtils::DEVICE_MULTI) == std::string::npos &&
-            target_device.find(CommonTestUtils::DEVICE_HETERO) == std::string::npos &&
-                target_device.find(CommonTestUtils::DEVICE_BATCH) == std::string::npos) {
+        if (target_device.find(ov::test::utils::DEVICE_AUTO) == std::string::npos &&
+            target_device.find(ov::test::utils::DEVICE_MULTI) == std::string::npos &&
+            target_device.find(ov::test::utils::DEVICE_HETERO) == std::string::npos &&
+                target_device.find(ov::test::utils::DEVICE_BATCH) == std::string::npos) {
             ie->SetConfig(configuration, target_device);
         }
         // Load CNNNetwork to target plugins
@@ -80,10 +81,10 @@ protected:
 TEST_P(InferRequestConfigTest, canSetExclusiveAsyncRequests) {
     ASSERT_EQ(0ul, InferenceEngine::executorManager()->getExecutorsNumber());
     ASSERT_NO_THROW(createInferRequestWithConfig());
-    if (target_device.find(CommonTestUtils::DEVICE_AUTO) == std::string::npos &&
-        target_device.find(CommonTestUtils::DEVICE_MULTI) == std::string::npos &&
-        target_device.find(CommonTestUtils::DEVICE_HETERO) == std::string::npos &&
-        target_device.find(CommonTestUtils::DEVICE_BATCH) == std::string::npos) {
+    if (target_device.find(ov::test::utils::DEVICE_AUTO) == std::string::npos &&
+        target_device.find(ov::test::utils::DEVICE_MULTI) == std::string::npos &&
+        target_device.find(ov::test::utils::DEVICE_HETERO) == std::string::npos &&
+        target_device.find(ov::test::utils::DEVICE_BATCH) == std::string::npos) {
         ASSERT_EQ(streamExecutorNumber, InferenceEngine::executorManager()->getExecutorsNumber());
     }
 }
@@ -91,10 +92,10 @@ TEST_P(InferRequestConfigTest, canSetExclusiveAsyncRequests) {
 TEST_P(InferRequestConfigTest, withoutExclusiveAsyncRequests) {
     ASSERT_EQ(0u, InferenceEngine::executorManager()->getExecutorsNumber());
     ASSERT_NO_THROW(createInferRequestWithConfig());
-    if (target_device.find(CommonTestUtils::DEVICE_AUTO) == std::string::npos &&
-        target_device.find(CommonTestUtils::DEVICE_MULTI) == std::string::npos &&
-        target_device.find(CommonTestUtils::DEVICE_HETERO) == std::string::npos &&
-        target_device.find(CommonTestUtils::DEVICE_BATCH) == std::string::npos) {
+    if (target_device.find(ov::test::utils::DEVICE_AUTO) == std::string::npos &&
+        target_device.find(ov::test::utils::DEVICE_MULTI) == std::string::npos &&
+        target_device.find(ov::test::utils::DEVICE_HETERO) == std::string::npos &&
+        target_device.find(ov::test::utils::DEVICE_BATCH) == std::string::npos) {
         ASSERT_EQ(streamExecutorNumber, InferenceEngine::executorManager()->getExecutorsNumber());
     }
 }
@@ -107,20 +108,20 @@ TEST_P(InferRequestConfigTest, ReusableCPUStreamsExecutor) {
         // Load config
         std::map<std::string, std::string> config = {{CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS), CONFIG_VALUE(NO)}};
         config.insert(configuration.begin(), configuration.end());
-        if (target_device.find(CommonTestUtils::DEVICE_AUTO) == std::string::npos &&
-            target_device.find(CommonTestUtils::DEVICE_MULTI) == std::string::npos &&
-            target_device.find(CommonTestUtils::DEVICE_HETERO) == std::string::npos &&
-            target_device.find(CommonTestUtils::DEVICE_BATCH) == std::string::npos) {
+        if (target_device.find(ov::test::utils::DEVICE_AUTO) == std::string::npos &&
+            target_device.find(ov::test::utils::DEVICE_MULTI) == std::string::npos &&
+            target_device.find(ov::test::utils::DEVICE_HETERO) == std::string::npos &&
+            target_device.find(ov::test::utils::DEVICE_BATCH) == std::string::npos) {
             ASSERT_NO_THROW(ie->SetConfig(config, target_device));
         }
         // Load CNNNetwork to target plugins
         execNet = ie->LoadNetwork(cnnNet, target_device, config);
         execNet.CreateInferRequest();
-        if (target_device == CommonTestUtils::DEVICE_KEEMBAY) {
+        if (target_device == ov::test::utils::DEVICE_KEEMBAY) {
             ASSERT_EQ(1u, InferenceEngine::executorManager()->getExecutorsNumber());
             ASSERT_EQ(0u, InferenceEngine::executorManager()->getIdleCPUStreamsExecutorsNumber());
-        } else if ((target_device == CommonTestUtils::DEVICE_AUTO) ||
-                   (target_device == CommonTestUtils::DEVICE_MULTI)) {
+        } else if ((target_device == ov::test::utils::DEVICE_AUTO) ||
+                   (target_device == ov::test::utils::DEVICE_MULTI)) {
         } else {
             ASSERT_EQ(0u, InferenceEngine::executorManager()->getExecutorsNumber());
             ASSERT_GE(2u, InferenceEngine::executorManager()->getIdleCPUStreamsExecutorsNumber());

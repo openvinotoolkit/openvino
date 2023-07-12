@@ -61,7 +61,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData2D_ExplicitPadding, Convol
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::ValuesIn(inputShapes2D),
                                 ::testing::ValuesIn(emptyOutputShape),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         ConvolutionBackpropDataLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData2D_AutoPadValid, ConvolutionBackpropDataLayerTest,
@@ -74,7 +74,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData2D_AutoPadValid, Convoluti
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::ValuesIn(inputShapes2D),
                                 ::testing::ValuesIn(emptyOutputShape),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         ConvolutionBackpropDataLayerTest::getTestCaseName);
 
 const std::vector<std::vector<size_t >> inputShape2D = {{1, 3, 9, 12}};
@@ -90,7 +90,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData2D_OutputShapeDefined, Con
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::ValuesIn(inputShape2D),
                                 ::testing::ValuesIn(outputShapes2D),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         ConvolutionBackpropDataLayerTest::getTestCaseName);
 
 const std::vector<std::vector<ptrdiff_t>> outputPadding2D = {{1, 1}, {2, 2}};
@@ -127,7 +127,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData2D_ExplicitPadding_OutputP
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::ValuesIn(inputShapes2D),
                                 ::testing::ValuesIn(emptyOutputShape),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         ConvolutionBackpropDataLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData2D_AutoPadding_OutputPaddingDefined, ConvolutionBackpropDataLayerTest,
@@ -140,7 +140,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData2D_AutoPadding_OutputPaddi
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::ValuesIn(inputShapes2D),
                                 ::testing::ValuesIn(emptyOutputShape),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         ConvolutionBackpropDataLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_CASE_P(smoke_ConvolutionBackpropData2D_RoundingOfPadding, ConvolutionBackpropDataLayerTest,
@@ -161,7 +161,7 @@ INSTANTIATE_TEST_CASE_P(smoke_ConvolutionBackpropData2D_RoundingOfPadding, Convo
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(std::vector<size_t>({ 1, 512, 2, 1 })),
                                 ::testing::Values(std::vector<size_t>({ 16, 1 })),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         ConvolutionBackpropDataLayerTest::getTestCaseName);
 
 /* ============= 3D ConvolutionBackpropData ============= */
@@ -205,7 +205,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData3D_ExplicitPadding, Convol
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::ValuesIn(inputShapes3D),
                                 ::testing::ValuesIn(emptyOutputShape),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         ConvolutionBackpropDataLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData3D_AutoPadValid, ConvolutionBackpropDataLayerTest,
@@ -218,7 +218,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData3D_AutoPadValid, Convoluti
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::ValuesIn(inputShapes3D),
                                 ::testing::ValuesIn(emptyOutputShape),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         ConvolutionBackpropDataLayerTest::getTestCaseName);
 
 const std::vector<std::vector<size_t >> inputShape3D = {{1, 3, 10, 10, 10}};
@@ -234,7 +234,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData3D_OutputShapeDefined, Con
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::ValuesIn(inputShape3D),
                                 ::testing::ValuesIn(outputShapes3D),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         ConvolutionBackpropDataLayerTest::getTestCaseName);
 
 const std::vector<std::vector<ptrdiff_t>> outputPadding3D = {{1, 1, 1}, {2, 2, 2}};
@@ -271,7 +271,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData3D_ExplicitPadding_OutputP
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::ValuesIn(inputShapes3D),
                                 ::testing::ValuesIn(emptyOutputShape),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         ConvolutionBackpropDataLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData3D_AutoPadding_OutputPaddingDefined, ConvolutionBackpropDataLayerTest,
@@ -284,7 +284,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData3D_AutoPadding_OutputPaddi
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::ValuesIn(inputShapes3D),
                                 ::testing::ValuesIn(emptyOutputShape),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         ConvolutionBackpropDataLayerTest::getTestCaseName);
 
 }  // namespace

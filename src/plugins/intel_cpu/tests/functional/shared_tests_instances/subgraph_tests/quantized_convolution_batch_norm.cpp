@@ -17,7 +17,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_QuantizedConvolutionBatchNorm, QuantizedConvoluti
                                  QuantizeType::COMPRESSED_WEIGHTS}),
                              ::testing::ValuesIn({IntervalsType::PER_TENSOR, IntervalsType::PER_CHANNEL}),
                              ::testing::Values(false),
-                             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          QuantizedConvolutionBatchNorm::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_QuantizedConvolutionBatchNormTransposeOnWeights, QuantizedConvolutionBatchNorm,
@@ -27,7 +27,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_QuantizedConvolutionBatchNormTransposeOnWeights, 
                                  QuantizeType::FAKE_QUANTIZE}),
                              ::testing::ValuesIn({IntervalsType::PER_TENSOR, IntervalsType::PER_CHANNEL}),
                              ::testing::Values(true),
-                             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          QuantizedConvolutionBatchNorm::getTestCaseName);
 
 } // namespace

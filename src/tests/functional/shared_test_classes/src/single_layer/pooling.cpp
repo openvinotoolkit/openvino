@@ -218,7 +218,7 @@ void MaxPoolingV8LayerTest::SetUp() {
                                                                               kernel, roundingType, padType,
                                                                               indexElementType, axis);
 
-    const auto maxPoolV8_second_output_is_supported = targetDevice == CommonTestUtils::DEVICE_GPU;
+    const auto maxPoolV8_second_output_is_supported = targetDevice == ov::test::utils::DEVICE_GPU;
     ngraph::ResultVector results;
     if (maxPoolV8_second_output_is_supported) {
         results = {std::make_shared<ngraph::opset3::Result>(maxPool->output(0)),

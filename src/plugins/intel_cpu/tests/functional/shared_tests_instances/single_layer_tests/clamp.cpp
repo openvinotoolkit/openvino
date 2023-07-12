@@ -38,14 +38,14 @@ const auto test_Clamp_signed = ::testing::Combine(
     ::testing::ValuesIn(inShapes),
     ::testing::ValuesIn(intervals),
     ::testing::ValuesIn(netPrc),
-    ::testing::Values(CommonTestUtils::DEVICE_CPU)
+    ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 const auto test_Clamp_unsigned = ::testing::Combine(
     ::testing::ValuesIn(inShapes),
     ::testing::ValuesIn(intervals_unsigned),
     ::testing::Values(InferenceEngine::Precision::U64),
-    ::testing::Values(CommonTestUtils::DEVICE_CPU)
+    ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 INSTANTIATE_TEST_SUITE_P(smoke_TestsClamp_signed, ClampLayerTest, test_Clamp_signed, ClampLayerTest::getTestCaseName);

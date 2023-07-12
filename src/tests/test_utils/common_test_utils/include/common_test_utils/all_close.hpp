@@ -86,7 +86,6 @@ typename std::enable_if<std::is_integral<T>::value, ::testing::AssertionResult>:
 /// Returns true if shapes match and for all elements, |a_i-b_i| <= atol + rtol*|b_i|.
 template <typename T>
 ::testing::AssertionResult all_close(const ov::Tensor& a, const ov::Tensor& b, T rtol = 1e-5f, T atol = 1e-8f) {
-
     // all_close(
     // const std::vector<T>& a,
     // const std::vector<T>& b,

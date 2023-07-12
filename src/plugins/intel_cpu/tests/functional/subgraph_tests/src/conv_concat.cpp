@@ -45,7 +45,7 @@ std::string ConvConcatSubgraphTest::getTestCaseName(testing::TestParamInfo<convC
 }
 
 void ConvConcatSubgraphTest::SetUp() {
-    targetDevice = CommonTestUtils::DEVICE_CPU;
+    targetDevice = ov::test::utils::DEVICE_CPU;
     nodeType type;
     commonConvParams convParams;
     CPUSpecificParams cpuParams;

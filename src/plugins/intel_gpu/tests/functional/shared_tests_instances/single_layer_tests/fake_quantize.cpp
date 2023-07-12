@@ -42,7 +42,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantize, FakeQuantizeLayerTest,
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::ValuesIn(inputShapes),
-                                ::testing::Values(CommonTestUtils::DEVICE_GPU),
+                                ::testing::Values(ov::test::utils::DEVICE_GPU),
                                 ::testing::Values(config)),
                         FakeQuantizeLayerTest::getTestCaseName);
 

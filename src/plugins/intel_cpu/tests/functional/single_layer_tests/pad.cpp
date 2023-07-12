@@ -87,7 +87,7 @@ protected:
 
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
         selectedType = makeSelectedTypeStr("ref", dataType);
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         init_input_shapes({shapes});
         for (auto& targetShapes : targetStaticShapes) {
             targetShapes.push_back({padsBegin.size()});

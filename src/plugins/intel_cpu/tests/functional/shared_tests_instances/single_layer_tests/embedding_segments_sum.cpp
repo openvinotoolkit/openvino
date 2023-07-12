@@ -46,6 +46,6 @@ INSTANTIATE_TEST_SUITE_P(smoke, EmbeddingSegmentsSumLayerTest,
                                 embSegmentsSumArgSet,
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::ValuesIn(indPrecisions),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         EmbeddingSegmentsSumLayerTest::getTestCaseName);
 }  // namespace

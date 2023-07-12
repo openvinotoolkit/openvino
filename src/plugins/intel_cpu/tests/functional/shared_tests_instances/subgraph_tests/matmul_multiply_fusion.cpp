@@ -71,7 +71,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulMultiplyFusion, MatMulMultiplyFusion,
                         ::testing::Combine(
                                 ::testing::ValuesIn(shape_params),
                                 ::testing::Values(true), // can be fused
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         MatMulMultiplyFusion::getTestCaseName);
 
 std::vector<MatMulMultiplyFusionShapeParams> negative_shape_params = {
@@ -112,7 +112,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_NegativeMatMulMultiplyFusion, MatMulMultiplyFusio
                         ::testing::Combine(
                                 ::testing::ValuesIn(negative_shape_params),
                                 ::testing::Values(false), // cannot be fused
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         MatMulMultiplyFusion::getTestCaseName);
 
 std::vector<MatMulMultiplyFusionShapeParams> shape_params2 = {
@@ -162,7 +162,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_QuantizedMatMulMultiplyFusion, QuantizedMatMulMul
                         ::testing::Combine(
                                 ::testing::ValuesIn(shape_params2),
                                 ::testing::Values(true), // can be fused
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         QuantizedMatMulMultiplyFusion::getTestCaseName);
 
 std::vector<MatMulMultiplyFusionShapeParams> negative_shape_params2 = {
@@ -202,7 +202,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_NegativeQuantizedMatMulMultiplyFusion, QuantizedM
                         ::testing::Combine(
                                 ::testing::ValuesIn(negative_shape_params2),
                                 ::testing::Values(false), // cannot be fused
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         QuantizedMatMulMultiplyFusion::getTestCaseName);
 
 } // namespace

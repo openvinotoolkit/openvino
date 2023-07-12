@@ -130,21 +130,21 @@ TEST_P(ExecNetworkget_propertyOptimalNumInferReq, OPTIMAL_NUMBER_OF_INFER_REQUES
     std::string actualDeviceName;
     std::tie(isThroughput, cpuOptimalNum, cpuCustomerNum, cpuSleep, actualOptimalNum,
                 actualCustomerNum, actualSleep, actualDeviceName, expectOptimalNum, gpuPerfHintNum) = this->GetParam();
-    config.insert(ov::device::priorities(CommonTestUtils::DEVICE_CPU + std::string(",") + actualDeviceName));
+    config.insert(ov::device::priorities(ov::test::utils::DEVICE_CPU + std::string(",") + actualDeviceName));
     std::vector<ov::PropertyName> supported_props = {ov::hint::num_requests, ov::range_for_streams, ov::optimal_batch_size, ov::hint::performance_mode};
     ON_CALL(*core, get_property(_, StrEq(ov::supported_properties.name()), _))
             .WillByDefault(RETURN_MOCK_VALUE(supported_props));
     if (isThroughput) {
-        metaDevices.push_back({CommonTestUtils::DEVICE_CPU, {ov::hint::performance_mode("THROUGHPUT")}, cpuCustomerNum, ""});
+        metaDevices.push_back({ov::test::utils::DEVICE_CPU, {ov::hint::performance_mode("THROUGHPUT")}, cpuCustomerNum, ""});
         metaDevices.push_back({actualDeviceName, {ov::hint::performance_mode("THROUGHPUT")}, actualCustomerNum, ""});
         // enable autoBatch
         unsigned int gpuOptimalBatchNum = 8;
         unsigned int keembayOptimalBatchNum = 1;
         ov::hint::PerformanceMode mode = ov::hint::PerformanceMode::THROUGHPUT;
         std::tuple<unsigned int, unsigned int> rangeOfStreams = std::make_tuple<unsigned int, unsigned int>(1, 3);
-        ON_CALL(*core, get_property(StrEq(CommonTestUtils::DEVICE_GPU), StrEq(ov::optimal_batch_size.name()), _))
+        ON_CALL(*core, get_property(StrEq(ov::test::utils::DEVICE_GPU), StrEq(ov::optimal_batch_size.name()), _))
             .WillByDefault(RETURN_MOCK_VALUE(gpuOptimalBatchNum));
-        ON_CALL(*core, get_property(StrEq(CommonTestUtils::DEVICE_KEEMBAY), StrEq(ov::optimal_batch_size.name()), _))
+        ON_CALL(*core, get_property(StrEq(ov::test::utils::DEVICE_KEEMBAY), StrEq(ov::optimal_batch_size.name()), _))
             .WillByDefault(RETURN_MOCK_VALUE(keembayOptimalBatchNum));
         ON_CALL(*core, get_property(_, StrEq(ov::range_for_streams.name()), _))
             .WillByDefault(RETURN_MOCK_VALUE(rangeOfStreams));
@@ -155,7 +155,7 @@ TEST_P(ExecNetworkget_propertyOptimalNumInferReq, OPTIMAL_NUMBER_OF_INFER_REQUES
         ON_CALL(*core, get_property(_, StrEq(ov::compilation_num_threads.name()), _))
            .WillByDefault(Return(8));
     } else {
-        metaDevices.push_back({CommonTestUtils::DEVICE_CPU, {}, cpuCustomerNum, ""});
+        metaDevices.push_back({ov::test::utils::DEVICE_CPU, {}, cpuCustomerNum, ""});
         metaDevices.push_back({actualDeviceName, {}, actualCustomerNum, ""});
         ON_CALL(*core, get_property(_, StrEq(ov::compilation_num_threads.name()), _)).WillByDefault(Return(8));
     }
@@ -171,14 +171,14 @@ TEST_P(ExecNetworkget_propertyOptimalNumInferReq, OPTIMAL_NUMBER_OF_INFER_REQUES
 
     if (cpuSleep) {
         ON_CALL(*core, compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
-                    ::testing::Matcher<const std::string&>(StrEq(CommonTestUtils::DEVICE_CPU)), _))
+                    ::testing::Matcher<const std::string&>(StrEq(ov::test::utils::DEVICE_CPU)), _))
                     .WillByDefault(InvokeWithoutArgs([this]() {
                         std::this_thread::sleep_for(std::chrono::milliseconds(100));
                         return mockExeNetwork;
                     }));
     } else {
         ON_CALL(*core, compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
-                    ::testing::Matcher<const std::string&>(StrEq(CommonTestUtils::DEVICE_CPU)), _))
+                    ::testing::Matcher<const std::string&>(StrEq(ov::test::utils::DEVICE_CPU)), _))
                     .WillByDefault(Return(mockExeNetwork));
     }
 
@@ -207,7 +207,7 @@ TEST_P(ExecNetworkget_propertyOptimalNumInferReq, OPTIMAL_NUMBER_OF_INFER_REQUES
            .Times(AtLeast(1));
 
     EXPECT_CALL(*core, compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
-                    ::testing::Matcher<const std::string&>(StrEq(CommonTestUtils::DEVICE_CPU)), _)).Times(1);
+                    ::testing::Matcher<const std::string&>(StrEq(ov::test::utils::DEVICE_CPU)), _)).Times(1);
 
     EXPECT_CALL(*core, compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
                     ::testing::Matcher<const std::string&>(StrEq(actualDeviceName)), _)).Times(1);
@@ -238,24 +238,24 @@ TEST_P(ExecNetworkget_propertyOptimalNumInferReq, OPTIMAL_NUMBER_OF_INFER_REQUES
 //  expectOptimalNum of Auto ExecNetwork}
 //
 const std::vector<ConfigParams> testConfigs = {
-                                               ConfigParams {false, 3, -1, false, 2, -1, true, CommonTestUtils::DEVICE_GPU,  1, 0},
-                                               ConfigParams {true,  3, -1, false, 2, -1, true, CommonTestUtils::DEVICE_GPU,  48, 0},
-                                               ConfigParams {false, 3, -1, true, 2, -1, false, CommonTestUtils::DEVICE_GPU,  2, 0},
-                                               ConfigParams {true,  3, -1, true, 2, -1, false, CommonTestUtils::DEVICE_GPU,  2, 0},
-                                               ConfigParams {false, 3, 5, false, 2, 5, true, CommonTestUtils::DEVICE_GPU,  1, 0},
-                                               ConfigParams {true,  3, 5, false, 2, 5, true, CommonTestUtils::DEVICE_GPU,  48, 0},
-                                               ConfigParams {false, 3, 5, true, 2, 5, false, CommonTestUtils::DEVICE_GPU,  2, 0},
-                                               ConfigParams {true,  3, 5, true, 2, 5, false, CommonTestUtils::DEVICE_GPU,  2, 0},
-                                               ConfigParams {true,  3, 5, false, 2, 5, true, CommonTestUtils::DEVICE_GPU,  48, 48},
-                                               ConfigParams {true,  3, 5, false, 2, 5, true, CommonTestUtils::DEVICE_GPU,  8, 6},
-                                               ConfigParams {false, 3, -1, false, 2, -1, true, CommonTestUtils::DEVICE_KEEMBAY,  1, 0},
-                                               ConfigParams {true,  3, -1, false, 2, -1, true, CommonTestUtils::DEVICE_KEEMBAY,  8, 0},
-                                               ConfigParams {false, 3, -1, true, 2, -1, false, CommonTestUtils::DEVICE_KEEMBAY,  2, 0},
-                                               ConfigParams {true,  3, -1, true, 2, -1, false, CommonTestUtils::DEVICE_KEEMBAY,  2, 0},
-                                               ConfigParams {false, 3, 5, false, 2, 5, true, CommonTestUtils::DEVICE_KEEMBAY,  1, 0},
-                                               ConfigParams {true,  3, 5, false, 2, 5, true, CommonTestUtils::DEVICE_KEEMBAY,  8, 0},
-                                               ConfigParams {false, 3, 5, true, 2, 5, false, CommonTestUtils::DEVICE_KEEMBAY,  2, 0},
-                                               ConfigParams {true,  3, 5, true, 2, 5, false, CommonTestUtils::DEVICE_KEEMBAY,  2, 0},
+                                               ConfigParams {false, 3, -1, false, 2, -1, true, ov::test::utils::DEVICE_GPU,  1, 0},
+                                               ConfigParams {true,  3, -1, false, 2, -1, true, ov::test::utils::DEVICE_GPU,  48, 0},
+                                               ConfigParams {false, 3, -1, true, 2, -1, false, ov::test::utils::DEVICE_GPU,  2, 0},
+                                               ConfigParams {true,  3, -1, true, 2, -1, false, ov::test::utils::DEVICE_GPU,  2, 0},
+                                               ConfigParams {false, 3, 5, false, 2, 5, true, ov::test::utils::DEVICE_GPU,  1, 0},
+                                               ConfigParams {true,  3, 5, false, 2, 5, true, ov::test::utils::DEVICE_GPU,  48, 0},
+                                               ConfigParams {false, 3, 5, true, 2, 5, false, ov::test::utils::DEVICE_GPU,  2, 0},
+                                               ConfigParams {true,  3, 5, true, 2, 5, false, ov::test::utils::DEVICE_GPU,  2, 0},
+                                               ConfigParams {true,  3, 5, false, 2, 5, true, ov::test::utils::DEVICE_GPU,  48, 48},
+                                               ConfigParams {true,  3, 5, false, 2, 5, true, ov::test::utils::DEVICE_GPU,  8, 6},
+                                               ConfigParams {false, 3, -1, false, 2, -1, true, ov::test::utils::DEVICE_KEEMBAY,  1, 0},
+                                               ConfigParams {true,  3, -1, false, 2, -1, true, ov::test::utils::DEVICE_KEEMBAY,  8, 0},
+                                               ConfigParams {false, 3, -1, true, 2, -1, false, ov::test::utils::DEVICE_KEEMBAY,  2, 0},
+                                               ConfigParams {true,  3, -1, true, 2, -1, false, ov::test::utils::DEVICE_KEEMBAY,  2, 0},
+                                               ConfigParams {false, 3, 5, false, 2, 5, true, ov::test::utils::DEVICE_KEEMBAY,  1, 0},
+                                               ConfigParams {true,  3, 5, false, 2, 5, true, ov::test::utils::DEVICE_KEEMBAY,  8, 0},
+                                               ConfigParams {false, 3, 5, true, 2, 5, false, ov::test::utils::DEVICE_KEEMBAY,  2, 0},
+                                               ConfigParams {true,  3, 5, true, 2, 5, false, ov::test::utils::DEVICE_KEEMBAY,  2, 0},
                                               };
 
 INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests,
@@ -311,14 +311,14 @@ TEST_P(ExecNetworkGetMetricOtherTest, modelPriority_perfHint_exclusiveAsyncReq_t
              actualDeviceName,
              performanceHint,
              modelPriority) = this->GetParam();
-    config.insert(ov::device::priorities(CommonTestUtils::DEVICE_CPU + std::string(",") + actualDeviceName));
+    config.insert(ov::device::priorities(ov::test::utils::DEVICE_CPU + std::string(",") + actualDeviceName));
     config.insert(ov::hint::performance_mode(performanceHint));
     config.insert({ov::hint::model_priority.name(), modelPriority.as<std::string>()});
 
     if (isNewAPI) {
         ON_CALL(*core.get(), is_new_api()).WillByDefault(Return(true));
     }
-    metaDevices.push_back({CommonTestUtils::DEVICE_CPU, {ov::hint::performance_mode(performanceHint)}, 3, ""});
+    metaDevices.push_back({ov::test::utils::DEVICE_CPU, {ov::hint::performance_mode(performanceHint)}, 3, ""});
     metaDevices.push_back({actualDeviceName, {ov::hint::performance_mode(performanceHint)}, 2, ""});
 
     ON_CALL(*plugin, select_device(_, _, _)).WillByDefault(Return(metaDevices[1]));
@@ -333,7 +333,7 @@ TEST_P(ExecNetworkGetMetricOtherTest, modelPriority_perfHint_exclusiveAsyncReq_t
 
     ON_CALL(*core, get_property(_, StrEq(ov::compilation_num_threads.name()), _)).WillByDefault(Return(8));
     ON_CALL(*core, compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
-                    ::testing::Matcher<const std::string&>(StrEq(CommonTestUtils::DEVICE_CPU)), _))
+                    ::testing::Matcher<const std::string&>(StrEq(ov::test::utils::DEVICE_CPU)), _))
             .WillByDefault(Return(mockExeNetwork));
 
     if (actualSleep) {
@@ -366,62 +366,62 @@ TEST_P(ExecNetworkGetMetricOtherTest, modelPriority_perfHint_exclusiveAsyncReq_t
 const std::vector<modelPrioPerfHintTestParams> modelPrioPerfHintConfig = {
     modelPrioPerfHintTestParams{false,
                                 true,
-                                CommonTestUtils::DEVICE_GPU,
+                                ov::test::utils::DEVICE_GPU,
                                 "THROUGHPUT",
                                 CONFIG_VALUE(MODEL_PRIORITY_LOW)},
     modelPrioPerfHintTestParams{false,
                                 true,
-                                CommonTestUtils::DEVICE_GPU,
+                                ov::test::utils::DEVICE_GPU,
                                 "LATENCY",
                                 CONFIG_VALUE(MODEL_PRIORITY_LOW)},
     modelPrioPerfHintTestParams{false,
                                 true,
-                                CommonTestUtils::DEVICE_GPU,
+                                ov::test::utils::DEVICE_GPU,
                                 "THROUGHPUT",
                                 CONFIG_VALUE(MODEL_PRIORITY_MED)},
     modelPrioPerfHintTestParams{false,
                                 true,
-                                CommonTestUtils::DEVICE_GPU,
+                                ov::test::utils::DEVICE_GPU,
                                 "LATENCY",
                                 CONFIG_VALUE(MODEL_PRIORITY_MED)},
     modelPrioPerfHintTestParams{false,
                                 true,
-                                CommonTestUtils::DEVICE_GPU,
+                                ov::test::utils::DEVICE_GPU,
                                 CONFIG_VALUE(THROUGHPUT),
                                 CONFIG_VALUE(MODEL_PRIORITY_HIGH)},
     modelPrioPerfHintTestParams{false,
                                 true,
-                                CommonTestUtils::DEVICE_GPU,
+                                ov::test::utils::DEVICE_GPU,
                                 "LATENCY",
                                 CONFIG_VALUE(MODEL_PRIORITY_HIGH)},
     modelPrioPerfHintTestParams{true,
                                 true,
-                                CommonTestUtils::DEVICE_GPU,
+                                ov::test::utils::DEVICE_GPU,
                                 "THROUGHPUT",
                                 "LOW"},
     modelPrioPerfHintTestParams{true,
                                 true,
-                                CommonTestUtils::DEVICE_GPU,
+                                ov::test::utils::DEVICE_GPU,
                                 "LATENCY",
                                 "LOW"},
     modelPrioPerfHintTestParams{true,
                                 true,
-                                CommonTestUtils::DEVICE_GPU,
+                                ov::test::utils::DEVICE_GPU,
                                 "THROUGHPUT",
                                 "MEDIUM"},
     modelPrioPerfHintTestParams{true,
                                 true,
-                                CommonTestUtils::DEVICE_GPU,
+                                ov::test::utils::DEVICE_GPU,
                                 "LATENCY",
                                 "MEDIUM"},
     modelPrioPerfHintTestParams{true,
                                 true,
-                                CommonTestUtils::DEVICE_GPU,
+                                ov::test::utils::DEVICE_GPU,
                                 "THROUGHPUT",
                                 "HIGH"},
     modelPrioPerfHintTestParams{true,
                                 true,
-                                CommonTestUtils::DEVICE_GPU,
+                                ov::test::utils::DEVICE_GPU,
                                 "LATENCY",
                                 "HIGH"}};
 

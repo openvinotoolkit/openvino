@@ -52,7 +52,7 @@ protected:
         int batchDims;
         std::tie(shapes, indexes, dataElementType, idxElementType, batchDims) = this->GetParam();
 
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         init_input_shapes({shapes});
 
         auto params = ngraph::builder::makeDynamicParams(dataElementType, inputDynamicShapes);
@@ -78,7 +78,7 @@ protected:
         int batchDims;
         std::tie(shapes, indexes, dataElementType, idxElementType, batchDims) = this->GetParam();
 
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         init_input_shapes({shapes});
 
         auto params = ngraph::builder::makeDynamicParams(dataElementType, inputDynamicShapes);

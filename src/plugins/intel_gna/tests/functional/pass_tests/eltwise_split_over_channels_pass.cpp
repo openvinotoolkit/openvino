@@ -78,7 +78,7 @@ const std::vector<std::vector<size_t>> inputShape = {{1, 67000}, {1, 500000}, {1
 INSTANTIATE_TEST_SUITE_P(smoke_EltwiseSplitOverChennels,
                          EltwiseSplitOverChannelsPassTest,
                          ::testing::Combine(::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs),
                                             ::testing::ValuesIn(inputShape)),
                          EltwiseSplitOverChannelsPassTest::getTestCaseName);

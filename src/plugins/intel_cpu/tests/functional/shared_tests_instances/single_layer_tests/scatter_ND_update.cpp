@@ -33,7 +33,7 @@ const auto ScatterNDUpdateCases = ::testing::Combine(
         ::testing::ValuesIn(ScatterNDUpdateLayerTest::combineShapes(sliceSelectInShape)),
         ::testing::ValuesIn(inputPrecisions),
         ::testing::ValuesIn(idxPrecisions),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU)
+        ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 INSTANTIATE_TEST_SUITE_P(smoke_ScatterNDUpdate, ScatterNDUpdateLayerTest, ScatterNDUpdateCases, ScatterNDUpdateLayerTest::getTestCaseName);

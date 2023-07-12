@@ -55,14 +55,14 @@ public:
         std::ostringstream result;
         result << "IS=";
         for (const auto& shape : inputShapes) {
-            result << CommonTestUtils::partialShape2str({shape.first}) << "_";
+            result << ov::test::utils::partialShape2str({shape.first}) << "_";
         }
         result << "TS=";
         for (const auto& shape : inputShapes) {
             result << "(";
             if (!shape.second.empty()) {
                 for (const auto& itr : shape.second) {
-                    result << CommonTestUtils::vec2str(itr);
+                    result << ov::test::utils::vec2str(itr);
                 }
             }
             result << ")";
@@ -74,7 +74,7 @@ public:
         constexpr size_t number_of_params = 4ul;
         constexpr size_t softmax_axis = 1ul;
         constexpr int concat_axis = 0;
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         auto netPrc = ov::element::f32;
         auto& InputShapes = this->GetParam();
         ASSERT_EQ(InputShapes.size(), number_of_params) << "Unexpected number of input shapes";

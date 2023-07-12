@@ -9,7 +9,7 @@ namespace SubgraphTestsDefinitions {
 std::string ReduceEltwiseTest::getTestCaseName(const testing::TestParamInfo<ReduceEltwiseParamsTuple> &obj) {
     std::vector<size_t> inputShapes;
     std::vector<int> axes;
-    CommonTestUtils::OpType opType;
+    ov::test::utils::OpType opType;
     bool keepDims;
     InferenceEngine::Precision netPrecision;
     std::string targetName;
@@ -28,7 +28,7 @@ std::string ReduceEltwiseTest::getTestCaseName(const testing::TestParamInfo<Redu
 void ReduceEltwiseTest::SetUp() {
     std::vector<size_t> inputShape;
     std::vector<int> axes;
-    CommonTestUtils::OpType opType;
+    ov::test::utils::OpType opType;
     bool keepDims;
     InferenceEngine::Precision netPrecision;
     std::tie(inputShape, axes, opType, keepDims, netPrecision, targetDevice) = this->GetParam();
@@ -39,12 +39,12 @@ void ReduceEltwiseTest::SetUp() {
 
     std::vector<size_t> shapeAxes;
     switch (opType) {
-        case CommonTestUtils::OpType::SCALAR: {
+        case ov::test::utils::OpType::SCALAR: {
             if (axes.size() > 1)
                 FAIL() << "In reduce op if op type is scalar, 'axis' input's must contain 1 element";
             break;
         }
-        case CommonTestUtils::OpType::VECTOR: {
+        case ov::test::utils::OpType::VECTOR: {
             shapeAxes.push_back(axes.size());
             break;
         }

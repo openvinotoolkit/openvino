@@ -132,7 +132,7 @@ protected:
 
     void SetUp() override {
         idx = 0;
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
 
         inputDescription inpDesc;
         ngraph::helpers::InputLayerType secondType;

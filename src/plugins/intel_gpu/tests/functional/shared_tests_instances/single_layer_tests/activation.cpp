@@ -103,7 +103,7 @@ const auto basicCases = []() {
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::ValuesIn(ov::test::utils::combineParams(basic)),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU));
+        ::testing::Values(ov::test::utils::DEVICE_GPU));
 };
 
 const auto basicPreluCases = []() {
@@ -115,7 +115,7 @@ const auto basicPreluCases = []() {
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::ValuesIn(ov::test::utils::combineParams(preluBasic)),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU));
+        ::testing::Values(ov::test::utils::DEVICE_GPU));
 };
 
 const auto big_rank_cases = []() {
@@ -127,7 +127,7 @@ const auto big_rank_cases = []() {
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::ValuesIn(ov::test::utils::combineParams(big_ranks)),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU));
+        ::testing::Values(ov::test::utils::DEVICE_GPU));
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_Activation_Basic, ActivationLayerTest, basicCases(), ActivationLayerTest::getTestCaseName);

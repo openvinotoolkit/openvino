@@ -84,7 +84,7 @@ protected:
         ElementType indexType;
         std::tie(shapes, inType, indexType, mergeRepeated) = GetParam();
         selectedType = "ref_any_FP32";
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         ASSERT_EQ(shapes.first.size(), 4);
         const auto& in_dyn_N = shapes.first[0];
         const auto& in_dyn_T = shapes.first[1];

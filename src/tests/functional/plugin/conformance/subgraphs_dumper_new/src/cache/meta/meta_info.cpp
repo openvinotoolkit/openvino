@@ -123,8 +123,8 @@ std::map<std::string, ModelInfo> MetaInfo::get_model_info() {
 }
 
 std::string MetaInfo::get_model_name_by_path(const std::string& model_path) {
-    auto pos = model_path.rfind(CommonTestUtils::FileSeparator);
-    auto model_name = CommonTestUtils::replaceExt(model_path.substr(pos + 1), "");
+    auto pos = model_path.rfind(ov::test::utils::FileSeparator);
+    auto model_name = ov::test::utils::replaceExt(model_path.substr(pos + 1), "");
     return model_name;
 }
 

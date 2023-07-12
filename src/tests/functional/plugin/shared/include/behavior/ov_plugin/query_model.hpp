@@ -72,7 +72,7 @@ TEST_P(OVClassQueryModelTest, QueryModelHETEROWithDeviceIDNoThrow) {
     if (deviceIDs.empty())
         GTEST_FAIL();
     OV_ASSERT_NO_THROW(ie.query_model(actualNetwork,
-                                      CommonTestUtils::DEVICE_HETERO,
+                                      ov::test::utils::DEVICE_HETERO,
                                       ov::device::priorities(target_device + "." + deviceIDs[0], target_device)));
 }
 

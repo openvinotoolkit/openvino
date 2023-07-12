@@ -108,7 +108,7 @@ void ConvolutionLayerTestFixture::SetUp() {
 
     auto filter_size = std::accumulate(std::begin(kernel), std::end(kernel), 1, std::multiplies<size_t>());
     filter_weights =
-        CommonTestUtils::generate_float_numbers(convOutChannels * inputShape[1] * filter_size, -0.1f, 0.1f);
+        ov::test::utils::generate_float_numbers(convOutChannels * inputShape[1] * filter_size, -0.1f, 0.1f);
 
     auto conv = std::dynamic_pointer_cast<Convolution>(ngraph::builder::makeConvolution(paramOuts[0],
                                                                                         ngPrc,
@@ -284,7 +284,7 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_Convolution2D_ExplicitPadding_Height1,
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::ValuesIn(inputShapesH1),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs)),
                          ConvolutionLayerTestFixture::getTestCaseName);
 
@@ -297,7 +297,7 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_Convolution2D_ExplicitPadding_Width1,
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::ValuesIn(inputShapesW1),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs)),
                          ConvolutionLayerTestFixture::getTestCaseName);
 
@@ -310,7 +310,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D_AutoPadValid_Height1,
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::ValuesIn(inputShapesH1),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs)),
                          ConvolutionLayerTestFixture::getTestCaseName);
 
@@ -323,7 +323,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D_AutoPadValid_Height1_BigStride,
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::ValuesIn(inputShapesH1),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs)),
                          ConvolutionLayerTestFixture::getTestCaseName);
 
@@ -336,7 +336,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D_AutoPadValid_Width1,
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::ValuesIn(inputShapesW1),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs)),
                          ConvolutionLayerTestFixture::getTestCaseName);
 
@@ -349,7 +349,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D_AutoPadValid_MapTo1d,
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::ValuesIn(inputShapesMapTo1d),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs)),
                          ConvolutionLayerTestFixture::getTestCaseName);
 
@@ -362,7 +362,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D_Kernels2D,
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::Values(input2DNCHW),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs)),
                          ConvolutionLayerTestFixture::getTestCaseName);
 
@@ -375,7 +375,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D_Kernels2D_big,
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::Values(input2DNCHW),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs)),
                          ConvolutionLayerTestFixture::getTestCaseName);
 
@@ -388,7 +388,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D_Map2D_Not_Transpose_h_w_3_3,
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::Values(input2DNCHW_3x3),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs)),
                          ConvolutionLayerTestFixture::getTestCaseName);
 
@@ -401,7 +401,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D_Map2D_Not_Transpose_h_w_5_6,
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::Values(input2DNCHW_5x6),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs)),
                          ConvolutionLayerTestFixture::getTestCaseName);
 }  // namespace

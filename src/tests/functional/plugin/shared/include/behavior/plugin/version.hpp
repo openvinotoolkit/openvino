@@ -38,9 +38,9 @@ public:
 
 // Load unsupported network type to the Plugin
 TEST_P(VersionTest, pluginCurrentVersionIsCorrect) {
-    if (target_device.find(CommonTestUtils::DEVICE_AUTO) == std::string::npos &&
-        target_device.find(CommonTestUtils::DEVICE_MULTI) == std::string::npos &&
-        target_device.find(CommonTestUtils::DEVICE_HETERO) == std::string::npos) {
+    if (target_device.find(ov::test::utils::DEVICE_AUTO) == std::string::npos &&
+        target_device.find(ov::test::utils::DEVICE_MULTI) == std::string::npos &&
+        target_device.find(ov::test::utils::DEVICE_HETERO) == std::string::npos) {
         std::map<std::string, InferenceEngine::Version> versions = ie->GetVersions(target_device);
         ASSERT_EQ(versions.size(), 1);
         ASSERT_EQ(versions.begin()->first, target_device);

@@ -87,7 +87,7 @@ protected:
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
 
         selectedType = makeSelectedTypeStr(selectedType, netPrecision);
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         std::vector<InputShape> input_shapes = {shapes};
         init_input_shapes({input_shapes});
         for (auto& targetShapes : targetStaticShapes) {

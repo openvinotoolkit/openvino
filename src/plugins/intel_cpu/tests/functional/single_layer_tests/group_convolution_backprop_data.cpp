@@ -203,7 +203,7 @@ protected:
     void SetUp() override {
         rel_threshold = 1e-4f;
 
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
 
         GroupDeconvSpecParams basicParamsSet;
         DeconvInputData inputData;

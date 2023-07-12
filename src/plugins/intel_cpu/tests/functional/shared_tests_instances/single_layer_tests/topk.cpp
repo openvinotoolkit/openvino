@@ -52,6 +52,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_TopK, TopKLayerTest,
                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                 ::testing::Values(InferenceEngine::Layout::ANY),
                 ::testing::Values(std::vector<size_t>({21, 21, 21, 21})),
-                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                ::testing::Values(ov::test::utils::DEVICE_CPU)),
         TopKLayerTest::getTestCaseName);
 }  // namespace

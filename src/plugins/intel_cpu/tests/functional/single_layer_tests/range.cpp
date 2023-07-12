@@ -181,13 +181,13 @@
 //        ::testing::Combine(
 //                rangeParDynamic,
 //                ::testing::ValuesIn(netPrecisions),
-//                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+//                ::testing::Values(ov::test::utils::DEVICE_CPU)),
 //        ::testing::ValuesIn(filterCPUInfoForDevice()));
 //const auto params3dPseudoStatic = ::testing::Combine(
 //        ::testing::Combine(
 //                rangeParStatic,
 //                ::testing::ValuesIn(netPrecisions),
-//                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+//                ::testing::Values(ov::test::utils::DEVICE_CPU)),
 //        ::testing::ValuesIn(filterCPUInfoForDevice()));
 //// We don't check static case, because of constant folding, but we can use static shape for test infrastructure,
 //// however Range node will be dynamic, since inputs are parameters, not a constants

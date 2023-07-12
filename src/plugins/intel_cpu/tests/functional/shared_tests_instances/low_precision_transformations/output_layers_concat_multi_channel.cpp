@@ -27,7 +27,7 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_LPT, OutputLayersConcatMultiChannel,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(InferenceEngine::SizeVector({ 1, 3, 16, 16 })),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+        ::testing::Values(ov::test::utils::DEVICE_CPU),
         ::testing::ValuesIn(trasformationParamValues)),
     OutputLayersConcatMultiChannel::getTestCaseName);
 }  // namespace

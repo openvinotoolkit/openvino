@@ -36,7 +36,7 @@ void InputSplitConcatTest::SetUp() {
     auto split = ngraph::builder::makeSplit(params[0], ngPrc, 2, 1);
     auto relu1 = std::make_shared<ngraph::opset3::Relu>(split->output(0));
 
-    auto const_vals = CommonTestUtils::generate_float_numbers(inputShape[1], -5.0f, 5.0f);
+    auto const_vals = ov::test::utils::generate_float_numbers(inputShape[1], -5.0f, 5.0f);
     auto constant = ngraph::builder::makeConstant(ngPrc, inputShape, const_vals);
     auto concat = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{constant, split->output(1)}, 1);
     auto relu2 = std::make_shared<ngraph::opset3::Relu>(concat);

@@ -24,7 +24,7 @@ protected:
     }
 
     void TearDown() override {
-        CommonTestUtils::removeIRFiles(m_out_xml_path, m_out_bin_path);
+        ov::test::utils::removeIRFiles(m_out_xml_path, m_out_bin_path);
     }
 
     std::shared_ptr<ov::Model> getWithIRFrontend(const std::string& model_path, const std::string& weights_path) {

@@ -61,7 +61,7 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_LPT, FakeQuantizePrecisionSelectionTransformat
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(ngraph::PartialShape({ 1, 32, 72, 48 })),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU),
+        ::testing::Values(ov::test::utils::DEVICE_GPU),
         ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn(testValues)),
     FakeQuantizePrecisionSelectionTransformation::getTestCaseName);

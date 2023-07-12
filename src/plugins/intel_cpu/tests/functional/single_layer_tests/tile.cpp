@@ -277,7 +277,7 @@ INSTANTIATE_TEST_CASE_P(smoke_StaticShape4D, TileLayerCPUTest,
                                         ::testing::ValuesIn(repeats4D),
                                         ::testing::ValuesIn(netPrecisions),
                                         ::testing::Values(true),
-                                        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                        ::testing::Values(ov::test::utils::DEVICE_CPU)),
                                 ::testing::ValuesIn(CPUParams4D)),
                         TileLayerCPUTest::getTestCaseName);
 
@@ -288,7 +288,7 @@ INSTANTIATE_TEST_CASE_P(smoke_DynamicShape4D, TileLayerCPUTest,
                                         ::testing::ValuesIn(repeats4D),
                                         ::testing::ValuesIn(netPrecisions),
                                         ::testing::Values(true, false),
-                                        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                        ::testing::Values(ov::test::utils::DEVICE_CPU)),
                                 ::testing::Values(CPUSpecificParams{{}, {}, {}, "ref"})),
                         TileLayerCPUTest::getTestCaseName);
 
@@ -312,7 +312,7 @@ INSTANTIATE_TEST_CASE_P(smoke_DynBatch4D, TileLayerCPUTest,
                                     ::testing::Values(std::vector<int64_t>{1, 2, 1, 3}),
                                     ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values(true),
-                                    ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                    ::testing::Values(ov::test::utils::DEVICE_CPU)),
                                 ::testing::Values(CPUSpecificParams{{}, {}, {}, "ref"})),
                         TileLayerCPUTest::getTestCaseName);
 
@@ -323,7 +323,7 @@ INSTANTIATE_TEST_CASE_P(smoke_StaticShape5D, TileLayerCPUTest,
                                         ::testing::ValuesIn(repeats5D),
                                         ::testing::ValuesIn(netPrecisions),
                                         ::testing::Values(true),
-                                        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                        ::testing::Values(ov::test::utils::DEVICE_CPU)),
                                 ::testing::ValuesIn(CPUParams5D)),
                         TileLayerCPUTest::getTestCaseName);
 
@@ -334,7 +334,7 @@ INSTANTIATE_TEST_CASE_P(smoke_DynamicShape5D, TileLayerCPUTest,
                                         ::testing::ValuesIn(repeats5D),
                                         ::testing::ValuesIn(netPrecisions),
                                         ::testing::Values(true, false),
-                                        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                        ::testing::Values(ov::test::utils::DEVICE_CPU)),
                                 ::testing::Values(CPUSpecificParams{{}, {}, {}, "ref"})),
                         TileLayerCPUTest::getTestCaseName);
 /* ========= */

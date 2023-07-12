@@ -44,7 +44,7 @@ public:
     }
 protected:
     void SetUp() override {
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         InputShape inputShapes;
         ElementType inputPrecision;
         ov::Shape kernelSize;

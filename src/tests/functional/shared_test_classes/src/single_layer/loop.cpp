@@ -269,10 +269,10 @@ namespace LayerTestsDefinitions {
         blob->allocate();
 
         if (tdesc.getLayout() == InferenceEngine::SCALAR) {
-            auto scalar_1d = CommonTestUtils::make_reshape_view(blob, {1});
-            CommonTestUtils::fill_data_with_broadcast(scalar_1d, 0, {static_cast<float>(max_iter_num)});
+            auto scalar_1d = ov::test::utils::make_reshape_view(blob, {1});
+            ov::test::utils::fill_data_with_broadcast(scalar_1d, 0, {static_cast<float>(max_iter_num)});
         } else {
-            CommonTestUtils::fill_data_with_broadcast(blob, 0, {static_cast<float>(start_value)});
+            ov::test::utils::fill_data_with_broadcast(blob, 0, {static_cast<float>(start_value)});
         }
 
         return blob;
@@ -296,7 +296,7 @@ namespace LayerTestsDefinitions {
         if (auto_concat_out)
             ref_shape[axis] *= n_iter;
 
-        using namespace CommonTestUtils;
+        using namespace ov::test::utils;
         InferenceEngine::TensorDesc tdesc {data_prc, ref_shape, InferenceEngine::TensorDesc::getLayoutByDims(ref_shape)};
         std::pair<ngraph::element::Type, std::vector<uint8_t>> res;
         res.first = function->get_result()->get_element_type();

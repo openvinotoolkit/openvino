@@ -47,7 +47,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Basic, SqueezeUnsqueezeLayerTest,
                                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
-                                ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_GPU)),
                         SqueezeUnsqueezeLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Basic_emptyAxes, SqueezeUnsqueezeLayerTest,
@@ -59,6 +59,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_Basic_emptyAxes, SqueezeUnsqueezeLayerTest,
                                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
-                                ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_GPU)),
                         SqueezeUnsqueezeLayerTest::getTestCaseName);
 }  // namespace

@@ -89,7 +89,7 @@ namespace {
                                     ::testing::ValuesIn(LoadNetworkCacheTestBase::getNumericAnyTypeFunctions()),
                                     ::testing::ValuesIn(precisionsCPU),
                                     ::testing::ValuesIn(batchSizesCPU),
-                                    ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                    ::testing::Values(ov::test::utils::DEVICE_CPU)),
                             LoadNetworkCacheTestBase::getTestCaseName);
 
     INSTANTIATE_TEST_SUITE_P(smoke_CachingSupportCase_CPU_Float, LoadNetworkCacheTestBase,
@@ -97,7 +97,7 @@ namespace {
                                     ::testing::ValuesIn(LoadNetworkCacheTestBase::getFloatingPointOnlyFunctions()),
                                     ::testing::ValuesIn(floatPrecisionsCPU),
                                     ::testing::ValuesIn(batchSizesCPU),
-                                    ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                    ::testing::Values(ov::test::utils::DEVICE_CPU)),
                             LoadNetworkCacheTestBase::getTestCaseName);
 
     INSTANTIATE_TEST_SUITE_P(smoke_CachingSupportCase_CPU_Internal, LoadNetworkCacheTestBase,
@@ -105,6 +105,6 @@ namespace {
                                     ::testing::ValuesIn(internal_functions_cpu()),
                                     ::testing::ValuesIn(precisionsCPUInternal),
                                     ::testing::ValuesIn(batchSizesCPUInternal),
-                                    ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                    ::testing::Values(ov::test::utils::DEVICE_CPU)),
                             LoadNetworkCacheTestBase::getTestCaseName);
 } // namespace

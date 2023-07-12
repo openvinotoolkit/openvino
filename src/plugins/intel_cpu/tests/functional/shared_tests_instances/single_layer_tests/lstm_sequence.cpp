@@ -45,7 +45,7 @@ namespace {
                                     ::testing::ValuesIn(clip),
                                     ::testing::ValuesIn(direction),
                                     ::testing::ValuesIn(netPrecisions),
-                                    ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                    ::testing::Values(ov::test::utils::DEVICE_CPU)),
                             LSTMSequenceTest::getTestCaseName);
 
     INSTANTIATE_TEST_SUITE_P(smoke_LSTMSequenceCommonClip, LSTMSequenceTest,
@@ -59,7 +59,7 @@ namespace {
                                     ::testing::ValuesIn(clip_non_zeros),
                                     ::testing::ValuesIn(direction),
                                     ::testing::ValuesIn(netPrecisions),
-                                    ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                    ::testing::Values(ov::test::utils::DEVICE_CPU)),
                             LSTMSequenceTest::getTestCaseName);
 
 }  // namespace

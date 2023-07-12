@@ -58,12 +58,12 @@ void ConvolutionReluSequenceTest::SetUp() {
         const auto biasesRange = 0.05f;
         std::vector<float> filter_weights;
         std::vector<float> biases;
-        if (targetDevice == CommonTestUtils::DEVICE_GNA) {
+        if (targetDevice == ov::test::utils::DEVICE_GNA) {
             auto filter_size = std::accumulate(std::begin(single.kernelSize), std::end(single.kernelSize), 1, std::multiplies<size_t>());
-            filter_weights = CommonTestUtils::generate_float_numbers(single.numOutChannels * inputChannels * filter_size,
+            filter_weights = ov::test::utils::generate_float_numbers(single.numOutChannels * inputChannels * filter_size,
                 -filtersRange, filtersRange);
             if (addBiases) {
-                biases = CommonTestUtils::generate_float_numbers(single.numOutChannels,
+                biases = ov::test::utils::generate_float_numbers(single.numOutChannels,
                     -biasesRange, biasesRange);
             }
         }

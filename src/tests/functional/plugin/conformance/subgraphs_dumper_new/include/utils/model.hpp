@@ -59,9 +59,9 @@ inline std::vector<std::string> find_models(const std::vector<std::string> &dirs
     for (const auto& dir : dirs) {
         std::vector<std::string> dir_content;
         if (ov::util::directory_exists(dir)) {
-            dir_content = CommonTestUtils::getFileListByPatternRecursive({dir}, FROTEND_REGEXP);
-        } else if (ov::util::file_exists(dir) && std::regex_match(dir, std::regex(".*" + std::string(CommonTestUtils::LST_EXTENSION)))) {
-            dir_content = CommonTestUtils::readListFiles({dir});
+            dir_content = ov::test::utils::getFileListByPatternRecursive({dir}, FROTEND_REGEXP);
+        } else if (ov::util::file_exists(dir) && std::regex_match(dir, std::regex(".*" + std::string(ov::test::utils::LST_EXTENSION)))) {
+            dir_content = ov::test::utils::readListFiles({dir});
         } else {
             std::string msg = "Input directory (" + dir + ") doesn't not exist!";
             throw std::runtime_error(msg);
@@ -125,7 +125,7 @@ inline void save_model_status_to_file(const std::map<ModelCacheStatus, std::vect
         ov::util::create_directory_recursive(cache_status_path);
     }
     for (const auto& status_info : caching_status) {
-        std::string output_file_path = ov::util::path_join({ cache_status_path, model_cache_status_to_str[status_info.first] + CommonTestUtils::LST_EXTENSION});
+        std::string output_file_path = ov::util::path_join({ cache_status_path, model_cache_status_to_str[status_info.first] + ov::test::utils::LST_EXTENSION});
         ov::test::utils::vec2File(status_info.second, output_file_path);
     }
 }

@@ -170,7 +170,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_EltwiseChain, EltwiseChainTest,
                                 ::testing::ValuesIn(inputPrecisions),
                                 ::testing::ValuesIn(eltwiseOps),
                                 ::testing::Values(false),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         EltwiseChainTest::getTestCaseName);
 
 std::vector<std::vector<ngraph::Shape>> inputShapesFQ = {
@@ -201,7 +201,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_EltwiseChainWithFQ, EltwiseChainTest,
                             ::testing::ValuesIn(inputPrecisionsFQ),
                             ::testing::ValuesIn(eltwiseOps),
                             ::testing::Values(true),
-                            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         EltwiseChainTest::getTestCaseName);
 
 // =============================================== dynamic ==============================================
@@ -459,7 +459,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_EltwiseChain_dyn, EltwiseChainTest,
                                 ::testing::ValuesIn(inputPrecisions),
                                 ::testing::ValuesIn(eltwiseOps),
                                 ::testing::Values(false),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         EltwiseChainTest::getTestCaseName);
 
 } // namespace

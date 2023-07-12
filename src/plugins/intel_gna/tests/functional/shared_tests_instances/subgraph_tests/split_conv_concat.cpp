@@ -18,5 +18,5 @@ INSTANTIATE_TEST_SUITE_P(smoke_SplitConvConcat,
                          SplitConvConcat,
                          ::testing::Combine(::testing::ValuesIn(netPrecisions),
                                             ::testing::ValuesIn(inputShapes),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA)),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA)),
                          SplitConvConcat::getTestCaseName);

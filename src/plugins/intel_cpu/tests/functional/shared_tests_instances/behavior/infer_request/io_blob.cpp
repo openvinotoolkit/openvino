@@ -16,28 +16,28 @@ namespace {
     };
 
     const std::vector<std::map<std::string, std::string>> Multiconfigs = {
-            {{ MULTI_CONFIG_KEY(DEVICE_PRIORITIES) , CommonTestUtils::DEVICE_CPU}}
+            {{ MULTI_CONFIG_KEY(DEVICE_PRIORITIES) , ov::test::utils::DEVICE_CPU}}
     };
 
     const std::vector<std::map<std::string, std::string>> Autoconfigs = {
-            {{ MULTI_CONFIG_KEY(DEVICE_PRIORITIES) , CommonTestUtils::DEVICE_CPU}}
+            {{ MULTI_CONFIG_KEY(DEVICE_PRIORITIES) , ov::test::utils::DEVICE_CPU}}
     };
 
     INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferRequestIOBBlobTest,
                             ::testing::Combine(
-                                    ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                    ::testing::Values(ov::test::utils::DEVICE_CPU),
                                     ::testing::ValuesIn(configs)),
                              InferRequestIOBBlobTest::getTestCaseName);
 
     INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, InferRequestIOBBlobTest,
                             ::testing::Combine(
-                                    ::testing::Values(CommonTestUtils::DEVICE_MULTI),
+                                    ::testing::Values(ov::test::utils::DEVICE_MULTI),
                                     ::testing::ValuesIn(Multiconfigs)),
                              InferRequestIOBBlobTest::getTestCaseName);
 
     INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, InferRequestIOBBlobTest,
                             ::testing::Combine(
-                                    ::testing::Values(CommonTestUtils::DEVICE_AUTO),
+                                    ::testing::Values(ov::test::utils::DEVICE_AUTO),
                                     ::testing::ValuesIn(Autoconfigs)),
                              InferRequestIOBBlobTest::getTestCaseName);
 

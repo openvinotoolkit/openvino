@@ -87,7 +87,7 @@ protected:
         std::tie(shapes, axes, signalSizes, inverse, constAxes, constSignalSizes, cpuParams) = params;
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
         selectedType = makeSelectedTypeStr(selectedType, precision);
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
 
         if (shapes.size() > 1) {
             ASSERT_EQ(shapes[0].second.size(), shapes[1].second.size());

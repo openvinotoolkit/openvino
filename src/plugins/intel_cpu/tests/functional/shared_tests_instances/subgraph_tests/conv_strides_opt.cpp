@@ -23,7 +23,7 @@ namespace {
                             ::testing::Combine(
                                     ::testing::ValuesIn(input_shapes),
                                     ::testing::ValuesIn(pads),
-                                    ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                    ::testing::Values(ov::test::utils::DEVICE_CPU)),
                             ConvStridesOpt::getTestCaseName);
 
 }  // namespace

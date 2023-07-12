@@ -112,7 +112,7 @@ const auto basicCases = ::testing::Combine(
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::ValuesIn(ov::test::utils::combineParams(basic)),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU)
+        ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 const auto basicPreluCases = ::testing::Combine(
@@ -123,7 +123,7 @@ const auto basicPreluCases = ::testing::Combine(
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::ValuesIn(ov::test::utils::combineParams(preluBasic)),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU)
+        ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 const auto basicIntegerOperations = ::testing::Combine(
@@ -134,7 +134,7 @@ const auto basicIntegerOperations = ::testing::Combine(
             ::testing::Values(InferenceEngine::Layout::ANY),
             ::testing::Values(InferenceEngine::Layout::ANY),
             ::testing::ValuesIn(ov::test::utils::combineParams(basic)),
-            ::testing::Values(CommonTestUtils::DEVICE_CPU)
+            ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 INSTANTIATE_TEST_SUITE_P(smoke_Activation_Basic, ActivationLayerTest, basicCases, ActivationLayerTest::getTestCaseName);

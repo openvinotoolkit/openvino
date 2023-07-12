@@ -65,7 +65,7 @@ bool MvnLayerCPUTest::isSupportedTestCase() {
 }
 
 void MvnLayerCPUTest::SetUp() {
-    targetDevice = CommonTestUtils::DEVICE_CPU;
+    targetDevice = ov::test::utils::DEVICE_CPU;
 
     basicCpuMvnParams basicParamsSet;
     CPUSpecificParams cpuParams;

@@ -129,7 +129,7 @@ const ov::element::TypeVector input_precisions = {ov::element::f32};
 INSTANTIATE_TEST_SUITE_P(smoke_transposes_concat,
                          TransposesConcatTest,
                          ::testing::Combine(::testing::ValuesIn(input_precisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs),
                                             ::testing::ValuesIn(target_configs)),
                          TransposesConcatTest::get_test_case_name);

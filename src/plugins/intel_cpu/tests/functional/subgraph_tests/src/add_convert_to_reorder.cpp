@@ -22,7 +22,7 @@ public:
         std::vector<size_t> inputShape = {10, 20, 30, 40};
 
         InferenceEngine::Precision netPrecision = inPrc = outPrc = Precision::FP32;
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
 
         ASSERT_EQ(ngraph::shape_size(indicesShape), indices.size())
                                     << "Indices vector size and provided indices shape doesn't fit each other";

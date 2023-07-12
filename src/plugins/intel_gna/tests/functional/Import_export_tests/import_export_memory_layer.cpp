@@ -155,7 +155,7 @@ const std::vector<std::pair<bool, bool>> withReset = {
 INSTANTIATE_TEST_SUITE_P(smoke_ImportNetworkMemoryCase,
                          ImportMemoryTest,
                          ::testing::Combine(::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(exportConfigs),
                                             ::testing::ValuesIn(importConfigs),
                                             ::testing::ValuesIn(withReset)),

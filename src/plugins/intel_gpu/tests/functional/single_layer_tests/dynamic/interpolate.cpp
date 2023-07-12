@@ -156,7 +156,7 @@ protected:
     size_t inferRequestNum = 0;
 
     void SetUp() override {
-        targetDevice = CommonTestUtils::DEVICE_GPU;
+        targetDevice = ov::test::utils::DEVICE_GPU;
 
         InterpolateSpecificParams specificParams;
         ShapeParams shapeParams;

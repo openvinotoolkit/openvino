@@ -182,7 +182,7 @@ TestCase::TestCase(const std::shared_ptr<Function>& function, const std::string&
     try {
         // Register template plugin
         m_core.register_plugin(
-            ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(),
+            ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
                                                std::string("openvino_template_plugin") + IE_BUILD_POSTFIX),
             "TEMPLATE");
     } catch (...) {

@@ -25,7 +25,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ReshapeCheck, ReshapeLayerTest,
                 ::testing::Values(InferenceEngine::Layout::ANY),
                 ::testing::Values(std::vector<size_t>({10, 10, 10, 10})),
                 ::testing::Values(std::vector<int64_t>({10, 0, 100})),
-                ::testing::Values(CommonTestUtils::DEVICE_GPU),
+                ::testing::Values(ov::test::utils::DEVICE_GPU),
                 ::testing::Values(std::map<std::string, std::string>({}))),
                 ReshapeLayerTest::getTestCaseName);
 
@@ -39,7 +39,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ReshapeCheckNegative, ReshapeLayerTest,
                 ::testing::Values(InferenceEngine::Layout::ANY),
                 ::testing::Values(std::vector<size_t>({10, 10, 10, 10})),
                 ::testing::Values(std::vector<int64_t>({10, -1, 100})),
-                ::testing::Values(CommonTestUtils::DEVICE_GPU),
+                ::testing::Values(ov::test::utils::DEVICE_GPU),
                 ::testing::Values(std::map<std::string, std::string>({}))),
                 ReshapeLayerTest::getTestCaseName);
 
@@ -66,7 +66,7 @@ static std::vector<reshapeParams> generate_tests() {
                                       InferenceEngine::Precision::UNSPECIFIED, InferenceEngine::Precision::UNSPECIFIED,
                                       InferenceEngine::Layout::ANY, InferenceEngine::Layout::ANY,
                                       p.first, p.second,
-                                      CommonTestUtils::DEVICE_GPU, std::map<std::string, std::string>({}));
+                                      ov::test::utils::DEVICE_GPU, std::map<std::string, std::string>({}));
         res.push_back(test_case);
     }
 

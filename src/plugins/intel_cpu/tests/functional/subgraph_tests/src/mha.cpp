@@ -280,7 +280,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHA, MHATest,
                                 ::testing::ValuesIn(matMulIn0Precisions),
                                 ::testing::ValuesIn(patternTypes),
                                 ::testing::Values("Subgraph"),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         MHATest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_MHA, MHATest,
@@ -290,7 +290,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MHA, MHATest,
                                  ::testing::ValuesIn(matMulIn0Precisions),
                                  ::testing::ValuesIn(patternTypes),
                                  ::testing::Values("MHA"),  // Snippets don't support BF16 MHA pattern yet
-                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                 ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          MHATest::getTestCaseName);
 
 } // namespace
@@ -581,7 +581,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MHAQuant, MHAQuantTest,
                                 ::testing::ValuesIn(matMulIn0PrecisionsQuant),
                                 ::testing::ValuesIn(patternTypesQuant),
                                 ::testing::Values("MHA"),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         MHAQuantTest::getTestCaseName);
 
 } // namespace

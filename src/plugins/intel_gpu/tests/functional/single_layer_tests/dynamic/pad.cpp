@@ -66,7 +66,7 @@ protected:
         std::vector<helpers::InputLayerType> inputLayerTypes;
         std::tie(shapes, inType, padsBegin, padsEnd, argPadValue, inputLayerTypes, padMode) = this->GetParam();
 
-        targetDevice = CommonTestUtils::DEVICE_GPU;
+        targetDevice = ov::test::utils::DEVICE_GPU;
 
         std::vector<InputShape> inputShapes;
         inputShapes.push_back(shapes);

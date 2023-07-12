@@ -40,8 +40,8 @@ void OVInferRequestBatchedTests::TearDown() {
         ie->set_property({{CONFIG_KEY(CACHE_DIR), {}}});
         ie.reset();
         PluginCache::get().reset();
-        CommonTestUtils::removeFilesWithExt(m_cache_dir, "blob");
-        CommonTestUtils::removeDir(m_cache_dir);
+        ov::test::utils::removeFilesWithExt(m_cache_dir, "blob");
+        ov::test::utils::removeDir(m_cache_dir);
     }
     APIBaseTest::TearDown();
 }

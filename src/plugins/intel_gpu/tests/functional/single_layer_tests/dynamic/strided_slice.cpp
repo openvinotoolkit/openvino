@@ -118,7 +118,7 @@ protected:
         end = ssParams.end;
         stride = ssParams.stride;
 
-        targetDevice = CommonTestUtils::DEVICE_GPU;
+        targetDevice = ov::test::utils::DEVICE_GPU;
 
         std::vector<InputShape> inputShapes;
         inputShapes.push_back(shapes);

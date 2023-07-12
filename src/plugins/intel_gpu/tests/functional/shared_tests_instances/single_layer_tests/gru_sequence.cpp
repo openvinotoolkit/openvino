@@ -46,7 +46,7 @@ namespace {
                                     ::testing::ValuesIn(linear_before_reset),
                                     ::testing::ValuesIn(direction),
                                     ::testing::ValuesIn(netPrecisions),
-                                    ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                    ::testing::Values(ov::test::utils::DEVICE_GPU)),
                             GRUSequenceTest::getTestCaseName);
 
     INSTANTIATE_TEST_SUITE_P(GRUSequenceCommonClip, GRUSequenceTest,
@@ -61,7 +61,7 @@ namespace {
                                     ::testing::ValuesIn(linear_before_reset),
                                     ::testing::ValuesIn(direction),
                                     ::testing::ValuesIn(netPrecisions),
-                                    ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                    ::testing::Values(ov::test::utils::DEVICE_GPU)),
                             GRUSequenceTest::getTestCaseName);
 
 }  // namespace

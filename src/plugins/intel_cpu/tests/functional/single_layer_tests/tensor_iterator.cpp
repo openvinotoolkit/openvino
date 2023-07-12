@@ -49,7 +49,7 @@ protected:
         ElementType inType;
         std::tie(shapes, direction, inType) = this->GetParam();
 
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         init_input_shapes({shapes});
 
         const size_t sequence_axis = 1;

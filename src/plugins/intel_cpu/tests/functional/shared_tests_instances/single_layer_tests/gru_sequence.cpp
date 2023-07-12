@@ -46,7 +46,7 @@ namespace {
                                     ::testing::ValuesIn(linear_before_reset),
                                     ::testing::ValuesIn(direction),
                                     ::testing::ValuesIn(netPrecisions),
-                                    ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                    ::testing::Values(ov::test::utils::DEVICE_CPU)),
                             GRUSequenceTest::getTestCaseName);
 
     INSTANTIATE_TEST_SUITE_P(smoke_GRUSequenceCommonClip, GRUSequenceTest,
@@ -61,7 +61,7 @@ namespace {
                                     ::testing::ValuesIn(linear_before_reset),
                                     ::testing::ValuesIn(direction),
                                     ::testing::ValuesIn(netPrecisions),
-                                    ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                    ::testing::Values(ov::test::utils::DEVICE_CPU)),
                             GRUSequenceTest::getTestCaseName);
 
 }  // namespace

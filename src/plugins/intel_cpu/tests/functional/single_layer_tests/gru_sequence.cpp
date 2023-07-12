@@ -86,7 +86,7 @@ protected:
 
         std::tie(inputShapes, seqMode, activations, clip, linearBeforeReset, direction, netPrecision, cpuParams, additionalConfig) = this->GetParam();
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
 
         init_input_shapes(inputShapes);
         if (inputDynamicShapes.size() == 2 && inputDynamicShapes[0][0].is_dynamic() && inputDynamicShapes[1][0].is_dynamic())

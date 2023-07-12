@@ -26,7 +26,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_TestsConvertColorNV12,
                                             ::testing::ValuesIn(inTypes),
                                             ::testing::Bool(),
                                             ::testing::Bool(),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          ConvertColorNV12LayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_TestsConvertColorNV12_acc,
@@ -35,7 +35,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_TestsConvertColorNV12_acc,
                                             ::testing::Values(ov::element::u8),
                                             ::testing::Bool(),
                                             ::testing::Bool(),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          ConvertColorNV12LayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(nightly_TestsConvertColorNV12_acc,
@@ -44,7 +44,7 @@ INSTANTIATE_TEST_SUITE_P(nightly_TestsConvertColorNV12_acc,
                                             ::testing::Values(ov::element::u8),
                                             ::testing::Values(false),
                                             ::testing::Values(true),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          ConvertColorNV12LayerTest::getTestCaseName);
 
 }  // namespace

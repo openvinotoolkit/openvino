@@ -39,7 +39,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Check, ConstantResultSubgraphTest,
                             ::testing::ValuesIn(types),
                             ::testing::ValuesIn(shapes),
                             ::testing::ValuesIn(precisions),
-                            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         ConstantResultSubgraphTest::getTestCaseName);
 
 } // namespace

@@ -55,16 +55,16 @@ void SubgraphBaseTest::run() {
         GTEST_SKIP() << "Disabled test due to configuration" << std::endl;
 
     // in case of crash jump will be made and work will be continued
-    auto crashHandler = std::unique_ptr<CommonTestUtils::CrashHandler>(new CommonTestUtils::CrashHandler());
+    auto crashHandler = std::unique_ptr<ov::test::utils::CrashHandler>(new ov::test::utils::CrashHandler());
 
     // place to jump in case of a crash
     int jmpRes = 0;
 #ifdef _WIN32
-    jmpRes = setjmp(CommonTestUtils::env);
+    jmpRes = setjmp(ov::test::utils::env);
 #else
-    jmpRes = sigsetjmp(CommonTestUtils::env, 1);
+    jmpRes = sigsetjmp(ov::test::utils::env, 1);
 #endif
-    if (jmpRes == CommonTestUtils::JMP_STATUS::ok) {
+    if (jmpRes == ov::test::utils::JMP_STATUS::ok) {
         crashHandler->StartTimer();
 
         ASSERT_FALSE(targetStaticShapes.empty() && !function->get_parameters().empty()) << "Target Static Shape is empty!!!";
@@ -98,9 +98,9 @@ void SubgraphBaseTest::run() {
         if (status != ov::test::utils::PassRate::Statuses::PASSED) {
             GTEST_FATAL_FAILURE_(errorMessage.c_str());
         }
-    } else if (jmpRes == CommonTestUtils::JMP_STATUS::anyError) {
+    } else if (jmpRes == ov::test::utils::JMP_STATUS::anyError) {
         IE_THROW() << "Crash happens";
-    } else if (jmpRes == CommonTestUtils::JMP_STATUS::alarmErr) {
+    } else if (jmpRes == ov::test::utils::JMP_STATUS::alarmErr) {
         summary.updateOPsStats(function, ov::test::utils::PassRate::Statuses::HANGED, rel_influence_coef);
         IE_THROW() << "Crash happens";
     }
@@ -133,7 +133,7 @@ void SubgraphBaseTest::serialize() {
 
     EXPECT_TRUE(success) << message;
 
-    CommonTestUtils::removeIRFiles(out_xml_path, out_bin_path);
+    ov::test::utils::removeIRFiles(out_xml_path, out_bin_path);
 }
 
 void SubgraphBaseTest::query_model() {

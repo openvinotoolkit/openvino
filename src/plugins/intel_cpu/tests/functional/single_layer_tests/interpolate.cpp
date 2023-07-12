@@ -159,7 +159,7 @@ protected:
     size_t inferRequestNum = 0;
 
     void SetUp() override {
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
 
         InterpolateSpecificParams specificParams;
         ShapeParams shapeParams;

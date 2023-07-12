@@ -15,7 +15,7 @@ const std::vector<std::map<std::string, std::string>> configs = {
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, ExecutableNetworkBaseTest,
                         ::testing::Combine(
-                                ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE),
+                                ::testing::Values(ov::test::utils::DEVICE_TEMPLATE),
                                 ::testing::ValuesIn(configs)),
                         ExecutableNetworkBaseTest::getTestCaseName);
 
@@ -28,7 +28,7 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, ExecNetSetPrecision,
                          ::testing::Combine(
                                  ::testing::ValuesIn(netPrecisions),
-                                 ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE),
+                                 ::testing::Values(ov::test::utils::DEVICE_TEMPLATE),
                                  ::testing::ValuesIn(configs)),
                          ExecNetSetPrecision::getTestCaseName);
 }  // namespace

@@ -24,7 +24,7 @@
 TEST(ONNX_Reader_Tests, ImportModelWithExternalDataFromFile) {
     InferenceEngine::Core ie;
     auto cnnNetwork = ie.ReadNetwork(
-        CommonTestUtils::getModelFromTestModelZoo(std::string(ONNX_TEST_MODELS) + "onnx_external_data.onnx"),
+        ov::test::utils::getModelFromTestModelZoo(std::string(ONNX_TEST_MODELS) + "onnx_external_data.onnx"),
         "");
     auto function = cnnNetwork.getFunction();
 
@@ -58,7 +58,7 @@ TEST(ONNX_Reader_Tests, ImportModelWithExternalDataFromFile) {
 TEST(ONNX_Reader_Tests, ImportModelWithExternalDataFromStringException) {
     InferenceEngine::Core ie;
     const auto path =
-        CommonTestUtils::getModelFromTestModelZoo(std::string(ONNX_TEST_MODELS) + "onnx_external_data.onnx");
+        ov::test::utils::getModelFromTestModelZoo(std::string(ONNX_TEST_MODELS) + "onnx_external_data.onnx");
     InferenceEngine::Blob::CPtr weights;  // not used
     std::ifstream stream(path, std::ios::binary);
     std::string modelAsString((std::istreambuf_iterator<char>(stream)), std::istreambuf_iterator<char>());
@@ -79,16 +79,16 @@ TEST(ONNX_Reader_Tests, ImportModelWithExternalDataFromStringException) {
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
 TEST(ONNX_Reader_Tests, ImportModelWithExternalDataFromWstringNamedFile) {
     InferenceEngine::Core ie;
-    std::string win_dir_path = CommonTestUtils::getModelFromTestModelZoo(ONNX_TEST_MODELS "onnx_external_data.onnx");
+    std::string win_dir_path = ov::test::utils::getModelFromTestModelZoo(ONNX_TEST_MODELS "onnx_external_data.onnx");
     std::wstring wmodel =
-        CommonTestUtils::addUnicodePostfixToPath(win_dir_path, CommonTestUtils::test_unicode_postfix_vector[0]);
-    bool is_copy_successfully = CommonTestUtils::copyFile(win_dir_path, wmodel);
+        ov::test::utils::addUnicodePostfixToPath(win_dir_path, ov::test::utils::test_unicode_postfix_vector[0]);
+    bool is_copy_successfully = ov::test::utils::copyFile(win_dir_path, wmodel);
     if (!is_copy_successfully) {
         FAIL() << "Unable to copy from '" << win_dir_path << "' to '" << ov::util::wstring_to_string(wmodel) << "'";
     }
 
     auto cnnNetwork = ie.ReadNetwork(wmodel, L"");
-    CommonTestUtils::removeFile(wmodel);
+    ov::test::utils::removeFile(wmodel);
     auto function = cnnNetwork.getFunction();
 
     int count_add = 0;

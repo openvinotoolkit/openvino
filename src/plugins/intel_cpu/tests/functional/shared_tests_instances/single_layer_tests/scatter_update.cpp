@@ -41,7 +41,7 @@ const auto ScatterUpdateCase = ::testing::Combine(
         ::testing::ValuesIn(idxValue),
         ::testing::ValuesIn(inputPrecisions),
         ::testing::ValuesIn(idxPrecisions),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU)
+        ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 INSTANTIATE_TEST_SUITE_P(smoke_ScatterUpdate, ScatterUpdateLayerTest, ScatterUpdateCase, ScatterUpdateLayerTest::getTestCaseName);

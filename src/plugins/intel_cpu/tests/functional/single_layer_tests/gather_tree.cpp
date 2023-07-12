@@ -163,7 +163,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatherTreeCPUStatic, GatherTreeLayerCPUTest,
                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                             ::testing::Values(InferenceEngine::Layout::ANY),
                             ::testing::Values(InferenceEngine::Layout::ANY),
-                            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         GatherTreeLayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_GatherTreeCPUDynamicParameter, GatherTreeLayerCPUTest,
@@ -175,7 +175,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatherTreeCPUDynamicParameter, GatherTreeLayerCPU
                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                             ::testing::Values(InferenceEngine::Layout::ANY),
                             ::testing::Values(InferenceEngine::Layout::ANY),
-                            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         GatherTreeLayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_GatherTreeCPUDynamicConstant, GatherTreeLayerCPUTest,
@@ -187,7 +187,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatherTreeCPUDynamicConstant, GatherTreeLayerCPUT
                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                             ::testing::Values(InferenceEngine::Layout::ANY),
                             ::testing::Values(InferenceEngine::Layout::ANY),
-                            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         GatherTreeLayerCPUTest::getTestCaseName);
 
 } // namespace

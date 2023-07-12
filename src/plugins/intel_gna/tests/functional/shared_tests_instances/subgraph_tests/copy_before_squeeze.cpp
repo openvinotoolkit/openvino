@@ -22,7 +22,7 @@ std::vector<std::vector<size_t>> inputShapes = {{1, 512}, {1, 1024}, {1, 192}, {
 INSTANTIATE_TEST_SUITE_P(smoke_copy_before_squeeze,
                          CopyBeforeSqueezeTest,
                          ::testing::Combine(::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(inputShapes),
                                             ::testing::Values(config)),
                          CopyBeforeSqueezeTest::getTestCaseName);

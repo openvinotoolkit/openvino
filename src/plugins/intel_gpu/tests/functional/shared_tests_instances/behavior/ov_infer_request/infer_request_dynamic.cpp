@@ -16,7 +16,7 @@ auto configs = []() {
 };
 
 auto AutoConfigs = []() {
-    return std::vector<ov::AnyMap>{{ov::device::priorities(CommonTestUtils::DEVICE_GPU, CommonTestUtils::DEVICE_CPU)},
+    return std::vector<ov::AnyMap>{{ov::device::priorities(ov::test::utils::DEVICE_GPU, ov::test::utils::DEVICE_CPU)},
                                    {}};
 };
 
@@ -67,7 +67,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_1, OVInferRequestDynamicTests,
                                 ::testing::Values(std::vector<std::pair<std::vector<size_t>, std::vector<size_t>>>{
                                     {{1, 4, 20, 20}, {1, 4, 20, 20}},
                                     {{2, 4, 20, 20}, {2, 4, 20, 20}}}),
-                                ::testing::Values(CommonTestUtils::DEVICE_GPU),
+                                ::testing::Values(ov::test::utils::DEVICE_GPU),
                                 ::testing::ValuesIn(configs())),
                         OVInferRequestDynamicTests::getTestCaseName);
 
@@ -77,19 +77,19 @@ INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, OVInferRequestDynamicTests,
                                 ::testing::Values(std::vector<std::pair<std::vector<size_t>, std::vector<size_t>>>{
                                     {{1, 4, 20, 20}, {1, 2, 20, 40}},
                                     {{2, 4, 20, 20}, {2, 2, 20, 40}}}),
-                                ::testing::Values(CommonTestUtils::DEVICE_AUTO),
+                                ::testing::Values(ov::test::utils::DEVICE_AUTO),
                                 ::testing::ValuesIn(AutoConfigs())),
                         OVInferRequestDynamicTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, OVInferenceChaining,
                         ::testing::Combine(
-                                ::testing::Values(CommonTestUtils::DEVICE_AUTO),
+                                ::testing::Values(ov::test::utils::DEVICE_AUTO),
                                 ::testing::ValuesIn(AutoConfigs())),
                         OVInferenceChaining::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, OVInferenceChainingStatic,
                         ::testing::Combine(
-                                ::testing::Values(CommonTestUtils::DEVICE_AUTO),
+                                ::testing::Values(ov::test::utils::DEVICE_AUTO),
                                 ::testing::ValuesIn(AutoConfigs())),
                         OVInferenceChainingStatic::getTestCaseName);
 
@@ -99,7 +99,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, OVNotSupportRequestDynamicTes
                                 ::testing::Values(std::vector<std::pair<std::vector<size_t>, std::vector<size_t>>>{
                                     {{1, 4, 20, 20}, {1, 2, 20, 40}},
                                     {{2, 4, 20, 20}, {2, 2, 20, 40}}}),
-                                ::testing::Values(CommonTestUtils::DEVICE_AUTO),
+                                ::testing::Values(ov::test::utils::DEVICE_AUTO),
                                 ::testing::ValuesIn(AutoNotSupportConfigs())),
                         OVInferRequestDynamicTests::getTestCaseName);
 }  // namespace

@@ -291,7 +291,7 @@ TEST_P(OVExecutableNetworkBaseTest, CheckExecGraphInfoBeforeExecution) {
         if (origFromExecLayer.empty()) {
             constCnt++;
         } else {
-            auto origFromExecLayerSep = CommonTestUtils::splitStringByDelimiter(origFromExecLayer);
+            auto origFromExecLayerSep = ov::test::utils::splitStringByDelimiter(origFromExecLayer);
             std::for_each(origFromExecLayerSep.begin(), origFromExecLayerSep.end(), [&](const std::string& op) {
                 auto origLayer = originalLayersMap.find(op);
                 EXPECT_NE(originalLayersMap.end(), origLayer) << op;
@@ -346,7 +346,7 @@ TEST_P(OVExecutableNetworkBaseTest, CheckExecGraphInfoAfterExecution) {
         // Parse origin layer names (fused/merged layers) from the executable graph
         // and compare with layers from the original model
         auto origFromExecLayer = getExecValue(ExecGraphInfoSerialization::ORIGINAL_NAMES);
-        std::vector<std::string> origFromExecLayerSep = CommonTestUtils::splitStringByDelimiter(origFromExecLayer);
+        std::vector<std::string> origFromExecLayerSep = ov::test::utils::splitStringByDelimiter(origFromExecLayer);
         if (origFromExecLayer.empty()) {
             constCnt++;
         } else {
@@ -400,13 +400,13 @@ TEST_P(OVExecutableNetworkBaseTest, LoadNetworkCreateDefaultExecGraphResult) {
 
 TEST_P(OVExecutableNetworkBaseTest, canExport) {
     auto ts = ov::test::utils::GetTimestamp();
-    std::string modelName = GetTestName().substr(0, CommonTestUtils::maxFileNameLength) + "_" + ts;
+    std::string modelName = GetTestName().substr(0, ov::test::utils::maxFileNameLength) + "_" + ts;
     auto execNet = core->compile_model(function, target_device, configuration);
     std::ofstream out(modelName, std::ios::out);
     EXPECT_NO_THROW(execNet.export_model(out));
     out.close();
-    EXPECT_TRUE(CommonTestUtils::fileExists(modelName));
-    CommonTestUtils::removeFile(modelName);
+    EXPECT_TRUE(ov::test::utils::fileExists(modelName));
+    ov::test::utils::removeFile(modelName);
 }
 
 TEST_P(OVExecutableNetworkBaseTest, pluginDoesNotChangeOriginalNetwork) {
@@ -535,7 +535,7 @@ TEST_P(OVExecutableNetworkBaseTest, precisionsAsInOriginalIR) {
 
     ov::CompiledModel execNet;
     EXPECT_NO_THROW(execNet = core->compile_model(m_out_xml_path_1, target_device, configuration));
-    CommonTestUtils::removeIRFiles(m_out_xml_path_1, m_out_bin_path_1);
+    ov::test::utils::removeIRFiles(m_out_xml_path_1, m_out_bin_path_1);
 
     EXPECT_EQ(function->get_parameters().size(), execNet.inputs().size());
     auto ref_parameter = function->get_parameters().back();

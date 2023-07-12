@@ -82,7 +82,7 @@ void GenerateProposalsLayerTest::SetUp() {
 
     inType = outType = netPrecision;
     targetDevice = targetName;
-    if (targetDevice == CommonTestUtils::DEVICE_GPU) {
+    if (targetDevice == ov::test::utils::DEVICE_GPU) {
         if (netPrecision == element::Type_t::f16) {
             abs_threshold = 0.2;
         } else {
@@ -124,7 +124,7 @@ void GenerateProposalsLayerTest::generate_inputs(const std::vector<ngraph::Shape
 
 void GenerateProposalsLayerTest::compare(const std::vector<ov::Tensor>& expected,
                                          const std::vector<ov::Tensor>& actual) {
-    if (targetDevice != CommonTestUtils::DEVICE_GPU) {
+    if (targetDevice != ov::test::utils::DEVICE_GPU) {
         SubgraphBaseTest::compare(expected, actual);
         return;
     }

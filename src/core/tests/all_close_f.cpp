@@ -94,38 +94,44 @@ TEST_P(all_close_f_param_test, test_boundaries) {
     ss << "past_lower_bound: " << past_lower_bound << " (" << ov::test::utils::float_to_bits(past_lower_bound) << ")\n";
 
     EXPECT_TRUE(ov::test::utils::close_f(expected, upper_bound, tolerance_bits)) << ss.str();
-    EXPECT_TRUE(ov::test::utils::all_close_f(vector<float>({expected}), vector<float>({upper_bound}), tolerance_bits)) << ss.str();
+    EXPECT_TRUE(ov::test::utils::all_close_f(vector<float>({expected}), vector<float>({upper_bound}), tolerance_bits))
+        << ss.str();
     EXPECT_TRUE(ov::test::utils::close_f(expected, lower_bound, tolerance_bits)) << ss.str();
-    EXPECT_TRUE(ov::test::utils::all_close_f(vector<float>({expected}), vector<float>({lower_bound}), tolerance_bits)) << ss.str();
+    EXPECT_TRUE(ov::test::utils::all_close_f(vector<float>({expected}), vector<float>({lower_bound}), tolerance_bits))
+        << ss.str();
     EXPECT_FALSE(ov::test::utils::close_f(expected, past_upper_bound, tolerance_bits)) << ss.str();
     EXPECT_FALSE(ov::test::utils::close_f(expected, past_upper_bound, tolerance_bits, min_signal_too_low)) << ss.str();
-    EXPECT_TRUE(ov::test::utils::close_f(expected, past_upper_bound, tolerance_bits, min_signal_enables_passing)) << ss.str();
-    EXPECT_FALSE(ov::test::utils::all_close_f(vector<float>({expected}), vector<float>({past_upper_bound}), tolerance_bits))
+    EXPECT_TRUE(ov::test::utils::close_f(expected, past_upper_bound, tolerance_bits, min_signal_enables_passing))
+        << ss.str();
+    EXPECT_FALSE(
+        ov::test::utils::all_close_f(vector<float>({expected}), vector<float>({past_upper_bound}), tolerance_bits))
         << ss.str();
     EXPECT_FALSE(ov::test::utils::all_close_f(vector<float>({expected}),
-                                   vector<float>({past_upper_bound}),
-                                   tolerance_bits,
-                                   min_signal_too_low))
+                                              vector<float>({past_upper_bound}),
+                                              tolerance_bits,
+                                              min_signal_too_low))
         << ss.str();
     EXPECT_TRUE(ov::test::utils::all_close_f(vector<float>({expected}),
-                                  vector<float>({past_upper_bound}),
-                                  tolerance_bits,
-                                  min_signal_enables_passing))
+                                             vector<float>({past_upper_bound}),
+                                             tolerance_bits,
+                                             min_signal_enables_passing))
         << ss.str();
     EXPECT_FALSE(ov::test::utils::close_f(expected, past_lower_bound, tolerance_bits)) << ss.str();
     EXPECT_FALSE(ov::test::utils::close_f(expected, past_lower_bound, tolerance_bits, min_signal_too_low)) << ss.str();
-    EXPECT_TRUE(ov::test::utils::close_f(expected, past_lower_bound, tolerance_bits, min_signal_enables_passing)) << ss.str();
-    EXPECT_FALSE(ov::test::utils::all_close_f(vector<float>({expected}), vector<float>({past_lower_bound}), tolerance_bits))
+    EXPECT_TRUE(ov::test::utils::close_f(expected, past_lower_bound, tolerance_bits, min_signal_enables_passing))
+        << ss.str();
+    EXPECT_FALSE(
+        ov::test::utils::all_close_f(vector<float>({expected}), vector<float>({past_lower_bound}), tolerance_bits))
         << ss.str();
     EXPECT_FALSE(ov::test::utils::all_close_f(vector<float>({expected}),
-                                   vector<float>({past_lower_bound}),
-                                   tolerance_bits,
-                                   min_signal_too_low))
+                                              vector<float>({past_lower_bound}),
+                                              tolerance_bits,
+                                              min_signal_too_low))
         << ss.str();
     EXPECT_TRUE(ov::test::utils::all_close_f(vector<float>({expected}),
-                                  vector<float>({past_lower_bound}),
-                                  tolerance_bits,
-                                  min_signal_enables_passing))
+                                             vector<float>({past_lower_bound}),
+                                             tolerance_bits,
+                                             min_signal_enables_passing))
         << ss.str();
 }
 
@@ -208,8 +214,10 @@ TEST_P(all_close_f_double_param_test, test_boundaries) {
     ss << "Matching to targets with: " << tolerance_bits << " tolerance_bits\n";
     ss << "upper_bound: " << upper_bound << " (" << ov::test::utils::double_to_bits(upper_bound) << ")\n";
     ss << "lower_bound: " << lower_bound << " (" << ov::test::utils::double_to_bits(lower_bound) << ")\n";
-    ss << "past_upper_bound: " << past_upper_bound << " (" << ov::test::utils::double_to_bits(past_upper_bound) << ")\n";
-    ss << "past_lower_bound: " << past_lower_bound << " (" << ov::test::utils::double_to_bits(past_lower_bound) << ")\n";
+    ss << "past_upper_bound: " << past_upper_bound << " (" << ov::test::utils::double_to_bits(past_upper_bound)
+       << ")\n";
+    ss << "past_lower_bound: " << past_lower_bound << " (" << ov::test::utils::double_to_bits(past_lower_bound)
+       << ")\n";
 
     EXPECT_TRUE(ov::test::utils::close_f(expected, upper_bound, tolerance_bits)) << ss.str();
     EXPECT_TRUE(ov::test::utils::all_close_f(vector<double>({expected}), vector<double>({upper_bound}), tolerance_bits))
@@ -219,33 +227,37 @@ TEST_P(all_close_f_double_param_test, test_boundaries) {
         << ss.str();
     EXPECT_FALSE(ov::test::utils::close_f(expected, past_upper_bound, tolerance_bits)) << ss.str();
     EXPECT_FALSE(ov::test::utils::close_f(expected, past_upper_bound, tolerance_bits, min_signal_too_low)) << ss.str();
-    EXPECT_TRUE(ov::test::utils::close_f(expected, past_upper_bound, tolerance_bits, min_signal_enables_passing)) << ss.str();
-    EXPECT_FALSE(ov::test::utils::all_close_f(vector<double>({expected}), vector<double>({past_upper_bound}), tolerance_bits))
+    EXPECT_TRUE(ov::test::utils::close_f(expected, past_upper_bound, tolerance_bits, min_signal_enables_passing))
+        << ss.str();
+    EXPECT_FALSE(
+        ov::test::utils::all_close_f(vector<double>({expected}), vector<double>({past_upper_bound}), tolerance_bits))
         << ss.str();
     EXPECT_FALSE(ov::test::utils::all_close_f(vector<double>({expected}),
-                                   vector<double>({past_upper_bound}),
-                                   tolerance_bits,
-                                   min_signal_too_low))
+                                              vector<double>({past_upper_bound}),
+                                              tolerance_bits,
+                                              min_signal_too_low))
         << ss.str();
     EXPECT_TRUE(ov::test::utils::all_close_f(vector<double>({expected}),
-                                  vector<double>({past_upper_bound}),
-                                  tolerance_bits,
-                                  min_signal_enables_passing))
+                                             vector<double>({past_upper_bound}),
+                                             tolerance_bits,
+                                             min_signal_enables_passing))
         << ss.str();
     EXPECT_FALSE(ov::test::utils::close_f(expected, past_lower_bound, tolerance_bits)) << ss.str();
     EXPECT_FALSE(ov::test::utils::close_f(expected, past_lower_bound, tolerance_bits, min_signal_too_low)) << ss.str();
-    EXPECT_TRUE(ov::test::utils::close_f(expected, past_lower_bound, tolerance_bits, min_signal_enables_passing)) << ss.str();
-    EXPECT_FALSE(ov::test::utils::all_close_f(vector<double>({expected}), vector<double>({past_lower_bound}), tolerance_bits))
+    EXPECT_TRUE(ov::test::utils::close_f(expected, past_lower_bound, tolerance_bits, min_signal_enables_passing))
+        << ss.str();
+    EXPECT_FALSE(
+        ov::test::utils::all_close_f(vector<double>({expected}), vector<double>({past_lower_bound}), tolerance_bits))
         << ss.str();
     EXPECT_FALSE(ov::test::utils::all_close_f(vector<double>({expected}),
-                                   vector<double>({past_lower_bound}),
-                                   tolerance_bits,
-                                   min_signal_too_low))
+                                              vector<double>({past_lower_bound}),
+                                              tolerance_bits,
+                                              min_signal_too_low))
         << ss.str();
     EXPECT_TRUE(ov::test::utils::all_close_f(vector<double>({expected}),
-                                  vector<double>({past_lower_bound}),
-                                  tolerance_bits,
-                                  min_signal_enables_passing))
+                                             vector<double>({past_lower_bound}),
+                                             tolerance_bits,
+                                             min_signal_enables_passing))
         << ss.str();
 }
 
@@ -312,12 +324,14 @@ TEST(all_close_f, mantissa_8_near_0) {
     EXPECT_FALSE(ov::test::utils::close_f(expected, computed, tolerance_bits, min_signal_too_low));
     EXPECT_TRUE(ov::test::utils::close_f(expected, computed, tolerance_bits, min_signal_enables_passing));
     EXPECT_FALSE(ov::test::utils::all_close_f(vector<float>({expected}), vector<float>({computed}), tolerance_bits));
-    EXPECT_FALSE(
-        ov::test::utils::all_close_f(vector<float>({expected}), vector<float>({computed}), tolerance_bits, min_signal_too_low));
+    EXPECT_FALSE(ov::test::utils::all_close_f(vector<float>({expected}),
+                                              vector<float>({computed}),
+                                              tolerance_bits,
+                                              min_signal_too_low));
     EXPECT_TRUE(ov::test::utils::all_close_f(vector<float>({expected}),
-                                  vector<float>({computed}),
-                                  tolerance_bits,
-                                  min_signal_enables_passing));
+                                             vector<float>({computed}),
+                                             tolerance_bits,
+                                             min_signal_enables_passing));
 
     // ~-3.67342E-40, the exact lower bound
     computed = ov::test::utils::bits_to_float("1  00000000  000 0100 0000 0000 0000 0000");
@@ -330,12 +344,14 @@ TEST(all_close_f, mantissa_8_near_0) {
     EXPECT_FALSE(ov::test::utils::close_f(expected, computed, tolerance_bits, min_signal_too_low));
     EXPECT_TRUE(ov::test::utils::close_f(expected, computed, tolerance_bits, min_signal_enables_passing));
     EXPECT_FALSE(ov::test::utils::all_close_f(vector<float>({expected}), vector<float>({computed}), tolerance_bits));
-    EXPECT_FALSE(
-        ov::test::utils::all_close_f(vector<float>({expected}), vector<float>({computed}), tolerance_bits, min_signal_too_low));
+    EXPECT_FALSE(ov::test::utils::all_close_f(vector<float>({expected}),
+                                              vector<float>({computed}),
+                                              tolerance_bits,
+                                              min_signal_too_low));
     EXPECT_TRUE(ov::test::utils::all_close_f(vector<float>({expected}),
-                                  vector<float>({computed}),
-                                  tolerance_bits,
-                                  min_signal_enables_passing));
+                                             vector<float>({computed}),
+                                             tolerance_bits,
+                                             min_signal_enables_passing));
 }
 
 // Test the exact bounds near -0.f
@@ -395,12 +411,14 @@ TEST(all_close_f, mantissa_8_near_n0) {
     EXPECT_FALSE(ov::test::utils::close_f(expected, computed, tolerance_bits, min_signal_too_low));
     EXPECT_TRUE(ov::test::utils::close_f(expected, computed, tolerance_bits, min_signal_enables_passing));
     EXPECT_FALSE(ov::test::utils::all_close_f(vector<float>({expected}), vector<float>({computed}), tolerance_bits));
-    EXPECT_FALSE(
-        ov::test::utils::all_close_f(vector<float>({expected}), vector<float>({computed}), tolerance_bits, min_signal_too_low));
+    EXPECT_FALSE(ov::test::utils::all_close_f(vector<float>({expected}),
+                                              vector<float>({computed}),
+                                              tolerance_bits,
+                                              min_signal_too_low));
     EXPECT_TRUE(ov::test::utils::all_close_f(vector<float>({expected}),
-                                  vector<float>({computed}),
-                                  tolerance_bits,
-                                  min_signal_enables_passing));
+                                             vector<float>({computed}),
+                                             tolerance_bits,
+                                             min_signal_enables_passing));
 
     // ~-3.67342E-40, the exact lower bound
     computed = ov::test::utils::bits_to_float("1  00000000  000 0100 0000 0000 0000 0000");
@@ -413,12 +431,14 @@ TEST(all_close_f, mantissa_8_near_n0) {
     EXPECT_FALSE(ov::test::utils::close_f(expected, computed, tolerance_bits, min_signal_too_low));
     EXPECT_TRUE(ov::test::utils::close_f(expected, computed, tolerance_bits, min_signal_enables_passing));
     EXPECT_FALSE(ov::test::utils::all_close_f(vector<float>({expected}), vector<float>({computed}), tolerance_bits));
-    EXPECT_FALSE(
-        ov::test::utils::all_close_f(vector<float>({expected}), vector<float>({computed}), tolerance_bits, min_signal_too_low));
+    EXPECT_FALSE(ov::test::utils::all_close_f(vector<float>({expected}),
+                                              vector<float>({computed}),
+                                              tolerance_bits,
+                                              min_signal_too_low));
     EXPECT_TRUE(ov::test::utils::all_close_f(vector<float>({expected}),
-                                  vector<float>({computed}),
-                                  tolerance_bits,
-                                  min_signal_enables_passing));
+                                             vector<float>({computed}),
+                                             tolerance_bits,
+                                             min_signal_enables_passing));
 }
 
 // Test the exact bounds near 1.f
@@ -568,13 +588,15 @@ TEST(all_close_f, mantissa_8_near_0_1_10_100_1000) {
     EXPECT_TRUE(ov::test::utils::close_f(expected, upper_bound, tolerance_bits));
     EXPECT_TRUE(ov::test::utils::all_close_f(vector<float>({expected}), vector<float>({upper_bound}), tolerance_bits));
     EXPECT_FALSE(ov::test::utils::close_f(expected, bigger_than_upper_bound, tolerance_bits));
-    EXPECT_FALSE(
-        ov::test::utils::all_close_f(vector<float>({expected}), vector<float>({bigger_than_upper_bound}), tolerance_bits));
+    EXPECT_FALSE(ov::test::utils::all_close_f(vector<float>({expected}),
+                                              vector<float>({bigger_than_upper_bound}),
+                                              tolerance_bits));
     EXPECT_TRUE(ov::test::utils::close_f(expected, lower_bound, tolerance_bits));
     EXPECT_TRUE(ov::test::utils::all_close_f(vector<float>({expected}), vector<float>({lower_bound}), tolerance_bits));
     EXPECT_FALSE(ov::test::utils::close_f(expected, smaller_than_lower_bound, tolerance_bits));
-    EXPECT_FALSE(
-        ov::test::utils::all_close_f(vector<float>({expected}), vector<float>({smaller_than_lower_bound}), tolerance_bits));
+    EXPECT_FALSE(ov::test::utils::all_close_f(vector<float>({expected}),
+                                              vector<float>({smaller_than_lower_bound}),
+                                              tolerance_bits));
 
     // Bounds around 1: 1 +- 0.03
     expected = 1.f;                            // 0  01111111  000 0000 0000 0000 0000 0000
@@ -585,13 +607,15 @@ TEST(all_close_f, mantissa_8_near_0_1_10_100_1000) {
     EXPECT_TRUE(ov::test::utils::close_f(expected, upper_bound, tolerance_bits));
     EXPECT_TRUE(ov::test::utils::all_close_f(vector<float>({expected}), vector<float>({upper_bound}), tolerance_bits));
     EXPECT_FALSE(ov::test::utils::close_f(expected, bigger_than_upper_bound, tolerance_bits));
-    EXPECT_FALSE(
-        ov::test::utils::all_close_f(vector<float>({expected}), vector<float>({bigger_than_upper_bound}), tolerance_bits));
+    EXPECT_FALSE(ov::test::utils::all_close_f(vector<float>({expected}),
+                                              vector<float>({bigger_than_upper_bound}),
+                                              tolerance_bits));
     EXPECT_TRUE(ov::test::utils::close_f(expected, lower_bound, tolerance_bits));
     EXPECT_TRUE(ov::test::utils::all_close_f(vector<float>({expected}), vector<float>({lower_bound}), tolerance_bits));
     EXPECT_FALSE(ov::test::utils::close_f(expected, smaller_than_lower_bound, tolerance_bits));
-    EXPECT_FALSE(
-        ov::test::utils::all_close_f(vector<float>({expected}), vector<float>({smaller_than_lower_bound}), tolerance_bits));
+    EXPECT_FALSE(ov::test::utils::all_close_f(vector<float>({expected}),
+                                              vector<float>({smaller_than_lower_bound}),
+                                              tolerance_bits));
 
     // Bounds around 10: 10 +- 0.25
     expected = 10.f;                                     // 0  10000010  010 0000 0000 0000 0000 0000
@@ -602,13 +626,15 @@ TEST(all_close_f, mantissa_8_near_0_1_10_100_1000) {
     EXPECT_TRUE(ov::test::utils::close_f(expected, upper_bound, tolerance_bits));
     EXPECT_TRUE(ov::test::utils::all_close_f(vector<float>({expected}), vector<float>({upper_bound}), tolerance_bits));
     EXPECT_FALSE(ov::test::utils::close_f(expected, bigger_than_upper_bound, tolerance_bits));
-    EXPECT_FALSE(
-        ov::test::utils::all_close_f(vector<float>({expected}), vector<float>({bigger_than_upper_bound}), tolerance_bits));
+    EXPECT_FALSE(ov::test::utils::all_close_f(vector<float>({expected}),
+                                              vector<float>({bigger_than_upper_bound}),
+                                              tolerance_bits));
     EXPECT_TRUE(ov::test::utils::close_f(expected, lower_bound, tolerance_bits));
     EXPECT_TRUE(ov::test::utils::all_close_f(vector<float>({expected}), vector<float>({lower_bound}), tolerance_bits));
     EXPECT_FALSE(ov::test::utils::close_f(expected, smaller_than_lower_bound, tolerance_bits));
-    EXPECT_FALSE(
-        ov::test::utils::all_close_f(vector<float>({expected}), vector<float>({smaller_than_lower_bound}), tolerance_bits));
+    EXPECT_FALSE(ov::test::utils::all_close_f(vector<float>({expected}),
+                                              vector<float>({smaller_than_lower_bound}),
+                                              tolerance_bits));
 
     // Bounds around 100: 100 +- 2
     expected = 100.f;                                  // 0  10000101  100 1000 0000 0000 0000 0000
@@ -619,13 +645,15 @@ TEST(all_close_f, mantissa_8_near_0_1_10_100_1000) {
     EXPECT_TRUE(ov::test::utils::close_f(expected, upper_bound, tolerance_bits));
     EXPECT_TRUE(ov::test::utils::all_close_f(vector<float>({expected}), vector<float>({upper_bound}), tolerance_bits));
     EXPECT_FALSE(ov::test::utils::close_f(expected, bigger_than_upper_bound, tolerance_bits));
-    EXPECT_FALSE(
-        ov::test::utils::all_close_f(vector<float>({expected}), vector<float>({bigger_than_upper_bound}), tolerance_bits));
+    EXPECT_FALSE(ov::test::utils::all_close_f(vector<float>({expected}),
+                                              vector<float>({bigger_than_upper_bound}),
+                                              tolerance_bits));
     EXPECT_TRUE(ov::test::utils::close_f(expected, lower_bound, tolerance_bits));
     EXPECT_TRUE(ov::test::utils::all_close_f(vector<float>({expected}), vector<float>({lower_bound}), tolerance_bits));
     EXPECT_FALSE(ov::test::utils::close_f(expected, smaller_than_lower_bound, tolerance_bits));
-    EXPECT_FALSE(
-        ov::test::utils::all_close_f(vector<float>({expected}), vector<float>({smaller_than_lower_bound}), tolerance_bits));
+    EXPECT_FALSE(ov::test::utils::all_close_f(vector<float>({expected}),
+                                              vector<float>({smaller_than_lower_bound}),
+                                              tolerance_bits));
 
     // Bounds around 1000: 1000 +- 16
     expected = 1000.f;                               // 0  10001000  111 1010 0000 0000 0000 0000
@@ -636,13 +664,15 @@ TEST(all_close_f, mantissa_8_near_0_1_10_100_1000) {
     EXPECT_TRUE(ov::test::utils::close_f(expected, upper_bound, tolerance_bits));
     EXPECT_TRUE(ov::test::utils::all_close_f(vector<float>({expected}), vector<float>({upper_bound}), tolerance_bits));
     EXPECT_FALSE(ov::test::utils::close_f(expected, bigger_than_upper_bound, tolerance_bits));
-    EXPECT_FALSE(
-        ov::test::utils::all_close_f(vector<float>({expected}), vector<float>({bigger_than_upper_bound}), tolerance_bits));
+    EXPECT_FALSE(ov::test::utils::all_close_f(vector<float>({expected}),
+                                              vector<float>({bigger_than_upper_bound}),
+                                              tolerance_bits));
     EXPECT_TRUE(ov::test::utils::close_f(expected, lower_bound, tolerance_bits));
     EXPECT_TRUE(ov::test::utils::all_close_f(vector<float>({expected}), vector<float>({lower_bound}), tolerance_bits));
     EXPECT_FALSE(ov::test::utils::close_f(expected, smaller_than_lower_bound, tolerance_bits));
-    EXPECT_FALSE(
-        ov::test::utils::all_close_f(vector<float>({expected}), vector<float>({smaller_than_lower_bound}), tolerance_bits));
+    EXPECT_FALSE(ov::test::utils::all_close_f(vector<float>({expected}),
+                                              vector<float>({smaller_than_lower_bound}),
+                                              tolerance_bits));
 }
 
 // For intuitive understanding of tightness of bounds in decimal
@@ -674,13 +704,15 @@ TEST(all_close_f, mantissa_24_near_0_1_10_100_1000) {
     EXPECT_TRUE(ov::test::utils::close_f(expected, upper_bound, tolerance_bits));
     EXPECT_TRUE(ov::test::utils::all_close_f(vector<float>({expected}), vector<float>({upper_bound}), tolerance_bits));
     EXPECT_FALSE(ov::test::utils::close_f(expected, bigger_than_upper_bound, tolerance_bits));
-    EXPECT_FALSE(
-        ov::test::utils::all_close_f(vector<float>({expected}), vector<float>({bigger_than_upper_bound}), tolerance_bits));
+    EXPECT_FALSE(ov::test::utils::all_close_f(vector<float>({expected}),
+                                              vector<float>({bigger_than_upper_bound}),
+                                              tolerance_bits));
     EXPECT_TRUE(ov::test::utils::close_f(expected, lower_bound, tolerance_bits));
     EXPECT_TRUE(ov::test::utils::all_close_f(vector<float>({expected}), vector<float>({lower_bound}), tolerance_bits));
     EXPECT_FALSE(ov::test::utils::close_f(expected, smaller_than_lower_bound, tolerance_bits));
-    EXPECT_FALSE(
-        ov::test::utils::all_close_f(vector<float>({expected}), vector<float>({smaller_than_lower_bound}), tolerance_bits));
+    EXPECT_FALSE(ov::test::utils::all_close_f(vector<float>({expected}),
+                                              vector<float>({smaller_than_lower_bound}),
+                                              tolerance_bits));
 
     // Bounds around 1: 1 +- 4.77e-7
     expected = 1.f;
@@ -691,13 +723,15 @@ TEST(all_close_f, mantissa_24_near_0_1_10_100_1000) {
     EXPECT_TRUE(ov::test::utils::close_f(expected, upper_bound, tolerance_bits));
     EXPECT_TRUE(ov::test::utils::all_close_f(vector<float>({expected}), vector<float>({upper_bound}), tolerance_bits));
     EXPECT_FALSE(ov::test::utils::close_f(expected, bigger_than_upper_bound, tolerance_bits));
-    EXPECT_FALSE(
-        ov::test::utils::all_close_f(vector<float>({expected}), vector<float>({bigger_than_upper_bound}), tolerance_bits));
+    EXPECT_FALSE(ov::test::utils::all_close_f(vector<float>({expected}),
+                                              vector<float>({bigger_than_upper_bound}),
+                                              tolerance_bits));
     EXPECT_TRUE(ov::test::utils::close_f(expected, lower_bound, tolerance_bits));
     EXPECT_TRUE(ov::test::utils::all_close_f(vector<float>({expected}), vector<float>({lower_bound}), tolerance_bits));
     EXPECT_FALSE(ov::test::utils::close_f(expected, smaller_than_lower_bound, tolerance_bits));
-    EXPECT_FALSE(
-        ov::test::utils::all_close_f(vector<float>({expected}), vector<float>({smaller_than_lower_bound}), tolerance_bits));
+    EXPECT_FALSE(ov::test::utils::all_close_f(vector<float>({expected}),
+                                              vector<float>({smaller_than_lower_bound}),
+                                              tolerance_bits));
 
     // Bounds around 10: 10 +- 3.81e-6
     expected = 10.f;
@@ -708,13 +742,15 @@ TEST(all_close_f, mantissa_24_near_0_1_10_100_1000) {
     EXPECT_TRUE(ov::test::utils::close_f(expected, upper_bound, tolerance_bits));
     EXPECT_TRUE(ov::test::utils::all_close_f(vector<float>({expected}), vector<float>({upper_bound}), tolerance_bits));
     EXPECT_FALSE(ov::test::utils::close_f(expected, bigger_than_upper_bound, tolerance_bits));
-    EXPECT_FALSE(
-        ov::test::utils::all_close_f(vector<float>({expected}), vector<float>({bigger_than_upper_bound}), tolerance_bits));
+    EXPECT_FALSE(ov::test::utils::all_close_f(vector<float>({expected}),
+                                              vector<float>({bigger_than_upper_bound}),
+                                              tolerance_bits));
     EXPECT_TRUE(ov::test::utils::close_f(expected, lower_bound, tolerance_bits));
     EXPECT_TRUE(ov::test::utils::all_close_f(vector<float>({expected}), vector<float>({lower_bound}), tolerance_bits));
     EXPECT_FALSE(ov::test::utils::close_f(expected, smaller_than_lower_bound, tolerance_bits));
-    EXPECT_FALSE(
-        ov::test::utils::all_close_f(vector<float>({expected}), vector<float>({smaller_than_lower_bound}), tolerance_bits));
+    EXPECT_FALSE(ov::test::utils::all_close_f(vector<float>({expected}),
+                                              vector<float>({smaller_than_lower_bound}),
+                                              tolerance_bits));
 
     // Bounds around 100: 100 +- 3.05e-5
     expected = 100.f;
@@ -725,13 +761,15 @@ TEST(all_close_f, mantissa_24_near_0_1_10_100_1000) {
     EXPECT_TRUE(ov::test::utils::close_f(expected, upper_bound, tolerance_bits));
     EXPECT_TRUE(ov::test::utils::all_close_f(vector<float>({expected}), vector<float>({upper_bound}), tolerance_bits));
     EXPECT_FALSE(ov::test::utils::close_f(expected, bigger_than_upper_bound, tolerance_bits));
-    EXPECT_FALSE(
-        ov::test::utils::all_close_f(vector<float>({expected}), vector<float>({bigger_than_upper_bound}), tolerance_bits));
+    EXPECT_FALSE(ov::test::utils::all_close_f(vector<float>({expected}),
+                                              vector<float>({bigger_than_upper_bound}),
+                                              tolerance_bits));
     EXPECT_TRUE(ov::test::utils::close_f(expected, lower_bound, tolerance_bits));
     EXPECT_TRUE(ov::test::utils::all_close_f(vector<float>({expected}), vector<float>({lower_bound}), tolerance_bits));
     EXPECT_FALSE(ov::test::utils::close_f(expected, smaller_than_lower_bound, tolerance_bits));
-    EXPECT_FALSE(
-        ov::test::utils::all_close_f(vector<float>({expected}), vector<float>({smaller_than_lower_bound}), tolerance_bits));
+    EXPECT_FALSE(ov::test::utils::all_close_f(vector<float>({expected}),
+                                              vector<float>({smaller_than_lower_bound}),
+                                              tolerance_bits));
 
     // Bounds around 1000: 1000 +- 2.44e-4
     expected = 1000.f;
@@ -742,13 +780,15 @@ TEST(all_close_f, mantissa_24_near_0_1_10_100_1000) {
     EXPECT_TRUE(ov::test::utils::close_f(expected, upper_bound, tolerance_bits));
     EXPECT_TRUE(ov::test::utils::all_close_f(vector<float>({expected}), vector<float>({upper_bound}), tolerance_bits));
     EXPECT_FALSE(ov::test::utils::close_f(expected, bigger_than_upper_bound, tolerance_bits));
-    EXPECT_FALSE(
-        ov::test::utils::all_close_f(vector<float>({expected}), vector<float>({bigger_than_upper_bound}), tolerance_bits));
+    EXPECT_FALSE(ov::test::utils::all_close_f(vector<float>({expected}),
+                                              vector<float>({bigger_than_upper_bound}),
+                                              tolerance_bits));
     EXPECT_TRUE(ov::test::utils::close_f(expected, lower_bound, tolerance_bits));
     EXPECT_TRUE(ov::test::utils::all_close_f(vector<float>({expected}), vector<float>({lower_bound}), tolerance_bits));
     EXPECT_FALSE(ov::test::utils::close_f(expected, smaller_than_lower_bound, tolerance_bits));
-    EXPECT_FALSE(
-        ov::test::utils::all_close_f(vector<float>({expected}), vector<float>({smaller_than_lower_bound}), tolerance_bits));
+    EXPECT_FALSE(ov::test::utils::all_close_f(vector<float>({expected}),
+                                              vector<float>({smaller_than_lower_bound}),
+                                              tolerance_bits));
 }
 
 TEST(all_close_f, inf_nan) {

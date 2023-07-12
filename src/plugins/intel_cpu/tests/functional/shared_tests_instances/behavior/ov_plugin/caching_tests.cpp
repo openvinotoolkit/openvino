@@ -89,7 +89,7 @@ namespace {
                                     ::testing::ValuesIn(CompileModelCacheTestBase::getNumericAnyTypeFunctions()),
                                     ::testing::ValuesIn(precisionsCPU),
                                     ::testing::ValuesIn(batchSizesCPU),
-                                    ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                    ::testing::Values(ov::test::utils::DEVICE_CPU),
                                     ::testing::Values(ov::AnyMap{})),
                             CompileModelCacheTestBase::getTestCaseName);
 
@@ -98,7 +98,7 @@ namespace {
                                     ::testing::ValuesIn(CompileModelCacheTestBase::getFloatingPointOnlyFunctions()),
                                     ::testing::ValuesIn(floatPrecisionsCPU),
                                     ::testing::ValuesIn(batchSizesCPU),
-                                    ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                    ::testing::Values(ov::test::utils::DEVICE_CPU),
                                     ::testing::Values(ov::AnyMap{})),
                             CompileModelCacheTestBase::getTestCaseName);
 
@@ -107,12 +107,12 @@ namespace {
                                     ::testing::ValuesIn(internal_functions_cpu()),
                                     ::testing::ValuesIn(precisionsCPUInternal),
                                     ::testing::ValuesIn(batchSizesCPUInternal),
-                                    ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                    ::testing::Values(ov::test::utils::DEVICE_CPU),
                                     ::testing::Values(ov::AnyMap{})),
                             CompileModelCacheTestBase::getTestCaseName);
 
     const std::vector<ov::AnyMap> autoConfigs = {
-        {ov::device::priorities(CommonTestUtils::DEVICE_CPU)}
+        {ov::device::priorities(ov::test::utils::DEVICE_CPU)}
     };
 
     INSTANTIATE_TEST_SUITE_P(smoke_Hetero_CachingSupportCase, CompileModelCacheTestBase,
@@ -120,7 +120,7 @@ namespace {
                                     ::testing::ValuesIn(CompileModelCacheTestBase::getNumericAnyTypeFunctions()),
                                     ::testing::ValuesIn(precisionsCPU),
                                     ::testing::ValuesIn(batchSizesCPU),
-                                    ::testing::Values(CommonTestUtils::DEVICE_HETERO),
+                                    ::testing::Values(ov::test::utils::DEVICE_HETERO),
                                     ::testing::ValuesIn(autoConfigs)),
                             CompileModelCacheTestBase::getTestCaseName);
 
@@ -129,7 +129,7 @@ namespace {
                                     ::testing::ValuesIn(CompileModelCacheTestBase::getFloatingPointOnlyFunctions()),
                                     ::testing::ValuesIn(floatPrecisionsCPU),
                                     ::testing::ValuesIn(batchSizesCPU),
-                                    ::testing::Values(CommonTestUtils::DEVICE_HETERO),
+                                    ::testing::Values(ov::test::utils::DEVICE_HETERO),
                                     ::testing::ValuesIn(autoConfigs)),
                             CompileModelCacheTestBase::getTestCaseName);
 
@@ -138,7 +138,7 @@ namespace {
                                     ::testing::ValuesIn(CompileModelCacheTestBase::getNumericAnyTypeFunctions()),
                                     ::testing::ValuesIn(precisionsCPU),
                                     ::testing::ValuesIn(batchSizesCPU),
-                                    ::testing::Values(CommonTestUtils::DEVICE_AUTO),
+                                    ::testing::Values(ov::test::utils::DEVICE_AUTO),
                                     ::testing::ValuesIn(autoConfigs)),
                             CompileModelCacheTestBase::getTestCaseName);
 
@@ -147,7 +147,7 @@ namespace {
                                     ::testing::ValuesIn(CompileModelCacheTestBase::getFloatingPointOnlyFunctions()),
                                     ::testing::ValuesIn(floatPrecisionsCPU),
                                     ::testing::ValuesIn(batchSizesCPU),
-                                    ::testing::Values(CommonTestUtils::DEVICE_AUTO),
+                                    ::testing::Values(ov::test::utils::DEVICE_AUTO),
                                     ::testing::ValuesIn(autoConfigs)),
                             CompileModelCacheTestBase::getTestCaseName);
 
@@ -156,16 +156,16 @@ namespace {
                                     ::testing::ValuesIn(internal_functions_cpu()),
                                     ::testing::ValuesIn(precisionsCPUInternal),
                                     ::testing::ValuesIn(batchSizesCPUInternal),
-                                    ::testing::Values(CommonTestUtils::DEVICE_AUTO),
+                                    ::testing::Values(ov::test::utils::DEVICE_AUTO),
                                     ::testing::ValuesIn(autoConfigs)),
                             CompileModelCacheTestBase::getTestCaseName);
 
     const std::vector<ov::AnyMap> LoadFromFileConfigs = {
-        {ov::device::priorities(CommonTestUtils::DEVICE_CPU)},
+        {ov::device::priorities(ov::test::utils::DEVICE_CPU)},
     };
     const std::vector<std::string> TestTargets =
-    {CommonTestUtils::DEVICE_AUTO,
-    CommonTestUtils::DEVICE_MULTI,
+    {ov::test::utils::DEVICE_AUTO,
+    ov::test::utils::DEVICE_MULTI,
     };
 
     INSTANTIATE_TEST_SUITE_P(smoke_Auto_CachingSupportCase_CPU, CompileModelLoadFromFileTestBase,
@@ -184,7 +184,7 @@ namespace {
         {ov::num_streams(2)},
     };
     const std::vector<std::string> TestCpuTargets = {
-        CommonTestUtils::DEVICE_CPU,
+        ov::test::utils::DEVICE_CPU,
     };
     INSTANTIATE_TEST_SUITE_P(smoke_CachingSupportCase_CPU,
                              CompileModelLoadFromMemoryTestBase,

@@ -159,7 +159,7 @@ class MkDirGuard {
 public:
     explicit MkDirGuard(std::string dir = std::string()) : m_dir(std::move(dir)) {
         if (!m_dir.empty()) {
-            CommonTestUtils::createDirectory(m_dir);
+            ov::test::utils::createDirectory(m_dir);
         }
     }
 
@@ -168,8 +168,8 @@ public:
 
     ~MkDirGuard() {
         if (!m_dir.empty()) {
-            CommonTestUtils::removeFilesWithExt(m_dir, "blob");
-            CommonTestUtils::removeDir(m_dir);
+            ov::test::utils::removeFilesWithExt(m_dir, "blob");
+            ov::test::utils::removeDir(m_dir);
         }
     }
 };
@@ -206,7 +206,7 @@ public:
 
     static std::string get_mock_engine_path() {
         std::string mockEngineName("mock_engine");
-        return ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(),
+        return ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
                                                   mockEngineName + IE_BUILD_POSTFIX);
     }
 
@@ -305,13 +305,13 @@ public:
             EXPECT_TRUE(Mock::VerifyAndClearExpectations(net.get()));
         }
         EXPECT_TRUE(Mock::VerifyAndClearExpectations(mockPlugin.get()));
-        CommonTestUtils::removeIRFiles(modelName, weightsName);
+        ov::test::utils::removeIRFiles(modelName, weightsName);
     }
 
     void testLoad(const std::function<void(Core& ie)>& func) {
         Core ie;
         injectProxyEngine(mockPlugin.get());
-        ie.RegisterPlugin(ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(),
+        ie.RegisterPlugin(ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
                                                              std::string("mock_engine") + IE_BUILD_POSTFIX),
                           deviceName);
         func(ie);
@@ -1416,9 +1416,9 @@ TEST_P(CachingTest, TestChangeCacheDirFailure) {
 }
 
 TEST_P(CachingTest, TestCacheDirCreateRecursive) {
-    std::string newCacheDir1 = m_cacheDir + CommonTestUtils::FileSeparator + "a";
-    std::string newCacheDir2 = newCacheDir1 + CommonTestUtils::FileSeparator + "b";
-    std::string newCacheDir3 = newCacheDir2 + CommonTestUtils::FileSeparator + CommonTestUtils::FileSeparator;
+    std::string newCacheDir1 = m_cacheDir + ov::test::utils::FileSeparator + "a";
+    std::string newCacheDir2 = newCacheDir1 + ov::test::utils::FileSeparator + "b";
+    std::string newCacheDir3 = newCacheDir2 + ov::test::utils::FileSeparator + ov::test::utils::FileSeparator;
 
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(ov::supported_properties.name(), _)).Times(AnyNumber());
@@ -1440,9 +1440,9 @@ TEST_P(CachingTest, TestCacheDirCreateRecursive) {
             EXPECT_NO_THROW(m_testFunction(ie));
         });
     }
-    CommonTestUtils::removeFilesWithExt(newCacheDir2, "blob");
-    CommonTestUtils::removeDir(newCacheDir2);
-    CommonTestUtils::removeDir(newCacheDir1);
+    ov::test::utils::removeFilesWithExt(newCacheDir2, "blob");
+    ov::test::utils::removeDir(newCacheDir2);
+    ov::test::utils::removeDir(newCacheDir1);
 }
 
 TEST_P(CachingTest, TestDeviceArchitecture) {
@@ -1784,7 +1784,7 @@ TEST_P(CachingTest, TestCacheFileCorrupted) {
         });
     }
     {
-        auto blobs = CommonTestUtils::listFilesWithExt(m_cacheDir, "blob");
+        auto blobs = ov::test::utils::listFilesWithExt(m_cacheDir, "blob");
         for (const auto& fileName : blobs) {
             std::ofstream stream(fileName, std::ios_base::binary);
             stream << "SomeCorruptedText";
@@ -1842,7 +1842,7 @@ TEST_P(CachingTest, TestCacheFileOldVersion) {
         });
     }
     {
-        auto blobs = CommonTestUtils::listFilesWithExt(m_cacheDir, "blob");
+        auto blobs = ov::test::utils::listFilesWithExt(m_cacheDir, "blob");
         for (const auto& fileName : blobs) {
             std::string content;
             {
@@ -1909,7 +1909,7 @@ TEST_P(CachingTest, LoadHetero_NoCacheMetric) {
         .Times(AnyNumber())
         .WillRepeatedly(Return(std::vector<ov::PropertyName>{}));
     // Hetero supports Import/Export, but mock plugin does not
-    deviceToLoad = CommonTestUtils::DEVICE_HETERO + std::string(":mock.1,mock.2");
+    deviceToLoad = ov::test::utils::DEVICE_HETERO + std::string(":mock.1,mock.2");
     if (m_remoteContext) {
         return;  // skip the remote Context test for Hetero plugin
     }
@@ -1932,7 +1932,7 @@ TEST_P(CachingTest, LoadHetero_NoCacheMetric) {
 TEST_P(CachingTest, LoadHetero_OneDevice) {
     EXPECT_CALL(*mockPlugin, QueryNetwork(_, _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(_, _)).Times(AnyNumber());
-    deviceToLoad = CommonTestUtils::DEVICE_HETERO + std::string(":mock");
+    deviceToLoad = ov::test::utils::DEVICE_HETERO + std::string(":mock");
     if (m_remoteContext) {
         return;  // skip the remote Context test for Hetero plugin
     }
@@ -1949,7 +1949,7 @@ TEST_P(CachingTest, LoadHetero_OneDevice) {
             m_testFunction(ie);
         });
         // Ensure that only 1 blob (for Hetero) is created
-        EXPECT_EQ(CommonTestUtils::listFilesWithExt(m_cacheDir, "blob").size(), 1);
+        EXPECT_EQ(ov::test::utils::listFilesWithExt(m_cacheDir, "blob").size(), 1);
     }
     m_post_mock_net_callbacks.pop_back();
     {
@@ -1971,7 +1971,7 @@ TEST_P(CachingTest, LoadHetero_OneDevice) {
 TEST_P(CachingTest, LoadHetero_TargetFallbackFromCore) {
     EXPECT_CALL(*mockPlugin, QueryNetwork(_, _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(_, _)).Times(AnyNumber());
-    deviceToLoad = CommonTestUtils::DEVICE_HETERO;
+    deviceToLoad = ov::test::utils::DEVICE_HETERO;
     if (m_remoteContext) {
         return;  // skip the remote Context test for Hetero plugin
     }
@@ -1985,11 +1985,11 @@ TEST_P(CachingTest, LoadHetero_TargetFallbackFromCore) {
         });
         testLoad([&](Core& ie) {
             ie.SetConfig({{CONFIG_KEY(CACHE_DIR), m_cacheDir}});
-            ie.SetConfig({{"TARGET_FALLBACK", "mock"}}, CommonTestUtils::DEVICE_HETERO);
+            ie.SetConfig({{"TARGET_FALLBACK", "mock"}}, ov::test::utils::DEVICE_HETERO);
             m_testFunction(ie);
         });
         // Ensure that only 1 blob (for Hetero) is created
-        EXPECT_EQ(CommonTestUtils::listFilesWithExt(m_cacheDir, "blob").size(), 1);
+        EXPECT_EQ(ov::test::utils::listFilesWithExt(m_cacheDir, "blob").size(), 1);
     }
     m_post_mock_net_callbacks.pop_back();
     {
@@ -2002,7 +2002,7 @@ TEST_P(CachingTest, LoadHetero_TargetFallbackFromCore) {
         }
         testLoad([&](Core& ie) {
             ie.SetConfig({{CONFIG_KEY(CACHE_DIR), m_cacheDir}});
-            ie.SetConfig({{"TARGET_FALLBACK", "mock"}}, CommonTestUtils::DEVICE_HETERO);
+            ie.SetConfig({{"TARGET_FALLBACK", "mock"}}, ov::test::utils::DEVICE_HETERO);
             m_testFunction(ie);
             networks.clear();
         });
@@ -2041,7 +2041,7 @@ TEST_P(CachingTest, LoadHetero_MultiArchs) {
                 return "mock_another_architecture";
             }
         }));
-    deviceToLoad = CommonTestUtils::DEVICE_HETERO + std::string(":mock.1,mock.51");
+    deviceToLoad = ov::test::utils::DEVICE_HETERO + std::string(":mock.1,mock.51");
     if (m_remoteContext) {
         return;  // skip the remote Context test for Hetero plugin
     }
@@ -2058,10 +2058,10 @@ TEST_P(CachingTest, LoadHetero_MultiArchs) {
             m_testFunction(ie);
         });
         // Ensure that only 1 blob (for Hetero) is created
-        EXPECT_EQ(CommonTestUtils::listFilesWithExt(m_cacheDir, "blob").size(), 1);
+        EXPECT_EQ(ov::test::utils::listFilesWithExt(m_cacheDir, "blob").size(), 1);
     }
 
-    deviceToLoad = CommonTestUtils::DEVICE_HETERO + std::string(":mock.2,mock.52");
+    deviceToLoad = ov::test::utils::DEVICE_HETERO + std::string(":mock.2,mock.52");
     {
         EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _, _)).Times(0);
         EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _)).Times(0);
@@ -2075,7 +2075,7 @@ TEST_P(CachingTest, LoadHetero_MultiArchs) {
             m_testFunction(ie);
         });
     }
-    deviceToLoad = CommonTestUtils::DEVICE_HETERO + std::string(":mock.53,mock.3");
+    deviceToLoad = ov::test::utils::DEVICE_HETERO + std::string(":mock.53,mock.3");
     m_post_mock_net_callbacks.pop_back();
     {
         EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _, _)).Times(0);
@@ -2107,7 +2107,7 @@ TEST_P(CachingTest, LoadHetero_MultiArchs_TargetFallback_FromCore) {
                 return "mock_another_architecture";
             }
         }));
-    deviceToLoad = CommonTestUtils::DEVICE_HETERO;
+    deviceToLoad = ov::test::utils::DEVICE_HETERO;
     if (m_remoteContext) {
         return;  // skip the remote Context test for Hetero plugin
     }
@@ -2121,7 +2121,7 @@ TEST_P(CachingTest, LoadHetero_MultiArchs_TargetFallback_FromCore) {
         });
         testLoad([&](Core& ie) {
             ie.SetConfig({{CONFIG_KEY(CACHE_DIR), m_cacheDir}});
-            ie.SetConfig({{"TARGET_FALLBACK", "mock.1"}}, CommonTestUtils::DEVICE_HETERO);
+            ie.SetConfig({{"TARGET_FALLBACK", "mock.1"}}, ov::test::utils::DEVICE_HETERO);
             m_testFunction(ie);
         });
     }
@@ -2135,7 +2135,7 @@ TEST_P(CachingTest, LoadHetero_MultiArchs_TargetFallback_FromCore) {
             EXPECT_CALL(*net, Export(_)).Times(0);
         }
         testLoad([&](Core& ie) {
-            ie.SetConfig({{"TARGET_FALLBACK", "mock.1"}}, CommonTestUtils::DEVICE_HETERO);
+            ie.SetConfig({{"TARGET_FALLBACK", "mock.1"}}, ov::test::utils::DEVICE_HETERO);
             ie.SetConfig({{CONFIG_KEY(CACHE_DIR), m_cacheDir}});
             m_testFunction(ie);
         });
@@ -2149,7 +2149,7 @@ TEST_P(CachingTest, LoadHetero_MultiArchs_TargetFallback_FromCore) {
             EXPECT_CALL(net, Export(_)).Times(1);
         });
         testLoad([&](Core& ie) {
-            ie.SetConfig({{"TARGET_FALLBACK", "mock.51"}}, CommonTestUtils::DEVICE_HETERO);
+            ie.SetConfig({{"TARGET_FALLBACK", "mock.51"}}, ov::test::utils::DEVICE_HETERO);
             ie.SetConfig({{CONFIG_KEY(CACHE_DIR), m_cacheDir}});
             m_testFunction(ie);
             networks.clear();
@@ -2176,7 +2176,7 @@ TEST_P(CachingTest, LoadAUTO_OneDevice) {
     std::string cacheDir = m_cacheDir;
     MkDirGuard guard(cacheDir);
     for (int index = 0; index < TEST_COUNT; index++) {
-        deviceToLoad = CommonTestUtils::DEVICE_AUTO;
+        deviceToLoad = ov::test::utils::DEVICE_AUTO;
         deviceToLoad += ":mock.0";
         EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _)).Times(TEST_COUNT - index - 1);
         EXPECT_CALL(*mockPlugin, ImportNetwork(_, _)).Times(index);
@@ -2205,7 +2205,7 @@ TEST_P(CachingTest, LoadAUTOWithConfig) {
     std::string cacheDir = m_cacheDir;
     MkDirGuard guard(cacheDir);
     for (; index < TEST_COUNT; index++) {
-        deviceToLoad = CommonTestUtils::DEVICE_AUTO;
+        deviceToLoad = ov::test::utils::DEVICE_AUTO;
         deviceToLoad += ":mock.0";
         EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _)).Times(TEST_COUNT - index - 1);
         EXPECT_CALL(*mockPlugin, ImportNetwork(_, _)).Times(index);
@@ -2239,7 +2239,7 @@ TEST_P(CachingTest, LoadAUTO_OneDeviceNoImportExport) {
         m_post_mock_net_callbacks.emplace_back([&](MockExecutableNetwork& net) {
             EXPECT_CALL(net, Export(_)).Times(0);
         });
-        deviceToLoad = CommonTestUtils::DEVICE_AUTO;
+        deviceToLoad = ov::test::utils::DEVICE_AUTO;
         deviceToLoad += ":mock.0";
         ie.SetConfig({{CONFIG_KEY(CACHE_DIR), m_cacheDir}});
         m_testFunction(ie);
@@ -2272,7 +2272,7 @@ TEST_P(CachingTest, LoadMulti_race) {
         std::string cacheDir = m_cacheDir + std::to_string(index);
         MkDirGuard guard(cacheDir);
         int devCount = 1 + index % (TEST_DEVICE_MAX_COUNT - 1);  // try dynamic number of devices from 1 to max
-        deviceToLoad = CommonTestUtils::DEVICE_MULTI;
+        deviceToLoad = ov::test::utils::DEVICE_MULTI;
         deviceToLoad += ":mock.0";
         for (int i = 1; i < devCount; i++) {
             deviceToLoad += ",mock." + std::to_string(i);
@@ -2313,7 +2313,7 @@ TEST_P(CachingTest, LoadMultiWithConfig_race) {
         std::string cacheDir = m_cacheDir + std::to_string(index);
         MkDirGuard guard(cacheDir);
         int devCount = 1 + index % (TEST_DEVICE_MAX_COUNT - 1);  // try dynamic number of devices from 1 to max
-        deviceToLoad = CommonTestUtils::DEVICE_MULTI;
+        deviceToLoad = ov::test::utils::DEVICE_MULTI;
         deviceToLoad += ":mock.0";
         for (int i = 1; i < devCount; i++) {
             deviceToLoad += ",mock." + std::to_string(i);
@@ -2350,7 +2350,7 @@ TEST_P(CachingTest, LoadMulti_Archs) {
         return;  // skip the remote Context test for Multi plugin
     }
 
-    deviceToLoad = CommonTestUtils::DEVICE_MULTI;
+    deviceToLoad = ov::test::utils::DEVICE_MULTI;
     deviceToLoad += ":mock.0";
     for (int i = 1; i < TEST_DEVICE_MAX_COUNT; i++) {
         deviceToLoad += ",mock." + std::to_string(i);
@@ -2416,7 +2416,7 @@ TEST_P(CachingTest, LoadMulti_NoCachingOnDevice) {
         return;  // skip the remote Context test for Multi plugin
     }
 
-    deviceToLoad = CommonTestUtils::DEVICE_MULTI;
+    deviceToLoad = ov::test::utils::DEVICE_MULTI;
     deviceToLoad += ":mock.0";
     for (int i = 1; i < TEST_DEVICE_MAX_COUNT; i++) {
         deviceToLoad += ",mock." + std::to_string(i);
@@ -2465,7 +2465,7 @@ TEST_P(CachingTest, LoadBATCHWithConfig) {
     std::string cacheDir = m_cacheDir;
     MkDirGuard guard(cacheDir);
     for (; index < TEST_COUNT; index++) {
-        deviceToLoad = CommonTestUtils::DEVICE_BATCH;
+        deviceToLoad = ov::test::utils::DEVICE_BATCH;
         deviceToLoad += ":mock.0";
         EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _)).Times(TEST_COUNT - index - 1);
         EXPECT_CALL(*mockPlugin, ImportNetwork(_, _)).Times(index);

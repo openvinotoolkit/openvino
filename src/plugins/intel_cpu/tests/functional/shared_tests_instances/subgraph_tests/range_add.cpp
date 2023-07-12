@@ -40,7 +40,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_BasicPositive, RangeAddSubgraphTest,
                                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         RangeAddSubgraphTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_BasicNegative, RangeAddSubgraphTest,
@@ -53,7 +53,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_BasicNegative, RangeAddSubgraphTest,
                                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         RangeAddSubgraphTest::getTestCaseName);
 
 // ------------------------------ V4 ------------------------------
@@ -67,7 +67,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_BasicPositive, RangeNumpyAddSubgraphTest,
                                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         RangeNumpyAddSubgraphTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_BasicNegative, RangeNumpyAddSubgraphTest,
@@ -80,7 +80,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_BasicNegative, RangeNumpyAddSubgraphTest,
                                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         RangeNumpyAddSubgraphTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_BasicTruncateInputs, RangeNumpyAddSubgraphTest,
@@ -93,6 +93,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_BasicTruncateInputs, RangeNumpyAddSubgraphTest,
                                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         RangeNumpyAddSubgraphTest::getTestCaseName);
 }  // namespace

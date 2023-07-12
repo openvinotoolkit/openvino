@@ -9,7 +9,9 @@
 #include <signal.h>
 #include <limits.h>
 
-namespace CommonTestUtils {
+namespace ov {
+namespace test {
+namespace utils {
 
 #if defined(__APPLE__)
     typedef sig_t sighandler;
@@ -131,4 +133,6 @@ void CrashHandler::SetUpPipelineAfterCrash(bool ignore_crash) {
     IGNORE_CRASH = ignore_crash;
 }
 
-}  // namespace CommonTestUtils
+}  // namespace utils
+}  // namespace test
+}  // namespace ov

@@ -104,7 +104,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_set1, GatherElementsGPUTest,
                     ::testing::ValuesIn(std::vector<int>({2, -2})),           // Axis
                     ::testing::ValuesIn(std::vector<ElementType>({ElementType::f16, ElementType::f32})),
                     ::testing::Values(ElementType::i32),
-                    ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                    ::testing::Values(ov::test::utils::DEVICE_GPU)),
         GatherElementsGPUTest::getTestCaseName);
 
 } // namespace

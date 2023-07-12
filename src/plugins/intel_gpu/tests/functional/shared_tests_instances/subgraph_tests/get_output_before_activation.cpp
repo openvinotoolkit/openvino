@@ -25,7 +25,7 @@ namespace {
 
 INSTANTIATE_TEST_SUITE_P(OutputBeforeActivation, OutputBeforeActivation,
     ::testing::Combine(
-        ::testing::Values(CommonTestUtils::DEVICE_GPU),
+        ::testing::Values(ov::test::utils::DEVICE_GPU),
         ::testing::Values(InferenceEngine::Precision::FP32),
         ::testing::ValuesIn(input_sizes),
         ::testing::ValuesIn(midLayerTypes),

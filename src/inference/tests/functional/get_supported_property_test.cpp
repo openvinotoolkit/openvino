@@ -17,7 +17,7 @@
 namespace {
 std::string get_mock_engine_path() {
     std::string mockEngineName("mock_engine");
-    return ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(),
+    return ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
                                               mockEngineName + IE_BUILD_POSTFIX);
 }
 template <class T>
@@ -107,7 +107,7 @@ public:
             make_std_function<void(ov::IPlugin*)>(m_so, "InjectPlugin");
 
         injectProxyEngine(plugin.get());
-        core.register_plugin(ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(),
+        core.register_plugin(ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
                                                                 std::string("mock_engine") + IE_BUILD_POSTFIX),
                              m_plugin_name);
         m_mock_plugin = plugin;

@@ -32,7 +32,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_relu_split_reshape,
                                             ::testing::ValuesIn(splitAxis),
                                             ::testing::ValuesIn(splitNum),
                                             ::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(additional_config)),
                          ReluSplitReshape::getTestCaseName);
 }  // namespace

@@ -6,8 +6,8 @@
 
 namespace {
 Params params[] = {
-    std::tuple<Device, Config>{CommonTestUtils::DEVICE_GNA, {{CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(YES)}}},
-    std::tuple<Device, Config>{CommonTestUtils::DEVICE_HETERO, {{"TARGET_FALLBACK", CommonTestUtils::DEVICE_GNA}}},
+    std::tuple<Device, Config>{ov::test::utils::DEVICE_GNA, {{CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(YES)}}},
+    std::tuple<Device, Config>{ov::test::utils::DEVICE_HETERO, {{"TARGET_FALLBACK", ov::test::utils::DEVICE_GNA}}},
 };
 // TODO: Consider to append params[1] after issue *-45658 resolved
 std::vector<std::tuple<Device, Config>> paramsWithIterations{params[0]};

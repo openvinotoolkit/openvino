@@ -23,7 +23,7 @@ std::vector<std::map<std::string, std::string>> configs = {{
 
 INSTANTIATE_TEST_SUITE_P(OutputBeforeActivation,
                          OutputBeforeActivation,
-                         ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_GNA),
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::Values(InferenceEngine::Precision::FP32),
                                             ::testing::ValuesIn(input_sizes),
                                             ::testing::ValuesIn(midLayerTypes),

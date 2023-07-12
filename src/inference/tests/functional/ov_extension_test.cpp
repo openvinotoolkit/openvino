@@ -9,30 +9,30 @@
 
 using namespace testing;
 using namespace InferenceEngine;
-using namespace CommonTestUtils;
+using namespace ov::test::utils;
 
 namespace {
 
 std::string getOVExtensionPath() {
-    return ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(),
+    return ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
                                               std::string("openvino_template_extension") + IE_BUILD_POSTFIX);
 }
 
 std::string getOldExtensionPath() {
-    return ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(),
+    return ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
                                               std::string("template_extension") + IE_BUILD_POSTFIX);
 }
 
 std::string getIncorrectExtensionPath() {
-    return ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(),
+    return ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
                                               std::string("incorrect") + IE_BUILD_POSTFIX);
 }
 
 std::string getRelativeOVExtensionPath() {
     std::string absolutePath =
-        ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(),
+        ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
                                            std::string("openvino_template_extension") + IE_BUILD_POSTFIX);
-    return CommonTestUtils::getRelativePath(CommonTestUtils::getCurrentWorkingDir(), absolutePath);
+    return ov::test::utils::getRelativePath(ov::test::utils::getCurrentWorkingDir(), absolutePath);
 }
 
 }  // namespace

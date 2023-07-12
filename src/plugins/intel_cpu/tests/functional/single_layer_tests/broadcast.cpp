@@ -247,7 +247,7 @@ INSTANTIATE_TEST_CASE_P(smoke_StaticShape4D, BroadcastLayerCPUTest,
                             ::testing::Values(ov::op::BroadcastType::NUMPY),
                             ::testing::ValuesIn(inputPrecisions),
                             ::testing::Values(std::vector<bool>{true, true}),
-                            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         ::testing::ValuesIn(CPUParams4D)),
                     BroadcastLayerCPUTest::getTestCaseName);
 
@@ -260,7 +260,7 @@ INSTANTIATE_TEST_CASE_P(smoke_StaticShape4DE, BroadcastLayerCPUTest,
                             ::testing::Values(ov::op::BroadcastType::EXPLICIT),
                             ::testing::ValuesIn(inputPrecisions),
                             ::testing::Values(std::vector<bool>{true, true}),
-                            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         ::testing::Values(CPUSpecificParams{{}, {}, {}, "ref"})),
                     BroadcastLayerCPUTest::getTestCaseName);
 
@@ -283,7 +283,7 @@ INSTANTIATE_TEST_CASE_P(smoke_StaticShape4DScalar, BroadcastLayerCPUTest,
                             ::testing::Values(ov::op::BroadcastType::NUMPY),
                             ::testing::ValuesIn(inputPrecisions),
                             ::testing::Values(std::vector<bool>{true, true}),
-                            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         ::testing::Values(CPUSpecificParams{{}, {}, {}, "ref"})),
                     BroadcastLayerCPUTest::getTestCaseName);
 
@@ -317,7 +317,7 @@ INSTANTIATE_TEST_CASE_P(smoke_DynamicShape4D, BroadcastLayerCPUTest,
                             ::testing::Values(ov::op::BroadcastType::NUMPY),
                             ::testing::ValuesIn(inputPrecisions),
                             ::testing::ValuesIn(std::vector<std::vector<bool>>{{true, true}, {false, true}}),
-                            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         ::testing::Values(CPUSpecificParams{{}, {}, {}, "ref"})),
                     BroadcastLayerCPUTest::getTestCaseName);
 
@@ -341,7 +341,7 @@ INSTANTIATE_TEST_CASE_P(smoke_DynamicShape4DScalar, BroadcastLayerCPUTest,
                             ::testing::Values(ov::op::BroadcastType::NUMPY),
                             ::testing::ValuesIn(inputPrecisions),
                             ::testing::ValuesIn(std::vector<std::vector<bool>>{{true, true}, {false, true}}),
-                            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         ::testing::Values(CPUSpecificParams{{}, {}, {}, "ref"})),
                     BroadcastLayerCPUTest::getTestCaseName);
 
@@ -396,7 +396,7 @@ INSTANTIATE_TEST_CASE_P(smoke_StaticShape5D, BroadcastLayerCPUTest,
                             ::testing::Values(ov::op::BroadcastType::NUMPY),
                             ::testing::ValuesIn(inputPrecisions),
                             ::testing::Values(std::vector<bool>{true, true}),
-                            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         ::testing::ValuesIn(CPUParams5D)),
                     BroadcastLayerCPUTest::getTestCaseName);
 
@@ -409,7 +409,7 @@ INSTANTIATE_TEST_CASE_P(smoke_StaticShape5DScalar, BroadcastLayerCPUTest,
                             ::testing::Values(ov::op::BroadcastType::NUMPY),
                             ::testing::ValuesIn(inputPrecisions),
                             ::testing::Values(std::vector<bool>{true, true}),
-                            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         ::testing::Values(CPUSpecificParams{{}, {}, {}, "ref"})),
                     BroadcastLayerCPUTest::getTestCaseName);
 
@@ -422,7 +422,7 @@ INSTANTIATE_TEST_CASE_P(smoke_DynamicShape5D, BroadcastLayerCPUTest,
                             ::testing::Values(ov::op::BroadcastType::NUMPY),
                             ::testing::ValuesIn(inputPrecisions),
                             ::testing::ValuesIn(std::vector<std::vector<bool>>{{true, true}, {false, true}}),
-                            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         ::testing::Values(CPUSpecificParams{{}, {}, {}, "ref"})),
                     BroadcastLayerCPUTest::getTestCaseName);
 
@@ -435,7 +435,7 @@ INSTANTIATE_TEST_CASE_P(smoke_DynamicShape5DScalar, BroadcastLayerCPUTest,
                             ::testing::Values(ov::op::BroadcastType::NUMPY),
                             ::testing::ValuesIn(inputPrecisions),
                             ::testing::ValuesIn(std::vector<std::vector<bool>>{{true, true}, {false, true}}),
-                            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         ::testing::Values(CPUSpecificParams{{}, {}, {}, "ref"})),
                     BroadcastLayerCPUTest::getTestCaseName);
 
@@ -460,7 +460,7 @@ INSTANTIATE_TEST_CASE_P(smoke_DynamicShapes1D, BroadcastLayerCPUTest,
                             ::testing::Values(ov::op::BroadcastType::NUMPY),
                             ::testing::ValuesIn(inputPrecisions),
                             ::testing::ValuesIn(std::vector<std::vector<bool>>{{false, true}}),
-                            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         ::testing::Values(CPUSpecificParams{{}, {}, {}, "ref"})),
                     BroadcastLayerCPUTest::getTestCaseName);
 /* ========= */

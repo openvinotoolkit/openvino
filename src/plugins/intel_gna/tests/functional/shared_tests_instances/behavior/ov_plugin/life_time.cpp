@@ -9,12 +9,12 @@ namespace {
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          OVHoldersTest,
-                         ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                         ::testing::Values(ov::test::utils::DEVICE_GNA),
                          OVHoldersTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          OVHoldersTestOnImportedNetwork,
-                         ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                         ::testing::Values(ov::test::utils::DEVICE_GNA),
                          OVHoldersTestOnImportedNetwork::getTestCaseName);
 
 }  // namespace

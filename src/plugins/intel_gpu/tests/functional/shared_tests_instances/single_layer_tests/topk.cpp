@@ -49,6 +49,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_TopK, TopKLayerTest,
                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                 ::testing::Values(InferenceEngine::Layout::ANY),
                 ::testing::Values(std::vector<size_t>({10, 10, 10})),
-                ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                ::testing::Values(ov::test::utils::DEVICE_GPU)),
         TopKLayerTest::getTestCaseName);
 }  // namespace

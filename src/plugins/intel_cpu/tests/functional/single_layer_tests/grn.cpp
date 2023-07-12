@@ -105,7 +105,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GRNCPUStatic, GRNLayerCPUTest,
                             ::testing::Values(InferenceEngine::Layout::ANY),
                             ::testing::ValuesIn(dataInputStaticShapes),
                             ::testing::ValuesIn(biases),
-                            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         GRNLayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_GRNCPUDynamic, GRNLayerCPUTest,
@@ -117,7 +117,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GRNCPUDynamic, GRNLayerCPUTest,
                             ::testing::Values(InferenceEngine::Layout::ANY),
                             ::testing::ValuesIn(dataInputDynamicShapes),
                             ::testing::ValuesIn(biases),
-                            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         GRNLayerCPUTest::getTestCaseName);
 
 } // namespace

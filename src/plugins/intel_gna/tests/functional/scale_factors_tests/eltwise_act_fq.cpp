@@ -63,7 +63,7 @@ public:
         blob->allocate();
 
         auto* rawBlobDataPtr = blob->buffer().as<float*>();
-        std::vector<float> values = CommonTestUtils::generate_float_numbers(blob->size(), inputDataMin, inputDataMax);
+        std::vector<float> values = ov::test::utils::generate_float_numbers(blob->size(), inputDataMin, inputDataMax);
         for (size_t i = 0; i < blob->size(); i++) {
             rawBlobDataPtr[i] = values[i];
         }
@@ -101,7 +101,7 @@ protected:
         auto constant = ngraph::builder::makeConstant<float>(
             ngPrc,
             shape,
-            CommonTestUtils::generate_float_numbers(shape[1], inputDataMin, inputDataMax));
+            ov::test::utils::generate_float_numbers(shape[1], inputDataMin, inputDataMax));
         auto add = std::make_shared<ngraph::opset8::Add>(fqIn, constant);
 
         auto lowNode = ngraph::builder::makeConstant<float>(ngPrc, {1}, {2 * inputDataMin});
@@ -154,7 +154,7 @@ const std::vector<ngraph::helpers::ActivationTypes> activationTypes = {ngraph::h
 INSTANTIATE_TEST_SUITE_P(smoke_base,
                          EltwiseActFqTest,
                          ::testing::Combine(::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs),
                                             ::testing::ValuesIn(inputValues),
                                             ::testing::ValuesIn(activationTypes)),

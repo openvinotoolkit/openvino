@@ -52,7 +52,7 @@ using Outputs = std::vector<std::vector<float>>;
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_prior_box) {
     const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/prior_box.onnx"));
+        file_util::path_join(ov::test::utils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/prior_box.onnx"));
     auto test_case = test::TestCase(function, s_device);
     std::vector<float> A(3 * 2 * 2);
     std::vector<float> B(3 * 6 * 6);
@@ -73,7 +73,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_prior_box) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_priorbox_clustered) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/priorbox_clustered.onnx"));
 
@@ -92,7 +92,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_priorbox_clustered) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_priorbox_clustered_most_attrs_default) {
     auto function =
-        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
                                                             "onnx/priorbox_clustered_most_attrs_default.onnx"));
 
@@ -126,7 +126,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_priorbox_clustered_most_attrs_default) {
 NGRAPH_TEST(${BACKEND_NAME}, onnx_priorbox_clustered_first_input_bad_shape) {
     try {
         auto function =
-            onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+            onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                                 SERIALIZED_ZOO,
                                                                 "onnx/priorbox_clustered_first_input_bad_shape.onnx"));
         FAIL() << "Expected exception was not thrown";
@@ -140,7 +140,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_priorbox_clustered_first_input_bad_shape) {
 NGRAPH_TEST(${BACKEND_NAME}, onnx_priorbox_clustered_second_input_bad_shape) {
     try {
         auto function =
-            onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+            onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                                 SERIALIZED_ZOO,
                                                                 "onnx/priorbox_clustered_second_input_bad_shape.onnx"));
         FAIL() << "Expected exception was not thrown";
@@ -153,7 +153,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_priorbox_clustered_second_input_bad_shape) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_detection_output) {
     const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/detection_output.onnx"));
+        file_util::path_join(ov::test::utils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/detection_output.onnx"));
     auto test_case = test::TestCase(function, s_device);
 
     auto gen_vector = [](size_t size, float min, float max) -> std::vector<float> {
@@ -185,7 +185,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_detection_output) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_group_norm) {
     const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/group_norm.onnx"));
+        file_util::path_join(ov::test::utils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/group_norm.onnx"));
     auto test_case = test::TestCase(function, s_device);
     Shape shape{2, 8, 2, 2};
     const auto size = shape_size(shape);
@@ -209,7 +209,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_group_norm) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_group_norm_squeeze_bias_and_scale) {
     const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
                                                             "onnx/group_norm_4D_bias_and_scale.onnx"));
     auto test_case = test::TestCase(function, s_device);
@@ -235,7 +235,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_group_norm_squeeze_bias_and_scale) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_group_norm_5d) {
     const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/group_norm_5d.onnx"));
+        file_util::path_join(ov::test::utils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/group_norm_5d.onnx"));
     auto test_case = test::TestCase(function, s_device);
     Shape shape{2, 8, 1, 2, 1};
     const auto size = shape_size(shape);
@@ -256,7 +256,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_group_norm_5d) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_normalize) {
     const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/normalize.onnx"));
+        file_util::path_join(ov::test::utils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/normalize.onnx"));
     auto test_case = test::TestCase(function, s_device);
     std::vector<float> data(12);
     std::iota(data.begin(), data.end(), 1.f);
@@ -281,7 +281,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_normalize) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_swish_with_beta) {
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/swish_with_beta.onnx"));
+        file_util::path_join(ov::test::utils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/swish_with_beta.onnx"));
 
     const Shape expected_output_shape{3};
     auto test_case = test::TestCase(function, s_device);
@@ -293,7 +293,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_swish_with_beta) {
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_swish_without_beta) {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                                         SERIALIZED_ZOO,
                                                                         "onnx/swish_without_beta.onnx"));
 
@@ -308,7 +308,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_swish_without_beta) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_experimental_detectron_detection_output) {
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        file_util::path_join(ov::test::utils::getExecutableDirectory(),
                              SERIALIZED_ZOO,
                              "onnx/org.openvinotoolkit/experimental_detectron/detection_output.onnx"));
 
@@ -368,7 +368,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_experimental_detectron_detection_output)
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_experimental_detectron_detection_output_most_attrs_default) {
     auto function =
-        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
                                                             "onnx/org.openvinotoolkit/experimental_detectron/"
                                                             "detection_output_most_attrs_default.onnx"));
@@ -411,7 +411,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_experimental_detectron_detection_output_
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_experimental_detectron_generate_proposals_single_image) {
     auto function =
-        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
                                                             "onnx/org.openvinotoolkit/experimental_detectron/"
                                                             "generate_proposals_single_image.onnx"));
@@ -461,7 +461,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_experimental_detectron_generate_proposal
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_experimental_detectron_group_norm) {
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        file_util::path_join(ov::test::utils::getExecutableDirectory(),
                              SERIALIZED_ZOO,
                              "onnx/org.openvinotoolkit/experimental_detectron/group_norm.onnx"));
 
@@ -488,7 +488,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_experimental_detectron_group_norm) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_experimental_detectron_prior_grid_generator) {
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        file_util::path_join(ov::test::utils::getExecutableDirectory(),
                              SERIALIZED_ZOO,
                              "onnx/org.openvinotoolkit/experimental_detectron/prior_grid_generator.onnx"));
 
@@ -515,7 +515,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_experimental_detectron_prior_grid_genera
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_experimental_detectron_roi_feature_extractor) {
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        file_util::path_join(ov::test::utils::getExecutableDirectory(),
                              SERIALIZED_ZOO,
                              "onnx/org.openvinotoolkit/experimental_detectron/roi_feature_extractor.onnx"));
 
@@ -574,7 +574,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_experimental_detectron_roi_feature_extra
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_experimental_detectron_topk_rios) {
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        file_util::path_join(ov::test::utils::getExecutableDirectory(),
                              SERIALIZED_ZOO,
                              "onnx/org.openvinotoolkit/experimental_detectron/topk_rios.onnx"));
 
@@ -589,7 +589,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_experimental_detectron_topk_rios) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_deformable_conv_2d) {
     auto function =
-        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
                                                             "onnx/org.openvinotoolkit/deformable_conv_2d.onnx"));
 
@@ -622,7 +622,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_deformable_conv_2d) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_generate_proposals) {
     auto function =
-        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
                                                             "onnx/org.openvinotoolkit/generate_proposals.onnx"));
 
@@ -675,7 +675,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_generate_proposals) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_generate_proposals_batch) {
     auto function =
-        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
                                                             "onnx/org.openvinotoolkit/generate_proposals_batch2.onnx"));
 

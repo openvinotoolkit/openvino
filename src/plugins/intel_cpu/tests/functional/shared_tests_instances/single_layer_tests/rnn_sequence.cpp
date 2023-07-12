@@ -42,7 +42,7 @@ namespace {
                                     ::testing::ValuesIn(clip),
                                     ::testing::ValuesIn(direction),
                                     ::testing::ValuesIn(netPrecisions),
-                                    ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                    ::testing::Values(ov::test::utils::DEVICE_CPU)),
                             RNNSequenceTest::getTestCaseName);
 
     INSTANTIATE_TEST_SUITE_P(smoke_RNNSequenceCommonClip, RNNSequenceTest,
@@ -56,7 +56,7 @@ namespace {
                                     ::testing::ValuesIn(clip_non_zeros),
                                     ::testing::ValuesIn(direction),
                                     ::testing::ValuesIn(netPrecisions),
-                                    ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                    ::testing::Values(ov::test::utils::DEVICE_CPU)),
                             RNNSequenceTest::getTestCaseName);
 
 }  // namespace

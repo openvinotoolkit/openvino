@@ -22,7 +22,7 @@ const std::vector<std::map<std::string, std::string>> additional_config = {{{"GN
 INSTANTIATE_TEST_SUITE_P(smoke_multi_crop_to_concat,
                          MultiCropsToConcatTest,
                          ::testing::Combine(::testing::Values(InferenceEngine::Precision::FP32),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(input_shapes),
                                             ::testing::ValuesIn(offsets),
                                             ::testing::ValuesIn(additional_config)),

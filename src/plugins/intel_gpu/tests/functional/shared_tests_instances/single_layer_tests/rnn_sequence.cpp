@@ -42,7 +42,7 @@ INSTANTIATE_TEST_SUITE_P(RNNSequenceCommonZeroClip, RNNSequenceTest,
                                 ::testing::ValuesIn(clip),
                                 ::testing::ValuesIn(direction),
                                 ::testing::ValuesIn(netPrecisions),
-                                ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_GPU)),
                         RNNSequenceTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(RNNSequenceCommonClip, RNNSequenceTest,
@@ -56,7 +56,7 @@ INSTANTIATE_TEST_SUITE_P(RNNSequenceCommonClip, RNNSequenceTest,
                                 ::testing::ValuesIn(clip_non_zeros),
                                 ::testing::ValuesIn(direction),
                                 ::testing::ValuesIn(netPrecisions),
-                                ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_GPU)),
                         RNNSequenceTest::getTestCaseName);
 
 }  // namespace

@@ -361,7 +361,7 @@ const auto params3InputsDynamic = ::testing::Combine(
         ::testing::ValuesIn(numberBatch),
         ::testing::Values(0.0f),
         ::testing::Values(false, true),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU)
+        ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 INSTANTIATE_TEST_SUITE_P(
@@ -447,7 +447,7 @@ const auto params5InputsDynamic = ::testing::Combine(
         ::testing::ValuesIn(numberBatch),
         ::testing::Values(objectnessScore),
         ::testing::Values(false, true),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU)
+        ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 INSTANTIATE_TEST_SUITE_P(

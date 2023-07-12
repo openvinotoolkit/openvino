@@ -54,7 +54,7 @@ public:
                                      std::make_shared<ngraph::opset8::Result>(mul2),
                                      std::make_shared<ngraph::opset8::Result>(mul3)};
         function = std::make_shared<ngraph::Function>(results, inputParams, "ConcatReorderInPlace");
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
     }
 };
 

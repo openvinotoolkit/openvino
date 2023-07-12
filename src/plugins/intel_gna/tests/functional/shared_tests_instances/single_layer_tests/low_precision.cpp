@@ -56,7 +56,7 @@ const std::vector<std::pair<std::string, std::map<std::string, std::string>>> co
 INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_LowPrecision,
                          GnaLowPrecisionTest,
                          ::testing::Combine(::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs)),
                          GnaLowPrecisionTest::getTestCaseName);
 }  // namespace

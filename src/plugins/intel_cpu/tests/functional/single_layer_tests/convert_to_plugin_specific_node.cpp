@@ -43,7 +43,7 @@ protected:
     size_t constNodeNum;
 
     void SetUp() override {
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
 
         SizeVector nonConstShape, constShape;
         Precision prc;

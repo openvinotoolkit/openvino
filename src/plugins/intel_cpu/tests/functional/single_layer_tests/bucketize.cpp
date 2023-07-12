@@ -87,7 +87,7 @@ protected:
         ElementType inBucketsPrc;
         ElementType netPrc;
 
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         std::tie(dataShape, bucketsShape, with_right_bound, inDataPrc, inBucketsPrc, netPrc) = this->GetParam();
         init_input_shapes({dataShape, bucketsShape});
 

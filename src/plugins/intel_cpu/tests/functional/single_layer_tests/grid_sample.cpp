@@ -85,7 +85,7 @@ protected:
 
         std::tie(inputShapes, interpolateMode, paddingMode, alignCorners, dataPrecision, gridPrecision, cpuParams, additionalConfig) = this->GetParam();
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         init_input_shapes(inputShapes);
         configuration.insert(additionalConfig.begin(), additionalConfig.end());
 

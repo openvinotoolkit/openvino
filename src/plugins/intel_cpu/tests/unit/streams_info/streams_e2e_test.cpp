@@ -55,7 +55,7 @@ void make_config(StreamGenerateionTestCase& test_data, ov::intel_cpu::Config& co
     config.streamExecutorConfig._orig_proc_type_table = test_data.input_proc_type_table;
 }
 
-class StreamGenerationTests : public CommonTestUtils::TestsCommon,
+class StreamGenerationTests : public ov::test::TestsCommon,
                               public testing::WithParamInterface<std::tuple<StreamGenerateionTestCase>> {
 public:
     void SetUp() override {

@@ -122,7 +122,7 @@ public:
 
         function = makeNgraphFunction(getNetType(), inputParams, sum, "ConvolutionSumBroadcast");
 
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
     }
 
 protected:

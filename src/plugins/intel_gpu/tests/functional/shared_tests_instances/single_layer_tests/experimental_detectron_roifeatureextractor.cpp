@@ -32,6 +32,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_ExperimentalROI_static, ExperimentalDetectronROIF
                                  ::testing::ValuesIn(pyramidScales),
                                  ::testing::Values(false),
                                  ::testing::Values(ov::element::Type_t::f32),
-                                 ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                 ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          ExperimentalDetectronROIFeatureExtractorLayerTest::getTestCaseName);
 } // namespace

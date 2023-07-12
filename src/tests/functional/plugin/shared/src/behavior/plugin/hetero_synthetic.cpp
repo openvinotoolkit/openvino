@@ -119,7 +119,7 @@ void HeteroSyntheticTest::SetUp() {
         try {
             if (pluginParameter._location == "openvino_template_plugin") {
                 PluginCache::get().ie()->RegisterPlugin(ov::util::make_plugin_library_name(
-                    CommonTestUtils::getExecutableDirectory(), pluginParameter._location + IE_BUILD_POSTFIX),
+                    ov::test::utils::getExecutableDirectory(), pluginParameter._location + IE_BUILD_POSTFIX),
                     pluginParameter._name);
             } else {
                 PluginCache::get().ie()->RegisterPlugin(pluginParameter._location

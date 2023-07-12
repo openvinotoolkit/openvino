@@ -30,7 +30,7 @@ namespace {
                                     ::testing::ValuesIn(activations),
                                     ::testing::ValuesIn(clip),
                                     ::testing::ValuesIn(netPrecisions),
-                                    ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                    ::testing::Values(ov::test::utils::DEVICE_CPU)),
                             LSTMCellTest::getTestCaseName);
 
 }  // namespace

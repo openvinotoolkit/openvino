@@ -90,7 +90,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, FakeQuantizeTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(ngraph::PartialShape({ 1, 32, 72, 48 })),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+        ::testing::Values(ov::test::utils::DEVICE_CPU),
         ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn(fakeQuantizeOnDataValues),
         ::testing::ValuesIn(isConvertOnConstants)),

@@ -23,7 +23,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, OutputLayers,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(InferenceEngine::SizeVector({ 1, 3, 16, 16 })),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU),
+        ::testing::Values(ov::test::utils::DEVICE_GPU),
         ::testing::ValuesIn(trasformationParamValues)),
     OutputLayers::getTestCaseName);
 }  // namespace

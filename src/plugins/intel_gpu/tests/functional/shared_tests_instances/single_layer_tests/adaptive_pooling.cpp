@@ -35,7 +35,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_AdaptivePooling1D, AdaPoolLayerTest,
                                  ::testing::ValuesIn(outputShapes1D),
                                  ::testing::ValuesIn(poolingModes),
                                  ::testing::ValuesIn(netPrecisions),
-                                 ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                 ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          AdaPoolLayerTest::getTestCaseName);
 
 const std::vector<std::vector<size_t>> inputShapes2D = {
@@ -53,7 +53,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_AdaptivePooling2D, AdaPoolLayerTest,
                                  ::testing::ValuesIn(outputShapes2D),
                                  ::testing::ValuesIn(poolingModes),
                                  ::testing::ValuesIn(netPrecisions),
-                                 ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                 ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          AdaPoolLayerTest::getTestCaseName);
 
 const std::vector<std::vector<size_t>> inputShapes3D = {
@@ -71,7 +71,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_AdaptivePooling3D, AdaPoolLayerTest,
                                  ::testing::ValuesIn(outputShapes3D),
                                  ::testing::ValuesIn(poolingModes),
                                  ::testing::ValuesIn(netPrecisions),
-                                 ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                 ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          AdaPoolLayerTest::getTestCaseName);
 
 }  // namespace
