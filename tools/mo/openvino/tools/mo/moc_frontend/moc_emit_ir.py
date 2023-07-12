@@ -14,7 +14,7 @@ def moc_emit_ir(ngraph_function: Model, argv: argparse.Namespace):
     apply_preprocessing(ov_function=ngraph_function, argv=argv)
 
     # Apply transformations
-    from openvino.tools.mo.moc_frontend.offline_transformations import apply_user_transformations, apply_moc_transformations, \
+    from openvino.tools.mo.back.offline_transformations import apply_user_transformations, apply_moc_transformations, \
         apply_moc_legacy_transformations, apply_fused_names_cleanup
 
     apply_moc_transformations(ngraph_function)
@@ -30,7 +30,7 @@ def moc_emit_ir(ngraph_function: Model, argv: argparse.Namespace):
     apply_user_transformations(ngraph_function, parse_transform(argv.transform))
 
     if argv.compress_to_fp16:
-        from openvino.tools.mo.moc_frontend.offline_transformations import compress_model
+        from openvino.tools.mo.back.offline_transformations import compress_model
         compress_model(ngraph_function)
 
     apply_fused_names_cleanup(ngraph_function)

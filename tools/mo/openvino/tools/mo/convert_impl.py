@@ -493,7 +493,7 @@ def emit_ir(graph: Graph, argv: argparse.Namespace, non_default_params: dict):
     return_code = "not executed"
     if not (argv.framework == 'tf' and argv.tensorflow_custom_operations_config_update):
         try:
-            from openvino.tools.mo.moc_frontend.offline_transformations import apply_offline_transformations  # pylint: disable=no-name-in-module,import-error
+            from openvino.tools.mo.back.offline_transformations import apply_offline_transformations  # pylint: disable=no-name-in-module,import-error
             func = apply_offline_transformations(func, argv)
             if "compress_to_fp16" in argv and argv.compress_to_fp16:
                 # restore data_type cmd parameter

@@ -41,6 +41,7 @@ openvino/tools/mo/back/MatMulNormalizer.py
 openvino/tools/mo/back/MaxPool.py
 openvino/tools/mo/back/names_uniqueness_check.py
 openvino/tools/mo/back/NormalizeToNormalizeL2.py
+openvino/tools/mo/back/offline_transformations.py
 openvino/tools/mo/back/op_versioning.py
 openvino/tools/mo/back/OptimizeTransposeReshapeSequence.py
 openvino/tools/mo/back/PackBinaryWeights.py
@@ -836,7 +837,6 @@ openvino/tools/mo/moc_frontend/check_config.py
 openvino/tools/mo/moc_frontend/extractor.py
 openvino/tools/mo/moc_frontend/layout_utils.py
 openvino/tools/mo/moc_frontend/moc_emit_ir.py
-openvino/tools/mo/moc_frontend/offline_transformations.py
 openvino/tools/mo/moc_frontend/paddle_frontend_utils.py
 openvino/tools/mo/moc_frontend/pipeline.py
 openvino/tools/mo/moc_frontend/pytorch_frontend_utils.py
