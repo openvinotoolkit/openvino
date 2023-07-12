@@ -44,15 +44,13 @@ void GraphCache::update_cache(const std::shared_ptr<ov::Model>& extracted_model,
         m_graph_cache.insert({ extracted_model, meta });
         return;
     }
+    m_graph_cache[model_to_update].update(model_path, input_info, model_op_cnt);
     auto cached_model_size = model_to_update->get_graph_size();
     auto pattern_model_size = extracted_model->get_graph_size();
     if (pattern_model_size < cached_model_size) {
         auto meta = m_graph_cache[model_to_update];
-        meta.update(model_path, input_info, model_op_cnt);
         m_graph_cache.erase(model_to_update);
         m_graph_cache.insert({extracted_model, meta});
-    } else {
-        m_graph_cache[model_to_update].update(model_path, input_info, model_op_cnt);
     }
 }
 

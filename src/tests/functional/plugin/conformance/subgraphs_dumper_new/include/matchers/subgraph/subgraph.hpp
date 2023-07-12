@@ -6,7 +6,10 @@
 
 #include <utility>
 
+#include "openvino/op/util/op_types.hpp"
+
 #include "common_test_utils/graph_comparator.hpp"
+
 #include "matchers/base_matcher.hpp"
 
 namespace ov {
@@ -24,7 +27,13 @@ protected:
         .enable(FunctionsComparator::NODES)
         .enable(FunctionsComparator::PRECISIONS)
         .enable(FunctionsComparator::ATTRIBUTES)
-        .enable(FunctionsComparator::SUBGRAPH_DESCRIPTORS);;
+        .enable(FunctionsComparator::SUBGRAPH_DESCRIPTORS);
+    
+    inline bool is_node_to_skip(const std::shared_ptr<ov::Node>& node) {
+        return ov::op::util::is_parameter(node) ||
+               ov::op::util::is_constant(node) ||
+               ov::op::util::is_output(node);
+    }
 };
 
 }  // namespace subgraph_dumper

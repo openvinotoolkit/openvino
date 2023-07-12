@@ -5,15 +5,7 @@
 #include <iterator>
 #include <vector>
 
-#include "matchers/single_op/single_op.hpp"
-#include "matchers/single_op/convolutions.hpp"
-
 #include "matchers/subgraph/repeat_pattern.hpp"
-
-#include "openvino/op/util/op_types.hpp"
-#include "matchers/manager.hpp"
-
-#include "utils/node.hpp"
 #include "utils/model.hpp"
 
 using namespace ov::tools::subgraph_dumper;
@@ -21,52 +13,65 @@ using namespace ov::tools::subgraph_dumper;
 std::list<ExtractedPattern>
 RepeatPatternMatcher::extract(const std::shared_ptr<ov::Model> &model) {
     std::unordered_set<std::string> checked_ops;
-    auto ordered_ops = model->get_ordered_ops();
     std::list<ExtractedPattern> to_cache;
 
-    MatchersManager::MatchersMap matchers = {
-        { "generic_single_op", SingleOpMatcher::Ptr(new SingleOpMatcher) },
-        { "convolutions", ConvolutionsMatcher::Ptr(new ConvolutionsMatcher) },
-    };
-    MatchersManager manager;
-    manager.set_matchers(matchers);
+    auto ordered_ops = model->get_ordered_ops();
+    auto op_cnt = ordered_ops.size();
 
-    for (size_t idx = 0; idx < ordered_ops.size(); ++idx) {
+    for (size_t idx = 0; idx < op_cnt; ++idx) {
         auto op = ordered_ops[idx];
         auto op_name = op->get_friendly_name();
-        if (checked_ops.count(op_name)|| ov::op::util::is_constant(op) || ov::op::util::is_parameter(op) || ov::op::util::is_output(op)) {
+        if (checked_ops.count(op_name)|| is_node_to_skip(op)) {
             continue;
         }
 
-        std::vector<size_t> tmp_buf;
-        for (size_t i = idx; i < ordered_ops.size(); ++i) {
+        std::vector<size_t> start_node_idx;
+        for (size_t i = idx; i < op_cnt; ++i) {
             if (manager.match(op, ordered_ops[i])) {
-                tmp_buf.push_back(i);
+                start_node_idx.push_back(i);
             }
         }
-        if (tmp_buf.size() < 2) {
-            checked_ops.insert(op->get_friendly_name());
+        if (start_node_idx.size() < 2) {
+            checked_ops.insert(op_name);
             continue;
         }
 
-        std::vector<std::set<std::shared_ptr<ov::Node>>> to_generate_model(tmp_buf.size());
-        for (size_t i = 0; i < tmp_buf.size(); ++i) {
-            for (size_t j = 1; j < tmp_buf.size(); ++j) {
-                size_t node_idx = tmp_buf[i], ref_node_idx = tmp_buf[j], it = 0;
-                while (node_idx + it < ordered_ops.size() && ref_node_idx + it < ordered_ops.size()) {
-                    if (manager.match(ordered_ops[node_idx + it], ordered_ops[ref_node_idx + it])) {
-                        to_generate_model[i].insert(ordered_ops[node_idx + it]);
-                        to_generate_model[j].insert(ordered_ops[ref_node_idx + it]);
+        std::vector<std::set<std::shared_ptr<ov::Node>>> nodes(start_node_idx.size());
+        for (size_t i = 0; i < start_node_idx.size(); ++i) {
+            for (size_t j = i + 1; j < start_node_idx.size(); ++j) {
+                size_t node_idx = start_node_idx[i], ref_node_idx = start_node_idx[j];
+                while (node_idx < op_cnt && ref_node_idx < op_cnt) {
+                    if (manager.match(ordered_ops[node_idx], ordered_ops[ref_node_idx])) {
+                        bool is_add_to_graph =
+                            ordered_ops[node_idx] == ordered_ops[start_node_idx[i]] &&
+                            ordered_ops[ref_node_idx] == ordered_ops[start_node_idx[j]];
+                        for (size_t in_idx = 0; in_idx < ordered_ops[node_idx]->inputs().size(); ++in_idx) {
+                            auto in_node = ordered_ops[node_idx]->get_input_node_ptr(in_idx)->shared_from_this();
+                            auto ref_in_node = ordered_ops[ref_node_idx]->get_input_node_ptr(in_idx)->shared_from_this();
+                            if (nodes[i].count(in_node) && nodes[j].count(ref_in_node)) {
+                                is_add_to_graph = true;
+                            }
+                        }
+                        if (is_add_to_graph) {
+                            nodes[i].insert(ordered_ops[node_idx]);
+                            nodes[j].insert(ordered_ops[ref_node_idx]);
+                        } else {
+                            break;
+                        }
                     }
+                    ++node_idx,
+                    ++ref_node_idx;
                 }
             }
         }
-        for (size_t i = 0; i < tmp_buf.size(); ++i) {
-            to_cache.push_back(
-                generate_model(to_generate_model[i], ordered_ops[tmp_buf[i]], checked_ops));
+        for (size_t i = 0; i < start_node_idx.size(); ++i) {
+            try {
+                to_cache.push_back(
+                    generate_model(nodes[i], ordered_ops[start_node_idx[i]], checked_ops));
+            } catch(std::exception& e) {
+                std::cout << e.what() << std::endl;
+            }
         }
     }
     return to_cache;
 }
-
-
