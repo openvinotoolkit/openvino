@@ -15,8 +15,8 @@ namespace LayerTestsDefinitions {
         std::tie(inputShapes, netPrecision, inPrc, outPrc, inLayout, outLayout, targetName, power) = obj.param;
         std::ostringstream results;
 
-        results << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
-        results << "Power=" << CommonTestUtils::vec2str(power) << "_";
+        results << "IS=" << ov::test::utils::vec2str(inputShapes) << "_";
+        results << "Power=" << ov::test::utils::vec2str(power) << "_";
         results << "netPRC=" << netPrecision.name() << "_";
         results << "inPRC=" << inPrc.name() << "_";
         results << "outPRC=" << outPrc.name() << "_";

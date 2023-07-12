@@ -72,18 +72,18 @@ public:
         std::ostringstream result;
         result << "DefConvTest(";
         result << std::to_string(obj.index) << ")_";
-        result << "IS=" << CommonTestUtils::vec2str(inputShape[0].second) << "_";
-        result << "OS=" << CommonTestUtils::vec2str(inputShape[1].second) << "_";
-        result << "FS=" << CommonTestUtils::vec2str(inputShape[2].second) << "_";
+        result << "IS=" << ov::test::utils::vec2str(inputShape[0].second) << "_";
+        result << "OS=" << ov::test::utils::vec2str(inputShape[1].second) << "_";
+        result << "FS=" << ov::test::utils::vec2str(inputShape[2].second) << "_";
         if (withModulation) {
-            result << "MS=" << CommonTestUtils::vec2str(inputShape[3].second) << "_";
+            result << "MS=" << ov::test::utils::vec2str(inputShape[3].second) << "_";
         }
         result << "G=" << groups << "_";
         result << "DG=" << deformableGroups << "_";
-        result << "S=" << CommonTestUtils::vec2str(stride) << "_";
-        result << "PB=" << CommonTestUtils::vec2str(padBegin) << "_";
-        result << "PE=" << CommonTestUtils::vec2str(padEnd) << "_";
-        result << "D=" << CommonTestUtils::vec2str(dilation) << "_";
+        result << "S=" << ov::test::utils::vec2str(stride) << "_";
+        result << "PB=" << ov::test::utils::vec2str(padBegin) << "_";
+        result << "PE=" << ov::test::utils::vec2str(padEnd) << "_";
+        result << "D=" << ov::test::utils::vec2str(dilation) << "_";
         result << "AP=" << padType << "_";
         result << "netPRC=" << netPrecision.name() << "_";
         result << "withBilPad=" << withBilinearInterpolationPad << "_";

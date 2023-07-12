@@ -25,12 +25,12 @@ std::string EltwiseLayerTest::getTestCaseName(const testing::TestParamInfo<Eltwi
 
     results << "IS=(";
     for (const auto& shape : shapes) {
-        results << CommonTestUtils::partialShape2str({shape.first}) << "_";
+        results << ov::test::utils::partialShape2str({shape.first}) << "_";
     }
     results << ")_TS=(";
     for (const auto& shape : shapes) {
         for (const auto& item : shape.second) {
-            results << CommonTestUtils::vec2str(item) << "_";
+            results << ov::test::utils::vec2str(item) << "_";
         }
     }
     results << ")_eltwiseOpType=" << eltwiseOpType << "_";

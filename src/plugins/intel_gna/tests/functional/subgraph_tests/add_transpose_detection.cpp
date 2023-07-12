@@ -40,7 +40,7 @@ public:
         for (auto const& configItem : configuration) {
             result << "_configItem=" << configItem.first << "_" << configItem.second;
         }
-        result << "_inputShape=" << CommonTestUtils::vec2str(input_shape);
+        result << "_inputShape=" << ov::test::utils::vec2str(input_shape);
         result << "_input_eltwise_type=" << input_eltwise_type;
         result << "_input_eltwise_order=" << input_eltwise_order;
 

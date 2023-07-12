@@ -16,7 +16,7 @@ namespace LayerTestsDefinitions {
     ngraph::opset4::TopK::SortType sort;
     std::tie(keepK, axis, mode, sort, netPrecision, inPrc, outPrc, inLayout, inputShape, targetDevice) = obj.param;
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShape) << "_";
     result << "k=" << keepK << "_";
     result << "axis=" << axis << "_";
     result << "mode=" << mode << "_";

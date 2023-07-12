@@ -53,8 +53,8 @@ public:
 
         std::ostringstream result;
         result << "IS=" << inputShapes << "_";
-        result << "I"  << CommonTestUtils::vec2str(indices) << "_";
-        result << "SI" << CommonTestUtils::vec2str(segmentIds) << "_";
+        result << "I"  << ov::test::utils::vec2str(indices) << "_";
+        result << "SI" << ov::test::utils::vec2str(segmentIds) << "_";
         result << "NS" << numSegments << "_";
         result << "DI" << defaultIndex << "_";
         result << "WW" << withWeights << "_";

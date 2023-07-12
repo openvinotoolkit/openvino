@@ -442,7 +442,7 @@ public:
 
         std::tie(data_shape, data_prc, pred, targetDevice) = obj.param;
         std::ostringstream result;
-        result << "IS=" << CommonTestUtils::vec2str(data_shape) << "_";
+        result << "IS=" << ov::test::utils::vec2str(data_shape) << "_";
         result << "netPRC=" << std::to_string(data_prc) << "_";
         result << "ifCond=" << pred << "_";
         result << "targetDevice=" << targetDevice << "_";
@@ -547,10 +547,10 @@ public:
         std::tie(inputShapes, bodyParams, dataPrc, condType, targetDevice) = obj.param;
         std::ostringstream result;
         result << "IS=(";
-        result << CommonTestUtils::partialShape2str({inputShapes.first}) << "_";
+        result << ov::test::utils::partialShape2str({inputShapes.first}) << "_";
         for (size_t i = 0lu; i < inputShapes.second.size(); i++) {
             result << "{";
-            result << CommonTestUtils::vec2str(inputShapes.second[i]) << "_";
+            result << ov::test::utils::vec2str(inputShapes.second[i]) << "_";
             result << "}_";
         }
         result << ")_";

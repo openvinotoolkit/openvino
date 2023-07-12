@@ -38,9 +38,9 @@ public:
 
         std::ostringstream result;
         result << "IS=";
-        result << CommonTestUtils::partialShape2str({ inputPartialShape }) << "_";
+        result << ov::test::utils::partialShape2str({ inputPartialShape }) << "_";
         result << "TS=";
-        result << CommonTestUtils::partialShape2str({inputShape});
+        result << ov::test::utils::partialShape2str({inputShape});
         result << ")_";
         result << "iterationsCount=" << iterationsNum << "_";
         result << "targetDevice=" << targetDevice;

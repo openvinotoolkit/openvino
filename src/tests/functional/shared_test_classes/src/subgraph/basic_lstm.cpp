@@ -21,7 +21,7 @@ std::string Basic_LSTM_S::getTestCaseName(const testing::TestParamInfo<basicLstm
     std::tie(netPrecision, targetDevice, configuration, size_params, num_cells, decompose, weights) = obj.param;
 
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShapes) << "_";
     result << "netPRC=" << netPrecision.name() << "_";
     result << "targetDevice=" << targetDevice;
     for (auto const& configItem : configuration) {

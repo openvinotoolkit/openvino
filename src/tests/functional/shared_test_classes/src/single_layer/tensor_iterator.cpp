@@ -49,7 +49,7 @@ namespace LayerTestsDefinitions {
         result << "batch=" << batch << "_";
         result << "hidden_size=" << hidden_size << "_";
         result << "input_size=" << input_size << "_";
-        result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
+        result << "IS=" << ov::test::utils::vec2str(inputShapes) << "_";
         result << "TensorIteratorBody=" << ti_body << "_";
         result << "direction=" << direction << "_";
         result << "clip=" << clip << "_";

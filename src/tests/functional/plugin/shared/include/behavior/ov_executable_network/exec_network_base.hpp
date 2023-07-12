@@ -399,7 +399,7 @@ TEST_P(OVExecutableNetworkBaseTest, LoadNetworkCreateDefaultExecGraphResult) {
 }
 
 TEST_P(OVExecutableNetworkBaseTest, canExport) {
-    auto ts = CommonTestUtils::GetTimestamp();
+    auto ts = ov::test::utils::GetTimestamp();
     std::string modelName = GetTestName().substr(0, CommonTestUtils::maxFileNameLength) + "_" + ts;
     auto execNet = core->compile_model(function, target_device, configuration);
     std::ofstream out(modelName, std::ios::out);

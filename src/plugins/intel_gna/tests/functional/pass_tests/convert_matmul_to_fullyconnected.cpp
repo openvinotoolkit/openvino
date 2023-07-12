@@ -37,8 +37,8 @@ public:
         for (auto const& configItem : configuration) {
             result << "_configItem=" << configItem.first << "_" << configItem.second;
         }
-        result << "_IS=" << CommonTestUtils::vec2str(inputShape[1]) << "_";
-        result << "_CS=" << CommonTestUtils::vec2str(inputShape[0]) << "_";
+        result << "_IS=" << ov::test::utils::vec2str(inputShape[1]) << "_";
+        result << "_CS=" << ov::test::utils::vec2str(inputShape[0]) << "_";
         return result.str();
     }
 
@@ -90,8 +90,8 @@ public:
         for (auto const& configItem : configuration) {
             result << "_configItem=" << configItem.first << "_" << configItem.second;
         }
-        result << "_IS=" << CommonTestUtils::vec2str(inputShape[1]) << "_";
-        result << "_CS=" << CommonTestUtils::vec2str(inputShape[0]) << "_";
+        result << "_IS=" << ov::test::utils::vec2str(inputShape[1]) << "_";
+        result << "_CS=" << ov::test::utils::vec2str(inputShape[0]) << "_";
         return result.str();
     }
 

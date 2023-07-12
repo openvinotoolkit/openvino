@@ -42,15 +42,15 @@ public:
         std::ostringstream result;
         result << "IS=(";
         for (const auto& shape : inputShapes) {
-            result << CommonTestUtils::partialShape2str({shape.first}) << "_";
+            result << ov::test::utils::partialShape2str({shape.first}) << "_";
         }
         result << ")_TS=(";
         for (const auto& shape : inputShapes) {
             for (const auto& item : shape.second) {
-                result << CommonTestUtils::vec2str(item) << "_";
+                result << ov::test::utils::vec2str(item) << "_";
             }
         }
-        result << "Repeats=" << CommonTestUtils::vec2str(repeats)  << "_";
+        result << "Repeats=" << ov::test::utils::vec2str(repeats)  << "_";
         result << "netPrec=" << netPrecision << "_";
         result << "constRepeats=" << (isRepeatsConst ? "True" : "False") << "_";
         result << "trgDev=" << deviceName;

@@ -41,7 +41,7 @@ public:
         for (auto const& configItem : configuration) {
             result << "_configItem=" << configItem.first << "_" << configItem.second;
         }
-        result << "_CIS=" << CommonTestUtils::vec2str(cropInputShape);
+        result << "_CIS=" << ov::test::utils::vec2str(cropInputShape);
         return result.str();
     }
 

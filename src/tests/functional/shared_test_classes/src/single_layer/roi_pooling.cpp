@@ -18,9 +18,9 @@ namespace LayerTestsDefinitions {
 
         std::ostringstream result;
 
-        result << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
-        result << "CS=" << CommonTestUtils::vec2str(coordsShape) << "_";
-        result << "PS=" << CommonTestUtils::vec2str(poolShape) << "_";
+        result << "IS=" << ov::test::utils::vec2str(inputShape) << "_";
+        result << "CS=" << ov::test::utils::vec2str(coordsShape) << "_";
+        result << "PS=" << ov::test::utils::vec2str(poolShape) << "_";
         result << "Scale=" << spatial_scale << "_";
         switch (pool_method) {
             case ngraph::helpers::ROIPoolingTypes::ROI_MAX:

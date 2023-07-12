@@ -39,9 +39,9 @@ public:
         for (auto const& configItem : configuration) {
             result << "_configItem=" << configItem.first << "_" << configItem.second;
         }
-        result << "_inputShape=" << CommonTestUtils::vec2str(input_shape) << "_";
-        result << "_filterShape=" << CommonTestUtils::vec2str(filter_shape) << "_";
-        result << "_paddingSize=" << CommonTestUtils::vec2str(padding_size);
+        result << "_inputShape=" << ov::test::utils::vec2str(input_shape) << "_";
+        result << "_filterShape=" << ov::test::utils::vec2str(filter_shape) << "_";
+        result << "_paddingSize=" << ov::test::utils::vec2str(padding_size);
 
         return result.str();
     }

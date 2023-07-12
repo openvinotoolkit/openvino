@@ -33,15 +33,15 @@ std::string ReduceCPULayerTest::getTestCaseName(testing::TestParamInfo<ReduceLay
     std::ostringstream result;
     result << "IS=(";
     for (const auto& shape : inputShapes) {
-        result << CommonTestUtils::partialShape2str({shape.first}) << "_";
+        result << ov::test::utils::partialShape2str({shape.first}) << "_";
     }
     result << ")_TS=(";
     for (const auto& shape : inputShapes) {
         for (const auto& item : shape.second) {
-            result << CommonTestUtils::vec2str(item) << "_";
+            result << ov::test::utils::vec2str(item) << "_";
         }
     }
-    result << ")_axes=" << CommonTestUtils::vec2str(axes) << "_";
+    result << ")_axes=" << ov::test::utils::vec2str(axes) << "_";
     result << "opType=" << opType << "_";
     result << "type=" << reductionType << "_";
     if (keepDims)

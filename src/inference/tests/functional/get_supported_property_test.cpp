@@ -68,7 +68,7 @@ static std::string getTestCaseName(const testing::TestParamInfo<TestParam>& obj)
 }
 
 TEST_P(GetPropertyTest, canGenerateCorrectPropertyList) {
-    auto plugin = std::make_shared<CommonTestUtils::MockPlugin>();
+    auto plugin = std::make_shared<ov::test::utils::MockPlugin>();
     std::shared_ptr<ov::IPlugin> base_plugin = plugin;
     reg_plugin(core, base_plugin);
     core.get_property(m_plugin_name, ov::supported_properties);

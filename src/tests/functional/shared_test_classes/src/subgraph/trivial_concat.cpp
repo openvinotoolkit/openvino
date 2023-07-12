@@ -13,7 +13,7 @@ std::string TrivialConcatLayerTest::getTestCaseName(const testing::TestParamInfo
     std::map<std::string, std::string> config;
     std::tie(inputShapes, netPrecision, targetName, config) = obj.param;
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShapes) << "_";
     result << "netPRC=" << netPrecision.name() << "_";
     result << "trgDev=" << targetName << "_";
     return result.str();

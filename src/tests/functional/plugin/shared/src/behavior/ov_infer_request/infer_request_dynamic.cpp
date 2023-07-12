@@ -45,7 +45,7 @@ std::string OVInferRequestDynamicTests::getTestCaseName(testing::TestParamInfo<O
     result << "function=" << func->get_friendly_name() << "_";
     result << "inOutShape=(";
     for (const auto& inOutShape : inOutShapes) {
-        result << "(" << CommonTestUtils::vec2str(inOutShape.first) << "_" << CommonTestUtils::vec2str(inOutShape.second) << ")";
+        result << "(" << ov::test::utils::vec2str(inOutShape.first) << "_" << ov::test::utils::vec2str(inOutShape.second) << ")";
     }
     result << ")_";
     result << "targetDevice=" << target_device << "_";

@@ -55,7 +55,7 @@ public:
         ElementType indexType;
         std::tie(shapes, inType, indexType, mergeRepeated) = obj.param;
         std::ostringstream results;
-        results << "IS=" << CommonTestUtils::partialShape2str({shapes.first}) << "_";
+        results << "IS=" << ov::test::utils::partialShape2str({shapes.first}) << "_";
         results << "TS=";
         for (const auto& shape : shapes.second) {
             size_t N;

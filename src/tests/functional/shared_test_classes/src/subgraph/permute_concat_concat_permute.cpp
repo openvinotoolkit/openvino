@@ -18,7 +18,7 @@ std::string PermuteConcatConcatPermute::getTestCaseName(
     std::tie(input_shape, net_precision, targetName) = obj.param;
     std::ostringstream results;
 
-    results << "IS=" << CommonTestUtils::vec2str(input_shape) << "_";
+    results << "IS=" << ov::test::utils::vec2str(input_shape) << "_";
     results << "netPRC=" << net_precision.name() << "_";
     results << "targetDevice=" << targetName << "_";
     return results.str();

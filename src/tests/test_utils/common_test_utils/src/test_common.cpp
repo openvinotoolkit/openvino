@@ -83,7 +83,7 @@ TestsCommon::TestsCommon()
 }
 
 std::string TestsCommon::GetTimestamp() {
-    return CommonTestUtils::GetTimestamp();
+    return ov::test::utils::GetTimestamp();
 }
 
 std::string TestsCommon::GetTestName() const {

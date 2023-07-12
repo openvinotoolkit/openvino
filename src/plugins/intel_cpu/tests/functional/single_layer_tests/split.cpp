@@ -34,15 +34,15 @@ public:
 
         std::ostringstream result;
         result << "IS=";
-        result << CommonTestUtils::partialShape2str({inputShapes.first}) << "_";
+        result << ov::test::utils::partialShape2str({inputShapes.first}) << "_";
         result << "TS=";
         for (const auto& shape : inputShapes.second) {
-            result << CommonTestUtils::vec2str(shape) << "_";
+            result << ov::test::utils::vec2str(shape) << "_";
         }
         result << "numSplits=" << numSplits << "_";
         result << "axis=" << axis << "_";
         if (!outIndices.empty()) {
-            result << "outIndices" << CommonTestUtils::vec2str(outIndices) << "_";
+            result << "outIndices" << ov::test::utils::vec2str(outIndices) << "_";
         }
         result << "netPRC=" << netPrecision << "_";
         result << CPUTestsBase::getTestCaseName(cpuParams);

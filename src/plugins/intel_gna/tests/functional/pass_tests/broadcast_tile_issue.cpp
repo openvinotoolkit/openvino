@@ -131,7 +131,7 @@ std::string LayerForEliminationCreator::GenerateLayerName(const FunctionConfig& 
     if (_contains_non_functional) {
         name << "_with_non_functional";
     }
-    name << "_" << _extra_arg_name << "=" << CommonTestUtils::vec2str(config.extra_arg);
+    name << "_" << _extra_arg_name << "=" << ov::test::utils::vec2str(config.extra_arg);
     return name.str();
 }
 
@@ -295,7 +295,7 @@ std::string BroadcastTileIssue::getTestCaseName(const testing::TestParamInfo<Tes
 
     std::stringstream test_name;
 
-    test_name << "IS=" << CommonTestUtils::vec2str(shapes.first) << "_";
+    test_name << "IS=" << ov::test::utils::vec2str(shapes.first) << "_";
     test_name << "netPRC=" << precision.get_type_name() << "_";
     test_name << "targetDevice=" << s_target_device_name << "_";
     test_name << "FunctionVariant=" << function_creator->GenerateFunctionName(func_config) << "_";

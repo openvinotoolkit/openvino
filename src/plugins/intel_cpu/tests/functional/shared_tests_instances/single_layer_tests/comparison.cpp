@@ -44,7 +44,7 @@ std::vector<ngraph::helpers::InputLayerType> secondInputTypes = {
 std::map<std::string, std::string> additional_config = {};
 
 const auto ComparisonTestParams = ::testing::Combine(
-        ::testing::ValuesIn(CommonTestUtils::combineParams(inputShapes)),
+        ::testing::ValuesIn(ov::test::utils::combineParams(inputShapes)),
         ::testing::ValuesIn(inputsPrecisions),
         ::testing::ValuesIn(comparisonOpTypes),
         ::testing::ValuesIn(secondInputTypes),

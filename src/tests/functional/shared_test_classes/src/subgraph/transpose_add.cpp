@@ -14,7 +14,7 @@ std::string TransposeAdd::getTestCaseName(testing::TestParamInfo<TransposeAddPar
     std::tie(netPrecision, targetName, input_shape, configuration) = obj.param;
     std::ostringstream results;
 
-    results << "IS=" << CommonTestUtils::vec2str(std::vector<size_t>(input_shape.begin(), input_shape.end())) << "_";
+    results << "IS=" << ov::test::utils::vec2str(std::vector<size_t>(input_shape.begin(), input_shape.end())) << "_";
     results << "netPRC=" << netPrecision.name() << "_";
     results << "targetDevice=" << targetName;
     return results.str();

@@ -19,7 +19,7 @@ std::string RandomUniformLayerTest::getTestCaseName(
     std::tie(output_shape, randomUniformTypeSpecificParams, global_seed, op_seed, targetName) = obj.param;
 
     std::ostringstream result;
-    result << "outputShape=" << CommonTestUtils::vec2str(output_shape) << "_";
+    result << "outputShape=" << ov::test::utils::vec2str(output_shape) << "_";
     result << "global_seed=" << global_seed << "_";
     result << "op_seed=" << op_seed << "_";
     result << "outputType=" << randomUniformTypeSpecificParams.precision.name() << "_";

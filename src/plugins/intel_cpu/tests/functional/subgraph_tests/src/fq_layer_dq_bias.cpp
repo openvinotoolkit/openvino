@@ -42,9 +42,9 @@ public:
         std::tie(input_shape, layer_type, extra_multiply) = obj.param;
 
         std::ostringstream result;
-        result << "IS=(" << CommonTestUtils::partialShape2str({input_shape.first}) << ")_TS=(";
+        result << "IS=(" << ov::test::utils::partialShape2str({input_shape.first}) << ")_TS=(";
         for (const auto& item : input_shape.second) {
-            result << CommonTestUtils::vec2str(item) << "_";
+            result << ov::test::utils::vec2str(item) << "_";
         }
         result << ")_layer_type=" << layer_type;
         result << ")_extra_multiply=" << extra_multiply;

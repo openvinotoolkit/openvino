@@ -27,12 +27,12 @@ std::string ConvConcatSubgraphTest::getTestCaseName(testing::TestParamInfo<convC
     ngraph::op::PadType paddingType;
     std::tie(kernelSize, strides, padBegin, padEnd, dilation, numOutChannels, paddingType, numOfGroups) = convParams;
 
-    result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
-    result << "K" << CommonTestUtils::vec2str(kernelSize) << "_";
-    result << "S" << CommonTestUtils::vec2str(strides) << "_";
-    result << "PB" << CommonTestUtils::vec2str(padBegin) << "_";
-    result << "PE" << CommonTestUtils::vec2str(padEnd) << "_";
-    result << "D=" << CommonTestUtils::vec2str(dilation) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShapes) << "_";
+    result << "K" << ov::test::utils::vec2str(kernelSize) << "_";
+    result << "S" << ov::test::utils::vec2str(strides) << "_";
+    result << "PB" << ov::test::utils::vec2str(padBegin) << "_";
+    result << "PE" << ov::test::utils::vec2str(padEnd) << "_";
+    result << "D=" << ov::test::utils::vec2str(dilation) << "_";
     result << "O=" << numOutChannels << "_";
     result << "G=" << numOfGroups << "_";
     result << "AP=" << paddingType << "_";

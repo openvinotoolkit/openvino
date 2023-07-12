@@ -18,12 +18,12 @@ std::string LrnLayerTest::getTestCaseName(const testing::TestParamInfo<lrnLayerT
 
     std::ostringstream result;
     const char separator = '_';
-    result << "IS=" << CommonTestUtils::vec2str(inputShapes) << separator;
+    result << "IS=" << ov::test::utils::vec2str(inputShapes) << separator;
     result << "Alpha=" << alpha << separator;
     result << "Beta=" << beta << separator;
     result << "Bias=" << bias << separator;
     result << "Size=" << size << separator;
-    result << "Axes=" << CommonTestUtils::vec2str(axes) << separator;
+    result << "Axes=" << ov::test::utils::vec2str(axes) << separator;
     result << "netPRC=" << netPrecision.name() << separator;
     result << "inPRC=" << inPrc.name() << separator;
     result << "outPRC=" << outPrc.name() << separator;

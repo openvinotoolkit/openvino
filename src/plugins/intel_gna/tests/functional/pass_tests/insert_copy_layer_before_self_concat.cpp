@@ -53,7 +53,7 @@ public:
                  outLayout,
                  targetName) = obj.param;
         std::ostringstream result;
-        result << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
+        result << "IS=" << ov::test::utils::vec2str(inputShape) << "_";
         result << "IN=" << inputsNum << "_";
         result << "CN=" << concatsNum << "_";
         result << "axis=" << axis << "_";

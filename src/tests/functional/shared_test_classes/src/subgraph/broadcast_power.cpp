@@ -13,7 +13,7 @@ std::string BroadcastPowerTest::getTestCaseName(const testing::TestParamInfo<Bro
     std::tie(inputs_shapes, netPrecision, targetDevice, configuration) = obj.param;
 
     std::ostringstream result;
-    result << "inputShape=" << CommonTestUtils::vec2str(inputs_shapes) << "_";
+    result << "inputShape=" << ov::test::utils::vec2str(inputs_shapes) << "_";
     result << "netPRC=" << netPrecision.name() << "_";
     result << "targetDevice=" << targetDevice << "_";
     for (auto const& configItem : configuration) {

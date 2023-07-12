@@ -48,7 +48,7 @@ public:
 
         std::ostringstream result;
         result << "IS=" << inputShapes << "_";
-        result << "I" << CommonTestUtils::vec2str(indices) << "_";
+        result << "I" << ov::test::utils::vec2str(indices) << "_";
         result << "WW" << withWeights << "_";
         result << "netPRC=" << netPrecision << "_";
         result << "indPRC=" << indPrecision << "_";

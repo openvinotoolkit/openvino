@@ -18,8 +18,8 @@ std::string ReduceOpsLayerTest::getTestCaseName(const testing::TestParamInfo<red
     std::string targetDevice;
     std::tie(axes, opType, keepDims, reductionType, netPrecision, inPrc, outPrc, inLayout, inputShape, targetDevice) = obj.param;
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
-    result << "axes=" << CommonTestUtils::vec2str(axes) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShape) << "_";
+    result << "axes=" << ov::test::utils::vec2str(axes) << "_";
     result << "opType=" << opType << "_";
     result << "type=" << reductionType << "_";
     if (keepDims) result << "KeepDims_";

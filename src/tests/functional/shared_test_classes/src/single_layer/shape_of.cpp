@@ -13,7 +13,7 @@ namespace LayerTestsDefinitions {
         std::string targetDevice;
         std::tie(inputPrecision, outputPrecision, inputShapes, targetDevice) = obj.param;
         std::ostringstream result;
-        result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
+        result << "IS=" << ov::test::utils::vec2str(inputShapes) << "_";
         result << "Precision=" << inputPrecision.name() << "_";
         result << "Output Precision=" << outputPrecision.name() << "_";
         result << "TargetDevice=" << targetDevice;

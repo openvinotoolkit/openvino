@@ -18,11 +18,11 @@ std::string MVNMultiplyAdd::getTestCaseName(const testing::TestParamInfo<mvnMult
     std::tie(shapes, dataPrecision, axesPrecision, axes, normalizeVariance, eps, epsMode, targetDevice) = obj.param;
     std::tie(inputShapes, constantShapes) = shapes;
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
-    result << "CS=" << CommonTestUtils::vec2str(constantShapes) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShapes) << "_";
+    result << "CS=" << ov::test::utils::vec2str(constantShapes) << "_";
     result << "DataPrc=" << dataPrecision.name() << "_";
     result << "AxPrc=" << axesPrecision.name() << "_";
-    result << "Ax=" << CommonTestUtils::vec2str(axes) << "_";
+    result << "Ax=" << ov::test::utils::vec2str(axes) << "_";
     result << "NormVariance=" << (normalizeVariance ? "TRUE" : "FALSE") << "_";
     result << "Eps=" << eps << "_";
     result << "EM=" << epsMode << "_";

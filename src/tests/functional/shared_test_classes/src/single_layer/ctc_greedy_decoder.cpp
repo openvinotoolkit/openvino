@@ -23,7 +23,7 @@ std::string CTCGreedyDecoderLayerTest::getTestCaseName(
     std::ostringstream result;
     const char separator = '_';
 
-    result << "IS="     << CommonTestUtils::vec2str(inputShapes) << separator;
+    result << "IS="     << ov::test::utils::vec2str(inputShapes) << separator;
     result << "netPRC=" << netPrecision.name() << separator;
     result << "inPRC=" << inPrc.name() << separator;
     result << "outPRC=" << outPrc.name() << separator;

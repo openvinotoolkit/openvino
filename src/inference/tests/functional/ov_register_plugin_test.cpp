@@ -36,7 +36,7 @@ inline void mockPlugin(ov::Core& core, std::shared_ptr<ov::IPlugin>& plugin, std
 
 TEST(RegisterPluginTests, registerNewPluginNoThrows) {
     ov::Core core;
-    auto plugin = std::make_shared<CommonTestUtils::MockPlugin>();
+    auto plugin = std::make_shared<ov::test::utils::MockPlugin>();
     std::shared_ptr<ov::IPlugin> base_plugin = plugin;
     std::shared_ptr<void> m_so;
     mockPlugin(core, base_plugin, m_so);
@@ -53,7 +53,7 @@ TEST(RegisterPluginTests, registerNewPluginNoThrows) {
 
 TEST(RegisterPluginTests, registerExistingPluginThrows) {
     ov::Core core;
-    auto plugin = std::make_shared<CommonTestUtils::MockPlugin>();
+    auto plugin = std::make_shared<ov::test::utils::MockPlugin>();
     std::shared_ptr<ov::IPlugin> base_plugin = plugin;
     std::shared_ptr<void> m_so;
     mockPlugin(core, base_plugin, m_so);

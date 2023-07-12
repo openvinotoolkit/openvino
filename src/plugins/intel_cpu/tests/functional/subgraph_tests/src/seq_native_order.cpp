@@ -74,7 +74,7 @@ public:
             result << "(bs=" << bs << "_sl=" << sl << ")_";
         }
 
-        result << "activations=" << CommonTestUtils::vec2str(activations)  << "_";
+        result << "activations=" << ov::test::utils::vec2str(activations)  << "_";
         result << "clip=" << clip << "_";
         result << "linear=" << linearBeforeReset << "_";
         result << "direction=" << direction << "_";

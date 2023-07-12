@@ -42,10 +42,10 @@ public:
         result << "Prec=" << netPr << "_";
         result << CPUTestsBase::getTestCaseName(cpuParams) << "_";
         result << "IS=";
-        result << CommonTestUtils::partialShape2str({inputShape.first}) << "_";
+        result << ov::test::utils::partialShape2str({inputShape.first}) << "_";
         result << "TS=(";
         for (const auto& shape : inputShape.second) {
-            result << CommonTestUtils::vec2str(shape) << "_";
+            result << ov::test::utils::vec2str(shape) << "_";
         }
         result << ")";
         return result.str();

@@ -20,7 +20,7 @@ std::string MatMul::getTestCaseName(testing::TestParamInfo<ov::test::snippets::M
     std::tie(input_shapes, elem_types, num_nodes, num_subgraphs, targetDevice) = obj.param;
     std::ostringstream result;
     for (size_t i = 0; i < input_shapes.size(); i++)
-        result << "IS[" << i <<"]=" << CommonTestUtils::partialShape2str({input_shapes[i]}) << "_";
+        result << "IS[" << i <<"]=" << ov::test::utils::partialShape2str({input_shapes[i]}) << "_";
     for (size_t i = 0; i < elem_types.size(); i++)
         result << "T[" << i <<"]=" << elem_types[i] << "_";
     result << "#N=" << num_nodes << "_";

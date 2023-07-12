@@ -47,10 +47,10 @@ public:
 
         std::ostringstream results;
         results << "IS=(";
-        results << CommonTestUtils::partialShape2str({inputShapes.first}) << ")_";
+        results << ov::test::utils::partialShape2str({inputShapes.first}) << ")_";
         results << "TS=";
         for (const auto& shape : inputShapes.second) {
-            results << CommonTestUtils::vec2str(shape) << "_";
+            results << ov::test::utils::vec2str(shape) << "_";
         }
         results << "Prc=" << inPrc << "_";
         switch (poolType) {
@@ -62,10 +62,10 @@ public:
                 results << "ExcludePad=" << excludePad << "_";
                 break;
         }
-        results << "K" << CommonTestUtils::vec2str(kernel) << "_";
-        results << "S" << CommonTestUtils::vec2str(stride) << "_";
-        results << "PB" << CommonTestUtils::vec2str(padBegin) << "_";
-        results << "PE" << CommonTestUtils::vec2str(padEnd) << "_";
+        results << "K" << ov::test::utils::vec2str(kernel) << "_";
+        results << "S" << ov::test::utils::vec2str(stride) << "_";
+        results << "PB" << ov::test::utils::vec2str(padBegin) << "_";
+        results << "PE" << ov::test::utils::vec2str(padEnd) << "_";
         results << "Rounding=" << roundingType << "_";
         results << "AutoPad=" << padType << "_";
         results << "INT8=" << isInt8 << "_";
@@ -150,18 +150,18 @@ public:
 
         std::ostringstream results;
         results << "IS=(";
-        results << CommonTestUtils::partialShape2str({inputShapes.first}) << ")_";
+        results << ov::test::utils::partialShape2str({inputShapes.first}) << ")_";
         results << "TS=";
         for (const auto& shape : inputShapes.second) {
-            results << CommonTestUtils::vec2str(shape) << "_";
+            results << ov::test::utils::vec2str(shape) << "_";
         }
         results << "Prc=" << inPrc << "_";
         results << "MaxPool_";
-        results << "K" << CommonTestUtils::vec2str(kernel) << "_";
-        results << "S" << CommonTestUtils::vec2str(stride) << "_";
-        results << "D" << CommonTestUtils::vec2str(dilation) << "_";
-        results << "PB" << CommonTestUtils::vec2str(padBegin) << "_";
-        results << "PE" << CommonTestUtils::vec2str(padEnd) << "_";
+        results << "K" << ov::test::utils::vec2str(kernel) << "_";
+        results << "S" << ov::test::utils::vec2str(stride) << "_";
+        results << "D" << ov::test::utils::vec2str(dilation) << "_";
+        results << "PB" << ov::test::utils::vec2str(padBegin) << "_";
+        results << "PE" << ov::test::utils::vec2str(padEnd) << "_";
         results << "Rounding=" << roundingType << "_";
         results << "AutoPad=" << padType << "_";
 

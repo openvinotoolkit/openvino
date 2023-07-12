@@ -80,9 +80,9 @@ public:
 
         std::ostringstream result;
         result << "_input_shape_" << testValues.inputPartialShape << "_before_"
-               << CommonTestUtils::vec2str(testValues.reshape_before_val) << "_transpose_"
-               << CommonTestUtils::vec2str(testValues.transpose_val) << "_after_"
-               << CommonTestUtils::vec2str(testValues.reshape_after_val)
+               << ov::test::utils::vec2str(testValues.reshape_before_val) << "_transpose_"
+               << ov::test::utils::vec2str(testValues.transpose_val) << "_after_"
+               << ov::test::utils::vec2str(testValues.reshape_after_val)
                << (testValues.check_values ? "check_reshape_values" : "");
 
         return result.str();

@@ -46,18 +46,18 @@ public:
         result << "EyeTest_";
         result << "IS=(";
         for (const auto& shape : inputShape) {
-            result << CommonTestUtils::partialShape2str({shape.first}) << "_";
+            result << ov::test::utils::partialShape2str({shape.first}) << "_";
         }
         result << ")_TS=(";
         for (const auto& shape : inputShape) {
             for (const auto& item : shape.second) {
-                result << CommonTestUtils::vec2str(item) << "_";
+                result << ov::test::utils::vec2str(item) << "_";
             }
         }
         result << "rowNum=" << eyePar[0] << "_";
         result << "colNum=" << eyePar[1] << "_";
         result << "diagShift=" << eyePar[2] << "_";
-        result << "batchShape=" << CommonTestUtils::vec2str(outBatchShape) << "_";
+        result << "batchShape=" << ov::test::utils::vec2str(outBatchShape) << "_";
         result << netPr << "_";
         result << CPUTestsBase::getTestCaseName(cpuParams) << "_";
         result << std::to_string(obj.index);

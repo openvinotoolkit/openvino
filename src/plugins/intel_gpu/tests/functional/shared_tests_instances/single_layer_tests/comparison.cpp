@@ -44,7 +44,7 @@ const std::map<std::string, std::string> additional_config = {};
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs,
                          ComparisonLayerTest,
-                         ::testing::Combine(::testing::ValuesIn(CommonTestUtils::combineParams(inputShapes)),
+                         ::testing::Combine(::testing::ValuesIn(ov::test::utils::combineParams(inputShapes)),
                                             ::testing::ValuesIn(inputsPrecisions),
                                             ::testing::ValuesIn(comparisonOpTypes),
                                             ::testing::ValuesIn(secondInputTypes),

@@ -18,8 +18,8 @@ std::string EmbeddingBagPackedSumLayerTest::getTestCaseName(const testing::TestP
     std::tie(embTableShape, indices, withWeights) = params;
 
     std::ostringstream result;
-    result << "ETS=" << CommonTestUtils::vec2str(embTableShape) << "_";
-    result << "I" << CommonTestUtils::vec2str(indices) << "_";
+    result << "ETS=" << ov::test::utils::vec2str(embTableShape) << "_";
+    result << "I" << ov::test::utils::vec2str(indices) << "_";
     result << "WW" << withWeights << "_";
     result << "netPRC=" << netPrecision.name() << "_";
     result << "indPRC=" << indPrecision.name() << "_";

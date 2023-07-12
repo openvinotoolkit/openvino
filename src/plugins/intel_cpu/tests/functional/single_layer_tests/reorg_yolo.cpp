@@ -29,9 +29,9 @@ public:
         TargetDevice targetDev;
         std::tie(inputShape, stride, netPrecision, targetDev) = obj.param;
         std::ostringstream result;
-        result << "IS=" << CommonTestUtils::partialShape2str({inputShape.first}) << "_";
+        result << "IS=" << ov::test::utils::partialShape2str({inputShape.first}) << "_";
         for (const auto& item : inputShape.second) {
-            result << CommonTestUtils::vec2str(item) << "_";
+            result << ov::test::utils::vec2str(item) << "_";
         }
         result << "stride=" << stride << "_";
         result << "netPRC=" << netPrecision << "_";

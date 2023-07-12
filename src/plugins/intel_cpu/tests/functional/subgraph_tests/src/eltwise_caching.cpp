@@ -89,23 +89,23 @@ public:
 
         results << "IS=(";
         for (const auto& shape : eltwiseInputShapes) {
-            results << CommonTestUtils::partialShape2str({shape.first}) << "_";
+            results << ov::test::utils::partialShape2str({shape.first}) << "_";
         }
         results << ")_TS=(";
         for (const auto& shape : eltwiseInputShapes) {
             for (const auto& item : shape.second) {
-                results << CommonTestUtils::vec2str(item) << "_";
+                results << ov::test::utils::vec2str(item) << "_";
             }
         }
         if (withQuantization) {
             results << ")_FQS=(";
             for (const auto& shape : fqInputShapes) {
-                results << CommonTestUtils::vec2str(shape) << "_";
+                results << ov::test::utils::vec2str(shape) << "_";
             }
         }
         if (needReshape) {
             results << ")_RS=(";
-            results << CommonTestUtils::vec2str(reshapeShape) << "_";
+            results << ov::test::utils::vec2str(reshapeShape) << "_";
         }
         results << ")_";
         for (size_t i = 0; i < inputPrecisions.size(); i++) {
