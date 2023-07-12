@@ -118,7 +118,6 @@ ov::Any ov::hetero::Plugin::get_property(const std::string& name, const ov::AnyM
 
     const auto& default_ro_properties = []() {
         std::vector<ov::PropertyName> ro_properties{ov::supported_properties,
-                                                    ov::caching_properties,
                                                     ov::device::full_name,
                                                     ov::device::capabilities
                                                     };
@@ -155,12 +154,15 @@ ov::Any ov::hetero::Plugin::get_property(const std::string& name, const ov::AnyM
         supported_properties.insert(supported_properties.end(), ro_properties.begin(), ro_properties.end());
         supported_properties.insert(supported_properties.end(), rw_properties.begin(), rw_properties.end());
         return decltype(ov::supported_properties)::value_type(supported_properties);
+    } else if (ov::internal::supported_properties == name) {
+        return decltype(ov::internal::supported_properties)::value_type{
+            ov::PropertyName{ov::internal::caching_properties.name(), ov::PropertyMutability::RO}};
     } else if (ov::device::full_name == name) {
         return decltype(ov::device::full_name)::value_type{"HETERO"};
     } else if (METRIC_KEY(IMPORT_EXPORT_SUPPORT) == name) {
         return true;
-    } else if (ov::caching_properties == name) {
-        return decltype(ov::caching_properties)::value_type{ov::hetero::caching_device_properties.name()};
+    } else if (ov::internal::caching_properties == name) {
+        return decltype(ov::internal::caching_properties)::value_type{ov::hetero::caching_device_properties.name()};
     } else if (ov::hetero::caching_device_properties == name) {
         return caching_device_properties(full_config.device_priorities);
     } else if (ov::device::capabilities == name) {
@@ -178,9 +180,11 @@ ov::Any ov::hetero::Plugin::caching_device_properties(const std::string& device_
         ov::AnyMap properties = {};
         auto supported_properties =
             get_core()->get_property(device_name, ov::supported_properties);
-        if (ov::util::contains(supported_properties, ov::caching_properties)) {
+        auto supported_internal_properties =
+            get_core()->get_property(device_name, ov::internal::supported_properties);
+        if (ov::util::contains(supported_internal_properties, ov::internal::caching_properties)) {
             auto caching_properties =
-                get_core()->get_property(device_name, ov::caching_properties);
+                get_core()->get_property(device_name, ov::internal::caching_properties);
             for (const auto& property_name : caching_properties) {
                 properties[property_name] = get_core()->get_property(device_name, std::string(property_name), {});
             }
