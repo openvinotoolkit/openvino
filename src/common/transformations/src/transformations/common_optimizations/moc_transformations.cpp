@@ -19,7 +19,6 @@
 #include <transformations/common_optimizations/convolution_to_group_convolution_fusion.hpp>
 #include <transformations/common_optimizations/depth_to_space_fusion.hpp>
 #include <transformations/common_optimizations/dilated_convolution_converter.hpp>
-#include <transformations/common_optimizations/dimension_tracking.hpp>
 #include <transformations/common_optimizations/disable_random_uniform_constant_folding.hpp>
 #include <transformations/common_optimizations/disable_shapeof_constant_folding.hpp>
 #include <transformations/common_optimizations/divide_fusion.hpp>
@@ -84,7 +83,6 @@
 #include <transformations/smart_reshape/reshape_sinking.hpp>
 
 #include "itt.hpp"
-#include "openvino/pass/visualize_tree.hpp"
 
 bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     RUN_ON_FUNCTION_SCOPE(MOCTransformations);
