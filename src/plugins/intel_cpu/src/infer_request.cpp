@@ -105,7 +105,7 @@ void InferRequestBase::PushStates() {
                     auto cur_state_mem = cur_node->getStore();
                     auto data_ptr = state->GetState()->cbuffer().as<void*>();
                     auto data_size = state->GetState()->byteSize();
-                    auto cur_state_mem_buf = static_cast<uint8_t*>(cur_state_mem->GetPtr());
+                    auto cur_state_mem_buf = static_cast<uint8_t*>(cur_state_mem->getData());
 
                     cpu_memcpy(cur_state_mem_buf, data_ptr, data_size);
                 }
@@ -127,7 +127,7 @@ void InferRequestBase::PullStates() {
                     auto cur_state_mem = cur_node->getStore();
                     auto data_ptr = state->GetState()->cbuffer().as<void*>();
                     auto data_size = state->GetState()->byteSize();
-                    auto cur_state_mem_buf = static_cast<uint8_t*>(cur_state_mem->GetPtr());
+                    auto cur_state_mem_buf = static_cast<uint8_t*>(cur_state_mem->getData());
 
                     cpu_memcpy(data_ptr, cur_state_mem_buf, data_size);
                 }
@@ -193,8 +193,12 @@ std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> InferRequestB
     return perfMap;
 }
 
-static inline void changeEdgePtr(const EdgePtr &edge, void *newPtr) {
-    edge->getMemoryPtr()->setDataHandle(newPtr);
+static inline void changeEdgePtr(const EdgePtr &edge, InferenceEngine::Blob::Ptr blob) {
+    auto size = blob->byteSize();
+    auto& mem = edge->getMemory();
+    auto memMngr = mem.getMemoryMngr();
+    IE_ASSERT(memMngr);
+    memMngr->setExtBuff(blob->buffer(), size);
 }
 
 void InferRequestBase::changeDefaultPtr() {
@@ -203,10 +207,10 @@ void InferRequestBase::changeDefaultPtr() {
         auto input = inputNodesMap.find(it.first);
         if (input != inputNodesMap.end()) {
             NodePtr inputNodePtr = input->second;
-            if (inputNodePtr->getChildEdgeAt(0)->getMemory().GetData() == it.second)
+            if (inputNodePtr->getChildEdgeAt(0)->getMemory().getData() == static_cast<void*>(it.second->buffer()))
                 continue;
             auto& childEdges = inputNodePtr->getChildEdges();
-            // Input cannot be in-place with other primitives
+            // Perform checks that the user's memory will not be modified
             bool canBeInPlace = true;
             for (auto& childEdge : childEdges) {
                 auto ce = childEdge.lock();
@@ -220,39 +224,22 @@ void InferRequestBase::changeDefaultPtr() {
                     break;
                 }
 
-                if (child->getType() == Type::Concatenation) {
-                    auto concat = dynamic_cast<node::Concat*>(child.get());
-                    if (concat && concat->isOptimized()) {
-                        canBeInPlace = false;
-                        break;
-                    }
-                }
-
-                // Cannot be in-place before split because split is using different ptrs without offsets
-                if (child->getType() == Type::Split) {
+                // the input memory should be referenced by the children, otherwise it should be written to a
+                // specific location
+                if (ce->inPlace(Edge::LOOK_DOWN)) {
                     canBeInPlace = false;
                     break;
                 }
 
-                if (child->isInPlace()) {
+                if (auto result = ce->modifiedInPlace()) {
                     canBeInPlace = false;
                     break;
                 }
 
-                auto& edges = child->getChildEdges();
-                for (auto& edge : edges) {
-                    auto e = edge.lock();
-                    if (!e)
-                        IE_THROW() << "Node " << child->getName() << " contains empty child edge";
-
-                    if (e->getMemory().GetData() == ce->getMemory().GetData()) {
-                        canBeInPlace = false;
-                        break;
-                    }
-                }
-
-                if (!canBeInPlace)
+                if (child->getType() == Type::Concatenation && child->isInPlace()) {
+                    canBeInPlace = false;
                     break;
+                }
             }
             if (canBeInPlace) {
                 for (auto& edge : childEdges) {
@@ -263,7 +250,6 @@ void InferRequestBase::changeDefaultPtr() {
                     changeEdgePtr(e, it.second);
                 }
             }
-
             continue;
         }
 
@@ -271,11 +257,11 @@ void InferRequestBase::changeDefaultPtr() {
         auto output = outputNodesMap.find(it.first);
         if (output != outputNodesMap.end()) {
             auto parentEdge = output->second->getParentEdgeAt(0);
-            if (parentEdge->getMemory().GetData() == it.second)
+            if (parentEdge->getMemory().getData() == static_cast<void*>(it.second->buffer()))
                 continue;
 
             bool canBeInPlace = true;
-            void* defaultPtr = parentEdge->getMemory().GetData();
+            void* defaultPtr = parentEdge->getMemory().getData();
             // Cannot be in-place after concat because concat is using different ptrs without offsets
             auto parent = parentEdge->getParent();
             NodePtr previousParent;
@@ -292,7 +278,7 @@ void InferRequestBase::changeDefaultPtr() {
                     if (!e)
                         IE_THROW() << "Node " << parent->getName() << " contains empty parent edge";
 
-                    if (e->getMemory().GetData() == defaultPtr) {
+                    if (e->getMemory().getData() == defaultPtr) {
                         parent = e->getParent();
                         break;
                     }
@@ -360,16 +346,16 @@ void LegacyInferRequest::changeDefaultPtr() {
     for (auto &it : inMap) {
         const auto &name = it.first;
         auto itr = externalPtr.find(name);
-        if (itr != externalPtr.end() && itr->second != _inputs[name]->buffer()) {
-            itr->second = _inputs[name]->buffer();
+        if (itr != externalPtr.end() && !(itr->second->buffer() == _inputs[name]->buffer())) {
+            itr->second = _inputs[name];
         }
     }
     const auto &outMap = graph->outputNodesMap;
     for (auto &it : outMap) {
         const auto &name = it.first;
         auto itr = externalPtr.find(name);
-        if (itr != externalPtr.end() && itr->second != _outputs[name]->buffer()) {
-            itr->second = _outputs[name]->buffer();
+        if (itr != externalPtr.end() && !(itr->second->buffer() == _outputs[name]->buffer())) {
+            itr->second = _outputs[name];
         }
     }
     InferRequestBase::changeDefaultPtr();
@@ -436,7 +422,7 @@ void LegacyInferRequest::SetBlob(const std::string& name, const InferenceEngine:
             auto pBlobDesc = MemoryDescUtils::interpretAsBlobDesc(graph->getInputNodeByName(name)->getChildEdgesAtPort(0)[0]->getMemory());
             if (data->getTensorDesc() == pBlobDesc &&
                 graph->_normalizePreprocMap.find(name) == graph->_normalizePreprocMap.end()) {
-                externalPtr[name] = data->buffer();
+                externalPtr[name] = data;
             } else if (externalPtr.find(name) != externalPtr.end()) {
                 externalPtr.erase(name);
             }
@@ -469,7 +455,7 @@ void LegacyInferRequest::SetBlob(const std::string& name, const InferenceEngine:
 
         auto pBlobDesc = MemoryDescUtils::interpretAsBlobDesc(graph->getOutputNodeByName(name)->getParentEdgesAtPort(0)[0]->getMemory());
         if (data->getTensorDesc() == pBlobDesc) {
-            externalPtr[name] = data->buffer();
+            externalPtr[name] = data;
         } else if (externalPtr.find(name) != externalPtr.end()) {
             externalPtr.erase(name);
         }
@@ -514,7 +500,7 @@ InferenceEngine::Blob::Ptr LegacyInferRequest::GetBlob(const std::string& name) 
             _inputs[name]->allocate();
             if (pBlob->getTensorDesc() == desc &&
                 graph->_normalizePreprocMap.find(name) == graph->_normalizePreprocMap.end()) {
-                externalPtr[name] = _inputs[name]->buffer();
+                externalPtr[name] = _inputs[name];
             }
         }
         data = _inputs[name];
@@ -576,7 +562,7 @@ InferenceEngine::Blob::Ptr LegacyInferRequest::GetBlob(const std::string& name) 
 
             _outputs[name] = data;
             if (!externalPtr.count(name) && data->getTensorDesc() == pBlobDesc) {
-                externalPtr[name] = data->buffer();
+                externalPtr[name] = data;
             }
         }
         data = _outputs[name];
@@ -692,8 +678,8 @@ void InferRequest::SetBlob(const std::string& name, const InferenceEngine::Blob:
                                                                                                                 blobDesc.getDims());
         }
         if (actualDesc->isCompatible(MemoryDescUtils::convertToCpuBlockedMemoryDesc(blobDesc)) &&
-                graph->_normalizePreprocMap.find(name) == graph->_normalizePreprocMap.end()) {
-            externalPtr[name] = data->buffer();
+            graph->_normalizePreprocMap.find(name) == graph->_normalizePreprocMap.end()) {
+            externalPtr[name] = data;
         } else if (externalPtr.find(name) != externalPtr.end()) {
             externalPtr.erase(name);
         }
@@ -725,7 +711,7 @@ void InferRequest::SetBlob(const std::string& name, const InferenceEngine::Blob:
 
         const auto &desc = graph->getOutputNodeByName(name)->getParentEdgesAtPort(0)[0]->getMemory().getDesc();
         if (!isDynamic && blobDesc == MemoryDescUtils::convertToTensorDesc(desc)) {
-            externalPtr[name] = data->buffer();
+            externalPtr[name] = data;
         } else if (externalPtr.find(name) != externalPtr.end()) {
             externalPtr.erase(name);
         }
@@ -772,8 +758,8 @@ InferenceEngine::Blob::Ptr InferRequest::GetBlob(const std::string& name) {
 
                 if (!isDynamic &&
                     desc == MemoryDescUtils::convertToTensorDesc(graph->getInputNodeByName(name)->getChildEdgesAtPort(0)[0]->getMemory().getDesc()) &&
-                        graph->_normalizePreprocMap.find(name) == graph->_normalizePreprocMap.end()) {
-                    externalPtr[name] = _inputs[name]->buffer();
+                    graph->_normalizePreprocMap.find(name) == graph->_normalizePreprocMap.end()) {
+                    externalPtr[name] = _inputs[name];
                 }
             } else {
                 IE_THROW() << "Blob with name: " << name << " exists in CPU plugin graph, but absents in network inputs";
@@ -832,7 +818,7 @@ InferenceEngine::Blob::Ptr InferRequest::GetBlob(const std::string& name) {
                 _outputs[name] = data;
                 if (!isDynamic && !externalPtr.count(name) &&
                     data->getTensorDesc() == MemoryDescUtils::convertToTensorDesc(output->second->getParentEdgesAtPort(0)[0]->getMemory().getDesc())) {
-                    externalPtr[name] = data->buffer();
+                    externalPtr[name] = data;
                 }
             } else {
                 IE_THROW() << "Blob with name: " << name << " exists in CPU plugin graph, but absents in network outputs";

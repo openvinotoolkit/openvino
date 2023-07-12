@@ -207,12 +207,7 @@ void regclass_Tensor(py::module m) {
     cls.def_property_readonly(
         "data",
         [](ov::Tensor& self) {
-            auto ov_type = self.get_element_type();
-            auto dtype = Common::ov_type_to_dtype().at(ov_type);
-            if (ov_type.bitwidth() < Common::values::min_bitwidth) {
-                return py::array(dtype, self.get_byte_size(), self.data(), py::cast(self));
-            }
-            return py::array(dtype, self.get_shape(), self.get_strides(), self.data(), py::cast(self));
+            return Common::array_helpers::array_from_tensor(std::forward<ov::Tensor>(self), true);
         },
         R"(
             Access to Tensor's data.

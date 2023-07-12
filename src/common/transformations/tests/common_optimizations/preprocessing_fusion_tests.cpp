@@ -18,6 +18,7 @@
 #include <transformations/init_node_info.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
+#include "openvino/opsets/opset12.hpp"
 
 using namespace testing;
 using namespace ngraph;
@@ -187,6 +188,69 @@ TEST_F(TransformationTestsF, RICFusionHard) {
         //       0            1            2                 2              1            0
         // [0, 1, 2, 3]-[4, 5, 6, 7]-[8, 9, 10, 11] -> [8, 9, 10, 11]-[4, 5, 6, 7]-[0, 1, 2, 3]
         auto gconv = create_group_conv_with_gather(prelu, {3, 4, 1, 3, 3}, {2, 1, 0});
+
+        auto pow = std::make_shared<Power>(gconv, Constant::create(element::f32, Shape{}, {-1.0f}));
+        auto convert1 = std::make_shared<Convert>(pow, element::f16);
+        auto convert2 = std::make_shared<Convert>(convert1, element::f32);
+
+        auto gconv2 = create_group_conv_with_gather(convert2, {12, 1, 1, 3, 3}, {8, 9, 10, 11, 4, 5, 6, 7, 0, 1, 2, 3});
+
+        auto conv = create_conv_with_gather(gconv2, {6, 12, 3, 3}, {8, 9, 10, 11, 4, 5, 6, 7, 0, 1, 2, 3});
+        auto conv2 = create_conv_with_gather(input2, {6, 3, 3, 3}, {2, 1, 0});
+
+        function_ref = std::make_shared<Function>(NodeVector{conv, conv2}, ParameterVector{input, input2});
+    }
+
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
+}
+
+TEST_F(TransformationTestsF, RICFusionHardNegativePad12) {
+    {
+        auto input = create_param({-1, -1, -1, -1});
+        auto relu = std::make_shared<Relu>(input);
+
+        auto input2 = create_param({-1, 3, -1, -1});
+        auto split = std::make_shared<Split>(input2, Constant::create(element::i64, {}, {1}), 3);
+        auto concat = std::make_shared<Concat>(OutputVector{split->output(2), split->output(1), split->output(0)}, 1);
+        auto eltwise = std::make_shared<Add>(relu, concat);
+
+        auto pads_begin = Constant::create(element::i64, Shape{4}, {0, 0, 0, -1});
+        auto pads_end = Constant::create(element::i64, Shape{4}, {0, 0, 0, -1});
+        auto pad = std::make_shared<ov::op::v12::Pad>(eltwise, pads_begin, pads_end, op::PadMode::CONSTANT);
+
+        auto gconv = create_group_conv(pad, {3, 4, 1, 3, 3});
+
+        auto pow = std::make_shared<Power>(gconv, Constant::create(element::f32, Shape{}, {-1.0f}));
+        auto convert1 = std::make_shared<Convert>(pow, element::f16);
+        auto convert2 = std::make_shared<Convert>(convert1, element::f32);
+
+        auto gconv2 = create_group_conv(convert2, {12, 1, 1, 3, 3});
+
+        auto conv = create_conv(gconv2, {6, 12, 3, 3});
+        auto conv2 = create_conv(concat, {6, 3, 3, 3});
+
+        function = std::make_shared<Function>(NodeVector{conv, conv2}, ParameterVector{input, input2});
+
+        apply_reverse_input_channels(function, {{0, "NCHW"}});
+
+        manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
+    }
+    {
+        auto input = create_param({-1, -1, -1, -1});
+        auto relu = std::make_shared<Relu>(input);
+
+        auto input2 = create_param({-1, 3, -1, -1});
+        auto eltwise = std::make_shared<Add>(relu, input2);
+
+        auto pads_begin = Constant::create(element::i64, Shape{4}, {0, 0, 0, -1});
+        auto pads_end = Constant::create(element::i64, Shape{4}, {0, 0, 0, -1});
+        auto pad = std::make_shared<ov::op::v12::Pad>(eltwise, pads_begin, pads_end, op::PadMode::CONSTANT);
+
+        //       0            1            2                 2              1            0
+        // [0, 1, 2, 3]-[4, 5, 6, 7]-[8, 9, 10, 11] -> [8, 9, 10, 11]-[4, 5, 6, 7]-[0, 1, 2, 3]
+        auto gconv = create_group_conv_with_gather(pad, {3, 4, 1, 3, 3}, {2, 1, 0});
 
         auto pow = std::make_shared<Power>(gconv, Constant::create(element::f32, Shape{}, {-1.0f}));
         auto convert1 = std::make_shared<Convert>(pow, element::f16);

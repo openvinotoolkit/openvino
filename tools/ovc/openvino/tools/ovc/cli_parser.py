@@ -1492,7 +1492,7 @@ def split_inputs(input_str):
 
 def split_shapes(argv_input_shape: str):
     range_reg = r'([0-9]*\.\.[0-9]*)'
-    first_digit_reg = r'([0-9 ]+|-1|\?|{})'.format(range_reg)
+    first_digit_reg = r'([0-9 ]*|-1|\?|{})'.format(range_reg)
     next_digits_reg = r'(,{})*'.format(first_digit_reg)
     tuple_reg = r'((\({}{}\))|(\[{}{}\]))'.format(first_digit_reg, next_digits_reg,
                                                   first_digit_reg, next_digits_reg)
@@ -1500,7 +1500,7 @@ def split_shapes(argv_input_shape: str):
     full_reg = r'^{}(\s*,\s*{})*$|^$'.format(tuple_reg, tuple_reg)
     if not re.match(full_reg, argv_input_shape):
         raise Error('Input shape "{}" cannot be parsed. ' + refer_to_faq_msg(57), argv_input_shape)
-    return re.findall(r'[(\[]([0-9,\.\? -]+)[)\]]', argv_input_shape)
+    return re.findall(r'[(\[]([0-9,\.\? -]*)[)\]]', argv_input_shape)
 
 def get_placeholder_shapes(argv_input: str, argv_input_shape: str, argv_batch=None):
     """
@@ -1581,7 +1581,7 @@ def get_placeholder_shapes(argv_input: str, argv_input_shape: str, argv_batch=No
         # clean inputs from values for freezing
         inputs_without_value = list(map(lambda x: x.split('->')[0], inputs))
         placeholder_shapes = dict(zip_longest(inputs_without_value,
-                                              map(lambda x: PartialShape(x) if x else None, shapes)))
+                                              map(lambda x: PartialShape(x) if x is not None else None, shapes)))
         for inp in inputs:
             if '->' not in inp:
                 inputs_list.append(inp)
