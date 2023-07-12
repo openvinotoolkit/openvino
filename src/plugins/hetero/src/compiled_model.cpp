@@ -8,7 +8,6 @@
 
 #include "async_infer_request.hpp"
 #include "graph_debug_dump.hpp"
-#include "ie_algorithm.hpp"
 #include "ie_plugin_config.hpp"
 #include "itt.hpp"
 #include "openvino/op/util/op_types.hpp"
@@ -66,7 +65,7 @@ ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model
             auto& nodeInfo = node->get_rt_info();
             auto itInfo = nodeInfo.find("affinity");
             if (itInfo != nodeInfo.end()) {
-                OPENVINO_ASSERT(itInfo->second.is<std::string>());
+                OPENVINO_ASSERT(itInfo->second.is<std::string>(), "Unexpected type of \"affinity\" attribute");
                 queryNetworkResult.emplace(node->get_friendly_name(), itInfo->second.as<std::string>());
                 allEmpty = false;
             }
@@ -106,7 +105,7 @@ ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model
                                "It happened because these layers are not supported in plugins by default.\n",
                                "You need to implement custom layers to support them.");
             } else {
-                OPENVINO_THROW("Network passed to CompiledModel has affinity assigned, but some layers eg: \n(Name:",
+                OPENVINO_THROW("Model passed to CompiledModel has affinity assigned, but some layers eg: \n(Name:",
                                node->get_friendly_name(),
                                ", Type: ",
                                node->get_type_name(),
@@ -180,9 +179,8 @@ ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model
         };
 
         // Split cyclic dependencies.
-        for (std::size_t prevSubgraphs = 0, cyclicSplitStep = 0; prevSubgraphs != subgraphInputs.size();
-             ++cyclicSplitStep) {
-            OPENVINO_ASSERT(cyclicSplitStep < orderedOps.size());
+        for (size_t prevSubgraphs = 0, cyclicSplitStep = 0; prevSubgraphs != subgraphInputs.size(); ++cyclicSplitStep) {
+            OPENVINO_ASSERT(cyclicSplitStep < orderedOps.size(), "Cannot resolve cycles during submodels split");
             prevSubgraphs = subgraphInputs.size();
             auto subgraphIds = CollectSubgraphs();
             // All inputs that belong to the same subgraph as node
@@ -401,7 +399,7 @@ ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model
 
         m_compiled_submodels.resize(orderedSubgraphs.size());
         std::vector<std::shared_ptr<ov::Model>> subFunctions(orderedSubgraphs.size());
-        int id = 0;
+        size_t id = 0;
         for (const auto& subgraph : orderedSubgraphs) {
             m_compiled_submodels[id].device = subgraph._affinity;
             subFunctions[id] = std::make_shared<ov::Model>(subgraph._results,
