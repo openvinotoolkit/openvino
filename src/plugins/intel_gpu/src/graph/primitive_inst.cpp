@@ -13,7 +13,6 @@
 #include "crop_inst.h"
 #include "pooling_inst.h"
 #include "permute_inst.h"
-#include "proposal_inst.h"
 #include "resample_inst.h"
 #include "reshape_inst.h"
 #include "eltwise_inst.h"
@@ -1135,10 +1134,6 @@ memory::ptr primitive_inst::allocate_output(engine& _engine, memory_pool& pool, 
     // For outputs, cpu prim we want to have lockable alloc type
     // Also if the successor of a node is an cpu, then memory needs to be lockable.
     bool is_cpu = _node.get_selected_impl() ? _node.get_selected_impl()->is_cpu() : false;
-    // WA: Since proposal only have cpu impl, if selected_impl of node is empty
-    //     We need to set it to be selected as lockable memory type manually
-    if (_node.is_type<proposal>() && !_node.get_selected_impl())
-        is_cpu = true;
     auto use_lockable_memory = is_output_buffer|| is_cpu || is_any_user_cpu(_node.get_users()) ||
                                !_engine.supports_allocation(allocation_type::usm_device) ||
                                (_node.is_shape_infer_dep() && _engine.get_device_info().dev_type == device_type::integrated_gpu);
