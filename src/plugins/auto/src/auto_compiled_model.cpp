@@ -161,7 +161,7 @@ ov::Any AutoCompiledModel::get_property(const std::string& name) const {
                             m_context->m_ov_core->get_property(device_info.device_name, ov::range_for_streams);
                         upper_bound_streams_num = std::get<1>(range_of_streams);
                     } catch (const ov::Exception&) {
-                        LOG_DEBUG_TAG("get_property range_for_streams failed");
+                        LOG_DEBUG_TAG("get_property range_for_streams from %s failed", device_info.device_name.c_str());
                     }
                 }
                 if (!m_context->m_batching_disabled) {
@@ -174,7 +174,9 @@ ov::Any AutoCompiledModel::get_property(const std::string& name) const {
                                                                                     {ov::hint::model(m_model)});
                             LOG_DEBUG_TAG("BATCHING:%s:%ld", "optimal batch size", optimal_batch_size);
                         } catch (const ov::Exception&) {
-                            LOG_DEBUG_TAG("BATCHING:%s", "property optimal_batch_size not supported");
+                            LOG_DEBUG_TAG("BATCHING:%s by device %s",
+                                          "property optimal_batch_size not supported",
+                                          device_info.device_name.c_str());
                         }
                     }
                 }
