@@ -13,11 +13,14 @@ The Intel® Gaussian & Neural Accelerator (GNA) is a low-power neural coprocesso
 
 Intel® GNA is not intended to replace typical inference devices such as the CPU and GPU. It is designed for offloading
 continuous inference workloads including but not limited to noise reduction or speech recognition
-to save power and free CPU resources.
+to save power and free CPU resources. It lets you run inference on Intel® GNA, as well as the CPU, in the software execution mode.
+For more details on how to configure a system to use GNA, see the :doc:`GNA configuration page <openvino_docs_install_guides_configurations_for_intel_gna>`.
 
-The GNA plugin provides a way to run inference on Intel® GNA, as well as in the software execution mode on CPU.
+.. note::
 
-For more details on how to configure a machine to use GNA, see the :doc:`GNA configuration page <openvino_docs_install_guides_configurations_for_intel_gna>`.
+   Intel's GNA is being discontinued and Intel® Core™ Ultra (formerly known as Meteor Lake) will be the last generation of hardware to include it.
+   Consider Intel's new Visual Processing Unit as a low-power solution for offloading neural network computation, for processors offering the technology.
+   
 
 Intel® GNA Generational Differences
 ###########################################################

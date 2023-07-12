@@ -187,9 +187,9 @@ bool Transpose::needPrepareParams() const {
 void Transpose::prepareParams() {
     if (performAsReorder) {
         //  Transpose(order={0,3,1,2}) can be performed as Reorder(acdb=>abcd)
-        auto& srcMemPtr = getParentEdgeAt(INPUT_DATA_IDX)->getMemoryPtr();
-        auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
-        auto dstDesc = dstMemPtr->GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
+        auto srcMemPtr = getParentEdgeAt(INPUT_DATA_IDX)->getMemoryPtr();
+        auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+        auto dstDesc = dstMemPtr->getDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
         auto srcDesc = dnnl::memory::desc(dstDesc.get_dims(), dstDesc.get_data_type(), memory::format_tag::acdb);
         auto result = getReorderPrim(context->getParamsCache(), getEngine(), srcDesc, dstDesc);
         if (!result) {
@@ -200,7 +200,7 @@ void Transpose::prepareParams() {
         getSelectedPrimitiveDescriptor()->setImplementationType(
             parse_impl_name(DnnlExtensionUtils::query_impl_info_str(prim.get_primitive_desc())));
 
-        primArgs = {{DNNL_ARG_SRC, srcMemPtr->GetPrimitive()}, {DNNL_ARG_DST, dstMemPtr->GetPrimitive()}};
+        primArgs = {{DNNL_ARG_SRC, srcMemPtr->getPrimitive()}, {DNNL_ARG_DST, dstMemPtr->getPrimitive()}};
 #ifdef CPU_DEBUG_CAPS
         if (prim) {
             auto pd = prim.get_primitive_desc();
@@ -210,14 +210,14 @@ void Transpose::prepareParams() {
         return;
     }
 
-    auto srcDesc = getParentEdgeAt(INPUT_DATA_IDX)->getMemory().GetDescWithType<BlockedMemoryDesc>();
+    auto srcDesc = getParentEdgeAt(INPUT_DATA_IDX)->getMemory().getDescWithType<BlockedMemoryDesc>();
     params.src_block_dims = srcDesc->getBlockDims();
-    auto dstDesc = getChildEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>();
+    auto dstDesc = getChildEdgeAt(0)->getMemory().getDescWithType<BlockedMemoryDesc>();
     params.dst_block_dims = dstDesc->getBlockDims();
 
     if (!isInputOrderConst) {
-        auto orderPtr = reinterpret_cast<const int32_t*>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
-        auto orderLen = getParentEdgeAt(0)->getMemoryPtr()->GetSize();
+        auto orderPtr = reinterpret_cast<const int32_t*>(getParentEdgeAt(0)->getMemoryPtr()->getData());
+        auto orderLen = getParentEdgeAt(0)->getMemoryPtr()->getSize();
         params.order.assign(orderPtr, orderPtr + orderLen);
     }
 
@@ -237,8 +237,8 @@ void Transpose::prepareParams() {
 }
 
 void Transpose::createPrimitive() {
-    auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
-    auto& srcMemPtr = getParentEdgeAt(INPUT_DATA_IDX)->getMemoryPtr();
+    auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+    auto srcMemPtr = getParentEdgeAt(INPUT_DATA_IDX)->getMemoryPtr();
     if (!dstMemPtr || !dstMemPtr->isAllocated())
         IE_THROW() << "Destination memory was not allocated.";
     if (!srcMemPtr || !srcMemPtr->isAllocated())
@@ -261,9 +261,9 @@ void Transpose::createPrimitive() {
         params.data_size = getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].getMemDesc()->getPrecision().size();
         if (isInputOrderConst)
             params.order = order;
-        auto srcDesc = getParentEdgeAt(INPUT_DATA_IDX)->getMemory().GetDescWithType<BlockedMemoryDesc>();
+        auto srcDesc = getParentEdgeAt(INPUT_DATA_IDX)->getMemory().getDescWithType<BlockedMemoryDesc>();
         params.src_block_order = srcDesc->getOrder();
-        auto dstDesc = getChildEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>();
+        auto dstDesc = getChildEdgeAt(0)->getMemory().getDescWithType<BlockedMemoryDesc>();
         params.dst_block_order = dstDesc->getOrder();
     }
 
@@ -275,8 +275,8 @@ void Transpose::createPrimitive() {
 
 template <typename T>
 static void transpose_to_0312(const int MB, const MemoryPtr& srcMemPtr, MemoryPtr& dstMemPtr) {
-    const auto src_data = reinterpret_cast<const T*>(srcMemPtr->GetPtr());
-    auto dst_data = reinterpret_cast<T*>(dstMemPtr->GetPtr());
+    const auto src_data = reinterpret_cast<const T*>(srcMemPtr->getData());
+    auto dst_data = reinterpret_cast<T*>(dstMemPtr->getData());
 
     const int DIM1 = srcMemPtr->getStaticDims()[1];
     const int DIM2 = srcMemPtr->getStaticDims()[2];
@@ -300,8 +300,8 @@ static void transpose_to_0312(const int MB, const MemoryPtr& srcMemPtr, MemoryPt
 
 template<typename T>
 static void transpose_to_04123(const int MB, const MemoryPtr& srcMemPtr, MemoryPtr& dstMemPtr) {
-    const auto src_data = reinterpret_cast<const T*>(srcMemPtr->GetPtr());
-    auto dst_data = reinterpret_cast<T*>(dstMemPtr->GetPtr());
+    const auto src_data = reinterpret_cast<const T*>(srcMemPtr->getData());
+    auto dst_data = reinterpret_cast<T*>(dstMemPtr->getData());
 
     const int DIM1 = srcMemPtr->getStaticDims()[1];
     const int DIM2 = srcMemPtr->getStaticDims()[2];
@@ -328,8 +328,8 @@ static void transpose_to_04123(const int MB, const MemoryPtr& srcMemPtr, MemoryP
 
 template<typename T>
 static void transpose_to_051234(const int MB, const MemoryPtr& srcMemPtr, MemoryPtr& dstMemPtr) {
-    const auto src_data = reinterpret_cast<const T*>(srcMemPtr->GetPtr());
-    auto dst_data = reinterpret_cast<T*>(dstMemPtr->GetPtr());
+    const auto src_data = reinterpret_cast<const T*>(srcMemPtr->getData());
+    auto dst_data = reinterpret_cast<T*>(dstMemPtr->getData());
 
     const int DIM1 = srcMemPtr->getStaticDims()[1];
     const int DIM2 = srcMemPtr->getStaticDims()[2];
@@ -378,8 +378,8 @@ void Transpose::execute(dnnl::stream strm) {
     if (prim) {
         prim.execute(strm, primArgs);
     } else if (execPtr) {
-        auto &dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
-        auto &srcMemPtr = getParentEdgeAt(INPUT_DATA_IDX)->getMemoryPtr();
+        auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+        auto srcMemPtr = getParentEdgeAt(INPUT_DATA_IDX)->getMemoryPtr();
 
         int MB = srcMemPtr->getStaticDims()[0];
 
@@ -401,8 +401,8 @@ void Transpose::TransposeJitExecutor::exec(Transpose* node, MemoryPtr& srcMemPtr
     if (!pKernel)
         IE_THROW() << "Could not execute. Kernel for Transpose node was not compiled.";
 
-    const uint8_t* srcData = reinterpret_cast<const uint8_t*>(srcMemPtr->GetPtr());
-    uint8_t* dstData = reinterpret_cast<uint8_t*>(dstMemPtr->GetPtr());
+    const uint8_t* srcData = reinterpret_cast<const uint8_t*>(srcMemPtr->getData());
+    uint8_t* dstData = reinterpret_cast<uint8_t*>(dstMemPtr->getData());
 
     pKernel->execute(srcData, dstData, MB);
 }

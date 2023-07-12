@@ -199,7 +199,7 @@ std::ostream & operator<<(std::ostream & os, const Node &c_node) {
                     leftside << comma << desc->getPrecision().name()
                                 << "_" << desc->serializeFormat()
                                 << "_" << shape_str
-                                << "_" << ptr->GetData();
+                                << "_" << ptr->getData();
                     b_ouputed = true;
                 } else {
                     leftside << "(empty)";
@@ -292,7 +292,7 @@ std::ostream & operator<<(std::ostream & os, const Node &c_node) {
     if (node.getType() == intel_cpu::Type::Input && node.isConstant()) {
         if (auto input_node = reinterpret_cast<intel_cpu::node::Input *>(&node)) {
             auto pmem = input_node->getMemoryPtr();
-            void * data = pmem->GetData();
+            void * data = pmem->getData();
             auto shape = pmem->getDesc().getShape().getDims();
 
             if (shape_size(shape) <= 8) {

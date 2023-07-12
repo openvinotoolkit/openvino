@@ -264,7 +264,6 @@ std::vector<std::string> LegacyAPIHelper::get_supported_metrics() {
         GPU_METRIC_KEY(UARCH_VERSION),
         GPU_METRIC_KEY(EXECUTION_UNITS_COUNT),
         GPU_METRIC_KEY(MEMORY_STATISTICS),
-        ov::caching_properties.name(),
     };
 
     return supported_metrics;
