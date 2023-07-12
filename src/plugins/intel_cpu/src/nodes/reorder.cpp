@@ -341,6 +341,21 @@ void Reorder::execute(dnnl::stream strm) {
         // src_blocked->setDataHandle(getParentEdgeAt(0)->getMemory().GetData());
         // dst_blocked->setDataHandle(getChildEdgeAt(0)->getMemory().GetData());
 
+        auto updateMemoryPtr = [this](int argType) {
+            auto param = primArgs.find(argType);
+            if (param != primArgs.end()) {
+                if (argType == DNNL_ARG_SRC) {
+                    primArgs.at(argType).set_data_handle(getParentEdgeAt(0)->getMemoryPtr()->getData());
+                }
+                if (argType == DNNL_ARG_DST) {
+                    primArgs.at(argType).set_data_handle(getChildEdgeAt(0)->getMemoryPtr()->getData());
+                }
+            }
+        };
+
+        updateMemoryPtr(DNNL_ARG_SRC);
+        updateMemoryPtr(DNNL_ARG_DST);
+
         if (prim) {
             prim.execute(strm, primArgs);
         } else {
