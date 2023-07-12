@@ -14,6 +14,7 @@
 #include "openvino/core/dimension_tracker.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
+#include "openvino/runtime/internal_properties.hpp"
 #include "openvino/util/common_util.hpp"
 #include "transformations/common_optimizations/dimension_tracking.hpp"
 #include "transformations/init_node_info.hpp"
@@ -148,6 +149,8 @@ InferenceEngine::Parameter Plugin::GetMetric(
         metrics.push_back(METRIC_KEY(FULL_DEVICE_NAME));
         metrics.push_back(METRIC_KEY(SUPPORTED_CONFIG_KEYS));
         IE_SET_METRIC_RETURN(SUPPORTED_METRICS, metrics);
+    } else if (name == ov::internal::supported_properties.name()) {
+        return decltype(ov::internal::supported_properties)::value_type{};
     } else if (name == METRIC_KEY(FULL_DEVICE_NAME)) {
         IE_SET_METRIC_RETURN(FULL_DEVICE_NAME, _pluginName);
     } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
