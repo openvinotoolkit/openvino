@@ -283,7 +283,8 @@ def test_clone_model():
     assert isinstance(model_original, ov.Model)
 
     # Make copies of it
-    model_copy1 = ov.utils.clone_model(model_original)
+    with pytest.deprecated_call():
+        model_copy1 = ov.utils.clone_model(model_original)
     model_copy2 = model_original.clone()
     model_copy3 = deepcopy(model_original)
 
