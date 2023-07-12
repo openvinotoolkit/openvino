@@ -3623,7 +3623,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_scatter_elements_opset11) {
     EXPECT_EQ(count_ops_of_type<op::v0::Constant>(scatter_fn), 4);
 
     auto test_case = test::TestCase(scatter_fn, s_device);
-    test_case.add_expected_output<float>({1., 1.1, 3., 2.1, 5.});
+    test_case.add_expected_output<float>({1.f, 1.1f, 3.f, 2.1f, 5.f});
     test_case.run();
 }
 
@@ -3663,10 +3663,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_scatter_elements_default_opset18) {
                                                             "onnx/scatter_elements_default_opset18.onnx"));
 
     auto test_case = test::TestCase(scatter_fn, s_device);
-    test_case.add_input<float>({1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0});  // Shape: (2, 5)
+    test_case.add_input<float>({1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f, 10.f});  // Shape: (2, 5)
     test_case.add_input<int64_t>({1, 3, 2, 4});                                       // Shape: (2, 2)
-    test_case.add_input<float>({11.0, 12.0, 13.0, 14.0});                             // Shape: (2, 2)
-    test_case.add_expected_output<float>({1., 11., 3., 12., 5., 6., 7., 13., 9., 14.});
+    test_case.add_input<float>({11.f, 12.f, 13.f, 14.f});                             // Shape: (2, 2)
+    test_case.add_expected_output<float>({1.f, 11.f, 3.f, 12.f, 5.f, 6.f, 7.f, 13.f, 9.f, 14.f});
     test_case.run();
 }
 
@@ -3677,10 +3677,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_scatter_elements_none_opset18) {
                                                             "onnx/scatter_elements_none_opset18.onnx"));
 
     auto test_case = test::TestCase(scatter_fn, s_device);
-    test_case.add_input<float>({1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0});  // Shape: (2, 5)
+    test_case.add_input<float>({1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f, 10.f});  // Shape: (2, 5)
     test_case.add_input<int64_t>({1, 3, 2, 4});                                       // Shape: (2, 2)
-    test_case.add_input<float>({11.0, 12.0, 13.0, 14.0});                             // Shape: (2, 2)
-    test_case.add_expected_output<float>({1., 11., 3., 12., 5., 6., 7., 13., 9., 14.});
+    test_case.add_input<float>({11.f, 12.f, 13.f, 14.f});                             // Shape: (2, 2)
+    test_case.add_expected_output<float>({1.f, 11.f, 3.f, 12.f, 5.f, 6.f, 7.f, 13.f, 9.f, 14.f});
     test_case.run();
 }
 
@@ -3691,10 +3691,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_scatter_elements_none_neg_ind_opset18) {
                                                             "onnx/scatter_elements_none_opset18.onnx"));
 
     auto test_case = test::TestCase(scatter_fn, s_device);
-    test_case.add_input<float>({1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0});     // Shape: (2, 5)
-    test_case.add_input<int64_t>({-4, -2, -3, -1});                                      // Shape: (2, 2)
-    test_case.add_input<float>({11.0, 12.0, 13.0, 14.0});                                // Shape: (2, 2)
-    test_case.add_expected_output<float>({1., 11., 3., 12., 5., 6., 7., 13., 9., 14.});  // Shape: (2, 5)
+    test_case.add_input<float>({1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f, 10.f});               // Shape: (2, 5)
+    test_case.add_input<int64_t>({-4, -2, -3, -1});                                                // Shape: (2, 2)
+    test_case.add_input<float>({11.f, 12.f, 13.f, 14.f});                                          // Shape: (2, 2)
+    test_case.add_expected_output<float>({1.f, 11.f, 3.f, 12.f, 5.f, 6.f, 7.f, 13.f, 9.f, 14.f});  // Shape: (2, 5)
     test_case.run();
 }
 
@@ -3705,10 +3705,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_scatter_elements_add_opset18) {
                                                             "onnx/scatter_elements_add_opset18.onnx"));
 
     auto test_case = test::TestCase(scatter_fn, s_device);
-    test_case.add_input<float>({1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0});  // Shape: (2, 5)
+    test_case.add_input<float>({1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f, 10.f});  // Shape: (2, 5)
     test_case.add_input<int64_t>({1, 3, 2, 4});                                       // Shape: (2, 2)
-    test_case.add_input<float>({11.0, 12.0, 13.0, 14.0});                             // Shape: (2, 2)
-    test_case.add_expected_output<float>({1., 13., 3., 16., 5., 6., 7., 21., 9., 24.});
+    test_case.add_input<float>({11.f, 12.f, 13.f, 14.f});                             // Shape: (2, 2)
+    test_case.add_expected_output<float>({1.f, 13.f, 3.f, 16.f, 5.f, 6.f, 7.f, 21.f, 9.f, 24.f});
     test_case.run();
 }
 
@@ -3719,10 +3719,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_scatter_elements_add_neg_ind_opset18) {
                                                             "onnx/scatter_elements_add_opset18.onnx"));
 
     auto test_case = test::TestCase(scatter_fn, s_device);
-    test_case.add_input<float>({1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0});     // Shape: (2, 5)
-    test_case.add_input<int64_t>({-4, -2, -3, -1});                                      // Shape: (2, 2)
-    test_case.add_input<float>({11.0, 12.0, 13.0, 14.0});                                // Shape: (2, 2)
-    test_case.add_expected_output<float>({1., 13., 3., 16., 5., 6., 7., 21., 9., 24.});  // Shape: (2, 5)
+    test_case.add_input<float>({1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f, 10.f});               // Shape: (2, 5)
+    test_case.add_input<int64_t>({-4, -2, -3, -1});                                                // Shape: (2, 2)
+    test_case.add_input<float>({11.f, 12.f, 13.f, 14.f});                                          // Shape: (2, 2)
+    test_case.add_expected_output<float>({1.f, 13.f, 3.f, 16.f, 5.f, 6.f, 7.f, 21.f, 9.f, 24.f});  // Shape: (2, 5)
     test_case.run();
 }
 
@@ -3733,10 +3733,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_scatter_elements_mul_opset18) {
                                                             "onnx/scatter_elements_mul_opset18.onnx"));
 
     auto test_case = test::TestCase(scatter_fn, s_device);
-    test_case.add_input<float>({1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0});  // Shape: (2, 5)
+    test_case.add_input<float>({1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f, 10.f});  // Shape: (2, 5)
     test_case.add_input<int64_t>({1, 3, 2, 4});                                       // Shape: (2, 2)
-    test_case.add_input<float>({11.0, 12.0, 13.0, 14.0});                             // Shape: (2, 2)
-    test_case.add_expected_output<float>({1., 22., 3., 48., 5., 6., 7., 104., 9., 140.});
+    test_case.add_input<float>({11.f, 12.f, 13.f, 14.f});                             // Shape: (2, 2)
+    test_case.add_expected_output<float>({1.f, 22.f, 3.f, 48.f, 5.f, 6.f, 7.f, 104.f, 9.f, 140.f});
     test_case.run();
 }
 
@@ -3747,10 +3747,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_scatter_elements_min_opset18) {
                                                             "onnx/scatter_elements_min_opset18.onnx"));
 
     auto test_case = test::TestCase(scatter_fn, s_device);
-    test_case.add_input<float>({1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0});  // Shape: (2, 5)
+    test_case.add_input<float>({1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f, 10.f});  // Shape: (2, 5)
     test_case.add_input<int64_t>({1, 3, 2, 4});                                       // Shape: (2, 2)
-    test_case.add_input<float>({0.0, 100.0, -1.0, 200.0});                            // Shape: (2, 2)
-    test_case.add_expected_output<float>({1., 0., 3., 4., 5., 6., 7., -1., 9., 10.});
+    test_case.add_input<float>({0.f, 100.f, -1.f, 200.f});                            // Shape: (2, 2)
+    test_case.add_expected_output<float>({1.f, 0.f, 3.f, 4.f, 5.f, 6.f, 7.f, -1.f, 9.f, 10.f});
     test_case.run();
 }
 
@@ -3761,10 +3761,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_scatter_elements_max_opset18) {
                                                             "onnx/scatter_elements_max_opset18.onnx"));
 
     auto test_case = test::TestCase(scatter_fn, s_device);
-    test_case.add_input<float>({1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0});  // Shape: (2, 5)
+    test_case.add_input<float>({1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f, 10.f});  // Shape: (2, 5)
     test_case.add_input<int64_t>({1, 3, 2, 4});                                       // Shape: (2, 2)
-    test_case.add_input<float>({0.0, 100.0, -1.0, 200.0});                            // Shape: (2, 2)
-    test_case.add_expected_output<float>({1., 2., 3., 100., 5., 6., 7., 8., 9., 200.});
+    test_case.add_input<float>({0.f, 100.f, -1.f, 200.f});                            // Shape: (2, 2)
+    test_case.add_expected_output<float>({1.f, 2.f, 3.f, 100.f, 5.f, 6.f, 7.f, 8.f, 9.f, 200.f});
     test_case.run();
 }
 
