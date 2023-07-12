@@ -108,8 +108,10 @@ void ov::hetero::InferRequest::infer() {
 
 std::vector<ov::ProfilingInfo> ov::hetero::InferRequest::get_profiling_info() const {
     std::vector<ov::ProfilingInfo> info;
-    for (auto&& request : m_subrequests) {
-        const auto& subreq_info = request->get_profiling_info();
+    for (size_t i = 0; i < m_subrequests.size(); ++i) {
+        auto&& subreq_info = m_subrequests[i]->get_profiling_info();
+        for (auto&& rec: subreq_info)
+            rec.node_name = std::string("submodel_") + std::to_string(i) + ": " + rec.node_name;
         info.insert(info.end(), subreq_info.begin(), subreq_info.end());
     }
     return info;
