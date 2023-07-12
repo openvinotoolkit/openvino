@@ -17,18 +17,18 @@ nGraph API
 
 .. tab-set::
 
-   .. tab-item:: C++
-      :sync: cpp
-
-      .. doxygensnippet:: docs/snippets/ngraph.cpp
-         :language: cpp
-         :fragment: ngraph:graph
-
    .. tab-item:: Python
       :sync: py
 
       .. doxygensnippet:: docs/snippets/ngraph.py
          :language: Python
+         :fragment: ngraph:graph
+
+   .. tab-item:: C++
+      :sync: cpp
+
+      .. doxygensnippet:: docs/snippets/ngraph.cpp
+         :language: cpp
          :fragment: ngraph:graph
 
 
@@ -38,18 +38,18 @@ API 2.0
 
 .. tab-set::
 
-   .. tab-item:: C++
-      :sync: cpp
-
-      .. doxygensnippet:: docs/snippets/ov_graph.cpp
-         :language: cpp
-         :fragment: ov:graph
-
    .. tab-item:: Python
       :sync: py
 
       .. doxygensnippet:: docs/snippets/ov_graph.py
          :language: Python
+         :fragment: ov:graph
+
+   .. tab-item:: C++
+      :sync: cpp
+
+      .. doxygensnippet:: docs/snippets/ov_graph.cpp
+         :language: cpp
          :fragment: ov:graph
 
 

@@ -74,7 +74,6 @@ std::tuple<bool, std::string> CheckStatic(const InferenceEngine::CNNNetwork& net
     }
     return {res, errMsg.str()};
 }
-
 }  // namespace
 
 namespace InferenceEngine {
@@ -338,7 +337,7 @@ std::vector<std::string> Core::GetAvailableDevices() const {
 }
 
 void Core::RegisterPlugin(const std::string& pluginName, const std::string& deviceName) {
-    _impl->register_plugin(pluginName, deviceName);
+    _impl->register_plugin(pluginName, deviceName, {});
 }
 
 void Core::RegisterPlugins(const std::string& xmlConfigFile) {

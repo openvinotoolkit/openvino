@@ -66,6 +66,9 @@ private:
     std::mutex& get_mutex(const std::string& dev_name = "") const;
     void add_mutex(const std::string& dev_name);
 
+    bool is_proxy_device(const ov::Plugin& plugin) const;
+    bool is_proxy_device(const std::string& dev_name) const;
+
     class CoreConfig final {
     public:
         struct CacheConfig {
@@ -168,6 +171,7 @@ private:
     bool device_supports_model_caching(const ov::Plugin& plugin) const;
 
     bool device_supports_property(const ov::Plugin& plugin, const ov::PropertyName& key) const;
+    bool device_supports_internal_property(const ov::Plugin& plugin, const ov::PropertyName& key) const;
 
     OPENVINO_DEPRECATED("Don't use this method, it will be removed soon")
     bool device_supports_cache_dir(const ov::Plugin& plugin) const;
@@ -178,6 +182,9 @@ private:
                                                                 const ov::AnyMap& config) const;
 
     ov::AnyMap create_compile_config(const ov::Plugin& plugin, const ov::AnyMap& origConfig) const;
+
+    bool is_hidden_device(const std::string& device_name) const;
+    void register_plugin_in_registry_unsafe(const std::string& device_name, PluginDescriptor& desc);
 
     template <typename C, typename = FileUtils::enableIfSupportedChar<C>>
     void try_to_register_plugin_extensions(const std::basic_string<C>& path) const {
@@ -335,8 +342,9 @@ public:
      * @param plugin Path (absolute or relative) or name of a plugin. Depending on platform `plugin` is wrapped with
      * shared library suffix and prefix to identify library full name
      * @param device_name A name of device
+     * @param properties Plugin configuration
      */
-    void register_plugin(const std::string& plugin, const std::string& device_name);
+    void register_plugin(const std::string& plugin, const std::string& device_name, const ov::AnyMap& properties);
 
     /**
      * @brief Provides a list of plugin names in registry; physically such plugins may not be created
@@ -410,7 +418,7 @@ public:
      *
      * @param properties Map of pairs: (property name, property value).
      */
-    void set_property(const std::string& device_name, const AnyMap& properties);
+    void set_property(const std::string& device_name, const AnyMap& properties) override;
 
     /**
      * @brief Sets properties for a device, acceptable keys can be found in openvino/runtime/properties.hpp.
