@@ -6,7 +6,8 @@
 
 #include <memory>
 #include <ngraph/graph_util.hpp>
-#include <ngraph/opsets/opset8.hpp>
+#include "openvino/op/result.hpp"
+#include "openvino/op/if.hpp"
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/validation_util.hpp>
@@ -25,7 +26,7 @@ bool ov::pass::UnrollIf::run_on_model(const std::shared_ptr<ngraph::Function>& f
                 run_on_model(multisubgraph_op->get_function(static_cast<int>(i)));
             }
         }
-        auto if_node = std::dynamic_pointer_cast<opset8::If>(op);
+        auto if_node = std::dynamic_pointer_cast<ov::op::v8::If>(op);
         if (!if_node || transformation_callback(if_node)) {
             continue;
         }
@@ -51,7 +52,7 @@ bool ov::pass::UnrollIf::run_on_model(const std::shared_ptr<ngraph::Function>& f
             }
         }
         for (const auto& output_desc : output_descriptions) {
-            std::shared_ptr<opset8::Result> result = body->get_results()[output_desc->m_body_value_index];
+            std::shared_ptr<ov::op::v0::Result> result = body->get_results()[output_desc->m_body_value_index];
             const auto& in_value = result->input_value(0);
 
             // set output name to Tensor to store it for ngraph to cnn conversion
