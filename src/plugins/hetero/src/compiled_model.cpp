@@ -421,19 +421,7 @@ ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model
             ++id;
         }
 
-        // Restore inputs/outputs from compiled models
-        m_compiled_inputs.reserve(m_inputs_to_submodels_inputs.size());
-        for (const auto& it : m_inputs_to_submodels_inputs) {
-            const auto& submodel_idx = it.first;
-            const auto& input_idx = it.second;
-            m_compiled_inputs.emplace_back(m_compiled_submodels[submodel_idx].compiled_model->inputs()[input_idx]);
-        }
-        m_compiled_outputs.reserve(m_outputs_to_submodels_outputs.size());
-        for (const auto& it : m_outputs_to_submodels_outputs) {
-            const auto& submodel_idx = it.first;
-            const auto& output_idx = it.second;
-            m_compiled_outputs.emplace_back(m_compiled_submodels[submodel_idx].compiled_model->outputs()[output_idx]);
-        }
+        set_inputs_and_outputs();
 
     } catch (const InferenceEngine::Exception& e) {
         OPENVINO_THROW(e.what());
@@ -530,20 +518,7 @@ ov::hetero::CompiledModel::CompiledModel(std::istream& model,
                                                   GetUInt64Attr(xml_node, "out_node_idx")};
         m_submodels_input_to_prev_output.emplace(in_pair, out_pair);
     }
-
-    // Restore inputs/outputs from compiled models
-    m_compiled_inputs.reserve(m_inputs_to_submodels_inputs.size());
-    for (const auto& it : m_inputs_to_submodels_inputs) {
-        const auto& submodel_idx = it.first;
-        const auto& input_idx = it.second;
-        m_compiled_inputs.emplace_back(m_compiled_submodels[submodel_idx].compiled_model->inputs()[input_idx]);
-    }
-    m_compiled_outputs.reserve(m_outputs_to_submodels_outputs.size());
-    for (const auto& it : m_outputs_to_submodels_outputs) {
-        const auto& submodel_idx = it.first;
-        const auto& output_idx = it.second;
-        m_compiled_outputs.emplace_back(m_compiled_submodels[submodel_idx].compiled_model->outputs()[output_idx]);
-    }
+    set_inputs_and_outputs();
 }
 
 std::shared_ptr<ov::ISyncInferRequest> ov::hetero::CompiledModel::create_sync_infer_request() const {
@@ -648,6 +623,22 @@ const std::vector<ov::Output<const ov::Node>>& ov::hetero::CompiledModel::inputs
 
 const std::vector<ov::Output<const ov::Node>>& ov::hetero::CompiledModel::outputs() const {
     return m_compiled_outputs;
+}
+
+void ov::hetero::CompiledModel::set_inputs_and_outputs() {
+    // Restore inputs/outputs from compiled submodels
+    m_compiled_inputs.reserve(m_inputs_to_submodels_inputs.size());
+    for (const auto& it : m_inputs_to_submodels_inputs) {
+        const auto& submodel_idx = it.first;
+        const auto& input_idx = it.second;
+        m_compiled_inputs.emplace_back(m_compiled_submodels[submodel_idx].compiled_model->inputs()[input_idx]);
+    }
+    m_compiled_outputs.reserve(m_outputs_to_submodels_outputs.size());
+    for (const auto& it : m_outputs_to_submodels_outputs) {
+        const auto& submodel_idx = it.first;
+        const auto& output_idx = it.second;
+        m_compiled_outputs.emplace_back(m_compiled_submodels[submodel_idx].compiled_model->outputs()[output_idx]);
+    }
 }
 
 void ov::hetero::CompiledModel::export_model(std::ostream& model_stream) const {

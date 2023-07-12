@@ -47,6 +47,8 @@ private:
 
     std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override;
 
+    void set_inputs_and_outputs();
+
     Configuration m_cfg;
     std::string m_name;
     const bool m_loaded_from_cache;
