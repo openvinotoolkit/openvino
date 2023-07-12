@@ -5,10 +5,13 @@
 #pragma once
 
 #include "primitive.hpp"
+#include "openvino/op/prior_box.hpp"
+#include "openvino/op/prior_box_clustered.hpp"
 
 #include <cmath>
 #include <vector>
 #include <limits>
+#include <map>
 
 namespace cldnn {
 
@@ -22,6 +25,10 @@ struct prior_box : public primitive_base<prior_box> {
     prior_box() : primitive_base("", {}) {}
 
     DECLARE_OBJECT_TYPE_SERIALIZATION
+
+    using PriorBoxV0Op = ov::op::v0::PriorBox;
+    using PriorBoxV8Op = ov::op::v8::PriorBox;
+    using PriorBoxClusteredOp = ov::op::v0::PriorBoxClustered;
 
     /// @brief Constructs prior-box primitive.
     /// @param id This primitive id.
@@ -55,6 +62,39 @@ struct prior_box : public primitive_base<prior_box> {
               const padding& output_padding = padding())
         : primitive_base(id, {input}, {output_padding}),
           img_size(img_size),
+          min_sizes(min_sizes),
+          max_sizes(max_sizes),
+          flip(flip),
+          clip(clip),
+          step_width(step_width),
+          step_height(step_height),
+          offset(offset),
+          scale_all_sizes(scale_all_sizes),
+          fixed_ratio(fixed_ratio),
+          fixed_size(fixed_size),
+          density(density),
+          clustered(false) {
+        init(aspect_ratios, variance);
+    }
+
+    /// @brief Constructs prior-box primitive for dynamic shape.
+    prior_box(const primitive_id& id,
+              const std::vector<input_info>& inputs,
+              const std::vector<float>& min_sizes,
+              const std::vector<float>& max_sizes = {},
+              const std::vector<float>& aspect_ratios = {},
+              const bool flip = true,
+              const bool clip = false,
+              const std::vector<float>& variance = {},
+              const float step_width = 0.f,
+              const float step_height = 0.f,
+              const float offset = 0.5f,
+              const bool scale_all_sizes = true,
+              const std::vector<float>& fixed_ratio = {},
+              const std::vector<float>& fixed_size = {},
+              const std::vector<float>& density = {},
+              const padding& output_padding = padding())
+        : primitive_base(id, inputs, {output_padding}),
           min_sizes(min_sizes),
           max_sizes(max_sizes),
           flip(flip),
@@ -108,6 +148,40 @@ struct prior_box : public primitive_base<prior_box> {
         init(aspect_ratios, variance);
     }
 
+    /// @brief Constructs prior-box primitive for dynamic shape, which supports v8 features.
+    prior_box(const primitive_id& id,
+              const std::vector<input_info>& inputs,
+              const std::vector<float>& min_sizes,
+              const std::vector<float>& max_sizes = {},
+              const std::vector<float>& aspect_ratios = {},
+              const bool flip = true,
+              const bool clip = false,
+              const std::vector<float>& variance = {},
+              const float offset = 0.5f,
+              const bool scale_all_sizes = true,
+              const std::vector<float>& fixed_ratio = {},
+              const std::vector<float>& fixed_size = {},
+              const std::vector<float>& density = {},
+              const float step = 0.0f,
+              const bool min_max_aspect_ratios_order = true
+              )
+        : primitive_base{id, inputs},
+          min_sizes(min_sizes),
+          max_sizes(max_sizes),
+          flip(flip),
+          clip(clip),
+          offset(offset),
+          scale_all_sizes(scale_all_sizes),
+          fixed_ratio(fixed_ratio),
+          fixed_size(fixed_size),
+          density(density),
+          support_opset8{true},
+          step{step},
+          min_max_aspect_ratios_order{min_max_aspect_ratios_order},
+          clustered(false) {
+        init(aspect_ratios, variance);
+    }
+
     /// @brief Constructs prior-box primitive, which executes clustered version.
     prior_box(const primitive_id& id,
               const input_info& input,
@@ -135,6 +209,77 @@ struct prior_box : public primitive_base<prior_box> {
           clustered(true) {
     }
 
+    /// @brief Constructs prior-box primitive for dynamic shape, which executes clustered version.
+    prior_box(const primitive_id& id,
+              const std::vector<input_info>& inputs,
+              const bool clip,
+              const std::vector<float>& variance,
+              const float step_width,
+              const float step_height,
+              const float offset,
+              const std::vector<float>& widths,
+              const std::vector<float>& heights,
+              data_types output_dt,
+              const padding& output_padding = padding())
+        : primitive_base(id, inputs, {output_padding}, {optional_data_type{output_dt}}),
+          flip(false),
+          clip(clip),
+          variance(variance),
+          step_width(step_width),
+          step_height(step_height),
+          offset(offset),
+          scale_all_sizes(false),
+          widths(widths),
+          heights(heights),
+          clustered(true) {
+    }
+
+    PriorBoxV0Op::Attributes get_attrs_v0() const {
+        PriorBoxV0Op::Attributes attrs;
+        attrs.min_size = min_sizes;
+        attrs.max_size = max_sizes;
+        attrs.aspect_ratio = aspect_ratios;
+        attrs.density = density;
+        attrs.fixed_ratio = fixed_ratio;
+        attrs.fixed_size = fixed_size;
+        attrs.clip = clip;
+        attrs.flip = flip;
+        attrs.step = step;
+        attrs.offset = offset;
+        attrs.variance = variance;
+        attrs.scale_all_sizes = scale_all_sizes;
+        return attrs;
+    }
+
+    PriorBoxV8Op::Attributes get_attrs_v8() const {
+        PriorBoxV8Op::Attributes attrs;
+        attrs.min_size = min_sizes;
+        attrs.max_size = max_sizes;
+        attrs.aspect_ratio = aspect_ratios;
+        attrs.density = density;
+        attrs.fixed_ratio = fixed_ratio;
+        attrs.fixed_size = fixed_size;
+        attrs.clip = clip;
+        attrs.flip = flip;
+        attrs.step = step;
+        attrs.offset = offset;
+        attrs.variance = variance;
+        attrs.scale_all_sizes = scale_all_sizes;
+        return attrs;
+    }
+
+    PriorBoxClusteredOp::Attributes get_attrs_clustered() const {
+        PriorBoxClusteredOp::Attributes attrs;
+        attrs.widths = widths;
+        attrs.heights = heights;
+        attrs.clip = clip;
+        attrs.step_widths = step_width;
+        attrs.step_heights = step_height;
+        attrs.step = step;
+        attrs.offset = offset;
+        attrs.variances = variance;
+        return attrs;
+    }
     /// @brief Spatial size of generated grid with boxes.
     tensor output_size{};
     /// @brief Image width and height.
@@ -175,6 +320,7 @@ struct prior_box : public primitive_base<prior_box> {
     std::vector<float> heights{};
 
     bool is_clustered() const { return clustered; }
+    bool is_v8_support() const { return support_opset8;}
 
     size_t hash() const override {
         size_t seed = primitive::hash();

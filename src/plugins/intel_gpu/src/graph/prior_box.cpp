@@ -13,6 +13,9 @@
 #include <memory>
 #include <algorithm>
 
+#include "prior_box_clustered_shape_inference.hpp"
+#include "prior_box_shape_inference.hpp"
+
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(prior_box)
 
@@ -436,6 +439,40 @@ layout prior_box_inst::calc_output_layout(prior_box_node const& node, kernel_imp
 
     return {output_type, impl_param.get_input_layout().format, output_shape};
 }
+
+template<typename ShapeType>
+std::vector<layout> prior_box_inst::calc_output_layouts(prior_box_node const& /*node*/, kernel_impl_params const& impl_param) {
+    const auto primitive = impl_param.typed_desc<prior_box>();
+
+    std::vector<ShapeType> input_shapes = {
+        impl_param.get_input_layout(0).get<ShapeType>(),
+        impl_param.get_input_layout(1).get<ShapeType>()
+    };
+    std::vector<ShapeType> output_shapes = {ShapeType()};
+
+    auto& memory_deps = impl_param.memory_deps;
+
+    if (primitive->is_clustered()) {
+        ov::op::v0::PriorBoxClustered op;
+        op.set_attrs(primitive->get_attrs_clustered());
+        output_shapes = ov::op::v0::shape_infer(&op, input_shapes);
+    } else {
+        if (primitive->is_v8_support()) {
+            ov::op::v8::PriorBox op;
+            op.set_attrs(primitive->get_attrs_v8());
+            output_shapes = ov::op::v8::shape_infer(&op, input_shapes);
+        } else {
+            ov::op::v0::PriorBox op;
+            op.set_attrs(primitive->get_attrs_v0());
+            output_shapes = ov::op::v0::shape_infer(&op, input_shapes);
+        }
+    }
+    const auto output_type = primitive->output_data_types[0].value_or(data_types::f32);
+
+    return {layout{output_shapes[0], output_type, impl_param.get_input_layout().format}};
+}
+
+template std::vector<layout> prior_box_inst::calc_output_layouts<ov::PartialShape>(prior_box_node const& /*node*/, kernel_impl_params const& impl_param);
 
 std::string prior_box_inst::to_string(prior_box_node const& node) {
     auto desc = node.get_primitive();
