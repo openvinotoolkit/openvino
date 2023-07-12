@@ -465,8 +465,9 @@ struct proposal_impl : typed_primitive_impl<proposal> {
 
     static std::unique_ptr<primitive_impl> create(const proposal_node& arg, const kernel_impl_params& impl_param) {
         const layout& l = impl_param.input_layouts[2];
-        if (l.get_partial_shape()[0].is_static()) {
-            const size_t count = l.get_partial_shape()[0].get_length();
+        if (l.is_static() && l.get_partial_shape().size() >= 2) {
+            const size_t count = l.get_partial_shape()[1].get_length() == 1 ? l.get_partial_shape()[0].get_length() :
+                                 l.get_partial_shape()[1].get_length();
 
             // Supported image_info sizes and components meaning:
             // - image_info[3] = { img_height, img_width, img_depth }
