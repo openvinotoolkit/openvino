@@ -433,6 +433,31 @@ std::string ov::proxy::Plugin::get_fallback_device(size_t idx) const {
     }
 }
 
+void ov::proxy::Plugin::remove_unsupported_plugins() const {
+    const auto core = get_core();
+    OPENVINO_ASSERT(core != nullptr);
+    std::unordered_set<std::string> unsupported_devices;
+    for (const auto& device : m_device_order) {
+        try {
+            core->get_property(device, ov::available_devices);
+        } catch (const std::runtime_error&) {
+            // Device cannot be loaded, so remove this device
+            unsupported_devices.insert(device);
+        }
+    }
+    for (const auto& device : unsupported_devices) {
+        m_device_order.erase(std::remove(m_device_order.begin(), m_device_order.end(), device), m_device_order.end());
+        // Remove unsupported device from fallback order from all configs
+        for (auto&& config : m_configs) {
+            auto it = config.second.find(ov::device::priorities.name());
+            if (it == config.second.end())
+                continue;
+            auto& devices = it->second.as<std::vector<std::string>>();
+            devices.erase(std::remove(devices.begin(), devices.end(), device), devices.end());
+        }
+    }
+}
+
 std::vector<std::vector<std::string>> ov::proxy::Plugin::get_hidden_devices() const {
     // Proxy plugin has 2 modes of matching devices:
     //  * Fallback - in this mode we report devices only for the first hidden plugin
@@ -461,6 +486,7 @@ std::vector<std::vector<std::string>> ov::proxy::Plugin::get_hidden_devices() co
             result.emplace_back(devices);
         }
     } else {
+        remove_unsupported_plugins();
         typedef struct DeviceId {
             ov::device::UUID uuid;
             std::unordered_map<std::string, std::string> device_to_full_name;
@@ -476,13 +502,7 @@ std::vector<std::vector<std::string>> ov::proxy::Plugin::get_hidden_devices() co
         std::vector<DeviceID_t> all_highlevel_devices;
         std::set<std::array<uint8_t, ov::device::UUID::MAX_UUID_SIZE>> unique_devices;
         for (const auto& device : m_device_order) {
-            std::vector<std::string> supported_device_ids;
-            try {
-                supported_device_ids = core->get_property(device, ov::available_devices);
-            } catch (const std::runtime_error&) {
-                // Device cannot be loaded
-                continue;
-            }
+            std::vector<std::string> supported_device_ids = core->get_property(device, ov::available_devices);
             for (const auto& device_id : supported_device_ids) {
                 const std::string full_device_name = device_id.empty() ? device : device + '.' + device_id;
                 try {
@@ -544,13 +564,7 @@ std::vector<std::vector<std::string>> ov::proxy::Plugin::get_hidden_devices() co
                     continue;
                 }
                 // Try to find unique device
-                std::vector<std::string> supported_device_ids;
-                try {
-                    supported_device_ids = core->get_property(fallback_dev, ov::available_devices);
-                } catch (const std::runtime_error&) {
-                    // Device cannot be loaded, so skipp this device
-                    continue;
-                }
+                std::vector<std::string> supported_device_ids = core->get_property(fallback_dev, ov::available_devices);
                 bool found_device = false;
                 bool dev_without_uuid = false;
                 for (const auto& device_id : supported_device_ids) {
