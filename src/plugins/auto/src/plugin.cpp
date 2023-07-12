@@ -279,9 +279,11 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
     } else if (METRIC_KEY(SUPPORTED_CONFIG_KEYS) == name) {
         return m_plugin_config.supported_rw_properties(get_device_name());
     OPENVINO_SUPPRESS_DEPRECATED_END
-    } else if ((ov::supported_properties == name) || (ov::internal::supported_properties == name)) {
+    } else if (ov::supported_properties == name) {
         auto ret = m_plugin_config.supported_properties(get_device_name());
         return ret;
+    } else if (name == ov::internal::supported_properties.name()) {
+        return decltype(ov::internal::supported_properties)::value_type{};
     } else if (name == ov::device::full_name) {
         return decltype(ov::device::full_name)::value_type {get_device_name()};
     } else if (name == ov::device::capabilities.name()) {

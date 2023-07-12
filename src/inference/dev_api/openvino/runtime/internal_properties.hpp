@@ -15,7 +15,7 @@ namespace ov {
 
 namespace internal {
 /**
- * @brief Read-only property to get a std::vector<PropertyName> of supported read-only properties.
+ * @brief Read-only property to get a std::vector<PropertyName> of supported internal properties.
  * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<std::vector<PropertyName>, PropertyMutability::RO> supported_properties{
@@ -37,6 +37,7 @@ static constexpr Property<bool, PropertyMutability::RW> exclusive_async_requests
 /**
  * @brief the property for setting of required device for which config to be updated
  * values: device id starts from "0" - first device, "1" - second device, etc
+ * note: plugin may have different devices naming convention
  * @ingroup ov_dev_api_plugin_api
  */
 static constexpr Property<std::string, PropertyMutability::WO> config_device_id{"CONFIG_DEVICE_ID"};

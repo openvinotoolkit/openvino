@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "plugin_config.hpp"
-#include "openvino/runtime/internal_properties.hpp"
 
 namespace ov {
 namespace auto_plugin {
@@ -30,8 +29,7 @@ void PluginConfig::set_default() {
         // RO for register only
         std::make_tuple(ov::device::full_name),
         std::make_tuple(ov::device::capabilities),
-        std::make_tuple(ov::supported_properties),
-        std::make_tuple(ov::internal::supported_properties));
+        std::make_tuple(ov::supported_properties));
 }
 void PluginConfig::register_property_impl(const ov::AnyMap::value_type& property, ov::PropertyMutability mutability, BaseValidator::Ptr validator) {
     property_validators[property.first] = validator;
