@@ -117,84 +117,97 @@ ov::Any AutoCompiledModel::get_property(const std::string& name) const {
             bool tput_enabled_in_plugin = false;
             auto actual_dev_supported_properties =
                 m_context->m_ov_core->get_property(device_info.device_name, ov::supported_properties);
-            auto ireqIter = std::find(actual_dev_supported_properties.begin(), actual_dev_supported_properties.end(), name);
-            if (ireqIter != actual_dev_supported_properties.end()) {
+            bool is_supported_num_request = std::find(actual_dev_supported_properties.begin(),
+                                                      actual_dev_supported_properties.end(),
+                                                      ov::hint::num_requests) != actual_dev_supported_properties.end();
+            auto reqs_iter = device_info.config.find(ov::hint::num_requests.name());
+            auto ireq_iter = std::find(actual_dev_supported_properties.begin(), actual_dev_supported_properties.end(), name);
+            if (ireq_iter != actual_dev_supported_properties.end()) {
                 real = m_context->m_ov_core->get_property(device_info.device_name, ov::optimal_number_of_infer_requests);
             }
+            if (real > 0) {
+                if (is_supported_num_request && reqs_iter != device_info.config.end()) {
+                    requests = reqs_iter->second.as<unsigned int>();
+                    real = (std::min)(requests, real);
+                }
+                return decltype(ov::optimal_number_of_infer_requests)::value_type{real};
+            }
+            requests = 0;
             // check if the real is default value or actual device didn't support this property.
-            if (real <= 0) {
-                OPENVINO_ASSERT(m_scheduler->m_compile_context[CPU].m_is_already == true);
-                try {
-                    // for benchmark through AUTO:CPU,GPU
-                    // SetConfig directly set to CPU/GPU in this case
-                    if (std::find(actual_dev_supported_properties.begin(),
-                                  actual_dev_supported_properties.end(),
-                                  ov::hint::performance_mode) != actual_dev_supported_properties.end())
-                        tput_enabled_in_plugin =
-                            m_context->m_ov_core->get_property(device_info.device_name, ov::hint::performance_mode) ==
-                            ov::hint::PerformanceMode::THROUGHPUT;
-                } catch (const ov::Exception&) {
-                    LOG_DEBUG_TAG("get_property:%s for %s",
-                                  "PERF_HINT config not supported",
-                                  device_info.device_name.c_str());
+            OPENVINO_ASSERT(m_scheduler->m_compile_context[CPU].m_is_already == true);
+            try {
+                // for benchmark through AUTO:CPU,GPU
+                // SetConfig directly set to CPU/GPU in this case
+                if (std::find(actual_dev_supported_properties.begin(),
+                              actual_dev_supported_properties.end(),
+                              ov::hint::performance_mode) != actual_dev_supported_properties.end())
+                    tput_enabled_in_plugin =
+                        m_context->m_ov_core->get_property(device_info.device_name, ov::hint::performance_mode) ==
+                        ov::hint::PerformanceMode::THROUGHPUT;
+            } catch (const ov::Exception&) {
+                LOG_DEBUG_TAG("get_property:%s for %s",
+                              "PERF_HINT config not supported",
+                              device_info.device_name.c_str());
+            }
+            const auto& mode = device_info.config.find(ov::hint::performance_mode.name());
+            if (tput_enabled_in_plugin ||
+                (mode != device_info.config.end() && mode->second == ov::hint::PerformanceMode::THROUGHPUT)) {
+                unsigned int upper_bound_streams_num = 0;
+                if (std::find(actual_dev_supported_properties.begin(),
+                              actual_dev_supported_properties.end(),
+                              ov::range_for_streams) != actual_dev_supported_properties.end()) {
+                    try {
+                        auto range_of_streams =
+                            m_context->m_ov_core->get_property(device_info.device_name, ov::range_for_streams);
+                        upper_bound_streams_num = std::get<1>(range_of_streams);
+                    } catch (const ov::Exception&) {
+                        LOG_DEBUG_TAG("get_property range_for_streams failed");
+                    }
                 }
-                const auto& mode = device_info.config.find(ov::hint::performance_mode.name());
-                if (tput_enabled_in_plugin ||
-                    (mode != device_info.config.end() && mode->second == ov::hint::PerformanceMode::THROUGHPUT)) {
-                    unsigned int upper_bound_streams_num = 0;
+                if (!m_context->m_batching_disabled) {
                     if (std::find(actual_dev_supported_properties.begin(),
                                   actual_dev_supported_properties.end(),
-                                  ov::range_for_streams) != actual_dev_supported_properties.end()) {
+                                  ov::optimal_batch_size) != actual_dev_supported_properties.end()) {
                         try {
-                            auto range_of_streams =
-                                m_context->m_ov_core->get_property(device_info.device_name, ov::range_for_streams);
-                            upper_bound_streams_num = std::get<1>(range_of_streams);
+                            optimal_batch_size = m_context->m_ov_core->get_property(device_info.device_name,
+                                                                                    ov::optimal_batch_size,
+                                                                                    {ov::hint::model(m_model)});
+                            LOG_DEBUG_TAG("BATCHING:%s:%ld", "optimal batch size", optimal_batch_size);
                         } catch (const ov::Exception&) {
-                            LOG_DEBUG_TAG("get_property range_for_streams failed");
+                            LOG_DEBUG_TAG("BATCHING:%s", "property optimal_batch_size not supported");
                         }
                     }
-                    if (!m_context->m_batching_disabled) {
-                        if (std::find(actual_dev_supported_properties.begin(),
-                                      actual_dev_supported_properties.end(),
-                                      ov::optimal_batch_size) != actual_dev_supported_properties.end()) {
-                            try {
-                                optimal_batch_size = m_context->m_ov_core->get_property(device_info.device_name,
-                                                                                        ov::optimal_batch_size,
-                                                                                        {ov::hint::model(m_model)});
-                                LOG_DEBUG_TAG("BATCHING:%s:%ld", "optimal batch size", optimal_batch_size);
-                            } catch (const ov::Exception&) {
-                                LOG_DEBUG_TAG("BATCHING:%s", "property optimal_batch_size not supported");
-                            }
-                        }
-                    }
-                    if (optimal_batch_size > 1) {
-                        // batching is supported with the device
-                        // go with auto-batching
-                        try {
-                            // check if app have set preferred value
-                            requests =
-                                m_context->m_ov_core->get_property(device_info.device_name, ov::hint::num_requests);
-                            const auto& reqs = device_info.config.find(ov::hint::num_requests.name());
-                            if (reqs != device_info.config.end()) {
-                                requests = reqs->second.as<unsigned int>();
-                            }
-                            LOG_DEBUG_TAG("BATCHING:%s:%ld", "user requested size", requests);
-                            if (!requests) {  // no limitations from user
-                                requests = optimal_batch_size * upper_bound_streams_num * 2;
-                                LOG_DEBUG_TAG("BATCHING:%s:%ld", "deduced size:", requests);
-                            }
-                        } catch (const ov::Exception& iie) {
-                            LOG_WARNING_TAG("deduce optimal infer requset num for auto-batch failed :%s", iie.what());
-                        }
-                        real = (std::max)(requests, optimal_batch_size);
-                    } else if (device_info.device_name.find("VPUX") != std::string::npos) {
-                        real = 8u;
-                    } else {
-                        real = upper_bound_streams_num ? 2 * upper_bound_streams_num : default_num_for_tput;
-                    }
-                } else {
-                    real = default_num_for_latency;
                 }
+                if (optimal_batch_size > 1) {
+                    // batching is supported with the device
+                    // go with auto-batching
+                    try {
+                        // check if app have set preferred value
+                        requests = m_context->m_ov_core->get_property(device_info.device_name, ov::hint::num_requests);
+                        const auto& reqs = device_info.config.find(ov::hint::num_requests.name());
+                        if (reqs != device_info.config.end()) {
+                            requests = reqs->second.as<unsigned int>();
+                        }
+                        LOG_DEBUG_TAG("BATCHING:%s:%ld", "user requested size", requests);
+                        if (!requests) {  // no limitations from user
+                            requests = optimal_batch_size * upper_bound_streams_num * 2;
+                            LOG_DEBUG_TAG("BATCHING:%s:%ld", "deduced size:", requests);
+                        }
+                    } catch (const ov::Exception& iie) {
+                        LOG_WARNING_TAG("deduce optimal infer requset num for auto-batch failed :%s", iie.what());
+                    }
+                    real = (std::max)(requests, optimal_batch_size);
+                } else if (device_info.device_name.find("VPUX") != std::string::npos) {
+                    real = 8u;
+                } else {
+                    real = upper_bound_streams_num ? 2 * upper_bound_streams_num : default_num_for_tput;
+                }
+            } else {
+                real = default_num_for_latency;
+            }
+            if (reqs_iter != device_info.config.end()) {
+                requests = reqs_iter->second.as<unsigned int>();
+                real = (std::min)(requests, real);
             }
         }
         return decltype(ov::optimal_number_of_infer_requests)::value_type {real};
