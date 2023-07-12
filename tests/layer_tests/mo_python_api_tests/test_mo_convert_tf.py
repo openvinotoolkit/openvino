@@ -587,25 +587,46 @@ def create_keras_layer_with_tf_function_call_no_signature_single_input(tmp_dir):
     return model, model_ref, {'example_input': example_input}
 
 
-def create_keras_layer_with_string_tensor(tmp_dir):
+def create_keras_layer_with_string_tensor_1(tmp_dir):
     import tensorflow as tf
 
-    x = tf.keras.Input(shape=[1], name="input", dtype=tf.dtypes.int64)
-    var = tf.Variable("Text_1")
-    const = tf.constant("Text_2")
-    hash = tf.strings.to_hash_bucket([const, var], 3)
-
+    x = tf.keras.Input(shape=[1], name="input", dtype=tf.int64)
+    var = tf.Variable("Text_1", dtype=tf.string)
+    const1 = tf.constant("Text_2", dtype=tf.string)
+    hash = tf.strings.to_hash_bucket([const1, var], 3)
     model = tf.keras.Model(inputs=[x], outputs=[hash + x])
-    example_input = tf.constant(3)
 
-    param = ov.opset8.parameter([], dtype=np.int32)
+
+    param = ov.opset8.parameter([-1, 1], dtype=np.float32)
     conv = ov.opset8.convert(param, np.int64)
-    const = ov.opset8.constant([0, 2], dtype=np.int64)
+    const = ov.opset8.constant([[0, 2]], dtype=np.int64)
     add = ov.opset8.add(const, conv)
     parameter_list = [param]
     model_ref = Model([add], parameter_list, "test")
 
-    return model, model_ref, {'example_input': example_input}
+    return model, model_ref, {}
+
+
+def create_keras_layer_with_string_tensor_2(tmp_dir):
+    import tensorflow as tf
+    class LayerModel(tf.Module):
+        def __init__(self):
+            super(LayerModel, self).__init__()
+            self.var = tf.Variable("Text", dtype=tf.string)
+
+        @tf.function(input_signature=[tf.TensorSpec([1], tf.float32), tf.TensorSpec([1], tf.float32)])
+        def __call__(self, input1, input2):
+            return input1 + input2, self.var
+
+    model = LayerModel()
+
+    param1 = ov.opset8.parameter([1], dtype=np.float32)
+    param2 = ov.opset8.parameter([1], dtype=np.float32)
+    add = ov.opset8.add(param1, param2)
+    parameter_list = [param1, param2]
+    model_ref = Model([add], parameter_list, "test")
+
+    return model, model_ref, {}
 
 
 class TestMoConvertTF(CommonMOConvertTest):
@@ -629,7 +650,8 @@ class TestMoConvertTF(CommonMOConvertTest):
         create_keras_layer_with_tf_function_call,
         create_keras_layer_with_tf_function_call_no_signature,
         create_keras_layer_with_tf_function_call_no_signature_single_input,
-        create_keras_layer_with_string_tensor,
+        create_keras_layer_with_string_tensor_1,
+        create_keras_layer_with_string_tensor_2,
 
         # TF1
         create_tf_graph,
