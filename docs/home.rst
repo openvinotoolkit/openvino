@@ -16,8 +16,20 @@ OpenVINO 2023.0
 
    OpenVINO 2023.0
 
-   | An open-source toolkit for optimizing and deploying deep learning models.
-   | Boost your AI deep-learning inference performance!
+   .. raw:: html
+
+      <div class="line-block">
+         <section class="splide" aria-label="Splide Banner Carousel">
+           <div class="splide__track">
+         		<ul class="splide__list">
+         			<li class="splide__slide">An open-source toolkit for optimizing and deploying deep learning models.<br>Boost your AI deep-learning inference performance!</li>
+			         <li class="splide__slide">Lorem, ipsum dolor sit amet consectetur adipisicing elit. Quo aliquam, rem earum ex est facilis ea dolore. Laborum incidunt debitis, sed voluptatum repudiandae id odit sequi quisquam! Odit, harum modi!</li>
+         			<li class="splide__slide">Lorem ipsum dolor sit amet consectetur adipisicing elit. Cupiditate, aliquid ducimus libero voluptatem rem iure autem non laboriosam quam commodi sequi recusandae ut. Asperiores, eum.</li>
+         			<li class="splide__slide">Lorem ipsum dolor sit amet consectetur adipisicing elit. Cupiditate, aliquid ducimus libero voluptatem rem iure autem non laboriosam quam commodi sequi recusandae ut. Asperiores, eum.</li>
+         		</ul>
+           </div>
+         </section>
+      </div>
    
    .. button-ref::  get_started
       :ref-type: doc

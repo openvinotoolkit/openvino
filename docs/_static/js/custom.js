@@ -47,6 +47,7 @@ $(document).ready(function () {
     initBenchmarkPickers();   // included with the new benchmarks page 
     initCollapsibleHeaders(); // included with the new benchmarks page
     createSphinxTabSets();
+    initSplide();
 });
 
 // Determine where we'd go if clicking on a version selector option
@@ -262,4 +263,18 @@ function addFooter() {
         const footerContent = $(text);
         footerAnchor.append(footerContent);
     });
+}
+
+function initSplide() {
+  const slides = $('.splide__slide');
+  const height = (slides.length > 3) ? 81.8 + ((slides.length - 3) * 16.6) : 81.8
+  var splide = new Splide('.splide', {
+    direction  : 'ttb',
+    type       : 'loop',
+    height     : `${height}px`,
+    perPage    : 1,
+    autoplay   : true,
+    arrows     : false,
+  });
+  splide.mount();
 }
