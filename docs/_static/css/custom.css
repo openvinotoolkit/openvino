@@ -100,22 +100,26 @@ ul#navbar-main-elements > li:hover {
     transform: rotate(0deg);
 }
 
-
-/* Footer links */
+/* Footer */
 /* =================================================== */
-footer div.container div.footer-item p a {
-    float: left;
-    margin-right: 30px;
+footer iframe {
+    background-color: white;
+    width: 100%;
+    border: none;
+    height: 60px;
 }
 
-footer div.container div.footer-item p a:nth-child(1) {
-    margin-right: 50px;
+@media screen and (min-width: 860px) {
+    footer iframe {
+        height: 45px;
+    }
 }
 
-footer div.container div.footer-item p:nth-child(2) {
-    clear: both;
+@media screen and (max-width: 520px) {
+    footer iframe {
+        height: 85px;
+    }
 }
-
 
 /* Doc version dropdown formatting override */
 /* =================================================== */
@@ -937,4 +941,152 @@ table#model-accuracy-and-perf-int8-fp32-table td.data {
 #performance-information-frequently-asked-questions section table {
   display: none;
   padding-left: 30px;
+}
+
+
+/* Newsletter */
+/* =================================================== */
+#newsletterModal {
+    position: fixed;
+    z-index: 5000;
+    width: 100%;
+    height: 100%;
+    bottom: 0;
+    left: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.newsletter-shadow {
+    background: white;
+    box-shadow: 0 0 40px 40px rgba(255,255,255,1);
+    padding: 10px;
+    max-width: 600px;
+    width: 90%;
+    box-sizing: border-box;
+}
+
+.newsletter-box {
+    max-width: 530px;
+    padding: 10px;
+    margin: auto;
+}
+
+.newsletter {
+    background: rgba(0, 104, 181, 1);
+    box-shadow: 0 0 20px 10px #a9a9a9c0;
+    width: 100%;
+    padding: 10px;
+}
+
+.newsletter-heading {
+    color: white;
+    margin: 0 0 1rem;
+}
+
+.newsletter-text {
+    color: white;
+}
+
+.form-group {
+    position: relative;
+}
+
+.newsletter-input {
+    box-sizing: border-box;
+    border: 1px solid white;
+    width: 100%;
+    transition: .4s;
+    line-height: 1.65rem;
+    height: 30px;
+}
+
+.newsletter-input:focus {
+    outline: 0;
+    box-shadow: 0 0 5px 2px white;
+}
+
+.newsletter-input.failed:focus {
+    outline: 0;
+    box-shadow: 0 0 5px 2px #c90000;
+}
+
+.newsletter-btn,
+.newsletter-btn:focus {
+    background: #c4c000;
+    color: white;
+    border: 0;
+    position: absolute;
+    top: 1px;
+    right: 1px;
+    padding: 0 .8rem;
+    transition: .4s;
+
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 31%;
+    outline: none;
+}
+
+.newsletter-btn:hover,
+.newsletter-btn:active {
+    background: #a3a000;
+    outline: none;
+}
+
+.newsletter-btn:disabled {
+    background: #c90000;
+}
+
+.newsletter-btn:before {
+    font-family: "Font Awesome 5 Free";
+    content: "\f0e0\00a0"; 
+    font-size: 1rem;
+}
+
+.message-box {
+    justify-content: center;
+    align-items: center;
+    font-size: 1.2rem;
+    text-align: center;
+    display: none;
+    color: white;
+}
+
+.animated {
+    opacity: 0;
+}
+
+.fade-up {
+    animation: fade-up-anim .2s forwards;
+}
+
+.fade-in {
+    animation: fade-in-anim .2s forwards;
+}
+
+.animation-delay {
+    animation-delay: .3s;
+}
+
+@keyframes fade-up-anim {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fade-in-anim {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
 }

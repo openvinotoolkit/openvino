@@ -102,6 +102,7 @@
 #include "transformations/op_conversions/eye_decomposition.hpp"
 #include "transformations/op_conversions/gather_normalize_negative_indices.hpp"
 #include "transformations/op_conversions/gelu7_downgrade.hpp"
+#include "transformations/op_conversions/group_normalization_decomposition.hpp"
 #include "transformations/op_conversions/hsigmoid_decomposition.hpp"
 #include "transformations/op_conversions/hswish_decomposition.hpp"
 #include "transformations/op_conversions/log_softmax_decomposition.hpp"
@@ -162,6 +163,7 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     ADD_MATCHER(decomp, ConvertSpaceToDepth)
     ADD_MATCHER(decomp, ConvertConvertLike)
     ADD_MATCHER(decomp, BatchNormDecomposition)
+    ADD_MATCHER(decomp, GroupNormalizationDecomposition)
     ADD_MATCHER(decomp, MVN6Decomposition)
     decomp->add_matcher<NormalizeL2Decomposition, false>();
     ADD_MATCHER(decomp, SimplifyCTCGreedyDecoderSeqLen)
