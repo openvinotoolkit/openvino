@@ -73,7 +73,7 @@ TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA_SplitM) {
                                                  std::vector<Shape>{{10, 9, 1024, 128}, {10, 1, 128, 9216}, {10, 1, 9216, 128}, {10, 9216, 128}});
     function = f.getOriginal();
     function_ref = f.getReference();
-    config.num_threads = 18;
+    config.minimal_concurrency = 18;
     run();
 }
 
@@ -83,7 +83,7 @@ TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHASelect_SplitM) {
                                                                {8, 1, 64, 512}, {8, 512, 512}});
     function = f.getOriginal();
     function_ref = f.getReference();
-    config.num_threads = 16;
+    config.minimal_concurrency = 16;
     run();
 }
 

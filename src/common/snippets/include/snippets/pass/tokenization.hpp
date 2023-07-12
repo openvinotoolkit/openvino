@@ -61,10 +61,10 @@ public:
      * @ingroup snippets
      */
     struct Config {
-        Config(size_t num_threads = 1, bool split_m_dimension = true, bool enable_transpose = true)
-            : num_threads(num_threads), split_m_dimension(split_m_dimension), mha_token_enable_transpose(enable_transpose) {}
+        Config(size_t minimal_concurrency = 1, bool split_m_dimension = true, bool enable_transpose = true)
+            : minimal_concurrency(minimal_concurrency), split_m_dimension(split_m_dimension), mha_token_enable_transpose(enable_transpose) {}
 
-        size_t num_threads = 1;
+        size_t minimal_concurrency = 1;
         // True if "SplitDimensionM" optimization is enabled. Otherwise, it's disabled.
         bool split_m_dimension = true;
         // False if all Transposes aren't tokenized in MHA Tokenization.

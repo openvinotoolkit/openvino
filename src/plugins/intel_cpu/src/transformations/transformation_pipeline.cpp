@@ -634,7 +634,7 @@ void Transformations::MainSnippets(void) {
     // Because of that Transposes won't be fused into Brgemm
     // TODO [111813]: Need to update this pipeline to avoid Converts between Transposes and Brgemm on inputs
     tokenization_config.mha_token_enable_transpose = (inferencePrecision == ov::element::f32);
-    tokenization_config.num_threads = parallel_get_num_threads();
+    tokenization_config.minimal_concurrency = parallel_get_num_threads();
     // The optimization "SplitDimensionM" depends on target machine (thread count).
     // To avoid uncontrolled behavior in tests, we disabled the optimization when there is Config::SnippetsMode::IgnoreCallback
     tokenization_config.split_m_dimension = snippetsMode != Config::SnippetsMode::IgnoreCallback;
@@ -693,7 +693,7 @@ void Transformations::MainSnippets(void) {
                 const auto is_unsupported_parallel_work_amount =
                         parallel_get_num_threads() / 2 > parallel_work_amount &&
                         static_cast<size_t>(parallel_work_amount) < needed_num_of_threads &&
-                        !ov::snippets::pass::CommonOptimizations::canBeParallelismWAOptimized(n, tokenization_config.num_threads);
+                        !ov::snippets::pass::CommonOptimizations::CanOptimizeParallelWA(n, tokenization_config.minimal_concurrency);
                 return is_unsupported_parallel_work_amount;
             },
             snippets::pass::TokenizeMHASnippets);

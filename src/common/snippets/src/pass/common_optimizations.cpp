@@ -19,7 +19,7 @@ namespace ov {
 namespace snippets {
 namespace pass {
 
-bool CommonOptimizations::canBeParallelismWAOptimized(const std::shared_ptr<const ov::Node>& node, size_t num_threads) {
+bool CommonOptimizations::CanOptimizeParallelWA(const std::shared_ptr<const ov::Node>& node, size_t minimal_concurrency) {
     if (!ov::is_type<ov::op::v0::MatMul>(node))
         return false;
     // It's needed only for 3D MHA patterns
@@ -29,10 +29,11 @@ bool CommonOptimizations::canBeParallelismWAOptimized(const std::shared_ptr<cons
     const auto current_parallel_work_amount =
         std::accumulate(mm_shape.rbegin() + 2, mm_shape.rend(), size_t(1), std::multiplies<size_t>());
     const auto dim_M = *(mm_shape.rbegin() + 1);
-    return (current_parallel_work_amount < num_threads) && (current_parallel_work_amount * dim_M >= num_threads);
+    return (current_parallel_work_amount < minimal_concurrency) &&
+           (current_parallel_work_amount * dim_M >= minimal_concurrency);
 }
 
-void CommonOptimizations::SplitDimensionM(const std::shared_ptr<ov::snippets::op::Subgraph>& subgraph, size_t num_threads) {
+void CommonOptimizations::SplitDimensionM(const std::shared_ptr<ov::snippets::op::Subgraph>& subgraph, size_t minimal_concurrency) {
     // To increase parallelism work in 3D cases for MHA pattern,
     // we split 1st dimension (starting from 0th) into 2 new dimensions to get 4D Shapes where
     // - 0th and 1st dimensions are used in parallel scheduling,
@@ -58,7 +59,7 @@ void CommonOptimizations::SplitDimensionM(const std::shared_ptr<ov::snippets::op
         return;
 
     const auto matmul0 = ov::as_type_ptr<ov::op::v0::MatMul>(*mm_it);
-    if (!matmul0 || !canBeParallelismWAOptimized(matmul0, num_threads))
+    if (!matmul0 || !CanOptimizeParallelWA(matmul0, minimal_concurrency))
         return;
 
     auto get_dim_M = [](const ov::Shape& shape) {
@@ -66,13 +67,18 @@ void CommonOptimizations::SplitDimensionM(const std::shared_ptr<ov::snippets::op
     };
 
     const auto mm_shape = matmul0->get_shape();
-    const auto optimal_parallelism_work_amount = static_cast<size_t>(num_threads);
-    const auto optimal_m_dim = 64;  // heuristic
-    const auto batch_dim =
-        std::accumulate(mm_shape.rbegin() + 2, mm_shape.rend(), size_t(1), std::multiplies<size_t>());  // B (batch)
     const auto m_dim = get_dim_M(mm_shape);  // M
     const auto n_dim = mm_shape.back(); // N
+    // [113745] Heurestic is equal to double block size.
+    // When this optimization will be moved into Subgraph and blocking param will be implemented as dependents of shapes,
+    // need to implement common way (for all backends) to calculate optimal value of M dimension
+    const auto optimal_m_dim = 32 * 2;
+    const auto optimal_parallelism_work_amount = minimal_concurrency;
+    if (m_dim <= optimal_m_dim)
+        return;
 
+    const auto batch_dim =
+        std::accumulate(mm_shape.rbegin() + 2, mm_shape.rend(), size_t(1), std::multiplies<size_t>());  // B (batch)
     size_t batch_m_dim = 1;
     size_t new_m_dim = m_dim;
 
@@ -369,7 +375,7 @@ CommonOptimizations::CommonOptimizations(const SnippetsTokenization::Config& con
         if (subgraph->has_domain_sensitive_ops()) {
             ExtractUnsupportedTransposes(subgraph);
             if (config.split_m_dimension)
-                SplitDimensionM(subgraph, config.num_threads);
+                SplitDimensionM(subgraph, config.minimal_concurrency);
         }
         return true;
     };
