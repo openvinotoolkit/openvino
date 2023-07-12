@@ -4,9 +4,7 @@
 
 #pragma once
 
-#include <ie_common.h>
 #include <node.h>
-#include <string>
 
 namespace ov {
 namespace intel_cpu {
@@ -14,9 +12,9 @@ namespace node {
 
 class Pad : public Node {
 public:
-    Pad(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
+    Pad(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
 
-    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
     void createPrimitive() override;

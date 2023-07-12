@@ -3,16 +3,13 @@
 //
 
 #include "pad.h"
-#include <string>
-#include <cmath>
-#include <dnnl_types.h>
-#include <dnnl_extension_utils.h>
-#include <limits>
+
 #include "ie_parallel.hpp"
 #include "common/cpu_memcpy.h"
 #include "utils/bfloat16.hpp"
 #include <selective_build.h>
-#include <ngraph/opsets/opset1.hpp>
+#include <openvino/op/constant.hpp>
+#include <openvino/op/pad.hpp>
 #include <openvino/core/type/float16.hpp>
 
 using namespace dnnl;
@@ -23,21 +20,21 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
-bool Pad::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool Pad::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        auto pad = ov::as_type_ptr<const ngraph::opset1::Pad>(op);
-        if (!pad) {
-            errorMessage = "Only opset1 Pad operation is supported";
+        if (!one_of(op->get_type_info(), op::v1::Pad::get_type_info_static(), op::v12::Pad::get_type_info_static())) {
+            errorMessage = "Only Pad operations from opset1 and opset12 are supported";
             return false;
         }
 
+        auto pad = ov::as_type<const op::util::PadBase>(op.get());
         const auto pad_mode = pad->get_pad_mode();
         if (!one_of(pad_mode,
-                    ngraph::op::PadMode::CONSTANT,
-                    ngraph::op::PadMode::EDGE,
-                    ngraph::op::PadMode::REFLECT,
-                    ngraph::op::PadMode::SYMMETRIC)) {
-            errorMessage = "Has unsupported pad_mode: " + ngraph::as_string(pad_mode);
+                    op::PadMode::CONSTANT,
+                    op::PadMode::EDGE,
+                    op::PadMode::REFLECT,
+                    op::PadMode::SYMMETRIC)) {
+            errorMessage = "Has unsupported pad_mode: " + ov::as_string(pad_mode);
             return false;
         }
     } catch (...) {
@@ -46,8 +43,8 @@ bool Pad::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, st
     return true;
 }
 
-Pad::Pad(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
-    : Node(op, context, NgraphShapeInferFactory(op, PortMask(PADS_BEGIN_ID, PADS_END_ID))) {
+Pad::Pad(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+        : Node(op, context, NgraphShapeInferFactory(op, PortMask(PADS_BEGIN_ID, PADS_END_ID))) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -63,19 +60,19 @@ Pad::Pad(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr conte
     if (srcDimsRank != dstDimsRank)
         IE_THROW() << errorPrefix << "has incorrect number of input/output dimensions!";
 
-    auto pad = ov::as_type_ptr<const ngraph::opset1::Pad>(op);
+    auto pad = ov::as_type<const op::util::PadBase>(op.get());
     if (!pad) {
         IE_THROW() << errorPrefix << "couldn't be casted to op of opset1";
     }
 
-    shapeHasDataDependency = !ov::is_type<ov::op::v0::Constant>(op->get_input_node_shared_ptr(PADS_BEGIN_ID)) ||
-            !ov::is_type<ov::op::v0::Constant>(op->get_input_node_shared_ptr(PADS_END_ID));
+    shapeHasDataDependency = !ov::is_type<op::v0::Constant>(op->get_input_node_shared_ptr(PADS_BEGIN_ID)) ||
+            !ov::is_type<op::v0::Constant>(op->get_input_node_shared_ptr(PADS_END_ID));
 
     auto fillingInParameters = [&](VectorIdxs& parameter, const size_t type) {
         if (type < PADS_BEGIN_ID)
             return;
 
-        const auto constNode = ov::as_type_ptr<const ngraph::opset1::Constant>(op->get_input_node_shared_ptr(type));
+        const auto constNode = ov::as_type_ptr<const op::v0::Constant>(op->get_input_node_shared_ptr(type));
         if (constNode) {
             auto pad_data = constNode->cast_vector<int32_t>();
             for (const auto& value : pad_data) {
@@ -91,25 +88,25 @@ Pad::Pad(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr conte
 
     const auto pad_mode = pad->get_pad_mode();
     isPadValueSpecified = pad->get_input_size() == 4;
-    if (pad_mode == ngraph::op::PadMode::CONSTANT) {
+    if (pad_mode == op::PadMode::CONSTANT) {
         attrs.padMode = CONSTANT;
         if (isPadValueSpecified && op->get_input_node_shared_ptr(PAD_VALUE_ID)->get_type_info() ==
                                        ov::op::v0::Constant::get_type_info_static()) {
-            if (!ngraph::is_scalar(pad->get_input_shape(PAD_VALUE_ID)))
+            if (!ov::is_scalar(pad->get_input_shape(PAD_VALUE_ID)))
                 IE_THROW() << errorPrefix << "has non scalar 'pad_value' input";
             attrs.padValue =
-                ov::as_type_ptr<const ngraph::opset1::Constant>(pad->get_input_node_shared_ptr(PAD_VALUE_ID))
+                ov::as_type_ptr<const op::v0::Constant>(pad->get_input_node_shared_ptr(PAD_VALUE_ID))
                     ->cast_vector<float>()[0];
             attrs.constPadValue = true;
         }
-    } else if (pad_mode == ngraph::op::PadMode::EDGE) {
+    } else if (pad_mode == op::PadMode::EDGE) {
         attrs.padMode = EDGE;
-    } else if (pad_mode == ngraph::op::PadMode::REFLECT) {
+    } else if (pad_mode == op::PadMode::REFLECT) {
         attrs.padMode = REFLECT;
-    } else if (pad_mode == ngraph::op::PadMode::SYMMETRIC) {
+    } else if (pad_mode == op::PadMode::SYMMETRIC) {
         attrs.padMode = SYMMETRIC;
     } else {
-        IE_THROW() << errorPrefix << "has unsupported pad_mode: " + ngraph::as_string(pad_mode);
+        IE_THROW() << errorPrefix << "has unsupported pad_mode: " + ov::as_string(pad_mode);
     }
 }
 
