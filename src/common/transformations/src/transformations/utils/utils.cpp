@@ -340,6 +340,19 @@ bool can_eliminate_eltwise_node(const std::shared_ptr<Node>& eltwise,
     }
     return true;
 }
+
+float cast_eps_to_float(double eps_d) {
+    auto eps_f = static_cast<float>(eps_d);
+    if (eps_d > 0.) {  // zero is fine; negative values have no sense
+        if (std::nextafter(eps_d, 0) < static_cast<double>(std::numeric_limits<float>::min()))
+            eps_f = std::numeric_limits<float>::min();
+        else if (std::nextafter(eps_d, std::numeric_limits<double>::max()) >
+                 static_cast<double>(std::numeric_limits<float>::max()))
+            eps_f = std::numeric_limits<float>::max();
+    }
+    return eps_f;
+}
+
 }  // namespace util
 }  // namespace op
 }  // namespace ov

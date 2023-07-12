@@ -87,6 +87,19 @@ inline std::string get_ie_output_name(const Output<Node>& output) {
     return get_ie_output_name(ov::Output<const Node>(output.get_node(), output.get_index()));
 }
 
+/**
+ * \brief Convert epsilon value from double to float type.
+ *
+ * If the value is too large, the epsilon is converted to std::numeric_limits<float>::min() or
+ * std::numeric_limits<float>::min(), otherwise static cast to float is called.
+ * The adjustment is made for positive values only, for negative it works as static cast.
+ *
+ * \param eps  Original value of the epsilon (double).
+ *
+ * \return Epsilon value as float.
+ */
+float cast_eps_to_float(double eps_d);
+
 template <typename T>
 bool has_constant_value(const std::shared_ptr<Node>& node,
                         const T value,

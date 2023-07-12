@@ -118,7 +118,9 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*ReferenceInterpolate_v11.*data_type=f16.*)",
         R"(.*LSTMSequence_With_Hardcoded_Refs.*ReferenceLSTMSequenceTest.*iType=f16.*)",
         // CVS-111443
-        R"(.*eltwiseOpType=Mod_secondaryInputType=PARAMETER_opType=VECTOR_NetType=(f16|f32).*)"
+        R"(.*eltwiseOpType=Mod_secondaryInputType=PARAMETER_opType=VECTOR_NetType=(f16|f32).*)",
+        // Interpreter backend doesn't implement evaluate method for OP Multiply (by GroupNormalizationDecomposition)
+        R"(.*ReferenceGroupNormalization.*_f64*)",
     };
 
 #ifdef _WIN32
