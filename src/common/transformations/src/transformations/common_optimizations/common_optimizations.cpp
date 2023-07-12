@@ -28,6 +28,7 @@
 #include "transformations/common_optimizations/convert_nms_gather_path_to_unsigned.hpp"
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
 #include "transformations/common_optimizations/dilated_convolution_converter.hpp"
+#include "transformations/common_optimizations/dimension_tracking.hpp"
 #include "transformations/common_optimizations/disable_random_uniform_constant_folding.hpp"
 #include "transformations/common_optimizations/dropout_with_random_uniform_replacer.hpp"
 #include "transformations/common_optimizations/eliminate_unsqueeze_gather.hpp"
@@ -231,7 +232,8 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     // StridesOptimization should be at the very end
     // because we cannot insert any MaxPools since they may prevent
     // other optimizations
-    manager.register_pass<StridesOptimization>();
+    REGISTER_PASS(manager, StridesOptimization)
+    REGISTER_PASS(manager, SymbolicOptimizations)
     REGISTER_PASS(manager, Validate)
     manager.run_passes(f);
 
