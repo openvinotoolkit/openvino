@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Get to know solutions for possible problems that may occur during 
+                 the installation and configuration of OpenVINO™ on your system.
+
 This page lists issues that you may encounter during the installation and configuration of OpenVINO™, as well as their possible solutions.
 
 .. _install_for_prc:

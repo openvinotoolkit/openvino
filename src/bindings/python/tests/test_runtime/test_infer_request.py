@@ -11,7 +11,7 @@ import datetime
 import time
 
 import openvino.runtime.opset8 as ops
-from openvino.runtime import Core, AsyncInferQueue, Tensor, ProfilingInfo, Model, InferRequest
+from openvino.runtime import Core, AsyncInferQueue, Tensor, ProfilingInfo, Model, InferRequest, CompiledModel
 from openvino.runtime import Type, PartialShape, Shape, Layout
 from openvino.preprocess import PrePostProcessor
 
@@ -512,6 +512,22 @@ def test_infer_queue_iteration(device):
     assert infer_request.userdata is None
     with pytest.raises(StopIteration):
         next(it)
+
+
+def test_get_compiled_model(device):
+    core = Core()
+    param = ops.parameter([10])
+    data = np.random.rand((10))
+    model = Model(ops.relu(param), [param])
+    compiled_model_1 = core.compile_model(model, device)
+    infer_request = compiled_model_1.create_infer_request()
+    compiled_model_2 = infer_request.get_compiled_model()
+
+    ref = infer_request.infer({0: data})
+    test = compiled_model_2.create_infer_request().infer({0: data})
+
+    assert isinstance(compiled_model_2, CompiledModel)
+    assert np.allclose(ref[0], test[0])
 
 
 def test_infer_queue_userdata_is_empty(device):
@@ -1112,3 +1128,33 @@ def test_mixed_dynamic_infer(device, shared_flag, input_data):
     else:
         assert not np.shares_memory(input_data[0], input_tensor0.data)
         assert not np.shares_memory(input_data[1], input_tensor1.data)
+
+
+@pytest.mark.parametrize("shared_flag", [True, False])
+@pytest.mark.parametrize(("input_data", "change_flags"), [
+    ({0: np.frombuffer(b"\x01\x02\x03\x04", np.uint8)}, False),
+    ({0: np.array([1, 2, 3, 4], dtype=np.uint8)}, True),
+])
+def test_not_writable_inputs_infer(device, shared_flag, input_data, change_flags):
+    if change_flags is True:
+        input_data[0].setflags(write=0)
+    # identity model
+    input_shape = [4]
+    param_node = ops.parameter(input_shape, np.uint8, name="data0")
+    core = Core()
+    model = Model(param_node, [param_node])
+    compiled = core.compile_model(model, "CPU")
+
+    results = compiled(input_data, shared_memory=shared_flag)
+
+    assert np.array_equal(results[0], input_data[0])
+
+    request = compiled.create_infer_request()
+    results = request.infer(input_data, shared_memory=shared_flag)
+
+    assert np.array_equal(results[0], input_data[0])
+
+    input_tensor = request.get_input_tensor(0)
+
+    # Not writable inputs should always be copied.
+    assert not np.shares_memory(input_data[0], input_tensor.data)

@@ -103,7 +103,7 @@ LinuxCpuReserveTestCase _2sockets_72cores_hyper_36streams = {
         {54}, {55}, {56}, {57}, {58}, {59}, {60}, {61}, {62}, {63}, {64}, {65}, {66}, {67}, {68}, {69}, {70}, {71},
     },
     // param[in]: cpu_status, CPU does not change CPU status
-    NOT_USED,
+    CPU_USED,
 };
 LinuxCpuReserveTestCase _2sockets_72cores_hyper_2streams = {
     72,
@@ -508,7 +508,7 @@ LinuxCpuReserveTestCase _2sockets_20cores_hyper_20streams = {
         {20}, {22}, {24}, {26}, {28}, {30}, {32}, {34}, {36}, {38},
         {21}, {23}, {25}, {27}, {29}, {31}, {33}, {35}, {37}, {39},
     },
-    CPU_USED,
+    NOT_USED,
 };
 LinuxCpuReserveTestCase _2sockets_20cores_hyper_4streams = {
     40,

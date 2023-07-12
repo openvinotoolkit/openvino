@@ -2,6 +2,12 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: The methods to emulate dynamic shapes are applied only if the 
+                 native dynamic shape API does not work or does not perform 
+                 as expected.
+
+
 Several approaches to emulate dynamic shapes are considered in this article.
 Apply the following methods only if the :doc:`native dynamic shape API <openvino_docs_OV_UG_DynamicShapes>` does not work or does not perform as expected.
 

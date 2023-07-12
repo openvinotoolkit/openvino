@@ -12,6 +12,7 @@
 #include "quantize_inst.h"
 #include "arg_max_min_inst.h"
 #include "fully_connected_inst.h"
+#include "condition_inst.h"
 #include "program_node.h"
 
 #include <iostream>
@@ -52,8 +53,8 @@ void compile_graph::run(program& p) {
         if (node->is_type<reshape>() && node->is_dynamic() && !node->can_be_optimized())
             can_select_impl = false;
 
-        // TODO: Remove this WA once we have shape agnostic quantize_scale_shift kernel
-        if (node->is_type<quantize>() && node->is_dynamic() && node->as<quantize>().get_scale_shift_opt()) {
+        // TODO: Remove this WA once we have shape agnostic conv kernl with specified auto_pad attributes
+        if (node->is_type<convolution>() && node->is_dynamic() && !node->as<convolution>().use_explicit_padding()) {
             can_select_impl = false;
         }
 
@@ -71,6 +72,9 @@ void compile_graph::run(program& p) {
 
         if (node->is_dynamic() && !is_planar)
             can_select_impl = false;
+
+        if (node->is_type<condition>())
+            can_select_impl = true;
 
         if (can_select_impl) {
             tasks.push_back([node, &exception, change_initial_impl, original_impl_type] {
