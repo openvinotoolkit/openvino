@@ -16,6 +16,7 @@
 #include <threading/ie_executor_manager.hpp>
 #include "openvino/runtime/auto/properties.hpp"
 #include "openvino/runtime/device_id_parser.hpp"
+#include "openvino/runtime/internal_properties.hpp"
 #include "plugin.hpp"
 #include "auto_schedule.hpp"
 #include "auto_compiled_model.hpp"
@@ -281,6 +282,8 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
     } else if (ov::supported_properties == name) {
         auto ret = m_plugin_config.supported_properties(get_device_name());
         return ret;
+    } else if (name == ov::internal::supported_properties.name()) {
+        return decltype(ov::internal::supported_properties)::value_type{};
     } else if (name == ov::device::full_name) {
         return decltype(ov::device::full_name)::value_type {get_device_name()};
     } else if (name == ov::device::capabilities.name()) {
