@@ -68,7 +68,7 @@ class TFGraphNodeDecoder(DecoderBase):
             # copies tensor value from node_def
             value = self.m_operation.node_def.attr["value"].tensor
             if data_type == "string":
-                self.m_parsed_content = [try_decode(val)[1] for val in value.string_val]
+                self.m_parsed_content = [str(val) for val in value.string_val]
             else:
                 self.m_parsed_content = tf.make_ndarray(value)
 
@@ -82,10 +82,8 @@ class TFGraphNodeDecoder(DecoderBase):
                     self.m_parsed_content = variable_value.value().__array__()
 
                     if isinstance(self.m_parsed_content, bytes):
-                        is_utf8, decoded_str = try_decode(self.m_parsed_content)
-                        if is_utf8:
-                            self.m_data_type = "string"
-                            self.m_parsed_content = [decoded_str]
+                        self.m_data_type = "string"
+                        self.m_parsed_content = [str(self.m_parsed_content)]
 
     def get_op_name(self) -> str:
         return self.m_operation.name
