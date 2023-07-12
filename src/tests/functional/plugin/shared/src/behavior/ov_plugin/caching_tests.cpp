@@ -282,7 +282,7 @@ void CompileModelLoadFromFileTestBase::SetUp() {
     target_device = targetDevice;
     APIBaseTest::SetUp();
     std::stringstream ss;
-    std::string filePrefix = CommonTestUtils::generateTestFilePrefix();
+    std::string filePrefix = ov::test::utils::generateTestFilePrefix();
     ss << "testCache_" << filePrefix;
     m_modelName = ss.str() + ".xml";
     m_weightsName = ss.str() + ".bin";

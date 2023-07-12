@@ -82,7 +82,7 @@ void LayerTestsCommon::Run() {
 void LayerTestsCommon::Serialize(ngraph::pass::Serialize::Version ir_version) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
-    std::string output_name = CommonTestUtils::generateTestFilePrefix();
+    std::string output_name = ov::test::utils::generateTestFilePrefix();
 
     std::string out_xml_path = output_name + ".xml";
     std::string out_bin_path = output_name + ".bin";

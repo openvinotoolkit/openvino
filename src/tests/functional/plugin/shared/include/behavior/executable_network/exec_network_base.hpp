@@ -268,7 +268,7 @@ TEST_P(ExecutableNetworkBaseTest, CheckExecGraphInfoAfterExecution) {
 }
 
 TEST_P(ExecutableNetworkBaseTest, CheckExecGraphInfoSerialization) {
-    auto filePrefix = CommonTestUtils::generateTestFilePrefix();
+    auto filePrefix = ov::test::utils::generateTestFilePrefix();
     std::string out_xml_path = filePrefix + ".xml";
     std::string out_bin_path = filePrefix + ".bin";
 
@@ -281,7 +281,7 @@ TEST_P(ExecutableNetworkBaseTest, CheckExecGraphInfoSerialization) {
 }
 
 TEST_P(ExecutableNetworkBaseTest, canExport) {
-    auto filePrefix = CommonTestUtils::generateTestFilePrefix();
+    auto filePrefix = ov::test::utils::generateTestFilePrefix();
     std::string modelName = filePrefix;
     auto execNet = ie->LoadNetwork(cnnNet, target_device, configuration);
     ASSERT_NO_THROW(execNet.Export(modelName));

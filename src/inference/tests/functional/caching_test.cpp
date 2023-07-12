@@ -218,7 +218,7 @@ public:
         m_testFunction = getLoadFunction(m_type);
         m_testFunctionWithCfg = getLoadFunctionWithCfg(m_type);
         m_remoteContext = std::get<2>(std::get<0>(GetParam()));
-        auto testName = CommonTestUtils::generateTestFilePrefix();
+        auto testName = ov::test::utils::generateTestFilePrefix();
         modelName = testName + ".xml";
         weightsName = testName + ".bin";
         m_cacheDir = testName + m_cacheDir;

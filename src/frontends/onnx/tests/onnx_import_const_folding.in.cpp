@@ -37,7 +37,7 @@ void test_constant_folding(std::shared_ptr<ngraph::Function> ng_function,
             const auto folded_node = ov::as_type_ptr<default_opset::Constant>(ng_node);
             const auto output_values = folded_node->cast_vector<T>();
 
-            EXPECT_TRUE(ngraph::test::all_close(expected_output, output_values));
+            EXPECT_TRUE(ov::test::utils::all_close(expected_output, output_values));
 
             if (expected_shape.is_static()) {
                 EXPECT_EQ(folded_node->get_output_shape(0), expected_shape.to_shape());

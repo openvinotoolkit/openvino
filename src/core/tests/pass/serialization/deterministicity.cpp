@@ -23,7 +23,7 @@ protected:
     std::string filePrefix{};
 
     void SetupFileNames() {
-        filePrefix = CommonTestUtils::generateTestFilePrefix();
+        filePrefix = ov::test::utils::generateTestFilePrefix();
         m_out_xml_path_1 = filePrefix + "1" + ".xml";
         m_out_bin_path_1 = filePrefix + "1" + ".bin";
         m_out_xml_path_2 = filePrefix + "2" + ".xml";

@@ -394,7 +394,7 @@ TEST_F(MetaData, get_meta_data_as_map) {
 
 TEST_F(MetaData, get_meta_data_from_removed_file) {
     std::string file_path = InferenceEngine::getIELibraryPath() + ov::util::FileTraits<char>::file_separator +
-                            CommonTestUtils::generateTestFilePrefix() + "_test_model.xml";
+                            ov::test::utils::generateTestFilePrefix() + "_test_model.xml";
     // Create file
     {
         std::ofstream ir(file_path);

@@ -328,7 +328,7 @@ void ExecGraphSerializationTest::SetUp() {
     const std::string XML_EXT = ".xml";
     const std::string BIN_EXT = ".bin";
 
-    std::string filePrefix = CommonTestUtils::generateTestFilePrefix();
+    std::string filePrefix = ov::test::utils::generateTestFilePrefix();
 
     m_out_xml_path = filePrefix + XML_EXT;
     m_out_bin_path = filePrefix + BIN_EXT;

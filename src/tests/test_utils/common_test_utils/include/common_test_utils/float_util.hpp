@@ -6,8 +6,10 @@
 #include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/float16.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace test {
+namespace utils {
+
 union FloatUnion {
     FloatUnion() {
         i = 0;
@@ -52,5 +54,6 @@ float bits_to_float(const std::string& s);
 double bits_to_double(const std::string& s);
 
 ov::float16 bits_to_float16(const std::string& s);
+}  // namespace utils
 }  // namespace test
-}  // namespace ngraph
+}  // namespace ov

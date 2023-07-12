@@ -50,7 +50,7 @@ public:
 
     // Sets up the test fixture.
     void SetUp() override {
-        auto testName = CommonTestUtils::generateTestFilePrefix();
+        auto testName = ov::test::utils::generateTestFilePrefix();
         m_fileName = testName + m_fileName;
         createFile(m_fileName);
     }
@@ -342,7 +342,7 @@ TEST(NetworkContext_ModelName, HashOfSame) {
 }
 
 TEST(NetworkContext_ModelName, HashOfExistingFile) {
-    auto file1 = CommonTestUtils::generateTestFilePrefix() + ".xml";
+    auto file1 = ov::test::utils::generateTestFilePrefix() + ".xml";
     auto file2 = std::string(".") + CommonTestUtils::FileSeparator + file1;
 
     FileGuard guard(file1);
