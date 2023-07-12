@@ -4,8 +4,6 @@
 
 if(CMAKE_TOOLCHAIN_FILE MATCHES "vcpkg" OR DEFINED VCPKG_VERBOSE)
     set(OV_VCPKG_BUILD ON)
-elseif(CMAKE_TOOLCHAIN_FILE MATCHES "conan_toolchain" OR DEFINED CONAN_EXPORTED)
-    set(OV_CONAN_BUILD)
 endif()
 
 set(_old_CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
@@ -331,51 +329,8 @@ endif()
 #
 
 if(ENABLE_SAMPLES OR ENABLE_TESTS)
-    if(OV_VCPKG_BUILD OR OV_CONAN_BUILD)
-        # vcpkg contains only libs compiled with threads
-        # conan case
-        find_package(gflags QUIET)
-    elseif(APPLE OR WIN32)
-        # on Windows and macOS we don't use gflags, because will be dynamically linked
-    elseif(CMAKE_HOST_LINUX AND LINUX)
-        if(OV_OS_RHEL)
-            set(gflag_component nothreads_shared)
-        elseif(OV_OS_DEBIAN)
-            set(gflag_component nothreads_static)
-        endif()
-        find_package(gflags QUIET OPTIONAL_COMPONENTS ${gflag_component})
-    endif()
-
-    if(gflags_FOUND)
-        if(TARGET gflags)
-            # no extra steps
-        elseif(TARGET gflags_nothreads-static)
-            # Debian 9: gflag_component is ignored
-            set(gflags_target gflags_nothreads-static)
-        elseif(TARGET gflags_nothreads-shared)
-            # CentOS / RHEL / Fedora case
-            set(gflags_target gflags_nothreads-shared)
-        elseif(TARGET ${GFLAGS_TARGET})
-            set(gflags_target ${GFLAGS_TARGET})
-        else()
-            message(FATAL_ERROR "Internal error: failed to find imported target 'gflags' using '${gflag_component}' component")
-        endif()
-
-        if(gflags_target)
-            if(OV_PkgConfig_VISILITY)
-                # need to set GLOBAL visibility in order to create ALIAS for this target
-                set_target_properties(${gflags_target} PROPERTIES IMPORTED_GLOBAL ON)
-            endif()
-            add_library(gflags ALIAS ${gflags_target})
-        endif()
-
-        message(STATUS "gflags (${gflags_VERSION}) is found at ${gflags_DIR} using '${gflag_component}' component")
-    endif()
-
-    if(NOT TARGET gflags)
-        add_subdirectory(thirdparty/gflags EXCLUDE_FROM_ALL)
-        openvino_developer_export_targets(COMPONENT openvino_common TARGETS gflags)
-    endif()
+    add_subdirectory(thirdparty/gflags EXCLUDE_FROM_ALL)
+    openvino_developer_export_targets(COMPONENT openvino_common TARGETS gflags)
 endif()
 
 #
@@ -597,9 +552,6 @@ endif()
 if(CPACK_GENERATOR MATCHES "^(DEB|RPM|CONDA-FORGE|BREW|CONAN|VCPKG)$")
     # These libraries are dependencies for openvino-samples package
     if(ENABLE_SAMPLES OR ENABLE_TESTS)
-        if(NOT gflags_FOUND AND CPACK_GENERATOR MATCHES "^(DEB|RPM)$")
-            message(FATAL_ERROR "gflags must be used as a ${CPACK_GENERATOR} package. Install libgflags-dev / gflags-devel")
-        endif()
         if(NOT (zlib_FOUND OR ZLIB_FOUND))
             message(FATAL_ERROR "zlib must be used as a ${CPACK_GENERATOR} package. Install zlib1g-dev / zlib-devel")
         endif()
