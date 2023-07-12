@@ -70,6 +70,6 @@ public:
     ~MockSyncInferRequest() = default;
 
 private:
-    void allocate_tensor_impl(ov::Tensor& tensor, const ov::element::Type& element_type, const ov::Shape& shape);
+    void allocate_tensor_impl(ov::SoPtr<ov::ITensor>& tensor, const ov::element::Type& element_type, const ov::Shape& shape);
 };
 } // namespace ov
