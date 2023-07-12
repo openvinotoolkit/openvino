@@ -113,6 +113,7 @@
 #include "snippets/pass/mha_tokenization.hpp"
 #include "snippets/pass/collapse_subgraph.hpp"
 #include "snippets/pass/common_optimizations.hpp"
+#include "snippets/pass/extract_reshapes_from_mha.hpp"
 
 // Misc
 #include "nodes/mvn.h"
@@ -653,6 +654,7 @@ void Transformations::MainSnippets(void) {
             dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core);  // MHA has BRGEMM that is supported only on AVX512 platforms
     if (!isMHASupported) {
         CPU_DISABLE_PASS_X64(snippetsManager, snippets::pass::TokenizeMHASnippets);
+        CPU_DISABLE_PASS_X64(snippetsManager, snippets::pass::ExtractReshapesFromMHA);
     }
 
 #if defined(OPENVINO_ARCH_X86_64)
