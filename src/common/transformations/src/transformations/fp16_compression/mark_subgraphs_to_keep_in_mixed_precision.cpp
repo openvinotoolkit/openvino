@@ -145,7 +145,7 @@ public:
 };
 
 /* Starting from the marked precision sensitive nodes we need to propagate down to include neighboring
- * ops like ov::op::v8::Slice, ov::op::v1::ReduceSum, ov::op::v1::Reshape, Elementwise, et al. to be kept in f32 as well.
+ * ops like Slice, ReduceSum, Reshape, Elementwise, et al. to be kept in f32 as well.
  * Propagation stops when ops not listed in propagate_through_ops are faced: e.g. if we face Conv or MatMul.
  */
 class PropagateDownMarkToKeepInMixedPrecision : public pass::MatcherPass {
@@ -272,7 +272,7 @@ public:
 };
 
 /* MarkDivWithEps martk pattern that matches the patterns input_1/Maximum(input_2, eps); input_1/Add(input_2, eps);
- * and input_1*Pow(Maximum[ov::op::v1::Add](input_2, eps), -z) and marks subgraph root to be kept in fp32.
+ * and input_1*Pow(Maximum[Add](input_2, eps), -z) and marks subgraph root to be kept in fp32.
  *
  * If both input_1 and input_2 simultaneously happen to be zero to prevent from NaNs and not to loose accuracy,
  * we should calculate such patterns always in fp32 precision even if ov::Model is compressed to fp16.
