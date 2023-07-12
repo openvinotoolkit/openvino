@@ -254,7 +254,7 @@ void ov::ISyncInferRequest::check_tensor(const ov::Output<const ov::Node>& port,
                     ".");
     // It seems tensor.is<ov::RemoteTensor>() is heavy function, it impacts performance greatly.
     // OPENVINO_ASSERT(tensor.is<ov::RemoteTensor>() || tensor.data() != nullptr, "Tensor data equal nullptr!");
-    auto remote_tensor = std::dynamic_pointer_cast<ov::RemoteTensor>(tensor._impl);
+    auto remote_tensor = std::dynamic_pointer_cast<ov::IRemoteTensor>(tensor._impl);
     OPENVINO_ASSERT(remote_tensor || tensor.data() != nullptr, "Tensor data equal nullptr!");
 }
 
