@@ -5,7 +5,7 @@
 #include <gtest/gtest.h>
 #include "common_test_utils/test_assertions.hpp"
 #include "custom_shape_infer.hpp"
-#include <ngraph/opsets/opset8.hpp>
+#include "openvino/op/ops.hpp"
 namespace ov {
 namespace intel_cpu {
 namespace unit_test {
@@ -62,7 +62,7 @@ TEST_P(AdaptiveMaxPoolV8CpuShapeInferenceTest , shape_inference_with_const_map) 
 
     const auto axes_const = std::make_shared<op::v0::Constant>(element::i32, ov::Shape{axes.size()}, axes);
     const auto axes_tensor = std::make_shared<ov::HostTensor>(axes_const);
-    const std::map<size_t, std::shared_ptr<ov::HostTensor>>& constant_data = {{1, axes_tensor}};
+    const std::map<size_t, ov::HostTensorPtr>& constant_data = {{1, axes_tensor}};
 
     unit_test::cpu_test_shape_infer(op.get(), input_shapes, output_shapes, constant_data);
 }

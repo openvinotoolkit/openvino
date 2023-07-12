@@ -5,7 +5,7 @@
 #include <gtest/gtest.h>
 #include "custom_shape_infer.hpp"
 #include <memory>
-#include <ngraph/opsets/opset1.hpp>
+#include "openvino/op/ops.hpp"
 namespace ov {
 namespace intel_cpu {
 namespace unit_test {
@@ -84,7 +84,7 @@ TEST_P(StridedSliceCpuShapeInferenceTest , shape_inference_in_const_map) {
     const auto begin_tensor = std::make_shared<ov::HostTensor>(begin_const);
     const auto end_tensor = std::make_shared<ov::HostTensor>(end_const);
     const auto stride_tensor = std::make_shared<ov::HostTensor>(stride_const);
-    const std::map<size_t, std::shared_ptr<ov::HostTensor>>& constant_data = {{1, begin_tensor},
+    const std::map<size_t, ov::HostTensorPtr>& constant_data = {{1, begin_tensor},
                                                                                            {2, end_tensor},
                                                                                            {3, stride_tensor}};
     // implementation depends on some output information of the op

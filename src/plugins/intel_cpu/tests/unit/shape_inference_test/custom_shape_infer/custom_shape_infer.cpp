@@ -4,7 +4,7 @@
 #include <openvino/cc/factory.h>
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/type.hpp"
-#include <ngraph/opsets/opset1.hpp>
+#include "openvino/op/ops.hpp"
 #include "openvino/op/parameter.hpp"
 #include "utils/custom_shape_inference/reshape.hpp"
 #include "utils/custom_shape_inference/gather.hpp"

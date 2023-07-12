@@ -6,7 +6,7 @@
 
 #include "common_test_utils/test_assertions.hpp"
 #include "custom_shape_infer.hpp"
-#include <ngraph/opsets/opset1.hpp>
+#include "openvino/op/ops.hpp"
 namespace ov {
 namespace intel_cpu {
 namespace unit_test {
@@ -79,7 +79,7 @@ TEST_P(OneHotCpuShapeInferenceTest , shape_inference_with_const_map) {
     const auto depth_tensor = std::make_shared<ov::HostTensor>(depth_const);
     const auto on_tensor = std::make_shared<ov::HostTensor>(on_const);
     const auto off_tensor = std::make_shared<ov::HostTensor>(off_const);
-    const std::map<size_t, std::shared_ptr<ov::HostTensor>>& constant_data = {{1, depth_tensor},
+    const std::map<size_t, ov::HostTensorPtr>& constant_data = {{1, depth_tensor},
                                                                                            {2, on_tensor},
                                                                                            {3, off_tensor}};
 
@@ -109,7 +109,7 @@ TEST_P(OneHotCpuShapeInferenceThrowExceptionTest, wrong_pattern) {
     const auto depth_tensor = std::make_shared<ov::HostTensor>(depth_const);
     const auto on_tensor = std::make_shared<ov::HostTensor>(on_const);
     const auto off_tensor = std::make_shared<ov::HostTensor>(off_const);
-    const std::map<size_t, std::shared_ptr<ov::HostTensor>>& constant_data = {{1, depth_tensor},
+    const std::map<size_t, ov::HostTensorPtr>& constant_data = {{1, depth_tensor},
                                                                                            {2, on_tensor},
                                                                                            {3, off_tensor}};
 

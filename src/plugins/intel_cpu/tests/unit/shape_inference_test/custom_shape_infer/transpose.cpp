@@ -4,7 +4,7 @@
 #include "common_test_utils/test_assertions.hpp"
 #include <gtest/gtest.h>
 #include "custom_shape_infer.hpp"
-#include <ngraph/opsets/opset6.hpp>
+#include "openvino/op/ops.hpp"
 namespace ov {
 namespace intel_cpu {
 namespace unit_test {
@@ -84,7 +84,7 @@ TEST_P(TransposeCpuShapeInferenceThrowExceptionTest, shape_inference_in_const_ma
 
     const auto axes = std::make_shared<op::v0::Constant>(element::i64, ov::Shape{transpose_order.size()}, transpose_order);
     const auto const_tensor = std::make_shared<ov::HostTensor>(axes);
-    const std::map<size_t, std::shared_ptr<ov::HostTensor>> const_map = {{1, const_tensor}};
+    const std::map<size_t, ov::HostTensorPtr> const_map = {{1, const_tensor}};
 
     OV_EXPECT_THROW(unit_test::cpu_test_shape_infer(op.get(), input_shapes, output_shapes, const_map),
                     ov::Exception,

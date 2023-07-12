@@ -3,7 +3,7 @@
 //
 
 #include <gtest/gtest.h>
-#include <ngraph/opsets/opset1.hpp>
+#include "openvino/op/ops.hpp"
 #include "common_test_utils/test_assertions.hpp"
 #include "custom_shape_infer.hpp"
 namespace ov {

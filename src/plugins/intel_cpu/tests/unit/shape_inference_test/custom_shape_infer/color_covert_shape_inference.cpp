@@ -5,7 +5,7 @@
 #include <gtest/gtest.h>
 
 #include "common_test_utils/test_assertions.hpp"
-#include <ngraph/opsets/opset8.hpp>
+#include "openvino/op/ops.hpp"
 #include "custom_shape_infer.hpp"
 namespace ov {
 namespace intel_cpu {
