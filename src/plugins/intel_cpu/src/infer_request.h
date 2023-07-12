@@ -44,8 +44,9 @@ public:
      */
     void throw_if_canceled() const;
 
-protected:
+private:
     void create_infer_request();
+
     InferenceEngine::Precision norm_to_input_supported_prec(const std::pair<const std::string, ov::Tensor>& input) const;
     void pushInput(const std::string& inputName, ov::Tensor& inputBlob, InferenceEngine::Precision dataType);
 
@@ -55,7 +56,6 @@ protected:
     Graph* graph = nullptr;
     std::unordered_map<std::string, ov::Tensor> external_ptr;
 
-private:
     void push_states();
     void pull_states();
     void redefine_memory_for_input_nodes();
@@ -85,8 +85,7 @@ private:
     mutable std::unordered_map<std::string, ov::Output<const ov::Node>> m_output_ports_map;
     std::unordered_map<std::string, ov::Tensor> m_outputs;
 
-protected:
-    virtual void change_default_ptr();
+    void change_default_ptr();
 };
 
 }  // namespace intel_cpu

@@ -511,7 +511,6 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& in_port, con
                 tensor.set_shape(in_tensor.get_shape());
             } else if (port.get_element_type() == in_tensor.get_element_type()) {
                 // Original port + compiled model port's tensor
-                tensor = in_tensor;
             } else {
                 OPENVINO_THROW("ParameterMismatch: failed to set input tensor with precision ",
                                in_tensor.get_element_type(),

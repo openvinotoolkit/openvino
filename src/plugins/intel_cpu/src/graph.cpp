@@ -113,6 +113,7 @@ void Graph::CreateGraph(const std::vector<NodePtr>& graphNodes,
 
 template void Graph::CreateGraph(const std::shared_ptr<const ov::Model>&, const GraphContext::CPtr);
 void Graph::Replicate(const std::shared_ptr<const ov::Model> &subgraph) {
+    OV_ITT_SCOPE_CHAIN(FIRST_INFERENCE, taskChain, itt::domains::intel_cpu_LT, "Graph::Replicate", "ov::Model");
     this->_name = subgraph->get_friendly_name();
     this->reuse_io_tensors = false;
 
@@ -866,7 +867,7 @@ void Graph::PushInputData(const std::string& name, const ov::Tensor &in) {
 
     auto input = inputNodesMap.find(name);
     if (input != inputNodesMap.end()) {
-        auto create_tensor_desc = [&](const ov::Tensor& tensor) -> InferenceEngine::TensorDesc {
+        auto create_mem_desc = [&](const ov::Tensor& tensor) -> CpuBlockedMemoryDesc {
             auto element_type = tensor.get_element_type();
             auto shape = tensor.get_shape();
             std::vector<size_t> blk_order(shape.size());
@@ -890,11 +891,15 @@ void Graph::PushInputData(const std::string& name, const ov::Tensor &in) {
                                    return byte_stride / element_type.size();
                                });
             }
-            return ie::TensorDesc{ie::details::convertPrecision(element_type),
-                                  shape,
-                                  ie::BlockingDesc{shape, blk_order, 0, dim_offset, blk_strides}};
+            return CpuBlockedMemoryDesc(ie::details::convertPrecision(element_type),
+                                         Shape(shape),
+                                         shape,
+                                         blk_order,
+                                         0,
+                                         dim_offset,
+                                         blk_strides);
         };
-        auto inTensorDesc = create_tensor_desc(in);
+        auto inTensorDesc = create_mem_desc(in);
         auto node = input->second;
         auto childEdge = node->getChildEdgeAt(0);
         const auto& outDims = node->getOutputShapeAtPort(0);
@@ -902,9 +907,7 @@ void Graph::PushInputData(const std::string& name, const ov::Tensor &in) {
         const void *ext_data_ptr = in.data();
         void *inter_data_ptr = childEdge->getMemory().getData();
         if (ext_data_ptr != inter_data_ptr) {
-            auto ext_tdesc = MemoryDescUtils::convertToDnnlBlockedMemoryDesc(inTensorDesc);
-
-            Memory ext_mem(getEngine(), ext_tdesc, ext_data_ptr, false);
+            Memory ext_mem(getEngine(), inTensorDesc, ext_data_ptr, false);
 
             childEdge->getMemory().load(ext_mem, false);
         }
@@ -912,8 +915,9 @@ void Graph::PushInputData(const std::string& name, const ov::Tensor &in) {
         // todo: make sure 'name' exists in this map...
         if (_normalizePreprocMap.find(name) != _normalizePreprocMap.end()) {
             if (inTensorDesc.getPrecision() == InferenceEngine::Precision::FP32) {
-                _normalizePreprocMap[name].NormalizeImage(outDims, reinterpret_cast<float *>(inter_data_ptr),
-                                                          inTensorDesc.getLayout());
+                _normalizePreprocMap[name].NormalizeImage(outDims,
+                                                          reinterpret_cast<float*>(inter_data_ptr),
+                                                          TensorDesc::getLayoutByDims(in.get_shape()));
             } else {
                 IE_THROW() << "Mean image of type " << inTensorDesc.getPrecision().name() << " is unsupported";
             }

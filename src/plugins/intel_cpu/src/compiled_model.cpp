@@ -19,9 +19,6 @@
 #if FIX_62820 && ((IE_THREAD == IE_THREAD_TBB) || (IE_THREAD == IE_THREAD_TBB_AUTO))
 #    include <threading/ie_tbb_streams_executor.hpp>
 #endif
-#include <cstring>
-#include <utility>
-
 #include "ie_ngraph_utils.hpp"
 #include "ie_system_conf.h"
 #include "openvino/opsets/opset1.hpp"
@@ -29,6 +26,8 @@
 #include "openvino/util/common_util.hpp"
 #include "threading/ie_cpu_streams_executor.hpp"
 #include "transformations/utils/utils.hpp"
+#include <cstring>
+#include <utility>
 
 using namespace ov::threading;
 

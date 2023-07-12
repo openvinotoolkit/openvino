@@ -50,10 +50,8 @@ public:
         return m_original_model;
     }
 
-protected:
+private:
     std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override;
-
-protected:
     friend class SyncInferRequest;
 
     const std::shared_ptr<ov::Model> m_model;
