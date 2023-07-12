@@ -7,12 +7,12 @@
 #include <memory>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
-#include "openvino/op/transpose.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/reshape.hpp"
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/transpose.hpp"
 #include "transformations/utils/utils.hpp"
 
 ov::pass::SkipGatherBeforeTransposeAndReshape::SkipGatherBeforeTransposeAndReshape() {
@@ -57,7 +57,8 @@ ov::pass::SkipGatherBeforeTransposeAndReshape::SkipGatherBeforeTransposeAndResha
             return false;
         }
 
-        const auto reshape_const = as_type_ptr<ov::op::v0::Constant>(pattern_map.at(reshape_const_m).get_node_shared_ptr());
+        const auto reshape_const =
+            as_type_ptr<ov::op::v0::Constant>(pattern_map.at(reshape_const_m).get_node_shared_ptr());
         if (!reshape_const) {
             return false;
         }
@@ -77,8 +78,8 @@ ov::pass::SkipGatherBeforeTransposeAndReshape::SkipGatherBeforeTransposeAndResha
         }
 
         const auto new_transpose_const = ov::op::v0::Constant::create(transpose_const->get_element_type(),
-                                                                  {new_transpose_vals.size()},
-                                                                  new_transpose_vals);
+                                                                      {new_transpose_vals.size()},
+                                                                      new_transpose_vals);
         const auto new_transpose = transpose->clone_with_new_inputs({input, new_transpose_const});
         new_transpose->set_friendly_name(transpose->get_friendly_name());
         ngraph::copy_runtime_info({transpose, gather}, new_transpose);

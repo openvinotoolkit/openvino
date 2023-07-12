@@ -6,9 +6,9 @@
 
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
-#include "openvino/op/roi_align.hpp"
 
 #include "itt.hpp"
+#include "openvino/op/roi_align.hpp"
 
 ov::pass::ConvertROIAlign3To9::ConvertROIAlign3To9() {
     MATCHER_SCOPE(ConvertROIAlign3To9);

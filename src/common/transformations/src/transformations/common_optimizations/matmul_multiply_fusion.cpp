@@ -6,13 +6,13 @@
 
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/validation_util.hpp>
-#include "openvino/op/matmul.hpp"
-#include "openvino/op/multiply.hpp"
-#include "openvino/op/transpose.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/reshape.hpp"
 
 #include "itt.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/transpose.hpp"
 #include "transformations/utils/utils.hpp"
 
 using namespace ov;
@@ -131,9 +131,9 @@ static std::shared_ptr<Node> fuse_const_to_weights(const std::shared_ptr<Node>& 
         std::vector<int64_t> perm(const_shape.size());
         std::iota(perm.begin(), perm.end(), 0);
         std::swap(*(perm.end() - 1), *(perm.end() - 2));
-        auto transpose =
-            std::make_shared<ov::op::v1::Transpose>(new_const,
-                                                ov::op::v0::Constant::create(element::i64, Shape{perm.size()}, perm));
+        auto transpose = std::make_shared<ov::op::v1::Transpose>(
+            new_const,
+            ov::op::v0::Constant::create(element::i64, Shape{perm.size()}, perm));
         OPENVINO_SUPPRESS_DEPRECATED_START
         return get_constant_from_source(transpose);
         OPENVINO_SUPPRESS_DEPRECATED_END

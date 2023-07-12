@@ -7,13 +7,13 @@
 #include <memory>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
-#include "openvino/op/group_conv.hpp"
-#include "openvino/op/reshape.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/fake_quantize.hpp"
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/group_conv.hpp"
+#include "openvino/op/reshape.hpp"
 
 ov::pass::FakeQuantizeReshapeFusion::FakeQuantizeReshapeFusion() {
     MATCHER_SCOPE(FakeQuantizeReshapeFusion);
@@ -24,8 +24,9 @@ ov::pass::FakeQuantizeReshapeFusion::FakeQuantizeReshapeFusion() {
          pattern::any_input(),
          pattern::any_input()},
         pattern::consumers_count(1));
-    const auto reshape_node_p =
-        ngraph::pattern::wrap_type<ov::op::v1::Reshape>({fq_node_p, pattern::any_input()}, [](const Output<Node>& output) {
+    const auto reshape_node_p = ngraph::pattern::wrap_type<ov::op::v1::Reshape>(
+        {fq_node_p, pattern::any_input()},
+        [](const Output<Node>& output) {
             // WA: check that all Reshape node consumers are not GroupConvolution operations
             const auto& target_inputs = output.get_target_inputs();
             return std::all_of(target_inputs.begin(), target_inputs.end(), [](const Input<Node>& input) {

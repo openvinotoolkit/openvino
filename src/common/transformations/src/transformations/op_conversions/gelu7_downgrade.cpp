@@ -7,9 +7,9 @@
 #include <memory>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
-#include "openvino/op/gelu.hpp"
 
 #include "itt.hpp"
+#include "openvino/op/gelu.hpp"
 
 ov::pass::Gelu7Downgrade::Gelu7Downgrade() {
     MATCHER_SCOPE(Gelu7Downgrade);

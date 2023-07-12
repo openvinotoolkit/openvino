@@ -7,18 +7,18 @@
 #include <memory>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
-#include "openvino/op/matmul.hpp"
-#include "openvino/op/subtract.hpp"
-#include "openvino/op/split.hpp"
-#include "openvino/op/clamp.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/gru_cell.hpp"
-#include "openvino/op/multiply.hpp"
-#include "openvino/op/add.hpp"
 #include <transformations/utils/utils.hpp>
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/clamp.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/gru_cell.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/split.hpp"
+#include "openvino/op/subtract.hpp"
 
 ov::pass::GRUCellDecomposition::GRUCellDecomposition() {
     MATCHER_SCOPE(GRUCellDecomposition);

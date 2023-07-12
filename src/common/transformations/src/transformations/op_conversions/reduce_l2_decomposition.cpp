@@ -7,14 +7,14 @@
 #include <memory>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
-#include "openvino/op/reduce_l2.hpp"
-#include "openvino/op/reduce_sum.hpp"
-#include "openvino/op/power.hpp"
-#include "openvino/op/sqrt.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/util/op_types.hpp"
 
 #include "itt.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/power.hpp"
+#include "openvino/op/reduce_l2.hpp"
+#include "openvino/op/reduce_sum.hpp"
+#include "openvino/op/sqrt.hpp"
+#include "openvino/op/util/op_types.hpp"
 
 ov::pass::ReduceL2Decomposition::ReduceL2Decomposition() {
     MATCHER_SCOPE(ReduceL2Decomposition);

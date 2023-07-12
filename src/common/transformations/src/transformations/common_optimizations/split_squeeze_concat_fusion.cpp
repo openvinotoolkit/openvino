@@ -8,15 +8,15 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 #include <numeric>
-#include "openvino/op/concat.hpp"
-#include "openvino/op/split.hpp"
-#include "openvino/op/transpose.hpp"
-#include "openvino/op/squeeze.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/reshape.hpp"
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/split.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/transpose.hpp"
 
 ov::pass::SplitSqueezeConcatFusion::SplitSqueezeConcatFusion() {
     MATCHER_SCOPE(SplitSqueezeConcatFusion);

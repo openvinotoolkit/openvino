@@ -8,9 +8,6 @@
 #include <memory>
 #include <ngraph/rt_info.hpp>
 #include <numeric>
-#include "openvino/op/transpose.hpp"
-#include "openvino/op/interpolate.hpp"
-#include "openvino/op/constant.hpp"
 #include <openvino/pass/pattern/op/wrap_type.hpp>
 #include <set>
 #include <tuple>
@@ -18,6 +15,9 @@
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/interpolate.hpp"
+#include "openvino/op/transpose.hpp"
 
 namespace {
 std::vector<int64_t> reverse_permutation(const std::vector<int64_t>& perm) {

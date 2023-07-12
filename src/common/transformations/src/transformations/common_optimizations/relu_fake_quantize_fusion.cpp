@@ -7,12 +7,12 @@
 #include <memory>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
-#include "openvino/op/relu.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/fake_quantize.hpp"
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/relu.hpp"
 #include "transformations/utils/utils.hpp"
 
 ov::pass::ReluFakeQuantizeFusion::ReluFakeQuantizeFusion() {
@@ -21,10 +21,10 @@ ov::pass::ReluFakeQuantizeFusion::ReluFakeQuantizeFusion() {
     auto relu_pattern = ngraph::pattern::wrap_type<ov::op::v0::Relu>({data_pattern}, pattern::consumers_count(1));
     auto input_low_pattern = ngraph::pattern::wrap_type<ov::op::v0::Constant>();
     auto fq_pattern = ngraph::pattern::wrap_type<ov::op::v0::FakeQuantize>({relu_pattern,
-                                                                        input_low_pattern,
-                                                                        pass::pattern::any_input(),
-                                                                        pass::pattern::any_input(),
-                                                                        pass::pattern::any_input()});
+                                                                            input_low_pattern,
+                                                                            pass::pattern::any_input(),
+                                                                            pass::pattern::any_input(),
+                                                                            pass::pattern::any_input()});
 
     ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto pattern_map = m.get_pattern_value_map();
@@ -44,11 +44,11 @@ ov::pass::ReluFakeQuantizeFusion::ReluFakeQuantizeFusion() {
             return false;
 
         auto new_fq = register_new_node<ov::op::v0::FakeQuantize>(data,
-                                                              fq->input_value(1),
-                                                              fq->input_value(2),
-                                                              fq->input_value(3),
-                                                              fq->input_value(4),
-                                                              fq->get_levels());
+                                                                  fq->input_value(1),
+                                                                  fq->input_value(2),
+                                                                  fq->input_value(3),
+                                                                  fq->input_value(4),
+                                                                  fq->get_levels());
         new_fq->set_friendly_name(fq->get_friendly_name());
 
         copy_runtime_info({relu.get_node_shared_ptr(), fq}, new_fq);

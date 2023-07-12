@@ -7,16 +7,16 @@
 #include <memory>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
-#include "openvino/op/negative.hpp"
-#include "openvino/op/divide.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/exp.hpp"
-#include "openvino/op/multiply.hpp"
-#include "openvino/op/add.hpp"
-#include "openvino/op/swish.hpp"
-#include "openvino/op/sigmoid.hpp"
 
 #include "itt.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/exp.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/negative.hpp"
+#include "openvino/op/sigmoid.hpp"
+#include "openvino/op/swish.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace {
@@ -83,8 +83,8 @@ ov::pass::SwishFusionWithSigmoidWithBeta::SwishFusionWithSigmoidWithBeta() {
         if (beta_constant) {
             if (check_beta_value(beta_constant)) {
                 new_beta = ov::op::v0::Constant::create(beta_input.get_element_type(),
-                                                    Shape{},
-                                                    {beta_constant->cast_vector<float>()[0]});
+                                                        Shape{},
+                                                        {beta_constant->cast_vector<float>()[0]});
             } else {
                 return false;
             }

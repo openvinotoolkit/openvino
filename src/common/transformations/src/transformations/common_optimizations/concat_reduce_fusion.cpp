@@ -9,18 +9,18 @@
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
-#include "openvino/op/minimum.hpp"
-#include "openvino/op/concat.hpp"
-#include "openvino/op/maximum.hpp"
-#include "openvino/op/reduce_min.hpp"
-#include "openvino/op/unsqueeze.hpp"
-#include "openvino/op/reduce_max.hpp"
-#include "openvino/op/squeeze.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/reshape.hpp"
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/maximum.hpp"
+#include "openvino/op/minimum.hpp"
+#include "openvino/op/reduce_max.hpp"
+#include "openvino/op/reduce_min.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/unsqueeze.hpp"
 #include "transformations/common_optimizations/nop_elimination.hpp"
 #include "transformations/utils/utils.hpp"
 

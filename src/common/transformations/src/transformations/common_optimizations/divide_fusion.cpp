@@ -7,12 +7,12 @@
 #include <memory>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
-#include "openvino/op/divide.hpp"
-#include "openvino/op/multiply.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/power.hpp"
 
 #include "itt.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/power.hpp"
 #include "transformations/utils/utils.hpp"
 
 ov::pass::DivideFusion::DivideFusion() {

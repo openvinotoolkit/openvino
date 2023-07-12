@@ -8,18 +8,18 @@
 #include <ngraph/pattern/op/or.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
-#include "openvino/op/normalize_l2.hpp"
-#include "openvino/op/maximum.hpp"
-#include "openvino/op/divide.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/reduce_sum.hpp"
-#include "openvino/op/multiply.hpp"
-#include "openvino/op/power.hpp"
-#include "openvino/op/sqrt.hpp"
-#include "openvino/op/add.hpp"
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/maximum.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/normalize_l2.hpp"
+#include "openvino/op/power.hpp"
+#include "openvino/op/reduce_sum.hpp"
+#include "openvino/op/sqrt.hpp"
 #include "transformations/utils/utils.hpp"
 
 ov::pass::NormalizeL2Fusion::NormalizeL2Fusion() {

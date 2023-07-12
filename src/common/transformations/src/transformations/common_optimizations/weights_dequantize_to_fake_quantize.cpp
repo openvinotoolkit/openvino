@@ -5,16 +5,16 @@
 #include <ngraph/pattern/op/or.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
-#include "openvino/op/subtract.hpp"
-#include "openvino/op/fake_quantize.hpp"
-#include "openvino/op/convert.hpp"
-#include "openvino/op/multiply.hpp"
-#include "openvino/op/constant.hpp"
 #include <transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp>
 #include <transformations/rt_info/disable_constant_folding.hpp>
 #include <transformations/utils/utils.hpp>
 
 #include "itt.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/subtract.hpp"
 
 ov::pass::WeightsDequantizeToFakeQuantize::WeightsDequantizeToFakeQuantize() {
     MATCHER_SCOPE(WeightsDequantizeToFakeQuantize);
@@ -53,19 +53,19 @@ ov::pass::WeightsDequantizeToFakeQuantize::WeightsDequantizeToFakeQuantize() {
                                ? pattern_map.at(sub_c)
                                : ov::op::v0::Constant::create(convert_node->get_element_type(), {}, {0});
 
-        const auto& output_low =
-            op::util::eltwise_fold<ov::op::v1::Multiply>(op::util::eltwise_fold<ov::op::v1::Subtract>(input_low, zero_point),
-                                                     scale_node);
-        const auto& output_high =
-            op::util::eltwise_fold<ov::op::v1::Multiply>(op::util::eltwise_fold<ov::op::v1::Subtract>(input_high, zero_point),
-                                                     scale_node);
+        const auto& output_low = op::util::eltwise_fold<ov::op::v1::Multiply>(
+            op::util::eltwise_fold<ov::op::v1::Subtract>(input_low, zero_point),
+            scale_node);
+        const auto& output_high = op::util::eltwise_fold<ov::op::v1::Multiply>(
+            op::util::eltwise_fold<ov::op::v1::Subtract>(input_high, zero_point),
+            scale_node);
 
         auto fq = std::make_shared<ov::op::v0::FakeQuantize>(convert_node,
-                                                         input_low,
-                                                         input_high,
-                                                         output_low,
-                                                         output_high,
-                                                         levels);
+                                                             input_low,
+                                                             input_high,
+                                                             output_low,
+                                                             output_high,
+                                                             levels);
 
         NodeVector nodes_to_copy_RT_info_from{multiply_node, scale_node, zero_point};
         if (pattern_map.count(sub))

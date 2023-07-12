@@ -6,12 +6,12 @@
 
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
-#include "openvino/op/constant.hpp"
-#include "openvino/op/unsqueeze.hpp"
-#include "openvino/op/reshape.hpp"
 #include <transformations/utils/utils.hpp>
 
 #include "itt.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/unsqueeze.hpp"
 
 ov::pass::EliminateUnsqueezeGather::EliminateUnsqueezeGather() {
     MATCHER_SCOPE(EliminateUnsqueezeGather);
@@ -30,7 +30,8 @@ ov::pass::EliminateUnsqueezeGather::EliminateUnsqueezeGather() {
         const auto& m_unsqueezeAxis = patternValue.at(unsqueezeAxis);
         const auto& m_gatherAxis = patternValue.at(gatherAxis);
 
-        const auto& unsqueezeAxisNode = ngraph::as_type_ptr<ov::op::v0::Constant>(m_unsqueezeAxis.get_node_shared_ptr());
+        const auto& unsqueezeAxisNode =
+            ngraph::as_type_ptr<ov::op::v0::Constant>(m_unsqueezeAxis.get_node_shared_ptr());
         const auto& gatherAxisNode = ngraph::as_type_ptr<ov::op::v0::Constant>(m_gatherAxis.get_node_shared_ptr());
 
         if (!unsqueezeAxisNode || !gatherAxisNode) {
@@ -73,7 +74,7 @@ ov::pass::EliminateGatherUnsqueeze::EliminateGatherUnsqueeze() {
 
     const auto unsqueeze_label =
         ngraph::pattern::wrap_type<ov::op::v0::Unsqueeze>({gather_label, pass::pattern::any_input()},
-                                                      pattern::rank_equals(1));
+                                                          pattern::rank_equals(1));
 
     ov::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
         auto pattern_nodes = m.get_pattern_map();
@@ -84,8 +85,8 @@ ov::pass::EliminateGatherUnsqueeze::EliminateGatherUnsqueeze() {
 
         auto new_indices =
             ov::op::util::make_try_fold<ov::op::v1::Reshape>(gather_indices,
-                                                         ov::op::v0::Constant::create(element::i32, {1}, {1}),
-                                                         false);
+                                                             ov::op::v0::Constant::create(element::i32, {1}, {1}),
+                                                             false);
         auto new_gather = gather->clone_with_new_inputs({gather->input_value(0), new_indices, gather->input_value(2)});
 
         new_gather->set_friendly_name(gather->get_friendly_name());

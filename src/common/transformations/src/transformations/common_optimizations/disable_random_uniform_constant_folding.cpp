@@ -6,8 +6,9 @@
 
 #include <memory>
 #include <ngraph/pattern/op/wrap_type.hpp>
-#include "openvino/op/random_uniform.hpp"
 #include <transformations/rt_info/disable_constant_folding.hpp>
+
+#include "openvino/op/random_uniform.hpp"
 
 ov::pass::DisableRandomUniformConstantFolding::DisableRandomUniformConstantFolding() {
     auto random_uniform = pattern::wrap_type<ov::op::v8::RandomUniform>();

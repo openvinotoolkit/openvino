@@ -7,9 +7,9 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/validation_util.hpp>
-#include "openvino/op/softmax.hpp"
 
 #include "itt.hpp"
+#include "openvino/op/softmax.hpp"
 
 ov::pass::ConvertSoftMax8ToSoftMax1::ConvertSoftMax8ToSoftMax1() {
     MATCHER_SCOPE(ConvertSoftMax8ToSoftMax1);

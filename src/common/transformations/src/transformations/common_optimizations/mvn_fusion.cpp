@@ -8,20 +8,20 @@
 #include <ngraph/pattern/op/or.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
-#include "openvino/op/mvn.hpp"
-#include "openvino/op/subtract.hpp"
-#include "openvino/op/divide.hpp"
-#include "openvino/op/reduce_mean.hpp"
-#include "openvino/op/convert.hpp"
-#include "openvino/op/multiply.hpp"
-#include "openvino/op/add.hpp"
-#include "openvino/op/squared_difference.hpp"
-#include "openvino/op/power.hpp"
-#include "openvino/op/sqrt.hpp"
-#include "openvino/op/constant.hpp"
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/mvn.hpp"
+#include "openvino/op/power.hpp"
+#include "openvino/op/reduce_mean.hpp"
+#include "openvino/op/sqrt.hpp"
+#include "openvino/op/squared_difference.hpp"
+#include "openvino/op/subtract.hpp"
 #include "transformations/utils/utils.hpp"
 
 template <class T>
@@ -292,7 +292,8 @@ ov::pass::MVNFusionWithConstantsInside::MVNFusionWithConstantsInside() {
             return false;
         }
 
-        auto mvn = std::make_shared<ov::op::v6::MVN>(x_output, axes_1_node, true, eps_value, op::MVNEpsMode::INSIDE_SQRT);
+        auto mvn =
+            std::make_shared<ov::op::v6::MVN>(x_output, axes_1_node, true, eps_value, op::MVNEpsMode::INSIDE_SQRT);
         auto mul_gamma = std::make_shared<ov::op::v1::Multiply>(mvn, const_gamma_node);
         auto add_beta = std::make_shared<ov::op::v1::Add>(mul_gamma, const_beta_node);
 

@@ -7,10 +7,10 @@
 #include <algorithm>
 #include <memory>
 #include <ngraph/rt_info.hpp>
-#include "openvino/op/constant.hpp"
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 

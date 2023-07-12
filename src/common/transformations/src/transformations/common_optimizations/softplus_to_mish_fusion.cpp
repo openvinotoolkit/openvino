@@ -7,13 +7,13 @@
 #include <memory>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
-#include "openvino/op/tanh.hpp"
-#include "openvino/op/softplus.hpp"
-#include "openvino/op/multiply.hpp"
-#include "openvino/op/mish.hpp"
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/op/mish.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/softplus.hpp"
+#include "openvino/op/tanh.hpp"
 
 ov::pass::SoftPlusToMishFusion::SoftPlusToMishFusion() {
     MATCHER_SCOPE(SoftPlusToMishFusion);

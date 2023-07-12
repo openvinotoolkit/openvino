@@ -5,18 +5,16 @@
 #include "transformations/common_optimizations/conv_mul_fusion.hpp"
 
 #include <ngraph/rt_info.hpp>
-
-#include "openvino/op/multiply.hpp"
-
-#include "openvino/op/group_conv.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/convolution.hpp"
-#include "openvino/op/reshape.hpp"
 #include <openvino/pass/pattern/op/or.hpp>
 #include <openvino/pass/pattern/op/wrap_type.hpp>
 #include <transformations/utils/utils.hpp>
 
 #include "itt.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/group_conv.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/reshape.hpp"
 
 ov::pass::ConvolutionMultiplyFusion::ConvolutionMultiplyFusion() {
     MATCHER_SCOPE(ConvolutionMultiplyFusion);
@@ -174,7 +172,7 @@ ov::pass::ConvolutionBackpropDataMultiplyFusion::ConvolutionBackpropDataMultiply
     auto conv_2_inputs =
         pattern::wrap_type<ov::op::v1::ConvolutionBackpropData>({input, weights}, pattern::consumers_count(1));
     auto conv_3_inputs = pattern::wrap_type<ov::op::v1::ConvolutionBackpropData>({input, weights, pattern::any_input()},
-                                                                             pattern::consumers_count(1));
+                                                                                 pattern::consumers_count(1));
     auto conv = std::make_shared<pattern::op::Or>(OutputVector{conv_2_inputs, conv_3_inputs});
     auto mul_const = pattern::wrap_type<ov::op::v0::Constant>(pattern::has_static_shape());
     auto mul = pattern::wrap_type<ov::op::v1::Multiply>({conv, mul_const});
@@ -250,7 +248,7 @@ ov::pass::GroupConvolutionBackpropDataMultiplyFusion::GroupConvolutionBackpropDa
         pattern::wrap_type<ov::op::v1::GroupConvolutionBackpropData>({input, weights}, pattern::consumers_count(1));
     auto conv_3_inputs =
         pattern::wrap_type<ov::op::v1::GroupConvolutionBackpropData>({input, weights, pattern::any_input()},
-                                                                 pattern::consumers_count(1));
+                                                                     pattern::consumers_count(1));
     auto conv = std::make_shared<pattern::op::Or>(OutputVector{conv_2_inputs, conv_3_inputs});
     auto mul_const = pattern::wrap_type<ov::op::v0::Constant>(pattern::has_static_shape());
     auto mul = pattern::wrap_type<ov::op::v1::Multiply>({conv, mul_const});

@@ -6,10 +6,10 @@
 
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
-#include "openvino/op/logical_xor.hpp"
-#include "openvino/op/xor.hpp"
 
 #include "itt.hpp"
+#include "openvino/op/logical_xor.hpp"
+#include "openvino/op/xor.hpp"
 
 ov::pass::ConvertXorToLogicalXor::ConvertXorToLogicalXor() {
     MATCHER_SCOPE(ConvertXorToLogicalXor);
@@ -24,8 +24,8 @@ ov::pass::ConvertXorToLogicalXor::ConvertXorToLogicalXor() {
         const auto& autobroad = xor_v1_node->get_autob();
 
         auto logical_xor_v10 = std::make_shared<ov::op::v1::LogicalXor>(xor_v1_node->input_value(0),
-                                                                         xor_v1_node->input_value(1),
-                                                                         autobroad);
+                                                                        xor_v1_node->input_value(1),
+                                                                        autobroad);
         logical_xor_v10->set_friendly_name(xor_v1_node->get_friendly_name());
         ov::copy_runtime_info(xor_v1_node, logical_xor_v10);
         ov::replace_node(xor_v1_node, logical_xor_v10);

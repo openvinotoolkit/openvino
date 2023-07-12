@@ -8,21 +8,21 @@
 #include <memory>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
-#include "openvino/op/concat.hpp"
-#include "openvino/op/shape_of.hpp"
-#include "openvino/op/reduce_prod.hpp"
-#include "openvino/op/divide.hpp"
-#include "openvino/op/pad.hpp"
-#include "openvino/op/multiply.hpp"
-#include "openvino/op/reshape.hpp"
-#include "openvino/op/slice.hpp"
-#include "openvino/op/transpose.hpp"
-#include "openvino/op/space_to_batch.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/gather.hpp"
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/pad.hpp"
+#include "openvino/op/reduce_prod.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/slice.hpp"
+#include "openvino/op/space_to_batch.hpp"
+#include "openvino/op/transpose.hpp"
 
 using namespace std;
 using namespace ov::element;
@@ -79,10 +79,16 @@ void ov::pass::ConvertSpaceToBatch::convert_space_to_batch() {
 
         // interleave os_tail_div with block_tail
         const auto c = rg.make<ov::op::v0::Concat>(NodeVector{os_tail_div, block_tail}, 0);
-        const auto r =
-            rg.make<ov::op::v1::Reshape>(c, rg.make<ov::op::v0::Constant>(i64, Shape{2}, vector<int64_t>{2, block_length - 1}), false);
-        const auto t = rg.make<ov::op::v1::Transpose>(r, rg.make<ov::op::v0::Constant>(i64, Shape{2}, vector<int64_t>{1, 0}));
-        const auto interleaved = rg.make<ov::op::v1::Reshape>(t, rg.make<ov::op::v0::Constant>(i64, Shape{1}, 2 * (block_length - 1)), false);
+        const auto r = rg.make<ov::op::v1::Reshape>(
+            c,
+            rg.make<ov::op::v0::Constant>(i64, Shape{2}, vector<int64_t>{2, block_length - 1}),
+            false);
+        const auto t =
+            rg.make<ov::op::v1::Transpose>(r, rg.make<ov::op::v0::Constant>(i64, Shape{2}, vector<int64_t>{1, 0}));
+        const auto interleaved =
+            rg.make<ov::op::v1::Reshape>(t,
+                                         rg.make<ov::op::v0::Constant>(i64, Shape{1}, 2 * (block_length - 1)),
+                                         false);
 
         const auto dispersed_shape = rg.make<ov::op::v0::Concat>(NodeVector{batch, interleaved}, 0);
         flat_node = rg.make<ov::op::v1::Reshape>(flat_node, dispersed_shape, false);
@@ -104,7 +110,8 @@ void ov::pass::ConvertSpaceToBatch::convert_space_to_batch() {
         //      (D_{N - 1} + P_{N - 1}) / B_{N - 1}])
         //    note: B_0 is assumed to be 1 by op definion
         const auto block_prod = rg.make<ov::op::v1::ReduceProd>(block, zero);
-        const auto squeezed_shape = rg.make<ov::op::v0::Concat>(NodeVector{rg.make<ov::op::v1::Multiply>(batch, block_prod), os_tail_div}, 0);
+        const auto squeezed_shape =
+            rg.make<ov::op::v0::Concat>(NodeVector{rg.make<ov::op::v1::Multiply>(batch, block_prod), os_tail_div}, 0);
         flat_node = rg.make<ov::op::v1::Reshape>(flat_node, squeezed_shape, false);
 
         flat_node->set_friendly_name(space_to_batch->get_friendly_name());
@@ -163,7 +170,8 @@ void ov::pass::ConvertSpaceToBatch::convert_space_to_batch_by_elements() {
             dispersed_shape_prep.push_back(rg.make<ov::op::v1::Divide>(squeezed_element, block_value));
             dispersed_shape_prep.push_back(block_value);
             if (b_idx + 1 < block_length)  // avoid addind empty Slice into Concat
-                dispersed_shape_prep.push_back(rg.make<ov::op::v8::Slice>(squeezed_shape, block_index_next, int_max, one));
+                dispersed_shape_prep.push_back(
+                    rg.make<ov::op::v8::Slice>(squeezed_shape, block_index_next, int_max, one));
 
             const auto dispersed_shape = rg.make<ov::op::v0::Concat>(dispersed_shape_prep, 0);
             constexpr auto special_zero = false;
@@ -190,14 +198,17 @@ void ov::pass::ConvertSpaceToBatch::convert_space_to_batch_by_elements() {
                 NodeVector squeezed_shape_prep;
                 squeezed_shape_prep.reserve(block_length);
                 squeezed_shape_prep.push_back(
-                    rg.make<ov::op::v1::Multiply>(rg.make<ov::op::v8::Gather>(squeezed_shape, zero, zero), block_value));
+                    rg.make<ov::op::v1::Multiply>(rg.make<ov::op::v8::Gather>(squeezed_shape, zero, zero),
+                                                  block_value));
                 if (b_idx > 1) {  // avoid addind empty Slice into Concat
                     squeezed_shape_prep.push_back(rg.make<ov::op::v8::Slice>(squeezed_shape, one, block_index, one));
                 }
                 squeezed_shape_prep.push_back(
-                    rg.make<ov::op::v1::Divide>(rg.make<ov::op::v8::Gather>(squeezed_shape, block_index, zero), block_value));
+                    rg.make<ov::op::v1::Divide>(rg.make<ov::op::v8::Gather>(squeezed_shape, block_index, zero),
+                                                block_value));
                 if (b_idx + 1 < block_length) {  // avoid addind empty Slice into Concat
-                    squeezed_shape_prep.push_back(rg.make<ov::op::v8::Slice>(squeezed_shape, block_index_next, int_max, one));
+                    squeezed_shape_prep.push_back(
+                        rg.make<ov::op::v8::Slice>(squeezed_shape, block_index_next, int_max, one));
                 }
 
                 squeezed_shape = rg.make<ov::op::v0::Concat>(squeezed_shape_prep, 0);

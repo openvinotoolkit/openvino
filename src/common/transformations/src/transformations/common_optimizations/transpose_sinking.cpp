@@ -9,24 +9,25 @@
 #include <ngraph/rt_info.hpp>
 #include <numeric>
 #include <openvino/core/validation_util.hpp>
-#include "openvino/op/fake_quantize.hpp"
-#include "openvino/op/convert.hpp"
-#include "openvino/op/unsqueeze.hpp"
-#include "openvino/op/transpose.hpp"
-#include "openvino/op/squeeze.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/gather.hpp"
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/op/unsqueeze.hpp"
 #include "transformations/utils/utils.hpp"
 
 using namespace ov;
 
 namespace {
 
-std::shared_ptr<ov::op::v0::Constant> get_reduced_order_constant(const std::shared_ptr<ov::op::v0::Constant>& axes_const,
-                                                             const std::shared_ptr<ov::op::v0::Constant>& order_const) {
+std::shared_ptr<ov::op::v0::Constant> get_reduced_order_constant(
+    const std::shared_ptr<ov::op::v0::Constant>& axes_const,
+    const std::shared_ptr<ov::op::v0::Constant>& order_const) {
     auto order = order_const->cast_vector<int64_t>();
 
     auto axes = axes_const->cast_vector<int64_t>();
@@ -52,7 +53,8 @@ std::shared_ptr<ov::op::v0::Constant> get_reduced_order_constant(const std::shar
     return std::make_shared<ov::op::v0::Constant>(ngraph::element::i64, ngraph::Shape{order.size()}, order);
 }
 
-std::shared_ptr<ov::op::v0::Constant> get_reversed_order_constant(const std::shared_ptr<ov::op::v0::Constant>& order_const) {
+std::shared_ptr<ov::op::v0::Constant> get_reversed_order_constant(
+    const std::shared_ptr<ov::op::v0::Constant>& order_const) {
     const auto& order = order_const->cast_vector<size_t>();
     const auto& rank = order.size();
     OPENVINO_SUPPRESS_DEPRECATED_START
@@ -62,7 +64,9 @@ std::shared_ptr<ov::op::v0::Constant> get_reversed_order_constant(const std::sha
     for (size_t i = 0; i < rank; ++i)
         reverse_order[order[i]] = default_order[i];
 
-    return std::make_shared<ov::op::v0::Constant>(ngraph::element::i64, ngraph::Shape{reverse_order.size()}, reverse_order);
+    return std::make_shared<ov::op::v0::Constant>(ngraph::element::i64,
+                                                  ngraph::Shape{reverse_order.size()},
+                                                  reverse_order);
 }
 
 }  // namespace
@@ -77,8 +81,9 @@ ov::pass::TransposeEltwise::TransposeEltwise() {
         [](const Output<Node>& output) {
             return ov::is_preprocesing_node(output.get_node_shared_ptr());
         });
-    auto transpose_p = pattern::wrap_type<ov::op::v1::Transpose>({eltwise_p, pattern::wrap_type<ov::op::v0::Constant>()},
-                                                             pattern::consumers_count(1));
+    auto transpose_p =
+        pattern::wrap_type<ov::op::v1::Transpose>({eltwise_p, pattern::wrap_type<ov::op::v0::Constant>()},
+                                                  pattern::consumers_count(1));
 
     auto callback = [=](ngraph::pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
@@ -95,7 +100,8 @@ ov::pass::TransposeEltwise::TransposeEltwise() {
         }
 
         if (ov::shape_size(shape) != 1) {
-            eltwise_const_input = std::make_shared<ov::op::v1::Transpose>(eltwise_const_input, transpose->input_value(1));
+            eltwise_const_input =
+                std::make_shared<ov::op::v1::Transpose>(eltwise_const_input, transpose->input_value(1));
             OPENVINO_SUPPRESS_DEPRECATED_START
             if (auto const_node = ov::get_constant_from_source(eltwise_const_input)) {
                 OPENVINO_SUPPRESS_DEPRECATED_END
@@ -122,7 +128,7 @@ ov::pass::TransposeConvert::TransposeConvert() {
 
     auto transpose_label =
         pattern::wrap_type<ov::op::v1::Transpose>({pattern::any_input(), pattern::wrap_type<ov::op::v0::Constant>()},
-                                              pattern::consumers_count(1));
+                                                  pattern::consumers_count(1));
     auto convert_label = pattern::wrap_type<ov::op::v0::Convert>({transpose_label});
 
     matcher_pass_callback matcher_pass_callback = [=](ngraph::pattern::Matcher& m) {
@@ -149,10 +155,11 @@ ov::pass::TransposeReduction::TransposeReduction() {
 
     auto transpose_label =
         pattern::wrap_type<ov::op::v1::Transpose>({pattern::any_input(), pattern::wrap_type<ov::op::v0::Constant>()},
-                                              pattern::consumers_count(1));
+                                                  pattern::consumers_count(1));
     auto reduce_or_squeeze_label =
-        pattern::wrap_type<op::util::ArithmeticReductionKeepDims, op::util::LogicalReductionKeepDims, ov::op::v0::Squeeze>(
-            {transpose_label, pattern::wrap_type<ov::op::v0::Constant>()});
+        pattern::wrap_type<op::util::ArithmeticReductionKeepDims,
+                           op::util::LogicalReductionKeepDims,
+                           ov::op::v0::Squeeze>({transpose_label, pattern::wrap_type<ov::op::v0::Constant>()});
 
     ov::matcher_pass_callback matcher_pass_callback = [=](ngraph::pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
@@ -181,13 +188,14 @@ ov::pass::TransposeReduction::TransposeReduction() {
                                                        reduction_axes->cast_vector<int64_t>(),
                                                        reduction->get_input_partial_shape(0).rank());
         OPENVINO_SUPPRESS_DEPRECATED_END
-        reduction_axes = ov::op::v0::Constant::create(ngraph::element::i64, {non_negative_axes.size()}, non_negative_axes);
+        reduction_axes =
+            ov::op::v0::Constant::create(ngraph::element::i64, {non_negative_axes.size()}, non_negative_axes);
 
         ngraph::NodeVector new_ops;
-        auto new_axes =
-            ov::op::util::make_try_fold<ov::op::v1::Gather>(transpose_order,
-                                                        reduction_axes,
-                                                        ov::op::v0::Constant::create(ngraph::element::i64, {}, {0}));
+        auto new_axes = ov::op::util::make_try_fold<ov::op::v1::Gather>(
+            transpose_order,
+            reduction_axes,
+            ov::op::v0::Constant::create(ngraph::element::i64, {}, {0}));
         new_ops.push_back(new_axes);
         auto new_reduce = reduction->clone_with_new_inputs({transpose->input_value(0), new_axes});
         new_ops.push_back(new_reduce);
@@ -221,13 +229,14 @@ ov::pass::TransposeFQReduction::TransposeFQReduction() {
     auto transpose_label =
         pattern::wrap_type<ov::op::v1::Transpose>({pattern::any_input(), pattern::wrap_type<ov::op::v0::Constant>()});
     auto fq_label = pattern::wrap_type<ov::op::v0::FakeQuantize>({transpose_label,
-                                                              pattern::any_input(pattern::has_static_rank()),
-                                                              pattern::any_input(pattern::has_static_rank()),
-                                                              pattern::any_input(pattern::has_static_rank()),
-                                                              pattern::any_input(pattern::has_static_rank())});
+                                                                  pattern::any_input(pattern::has_static_rank()),
+                                                                  pattern::any_input(pattern::has_static_rank()),
+                                                                  pattern::any_input(pattern::has_static_rank()),
+                                                                  pattern::any_input(pattern::has_static_rank())});
     auto reduce_or_squeeze_label =
-        pattern::wrap_type<op::util::ArithmeticReductionKeepDims, op::util::LogicalReductionKeepDims, ov::op::v0::Squeeze>(
-            {fq_label, pattern::wrap_type<ov::op::v0::Constant>()});
+        pattern::wrap_type<op::util::ArithmeticReductionKeepDims,
+                           op::util::LogicalReductionKeepDims,
+                           ov::op::v0::Squeeze>({fq_label, pattern::wrap_type<ov::op::v0::Constant>()});
 
     ov::matcher_pass_callback matcher_pass_callback = [=](ngraph::pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
@@ -261,7 +270,8 @@ ov::pass::TransposeFQReduction::TransposeFQReduction() {
                 new_ops.push_back(unsqueezed_input);
                 input = unsqueezed_input->output(0);
             }
-            const auto& transposed_input = op::util::make_try_fold<ov::op::v1::Transpose>(input, reverse_order_constant);
+            const auto& transposed_input =
+                op::util::make_try_fold<ov::op::v1::Transpose>(input, reverse_order_constant);
             new_ops.push_back(transposed_input);
             fq_inputs.push_back(transposed_input);
         }
@@ -288,8 +298,9 @@ ov::pass::TransposeFuse::TransposeFuse() {
 
     auto transpose_1 =
         pattern::wrap_type<ov::op::v1::Transpose>({pattern::any_input(), pattern::wrap_type<ov::op::v0::Constant>()},
-                                              pattern::consumers_count(1));
-    auto transpose_2 = pattern::wrap_type<ov::op::v1::Transpose>({transpose_1, pattern::wrap_type<ov::op::v0::Constant>()});
+                                                  pattern::consumers_count(1));
+    auto transpose_2 =
+        pattern::wrap_type<ov::op::v1::Transpose>({transpose_1, pattern::wrap_type<ov::op::v0::Constant>()});
 
     ov::matcher_pass_callback matcher_pass_callback = [=](ngraph::pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
@@ -298,8 +309,10 @@ ov::pass::TransposeFuse::TransposeFuse() {
         auto transpose2 = pattern_to_output.at(transpose_2).get_node_shared_ptr();
         auto input = transpose1->input_value(0);
 
-        auto transpose1_order = std::dynamic_pointer_cast<ov::op::v0::Constant>(transpose1->get_input_node_shared_ptr(1));
-        auto transpose2_order = std::dynamic_pointer_cast<ov::op::v0::Constant>(transpose2->get_input_node_shared_ptr(1));
+        auto transpose1_order =
+            std::dynamic_pointer_cast<ov::op::v0::Constant>(transpose1->get_input_node_shared_ptr(1));
+        auto transpose2_order =
+            std::dynamic_pointer_cast<ov::op::v0::Constant>(transpose2->get_input_node_shared_ptr(1));
         if (!transpose1_order || !transpose2_order)
             return false;
 

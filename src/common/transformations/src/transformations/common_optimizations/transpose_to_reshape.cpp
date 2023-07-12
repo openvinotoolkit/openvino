@@ -8,14 +8,14 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 #include <numeric>
-#include "openvino/op/shape_of.hpp"
-#include "openvino/op/gather.hpp"
-#include "openvino/op/transpose.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/reshape.hpp"
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/transpose.hpp"
 #include "transformations/utils/utils.hpp"
 
 using namespace ov;
@@ -94,9 +94,10 @@ ov::pass::TransposeToReshape::TransposeToReshape() {
         } else {
             auto shape_of = std::make_shared<ov::op::v3::ShapeOf>(data);
             new_ops.push_back(shape_of);
-            reshape_dim = std::make_shared<ov::op::v1::Gather>(shape_of,
-                                                           order,
-                                                           ov::op::v0::Constant::create(element::i64, Shape{1}, {0}));
+            reshape_dim =
+                std::make_shared<ov::op::v1::Gather>(shape_of,
+                                                     order,
+                                                     ov::op::v0::Constant::create(element::i64, Shape{1}, {0}));
             new_ops.push_back(reshape_dim.get_node_shared_ptr());
         }
 

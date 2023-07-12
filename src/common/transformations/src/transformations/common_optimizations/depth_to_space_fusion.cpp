@@ -7,13 +7,13 @@
 #include <memory>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
-#include "openvino/op/transpose.hpp"
-#include "openvino/op/depth_to_space.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/reshape.hpp"
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/depth_to_space.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/transpose.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace {
@@ -125,8 +125,10 @@ ov::pass::DepthToSpaceFusion::DepthToSpaceFusion() {
     auto input1 = pass::pattern::any_input();
     auto input2 = pass::pattern::any_input();
     auto input3 = pass::pattern::any_input();
-    auto reshape_before = ngraph::pattern::wrap_type<ov::op::v1::Reshape>({input0, input1}, pattern::consumers_count(1));
-    auto permute = ngraph::pattern::wrap_type<ov::op::v1::Transpose>({reshape_before, input2}, pattern::consumers_count(1));
+    auto reshape_before =
+        ngraph::pattern::wrap_type<ov::op::v1::Reshape>({input0, input1}, pattern::consumers_count(1));
+    auto permute =
+        ngraph::pattern::wrap_type<ov::op::v1::Transpose>({reshape_before, input2}, pattern::consumers_count(1));
     auto reshape_after = ngraph::pattern::wrap_type<ov::op::v1::Reshape>({permute, input3});
 
     ov::matcher_pass_callback callback = [](pattern::Matcher& m) {
@@ -191,7 +193,8 @@ ov::pass::DepthToSpaceFusion::DepthToSpaceFusion() {
             return false;
         }
 
-        auto depth_to_space = std::make_shared<ov::op::v0::DepthToSpace>(reshape_before->input_value(0), mode, block_size);
+        auto depth_to_space =
+            std::make_shared<ov::op::v0::DepthToSpace>(reshape_before->input_value(0), mode, block_size);
         depth_to_space->set_friendly_name(reshape_after->get_friendly_name());
         ngraph::copy_runtime_info({reshape_before, permute, reshape_after}, depth_to_space);
         ngraph::replace_node(reshape_after, depth_to_space);

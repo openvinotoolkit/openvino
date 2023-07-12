@@ -8,12 +8,12 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/validation_util.hpp>
-#include "openvino/op/shape_of.hpp"
+
+#include "itt.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/gather.hpp"
-
-#include "itt.hpp"
+#include "openvino/op/shape_of.hpp"
 
 ov::pass::GatherNegativeConstIndicesNormalize::GatherNegativeConstIndicesNormalize() {
     MATCHER_SCOPE(GatherNegativeConstIndicesNormalize);

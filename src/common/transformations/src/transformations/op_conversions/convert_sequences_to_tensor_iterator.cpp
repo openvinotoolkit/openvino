@@ -8,29 +8,29 @@
 #include <ngraph/op/util/activation_functions.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
-#include "openvino/op/shape_of.hpp"
-#include "openvino/op/tensor_iterator.hpp"
-#include "openvino/op/rnn_sequence.hpp"
-#include "openvino/op/gru_cell.hpp"
-#include "openvino/op/lstm_cell.hpp"
-#include "openvino/op/equal.hpp"
-#include "openvino/op/select.hpp"
-#include "openvino/op/reverse_sequence.hpp"
-#include "openvino/op/greater.hpp"
-#include "openvino/op/result.hpp"
-#include "openvino/op/squeeze.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/add.hpp"
-#include "openvino/op/broadcast.hpp"
-#include "openvino/op/parameter.hpp"
-#include "openvino/op/rnn_cell.hpp"
-#include "openvino/op/gru_sequence.hpp"
-#include "openvino/op/unsqueeze.hpp"
-#include "openvino/op/lstm_sequence.hpp"
 #include <transformations/utils/utils.hpp>
 
 #include "itt.hpp"
 #include "ngraph/builder/autobroadcast.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/equal.hpp"
+#include "openvino/op/greater.hpp"
+#include "openvino/op/gru_cell.hpp"
+#include "openvino/op/gru_sequence.hpp"
+#include "openvino/op/lstm_cell.hpp"
+#include "openvino/op/lstm_sequence.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
+#include "openvino/op/reverse_sequence.hpp"
+#include "openvino/op/rnn_cell.hpp"
+#include "openvino/op/rnn_sequence.hpp"
+#include "openvino/op/select.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/tensor_iterator.hpp"
+#include "openvino/op/unsqueeze.hpp"
 
 namespace {
 ngraph::Output<ngraph::Node> get_current_iter(ngraph::ParameterVector& body_params,
@@ -418,7 +418,8 @@ ov::pass::ConvertLSTMSequenceToTensorIterator::ConvertLSTMSequenceToTensorIterat
     auto W_m = pattern::any_input();
     auto R_m = pattern::any_input();
     auto B_m = pattern::any_input();
-    auto lstm_seq = ngraph::pattern::wrap_type<ov::op::v5::LSTMSequence>({X_m, H_t_m, C_t_m, seq_lengths_m, W_m, R_m, B_m});
+    auto lstm_seq =
+        ngraph::pattern::wrap_type<ov::op::v5::LSTMSequence>({X_m, H_t_m, C_t_m, seq_lengths_m, W_m, R_m, B_m});
 
     matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
         auto sequence = ngraph::as_type_ptr<ov::op::v5::LSTMSequence>(m.get_match_root());

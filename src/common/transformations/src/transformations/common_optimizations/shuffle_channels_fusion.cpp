@@ -7,13 +7,13 @@
 #include <memory>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
-#include "openvino/op/transpose.hpp"
-#include "openvino/op/shuffle_channels.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/reshape.hpp"
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/shuffle_channels.hpp"
+#include "openvino/op/transpose.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace {
@@ -89,11 +89,11 @@ ov::pass::ShuffleChannelsFusion::ShuffleChannelsFusion(const bool reshape_consta
     auto transpose_const_pattern = ngraph::pattern::wrap_type<ov::op::v0::Constant>();
     auto reshape_after_const_pattern = ngraph::pattern::wrap_type<ov::op::v0::Constant>();
 
-    auto reshape_before_pattern =
-        ngraph::pattern::wrap_type<ov::op::v1::Reshape>({input, reshape_before_const_pattern}, pattern::consumers_count(1));
+    auto reshape_before_pattern = ngraph::pattern::wrap_type<ov::op::v1::Reshape>({input, reshape_before_const_pattern},
+                                                                                  pattern::consumers_count(1));
     auto transpose_pattern =
         ngraph::pattern::wrap_type<ov::op::v1::Transpose>({reshape_before_pattern, transpose_const_pattern},
-                                                      pattern::consumers_count(1));
+                                                          pattern::consumers_count(1));
     auto reshape_after_pattern =
         ngraph::pattern::wrap_type<ov::op::v1::Reshape>({transpose_pattern, reshape_after_const_pattern});
 
@@ -103,8 +103,8 @@ ov::pass::ShuffleChannelsFusion::ShuffleChannelsFusion(const bool reshape_consta
         auto data = pattern_map.at(input);
         auto reshape_before_constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(
             pattern_map.at(reshape_before_const_pattern).get_node_shared_ptr());
-        auto reshape_before =
-            std::dynamic_pointer_cast<ov::op::v1::Reshape>(pattern_map.at(reshape_before_pattern).get_node_shared_ptr());
+        auto reshape_before = std::dynamic_pointer_cast<ov::op::v1::Reshape>(
+            pattern_map.at(reshape_before_pattern).get_node_shared_ptr());
         auto transpose =
             std::dynamic_pointer_cast<ov::op::v1::Transpose>(pattern_map.at(transpose_pattern).get_node_shared_ptr());
         auto reshape_after =
@@ -134,8 +134,8 @@ ov::pass::ShuffleChannelsFusion::ShuffleChannelsFusion(const bool reshape_consta
         auto pshape_reshape_before = reshape_before->get_output_partial_shape(0);
         auto pshape_reshape_after = reshape_after->get_output_partial_shape(0);
 
-        auto transpose_constant =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_map.at(transpose_const_pattern).get_node_shared_ptr());
+        auto transpose_constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(
+            pattern_map.at(transpose_const_pattern).get_node_shared_ptr());
         auto transpose_constant_values = transpose_constant->get_axis_vector_val();
         if (!check_shapes(pshape_input, pshape_reshape_before, transpose_constant_values, pshape_reshape_after)) {
             return false;

@@ -10,17 +10,16 @@
 #include <ngraph/pattern/op/or.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
-#include "openvino/op/negative.hpp"
-#include "openvino/op/subtract.hpp"
-#include "openvino/op/relu.hpp"
-#include "openvino/op/abs.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/multiply.hpp"
-#include "openvino/op/prelu.hpp"
-
-#include "openvino/op/add.hpp"
 
 #include "itt.hpp"
+#include "openvino/op/abs.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/negative.hpp"
+#include "openvino/op/prelu.hpp"
+#include "openvino/op/relu.hpp"
+#include "openvino/op/subtract.hpp"
 #include "transformations/utils/utils.hpp"
 
 ov::pass::PReluFusionNegativeAdd::PReluFusionNegativeAdd() {

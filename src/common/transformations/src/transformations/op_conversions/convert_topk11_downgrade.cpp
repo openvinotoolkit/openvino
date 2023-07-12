@@ -6,9 +6,9 @@
 
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
-#include "openvino/op/topk.hpp"
 
 #include "itt.hpp"
+#include "openvino/op/topk.hpp"
 
 ov::pass::ConvertTopK11ToTopK3::ConvertTopK11ToTopK3() {
     MATCHER_SCOPE(ConvertTopK11ToTopK3);
@@ -26,11 +26,11 @@ ov::pass::ConvertTopK11ToTopK3::ConvertTopK11ToTopK3() {
         // and operation working in the plugins that have not yet added stable mode
 
         const auto topk_v3 = std::make_shared<ov::op::v3::TopK>(topk_v11->input_value(0),
-                                                            topk_v11->input_value(1),
-                                                            topk_v11->get_axis(),
-                                                            topk_v11->get_mode(),
-                                                            topk_v11->get_sort_type(),
-                                                            topk_v11->get_index_element_type());
+                                                                topk_v11->input_value(1),
+                                                                topk_v11->get_axis(),
+                                                                topk_v11->get_mode(),
+                                                                topk_v11->get_sort_type(),
+                                                                topk_v11->get_index_element_type());
 
         topk_v3->set_friendly_name(topk_v11->get_friendly_name());
         copy_runtime_info(topk_v11, topk_v3);

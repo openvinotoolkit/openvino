@@ -8,20 +8,18 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/validation_util.hpp>
-#include "openvino/op/matmul.hpp"
-#include "openvino/op/subtract.hpp"
-#include "openvino/op/concat.hpp"
-#include "openvino/op/fake_quantize.hpp"
-
-#include "openvino/op/constant.hpp"
-
-#include "openvino/op/group_conv.hpp"
-#include "openvino/op/add.hpp"
-#include "openvino/op/convolution.hpp"
-#include "openvino/op/reshape.hpp"
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/group_conv.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/subtract.hpp"
 #include "transformations/utils/utils.hpp"
 
 ov::pass::AddFakeQuantizeFusion::AddFakeQuantizeFusion() {
@@ -31,10 +29,10 @@ ov::pass::AddFakeQuantizeFusion::AddFakeQuantizeFusion() {
     auto add_pattern =
         ngraph::pattern::wrap_type<ov::op::v1::Add>({input_pattern, const_pattern}, pattern::consumers_count(1));
     auto fq_pattern = ngraph::pattern::wrap_type<ov::op::v0::FakeQuantize>({add_pattern,
-                                                                        pass::pattern::any_input(),
-                                                                        pass::pattern::any_input(),
-                                                                        pass::pattern::any_input(),
-                                                                        pass::pattern::any_input()});
+                                                                            pass::pattern::any_input(),
+                                                                            pass::pattern::any_input(),
+                                                                            pass::pattern::any_input(),
+                                                                            pass::pattern::any_input()});
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_value_map = m.get_pattern_value_map();
         const auto& input = pattern_value_map.at(input_pattern);
@@ -98,9 +96,11 @@ ov::pass::AddFakeQuantizeFusion::AddFakeQuantizeFusion() {
             bool add_parent_is_conv_or_mm =
                 std::any_of(add_inputs.begin(), add_inputs.end(), [](const Output<Node>& node) -> bool {
                     auto node_ptr = node.get_node();
-                    return is_type<ov::op::v1::Convolution>(node_ptr) || is_type<ov::op::v1::GroupConvolution>(node_ptr) ||
+                    return is_type<ov::op::v1::Convolution>(node_ptr) ||
+                           is_type<ov::op::v1::GroupConvolution>(node_ptr) ||
                            is_type<ov::op::v1::ConvolutionBackpropData>(node_ptr) ||
-                           is_type<ov::op::v1::GroupConvolutionBackpropData>(node_ptr) || is_type<ov::op::v0::MatMul>(node_ptr);
+                           is_type<ov::op::v1::GroupConvolutionBackpropData>(node_ptr) ||
+                           is_type<ov::op::v0::MatMul>(node_ptr);
                 });
             if (add_parent_is_conv_or_mm)
                 return false;

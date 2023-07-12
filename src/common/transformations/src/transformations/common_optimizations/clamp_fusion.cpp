@@ -8,13 +8,13 @@
 #include <ngraph/pattern/op/or.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
-#include "openvino/op/minimum.hpp"
-#include "openvino/op/maximum.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/clamp.hpp"
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/op/clamp.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/maximum.hpp"
+#include "openvino/op/minimum.hpp"
 #include "transformations/utils/utils.hpp"
 
 ov::pass::ClampFusion::ClampFusion() {

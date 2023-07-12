@@ -7,14 +7,14 @@
 #include <memory>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
-#include "openvino/op/concat.hpp"
-#include "openvino/op/split.hpp"
-#include "openvino/op/rnn_sequence.hpp"
-#include "openvino/op/gru_sequence.hpp"
-#include "openvino/op/lstm_sequence.hpp"
-#include "openvino/op/constant.hpp"
 
 #include "itt.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/gru_sequence.hpp"
+#include "openvino/op/lstm_sequence.hpp"
+#include "openvino/op/rnn_sequence.hpp"
+#include "openvino/op/split.hpp"
 
 ov::pass::BidirectionalLSTMSequenceDecomposition::BidirectionalLSTMSequenceDecomposition() {
     MATCHER_SCOPE(BidirectionalLSTMSequenceDecomposition);

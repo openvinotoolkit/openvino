@@ -9,10 +9,10 @@
 
 #include "itt.hpp"
 #include "openvino/core/validation_util.hpp"
-#include "openvino/op/util/reduction_base.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/util/reduction_base.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "sequnce_generator.hpp"
@@ -105,7 +105,8 @@ ov::pass::PullUnsqueezeThroughReduce::PullUnsqueezeThroughReduce() {
 
     const auto input = pattern::any_input(pattern::has_static_rank());
     const auto unsqueeze_axes = pattern::wrap_type<ov::op::v0::Constant>();
-    const auto unsqueeze = pattern::wrap_type<ov::op::v0::Unsqueeze>({input, unsqueeze_axes}, pattern::consumers_count(1));
+    const auto unsqueeze =
+        pattern::wrap_type<ov::op::v0::Unsqueeze>({input, unsqueeze_axes}, pattern::consumers_count(1));
     const auto reduce_axes = pattern::wrap_type<ov::op::v0::Constant>();
     const auto reduce = pattern::wrap_type<op::util::ArithmeticReductionKeepDims, op::util::LogicalReductionKeepDims>(
         {unsqueeze, reduce_axes});
@@ -147,16 +148,16 @@ ov::pass::PullUnsqueezeThroughReduce::PullUnsqueezeThroughReduce() {
             const auto unsqueeze_adjusted_axes = adjust_axes(unsqueeze_axes_val, reduce_axes_val);
             if (unsqueeze_adjusted_axes != unsqueeze_axes_val) {
                 unsqueeze_axes_input = ov::op::v0::Constant::create(unsqueeze_axes_input->get_element_type(),
-                                                                unsqueeze_axes_input->get_shape(),
-                                                                unsqueeze_adjusted_axes);
+                                                                    unsqueeze_axes_input->get_shape(),
+                                                                    unsqueeze_adjusted_axes);
             }
         }
 
         const auto reduce_adjusted_axes = adjust_axes(reduce_axes_val, unsqueeze_axes_val);
         if (reduce_adjusted_axes != reduce_axes_val) {
             reduce_axes_input = ov::op::v0::Constant::create(reduce_axes_input->get_element_type(),
-                                                         reduce_axes_input->get_shape(),
-                                                         reduce_adjusted_axes);
+                                                             reduce_axes_input->get_shape(),
+                                                             reduce_adjusted_axes);
         }
 
         const auto new_reduce_node = reduce_node->clone_with_new_inputs({input_node, reduce_axes_input});
@@ -221,8 +222,8 @@ ov::pass::PullReshapeThroughReduce::PullReshapeThroughReduce() {
 
         if (reduce_adjusted_axes != reduce_axes_val) {
             reduce_axes_input = ov::op::v0::Constant::create(reduce_axes_input->get_element_type(),
-                                                         reduce_axes_input->get_shape(),
-                                                         reduce_adjusted_axes);
+                                                             reduce_axes_input->get_shape(),
+                                                             reduce_adjusted_axes);
         }
 
         const auto new_reduce_node = reduce_node->clone_with_new_inputs({input_node, reduce_axes_input});

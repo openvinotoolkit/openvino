@@ -8,21 +8,21 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/validation_util.hpp>
-#include "openvino/op/strided_slice.hpp"
-#include "openvino/op/matmul.hpp"
-#include "openvino/op/concat.hpp"
-#include "openvino/op/shape_of.hpp"
-#include "openvino/op/reduce_prod.hpp"
-#include "openvino/op/einsum.hpp"
-#include "openvino/op/reduce_sum.hpp"
-#include "openvino/op/multiply.hpp"
-#include "openvino/op/unsqueeze.hpp"
-#include "openvino/op/transpose.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/reshape.hpp"
 #include <transformations/utils/utils.hpp>
 
 #include "itt.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/einsum.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/reduce_prod.hpp"
+#include "openvino/op/reduce_sum.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/strided_slice.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/op/unsqueeze.hpp"
 
 namespace {
 /// \brief      Check if the EinsumDecomposition transformation is applicable to a given Einsum.

@@ -7,17 +7,17 @@
 #include <memory>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
-#include "openvino/op/minimum.hpp"
-#include "openvino/op/hswish.hpp"
-#include "openvino/op/hsigmoid.hpp"
-#include "openvino/op/relu.hpp"
-#include "openvino/op/clamp.hpp"
-#include "openvino/op/divide.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/multiply.hpp"
-#include "openvino/op/add.hpp"
 
 #include "itt.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/clamp.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/hsigmoid.hpp"
+#include "openvino/op/hswish.hpp"
+#include "openvino/op/minimum.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/relu.hpp"
 #include "transformations/utils/utils.hpp"
 
 ov::pass::HSwishFusionWithReluDiv::HSwishFusionWithReluDiv() {
@@ -174,8 +174,9 @@ ov::pass::HSwishFusionWithClamp::HSwishFusionWithClamp() {
             return false;
 
         auto hswish = std::make_shared<ov::op::v4::HSwish>(x_output);
-        auto new_mul_const =
-            std::make_shared<ov::op::v0::Constant>(add_const_value->get_element_type(), Shape{}, std::vector<float>{6.0});
+        auto new_mul_const = std::make_shared<ov::op::v0::Constant>(add_const_value->get_element_type(),
+                                                                    Shape{},
+                                                                    std::vector<float>{6.0});
         auto new_mul = std::make_shared<ov::op::v1::Multiply>(hswish, new_mul_const);
 
         new_mul->set_friendly_name(m.get_match_root()->get_friendly_name());

@@ -12,21 +12,21 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 #include <openvino/core/validation_util.hpp>
-#include "openvino/op/transpose.hpp"
-#include "openvino/op/concat.hpp"
-#include "openvino/op/shape_of.hpp"
-#include "openvino/op/split.hpp"
-#include "openvino/op/fake_quantize.hpp"
-#include "openvino/op/convert.hpp"
-#include "openvino/op/group_conv.hpp"
-#include "openvino/op/prelu.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/convolution.hpp"
-#include "openvino/op/gather.hpp"
 #include <utility>
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/group_conv.hpp"
+#include "openvino/op/prelu.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/split.hpp"
+#include "openvino/op/transpose.hpp"
 #include "openvino/op/util/pad_base.hpp"
 #include "openvino/util/log.hpp"
 #include "transformations/utils/utils.hpp"
@@ -101,7 +101,8 @@ public:
             order.resize(axis_dim.get_length());
             std::iota(order.rbegin(), order.rend(), 0);
         }
-        auto gather = std::make_shared<ov::op::v8::Gather>(output, create_1d_const(order), create_1d_const({get_axis()}));
+        auto gather =
+            std::make_shared<ov::op::v8::Gather>(output, create_1d_const(order), create_1d_const({get_axis()}));
         input.replace_source_output(gather);
         ov::copy_runtime_info(nodes, gather);
     }
@@ -454,8 +455,8 @@ public:
     GroupConvolution() {
         MATCHER_SCOPE(GroupConvolution);
         auto input_p = pattern::any_input(ric_attr::has<Output<Node>>);
-        auto pattern_root =
-            pattern::wrap_type<ov::op::v1::GroupConvolution>({input_p, pattern::any_input(pattern::has_static_shape())});
+        auto pattern_root = pattern::wrap_type<ov::op::v1::GroupConvolution>(
+            {input_p, pattern::any_input(pattern::has_static_shape())});
 
         auto callback = [=](pattern::Matcher& m) {
             auto conv = m.get_match_root();
@@ -525,8 +526,10 @@ class PassThrough : public ov::pass::MatcherPass {
 public:
     PassThrough() {
         MATCHER_SCOPE(PassThrough);
-        auto pattern_root = pattern::
-            wrap_type<op::util::UnaryElementwiseArithmetic, ov::op::v0::Convert, op::util::PadBase, ov::op::v0::PRelu>();
+        auto pattern_root = pattern::wrap_type<op::util::UnaryElementwiseArithmetic,
+                                               ov::op::v0::Convert,
+                                               op::util::PadBase,
+                                               ov::op::v0::PRelu>();
 
         auto callback = [=](pattern::Matcher& m) {
             auto root = m.get_match_root();
@@ -654,8 +657,9 @@ public:
     EraseGather() {
         MATCHER_SCOPE(EraseGather);
         auto input_p = pattern::any_input();
-        auto pattern_root = pattern::wrap_type<ov::op::v8::Gather>({input_p, pattern::any_input(), pattern::any_input()},
-                                                               need_to_erase_ric);
+        auto pattern_root =
+            pattern::wrap_type<ov::op::v8::Gather>({input_p, pattern::any_input(), pattern::any_input()},
+                                                   need_to_erase_ric);
         auto callback = [=](pattern::Matcher& m) {
             const auto& pattern_map = m.get_pattern_value_map();
             auto output = pattern_map.at(pattern_root);
@@ -677,11 +681,11 @@ public:
         MATCHER_SCOPE(Binary);
         auto fake_quantize_pattern =
             pattern::wrap_type<ov::op::v0::FakeQuantize>({pattern::any_input(pattern::has_static_rank()),
-                                                      pattern::any_input(pattern::has_static_rank()),
-                                                      pattern::any_input(pattern::has_static_rank()),
-                                                      pattern::any_input(pattern::has_static_rank()),
-                                                      pattern::any_input(pattern::has_static_rank())},
-                                                     pattern::has_static_rank());
+                                                          pattern::any_input(pattern::has_static_rank()),
+                                                          pattern::any_input(pattern::has_static_rank()),
+                                                          pattern::any_input(pattern::has_static_rank()),
+                                                          pattern::any_input(pattern::has_static_rank())},
+                                                         pattern::has_static_rank());
         auto binary_elementwise_pattern = pattern::wrap_type<op::util::BinaryElementwiseArithmetic>(
             {pattern::any_input(pattern::has_static_rank()), pattern::any_input(pattern::has_static_rank())},
             pattern::has_static_rank());

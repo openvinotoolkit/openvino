@@ -7,12 +7,12 @@
 #include <memory>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
-#include "openvino/op/constant.hpp"
-#include "openvino/op/reshape.hpp"
 #include <vector>
 
 #include "itt.hpp"
 #include "openvino/core/bound_evaluation_util.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/reshape.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace {

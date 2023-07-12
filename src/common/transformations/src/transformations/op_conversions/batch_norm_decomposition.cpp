@@ -9,35 +9,35 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 #include <openvino/core/validation_util.hpp>
-#include "openvino/op/batch_norm.hpp"
-#include "openvino/op/broadcast.hpp"
-#include "openvino/op/concat.hpp"
-#include "openvino/op/shape_of.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/multiply.hpp"
-#include "openvino/op/add.hpp"
-#include "openvino/op/sqrt.hpp"
-#include "openvino/op/divide.hpp"
-#include "openvino/op/reshape.hpp"
 #include <transformations/utils/utils.hpp>
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/batch_norm.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/sqrt.hpp"
 
 using namespace ov;
 
 ov::pass::BatchNormDecomposition::BatchNormDecomposition() {
     MATCHER_SCOPE(BatchNormDecomposition);
     auto bn_1 = pattern::wrap_type<ov::op::v0::BatchNormInference>({pattern::any_input(pattern::has_static_shape()),
-                                                                pattern::any_input(pattern::has_static_shape()),
-                                                                pattern::any_input(pattern::has_static_rank()),
-                                                                pattern::any_input(pattern::has_static_shape()),
-                                                                pattern::any_input(pattern::has_static_shape())});
+                                                                    pattern::any_input(pattern::has_static_shape()),
+                                                                    pattern::any_input(pattern::has_static_rank()),
+                                                                    pattern::any_input(pattern::has_static_shape()),
+                                                                    pattern::any_input(pattern::has_static_shape())});
     auto bn_5 = pattern::wrap_type<ov::op::v5::BatchNormInference>({pattern::any_input(pattern::has_static_rank()),
-                                                                pattern::any_input(pattern::has_static_shape()),
-                                                                pattern::any_input(pattern::has_static_shape()),
-                                                                pattern::any_input(pattern::has_static_shape()),
-                                                                pattern::any_input(pattern::has_static_shape())});
+                                                                    pattern::any_input(pattern::has_static_shape()),
+                                                                    pattern::any_input(pattern::has_static_shape()),
+                                                                    pattern::any_input(pattern::has_static_shape()),
+                                                                    pattern::any_input(pattern::has_static_shape())});
     auto bn = std::make_shared<ngraph::pattern::op::Or>(OutputVector{bn_1, bn_5});
 
     matcher_pass_callback callback = [this](ngraph::pattern::Matcher& m) {
@@ -64,7 +64,8 @@ ov::pass::BatchNormDecomposition::BatchNormDecomposition() {
 
         const auto& input_type = m_input.get_element_type();
         // scale_add = variance + eps
-        auto scale_add = std::make_shared<ov::op::v1::Add>(m_var, ov::op::v0::Constant::create(input_type, Shape{}, {eps}));
+        auto scale_add =
+            std::make_shared<ov::op::v1::Add>(m_var, ov::op::v0::Constant::create(input_type, Shape{}, {eps}));
         // scale = sqrt(variance + eps)
         auto scale = std::make_shared<ov::op::v0::Sqrt>(scale_add);
         // Divide `gamma` by `sqrt(variance + eps)`

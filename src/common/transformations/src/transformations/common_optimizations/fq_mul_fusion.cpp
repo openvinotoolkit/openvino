@@ -8,15 +8,15 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/validation_util.hpp>
-#include "openvino/op/fake_quantize.hpp"
-#include "openvino/op/multiply.hpp"
-#include "openvino/op/group_conv.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/convolution.hpp"
-#include "openvino/op/reshape.hpp"
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/group_conv.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/reshape.hpp"
 #include "transformations/utils/utils.hpp"
 
 // This transformation multiplies the "output_low" and "output_high" inputs of the FQ operation
@@ -121,7 +121,8 @@ ov::pass::FakeQuantizeMulFusion::FakeQuantizeMulFusion() {
                                                                  get_adjusted_output_range(original_output_low),
                                                                  get_adjusted_output_range(original_output_high)});
         OPENVINO_SUPPRESS_DEPRECATED_START
-        bool fq_on_weights = is_type<ov::op::v0::Constant>(data.get_node()) || get_constant_from_source(data) != nullptr;
+        bool fq_on_weights =
+            is_type<ov::op::v0::Constant>(data.get_node()) || get_constant_from_source(data) != nullptr;
         OPENVINO_SUPPRESS_DEPRECATED_END
         if (!fq_on_weights && transformation_callback(new_fq_node))
             return false;

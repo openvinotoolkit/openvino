@@ -7,11 +7,11 @@
 #include <memory>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
+
+#include "itt.hpp"
 #include "openvino/op/abs.hpp"
 #include "openvino/op/reduce_l1.hpp"
 #include "openvino/op/reduce_sum.hpp"
-
-#include "itt.hpp"
 
 ov::pass::ReduceL1Decomposition::ReduceL1Decomposition() {
     MATCHER_SCOPE(ReduceL1Decomposition);

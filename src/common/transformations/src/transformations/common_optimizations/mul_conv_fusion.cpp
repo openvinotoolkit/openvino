@@ -9,24 +9,22 @@
 #include <ngraph/pattern/matcher.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
-
-#include "openvino/op/multiply.hpp"
-
-#include "openvino/op/group_conv.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/convolution.hpp"
-#include "openvino/op/reshape.hpp"
 #include <transformations/utils/utils.hpp>
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/group_conv.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/reshape.hpp"
 
 ov::pass::MultiplyConvolutionFusion::MultiplyConvolutionFusion() {
     MATCHER_SCOPE(MultiplyConvolutionFusion);
     auto input_pattern = pattern::any_input();
     auto mul_const_pattern = ngraph::pattern::wrap_type<ov::op::v0::Constant>();
-    auto mul_pattern =
-        ngraph::pattern::wrap_type<ov::op::v1::Multiply>({input_pattern, mul_const_pattern}, pattern::consumers_count(1));
+    auto mul_pattern = ngraph::pattern::wrap_type<ov::op::v1::Multiply>({input_pattern, mul_const_pattern},
+                                                                        pattern::consumers_count(1));
     auto weights_pattern = pass::pattern::any_input(pattern::has_static_shape());
     auto conv_pattern = ngraph::pattern::wrap_type<ov::op::v1::Convolution>({mul_pattern, weights_pattern});
 
@@ -78,8 +76,8 @@ ov::pass::MultiplyGroupConvolutionFusion::MultiplyGroupConvolutionFusion() {
     MATCHER_SCOPE(MultiplyGroupConvolutionFusion);
     auto input_pattern = pattern::any_input();
     auto mul_const_pattern = ngraph::pattern::wrap_type<ov::op::v0::Constant>();
-    auto mul_pattern =
-        ngraph::pattern::wrap_type<ov::op::v1::Multiply>({input_pattern, mul_const_pattern}, pattern::consumers_count(1));
+    auto mul_pattern = ngraph::pattern::wrap_type<ov::op::v1::Multiply>({input_pattern, mul_const_pattern},
+                                                                        pattern::consumers_count(1));
     auto weights_pattern = pass::pattern::any_input(pattern::has_static_shape());
     auto conv_pattern = ngraph::pattern::wrap_type<ov::op::v1::GroupConvolution>({mul_pattern, weights_pattern});
 
@@ -145,8 +143,8 @@ ov::pass::MultiplyConvolutionBackpropDataFusion::MultiplyConvolutionBackpropData
     MATCHER_SCOPE(MultiplyConvolutionBackpropDataFusion);
     auto input_pattern = pattern::any_input();
     auto mul_const_pattern = ngraph::pattern::wrap_type<ov::op::v0::Constant>();
-    auto mul_pattern =
-        ngraph::pattern::wrap_type<ov::op::v1::Multiply>({input_pattern, mul_const_pattern}, pattern::consumers_count(1));
+    auto mul_pattern = ngraph::pattern::wrap_type<ov::op::v1::Multiply>({input_pattern, mul_const_pattern},
+                                                                        pattern::consumers_count(1));
     auto weights_pattern = pass::pattern::any_input(pattern::has_static_shape());
     auto conv_pattern = ngraph::pattern::wrap_type<ov::op::v1::ConvolutionBackpropData>({mul_pattern, weights_pattern});
 
@@ -214,8 +212,8 @@ ov::pass::MultiplyGroupConvolutionBackpropDataFusion::MultiplyGroupConvolutionBa
     MATCHER_SCOPE(MultiplyGroupConvolutionBackpropDataFusion);
     auto input_pattern = pattern::any_input();
     auto mul_const_pattern = ngraph::pattern::wrap_type<ov::op::v0::Constant>();
-    auto mul_pattern =
-        ngraph::pattern::wrap_type<ov::op::v1::Multiply>({input_pattern, mul_const_pattern}, pattern::consumers_count(1));
+    auto mul_pattern = ngraph::pattern::wrap_type<ov::op::v1::Multiply>({input_pattern, mul_const_pattern},
+                                                                        pattern::consumers_count(1));
     auto weights_pattern = pass::pattern::any_input(pattern::has_static_shape());
     auto conv_pattern =
         ngraph::pattern::wrap_type<ov::op::v1::GroupConvolutionBackpropData>({mul_pattern, weights_pattern});

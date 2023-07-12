@@ -8,12 +8,6 @@
 #include <numeric>
 #include <openvino/core/validation_util.hpp>
 #include <openvino/op/util/op_types.hpp>
-#include "openvino/op/concat.hpp"
-#include "openvino/op/shape_of.hpp"
-#include "openvino/op/fake_quantize.hpp"
-#include "openvino/op/gather.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/reshape.hpp"
 #include <openvino/pass/manager.hpp>
 #include <transformations/common_optimizations/eliminate_unsqueeze_gather.hpp>
 #include <transformations/common_optimizations/simplify_shape_of_sub_graph.hpp>
@@ -21,6 +15,12 @@
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/shape_of.hpp"
 
 static constexpr size_t index_for_int32 = 0;
 static constexpr size_t index_for_int64 = 1;
@@ -89,25 +89,25 @@ ov::pass::GroupedGatherElimination::GroupedGatherElimination() {
             }
 
             // curr and next are the same type of gather which takes data from the same source
-            auto joint_indices =
-                ov::op::util::make_try_fold<ov::op::v0::Concat>(OutputVector{curr->input_value(1), next->input_value(1)},
-                                                            0);
+            auto joint_indices = ov::op::util::make_try_fold<ov::op::v0::Concat>(
+                OutputVector{curr->input_value(1), next->input_value(1)},
+                0);
             std::shared_ptr<Node> new_gather;
             if (ov::is_type<ov::op::v1::Gather>(curr)) {
-                new_gather =
-                    register_new_node<ov::op::v1::Gather>(curr->input_value(0),
-                                                      joint_indices->output(0),
-                                                      ov::op::v0::Constant::create(element::i64, {}, {0})->output(0));
+                new_gather = register_new_node<ov::op::v1::Gather>(
+                    curr->input_value(0),
+                    joint_indices->output(0),
+                    ov::op::v0::Constant::create(element::i64, {}, {0})->output(0));
             } else if (ov::is_type<ov::op::v7::Gather>(curr)) {
-                new_gather =
-                    register_new_node<ov::op::v7::Gather>(curr->input_value(0),
-                                                      joint_indices->output(0),
-                                                      ov::op::v0::Constant::create(element::i64, {}, {0})->output(0));
+                new_gather = register_new_node<ov::op::v7::Gather>(
+                    curr->input_value(0),
+                    joint_indices->output(0),
+                    ov::op::v0::Constant::create(element::i64, {}, {0})->output(0));
             } else if (ov::is_type<ov::op::v8::Gather>(curr)) {
-                new_gather =
-                    register_new_node<ov::op::v8::Gather>(curr->input_value(0),
-                                                      joint_indices->output(0),
-                                                      ov::op::v0::Constant::create(element::i64, {}, {0})->output(0));
+                new_gather = register_new_node<ov::op::v8::Gather>(
+                    curr->input_value(0),
+                    joint_indices->output(0),
+                    ov::op::v0::Constant::create(element::i64, {}, {0})->output(0));
             } else {
                 OPENVINO_THROW("Unexpected Gather version");
             }
@@ -164,7 +164,8 @@ ov::pass::GatherNopElimination::GatherNopElimination() {
 ov::pass::SimplifyGatherShapeOf::SimplifyGatherShapeOf() {
     MATCHER_SCOPE(SimplifyGatherShapeOf);
     const auto gather_pattern = ngraph::pattern::wrap_type<op::util::GatherBase>();
-    const auto shape_of_pattern = ngraph::pattern::wrap_type<ov::op::v0::ShapeOf, ov::op::v3::ShapeOf>({gather_pattern});
+    const auto shape_of_pattern =
+        ngraph::pattern::wrap_type<ov::op::v0::ShapeOf, ov::op::v3::ShapeOf>({gather_pattern});
 
     ov::matcher_pass_callback callback = [](pattern::Matcher& m) {
         auto node = m.get_match_root();
@@ -175,13 +176,15 @@ ov::pass::SimplifyGatherShapeOf::SimplifyGatherShapeOf() {
         auto gather_in_rank = gather->get_input_partial_shape(0).rank();
         auto indices_rank = gather->get_input_partial_shape(1).rank();
         auto axis = gather->get_axis();
-        if (gather_in_rank.is_dynamic() || indices_rank.is_dynamic() || axis == ov::op::v1::Gather::AXIS_NOT_SET_VALUE) {
+        if (gather_in_rank.is_dynamic() || indices_rank.is_dynamic() ||
+            axis == ov::op::v1::Gather::AXIS_NOT_SET_VALUE) {
             return false;
         }
 
         auto zero_axis = ov::op::v0::Constant::create<int64_t>(element::i64, Shape{}, {0});
         NodeVector new_ops;
-        auto new_shapeof = std::make_shared<ov::op::v3::ShapeOf>(gather->input_value(0), node->get_output_element_type(0));
+        auto new_shapeof =
+            std::make_shared<ov::op::v3::ShapeOf>(gather->input_value(0), node->get_output_element_type(0));
         new_ops.push_back(new_shapeof);
         std::shared_ptr<Node> replace_op;
         if (indices_rank.get_length() == 0) {

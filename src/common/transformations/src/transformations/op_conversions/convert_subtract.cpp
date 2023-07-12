@@ -6,13 +6,13 @@
 
 #include <openvino/core/rt_info.hpp>
 #include <openvino/core/validation_util.hpp>
-#include "openvino/op/subtract.hpp"
-#include "openvino/op/multiply.hpp"
-#include "openvino/op/add.hpp"
-#include "openvino/op/constant.hpp"
 #include <openvino/pass/pattern/op/wrap_type.hpp>
 
 #include "itt.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/subtract.hpp"
 #include "transformations/rt_info/dequantization_node.hpp"
 
 using namespace ov;
@@ -31,9 +31,9 @@ static bool convert_subtract(const std::shared_ptr<Node>& node) {
         return false;
     }
 
-    std::shared_ptr<Node> neg =
-        std::make_shared<ov::op::v1::Multiply>(sub->input_value(1),
-                                           ov::op::v0::Constant::create(sub->get_input_element_type(1), Shape{}, {-1}));
+    std::shared_ptr<Node> neg = std::make_shared<ov::op::v1::Multiply>(
+        sub->input_value(1),
+        ov::op::v0::Constant::create(sub->get_input_element_type(1), Shape{}, {-1}));
     NodeVector new_nodes;
     OPENVINO_SUPPRESS_DEPRECATED_START
     if (auto constant = ov::get_constant_from_source(neg)) {
@@ -68,7 +68,8 @@ pass::ConvertSubtract::ConvertSubtract() {
 
 pass::ConvertSubtractWithConstant::ConvertSubtractWithConstant() {
     MATCHER_SCOPE(ConvertSubtractWithConstant);
-    auto sub = pattern::wrap_type<ov::op::v1::Subtract>({pattern::any_input(), pattern::wrap_type<ov::op::v0::Constant>()});
+    auto sub =
+        pattern::wrap_type<ov::op::v1::Subtract>({pattern::any_input(), pattern::wrap_type<ov::op::v0::Constant>()});
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto node = m.get_match_root();

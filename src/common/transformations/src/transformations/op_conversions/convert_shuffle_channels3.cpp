@@ -7,17 +7,17 @@
 #include <memory>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
-#include "openvino/op/variadic_split.hpp"
-#include "openvino/op/shape_of.hpp"
-#include "openvino/op/concat.hpp"
-#include "openvino/op/shuffle_channels.hpp"
-#include "openvino/op/reduce_prod.hpp"
-#include "openvino/op/transpose.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/reshape.hpp"
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/reduce_prod.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/shuffle_channels.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/op/variadic_split.hpp"
 
 using namespace ov;
 
@@ -91,7 +91,8 @@ ov::pass::ConvertShuffleChannels3::ConvertShuffleChannels3() {
             reshape->output(0),
             ov::op::v0::Constant::create(element::i64, Shape({transpose_order.size()}), transpose_order));
         // restore original shape
-        auto reshape_back = std::make_shared<ov::op::v1::Reshape>(transpose->output(0), original_shape->output(0), false);
+        auto reshape_back =
+            std::make_shared<ov::op::v1::Reshape>(transpose->output(0), original_shape->output(0), false);
 
         ::NodeVector new_ops = {original_shape, split_input_dimensions, transpose, reshape, reshape_back, new_shape};
         for (auto output : new_dimensions)

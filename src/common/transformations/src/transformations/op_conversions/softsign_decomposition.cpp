@@ -5,14 +5,14 @@
 #include <memory>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
-#include "openvino/op/softsign.hpp"
-#include "openvino/op/abs.hpp"
-#include "openvino/op/divide.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/add.hpp"
 #include <transformations/op_conversions/softsign_decomposition.hpp>
 
 #include "itt.hpp"
+#include "openvino/op/abs.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/softsign.hpp"
 
 ov::pass::SoftSignDecomposition::SoftSignDecomposition() {
     MATCHER_SCOPE(SoftSignDecomposition);

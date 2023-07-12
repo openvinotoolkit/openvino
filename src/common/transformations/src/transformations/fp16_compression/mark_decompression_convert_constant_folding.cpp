@@ -5,8 +5,8 @@
 #include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
 
 #include "itt.hpp"
-#include "openvino/op/convert.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/rt_info/decompression.hpp"
 #include "transformations/rt_info/disable_constant_folding.hpp"

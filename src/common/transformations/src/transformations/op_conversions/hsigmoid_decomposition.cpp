@@ -7,14 +7,14 @@
 #include <memory>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
-#include "openvino/op/minimum.hpp"
-#include "openvino/op/hsigmoid.hpp"
-#include "openvino/op/relu.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/multiply.hpp"
-#include "openvino/op/add.hpp"
 
 #include "itt.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/hsigmoid.hpp"
+#include "openvino/op/minimum.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/relu.hpp"
 
 ov::pass::HSigmoidDecomposition::HSigmoidDecomposition() {
     MATCHER_SCOPE(HSigmoidDecomposition);

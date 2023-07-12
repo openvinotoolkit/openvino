@@ -10,8 +10,8 @@
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/broadcast.hpp"
-#include "openvino/op/select.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/select.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -81,7 +81,8 @@ ov::pass::SelectWithOneValueCondition::SelectWithOneValueCondition() {
                 select_shape_values[i] = static_cast<int32_t>(select_shape[i].get_length());
             }
 
-            auto target_shape = copy_to.make<ov::op::v0::Constant>(element::i32, Shape{select_rank}, select_shape_values);
+            auto target_shape =
+                copy_to.make<ov::op::v0::Constant>(element::i32, Shape{select_rank}, select_shape_values);
             auto broadcast = copy_to.make<ov::op::v3::Broadcast>(branch_output, target_shape);
             select->output(0).replace(broadcast->output(0));
             broadcast->set_friendly_name(select->get_friendly_name());

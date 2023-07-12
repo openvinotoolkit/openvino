@@ -6,24 +6,24 @@
 
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
-#include "openvino/op/broadcast.hpp"
-#include "openvino/op/concat.hpp"
-#include "openvino/op/shape_of.hpp"
-#include "openvino/op/equal.hpp"
-#include "openvino/op/convert.hpp"
-#include "openvino/op/range.hpp"
-#include "openvino/op/select.hpp"
-#include "openvino/op/reduce_sum.hpp"
-#include "openvino/op/add.hpp"
-#include "openvino/op/ctc_greedy_decoder.hpp"
-#include "openvino/op/transpose.hpp"
-#include "openvino/op/squeeze.hpp"
-#include "openvino/op/ctc_greedy_decoder_seq_len.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/greater_eq.hpp"
-#include "openvino/op/gather.hpp"
 
 #include "itt.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/ctc_greedy_decoder.hpp"
+#include "openvino/op/ctc_greedy_decoder_seq_len.hpp"
+#include "openvino/op/equal.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/greater_eq.hpp"
+#include "openvino/op/range.hpp"
+#include "openvino/op/reduce_sum.hpp"
+#include "openvino/op/select.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/transpose.hpp"
 
 ov::pass::SimplifyCTCGreedyDecoderSeqLen::SimplifyCTCGreedyDecoderSeqLen() {
     MATCHER_SCOPE(SimplifyCTCGreedyDecoderSeqLen);
