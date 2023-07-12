@@ -33,12 +33,9 @@ public:
     bool evaluate_upper(TensorVector& output_values) const override;
     bool evaluate_label(TensorLabelVector& output_labels) const override;
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
-    OPENVINO_SUPPRESS_DEPRECATED_END
-
-private:
-    bool evaluate_scatter_element_update(const HostTensorVector& outputs, const HostTensorVector& inputs) const;
+protected:
+    bool is_supported_index_input_element_type() const;
+    int64_t get_normalized_axis(const HostTensorVector& inputs) const;
 };
 }  // namespace util
 }  // namespace op

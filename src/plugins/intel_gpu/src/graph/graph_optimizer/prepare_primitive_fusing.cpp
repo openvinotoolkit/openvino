@@ -826,11 +826,11 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             if (input_data.in_shape_of_subgraph || node->in_shape_of_subgraph)
                 return;
 
-            auto& input_lo = quantize_node.get_dependency(1);
-            auto& input_hi = quantize_node.get_dependency(2);
-
             auto out_layout = quantize_node.get_output_layout();
             auto in_layout = input_data.get_output_layout();
+            if (in_layout.is_dynamic() || out_layout.is_dynamic())
+                return;
+
             auto out_dt = out_layout.data_type;
             auto in_dt = input_data.get_input_layout(0).data_type;
             auto out_dt_is_i8_u8 = data_type_traits::is_i8_u8(out_dt);
@@ -844,6 +844,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                                      quantize_node.get_per_tensor_output_shift() &&
                                      quantize_node.get_per_tensor_output_range();
 
+            auto& input_lo = quantize_node.get_dependency(1);
+            auto& input_hi = quantize_node.get_dependency(2);
             bool should_fuse = input_data.is_type<binary_convolution>() &&
                                ((out_dt == data_types::bin &&
                                quantize_node.get_dependencies().size() == 5 &&
@@ -1062,11 +1064,6 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             if (_lo.get_optimization_attributes().use_onednn_impls) {
                 auto eltw_in_size = peer_node->get_output_layout();
                 if (eltw_in_size.is_dynamic())
-                    return;
-                // When input rank > 4, fused eltwise to gemm should be converted to 4 dim in init_onednn_primitive_attribute()
-                // But current init_onednn_primitive_attribute() cannot handle dynamic shape case.
-                auto eltw_in_rank = fused_node->get_output_layout().get_rank();
-                if ((fused_node->is_type<gemm>()) && (eltw_in_rank > 4))
                     return;
             }
             if (parent1.first->is_type<convolution>() && !conv_supports_fusings(parent1.first->as<convolution>()))

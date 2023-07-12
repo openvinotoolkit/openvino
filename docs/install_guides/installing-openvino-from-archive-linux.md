@@ -3,6 +3,12 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to install OpenVINO™ Runtime on Linux operating 
+                 system, using an archive file, which is a recommended 
+                 installation method for C++ developers.
+
+
 Installing OpenVINO Runtime from archive files is recommended for C++ developers. It will contain code samples, 
 as well as pre-built binaries and library files needed for OpenVINO Runtime. If you work with Python, 
 the PyPI package may be a better choice. See the :doc:`Install OpenVINO from PyPI <openvino_docs_install_guides_installing_openvino_pip>` 
@@ -14,12 +20,12 @@ page for instructions on how to install OpenVINO Runtime for Python using PyPI.
    model conversion API, Post-Training Optimization Tool, Model Downloader and other Open Model Zoo tools, 
    Accuracy Checker, and Annotation Converter.
 
-See the `Release Notes <https://software.intel.com/en-us/articles/OpenVINO-RelNotes>`__ for more information on updates in the latest release.
+See the `Release Notes <https://www.intel.com/content/www/us/en/developer/articles/release-notes/openvino/2023-0.html>`__ for more information on updates in the latest release.
 
 .. tab-set::
 
    .. tab-item:: System Requirements
-      :sync: sys-req
+      :sync: system-requirements
    
       Full requirement listing is available in `System Requirements Page <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html>`__
    
@@ -29,7 +35,7 @@ See the `Release Notes <https://software.intel.com/en-us/articles/OpenVINO-RelNo
       Processor graphics are not included in all processors. See `Product Specifications <https://ark.intel.com/>`__ for information about your processor.
    
    .. tab-item:: Software
-      :sync: soft
+      :sync: software
    
       * `CMake 3.13 or higher, 64-bit <https://cmake.org/download/>`__
       * `Python 3.7 - 3.11, 64-bit <https://www.python.org/downloads/>`__
@@ -37,23 +43,23 @@ See the `Release Notes <https://software.intel.com/en-us/articles/OpenVINO-RelNo
       
       .. tab-set::
 
+         .. tab-item:: Ubuntu 20.04
+            :sync: ubuntu-20
+         
+            * GCC 9.3.0
+
          .. tab-item:: Ubuntu 18.04
-            :sync: ubuntu18
+            :sync: ubuntu-18
        
             * GCC 7.5.0
        
-         .. tab-item:: Ubuntu 20.04
-            :sync: ubuntu20
-       
-            * GCC 9.3.0
-       
          .. tab-item:: RHEL 8
-            :sync: rhel8
+            :sync: rhel-8
        
             * GCC 8.4.1
        
          .. tab-item:: CentOS 7
-            :sync: centos7
+            :sync: centos-7
        
             * GCC 8.3.1
             Use the following instructions to install it:
@@ -89,6 +95,7 @@ Step 1: Download and Install the OpenVINO Core Components
       sudo mkdir /opt/intel
    
    .. note::
+   
       The ``/opt/intel`` path is the recommended folder path for administrators or root users. If you prefer to install OpenVINO in regular userspace, the recommended path is ``/home/<USER>/intel``. You may use a different path if desired.
 
 3. Browse to the current user's ``Downloads`` folder:
@@ -97,7 +104,7 @@ Step 1: Download and Install the OpenVINO Core Components
    
       cd <user_home>/Downloads
     
-4. Download the `OpenVINO Runtime archive file for your system <https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.0/linux/>`_, extract the files, rename the extracted folder and move it to the desired path:
+4. Download the `OpenVINO Runtime archive file for your system <https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.0.1/linux/>`_, extract the files, rename the extracted folder and move it to the desired path:
 
    .. tab-set::
 
@@ -107,74 +114,74 @@ Step 1: Download and Install the OpenVINO Core Components
          .. tab-set::
 
             .. tab-item:: Ubuntu 22.04
-               :sync: ubuntu22
+               :sync: ubuntu-22
          
                .. code-block:: sh
-            
-                  curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.0/linux/l_openvino_toolkit_ubuntu22_2023.0.0.10926.b4452d56304_x86_64.tgz --output openvino_2023.0.0.tgz
-                  tar -xf openvino_2023.0.0.tgz
-                  sudo mv l_openvino_toolkit_ubuntu22_2023.0.0.10926.b4452d56304_x86_64 /opt/intel/openvino_2023.0.0
+                  
+                  curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.0.1/linux/l_openvino_toolkit_ubuntu22_2023.0.1.11005.fa1c41994f3_x86_64.tgz --output openvino_2023.0.1.tgz
+                  tar -xf openvino_2023.0.1.tgz
+                  sudo mv l_openvino_toolkit_ubuntu22_2023.0.1.11005.fa1c41994f3_x86_64 /opt/intel/openvino_2023.0.1
          
             .. tab-item:: Ubuntu 20.04
-               :sync: ubuntu20
+               :sync: ubuntu-20
          
                .. code-block:: sh
             
-                  curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.0/linux/l_openvino_toolkit_ubuntu20_2023.0.0.10926.b4452d56304_x86_64.tgz --output openvino_2023.0.0.tgz
-                  tar -xf openvino_2023.0.0.tgz
-                  sudo mv l_openvino_toolkit_ubuntu20_2023.0.0.10926.b4452d56304_x86_64 /opt/intel/openvino_2023.0.0
+                  curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.0.1/linux/l_openvino_toolkit_ubuntu20_2023.0.1.11005.fa1c41994f3_x86_64.tgz --output openvino_2023.0.1.tgz
+                  tar -xf openvino_2023.0.1.tgz
+                  sudo mv l_openvino_toolkit_ubuntu20_2023.0.1.11005.fa1c41994f3_x86_64 /opt/intel/openvino_2023.0.1
          
             .. tab-item:: Ubuntu 18.04
-               :sync: ubuntu18
+               :sync: ubuntu-18
          
                .. code-block:: sh
             
-                  curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.0/linux/l_openvino_toolkit_ubuntu18_2023.0.0.10926.b4452d56304_x86_64.tgz --output openvino_2023.0.0.tgz
-                  tar -xf openvino_2023.0.0.tgz
-                  sudo mv l_openvino_toolkit_ubuntu18_2023.0.0.10926.b4452d56304_x86_64 /opt/intel/openvino_2023.0.0
+                  curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.0.1/linux/l_openvino_toolkit_ubuntu18_2023.0.1.11005.fa1c41994f3_x86_64.tgz --output openvino_2023.0.1.tgz
+                  tar -xf openvino_2023.0.1.tgz
+                  sudo mv l_openvino_toolkit_ubuntu18_2023.0.1.11005.fa1c41994f3_x86_64 /opt/intel/openvino_2023.0.1
          
             .. tab-item:: RHEL 8
-               :sync: rhel8
+               :sync: rhel-8
          
                .. code-block:: sh
             
-                  curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.0/linux/l_openvino_toolkit_rhel8_2023.0.0.10926.b4452d56304_x86_64.tgz --output openvino_2023.0.0.tgz
-                  tar -xf openvino_2023.0.0.tgz
-                  sudo mv l_openvino_toolkit_rhel8_2023.0.0.10926.b4452d56304_x86_64 /opt/intel/openvino_2023.0.0
+                  curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.0.1/linux/l_openvino_toolkit_rhel8_2023.0.1.11005.fa1c41994f3_x86_64.tgz --output openvino_2023.0.1.tgz
+                  tar -xf openvino_2023.0.1.tgz
+                  sudo mv l_openvino_toolkit_rhel8_2023.0.1.11005.fa1c41994f3_x86_64 /opt/intel/openvino_2023.0.1
          
             .. tab-item:: CentOS 7
-               :sync: centos7
+               :sync: centos-7
          
                .. code-block:: sh
             
-                  curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.0/linux/l_openvino_toolkit_centos7_2023.0.0.10926.b4452d56304_x86_64.tgz --output openvino_2023.0.0.tgz
-                  tar -xf openvino_2023.0.0.tgz
-                  sudo mv l_openvino_toolkit_centos7_2023.0.0.10926.b4452d56304_x86_64 /opt/intel/openvino_2023.0.0
+                  curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.0.1/linux/l_openvino_toolkit_centos7_2023.0.1.11005.fa1c41994f3_x86_64.tgz --output openvino_2023.0.1.tgz
+                  tar -xf openvino_2023.0.1.tgz
+                  sudo mv l_openvino_toolkit_centos7_2023.0.1.11005.fa1c41994f3_x86_64 /opt/intel/openvino_2023.0.1
        
       .. tab-item:: ARM 64-bit
          :sync: arm-64
       
          .. code-block:: sh
       
-            curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.0/linux/l_openvino_toolkit_debian9_2023.0.0.10926.b4452d56304_arm64.tgz -O openvino_2023.0.0.tgz
-            tar -xf openvino_2023.0.0.tgz
-            sudo mv l_openvino_toolkit_debian9_2023.0.0.10926.b4452d56304_arm64 /opt/intel/openvino_2023.0.0
+            curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.0.1/linux/l_openvino_toolkit_debian9_2023.0.1.11005.fa1c41994f3_arm64.tgz -O openvino_2023.0.1.tgz
+            tar -xf openvino_2023.0.1.tgz
+            sudo mv l_openvino_toolkit_debian9_2023.0.1.11005.fa1c41994f3_arm64 /opt/intel/openvino_2023.0.1
       
       .. tab-item:: ARM 32-bit
          :sync: arm-32
       
          .. code-block:: sh
       
-            curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.0/linux/l_openvino_toolkit_debian9_2023.0.0.10926.b4452d56304_armhf.tgz -O openvino_2023.0.0.tgz
-            tar -xf openvino_2023.0.0.tgz
-            sudo mv l_openvino_toolkit_debian9_2023.0.0.10926.b4452d56304_armhf /opt/intel/openvino_2023.0.0
+            curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.0.1/linux/l_openvino_toolkit_debian9_2023.0.1.11005.fa1c41994f3_armhf.tgz -O openvino_2023.0.1.tgz
+            tar -xf openvino_2023.0.1.tgz
+            sudo mv l_openvino_toolkit_debian9_2023.0.1.11005.fa1c41994f3_armhf /opt/intel/openvino_2023.0.1
       
       
 5. Install required system dependencies on Linux. To do this, OpenVINO provides a script in the extracted installation directory. Run the following command:
    
    .. code-block:: sh
 
-      cd /opt/intel/openvino_2023.0.0
+      cd /opt/intel/openvino_2023.0.1
       sudo -E ./install_dependencies/install_openvino_dependencies.sh
 
 6. For simplicity, it is useful to create a symbolic link as below:
@@ -182,7 +189,7 @@ Step 1: Download and Install the OpenVINO Core Components
    .. code-block:: sh
    
       cd /opt/intel
-      sudo ln -s openvino_2023.0.0 openvino_2023
+      sudo ln -s openvino_2023.0.1 openvino_2023
   
    .. note::
       If you have already installed a previous release of OpenVINO 2023, a symbolic link to the ``openvino_2023`` folder may already exist. 
@@ -309,7 +316,6 @@ Additional Resources
 * Sample applications: :doc:`OpenVINO™ Toolkit Samples Overview <openvino_docs_OV_UG_Samples_Overview>`
 * Pre-trained deep learning models: :doc:`Overview of OpenVINO™ Toolkit Pre-Trained Models <model_zoo>`
 * IoT libraries and code samples in the GitHub repository: `Intel® IoT Developer Kit <https://github.com/intel-iot-devkit>`__
-* `OpenVINO Installation Selector Tool <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/download.html>`__
 
 
 

@@ -2,6 +2,12 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: The Automatic Batching Execution mode in OpenVINO Runtime 
+                 performs automatic batching to improve device utilization 
+                 by grouping inference requests.
+
+
 The Automatic Batching Execution mode (or Auto-batching for short) performs automatic batching on-the-fly to improve device utilization by grouping inference requests together, without programming effort from the user.
 With Automatic Batching, gathering the input and scattering the output from the individual inference requests required for the batch happen transparently, without affecting the application code. 
 
@@ -24,18 +30,18 @@ How Automatic Batching Works
 
       .. tab-set::
    
-         .. tab-item:: C++
-            :sync: cpp
-               
-            .. doxygensnippet:: docs/snippets/ov_auto_batching.cpp
-               :language: cpp
-               :fragment: [compile_model]
-      
          .. tab-item:: Python
             :sync: py
       
             .. doxygensnippet:: docs/snippets/ov_auto_batching.py
                :language: Python
+               :fragment: [compile_model]
+            
+         .. tab-item:: C++
+            :sync: cpp
+               
+            .. doxygensnippet:: docs/snippets/ov_auto_batching.cpp
+               :language: cpp
                :fragment: [compile_model]
          
       To enable Auto-batching in the legacy apps not akin to the notion of performance hints, you need to use the **explicit** device notion, such as ``BATCH:GPU``.
@@ -47,18 +53,18 @@ How Automatic Batching Works
 
       .. tab-set::
    
-         .. tab-item:: C++
-            :sync: cpp
-               
-            .. doxygensnippet:: docs/snippets/ov_auto_batching.cpp
-               :language: cpp
-               :fragment: [compile_model_no_auto_batching]
-      
          .. tab-item:: Python
             :sync: py
       
             .. doxygensnippet:: docs/snippets/ov_auto_batching.py
                :language: Python
+               :fragment: [compile_model_no_auto_batching]
+
+         .. tab-item:: C++
+            :sync: cpp
+               
+            .. doxygensnippet:: docs/snippets/ov_auto_batching.cpp
+               :language: cpp
                :fragment: [compile_model_no_auto_batching]
 
 
@@ -84,19 +90,19 @@ The support for Auto-batching is not limited to GPU. However, if a device does n
 This "automatic batch size selection" works on the presumption that the application queries ``ov::optimal_number_of_infer_requests`` to create the requests of the returned number and run them simultaneously:
 
 .. tab-set::
-   
-   .. tab-item:: C++
-      :sync: cpp
-         
-      .. doxygensnippet:: docs/snippets/ov_auto_batching.cpp
-         :language: cpp
-         :fragment: [query_optimal_num_requests]
 
    .. tab-item:: Python
       :sync: py
 
       .. doxygensnippet:: docs/snippets/ov_auto_batching.py
          :language: Python
+         :fragment: [query_optimal_num_requests]
+   
+   .. tab-item:: C++
+      :sync: cpp
+         
+      .. doxygensnippet:: docs/snippets/ov_auto_batching.cpp
+         :language: cpp
          :fragment: [query_optimal_num_requests]
 
 
@@ -112,19 +118,19 @@ For example, when the application processes only 4 video streams, there is no ne
 
 
 .. tab-set::
-   
-   .. tab-item:: C++
-      :sync: cpp
-         
-      .. doxygensnippet:: docs/snippets/ov_auto_batching.cpp
-         :language: cpp
-         :fragment: [hint_num_requests]
 
    .. tab-item:: Python
       :sync: py
 
       .. doxygensnippet:: docs/snippets/ov_auto_batching.py
          :language: Python
+         :fragment: [hint_num_requests]
+   
+   .. tab-item:: C++
+      :sync: cpp
+         
+      .. doxygensnippet:: docs/snippets/ov_auto_batching.cpp
+         :language: cpp
          :fragment: [hint_num_requests]
 
 

@@ -342,8 +342,9 @@ network::network(program::ptr program, const ExecutionConfig& config, stream::pt
 network::network(engine& engine,
                  const topology& topo,
                  const ExecutionConfig& config,
-                 bool is_internal)
-    : network(program::build_program(engine, topo, config, is_internal), config, engine.create_stream(config), is_internal) {}
+                 bool is_internal,
+                 InferenceEngine::CPUStreamsExecutor::Ptr task_executor)
+    : network(program::build_program(engine, topo, config, task_executor, is_internal), config, engine.create_stream(config), is_internal) {}
 
 network::network(engine& engine,
                  const std::set<std::shared_ptr<program_node>>& nodes,
@@ -358,10 +359,10 @@ network::network(program::ptr program, uint16_t stream_id)
 network::network(program::ptr program, stream::ptr stream, uint16_t stream_id)
     : network(program, program->get_config(), stream, false, stream_id == 0) {}
 
-network::network(cldnn::BinaryInputBuffer& ib, stream::ptr stream, engine& engine, bool is_primary_stream)
-    : network(ib, ExecutionConfig{}, stream, engine, is_primary_stream) {}
+network::network(cldnn::BinaryInputBuffer& ib, stream::ptr stream, engine& engine, bool is_primary_stream, uint32_t local_net_id)
+    : network(ib, ExecutionConfig{}, stream, engine, is_primary_stream, local_net_id) {}
 
-network::network(cldnn::BinaryInputBuffer& ib, const ExecutionConfig& config, stream::ptr stream, engine& engine, bool is_primary_stream)
+network::network(cldnn::BinaryInputBuffer& ib, const ExecutionConfig& config, stream::ptr stream, engine& engine, bool is_primary_stream, uint32_t local_net_id)
     : _program(nullptr)
     , _config(config)
     , _engine(engine)
@@ -369,10 +370,9 @@ network::network(cldnn::BinaryInputBuffer& ib, const ExecutionConfig& config, st
     , _memory_pool(new memory_pool(engine))
     , _internal(false)
     , _is_primary_stream(is_primary_stream)
-    , _reset_arguments(true) {
+    , _reset_arguments(true)
+    , _local_net_id(local_net_id) {
     net_id = get_unique_net_id();
-    if (is_primary_stream)
-        ib.new_network_added();
 
     kernels_cache kernels_cache(get_engine(), config, 0, nullptr, {""});
     ib >> kernels_cache;
@@ -653,8 +653,9 @@ network::ptr network::allocate_network(engine& engine, program::ptr program, boo
 network::ptr network::build_network(engine& engine,
                                     const topology& topology,
                                     const ExecutionConfig& config,
+                                    std::shared_ptr<InferenceEngine::CPUStreamsExecutor> task_executor,
                                     bool is_internal) {
-    return std::make_shared<network>(engine, topology, config, is_internal);
+    return std::make_shared<network>(engine, topology, config, is_internal, task_executor);
 }
 
 network::ptr network::build_network(engine& engine,

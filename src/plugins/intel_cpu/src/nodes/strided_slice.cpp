@@ -63,9 +63,9 @@ public:
             data_dependency.at(STRIDE_ID)->getDesc().getPrecision() != Precision::I32) {
             IE_THROW(Unexpected) << "The data type of begin/end/stride is NOT I32, which is unexpected!";
         }
-        auto beginPtr = reinterpret_cast<int32_t *>(data_dependency.at(BEGIN_ID)->GetPtr());
-        auto endPtr = reinterpret_cast<int32_t *>(data_dependency.at(END_ID)->GetPtr());
-        auto stridePtr = reinterpret_cast<int32_t *>(data_dependency.at(STRIDE_ID)->GetPtr());
+        auto beginPtr = reinterpret_cast<int32_t *>(data_dependency.at(BEGIN_ID)->getData());
+        auto endPtr = reinterpret_cast<int32_t *>(data_dependency.at(END_ID)->getData());
+        auto stridePtr = reinterpret_cast<int32_t *>(data_dependency.at(STRIDE_ID)->getData());
 
         for (size_t i = 0, new_idx = 0; i < shapeIn.size(); ++i) {
             if (m_new_axis_mask_set.count(i)) {
@@ -492,20 +492,20 @@ void StridedSlice::StridedSliceCommonExecutor::orderParametersByLayouts(const Bl
 void StridedSlice::StridedSliceCommonExecutor::paramsInitialization(const StridedSliceAttributes& attrs,
                                                                     const std::vector<MemoryCPtr>& srcMemory,
                                                                     const std::vector<MemoryCPtr>& dstMemory) {
-    const auto srcBlockedMemoryDesc = srcMemory[0]->GetDescWithType<BlockedMemoryDesc>();
-    const auto dstBlockedMemoryDesc = dstMemory[0]->GetDescWithType<BlockedMemoryDesc>();
+    const auto srcBlockedMemoryDesc = srcMemory[0]->getDescWithType<BlockedMemoryDesc>();
+    const auto dstBlockedMemoryDesc = dstMemory[0]->getDescWithType<BlockedMemoryDesc>();
 
     params.attrs = attrs;
     params.srcBlockedDims = srcBlockedMemoryDesc->getBlockDims();
     params.srcOrder = srcBlockedMemoryDesc->getOrder();
     params.dstBlockedDims = dstBlockedMemoryDesc->getBlockDims();
 
-    const size_t inputRank = srcMemory[0]->GetShape().getRank();
-    const size_t outputRank = dstMemory[0]->GetShape().getRank();
+    const size_t inputRank = srcMemory[0]->getShape().getRank();
+    const size_t outputRank = dstMemory[0]->getShape().getRank();
     const size_t nDims = std::max(inputRank, outputRank);
 
     auto fillingInParameters = [&](std::vector<int> &parameter, const size_t type, const size_t size, const int value) {
-        const int *ptr = reinterpret_cast<const int32_t *>(srcMemory[type]->GetPtr());
+        const int *ptr = reinterpret_cast<const int32_t *>(srcMemory[type]->getData());
         parameter.assign(ptr, ptr + size);
 
         if (type != AXES_ID && params.attrs.ellipsisMaskCounter == 0 && size < nDims) {
@@ -513,8 +513,8 @@ void StridedSlice::StridedSliceCommonExecutor::paramsInitialization(const Stride
         }
     };
 
-    params.attrs.beginDims = srcMemory[BEGIN_ID]->GetShape().getStaticDims();
-    params.attrs.endDims = srcMemory[END_ID]->GetShape().getStaticDims();
+    params.attrs.beginDims = srcMemory[BEGIN_ID]->getShape().getStaticDims();
+    params.attrs.endDims = srcMemory[END_ID]->getShape().getStaticDims();
     if (params.attrs.beginDims.size() != 1)
         IE_THROW() << errorPrefix << "should have begin vector with 1 dimension";
     if (params.attrs.endDims.size() != 1)
@@ -528,7 +528,7 @@ void StridedSlice::StridedSliceCommonExecutor::paramsInitialization(const Stride
         fillingInParameters(params.attrs.end, END_ID, params.attrs.endDims[0], 0);
 
     if (srcMemory.size() > STRIDE_ID) {
-        params.attrs.strideDims = srcMemory[STRIDE_ID]->GetShape().getStaticDims();
+        params.attrs.strideDims = srcMemory[STRIDE_ID]->getShape().getStaticDims();
         if (params.attrs.strideDims.size() > 1)
             IE_THROW() << errorPrefix << "should have stride vector with 1 dimension";
         if (params.attrs.beginDims[0] != params.attrs.strideDims[0])
@@ -539,7 +539,7 @@ void StridedSlice::StridedSliceCommonExecutor::paramsInitialization(const Stride
     }
 
     if (srcMemory.size() > AXES_ID) {
-        params.attrs.axesDims = srcMemory[AXES_ID]->GetShape().getStaticDims();
+        params.attrs.axesDims = srcMemory[AXES_ID]->getShape().getStaticDims();
         if (params.attrs.axesDims.size() != 1)
             IE_THROW() << errorPrefix << "should have axes vector with 1 dimension.";
         if (params.attrs.beginDims[0] != params.attrs.axesDims[0])
@@ -840,8 +840,8 @@ void StridedSlice::StridedSliceCommonExecutor::indicesCalculationForOptimized() 
 }
 
 void StridedSlice::StridedSliceCommonExecutor::exec(const std::vector<MemoryCPtr>& srcMemory, const std::vector<MemoryCPtr>& dstMemory) {
-    const uint8_t* srcData = reinterpret_cast<const uint8_t*>(srcMemory[0]->GetPtr());
-    uint8_t* dstData = reinterpret_cast<uint8_t*>(dstMemory[0]->GetPtr());
+    const uint8_t* srcData = reinterpret_cast<const uint8_t*>(srcMemory[0]->getData());
+    uint8_t* dstData = reinterpret_cast<uint8_t*>(dstMemory[0]->getData());
     const uint8_t* srcShiftedData = srcData + srcShift;
     parallel_nt(nThreads, [&](const int ithr, const int nthr) {
         size_t start = 0, end = 0;

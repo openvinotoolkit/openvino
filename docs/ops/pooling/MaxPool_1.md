@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about MaxPool-1 - a pooling operation, which can 
+                be performed on a 3D, 4D or 5D input tensor.
+
 **Versioned name**: *MaxPool-1*
 
 **Category**: *Pooling*
@@ -201,7 +205,8 @@ If ``H + pads_begin[i] + pads_end[i] - kernel[i]`` is not divided by ``strides[i
 
 **Examples**
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
    <layer ... type="MaxPool" ... >
        <data auto_pad="same_upper" kernel="2,2" pads_begin="1,1" pads_end="1,1" strides="2,2"/>

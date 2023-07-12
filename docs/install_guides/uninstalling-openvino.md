@@ -2,6 +2,11 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn how to uninstall Intel® Distribution of OpenVINO™ Toolkit from your 
+                 operating system.
+
+
 .. note::
 
    Uninstallation procedures remove all Intel® Distribution of OpenVINO™ Toolkit component files but don't affect user files in the installation directory.
@@ -27,10 +32,10 @@ If you have installed OpenVINO Runtime from archive files, you can uninstall it 
     
           rmdir /s <extracted_folder>
           del <path_to_archive>
-   
-   
+
+
    .. tab-item:: Linux & macOS
-      :sync: lin-mac
+      :sync: linux-and-macos
    
       If you have created the symbolic link, remove the link first:
     
@@ -43,7 +48,6 @@ If you have installed OpenVINO Runtime from archive files, you can uninstall it 
       .. code-block:: sh
     
         rm -r <extracted_folder> && rm <path_to_archive>
-
 
 @endsphinxdirective
 

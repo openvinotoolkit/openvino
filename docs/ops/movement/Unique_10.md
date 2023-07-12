@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about Unique-10 - a data movement operation, which can be 
+                performed on one required and one optional input tensor.
+
 **Versioned name**: *Unique-10*
 
 **Category**: *Data movement*
@@ -62,7 +66,8 @@ The operator can either work in elementwise mode searching for unique values in 
 
 *Example 1: axis input connected to a constant containing a 'zero'*
 
-.. code-block:: cpp 
+.. code-block:: xml
+   :force:
 
     <layer ... type="Unique" ... >
         <data sorted="false" index_element_type="i32"/>
@@ -97,7 +102,8 @@ The operator can either work in elementwise mode searching for unique values in 
 
 *Example 2: no axis provided*
 
-.. code-block:: cpp 
+.. code-block:: xml
+   :force:
 
     <layer ... type="Unique" ... >
         <input>
@@ -124,7 +130,8 @@ The operator can either work in elementwise mode searching for unique values in 
 
 *Example 3: no axis provided, non-default outputs precision*
 
-.. code-block:: cpp 
+.. code-block:: xml
+   :force:
 
     <layer ... type="Unique" ... >
         <data sorted="false" index_element_type="i32" count_element_type="i32"/>
