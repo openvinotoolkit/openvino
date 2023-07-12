@@ -793,8 +793,8 @@ bool check_constant_is_non_negative_get_int_value(const ov::Output<ov::Node>& ou
 //    register_matcher(m, matcher_pass_callback);
 //}
 
-ov::pass::RoPE_Optimization::RoPE_Optimization() {
-    MATCHER_SCOPE(RoPE_Optimization);
+ov::pass::RPE_Optimization::RPE_Optimization() {
+    MATCHER_SCOPE(RPE_Optimization);
 
     auto sin = pattern::wrap_type<opset6::GatherElements>();  // any_input doesn't work here
     auto cos = pattern::wrap_type<opset6::GatherElements>();  // any_input doesn't work here
@@ -1191,7 +1191,6 @@ bool ov::pass::ApplyTableOfEquivalence::run_on_model(const std::shared_ptr<ov::M
             }
         }
     }
-    ov::pass::VisualizeTree("after_table_of_eq.svg").run_on_model(m);
     return false;
 }
 
@@ -1213,8 +1212,10 @@ int64_t get_idx_of_label_in_source(const ov::Output<ov::Node> source, const ov::
     return idx;
 }
 
-std::shared_ptr<ov::Node> get_node_representing_label_from_source_by_idx(const ov::Output<ov::Node>& source,
-                                                                    const ov::element::Type& et, const ov::Shape& shape, const int64_t& idx) {
+std::shared_ptr<ov::Node> get_node_representing_label_from_source_by_idx(
+        const ov::Output<ov::Node>& source, const ov::element::Type& et, const ov::Shape& shape, const int64_t& idx) {
+    if (idx == -1)
+        return nullptr; // -1 index doesn't mean counting from the back -- it means we didn't find where the label comes from
     auto shape_of = std::make_shared<ov::opset3::ShapeOf>(source, et);
     auto axis = ov::opset1::Constant::create(ov::element::i64, {}, {0});
     auto indices = ov::opset1::Constant::create(ov::element::i64, shape, {idx});
@@ -1223,158 +1224,176 @@ std::shared_ptr<ov::Node> get_node_representing_label_from_source_by_idx(const o
     return gather;
 }
 
+std::shared_ptr<ov::Node> get_node_representing_label_from_source_by_label(
+        const ov::Output<ov::Node>& source, const ov::element::Type& et, const ov::Shape& shape, const ov::label_t& label) {
+    return get_node_representing_label_from_source_by_idx(source, et, shape, get_idx_of_label_in_source(source, label));
+}
+
+// label to source map
+using LTS_map = std::unordered_map<ov::label_t, ov::Output<ov::Node>>;
+
+void optimize_value_usage(ov::Output<ov::Node>& output, LTS_map& label_shape_source, LTS_map& label_value_source) {
+    auto value_labels = output.get_tensor().get_value_label();
+    if (value_labels.size() != 1)
+        return;
+    auto label = value_labels[0];
+    if (label == ov::no_label)
+        return;
+    auto pshape = output.get_partial_shape();
+    if (pshape.is_dynamic() || ov::shape_size(pshape.to_shape()) != 1)
+        return;
+    auto shape = pshape.to_shape(); // scalar of some form of tensor with one element
+    auto et = output.get_element_type();
+
+    auto default_et = ov::element::i64;
+    auto default_shape = ov::Shape{1};
+
+    std::shared_ptr<ov::Node> alternative_source = nullptr;
+
+    auto concat = ov::as_type_ptr<ov::opset1::Concat>(output.get_node_shared_ptr());
+    if (concat && label_shape_source.count(label)) {
+        auto source = label_shape_source[label];
+        int64_t idx = get_idx_of_label_in_source(source, label);
+        if (idx != -1 && idx == concat->get_concatenation_axis() && concat->get_input_size() == 2) {
+            // optimize using the knowledge of the Concat SI and what happens on the axis
+            auto lhs_source = concat->input_value(0);
+            const auto& lhs_pshape = lhs_source.get_partial_shape();
+            auto rhs_source = concat->input_value(1);
+            const auto& rhs_pshape = rhs_source.get_partial_shape();
+            if (lhs_pshape.rank().is_static() && rhs_pshape.rank().is_static()) {
+                auto lhs_label = ov::DimensionTracker::get_label(lhs_pshape[idx]);
+                auto rhs_label = ov::DimensionTracker::get_label(rhs_pshape[idx]);
+                std::shared_ptr<ov::Node> lhs_alternative = nullptr, rhs_alternative = nullptr;
+                // get lhs_label from value or shape source
+                if (label_value_source.count(lhs_label))
+                    lhs_alternative = label_value_source[lhs_label].get_node_shared_ptr();
+                if (!lhs_alternative && label_shape_source.count(lhs_label)) {
+                    lhs_alternative = get_node_representing_label_from_source_by_label(label_shape_source[lhs_label], default_et, default_shape, lhs_label);
+                    if (lhs_alternative)
+                        label_value_source[lhs_label] = lhs_alternative->output(0);
+                }
+                // get rhs_label from value or shape source
+                if (label_value_source.count(rhs_label))
+                    rhs_alternative = label_value_source[lhs_label].get_node_shared_ptr();
+                if (!rhs_alternative && label_shape_source.count(rhs_label)) {
+                    rhs_alternative = get_node_representing_label_from_source_by_label(label_shape_source[rhs_label], default_et, default_shape, rhs_label);
+                    if (rhs_alternative)
+                        label_value_source[rhs_label] = rhs_alternative->output(0);
+                }
+                if (lhs_alternative && rhs_alternative) {
+                    alternative_source = std::make_shared<ov::opset1::Add>(lhs_alternative, rhs_alternative);
+                    label_value_source[label] = alternative_source->output(0);
+                }
+            }
+        }
+    }
+    if (!alternative_source && label_value_source.count(label)) {
+        auto value_source = label_value_source[label];
+        alternative_source = value_source.get_node_shared_ptr();
+    }
+    if (!alternative_source && label_shape_source.count(label)) {
+        // replacement via constructing the label source and saving it for the future
+        alternative_source = get_node_representing_label_from_source_by_label(label_shape_source[label], default_et, default_shape, label);
+        if (alternative_source)
+            label_value_source[label] = alternative_source->output(0);
+    }
+    if (alternative_source != nullptr) {
+        auto value_source = alternative_source->output(0);
+        if (value_source.get_shape() != shape && (shape.empty() || shape == ov::Shape{0}))
+            value_source = std::make_shared<ov::opset1::Squeeze>(value_source);
+        else if (value_source.get_shape() != shape)
+            value_source = std::make_shared<ov::opset1::Reshape>(value_source, ov::opset1::Constant::create(ov::element::i64, ov::Shape{shape.size()}, shape), false);
+        if (value_source.get_element_type() != et)
+            value_source = std::make_shared<ov::opset1::Convert>(value_source, et);
+        output.replace(value_source);
+    } else {
+        // in case we can not optimize it -- it is label which appeared just now on the value path
+        label_value_source[label] = output;
+    }
+}
+
+void save_shape_sources(const ov::Output<ov::Node>& output, LTS_map& label_shape_source) {
+    auto shape = output.get_partial_shape();
+    for (const auto& d : shape) {
+        if (d.is_static())
+            continue;
+        auto label = ov::DimensionTracker::get_label(d);
+        if (label == ov::no_label || label_shape_source.count(label))
+            continue;
+        label_shape_source[label] = output;
+    }
+}
 
 bool ov::pass::OptimizeLabelsUsedAsValues::run_on_model(const std::shared_ptr<ov::Model> &m) {
     RUN_ON_FUNCTION_SCOPE(OptimizeLabelsUsedAsValues);
-    std::unordered_map<ov::label_t, ov::Output<ov::Node>> label_shape_source;
-    std::unordered_map<ov::label_t, std::vector<ov::Output<ov::Node>>> label_value_usages;
+    LTS_map label_shape_source;
+    LTS_map label_value_source;
     for (const auto& op : m->get_ordered_ops()) {
-        for (const auto& output : op->outputs()) {
-            auto shape = output.get_partial_shape();
-            for (const auto& d : shape) {
-                if (d.is_static())
-                    continue;
-                auto label = ov::DimensionTracker::get_label(d);
-                if (label == ov::no_label || label_shape_source.count(label))
-                    continue;
-                label_shape_source[label] = output; // maybe make ShapeOf here?
-            }
-            auto value_labels = output.get_tensor().get_value_label();
-            for (const auto& label : value_labels) {
-                label_value_usages[label].push_back(output);
-            }
+        for (auto& output : op->outputs()) {
+            optimize_value_usage(output, label_shape_source, label_value_source);
+            save_shape_sources(output, label_shape_source);
         }
     }
-
-    std::unordered_map<ov::label_t, ov::Output<ov::Node>> label_value_source;
-    for (auto& item : label_value_usages) {
-        auto label = item.first;
-        if (!label_shape_source.count(label))
-            continue;
-        std::shared_ptr<ov::Node> alternative_source = nullptr;
-        auto default_et = element::i64;
-        auto default_shape = Shape{1};
-
-        if (!label_value_source.count(label)) {
-            auto source = label_shape_source[label];
-            int64_t idx = get_idx_of_label_in_source(source, label);
-            if (idx == -1)
-                continue;
-            auto concat = ov::as_type_ptr<opset1::Concat>(source.get_node_shared_ptr());
-            if (concat && idx == concat->get_concatenation_axis() && concat->get_input_size() == 2) {
-                auto lhs_source = concat->input_value(0);
-                const auto& lhs_pshape = lhs_source.get_partial_shape();
-                auto rhs_source = concat->input_value(1);
-                const auto& rhs_pshape = rhs_source.get_partial_shape();
-                if (lhs_pshape.rank().is_static() && rhs_pshape.rank().is_static()) {
-                    auto lhs_label = ov::DimensionTracker::get_label(lhs_pshape[idx]);
-                    auto rhs_label = ov::DimensionTracker::get_label(rhs_pshape[idx]);
-                    std::shared_ptr<ov::Node> lhs_alternative = nullptr, rhs_alternative = nullptr;
-                    if (label_value_source.count(lhs_label))
-                        lhs_alternative = label_value_source[lhs_label].get_node_shared_ptr();
-                    if (label_value_source.count(rhs_label))
-                        rhs_alternative = label_value_source[lhs_label].get_node_shared_ptr();
-                    if (!lhs_alternative && label_shape_source.count(lhs_label)) {
-                        lhs_source = label_shape_source[lhs_label];
-                        int64_t lhs_idx = get_idx_of_label_in_source(label_shape_source[lhs_label], lhs_label);
-                        if (lhs_idx != -1) {
-                            lhs_alternative = get_node_representing_label_from_source_by_idx(lhs_source, default_et, default_shape, lhs_idx);
-                            label_value_source[lhs_label] = lhs_alternative->output(0);
-                        }
-                    }
-                    if (!rhs_alternative && label_shape_source.count(rhs_label)) {
-                        rhs_source = label_shape_source[rhs_label];
-                        int64_t rhs_idx = get_idx_of_label_in_source(label_shape_source[rhs_label], rhs_label);
-                        if (rhs_idx != -1) {
-                            rhs_alternative = get_node_representing_label_from_source_by_idx(rhs_source, default_et, default_shape, rhs_idx);
-                            label_value_source[rhs_label] = rhs_alternative->output(0);
-                        }
-                    }
-                    if (lhs_alternative && rhs_alternative)
-                        alternative_source = std::make_shared<opset1::Add>(lhs_alternative, rhs_alternative);
-                }
-            }
-            if (alternative_source == nullptr)
-                alternative_source = get_node_representing_label_from_source_by_idx(source, default_et, default_shape, idx);
-            label_value_source[label] = alternative_source->output(0);
-        } else {
-            alternative_source = label_value_source[label].get_node_shared_ptr();
-        }
-
-        for (auto& usage : item.second) {
-            if (usage.get_partial_shape().is_dynamic())
-                continue;
-            auto shape = usage.get_shape();
-            auto num_elements = ov::shape_size(shape);
-            if (num_elements != 1)
-                continue;  // TODO: this restriction could be relaxed
-
-            auto et = usage.get_element_type();
-
-            auto current_replacement = alternative_source->output(0);
-            if (et != default_et)
-                current_replacement = std::make_shared<opset1::Convert>(current_replacement, et);
-            if (shape != default_shape)
-                current_replacement = std::make_shared<opset1::Squeeze>(current_replacement, opset1::Constant::create(element::i64, {}, {0}));
-            usage.replace(current_replacement); // should we preserve names / fused names / anything?
-        }
-    }
-    ov::pass::VisualizeTree("after_label_on_values_optimizing.svg").run_on_model(m);
-    return false;
+    return true;
 }
 
 bool ov::pass::SymbolicOptimizations::run_on_model(const std::shared_ptr<ov::Model>& m) {
     RUN_ON_FUNCTION_SCOPE(SymbolicOptimizations);
+
+#define VISUALIZE(man, file) std::cout;// << "Skipped visualization to " << (file) << std::endl;
+//#define VISUALIZE(man, file) REGISTER_PASS(man, VisualizeTree, file)
+
     ov::pass::Manager pre_symbolic_manager(get_pass_config());
     pre_symbolic_manager.set_per_pass_validation(false);
-//    REGISTER_PASS(pre_symbolic_manager, VisualizeTree, "00_before_BroadcastOnes.svg")
+    VISUALIZE(pre_symbolic_manager, "00_before_BroadcastOnes.svg")
     REGISTER_PASS(pre_symbolic_manager, BroadcastOnes)
-//    REGISTER_PASS(pre_symbolic_manager, VisualizeTree, "0_after_BroadcastOnes_before_SharedTileOptimization.svg")
+    VISUALIZE(pre_symbolic_manager, "0_after_BroadcastOnes_before_SharedTileOptimization.svg")
     REGISTER_PASS(pre_symbolic_manager, SharedTileOptimization)
-//    REGISTER_PASS(pre_symbolic_manager, VisualizeTree, "1_after_SharedTileOptimization_before_TSSliceBackward.svg")
+    VISUALIZE(pre_symbolic_manager, "1_after_SharedTileOptimization_before_TSSliceBackward.svg")
     auto pre_optimizations_0 = pre_symbolic_manager.register_pass<ov::pass::GraphRewrite>();
     ADD_MATCHER(pre_optimizations_0, transpose_sinking::TSSliceBackward)
-//    REGISTER_PASS(pre_symbolic_manager, VisualizeTree, "2_after_TSSliceBackward_before_SharedTransposeOptimization.svg")
+    pre_optimizations_0->set_name("ov::pass::GraphRewrite::PreSymbolicOptimizations::0");
+    VISUALIZE(pre_symbolic_manager, "2_after_TSSliceBackward_before_SharedTransposeOptimization.svg")
     REGISTER_PASS(pre_symbolic_manager, SharedTransposeOptimization)
-//    REGISTER_PASS(pre_symbolic_manager, VisualizeTree, "3_after_SharedTransposeOptimization_before_SharedSliceOptimization.svg")
+    VISUALIZE(pre_symbolic_manager, "3_after_SharedTransposeOptimization_before_SharedSliceOptimization.svg")
     REGISTER_PASS(pre_symbolic_manager, SharedSliceOptimization)
-//    REGISTER_PASS(pre_symbolic_manager, VisualizeTree, "4_after_SharedSliceOptimization_before_GroupedSliceToVSplitOptimization.svg")
+    VISUALIZE(pre_symbolic_manager, "4_after_SharedSliceOptimization_before_GroupedSliceToVSplitOptimization.svg")
     REGISTER_PASS(pre_symbolic_manager, GroupedSliceToVSplitOptimization)
     pre_symbolic_manager.run_passes(m);
 
     ov::pass::Manager manager(get_pass_config());
     manager.set_per_pass_validation(false);
-//    REGISTER_PASS(manager, VisualizeTree, "5_after_GroupedSliceToVSplitOptimization_before_SymbolicPOC.svg")
+    VISUALIZE(manager, "5_after_GroupedSliceToVSplitOptimization_before_SymbolicPOC.svg")
     REGISTER_PASS(manager, SymbolicPOC)
-//    REGISTER_PASS(manager, VisualizeTree, "6_after_SymbolicPOC_before_optimizations_0_ChainedMaximumOptimization_NopBroadcast.svg")
+    VISUALIZE(manager, "6_after_SymbolicPOC_before_optimizations_0_ChainedMaximumOptimization_NopBroadcast.svg")
 
     auto optimizations_0 = manager.register_pass<ov::pass::GraphRewrite>();
     ADD_MATCHER(optimizations_0, ChainedMaximumOptimization)
     ADD_MATCHER(optimizations_0, NopBroadcast)
-//    REGISTER_PASS(manager, VisualizeTree, "7_after_optimizations_0_before_BroadcastOnes.svg")
+    VISUALIZE(manager, "7_after_optimizations_0_before_BroadcastOnes.svg")
     REGISTER_PASS(manager, BroadcastOnes)
     optimizations_0->set_name("ov::pass::GraphRewrite::SymbolicOptimizations::0");
     manager.run_passes(m);
 
     ov::pass::Manager manager_1(get_pass_config());
     manager_1.set_per_pass_validation(false);
-//    REGISTER_PASS(manager_1, VisualizeTree, "8_after_BroadcastOnes_before_DeReshapeMatMul_RemoveSliceBeforeGatherElements.svg")
+    VISUALIZE(manager_1, "8_after_BroadcastOnes_before_DeReshapeMatMul_RemoveSliceBeforeGatherElements.svg")
     auto optimizations_1 = manager_1.register_pass<ov::pass::GraphRewrite>();
     ADD_MATCHER(optimizations_1, DeReshapeMatMul)
     ADD_MATCHER(optimizations_1, RemoveSliceBeforeGatherElements)
-//    REGISTER_PASS(manager_1, VisualizeTree, "9_after_DeReshapeMatMul_RemoveSliceBeforeGatherElements_before_SharedGatherElementsOptimization.svg")
+    VISUALIZE(manager_1, "9_after_DeReshapeMatMul_RemoveSliceBeforeGatherElements_before_SharedGatherElementsOptimization.svg")
     REGISTER_PASS(manager_1, SharedGatherElementsOptimization)
     optimizations_1->set_name("ov::pass::GraphRewrite::SymbolicOptimizations::1");
-//    REGISTER_PASS(manager_1, VisualizeTree, "10_after_SharedGatherElementsOptimization_before_RoPE_Optimization.svg")
-    REGISTER_PASS(manager_1, RoPE_Optimization)
-//    REGISTER_PASS(manager_1, VisualizeTree, "11_after_RoPE_Optimization_before_OptimizeLabelsUsedAsValues.svg")
+    VISUALIZE(manager_1, "10_after_SharedGatherElementsOptimization_before_RPE_Optimization.svg")
+//    REGISTER_PASS(manager_1, RPE_Optimization)
+    VISUALIZE(manager_1, "11_after_RPE_Optimization_before_OptimizeLabelsUsedAsValues.svg")
     REGISTER_PASS(manager_1, OptimizeLabelsUsedAsValues)
-//    REGISTER_PASS(manager_1, VisualizeTree, "12_after_OptimizeLabelsUsedAsValues_before_ApplyTableOfEquivalence.svg")
+    VISUALIZE(manager_1, "12_after_OptimizeLabelsUsedAsValues_before_ApplyTableOfEquivalence.svg")
     REGISTER_PASS(manager_1, ApplyTableOfEquivalence)
-//    REGISTER_PASS(manager_1, VisualizeTree, "13_after_ApplyTableOfEquivalence_before_Fused_RPE_MHA_Replacer.svg")
+    VISUALIZE(manager_1, "13_after_ApplyTableOfEquivalence_before_Fused_RPE_MHA_Replacer.svg")
     REGISTER_PASS(manager_1, Fused_RPE_MHA_Replacer)
     // cleanup labels, erase SKIP_INVALIDATION
-//    REGISTER_PASS(manager_1, VisualizeTree, "final_model.svg")
+    VISUALIZE(manager_1, "final_model.svg")
     manager_1.run_passes(m);
     return true;  // cleans up all the label information
 }

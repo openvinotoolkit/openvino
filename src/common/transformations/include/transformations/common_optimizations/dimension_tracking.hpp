@@ -29,7 +29,7 @@ class TRANSFORMATIONS_API SharedSliceOptimization;
 class TRANSFORMATIONS_API GroupedSliceToVSplitOptimization;
 class TRANSFORMATIONS_API ChainedReshapeOptimization;
 class TRANSFORMATIONS_API ChainedVariadicSplitOptimization;
-class TRANSFORMATIONS_API RoPE_Optimization;
+class TRANSFORMATIONS_API RPE_Optimization;
 class TRANSFORMATIONS_API Fused_RPE_MHA_Replacer;
 class TRANSFORMATIONS_API ApplyTableOfEquivalence;
 class TRANSFORMATIONS_API OptimizeLabelsUsedAsValues;
@@ -107,10 +107,10 @@ public:
     ChainedVariadicSplitOptimization();
 };
 
-class ov::pass::RoPE_Optimization : public ov::pass::MatcherPass {
+class ov::pass::RPE_Optimization : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("RoEP_Optimization", "0");
-    RoPE_Optimization();
+    RPE_Optimization();
 };
 
 class ov::pass::Fused_RPE_MHA_Replacer : public ov::pass::MatcherPass {

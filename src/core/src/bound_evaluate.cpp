@@ -118,7 +118,7 @@ ov::Tensor evaluate_bound(const Output<Node>& output, bool is_upper, bool invali
                         continue;
                     if (labels_evaluated)
                         node->get_output_tensor(i).set_value_label(output_labels[i]);
-                    else if (outputs[i])
+                    else if (outputs[i] && node->get_output_tensor(i).get_rt_info().count("TABLE_OF_EQUIVALENCE"))
                         node->get_output_tensor(i).set_value_label(
                             std::vector<ov::label_t>(shape_size(outputs[i].get_shape()), 0));
                 }
