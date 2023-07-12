@@ -19,6 +19,10 @@ else()
     set(EXCLUDED_SOURCE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/extension ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/onnx)
 endif()
 
+if(ENABLE_CPU_EXTENSIONS)
+    list(APPEND DEFINES OV_CPU_WITH_LLMDNN)
+endif()
+
 if(X86_64)
     list(APPEND EXCLUDED_SOURCE_PATHS
     ${CMAKE_CURRENT_SOURCE_DIR}/single_layer_tests/instances/arm

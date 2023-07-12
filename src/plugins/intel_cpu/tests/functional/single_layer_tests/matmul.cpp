@@ -764,12 +764,6 @@ std::vector<fusingSpecificParams> fusingParamsSet2D_llmdnn_smoke {
 };
 
 const std::vector<ShapeRelatedParams> IS2D_llmdnn_Amx_smoke = {
-    {static_shapes_to_test_representation({{59, 64}, {64, 120}}), {true, false}},
-    {static_shapes_to_test_representation({{59, 64}, {64, 120}}), {true, true}},
-
-    {static_shapes_to_test_representation({{71, 128}, {128, 20}}), {false, false}},
-    {static_shapes_to_test_representation({{71, 128}, {128, 20}}), {false, true}},
-
     {
         {
             {{-1, -1}, {{12, 160}, {25, 160}, {12, 160}, {25, 160}}},

@@ -371,15 +371,12 @@ if (ENABLE_CPU_EXTENSIONS)
     reset_deps_cache(cpu_extensions_DIR)
 
     if(LINUX AND X86_64)
-        set(IE_PATH_TO_DEPS "https://github.com/luo-cheng2021/cpu_extensions/releases/download/test")
         RESOLVE_DEPENDENCY(CPU_EXTENSIONS
-                ARCHIVE "cpu_ext.tgz"
+                ARCHIVE "cpu_extensions.2023.2.tgz"
                 TARGET_PATH "${TEMP}/cpu_extensions"
                 ENVIRONMENT "cpu_extensions_DIR"
-                VERSION_REGEX ".*_([a-z]*_([a-z0-9]+\\.)*[0-9]+).*"
                 SHA256 "A0CD827A518931CF051AE8314902BAFC41093E0B4007A997AAC75B3B4292FE4C"
-                USE_NEW_LOCATION FALSE)
-        unset(IE_PATH_TO_DEPS)
+                USE_NEW_LOCATION TRUE)
     else()
         message(FATAL_ERROR "cpu_extensions is not available on current platform (OS = ${CMAKE_SYSTEM_NAME}, glibc ${OV_GLIBC_VERSION})")
     endif()

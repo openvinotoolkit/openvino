@@ -5,6 +5,8 @@
 #include "fullyconnected.h"
 
 #include "eltwise.h"
+#include "ie_precision.hpp"
+#include "ie_system_conf.h"
 #include "input.h"
 #include "fake_quantize.h"
 #include "input.h"
@@ -980,8 +982,15 @@ bool FullyConnected::tryExtractParamForLLMFc(llmdnn::fc_create_param& param) {
     const auto N = weight_dims[0];
     const auto K = weight_dims[1];
     const auto data_type = getOriginalInputPrecisionAtPort(DATA_ID);
+    // heuristics
     if ((data_type == Precision::BF16 && K < 32) ||
-        (data_type == Precision::I8 && K < 64))
+        (data_type == Precision::I8 && K < 64) ||
+        // TODO: add int8 support
+        (data_type != Precision::BF16) ||
+        (!isDynamicNode()) ||
+        // 1 stream on 1+ numa node. Limitation: weights do not share among with multiple
+        //   streams inside a numa because LLM will run with few streams.
+        (context->getConfig().streamExecutorConfig._streams > get_num_numa_nodes()))
         return false;
 
     auto tryExtractBias = [&] () {
