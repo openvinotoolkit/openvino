@@ -12,7 +12,6 @@
 #include "ngraph/runtime/host_tensor.hpp"
 
 #include <type_traits>
-#include <deque>
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #include <oneapi/dnnl/dnnl.hpp>
