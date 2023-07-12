@@ -553,6 +553,7 @@ std::shared_ptr<const ov::hetero::Plugin> ov::hetero::CompiledModel::get_hetero_
 }
 
 ov::Any ov::hetero::CompiledModel::get_property(const std::string& name) const {
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto& add_ro_properties = [](const std::string& name, std::vector<ov::PropertyName>& properties) {
         properties.emplace_back(ov::PropertyName{name, ov::PropertyMutability::RO});
     };
@@ -615,6 +616,7 @@ ov::Any ov::hetero::CompiledModel::get_property(const std::string& name) const {
         return decltype(ov::execution_devices)::value_type{device_names};
     }
     return m_cfg.get(name);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 const std::vector<ov::Output<const ov::Node>>& ov::hetero::CompiledModel::inputs() const {

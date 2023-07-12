@@ -112,6 +112,7 @@ void ov::hetero::Plugin::set_property(const ov::AnyMap& properties) {
 }
 
 ov::Any ov::hetero::Plugin::get_property(const std::string& name, const ov::AnyMap& properties) const {
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto& add_ro_properties = [](const std::string& name, std::vector<ov::PropertyName>& properties) {
         properties.emplace_back(ov::PropertyName{name, ov::PropertyMutability::RO});
     };
@@ -170,6 +171,7 @@ ov::Any ov::hetero::Plugin::get_property(const std::string& name, const ov::AnyM
     } else {
         return full_config.get(name);
     }
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 ov::Any ov::hetero::Plugin::caching_device_properties(const std::string& device_priorities) const {
