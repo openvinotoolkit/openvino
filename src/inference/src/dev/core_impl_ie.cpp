@@ -19,6 +19,7 @@
 #include "openvino/itt.hpp"
 #include "openvino/runtime/device_id_parser.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
+#include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/itensor.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/util/common_util.hpp"
@@ -73,7 +74,7 @@ ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::LoadNetwork
         auto ctx = ov::legacy_convert::convert_remote_context(context);
         auto compiled_model =
             compile_model(ov::legacy_convert::convert_model(network, isNewAPI()), ctx, any_copy(config));
-        return {ov::legacy_convert::convert_compiled_model(compiled_model._ptr), compiled_model._so};
+        return {ov::legacy_convert::convert_compiled_model(compiled_model), compiled_model._so};
     }
     if (context == nullptr) {
         IE_THROW() << "Remote context is null";
@@ -93,7 +94,7 @@ InferenceEngine::SoExecutableNetworkInternal ov::CoreImpl::LoadNetwork(
     if (network.getFunction()) {
         auto compiled_model =
             compile_model(ov::legacy_convert::convert_model(network, isNewAPI()), deviceName, any_copy(config));
-        return {ov::legacy_convert::convert_compiled_model(compiled_model._ptr), compiled_model._so};
+        return {ov::legacy_convert::convert_compiled_model(compiled_model), compiled_model._so};
     }
     auto parsed = parseDeviceNameIntoConfig(deviceName, any_copy(config));
     auto plugin = get_plugin(parsed._deviceName);
@@ -109,7 +110,7 @@ InferenceEngine::SoExecutableNetworkInternal ov::CoreImpl::LoadNetwork(
     OV_ITT_SCOPE(FIRST_INFERENCE, ie::itt::domains::IE_LT, "Core::LoadNetwork::Path");
 
     auto compiled_model = compile_model(modelPath, deviceName, any_copy(config));
-    return {ov::legacy_convert::convert_compiled_model(compiled_model._ptr), compiled_model._so};
+    return {ov::legacy_convert::convert_compiled_model(compiled_model), compiled_model._so};
 }
 
 InferenceEngine::SoExecutableNetworkInternal ov::CoreImpl::LoadNetwork(
@@ -125,7 +126,7 @@ InferenceEngine::SoExecutableNetworkInternal ov::CoreImpl::LoadNetwork(
                       ov::make_tensor(ov::make_tensor(std::const_pointer_cast<InferenceEngine::Blob>(weights))),
                       deviceName,
                       ov::any_copy(config));
-    return {ov::legacy_convert::convert_compiled_model(compiled_model._ptr), compiled_model._so};
+    return {ov::legacy_convert::convert_compiled_model(compiled_model), compiled_model._so};
 }
 
 InferenceEngine::SoExecutableNetworkInternal ov::CoreImpl::ImportNetwork(
@@ -136,7 +137,7 @@ InferenceEngine::SoExecutableNetworkInternal ov::CoreImpl::ImportNetwork(
     if (auto wrapper = std::dynamic_pointer_cast<InferenceEngine::ICompiledModelWrapper>(compiled_model._ptr)) {
         wrapper->get_executable_network()->loadedFromCache();
     }
-    return {ov::legacy_convert::convert_compiled_model(compiled_model._ptr), compiled_model._so};
+    return {ov::legacy_convert::convert_compiled_model(compiled_model), compiled_model._so};
 }
 
 InferenceEngine::QueryNetworkResult ov::CoreImpl::QueryNetwork(const InferenceEngine::CNNNetwork& network,
@@ -269,7 +270,8 @@ std::map<std::string, InferenceEngine::Version> ov::CoreImpl::GetVersions(const 
 
         ov::Plugin cppPlugin = get_plugin(deviceNameLocal);
 
-        versions[deviceNameLocal] = ov::legacy_convert::convert_plugin(cppPlugin.m_ptr)->GetVersion();
+        versions[deviceNameLocal] =
+            ov::legacy_convert::convert_plugin(ov::SoPtr<ov::IPlugin>{cppPlugin.m_ptr, cppPlugin.m_so})->GetVersion();
     }
 
     return versions;

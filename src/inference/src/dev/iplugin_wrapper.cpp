@@ -9,6 +9,7 @@
 #include "any_copy.hpp"
 #include "dev/converter_utils.hpp"
 #include "ie_icore.hpp"
+#include "openvino/runtime/iremote_context.hpp"
 #include "threading/ie_executor_manager.hpp"
 
 namespace InferenceEngine {
@@ -34,22 +35,23 @@ std::shared_ptr<ov::ICompiledModel> IPluginWrapper::compile_model(const std::sha
                                                                   const ov::AnyMap& properties) const {
     auto exec_network =
         m_old_plugin->LoadNetwork(ov::legacy_convert::convert_model(model, is_new_api()), ov::any_copy(properties));
-    return ov::legacy_convert::convert_compiled_model(update_exec_network(exec_network));
+    return ov::legacy_convert::convert_compiled_model(update_exec_network(exec_network))._ptr;
 }
 
 std::shared_ptr<ov::ICompiledModel> IPluginWrapper::compile_model(const std::string& model_path,
                                                                   const ov::AnyMap& properties) const {
     auto exec_network = m_old_plugin->LoadNetwork(model_path, any_copy(properties));
-    return ov::legacy_convert::convert_compiled_model(update_exec_network(exec_network._ptr));
+    return ov::legacy_convert::convert_compiled_model(update_exec_network(exec_network._ptr))._ptr;
 }
 
 std::shared_ptr<ov::ICompiledModel> IPluginWrapper::compile_model(const std::shared_ptr<const ov::Model>& model,
                                                                   const ov::AnyMap& properties,
                                                                   const ov::SoPtr<ov::IRemoteContext>& context) const {
     return ov::legacy_convert::convert_compiled_model(
-        update_exec_network(m_old_plugin->LoadNetwork(ov::legacy_convert::convert_model(model, is_new_api()),
-                                                      any_copy(properties),
-                                                      ov::legacy_convert::convert_remote_context(context))));
+               update_exec_network(m_old_plugin->LoadNetwork(ov::legacy_convert::convert_model(model, is_new_api()),
+                                                             any_copy(properties),
+                                                             ov::legacy_convert::convert_remote_context(context))))
+        ._ptr;
 }
 
 void IPluginWrapper::set_property(const ov::AnyMap& properties) {
@@ -75,14 +77,18 @@ std::shared_ptr<ov::IRemoteContext> IPluginWrapper::get_default_context(const ov
 std::shared_ptr<ov::ICompiledModel> IPluginWrapper::import_model(std::istream& model,
                                                                  const ov::AnyMap& properties) const {
     return ov::legacy_convert::convert_compiled_model(
-        update_exec_network(m_old_plugin->ImportNetwork(model, any_copy(properties))));
+               update_exec_network(m_old_plugin->ImportNetwork(model, any_copy(properties))))
+        ._ptr;
 }
 
 std::shared_ptr<ov::ICompiledModel> IPluginWrapper::import_model(std::istream& model,
                                                                  const ov::SoPtr<ov::IRemoteContext>& context,
                                                                  const ov::AnyMap& properties) const {
-    return ov::legacy_convert::convert_compiled_model(update_exec_network(
-        m_old_plugin->ImportNetwork(model, ov::legacy_convert::convert_remote_context(context), any_copy(properties))));
+    return ov::legacy_convert::convert_compiled_model(
+               update_exec_network(m_old_plugin->ImportNetwork(model,
+                                                               ov::legacy_convert::convert_remote_context(context),
+                                                               any_copy(properties))))
+        ._ptr;
 }
 
 ov::SupportedOpsMap IPluginWrapper::query_model(const std::shared_ptr<const ov::Model>& model,
