@@ -6,6 +6,9 @@
 
 #include "nodes/executors/transpose.hpp"
 
+using namespace dnnl::impl;
+using namespace dnnl::impl::cpu::x64;
+
 namespace ov {
 namespace intel_cpu {
 
@@ -30,10 +33,10 @@ public:
                      const std::vector<MemoryDescPtr>& srcDescs,
                      const std::vector<MemoryDescPtr>& dstDescs) const override {
 #if defined(OPENVINO_ARCH_X86_64)
-        if (mayiuse(cpu::x64::avx512_core ||
+        if (mayiuse(cpu::x64::avx512_core) ||
             mayiuse(cpu::x64::avx2) ||
             mayiuse(cpu::x64::sse41)) {
-            return true
+            return true;
         }
 #endif // OPENVINO_ARCH_X86_64
         return false;
