@@ -184,6 +184,19 @@ def test_init_with_node_constoutput_port(device):
     assert np.array_equal(tensor2.data, ones_arr)
 
 
+def test_init_with_node_output_port_different_shape():
+    param1 = ops.parameter(ov.Shape([2]), dtype=np.float32)
+    param2 = ops.parameter(ov.Shape([5]), dtype=np.float32)
+
+    ones_arr = np.ones(shape=(2, 2), dtype=np.float32)
+    with pytest.warns(RuntimeWarning):
+        Tensor(param1.output(0), ones_arr)
+
+    with pytest.raises(RuntimeError) as e:
+        Tensor(param2.output(0), ones_arr)
+    assert "Shape of the port exceeds shape of the array." in str(e.value)
+
+
 def test_init_with_roi_tensor():
     array = np.random.normal(size=[1, 3, 48, 48])
     ov_tensor1 = Tensor(array)

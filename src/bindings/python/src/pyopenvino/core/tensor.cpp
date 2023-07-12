@@ -144,7 +144,7 @@ void regclass_Tensor(py::module m) {
              )");
 
     cls.def(py::init([](ov::Output<ov::Node>& port, py::array& array) {
-                return ov::Tensor(port, const_cast<void*>(array.data(0)));
+                return Common::tensor_from_pointer(array, port);
             }),
             py::arg("port"),
             py::arg("array"),
@@ -173,7 +173,7 @@ void regclass_Tensor(py::module m) {
             )");
 
     cls.def(py::init([](const ov::Output<const ov::Node>& port, py::array& array) {
-                return ov::Tensor(port, const_cast<void*>(array.data(0)));
+                return Common::tensor_from_pointer(array, port);
             }),
             py::arg("port"),
             py::arg("array"),
