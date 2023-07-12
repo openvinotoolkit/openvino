@@ -30,7 +30,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, GemmTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::ValuesIn(dimensions),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+        ::testing::Values(ov::test::utils::DEVICE_CPU),
         ::testing::ValuesIn(trasformationParamValues)),
     GemmTransformation::getTestCaseName);
 }  // namespace

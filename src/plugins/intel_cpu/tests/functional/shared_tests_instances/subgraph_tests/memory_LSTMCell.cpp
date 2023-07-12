@@ -34,7 +34,7 @@ namespace SubgraphTestsDefinitions {
     INSTANTIATE_TEST_SUITE_P(smoke_MemoryLSTMCellTest, MemoryLSTMCellTest,
                             ::testing::Combine(
                                     ::testing::ValuesIn(transformation),
-                                    ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                    ::testing::Values(ov::test::utils::DEVICE_CPU),
                                     ::testing::Values(InferenceEngine::Precision::FP32),
                                     ::testing::ValuesIn(input_sizes),
                                     ::testing::ValuesIn(hidden_sizes),

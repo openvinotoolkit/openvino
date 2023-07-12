@@ -159,7 +159,7 @@ protected:
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
 
         configuration.insert(additionalConfig.begin(), additionalConfig.end());
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
 
         init_input_shapes(shapeRelatedParams.inputShapes);
 

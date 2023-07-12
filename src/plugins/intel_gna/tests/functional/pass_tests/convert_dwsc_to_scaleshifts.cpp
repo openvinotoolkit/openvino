@@ -103,7 +103,7 @@ protected:
         auto transposeIn = std::make_shared<Transpose>(input[0], transposeInOrder);
         auto filterSize = std::accumulate(std::begin(filter), std::end(filter), 1ull, std::multiplies<size_t>());
         auto filterWeights =
-            CommonTestUtils::generate_float_numbers(numOutChannels * (inputShape[3] / numGroups) * filterSize,
+            ov::test::utils::generate_float_numbers(numOutChannels * (inputShape[3] / numGroups) * filterSize,
                                                     -0.5f,
                                                     0.5f);
         auto dwsc = builder::makeGroupConvolution(transposeIn,
@@ -123,7 +123,7 @@ protected:
 
         if (model == modelType::TranspDWSCBiasTransp) {
             Shape biasShape{bias};
-            auto biasWeights = CommonTestUtils::generate_float_numbers(shape_size(biasShape), -1.0f, 1.0f);
+            auto biasWeights = ov::test::utils::generate_float_numbers(shape_size(biasShape), -1.0f, 1.0f);
             auto biasConst = std::make_shared<Constant>(ngPrc, biasShape, biasWeights);
             auto bias = std::make_shared<Add>(dwsc, biasConst);
             lastOp = std::make_shared<Transpose>(bias, transposeOutOrder);
@@ -176,7 +176,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_DWSCToScaleShifts,
                          DWSCToScaleShiftsTest,
                          ::testing::Combine(convParams,
                                             ::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs),
                                             ::testing::ValuesIn(inputNHWC),
                                             ::testing::ValuesIn(models)),
@@ -205,7 +205,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_DWSCToScaleShiftsStridesDilations,
                          DWSCToScaleShiftsTest,
                          ::testing::Combine(convParamsSD,
                                             ::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs),
                                             ::testing::ValuesIn(inputNHWCSD),
                                             ::testing::ValuesIn(models)),

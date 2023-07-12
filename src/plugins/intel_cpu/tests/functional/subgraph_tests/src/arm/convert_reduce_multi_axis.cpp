@@ -54,7 +54,7 @@ public:
 protected:
     int numberOfExpectedReduce;
     void SetUp() override {
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         std::vector<int> axes;
         bool keepDims = true;
         std::vector<InputShape> inputShapes;

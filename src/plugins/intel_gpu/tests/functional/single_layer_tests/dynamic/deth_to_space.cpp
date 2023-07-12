@@ -61,7 +61,7 @@ protected:
         std::size_t blockSize;
         std::tie(shapes, inType, mode, blockSize) = this->GetParam();
 
-        targetDevice = CommonTestUtils::DEVICE_GPU;
+        targetDevice = ov::test::utils::DEVICE_GPU;
         init_input_shapes({shapes});
 
         auto params = ngraph::builder::makeDynamicParams(inType, inputDynamicShapes);

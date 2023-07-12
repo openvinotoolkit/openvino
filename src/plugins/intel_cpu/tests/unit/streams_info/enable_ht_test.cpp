@@ -25,7 +25,7 @@ struct UseHTTestCase {
     bool output_ht_value;
 };
 
-class UseHTTests : public CommonTestUtils::TestsCommon, public testing::WithParamInterface<std::tuple<UseHTTestCase>> {
+class UseHTTests : public ov::test::TestsCommon, public testing::WithParamInterface<std::tuple<UseHTTestCase>> {
 public:
     void SetUp() override {
         auto test_data = std::get<0>(GetParam());

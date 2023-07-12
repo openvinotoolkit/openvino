@@ -58,7 +58,7 @@ std::shared_ptr<ov::Model> EltwiseThreeInputsLoweredFunction::initLowered() cons
     };
     auto add = std::make_shared<op::v1::Add>(load_or_broadcastload(0), load_or_broadcastload(1));
 
-    const std::vector<float> const_values = CommonTestUtils::generate_float_numbers(1, -10., 10.);
+    const std::vector<float> const_values = ov::test::utils::generate_float_numbers(1, -10., 10.);
     auto sub_scalar = std::make_shared<ov::snippets::op::Scalar>(precision, Shape{1}, const_values[0]);
     std::shared_ptr<Node> sub_load;
     sub_load = std::make_shared<ov::snippets::op::Load>(input_params[2]);

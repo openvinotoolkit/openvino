@@ -32,7 +32,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatherTree, GatherTreeLayerTest,
                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                             ::testing::Values(InferenceEngine::Layout::ANY),
                             ::testing::Values(InferenceEngine::Layout::ANY),
-                            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         GatherTreeLayerTest::getTestCaseName);
 
 }  // namespace

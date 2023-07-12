@@ -99,7 +99,7 @@ std::vector<size_t> layer_limits_3X{64, 8192, 8200};
 
 INSTANTIATE_TEST_SUITE_P(smoke_GNALimits,
                          GNALayersLimit20Test,
-                         ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_GNA),
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::Values(common_config),
                                             ::testing::ValuesIn(configs_20),
                                             ::testing::ValuesIn(layer_limits_20)),
@@ -107,7 +107,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GNALimits,
 
 INSTANTIATE_TEST_SUITE_P(smoke_GNALimits,
                          GNALayersLimit3XTest,
-                         ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_GNA),
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::Values(common_config),
                                             ::testing::ValuesIn(configs_3X),
                                             ::testing::ValuesIn(layer_limits_3X)),

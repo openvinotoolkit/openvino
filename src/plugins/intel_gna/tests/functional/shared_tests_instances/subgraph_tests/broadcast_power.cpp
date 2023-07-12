@@ -38,7 +38,7 @@ INSTANTIATE_TEST_SUITE_P(PowerBroadcast,
                          BroadcastPowerTest,
                          ::testing::Combine(::testing::ValuesIn(input_shapes),
                                             ::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs)),
                          BroadcastPowerTest::getTestCaseName);
 

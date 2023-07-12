@@ -88,7 +88,7 @@ void ActivationLayerCPUTest::generate_inputs(const std::vector<ngraph::Shape>& t
 }
 
 void ActivationLayerCPUTest::SetUp() {
-    targetDevice = CommonTestUtils::DEVICE_CPU;
+    targetDevice = ov::test::utils::DEVICE_CPU;
 
     std::vector<ov::test::InputShape> inputShapes;
     std::vector<size_t> activationShapes;

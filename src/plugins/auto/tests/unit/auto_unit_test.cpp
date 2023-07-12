@@ -14,7 +14,7 @@ std::shared_ptr<ov::Model> ov::mock_auto_plugin::tests::AutoTest::create_model()
     add->set_friendly_name("add");
     auto subtract = std::make_shared<ov::opset11::Subtract>(add, const_value);
     subtract->set_friendly_name("sub");
-    auto result = std::make_shared<ov::opset11::Result>(subtract);
+    auto result = std::make_shared<ov::opset11::Result>(subtract);ё
     result->set_friendly_name("res");
     return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
 }
@@ -74,7 +74,7 @@ ov::mock_auto_plugin::tests::AutoTest::AutoTest() {
     std::string dgpuArchitecture = "GPU: vendor=0x8086 arch=1";
     auto iGpuType = ov::device::Type::INTEGRATED;
     auto dGpuType = ov::device::Type::DISCRETE;
-    ON_CALL(*core, get_property(StrEq(CommonTestUtils::DEVICE_CPU),
+    ON_CALL(*core, get_property(StrEq(ov::test::utils::DEVICE_CPU),
                    StrEq(ov::device::capabilities.name()), _)).WillByDefault(RETURN_MOCK_VALUE(cpuCability));
     ON_CALL(*core, get_property(HasSubstr("GPU"),
                 StrEq(ov::device::capabilities.name()), _)).WillByDefault(RETURN_MOCK_VALUE(gpuCability));

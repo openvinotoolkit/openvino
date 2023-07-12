@@ -69,7 +69,7 @@ protected:
     size_t inferNum = 0;
 
     void SetUp() override {
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         NonZeroLayerTestParams basicParamsSet;
         std::pair<size_t, size_t> genData;
         CPUSpecificParams cpuParams;

@@ -10,7 +10,7 @@ using namespace ExecutionGraphTests;
 namespace {
 
 INSTANTIATE_TEST_SUITE_P(smoke_DecomposeNormalizeL2, ExecGrapDecomposeNormalizeL2,
-                        ::testing::Values(CommonTestUtils::DEVICE_GPU),
+                        ::testing::Values(ov::test::utils::DEVICE_GPU),
                         ExecGrapDecomposeNormalizeL2::getTestCaseName);
 
 } // namespace

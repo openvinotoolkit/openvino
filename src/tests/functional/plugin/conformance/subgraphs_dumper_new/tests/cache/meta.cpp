@@ -67,15 +67,15 @@ protected:
 
     void SetUp() override {
         test_model_path = "test_model_path.xml";
-        test_model_name = CommonTestUtils::replaceExt(test_model_path, "");
+        test_model_name = ov::test::utils::replaceExt(test_model_path, "");
         test_in_info = {{ "test_in_0", InputInfo(DEFAULT_MIN_VALUE, 1, true) }};
         test_model_info = {{ test_model_name, ModelInfo(test_model_path, 5) }};
-        test_artifacts_dir = ov::util::path_join({CommonTestUtils::getCurrentWorkingDir(), "test_artifacts"});
+        test_artifacts_dir = ov::util::path_join({ov::test::utils::getCurrentWorkingDir(), "test_artifacts"});
         ov::util::create_directory_recursive(test_artifacts_dir);
     }
 
     void TearDown() override {
-        CommonTestUtils::removeDir(test_artifacts_dir);
+        ov::test::utils::removeDir(test_artifacts_dir);
     }
 };
 

@@ -72,7 +72,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_CheckBroadcast, CheckBroadcast,
                          ::testing::Combine(
                                  ::testing::ValuesIn(input_types),
                                  ::testing::ValuesIn(test_cases),
-                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                 ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          CheckBroadcast::getTestCaseName);
 
 } // namespace

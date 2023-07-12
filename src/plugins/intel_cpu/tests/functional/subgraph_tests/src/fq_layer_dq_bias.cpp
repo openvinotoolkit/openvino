@@ -58,7 +58,7 @@ protected:
         bool extra_multiply;
         std::tie(input_shape, layer_type, extra_multiply) = GetParam();
 
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         std::tie(inFmts, outFmts, priority, selectedType) = CPUSpecificParams{{}, {}, {}, CPUTestsBase::any_type};
         static const std::unordered_map<std::string, std::string> ngraph_type_to_plugin_type{
             {"Convolution", "Convolution"},

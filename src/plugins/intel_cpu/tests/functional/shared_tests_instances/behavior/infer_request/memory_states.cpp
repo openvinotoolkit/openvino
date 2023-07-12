@@ -11,23 +11,23 @@ using namespace BehaviorTestsDefinitions;
 
 namespace {
 std::vector<memoryStateParams> memoryStateTestCases = {
-    memoryStateParams(InferRequestVariableStateTest::getNetwork(), {"c_1-3", "r_1-3"}, CommonTestUtils::DEVICE_CPU, {}),
+    memoryStateParams(InferRequestVariableStateTest::getNetwork(), {"c_1-3", "r_1-3"}, ov::test::utils::DEVICE_CPU, {}),
     memoryStateParams(InferRequestVariableStateTest::getNetwork(),
                       {"c_1-3", "r_1-3"},
-                      CommonTestUtils::DEVICE_HETERO,
-                      {{MULTI_CONFIG_KEY(DEVICE_PRIORITIES), CommonTestUtils::DEVICE_CPU}})};
+                      ov::test::utils::DEVICE_HETERO,
+                      {{MULTI_CONFIG_KEY(DEVICE_PRIORITIES), ov::test::utils::DEVICE_CPU}})};
 
 std::vector<memoryStateParams> memoryStateAutoTestCases = {
     memoryStateParams(InferRequestVariableStateTest::getNetwork(),
                       {"c_1-3", "r_1-3"},
-                      CommonTestUtils::DEVICE_AUTO,
-                      {{MULTI_CONFIG_KEY(DEVICE_PRIORITIES), CommonTestUtils::DEVICE_CPU}})};
+                      ov::test::utils::DEVICE_AUTO,
+                      {{MULTI_CONFIG_KEY(DEVICE_PRIORITIES), ov::test::utils::DEVICE_CPU}})};
 
 std::vector<memoryStateParams> memoryStateMultiTestCases = {
     memoryStateParams(InferRequestVariableStateTest::getNetwork(),
                       {"c_1-3", "r_1-3"},
-                      CommonTestUtils::DEVICE_MULTI,
-                      {{MULTI_CONFIG_KEY(DEVICE_PRIORITIES), CommonTestUtils::DEVICE_CPU}})};
+                      ov::test::utils::DEVICE_MULTI,
+                      {{MULTI_CONFIG_KEY(DEVICE_PRIORITIES), ov::test::utils::DEVICE_CPU}})};
 
 INSTANTIATE_TEST_SUITE_P(smoke_VariableStateBasic,
                          InferRequestVariableStateTest,

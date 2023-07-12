@@ -17,14 +17,14 @@ std::map<std::string, std::string> additional_config = {{"GNA_COMPACT_MODE", "NO
 INSTANTIATE_TEST_SUITE_P(multiple_connect_split_concat,
                          MultipleConnectSplitConcatTest,
                          ::testing::Combine(::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::Values(additional_config)),
                          MultipleConnectSplitConcatTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(connect_split_concat_concat,
                          SplitConcatConcatTest,
                          ::testing::Combine(::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::Values(additional_config)),
                          MultipleConnectSplitConcatTest::getTestCaseName);
 }  // namespace

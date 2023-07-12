@@ -52,7 +52,7 @@ const auto isInfParams = ::testing::Combine(
         ::testing::ValuesIn(detectNegative),
         ::testing::ValuesIn(detectPositive),
         ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+        ::testing::Values(ov::test::utils::DEVICE_CPU),
         ::testing::Values(additional_config));
 
 const auto isInfParamsDyn = ::testing::Combine(
@@ -60,7 +60,7 @@ const auto isInfParamsDyn = ::testing::Combine(
         ::testing::ValuesIn(detectNegative),
         ::testing::ValuesIn(detectPositive),
         ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+        ::testing::Values(ov::test::utils::DEVICE_CPU),
         ::testing::Values(additional_config));
 
 

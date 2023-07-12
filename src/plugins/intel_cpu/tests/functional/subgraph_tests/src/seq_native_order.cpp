@@ -104,7 +104,7 @@ protected:
         std::vector<TargetShapeParams> targetShapes;
         std::tie(bounds, targetShapes) = inShapeParams;
 
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
 
         seqLengthInIdx = (seqType == SEQ_TYPE::LSTM ? 3 : 2);
 

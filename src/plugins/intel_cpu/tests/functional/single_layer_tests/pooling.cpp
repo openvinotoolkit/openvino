@@ -77,7 +77,7 @@ public:
 
 protected:
     void SetUp() override {
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
 
         LayerTestsDefinitions::poolSpecificParams basicParamsSet;
         InputShape inputShapes;
@@ -171,7 +171,7 @@ public:
 
 protected:
     void SetUp() override {
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
 
         LayerTestsDefinitions::maxPoolV8SpecificParams basicParamsSet;
         InputShape inputShapes;

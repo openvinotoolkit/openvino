@@ -61,7 +61,7 @@ public:
 
 protected:
     void SetUp() override {
-        targetDevice = CommonTestUtils::DEVICE_GPU;
+        targetDevice = ov::test::utils::DEVICE_GPU;
 
         LayerTestsDefinitions::poolSpecificParams basicParamsSet;
         InputShape inputShapes;

@@ -147,7 +147,7 @@ const std::vector<ngraph::helpers::EltwiseTypes> eltwiseOpTypes = {ngraph::helpe
 INSTANTIATE_TEST_SUITE_P(smoke_Eltwise4d,
                          Eltwise4dBroadcast,
                          ::testing::Combine(::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs),
                                             ::testing::ValuesIn(eltwiseOpTypes)),
                          Eltwise4dBroadcast::getTestCaseName);
@@ -155,7 +155,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Eltwise4d,
 INSTANTIATE_TEST_SUITE_P(smoke_Eltwise4d,
                          Eltwise4dMultipleInput,
                          ::testing::Combine(::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configsMultiple),
                                             ::testing::ValuesIn(eltwiseOpTypes)),
                          Eltwise4dMultipleInput::getTestCaseName);

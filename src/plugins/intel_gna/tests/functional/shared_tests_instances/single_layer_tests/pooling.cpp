@@ -44,7 +44,7 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_MaxPool_ExplicitPad_FloorRpunding,
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::Values(std::vector<size_t>({1, 3, 30, 30})),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA)),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA)),
                          PoolingLayerTest::getTestCaseName);
 
 /* ========== Explicit Pad Ceil Rounding ========== */
@@ -70,7 +70,7 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_MaxPool_ExplicitPad_CeilRpunding,
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::Values(std::vector<size_t>({1, 3, 30, 30})),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA)),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA)),
                          PoolingLayerTest::getTestCaseName);
 
 ////* ========== Avg Pooling ========== */
@@ -97,7 +97,7 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_AvgPool_ExplicitPad_CeilRounding,
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::Values(std::vector<size_t>({1, 3, 30, 30})),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA)),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA)),
                          PoolingLayerTest::getTestCaseName);
 /* +========== Explicit Pad Floor Rounding ========== */
 const auto avgPoolExplicitPadFloorRoundingParams =
@@ -121,7 +121,7 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_AvgPool_ExplicitPad_FloorRounding,
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::Values(std::vector<size_t>({1, 3, 30, 30})),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA)),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA)),
                          PoolingLayerTest::getTestCaseName);
 
 ////* ========== Avg and Max Polling Cases ========== */
@@ -147,6 +147,6 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_MAX_and_AVGPool_ValidPad,
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::Values(std::vector<size_t>({1, 3, 30, 30})),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA)),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA)),
                          PoolingLayerTest::getTestCaseName);
 }  // namespace

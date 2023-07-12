@@ -45,7 +45,7 @@ protected:
     void SetUp() override;
 
     static std::string make_so_name(const std::string & input) {
-        return CommonTestUtils::pre + input + IE_BUILD_POSTFIX + CommonTestUtils::ext;
+        return ov::test::utils::pre + input + IE_BUILD_POSTFIX + ov::test::utils::ext;
     }
 
     void TearDown() override;

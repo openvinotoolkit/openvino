@@ -33,7 +33,7 @@ public:
                             ::testing::Matcher<const ov::AnyMap&>(_)))
             .WillByDefault(Return(mockExeNetwork));
 
-        metaDevices = {{CommonTestUtils::DEVICE_CPU, {}, -1}, {CommonTestUtils::DEVICE_GPU, {}, -1}};
+        metaDevices = {{ov::test::utils::DEVICE_CPU, {}, -1}, {ov::test::utils::DEVICE_GPU, {}, -1}};
         // DeviceInformation devInfo;
         ON_CALL(*plugin, parse_meta_devices(_, _)).WillByDefault(Return(metaDevices));
         ON_CALL(*plugin, get_valid_device)

@@ -37,7 +37,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatherND5_Set1, GatherNDLayerTest,
                             gatherNDArgsSubset1,
                             ::testing::ValuesIn(dPrecisions),
                             ::testing::ValuesIn(iPrecisions),
-                            ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                            ::testing::Values(ov::test::utils::DEVICE_CPU),
                             ::testing::Values<Config>({})),
                         GatherNDLayerTest::getTestCaseName);
 
@@ -46,7 +46,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatherND8_Set1, GatherND8LayerTest,
                                  gatherNDArgsSubset1,
                                  ::testing::ValuesIn(dPrecisions),
                                  ::testing::ValuesIn(iPrecisions),
-                                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                 ::testing::Values(ov::test::utils::DEVICE_CPU),
                                  ::testing::Values<Config>({})),
                          GatherNDLayerTest::getTestCaseName);
 
@@ -63,7 +63,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatherND5_Set2, GatherNDLayerTest,
                             gatherNDArgsSubset2,
                             ::testing::ValuesIn(dPrecisions),
                             ::testing::ValuesIn(iPrecisions),
-                            ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                            ::testing::Values(ov::test::utils::DEVICE_CPU),
                             ::testing::Values<Config>({})),
                         GatherNDLayerTest::getTestCaseName);
 
@@ -72,7 +72,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatherND8_Set2, GatherND8LayerTest,
                                  gatherNDArgsSubset2,
                                  ::testing::ValuesIn(dPrecisions),
                                  ::testing::ValuesIn(iPrecisions),
-                                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                 ::testing::Values(ov::test::utils::DEVICE_CPU),
                                  ::testing::Values<Config>({})),
                          GatherNDLayerTest::getTestCaseName);
 

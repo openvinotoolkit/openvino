@@ -15,16 +15,16 @@ TEST_P(OpImplCheckTest, checkPluginImplementationQueryModel) {
     }
 
     // in case of crash jump will be made and work will be continued
-    CommonTestUtils::CrashHandler crashHandler;
+    ov::test::utils::CrashHandler crashHandler;
 
     // place to jump in case of a crash
     int jmpRes = 0;
 #ifdef _WIN32
-    jmpRes = setjmp(CommonTestUtils::env);
+    jmpRes = setjmp(ov::test::utils::env);
 #else
-    jmpRes = sigsetjmp(CommonTestUtils::env, 1);
+    jmpRes = sigsetjmp(ov::test::utils::env, 1);
 #endif
-    if (jmpRes == CommonTestUtils::JMP_STATUS::ok) {
+    if (jmpRes == ov::test::utils::JMP_STATUS::ok) {
         crashHandler.StartTimer();
         summary.setDeviceName(targetDevice);
         try {
@@ -50,10 +50,10 @@ TEST_P(OpImplCheckTest, checkPluginImplementationQueryModel) {
             summary.updateOPsImplStatus(function, false);
             GTEST_FAIL() << "Error in the Core::query_model() method call!";
         }
-    } else if (jmpRes == CommonTestUtils::JMP_STATUS::anyError) {
+    } else if (jmpRes == ov::test::utils::JMP_STATUS::anyError) {
         summary.updateOPsImplStatus(function, false);
         GTEST_FAIL() << "Crash happens";
-    } else if (jmpRes == CommonTestUtils::JMP_STATUS::alarmErr) {
+    } else if (jmpRes == ov::test::utils::JMP_STATUS::alarmErr) {
         summary.updateOPsImplStatus(function, false);
         GTEST_FAIL() << "Hang happens";
     }

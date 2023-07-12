@@ -259,7 +259,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ROIAlignLayoutTest, ROIAlignLayerCPUTest,
                 ::testing::Combine(
                         roiAlignParams,
                         ::testing::ValuesIn(netPrecisions),
-                        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                        ::testing::Values(ov::test::utils::DEVICE_CPU)),
                 ::testing::ValuesIn(filterCPUInfoForDevice())),
                 ROIAlignLayerCPUTest::getTestCaseName);
 } // namespace

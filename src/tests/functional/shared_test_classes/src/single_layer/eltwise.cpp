@@ -16,7 +16,7 @@ std::string EltwiseLayerTest::getTestCaseName(const testing::TestParamInfo<Eltwi
     std::vector<InputShape> shapes;
     ElementType netType, inType, outType;
     ngraph::helpers::InputLayerType secondaryInputType;
-    CommonTestUtils::OpType opType;
+    ov::test::utils::OpType opType;
     ngraph::helpers::EltwiseTypes eltwiseOpType;
     std::string targetName;
     ov::AnyMap additional_config;
@@ -71,7 +71,7 @@ void EltwiseLayerTest::SetUp() {
     std::vector<InputShape> shapes;
     ElementType netType;
     ngraph::helpers::InputLayerType secondaryInputType;
-    CommonTestUtils::OpType opType;
+    ov::test::utils::OpType opType;
     ngraph::helpers::EltwiseTypes eltwiseType;
     Config additional_config;
     std::tie(shapes, eltwiseType, secondaryInputType, opType, netType, inType, outType, targetDevice, configuration) =
@@ -83,11 +83,11 @@ void EltwiseLayerTest::SetUp() {
 
     ov::PartialShape shape_input_secondary;
     switch (opType) {
-        case CommonTestUtils::OpType::SCALAR: {
+        case ov::test::utils::OpType::SCALAR: {
             shape_input_secondary = {1};
             break;
         }
-        case CommonTestUtils::OpType::VECTOR:
+        case ov::test::utils::OpType::VECTOR:
             shape_input_secondary = inputDynamicShapes.back();
             break;
         default:

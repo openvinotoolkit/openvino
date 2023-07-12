@@ -51,7 +51,7 @@ public:
 
 protected:
     void SetUp() override {
-        targetDevice = CommonTestUtils::DEVICE_GPU;
+        targetDevice = ov::test::utils::DEVICE_GPU;
         int64_t axis;
         size_t numSplits;
         InputShape inputShape;
@@ -159,7 +159,7 @@ public:
 
 protected:
     void SetUp() override {
-        targetDevice = CommonTestUtils::DEVICE_GPU;
+        targetDevice = ov::test::utils::DEVICE_GPU;
         int64_t axis;
         InputShape inputShape;
         std::vector<int32_t> splitLength;

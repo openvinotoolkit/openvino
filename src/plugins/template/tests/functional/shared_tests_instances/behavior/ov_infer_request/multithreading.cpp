@@ -16,7 +16,7 @@ const std::vector<ov::AnyMap> configs = {
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVInferRequestMultithreadingTests,
                         ::testing::Combine(
-                                ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE),
+                                ::testing::Values(ov::test::utils::DEVICE_TEMPLATE),
                                 ::testing::ValuesIn(configs)),
                         OVInferRequestMultithreadingTests::getTestCaseName);
 

@@ -159,7 +159,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ReverseSequenceCPUStatic3D, ReverseSequenceLayerC
                             ::testing::ValuesIn(seqLengthsStaticShapes),
                             ::testing::ValuesIn(secondaryInputTypes),
                             ::testing::ValuesIn(netPrecisions),
-                            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         ReverseSequenceLayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_ReverseSequenceCPUStatic4D, ReverseSequenceLayerCPUTest,
@@ -170,7 +170,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ReverseSequenceCPUStatic4D, ReverseSequenceLayerC
                             ::testing::ValuesIn(seqLengthsStaticShapes),
                             ::testing::ValuesIn(secondaryInputTypes),
                             ::testing::ValuesIn(netPrecisions),
-                            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         ReverseSequenceLayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_ReverseSequenceCPUStatic5D, ReverseSequenceLayerCPUTest,
@@ -181,7 +181,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ReverseSequenceCPUStatic5D, ReverseSequenceLayerC
                             ::testing::ValuesIn(seqLengthsStaticShapes),
                             ::testing::ValuesIn(secondaryInputTypes),
                             ::testing::ValuesIn(netPrecisions),
-                            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         ReverseSequenceLayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_ReverseSequenceCPUDynamic3D, ReverseSequenceLayerCPUTest,
@@ -192,7 +192,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ReverseSequenceCPUDynamic3D, ReverseSequenceLayer
                             ::testing::ValuesIn(seqLengthsDynamicShapes),
                             ::testing::Values(ngraph::helpers::InputLayerType::PARAMETER),
                             ::testing::ValuesIn(netPrecisions),
-                            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         ReverseSequenceLayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_ReverseSequenceCPUDynamic4D, ReverseSequenceLayerCPUTest,
@@ -203,7 +203,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ReverseSequenceCPUDynamic4D, ReverseSequenceLayer
                             ::testing::ValuesIn(seqLengthsDynamicShapes),
                             ::testing::Values(ngraph::helpers::InputLayerType::PARAMETER),
                             ::testing::ValuesIn(netPrecisions),
-                            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         ReverseSequenceLayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_ReverseSequenceCPUDynamic5D, ReverseSequenceLayerCPUTest,
@@ -214,7 +214,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ReverseSequenceCPUDynamic5D, ReverseSequenceLayer
                             ::testing::ValuesIn(seqLengthsDynamicShapes),
                             ::testing::Values(ngraph::helpers::InputLayerType::PARAMETER),
                             ::testing::ValuesIn(netPrecisions),
-                            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         ReverseSequenceLayerCPUTest::getTestCaseName);
 
 } // namespace

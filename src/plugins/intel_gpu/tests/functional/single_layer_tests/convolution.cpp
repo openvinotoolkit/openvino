@@ -119,7 +119,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionLayerGPUTest_3D_tensor_basic, Convolut
                 ::testing::Values(ElementType::f16),
                 ::testing::Values(ElementType::undefined),
                 ::testing::Values(InputShape{{}, {{1, 13, 30}}}),
-                ::testing::Values<std::string>(CommonTestUtils::DEVICE_GPU)),
+                ::testing::Values<std::string>(ov::test::utils::DEVICE_GPU)),
                 ConvolutionLayerGPUTest::getTestCaseName);
 }  // namespace
 

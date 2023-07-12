@@ -217,7 +217,7 @@ INSTANTIATE_TEST_CASE_P(DynamicShape4D, TileLayerGPUTest,
                                         ::testing::ValuesIn(repeats4D),
                                         ::testing::ValuesIn(netPrecisions),
                                         ::testing::Values(true, false),
-                                        ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                        ::testing::Values(ov::test::utils::DEVICE_GPU)),
                         TileLayerGPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_CASE_P(DynamicShape5D, TileLayerGPUTest,
@@ -226,7 +226,7 @@ INSTANTIATE_TEST_CASE_P(DynamicShape5D, TileLayerGPUTest,
                                         ::testing::ValuesIn(repeats5D),
                                         ::testing::ValuesIn(netPrecisions),
                                         ::testing::Values(true, false),
-                                        ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                        ::testing::Values(ov::test::utils::DEVICE_GPU)),
                         TileLayerGPUTest::getTestCaseName);
 
 } // namespace

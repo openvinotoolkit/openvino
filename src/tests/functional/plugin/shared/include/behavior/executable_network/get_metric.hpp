@@ -61,7 +61,7 @@ protected:
 public:
     void SetUp() override {
         target_device = GetParam();
-        heteroDeviceName = CommonTestUtils::DEVICE_HETERO + std::string(":") + GetParam();
+        heteroDeviceName = ov::test::utils::DEVICE_HETERO + std::string(":") + GetParam();
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
         ov::test::behavior::APIBaseTest::SetUp();
         IEClassNetworkTest::SetUp();
@@ -114,7 +114,7 @@ TEST_P(IEClassImportExportTestP, smoke_ExportUsingFileNameImportFromStreamNoThro
         ASSERT_EQ(0, remove(fileName.c_str()));
     }
     ASSERT_NO_THROW(executableNetwork.CreateInferRequest());
-    CommonTestUtils::removeFile(fileName);
+    ov::test::utils::removeFile(fileName);
 }
 
 using IEClassExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS = IEClassGetMetricP;

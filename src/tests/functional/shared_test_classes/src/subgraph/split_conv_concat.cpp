@@ -31,9 +31,9 @@ void SplitConvConcat::SetUp() {
 
     std::vector<float> filterWeights1;
     std::vector<float> filterWeights2;
-    if (targetDevice == CommonTestUtils::DEVICE_GNA) {
-        filterWeights1 = CommonTestUtils::generate_float_numbers(8 * inputShape[1] / 2 * 3, -0.2f, 0.2f);
-        filterWeights2 = CommonTestUtils::generate_float_numbers(8 * inputShape[1] / 2 * 3, -0.2f, 0.2f);
+    if (targetDevice == ov::test::utils::DEVICE_GNA) {
+        filterWeights1 = ov::test::utils::generate_float_numbers(8 * inputShape[1] / 2 * 3, -0.2f, 0.2f);
+        filterWeights2 = ov::test::utils::generate_float_numbers(8 * inputShape[1] / 2 * 3, -0.2f, 0.2f);
     }
     auto conv1 = ngraph::builder::makeConvolution(split->output(0), ngPrc, {1, 3}, {1, 1}, {0, 0}, {0, 0}, {1, 1},
                                                   ngraph::op::PadType::VALID, 8, false, filterWeights1);

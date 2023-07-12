@@ -84,7 +84,7 @@ TEST_F(NetworkContext_CalcFileInfoTests, ExistingDiffFiles) {
 
 TEST_F(NetworkContext_CalcFileInfoTests, ExistingFile_sameAbsPath) {
     std::string file1 = m_fileName;
-    std::string file2 = std::string(".") + CommonTestUtils::FileSeparator + m_fileName;
+    std::string file2 = std::string(".") + ov::test::utils::FileSeparator + m_fileName;
     ASSERT_EQ(ModelCache::calculate_file_info(file1), ModelCache::calculate_file_info(file2))
         << "Hash of [" << file1 << "] is not equal to hash of [" << file2 << "]";
 }
@@ -343,7 +343,7 @@ TEST(NetworkContext_ModelName, HashOfSame) {
 
 TEST(NetworkContext_ModelName, HashOfExistingFile) {
     auto file1 = ov::test::utils::generateTestFilePrefix() + ".xml";
-    auto file2 = std::string(".") + CommonTestUtils::FileSeparator + file1;
+    auto file2 = std::string(".") + ov::test::utils::FileSeparator + file1;
 
     FileGuard guard(file1);
     {

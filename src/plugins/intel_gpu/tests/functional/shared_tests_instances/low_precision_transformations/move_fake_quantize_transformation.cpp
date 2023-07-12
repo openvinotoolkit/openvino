@@ -154,7 +154,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, MoveFakeQuantizeTransformation,
 ::testing::Combine(
     ::testing::ValuesIn(netPrecisions),
     ::testing::ValuesIn(shapes),
-    ::testing::Values(CommonTestUtils::DEVICE_GPU),
+    ::testing::Values(ov::test::utils::DEVICE_GPU),
     ::testing::ValuesIn(trasformationParamValues),
     ::testing::ValuesIn({false, true}),
     ::testing::ValuesIn(params)),

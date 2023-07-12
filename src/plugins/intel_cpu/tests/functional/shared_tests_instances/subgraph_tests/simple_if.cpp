@@ -61,7 +61,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_If, SimpleIfTest,
                                 ::testing::ValuesIn(inputShapes),
                                 ::testing::ValuesIn(inTypes),
                                 ::testing::ValuesIn(conditions),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         SimpleIfTest::getTestCaseName);
 
 TEST_P(SimpleIfTest, CompareWithRefs) {
@@ -73,7 +73,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_If, SimpleIf2OutTest,
                                 ::testing::ValuesIn(inputShapes),
                                 ::testing::ValuesIn(inTypes),
                                 ::testing::ValuesIn(conditions),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         SimpleIf2OutTest::getTestCaseName);
 
 TEST_P(SimpleIf2OutTest, CompareWithRefs) {
@@ -85,7 +85,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_If, SimpleIfNotConstConditionTest,
                                 ::testing::ValuesIn(inputShapes),
                                 ::testing::ValuesIn(inTypes),
                                 ::testing::ValuesIn(conditions),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         SimpleIfNotConstConditionTest::getTestCaseName);
 
 TEST_P(SimpleIfNotConstConditionTest, CompareWithRefs) {
@@ -118,7 +118,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_If, SimpleIfNotConstConditionAndInternalDynamismT
                                  ::testing::ValuesIn(inputShapes_2),
                                  ::testing::ValuesIn(inTypes),
                                  ::testing::ValuesIn(conditions),
-                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                 ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          SimpleIfNotConstConditionTest::getTestCaseName);
 
 TEST_P(SimpleIfNotConstConditionAndInternalDynamismTest, CompareWithRefs) {
@@ -145,7 +145,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_If, SimpleIfNotConstConditionAndDimsIncreaseTest,
                                  ::testing::ValuesIn(inputShapes_3),
                                  ::testing::ValuesIn(inTypes),
                                  ::testing::ValuesIn(conditions),
-                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                 ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          SimpleIfNotConstConditionTest::getTestCaseName);
 
 TEST_P(SimpleIfNotConstConditionAndDimsIncreaseTest, CompareWithRefs) {
@@ -170,7 +170,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_If, SimpleIfNotConstConditionUnusedOutputPortsTes
                                  ::testing::ValuesIn(inputShapes_4),
                                  ::testing::ValuesIn(inTypes),
                                  ::testing::ValuesIn(conditions),
-                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                 ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          SimpleIfNotConstConditionUnusedOutputPortsTest::getTestCaseName);
 
 TEST_P(SimpleIfNotConstConditionUnusedOutputPortsTest, CompareWithRefs) {

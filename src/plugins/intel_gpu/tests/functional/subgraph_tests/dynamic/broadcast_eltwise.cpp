@@ -44,7 +44,7 @@ protected:
         ElementType input_precision;
         InputShape input_shape;
         std::tie(input_precision, input_shape, target_shape) = GetParam();
-        targetDevice = CommonTestUtils::DEVICE_GPU;
+        targetDevice = ov::test::utils::DEVICE_GPU;
 
         std::vector<InputShape> input_shapes{input_shape, {{}, {{target_shape.size()}}}};
         init_input_shapes(input_shapes);

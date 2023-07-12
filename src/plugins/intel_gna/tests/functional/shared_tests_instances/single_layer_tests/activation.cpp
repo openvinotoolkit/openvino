@@ -139,7 +139,7 @@ const auto basicCases = ::testing::Combine(::testing::ValuesIn(ov::test::utils::
                                            ::testing::Values(InferenceEngine::Layout::ANY),
                                            ::testing::Values(InferenceEngine::Layout::ANY),
                                            ::testing::ValuesIn(ov::test::utils::combineParams(basic)),
-                                           ::testing::Values(CommonTestUtils::DEVICE_GNA));
+                                           ::testing::Values(ov::test::utils::DEVICE_GNA));
 
 const auto preluCases = ::testing::Combine(::testing::ValuesIn(ov::test::utils::combineParams(preluActivationTypes)),
                                            ::testing::ValuesIn(preluNetPrecisions),
@@ -148,7 +148,7 @@ const auto preluCases = ::testing::Combine(::testing::ValuesIn(ov::test::utils::
                                            ::testing::Values(InferenceEngine::Layout::ANY),
                                            ::testing::Values(InferenceEngine::Layout::ANY),
                                            ::testing::ValuesIn(ov::test::utils::combineParams(basic)),
-                                           ::testing::Values(CommonTestUtils::DEVICE_GNA));
+                                           ::testing::Values(ov::test::utils::DEVICE_GNA));
 
 INSTANTIATE_TEST_SUITE_P(smoke_Activation_Basic,
                          ActivationLayerGNATest,

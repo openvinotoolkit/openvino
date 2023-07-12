@@ -48,7 +48,7 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(std::vector<size_t>(inputShapes1d)),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+        ::testing::Values(ov::test::utils::DEVICE_CPU)),
     GroupConvolutionLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(
@@ -60,7 +60,7 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(std::vector<size_t>({1, 16, 30})),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+        ::testing::Values(ov::test::utils::DEVICE_CPU)),
     GroupConvolutionLayerTest::getTestCaseName);
 
 /* ============= 2D GroupConvolution ============= */
@@ -96,7 +96,7 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(std::vector<size_t>(inputShapes)),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+        ::testing::Values(ov::test::utils::DEVICE_CPU)),
     GroupConvolutionLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(
@@ -108,7 +108,7 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(std::vector<size_t>({1, 16, 30, 30})),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+        ::testing::Values(ov::test::utils::DEVICE_CPU)),
     GroupConvolutionLayerTest::getTestCaseName);
 
 /* ============= 3D GroupConvolution ============= */
@@ -139,7 +139,7 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(std::vector<size_t>(inputShapes3d)),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+        ::testing::Values(ov::test::utils::DEVICE_CPU)),
     GroupConvolutionLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(
@@ -151,7 +151,7 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(std::vector<size_t>({1, 4, 10, 10, 10})),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+        ::testing::Values(ov::test::utils::DEVICE_CPU)),
     GroupConvolutionLayerTest::getTestCaseName);
 
 }  // namespace

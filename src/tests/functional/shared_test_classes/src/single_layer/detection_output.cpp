@@ -89,7 +89,7 @@ void DetectionOutputLayerTest::GenerateInputs() {
         }
         blob = make_blob_with_precision(info->getTensorDesc());
         blob->allocate();
-        CommonTestUtils::fill_data_random_float<InferenceEngine::Precision::FP32>(blob, range, 0, resolution);
+        ov::test::utils::fill_data_random_float<InferenceEngine::Precision::FP32>(blob, range, 0, resolution);
         inputs.push_back(blob);
         it++;
     }

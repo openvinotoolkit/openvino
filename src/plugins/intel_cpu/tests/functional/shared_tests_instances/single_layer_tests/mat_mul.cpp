@@ -55,7 +55,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMul, MatMulTest,
                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                 ::testing::Values(InferenceEngine::Layout::ANY),
                 ::testing::ValuesIn(secondaryInputTypes),
-                ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                ::testing::Values(ov::test::utils::DEVICE_CPU),
                 ::testing::Values(additional_config)),
         MatMulTest::getTestCaseName);
 

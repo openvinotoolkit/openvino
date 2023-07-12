@@ -32,7 +32,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Transpose2D, TransposeLayerTest,
                 ::testing::Values(InferenceEngine::Layout::ANY),
                 ::testing::Values(InferenceEngine::Layout::ANY),
                 ::testing::ValuesIn(inputShape2D),
-                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                ::testing::Values(ov::test::utils::DEVICE_CPU)),
                 TransposeLayerTest::getTestCaseName);
 
 std::vector<std::vector<size_t>> inputShape4D = {{2, 2, 2, 2}, {1, 10, 2, 3}, {2, 3, 4, 5}};
@@ -50,7 +50,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Transpose4D, TransposeLayerTest,
                 ::testing::Values(InferenceEngine::Layout::ANY),
                 ::testing::Values(InferenceEngine::Layout::ANY),
                 ::testing::ValuesIn(inputShape4D),
-                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                ::testing::Values(ov::test::utils::DEVICE_CPU)),
                 TransposeLayerTest::getTestCaseName);
 
 std::vector<std::vector<size_t>> inputShape5D = {{2, 2, 2, 2, 2}, {1, 10, 2, 3, 4}, {2, 3, 4, 5, 6}};
@@ -75,7 +75,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Transpose5D, TransposeLayerTest,
                 ::testing::Values(InferenceEngine::Layout::ANY),
                 ::testing::Values(InferenceEngine::Layout::ANY),
                 ::testing::ValuesIn(inputShape5D),
-                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                ::testing::Values(ov::test::utils::DEVICE_CPU)),
                 TransposeLayerTest::getTestCaseName);
 
 std::vector<std::vector<size_t>> inputShape6D = {{2, 2, 2, 2, 2, 2}, {1, 10, 2, 3, 4, 5}, {2, 3, 4, 5, 6, 7}};
@@ -100,7 +100,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Transpose6D, TransposeLayerTest,
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::ValuesIn(inputShape6D),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         TransposeLayerTest::getTestCaseName);
 
 }  // namespace

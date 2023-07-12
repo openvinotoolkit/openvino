@@ -10,7 +10,7 @@ namespace {
 using namespace ExecutionGraphTests;
 
 INSTANTIATE_TEST_SUITE_P(smoke_serialization, ExecGraphSerializationTest,
-                                ::testing::Values(CommonTestUtils::DEVICE_GPU),
+                                ::testing::Values(ov::test::utils::DEVICE_GPU),
                         ExecGraphSerializationTest::getTestCaseName);
 
 const std::vector<InferenceEngine::Precision> netPrecisions = {
@@ -21,7 +21,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_NoReshape, ExecGraphUniqueNodeNames,
         ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(InferenceEngine::SizeVector({1, 2, 5, 5})),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+        ::testing::Values(ov::test::utils::DEVICE_GPU)),
         ExecGraphUniqueNodeNames::getTestCaseName);
 
 }  // namespace

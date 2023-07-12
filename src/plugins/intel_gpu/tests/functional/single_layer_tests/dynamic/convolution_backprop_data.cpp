@@ -295,7 +295,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Deconv_2D_Dynamic_FP32, DeconvolutionLayerGPUTest
         convParams_ExplicitPadding_2D,
         ::testing::ValuesIn(dyn_2D_inputs_smoke),
         ::testing::Values(ElementType::f32),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU),
+        ::testing::Values(ov::test::utils::DEVICE_GPU),
         ::testing::Values(emptyAdditionalConfig)),
     DeconvolutionLayerGPUTest::getTestCaseName);
 
@@ -330,7 +330,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Deconv_2D_Dynamic_OutputShape_FP32, Deconvolution
             ::testing::ValuesIn(emptyOutputPadding)),
         ::testing::ValuesIn(dyn_2D_inputs_with_output_shape),
         ::testing::Values(ElementType::f32),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU),
+        ::testing::Values(ov::test::utils::DEVICE_GPU),
         ::testing::Values(emptyAdditionalConfig)),
     DeconvolutionLayerGPUTest::getTestCaseName);
 

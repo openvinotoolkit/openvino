@@ -78,7 +78,7 @@ protected:
 
         std::tie(inputShapes, decompose, activations, clip, linearBeforeReset, netPrecision, cpuParams, additionalConfig) = this->GetParam();
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
 
         init_input_shapes(inputShapes);
 

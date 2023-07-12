@@ -109,7 +109,7 @@ protected:
                  inputShapes, imageShapes, targetDevice) = GetParam();
 
         selectedType = makeSelectedTypeStr("ref_any", ov::test::ElementType::i32);
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
 
         init_input_shapes({ inputShapes, imageShapes });
 
@@ -219,7 +219,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_PriorBoxClustered, PriorBoxClusteredLayerCPUTest,
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::ValuesIn(inputShapes),
         ::testing::ValuesIn(imageShapes),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+        ::testing::Values(ov::test::utils::DEVICE_CPU)),
     PriorBoxClusteredLayerCPUTest::getTestCaseName
 );
 

@@ -33,7 +33,7 @@ std::string DynamicOutputInferenceTest::getTestCaseName(testing::TestParamInfo<D
     for (auto& iter : targets)
         result << "_" << iter;
     auto string = result.str();
-    CommonTestUtils::replaceSubstringInString(string, ",", "_");
+    ov::test::utils::replaceSubstringInString(string, ",", "_");
     return string;
 }
 
@@ -58,12 +58,12 @@ void DynamicOutputInferenceTest::SetUp() {
         model = create_dynamic_output_model();
         std::tie(priorityList, targetList) = GetParam();
         ON_CALL(*core, compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
-                    ::testing::Matcher<const std::string&>(StrEq(CommonTestUtils::DEVICE_GPU)), _))
+                    ::testing::Matcher<const std::string&>(StrEq(ov::test::utils::DEVICE_GPU)), _))
                     .WillByDefault(InvokeWithoutArgs([this]() {
                         std::this_thread::sleep_for(std::chrono::milliseconds(200));
                         return mockExeNetworkActual; }));
         ON_CALL(*core, compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
-                    ::testing::Matcher<const std::string&>(StrEq(CommonTestUtils::DEVICE_CPU)),
+                    ::testing::Matcher<const std::string&>(StrEq(ov::test::utils::DEVICE_CPU)),
                     (_))).WillByDefault(Return(mockExeNetwork));
 }
 

@@ -65,7 +65,7 @@ protected:
         ElementType dataPrecision;
 
         std::tie(inputShapes, flatOrAxis, sorted, dataPrecision) = this->GetParam();
-        targetDevice = CommonTestUtils::DEVICE_GPU;
+        targetDevice = ov::test::utils::DEVICE_GPU;
         init_input_shapes(inputShapes);
         flattened = std::get<0>(flatOrAxis);
 

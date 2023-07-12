@@ -39,7 +39,7 @@ const auto test_Bucketize_right_edge = ::testing::Combine(
     ::testing::ValuesIn(inPrc),
     ::testing::ValuesIn(inPrc),
     ::testing::ValuesIn(netPrc),
-    ::testing::Values(CommonTestUtils::DEVICE_CPU)
+    ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 const auto test_Bucketize_left_edge = ::testing::Combine(
@@ -49,7 +49,7 @@ const auto test_Bucketize_left_edge = ::testing::Combine(
     ::testing::ValuesIn(inPrc),
     ::testing::ValuesIn(inPrc),
     ::testing::ValuesIn(netPrc),
-    ::testing::Values(CommonTestUtils::DEVICE_CPU)
+    ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 INSTANTIATE_TEST_SUITE_P(smoke_TestsBucketize_right, BucketizeLayerTest, test_Bucketize_right_edge, BucketizeLayerTest::getTestCaseName);

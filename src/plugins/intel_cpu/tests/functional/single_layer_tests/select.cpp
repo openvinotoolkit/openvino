@@ -50,7 +50,7 @@ public:
 protected:
    void SetUp() override {
         abs_threshold = 0;
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         std::vector<InputShape> shapes;
         ElementType precision;
         ngraph::op::AutoBroadcastSpec broadcast;

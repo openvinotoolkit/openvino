@@ -99,7 +99,7 @@ std::vector<MatMulWithConstantTransformationTestValues> testValues = {
 INSTANTIATE_TEST_SUITE_P(smoke_LPT, MatMulWithConstantTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(precisions),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+        ::testing::Values(ov::test::utils::DEVICE_CPU),
         ::testing::ValuesIn(testValues)),
     MatMulWithConstantTransformation::getTestCaseName);
 }  // namespace

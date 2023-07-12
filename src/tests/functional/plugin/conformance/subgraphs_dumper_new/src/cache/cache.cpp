@@ -66,8 +66,8 @@ bool ICache::serialize_model(const std::pair<std::shared_ptr<ov::Model>, MetaInf
         } catch (std::exception &e) {
             std::cout << "Failed to serialize model: " << model_name
                         << ". Exception: " << e.what() << std::endl;
-            CommonTestUtils::removeIRFiles(xml_path, bin_path);
-            CommonTestUtils::removeFile(meta_path);
+            ov::test::utils::removeIRFiles(xml_path, bin_path);
+            ov::test::utils::removeFile(meta_path);
             if (std::string(e.what()).find("Can't open") == std::string::npos) {
                 return false;
             }

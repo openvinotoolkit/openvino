@@ -281,7 +281,7 @@ ModelWithExpect LayerTwoOutputsFunctionCreator::CreateFunctionWithExpects(const 
     return {model, {input_friendly_name}, {output_friendly_name_1, output_friendly_name_2}};
 }
 
-const char* BroadcastTileIssue::s_target_device_name = CommonTestUtils::DEVICE_GNA;
+const char* BroadcastTileIssue::s_target_device_name = ov::test::utils::DEVICE_GNA;
 
 std::string BroadcastTileIssue::getTestCaseName(const testing::TestParamInfo<TestConfig>& obj) {
     std::shared_ptr<ModelExpectCreator> function_creator;

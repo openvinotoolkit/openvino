@@ -396,7 +396,7 @@ TEST_F(SerializationTensorIteratorTest, TiResnet) {
     auto weights = InferenceEngine::make_shared_blob<uint8_t>(
         InferenceEngine::TensorDesc(InferenceEngine::Precision::U8, {weights_size}, InferenceEngine::Layout::C));
     weights->allocate();
-    CommonTestUtils::fill_data(weights->buffer().as<float*>(), weights->size() / sizeof(float));
+    ov::test::utils::fill_data(weights->buffer().as<float*>(), weights->size() / sizeof(float));
 
     auto* data = weights->buffer().as<int64_t*>();
     data[0] = 1;

@@ -50,7 +50,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs,
                                             ::testing::ValuesIn(secondInputTypes),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GPU),
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU),
                                             ::testing::Values(additional_config)),
                          ComparisonLayerTest::getTestCaseName);
 
@@ -77,7 +77,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_IsOp,
                                             ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                             ::testing::Values(InferenceEngine::Precision::BOOL),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GPU),
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU),
                                             ::testing::Values(additional_config)),
                          ComparisonLayerTest::getTestCaseName);
 

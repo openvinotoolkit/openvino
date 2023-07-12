@@ -68,7 +68,7 @@ protected:
         std::tie(inputShapes, indices, withWeights) = embParams;
 
         selectedType = makeSelectedTypeStr("ref", inType);
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
 
         init_input_shapes({ inputShapes });
 
@@ -145,7 +145,7 @@ INSTANTIATE_TEST_SUITE_P(smoke, EmbeddingBagPackedSumLayerCPUTest,
                 embBagPackedSumArgSet,
                 ::testing::ValuesIn(netPrecisions),
                 ::testing::ValuesIn(indPrecisions),
-                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                ::testing::Values(ov::test::utils::DEVICE_CPU)),
         EmbeddingBagPackedSumLayerCPUTest::getTestCaseName);
 }  // namespace
 }  // namespace CPULayerTestsDefinitions

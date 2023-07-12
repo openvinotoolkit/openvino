@@ -113,7 +113,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GPU_BehaviorTests, InferRequestIOPrecision,
                                  ::testing::Values(InferenceEngine::Layout::ANY),
                                  ::testing::Values(InferenceEngine::Layout::ANY),
                                  ::testing::Values(std::vector<size_t>{1, 50}),
-                                 ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                 ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          InferRequestIOPrecision::getTestCaseName);
 
 TEST(TensorTest, smoke_canSetShapeForPreallocatedTensor) {
@@ -124,7 +124,7 @@ TEST(TensorTest, smoke_canSetShapeForPreallocatedTensor) {
     p.input().preprocess().convert_element_type(ov::element::f32);
 
     auto function = p.build();
-    auto exec_net = ie.compile_model(function, CommonTestUtils::DEVICE_GPU);
+    auto exec_net = ie.compile_model(function, ov::test::utils::DEVICE_GPU);
     auto inf_req = exec_net.create_infer_request();
 
     // Check set_shape call for pre-allocated input/output tensors
@@ -156,7 +156,7 @@ TEST(TensorTest, smoke_canSetScalarTensor) {
     std::shared_ptr<ngraph::Function> fnPtr = std::make_shared<ngraph::Function>(results, params);
 
     auto ie = ov::Core();
-    auto compiled_model = ie.compile_model(fnPtr, CommonTestUtils::DEVICE_GPU);
+    auto compiled_model = ie.compile_model(fnPtr, ov::test::utils::DEVICE_GPU);
     auto request = compiled_model.create_infer_request();
     double real_data = 1.0;
     ov::Tensor input_data(ngraph::element::f64, {}, &real_data);
@@ -174,7 +174,7 @@ TEST(TensorTest, smoke_canSetTensorForDynamicInput) {
     auto function = p.build();
     std::map<size_t, ov::PartialShape> shapes = { {0, ov::PartialShape{-1, -1, -1, -1}} };
     function->reshape(shapes);
-    auto exec_net = ie.compile_model(function, CommonTestUtils::DEVICE_GPU);
+    auto exec_net = ie.compile_model(function, ov::test::utils::DEVICE_GPU);
     auto inf_req = exec_net.create_infer_request();
 
     ov::Tensor t1(ov::element::i8, {1, 4, 20, 20});

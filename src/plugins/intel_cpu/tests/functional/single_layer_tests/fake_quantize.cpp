@@ -84,7 +84,7 @@ protected:
     std::string layerName;
 
     void SetUp() override {
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         fqSpecificParams fqParams;
         inputShapes testShapes;
         Precision inPrec;

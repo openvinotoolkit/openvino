@@ -70,7 +70,7 @@ protected:
         auto input = std::make_shared<Parameter>(ng_precision, ov::Shape{input_shape});
 
         const auto weights_size = ov::shape_size(filter_size) * out_channels_num * input_shape[c_index_in_nchw];
-        auto weights_values = CommonTestUtils::generate_float_numbers(weights_size, -0.2f, 0.2f);
+        auto weights_values = ov::test::utils::generate_float_numbers(weights_size, -0.2f, 0.2f);
 
         auto convolution = ngraph::builder::makeConvolution(input,
                                                             ng_precision,
@@ -118,7 +118,7 @@ const std::vector<std::vector<size_t>> input_shapes{{1, 8, 32, 16}};
 INSTANTIATE_TEST_SUITE_P(smoke_add_transpose_detection,
                          InputConvAddTransposing,
                          ::testing::Combine(::testing::Values(net_precisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs),
                                             ::testing::ValuesIn(input_shapes),
                                             ::testing::ValuesIn(eltwise_input_types),

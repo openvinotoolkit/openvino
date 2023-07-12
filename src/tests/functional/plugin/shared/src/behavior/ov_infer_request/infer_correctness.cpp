@@ -178,7 +178,7 @@ void OVInferConsistencyTest::FillInput(InferContext& inferContext, int index) {
     auto input_tensor =
         inferContext._inferRequest.get_input_tensor(0);
     auto data = input_tensor.data<float>();
-    CommonTestUtils::fill_data(data, 1 * 3 * 224 * 224, index);
+    ov::test::utils::fill_data(data, 1 * 3 * 224 * 224, index);
     inferContext._inputs.push_back(input_tensor);
 }
 

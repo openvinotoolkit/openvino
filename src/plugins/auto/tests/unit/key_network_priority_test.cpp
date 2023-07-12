@@ -68,12 +68,12 @@ protected:
 TEST_P(KeyNetworkPriorityTest, SelectDevice) {
     std::vector<DeviceInformation> resDevInfo;
     if (enableDevicePriority) {
-        metaDevices = {{CommonTestUtils::DEVICE_CPU, {}, 2, "", "CPU_01", 0},
+        metaDevices = {{ov::test::utils::DEVICE_CPU, {}, 2, "", "CPU_01", 0},
             {"GPU.0", {}, 2, "01", "iGPU_01", 1},
             {"GPU.1", {}, 2, "01", "dGPU_01", 2},
             {"OTHER", {}, 2, "01", "OTHER_01", 3}};
     } else {
-        metaDevices = {{CommonTestUtils::DEVICE_CPU, {}, 2, "", "CPU_01", 0},
+        metaDevices = {{ov::test::utils::DEVICE_CPU, {}, 2, "", "CPU_01", 0},
             {"GPU.0", {}, 2, "01", "iGPU_01", 0},
             {"GPU.1", {}, 2, "01", "dGPU_01", 0},
             {"OTHER", {}, 2, "01", "OTHER_01", 0}};
@@ -95,17 +95,16 @@ TEST_P(KeyNetworkPriorityTest, MultiThreadsSelectDevice) {
     std::vector<DeviceInformation> resDevInfo;
     std::vector<std::future<void>> futureVect;
     if (enableDevicePriority) {
-        metaDevices = {{CommonTestUtils::DEVICE_CPU, {}, 2, "", "CPU_01", 0},
+        metaDevices = {{ov::test::utils::DEVICE_CPU, {}, 2, "", "CPU_01", 0},
                        {"GPU.0", {}, 2, "01", "iGPU_01", 1},
                        {"GPU.1", {}, 2, "01", "dGPU_01", 2},
                        {"OTHER", {}, 2, "01", "OTHER_01", 3}};
     } else {
-        metaDevices = {{CommonTestUtils::DEVICE_CPU, {}, 2, "", "CPU_01", 0},
+        metaDevices = {{ov::test::utils::DEVICE_CPU, {}, 2, "", "CPU_01", 0},
                        {"GPU.0", {}, 2, "01", "iGPU_01", 0},
                        {"GPU.1", {}, 2, "01", "dGPU_01", 0},
                        {"OTHER", {}, 2, "01", "OTHER_01", 0}};
     }
-
     EXPECT_CALL(*plugin, select_device(_, _, _)).Times(sizeOfConfigs * 2);
     EXPECT_CALL(*core, get_property(_, _, _)).Times(AtLeast(sizeOfConfigs * 4 * 2));
     // selectdevice in multi threads, and UnregisterPriority them all, should not affect the
@@ -208,9 +207,9 @@ const std::vector<ConfigParams> testConfigs = {
         PriorityParams {1, "iGPU_01"},
         PriorityParams {2, "CPU_01"},
         PriorityParams {3, "CPU_01"}}},
-    // metaDevices = {{CommonTestUtils::DEVICE_CPU, {}, 2, "", "CPU_01", 0},
-    // {CommonTestUtils::DEVICE_GPU, {}, 2, "01", "iGPU_01", 1},
-    // {CommonTestUtils::DEVICE_GPU, {}, 2, "01", "dGPU_01", 2},
+    // metaDevices = {{ov::test::utils::DEVICE_CPU, {}, 2, "", "CPU_01", 0},
+    // {ov::test::utils::DEVICE_GPU, {}, 2, "01", "iGPU_01", 1},
+    // {ov::test::utils::DEVICE_GPU, {}, 2, "01", "dGPU_01", 2},
     // cpu > igpu > dgpu > OTHER
     ConfigParams {"FP32", true, {PriorityParams {0, "CPU_01"},
         PriorityParams {1, "iGPU_01"},

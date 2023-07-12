@@ -45,7 +45,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_Softmax, Softmax,
                              ::testing::Values(-1),
                              ::testing::Values(1),
                              ::testing::Values(1),
-                             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                      Softmax::getTestCaseName);
 
 const std::vector<std::pair<ov::Shape, ov::Shape>> inputShapesPair = {
@@ -63,7 +63,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_AddSoftmax, AddSoftmax,
                              ::testing::Values(-1),
                              ::testing::Values(1),
                              ::testing::Values(1),
-                             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                      AddSoftmax::getTestCaseName);
 
 } // namespace

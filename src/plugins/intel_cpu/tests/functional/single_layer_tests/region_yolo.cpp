@@ -160,7 +160,7 @@ const auto testCase_yolov3 = ::testing::Combine(
         ::testing::ValuesIn(inpOutPrc),
         ::testing::ValuesIn(inpOutPrc),
         ::testing::Values(additional_config),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU)
+        ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 const auto testCase_yolov3_dynamic = ::testing::Combine(
@@ -170,7 +170,7 @@ const auto testCase_yolov3_dynamic = ::testing::Combine(
         ::testing::ValuesIn(inpOutPrc),
         ::testing::ValuesIn(inpOutPrc),
         ::testing::Values(additional_config),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU)
+        ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 const regionYoloAttributes yoloV3mxnetAttr = {20, 4, 9, false, 1, 3};
@@ -182,7 +182,7 @@ const auto testCase_yolov3_mxnet = ::testing::Combine(
         ::testing::ValuesIn(inpOutPrc),
         ::testing::ValuesIn(inpOutPrc),
         ::testing::Values(additional_config),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU)
+        ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 const auto testCase_yolov3_mxnet_dynamic = ::testing::Combine(
@@ -192,7 +192,7 @@ const auto testCase_yolov3_mxnet_dynamic = ::testing::Combine(
         ::testing::ValuesIn(inpOutPrc),
         ::testing::ValuesIn(inpOutPrc),
         ::testing::Values(additional_config),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU)
+        ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 const regionYoloAttributes yoloV2caffeAttr = {20, 4, 5, true, 1, 3};
@@ -204,7 +204,7 @@ const auto testCase_yolov2_caffe = ::testing::Combine(
         ::testing::ValuesIn(inpOutPrc),
         ::testing::ValuesIn(inpOutPrc),
         ::testing::Values(additional_config),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU)
+        ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 const auto testCase_yolov2_caffe_dynamic = ::testing::Combine(
@@ -214,7 +214,7 @@ const auto testCase_yolov2_caffe_dynamic = ::testing::Combine(
         ::testing::ValuesIn(inpOutPrc),
         ::testing::ValuesIn(inpOutPrc),
         ::testing::Values(additional_config),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU)
+        ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 INSTANTIATE_TEST_SUITE_P(smoke_TestsRegionYolov3CPUStatic, RegionYoloCPULayerTest, testCase_yolov3, RegionYoloCPULayerTest::getTestCaseName);

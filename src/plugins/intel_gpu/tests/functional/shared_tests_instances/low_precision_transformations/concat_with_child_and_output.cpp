@@ -46,7 +46,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, ConcatWithChildAndOutputTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(ngraph::PartialShape({ 1, 6, 10, 10 })),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU),
+        ::testing::Values(ov::test::utils::DEVICE_GPU),
         ::testing::ValuesIn(testValues),
         ::testing::ValuesIn(trasformationParamValues)),
     ConcatWithChildAndOutputTransformation::getTestCaseName);

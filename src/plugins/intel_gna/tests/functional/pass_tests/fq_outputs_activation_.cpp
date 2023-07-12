@@ -129,7 +129,7 @@ const std::vector<size_t> outputCount = {1, 2, 4};
 INSTANTIATE_TEST_SUITE_P(smoke_fq_activation,
                          FQOutputsActivation,
                          ::testing::Combine(::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs),
                                             ::testing::ValuesIn(inputShape),
                                             ::testing::ValuesIn(inputMinMax),

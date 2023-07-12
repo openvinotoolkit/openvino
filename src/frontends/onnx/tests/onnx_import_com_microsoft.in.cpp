@@ -28,7 +28,7 @@ static std::string s_manifest = "${MANIFEST}";
 static std::string s_device = test::backend_name_to_device("${BACKEND_NAME}");
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_bias_gelu) {
-    const auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    const auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                                               SERIALIZED_ZOO,
                                                                               "onnx/com.microsoft/bias_gelu.onnx"));
 
@@ -59,7 +59,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_bias_gelu) {
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_skip_layer_normalization_with_gamma_beta_bias) {
     const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        file_util::path_join(ov::test::utils::getExecutableDirectory(),
                              SERIALIZED_ZOO,
                              "onnx/com.microsoft/skip_layer_normalization_with_gamma_beta_bias.onnx"));
 
@@ -87,7 +87,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_skip_layer_normalization_with_gamma_be
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_skip_layer_normalization_with_gamma_beta) {
     const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        file_util::path_join(ov::test::utils::getExecutableDirectory(),
                              SERIALIZED_ZOO,
                              "onnx/com.microsoft/skip_layer_normalization_with_gamma_beta.onnx"));
 
@@ -115,7 +115,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_skip_layer_normalization_with_gamma_be
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_skip_layer_normalization_with_gamma) {
     const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        file_util::path_join(ov::test::utils::getExecutableDirectory(),
                              SERIALIZED_ZOO,
                              "onnx/com.microsoft/skip_layer_normalization_with_gamma.onnx"));
 
@@ -143,7 +143,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_skip_layer_normalization_with_gamma) {
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_skip_layer_normalization_dynamic_shapes) {
     const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        file_util::path_join(ov::test::utils::getExecutableDirectory(),
                              SERIALIZED_ZOO,
                              "onnx/com.microsoft/skip_layer_normalization_dynamic_shapes.onnx"));
 
@@ -193,7 +193,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_skip_layer_normalization_dynamic_shape
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_embed_layer_normalization) {
     const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
                                                             "onnx/com.microsoft/embed_layer_normalization.onnx"));
 
@@ -226,7 +226,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_embed_layer_normalization) {
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_embed_layer_normalization_with_segment_embedding) {
     const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        file_util::path_join(ov::test::utils::getExecutableDirectory(),
                              SERIALIZED_ZOO,
                              "onnx/com.microsoft/embed_layer_normalization_with_segment_embedding.onnx"));
 
@@ -270,7 +270,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_embed_layer_normalization_with_segment
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_embed_layer_normalization_with_segment_embedding_and_mask) {
     const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        file_util::path_join(ov::test::utils::getExecutableDirectory(),
                              SERIALIZED_ZOO,
                              "onnx/com.microsoft/embed_layer_normalization_with_segment_embedding_and_mask.onnx"));
 
@@ -317,7 +317,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_embed_layer_normalization_with_segment
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_embed_layer_normalization_dynamic_shapes) {
     const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        file_util::path_join(ov::test::utils::getExecutableDirectory(),
                              SERIALIZED_ZOO,
                              "onnx/com.microsoft/embed_layer_normalization_dynamic_shapes.onnx"));
 
@@ -416,7 +416,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_embed_layer_normalization_dynamic_shap
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_embed_layer_normalization_diff_seq_len_pos_embed_len) {
     const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        file_util::path_join(ov::test::utils::getExecutableDirectory(),
                              SERIALIZED_ZOO,
                              "onnx/com.microsoft/embed_layer_normalization_dynamic_shapes.onnx"));
 
@@ -516,7 +516,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_embed_layer_normalization_diff_seq_len
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_embed_layer_normalization_with_position_ids) {
     const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        file_util::path_join(ov::test::utils::getExecutableDirectory(),
                              SERIALIZED_ZOO,
                              "onnx/com.microsoft/embed_layer_normalization_dynamic_shapes_with_position_ids.onnx"));
 
@@ -619,7 +619,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_embed_layer_normalization_with_positio
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention) {
-    const auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    const auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                                               SERIALIZED_ZOO,
                                                                               "onnx/com.microsoft/attention.onnx"));
     auto test_case = test::TestCase(function, s_device);
@@ -643,7 +643,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention) {
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention_qkv_hidden_sizes) {
     const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
                                                             "onnx/com.microsoft/attention_qkv_hidden_sizes.onnx"));
     auto test_case = test::TestCase(function, s_device);
@@ -671,7 +671,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention_qkv_hidden_sizes) {
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention_unidirectional) {
     const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
                                                             "onnx/com.microsoft/attention_unidirectional.onnx"));
     auto test_case = test::TestCase(function, s_device);
@@ -706,7 +706,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention_unidirectional) {
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention_mask_index_1f) {
     const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
                                                             "onnx/com.microsoft/attention_mask_index_1.onnx"));
     auto test_case = test::TestCase(function, s_device);
@@ -746,7 +746,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention_mask_index_1f) {
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention_mask_index_2) {
     const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
                                                             "onnx/com.microsoft/attention_mask_index_2.onnx"));
     auto test_case = test::TestCase(function, s_device);
@@ -788,7 +788,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention_mask_index_2) {
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention_mask_index_3) {
     const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
                                                             "onnx/com.microsoft/attention_mask_index_3.onnx"));
     auto test_case = test::TestCase(function, s_device);
@@ -834,7 +834,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention_mask_index_3) {
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention_mask_index_4) {
     const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
                                                             "onnx/com.microsoft/attention_mask_index_4.onnx"));
     auto test_case = test::TestCase(function, s_device);
@@ -873,7 +873,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention_mask_index_4) {
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention_past) {
     const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
                                                             "onnx/com.microsoft/attention_past.onnx"));
     auto test_case = test::TestCase(function, s_device);
@@ -952,7 +952,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention_past) {
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention_extra_add) {
     const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
                                                             "onnx/com.microsoft/attention_extra_add.onnx"));
     auto test_case = test::TestCase(function, s_device);
@@ -1009,7 +1009,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention_extra_add) {
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention_dynamic_shapes) {
     const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
                                                             "onnx/com.microsoft/attention_dynamic_shapes.onnx"));
     auto test_case = test::TestCase(function, s_device);
@@ -1110,7 +1110,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention_dynamic_shapes) {
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_fusedgemm_abc) {
-    const auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    const auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                                               SERIALIZED_ZOO,
                                                                               "onnx/com.microsoft/fusedgemm.onnx"));
     auto test_case = test::TestCase(function, s_device);
@@ -1182,7 +1182,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_fusedgemm_abc) {
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_fused_conv_hard_sigmoid) {
     const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
                                                             "onnx/com.microsoft/fused_conv_hard_sigmoid.onnx"));
     auto test_case = test::TestCase(function, s_device);
@@ -1199,7 +1199,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_fused_conv_hard_sigmoid) {
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_fused_conv_relu) {
     const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
                                                             "onnx/com.microsoft/fused_conv_relu.onnx"));
     auto test_case = test::TestCase(function, s_device);
@@ -1216,7 +1216,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_fused_conv_relu) {
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_fused_conv_tanh) {
     const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
                                                             "onnx/com.microsoft/fused_conv_tanh.onnx"));
     auto test_case = test::TestCase(function, s_device);
@@ -1233,7 +1233,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_fused_conv_tanh) {
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_fused_conv_sigmoid) {
     const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
                                                             "onnx/com.microsoft/fused_conv_sigmoid.onnx"));
     auto test_case = test::TestCase(function, s_device);
@@ -1250,7 +1250,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_fused_conv_sigmoid) {
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_fused_conv_clip) {
     const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
                                                             "onnx/com.microsoft/fused_conv_clip.onnx"));
     auto test_case = test::TestCase(function, s_device);
@@ -1267,7 +1267,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_fused_conv_clip) {
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_fused_conv_leaky_relu) {
     const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
                                                             "onnx/com.microsoft/fused_conv_leaky_relu.onnx"));
     auto test_case = test::TestCase(function, s_device);
@@ -1284,7 +1284,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_fused_conv_leaky_relu) {
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_fused_conv_relu_z_input) {
     const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
                                                             "onnx/com.microsoft/fused_conv_relu_z_input.onnx"));
     auto test_case = test::TestCase(function, s_device);
@@ -1304,7 +1304,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_fused_conv_relu_z_input) {
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_trilu_lower) {
-    const auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    const auto function = onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                                               SERIALIZED_ZOO,
                                                                               "onnx/com.microsoft/trilu_lower.onnx"));
 

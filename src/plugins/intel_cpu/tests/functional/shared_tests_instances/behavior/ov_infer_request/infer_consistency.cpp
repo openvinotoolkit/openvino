@@ -17,30 +17,30 @@ namespace {
 using Configs = std::vector<std::pair<std::string, ov::AnyMap>>;
 
 std::vector<Configs> configs = {
-    {{CommonTestUtils::DEVICE_CPU, {}}, {CommonTestUtils::DEVICE_CPU, {}}}
+    {{ov::test::utils::DEVICE_CPU, {}}, {ov::test::utils::DEVICE_CPU, {}}}
 };
 
 std::vector<Configs> AutoConfigs = {
     {
         {
-            CommonTestUtils::DEVICE_AUTO + std::string(":") + CommonTestUtils::DEVICE_CPU,
+            ov::test::utils::DEVICE_AUTO + std::string(":") + ov::test::utils::DEVICE_CPU,
             {ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)}
         },
-        {CommonTestUtils::DEVICE_CPU, {}}
+        {ov::test::utils::DEVICE_CPU, {}}
     },
     {
         {
-            CommonTestUtils::DEVICE_AUTO + std::string(":") + CommonTestUtils::DEVICE_CPU,
+            ov::test::utils::DEVICE_AUTO + std::string(":") + ov::test::utils::DEVICE_CPU,
             {ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)}
         },
-        {CommonTestUtils::DEVICE_CPU, {}}
+        {ov::test::utils::DEVICE_CPU, {}}
     },
     {
         {
-            CommonTestUtils::DEVICE_AUTO + std::string(":") + CommonTestUtils::DEVICE_CPU,
+            ov::test::utils::DEVICE_AUTO + std::string(":") + ov::test::utils::DEVICE_CPU,
             {ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT)}
         },
-        {CommonTestUtils::DEVICE_CPU, {}}
+        {ov::test::utils::DEVICE_CPU, {}}
     }
 };
 

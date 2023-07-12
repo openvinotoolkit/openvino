@@ -55,9 +55,9 @@ void ConvolutionLayerTest::SetUp() {
     auto paramOuts = ngraph::helpers::convert2OutputVector(
             ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
     std::vector<float> filter_weights;
-    if (targetDevice == CommonTestUtils::DEVICE_GNA) {
+    if (targetDevice == ov::test::utils::DEVICE_GNA) {
         auto filter_size = std::accumulate(std::begin(kernel), std::end(kernel), 1, std::multiplies<size_t>());
-        filter_weights = CommonTestUtils::generate_float_numbers(convOutChannels * inputShape[1] * filter_size,
+        filter_weights = ov::test::utils::generate_float_numbers(convOutChannels * inputShape[1] * filter_size,
                                                                  -0.1f, 0.1f);
     }
     auto conv = std::dynamic_pointer_cast<ngraph::opset1::Convolution>(

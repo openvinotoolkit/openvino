@@ -7,7 +7,7 @@
 
 namespace SubgraphTestsDefinitions {
 
-using namespace CommonTestUtils;
+using namespace ov::test::utils;
 using namespace InferenceEngine;
 
 std::string ActivationConcatsEltwise::getTestCaseName(const testing::TestParamInfo<ParamType>& obj) {
@@ -42,8 +42,8 @@ void ActivationConcatsEltwise::SetUp() {
 
     auto relu = ngraph::builder::makeActivation(input[0], ngPrc, ngraph::helpers::ActivationTypes::Relu);
 
-    auto concat_vals_1 = CommonTestUtils::generate_float_numbers(concatSize, 14, 14);
-    auto concat_vals_2 = CommonTestUtils::generate_float_numbers(concatSize, 14, 14);
+    auto concat_vals_1 = ov::test::utils::generate_float_numbers(concatSize, 14, 14);
+    auto concat_vals_2 = ov::test::utils::generate_float_numbers(concatSize, 14, 14);
     auto concat_const_1 = ngraph::builder::makeConstant(ngPrc, {1, concatSize}, concat_vals_1);
     auto concat_const_2 = ngraph::builder::makeConstant(ngPrc, {1, concatSize}, concat_vals_2);
 

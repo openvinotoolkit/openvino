@@ -41,7 +41,7 @@ const auto batch_to_space_2d_tests = ::testing::Combine(
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(InferenceEngine::Layout::ANY),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU));
+        ::testing::Values(ov::test::utils::DEVICE_CPU));
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_BatchToSpace_2D,
@@ -82,7 +82,7 @@ const auto batch_to_space_4d_spatial_dims_tests = ::testing::Combine(
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(InferenceEngine::Layout::ANY),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU));
+        ::testing::Values(ov::test::utils::DEVICE_CPU));
 
 const auto batch_to_space_4d_channel_dim_tests = ::testing::Combine(
         ::testing::Values(block_shapes_4D[1]),
@@ -94,7 +94,7 @@ const auto batch_to_space_4d_channel_dim_tests = ::testing::Combine(
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(InferenceEngine::Layout::ANY),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU));
+        ::testing::Values(ov::test::utils::DEVICE_CPU));
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_BatchToSpace_4D_spatial_dims,
@@ -139,7 +139,7 @@ const auto batch_to_space_5d_spatial_dims_tests = ::testing::Combine(
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(InferenceEngine::Layout::ANY),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU));
+        ::testing::Values(ov::test::utils::DEVICE_CPU));
 
 const auto batch_to_space_5d_channel_dim_tests = ::testing::Combine(
         ::testing::Values(block_shapes_5D[1]),
@@ -151,7 +151,7 @@ const auto batch_to_space_5d_channel_dim_tests = ::testing::Combine(
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(InferenceEngine::Layout::ANY),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU));
+        ::testing::Values(ov::test::utils::DEVICE_CPU));
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_BatchToSpace_5D_spatial_dims,

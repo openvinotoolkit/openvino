@@ -54,7 +54,7 @@ void make_config(StreamGenerateionTestCase& test_data, ov::intel_cpu::Config& co
     config.streamExecutorConfig._threadBindingType = test_data.input_binding_type;
 }
 
-class StreamGenerationTests : public CommonTestUtils::TestsCommon,
+class StreamGenerationTests : public ov::test::TestsCommon,
                               public testing::WithParamInterface<std::tuple<StreamGenerateionTestCase>> {
 public:
     void SetUp() override {

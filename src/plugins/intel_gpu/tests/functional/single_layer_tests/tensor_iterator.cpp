@@ -289,8 +289,8 @@ namespace {
                 InferenceEngine::Precision::FP16,
             }), // precision
             ::testing::ValuesIn(std::vector<Config> {
-                {CommonTestUtils::DEVICE_GPU, {{GPUConfigParams::KEY_GPU_ENABLE_LOOP_UNROLLING, PluginConfigParams::YES}}},
-                {CommonTestUtils::DEVICE_GPU, {{GPUConfigParams::KEY_GPU_ENABLE_LOOP_UNROLLING, PluginConfigParams::NO}}}
+                {ov::test::utils::DEVICE_GPU, {{GPUConfigParams::KEY_GPU_ENABLE_LOOP_UNROLLING, PluginConfigParams::YES}}},
+                {ov::test::utils::DEVICE_GPU, {{GPUConfigParams::KEY_GPU_ENABLE_LOOP_UNROLLING, PluginConfigParams::NO}}}
             })), // configuration
         TensorIteratorWithConfigTest::getTestCaseName);
 }  // namespace

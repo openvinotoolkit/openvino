@@ -78,7 +78,7 @@ public:
     }
 protected:
     void SetUp() override {
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
 
         InputShape inputShape;
         std::pair<ngraph::helpers::InputLayerType, bool> inputType;

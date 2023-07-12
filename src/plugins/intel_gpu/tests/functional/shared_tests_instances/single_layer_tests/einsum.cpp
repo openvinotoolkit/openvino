@@ -34,7 +34,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Einsum,
                          EinsumLayerTest,
                          ::testing::Combine(::testing::ValuesIn(precisions),
                                             ::testing::ValuesIn(equationsWithInput),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          EinsumLayerTest::getTestCaseName);
 
 }  // namespace

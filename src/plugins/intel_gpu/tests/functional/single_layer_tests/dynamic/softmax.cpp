@@ -41,7 +41,7 @@ public:
     }
 protected:
     void SetUp() override {
-        targetDevice = CommonTestUtils::DEVICE_GPU;
+        targetDevice = ov::test::utils::DEVICE_GPU;
         ElementType inType;
         ov::test::InputShape inShape;
         int64_t axis;

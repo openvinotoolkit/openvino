@@ -89,7 +89,7 @@ protected:
     }
 
     void SetUp() override {
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         selectedType = "ref_any_I8";
 
         std::vector<InputShape> inputShapes;

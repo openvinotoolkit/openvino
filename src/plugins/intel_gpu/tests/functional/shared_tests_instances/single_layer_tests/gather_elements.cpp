@@ -31,7 +31,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_set1, GatherElementsLayerTest,
         ::testing::ValuesIn(std::vector<int>({-1, 0, 1})),
         ::testing::ValuesIn(inputPrecisions),
         ::testing::ValuesIn(idxPrecisions),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+        ::testing::Values(ov::test::utils::DEVICE_GPU)),
     GatherElementsLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_set2, GatherElementsLayerTest,
@@ -41,7 +41,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_set2, GatherElementsLayerTest,
         ::testing::ValuesIn(std::vector<int>({0, -3})),
         ::testing::ValuesIn(inputPrecisions),
         ::testing::ValuesIn(idxPrecisions),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+        ::testing::Values(ov::test::utils::DEVICE_GPU)),
     GatherElementsLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_set3, GatherElementsLayerTest,
@@ -51,7 +51,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_set3, GatherElementsLayerTest,
         ::testing::Values(3, -1),
         ::testing::ValuesIn(inputPrecisions),
         ::testing::ValuesIn(idxPrecisions),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+        ::testing::Values(ov::test::utils::DEVICE_GPU)),
     GatherElementsLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_set4, GatherElementsLayerTest,
@@ -61,7 +61,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_set4, GatherElementsLayerTest,
         ::testing::Values(0, -4),
         ::testing::ValuesIn(inputPrecisions),
         ::testing::ValuesIn(idxPrecisions),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+        ::testing::Values(ov::test::utils::DEVICE_GPU)),
     GatherElementsLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_set5, GatherElementsLayerTest,
@@ -71,7 +71,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_set5, GatherElementsLayerTest,
         ::testing::Values(3, -2),
         ::testing::ValuesIn(inputPrecisions),
         ::testing::ValuesIn(idxPrecisions),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+        ::testing::Values(ov::test::utils::DEVICE_GPU)),
     GatherElementsLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_GatherElements_rank4axis0, GatherElementsLayerTest,
@@ -81,7 +81,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatherElements_rank4axis0, GatherElementsLayerTes
         ::testing::Values(0),
         ::testing::ValuesIn(inputPrecisions),
         ::testing::ValuesIn(idxPrecisions),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+        ::testing::Values(ov::test::utils::DEVICE_GPU)),
     GatherElementsLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_GatherElements_rank4axis1, GatherElementsLayerTest,
@@ -91,7 +91,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatherElements_rank4axis1, GatherElementsLayerTes
         ::testing::Values(1, -3),
         ::testing::ValuesIn(inputPrecisions),
         ::testing::ValuesIn(idxPrecisions),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+        ::testing::Values(ov::test::utils::DEVICE_GPU)),
     GatherElementsLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_GatherElements_rank4axis2, GatherElementsLayerTest,
@@ -101,7 +101,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatherElements_rank4axis2, GatherElementsLayerTes
         ::testing::Values(2, -2),
         ::testing::ValuesIn(inputPrecisions),
         ::testing::ValuesIn(idxPrecisions),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+        ::testing::Values(ov::test::utils::DEVICE_GPU)),
     GatherElementsLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_GatherElements_rank4axis3, GatherElementsLayerTest,
@@ -111,7 +111,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatherElements_rank4axis3, GatherElementsLayerTes
         ::testing::Values(3, -1),
         ::testing::ValuesIn(inputPrecisions),
         ::testing::ValuesIn(idxPrecisions),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+        ::testing::Values(ov::test::utils::DEVICE_GPU)),
     GatherElementsLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_GatherElements_rank5axis0, GatherElementsLayerTest,
@@ -121,7 +121,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatherElements_rank5axis0, GatherElementsLayerTes
         ::testing::Values(0),
         ::testing::ValuesIn(inputPrecisions),
         ::testing::ValuesIn(idxPrecisions),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+        ::testing::Values(ov::test::utils::DEVICE_GPU)),
     GatherElementsLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_GatherElements_rank5axis1, GatherElementsLayerTest,
@@ -131,7 +131,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatherElements_rank5axis1, GatherElementsLayerTes
         ::testing::Values(1, -4),
         ::testing::ValuesIn(inputPrecisions),
         ::testing::ValuesIn(idxPrecisions),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+        ::testing::Values(ov::test::utils::DEVICE_GPU)),
     GatherElementsLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_GatherElements_rank5axis2, GatherElementsLayerTest,
@@ -141,7 +141,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatherElements_rank5axis2, GatherElementsLayerTes
         ::testing::Values(2, -3),
         ::testing::ValuesIn(inputPrecisions),
         ::testing::ValuesIn(idxPrecisions),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+        ::testing::Values(ov::test::utils::DEVICE_GPU)),
     GatherElementsLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_GatherElements_rank5axis3, GatherElementsLayerTest,
@@ -151,7 +151,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatherElements_rank5axis3, GatherElementsLayerTes
         ::testing::Values(3, -2),
         ::testing::ValuesIn(inputPrecisions),
         ::testing::ValuesIn(idxPrecisions),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+        ::testing::Values(ov::test::utils::DEVICE_GPU)),
     GatherElementsLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_GatherElements_rank5axis4, GatherElementsLayerTest,
@@ -161,7 +161,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatherElements_rank5axis4, GatherElementsLayerTes
         ::testing::Values(4, -1),
         ::testing::ValuesIn(inputPrecisions),
         ::testing::ValuesIn(idxPrecisions),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+        ::testing::Values(ov::test::utils::DEVICE_GPU)),
     GatherElementsLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_GatherElements_rank6axis0, GatherElementsLayerTest,
@@ -171,7 +171,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatherElements_rank6axis0, GatherElementsLayerTes
         ::testing::Values(0),
         ::testing::ValuesIn(inputPrecisions),
         ::testing::ValuesIn(idxPrecisions),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+        ::testing::Values(ov::test::utils::DEVICE_GPU)),
     GatherElementsLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_GatherElements_rank6axis1, GatherElementsLayerTest,
@@ -181,7 +181,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatherElements_rank6axis1, GatherElementsLayerTes
         ::testing::Values(1, -5),
         ::testing::ValuesIn(inputPrecisions),
         ::testing::ValuesIn(idxPrecisions),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+        ::testing::Values(ov::test::utils::DEVICE_GPU)),
     GatherElementsLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_GatherElements_rank6axis2, GatherElementsLayerTest,
@@ -191,7 +191,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatherElements_rank6axis2, GatherElementsLayerTes
         ::testing::Values(2, -4),
         ::testing::ValuesIn(inputPrecisions),
         ::testing::ValuesIn(idxPrecisions),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+        ::testing::Values(ov::test::utils::DEVICE_GPU)),
     GatherElementsLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_GatherElements_rank6axis3, GatherElementsLayerTest,
@@ -201,7 +201,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatherElements_rank6axis3, GatherElementsLayerTes
         ::testing::Values(3, -3),
         ::testing::ValuesIn(inputPrecisions),
         ::testing::ValuesIn(idxPrecisions),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+        ::testing::Values(ov::test::utils::DEVICE_GPU)),
     GatherElementsLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_GatherElements_rank6axis4, GatherElementsLayerTest,
@@ -211,7 +211,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatherElements_rank6axis4, GatherElementsLayerTes
         ::testing::Values(4, -2),
         ::testing::ValuesIn(inputPrecisions),
         ::testing::ValuesIn(idxPrecisions),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+        ::testing::Values(ov::test::utils::DEVICE_GPU)),
     GatherElementsLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_GatherElements_rank6axis5, GatherElementsLayerTest,
@@ -221,7 +221,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatherElements_rank6axis5, GatherElementsLayerTes
         ::testing::Values(5, -1),
         ::testing::ValuesIn(inputPrecisions),
         ::testing::ValuesIn(idxPrecisions),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+        ::testing::Values(ov::test::utils::DEVICE_GPU)),
     GatherElementsLayerTest::getTestCaseName);
 
 }  // namespace

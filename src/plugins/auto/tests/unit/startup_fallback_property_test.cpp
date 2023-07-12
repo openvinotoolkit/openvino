@@ -35,7 +35,7 @@ public:
         ON_CALL(*core, compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
             ::testing::Matcher<const std::string&>(_), _))
             .WillByDefault(Return(mockExeNetwork));
-        metaDevices = {{CommonTestUtils::DEVICE_CPU, {}, -1}, {CommonTestUtils::DEVICE_GPU, {}, -1}};
+        metaDevices = {{ov::test::utils::DEVICE_CPU, {}, -1}, {ov::test::utils::DEVICE_GPU, {}, -1}};
         ON_CALL(*plugin, parse_meta_devices(_, _)).WillByDefault(Return(metaDevices));
         ON_CALL(*plugin, get_valid_device)
         .WillByDefault([](const std::vector<DeviceInformation>& metaDevices, const std::string& netPrecision) {
@@ -55,14 +55,14 @@ TEST_P(AutoStartupFallback, propertytest) {
     EXPECT_CALL(
         *core,
         compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
-            ::testing::Matcher<const std::string&>(CommonTestUtils::DEVICE_GPU), _))
+            ::testing::Matcher<const std::string&>(ov::test::utils::DEVICE_GPU), _))
         .Times(1);
     if (startup_fallback) {
         std::map<std::string, std::string> test_map = {{"PERFORMANCE_HINT", "LATENCY"}};
         EXPECT_CALL(
             *core,
             compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
-            ::testing::Matcher<const std::string&>(CommonTestUtils::DEVICE_CPU),
+            ::testing::Matcher<const std::string&>(ov::test::utils::DEVICE_CPU),
             ::testing::Matcher<const ov::AnyMap&>(MapContains(test_map))))
             .Times(1);
     }

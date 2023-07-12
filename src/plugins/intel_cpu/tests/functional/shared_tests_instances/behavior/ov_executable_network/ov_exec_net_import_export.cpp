@@ -24,16 +24,16 @@ const std::vector<ov::AnyMap> configs = {
         {},
 };
 const std::vector<ov::AnyMap> multiConfigs = {
-        {ov::device::priorities(CommonTestUtils::DEVICE_CPU)}};
+        {ov::device::priorities(ov::test::utils::DEVICE_CPU)}};
 
 const std::vector<ov::AnyMap> heteroConfigs = {
-        {ov::device::priorities(CommonTestUtils::DEVICE_CPU)}};
+        {ov::device::priorities(ov::test::utils::DEVICE_CPU)}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          OVCompiledGraphImportExportTest,
                          ::testing::Combine(
                                  ::testing::ValuesIn(netPrecisions),
-                                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                 ::testing::Values(ov::test::utils::DEVICE_CPU),
                                  ::testing::ValuesIn(configs)),
                          OVCompiledGraphImportExportTest::getTestCaseName);
 
@@ -41,14 +41,14 @@ INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests,
          OVCompiledGraphImportExportTest,
         ::testing::Combine(
                 ::testing::ValuesIn(netPrecisions),
-                ::testing::Values(CommonTestUtils::DEVICE_AUTO),
+                ::testing::Values(ov::test::utils::DEVICE_AUTO),
                 ::testing::ValuesIn(multiConfigs)),
         OVCompiledGraphImportExportTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests,
          OVCompiledGraphImportExportTest,
         ::testing::Combine(::testing::ValuesIn(netPrecisions),
-                           ::testing::Values(CommonTestUtils::DEVICE_HETERO),
+                           ::testing::Values(ov::test::utils::DEVICE_HETERO),
                            ::testing::ValuesIn(heteroConfigs)),
         OVCompiledGraphImportExportTest::getTestCaseName);
 

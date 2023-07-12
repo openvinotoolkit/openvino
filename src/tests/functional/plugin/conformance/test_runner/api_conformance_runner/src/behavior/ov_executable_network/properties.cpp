@@ -25,8 +25,8 @@ INSTANTIATE_TEST_SUITE_P(ov_compiled_model_mandatory, OVClassCompiledModelProper
 
 INSTANTIATE_TEST_SUITE_P(ov_compiled_model_AutoBatch, OVClassCompiledModelPropertiesIncorrectTests,
                          ::testing::Combine(
-                                 ::testing::Values(CommonTestUtils::DEVICE_BATCH),
-                                 ::testing::ValuesIn(generate_ov_configs(CommonTestUtils::DEVICE_BATCH, auto_batch_inproperties))),
+                                 ::testing::Values(ov::test::utils::DEVICE_BATCH),
+                                 ::testing::ValuesIn(generate_ov_configs(ov::test::utils::DEVICE_BATCH, auto_batch_inproperties))),
                          OVClassCompiledModelPropertiesIncorrectTests::getTestCaseName);
 
 
@@ -57,8 +57,8 @@ INSTANTIATE_TEST_SUITE_P(ov_compiled_model_mandatory, OVClassCompiledModelProper
 
 INSTANTIATE_TEST_SUITE_P(ov_compiled_model_AutoBatch, OVClassCompiledModelPropertiesTests,
         ::testing::Combine(
-                ::testing::Values(CommonTestUtils::DEVICE_BATCH),
-                ::testing::ValuesIn(ov::test::conformance::generate_ov_configs(CommonTestUtils::DEVICE_BATCH, auto_batch_properties))),
+                ::testing::Values(ov::test::utils::DEVICE_BATCH),
+                ::testing::ValuesIn(ov::test::conformance::generate_ov_configs(ov::test::utils::DEVICE_BATCH, auto_batch_properties))),
         OVClassCompiledModelPropertiesTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(

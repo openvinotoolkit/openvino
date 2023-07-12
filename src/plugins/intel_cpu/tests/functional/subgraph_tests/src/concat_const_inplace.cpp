@@ -36,7 +36,7 @@ public:
     }
 
     void SetUp() override {
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         if (Precision::BF16 == (inPrc = outPrc = this->GetParam()))
             configuration.insert({ PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::YES });
         else

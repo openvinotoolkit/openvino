@@ -69,7 +69,7 @@ public:
 
         ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(Relu3)};
         function = std::make_shared<ngraph::Function>(results, inputParams, "ConcatConvSumInPlace");
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
     }
 };
 

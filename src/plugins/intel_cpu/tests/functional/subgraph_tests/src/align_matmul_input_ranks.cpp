@@ -38,7 +38,7 @@ public:
 
 protected:
     void SetUp() override {
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         std::pair<SizeVector, SizeVector> inShapes;
         fusingSpecificParams fusingParams;
         std::tie(inShapes, fusingParams) = this->GetParam();

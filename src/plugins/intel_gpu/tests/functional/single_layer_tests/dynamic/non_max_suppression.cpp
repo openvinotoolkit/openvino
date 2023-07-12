@@ -436,7 +436,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Nms_dynamic, NmsLayerGPUTest,
         ::testing::ValuesIn(encodType),
         ::testing::ValuesIn(sortResDesc),
         ::testing::ValuesIn(outType),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU),
+        ::testing::Values(ov::test::utils::DEVICE_GPU),
         ::testing::Values(emptyAdditionalConfig)),
     NmsLayerGPUTest::getTestCaseName);
 

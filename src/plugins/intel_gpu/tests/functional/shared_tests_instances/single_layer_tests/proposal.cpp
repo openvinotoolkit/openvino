@@ -42,7 +42,7 @@ const auto proposalParams = ::testing::Combine(
 INSTANTIATE_TEST_SUITE_P(smoke_Proposal_tests, ProposalLayerTest,
                         ::testing::Combine(
                                 proposalParams,
-                                ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_GPU)),
                         ProposalLayerTest::getTestCaseName
 );
 

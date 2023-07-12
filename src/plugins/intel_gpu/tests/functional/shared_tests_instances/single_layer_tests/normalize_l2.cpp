@@ -32,6 +32,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_NormalizeL2,
                                           testing::ValuesIn(epsMode),
                                           testing::Values(std::vector<size_t>{1, 3, 10, 5}),
                                           testing::ValuesIn(netPrecisions),
-                                          testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                          testing::Values(ov::test::utils::DEVICE_GPU)),
                          NormalizeL2LayerTest::getTestCaseName);
 }  // namespace

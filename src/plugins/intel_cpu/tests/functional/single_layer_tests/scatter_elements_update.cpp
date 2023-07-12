@@ -93,7 +93,7 @@ protected:
     }
 
     void SetUp() override {
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         ScatterElementsUpdateLayerParams scatterParams;
         std::int64_t axis;
         ElementType inputPrecision;

@@ -34,7 +34,7 @@ public:
         uint32_t input_range;
         std::tie(precisionIn, precisionOut, shape, orientation, sf, test_avx2, input_range) = GetParam();
         inputValues.resize(ov::shape_size(shape));
-        CommonTestUtils::fill_data_random(&inputValues[0], ov::shape_size(shape), input_range);
+        ov::test::utils::fill_data_random(&inputValues[0], ov::shape_size(shape), input_range);
 
         std::transform(begin(inputValues), end(inputValues), std::back_inserter(referenceValues), [this](U i) {
             return static_cast<T>(i / sf);

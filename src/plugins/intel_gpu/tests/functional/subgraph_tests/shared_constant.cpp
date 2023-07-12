@@ -13,7 +13,7 @@ using namespace ngraph;
 class SharedConstant : virtual public LayerTestsUtils::LayerTestsCommon {
 protected:
     void SetUp() override {
-        targetDevice = CommonTestUtils::DEVICE_GPU;
+        targetDevice = ov::test::utils::DEVICE_GPU;
         auto type = element::f32;
         Shape constShape{4, 1, 3, 3};
         Shape convInputShape{1, 1, 5, 5};

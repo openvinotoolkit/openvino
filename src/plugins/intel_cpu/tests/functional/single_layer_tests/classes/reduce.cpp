@@ -22,7 +22,7 @@ std::string ReduceCPULayerTest::getTestCaseName(testing::TestParamInfo<ReduceLay
     std::tie(basicParams, cpuParams, fusingParams, additionalConfig) = obj.param;
 
     std::vector<int> axes;
-    CommonTestUtils::OpType opType;
+    ov::test::utils::OpType opType;
     bool keepDims;
     ngraph::helpers::ReductionType reductionType;
     ElementType netPrecision, inPrc, outPrc;
@@ -66,7 +66,7 @@ std::string ReduceCPULayerTest::getTestCaseName(testing::TestParamInfo<ReduceLay
 }
 
 void ReduceCPULayerTest::SetUp() {
-    targetDevice = CommonTestUtils::DEVICE_CPU;
+    targetDevice = ov::test::utils::DEVICE_CPU;
 
     basicReduceParams basicParams;
     CPUSpecificParams cpuParams;
@@ -78,7 +78,7 @@ void ReduceCPULayerTest::SetUp() {
     std::tie(postOpMgrPtr, fusedOps) = fusingParams;
 
     std::vector<int> axes;
-    CommonTestUtils::OpType opType;
+    ov::test::utils::OpType opType;
     bool keepDims;
     ElementType inPrc, outPrc;
     std::vector<InputShape> inputShapes;
@@ -105,11 +105,11 @@ void ReduceCPULayerTest::SetUp() {
 
     std::vector<size_t> shapeAxes;
     switch (opType) {
-    case CommonTestUtils::OpType::SCALAR:
+    case ov::test::utils::OpType::SCALAR:
         if (axes.size() > 1)
             FAIL() << "In reduce op if op type is scalar, 'axis' input's must contain 1 element";
         break;
-    case CommonTestUtils::OpType::VECTOR:
+    case ov::test::utils::OpType::VECTOR:
         shapeAxes.push_back(axes.size());
         break;
     default:
@@ -225,10 +225,10 @@ const std::vector<std::vector<int>>& axesND() {
     return axesND;
 }
 
-const std::vector<CommonTestUtils::OpType>& opTypes() {
-    static const std::vector<CommonTestUtils::OpType> opTypes = {
-            CommonTestUtils::OpType::SCALAR,
-            CommonTestUtils::OpType::VECTOR,
+const std::vector<ov::test::utils::OpType>& opTypes() {
+    static const std::vector<ov::test::utils::OpType> opTypes = {
+            ov::test::utils::OpType::SCALAR,
+            ov::test::utils::OpType::VECTOR,
     };
     return opTypes;
 }

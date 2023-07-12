@@ -75,7 +75,7 @@ protected:
         std::tie(Shapes, netPrecision, isIndicesConstant, isAxisConstant) = this->GetParam();
         const int axis = Shapes.axis;
         const int batchDims = Shapes.batch_dims;
-        targetDevice = CommonTestUtils::DEVICE_GPU;
+        targetDevice = ov::test::utils::DEVICE_GPU;
         std::shared_ptr<ov::Node> indicesNode;
         std::shared_ptr<ov::Node> gatherNode;
         std::shared_ptr<ov::Node> axisNode;
