@@ -713,7 +713,7 @@ class TestMoConvertTF(CommonMOConvertTest):
 
     def test_memory_loss(self, ie_device, precision, ir_version, temp_dir):
         # This test checks that the memory allocated for constants
-        # is not lost after returning the model from convert_model() methid
+        # is not lost after returning the model from convert_model() method.
         import tensorflow as tf
         tf.compat.v1.reset_default_graph()
 
@@ -751,7 +751,8 @@ class TestMoConvertTF(CommonMOConvertTest):
         assert CommonLayerTest().compare_ie_results_with_framework(ov_infer1, {"add:0": fw_infer1}, eps)
         assert CommonLayerTest().compare_ie_results_with_framework(ov_infer1, {"add:0": [2.6, 9.6, 12.4]}, eps)
 
-        # run Garbage collector
+        # run Garbage collector to ensure, that values from tf.constant are copied to ov.Const and
+        # we do not lose allocated memory.
         gc.collect()
 
         # Check model inference
