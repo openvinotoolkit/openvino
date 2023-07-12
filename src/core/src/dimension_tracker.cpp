@@ -6,7 +6,8 @@
 
 void ov::TableOfEquivalence::set_as_equal(const ov::Dimension& lhs, const ov::Dimension& rhs) {
     const auto &l_label = ov::DimensionTracker::get_label(lhs), r_label = ov::DimensionTracker::get_label(rhs);
-    bool l_known = dimension_table_of_equivalence.count(l_label), r_known = dimension_table_of_equivalence.count(r_label);
+    bool l_known = dimension_table_of_equivalence.count(l_label),
+         r_known = dimension_table_of_equivalence.count(r_label);
     if (l_known && r_known) {
         auto soup_l = dimension_table_of_equivalence[l_label];
         soup_l->insert(r_label);
@@ -35,8 +36,8 @@ ov::label_t ov::TableOfEquivalence::get_next_label() {
     return current_label++;
 }
 
-bool ov::TableOfEquivalence::are_equal(const ov::Dimension &lhs, const ov::Dimension &rhs) {
-    const auto& l_label = ov::DimensionTracker::get_label(lhs), r_label = ov::DimensionTracker::get_label(rhs);
+bool ov::TableOfEquivalence::are_equal(const ov::Dimension& lhs, const ov::Dimension& rhs) {
+    const auto &l_label = ov::DimensionTracker::get_label(lhs), r_label = ov::DimensionTracker::get_label(rhs);
     if (dimension_table_of_equivalence.count(l_label))
         return dimension_table_of_equivalence[l_label]->count(r_label);
     return false;
