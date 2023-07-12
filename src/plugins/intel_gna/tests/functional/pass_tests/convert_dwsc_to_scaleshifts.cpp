@@ -66,15 +66,15 @@ public:
 
         std::ostringstream result;
         result << "M=" << static_cast<uint32_t>(model) << "_";
-        result << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
-        result << "K" << CommonTestUtils::vec2str(filter) << "_";
-        result << "S" << CommonTestUtils::vec2str(stride) << "_";
-        result << "PB" << CommonTestUtils::vec2str(padBegin) << "_";
-        result << "PE" << CommonTestUtils::vec2str(padEnd) << "_";
-        result << "D=" << CommonTestUtils::vec2str(dilation) << "_";
+        result << "IS=" << ov::test::utils::vec2str(inputShape) << "_";
+        result << "K" << ov::test::utils::vec2str(filter) << "_";
+        result << "S" << ov::test::utils::vec2str(stride) << "_";
+        result << "PB" << ov::test::utils::vec2str(padBegin) << "_";
+        result << "PE" << ov::test::utils::vec2str(padEnd) << "_";
+        result << "D=" << ov::test::utils::vec2str(dilation) << "_";
         result << "O=" << numOutChannels << "_";
         result << "AP=" << padType << "_";
-        result << "B=" << CommonTestUtils::vec2str(bias) << "_";
+        result << "B=" << ov::test::utils::vec2str(bias) << "_";
         result << "netPRC=" << netPrecision.name() << "_";
         result << "targetDevice=" << targetDevice << "_";
         for (auto const& configItem : configuration) {

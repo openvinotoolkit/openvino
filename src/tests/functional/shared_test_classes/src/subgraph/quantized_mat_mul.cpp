@@ -32,8 +32,8 @@ std::string QuantMatMulTest::getTestCaseName(const testing::TestParamInfo<QuantM
     std::tie(quantLevels1, inputRange1, outputRange1, quantGranularity1, fqPrec1) = quantParams1;
 
     std::ostringstream result;
-    result << "IS0=" << CommonTestUtils::vec2str(inputShape0) << "_";
-    result << "IS1=" << CommonTestUtils::vec2str(inputShape1) << "_";
+    result << "IS0=" << ov::test::utils::vec2str(inputShape0) << "_";
+    result << "IS1=" << ov::test::utils::vec2str(inputShape1) << "_";
     result << "Levels0=" << quantLevels0 << "_";
     result << "Levels1=" << quantLevels1 << "_";
     result << "inputRange0=" << inputRange0.first << "_" << inputRange0.second << "_";

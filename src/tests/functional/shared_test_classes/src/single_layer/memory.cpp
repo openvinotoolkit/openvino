@@ -27,7 +27,7 @@ namespace LayerTestsDefinitions {
         std::ostringstream result;
         result << "transformation=" << transformation << "_";
         result << "iteration_count=" << iteration_count << "_";
-        result << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
+        result << "IS=" << ov::test::utils::vec2str(inputShape) << "_";
         result << "netPRC=" << netPrecision.name() << "_";
         result << "trgDev=" << targetDevice;
         result << ")";

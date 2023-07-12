@@ -12,7 +12,9 @@
 
 using namespace InferenceEngine::details;
 
-namespace CommonTestUtils {
+namespace ov {
+namespace test {
+namespace utils {
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 
@@ -256,4 +258,6 @@ void fill_data_const(InferenceEngine::Blob::Ptr& blob, float val) {
 }
 
 OPENVINO_SUPPRESS_DEPRECATED_END
-}  // namespace CommonTestUtils
+}  // namespace utils
+}  // namespace test
+}  // namespace ov

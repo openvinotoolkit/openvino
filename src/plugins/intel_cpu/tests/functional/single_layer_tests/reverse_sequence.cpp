@@ -36,15 +36,15 @@ public:
         std::tie(batchAxisIndex, seqAxisIndex, dataInputShape, seqLengthsShape, secondaryInputType, netPrecision, targetName) = obj.param;
 
         std::ostringstream result;
-        result << "IS=" << CommonTestUtils::partialShape2str({dataInputShape.first}) << "_";
+        result << "IS=" << ov::test::utils::partialShape2str({dataInputShape.first}) << "_";
         result << "TS=";
         for (const auto& item : dataInputShape.second) {
-            result << CommonTestUtils::vec2str(item) << "_";
+            result << ov::test::utils::vec2str(item) << "_";
         }
-        result << "seqLengthsShape" << CommonTestUtils::partialShape2str({seqLengthsShape.first}) << "_";
+        result << "seqLengthsShape" << ov::test::utils::partialShape2str({seqLengthsShape.first}) << "_";
         result << "seqLengthsShapes=";
         for (const auto& item : seqLengthsShape.second) {
-            result << CommonTestUtils::vec2str(item) << "_";
+            result << ov::test::utils::vec2str(item) << "_";
         }
         result << "secondaryInputType=" << secondaryInputType << "_";
         result << "batchAxis=" << batchAxisIndex << "_";

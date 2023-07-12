@@ -18,7 +18,7 @@ std::string EinsumLayerTest::getTestCaseName(const testing::TestParamInfo<Einsum
 
     std::ostringstream result;
     result << "PRC=" << precision.name() << "_";
-    result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShapes) << "_";
     result << "Eq=" << equation << "_";
     result << "trgDev=" << targetDevice;
     return result.str();

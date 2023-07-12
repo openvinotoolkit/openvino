@@ -59,7 +59,7 @@ public:
         for (auto const& configItem : configuration) {
             result << "_configItem=" << configItem.first << ":" << configItem.second;
         }
-        result << "_inputShape=" << CommonTestUtils::vec2str(inputShape);
+        result << "_inputShape=" << ov::test::utils::vec2str(inputShape);
         result << "_fqMinMax=(" << fqMinMax.first << ".." << fqMinMax.second << ")";
         result << "_levels=" << levels;
 

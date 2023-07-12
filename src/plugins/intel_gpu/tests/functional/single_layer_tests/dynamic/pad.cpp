@@ -39,14 +39,14 @@ public:
         std::tie(shapes, elementType, padsBegin, padsEnd, argPadValue, inputLayerTypes, padMode) = obj.param;
 
         std::ostringstream results;
-        results << "IS=" << CommonTestUtils::partialShape2str({shapes.first}) << "_";
+        results << "IS=" << ov::test::utils::partialShape2str({shapes.first}) << "_";
         results << "TS=";
         for (const auto& item : shapes.second) {
-            results << CommonTestUtils::vec2str(item) << "_";
+            results << ov::test::utils::vec2str(item) << "_";
         }
         results << "Prc=" << elementType << "_";
-        results << "padsBegin=" << CommonTestUtils::vec2str(padsBegin) << "_";
-        results << "padsEnd=" << CommonTestUtils::vec2str(padsEnd) << "_";
+        results << "padsBegin=" << ov::test::utils::vec2str(padsBegin) << "_";
+        results << "padsEnd=" << ov::test::utils::vec2str(padsEnd) << "_";
         if (padMode == ov::op::PadMode::CONSTANT) {
             results << "Value=" << argPadValue << "_";
         }

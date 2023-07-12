@@ -57,7 +57,7 @@ public:
         std::ostringstream result;
         result << "netPRC=" << netPrecision.name() << "_";
         for (const auto& shape : inputShapes) {
-            result << CommonTestUtils::partialShape2str({ shape.first }) << "_";
+            result << ov::test::utils::partialShape2str({ shape.first }) << "_";
         }
         result << "TS=";
         for (const auto& shape : inputShapes) {
@@ -65,13 +65,13 @@ public:
             if (!shape.second.empty()) {
                 auto itr = shape.second.begin();
                 do {
-                    result << CommonTestUtils::vec2str(*itr);
+                    result << ov::test::utils::vec2str(*itr);
                 } while (++itr != shape.second.end() && result << "_");
             }
             result << ")_";
         }
 
-        result << "PS=" << CommonTestUtils::vec2str(poolShape) << "_";
+        result << "PS=" << ov::test::utils::vec2str(poolShape) << "_";
         result << "Scale=" << spatial_scale << "_";
         switch (pool_method) {
         case ngraph::helpers::ROIPoolingTypes::ROI_MAX:

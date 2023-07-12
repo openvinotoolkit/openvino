@@ -15,10 +15,10 @@ std::string BroadcastLayerTest::getTestCaseName(const testing::TestParamInfo<Bro
     std::tie(targetShape, axesMapping, mode, inputShape, networkPrecision, deviceName) = obj.param;
 
     std::ostringstream result;
-    result << "targetShape=" << CommonTestUtils::vec2str(targetShape) << "_";
-    result << "axesMapping=" << CommonTestUtils::set2str(axesMapping)  << "_";
+    result << "targetShape=" << ov::test::utils::vec2str(targetShape) << "_";
+    result << "axesMapping=" << ov::test::utils::set2str(axesMapping)  << "_";
     result << "mode=" << mode << "_";
-    result << "inShape=" << CommonTestUtils::vec2str(inputShape) << "_";
+    result << "inShape=" << ov::test::utils::vec2str(inputShape) << "_";
     result << "inNPrec=" << networkPrecision << "_";
     result << "trgDev=" << deviceName;
     return result.str();

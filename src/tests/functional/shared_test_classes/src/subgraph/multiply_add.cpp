@@ -12,7 +12,7 @@ std::string MultiplyAddLayerTest::getTestCaseName(const testing::TestParamInfo<M
     std::tie(inputShapes, netPrecision, targetName) = obj.param;
     std::ostringstream results;
 
-    results << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
+    results << "IS=" << ov::test::utils::vec2str(inputShapes) << "_";
     results << "netPRC=" << netPrecision.name() << "_";
     results << "targetDevice=" << targetName << "_";
     return results.str();

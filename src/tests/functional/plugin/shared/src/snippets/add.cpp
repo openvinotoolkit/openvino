@@ -20,8 +20,8 @@ std::string Add::getTestCaseName(testing::TestParamInfo<ov::test::snippets::AddP
     std::tie(inputShapes0, inputShapes1, type, num_nodes, num_subgraphs, targetDevice) = obj.param;
 
     std::ostringstream result;
-    result << "IS[0]=" << CommonTestUtils::vec2str(inputShapes0) << "_";
-    result << "IS[1]=" << CommonTestUtils::vec2str(inputShapes1) << "_";
+    result << "IS[0]=" << ov::test::utils::vec2str(inputShapes0) << "_";
+    result << "IS[1]=" << ov::test::utils::vec2str(inputShapes1) << "_";
     result << "T=" << type << "_";
     result << "#N=" << num_nodes << "_";
     result << "#S=" << num_subgraphs << "_";
@@ -48,7 +48,7 @@ std::string AddConst::getTestCaseName(testing::TestParamInfo<ov::test::snippets:
     std::tie(inputShapes, type, num_nodes, num_subgraphs, targetDevice) = obj.param;
 
     std::ostringstream result;
-    result << "IS[0]=" << CommonTestUtils::vec2str(inputShapes) << "_";
+    result << "IS[0]=" << ov::test::utils::vec2str(inputShapes) << "_";
     result << "T=" << type << "_";
     result << "#N=" << num_nodes << "_";
     result << "#S=" << num_subgraphs << "_";
@@ -87,8 +87,8 @@ std::string AddPair::getTestCaseName(testing::TestParamInfo<ov::test::snippets::
     if (input_shapes.size() != 2)
         IE_THROW() << "Invalid input shapes vector size";
     std::ostringstream result;
-    result << "IS[0]=" << CommonTestUtils::vec2str(input_shapes[0]) << "_";
-    result << "IS[1]=" << CommonTestUtils::vec2str(input_shapes[1]) << "_";
+    result << "IS[0]=" << ov::test::utils::vec2str(input_shapes[0]) << "_";
+    result << "IS[1]=" << ov::test::utils::vec2str(input_shapes[1]) << "_";
     result << "T=" << type << "_";
     result << "#N=" << num_nodes << "_";
     result << "#S=" << num_subgraphs << "_";

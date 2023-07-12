@@ -15,7 +15,9 @@
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
-namespace CommonTestUtils {
+namespace ov {
+namespace test {
+namespace utils {
 
 inline void fixSlashes(std::string &str) {
     std::replace(str.begin(), str.end(), '/', '\\');
@@ -115,7 +117,7 @@ inline int removeFilesWithExt(std::wstring path, std::wstring ext) {
             std::string file = ::FileUtils::makePath(path_mb, std::string(ent->d_name));
             struct stat stat_path;
             stat(file.c_str(), &stat_path);
-            if (!S_ISDIR(stat_path.st_mode) && ::CommonTestUtils::endsWith(file, "." + ext_mb)) {
+            if (!S_ISDIR(stat_path.st_mode) && ::ov::test::utils::endsWith(file, "." + ext_mb)) {
                 auto err = std::remove(file.c_str());
                 if (err != 0) {
                     closedir(dir);
@@ -160,5 +162,7 @@ inline bool directoryExists(const std::wstring &path) {
 
 extern const std::vector<std::wstring> test_unicode_postfix_vector;
 
-}  // namespace CommonTestUtils
+}  // namespace utils
+}  // namespace test
+}  // namespace ov
 #endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT

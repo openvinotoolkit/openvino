@@ -24,8 +24,8 @@ std::string FakeQuantizeLayerTest::getTestCaseName(const testing::TestParamInfo<
     std::tie(levels, constShape, fqDirectArgs, inputArg, broadcast) = fqParams;
 
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
-    result << "CS=" << CommonTestUtils::vec2str(constShape) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShapes) << "_";
+    result << "CS=" << ov::test::utils::vec2str(constShape) << "_";
     result << "LEVELS=" << levels << "_";
     result << "netPRC=" << netPrecision.name() << "_";
     result << "inPRC=" << inPrc.name() << "_";

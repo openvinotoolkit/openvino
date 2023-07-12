@@ -51,15 +51,15 @@ public:
         result << "AdaPoolTest_";
         result << "IS=(";
         for (const auto& shape : inputShape) {
-            result << CommonTestUtils::partialShape2str({shape.first}) << "_";
+            result << ov::test::utils::partialShape2str({shape.first}) << "_";
         }
         result << ")_TS=(";
         for (const auto& shape : inputShape) {
             for (const auto& item : shape.second) {
-                result << CommonTestUtils::vec2str(item) << "_";
+                result << ov::test::utils::vec2str(item) << "_";
             }
         }
-        result << "OS=" << CommonTestUtils::vec2str(pooledSpatialShape) << "(spat.)_";
+        result << "OS=" << ov::test::utils::vec2str(pooledSpatialShape) << "(spat.)_";
         result << netPr << "_";
         result << mode << "_";
         result << CPUTestsBase::getTestCaseName(cpuParams) << "_";

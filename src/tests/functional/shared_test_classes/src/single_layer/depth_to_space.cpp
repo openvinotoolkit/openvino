@@ -30,7 +30,7 @@ std::string DepthToSpaceLayerTest::getTestCaseName(const testing::TestParamInfo<
     std::string targetName;
     std::tie(inShape, inputPrecision, mode, blockSize, targetName) = obj.param;
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inShape) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inShape) << "_";
     result << "inPrc=" << inputPrecision.name() << "_";
     result << "M=" << DepthToSpaceModeToString(mode) << "_";
     result << "BS=" << blockSize << "_";

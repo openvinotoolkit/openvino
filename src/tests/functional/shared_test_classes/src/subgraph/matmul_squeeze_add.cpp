@@ -16,7 +16,7 @@ std::string MatmulSqueezeAddTest::getTestCaseName(const testing::TestParamInfo<m
     std::tie(netPrecision, targetDevice, configuration, inputShape, outputSize) = obj.param;
 
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShape) << "_";
     result << "OS=" << outputSize << "_";
     result << "netPRC=" << netPrecision.name() << "_";
     result << "targetDevice=" << targetDevice;

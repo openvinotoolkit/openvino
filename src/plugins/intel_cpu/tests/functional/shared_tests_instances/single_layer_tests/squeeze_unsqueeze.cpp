@@ -40,7 +40,7 @@ const std::vector<ngraph::helpers::SqueezeOpType> opTypes = {
 
 INSTANTIATE_TEST_SUITE_P(smoke_Basic, SqueezeUnsqueezeLayerTest,
                         ::testing::Combine(
-                                ::testing::ValuesIn(CommonTestUtils::combineParams(axesVectors)),
+                                ::testing::ValuesIn(ov::test::utils::combineParams(axesVectors)),
                                 ::testing::ValuesIn(opTypes),
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -52,7 +52,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Basic, SqueezeUnsqueezeLayerTest,
 
 INSTANTIATE_TEST_SUITE_P(smoke_Basic_emptyAxes, SqueezeUnsqueezeLayerTest,
                         ::testing::Combine(
-                                ::testing::ValuesIn(CommonTestUtils::combineParams(emptyAxesVectors)),
+                                ::testing::ValuesIn(ov::test::utils::combineParams(emptyAxesVectors)),
                                 ::testing::Values(ngraph::helpers::SqueezeOpType::SQUEEZE),
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),

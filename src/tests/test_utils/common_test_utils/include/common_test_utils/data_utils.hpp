@@ -17,7 +17,9 @@
 #include <ie_blob.h>
 #include <random>
 
-namespace CommonTestUtils {
+namespace ov {
+namespace test {
+namespace utils {
 OPENVINO_SUPPRESS_DEPRECATED_START
 
 inline void fill_data(float *data, size_t size, size_t duty_ratio = 10) {
@@ -517,4 +519,6 @@ inline ngraph::float16 ie_abs(const ngraph::float16 &val) {
 
 OPENVINO_SUPPRESS_DEPRECATED_END
 
-}  // namespace CommonTestUtils
+}  // namespace utils
+}  // namespace test
+}  // namespace ov

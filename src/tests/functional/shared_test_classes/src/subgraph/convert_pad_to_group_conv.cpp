@@ -15,9 +15,9 @@ std::string ConvertPadToConvTests::getTestCaseName(const testing::TestParamInfo<
     std::tie(input_shape, pad_begin, pad_end, value, mode, targetName) = obj.param;
     std::ostringstream results;
 
-    results << "Input" << CommonTestUtils::vec2str(input_shape);
-    results << "PadBegin" << CommonTestUtils::vec2str(pad_begin);
-    results << "PadEnd" << CommonTestUtils::vec2str(pad_end);
+    results << "Input" << ov::test::utils::vec2str(input_shape);
+    results << "PadBegin" << ov::test::utils::vec2str(pad_begin);
+    results << "PadEnd" << ov::test::utils::vec2str(pad_end);
     results << "Value" << value;
     results << "Mode" << mode;
     results << "targetDevice=" << targetName << "_";

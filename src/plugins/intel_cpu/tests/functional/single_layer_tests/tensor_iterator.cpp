@@ -31,10 +31,10 @@ public:
         std::ostringstream result;
         for (size_t i = 0; i < shapes.size(); i++) {
             result << "Input" << i << "_";
-            result << "IS=" << CommonTestUtils::partialShape2str({shapes[i].first}) << "_";
+            result << "IS=" << ov::test::utils::partialShape2str({shapes[i].first}) << "_";
             result << "TS=";
             for (const auto& item : shapes[i].second) {
-                result << CommonTestUtils::vec2str(item) << "_";
+                result << ov::test::utils::vec2str(item) << "_";
             }
         }
         result << "direction=" << direction << "_";

@@ -126,7 +126,7 @@ inline void save_model_status_to_file(const std::map<ModelCacheStatus, std::vect
     }
     for (const auto& status_info : caching_status) {
         std::string output_file_path = ov::util::path_join({ cache_status_path, model_cache_status_to_str[status_info.first] + CommonTestUtils::LST_EXTENSION});
-        CommonTestUtils::vec2File(status_info.second, output_file_path);
+        ov::test::utils::vec2File(status_info.second, output_file_path);
     }
 }
 

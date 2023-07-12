@@ -18,8 +18,8 @@ namespace snippets {
         std::tie(inputShape0, inputShape1, binaryEltwise,
                  num_nodes, num_subgraphs, targetDevice) = obj.param;
         std::ostringstream result;
-        result << "IS[0]=" << CommonTestUtils::vec2str(inputShape0) << "_";
-        result << "IS[1]=" << CommonTestUtils::vec2str(inputShape1) << "_";
+        result << "IS[0]=" << ov::test::utils::vec2str(inputShape0) << "_";
+        result << "IS[1]=" << ov::test::utils::vec2str(inputShape1) << "_";
         result << "Op=" << binaryEltwise->get_type_name() << "_";
         result << "#N=" << num_nodes << "_";
         result << "#S=" << num_subgraphs << "_";

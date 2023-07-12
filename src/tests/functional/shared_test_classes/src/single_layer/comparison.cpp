@@ -28,8 +28,8 @@ std::string ComparisonLayerTest::getTestCaseName(const testing::TestParamInfo<Co
              additional_config) = obj.param;
     std::ostringstream results;
 
-    results << "IS0=" << CommonTestUtils::vec2str(inputShapes.first) << "_";
-    results << "IS1=" << CommonTestUtils::vec2str(inputShapes.second) << "_";
+    results << "IS0=" << ov::test::utils::vec2str(inputShapes.first) << "_";
+    results << "IS1=" << ov::test::utils::vec2str(inputShapes.second) << "_";
     results << "inputsPRC=" << ngInputsPrecision.name() << "_";
     results << "comparisonOpType=" << comparisonOpType << "_";
     results << "secondInputType=" << secondInputType << "_";

@@ -43,7 +43,7 @@ public:
         ngraph::element::Type iPrecision;
         std::tie(shapes, blank, preprocessCollapseRepeated, ctcMergeRepeated, unique, fPrecision, iPrecision) = obj.param;
         std::ostringstream results;
-        results << "IS=" << CommonTestUtils::partialShape2str({shapes.first}) << "_";
+        results << "IS=" << ov::test::utils::partialShape2str({shapes.first}) << "_";
         results << "TS=";
         for (std::vector<ngraph::Shape>& staticShapes : shapes.second) {
             for (ngraph::Shape& shape : staticShapes) {

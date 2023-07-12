@@ -16,8 +16,8 @@ std::string ReduceEltwiseTest::getTestCaseName(const testing::TestParamInfo<Redu
     std::tie(inputShapes, axes, opType, keepDims, netPrecision, targetName) = obj.param;
 
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
-    result << "axes=" << CommonTestUtils::vec2str(axes) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShapes) << "_";
+    result << "axes=" << ov::test::utils::vec2str(axes) << "_";
     result << "opType=" << opType << "_";
     if (keepDims) result << "KeepDims_";
     result << "netPRC=" << netPrecision.name() << "_";

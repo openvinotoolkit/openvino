@@ -15,7 +15,7 @@ std::string InputSplitConcatTest::getTestCaseName(const testing::TestParamInfo<I
     std::tie(netPrecision, targetDevice, configuration, inputShape) = obj.param;
 
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShape) << "_";
     result << "netPRC=" << netPrecision.name() << "_";
     result << "targetDevice=" << targetDevice;
     for (auto const& configItem : configuration) {

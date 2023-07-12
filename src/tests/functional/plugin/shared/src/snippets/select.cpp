@@ -32,9 +32,9 @@ std::string Select::getTestCaseName(testing::TestParamInfo<ov::test::snippets::S
     std::tie(inputShapes0, inputShapes1, inputShapes2, type, num_nodes, num_subgraphs, targetDevice) = obj.param;
 
     std::ostringstream result;
-    result << "IS[0]=" << CommonTestUtils::vec2str(inputShapes0) << "_";
-    result << "IS[1]=" << CommonTestUtils::vec2str(inputShapes1) << "_";
-    result << "IS[2]=" << CommonTestUtils::vec2str(inputShapes2) << "_";
+    result << "IS[0]=" << ov::test::utils::vec2str(inputShapes0) << "_";
+    result << "IS[1]=" << ov::test::utils::vec2str(inputShapes1) << "_";
+    result << "IS[2]=" << ov::test::utils::vec2str(inputShapes2) << "_";
     result << "T=" << type << "_";
     result << "#N=" << num_nodes << "_";
     result << "#S=" << num_subgraphs << "_";
@@ -69,10 +69,10 @@ std::string BroadcastSelect::getTestCaseName(testing::TestParamInfo<ov::test::sn
     std::tie(inputShapes0, inputShapes1, inputShapes2, broadcastShape, type, num_nodes, num_subgraphs, targetDevice) = obj.param;
 
     std::ostringstream result;
-    result << "IS[0]=" << CommonTestUtils::vec2str(inputShapes0) << "_";
-    result << "IS[1]=" << CommonTestUtils::vec2str(inputShapes1) << "_";
-    result << "IS[2]=" << CommonTestUtils::vec2str(inputShapes2) << "_";
-    result << "BS=" << CommonTestUtils::vec2str(broadcastShape) << "_";
+    result << "IS[0]=" << ov::test::utils::vec2str(inputShapes0) << "_";
+    result << "IS[1]=" << ov::test::utils::vec2str(inputShapes1) << "_";
+    result << "IS[2]=" << ov::test::utils::vec2str(inputShapes2) << "_";
+    result << "BS=" << ov::test::utils::vec2str(broadcastShape) << "_";
     result << "T=" << type << "_";
     result << "#N=" << num_nodes << "_";
     result << "#S=" << num_subgraphs << "_";

@@ -32,8 +32,8 @@ std::string MatMulTest::getTestCaseName(const testing::TestParamInfo<MatMulLayer
         obj.param;
 
     std::ostringstream result;
-    result << "IS0=" << CommonTestUtils::vec2str(shapeRelatedParams.input1.first) << "_";
-    result << "IS1=" << CommonTestUtils::vec2str(shapeRelatedParams.input2.first) << "_";
+    result << "IS0=" << ov::test::utils::vec2str(shapeRelatedParams.input1.first) << "_";
+    result << "IS1=" << ov::test::utils::vec2str(shapeRelatedParams.input2.first) << "_";
     result << "transpose_a=" << shapeRelatedParams.input1.second << "_";
     result << "transpose_b=" << shapeRelatedParams.input2.second << "_";
     result << "secondaryInputType=" << secondaryInputType << "_";

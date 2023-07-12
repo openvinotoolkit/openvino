@@ -43,16 +43,16 @@ public:
         std::ostringstream result;
         result << "IS=(";
         for (const auto& shape : inputShapes) {
-            result << CommonTestUtils::partialShape2str({shape.first}) << "_";
+            result << ov::test::utils::partialShape2str({shape.first}) << "_";
         }
         result << ")_TS=(";
         for (const auto& shape : inputShapes) {
             for (const auto& item : shape.second) {
-                result << CommonTestUtils::vec2str(item) << "_";
+                result << ov::test::utils::vec2str(item) << "_";
             }
         }
-        result << "targetShape=" << CommonTestUtils::vec2str(targetShapes)  << "_";
-        result << "axesMapping=" << CommonTestUtils::vec2str(axesMapping)  << "_";
+        result << "targetShape=" << ov::test::utils::vec2str(targetShapes)  << "_";
+        result << "axesMapping=" << ov::test::utils::vec2str(axesMapping)  << "_";
         result << "mode=" << mode << "_";
         result << "netPrec=" << netPrecision << "_";
         result << "constIn=(" << (isConstInputs[0] ? "True" : "False") << "." << (isConstInputs[1] ? "True" : "False") << ")_";

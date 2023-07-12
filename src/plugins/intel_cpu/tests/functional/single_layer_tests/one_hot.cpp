@@ -38,11 +38,11 @@ public:
 
         std::ostringstream result;
         if (inputShape.first.size() != 0) {
-            result << "IS=(" << CommonTestUtils::partialShape2str({inputShape.first}) << "_";
+            result << "IS=(" << ov::test::utils::partialShape2str({inputShape.first}) << "_";
         }
         result << "TS=";
         for (const auto& shape : inputShape.second) {
-                result << CommonTestUtils::vec2str(shape) << "_";
+                result << ov::test::utils::vec2str(shape) << "_";
         }
         result << "axis=" << axis << "_";
         if (inputType.first == ngraph::helpers::InputLayerType::CONSTANT && !inputType.second) {

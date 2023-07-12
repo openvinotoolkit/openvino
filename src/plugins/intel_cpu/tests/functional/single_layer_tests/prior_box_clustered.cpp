@@ -77,13 +77,13 @@ public:
         result << "outPRC="  << outPrc << separator;
         result << "inL="     << inLayout << separator;
         result << "outL="    << outLayout << separator;
-        result << "widths="  << CommonTestUtils::vec2str(attributes.widths)  << separator;
-        result << "heights=" << CommonTestUtils::vec2str(attributes.heights) << separator;
+        result << "widths="  << ov::test::utils::vec2str(attributes.widths)  << separator;
+        result << "heights=" << ov::test::utils::vec2str(attributes.heights) << separator;
         result << "variances=";
         if (attributes.variances.empty())
             result << "()" << separator;
         else
-            result << CommonTestUtils::vec2str(attributes.variances) << separator;
+            result << ov::test::utils::vec2str(attributes.variances) << separator;
         result << "stepWidth="  << attributes.step_widths  << separator;
         result << "stepHeight=" << attributes.step_heights << separator;
         result << "step="       << attributes.step << separator;

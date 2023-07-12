@@ -29,8 +29,8 @@ public:
         std::tie(nonConstShape, constShape, prc, nodeType, port, constNodeNum) = obj.param;
 
         std::ostringstream result;
-        result << "IS_NON_CONST=" << CommonTestUtils::vec2str(nonConstShape) << "_";
-        result << "IS_CONST=" << CommonTestUtils::vec2str(constShape) << "_";
+        result << "IS_NON_CONST=" << ov::test::utils::vec2str(nonConstShape) << "_";
+        result << "IS_CONST=" << ov::test::utils::vec2str(constShape) << "_";
         result << "PRC=" << prc << "_";
         result << "NODE=" << nodeType << "_";
         result << "PORT=" << port << "_";

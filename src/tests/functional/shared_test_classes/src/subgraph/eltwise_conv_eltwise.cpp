@@ -21,8 +21,8 @@ std::string EltwiseAfterConvTest::getTestCaseName(testing::TestParamInfo<Eltwise
     std::tie(inputShape, kernelShape, stride) = convolutionParams;
 
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
-    result << "KS=" << CommonTestUtils::vec2str(kernelShape) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShape) << "_";
+    result << "KS=" << ov::test::utils::vec2str(kernelShape) << "_";
     result << "S=" << stride << "_";
     result << "IC=" << inputChannels << "_";
     result << "OC=" << outputChannels << "_";
@@ -106,8 +106,8 @@ std::string EltwiseBeforeConvTest::getTestCaseName(testing::TestParamInfo<Eltwis
     std::tie(inputShape, kernelShape, stride) = convolutionParams;
 
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
-    result << "KS=" << CommonTestUtils::vec2str(kernelShape) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShape) << "_";
+    result << "KS=" << ov::test::utils::vec2str(kernelShape) << "_";
     result << "S=" << stride << "_";
     result << "IC=" << inputChannels << "_";
     result << "OC=" << outputChannels << "_";
@@ -190,8 +190,8 @@ std::string EltwiseWithTwoConvsAsInputsTest::getTestCaseName(const testing::Test
     std::tie(inputShape, kernelShape, stride) = convolutionParams;
 
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
-    result << "KS=" << CommonTestUtils::vec2str(kernelShape) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShape) << "_";
+    result << "KS=" << ov::test::utils::vec2str(kernelShape) << "_";
     result << "S=" << stride << "_";
     result << "IC=" << inputChannels << "_";
     result << "OC=" << outputChannels << "_";

@@ -37,15 +37,15 @@ public:
 
         std::ostringstream result;
         result << "IS=";
-        result << CommonTestUtils::partialShape2str({shapes.first}) << "_";
+        result << ov::test::utils::partialShape2str({shapes.first}) << "_";
         result << "TS=";
         for (const auto& shape : shapes.second) {
-            result << CommonTestUtils::vec2str(shape) << "_";
+            result << ov::test::utils::vec2str(shape) << "_";
         }
         result << "axis=" << axis << "_";
         result << "splitLengths=(";
         for (const auto& lengths : splitLengths) {
-            result << CommonTestUtils::vec2str(lengths) << ",";
+            result << ov::test::utils::vec2str(lengths) << ",";
         }
         result << ")_lengthsType=" << lengthsType << "_";
         result << "netPRC=" << netPrecision << "_";

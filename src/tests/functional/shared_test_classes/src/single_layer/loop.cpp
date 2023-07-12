@@ -29,8 +29,8 @@ namespace LayerTestsDefinitions {
         result << "is_body_condition_const=" << is_body_condition_const << "_";
         result << "body_condition=" << body_condition << "_";
         result << "trip_count=" << trip_count << "_";
-        result << "IS=" << CommonTestUtils::vec2str(inputs_separate) << "_";
-        result << "types=" << CommonTestUtils::vec2str(types_separate) << "_";
+        result << "IS=" << ov::test::utils::vec2str(inputs_separate) << "_";
+        result << "types=" << ov::test::utils::vec2str(types_separate) << "_";
         result << "netPRC=" << netPrecision.name() << "_";
         result << "targetDevice=" << targetDevice << "_";
         auto res_str = result.str();
@@ -172,7 +172,7 @@ namespace LayerTestsDefinitions {
         result << "axis=" << std::to_string(axis) << "_";
         result << "start_value=" << std::to_string(start_value) << "_";
         result << "max_iter_num=" << std::to_string(max_iter_num) << "_";
-        result << "IS=" << CommonTestUtils::vec2str(data_shape) << "_";
+        result << "IS=" << ov::test::utils::vec2str(data_shape) << "_";
         result << "netPRC=" << std::to_string(data_prc) << "_";
         result << "targetDevice=" << targetDevice << "_";
 

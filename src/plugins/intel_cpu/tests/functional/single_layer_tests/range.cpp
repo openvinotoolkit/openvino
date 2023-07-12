@@ -58,7 +58,7 @@
 //        result << "Stop_" << stop << "_";
 //        result << "Step_" << step << "_";
 //        result << CPUTestsBase::getTestCaseName(cpuParams);
-//        result << CommonTestUtils::vec2str(shapes.second[0]) << "_";
+//        result << ov::test::utils::vec2str(shapes.second[0]) << "_";
 //        return result.str();
 //    }
 //protected:

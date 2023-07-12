@@ -451,7 +451,7 @@ public:
         std::tie(inputShape, concatAxis, netPrecision, configuration, targetDevice) = obj.param;
         std::ostringstream result;
         result << T::getName() << "_";
-        result << "inputShape=" << CommonTestUtils::vec2str(inputShape) << "_";
+        result << "inputShape=" << ov::test::utils::vec2str(inputShape) << "_";
         result << "concatAxis=" << concatAxis << "_";
         result << "netPRC=" << netPrecision.name() << "_";
         result << "targetDevice=" << targetDevice << "_";

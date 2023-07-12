@@ -24,12 +24,12 @@ std::string BinaryConvolutionLayerTest::getTestCaseName(const testing::TestParam
     std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType, padValue) = binConvParams;
 
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
-    result << "KS=" << CommonTestUtils::vec2str(kernel) << "_";
-    result << "S=" << CommonTestUtils::vec2str(stride) << "_";
-    result << "PB=" << CommonTestUtils::vec2str(padBegin) << "_";
-    result << "PE=" << CommonTestUtils::vec2str(padEnd) << "_";
-    result << "D=" << CommonTestUtils::vec2str(dilation) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShape) << "_";
+    result << "KS=" << ov::test::utils::vec2str(kernel) << "_";
+    result << "S=" << ov::test::utils::vec2str(stride) << "_";
+    result << "PB=" << ov::test::utils::vec2str(padBegin) << "_";
+    result << "PE=" << ov::test::utils::vec2str(padEnd) << "_";
+    result << "D=" << ov::test::utils::vec2str(dilation) << "_";
     result << "O=" << convOutChannels << "_";
     result << "AP=" << padType << "_";
     result << "PV=" << padValue << "_";

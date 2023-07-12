@@ -37,7 +37,7 @@ namespace ov {
 namespace test {
 
 std::ostream& operator <<(std::ostream& os, const InputShape& inputShape) {
-    os << CommonTestUtils::partialShape2str({inputShape.first}) << "_" << CommonTestUtils::vec2str(inputShape.second);
+    os << ov::test::utils::partialShape2str({inputShape.first}) << "_" << ov::test::utils::vec2str(inputShape.second);
     return os;
 }
 
@@ -82,7 +82,7 @@ void SubgraphBaseTest::run() {
                     generate_inputs(targetStaticShapeVec);
                 } catch (const std::exception& ex) {
                     throw std::runtime_error("[IE TEST INFRA] Impossible to reshape ov::Model using the shape: " +
-                        CommonTestUtils::vec2str(targetStaticShapeVec) + " " + ex.what());
+                        ov::test::utils::vec2str(targetStaticShapeVec) + " " + ex.what());
                 }
                 validate();
             }

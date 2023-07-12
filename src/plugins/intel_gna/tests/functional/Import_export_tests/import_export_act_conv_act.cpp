@@ -46,7 +46,7 @@ public:
         for (auto const& configItem : importConfiguration) {
             result << "_importConfigItem=" << configItem.first << "_" << configItem.second;
         }
-        result << CommonTestUtils::vec2str(inputShape);
+        result << ov::test::utils::vec2str(inputShape);
         return result.str();
     }
 

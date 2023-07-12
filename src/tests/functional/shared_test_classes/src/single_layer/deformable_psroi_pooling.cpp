@@ -27,9 +27,9 @@ namespace LayerTestsDefinitions {
 
         std::ostringstream result;
 
-        result << "data_shape=" << CommonTestUtils::vec2str(dataShape) << "_";
-        result << "rois_shape=" << CommonTestUtils::vec2str(roisShape) << "_";
-        result << "offsets_shape=" << CommonTestUtils::vec2str(offsetsShape) << "_";
+        result << "data_shape=" << ov::test::utils::vec2str(dataShape) << "_";
+        result << "rois_shape=" << ov::test::utils::vec2str(roisShape) << "_";
+        result << "offsets_shape=" << ov::test::utils::vec2str(offsetsShape) << "_";
         result << "out_dim=" << outputDim << "_";
         result << "group_size=" << groupSize << "_";
         result << "scale=" << spatialScale << "_";

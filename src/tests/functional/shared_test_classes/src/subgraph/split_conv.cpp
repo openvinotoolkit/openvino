@@ -21,8 +21,8 @@ std::string SplitConvTest::getTestCaseName(const testing::TestParamInfo<SplitCon
     std::tie(inputShape, kernelShape, stride) = convolutionParams;
 
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
-    result << "KS=" << CommonTestUtils::vec2str(kernelShape) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShape) << "_";
+    result << "KS=" << ov::test::utils::vec2str(kernelShape) << "_";
     result << "S=" << stride << "_";
     result << "IC=" << inputChannels << "_";
     result << "OC=" << outputChannels << "_";

@@ -21,7 +21,7 @@ std::string ExperimentalDetectronTopKROIsLayerTest::getTestCaseName(const testin
     if (inputShapes.front().first.size() != 0) {
         result << "IS=(";
         for (const auto &shape : inputShapes) {
-            result << CommonTestUtils::partialShape2str({shape.first}) << "_";
+            result << ov::test::utils::partialShape2str({shape.first}) << "_";
         }
         result.seekp(-1, result.cur);
         result << ")_";
@@ -29,7 +29,7 @@ std::string ExperimentalDetectronTopKROIsLayerTest::getTestCaseName(const testin
     result << "TS=";
     for (const auto& shape : inputShapes) {
         for (const auto& item : shape.second) {
-            result << CommonTestUtils::vec2str(item) << "_";
+            result << ov::test::utils::vec2str(item) << "_";
         }
     }
     result << "maxRois=" << maxRois << "_";

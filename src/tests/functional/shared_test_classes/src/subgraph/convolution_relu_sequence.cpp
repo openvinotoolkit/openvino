@@ -16,20 +16,20 @@ std::string ConvolutionReluSequenceTest::getTestCaseName(const testing::TestPara
         obj.param;
 
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(convParamsAll.inputShape) << "_";
+    result << "IS=" << ov::test::utils::vec2str(convParamsAll.inputShape) << "_";
     result << "inPRC=" << inPrc.name() << "_";
     result << "outPRC=" << outPrc.name() << "_";
     result << "netPRC=" << netPrecision.name() << "_";
     result << "trgDev=" << targetDevice << "_";
 
     for (auto&& single : convParamsAll.sequenceDesc) {
-        result << "K" << CommonTestUtils::vec2str(single.kernelSize) << "_";
-        result << "S" << CommonTestUtils::vec2str(single.strides) << "_";
-        result << "PB" << CommonTestUtils::vec2str(single.padBegin) << "_";
-        result << "PE" << CommonTestUtils::vec2str(single.padEnd) << "_";
+        result << "K" << ov::test::utils::vec2str(single.kernelSize) << "_";
+        result << "S" << ov::test::utils::vec2str(single.strides) << "_";
+        result << "PB" << ov::test::utils::vec2str(single.padBegin) << "_";
+        result << "PE" << ov::test::utils::vec2str(single.padEnd) << "_";
         result << "O=" << single.numOutChannels << "_";
-        result << "PW" << CommonTestUtils::vec2str(single.poolingWindow) << "_";
-        result << "PS" << CommonTestUtils::vec2str(single.poolingStride) << "_";
+        result << "PW" << ov::test::utils::vec2str(single.poolingWindow) << "_";
+        result << "PS" << ov::test::utils::vec2str(single.poolingStride) << "_";
     }
 
     for (auto&& single : config) {

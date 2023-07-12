@@ -32,11 +32,11 @@ public:
         std::tie(inputShapes, inputPrecision, kernelSize, strides, rates, padType) = obj.param;
 
         std::ostringstream result;
-        result << "netPRC=" << inputPrecision << "_" << "IS=" << CommonTestUtils::partialShape2str({ inputShapes.first }) << "_";
+        result << "netPRC=" << inputPrecision << "_" << "IS=" << ov::test::utils::partialShape2str({ inputShapes.first }) << "_";
         result << "TS=";
         result << "(";
         for (const auto& targetShape : inputShapes.second) {
-            result << CommonTestUtils::vec2str(targetShape) << "_";
+            result << ov::test::utils::vec2str(targetShape) << "_";
         }
 
         result << ")_" << "kernelSize=" << kernelSize << "_strides=" << strides << "_rates=" << rates << "_padType=" << padType;

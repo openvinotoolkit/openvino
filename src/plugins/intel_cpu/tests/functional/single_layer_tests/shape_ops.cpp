@@ -66,15 +66,15 @@ public:
         std::ostringstream result;
         result << nodeType << "_";
         result << "IS=";
-        result  << CommonTestUtils::partialShape2str({inpDesc.inputShape.first}) << "_";
+        result  << ov::test::utils::partialShape2str({inpDesc.inputShape.first}) << "_";
         result << "TS=(";
         for (const auto& shape : inpDesc.inputShape.second) {
-            result << CommonTestUtils::vec2str(shape) << "_";
+            result << ov::test::utils::vec2str(shape) << "_";
         }
         result << ")_";
         result << "DATA=";
         for (const auto& data : inpDesc.data) {
-            result << "[" << CommonTestUtils::vec2str(data) << "]_";
+            result << "[" << ov::test::utils::vec2str(data) << "]_";
         }
         result << "PRC=" << prc << "_";
         result << "specialZero=" << specialZero;

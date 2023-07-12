@@ -38,7 +38,7 @@ public:
        result << ")_TS=(";
        for (const auto& shape : shapes) {
            for (const auto& item : shape.second) {
-               result << CommonTestUtils::vec2str(item) << "_";
+               result << ov::test::utils::vec2str(item) << "_";
            }
        }
        result << "Broadcast=" << broadcast.m_type;

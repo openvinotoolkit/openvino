@@ -12,7 +12,7 @@ std::ostream& operator <<(std::ostream& result, const ngraph::op::DetectionOutpu
     result << "backgrId=" << attrs.background_label_id << "_";
     result << "topK="  << attrs.top_k << "_";
     result << "varEnc=" << attrs.variance_encoded_in_target << "_";
-    result << "keepTopK=" << CommonTestUtils::vec2str(attrs.keep_top_k) << "_";
+    result << "keepTopK=" << ov::test::utils::vec2str(attrs.keep_top_k) << "_";
     result << "codeType=" << attrs.code_type << "_";
     result << "shareLoc=" << attrs.share_location << "_";
     result << "nmsThr=" << attrs.nms_threshold << "_";
@@ -53,13 +53,13 @@ std::string DetectionOutputLayerTest::getTestCaseName(const testing::TestParamIn
 
     std::ostringstream result;
     result << "IS = { ";
-    result << "LOC=" << CommonTestUtils::vec2str(inShapes[0]) << "_";
-    result << "CONF=" << CommonTestUtils::vec2str(inShapes[1]) << "_";
-    result << "PRIOR=" << CommonTestUtils::vec2str(inShapes[2]);
+    result << "LOC=" << ov::test::utils::vec2str(inShapes[0]) << "_";
+    result << "CONF=" << ov::test::utils::vec2str(inShapes[1]) << "_";
+    result << "PRIOR=" << ov::test::utils::vec2str(inShapes[2]);
     std::string armConf, armLoc;
     if (inShapes.size() > 3) {
-        armConf = "_ARM_CONF=" + CommonTestUtils::vec2str(inShapes[3]) + "_";
-        armLoc = "ARM_LOC=" + CommonTestUtils::vec2str(inShapes[4]);
+        armConf = "_ARM_CONF=" + ov::test::utils::vec2str(inShapes[3]) + "_";
+        armLoc = "ARM_LOC=" + ov::test::utils::vec2str(inShapes[4]);
     }
     result << armConf;
     result << armLoc << " }_";

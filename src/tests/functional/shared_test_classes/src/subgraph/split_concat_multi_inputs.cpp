@@ -16,7 +16,7 @@ std::string SplitConcatMultiInputsTest::getTestCaseName(testing::TestParamInfo<S
     bool withFC;
     std::tie(netPrecision, targetName, config, inputShape, splitsNum, withFC) = obj.param;
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShape) << "_";
     result << "SplitsN=" << splitsNum << "_";
     result << "netPRC=" << netPrecision.name() << "_";
     result << "trgDev=" << targetName << "_";

@@ -53,7 +53,7 @@ public:
         std::tie(normalizeVariance, eps, epsMode, acrossChannels, mvnVersion6) = mvnParams;
 
         std::ostringstream result;
-        result << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
+        result << "IS=" << ov::test::utils::vec2str(inputShape) << "_";
         result << "NV=" << normalizeVariance << "_";
         result << "eps=" << eps << "_";
         result << "mode=" << static_cast<uint32_t>(epsMode) << "_";
