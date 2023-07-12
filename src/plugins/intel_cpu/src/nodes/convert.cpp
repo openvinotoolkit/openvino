@@ -141,7 +141,7 @@ void Convert::initSupportedPrimitiveDescriptors() {
 
 void Convert::prepareParams() {
     auto& parentMem = getParentEdgeAt(0)->getMemory();
-    convertParams.size = parentMem.GetDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
+    convertParams.size = parentMem.getDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
 
     auto selectedPD = getSelectedPrimitiveDescriptor();
     MemoryDescPtr srcDesc = getParentEdgeAt(0)->getMemoryPtr()->getDescPtr();
