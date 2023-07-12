@@ -49,7 +49,7 @@ class Model(ModelBase):
             super().__init__(*args, **kwargs)
         if kwargs and not args:
             super().__init__(**kwargs)
-    
+
     def clone(self):
         return Model(super().clone())
 

@@ -4,6 +4,7 @@
 
 from openvino._pyopenvino.util import clone_model as clone_model_base
 
+
 def clone_model(model):
     from openvino.runtime import Model
     return Model(clone_model_base(model))
