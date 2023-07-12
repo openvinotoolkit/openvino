@@ -7,39 +7,39 @@
 #include <openvino/op/util/pad_base.hpp>
 
 #include "itt.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/depth_to_space.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/exp.hpp"
+#include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/interpolate.hpp"
+#include "openvino/op/max_pool.hpp"
+#include "openvino/op/maximum.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/mvn.hpp"
+#include "openvino/op/normalize_l2.hpp"
+#include "openvino/op/power.hpp"
+#include "openvino/op/reduce_max.hpp"
+#include "openvino/op/reduce_mean.hpp"
+#include "openvino/op/reduce_min.hpp"
+#include "openvino/op/reduce_sum.hpp"
+#include "openvino/op/relu.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/shuffle_channels.hpp"
+#include "openvino/op/slice.hpp"
+#include "openvino/op/split.hpp"
+#include "openvino/op/sqrt.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/strided_slice.hpp"
+#include "openvino/op/tile.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/broadcast_base.hpp"
 #include "openvino/op/util/gather_base.hpp"
 #include "openvino/op/variadic_split.hpp"
-#include "openvino/op/shuffle_channels.hpp"
-#include "openvino/op/power.hpp"
-#include "openvino/op/slice.hpp"
-#include "openvino/op/divide.hpp"
-#include "openvino/op/reshape.hpp"
-#include "openvino/op/depth_to_space.hpp"
-#include "openvino/op/reduce_mean.hpp"
-#include "openvino/op/tile.hpp"
-#include "openvino/op/exp.hpp"
-#include "openvino/op/transpose.hpp"
-#include "openvino/op/strided_slice.hpp"
-#include "openvino/op/relu.hpp"
-#include "openvino/op/normalize_l2.hpp"
-#include "openvino/op/maximum.hpp"
-#include "openvino/op/convert.hpp"
-#include "openvino/op/max_pool.hpp"
-#include "openvino/op/reduce_min.hpp"
-#include "openvino/op/squeeze.hpp"
-#include "openvino/op/add.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/mvn.hpp"
-#include "openvino/op/concat.hpp"
-#include "openvino/op/split.hpp"
-#include "openvino/op/fake_quantize.hpp"
-#include "openvino/op/reduce_sum.hpp"
-#include "openvino/op/multiply.hpp"
-#include "openvino/op/interpolate.hpp"
-#include "openvino/op/unsqueeze.hpp"
-#include "openvino/op/sqrt.hpp"
-#include "openvino/op/reduce_max.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -78,27 +78,28 @@ void erase_fq_path(const std::shared_ptr<Node>& node) {
 }
 
 // Marking continues to propagate through these ops.
-std::shared_ptr<Node> propagate_through_ops = pattern::wrap_type<ov::op::v0::Squeeze,
-                                                                 ov::op::v0::Unsqueeze,
-                                                                 ov::op::v1::Reshape,
-                                                                 op::util::BroadcastBase,
-                                                                 op::util::BinaryElementwiseArithmetic,
-                                                                 op::util::UnaryElementwiseArithmetic,
-                                                                 ov::op::v6::MVN,
-                                                                 ov::op::v0::MVN,
-                                                                 ov::op::v0::NormalizeL2,
-                                                                 ov::op::v0::Sqrt,
-                                                                 ov::op::v1::StridedSlice,
-                                                                 ov::op::v1::ReduceSum,
-                                                                 ov::op::v1::ReduceMean,
-                                                                 ov::op::v8::Slice,
-                                                                 ov::op::v1::VariadicSplit,
-                                                                 ov::op::v1::Split,
-                                                                 op::util::GatherBase,
-                                                                 ov::op::v0::Concat,
-                                                                 ov::op::v0::Convert,  // through Convert can go only to Constants
-                                                                 ov::op::v0::Constant,
-                                                                 ov::op::v0::Tile>();
+std::shared_ptr<Node> propagate_through_ops =
+    pattern::wrap_type<ov::op::v0::Squeeze,
+                       ov::op::v0::Unsqueeze,
+                       ov::op::v1::Reshape,
+                       op::util::BroadcastBase,
+                       op::util::BinaryElementwiseArithmetic,
+                       op::util::UnaryElementwiseArithmetic,
+                       ov::op::v6::MVN,
+                       ov::op::v0::MVN,
+                       ov::op::v0::NormalizeL2,
+                       ov::op::v0::Sqrt,
+                       ov::op::v1::StridedSlice,
+                       ov::op::v1::ReduceSum,
+                       ov::op::v1::ReduceMean,
+                       ov::op::v8::Slice,
+                       ov::op::v1::VariadicSplit,
+                       ov::op::v1::Split,
+                       op::util::GatherBase,
+                       ov::op::v0::Concat,
+                       ov::op::v0::Convert,  // through Convert can go only to Constants
+                       ov::op::v0::Constant,
+                       ov::op::v0::Tile>();
 
 /* After PropagateDownMark we need to go also once up to include side branches of ops with several args:
  * Elementwise, Concat and so. E.g. if one of the argument of Concat was marked
@@ -294,7 +295,8 @@ public:
         auto input_2 = pattern::any_input();
 
         auto eps_const_pattern = pattern::wrap_type<ov::op::v0::Constant>();
-        auto max_or_add = pattern::wrap_type<ov::op::v1::Maximum, ov::op::v1::Add>(OutputVector{input_2, eps_const_pattern});
+        auto max_or_add =
+            pattern::wrap_type<ov::op::v1::Maximum, ov::op::v1::Add>(OutputVector{input_2, eps_const_pattern});
 
         auto sqrt = std::make_shared<ov::op::v0::Sqrt>(max_or_add);
         auto sqrt_or_max_add = std::make_shared<pattern::op::Or>(OutputVector{max_or_add, sqrt});
