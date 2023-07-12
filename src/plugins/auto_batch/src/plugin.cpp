@@ -10,6 +10,7 @@
 #include "openvino/core/dimension_tracker.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
+#include "openvino/runtime/internal_properties.hpp"
 #include "openvino/util/common_util.hpp"
 #include "remote_context.hpp"
 #include "transformations/common_optimizations/dimension_tracking.hpp"
@@ -102,6 +103,8 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
         return std::vector<ov::PropertyName>{
             ov::PropertyName{ov::supported_properties.name(), ov::PropertyMutability::RO},
             ov::PropertyName{ov::device::full_name.name(), ov::PropertyMutability::RO}};
+    } else if (name == ov::internal::supported_properties.name()) {
+        return decltype(ov::internal::supported_properties)::value_type{};
     } else if (name == ov::device::full_name.name()) {
         return get_device_name();
     } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {

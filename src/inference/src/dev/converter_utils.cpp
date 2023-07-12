@@ -553,7 +553,13 @@ public:
                 ->GetPreProcess(name);
         }
 #endif
-        OPENVINO_NOT_IMPLEMENTED;
+        auto port = find_port(name);
+        auto& rt_info = port.get_rt_info();
+        auto it = rt_info.find("ie_legacy_preproc");
+        if (it != rt_info.end()) {
+            return it->second.as<InferenceEngine::PreProcessInfo>();
+        }
+        OPENVINO_THROW("Cannot find PreProcess info.");
     }
 
     std::vector<std::shared_ptr<InferenceEngine::IVariableStateInternal>> QueryState() override {
