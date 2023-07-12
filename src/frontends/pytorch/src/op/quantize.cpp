@@ -43,8 +43,8 @@ OutputVector translate_quantize_per_tensor(const NodeContext& context) {
         output = context.mark_node(std::make_shared<v0::Convert>(clamp, element::u8));
     } else if (dtype == element::i8) {
         const auto clamp = context.mark_node(std::make_shared<v0::Clamp>(quantized_input,
-                                                                         std::numeric_limits<unsigned char>::lowest(),
-                                                                         std::numeric_limits<unsigned char>::max()));
+                                                                         std::numeric_limits<char>::lowest(),
+                                                                         std::numeric_limits<char>::max()));
         output = context.mark_node(std::make_shared<v0::Convert>(clamp, element::i8));
     } else {
         output = context.mark_node(std::make_shared<v0::Convert>(quantized_input, element::i32));
@@ -55,8 +55,7 @@ OutputVector translate_quantize_per_tensor(const NodeContext& context) {
                                                             context,
                                                             output,
                                                             scale,
-                                                            zero_point,
-                                                            dtype));
+                                                            zero_point));
     return {quantized_pt_node};
 }
 
@@ -74,8 +73,7 @@ OutputVector translate_quantize_per_channel(const NodeContext& context) {
                                                             input,
                                                             scales,
                                                             zero_points,
-                                                            axis,
-                                                            dtype));
+                                                            axis));
     return {quantized_pt_node};
 }
 

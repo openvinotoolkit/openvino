@@ -28,8 +28,8 @@ OutputVector translate_dequantize(const NodeContext& context) {
     std::shared_ptr<QuantizedPtNode> quantized_pt_node;
     if ((quantized_pt_node =
              cast_quantized_fw_node(input.get_node_shared_ptr(), QuantizedPtNode::quantize_per_tensor))) {
-        const auto input_convert_f32 =
-            context.mark_node(std::make_shared<v0::Convert>(quantized_pt_node->get_input_tensor(0), element::f32));
+        const auto input_convert_f32 = context.mark_node(
+            std::make_shared<v0::Convert>(quantized_pt_node->get_input_node_shared_ptr(0), element::f32));
         const auto scale_convert_f32 =
             context.mark_node(std::make_shared<v0::Convert>(quantized_pt_node->get_scale(), element::f32));
         const auto zero_point_convert_f32 =
@@ -41,8 +41,10 @@ OutputVector translate_dequantize(const NodeContext& context) {
     } else if ((quantized_pt_node =
                     cast_quantized_fw_node(input.get_node_shared_ptr(), QuantizedPtNode::quantize_per_channel))) {
         // TODO
-    } else {
+    } else if (quantized_pt_node = cast_quantized_fw_node(input.get_node_shared_ptr())) {
         FRONT_END_OP_CONVERSION_CHECK(false, "Got unknown quantization method in dequantize.");
+    } else {
+        FRONT_END_OP_CONVERSION_CHECK(false, "Failed to convert dequantize node input to QuantizedPtNode.");
     }
     return {context.mark_node(output)};
 }

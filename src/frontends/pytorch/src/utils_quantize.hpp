@@ -24,8 +24,7 @@ public:
                     const NodeContext& context,
                     const ov::Output<ov::Node> input,
                     const ov::Output<ov::Node> scale,
-                    const ov::Output<ov::Node> zero_point,
-                    const element::Type dtype)
+                    const ov::Output<ov::Node> zero_point)
         : PtFrameworkNode(context.get_decoder(), {input}, 1, false),
           type(type),
           scale(scale),
@@ -46,9 +45,8 @@ public:
                     const ov::Output<ov::Node>& input,
                     const ov::Output<ov::Node>& scale,
                     const ov::Output<ov::Node>& zero_point,
-                    const ov::Output<ov::Node>& axis_,
-                    const element::Type dtype)
-        : QuantizedPtNode(type, context, input, scale, zero_point, dtype) {
+                    const ov::Output<ov::Node>& axis_)
+        : QuantizedPtNode(type, context, input, scale, zero_point) {
         axis = axis_;
     }
 
@@ -56,7 +54,7 @@ public:
         return scale;
     }
     const ov::Output<ov::Node> get_zero_point() {
-        return scale;
+        return zero_point;
     }
     const ov::Output<ov::Node> get_axis() {
         FRONT_END_OP_CONVERSION_CHECK(
