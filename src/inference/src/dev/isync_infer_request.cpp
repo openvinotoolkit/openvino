@@ -41,6 +41,7 @@ void check_batched_tensors(const ov::Output<const ov::Node>& input,
                     batch_idx,
                     " != 0");
     std::for_each(tensors.begin(), tensors.end(), [&batch_idx](const ov::SoPtr<ov::ITensor>& item) {
+        OPENVINO_ASSERT(item, "Unintialized tensor is provided!");
         OPENVINO_ASSERT(item->get_shape()[batch_idx] == 1,
                         "set_input_tensors/set_tensors. Tensors shall represent one item in a batch, ",
                         item->get_shape()[batch_idx],
@@ -69,6 +70,7 @@ void check_batched_tensors(const ov::Output<const ov::Node>& input,
     auto element_type = tensors[0]->get_element_type();
     batched_shape[batch_idx] = tensors_size;
     for (const auto& item : tensors) {
+        OPENVINO_ASSERT(item, "Unintialized tensor is provided!");
         auto item_shape = item->get_shape();
         item_shape[batch_idx] = batched_shape[batch_idx];
         OPENVINO_ASSERT(item_shape == batched_shape && item->get_element_type() == element_type &&
@@ -137,6 +139,7 @@ ov::ISyncInferRequest::FoundPort ov::ISyncInferRequest::find_port(const ov::Outp
 void ov::ISyncInferRequest::convert_batched_tensors() {
     std::unordered_map<std::shared_ptr<ov::descriptor::Tensor>, ov::SoPtr<ov::ITensor>> prepared_tensors;
     for (const auto& item : m_batched_tensors) {
+        OPENVINO_ASSERT(item.second.at(0), "Unintialized tensor is provided!");
         auto tmp_shape = item.second.at(0)->get_shape();
         auto tmp_et = item.second.at(0)->get_element_type();
         tmp_shape[0] = item.second.size();
