@@ -188,6 +188,8 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*InferRequestIOBBlobTest.*secondCallGetOutputDoNotReAllocateData.*)",
         R"(.*InferRequestIOBBlobTest.*secondCallGetInputAfterInferSync.*)",
         R"(.*InferRequestIOBBlobTest.*secondCallGetOutputAfterInferSync.*)",
+        // Issue: 106939
+        R"(.*ScatterNDUpdateLayerCPUTest.*-1.-1.-1.-2.-2.-2.*)",
         // New plugin API doesn't support changes of pre-processing
         R"(.*InferRequestPreprocessTest.*SetPreProcessToInputInfo.*)",
         R"(.*InferRequestPreprocessTest.*SetPreProcessToInferRequest.*)",
