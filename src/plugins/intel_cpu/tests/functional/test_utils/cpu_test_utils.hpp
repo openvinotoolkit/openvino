@@ -173,13 +173,14 @@ const std::map<std::string, std::string> cpuFP32PluginConfig =
         { { InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::NO } };
 const std::map<std::string, std::string> cpuBF16PluginConfig =
         { { InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::YES } };
-const std::map<std::string, std::string> cpuF16PluginConfig =
+const std::map<std::string, std::string> cpuFP16PluginConfig =
         { { "INFERENCE_PRECISION_HINT", "f16" } };
 
 
 // utility functions
 std::vector<CPUSpecificParams> filterCPUSpecificParams(const std::vector<CPUSpecificParams>& paramsVector);
 std::vector<CPUSpecificParams> filterCPUInfoForDevice(const std::vector<CPUSpecificParams>& CPUParams);
+std::vector<CPUSpecificParams> filterCPUInfoForDeviceWithFP16(const std::vector<CPUSpecificParams>& allParams);
 void CheckNumberOfNodesWithType(const ov::CompiledModel &compiledModel, const std::string& nodeType, size_t expectedCount);
 void CheckNumberOfNodesWithType(InferenceEngine::ExecutableNetwork &execNet, const std::string& nodeType, size_t expectedCount);
 void CheckNumberOfNodesWithTypes(const ov::CompiledModel &compiledModel, const std::unordered_set<std::string>& nodeTypes, size_t expectedCount);

@@ -498,6 +498,7 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
     const Config::SnippetsMode snippetsMode = getSnippetsMode(config, engConfig); 
 
     DEBUG_LOG(PrintableModel(*nGraphFunc, "org_"));
+    DEBUG_LOG("inferencePrecision", inferencePrecision);
 
     if (!is_cpu_map_available()) {
         ApplyPerformanceHints(config, nGraphFunc);

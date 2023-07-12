@@ -304,6 +304,7 @@ void Graph::Replicate(const CNNNetwork &network) {
     // change precision for input/output nodes to avoid extra data conversion when set input/output blobs
     for (auto &input : inputNodesMap) {
         const auto precToSet = normalizeToSupportedPrecision(inputsInfo.at(input.first)->getPrecision());
+        DEBUG_LOG("input_precision", inputsInfo.at(input.first)->getPrecision());
         input.second->setOriginalOutputPrecisionAtPort(0, precToSet);
     }
 
@@ -323,14 +324,18 @@ void Graph::Replicate(const CNNNetwork &network) {
             const auto child_prec = child->getOriginalInputPrecisionAtPort(childEdges[i]->getOutputNum());
             if (!one_of(child_prec, Precision::BF16, Precision::FP16) &&
                 // remove this WA when #78939 is resolved
-                !hasSubgraphConsumers(child))
+                !hasSubgraphConsumers(child)) {
                 child->setOriginalInputPrecisionAtPort(childEdges[i]->getOutputNum(), precToSet);
+                DEBUG_LOG("input_precToSet", precToSet);
+            }
         }
     }
 
     for (auto &output : outputNodesMap) {
         const auto& outputNode = output.second;
         const auto precToSet = outputNode->getOriginalInputPrecisionAtPort(0);
+        DEBUG_LOG("output_precToSet", outputsInfo.at(output.first)->getPrecision());
+        DEBUG_LOG("output_precToSet", precToSet);
         const auto parentEdges = outputNode->getParentEdgesAtPort(0);
         for (size_t i = 0; i < parentEdges.size(); i++) {
             const auto parent = parentEdges[i]->getParent();

@@ -224,6 +224,14 @@ std::vector<std::map<std::string, std::string>> filterAdditionalConfig_BrgemmAmx
     return additionalConfig;
 }
 
+std::vector<std::map<std::string, std::string>> filterAdditionalConfig_FP16() {
+    std::vector<std::map<std::string, std::string>> additionalConfig;
+    if (ov::with_cpu_x86_f16() || ov::with_cpu_x86_avx512_core_amx_f16()) {
+        additionalConfig.push_back({{ "INFERENCE_PRECISION_HINT", "f16" }});
+    }
+    return additionalConfig;
+}
+
 const std::vector<ElementType> netPRCs {
     ElementType::f32,
     ElementType::bf16
@@ -257,6 +265,18 @@ std::vector<CPUSpecificParams> filterSpecificParams_BrgemmAmx() {
 
     return specificParams;
 }
+
+std::vector<CPUSpecificParams> filterSpecificParams_FP16() {
+    std::vector<CPUSpecificParams> specificParams;
+    if (with_cpu_x86_avx512_core()) {
+        specificParams.push_back(CPUSpecificParams{{}, {}, {"brgemm_avx512"}, "brgemm_avx512"});
+    }
+    if (with_cpu_x86_avx512_core_amx()) {
+        specificParams.push_back(CPUSpecificParams{{}, {}, {"brgemm_avx512_amx"}, "brgemm_avx512_amx"});
+    }
+    return specificParams;
+}
+
 
 
 std::vector<CPUSpecificParams> filterSpecificParams_Brgconv1x1() {
@@ -379,6 +399,13 @@ std::vector<fusingSpecificParams> fusingParamsSet2DBF16 {
         fusingPReluPerTensor,
 };
 
+std::vector<fusingSpecificParams> fusingParamsSet2DFP16 {
+        emptyFusingSpec,
+        fusingBias,
+        fusingRelu,
+        fusingPReluPerTensor,
+};
+
 const auto testParams2D_smoke = ::testing::Combine(::testing::Combine(::testing::ValuesIn(IS2D_smoke),
                                                                 ::testing::Values(ElementType::f32),
                                                                 ::testing::Values(ElementType::undefined),
@@ -401,8 +428,20 @@ const auto testParams2DBF16_smoke = ::testing::Combine(::testing::Combine(::test
                                                  ::testing::ValuesIn(fusingParamsSet2DBF16),
                                                  ::testing::ValuesIn(filterSpecificParams()));
 
+const auto testParams2DFP16_smoke = ::testing::Combine(::testing::Combine(::testing::ValuesIn(IS2D_smoke),
+                                                                    ::testing::ValuesIn(netPRCs),
+                                                                    ::testing::Values(ElementType::undefined),
+                                                                    ::testing::Values(ElementType::undefined),
+                                                                    ::testing::Values(helpers::InputLayerType::CONSTANT),
+                                                                    ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                                                    ::testing::ValuesIn(filterAdditionalConfig_FP16())),
+                                                 ::testing::Values(MatMulNodeType::FullyConnected),
+                                                 ::testing::ValuesIn(fusingParamsSet2DFP16),
+                                                 ::testing::ValuesIn(filterSpecificParams_FP16()));
+
 INSTANTIATE_TEST_SUITE_P(smoke_FC_2D, MatMulLayerCPUTest, testParams2D_smoke, MatMulLayerCPUTest::getTestCaseName);
 INSTANTIATE_TEST_SUITE_P(smoke_FC_2D_BF16, MatMulLayerCPUTest, testParams2DBF16_smoke, MatMulLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_FC_2D_FP16, MatMulLayerCPUTest, testParams2DFP16_smoke, MatMulLayerCPUTest::getTestCaseName);
 
 #ifdef OV_CPU_WITH_MLAS
 std::vector<fusingSpecificParams> fusingParamsSet2D_MLAS_smoke {
@@ -446,8 +485,21 @@ const auto testParams2DBF16_nightly = ::testing::Combine(::testing::Combine(::te
                                                  ::testing::ValuesIn(fusingParamsSet2DBF16),
                                                  ::testing::ValuesIn(filterSpecificParams()));
 
+const auto testParams2DFP16_nightly = ::testing::Combine(::testing::Combine(::testing::ValuesIn(IS2D_nightly),
+                                                                    ::testing::ValuesIn(netPRCs),
+                                                                    ::testing::Values(ElementType::undefined),
+                                                                    ::testing::Values(ElementType::undefined),
+                                                                    ::testing::Values(helpers::InputLayerType::CONSTANT),
+                                                                    ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                                                    ::testing::ValuesIn(filterAdditionalConfig_FP16())),
+                                                 ::testing::Values(MatMulNodeType::FullyConnected),
+                                                 ::testing::ValuesIn(fusingParamsSet2DFP16),
+                                                 ::testing::ValuesIn(filterSpecificParams_FP16()));
+
+
 INSTANTIATE_TEST_SUITE_P(nightly_FC_2D, MatMulLayerCPUTest, testParams2D_nightly, MatMulLayerCPUTest::getTestCaseName);
 INSTANTIATE_TEST_SUITE_P(nightly_FC_2D_BF16, MatMulLayerCPUTest, testParams2DBF16_nightly, MatMulLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(nightly_FC_2D_FP16, MatMulLayerCPUTest, testParams2DFP16_nightly, MatMulLayerCPUTest::getTestCaseName);
 
 #ifdef OV_CPU_WITH_MLAS
 std::vector<fusingSpecificParams> fusingParamsSet2D_MLAS_nightly {
@@ -554,6 +606,13 @@ std::vector<fusingSpecificParams> fusingParamsSet3DBF16 {
         fusingMultiplyPerChannel,
 };
 
+std::vector<fusingSpecificParams> fusingParamsSet3DFP16 {
+        emptyFusingSpec,
+        fusingBias,
+        fusingMultiplyPerChannel,
+};
+
+
 const auto fullyConnectedParams3D_smoke = ::testing::Combine(::testing::ValuesIn(IS3D_smoke),
                                                        ::testing::Values(ElementType::f32),
                                                        ::testing::Values(ElementType::undefined),
@@ -570,6 +629,15 @@ const auto fullyConnectedParams3DBF16_smoke = ::testing::Combine(::testing::Valu
                                                            ::testing::Values(ov::test::utils::DEVICE_CPU),
                                                            ::testing::ValuesIn(additionalConfig));
 
+const auto fullyConnectedParams3DFP16_smoke = ::testing::Combine(::testing::ValuesIn(IS3D_smoke),
+                                                           ::testing::ValuesIn(netPRCs),
+                                                           ::testing::Values(ElementType::undefined),
+                                                           ::testing::Values(ElementType::undefined),
+                                                           ::testing::Values(helpers::InputLayerType::CONSTANT),
+                                                           ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                                           ::testing::ValuesIn(filterAdditionalConfig_FP16()));
+
+
 const auto testParams3D_smoke = ::testing::Combine(fullyConnectedParams3D_smoke,
                                              ::testing::Values(MatMulNodeType::FullyConnected),
                                              ::testing::ValuesIn(fusingParamsSet3D_smoke),
@@ -580,8 +648,14 @@ const auto testParams3DBF16_smoke = ::testing::Combine(fullyConnectedParams3DBF1
                                                  ::testing::ValuesIn(fusingParamsSet3DBF16),
                                                  ::testing::ValuesIn(filterSpecificParams()));
 
+const auto testParams3DFP16_smoke = ::testing::Combine(fullyConnectedParams3DFP16_smoke,
+                                                 ::testing::Values(MatMulNodeType::FullyConnected),
+                                                 ::testing::ValuesIn(fusingParamsSet3DFP16),
+                                                 ::testing::ValuesIn(filterSpecificParams_FP16()));
+
 INSTANTIATE_TEST_SUITE_P(smoke_FC_3D, MatMulLayerCPUTest, testParams3D_smoke, MatMulLayerCPUTest::getTestCaseName);
 INSTANTIATE_TEST_SUITE_P(smoke_FC_3D_BF16, MatMulLayerCPUTest, testParams3DBF16_smoke, MatMulLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_FC_3D_FP16, MatMulLayerCPUTest, testParams3DFP16_smoke, MatMulLayerCPUTest::getTestCaseName);
 
 #ifdef OV_CPU_WITH_MLAS
 std::vector<fusingSpecificParams> fusingParamsSet3D_MLAS_smoke {
@@ -613,6 +687,15 @@ const auto fullyConnectedParams3DBF16_nightly = ::testing::Combine(::testing::Va
                                                            ::testing::Values(ov::test::utils::DEVICE_CPU),
                                                            ::testing::ValuesIn(additionalConfig));
 
+const auto fullyConnectedParams3DFP16_nightly = ::testing::Combine(::testing::ValuesIn(IS3D_nightly),
+                                                           ::testing::ValuesIn(netPRCs),
+                                                           ::testing::Values(ElementType::undefined),
+                                                           ::testing::Values(ElementType::undefined),
+                                                           ::testing::Values(helpers::InputLayerType::CONSTANT),
+                                                           ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                                           ::testing::ValuesIn(filterAdditionalConfig_FP16()));
+
+
 const auto testParams3D_nightly = ::testing::Combine(fullyConnectedParams3D_nightly,
                                              ::testing::Values(MatMulNodeType::FullyConnected),
                                              ::testing::ValuesIn(fusingParamsSet3D_nightly),
@@ -623,8 +706,15 @@ const auto testParams3DBF16_nightly = ::testing::Combine(fullyConnectedParams3DB
                                                  ::testing::ValuesIn(fusingParamsSet3DBF16),
                                                  ::testing::ValuesIn(filterSpecificParams()));
 
+const auto testParams3DFP16_nightly = ::testing::Combine(fullyConnectedParams3DFP16_nightly,
+                                                 ::testing::Values(MatMulNodeType::FullyConnected),
+                                                 ::testing::ValuesIn(fusingParamsSet3DFP16),
+                                                 ::testing::ValuesIn(filterSpecificParams_FP16()));
+
+
 INSTANTIATE_TEST_SUITE_P(nightly_FC_3D, MatMulLayerCPUTest, testParams3D_nightly, MatMulLayerCPUTest::getTestCaseName);
 INSTANTIATE_TEST_SUITE_P(nightly_FC_3D_BF16, MatMulLayerCPUTest, testParams3DBF16_nightly, MatMulLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(nightly_FC_3D_FP16, MatMulLayerCPUTest, testParams3DFP16_nightly, MatMulLayerCPUTest::getTestCaseName);
 
 const std::vector<ShapeRelatedParams> IS2D_Brgemm_smoke = {
     // needed by 'IS2D_Brgconv1x1_smoke'
@@ -735,6 +825,22 @@ const auto testParams2D_Brgconv1x1_smoke = ::testing::Combine(fullyConnectedPara
                                              ::testing::ValuesIn(filterSpecificParams_Brgconv1x1()));
 
 INSTANTIATE_TEST_SUITE_P(smoke_FC_2D_Brgconv1x1, MatMulLayerCPUTest, testParams2D_Brgconv1x1_smoke, MatMulLayerCPUTest::getTestCaseName);
+
+const auto fullyConnectedParams2D_Brgconv1x1_FP16_smoke = ::testing::Combine(::testing::ValuesIn(IS2D_Brgconv1x1_smoke),
+                                                       ::testing::Values(ElementType::f32),
+                                                       ::testing::Values(ElementType::undefined),
+                                                       ::testing::Values(ElementType::undefined),
+                                                       ::testing::Values(helpers::InputLayerType::CONSTANT),
+                                                       ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                                       ::testing::ValuesIn(filterAdditionalConfig_FP16()));
+
+const auto testParams2D_Brgconv1x1_FP16_smoke = ::testing::Combine(fullyConnectedParams2D_Brgconv1x1_FP16_smoke,
+                                             ::testing::Values(MatMulNodeType::FullyConnected),
+                                             ::testing::ValuesIn(fusingParamsSet2D_Brgemm_smoke),
+                                             ::testing::ValuesIn(filterSpecificParams_FP16()));
+
+INSTANTIATE_TEST_SUITE_P(smoke_FC_2D_Brgconv1x1_FP16, MatMulLayerCPUTest, testParams2D_Brgconv1x1_FP16_smoke, MatMulLayerCPUTest::getTestCaseName);
+
 
 
 const std::vector<ShapeRelatedParams> IS3D_Brgconv1x1_smoke = {

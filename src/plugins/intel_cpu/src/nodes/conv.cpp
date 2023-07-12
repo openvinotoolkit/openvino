@@ -393,10 +393,12 @@ void Convolution::getSupportedDescriptors() {
     }
 
     auto inputDataType = DnnlExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(0));
+    DEBUG_LOG("getOriginalInputPrecisionAtPort(0)", getOriginalInputPrecisionAtPort(0));
     if (!legacyInputZeroPoints.empty())
         inputDataType = memory::data_type::u8;
 
     outputDataType = DnnlExtensionUtils::IEPrecisionToDataType(getOriginalOutputPrecisionAtPort(0));
+    DEBUG_LOG("getOriginalOutputPrecisionAtPort(0)", getOriginalOutputPrecisionAtPort(0));
     eltwisePrecision = DnnlExtensionUtils::DataTypeToIEPrecision(outputDataType);
     if (!fusedWith.empty()) {
         outputDataType = DnnlExtensionUtils::IEPrecisionToDataType(fusedWith[fusedWith.size() - 1]->getOriginalOutputPrecisionAtPort(0));

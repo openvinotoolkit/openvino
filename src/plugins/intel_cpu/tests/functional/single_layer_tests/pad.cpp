@@ -149,6 +149,7 @@ const auto cpuParams_ncdhw = CPUSpecificParams {{ncdhw}, {ncdhw}, {}, {}};
 const std::vector<ElementType> inputPrecisions = {
         ElementType::f32,
         ElementType::bf16,
+        ElementType::f16,
         ElementType::i8
 };
 
