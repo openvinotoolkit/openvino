@@ -61,6 +61,17 @@ inline void float_write_helper(half_t* mem, float f) { *mem = static_cast<half_t
  *                                                                          *
  ****************************************************************************/
 
+void sort_and_keep_n_items(std::vector<proposal_t>& proposals, size_t n) {
+    auto cmp_fn = [](const proposal_t& a, const proposal_t& b) { return (a.confidence > b.confidence); };
+
+    if (proposals.size() > n) {
+        std::partial_sort(proposals.begin(), proposals.begin() + n, proposals.end(), cmp_fn);
+        proposals.resize(n);
+    } else {
+        std::sort(proposals.begin(), proposals.end(), cmp_fn);
+    }
+}
+
 roi_t gen_bbox(const proposal_inst::anchor& box,
                const delta_t& delta,
                int anchor_shift_x,
@@ -351,12 +362,7 @@ struct proposal_impl : typed_primitive_impl<proposal> {
             }
 
             size_t pre_nms = std::min(primitive->pre_nms_topn, static_cast<int>(sorted_proposals_confidence.size()));
-            std::partial_sort(sorted_proposals_confidence.begin(),
-                              sorted_proposals_confidence.begin() + pre_nms,
-                              sorted_proposals_confidence.end(),
-                              [](const proposal_t& a, const proposal_t& b) {
-                                  return (a.confidence > b.confidence);
-                              });
+            sort_and_keep_n_items(sorted_proposals_confidence, pre_nms);
             perform_nms(pre_nms,
                         sorted_proposals_confidence,
                         roi_indices,
