@@ -55,8 +55,8 @@ bool ov::intel_cpu::ACLConvertExecutor::init(const ov::intel_cpu::ConvertParams&
 }
 
 void ov::intel_cpu::ACLConvertExecutor::exec(const MemoryCPtr& src, const MemoryPtr& dst) {
-    srcTensor.allocator()->import_memory(src->GetPtr());
-    dstTensor.allocator()->import_memory(dst->GetPtr());
+    srcTensor.allocator()->import_memory(src->getData());
+    dstTensor.allocator()->import_memory(dst->getData());
 
     if (isCopyOp) {
         acl_copy->run();
