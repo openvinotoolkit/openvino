@@ -326,7 +326,7 @@ KERNEL(strided_slice_ref)(OPTIONAL_SHAPE_INFO_ARG
     FUSED_OPS;
     output[output_index] = FUSED_OPS_RESULT;
 #else
-    output[output_index] = ACTIVATION(input[input_index], ACTIVATION_PARAMS);
+    output[output_index] = ACTIVATION((UNIT_TYPE)input[input_index], (UNIT_TYPE)ACTIVATION_PARAMS);
 #endif
 #endif // NEW_AXIS_MODE
 }
