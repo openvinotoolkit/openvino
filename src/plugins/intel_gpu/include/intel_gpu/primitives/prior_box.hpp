@@ -280,10 +280,16 @@ struct prior_box : public primitive_base<prior_box> {
         attrs.variances = variance;
         return attrs;
     }
+
+    void set_output_img_size(const cldnn::tensor& outputSize, const cldnn::tensor& imgSize) {
+        output_size = outputSize;
+        img_size = imgSize;
+    }
+
     /// @brief Spatial size of generated grid with boxes.
-    tensor output_size{};
+    mutable cldnn::tensor output_size{};
     /// @brief Image width and height.
-    tensor img_size{};
+    mutable cldnn::tensor img_size{};
     /// @brief  Minimum box sizes in pixels.
     std::vector<float> min_sizes{};
     /// @brief Maximum box sizes in pixels.

@@ -449,22 +449,57 @@ std::vector<layout> prior_box_inst::calc_output_layouts(prior_box_node const& /*
         impl_param.get_input_layout(1).get<ShapeType>()
     };
     std::vector<ShapeType> output_shapes = {ShapeType()};
+    std::map<size_t, ngraph::HostTensorPtr> const_data;
 
     auto& memory_deps = impl_param.memory_deps;
+
+    if (constant_mem.count(0) && constant_mem.count(1)) {
+        auto output_size_mem = constant_mem.at(0);
+        auto img_size_mem = constant_mem.at(1);
+
+        cldnn::mem_lock<uint8_t, mem_lock_type::read> output_size_lock(output_size_mem, impl_param.get_stream());
+        cldnn::mem_lock<uint8_t, mem_lock_type::read> img_size_lock(img_size_mem, impl_param.get_stream());
+
+        const_data.emplace(0, make_host_tensor(output_size_mem->get_layout(), output_size_lock.data()));
+
+        if (output_size_mem->get_layout().data_type == cldnn::data_types::i64) {
+            auto output_height = reinterpret_cast<int64_t*>(output_size_lock.data())[0];
+            auto output_width = reinterpret_cast<int64_t*>(output_size_lock.data())[1];
+            auto img_height = reinterpret_cast<int64_t*>(img_size_lock.data())[0];
+            auto img_width = reinterpret_cast<int64_t*>(img_size_lock.data())[1];
+
+            cldnn::tensor output_size_tensor{cldnn::spatial(static_cast<int32_t>(output_width), static_cast<int32_t>(output_height))};
+            cldnn::tensor img_size_tensor{cldnn::spatial(static_cast<int32_t>(img_width), static_cast<int32_t>(img_height))};
+
+            impl_param.set_input1_tensors(output_size_tensor);
+            impl_param.set_input2_tensors(img_size_tensor);
+        } else { //int32_t
+            auto output_height = reinterpret_cast<int32_t*>(output_size_lock.data())[0];
+            auto output_width = reinterpret_cast<int32_t*>(output_size_lock.data())[1];
+            auto img_height = reinterpret_cast<int32_t*>(img_size_lock.data())[0];
+            auto img_width = reinterpret_cast<int32_t*>(img_size_lock.data())[1];
+
+            cldnn::tensor output_size_tensor{cldnn::spatial(output_width, output_height)};
+            cldnn::tensor img_size_tensor{cldnn::spatial(img_width, img_height)};
+
+            impl_param.set_input1_tensors(output_size_tensor);
+            impl_param.set_input2_tensors(img_size_tensor);
+        }
+    }
 
     if (primitive->is_clustered()) {
         ov::op::v0::PriorBoxClustered op;
         op.set_attrs(primitive->get_attrs_clustered());
-        output_shapes = ov::op::v0::shape_infer(&op, input_shapes);
+        output_shapes = ov::op::v0::shape_infer(&op, input_shapes, const_data);
     } else {
         if (primitive->is_v8_support()) {
             ov::op::v8::PriorBox op;
             op.set_attrs(primitive->get_attrs_v8());
-            output_shapes = ov::op::v8::shape_infer(&op, input_shapes);
+            output_shapes = ov::op::v8::shape_infer(&op, input_shapes, const_data);
         } else {
             ov::op::v0::PriorBox op;
             op.set_attrs(primitive->get_attrs_v0());
-            output_shapes = ov::op::v0::shape_infer(&op, input_shapes);
+            output_shapes = ov::op::v0::shape_infer(&op, input_shapes, const_data);
         }
     }
     const auto output_type = primitive->output_data_types[0].value_or(data_types::f32);
