@@ -25,6 +25,7 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
       m_compiled_model_with_batch(compiled_model_with_batch),
       m_compiled_model_without_batch(compiled_model_without_batch) {
     // WA for gcc 4.8 ( fails compilation with member init-list)
+    m_remote_context = AutoBatchRemoteContext(context);
     m_device_info = device_info;
     auto time_out = config.find(ov::auto_batch_timeout.name());
     OPENVINO_ASSERT(time_out != config.end());
@@ -214,6 +215,12 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
         }
     }
     OPENVINO_SUPPRESS_DEPRECATED_END
+}
+
+std::shared_ptr<ov::IRemoteContext> CompiledModel::get_context() const {
+    if (m_remote_context)
+        return m_remote_context._impl;
+    return get_plugin()->get_default_context({ov::device::priorities(m_device_info.device_name)});
 }
 
 void CompiledModel::export_model(std::ostream& model) const {

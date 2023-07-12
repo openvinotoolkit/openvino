@@ -134,7 +134,7 @@ public:
      *
      * @return OpenVINO RemoteContext
      */
-    std::shared_ptr<ov::IRemoteContext> get_context() const;
+    virtual std::shared_ptr<ov::IRemoteContext> get_context() const;
 
     virtual ~ICompiledModel() = default;
 

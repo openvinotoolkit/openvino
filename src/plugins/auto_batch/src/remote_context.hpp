@@ -11,10 +11,12 @@ namespace ov {
 namespace autobatch_plugin {
 
 class Plugin;
+class CompiledModel;
 class AutoBatchRemoteContext : public ov::RemoteContext {
 public:
     friend class ov::autobatch_plugin::Plugin;
-    AutoBatchRemoteContext(const ov::RemoteContext& remote_context) : ov::RemoteContext(remote_context) {}
+    friend class ov::autobatch_plugin::CompiledModel;
+    AutoBatchRemoteContext(const ov::RemoteContext& remote_context = {}) : ov::RemoteContext(remote_context) {}
 };
 
 }  // namespace autobatch_plugin

@@ -12,6 +12,7 @@
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/threading/thread_safe_containers.hpp"
 #include "plugin.hpp"
+#include "remote_context.hpp"
 
 namespace ov {
 namespace autobatch_plugin {
@@ -46,6 +47,8 @@ public:
 
     ov::Any get_property(const std::string& name) const override;
 
+    std::shared_ptr<ov::IRemoteContext> get_context() const override;
+
     std::shared_ptr<ov::IAsyncInferRequest> create_infer_request() const override;
 
     std::shared_ptr<const ov::Model> get_runtime_model() const override;
@@ -60,6 +63,7 @@ protected:
     std::atomic_bool m_terminate = {false};
     ov::AnyMap m_config;
     DeviceInformation m_device_info;
+    AutoBatchRemoteContext m_remote_context;
 
     std::pair<std::shared_ptr<ov::autobatch_plugin::CompiledModel::WorkerInferRequest>, int> GetWorkerInferRequest()
         const;

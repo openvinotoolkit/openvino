@@ -168,7 +168,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     if (device_batch == full_properties.end()) {
         OPENVINO_THROW("ov::device::priorities key for AUTO NATCH is not set for BATCH device");
     }
-    m_plugin_config[device_batch->first] = device_batch->second;
     OPENVINO_SUPPRESS_DEPRECATED_END
     auto meta_device = parse_meta_device(device_batch->second.as<std::string>(), properties);
 
