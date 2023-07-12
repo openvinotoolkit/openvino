@@ -9,6 +9,7 @@
 #include "cpu_types.h"
 #include "openvino/core/attribute_adapter.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/rank.hpp"
 #include "openvino/core/shape.hpp"
@@ -368,4 +369,9 @@ constexpr typename std::enable_if<is_static_shape_adapter<T>() && is_static_shap
     return (lhs.size() == rhs.size()) && (lhs.empty() || std::equal(lhs.cbegin(), lhs.cend(), rhs.cbegin()));
 }
 }  // namespace intel_cpu
+
+template <>
+void NodeValidationFailure::create(const CheckLocInfo& check_loc_info,
+                                   std::pair<const ov::Node*, const std::vector<intel_cpu::StaticShape>*>&& ctx,
+                                   const std::string& explanation);
 }  // namespace ov

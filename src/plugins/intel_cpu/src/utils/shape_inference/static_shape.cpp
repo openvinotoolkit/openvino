@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "shape_validation.hpp"
 #include "static_shape.hpp"
 
 namespace ov {
@@ -265,4 +266,21 @@ ov::Shape StaticShapeRef::get_shape() const {
 }
 
 }   // namespace intel_cpu
+
+/**
+ * @brief Specialization to throw the `NodeValidationFailure` for shape inference using `StaticShape`
+ *
+ * @param check_loc_info Exception location details to print.
+ * @param ctx            NodeValidationFailure context which got pointer to node and input shapes used for shape
+ * inference.
+ * @param explanation    Exception explanation string.
+ */
+template <>
+void NodeValidationFailure::create(const CheckLocInfo& check_loc_info,
+                                   std::pair<const Node*, const std::vector<intel_cpu::StaticShape>*>&& ctx,
+                                   const std::string& explanation) {
+    throw ov::NodeValidationFailure(make_what(check_loc_info,
+                                              node_validation_failure_loc_string(ctx.first),
+                                              ov::op::validate::shape_infer_explanation_str(*ctx.second, explanation)));
+}
 }   // namespace ov
