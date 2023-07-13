@@ -20,6 +20,10 @@ elseif(OV_COMPILER_IS_CLANG)
     ie_add_compiler_flags(-Wno-delete-non-abstract-non-virtual-dtor)
 endif()
 
+# enbale mlas for X86 cpus only
+if (X86_64 OR X86)
+    set(ENABLE_MLAS ON)
+endif()
 add_subdirectory(thirdparty)
 
 if(WIN32)
@@ -65,7 +69,7 @@ if(NOT (AARCH64 OR ARM))
 endif()
 
 if (NOT ENABLE_MLAS)
-    list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/gemm/*)
+    list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/mlas/*)
 endif()
 
 file(GLOB_RECURSE FILES_TO_REMOVE ${EXCLUDE_PATHS})

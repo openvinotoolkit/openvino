@@ -30,7 +30,7 @@
 #include <vector>
 
 #ifdef OV_CPU_WITH_MLAS
-#include "gemm/ov_cpu_gemm.h"
+#include "mlas/sgemm.hpp"
 #endif
 
 using namespace dnnl;
@@ -282,7 +282,7 @@ void FullyConnected::getSupportedDescriptors() {
 #ifdef OV_CPU_WITH_MLAS
     bool isINT8 = one_of(inputDataType, memory::data_type::u8, memory::data_type::s8) && weightsDataType == memory::data_type::s8;
     // MLAS doesn't support post-ops fusing and BF16. INT8 is not enabled yet
-    // Disable MLAS when FC could fuse post
+    // Disable MLAS when FC could fuse post-ops
     useMlas = !useSparseWeights && (inputDataType != memory::data_type::bf16) && !isINT8 && fusedWith.empty();
     if (withBiases) {
         const auto& biasDims = getInputShapeAtPort(BIAS_ID).getStaticDims();
@@ -293,7 +293,14 @@ void FullyConnected::getSupportedDescriptors() {
         useMlas = useMlas && isByChannel;
     }
 #endif
-    if (useMlas) return;
+    std::string sgemmType = "MLAS";
+#ifdef CPU_DEBUG_CAPS
+    // Select Sgemm type by ENV MLAS/ONEDNN, MLAS is used by default
+    if (getenv("OV_CPU_GEMM")) {
+        sgemmType = std::string(getenv("OV_CPU_GEMM"));
+    }
+#endif
+    if (useMlas && sgemmType == "MLAS") return;
 
     for (auto format : getAvailableFormatsForDims(getInputShapeAtPort(0))) {
         auto in_candidate = dnnl::memory::desc(DnnlExtensionUtils::convertToDnnlDims(inDims), inputDataType, format);
@@ -311,16 +318,15 @@ void FullyConnected::prepackMLASWeight() {
         auto weightsMem = getParentEdgeAt(WEIGHTS_ID)->getMemoryPtr();
         if (!weightsMem)
             IE_THROW() << "Cannot get const weights edgeMem for node " << getName() << ".";
-        auto packedBsize = ov_sgemm_pack_get_size(N, K);
+        auto packedBsize = mlas_sgemm_pack_get_size(N, K);
         MemoryPtr ptr;
         auto create = [&]() {
             float* weightPtr = reinterpret_cast<float*>(weightsMem->GetPtr());
             size_t ldb = K;
             MemoryPtr _ptr = std::make_shared<Memory>(getEngine());
-            _ptr->Create(
-                intel_cpu::CpuBlockedMemoryDesc(Precision::I8, intel_cpu::Shape{packedBsize}));
+            _ptr->Create(intel_cpu::CpuBlockedMemoryDesc(Precision::I8, intel_cpu::Shape{packedBsize}));
             float* prepackedDst = reinterpret_cast<float*>(_ptr->GetPtr());
-            ov_sgemm_pack("T", N, K, ldb, weightPtr, prepackedDst);
+            mlas_sgemm_pack("T", N, K, ldb, weightPtr, prepackedDst);
             return _ptr;
         };
 
@@ -523,20 +529,20 @@ void FullyConnected::executeMLAS() {
     int64_t lda = K;
     int64_t ldb = K;
     int64_t ldc = N;
-    ov_sgemm_compute("N",
-                     "N",
-                     M,
-                     N,
-                     K,
-                     1.0f,
-                     reinterpret_cast<float*>(src0MemPtr->GetPtr()),
-                     lda,
-                     reinterpret_cast<float*>(mlasPackedPtr->GetPtr()),
-                     ldb,
-                     0.0f,
-                     reinterpret_cast<float*>(dstMemPtr->GetPtr()),
-                     ldc,
-                     withBiases ? reinterpret_cast<float*>(biasMemPtr->GetData()) : nullptr);
+    mlas_sgemm_compute("N",
+                       "N",
+                       M,
+                       N,
+                       K,
+                       1.0f,
+                       reinterpret_cast<float*>(src0MemPtr->GetPtr()),
+                       lda,
+                       reinterpret_cast<float*>(mlasPackedPtr->GetPtr()),
+                       ldb,
+                       0.0f,
+                       reinterpret_cast<float*>(dstMemPtr->GetPtr()),
+                       ldc,
+                       withBiases ? reinterpret_cast<float*>(biasMemPtr->GetData()) : nullptr);
 }
 
 #endif
