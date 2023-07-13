@@ -527,7 +527,7 @@ std::shared_ptr<ov::IAsyncInferRequest> ov::hetero::CompiledModel::create_infer_
 }
 
 void ov::hetero::CompiledModel::set_property(const ov::AnyMap& properties) {
-    m_cfg = Configuration{properties, m_cfg};
+    OPENVINO_NOT_IMPLEMENTED;
 }
 
 std::shared_ptr<const ov::Model> ov::hetero::CompiledModel::get_runtime_model() const {
