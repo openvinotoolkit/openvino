@@ -540,7 +540,7 @@ bool primitive_inst::update_impl() {
             }
         }
         if (!cached_impl) {
-            if (_dynamic_impl) {
+            if (_dynamic_impl && use_async_compilation()) {
                 auto& compilation_context = get_network().get_program()->get_compilation_context();
                 compilation_context.push_task(updated_params_no_dyn_pad.hash(), [this, &compilation_context, updated_params_no_dyn_pad]() {
                     if (compilation_context.is_stopped())
@@ -647,6 +647,14 @@ void primitive_inst::do_runtime_in_place_concat() {
 
 bool primitive_inst::has_inner_networks() const {
     return (_impl_params->inner_nets.size() > 0);
+}
+
+bool primitive_inst::use_async_compilation() const {
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    GPU_DEBUG_IF(debug_config->disable_async_compilation) {
+        return false;
+    }
+    return true;
 }
 
 event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
