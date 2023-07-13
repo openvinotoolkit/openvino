@@ -83,8 +83,6 @@ std::shared_ptr<ov::IRemoteContext> Plugin::create_context(const ov::AnyMap& rem
 }
 
 std::shared_ptr<ov::IRemoteContext> Plugin::get_default_context(const ov::AnyMap& remote_properties) const {
-    if (m_hw_compiledmodel)
-        return m_hw_compiledmodel->get_context();
     OPENVINO_NOT_IMPLEMENTED;
 }
 
@@ -261,8 +259,19 @@ std::vector<DeviceInformation> Plugin::parse_meta_devices(const std::string& pri
             LOG_DEBUG_TAG("deviceNameWithID:%s, defaultDeviceID:%s, uniqueName:%s",
                     device_name_with_id.c_str(), default_device_id.c_str(), unique_name.c_str());
             // create meta device
-            meta_devices.push_back({device_name_with_id, get_device_config(device_name_with_id),
-                                    num_requests, default_device_id, unique_name, device_priority});
+            try {
+                meta_devices.push_back({device_name_with_id,
+                                        get_device_config(device_name_with_id),
+                                        num_requests,
+                                        default_device_id,
+                                        unique_name,
+                                        device_priority});
+            } catch (const ov::Exception&) {
+                LOG_DEBUG_TAG("Failed to create meta device for deviceNameWithID:%s, defaultDeviceID:%s, uniqueName:%s",
+                              device_name_with_id.c_str(),
+                              default_device_id.c_str(),
+                              unique_name.c_str());
+            }
         }
         if (enable_device_priority) {
             device_priority++;
@@ -524,7 +533,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
     } else {
         impl = std::make_shared<AutoCompiledModel>(ppp_model, shared_from_this(), auto_s_context, std::make_shared<AutoSchedule>());
     }
-    m_hw_compiledmodel = auto_s_context->m_hw_compiled_model;
     return impl;
 }
 
