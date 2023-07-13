@@ -9,6 +9,9 @@
 #include "intel_gpu/graph/program.hpp"
 #include "data_inst.h"
 #include "crop_inst.h"
+#include "convolution_inst.h"
+#include "gather_inst.h"
+#include "gemm_inst.h"
 #include "reshape_inst.h"
 #include "fully_connected_inst.h"
 #include "permute_inst.h"
@@ -476,6 +479,7 @@ TEST(prepare_buffer_fusing, crop_b_axis) {
 
     auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 3, 2, 2, 2 } });
 
+
     set_values(input1, {
         1.f, 2.f,  3.f,  4.f,  1.f, 2.f,  3.f,  4.f,
         5.f, 6.f,  7.f,  8.f,  5.f, 6.f,  7.f,  11.f,
@@ -577,6 +581,190 @@ TEST(prepare_buffer_fusing, skip_in_place_concat_inside_shape_of_subgraph) {
     ASSERT_FALSE(in_place);
 }
 
+// Testing for implicit crop along batch axis and outer padding optimzing.
+// Outer padding opt includes opt out of reshape and reorder which has padded input only in batch axis
+// This optimzing also includes offset(outer axis padded input) handling of oneDNN primitive.
+TEST(prepare_buffer_fusing, test_implicit_crop_and_outerpadding) {
+    auto& engine = get_test_engine();
+
+    auto in_input = engine.allocate_memory({ data_types::i32, format::bfzyx, tensor{ 3, 6, 2, 2, 2 } }); // Dictionary
+    // Indexes
+    auto input_idx1 = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 1 } });
+    int64_t axis = 0;
+
+    // Change dimension (optimized out)
+    layout reorder_layout(data_types::f32, format::bfyx, { 1, 6, 4, 2 });
+
+    tests::set_random_values<int32_t>(in_input);
+
+    set_values(input_idx1, { 0 });
+
+    topology topology;
+    topology.add(input_layout("Input", in_input->get_layout()));
+    topology.add(input_layout("Input_idx_1", input_idx1->get_layout()));
+    topology.add(reorder("reorder_input", input_info("Input"), format::bfzyx, data_types::f32));
+    topology.add(gather("gather1", input_info("reorder_input"), input_info("Input_idx_1"), axis, ov::Shape{1, 6, 2, 2, 2}));
+    topology.add(reorder("gather1_reorder", input_info("gather1"), reorder_layout));
+    topology.add(reshape("reshape1", input_info("gather1_reorder"), tensor(6, 2, 2, 2)));
+    topology.add(crop("crop", input_info("reorder_input"), tensor{1, 6, 2, 2, 2}, tensor(1, 0, 0, 0, 0)));
+    topology.add(reorder("gather2_reorder", input_info("crop"), reorder_layout));
+    topology.add(reshape("reshape2", input_info("gather2_reorder"), tensor(6, 2, 2, 2)));
+    topology.add(gemm("gemm", { input_info("reshape1"), input_info("reshape2") }, data_types::f32, false, true));
+    topology.add(reorder("reorder_output", input_info("gemm"), format::bfyx, data_types::i8));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    cldnn::network network(engine, topology, config);
+
+    network.set_input_data("Input", in_input);
+    network.set_input_data("Input_idx_1", input_idx1);
+
+    auto outputs = network.execute();
+    auto output = outputs.at("reorder_output").get_memory();
+    cldnn::mem_lock<int8_t> output_ptr(output, get_test_stream());
+
+    ExecutionConfig ref_config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(false));
+    cldnn::network ref_network(engine, topology, ref_config);
+    ref_network.set_input_data("Input", in_input);
+    ref_network.set_input_data("Input_idx_1", input_idx1);
+
+    auto ref_outputs = ref_network.execute();
+    auto ref_output = ref_outputs.at("reorder_output").get_memory();
+    cldnn::mem_lock<int8_t> ref_output_ptr(ref_output, get_test_stream());
+
+    int crop_batch_num = 6;
+    int crop_feature_num = 2;
+    int crop_y_size = 2;
+    int crop_x_size = 2;
+    for (int b = 0; b < crop_batch_num; ++b) {
+        for (int f = 0; f < crop_feature_num; ++f) {
+            for (int y = 0; y < crop_y_size; ++y) {
+                for (int x = 0; x < crop_x_size; ++x) {
+                    int output_linear_id = x + crop_x_size * (y + crop_y_size * (f + crop_feature_num * b));
+                    ASSERT_EQ(output_ptr[output_linear_id], ref_output_ptr[output_linear_id]);
+                }
+            }
+        }
+    }
+
+    auto crop_prim = network.get_primitive("gather1");
+    ASSERT_EQ(crop_prim->can_be_optimized(), false);
+    crop_prim = network.get_primitive("crop");
+    ASSERT_EQ(crop_prim->can_be_optimized(), true);
+    auto reorder_prim = network.get_primitive("gather1_reorder");
+    ASSERT_EQ(reorder_prim->can_be_optimized(), true);
+    reorder_prim = network.get_primitive("gather2_reorder");
+    ASSERT_EQ(reorder_prim->can_be_optimized(), true);
+    auto reshape_prim = network.get_primitive("reshape1");
+    ASSERT_EQ(reshape_prim->can_be_optimized(), true);
+}
+
+// For conv, Check padded input and weight propagated by implicit crop are handled properly
+TEST(prepare_buffer_fusing, test_implicit_crop_and_outerpadding_conv) {
+    auto& engine = get_test_engine();
+    const std::string no_bias = "";
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 1, 5, 4 } });
+    auto weights = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 1, 3, 2 } });
+
+    set_values(input, { 2.1f, 3.4f, 4.5f, 5.5f, 6.8f, 2.9f, 2.3f, 3.5f, 4.4f, 6.6f,
+                        1.8f, 2.9f, 3.4f, 4.1f, 5.4f, 6.8f, 7.1f, 8.2f, 9.2f, 1.9f,
+                        1.1f, 2.4f, 3.5f, 4.5f, 5.8f, 2.9f, 2.3f, 3.5f, 4.4f, 6.6f,
+                        3.8f, 3.9f, 3.4f, 5.1f, 1.4f, 1.8f, 1.1f, 1.2f, 1.2f, 1.9f});
+    set_values<float>(weights, { 2.f, 4.f, 2.f, 4.f, 2.f, 4.f,
+                                 1.f, 2.f, 1.f, 2.f, 1.f, 2.f});
+    VVF<float> output_vec = {
+        { 20.0f, 27.0f, 38.0f },
+        { 17.0f, 19.0f, 19.0f } };
+
+    topology topology(
+        input_layout("input", input->get_layout()),
+        reorder("to_int", input_info("input"), { data_types::i8, format::bfyx, { 2, 1, 5, 4 } }),
+        crop("crop_input", input_info("to_int"), tensor{ 1, 1, 5, 4 }, tensor(1, 0, 0, 0)),
+        data("weights", weights),
+        reorder("to_weight", input_info("weights"), { data_types::i8, format::bfyx, { 2, 1, 3, 2 } }),
+        crop("crop_weight", input_info("to_weight"), tensor{ 1, 1, 3, 2 }, tensor(1, 0, 0, 0)),
+        convolution("conv", input_info("crop_input"), "crop_weight", no_bias, 1, {2, 1}, {1, 1}, {0, 0}, {0, 0}, false),
+        reorder("output", input_info("conv"), format::bfyx, data_types::f32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
+    network.set_input_data("input", input);
+
+    auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "output");
+
+    auto output_memory = outputs.at("output").get_memory();
+    auto output_layout = output_memory->get_layout();
+    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+
+    int y_size = output_layout.spatial(1);
+    int x_size = output_layout.spatial(0);
+    int f_size = output_layout.feature();
+    int b_size = output_layout.batch();
+    ASSERT_EQ(output_layout.format, format::bfyx);
+    ASSERT_EQ(y_size, 2);
+    ASSERT_EQ(x_size, 3);
+    ASSERT_EQ(f_size, 1);
+    ASSERT_EQ(b_size, 1);
+    for (int y = 0; y < y_size; ++y) {
+        for (int x = 0; x < x_size; ++x) {
+            ASSERT_EQ(output_vec[y][x], output_ptr[y * x_size + x]);
+        }
+    }
+
+    auto crop_prim = network.get_primitive("crop_input");
+    ASSERT_EQ(crop_prim->can_be_optimized(), true);
+}
+
+// For deconv, Check padded input and weight propagated by implicit crop are handled properly
+TEST(prepare_buffer_fusing, test_implicit_crop_and_outerpadding_deconv) {
+    auto& engine = get_test_engine();
+    const std::string no_bias = "";
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 4, 1, 2, 2 } });
+    auto weights = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 1, 2, 2 } });
+    auto biases = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 1, 1 } });
+
+    set_values(input, { 16.f, 1.0f, 3.f, 4.5f, 9.f, 1.f, 3.f, 4.5f,
+                        8.f,  0.5f, 6.f, 9.f,  1.f, 3.f, 2.f, 4.f});
+    set_values<float>(weights, { -4.0f, 1.0f, 7.0f, 3.0f,
+                                 -2.0f, 2.0f, 7.0f, -0.5f});
+    set_values(biases, { 1.0f });
+    std::vector<float> expected_output_vec = { -3.f, 4.5f, 13.f, -17.f, 0.5f, 22.f, 5.f, -7.f };
+
+    topology topology(
+        input_layout("input", input->get_layout()),
+        reorder("to_int", input_info("input"), { data_types::f16, format::bfyx, { 4, 1, 2, 2 } }),
+        crop("crop_input", input_info("to_int"), tensor{ 2, 1, 2, 2 }, tensor(2, 0, 0, 0)),
+        data("weights", weights),
+        data("biases", biases),
+        reorder("to_weight", input_info("weights"), { data_types::f16, format::bfyx, { 2, 1, 2, 2 } }),
+        crop("crop_weight", input_info("to_weight"), tensor{ 1, 1, 2, 2 }, tensor(1, 0, 0, 0)),
+        deconvolution("deconv", input_info("crop_input"), { "crop_weight" }, { "biases" }, { 2, 2 }, { 1, 1 }),
+        reorder("output", input_info("deconv"), format::bfyx, data_types::f32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
+    network.set_input_data("input", input);
+
+    auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "output");
+
+    auto output_memory = outputs.at("output").get_memory();
+    auto output_layout = output_memory->get_layout();
+    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+
+    for (unsigned int i = 0; i < expected_output_vec.size(); i++)
+        ASSERT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
+
+    auto crop_prim = network.get_primitive("crop_input");
+    ASSERT_EQ(crop_prim->can_be_optimized(), true);
+}
+
 #ifdef ENABLE_ONEDNN_FOR_GPU
 TEST(prepare_buffer_fusing, in_place_onednn_concat_static) {
     auto& engine = get_test_engine();
@@ -639,5 +827,4 @@ TEST(prepare_buffer_fusing, in_place_onednn_concat_static) {
         ASSERT_EQ(ref_output[x], output_ptr[x]);
     }
 }
-
-#endif
+#endif  // ENABLE_ONEDNN_FOR_GPU

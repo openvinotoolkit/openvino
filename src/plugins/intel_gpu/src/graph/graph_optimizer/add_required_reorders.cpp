@@ -135,8 +135,8 @@ void add_required_reorders::run(program& p) {
                 continue;
             } else {
                 // oneDNN doesn't support padded memory, so add reorder directly if needed
-                for (size_t i = 0; i < usr->get_dependencies().size(); i++) {
-                    auto& input = usr->get_dependency(i);
+                for (size_t idx = 0; idx < usr->get_dependencies().size(); idx++) {
+                    auto& input = usr->get_dependency(idx);
                     if (!input.is_in_data_flow() || input.is_constant())
                         continue;
 
@@ -149,6 +149,15 @@ void add_required_reorders::run(program& p) {
                         for (size_t i = 0; i < in_padding.upper_size().spatial.size(); ++i) {
                             spatial_padding |= (in_padding.upper_size().spatial[i] != 0);
                         }
+
+                        bool feature_padding = false;
+                        for (size_t i = 0; i < in_padding.lower_size().feature.size(); ++i) {
+                            feature_padding |= (in_padding.lower_size().feature[i] != 0);
+                        }
+                        for (size_t i = 0; i < in_padding.upper_size().feature.size(); ++i) {
+                            feature_padding |= (in_padding.upper_size().feature[i] != 0);
+                        }
+
                         bool batch_padding = false;
                         for (size_t i = 0; i < in_padding.lower_size().batch.size(); ++i) {
                             batch_padding |= (in_padding.lower_size().batch[i] != 0);
@@ -156,6 +165,11 @@ void add_required_reorders::run(program& p) {
                         for (size_t i = 0; i < in_padding.upper_size().batch.size(); ++i) {
                             batch_padding |= (in_padding.upper_size().batch[i] != 0);
                         }
+
+                        if (batch_padding && !feature_padding && !spatial_padding) {
+                            batch_padding = false;
+                        }
+
                         if (spatial_padding || batch_padding) {
                             cldnn::layout layout_padding = input.get_output_layout();
                             cldnn::layout layout_wo_padding = input.get_output_layout();
@@ -164,7 +178,7 @@ void add_required_reorders::run(program& p) {
                             layout_wo_padding.data_padding.upper_size().feature = layout_padding.data_padding.upper_size().feature;
                             auto new_reorder = std::make_shared<reorder>(input.id() + "_padding_reorder_" + usr->id(), input.id(), layout_wo_padding);
                             auto& new_reorder_node = p.get_or_create(new_reorder);
-                            p.add_intermediate(new_reorder_node, *usr, i);
+                            p.add_intermediate(new_reorder_node, *usr, idx);
                         } else {
                             continue;
                         }
