@@ -145,11 +145,13 @@ void ov::proxy::Plugin::set_property(const ov::AnyMap& properties) {
     // Empty config_name means means global config for all devices
     std::string config_name = is_device_in_config(hw_config) ? std::to_string(get_device_from_config(hw_config)) : "";
 
+    bool proxy_config_was_changed = false;
     // Parse alias config
     it = hw_config.find(ov::proxy::alias_for.name());
     bool fill_order = hw_config.find(ov::proxy::device_priorities.name()) == hw_config.end() && m_device_order.empty();
     if (it != hw_config.end()) {
         for (auto&& dev : it->second.as<std::vector<std::string>>()) {
+            proxy_config_was_changed = true;
             m_alias_for.emplace(dev);
             if (fill_order)
                 m_device_order.emplace_back(dev);
@@ -159,6 +161,7 @@ void ov::proxy::Plugin::set_property(const ov::AnyMap& properties) {
     // Restore device order
     it = hw_config.find(ov::proxy::device_priorities.name());
     if (it != hw_config.end()) {
+        proxy_config_was_changed = true;
         m_device_order.clear();
         std::vector<std::pair<std::string, size_t>> priority_order;
         // Biggest number means minimum priority
@@ -253,6 +256,10 @@ void ov::proxy::Plugin::set_property(const ov::AnyMap& properties) {
         }
     }
     get_core()->set_property(primary_dev, hw_config);
+
+    if (proxy_config_was_changed)
+        // Check that proxy found available devices
+        get_hidden_devices();
 }
 
 ov::Any ov::proxy::Plugin::get_property(const std::string& name, const ov::AnyMap& arguments) const {
@@ -471,7 +478,10 @@ std::vector<std::vector<std::string>> ov::proxy::Plugin::get_hidden_devices() co
     std::vector<std::vector<std::string>> result;
     const auto core = get_core();
     OPENVINO_ASSERT(core != nullptr);
-    OPENVINO_ASSERT(!m_alias_for.empty());  // alias_for cannot be empty. 1 is for fallback mode, >1 in other
+    OPENVINO_ASSERT(
+        !m_alias_for.empty(),
+        get_device_name(),
+        " cannot find available devices!");  // alias_for cannot be empty. 1 is for fallback mode, >1 in other
 
     // If we have 1 alias we use simple hetero mode
     if (m_alias_for.size() == 1) {

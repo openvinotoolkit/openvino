@@ -148,6 +148,23 @@ TEST_F(ProxyTests, get_available_devices_with_low_level_plugin) {
     EXPECT_TRUE(mock_reference_dev.empty());
 }
 
+TEST_F(ProxyTests, load_proxy_without_devices) {
+    ov::AnyMap config;
+    config[ov::proxy::alias_for.name()] = "Fake";
+    // Change device priority
+    core.set_property("MOCK", config);
+    auto available_devices = core.get_available_devices();
+    EXPECT_THROW(core.get_property("MOCK", ov::device::priorities), ov::Exception);
+    std::set<std::string> mock_reference_dev = {"MOCK", "MOCK.0", "MOCK.1", "MOCK.2"};
+    for (const auto& dev : available_devices) {
+        if (mock_reference_dev.find(dev) != mock_reference_dev.end()) {
+            mock_reference_dev.erase(dev);
+        }
+    }
+    // Mock devices shouldn't be found
+    EXPECT_EQ(mock_reference_dev.size(), 4);
+}
+
 TEST_F(ProxyTests, get_available_devices_with_disabled_plugin) {
     ov::AnyMap config;
     config[ov::device::priorities.name()] = "BDE";

@@ -611,7 +611,14 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
                 if (it != desc.defaultConfig.end()) {
                     initial_config[ov::device::priorities.name()] = it->second;
                 }
-                plugin.set_property(initial_config);
+                try {
+                    plugin.set_property(initial_config);
+                } catch (const ov::Exception& ex) {
+                    OPENVINO_THROW("Failed to create plugin for device ",
+                                   deviceName,
+                                   "\nPlease, check your environment\n",
+                                   ex.what());
+                }
             }
 #endif
             // TODO: remove this block of code once GPU removes support of ov::cache_dir
