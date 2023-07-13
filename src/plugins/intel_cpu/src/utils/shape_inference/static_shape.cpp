@@ -267,14 +267,6 @@ ov::Shape StaticShapeRef::get_shape() const {
 
 }   // namespace intel_cpu
 
-/**
- * @brief Specialization to throw the `NodeValidationFailure` for shape inference using `StaticShape`
- *
- * @param check_loc_info Exception location details to print.
- * @param ctx            NodeValidationFailure context which got pointer to node and input shapes used for shape
- * inference.
- * @param explanation    Exception explanation string.
- */
 template <>
 void NodeValidationFailure::create(const CheckLocInfo& check_loc_info,
                                    std::pair<const Node*, const std::vector<intel_cpu::StaticShape>*>&& ctx,
