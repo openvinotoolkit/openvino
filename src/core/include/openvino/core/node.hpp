@@ -551,9 +551,9 @@ protected:
  * @param explanation    Exception explanation string.
  */
 template <>
-void NodeValidationFailure::create(const CheckLocInfo& check_loc_info,
-                                   std::pair<const Node*, const std::vector<PartialShape>*>&& ctx,
-                                   const std::string& explanation);
+OPENVINO_API void NodeValidationFailure::create(const CheckLocInfo& check_loc_info,
+                                                std::pair<const Node*, const std::vector<PartialShape>*>&& ctx,
+                                                const std::string& explanation);
 }  // namespace ov
 #define NODE_VALIDATION_CHECK(node, ...) OPENVINO_ASSERT_HELPER(::ov::NodeValidationFailure, (node), __VA_ARGS__)
 
